@@ -10,7 +10,7 @@ export interface MarketplaceManifest<T = unknown> {
     long: string
   }
   'release-notes': string
-  license: string // name
+  license: string // type of license
   'wrapper-repo': Url
   'upstream-repo': Url
   'support-site': Url

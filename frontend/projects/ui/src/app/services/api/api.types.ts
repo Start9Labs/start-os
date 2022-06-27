@@ -249,6 +249,7 @@ export module RR {
   export type GetMarketplaceDataRes = MarketplaceData
 
   export type GetMarketplaceEOSReq = {
+    'server-id': string
     'eos-version': string
   }
   export type GetMarketplaceEOSRes = MarketplaceEOS

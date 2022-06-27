@@ -50,15 +50,13 @@ export class EOSService {
   ) {}
 
   async getEOS(): Promise<boolean> {
-    const version = this.patch.getData()['server-info'].version
+    const server = this.patch.getData()['server-info']
+    const version = server.version
     this.eos = await this.api.getEos({
+      'server-id': server.id,
       'eos-version': version,
     })
-    const updateAvailable =
-      this.emver.compare(
-        this.eos.version,
-        this.patch.getData()['server-info'].version,
-      ) === 1
+    const updateAvailable = this.emver.compare(this.eos.version, version) === 1
     this.updateAvailable$.next(updateAvailable)
     return updateAvailable
   }

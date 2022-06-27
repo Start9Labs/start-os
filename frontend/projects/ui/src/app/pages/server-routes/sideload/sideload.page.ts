@@ -5,12 +5,14 @@ import { Manifest } from 'src/app/services/patch-db/data-model'
 import { ConfigService } from 'src/app/services/config.service'
 import cbor from 'cbor'
 import { ErrorToastService } from '@start9labs/shared'
+
 interface Positions {
   [key: string]: [bigint, bigint] // [position, length]
 }
 
 const MAGIC = new Uint8Array([59, 59])
 const VERSION = new Uint8Array([1])
+
 @Component({
   selector: 'sideload',
   templateUrl: './sideload.page.html',
@@ -28,8 +30,10 @@ export class SideloadPage {
     file: null,
   }
   onTor = this.config.isTor()
-  valid: boolean
-  message: string
+  uploadState: {
+    invalid: boolean
+    message: string
+  }
 
   constructor(
     private readonly loadingCtrl: LoadingController,
@@ -49,29 +53,27 @@ export class SideloadPage {
     this.setFile(files)
   }
   async setFile(files?: File[]) {
-    const loader = await this.loadingCtrl.create({
-      message: 'Verifying package',
-      cssClass: 'loader',
-    })
-    await loader.present()
     if (!files || !files.length) return
-    this.toUpload.file = files[0]
-    // verify valid s9pk
-    const magic = new Uint8Array(
-      await readBlobToArrayBuffer(this.toUpload.file.slice(0, 2)),
-    )
-    const version = new Uint8Array(
-      await readBlobToArrayBuffer(this.toUpload.file.slice(2, 3)),
-    )
+    const file = files[0]
+    if (!file) return
+    this.toUpload.file = file
+    this.uploadState = await this.validateS9pk(file)
+  }
+
+  async validateS9pk(file: File) {
+    const magic = new Uint8Array(await blobToBuffer(file.slice(0, 2)))
+    const version = new Uint8Array(await blobToBuffer(file.slice(2, 3)))
     if (compare(magic, MAGIC) && compare(version, VERSION)) {
-      loader.dismiss()
-      this.valid = true
-      this.message = 'A valid package file has been detected!'
-      await this.parseS9pk(this.toUpload.file)
+      await this.parseS9pk(file)
+      return {
+        invalid: false,
+        message: 'A valid package file has been detected!',
+      }
     } else {
-      loader.dismiss()
-      this.valid = false
-      this.message = 'Invalid package file'
+      return {
+        invalid: true,
+        message: 'Invalid package file',
+      }
     }
   }
 
@@ -93,7 +95,7 @@ export class SideloadPage {
         icon: this.toUpload.icon!,
       })
       this.api
-        .uploadPackage(guid, await readBlobToArrayBuffer(this.toUpload.file!))
+        .uploadPackage(guid, await blobToBuffer(this.toUpload.file!))
         .catch(e => {
           this.errToast.present(e)
         })
@@ -108,15 +110,13 @@ export class SideloadPage {
     }
   }
 
-  async parseS9pk(file: Blob) {
+  async parseS9pk(file: File) {
     const positions: Positions = {}
     // magic=2bytes, version=1bytes, pubkey=32bytes, signature=64bytes, toc_length=4bytes = 103byte is starting point
     let start = 103
     let end = start + 1 // 104
     const tocLength = new DataView(
-      await readBlobToArrayBuffer(
-        this.toUpload.file?.slice(99, 103) ?? new Blob(),
-      ),
+      await blobToBuffer(file.slice(99, 103) ?? new Blob()),
     ).getUint32(0, false)
     await getPositions(start, end, file, positions, tocLength as any)
 
@@ -125,7 +125,7 @@ export class SideloadPage {
   }
 
   async getManifest(positions: Positions, file: Blob) {
-    const data = await readBlobToArrayBuffer(
+    const data = await blobToBuffer(
       file.slice(
         Number(positions['manifest'][0]),
         Number(positions['manifest'][0]) + Number(positions['manifest'][1]),
@@ -135,11 +135,15 @@ export class SideloadPage {
   }
 
   async getIcon(positions: Positions, file: Blob) {
+    const contentType = `image/${this.toUpload.manifest?.assets.icon
+      .split('.')
+      .pop()}`
     const data = file.slice(
       Number(positions['icon'][0]),
       Number(positions['icon'][0]) + Number(positions['icon'][1]),
+      contentType,
     )
-    this.toUpload.icon = await readBlobAsDataURL(data)
+    this.toUpload.icon = await blobToDataURL(data)
   }
 }
 
@@ -153,18 +157,18 @@ async function getPositions(
   let start = initialStart
   let end = initialEnd
   const titleLength = new Uint8Array(
-    await readBlobToArrayBuffer(file.slice(start, end)),
+    await blobToBuffer(file.slice(start, end)),
   )[0]
   const tocTitle = await file.slice(end, end + titleLength).text()
   start = end + titleLength
   end = start + 8
   const chapterPosition = new DataView(
-    await readBlobToArrayBuffer(file.slice(start, end)),
+    await blobToBuffer(file.slice(start, end)),
   ).getBigUint64(0, false)
   start = end
   end = start + 8
   const chapterLength = new DataView(
-    await readBlobToArrayBuffer(file.slice(start, end)),
+    await blobToBuffer(file.slice(start, end)),
   ).getBigUint64(0, false)
 
   positions[tocTitle] = [chapterPosition, chapterLength]
@@ -175,23 +179,48 @@ async function getPositions(
   }
 }
 
-async function readBlobAsDataURL(f: Blob): Promise<string> {
+async function readBlobAsDataURL(
+  f: Blob | File,
+): Promise<string | ArrayBuffer | null> {
   const reader = new FileReader()
-  reader.readAsDataURL(f)
-  return new Promise(resolve => {
+  return new Promise((resolve, reject) => {
     reader.onloadend = () => {
-      resolve(reader.result as string)
+      resolve(reader.result)
     }
+    reader.readAsDataURL(f)
+    reader.onerror = _ => reject(new Error('error reading blob'))
   })
 }
+async function blobToDataURL(data: Blob | File): Promise<string> {
+  const res = await readBlobAsDataURL(data)
+  if (res instanceof ArrayBuffer)
+    throw new Error('readBlobAsDataURL response should not be an array buffer')
+  if (res == null)
+    throw new Error('readBlobAsDataURL response should not be null')
+  if (typeof res === 'string') return res
+  throw new Error('no possible blob to data url resolution found')
+}
 
-async function readBlobToArrayBuffer(f: Blob): Promise<ArrayBuffer> {
+async function blobToBuffer(data: Blob | File): Promise<ArrayBuffer> {
+  const res = await readBlobToArrayBuffer(data)
+  if (res instanceof String)
+    throw new Error('readBlobToArrayBuffer response should not be a string')
+  if (res == null)
+    throw new Error('readBlobToArrayBuffer response should not be null')
+  if (res instanceof ArrayBuffer) return res
+  throw new Error('no possible blob to array buffer resolution found')
+}
+
+async function readBlobToArrayBuffer(
+  f: Blob | File,
+): Promise<string | ArrayBuffer | null> {
   const reader = new FileReader()
-  reader.readAsArrayBuffer(f)
-  return new Promise(resolve => {
+  return new Promise((resolve, reject) => {
     reader.onloadend = () => {
-      resolve(reader.result as ArrayBuffer)
+      resolve(reader.result)
     }
+    reader.readAsArrayBuffer(f)
+    reader.onerror = _ => reject(new Error('error reading blob'))
   })
 }
 

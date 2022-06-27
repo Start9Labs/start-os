@@ -2,6 +2,7 @@ import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { Url } from '@start9labs/shared'
 import { MarketplaceManifest } from '@start9labs/marketplace'
 import { BasicInfo } from 'src/app/pages/developer-routes/developer-menu/form-info'
+import { string } from 'ts-matches'
 
 export interface DataModel {
   'server-info': ServerInfo
@@ -120,6 +121,14 @@ export interface CurrentDependencyInfo {
 }
 
 export interface Manifest extends MarketplaceManifest<DependencyConfig | null> {
+  assets: {
+    license: string // filename
+    instructions: string // filename
+    icon: string // filename
+    docker_images: string // filename
+    assets: string // path to assets folder
+    scripts: string // path to scripts folder
+  }
   main: ActionImpl
   'health-checks': Record<
     string,
