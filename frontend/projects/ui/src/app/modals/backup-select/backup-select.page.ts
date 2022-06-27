@@ -37,7 +37,7 @@ export class BackupSelectPage {
               title,
               icon: pkg['static-files'].icon,
               disabled: pkg.state !== PackageState.Installed,
-              checked: true,
+              checked: pkg.state === PackageState.Installed,
             }
           })
         }),

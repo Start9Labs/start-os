@@ -68,13 +68,13 @@
             <p>Hostname: {{ cifs.hostname }}</p>
             <p>Path: {{ cifs.path }}</p>
           </ion-label>
-          <ion-button
+          <ion-note
             slot="end"
+            class="click-area"
             (click)="presentActionCifs($event, target, i)"
-            fill="clear"
           >
-            <ion-icon slot="icon-only" name="ellipsis-horizontal"></ion-icon>
-          </ion-button>
+            <ion-icon name="ellipsis-horizontal"></ion-icon>
+          </ion-note>
         </ion-item>
       </ng-container>
 

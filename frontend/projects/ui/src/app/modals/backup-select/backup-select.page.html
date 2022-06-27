@@ -22,6 +22,7 @@
         slot="end"
         [(ngModel)]="pkg.checked"
         (ionChange)="handleChange()"
+        [disabled]="pkg.disabled"
       ></ion-checkbox>
     </ion-item>
   </ion-item-group>

@@ -1,0 +1,18 @@
+.click-area {
+    padding: 50px;
+
+
+    &:hover {
+        background-color: var(--ion-color-medium-tint);
+    }
+
+    ion-icon {
+        font-size: 27px;
+    }
+}
+
+@media (max-width: 1000px) {
+    .click-area {
+        padding: 18px 0px 10px;
+    }
+}
