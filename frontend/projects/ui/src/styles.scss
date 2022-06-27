@@ -43,6 +43,13 @@
   src: url('/assets/fonts/Open_Sans/OpenSans-Light.ttf');
 }
 
+@font-face {
+  font-family: 'Wingdings';
+  font-style: normal;
+  font-weight: normal;
+  src: url('/assets/fonts/Wingdings/Wingdings-Regular-Font.ttf');
+}
+
 /** Ionic CSS Variables overrides **/
 :root {
   --ion-font-family: 'Open Sans';
