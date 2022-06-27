@@ -2,7 +2,7 @@ use std::path::Path;
 
 use async_trait::async_trait;
 use digest::generic_array::GenericArray;
-use digest::{Digest, OutputSizeUser};
+use digest::OutputSizeUser;
 use sha2::Sha256;
 
 use crate::Error;

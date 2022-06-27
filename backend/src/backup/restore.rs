@@ -27,6 +27,7 @@ use crate::disk::mount::guard::TmpMountGuard;
 use crate::install::progress::InstallProgress;
 use crate::install::{download_install_s9pk, PKG_PUBLIC_DIR};
 use crate::net::ssl::SslManager;
+use crate::notifications::NotificationLevel;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::s9pk::reader::S9pkReader;
 use crate::setup::RecoveryStatus;
@@ -34,7 +35,6 @@ use crate::util::display_none;
 use crate::util::io::dir_size;
 use crate::util::serde::IoFormat;
 use crate::volume::{backup_dir, BACKUP_DIR, PKG_VOLUME_DIR};
-use crate::{auth::check_password_against_db, notifications::NotificationLevel};
 use crate::{Error, ResultExt};
 
 fn parse_comma_separated(arg: &str, _: &ArgMatches<'_>) -> Result<Vec<PackageId>, Error> {

@@ -1,5 +1,5 @@
 use std::borrow::Borrow;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 use std::time::Duration;
@@ -19,15 +19,16 @@ use crate::net::mdns::resolve_mdns;
 use crate::{Error, ErrorKind, ResultExt};
 
 pub struct DnsController {
-    services: Arc<RwLock<BTreeMap<PackageId, Ipv4Addr>>>,
+    services: Arc<RwLock<BTreeMap<PackageId, BTreeSet<Ipv4Addr>>>>,
+    #[allow(dead_code)]
     dns_server: NonDetachingJoinHandle<Result<(), Error>>,
 }
 
 struct Resolver {
-    services: Arc<RwLock<BTreeMap<PackageId, Ipv4Addr>>>,
+    services: Arc<RwLock<BTreeMap<PackageId, BTreeSet<Ipv4Addr>>>>,
 }
 impl Resolver {
-    async fn resolve(&self, name: &Name) -> Option<Ipv4Addr> {
+    async fn resolve(&self, name: &Name) -> Option<Vec<Ipv4Addr>> {
         match name.iter().next_back() {
             Some(b"local") => match resolve_mdns(&format!(
                 "{}.local",
@@ -40,7 +41,7 @@ impl Resolver {
             ))
             .await
             {
-                Ok(ip) => Some(ip),
+                Ok(ip) => Some(vec![ip]),
                 Err(e) => {
                     tracing::error!("{}", e);
                     tracing::debug!("{:?}", e);
@@ -55,7 +56,7 @@ impl Resolver {
                         .await
                         .get(std::str::from_utf8(pkg).unwrap_or_default())
                     {
-                        Some(*ip)
+                        Some(ip.iter().copied().collect())
                     } else {
                         None
                     }
@@ -84,11 +85,15 @@ impl RequestHandler for Resolver {
                 .send_response(
                     MessageResponseBuilder::from_message_request(&*request).build(
                         Header::response_from_request(request.header()),
-                        &[Record::from_rdata(
-                            request.request_info().query.name().to_owned().into(),
-                            0,
-                            trust_dns_server::client::rr::RData::A(ip),
-                        )],
+                        &ip.into_iter()
+                            .map(|ip| {
+                                Record::from_rdata(
+                                    request.request_info().query.name().to_owned().into(),
+                                    0,
+                                    trust_dns_server::client::rr::RData::A(ip),
+                                )
+                            })
+                            .collect::<Vec<_>>(),
                         [],
                         [],
                         [],
@@ -149,10 +154,18 @@ impl DnsController {
     }
 
     pub async fn add(&self, pkg_id: &PackageId, ip: Ipv4Addr) {
-        self.services.write().await.insert(pkg_id.clone(), ip);
+        let mut writable = self.services.write().await;
+        let mut ips = writable.remove(pkg_id).unwrap_or_default();
+        ips.insert(ip);
+        writable.insert(pkg_id.clone(), ips);
     }
 
-    pub async fn remove(&self, pkg_id: &PackageId) {
-        self.services.write().await.remove(pkg_id);
+    pub async fn remove(&self, pkg_id: &PackageId, ip: Ipv4Addr) {
+        let mut writable = self.services.write().await;
+        let mut ips = writable.remove(pkg_id).unwrap_or_default();
+        ips.remove(&ip);
+        if !ips.is_empty() {
+            writable.insert(pkg_id.clone(), ips);
+        }
     }
 }

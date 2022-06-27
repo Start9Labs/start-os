@@ -141,6 +141,7 @@ impl NetController {
     pub async fn remove<I: IntoIterator<Item = InterfaceId> + Clone>(
         &self,
         pkg_id: &PackageId,
+        ip: Ipv4Addr,
         interfaces: I,
     ) -> Result<(), Error> {
         let (tor_res, _, nginx_res, _) = tokio::join!(
@@ -153,7 +154,7 @@ impl NetController {
                 mdns_fut
             },
             self.nginx.remove(pkg_id),
-            self.dns.remove(pkg_id),
+            self.dns.remove(pkg_id, ip),
         );
         tor_res?;
         nginx_res?;
