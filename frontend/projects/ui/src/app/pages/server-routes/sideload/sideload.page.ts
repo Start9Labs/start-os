@@ -12,6 +12,7 @@ interface Positions {
 
 const MAGIC = new Uint8Array([59, 59])
 const VERSION = new Uint8Array([1])
+
 @Component({
   selector: 'sideload',
   templateUrl: './sideload.page.html',
@@ -29,8 +30,10 @@ export class SideloadPage {
     file: null,
   }
   onTor = this.config.isTor()
-  invalid: boolean
-  message: string
+  uploadState: {
+    invalid: boolean
+    message: string
+  }
 
   constructor(
     private readonly loadingCtrl: LoadingController,
@@ -59,9 +62,7 @@ export class SideloadPage {
     const version = new Uint8Array(
       await blobToBuffer(this.toUpload.file.slice(2, 3)),
     )
-    const validation = this.validateS9pk(magic, version)
-    this.message = validation.message
-    this.invalid = validation.invalid
+    this.uploadState = this.validateS9pk(magic, version)
   }
 
   validateS9pk(magic: Uint8Array, version: Uint8Array) {
@@ -82,7 +83,6 @@ export class SideloadPage {
     this.toUpload.file = null
     this.toUpload.manifest = null
     this.toUpload.icon = null
-    this.message = ''
   }
 
   async handleUpload() {
