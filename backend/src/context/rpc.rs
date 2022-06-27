@@ -45,6 +45,7 @@ pub struct RpcContextConfig {
     pub bind_static: Option<SocketAddr>,
     pub tor_control: Option<SocketAddr>,
     pub tor_socks: Option<SocketAddr>,
+    pub dns_bind: Option<Vec<SocketAddr>>,
     pub revision_cache_size: Option<usize>,
     pub datadir: Option<PathBuf>,
     pub log_server: Option<Url>,
@@ -222,6 +223,10 @@ impl RpcContext {
             crate::net::tor::os_key(&mut secret_store.acquire().await?).await?,
             base.tor_control
                 .unwrap_or(SocketAddr::from(([127, 0, 0, 1], 9051))),
+            base.dns_bind
+                .as_ref()
+                .map(|v| v.as_slice())
+                .unwrap_or(&[SocketAddr::from(([127, 0, 0, 1], 53))]),
             secret_store.clone(),
             None,
         )

@@ -80,6 +80,11 @@ ControlPort 9051
 CookieAuthentication 1
 EOF
 
+# enable embassyd dns server
+systemctl enable systemd-resolved
+sed -i '/\(^\|#\)DNS=/c\DNS=127.0.0.1' /etc/systemd/resolved.conf
+sed -i '/prepend domain-name-servers/c\prepend domain-name-servers 127.0.0.53;' /etc/dhcp/dhclient.conf
+
 if [ -f /embassy-os/product_key.txt ]
 then
 	cat /embassy-os/product_key.txt | tr -d '\n' | sha256sum | head -c 32 | sed 's/$/\n/' > /etc/machine-id

@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::net::IpAddr;
+use std::net::Ipv4Addr;
 
 use avahi_sys::{
     self, avahi_client_errno, avahi_entry_group_add_service, avahi_entry_group_commit,
@@ -17,7 +17,7 @@ use crate::s9pk::manifest::PackageId;
 use crate::util::Invoke;
 use crate::Error;
 
-pub async fn resolve_mdns(hostname: &str) -> Result<IpAddr, Error> {
+pub async fn resolve_mdns(hostname: &str) -> Result<Ipv4Addr, Error> {
     Ok(String::from_utf8(
         Command::new("avahi-resolve-host-name")
             .arg("-4")

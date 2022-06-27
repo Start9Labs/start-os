@@ -293,6 +293,7 @@ async fn run_main(
         .net_controller
         .remove(
             &state.manifest.id,
+            ip,
             state.manifest.interfaces.0.keys().cloned(),
         )
         .await?;

@@ -14,11 +14,13 @@ use self::mdns::MdnsController;
 use self::nginx::NginxController;
 use self::ssl::SslManager;
 use self::tor::TorController;
+use crate::net::dns::DnsController;
 use crate::net::interface::TorConfig;
 use crate::net::nginx::InterfaceMetadata;
 use crate::s9pk::manifest::PackageId;
 use crate::Error;
 
+pub mod dns;
 pub mod interface;
 #[cfg(feature = "avahi")]
 pub mod mdns;
@@ -45,6 +47,7 @@ pub struct NetController {
     pub mdns: MdnsController,
     pub nginx: NginxController,
     pub ssl: SslManager,
+    pub dns: DnsController,
 }
 impl NetController {
     #[instrument(skip(db))]
@@ -52,6 +55,7 @@ impl NetController {
         embassyd_addr: SocketAddr,
         embassyd_tor_key: TorSecretKeyV3,
         tor_control: SocketAddr,
+        dns_bind: &[SocketAddr],
         db: SqlitePool,
         import_root_ca: Option<(PKey<Private>, X509)>,
     ) -> Result<Self, Error> {
@@ -65,6 +69,7 @@ impl NetController {
             mdns: MdnsController::init(),
             nginx: NginxController::init(PathBuf::from("/etc/nginx"), &ssl).await?,
             ssl,
+            dns: DnsController::init(dns_bind).await?,
         })
     }
 
@@ -92,7 +97,7 @@ impl NetController {
                 Some(cfg) => Some((i.0, cfg, i.2)),
             })
             .collect::<Vec<(InterfaceId, TorConfig, TorSecretKeyV3)>>();
-        let (tor_res, _, nginx_res) = tokio::join!(
+        let (tor_res, _, nginx_res, _) = tokio::join!(
             self.tor.add(pkg_id, ip, interfaces_tor),
             {
                 #[cfg(feature = "avahi")]
@@ -123,7 +128,8 @@ impl NetController {
                         )),
                     });
                 self.nginx.add(&self.ssl, pkg_id.clone(), ip, interfaces)
-            }
+            },
+            self.dns.add(pkg_id, ip),
         );
         tor_res?;
         nginx_res?;
@@ -135,9 +141,10 @@ impl NetController {
     pub async fn remove<I: IntoIterator<Item = InterfaceId> + Clone>(
         &self,
         pkg_id: &PackageId,
+        ip: Ipv4Addr,
         interfaces: I,
     ) -> Result<(), Error> {
-        let (tor_res, _, nginx_res) = tokio::join!(
+        let (tor_res, _, nginx_res, _) = tokio::join!(
             self.tor.remove(pkg_id, interfaces.clone()),
             {
                 #[cfg(feature = "avahi")]
@@ -146,7 +153,8 @@ impl NetController {
                 let mdns_fut = futures::future::ready(());
                 mdns_fut
             },
-            self.nginx.remove(pkg_id)
+            self.nginx.remove(pkg_id),
+            self.dns.remove(pkg_id, ip),
         );
         tor_res?;
         nginx_res?;

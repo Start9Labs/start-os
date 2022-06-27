@@ -47,8 +47,8 @@ unstable = ["patch-db/unstable"]
 
 [dependencies]
 aes = { version = "0.7.5", features = ["ctr"] }
-async-trait = "0.1.51"
 async-stream = "0.3.3"
+async-trait = "0.1.51"
 avahi-sys = { git = "https://github.com/Start9Labs/avahi-sys", version = "0.10.0", branch = "feature/dynamic-linking", features = [
   "dynamic",
 ], optional = true }
@@ -138,6 +138,7 @@ tracing = "0.1"
 tracing-error = "0.1"
 tracing-futures = "0.2"
 tracing-subscriber = "0.2"
+trust-dns-server = "0.21.2"
 typed-builder = "0.9.1"
 url = { version = "2.2.2", features = ["serde"] }
 
