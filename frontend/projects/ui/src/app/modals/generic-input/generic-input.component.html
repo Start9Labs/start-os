@@ -23,13 +23,13 @@
           <ion-input
             #mainInput
             type="text"
-            [(ngModel)]="value"
             name="value"
+            [ngModel]="masked ? maskedValue : value"
+            (ngModelChange)="transformInput($event)"
             [placeholder]="options.placeholder"
             (ionChange)="error = ''"
           ></ion-input>
-          <!-- removing mask button until proper solution implemented -->
-          <!-- <ion-button
+          <ion-button
             slot="end"
             *ngIf="options.useMask"
             fill="clear"
@@ -38,10 +38,10 @@
           >
             <ion-icon
               slot="icon-only"
-              [name]="unmasked ? 'eye-off-outline' : 'eye-outline'"
+              [name]="!masked ? 'eye-off-outline' : 'eye-outline'"
               size="small"
             ></ion-icon>
-          </ion-button> -->
+          </ion-button>
         </ion-item>
         <!-- error -->
         <p *ngIf="error">

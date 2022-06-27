@@ -5,6 +5,7 @@ import { IonicModule } from '@ionic/angular'
 import { RouterModule } from '@angular/router'
 import { SharedPipesModule } from '@start9labs/shared'
 import { FormsModule } from '@angular/forms'
+import { MaskPipeModule } from 'src/app/pipes/mask/mask.module'
 
 @NgModule({
   declarations: [GenericInputComponent],
