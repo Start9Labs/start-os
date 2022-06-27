@@ -54,18 +54,27 @@ export class SideloadPage {
     this.toUpload.file = files[0]
     // verify valid s9pk
     const magic = new Uint8Array(
-      await handleBlobToBuffer(this.toUpload.file.slice(0, 2)),
+      await blobToBuffer(this.toUpload.file.slice(0, 2)),
     )
     const version = new Uint8Array(
-      await handleBlobToBuffer(this.toUpload.file.slice(2, 3)),
+      await blobToBuffer(this.toUpload.file.slice(2, 3)),
     )
+    const validation = this.validateS9pk(magic, version)
+    this.message = validation.message
+    this.invalid = validation.invalid
+  }
+
+  validateS9pk(magic: Uint8Array, version: Uint8Array) {
     if (compare(magic, MAGIC) && compare(version, VERSION)) {
-      this.message = 'A valid package file has been detected!'
-      this.invalid = false
-      await this.parseS9pk(this.toUpload.file)
+      return {
+        invalid: false,
+        message: 'A valid package file has been detected!',
+      } as const
     } else {
-      this.message = 'Invalid package file'
-      this.invalid = true
+      return {
+        invalid: true,
+        message: 'Invalid package file',
+      } as const
     }
   }
 
@@ -88,7 +97,7 @@ export class SideloadPage {
         icon: this.toUpload.icon!,
       })
       this.api
-        .uploadPackage(guid, await handleBlobToBuffer(this.toUpload.file!))
+        .uploadPackage(guid, await blobToBuffer(this.toUpload.file!))
         .catch(e => {
           this.errToast.present(e)
         })
@@ -109,9 +118,7 @@ export class SideloadPage {
     let start = 103
     let end = start + 1 // 104
     const tocLength = new DataView(
-      await handleBlobToBuffer(
-        this.toUpload.file?.slice(99, 103) ?? new Blob(),
-      ),
+      await blobToBuffer(this.toUpload.file?.slice(99, 103) ?? new Blob()),
     ).getUint32(0, false)
     await getPositions(start, end, file, positions, tocLength as any)
 
@@ -120,7 +127,7 @@ export class SideloadPage {
   }
 
   async getManifest(positions: Positions, file: Blob) {
-    const data = await handleBlobToBuffer(
+    const data = await blobToBuffer(
       file.slice(
         Number(positions['manifest'][0]),
         Number(positions['manifest'][0]) + Number(positions['manifest'][1]),
@@ -138,14 +145,7 @@ export class SideloadPage {
       Number(positions['icon'][0]) + Number(positions['icon'][1]),
       contentType,
     )
-    try {
-      const res = await handleBlobToData(data)
-      if (res) {
-        this.toUpload.icon = res
-      }
-    } catch (e: any) {
-      throw new Error(e)
-    }
+    this.toUpload.icon = await blobToDataURL(data)
   }
 }
 
@@ -159,18 +159,18 @@ async function getPositions(
   let start = initialStart
   let end = initialEnd
   const titleLength = new Uint8Array(
-    await handleBlobToBuffer(file.slice(start, end)),
+    await blobToBuffer(file.slice(start, end)),
   )[0]
   const tocTitle = await file.slice(end, end + titleLength).text()
   start = end + titleLength
   end = start + 8
   const chapterPosition = new DataView(
-    await handleBlobToBuffer(file.slice(start, end)),
+    await blobToBuffer(file.slice(start, end)),
   ).getBigUint64(0, false)
   start = end
   end = start + 8
   const chapterLength = new DataView(
-    await handleBlobToBuffer(file.slice(start, end)),
+    await blobToBuffer(file.slice(start, end)),
   ).getBigUint64(0, false)
 
   positions[tocTitle] = [chapterPosition, chapterLength]
@@ -194,50 +194,24 @@ async function readBlobAsDataURL(
   })
 }
 
-async function tryReadBlobAsDataUrl(
-  data: Blob | File,
-): Promise<string | Error> {
-  try {
-    const res = await readBlobAsDataURL(data)
-    if (res instanceof ArrayBuffer)
-      return new Error(
-        'readBlobAsDataURL response should not be an array buffer',
-      )
-    if (res == null)
-      return new Error('readBlobAsDataURL response should not be null')
-    if (typeof res === 'string') return res
-    return new Error('no possible blob to data url resolution found')
-  } catch (e: any) {
-    return new Error(e)
-  }
+async function blobToDataURL(data: Blob | File): Promise<string> {
+  const res = await readBlobAsDataURL(data)
+  if (res instanceof ArrayBuffer)
+    throw new Error('readBlobAsDataURL response should not be an array buffer')
+  if (res == null)
+    throw new Error('readBlobAsDataURL response should not be null')
+  if (typeof res === 'string') return res
+  throw new Error('no possible blob to data url resolution found')
 }
 
-async function handleBlobToData(data: Blob | File): Promise<string> {
-  const res = await tryReadBlobAsDataUrl(data)
-  if (res instanceof Error) throw res
-  return res
-}
-
-async function handleBlobToBuffer(data: Blob | File): Promise<ArrayBuffer> {
-  const res = await tryReadBlobToArrayBuffer(data)
-  if (res instanceof Error) throw res
-  return res
-}
-
-async function tryReadBlobToArrayBuffer(
-  data: Blob | File,
-): Promise<ArrayBuffer | Error> {
-  try {
-    const res = await readBlobToArrayBuffer(data)
-    if (res instanceof String)
-      return new Error('readBlobToArrayBuffer response should not be a string')
-    if (res == null)
-      return new Error('readBlobToArrayBuffer response should not be null')
-    if (res instanceof ArrayBuffer) return res
-    return new Error('no possible blob to array buffer resolution found')
-  } catch (e: any) {
-    return new Error(e)
-  }
+async function blobToBuffer(data: Blob | File): Promise<ArrayBuffer> {
+  const res = await readBlobToArrayBuffer(data)
+  if (res instanceof String)
+    throw new Error('readBlobToArrayBuffer response should not be a string')
+  if (res == null)
+    throw new Error('readBlobToArrayBuffer response should not be null')
+  if (res instanceof ArrayBuffer) return res
+  throw new Error('no possible blob to array buffer resolution found')
 }
 
 async function readBlobToArrayBuffer(
