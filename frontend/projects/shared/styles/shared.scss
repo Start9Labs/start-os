@@ -111,3 +111,11 @@ ion-modal::part(content) {
 .montserrat {
   font-family: 'Montserrat', sans-serif !important;
 }
+
+.color-success-shade {
+  color: var(--ion-color-success-shade)
+}
+
+.color-primary-shade {
+  color: var(--ion-color-primary-shade)
+}

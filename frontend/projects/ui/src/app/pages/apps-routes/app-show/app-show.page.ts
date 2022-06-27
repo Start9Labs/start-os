@@ -1,10 +1,11 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
 import { NavController } from '@ionic/angular'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import {
   PackageDataEntry,
   PackageMainStatus,
   PackageState,
+  UIMarketplaceData,
 } from 'src/app/services/patch-db/data-model'
 import {
   PackageStatus,
@@ -17,6 +18,12 @@ import {
 import { map, startWith, filter } from 'rxjs/operators'
 import { ActivatedRoute } from '@angular/router'
 import { getPkgId } from '@start9labs/shared'
+import { MarketplaceService } from 'src/app/services/marketplace.service'
+import {
+  AbstractMarketplaceService,
+  Marketplace,
+} from '@start9labs/marketplace'
+import { Observable } from 'rxjs'
 
 const STATES = [
   PackageState.Installing,
@@ -53,6 +60,12 @@ export class AppShowPage {
     ),
   )
 
+  readonly currentMarketplace$: Observable<Marketplace> =
+    this.marketplaceService.getMarketplace()
+
+  readonly altMarketplaceData$: Observable<UIMarketplaceData | undefined> =
+    this.marketplaceService.getAltMarketplace()
+
   readonly connectionFailure$ = this.connectionService
     .watchFailure$()
     .pipe(map(failure => failure !== ConnectionFailure.None))
@@ -62,7 +75,9 @@ export class AppShowPage {
     private readonly navCtrl: NavController,
     private readonly patch: PatchDbService,
     private readonly connectionService: ConnectionService,
-  ) { }
+    @Inject(AbstractMarketplaceService)
+    private readonly marketplaceService: MarketplaceService,
+  ) {}
 
   isInstalled(
     { state }: PackageDataEntry,

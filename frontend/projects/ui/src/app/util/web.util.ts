@@ -1,6 +1,7 @@
-export async function copyToClipboard (str: string): Promise<boolean> {
+export async function copyToClipboard(str: string): Promise<boolean> {
   if (window.isSecureContext) {
-    return navigator.clipboard.writeText(str)
+    return navigator.clipboard
+      .writeText(str)
       .then(() => {
         return true
       })

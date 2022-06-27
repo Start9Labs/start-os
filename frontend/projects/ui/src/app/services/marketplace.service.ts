@@ -92,6 +92,10 @@ export class MarketplaceService extends AbstractMarketplaceService {
     return this.marketplace$
   }
 
+  getAltMarketplace(): Observable<UIMarketplaceData | undefined> {
+    return this.altMarketplaceData$
+  }
+
   getCategories(): Observable<string[]> {
     return this.categories$
   }
