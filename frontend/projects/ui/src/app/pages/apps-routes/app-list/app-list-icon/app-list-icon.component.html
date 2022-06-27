@@ -13,6 +13,6 @@
     color="primary"
   ></ion-spinner>
   <ng-template #bulb>
-    <div class="bulb" [style.background-color]="color"></div>
+    <div class="bulb" [style.background-color]="color$ | async"></div>
   </ng-template>
 </ng-template>

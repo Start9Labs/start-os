@@ -67,7 +67,12 @@
     <ng-container *ngIf="notifications.length">
       <ion-item-group style="margin-bottom: 16px">
         <ion-item-divider>
-          <ion-button slot="end" fill="clear" (click)="presentAlertDeleteAll()">
+          <ion-button
+            slot="end"
+            fill="clear"
+            (click)="presentAlertDeleteAll()"
+            strong
+          >
             Delete All
           </ion-button>
         </ion-item-divider>

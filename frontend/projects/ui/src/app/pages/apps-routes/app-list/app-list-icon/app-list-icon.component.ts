@@ -1,4 +1,6 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import { map } from 'rxjs/operators'
+import { ConnectionService } from 'src/app/services/connection.service'
 import { PkgInfo } from 'src/app/util/get-package-info'
 
 @Component({
@@ -11,12 +13,13 @@ export class AppListIconComponent {
   @Input()
   pkg: PkgInfo
 
-  @Input()
-  connectionFailure = false
+  color$ = this.connectionService.watchDisconnected$().pipe(
+    map(disconnected => {
+      return disconnected
+        ? 'var(--ion-color-dark)'
+        : 'var(--ion-color-' + this.pkg.primaryRendering.color + ')'
+    }),
+  )
 
-  get color (): string {
-    return this.connectionFailure
-      ? 'var(--ion-color-dark)'
-      : 'var(--ion-color-' + this.pkg.primaryRendering.color + ')'
-  }
+  constructor(private readonly connectionService: ConnectionService) {}
 }

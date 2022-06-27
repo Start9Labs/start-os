@@ -12,15 +12,12 @@ import {
   Status,
 } from 'src/app/services/patch-db/data-model'
 import { ErrorToastService } from '@start9labs/shared'
-import {
-  AlertController,
-  IonicSafeString,
-  LoadingController,
-} from '@ionic/angular'
+import { AlertController, LoadingController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ModalService } from 'src/app/services/modal.service'
 import { DependencyInfo } from '../../pipes/to-dependencies.pipe'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
+import { ConnectionService } from 'src/app/services/connection.service'
 
 @Component({
   selector: 'app-show-status',
@@ -33,15 +30,14 @@ export class AppShowStatusComponent {
   pkg: PackageDataEntry
 
   @Input()
-  connectionFailure = false
-
-  @Input()
   status: PackageStatus
 
   @Input()
   dependencies: DependencyInfo[] = []
 
   PR = PrimaryRendering
+
+  disconnected$ = this.connectionService.watchDisconnected$()
 
   constructor(
     private readonly alertCtrl: AlertController,
@@ -50,6 +46,7 @@ export class AppShowStatusComponent {
     private readonly embassyApi: ApiService,
     private readonly launcherService: UiLauncherService,
     private readonly modalService: ModalService,
+    private readonly connectionService: ConnectionService,
   ) {}
 
   get interfaces(): Record<string, InterfaceDef> {
@@ -61,7 +58,7 @@ export class AppShowStatusComponent {
   }
 
   get isInstalled(): boolean {
-    return this.pkg.state === PackageState.Installed && !this.connectionFailure
+    return this.pkg.state === PackageState.Installed
   }
 
   get isRunning(): boolean {
@@ -69,10 +66,7 @@ export class AppShowStatusComponent {
   }
 
   get isStopped(): boolean {
-    return (
-      this.status.primary === PrimaryStatus.Stopped &&
-      !!this.pkgStatus?.configured
-    )
+    return this.status.primary === PrimaryStatus.Stopped
   }
 
   launchUi(): void {
@@ -155,6 +149,7 @@ export class AppShowStatusComponent {
             cssClass: 'enter-click',
           },
         ],
+        cssClass: 'alert-warning-message',
       })
 
       await alert.present()

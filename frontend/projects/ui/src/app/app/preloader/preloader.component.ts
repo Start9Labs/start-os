@@ -47,6 +47,7 @@ const ICONS = [
   'key-outline',
   'list-outline',
   'lock-closed-outline',
+  'log-out-outline',
   'logo-bitcoin',
   'mail-outline',
   'map-outline',

@@ -33,15 +33,11 @@ export class FilterPackagesPipe implements PipeTransform {
   constructor(private readonly emver: Emver) {}
 
   transform(
-    packages: MarketplacePkg[] | null,
+    packages: MarketplacePkg[],
     query: string,
     category: string,
     local: Record<string, { manifest: MarketplaceManifest }> = {},
-  ): MarketplacePkg[] | null {
-    if (!packages) {
-      return null
-    }
-
+  ): MarketplacePkg[] {
     if (query) {
       const fuse = new Fuse(packages, defaultOps)
 

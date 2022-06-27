@@ -15,9 +15,6 @@ export class AppListPkgComponent {
   @Input()
   pkg: PkgInfo
 
-  @Input()
-  connectionFailure = false
-
   constructor(private readonly launcherService: UiLauncherService) {}
 
   get status(): PackageMainStatus {

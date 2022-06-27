@@ -64,11 +64,10 @@
         *ngIf="otherSessions.length"
         slot="end"
         fill="clear"
-        color="danger"
         strong
         (click)="presentAlertKillAll()"
       >
-        Kill All
+        Log out all
       </ion-button>
     </ion-item-divider>
     <div *ngFor="let session of otherSessions">
@@ -86,10 +85,9 @@
         <ion-button
           slot="end"
           fill="clear"
-          color="danger"
           (click)="presentAlertKill(session.id)"
         >
-          <ion-icon slot="icon-only" name="close"></ion-icon>
+          <ion-icon slot="icon-only" name="log-out-outline"></ion-icon>
         </ion-button>
       </ion-item>
     </div>

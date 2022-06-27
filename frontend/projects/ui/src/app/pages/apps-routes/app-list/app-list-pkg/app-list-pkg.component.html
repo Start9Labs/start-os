@@ -1,9 +1,5 @@
 <ion-item button detail="false" [routerLink]="['/services', manifest.id]">
-  <app-list-icon
-    slot="start"
-    [pkg]="pkg"
-    [connectionFailure]="connectionFailure"
-  ></app-list-icon>
+  <app-list-icon slot="start" [pkg]="pkg"></app-list-icon>
   <ion-thumbnail slot="start">
     <img alt="" [src]="pkg.entry['static-files'].icon" />
   </ion-thumbnail>
@@ -11,7 +7,6 @@
     <h2>{{ manifest.title }}</h2>
     <p>{{ manifest.version | displayEmver }}</p>
     <status
-      [disconnected]="connectionFailure"
       [rendering]="pkg.primaryRendering"
       [installProgress]="pkg.entry['install-progress']"
       weight="bold"

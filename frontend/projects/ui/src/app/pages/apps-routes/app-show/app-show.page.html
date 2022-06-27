@@ -6,17 +6,15 @@
       <!-- ** status ** -->
       <app-show-status
         [pkg]="pkg"
-        [connectionFailure]="!!(connectionFailure$ | async)"
         [dependencies]="dependencies"
         [status]="status"
       ></app-show-status>
       <!-- ** installed && !backing-up ** -->
-      <ng-container *ngIf="isInstalled(pkg, status)">
+      <ng-container *ngIf="isInstalled(pkg) && !isBackingUp(status)">
         <!-- ** health checks ** -->
         <app-show-health-checks
           *ngIf="isRunning(status)"
           [pkg]="pkg"
-          [connectionFailure]="!!(connectionFailure$ | async)"
         ></app-show-health-checks>
         <!-- ** dependencies ** -->
         <app-show-dependencies

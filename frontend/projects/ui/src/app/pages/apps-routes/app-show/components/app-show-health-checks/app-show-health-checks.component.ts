@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import { ConnectionService } from 'src/app/services/connection.service'
 import {
   HealthResult,
   PackageDataEntry,
@@ -14,10 +15,11 @@ export class AppShowHealthChecksComponent {
   @Input()
   pkg: PackageDataEntry
 
-  @Input()
-  connectionFailure = false
-
   HealthResult = HealthResult
+
+  readonly disconnected$ = this.connectionService.watchDisconnected$()
+
+  constructor(private readonly connectionService: ConnectionService) {}
 
   isLoading(result: HealthResult): boolean {
     return result === HealthResult.Starting || result === HealthResult.Loading

@@ -3,7 +3,7 @@
 >
   <ng-container *ngIf="checks.length">
     <ion-item-divider>Health Checks</ion-item-divider>
-    <ng-container *ngIf="connectionFailure; else connected">
+    <ng-container *ngIf="disconnected$ | async; else connected">
       <ion-item *ngFor="let health of checks">
         <ion-avatar slot="start">
           <ion-skeleton-text class="avatar"></ion-skeleton-text>
