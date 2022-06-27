@@ -15,7 +15,6 @@ import { MaskPipeModule } from 'src/app/pipes/mask/mask.module'
     FormsModule,
     RouterModule.forChild([]),
     SharedPipesModule,
-    MaskPipeModule,
   ],
   exports: [GenericInputComponent],
 })
