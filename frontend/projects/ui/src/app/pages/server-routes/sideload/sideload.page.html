@@ -43,18 +43,18 @@
     <div class="drop-area_filled">
       <h4>
         <ion-icon
-          *ngIf="uploadState.invalid"
+          *ngIf="uploadState?.invalid"
           name="close-circle-outline"
           color="danger"
           class="inline"
         ></ion-icon>
         <ion-icon
-          *ngIf="!uploadState.invalid"
+          *ngIf="!uploadState?.invalid"
           class="inline"
           name="checkmark-circle-outline"
           color="success"
         ></ion-icon>
-        {{ uploadState.message }}
+        {{ uploadState?.message }}
       </h4>
       <div class="box" *ngIf="toUpload.icon && toUpload.manifest">
         <div class="service-card">

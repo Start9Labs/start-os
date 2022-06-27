@@ -54,28 +54,26 @@ export class SideloadPage {
   }
   async setFile(files?: File[]) {
     if (!files || !files.length) return
-    this.toUpload.file = files[0]
-    // verify valid s9pk
-    const magic = new Uint8Array(
-      await blobToBuffer(this.toUpload.file.slice(0, 2)),
-    )
-    const version = new Uint8Array(
-      await blobToBuffer(this.toUpload.file.slice(2, 3)),
-    )
-    this.uploadState = this.validateS9pk(magic, version)
+    const file = files[0]
+    if (!file) return
+    this.toUpload.file = file
+    this.uploadState = await this.validateS9pk(file)
   }
 
-  validateS9pk(magic: Uint8Array, version: Uint8Array) {
+  async validateS9pk(file: File) {
+    const magic = new Uint8Array(await blobToBuffer(file.slice(0, 2)))
+    const version = new Uint8Array(await blobToBuffer(file.slice(2, 3)))
     if (compare(magic, MAGIC) && compare(version, VERSION)) {
+      await this.parseS9pk(file)
       return {
         invalid: false,
         message: 'A valid package file has been detected!',
-      } as const
+      }
     } else {
       return {
         invalid: true,
         message: 'Invalid package file',
-      } as const
+      }
     }
   }
 
@@ -112,13 +110,13 @@ export class SideloadPage {
     }
   }
 
-  async parseS9pk(file: Blob) {
+  async parseS9pk(file: File) {
     const positions: Positions = {}
     // magic=2bytes, version=1bytes, pubkey=32bytes, signature=64bytes, toc_length=4bytes = 103byte is starting point
     let start = 103
     let end = start + 1 // 104
     const tocLength = new DataView(
-      await blobToBuffer(this.toUpload.file?.slice(99, 103) ?? new Blob()),
+      await blobToBuffer(file.slice(99, 103) ?? new Blob()),
     ).getUint32(0, false)
     await getPositions(start, end, file, positions, tocLength as any)
 
@@ -190,10 +188,9 @@ async function readBlobAsDataURL(
       resolve(reader.result)
     }
     reader.readAsDataURL(f)
-    reader.onerror = reject
+    reader.onerror = _ => reject(new Error('error reading blob'))
   })
 }
-
 async function blobToDataURL(data: Blob | File): Promise<string> {
   const res = await readBlobAsDataURL(data)
   if (res instanceof ArrayBuffer)
@@ -223,7 +220,7 @@ async function readBlobToArrayBuffer(
       resolve(reader.result)
     }
     reader.readAsArrayBuffer(f)
-    reader.onerror = reject
+    reader.onerror = _ => reject(new Error('error reading blob'))
   })
 }
 
