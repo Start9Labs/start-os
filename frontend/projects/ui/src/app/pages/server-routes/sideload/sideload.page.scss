@@ -1,8 +1,5 @@
 .inline {
-  * {
-    vertical-align: initial;
-    padding-right: 5px;
-  }
+  vertical-align: initial;
 }
 
 .area {
@@ -39,7 +36,7 @@
     margin: 60px;
     padding: 30px;
     min-height: 600px;
-
+    min-width: 400px;
   }
 
   &_mobile {
@@ -51,10 +48,15 @@
   }
 }
 
+.box {
+  display: flex;
+  justify-content: space-evenly
+}
+
 .service-card {
   background: radial-gradient(var(--ion-color-step-100), transparent);
   min-width: 200px;
-  max-width: 300px;
+  max-width: 200px;
   height: auto;
   padding: 0;
   display: flex;
