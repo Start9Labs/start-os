@@ -84,3 +84,6 @@ patch-db/client/dist: $(PATCH_DB_CLIENT_SRC) patch-db/client/node_modules
 
 # this is a convenience step to build all frontends - it is not referenced elsewhere in this file
 frontend: frontend/node_modules frontend/config.json $(EMBASSY_UIS) 
+
+# this is a convenience step to build all backends - it is not referenced elsewhere in this file
+backend: $(EMBASSY_BINS)
