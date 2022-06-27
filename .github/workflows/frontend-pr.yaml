@@ -1,0 +1,46 @@
+name: Frontend PR
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  pull_request:
+    branches:
+    - master
+    paths:
+    - frontend
+
+jobs:
+  frontend:
+    name: Build frontend
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - uses: actions/setup-node@v3
+      with:
+        node-version: 16
+    
+    - name: Get npm cache directory
+      id: npm-cache-dir
+      run: |
+        echo "::set-output name=dir::$(npm config get cache)"
+    - uses: actions/cache@v3
+      id: npm-cache
+      with:
+        path: ${{ steps.npm-cache-dir.outputs.dir }}
+        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+
+    - name: Build frontend
+      run: make frontend
+
+    - name: 'Tar files to preserve file permissions'
+      run: tar -cvf frontend.tar frontend/dist frontend/config.json
+
+    - uses: actions/upload-artifact@v3
+      with:
+        name: frontend
+        path: frontend.tar
