@@ -15,6 +15,7 @@ import { EOSService } from 'src/app/services/eos.service'
 import { LocalStorageService } from 'src/app/services/local-storage.service'
 import { RecoveredPackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { OSUpdatePage } from 'src/app/modals/os-update/os-update.page'
+import { getPackageData } from '../../../util/get-package-data'
 
 @Component({
   selector: 'server-show',
@@ -117,7 +118,8 @@ export class ServerShowPage {
   }
 
   async presentAlertSystemRebuild() {
-    const minutes = Object.keys(this.patch.getData()['package-data']).length * 2
+    const packageData = await getPackageData(this.patch)
+    const minutes = Object.keys(packageData).length * 2
     const alert = await this.alertCtrl.create({
       header: 'Warning',
       message: `This action will tear down all service containers and rebuild them from scratch. No data will be deleted. This action is useful if your system gets into a bad state, and it should only be performed if you are experiencing general performance or reliability issues. It may take up to ${minutes} minutes to complete. During this time, you will lose all connectivity to your Embassy.`,

@@ -21,6 +21,8 @@ import {
   first,
   takeUntil,
 } from 'rxjs/operators'
+import { getServerInfo } from '../../../util/get-server-info'
+import { getMarketplace } from '../../../util/get-marketplace'
 
 type Marketplaces = {
   id: string | undefined
@@ -109,7 +111,9 @@ export class MarketplacesPage {
 
   async presentAction(id: string = '') {
     // no need to view actions if is selected marketplace
-    if (id === this.patch.getData().ui.marketplace?.['selected-id']) return
+    const marketplace = await getMarketplace(this.patch)
+
+    if (id === marketplace?.['selected-id']) return
 
     const buttons: ActionSheetButton[] = [
       {
@@ -143,9 +147,8 @@ export class MarketplacesPage {
   }
 
   private async connect(id: string): Promise<void> {
-    const marketplace: UIMarketplaceData = JSON.parse(
-      JSON.stringify(this.patch.getData().ui.marketplace),
-    )
+    const data = await getMarketplace(this.patch)
+    const marketplace: UIMarketplaceData = JSON.parse(JSON.stringify(data))
 
     const url = id
       ? marketplace['known-hosts'][id].url
@@ -157,10 +160,8 @@ export class MarketplacesPage {
     await loader.present()
 
     try {
-      await this.marketplaceService.getMarketplaceData(
-        { 'server-id': this.patch.getData()['server-info'].id },
-        url,
-      )
+      const { id } = await getServerInfo(this.patch)
+      await this.marketplaceService.getMarketplaceData({ 'server-id': id }, url)
     } catch (e: any) {
       this.errToast.present(e)
       loader.dismiss()
@@ -190,9 +191,9 @@ export class MarketplacesPage {
 
   private async delete(id: string): Promise<void> {
     if (!id) return
-    const marketplace: UIMarketplaceData = JSON.parse(
-      JSON.stringify(this.patch.getData().ui.marketplace),
-    )
+
+    const data = await getMarketplace(this.patch)
+    const marketplace: UIMarketplaceData = JSON.parse(JSON.stringify(data))
 
     const loader = await this.loadingCtrl.create({
       message: 'Deleting...',
@@ -210,13 +211,12 @@ export class MarketplacesPage {
   }
 
   private async save(url: string): Promise<void> {
-    const marketplace = this.patch.getData().ui.marketplace
-      ? (JSON.parse(
-          JSON.stringify(this.patch.getData().ui.marketplace),
-        ) as UIMarketplaceData)
+    const data = await getMarketplace(this.patch)
+    const marketplace: UIMarketplaceData = data
+      ? JSON.parse(JSON.stringify(data))
       : {
-          'selected-id': undefined,
-          'known-hosts': {} as Record<string, unknown>,
+          'selected-id': null,
+          'known-hosts': {},
         }
 
     // no-op on duplicates
@@ -231,8 +231,9 @@ export class MarketplacesPage {
 
     try {
       const id = v4()
+      const serverInfo = await getServerInfo(this.patch)
       const { name } = await this.marketplaceService.getMarketplaceData(
-        { 'server-id': this.patch.getData()['server-info'].id },
+        { 'server-id': serverInfo.id },
         url,
       )
       marketplace['known-hosts'][id] = { name, url }
@@ -254,13 +255,12 @@ export class MarketplacesPage {
   }
 
   private async saveAndConnect(url: string): Promise<void> {
-    const marketplace = this.patch.getData().ui.marketplace
-      ? (JSON.parse(
-          JSON.stringify(this.patch.getData().ui.marketplace),
-        ) as UIMarketplaceData)
+    const data = await getMarketplace(this.patch)
+    const marketplace: UIMarketplaceData = data
+      ? JSON.parse(JSON.stringify(data))
       : {
-          'selected-id': undefined,
-          'known-hosts': {} as Record<string, unknown>,
+          'selected-id': null,
+          'known-hosts': {},
         }
 
     // no-op on duplicates
@@ -274,8 +274,9 @@ export class MarketplacesPage {
 
     try {
       const id = v4()
+      const serverInfo = await getServerInfo(this.patch)
       const { name } = await this.marketplaceService.getMarketplaceData(
-        { 'server-id': this.patch.getData()['server-info'].id },
+        { 'server-id': serverInfo.id },
         url,
       )
       marketplace['known-hosts'][id] = { name, url }

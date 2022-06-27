@@ -9,6 +9,7 @@ import {
   AbstractMarketplaceService,
   MarketplacePkg,
 } from '@start9labs/marketplace'
+import { Emver, ErrorToastService, isEmptyObject } from '@start9labs/shared'
 import {
   PackageDataEntry,
   PackageState,
@@ -16,12 +17,10 @@ import {
 import { LocalStorageService } from 'src/app/services/local-storage.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
-import { Emver } from '../../../../../../../shared/src/services/emver.service'
-import { ErrorToastService } from '../../../../../../../shared/src/services/error-toast.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { isEmptyObject } from '../../../../../../../shared/src/util/misc.util'
 import { Breakages } from 'src/app/services/api/api.types'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { getPackageData } from 'src/app/util/get-package-data'
 
 @Component({
   selector: 'marketplace-show-controls',
@@ -151,7 +150,7 @@ export class MarketplaceShowControlsComponent {
   private async presentAlertBreakages(breakages: Breakages): Promise<boolean> {
     let message: string =
       'As a result of this update, the following services will no longer work properly and may crash:<ul>'
-    const localPkgs = this.patch.getData()['package-data']
+    const localPkgs = await getPackageData(this.patch)
     const bullets = Object.keys(breakages).map(id => {
       const title = localPkgs[id].manifest.title
       return `<li><b>${title}</b></li>`

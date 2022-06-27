@@ -20,6 +20,7 @@ import {
 import { BackupSelectPage } from 'src/app/modals/backup-select/backup-select.page'
 import { EOSService } from 'src/app/services/eos.service'
 import { DestroyService } from '@start9labs/shared'
+import { getServerInfo } from 'src/app/util/get-server-info'
 
 @Component({
   selector: 'server-backup',
@@ -81,9 +82,8 @@ export class ServerBackupPage {
       buttonText: 'Create Backup',
       submitFn: async (password: string) => {
         // confirm password matches current master password
-        const passwordHash =
-          this.patch.getData()['server-info']['password-hash']
-        argon2.verify(passwordHash, password)
+        const serverInfo = await getServerInfo(this.patch)
+        argon2.verify(serverInfo['password-hash'], password)
 
         // first time backup
         if (!target.hasValidBackup) {

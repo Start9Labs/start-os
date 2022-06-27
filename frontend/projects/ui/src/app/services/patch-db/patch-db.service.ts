@@ -48,10 +48,6 @@ export class PatchDbService {
     shareReplay(),
   )
 
-  getData() {
-    return this.patchDb.store.cache.data
-  }
-
   constructor(
     // [wsSources, pollSources]
     @Inject(PATCH_SOURCE) private readonly sources: Source<DataModel>[],

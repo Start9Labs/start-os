@@ -2,7 +2,7 @@ import { Component, Input } from '@angular/core'
 import { LoadingController, ModalController } from '@ionic/angular'
 import { ConfigService } from '../../services/config.service'
 import { ApiService } from '../../services/api/embassy-api.service'
-import { ErrorToastService } from '../../../../../shared/src/services/error-toast.service'
+import { ErrorToastService } from '@start9labs/shared'
 
 @Component({
   selector: 'os-update',

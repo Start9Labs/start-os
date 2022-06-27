@@ -65,7 +65,10 @@
 
     <!-- has notifications  -->
     <ng-container *ngIf="notifications.length">
-      <ion-item-group style="margin-bottom: 16px">
+      <ion-item-group
+        *ngIf="packageData$ | async as packageData"
+        style="margin-bottom: 16px"
+      >
         <ion-item-divider>
           <ion-button
             slot="end"
@@ -80,12 +83,9 @@
           <ion-label>
             <h2>
               <b>
-                <span
-                  *ngIf="not['package-id'] && patch.getData()['package-data']"
-                >
-                  {{ patch.getData()['package-data'][not['package-id']] ?
-                  patch.getData()['package-data'][not['package-id']].manifest.title
-                  : not['package-id'] }} -
+                <span *ngIf="not['package-id']">
+                  {{ packageData[not['package-id']]?.manifest?.title ||
+                  not['package-id'] }} -
                 </span>
                 <ion-text [color]="getColor(not)"> {{ not.title }} </ion-text>
               </b>

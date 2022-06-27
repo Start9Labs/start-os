@@ -23,6 +23,7 @@ import {
 } from 'src/app/services/form.service'
 import { compare, Operation, getValueByPointer } from 'fast-json-patch'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
+import { getPackageData } from 'src/app/util/get-package-data'
 import { Breakages } from 'src/app/services/api/api.types'
 
 @Component({
@@ -60,7 +61,9 @@ export class AppConfigPage {
   ) {}
 
   async ngOnInit() {
-    this.pkg = this.patch.getData()['package-data'][this.pkgId]
+    const packageData = await getPackageData(this.patch)
+
+    this.pkg = packageData[this.pkgId]
     this.hasConfig = !!this.pkg.manifest.config
 
     if (!this.hasConfig) return
@@ -201,7 +204,7 @@ export class AppConfigPage {
   private async presentAlertBreakages(breakages: Breakages): Promise<boolean> {
     let message: string =
       'As a result of this change, the following services will no longer work properly and may crash:<ul>'
-    const localPkgs = this.patch.getData()['package-data']
+    const localPkgs = await getPackageData(this.patch)
     const bullets = Object.keys(breakages).map(id => {
       const title = localPkgs[id].manifest.title
       return `<li><b>${title}</b></li>`

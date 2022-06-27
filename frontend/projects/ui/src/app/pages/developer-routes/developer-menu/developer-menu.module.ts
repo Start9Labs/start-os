@@ -8,7 +8,7 @@ import { BackupReportPageModule } from 'src/app/modals/backup-report/backup-repo
 import { GenericFormPageModule } from 'src/app/modals/generic-form/generic-form.module'
 import { MonacoEditorModule } from '@materia-ui/ngx-monaco-editor'
 import { FormsModule } from '@angular/forms'
-import { SharedPipesModule } from '../../../../../../shared/src/pipes/shared/shared.module'
+import { SharedPipesModule } from '@start9labs/shared'
 
 const routes: Routes = [
   {

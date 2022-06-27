@@ -10,7 +10,7 @@ import {
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { copyToClipboard } from 'src/app/util/web.util'
 import { QRComponent } from 'src/app/components/qr/qr.component'
-import { PackageDataEntry } from '../../../services/patch-db/data-model'
+import { getPackageData } from '../../../util/get-package-data'
 
 interface LocalInterface {
   def: InterfaceDef
@@ -32,8 +32,9 @@ export class AppInterfacesPage {
     public readonly patch: PatchDbService,
   ) {}
 
-  ngOnInit() {
-    const { pkg } = this.route.snapshot.data as { pkg: PackageDataEntry }
+  async ngOnInit() {
+    const packageData = await getPackageData(this.patch)
+    const pkg = packageData[this.pkgId]
     const interfaces = pkg.manifest.interfaces
     const uiKey = getUiInterfaceKey(interfaces)
 
