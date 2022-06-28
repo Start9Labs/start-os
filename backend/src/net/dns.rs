@@ -15,6 +15,7 @@ use trust_dns_server::client::rr::{Name, Record, RecordType};
 use trust_dns_server::server::{Request, RequestHandler, ResponseHandler, ResponseInfo};
 use trust_dns_server::ServerFuture;
 
+#[cfg(feature = "avahi")]
 use crate::net::mdns::resolve_mdns;
 use crate::{Error, ErrorKind, ResultExt};
 
@@ -30,6 +31,7 @@ struct Resolver {
 impl Resolver {
     async fn resolve(&self, name: &Name) -> Option<Vec<Ipv4Addr>> {
         match name.iter().next_back() {
+            #[cfg(feature = "avahi")]
             Some(b"local") => match resolve_mdns(&format!(
                 "{}.local",
                 name.iter()
