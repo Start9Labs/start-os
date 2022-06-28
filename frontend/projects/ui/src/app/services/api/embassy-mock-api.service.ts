@@ -392,12 +392,13 @@ export class MockApiService extends ApiService {
     params: RR.CreateBackupReq,
   ): Promise<RR.CreateBackupRes> {
     await pauseFor(2000)
-    const path = '/server-info/status-info/backing-up'
-    const ids = ['bitcoind', 'lnd']
+    const path = '/server-info/status-info/backup-progress'
+    const ids = params['package-ids']
 
     setTimeout(async () => {
       for (let i = 0; i < ids.length; i++) {
-        const appPath = `/package-data/${ids[i]}/installed/status/main/status`
+        const id = ids[i]
+        const appPath = `/package-data/${id}/installed/status/main/status`
         const appPatch = [
           {
             op: PatchOp.REPLACE,
@@ -409,13 +410,19 @@ export class MockApiService extends ApiService {
 
         await pauseFor(8000)
 
-        const newPatch = [
+        this.updateMock([
           {
             ...appPatch[0],
             value: PackageMainStatus.Stopped,
           },
-        ]
-        this.updateMock(newPatch)
+        ])
+        this.updateMock([
+          {
+            op: PatchOp.REPLACE,
+            path: `${path}/${id}/complete`,
+            value: true,
+          },
+        ])
       }
 
       await pauseFor(1000)
@@ -425,7 +432,7 @@ export class MockApiService extends ApiService {
         {
           op: PatchOp.REPLACE,
           path,
-          value: false,
+          value: null,
         },
       ]
       this.updateMock(lastPatch)
@@ -435,7 +442,12 @@ export class MockApiService extends ApiService {
       {
         op: PatchOp.REPLACE,
         path,
-        value: true,
+        value: ids.reduce((acc, val) => {
+          return {
+            ...acc,
+            [val]: { complete: false },
+          }
+        }, {}),
       },
     ]
 

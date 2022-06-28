@@ -1,55 +1,16 @@
+<!-- currently backing up -->
+<backing-up
+  *ngIf="backingUp$ | async; else notBackingUp"
+  style="height: 100%"
+></backing-up>
+
 <!-- not backing up -->
-<ng-container *ngIf="!backingUp">
+<ng-template #notBackingUp>
   <backup-drives-header title="Create Backup"></backup-drives-header>
   <ion-content class="ion-padding">
-    <backup-drives type="create" (onSelect)="presentModalPassword($event)"></backup-drives>
+    <backup-drives
+      type="create"
+      (onSelect)="presentModalSelect($event)"
+    ></backup-drives>
   </ion-content>
-</ng-container>
-
-<!-- currently backing up -->
-<ng-container *ngIf="backingUp">
-
-  <ion-header>
-    <ion-toolbar>
-      <ion-buttons slot="start">
-        <ion-back-button defaultHref="embassy"></ion-back-button>
-      </ion-buttons>
-      <ion-title>Backup Progress</ion-title>
-    </ion-toolbar>
-  </ion-header>
-
-  <ion-content class="ion-padding">
-    <ion-grid>
-      <ion-row>
-        <ion-col>
-          <ion-item-group>
-            <ion-item *ngFor="let pkg of pkgs">
-              <ion-avatar slot="start">
-                <img [src]="pkg.entry['static-files'].icon" />
-              </ion-avatar>
-              <ion-label>
-                {{ pkg.entry.manifest.title }}
-              </ion-label>
-              <!-- complete -->
-              <ion-note *ngIf="pkg.complete" class="inline" slot="end">
-                <ion-icon name="checkmark" color="success"></ion-icon>
-                &nbsp;
-                <ion-text color="success">Complete</ion-text>
-              </ion-note>
-              <!-- active -->
-              <ion-note *ngIf="pkg.active" class="inline" slot="end">
-                <ion-spinner color="dark" style="height: 12px; width: 12px; margin-right: 6px;"></ion-spinner>
-                <ion-text color="dark">Backing up</ion-text>
-              </ion-note>
-              <!-- queued -->
-              <ion-note *ngIf="!pkg.complete && !pkg.active" slot="end">
-                Waiting...
-              </ion-note>
-            </ion-item>
-          </ion-item-group>
-        </ion-col>
-      </ion-row>
-    </ion-grid>
-  </ion-content>
-
-</ng-container>
+</ng-template>

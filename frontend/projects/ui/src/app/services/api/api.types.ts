@@ -148,6 +148,7 @@ export module RR {
   export type CreateBackupReq = WithExpire<{
     // backup.create
     'target-id': string
+    'package-ids': string[]
     'old-password': string | null
     password: string
   }>

@@ -52,17 +52,17 @@
                 <ng-container *ngIf="server['status-info'] as statusInfo">
                   <ion-text
                     color="warning"
-                    *ngIf="!statusInfo['backing-up'] && !statusInfo['update-progress']"
+                    *ngIf="!statusInfo['backup-progress'] && !statusInfo['update-progress']"
                   >
                     Last Backup: {{ server['last-backup'] ?
                     (server['last-backup'] | date: 'short') : 'never' }}
                   </ion-text>
-                  <span *ngIf="!!statusInfo['backing-up']" class="inline">
+                  <span *ngIf="!!statusInfo['backup-progress']" class="inline">
                     <ion-spinner
                       color="success"
                       style="height: 12px; width: 12px; margin-right: 6px"
                     ></ion-spinner>
-                    <ion-text color="success"> Backing up </ion-text>
+                    <ion-text color="success">Backing up</ion-text>
                   </span>
                 </ng-container>
               </p>

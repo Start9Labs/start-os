@@ -47,11 +47,7 @@
       </ion-item>
       <!-- cifs list -->
       <ng-container *ngFor="let target of backupService.cifs; let i = index">
-        <ion-item
-          button
-          *ngIf="target.entry as cifs"
-          (click)="presentActionCifs(target, i)"
-        >
+        <ion-item button *ngIf="target.entry as cifs" (click)="select(target)">
           <ion-icon
             slot="start"
             name="folder-open-outline"
@@ -72,6 +68,13 @@
             <p>Hostname: {{ cifs.hostname }}</p>
             <p>Path: {{ cifs.path }}</p>
           </ion-label>
+          <ion-note
+            slot="end"
+            class="click-area"
+            (click)="presentActionCifs($event, target, i)"
+          >
+            <ion-icon name="ellipsis-horizontal"></ion-icon>
+          </ion-note>
         </ion-item>
       </ng-container>
 

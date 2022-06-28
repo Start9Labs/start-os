@@ -89,9 +89,12 @@ export class BackupDrivesComponent {
   }
 
   async presentActionCifs(
+    event: Event,
     target: MappedBackupTarget<CifsBackupTarget>,
     index: number,
   ): Promise<void> {
+    event.stopPropagation()
+
     const entry = target.entry as CifsBackupTarget
 
     const action = await this.actionCtrl.create({
@@ -112,17 +115,6 @@ export class BackupDrivesComponent {
           icon: 'pencil',
           handler: () => {
             this.presentModalEditCifs(target.id, entry, index)
-          },
-        },
-        {
-          text:
-            this.type === 'create' ? 'Create Backup' : 'Restore From Backup',
-          icon:
-            this.type === 'create'
-              ? 'cloud-upload-outline'
-              : 'cloud-download-outline',
-          handler: () => {
-            this.select(target)
           },
         },
       ],

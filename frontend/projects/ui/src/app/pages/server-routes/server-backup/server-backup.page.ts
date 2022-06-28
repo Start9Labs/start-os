@@ -10,78 +10,73 @@ import {
   GenericInputOptions,
 } from 'src/app/modals/generic-input/generic-input.component'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { Subscription } from 'rxjs'
-import { take } from 'rxjs/operators'
+import { skip, takeUntil } from 'rxjs/operators'
 import { MappedBackupTarget } from 'src/app/types/mapped-backup-target'
-import {
-  PackageDataEntry,
-  PackageMainStatus,
-} from 'src/app/services/patch-db/data-model'
 import * as argon2 from '@start9labs/argon2'
 import {
   CifsBackupTarget,
   DiskBackupTarget,
 } from 'src/app/services/api/api.types'
+import { BackupSelectPage } from 'src/app/modals/backup-select/backup-select.page'
+import { EOSService } from 'src/app/services/eos.service'
+import { DestroyService } from '@start9labs/shared'
 
 @Component({
   selector: 'server-backup',
   templateUrl: './server-backup.page.html',
   styleUrls: ['./server-backup.page.scss'],
+  providers: [DestroyService],
 })
 export class ServerBackupPage {
-  backingUp = false
-  pkgs: PkgInfo[] = []
-  subs: Subscription[]
+  target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>
+  serviceIds: string[] = []
+
+  readonly backingUp$ = this.eosService.backingUp$
 
   constructor(
     private readonly loadingCtrl: LoadingController,
     private readonly modalCtrl: ModalController,
     private readonly embassyApi: ApiService,
-    private readonly patch: PatchDbService,
     private readonly navCtrl: NavController,
+    private readonly destroy$: DestroyService,
+    private readonly eosService: EOSService,
+    private readonly patch: PatchDbService,
   ) {}
 
   ngOnInit() {
-    this.subs = [
-      this.patch
-        .watch$('server-info', 'status-info', 'backing-up')
-        .pipe()
-        .subscribe(isBackingUp => {
-          if (isBackingUp) {
-            if (!this.backingUp) {
-              this.backingUp = true
-              this.subscribeToBackup()
-            }
-          } else {
-            if (this.backingUp) {
-              this.backingUp = false
-              this.pkgs.forEach(pkg => pkg.sub?.unsubscribe())
-              this.navCtrl.navigateRoot('/embassy')
-            }
-          }
-        }),
-    ]
+    this.backingUp$
+      .pipe(skip(1), takeUntil(this.destroy$))
+      .subscribe(isBackingUp => {
+        if (!isBackingUp) {
+          this.navCtrl.navigateRoot('/embassy')
+        }
+      })
   }
 
-  ngOnDestroy() {
-    this.subs.forEach(sub => sub.unsubscribe())
-    this.pkgs.forEach(pkg => pkg.sub?.unsubscribe())
-  }
-
-  async presentModalPassword(
+  async presentModalSelect(
     target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>,
-  ): Promise<void> {
-    let message =
-      'Enter your master password to create an encrypted backup of your Embassy and all its services.'
-    if (!target.hasValidBackup) {
-      message =
-        message +
-        ' Since this is a fresh backup, it could take a while. Future backups will likely be much faster.'
-    }
+  ) {
+    this.target = target
 
+    const modal = await this.modalCtrl.create({
+      presentingElement: await this.modalCtrl.getTop(),
+      component: BackupSelectPage,
+    })
+
+    modal.onWillDismiss().then(res => {
+      if (res.data) {
+        this.serviceIds = res.data
+        this.presentModalPassword()
+      }
+    })
+
+    await modal.present()
+  }
+
+  async presentModalPassword(): Promise<void> {
     const options: GenericInputOptions = {
       title: 'Master Password Needed',
-      message,
+      message: 'Enter your master password to encrypt this backup.',
       label: 'Master Password',
       placeholder: 'Enter master password',
       useMask: true,
@@ -93,23 +88,20 @@ export class ServerBackupPage {
         argon2.verify(passwordHash, password)
 
         // first time backup
-        if (!target.hasValidBackup) {
-          await this.createBackup(target.id, password)
+        if (!this.target.hasValidBackup) {
+          await this.createBackup(password)
           // existing backup
         } else {
           try {
             const passwordHash =
-              target.entry['embassy-os']?.['password-hash'] || ''
+              this.target.entry['embassy-os']?.['password-hash'] || ''
 
             argon2.verify(passwordHash, password)
           } catch {
-            setTimeout(
-              () => this.presentModalOldPassword(target, password),
-              500,
-            )
+            setTimeout(() => this.presentModalOldPassword(password), 500)
             return
           }
-          await this.createBackup(target.id, password)
+          await this.createBackup(password)
         }
       },
     }
@@ -123,10 +115,7 @@ export class ServerBackupPage {
     await m.present()
   }
 
-  private async presentModalOldPassword(
-    target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>,
-    password: string,
-  ): Promise<void> {
+  private async presentModalOldPassword(password: string): Promise<void> {
     const options: GenericInputOptions = {
       title: 'Original Password Needed',
       message:
@@ -136,10 +125,11 @@ export class ServerBackupPage {
       useMask: true,
       buttonText: 'Create Backup',
       submitFn: async (oldPassword: string) => {
-        const passwordHash = target.entry['embassy-os']?.['password-hash'] || ''
+        const passwordHash =
+          this.target.entry['embassy-os']?.['password-hash'] || ''
 
         argon2.verify(passwordHash, oldPassword)
-        await this.createBackup(target.id, password, oldPassword)
+        await this.createBackup(password, oldPassword)
       },
     }
 
@@ -153,7 +143,6 @@ export class ServerBackupPage {
   }
 
   private async createBackup(
-    id: string,
     password: string,
     oldPassword?: string,
   ): Promise<void> {
@@ -164,7 +153,8 @@ export class ServerBackupPage {
 
     try {
       await this.embassyApi.createBackup({
-        'target-id': id,
+        'target-id': this.target.id,
+        'package-ids': this.serviceIds,
         'old-password': oldPassword || null,
         password,
       })
@@ -172,53 +162,4 @@ export class ServerBackupPage {
       loader.dismiss()
     }
   }
-
-  private subscribeToBackup() {
-    this.patch
-      .watch$('package-data')
-      .pipe(take(1))
-      .subscribe(pkgs => {
-        const pkgArr = Object.keys(pkgs)
-          .sort()
-          .map(key => pkgs[key])
-        const activeIndex = pkgArr.findIndex(
-          pkg =>
-            pkg.installed?.status.main.status === PackageMainStatus.BackingUp,
-        )
-
-        this.pkgs = pkgArr.map((pkg, i) => ({
-          entry: pkg,
-          active: i === activeIndex,
-          complete: i < activeIndex,
-        }))
-
-        // subscribe to pkg
-        this.pkgs.forEach(pkg => {
-          pkg.sub = this.patch
-            .watch$(
-              'package-data',
-              pkg.entry.manifest.id,
-              'installed',
-              'status',
-              'main',
-              'status',
-            )
-            .subscribe(status => {
-              if (status === PackageMainStatus.BackingUp) {
-                pkg.active = true
-              } else if (pkg.active) {
-                pkg.active = false
-                pkg.complete = true
-              }
-            })
-        })
-      })
-  }
-}
-
-interface PkgInfo {
-  entry: PackageDataEntry
-  active: boolean
-  complete: boolean
-  sub?: Subscription
 }

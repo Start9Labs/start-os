@@ -51,7 +51,7 @@ impl Database {
                     .parse()
                     .unwrap(),
                 status_info: ServerStatus {
-                    backing_up: false,
+                    backup_progress: None,
                     updated: false,
                     update_progress: None,
                 },
@@ -100,9 +100,15 @@ pub struct ServerInfo {
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel)]
+pub struct BackupProgress {
+    pub complete: bool,
+}
+
+#[derive(Debug, Default, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
 pub struct ServerStatus {
-    pub backing_up: bool,
+    #[model]
+    pub backup_progress: Option<BTreeMap<PackageId, BackupProgress>>,
     pub updated: bool,
     #[model]
     pub update_progress: Option<UpdateProgress>,

@@ -1,0 +1,63 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="embassy"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Backup Progress</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <ion-grid *ngIf="pkgs$ | async as pkgs">
+    <ion-row *ngIf="backupProgress$ | async as backupProgress">
+      <ion-col>
+        <ion-item-group>
+          <ng-container *ngFor="let pkg of pkgs | keyvalue">
+            <ion-item *ngIf="backupProgress[pkg.key] as pkgProgress">
+              <ion-avatar slot="start">
+                <img [src]="pkg.value['static-files'].icon" />
+              </ion-avatar>
+              <ion-label> {{ pkg.value.manifest.title }} </ion-label>
+              <!-- complete -->
+              <ion-note
+                *ngIf="pkgProgress.complete; else incomplete"
+                class="inline"
+                slot="end"
+              >
+                <ion-icon name="checkmark" color="success"></ion-icon>
+                &nbsp;
+                <ion-text color="success">Complete</ion-text>
+              </ion-note>
+              <!-- incomplete -->
+              <ng-template #incomplete>
+                <ng-container
+                  *ngIf="pkg.key | pkgMainStatus | async as pkgStatus"
+                >
+                  <!-- active -->
+                  <ion-note
+                    *ngIf="
+                      pkgStatus === PackageMainStatus.BackingUp;
+                      else queued
+                    "
+                    class="inline"
+                    slot="end"
+                  >
+                    <ion-spinner
+                      color="dark"
+                      style="height: 12px; width: 12px; margin-right: 6px"
+                    ></ion-spinner>
+                    <ion-text color="dark">Backing up</ion-text>
+                  </ion-note>
+                  <!-- queued -->
+                  <ng-template #queued>
+                    <ion-note slot="end">Waiting...</ion-note>
+                  </ng-template>
+                </ng-container>
+              </ng-template>
+            </ion-item>
+          </ng-container>
+        </ion-item-group>
+      </ion-col>
+    </ion-row>
+  </ion-grid>
+</ion-content>

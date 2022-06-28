@@ -4,7 +4,7 @@ import { MarketplaceEOS } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { Emver } from '@start9labs/shared'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { map } from 'rxjs/operators'
+import { distinctUntilChanged, map } from 'rxjs/operators'
 
 @Injectable({
   providedIn: 'root',
@@ -15,15 +15,17 @@ export class EOSService {
 
   readonly updating$ = this.patch.watch$('server-info', 'status-info').pipe(
     map(status => {
-      return status && (!!status['update-progress'] || status.updated)
+      return !!status['update-progress'] || status.updated
     }),
+    distinctUntilChanged(),
   )
 
-  readonly backingUp$ = this.patch.watch$(
-    'server-info',
-    'status-info',
-    'backing-up',
-  )
+  readonly backingUp$ = this.patch
+    .watch$('server-info', 'status-info', 'backup-progress')
+    .pipe(
+      map(obj => !!obj),
+      distinctUntilChanged(),
+    )
 
   readonly updatingOrBackingUp$ = combineLatest([
     this.updating$,

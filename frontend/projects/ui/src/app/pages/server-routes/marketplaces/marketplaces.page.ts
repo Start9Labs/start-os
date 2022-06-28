@@ -5,7 +5,7 @@ import {
   ModalController,
 } from '@ionic/angular'
 import { ActionSheetButton } from '@ionic/core'
-import { ErrorToastService } from '@start9labs/shared'
+import { DestroyService, ErrorToastService } from '@start9labs/shared'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ValueSpecObject } from 'src/app/pkg-config/config-types'
@@ -15,7 +15,12 @@ import { v4 } from 'uuid'
 import { UIMarketplaceData } from '../../../services/patch-db/data-model'
 import { ConfigService } from '../../../services/config.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
-import { distinctUntilChanged, finalize, first } from 'rxjs/operators'
+import {
+  distinctUntilChanged,
+  finalize,
+  first,
+  takeUntil,
+} from 'rxjs/operators'
 
 type Marketplaces = {
   id: string | undefined
@@ -27,6 +32,7 @@ type Marketplaces = {
   selector: 'marketplaces',
   templateUrl: 'marketplaces.page.html',
   styleUrls: ['marketplaces.page.scss'],
+  providers: [DestroyService],
 })
 export class MarketplacesPage {
   selectedId: string | undefined
@@ -42,12 +48,13 @@ export class MarketplacesPage {
     private readonly marketplaceService: MarketplaceService,
     private readonly config: ConfigService,
     public readonly patch: PatchDbService,
+    private readonly destroy$: DestroyService,
   ) {}
 
   ngOnInit() {
     this.patch
       .watch$('ui', 'marketplace')
-      .pipe(distinctUntilChanged())
+      .pipe(distinctUntilChanged(), takeUntil(this.destroy$))
       .subscribe((mp: UIMarketplaceData | undefined) => {
         let marketplaces: Marketplaces = [
           {

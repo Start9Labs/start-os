@@ -32,7 +32,7 @@ const ICONS = [
   'desktop-outline',
   'download-outline',
   'earth-outline',
-  'ellipsis-horizontal-outline',
+  'ellipsis-horizontal',
   'eye-off-outline',
   'eye-outline',
   'file-tray-stacked-outline',

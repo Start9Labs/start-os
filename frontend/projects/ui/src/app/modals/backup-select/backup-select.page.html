@@ -1,0 +1,45 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Select Services to Back Up</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="dismiss()">
+        <ion-icon slot="icon-only" name="close"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <ion-item-group>
+    <ion-item *ngFor="let pkg of pkgs">
+      <ion-avatar slot="start">
+        <img alt="" [src]="pkg.icon" />
+      </ion-avatar>
+      <ion-label>
+        <h2>{{ pkg.title }}</h2>
+      </ion-label>
+      <ion-checkbox
+        slot="end"
+        [(ngModel)]="pkg.checked"
+        (ionChange)="handleChange()"
+        [disabled]="pkg.disabled"
+      ></ion-checkbox>
+    </ion-item>
+  </ion-item-group>
+</ion-content>
+
+<ion-footer>
+  <ion-toolbar>
+    <ion-buttons slot="end" class="ion-padding-end">
+      <ion-button
+        [disabled]="!hasSelection"
+        fill="solid"
+        color="primary"
+        (click)="dismiss(true)"
+        class="enter-click btn-128"
+      >
+        Back Up Selected
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-footer>
