@@ -149,7 +149,7 @@ function parsePropertiesV1Permissive(
       } else {
         const error = result.error
         const message = Parser.validatorErrorAsString(error)
-        const dataPath = '/' + error.keys.map(removeQuotes).join('/')
+        const dataPath = error.keys.map(removeQuotes).join('/')
         errorCallback(new Error(`/data/${idx}: ${message}`))
         if (dataPath) {
           applyOperation(cur, {
