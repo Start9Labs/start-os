@@ -20,7 +20,7 @@ import { MarketplacePkg } from '@start9labs/marketplace'
 
 export module Mock {
   export const ServerUpdated: ServerStatusInfo = {
-    'backing-up': false,
+    'backup-progress': null,
     'update-progress': null,
     updated: true,
   }

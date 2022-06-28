@@ -10,66 +10,50 @@ import {
   GenericInputOptions,
 } from 'src/app/modals/generic-input/generic-input.component'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { Subscription } from 'rxjs'
-import { take } from 'rxjs/operators'
+import { skip, take, takeUntil } from 'rxjs/operators'
 import { MappedBackupTarget } from 'src/app/types/mapped-backup-target'
-import {
-  PackageDataEntry,
-  PackageMainStatus,
-} from 'src/app/services/patch-db/data-model'
+import { PackageMainStatus } from 'src/app/services/patch-db/data-model'
 import * as argon2 from '@start9labs/argon2'
 import {
   CifsBackupTarget,
   DiskBackupTarget,
 } from 'src/app/services/api/api.types'
 import { BackupSelectPage } from 'src/app/modals/backup-select/backup-select.page'
+import { EOSService } from 'src/app/services/eos.service'
+import { DestroyService } from '../../../../../../shared/src/services/destroy.service'
 
 @Component({
   selector: 'server-backup',
   templateUrl: './server-backup.page.html',
   styleUrls: ['./server-backup.page.scss'],
+  providers: [DestroyService],
 })
 export class ServerBackupPage {
-  backingUp = false
-
   target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>
   serviceIds: string[]
 
-  pkgs: PkgInfo[] = []
-  subs: Subscription[]
+  pkgs$ = this.patch.watch$('package-data').pipe(take(1))
+
+  PackageMainStatus = PackageMainStatus
 
   constructor(
     private readonly loadingCtrl: LoadingController,
     private readonly modalCtrl: ModalController,
     private readonly embassyApi: ApiService,
-    private readonly patch: PatchDbService,
     private readonly navCtrl: NavController,
+    private readonly destroy$: DestroyService,
+    public readonly eosService: EOSService,
+    public readonly patch: PatchDbService,
   ) {}
 
   ngOnInit() {
-    this.subs = [
-      this.patch
-        .watch$('server-info', 'status-info', 'backing-up')
-        .subscribe(isBackingUp => {
-          if (isBackingUp) {
-            if (!this.backingUp) {
-              this.backingUp = true
-              this.subscribeToBackup()
-            }
-          } else {
-            if (this.backingUp) {
-              this.backingUp = false
-              this.pkgs.forEach(pkg => pkg.sub?.unsubscribe())
-              this.navCtrl.navigateRoot('/embassy')
-            }
-          }
-        }),
-    ]
-  }
-
-  ngOnDestroy() {
-    this.subs.forEach(sub => sub.unsubscribe())
-    this.pkgs.forEach(pkg => pkg.sub?.unsubscribe())
+    this.eosService.backingUp$
+      .pipe(skip(1), takeUntil(this.destroy$))
+      .subscribe(isBackingUp => {
+        if (!isBackingUp) {
+          this.navCtrl.navigateRoot('/embassy')
+        }
+      })
   }
 
   async presentModalSelect(
@@ -173,7 +157,7 @@ export class ServerBackupPage {
     try {
       await this.embassyApi.createBackup({
         'target-id': this.target.id,
-        'service-ids': this.serviceIds,
+        'package-ids': this.serviceIds,
         'old-password': oldPassword || null,
         password,
       })
@@ -181,53 +165,4 @@ export class ServerBackupPage {
       loader.dismiss()
     }
   }
-
-  private subscribeToBackup() {
-    this.patch
-      .watch$('package-data')
-      .pipe(take(1))
-      .subscribe(pkgs => {
-        const pkgArr = Object.keys(pkgs)
-          .sort()
-          .map(key => pkgs[key])
-        const activeIndex = pkgArr.findIndex(
-          pkg =>
-            pkg.installed?.status.main.status === PackageMainStatus.BackingUp,
-        )
-
-        this.pkgs = pkgArr.map((pkg, i) => ({
-          entry: pkg,
-          active: i === activeIndex,
-          complete: i < activeIndex,
-        }))
-
-        // subscribe to pkg
-        this.pkgs.forEach(pkg => {
-          pkg.sub = this.patch
-            .watch$(
-              'package-data',
-              pkg.entry.manifest.id,
-              'installed',
-              'status',
-              'main',
-              'status',
-            )
-            .subscribe(status => {
-              if (status === PackageMainStatus.BackingUp) {
-                pkg.active = true
-              } else if (pkg.active) {
-                pkg.active = false
-                pkg.complete = true
-              }
-            })
-        })
-      })
-  }
-}
-
-interface PkgInfo {
-  entry: PackageDataEntry
-  active: boolean
-  complete: boolean
-  sub?: Subscription
 }
