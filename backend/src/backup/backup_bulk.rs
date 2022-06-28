@@ -159,7 +159,6 @@ pub async fn backup_all(
     }
     let revision = assure_backing_up(&mut db, &service_ids).await?;
     tokio::task::spawn(async move {
-        let backup_res = perform_backup(&ctx, &mut db, backup_guard).await;
         let backup_progress = crate::db::DatabaseModel::new()
             .server_info()
             .status_info()
@@ -169,6 +168,7 @@ pub async fn backup_all(
             .lock(&mut db, LockType::Write)
             .await
             .expect("failed to lock server status");
+        let backup_res = perform_backup(&ctx, &mut db, backup_guard).await;
         match backup_res {
             Ok(report) if report.iter().all(|(_, rep)| rep.error.is_none()) => ctx
                 .notification_manager
