@@ -24,9 +24,9 @@ const matchPropertiesV1 = shape(
   {
     name: string,
     value: string,
-    description: string,
-    copyable: boolean,
-    qr: boolean,
+    description: string.optional(),
+    copyable: boolean.optional(),
+    qr: boolean.optional(),
   },
   ['description', 'copyable', 'qr'],
   { copyable: false, qr: false } as const,
@@ -41,11 +41,11 @@ const [matchPackagePropertiesV2, setPPV2] = deferred<PackagePropertiesV2>()
 const matchPackagePropertyString = shape(
   {
     type: literal('string'),
-    description: string,
+    description: string.optional(),
     value: string,
-    copyable: boolean,
-    qr: boolean,
-    masked: boolean,
+    copyable: boolean.optional(),
+    qr: boolean.optional(),
+    masked: boolean.optional(),
   },
   ['description', 'copyable', 'qr', 'masked'],
   {
@@ -149,12 +149,12 @@ function parsePropertiesV1Permissive(
       } else {
         const error = result.error
         const message = Parser.validatorErrorAsString(error)
-        let dataPath = error.keys.map(x => JSON.parse(x)).join('/')
+        const dataPath = error.keys.map(removeQuotes).join('/')
         errorCallback(new Error(`/data/${idx}: ${message}`))
         if (dataPath) {
           applyOperation(cur, {
             op: 'replace',
-            path: dataPath,
+            path: `/${dataPath}`,
             value: undefined,
           })
         }
@@ -179,12 +179,12 @@ function parsePropertiesV2Permissive(
       } else {
         const error = result.error
         const message = Parser.validatorErrorAsString(error)
-        let dataPath = error.keys.map(x => JSON.parse(x)).join('/')
+        const dataPath = error.keys.map(removeQuotes).join('/')
         errorCallback(new Error(`/data/${idx}: ${message}`))
         if (dataPath) {
           applyOperation(properties, {
             op: 'replace',
-            path: dataPath,
+            path: `/${dataPath}`,
             value: undefined,
           })
         }
@@ -194,6 +194,14 @@ function parsePropertiesV2Permissive(
 
     {},
   )
+}
+
+const removeRegex = /('|")/
+function removeQuotes(x: string) {
+  while (removeRegex.test(x)) {
+    x = x.replace(removeRegex, '')
+  }
+  return x
 }
 
 type PackagePropertiesV1 = PropertiesV1[]
