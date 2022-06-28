@@ -143,9 +143,9 @@ pub async fn init(cfg: &RpcContextConfig, product_key: &str) -> Result<(), Error
         .set(
             &mut handle,
             ServerStatus {
-                backing_up: false,
                 updated: false,
                 update_progress: None,
+                backup_progress: None,
             },
         )
         .await?;

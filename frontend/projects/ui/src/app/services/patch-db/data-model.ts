@@ -59,7 +59,11 @@ export interface ServerInfo {
 }
 
 export interface ServerStatusInfo {
-  'backing-up': boolean
+  'backup-progress': null | {
+    [packageId: string]: {
+      complete: boolean
+    }
+  }
   updated: boolean
   'update-progress': { size: number | null; downloaded: number } | null
 }
