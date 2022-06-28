@@ -11,14 +11,14 @@ import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 })
 export class BackupSelectPage {
   hasSelection = false
-  error: string | IonicSafeString
+  error: string | IonicSafeString = ''
   pkgs: {
     id: string
     title: string
     icon: string
     disabled: boolean
     checked: boolean
-  }[]
+  }[] = []
 
   constructor(
     private readonly modalCtrl: ModalController,

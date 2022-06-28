@@ -10,9 +10,8 @@ import {
   GenericInputOptions,
 } from 'src/app/modals/generic-input/generic-input.component'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { skip, take, takeUntil } from 'rxjs/operators'
+import { skip, takeUntil } from 'rxjs/operators'
 import { MappedBackupTarget } from 'src/app/types/mapped-backup-target'
-import { PackageMainStatus } from 'src/app/services/patch-db/data-model'
 import * as argon2 from '@start9labs/argon2'
 import {
   CifsBackupTarget,
@@ -20,7 +19,7 @@ import {
 } from 'src/app/services/api/api.types'
 import { BackupSelectPage } from 'src/app/modals/backup-select/backup-select.page'
 import { EOSService } from 'src/app/services/eos.service'
-import { DestroyService } from '../../../../../../shared/src/services/destroy.service'
+import { DestroyService } from '@start9labs/shared'
 
 @Component({
   selector: 'server-backup',
@@ -30,11 +29,9 @@ import { DestroyService } from '../../../../../../shared/src/services/destroy.se
 })
 export class ServerBackupPage {
   target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>
-  serviceIds: string[]
+  serviceIds: string[] = []
 
-  pkgs$ = this.patch.watch$('package-data').pipe(take(1))
-
-  PackageMainStatus = PackageMainStatus
+  readonly backingUp$ = this.eosService.backingUp$
 
   constructor(
     private readonly loadingCtrl: LoadingController,
@@ -42,12 +39,12 @@ export class ServerBackupPage {
     private readonly embassyApi: ApiService,
     private readonly navCtrl: NavController,
     private readonly destroy$: DestroyService,
-    public readonly eosService: EOSService,
-    public readonly patch: PatchDbService,
+    private readonly eosService: EOSService,
+    private readonly patch: PatchDbService,
   ) {}
 
   ngOnInit() {
-    this.eosService.backingUp$
+    this.backingUp$
       .pipe(skip(1), takeUntil(this.destroy$))
       .subscribe(isBackingUp => {
         if (!isBackingUp) {

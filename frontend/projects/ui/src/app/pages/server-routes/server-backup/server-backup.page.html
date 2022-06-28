@@ -1,68 +1,8 @@
 <!-- currently backing up -->
-<ng-container *ngIf="eosService.backingUp$ | async; else notBackingUp">
-  <ion-header>
-    <ion-toolbar>
-      <ion-buttons slot="start">
-        <ion-back-button defaultHref="embassy"></ion-back-button>
-      </ion-buttons>
-      <ion-title>Backup Progress</ion-title>
-    </ion-toolbar>
-  </ion-header>
-
-  <ion-content class="ion-padding">
-    <ion-grid *ngIf="pkgs$ | async as pkgs">
-      <ion-row
-        *ngIf="patch.watch$('server-info', 'status-info', 'backup-progress') | async as backupProgress"
-      >
-        <ion-col>
-          <ion-item-group>
-            <ng-container *ngFor="let pkg of pkgs | keyvalue">
-              <ion-item *ngIf="backupProgress[pkg.key] as pkgProgress">
-                <ion-avatar slot="start">
-                  <img [src]="pkg.value['static-files'].icon" />
-                </ion-avatar>
-                <ion-label> {{ pkg.value.manifest.title }} </ion-label>
-                <!-- complete -->
-                <ion-note
-                  *ngIf="pkgProgress.complete; else incomplete"
-                  class="inline"
-                  slot="end"
-                >
-                  <ion-icon name="checkmark" color="success"></ion-icon>
-                  &nbsp;
-                  <ion-text color="success">Complete</ion-text>
-                </ion-note>
-                <!-- incomplete -->
-                <ng-template #incomplete>
-                  <ng-container
-                    *ngIf="patch.watch$('package-data', pkg.key, 'installed', 'status', 'main', 'status') | async as pkgStatus"
-                  >
-                    <!-- active -->
-                    <ion-note
-                      *ngIf="pkgStatus === PackageMainStatus.BackingUp; else queued"
-                      class="inline"
-                      slot="end"
-                    >
-                      <ion-spinner
-                        color="dark"
-                        style="height: 12px; width: 12px; margin-right: 6px"
-                      ></ion-spinner>
-                      <ion-text color="dark">Backing up</ion-text>
-                    </ion-note>
-                    <!-- queued -->
-                    <ng-template #queued>
-                      <ion-note slot="end"> Waiting... </ion-note>
-                    </ng-template>
-                  </ng-container>
-                </ng-template>
-              </ion-item>
-            </ng-container>
-          </ion-item-group>
-        </ion-col>
-      </ion-row>
-    </ion-grid>
-  </ion-content>
-</ng-container>
+<backing-up
+  *ngIf="backingUp$ | async; else notBackingUp"
+  style="height: 100%"
+></backing-up>
 
 <!-- not backing up -->
 <ng-template #notBackingUp>
