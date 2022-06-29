@@ -87,7 +87,6 @@ const ICONS = [
 @Component({
   selector: 'section[appPreloader]',
   templateUrl: 'preloader.component.html',
-  styles: [':host { display: none }'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PreloaderComponent {
