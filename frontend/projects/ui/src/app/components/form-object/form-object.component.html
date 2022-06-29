@@ -192,6 +192,7 @@
           <ion-icon
             slot="end"
             name="chevron-up"
+            [color]="entry.value.invalid ? 'danger' : undefined"
             [ngStyle]="{
               transform: objectDisplay[entry.key].expanded
                 ? 'rotate(0deg)'
@@ -294,6 +295,7 @@
                   <ion-icon
                     slot="end"
                     name="chevron-up"
+                    [color]="abstractControl.invalid ? 'danger' : undefined"
                     [ngStyle]="{
                       transform: objectListDisplay[entry.key][i].expanded
                         ? 'rotate(0deg)'
