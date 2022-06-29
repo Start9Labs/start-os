@@ -159,6 +159,7 @@ pub async fn backup_all(
     }
     let revision = assure_backing_up(&mut db, &service_ids).await?;
     tokio::task::spawn(async move {
+        let backup_res = perform_backup(&ctx, &mut db, backup_guard).await;
         let backup_progress = crate::db::DatabaseModel::new()
             .server_info()
             .status_info()
@@ -168,7 +169,6 @@ pub async fn backup_all(
             .lock(&mut db, LockType::Write)
             .await
             .expect("failed to lock server status");
-        let backup_res = perform_backup(&ctx, &mut db, backup_guard).await;
         match backup_res {
             Ok(report) if report.iter().all(|(_, rep)| rep.error.is_none()) => ctx
                 .notification_manager
@@ -397,23 +397,22 @@ async fn perform_backup<Db: DbHandle>(
             )
             .await?;
 
-        let mut backup_progress: BTreeMap<_, _> = (crate::db::DatabaseModel::new()
+        let mut backup_progress = crate::db::DatabaseModel::new()
             .server_info()
             .status_info()
             .backup_progress()
-            .get(&mut tx, true)
-            .await?
-            .into_owned())
-        .unwrap_or_default();
-        if let Some(mut backup_progress) = backup_progress.get_mut(&package_id) {
+            .get_mut(&mut tx)
+            .await?;
+        if backup_progress.is_none() {
+            *backup_progress = Some(Default::default());
+        }
+        if let Some(mut backup_progress) = backup_progress
+            .as_mut()
+            .and_then(|bp| bp.get_mut(&package_id))
+        {
             (*backup_progress).complete = true;
         }
-        crate::db::DatabaseModel::new()
-            .server_info()
-            .status_info()
-            .backup_progress()
-            .put(&mut tx, &backup_progress)
-            .await?;
+        backup_progress.save(&mut tx).await?;
         tx.save().await?;
     }
 
