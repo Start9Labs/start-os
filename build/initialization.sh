@@ -13,6 +13,9 @@ fi
 
 passwd -l start9
 
+# change timezone
+timedatectl set-timezone Etc/UTC
+
 ! test -f /etc/docker/daemon.json || rm /etc/docker/daemon.json
 mount -o remount,rw /boot
 
