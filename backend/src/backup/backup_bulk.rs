@@ -131,7 +131,7 @@ pub async fn backup_all(
         long = "package-ids",
         parse(parse_comma_separated)
     )]
-    service_ids: Option<BTreeSet<PackageId>>,
+    package_ids: Option<BTreeSet<PackageId>>,
     #[arg] password: String,
 ) -> Result<WithRevision<()>, Error> {
     let mut db = ctx.db.handle();
@@ -153,13 +153,13 @@ pub async fn backup_all(
         .into_iter()
         .cloned()
         .collect();
-    let service_ids = service_ids.unwrap_or(all_packages);
+    let package_ids = package_ids.unwrap_or(all_packages);
     if old_password.is_some() {
         backup_guard.change_password(&password)?;
     }
-    let revision = assure_backing_up(&mut db, &service_ids).await?;
+    let revision = assure_backing_up(&mut db, &package_ids).await?;
     tokio::task::spawn(async move {
-        let backup_res = perform_backup(&ctx, &mut db, backup_guard).await;
+        let backup_res = perform_backup(&ctx, &mut db, backup_guard, &package_ids).await;
         let backup_progress = crate::db::DatabaseModel::new()
             .server_info()
             .status_info()
@@ -285,6 +285,7 @@ async fn perform_backup<Db: DbHandle>(
     ctx: &RpcContext,
     mut db: Db,
     mut backup_guard: BackupMountGuard<TmpMountGuard>,
+    package_ids: &BTreeSet<PackageId>,
 ) -> Result<BTreeMap<PackageId, PackageBackupReport>, Error> {
     let mut backup_report = BTreeMap::new();
 
@@ -292,6 +293,8 @@ async fn perform_backup<Db: DbHandle>(
         .package_data()
         .keys(&mut db, false)
         .await?
+        .into_iter()
+        .filter(|id| package_ids.contains(id))
     {
         let mut tx = db.begin().await?; // for lock scope
         let installed_model = if let Some(installed_model) = crate::db::DatabaseModel::new()
