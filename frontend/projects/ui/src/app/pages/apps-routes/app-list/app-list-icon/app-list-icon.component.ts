@@ -13,13 +13,7 @@ export class AppListIconComponent {
   @Input()
   pkg: PkgInfo
 
-  color$ = this.connectionService.watchDisconnected$().pipe(
-    map(disconnected => {
-      return disconnected
-        ? 'var(--ion-color-dark)'
-        : 'var(--ion-color-' + this.pkg.primaryRendering.color + ')'
-    }),
-  )
+  disconnected$ = this.connectionService.watchDisconnected$()
 
   constructor(private readonly connectionService: ConnectionService) {}
 }

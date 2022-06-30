@@ -13,6 +13,13 @@
     color="primary"
   ></ion-spinner>
   <ng-template #bulb>
-    <div class="bulb" [style.background-color]="color$ | async"></div>
+    <div
+      class="bulb"
+      [style.background-color]="
+        (disconnected$ | async)
+          ? 'var(--ion-color-dark)'
+          : 'var(--ion-color-' + this.pkg.primaryRendering.color + ')'
+      "
+    ></div>
   </ng-template>
 </ng-template>
