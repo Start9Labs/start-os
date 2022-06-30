@@ -21,3 +21,8 @@ export async function copyToClipboard(str: string): Promise<boolean> {
     return copy
   }
 }
+
+export function strip(html: string) {
+  let doc = new DOMParser().parseFromString(html, 'text/html')
+  return doc.body.textContent || ''
+}

@@ -3,7 +3,7 @@ import { ActivatedRoute } from '@angular/router'
 import { getPkgId } from '@start9labs/shared'
 import { ToastController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { copyToClipboard } from 'src/app/util/web.util'
+import { copyToClipboard, strip } from 'src/app/util/web.util'
 
 @Component({
   selector: 'app-logs',
@@ -41,7 +41,7 @@ export class AppLogsPage {
     const logs = document
       .getElementById('template')
       ?.cloneNode(true) as HTMLElement
-    const formatted = '```' + logs.innerHTML + '```'
+    const formatted = '```' + strip(logs.innerHTML) + '```'
     const success = await copyToClipboard(formatted)
     const message = success
       ? 'Copied to clipboard!'
