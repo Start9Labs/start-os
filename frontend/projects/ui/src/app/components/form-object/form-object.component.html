@@ -223,6 +223,7 @@
               [original]="original?.[entry.key]"
               [unionSpec]="spec.type === 'union' ? spec : undefined"
               (onExpand)="resize(entry.key)"
+              (hasNewOptions)="setHasNew(entry.key)"
             ></form-object>
           </div>
         </div>

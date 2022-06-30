@@ -22,16 +22,21 @@
     </ion-item>
 
     <ng-template #noError>
-      <ion-item
+      <h2
         *ngIf="hasConfig && !pkg.installed?.status?.configured && !configForm.dirty"
+        class="ion-padding-bottom"
       >
-        <ion-label>
-          <ion-text color="success"
-            >To use the default config for {{ pkg.manifest.title }}, click
-            "Save" below.</ion-text
-          >
-        </ion-label>
-      </ion-item>
+        <ion-text color="success">
+          <span *ngIf="!original; else hasOriginal">
+            {{ pkg.manifest.title }} has been automatically configured with
+            recommended defaults. Make whatever changes you want, then click
+            "Save".
+          </span>
+          <ng-template #hasOriginal>
+            <span *ngIf="hasNewOptions"> New config options! </span>
+          </ng-template>
+        </ion-text>
+      </h2>
 
       <!-- auto-config -->
       <ion-item
@@ -82,6 +87,7 @@
           [formGroup]="configForm"
           [current]="configForm.value"
           [original]="original"
+          (hasNewOptions)="hasNewOptions = true"
         ></form-object>
       </form>
     </ng-template>

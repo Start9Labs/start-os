@@ -42,6 +42,7 @@ export class AppConfigPage {
   configForm: FormGroup
   original: object
   hasConfig = false
+  hasNewOptions = false
   saving = false
   loadingError: string | IonicSafeString
 
@@ -61,7 +62,7 @@ export class AppConfigPage {
 
     if (!this.hasConfig) return
 
-    let oldConfig: object
+    let oldConfig: object | null
     let newConfig: object | undefined
     let spec: ConfigSpec
     let patch: Operation[] | undefined
