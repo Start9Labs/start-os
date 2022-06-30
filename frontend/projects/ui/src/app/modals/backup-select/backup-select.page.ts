@@ -12,6 +12,7 @@ import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 export class BackupSelectPage {
   hasSelection = false
   error: string | IonicSafeString = ''
+  selectAll = true
   pkgs: {
     id: string
     title: string
@@ -57,5 +58,10 @@ export class BackupSelectPage {
 
   handleChange() {
     this.hasSelection = this.pkgs.some(p => p.checked)
+  }
+
+  toggleSelectAll() {
+    this.pkgs.forEach(pkg => (pkg.checked = this.selectAll))
+    this.selectAll = !this.selectAll
   }
 }

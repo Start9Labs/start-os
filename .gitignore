@@ -13,3 +13,4 @@ libs/js_engine/src/artifacts/ARM_JS_SNAPSHOT.bin
 libs/js_engine/src/artifacts/JS_SNAPSHOT.bin
 deploy_web.sh
 secrets.db
+.vscode/
