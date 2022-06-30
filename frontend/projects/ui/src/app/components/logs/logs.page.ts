@@ -8,6 +8,7 @@ var convert = new Convert({
   colors: {
     4: 'Cyan',
   },
+  escapeXML: true,
 })
 
 @Component({
