@@ -12,7 +12,7 @@ export class EnumListPage {
   @Input() spec: ValueSpecListOf<'enum'>
   @Input() current: string[]
   options: { [option: string]: boolean } = {}
-  selectAll = true
+  selectAll = false
 
   constructor(private readonly modalCtrl: ModalController) {}
 
@@ -20,6 +20,8 @@ export class EnumListPage {
     for (let val of this.spec.spec.values) {
       this.options[val] = this.current.includes(val)
     }
+    // if none are selected, set selectAll to true
+    this.selectAll = Object.values(this.options).some(k => !k)
   }
 
   dismiss() {

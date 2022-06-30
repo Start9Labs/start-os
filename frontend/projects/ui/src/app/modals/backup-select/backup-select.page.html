@@ -11,6 +11,13 @@
 
 <ion-content>
   <ion-item-group>
+    <ion-item-divider>
+      <ion-buttons slot="end" style="padding-bottom: 6px">
+        <ion-button fill="clear" (click)="toggleSelectAll()">
+          <b>{{ selectAll ? 'Select All' : 'Deselect All' }}</b>
+        </ion-button>
+      </ion-buttons>
+    </ion-item-divider>
     <ion-item *ngFor="let pkg of pkgs">
       <ion-avatar slot="start">
         <img alt="" [src]="pkg.icon" />
