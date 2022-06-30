@@ -39,6 +39,7 @@ export class FormObjectComponent {
   @Input() original?: { [key: string]: any }
   @Output() onInputChange = new EventEmitter<void>()
   @Output() onExpand = new EventEmitter<void>()
+  @Output() hasNewOptions = new EventEmitter<void>()
   warningAck: { [key: string]: boolean } = {}
   unmasked: { [key: string]: boolean } = {}
   objectDisplay: {
@@ -76,26 +77,17 @@ export class FormObjectComponent {
           }
         })
       } else if (['object', 'union'].includes(spec.type)) {
-        let hasNewOptions = false
-
-        // We can only really show new children for objects, not unions.
-        if (spec.type === 'object') {
-          hasNewOptions = Object.keys(spec.spec).some(childKey => {
-            const parentValue = this.original?.[key]
-            return !!parentValue && parentValue[childKey] === undefined
-          })
-        } else if (spec.type === 'union') {
-          // @TODO
-          hasNewOptions = false
-        }
-
         this.objectDisplay[key] = {
           expanded: false,
           height: '0px',
-          hasNewOptions,
+          hasNewOptions: false,
         }
       }
     })
+
+    if (Object.values(this.original || {}).some(v => v === undefined)) {
+      this.hasNewOptions.emit()
+    }
   }
 
   getEnumListDisplay(arr: string[], spec: ListValueSpecOf<'enum'>): string {
@@ -211,6 +203,13 @@ export class FormObjectComponent {
 
   handleInputChange() {
     this.onInputChange.emit()
+  }
+
+  setHasNew(key: string) {
+    this.hasNewOptions.emit()
+    setTimeout(() => {
+      this.objectDisplay[key].hasNewOptions = true
+    }, 100)
   }
 
   handleBooleanChange(key: string, spec: ValueSpecBoolean) {
