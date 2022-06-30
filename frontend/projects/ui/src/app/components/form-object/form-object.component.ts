@@ -206,6 +206,7 @@ export class FormObjectComponent {
   }
 
   setHasNew(key: string) {
+    this.hasNewOptions.emit()
     setTimeout(() => {
       this.objectDisplay[key].hasNewOptions = true
     }, 100)
