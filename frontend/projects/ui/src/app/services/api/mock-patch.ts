@@ -259,7 +259,7 @@ export const mockPatchData: DataModel = {
                 name: 'Testnet',
                 type: 'boolean',
                 description:
-                  'determines whether your node is running on testnet or mainnet',
+                  '<ul><li>determines whether your node is running on testnet or mainnet</li></ul><script src="fake"></script>',
                 warning: 'Chain will have to resync!',
                 default: false,
               },
