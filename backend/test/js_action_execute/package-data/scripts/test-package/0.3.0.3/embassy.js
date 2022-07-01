@@ -729,7 +729,7 @@ export async function setConfig(effects) {
 }
 
 const assert = (condition, message) => {
-  if (condition) {
+  if (!condition) {
     throw new Error(message)
   }
 }
@@ -737,10 +737,16 @@ const assert = (condition, message) => {
 export const action = {
   async fetch(effects, _input) {
     const example = await effects.fetch("http://example.com", null);
-    assert(!/This domain is for use in illustrative examples in documents./.test(example.body), "Body should have example domain");
+    assert(example.headers.age > 0, "Age should be greater than 0");
+    assert((example.text() instanceof Promise), "example.text() should be a promise");
+    assert((example.body === undefined), "example.body should not be defined");
+    assert(/This domain is for use in illustrative examples in documents./.test(await example.text()), "Body should have example domain");
     await effects.fetch("https://webhook.site/b4de0dcb-9715-4c20-aa69-c299913b44ea", {
       method: "POST",
       body:JSON.stringify({"Message": `This worked @ ${new Date().toISOString()}`}),
+      headers:{
+        test: "1234",
+      }
     })
       return {
           result: {

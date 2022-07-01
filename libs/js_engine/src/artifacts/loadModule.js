@@ -51,7 +51,16 @@ const warn = (x) => Deno.core.opSync("log_warn", x);
 const error = (x) => Deno.core.opSync("log_error", x);
 const debug = (x) => Deno.core.opSync("log_debug", x);
 const info = (x) => Deno.core.opSync("log_info", x);
-const fetch = (url, options = null) => Deno.core.opAsync("fetch", url, options);
+const fetch = async (url, options = null) => {
+  const {body, ...response} = await Deno.core.opAsync("fetch", url, options);
+  const textValue = Promise.resolve(body)
+  return {
+    ...response,
+    text() {
+      return textValue
+    }
+  }
+};
 
 
 const currentFunction = Deno.core.opSync("current_function");
