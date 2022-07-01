@@ -362,9 +362,17 @@ mod fns {
     }
     #[op]
     async fn fetch(
+        state: Rc<RefCell<OpState>>,
         url: url::Url,
         options: Option<FetchOptions>,
     ) -> Result<FetchResponse, AnyError> {
+        let state = state.borrow();
+        let ctx: &JsContext = state.borrow();
+
+        if ctx.sandboxed {
+            bail!("Will not run fetch in sandboxed mode");
+        }
+
         let client = reqwest::Client::new();
         let options = options.unwrap_or_default();
         let method = options

@@ -244,22 +244,6 @@ async fn js_action_execute_error() {
 
 #[tokio::test]
 async fn js_action_fetch() {
-    {
-        use tracing_error::ErrorLayer;
-        use tracing_subscriber::prelude::*;
-        use tracing_subscriber::{fmt, EnvFilter};
-
-        let filter_layer = EnvFilter::new("embassy=trace");
-        let fmt_layer = fmt::layer().with_target(true);
-
-        tracing_subscriber::registry()
-            .with(filter_layer)
-            .with(fmt_layer)
-            .with(ErrorLayer::default())
-            .init();
-        color_eyre::install().unwrap();
-    }
-    println!("JM, HERE BE DRAGONS");
     let js_action = JsProcedure {};
     let path: PathBuf = "test/js_action_execute/"
         .parse::<PathBuf>()
