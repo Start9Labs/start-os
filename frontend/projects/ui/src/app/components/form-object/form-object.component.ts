@@ -300,7 +300,8 @@ export class FormObjectComponent {
     await alert.present()
   }
 
-  async presentAlertDescription(spec: ValueSpec) {
+  async presentAlertDescription(event: Event, spec: ValueSpec) {
+    event.stopPropagation()
     const { name, description } = spec
 
     const alert = await this.alertCtrl.create({
@@ -353,7 +354,12 @@ export class FormObjectComponent {
     return `${key}-${index}-${this.objectId}`
   }
 
-  async presentUnionTagDescription(name: string, description: string) {
+  async presentUnionTagDescription(
+    event: Event,
+    name: string,
+    description: string,
+  ) {
+    event.stopPropagation()
     const alert = await this.alertCtrl.create({
       header: name,
       message: description,
@@ -384,7 +390,8 @@ export class FormLabelComponent {
 
   constructor(private readonly alertCtrl: AlertController) {}
 
-  async presentAlertDescription() {
+  async presentAlertDescription(event: Event) {
+    event.stopPropagation()
     const { name, description } = this.data.spec
 
     const alert = await this.alertCtrl.create({
