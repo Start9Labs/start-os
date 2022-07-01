@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { IonicSafeString, ToastController, ToastOptions } from '@ionic/angular'
+import { ToastController, ToastOptions } from '@ionic/angular'
 import { ToastButton } from '@ionic/core'
 import { EMPTY, from, Observable } from 'rxjs'
 import {
@@ -112,6 +112,6 @@ function getButtons(link?: string): ToastButton[] {
 }
 
 interface OfflineMessage {
-  readonly message: string | IonicSafeString
+  readonly message: string
   readonly link?: string
 }

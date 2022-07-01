@@ -4,7 +4,6 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import {
   AlertController,
   IonContent,
-  IonicSafeString,
   LoadingController,
   ModalController,
   NavController,

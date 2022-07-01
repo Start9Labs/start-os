@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { ModalController, IonicSafeString } from '@ionic/angular'
+import { ModalController } from '@ionic/angular'
 import { map, take } from 'rxjs/operators'
 import { PackageState } from 'src/app/services/patch-db/data-model'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
@@ -11,7 +11,6 @@ import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 })
 export class BackupSelectPage {
   hasSelection = false
-  error: string | IonicSafeString = ''
   selectAll = true
   pkgs: {
     id: string

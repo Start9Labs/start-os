@@ -3,7 +3,6 @@ import {
   AlertController,
   LoadingController,
   NavController,
-  IonicSafeString,
   ModalController,
 } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -121,9 +120,7 @@ export class ServerShowPage {
     const minutes = Object.keys(this.patch.getData()['package-data']).length * 2
     const alert = await this.alertCtrl.create({
       header: 'Warning',
-      message: new IonicSafeString(
-        `This action will tear down all service containers and rebuild them from scratch. No data will be deleted. This action is useful if your system gets into a bad state, and it should only be performed if you are experiencing general performance or reliability issues. It may take up to ${minutes} minutes to complete. During this time, you will lose all connectivity to your Embassy.`,
-      ),
+      message: `This action will tear down all service containers and rebuild them from scratch. No data will be deleted. This action is useful if your system gets into a bad state, and it should only be performed if you are experiencing general performance or reliability issues. It may take up to ${minutes} minutes to complete. During this time, you will lose all connectivity to your Embassy.`,
       buttons: [
         {
           text: 'Cancel',
@@ -145,9 +142,7 @@ export class ServerShowPage {
   async presentAlertRepairDisk() {
     const alert = await this.alertCtrl.create({
       header: 'Warning',
-      message: new IonicSafeString(
-        `<p>This action will attempt to preform a disk repair operation and system reboot. No data will be deleted. This action should only be executed if directed by a Start9 support specialist. We recommend backing up your device before preforming this action.</p><p>If anything happens to the device during the reboot (between the bep and chime), such as loosing power, a power surge, unplugging the drive, or unplugging the Embassy, the filesystem <i>will</i> be in an unrecoverable state. Please proceed with caution.</p>`,
-      ),
+      message: `<p>This action will attempt to preform a disk repair operation and system reboot. No data will be deleted. This action should only be executed if directed by a Start9 support specialist. We recommend backing up your device before preforming this action.</p><p>If anything happens to the device during the reboot (between the bep and chime), such as loosing power, a power surge, unplugging the drive, or unplugging the Embassy, the filesystem <i>will</i> be in an unrecoverable state. Please proceed with caution.</p>`,
       buttons: [
         {
           text: 'Cancel',

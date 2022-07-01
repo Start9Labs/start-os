@@ -32,7 +32,7 @@ export class RecoverPage {
     private readonly loadingCtrl: LoadingController,
     private readonly errorToastService: ErrorToastService,
     public readonly stateService: StateService,
-  ) { }
+  ) {}
 
   async ngOnInit() {
     await this.getDrives()
@@ -99,8 +99,12 @@ export class RecoverPage {
         const alert = await this.alertCtrl.create({
           header: 'Embassy Data Drive Detected',
           message: new IonicSafeString(
-            `${importableDrive.vendor || 'Unknown Vendor'} - ${importableDrive.model || 'Unknown Model'
-            } contains Embassy data. To use this drive and its data <i>as-is</i>, click "Use Drive". This will complete the setup process.<br /><br /><b>Important</b>. If you are trying to restore from backup or update from 0.2.x, DO NOT click "Use Drive". Instead, click "Cancel" and follow instructions.`,
+            `<strong>${importableDrive.vendor || 'Unknown Vendor'} - ${
+              importableDrive.model || 'Unknown Model'
+            }</strong> contains Embassy data.
+            <p>To use this drive and its data, select <strong>"USE DRIVE"</strong>. This will complete the setup process.
+            <p><strong style="color:red">Important!</strong><br><br>
+            If you are trying to restore from a backup or update from 0.2.x, <strong>DO NOT</strong> select "USE DRIVE". Instead, select <strong>"CANCEL"</strong> and follow instructions.`,
           ),
           buttons: [
             {
