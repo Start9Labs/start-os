@@ -736,18 +736,20 @@ const assert = (condition, message) => {
 
 export const action = {
   async fetch(effects, _input) {
-    const example = await effects.fetch("http://example.com", null);
-    assert(example.headers.age > 0, "Age should be greater than 0");
+    const example = await effects.fetch("https://postman-echo.com/get?foo1=bar1&foo2=bar2");
+    assert(Number(example.headers['content-length']) > 0 && Number(example.headers['content-length']) <= 1000000,"Should have content length");
     assert((example.text() instanceof Promise), "example.text() should be a promise");
     assert((example.body === undefined), "example.body should not be defined");
-    assert(/This domain is for use in illustrative examples in documents./.test(await example.text()), "Body should have example domain");
-    await effects.fetch("https://webhook.site/b4de0dcb-9715-4c20-aa69-c299913b44ea", {
+    assert((JSON.parse(await example.text()).args.foo1 === 'bar1'), "Body should be parsed");
+    const message = `This worked @ ${new Date().toISOString()}`;
+    const secondResponse = await effects.fetch("https://postman-echo.com/post", {
       method: "POST",
-      body:JSON.stringify({"Message": `This worked @ ${new Date().toISOString()}`}),
+      body:JSON.stringify({message }),
       headers:{
         test: "1234",
       }
     })
+    assert((JSON.parse(await secondResponse.text()).json.message === message), "Body should be parsed from response");
       return {
           result: {
               copyable: false,
