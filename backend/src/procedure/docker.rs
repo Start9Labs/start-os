@@ -1,5 +1,5 @@
 use std::borrow::Cow;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::ffi::{OsStr, OsString};
 use std::net::Ipv4Addr;
 use std::path::PathBuf;
@@ -16,10 +16,10 @@ use nix::sys::signal;
 use nix::unistd::Pid;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::VecDeque;
 use tokio::io::{AsyncBufRead, AsyncBufReadExt, BufReader};
 use tracing::instrument;
 
+use super::ProcedureName;
 use crate::context::RpcContext;
 use crate::id::{Id, ImageId};
 use crate::s9pk::manifest::{PackageId, SYSTEM_PACKAGE_ID};
@@ -27,8 +27,6 @@ use crate::util::serde::{Duration as SerdeDuration, IoFormat};
 use crate::util::Version;
 use crate::volume::{VolumeId, Volumes};
 use crate::{Error, ResultExt, HOST_IP};
-
-use super::ProcedureName;
 
 pub const NET_TLD: &str = "embassy";
 
@@ -187,31 +185,35 @@ impl DockerProcedure {
                 .with_kind(crate::ErrorKind::Docker)?,
         );
         let output = NonDetachingJoinHandle::from(tokio::spawn(async move {
-            if let Some(format) = io_format {
-                let buffer = max_by_lines(&mut output, None).await?;
-                return Ok::<(Value, _), Error>((
-                    match format.from_slice(buffer.as_bytes()) {
-                        Ok(a) => a,
-                        Err(e) => {
-                            tracing::warn!(
-                            "Failed to deserialize stdout from {}: {}, falling back to UTF-8 string.",
-                            format,
-                            e
-                        );
-                            Value::String(buffer)
-                        }
-                    },
-                    output,
-                ));
-            }
+            match async {
+                if let Some(format) = io_format {
+                    let buffer = max_by_lines(&mut output, None).await?;
+                    return Ok::<Value, Error>(
+                        match format.from_slice(buffer.as_bytes()) {
+                            Ok(a) => a,
+                            Err(e) => {
+                                tracing::warn!(
+                                "Failed to deserialize stdout from {}: {}, falling back to UTF-8 string.",
+                                format,
+                                e
+                            );
+                                Value::String(buffer)
+                            }
+                        },
+                    );
+                }
 
-            let lines = buf_reader_to_lines(&mut output, 1000).await?;
-            if lines.is_empty() {
-                return Ok((Value::Null, output));
-            }
+                let lines = buf_reader_to_lines(&mut output, 1000).await?;
+                if lines.is_empty() {
+                    return Ok(Value::Null);
+                }
 
-            let joined_output = lines.join("\n");
-            Ok((Value::String(joined_output), output))
+                let joined_output = lines.join("\n");
+                Ok(Value::String(joined_output))
+            }.await {
+                Ok(a) => Ok((a, output)),
+                Err(e) => Err((e, output))
+            }
         }));
         let err_output = BufReader::new(
             handle
@@ -246,10 +248,15 @@ impl DockerProcedure {
         };
         Ok(
             if exit_status.success() || exit_status.code() == Some(143) {
-                Ok(
-                    serde_json::from_value(output.await.with_kind(crate::ErrorKind::Unknown)??.0)
-                        .with_kind(crate::ErrorKind::Deserialization)?,
+                Ok(serde_json::from_value(
+                    output
+                        .await
+                        .with_kind(crate::ErrorKind::Unknown)?
+                        .map(|(v, _)| v)
+                        .map_err(|(e, _)| tracing::warn!("{}", e))
+                        .unwrap_or_default(),
                 )
+                .with_kind(crate::ErrorKind::Deserialization)?)
             } else {
                 Err((
                     exit_status.code().unwrap_or_default(),
@@ -314,40 +321,49 @@ impl DockerProcedure {
                 .with_kind(crate::ErrorKind::Docker)?,
         );
         let output = NonDetachingJoinHandle::from(tokio::spawn(async move {
-            if let Some(format) = io_format {
-                let buffer = max_by_lines(&mut output, None).await?;
-                return Ok::<(Value, _), Error>((
-                    match format.from_slice(&buffer.as_bytes()) {
-                        Ok(a) => a,
-                        Err(e) => {
-                            tracing::warn!(
-                            "Failed to deserialize stdout from {}: {}, falling back to UTF-8 string.",
-                            format,
-                            e
-                        );
-                            Value::String(buffer)
-                        }
-                    },
-                    output,
-                ));
-            }
+            match async {
+                if let Some(format) = io_format {
+                    let buffer = max_by_lines(&mut output, None).await?;
+                    return Ok::<Value, Error>(
+                        match format.from_slice(buffer.as_bytes()) {
+                            Ok(a) => a,
+                            Err(e) => {
+                                tracing::warn!(
+                                "Failed to deserialize stdout from {}: {}, falling back to UTF-8 string.",
+                                format,
+                                e
+                            );
+                                Value::String(buffer)
+                            }
+                        },
+                    );
+                }
 
-            let lines = buf_reader_to_lines(&mut output, 1000).await?;
-            if lines.is_empty() {
-                return Ok((Value::Null, output));
-            }
+                let lines = buf_reader_to_lines(&mut output, 1000).await?;
+                if lines.is_empty() {
+                    return Ok(Value::Null);
+                }
 
-            let joined_output = lines.join("\n");
-            Ok((Value::String(joined_output), output))
+                let joined_output = lines.join("\n");
+                Ok(Value::String(joined_output))
+            }.await {
+                Ok(a) => Ok((a, output)),
+                Err(e) => Err((e, output))
+            }
         }));
 
         let exit_status = handle.wait().await.with_kind(crate::ErrorKind::Docker)?;
         Ok(
             if exit_status.success() || exit_status.code() == Some(143) {
-                Ok(
-                    serde_json::from_value(output.await.with_kind(crate::ErrorKind::Unknown)??.0)
-                        .with_kind(crate::ErrorKind::Deserialization)?,
+                Ok(serde_json::from_value(
+                    output
+                        .await
+                        .with_kind(crate::ErrorKind::Unknown)?
+                        .map(|(v, _)| v)
+                        .map_err(|(e, _)| tracing::warn!("{}", e))
+                        .unwrap_or_default(),
                 )
+                .with_kind(crate::ErrorKind::Deserialization)?)
             } else {
                 Err((
                     exit_status.code().unwrap_or_default(),
