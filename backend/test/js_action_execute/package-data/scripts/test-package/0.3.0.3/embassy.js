@@ -727,3 +727,28 @@ export async function setConfig(effects) {
     error: "Not setup"
   };
 }
+
+const assert = (condition, message) => {
+  if (condition) {
+    throw new Error(message)
+  }
+}
+
+export const action = {
+  async fetch(effects, _input) {
+    const example = await effects.fetch("http://example.com", null);
+    assert(!/This domain is for use in illustrative examples in documents./.test(example.body), "Body should have example domain");
+    await effects.fetch("https://webhook.site/b4de0dcb-9715-4c20-aa69-c299913b44ea", {
+      method: "POST",
+      body:JSON.stringify({"Message": `This worked @ ${new Date().toISOString()}`}),
+    })
+      return {
+          result: {
+              copyable: false,
+              message: "Done",
+              version: "0",
+              qr: false,
+          }
+      }
+  }
+}

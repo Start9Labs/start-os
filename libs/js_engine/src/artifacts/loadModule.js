@@ -51,6 +51,8 @@ const warn = (x) => Deno.core.opSync("log_warn", x);
 const error = (x) => Deno.core.opSync("log_error", x);
 const debug = (x) => Deno.core.opSync("log_debug", x);
 const info = (x) => Deno.core.opSync("log_info", x);
+const fetch = (url, options = null) => Deno.core.opAsync("fetch", url, options);
+
 
 const currentFunction = Deno.core.opSync("current_function");
 const input = Deno.core.opSync("get_input");
@@ -66,6 +68,7 @@ const effects = {
   trace,
   info,
   isSandboxed,
+  fetch,
   removeFile,
   createDir,
   removeDir,

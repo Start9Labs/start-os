@@ -241,3 +241,63 @@ async fn js_action_execute_error() {
         .unwrap();
     assert_eq!("Err((2, \"Not setup\"))", &format!("{:?}", output));
 }
+
+#[tokio::test]
+async fn js_action_fetch() {
+    {
+        use tracing_error::ErrorLayer;
+        use tracing_subscriber::prelude::*;
+        use tracing_subscriber::{fmt, EnvFilter};
+
+        let filter_layer = EnvFilter::new("embassy=trace");
+        let fmt_layer = fmt::layer().with_target(true);
+
+        tracing_subscriber::registry()
+            .with(filter_layer)
+            .with(fmt_layer)
+            .with(ErrorLayer::default())
+            .init();
+        color_eyre::install().unwrap();
+    }
+    println!("JM, HERE BE DRAGONS");
+    let js_action = JsProcedure {};
+    let path: PathBuf = "test/js_action_execute/"
+        .parse::<PathBuf>()
+        .unwrap()
+        .canonicalize()
+        .unwrap();
+    let package_id = "test-package".parse().unwrap();
+    let package_version: Version = "0.3.0.3".parse().unwrap();
+    let name = ProcedureName::Action("fetch".parse().unwrap());
+    let volumes: Volumes = serde_json::from_value(serde_json::json!({
+        "main": {
+            "type": "data"
+        },
+        "compat": {
+            "type": "assets"
+        },
+        "filebrowser" :{
+            "package-id": "filebrowser",
+            "path": "data",
+            "readonly": true,
+            "type": "pointer",
+            "volume-id": "main",
+        }
+    }))
+    .unwrap();
+    let input: Option<serde_json::Value> = None;
+    let timeout = Some(Duration::from_secs(10));
+    js_action
+        .execute::<serde_json::Value, serde_json::Value>(
+            &path,
+            &package_id,
+            &package_version,
+            name,
+            &volumes,
+            input,
+            timeout,
+        )
+        .await
+        .unwrap()
+        .unwrap();
+}
