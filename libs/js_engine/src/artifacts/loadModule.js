@@ -54,10 +54,14 @@ const info = (x) => Deno.core.opSync("log_info", x);
 const fetch = async (url, options = null) => {
   const {body, ...response} = await Deno.core.opAsync("fetch", url, options);
   const textValue = Promise.resolve(body)
+  const json = textValue.then(x => JSON.parse(x));
   return {
     ...response,
     text() {
       return textValue
+    },
+    json() {
+      return json
     }
   }
 };
