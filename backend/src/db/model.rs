@@ -302,7 +302,7 @@ impl HasModel for CurrentDependents {
     type Model = MapModel<Self>;
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct CurrentDependencies(pub BTreeMap<PackageId, CurrentDependencyInfo>);
 impl CurrentDependencies {
     pub fn map(

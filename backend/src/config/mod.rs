@@ -624,10 +624,15 @@ pub fn configure_rec<'a, Db: DbHandle>(
         };
 
         // update dependencies
+        let prev_current_dependencies = receipts
+            .current_dependencies
+            .get(db, &id)
+            .await?
+            .unwrap_or_default();
         remove_from_current_dependents_lists(
             db,
             id,
-            &current_dependencies,
+            &prev_current_dependencies,
             &receipts.current_dependents,
         )
         .await?; // remove previous
