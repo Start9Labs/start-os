@@ -252,6 +252,7 @@ impl JsExecutionEnvironment {
     }
     fn declarations() -> Vec<OpDecl> {
         vec![
+            fns::fetch::decl(),
             fns::read_file::decl(),
             fns::metadata::decl(),
             fns::write_file::decl(),
@@ -330,11 +331,11 @@ impl JsExecutionEnvironment {
 
 /// Note: Make sure that we have the assumption that all these methods are callable at any time, and all call restrictions should be in rust
 mod fns {
-    use std::cell::RefCell;
     use std::convert::TryFrom;
     use std::os::unix::fs::MetadataExt;
     use std::path::{Path, PathBuf};
     use std::rc::Rc;
+    use std::{cell::RefCell, collections::BTreeMap};
 
     use deno_core::anyhow::{anyhow, bail};
     use deno_core::error::AnyError;
@@ -344,6 +345,75 @@ mod fns {
 
     use super::{AnswerState, JsContext};
     use crate::{system_time_as_unix_ms, MetadataJs};
+
+    #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Default)]
+    struct FetchOptions {
+        method: Option<String>,
+        headers: Option<BTreeMap<String, String>>,
+        body: Option<String>,
+    }
+    #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Default)]
+    struct FetchResponse {
+        method: String,
+        ok: bool,
+        status: u32,
+        headers: BTreeMap<String, String>,
+        body: Option<String>,
+    }
+    #[op]
+    async fn fetch(
+        state: Rc<RefCell<OpState>>,
+        url: url::Url,
+        options: Option<FetchOptions>,
+    ) -> Result<FetchResponse, AnyError> {
+        let state = state.borrow();
+        let ctx: &JsContext = state.borrow();
+
+        if ctx.sandboxed {
+            bail!("Will not run fetch in sandboxed mode");
+        }
+
+        let client = reqwest::Client::new();
+        let options = options.unwrap_or_default();
+        let method = options
+            .method
+            .unwrap_or_else(|| "GET".to_string())
+            .to_uppercase();
+        let mut request_builder = match &*method {
+            "GET" => client.get(url),
+            "POST" => client.post(url),
+            "PUT" => client.put(url),
+            "DELETE" => client.delete(url),
+            "HEAD" => client.head(url),
+            "PATCH" => client.patch(url),
+            x => bail!("Unsupported method: {}", x),
+        };
+        if let Some(headers) = options.headers {
+            for (key, value) in headers {
+                request_builder = request_builder.header(key, value);
+            }
+        }
+        if let Some(body) = options.body {
+            request_builder = request_builder.body(body);
+        }
+        let response = request_builder.send().await?;
+
+        let fetch_response = FetchResponse {
+            method,
+            ok: response.status().is_success(),
+            status: response.status().as_u16() as u32,
+            headers: response
+                .headers()
+                .iter()
+                .filter_map(|(head, value)| {
+                    Some((format!("{}", head), value.to_str().ok()?.to_string()))
+                })
+                .collect(),
+            body: response.text().await.ok(),
+        };
+
+        return Ok(fetch_response);
+    }
 
     #[op]
     async fn read_file(

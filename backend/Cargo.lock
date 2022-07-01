@@ -1897,6 +1897,7 @@ dependencies = [
  "dprint-swc-ext",
  "helpers",
  "models",
+ "reqwest",
  "serde",
  "serde_json",
  "swc_atoms",

@@ -727,3 +727,36 @@ export async function setConfig(effects) {
     error: "Not setup"
   };
 }
+
+const assert = (condition, message) => {
+  if (!condition) {
+    throw new Error(message)
+  }
+}
+
+export const action = {
+  async fetch(effects, _input) {
+    const example = await effects.fetch("https://postman-echo.com/get?foo1=bar1&foo2=bar2");
+    assert(Number(example.headers['content-length']) > 0 && Number(example.headers['content-length']) <= 1000000,"Should have content length");
+    assert((example.text() instanceof Promise), "example.text() should be a promise");
+    assert((example.body === undefined), "example.body should not be defined");
+    assert((JSON.parse(await example.text()).args.foo1 === 'bar1'), "Body should be parsed");
+    const message = `This worked @ ${new Date().toISOString()}`;
+    const secondResponse = await effects.fetch("https://postman-echo.com/post", {
+      method: "POST",
+      body:JSON.stringify({message }),
+      headers:{
+        test: "1234",
+      }
+    })
+    assert(((await secondResponse.json()).json.message === message), "Body should be parsed from response");
+      return {
+          result: {
+              copyable: false,
+              message: "Done",
+              version: "0",
+              qr: false,
+          }
+      }
+  }
+}
