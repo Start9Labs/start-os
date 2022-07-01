@@ -749,7 +749,7 @@ export const action = {
         test: "1234",
       }
     })
-    assert((JSON.parse(await secondResponse.text()).json.message === message), "Body should be parsed from response");
+    assert(((await secondResponse.json()).json.message === message), "Body should be parsed from response");
       return {
           result: {
               copyable: false,
