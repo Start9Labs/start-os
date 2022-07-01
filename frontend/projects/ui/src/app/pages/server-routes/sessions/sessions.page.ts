@@ -1,9 +1,5 @@
 import { Component } from '@angular/core'
-import {
-  AlertController,
-  IonicSafeString,
-  LoadingController,
-} from '@ionic/angular'
+import { AlertController, LoadingController } from '@ionic/angular'
 import { ErrorToastService } from '@start9labs/shared'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PlatformType, Session } from 'src/app/services/api/api.types'
@@ -53,16 +49,14 @@ export class SessionsPage {
   async presentAlertKillAll() {
     const alert = await this.alertCtrl.create({
       header: 'Confirm',
-      message: new IonicSafeString(
-        `Log out <b>all</b> other web sessions?<br /><br />Note: you will <b>not</b> be logged out of your current session on this device.`,
-      ),
+      message: `Terminate <b>all</b> other web sessions?<br /><br />Note: you will <b>not</b> be logged out of your current session on this device.`,
       buttons: [
         {
           text: 'Cancel',
           role: 'cancel',
         },
         {
-          text: 'Log out all',
+          text: 'Terminate all',
           handler: () => {
             this.kill(this.otherSessions.map(s => s.id))
           },
@@ -76,14 +70,14 @@ export class SessionsPage {
   async presentAlertKill(id: string) {
     const alert = await this.alertCtrl.create({
       header: 'Confirm',
-      message: 'Log out other web session?',
+      message: 'Terminate other web session?',
       buttons: [
         {
           text: 'Cancel',
           role: 'cancel',
         },
         {
-          text: 'Log Out',
+          text: 'Terminate',
           handler: () => {
             this.kill([id])
           },
@@ -96,7 +90,7 @@ export class SessionsPage {
 
   async kill(ids: string[]): Promise<void> {
     const loader = await this.loadingCtrl.create({
-      message: `Logging out session${ids.length > 1 ? 's' : ''}...`,
+      message: `Terminating session${ids.length > 1 ? 's' : ''}...`,
     })
     await loader.present()
 
