@@ -1,9 +1,5 @@
 import { Component } from '@angular/core'
-import {
-  AlertController,
-  IonicSafeString,
-  LoadingController,
-} from '@ionic/angular'
+import { AlertController, LoadingController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/api.service'
 
 @Component({

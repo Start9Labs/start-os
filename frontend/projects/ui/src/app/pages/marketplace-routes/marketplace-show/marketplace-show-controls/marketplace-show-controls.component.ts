@@ -4,11 +4,7 @@ import {
   Inject,
   Input,
 } from '@angular/core'
-import {
-  AlertController,
-  IonicSafeString,
-  LoadingController,
-} from '@ionic/angular'
+import { AlertController, LoadingController } from '@ionic/angular'
 import {
   AbstractMarketplaceService,
   MarketplacePkg,
@@ -153,14 +149,14 @@ export class MarketplaceShowControlsComponent {
   }
 
   private async presentAlertBreakages(breakages: Breakages): Promise<boolean> {
-    let message: string | IonicSafeString =
+    let message: string =
       'As a result of this update, the following services will no longer work properly and may crash:<ul>'
     const localPkgs = this.patch.getData()['package-data']
     const bullets = Object.keys(breakages).map(id => {
       const title = localPkgs[id].manifest.title
       return `<li><b>${title}</b></li>`
     })
-    message = new IonicSafeString(`${message}${bullets}</ul>`)
+    message = `${message}${bullets}</ul>`
 
     return new Promise(async resolve => {
       const alert = await this.alertCtrl.create({
