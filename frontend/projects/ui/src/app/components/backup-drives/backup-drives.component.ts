@@ -17,13 +17,15 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ErrorToastService } from '@start9labs/shared'
 import { MappedBackupTarget } from 'src/app/types/mapped-backup-target'
 
+type BackupType = 'create' | 'restore'
+
 @Component({
   selector: 'backup-drives',
   templateUrl: './backup-drives.component.html',
   styleUrls: ['./backup-drives.component.scss'],
 })
 export class BackupDrivesComponent {
-  @Input() type: 'create' | 'restore'
+  @Input() type: BackupType
   @Output() onSelect: EventEmitter<
     MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>
   > = new EventEmitter()
@@ -232,7 +234,7 @@ export class BackupDrivesComponent {
   styleUrls: ['./backup-drives.component.scss'],
 })
 export class BackupDrivesHeaderComponent {
-  @Input() title: string
+  @Input() type: BackupType
   @Output() onClose: EventEmitter<void> = new EventEmitter()
 
   constructor(public readonly backupService: BackupService) {}

@@ -3,7 +3,9 @@
     <ion-buttons slot="start">
       <ion-back-button defaultHref="embassy"></ion-back-button>
     </ion-buttons>
-    <ion-title>{{ title }}</ion-title>
+    <ion-title>{{
+      type === 'create' ? 'Create Backup' : 'Restore From Backup'
+    }}</ion-title>
     <ion-buttons slot="end">
       <ion-button [disabled]="backupService.loading" (click)="refresh()">
         Refresh
