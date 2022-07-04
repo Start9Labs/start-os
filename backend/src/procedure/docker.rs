@@ -187,20 +187,25 @@ impl DockerProcedure {
         let output = NonDetachingJoinHandle::from(tokio::spawn(async move {
             match async {
                 if let Some(format) = io_format {
-                    let buffer = max_by_lines(&mut output, None).await?;
-                    return Ok::<Value, Error>(
-                        match format.from_slice(buffer.as_bytes()) {
-                            Ok(a) => a,
-                            Err(e) => {
-                                tracing::warn!(
-                                "Failed to deserialize stdout from {}: {}, falling back to UTF-8 string.",
-                                format,
-                                e
-                            );
-                                Value::String(buffer)
-                            }
+                    return match max_by_lines(&mut output, None).await {
+                        MaxByLines::Done(buffer) => {
+                            Ok::<Value, Error>(
+                                match format.from_slice(buffer.as_bytes()) {
+                                    Ok(a) => a,
+                                    Err(e) => {
+                                        tracing::warn!(
+                                        "Failed to deserialize stdout from {}: {}, falling back to UTF-8 string.",
+                                        format,
+                                        e
+                                    );
+                                        Value::String(buffer)
+                                    }
+                                },
+                            )
                         },
-                    );
+                        MaxByLines::Error(e) => Err(e),
+                        MaxByLines::Overflow(buffer) => Ok(Value::String(buffer))
+                    }
                 }
 
                 let lines = buf_reader_to_lines(&mut output, 1000).await?;
@@ -323,20 +328,25 @@ impl DockerProcedure {
         let output = NonDetachingJoinHandle::from(tokio::spawn(async move {
             match async {
                 if let Some(format) = io_format {
-                    let buffer = max_by_lines(&mut output, None).await?;
-                    return Ok::<Value, Error>(
-                        match format.from_slice(buffer.as_bytes()) {
-                            Ok(a) => a,
-                            Err(e) => {
-                                tracing::warn!(
-                                "Failed to deserialize stdout from {}: {}, falling back to UTF-8 string.",
-                                format,
-                                e
-                            );
-                                Value::String(buffer)
-                            }
+                    return match max_by_lines(&mut output, None).await {
+                        MaxByLines::Done(buffer) => {
+                            Ok::<Value, Error>(
+                                match format.from_slice(buffer.as_bytes()) {
+                                    Ok(a) => a,
+                                    Err(e) => {
+                                        tracing::warn!(
+                                        "Failed to deserialize stdout from {}: {}, falling back to UTF-8 string.",
+                                        format,
+                                        e
+                                    );
+                                        Value::String(buffer)
+                                    }
+                                },
+                            )
                         },
-                    );
+                        MaxByLines::Error(e) => Err(e),
+                        MaxByLines::Overflow(buffer) => Ok(Value::String(buffer))
+                    }
                 }
 
                 let lines = buf_reader_to_lines(&mut output, 1000).await?;
@@ -497,27 +507,44 @@ async fn buf_reader_to_lines(
     Ok(output)
 }
 
+enum MaxByLines {
+    Done(String),
+    Overflow(String),
+    Error(Error),
+}
+
 async fn max_by_lines(
     reader: impl AsyncBufRead + Unpin,
     max_items: impl Into<Option<usize>>,
-) -> Result<String, Error> {
+) -> MaxByLines {
     let mut answer = String::new();
 
     let mut lines = reader.lines();
+    let mut has_over_blown = false;
     let max_items = max_items.into().unwrap_or(10_000_000);
-    while let Some(line) = lines.next_line().await? {
+
+    while let Some(line) = {
+        match lines.next_line().await {
+            Ok(a) => a,
+            Err(e) => return MaxByLines::Error(e.into()),
+        }
+    } {
+        if has_over_blown {
+            continue;
+        }
         if !answer.is_empty() {
             answer.push('\n');
         }
         answer.push_str(&line);
         if answer.len() >= max_items {
-            return Err(Error::new(
-                color_eyre::eyre::eyre!("Reading the buffer exceeding limits of {}", max_items),
-                crate::ErrorKind::Unknown,
-            ));
+            has_over_blown = true;
+            tracing::warn!("Reading the buffer exceeding limits of {}", max_items);
         }
     }
-    Ok(answer)
+    if has_over_blown {
+        return MaxByLines::Overflow(answer);
+    }
+    MaxByLines::Done(answer)
 }
 #[cfg(test)]
 mod tests {
