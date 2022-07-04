@@ -27,6 +27,7 @@ export class AppRecoverSelectPage {
     'newer-eos': boolean
   })[]
   hasSelection = false
+  selectAll = true
   error: string | IonicSafeString
 
   constructor(
@@ -60,6 +61,11 @@ export class AppRecoverSelectPage {
 
   handleChange() {
     this.hasSelection = this.options.some(o => o.checked)
+  }
+
+  toggleSelectAll() {
+    this.options.forEach(pkg => (pkg.checked = this.selectAll))
+    this.selectAll = !this.selectAll
   }
 
   async restore(): Promise<void> {
