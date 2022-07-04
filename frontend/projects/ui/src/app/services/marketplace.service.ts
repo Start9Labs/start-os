@@ -1,5 +1,4 @@
 import { Injectable } from '@angular/core'
-import { LoadingController } from '@ionic/angular'
 import { Emver, ErrorToastService } from '@start9labs/shared'
 import {
   MarketplacePkg,
@@ -81,7 +80,6 @@ export class MarketplaceService extends AbstractMarketplaceService {
     private readonly api: ApiService,
     private readonly patch: PatchDbService,
     private readonly config: ConfigService,
-    private readonly loadingCtrl: LoadingController,
     private readonly errToast: ErrorToastService,
     private readonly emver: Emver,
   ) {
