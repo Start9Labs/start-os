@@ -1,16 +1,14 @@
 <!-- currently backing up -->
 <backing-up
   *ngIf="backingUp$ | async; else notBackingUp"
-  style="height: 100%"
+  class="ion-page"
 ></backing-up>
 
 <!-- not backing up -->
 <ng-template #notBackingUp>
-  <backup-drives-header title="Create Backup"></backup-drives-header>
-  <ion-content class="ion-padding">
-    <backup-drives
-      type="create"
-      (onSelect)="presentModalSelect($event)"
-    ></backup-drives>
-  </ion-content>
+  <backup-drives
+    type="create"
+    class="ion-page"
+    (onSelect)="presentModalSelect($event)"
+  ></backup-drives>
 </ng-template>

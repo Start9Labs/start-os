@@ -9,44 +9,50 @@
   </ion-toolbar>
 </ion-header>
 
-<ion-content>
-  <ion-item-group>
-    <ion-item-divider>
-      <ion-buttons slot="end" style="padding-bottom: 6px">
-        <ion-button fill="clear" (click)="toggleSelectAll()">
-          <b>{{ selectAll ? 'Select All' : 'Deselect All' }}</b>
+<div *ngIf="pkgs.length; else noServices">
+  <ion-content>
+    <ion-item-group>
+      <ion-item-divider>
+        <ion-buttons slot="end" style="padding-bottom: 6px">
+          <ion-button fill="clear" (click)="toggleSelectAll()">
+            <b>{{ selectAll ? 'Select All' : 'Deselect All' }}</b>
+          </ion-button>
+        </ion-buttons>
+      </ion-item-divider>
+      <ion-item *ngFor="let pkg of pkgs">
+        <ion-avatar slot="start">
+          <img alt="" [src]="pkg.icon" />
+        </ion-avatar>
+        <ion-label>
+          <h2>{{ pkg.title }}</h2>
+        </ion-label>
+        <ion-checkbox
+          slot="end"
+          [(ngModel)]="pkg.checked"
+          (ionChange)="handleChange()"
+          [disabled]="pkg.disabled"
+        ></ion-checkbox>
+      </ion-item>
+    </ion-item-group>
+  </ion-content>
+
+  <ion-footer>
+    <ion-toolbar>
+      <ion-buttons slot="end" class="ion-padding-end">
+        <ion-button
+          [disabled]="!hasSelection"
+          fill="solid"
+          color="primary"
+          (click)="dismiss(true)"
+          class="enter-click btn-128"
+        >
+          Back Up Selected
         </ion-button>
       </ion-buttons>
-    </ion-item-divider>
-    <ion-item *ngFor="let pkg of pkgs">
-      <ion-avatar slot="start">
-        <img alt="" [src]="pkg.icon" />
-      </ion-avatar>
-      <ion-label>
-        <h2>{{ pkg.title }}</h2>
-      </ion-label>
-      <ion-checkbox
-        slot="end"
-        [(ngModel)]="pkg.checked"
-        (ionChange)="handleChange()"
-        [disabled]="pkg.disabled"
-      ></ion-checkbox>
-    </ion-item>
-  </ion-item-group>
-</ion-content>
+    </ion-toolbar>
+  </ion-footer>
+</div>
 
-<ion-footer>
-  <ion-toolbar>
-    <ion-buttons slot="end" class="ion-padding-end">
-      <ion-button
-        [disabled]="!hasSelection"
-        fill="solid"
-        color="primary"
-        (click)="dismiss(true)"
-        class="enter-click btn-128"
-      >
-        Back Up Selected
-      </ion-button>
-    </ion-buttons>
-  </ion-toolbar>
-</ion-footer>
+<ng-template #noServices>
+  <ion-content><h2 class="center">No services installed!</h2></ion-content>
+</ng-template>

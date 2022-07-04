@@ -78,7 +78,7 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
   async updateServerWrapper(params: RR.UpdateServerReq) {
     const res = await this.updateServerRaw(params)
     if (res.response === 'no-updates') {
-      throw new Error('Could ont find a newer version of EmbassyOS')
+      throw new Error('Could not find a newer version of EmbassyOS')
     }
     return res
   }
@@ -271,7 +271,7 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
   private syncResponse<
     T,
     F extends (...args: any[]) => Promise<{ response: T; revision?: Revision }>,
-    >(f: F, temp?: Operation<unknown>): (...args: Parameters<F>) => Promise<T> {
+  >(f: F, temp?: Operation<unknown>): (...args: Parameters<F>) => Promise<T> {
     return (...a) => {
       // let expireId = undefined
       // if (temp) {

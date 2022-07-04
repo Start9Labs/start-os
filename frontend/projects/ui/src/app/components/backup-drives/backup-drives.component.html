@@ -1,137 +1,145 @@
-<!-- loading -->
-<text-spinner
-  *ngIf="backupService.loading; else loaded"
-  [text]="loadingText"
-></text-spinner>
+<backup-drives-header [type]="type"></backup-drives-header>
 
-<!-- loaded -->
-<ng-template #loaded>
-  <!-- error -->
-  <ion-item *ngIf="backupService.loadingError; else noError">
-    <ion-label>
-      <ion-text color="danger">
-        {{ backupService.loadingError }}
-      </ion-text>
-    </ion-label>
-  </ion-item>
+<ion-content class="ion-padding">
+  <!-- loading -->
+  <text-spinner
+    *ngIf="backupService.loading; else loaded"
+    [text]="loadingText"
+  ></text-spinner>
 
-  <ng-template #noError>
-    <ion-item-group>
-      <!-- ** cifs ** -->
-      <ion-item-divider>LAN Shared Folders</ion-item-divider>
-      <ion-item>
-        <ion-label>
-          <h2>
-            LAN Shared Folders are the recommended way to create Embassy
-            backups. View the
-            <a
-              href="https://start9.com/latest/user-manual/backups/cifs-setup"
-              target="_blank"
-              noreferrer
-              >Instructions</a
-            >
-          </h2>
-        </ion-label>
-      </ion-item>
-      <!-- add new cifs -->
-      <ion-item button detail="false" (click)="presentModalAddCifs()">
-        <ion-icon
-          slot="start"
-          name="folder-open-outline"
-          size="large"
-          color="dark"
-        ></ion-icon>
-        <ion-label>
-          <b>Open New</b>
-        </ion-label>
-      </ion-item>
-      <!-- cifs list -->
-      <ng-container *ngFor="let target of backupService.cifs; let i = index">
-        <ion-item button *ngIf="target.entry as cifs" (click)="select(target)">
+  <!-- loaded -->
+  <ng-template #loaded>
+    <!-- error -->
+    <ion-item *ngIf="backupService.loadingError; else noError">
+      <ion-label>
+        <ion-text color="danger">
+          {{ backupService.loadingError }}
+        </ion-text>
+      </ion-label>
+    </ion-item>
+
+    <ng-template #noError>
+      <ion-item-group>
+        <!-- ** cifs ** -->
+        <ion-item-divider>LAN Shared Folders</ion-item-divider>
+        <ion-item>
+          <ion-label>
+            <h2>
+              LAN Shared Folders are the recommended way to create Embassy
+              backups. View the
+              <a
+                href="https://start9.com/latest/user-manual/backups/cifs-setup"
+                target="_blank"
+                noreferrer
+                >Instructions</a
+              >
+            </h2>
+          </ion-label>
+        </ion-item>
+        <!-- add new cifs -->
+        <ion-item button detail="false" (click)="presentModalAddCifs()">
           <ion-icon
             slot="start"
             name="folder-open-outline"
             size="large"
+            color="dark"
           ></ion-icon>
           <ion-label>
-            <h1>{{ cifs.path.split('/').pop() }}</h1>
-            <ng-container *ngIf="cifs.mountable">
-              <backup-drives-status
-                [type]="type"
-                [hasValidBackup]="target.hasValidBackup"
-              ></backup-drives-status>
-            </ng-container>
-            <h2 *ngIf="!cifs.mountable" class="inline">
-              <ion-icon name="cellular-outline" color="danger"></ion-icon>
-              Unable to connect
-            </h2>
-            <p>Hostname: {{ cifs.hostname }}</p>
-            <p>Path: {{ cifs.path }}</p>
+            <b>Open New</b>
           </ion-label>
-          <ion-note
-            slot="end"
-            class="click-area"
-            (click)="presentActionCifs($event, target, i)"
+        </ion-item>
+        <!-- cifs list -->
+        <ng-container *ngFor="let target of backupService.cifs; let i = index">
+          <ion-item
+            button
+            *ngIf="target.entry as cifs"
+            (click)="select(target)"
           >
-            <ion-icon name="ellipsis-horizontal"></ion-icon>
-          </ion-note>
-        </ion-item>
-      </ng-container>
-
-      <br />
-
-      <!-- ** drives ** -->
-      <ion-item-divider>Physical Drives</ion-item-divider>
-      <!-- no drives -->
-      <ion-item
-        *ngIf="!backupService.drives.length; else hasDrives"
-        class="ion-padding-bottom"
-      >
-        <ion-label>
-          <h2>
-            <ion-text color="warning">
-              Warning! Plugging a 2nd physical drive directly into your Embassy
-              can lead to data corruption.
-            </ion-text>
-            To safely create a backup to a physical drive, view the
-            <a
-              href="https://start9.com/latest/user-manual/backups/backups-create/#backup-using-a-physical-drive"
-              target="_blank"
-              noreferrer
-              >instructions</a
-            >.
-          </h2>
-          <br />
-          <h2>
-            If your drive is plugged in and does not appear, try
-            <a (click)="refresh()" style="cursor: pointer">refreshing</a>.
-          </h2>
-        </ion-label>
-      </ion-item>
-      <!-- drives detected -->
-      <ng-template #hasDrives>
-        <ion-item
-          button
-          *ngFor="let target of backupService.drives"
-          (click)="select(target)"
-        >
-          <ion-icon slot="start" name="save-outline" size="large"></ion-icon>
-          <ng-container *ngIf="target.entry as drive">
+            <ion-icon
+              slot="start"
+              name="folder-open-outline"
+              size="large"
+            ></ion-icon>
             <ion-label>
-              <h1>{{ drive.label || drive.logicalname }}</h1>
-              <backup-drives-status
-                [type]="type"
-                [hasValidBackup]="target.hasValidBackup"
-              ></backup-drives-status>
-              <p>
-                {{ drive.vendor || 'Unknown Vendor' }} -
-                {{ drive.model || 'Unknown Model' }}
-              </p>
-              <p>Capacity: {{ drive.capacity | convertBytes }}</p>
+              <h1>{{ cifs.path.split('/').pop() }}</h1>
+              <ng-container *ngIf="cifs.mountable">
+                <backup-drives-status
+                  [type]="type"
+                  [hasValidBackup]="target.hasValidBackup"
+                ></backup-drives-status>
+              </ng-container>
+              <h2 *ngIf="!cifs.mountable" class="inline">
+                <ion-icon name="cellular-outline" color="danger"></ion-icon>
+                Unable to connect
+              </h2>
+              <p>Hostname: {{ cifs.hostname }}</p>
+              <p>Path: {{ cifs.path }}</p>
             </ion-label>
-          </ng-container>
+            <ion-note
+              slot="end"
+              class="click-area"
+              (click)="presentActionCifs($event, target, i)"
+            >
+              <ion-icon name="ellipsis-horizontal"></ion-icon>
+            </ion-note>
+          </ion-item>
+        </ng-container>
+
+        <br />
+
+        <!-- ** drives ** -->
+        <ion-item-divider>Physical Drives</ion-item-divider>
+        <!-- no drives -->
+        <ion-item
+          *ngIf="!backupService.drives.length; else hasDrives"
+          class="ion-padding-bottom"
+        >
+          <ion-label>
+            <h2>
+              <ion-text color="warning">
+                Warning! Plugging a 2nd physical drive directly into your
+                Embassy can lead to data corruption.
+              </ion-text>
+              To safely create a backup to a physical drive, view the
+              <a
+                href="https://start9.com/latest/user-manual/backups/backups-create/#backup-using-a-physical-drive"
+                target="_blank"
+                noreferrer
+                >instructions</a
+              >.
+            </h2>
+            <br />
+            <h2>
+              If your drive is plugged in and does not appear, try
+              <a (click)="refresh()" style="cursor: pointer">refreshing</a>.
+            </h2>
+          </ion-label>
         </ion-item>
-      </ng-template>
-    </ion-item-group>
+        <!-- drives detected -->
+        <ng-template #hasDrives>
+          <ion-item
+            button
+            *ngFor="let target of backupService.drives"
+            (click)="select(target)"
+          >
+            <ion-icon slot="start" name="save-outline" size="large"></ion-icon>
+            <ng-container *ngIf="target.entry as drive">
+              <ion-label>
+                <h1>{{ drive.label || drive.logicalname }}</h1>
+                <backup-drives-status
+                  [type]="type"
+                  [hasValidBackup]="target.hasValidBackup"
+                ></backup-drives-status>
+                <p>
+                  {{ drive.vendor || 'Unknown Vendor' }} -
+                  {{ drive.model || 'Unknown Model' }}
+                </p>
+                <p>Capacity: {{ drive.capacity | convertBytes }}</p>
+              </ion-label>
+            </ng-container>
+          </ion-item>
+        </ng-template>
+      </ion-item-group>
+    </ng-template>
   </ng-template>
-</ng-template>
+</ion-content>

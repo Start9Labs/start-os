@@ -11,7 +11,7 @@ import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 })
 export class BackupSelectPage {
   hasSelection = false
-  selectAll = true
+  selectAll = false
   pkgs: {
     id: string
     title: string
