@@ -9,8 +9,8 @@
   </ion-toolbar>
 </ion-header>
 
-<div *ngIf="pkgs.length; else noServices">
-  <ion-content>
+<ion-content>
+  <ng-container *ngIf="pkgs.length; else empty">
     <ion-item-group>
       <ion-item-divider>
         <ion-buttons slot="end" style="padding-bottom: 6px">
@@ -34,25 +34,24 @@
         ></ion-checkbox>
       </ion-item>
     </ion-item-group>
-  </ion-content>
+  </ng-container>
+  <ng-template #empty>
+    <h2 class="center">No services installed!</h2>
+  </ng-template>
+</ion-content>
 
-  <ion-footer>
-    <ion-toolbar>
-      <ion-buttons slot="end" class="ion-padding-end">
-        <ion-button
-          [disabled]="!hasSelection"
-          fill="solid"
-          color="primary"
-          (click)="dismiss(true)"
-          class="enter-click btn-128"
-        >
-          Back Up Selected
-        </ion-button>
-      </ion-buttons>
-    </ion-toolbar>
-  </ion-footer>
-</div>
-
-<ng-template #noServices>
-  <ion-content><h2 class="center">No services installed!</h2></ion-content>
-</ng-template>
+<ion-footer>
+  <ion-toolbar>
+    <ion-buttons slot="end" class="ion-padding-end">
+      <ion-button
+        [disabled]="!hasSelection"
+        fill="solid"
+        color="primary"
+        (click)="dismiss(true)"
+        class="enter-click btn-128"
+      >
+        Back Up Selected
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-footer>
