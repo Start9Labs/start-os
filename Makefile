@@ -82,3 +82,6 @@ frontends: frontend/node_modules frontend/config.json $(EMBASSY_UIS)
 
 # this is a convenience step to build the UI
 ui: frontend/node_modules frontend/config.json frontend/dist/ui
+
+# this is a convenience step to build the backend
+backend: $(EMBASSY_BINS)

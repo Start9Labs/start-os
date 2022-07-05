@@ -1,0 +1,142 @@
+name: Build Pipeline
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+    - master
+
+jobs:
+  compat:
+    name: Build compat.tar
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+        
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v1
+      
+    - name: Set up Docker Buildx        
+      uses: docker/setup-buildx-action@v1
+
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+
+    - uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-compat-${{ hashFiles('**/system-images/compat/Cargo.lock') }}
+
+    - name: Build image
+      run: make system-images/compat/compat.tar
+
+    - uses: actions/upload-artifact@v3
+      with:
+        name: compat.tar
+        path: system-images/compat/compat.tar
+
+  utils:
+    name: Build utils.tar
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+        
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v1
+      
+    - name: Set up Docker Buildx        
+      uses: docker/setup-buildx-action@v1
+
+    - name: Build image
+      run: make system-images/utils/utils.tar
+
+    - uses: actions/upload-artifact@v3
+      with:
+        name: utils.tar
+        path: system-images/utils/utils.tar
+
+  backend:
+    uses: ./.github/workflows/backend-pr.yaml
+  
+  frontend:
+    uses: ./.github/workflows/frontend-pr.yaml
+    
+  image:
+    name: Build image
+    runs-on: ubuntu-latest
+    needs: [compat,utils,backend,frontend]
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: Download compat.tar artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: compat.tar
+        path: system-images/compat
+    
+    - name: Download utils.tar artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: utils.tar
+        path: system-images/utils
+
+    - name: Download js_snapshot artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: js_snapshot
+        path: libs/js_engine/src/artifacts/
+  
+    - name: Download arm_js_snapshot artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: arm_js_snapshot
+        path: libs/js_engine/src/artifacts/
+
+    - name: Download backend artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: backend
+
+    - name: 'Extract backend'
+      run: 
+        tar -mxvf backend.tar
+
+    - name: Download frontend artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: frontend
+
+    - name: Skip frontend build
+      run: |
+        mkdir frontend/node_modules
+        mkdir frontend/dist
+        mkdir patch-db/client/node_modules
+        mkdir patch-db/client/dist
+
+    - name: 'Extract frontend'
+      run: |
+        tar -mxvf frontend.tar frontend/config.json
+        tar -mxvf frontend.tar frontend/dist
+
+    - name: Cache raspiOS
+      id: cache-raspios
+      uses: actions/cache@v3
+      with:
+        path: raspios.img
+        key: cache-raspios
+    
+    - name: Build image
+      run: "make V=1 eos.img --debug"
