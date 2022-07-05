@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core'
+import { Inject, Injectable } from '@angular/core'
 import { ModalController } from '@ionic/angular'
 import { Observable, of } from 'rxjs'
 import { filter, share, switchMap, take, tap } from 'rxjs/operators'
@@ -11,6 +11,8 @@ import { OSWelcomePage } from 'src/app/modals/os-welcome/os-welcome.page'
 import { ConfigService } from 'src/app/services/config.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PatchMonitorService } from './patch-monitor.service'
+import { MarketplaceService } from 'src/app/services/marketplace.service'
+import { AbstractMarketplaceService } from '../../../../../../marketplace/src/services/marketplace.service'
 
 // Get data from PatchDb after is starts and act upon it
 @Injectable({
@@ -24,8 +26,8 @@ export class PatchDataService extends Observable<DataModel | null> {
             filter(obj => !isEmptyObject(obj)),
             take(1),
             tap(({ ui }) => {
-              // check for updates to EOS
-              this.checkForEosUpdate(ui)
+              // check for updates to EOS and services
+              this.checkForUpdates(ui)
               // show eos welcome message
               this.showEosWelcome(ui['ack-welcome'])
             }),
@@ -42,13 +44,17 @@ export class PatchDataService extends Observable<DataModel | null> {
     private readonly config: ConfigService,
     private readonly modalCtrl: ModalController,
     private readonly embassyApi: ApiService,
+    @Inject(AbstractMarketplaceService)
+    private readonly marketplaceService: MarketplaceService,
   ) {
     super(subscriber => this.stream$.subscribe(subscriber))
   }
 
-  private checkForEosUpdate(ui: UIData): void {
+  private checkForUpdates(ui: UIData): void {
     if (ui['auto-check-updates'] !== false) {
       this.eosService.getEOS()
+      this.marketplaceService.getPackages().pipe(take(1)).subscribe()
+      this.marketplaceService.getCategories().pipe(take(1)).subscribe()
     }
   }
 

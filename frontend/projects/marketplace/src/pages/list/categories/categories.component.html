@@ -2,12 +2,12 @@
   *ngFor="let cat of categories"
   fill="clear"
   class="category"
-  [color]="cat === 'updates' && updatesAvailable > 0 ? 'success' : undefined"
+  [color]="cat === 'updates' && updatesAvailable ? 'success' : undefined"
   [class.category_selected]="cat === category"
   (click)="switchCategory(cat)"
 >
   {{ cat }}
-  <span *ngIf="cat === 'updates' && updatesAvailable > 0">
+  <span *ngIf="cat === 'updates' && updatesAvailable">
     &nbsp; ({{ updatesAvailable }})
   </span>
 </ion-button>

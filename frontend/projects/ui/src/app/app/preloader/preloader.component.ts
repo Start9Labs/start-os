@@ -9,7 +9,6 @@ const ICONS = [
   'arrow-back',
   'arrow-forward',
   'arrow-up',
-  'arrow-up-circle-outline',
   'briefcase-outline',
   'bookmark-outline',
   'cellular-outline',

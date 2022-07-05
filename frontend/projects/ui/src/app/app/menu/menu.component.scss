@@ -25,10 +25,6 @@
   }
 }
 
-.badge {
-  margin-right: 3%;
-}
-
 .snek {
   position: absolute;
   bottom: 90px;
@@ -46,6 +42,14 @@
   text-align: center;
 }
 
-.update_pkg {
-  font-size: 24px;
+.number-circle {
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  padding: 8px;
+
+  // background: #fff;
+  border: 2px solid #666;
+  color: var(--ion-color-success);
+  text-align: center;
 }

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
 import { AlertController } from '@ionic/angular'
 import { ConfigService } from '../../services/config.service'
 import { LocalStorageService } from '../../services/local-storage.service'
@@ -7,13 +7,9 @@ import { ApiService } from '../../services/api/embassy-api.service'
 import { AuthService } from '../../services/auth.service'
 import { PatchDbService } from '../../services/patch-db/patch-db.service'
 import { Observable } from 'rxjs'
-import { filter, first, map, startWith, switchMapTo } from 'rxjs/operators'
-import { exists, isEmptyObject } from '@start9labs/shared'
-import {
-  AbstractMarketplaceService,
-  MarketplacePkg,
-} from '@start9labs/marketplace'
-import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { map } from 'rxjs/operators'
+import { AbstractMarketplaceService } from '@start9labs/marketplace'
+import { MarketplaceService } from 'src/app/services/marketplace.service'
 
 @Component({
   selector: 'app-menu',
@@ -50,10 +46,18 @@ export class MenuComponent {
     },
   ]
 
-  readonly notification$ = this.patch.watch$(
+  readonly notificationCount$ = this.patch.watch$(
     'server-info',
     'unread-notification-count',
   )
+
+  readonly showEOSUpdate$ = this.eosService.showUpdate$
+
+  readonly showDevTools$ = this.localStorageService.showDevTools$
+
+  readonly updateCount$: Observable<number> = this.marketplaceService
+    .getUpdates()
+    .pipe(map(pkgs => pkgs.length))
 
   constructor(
     private readonly config: ConfigService,
@@ -61,25 +65,11 @@ export class MenuComponent {
     private readonly embassyApi: ApiService,
     private readonly authService: AuthService,
     private readonly patch: PatchDbService,
-    public readonly localStorageService: LocalStorageService,
-    public readonly eosService: EOSService,
-    private readonly marketplaceService: AbstractMarketplaceService,
+    private readonly localStorageService: LocalStorageService,
+    private readonly eosService: EOSService,
+    @Inject(AbstractMarketplaceService)
+    private readonly marketplaceService: MarketplaceService,
   ) {}
-
-  readonly localPkgs$: Observable<Record<string, PackageDataEntry>> = this.patch
-    .watch$('package-data')
-    .pipe(
-      filter(data => exists(data) && !isEmptyObject(data)),
-      startWith({}),
-    )
-
-  readonly pkgs$: Observable<MarketplacePkg[]> = this.patch
-    .watch$('server-info')
-    .pipe(
-      filter(data => exists(data) && !isEmptyObject(data)),
-      first(),
-      switchMapTo(this.marketplaceService.getPackages()),
-    )
 
   get href(): string {
     return this.config.isTor()

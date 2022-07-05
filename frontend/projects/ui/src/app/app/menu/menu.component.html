@@ -5,9 +5,7 @@
 <ion-item-group class="menu">
   <ion-menu-toggle *ngFor="let page of pages; let i = index" auto-hide="false">
     <ion-item
-      *ngIf="
-        page.url !== '/developer' || (localStorageService.showDevTools$ | async)
-      "
+      *ngIf="page.url !== '/developer' || (showDevTools$ | async)"
       button
       class="link"
       color="transparent"
@@ -26,30 +24,27 @@
         {{ page.title }}
       </ion-label>
       <ion-icon
-        *ngIf="page.url === '/embassy' && (eosService.showUpdate$ | async)"
+        *ngIf="page.url === '/embassy' && (showEOSUpdate$ | async)"
         color="success"
         size="small"
         name="rocket-outline"
       ></ion-icon>
-      <span *ngIf="page.url === '/marketplace' && (pkgs$ | async) as pkgs">
-        <span *ngIf="localPkgs$ | async as localPkgs">
-          <ion-icon
-            *ngIf="(pkgs | filterPackages: '':'updates':localPkgs).length"
-            color="success"
-            class="update_pkg"
-            style="font-size: 22px !important"
-            name="arrow-up-circle-outline"
-          ></ion-icon>
-        </span>
-      </span>
       <ion-badge
         *ngIf="
-          page.url === '/notifications' && (notification$ | async) as count
+          page.url === '/marketplace' && (updateCount$ | async) as updateCount
+        "
+        color="success"
+      >
+        {{ updateCount }}
+      </ion-badge>
+      <ion-badge
+        *ngIf="
+          page.url === '/notifications' &&
+          (notificationCount$ | async) as notificaitonCount
         "
         color="danger"
-        class="badge"
       >
-        {{ count }}
+        {{ notificaitonCount }}
       </ion-badge>
     </ion-item>
   </ion-menu-toggle>
