@@ -20,9 +20,6 @@ FLAGS=""
 if [[ "$ENVIRONMENT" =~ (^|-)unstable($|-) ]]; then
 	FLAGS="unstable,$FLAGS"
 fi
-if [[ "$ENVIRONMENT" =~ (^|-)beta($|-) ]]; then
-	FLAGS="beta,$FLAGS"
-fi
 if [[ "$ENVIRONMENT" =~ (^|-)dev($|-) ]]; then
 	FLAGS="dev,$FLAGS"
 fi

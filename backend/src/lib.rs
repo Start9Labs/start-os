@@ -1,7 +1,4 @@
-#[cfg(not(feature = "beta"))]
 pub const DEFAULT_MARKETPLACE: &str = "https://marketplace.start9.com";
-#[cfg(feature = "beta")]
-pub const DEFAULT_MARKETPLACE: &str = "https://beta-registry-0-3.start9labs.com";
 pub const BUFFER_SIZE: usize = 1024;
 pub const HOST_IP: [u8; 4] = [172, 18, 0, 1];
 
