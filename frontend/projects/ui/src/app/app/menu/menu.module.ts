@@ -4,16 +4,9 @@ import { RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
 import { MenuComponent } from './menu.component'
 import { SnekModule } from '../snek/snek.module'
-import { FilterPackagesPipeModule } from '@start9labs/marketplace'
 
 @NgModule({
-  imports: [
-    CommonModule,
-    IonicModule,
-    RouterModule,
-    SnekModule,
-    FilterPackagesPipeModule,
-  ],
+  imports: [CommonModule, IonicModule, RouterModule, SnekModule],
   declarations: [MenuComponent],
   exports: [MenuComponent],
 })

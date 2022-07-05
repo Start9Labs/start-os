@@ -29,17 +29,6 @@
         size="small"
         name="rocket-outline"
       ></ion-icon>
-      <span *ngIf="page.url === '/marketplace' && (pkgs$ | async) as pkgs">
-        <span *ngIf="localPkgs$ | async as localPkgs">
-          <ion-icon
-            *ngIf="(pkgs | filterPackages: '':'updates':localPkgs).length"
-            color="success"
-            class="update_pkg"
-            style="font-size: 22px !important"
-            name="arrow-up-circle-outline"
-          ></ion-icon>
-        </span>
-      </span>
       <ion-badge
         *ngIf="
           page.url === '/marketplace' && (updateCount$ | async) as updateCount
