@@ -12,9 +12,5 @@ const origConfig = require('./config.json')
 const registries = require('./registries.json')
 
 origConfig['gitHash'] = gitHash
-if (/(^|-)beta($|-)/.test(env['ENVIRONMENT'] || '')) {
-  origConfig.ui['marketplace'] = registries.beta
-} else {
-  origConfig.ui['marketplace'] = registries.prod
-}
+origConfig.ui['marketplace'] = registries.prod
 fs.writeFileSync('./config.json', JSON.stringify(origConfig, null, 2))
