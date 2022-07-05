@@ -44,10 +44,14 @@ impl InstallProgress {
         mut db: Db,
     ) -> Result<(), Error> {
         while !self.download_complete.load(Ordering::SeqCst) {
-            model.put(&mut db, &self).await?;
+            let mut tx = db.begin().await?;
+            model.put(&mut tx, &self).await?;
+            tx.save().await?;
             tokio::time::sleep(Duration::from_secs(1)).await;
         }
-        model.put(&mut db, &self).await?;
+        let mut tx = db.begin().await?;
+        model.put(&mut tx, &self).await?;
+        tx.save().await?;
         Ok(())
     }
     pub async fn track_download_during<
@@ -74,10 +78,14 @@ impl InstallProgress {
         complete: Arc<AtomicBool>,
     ) -> Result<(), Error> {
         while !complete.load(Ordering::SeqCst) {
-            model.put(&mut db, &self).await?;
+            let mut tx = db.begin().await?;
+            model.put(&mut tx, &self).await?;
+            tx.save().await?;
             tokio::time::sleep(Duration::from_secs(1)).await;
         }
-        model.put(&mut db, &self).await?;
+        let mut tx = db.begin().await?;
+        model.put(&mut tx, &self).await?;
+        tx.save().await?;
         Ok(())
     }
     pub async fn track_read_during<
