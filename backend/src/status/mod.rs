@@ -63,6 +63,16 @@ impl MainStatus {
             MainStatus::Stopped | MainStatus::Stopping | MainStatus::Restarting => (),
         }
     }
+    pub fn started(&self) -> Option<DateTime<Utc>> {
+        match self {
+            MainStatus::Running { started, .. } => Some(*started),
+            MainStatus::BackingUp { started, .. } => *started,
+            MainStatus::Stopped => None,
+            MainStatus::Restarting => None,
+            MainStatus::Stopping => None,
+            MainStatus::Starting { .. } => None,
+        }
+    }
 }
 impl MainStatusModel {
     pub fn started(self) -> Model<Option<DateTime<Utc>>> {
