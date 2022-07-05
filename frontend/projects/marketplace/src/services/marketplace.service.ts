@@ -7,7 +7,7 @@ export abstract class AbstractMarketplaceService {
 
   abstract getReleaseNotes(id: string): Observable<Record<string, string>>
 
-  abstract getCategories(): Observable<string[]>
+  abstract getCategories(): Observable<Set<string>>
 
   abstract getPackages(): Observable<MarketplacePkg[]>
 

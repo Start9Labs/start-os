@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
 import { AlertController } from '@ionic/angular'
 import { ConfigService } from '../../services/config.service'
 import { LocalStorageService } from '../../services/local-storage.service'
@@ -6,6 +6,10 @@ import { EOSService } from '../../services/eos.service'
 import { ApiService } from '../../services/api/embassy-api.service'
 import { AuthService } from '../../services/auth.service'
 import { PatchDbService } from '../../services/patch-db/patch-db.service'
+import { Observable } from 'rxjs'
+import { map } from 'rxjs/operators'
+import { AbstractMarketplaceService } from '@start9labs/marketplace'
+import { MarketplaceService } from 'src/app/services/marketplace.service'
 
 @Component({
   selector: 'app-menu',
@@ -42,10 +46,18 @@ export class MenuComponent {
     },
   ]
 
-  readonly notification$ = this.patch.watch$(
+  readonly notificationCount$ = this.patch.watch$(
     'server-info',
     'unread-notification-count',
   )
+
+  readonly showEOSUpdate$ = this.eosService.showUpdate$
+
+  readonly showDevTools$ = this.localStorageService.showDevTools$
+
+  readonly updateCount$: Observable<number> = this.marketplaceService
+    .getUpdates()
+    .pipe(map(pkgs => pkgs.length))
 
   constructor(
     private readonly config: ConfigService,
@@ -53,8 +65,10 @@ export class MenuComponent {
     private readonly embassyApi: ApiService,
     private readonly authService: AuthService,
     private readonly patch: PatchDbService,
-    public readonly localStorageService: LocalStorageService,
-    public readonly eosService: EOSService,
+    private readonly localStorageService: LocalStorageService,
+    private readonly eosService: EOSService,
+    @Inject(AbstractMarketplaceService)
+    private readonly marketplaceService: MarketplaceService,
   ) {}
 
   get href(): string {

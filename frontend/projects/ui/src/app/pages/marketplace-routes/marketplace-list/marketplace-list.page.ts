@@ -24,11 +24,7 @@ export class MarketplaceListPage {
       startWith({}),
     )
 
-  readonly categories$ = this.marketplaceService
-    .getCategories()
-    .pipe(
-      map(categories => new Set(['featured', 'updates', ...categories, 'all'])),
-    )
+  readonly categories$ = this.marketplaceService.getCategories()
 
   readonly pkgs$: Observable<MarketplacePkg[]> = this.patch
     .watch$('server-info')

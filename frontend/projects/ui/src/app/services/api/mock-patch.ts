@@ -14,6 +14,15 @@ export const mockPatchData: DataModel = {
     'auto-check-updates': true,
     'pkg-order': [],
     'ack-welcome': '1.0.0',
+    marketplace: {
+      'selected-id': '1234',
+      'known-hosts': {
+        '1234': {
+          name: 'Dark9',
+          url: 'https://test-marketplace.com',
+        },
+      },
+    },
   },
   'server-info': {
     id: 'abcdefgh',

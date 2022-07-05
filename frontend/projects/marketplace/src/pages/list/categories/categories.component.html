@@ -7,5 +7,7 @@
   (click)="switchCategory(cat)"
 >
   {{ cat }}
-  <span *ngIf="cat === 'updates'"> &nbsp; ({{ updatesAvailable }}) </span>
+  <span *ngIf="cat === 'updates' && updatesAvailable">
+    &nbsp; ({{ updatesAvailable }})
+  </span>
 </ion-button>

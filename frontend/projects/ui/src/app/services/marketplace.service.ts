@@ -1,12 +1,13 @@
 import { Injectable } from '@angular/core'
-import { LoadingController } from '@ionic/angular'
 import { Emver, ErrorToastService } from '@start9labs/shared'
 import {
   MarketplacePkg,
   AbstractMarketplaceService,
   Marketplace,
+  FilterPackagesPipe,
+  MarketplaceData,
 } from '@start9labs/marketplace'
-import { from, Observable, of } from 'rxjs'
+import { from, Observable, of, Subject } from 'rxjs'
 import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
@@ -29,12 +30,13 @@ import {
 @Injectable()
 export class MarketplaceService extends AbstractMarketplaceService {
   private readonly notes = new Map<string, Record<string, string>>()
+  private readonly hasPackages$ = new Subject<boolean>()
 
-  private readonly altMarketplaceData$: Observable<
+  private readonly uiMarketplaceData$: Observable<
     UIMarketplaceData | undefined
   > = this.patch.watch$('ui', 'marketplace').pipe(shareReplay(1))
 
-  private readonly marketplace$ = this.altMarketplaceData$.pipe(
+  private readonly marketplace$ = this.uiMarketplaceData$.pipe(
     map(data => this.toMarketplace(data)),
   )
 
@@ -42,48 +44,80 @@ export class MarketplaceService extends AbstractMarketplaceService {
     .watch$('server-info')
     .pipe(take(1), shareReplay())
 
-  private readonly categories$: Observable<string[]> = this.marketplace$.pipe(
-    switchMap(({ url }) =>
-      this.serverInfo$.pipe(
-        switchMap(({ id }) =>
-          from(this.getMarketplaceData({ 'server-id': id }, url)),
-        ),
-      ),
-    ),
-    map(({ categories }) => categories),
-    shareReplay(1),
-  )
-
-  private readonly pkg$: Observable<MarketplacePkg[]> =
-    this.altMarketplaceData$.pipe(
-      switchMap(data =>
+  private readonly registryData$: Observable<MarketplaceData> =
+    this.uiMarketplaceData$.pipe(
+      switchMap(uiMarketplaceData =>
         this.serverInfo$.pipe(
-          switchMap(info =>
+          switchMap(({ id }) =>
             from(
-              this.getMarketplacePkgs(
-                { page: 1, 'per-page': 100 },
-                this.toMarketplace(data).url,
-                info['eos-version-compat'],
+              this.getMarketplaceData(
+                { 'server-id': id },
+                this.toMarketplace(uiMarketplaceData).url,
               ),
-            ).pipe(tap(() => this.onPackages(data))),
+            ).pipe(tap(({ name }) => this.updateName(uiMarketplaceData, name))),
           ),
         ),
       ),
-      catchError(e => {
-        this.errToast.present(e)
-
-        return of([])
-      }),
       shareReplay(1),
+    )
+
+  private readonly categories$: Observable<Set<string>> =
+    this.registryData$.pipe(
+      map(
+        ({ categories }) =>
+          new Set(['featured', 'updates', ...categories, 'all']),
+      ),
+    )
+
+  private readonly pkgs$: Observable<MarketplacePkg[]> = this.marketplace$.pipe(
+    switchMap(({ url }) =>
+      this.serverInfo$.pipe(
+        switchMap(info =>
+          from(
+            this.getMarketplacePkgs(
+              { page: 1, 'per-page': 100 },
+              url,
+              info['eos-version-compat'],
+            ),
+          ).pipe(tap(() => this.hasPackages$.next(true))),
+        ),
+      ),
+    ),
+    catchError(e => {
+      this.errToast.present(e)
+
+      return of([])
+    }),
+    shareReplay(1),
+  )
+
+  private readonly updates$: Observable<MarketplacePkg[]> =
+    this.hasPackages$.pipe(
+      switchMap(() =>
+        this.patch.watch$('package-data').pipe(
+          switchMap(localPkgs =>
+            this.pkgs$.pipe(
+              map(pkgs => {
+                return this.filterPkgsPipe.transform(
+                  pkgs,
+                  '',
+                  'updates',
+                  localPkgs,
+                )
+              }),
+            ),
+          ),
+        ),
+      ),
     )
 
   constructor(
     private readonly api: ApiService,
     private readonly patch: PatchDbService,
     private readonly config: ConfigService,
-    private readonly loadingCtrl: LoadingController,
     private readonly errToast: ErrorToastService,
     private readonly emver: Emver,
+    private readonly filterPkgsPipe: FilterPackagesPipe,
   ) {
     super()
   }
@@ -93,15 +127,15 @@ export class MarketplaceService extends AbstractMarketplaceService {
   }
 
   getAltMarketplace(): Observable<UIMarketplaceData | undefined> {
-    return this.altMarketplaceData$
+    return this.uiMarketplaceData$
   }
 
-  getCategories(): Observable<string[]> {
+  getCategories(): Observable<Set<string>> {
     return this.categories$
   }
 
   getPackages(): Observable<MarketplacePkg[]> {
-    return this.pkg$
+    return this.pkgs$
   }
 
   getPackage(id: string, version: string): Observable<MarketplacePkg | null> {
@@ -131,6 +165,10 @@ export class MarketplaceService extends AbstractMarketplaceService {
         return true
       }),
     )
+  }
+
+  getUpdates(): Observable<MarketplacePkg[]> {
+    return this.updates$
   }
 
   getReleaseNotes(id: string): Observable<Record<string, string>> {
@@ -216,15 +254,16 @@ export class MarketplaceService extends AbstractMarketplaceService {
     )
   }
 
-  private onPackages(data?: UIMarketplaceData) {
-    const { name } = this.toMarketplace(data)
-
-    if (!data?.['selected-id']) {
+  private updateName(
+    uiMarketplaceData: UIMarketplaceData | undefined,
+    name: string,
+  ) {
+    if (!uiMarketplaceData?.['selected-id']) {
       return
     }
 
-    const selectedId = data['selected-id']
-    const knownHosts = data['known-hosts']
+    const selectedId = uiMarketplaceData['selected-id']
+    const knownHosts = uiMarketplaceData['known-hosts']
 
     if (knownHosts[selectedId].name !== name) {
       this.api.setDbValue({
