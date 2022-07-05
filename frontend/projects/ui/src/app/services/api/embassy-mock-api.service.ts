@@ -223,7 +223,7 @@ export class MockApiService extends ApiService {
 
     if (path === '/package/v0/info') {
       return {
-        name: 'Dark9',
+        name: 'Dark69',
         categories: [
           'featured',
           'bitcoin',

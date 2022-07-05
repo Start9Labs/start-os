@@ -1,7 +1,6 @@
 import { Component, ViewChild } from '@angular/core'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import {
-  IonContent,
   LoadingController,
   ModalController,
   ToastController,
@@ -20,7 +19,6 @@ import { LocalStorageService } from '../../../services/local-storage.service'
   styleUrls: ['./preferences.page.scss'],
 })
 export class PreferencesPage {
-  @ViewChild(IonContent) content: IonContent
   clicks = 0
 
   readonly ui$ = this.patch.watch$('ui')
@@ -35,10 +33,6 @@ export class PreferencesPage {
     private readonly patch: PatchDbService,
     readonly serverConfig: ServerConfigService,
   ) {}
-
-  ngAfterViewInit() {
-    this.content.scrollToPoint(undefined, 1)
-  }
 
   async presentModalName(placeholder: string): Promise<void> {
     const options: GenericInputOptions = {

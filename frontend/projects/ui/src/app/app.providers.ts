@@ -14,10 +14,12 @@ import { GlobalErrorHandler } from './services/global-error-handler.service'
 import { AuthService } from './services/auth.service'
 import { LocalStorageService } from './services/local-storage.service'
 import { DataModel } from './services/patch-db/data-model'
+import { FilterPackagesPipe } from '../../../marketplace/src/pipes/filter-packages.pipe'
 
 const { useMocks } = require('../../../../config.json') as WorkspaceConfig
 
 export const APP_PROVIDERS: Provider[] = [
+  FilterPackagesPipe,
   FormBuilder,
   IonNav,
   {

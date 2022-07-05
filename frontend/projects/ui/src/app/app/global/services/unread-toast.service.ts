@@ -1,19 +1,11 @@
 import { Injectable } from '@angular/core'
 import { Router } from '@angular/router'
-import {
-  LoadingController,
-  ToastController,
-  ToastOptions,
-} from '@ionic/angular'
-import { EMPTY, merge, Observable, ObservableInput } from 'rxjs'
+import { ToastController, ToastOptions } from '@ionic/angular'
+import { EMPTY, Observable, ObservableInput } from 'rxjs'
 import { filter, pairwise, switchMap, tap } from 'rxjs/operators'
-import { ErrorToastService } from '@start9labs/shared'
-
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { ConfigService } from 'src/app/services/config.service'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PatchDataService } from './patch-data.service'
-import { DataModel, ServerInfo } from 'src/app/services/patch-db/data-model'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 
 // Watch unread notification count to display toast
 @Injectable()
@@ -64,8 +56,6 @@ export class UnreadToastService extends Observable<unknown> {
     private readonly router: Router,
     private readonly patchData: PatchDataService,
     private readonly patch: PatchDbService,
-    private readonly config: ConfigService,
-    private readonly embassyApi: ApiService,
     private readonly toastCtrl: ToastController,
   ) {
     super(subscriber => this.stream$.subscribe(subscriber))
