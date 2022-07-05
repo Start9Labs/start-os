@@ -6,7 +6,6 @@ use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::db::model::CurrentDependents;
-use crate::db::receipt::Receipt;
 use crate::dependencies::{break_transitive, heal_transitive, DependencyError};
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::status::health_check::{HealthCheckId, HealthCheckResult};
