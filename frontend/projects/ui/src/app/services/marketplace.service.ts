@@ -44,7 +44,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
     .watch$('server-info')
     .pipe(take(1), shareReplay())
 
-  private readonly RegistryData$: Observable<MarketplaceData> =
+  private readonly registryData$: Observable<MarketplaceData> =
     this.uiMarketplaceData$.pipe(
       switchMap(uiMarketplaceData =>
         this.serverInfo$.pipe(
@@ -62,7 +62,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
     )
 
   private readonly categories$: Observable<Set<string>> =
-    this.RegistryData$.pipe(
+    this.registryData$.pipe(
       map(
         ({ categories }) =>
           new Set(['featured', 'updates', ...categories, 'all']),
