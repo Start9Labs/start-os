@@ -22,9 +22,11 @@ mount -o remount,rw /boot
 apt-mark hold raspberrypi-bootloader
 apt-mark hold raspberrypi-kernel
 
+# Convert all repos to use https:// before apt update
+sed -i "s/http:/https:/g" /etc/apt/sources.list /etc/apt/sources.list.d/*.list
+
 apt-get update
 apt-get install -y \
-	apt-transport-https \
 	nginx \
 	libavahi-client3 \
 	avahi-daemon \
