@@ -15,6 +15,7 @@ import { ModalService } from 'src/app/services/modal.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { from } from 'rxjs'
 import { Marketplace } from '@start9labs/marketplace'
+import { ActionMarketplaceComponent } from 'src/app/modals/action-marketplace/action-marketplace.component'
 export interface Button {
   title: string
   description: string
@@ -166,7 +167,11 @@ export class ToButtonsPipe implements PipeTransform {
       }
 
       button.action = () =>
-        this.differentMarketplaceAction(pkgTitle, marketplaceTitle)
+        this.differentMarketplaceAction(
+          pkgTitle,
+          marketplaceTitle,
+          pkg.manifest.id,
+        )
       button.description = 'Service was installed from a different marketplace'
     }
     return button
@@ -184,28 +189,28 @@ export class ToButtonsPipe implements PipeTransform {
       await alert.present()
     }
   }
-  private async differentMarketplaceAction(pkgM: string, currentM: string) {
-    const alert = await this.alertCtrl.create({
-      header: 'Marketplace Conflict',
-      message: `This service was installed from:
-        <br><br>
-        <span class="courier-new color-success-shade">${pkgM}</span>
-        <br><br>but you are currently connected to:<br><br>
-        <span class="courier-new color-primary-shade">${currentM}</span>
-        <br><br>
-        To view the marketplace listing for this service, visit your Marketplace Settings and change marketplaces.`,
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
-        },
-        {
-          text: 'Go to Settings',
-          handler: () => this.navCtrl.navigateForward(['embassy/marketplaces']),
-          cssClass: 'enter-click',
-        },
-      ],
+
+  private async differentMarketplaceAction(
+    packageMarketplace: string,
+    currentMarketplace: string,
+    pkgId: string,
+  ) {
+    const modal = await this.modalCtrl.create({
+      component: ActionMarketplaceComponent,
+      componentProps: {
+        title: 'Marketplace Conflict',
+        packageMarketplace,
+        currentMarketplace,
+        pkgId,
+        buttons: [
+          {
+            text: 'Cancel',
+            role: 'cancel',
+          },
+        ],
+      },
+      cssClass: 'medium-modal',
     })
-    await alert.present()
+    await modal.present()
   }
 }

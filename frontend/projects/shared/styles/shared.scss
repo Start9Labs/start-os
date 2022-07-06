@@ -1,4 +1,5 @@
 $wide-modal: 900px;
+$medium-modal: 600px;
 
 body {
   -webkit-user-select: text;
@@ -37,6 +38,28 @@ ion-modal::part(content) {
     width: 90% !important;
     left: 5% !important;
     --box-shadow: none !important;
+  }
+}
+
+.medium-modal {
+  &::part(content) {
+    position: absolute;
+    height: 80% !important;
+    top: 10%;
+    width: 90% !important;
+    left: 5% !important;
+  }
+}
+
+@media (min-width: 1000px) {
+  .medium-modal {
+    &::part(content) {
+      position: absolute;
+      height: 80% !important;
+      top: 10%;
+      width: $medium-modal !important;
+      left: calc((100vw - $medium-modal) / 2) !important;
+    }
   }
 }
 
