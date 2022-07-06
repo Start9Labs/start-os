@@ -26,7 +26,7 @@
         *ngIf="hasConfig && !pkg.installed?.status?.configured && !configForm.dirty"
         class="ion-padding-bottom"
       >
-        <ion-text color="success">
+        <ion-text class="header-details" color="success">
           <span *ngIf="!original; else hasOriginal">
             {{ pkg.manifest.title }} has been automatically configured with
             recommended defaults. Make whatever changes you want, then click
