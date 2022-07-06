@@ -1,5 +1,5 @@
 import { Component, Input } from '@angular/core'
-import { ModalController, IonicSafeString } from '@ionic/angular'
+import { ModalController } from '@ionic/angular'
 
 @Component({
   selector: 'action-marketplace',
