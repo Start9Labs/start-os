@@ -7,7 +7,7 @@ on:
     branches:
     - master
     paths:
-    - frontend
+    - 'frontend/**'
 
 jobs:
   frontend:
@@ -34,8 +34,8 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-node-
 
-    - name: Build frontend
-      run: make frontend
+    - name: Build frontends
+      run: make frontends
 
     - name: 'Tar files to preserve file permissions'
       run: tar -cvf frontend.tar frontend/dist frontend/config.json

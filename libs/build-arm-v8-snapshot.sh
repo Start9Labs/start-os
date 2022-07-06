@@ -8,9 +8,14 @@ if [ "$0" != "./build-arm-v8-snapshot.sh" ]; then
 	exit 1
 fi
 
+USE_TTY=
+if tty -s; then
+	USE_TTY="-it"
+fi
+
 echo "Building "
 cd ..
-docker run --rm -it -v "$HOME/.cargo/registry":/root/.cargo/registry -v "$(pwd)":/home/rust/src start9/rust-arm-cross:aarch64 sh -c "(cd libs/ && cargo build -p snapshot-creator --release )"
+docker run --rm $USE_TTY -v "$HOME/.cargo/registry":/root/.cargo/registry -v "$(pwd)":/home/rust/src start9/rust-arm-cross:aarch64 sh -c "(cd libs/ && cargo build -p snapshot-creator --release )"
 cd -
 
 echo "Creating Arm v8 Snapshot"
