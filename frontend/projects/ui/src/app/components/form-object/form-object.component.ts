@@ -26,6 +26,9 @@ import { pauseFor } from '@start9labs/shared'
 import { v4 } from 'uuid'
 const Mustache = require('mustache')
 
+interface Config {
+  [key: string]: any
+}
 @Component({
   selector: 'form-object',
   templateUrl: './form-object.component.html',
@@ -35,8 +38,8 @@ export class FormObjectComponent {
   @Input() objectSpec: ConfigSpec
   @Input() formGroup: FormGroup
   @Input() unionSpec?: ValueSpecUnion
-  @Input() current?: { [key: string]: any }
-  @Input() original?: { [key: string]: any }
+  @Input() current?: Config
+  @Input() original?: Config
   @Output() onInputChange = new EventEmitter<void>()
   @Output() onExpand = new EventEmitter<void>()
   @Output() hasNewOptions = new EventEmitter<void>()
@@ -85,9 +88,16 @@ export class FormObjectComponent {
       }
     })
 
-    if (Object.values(this.original || {}).some(v => v === undefined)) {
-      this.hasNewOptions.emit()
-    }
+    // setTimeout hack to avoid ExpressionChangedAfterItHasBeenCheckedError
+    setTimeout(() => {
+      if (this.original) {
+        Object.keys(this.current || {}).forEach(key => {
+          if ((this.original as Config)[key] === undefined) {
+            this.hasNewOptions.emit()
+          }
+        })
+      }
+    }, 10)
   }
 
   getEnumListDisplay(arr: string[], spec: ListValueSpecOf<'enum'>): string {
