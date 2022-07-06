@@ -1,12 +1,7 @@
 import { Inject, Pipe, PipeTransform } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { DOCUMENT } from '@angular/common'
-import {
-  AlertController,
-  IonicSafeString,
-  ModalController,
-  NavController,
-} from '@ionic/angular'
+import { AlertController, ModalController, NavController } from '@ionic/angular'
 import {
   isValidHttpUrl,
   MarkdownComponent,

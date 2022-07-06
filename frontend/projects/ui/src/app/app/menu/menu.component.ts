@@ -65,7 +65,6 @@ export class MenuComponent {
     private readonly embassyApi: ApiService,
     private readonly authService: AuthService,
     private readonly patch: PatchDbService,
-
     private readonly localStorageService: LocalStorageService,
     private readonly eosService: EOSService,
     @Inject(AbstractMarketplaceService)
