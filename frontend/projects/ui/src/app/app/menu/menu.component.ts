@@ -7,25 +7,9 @@ import { ApiService } from '../../services/api/embassy-api.service'
 import { AuthService } from '../../services/auth.service'
 import { PatchDbService } from '../../services/patch-db/patch-db.service'
 import { Observable } from 'rxjs'
-<<<<<<< HEAD
-<<<<<<< HEAD
 import { map } from 'rxjs/operators'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
-=======
-import { filter, first, map, startWith, switchMapTo } from 'rxjs/operators'
-import { exists, isEmptyObject } from '@start9labs/shared'
-import {
-  AbstractMarketplaceService,
-  MarketplacePkg,
-} from '@start9labs/marketplace'
-import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
->>>>>>> show available marketplace updates in menu
-=======
-import { map } from 'rxjs/operators'
-import { AbstractMarketplaceService } from '@start9labs/marketplace'
-import { MarketplaceService } from 'src/app/services/marketplace.service'
->>>>>>> complete feature
 
 @Component({
   selector: 'app-menu',
