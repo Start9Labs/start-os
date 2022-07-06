@@ -1,0 +1,16 @@
+.center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.card {
+  background: rgba(53, 56, 62, 0.768);
+  border-radius: 7px;
+  padding: 27px;
+}
