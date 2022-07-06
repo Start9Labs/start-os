@@ -1360,21 +1360,22 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
                 .await?;
             *main_status = prev.status.main;
             main_status.save(&mut tx).await?;
+        } else {
+            remove_from_current_dependents_lists(
+                &mut tx,
+                pkg_id,
+                &prev.current_dependencies,
+                &receipts.config.current_dependents,
+            )
+            .await?; // remove previous
+            add_dependent_to_current_dependents_lists(
+                &mut tx,
+                pkg_id,
+                &current_dependencies,
+                &receipts.config.current_dependents,
+            )
+            .await?; // add new
         }
-        remove_from_current_dependents_lists(
-            &mut tx,
-            pkg_id,
-            &prev.current_dependencies,
-            &receipts.config.current_dependents,
-        )
-        .await?; // remove previous
-        add_dependent_to_current_dependents_lists(
-            &mut tx,
-            pkg_id,
-            &current_dependencies,
-            &receipts.config.current_dependents,
-        )
-        .await?; // add new
         update_dependency_errors_of_dependents(
             ctx,
             &mut tx,
