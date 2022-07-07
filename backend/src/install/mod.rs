@@ -1381,20 +1381,6 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
                 &receipts.config,
             )
             .await?;
-            let mut main_status = crate::db::DatabaseModel::new()
-                .package_data()
-                .idx_model(pkg_id)
-                .expect(&mut tx)
-                .await?
-                .installed()
-                .expect(&mut tx)
-                .await?
-                .status()
-                .main()
-                .get_mut(&mut tx)
-                .await?;
-            *main_status = prev.status.main;
-            main_status.save(&mut tx).await?;
         } else {
             remove_from_current_dependents_lists(
                 &mut tx,
@@ -1410,6 +1396,22 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
                 &receipts.config.current_dependents,
             )
             .await?; // add new
+        }
+        if configured || manifest.config.is_none() {
+            let mut main_status = crate::db::DatabaseModel::new()
+                .package_data()
+                .idx_model(pkg_id)
+                .expect(&mut tx)
+                .await?
+                .installed()
+                .expect(&mut tx)
+                .await?
+                .status()
+                .main()
+                .get_mut(&mut tx)
+                .await?;
+            *main_status = prev.status.main;
+            main_status.save(&mut tx).await?;
         }
         update_dependency_errors_of_dependents(
             ctx,
