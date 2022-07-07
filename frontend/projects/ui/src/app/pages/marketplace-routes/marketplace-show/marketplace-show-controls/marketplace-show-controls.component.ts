@@ -156,7 +156,7 @@ export class MarketplaceShowControlsComponent {
       const title = localPkgs[id].manifest.title
       return `<li><b>${title}</b></li>`
     })
-    message = `${message}${bullets}</ul>`
+    message = `${message}${bullets.join('')}</ul>`
 
     return new Promise(async resolve => {
       const alert = await this.alertCtrl.create({
