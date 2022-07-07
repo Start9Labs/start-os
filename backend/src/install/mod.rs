@@ -334,9 +334,37 @@ pub async fn install(
 pub async fn sideload(
     #[context] ctx: RpcContext,
     #[arg] manifest: Manifest,
+    #[arg] icon: Option<String>,
 ) -> Result<RequestGuid, Error> {
     let new_ctx = ctx.clone();
     let guid = RequestGuid::new();
+    if let Some(icon) = icon {
+        use tokio::io::AsyncWriteExt;
+
+        let public_dir_path = ctx
+            .datadir
+            .join(PKG_PUBLIC_DIR)
+            .join(&manifest.id)
+            .join(manifest.version.as_str());
+        tokio::fs::create_dir_all(&public_dir_path).await?;
+
+        let invalid_data_url =
+            || Error::new(eyre!("Invalid Icon Data URL"), ErrorKind::InvalidRequest);
+        let data = icon
+            .strip_prefix(&format!(
+                "data:image/{};base64,",
+                manifest.assets.icon_type()
+            ))
+            .ok_or_else(&invalid_data_url)?;
+        let mut icon_file =
+            File::create(public_dir_path.join(format!("icon.{}", manifest.assets.icon_type())))
+                .await?;
+        icon_file
+            .write_all(&base64::decode(data).with_kind(ErrorKind::InvalidRequest)?)
+            .await?;
+        icon_file.sync_all().await?;
+    }
+
     let handler = Box::new(|req: Request<Body>| {
         async move {
             let content_length = match req.headers().get(CONTENT_LENGTH).map(|a| a.to_str()) {
@@ -482,14 +510,21 @@ async fn cli_install(
         let path = PathBuf::from(target);
 
         // inspect manifest no verify
-        let manifest = crate::inspect::manifest(path.clone(), true, Some(IoFormat::Json)).await?;
+        let mut reader = S9pkReader::open(&path, false).await?;
+        let manifest = reader.manifest().await?;
+        let icon = reader.icon().await?.to_vec().await?;
+        let icon_str = format!(
+            "data:image/{};base64,{}",
+            manifest.assets.icon_type(),
+            base64::encode(&icon)
+        );
 
         // rpc call remote sideload
         tracing::debug!("calling package.sideload");
         let guid = rpc_toolkit::command_helpers::call_remote(
             ctx.clone(),
             "package.sideload",
-            serde_json::json!({ "manifest": manifest }),
+            serde_json::json!({ "manifest": manifest, "icon": icon_str }),
             PhantomData::<RequestGuid>,
         )
         .await?
@@ -500,8 +535,8 @@ async fn cli_install(
         let file = tokio::fs::File::open(path).await?;
         let content_length = file.metadata().await?.len();
         let body = Body::wrap_stream(tokio_util::io::ReaderStream::new(file));
-        let client = reqwest::Client::new();
-        let res = client
+        let res = ctx
+            .client
             .post(format!(
                 "{}://{}/rest/rpc/{}",
                 ctx.protocol(),
