@@ -114,7 +114,7 @@ impl Serialize for OsBackup {
     }
 }
 
-fn parse_comma_separated(arg: &str, _: &ArgMatches<'_>) -> Result<BTreeSet<PackageId>, Error> {
+fn parse_comma_separated(arg: &str, _: &ArgMatches) -> Result<BTreeSet<PackageId>, Error> {
     arg.split(',')
         .map(|s| s.trim().parse().map_err(Error::from))
         .collect()

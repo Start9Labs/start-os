@@ -6,7 +6,7 @@ use chrono::{DateTime, Utc};
 use clap::ArgMatches;
 use color_eyre::eyre::eyre;
 use digest::generic_array::GenericArray;
-use digest::{Digest, OutputSizeUser};
+use digest::OutputSizeUser;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
@@ -186,7 +186,7 @@ pub struct PackageBackupInfo {
     pub timestamp: DateTime<Utc>,
 }
 
-fn display_backup_info(info: BackupInfo, matches: &ArgMatches<'_>) {
+fn display_backup_info(info: BackupInfo, matches: &ArgMatches) {
     use prettytable::*;
 
     if matches.is_present("format") {

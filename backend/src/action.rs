@@ -9,7 +9,7 @@ use tracing::instrument;
 
 use crate::config::{Config, ConfigSpec};
 use crate::context::RpcContext;
-use crate::id::{ ImageId};
+use crate::id::ImageId;
 use crate::procedure::{PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::PackageId;
 use crate::util::serde::{display_serializable, parse_stdin_deserializable, IoFormat};
@@ -99,7 +99,7 @@ impl Action {
     }
 }
 
-fn display_action_result(action_result: ActionResult, matches: &ArgMatches<'_>) {
+fn display_action_result(action_result: ActionResult, matches: &ArgMatches) {
     if matches.is_present("format") {
         return display_serializable(action_result, matches);
     }

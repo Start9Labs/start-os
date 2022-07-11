@@ -188,7 +188,7 @@ pub struct WifiListOut {
     security: Vec<String>,
 }
 pub type WifiList = HashMap<Ssid, WifiListInfo>;
-fn display_wifi_info(info: WiFiInfo, matches: &ArgMatches<'_>) {
+fn display_wifi_info(info: WiFiInfo, matches: &ArgMatches) {
     use prettytable::*;
 
     if matches.is_present("format") {
@@ -252,7 +252,7 @@ fn display_wifi_info(info: WiFiInfo, matches: &ArgMatches<'_>) {
     table_global.print_tty(false);
 }
 
-fn display_wifi_list(info: Vec<WifiListOut>, matches: &ArgMatches<'_>) {
+fn display_wifi_list(info: Vec<WifiListOut>, matches: &ArgMatches) {
     use prettytable::*;
 
     if matches.is_present("format") {
@@ -764,7 +764,7 @@ pub async fn interface_connected(interface: &str) -> Result<bool, Error> {
     Ok(v.is_some())
 }
 
-pub fn country_code_parse(code: &str, _matches: &ArgMatches<'_>) -> Result<CountryCode, Error> {
+pub fn country_code_parse(code: &str, _matches: &ArgMatches) -> Result<CountryCode, Error> {
     CountryCode::for_alpha2(code).map_err(|_| {
         Error::new(
             color_eyre::eyre::eyre!("Invalid Country Code: {}", code),

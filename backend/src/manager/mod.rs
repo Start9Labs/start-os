@@ -229,7 +229,10 @@ async fn run_main(
                     break;
                 }
             }
-            Err(bollard::errors::Error::DockerResponseNotFoundError { .. }) => (),
+            Err(bollard::errors::Error::DockerResponseServerError {
+                status_code: 404, // NOT FOUND
+                ..
+            }) => (),
             Err(e) => Err(e)?,
         }
         match futures::poll!(&mut runtime) {
@@ -375,8 +378,13 @@ impl Manager {
             .or_else(|e| {
                 if matches!(
                     e,
-                    bollard::errors::Error::DockerResponseConflictError { .. }
-                        | bollard::errors::Error::DockerResponseNotFoundError { .. }
+                    bollard::errors::Error::DockerResponseServerError {
+                        status_code: 409, // CONFLICT
+                        ..
+                    } | bollard::errors::Error::DockerResponseServerError {
+                        status_code: 404, // NOT FOUND
+                        ..
+                    }
                 ) {
                     Ok(())
                 } else {
@@ -413,9 +421,18 @@ impl Manager {
             )
             .await
         {
-            Err(bollard::errors::Error::DockerResponseNotFoundError { .. })
-            | Err(bollard::errors::Error::DockerResponseConflictError { .. })
-            | Err(bollard::errors::Error::DockerResponseNotModifiedError { .. }) => (), // Already stopped
+            Err(bollard::errors::Error::DockerResponseServerError {
+                status_code: 404, // NOT FOUND
+                ..
+            })
+            | Err(bollard::errors::Error::DockerResponseServerError {
+                status_code: 409, // CONFLICT
+                ..
+            })
+            | Err(bollard::errors::Error::DockerResponseServerError {
+                status_code: 304, // NOT MODIFIED
+                ..
+            }) => (), // Already stopped
             a => a?,
         };
         self.shared.status.store(
@@ -566,9 +583,18 @@ async fn stop(shared: &ManagerSharedState) -> Result<(), Error> {
         )
         .await
     {
-        Err(bollard::errors::Error::DockerResponseNotFoundError { .. })
-        | Err(bollard::errors::Error::DockerResponseConflictError { .. })
-        | Err(bollard::errors::Error::DockerResponseNotModifiedError { .. }) => (), // Already stopped
+        Err(bollard::errors::Error::DockerResponseServerError {
+            status_code: 404, // NOT FOUND
+            ..
+        })
+        | Err(bollard::errors::Error::DockerResponseServerError {
+            status_code: 409, // CONFLICT
+            ..
+        })
+        | Err(bollard::errors::Error::DockerResponseServerError {
+            status_code: 304, // NOT MODIFIED
+            ..
+        }) => (), // Already stopped
         a => a?,
     };
     shared.status.store(

@@ -32,7 +32,7 @@ pub fn tor() -> Result<(), Error> {
     Ok(())
 }
 
-fn display_services(services: Vec<OnionAddressV3>, matches: &ArgMatches<'_>) {
+fn display_services(services: Vec<OnionAddressV3>, matches: &ArgMatches) {
     use prettytable::*;
 
     if matches.is_present("format") {

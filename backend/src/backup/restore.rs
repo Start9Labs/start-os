@@ -37,7 +37,7 @@ use crate::util::serde::IoFormat;
 use crate::volume::{backup_dir, BACKUP_DIR, PKG_VOLUME_DIR};
 use crate::{Error, ResultExt};
 
-fn parse_comma_separated(arg: &str, _: &ArgMatches<'_>) -> Result<Vec<PackageId>, Error> {
+fn parse_comma_separated(arg: &str, _: &ArgMatches) -> Result<Vec<PackageId>, Error> {
     arg.split(',')
         .map(|s| s.trim().parse().map_err(Error::from))
         .collect()

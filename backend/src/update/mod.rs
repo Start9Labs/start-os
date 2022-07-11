@@ -76,7 +76,7 @@ pub enum UpdateResult {
     Updating,
 }
 
-fn display_update_result(status: WithRevision<UpdateResult>, _: &ArgMatches<'_>) {
+fn display_update_result(status: WithRevision<UpdateResult>, _: &ArgMatches) {
     match status.response {
         UpdateResult::Updating => {
             println!("Updating...");
@@ -139,7 +139,7 @@ async fn maybe_do_update(
         "{}/eos/v0/latest?eos-version={}&arch={}",
         marketplace_url,
         Current::new().semver(),
-        platforms::TARGET_ARCH,
+        &*crate::ARCH,
     ))
     .await
     .with_kind(ErrorKind::Network)?
@@ -304,7 +304,7 @@ impl std::fmt::Display for EosUrl {
             self.base,
             self.version,
             Current::new().semver(),
-            platforms::TARGET_ARCH,
+            &*crate::ARCH,
         )
     }
 }

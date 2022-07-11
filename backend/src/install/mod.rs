@@ -45,7 +45,7 @@ use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::s9pk::reader::S9pkReader;
 use crate::status::{MainStatus, Status};
 use crate::util::io::{copy_and_shutdown, response_to_reader};
-use crate::util::serde::{display_serializable, IoFormat, Port};
+use crate::util::serde::{display_serializable, Port};
 use crate::util::{display_none, AsyncFileExt, Version};
 use crate::version::{Current, VersionT};
 use crate::volume::{asset_dir, script_dir};
@@ -121,9 +121,9 @@ impl std::fmt::Display for MinMax {
 pub async fn install(
     #[context] ctx: RpcContext,
     #[arg] id: String,
-    #[arg(short = "m", long = "marketplace-url", rename = "marketplace-url")]
+    #[arg(short = 'm', long = "marketplace-url", rename = "marketplace-url")]
     marketplace_url: Option<Url>,
-    #[arg(short = "v", long = "version-spec", rename = "version-spec")] version_spec: Option<
+    #[arg(short = 'v', long = "version-spec", rename = "version-spec")] version_spec: Option<
         String,
     >,
     #[arg(long = "version-priority", rename = "version-priority")] version_priority: Option<MinMax>,
@@ -143,7 +143,7 @@ pub async fn install(
         version,
         version_priority,
         Current::new().compat(),
-        platforms::TARGET_ARCH,
+        &*crate::ARCH,
     ))
     .await
     .with_kind(crate::ErrorKind::Registry)?
@@ -159,7 +159,7 @@ pub async fn install(
         man.version,
         version_priority,
         Current::new().compat(),
-        platforms::TARGET_ARCH,
+        &*crate::ARCH,
     ))
     .await
     .with_kind(crate::ErrorKind::Registry)?
@@ -191,7 +191,7 @@ pub async fn install(
                         id,
                         man.version,
                         Current::new().compat(),
-                        platforms::TARGET_ARCH,
+                        &*crate::ARCH,
                     ))
                     .await?
                     .error_for_status()?,
@@ -210,7 +210,7 @@ pub async fn install(
                         id,
                         man.version,
                         Current::new().compat(),
-                        platforms::TARGET_ARCH,
+                        &*crate::ARCH,
                     ))
                     .await?
                     .error_for_status()?,
@@ -229,7 +229,7 @@ pub async fn install(
                         id,
                         man.version,
                         Current::new().compat(),
-                        platforms::TARGET_ARCH,
+                        &*crate::ARCH,
                     ))
                     .await?
                     .error_for_status()?,
@@ -959,7 +959,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
                 dep,
                 info.version,
                 Current::new().compat(),
-                platforms::TARGET_ARCH,
+                &*crate::ARCH,
             ))
             .await
             .with_kind(crate::ErrorKind::Registry)?
@@ -994,7 +994,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
                         dep,
                         info.version,
                         Current::new().compat(),
-                        platforms::TARGET_ARCH,
+                        &*crate::ARCH,
                     ))
                     .await
                     .with_kind(crate::ErrorKind::Registry)?;
