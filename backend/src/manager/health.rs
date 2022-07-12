@@ -1,15 +1,94 @@
 use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use patch_db::{DbHandle, LockType};
+use patch_db::{DbHandle, LockReceipt, LockType};
 use tracing::instrument;
 
 use crate::context::RpcContext;
+use crate::db::model::CurrentDependents;
 use crate::dependencies::{break_transitive, heal_transitive, DependencyError};
-use crate::s9pk::manifest::PackageId;
+use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::status::health_check::{HealthCheckId, HealthCheckResult};
 use crate::status::MainStatus;
 use crate::Error;
+
+struct HealthCheckPreInformationReceipt {
+    status_model: LockReceipt<MainStatus, ()>,
+    manifest: LockReceipt<Manifest, ()>,
+}
+impl HealthCheckPreInformationReceipt {
+    pub async fn new(db: &'_ mut impl DbHandle, id: &PackageId) -> Result<Self, Error> {
+        let mut locks = Vec::new();
+
+        let setup = Self::setup(&mut locks, id);
+        setup(&db.lock_all(locks).await?)
+    }
+
+    pub fn setup(
+        locks: &mut Vec<patch_db::LockTargetId>,
+        id: &PackageId,
+    ) -> impl FnOnce(&patch_db::Verifier) -> Result<Self, Error> {
+        let status_model = crate::db::DatabaseModel::new()
+            .package_data()
+            .idx_model(id)
+            .and_then(|x| x.installed())
+            .map(|x| x.status().main())
+            .make_locker(LockType::Read)
+            .add_to_keys(locks);
+        let manifest = crate::db::DatabaseModel::new()
+            .package_data()
+            .idx_model(id)
+            .and_then(|x| x.installed())
+            .map(|x| x.manifest())
+            .make_locker(LockType::Read)
+            .add_to_keys(locks);
+        move |skeleton_key| {
+            Ok(Self {
+                status_model: status_model.verify(skeleton_key)?,
+                manifest: manifest.verify(skeleton_key)?,
+            })
+        }
+    }
+}
+
+struct HealthCheckStatusReceipt {
+    status: LockReceipt<MainStatus, ()>,
+    current_dependents: LockReceipt<CurrentDependents, ()>,
+}
+impl HealthCheckStatusReceipt {
+    pub async fn new(db: &'_ mut impl DbHandle, id: &PackageId) -> Result<Self, Error> {
+        let mut locks = Vec::new();
+
+        let setup = Self::setup(&mut locks, id);
+        setup(&db.lock_all(locks).await?)
+    }
+
+    pub fn setup(
+        locks: &mut Vec<patch_db::LockTargetId>,
+        id: &PackageId,
+    ) -> impl FnOnce(&patch_db::Verifier) -> Result<Self, Error> {
+        let status = crate::db::DatabaseModel::new()
+            .package_data()
+            .idx_model(id)
+            .and_then(|x| x.installed())
+            .map(|x| x.status().main())
+            .make_locker(LockType::Write)
+            .add_to_keys(locks);
+        let current_dependents = crate::db::DatabaseModel::new()
+            .package_data()
+            .idx_model(id)
+            .and_then(|x| x.installed())
+            .map(|x| x.current_dependents())
+            .make_locker(LockType::Read)
+            .add_to_keys(locks);
+        move |skeleton_key| {
+            Ok(Self {
+                status: status.verify(skeleton_key)?,
+                current_dependents: current_dependents.verify(skeleton_key)?,
+            })
+        }
+    }
+}
 
 #[instrument(skip(ctx, db))]
 pub async fn check<Db: DbHandle>(
@@ -19,35 +98,17 @@ pub async fn check<Db: DbHandle>(
     should_commit: &AtomicBool,
 ) -> Result<(), Error> {
     let mut tx = db.begin().await?;
+    let (manifest, started) = {
+        let mut checkpoint = tx.begin().await?;
+        let receipts = HealthCheckPreInformationReceipt::new(&mut checkpoint, id).await?;
 
-    let mut checkpoint = tx.begin().await?;
+        let manifest = receipts.manifest.get(&mut checkpoint).await?;
 
-    let installed_model = crate::db::DatabaseModel::new()
-        .package_data()
-        .idx_model(id)
-        .expect(&mut checkpoint)
-        .await?
-        .installed()
-        .expect(&mut checkpoint)
-        .await?;
+        let started = receipts.status_model.get(&mut checkpoint).await?.started();
 
-    let manifest = installed_model
-        .clone()
-        .manifest()
-        .get(&mut checkpoint, true)
-        .await?
-        .into_owned();
-
-    let started = installed_model
-        .clone()
-        .status()
-        .main()
-        .started()
-        .get(&mut checkpoint, true)
-        .await?
-        .into_owned();
-
-    checkpoint.save().await?;
+        checkpoint.save().await?;
+        (manifest, started)
+    };
 
     let health_results = if let Some(started) = started {
         manifest
@@ -61,48 +122,38 @@ pub async fn check<Db: DbHandle>(
     if !should_commit.load(Ordering::SeqCst) {
         return Ok(());
     }
+    let current_dependents = {
+        let mut checkpoint = tx.begin().await?;
+        let receipts = HealthCheckStatusReceipt::new(&mut checkpoint, id).await?;
 
-    let mut checkpoint = tx.begin().await?;
+        let status = receipts.status.get(&mut checkpoint).await?;
 
-    crate::db::DatabaseModel::new()
-        .package_data()
-        .lock(&mut checkpoint, LockType::Write)
-        .await?;
-
-    let mut status = crate::db::DatabaseModel::new()
-        .package_data()
-        .idx_model(id)
-        .expect(&mut checkpoint)
-        .await?
-        .installed()
-        .expect(&mut checkpoint)
-        .await?
-        .status()
-        .main()
-        .get_mut(&mut checkpoint)
-        .await?;
-
-    match &mut *status {
-        MainStatus::Running { health, .. } => {
-            *health = health_results.clone();
+        match status {
+            MainStatus::Running { health, started } => {
+                receipts
+                    .status
+                    .set(
+                        &mut checkpoint,
+                        MainStatus::Running {
+                            health: health_results.clone(),
+                            started,
+                        },
+                    )
+                    .await?;
+            }
+            _ => (),
         }
-        _ => (),
-    }
+        let current_dependents = receipts.current_dependents.get(&mut checkpoint).await?;
 
-    status.save(&mut checkpoint).await?;
-
-    let current_dependents = installed_model
-        .current_dependents()
-        .get(&mut checkpoint, true)
-        .await?;
-
-    checkpoint.save().await?;
+        checkpoint.save().await?;
+        current_dependents
+    };
 
     tracing::debug!("Checking health of {}", id);
     let receipts = crate::dependencies::BreakTransitiveReceipts::new(&mut tx).await?;
     tracing::debug!("Got receipts {}", id);
 
-    for (dependent, info) in (*current_dependents).0.iter() {
+    for (dependent, info) in (current_dependents).0.iter() {
         let failures: BTreeMap<HealthCheckId, HealthCheckResult> = health_results
             .iter()
             .filter(|(_, hc_res)| !matches!(hc_res, HealthCheckResult::Success { .. }))
