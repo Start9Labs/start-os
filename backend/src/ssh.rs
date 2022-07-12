@@ -114,7 +114,7 @@ pub async fn delete(#[context] ctx: RpcContext, #[arg] fingerprint: String) -> R
     }
 }
 
-fn display_all_ssh_keys(all: Vec<SshKeyResponse>, matches: &ArgMatches<'_>) {
+fn display_all_ssh_keys(all: Vec<SshKeyResponse>, matches: &ArgMatches) {
     use prettytable::*;
 
     if matches.is_present("format") {

@@ -6,6 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-dashmap = "5.1.0"
-deno_core =  "0.136.0"
-deno_ast = {version="0.15.0", features = ["transpiling"]}
+dashmap = "5.3.4"
+deno_core = "=0.136.0"
+deno_ast = { version = "=0.15.0", features = ["transpiling"] }

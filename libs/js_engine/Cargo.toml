@@ -6,11 +6,11 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-dashmap = "5.1.0"
-deno_core =  "=0.136.0"
-deno_ast = {version="=0.15.0", features = ["transpiling"]}
+dashmap = "5.3.4"
+deno_core = "=0.136.0"
+deno_ast = { version = "=0.15.0", features = ["transpiling"] }
 dprint-swc-ext = "=0.1.1"
-reqwest = { version = "0.11.4" }
+reqwest = { version = "0.11.11" }
 swc_atoms = "=0.2.11"
 swc_common = "=0.18.7"
 swc_config = "=0.1.1"
@@ -33,9 +33,9 @@ swc_eq_ignore_macros = "=0.1.0"
 swc_macros_common = "=0.3.5"
 swc_visit = "=0.3.0"
 swc_visit_macros = "=0.3.1"
-models = {path = "../models"}
-helpers = {path = "../helpers"}
-serde = { version = "1.0.*", features = ["derive", "rc"] }
-serde_json = "1.0.*"
-tokio = { version = "1.*.*", features = ["full"] }
+models = { path = "../models" }
+helpers = { path = "../helpers" }
+serde = { version = "1.0", features = ["derive", "rc"] }
+serde_json = "1.0"
+tokio = { version = "1", features = ["full"] }
 tracing = "0.1"

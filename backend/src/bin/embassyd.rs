@@ -287,7 +287,7 @@ fn main() {
     let matches = clap::App::new("embassyd")
         .arg(
             clap::Arg::with_name("config")
-                .short("c")
+                .short('c')
                 .long("config")
                 .takes_value(true),
         )

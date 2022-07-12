@@ -127,7 +127,11 @@ impl DockerProcedure {
                 )
                 .await
             {
-                Ok(()) | Err(bollard::errors::Error::DockerResponseNotFoundError { .. }) => Ok(()),
+                Ok(())
+                | Err(bollard::errors::Error::DockerResponseServerError {
+                    status_code: 404, // NOT FOUND
+                    ..
+                }) => Ok(()),
                 Err(e) => Err(e),
             }?;
         }

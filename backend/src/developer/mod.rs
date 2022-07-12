@@ -21,7 +21,7 @@ pub fn init(#[context] ctx: SdkContext) -> Result<(), Error> {
                 .with_ctx(|_| (crate::ErrorKind::Filesystem, parent.display().to_string()))?;
         }
         tracing::info!("Generating new developer key...");
-        let keypair = Keypair::generate(&mut rand::thread_rng());
+        let keypair = Keypair::generate(&mut rand_old::thread_rng());
         tracing::info!("Writing key to {}", ctx.developer_key_path.display());
         let keypair_bytes = ed25519::KeypairBytes {
             secret_key: keypair.secret.to_bytes(),

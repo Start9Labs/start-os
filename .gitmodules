@@ -1,6 +1,3 @@
-[submodule "rpc-toolkit"]
-	path = rpc-toolkit
-	url = https://github.com/Start9Labs/rpc-toolkit.git
 [submodule "patch-db"]
 	path = patch-db
 	url = https://github.com/Start9Labs/patch-db.git

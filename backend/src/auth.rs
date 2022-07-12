@@ -24,7 +24,7 @@ pub fn auth() -> Result<(), Error> {
     Ok(())
 }
 
-pub fn parse_metadata(_: &str, _: &ArgMatches<'_>) -> Result<Value, Error> {
+pub fn parse_metadata(_: &str, _: &ArgMatches) -> Result<Value, Error> {
     Ok(serde_json::json!({
         "platforms": ["cli"],
     }))
@@ -52,7 +52,7 @@ async fn cli_login(
     let password = if let Some(password) = password {
         password
     } else {
-        rpassword::prompt_password_stdout("Password: ")?
+        rpassword::prompt_password("Password: ")?
     };
 
     rpc_toolkit::command_helpers::call_remote(
@@ -169,7 +169,7 @@ pub async fn session() -> Result<(), Error> {
     Ok(())
 }
 
-fn display_sessions(arg: SessionList, matches: &ArgMatches<'_>) {
+fn display_sessions(arg: SessionList, matches: &ArgMatches) {
     use prettytable::*;
 
     if matches.is_present("format") {
@@ -235,7 +235,7 @@ pub async fn list(
     })
 }
 
-fn parse_comma_separated(arg: &str, _: &ArgMatches<'_>) -> Result<Vec<String>, RpcError> {
+fn parse_comma_separated(arg: &str, _: &ArgMatches) -> Result<Vec<String>, RpcError> {
     Ok(arg.split(",").map(|s| s.trim().to_owned()).collect())
 }
 
@@ -267,14 +267,14 @@ async fn cli_reset_password(
     let old_password = if let Some(old_password) = old_password {
         old_password
     } else {
-        rpassword::prompt_password_stdout("Current Password: ")?
+        rpassword::prompt_password("Current Password: ")?
     };
 
     let new_password = if let Some(new_password) = new_password {
         new_password
     } else {
-        let new_password = rpassword::prompt_password_stdout("New Password: ")?;
-        if new_password != rpassword::prompt_password_stdout("Confirm: ")? {
+        let new_password = rpassword::prompt_password("New Password: ")?;
+        if new_password != rpassword::prompt_password("Confirm: ")? {
             return Err(Error::new(
                 eyre!("Passwords do not match"),
                 crate::ErrorKind::IncorrectPassword,

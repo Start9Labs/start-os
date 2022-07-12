@@ -111,7 +111,7 @@ pub enum LogSource {
     Container(PackageId),
 }
 
-pub fn display_logs(all: LogResponse, _: &ArgMatches<'_>) {
+pub fn display_logs(all: LogResponse, _: &ArgMatches) {
     for entry in all.entries.iter() {
         println!("{}", entry);
     }

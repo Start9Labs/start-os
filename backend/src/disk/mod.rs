@@ -20,7 +20,7 @@ pub fn disk() -> Result<(), Error> {
     Ok(())
 }
 
-fn display_disk_info(info: DiskListResponse, matches: &ArgMatches<'_>) {
+fn display_disk_info(info: DiskListResponse, matches: &ArgMatches) {
     use prettytable::*;
 
     if matches.is_present("format") {

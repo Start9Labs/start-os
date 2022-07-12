@@ -412,7 +412,7 @@ impl IoFormat {
     }
 }
 
-pub fn display_serializable<T: Serialize>(t: T, matches: &ArgMatches<'_>) {
+pub fn display_serializable<T: Serialize>(t: T, matches: &ArgMatches) {
     let format = match matches.value_of("format").map(|f| f.parse()) {
         Some(Ok(f)) => f,
         Some(Err(_)) => {
@@ -428,7 +428,7 @@ pub fn display_serializable<T: Serialize>(t: T, matches: &ArgMatches<'_>) {
 
 pub fn parse_stdin_deserializable<T: for<'de> Deserialize<'de>>(
     stdin: &mut std::io::Stdin,
-    matches: &ArgMatches<'_>,
+    matches: &ArgMatches,
 ) -> Result<T, Error> {
     let format = match matches.value_of("format").map(|f| f.parse()) {
         Some(Ok(f)) => f,

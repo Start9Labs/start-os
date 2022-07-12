@@ -9,7 +9,7 @@ use crate::procedure::ProcedureName;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::{Error, ErrorKind};
 
-pub fn display_properties(response: Value, _: &ArgMatches<'_>) {
+pub fn display_properties(response: Value, _: &ArgMatches) {
     println!("{}", response);
 }
 
