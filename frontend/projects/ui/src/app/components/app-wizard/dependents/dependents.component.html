@@ -1,6 +1,6 @@
 <div *ngIf="loading; else loaded" style="padding: 32px">
   <ion-spinner color="warning" name="lines"></ion-spinner>
-  <p>Checking for installed services which depend on {{ params?.title }}...</p>
+  <p>Checking for installed services which depend on {{ params.title }}...</p>
 </div>
 
 <ng-template #loaded>

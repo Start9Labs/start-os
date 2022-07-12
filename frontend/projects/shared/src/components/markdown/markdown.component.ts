@@ -11,7 +11,7 @@ import { getErrorMessage } from '../../services/error-toast.service'
   styleUrls: ['./markdown.component.scss'],
 })
 export class MarkdownComponent {
-  @Input() content?: string | Observable<string>
+  @Input() content!: string | Observable<string>
   @Input() title = ''
 
   private readonly data$ = defer(() =>

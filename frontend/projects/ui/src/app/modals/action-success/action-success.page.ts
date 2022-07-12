@@ -10,7 +10,7 @@ import { copyToClipboard } from 'src/app/util/web.util'
 })
 export class ActionSuccessPage {
   @Input()
-  actionRes?: ActionResponse
+  actionRes!: ActionResponse
 
   constructor(
     private readonly modalCtrl: ModalController,

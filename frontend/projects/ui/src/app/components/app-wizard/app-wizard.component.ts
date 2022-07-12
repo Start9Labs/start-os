@@ -23,7 +23,7 @@ SwiperCore.use([IonicSlides])
 })
 export class AppWizardComponent {
   @Input()
-  params?: {
+  params!: {
     action: WizardAction
     title: string
     slides: SlideDefinition[]
