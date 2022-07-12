@@ -11,7 +11,7 @@ import { BaseSlide } from '../wizard-types'
 })
 export class DependentsComponent implements BaseSlide {
   @Input()
-  params?: {
+  params!: {
     title: string
     verb: string // *Uninstalling* will cause problems...
     Fn: () => Promise<Breakages>
@@ -31,12 +31,12 @@ export class DependentsComponent implements BaseSlide {
 
   async load() {
     try {
-      this.breakages = await this.params?.Fn()
+      this.breakages = await this.params.Fn()
       if (this.breakages && !isEmptyObject(this.breakages)) {
         this.warningMessage =
-          capitalizeFirstLetter(this.params?.verb || '') +
+          capitalizeFirstLetter(this.params.verb || '') +
           ' ' +
-          this.params?.title +
+          this.params.title +
           ' will prohibit the following services from functioning properly.'
       } else {
         this.onSuccess.emit()

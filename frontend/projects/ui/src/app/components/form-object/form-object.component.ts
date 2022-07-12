@@ -424,6 +424,6 @@ export class FormLabelComponent {
   styleUrls: ['./form-object.component.scss'],
 })
 export class FormErrorComponent {
-  @Input() control?: AbstractFormGroupDirective
-  @Input() spec?: ValueSpec
+  @Input() control!: AbstractFormGroupDirective
+  @Input() spec!: ValueSpec
 }

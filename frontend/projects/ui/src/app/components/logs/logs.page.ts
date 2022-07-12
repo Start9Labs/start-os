@@ -21,7 +21,7 @@ export class LogsPage {
   private content?: IonContent
 
   @Input()
-  fetchLogs?: (params: {
+  fetchLogs!: (params: {
     before_flag?: boolean
     limit?: number
     cursor?: string
@@ -42,8 +42,6 @@ export class LogsPage {
   }
 
   async fetch(isBefore: boolean = true) {
-    if (!this.fetchLogs) return
-
     try {
       const cursor = isBefore ? this.startCursor : this.endCursor
       const logsRes = await this.fetchLogs({

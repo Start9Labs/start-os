@@ -9,7 +9,7 @@ import { BaseSlide } from '../wizard-types'
 })
 export class CompleteComponent implements BaseSlide {
   @Input()
-  params?: {
+  params!: {
     verb: string // loader verb: '*stopping* ...'
     title: string
     Fn: () => Promise<any>
@@ -24,7 +24,7 @@ export class CompleteComponent implements BaseSlide {
 
   async load() {
     this.message =
-      capitalizeFirstLetter(this.params?.verb || '') + ' ' + this.params?.title
+      capitalizeFirstLetter(this.params.verb || '') + ' ' + this.params.title
     try {
       await this.params?.Fn()
       this.onSuccess.emit()

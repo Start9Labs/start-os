@@ -202,12 +202,6 @@ export class ToButtonsPipe implements PipeTransform {
         packageMarketplace,
         currentMarketplace,
         pkgId,
-        buttons: [
-          {
-            text: 'Cancel',
-            role: 'cancel',
-          },
-        ],
       },
       cssClass: 'medium-modal',
     })

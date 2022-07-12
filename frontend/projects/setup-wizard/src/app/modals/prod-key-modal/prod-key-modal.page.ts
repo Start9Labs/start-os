@@ -10,7 +10,7 @@ import { HttpService } from 'src/app/services/api/http.service'
 })
 export class ProdKeyModal {
   @ViewChild('focusInput') elem?: IonInput
-  @Input() target?: DiskBackupTarget
+  @Input() target!: DiskBackupTarget
 
   error = ''
   productKey = ''
@@ -28,7 +28,7 @@ export class ProdKeyModal {
   }
 
   async verifyProductKey() {
-    if (!this.productKey || !this.target?.logicalname) return
+    if (!this.productKey || !this.target.logicalname) return
 
     const loader = await this.loadingCtrl.create({
       message: 'Verifying Product Key',

@@ -7,10 +7,10 @@ import { ModalController } from '@ionic/angular'
   styleUrls: ['./action-marketplace.component.scss'],
 })
 export class ActionMarketplaceComponent {
-  @Input() title: string
-  @Input() packageMarketplace: string
-  @Input() currentMarketplace: string
-  @Input() pkgId: string
+  @Input() title!: string
+  @Input() packageMarketplace!: string
+  @Input() currentMarketplace!: string
+  @Input() pkgId!: string
 
   constructor(private readonly modalCtrl: ModalController) {}
 
