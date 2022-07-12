@@ -356,7 +356,12 @@ async fn write_stream_to_label<Db: DbHandle>(
     pin!(stream_download);
     let mut downloaded = 0;
     let mut last_progress_update = Instant::now();
-    while let Some(Ok(item)) = stream_download.next().await {
+    while let Some(item) = stream_download
+        .next()
+        .await
+        .transpose()
+        .with_kind(ErrorKind::Network)?
+    {
         file.write_all(&item)
             .await
             .with_kind(ErrorKind::Filesystem)?;
