@@ -42,7 +42,7 @@
 
   <!-- not loading -->
   <ng-template #notLoading>
-    <ion-item-group>
+    <ion-item-group *ngIf="currentSession">
       <ion-item-divider>Current Session</ion-item-divider>
       <ion-item>
         <ion-icon

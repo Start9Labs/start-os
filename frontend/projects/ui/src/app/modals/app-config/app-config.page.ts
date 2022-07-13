@@ -45,6 +45,7 @@ export class AppConfigPage {
   original?: object // only if existing config
   diff?: string[] // only if dependent info
 
+  loading = true
   hasConfig = false
   hasNewOptions = false
   saving = false
@@ -112,7 +113,7 @@ export class AppConfigPage {
     } catch (e: any) {
       this.loadingError = getErrorMessage(e)
     } finally {
-      this.loadingText = ''
+      this.loading = false
     }
   }
 
