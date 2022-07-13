@@ -92,7 +92,7 @@ export class AppInterfacesPage {
 })
 export class AppInterfacesItemComponent {
   @Input()
-  interface?: LocalInterface
+  interface!: LocalInterface
 
   constructor(
     private readonly toastCtrl: ToastController,

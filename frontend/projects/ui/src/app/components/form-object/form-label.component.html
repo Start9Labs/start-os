@@ -7,23 +7,21 @@
   <ion-icon name="help-circle-outline" slot="icon-only" size="small"></ion-icon>
 </ion-button>
 
-  <span>{{ data.spec.name }}</span>
+<span>{{ data.spec.name }}</span>
 
-  <ion-text color="success" *ngIf="data.new">&nbsp;(New)</ion-text>
-  <ion-text color="success" *ngIf="data.newOptions"
-    >&nbsp;(New Options)</ion-text
-  >
-  <ion-text color="warning" *ngIf="data.edited">&nbsp;(Edited)</ion-text>
+<ion-text color="success" *ngIf="data.new">&nbsp;(New)</ion-text>
+<ion-text color="success" *ngIf="data.newOptions">&nbsp;(New Options)</ion-text>
+<ion-text color="warning" *ngIf="data.edited">&nbsp;(Edited)</ion-text>
 
-  <span
-    *ngIf="
-      (['string', 'number'] | includes: data.spec.type) &&
-      !$any(data.spec).nullable
-    "
-    >&nbsp;*</span
-  >
+<span
+  *ngIf="
+    (['string', 'number'] | includes: data.spec.type) &&
+    !$any(data.spec).nullable
+  "
+>
+  &nbsp;*
+</span>
 
-  <span *ngIf="data.spec.type === 'list' && Range.from(data.spec.range).min"
-    >&nbsp;*</span
-  >
-</ng-container>
+<span *ngIf="data.spec.type === 'list' && Range.from(data.spec.range).min"
+  >&nbsp;*</span
+>

@@ -1,5 +1,5 @@
 <ion-icon
-  *ngIf="pkg?.error; else noError"
+  *ngIf="pkg.error; else noError"
   class="warning-icon"
   name="warning-outline"
   size="small"
@@ -7,7 +7,7 @@
 ></ion-icon>
 <ng-template #noError>
   <ion-spinner
-    *ngIf="pkg?.transitioning; else bulb"
+    *ngIf="pkg.transitioning; else bulb"
     class="spinner"
     size="small"
     color="primary"

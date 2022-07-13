@@ -35,22 +35,23 @@ export class AppConfigPage {
   @ViewChild(IonContent)
   content?: IonContent
 
-  @Input()
-  pkgId = ''
+  @Input() pkgId!: string
 
   @Input()
   dependentInfo?: DependentInfo
 
-  diff: string[] = [] // only if dependent info
-  pkg?: PackageDataEntry
-  loadingText?: string
-  configSpec: ConfigSpec = {}
-  configForm = new FormGroup({})
-  original: object = {}
+  pkg!: PackageDataEntry
+  loadingText!: string
+  configSpec!: ConfigSpec
+  configForm!: FormGroup
+
+  original?: object // only if existing config
+  diff?: string[] // only if dependent info
+
   hasConfig = false
   hasNewOptions = false
   saving = false
-  loadingError?: string | IonicSafeString
+  loadingError: string | IonicSafeString = ''
 
   constructor(
     private readonly embassyApi: ApiService,
@@ -64,7 +65,7 @@ export class AppConfigPage {
 
   async ngOnInit() {
     this.pkg = this.patch.getData()['package-data'][this.pkgId]
-    this.hasConfig = !!this.pkg?.manifest.config
+    this.hasConfig = !!this.pkg.manifest.config
 
     if (!this.hasConfig) return
 
@@ -112,7 +113,7 @@ export class AppConfigPage {
     } catch (e: any) {
       this.loadingError = getErrorMessage(e)
     } finally {
-      this.loadingText = undefined
+      this.loadingText = ''
     }
   }
 
@@ -121,13 +122,13 @@ export class AppConfigPage {
   }
 
   resetDefaults() {
-    this.configForm = this.formService.createForm(this.configSpec)
-    const patch = compare(this.original, this.configForm.value)
+    this.configForm = this.formService.createForm(this.configSpec!)
+    const patch = compare(this.original || {}, this.configForm.value)
     this.markDirty(patch)
   }
 
   async dismiss() {
-    if (this.configForm?.dirty) {
+    if (this.configForm.dirty) {
       this.presentAlertUnsaved()
     } else {
       this.modalCtrl.dismiss()
@@ -137,7 +138,7 @@ export class AppConfigPage {
   async tryConfigure() {
     convertValuesRecursive(this.configSpec, this.configForm)
 
-    if (this.configForm?.invalid) {
+    if (this.configForm.invalid) {
       document
         .getElementsByClassName('validation-error')[0]
         ?.scrollIntoView({ behavior: 'smooth' })
@@ -146,7 +147,7 @@ export class AppConfigPage {
 
     this.saving = true
 
-    if (this.pkg && hasCurrentDeps(this.pkg)) {
+    if (hasCurrentDeps(this.pkg)) {
       this.dryConfigure()
     } else {
       this.configure()
@@ -162,7 +163,7 @@ export class AppConfigPage {
     try {
       const breakages = await this.embassyApi.drySetPackageConfig({
         id: this.pkgId,
-        config: this.configForm?.value,
+        config: this.configForm.value,
       })
 
       if (isEmptyObject(breakages)) {
@@ -194,7 +195,7 @@ export class AppConfigPage {
     try {
       await this.embassyApi.setPackageConfig({
         id: this.pkgId,
-        config: this.configForm?.value,
+        config: this.configForm.value,
       })
       this.modalCtrl.dismiss()
     } catch (e: any) {
@@ -312,11 +313,11 @@ export class AppConfigPage {
           return isNaN(num) ? node : num
         })
 
-      if (op.op !== 'remove') this.configForm?.get(arrPath)?.markAsDirty()
+      if (op.op !== 'remove') this.configForm.get(arrPath)?.markAsDirty()
 
       if (typeof arrPath[arrPath.length - 1] === 'number') {
         const prevPath = arrPath.slice(0, arrPath.length - 1)
-        this.configForm?.get(prevPath)?.markAsDirty()
+        this.configForm.get(prevPath)?.markAsDirty()
       }
     })
   }

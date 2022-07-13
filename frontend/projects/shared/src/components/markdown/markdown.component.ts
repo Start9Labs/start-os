@@ -12,7 +12,7 @@ import { getErrorMessage } from '../../services/error-toast.service'
 })
 export class MarkdownComponent {
   @Input() content!: string | Observable<string>
-  @Input() title = ''
+  @Input() title!: string
 
   private readonly data$ = defer(() =>
     isObservable(this.content) ? this.content : of(this.content),

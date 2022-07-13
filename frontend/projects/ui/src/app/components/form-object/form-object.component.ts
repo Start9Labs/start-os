@@ -35,8 +35,8 @@ interface Config {
   styleUrls: ['./form-object.component.scss'],
 })
 export class FormObjectComponent {
-  @Input() objectSpec: ConfigSpec = {}
-  @Input() formGroup: FormGroup = new FormGroup({})
+  @Input() objectSpec!: ConfigSpec
+  @Input() formGroup!: FormGroup
   @Input() unionSpec?: ValueSpecUnion
   @Input() current?: Config
   @Input() original?: Config

@@ -23,8 +23,6 @@ export class AppListPkgComponent {
   launchUi(e: Event): void {
     e.stopPropagation()
     e.preventDefault()
-    if (this.pkg) {
-      this.launcherService.launch(this.pkg.entry)
-    }
+    this.launcherService.launch(this.pkg.entry)
   }
 }

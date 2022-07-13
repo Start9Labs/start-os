@@ -36,7 +36,7 @@ export class PasswordPage {
       this.pwError = 'No recovery target' // unreachable
 
     try {
-      const passwordHash = this.target?.['embassy-os']?.['password-hash'] || ''
+      const passwordHash = this.target!['embassy-os']?.['password-hash'] || ''
 
       argon2.verify(passwordHash, this.password)
       this.modalController.dismiss({ password: this.password }, 'success')

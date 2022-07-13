@@ -50,11 +50,11 @@ export class AppShowStatusComponent {
   ) {}
 
   get interfaces(): Record<string, InterfaceDef> {
-    return this.pkg?.manifest.interfaces || {}
+    return this.pkg.manifest.interfaces || {}
   }
 
   get pkgStatus(): Status | null {
-    return this.pkg?.installed?.status || null
+    return this.pkg.installed?.status || null
   }
 
   get isInstalled(): boolean {
@@ -62,7 +62,7 @@ export class AppShowStatusComponent {
   }
 
   get isRunning(): boolean {
-    return this.status?.primary === PrimaryStatus.Running
+    return this.status.primary === PrimaryStatus.Running
   }
 
   get isStopped(): boolean {
@@ -70,7 +70,7 @@ export class AppShowStatusComponent {
   }
 
   launchUi(): void {
-    if (this.pkg) this.launcherService.launch(this.pkg)
+    this.launcherService.launch(this.pkg)
   }
 
   async presentModalConfig(): Promise<void> {
@@ -81,13 +81,13 @@ export class AppShowStatusComponent {
 
   async tryStart(): Promise<void> {
     if (this.dependencies.some(d => !!d.errorText)) {
-      const depErrMsg = `${this.pkg?.manifest.title} has unmet dependencies. It will not work as expected.`
+      const depErrMsg = `${this.pkg.manifest.title} has unmet dependencies. It will not work as expected.`
       const proceed = await this.presentAlertStart(depErrMsg)
 
       if (!proceed) return
     }
 
-    const alertMsg = this.pkg?.manifest.alerts.start
+    const alertMsg = this.pkg.manifest.alerts.start
 
     if (alertMsg) {
       const proceed = await this.presentAlertStart(alertMsg)
@@ -99,7 +99,6 @@ export class AppShowStatusComponent {
   }
 
   async tryStop(): Promise<void> {
-    if (!this.pkg) return
     const { title, alerts } = this.pkg.manifest
 
     let message = alerts.stop || ''
@@ -135,7 +134,7 @@ export class AppShowStatusComponent {
   }
 
   async tryRestart(): Promise<void> {
-    if (this.pkg && hasCurrentDeps(this.pkg)) {
+    if (hasCurrentDeps(this.pkg)) {
       const alert = await this.alertCtrl.create({
         header: 'Warning',
         message: `Services that depend on ${this.pkg.manifest.title} may temporarily experiences issues`,
@@ -184,7 +183,7 @@ export class AppShowStatusComponent {
   }
 
   private get id(): string {
-    return this.pkg?.manifest.id || ''
+    return this.pkg.manifest.id
   }
 
   private async start(): Promise<void> {

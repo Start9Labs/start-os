@@ -11,10 +11,13 @@
 
 <ion-content class="ion-padding">
   <!-- loading -->
-  <text-spinner *ngIf="loadingText" [text]="loadingText"></text-spinner>
+  <text-spinner
+    *ngIf="loadingText; else notLoading"
+    [text]="loadingText"
+  ></text-spinner>
 
   <!-- not loading -->
-  <ng-container *ngIf="!loadingText && pkg">
+  <ng-template #notLoading>
     <ion-item *ngIf="loadingError; else noError">
       <ion-label>
         <ion-text color="danger"> {{ loadingError }} </ion-text>
@@ -22,21 +25,28 @@
     </ion-item>
 
     <ng-template #noError>
-      <h2
-        *ngIf="hasConfig && !pkg.installed?.status?.configured && !configForm.dirty"
-        class="ion-padding-bottom"
-      >
-        <ion-text class="header-details" color="success">
-          <span *ngIf="!original; else hasOriginal">
-            {{ pkg.manifest.title }} has been automatically configured with
-            recommended defaults. Make whatever changes you want, then click
-            "Save".
-          </span>
-          <ng-template #hasOriginal>
-            <span *ngIf="hasNewOptions"> New config options! </span>
-          </ng-template>
-        </ion-text>
-      </h2>
+      <ng-container *ngIf="hasConfig && !pkg.installed?.status?.configured">
+        <ng-container *ngIf="!original; else hasOriginal">
+          <h2
+            *ngIf="!configForm.dirty"
+            class="ion-padding-bottom header-details"
+          >
+            <ion-text color="success">
+              {{ pkg.manifest.title }} has been automatically configured with
+              recommended defaults. Make whatever changes you want, then click
+              "Save".
+            </ion-text>
+          </h2>
+        </ng-container>
+        <ng-template #hasOriginal>
+          <h2 *ngIf="hasNewOptions" class="ion-padding-bottom header-details">
+            <ion-text color="success">
+              New config options! To accept the default values, click "Save".
+              You may also customize these new options below.
+            </ion-text>
+          </h2>
+        </ng-template>
+      </ng-container>
 
       <!-- auto-config -->
       <ion-item
@@ -57,7 +67,7 @@
               >{{ pkg.manifest.title }}</ion-text
             >
           </h2>
-          <div>
+          <p>
             <ion-text color="dark">
               The following modifications have been made to {{
               pkg.manifest.title }} to satisfy {{ dependentInfo.title }}:
@@ -66,7 +76,7 @@
               </ul>
               To accept these modifications, click "Save".
             </ion-text>
-          </div>
+          </p>
         </ion-label>
       </ion-item>
 
@@ -91,7 +101,7 @@
         ></form-object>
       </form>
     </ng-template>
-  </ng-container>
+  </ng-template>
 </ion-content>
 
 <ion-footer>
