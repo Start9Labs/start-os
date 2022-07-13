@@ -49,7 +49,7 @@ export class MarketplacesPage {
     @Inject(AbstractMarketplaceService)
     private readonly marketplaceService: MarketplaceService,
     private readonly config: ConfigService,
-    public readonly patch: PatchDbService,
+    private readonly patch: PatchDbService,
     private readonly destroy$: DestroyService,
   ) {}
 
@@ -109,11 +109,11 @@ export class MarketplacesPage {
     await modal.present()
   }
 
-  async presentAction(id: string = '') {
+  async presentAction(id?: string) {
     // no need to view actions if is selected marketplace
     const marketplace = await getMarketplace(this.patch)
 
-    if (id === marketplace?.['selected-id']) return
+    if (id === marketplace['selected-id']) return
 
     const buttons: ActionSheetButton[] = [
       {
@@ -146,7 +146,7 @@ export class MarketplacesPage {
     await action.present()
   }
 
-  private async connect(id: string): Promise<void> {
+  private async connect(id?: string): Promise<void> {
     const data = await getMarketplace(this.patch)
     const marketplace: UIMarketplaceData = JSON.parse(JSON.stringify(data))
 
@@ -171,7 +171,7 @@ export class MarketplacesPage {
     loader.message = 'Changing Marketplace...'
 
     try {
-      marketplace['selected-id'] = id
+      marketplace['selected-id'] = id || null
       await this.api.setDbValue({ pointer: `/marketplace`, value: marketplace })
     } catch (e: any) {
       this.errToast.present(e)
@@ -189,7 +189,7 @@ export class MarketplacesPage {
       .subscribe()
   }
 
-  private async delete(id: string): Promise<void> {
+  private async delete(id?: string): Promise<void> {
     if (!id) return
 
     const data = await getMarketplace(this.patch)

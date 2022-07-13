@@ -37,7 +37,7 @@
         <ng-container *ngFor="let button of cat.value">
           <ion-item
             button
-            [style.display]="(button.title === 'Repair Disk' && !(localStorageService.showDiskRepair$ | async)) ? 'none' : 'block'"
+            [style.display]="(button.title === 'Repair Disk' && !(showDiskRepair$ | async)) ? 'none' : 'block'"
             [detail]="button.detail"
             [disabled]="button.disabled | async"
             (click)="button.action()"
@@ -76,9 +76,7 @@
                   Update Complete. Restart to apply changes
                 </ion-text>
                 <ng-template #notUpdated>
-                  <ng-container
-                    *ngIf="eosService.showUpdate$ | async; else check"
-                  >
+                  <ng-container *ngIf="showUpdate$ | async; else check">
                     <ion-text class="inline" color="success">
                       <ion-icon name="rocket-outline"></ion-icon>
                       Update Available

@@ -31,7 +31,7 @@ export class RecoverPage {
     private readonly alertCtrl: AlertController,
     private readonly loadingCtrl: LoadingController,
     private readonly errorToastService: ErrorToastService,
-    public readonly stateService: StateService,
+    private readonly stateService: StateService,
   ) {}
 
   async ngOnInit() {

@@ -29,7 +29,7 @@ export class AppInterfacesPage {
 
   constructor(
     private readonly route: ActivatedRoute,
-    public readonly patch: PatchDbService,
+    private readonly patch: PatchDbService,
   ) {}
 
   async ngOnInit() {
@@ -38,7 +38,7 @@ export class AppInterfacesPage {
     const interfaces = pkg.manifest.interfaces
     const uiKey = getUiInterfaceKey(interfaces)
 
-    if (!pkg?.installed) return
+    if (!pkg.installed) return
 
     const addressesMap = pkg.installed['interface-addresses']
 

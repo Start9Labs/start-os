@@ -35,11 +35,13 @@ export class MarketplaceShowControlsComponent {
   @Input()
   localPkg!: PackageDataEntry | null
 
+  readonly showDevTools$ = this.localStorageService.showDevTools$
+
   readonly PackageState = PackageState
 
   constructor(
     private readonly alertCtrl: AlertController,
-    public readonly localStorageService: LocalStorageService,
+    private readonly localStorageService: LocalStorageService,
     @Inject(AbstractMarketplaceService)
     private readonly marketplaceService: MarketplaceService,
     private readonly loadingCtrl: LoadingController,

@@ -15,8 +15,12 @@ export class ServerSpecsPage {
   constructor(
     private readonly toastCtrl: ToastController,
     private readonly patch: PatchDbService,
-    public readonly config: ConfigService,
+    private readonly config: ConfigService,
   ) {}
+
+  get gitHash(): string {
+    return this.config.gitHash
+  }
 
   async copy(address: string) {
     let message = ''

@@ -1,5 +1,5 @@
 <ng-container
-  *ngIf="packageData$ | toOptions : backupInfo?.['package-backups'] | async as options"
+  *ngIf="packageData$ | toOptions : backupInfo['package-backups'] | async as options"
 >
   <ion-header>
     <ion-toolbar>
@@ -14,10 +14,10 @@
 
   <ion-content>
     <h3 class="padding warning">
-    Warning! Restoring a service will <i>permanently overwrite</i> its current
-    data with data from its backup. Please make selections carefully.
-  </h3>
-  <ion-item-group>
+      Warning! Restoring a service will <i>permanently overwrite</i> its current
+      data with data from its backup. Please make selections carefully.
+    </h3>
+    <ion-item-group>
       <ion-item *ngFor="let option of options">
         <ion-label>
           <h2>{{ option.title }}</h2>

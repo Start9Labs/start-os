@@ -29,6 +29,8 @@ export class ServerShowPage {
   readonly server$ = this.patch.watch$('server-info')
   readonly ui$ = this.patch.watch$('ui')
   readonly connected$ = this.patch.connected$
+  readonly showUpdate$ = this.eosService.showUpdate$
+  readonly showDiskRepair$ = this.localStorageService.showDiskRepair$
 
   constructor(
     private readonly alertCtrl: AlertController,
@@ -39,8 +41,8 @@ export class ServerShowPage {
     private readonly navCtrl: NavController,
     private readonly route: ActivatedRoute,
     private readonly patch: PatchDbService,
-    public readonly eosService: EOSService,
-    public readonly localStorageService: LocalStorageService,
+    private readonly eosService: EOSService,
+    private readonly localStorageService: LocalStorageService,
   ) {}
 
   ngOnInit() {
