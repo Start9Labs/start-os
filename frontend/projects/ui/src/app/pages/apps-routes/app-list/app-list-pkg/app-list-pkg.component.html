@@ -1,6 +1,6 @@
 <ion-item
-  *ngIf="pkg.entry.manifest as manifest"
   button
+  *ngIf="pkg.entry.manifest as manifest"
   detail="false"
   [routerLink]="['/services', manifest.id]"
 >
@@ -27,35 +27,6 @@
     (click)="launchUi($event)"
     [disabled]="!(pkg.entry.state | isLaunchable: status:manifest.interfaces)"
   >
-    <app-list-icon
-      slot="start"
-      [pkg]="pkg"
-      [connectionFailure]="connectionFailure"
-    ></app-list-icon>
-    <ion-thumbnail slot="start">
-      <img alt="" [src]="pkg.entry['static-files'].icon" />
-    </ion-thumbnail>
-    <ion-label>
-      <h2>{{ manifest.title }}</h2>
-      <p>{{ manifest.version | displayEmver }}</p>
-      <status
-        [disconnected]="connectionFailure"
-        [rendering]="pkg.primaryRendering"
-        [installProgress]="pkg.entry['install-progress']"
-        weight="bold"
-        size="small"
-        [sigtermTimeout]="manifest.main['sigterm-timeout']"
-      ></status>
-    </ion-label>
-    <ion-button
-      *ngIf="manifest.interfaces | hasUi"
-      slot="end"
-      fill="clear"
-      color="primary"
-      (click)="launchUi($event)"
-      [disabled]="!(pkg.entry.state | isLaunchable: status:manifest.interfaces)"
-    >
-      <ion-icon slot="icon-only" name="open-outline"></ion-icon>
-    </ion-button>
-  </ion-item>
-</ng-container>
+    <ion-icon slot="icon-only" name="open-outline"></ion-icon>
+  </ion-button>
+</ion-item>

@@ -18,7 +18,7 @@ export class EnumListPage {
   constructor(private readonly modalCtrl: ModalController) {}
 
   ngOnInit() {
-    for (let val of this.spec?.spec.values || []) {
+    for (let val of this.spec.spec.values || []) {
       this.options[val] = this.current.includes(val)
     }
     // if none are selected, set selectAll to true

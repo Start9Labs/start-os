@@ -26,7 +26,7 @@ export class CompleteComponent implements BaseSlide {
     this.message =
       capitalizeFirstLetter(this.params.verb || '') + ' ' + this.params.title
     try {
-      await this.params?.Fn()
+      await this.params.Fn()
       this.onSuccess.emit()
     } catch (e: any) {
       this.onError.emit(`Error: ${e.message || e}`)

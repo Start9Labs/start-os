@@ -15,30 +15,35 @@ import { PackageProperties } from 'src/app/util/properties.util'
 import { QRComponent } from 'src/app/components/qr/qr.component'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { PackageMainStatus } from 'src/app/services/patch-db/data-model'
-import { ErrorToastService, getPkgId } from '@start9labs/shared'
+import { DestroyService, ErrorToastService, getPkgId } from '@start9labs/shared'
 import { getValueByPointer } from 'fast-json-patch'
+import { map, takeUntil } from 'rxjs/operators'
 
 @Component({
   selector: 'app-properties',
   templateUrl: './app-properties.page.html',
   styleUrls: ['./app-properties.page.scss'],
+  providers: [DestroyService],
 })
 export class AppPropertiesPage {
   loading = true
   readonly pkgId = getPkgId(this.route)
+
   pointer = ''
-  properties: PackageProperties = {}
   node: PackageProperties = {}
+
+  properties: PackageProperties = {}
   unmasked: { [key: string]: boolean } = {}
-  running = true
+
+  notRunning$ = this.patch
+    .watch$('package-data', this.pkgId, 'installed', 'status', 'main', 'status')
+    .pipe(map(status => status !== PackageMainStatus.Running))
 
   @ViewChild(IonBackButtonDelegate, { static: false })
   backButton?: IonBackButtonDelegate
 
   @ViewChild(IonContent)
   content?: IonContent
-
-  subs: Subscription[] = []
 
   constructor(
     private readonly route: ActivatedRoute,
@@ -49,6 +54,7 @@ export class AppPropertiesPage {
     private readonly modalCtrl: ModalController,
     private readonly navCtrl: NavController,
     private readonly patch: PatchDbService,
+    private readonly destroy$: DestroyService,
   ) {}
 
   ionViewDidEnter() {
@@ -61,33 +67,17 @@ export class AppPropertiesPage {
   async ngOnInit() {
     await this.getProperties()
 
-    this.subs = [
-      this.route.queryParams.subscribe(queryParams => {
+    this.route.queryParams
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(queryParams => {
         if (queryParams['pointer'] === this.pointer) return
         this.pointer = queryParams['pointer'] || ''
         this.node = getValueByPointer(this.properties, this.pointer)
-      }),
-      this.patch
-        .watch$(
-          'package-data',
-          this.pkgId,
-          'installed',
-          'status',
-          'main',
-          'status',
-        )
-        .subscribe(status => {
-          this.running = status === PackageMainStatus.Running
-        }),
-    ]
+      })
   }
 
   ngAfterViewInit() {
     this.content?.scrollToPoint(undefined, 1)
-  }
-
-  ngOnDestroy() {
-    this.subs.forEach(sub => sub.unsubscribe())
   }
 
   async refresh() {

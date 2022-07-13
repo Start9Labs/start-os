@@ -10,15 +10,15 @@ import { MaskPipe } from 'src/app/pipes/mask/mask.pipe'
   providers: [MaskPipe],
 })
 export class GenericInputComponent {
-  @ViewChild('mainInput')
-  elem?: IonInput
+  @ViewChild('mainInput') elem?: IonInput
 
-  @Input()
-  options!: GenericInputOptions
+  @Input() options!: GenericInputOptions
 
-  value = ''
-  maskedValue = ''
-  masked = true
+  value!: string
+  masked!: boolean
+
+  maskedValue?: string
+
   error: string | IonicSafeString = ''
 
   constructor(
@@ -27,8 +27,6 @@ export class GenericInputComponent {
   ) {}
 
   ngOnInit() {
-    if (!this.options) return
-
     const defaultOptions: Partial<GenericInputOptions> = {
       buttonText: 'Submit',
       placeholder: 'Enter value',
@@ -69,10 +67,10 @@ export class GenericInputComponent {
   async submit() {
     const value = this.value.trim()
 
-    if (!value && !this.options?.nullable) return
+    if (!value && !this.options.nullable) return
 
     try {
-      await this.options?.submitFn(value)
+      await this.options.submitFn(value)
       this.modalCtrl.dismiss(undefined, 'success')
     } catch (e: any) {
       this.error = getErrorMessage(e)

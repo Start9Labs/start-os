@@ -16,17 +16,17 @@ import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
   styleUrls: ['./app-recover-select.page.scss'],
 })
 export class AppRecoverSelectPage {
-  @Input() id = ''
-  @Input() backupInfo?: BackupInfo
-  @Input() password = ''
-  @Input() oldPassword = ''
+  @Input() id!: string
+  @Input() backupInfo!: BackupInfo
+  @Input() password!: string
+  @Input() oldPassword?: string
 
-  options: (PackageBackupInfo & {
+  options!: (PackageBackupInfo & {
     id: string
     checked: boolean
     installed: boolean
     'newer-eos': boolean
-  })[] = []
+  })[]
   hasSelection = false
   error: string | IonicSafeString = ''
 
@@ -40,7 +40,7 @@ export class AppRecoverSelectPage {
   ) {}
 
   ngOnInit() {
-    const packageBackups = this.backupInfo?.['package-backups'] || {}
+    const packageBackups = this.backupInfo['package-backups'] || {}
 
     this.options = Object.keys(packageBackups).map(id => {
       return {
@@ -79,7 +79,7 @@ export class AppRecoverSelectPage {
       await this.embassyApi.restorePackages({
         ids,
         'target-id': this.id,
-        'old-password': this.oldPassword,
+        'old-password': this.oldPassword || null,
         password: this.password,
       })
       this.modalCtrl.dismiss(undefined, 'success')

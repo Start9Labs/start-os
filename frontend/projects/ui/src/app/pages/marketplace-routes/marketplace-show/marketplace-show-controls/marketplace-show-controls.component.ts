@@ -31,10 +31,10 @@ import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 })
 export class MarketplaceShowControlsComponent {
   @Input()
-  pkg?: MarketplacePkg
+  pkg!: MarketplacePkg
 
   @Input()
-  localPkg: PackageDataEntry | null = null
+  localPkg!: PackageDataEntry | null
 
   readonly PackageState = PackageState
 
@@ -59,10 +59,8 @@ export class MarketplaceShowControlsComponent {
       this.alertInstall()
     } else {
       if (
-        this.emver.compare(
-          this.localVersion,
-          this.pkg?.manifest.version || '',
-        ) !== 0 &&
+        this.emver.compare(this.localVersion, this.pkg.manifest.version) !==
+          0 &&
         hasCurrentDeps(this.localPkg)
       ) {
         this.dryInstall()
@@ -77,8 +75,6 @@ export class MarketplaceShowControlsComponent {
       message: 'Checking dependent services...',
     })
     await loader.present()
-
-    if (!this.pkg) return
 
     const { id, version } = this.pkg.manifest
 
@@ -103,7 +99,7 @@ export class MarketplaceShowControlsComponent {
   }
 
   private async alertInstall() {
-    const installAlert = this.pkg?.manifest.alerts.install
+    const installAlert = this.pkg.manifest.alerts.install
 
     if (!installAlert) return this.install()
 
@@ -135,8 +131,6 @@ export class MarketplaceShowControlsComponent {
       loader = await this.loadingCtrl.create({ message })
       await loader.present()
     }
-
-    if (!this.pkg) return
 
     const { id, version } = this.pkg.manifest
 

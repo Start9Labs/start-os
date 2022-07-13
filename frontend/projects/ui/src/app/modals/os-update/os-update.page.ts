@@ -10,7 +10,7 @@ import { ErrorToastService } from '../../../../../shared/src/services/error-toas
   styleUrls: ['./os-update.page.scss'],
 })
 export class OSUpdatePage {
-  @Input() releaseNotes: { [version: string]: string } = {}
+  @Input() releaseNotes!: { [version: string]: string }
 
   versions: { version: string; notes: string }[] = []
 

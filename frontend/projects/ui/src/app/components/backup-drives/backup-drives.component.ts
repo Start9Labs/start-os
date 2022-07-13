@@ -250,8 +250,8 @@ export class BackupDrivesHeaderComponent {
   styleUrls: ['./backup-drives.component.scss'],
 })
 export class BackupDrivesStatusComponent {
-  @Input() type = ''
-  @Input() hasValidBackup = false
+  @Input() type!: BackupType
+  @Input() hasValidBackup!: boolean
 }
 
 const CifsSpec: ConfigSpec = {

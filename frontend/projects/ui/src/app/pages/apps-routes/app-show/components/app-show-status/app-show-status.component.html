@@ -2,7 +2,6 @@
 <ion-item>
   <ion-label class="label">
     <status
-      *ngIf="status && pkg"
       size="x-large"
       weight="500"
       [installProgress]="pkg['install-progress']"
@@ -56,7 +55,6 @@
           class="action-button"
           color="primary"
           [disabled]="
-            !pkg ||
             !(pkg.state | isLaunchable: pkgStatus.main.status:interfaces)
           "
           (click)="launchUi()"

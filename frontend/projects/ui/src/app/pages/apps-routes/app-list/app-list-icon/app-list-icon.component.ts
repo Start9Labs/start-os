@@ -10,7 +10,7 @@ import { PkgInfo } from 'src/app/util/get-package-info'
 })
 export class AppListIconComponent {
   @Input()
-  pkg?: PkgInfo
+  pkg!: PkgInfo
 
   disconnected$ = this.connectionService.watchDisconnected$()
 
