@@ -1,10 +1,10 @@
-use std::collections::BTreeMap;
 use std::convert::TryInto;
 use std::future::Future;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
+use std::{collections::BTreeMap, net::Ipv4Addr};
 
 use bollard::container::{KillContainerOptions, StopContainerOptions};
 use chrono::Utc;
@@ -68,6 +68,7 @@ impl ManagerMap {
             } else {
                 continue;
             };
+
             let tor_keys = man.interfaces.tor_keys(secrets, &package).await?;
             res.insert(
                 (package, man.version.clone()),
@@ -181,125 +182,27 @@ async fn run_main(
     state: &Arc<ManagerSharedState>,
 ) -> Result<Result<NoOutput, (i32, String)>, Error> {
     let rt_state = state.clone();
-    let interfaces = state
-        .manifest
-        .interfaces
-        .0
-        .iter()
-        .map(|(id, info)| {
-            Ok((
-                id.clone(),
-                info,
-                state
-                    .tor_keys
-                    .get(id)
-                    .ok_or_else(|| {
-                        Error::new(eyre!("interface {} missing key", id), crate::ErrorKind::Tor)
-                    })?
-                    .clone(),
-            ))
-        })
-        .collect::<Result<Vec<_>, Error>>()?;
-    let generated_certificate = state
-        .ctx
-        .net_controller
-        .generate_certificate_mountpoint(&state.manifest.id, &interfaces)
-        .await?;
+    let interfaces = states_main_interfaces(state)?;
+    let generated_certificate = generate_certificate(state, &interfaces).await?;
+
     let mut runtime =
         tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await });
-    let ip;
-    loop {
-        match state
-            .ctx
-            .docker
-            .inspect_container(&state.container_name, None)
-            .await
-        {
-            Ok(res) => {
-                if let Some(ip_addr) = res
-                    .network_settings
-                    .and_then(|ns| ns.networks)
-                    .and_then(|mut n| n.remove("start9"))
-                    .and_then(|es| es.ip_address)
-                    .filter(|ip| !ip.is_empty())
-                    .map(|ip| ip.parse())
-                    .transpose()?
-                {
-                    ip = ip_addr;
-                    break;
-                }
-            }
-            Err(bollard::errors::Error::DockerResponseServerError {
-                status_code: 404, // NOT FOUND
-                ..
-            }) => (),
-            Err(e) => Err(e)?,
-        }
-        match futures::poll!(&mut runtime) {
-            Poll::Ready(res) => {
-                return res
-                    .map_err(|_| {
-                        Error::new(eyre!("Manager runtime panicked!"), crate::ErrorKind::Docker)
-                    })
-                    .and_then(|a| a)
-            }
-            _ => (),
-        }
-    }
-
-    state
-        .ctx
-        .net_controller
-        .add(&state.manifest.id, ip, interfaces, generated_certificate)
-        .await?;
-
-    state
-        .commit_health_check_results
-        .store(true, Ordering::SeqCst);
-    let health = async {
-        tokio::time::sleep(Duration::from_secs(10)).await; // only sleep for 1 second before first health check
-        loop {
-            let mut db = state.ctx.db.handle();
-            if let Err(e) = health::check(
-                &state.ctx,
-                &mut db,
-                &state.manifest.id,
-                &state.commit_health_check_results,
-            )
-            .await
-            {
-                tracing::error!(
-                    "Failed to run health check for {}: {}",
-                    &state.manifest.id,
-                    e
-                );
-                tracing::debug!("{:?}", e);
-            }
-            tokio::time::sleep(Duration::from_secs(HEALTH_CHECK_COOLDOWN_SECONDS)).await;
-        }
+    let ip = match get_running_ip(state, &mut runtime).await {
+        GetRunninIp::Ip(x) => x,
+        GetRunninIp::Error(e) => return Err(e),
+        GetRunninIp::EarlyExit(x) => return Ok(x),
     };
-    let _ = state
-        .status
-        .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |x| {
-            if x == Status::Starting as usize {
-                Some(Status::Running as usize)
-            } else {
-                None
-            }
-        });
+
+    add_network_for_main(state, ip, interfaces, generated_certificate).await?;
+
+    set_commit_health_true(state);
+    let health = main_health_check_daemon(state.clone());
+    fetch_starting_to_running(state);
     let res = tokio::select! {
         a = runtime => a.map_err(|_| Error::new(eyre!("Manager runtime panicked!"), crate::ErrorKind::Docker)).and_then(|a| a),
         _ = health => Err(Error::new(eyre!("Health check daemon exited!"), crate::ErrorKind::Unknown)),
     };
-    state
-        .ctx
-        .net_controller
-        .remove(
-            &state.manifest.id,
-            ip,
-            state.manifest.interfaces.0.keys().cloned(),
-        )
-        .await?;
+    remove_network_for_main(state, ip).await?;
     res
 }
 
@@ -319,7 +222,7 @@ async fn start_up_image(
             ProcedureName::Main,
             &rt_state.manifest.volumes,
             None,
-            false,
+            true,
             None,
         )
         .await
@@ -346,9 +249,11 @@ impl Manager {
         });
         shared.synchronize_now.notify_one();
         let thread_shared = shared.clone();
+        /// TODO[JM] Wait for manager thread if host thread running?
         let thread = tokio::spawn(async move {
             tokio::select! {
                 _ = manager_thread_loop(recv, &thread_shared) => (),
+                _ = persistant_container(&thread_shared) => (),
                 _ = synchronizer(&*thread_shared) => (),
             }
         });
@@ -455,7 +360,6 @@ impl Manager {
         self.shared.synchronized.notified().await
     }
 }
-
 async fn manager_thread_loop(mut recv: Receiver<OnStop>, thread_shared: &Arc<ManagerSharedState>) {
     loop {
         fn handle_stop_action<'a>(
@@ -546,6 +450,268 @@ async fn manager_thread_loop(mut recv: Receiver<OnStop>, thread_shared: &Arc<Man
     }
 }
 
+async fn persistant_container(thread_shared: &Arc<ManagerSharedState>) {
+    let main_docker_procedure_for_long = injectable_main(thread_shared);
+    match main_docker_procedure_for_long {
+        Some(main) => loop {
+            match run_persistant_container(thread_shared, main.clone()).await {
+                Ok(_) => (),
+                Err(e) => {
+                    tracing::error!("failed to start persistant container: {}", e);
+                    tracing::debug!("{:?}", e);
+                }
+            }
+        },
+        None => futures::future::pending().await,
+    }
+}
+
+fn injectable_main(thread_shared: &Arc<ManagerSharedState>) -> Option<Arc<DockerProcedure>> {
+    match &thread_shared.manifest.main {
+        PackageProcedure::Docker(a) => match &a.inject {
+            false => None,
+            true => {
+                let mut main = a.clone();
+                main.inject = false;
+                main.entrypoint = "sleep".to_string();
+                main.args = vec!["infinity".to_string()];
+                Some(Arc::new(main))
+            }
+        },
+        #[cfg(feature = "js_engine")]
+        PackageProcedure::Script(_) => None,
+    }
+}
+async fn run_persistant_container(
+    state: &Arc<ManagerSharedState>,
+    docker_procedure: Arc<DockerProcedure>,
+) -> Result<(), Error> {
+    let interfaces = states_main_interfaces(state)?;
+    let generated_certificate = generate_certificate(state, &interfaces).await?;
+    let mut runtime = tokio::spawn(long_running_docker(state.clone(), docker_procedure));
+
+    /// TODO[JM] Deal with the network
+    let ip = match get_running_ip(state, &mut runtime).await {
+        GetRunninIp::Ip(x) => x,
+        GetRunninIp::Error(e) => return Err(e),
+        GetRunninIp::EarlyExit(e) => {
+            tracing::error!("Early Exit");
+            tracing::debug!("{:?}", e);
+            return Ok(());
+        }
+    };
+
+    add_network_for_main(state, ip, interfaces, generated_certificate).await?;
+
+    set_commit_health_true(state);
+    let health = main_health_check_daemon(state.clone());
+    fetch_starting_to_running(state);
+    let res = tokio::select! {
+        a = runtime => a.map_err(|_| Error::new(eyre!("Manager runtime panicked!"), crate::ErrorKind::Docker)).map(|_| ()),
+        _ = health => Err(Error::new(eyre!("Health check daemon exited!"), crate::ErrorKind::Unknown)),
+    };
+    remove_network_for_main(state, ip).await?;
+    res
+}
+
+async fn long_running_docker(
+    rt_state: Arc<ManagerSharedState>,
+    main_status: Arc<DockerProcedure>,
+) -> Result<Result<NoOutput, (i32, String)>, Error> {
+    tracing::debug!("Should be starting a service long");
+    main_status
+        .execute::<(), NoOutput>(
+            &rt_state.ctx,
+            &rt_state.manifest.id,
+            &rt_state.manifest.version,
+            ProcedureName::LongRunning,
+            &rt_state.manifest.volumes,
+            None,
+            false,
+            None,
+        )
+        .await
+}
+
+async fn remove_network_for_main(
+    state: &Arc<ManagerSharedState>,
+    ip: std::net::Ipv4Addr,
+) -> Result<(), Error> {
+    state
+        .ctx
+        .net_controller
+        .remove(
+            &state.manifest.id,
+            ip,
+            state.manifest.interfaces.0.keys().cloned(),
+        )
+        .await?;
+    Ok(())
+}
+
+fn fetch_starting_to_running(state: &Arc<ManagerSharedState>) {
+    let _ = state
+        .status
+        .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |x| {
+            if x == Status::Starting as usize {
+                Some(Status::Running as usize)
+            } else {
+                None
+            }
+        });
+}
+
+async fn main_health_check_daemon(state: Arc<ManagerSharedState>) {
+    tokio::time::sleep(Duration::from_secs(10)).await;
+    loop {
+        let mut db = state.ctx.db.handle();
+        if let Err(e) = health::check(
+            &state.ctx,
+            &mut db,
+            &state.manifest.id,
+            &state.commit_health_check_results,
+        )
+        .await
+        {
+            tracing::error!(
+                "Failed to run health check for {}: {}",
+                &state.manifest.id,
+                e
+            );
+            tracing::debug!("{:?}", e);
+        }
+        tokio::time::sleep(Duration::from_secs(HEALTH_CHECK_COOLDOWN_SECONDS)).await;
+    }
+}
+
+fn set_commit_health_true(state: &Arc<ManagerSharedState>) {
+    state
+        .commit_health_check_results
+        .store(true, Ordering::SeqCst);
+}
+
+async fn add_network_for_main(
+    state: &Arc<ManagerSharedState>,
+    ip: std::net::Ipv4Addr,
+    interfaces: Vec<(
+        InterfaceId,
+        &crate::net::interface::Interface,
+        TorSecretKeyV3,
+    )>,
+    generated_certificate: GeneratedCertificateMountPoint,
+) -> Result<(), Error> {
+    state
+        .ctx
+        .net_controller
+        .add(&state.manifest.id, ip, interfaces, generated_certificate)
+        .await?;
+    Ok(())
+}
+
+enum GetRunninIp {
+    Ip(Ipv4Addr),
+    Error(Error),
+    EarlyExit(Result<NoOutput, (i32, String)>),
+}
+
+async fn get_running_ip(
+    state: &Arc<ManagerSharedState>,
+    mut runtime: &mut tokio::task::JoinHandle<Result<Result<NoOutput, (i32, String)>, Error>>,
+) -> GetRunninIp {
+    loop {
+        match container_inspect(state).await {
+            Ok(res) => {
+                match res
+                    .network_settings
+                    .and_then(|ns| ns.networks)
+                    .and_then(|mut n| n.remove("start9"))
+                    .and_then(|es| es.ip_address)
+                    .filter(|ip| !ip.is_empty())
+                    .map(|ip| ip.parse())
+                    .transpose()
+                {
+                    Ok(Some(ip_addr)) => return GetRunninIp::Ip(ip_addr),
+                    Ok(None) => (),
+                    Err(e) => return GetRunninIp::Error(e.into()),
+                }
+            }
+            Err(bollard::errors::Error::DockerResponseServerError {
+                status_code: 404, // NOT FOUND
+                ..
+            }) => (),
+            Err(e) => return GetRunninIp::Error(e.into()),
+        }
+        match futures::poll!(&mut runtime) {
+            Poll::Ready(res) => match res {
+                Ok(Ok(response)) => return GetRunninIp::EarlyExit(response),
+                Err(_) | Ok(Err(_)) => {
+                    return GetRunninIp::Error(Error::new(
+                        eyre!("Manager runtime panicked!"),
+                        crate::ErrorKind::Docker,
+                    ))
+                }
+            },
+            _ => (),
+        }
+    }
+}
+
+async fn container_inspect(
+    state: &Arc<ManagerSharedState>,
+) -> Result<bollard::models::ContainerInspectResponse, bollard::errors::Error> {
+    state
+        .ctx
+        .docker
+        .inspect_container(&state.container_name, None)
+        .await
+}
+
+async fn generate_certificate(
+    state: &Arc<ManagerSharedState>,
+    interfaces: &Vec<(
+        InterfaceId,
+        &crate::net::interface::Interface,
+        TorSecretKeyV3,
+    )>,
+) -> Result<GeneratedCertificateMountPoint, Error> {
+    Ok(state
+        .ctx
+        .net_controller
+        .generate_certificate_mountpoint(&state.manifest.id, interfaces)
+        .await?)
+}
+
+fn states_main_interfaces(
+    state: &Arc<ManagerSharedState>,
+) -> Result<
+    Vec<(
+        InterfaceId,
+        &crate::net::interface::Interface,
+        TorSecretKeyV3,
+    )>,
+    Error,
+> {
+    Ok(state
+        .manifest
+        .interfaces
+        .0
+        .iter()
+        .map(|(id, info)| {
+            Ok((
+                id.clone(),
+                info,
+                state
+                    .tor_keys
+                    .get(id)
+                    .ok_or_else(|| {
+                        Error::new(eyre!("interface {} missing key", id), crate::ErrorKind::Tor)
+                    })?
+                    .clone(),
+            ))
+        })
+        .collect::<Result<Vec<_>, Error>>()?)
+}
+
 #[instrument(skip(shared))]
 async fn stop(shared: &ManagerSharedState) -> Result<(), Error> {
     shared
@@ -568,6 +734,8 @@ async fn stop(shared: &ManagerSharedState) -> Result<(), Error> {
         #[cfg(feature = "js_engine")]
         PackageProcedure::Script(_) => return Ok(()),
     };
+    tracing::debug!("Stopping a docker");
+    /// TODO[JM] Docker: stop the running docker exec for other
     match shared
         .ctx
         .docker

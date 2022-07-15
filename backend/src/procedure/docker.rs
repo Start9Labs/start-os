@@ -104,8 +104,10 @@ impl DockerProcedure {
         let name: Option<&str> = name.as_ref().map(|x| &**x);
         let mut cmd = tokio::process::Command::new("docker");
         if self.inject && allow_inject {
+            tracing::debug!("{:?} is exec", name);
             cmd.arg("exec");
         } else {
+            tracing::debug!("{:?} is run", name);
             let container_name = Self::container_name(pkg_id, name);
             cmd.arg("run")
                 .arg("--rm")
@@ -135,6 +137,8 @@ impl DockerProcedure {
                 Err(e) => Err(e),
             }?;
         }
+        /// TODO[JM] Store this running pid for main somewhere, need to kill the process
+        /// TODO[JM] deal with the docker args
         cmd.args(
             self.docker_args(ctx, pkg_id, pkg_version, volumes, allow_inject)
                 .await,
