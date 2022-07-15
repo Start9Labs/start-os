@@ -129,7 +129,7 @@ export class AppConfigPage {
   }
 
   async tryConfigure() {
-    convertValuesRecursive(this.configSpec, this.configForm)
+    convertValuesRecursive(this.configForm, this.configSpec)
 
     if (this.configForm.invalid) {
       document

@@ -44,7 +44,7 @@ export class GenericFormPage {
   }
 
   async handleClick(handler: ActionButton['handler']): Promise<void> {
-    convertValuesRecursive(this.spec, this.formGroup)
+    convertValuesRecursive(this.formGroup, this.spec)
 
     if (this.formGroup.invalid) {
       this.formGroup.markAllAsTouched()

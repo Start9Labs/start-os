@@ -35,7 +35,7 @@ interface Config {
   styleUrls: ['./form-object.component.scss'],
 })
 export class FormObjectComponent {
-  @Input() objectSpec: ConfigSpec | undefined
+  @Input() objectSpec?: ConfigSpec
   @Input() formGroup: FormGroup
   @Input() unionSpec?: ValueSpecUnion
   @Input() current?: Config
@@ -62,36 +62,31 @@ export class FormObjectComponent {
   ) {}
 
   ngOnInit() {
-    if (this.objectSpec) {
-      Object.keys(this.objectSpec).forEach(key => {
-        const spec = this.objectSpec![key]
+    Object.keys(this.objectSpec || {}).forEach(key => {
+      const spec = this.objectSpec![key]
 
-        if (
-          spec.type === 'list' &&
-          ['object', 'union'].includes(spec.subtype)
-        ) {
-          this.objectListDisplay[key] = []
-          this.formGroup.get(key)?.value.forEach((obj: any, index: number) => {
-            const displayAs = (spec.spec as ListValueSpecOf<'object'>)[
-              'display-as'
-            ]
-            this.objectListDisplay[key][index] = {
-              expanded: false,
-              height: '0px',
-              displayAs: displayAs
-                ? (Mustache as any).render(displayAs, obj)
-                : '',
-            }
-          })
-        } else if (['object', 'union'].includes(spec.type)) {
-          this.objectDisplay[key] = {
+      if (spec.type === 'list' && ['object', 'union'].includes(spec.subtype)) {
+        this.objectListDisplay[key] = []
+        this.formGroup.get(key)?.value.forEach((obj: any, index: number) => {
+          const displayAs = (spec.spec as ListValueSpecOf<'object'>)[
+            'display-as'
+          ]
+          this.objectListDisplay[key][index] = {
             expanded: false,
             height: '0px',
-            hasNewOptions: false,
+            displayAs: displayAs
+              ? (Mustache as any).render(displayAs, obj)
+              : '',
           }
+        })
+      } else if (['object', 'union'].includes(spec.type)) {
+        this.objectDisplay[key] = {
+          expanded: false,
+          height: '0px',
+          hasNewOptions: false,
         }
-      })
-    }
+      }
+    })
 
     // setTimeout hack to avoid ExpressionChangedAfterItHasBeenCheckedError
     setTimeout(() => {
