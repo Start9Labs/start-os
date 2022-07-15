@@ -92,6 +92,16 @@ ControlPort 9051
 CookieAuthentication 1
 EOF
 
+cat << EOF > /etc/NetworkManager/NetworkManager.conf
+[main]
+plugins=ifupdown,keyfile
+dns=none
+rc-manager=unmanaged
+
+[ifupdown]
+managed=false
+EOF
+
 # enable embassyd dns server
 systemctl enable systemd-resolved
 sed -i '/\(^\|#\)DNS=/c\DNS=127.0.0.1' /etc/systemd/resolved.conf
