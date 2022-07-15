@@ -44,7 +44,10 @@
         </ion-select>
       </ion-item>
     </ng-container>
-    <div *ngIf="objectSpec[entry.key] as spec" [class.indent]="unionSpec">
+    <div
+      *ngIf="objectSpec && objectSpec[entry.key] as spec"
+      [class.indent]="unionSpec"
+    >
       <!-- string or number -->
       <ng-container *ngIf="spec.type === 'string' || spec.type === 'number'">
         <!-- label -->

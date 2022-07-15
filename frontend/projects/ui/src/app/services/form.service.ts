@@ -508,51 +508,53 @@ function isUnion(spec: any): spec is ListValueSpecUnion {
 }
 
 export function convertValuesRecursive(
-  configSpec: ConfigSpec,
+  configSpec: ConfigSpec | undefined,
   group: FormGroup,
 ) {
-  Object.entries(configSpec).forEach(([key, valueSpec]) => {
-    const control = group.get(key)
+  if (configSpec) {
+    Object.entries(configSpec).forEach(([key, valueSpec]) => {
+      const control = group.get(key)
 
-    if (!control) return
+      if (!control) return
 
-    if (valueSpec.type === 'number') {
-      control.setValue(control.value ? Number(control.value) : null)
-    } else if (valueSpec.type === 'string') {
-      if (!control.value) control.setValue(null)
-    } else if (valueSpec.type === 'object') {
-      convertValuesRecursive(valueSpec.spec, group.get(key) as FormGroup)
-    } else if (valueSpec.type === 'union') {
-      const formGr = group.get(key) as FormGroup
-      const spec = valueSpec.variants[formGr.controls[valueSpec.tag.id].value]
-      convertValuesRecursive(spec, formGr)
-    } else if (valueSpec.type === 'list') {
-      const formArr = group.get(key) as FormArray
-      const { controls } = formArr
+      if (valueSpec.type === 'number') {
+        control.setValue(control.value ? Number(control.value) : null)
+      } else if (valueSpec.type === 'string') {
+        if (!control.value) control.setValue(null)
+      } else if (valueSpec.type === 'object') {
+        convertValuesRecursive(valueSpec.spec, group.get(key) as FormGroup)
+      } else if (valueSpec.type === 'union') {
+        const formGr = group.get(key) as FormGroup
+        const spec = valueSpec.variants[formGr.controls[valueSpec.tag.id].value]
+        convertValuesRecursive(spec, formGr)
+      } else if (valueSpec.type === 'list') {
+        const formArr = group.get(key) as FormArray
+        const { controls } = formArr
 
-      if (valueSpec.subtype === 'number') {
-        controls.forEach(control => {
-          control.setValue(control.value ? Number(control.value) : null)
-        })
-      } else if (valueSpec.subtype === 'string') {
-        controls.forEach(control => {
-          if (!control.value) control.setValue(null)
-        })
-      } else if (valueSpec.subtype === 'object') {
-        controls.forEach(formGroup => {
-          const objectSpec = valueSpec.spec as ListValueSpecObject
-          convertValuesRecursive(objectSpec.spec, formGroup as FormGroup)
-        })
-      } else if (valueSpec.subtype === 'union') {
-        controls.forEach(formGroup => {
-          const unionSpec = valueSpec.spec as ListValueSpecUnion
-          const spec =
-            unionSpec.variants[
-              (formGroup as FormGroup).controls[unionSpec.tag.id].value
-            ]
-          convertValuesRecursive(spec, formGroup as FormGroup)
-        })
+        if (valueSpec.subtype === 'number') {
+          controls.forEach(control => {
+            control.setValue(control.value ? Number(control.value) : null)
+          })
+        } else if (valueSpec.subtype === 'string') {
+          controls.forEach(control => {
+            if (!control.value) control.setValue(null)
+          })
+        } else if (valueSpec.subtype === 'object') {
+          controls.forEach(formGroup => {
+            const objectSpec = valueSpec.spec as ListValueSpecObject
+            convertValuesRecursive(objectSpec.spec, formGroup as FormGroup)
+          })
+        } else if (valueSpec.subtype === 'union') {
+          controls.forEach(formGroup => {
+            const unionSpec = valueSpec.spec as ListValueSpecUnion
+            const spec =
+              unionSpec.variants[
+                (formGroup as FormGroup).controls[unionSpec.tag.id].value
+              ]
+            convertValuesRecursive(spec, formGroup as FormGroup)
+          })
+        }
       }
-    }
-  })
+    })
+  }
 }
