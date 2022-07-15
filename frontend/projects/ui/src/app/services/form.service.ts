@@ -89,7 +89,7 @@ export class FormService {
     let group: Record<string, FormGroup | FormArray | FormControl> = {}
     Object.entries(config).map(([key, spec]) => {
       if (spec.type === 'pointer') return
-      group[key] = this.getFormEntry(spec, current ? current[key] : undefined)
+      group[key] = this.getFormEntry(spec, current[key])
     })
     return this.formBuilder.group(group, { validators })
   }
@@ -128,10 +128,13 @@ export class FormService {
         })
         return this.formBuilder.array(mapped, validators)
       case 'union':
+        const currentSelection = currentValue?.[spec.tag.id]
+        const isValid = !!spec.variants[currentSelection]
+
         return this.getUnionObject(
           spec,
-          currentValue?.[spec.tag.id] || spec.default,
-          currentValue,
+          isValid ? currentSelection : spec.default,
+          isValid ? currentValue : undefined,
         )
       case 'boolean':
       case 'enum':
