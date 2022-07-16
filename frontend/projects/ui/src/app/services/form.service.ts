@@ -43,7 +43,7 @@ export class FormService {
   getUnionObject(
     spec: ValueSpecUnion | ListValueSpecUnion,
     selection: string,
-    current?: { [key: string]: any },
+    current?: { [key: string]: any } | null,
   ): FormGroup {
     const { variants, tag } = spec
     const { name, description, warning } = isFullUnion(spec)
@@ -84,12 +84,12 @@ export class FormService {
   private getFormGroup(
     config: ConfigSpec,
     validators: ValidatorFn[] = [],
-    current: { [key: string]: any } = {},
+    current?: { [key: string]: any } | null,
   ): FormGroup {
     let group: Record<string, FormGroup | FormArray | FormControl> = {}
     Object.entries(config).map(([key, spec]) => {
       if (spec.type === 'pointer') return
-      group[key] = this.getFormEntry(spec, current[key])
+      group[key] = this.getFormEntry(spec, current ? current[key] : undefined)
     })
     return this.formBuilder.group(group, { validators })
   }
