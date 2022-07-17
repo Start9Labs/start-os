@@ -1,0 +1,3 @@
+# System Images
+
+There once was a time that I served to provide backwards compatibility for service configuration and properties rendering. Utilizing me for this functionality has since been deprecated in favor of [JS procedures](https://start9.com/latest/developer-docs/specification/js-procedure). Now I simply serve to provide service backup functionality. This will soon be converted to using JS procedure scripts as well. 
