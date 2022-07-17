@@ -1340,9 +1340,9 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             .migrations
             .to(
                 ctx,
-                version,
-                pkg_id,
                 &prev.manifest.version,
+                pkg_id,
+                version,
                 &prev.manifest.volumes,
             )
             .map(futures::future::Either::Left);
