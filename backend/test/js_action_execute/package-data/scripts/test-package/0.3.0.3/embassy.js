@@ -758,5 +758,18 @@ export const action = {
               qr: false,
           }
       }
+  },
+
+  async fetch(_effects, _input, testInput) {
+
+    assert(testInput == 42, "Input should be passed in");
+      return {
+          result: {
+              copyable: false,
+              message: "Done",
+              version: "0",
+              qr: false,
+          }
+      }
   }
 }
