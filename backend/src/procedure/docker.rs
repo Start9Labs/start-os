@@ -85,6 +85,9 @@ impl DockerProcedure {
         if expected_io && self.io_format.is_none() {
             color_eyre::eyre::bail!("expected io-format");
         }
+        if self.inject && !self.mounts.is_empty() {
+            color_eyre::eyre::bail!("mounts not allowed in inject actions");
+        }
         Ok(())
     }
 
