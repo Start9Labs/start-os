@@ -762,7 +762,7 @@ export const action = {
 
   async fetch(_effects, _input, testInput) {
 
-    assert(testInput == 42, "Body should be parsed from response");
+    assert(testInput == 42, "Input should be passed in");
       return {
           result: {
               copyable: false,
