@@ -68,6 +68,7 @@ const fetch = async (url, options = null) => {
 
 const currentFunction = Deno.core.opSync("current_function");
 const input = Deno.core.opSync("get_input");
+const variable_args = Deno.core.opSync("get_variable_args");
 const setState = (x) => Deno.core.opSync("set_value", x);
 const effects = {
   writeFile,
@@ -93,6 +94,6 @@ const runFunction = jsonPointerValue(mainModule, currentFunction);
     error(`Expecting ${ currentFunction } to be a function`);
     throw new Error(`Expecting ${ currentFunction } to be a function`);
   }
-  const answer = await runFunction(effects, input);
+  const answer = await runFunction(effects, input, ...variable_args);
   setState(answer);
 })();

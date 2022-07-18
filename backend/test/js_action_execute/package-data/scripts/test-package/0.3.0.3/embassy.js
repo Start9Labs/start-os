@@ -758,5 +758,18 @@ export const action = {
               qr: false,
           }
       }
+  },
+
+  async fetch(_effects, _input, testInput) {
+
+    assert(testInput == 42, "Body should be parsed from response");
+      return {
+          result: {
+              copyable: false,
+              message: "Done",
+              version: "0",
+              qr: false,
+          }
+      }
   }
 }

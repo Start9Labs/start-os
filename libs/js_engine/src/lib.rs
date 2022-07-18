@@ -87,6 +87,7 @@ struct JsContext {
     package_id: PackageId,
     volumes: Arc<dyn PathForVolumeId>,
     input: Value,
+    variable_args: Vec<serde_json::Value>,
 }
 
 #[derive(Clone, Default)]
@@ -218,6 +219,7 @@ impl JsExecutionEnvironment {
         self,
         procedure_name: ProcedureName,
         input: Option<I>,
+        variable_args: Vec<serde_json::Value>,
     ) -> Result<O, (JsError, String)> {
         let input = match serde_json::to_value(input) {
             Ok(a) => a,
@@ -231,7 +233,8 @@ impl JsExecutionEnvironment {
             }
         };
         let safer_handle: NonDetachingJoinHandle<_> =
-            tokio::task::spawn_blocking(move || self.execute(procedure_name, input)).into();
+            tokio::task::spawn_blocking(move || self.execute(procedure_name, input, variable_args))
+                .into();
         let output = safer_handle
             .await
             .map_err(|err| (JsError::Tokio, format!("Tokio gave us the error: {}", err)))??;
@@ -266,6 +269,7 @@ impl JsExecutionEnvironment {
             fns::log_debug::decl(),
             fns::log_info::decl(),
             fns::get_input::decl(),
+            fns::get_variable_args::decl(),
             fns::set_value::decl(),
             fns::is_sandboxed::decl(),
         ]
@@ -275,6 +279,7 @@ impl JsExecutionEnvironment {
         &self,
         procedure_name: ProcedureName,
         input: Value,
+        variable_args: Vec<serde_json::Value>,
     ) -> Result<Value, (JsError, String)> {
         let base_directory = self.base_directory.clone();
         let answer_state = AnswerState::default();
@@ -287,6 +292,7 @@ impl JsExecutionEnvironment {
             version: self.version.clone(),
             sandboxed: self.sandboxed,
             input,
+            variable_args,
         };
         let ext = Extension::builder()
             .ops(Self::declarations())
@@ -673,6 +679,11 @@ mod fns {
     fn get_input(state: &mut OpState) -> Result<Value, AnyError> {
         let ctx = state.borrow::<JsContext>();
         Ok(ctx.input.clone())
+    }
+    #[op]
+    fn get_variable_args(state: &mut OpState) -> Result<Vec<Value>, AnyError> {
+        let ctx = state.borrow::<JsContext>();
+        Ok(ctx.variable_args.clone())
     }
     #[op]
     fn set_value(state: &mut OpState, value: Value) -> Result<(), AnyError> {
