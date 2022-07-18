@@ -45,7 +45,10 @@ impl PathForVolumeId for Volumes {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
-pub struct JsProcedure {}
+pub struct JsProcedure {
+    #[serde(default)]
+    args: Vec<serde_json::Value>,
+}
 
 impl JsProcedure {
     pub fn validate(&self, _volumes: &Volumes) -> Result<(), color_eyre::eyre::Report> {
@@ -71,7 +74,7 @@ impl JsProcedure {
                 Box::new(volumes.clone()),
             )
             .await?
-            .run_action(name, input);
+            .run_action(name, input, self.args.clone());
             let output: ErrorValue = match timeout {
                 Some(timeout_duration) => tokio::time::timeout(timeout_duration, running_action)
                     .await
@@ -105,7 +108,7 @@ impl JsProcedure {
             )
             .await?
             .read_only_effects()
-            .run_action(name, input);
+            .run_action(name, input, self.args.clone());
             let output: ErrorValue = match timeout {
                 Some(timeout_duration) => tokio::time::timeout(timeout_duration, running_action)
                     .await
@@ -145,7 +148,7 @@ fn unwrap_known_error<O: for<'de> Deserialize<'de>>(
 
 #[tokio::test]
 async fn js_action_execute() {
-    let js_action = JsProcedure {};
+    let js_action = JsProcedure { args: vec![] };
     let path: PathBuf = "test/js_action_execute/"
         .parse::<PathBuf>()
         .unwrap()
@@ -200,7 +203,7 @@ async fn js_action_execute() {
 
 #[tokio::test]
 async fn js_action_execute_error() {
-    let js_action = JsProcedure {};
+    let js_action = JsProcedure { args: vec![] };
     let path: PathBuf = "test/js_action_execute/"
         .parse::<PathBuf>()
         .unwrap()
@@ -244,7 +247,52 @@ async fn js_action_execute_error() {
 
 #[tokio::test]
 async fn js_action_fetch() {
-    let js_action = JsProcedure {};
+    let js_action = JsProcedure { args: vec![] };
+    let path: PathBuf = "test/js_action_execute/"
+        .parse::<PathBuf>()
+        .unwrap()
+        .canonicalize()
+        .unwrap();
+    let package_id = "test-package".parse().unwrap();
+    let package_version: Version = "0.3.0.3".parse().unwrap();
+    let name = ProcedureName::Action("fetch".parse().unwrap());
+    let volumes: Volumes = serde_json::from_value(serde_json::json!({
+        "main": {
+            "type": "data"
+        },
+        "compat": {
+            "type": "assets"
+        },
+        "filebrowser" :{
+            "package-id": "filebrowser",
+            "path": "data",
+            "readonly": true,
+            "type": "pointer",
+            "volume-id": "main",
+        }
+    }))
+    .unwrap();
+    let input: Option<serde_json::Value> = None;
+    let timeout = Some(Duration::from_secs(10));
+    js_action
+        .execute::<serde_json::Value, serde_json::Value>(
+            &path,
+            &package_id,
+            &package_version,
+            name,
+            &volumes,
+            input,
+            timeout,
+        )
+        .await
+        .unwrap()
+        .unwrap();
+}
+#[tokio::test]
+async fn js_action_var_arg() {
+    let js_action = JsProcedure {
+        args: vec![42.into()],
+    };
     let path: PathBuf = "test/js_action_execute/"
         .parse::<PathBuf>()
         .unwrap()
