@@ -2,7 +2,7 @@ use emver::VersionRange;
 
 use super::{v0_3_0::V0_3_0_COMPAT, *};
 
-const V0_3_1: emver::Version = emver::Version::new(0, 3, 1, 0);
+const V0_3_1_1: emver::Version = emver::Version::new(0, 3, 1, 1);
 
 #[derive(Clone, Debug)]
 pub struct Version;
@@ -13,7 +13,7 @@ impl VersionT for Version {
         Version
     }
     fn semver(&self) -> emver::Version {
-        V0_3_1
+        V0_3_1_1
     }
     fn compat(&self) -> &'static VersionRange {
         &*V0_3_0_COMPAT
