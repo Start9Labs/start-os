@@ -85,9 +85,9 @@ impl DockerProcedure {
         if expected_io && self.io_format.is_none() {
             color_eyre::eyre::bail!("expected io-format");
         }
-        if self.inject && !self.mounts.is_empty() {
-            color_eyre::eyre::bail!("mounts not allowed in inject actions");
-        }
+        // if self.inject && !self.mounts.is_empty()  {
+        //     color_eyre::eyre::bail!("mounts not allowed in inject actions");
+        // }
         Ok(())
     }
 
@@ -426,27 +426,29 @@ impl DockerProcedure {
                 + 5 // --interactive --log-driver=journald --entrypoint <ENTRYPOINT> <IMAGE>
                 + self.args.len(), // [ARG...]
         );
-        for (volume_id, dst) in &self.mounts {
-            let volume = if let Some(v) = volumes.get(volume_id) {
-                v
-            } else {
-                continue;
-            };
-            let src = volume.path_for(&ctx.datadir, pkg_id, pkg_version, volume_id);
-            if let Err(e) = tokio::fs::metadata(&src).await {
-                tracing::warn!("{} not mounted to container: {}", src.display(), e);
-                continue;
+        if !self.inject {
+            for (volume_id, dst) in &self.mounts {
+                let volume = if let Some(v) = volumes.get(volume_id) {
+                    v
+                } else {
+                    continue;
+                };
+                let src = volume.path_for(&ctx.datadir, pkg_id, pkg_version, volume_id);
+                if let Err(e) = tokio::fs::metadata(&src).await {
+                    tracing::warn!("{} not mounted to container: {}", src.display(), e);
+                    continue;
+                }
+                res.push(OsStr::new("--mount").into());
+                res.push(
+                    OsString::from(format!(
+                        "type=bind,src={},dst={}{}",
+                        src.display(),
+                        dst.display(),
+                        if volume.readonly() { ",readonly" } else { "" }
+                    ))
+                    .into(),
+                );
             }
-            res.push(OsStr::new("--mount").into());
-            res.push(
-                OsString::from(format!(
-                    "type=bind,src={},dst={}{}",
-                    src.display(),
-                    dst.display(),
-                    if volume.readonly() { ",readonly" } else { "" }
-                ))
-                .into(),
-            );
         }
         if let Some(shm_size_mb) = self.shm_size_mb {
             res.push(OsStr::new("--shm-size").into());

@@ -13,9 +13,9 @@ use nix::sys::signal::Signal;
 use num_enum::TryFromPrimitive;
 use patch_db::DbHandle;
 use sqlx::{Executor, Sqlite};
-use tokio::sync::watch::error::RecvError;
 use tokio::sync::watch::{channel, Receiver, Sender};
 use tokio::sync::{Notify, RwLock};
+use tokio::{io::BufReader, sync::watch::error::RecvError};
 use torut::onion::TorSecretKeyV3;
 use tracing::instrument;
 
@@ -102,6 +102,32 @@ impl ManagerMap {
 
     #[instrument(skip(self))]
     pub async fn remove(&self, id: &(PackageId, Version)) {
+        /// TODO[JM] CLEAN UP BEFORE/ FOR PR
+        let return_value = async {
+            let mut cmd = tokio::process::Command::new("docker");
+            cmd.arg("stop").arg(format!("{}.embassy", id.0));
+            cmd.stderr(std::process::Stdio::piped());
+            let mut handle = cmd.spawn()?;
+            let err_output = BufReader::new(
+                handle
+                    .stderr
+                    .take()
+                    .ok_or_else(|| eyre!("Can't takeout std err"))?,
+            );
+            let return_status = handle.wait().await?;
+            Ok::<_, color_eyre::Report>(return_status)
+        };
+        match return_value.await {
+            Ok(exit_status) => {
+                if !(exit_status.success() || exit_status.code() == Some(143)) {
+                    tracing::error!("Error shutting down docker");
+                }
+            }
+            Err(e) => {
+                tracing::error!("Error shutting down docker task: {}", e);
+                tracing::error!("{:?}", e);
+            }
+        }
         if let Some(man) = self.0.write().await.remove(id) {
             if let Err(e) = man.exit().await {
                 tracing::error!("Error shutting down manager: {}", e);
