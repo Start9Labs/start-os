@@ -16,8 +16,8 @@ export class LogsPage {
   loading = true
   loadingMore = false
   needInfinite = true
-  startCursor = ''
-  endCursor = ''
+  startCursor?: string
+  endCursor?: string
   limit = 200
   isOnBottom = true
 
