@@ -62,19 +62,17 @@ export class AppConfigPage {
   ) {}
 
   async ngOnInit() {
-    const packageData = await getPackageData(this.patch)
-
-    this.pkg = packageData[this.pkgId]
-    this.hasConfig = !!this.pkg.manifest.config
-
-    if (!this.hasConfig) return
-
-    let oldConfig: object | null
-    let newConfig: object | undefined
-    let spec: ConfigSpec
-    let patch: Operation[] | undefined
-
     try {
+      const packageData = await getPackageData(this.patch)
+
+      this.pkg = packageData[this.pkgId]
+      this.hasConfig = !!this.pkg.manifest.config
+
+      if (!this.hasConfig) return
+
+      let newConfig: object | undefined
+      let patch: Operation[] | undefined
+
       if (this.dependentInfo) {
         this.loadingText = `Setting properties to accommodate ${this.dependentInfo.title}`
         const {
@@ -85,24 +83,22 @@ export class AppConfigPage {
           'dependency-id': this.pkgId,
           'dependent-id': this.dependentInfo.id,
         })
-        oldConfig = oc
+        this.original = oc
         newConfig = nc
-        spec = s
-        patch = compare(oldConfig, newConfig)
+        this.configSpec = s
+        patch = compare(this.original, newConfig)
       } else {
         this.loadingText = 'Loading Config'
         const { config: c, spec: s } = await this.embassyApi.getPackageConfig({
           id: this.pkgId,
         })
-        oldConfig = c
-        spec = s
+        this.original = c
+        this.configSpec = s
       }
 
-      this.original = oldConfig
-      this.configSpec = spec
       this.configForm = this.formService.createForm(
-        spec,
-        newConfig || oldConfig,
+        this.configSpec,
+        newConfig || this.original,
       )
       this.configForm.markAllAsTouched()
 
