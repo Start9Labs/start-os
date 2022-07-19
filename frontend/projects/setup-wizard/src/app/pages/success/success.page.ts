@@ -16,8 +16,20 @@ export class SuccessPage {
   constructor(
     private readonly toastCtrl: ToastController,
     private readonly errCtrl: ErrorToastService,
-    public readonly stateService: StateService,
+    private readonly stateService: StateService,
   ) {}
+
+  get recoverySource() {
+    return this.stateService.recoverySource
+  }
+
+  get torAddress() {
+    return this.stateService.torAddress
+  }
+
+  get lanAddress() {
+    return this.stateService.lanAddress
+  }
 
   async ngAfterViewInit() {
     try {

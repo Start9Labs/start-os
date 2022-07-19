@@ -38,8 +38,24 @@ export class BackupDrivesComponent {
     private readonly modalCtrl: ModalController,
     private readonly embassyApi: ApiService,
     private readonly errToast: ErrorToastService,
-    public readonly backupService: BackupService,
+    private readonly backupService: BackupService,
   ) {}
+
+  get loading() {
+    return this.backupService.loading
+  }
+
+  get loadingError() {
+    return this.backupService.loadingError
+  }
+
+  get drives() {
+    return this.backupService.drives
+  }
+
+  get cifs() {
+    return this.backupService.cifs
+  }
 
   ngOnInit() {
     this.loadingText =
@@ -237,7 +253,11 @@ export class BackupDrivesHeaderComponent {
   @Input() type!: BackupType
   @Output() onClose: EventEmitter<void> = new EventEmitter()
 
-  constructor(public readonly backupService: BackupService) {}
+  constructor(private readonly backupService: BackupService) {}
+
+  get loading() {
+    return this.backupService.loading
+  }
 
   refresh() {
     this.backupService.getBackupTargets()

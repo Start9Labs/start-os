@@ -17,7 +17,7 @@ import { DevProjectData } from 'src/app/services/patch-db/data-model'
 })
 export class DeveloperMenuPage {
   readonly projectId = getProjectId(this.route)
-  projectData$ = this.patch.watch$('ui', 'dev', this.projectId)
+  readonly projectData$ = this.patch.watch$('ui', 'dev', this.projectId)
 
   constructor(
     private readonly route: ActivatedRoute,
@@ -26,11 +26,7 @@ export class DeveloperMenuPage {
     private readonly api: ApiService,
     private readonly errToast: ErrorToastService,
     private readonly patch: PatchDbService,
-  ) { }
-
-  get name(): string {
-    return this.patch.getData().ui?.dev?.[this.projectId]?.name || ''
-  }
+  ) {}
 
   async openBasicInfoModal(data: DevProjectData) {
     const modal = await this.modalCtrl.create({

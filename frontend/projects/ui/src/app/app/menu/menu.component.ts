@@ -51,6 +51,8 @@ export class MenuComponent {
     'unread-notification-count',
   )
 
+  readonly snekScore$ = this.patch.watch$('ui', 'gaming', 'snake', 'high-score')
+
   readonly showEOSUpdate$ = this.eosService.showUpdate$
 
   readonly showDevTools$ = this.localStorageService.showDevTools$

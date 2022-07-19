@@ -1,6 +1,5 @@
-import { Component, ViewChild } from '@angular/core'
+import { Component } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { IonContent } from '@ionic/angular'
 import { Metric } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { pauseFor, ErrorToastService, getPkgId } from '@start9labs/shared'
@@ -16,9 +15,6 @@ export class AppMetricsPage {
   going = false
   metrics?: Metric
 
-  @ViewChild(IonContent)
-  content?: IonContent
-
   constructor(
     private readonly route: ActivatedRoute,
     private readonly errToast: ErrorToastService,
@@ -27,10 +23,6 @@ export class AppMetricsPage {
 
   ngOnInit() {
     this.startDaemon()
-  }
-
-  ngAfterViewInit() {
-    this.content?.scrollToPoint(undefined, 1)
   }
 
   ngOnDestroy() {

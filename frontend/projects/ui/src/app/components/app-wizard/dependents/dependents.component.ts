@@ -27,7 +27,7 @@ export class DependentsComponent implements BaseSlide {
 
   readonly pkgs$ = this.patch.watch$('package-data')
 
-  constructor(public readonly patch: PatchDbService) {}
+  constructor(private readonly patch: PatchDbService) {}
 
   async load() {
     try {

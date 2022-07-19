@@ -37,9 +37,9 @@ export enum PatchConnection {
 })
 export class PatchDbService {
   private readonly WS_SUCCESS = 'wsSuccess'
-  private patchConnection$ = new ReplaySubject<PatchConnection>(1)
-  private wsSuccess$ = new BehaviorSubject(false)
-  private polling$ = new BehaviorSubject(false)
+  private readonly patchConnection$ = new ReplaySubject<PatchConnection>(1)
+  private readonly wsSuccess$ = new BehaviorSubject(false)
+  private readonly polling$ = new BehaviorSubject(false)
   private subs: Subscription[] = []
 
   readonly connected$ = this.watchPatchConnection$().pipe(
@@ -47,12 +47,6 @@ export class PatchDbService {
     take(1),
     shareReplay(),
   )
-
-  errors = 0
-
-  getData() {
-    return this.patchDb.store.cache.data
-  }
 
   constructor(
     // [wsSources, pollSources]
