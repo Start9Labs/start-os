@@ -259,6 +259,7 @@ impl JsExecutionEnvironment {
             fns::read_file::decl(),
             fns::metadata::decl(),
             fns::write_file::decl(),
+            fns::rename::decl(),
             fns::remove_file::decl(),
             fns::create_dir::decl(),
             fns::remove_dir::decl(),
@@ -526,6 +527,56 @@ mod fns {
             );
         }
         tokio::fs::write(new_file, write).await?;
+        Ok(())
+    }
+    #[op]
+    async fn rename(
+        state: Rc<RefCell<OpState>>,
+        volume_id: VolumeId,
+        path_in: PathBuf,
+        volume_id_out: VolumeId,
+        path_out: PathBuf,
+    ) -> Result<(), AnyError> {
+        let state = state.borrow();
+        let ctx: &JsContext = state.borrow();
+        let volume_path = ctx
+            .volumes
+            .path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id)
+            .ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?;
+        let volume_path_out = ctx
+            .volumes
+            .path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id_out)
+            .ok_or_else(|| anyhow!("There is no {} in volumes", volume_id_out))?;
+        if ctx.volumes.readonly(&volume_id_out) {
+            bail!("Volume {} is readonly", volume_id_out);
+        }
+
+        let old_file = volume_path.join(path_in);
+        let parent_old_file = old_file
+            .parent()
+            .ok_or_else(|| anyhow!("Expecting that file is not root"))?;
+        // With the volume check
+        if !is_subset(&volume_path, &parent_old_file).await? {
+            bail!(
+                "Path '{}' has broken away from parent '{}'",
+                old_file.to_string_lossy(),
+                volume_path.to_string_lossy(),
+            );
+        }
+
+        let new_file = volume_path_out.join(path_out);
+        let parent_new_file = new_file
+            .parent()
+            .ok_or_else(|| anyhow!("Expecting that file is not root"))?;
+        // With the volume check
+        if !is_subset(&volume_path_out, &parent_new_file).await? {
+            bail!(
+                "Path '{}' has broken away from parent '{}'",
+                new_file.to_string_lossy(),
+                volume_path_out.to_string_lossy(),
+            );
+        }
+        tokio::fs::rename(old_file, new_file).await?;
         Ok(())
     }
     #[op]
