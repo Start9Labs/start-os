@@ -300,7 +300,7 @@ async fn js_action_var_arg() {
         .unwrap();
     let package_id = "test-package".parse().unwrap();
     let package_version: Version = "0.3.0.3".parse().unwrap();
-    let name = ProcedureName::Action("fetch".parse().unwrap());
+    let name = ProcedureName::Action("js-action-var-arg".parse().unwrap());
     let volumes: Volumes = serde_json::from_value(serde_json::json!({
         "main": {
             "type": "data"

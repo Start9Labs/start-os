@@ -760,7 +760,7 @@ export const action = {
       }
   },
 
-  async fetch(_effects, _input, testInput) {
+  async 'js-action-var-arg'(_effects, _input, testInput) {
 
     assert(testInput == 42, "Input should be passed in");
       return {
