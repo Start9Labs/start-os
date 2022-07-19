@@ -55,7 +55,7 @@
                     *ngIf="!statusInfo['backup-progress'] && !statusInfo['update-progress']"
                   >
                     Last Backup: {{ server['last-backup'] ?
-                    (server['last-backup'] | date: 'short') : 'never' }}
+                    (server['last-backup'] | date: 'medium') : 'never' }}
                   </ion-text>
                   <span *ngIf="!!statusInfo['backup-progress']" class="inline">
                     <ion-spinner

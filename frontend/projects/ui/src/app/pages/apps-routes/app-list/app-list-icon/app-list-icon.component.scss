@@ -1,20 +1,18 @@
 .bulb {
   position: absolute !important;
-  top: 6px !important;
+  top: 9px !important;
   height: 14px;
   width: 14px;
   border-radius: 100%;
-  box-shadow: 0 0 6px 6px rgba(255, 213, 52, 0.1);
 }
 
 .warning-icon {
   position: absolute !important;
-  top: 6px !important;
+  top: 8px !important;
+  left: 11px !important;
   font-size: 12px;
   border-radius: 100%;
   padding: 1px;
-  background-color: rgba(255, 213, 52, 0.1);
-  box-shadow: 0 0 4px 4px rgba(255, 213, 52, 0.1);
 }
 
 .spinner {

@@ -22,7 +22,7 @@
         <ion-label>
           <h2>{{ option.title }}</h2>
           <p>Version {{ option.version }}</p>
-          <p>Backup made: {{ option.timestamp | date : 'short' }}</p>
+          <p>Backup made: {{ option.timestamp | date : 'medium' }}</p>
           <p *ngIf="!option.installed && !option['newer-eos']">
             <ion-text color="success">Ready to restore</ion-text>
           </p>

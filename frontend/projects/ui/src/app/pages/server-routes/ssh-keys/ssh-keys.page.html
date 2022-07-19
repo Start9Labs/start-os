@@ -66,7 +66,7 @@
         <ion-icon slot="start" name="key-outline" size="large"></ion-icon>
         <ion-label>
           <h1>{{ ssh.hostname }}</h1>
-          <h2>{{ ssh['created-at'] | date: 'short' }}</h2>
+          <h2>{{ ssh['created-at'] | date: 'medium' }}</h2>
           <p>{{ ssh.alg }} {{ ssh.fingerprint }}</p>
         </ion-label>
         <ion-button

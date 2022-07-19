@@ -86,9 +86,11 @@
           <ion-button
             slot="end"
             fill="clear"
-            (click)="presentAlertKill(session.id)"
+            color="danger"
+            (click)="kill([session.id])"
           >
-            <ion-icon slot="icon-only" name="log-out-outline"></ion-icon>
+            Logout
+            <ion-icon slot="start" name="log-out-outline"></ion-icon>
           </ion-button>
         </ion-item>
       </div>

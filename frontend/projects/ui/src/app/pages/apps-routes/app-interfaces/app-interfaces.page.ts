@@ -10,7 +10,7 @@ import {
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { copyToClipboard } from 'src/app/util/web.util'
 import { QRComponent } from 'src/app/components/qr/qr.component'
-import { getPackageData } from '../../../util/get-package-data'
+import { getPackage } from '../../../util/get-package-data'
 
 interface LocalInterface {
   def: InterfaceDef
@@ -33,8 +33,7 @@ export class AppInterfacesPage {
   ) {}
 
   async ngOnInit() {
-    const packageData = await getPackageData(this.patch)
-    const pkg = packageData[this.pkgId]
+    const pkg = await getPackage(this.patch, this.pkgId)
     const interfaces = pkg.manifest.interfaces
     const uiKey = getUiInterfaceKey(interfaces)
 

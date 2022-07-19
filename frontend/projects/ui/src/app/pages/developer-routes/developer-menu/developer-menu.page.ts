@@ -5,7 +5,7 @@ import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 import { BasicInfo, getBasicInfoSpec } from './form-info'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ErrorToastService, DestroyService } from '@start9labs/shared'
+import { ErrorToastService } from '@start9labs/shared'
 import { getProjectId } from 'src/app/util/get-project-id'
 import { DevProjectData } from 'src/app/services/patch-db/data-model'
 
@@ -13,7 +13,6 @@ import { DevProjectData } from 'src/app/services/patch-db/data-model'
   selector: 'developer-menu',
   templateUrl: 'developer-menu.page.html',
   styleUrls: ['developer-menu.page.scss'],
-  providers: [DestroyService],
 })
 export class DeveloperMenuPage {
   readonly projectId = getProjectId(this.route)
@@ -37,13 +36,7 @@ export class DeveloperMenuPage {
         buttons: [
           {
             text: 'Save',
-            handler: (basicInfo: any) => {
-              basicInfo.description = {
-                short: basicInfo.short,
-                long: basicInfo.long,
-              }
-              delete basicInfo.short
-              delete basicInfo.long
+            handler: (basicInfo: BasicInfo) => {
               this.saveBasicInfo(basicInfo)
             },
             isSubmit: true,

@@ -67,27 +67,6 @@ export class SessionsPage {
     await alert.present()
   }
 
-  async presentAlertKill(id: string) {
-    const alert = await this.alertCtrl.create({
-      header: 'Confirm',
-      message: 'Terminate other web session?',
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
-        },
-        {
-          text: 'Terminate',
-          handler: () => {
-            this.kill([id])
-          },
-          cssClass: 'enter-click',
-        },
-      ],
-    })
-    await alert.present()
-  }
-
   async kill(ids: string[]): Promise<void> {
     const loader = await this.loadingCtrl.create({
       message: `Terminating session${ids.length > 1 ? 's' : ''}...`,

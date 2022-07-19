@@ -106,41 +106,35 @@
 
 <ion-footer>
   <ion-toolbar>
-    <ion-buttons
-      *ngIf="!loadingText && !loadingError && hasConfig"
-      slot="start"
-      class="ion-padding-start"
-    >
-      <ion-button fill="clear" (click)="resetDefaults()">
-        <ion-icon slot="start" name="refresh"></ion-icon>
-        Reset Defaults
-      </ion-button>
-    </ion-buttons>
-    <ion-buttons
-      *ngIf="!loadingText && !loadingError"
-      slot="end"
-      class="ion-padding-end"
-    >
-      <ion-button
-        *ngIf="hasConfig"
-        fill="solid"
-        color="primary"
-        [disabled]="saving"
-        (click)="tryConfigure()"
-        class="enter-click btn-128"
-        [class.no-click]="saving"
-      >
-        Save
-      </ion-button>
-      <ion-button
-        *ngIf="!hasConfig"
-        fill="solid"
-        color="dark"
-        (click)="dismiss()"
-        class="enter-click btn-128"
-      >
-        Close
-      </ion-button>
-    </ion-buttons>
+    <ng-container *ngIf="!loading && !loadingError">
+      <ion-buttons *ngIf="hasConfig" slot="start" class="ion-padding-start">
+        <ion-button fill="clear" (click)="resetDefaults()">
+          <ion-icon slot="start" name="refresh"></ion-icon>
+          Reset Defaults
+        </ion-button>
+      </ion-buttons>
+      <ion-buttons slot="end" class="ion-padding-end">
+        <ion-button
+          *ngIf="hasConfig"
+          fill="solid"
+          color="primary"
+          [disabled]="saving"
+          (click)="tryConfigure()"
+          class="enter-click btn-128"
+          [class.no-click]="saving"
+        >
+          Save
+        </ion-button>
+        <ion-button
+          *ngIf="!hasConfig"
+          fill="solid"
+          color="dark"
+          (click)="dismiss()"
+          class="enter-click btn-128"
+        >
+          Close
+        </ion-button>
+      </ion-buttons>
+    </ng-container>
   </ion-toolbar>
 </ion-footer>

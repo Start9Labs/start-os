@@ -4,6 +4,11 @@
       <ion-back-button defaultHref="embassy"></ion-back-button>
     </ion-buttons>
     <ion-title>Kernel Logs</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="copy()">
+        <ion-icon name="copy-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
