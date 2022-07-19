@@ -780,10 +780,10 @@ export const action = {
       toWrite: 'Hello World',
     });
     await effects.rename({
-      volumeIdIn: 'main',
-      pathIn: 'test-rename.txt',
-      volumeIdOut: 'main',
-      pathOut: 'test-rename-2.txt',
+      srcVolume: 'main',
+      srcPath: 'test-rename.txt',
+      dstVolume: 'main',
+      dstPath: 'test-rename-2.txt',
     });
 
     const readIn = await effects.readFile({

@@ -39,12 +39,12 @@ const readFile = (
 ) => Deno.core.opAsync("read_file", volumeId, path);
 const rename = (
   {
-    volumeIdIn = requireParam("volumeIdIn"),
-    volumeIdOut = requireParam("volumeIdOut"),
-    pathIn = requireParam("pathIn"),
-    pathOut = requireParam("pathOut"),
+    srcVolume = requireParam("srcVolume"),
+    dstVolume = requireParam("dstVolume"),
+    srcPath = requireParam("srcPath"),
+    dstPath = requireParam("dstPath"),
   } = requireParam("options"),
-) => Deno.core.opAsync("rename", volumeIdIn, pathIn, volumeIdOut, pathOut);
+) => Deno.core.opAsync("rename", srcVolume, srcPath, dstVolume, dstPath);
 const metadata = async (
   { volumeId = requireParam("volumeId"), path = requireParam("path") } = requireParam("options"),
 ) => {
