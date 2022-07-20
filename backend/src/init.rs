@@ -160,6 +160,8 @@ pub async fn init(cfg: &RpcContextConfig, product_key: &str) -> Result<(), Error
     }
     if warn_time_not_synced {
         tracing::warn!("Timed out waiting for system time to synchronize");
+    } else {
+        tracing::info!("Syncronized system clock");
     }
 
     crate::version::init(&mut handle, &receipts).await?;
@@ -167,6 +169,8 @@ pub async fn init(cfg: &RpcContextConfig, product_key: &str) -> Result<(), Error
     if should_rebuild {
         tokio::fs::remove_file(SYSTEM_REBUILD_PATH).await?;
     }
+
+    tracing::info!("System initialized.");
 
     Ok(())
 }
