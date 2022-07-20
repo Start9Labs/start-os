@@ -514,7 +514,7 @@ mod fns {
             bail!("Volume {} is readonly", volume_id);
         }
 
-        let new_file = volume_path.join(path_in);
+        let new_file = volume_path.join(&path_in);
         let parent_new_file = new_file
             .parent()
             .ok_or_else(|| anyhow!("Expecting that file is not root"))?;
@@ -526,7 +526,33 @@ mod fns {
                 volume_path.to_string_lossy(),
             );
         }
-        tokio::fs::write(new_file, write).await?;
+        let new_volume_tmp = {
+            let last = volume_path
+                .iter()
+                .last()
+                .ok_or_else(|| anyhow!("Volume is not able to have temp dir"))?
+                .to_str()
+                .ok_or_else(|| anyhow!("Volume is not able to have temp"))?;
+            let mut tmp = volume_path
+                .parent()
+                .ok_or_else(|| anyhow!("Volume is not able to have temp"))?
+                .to_path_buf();
+            tmp.push(&format!(".{}.tmp", last));
+            tmp
+        };
+        let hashed_name = {
+            use sha2::{Digest, Sha256};
+            use std::os::unix::ffi::OsStrExt;
+            let mut hasher = Sha256::new();
+
+            hasher.update(path_in.as_os_str().as_bytes());
+            let result = hasher.finalize();
+            format!("{:X}", result)
+        };
+        let temp_file = new_volume_tmp.join(&hashed_name);
+        tokio::fs::create_dir_all(&new_volume_tmp).await?;
+        tokio::fs::write(&temp_file, write).await?;
+        tokio::fs::rename(temp_file, new_file).await?;
         Ok(())
     }
     #[op]

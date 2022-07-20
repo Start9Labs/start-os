@@ -1940,6 +1940,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "sha2 0.10.2",
  "swc_atoms",
  "swc_common",
  "swc_config",
