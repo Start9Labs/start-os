@@ -6,10 +6,12 @@ use tokio::process::Command;
 use crate::context::rpc::RpcContextConfig;
 use crate::db::model::ServerStatus;
 use crate::install::PKG_DOCKER_DIR;
+use crate::sound::SHUTDOWN;
 use crate::util::Invoke;
 use crate::Error;
 
 pub const SYSTEM_REBUILD_PATH: &str = "/embassy-os/system-rebuild";
+pub const STANDBY_MODE_PATH: &str = "/embassy-os/standby";
 
 pub async fn check_time_is_synchronized() -> Result<bool, Error> {
     Ok(String::from_utf8(
@@ -67,6 +69,12 @@ impl InitReceipts {
 }
 
 pub async fn init(cfg: &RpcContextConfig, product_key: &str) -> Result<(), Error> {
+    if tokio::fs::metadata(STANDBY_MODE_PATH).await.is_ok() {
+        tokio::fs::remove_file(STANDBY_MODE_PATH).await?;
+        SHUTDOWN.play().await?;
+        futures::future::pending::<()>().await;
+    }
+
     let should_rebuild = tokio::fs::metadata(SYSTEM_REBUILD_PATH).await.is_ok();
     let secret_store = cfg.secret_store().await?;
     let log_dir = cfg.datadir().join("main").join("logs");
