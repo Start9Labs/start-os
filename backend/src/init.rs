@@ -69,12 +69,6 @@ impl InitReceipts {
 }
 
 pub async fn init(cfg: &RpcContextConfig, product_key: &str) -> Result<(), Error> {
-    if tokio::fs::metadata(STANDBY_MODE_PATH).await.is_ok() {
-        tokio::fs::remove_file(STANDBY_MODE_PATH).await?;
-        SHUTDOWN.play().await?;
-        futures::future::pending::<()>().await;
-    }
-
     let should_rebuild = tokio::fs::metadata(SYSTEM_REBUILD_PATH).await.is_ok();
     let secret_store = cfg.secret_store().await?;
     let log_dir = cfg.datadir().join("main").join("logs");
