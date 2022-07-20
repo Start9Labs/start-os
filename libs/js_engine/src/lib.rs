@@ -530,12 +530,12 @@ mod fns {
             let last = volume_path
                 .iter()
                 .last()
-                .ok_or_else(|| anyhow!("Volume is not able to have temp dir"))?
+                .ok_or_else(|| anyhow!("Unreachable: Volume path is `/`"))?
                 .to_str()
-                .ok_or_else(|| anyhow!("Volume is not able to have temp"))?;
+                .ok_or_else(|| anyhow!("Unreachable: Volume path contains non-UTF-8 characters"))?;
             let mut tmp = volume_path
                 .parent()
-                .ok_or_else(|| anyhow!("Volume is not able to have temp"))?
+                .ok_or_else(|| anyhow!("Unreachable: Volume path is `/`"))?
                 .to_path_buf();
             tmp.push(&format!(".{}.tmp", last));
             tmp
