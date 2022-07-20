@@ -27,11 +27,12 @@ clean:
 	rm -rf frontend/dist
 	rm -rf patch-db/client/node_modules
 	rm -rf patch-db/client/dist
+	sudo rm -rf cargo-deps
 
 sdk: 
 	cd backend/ && ./install-sdk.sh
 
-eos.img: $(EMBASSY_SRC) system-images/compat/compat.tar system-images/utils/utils.tar 
+eos.img: $(EMBASSY_SRC) system-images/compat/compat.tar system-images/utils/utils.tar cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast
 	! test -f eos.img || rm eos.img
 	if [ "$(NO_KEY)" = "1" ]; then NO_KEY=1 ./build/make-image.sh; else ./build/make-image.sh; fi
 
@@ -85,3 +86,6 @@ ui: frontend/node_modules frontend/config.json frontend/dist/ui
 
 # this is a convenience step to build the backend
 backend: $(EMBASSY_BINS)
+
+cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast:
+	./build-cargo-dep.sh nc-broadcast

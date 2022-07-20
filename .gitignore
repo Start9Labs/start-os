@@ -12,3 +12,4 @@ deploy_web.sh
 deploy_web.sh
 secrets.db
 .vscode/
+/cargo-deps/**/*
