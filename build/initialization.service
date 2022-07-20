@@ -6,7 +6,7 @@ After=network-online.target systemd-time-wait-sync.service
 Type=oneshot
 Restart=on-failure
 RestartSec=5s
-ExecStart=/bin/sh -c "initialization.sh | nc-broadcast --tee 0.0.0.0:8080"
+ExecStart=/bin/sh -c "2>&1 initialization.sh | nc-broadcast --tee 0.0.0.0:8080"
 RemainAfterExit=true
 
 [Install]
