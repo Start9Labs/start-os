@@ -11,7 +11,7 @@ function partition_for () {
 }
 
 # Write contents of LOOPDEV (Ubuntu image) to sd card and make filesystems, then detach the loop device
-echo USING $LOOPDEV TO IMAGE $OUTPUT_DEVICE
+echo USING $LOOPDEV TO IMAGE $OUTPUT_DEVICE WITH ENVIRONMENT $ENVIRONMENT
 sudo dd if=${LOOPDEV}p1 of=`partition_for ${OUTPUT_DEVICE} 1` bs=1M iflag=fullblock oflag=direct conv=fsync status=progress
 sudo mkfs.vfat -F 32 `partition_for ${OUTPUT_DEVICE} 2`
 sudo dd if=${LOOPDEV}p2 of=`partition_for ${OUTPUT_DEVICE} 3` bs=1M iflag=fullblock oflag=direct conv=fsync status=progress
@@ -98,5 +98,7 @@ fi
 
 sudo cp ./build/initialization.service /tmp/eos-mnt/etc/systemd/system/initialization.service
 sudo ln -s /etc/systemd/system/initialization.service /tmp/eos-mnt/etc/systemd/system/multi-user.target.wants/initialization.service
+sudo cp ./build/nc-broadcast.service /tmp/eos-mnt/etc/systemd/system/nc-broadcast.service
+sudo ln -s /etc/systemd/system/nc-broadcast.service /tmp/eos-mnt/etc/systemd/system/multi-user.target.wants/nc-broadcast.service
 
 sudo umount /tmp/eos-mnt

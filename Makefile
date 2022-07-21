@@ -1,5 +1,5 @@
-ENVIRONMENT := $(shell ./check-environment.sh)
-GIT_HASH := $(shell ./check-git-hash.sh)
+ENVIRONMENT_FILE := $(shell ./check-environment.sh)
+GIT_HASH_FILE := $(shell ./check-git-hash.sh)
 EMBASSY_BINS := backend/target/aarch64-unknown-linux-gnu/release/embassyd backend/target/aarch64-unknown-linux-gnu/release/embassy-init backend/target/aarch64-unknown-linux-gnu/release/embassy-cli backend/target/aarch64-unknown-linux-gnu/release/embassy-sdk
 EMBASSY_UIS := frontend/dist/ui frontend/dist/setup-wizard frontend/dist/diagnostic-ui
 EMBASSY_SRC := raspios.img product_key.txt $(EMBASSY_BINS) backend/embassyd.service backend/embassy-init.service $(EMBASSY_UIS) $(shell find build)
@@ -11,7 +11,6 @@ FRONTEND_UI_SRC := $(shell find frontend/projects/ui)
 FRONTEND_SETUP_WIZARD_SRC := $(shell find frontend/projects/setup-wizard)
 FRONTEND_DIAGNOSTIC_UI_SRC := $(shell find frontend/projects/diagnostic-ui)
 PATCH_DB_CLIENT_SRC = $(shell find patch-db/client -not -path patch-db/client/dist)
-TMP_FILE := $(shell mktemp)
 
 .DELETE_ON_ERROR:
 
@@ -36,7 +35,7 @@ clean:
 sdk: 
 	cd backend/ && ./install-sdk.sh
 
-eos.img: $(EMBASSY_SRC) system-images/compat/compat.tar system-images/utils/utils.tar cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast $(ENVIRONMENT) $(GIT_HASH)
+eos.img: $(EMBASSY_SRC) system-images/compat/compat.tar system-images/utils/utils.tar cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast $(ENVIRONMENT_FILE) $(GIT_HASH_FILE)
 	! test -f eos.img || rm eos.img
 	if [ "$(NO_KEY)" = "1" ]; then NO_KEY=1 ./build/make-image.sh; else ./build/make-image.sh; fi
 
@@ -62,24 +61,23 @@ snapshots: libs/snapshot-creator/Cargo.toml
 	cd libs/  && ./build-v8-snapshot.sh
 	cd libs/  && ./build-arm-v8-snapshot.sh
 
-$(EMBASSY_BINS): $(BACKEND_SRC) $(ENVIRONMENT) $(GIT_HASH)
+$(EMBASSY_BINS): $(BACKEND_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE)
 	cd backend && ./build-prod.sh
-	sudo chown -R ${USER} backend/target
 	touch $(EMBASSY_BINS)
 
 frontend/node_modules: frontend/package.json
 	npm --prefix frontend ci
 
-frontend/dist/ui: $(FRONTEND_UI_SRC) $(FRONTEND_SHARED_SRC) $(ENVIRONMENT)
+frontend/dist/ui: $(FRONTEND_UI_SRC) $(FRONTEND_SHARED_SRC) $(ENVIRONMENT_FILE)
 	npm --prefix frontend run build:ui
 
-frontend/dist/setup-wizard: $(FRONTEND_SETUP_WIZARD_SRC) $(FRONTEND_SHARED_SRC) $(ENVIRONMENT)
+frontend/dist/setup-wizard: $(FRONTEND_SETUP_WIZARD_SRC) $(FRONTEND_SHARED_SRC) $(ENVIRONMENT_FILE)
 	npm --prefix frontend run build:setup-wizard
 
-frontend/dist/diagnostic-ui: $(FRONTEND_DIAGNOSTIC_UI_SRC) $(FRONTEND_SHARED_SRC) $(ENVIRONMENT)
+frontend/dist/diagnostic-ui: $(FRONTEND_DIAGNOSTIC_UI_SRC) $(FRONTEND_SHARED_SRC) $(ENVIRONMENT_FILE)
 	npm --prefix frontend run build:diagnostic-ui
 
-frontend/config.json: $(GIT_HASH)
+frontend/config.json: $(GIT_HASH_FILE)
 	jq '.useMocks = false' frontend/config-sample.json > frontend/config.json
 	npm --prefix frontend run-script build-config
 
@@ -88,6 +86,7 @@ patch-db/client/node_modules: patch-db/client/package.json
 
 patch-db/client/dist: $(PATCH_DB_CLIENT_SRC) patch-db/client/node_modules
 	! test -d patch-db/client/dist || rm -rf patch-db/client/dist
+	rm -rf frontend/.angular/cache
 	npm --prefix patch-db/client run build
 
 # this is a convenience step to build all frontends - it is not referenced elsewhere in this file
