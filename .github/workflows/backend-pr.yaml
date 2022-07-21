@@ -3,12 +3,14 @@ name: Backend PR
 on:
   workflow_call:
   workflow_dispatch:
+  push:
+    branches:
+    - master
+    - next
   pull_request:
     branches:
     - master
-    paths:
-    - 'backend/**'
-    - 'libs/**'
+    - next
 
 jobs:
   libs:

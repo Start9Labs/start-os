@@ -3,11 +3,14 @@ name: Frontend PR
 on:
   workflow_call:
   workflow_dispatch:
+  push:
+    branches:
+    - master
+    - next
   pull_request:
     branches:
     - master
-    paths:
-    - 'frontend/**'
+    - next
 
 jobs:
   frontend:
