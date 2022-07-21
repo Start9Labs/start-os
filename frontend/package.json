@@ -84,11 +84,7 @@
   },
   "husky": {
     "hooks": {
-      "pre-commit": "lint-staged && npm run check"
+      "pre-commit": "lint-staged --concurrent false"
     }
-  },
-  "lint-staged": {
-    "**/*.{js,ts,html,md,less,json}": "prettier --write",
-    "*.ts": "tslint --fix"
   }
 }
