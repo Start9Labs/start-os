@@ -6,7 +6,7 @@ EMBASSY_SRC := raspios.img product_key.txt $(EMBASSY_BINS) backend/embassyd.serv
 COMPAT_SRC := $(shell find system-images/compat/src)
 UTILS_SRC := $(shell find system-images/utils/Dockerfile)
 BACKEND_SRC := $(shell find backend/src) $(shell find patch-db/*/src) backend/Cargo.toml backend/Cargo.lock
-FRONTEND_SHARED_SRC := $(shell find frontend/projects/shared) $(shell find frontend/assets) $(shell ls -p frontend/ | grep -v / | sed 's/^/frontend\//g') frontend/node_modules patch-db/client/dist
+FRONTEND_SHARED_SRC := $(shell find frontend/projects/shared) $(shell find frontend/assets) $(shell ls -p frontend/ | grep -v / | sed 's/^/frontend\//g') frontend/node_modules frontend/config.json patch-db/client/dist
 FRONTEND_UI_SRC := $(shell find frontend/projects/ui)
 FRONTEND_SETUP_WIZARD_SRC := $(shell find frontend/projects/setup-wizard)
 FRONTEND_DIAGNOSTIC_UI_SRC := $(shell find frontend/projects/diagnostic-ui)
@@ -94,7 +94,7 @@ patch-db/client/dist: $(PATCH_DB_CLIENT_SRC) patch-db/client/node_modules
 frontends: $(EMBASSY_UIS) 
 
 # this is a convenience step to build the UI
-ui: frontend/node_modules frontend/config.json frontend/dist/ui
+ui: frontend/dist/ui
 
 # this is a convenience step to build the backend
 backend: $(EMBASSY_BINS)
