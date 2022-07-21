@@ -29,17 +29,11 @@ sudo e2label `partition_for ${OUTPUT_DEVICE} 4` blue
 mkdir -p /tmp/eos-mnt
 sudo mount `partition_for ${OUTPUT_DEVICE} 1` /tmp/eos-mnt
 
-if [[ "$ENVIRONMENT" =~ (^|-)dev($|-) ]]; then
-	sudo cp build/user-data-dev /tmp/eos-mnt/user-data
-else
-	sudo cp build/user-data /tmp/eos-mnt/user-data
-fi
-
 sudo sed -i 's/PARTUUID=cb15ae4d-02/PARTUUID=cb15ae4d-03/g' /tmp/eos-mnt/cmdline.txt
 sudo sed -i 's/ init=\/usr\/lib\/raspi-config\/init_resize.sh//g' /tmp/eos-mnt/cmdline.txt
 
-cat /tmp/eos-mnt/config.txt | grep -v "dtoverlay=" | sudo tee /tmp/eos-mnt/config.txt.tmp
-echo "dtoverlay=pwm-2chan,disable-bt" | sudo tee -a /tmp/eos-mnt/config.txt.tmp
+cat /tmp/eos-mnt/config.txt | grep -v "dtoverlay=" | sudo tee /tmp/eos-mnt/config.txt.tmp > /dev/null
+echo "dtoverlay=pwm-2chan,disable-bt" | sudo tee -a /tmp/eos-mnt/config.txt.tmp > /dev/null
 sudo mv /tmp/eos-mnt/config.txt.tmp /tmp/eos-mnt/config.txt
 sudo touch /tmp/eos-mnt/ssh
 
@@ -51,8 +45,11 @@ sudo umount /tmp/eos-mnt
 
 sudo mount `partition_for ${OUTPUT_DEVICE} 3` /tmp/eos-mnt
 
-sudo mkdir  /tmp/eos-mnt/media/boot-rw
-sudo mkdir  /tmp/eos-mnt/embassy-os
+sudo mkdir /tmp/eos-mnt/media/boot-rw
+sudo mkdir /tmp/eos-mnt/embassy-os
+sudo mkdir /tmp/eos-mnt/etc/embassy
+sudo cp ENVIRONMENT.txt /tmp/eos-mnt/etc/embassy
+sudo cp GIT_HASH.txt /tmp/eos-mnt/etc/embassy
 sudo cp build/fstab /tmp/eos-mnt/etc/fstab
 sudo cp build/journald.conf /tmp/eos-mnt/etc/systemd/journald.conf
 

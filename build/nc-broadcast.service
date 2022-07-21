@@ -1,0 +1,14 @@
+[Unit]
+Description=Writes initialization logs to network
+Requires=initialization.service
+
+[Service]
+Type=oneshot
+Restart=on-failure
+RestartSec=5s
+ExecStart=/usr/local/bin/nc-broadcast --tee 0.0.0.0:8080
+RemainAfterExit=true
+StandardInput=file:/var/log/initialization.log
+
+[Install]
+WantedBy=multi-user.target

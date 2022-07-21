@@ -13,3 +13,5 @@ deploy_web.sh
 secrets.db
 .vscode/
 /cargo-deps/**/*
+ENVIRONMENT.txt
+GIT_HASH.txt
