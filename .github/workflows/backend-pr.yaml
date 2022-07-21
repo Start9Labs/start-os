@@ -98,7 +98,7 @@ jobs:
       run: make backend
 
     - name: 'Tar files to preserve file permissions'
-      run: tar -cvf backend.tar backend/target/aarch64-unknown-linux-gnu/release/embassy*
+      run: tar -cvf backend.tar ENVIRONMENT.txt GIT_HASH.txt backend/target/aarch64-unknown-linux-gnu/release/embassy*
 
     - uses: actions/upload-artifact@v3
       with:
