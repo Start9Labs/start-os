@@ -200,7 +200,7 @@ impl DockerProcedure {
                                 match format.from_slice(buffer.as_bytes()) {
                                     Ok(a) => a,
                                     Err(e) => {
-                                        tracing::warn!(
+                                        tracing::trace!(
                                         "Failed to deserialize stdout from {}: {}, falling back to UTF-8 string.",
                                         format,
                                         e
@@ -341,7 +341,7 @@ impl DockerProcedure {
                                 match format.from_slice(buffer.as_bytes()) {
                                     Ok(a) => a,
                                     Err(e) => {
-                                        tracing::warn!(
+                                        tracing::trace!(
                                         "Failed to deserialize stdout from {}: {}, falling back to UTF-8 string.",
                                         format,
                                         e
