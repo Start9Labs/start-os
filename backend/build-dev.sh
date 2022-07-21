@@ -18,4 +18,7 @@ alias 'rust-arm64-builder'='docker run $USE_TTY --rm -v "$HOME/.cargo/registry":
 cd ..
 rust-arm64-builder sh -c "(cd backend && cargo build)"
 cd backend
+
+sudo chown -R $USER target
+sudo chown -R $USER ~/.cargo
 #rust-arm64-builder aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/embassyd

@@ -3,12 +3,6 @@ name: Backend PR
 on:
   workflow_call:
   workflow_dispatch:
-  pull_request:
-    branches:
-    - master
-    paths:
-    - 'backend/**'
-    - 'libs/**'
 
 jobs:
   libs:
@@ -44,7 +38,7 @@ jobs:
           ~/.cargo/registry/index/
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
-          target/
+          libs/target/
         key: ${{ runner.os }}-cargo-libs-${{ matrix.target }}-${{ hashFiles('libs/Cargo.lock') }}
 
     - name: Build v8 snapshot
@@ -89,14 +83,14 @@ jobs:
           ~/.cargo/registry/index/
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
-          target/
+          backend/target/
         key: ${{ runner.os }}-cargo-backend-${{ hashFiles('backend/Cargo.lock') }}
 
     - name: Build backend
       run: make backend
 
     - name: 'Tar files to preserve file permissions'
-      run: tar -cvf backend.tar backend/target/aarch64-unknown-linux-gnu/release/embassy*
+      run: tar -cvf backend.tar ENVIRONMENT.txt GIT_HASH.txt backend/target/aarch64-unknown-linux-gnu/release/embassy*
 
     - uses: actions/upload-artifact@v3
       with:

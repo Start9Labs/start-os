@@ -13,7 +13,7 @@
     "build:deps": "rm -rf .angular/cache && cd ../patch-db/client && npm ci && npm run build",
     "build:diagnostic-ui": "ng run diagnostic-ui:build",
     "build:setup-wizard": "ng run setup-wizard:build",
-    "build:ui": "ng run ui:build && tsc projects/ui/postprocess.ts && node projects/ui/postprocess.js && git log | head -n1 > dist/ui/git-hash.txt",
+    "build:ui": "ng run ui:build",
     "build:all": "npm run build:deps && npm run build:diagnostic-ui && npm run build:setup-wizard && npm run build:ui",
     "start:diagnostic-ui": "npm run-script build-config && ionic serve --project diagnostic-ui --host 0.0.0.0",
     "start:setup-wizard": "npm run-script build-config && ionic serve --project setup-wizard --host 0.0.0.0",

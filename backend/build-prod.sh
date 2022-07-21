@@ -30,4 +30,8 @@ else
 	rust-arm64-builder sh -c "(git config --global --add safe.directory '*'; cd backend && cargo build --release --features $FLAGS)"
 fi
 cd backend
+
+sudo chown -R $USER target
+sudo chown -R $USER ~/.cargo
+
 #rust-arm64-builder aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/embassyd
