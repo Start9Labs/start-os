@@ -3,14 +3,6 @@ name: Backend PR
 on:
   workflow_call:
   workflow_dispatch:
-  push:
-    branches:
-    - master
-    - next
-  pull_request:
-    branches:
-    - master
-    - next
 
 jobs:
   libs:
@@ -46,7 +38,7 @@ jobs:
           ~/.cargo/registry/index/
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
-          target/
+          libs/target/
         key: ${{ runner.os }}-cargo-libs-${{ matrix.target }}-${{ hashFiles('libs/Cargo.lock') }}
 
     - name: Build v8 snapshot
@@ -91,7 +83,7 @@ jobs:
           ~/.cargo/registry/index/
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
-          target/
+          backend/target/
         key: ${{ runner.os }}-cargo-backend-${{ hashFiles('backend/Cargo.lock') }}
 
     - name: Build backend
