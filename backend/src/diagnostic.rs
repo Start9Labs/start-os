@@ -28,12 +28,14 @@ pub async fn logs(
     #[arg] limit: Option<usize>,
     #[arg] cursor: Option<String>,
     #[arg] before_flag: Option<bool>,
+    #[arg] follow_flag: Option<bool>,
 ) -> Result<LogResponse, Error> {
     Ok(fetch_logs(
         LogSource::Service(SYSTEMD_UNIT),
         limit,
         cursor,
         before_flag.unwrap_or(false),
+        follow_flag.unwrap_or(false),
     )
     .await?)
 }

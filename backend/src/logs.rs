@@ -4,7 +4,8 @@ use std::time::{Duration, UNIX_EPOCH};
 use chrono::{DateTime, Utc};
 use clap::ArgMatches;
 use color_eyre::eyre::eyre;
-use futures::TryStreamExt;
+use futures::{StreamExt, TryStreamExt};
+use helpers::NonDetachingJoinHandle;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, BufReader};
@@ -19,11 +20,16 @@ use crate::util::serde::Reversible;
 use crate::Error;
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
-#[serde(rename_all = "kebab-case")]
-pub struct LogResponse {
-    entries: Reversible<LogEntry>,
-    start_cursor: Option<String>,
-    end_cursor: Option<String>,
+#[serde(rename_all = "kebab-case", tag = "type")]
+pub enum LogResponse {
+    NoFollow {
+        entries: Reversible<LogEntry>,
+        start_cursor: Option<String>,
+        end_cursor: Option<String>,
+    },
+    Follow {
+        ws_guid: String,
+    },
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
@@ -111,24 +117,26 @@ pub enum LogSource {
     Container(PackageId),
 }
 
-pub fn display_logs(all: LogResponse, _: &ArgMatches) {
-    for entry in all.entries.iter() {
-        println!("{}", entry);
-    }
-}
+// pub fn display_logs(all: LogResponse, _: &ArgMatches) {
+//     for entry in all.entries.iter() {
+//         println!("{}", entry);
+//     }
+// }
 
-#[command(display(display_logs))]
+#[command(rpc_only)]
 pub async fn logs(
     #[arg] id: PackageId,
     #[arg] limit: Option<usize>,
     #[arg] cursor: Option<String>,
     #[arg] before_flag: Option<bool>,
+    #[arg] follow_flag: Option<bool>,
 ) -> Result<LogResponse, Error> {
     Ok(fetch_logs(
         LogSource::Container(id),
         limit,
         cursor,
         before_flag.unwrap_or(false),
+        follow_flag.unwrap_or(false),
     )
     .await?)
 }
@@ -139,6 +147,7 @@ pub async fn fetch_logs(
     limit: Option<usize>,
     cursor: Option<String>,
     before_flag: bool,
+    follow_flag: bool,
 ) -> Result<LogResponse, Error> {
     let mut cmd = Command::new("journalctl");
 
@@ -174,6 +183,9 @@ pub async fn fetch_logs(
     if get_prev_logs_and_reverse {
         cmd.arg("--reverse");
     }
+    if follow_flag {
+        cmd.arg("--follow");
+    }
 
     let mut child = cmd.stdout(Stdio::piped()).spawn()?;
     let out = BufReader::new(
@@ -193,6 +205,24 @@ pub async fn fetch_logs(
                     .with_kind(crate::ErrorKind::Deserialization),
             )
         });
+
+    if follow_flag {
+        let guid = base32::encode(
+            base32::Alphabet::RFC4648 { padding: false },
+            &rand::random::<[u8; 32]>(),
+        );
+        let output = NonDetachingJoinHandle::from(tokio::spawn(async move {
+            struct WebsocketThread {
+                cmd: Command,
+                entries: futures::stream::BoxStream<'static, Result<JournalctlEntry, Error>>,
+            };
+            let t = WebsocketThread {
+                cmd: cmd,
+                entries: deserialized_entries.boxed(),
+            };
+        }));
+        return Ok(LogResponse::Follow { ws_guid: guid });
+    }
 
     let mut entries = Vec::with_capacity(limit);
     let mut start_cursor = None;
@@ -219,7 +249,7 @@ pub async fn fetch_logs(
         entries.reverse();
         std::mem::swap(&mut start_cursor, &mut end_cursor);
     }
-    Ok(LogResponse {
+    Ok(LogResponse::NoFollow {
         entries,
         start_cursor,
         end_cursor,
@@ -238,6 +268,7 @@ pub async fn test_logs() {
         None,
         // Some("s=1b8c418e28534400856c27b211dd94fd;i=5a7;b=97571c13a1284f87bc0639b5cff5acbe;m=740e916;t=5ca073eea3445;x=f45bc233ca328348".to_owned()),
         false,
+        true,
     )
     .await
     .unwrap();
