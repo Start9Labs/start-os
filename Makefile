@@ -77,7 +77,7 @@ frontend/dist/setup-wizard: $(FRONTEND_SETUP_WIZARD_SRC) $(FRONTEND_SHARED_SRC) 
 frontend/dist/diagnostic-ui: $(FRONTEND_DIAGNOSTIC_UI_SRC) $(FRONTEND_SHARED_SRC) $(ENVIRONMENT_FILE)
 	npm --prefix frontend run build:diagnostic-ui
 
-frontend/config.json: $(GIT_HASH_FILE)
+frontend/config.json: $(GIT_HASH_FILE) frontend/config-sample.json
 	jq '.useMocks = false' frontend/config-sample.json > frontend/config.json
 	npm --prefix frontend run-script build-config
 
