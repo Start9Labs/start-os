@@ -7,8 +7,6 @@ import { ModalController } from '@ionic/angular'
   styleUrls: ['./os-welcome.page.scss'],
 })
 export class OSWelcomePage {
-  @Input() version!: string
-
   constructor(private readonly modalCtrl: ModalController) {}
 
   async dismiss() {
