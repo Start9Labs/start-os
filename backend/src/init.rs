@@ -6,10 +6,12 @@ use tokio::process::Command;
 use crate::context::rpc::RpcContextConfig;
 use crate::db::model::ServerStatus;
 use crate::install::PKG_DOCKER_DIR;
+use crate::sound::SHUTDOWN;
 use crate::util::Invoke;
 use crate::Error;
 
 pub const SYSTEM_REBUILD_PATH: &str = "/embassy-os/system-rebuild";
+pub const STANDBY_MODE_PATH: &str = "/embassy-os/standby";
 
 pub async fn check_time_is_synchronized() -> Result<bool, Error> {
     Ok(String::from_utf8(
