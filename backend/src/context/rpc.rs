@@ -7,6 +7,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bollard::Docker;
+use helpers::to_tmp_path;
 use patch_db::json_ptr::JsonPointer;
 use patch_db::{DbHandle, LockReceipt, LockType, PatchDb, Revision};
 use reqwest::Url;
@@ -35,7 +36,7 @@ use crate::shutdown::Shutdown;
 use crate::status::{MainStatus, Status};
 use crate::util::io::from_yaml_async_reader;
 use crate::util::{AsyncFileExt, Invoke};
-use crate::{Error, ResultExt};
+use crate::{volume, Error, ErrorKind, ResultExt};
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -336,6 +337,18 @@ impl RpcContext {
                         static_files,
                         manifest,
                     } => {
+                        for (volume_id, volume_info) in &*manifest.volumes {
+                            let tmp_path = to_tmp_path(volume_info.path_for(
+                                &self.datadir,
+                                &package_id,
+                                &manifest.version,
+                                &volume_id,
+                            ))
+                            .with_kind(ErrorKind::Filesystem)?;
+                            if tokio::fs::metadata(&tmp_path).await.is_ok() {
+                                tokio::fs::remove_dir_all(&tmp_path).await?;
+                            }
+                        }
                         let status = installed.status;
                         let main = match status.main {
                             MainStatus::BackingUp { started, .. } => {

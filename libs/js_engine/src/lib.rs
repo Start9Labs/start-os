@@ -347,8 +347,10 @@ mod fns {
     use deno_core::anyhow::{anyhow, bail};
     use deno_core::error::AnyError;
     use deno_core::*;
+    use helpers::{to_tmp_path, AtomicFile};
     use models::VolumeId;
     use serde_json::Value;
+    use tokio::io::AsyncWriteExt;
 
     use super::{AnswerState, JsContext};
     use crate::{system_time_as_unix_ms, MetadataJs};
@@ -514,7 +516,7 @@ mod fns {
             bail!("Volume {} is readonly", volume_id);
         }
 
-        let new_file = volume_path.join(path_in);
+        let new_file = volume_path.join(&path_in);
         let parent_new_file = new_file
             .parent()
             .ok_or_else(|| anyhow!("Expecting that file is not root"))?;
@@ -526,7 +528,22 @@ mod fns {
                 volume_path.to_string_lossy(),
             );
         }
-        tokio::fs::write(new_file, write).await?;
+        let new_volume_tmp = to_tmp_path(&volume_path).map_err(|e| anyhow!("{}", e))?;
+        let hashed_name = {
+            use sha2::{Digest, Sha256};
+            use std::os::unix::ffi::OsStrExt;
+            let mut hasher = Sha256::new();
+
+            hasher.update(path_in.as_os_str().as_bytes());
+            let result = hasher.finalize();
+            format!("{:X}", result)
+        };
+        let temp_file = new_volume_tmp.join(&hashed_name);
+        let mut file = AtomicFile::new(&new_file, Some(&temp_file))
+            .await
+            .map_err(|e| anyhow!("{}", e))?;
+        file.write_all(write.as_bytes()).await?;
+        file.save().await.map_err(|e| anyhow!("{}", e))?;
         Ok(())
     }
     #[op]
