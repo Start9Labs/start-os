@@ -1,9 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use chrono::Utc;
 use clap::ArgMatches;
 use color_eyre::eyre::eyre;
+use helpers::AtomicFile;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
 use patch_db::{DbHandle, LockType, PatchDbHandle, Revision};
@@ -27,10 +29,10 @@ use crate::disk::mount::guard::TmpMountGuard;
 use crate::notifications::NotificationLevel;
 use crate::s9pk::manifest::PackageId;
 use crate::status::MainStatus;
+use crate::util::display_none;
 use crate::util::serde::IoFormat;
-use crate::util::{display_none, AtomicFile};
 use crate::version::VersionT;
-use crate::Error;
+use crate::{Error, ErrorKind, ResultExt};
 
 #[derive(Debug)]
 pub struct OsBackup {
@@ -424,7 +426,12 @@ async fn perform_backup<Db: DbHandle>(
         .await?;
 
     let (root_ca_key, root_ca_cert) = ctx.net_controller.ssl.export_root_ca().await?;
-    let mut os_backup_file = AtomicFile::new(backup_guard.as_ref().join("os-backup.cbor")).await?;
+    let mut os_backup_file = AtomicFile::new(
+        backup_guard.as_ref().join("os-backup.cbor"),
+        None::<PathBuf>,
+    )
+    .await
+    .with_kind(ErrorKind::Filesystem)?;
     os_backup_file
         .write_all(
             &IoFormat::Cbor.to_vec(&OsBackup {
@@ -439,7 +446,10 @@ async fn perform_backup<Db: DbHandle>(
             })?,
         )
         .await?;
-    os_backup_file.save().await?;
+    os_backup_file
+        .save()
+        .await
+        .with_kind(ErrorKind::Filesystem)?;
 
     let timestamp = Some(Utc::now());
 

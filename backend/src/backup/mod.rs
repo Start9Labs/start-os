@@ -1,8 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Utc};
 use color_eyre::eyre::eyre;
+use helpers::AtomicFile;
 use patch_db::{DbHandle, HasModel, LockType};
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
@@ -20,10 +21,10 @@ use crate::net::interface::{InterfaceId, Interfaces};
 use crate::procedure::{NoOutput, PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::PackageId;
 use crate::util::serde::IoFormat;
-use crate::util::{AtomicFile, Version};
+use crate::util::Version;
 use crate::version::{Current, VersionT};
 use crate::volume::{backup_dir, Volume, VolumeId, Volumes, BACKUP_DIR};
-use crate::{Error, ResultExt};
+use crate::{Error, ErrorKind, ResultExt};
 
 pub mod backup_bulk;
 pub mod restore;
@@ -129,7 +130,9 @@ impl BackupActions {
             .join(pkg_version.as_str())
             .join(format!("{}.s9pk", pkg_id));
         let mut infile = File::open(&s9pk_path).await?;
-        let mut outfile = AtomicFile::new(&tmp_path).await?;
+        let mut outfile = AtomicFile::new(&tmp_path, None::<PathBuf>)
+            .await
+            .with_kind(ErrorKind::Filesystem)?;
         tokio::io::copy(&mut infile, &mut *outfile)
             .await
             .with_ctx(|_| {
@@ -138,17 +141,19 @@ impl BackupActions {
                     format!("cp {} -> {}", s9pk_path.display(), tmp_path.display()),
                 )
             })?;
-        outfile.save().await?;
+        outfile.save().await.with_kind(ErrorKind::Filesystem)?;
         let timestamp = Utc::now();
         let metadata_path = Path::new(BACKUP_DIR).join(pkg_id).join("metadata.cbor");
-        let mut outfile = AtomicFile::new(&metadata_path).await?;
+        let mut outfile = AtomicFile::new(&metadata_path, None::<PathBuf>)
+            .await
+            .with_kind(ErrorKind::Filesystem)?;
         outfile
             .write_all(&IoFormat::Cbor.to_vec(&BackupMetadata {
                 timestamp,
                 tor_keys,
             })?)
             .await?;
-        outfile.save().await?;
+        outfile.save().await.with_kind(ErrorKind::Filesystem)?;
         Ok(PackageBackupInfo {
             os_version: Current::new().semver().into(),
             title: pkg_title.to_owned(),

@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use color_eyre::eyre::eyre;
+use helpers::AtomicFile;
 use tokio::io::AsyncWriteExt;
 use tracing::instrument;
 
@@ -14,9 +15,9 @@ use crate::disk::util::EmbassyOsRecoveryInfo;
 use crate::middleware::encrypt::{decrypt_slice, encrypt_slice};
 use crate::s9pk::manifest::PackageId;
 use crate::util::serde::IoFormat;
-use crate::util::{AtomicFile, FileLock};
+use crate::util::FileLock;
 use crate::volume::BACKUP_DIR;
-use crate::{Error, ResultExt};
+use crate::{Error, ErrorKind, ResultExt};
 
 pub struct BackupMountGuard<G: GenericMountGuard> {
     backup_disk_mount_guard: Option<G>,
@@ -162,16 +163,20 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
     pub async fn save(&self) -> Result<(), Error> {
         let metadata_path = self.as_ref().join("metadata.cbor");
         let backup_disk_path = self.backup_disk_path();
-        let mut file = AtomicFile::new(&metadata_path).await?;
+        let mut file = AtomicFile::new(&metadata_path, None::<PathBuf>)
+            .await
+            .with_kind(ErrorKind::Filesystem)?;
         file.write_all(&IoFormat::Cbor.to_vec(&self.metadata)?)
             .await?;
-        file.save().await?;
+        file.save().await.with_kind(ErrorKind::Filesystem)?;
         let unencrypted_metadata_path =
             backup_disk_path.join("EmbassyBackups/unencrypted-metadata.cbor");
-        let mut file = AtomicFile::new(&unencrypted_metadata_path).await?;
+        let mut file = AtomicFile::new(&unencrypted_metadata_path, None::<PathBuf>)
+            .await
+            .with_kind(ErrorKind::Filesystem)?;
         file.write_all(&IoFormat::Cbor.to_vec(&self.unencrypted_metadata)?)
             .await?;
-        file.save().await?;
+        file.save().await.with_kind(ErrorKind::Filesystem)?;
         Ok(())
     }
 

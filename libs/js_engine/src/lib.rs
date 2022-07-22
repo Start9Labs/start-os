@@ -347,8 +347,10 @@ mod fns {
     use deno_core::anyhow::{anyhow, bail};
     use deno_core::error::AnyError;
     use deno_core::*;
+    use helpers::{to_tmp_path, AtomicFile};
     use models::VolumeId;
     use serde_json::Value;
+    use tokio::io::AsyncWriteExt;
 
     use super::{AnswerState, JsContext};
     use crate::{system_time_as_unix_ms, MetadataJs};
@@ -526,20 +528,7 @@ mod fns {
                 volume_path.to_string_lossy(),
             );
         }
-        let new_volume_tmp = {
-            let last = volume_path
-                .iter()
-                .last()
-                .ok_or_else(|| anyhow!("Unreachable: Volume path is `/`"))?
-                .to_str()
-                .ok_or_else(|| anyhow!("Unreachable: Volume path contains non-UTF-8 characters"))?;
-            let mut tmp = volume_path
-                .parent()
-                .ok_or_else(|| anyhow!("Unreachable: Volume path is `/`"))?
-                .to_path_buf();
-            tmp.push(&format!(".{}.tmp", last));
-            tmp
-        };
+        let new_volume_tmp = to_tmp_path(&volume_path).map_err(|e| anyhow!("{}", e))?;
         let hashed_name = {
             use sha2::{Digest, Sha256};
             use std::os::unix::ffi::OsStrExt;
@@ -550,9 +539,11 @@ mod fns {
             format!("{:X}", result)
         };
         let temp_file = new_volume_tmp.join(&hashed_name);
-        tokio::fs::create_dir_all(&new_volume_tmp).await?;
-        tokio::fs::write(&temp_file, write).await?;
-        tokio::fs::rename(temp_file, new_file).await?;
+        let mut file = AtomicFile::new(&new_file, Some(&temp_file))
+            .await
+            .map_err(|e| anyhow!("{}", e))?;
+        file.write_all(write.as_bytes()).await?;
+        file.save().await.map_err(|e| anyhow!("{}", e))?;
         Ok(())
     }
     #[op]
