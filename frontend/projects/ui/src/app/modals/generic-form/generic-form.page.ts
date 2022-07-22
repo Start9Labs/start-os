@@ -19,12 +19,13 @@ export interface ActionButton {
   styleUrls: ['./generic-form.page.scss'],
 })
 export class GenericFormPage {
-  @Input() title: string
-  @Input() spec: ConfigSpec
-  @Input() buttons: ActionButton[]
+  @Input() title!: string
+  @Input() spec!: ConfigSpec
+  @Input() buttons!: ActionButton[]
   @Input() initialValue: object = {}
-  submitBtn: ActionButton
-  formGroup: FormGroup
+
+  submitBtn!: ActionButton
+  formGroup!: FormGroup
 
   constructor(
     private readonly modalCtrl: ModalController,

@@ -11,7 +11,7 @@ import { PlatformType, Session } from 'src/app/services/api/api.types'
 })
 export class SessionsPage {
   loading = true
-  currentSession: Session
+  currentSession?: Session
   otherSessions: SessionWithId[] = []
 
   constructor(
@@ -59,27 +59,6 @@ export class SessionsPage {
           text: 'Terminate all',
           handler: () => {
             this.kill(this.otherSessions.map(s => s.id))
-          },
-          cssClass: 'enter-click',
-        },
-      ],
-    })
-    await alert.present()
-  }
-
-  async presentAlertKill(id: string) {
-    const alert = await this.alertCtrl.create({
-      header: 'Confirm',
-      message: 'Terminate other web session?',
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
-        },
-        {
-          text: 'Terminate',
-          handler: () => {
-            this.kill([id])
           },
           cssClass: 'enter-click',
         },

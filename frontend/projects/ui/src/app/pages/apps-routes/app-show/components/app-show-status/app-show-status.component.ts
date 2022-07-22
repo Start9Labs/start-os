@@ -27,10 +27,10 @@ import { ConnectionService } from 'src/app/services/connection.service'
 })
 export class AppShowStatusComponent {
   @Input()
-  pkg: PackageDataEntry
+  pkg!: PackageDataEntry
 
   @Input()
-  status: PackageStatus
+  status!: PackageStatus
 
   @Input()
   dependencies: DependencyInfo[] = []
@@ -50,7 +50,7 @@ export class AppShowStatusComponent {
   ) {}
 
   get interfaces(): Record<string, InterfaceDef> {
-    return this.pkg.manifest.interfaces
+    return this.pkg.manifest.interfaces || {}
   }
 
   get pkgStatus(): Status | null {
@@ -74,7 +74,9 @@ export class AppShowStatusComponent {
   }
 
   async presentModalConfig(): Promise<void> {
-    return this.modalService.presentModalConfig({ pkgId: this.pkg.manifest.id })
+    return this.modalService.presentModalConfig({
+      pkgId: this.id,
+    })
   }
 
   async tryStart(): Promise<void> {
@@ -87,7 +89,7 @@ export class AppShowStatusComponent {
 
     const alertMsg = this.pkg.manifest.alerts.start
 
-    if (!!alertMsg) {
+    if (alertMsg) {
       const proceed = await this.presentAlertStart(alertMsg)
 
       if (!proceed) return
@@ -180,6 +182,10 @@ export class AppShowStatusComponent {
     await alert.present()
   }
 
+  private get id(): string {
+    return this.pkg.manifest.id
+  }
+
   private async start(): Promise<void> {
     const loader = await this.loadingCtrl.create({
       message: `Starting...`,
@@ -187,7 +193,7 @@ export class AppShowStatusComponent {
     await loader.present()
 
     try {
-      await this.embassyApi.startPackage({ id: this.pkg.manifest.id })
+      await this.embassyApi.startPackage({ id: this.id })
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
@@ -202,7 +208,7 @@ export class AppShowStatusComponent {
     await loader.present()
 
     try {
-      await this.embassyApi.stopPackage({ id: this.pkg.manifest.id })
+      await this.embassyApi.stopPackage({ id: this.id })
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
@@ -217,7 +223,7 @@ export class AppShowStatusComponent {
     await loader.present()
 
     try {
-      await this.embassyApi.restartPackage({ id: this.pkg.manifest.id })
+      await this.embassyApi.restartPackage({ id: this.id })
     } catch (e: any) {
       this.errToast.present(e)
     } finally {

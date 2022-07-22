@@ -15,6 +15,7 @@ import { EOSService } from 'src/app/services/eos.service'
 import { LocalStorageService } from 'src/app/services/local-storage.service'
 import { RecoveredPackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { OSUpdatePage } from 'src/app/modals/os-update/os-update.page'
+import { getAllPackages } from '../../../util/get-package-data'
 
 @Component({
   selector: 'server-show',
@@ -22,12 +23,14 @@ import { OSUpdatePage } from 'src/app/modals/os-update/os-update.page'
   styleUrls: ['server-show.page.scss'],
 })
 export class ServerShowPage {
-  hasRecoveredPackage: boolean
+  hasRecoveredPackage = false
   clicks = 0
 
   readonly server$ = this.patch.watch$('server-info')
   readonly ui$ = this.patch.watch$('ui')
   readonly connected$ = this.patch.connected$
+  readonly showUpdate$ = this.eosService.showUpdate$
+  readonly showDiskRepair$ = this.localStorageService.showDiskRepair$
 
   constructor(
     private readonly alertCtrl: AlertController,
@@ -38,8 +41,8 @@ export class ServerShowPage {
     private readonly navCtrl: NavController,
     private readonly route: ActivatedRoute,
     private readonly patch: PatchDbService,
-    public readonly eosService: EOSService,
-    public readonly localStorageService: LocalStorageService,
+    private readonly eosService: EOSService,
+    private readonly localStorageService: LocalStorageService,
   ) {}
 
   ngOnInit() {
@@ -63,7 +66,7 @@ export class ServerShowPage {
     } else {
       const modal = await this.modalCtrl.create({
         componentProps: {
-          releaseNotes: this.eosService.eos['release-notes'],
+          releaseNotes: this.eosService.eos?.['release-notes'],
         },
         component: OSUpdatePage,
       })
@@ -117,7 +120,8 @@ export class ServerShowPage {
   }
 
   async presentAlertSystemRebuild() {
-    const minutes = Object.keys(this.patch.getData()['package-data']).length * 2
+    const localPkgs = await getAllPackages(this.patch)
+    const minutes = Object.keys(localPkgs).length * 2
     const alert = await this.alertCtrl.create({
       header: 'Warning',
       message: `This action will tear down all service containers and rebuild them from scratch. No data will be deleted. This action is useful if your system gets into a bad state, and it should only be performed if you are experiencing general performance or reliability issues. It may take up to ${minutes} minutes to complete. During this time, you will lose all connectivity to your Embassy.`,

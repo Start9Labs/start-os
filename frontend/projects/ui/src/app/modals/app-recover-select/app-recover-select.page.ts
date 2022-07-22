@@ -4,11 +4,11 @@ import {
   ModalController,
   IonicSafeString,
 } from '@ionic/angular'
-import { BackupInfo, PackageBackupInfo } from 'src/app/services/api/api.types'
+import { getErrorMessage } from '@start9labs/shared'
+import { BackupInfo } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ConfigService } from 'src/app/services/config.service'
-import { getErrorMessage, Emver } from '@start9labs/shared'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { AppRecoverOption } from './to-options.pipe'
 
 @Component({
   selector: 'app-recover-select',
@@ -16,57 +16,33 @@ import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
   styleUrls: ['./app-recover-select.page.scss'],
 })
 export class AppRecoverSelectPage {
-  @Input() id: string
-  @Input() backupInfo: BackupInfo
-  @Input() password: string
-  @Input() oldPassword: string
-  options: (PackageBackupInfo & {
-    id: string
-    checked: boolean
-    installed: boolean
-    'newer-eos': boolean
-  })[]
+  @Input() id!: string
+  @Input() backupInfo!: BackupInfo
+  @Input() password!: string
+  @Input() oldPassword?: string
+
+  readonly packageData$ = this.patch.watch$('package-data')
+
   hasSelection = false
-  error: string | IonicSafeString
+  error: string | IonicSafeString = ''
 
   constructor(
     private readonly modalCtrl: ModalController,
     private readonly loadingCtrl: LoadingController,
     private readonly embassyApi: ApiService,
-    private readonly config: ConfigService,
-    private readonly emver: Emver,
     private readonly patch: PatchDbService,
   ) {}
-
-  ngOnInit() {
-    this.options = Object.keys(this.backupInfo['package-backups']).map(id => {
-      return {
-        ...this.backupInfo['package-backups'][id],
-        id,
-        checked: false,
-        installed: !!this.patch.getData()['package-data'][id],
-        'newer-eos':
-          this.emver.compare(
-            this.backupInfo['package-backups'][id]['os-version'],
-            this.config.version,
-          ) === 1,
-      }
-    })
-  }
 
   dismiss() {
     this.modalCtrl.dismiss()
   }
 
-  handleChange() {
-    this.hasSelection = this.options.some(o => o.checked)
+  handleChange(options: AppRecoverOption[]) {
+    this.hasSelection = options.some(o => o.checked)
   }
 
-  async restore(): Promise<void> {
-    const ids = this.options
-      .filter(option => !!option.checked)
-      .map(option => option.id)
-
+  async restore(options: AppRecoverOption[]): Promise<void> {
+    const ids = options.filter(({ checked }) => !!checked).map(({ id }) => id)
     const loader = await this.loadingCtrl.create({
       message: 'Initializing...',
     })
@@ -76,7 +52,7 @@ export class AppRecoverSelectPage {
       await this.embassyApi.restorePackages({
         ids,
         'target-id': this.id,
-        'old-password': this.oldPassword,
+        'old-password': this.oldPassword || null,
         password: this.password,
       })
       this.modalCtrl.dismiss(undefined, 'success')

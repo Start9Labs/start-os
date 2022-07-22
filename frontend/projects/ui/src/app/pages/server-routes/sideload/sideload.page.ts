@@ -30,7 +30,7 @@ export class SideloadPage {
     file: null,
   }
   onTor = this.config.isTor()
-  uploadState: {
+  uploadState?: {
     invalid: boolean
     message: string
   }
@@ -52,6 +52,7 @@ export class SideloadPage {
     const files = e.target.files
     this.setFile(files)
   }
+
   async setFile(files?: File[]) {
     if (!files || !files.length) return
     const file = files[0]

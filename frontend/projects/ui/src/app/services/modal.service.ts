@@ -1,5 +1,4 @@
 import { Injectable } from '@angular/core'
-import { ActivatedRoute } from '@angular/router'
 import { ModalController } from '@ionic/angular'
 import { DependentInfo } from 'src/app/types/dependent-info'
 import { AppConfigPage } from 'src/app/modals/app-config/app-config.page'
@@ -8,10 +7,7 @@ import { AppConfigPage } from 'src/app/modals/app-config/app-config.page'
   providedIn: 'root',
 })
 export class ModalService {
-  constructor(
-    private readonly route: ActivatedRoute,
-    private readonly modalCtrl: ModalController,
-  ) {}
+  constructor(private readonly modalCtrl: ModalController) {}
 
   async presentModalConfig(componentProps: ComponentProps): Promise<void> {
     const modal = await this.modalCtrl.create({

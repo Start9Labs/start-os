@@ -12,7 +12,7 @@
 
 <ion-content>
   <!-- loading -->
-  <ion-item-group *ngIf="loading">
+  <ion-item-group *ngIf="loading; else loaded">
     <ion-item-divider>
       <ion-button slot="end" fill="clear">
         <ion-skeleton-text
@@ -43,9 +43,9 @@
   </ion-item-group>
 
   <!-- not loading -->
-  <ng-container *ngIf="!loading">
+  <ng-template #loaded>
     <!-- no notifications -->
-    <ion-item-group *ngIf="!notifications.length">
+    <ion-item-group *ngIf="!notifications.length; else hasNotifications">
       <div
         style="
           text-align: center;
@@ -64,8 +64,11 @@
     </ion-item-group>
 
     <!-- has notifications  -->
-    <ng-container *ngIf="notifications.length">
-      <ion-item-group style="margin-bottom: 16px">
+    <ng-template #hasNotifications>
+      <ion-item-group
+        *ngIf="packageData$ | async as packageData"
+        style="margin-bottom: 16px"
+      >
         <ion-item-divider>
           <ion-button
             slot="end"
@@ -80,12 +83,8 @@
           <ion-label>
             <h2>
               <b>
-                <span
-                  *ngIf="not['package-id'] && patch.getData()['package-data']"
-                >
-                  {{ patch.getData()['package-data'][not['package-id']] ?
-                  patch.getData()['package-data'][not['package-id']].manifest.title
-                  : not['package-id'] }} -
+                <span *ngIf="not['package-id'] as pkgId">
+                  {{ packageData[pkgId]?.manifest!.title || pkgId }} -
                 </span>
                 <ion-text [color]="getColor(not)"> {{ not.title }} </ion-text>
               </b>
@@ -101,7 +100,7 @@
                 View Full Message
               </a>
             </p>
-            <p>{{ not['created-at'] | date: 'short' }}</p>
+            <p>{{ not['created-at'] | date: 'medium' }}</p>
           </ion-label>
           <ion-button
             *ngIf="not.code === 1"
@@ -135,6 +134,6 @@
           loadingSpinner="lines"
         ></ion-infinite-scroll-content>
       </ion-infinite-scroll>
-    </ng-container>
-  </ng-container>
+    </ng-template>
+  </ng-template>
 </ion-content>

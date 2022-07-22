@@ -7,7 +7,6 @@ import {
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { take } from 'rxjs/operators'
 import { PackageMainStatus } from 'src/app/services/patch-db/data-model'
-import { EOSService } from 'src/app/services/eos.service'
 import { Observable } from 'rxjs'
 
 @Component({
@@ -25,10 +24,7 @@ export class BackingUpComponent {
 
   PackageMainStatus = PackageMainStatus
 
-  constructor(
-    public readonly eosService: EOSService,
-    public readonly patch: PatchDbService,
-  ) {}
+  constructor(private readonly patch: PatchDbService) {}
 }
 
 @Pipe({

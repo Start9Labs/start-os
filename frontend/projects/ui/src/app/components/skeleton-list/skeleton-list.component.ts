@@ -1,20 +1,18 @@
-import { Component, Input } from '@angular/core'
+import { Component, Input, OnChanges } from '@angular/core'
 
 @Component({
   selector: 'skeleton-list',
   templateUrl: './skeleton-list.component.html',
   styleUrls: ['./skeleton-list.component.scss'],
 })
-export class SkeletonListComponent {
-  @Input() groups: string
-  @Input() rows: string = '3'
+export class SkeletonListComponent implements OnChanges {
+  @Input() groups = 0
+  @Input() rows = 3
   groupsArr: number[] = []
   rowsArr: number[] = []
 
-  ngOnInit () {
-    if (this.groups) {
-      this.groupsArr = Array(Number(this.groups)).fill(0).map((_, i) => i)
-    }
-    this.rowsArr = Array(Number(this.rows)).fill(0).map((_, i) => i)
+  ngOnChanges() {
+    this.groupsArr = Array(this.groups).fill(0)
+    this.rowsArr = Array(this.rows).fill(0)
   }
 }

@@ -1,4 +1,4 @@
-import { Directive, HostListener } from '@angular/core'
+import { Directive, HostListener, Input } from '@angular/core'
 import { LoadingController, ModalController } from '@ionic/angular'
 import { ErrorToastService } from '@start9labs/shared'
 
@@ -10,12 +10,14 @@ import { ApiService } from '../../services/api/embassy-api.service'
   selector: 'img[appSnek]',
 })
 export class SnekDirective {
+  @Input()
+  appSnekHighScore: number | null = null
+
   constructor(
     private readonly modalCtrl: ModalController,
     private readonly loadingCtrl: LoadingController,
     private readonly errToast: ErrorToastService,
     private readonly embassyApi: ApiService,
-    private readonly patch: PatchDbService,
   ) {}
 
   @HostListener('click')
@@ -24,30 +26,28 @@ export class SnekDirective {
       component: SnakePage,
       cssClass: 'snake-modal',
       backdropDismiss: false,
+      componentProps: { highScore: this.appSnekHighScore || 0 },
     })
 
     modal.onDidDismiss().then(async ({ data }) => {
-      const highScore =
-        this.patch.getData().ui.gaming?.snake?.['high-score'] || 0
+      if (data?.highScore <= (this.appSnekHighScore || 0)) return
 
-      if (data?.highScore > highScore) {
-        const loader = await this.loadingCtrl.create({
-          message: 'Saving high score...',
-          backdropDismiss: true,
+      const loader = await this.loadingCtrl.create({
+        message: 'Saving high score...',
+        backdropDismiss: true,
+      })
+
+      await loader.present()
+
+      try {
+        await this.embassyApi.setDbValue({
+          pointer: '/gaming',
+          value: { snake: { 'high-score': data.highScore } },
         })
-
-        await loader.present()
-
-        try {
-          await this.embassyApi.setDbValue({
-            pointer: '/gaming',
-            value: { snake: { 'high-score': data.highScore } },
-          })
-        } catch (e: any) {
-          this.errToast.present(e)
-        } finally {
-          this.loadingCtrl.dismiss()
-        }
+      } catch (e: any) {
+        this.errToast.present(e)
+      } finally {
+        this.loadingCtrl.dismiss()
       }
     })
 

@@ -1,62 +1,65 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-title>Select Services to Restore</ion-title>
-    <ion-buttons slot="end">
-      <ion-button (click)="dismiss()">
-        <ion-icon slot="icon-only" name="close"></ion-icon>
-      </ion-button>
-    </ion-buttons>
-  </ion-toolbar>
-</ion-header>
+<ng-container
+  *ngIf="packageData$ | toOptions : backupInfo['package-backups'] | async as options"
+>
+  <ion-header>
+    <ion-toolbar>
+      <ion-title>Select Services to Restore</ion-title>
+      <ion-buttons slot="end">
+        <ion-button (click)="dismiss()">
+          <ion-icon slot="icon-only" name="close"></ion-icon>
+        </ion-button>
+      </ion-buttons>
+    </ion-toolbar>
+  </ion-header>
 
-<ion-content>
-  <h3 class="padding warning">
-    Warning! Restoring a service will <i>permanently overwrite</i> its current
-    data with data from its backup. Please make selections carefully.
-  </h3>
-  <ion-item-group>
-    <ion-item *ngFor="let option of options">
-      <ion-label>
-        <h2>{{ option.title }}</h2>
-        <p>Version {{ option.version }}</p>
-        <p>Backup made: {{ option.timestamp | date : 'short' }}</p>
-        <p *ngIf="!option.installed && !option['newer-eos']">
-          <ion-text color="success">Ready to restore</ion-text>
-        </p>
-        <p *ngIf="option.installed">
-          <ion-text color="warning"
-            >Unavailable. {{ option.title }} is already installed.</ion-text
-          >
-        </p>
-        <p *ngIf="option['newer-eos']">
-          <ion-text color="danger"
-            >Unavailable. Backup was made on a newer version of
-            EmbassyOS.</ion-text
-          >
-        </p>
-      </ion-label>
-      <ion-checkbox
-        slot="end"
-        [(ngModel)]="option.checked"
-        [disabled]="option.installed || option['newer-eos']"
-        (ionChange)="handleChange()"
-      ></ion-checkbox>
-    </ion-item>
-  </ion-item-group>
-</ion-content>
+  <ion-content>
+    <h3 class="padding warning">
+      Warning! Restoring a service will <i>permanently overwrite</i> its current
+      data with data from its backup. Please make selections carefully.
+    </h3>
+    <ion-item-group>
+      <ion-item *ngFor="let option of options">
+        <ion-label>
+          <h2>{{ option.title }}</h2>
+          <p>Version {{ option.version }}</p>
+          <p>Backup made: {{ option.timestamp | date : 'medium' }}</p>
+          <p *ngIf="!option.installed && !option['newer-eos']">
+            <ion-text color="success">Ready to restore</ion-text>
+          </p>
+          <p *ngIf="option.installed">
+            <ion-text color="warning">
+              Unavailable. {{ option.title }} is already installed.
+            </ion-text>
+          </p>
+          <p *ngIf="option['newer-eos']">
+            <ion-text color="danger">
+              Unavailable. Backup was made on a newer version of EmbassyOS.
+            </ion-text>
+          </p>
+        </ion-label>
+        <ion-checkbox
+          slot="end"
+          [(ngModel)]="option.checked"
+          [disabled]="option.installed || option['newer-eos']"
+          (ionChange)="handleChange(options)"
+        ></ion-checkbox>
+      </ion-item>
+    </ion-item-group>
+  </ion-content>
 
-<ion-footer>
-  <ion-toolbar>
-    <ion-buttons slot="end" class="ion-padding-end">
-      <ion-button
-        [disabled]="!hasSelection"
-        fill="solid"
-        color="primary"
-        (click)="restore()"
-        class="enter-click btn-128"
-      >
-        Restore Selected
-      </ion-button>
-    </ion-buttons>
-  </ion-toolbar>
-</ion-footer>
+  <ion-footer>
+    <ion-toolbar>
+      <ion-buttons slot="end" class="ion-padding-end">
+        <ion-button
+          fill="solid"
+          color="primary"
+          class="enter-click btn-128"
+          [disabled]="!hasSelection"
+          (click)="restore(options)"
+        >
+          Restore Selected
+        </ion-button>
+      </ion-buttons>
+    </ion-toolbar>
+  </ion-footer>
+</ng-container>

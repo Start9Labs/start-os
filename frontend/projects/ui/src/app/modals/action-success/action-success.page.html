@@ -16,15 +16,24 @@
     </ion-label>
   </ion-item>
 
-  <div *ngIf="actionRes.value" class="ion-text-center" style="padding: 64px 0;">
+  <div *ngIf="actionRes.value" class="ion-text-center" style="padding: 64px 0">
     <div *ngIf="actionRes.qr" class="ion-padding-bottom">
       <qr-code [value]="actionRes.value" size="240"></qr-code>
     </div>
 
     <p *ngIf="!actionRes.copyable">{{ actionRes.value }}</p>
-    <a *ngIf="actionRes.copyable" style="cursor: copy;" (click)="copy(actionRes.value)">
+    <a
+      *ngIf="actionRes.copyable"
+      style="cursor: copy"
+      (click)="copy(actionRes.value)"
+    >
       <b>{{ actionRes.value }}</b>
-      <sup><ion-icon name="copy-outline" style="padding-left: 6px; font-size: small;"></ion-icon></sup>
+      <sup
+        ><ion-icon
+          name="copy-outline"
+          style="padding-left: 6px; font-size: small"
+        ></ion-icon
+      ></sup>
     </a>
   </div>
 </ion-content>

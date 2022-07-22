@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { map } from 'rxjs/operators'
 import { ConnectionService } from 'src/app/services/connection.service'
 import { PkgInfo } from 'src/app/util/get-package-info'
 
@@ -11,7 +10,7 @@ import { PkgInfo } from 'src/app/util/get-package-info'
 })
 export class AppListIconComponent {
   @Input()
-  pkg: PkgInfo
+  pkg!: PkgInfo
 
   disconnected$ = this.connectionService.watchDisconnected$()
 

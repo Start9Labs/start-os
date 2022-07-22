@@ -1,4 +1,9 @@
-<ion-item button detail="false" [routerLink]="['/services', manifest.id]">
+<ion-item
+  button
+  *ngIf="pkg.entry.manifest as manifest"
+  detail="false"
+  [routerLink]="['/services', manifest.id]"
+>
   <app-list-icon slot="start" [pkg]="pkg"></app-list-icon>
   <ion-thumbnail slot="start">
     <img alt="" [src]="pkg.entry['static-files'].icon" />

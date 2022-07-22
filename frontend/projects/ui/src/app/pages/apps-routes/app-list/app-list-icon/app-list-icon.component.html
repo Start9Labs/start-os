@@ -1,25 +1,31 @@
-<ion-icon
-  *ngIf="pkg.error; else noError"
-  class="warning-icon"
-  name="warning-outline"
-  size="small"
-  color="warning"
-></ion-icon>
-<ng-template #noError>
-  <ion-spinner
-    *ngIf="pkg.transitioning; else bulb"
-    class="spinner"
+<div
+  *ngIf="disconnected$ | async; else connected"
+  class="bulb"
+  [style.background-color]="'var(--ion-color-dark)'"
+></div>
+<ng-template #connected>
+  <ion-icon
+    *ngIf="pkg.error; else noError"
+    class="warning-icon"
+    name="warning-outline"
     size="small"
-    color="primary"
-  ></ion-spinner>
-  <ng-template #bulb>
-    <div
-      class="bulb"
-      [style.background-color]="
-        (disconnected$ | async)
-          ? 'var(--ion-color-dark)'
-          : 'var(--ion-color-' + this.pkg.primaryRendering.color + ')'
-      "
-    ></div>
+    color="warning"
+  ></ion-icon>
+  <ng-template #noError>
+    <ion-spinner
+      *ngIf="pkg.transitioning; else bulb"
+      class="spinner"
+      size="small"
+      color="primary"
+    ></ion-spinner>
+    <ng-template #bulb>
+      <div
+        class="bulb"
+        [style.background-color]="
+          'var(--ion-color-' + pkg.primaryRendering.color + ')'
+        "
+        [style.color]="'var(--ion-color-' + pkg.primaryRendering.color + ')'"
+      ></div>
+    </ng-template>
   </ng-template>
 </ng-template>

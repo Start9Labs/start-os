@@ -1,4 +1,4 @@
-import { Component, ViewChild } from '@angular/core'
+import { Component } from '@angular/core'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import {
   LoadingController,
@@ -34,7 +34,10 @@ export class PreferencesPage {
     readonly serverConfig: ServerConfigService,
   ) {}
 
-  async presentModalName(placeholder: string): Promise<void> {
+  async presentModalName(
+    placeholder: string,
+    initialValue: string,
+  ): Promise<void> {
     const options: GenericInputOptions = {
       title: 'Edit Device Name',
       message: 'This is for your reference only.',
@@ -42,7 +45,7 @@ export class PreferencesPage {
       useMask: false,
       placeholder,
       nullable: true,
-      initialValue: this.patch.getData().ui.name,
+      initialValue,
       buttonText: 'Save',
       submitFn: (value: string) =>
         this.setDbValue('name', value || placeholder),

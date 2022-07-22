@@ -13,9 +13,9 @@ import * as argon2 from '@start9labs/argon2'
   styleUrls: ['password.page.scss'],
 })
 export class PasswordPage {
-  @ViewChild('focusInput') elem: IonInput
-  @Input() target: CifsBackupTarget | DiskBackupTarget
-  @Input() storageDrive: DiskInfo
+  @ViewChild('focusInput') elem?: IonInput
+  @Input() target?: CifsBackupTarget | DiskBackupTarget
+  @Input() storageDrive?: DiskInfo
 
   pwError = ''
   password = ''
@@ -28,7 +28,7 @@ export class PasswordPage {
   constructor(private modalController: ModalController) {}
 
   ngAfterViewInit() {
-    setTimeout(() => this.elem.setFocus(), 400)
+    setTimeout(() => this.elem?.setFocus(), 400)
   }
 
   async verifyPw() {
@@ -36,7 +36,7 @@ export class PasswordPage {
       this.pwError = 'No recovery target' // unreachable
 
     try {
-      const passwordHash = this.target['embassy-os']?.['password-hash'] || ''
+      const passwordHash = this.target!['embassy-os']?.['password-hash'] || ''
 
       argon2.verify(passwordHash, this.password)
       this.modalController.dismiss({ password: this.password }, 'success')

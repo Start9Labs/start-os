@@ -1,8 +1,7 @@
-import { Component, Input, ViewChild } from '@angular/core'
+import { Component, Input } from '@angular/core'
 import {
   AlertController,
   ModalController,
-  IonContent,
   LoadingController,
   IonicSafeString,
 } from '@ionic/angular'
@@ -24,6 +23,7 @@ import {
 } from 'src/app/services/form.service'
 import { compare, Operation, getValueByPointer } from 'fast-json-patch'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
+import { getAllPackages, getPackage } from 'src/app/util/get-package-data'
 import { Breakages } from 'src/app/services/api/api.types'
 
 @Component({
@@ -32,19 +32,24 @@ import { Breakages } from 'src/app/services/api/api.types'
   styleUrls: ['./app-config.page.scss'],
 })
 export class AppConfigPage {
-  @ViewChild(IonContent) content: IonContent
-  @Input() pkgId: string
-  @Input() dependentInfo?: DependentInfo
-  diff: string[] // only if dependent info
-  pkg: PackageDataEntry
-  loadingText: string | undefined
-  configSpec: ConfigSpec
-  configForm: FormGroup
-  original: object
+  @Input() pkgId!: string
+
+  @Input()
+  dependentInfo?: DependentInfo
+
+  pkg!: PackageDataEntry
+  loadingText!: string
+  configSpec!: ConfigSpec
+  configForm!: FormGroup
+
+  original?: object // only if existing config
+  diff?: string[] // only if dependent info
+
+  loading = true
   hasConfig = false
   hasNewOptions = false
   saving = false
-  loadingError: string | IonicSafeString
+  loadingError: string | IonicSafeString = ''
 
   constructor(
     private readonly embassyApi: ApiService,
@@ -57,17 +62,15 @@ export class AppConfigPage {
   ) {}
 
   async ngOnInit() {
-    this.pkg = this.patch.getData()['package-data'][this.pkgId]
-    this.hasConfig = !!this.pkg?.manifest.config
-
-    if (!this.hasConfig) return
-
-    let oldConfig: object | null
-    let newConfig: object | undefined
-    let spec: ConfigSpec
-    let patch: Operation[] | undefined
-
     try {
+      this.pkg = await getPackage(this.patch, this.pkgId)
+      this.hasConfig = !!this.pkg.manifest.config
+
+      if (!this.hasConfig) return
+
+      let newConfig: object | undefined
+      let patch: Operation[] | undefined
+
       if (this.dependentInfo) {
         this.loadingText = `Setting properties to accommodate ${this.dependentInfo.title}`
         const {
@@ -78,24 +81,22 @@ export class AppConfigPage {
           'dependency-id': this.pkgId,
           'dependent-id': this.dependentInfo.id,
         })
-        oldConfig = oc
+        this.original = oc
         newConfig = nc
-        spec = s
-        patch = compare(oldConfig, newConfig)
+        this.configSpec = s
+        patch = compare(this.original, newConfig)
       } else {
         this.loadingText = 'Loading Config'
         const { config: c, spec: s } = await this.embassyApi.getPackageConfig({
           id: this.pkgId,
         })
-        oldConfig = c
-        spec = s
+        this.original = c
+        this.configSpec = s
       }
 
-      this.original = oldConfig
-      this.configSpec = spec
       this.configForm = this.formService.createForm(
-        spec,
-        newConfig || oldConfig,
+        this.configSpec,
+        newConfig || this.original,
       )
       this.configForm.markAllAsTouched()
 
@@ -106,22 +107,18 @@ export class AppConfigPage {
     } catch (e: any) {
       this.loadingError = getErrorMessage(e)
     } finally {
-      this.loadingText = undefined
+      this.loading = false
     }
   }
 
-  ngAfterViewInit() {
-    this.content.scrollToPoint(undefined, 1)
-  }
-
   resetDefaults() {
-    this.configForm = this.formService.createForm(this.configSpec)
-    const patch = compare(this.original, this.configForm.value)
+    this.configForm = this.formService.createForm(this.configSpec!)
+    const patch = compare(this.original || {}, this.configForm.value)
     this.markDirty(patch)
   }
 
   async dismiss() {
-    if (this.configForm?.dirty) {
+    if (this.configForm.dirty) {
       this.presentAlertUnsaved()
     } else {
       this.modalCtrl.dismiss()
@@ -202,7 +199,7 @@ export class AppConfigPage {
   private async presentAlertBreakages(breakages: Breakages): Promise<boolean> {
     let message: string =
       'As a result of this change, the following services will no longer work properly and may crash:<ul>'
-    const localPkgs = this.patch.getData()['package-data']
+    const localPkgs = await getAllPackages(this.patch)
     const bullets = Object.keys(breakages).map(id => {
       const title = localPkgs[id].manifest.title
       return `<li><b>${title}</b></li>`

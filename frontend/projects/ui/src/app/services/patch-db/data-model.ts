@@ -2,7 +2,6 @@ import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { Url } from '@start9labs/shared'
 import { MarketplaceManifest } from '@start9labs/marketplace'
 import { BasicInfo } from 'src/app/pages/developer-routes/developer-menu/form-info'
-import { string } from 'ts-matches'
 
 export interface DataModel {
   'server-info': ServerInfo

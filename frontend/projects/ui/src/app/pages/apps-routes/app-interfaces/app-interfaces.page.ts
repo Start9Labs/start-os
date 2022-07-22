@@ -1,6 +1,6 @@
-import { Component, Input, ViewChild } from '@angular/core'
+import { Component, Input } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { IonContent, ModalController, ToastController } from '@ionic/angular'
+import { ModalController, ToastController } from '@ionic/angular'
 import { getPkgId } from '@start9labs/shared'
 import { getUiInterfaceKey } from 'src/app/services/config.service'
 import {
@@ -10,6 +10,7 @@ import {
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { copyToClipboard } from 'src/app/util/web.util'
 import { QRComponent } from 'src/app/components/qr/qr.component'
+import { getPackage } from '../../../util/get-package-data'
 
 interface LocalInterface {
   def: InterfaceDef
@@ -22,22 +23,21 @@ interface LocalInterface {
   styleUrls: ['./app-interfaces.page.scss'],
 })
 export class AppInterfacesPage {
-  @ViewChild(IonContent) content: IonContent
-  ui: LocalInterface | null
+  ui?: LocalInterface
   other: LocalInterface[] = []
   readonly pkgId = getPkgId(this.route)
 
   constructor(
     private readonly route: ActivatedRoute,
-    public readonly patch: PatchDbService,
+    private readonly patch: PatchDbService,
   ) {}
 
-  ngOnInit() {
-    const pkg = this.patch.getData()['package-data'][this.pkgId]
+  async ngOnInit() {
+    const pkg = await getPackage(this.patch, this.pkgId)
     const interfaces = pkg.manifest.interfaces
     const uiKey = getUiInterfaceKey(interfaces)
 
-    if (!pkg?.installed) return
+    if (!pkg.installed) return
 
     const addressesMap = pkg.installed['interface-addresses']
 
@@ -73,14 +73,6 @@ export class AppInterfacesPage {
         }
       })
   }
-
-  ngAfterViewInit() {
-    this.content.scrollToPoint(undefined, 1)
-  }
-
-  asIsOrder() {
-    return 0
-  }
 }
 
 @Component({
@@ -89,7 +81,8 @@ export class AppInterfacesPage {
   styleUrls: ['./app-interfaces.page.scss'],
 })
 export class AppInterfacesItemComponent {
-  @Input() interface: LocalInterface
+  @Input()
+  interface!: LocalInterface
 
   constructor(
     private readonly toastCtrl: ToastController,

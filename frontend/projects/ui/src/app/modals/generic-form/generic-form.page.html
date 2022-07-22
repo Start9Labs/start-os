@@ -10,11 +10,12 @@
 </ion-header>
 
 <ion-content class="ion-padding">
-  <form [formGroup]="formGroup" (ngSubmit)="handleClick(submitBtn.handler)" novalidate>
-    <form-object
-      [objectSpec]="spec"
-      [formGroup]="formGroup"
-    ></form-object>
+  <form
+    [formGroup]="formGroup"
+    (ngSubmit)="handleClick(submitBtn.handler)"
+    novalidate
+  >
+    <form-object [objectSpec]="spec" [formGroup]="formGroup"></form-object>
     <button hidden type="submit"></button>
   </form>
 </ion-content>
@@ -22,7 +23,11 @@
 <ion-footer>
   <ion-toolbar class="footer">
     <ion-buttons slot="end">
-      <ion-button class="ion-padding-end" *ngFor="let button of buttons" (click)="handleClick(button.handler)">
+      <ion-button
+        class="ion-padding-end"
+        *ngFor="let button of buttons"
+        (click)="handleClick(button.handler)"
+      >
         {{ button.text }}
       </ion-button>
     </ion-buttons>

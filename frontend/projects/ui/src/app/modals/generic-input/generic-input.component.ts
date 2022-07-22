@@ -10,12 +10,16 @@ import { MaskPipe } from 'src/app/pipes/mask/mask.pipe'
   providers: [MaskPipe],
 })
 export class GenericInputComponent {
-  @ViewChild('mainInput') elem: IonInput
-  @Input() options: GenericInputOptions
-  value: string
-  maskedValue: string
-  masked: boolean
-  error: string | IonicSafeString
+  @ViewChild('mainInput') elem?: IonInput
+
+  @Input() options!: GenericInputOptions
+
+  value!: string
+  masked!: boolean
+
+  maskedValue?: string
+
+  error: string | IonicSafeString = ''
 
   constructor(
     private readonly modalCtrl: ModalController,
@@ -40,7 +44,7 @@ export class GenericInputComponent {
   }
 
   ngAfterViewInit() {
-    setTimeout(() => this.elem.setFocus(), 400)
+    setTimeout(() => this.elem?.setFocus(), 400)
   }
 
   toggleMask() {

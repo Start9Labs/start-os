@@ -11,26 +11,26 @@ import { pauseFor, ErrorToastService } from '@start9labs/shared'
   providedIn: 'root',
 })
 export class StateService {
-  hasProductKey: boolean
-  isMigrating: boolean
+  hasProductKey = false
+  isMigrating = false
 
   polling = false
   embassyLoaded = false
 
-  recoverySource: CifsRecoverySource | DiskRecoverySource
+  recoverySource?: CifsRecoverySource | DiskRecoverySource
   recoveryPassword?: string
 
-  dataTransferProgress: {
+  dataTransferProgress?: {
     bytesTransferred: number
     totalBytes: number
     complete: boolean
-  } | null
+  }
   dataProgress = 0
   dataCompletionSubject = new BehaviorSubject(false)
 
-  torAddress: string
-  lanAddress: string
-  cert: string
+  torAddress = ''
+  lanAddress = ''
+  cert = ''
 
   constructor(
     private readonly apiService: ApiService,

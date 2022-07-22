@@ -35,8 +35,8 @@ interface Config {
   styleUrls: ['./form-object.component.scss'],
 })
 export class FormObjectComponent {
-  @Input() objectSpec: ConfigSpec
-  @Input() formGroup: FormGroup
+  @Input() objectSpec!: ConfigSpec
+  @Input() formGroup!: FormGroup
   @Input() unionSpec?: ValueSpecUnion
   @Input() current?: Config
   @Input() original?: Config
@@ -396,7 +396,7 @@ interface HeaderData {
 })
 export class FormLabelComponent {
   Range = Range
-  @Input() data: HeaderData
+  @Input() data!: HeaderData
 
   constructor(private readonly alertCtrl: AlertController) {}
 
@@ -424,6 +424,6 @@ export class FormLabelComponent {
   styleUrls: ['./form-object.component.scss'],
 })
 export class FormErrorComponent {
-  @Input() control: AbstractFormGroupDirective
-  @Input() spec: ValueSpec
+  @Input() control!: AbstractFormGroupDirective
+  @Input() spec!: ValueSpec
 }

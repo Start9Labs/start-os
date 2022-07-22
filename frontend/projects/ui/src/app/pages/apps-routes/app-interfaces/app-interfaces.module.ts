@@ -2,11 +2,12 @@ import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
+import { SharedPipesModule } from '@start9labs/shared'
+
 import {
   AppInterfacesItemComponent,
   AppInterfacesPage,
 } from './app-interfaces.page'
-import { SharedPipesModule } from '@start9labs/shared'
 
 const routes: Routes = [
   {

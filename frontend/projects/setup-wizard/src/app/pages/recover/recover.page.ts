@@ -31,7 +31,7 @@ export class RecoverPage {
     private readonly alertCtrl: AlertController,
     private readonly loadingCtrl: LoadingController,
     private readonly errorToastService: ErrorToastService,
-    public readonly stateService: StateService,
+    private readonly stateService: StateService,
   ) {}
 
   async ngOnInit() {
@@ -243,8 +243,8 @@ export class RecoverPage {
   styleUrls: ['./recover.page.scss'],
 })
 export class DriveStatusComponent {
-  @Input() hasValidBackup: boolean
-  @Input() is02x: boolean
+  @Input() hasValidBackup!: boolean
+  @Input() is02x!: boolean
 }
 
 interface MappedDisk {

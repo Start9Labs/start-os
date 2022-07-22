@@ -13,7 +13,7 @@
           <ion-card-content>
             <br />
             <ng-template
-              [ngIf]="stateService.recoverySource && stateService.recoverySource.type === 'disk'"
+              [ngIf]="recoverySource && recoverySource.type === 'disk'"
             >
               <h2>You can now safely unplug your backup drive.</h2>
             </ng-template>
@@ -53,15 +53,13 @@
                 <ion-item lines="none" color="dark">
                   <ion-label class="ion-text-wrap">
                     <code
-                      ><ion-text color="light"
-                        >{{ stateService.torAddress }}</ion-text
-                      ></code
+                      ><ion-text color="light">{{ torAddress }}</ion-text></code
                     >
                   </ion-label>
                   <ion-button
                     color="light"
                     fill="clear"
-                    (click)="copy(stateService.torAddress)"
+                    (click)="copy(torAddress)"
                   >
                     <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
                   </ion-button>
@@ -133,15 +131,13 @@
                 <ion-item lines="none" color="dark">
                   <ion-label class="ion-text-wrap">
                     <code
-                      ><ion-text color="light"
-                        >{{ stateService.lanAddress }}</ion-text
-                      ></code
+                      ><ion-text color="light">{{ lanAddress }}</ion-text></code
                     >
                   </ion-label>
                   <ion-button
                     color="light"
                     fill="clear"
-                    (click)="copy(stateService.lanAddress)"
+                    (click)="copy(lanAddress)"
                   >
                     <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
                   </ion-button>

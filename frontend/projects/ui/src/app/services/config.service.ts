@@ -48,21 +48,19 @@ export class ConfigService {
     status: PackageMainStatus,
     interfaces: Record<string, InterfaceDef>,
   ): boolean {
-    if (state !== PackageState.Installed) {
-      return false
-    }
-
     return (
+      state === PackageState.Installed &&
       status === PackageMainStatus.Running &&
-      ((hasTorUi(interfaces) && this.isTor()) ||
-        (hasLanUi(interfaces) && !this.isTor()))
+      hasUi(interfaces)
     )
   }
 
   launchableURL(pkg: PackageDataEntry): string {
-    return this.isTor()
-      ? `http://${torUiAddress(pkg)}`
-      : `https://${lanUiAddress(pkg)}`
+    if (this.isLan() && hasLanUi(pkg.manifest.interfaces)) {
+      return `https://${lanUiAddress(pkg)}`
+    } else {
+      return `http://${torUiAddress(pkg)}`
+    }
   }
 }
 

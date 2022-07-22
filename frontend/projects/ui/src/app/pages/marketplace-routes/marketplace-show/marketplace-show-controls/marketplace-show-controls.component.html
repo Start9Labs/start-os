@@ -25,7 +25,7 @@
       >
         Downgrade
       </ion-button>
-      <ng-container *ngIf="localStorageService.showDevTools$ | async">
+      <ng-container *ngIf="showDevTools$ | async">
         <ion-button
           *ngIf="(localVersion | compareEmver: pkg.manifest.version) === 0"
           expand="block"

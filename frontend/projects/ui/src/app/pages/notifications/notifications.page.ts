@@ -27,6 +27,7 @@ export class NotificationsPage {
   needInfinite = false
   fromToast = false
   readonly perPage = 40
+  readonly packageData$ = this.patch.watch$('package-data')
 
   constructor(
     private readonly embassyApi: ApiService,
@@ -35,7 +36,7 @@ export class NotificationsPage {
     private readonly modalCtrl: ModalController,
     private readonly errToast: ErrorToastService,
     private readonly route: ActivatedRoute,
-    public readonly patch: PatchDbService,
+    private readonly patch: PatchDbService,
   ) {}
 
   async ngOnInit() {

@@ -8,7 +8,8 @@ import { BaseSlide } from '../wizard-types'
   styleUrls: ['../app-wizard.component.scss'],
 })
 export class CompleteComponent implements BaseSlide {
-  @Input() params: {
+  @Input()
+  params!: {
     verb: string // loader verb: '*stopping* ...'
     title: string
     Fn: () => Promise<any>
@@ -17,13 +18,13 @@ export class CompleteComponent implements BaseSlide {
   @Output() onSuccess: EventEmitter<void> = new EventEmitter()
   @Output() onError: EventEmitter<string> = new EventEmitter()
 
-  message: string
+  message = ''
 
   loading = true
 
   async load() {
     this.message =
-      capitalizeFirstLetter(this.params.verb) + ' ' + this.params.title
+      capitalizeFirstLetter(this.params.verb || '') + ' ' + this.params.title
     try {
       await this.params.Fn()
       this.onSuccess.emit()

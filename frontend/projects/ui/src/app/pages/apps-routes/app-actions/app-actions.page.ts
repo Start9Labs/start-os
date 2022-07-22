@@ -1,9 +1,8 @@
-import { Component, Input, ViewChild } from '@angular/core'
+import { Component, Input } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import {
   AlertController,
-  IonContent,
   LoadingController,
   ModalController,
   NavController,
@@ -14,7 +13,6 @@ import {
   PackageDataEntry,
   PackageMainStatus,
 } from 'src/app/services/patch-db/data-model'
-import { Subscription } from 'rxjs'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 import { isEmptyObject, ErrorToastService, getPkgId } from '@start9labs/shared'
 import { ActionSuccessPage } from 'src/app/modals/action-success/action-success.page'
@@ -26,10 +24,8 @@ import { hasCurrentDeps } from 'src/app/util/has-deps'
   styleUrls: ['./app-actions.page.scss'],
 })
 export class AppActionsPage {
-  @ViewChild(IonContent) content: IonContent
   readonly pkgId = getPkgId(this.route)
-  pkg: PackageDataEntry
-  subs: Subscription[]
+  readonly pkg$ = this.patch.watch$('package-data', this.pkgId)
 
   constructor(
     private readonly route: ActivatedRoute,
@@ -42,24 +38,11 @@ export class AppActionsPage {
     private readonly patch: PatchDbService,
   ) {}
 
-  ngOnInit() {
-    this.subs = [
-      this.patch.watch$('package-data', this.pkgId).subscribe(pkg => {
-        this.pkg = pkg
-      }),
-    ]
-  }
-
-  ngAfterViewInit() {
-    this.content.scrollToPoint(undefined, 1)
-  }
-
-  ngOnDestroy() {
-    this.subs.forEach(sub => sub.unsubscribe())
-  }
-
-  async handleAction(action: { key: string; value: Action }) {
-    const status = this.pkg.installed?.status
+  async handleAction(
+    pkg: PackageDataEntry,
+    action: { key: string; value: Action },
+  ) {
+    const status = pkg.installed?.status
     if (
       status &&
       (action.value['allowed-statuses'] as PackageMainStatus[]).includes(
@@ -134,14 +117,14 @@ export class AppActionsPage {
     }
   }
 
-  async tryUninstall(): Promise<void> {
-    const { title, alerts } = this.pkg.manifest
+  async tryUninstall(pkg: PackageDataEntry): Promise<void> {
+    const { title, alerts } = pkg.manifest
 
     let message =
       alerts.uninstall ||
       `Uninstalling ${title} will permanently delete its data`
 
-    if (hasCurrentDeps(this.pkg)) {
+    if (hasCurrentDeps(pkg)) {
       message = `${message}. Services that depend on ${title} will no longer work properly and may crash`
     }
 
@@ -233,5 +216,5 @@ interface LocalAction {
   styleUrls: ['./app-actions.page.scss'],
 })
 export class AppActionsItemComponent {
-  @Input() action: LocalAction
+  @Input() action!: LocalAction
 }

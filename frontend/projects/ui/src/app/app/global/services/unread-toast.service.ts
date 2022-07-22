@@ -10,7 +10,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 // Watch unread notification count to display toast
 @Injectable()
 export class UnreadToastService extends Observable<unknown> {
-  private unreadToast: HTMLIonToastElement
+  private unreadToast?: HTMLIonToastElement
 
   private readonly stream$ = this.patchData.pipe(
     switchMap<DataModel | null, ObservableInput<number>>(data => {

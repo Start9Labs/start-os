@@ -9,7 +9,8 @@ import { copyToClipboard } from 'src/app/util/web.util'
   styleUrls: ['./action-success.page.scss'],
 })
 export class ActionSuccessPage {
-  @Input() actionRes: ActionResponse
+  @Input()
+  actionRes!: ActionResponse
 
   constructor(
     private readonly modalCtrl: ModalController,
