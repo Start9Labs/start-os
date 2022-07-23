@@ -11,9 +11,7 @@ export class HttpService {
   async rpcRequest<T>(options: RPCOptions): Promise<T> {
     const res = await this.httpRequest<RPCResponse<T>>(options)
     if (isRpcError(res)) throw new RpcError(res.error)
-    if (isRpcSuccess(res)) return res.result
-
-    throw new Error('Unknown RPC response')
+    return res.result
   }
 
   async httpRequest<T>(body: RPCOptions): Promise<T> {
@@ -37,7 +35,7 @@ function isRpcError<Error, Result>(
 function isRpcSuccess<Error, Result>(
   arg: { error: Error } | { result: Result },
 ): arg is { result: Result } {
-  return !!(arg as any).result
+  return !isRpcError(arg)
 }
 
 export interface RPCOptions {

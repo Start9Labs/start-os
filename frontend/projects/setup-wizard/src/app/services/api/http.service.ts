@@ -42,9 +42,7 @@ export class HttpService {
       throw new RpcError(res.error)
     }
 
-    if (isRpcSuccess(res)) return res.result
-
-    throw new Error('Unknown RPC response')
+    return res.result
   }
 
   async encryptedHttpRequest<T>(httpOpts: {
