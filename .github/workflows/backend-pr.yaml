@@ -244,7 +244,7 @@ jobs:
         docker run --rm --platform linux/arm64/v8 \
         -v "/home/runner/.cargo/registry":/usr/local/cargo/registry \
         -v "$(pwd)":/home/rust/src \
-        -P rust:${{ env.RUST_VERSION }} \
+        -P ubuntu:20.04 \
         sh -c 'cd /home/rust/src &&
           mkdir -p ~/.cargo/bin &&
           tar -zxvf nextest-aarch64.tar.gz -C ${CARGO_HOME:-~/.cargo}/bin &&
