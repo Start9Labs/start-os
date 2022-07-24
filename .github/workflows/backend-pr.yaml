@@ -105,6 +105,10 @@ jobs:
           backend/target/
         key: ${{ runner.os }}-cargo-backend-${{ hashFiles('backend/Cargo.lock') }}
 
+    - name: Install dependencies
+      run: sudo apt-get install libavahi-client-dev
+      if: ${{ matrix.target == 'x86_64' }}
+      
     - name: Build backend
       run: ${{ matrix.build_command }}
       if: ${{ matrix.target == 'x86_64' }}
