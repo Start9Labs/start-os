@@ -66,10 +66,10 @@ jobs:
         path: system-images/utils/utils.tar
 
   backend:
-    uses: ./.github/workflows/backend-pr.yaml
+    uses: ./.github/workflows/backend.yaml
   
   frontend:
-    uses: ./.github/workflows/frontend-pr.yaml
+    uses: ./.github/workflows/frontend.yaml
     
   image:
     name: Build image
