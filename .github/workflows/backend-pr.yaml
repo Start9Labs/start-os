@@ -70,11 +70,8 @@ jobs:
         target: [x86_64, aarch64]
         include:
           - target: x86_64
-            build_command: cd backend && cargo build --release --target x86_64-unknown-linux-gnu
             snapshot_download: js_snapshot
-
           - target: aarch64
-            build_command: make backend
             snapshot_download: arm_js_snapshot
     runs-on: ubuntu-latest
     needs: build_libs
@@ -111,14 +108,13 @@ jobs:
 
     - name: Check Git Hash
       run: ./check-git-hash.sh
-      if: ${{ matrix.target == 'x86_64' }}
 
     - name: Check Environment
       run: ./check-environment.sh
-      if: ${{ matrix.target == 'x86_64' }}
 
     - name: Build backend
-      run: ${{ matrix.build_command }}
+      run: cargo build --release --target x86_64-unknown-linux-gnu
+      working-directory: backend
       if: ${{ matrix.target == 'x86_64' }}
 
     - name: Build backend
