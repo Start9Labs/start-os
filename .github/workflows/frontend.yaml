@@ -4,6 +4,9 @@ on:
   workflow_call:
   workflow_dispatch:
 
+env:
+  NODEJS_VERSION: '16'
+
 jobs:
   frontend:
     name: Build frontend
@@ -15,7 +18,7 @@ jobs:
 
     - uses: actions/setup-node@v3
       with:
-        node-version: 16
+        node-version: ${{ env.NODEJS_VERSION }}
     
     - name: Get npm cache directory
       id: npm-cache-dir
