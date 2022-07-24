@@ -12,7 +12,7 @@ A matrix-strategy has been used to build for both x86_64 and aarch64 platforms i
 Unittests are run using [cargo-nextest]( https://nexte.st/). First the sources are (cross-)compiled and archived. The archive is then run on the correct platform.
 Because nextest currently does not publish a pre-built aarch64 binary, there is a stage for building this.
 
-## frontend-pr
+## frontend
 Runs: manually (on: workflow_dispatch) or called by product-pipeline (on: workflow_call)
 
 This workflow builds the frontends.
