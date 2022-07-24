@@ -103,7 +103,7 @@ jobs:
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
           backend/target/
-        key: ${{ runner.os }}-cargo-backend-${{ hashFiles('backend/Cargo.lock') }}
+        key: ${{ runner.os }}-cargo-backend-${{ matrix.target }}-${{ hashFiles('backend/Cargo.lock') }}
 
     - name: Install dependencies
       run: sudo apt-get install libavahi-client-dev
