@@ -1,5 +1,5 @@
 import { Component, Input } from '@angular/core'
-import { FormGroup } from '@angular/forms'
+import { UntypedFormGroup } from '@angular/forms'
 import { ModalController } from '@ionic/angular'
 import {
   convertValuesRecursive,
@@ -25,7 +25,7 @@ export class GenericFormPage {
   @Input() initialValue: object = {}
 
   submitBtn!: ActionButton
-  formGroup!: FormGroup
+  formGroup!: UntypedFormGroup
 
   constructor(
     private readonly modalCtrl: ModalController,

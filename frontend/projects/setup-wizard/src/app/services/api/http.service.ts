@@ -1,11 +1,6 @@
 import { Injectable } from '@angular/core'
-import {
-  HttpClient,
-  HttpErrorResponse,
-  HttpHeaders,
-  HttpParams,
-} from '@angular/common/http'
-import { Observable } from 'rxjs'
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http'
+import { firstValueFrom, Observable } from 'rxjs'
 import * as aesjs from 'aes-js'
 import * as pbkdf2 from 'pbkdf2'
 import { HttpError, RpcError } from '@start9labs/shared'
@@ -70,8 +65,7 @@ export class HttpService {
 
     const req = this.http.post(url, options.body, options)
 
-    return req
-      .toPromise()
+    return firstValueFrom(req)
       .then(res =>
         AES_CTR.decryptPbkdf2(
           this.productKey || '',
@@ -112,8 +106,7 @@ export class HttpService {
       options,
     ) as any
 
-    return req
-      .toPromise()
+    return firstValueFrom(req)
       .then(res => res.body)
       .catch(e => {
         throw new HttpError(e)
