@@ -136,7 +136,7 @@ jobs:
     - uses: actions/upload-artifact@v3
       with:
         name: backend-${{ matrix.target }}
-        path: backend-${{ matrix.target }}.tar.gz
+        path: backend-${{ matrix.target }}.tar
     
     - name: Install nextest
       uses: taiki-e/install-action@nextest
