@@ -1,4 +1,4 @@
-name: Backend PR
+name: Backend
 
 on:
   workflow_call:

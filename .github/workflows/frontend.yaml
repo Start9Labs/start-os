@@ -1,4 +1,4 @@
-name: Frontend PR
+name: Frontend
 
 on:
   workflow_call:
