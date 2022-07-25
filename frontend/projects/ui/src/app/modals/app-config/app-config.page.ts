@@ -170,6 +170,7 @@ export class AppConfigPage {
     } catch (e: any) {
       this.errToast.present(e)
       this.saving = false
+      loader.dismiss()
     }
   }
 

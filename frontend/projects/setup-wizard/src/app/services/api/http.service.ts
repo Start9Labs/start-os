@@ -42,9 +42,7 @@ export class HttpService {
       throw new RpcError(res.error)
     }
 
-    if (isRpcSuccess(res)) return res.result
-
-    throw new Error('Unknown RPC response')
+    return res.result
   }
 
   async encryptedHttpRequest<T>(httpOpts: {
@@ -132,13 +130,7 @@ class EncryptionError {
 function isRpcError<Error, Result>(
   arg: { error: Error } | { result: Result },
 ): arg is { error: Error } {
-  return !!(arg as any).error
-}
-
-function isRpcSuccess<Error, Result>(
-  arg: { error: Error } | { result: Result },
-): arg is { result: Result } {
-  return !!(arg as any).result
+  return (arg as any).error !== undefined
 }
 
 export enum Method {
