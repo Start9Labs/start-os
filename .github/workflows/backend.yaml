@@ -160,6 +160,11 @@ jobs:
           cargo nextest archive --archive-file nextest-archive-${{ matrix.target }}.tar.zst --target ${{ matrix.target }}-unknown-linux-gnu'
       if: ${{ matrix.target == 'aarch64' }}
 
+    - name: Reset permissions
+      run: sudo chown -R $USER target
+      working-directory: backend
+      if: ${{ matrix.target == 'aarch64' }}
+
     - name: Upload archive to workflow
       uses: actions/upload-artifact@v3
       with:
