@@ -36,7 +36,7 @@ use crate::shutdown::Shutdown;
 use crate::status::{MainStatus, Status};
 use crate::util::io::from_yaml_async_reader;
 use crate::util::{AsyncFileExt, Invoke};
-use crate::{volume, Error, ErrorKind, ResultExt};
+use crate::{Error, ErrorKind, ResultExt};
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]

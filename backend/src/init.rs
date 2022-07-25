@@ -6,7 +6,6 @@ use tokio::process::Command;
 use crate::context::rpc::RpcContextConfig;
 use crate::db::model::ServerStatus;
 use crate::install::PKG_DOCKER_DIR;
-use crate::sound::SHUTDOWN;
 use crate::util::Invoke;
 use crate::Error;
 
