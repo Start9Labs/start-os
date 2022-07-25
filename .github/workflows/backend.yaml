@@ -166,31 +166,6 @@ jobs:
         name: nextest-archive-${{ matrix.target }}
         path: backend/nextest-archive-${{ matrix.target }}.tar.zst
 
-  build_nextest:
-    name: Build nextest for aarch64
-    runs-on: ubuntu-latest
-    steps:
-    - name: Build and archive tests
-      run: |
-        docker run --rm \
-        -v "$HOME/.cargo/registry":/root/.cargo/registry \
-        -v "$(pwd)":/home/rust/src \
-        -P start9/rust-arm-cross:aarch64 \
-        sh -c 'cd /home/rust/src &&
-          rustup install ${{ env.RUST_VERSION }} &&
-          rustup override set ${{ env.RUST_VERSION }} &&
-          rustup target add aarch64-unknown-linux-gnu &&
-          cargo install cargo-nextest --target aarch64-unknown-linux-gnu &&
-          cd ${CARGO_HOME:-/root/.cargo/}/bin/ &&
-          tar -cvf /home/rust/src/nextest-aarch64.tar cargo-nextest &&
-          cd /home/rust/src &&
-          gzip nextest-aarch64.tar'
-    
-    - uses: actions/upload-artifact@v3
-      with:
-        name: nextest-aarch64
-        path: nextest-aarch64.tar.gz
-  
   run_tests_backend:
     name: Test backend
     strategy:
@@ -201,17 +176,13 @@ jobs:
           - target: x86_64
           - target: aarch64
     runs-on: ubuntu-latest
-    needs: [build_backend, build_nextest]
+    needs: build_backend
+    env:
+      CARGO_TERM_COLOR: always
     steps:
     - uses: actions/checkout@v3
       with:
         submodules: recursive
-
-    - name: Download nextest-aarch64 artifact
-      uses: actions/download-artifact@v3
-      with:
-        name: nextest-aarch64
-      if: ${{ matrix.target == 'aarch64' }}
 
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v1
@@ -233,6 +204,10 @@ jobs:
       with:
         name: nextest-archive-${{ matrix.target }}
 
+    - name: Download nextest (aarch64)
+      run: wget -O nextest-aarch64.tar.gz https://get.nexte.st/latest/linux-arm
+      if: ${{ matrix.target == 'aarch64' }}
+
     - name: Run tests
       run: |
         ${CARGO_HOME:-~/.cargo}/bin/cargo-nextest nextest run --no-fail-fast --archive-file nextest-archive-${{ matrix.target }}.tar.zst \
@@ -244,6 +219,7 @@ jobs:
         docker run --rm --platform linux/arm64/v8 \
         -v "/home/runner/.cargo/registry":/usr/local/cargo/registry \
         -v "$(pwd)":/home/rust/src \
+        -e CARGO_TERM_COLOR=${{ env.CARGO_TERM_COLOR }} \
         -P ubuntu:20.04 \
         sh -c 'cd /home/rust/src &&
           mkdir -p ~/.cargo/bin &&
