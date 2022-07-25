@@ -64,8 +64,39 @@ pub async fn restore_packages_rpc(
     let (revision, backup_guard, tasks, _) =
         restore_packages(&ctx, &mut db, backup_guard, ids).await?;
 
-    tokio::spawn(async {
-        futures::future::join_all(tasks).await;
+    tokio::spawn(async move {
+        let res = futures::future::join_all(tasks).await;
+        for res in res {
+            match res.with_kind(crate::ErrorKind::Unknown) {
+                Ok((Ok(_), _)) => (),
+                Ok((Err(err), package_id)) => {
+                    if let Err(err) = ctx.notification_manager.notify(
+                        &mut db,
+                        Some(package_id.clone()),
+                        NotificationLevel::Error, 
+                        "Restoration Failure".to_string(), format!("Error restoring package {}: {}", package_id,err), (), None).await{
+                        tracing::error!("Failed to notify: {}", err);
+                        tracing::debug!("{:?}", err);
+                        };
+                    tracing::error!("Error restoring package {}: {}", package_id, err);
+                    tracing::debug!("{:?}", err);
+                },
+                Err(e) => {
+                    if let Err(err) = ctx.notification_manager.notify(
+                        &mut db,
+                        None,
+                        NotificationLevel::Error, 
+                        "Restoration Failure".to_string(), format!("Error during restoration: {}", e), (), None).await {
+
+                        tracing::error!("Failed to notify: {}", err);
+                        tracing::debug!("{:?}", err);
+                    }
+                    tracing::error!("Error restoring packages: {}", e);
+                    tracing::debug!("{:?}", e);
+                },
+
+            }
+        }
         if let Err(e) = backup_guard.unmount().await {
             tracing::error!("Error unmounting backup drive: {}", e);
             tracing::debug!("{:?}", e);
@@ -238,7 +269,7 @@ pub async fn recover_full_embassy(
                                     &mut db,
                                     None,
                                     NotificationLevel::Error, 
-                                    "Restoration Failure".to_string(), format!("Error restoring ?: {}", e), (), None).await {
+                                    "Restoration Failure".to_string(), format!("Error during restoration: {}", e), (), None).await {
 
                                     tracing::error!("Failed to notify: {}", err);
                                     tracing::debug!("{:?}", err);
