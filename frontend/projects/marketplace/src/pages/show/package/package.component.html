@@ -7,6 +7,10 @@
   <div class="text">
     <h1 class="title">{{ pkg.manifest.title }}</h1>
     <p class="version">{{ pkg.manifest.version | displayEmver }}</p>
+    <!-- @TODO remove conditional when registry code deployed. published-at will be required -->
+    <p *ngIf="pkg['published-at']" class="published">
+      Released: {{ pkg['published-at'] | date: 'medium' }}
+    </p>
     <ng-content></ng-content>
   </div>
 </div>
