@@ -14,4 +14,5 @@ export interface MarketplacePkg {
       icon: Url
     }
   }
+  'published-at': string
 }

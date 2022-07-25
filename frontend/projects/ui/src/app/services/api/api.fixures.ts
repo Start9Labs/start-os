@@ -647,6 +647,7 @@ export module Mock {
         categories: ['bitcoin', 'cryptocurrency'],
         versions: ['0.19.0', '0.20.0', '0.21.0'],
         'dependency-metadata': {},
+        'published-at': new Date().toISOString(),
       },
       '0.20.0': {
         icon: BTC_ICON,
@@ -659,6 +660,7 @@ export module Mock {
         categories: ['bitcoin', 'cryptocurrency'],
         versions: ['0.19.0', '0.20.0', '0.21.0'],
         'dependency-metadata': {},
+        'published-at': new Date().toISOString(),
       },
       '0.21.0': {
         icon: BTC_ICON,
@@ -673,6 +675,7 @@ export module Mock {
         categories: ['bitcoin', 'cryptocurrency'],
         versions: ['0.19.0', '0.20.0', '0.21.0'],
         'dependency-metadata': {},
+        'published-at': new Date().toISOString(),
       },
       latest: {
         icon: BTC_ICON,
@@ -686,6 +689,7 @@ export module Mock {
         categories: ['bitcoin', 'cryptocurrency'],
         versions: ['0.19.0', '0.20.0', '0.21.0'],
         'dependency-metadata': {},
+        'published-at': new Date().toISOString(),
       },
     },
     lnd: {
@@ -710,6 +714,7 @@ export module Mock {
             icon: PROXY_ICON,
           },
         },
+        'published-at': new Date().toISOString(),
       },
       '0.11.1': {
         icon: LND_ICON,
@@ -732,6 +737,7 @@ export module Mock {
             icon: PROXY_ICON,
           },
         },
+        'published-at': new Date().toISOString(),
       },
       latest: {
         icon: LND_ICON,
@@ -750,6 +756,7 @@ export module Mock {
             icon: PROXY_ICON,
           },
         },
+        'published-at': new Date().toISOString(),
       },
     },
     'btc-rpc-proxy': {
@@ -766,6 +773,7 @@ export module Mock {
             icon: BTC_ICON,
           },
         },
+        'published-at': new Date().toISOString(),
       },
     },
   }
