@@ -172,13 +172,16 @@ export class ServerShowPage {
   }
 
   private async restart() {
+    const action = 'Restart'
+
     const loader = await this.loadingCtrl.create({
-      message: 'Restarting...',
+      message: `Beginning ${action}...`,
     })
     await loader.present()
 
     try {
       await this.embassyApi.restartServer({})
+      this.presentAlertInProgress(action, ` until ${action} completes.`)
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
@@ -187,13 +190,19 @@ export class ServerShowPage {
   }
 
   private async shutdown() {
+    const action = 'Shutdown'
+
     const loader = await this.loadingCtrl.create({
-      message: 'Shutting down...',
+      message: `Beginning ${action}...`,
     })
     await loader.present()
 
     try {
       await this.embassyApi.shutdownServer({})
+      this.presentAlertInProgress(
+        action,
+        '.<br /><br /><b>You will need to physcally power cycle the device to regain connectivity.</b>',
+      )
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
@@ -202,13 +211,16 @@ export class ServerShowPage {
   }
 
   private async systemRebuild() {
+    const action = 'System Rebuild'
+
     const loader = await this.loadingCtrl.create({
-      message: 'Hard Restarting...',
+      message: `Beginning ${action}...`,
     })
     await loader.present()
 
     try {
       await this.embassyApi.systemRebuild({})
+      this.presentAlertInProgress(action, ` until ${action} completes.`)
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
@@ -238,7 +250,7 @@ export class ServerShowPage {
     }
   }
 
-  async presentAlertLatest() {
+  private async presentAlertLatest() {
     const alert = await this.alertCtrl.create({
       header: 'Up to date!',
       message: 'You are on the latest version of EmbassyOS.',
@@ -250,6 +262,21 @@ export class ServerShowPage {
         },
       ],
       cssClass: 'alert-success-message',
+    })
+    alert.present()
+  }
+
+  private async presentAlertInProgress(verb: string, message: string) {
+    const alert = await this.alertCtrl.create({
+      header: `${verb} In Progress...`,
+      message: `Stopping all services gracefully. This can take a while.<br /><br />Your Embassy will then <b>♫ play a melody ♫</b> and become unreachable${message}`,
+      buttons: [
+        {
+          text: 'OK',
+          role: 'cancel',
+          cssClass: 'enter-click',
+        },
+      ],
     })
     alert.present()
   }
