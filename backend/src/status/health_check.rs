@@ -1,11 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use chrono::{DateTime, Utc};
-use serde::{Deserialize,  Serialize};
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::context::RpcContext;
-use crate::id::{ ImageId};
+use crate::id::ImageId;
 use crate::procedure::{NoOutput, PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::PackageId;
 use crate::util::serde::Duration;
@@ -19,11 +19,16 @@ pub use models::HealthCheckId;
 pub struct HealthChecks(pub BTreeMap<HealthCheckId, HealthCheck>);
 impl HealthChecks {
     #[instrument]
-    pub fn validate(&self, volumes: &Volumes, image_ids: &BTreeSet<ImageId>) -> Result<(), Error> {
+    pub fn validate(
+        &self,
+        eos_version: &Version,
+        volumes: &Volumes,
+        image_ids: &BTreeSet<ImageId>,
+    ) -> Result<(), Error> {
         for (_, check) in &self.0 {
             check
                 .implementation
-                .validate(&volumes, image_ids, false)
+                .validate(eos_version, &volumes, image_ids, false)
                 .with_ctx(|_| {
                     (
                         crate::ErrorKind::ValidateS9pk,

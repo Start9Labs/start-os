@@ -69,12 +69,17 @@ pub struct BackupActions {
     pub restore: PackageProcedure,
 }
 impl BackupActions {
-    pub fn validate(&self, volumes: &Volumes, image_ids: &BTreeSet<ImageId>) -> Result<(), Error> {
+    pub fn validate(
+        &self,
+        eos_version: &Version,
+        volumes: &Volumes,
+        image_ids: &BTreeSet<ImageId>,
+    ) -> Result<(), Error> {
         self.create
-            .validate(volumes, image_ids, false)
+            .validate(eos_version, volumes, image_ids, false)
             .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Backup Create"))?;
         self.restore
-            .validate(volumes, image_ids, false)
+            .validate(eos_version, volumes, image_ids, false)
             .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Backup Restore"))?;
         Ok(())
     }
