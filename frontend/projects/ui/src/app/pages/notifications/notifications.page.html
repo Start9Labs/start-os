@@ -84,7 +84,7 @@
             <h2>
               <b>
                 <span *ngIf="not['package-id'] as pkgId">
-                  {{ packageData[pkgId]?.manifest!.title || pkgId }} -
+                  {{ packageData[pkgId]?.manifest?.title || pkgId }} -
                 </span>
                 <ion-text [color]="getColor(not)"> {{ not.title }} </ion-text>
               </b>
@@ -112,7 +112,7 @@
             View Report
           </ion-button>
           <ion-button
-            *ngIf="not['package-id']"
+            *ngIf="not['package-id'] && packageData[not['package-id']]"
             slot="end"
             fill="clear"
             color="dark"
