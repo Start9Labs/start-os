@@ -269,7 +269,7 @@ export class ServerShowPage {
   private async presentAlertInProgress(verb: string, message: string) {
     const alert = await this.alertCtrl.create({
       header: `${verb} In Progress...`,
-      message: `Stopping all services gracefully. This can take a while.<br /><br />Your Embassy will <b>♫ play a melody ♫</b> just before it goes offline, then it will become unreachable${message}`,
+      message: `Stopping all services gracefully. This can take a while.<br /><br />Your Embassy will then <b>♫ play a melody ♫</b> and become unreachable${message}`,
       buttons: [
         {
           text: 'OK',
