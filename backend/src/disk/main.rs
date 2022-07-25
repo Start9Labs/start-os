@@ -11,7 +11,7 @@ use crate::disk::mount::filesystem::block_dev::mount;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::util::unmount;
 use crate::util::Invoke;
-use crate::{Error, ResultExt};
+use crate::{Error, ErrorKind, ResultExt};
 
 pub const PASSWORD_PATH: &'static str = "/etc/embassy/password";
 pub const DEFAULT_PASSWORD: &'static str = "password";
@@ -183,6 +183,7 @@ pub async fn unmount_all_fs<P: AsRef<Path>>(guid: &str, datadir: P) -> Result<()
 
 #[instrument(skip(datadir))]
 pub async fn export<P: AsRef<Path>>(guid: &str, datadir: P) -> Result<(), Error> {
+    Command::new("sync").invoke(ErrorKind::Filesystem).await?;
     unmount_all_fs(guid, datadir).await?;
     Command::new("vgchange")
         .arg("-an")
