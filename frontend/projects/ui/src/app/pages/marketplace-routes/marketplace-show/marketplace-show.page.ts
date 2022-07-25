@@ -23,10 +23,7 @@ export class MarketplaceShowPage {
 
   readonly localPkg$ = this.patch
     .watch$('package-data', this.pkgId)
-    .pipe(
-      filter<PackageDataEntry>(Boolean),
-      shareReplay({ bufferSize: 1, refCount: true }),
-    )
+    .pipe(filter(Boolean), shareReplay({ bufferSize: 1, refCount: true }))
 
   readonly pkg$: Observable<MarketplacePkg | null> = this.loadVersion$.pipe(
     switchMap(version =>
