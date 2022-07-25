@@ -9,7 +9,7 @@ use crate::disk::main::export;
 use crate::init::{STANDBY_MODE_PATH, SYSTEM_REBUILD_PATH};
 use crate::sound::SHUTDOWN;
 use crate::util::{display_none, Invoke};
-use crate::Error;
+use crate::{Error, ErrorKind};
 
 #[derive(Debug, Clone)]
 pub struct Shutdown {
@@ -59,6 +59,12 @@ impl Shutdown {
                     tracing::error!("Error Playing Shutdown Song: {}", e);
                     tracing::debug!("{:?}", e);
                 }
+            } else {
+                tokio::fs::write(STANDBY_MODE_PATH, "").await.unwrap();
+                Command::new("sync")
+                    .invoke(ErrorKind::Filesystem)
+                    .await
+                    .unwrap();
             }
         });
         drop(rt);
