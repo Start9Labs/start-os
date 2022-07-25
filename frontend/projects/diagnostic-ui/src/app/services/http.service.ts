@@ -29,13 +29,7 @@ export class HttpService {
 function isRpcError<Error, Result>(
   arg: { error: Error } | { result: Result },
 ): arg is { error: Error } {
-  return !!(arg as any).error
-}
-
-function isRpcSuccess<Error, Result>(
-  arg: { error: Error } | { result: Result },
-): arg is { result: Result } {
-  return !isRpcError(arg)
+  return (arg as any).error !== undefined
 }
 
 export interface RPCOptions {
