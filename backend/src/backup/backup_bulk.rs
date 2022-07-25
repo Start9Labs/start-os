@@ -366,6 +366,7 @@ async fn perform_backup<Db: DbHandle>(
             .backup
             .create(
                 ctx,
+                &mut tx,
                 &package_id,
                 &manifest.title,
                 &manifest.version,
