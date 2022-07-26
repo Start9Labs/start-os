@@ -81,6 +81,12 @@ pub async fn init(cfg: &RpcContextConfig, product_key: &str) -> Result<(), Error
         .invoke(crate::ErrorKind::Journald)
         .await?;
     tracing::info!("Mounted Logs");
+    Command::new("sysctl")
+        .arg("-w")
+        .arg("fs.inotify.max_user_watches=1048576")
+        .invoke(crate::ErrorKind::Journald)
+        .await?;
+    tracing::info!("Set I Notify Max User Watches");
     let tmp_dir = cfg.datadir().join("package-data/tmp");
     if tokio::fs::metadata(&tmp_dir).await.is_err() {
         tokio::fs::create_dir_all(&tmp_dir).await?;
