@@ -1,6 +1,7 @@
 use emver::VersionRange;
 
-use super::{v0_3_0::V0_3_0_COMPAT, *};
+use super::v0_3_0::V0_3_0_COMPAT;
+use super::*;
 
 const V0_3_1: emver::Version = emver::Version::new(0, 3, 1, 0);
 

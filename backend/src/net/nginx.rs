@@ -91,35 +91,44 @@ impl NginxControllerInner {
         for (id, meta) in interface_map.iter() {
             for (port, lan_port_config) in meta.lan_config.iter() {
                 // get ssl certificate chain
-                let (listen_args, ssl_certificate_line, ssl_certificate_key_line, proxy_redirect_directive) =
-                    if lan_port_config.ssl {
-                        // these have already been written by the net controller
-                        let package_path = nginx_root.join(format!("ssl/{}", package));
-                        if tokio::fs::metadata(&package_path).await.is_err() {
-                            tokio::fs::create_dir_all(&package_path)
-                                .await
-                                .with_ctx(|_| {
-                                    (ErrorKind::Filesystem, package_path.display().to_string())
-                                })?;
-                        }
-                        let ssl_path_key = package_path.join(format!("{}.key.pem", id));
-                        let ssl_path_cert = package_path.join(format!("{}.cert.pem", id));
-                        let (key, chain) = ssl_manager
-                            .certificate_for(&meta.dns_base, &package)
-                            .await?;
-                        tokio::try_join!(
-                            crate::net::ssl::export_key(&key, &ssl_path_key),
-                            crate::net::ssl::export_cert(&chain, &ssl_path_cert)
-                        )?;
-                        (
-                            format!("{} ssl", port.0),
-                            format!("ssl_certificate {};", ssl_path_cert.to_str().unwrap()),
-                            format!("ssl_certificate_key {};", ssl_path_key.to_str().unwrap()),
-                            format!("proxy_redirect http://$host/ https://$host/;"),
-                        )
-                    } else {
-                        (format!("{}", port.0), String::from(""), String::from(""), String::from(""))
-                    };
+                let (
+                    listen_args,
+                    ssl_certificate_line,
+                    ssl_certificate_key_line,
+                    proxy_redirect_directive,
+                ) = if lan_port_config.ssl {
+                    // these have already been written by the net controller
+                    let package_path = nginx_root.join(format!("ssl/{}", package));
+                    if tokio::fs::metadata(&package_path).await.is_err() {
+                        tokio::fs::create_dir_all(&package_path)
+                            .await
+                            .with_ctx(|_| {
+                                (ErrorKind::Filesystem, package_path.display().to_string())
+                            })?;
+                    }
+                    let ssl_path_key = package_path.join(format!("{}.key.pem", id));
+                    let ssl_path_cert = package_path.join(format!("{}.cert.pem", id));
+                    let (key, chain) = ssl_manager
+                        .certificate_for(&meta.dns_base, &package)
+                        .await?;
+                    tokio::try_join!(
+                        crate::net::ssl::export_key(&key, &ssl_path_key),
+                        crate::net::ssl::export_cert(&chain, &ssl_path_cert)
+                    )?;
+                    (
+                        format!("{} ssl", port.0),
+                        format!("ssl_certificate {};", ssl_path_cert.to_str().unwrap()),
+                        format!("ssl_certificate_key {};", ssl_path_key.to_str().unwrap()),
+                        format!("proxy_redirect http://$host/ https://$host/;"),
+                    )
+                } else {
+                    (
+                        format!("{}", port.0),
+                        String::from(""),
+                        String::from(""),
+                        String::from(""),
+                    )
+                };
                 // write nginx configs
                 let nginx_conf_path = nginx_root.join(format!(
                     "sites-available/{}_{}_{}.conf",

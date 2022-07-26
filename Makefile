@@ -33,6 +33,10 @@ clean:
 	rm -rf patch-db/client/dist
 	sudo rm -rf cargo-deps
 
+format:
+	cd backend && cargo +nightly fmt
+	cd libs && cargo +nightly fmt
+
 sdk: 
 	cd backend/ && ./install-sdk.sh
 

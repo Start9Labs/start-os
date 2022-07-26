@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use color_eyre::eyre::eyre;
+pub use models::{PackageId, SYSTEM_PACKAGE_ID};
 use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -17,8 +18,6 @@ use crate::util::Version;
 use crate::version::{Current, VersionT};
 use crate::volume::Volumes;
 use crate::Error;
-
-pub use models::{PackageId, SYSTEM_PACKAGE_ID};
 
 fn current_version() -> Version {
     Current::new().semver().into()

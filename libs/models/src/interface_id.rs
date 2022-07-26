@@ -1,9 +1,8 @@
 use std::path::Path;
 
-use serde::{Serialize, Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::Id;
-
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct InterfaceId<S: AsRef<str> = String>(Id<S>);

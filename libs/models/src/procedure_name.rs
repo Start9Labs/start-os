@@ -1,5 +1,4 @@
-use crate::{PackageId, HealthCheckId, ActionId};
-
+use crate::{ActionId, HealthCheckId, PackageId};
 
 #[derive(Debug, Clone)]
 pub enum ProcedureName {
