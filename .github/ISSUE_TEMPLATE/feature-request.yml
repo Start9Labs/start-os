@@ -3,14 +3,14 @@ description: Suggest an idea for EmbassyOS
 title: '[feat]: '
 labels: [Enhancement]
 assignees:
-  - dr-bonez
+  - MattDHill
 body:
   - type: checkboxes
     attributes:
       label: Prerequisites
       description: Please confirm you have completed the following.
       options:
-        - label: I have searched for [existing issues](https://github.com/start9labs/embassy-os/issues) that already suggest this feature, without success.
+        - label: I have searched for [existing issues](https://github.com/start9labs/embassy-os/issues) that already suggest this feature.
           required: true
   - type: textarea
     attributes:

@@ -3,14 +3,14 @@ description: Create a report to help us improve EmbassyOS
 title: '[bug]: '
 labels: [Bug, Needs Triage]
 assignees:
-  - dr-bonez
+  - MattDHill
 body:
   - type: checkboxes
     attributes:
       label: Prerequisites
       description: Please confirm you have completed the following.
       options:
-        - label: I have searched for [existing issues](https://github.com/start9labs/embassy-os/issues) that already report this problem, without success.
+        - label: I have searched for [existing issues](https://github.com/start9labs/embassy-os/issues) that already report this problem.
           required: true
   - type: input
     attributes:
