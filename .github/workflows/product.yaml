@@ -144,7 +144,7 @@ jobs:
         key: cache-raspios
     
     - name: Build image
-      run: "make V=1 KEY=X0000000 eos.img --debug"
+      run: "make V=1 NO_KEY=1 eos.img --debug"
       
     - name: Compress image
       run: "gzip eos.img"
