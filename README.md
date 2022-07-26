@@ -1,5 +1,6 @@
 # EmbassyOS
-[![Version](https://img.shields.io/github/v/tag/Start9Labs/embassy-os?color=success)](https://github.com/Start9Labs/embassy-os/releases)
+[![version](https://img.shields.io/github/v/tag/Start9Labs/embassy-os?color=success)](https://github.com/Start9Labs/embassy-os/releases)
+[![build](https://github.com/Start9Labs/embassy-os/actions/workflows/product.yaml/badge.svg)](https://github.com/Start9Labs/embassy-os/actions/workflows/product.yaml)
 [![community](https://img.shields.io/badge/community-matrix-yellow)](https://matrix.to/#/#community:matrix.start9labs.com)
 [![community](https://img.shields.io/badge/community-telegram-informational)](https://t.me/start9_labs)
 [![support](https://img.shields.io/badge/support-docs-important)](https://docs.start9labs.com)
