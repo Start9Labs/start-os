@@ -2,25 +2,30 @@ use std::fmt;
 
 use futures::FutureExt;
 use rpc_toolkit::command;
+use rpc_toolkit::yajrc::RpcError;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use tokio::sync::broadcast::Receiver;
 use tokio::sync::RwLock;
 use tracing::instrument;
 
-use crate::context::RpcContext;
+use crate::context::{CliContext, RpcContext};
 use crate::disk::util::{get_available, get_used};
-use crate::logs::{display_logs, fetch_logs, FollowArgs, LogResponse, LogSource};
+use crate::logs::{cli_logs_generic, fetch_logs, FollowArgs, LogResponse, LogSource};
 use crate::shutdown::Shutdown;
+use crate::util::display_none;
 use crate::util::serde::{display_serializable, IoFormat};
 use crate::{Error, ErrorKind};
 
 pub const SYSTEMD_UNIT: &'static str = "embassyd";
 
-#[command(display(display_logs))]
+#[command(
+    custom_cli(cli_logs(async, context(CliContext))),
+    display(display_none)
+)]
 pub async fn logs(
     #[context] ctx: RpcContext,
-    #[arg] limit: Option<usize>,
-    #[arg] cursor: Option<String>,
+    #[arg(short = 'l', long = "limit")] limit: Option<usize>,
+    #[arg(short = 'c', long = "cursor")] cursor: Option<String>,
     #[arg(short = 'B', long = "before")] before: bool,
     #[arg(short = 'f', long = "follow")] follow: bool,
 ) -> Result<LogResponse, Error> {
@@ -38,11 +43,25 @@ pub async fn logs(
     .await?)
 }
 
-#[command(rename = "kernel-logs", display(display_logs))]
+pub async fn cli_logs(
+    ctx: CliContext,
+    limit: Option<usize>,
+    cursor: Option<String>,
+    before: bool,
+    follow: bool,
+) -> Result<(), RpcError> {
+    cli_logs_generic(ctx, "system.logs", None, limit, cursor, before, follow).await
+}
+
+#[command(
+    rename = "kernel-logs",
+    custom_cli(cli_kernel_logs(async, context(CliContext))),
+    display(display_none)
+)]
 pub async fn kernel_logs(
     #[context] ctx: RpcContext,
-    #[arg] limit: Option<usize>,
-    #[arg] cursor: Option<String>,
+    #[arg(short = 'l', long = "limit")] limit: Option<usize>,
+    #[arg(short = 'c', long = "cursor")] cursor: Option<String>,
     #[arg(short = 'B', long = "before")] before: bool,
     #[arg(short = 'f', long = "follow")] follow: bool,
 ) -> Result<LogResponse, Error> {
@@ -58,6 +77,25 @@ pub async fn kernel_logs(
         },
     )
     .await?)
+}
+
+pub async fn cli_kernel_logs(
+    ctx: CliContext,
+    limit: Option<usize>,
+    cursor: Option<String>,
+    before: bool,
+    follow: bool,
+) -> Result<(), RpcError> {
+    cli_logs_generic(
+        ctx,
+        "system.kernel-logs",
+        None,
+        limit,
+        cursor,
+        before,
+        follow,
+    )
+    .await
 }
 
 #[derive(Serialize, Deserialize)]

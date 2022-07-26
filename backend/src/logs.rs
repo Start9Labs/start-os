@@ -1,28 +1,32 @@
 use std::future::Future;
+use std::marker::PhantomData;
 use std::process::Stdio;
 use std::time::{Duration, UNIX_EPOCH};
 
 use chrono::{DateTime, Utc};
-use clap::ArgMatches;
 use color_eyre::eyre::eyre;
 use futures::{FutureExt, SinkExt, StreamExt, TryStreamExt};
 use hyper::upgrade::Upgraded;
 use hyper::Error as HyperError;
 use rpc_toolkit::command;
+use rpc_toolkit::yajrc::RpcError;
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio::task::JoinError;
 use tokio_stream::wrappers::LinesStream;
-use tokio_tungstenite::{tungstenite::Message, WebSocketStream};
+use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
+use tokio_tungstenite::tungstenite::protocol::CloseFrame;
+use tokio_tungstenite::tungstenite::Message;
+use tokio_tungstenite::WebSocketStream;
 use tracing::instrument;
 
-use crate::context::RpcContext;
+use crate::context::{CliContext, RpcContext};
 use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::error::ResultExt;
 use crate::procedure::docker::DockerProcedure;
 use crate::s9pk::manifest::PackageId;
-use crate::util::serde::Reversible;
+use crate::util::{display_none, serde::Reversible};
 use crate::{Error, ErrorKind};
 
 pub struct LogStream {
@@ -61,6 +65,14 @@ async fn ws_handler<
             .await
             .with_kind(ErrorKind::Network)?;
     }
+
+    stream
+        .close(Some(CloseFrame {
+            code: CloseCode::Normal,
+            reason: "Log Stream Finished".into(),
+        }))
+        .await
+        .with_kind(ErrorKind::Network)?;
 
     Ok(())
 }
@@ -164,23 +176,15 @@ pub enum LogSource {
     Container(PackageId),
 }
 
-pub fn display_logs(all: LogResponse, _: &ArgMatches) {
-    match all {
-        LogResponse::NoFollow { entries, .. } => {
-            for entry in entries.iter() {
-                println!("{}", entry);
-            }
-        }
-        LogResponse::Follow { guid, .. } => todo!(),
-    }
-}
-
-#[command(display(display_logs))]
+#[command(
+    custom_cli(cli_logs(async, context(CliContext))),
+    display(display_none)
+)]
 pub async fn logs(
     #[context] ctx: RpcContext,
     #[arg] id: PackageId,
-    #[arg] limit: Option<usize>,
-    #[arg] cursor: Option<String>,
+    #[arg(short = 'l', long = "limit")] limit: Option<usize>,
+    #[arg(short = 'c', long = "cursor")] cursor: Option<String>,
     #[arg(short = 'B', long = "before")] before: bool,
     #[arg(short = 'f', long = "follow")] follow: bool,
 ) -> Result<LogResponse, Error> {
@@ -197,9 +201,67 @@ pub async fn logs(
     )
     .await?)
 }
+pub async fn cli_logs(
+    ctx: CliContext,
+    id: PackageId,
+    limit: Option<usize>,
+    cursor: Option<String>,
+    before: bool,
+    follow: bool,
+) -> Result<(), RpcError> {
+    cli_logs_generic(ctx, "package.logs", Some(id), limit, cursor, before, follow).await
+}
 
 pub struct FollowArgs {
     pub ctx: RpcContext,
+}
+
+pub async fn cli_logs_generic(
+    ctx: CliContext,
+    method: &str,
+    id: Option<PackageId>,
+    limit: Option<usize>,
+    cursor: Option<String>,
+    before: bool,
+    follow: bool,
+) -> Result<(), RpcError> {
+    let res = rpc_toolkit::command_helpers::call_remote(
+        ctx.clone(),
+        method,
+        serde_json::json!({
+            "id": id,
+            "limit": limit,
+            "cursor": cursor,
+            "before": before,
+            "follow": follow,
+        }),
+        PhantomData::<LogResponse>,
+    )
+    .await?
+    .result?;
+
+    match res {
+        LogResponse::NoFollow { entries, .. } => {
+            for entry in entries.iter() {
+                println!("{}", entry);
+            }
+        }
+        LogResponse::Follow { guid, .. } => {
+            let (mut stream, _) =
+                tokio_tungstenite::connect_async(format!("{}/ws/rpc/{}", ctx.base_url, guid))
+                    .await?;
+            while let Some(log) = stream.try_next().await? {
+                match log {
+                    Message::Text(log) => {
+                        println!("{}", serde_json::from_str::<LogEntry>(&log)?);
+                    }
+                    _ => (),
+                }
+            }
+        }
+    }
+
+    Ok(())
 }
 
 #[instrument(skip(follow))]
