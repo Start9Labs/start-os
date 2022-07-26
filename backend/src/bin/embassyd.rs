@@ -343,6 +343,7 @@ fn main() {
                             e,
                         )
                         .await?;
+                        let mut shutdown = ctx.shutdown.subscribe();
                         rpc_server!({
                             command: embassy::diagnostic_api,
                             context: ctx.clone(),
@@ -360,7 +361,7 @@ fn main() {
                         })
                         .await
                         .with_kind(embassy::ErrorKind::Network)?;
-                        Ok::<_, Error>(None)
+                        Ok::<_, Error>(shutdown.recv().await.with_kind(crate::ErrorKind::Unknown)?)
                     })()
                     .await
                 }
