@@ -379,6 +379,7 @@ async fn write_stream_to_label<Db: DbHandle>(
     }
     file.flush().await.with_kind(ErrorKind::Filesystem)?;
     file.shutdown().await.with_kind(ErrorKind::Filesystem)?;
+    file.sync_all().await.with_kind(ErrorKind::Filesystem)?;
     drop(file);
     Ok(hasher.finalize().to_vec())
 }
