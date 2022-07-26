@@ -8,7 +8,7 @@ const V0_3_1_1: emver::Version = emver::Version::new(0, 3, 1, 1);
 pub struct Version;
 #[async_trait]
 impl VersionT for Version {
-    type Previous = v0_3_0_3::Version;
+    type Previous = v0_3_1::Version;
     fn new() -> Self {
         Version
     }

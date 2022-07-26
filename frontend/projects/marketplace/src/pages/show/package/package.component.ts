@@ -10,5 +10,5 @@ import { MarketplacePkg } from '../../../types/marketplace-pkg'
 })
 export class PackageComponent {
   @Input()
-  pkg: MarketplacePkg
+  pkg!: MarketplacePkg
 }

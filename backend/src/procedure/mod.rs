@@ -40,12 +40,15 @@ impl PackageProcedure {
     #[instrument]
     pub fn validate(
         &self,
+        eos_version: &Version,
         volumes: &Volumes,
         image_ids: &BTreeSet<ImageId>,
         expected_io: bool,
     ) -> Result<(), color_eyre::eyre::Report> {
         match self {
-            PackageProcedure::Docker(action) => action.validate(volumes, image_ids, expected_io),
+            PackageProcedure::Docker(action) => {
+                action.validate(eos_version, volumes, image_ids, expected_io)
+            }
 
             #[cfg(feature = "js_engine")]
             PackageProcedure::Script(action) => action.validate(volumes),

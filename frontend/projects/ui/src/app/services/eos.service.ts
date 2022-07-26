@@ -1,22 +1,22 @@
 import { Injectable } from '@angular/core'
+import { Emver } from '@start9labs/shared'
 import { BehaviorSubject, combineLatest } from 'rxjs'
+import { distinctUntilChanged, map } from 'rxjs/operators'
+
 import { MarketplaceEOS } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { Emver } from '@start9labs/shared'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { distinctUntilChanged, map } from 'rxjs/operators'
+import { getServerInfo } from 'src/app/util/get-server-info'
 
 @Injectable({
   providedIn: 'root',
 })
 export class EOSService {
-  eos: MarketplaceEOS
+  eos?: MarketplaceEOS
   updateAvailable$ = new BehaviorSubject<boolean>(false)
 
   readonly updating$ = this.patch.watch$('server-info', 'status-info').pipe(
-    map(status => {
-      return !!status['update-progress'] || status.updated
-    }),
+    map(status => !!status['update-progress'] || status.updated),
     distinctUntilChanged(),
   )
 
@@ -52,10 +52,9 @@ export class EOSService {
   ) {}
 
   async getEOS(): Promise<boolean> {
-    const server = this.patch.getData()['server-info']
-    const version = server.version
+    const { id, version } = await getServerInfo(this.patch)
     this.eos = await this.api.getEos({
-      'server-id': server.id,
+      'server-id': id,
       'eos-version': version,
     })
     const updateAvailable = this.emver.compare(this.eos.version, version) === 1

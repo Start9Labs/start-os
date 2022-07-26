@@ -8,9 +8,10 @@ import { BackupReport } from 'src/app/services/api/api.types'
   styleUrls: ['./backup-report.page.scss'],
 })
 export class BackupReportPage {
-  @Input() report: BackupReport
-  @Input() timestamp: string
-  system: {
+  @Input() report!: BackupReport
+  @Input() timestamp!: string
+
+  system!: {
     result: string
     icon: 'remove' | 'remove-circle-outline' | 'checkmark'
     color: 'dark' | 'danger' | 'success'

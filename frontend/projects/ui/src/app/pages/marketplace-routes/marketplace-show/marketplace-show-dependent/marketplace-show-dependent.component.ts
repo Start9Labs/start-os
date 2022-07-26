@@ -16,7 +16,7 @@ import { DependentInfo } from 'src/app/types/dependent-info'
 })
 export class MarketplaceShowDependentComponent {
   @Input()
-  pkg: MarketplacePkg
+  pkg!: MarketplacePkg
 
   readonly dependentInfo?: DependentInfo =
     this.document.defaultView?.history.state?.dependentInfo
@@ -24,10 +24,10 @@ export class MarketplaceShowDependentComponent {
   constructor(@Inject(DOCUMENT) private readonly document: Document) {}
 
   get title(): string {
-    return this.pkg?.manifest.title || ''
+    return this.pkg.manifest.title
   }
 
   get version(): string {
-    return this.pkg?.manifest.version || ''
+    return this.pkg.manifest.version
   }
 }

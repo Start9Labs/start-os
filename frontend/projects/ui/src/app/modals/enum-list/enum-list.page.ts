@@ -8,16 +8,17 @@ import { ValueSpecListOf } from 'src/app/pkg-config/config-types'
   styleUrls: ['./enum-list.page.scss'],
 })
 export class EnumListPage {
-  @Input() key: string
-  @Input() spec: ValueSpecListOf<'enum'>
-  @Input() current: string[]
+  @Input() key!: string
+  @Input() spec!: ValueSpecListOf<'enum'>
+  @Input() current: string[] = []
+
   options: { [option: string]: boolean } = {}
   selectAll = false
 
   constructor(private readonly modalCtrl: ModalController) {}
 
   ngOnInit() {
-    for (let val of this.spec.spec.values) {
+    for (let val of this.spec.spec.values || []) {
       this.options[val] = this.current.includes(val)
     }
     // if none are selected, set selectAll to true

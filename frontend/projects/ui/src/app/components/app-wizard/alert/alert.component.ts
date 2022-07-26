@@ -7,9 +7,8 @@ import { BaseSlide } from '../wizard-types'
   styleUrls: ['../app-wizard.component.scss'],
 })
 export class AlertComponent implements BaseSlide {
-  @Input() params: {
-    message: string
-  }
+  @Input()
+  params!: { message: string }
 
   async load() {}
 

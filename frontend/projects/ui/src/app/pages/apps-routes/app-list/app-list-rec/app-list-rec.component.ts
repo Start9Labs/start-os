@@ -26,7 +26,7 @@ export class AppListRecComponent {
   readonly delete$ = new Subject<RecoveredInfo>()
 
   @Input()
-  rec: RecoveredInfo
+  rec!: RecoveredInfo
 
   @Output()
   readonly deleted = new EventEmitter<void>()

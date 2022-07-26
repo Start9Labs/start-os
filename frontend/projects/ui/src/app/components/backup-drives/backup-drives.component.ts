@@ -25,11 +25,11 @@ type BackupType = 'create' | 'restore'
   styleUrls: ['./backup-drives.component.scss'],
 })
 export class BackupDrivesComponent {
-  @Input() type: BackupType
+  @Input() type!: BackupType
   @Output() onSelect: EventEmitter<
     MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>
   > = new EventEmitter()
-  loadingText: string
+  loadingText = ''
 
   constructor(
     private readonly loadingCtrl: LoadingController,
@@ -38,8 +38,24 @@ export class BackupDrivesComponent {
     private readonly modalCtrl: ModalController,
     private readonly embassyApi: ApiService,
     private readonly errToast: ErrorToastService,
-    public readonly backupService: BackupService,
+    private readonly backupService: BackupService,
   ) {}
+
+  get loading() {
+    return this.backupService.loading
+  }
+
+  get loadingError() {
+    return this.backupService.loadingError
+  }
+
+  get drives() {
+    return this.backupService.drives
+  }
+
+  get cifs() {
+    return this.backupService.cifs
+  }
 
   ngOnInit() {
     this.loadingText =
@@ -234,10 +250,14 @@ export class BackupDrivesComponent {
   styleUrls: ['./backup-drives.component.scss'],
 })
 export class BackupDrivesHeaderComponent {
-  @Input() type: BackupType
+  @Input() type!: BackupType
   @Output() onClose: EventEmitter<void> = new EventEmitter()
 
-  constructor(public readonly backupService: BackupService) {}
+  constructor(private readonly backupService: BackupService) {}
+
+  get loading() {
+    return this.backupService.loading
+  }
 
   refresh() {
     this.backupService.getBackupTargets()
@@ -250,8 +270,8 @@ export class BackupDrivesHeaderComponent {
   styleUrls: ['./backup-drives.component.scss'],
 })
 export class BackupDrivesStatusComponent {
-  @Input() type: string
-  @Input() hasValidBackup: boolean
+  @Input() type!: BackupType
+  @Input() hasValidBackup!: boolean
 }
 
 const CifsSpec: ConfigSpec = {

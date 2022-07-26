@@ -22,7 +22,8 @@ SwiperCore.use([IonicSlides])
   styleUrls: ['./app-wizard.component.scss'],
 })
 export class AppWizardComponent {
-  @Input() params: {
+  @Input()
+  params!: {
     action: WizardAction
     title: string
     slides: SlideDefinition[]
@@ -31,16 +32,17 @@ export class AppWizardComponent {
   }
 
   // content container so we can scroll to top between slide transitions
-  @ViewChild(IonContent) content: IonContent
+  @ViewChild(IonContent)
+  content?: IonContent
 
-  swiper: Swiper
+  swiper?: Swiper
 
   //a slide component gives us hook into a slide. Allows us to call load when slide comes into view
   @ViewChildren('components')
-  slideComponentsQL: QueryList<BaseSlide>
+  slideComponentsQL?: QueryList<BaseSlide>
 
   get slideComponents(): BaseSlide[] {
-    return this.slideComponentsQL.toArray()
+    return this.slideComponentsQL?.toArray() || []
   }
 
   get currentSlide(): BaseSlide {
@@ -48,7 +50,7 @@ export class AppWizardComponent {
   }
 
   get currentIndex(): number {
-    return this.swiper.activeIndex
+    return this.swiper?.activeIndex || NaN
   }
 
   initializing = true
@@ -58,7 +60,7 @@ export class AppWizardComponent {
 
   ionViewDidEnter() {
     this.initializing = false
-    this.swiper.allowTouchMove = false
+    if (this.swiper) this.swiper.allowTouchMove = false
     this.loadSlide()
   }
 
@@ -71,8 +73,8 @@ export class AppWizardComponent {
   }
 
   async next() {
-    await this.content.scrollToTop()
-    this.swiper.slideNext(500)
+    await this.content?.scrollToTop()
+    this.swiper?.slideNext(500)
   }
 
   setError(e: any) {

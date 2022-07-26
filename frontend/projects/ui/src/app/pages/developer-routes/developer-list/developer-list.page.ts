@@ -28,7 +28,7 @@ import { takeUntil } from 'rxjs/operators'
   providers: [DestroyService],
 })
 export class DeveloperListPage {
-  devData: DevData
+  devData: DevData = {}
 
   constructor(
     private readonly modalCtrl: ModalController,

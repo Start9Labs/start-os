@@ -18,3 +18,6 @@ alias 'rust-musl-builder'='docker run $USE_TTY --rm -v "$HOME"/.cargo/registry:/
 cd ..
 rust-musl-builder sh -c "(cd backend && cargo +beta build --target=x86_64-unknown-linux-musl --no-default-features)"
 cd backend
+
+sudo chown -R $USER target
+sudo chown -R $USER ~/.cargo

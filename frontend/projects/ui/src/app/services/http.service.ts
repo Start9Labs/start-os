@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http'
-import { Observable, from, interval, race } from 'rxjs'
+import { from, interval, Observable, race } from 'rxjs'
 import { map, take } from 'rxjs/operators'
 import { ConfigService } from './config.service'
 import { Revision } from 'patch-db-client'
@@ -40,7 +40,7 @@ export class HttpService {
       throw new RpcError(res.error)
     }
 
-    if (isRpcSuccess(res)) return res.result
+    return res.result
   }
 
   async httpRequest<T>(httpOpts: HttpOptions): Promise<T> {
@@ -102,13 +102,7 @@ export class HttpService {
 function isRpcError<Error, Result>(
   arg: { error: Error } | { result: Result },
 ): arg is { error: Error } {
-  return !!(arg as any).error
-}
-
-function isRpcSuccess<Error, Result>(
-  arg: { error: Error } | { result: Result },
-): arg is { result: Result } {
-  return !!(arg as any).result
+  return (arg as any).error !== undefined
 }
 
 export interface RequestError {

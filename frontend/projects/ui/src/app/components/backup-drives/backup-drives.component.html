@@ -3,17 +3,17 @@
 <ion-content class="ion-padding">
   <!-- loading -->
   <text-spinner
-    *ngIf="backupService.loading; else loaded"
+    *ngIf="loading; else loaded"
     [text]="loadingText"
   ></text-spinner>
 
   <!-- loaded -->
   <ng-template #loaded>
     <!-- error -->
-    <ion-item *ngIf="backupService.loadingError; else noError">
+    <ion-item *ngIf="loadingError; else noError">
       <ion-label>
         <ion-text color="danger">
-          {{ backupService.loadingError }}
+          {{ loadingError }}
         </ion-text>
       </ion-label>
     </ion-item>
@@ -49,7 +49,7 @@
           </ion-label>
         </ion-item>
         <!-- cifs list -->
-        <ng-container *ngFor="let target of backupService.cifs; let i = index">
+        <ng-container *ngFor="let target of cifs; let i = index">
           <ion-item
             button
             *ngIf="target.entry as cifs"
@@ -91,7 +91,7 @@
         <ion-item-divider>Physical Drives</ion-item-divider>
         <!-- no drives -->
         <ion-item
-          *ngIf="!backupService.drives.length; else hasDrives"
+          *ngIf="!drives.length; else hasDrives"
           class="ion-padding-bottom"
         >
           <ion-label>
@@ -119,7 +119,7 @@
         <ng-template #hasDrives>
           <ion-item
             button
-            *ngFor="let target of backupService.drives"
+            *ngFor="let target of drives"
             (click)="select(target)"
           >
             <ion-icon slot="start" name="save-outline" size="large"></ion-icon>

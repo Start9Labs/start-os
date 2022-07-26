@@ -25,22 +25,31 @@ pub struct Migrations {
 }
 impl Migrations {
     #[instrument]
-    pub fn validate(&self, volumes: &Volumes, image_ids: &BTreeSet<ImageId>) -> Result<(), Error> {
+    pub fn validate(
+        &self,
+        eos_version: &Version,
+        volumes: &Volumes,
+        image_ids: &BTreeSet<ImageId>,
+    ) -> Result<(), Error> {
         for (version, migration) in &self.from {
-            migration.validate(volumes, image_ids, true).with_ctx(|_| {
-                (
-                    crate::ErrorKind::ValidateS9pk,
-                    format!("Migration from {}", version),
-                )
-            })?;
+            migration
+                .validate(eos_version, volumes, image_ids, true)
+                .with_ctx(|_| {
+                    (
+                        crate::ErrorKind::ValidateS9pk,
+                        format!("Migration from {}", version),
+                    )
+                })?;
         }
         for (version, migration) in &self.to {
-            migration.validate(volumes, image_ids, true).with_ctx(|_| {
-                (
-                    crate::ErrorKind::ValidateS9pk,
-                    format!("Migration to {}", version),
-                )
-            })?;
+            migration
+                .validate(eos_version, volumes, image_ids, true)
+                .with_ctx(|_| {
+                    (
+                        crate::ErrorKind::ValidateS9pk,
+                        format!("Migration to {}", version),
+                    )
+                })?;
         }
         Ok(())
     }

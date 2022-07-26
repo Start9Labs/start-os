@@ -97,10 +97,18 @@ where
         receipts: &InitReceipts,
     ) -> Result<(), Error> {
         let previous = Self::Previous::new();
-        if version.semver() != previous.semver() {
+        if version.semver() < previous.semver() {
             previous
                 .migrate_from_unchecked(version, db, receipts)
                 .await?;
+        } else if version.semver() > previous.semver() {
+            return Err(Error::new(
+                eyre!(
+                    "NO PATH FROM {}, THIS IS LIKELY A MISTAKE IN THE VERSION DEFINITION",
+                    version.semver()
+                ),
+                crate::ErrorKind::MigrationFailed,
+            ));
         }
         tracing::info!("{} -> {}", previous.semver(), self.semver(),);
         self.up(db).await?;
@@ -117,10 +125,18 @@ where
         tracing::info!("{} -> {}", self.semver(), previous.semver(),);
         self.down(db).await?;
         previous.commit(db, receipts).await?;
-        if version.semver() != previous.semver() {
+        if version.semver() < previous.semver() {
             previous
                 .rollback_to_unchecked(version, db, receipts)
                 .await?;
+        } else if version.semver() > previous.semver() {
+            return Err(Error::new(
+                eyre!(
+                    "NO PATH TO {}, THIS IS LIKELY A MISTAKE IN THE VERSION DEFINITION",
+                    version.semver()
+                ),
+                crate::ErrorKind::MigrationFailed,
+            ));
         }
         Ok(())
     }

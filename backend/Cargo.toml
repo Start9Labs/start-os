@@ -67,7 +67,7 @@ divrem = "1.0.0"
 ed25519 = { version = "1.5.2", features = ["pkcs8", "pem", "alloc"] }
 ed25519-dalek = { version = "1.0.1", features = ["serde"] }
 emver = { version = "0.1.6", features = ["serde"] }
-fd-lock-rs = "0.1.3"
+fd-lock-rs = "0.1.4"
 futures = "0.3.21"
 git-version = "0.3.5"
 helpers = { path = "../libs/helpers" }
@@ -129,7 +129,6 @@ stderrlog = "0.5.3"
 tar = "0.4.38"
 thiserror = "1.0.31"
 tokio = { version = "1.19.2", features = ["full"] }
-tokio-compat-02 = "0.2.0"
 tokio-stream = { version = "0.1.9", features = ["io-util", "sync"] }
 tokio-tar = { git = "https://github.com/dr-bonez/tokio-tar.git" }
 tokio-tungstenite = "0.17.1"

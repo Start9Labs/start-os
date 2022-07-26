@@ -1,5 +1,5 @@
-import { Component, ViewChild } from '@angular/core'
-import { IonContent, ToastController } from '@ionic/angular'
+import { Component } from '@angular/core'
+import { ToastController } from '@ionic/angular'
 import { copyToClipboard } from 'src/app/util/web.util'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { ConfigService } from 'src/app/services/config.service'
@@ -10,18 +10,16 @@ import { ConfigService } from 'src/app/services/config.service'
   styleUrls: ['./server-specs.page.scss'],
 })
 export class ServerSpecsPage {
-  @ViewChild(IonContent) content: IonContent
-
   readonly server$ = this.patch.watch$('server-info')
 
   constructor(
     private readonly toastCtrl: ToastController,
     private readonly patch: PatchDbService,
-    public readonly config: ConfigService,
+    private readonly config: ConfigService,
   ) {}
 
-  ngAfterViewInit() {
-    this.content.scrollToPoint(undefined, 1)
+  get gitHash(): string {
+    return this.config.gitHash
   }
 
   async copy(address: string) {

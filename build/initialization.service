@@ -8,6 +8,7 @@ Restart=on-failure
 RestartSec=5s
 ExecStart=/usr/local/bin/initialization.sh
 RemainAfterExit=true
+StandardOutput=append:/var/log/initialization.log
 
 [Install]
 WantedBy=multi-user.target

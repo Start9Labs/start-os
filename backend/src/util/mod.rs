@@ -11,8 +11,7 @@ use async_trait::async_trait;
 use clap::ArgMatches;
 use color_eyre::eyre::{self, eyre};
 use fd_lock_rs::FdLock;
-use futures::future::BoxFuture;
-use futures::FutureExt;
+use helpers::canonicalize;
 pub use helpers::NonDetachingJoinHandle;
 use lazy_static::lazy_static;
 pub use models::Version;
@@ -23,7 +22,7 @@ use tokio::sync::{Mutex, OwnedMutexGuard, RwLock};
 use tracing::instrument;
 
 use crate::shutdown::Shutdown;
-use crate::{Error, ResultExt as _};
+use crate::{Error, ErrorKind, ResultExt as _};
 pub mod config;
 pub mod io;
 pub mod logger;
@@ -273,40 +272,6 @@ impl<F: FnOnce() -> T, T> Drop for GeneralGuard<F, T> {
     }
 }
 
-pub async fn canonicalize(
-    path: impl AsRef<Path> + Send + Sync,
-    create_parent: bool,
-) -> Result<PathBuf, Error> {
-    fn create_canonical_folder<'a>(
-        path: impl AsRef<Path> + Send + Sync + 'a,
-    ) -> BoxFuture<'a, Result<PathBuf, Error>> {
-        async move {
-            let path = canonicalize(path, true).await?;
-            tokio::fs::create_dir(&path)
-                .await
-                .with_ctx(|_| (crate::ErrorKind::Filesystem, path.display().to_string()))?;
-            Ok(path)
-        }
-        .boxed()
-    }
-    let path = path.as_ref();
-    if tokio::fs::metadata(path).await.is_err() {
-        if let (Some(parent), Some(file_name)) = (path.parent(), path.file_name()) {
-            if create_parent && tokio::fs::metadata(parent).await.is_err() {
-                return Ok(create_canonical_folder(parent).await?.join(file_name));
-            } else {
-                return Ok(tokio::fs::canonicalize(parent)
-                    .await
-                    .with_ctx(|_| (crate::ErrorKind::Filesystem, parent.display().to_string()))?
-                    .join(file_name));
-            }
-        }
-    }
-    tokio::fs::canonicalize(&path)
-        .await
-        .with_ctx(|_| (crate::ErrorKind::Filesystem, path.display().to_string()))
-}
-
 pub struct FileLock(OwnedMutexGuard<()>, Option<FdLock<File>>);
 impl Drop for FileLock {
     fn drop(&mut self) {
@@ -322,7 +287,9 @@ impl FileLock {
             static ref INTERNAL_LOCKS: Mutex<BTreeMap<PathBuf, Arc<Mutex<()>>>> =
                 Mutex::new(BTreeMap::new());
         }
-        let path = canonicalize(path.as_ref(), true).await?;
+        let path = canonicalize(path.as_ref(), true)
+            .await
+            .with_kind(ErrorKind::Filesystem)?;
         let mut internal_locks = INTERNAL_LOCKS.lock().await;
         if !internal_locks.contains_key(&path) {
             internal_locks.insert(path.clone(), Arc::new(Mutex::new(())));
@@ -360,60 +327,5 @@ impl FileLock {
                 .with_kind(crate::ErrorKind::Filesystem)?;
         }
         Ok(())
-    }
-}
-
-pub struct AtomicFile {
-    tmp_path: PathBuf,
-    path: PathBuf,
-    file: File,
-}
-impl AtomicFile {
-    pub async fn new(path: impl AsRef<Path> + Send + Sync) -> Result<Self, Error> {
-        let path = canonicalize(&path, true).await?;
-        let tmp_path = if let (Some(parent), Some(file_name)) =
-            (path.parent(), path.file_name().and_then(|f| f.to_str()))
-        {
-            parent.join(format!(".{}.tmp", file_name))
-        } else {
-            return Err(Error::new(
-                eyre!("invalid path: {}", path.display()),
-                crate::ErrorKind::Filesystem,
-            ));
-        };
-        let file = File::create(&tmp_path)
-            .await
-            .with_ctx(|_| (crate::ErrorKind::Filesystem, tmp_path.display().to_string()))?;
-        Ok(Self {
-            tmp_path,
-            path,
-            file,
-        })
-    }
-
-    pub async fn save(mut self) -> Result<(), Error> {
-        use tokio::io::AsyncWriteExt;
-        self.file.flush().await?;
-        self.file.shutdown().await?;
-        self.file.sync_all().await?;
-        tokio::fs::rename(&self.tmp_path, &self.path)
-            .await
-            .with_ctx(|_| {
-                (
-                    crate::ErrorKind::Filesystem,
-                    format!("mv {} -> {}", self.tmp_path.display(), self.path.display()),
-                )
-            })
-    }
-}
-impl std::ops::Deref for AtomicFile {
-    type Target = File;
-    fn deref(&self) -> &Self::Target {
-        &self.file
-    }
-}
-impl std::ops::DerefMut for AtomicFile {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.file
     }
 }

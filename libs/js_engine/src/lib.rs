@@ -261,6 +261,7 @@ impl JsExecutionEnvironment {
             fns::read_file::decl(),
             fns::metadata::decl(),
             fns::write_file::decl(),
+            fns::rename::decl(),
             fns::remove_file::decl(),
             fns::create_dir::decl(),
             fns::remove_dir::decl(),
@@ -356,8 +357,10 @@ mod fns {
     use deno_core::anyhow::{anyhow, bail};
     use deno_core::error::AnyError;
     use deno_core::*;
+    use helpers::{to_tmp_path, AtomicFile};
     use models::VolumeId;
     use serde_json::Value;
+    use tokio::io::AsyncWriteExt;
 
     use super::{AnswerState, JsContext};
     use crate::{system_time_as_unix_ms, MetadataJs};
@@ -523,7 +526,7 @@ mod fns {
             bail!("Volume {} is readonly", volume_id);
         }
 
-        let new_file = volume_path.join(path_in);
+        let new_file = volume_path.join(&path_in);
         let parent_new_file = new_file
             .parent()
             .ok_or_else(|| anyhow!("Expecting that file is not root"))?;
@@ -535,7 +538,72 @@ mod fns {
                 volume_path.to_string_lossy(),
             );
         }
-        tokio::fs::write(new_file, write).await?;
+        let new_volume_tmp = to_tmp_path(&volume_path).map_err(|e| anyhow!("{}", e))?;
+        let hashed_name = {
+            use sha2::{Digest, Sha256};
+            use std::os::unix::ffi::OsStrExt;
+            let mut hasher = Sha256::new();
+
+            hasher.update(path_in.as_os_str().as_bytes());
+            let result = hasher.finalize();
+            format!("{:X}", result)
+        };
+        let temp_file = new_volume_tmp.join(&hashed_name);
+        let mut file = AtomicFile::new(&new_file, Some(&temp_file))
+            .await
+            .map_err(|e| anyhow!("{}", e))?;
+        file.write_all(write.as_bytes()).await?;
+        file.save().await.map_err(|e| anyhow!("{}", e))?;
+        Ok(())
+    }
+    #[op]
+    async fn rename(
+        state: Rc<RefCell<OpState>>,
+        src_volume: VolumeId,
+        src_path: PathBuf,
+        dst_volume: VolumeId,
+        dst_path: PathBuf,
+    ) -> Result<(), AnyError> {
+        let state = state.borrow();
+        let ctx: &JsContext = state.borrow();
+        let volume_path = ctx
+            .volumes
+            .path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &src_volume)
+            .ok_or_else(|| anyhow!("There is no {} in volumes", src_volume))?;
+        let volume_path_out = ctx
+            .volumes
+            .path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &dst_volume)
+            .ok_or_else(|| anyhow!("There is no {} in volumes", dst_volume))?;
+        if ctx.volumes.readonly(&dst_volume) {
+            bail!("Volume {} is readonly", dst_volume);
+        }
+
+        let old_file = volume_path.join(src_path);
+        let parent_old_file = old_file
+            .parent()
+            .ok_or_else(|| anyhow!("Expecting that file is not root"))?;
+        // With the volume check
+        if !is_subset(&volume_path, &parent_old_file).await? {
+            bail!(
+                "Path '{}' has broken away from parent '{}'",
+                old_file.to_string_lossy(),
+                volume_path.to_string_lossy(),
+            );
+        }
+
+        let new_file = volume_path_out.join(dst_path);
+        let parent_new_file = new_file
+            .parent()
+            .ok_or_else(|| anyhow!("Expecting that file is not root"))?;
+        // With the volume check
+        if !is_subset(&volume_path_out, &parent_new_file).await? {
+            bail!(
+                "Path '{}' has broken away from parent '{}'",
+                new_file.to_string_lossy(),
+                volume_path_out.to_string_lossy(),
+            );
+        }
+        tokio::fs::rename(old_file, new_file).await?;
         Ok(())
     }
     #[op]

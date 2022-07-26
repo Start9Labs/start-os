@@ -11,7 +11,7 @@ function partition_for () {
 }
 
 # Write contents of LOOPDEV (Ubuntu image) to sd card and make filesystems, then detach the loop device
-echo USING $LOOPDEV TO IMAGE $OUTPUT_DEVICE
+echo USING $LOOPDEV TO IMAGE $OUTPUT_DEVICE WITH ENVIRONMENT $ENVIRONMENT
 sudo dd if=${LOOPDEV}p1 of=`partition_for ${OUTPUT_DEVICE} 1` bs=1M iflag=fullblock oflag=direct conv=fsync status=progress
 sudo mkfs.vfat -F 32 `partition_for ${OUTPUT_DEVICE} 2`
 sudo dd if=${LOOPDEV}p2 of=`partition_for ${OUTPUT_DEVICE} 3` bs=1M iflag=fullblock oflag=direct conv=fsync status=progress
@@ -29,17 +29,11 @@ sudo e2label `partition_for ${OUTPUT_DEVICE} 4` blue
 mkdir -p /tmp/eos-mnt
 sudo mount `partition_for ${OUTPUT_DEVICE} 1` /tmp/eos-mnt
 
-if [[ "$ENVIRONMENT" =~ (^|-)dev($|-) ]]; then
-	sudo cp build/user-data-dev /tmp/eos-mnt/user-data
-else
-	sudo cp build/user-data /tmp/eos-mnt/user-data
-fi
-
 sudo sed -i 's/PARTUUID=cb15ae4d-02/PARTUUID=cb15ae4d-03/g' /tmp/eos-mnt/cmdline.txt
 sudo sed -i 's/ init=\/usr\/lib\/raspi-config\/init_resize.sh//g' /tmp/eos-mnt/cmdline.txt
 
-cat /tmp/eos-mnt/config.txt | grep -v "dtoverlay=" | sudo tee /tmp/eos-mnt/config.txt.tmp
-echo "dtoverlay=pwm-2chan,disable-bt" | sudo tee -a /tmp/eos-mnt/config.txt.tmp
+cat /tmp/eos-mnt/config.txt | grep -v "dtoverlay=" | sudo tee /tmp/eos-mnt/config.txt.tmp > /dev/null
+echo "dtoverlay=pwm-2chan,disable-bt" | sudo tee -a /tmp/eos-mnt/config.txt.tmp > /dev/null
 sudo mv /tmp/eos-mnt/config.txt.tmp /tmp/eos-mnt/config.txt
 sudo touch /tmp/eos-mnt/ssh
 
@@ -51,10 +45,17 @@ sudo umount /tmp/eos-mnt
 
 sudo mount `partition_for ${OUTPUT_DEVICE} 3` /tmp/eos-mnt
 
-sudo mkdir  /tmp/eos-mnt/media/boot-rw
-sudo mkdir  /tmp/eos-mnt/embassy-os
+sudo mkdir /tmp/eos-mnt/media/boot-rw
+sudo mkdir /tmp/eos-mnt/embassy-os
+sudo mkdir /tmp/eos-mnt/etc/embassy
+sudo cp ENVIRONMENT.txt /tmp/eos-mnt/etc/embassy
+sudo cp GIT_HASH.txt /tmp/eos-mnt/etc/embassy
 sudo cp build/fstab /tmp/eos-mnt/etc/fstab
 sudo cp build/journald.conf /tmp/eos-mnt/etc/systemd/journald.conf
+
+# copy over cargo dependencies
+sudo cp cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast /tmp/eos-mnt/usr/local/bin
+
 # Enter the backend directory, copy over the built EmbassyOS binaries and systemd services, edit the nginx config, then create the .ssh directory
 cd backend/
 
@@ -97,5 +98,7 @@ fi
 
 sudo cp ./build/initialization.service /tmp/eos-mnt/etc/systemd/system/initialization.service
 sudo ln -s /etc/systemd/system/initialization.service /tmp/eos-mnt/etc/systemd/system/multi-user.target.wants/initialization.service
+sudo cp ./build/nc-broadcast.service /tmp/eos-mnt/etc/systemd/system/nc-broadcast.service
+sudo ln -s /etc/systemd/system/nc-broadcast.service /tmp/eos-mnt/etc/systemd/system/multi-user.target.wants/nc-broadcast.service
 
 sudo umount /tmp/eos-mnt

@@ -3,7 +3,7 @@
     <ion-buttons slot="start">
       <ion-back-button defaultHref="/developer"></ion-back-button>
     </ion-buttons>
-    <ion-title>{{ name }}</ion-title>
+    <ion-title>{{ (projectData$ | async)?.name || '' }}</ion-title>
     <ion-buttons slot="end">
       <ion-button routerLink="manifest">View Manifest</ion-button>
     </ion-buttons>

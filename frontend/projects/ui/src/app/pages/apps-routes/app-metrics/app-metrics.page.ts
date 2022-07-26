@@ -1,10 +1,7 @@
-import { Component, ViewChild } from '@angular/core'
+import { Component } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { IonContent } from '@ionic/angular'
-import { Subscription } from 'rxjs'
 import { Metric } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { MainStatus } from 'src/app/services/patch-db/data-model'
 import { pauseFor, ErrorToastService, getPkgId } from '@start9labs/shared'
 
 @Component({
@@ -15,12 +12,8 @@ import { pauseFor, ErrorToastService, getPkgId } from '@start9labs/shared'
 export class AppMetricsPage {
   loading = true
   readonly pkgId = getPkgId(this.route)
-  mainStatus: MainStatus
   going = false
-  metrics: Metric
-  subs: Subscription[] = []
-
-  @ViewChild(IonContent) content: IonContent
+  metrics?: Metric
 
   constructor(
     private readonly route: ActivatedRoute,
@@ -30,10 +23,6 @@ export class AppMetricsPage {
 
   ngOnInit() {
     this.startDaemon()
-  }
-
-  ngAfterViewInit() {
-    this.content.scrollToPoint(undefined, 1)
   }
 
   ngOnDestroy() {

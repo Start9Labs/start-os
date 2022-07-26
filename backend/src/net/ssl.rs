@@ -12,10 +12,12 @@ use openssl::pkey::{PKey, Private};
 use openssl::x509::{X509Builder, X509Extension, X509NameBuilder, X509};
 use openssl::*;
 use sqlx::SqlitePool;
+use tokio::process::Command;
 use tokio::sync::Mutex;
 use tracing::instrument;
 
 use crate::s9pk::manifest::PackageId;
+use crate::util::Invoke;
 use crate::{Error, ErrorKind, ResultExt};
 
 static CERTIFICATE_VERSION: i32 = 2; // X509 version 3 is actually encoded as '2' in the cert because fuck you.
@@ -180,6 +182,17 @@ impl SslManager {
         )
         .await?;
         tokio::fs::write(ROOT_CA_STATIC_PATH, root_cert.to_pem()?).await?;
+
+        // write to ca cert store
+        tokio::fs::write(
+            "/usr/local/share/ca-certificates/embassy-root-ca.crt",
+            root_cert.to_pem()?,
+        )
+        .await?;
+        Command::new("update-ca-certificates")
+            .invoke(crate::ErrorKind::OpenSsl)
+            .await?;
+
         let (int_key, int_cert) = match store.load_intermediate_certificate().await? {
             None => {
                 let int_key = generate_key()?;

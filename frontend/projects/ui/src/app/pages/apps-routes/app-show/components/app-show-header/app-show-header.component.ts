@@ -9,5 +9,5 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 })
 export class AppShowHeaderComponent {
   @Input()
-  pkg: PackageDataEntry
+  pkg!: PackageDataEntry
 }

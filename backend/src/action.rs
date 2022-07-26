@@ -57,9 +57,14 @@ pub struct Action {
 }
 impl Action {
     #[instrument]
-    pub fn validate(&self, volumes: &Volumes, image_ids: &BTreeSet<ImageId>) -> Result<(), Error> {
+    pub fn validate(
+        &self,
+        eos_version: &Version,
+        volumes: &Volumes,
+        image_ids: &BTreeSet<ImageId>,
+    ) -> Result<(), Error> {
         self.implementation
-            .validate(volumes, image_ids, true)
+            .validate(eos_version, volumes, image_ids, true)
             .with_ctx(|_| {
                 (
                     crate::ErrorKind::ValidateS9pk,

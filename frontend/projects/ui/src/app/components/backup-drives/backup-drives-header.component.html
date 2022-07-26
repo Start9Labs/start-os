@@ -7,7 +7,7 @@
       type === 'create' ? 'Create Backup' : 'Restore From Backup'
     }}</ion-title>
     <ion-buttons slot="end">
-      <ion-button [disabled]="backupService.loading" (click)="refresh()">
+      <ion-button [disabled]="loading" (click)="refresh()">
         Refresh
         <ion-icon slot="end" name="refresh"></ion-icon>
       </ion-button>

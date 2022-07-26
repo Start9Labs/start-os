@@ -127,6 +127,7 @@ sed -i 's/^/usb-storage.quirks=152d:0562:u,14cd:121c:u,0781:cfcb:u /g' /boot/cmd
 # making that *sudo docker stats* command fulfil its purpose by displaying all metrics
 sed -i 's/rootwait quiet.*/rootwait cgroup_enable=cpuset cgroup_memory=1 cgroup_enable=memory quiet/g' /boot/cmdline.txt
 
+systemctl disable nc-broadcast.service
 systemctl disable initialization.service
 sudo systemctl restart NetworkManager
 

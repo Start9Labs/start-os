@@ -771,5 +771,50 @@ export const action = {
               qr: false,
           }
       }
+  },
+  async 'test-rename'(effects, _input) {
+
+    await effects.writeFile({
+      volumeId: 'main',
+      path: 'test-rename.txt',
+      toWrite: 'Hello World',
+    });
+    await effects.rename({
+      srcVolume: 'main',
+      srcPath: 'test-rename.txt',
+      dstVolume: 'main',
+      dstPath: 'test-rename-2.txt',
+    });
+
+    const readIn = await effects.readFile({
+      volumeId: 'main',
+      path: 'test-rename-2.txt',
+    });
+    assert(readIn === 'Hello World', "Contents should be the same");
+
+    await effects.removeFile({
+      path: "test-rename-2.txt",
+      volumeId: "main",
+    });
+
+    try{
+
+      await effects.removeFile({
+        path: "test-rename.txt",
+        volumeId: "main",
+      });
+      assert(false, "Should not be able to remove file that doesn't exist");
+    }
+    catch (_){}
+
+
+      return {
+          result: {
+              copyable: false,
+              message: "Done",
+              version: "0",
+              qr: false,
+          }
+      }
   }
 }

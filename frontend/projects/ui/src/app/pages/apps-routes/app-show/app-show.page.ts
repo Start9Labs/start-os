@@ -11,7 +11,7 @@ import {
   PackageStatus,
   PrimaryStatus,
 } from 'src/app/services/pkg-status-rendering.service'
-import { map, startWith, filter } from 'rxjs/operators'
+import { filter, tap } from 'rxjs/operators'
 import { ActivatedRoute } from '@angular/router'
 import { getPkgId } from '@start9labs/shared'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
@@ -36,19 +36,16 @@ export class AppShowPage {
   private readonly pkgId = getPkgId(this.route)
 
   readonly pkg$ = this.patch.watch$('package-data', this.pkgId).pipe(
-    map(pkg => {
+    tap(pkg => {
       // if package disappears, navigate to list page
       if (!pkg) {
         this.navCtrl.navigateRoot('/services')
       }
-
-      return { ...pkg }
     }),
-    startWith(this.patch.getData()['package-data'][this.pkgId]),
     filter(
-      (p: PackageDataEntry | undefined) =>
+      (p?: PackageDataEntry) =>
         // will be undefined when sideloading
-        p !== undefined &&
+        !!p &&
         !(
           p.installed?.status.main.status === PackageMainStatus.Starting &&
           p.installed?.status.main.restarting

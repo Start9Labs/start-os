@@ -67,9 +67,6 @@ export class PatchDataService extends Observable<DataModel | null> {
       component: OSWelcomePage,
       presentingElement: await this.modalCtrl.getTop(),
       backdropDismiss: false,
-      componentProps: {
-        version: this.config.version,
-      },
     })
     modal.onWillDismiss().then(() => {
       this.embassyApi

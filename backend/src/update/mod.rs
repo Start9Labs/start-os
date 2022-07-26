@@ -156,7 +156,7 @@ async fn maybe_do_update(
         .version()
         .get_mut(&mut db)
         .await?;
-    if &latest_version <= &current_version {
+    if &latest_version < &current_version {
         return Ok(None);
     }
     let mut tx = db.begin().await?;

@@ -6,10 +6,10 @@ use rpc_toolkit::command;
 
 use crate::context::RpcContext;
 use crate::disk::main::export;
-use crate::init::SYSTEM_REBUILD_PATH;
+use crate::init::{STANDBY_MODE_PATH, SYSTEM_REBUILD_PATH};
 use crate::sound::SHUTDOWN;
 use crate::util::{display_none, Invoke};
-use crate::Error;
+use crate::{Error, ErrorKind};
 
 #[derive(Debug, Clone)]
 pub struct Shutdown {
@@ -54,23 +54,24 @@ impl Shutdown {
                     tracing::debug!("{:?}", e);
                 }
             }
-            if let Err(e) = SHUTDOWN.play().await {
-                tracing::error!("Error Playing Shutdown Song: {}", e);
-                tracing::debug!("{:?}", e);
+            if self.restart {
+                if let Err(e) = SHUTDOWN.play().await {
+                    tracing::error!("Error Playing Shutdown Song: {}", e);
+                    tracing::debug!("{:?}", e);
+                }
+            } else {
+                tokio::fs::write(STANDBY_MODE_PATH, "").await.unwrap();
+                Command::new("sync")
+                    .invoke(ErrorKind::Filesystem)
+                    .await
+                    .unwrap();
             }
         });
         drop(rt);
-        if self.restart {
-            Command::new("reboot").spawn().unwrap().wait().unwrap();
-        } else {
-            Command::new("shutdown")
-                .arg("-h")
-                .arg("now")
-                .spawn()
-                .unwrap()
-                .wait()
-                .unwrap();
+        if !self.restart {
+            std::fs::write(STANDBY_MODE_PATH, "").unwrap();
         }
+        Command::new("reboot").spawn().unwrap().wait().unwrap();
     }
 }
 

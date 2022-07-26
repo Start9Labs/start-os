@@ -9,7 +9,7 @@
     *ngIf="!loading && needInfinite"
     position="top"
     threshold="0"
-    (ionInfinite)="loadData($event)"
+    (ionInfinite)="doInfinite($event)"
   >
     <ion-infinite-scroll-content
       loadingSpinner="lines"
@@ -25,11 +25,11 @@
     ></div>
   </div>
   <div id="button-div" *ngIf="!loading" style="width: 100%; text-align: center">
-    <ion-button *ngIf="!loadingMore" (click)="loadMore()" strong color="dark">
+    <ion-button *ngIf="!loadingNext" (click)="getNext()" strong color="dark">
       Load More
       <ion-icon slot="end" name="refresh"></ion-icon>
     </ion-button>
-    <ion-spinner *ngIf="loadingMore" name="lines" color="warning"></ion-spinner>
+    <ion-spinner *ngIf="loadingNext" name="lines" color="warning"></ion-spinner>
   </div>
 
   <div

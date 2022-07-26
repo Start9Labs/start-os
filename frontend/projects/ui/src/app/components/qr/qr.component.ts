@@ -6,5 +6,5 @@ import { Component, Input } from '@angular/core'
   styleUrls: ['./qr.component.scss'],
 })
 export class QRComponent {
-  @Input() text: string
+  @Input() text!: string
 }

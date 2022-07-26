@@ -18,7 +18,7 @@ import { MarketplacePkg } from '../../../types/marketplace-pkg'
 })
 export class AdditionalComponent {
   @Input()
-  pkg: MarketplacePkg
+  pkg!: MarketplacePkg
 
   @Output()
   version = new EventEmitter<string>()

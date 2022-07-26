@@ -10,7 +10,8 @@ import { BaseSlide } from '../wizard-types'
   styleUrls: ['./dependents.component.scss', '../app-wizard.component.scss'],
 })
 export class DependentsComponent implements BaseSlide {
-  @Input() params: {
+  @Input()
+  params!: {
     title: string
     verb: string // *Uninstalling* will cause problems...
     Fn: () => Promise<Breakages>
@@ -19,21 +20,21 @@ export class DependentsComponent implements BaseSlide {
   @Output() onSuccess: EventEmitter<void> = new EventEmitter()
   @Output() onError: EventEmitter<string> = new EventEmitter()
 
-  breakages: Breakages
-  warningMessage: string | undefined
+  breakages?: Breakages
+  warningMessage = ''
 
   loading = true
 
   readonly pkgs$ = this.patch.watch$('package-data')
 
-  constructor(public readonly patch: PatchDbService) {}
+  constructor(private readonly patch: PatchDbService) {}
 
   async load() {
     try {
       this.breakages = await this.params.Fn()
       if (this.breakages && !isEmptyObject(this.breakages)) {
         this.warningMessage =
-          capitalizeFirstLetter(this.params.verb) +
+          capitalizeFirstLetter(this.params.verb || '') +
           ' ' +
           this.params.title +
           ' will prohibit the following services from functioning properly.'

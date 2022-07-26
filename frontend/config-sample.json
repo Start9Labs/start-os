@@ -16,8 +16,8 @@
       "skipStartupAlerts": true
     },
     "marketplace": {
-      "url": "https://beta-registry-0-3.start9labs.com/",
-      "name": "Embassy Marketplace"
+      "url": "https://registry.start9.com/",
+      "name": "Start9 Marketplace"
     }
   },
   "gitHash": ""

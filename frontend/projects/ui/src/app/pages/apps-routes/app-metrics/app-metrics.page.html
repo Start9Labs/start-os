@@ -4,18 +4,21 @@
       <ion-back-button [defaultHref]="'/services/' + pkgId"></ion-back-button>
     </ion-buttons>
     <ion-title>Monitor</ion-title>
-    <ion-title slot="end"><ion-spinner name="dots" class="fader"></ion-spinner></ion-title>
+    <ion-title slot="end"
+      ><ion-spinner name="dots" class="fader"></ion-spinner
+    ></ion-title>
   </ion-toolbar>
 </ion-header>
 
 <ion-content class="ion-padding">
-
-  <skeleton-list *ngIf="loading" rows="3"></skeleton-list>
+  <skeleton-list *ngIf="loading" [rows]="3"></skeleton-list>
   <ion-item-group *ngIf="!loading">
     <ion-item *ngFor="let metric of metrics | keyvalue : asIsOrder">
       <ion-label>{{ metric.key }}</ion-label>
       <ion-note *ngIf="metric.value" slot="end" class="metric-note">
-        <ion-text style="color: white;">{{ metric.value.value }} {{ metric.value.unit }}</ion-text>
+        <ion-text style="color: white"
+          >{{ metric.value.value }} {{ metric.value.unit }}</ion-text
+        >
       </ion-note>
     </ion-item>
   </ion-item-group>

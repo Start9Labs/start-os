@@ -1,14 +1,14 @@
 use std::collections::BTreeSet;
 use std::num::ParseIntError;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use color_eyre::eyre::eyre;
+use helpers::AtomicFile;
 use tokio::io::AsyncWriteExt;
 use tracing::instrument;
 
 use super::BOOT_RW_PATH;
-use crate::util::AtomicFile;
-use crate::Error;
+use crate::{Error, ErrorKind, ResultExt};
 
 pub const QUIRK_PATH: &'static str = "/sys/module/usb_storage/parameters/quirks";
 
@@ -160,11 +160,13 @@ pub async fn save_quirks(quirks: &Quirks) -> Result<(), Error> {
         tokio::fs::copy(&target_path, &orig_path).await?;
     }
     let cmdline = tokio::fs::read_to_string(&orig_path).await?;
-    let mut target = AtomicFile::new(&target_path).await?;
+    let mut target = AtomicFile::new(&target_path, None::<PathBuf>)
+        .await
+        .with_kind(ErrorKind::Filesystem)?;
     target
         .write_all(format!("usb-storage.quirks={} {}", quirks, cmdline).as_bytes())
         .await?;
-    target.save().await?;
+    target.save().await.with_kind(ErrorKind::Filesystem)?;
 
     Ok(())
 }

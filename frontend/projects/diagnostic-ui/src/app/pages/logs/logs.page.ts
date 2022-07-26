@@ -12,15 +12,13 @@ var convert = new Convert({
   styleUrls: ['./logs.page.scss'],
 })
 export class LogsPage {
-  @ViewChild(IonContent) private content: IonContent
+  @ViewChild(IonContent) private content?: IonContent
   loading = true
   loadingMore = false
-  logs: string
   needInfinite = true
-  startCursor: string
-  endCursor: string
+  startCursor?: string
+  endCursor?: string
   limit = 200
-  scrollToBottomButton = false
   isOnBottom = true
 
   constructor(private readonly api: ApiService) {}
@@ -52,7 +50,7 @@ export class LogsPage {
 
       // scroll down
       scrollBy(0, afterContainerHeight - beforeContainerHeight)
-      this.content.scrollToPoint(
+      this.content?.scrollToPoint(
         0,
         afterContainerHeight - beforeContainerHeight,
       )
@@ -117,7 +115,7 @@ export class LogsPage {
   }
 
   scrollToBottom() {
-    this.content.scrollToBottom(500)
+    this.content?.scrollToBottom(500)
   }
 
   async loadData(e: any): Promise<void> {

@@ -64,6 +64,7 @@ pub struct DockerProcedure {
 impl DockerProcedure {
     pub fn validate(
         &self,
+        eos_version: &Version,
         volumes: &Volumes,
         image_ids: &BTreeSet<ImageId>,
         expected_io: bool,
@@ -85,7 +86,10 @@ impl DockerProcedure {
         if expected_io && self.io_format.is_none() {
             color_eyre::eyre::bail!("expected io-format");
         }
-        // if self.inject && !self.mounts.is_empty()  {
+        // if &**eos_version >= &emver::Version::new(0, 3, 1, 1)
+        //     && self.inject
+        //     && !self.mounts.is_empty()
+        // {
         //     color_eyre::eyre::bail!("mounts not allowed in inject actions");
         // }
         Ok(())
@@ -204,7 +208,7 @@ impl DockerProcedure {
                                 match format.from_slice(buffer.as_bytes()) {
                                     Ok(a) => a,
                                     Err(e) => {
-                                        tracing::warn!(
+                                        tracing::trace!(
                                         "Failed to deserialize stdout from {}: {}, falling back to UTF-8 string.",
                                         format,
                                         e
@@ -345,7 +349,7 @@ impl DockerProcedure {
                                 match format.from_slice(buffer.as_bytes()) {
                                     Ok(a) => a,
                                     Err(e) => {
-                                        tracing::warn!(
+                                        tracing::trace!(
                                         "Failed to deserialize stdout from {}: {}, falling back to UTF-8 string.",
                                         format,
                                         e

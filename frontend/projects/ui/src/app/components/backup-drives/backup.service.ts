@@ -13,10 +13,10 @@ import { getErrorMessage, Emver } from '@start9labs/shared'
   providedIn: 'root',
 })
 export class BackupService {
-  cifs: MappedBackupTarget<CifsBackupTarget>[]
-  drives: MappedBackupTarget<DiskBackupTarget>[]
+  cifs: MappedBackupTarget<CifsBackupTarget>[] = []
+  drives: MappedBackupTarget<DiskBackupTarget>[] = []
   loading = true
-  loadingError: string | IonicSafeString
+  loadingError: string | IonicSafeString = ''
 
   constructor(
     private readonly embassyApi: ApiService,

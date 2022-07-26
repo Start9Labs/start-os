@@ -9,8 +9,8 @@ import { HttpService } from 'src/app/services/api/http.service'
   styleUrls: ['prod-key-modal.page.scss'],
 })
 export class ProdKeyModal {
-  @ViewChild('focusInput') elem: IonInput
-  @Input() target: DiskBackupTarget
+  @ViewChild('focusInput') elem?: IonInput
+  @Input() target!: DiskBackupTarget
 
   error = ''
   productKey = ''
@@ -24,7 +24,7 @@ export class ProdKeyModal {
   ) {}
 
   ngAfterViewInit() {
-    setTimeout(() => this.elem.setFocus(), 400)
+    setTimeout(() => this.elem?.setFocus(), 400)
   }
 
   async verifyProductKey() {

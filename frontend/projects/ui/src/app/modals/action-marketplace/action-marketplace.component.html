@@ -1,11 +1,11 @@
 <ion-header>
   <ion-toolbar>
-    <ion-buttons slot="start">
+    <ion-title>{{ title }}</ion-title>
+    <ion-buttons slot="end">
       <ion-button (click)="dismiss()">
         <ion-icon name="close"></ion-icon>
       </ion-button>
     </ion-buttons>
-    <ion-title>{{ title }}</ion-title>
   </ion-toolbar>
 </ion-header>
 <ion-content>
@@ -17,16 +17,15 @@
         <h4>But you are currently connected to:</h4>
         <p class="courier-new color-primary-shade">{{ currentMarketplace }}</p>
       </div>
-      <br />
       <div>
-        <p>To switch marketplaces visit your</p>
+        <p>Switch to {{ packageMarketplace }} in</p>
         <ion-button
           color="success"
           routerLink="embassy/marketplaces"
           (click)="dismiss()"
           >Marketplace Settings</ion-button
         >
-        <p>or you can</p>
+        <p>Or you can</p>
         <ion-button
           [routerLink]="['marketplace/', pkgId]"
           click="dismiss()"

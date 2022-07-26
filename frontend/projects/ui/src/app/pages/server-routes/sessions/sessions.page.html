@@ -9,7 +9,7 @@
 
 <ion-content class="ion-padding-top">
   <!-- loading -->
-  <ion-item-group *ngIf="loading">
+  <ion-item-group *ngIf="loading; else notLoading">
     <div *ngFor="let entry of ['This Session', 'Other Sessions']">
       <ion-item-divider>{{ entry }}</ion-item-divider>
       <ion-item style="padding-bottom: 6px">
@@ -41,60 +41,64 @@
   </ion-item-group>
 
   <!-- not loading -->
-  <ion-item-group *ngIf="!loading">
-    <ion-item-divider>Current Session</ion-item-divider>
-    <ion-item>
-      <ion-icon
-        slot="start"
-        size="large"
-        [name]="getPlatformIcon(currentSession.metadata.platforms)"
-      ></ion-icon>
-      <ion-label>
-        <h1>{{ getPlatformName(currentSession.metadata.platforms) }}</h1>
-        <h2>
-          Last Active: {{ currentSession['last-active'] | date : 'medium' }}
-        </h2>
-        <p>{{ currentSession['user-agent'] }}</p>
-      </ion-label>
-    </ion-item>
-
-    <ion-item-divider>
-      Other Sessions
-      <ion-button
-        *ngIf="otherSessions.length"
-        slot="end"
-        fill="clear"
-        strong
-        (click)="presentAlertKillAll()"
-      >
-        Terminate all
-      </ion-button>
-    </ion-item-divider>
-    <div *ngFor="let session of otherSessions">
+  <ng-template #notLoading>
+    <ion-item-group *ngIf="currentSession">
+      <ion-item-divider>Current Session</ion-item-divider>
       <ion-item>
         <ion-icon
           slot="start"
           size="large"
-          [name]="getPlatformIcon(session.metadata.platforms)"
+          [name]="getPlatformIcon(currentSession.metadata.platforms)"
         ></ion-icon>
         <ion-label>
-          <h1>{{ getPlatformName(session.metadata.platforms) }}</h1>
-          <h2>Last Active: {{ session['last-active'] | date : 'medium' }}</h2>
-          <p>{{ session['user-agent'] }}</p>
+          <h1>{{ getPlatformName(currentSession.metadata.platforms) }}</h1>
+          <h2>
+            Last Active: {{ currentSession['last-active'] | date : 'medium' }}
+          </h2>
+          <p>{{ currentSession['user-agent'] }}</p>
         </ion-label>
+      </ion-item>
+
+      <ion-item-divider>
+        Other Sessions
         <ion-button
+          *ngIf="otherSessions.length"
           slot="end"
           fill="clear"
-          (click)="presentAlertKill(session.id)"
+          strong
+          (click)="presentAlertKillAll()"
         >
-          <ion-icon slot="icon-only" name="log-out-outline"></ion-icon>
+          Terminate all
         </ion-button>
+      </ion-item-divider>
+      <div *ngFor="let session of otherSessions">
+        <ion-item>
+          <ion-icon
+            slot="start"
+            size="large"
+            [name]="getPlatformIcon(session.metadata.platforms)"
+          ></ion-icon>
+          <ion-label>
+            <h1>{{ getPlatformName(session.metadata.platforms) }}</h1>
+            <h2>Last Active: {{ session['last-active'] | date : 'medium' }}</h2>
+            <p>{{ session['user-agent'] }}</p>
+          </ion-label>
+          <ion-button
+            slot="end"
+            fill="clear"
+            color="danger"
+            (click)="kill([session.id])"
+          >
+            Logout
+            <ion-icon slot="start" name="log-out-outline"></ion-icon>
+          </ion-button>
+        </ion-item>
+      </div>
+      <ion-item *ngIf="!otherSessions.length">
+        <ion-label>
+          <p>You are not logged in anywhere else</p>
+        </ion-label>
       </ion-item>
-    </div>
-    <ion-item *ngIf="!otherSessions.length">
-      <ion-label>
-        <p>You are not logged in anywhere else</p>
-      </ion-label>
-    </ion-item>
-  </ion-item-group>
+    </ion-item-group>
+  </ng-template>
 </ion-content>
