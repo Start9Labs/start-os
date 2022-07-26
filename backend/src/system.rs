@@ -9,7 +9,7 @@ use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::disk::util::{get_available, get_used};
-use crate::logs::{display_logs, fetch_logs, LogResponse, LogSource};
+use crate::logs::{display_logs, fetch_logs, FollowArgs, LogResponse, LogSource};
 use crate::shutdown::Shutdown;
 use crate::util::serde::{display_serializable, IoFormat};
 use crate::{Error, ErrorKind};
@@ -18,34 +18,44 @@ pub const SYSTEMD_UNIT: &'static str = "embassyd";
 
 #[command(display(display_logs))]
 pub async fn logs(
+    #[context] ctx: RpcContext,
     #[arg] limit: Option<usize>,
     #[arg] cursor: Option<String>,
-    #[arg] before_flag: Option<bool>,
-    #[arg] follow_flag: Option<bool>,
+    #[arg(short = 'B', long = "before")] before: bool,
+    #[arg(short = 'f', long = "follow")] follow: bool,
 ) -> Result<LogResponse, Error> {
     Ok(fetch_logs(
         LogSource::Service(SYSTEMD_UNIT),
         limit,
         cursor,
-        before_flag.unwrap_or(false),
-        follow_flag.unwrap_or(false),
+        before,
+        if follow {
+            Some(FollowArgs { ctx })
+        } else {
+            None
+        },
     )
     .await?)
 }
 
 #[command(rename = "kernel-logs", display(display_logs))]
 pub async fn kernel_logs(
+    #[context] ctx: RpcContext,
     #[arg] limit: Option<usize>,
     #[arg] cursor: Option<String>,
-    #[arg] before_flag: Option<bool>,
-    #[arg] follow_flag: Option<bool>,
+    #[arg(short = 'B', long = "before")] before: bool,
+    #[arg(short = 'f', long = "follow")] follow: bool,
 ) -> Result<LogResponse, Error> {
     Ok(fetch_logs(
         LogSource::Kernel,
         limit,
         cursor,
-        before_flag.unwrap_or(false),
-        follow_flag.unwrap_or(false),
+        before,
+        if follow {
+            Some(FollowArgs { ctx })
+        } else {
+            None
+        },
     )
     .await?)
 }

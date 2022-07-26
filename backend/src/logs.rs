@@ -1,23 +1,69 @@
+use std::future::Future;
 use std::process::Stdio;
 use std::time::{Duration, UNIX_EPOCH};
 
 use chrono::{DateTime, Utc};
 use clap::ArgMatches;
 use color_eyre::eyre::eyre;
-use futures::{StreamExt, TryStreamExt};
-use helpers::NonDetachingJoinHandle;
+use futures::{FutureExt, SinkExt, StreamExt, TryStreamExt};
+use hyper::upgrade::Upgraded;
+use hyper::Error as HyperError;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
+use tokio::task::JoinError;
 use tokio_stream::wrappers::LinesStream;
+use tokio_tungstenite::{tungstenite::Message, WebSocketStream};
 use tracing::instrument;
 
+use crate::context::RpcContext;
+use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::error::ResultExt;
 use crate::procedure::docker::DockerProcedure;
 use crate::s9pk::manifest::PackageId;
 use crate::util::serde::Reversible;
-use crate::Error;
+use crate::{Error, ErrorKind};
+
+pub struct LogStream {
+    _cmd: Command,
+    first_entry: Option<LogEntry>,
+    entries: futures::stream::BoxStream<'static, Result<JournalctlEntry, Error>>,
+}
+
+#[instrument(skip(logs, ws_fut))]
+async fn ws_handler<
+    WSFut: Future<Output = Result<Result<WebSocketStream<Upgraded>, HyperError>, JoinError>>,
+>(
+    mut logs: LogStream,
+    ws_fut: WSFut,
+) -> Result<(), Error> {
+    let mut stream = ws_fut
+        .await
+        .with_kind(crate::ErrorKind::Network)?
+        .with_kind(crate::ErrorKind::Unknown)?;
+
+    if let Some(first_entry) = logs.first_entry {
+        stream
+            .send(Message::Text(
+                serde_json::to_string(&first_entry).with_kind(ErrorKind::Serialization)?,
+            ))
+            .await
+            .with_kind(ErrorKind::Network)?;
+    }
+
+    while let Some(entry) = logs.entries.try_next().await? {
+        let (_, log_entry) = entry.log_entry()?;
+        stream
+            .send(Message::Text(
+                serde_json::to_string(&log_entry).with_kind(ErrorKind::Serialization)?,
+            ))
+            .await
+            .with_kind(ErrorKind::Network)?;
+    }
+
+    Ok(())
+}
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 #[serde(rename_all = "kebab-case", tag = "type")]
@@ -28,7 +74,8 @@ pub enum LogResponse {
         end_cursor: Option<String>,
     },
     Follow {
-        ws_guid: String,
+        start_cursor: Option<String>,
+        guid: RequestGuid,
     },
 }
 
@@ -117,39 +164,54 @@ pub enum LogSource {
     Container(PackageId),
 }
 
-// pub fn display_logs(all: LogResponse, _: &ArgMatches) {
-//     for entry in all.entries.iter() {
-//         println!("{}", entry);
-//     }
-// }
+pub fn display_logs(all: LogResponse, _: &ArgMatches) {
+    match all {
+        LogResponse::NoFollow { entries, .. } => {
+            for entry in entries.iter() {
+                println!("{}", entry);
+            }
+        }
+        LogResponse::Follow { guid, .. } => todo!(),
+    }
+}
 
-#[command(rpc_only)]
+#[command(display(display_logs))]
 pub async fn logs(
+    #[context] ctx: RpcContext,
     #[arg] id: PackageId,
     #[arg] limit: Option<usize>,
     #[arg] cursor: Option<String>,
-    #[arg] before_flag: Option<bool>,
-    #[arg] follow_flag: Option<bool>,
+    #[arg(short = 'B', long = "before")] before: bool,
+    #[arg(short = 'f', long = "follow")] follow: bool,
 ) -> Result<LogResponse, Error> {
     Ok(fetch_logs(
         LogSource::Container(id),
         limit,
         cursor,
-        before_flag.unwrap_or(false),
-        follow_flag.unwrap_or(false),
+        before,
+        if follow {
+            Some(FollowArgs { ctx })
+        } else {
+            None
+        },
     )
     .await?)
 }
 
-#[instrument]
+pub struct FollowArgs {
+    pub ctx: RpcContext,
+}
+
+#[instrument(skip(follow))]
 pub async fn fetch_logs(
     id: LogSource,
     limit: Option<usize>,
     cursor: Option<String>,
-    before_flag: bool,
-    follow_flag: bool,
+    before: bool,
+    follow: Option<FollowArgs>,
 ) -> Result<LogResponse, Error> {
     let mut cmd = Command::new("journalctl");
+    cmd.kill_on_drop(true);
 
     let limit = limit.unwrap_or(50);
 
@@ -176,14 +238,14 @@ pub async fn fetch_logs(
     let mut get_prev_logs_and_reverse = false;
     if cursor.is_some() {
         cmd.arg(&cursor_formatted);
-        if before_flag {
+        if before {
             get_prev_logs_and_reverse = true;
         }
     }
     if get_prev_logs_and_reverse {
         cmd.arg("--reverse");
     }
-    if follow_flag {
+    if follow.is_some() {
         cmd.arg("--follow");
     }
 
@@ -206,31 +268,49 @@ pub async fn fetch_logs(
             )
         });
 
-    if follow_flag {
-        let guid = base32::encode(
-            base32::Alphabet::RFC4648 { padding: false },
-            &rand::random::<[u8; 32]>(),
-        );
-        let output = NonDetachingJoinHandle::from(tokio::spawn(async move {
-            struct WebsocketThread {
-                cmd: Command,
-                entries: futures::stream::BoxStream<'static, Result<JournalctlEntry, Error>>,
-            };
-            let t = WebsocketThread {
-                cmd: cmd,
-                entries: deserialized_entries.boxed(),
-            };
-        }));
-        return Ok(LogResponse::Follow { ws_guid: guid });
-    }
-
     let mut entries = Vec::with_capacity(limit);
     let mut start_cursor = None;
+    let mut first_entry = None;
 
-    if let Some(first) = deserialized_entries.try_next().await? {
+    if let Some(first) =
+        tokio::time::timeout(Duration::from_secs(1), deserialized_entries.try_next())
+            .await
+            .ok()
+            .transpose()?
+            .flatten()
+    {
         let (cursor, entry) = first.log_entry()?;
         start_cursor = Some(cursor);
-        entries.push(entry);
+        if follow.is_some() {
+            first_entry = Some(entry);
+        } else {
+            entries.push(entry);
+        }
+    }
+
+    if let Some(follow) = follow {
+        let guid = RequestGuid::new();
+        follow
+            .ctx
+            .add_continuation(
+                guid.clone(),
+                RpcContinuation::ws(
+                    Box::new(move |ws_fut| {
+                        ws_handler(
+                            LogStream {
+                                _cmd: cmd,
+                                first_entry,
+                                entries: deserialized_entries.boxed(),
+                            },
+                            ws_fut,
+                        )
+                        .boxed()
+                    }),
+                    Duration::from_secs(30),
+                ),
+            )
+            .await;
+        return Ok(LogResponse::Follow { start_cursor, guid });
     }
 
     let (mut end_cursor, entries) = deserialized_entries
@@ -256,22 +336,22 @@ pub async fn fetch_logs(
     })
 }
 
-#[tokio::test]
-pub async fn test_logs() {
-    let response = fetch_logs(
-        // change `tor.service` to an actual journald unit on your machine
-        // LogSource::Service("tor.service"),
-        // first run `docker run --name=hello-world.embassy --log-driver=journald hello-world`
-        LogSource::Container("hello-world".parse().unwrap()),
-        // Some(5),
-        None,
-        None,
-        // Some("s=1b8c418e28534400856c27b211dd94fd;i=5a7;b=97571c13a1284f87bc0639b5cff5acbe;m=740e916;t=5ca073eea3445;x=f45bc233ca328348".to_owned()),
-        false,
-        true,
-    )
-    .await
-    .unwrap();
-    let serialized = serde_json::to_string_pretty(&response).unwrap();
-    println!("{}", serialized);
-}
+// #[tokio::test]
+// pub async fn test_logs() {
+//     let response = fetch_logs(
+//         // change `tor.service` to an actual journald unit on your machine
+//         // LogSource::Service("tor.service"),
+//         // first run `docker run --name=hello-world.embassy --log-driver=journald hello-world`
+//         LogSource::Container("hello-world".parse().unwrap()),
+//         // Some(5),
+//         None,
+//         None,
+//         // Some("s=1b8c418e28534400856c27b211dd94fd;i=5a7;b=97571c13a1284f87bc0639b5cff5acbe;m=740e916;t=5ca073eea3445;x=f45bc233ca328348".to_owned()),
+//         false,
+//         true,
+//     )
+//     .await
+//     .unwrap();
+//     let serialized = serde_json::to_string_pretty(&response).unwrap();
+//     println!("{}", serialized);
+// }
