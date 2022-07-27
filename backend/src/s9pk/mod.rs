@@ -55,7 +55,7 @@ pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> R
     let extra_keys =
         enumerate_extra_keys(&serde_json::to_value(&manifest).unwrap(), &manifest_value);
     for k in extra_keys {
-        tracing::warn!("Unrecognized Manifest Key: {}", k);
+        tracing::warn!("Unrecognised Manifest Key: {}", k);
     }
 
     let outfile_path = path.join(format!("{}.s9pk", manifest.id));
