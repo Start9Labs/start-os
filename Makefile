@@ -17,8 +17,10 @@ $(shell sudo true)
 
 all: eos.img
 
-gzip: eos.img
-	gzip -k eos.img
+gzip: eos.tar.gz
+
+eos.tar.gz: eos.img
+	tar --format=posix -cS -f- eos.img | gzip > eos.tar.gz
 
 clean:
 	rm -f eos.img
