@@ -36,4 +36,5 @@ export * from './types/workspace-config'
 
 export * from './util/get-pkg-id'
 export * from './util/misc.util'
+export * from './util/to-local-iso-string'
 export * from './util/unused'
