@@ -1,8 +1,8 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core'
 import {
   AbstractFormGroupDirective,
-  FormArray,
-  FormGroup,
+  UntypedFormArray,
+  UntypedFormGroup,
 } from '@angular/forms'
 import {
   AlertButton,
@@ -36,7 +36,7 @@ interface Config {
 })
 export class FormObjectComponent {
   @Input() objectSpec!: ConfigSpec
-  @Input() formGroup!: FormGroup
+  @Input() formGroup!: UntypedFormGroup
   @Input() unionSpec?: ValueSpecUnion
   @Input() current?: Config
   @Input() original?: Config
@@ -153,7 +153,7 @@ export class FormObjectComponent {
   }
 
   addListItem(key: string, markDirty = true, val?: string): void {
-    const arr = this.formGroup.get(key) as FormArray
+    const arr = this.formGroup.get(key) as UntypedFormArray
     if (markDirty) arr.markAsDirty()
     const listSpec = this.objectSpec[key] as ValueSpecList
     const newItem = this.formService.getListItem(listSpec, val)
@@ -330,7 +330,7 @@ export class FormObjectComponent {
   private deleteListItem(key: string, index: number, markDirty = true): void {
     if (this.objectListDisplay[key])
       this.objectListDisplay[key][index].height = '0px'
-    const arr = this.formGroup.get(key) as FormArray
+    const arr = this.formGroup.get(key) as UntypedFormArray
     if (markDirty) arr.markAsDirty()
     pauseFor(250).then(() => {
       if (this.objectListDisplay[key])

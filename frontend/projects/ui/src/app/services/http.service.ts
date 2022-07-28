@@ -1,6 +1,13 @@
 import { Injectable } from '@angular/core'
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http'
-import { from, interval, Observable, race } from 'rxjs'
+import {
+  Observable,
+  from,
+  interval,
+  race,
+  firstValueFrom,
+  lastValueFrom,
+} from 'rxjs'
 import { map, take } from 'rxjs/operators'
 import { ConfigService } from './config.service'
 import { Revision } from 'patch-db-client'
@@ -90,8 +97,9 @@ export class HttpService {
         break
     }
 
-    return (httpOpts.timeout ? withTimeout(req, httpOpts.timeout) : req)
-      .toPromise()
+    return firstValueFrom(
+      httpOpts.timeout ? withTimeout(req, httpOpts.timeout) : req,
+    )
       .then(res => res.body)
       .catch(e => {
         throw new HttpError(e)
@@ -183,7 +191,7 @@ function hasParams(
 
 function withTimeout<U>(req: Observable<U>, timeout: number): Observable<U> {
   return race(
-    from(req.toPromise()), // this guarantees it only emits on completion, intermediary emissions are suppressed.
+    from(lastValueFrom(req)), // this guarantees it only emits on completion, intermediary emissions are suppressed.
     interval(timeout).pipe(
       take(1),
       map(() => {

@@ -10,7 +10,8 @@ FRONTEND_SHARED_SRC := $(shell find frontend/projects/shared) $(shell find front
 FRONTEND_UI_SRC := $(shell find frontend/projects/ui)
 FRONTEND_SETUP_WIZARD_SRC := $(shell find frontend/projects/setup-wizard)
 FRONTEND_DIAGNOSTIC_UI_SRC := $(shell find frontend/projects/diagnostic-ui)
-PATCH_DB_CLIENT_SRC = $(shell find patch-db/client -not -path patch-db/client/dist)
+PATCH_DB_CLIENT_SRC := $(shell find patch-db/client -not -path patch-db/client/dist)
+$(shell sudo true)
 
 .DELETE_ON_ERROR:
 
@@ -31,6 +32,10 @@ clean:
 	rm -rf patch-db/client/node_modules
 	rm -rf patch-db/client/dist
 	sudo rm -rf cargo-deps
+
+format:
+	cd backend && cargo +nightly fmt
+	cd libs && cargo +nightly fmt
 
 sdk: 
 	cd backend/ && ./install-sdk.sh

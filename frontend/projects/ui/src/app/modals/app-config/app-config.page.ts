@@ -16,7 +16,7 @@ import { DependentInfo } from 'src/app/types/dependent-info'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { FormGroup } from '@angular/forms'
+import { UntypedFormGroup } from '@angular/forms'
 import {
   convertValuesRecursive,
   FormService,
@@ -40,7 +40,7 @@ export class AppConfigPage {
   pkg!: PackageDataEntry
   loadingText!: string
   configSpec!: ConfigSpec
-  configForm!: FormGroup
+  configForm!: UntypedFormGroup
 
   original?: object // only if existing config
   diff?: string[] // only if dependent info

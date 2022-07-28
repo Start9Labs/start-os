@@ -1,13 +1,10 @@
 use std::fmt::Debug;
 use std::str::FromStr;
 
+pub use models::{Id, IdUnchecked, InvalidId, SYSTEM_ID};
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::util::Version;
-
-pub use models::{Id, InvalidId, IdUnchecked, SYSTEM_ID};
-
-
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct ImageId<S: AsRef<str> = String>(Id<S>);

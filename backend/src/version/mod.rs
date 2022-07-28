@@ -5,7 +5,8 @@ use color_eyre::eyre::eyre;
 use patch_db::DbHandle;
 use rpc_toolkit::command;
 
-use crate::{init::InitReceipts, Error};
+use crate::init::InitReceipts;
+use crate::Error;
 
 mod v0_3_0;
 mod v0_3_0_1;
@@ -198,8 +199,9 @@ pub fn git_info() -> Result<&'static str, Error> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use proptest::prelude::*;
+
+    use super::*;
 
     fn em_version() -> impl Strategy<Value = emver::Version> {
         any::<(usize, usize, usize, usize)>().prop_map(|(major, minor, patch, super_minor)| {

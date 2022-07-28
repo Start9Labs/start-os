@@ -1,9 +1,9 @@
-use std::{str::FromStr, ops::Deref};
 use std::hash::{Hash, Hasher};
+use std::ops::Deref;
+use std::str::FromStr;
 
 use patch_db::{HasModel, Model};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-
 
 #[derive(Debug, Clone)]
 pub struct Version {

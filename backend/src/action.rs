@@ -3,6 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use clap::ArgMatches;
 use color_eyre::eyre::eyre;
 use indexmap::IndexSet;
+pub use models::ActionId;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -16,8 +17,6 @@ use crate::util::serde::{display_serializable, parse_stdin_deserializable, IoFor
 use crate::util::Version;
 use crate::volume::Volumes;
 use crate::{Error, ResultExt};
-
-pub use models::ActionId;
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Actions(pub BTreeMap<ActionId, Action>);
 

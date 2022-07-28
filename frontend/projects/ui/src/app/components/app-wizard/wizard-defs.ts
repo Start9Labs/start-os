@@ -6,6 +6,7 @@ import { ApiService } from '../../services/api/embassy-api.service'
 import { AppWizardComponent, SlideDefinition } from './app-wizard.component'
 import { ConfigService } from 'src/app/services/config.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
+import { firstValueFrom } from 'rxjs'
 
 @Injectable({ providedIn: 'root' })
 export class WizardDefs {
@@ -39,12 +40,12 @@ export class WizardDefs {
           verb: 'beginning update for',
           title,
           Fn: () =>
-            this.marketplaceService
-              .installPackage({
+            firstValueFrom(
+              this.marketplaceService.installPackage({
                 id,
                 'version-spec': version ? `=${version}` : undefined,
-              })
-              .toPromise(),
+              }),
+            ),
         },
       },
     ]
@@ -80,12 +81,12 @@ export class WizardDefs {
           verb: 'beginning downgrade for',
           title,
           Fn: () =>
-            this.marketplaceService
-              .installPackage({
+            firstValueFrom(
+              this.marketplaceService.installPackage({
                 id,
                 'version-spec': version ? `=${version}` : undefined,
-              })
-              .toPromise(),
+              }),
+            ),
         },
       },
     ]

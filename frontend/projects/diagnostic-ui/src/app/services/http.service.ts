@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core'
 import { HttpClient } from '@angular/common/http'
 import { HttpError, RpcError } from '@start9labs/shared'
+import { firstValueFrom } from 'rxjs'
 
 @Injectable({
   providedIn: 'root',
@@ -16,13 +17,9 @@ export class HttpService {
 
   async httpRequest<T>(body: RPCOptions): Promise<T> {
     const url = `${window.location.protocol}//${window.location.hostname}:${window.location.port}/rpc/v1`
-    return this.http
-      .post(url, body)
-      .toPromise()
-      .then(a => a as T)
-      .catch(e => {
-        throw new HttpError(e)
-      })
+    return firstValueFrom(this.http.post<T>(url, body)).catch(e => {
+      throw new HttpError(e)
+    })
   }
 }
 

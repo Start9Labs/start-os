@@ -34,7 +34,7 @@
 2. Clone the latest repo with required submodules
    > :information_source: You chan check latest available version [here](https://github.com/Start9Labs/embassy-os/releases)
 	```
-	git clone --recursive https://github.com/Start9Labs/embassy-os.git --branch v0.3.0.3
+	git clone --recursive https://github.com/Start9Labs/embassy-os.git --branch latest
 	```
 
 ## Build

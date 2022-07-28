@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use chrono::{DateTime, Utc};
+pub use models::HealthCheckId;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
@@ -12,8 +13,6 @@ use crate::util::serde::Duration;
 use crate::util::Version;
 use crate::volume::Volumes;
 use crate::{Error, ResultExt};
-
-pub use models::HealthCheckId;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct HealthChecks(pub BTreeMap<HealthCheckId, HealthCheck>);

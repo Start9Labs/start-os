@@ -1,6 +1,6 @@
 import { Bootstrapper, DBCache } from 'patch-db-client'
 import { APP_INITIALIZER, ErrorHandler, Provider } from '@angular/core'
-import { FormBuilder } from '@angular/forms'
+import { UntypedFormBuilder } from '@angular/forms'
 import { Router, RouteReuseStrategy } from '@angular/router'
 import { IonicRouteStrategy, IonNav } from '@ionic/angular'
 import { Storage } from '@ionic/storage-angular'
@@ -20,7 +20,7 @@ const { useMocks } = require('../../../../config.json') as WorkspaceConfig
 
 export const APP_PROVIDERS: Provider[] = [
   FilterPackagesPipe,
-  FormBuilder,
+  UntypedFormBuilder,
   IonNav,
   {
     provide: RouteReuseStrategy,

@@ -2,7 +2,8 @@ use std::borrow::Borrow;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::{invalid_id::InvalidId, id_unchecked::IdUnchecked};
+use crate::id_unchecked::IdUnchecked;
+use crate::invalid_id::InvalidId;
 
 pub const SYSTEM_ID: Id<&'static str> = Id("x_system");
 

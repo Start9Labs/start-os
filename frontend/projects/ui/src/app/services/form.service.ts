@@ -1,9 +1,9 @@
 import { Injectable } from '@angular/core'
 import {
-  FormArray,
-  FormBuilder,
-  FormControl,
-  FormGroup,
+  UntypedFormArray,
+  UntypedFormBuilder,
+  UntypedFormControl,
+  UntypedFormGroup,
   ValidatorFn,
   Validators,
 } from '@angular/forms'
@@ -31,12 +31,12 @@ const Mustache = require('mustache')
   providedIn: 'root',
 })
 export class FormService {
-  constructor(private readonly formBuilder: FormBuilder) {}
+  constructor(private readonly formBuilder: UntypedFormBuilder) {}
 
   createForm(
     spec: ConfigSpec,
     current: { [key: string]: any } = {},
-  ): FormGroup {
+  ): UntypedFormGroup {
     return this.getFormGroup(spec, [], current)
   }
 
@@ -44,7 +44,7 @@ export class FormService {
     spec: ValueSpecUnion | ListValueSpecUnion,
     selection: string,
     current?: { [key: string]: any } | null,
-  ): FormGroup {
+  ): UntypedFormGroup {
     const { variants, tag } = spec
     const { name, description, warning } = isFullUnion(spec)
       ? spec
@@ -85,8 +85,11 @@ export class FormService {
     config: ConfigSpec,
     validators: ValidatorFn[] = [],
     current?: { [key: string]: any } | null,
-  ): FormGroup {
-    let group: Record<string, FormGroup | FormArray | FormControl> = {}
+  ): UntypedFormGroup {
+    let group: Record<
+      string,
+      UntypedFormGroup | UntypedFormArray | UntypedFormControl
+    > = {}
     Object.entries(config).map(([key, spec]) => {
       if (spec.type === 'pointer') return
       group[key] = this.getFormEntry(spec, current ? current[key] : undefined)
@@ -97,7 +100,7 @@ export class FormService {
   private getFormEntry(
     spec: ValueSpec,
     currentValue?: any,
-  ): FormGroup | FormArray | FormControl {
+  ): UntypedFormGroup | UntypedFormArray | UntypedFormControl {
     let validators: ValidatorFn[]
     let value: any
     switch (spec.type) {
@@ -250,7 +253,7 @@ export function listInRange(stringRange: string): ValidatorFn {
 
 export function listItemIssue(): ValidatorFn {
   return parentControl => {
-    const { controls } = parentControl as FormArray
+    const { controls } = parentControl as UntypedFormArray
     const problemChild = controls.find(c => c.invalid)
     if (problemChild) {
       return { listItemIssue: { value: 'Invalid entries' } }
@@ -512,7 +515,7 @@ function isUnion(spec: any): spec is ListValueSpecUnion {
 
 export function convertValuesRecursive(
   configSpec: ConfigSpec,
-  group: FormGroup,
+  group: UntypedFormGroup,
 ) {
   Object.entries(configSpec).forEach(([key, valueSpec]) => {
     const control = group.get(key)
@@ -524,13 +527,13 @@ export function convertValuesRecursive(
     } else if (valueSpec.type === 'string') {
       if (!control.value) control.setValue(null)
     } else if (valueSpec.type === 'object') {
-      convertValuesRecursive(valueSpec.spec, group.get(key) as FormGroup)
+      convertValuesRecursive(valueSpec.spec, group.get(key) as UntypedFormGroup)
     } else if (valueSpec.type === 'union') {
-      const formGr = group.get(key) as FormGroup
+      const formGr = group.get(key) as UntypedFormGroup
       const spec = valueSpec.variants[formGr.controls[valueSpec.tag.id].value]
       convertValuesRecursive(spec, formGr)
     } else if (valueSpec.type === 'list') {
-      const formArr = group.get(key) as FormArray
+      const formArr = group.get(key) as UntypedFormArray
       const { controls } = formArr
 
       if (valueSpec.subtype === 'number') {
@@ -544,16 +547,16 @@ export function convertValuesRecursive(
       } else if (valueSpec.subtype === 'object') {
         controls.forEach(formGroup => {
           const objectSpec = valueSpec.spec as ListValueSpecObject
-          convertValuesRecursive(objectSpec.spec, formGroup as FormGroup)
+          convertValuesRecursive(objectSpec.spec, formGroup as UntypedFormGroup)
         })
       } else if (valueSpec.subtype === 'union') {
         controls.forEach(formGroup => {
           const unionSpec = valueSpec.spec as ListValueSpecUnion
           const spec =
             unionSpec.variants[
-              (formGroup as FormGroup).controls[unionSpec.tag.id].value
+              (formGroup as UntypedFormGroup).controls[unionSpec.tag.id].value
             ]
-          convertValuesRecursive(spec, formGroup as FormGroup)
+          convertValuesRecursive(spec, formGroup as UntypedFormGroup)
         })
       }
     }

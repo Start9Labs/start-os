@@ -1,9 +1,10 @@
-use std::{str::FromStr, borrow::Borrow, path::Path};
+use std::borrow::Borrow;
+use std::path::Path;
+use std::str::FromStr;
 
 use serde::{Deserialize, Serialize, Serializer};
 
 use crate::{Id, InvalidId, SYSTEM_ID};
-
 
 pub const SYSTEM_PACKAGE_ID: PackageId<&'static str> = PackageId(SYSTEM_ID);
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]

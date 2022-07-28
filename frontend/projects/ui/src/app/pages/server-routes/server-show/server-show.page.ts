@@ -201,7 +201,7 @@ export class ServerShowPage {
       await this.embassyApi.shutdownServer({})
       this.presentAlertInProgress(
         action,
-        '.<br /><br /><b>You will need to physcally power cycle the device to regain connectivity.</b>',
+        '.<br /><br /><b>You will need to physically power cycle the device to regain connectivity.</b>',
       )
     } catch (e: any) {
       this.errToast.present(e)
