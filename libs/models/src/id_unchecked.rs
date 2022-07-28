@@ -2,7 +2,6 @@ use std::borrow::Cow;
 
 use serde::{Deserialize, Deserializer};
 
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct IdUnchecked<S: AsRef<str>>(pub S);
 impl<'de> Deserialize<'de> for IdUnchecked<Cow<'de, str>> {

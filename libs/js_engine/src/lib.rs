@@ -338,11 +338,12 @@ impl JsExecutionEnvironment {
 
 /// Note: Make sure that we have the assumption that all these methods are callable at any time, and all call restrictions should be in rust
 mod fns {
+    use std::cell::RefCell;
+    use std::collections::BTreeMap;
     use std::convert::TryFrom;
     use std::os::unix::fs::MetadataExt;
     use std::path::{Path, PathBuf};
     use std::rc::Rc;
-    use std::{cell::RefCell, collections::BTreeMap};
 
     use deno_core::anyhow::{anyhow, bail};
     use deno_core::error::AnyError;
@@ -530,8 +531,9 @@ mod fns {
         }
         let new_volume_tmp = to_tmp_path(&volume_path).map_err(|e| anyhow!("{}", e))?;
         let hashed_name = {
-            use sha2::{Digest, Sha256};
             use std::os::unix::ffi::OsStrExt;
+
+            use sha2::{Digest, Sha256};
             let mut hasher = Sha256::new();
 
             hasher.update(path_in.as_os_str().as_bytes());

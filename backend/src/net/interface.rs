@@ -4,6 +4,7 @@ use color_eyre::eyre::eyre;
 use futures::TryStreamExt;
 use indexmap::IndexSet;
 use itertools::Either;
+pub use models::InterfaceId;
 use serde::{Deserialize, Deserializer, Serialize};
 use sqlx::{Executor, Sqlite};
 use torut::onion::TorSecretKeyV3;
@@ -14,8 +15,6 @@ use crate::id::Id;
 use crate::s9pk::manifest::PackageId;
 use crate::util::serde::Port;
 use crate::{Error, ResultExt};
-
-pub use models::InterfaceId;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -113,7 +112,6 @@ impl Interfaces {
         .await?)
     }
 }
-
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]

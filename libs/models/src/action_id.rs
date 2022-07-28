@@ -1,9 +1,9 @@
-use std::{str::FromStr, path::Path};
+use std::path::Path;
+use std::str::FromStr;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::{Id, InvalidId};
-
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct ActionId<S: AsRef<str> = String>(Id<S>);

@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use serde::{Serialize, Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::Id;
 
