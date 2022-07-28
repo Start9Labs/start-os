@@ -19,7 +19,7 @@
 <!-- reordering -->
 <ion-list *ngIf="reordering; else grid">
   <ion-reorder-group disabled="false" (ionItemReorder)="reorder($any($event))">
-    <ion-reorder *ngFor="let item of pkgs">
+    <ng-container *ngFor="let item of pkgs">
       <ion-item
         color="light"
         *ngIf="item | packageInfo | async as pkg"
@@ -40,9 +40,11 @@
             [sigtermTimeout]="pkg.entry.manifest.main['sigterm-timeout']"
           ></status>
         </ion-label>
-        <ion-icon slot="end" name="reorder-three" color="dark"></ion-icon>
+        <ion-reorder slot="end">
+          <ion-icon name="reorder-three" size="large"></ion-icon>
+        </ion-reorder>
       </ion-item>
-    </ion-reorder>
+    </ng-container>
   </ion-reorder-group>
 </ion-list>
 
