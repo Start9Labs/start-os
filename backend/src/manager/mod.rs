@@ -1,10 +1,11 @@
+use std::collections::BTreeMap;
 use std::convert::TryInto;
 use std::future::Future;
+use std::net::Ipv4Addr;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
-use std::{collections::BTreeMap, net::Ipv4Addr};
 
 use bollard::container::{KillContainerOptions, StopContainerOptions};
 use chrono::Utc;
@@ -13,9 +14,10 @@ use nix::sys::signal::Signal;
 use num_enum::TryFromPrimitive;
 use patch_db::DbHandle;
 use sqlx::{Executor, Sqlite};
+use tokio::io::BufReader;
+use tokio::sync::watch::error::RecvError;
 use tokio::sync::watch::{channel, Receiver, Sender};
 use tokio::sync::{Notify, RwLock};
-use tokio::{io::BufReader, sync::watch::error::RecvError};
 use torut::onion::TorSecretKeyV3;
 use tracing::instrument;
 
@@ -102,10 +104,10 @@ impl ManagerMap {
 
     #[instrument(skip(self))]
     pub async fn remove(&self, id: &(PackageId, Version)) {
-        /// TODO[JM] CLEAN UP BEFORE/ FOR PR
+        /// TODO[BLUJ] CLEAN UP BEFORE/ FOR PR
         let return_value = async {
             let mut cmd = tokio::process::Command::new("docker");
-            cmd.arg("stop").arg(format!("{}.embassy", id.0));
+            cmd.arg("rm").arg("-f").arg(format!("{}.embassy", id.0));
             cmd.stderr(std::process::Stdio::piped());
             let mut handle = cmd.spawn()?;
             let err_output = BufReader::new(
@@ -275,7 +277,7 @@ impl Manager {
         });
         shared.synchronize_now.notify_one();
         let thread_shared = shared.clone();
-        /// TODO[JM] Wait for manager thread if host thread running?
+        /// TODO[BLUJ] Wait for manager thread if host thread running?
         let thread = tokio::spawn(async move {
             tokio::select! {
                 _ = manager_thread_loop(recv, &thread_shared) => (),
@@ -480,6 +482,7 @@ async fn persistant_container(thread_shared: &Arc<ManagerSharedState>) {
     let main_docker_procedure_for_long = injectable_main(thread_shared);
     match main_docker_procedure_for_long {
         Some(main) => loop {
+            /// TODO[BLUJ] Restart Atomic Bool
             match run_persistant_container(thread_shared, main.clone()).await {
                 Ok(_) => (),
                 Err(e) => {
@@ -516,7 +519,7 @@ async fn run_persistant_container(
     let generated_certificate = generate_certificate(state, &interfaces).await?;
     let mut runtime = tokio::spawn(long_running_docker(state.clone(), docker_procedure));
 
-    /// TODO[JM] Deal with the network
+    /// TODO[BLUJ] Deal with the network
     let ip = match get_running_ip(state, &mut runtime).await {
         GetRunninIp::Ip(x) => x,
         GetRunninIp::Error(e) => return Err(e),
@@ -761,7 +764,7 @@ async fn stop(shared: &ManagerSharedState) -> Result<(), Error> {
         PackageProcedure::Script(_) => return Ok(()),
     };
     tracing::debug!("Stopping a docker");
-    /// TODO[JM] Docker: stop the running docker exec for other
+    /// TODO[BLUJ] Docker: stop the running docker exec for other
     match shared
         .ctx
         .docker

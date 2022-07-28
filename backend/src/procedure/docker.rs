@@ -144,11 +144,11 @@ impl DockerProcedure {
                 Err(e) => Err(e),
             }?;
         }
-        /// TODO[JM] Store this running pid for main somewhere, need to kill the process
-        /// TODO[JM] deal with the docker args
+        /// TODO[BLUJ] Store this running pid for main somewhere, need to kill the process
+        /// TODO[BLUJ] deal with the docker args
         cmd.args(
             self.docker_args(ctx, pkg_id, pkg_version, volumes, allow_inject)
-                .await,
+                .await?,
         );
         let input_buf = if let (Some(input), Some(format)) = (&input, &self.io_format) {
             cmd.stdin(std::process::Stdio::piped());
@@ -300,7 +300,7 @@ impl DockerProcedure {
         cmd.arg("run").arg("--rm").arg("--network=none");
         cmd.args(
             self.docker_args(ctx, pkg_id, pkg_version, &volumes.to_readonly(), false)
-                .await,
+                .await?,
         );
         let input_buf = if let (Some(input), Some(format)) = (&input, &self.io_format) {
             cmd.stdin(std::process::Stdio::piped());
@@ -423,7 +423,7 @@ impl DockerProcedure {
         pkg_version: &Version,
         volumes: &Volumes,
         allow_inject: bool,
-    ) -> Vec<Cow<'_, OsStr>> {
+    ) -> Result<Vec<Cow<'_, OsStr>>, Error> {
         let mut res = Vec::with_capacity(
             (2 * self.mounts.len()) // --mount <MOUNT_ARG>
                 + (2 * self.shm_size_mb.is_some() as usize) // --shm-size <SHM_SIZE>
@@ -439,8 +439,7 @@ impl DockerProcedure {
                 };
                 let src = volume.path_for(&ctx.datadir, pkg_id, pkg_version, volume_id);
                 if let Err(e) = tokio::fs::metadata(&src).await {
-                    tracing::warn!("{} not mounted to container: {}", src.display(), e);
-                    continue;
+                    tokio::fs::create_dir_all(&src).await?;
                 }
                 res.push(OsStr::new("--mount").into());
                 res.push(
@@ -474,7 +473,7 @@ impl DockerProcedure {
         }
         res.extend(self.args.iter().map(|s| OsStr::new(s).into()));
 
-        res
+        Ok(res)
     }
 }
 
