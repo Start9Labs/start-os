@@ -75,7 +75,7 @@
             <h2>{{ prop.key }}</h2>
             <p class="courier-new">
               {{ prop.value.masked && !unmasked[prop.key] ? (prop.value.value |
-              mask ) : prop.value.value }}
+              mask : 64) : prop.value.value }}
             </p>
           </ion-label>
           <div slot="end" *ngIf="prop.value.copyable || prop.value.qr">
@@ -87,7 +87,6 @@
               <ion-icon
                 slot="icon-only"
                 [name]="unmasked[prop.key] ? 'eye-off-outline' : 'eye-outline'"
-                [color]="unmasked[prop.key] ? 'danger' : 'dark'"
                 size="small"
               ></ion-icon>
             </ion-button>
