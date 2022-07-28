@@ -22,7 +22,6 @@ import { PatchDbModule } from './services/patch-db/patch-db.module'
 
 @NgModule({
   declarations: [AppComponent],
-  entryComponents: [],
   imports: [
     HttpClientModule,
     BrowserAnimationsModule,

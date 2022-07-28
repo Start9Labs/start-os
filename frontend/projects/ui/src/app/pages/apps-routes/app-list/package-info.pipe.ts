@@ -14,10 +14,6 @@ export class PackageInfoPipe implements PipeTransform {
   transform(pkg: PackageDataEntry): Observable<PkgInfo> {
     return this.patch
       .watch$('package-data', pkg.manifest.id)
-      .pipe(
-        filter<PackageDataEntry>(Boolean),
-        startWith(pkg),
-        map(getPackageInfo),
-      )
+      .pipe(filter(Boolean), startWith(pkg), map(getPackageInfo))
   }
 }

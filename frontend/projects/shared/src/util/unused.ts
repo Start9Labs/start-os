@@ -67,8 +67,8 @@ export function partitionArray<T>(
   ts: T[],
   condition: (t: T) => boolean,
 ): [T[], T[]] {
-  const yes = [] as T[]
-  const no = [] as T[]
+  const yes: T[] = []
+  const no: T[] = []
   ts.forEach(t => {
     if (condition(t)) {
       yes.push(t)

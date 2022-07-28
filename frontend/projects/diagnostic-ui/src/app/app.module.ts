@@ -15,7 +15,6 @@ const { useMocks } = require('../../../../config.json') as WorkspaceConfig
 
 @NgModule({
   declarations: [AppComponent],
-  entryComponents: [],
   imports: [
     HttpClientModule,
     BrowserModule,
