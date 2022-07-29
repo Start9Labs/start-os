@@ -32,6 +32,7 @@ export module RR {
     before: boolean
     cursor?: string
     limit?: number
+    follow?: boolean // include to receive guid in response for initiating websocket
   }
   export type GetServerLogsRes = LogsRes
 
@@ -164,6 +165,7 @@ export module RR {
     entries: Log[]
     'start-cursor'?: string
     'end-cursor'?: string
+    guid?: string // only expected if follow: true on request
   }
 
   export type GetPackageLogsReq = GetServerLogsReq & { id: string } // package.logs

@@ -16,6 +16,7 @@ export type GetLogsReq = {
   before: boolean
   cursor?: string
   limit?: number
+  follow?: boolean // include to receive guid in response for initiating websocket
 }
 export type GetLogsRes = LogsRes
 
@@ -23,6 +24,7 @@ export type LogsRes = {
   entries: Log[]
   'start-cursor'?: string
   'end-cursor'?: string
+  guid?: string // only expected if follow: true on request
 }
 
 export interface Log {
