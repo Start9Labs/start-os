@@ -50,7 +50,7 @@ pub async fn cli_logs(
     before: bool,
     follow: bool,
 ) -> Result<(), RpcError> {
-    cli_logs_generic(ctx, "system.logs", None, limit, cursor, before, follow).await
+    cli_logs_generic(ctx, "server.logs", None, limit, cursor, before, follow).await
 }
 
 #[command(
@@ -88,7 +88,7 @@ pub async fn cli_kernel_logs(
 ) -> Result<(), RpcError> {
     cli_logs_generic(
         ctx,
-        "system.kernel-logs",
+        "server.kernel-logs",
         None,
         limit,
         cursor,

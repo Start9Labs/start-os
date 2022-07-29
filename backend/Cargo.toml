@@ -131,7 +131,7 @@ thiserror = "1.0.31"
 tokio = { version = "1.19.2", features = ["full"] }
 tokio-stream = { version = "0.1.9", features = ["io-util", "sync"] }
 tokio-tar = { git = "https://github.com/dr-bonez/tokio-tar.git" }
-tokio-tungstenite = "0.17.1"
+tokio-tungstenite = { version = "0.17.1", features = ["native-tls"] }
 tokio-util = { version = "0.7.3", features = ["io"] }
 torut = "0.2.1"
 tracing = "0.1.35"

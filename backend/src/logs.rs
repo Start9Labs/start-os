@@ -12,7 +12,7 @@ use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::process::Command;
+use tokio::process::{Child, Command};
 use tokio::task::JoinError;
 use tokio_stream::wrappers::LinesStream;
 use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
@@ -30,7 +30,7 @@ use crate::util::{display_none, serde::Reversible};
 use crate::{Error, ErrorKind};
 
 pub struct LogStream {
-    _cmd: Command,
+    _child: Child,
     first_entry: Option<LogEntry>,
     entries: futures::stream::BoxStream<'static, Result<JournalctlEntry, Error>>,
 }
@@ -247,9 +247,27 @@ pub async fn cli_logs_generic(
             }
         }
         LogResponse::Follow { guid, .. } => {
+            let mut base_url = ctx.base_url.clone();
+            let ws_scheme = match base_url.scheme() {
+                "https" => "wss",
+                "http" => "ws",
+                _ => {
+                    return Err(Error::new(
+                        eyre!("Cannot parse scheme from base URL"),
+                        crate::ErrorKind::ParseUrl,
+                    )
+                    .into())
+                }
+            };
+            base_url.set_scheme(ws_scheme).or_else(|_| {
+                Err(Error::new(
+                    eyre!("Cannot set URL scheme"),
+                    crate::ErrorKind::ParseUrl,
+                ))
+            })?;
             let (mut stream, _) =
-                tokio_tungstenite::connect_async(format!("{}/ws/rpc/{}", ctx.base_url, guid))
-                    .await?;
+                // base_url is "http://127.0.0.1/", with a trailing slash, so we don't put a leading slash in this path:
+                tokio_tungstenite::connect_async(format!("{}ws/rpc/{}", base_url, guid)).await?;
             while let Some(log) = stream.try_next().await? {
                 match log {
                     Message::Text(log) => {
@@ -360,7 +378,7 @@ pub async fn fetch_logs(
                     Box::new(move |ws_fut| {
                         ws_handler(
                             LogStream {
-                                _cmd: cmd,
+                                _child: child,
                                 first_entry,
                                 entries: deserialized_entries.boxed(),
                             },
@@ -417,3 +435,27 @@ pub async fn fetch_logs(
 //     let serialized = serde_json::to_string_pretty(&response).unwrap();
 //     println!("{}", serialized);
 // }
+
+#[tokio::test]
+pub async fn test_logs() {
+    let mut cmd = Command::new("journalctl");
+    cmd.kill_on_drop(true);
+
+    cmd.arg("-f");
+    cmd.arg("CONTAINER_NAME=hello-world.embassy");
+
+    let mut child = cmd.stdout(Stdio::piped()).spawn().unwrap();
+    let out = BufReader::new(
+        child
+            .stdout
+            .take()
+            .ok_or_else(|| Error::new(eyre!("No stdout available"), crate::ErrorKind::Journald))
+            .unwrap(),
+    );
+
+    let mut journalctl_entries = LinesStream::new(out.lines());
+
+    while let Some(line) = journalctl_entries.try_next().await.unwrap() {
+        dbg!(line);
+    }
+}
