@@ -1,5 +1,6 @@
 import { Component } from '@angular/core'
 import { ToastController } from '@ionic/angular'
+import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { copyToClipboard, strip } from 'src/app/util/web.util'
 
@@ -15,16 +16,8 @@ export class ServerLogsPage {
   ) {}
 
   fetchFetchLogs() {
-    return async (params: {
-      before_flag?: boolean
-      limit?: number
-      cursor?: string
-    }) => {
-      return this.embassyApi.getServerLogs({
-        before_flag: params.before_flag,
-        cursor: params.cursor,
-        limit: params.limit,
-      })
+    return async (params: RR.GetServerLogsReq) => {
+      return this.embassyApi.getServerLogs(params)
     }
   }
 

@@ -4,6 +4,7 @@ import { getPkgId } from '@start9labs/shared'
 import { ToastController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { copyToClipboard, strip } from 'src/app/util/web.util'
+import { RR } from 'src/app/services/api/api.types'
 
 @Component({
   selector: 'app-logs',
@@ -20,14 +21,10 @@ export class AppLogsPage {
   ) {}
 
   fetchFetchLogs() {
-    return async (params: {
-      before_flag?: boolean
-      limit?: number
-      cursor?: string
-    }) => {
+    return async (params: RR.GetServerLogsReq) => {
       return this.embassyApi.getPackageLogs({
         id: this.pkgId,
-        before_flag: params.before_flag,
+        before: params.before,
         cursor: params.cursor,
         limit: params.limit,
       })

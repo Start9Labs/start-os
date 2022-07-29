@@ -1439,7 +1439,7 @@ export module Mock {
     'bitcoin-node': {
       name: 'Bitcoin Node Settings',
       type: 'union',
-      description: 'The node settings',
+      description: 'Options<ul><li>Item 1</li><li>Item 2</li></ul>',
       default: 'internal',
       warning: 'Careful changing this',
       tag: {

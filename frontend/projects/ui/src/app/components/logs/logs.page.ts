@@ -22,11 +22,7 @@ export class LogsPage {
   private content?: IonContent
 
   @Input()
-  fetchLogs!: (params: {
-    before_flag?: boolean
-    limit?: number
-    cursor?: string
-  }) => Promise<RR.LogsRes>
+  fetchLogs!: (params: RR.GetServerLogsReq) => Promise<RR.LogsRes>
 
   loading = true
   loadingNext = false
@@ -119,7 +115,7 @@ export class LogsPage {
       const cursor = isBefore ? this.startCursor : this.endCursor
       const logsRes = await this.fetchLogs({
         cursor,
-        before_flag: !!cursor ? isBefore : undefined,
+        before: !!cursor ? isBefore : false,
         limit: this.limit,
       })
 

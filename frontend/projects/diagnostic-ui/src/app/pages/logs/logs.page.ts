@@ -73,7 +73,7 @@ export class LogsPage {
 
       const logsRes = await this.api.getLogs({
         cursor,
-        before_flag: !!cursor ? isBefore : undefined,
+        before: !!cursor ? isBefore : false,
         limit: this.limit,
       })
 

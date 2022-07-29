@@ -13,8 +13,8 @@ export interface GetErrorRes {
 }
 
 export type GetLogsReq = {
+  before: boolean
   cursor?: string
-  before_flag?: boolean
   limit?: number
 }
 export type GetLogsRes = LogsRes

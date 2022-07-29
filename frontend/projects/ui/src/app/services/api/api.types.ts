@@ -29,8 +29,8 @@ export module RR {
   // server
 
   export type GetServerLogsReq = {
+    before: boolean
     cursor?: string
-    before_flag?: boolean
     limit?: number
   }
   export type GetServerLogsRes = LogsRes
@@ -166,12 +166,7 @@ export module RR {
     'end-cursor'?: string
   }
 
-  export type GetPackageLogsReq = {
-    id: string
-    cursor?: string
-    before_flag?: boolean
-    limit?: number
-  } // package.logs
+  export type GetPackageLogsReq = GetServerLogsReq & { id: string } // package.logs
   export type GetPackageLogsRes = LogsRes
 
   export type GetPackageMetricsReq = { id: string } // package.metrics
