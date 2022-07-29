@@ -70,8 +70,7 @@ export class HttpService {
     const options = {
       responseType: httpOpts.responseType || 'json',
       body: httpOpts.body,
-      observe: 'events',
-      reportProgress: false,
+      observe: 'response',
       withCredentials: httpOpts.withCredentials,
       headers: httpOpts.headers,
       params: httpOpts.params,
