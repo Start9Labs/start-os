@@ -13,9 +13,6 @@ if tty -s; then
 	USE_TTY="-it"
 fi
 
-alias 'rust-arm64-builder'='docker run $USE_TTY --rm -v "$HOME/.cargo/registry":/root/.cargo/registry -v "$(pwd)":/home/rust/src -P start9/rust-arm-cross:aarch64'
-
-cd ..
 FLAGS=""
 if [[ "$ENVIRONMENT" =~ (^|-)unstable($|-) ]]; then
 	FLAGS="unstable,$FLAGS"
@@ -23,13 +20,36 @@ fi
 if [[ "$ENVIRONMENT" =~ (^|-)dev($|-) ]]; then
 	FLAGS="dev,$FLAGS"
 fi
-if [[ "$FLAGS" = "" ]]; then
-	rust-arm64-builder sh -c "(git config --global --add safe.directory '*'; cd backend && cargo build --release)"
+
+build_cross () {
+	alias 'rust-arm64-builder'='docker run $USE_TTY --rm -v "$HOME/.cargo/registry":/root/.cargo/registry -v "$(pwd)":/home/rust/src -P start9/rust-arm-cross:aarch64'
+	cd ..
+	if [[ "$FLAGS" = "" ]]; then
+		rust-arm64-builder sh -c "(git config --global --add safe.directory '*'; cd backend && cargo build --release)"
+	else
+		echo "FLAGS=$FLAGS"
+		rust-arm64-builder sh -c "(git config --global --add safe.directory '*'; cd backend && cargo build --release --features $FLAGS)"
+	fi
+	cd backend
+}
+
+build_arm64 () {
+	if [[ "$FLAGS" = "" ]]; then
+		cargo build --release
+	else
+		echo "FLAGS=$FLAGS"
+		cargo build --release --features $FLAGS
+	fi
+}
+
+if [[ "$(uname -m)" =~ ^(arm64|aarch64)$ ]]; then
+	echo "Detected arm64 system, skipping cross-build"
+    build_arm64
 else
-	echo "FLAGS=$FLAGS"
-	rust-arm64-builder sh -c "(git config --global --add safe.directory '*'; cd backend && cargo build --release --features $FLAGS)"
+	echo "Detected non-arm64 system, cross-building"
+	build_cross
 fi
-cd backend
+
 
 sudo chown -R $USER target
 sudo chown -R $USER ~/.cargo
