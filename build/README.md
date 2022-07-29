@@ -9,6 +9,8 @@
 - Avahi
 	- `sudo apt install -y avahi-daemon`
 	- Installed by default on most Debian systems - https://avahi.org
+- Build Essentials (needed to run `make`)
+	- `sudo apt install -y build-essential`
 - Docker
 	- `curl -fsSL https://get.docker.com | sh`
 	- https://docs.docker.com/get-docker
