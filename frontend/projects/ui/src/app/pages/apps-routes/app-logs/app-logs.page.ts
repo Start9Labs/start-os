@@ -24,9 +24,7 @@ export class AppLogsPage {
     return async (params: RR.GetServerLogsReq) => {
       return this.embassyApi.getPackageLogs({
         id: this.pkgId,
-        before: params.before,
-        cursor: params.cursor,
-        limit: params.limit,
+        ...params,
       })
     }
   }
