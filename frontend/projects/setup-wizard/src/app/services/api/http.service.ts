@@ -54,9 +54,7 @@ export class HttpService {
     const options = {
       responseType: 'arraybuffer',
       body: encryptedBody.buffer,
-      observe: 'events',
-      reportProgress: false,
-
+      observe: 'response',
       headers: {
         'Content-Encoding': 'aesctr256',
         'Content-Type': 'application/json',
@@ -92,8 +90,7 @@ export class HttpService {
     const options = {
       responseType: 'json',
       body: httpOpts.body,
-      observe: 'events',
-      reportProgress: false,
+      observe: 'response',
       headers: {
         'content-type': 'application/json',
         accept: 'application/json',
