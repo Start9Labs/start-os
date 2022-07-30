@@ -21,8 +21,8 @@ if [[ "$ENVIRONMENT" =~ (^|-)dev($|-) ]]; then
 	FLAGS="dev,$FLAGS"
 fi
 
+alias 'rust-arm64-builder'='docker run $USE_TTY --rm -v "$HOME/.cargo/registry":/root/.cargo/registry -v "$(pwd)":/home/rust/src -P start9/rust-arm-cross:aarch64'
 build_cross () {
-	alias 'rust-arm64-builder'='docker run $USE_TTY --rm -v "$HOME/.cargo/registry":/root/.cargo/registry -v "$(pwd)":/home/rust/src -P start9/rust-arm-cross:aarch64'
 	cd ..
 	if [[ "$FLAGS" = "" ]]; then
 		rust-arm64-builder sh -c "(git config --global --add safe.directory '*'; cd backend && cargo build --release)"
