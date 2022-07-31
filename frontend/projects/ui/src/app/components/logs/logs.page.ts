@@ -1,6 +1,7 @@
+import { formatDate } from '@angular/common'
 import { Component, Input, ViewChild } from '@angular/core'
 import { IonContent } from '@ionic/angular'
-import { ErrorToastService } from '@start9labs/shared'
+import { ErrorToastService, toLocalIsoString } from '@start9labs/shared'
 import { RR } from 'src/app/services/api/api.types'
 var Convert = require('ansi-to-html')
 var convert = new Convert({
@@ -53,8 +54,14 @@ export class LogsPage {
     if (!(newLogs instanceof HTMLElement)) return
 
     newLogs.innerHTML =
-      logs.map(l => `${l.timestamp} ${convert.toHtml(l.message)}`).join('\n') +
-      (logs.length ? '\n' : '')
+      logs
+        .map(
+          l =>
+            `<b>${toLocalIsoString(new Date(l.timestamp))}</b> ${convert.toHtml(
+              l.message,
+            )}`,
+        )
+        .join('\n') + (logs.length ? '\n' : '')
     container?.append(newLogs)
     this.loadingNext = false
     this.scrollEvent()
@@ -87,8 +94,14 @@ export class LogsPage {
     if (!(newLogs instanceof HTMLElement)) return
 
     newLogs.innerHTML =
-      logs.map(l => `${l.timestamp} ${convert.toHtml(l.message)}`).join('\n') +
-      (logs.length ? '\n' : '')
+      logs
+        .map(
+          l =>
+            `<b>${toLocalIsoString(new Date(l.timestamp))}</b> ${convert.toHtml(
+              l.message,
+            )}`,
+        )
+        .join('\n') + (logs.length ? '\n' : '')
     container?.prepend(newLogs)
     const afterContainerHeight = container?.scrollHeight || 0
 

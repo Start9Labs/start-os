@@ -1,6 +1,7 @@
 import { Component, ViewChild } from '@angular/core'
 import { IonContent } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/api.service'
+import { toLocalIsoString } from '@start9labs/shared'
 var Convert = require('ansi-to-html')
 var convert = new Convert({
   bg: 'transparent',
@@ -42,7 +43,12 @@ export class LogsPage {
 
       newLogs.innerHTML =
         logs
-          .map(l => `${l.timestamp} ${convert.toHtml(l.message)}`)
+          .map(
+            l =>
+              `<b>${toLocalIsoString(
+                new Date(l.timestamp),
+              )}</b> ${convert.toHtml(l.message)}`,
+          )
           .join('\n') + (logs.length ? '\n' : '')
       container?.prepend(newLogs)
 
@@ -100,7 +106,12 @@ export class LogsPage {
 
       newLogs.innerHTML =
         logs
-          .map(l => `${l.timestamp} ${convert.toHtml(l.message)}`)
+          .map(
+            l =>
+              `<b>${toLocalIsoString(
+                new Date(l.timestamp),
+              )}</b> ${convert.toHtml(l.message)}`,
+          )
           .join('\n') + (logs.length ? '\n' : '')
       container?.append(newLogs)
       this.loadingMore = false

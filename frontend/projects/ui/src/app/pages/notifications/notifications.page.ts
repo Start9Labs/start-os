@@ -166,7 +166,7 @@ export class NotificationsPage {
 
     try {
       await this.embassyApi.deleteAllNotifications({
-        before: this.notifications[0].id,
+        before: this.notifications[0].id + 1,
       })
       this.notifications = []
       this.beforeCursor = undefined

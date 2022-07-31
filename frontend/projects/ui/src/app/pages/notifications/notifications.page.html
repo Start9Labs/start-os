@@ -84,7 +84,8 @@
             <h2>
               <b>
                 <span *ngIf="not['package-id'] as pkgId">
-                  {{ packageData[pkgId]?.manifest?.title || pkgId }} -
+                  <!-- @TODO remove $any when Angular gets smart enough -->
+                  {{ $any(packageData[pkgId])?.manifest?.title || pkgId }} -
                 </span>
                 <ion-text [color]="getColor(not)"> {{ not.title }} </ion-text>
               </b>
