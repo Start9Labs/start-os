@@ -1,5 +1,6 @@
 use std::fmt;
 
+use color_eyre::eyre::eyre;
 use futures::FutureExt;
 use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
@@ -10,7 +11,10 @@ use tracing::instrument;
 
 use crate::context::{CliContext, RpcContext};
 use crate::disk::util::{get_available, get_used};
-use crate::logs::{cli_logs_generic, fetch_logs, FollowArgs, LogResponse, LogSource};
+use crate::logs::{
+    cli_logs_generic_follow, cli_logs_generic_nofollow, fetch_logs, follow_logs, LogFollowResponse,
+    LogResponse, LogSource,
+};
 use crate::shutdown::Shutdown;
 use crate::util::display_none;
 use crate::util::serde::{display_serializable, IoFormat};
@@ -20,82 +24,103 @@ pub const SYSTEMD_UNIT: &'static str = "embassyd";
 
 #[command(
     custom_cli(cli_logs(async, context(CliContext))),
+    subcommands(self(logs_nofollow(async)), logs_follow),
     display(display_none)
 )]
 pub async fn logs(
-    #[context] ctx: RpcContext,
     #[arg(short = 'l', long = "limit")] limit: Option<usize>,
     #[arg(short = 'c', long = "cursor")] cursor: Option<String>,
-    #[arg(short = 'B', long = "before")] before: bool,
-    #[arg(short = 'f', long = "follow")] follow: bool,
-) -> Result<LogResponse, Error> {
-    Ok(fetch_logs(
-        LogSource::Service(SYSTEMD_UNIT),
-        limit,
-        cursor,
-        before,
-        if follow {
-            Some(FollowArgs { ctx })
-        } else {
-            None
-        },
-    )
-    .await?)
+    #[arg(short = 'B', long = "before", default)] before: bool,
+    #[arg(short = 'f', long = "follow", default)] follow: bool,
+) -> Result<(Option<usize>, Option<String>, bool, bool), Error> {
+    Ok((limit, cursor, before, follow))
 }
-
 pub async fn cli_logs(
     ctx: CliContext,
-    limit: Option<usize>,
-    cursor: Option<String>,
-    before: bool,
-    follow: bool,
+    (limit, cursor, before, follow): (Option<usize>, Option<String>, bool, bool),
 ) -> Result<(), RpcError> {
-    cli_logs_generic(ctx, "server.logs", None, limit, cursor, before, follow).await
+    if follow {
+        if cursor.is_some() {
+            return Err(RpcError::from(Error::new(
+                eyre!("The argument '--cursor <cursor>' cannot be used with '--follow'"),
+                crate::ErrorKind::InvalidRequest,
+            )));
+        }
+        if before {
+            return Err(RpcError::from(Error::new(
+                eyre!("The argument '--before' cannot be used with '--follow'"),
+                crate::ErrorKind::InvalidRequest,
+            )));
+        }
+        cli_logs_generic_follow(ctx, "server.logs.follow", None, limit).await
+    } else {
+        cli_logs_generic_nofollow(ctx, "server.logs", None, limit, cursor, before).await
+    }
+}
+pub async fn logs_nofollow(
+    _ctx: (),
+    (limit, cursor, before, _): (Option<usize>, Option<String>, bool, bool),
+) -> Result<LogResponse, Error> {
+    fetch_logs(LogSource::Service(SYSTEMD_UNIT), limit, cursor, before).await
+}
+
+#[command(rpc_only, rename = "follow", display(display_none))]
+pub async fn logs_follow(
+    #[context] ctx: RpcContext,
+    #[parent_data] (limit, _, _, _): (Option<usize>, Option<String>, bool, bool),
+) -> Result<LogFollowResponse, Error> {
+    follow_logs(ctx, LogSource::Service(SYSTEMD_UNIT), limit).await
 }
 
 #[command(
     rename = "kernel-logs",
     custom_cli(cli_kernel_logs(async, context(CliContext))),
+    subcommands(self(kernel_logs_nofollow(async)), kernel_logs_follow),
     display(display_none)
 )]
 pub async fn kernel_logs(
-    #[context] ctx: RpcContext,
     #[arg(short = 'l', long = "limit")] limit: Option<usize>,
     #[arg(short = 'c', long = "cursor")] cursor: Option<String>,
-    #[arg(short = 'B', long = "before")] before: bool,
-    #[arg(short = 'f', long = "follow")] follow: bool,
-) -> Result<LogResponse, Error> {
-    Ok(fetch_logs(
-        LogSource::Kernel,
-        limit,
-        cursor,
-        before,
-        if follow {
-            Some(FollowArgs { ctx })
-        } else {
-            None
-        },
-    )
-    .await?)
+    #[arg(short = 'B', long = "before", default)] before: bool,
+    #[arg(short = 'f', long = "follow", default)] follow: bool,
+) -> Result<(Option<usize>, Option<String>, bool, bool), Error> {
+    Ok((limit, cursor, before, follow))
 }
-
 pub async fn cli_kernel_logs(
     ctx: CliContext,
-    limit: Option<usize>,
-    cursor: Option<String>,
-    before: bool,
-    follow: bool,
+    (limit, cursor, before, follow): (Option<usize>, Option<String>, bool, bool),
 ) -> Result<(), RpcError> {
-    cli_logs_generic(
-        ctx,
-        "server.kernel-logs",
-        None,
-        limit,
-        cursor,
-        before,
-        follow,
-    )
-    .await
+    if follow {
+        if cursor.is_some() {
+            return Err(RpcError::from(Error::new(
+                eyre!("The argument '--cursor <cursor>' cannot be used with '--follow'"),
+                crate::ErrorKind::InvalidRequest,
+            )));
+        }
+        if before {
+            return Err(RpcError::from(Error::new(
+                eyre!("The argument '--before' cannot be used with '--follow'"),
+                crate::ErrorKind::InvalidRequest,
+            )));
+        }
+        cli_logs_generic_follow(ctx, "server.kernel-logs.follow", None, limit).await
+    } else {
+        cli_logs_generic_nofollow(ctx, "server.kernel-logs", None, limit, cursor, before).await
+    }
+}
+pub async fn kernel_logs_nofollow(
+    _ctx: (),
+    (limit, cursor, before, _): (Option<usize>, Option<String>, bool, bool),
+) -> Result<LogResponse, Error> {
+    fetch_logs(LogSource::Service(SYSTEMD_UNIT), limit, cursor, before).await
+}
+
+#[command(rpc_only, rename = "follow", display(display_none))]
+pub async fn kernel_logs_follow(
+    #[context] ctx: RpcContext,
+    #[parent_data] (limit, _, _, _): (Option<usize>, Option<String>, bool, bool),
+) -> Result<LogFollowResponse, Error> {
+    follow_logs(ctx, LogSource::Service(SYSTEMD_UNIT), limit).await
 }
 
 #[derive(Serialize, Deserialize)]

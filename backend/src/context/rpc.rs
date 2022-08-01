@@ -421,7 +421,7 @@ impl RpcContext {
     }
 
     pub async fn get_ws_continuation_handler(&self, guid: &RequestGuid) -> Option<RestHandler> {
-        let mut continuations = self.rpc_stream_continuations.lock().await;
+        let continuations = self.rpc_stream_continuations.lock().await;
         if matches!(continuations.get(guid), Some(RpcContinuation::WebSocket(_))) {
             drop(continuations);
             self.get_continuation_handler(guid).await
@@ -431,7 +431,7 @@ impl RpcContext {
     }
 
     pub async fn get_rest_continuation_handler(&self, guid: &RequestGuid) -> Option<RestHandler> {
-        let mut continuations = self.rpc_stream_continuations.lock().await;
+        let continuations = self.rpc_stream_continuations.lock().await;
         if matches!(continuations.get(guid), Some(RpcContinuation::Rest(_))) {
             drop(continuations);
             self.get_continuation_handler(guid).await
