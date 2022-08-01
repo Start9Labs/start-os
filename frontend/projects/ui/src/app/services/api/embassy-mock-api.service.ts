@@ -44,20 +44,12 @@ export class MockApiService extends ApiService {
     super()
   }
 
-  openLogsWebsocket$(
-    config: WebSocketSubjectConfig<LogsRes>,
-  ): Observable<LogsRes> {
-    return interval(100).pipe(
+  openLogsWebsocket$(config: WebSocketSubjectConfig<Log>): Observable<Log> {
+    return interval(10).pipe(
       map((_, index) => {
         // mock fire open observer
-        if (index === 0) {
-          config.openObserver?.next(new Event(''))
-          return { entries: this.randomLogs(400) }
-        } else {
-          return {
-            entries: [Mock.ServerLogs[0]],
-          }
-        }
+        if (index === 0) config.openObserver?.next(new Event(''))
+        return Mock.ServerLogs[0]
       }),
     )
   }

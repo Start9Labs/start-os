@@ -9,6 +9,7 @@ import {
   DestroyService,
   ErrorToastService,
   toLocalIsoString,
+  Log,
 } from '@start9labs/shared'
 import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -44,10 +45,13 @@ export class LogsComponent {
   needInfinite = true
   startCursor?: string
   guid?: string
-  limit = 400
   isOnBottom = true
   autoScroll = true
   websocketFail = false
+
+  toProcess: Log[] = []
+
+  readonly defaultLogLimit = 50
 
   constructor(
     @Inject(DOCUMENT) private readonly document: Document,
@@ -58,9 +62,7 @@ export class LogsComponent {
 
   async ngOnInit() {
     try {
-      const { 'start-cursor': startCursor, guid } = await this.followLogs({
-        limit: this.limit,
-      })
+      const { 'start-cursor': startCursor, guid } = await this.followLogs({})
 
       this.startCursor = startCursor
 
@@ -68,7 +70,7 @@ export class LogsComponent {
       const protocol =
         this.document.location.protocol === 'http:' ? 'ws' : 'wss'
 
-      const config: WebSocketSubjectConfig<LogsRes> = {
+      const config: WebSocketSubjectConfig<Log> = {
         url: `${protocol}://${host}/ws/rpc/${guid}`,
         openObserver: {
           next: () => {
@@ -83,7 +85,8 @@ export class LogsComponent {
         .pipe(takeUntil(this.destroy$))
         .subscribe({
           next: msg => {
-            this.processRes(msg, false)
+            // this.toProcess.push(msg)
+            this.processRes({ entries: [msg] })
           },
           error: () => {
             this.websocketFail = true
@@ -100,10 +103,9 @@ export class LogsComponent {
       const res = await this.fetchLogs({
         cursor: this.startCursor,
         before: true,
-        limit: this.limit,
       })
 
-      this.processRes(res, true)
+      this.processRes(res)
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
@@ -111,7 +113,11 @@ export class LogsComponent {
     }
   }
 
-  scrollEnd() {
+  handleScroll(e: any) {
+    if (e.detail.deltaY < 0) this.autoScroll = false
+  }
+
+  handleScrollEnd() {
     const bottomDiv = document.getElementById('bottom-div')
     this.isOnBottom =
       !!bottomDiv &&
@@ -122,7 +128,7 @@ export class LogsComponent {
     this.content?.scrollToBottom(250)
   }
 
-  private async processRes(res: LogsRes, before: boolean) {
+  private async processRes(res: LogsRes) {
     const { entries, 'start-cursor': startCursor } = res
 
     if (!entries.length) return
@@ -141,7 +147,8 @@ export class LogsComponent {
       )
       .join('\n')
 
-    if (before) {
+    // if respone contains startCursor, it means we are scrolling backwards
+    if (startCursor) {
       this.startCursor = startCursor
 
       const beforeContainerHeight = container?.scrollHeight || 0
@@ -156,7 +163,7 @@ export class LogsComponent {
         )
       }, 50)
 
-      if (entries.length < this.limit) {
+      if (entries.length < this.defaultLogLimit) {
         this.needInfinite = false
       }
     } else {

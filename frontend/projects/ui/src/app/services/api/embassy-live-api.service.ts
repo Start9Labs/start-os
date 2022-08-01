@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { HttpService, LogsRes, Method } from '@start9labs/shared'
+import { HttpService, Log, LogsRes, Method } from '@start9labs/shared'
 import { ApiService } from './embassy-api.service'
 import { RR } from './api.types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
@@ -17,9 +17,7 @@ export class LiveApiService extends ApiService {
     ; (window as any).rpcClient = this
   }
 
-  openLogsWebsocket$(
-    config: WebSocketSubjectConfig<LogsRes>,
-  ): Observable<LogsRes> {
+  openLogsWebsocket$(config: WebSocketSubjectConfig<Log>): Observable<Log> {
     return webSocket(config)
   }
 

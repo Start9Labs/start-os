@@ -19,11 +19,7 @@ export function exists<T>(t: T | undefined): t is T {
 }
 
 export function debounce(delay: number = 300): MethodDecorator {
-  return function (
-    target: any,
-    propertyKey: string | symbol,
-    descriptor: PropertyDescriptor,
-  ) {
+  return function (descriptor: PropertyDescriptor) {
     const timeoutKey = Symbol()
 
     const original = descriptor.value

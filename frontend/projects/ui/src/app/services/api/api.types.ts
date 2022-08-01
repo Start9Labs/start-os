@@ -32,7 +32,7 @@ export module RR {
   export type GetServerLogsReq = ServerLogsReq // server.logs & server.kernel-logs
   export type GetServerLogsRes = LogsRes
 
-  export type FollowServerLogsReq = { limit: number } // server.logs.follow & server.kernel-logs.follow
+  export type FollowServerLogsReq = { limit?: number } // server.logs.follow & server.kernel-logs.follow
   export type FollowServerLogsRes = {
     'start-cursor': string
     guid: string

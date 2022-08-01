@@ -10,7 +10,7 @@ import {
 } from 'patch-db-client'
 import { RR } from './api.types'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { LogsRes, RequestError } from '@start9labs/shared'
+import { Log, RequestError } from '@start9labs/shared'
 import { map } from 'rxjs/operators'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 
@@ -28,8 +28,8 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
   // websocket
 
   abstract openLogsWebsocket$(
-    config: WebSocketSubjectConfig<LogsRes>,
-  ): Observable<LogsRes>
+    config: WebSocketSubjectConfig<Log>,
+  ): Observable<Log>
 
   // http
 
