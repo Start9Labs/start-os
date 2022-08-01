@@ -37,9 +37,12 @@ build_arm64 () {
 	if [[ "$FLAGS" = "" ]]; then
 		cargo build --release
 	else
+		echo "bins=$EMBASSY_BINS"
 		echo "FLAGS=$FLAGS"
 		cargo build --release --features $FLAGS
 	fi
+	mkdir -p target/aarch64-unknown-linux-gnu/release/
+	cp target/release/embassy* target/aarch64-unknown-linux-gnu/release/
 }
 
 if [[ "$(uname -m)" =~ ^(arm64|aarch64)$ ]]; then
