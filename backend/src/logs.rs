@@ -87,14 +87,19 @@ async fn ws_handler<
             .with_kind(ErrorKind::Network)?;
     }
 
-    while let Some(entry) = logs.try_next().await? {
-        let (_, log_entry) = entry.log_entry()?;
-        stream
-            .send(Message::Text(
-                serde_json::to_string(&log_entry).with_kind(ErrorKind::Serialization)?,
-            ))
-            .await
-            .with_kind(ErrorKind::Network)?;
+    while let Some(entry) = tokio::select! {
+        a = logs.try_next() => Some(a?),
+        a = stream.try_next() => { a.with_kind(crate::ErrorKind::Network)?; None }
+    } {
+        if let Some(entry) = entry {
+            let (_, log_entry) = entry.log_entry()?;
+            stream
+                .send(Message::Text(
+                    serde_json::to_string(&log_entry).with_kind(ErrorKind::Serialization)?,
+                ))
+                .await
+                .with_kind(ErrorKind::Network)?;
+        }
     }
 
     stream
