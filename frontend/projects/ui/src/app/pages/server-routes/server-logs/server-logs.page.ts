@@ -15,9 +15,9 @@ export class ServerLogsPage {
     private readonly toastCtrl: ToastController,
   ) {}
 
-  tailLogs() {
-    return async (params: RR.TailServerLogsReq) => {
-      return this.embassyApi.tailServerLogs(params)
+  followLogs() {
+    return async (params: RR.FollowServerLogsReq) => {
+      return this.embassyApi.followServerLogs(params)
     }
   }
 

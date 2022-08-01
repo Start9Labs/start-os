@@ -154,9 +154,9 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async tailServerLogs(
-    params: RR.TailServerLogsReq,
-  ): Promise<RR.TailServerLogsRes> {
+  async followServerLogs(
+    params: RR.FollowServerLogsReq,
+  ): Promise<RR.FollowServerLogsRes> {
     await pauseFor(2000)
     return {
       'start-cursor': 'start-cursor',
@@ -164,9 +164,9 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async tailKernelLogs(
-    params: RR.TailServerLogsReq,
-  ): Promise<RR.TailServerLogsRes> {
+  async followKernelLogs(
+    params: RR.FollowServerLogsReq,
+  ): Promise<RR.FollowServerLogsRes> {
     await pauseFor(2000)
     return {
       'start-cursor': 'start-cursor',
@@ -515,9 +515,9 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async tailPackageLogs(
-    params: RR.TailPackageLogsReq,
-  ): Promise<RR.TailPackageLogsRes> {
+  async followPackageLogs(
+    params: RR.FollowPackageLogsReq,
+  ): Promise<RR.FollowPackageLogsRes> {
     await pauseFor(2000)
     return {
       'start-cursor': 'start-cursor',

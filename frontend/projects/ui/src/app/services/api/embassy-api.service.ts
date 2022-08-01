@@ -71,13 +71,13 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
     params: RR.GetServerLogsReq,
   ): Promise<RR.GetServerLogsRes>
 
-  abstract tailServerLogs(
-    params: RR.TailServerLogsReq,
-  ): Promise<RR.TailServerLogsRes>
+  abstract followServerLogs(
+    params: RR.FollowServerLogsReq,
+  ): Promise<RR.FollowServerLogsRes>
 
-  abstract tailKernelLogs(
-    params: RR.TailServerLogsReq,
-  ): Promise<RR.TailServerLogsRes>
+  abstract followKernelLogs(
+    params: RR.FollowServerLogsReq,
+  ): Promise<RR.FollowServerLogsRes>
 
   abstract getServerMetrics(
     params: RR.GetServerMetricsReq,
@@ -210,9 +210,9 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
     params: RR.GetPackageLogsReq,
   ): Promise<RR.GetPackageLogsRes>
 
-  abstract tailPackageLogs(
-    params: RR.TailPackageLogsReq,
-  ): Promise<RR.TailPackageLogsRes>
+  abstract followPackageLogs(
+    params: RR.FollowPackageLogsReq,
+  ): Promise<RR.FollowPackageLogsRes>
 
   protected abstract installPackageRaw(
     params: RR.InstallPackageReq,

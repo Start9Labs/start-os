@@ -33,7 +33,9 @@ export class LogsComponent {
   private content?: IonContent
 
   @Input()
-  tailLogs!: (params: RR.TailServerLogsReq) => Promise<RR.TailServerLogsRes>
+  followLogs!: (
+    params: RR.FollowServerLogsReq,
+  ) => Promise<RR.FollowServerLogsRes>
 
   @Input()
   fetchLogs!: (params: ServerLogsReq) => Promise<LogsRes>
@@ -56,7 +58,7 @@ export class LogsComponent {
 
   async ngOnInit() {
     try {
-      const { 'start-cursor': startCursor, guid } = await this.tailLogs({
+      const { 'start-cursor': startCursor, guid } = await this.followLogs({
         limit: this.limit,
       })
 

@@ -86,16 +86,16 @@ export class LiveApiService extends ApiService {
     return this.http.rpcRequest({ method: 'server.kernel-logs', params })
   }
 
-  async tailServerLogs(
-    params: RR.TailServerLogsReq,
-  ): Promise<RR.TailServerLogsRes> {
-    return this.http.rpcRequest({ method: 'server.logs.tail', params })
+  async followServerLogs(
+    params: RR.FollowServerLogsReq,
+  ): Promise<RR.FollowServerLogsRes> {
+    return this.http.rpcRequest({ method: 'server.logs.follow', params })
   }
 
-  async tailKernelLogs(
-    params: RR.TailServerLogsReq,
-  ): Promise<RR.TailServerLogsRes> {
-    return this.http.rpcRequest({ method: 'server.kernel-logs.tail', params })
+  async followKernelLogs(
+    params: RR.FollowServerLogsReq,
+  ): Promise<RR.FollowServerLogsRes> {
+    return this.http.rpcRequest({ method: 'server.kernel-logs.follow', params })
   }
 
   async getServerMetrics(
@@ -272,10 +272,10 @@ export class LiveApiService extends ApiService {
     return this.http.rpcRequest({ method: 'package.logs', params })
   }
 
-  async tailPackageLogs(
-    params: RR.TailServerLogsReq,
-  ): Promise<RR.TailServerLogsRes> {
-    return this.http.rpcRequest({ method: 'package.logs.tail', params })
+  async followPackageLogs(
+    params: RR.FollowServerLogsReq,
+  ): Promise<RR.FollowServerLogsRes> {
+    return this.http.rpcRequest({ method: 'package.logs.follow', params })
   }
 
   async getPkgMetrics(

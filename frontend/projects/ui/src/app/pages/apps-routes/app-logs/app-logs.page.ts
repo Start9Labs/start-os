@@ -20,9 +20,9 @@ export class AppLogsPage {
     private readonly toastCtrl: ToastController,
   ) {}
 
-  tailLogs() {
-    return async (params: RR.TailServerLogsReq) => {
-      return this.embassyApi.tailPackageLogs({
+  followLogs() {
+    return async (params: RR.FollowServerLogsReq) => {
+      return this.embassyApi.followPackageLogs({
         id: this.pkgId,
         ...params,
       })
