@@ -487,7 +487,6 @@ impl PersistantContainer {
     }
     #[instrument(skip(self))]
     async fn stop(&self) {
-        tracing::error!("Stopping");
         let container_name = &self.container_name;
         self.should_stop_running.store(true, Ordering::SeqCst);
         let mut running_docker = self.running_docker.lock().await;
@@ -500,7 +499,7 @@ impl PersistantContainer {
                 .output()
                 .await
             {
-                tracing::error!("Failed to stop docker");
+                tracing::warn!("Failed to stop docker");
                 tracing::debug!("{:?}", err);
             }
             if let Err(err) = Command::new("docker")
@@ -508,7 +507,7 @@ impl PersistantContainer {
                 .output()
                 .await
             {
-                tracing::error!("Failed to stop docker");
+                tracing::warn!("Failed to stop docker");
                 tracing::debug!("{:?}", err);
             }
         }
@@ -516,7 +515,6 @@ impl PersistantContainer {
 }
 impl Drop for PersistantContainer {
     fn drop(&mut self) {
-        tracing::error!("Dropping");
         self.should_stop_running.store(true, Ordering::SeqCst);
         let container_name = self.container_name.clone();
         let running_docker = self.running_docker.clone();
@@ -862,7 +860,6 @@ async fn stop(shared: &ManagerSharedState) -> Result<(), Error> {
         PackageProcedure::Script(_) => return Ok(()),
     };
     tracing::debug!("Stopping a docker");
-    /// TODO[BLUJ] Docker: stop the running docker exec for other
     shared.status.store(
         Status::Stopped as usize,
         std::sync::atomic::Ordering::SeqCst,
