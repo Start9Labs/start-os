@@ -20,7 +20,16 @@ export class AppLogsPage {
     private readonly toastCtrl: ToastController,
   ) {}
 
-  fetchFetchLogs() {
+  tailLogs() {
+    return async (params: RR.TailServerLogsReq) => {
+      return this.embassyApi.tailPackageLogs({
+        id: this.pkgId,
+        ...params,
+      })
+    }
+  }
+
+  fetchLogs() {
     return async (params: RR.GetServerLogsReq) => {
       return this.embassyApi.getPackageLogs({
         id: this.pkgId,

@@ -15,7 +15,13 @@ export class KernelLogsPage {
     private readonly toastCtrl: ToastController,
   ) {}
 
-  fetchFetchLogs() {
+  tailLogs() {
+    return async (params: RR.TailServerLogsReq) => {
+      return this.embassyApi.tailKernelLogs(params)
+    }
+  }
+
+  fetchLogs() {
     return async (params: RR.GetServerLogsReq) => {
       return this.embassyApi.getKernelLogs(params)
     }

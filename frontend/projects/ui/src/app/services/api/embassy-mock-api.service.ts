@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { pauseFor } from '@start9labs/shared'
+import { pauseFor, Log, LogsRes } from '@start9labs/shared'
 import { ApiService } from './embassy-api.service'
 import { PatchOp, Update, Operation, RemoveOperation } from 'patch-db-client'
 import {
@@ -11,13 +11,14 @@ import {
   PackageState,
   ServerStatus,
 } from 'src/app/services/patch-db/data-model'
-import { CifsBackupTarget, Log, RR, WithRevision } from './api.types'
+import { CifsBackupTarget, RR, WithRevision } from './api.types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { Mock } from './api.fixures'
 import markdown from 'raw-loader!../../../../../../assets/markdown/md-sample.md'
-import { BehaviorSubject } from 'rxjs'
+import { BehaviorSubject, interval, map, Observable, tap } from 'rxjs'
 import { LocalStorageBootstrap } from '../patch-db/local-storage-bootstrap'
 import { mockPatchData } from './mock-patch'
+import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 
 const PROGRESS: InstallProgress = {
   size: 120,
@@ -41,6 +42,24 @@ export class MockApiService extends ApiService {
 
   constructor(private readonly bootstrapper: LocalStorageBootstrap) {
     super()
+  }
+
+  openLogsWebsocket$(
+    config: WebSocketSubjectConfig<LogsRes>,
+  ): Observable<LogsRes> {
+    return interval(100).pipe(
+      map((_, index) => {
+        // mock fire open observer
+        if (index === 0) {
+          config.openObserver?.next(new Event(''))
+          return { entries: this.randomLogs(400) }
+        } else {
+          return {
+            entries: [Mock.ServerLogs[0]],
+          }
+        }
+      }),
+    )
   }
 
   async getStatic(url: string): Promise<string> {
@@ -113,17 +132,8 @@ export class MockApiService extends ApiService {
     params: RR.GetServerLogsReq,
   ): Promise<RR.GetServerLogsRes> {
     await pauseFor(2000)
-    let entries: Log[]
-    if (Math.random() < 0.2) {
-      entries = Mock.ServerLogs
-    } else {
-      const arrLength = params.limit
-        ? Math.ceil(params.limit / Mock.ServerLogs.length)
-        : 10
-      entries = new Array(arrLength)
-        .fill(Mock.ServerLogs)
-        .reduce((acc, val) => acc.concat(val), [])
-    }
+    const entries = this.randomLogs(params.limit)
+
     return {
       entries,
       'start-cursor': 'startCursor',
@@ -135,22 +145,42 @@ export class MockApiService extends ApiService {
     params: RR.GetServerLogsReq,
   ): Promise<RR.GetServerLogsRes> {
     await pauseFor(2000)
-    let entries: Log[]
-    if (Math.random() < 0.2) {
-      entries = Mock.ServerLogs
-    } else {
-      const arrLength = params.limit
-        ? Math.ceil(params.limit / Mock.ServerLogs.length)
-        : 10
-      entries = new Array(arrLength)
-        .fill(Mock.ServerLogs)
-        .reduce((acc, val) => acc.concat(val), [])
-    }
+    const entries = this.randomLogs(params.limit)
+
     return {
       entries,
       'start-cursor': 'startCursor',
       'end-cursor': 'endCursor',
     }
+  }
+
+  async tailServerLogs(
+    params: RR.TailServerLogsReq,
+  ): Promise<RR.TailServerLogsRes> {
+    await pauseFor(2000)
+    return {
+      'start-cursor': 'start-cursor',
+      guid: '7251d5be-645f-4362-a51b-3a85be92b31e',
+    }
+  }
+
+  async tailKernelLogs(
+    params: RR.TailServerLogsReq,
+  ): Promise<RR.TailServerLogsRes> {
+    await pauseFor(2000)
+    return {
+      'start-cursor': 'start-cursor',
+      guid: '7251d5be-645f-4362-a51b-3a85be92b31e',
+    }
+  }
+
+  randomLogs(limit = 1): Log[] {
+    const arrLength = Math.ceil(limit / Mock.ServerLogs.length)
+    const logs = new Array(arrLength)
+      .fill(Mock.ServerLogs)
+      .reduce((acc, val) => acc.concat(val), [])
+
+    return logs
   }
 
   async getServerMetrics(
@@ -482,6 +512,16 @@ export class MockApiService extends ApiService {
       entries,
       'start-cursor': 'startCursor',
       'end-cursor': 'endCursor',
+    }
+  }
+
+  async tailPackageLogs(
+    params: RR.TailPackageLogsReq,
+  ): Promise<RR.TailPackageLogsRes> {
+    await pauseFor(2000)
+    return {
+      'start-cursor': 'start-cursor',
+      guid: '7251d5be-645f-4362-a51b-3a85be92b31e',
     }
   }
 

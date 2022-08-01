@@ -7,6 +7,7 @@ import {
   DependencyError,
   Manifest,
 } from 'src/app/services/patch-db/data-model'
+import { LogsRes, ServerLogsReq } from '@start9labs/shared'
 
 export module RR {
   // DB
@@ -28,13 +29,14 @@ export module RR {
 
   // server
 
-  export type GetServerLogsReq = {
-    before: boolean
-    cursor?: string
-    limit?: number
-    follow?: boolean // include to receive guid in response for initiating websocket
-  }
+  export type GetServerLogsReq = ServerLogsReq // server.logs & server.kernel-logs
   export type GetServerLogsRes = LogsRes
+
+  export type TailServerLogsReq = { limit: number } // server.logs.tail & server.kernel-logs.tail
+  export type TailServerLogsRes = {
+    'start-cursor': string
+    guid: string
+  }
 
   export type GetServerMetricsReq = {} // server.metrics
   export type GetServerMetricsRes = Metrics
@@ -161,15 +163,11 @@ export module RR {
   export type GetPackagePropertiesRes<T extends number> =
     PackagePropertiesVersioned<T>
 
-  export type LogsRes = {
-    entries: Log[]
-    'start-cursor'?: string
-    'end-cursor'?: string
-    guid?: string // only expected if follow: true on request
-  }
-
-  export type GetPackageLogsReq = GetServerLogsReq & { id: string } // package.logs
+  export type GetPackageLogsReq = ServerLogsReq & { id: string } // package.logs
   export type GetPackageLogsRes = LogsRes
+
+  export type TailPackageLogsReq = TailServerLogsReq & { id: string } // package.logs.tail
+  export type TailPackageLogsRes = TailServerLogsRes
 
   export type GetPackageMetricsReq = { id: string } // package.metrics
   export type GetPackageMetricsRes = Metric
@@ -235,7 +233,7 @@ export module RR {
     spec: ConfigSpec
   }
 
-  export interface SideloadPackageReq {
+  export type SideloadPackageReq = {
     manifest: Manifest
     icon: string // base64
   }
@@ -283,11 +281,6 @@ export interface Breakages {
 export interface TaggedDependencyError {
   dependency: string
   error: DependencyError
-}
-
-export interface Log {
-  timestamp: string
-  message: string
 }
 
 export interface ActionResponse {

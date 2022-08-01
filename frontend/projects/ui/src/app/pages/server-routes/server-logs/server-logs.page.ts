@@ -15,7 +15,13 @@ export class ServerLogsPage {
     private readonly toastCtrl: ToastController,
   ) {}
 
-  fetchFetchLogs() {
+  tailLogs() {
+    return async (params: RR.TailServerLogsReq) => {
+      return this.embassyApi.tailServerLogs(params)
+    }
+  }
+
+  fetchLogs() {
     return async (params: RR.GetServerLogsReq) => {
       return this.embassyApi.getServerLogs(params)
     }
