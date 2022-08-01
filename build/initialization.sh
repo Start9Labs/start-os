@@ -133,5 +133,7 @@ sudo systemctl restart NetworkManager
 
 sync
 
+echo "fs.inotify.max_user_watches=1048576" > /etc/sysctl.d/97-embassy.conf
+
 # TODO: clean out ssh host keys
 reboot
