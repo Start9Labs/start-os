@@ -1,7 +1,7 @@
 import { DOCUMENT } from '@angular/common'
 import { Component, Inject, Input, ViewChild } from '@angular/core'
 import { IonContent } from '@ionic/angular'
-import { takeUntil } from 'rxjs'
+import { interval, map, takeUntil } from 'rxjs'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 import {
   LogsRes,
@@ -48,10 +48,8 @@ export class LogsComponent {
   isOnBottom = true
   autoScroll = true
   websocketFail = false
-
+  limit = 200
   toProcess: Log[] = []
-
-  readonly defaultLogLimit = 50
 
   constructor(
     @Inject(DOCUMENT) private readonly document: Document,
@@ -74,8 +72,9 @@ export class LogsComponent {
         url: `${protocol}://${host}/ws/rpc/${guid}`,
         openObserver: {
           next: () => {
-            this.loading = false
+            console.log('**** WEBSOCKET OPEN ****')
             this.websocketFail = false
+            this.processJob()
           },
         },
       }
@@ -85,8 +84,7 @@ export class LogsComponent {
         .pipe(takeUntil(this.destroy$))
         .subscribe({
           next: msg => {
-            // this.toProcess.push(msg)
-            this.processRes({ entries: [msg] })
+            this.toProcess.push(msg)
           },
           error: () => {
             this.websocketFail = true
@@ -98,11 +96,25 @@ export class LogsComponent {
     }
   }
 
+  private processJob() {
+    interval(250)
+      .pipe(
+        map((_, index) => index),
+        takeUntil(this.destroy$),
+      )
+      .subscribe(index => {
+        this.processRes({ entries: this.toProcess })
+        this.toProcess = []
+        if (index === 0) this.loading = false
+      })
+  }
+
   async doInfinite(e: any): Promise<void> {
     try {
       const res = await this.fetchLogs({
         cursor: this.startCursor,
         before: true,
+        limit: this.limit,
       })
 
       this.processRes(res)
@@ -163,7 +175,7 @@ export class LogsComponent {
         )
       }, 50)
 
-      if (entries.length < this.defaultLogLimit) {
+      if (entries.length < this.limit) {
         this.needInfinite = false
       }
     } else {
