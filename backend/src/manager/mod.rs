@@ -17,7 +17,8 @@ use sqlx::{Executor, Sqlite};
 use tokio::io::BufReader;
 use tokio::sync::watch::error::RecvError;
 use tokio::sync::watch::{channel, Receiver, Sender};
-use tokio::sync::{Notify, RwLock};
+use tokio::sync::{Mutex, Notify, RwLock};
+use tokio::task::JoinHandle;
 use torut::onion::TorSecretKeyV3;
 use tracing::instrument;
 
@@ -104,32 +105,6 @@ impl ManagerMap {
 
     #[instrument(skip(self))]
     pub async fn remove(&self, id: &(PackageId, Version)) {
-        /// TODO[BLUJ] CLEAN UP BEFORE/ FOR PR
-        let return_value = async {
-            let mut cmd = tokio::process::Command::new("docker");
-            cmd.arg("rm").arg("-f").arg(format!("{}.embassy", id.0));
-            cmd.stderr(std::process::Stdio::piped());
-            let mut handle = cmd.spawn()?;
-            let err_output = BufReader::new(
-                handle
-                    .stderr
-                    .take()
-                    .ok_or_else(|| eyre!("Can't takeout std err"))?,
-            );
-            let return_status = handle.wait().await?;
-            Ok::<_, color_eyre::Report>(return_status)
-        };
-        match return_value.await {
-            Ok(exit_status) => {
-                if !(exit_status.success() || exit_status.code() == Some(143)) {
-                    tracing::error!("Error shutting down docker");
-                }
-            }
-            Err(e) => {
-                tracing::error!("Error shutting down docker task: {}", e);
-                tracing::error!("{:?}", e);
-            }
-        }
         if let Some(man) = self.0.write().await.remove(id) {
             if let Err(e) = man.exit().await {
                 tracing::error!("Error shutting down manager: {}", e);
@@ -174,6 +149,7 @@ impl ManagerMap {
 pub struct Manager {
     shared: Arc<ManagerSharedState>,
     thread: Container<NonDetachingJoinHandle<()>>,
+    persistant_container: PersistantContainer,
 }
 
 #[derive(TryFromPrimitive)]
@@ -215,13 +191,18 @@ async fn run_main(
 
     let mut runtime =
         tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await });
-    let ip = match get_running_ip(state, &mut runtime).await {
-        GetRunninIp::Ip(x) => x,
-        GetRunninIp::Error(e) => return Err(e),
-        GetRunninIp::EarlyExit(x) => return Ok(x),
+    let ip = match is_injectable_main(&state) {
+        true => Some(match get_running_ip(state, &mut runtime).await {
+            GetRunninIp::Ip(x) => x,
+            GetRunninIp::Error(e) => return Err(e),
+            GetRunninIp::EarlyExit(x) => return Ok(x),
+        }),
+        false => None,
     };
 
-    add_network_for_main(state, ip, interfaces, generated_certificate).await?;
+    if let Some(ip) = ip {
+        add_network_for_main(state, ip, interfaces, generated_certificate).await?;
+    }
 
     set_commit_health_true(state);
     let health = main_health_check_daemon(state.clone());
@@ -230,7 +211,9 @@ async fn run_main(
         a = runtime => a.map_err(|_| Error::new(eyre!("Manager runtime panicked!"), crate::ErrorKind::Docker)).and_then(|a| a),
         _ = health => Err(Error::new(eyre!("Health check daemon exited!"), crate::ErrorKind::Unknown)),
     };
-    remove_network_for_main(state, ip).await?;
+    if let Some(ip) = ip {
+        remove_network_for_main(state, ip).await?;
+    }
     res
 }
 
@@ -277,16 +260,16 @@ impl Manager {
         });
         shared.synchronize_now.notify_one();
         let thread_shared = shared.clone();
-        /// TODO[BLUJ] Wait for manager thread if host thread running?
+        let persistant_container = PersistantContainer::new(&thread_shared);
         let thread = tokio::spawn(async move {
             tokio::select! {
                 _ = manager_thread_loop(recv, &thread_shared) => (),
-                _ = persistant_container(&thread_shared) => (),
                 _ = synchronizer(&*thread_shared) => (),
             }
         });
         Ok(Manager {
             shared,
+            persistant_container,
             thread: Container::new(Some(thread.into())),
         })
     }
@@ -338,6 +321,7 @@ impl Manager {
             #[cfg(feature = "js_engine")]
             PackageProcedure::Script(_) => return Ok(()),
         };
+        self.persistant_container.stop().await;
         match self
             .shared
             .ctx
@@ -402,6 +386,7 @@ async fn manager_thread_loop(mut recv: Receiver<OnStop>, thread_shared: &Arc<Man
                 a => (a, None),
             }
         }
+        /// TODO[BLUJ] Wait for manager thread if host thread running?
         let (stop_action, fut) = handle_stop_action(&mut recv);
         match stop_action {
             OnStop::Sleep => {
@@ -478,12 +463,87 @@ async fn manager_thread_loop(mut recv: Receiver<OnStop>, thread_shared: &Arc<Man
     }
 }
 
-async fn persistant_container(thread_shared: &Arc<ManagerSharedState>) {
-    let main_docker_procedure_for_long = injectable_main(thread_shared);
+#[derive(Clone)]
+struct PersistantContainer {
+    container_name: String,
+    running_docker:
+        Arc<Mutex<Option<NonDetachingJoinHandle<Result<Result<NoOutput, (i32, String)>, Error>>>>>,
+    should_stop_running: Arc<std::sync::atomic::AtomicBool>,
+}
+
+impl PersistantContainer {
+    #[instrument(skip(thread_shared))]
+    fn new(thread_shared: &Arc<ManagerSharedState>) -> Self {
+        let container = Self {
+            container_name: thread_shared.container_name.clone(),
+            running_docker: Arc::new(Mutex::new(None)),
+            should_stop_running: Arc::new(AtomicBool::new(false)),
+        };
+        tokio::spawn(persistant_container(
+            thread_shared.clone(),
+            container.clone(),
+        ));
+        container
+    }
+    #[instrument(skip(self))]
+    async fn stop(&self) {
+        tracing::error!("Stopping");
+        let container_name = &self.container_name;
+        self.should_stop_running.store(true, Ordering::SeqCst);
+        let mut running_docker = self.running_docker.lock().await;
+        let is_running_docker = running_docker.is_some();
+        *running_docker = None;
+        if is_running_docker {
+            use tokio::process::Command;
+            if let Err(err) = Command::new("docker")
+                .args(["stop", "-t", "0", &*container_name])
+                .output()
+                .await
+            {
+                tracing::error!("Failed to stop docker");
+                tracing::debug!("{:?}", err);
+            }
+            if let Err(err) = Command::new("docker")
+                .args(["container", "rm", "-f", &*container_name])
+                .output()
+                .await
+            {
+                tracing::error!("Failed to stop docker");
+                tracing::debug!("{:?}", err);
+            }
+        }
+    }
+}
+impl Drop for PersistantContainer {
+    fn drop(&mut self) {
+        tracing::error!("Dropping");
+        self.should_stop_running.store(true, Ordering::SeqCst);
+        let container_name = self.container_name.clone();
+        let running_docker = self.running_docker.clone();
+        tokio::spawn(async move {
+            let mut running_docker = running_docker.lock().await;
+            *running_docker = None;
+
+            use std::process::Command;
+            if let Err(_err) = Command::new("docker")
+                .args(["container", "rm", "-f", &*container_name])
+                .output()
+            {}
+        });
+    }
+}
+
+async fn persistant_container(
+    thread_shared: Arc<ManagerSharedState>,
+    container: PersistantContainer,
+) {
+    let main_docker_procedure_for_long = injectable_main(&thread_shared);
     match main_docker_procedure_for_long {
         Some(main) => loop {
-            /// TODO[BLUJ] Restart Atomic Bool
-            match run_persistant_container(thread_shared, main.clone()).await {
+            if container.should_stop_running.load(Ordering::SeqCst) {
+                return;
+            }
+            match run_persistant_container(&thread_shared, main.clone()).await {
                 Ok(_) => (),
                 Err(e) => {
                     tracing::error!("failed to start persistant container: {}", e);
@@ -511,6 +571,16 @@ fn injectable_main(thread_shared: &Arc<ManagerSharedState>) -> Option<Arc<Docker
         PackageProcedure::Script(_) => None,
     }
 }
+fn is_injectable_main(thread_shared: &ManagerSharedState) -> bool {
+    match &thread_shared.manifest.main {
+        PackageProcedure::Docker(a) => match &a.inject {
+            false => false,
+            true => true,
+        },
+        #[cfg(feature = "js_engine")]
+        PackageProcedure::Script(_) => false,
+    }
+}
 async fn run_persistant_container(
     state: &Arc<ManagerSharedState>,
     docker_procedure: Arc<DockerProcedure>,
@@ -519,7 +589,6 @@ async fn run_persistant_container(
     let generated_certificate = generate_certificate(state, &interfaces).await?;
     let mut runtime = tokio::spawn(long_running_docker(state.clone(), docker_procedure));
 
-    /// TODO[BLUJ] Deal with the network
     let ip = match get_running_ip(state, &mut runtime).await {
         GetRunninIp::Ip(x) => x,
         GetRunninIp::Error(e) => return Err(e),
@@ -532,12 +601,9 @@ async fn run_persistant_container(
 
     add_network_for_main(state, ip, interfaces, generated_certificate).await?;
 
-    set_commit_health_true(state);
-    let health = main_health_check_daemon(state.clone());
     fetch_starting_to_running(state);
     let res = tokio::select! {
         a = runtime => a.map_err(|_| Error::new(eyre!("Manager runtime panicked!"), crate::ErrorKind::Docker)).map(|_| ()),
-        _ = health => Err(Error::new(eyre!("Health check daemon exited!"), crate::ErrorKind::Unknown)),
     };
     remove_network_for_main(state, ip).await?;
     res
@@ -758,42 +824,45 @@ async fn stop(shared: &ManagerSharedState) -> Result<(), Error> {
     ) {
         resume(shared).await?;
     }
-    let action = match &shared.manifest.main {
-        PackageProcedure::Docker(a) => a,
+    match &shared.manifest.main {
+        PackageProcedure::Docker(action) => {
+            if !is_injectable_main(shared) {
+                match shared
+                    .ctx
+                    .docker
+                    .stop_container(
+                        &shared.container_name,
+                        Some(StopContainerOptions {
+                            t: action
+                                .sigterm_timeout
+                                .map(|a| *a)
+                                .unwrap_or(Duration::from_secs(30))
+                                .as_secs_f64() as i64,
+                        }),
+                    )
+                    .await
+                {
+                    Err(bollard::errors::Error::DockerResponseServerError {
+                        status_code: 404, // NOT FOUND
+                        ..
+                    })
+                    | Err(bollard::errors::Error::DockerResponseServerError {
+                        status_code: 409, // CONFLICT
+                        ..
+                    })
+                    | Err(bollard::errors::Error::DockerResponseServerError {
+                        status_code: 304, // NOT MODIFIED
+                        ..
+                    }) => (), // Already stopped
+                    a => a?,
+                };
+            }
+        }
         #[cfg(feature = "js_engine")]
         PackageProcedure::Script(_) => return Ok(()),
     };
     tracing::debug!("Stopping a docker");
     /// TODO[BLUJ] Docker: stop the running docker exec for other
-    match shared
-        .ctx
-        .docker
-        .stop_container(
-            &shared.container_name,
-            Some(StopContainerOptions {
-                t: action
-                    .sigterm_timeout
-                    .map(|a| *a)
-                    .unwrap_or(Duration::from_secs(30))
-                    .as_secs_f64() as i64,
-            }),
-        )
-        .await
-    {
-        Err(bollard::errors::Error::DockerResponseServerError {
-            status_code: 404, // NOT FOUND
-            ..
-        })
-        | Err(bollard::errors::Error::DockerResponseServerError {
-            status_code: 409, // CONFLICT
-            ..
-        })
-        | Err(bollard::errors::Error::DockerResponseServerError {
-            status_code: 304, // NOT MODIFIED
-            ..
-        }) => (), // Already stopped
-        a => a?,
-    };
     shared.status.store(
         Status::Stopped as usize,
         std::sync::atomic::Ordering::SeqCst,

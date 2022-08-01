@@ -144,8 +144,6 @@ impl DockerProcedure {
                 Err(e) => Err(e),
             }?;
         }
-        /// TODO[BLUJ] Store this running pid for main somewhere, need to kill the process
-        /// TODO[BLUJ] deal with the docker args
         cmd.args(
             self.docker_args(ctx, pkg_id, pkg_version, volumes, allow_inject)
                 .await?,
