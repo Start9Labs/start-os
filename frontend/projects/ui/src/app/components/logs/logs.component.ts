@@ -10,6 +10,7 @@ import {
   ErrorToastService,
   toLocalIsoString,
   Log,
+  DownloadHTMLService,
 } from '@start9labs/shared'
 import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -28,7 +29,7 @@ var convert = new Convert({
   selector: 'logs',
   templateUrl: './logs.component.html',
   styleUrls: ['./logs.component.scss'],
-  providers: [DestroyService],
+  providers: [DestroyService, DownloadHTMLService],
 })
 export class LogsComponent {
   @ViewChild(IonContent)
@@ -58,6 +59,7 @@ export class LogsComponent {
     private readonly destroy$: DestroyService,
     private readonly api: ApiService,
     private readonly loadingCtrl: LoadingController,
+    private readonly downloadHtml: DownloadHTMLService,
   ) {}
 
   async ngOnInit() {
@@ -76,7 +78,7 @@ export class LogsComponent {
         url: `${protocol}://${host}/ws/rpc/${guid}`,
         openObserver: {
           next: () => {
-            console.log('**** WEBSOCKET OPEN ****')
+            console.log('**** LOGS WEBSOCKET OPEN ****')
             this.websocketFail = false
             this.processJob()
           },
@@ -143,26 +145,14 @@ export class LogsComponent {
         limit: 10000,
       })
 
-      const styles = `<style>html{
-        background-color: #222428;
-        color: #e0e0e0;
-        font-family: monospace;
-      }</style>`
+      const styles = {
+        'background-color': '#222428',
+        color: '#e0e0e0',
+        'font-family': 'monospace',
+      }
       const html = this.convertToAnsi(entries)
 
-      const filename = 'logs.html'
-
-      const elem = document.createElement('a')
-      elem.setAttribute(
-        'href',
-        'data:text/plain;charset=utf-8,' + encodeURIComponent(styles + html),
-      )
-      elem.setAttribute('download', filename)
-      elem.style.display = 'none'
-
-      document.body.appendChild(elem)
-      elem.click()
-      document.body.removeChild(elem)
+      this.downloadHtml.download('logs.html', html, styles)
     } catch (e: any) {
       this.errToast.present(e)
     } finally {

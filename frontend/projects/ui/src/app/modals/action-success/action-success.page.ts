@@ -1,7 +1,7 @@
 import { Component, Input } from '@angular/core'
 import { ModalController, ToastController } from '@ionic/angular'
 import { ActionResponse } from 'src/app/services/api/api.types'
-import { copyToClipboard } from 'src/app/util/web.util'
+import { copyToClipboard } from '@start9labs/shared'
 
 @Component({
   selector: 'action-success',
