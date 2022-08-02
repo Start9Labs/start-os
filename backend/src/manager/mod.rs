@@ -189,6 +189,7 @@ async fn run_main(
     let interfaces = states_main_interfaces(state)?;
     let generated_certificate = generate_certificate(state, &interfaces).await?;
 
+    /// TODO[BLUJ] Wait for persistance container to be started
     let mut runtime =
         tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await });
     let ip = match is_injectable_main(&state) {
@@ -474,6 +475,7 @@ struct PersistantContainer {
 impl PersistantContainer {
     #[instrument(skip(thread_shared))]
     fn new(thread_shared: &Arc<ManagerSharedState>) -> Self {
+        /// At start need to say that we are not running if persistant
         let container = Self {
             container_name: thread_shared.container_name.clone(),
             running_docker: Arc::new(Mutex::new(None)),
@@ -587,6 +589,7 @@ async fn run_persistant_container(
     let generated_certificate = generate_certificate(state, &interfaces).await?;
     let mut runtime = tokio::spawn(long_running_docker(state.clone(), docker_procedure));
 
+    /// TODO[BLUJ] After start, need to add that we are started to persistant_container
     let ip = match get_running_ip(state, &mut runtime).await {
         GetRunninIp::Ip(x) => x,
         GetRunninIp::Error(e) => return Err(e),
