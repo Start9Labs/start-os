@@ -1,6 +1,6 @@
 import { DOCUMENT } from '@angular/common'
 import { Component, Inject, Input, ViewChild } from '@angular/core'
-import { IonContent } from '@ionic/angular'
+import { IonContent, LoadingController } from '@ionic/angular'
 import { interval, map, takeUntil } from 'rxjs'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 import {
@@ -16,6 +16,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 
 var Convert = require('ansi-to-html')
 var convert = new Convert({
+  newline: true,
   bg: 'transparent',
   colors: {
     4: 'Cyan',
@@ -56,11 +57,14 @@ export class LogsComponent {
     private readonly errToast: ErrorToastService,
     private readonly destroy$: DestroyService,
     private readonly api: ApiService,
+    private readonly loadingCtrl: LoadingController,
   ) {}
 
   async ngOnInit() {
     try {
-      const { 'start-cursor': startCursor, guid } = await this.followLogs({})
+      const { 'start-cursor': startCursor, guid } = await this.followLogs({
+        limit: 100,
+      })
 
       this.startCursor = startCursor
 
@@ -96,19 +100,6 @@ export class LogsComponent {
     }
   }
 
-  private processJob() {
-    interval(250)
-      .pipe(
-        map((_, index) => index),
-        takeUntil(this.destroy$),
-      )
-      .subscribe(index => {
-        this.processRes({ entries: this.toProcess })
-        this.toProcess = []
-        if (index === 0) this.loading = false
-      })
-  }
-
   async doInfinite(e: any): Promise<void> {
     try {
       const res = await this.fetchLogs({
@@ -140,6 +131,58 @@ export class LogsComponent {
     this.content?.scrollToBottom(250)
   }
 
+  async download() {
+    const loader = await this.loadingCtrl.create({
+      message: 'Processing 10,000 logs...',
+    })
+    await loader.present()
+
+    try {
+      const { entries } = await this.fetchLogs({
+        before: true,
+        limit: 10000,
+      })
+
+      const styles = `<style>html{
+        background-color: #222428;
+        color: #e0e0e0;
+        font-family: monospace;
+      }</style>`
+      const html = this.convertToAnsi(entries)
+
+      const filename = 'logs.html'
+
+      const elem = document.createElement('a')
+      elem.setAttribute(
+        'href',
+        'data:text/plain;charset=utf-8,' + encodeURIComponent(styles + html),
+      )
+      elem.setAttribute('download', filename)
+      elem.style.display = 'none'
+
+      document.body.appendChild(elem)
+      elem.click()
+      document.body.removeChild(elem)
+    } catch (e: any) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
+  }
+
+  private processJob() {
+    interval(500)
+      .pipe(
+        map((_, index) => index),
+        takeUntil(this.destroy$),
+      )
+      .subscribe(index => {
+        this.processRes({ entries: this.toProcess })
+        this.toProcess = []
+        if (index === 0) this.loading = false
+      })
+  }
+
   private async processRes(res: LogsRes) {
     const { entries, 'start-cursor': startCursor } = res
 
@@ -150,14 +193,7 @@ export class LogsComponent {
 
     if (!(newLogs instanceof HTMLElement)) return
 
-    newLogs.innerHTML = entries
-      .map(
-        entry =>
-          `<b>${toLocalIsoString(
-            new Date(entry.timestamp),
-          )}</b> ${convert.toHtml(entry.message)}`,
-      )
-      .join('\n')
+    newLogs.innerHTML = this.convertToAnsi(entries)
 
     // if respone contains startCursor, it means we are scrolling backwards
     if (startCursor) {
@@ -173,7 +209,7 @@ export class LogsComponent {
           0,
           afterContainerHeight - beforeContainerHeight,
         )
-      }, 50)
+      }, 25)
 
       if (entries.length < this.limit) {
         this.needInfinite = false
@@ -184,8 +220,19 @@ export class LogsComponent {
         // scroll to bottom
         setTimeout(() => {
           this.scrollToBottom()
-        }, 50)
+        }, 25)
       }
     }
+  }
+
+  private convertToAnsi(entries: Log[]) {
+    return entries
+      .map(
+        entry =>
+          `<span style="color: #FFF">${toLocalIsoString(
+            new Date(entry.timestamp),
+          )}</span>&nbsp;&nbsp;${convert.toHtml(entry.message)}`,
+      )
+      .join('<br />')
   }
 }

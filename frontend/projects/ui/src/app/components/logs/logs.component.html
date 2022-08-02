@@ -67,7 +67,18 @@
   <ion-toolbar>
     <div class="inline ion-padding-start">
       <ion-checkbox [(ngModel)]="autoScroll" color="dark"></ion-checkbox>
-      <p class="ion-padding-start">Autoscroll with output</p>
+      <p class="ion-padding-start">Autoscroll</p>
     </div>
+    <ion-button
+      *ngIf="!loading"
+      slot="end"
+      class="ion-padding-end"
+      fill="clear"
+      strong
+      (click)="download()"
+    >
+      Download
+      <ion-icon slot="end" name="download-outline"></ion-icon>
+    </ion-button>
   </ion-toolbar>
 </ion-footer>
