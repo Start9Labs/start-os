@@ -1,14 +1,7 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-back-button [defaultHref]="'/services/' + pkgId"></ion-back-button>
-    </ion-buttons>
-    <ion-title>Logs</ion-title>
-  </ion-toolbar>
-</ion-header>
-
 <logs
   [fetchLogs]="fetchLogs()"
   [followLogs]="followLogs()"
+  [defaultBack]="'/services/' + pkgId"
+  title="Service Logs"
   class="ion-page"
 ></logs>

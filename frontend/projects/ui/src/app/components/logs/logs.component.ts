@@ -1,7 +1,7 @@
 import { DOCUMENT } from '@angular/common'
 import { Component, Inject, Input, ViewChild } from '@angular/core'
 import { IonContent, LoadingController } from '@ionic/angular'
-import { interval, map, takeUntil } from 'rxjs'
+import { map, takeUntil, timer } from 'rxjs'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 import {
   LogsRes,
@@ -35,18 +35,16 @@ export class LogsComponent {
   @ViewChild(IonContent)
   private content?: IonContent
 
-  @Input()
-  followLogs!: (
+  @Input() followLogs!: (
     params: RR.FollowServerLogsReq,
   ) => Promise<RR.FollowServerLogsRes>
-
-  @Input()
-  fetchLogs!: (params: ServerLogsReq) => Promise<LogsRes>
+  @Input() fetchLogs!: (params: ServerLogsReq) => Promise<LogsRes>
+  @Input() defaultBack!: string
+  @Input() title!: string
 
   loading = true
   needInfinite = true
   startCursor?: string
-  guid?: string
   isOnBottom = true
   autoScroll = true
   websocketFail = false
@@ -161,7 +159,7 @@ export class LogsComponent {
   }
 
   private processJob() {
-    interval(500)
+    timer(0, 500)
       .pipe(
         map((_, index) => index),
         takeUntil(this.destroy$),
@@ -179,7 +177,7 @@ export class LogsComponent {
     if (!entries.length) return
 
     const container = document.getElementById('container')
-    const newLogs = document.getElementById('template')?.cloneNode(true)
+    const newLogs = document.getElementById('template')?.cloneNode()
 
     if (!(newLogs instanceof HTMLElement)) return
 
@@ -219,7 +217,7 @@ export class LogsComponent {
     return entries
       .map(
         entry =>
-          `<span style="color: #FFF">${toLocalIsoString(
+          `<span style="color: #FFF; font-weight: bold;">${toLocalIsoString(
             new Date(entry.timestamp),
           )}</span>&nbsp;&nbsp;${convert.toHtml(entry.message)}`,
       )

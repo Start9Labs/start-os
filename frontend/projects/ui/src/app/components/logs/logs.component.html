@@ -1,5 +1,10 @@
 <ion-header>
-  <ion-toolbar></ion-toolbar>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button [defaultHref]="defaultBack"></ion-back-button>
+    </ion-buttons>
+    <ion-title>{{ title }}</ion-title>
+  </ion-toolbar>
 </ion-header>
 
 <ion-content
@@ -23,10 +28,7 @@
   <text-spinner *ngIf="loading" text="Loading Logs"></text-spinner>
 
   <div id="container">
-    <div
-      id="template"
-      style="white-space: pre-line; font-family: monospace"
-    ></div>
+    <div id="template"></div>
   </div>
 
   <ng-container *ngIf="!loading">

@@ -1,14 +1,7 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-back-button defaultHref="embassy"></ion-back-button>
-    </ion-buttons>
-    <ion-title>Kernel Logs</ion-title>
-  </ion-toolbar>
-</ion-header>
-
 <logs
   [fetchLogs]="fetchLogs()"
   [followLogs]="followLogs()"
+  defaultBack="embassy"
+  title="Kernel Logs"
   class="ion-page"
 ></logs>
