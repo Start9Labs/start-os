@@ -191,9 +191,7 @@ async fn run_main(
     let generated_certificate = generate_certificate(state, &interfaces).await?;
 
     if let Some(wait) = persistant.get_notify_wait().await {
-        tracing::error!("Start waiting");
         wait.notified().await;
-        tracing::error!("End waiting");
     }
     let mut runtime =
         tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await });
@@ -585,7 +583,6 @@ async fn persistant_container(
                 return;
             }
             container.new_notify_wait().await;
-            tracing::error!("Start Persistant Container");
             match run_persistant_container(&thread_shared, container.clone(), main.clone()).await {
                 Ok(_) => (),
                 Err(e) => {
@@ -917,21 +914,15 @@ async fn stop(shared: &ManagerSharedState) -> Result<(), Error> {
 
 /// So the sleep infinity, which is the long running, is pid 1. So we kill the others
 async fn stop_non_first(container_name: &str) {
-    tracing::error!("Should be killing {}", container_name);
     /// TODO[BLUJ] sudo docker exec syncthing.embassy ps ax | awk '$1 ~ /^[:0-9:]/ && $1 > 1 {print $1}' | xargs kill
     let _ = tokio::process::Command::new("docker")
         .args([
             "container",
             "exec",
             container_name,
-            "ps",
-            "ax",
-            "|",
-            "awk",
-            "$1 ~ /^[:0-9:]/ && $1 > 1 {print $1}",
-            "|",
-            "xargs",
-            "kill",
+            "sh",
+            "-c",
+            "ps ax | awk \"\\$1 ~ /^[:0-9:]/ && \\$1 > 1 {print \\$1}\"| xargs kill",
         ])
         .output()
         .await;
