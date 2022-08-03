@@ -171,7 +171,7 @@ export class LogsComponent {
       })
   }
 
-  private async processRes(res: LogsRes) {
+  private processRes(res: LogsRes) {
     const { entries, 'start-cursor': startCursor } = res
 
     if (!entries.length) return
