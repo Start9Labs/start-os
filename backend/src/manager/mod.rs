@@ -191,17 +191,19 @@ async fn run_main(
     let generated_certificate = generate_certificate(state, &interfaces).await?;
 
     if let Some(wait) = persistant.get_notify_wait().await {
+        tracing::error!("Start waiting");
         wait.notified().await;
+        tracing::error!("End waiting");
     }
     let mut runtime =
         tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await });
     let ip = match is_injectable_main(&state) {
-        true => Some(match get_running_ip(state, &mut runtime).await {
+        false => Some(match get_running_ip(state, &mut runtime).await {
             GetRunninIp::Ip(x) => x,
             GetRunninIp::Error(e) => return Err(e),
             GetRunninIp::EarlyExit(x) => return Ok(x),
         }),
-        false => None,
+        true => None,
     };
 
     if let Some(ip) = ip {
@@ -327,36 +329,42 @@ impl Manager {
             PackageProcedure::Script(_) => return Ok(()),
         };
         self.persistant_container.stop().await;
-        match self
-            .shared
-            .ctx
-            .docker
-            .stop_container(
-                &self.shared.container_name,
-                Some(StopContainerOptions {
-                    t: action
-                        .sigterm_timeout
-                        .map(|a| *a)
-                        .unwrap_or(Duration::from_secs(30))
-                        .as_secs_f64() as i64,
-                }),
-            )
-            .await
-        {
-            Err(bollard::errors::Error::DockerResponseServerError {
-                status_code: 404, // NOT FOUND
-                ..
-            })
-            | Err(bollard::errors::Error::DockerResponseServerError {
-                status_code: 409, // CONFLICT
-                ..
-            })
-            | Err(bollard::errors::Error::DockerResponseServerError {
-                status_code: 304, // NOT MODIFIED
-                ..
-            }) => (), // Already stopped
-            a => a?,
-        };
+
+        if !is_injectable_main(&self.shared) {
+            match self
+                .shared
+                .ctx
+                .docker
+                .stop_container(
+                    &self.shared.container_name,
+                    Some(StopContainerOptions {
+                        t: action
+                            .sigterm_timeout
+                            .map(|a| *a)
+                            .unwrap_or(Duration::from_secs(30))
+                            .as_secs_f64() as i64,
+                    }),
+                )
+                .await
+            {
+                Err(bollard::errors::Error::DockerResponseServerError {
+                    status_code: 404, // NOT FOUND
+                    ..
+                })
+                | Err(bollard::errors::Error::DockerResponseServerError {
+                    status_code: 409, // CONFLICT
+                    ..
+                })
+                | Err(bollard::errors::Error::DockerResponseServerError {
+                    status_code: 304, // NOT MODIFIED
+                    ..
+                }) => (), // Already stopped
+                a => a?,
+            };
+        } else {
+            stop_non_first(&*self.shared.container_name).await;
+        }
+
         self.shared.status.store(
             Status::Shutdown as usize,
             std::sync::atomic::Ordering::SeqCst,
@@ -377,6 +385,7 @@ impl Manager {
         self.shared.synchronized.notified().await
     }
 }
+
 async fn manager_thread_loop(
     mut recv: Receiver<OnStop>,
     thread_shared: &Arc<ManagerSharedState>,
@@ -576,6 +585,7 @@ async fn persistant_container(
                 return;
             }
             container.new_notify_wait().await;
+            tracing::error!("Start Persistant Container");
             match run_persistant_container(&thread_shared, container.clone(), main.clone()).await {
                 Ok(_) => (),
                 Err(e) => {
@@ -890,6 +900,8 @@ async fn stop(shared: &ManagerSharedState) -> Result<(), Error> {
                     }) => (), // Already stopped
                     a => a?,
                 };
+            } else {
+                stop_non_first(&shared.container_name).await;
             }
         }
         #[cfg(feature = "js_engine")]
@@ -901,6 +913,28 @@ async fn stop(shared: &ManagerSharedState) -> Result<(), Error> {
         std::sync::atomic::Ordering::SeqCst,
     );
     Ok(())
+}
+
+/// So the sleep infinity, which is the long running, is pid 1. So we kill the others
+async fn stop_non_first(container_name: &str) {
+    tracing::error!("Should be killing {}", container_name);
+    /// TODO[BLUJ] sudo docker exec syncthing.embassy ps ax | awk '$1 ~ /^[:0-9:]/ && $1 > 1 {print $1}' | xargs kill
+    let _ = tokio::process::Command::new("docker")
+        .args([
+            "container",
+            "exec",
+            container_name,
+            "ps",
+            "ax",
+            "|",
+            "awk",
+            "$1 ~ /^[:0-9:]/ && $1 > 1 {print $1}",
+            "|",
+            "xargs",
+            "kill",
+        ])
+        .output()
+        .await;
 }
 
 #[instrument(skip(shared))]
