@@ -7,16 +7,11 @@ import {
   PackageState,
   ServerStatusInfo,
 } from 'src/app/services/patch-db/data-model'
-import {
-  Log,
-  Metric,
-  RR,
-  NotificationLevel,
-  ServerNotifications,
-} from './api.types'
+import { Metric, RR, NotificationLevel, ServerNotifications } from './api.types'
 
 import { BTC_ICON, LND_ICON, PROXY_ICON } from './api-icons'
 import { MarketplacePkg } from '@start9labs/marketplace'
+import { Log } from '@start9labs/shared'
 
 export module Mock {
   export const ServerUpdated: ServerStatusInfo = {
@@ -955,7 +950,7 @@ export module Mock {
     {
       timestamp: '2019-12-26T14:21:30.872Z',
       message:
-        '\u001b[34mPOST \u001b[0;32;49m200\u001b[0m photoview.embassy/api/graphql \u001b[0;36;49m1.169406ms\u001b[0m unauthenticated<p>TEST PARAGRAPH</p>',
+        '\u001b[34mPOST \u001b[0;32;49m200\u001b[0m photoview.embassy/api/graphql \u001b[0;36;49m1.169406ms\u001b',
     },
     {
       timestamp: '2019-12-26T14:22:30.872Z',
@@ -1439,7 +1434,7 @@ export module Mock {
     'bitcoin-node': {
       name: 'Bitcoin Node Settings',
       type: 'union',
-      description: 'The node settings',
+      description: 'Options<ul><li>Item 1</li><li>Item 2</li></ul>',
       default: 'internal',
       warning: 'Careful changing this',
       tag: {

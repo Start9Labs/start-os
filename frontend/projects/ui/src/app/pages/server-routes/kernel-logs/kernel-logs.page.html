@@ -1,17 +1,7 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-back-button defaultHref="embassy"></ion-back-button>
-    </ion-buttons>
-    <ion-title>Kernel Logs</ion-title>
-    <ion-buttons slot="end">
-      <ion-button (click)="copy()">
-        <ion-icon name="copy-outline"></ion-icon>
-      </ion-button>
-    </ion-buttons>
-  </ion-toolbar>
-</ion-header>
-
-<div style="height: 100%">
-  <logs [fetchLogs]="fetchFetchLogs()"></logs>
-</div>
+<logs
+  [fetchLogs]="fetchLogs()"
+  [followLogs]="followLogs()"
+  defaultBack="embassy"
+  title="Kernel Logs"
+  class="ion-page"
+></logs>

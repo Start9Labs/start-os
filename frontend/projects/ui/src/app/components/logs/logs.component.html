@@ -1,0 +1,86 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button [defaultHref]="defaultBack"></ion-back-button>
+    </ion-buttons>
+    <ion-title>{{ title }}</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content
+  [scrollEvents]="true"
+  (ionScroll)="handleScroll($event)"
+  (ionScrollEnd)="handleScrollEnd()"
+  class="ion-padding"
+>
+  <ion-infinite-scroll
+    id="scroller"
+    *ngIf="!loading && needInfinite"
+    position="top"
+    threshold="0"
+    (ionInfinite)="doInfinite($event)"
+  >
+    <ion-infinite-scroll-content
+      loadingSpinner="lines"
+    ></ion-infinite-scroll-content>
+  </ion-infinite-scroll>
+
+  <text-spinner *ngIf="loading" text="Loading Logs"></text-spinner>
+
+  <div id="container">
+    <div id="template"></div>
+  </div>
+
+  <ng-container *ngIf="!loading">
+    <div id="bottom-div"></div>
+    <div *ngIf="websocketFail" class="ion-text-center ion-padding">
+      <ion-text color="warning"> Websocket failed.... </ion-text>
+    </div>
+
+    <div
+      [ngStyle]="{
+        position: 'fixed',
+        bottom: '96px',
+        right: isOnBottom ? '-52px' : '30px',
+        'background-color': 'var(--ion-color-medium)',
+        'border-radius': '100%',
+        transition: 'right 0.25s ease-out'
+      }"
+    >
+      <ion-button
+        style="
+          width: 50px;
+          height: 50px;
+          --padding-start: 0px;
+          --padding-end: 0px;
+          --border-radius: 100%;
+        "
+        color="dark"
+        (click)="scrollToBottom(); autoScroll = true"
+        strong
+      >
+        <ion-icon name="chevron-down"></ion-icon>
+      </ion-button>
+    </div>
+  </ng-container>
+</ion-content>
+
+<ion-footer>
+  <ion-toolbar>
+    <div class="inline ion-padding-start">
+      <ion-checkbox [(ngModel)]="autoScroll" color="dark"></ion-checkbox>
+      <p class="ion-padding-start">Autoscroll</p>
+    </div>
+    <ion-button
+      *ngIf="!loading"
+      slot="end"
+      class="ion-padding-end"
+      fill="clear"
+      strong
+      (click)="download()"
+    >
+      Download
+      <ion-icon slot="end" name="download-outline"></ion-icon>
+    </ion-button>
+  </ion-toolbar>
+</ion-footer>

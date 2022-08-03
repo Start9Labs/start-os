@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use color_eyre::eyre::eyre;
 use emver::VersionRange;
@@ -16,8 +16,8 @@ use http::{Request, Response, StatusCode};
 use hyper::Body;
 use patch_db::{DbHandle, LockReceipt, LockType};
 use reqwest::Url;
+use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{command, Context};
 use tokio::fs::{File, OpenOptions};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt};
 use tokio::process::Command;
@@ -478,23 +478,11 @@ pub async fn sideload(
         }
         .boxed()
     });
-    let cont = RpcContinuation {
-        created_at: Instant::now(), // TODO
-        handler,
-    };
-    // gc the map
-    let mut guard = ctx.rpc_stream_continuations.lock().await;
-    let garbage_collected = std::mem::take(&mut *guard)
-        .into_iter()
-        .filter(|(_, v)| v.created_at.elapsed() < Duration::from_secs(30))
-        .collect::<BTreeMap<RequestGuid, RpcContinuation>>();
-    *guard = garbage_collected;
-    drop(guard);
-    // insert the new continuation
-    ctx.rpc_stream_continuations
-        .lock()
-        .await
-        .insert(guid.clone(), cont);
+    ctx.add_continuation(
+        guid.clone(),
+        RpcContinuation::rest(handler, Duration::from_secs(30)),
+    )
+    .await;
     Ok(guid)
 }
 
@@ -537,12 +525,7 @@ async fn cli_install(
         let body = Body::wrap_stream(tokio_util::io::ReaderStream::new(file));
         let res = ctx
             .client
-            .post(format!(
-                "{}://{}/rest/rpc/{}",
-                ctx.protocol(),
-                ctx.host(),
-                guid
-            ))
+            .post(format!("{}/rest/rpc/{}", ctx.base_url, guid,))
             .header(CONTENT_LENGTH, content_length)
             .body(body)
             .send()

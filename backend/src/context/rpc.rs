@@ -21,7 +21,7 @@ use tokio::process::Command;
 use tokio::sync::{broadcast, oneshot, Mutex, RwLock};
 use tracing::instrument;
 
-use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
+use crate::core::rpc_continuations::{RequestGuid, RestHandler, RpcContinuation};
 use crate::db::model::{Database, InstalledPackageDataEntry, PackageDataEntry};
 use crate::hostname::{derive_hostname, derive_id, get_product_key};
 use crate::install::cleanup::{cleanup_failed, uninstall, CleanupFailedReceipts};
@@ -386,6 +386,58 @@ impl RpcContext {
             }
         }
         Ok(())
+    }
+
+    #[instrument(skip(self))]
+    pub async fn clean_continuations(&self) {
+        let mut continuations = self.rpc_stream_continuations.lock().await;
+        let mut to_remove = Vec::new();
+        for (guid, cont) in &*continuations {
+            if cont.is_timed_out() {
+                to_remove.push(guid.clone());
+            }
+        }
+        for guid in to_remove {
+            continuations.remove(&guid);
+        }
+    }
+
+    #[instrument(skip(self, handler))]
+    pub async fn add_continuation(&self, guid: RequestGuid, handler: RpcContinuation) {
+        self.clean_continuations().await;
+        self.rpc_stream_continuations
+            .lock()
+            .await
+            .insert(guid, handler);
+    }
+
+    pub async fn get_continuation_handler(&self, guid: &RequestGuid) -> Option<RestHandler> {
+        let mut continuations = self.rpc_stream_continuations.lock().await;
+        if let Some(cont) = continuations.remove(guid) {
+            cont.into_handler().await
+        } else {
+            None
+        }
+    }
+
+    pub async fn get_ws_continuation_handler(&self, guid: &RequestGuid) -> Option<RestHandler> {
+        let continuations = self.rpc_stream_continuations.lock().await;
+        if matches!(continuations.get(guid), Some(RpcContinuation::WebSocket(_))) {
+            drop(continuations);
+            self.get_continuation_handler(guid).await
+        } else {
+            None
+        }
+    }
+
+    pub async fn get_rest_continuation_handler(&self, guid: &RequestGuid) -> Option<RestHandler> {
+        let continuations = self.rpc_stream_continuations.lock().await;
+        if matches!(continuations.get(guid), Some(RpcContinuation::Rest(_))) {
+            drop(continuations);
+            self.get_continuation_handler(guid).await
+        } else {
+            None
+        }
     }
 }
 impl Context for RpcContext {

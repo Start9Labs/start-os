@@ -1,10 +1,12 @@
 use std::future::Future;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use color_eyre::eyre::{eyre, Context, Error};
 use futures::future::BoxFuture;
 use futures::FutureExt;
 use tokio::fs::File;
+use tokio::sync::oneshot;
 use tokio::task::{JoinError, JoinHandle};
 
 mod script_dir;
@@ -148,5 +150,61 @@ impl Drop for AtomicFile {
             let path = std::mem::take(&mut self.tmp_path);
             tokio::spawn(async move { tokio::fs::remove_file(path).await.unwrap() });
         }
+    }
+}
+
+pub struct TimedResource<T: 'static + Send> {
+    handle: NonDetachingJoinHandle<Option<T>>,
+    ready: oneshot::Sender<()>,
+}
+impl<T: 'static + Send> TimedResource<T> {
+    pub fn new(resource: T, timer: Duration) -> Self {
+        let (send, recv) = oneshot::channel();
+        let handle = tokio::spawn(async move {
+            tokio::select! {
+                _ = tokio::time::sleep(timer) => {
+                    drop(resource);
+                    None
+                },
+                _ = recv => Some(resource),
+            }
+        });
+        Self {
+            handle: handle.into(),
+            ready: send,
+        }
+    }
+
+    pub fn new_with_destructor<
+        Fn: FnOnce(T) -> Fut + Send + 'static,
+        Fut: Future<Output = ()> + Send,
+    >(
+        resource: T,
+        timer: Duration,
+        destructor: Fn,
+    ) -> Self {
+        let (send, recv) = oneshot::channel();
+        let handle = tokio::spawn(async move {
+            tokio::select! {
+                _ = tokio::time::sleep(timer) => {
+                    destructor(resource).await;
+                    None
+                },
+                _ = recv => Some(resource),
+            }
+        });
+        Self {
+            handle: handle.into(),
+            ready: send,
+        }
+    }
+
+    pub async fn get(self) -> Option<T> {
+        let _ = self.ready.send(());
+        self.handle.await.unwrap()
+    }
+
+    pub fn is_timed_out(&self) -> bool {
+        self.ready.is_closed()
     }
 }

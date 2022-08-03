@@ -1,7 +1,7 @@
 import { Component, Input, ViewChild } from '@angular/core'
 import { IonInput, LoadingController, ModalController } from '@ionic/angular'
 import { ApiService, DiskBackupTarget } from 'src/app/services/api/api.service'
-import { HttpService } from 'src/app/services/api/http.service'
+import { RPCEncryptedService } from 'src/app/services/rpc-encrypted.service'
 
 @Component({
   selector: 'prod-key-modal',
@@ -20,7 +20,7 @@ export class ProdKeyModal {
     private readonly modalController: ModalController,
     private readonly apiService: ApiService,
     private readonly loadingCtrl: LoadingController,
-    private readonly httpService: HttpService,
+    private readonly encrypted: RPCEncryptedService,
   ) {}
 
   ngAfterViewInit() {
@@ -37,11 +37,11 @@ export class ProdKeyModal {
 
     try {
       await this.apiService.set02XDrive(this.target.logicalname)
-      this.httpService.productKey = this.productKey
+      this.encrypted.productKey = this.productKey
       await this.apiService.verifyProductKey()
       this.modalController.dismiss({ productKey: this.productKey }, 'success')
     } catch (e) {
-      this.httpService.productKey = undefined
+      this.encrypted.productKey = undefined
       this.error = 'Invalid Product Key'
     } finally {
       loader.dismiss()

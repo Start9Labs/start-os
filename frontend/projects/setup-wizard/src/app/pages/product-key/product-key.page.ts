@@ -1,7 +1,7 @@
 import { Component, ViewChild } from '@angular/core'
 import { IonInput, LoadingController, NavController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/api.service'
-import { HttpService } from 'src/app/services/api/http.service'
+import { RPCEncryptedService } from 'src/app/services/rpc-encrypted.service'
 import { StateService } from 'src/app/services/state.service'
 
 @Component({
@@ -19,7 +19,7 @@ export class ProductKeyPage {
     private readonly stateService: StateService,
     private readonly apiService: ApiService,
     private readonly loadingCtrl: LoadingController,
-    private readonly httpService: HttpService,
+    private readonly encrypted: RPCEncryptedService,
   ) {}
 
   ionViewDidEnter() {
@@ -35,7 +35,7 @@ export class ProductKeyPage {
     await loader.present()
 
     try {
-      this.httpService.productKey = this.productKey
+      this.encrypted.productKey = this.productKey
       await this.apiService.verifyProductKey()
       if (this.stateService.isMigrating) {
         await this.navCtrl.navigateForward(`/loading`)
@@ -44,7 +44,7 @@ export class ProductKeyPage {
       }
     } catch (e) {
       this.error = 'Invalid Product Key'
-      this.httpService.productKey = undefined
+      this.encrypted.productKey = undefined
     } finally {
       loader.dismiss()
     }

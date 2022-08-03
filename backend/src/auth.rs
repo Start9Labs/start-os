@@ -24,10 +24,14 @@ pub fn auth() -> Result<(), Error> {
     Ok(())
 }
 
-pub fn parse_metadata(_: &str, _: &ArgMatches) -> Result<Value, Error> {
-    Ok(serde_json::json!({
+pub fn cli_metadata() -> Value {
+    serde_json::json!({
         "platforms": ["cli"],
-    }))
+    })
+}
+
+pub fn parse_metadata(_: &str, _: &ArgMatches) -> Result<Value, Error> {
+    Ok(cli_metadata())
 }
 
 #[test]
@@ -106,7 +110,7 @@ pub async fn login(
     #[arg] password: Option<String>,
     #[arg(
         parse(parse_metadata),
-        default = "",
+        default = "cli_metadata",
         help = "RPC Only: This value cannot be overidden from the cli"
     )]
     metadata: Value,
