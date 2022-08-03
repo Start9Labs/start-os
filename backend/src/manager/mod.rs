@@ -149,7 +149,7 @@ impl ManagerMap {
 pub struct Manager {
     shared: Arc<ManagerSharedState>,
     thread: Container<NonDetachingJoinHandle<()>>,
-    persistant_container: PersistantContainer,
+    persistant_container: Arc<PersistantContainer>,
 }
 
 #[derive(TryFromPrimitive)]
@@ -181,15 +181,18 @@ pub enum OnStop {
     Exit,
 }
 
-#[instrument(skip(state))]
+#[instrument(skip(state, persistant))]
 async fn run_main(
     state: &Arc<ManagerSharedState>,
+    persistant: Arc<PersistantContainer>,
 ) -> Result<Result<NoOutput, (i32, String)>, Error> {
     let rt_state = state.clone();
     let interfaces = states_main_interfaces(state)?;
     let generated_certificate = generate_certificate(state, &interfaces).await?;
 
-    /// TODO[BLUJ] Wait for persistance container to be started
+    if let Some(wait) = persistant.get_notify_wait().await {
+        wait.notified().await;
+    }
     let mut runtime =
         tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await });
     let ip = match is_injectable_main(&state) {
@@ -262,9 +265,10 @@ impl Manager {
         shared.synchronize_now.notify_one();
         let thread_shared = shared.clone();
         let persistant_container = PersistantContainer::new(&thread_shared);
+        let managers_persistant = persistant_container.clone();
         let thread = tokio::spawn(async move {
             tokio::select! {
-                _ = manager_thread_loop(recv, &thread_shared) => (),
+                _ = manager_thread_loop(recv, &thread_shared, managers_persistant) => (),
                 _ = synchronizer(&*thread_shared) => (),
             }
         });
@@ -373,7 +377,11 @@ impl Manager {
         self.shared.synchronized.notified().await
     }
 }
-async fn manager_thread_loop(mut recv: Receiver<OnStop>, thread_shared: &Arc<ManagerSharedState>) {
+async fn manager_thread_loop(
+    mut recv: Receiver<OnStop>,
+    thread_shared: &Arc<ManagerSharedState>,
+    persistant_container: Arc<PersistantContainer>,
+) {
     loop {
         fn handle_stop_action<'a>(
             recv: &'a mut Receiver<OnStop>,
@@ -387,7 +395,6 @@ async fn manager_thread_loop(mut recv: Receiver<OnStop>, thread_shared: &Arc<Man
                 a => (a, None),
             }
         }
-        /// TODO[BLUJ] Wait for manager thread if host thread running?
         let (stop_action, fut) = handle_stop_action(&mut recv);
         match stop_action {
             OnStop::Sleep => {
@@ -414,7 +421,7 @@ async fn manager_thread_loop(mut recv: Receiver<OnStop>, thread_shared: &Arc<Man
                 );
             }
         }
-        match run_main(&thread_shared).await {
+        match run_main(&thread_shared, persistant_container.clone()).await {
             Ok(Ok(NoOutput)) => (), // restart
             Ok(Err(e)) => {
                 let mut db = thread_shared.ctx.db.handle();
@@ -470,17 +477,18 @@ struct PersistantContainer {
     running_docker:
         Arc<Mutex<Option<NonDetachingJoinHandle<Result<Result<NoOutput, (i32, String)>, Error>>>>>,
     should_stop_running: Arc<std::sync::atomic::AtomicBool>,
+    wait_for_start: Arc<Mutex<Option<Arc<Notify>>>>,
 }
 
 impl PersistantContainer {
     #[instrument(skip(thread_shared))]
-    fn new(thread_shared: &Arc<ManagerSharedState>) -> Self {
-        /// At start need to say that we are not running if persistant
-        let container = Self {
+    fn new(thread_shared: &Arc<ManagerSharedState>) -> Arc<Self> {
+        let container = Arc::new(Self {
             container_name: thread_shared.container_name.clone(),
             running_docker: Arc::new(Mutex::new(None)),
             should_stop_running: Arc::new(AtomicBool::new(false)),
-        };
+            wait_for_start: Arc::new(Mutex::new(None)),
+        });
         tokio::spawn(persistant_container(
             thread_shared.clone(),
             container.clone(),
@@ -514,6 +522,30 @@ impl PersistantContainer {
             }
         }
     }
+
+    async fn get_notify_wait(&self) -> Option<Arc<Notify>> {
+        (&*self.wait_for_start.lock().await).clone()
+    }
+
+    async fn new_notify_wait(&self) {
+        let mut wait_for_start = self.wait_for_start.lock().await;
+        let original_waiter = (&*wait_for_start).clone();
+        let new_notifier = Arc::new(Notify::new());
+        *wait_for_start = Some(new_notifier.clone());
+        tokio::spawn(async move {
+            new_notifier.notified().await;
+            if let Some(notify) = original_waiter {
+                notify.notify_waiters();
+            }
+        });
+    }
+    async fn notify_started(&self) {
+        let mut wait_for_start = self.wait_for_start.lock().await;
+        if let Some(notify) = &*wait_for_start {
+            notify.notify_waiters();
+        }
+        *wait_for_start = None;
+    }
 }
 impl Drop for PersistantContainer {
     fn drop(&mut self) {
@@ -535,7 +567,7 @@ impl Drop for PersistantContainer {
 
 async fn persistant_container(
     thread_shared: Arc<ManagerSharedState>,
-    container: PersistantContainer,
+    container: Arc<PersistantContainer>,
 ) {
     let main_docker_procedure_for_long = injectable_main(&thread_shared);
     match main_docker_procedure_for_long {
@@ -543,7 +575,8 @@ async fn persistant_container(
             if container.should_stop_running.load(Ordering::SeqCst) {
                 return;
             }
-            match run_persistant_container(&thread_shared, main.clone()).await {
+            container.new_notify_wait().await;
+            match run_persistant_container(&thread_shared, container.clone(), main.clone()).await {
                 Ok(_) => (),
                 Err(e) => {
                     tracing::error!("failed to start persistant container: {}", e);
@@ -583,13 +616,13 @@ fn is_injectable_main(thread_shared: &ManagerSharedState) -> bool {
 }
 async fn run_persistant_container(
     state: &Arc<ManagerSharedState>,
+    persistant: Arc<PersistantContainer>,
     docker_procedure: Arc<DockerProcedure>,
 ) -> Result<(), Error> {
     let interfaces = states_main_interfaces(state)?;
     let generated_certificate = generate_certificate(state, &interfaces).await?;
     let mut runtime = tokio::spawn(long_running_docker(state.clone(), docker_procedure));
 
-    /// TODO[BLUJ] After start, need to add that we are started to persistant_container
     let ip = match get_running_ip(state, &mut runtime).await {
         GetRunninIp::Ip(x) => x,
         GetRunninIp::Error(e) => return Err(e),
@@ -599,7 +632,7 @@ async fn run_persistant_container(
             return Ok(());
         }
     };
-
+    persistant.notify_started().await;
     add_network_for_main(state, ip, interfaces, generated_certificate).await?;
 
     fetch_starting_to_running(state);
