@@ -12,9 +12,15 @@ export type WorkspaceConfig = {
       maskAs: 'tor' | 'lan'
       skipStartupAlerts: boolean
     }
-    marketplace: {
-      url: string
-      name: string
+    marketplaces: {
+      start9: {
+        url: string
+        name: string
+      }
+      community: {
+        url: string
+        name: string
+      }
     }
   }
 }

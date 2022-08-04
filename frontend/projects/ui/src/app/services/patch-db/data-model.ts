@@ -25,7 +25,7 @@ export interface UIData {
 }
 
 export interface UIMarketplaceData {
-  'selected-id': string | null
+  'selected-id': string
   'known-hosts': {
     [id: string]: {
       url: string

@@ -261,18 +261,11 @@ export class MarketplaceService extends AbstractMarketplaceService {
     )
   }
 
-  private updateName(
-    uiMarketplaceData: UIMarketplaceData | undefined,
-    name: string,
-  ) {
-    if (!uiMarketplaceData?.['selected-id']) {
-      return
-    }
-
+  private updateName(uiMarketplaceData: UIMarketplaceData, name: string) {
     const selectedId = uiMarketplaceData['selected-id']
     const knownHosts = uiMarketplaceData['known-hosts']
 
-    if (knownHosts[selectedId].name !== name) {
+    if (knownHosts[selectedId]?.name !== name) {
       this.api.setDbValue({
         pointer: `/marketplace/known-hosts/${selectedId}/name`,
         value: name,
@@ -280,10 +273,10 @@ export class MarketplaceService extends AbstractMarketplaceService {
     }
   }
 
-  private toMarketplace(marketplace: UIMarketplaceData): Marketplace {
-    return marketplace['selected-id']
-      ? marketplace['known-hosts'][marketplace['selected-id']]
-      : this.config.marketplace
+  private toMarketplace(uiMarketplaceData?: UIMarketplaceData): Marketplace {
+    const selectedId = uiMarketplaceData?.['selected-id']
+    if (!selectedId) return this.config.marketplaces['start9']
+    return uiMarketplaceData['known-hosts'][selectedId] || this.config.marketplaces['community']
   }
 
   private findPackage(

@@ -175,7 +175,7 @@ export class LiveApiService extends ApiService {
     return this.marketplaceProxy(
       '/eos/v0/latest',
       params,
-      this.config.marketplace.url,
+      this.config.marketplaces.start9.url,
     )
   }
 

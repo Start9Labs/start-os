@@ -46,7 +46,7 @@ export class OSUpdatePage {
 
     try {
       await this.embassyApi.updateServer({
-        'marketplace-url': this.config.marketplace.url,
+        'marketplace-url': this.config.marketplaces.start9.url,
       })
       this.dismiss()
     } catch (e: any) {
