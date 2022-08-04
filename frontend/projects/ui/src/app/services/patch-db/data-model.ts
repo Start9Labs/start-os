@@ -79,6 +79,7 @@ export interface ServerInfo {
   pubkey: string
   'ca-fingerprint': string
   'system-start-time': string
+  email: EmailSettings
 }
 
 export interface IpInfo {
@@ -100,6 +101,12 @@ export interface ServerStatusInfo {
   updated: boolean
   'update-progress': { size: number | null; downloaded: number } | null
   'shutting-down': boolean
+}
+
+export interface EmailSettings {
+  'embassy-enabled': boolean
+  'services-enabled': boolean
+  address: string | null
 }
 
 export interface PackageDataEntry {
