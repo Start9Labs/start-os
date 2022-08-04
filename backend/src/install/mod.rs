@@ -525,7 +525,7 @@ async fn cli_install(
         let body = Body::wrap_stream(tokio_util::io::ReaderStream::new(file));
         let res = ctx
             .client
-            .post(format!("{}/rest/rpc/{}", ctx.base_url, guid,))
+            .post(format!("{}rest/rpc/{}", ctx.base_url, guid,))
             .header(CONTENT_LENGTH, content_length)
             .body(body)
             .send()
