@@ -1,0 +1,63 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="embassy"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Email Settings</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding-top">
+  <ion-item-group>
+    <!-- always -->
+    <ion-item>
+      <ion-label>
+        <h2>
+          EmbassyOS comes with a built-in SMTP server for sending emails. It is
+          currently useful for two purposes:
+          <ol>
+            <li>
+              Your Embassy can send you an email when you have a new
+              notification.
+            </li>
+            <li>
+              Installed services can send emails for a variety of purposes, such
+              as forgot password flows, invitations, alerts, etc.
+            </li>
+          </ol>
+        </h2>
+      </ion-label>
+    </ion-item>
+
+    <ng-container *ngIf="server$ | async as server">
+      <ion-item-divider>Embassy Settings</ion-item-divider>
+      <ion-item
+        button
+        (click)="serverConfig.presentAlert('email-embassy-enabled', server.email['embassy-enabled'])"
+      >
+        <ion-label>
+          <h2>Receive OS Notificaitons</h2>
+          <p>{{ server.email['embassy-enabled'] ? 'Enabled' : 'Disabled' }}</p>
+        </ion-label>
+      </ion-item>
+
+      <ion-item button (click)="presentModalEmail()">
+        <ion-label>
+          <h2>Email Address</h2>
+          <p>{{ server.email.address || 'None' }}</p>
+        </ion-label>
+      </ion-item>
+
+      <ion-item-divider>Services Settings</ion-item-divider>
+      <ion-item
+        button
+        (click)="serverConfig.presentAlert('email-services-enabled', server.email['services-enabled'])"
+      >
+        <ion-label>
+          <h2>Permit Usage By Services</h2>
+          <p>{{ server.email['services-enabled'] ? 'Enabled' : 'Disabled' }}</p>
+        </ion-label>
+      </ion-item>
+    </ng-container>
+  </ion-item-group>
+</ion-content>
