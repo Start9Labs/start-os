@@ -38,7 +38,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
     .watch$('ui', 'marketplace')
     .pipe(
       distinctUntilChanged(
-        (prev, curr) => prev['selected-id'] === curr['selected-id'],
+        (prev, curr) => prev?.['selected-id'] === curr?.['selected-id'],
       ),
       shareReplay(1),
     )
