@@ -65,7 +65,7 @@ export class EmailPage {
     await loader.present()
 
     try {
-      await this.api.restartServer({ address })
+      await this.api.configureEmail({ address })
     } catch (e: any) {
       this.errToast.present(e)
     } finally {

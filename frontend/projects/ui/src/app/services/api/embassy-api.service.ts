@@ -150,6 +150,12 @@ export abstract class ApiService {
 
   abstract deleteWifi(params: RR.DeleteWifiReq): Promise<RR.ConnectWifiRes>
 
+  // email
+
+  protected abstract configureEmail(
+    params: RR.ConfigureEmailReq,
+  ): Promise<RR.ConfigureEmailRes>
+
   // ssh
 
   abstract getSshKeys(params: RR.GetSSHKeysReq): Promise<RR.GetSSHKeysRes>

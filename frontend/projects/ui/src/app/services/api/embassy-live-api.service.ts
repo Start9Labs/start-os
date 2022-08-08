@@ -271,6 +271,14 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'wifi.delete', params })
   }
 
+  // email
+
+  async configureEmailRaw(
+    params: RR.ConfigureEmailReq,
+  ): Promise<RR.ConfigureEmailRes> {
+    return this.http.rpcRequest({ method: 'email.configure', params })
+  }
+
   // ssh
 
   async getSshKeys(params: RR.GetSSHKeysReq): Promise<RR.GetSSHKeysRes> {

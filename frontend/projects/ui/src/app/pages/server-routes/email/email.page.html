@@ -33,11 +33,11 @@
       <ion-item-divider>Embassy Settings</ion-item-divider>
       <ion-item
         button
-        (click)="serverConfig.presentAlert('email-embassy-enabled', server.email['embassy-enabled'])"
+        (click)="serverConfig.presentAlert('email-notifications-os', server.email.notifications.os)"
       >
         <ion-label>
           <h2>Receive OS Notificaitons</h2>
-          <p>{{ server.email['embassy-enabled'] ? 'Enabled' : 'Disabled' }}</p>
+          <p>{{ server.email.notifications.os ? 'Enabled' : 'Disabled' }}</p>
         </ion-label>
       </ion-item>
 
@@ -51,11 +51,13 @@
       <ion-item-divider>Services Settings</ion-item-divider>
       <ion-item
         button
-        (click)="serverConfig.presentAlert('email-services-enabled', server.email['services-enabled'])"
+        (click)="serverConfig.presentAlert('email-notifications-services', server.email.notifications.services)"
       >
         <ion-label>
           <h2>Permit Usage By Services</h2>
-          <p>{{ server.email['services-enabled'] ? 'Enabled' : 'Disabled' }}</p>
+          <p>
+            {{ server.email.notifications.services ? 'Enabled' : 'Disabled' }}
+          </p>
         </ion-label>
       </ion-item>
     </ng-container>

@@ -412,6 +412,23 @@ export class MockApiService extends ApiService {
     return null
   }
 
+  // email
+
+  async configureEmailRaw(
+    params: RR.ConfigureEmailReq,
+  ): Promise<RR.ConfigureEmailRes> {
+    await pauseFor(2000)
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/email',
+        value: params,
+      },
+    ]
+
+    return this.withRevision(patch)
+  }
+
   // ssh
 
   async getSshKeys(params: RR.GetSSHKeysReq): Promise<RR.GetSSHKeysRes> {
