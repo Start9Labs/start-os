@@ -105,11 +105,13 @@ export class ServerConfigService {
         value: enabled,
       })
     },
-    'email-embassy-enabled': async (enabled: boolean) => {
-      return this.embassyApi.restartServer({ enabled })
+    'email-notifications-os': async (enabled: boolean) => {
+      return this.embassyApi.configureEmail({ notifications: { os: enabled } })
     },
-    'email-services-enabled': async (enabled: boolean) => {
-      return this.embassyApi.restartServer({ enabled })
+    'email-notifications-services': async (enabled: boolean) => {
+      return this.embassyApi.configureEmail({
+        notifications: { services: enabled },
+      })
     },
   }
 }
@@ -122,14 +124,14 @@ export const serverConfig: ConfigSpec = {
       'If enabled, EmbassyOS will automatically check for updates of itself and installed services. Updating will still require your approval and action. Updates will never be performed automatically.',
     default: true,
   },
-  'email-embassy-enabled': {
+  'email-notifications-os': {
     type: 'boolean',
     name: 'Receive OS Notifications',
     description:
       'If enabled, EmbassyOS will deliver an email to your saved address whenever a notificaiton is issued.',
     default: true,
   },
-  'email-services-enabled': {
+  'email-notifications-services': {
     type: 'boolean',
     name: 'Permit Usage By Services',
     description:

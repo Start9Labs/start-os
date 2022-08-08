@@ -125,6 +125,17 @@ export module RR {
   export type DeleteWifiReq = { ssid: string } // wifi.delete
   export type DeleteWifiRes = null
 
+  // email
+
+  export type ConfigureEmailReq = WithExpire<{
+    address?: string
+    notifications?: {
+      os?: boolean
+      services?: boolean
+    }
+  }> // email.configure
+  export type ConfigureEmailRes = WithRevision<null>
+
   // ssh
 
   export type GetSSHKeysReq = {} // ssh.list
