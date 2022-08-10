@@ -914,7 +914,11 @@ async fn stop(shared: &ManagerSharedState) -> Result<(), Error> {
 
 /// So the sleep infinity, which is the long running, is pid 1. So we kill the others
 async fn stop_non_first(container_name: &str) {
-    /// TODO[BLUJ] sudo docker exec syncthing.embassy ps ax | awk '$1 ~ /^[:0-9:]/ && $1 > 1 {print $1}' | xargs kill
+    // tracing::error!("BLUJ TODO: sudo docker exec {} sh -c \"ps ax | awk '\\$1 ~ /^[:0-9:]/ && \\$1 > 1 {{print \\$1}}' | xargs kill\"", container_name);
+
+    // (sleep infinity) & export RUNNING=$! && echo $! && (wait $RUNNING && echo "DONE FOR $RUNNING") &
+    // (RUNNING=$(sleep infinity & echo $!); echo "running $RUNNING"; wait $RUNNING; echo "DONE FOR ?") &
+
     let _ = tokio::process::Command::new("docker")
         .args([
             "container",
@@ -922,11 +926,29 @@ async fn stop_non_first(container_name: &str) {
             container_name,
             "sh",
             "-c",
-            "ps ax | awk \"\\$1 ~ /^[:0-9:]/ && \\$1 > 1 {print \\$1}\"| xargs kill",
+            "ps ax | awk '$1 ~ /^[:0-9:]/ && $1 > 1 {print $1}' | xargs kill",
         ])
         .output()
         .await;
 }
+
+// #[test]
+// fn test_stop_non_first() {
+//     assert_eq!(
+//         &format!(
+//             "{}",
+//             tokio::process::Command::new("docker").args([
+//                 "container",
+//                 "exec",
+//                 "container_name",
+//                 "sh",
+//                 "-c",
+//                 "ps ax | awk \"\\$1 ~ /^[:0-9:]/ && \\$1 > 1 {print \\$1}\"| xargs kill",
+//             ])
+//         ),
+//         ""
+//     );
+// }
 
 #[instrument(skip(shared))]
 async fn start(shared: &ManagerSharedState) -> Result<(), Error> {
