@@ -21,16 +21,19 @@
 	- Create a builder: `docker buildx create --use`
 	- Add multi-arch build ability: `docker run --rm --privileged linuxkit/binfmt:v0.8`
 - Node Version 12+
-	- `sudo snap install node`
+	- snap: `sudo snap install node`
+	- [nvm](https://github.com/nvm-sh/nvm#installing-and-updating): `nvm install --lts`
 	- https://nodejs.org/en/docs
 - NPM Version 7+
-	- `sudo apt install -y npm`
+	- apt: `sudo apt install -y npm`
+	- [nvm](https://github.com/nvm-sh/nvm#installing-and-updating): `nvm install --lts`
 	- https://docs.npmjs.com/downloading-and-installing-node-js-and-npm
 - jq
 	- `sudo apt install -y jq`
 	- https://stedolan.github.io/jq
 - yq
-	- `sudo snap install yq`
+	- snap: `sudo snap install yq`
+	- binaries: https://github.com/mikefarah/yq/releases/
 	- https://mikefarah.gitbook.io/yq
 
 2. Clone the latest repo with required submodules
