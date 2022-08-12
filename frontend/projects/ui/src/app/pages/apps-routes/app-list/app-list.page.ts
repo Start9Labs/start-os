@@ -2,7 +2,7 @@ import { Component } from '@angular/core'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { Observable } from 'rxjs'
-import { filter, map, switchMapTo, take, takeUntil, tap } from 'rxjs/operators'
+import { filter, map, switchMap, take, takeUntil, tap } from 'rxjs/operators'
 import { isEmptyObject, exists, DestroyService } from '@start9labs/shared'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { parseDataModel, RecoveredInfo } from 'src/app/util/parse-data-model'
@@ -16,7 +16,6 @@ import { parseDataModel, RecoveredInfo } from 'src/app/util/parse-data-model'
 export class AppListPage {
   pkgs: readonly PackageDataEntry[] = []
   recoveredPkgs: readonly RecoveredInfo[] = []
-  order: readonly string[] = []
   reordering = false
 
   readonly connected$ = this.patch.connected$
@@ -38,17 +37,11 @@ export class AppListPage {
         filter(data => exists(data) && !isEmptyObject(data)),
         take(1),
         map(parseDataModel),
-        tap(({ order, pkgs, recoveredPkgs }) => {
+        tap(({ pkgs, recoveredPkgs }) => {
           this.pkgs = pkgs
           this.recoveredPkgs = recoveredPkgs
-          this.order = order
-
-          // set order in UI DB if there were unknown packages
-          if (order.length < pkgs.length) {
-            this.setOrder()
-          }
         }),
-        switchMapTo(this.watchNewlyRecovered()),
+        switchMap(() => this.watchNewlyRecovered()),
         takeUntil(this.destroy$),
       )
       .subscribe()
@@ -88,7 +81,7 @@ export class AppListPage {
   }
 
   private setOrder(): void {
-    this.order = this.pkgs.map(pkg => pkg.manifest.id)
-    this.api.setDbValue({ pointer: '/pkg-order', value: this.order })
+    const order = this.pkgs.map(pkg => pkg.manifest.id)
+    this.api.setDbValue({ pointer: '/pkg-order', value: order })
   }
 }
