@@ -6,6 +6,7 @@ import {
   Observable,
   of,
   ReplaySubject,
+  Subject,
   Subscription,
 } from 'rxjs'
 import {
@@ -15,7 +16,6 @@ import {
   finalize,
   mergeMap,
   shareReplay,
-  switchMap,
   take,
   tap,
   withLatestFrom,
@@ -54,7 +54,7 @@ export class PatchDbService {
     @Inject(BOOTSTRAPPER)
     private readonly bootstrapper: Bootstrapper<DataModel>,
     @Inject(PATCH_SOURCE$)
-    private readonly sources$: BehaviorSubject<Source<DataModel>[]>,
+    private readonly sources$: Subject<Source<DataModel>[]>,
     private readonly http: ApiService,
     private readonly auth: AuthService,
     private readonly storage: Storage,
@@ -168,10 +168,7 @@ export class PatchDbService {
 
     console.log('patchDB: WATCHING ', argsString)
 
-    return this.patchConnection$.pipe(
-      filter(status => status === PatchConnection.Connected),
-      take(1),
-      switchMap(() => this.patchDb.store.watch$(...(args as []))),
+    return this.patchDb.store.watch$(...(args as [])).pipe(
       tap(data => console.log('patchDB: NEW VALUE', argsString, data)),
       catchError(e => {
         console.error('patchDB: WATCH ERROR', e)

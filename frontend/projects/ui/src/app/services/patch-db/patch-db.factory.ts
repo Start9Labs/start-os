@@ -14,13 +14,13 @@ import { ConfigService } from '../config.service'
 import { ApiService } from '../api/embassy-api.service'
 import { MockApiService } from '../api/embassy-mock-api.service'
 import { DataModel } from './data-model'
-import { BehaviorSubject } from 'rxjs'
+import { Subject } from 'rxjs'
 
 // [wsSources, pollSources]
 export const PATCH_SOURCE = new InjectionToken<Source<DataModel>[]>('')
-export const PATCH_SOURCE$ = new InjectionToken<
-  BehaviorSubject<Source<DataModel>[]>
->('')
+export const PATCH_SOURCE$ = new InjectionToken<Subject<Source<DataModel>[]>>(
+  '',
+)
 export const PATCH_CACHE = new InjectionToken<DBCache<DataModel>>('', {
   factory: () => ({} as any),
 })
@@ -37,11 +37,12 @@ export function mockSourceFactory({
 export function realSourceFactory(
   embassyApi: ApiService,
   config: ConfigService,
-  { defaultView }: Document,
+  documentRef: Document,
 ): Source<DataModel>[] {
   const { patchDb } = config
-  const host = defaultView?.location.host
-  const protocol = defaultView?.location.protocol === 'http:' ? 'ws' : 'wss'
+  const { location } = documentRef.defaultView!
+  const host = location.host
+  const protocol = location.protocol === 'http:' ? 'ws' : 'wss'
 
   return [
     new WebsocketSource<DataModel>(`${protocol}://${host}/ws/db`),
