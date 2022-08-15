@@ -801,7 +801,6 @@ pub async fn synchronize_wpa_supplicant_conf<P: AsRef<Path>>(
         .arg("up")
         .invoke(ErrorKind::Wifi)
         .await?;
-    Command::new("dhclient").invoke(ErrorKind::Wifi).await?;
     if let Some(last_country_code) = last_country_code {
         tracing::info!("Setting the region");
         let _ = Command::new("iw")

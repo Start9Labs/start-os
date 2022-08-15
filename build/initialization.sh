@@ -56,7 +56,7 @@ apt update && apt install -y tor deb.torproject.org-keyring
 
 curl -fsSL https://get.docker.com | sh # TODO: commit this script into git instead of live fetching it
 
-apt-get purge openresolv dhcpcd5 -y
+apt-get remove --purge dhcpcd5 -y
 systemctl disable wpa_supplicant.service
 
 systemctl disable bluetooth.service
@@ -95,7 +95,7 @@ EOF
 cat << EOF > /etc/NetworkManager/NetworkManager.conf
 [main]
 plugins=ifupdown,keyfile
-dns=none
+dns=systemd-resolved
 rc-manager=unmanaged
 
 [ifupdown]
@@ -105,7 +105,6 @@ EOF
 # enable embassyd dns server
 systemctl enable systemd-resolved
 sed -i '/\(^\|#\)DNS=/c\DNS=127.0.0.1' /etc/systemd/resolved.conf
-sed -i '/prepend domain-name-servers/c\prepend domain-name-servers 127.0.0.53;' /etc/dhcp/dhclient.conf
 
 if [ -f /embassy-os/product_key.txt ]
 then
