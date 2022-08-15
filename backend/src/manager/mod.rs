@@ -22,8 +22,6 @@ use tokio::task::JoinHandle;
 use torut::onion::TorSecretKeyV3;
 use tracing::instrument;
 
-use crate::context::RpcContext;
-use crate::manager::sync::synchronizer;
 use crate::net::interface::InterfaceId;
 use crate::net::GeneratedCertificateMountPoint;
 use crate::notifications::NotificationLevel;
@@ -33,6 +31,8 @@ use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::status::MainStatus;
 use crate::util::{Container, NonDetachingJoinHandle, Version};
 use crate::Error;
+use crate::{context::RpcContext, procedure::docker::DockerContainer};
+use crate::{manager::sync::synchronizer, procedure::docker::DockerInject};
 
 pub mod health;
 mod sync;
@@ -232,12 +232,13 @@ async fn start_up_image(
         .main
         .execute::<(), NoOutput>(
             &rt_state.ctx,
-            &rt_state.manifest.id,
+            &rt_state.manifest.container,
+            &rt_state.manifest.container,
+            & rt_state.manifest.id,
             &rt_state.manifest.version,
             ProcedureName::Main,
             &rt_state.manifest.volumes,
             None,
-            true,
             None,
         )
         .await
@@ -596,27 +597,41 @@ async fn persistant_container(
 }
 
 fn injectable_main(thread_shared: &Arc<ManagerSharedState>) -> Option<Arc<DockerProcedure>> {
-    match &thread_shared.manifest.main {
-        PackageProcedure::Docker(a) => match &a.inject {
-            false => None,
-            true => {
-                let mut main = a.clone();
-                main.inject = false;
-                main.entrypoint = "sleep".to_string();
-                main.args = vec!["infinity".to_string()];
-                Some(Arc::new(main))
-            }
-        },
-        #[cfg(feature = "js_engine")]
-        PackageProcedure::Script(_) => None,
+    if let (
+        PackageProcedure::DockerInject(DockerInject {
+            system,
+            entrypoint,
+            args,
+            io_format,
+            sigterm_timeout,
+        }),
+        Some(DockerContainer {
+            image,
+            mounts,
+            shm_size_mb,
+        }),
+    ) = (
+        &thread_shared.manifest.main,
+        &thread_shared.manifest.container,
+    ) {
+        Some(Arc::new(DockerProcedure {
+            image: image.clone(),
+            mounts: mounts.clone(),
+            io_format: io_format.clone(),
+            shm_size_mb: shm_size_mb.clone(),
+            sigterm_timeout: sigterm_timeout.clone(),
+            system: system.clone(),
+            entrypoint: entrypoint.clone(),
+            args: args.clone(),
+        }))
+    } else {
+        None
     }
 }
 fn is_injectable_main(thread_shared: &ManagerSharedState) -> bool {
     match &thread_shared.manifest.main {
-        PackageProcedure::Docker(a) => match &a.inject {
-            false => false,
-            true => true,
-        },
+        PackageProcedure::Docker(_a) => false,
+        PackageProcedure::DockerInject(a) => true,
         #[cfg(feature = "js_engine")]
         PackageProcedure::Script(_) => false,
     }
@@ -663,7 +678,6 @@ async fn long_running_docker(
             ProcedureName::LongRunning,
             &rt_state.manifest.volumes,
             None,
-            false,
             None,
         )
         .await

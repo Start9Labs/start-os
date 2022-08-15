@@ -7,7 +7,6 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use super::{Config, ConfigSpec};
-use crate::context::RpcContext;
 use crate::dependencies::Dependencies;
 use crate::id::ImageId;
 use crate::procedure::{PackageProcedure, ProcedureName};
@@ -15,6 +14,7 @@ use crate::s9pk::manifest::PackageId;
 use crate::status::health_check::HealthCheckId;
 use crate::util::Version;
 use crate::volume::Volumes;
+use crate::{context::RpcContext, procedure::docker::DockerContainer};
 use crate::{Error, ResultExt};
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
@@ -33,15 +33,16 @@ impl ConfigActions {
     #[instrument]
     pub fn validate(
         &self,
+        container: &Option<DockerContainer>,
         eos_version: &Version,
         volumes: &Volumes,
         image_ids: &BTreeSet<ImageId>,
     ) -> Result<(), Error> {
         self.get
-            .validate(eos_version, volumes, image_ids, true)
+            .validate(container, eos_version, volumes, image_ids, true)
             .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Config Get"))?;
         self.set
-            .validate(eos_version, volumes, image_ids, true)
+            .validate(container, eos_version, volumes, image_ids, true)
             .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Config Set"))?;
         Ok(())
     }
@@ -49,6 +50,7 @@ impl ConfigActions {
     pub async fn get(
         &self,
         ctx: &RpcContext,
+        container: &Option<DockerContainer>,
         pkg_id: &PackageId,
         pkg_version: &Version,
         volumes: &Volumes,
@@ -56,12 +58,12 @@ impl ConfigActions {
         self.get
             .execute(
                 ctx,
+                container,
                 pkg_id,
                 pkg_version,
                 ProcedureName::GetConfig,
                 volumes,
                 None::<()>,
-                false,
                 None,
             )
             .await
@@ -74,6 +76,7 @@ impl ConfigActions {
     pub async fn set(
         &self,
         ctx: &RpcContext,
+        container: &Option<DockerContainer>,
         pkg_id: &PackageId,
         pkg_version: &Version,
         dependencies: &Dependencies,
@@ -84,12 +87,12 @@ impl ConfigActions {
             .set
             .execute(
                 ctx,
+                container,
                 pkg_id,
                 pkg_version,
                 ProcedureName::SetConfig,
                 volumes,
                 Some(input),
-                false,
                 None,
             )
             .await

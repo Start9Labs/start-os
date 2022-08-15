@@ -17,9 +17,9 @@ use tracing::instrument;
 use super::header::{FileSection, Header, TableOfContents};
 use super::manifest::{Manifest, PackageId};
 use super::SIG_CONTEXT;
-use crate::id::ImageId;
 use crate::install::progress::InstallProgressTracker;
 use crate::util::Version;
+use crate::{id::ImageId, procedure::docker::DockerContainer};
 use crate::{Error, ResultExt};
 
 #[pin_project::pin_project]
@@ -145,6 +145,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin> S9pkReader<R> {
         }
         let image_tags = self.image_tags().await?;
         let man = self.manifest().await?;
+        let container = &man.container;
         let validated_image_ids = image_tags
             .into_iter()
             .map(|i| i.validate(&man.id, &man.version).map(|_| i.image_id))
@@ -154,25 +155,59 @@ impl<R: AsyncRead + AsyncSeek + Unpin> S9pkReader<R> {
             .0
             .iter()
             .map(|(_, action)| {
-                action.validate(&man.eos_version, &man.volumes, &validated_image_ids)
+                action.validate(
+                    container,
+                    &man.eos_version,
+                    &man.volumes,
+                    &validated_image_ids,
+                )
             })
             .collect::<Result<(), Error>>()?;
-        man.backup
-            .validate(&man.eos_version, &man.volumes, &validated_image_ids)?;
+        man.backup.validate(
+            container,
+            &man.eos_version,
+            &man.volumes,
+            &validated_image_ids,
+        )?;
         if let Some(cfg) = &man.config {
-            cfg.validate(&man.eos_version, &man.volumes, &validated_image_ids)?;
+            cfg.validate(
+                container,
+                &man.eos_version,
+                &man.volumes,
+                &validated_image_ids,
+            )?;
         }
-        man.health_checks
-            .validate(&man.eos_version, &man.volumes, &validated_image_ids)?;
+        man.health_checks.validate(
+            container,
+            &man.eos_version,
+            &man.volumes,
+            &validated_image_ids,
+        )?;
         man.interfaces.validate()?;
         man.main
-            .validate(&man.eos_version, &man.volumes, &validated_image_ids, false)
+            .validate(
+                container,
+                &man.eos_version,
+                &man.volumes,
+                &validated_image_ids,
+                false,
+            )
             .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Main"))?;
-        man.migrations
-            .validate(&man.eos_version, &man.volumes, &validated_image_ids)?;
+        man.migrations.validate(
+            container,
+            &man.eos_version,
+            &man.volumes,
+            &validated_image_ids,
+        )?;
         if let Some(props) = &man.properties {
             props
-                .validate(&man.eos_version, &man.volumes, &validated_image_ids, true)
+                .validate(
+                    container,
+                    &man.eos_version,
+                    &man.volumes,
+                    &validated_image_ids,
+                    true,
+                )
                 .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Properties"))?;
         }
         man.volumes.validate(&man.interfaces)?;
