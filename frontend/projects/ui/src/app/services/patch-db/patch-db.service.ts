@@ -76,40 +76,22 @@ export class PatchDbService {
           debounceTime(420),
           withLatestFrom(this.polling$),
           mergeMap(async ([e, polling]) => {
-            if (polling) {
-              console.log('patchDB: POLLING FAILED', e)
+            if (e.status === 'unauthenticated') {
+              console.warn('patchDB: UNAUTHORIZED. Logging out.')
+              this.auth.setUnverified()
+            } else if (polling) {
+              console.warn('patchDB: POLLING FAILED', e)
               this.patchConnection$.next(PatchConnection.Disconnected)
               await pauseFor(2000)
               this.sources$.next([this.sources[1], this.http])
-              return
-            }
-
-            console.log('patchDB: WEBSOCKET FAILED', e)
-            this.polling$.next(true)
-            this.sources$.next([this.sources[1], this.http])
-          }),
-        )
-        .subscribe({
-          complete: () => {
-            console.warn('patchDB: SYNC COMPLETE')
-          },
-        }),
-
-      // RPC ERROR
-      this.patchDb.rpcError$
-        .pipe(
-          tap(({ error }) => {
-            if (error.code === 34) {
-              console.log('patchDB: Unauthorized. Logging out.')
-              this.auth.setUnverified()
+            } else {
+              console.warn('patchDB: WEBSOCKET FAILED', e)
+              this.polling$.next(true)
+              this.sources$.next([this.sources[1], this.http])
             }
           }),
         )
-        .subscribe({
-          complete: () => {
-            console.warn('patchDB: SYNC COMPLETE')
-          },
-        }),
+        .subscribe(),
 
       // GOOD CONNECTION
       this.patchDb.cache$

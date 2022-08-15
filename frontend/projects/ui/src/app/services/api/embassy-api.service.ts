@@ -6,12 +6,10 @@ import {
   Revision,
   Source,
   Store,
-  RPCResponse,
 } from 'patch-db-client'
 import { RR } from './api.types'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { Log, RequestError } from '@start9labs/shared'
-import { map } from 'rxjs/operators'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 
 export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
@@ -19,10 +17,8 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
 
   /** PatchDb Source interface. Post/Patch requests provide a source of patches to the db. */
   // sequenceStream '_' is not used by the live api, but is overridden by the mock
-  watch$(_?: Store<DataModel>): Observable<RPCResponse<Update<DataModel>>> {
-    return this.sync$
-      .asObservable()
-      .pipe(map(result => ({ result, jsonrpc: '2.0' })))
+  watch$(_?: Store<DataModel>): Observable<Update<DataModel>> {
+    return this.sync$.asObservable()
   }
 
   // websocket

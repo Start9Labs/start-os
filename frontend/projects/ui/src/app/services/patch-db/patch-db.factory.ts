@@ -39,12 +39,11 @@ export function realSourceFactory(
   config: ConfigService,
   { defaultView }: Document,
 ): Source<DataModel>[] {
-  const { patchDb } = config
   const host = defaultView?.location.host
   const protocol = defaultView?.location.protocol === 'http:' ? 'ws' : 'wss'
 
   return [
     new WebsocketSource<DataModel>(`${protocol}://${host}/ws/db`),
-    new PollSource<DataModel>({ ...patchDb.poll }, embassyApi),
+    new PollSource<DataModel>({ ...config.patchDb.poll }, embassyApi),
   ]
 }
