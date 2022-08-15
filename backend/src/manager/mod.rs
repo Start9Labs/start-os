@@ -233,8 +233,7 @@ async fn start_up_image(
         .execute::<(), NoOutput>(
             &rt_state.ctx,
             &rt_state.manifest.container,
-            &rt_state.manifest.container,
-            & rt_state.manifest.id,
+            &rt_state.manifest.id,
             &rt_state.manifest.version,
             ProcedureName::Main,
             &rt_state.manifest.volumes,
@@ -322,8 +321,14 @@ impl Manager {
             .commit_health_check_results
             .store(false, Ordering::SeqCst);
         let _ = self.shared.on_stop.send(OnStop::Exit);
-        let action = match &self.shared.manifest.main {
-            PackageProcedure::Docker(a) => a,
+        let sigterm_timeout: Option<crate::util::serde::Duration> = match &self.shared.manifest.main
+        {
+            PackageProcedure::Docker(DockerProcedure {
+                sigterm_timeout, ..
+            })
+            | PackageProcedure::DockerInject(DockerInject {
+                sigterm_timeout, ..
+            }) => sigterm_timeout.clone(),
             #[cfg(feature = "js_engine")]
             PackageProcedure::Script(_) => return Ok(()),
         };
@@ -337,8 +342,7 @@ impl Manager {
                 .stop_container(
                     &self.shared.container_name,
                     Some(StopContainerOptions {
-                        t: action
-                            .sigterm_timeout
+                        t: sigterm_timeout
                             .map(|a| *a)
                             .unwrap_or(Duration::from_secs(30))
                             .as_secs_f64() as i64,
@@ -880,7 +884,12 @@ async fn stop(shared: &ManagerSharedState) -> Result<(), Error> {
         resume(shared).await?;
     }
     match &shared.manifest.main {
-        PackageProcedure::Docker(action) => {
+        PackageProcedure::Docker(DockerProcedure {
+            sigterm_timeout, ..
+        })
+        | PackageProcedure::DockerInject(DockerInject {
+            sigterm_timeout, ..
+        }) => {
             if !is_injectable_main(shared) {
                 match shared
                     .ctx
@@ -888,8 +897,7 @@ async fn stop(shared: &ManagerSharedState) -> Result<(), Error> {
                     .stop_container(
                         &shared.container_name,
                         Some(StopContainerOptions {
-                            t: action
-                                .sigterm_timeout
+                            t: sigterm_timeout
                                 .map(|a| *a)
                                 .unwrap_or(Duration::from_secs(30))
                                 .as_secs_f64() as i64,

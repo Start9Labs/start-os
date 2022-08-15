@@ -631,7 +631,7 @@ impl DependencyConfigReceipts {
             .package_data()
             .star()
             .installed()
-            .map(|x| x.manifest().container())
+            .and_then(|x| x.manifest().container())
             .make_locker(LockType::Write)
             .add_to_keys(locks);
         move |skeleton_key| {

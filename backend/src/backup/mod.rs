@@ -105,12 +105,12 @@ impl BackupActions {
             .package_data()
             .idx_model(&pkg_id)
             .and_then(|p| p.installed())
-            .expect(&mut db)
+            .expect(db)
             .await
             .with_kind(crate::ErrorKind::NotFound)?
             .manifest()
             .container()
-            .get(&mut db, false)
+            .get(db, false)
             .await?
             .to_owned();
         if tokio::fs::metadata(&backup_dir).await.is_err() {
