@@ -380,15 +380,12 @@ export class LiveApiService extends ApiService {
   }
 
   private async rpcRequest<T>(options: RPCOptions): Promise<T> {
-    try {
-      const res = await this.http.rpcRequest<T>(options)
-      return res.result
-    } catch (e: any) {
+    return this.http.rpcRequest<T>(options).catch(e => {
       if ((e as RPCError).error.code === 34) {
         console.error('Unauthenticated, logging out')
         this.auth.setUnverified()
       }
       throw e
-    }
+    })
   }
 }

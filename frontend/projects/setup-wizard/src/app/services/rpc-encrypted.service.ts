@@ -9,7 +9,6 @@ import {
   Method,
   RPCResponse,
   isRpcError,
-  RPCSuccess,
 } from '@start9labs/shared'
 
 @Injectable({
@@ -20,9 +19,7 @@ export class RPCEncryptedService {
 
   constructor(private readonly http: HttpService) {}
 
-  async rpcRequest<T>(
-    opts: Omit<RPCOptions, 'timeout'>,
-  ): Promise<RPCSuccess<T>> {
+  async rpcRequest<T>(opts: Omit<RPCOptions, 'timeout'>): Promise<T> {
     const encryptedBody = await AES_CTR.encryptPbkdf2(
       this.productKey || '',
       encodeUtf8(JSON.stringify(opts)),
@@ -49,7 +46,7 @@ export class RPCEncryptedService {
         }
       })
     if (isRpcError(res)) throw new RpcError(res.error)
-    return res
+    return res.result
   }
 }
 

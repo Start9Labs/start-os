@@ -32,7 +32,7 @@ export class HttpService {
     this.fullUrl = `${protocol}//${hostname}:${port}`
   }
 
-  async rpcRequest<T>(opts: RPCOptions): Promise<RPCSuccess<T>> {
+  async rpcRequest<T>(opts: RPCOptions): Promise<T> {
     const { method, params, timeout } = opts
 
     const res = await this.httpRequest<RPCResponse<T>>({
@@ -42,7 +42,7 @@ export class HttpService {
       timeout,
     })
     if (isRpcError(res)) throw new RpcError(res.error)
-    return res
+    return res.result
   }
 
   async httpRequest<T>(opts: HttpOptions): Promise<T> {

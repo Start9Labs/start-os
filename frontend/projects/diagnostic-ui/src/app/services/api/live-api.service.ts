@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { HttpService, RPCOptions } from '@start9labs/shared'
+import { HttpService } from '@start9labs/shared'
 import { ApiService, GetErrorRes } from './api.service'
 import { LogsRes, ServerLogsReq } from '@start9labs/shared'
 
@@ -10,41 +10,37 @@ export class LiveApiService extends ApiService {
   }
 
   getError(): Promise<GetErrorRes> {
-    return this.rpcRequest<GetErrorRes>({
+    return this.http.rpcRequest<GetErrorRes>({
       method: 'diagnostic.error',
       params: {},
     })
   }
 
   restart(): Promise<void> {
-    return this.rpcRequest<void>({
+    return this.http.rpcRequest<void>({
       method: 'diagnostic.restart',
       params: {},
     })
   }
 
   forgetDrive(): Promise<void> {
-    return this.rpcRequest<void>({
+    return this.http.rpcRequest<void>({
       method: 'diagnostic.disk.forget',
       params: {},
     })
   }
 
   repairDisk(): Promise<void> {
-    return this.rpcRequest<void>({
+    return this.http.rpcRequest<void>({
       method: 'diagnostic.disk.repair',
       params: {},
     })
   }
 
   getLogs(params: ServerLogsReq): Promise<LogsRes> {
-    return this.rpcRequest<LogsRes>({
+    return this.http.rpcRequest<LogsRes>({
       method: 'diagnostic.logs',
       params,
     })
-  }
-
-  private async rpcRequest<T>(options: RPCOptions): Promise<T> {
-    return this.http.rpcRequest<T>(options).then(res => res.result)
   }
 }
