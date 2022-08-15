@@ -1,23 +1,22 @@
+#![feature(io_error_other)]
+
+
 use std::fmt::Display;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use color_eyre::eyre::eyre;
 use http::header::{ACCEPT_RANGES, CONTENT_LENGTH, RANGE};
-use num::iter::Range;
 use pin_project::pin_project;
 use reqwest::{Client, Url};
 use tokio::io::AsyncRead;
 
-use crate::setup::status;
 use crate::{Error, ResultExt};
 
 pub const DEFAULT_BUF_SIZE: usize = 1000 * 1024;
 
 #[pin_project]
 pub struct HttpReader {
-    #[pin]
-    internal_buf: Vec<u8>,
     http_url: Url,
     cursor_pos: usize,
     http_client: Client,
@@ -39,9 +38,7 @@ impl Display for RangeUnit {
 }
 
 impl HttpReader {
-    pub async fn new(http_url: Url, buf_size: Option<usize>) -> Result<Self, Error> {
-        let internal_buf = Vec::with_capacity(buf_size.unwrap_or(DEFAULT_BUF_SIZE));
-
+    pub async fn new(http_url: Url) -> Result<Self, Error> {
         let http_client = Client::builder()
             .build()
             .with_kind(crate::ErrorKind::TLSInit)?;
@@ -68,7 +65,7 @@ impl HttpReader {
                     _ => {
                         return Err(Error::new(
                             eyre!(
-                                "{} HTTP range downloading not supported with this unit",
+                                "{} HTTP range downloading not supported with this unit {value}",
                                 http_url
                             ),
                             crate::ErrorKind::HttpRange,
@@ -80,18 +77,21 @@ impl HttpReader {
             None => None,
         };
 
-        let total_bytes = head_request
-            .headers()
-            .get(CONTENT_LENGTH)
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .parse::<usize>()
-            .unwrap();
+        let total_bytes_option = head_request.headers().get(CONTENT_LENGTH);
+
+        let total_bytes;
+        match total_bytes_option {
+            Some(bytes) => total_bytes = bytes.to_str().unwrap().parse::<usize>().unwrap(),
+            None => {
+                return Err(Error::new(
+                    eyre!("No content length headers for {}", http_url),
+                    crate::ErrorKind::ContentLength,
+                ))
+            }
+        }
 
         Ok(HttpReader {
             http_url,
-            internal_buf,
             cursor_pos: 0,
             http_client,
             total_bytes,
@@ -100,7 +100,7 @@ impl HttpReader {
     }
 
     pub async fn get_range(&self, start: usize, end: usize) -> Result<Vec<u8>, Error> {
-        let data = Vec::new();
+        let mut data = Vec::new();
         match &self.range_unit {
             Some(unit) => {
                 let data_range = format!("{}={}-{} ", unit, start, end);
@@ -115,7 +115,11 @@ impl HttpReader {
 
                 let status_code = data_resp.status();
                 if status_code.is_success() {
-                    data = data_resp.bytes().await?.to_vec();
+                    data = data_resp
+                        .bytes()
+                        .await
+                        .with_kind(crate::ErrorKind::BytesError)?
+                        .to_vec();
                 }
             }
 
@@ -132,13 +136,21 @@ impl AsyncRead for HttpReader {
         cx: &mut Context<'_>,
         buf: &mut tokio::io::ReadBuf<'_>,
     ) -> Poll<std::io::Result<()>> {
-        //let this = self.project();
+        let data_chunk = self
+            .get_range(self.cursor_pos, buf.remaining())
+            .await
+            .map_err(|err| std::io::Error::other(err))?;
 
-        //let prev = buf.filled().len() as u64;
+        if data_chunk.len() <= buf.capacity() {
+            buf.put_slice(&data_chunk);
+            self.cursor_pos = data_chunk.len();
 
-        //buf.put_slice(buf);
+            return Poll::Ready(Ok(()));
+        } else {
+            buf.put_slice(&data_chunk);
 
-        AsyncRead::poll_read(self, cx, buf)
+            return Poll::Ready(Ok(()));
+        }
     }
 }
 

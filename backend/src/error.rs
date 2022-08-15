@@ -68,9 +68,9 @@ pub enum ErrorKind {
     Javascript = 59,
     Pem = 60,
     TLSInit = 61,
-    HttpRange = 62
-
-
+    HttpRange = 62,
+    ContentLength = 63,
+    BytesError = 64
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -137,7 +137,9 @@ impl ErrorKind {
             Javascript => "Javascript Engine Error",
             Pem => "PEM Encoding Error",
             TLSInit => "TLS Backend Initialize Error",
-            HttpRange => "No Support for Web Server HTTP Ranges"
+            HttpRange => "No Support for Web Server HTTP Ranges",
+            ContentLength => "Request has no content length header",
+            BytesError => "Could not get the bytes for this request"
         }
     }
 }
