@@ -44,11 +44,14 @@ async fn ws_handler<
         .with_kind(crate::ErrorKind::Unknown)?;
 
     let (has_valid_session, token) = loop {
-        if let Some(Message::Text(cookie)) = stream
+        if let Message::Text(cookie) = dbg!(stream
             .next()
             .await
-            .transpose()
-            .with_kind(crate::ErrorKind::Network)?
+            .ok_or_else(|| Error::new(
+                eyre!("WebSocket closed before session token received"),
+                crate::ErrorKind::Authorization
+            ))?
+            .with_kind(crate::ErrorKind::Network)?)
         {
             let cookie_str = serde_json::from_str::<Cow<str>>(&cookie)
                 .with_kind(crate::ErrorKind::Deserialization)?;
