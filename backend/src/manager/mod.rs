@@ -193,9 +193,16 @@ async fn run_main(
     if let Some(wait) = persistant.get_notify_wait().await {
         wait.notified().await;
     }
-    let mut runtime =
-        tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await });
-    let ip = match is_injectable_main(&state) {
+    let is_injectable_main = check_is_injectable_main(&state);
+    let mut runtime = match is_injectable_main {
+        true => {
+            tokio::spawn(
+                async move { start_up_inject_image(rt_state, generated_certificate).await },
+            )
+        }
+        false => tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await }),
+    };
+    let ip = match is_injectable_main {
         false => Some(match get_running_ip(state, &mut runtime).await {
             GetRunninIp::Ip(x) => x,
             GetRunninIp::Error(e) => return Err(e),
@@ -231,6 +238,28 @@ async fn start_up_image(
         .manifest
         .main
         .execute::<(), NoOutput>(
+            &rt_state.ctx,
+            &rt_state.manifest.container,
+            &rt_state.manifest.id,
+            &rt_state.manifest.version,
+            ProcedureName::Main,
+            &rt_state.manifest.volumes,
+            None,
+            None,
+        )
+        .await
+}
+
+/// We want to start up the manifest, but in this case we want to know that we have generated the certificates.
+/// Note for _generated_certificate: Needed to know that before we start the state we have generated the certificate
+async fn start_up_inject_image(
+    rt_state: Arc<ManagerSharedState>,
+    _generated_certificate: GeneratedCertificateMountPoint,
+) -> Result<Result<NoOutput, (i32, String)>, Error> {
+    rt_state
+        .manifest
+        .main
+        .inject::<(), NoOutput>(
             &rt_state.ctx,
             &rt_state.manifest.container,
             &rt_state.manifest.id,
@@ -334,7 +363,7 @@ impl Manager {
         };
         self.persistant_container.stop().await;
 
-        if !is_injectable_main(&self.shared) {
+        if !check_is_injectable_main(&self.shared) {
             match self
                 .shared
                 .ctx
@@ -614,25 +643,25 @@ fn injectable_main(thread_shared: &Arc<ManagerSharedState>) -> Option<Arc<Docker
             mounts,
             shm_size_mb,
         }),
-    ) = (
+    ) = dbg!((
         &thread_shared.manifest.main,
         &thread_shared.manifest.container,
-    ) {
+    )) {
         Some(Arc::new(DockerProcedure {
             image: image.clone(),
             mounts: mounts.clone(),
-            io_format: io_format.clone(),
-            shm_size_mb: shm_size_mb.clone(),
-            sigterm_timeout: sigterm_timeout.clone(),
-            system: system.clone(),
-            entrypoint: entrypoint.clone(),
-            args: args.clone(),
+            io_format: *io_format,
+            shm_size_mb: *shm_size_mb,
+            sigterm_timeout: *sigterm_timeout,
+            system: *system,
+            entrypoint: "sleep".to_string(),
+            args: vec!["infinity".to_string()],
         }))
     } else {
         None
     }
 }
-fn is_injectable_main(thread_shared: &ManagerSharedState) -> bool {
+fn check_is_injectable_main(thread_shared: &ManagerSharedState) -> bool {
     match &thread_shared.manifest.main {
         PackageProcedure::Docker(_a) => false,
         PackageProcedure::DockerInject(a) => true,
@@ -890,7 +919,7 @@ async fn stop(shared: &ManagerSharedState) -> Result<(), Error> {
         | PackageProcedure::DockerInject(DockerInject {
             sigterm_timeout, ..
         }) => {
-            if !is_injectable_main(shared) {
+            if !check_is_injectable_main(shared) {
                 match shared
                     .ctx
                     .docker

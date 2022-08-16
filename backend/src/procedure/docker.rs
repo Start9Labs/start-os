@@ -316,7 +316,6 @@ impl DockerProcedure {
         name: ProcedureName,
         volumes: &Volumes,
         input: Option<I>,
-        allow_inject: bool,
         timeout: Option<Duration>,
     ) -> Result<Result<O, (i32, String)>, Error> {
         let name = name.docker_name();
