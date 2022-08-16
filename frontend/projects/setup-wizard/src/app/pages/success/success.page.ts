@@ -1,22 +1,30 @@
-import { Component, EventEmitter, Output } from '@angular/core'
+import { DOCUMENT } from '@angular/common'
+import { Component, EventEmitter, Inject, Output } from '@angular/core'
 import { ToastController } from '@ionic/angular'
-import { ErrorToastService } from '@start9labs/shared'
+import {
+  copyToClipboard,
+  DownloadHTMLService,
+  ErrorToastService,
+} from '@start9labs/shared'
 import { StateService } from 'src/app/services/state.service'
 
 @Component({
   selector: 'success',
   templateUrl: 'success.page.html',
   styleUrls: ['success.page.scss'],
+  providers: [DownloadHTMLService],
 })
 export class SuccessPage {
   @Output() onDownload = new EventEmitter()
-  torOpen = true
+  torOpen = false
   lanOpen = false
 
   constructor(
+    @Inject(DOCUMENT) private readonly document: Document,
     private readonly toastCtrl: ToastController,
     private readonly errCtrl: ErrorToastService,
     private readonly stateService: StateService,
+    private readonly downloadHtml: DownloadHTMLService,
   ) {}
 
   get recoverySource() {
@@ -34,7 +42,7 @@ export class SuccessPage {
   async ngAfterViewInit() {
     try {
       await this.stateService.completeEmbassy()
-      document
+      this.document
         .getElementById('install-cert')
         ?.setAttribute(
           'href',
@@ -48,7 +56,7 @@ export class SuccessPage {
   }
 
   async copy(address: string): Promise<void> {
-    const success = await this.copyToClipboard(address)
+    const success = await copyToClipboard(address)
     const message = success
       ? 'Copied to clipboard!'
       : 'Failed to copy to clipboard.'
@@ -70,49 +78,24 @@ export class SuccessPage {
   }
 
   installCert() {
-    document.getElementById('install-cert')?.click()
+    this.document.getElementById('install-cert')?.click()
   }
 
   download() {
-    const torAddress = document.getElementById('tor-addr')
-    const lanAddress = document.getElementById('lan-addr')
+    const torAddress = this.document.getElementById('tor-addr')
+    const lanAddress = this.document.getElementById('lan-addr')
 
     if (torAddress) torAddress.innerHTML = this.stateService.torAddress
     if (lanAddress) lanAddress.innerHTML = this.stateService.lanAddress
 
-    document
+    this.document
       .getElementById('cert')
       ?.setAttribute(
         'href',
         'data:application/x-x509-ca-cert;base64,' +
           encodeURIComponent(this.stateService.cert),
       )
-    let html = document.getElementById('downloadable')?.innerHTML || ''
-    const filename = 'embassy-info.html'
-
-    const elem = document.createElement('a')
-    elem.setAttribute(
-      'href',
-      'data:text/plain;charset=utf-8,' + encodeURIComponent(html),
-    )
-    elem.setAttribute('download', filename)
-    elem.style.display = 'none'
-
-    document.body.appendChild(elem)
-    elem.click()
-    document.body.removeChild(elem)
-  }
-
-  private async copyToClipboard(str: string): Promise<boolean> {
-    const el = document.createElement('textarea')
-    el.value = str
-    el.setAttribute('readonly', '')
-    el.style.position = 'absolute'
-    el.style.left = '-9999px'
-    document.body.appendChild(el)
-    el.select()
-    const copy = document.execCommand('copy')
-    document.body.removeChild(el)
-    return copy
+    let html = this.document.getElementById('downloadable')?.innerHTML || ''
+    this.downloadHtml.download('embassy-info.html', html)
   }
 }

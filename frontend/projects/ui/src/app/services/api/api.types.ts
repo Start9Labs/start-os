@@ -7,6 +7,7 @@ import {
   DependencyError,
   Manifest,
 } from 'src/app/services/patch-db/data-model'
+import { LogsRes, ServerLogsReq } from '@start9labs/shared'
 
 export module RR {
   // DB
@@ -28,12 +29,14 @@ export module RR {
 
   // server
 
-  export type GetServerLogsReq = {
-    cursor?: string
-    before_flag?: boolean
-    limit?: number
-  }
+  export type GetServerLogsReq = ServerLogsReq // server.logs & server.kernel-logs
   export type GetServerLogsRes = LogsRes
+
+  export type FollowServerLogsReq = { limit?: number } // server.logs.follow & server.kernel-logs.follow
+  export type FollowServerLogsRes = {
+    'start-cursor': string
+    guid: string
+  }
 
   export type GetServerMetricsReq = {} // server.metrics
   export type GetServerMetricsRes = Metrics
@@ -160,19 +163,11 @@ export module RR {
   export type GetPackagePropertiesRes<T extends number> =
     PackagePropertiesVersioned<T>
 
-  export type LogsRes = {
-    entries: Log[]
-    'start-cursor'?: string
-    'end-cursor'?: string
-  }
-
-  export type GetPackageLogsReq = {
-    id: string
-    cursor?: string
-    before_flag?: boolean
-    limit?: number
-  } // package.logs
+  export type GetPackageLogsReq = ServerLogsReq & { id: string } // package.logs
   export type GetPackageLogsRes = LogsRes
+
+  export type FollowPackageLogsReq = FollowServerLogsReq & { id: string } // package.logs.follow
+  export type FollowPackageLogsRes = FollowServerLogsRes
 
   export type GetPackageMetricsReq = { id: string } // package.metrics
   export type GetPackageMetricsRes = Metric
@@ -238,7 +233,7 @@ export module RR {
     spec: ConfigSpec
   }
 
-  export interface SideloadPackageReq {
+  export type SideloadPackageReq = {
     manifest: Manifest
     icon: string // base64
   }
@@ -286,11 +281,6 @@ export interface Breakages {
 export interface TaggedDependencyError {
   dependency: string
   error: DependencyError
-}
-
-export interface Log {
-  timestamp: string
-  message: string
 }
 
 export interface ActionResponse {

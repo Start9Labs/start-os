@@ -10,8 +10,9 @@ import {
 } from 'patch-db-client'
 import { RR } from './api.types'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { RequestError } from '../http.service'
+import { Log, RequestError } from '@start9labs/shared'
 import { map } from 'rxjs/operators'
+import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 
 export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
   protected readonly sync$ = new Subject<Update<DataModel>>()
@@ -23,6 +24,14 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
       .asObservable()
       .pipe(map(result => ({ result, jsonrpc: '2.0' })))
   }
+
+  // websocket
+
+  abstract openLogsWebsocket$(
+    config: WebSocketSubjectConfig<Log>,
+  ): Observable<Log>
+
+  // http
 
   // for getting static files: ex icons, instructions, licenses
   abstract getStatic(url: string): Promise<string>
@@ -61,6 +70,14 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
   abstract getKernelLogs(
     params: RR.GetServerLogsReq,
   ): Promise<RR.GetServerLogsRes>
+
+  abstract followServerLogs(
+    params: RR.FollowServerLogsReq,
+  ): Promise<RR.FollowServerLogsRes>
+
+  abstract followKernelLogs(
+    params: RR.FollowServerLogsReq,
+  ): Promise<RR.FollowServerLogsRes>
 
   abstract getServerMetrics(
     params: RR.GetServerMetricsReq,
@@ -193,6 +210,10 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
     params: RR.GetPackageLogsReq,
   ): Promise<RR.GetPackageLogsRes>
 
+  abstract followPackageLogs(
+    params: RR.FollowPackageLogsReq,
+  ): Promise<RR.FollowPackageLogsRes>
+
   protected abstract installPackageRaw(
     params: RR.InstallPackageReq,
   ): Promise<RR.InstallPackageRes>
@@ -280,7 +301,7 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
       // }
 
       return f(a)
-        .catch((e: RequestError) => {
+        .catch((e: UIRequestError) => {
           if (e.revision) this.sync$.next(e.revision)
           throw e
         })
@@ -291,3 +312,5 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
     }
   }
 }
+
+type UIRequestError = RequestError & { revision: Revision }

@@ -6,7 +6,7 @@ use rpc_toolkit::yajrc::RpcError;
 
 use crate::context::DiagnosticContext;
 use crate::disk::repair;
-use crate::logs::{display_logs, fetch_logs, LogResponse, LogSource};
+use crate::logs::{fetch_logs, LogResponse, LogSource};
 use crate::shutdown::Shutdown;
 use crate::util::display_none;
 use crate::Error;
@@ -23,19 +23,13 @@ pub fn error(#[context] ctx: DiagnosticContext) -> Result<Arc<RpcError>, Error> 
     Ok(ctx.error.clone())
 }
 
-#[command(display(display_logs))]
+#[command(rpc_only)]
 pub async fn logs(
     #[arg] limit: Option<usize>,
     #[arg] cursor: Option<String>,
-    #[arg] before_flag: Option<bool>,
+    #[arg] before: bool,
 ) -> Result<LogResponse, Error> {
-    Ok(fetch_logs(
-        LogSource::Service(SYSTEMD_UNIT),
-        limit,
-        cursor,
-        before_flag.unwrap_or(false),
-    )
-    .await?)
+    Ok(fetch_logs(LogSource::Service(SYSTEMD_UNIT), limit, cursor, before).await?)
 }
 
 #[command(display(display_none))]

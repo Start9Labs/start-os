@@ -1,7 +1,6 @@
 import { Component, ViewChild } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { copyToClipboard } from 'src/app/util/web.util'
 import {
   AlertController,
   IonBackButtonDelegate,
@@ -13,7 +12,12 @@ import { PackageProperties } from 'src/app/util/properties.util'
 import { QRComponent } from 'src/app/components/qr/qr.component'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { PackageMainStatus } from 'src/app/services/patch-db/data-model'
-import { DestroyService, ErrorToastService, getPkgId } from '@start9labs/shared'
+import {
+  DestroyService,
+  ErrorToastService,
+  getPkgId,
+  copyToClipboard,
+} from '@start9labs/shared'
 import { getValueByPointer } from 'fast-json-patch'
 import { map, takeUntil } from 'rxjs/operators'
 

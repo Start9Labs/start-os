@@ -13,42 +13,42 @@ export abstract class ApiService {
   abstract setupComplete(): Promise<SetupEmbassyRes> // setup.complete
 }
 
-export interface GetStatusRes {
+export type GetStatusRes = {
   'product-key': boolean
   migrating: boolean
 }
 
-export interface ImportDriveReq {
+export type ImportDriveReq = {
   guid: string
   'embassy-password': string
 }
 
-export interface SetupEmbassyReq {
+export type SetupEmbassyReq = {
   'embassy-logicalname': string
   'embassy-password': string
   'recovery-source': CifsRecoverySource | DiskRecoverySource | null
   'recovery-password': string | null
 }
 
-export interface SetupEmbassyRes {
+export type SetupEmbassyRes = {
   'tor-address': string
   'lan-address': string
   'root-ca': string
 }
 
-export interface EmbassyOSRecoveryInfo {
+export type EmbassyOSRecoveryInfo = {
   version: string
   full: boolean
   'password-hash': string | null
   'wrapped-key': string | null
 }
 
-export interface DiskListResponse {
+export type DiskListResponse = {
   disks: DiskInfo[]
   reconnect: string[]
 }
 
-export interface DiskBackupTarget {
+export type DiskBackupTarget = {
   vendor: string | null
   model: string | null
   logicalname: string | null
@@ -58,7 +58,7 @@ export interface DiskBackupTarget {
   'embassy-os': EmbassyOSRecoveryInfo | null
 }
 
-export interface CifsBackupTarget {
+export type CifsBackupTarget = {
   hostname: string
   path: string
   username: string
@@ -66,12 +66,12 @@ export interface CifsBackupTarget {
   'embassy-os': EmbassyOSRecoveryInfo | null
 }
 
-export interface DiskRecoverySource {
+export type DiskRecoverySource = {
   type: 'disk'
   logicalname: string // partition logicalname
 }
 
-export interface CifsRecoverySource {
+export type CifsRecoverySource = {
   type: 'cifs'
   hostname: string
   path: string
@@ -79,7 +79,7 @@ export interface CifsRecoverySource {
   password: string | null
 }
 
-export interface DiskInfo {
+export type DiskInfo = {
   logicalname: string
   vendor: string | null
   model: string | null
@@ -88,13 +88,13 @@ export interface DiskInfo {
   guid: string | null // cant back up if guid exists
 }
 
-export interface RecoveryStatusRes {
+export type RecoveryStatusRes = {
   'bytes-transferred': number
   'total-bytes': number
   complete: boolean
 }
 
-export interface PartitionInfo {
+export type PartitionInfo = {
   logicalname: string
   label: string | null
   capacity: number

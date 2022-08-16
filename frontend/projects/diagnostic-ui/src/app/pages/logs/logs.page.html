@@ -7,41 +7,51 @@
   </ion-toolbar>
 </ion-header>
 
-<ion-content 
+<ion-content
   [scrollEvents]="true"
-  (ionScroll)="scrollEvent()"
-  style="height: 100%;"
-  id="ion-content"
+  (ionScrollEnd)="scrollEnd()"
   class="ion-padding"
 >
-  <ion-infinite-scroll id="scroller" *ngIf="!loading && needInfinite" position="top" threshold="0" (ionInfinite)="loadData($event)">
-    <ion-infinite-scroll-content loadingSpinner="lines"></ion-infinite-scroll-content>
+  <ion-infinite-scroll
+    id="scroller"
+    *ngIf="!loading && needInfinite"
+    position="top"
+    threshold="0"
+    (ionInfinite)="doInfinite($event)"
+  >
+    <ion-infinite-scroll-content
+      loadingSpinner="lines"
+    ></ion-infinite-scroll-content>
   </ion-infinite-scroll>
 
   <div id="container">
-    <div id="template" style="white-space: pre-line;"></div>
-  </div>
-  <div id="button-div" *ngIf="!loading" style="width: 100%; text-align: center;">
-    <ion-button *ngIf="!loadingMore" (click)="loadMore()" strong color="dark">
-      Load More
-      <ion-icon slot="end" name="refresh"></ion-icon>
-    </ion-button>
-    <ion-spinner *ngIf="loadingMore" name="lines" color="warning"></ion-spinner>
+    <div id="template" style="white-space: pre-line"></div>
   </div>
 
+  <div id="bottom-div"></div>
+
   <div
-    *ngIf="!loading"
     [ngStyle]="{
       'position': 'fixed',
       'bottom': '50px',
       'right': isOnBottom ? '-52px' : '30px',
       'border-radius': '100%',
-      'transition': 'right 0.4s ease-out'
+      'transition': 'right 0.25s ease-out'
     }"
   >
-    <ion-button style="width: 50px; height: 50px; --padding-start: 0px; --padding-end: 0px; --border-radius: 100%;" color="dark" (click)="scrollToBottom()" strong>
+    <ion-button
+      style="
+        width: 50px;
+        height: 50px;
+        --padding-start: 0px;
+        --padding-end: 0px;
+        --border-radius: 100%;
+      "
+      color="dark"
+      (click)="scrollToBottom()"
+      strong
+    >
       <ion-icon name="chevron-down"></ion-icon>
     </ion-button>
   </div>
-
 </ion-content>

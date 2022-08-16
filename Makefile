@@ -17,8 +17,10 @@ $(shell sudo true)
 
 all: eos.img
 
-gzip: eos.img
-	gzip -k eos.img
+gzip: eos.tar.gz
+
+eos.tar.gz: eos.img
+	tar --format=posix -cS -f- eos.img | gzip > eos.tar.gz
 
 clean:
 	rm -f eos.img
@@ -91,8 +93,7 @@ patch-db/client/node_modules: patch-db/client/package.json
 
 patch-db/client/dist: $(PATCH_DB_CLIENT_SRC) patch-db/client/node_modules
 	! test -d patch-db/client/dist || rm -rf patch-db/client/dist
-	rm -rf frontend/.angular/cache
-	npm --prefix patch-db/client run build
+	npm --prefix frontend run build:deps
 
 # this is a convenience step to build all frontends - it is not referenced elsewhere in this file
 frontends: $(EMBASSY_UIS) 

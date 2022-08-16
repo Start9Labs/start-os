@@ -9,8 +9,7 @@ export function parseDataModel(data: DataModel): ParsedData {
     JSON.stringify(data['package-data']),
   )
 
-  const order = [...(data.ui['pkg-order'] || [])]
-  const pkgs: PackageDataEntry[] = []
+  // recovered packages (0.2.x)
   const recoveredPkgs = Object.entries(data['recovered-packages'])
     .filter(([id, _]) => !all[id])
     .map(([id, val]) => ({
@@ -18,6 +17,9 @@ export function parseDataModel(data: DataModel): ParsedData {
       id,
     }))
 
+  // installed packages
+  const order = [...(data.ui['pkg-order'] || [])]
+  const pkgs: PackageDataEntry[] = []
   // add known packages in preferential order
   order.forEach(id => {
     if (all[id]) {
@@ -33,7 +35,6 @@ export function parseDataModel(data: DataModel): ParsedData {
   })
 
   return {
-    order,
     pkgs,
     recoveredPkgs,
   }
@@ -44,7 +45,6 @@ export interface RecoveredInfo extends RecoveredPackageDataEntry {
 }
 
 interface ParsedData {
-  order: string[]
   pkgs: PackageDataEntry[]
   recoveredPkgs: RecoveredInfo[]
 }

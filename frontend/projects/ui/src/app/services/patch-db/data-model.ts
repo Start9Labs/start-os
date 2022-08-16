@@ -22,6 +22,7 @@ export interface UIData {
       'high-score': number
     }
   }
+  'ack-instructions': Record<string, boolean>
 }
 
 export interface UIMarketplaceData {

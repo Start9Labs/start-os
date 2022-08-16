@@ -1,8 +1,8 @@
 import { Component } from '@angular/core'
 import { ToastController } from '@ionic/angular'
-import { copyToClipboard } from 'src/app/util/web.util'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { ConfigService } from 'src/app/services/config.service'
+import { copyToClipboard } from '@start9labs/shared'
 
 @Component({
   selector: 'server-specs',

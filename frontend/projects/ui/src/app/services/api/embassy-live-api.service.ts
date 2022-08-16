@@ -1,9 +1,11 @@
 import { Injectable } from '@angular/core'
-import { HttpService, Method } from '../http.service'
+import { HttpService, Log, LogsRes, Method } from '@start9labs/shared'
 import { ApiService } from './embassy-api.service'
 import { RR } from './api.types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { ConfigService } from '../config.service'
+import { webSocket, WebSocketSubjectConfig } from 'rxjs/webSocket'
+import { Observable } from 'rxjs'
 
 @Injectable()
 export class LiveApiService extends ApiService {
@@ -12,7 +14,11 @@ export class LiveApiService extends ApiService {
     private readonly config: ConfigService,
   ) {
     super()
-      ; (window as any).rpcClient = this
+    ; (window as any).rpcClient = this
+  }
+
+  openLogsWebsocket$(config: WebSocketSubjectConfig<Log>): Observable<Log> {
+    return webSocket(config)
   }
 
   async getStatic(url: string): Promise<string> {
@@ -39,7 +45,7 @@ export class LiveApiService extends ApiService {
   }
 
   async getDump(): Promise<RR.GetDumpRes> {
-    return this.http.rpcRequest({ method: 'db.dump' })
+    return this.http.rpcRequest({ method: 'db.dump', params: {} })
   }
 
   async setDbValueRaw(params: RR.SetDBValueReq): Promise<RR.SetDBValueRes> {
@@ -76,6 +82,18 @@ export class LiveApiService extends ApiService {
     params: RR.GetServerLogsReq,
   ): Promise<RR.GetServerLogsRes> {
     return this.http.rpcRequest({ method: 'server.kernel-logs', params })
+  }
+
+  async followServerLogs(
+    params: RR.FollowServerLogsReq,
+  ): Promise<RR.FollowServerLogsRes> {
+    return this.http.rpcRequest({ method: 'server.logs.follow', params })
+  }
+
+  async followKernelLogs(
+    params: RR.FollowServerLogsReq,
+  ): Promise<RR.FollowServerLogsRes> {
+    return this.http.rpcRequest({ method: 'server.kernel-logs.follow', params })
   }
 
   async getServerMetrics(
@@ -250,6 +268,12 @@ export class LiveApiService extends ApiService {
     params: RR.GetPackageLogsReq,
   ): Promise<RR.GetPackageLogsRes> {
     return this.http.rpcRequest({ method: 'package.logs', params })
+  }
+
+  async followPackageLogs(
+    params: RR.FollowServerLogsReq,
+  ): Promise<RR.FollowServerLogsRes> {
+    return this.http.rpcRequest({ method: 'package.logs.follow', params })
   }
 
   async getPkgMetrics(

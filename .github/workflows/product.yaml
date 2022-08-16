@@ -147,9 +147,9 @@ jobs:
       run: "make V=1 NO_KEY=1 eos.img --debug"
       
     - name: Compress image
-      run: "gzip eos.img"
+      run: "make gzip"
       
     - uses: actions/upload-artifact@v3
       with:
         name: image
-        path: eos.img.gz
+        path: eos.tar.gz
