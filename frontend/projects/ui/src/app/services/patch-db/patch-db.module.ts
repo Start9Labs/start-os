@@ -8,13 +8,10 @@ import {
   mockSourceFactory,
   PATCH_CACHE,
   PATCH_SOURCE,
-  PATCH_SOURCE$,
   realSourceFactory,
 } from './patch-db.factory'
 import { LocalStorageBootstrap } from './local-storage-bootstrap'
 import { ApiService } from '../api/embassy-api.service'
-import { ConfigService } from '../config.service'
-import { ReplaySubject } from 'rxjs'
 
 const { useMocks } = require('../../../../../../config.json') as WorkspaceConfig
 
@@ -27,16 +24,12 @@ const { useMocks } = require('../../../../../../config.json') as WorkspaceConfig
     },
     {
       provide: PATCH_SOURCE,
-      deps: [ApiService, ConfigService, DOCUMENT],
+      deps: [ApiService, DOCUMENT],
       useFactory: useMocks ? mockSourceFactory : realSourceFactory,
     },
     {
-      provide: PATCH_SOURCE$,
-      useValue: new ReplaySubject(1),
-    },
-    {
       provide: PatchDB,
-      deps: [PATCH_SOURCE$, ApiService, PATCH_CACHE],
+      deps: [PATCH_SOURCE, ApiService, PATCH_CACHE],
       useClass: PatchDB,
     },
   ],

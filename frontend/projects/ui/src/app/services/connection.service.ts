@@ -7,13 +7,7 @@ import {
   Observable,
 } from 'rxjs'
 import { PatchConnection, PatchDbService } from './patch-db/patch-db.service'
-import {
-  distinctUntilChanged,
-  map,
-  mapTo,
-  startWith,
-  tap,
-} from 'rxjs/operators'
+import { distinctUntilChanged, map, startWith, tap } from 'rxjs/operators'
 import { ConfigService } from './config.service'
 
 @Injectable({
@@ -21,8 +15,8 @@ import { ConfigService } from './config.service'
 })
 export class ConnectionService {
   private readonly networkState$ = merge(
-    fromEvent(window, 'online').pipe(mapTo(true)),
-    fromEvent(window, 'offline').pipe(mapTo(false)),
+    fromEvent(window, 'online').pipe(map(() => true)),
+    fromEvent(window, 'offline').pipe(map(() => false)),
   ).pipe(
     startWith(null),
     map(() => navigator.onLine),
@@ -56,7 +50,7 @@ export class ConnectionService {
       // 3
       this.patch
         .watch$('server-info', 'status-info', 'update-progress')
-        .pipe(distinctUntilChanged()),
+        .pipe(startWith(null), distinctUntilChanged()),
     ]).pipe(
       tap(([network, patchConnection, progress]) => {
         if (!network) {

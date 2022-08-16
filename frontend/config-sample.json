@@ -2,11 +2,6 @@
   "useMocks": true,
   "targetArch": "aarch64",
   "ui": {
-    "patchDb": {
-      "poll": {
-        "cooldown": 10000
-      }
-    },
     "api": {
       "url": "rpc",
       "version": "v1"

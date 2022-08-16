@@ -4,11 +4,6 @@ export type WorkspaceConfig = {
   useMocks: boolean
   // each key corresponds to a project and values adjust settings for that project, eg: ui, setup-wizard, diagnostic-ui
   ui: {
-    patchDb: {
-      poll: {
-        cooldown: number /* in ms */
-      }
-    }
     api: {
       url: string
       version: string

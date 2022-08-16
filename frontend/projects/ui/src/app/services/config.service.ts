@@ -11,7 +11,7 @@ const {
   targetArch,
   gitHash,
   useMocks,
-  ui: { patchDb, api, mocks, marketplace },
+  ui: { api, mocks, marketplace },
 } = require('../../../../../config.json') as WorkspaceConfig
 
 @Injectable({
@@ -24,7 +24,6 @@ export class ConfigService {
   mocks = mocks
   targetArch = targetArch
   gitHash = gitHash
-  patchDb = patchDb
   api = api
   marketplace = marketplace
   skipStartupAlerts = useMocks && mocks.skipStartupAlerts
