@@ -19,6 +19,7 @@ import { EnterModule } from './app/enter/enter.module'
 import { APP_PROVIDERS } from './app.providers'
 import { GlobalModule } from './app/global/global.module'
 import { PatchDbModule } from './services/patch-db/patch-db.module'
+import { ToastContainerModule } from './components/toast-container/toast-container.module'
 
 @NgModule({
   declarations: [AppComponent],
@@ -47,6 +48,7 @@ import { PatchDbModule } from './services/patch-db/patch-db.module'
     MarketplaceModule,
     GlobalModule,
     PatchDbModule,
+    ToastContainerModule,
   ],
   providers: APP_PROVIDERS,
   bootstrap: [AppComponent],

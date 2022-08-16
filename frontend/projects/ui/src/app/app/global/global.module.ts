@@ -1,14 +1,11 @@
 import {
   ClassProvider,
   ExistingProvider,
-  Inject,
   InjectionToken,
   NgModule,
-  OnDestroy,
   Type,
 } from '@angular/core'
-import { merge, Observable } from 'rxjs'
-import { OfflineService } from './services/offline.service'
+import { Observable } from 'rxjs'
 import { LogoutService } from './services/logout.service'
 import { PatchMonitorService } from './services/patch-monitor.service'
 import { PatchDataService } from './services/patch-data.service'
@@ -27,7 +24,6 @@ export const GLOBAL_SERVICE = new InjectionToken<
     [
       ConnectionMonitorService,
       LogoutService,
-      OfflineService,
       RefreshToastService,
       UnreadToastService,
       UpdateToastService,
