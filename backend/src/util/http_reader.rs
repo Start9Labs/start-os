@@ -13,8 +13,6 @@ use tokio::io::{AsyncRead, AsyncReadExt};
 
 use crate::{Error, ResultExt};
 
-pub const DEFAULT_BUF_SIZE: usize = 1000 * 1024;
-
 #[pin_project]
 pub struct HttpReader {
     http_url: Url,
@@ -89,16 +87,15 @@ impl HttpReader {
 
         let total_bytes_option = head_request.headers().get(CONTENT_LENGTH);
 
-        let total_bytes;
-        match total_bytes_option {
-            Some(bytes) => total_bytes = bytes.to_str().unwrap().parse::<usize>().unwrap(),
+        let total_bytes = match total_bytes_option {
+            Some(bytes) => bytes.to_str().unwrap().parse::<usize>().unwrap(),
             None => {
                 return Err(Error::new(
                     eyre!("No content length headers for {}", http_url),
                     crate::ErrorKind::ContentLength,
                 ))
             }
-        }
+        };
 
         Ok(HttpReader {
             http_url,
@@ -121,7 +118,7 @@ impl HttpReader {
         match range_unit {
             Some(unit) => {
                 let data_range = format!("{}={}-{} ", unit, start, end);
-                println!("get range alive?");
+                println!("get range alive? {}", data_range);
 
                 let data_resp = http_client
                     .get(http_url)
@@ -164,18 +161,23 @@ impl AsyncRead for HttpReader {
                 this.http_client.clone(),
                 this.http_url.clone(),
                 *this.cursor_pos,
-                buf.remaining(),
+                *this.total_bytes,
             )
             .boxed()
         };
+        
         let res_poll = fut.as_mut().poll(cx);
         println!("polling");
+        println!("buf remaining: {}", buf.remaining());
         match res_poll {
             Poll::Ready(result) => match result {
                 Ok(data_chunk) => {
-                    if data_chunk.len() <= buf.capacity() {
+
+                    println!("data chunk: len: {}", data_chunk.len());
+                    println!("buf filled len: {}", buf.filled().len());
+                    if data_chunk.len() <= buf.remaining() {
                         buf.put_slice(&data_chunk);
-                        *this.cursor_pos = buf.filled().len();
+                        *this.cursor_pos += data_chunk.len();
 
                         Poll::Ready(Ok(()))
                     } else {
@@ -192,9 +194,13 @@ impl AsyncRead for HttpReader {
                 }
             },
             Poll::Pending => {
+                println!("Pending...");
+                *this.read_in_progress = Some(fut);
+                
                 Poll::Pending
             }
         }
+        
 
     }
 }
@@ -206,8 +212,10 @@ async fn test() {
     println!("{}", http_url);
     let mut test_reader = HttpReader::new(http_url).await.unwrap();
 
-    let mut buf = Vec::with_capacity(DEFAULT_BUF_SIZE);
+    let mut buf = vec![0; test_reader.total_bytes];
     let bytes_read = test_reader.read(&mut buf).await.unwrap();
 
     println!("bytes read: {}", bytes_read);
+
+    println!("{}", String::from_utf8(buf).unwrap());
 }
