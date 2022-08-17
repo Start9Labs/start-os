@@ -5,6 +5,7 @@
   detail
   (click)="button.action()"
   [disabled]="button.disabled"
+  [ngClass]="{ highlighted: button.highlighted$ | async }"
 >
   <ion-icon slot="start" [name]="button.icon"></ion-icon>
   <ion-label>

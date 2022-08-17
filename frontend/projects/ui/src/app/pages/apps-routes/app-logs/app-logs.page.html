@@ -1,15 +1,7 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-back-button [defaultHref]="'/services/' + pkgId"></ion-back-button>
-    </ion-buttons>
-    <ion-title>Logs</ion-title>
-    <ion-button slot="end" fill="clear" size="small" (click)="copy()">
-      <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
-    </ion-button>
-  </ion-toolbar>
-</ion-header>
-
-<div style="height: 100%">
-  <logs [fetchLogs]="fetchFetchLogs()"></logs>
-</div>
+<logs
+  [fetchLogs]="fetchLogs()"
+  [followLogs]="followLogs()"
+  [defaultBack]="'/services/' + pkgId"
+  title="Service Logs"
+  class="ion-page"
+></logs>

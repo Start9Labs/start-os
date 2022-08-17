@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
 import { AlertController } from '@ionic/angular'
-import { ConfigService } from '../../services/config.service'
 import { LocalStorageService } from '../../services/local-storage.service'
 import { EOSService } from '../../services/eos.service'
 import { ApiService } from '../../services/api/embassy-api.service'
@@ -62,7 +61,6 @@ export class MenuComponent {
     .pipe(map(pkgs => pkgs.length))
 
   constructor(
-    private readonly config: ConfigService,
     private readonly alertCtrl: AlertController,
     private readonly embassyApi: ApiService,
     private readonly authService: AuthService,
@@ -72,12 +70,6 @@ export class MenuComponent {
     @Inject(AbstractMarketplaceService)
     private readonly marketplaceService: MarketplaceService,
   ) {}
-
-  get href(): string {
-    return this.config.isTor()
-      ? 'http://privacy34kn4ez3y3nijweec6w4g54i3g54sdv7r5mr6soma3w4begyd.onion'
-      : 'https://start9.com'
-  }
 
   async presentAlertLogout() {
     const alert = await this.alertCtrl.create({

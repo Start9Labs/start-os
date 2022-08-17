@@ -22,8 +22,6 @@ use tokio::task::JoinHandle;
 use torut::onion::TorSecretKeyV3;
 use tracing::instrument;
 
-use crate::context::RpcContext;
-use crate::manager::sync::synchronizer;
 use crate::net::interface::InterfaceId;
 use crate::net::GeneratedCertificateMountPoint;
 use crate::notifications::NotificationLevel;
@@ -33,6 +31,8 @@ use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::status::MainStatus;
 use crate::util::{Container, NonDetachingJoinHandle, Version};
 use crate::Error;
+use crate::{context::RpcContext, procedure::docker::DockerContainer};
+use crate::{manager::sync::synchronizer, procedure::docker::DockerInject};
 
 pub mod health;
 mod sync;
@@ -193,9 +193,16 @@ async fn run_main(
     if let Some(wait) = persistant.get_notify_wait().await {
         wait.notified().await;
     }
-    let mut runtime =
-        tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await });
-    let ip = match is_injectable_main(&state) {
+    let is_injectable_main = check_is_injectable_main(&state);
+    let mut runtime = match is_injectable_main {
+        true => {
+            tokio::spawn(
+                async move { start_up_inject_image(rt_state, generated_certificate).await },
+            )
+        }
+        false => tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await }),
+    };
+    let ip = match is_injectable_main {
         false => Some(match get_running_ip(state, &mut runtime).await {
             GetRunninIp::Ip(x) => x,
             GetRunninIp::Error(e) => return Err(e),
@@ -232,12 +239,34 @@ async fn start_up_image(
         .main
         .execute::<(), NoOutput>(
             &rt_state.ctx,
+            &rt_state.manifest.container,
             &rt_state.manifest.id,
             &rt_state.manifest.version,
             ProcedureName::Main,
             &rt_state.manifest.volumes,
             None,
-            true,
+            None,
+        )
+        .await
+}
+
+/// We want to start up the manifest, but in this case we want to know that we have generated the certificates.
+/// Note for _generated_certificate: Needed to know that before we start the state we have generated the certificate
+async fn start_up_inject_image(
+    rt_state: Arc<ManagerSharedState>,
+    _generated_certificate: GeneratedCertificateMountPoint,
+) -> Result<Result<NoOutput, (i32, String)>, Error> {
+    rt_state
+        .manifest
+        .main
+        .inject::<(), NoOutput>(
+            &rt_state.ctx,
+            &rt_state.manifest.container,
+            &rt_state.manifest.id,
+            &rt_state.manifest.version,
+            ProcedureName::Main,
+            &rt_state.manifest.volumes,
+            None,
             None,
         )
         .await
@@ -321,14 +350,20 @@ impl Manager {
             .commit_health_check_results
             .store(false, Ordering::SeqCst);
         let _ = self.shared.on_stop.send(OnStop::Exit);
-        let action = match &self.shared.manifest.main {
-            PackageProcedure::Docker(a) => a,
+        let sigterm_timeout: Option<crate::util::serde::Duration> = match &self.shared.manifest.main
+        {
+            PackageProcedure::Docker(DockerProcedure {
+                sigterm_timeout, ..
+            })
+            | PackageProcedure::DockerInject(DockerInject {
+                sigterm_timeout, ..
+            }) => sigterm_timeout.clone(),
             #[cfg(feature = "js_engine")]
             PackageProcedure::Script(_) => return Ok(()),
         };
         self.persistant_container.stop().await;
 
-        if !is_injectable_main(&self.shared) {
+        if !check_is_injectable_main(&self.shared) {
             match self
                 .shared
                 .ctx
@@ -336,8 +371,7 @@ impl Manager {
                 .stop_container(
                     &self.shared.container_name,
                     Some(StopContainerOptions {
-                        t: action
-                            .sigterm_timeout
+                        t: sigterm_timeout
                             .map(|a| *a)
                             .unwrap_or(Duration::from_secs(30))
                             .as_secs_f64() as i64,
@@ -507,27 +541,18 @@ impl PersistantContainer {
         let container_name = &self.container_name;
         self.should_stop_running.store(true, Ordering::SeqCst);
         let mut running_docker = self.running_docker.lock().await;
-        let is_running_docker = running_docker.is_some();
         *running_docker = None;
-        if is_running_docker {
-            use tokio::process::Command;
-            if let Err(err) = Command::new("docker")
-                .args(["stop", "-t", "0", &*container_name])
-                .output()
-                .await
-            {
-                tracing::warn!("Failed to stop docker");
-                tracing::debug!("{:?}", err);
-            }
-            if let Err(err) = Command::new("docker")
-                .args(["container", "rm", "-f", &*container_name])
-                .output()
-                .await
-            {
-                tracing::warn!("Failed to stop docker");
-                tracing::debug!("{:?}", err);
-            }
-        }
+        use tokio::process::Command;
+        if let Err(_err) = Command::new("docker")
+            .args(["stop", "-t", "0", &*container_name])
+            .output()
+            .await
+        {}
+        if let Err(_err) = Command::new("docker")
+            .args(["kill", &*container_name])
+            .output()
+            .await
+        {}
     }
 
     async fn get_notify_wait(&self) -> Option<Arc<Notify>> {
@@ -565,7 +590,7 @@ impl Drop for PersistantContainer {
 
             use std::process::Command;
             if let Err(_err) = Command::new("docker")
-                .args(["container", "rm", "-f", &*container_name])
+                .args(["kill", &*container_name])
                 .output()
             {}
         });
@@ -596,27 +621,41 @@ async fn persistant_container(
 }
 
 fn injectable_main(thread_shared: &Arc<ManagerSharedState>) -> Option<Arc<DockerProcedure>> {
-    match &thread_shared.manifest.main {
-        PackageProcedure::Docker(a) => match &a.inject {
-            false => None,
-            true => {
-                let mut main = a.clone();
-                main.inject = false;
-                main.entrypoint = "sleep".to_string();
-                main.args = vec!["infinity".to_string()];
-                Some(Arc::new(main))
-            }
-        },
-        #[cfg(feature = "js_engine")]
-        PackageProcedure::Script(_) => None,
+    if let (
+        PackageProcedure::DockerInject(DockerInject {
+            system,
+            entrypoint,
+            args,
+            io_format,
+            sigterm_timeout,
+        }),
+        Some(DockerContainer {
+            image,
+            mounts,
+            shm_size_mb,
+        }),
+    ) = dbg!((
+        &thread_shared.manifest.main,
+        &thread_shared.manifest.container,
+    )) {
+        Some(Arc::new(DockerProcedure {
+            image: image.clone(),
+            mounts: mounts.clone(),
+            io_format: *io_format,
+            shm_size_mb: *shm_size_mb,
+            sigterm_timeout: *sigterm_timeout,
+            system: *system,
+            entrypoint: "sleep".to_string(),
+            args: vec!["infinity".to_string()],
+        }))
+    } else {
+        None
     }
 }
-fn is_injectable_main(thread_shared: &ManagerSharedState) -> bool {
+fn check_is_injectable_main(thread_shared: &ManagerSharedState) -> bool {
     match &thread_shared.manifest.main {
-        PackageProcedure::Docker(a) => match &a.inject {
-            false => false,
-            true => true,
-        },
+        PackageProcedure::Docker(_a) => false,
+        PackageProcedure::DockerInject(a) => true,
         #[cfg(feature = "js_engine")]
         PackageProcedure::Script(_) => false,
     }
@@ -654,7 +693,6 @@ async fn long_running_docker(
     rt_state: Arc<ManagerSharedState>,
     main_status: Arc<DockerProcedure>,
 ) -> Result<Result<NoOutput, (i32, String)>, Error> {
-    tracing::debug!("Should be starting a service long");
     main_status
         .execute::<(), NoOutput>(
             &rt_state.ctx,
@@ -663,7 +701,6 @@ async fn long_running_docker(
             ProcedureName::LongRunning,
             &rt_state.manifest.volumes,
             None,
-            false,
             None,
         )
         .await
@@ -866,16 +903,20 @@ async fn stop(shared: &ManagerSharedState) -> Result<(), Error> {
         resume(shared).await?;
     }
     match &shared.manifest.main {
-        PackageProcedure::Docker(action) => {
-            if !is_injectable_main(shared) {
+        PackageProcedure::Docker(DockerProcedure {
+            sigterm_timeout, ..
+        })
+        | PackageProcedure::DockerInject(DockerInject {
+            sigterm_timeout, ..
+        }) => {
+            if !check_is_injectable_main(shared) {
                 match shared
                     .ctx
                     .docker
                     .stop_container(
                         &shared.container_name,
                         Some(StopContainerOptions {
-                            t: action
-                                .sigterm_timeout
+                            t: sigterm_timeout
                                 .map(|a| *a)
                                 .unwrap_or(Duration::from_secs(30))
                                 .as_secs_f64() as i64,

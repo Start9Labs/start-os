@@ -1,14 +1,13 @@
 import { Component, Input } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { ModalController, ToastController } from '@ionic/angular'
-import { getPkgId } from '@start9labs/shared'
+import { getPkgId, copyToClipboard } from '@start9labs/shared'
 import { getUiInterfaceKey } from 'src/app/services/config.service'
 import {
   InstalledPackageDataEntry,
   InterfaceDef,
 } from 'src/app/services/patch-db/data-model'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { copyToClipboard } from 'src/app/util/web.util'
 import { QRComponent } from 'src/app/components/qr/qr.component'
 import { getPackage } from '../../../util/get-package-data'
 

@@ -158,6 +158,10 @@ export class AppActionsPage {
 
     try {
       await this.embassyApi.uninstallPackage({ id: this.pkgId })
+      this.embassyApi.setDbValue({
+        pointer: `/ack-instructions/${this.pkgId}`,
+        value: false,
+      })
       this.navCtrl.navigateRoot('/services')
     } catch (e: any) {
       this.errToast.present(e)

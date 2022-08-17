@@ -1,22 +1,18 @@
 <ion-header>
   <ion-toolbar>
-    <ion-buttons slot="start">
+    <ion-title>Execution Complete</ion-title>
+    <ion-buttons slot="end">
       <ion-button (click)="dismiss()" class="enter-click">
         <ion-icon name="close"></ion-icon>
       </ion-button>
     </ion-buttons>
-    <ion-title>Execution Complete</ion-title>
   </ion-toolbar>
 </ion-header>
 
-<ion-content>
-  <ion-item>
-    <ion-label>
-      <h2>{{ actionRes.message }}</h2>
-    </ion-label>
-  </ion-item>
+<ion-content class="ion-padding">
+  <h2 class="ion-padding">{{ actionRes.message }}</h2>
 
-  <div *ngIf="actionRes.value" class="ion-text-center" style="padding: 64px 0">
+  <div *ngIf="actionRes.value" class="ion-text-center" style="padding: 48px 0">
     <div *ngIf="actionRes.qr" class="ion-padding-bottom">
       <qr-code [value]="actionRes.value" size="240"></qr-code>
     </div>

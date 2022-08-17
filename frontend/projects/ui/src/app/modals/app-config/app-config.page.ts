@@ -34,19 +34,18 @@ import { Breakages } from 'src/app/services/api/api.types'
 export class AppConfigPage {
   @Input() pkgId!: string
 
-  @Input()
-  dependentInfo?: DependentInfo
+  @Input() dependentInfo?: DependentInfo
 
   pkg!: PackageDataEntry
-  loadingText!: string
-  configSpec!: ConfigSpec
-  configForm!: UntypedFormGroup
+  loadingText = ''
+
+  configSpec?: ConfigSpec
+  configForm?: UntypedFormGroup
 
   original?: object // only if existing config
   diff?: string[] // only if dependent info
 
   loading = true
-  hasConfig = false
   hasNewOptions = false
   saving = false
   loadingError: string | IonicSafeString = ''
@@ -64,9 +63,8 @@ export class AppConfigPage {
   async ngOnInit() {
     try {
       this.pkg = await getPackage(this.patch, this.pkgId)
-      this.hasConfig = !!this.pkg.manifest.config
 
-      if (!this.hasConfig) return
+      if (!this.pkg.manifest.config) return
 
       let newConfig: object | undefined
       let patch: Operation[] | undefined
@@ -118,7 +116,7 @@ export class AppConfigPage {
   }
 
   async dismiss() {
-    if (this.configForm.dirty) {
+    if (this.configForm?.dirty) {
       this.presentAlertUnsaved()
     } else {
       this.modalCtrl.dismiss()
@@ -126,9 +124,9 @@ export class AppConfigPage {
   }
 
   async tryConfigure() {
-    convertValuesRecursive(this.configSpec, this.configForm)
+    convertValuesRecursive(this.configSpec!, this.configForm!)
 
-    if (this.configForm.invalid) {
+    if (this.configForm!.invalid) {
       document
         .getElementsByClassName('validation-error')[0]
         ?.scrollIntoView({ behavior: 'smooth' })
@@ -153,7 +151,7 @@ export class AppConfigPage {
     try {
       const breakages = await this.embassyApi.drySetPackageConfig({
         id: this.pkgId,
-        config: this.configForm.value,
+        config: this.configForm!.value,
       })
 
       if (isEmptyObject(breakages)) {
@@ -186,7 +184,7 @@ export class AppConfigPage {
     try {
       await this.embassyApi.setPackageConfig({
         id: this.pkgId,
-        config: this.configForm.value,
+        config: this.configForm!.value,
       })
       this.modalCtrl.dismiss()
     } catch (e: any) {
@@ -304,11 +302,11 @@ export class AppConfigPage {
           return isNaN(num) ? node : num
         })
 
-      if (op.op !== 'remove') this.configForm.get(arrPath)?.markAsDirty()
+      if (op.op !== 'remove') this.configForm!.get(arrPath)?.markAsDirty()
 
       if (typeof arrPath[arrPath.length - 1] === 'number') {
         const prevPath = arrPath.slice(0, arrPath.length - 1)
-        this.configForm.get(prevPath)?.markAsDirty()
+        this.configForm!.get(prevPath)?.markAsDirty()
       }
     })
   }

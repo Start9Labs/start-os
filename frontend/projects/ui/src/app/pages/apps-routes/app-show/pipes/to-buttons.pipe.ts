@@ -13,14 +13,16 @@ import {
 } from 'src/app/services/patch-db/data-model'
 import { ModalService } from 'src/app/services/modal.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { from } from 'rxjs'
+import { from, map, Observable } from 'rxjs'
 import { Marketplace } from '@start9labs/marketplace'
 import { ActionMarketplaceComponent } from 'src/app/modals/action-marketplace/action-marketplace.component'
+import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 export interface Button {
   title: string
   description: string
   icon: string
   action: Function
+  highlighted$?: Observable<boolean>
   disabled?: boolean
 }
 
@@ -36,6 +38,7 @@ export class ToButtonsPipe implements PipeTransform {
     private readonly modalCtrl: ModalController,
     private readonly modalService: ModalService,
     private readonly apiService: ApiService,
+    private readonly patch: PatchDbService,
   ) {}
 
   transform(
@@ -52,6 +55,9 @@ export class ToButtonsPipe implements PipeTransform {
         title: 'Instructions',
         description: `Understand how to use ${pkgTitle}`,
         icon: 'list-outline',
+        highlighted$: this.patch
+          .watch$('ui', 'ack-instructions', pkg.manifest.id)
+          .pipe(map(seen => !seen)),
       },
       // config
       {
@@ -111,6 +117,11 @@ export class ToButtonsPipe implements PipeTransform {
   }
 
   private async presentModalInstructions(pkg: PackageDataEntry) {
+    this.apiService.setDbValue({
+      pointer: `/ack-instructions/${pkg.manifest.id}`,
+      value: true,
+    })
+
     const modal = await this.modalCtrl.create({
       componentProps: {
         title: 'Instructions',

@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core'
-import { HttpService } from '../http.service'
-import { ApiService, GetErrorRes, GetLogsReq, GetLogsRes } from './api.service'
+import { HttpService } from '@start9labs/shared'
+import { ApiService, GetErrorRes } from './api.service'
+import { LogsRes, ServerLogsReq } from '@start9labs/shared'
 
 @Injectable()
 export class LiveApiService extends ApiService {
@@ -36,8 +37,8 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  getLogs(params: GetLogsReq): Promise<GetLogsRes> {
-    return this.http.rpcRequest<GetLogsRes>({
+  getLogs(params: ServerLogsReq): Promise<LogsRes> {
+    return this.http.rpcRequest<LogsRes>({
       method: 'diagnostic.logs',
       params,
     })

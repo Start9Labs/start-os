@@ -25,7 +25,7 @@
     </ion-item>
 
     <ng-template #noError>
-      <ng-container *ngIf="hasConfig && !pkg.installed?.status?.configured">
+      <ng-container *ngIf="configForm && !pkg.installed?.status?.configured">
         <ng-container *ngIf="!original; else hasOriginal">
           <h2
             *ngIf="!configForm.dirty"
@@ -81,7 +81,7 @@
       </ion-item>
 
       <!-- no config -->
-      <ion-item *ngIf="!hasConfig">
+      <ion-item *ngIf="!configForm">
         <ion-label>
           <p>
             No config options for {{ pkg.manifest.title }} {{
@@ -91,7 +91,11 @@
       </ion-item>
 
       <!-- has config -->
-      <form *ngIf="hasConfig" [formGroup]="configForm" novalidate>
+      <form
+        *ngIf="configForm && configSpec"
+        [formGroup]="configForm"
+        novalidate
+      >
         <form-object
           [objectSpec]="configSpec"
           [formGroup]="configForm"
@@ -107,7 +111,7 @@
 <ion-footer>
   <ion-toolbar>
     <ng-container *ngIf="!loading && !loadingError">
-      <ion-buttons *ngIf="hasConfig" slot="start" class="ion-padding-start">
+      <ion-buttons *ngIf="configForm" slot="start" class="ion-padding-start">
         <ion-button fill="clear" (click)="resetDefaults()">
           <ion-icon slot="start" name="refresh"></ion-icon>
           Reset Defaults
@@ -115,7 +119,7 @@
       </ion-buttons>
       <ion-buttons slot="end" class="ion-padding-end">
         <ion-button
-          *ngIf="hasConfig"
+          *ngIf="configForm"
           fill="solid"
           color="primary"
           [disabled]="saving"
@@ -126,7 +130,7 @@
           Save
         </ion-button>
         <ion-button
-          *ngIf="!hasConfig"
+          *ngIf="!configForm"
           fill="solid"
           color="dark"
           (click)="dismiss()"

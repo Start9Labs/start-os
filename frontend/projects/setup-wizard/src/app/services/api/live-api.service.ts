@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core'
+import { HttpService } from '@start9labs/shared'
 import {
   ApiService,
   CifsRecoverySource,
@@ -11,79 +12,70 @@ import {
   SetupEmbassyReq,
   SetupEmbassyRes,
 } from './api.service'
-import { HttpService } from './http.service'
+import { RPCEncryptedService } from '../rpc-encrypted.service'
 
 @Injectable({
   providedIn: 'root',
 })
 export class LiveApiService extends ApiService {
-  constructor(private readonly http: HttpService) {
+  constructor(
+    private readonly unencrypted: HttpService,
+    private readonly encrypted: RPCEncryptedService,
+  ) {
     super()
   }
 
   // ** UNENCRYPTED **
 
   async getStatus() {
-    return this.http.rpcRequest<GetStatusRes>(
-      {
-        method: 'setup.status',
-        params: {},
-      },
-      false,
-    )
+    return this.unencrypted.rpcRequest<GetStatusRes>({
+      method: 'setup.status',
+      params: {},
+    })
   }
 
   async getDrives() {
-    return this.http.rpcRequest<DiskListResponse>(
-      {
-        method: 'setup.disk.list',
-        params: {},
-      },
-      false,
-    )
+    return this.unencrypted.rpcRequest<DiskListResponse>({
+      method: 'setup.disk.list',
+      params: {},
+    })
   }
 
   async set02XDrive(logicalname: string) {
-    return this.http.rpcRequest<void>(
-      {
-        method: 'setup.recovery.v2.set',
-        params: { logicalname },
-      },
-      false,
-    )
+    return this.unencrypted.rpcRequest<void>({
+      method: 'setup.recovery.v2.set',
+      params: { logicalname },
+    })
   }
 
   async getRecoveryStatus() {
-    return this.http.rpcRequest<RecoveryStatusRes>(
-      {
-        method: 'setup.recovery.status',
-        params: {},
-      },
-      false,
-    )
+    return this.unencrypted.rpcRequest<RecoveryStatusRes>({
+      method: 'setup.recovery.status',
+      params: {},
+    })
   }
 
   // ** ENCRYPTED **
 
   async verifyCifs(source: CifsRecoverySource) {
     source.path = source.path.replace('/\\/g', '/')
-    return this.http.rpcRequest<EmbassyOSRecoveryInfo>({
+    return this.encrypted.rpcRequest<EmbassyOSRecoveryInfo>({
       method: 'setup.cifs.verify',
-      params: source as any,
+      params: source,
     })
   }
 
   async verifyProductKey() {
-    return this.http.rpcRequest<void>({
+    return this.encrypted.rpcRequest<void>({
       method: 'echo',
       params: { message: 'hello' },
     })
   }
 
   async importDrive(params: ImportDriveReq) {
-    const res = await this.http.rpcRequest<SetupEmbassyRes>({
+    const res = await this.encrypted.rpcRequest<SetupEmbassyRes>({
       method: 'setup.attach',
-      params: params as any,
+      params,
     })
 
     return {
@@ -99,9 +91,9 @@ export class LiveApiService extends ApiService {
       ].path.replace('/\\/g', '/')
     }
 
-    const res = await this.http.rpcRequest<SetupEmbassyRes>({
+    const res = await this.encrypted.rpcRequest<SetupEmbassyRes>({
       method: 'setup.execute',
-      params: setupInfo as any,
+      params: setupInfo,
     })
 
     return {
@@ -111,7 +103,7 @@ export class LiveApiService extends ApiService {
   }
 
   async setupComplete() {
-    const res = await this.http.rpcRequest<SetupEmbassyRes>({
+    const res = await this.encrypted.rpcRequest<SetupEmbassyRes>({
       method: 'setup.complete',
       params: {},
     })

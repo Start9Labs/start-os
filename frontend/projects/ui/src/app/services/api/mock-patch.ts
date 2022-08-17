@@ -23,6 +23,7 @@ export const mockPatchData: DataModel = {
         },
       },
     },
+    'ack-instructions': {},
   },
   'server-info': {
     id: 'abcdefgh',
