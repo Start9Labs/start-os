@@ -12,7 +12,6 @@ import {
 } from '@ionic/angular'
 import { AppComponent } from './app.component'
 import { AppRoutingModule } from './app-routing.module'
-import { GlobalErrorHandler } from './services/global-error-handler.service'
 import { SuccessPageModule } from './pages/success/success.module'
 import { HomePageModule } from './pages/home/home.module'
 import { LoadingPageModule } from './pages/loading/loading.module'
@@ -46,7 +45,6 @@ const { useMocks } = require('../../../../config.json') as WorkspaceConfig
       provide: ApiService,
       useClass: useMocks ? MockApiService : LiveApiService,
     },
-    { provide: ErrorHandler, useClass: GlobalErrorHandler },
   ],
   bootstrap: [AppComponent],
 })
