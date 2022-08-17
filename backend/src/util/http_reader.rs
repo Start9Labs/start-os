@@ -53,15 +53,15 @@ impl HttpReader {
             .await
             .with_kind(crate::ErrorKind::InvalidRequest)?;
 
-        // https://developer.mozilla.org/en-US/docs/Web/HTTP/Range_requests
-
         let accept_ranges = head_request.headers().get(ACCEPT_RANGES);
 
         let range_unit = match accept_ranges {
             Some(range_type) => {
                 // as per rfc, header will contain data but not always UTF8 characters.
-                // Reject?
-                let value = range_type.to_str().unwrap();
+
+                let value = range_type
+                    .to_str()
+                    .map_err(|err| Error::new(err, crate::ErrorKind::Utf8))?;
 
                 match value {
                     "bytes" => Some(RangeUnit::Bytes),
@@ -76,7 +76,8 @@ impl HttpReader {
                     }
                 }
             }
-            // None can mean just get entire contents, but we currently error out
+
+            // None can mean just get entire contents, but we currently error out.
             None => {
                 return Err(Error::new(
                     eyre!(
@@ -91,7 +92,10 @@ impl HttpReader {
         let total_bytes_option = head_request.headers().get(CONTENT_LENGTH);
 
         let total_bytes = match total_bytes_option {
-            Some(bytes) => bytes.to_str().unwrap().parse::<usize>().unwrap(),
+            Some(bytes) => bytes
+                .to_str()
+                .map_err(|err| Error::new(err, crate::ErrorKind::Utf8))?
+                .parse::<usize>()?,
             None => {
                 return Err(Error::new(
                     eyre!("No content length headers for {}", http_url),
@@ -110,6 +114,7 @@ impl HttpReader {
         })
     }
 
+    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Range_requests
     async fn get_range(
         range_unit: Option<RangeUnit>,
         http_client: Client,
@@ -118,12 +123,11 @@ impl HttpReader {
         len: usize,
         total_bytes: usize,
     ) -> Result<Vec<u8>, Error> {
-
         let mut data = Vec::with_capacity(len);
-   
+
         let end = min(start + len, total_bytes) - 1;
-   
-        if start > len {
+
+        if start > end {
             return Ok(data);
         }
 
@@ -181,11 +185,13 @@ impl AsyncRead for HttpReader {
 
         let res_poll = fut.as_mut().poll(cx);
         trace!("Polled with remaining bytes in buf: {}", buf.remaining());
+
         match res_poll {
             Poll::Ready(result) => match result {
                 Ok(data_chunk) => {
                     trace!("data chunk: len: {}", data_chunk.len());
                     trace!("buf filled len: {}", buf.filled().len());
+
                     if data_chunk.len() <= buf.remaining() {
                         buf.put_slice(&data_chunk);
                         *this.cursor_pos += data_chunk.len();
@@ -239,8 +245,8 @@ impl AsyncSeek for HttpReader {
             std::io::SeekFrom::Current(offset) => {
                 // We explicitly check if we read before byte 0.
                 let new_pos = i64::try_from(*this.cursor_pos)
-                .map_err(|err| StdIOError::new(std::io::ErrorKind::InvalidInput, err))?
-                + offset;
+                    .map_err(|err| StdIOError::new(std::io::ErrorKind::InvalidInput, err))?
+                    + offset;
 
                 if new_pos < 0 {
                     return Err(StdIOError::new(
@@ -256,8 +262,8 @@ impl AsyncSeek for HttpReader {
             std::io::SeekFrom::End(offset) => {
                 // We explicitly check if we read before byte 0.
                 let new_pos = i64::try_from(*this.total_bytes)
-                .map_err(|err| StdIOError::new(std::io::ErrorKind::InvalidInput, err))?
-                + offset;
+                    .map_err(|err| StdIOError::new(std::io::ErrorKind::InvalidInput, err))?
+                    + offset;
 
                 if new_pos < 0 {
                     return Err(StdIOError::new(
