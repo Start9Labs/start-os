@@ -634,10 +634,10 @@ fn injectable_main(thread_shared: &Arc<ManagerSharedState>) -> Option<Arc<Docker
             mounts,
             shm_size_mb,
         }),
-    ) = dbg!((
+    ) = ()
         &thread_shared.manifest.main,
         &thread_shared.manifest.container,
-    )) {
+    ) {
         Some(Arc::new(DockerProcedure {
             image: image.clone(),
             mounts: mounts.clone(),
