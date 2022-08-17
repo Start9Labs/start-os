@@ -217,8 +217,8 @@ impl AsyncSeek for HttpReader {
         let this = self.project();
 
         match position {
-            std::io::SeekFrom::Start(pos) => {
-                let pos_res = usize::try_from(pos);
+            std::io::SeekFrom::Start(offset) => {
+                let pos_res = usize::try_from(offset);
 
                 match pos_res {
                     Ok(pos) => {
@@ -237,11 +237,11 @@ impl AsyncSeek for HttpReader {
                 }
                 Ok(())
             }
-            std::io::SeekFrom::Current(pos) => {
+            std::io::SeekFrom::Current(offset) => {
                 // We explicitly check if we read before byte 0.
                 let new_pos = i64::try_from(*this.cursor_pos)
                     .map_err(|err| StdIOError::new(std::io::ErrorKind::InvalidInput, err))?
-                    + pos;
+                    + offset;
 
                 if new_pos < 0 {
                     return Err(StdIOError::new(
@@ -256,11 +256,11 @@ impl AsyncSeek for HttpReader {
                 Ok(())
             }
 
-            std::io::SeekFrom::End(pos) => {
+            std::io::SeekFrom::End(offset) => {
                 // We explicitly check if we read before byte 0.
                 let new_pos = i64::try_from(*this.total_bytes)
                     .map_err(|err| StdIOError::new(std::io::ErrorKind::InvalidInput, err))?
-                    + pos;
+                    + offset;
 
                 if new_pos < 0 {
                     return Err(StdIOError::new(
