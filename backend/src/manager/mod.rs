@@ -634,7 +634,7 @@ fn injectable_main(thread_shared: &Arc<ManagerSharedState>) -> Option<Arc<Docker
             mounts,
             shm_size_mb,
         }),
-    ) = ()
+    ) = (
         &thread_shared.manifest.main,
         &thread_shared.manifest.container,
     ) {
