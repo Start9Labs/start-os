@@ -9,7 +9,7 @@ use futures::FutureExt;
 use http::header::{ACCEPT_RANGES, CONTENT_LENGTH, RANGE};
 use pin_project::pin_project;
 use reqwest::{Client, Url};
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek};
+use tokio::io::{AsyncRead, AsyncSeek};
 
 use crate::{Error, ResultExt};
 
