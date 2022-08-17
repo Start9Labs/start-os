@@ -541,27 +541,18 @@ impl PersistantContainer {
         let container_name = &self.container_name;
         self.should_stop_running.store(true, Ordering::SeqCst);
         let mut running_docker = self.running_docker.lock().await;
-        let is_running_docker = running_docker.is_some();
         *running_docker = None;
-        if is_running_docker {
-            use tokio::process::Command;
-            if let Err(err) = Command::new("docker")
-                .args(["stop", "-t", "0", &*container_name])
-                .output()
-                .await
-            {
-                tracing::warn!("Failed to stop docker");
-                tracing::debug!("{:?}", err);
-            }
-            if let Err(err) = Command::new("docker")
-                .args(["container", "rm", "-f", &*container_name])
-                .output()
-                .await
-            {
-                tracing::warn!("Failed to stop docker");
-                tracing::debug!("{:?}", err);
-            }
-        }
+        use tokio::process::Command;
+        if let Err(_err) = Command::new("docker")
+            .args(["stop", "-t", "0", &*container_name])
+            .output()
+            .await
+        {}
+        if let Err(_err) = Command::new("docker")
+            .args(["kill", &*container_name])
+            .output()
+            .await
+        {}
     }
 
     async fn get_notify_wait(&self) -> Option<Arc<Notify>> {
@@ -599,7 +590,7 @@ impl Drop for PersistantContainer {
 
             use std::process::Command;
             if let Err(_err) = Command::new("docker")
-                .args(["container", "rm", "-f", &*container_name])
+                .args(["kill", &*container_name])
                 .output()
             {}
         });
@@ -702,7 +693,6 @@ async fn long_running_docker(
     rt_state: Arc<ManagerSharedState>,
     main_status: Arc<DockerProcedure>,
 ) -> Result<Result<NoOutput, (i32, String)>, Error> {
-    tracing::debug!("Should be starting a service long");
     main_status
         .execute::<(), NoOutput>(
             &rt_state.ctx,
