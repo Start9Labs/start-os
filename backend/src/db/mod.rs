@@ -89,7 +89,7 @@ async fn deal_with_messages(
                 stream
                     .close(Some(CloseFrame {
                         code: CloseCode::Error,
-                        reason: "Session Terminated".into(),
+                        reason: "UNAUTHORIZED".into(),
                     }))
                     .await
                     .with_kind(crate::ErrorKind::Network)?;
