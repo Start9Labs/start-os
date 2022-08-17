@@ -6,7 +6,6 @@ use std::future::Future;
 use std::sync::Arc;
 
 use futures::{FutureExt, SinkExt, StreamExt};
-use http::StatusCode;
 use patch_db::json_ptr::JsonPointer;
 use patch_db::{Dump, Revision};
 use rpc_toolkit::command;
@@ -17,6 +16,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::sync::{broadcast, oneshot};
 use tokio::task::JoinError;
+use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
+use tokio_tungstenite::tungstenite::protocol::CloseFrame;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::WebSocketStream;
 use tracing::instrument;
@@ -33,8 +34,7 @@ async fn ws_handler<
     WSFut: Future<Output = Result<Result<WebSocketStream<Upgraded>, HyperError>, JoinError>>,
 >(
     ctx: RpcContext,
-    session: HasValidSession,
-    token: HashSessionToken,
+    session: Option<(HasValidSession, HashSessionToken)>,
     ws_fut: WSFut,
 ) -> Result<(), Error> {
     let (dump, sub) = ctx.db.dump_and_sub().await;
@@ -43,10 +43,21 @@ async fn ws_handler<
         .with_kind(crate::ErrorKind::Network)?
         .with_kind(crate::ErrorKind::Unknown)?;
 
-    let kill = subscribe_to_session_kill(&ctx, token).await;
-    send_dump(session, &mut stream, dump).await?;
+    if let Some((session, token)) = session {
+        let kill = subscribe_to_session_kill(&ctx, token).await;
+        send_dump(session, &mut stream, dump).await?;
 
-    deal_with_messages(session, kill, sub, stream).await?;
+        deal_with_messages(session, kill, sub, stream).await?;
+    } else {
+        stream
+            .close(Some(CloseFrame {
+                code: CloseCode::Error,
+                reason: "UNAUTHORIZED".into(),
+            }))
+            .await
+            .with_kind(crate::ErrorKind::Network)?;
+    }
+
     Ok(())
 }
 
@@ -75,6 +86,13 @@ async fn deal_with_messages(
         futures::select! {
             _ = (&mut kill).fuse() => {
                 tracing::info!("Closing WebSocket: Reason: Session Terminated");
+                stream
+                    .close(Some(CloseFrame {
+                        code: CloseCode::Error,
+                        reason: "Session Terminated".into(),
+                    }))
+                    .await
+                    .with_kind(crate::ErrorKind::Network)?;
                 return Ok(())
             }
             new_rev = sub.recv().fuse() => {
@@ -114,31 +132,27 @@ async fn send_dump(
 
 pub async fn subscribe(ctx: RpcContext, req: Request<Body>) -> Result<Response<Body>, Error> {
     let (parts, body) = req.into_parts();
-    let token = match HashSessionToken::from_request_parts(&parts) {
-        Ok(a) => a,
-        Err(e) if e.kind == crate::ErrorKind::Authorization => {
-            return Ok(Response::builder()
-                .status(StatusCode::UNAUTHORIZED)
-                .body(Body::empty())
-                .with_kind(crate::ErrorKind::Network)?)
+    let session = match async {
+        let token = HashSessionToken::from_request_parts(&parts)?;
+        let session = HasValidSession::from_session(&token, &ctx).await?;
+        Ok::<_, Error>((session, token))
+    }
+    .await
+    {
+        Ok(a) => Some(a),
+        Err(e) => {
+            if e.kind != crate::ErrorKind::Authorization {
+                tracing::error!("Error Authenticating Websocket: {}", e);
+                tracing::debug!("{:?}", e);
+            }
+            None
         }
-        Err(e) => return Err(e),
-    };
-    let session = match HasValidSession::from_session(&token, &ctx).await {
-        Ok(a) => a,
-        Err(e) if e.kind == crate::ErrorKind::Authorization => {
-            return Ok(Response::builder()
-                .status(StatusCode::UNAUTHORIZED)
-                .body(Body::empty())
-                .with_kind(crate::ErrorKind::Network)?)
-        }
-        Err(e) => return Err(e),
     };
     let req = Request::from_parts(parts, body);
     let (res, ws_fut) = hyper_ws_listener::create_ws(req).with_kind(crate::ErrorKind::Network)?;
     if let Some(ws_fut) = ws_fut {
         tokio::task::spawn(async move {
-            match ws_handler(ctx, session, token, ws_fut).await {
+            match ws_handler(ctx, session, ws_fut).await {
                 Ok(()) => (),
                 Err(e) => {
                     tracing::error!("WebSocket Closed: {}", e);
