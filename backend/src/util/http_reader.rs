@@ -117,6 +117,10 @@ impl HttpReader {
         len: usize,
         total_bytes: usize,
     ) -> Result<Vec<u8>, Error> {
+        if start > len {
+            return Ok(Vec::new());
+        }
+
         let mut data = Vec::new();
         let end = min((start + len) - 1, total_bytes);
 
@@ -234,73 +238,39 @@ impl AsyncSeek for HttpReader {
                 Ok(())
             }
             std::io::SeekFrom::Current(pos) => {
-                let original_pos = pos;
-                let pos_res = usize::try_from(pos);
+                // We explicitly check if we read before byte 0.
+                let new_pos = i64::try_from(*this.cursor_pos)
+                    .map_err(|err| StdIOError::new(std::io::ErrorKind::InvalidInput, err))?
+                    + pos;
 
-                match pos_res {
-                    Ok(pos) => {
-                        if pos > *this.total_bytes {
-                            StdIOError::new(
-                                std::io::ErrorKind::InvalidInput,
-                                format!(
-                                    "position: {} cannot be greater than {} bytes",
-                                    pos, *this.total_bytes
-                                ),
-                            );
-                        }
-                        let total_bytes_res = i64::try_from(*this.total_bytes);
-
-                        match total_bytes_res {
-                            Ok(total_bytes) => {
-                                let new_pos_res = usize::try_from(total_bytes - original_pos);
-
-                                match new_pos_res {
-                                    Ok(pos) => {
-                                        *this.cursor_pos = pos;
-                                    }
-                                    Err(err) => {
-                                        return Err(StdIOError::new(
-                                            std::io::ErrorKind::InvalidInput,
-                                            err,
-                                        ))
-                                    }
-                                }
-                            }
-                            Err(err) => {
-                                return Err(StdIOError::new(
-                                    std::io::ErrorKind::InvalidInput,
-                                    err))
-                            }
-                        }
-                    }
-                    Err(err) => { 
-                        return Err(StdIOError::new(
-                            std::io::ErrorKind::InvalidInput,
-                            err)) 
-                        },
+                if new_pos < 0 {
+                    return Err(StdIOError::new(
+                        std::io::ErrorKind::InvalidInput,
+                        "Can't read before byte 0",
+                    ));
                 }
+
+                *this.cursor_pos = usize::try_from(new_pos)
+                    .map_err(|err| StdIOError::new(std::io::ErrorKind::InvalidInput, err))?;
 
                 Ok(())
             }
 
             std::io::SeekFrom::End(pos) => {
-                let pos_res = usize::try_from(pos);
+                // We explicitly check if we read before byte 0.
+                let new_pos = i64::try_from(*this.total_bytes)
+                    .map_err(|err| StdIOError::new(std::io::ErrorKind::InvalidInput, err))?
+                    + pos;
 
-                match pos_res {
-                    Ok(pos) => {
-                        if pos > *this.total_bytes {
-                            StdIOError::new(
-                                std::io::ErrorKind::InvalidInput,
-                                format!(
-                                    "position: {} cannot be greater than {} bytes",
-                                    pos, *this.total_bytes
-                                ),
-                            );
-                        }
-                        *this.cursor_pos += pos;
-                    }
-                    Err(err) => return Err(StdIOError::new(std::io::ErrorKind::InvalidInput, err)),
+                if new_pos < 0 {
+                    return Err(StdIOError::new(
+                        std::io::ErrorKind::InvalidInput,
+                        "Can't read before byte 0",
+                    ));
                 }
+                *this.cursor_pos = usize::try_from(new_pos)
+                    .map_err(|err| StdIOError::new(std::io::ErrorKind::InvalidInput, err))?;
+
                 Ok(())
             }
         }
