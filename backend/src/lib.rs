@@ -1,4 +1,4 @@
-pub const DEFAULT_MARKETPLACE: &str = "https://marketplace.start9.com";
+pub const DEFAULT_MARKETPLACE: &str = "https://registry.start9.com";
 pub const BUFFER_SIZE: usize = 1024;
 pub const HOST_IP: [u8; 4] = [172, 18, 0, 1];
 pub const TARGET: &str = current_platform::CURRENT_PLATFORM;

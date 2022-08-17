@@ -17,7 +17,7 @@ use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use sqlx::{Connection, Executor, Sqlite};
+use sqlx::{Connection, Executor, Postgres};
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use torut::onion::{OnionAddressV3, TorSecretKeyV3};
@@ -52,7 +52,7 @@ use crate::{ensure_code, Error, ErrorKind, ResultExt};
 #[instrument(skip(secrets))]
 pub async fn password_hash<Ex>(secrets: &mut Ex) -> Result<String, Error>
 where
-    for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
+    for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
 {
     let password = sqlx::query!("SELECT password FROM account")
         .fetch_one(secrets)
@@ -448,7 +448,7 @@ async fn fresh_setup(
     let key_vec = tor_key.as_bytes().to_vec();
     let sqlite_pool = ctx.secret_store().await?;
     sqlx::query!(
-        "REPLACE INTO account (id, password, tor_key) VALUES (?, ?, ?)",
+        "INSERT INTO account (id, password, tor_key) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET password = $2, tor_key = $3",
         0,
         password,
         key_vec,
@@ -696,7 +696,7 @@ async fn recover_v2(
     .with_kind(crate::ErrorKind::PasswordHashGeneration)?;
     let sqlite_pool = ctx.secret_store().await?;
     sqlx::query!(
-        "REPLACE INTO account (id, password, tor_key) VALUES (?, ?, ?)",
+        "INSERT INTO account (id, password, tor_key) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET password = $2, tor_key = $3",
         0,
         password,
         key_vec
@@ -790,7 +790,7 @@ async fn recover_v2(
             );
             let key_vec = key_vec[32..].to_vec();
             sqlx::query!(
-                "REPLACE INTO tor (package, interface, key) VALUES (?, 'main', ?)",
+                "INSERT INTO tor (package, interface, key) VALUES ($1, 'main', $2) ON CONFLICT (package, interface) DO UPDATE SET key = $2",
                 *dst_id,
                 key_vec,
             )

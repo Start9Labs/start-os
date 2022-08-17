@@ -6,7 +6,7 @@ use indexmap::IndexSet;
 use itertools::Either;
 pub use models::InterfaceId;
 use serde::{Deserialize, Deserializer, Serialize};
-use sqlx::{Executor, Sqlite};
+use sqlx::{Executor, Postgres};
 use torut::onion::TorSecretKeyV3;
 use tracing::instrument;
 
@@ -39,7 +39,7 @@ impl Interfaces {
         package_id: &PackageId,
     ) -> Result<InterfaceAddressMap, Error>
     where
-        for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
+        for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
     {
         let mut interface_addresses = InterfaceAddressMap(BTreeMap::new());
         for (id, iface) in &self.0 {
@@ -51,7 +51,7 @@ impl Interfaces {
                 let key = TorSecretKeyV3::generate();
                 let key_vec = key.as_bytes().to_vec();
                 sqlx::query!(
-                    "INSERT OR IGNORE INTO tor (package, interface, key) VALUES (?, ?, ?)",
+                    "INSERT INTO tor (package, interface, key) VALUES ($1, $2, $3) ON CONFLICT (package, interface) DO NOTHING",
                     **package_id,
                     **id,
                     key_vec,
@@ -59,7 +59,7 @@ impl Interfaces {
                 .execute(&mut *secrets)
                 .await?;
                 let key_row = sqlx::query!(
-                    "SELECT key FROM tor WHERE package = ? AND interface = ?",
+                    "SELECT key FROM tor WHERE package = $1 AND interface = $2",
                     **package_id,
                     **id,
                 )
@@ -89,10 +89,10 @@ impl Interfaces {
         package_id: &PackageId,
     ) -> Result<BTreeMap<InterfaceId, TorSecretKeyV3>, Error>
     where
-        for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
+        for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
     {
         Ok(sqlx::query!(
-            "SELECT interface, key FROM tor WHERE package = ?",
+            "SELECT interface, key FROM tor WHERE package = $1",
             **package_id
         )
         .fetch_many(secrets)

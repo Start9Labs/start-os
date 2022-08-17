@@ -112,7 +112,7 @@ pub async fn kernel_logs_nofollow(
     _ctx: (),
     (limit, cursor, before, _): (Option<usize>, Option<String>, bool, bool),
 ) -> Result<LogResponse, Error> {
-    fetch_logs(LogSource::Service(SYSTEMD_UNIT), limit, cursor, before).await
+    fetch_logs(LogSource::Kernel, limit, cursor, before).await
 }
 
 #[command(rpc_only, rename = "follow", display(display_none))]
@@ -120,7 +120,7 @@ pub async fn kernel_logs_follow(
     #[context] ctx: RpcContext,
     #[parent_data] (limit, _, _, _): (Option<usize>, Option<String>, bool, bool),
 ) -> Result<LogFollowResponse, Error> {
-    follow_logs(ctx, LogSource::Service(SYSTEMD_UNIT), limit).await
+    follow_logs(ctx, LogSource::Kernel, limit).await
 }
 
 #[derive(Serialize, Deserialize)]

@@ -18,7 +18,7 @@ use regex::Regex;
 use serde::de::{MapAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::{Number, Value};
-use sqlx::SqlitePool;
+use sqlx::PgPool;
 
 use super::util::{self, CharSet, NumRange, UniqueBy, STATIC_NULL};
 use super::{Config, MatchError, NoMatchWithPath, TimeoutError, TypeOf};
@@ -2050,7 +2050,7 @@ impl TorKeyPointer {
     async fn deref(
         &self,
         source_package: &PackageId,
-        secrets: &SqlitePool,
+        secrets: &PgPool,
     ) -> Result<Value, ConfigurationError> {
         if &self.package_id != source_package {
             return Err(ConfigurationError::PermissionDenied(
@@ -2058,7 +2058,7 @@ impl TorKeyPointer {
             ));
         }
         let x = sqlx::query!(
-            "SELECT key FROM tor WHERE package = ? AND interface = ?",
+            "SELECT key FROM tor WHERE package = $1 AND interface = $2",
             *self.package_id,
             *self.interface
         )

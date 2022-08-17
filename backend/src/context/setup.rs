@@ -9,9 +9,10 @@ use patch_db::PatchDb;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::Context;
 use serde::{Deserialize, Serialize};
-use sqlx::sqlite::SqliteConnectOptions;
-use sqlx::SqlitePool;
+use sqlx::postgres::PgConnectOptions;
+use sqlx::PgPool;
 use tokio::fs::File;
+use tokio::process::Command;
 use tokio::sync::broadcast::Sender;
 use tokio::sync::RwLock;
 use tracing::instrument;
@@ -19,10 +20,11 @@ use url::Host;
 
 use crate::db::model::Database;
 use crate::hostname::{derive_hostname, derive_id, get_product_key};
+use crate::init::{init_postgres, pgloader};
 use crate::net::tor::os_key;
 use crate::setup::{password_hash, RecoveryStatus};
 use crate::util::io::from_yaml_async_reader;
-use crate::util::AsyncFileExt;
+use crate::util::{AsyncFileExt, Invoke};
 use crate::{Error, ResultExt};
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -93,7 +95,7 @@ impl SetupContext {
         })))
     }
     #[instrument(skip(self))]
-    pub async fn db(&self, secret_store: &SqlitePool) -> Result<PatchDb, Error> {
+    pub async fn db(&self, secret_store: &PgPool) -> Result<PatchDb, Error> {
         let db_path = self.datadir.join("main").join("embassy.db");
         let db = PatchDb::open(&db_path)
             .await
@@ -117,18 +119,19 @@ impl SetupContext {
         Ok(db)
     }
     #[instrument(skip(self))]
-    pub async fn secret_store(&self) -> Result<SqlitePool, Error> {
-        let secret_store = SqlitePool::connect_with(
-            SqliteConnectOptions::new()
-                .filename(self.datadir.join("main").join("secrets.db"))
-                .create_if_missing(true)
-                .busy_timeout(Duration::from_secs(30)),
-        )
-        .await?;
+    pub async fn secret_store(&self) -> Result<PgPool, Error> {
+        init_postgres(&self.datadir).await?;
+        let secret_store =
+            PgPool::connect_with(PgConnectOptions::new().database("secrets").username("root"))
+                .await?;
         sqlx::migrate!()
             .run(&secret_store)
             .await
             .with_kind(crate::ErrorKind::Database)?;
+        let old_db_path = self.datadir.join("main/secrets.db");
+        if tokio::fs::metadata(&old_db_path).await.is_ok() {
+            pgloader(&old_db_path).await?;
+        }
         Ok(secret_store)
     }
     #[instrument(skip(self))]

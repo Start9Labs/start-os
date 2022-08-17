@@ -8,7 +8,7 @@ use patch_db::{DbHandle, HasModel, LockType};
 use reqwest::Url;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
-use sqlx::{Executor, Sqlite};
+use sqlx::{Executor, Postgres};
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use tracing::instrument;
@@ -195,7 +195,7 @@ impl BackupActions {
         volumes: &Volumes,
     ) -> Result<(), Error>
     where
-        for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
+        for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
     {
         let mut volumes = volumes.clone();
         volumes.insert(VolumeId::Backup, Volume::Backup { readonly: true });
@@ -231,7 +231,7 @@ impl BackupActions {
                     )
                 })?;
             sqlx::query!(
-                "REPLACE INTO tor (package, interface, key) VALUES (?, ?, ?)",
+                "INSERT INTO tor (package, interface, key) VALUES ($1, $2, $3) ON CONFLICT (package, interface) DO UPDATE SET key = $3",
                 **pkg_id,
                 *iface,
                 key_vec,

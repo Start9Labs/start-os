@@ -48,13 +48,15 @@ pub async fn unmount<P: AsRef<Path>>(mountpoint: P) -> Result<(), Error> {
         .arg(mountpoint.as_ref())
         .invoke(crate::ErrorKind::Filesystem)
         .await?;
-    tokio::fs::remove_dir_all(mountpoint.as_ref())
-        .await
-        .with_ctx(|_| {
-            (
-                crate::ErrorKind::Filesystem,
-                format!("rm {}", mountpoint.as_ref().display()),
-            )
-        })?;
+    match tokio::fs::remove_dir(mountpoint.as_ref()).await {
+        Err(e) if e.raw_os_error() == Some(39) => Ok(()), // directory not empty
+        a => a,
+    }
+    .with_ctx(|_| {
+        (
+            crate::ErrorKind::Filesystem,
+            format!("rm {}", mountpoint.as_ref().display()),
+        )
+    })?;
     Ok(())
 }

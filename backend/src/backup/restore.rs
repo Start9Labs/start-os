@@ -221,7 +221,7 @@ pub async fn recover_full_embassy(
     let key_vec = os_backup.tor_key.as_bytes().to_vec();
     let secret_store = ctx.secret_store().await?;
     sqlx::query!(
-        "REPLACE INTO account (id, password, tor_key) VALUES (?, ?, ?)",
+        "INSERT INTO account (id, password, tor_key) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET password = $2, tor_key = $3",
         0,
         password,
         key_vec,

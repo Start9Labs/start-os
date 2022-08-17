@@ -1,10 +1,14 @@
+use std::path::Path;
+use std::process::Stdio;
 use std::time::Duration;
 
+use color_eyre::eyre::eyre;
 use patch_db::{DbHandle, LockReceipt, LockType};
 use tokio::process::Command;
 
 use crate::context::rpc::RpcContextConfig;
 use crate::db::model::ServerStatus;
+use crate::disk::mount::util::unmount;
 use crate::install::PKG_DOCKER_DIR;
 use crate::util::Invoke;
 use crate::Error;
@@ -67,10 +71,91 @@ impl InitReceipts {
     }
 }
 
+pub async fn pgloader(old_db_path: impl AsRef<Path>) -> Result<(), Error> {
+    tokio::fs::write(
+        "/etc/embassy/migrate.load",
+        format!(
+            include_str!("migrate.load"),
+            sqlite_path = old_db_path.as_ref().display()
+        ),
+    )
+    .await?;
+    tracing::info!("Running pgloader");
+    let out = Command::new("pgloader")
+        .arg("-v")
+        .arg("/etc/embassy/migrate.load")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .await?;
+    let stdout = String::from_utf8(out.stdout)?;
+    for line in stdout.lines() {
+        tracing::debug!("pgloader: {}", line);
+    }
+    let stderr = String::from_utf8(out.stderr)?;
+    for line in stderr.lines() {
+        tracing::debug!("pgloader err: {}", line);
+    }
+    tracing::debug!("pgloader exited with code {:?}", out.status);
+    if let Some(err) = stdout.lines().chain(stderr.lines()).find_map(|l| {
+        if l.split_ascii_whitespace()
+            .any(|word| word == "ERROR" || word == "FATAL")
+        {
+            Some(l)
+        } else {
+            None
+        }
+    }) {
+        return Err(Error::new(
+            eyre!("pgloader error: {}", err),
+            crate::ErrorKind::Database,
+        ));
+    }
+    tokio::fs::rename(
+        old_db_path.as_ref(),
+        old_db_path.as_ref().with_extension("bak"),
+    )
+    .await?;
+    Ok(())
+}
+
+// must be idempotent
+pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
+    let db_dir = datadir.as_ref().join("main/postgresql");
+    let is_mountpoint = || async {
+        Ok::<_, Error>(
+            tokio::process::Command::new("mountpoint")
+                .arg("/var/lib/postgresql")
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .status()
+                .await?
+                .success(),
+        )
+    };
+    if tokio::fs::metadata(&db_dir).await.is_err() {
+        Command::new("cp")
+            .arg("-ra")
+            .arg("/var/lib/postgresql")
+            .arg(&db_dir)
+            .invoke(crate::ErrorKind::Filesystem)
+            .await?;
+    }
+    if !is_mountpoint().await? {
+        crate::disk::mount::util::bind(&db_dir, "/var/lib/postgresql", false).await?;
+    }
+    Command::new("systemctl")
+        .arg("start")
+        .arg("postgresql")
+        .invoke(crate::ErrorKind::Database)
+        .await?;
+    Ok(())
+}
+
 pub async fn init(cfg: &RpcContextConfig, product_key: &str) -> Result<(), Error> {
     let should_rebuild = tokio::fs::metadata(SYSTEM_REBUILD_PATH).await.is_ok();
     let secret_store = cfg.secret_store().await?;
-    let log_dir = cfg.datadir().join("main").join("logs");
+    let log_dir = cfg.datadir().join("main/logs");
     if tokio::fs::metadata(&log_dir).await.is_err() {
         tokio::fs::create_dir_all(&log_dir).await?;
     }
@@ -92,7 +177,7 @@ pub async fn init(cfg: &RpcContextConfig, product_key: &str) -> Result<(), Error
             tokio::fs::remove_dir_all(&tmp_docker).await?;
         }
         Command::new("cp")
-            .arg("-r")
+            .arg("-ra")
             .arg("/var/lib/docker")
             .arg(&tmp_docker)
             .invoke(crate::ErrorKind::Filesystem)

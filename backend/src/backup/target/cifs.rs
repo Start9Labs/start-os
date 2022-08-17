@@ -4,7 +4,7 @@ use color_eyre::eyre::eyre;
 use futures::TryStreamExt;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
-use sqlx::{Executor, Sqlite};
+use sqlx::{Executor, Postgres};
 
 use super::{BackupTarget, BackupTargetId};
 use crate::context::RpcContext;
@@ -49,8 +49,8 @@ pub async fn add(
     let embassy_os = recovery_info(&guard).await?;
     guard.unmount().await?;
     let path_string = Path::new("/").join(&cifs.path).display().to_string();
-    let id: u32 = sqlx::query!(
-        "INSERT INTO cifs_shares (hostname, path, username, password) VALUES (?, ?, ?, ?) RETURNING id AS \"id: u32\"",
+    let id: i32 = sqlx::query!(
+        "INSERT INTO cifs_shares (hostname, path, username, password) VALUES ($1, $2, $3, $4) RETURNING id",
         cifs.hostname,
         path_string,
         cifs.username,
@@ -98,7 +98,7 @@ pub async fn update(
     guard.unmount().await?;
     let path_string = Path::new("/").join(&cifs.path).display().to_string();
     if sqlx::query!(
-        "UPDATE cifs_shares SET hostname = ?, path = ?, username = ?, password = ? WHERE id = ?",
+        "UPDATE cifs_shares SET hostname = $1, path = $2, username = $3, password = $4 WHERE id = $5",
         cifs.hostname,
         path_string,
         cifs.username,
@@ -137,7 +137,7 @@ pub async fn remove(#[context] ctx: RpcContext, #[arg] id: BackupTargetId) -> Re
             crate::ErrorKind::NotFound,
         ));
     };
-    if sqlx::query!("DELETE FROM cifs_shares WHERE id = ?", id)
+    if sqlx::query!("DELETE FROM cifs_shares WHERE id = $1", id)
         .execute(&ctx.secret_store)
         .await?
         .rows_affected()
@@ -151,12 +151,12 @@ pub async fn remove(#[context] ctx: RpcContext, #[arg] id: BackupTargetId) -> Re
     Ok(())
 }
 
-pub async fn load<Ex>(secrets: &mut Ex, id: u32) -> Result<Cifs, Error>
+pub async fn load<Ex>(secrets: &mut Ex, id: i32) -> Result<Cifs, Error>
 where
-    for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
+    for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
 {
     let record = sqlx::query!(
-        "SELECT hostname, path, username, password FROM cifs_shares WHERE id = ?",
+        "SELECT hostname, path, username, password FROM cifs_shares WHERE id = $1",
         id
     )
     .fetch_one(secrets)
@@ -170,14 +170,13 @@ where
     })
 }
 
-pub async fn list<Ex>(secrets: &mut Ex) -> Result<Vec<(u32, CifsBackupTarget)>, Error>
+pub async fn list<Ex>(secrets: &mut Ex) -> Result<Vec<(i32, CifsBackupTarget)>, Error>
 where
-    for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
+    for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
 {
-    let mut records = sqlx::query!(
-        "SELECT id AS \"id: u32\", hostname, path, username, password FROM cifs_shares"
-    )
-    .fetch_many(secrets);
+    let mut records =
+        sqlx::query!("SELECT id, hostname, path, username, password FROM cifs_shares")
+            .fetch_many(secrets);
 
     let mut cifs = Vec::new();
     while let Some(query_result) = records.try_next().await? {
