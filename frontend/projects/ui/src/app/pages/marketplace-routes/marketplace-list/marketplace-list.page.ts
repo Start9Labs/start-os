@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
 import { Observable } from 'rxjs'
-import { filter, first, map, startWith, switchMapTo } from 'rxjs/operators'
+import { filter, first, map, startWith, switchMap } from 'rxjs/operators'
 import { exists, isEmptyObject } from '@start9labs/shared'
 import {
   AbstractMarketplaceService,
@@ -32,7 +32,7 @@ export class MarketplaceListPage {
     .pipe(
       filter(data => exists(data) && !isEmptyObject(data)),
       first(),
-      switchMapTo(this.marketplaceService.getPackages()),
+      switchMap(() => this.marketplaceService.getPackages()),
     )
 
   readonly name$: Observable<string> = this.marketplaceService

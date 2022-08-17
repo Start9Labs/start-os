@@ -41,7 +41,7 @@ export class OfflineService extends Observable<unknown> {
       } else if (!!progress && progress.downloaded === progress.size) {
         return null
       } else {
-        return { ...getMessage(connectionFailure) }
+        return getMessage(connectionFailure)
       }
     }),
   )
