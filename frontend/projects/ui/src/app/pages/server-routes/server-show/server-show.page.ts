@@ -16,6 +16,7 @@ import { LocalStorageService } from 'src/app/services/local-storage.service'
 import { RecoveredPackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { OSUpdatePage } from 'src/app/modals/os-update/os-update.page'
 import { getAllPackages } from '../../../util/get-package-data'
+import { ConnectionService } from 'src/app/services/connection.service'
 
 @Component({
   selector: 'server-show',
@@ -28,7 +29,7 @@ export class ServerShowPage {
 
   readonly server$ = this.patch.watch$('server-info')
   readonly ui$ = this.patch.watch$('ui')
-  readonly connected$ = this.patch.connected$
+  readonly connected$ = this.connectionService.patchConnected$
   readonly showUpdate$ = this.eosService.showUpdate$
   readonly showDiskRepair$ = this.localStorageService.showDiskRepair$
 
@@ -43,6 +44,7 @@ export class ServerShowPage {
     private readonly patch: PatchDbService,
     private readonly eosService: EOSService,
     private readonly localStorageService: LocalStorageService,
+    private readonly connectionService: ConnectionService,
   ) {}
 
   ngOnInit() {

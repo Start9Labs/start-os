@@ -1,31 +1,12 @@
 import { Subject, Observable } from 'rxjs'
-import {
-  Http,
-  Update,
-  Operation,
-  Revision,
-  Source,
-  Store,
-} from 'patch-db-client'
+import { Update, Operation, Revision } from 'patch-db-client'
 import { RR } from './api.types'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { Log, RequestError } from '@start9labs/shared'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 
-export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
+export abstract class ApiService {
   protected readonly sync$ = new Subject<Update<DataModel>>()
-
-  /** PatchDb Source interface. Post/Patch requests provide a source of patches to the db. */
-  // sequenceStream '_' is not used by the live api, but is overridden by the mock
-  watch$(_?: Store<DataModel>): Observable<Update<DataModel>> {
-    return this.sync$.asObservable()
-  }
-
-  // websocket
-
-  abstract openLogsWebsocket$(
-    config: WebSocketSubjectConfig<Log>,
-  ): Observable<Log>
 
   // http
 
@@ -58,6 +39,16 @@ export abstract class ApiService implements Source<DataModel>, Http<DataModel> {
   abstract killSessions(params: RR.KillSessionsReq): Promise<RR.KillSessionsRes>
 
   // server
+
+  abstract echo(params: RR.EchoReq): Promise<RR.EchoRes>
+
+  abstract openPatchWebsocket$(
+    config: WebSocketSubjectConfig<Update<DataModel>>,
+  ): Observable<Update<DataModel>>
+
+  abstract openLogsWebsocket$(
+    config: WebSocketSubjectConfig<Log>,
+  ): Observable<Log>
 
   abstract getServerLogs(
     params: RR.GetServerLogsReq,

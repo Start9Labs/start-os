@@ -29,6 +29,9 @@ export module RR {
 
   // server
 
+  export type EchoReq = { message: string } // server.echo
+  export type EchoRes = string
+
   export type GetServerLogsReq = ServerLogsReq // server.logs & server.kernel-logs
   export type GetServerLogsRes = LogsRes
 

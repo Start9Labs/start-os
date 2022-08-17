@@ -1,8 +1,7 @@
-import { Injectable } from '@angular/core'
+import { Inject, Injectable } from '@angular/core'
 import {
   HttpService,
   Log,
-  LogsRes,
   Method,
   RPCError,
   RPCOptions,
@@ -14,20 +13,20 @@ import { ConfigService } from '../config.service'
 import { webSocket, WebSocketSubjectConfig } from 'rxjs/webSocket'
 import { Observable } from 'rxjs'
 import { AuthService } from '../auth.service'
+import { DOCUMENT } from '@angular/common'
+import { DataModel } from '../patch-db/data-model'
+import { Update } from 'patch-db-client'
 
 @Injectable()
 export class LiveApiService extends ApiService {
   constructor(
+    @Inject(DOCUMENT) private readonly document: Document,
     private readonly http: HttpService,
     private readonly config: ConfigService,
     private readonly auth: AuthService,
   ) {
     super()
     ; (window as any).rpcClient = this
-  }
-
-  openLogsWebsocket$(config: WebSocketSubjectConfig<Log>): Observable<Log> {
-    return webSocket(config)
   }
 
   async getStatic(url: string): Promise<string> {
@@ -80,6 +79,20 @@ export class LiveApiService extends ApiService {
   }
 
   // server
+
+  async echo(params: RR.EchoReq): Promise<RR.EchoRes> {
+    return this.rpcRequest({ method: 'echo', params })
+  }
+
+  openPatchWebsocket$(
+    config: WebSocketSubjectConfig<Update<DataModel>>,
+  ): Observable<Update<DataModel>> {
+    return this.openWebsocket(config)
+  }
+
+  openLogsWebsocket$(config: WebSocketSubjectConfig<Log>): Observable<Log> {
+    return this.openWebsocket(config)
+  }
 
   async getServerLogs(
     params: RR.GetServerLogsReq,
@@ -377,6 +390,16 @@ export class LiveApiService extends ApiService {
       method: 'package.sideload',
       params,
     })
+  }
+
+  private openWebsocket<T>(config: WebSocketSubjectConfig<T>): Observable<T> {
+    const protocol =
+      this.document.defaultView?.location.protocol === 'http:' ? 'ws' : 'wss'
+    const host = this.document.defaultView?.location.host
+
+    config.url = `${protocol}://${host}/ws${config.url}`
+
+    return webSocket(config)
   }
 
   private async rpcRequest<T>(options: RPCOptions): Promise<T> {

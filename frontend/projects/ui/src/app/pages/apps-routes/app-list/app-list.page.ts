@@ -6,6 +6,7 @@ import { filter, map, switchMap, take, takeUntil, tap } from 'rxjs/operators'
 import { isEmptyObject, exists, DestroyService } from '@start9labs/shared'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { parseDataModel, RecoveredInfo } from 'src/app/util/parse-data-model'
+import { ConnectionService } from 'src/app/services/connection.service'
 
 @Component({
   selector: 'app-list',
@@ -18,11 +19,12 @@ export class AppListPage {
   recoveredPkgs: readonly RecoveredInfo[] = []
   reordering = false
 
-  readonly connected$ = this.patch.connected$
+  readonly connected$ = this.connectionService.patchConnected$
 
   constructor(
     private readonly api: ApiService,
     private readonly destroy$: DestroyService,
+    private readonly connectionService: ConnectionService,
     private readonly patch: PatchDbService,
   ) {}
 

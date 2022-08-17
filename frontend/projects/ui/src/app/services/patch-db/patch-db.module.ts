@@ -1,19 +1,15 @@
 import { PatchDB } from 'patch-db-client'
 import { NgModule } from '@angular/core'
-import { DOCUMENT } from '@angular/common'
-import { WorkspaceConfig } from '@start9labs/shared'
-
 import {
   BOOTSTRAPPER,
-  mockSourceFactory,
   PATCH_CACHE,
   PATCH_SOURCE,
-  realSourceFactory,
+  sourceFactory,
 } from './patch-db.factory'
 import { LocalStorageBootstrap } from './local-storage-bootstrap'
 import { ApiService } from '../api/embassy-api.service'
-
-const { useMocks } = require('../../../../../../config.json') as WorkspaceConfig
+import { AuthService } from '../auth.service'
+import { ConnectionService } from '../connection.service'
 
 // This module is purely for providers organization purposes
 @NgModule({
@@ -24,12 +20,12 @@ const { useMocks } = require('../../../../../../config.json') as WorkspaceConfig
     },
     {
       provide: PATCH_SOURCE,
-      deps: [ApiService, DOCUMENT],
-      useFactory: useMocks ? mockSourceFactory : realSourceFactory,
+      deps: [ApiService, AuthService, ConnectionService],
+      useFactory: sourceFactory,
     },
     {
       provide: PatchDB,
-      deps: [PATCH_SOURCE, ApiService, PATCH_CACHE],
+      deps: [PATCH_SOURCE, PATCH_CACHE],
       useClass: PatchDB,
     },
   ],

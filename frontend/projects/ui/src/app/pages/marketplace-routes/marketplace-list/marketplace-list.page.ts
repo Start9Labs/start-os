@@ -9,13 +9,14 @@ import {
 
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { ConnectionService } from 'src/app/services/connection.service'
 
 @Component({
   selector: 'marketplace-list',
   templateUrl: './marketplace-list.page.html',
 })
 export class MarketplaceListPage {
-  readonly connected$ = this.patch.connected$
+  readonly connected$ = this.connectionService.patchConnected$
 
   readonly localPkgs$: Observable<Record<string, PackageDataEntry>> = this.patch
     .watch$('package-data')
@@ -41,5 +42,6 @@ export class MarketplaceListPage {
   constructor(
     private readonly patch: PatchDbService,
     private readonly marketplaceService: AbstractMarketplaceService,
+    private readonly connectionService: ConnectionService,
   ) {}
 }

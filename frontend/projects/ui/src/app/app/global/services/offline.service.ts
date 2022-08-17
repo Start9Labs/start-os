@@ -1,39 +1,58 @@
 import { Injectable } from '@angular/core'
 import { ToastController, ToastOptions } from '@ionic/angular'
 import { ToastButton } from '@ionic/core'
-import { EMPTY, from, Observable } from 'rxjs'
+import { combineLatest, EMPTY, from, Observable } from 'rxjs'
 import {
   debounceTime,
   distinctUntilChanged,
   filter,
   map,
+  startWith,
   switchMap,
   tap,
 } from 'rxjs/operators'
-
 import { AuthService } from 'src/app/services/auth.service'
 import {
   ConnectionFailure,
   ConnectionService,
 } from 'src/app/services/connection.service'
+import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 
 // Watch for connection status
 @Injectable()
 export class OfflineService extends Observable<unknown> {
   private current?: HTMLIonToastElement
 
-  private readonly connection$ = this.connectionService
+  private readonly connectionFailure$ = this.connectionService
     .watchFailure$()
     .pipe(distinctUntilChanged(), debounceTime(500))
+
+  private updateProgress$ = this.patch
+    .watch$('server-info', 'status-info', 'update-progress')
+    .pipe(startWith(null), distinctUntilChanged())
+
+  private failureInfo$ = combineLatest([
+    this.connectionFailure$,
+    this.updateProgress$,
+  ]).pipe(
+    map(([connectionFailure, progress]) => {
+      if (connectionFailure === ConnectionFailure.None) {
+        return null
+      } else if (!!progress && progress.downloaded === progress.size) {
+        return null
+      } else {
+        return { ...getMessage(connectionFailure) }
+      }
+    }),
+  )
 
   private readonly stream$ = this.authService.isVerified$.pipe(
     // Close on logout
     tap(() => this.current?.dismiss()),
-    switchMap(verified => (verified ? this.connection$ : EMPTY)),
+    switchMap(verified => (verified ? this.failureInfo$ : EMPTY)),
     // Close on change to connection state
     tap(() => this.current?.dismiss()),
-    filter(connection => connection !== ConnectionFailure.None),
-    map(getMessage),
+    filter(Boolean),
     switchMap(({ message, link }) =>
       this.getToast().pipe(
         tap(toast => {
@@ -50,6 +69,7 @@ export class OfflineService extends Observable<unknown> {
   constructor(
     private readonly authService: AuthService,
     private readonly connectionService: ConnectionService,
+    private readonly patch: PatchDbService,
     private readonly toastCtrl: ToastController,
   ) {
     super(subscriber => this.stream$.subscribe(subscriber))

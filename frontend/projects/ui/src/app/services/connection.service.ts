@@ -5,15 +5,39 @@ import {
   fromEvent,
   merge,
   Observable,
+  Subject,
 } from 'rxjs'
-import { PatchConnection, PatchDbService } from './patch-db/patch-db.service'
-import { distinctUntilChanged, map, startWith, tap } from 'rxjs/operators'
+import {
+  distinctUntilChanged,
+  filter,
+  map,
+  shareReplay,
+  startWith,
+  take,
+  tap,
+} from 'rxjs/operators'
 import { ConfigService } from './config.service'
+
+export enum PatchConnection {
+  Initializing = 'initializing',
+  Connected = 'connected',
+  Disconnected = 'disconnected',
+}
 
 @Injectable({
   providedIn: 'root',
 })
 export class ConnectionService {
+  private readonly patchDBConnectionError$ = new Subject<any>()
+  private readonly patchConnection$ = new BehaviorSubject<PatchConnection>(
+    PatchConnection.Initializing,
+  )
+  readonly patchConnected$ = this.watchPatchConnection$().pipe(
+    filter(status => status === PatchConnection.Connected),
+    take(1),
+    shareReplay(),
+  )
+
   private readonly networkState$ = merge(
     fromEvent(window, 'online').pipe(map(() => true)),
     fromEvent(window, 'offline').pipe(map(() => false)),
@@ -26,10 +50,7 @@ export class ConnectionService {
     ConnectionFailure.None,
   )
 
-  constructor(
-    private readonly configService: ConfigService,
-    private readonly patch: PatchDbService,
-  ) {}
+  constructor(private readonly configService: ConfigService) {}
 
   watchFailure$() {
     return this.connectionFailure$.asObservable()
@@ -46,18 +67,12 @@ export class ConnectionService {
       // 1
       this.networkState$.pipe(distinctUntilChanged()),
       // 2
-      this.patch.watchPatchConnection$().pipe(distinctUntilChanged()),
-      // 3
-      this.patch
-        .watch$('server-info', 'status-info', 'update-progress')
-        .pipe(startWith(null), distinctUntilChanged()),
+      this.watchPatchConnection$().pipe(distinctUntilChanged()),
     ]).pipe(
-      tap(([network, patchConnection, progress]) => {
+      tap(([network, patchConnection]) => {
         if (!network) {
           this.connectionFailure$.next(ConnectionFailure.Network)
         } else if (patchConnection !== PatchConnection.Disconnected) {
-          this.connectionFailure$.next(ConnectionFailure.None)
-        } else if (!!progress && progress.downloaded === progress.size) {
           this.connectionFailure$.next(ConnectionFailure.None)
         } else if (!this.configService.isTor()) {
           this.connectionFailure$.next(ConnectionFailure.Lan)
@@ -65,6 +80,21 @@ export class ConnectionService {
           this.connectionFailure$.next(ConnectionFailure.Tor)
         }
       }),
+    )
+  }
+
+  watchPatchConnection$(): Observable<PatchConnection> {
+    return this.patchConnection$.asObservable()
+  }
+
+  setPatchConnection(status: PatchConnection) {
+    this.patchConnection$.next(status)
+  }
+
+  setPatchError(e: any) {
+    this.patchDBConnectionError$.next(e)
+    this.patchConnection$.next(
+      e ? PatchConnection.Disconnected : PatchConnection.Connected,
     )
   }
 }

@@ -1,36 +1,90 @@
 import { InjectionToken } from '@angular/core'
-import { exists } from '@start9labs/shared'
-import { filter } from 'rxjs/operators'
-import {
-  Bootstrapper,
-  DBCache,
-  MockSource,
-  Source,
-  WebsocketSource,
-} from 'patch-db-client'
-
-import { MockApiService } from '../api/embassy-mock-api.service'
+import { catchError, retry, switchMap, tap, timeout } from 'rxjs/operators'
+import { Bootstrapper, DBCache, Update } from 'patch-db-client'
 import { DataModel } from './data-model'
+import { WebSocketSubjectConfig } from 'rxjs/webSocket'
+import { EMPTY, from, Observable } from 'rxjs'
+import { AuthService } from '../auth.service'
+import { ConnectionService } from '../connection.service'
+import { ApiService } from '../api/embassy-api.service'
 
-// [wsSources, pollSources]
-export const PATCH_SOURCE = new InjectionToken<Source<DataModel>>('')
+export const PATCH_SOURCE = new InjectionToken<Observable<Update<DataModel>>>(
+  '',
+)
 export const PATCH_CACHE = new InjectionToken<DBCache<DataModel>>('', {
   factory: () => ({} as any),
 })
 export const BOOTSTRAPPER = new InjectionToken<Bootstrapper<DataModel>>('')
 
-export function mockSourceFactory({
-  mockPatch$,
-}: MockApiService): Source<DataModel> {
-  return new MockSource<DataModel>(mockPatch$.pipe(filter(exists)))
+export function sourceFactory(
+  api: ApiService,
+  authService: AuthService,
+  connectionService: ConnectionService,
+): Observable<Update<DataModel>> {
+  const config: WebSocketSubjectConfig<Update<DataModel>> = {
+    url: `/db`,
+    closeObserver: {
+      next: val => {
+        if (val.reason === 'UNAUTHORIZED') {
+          authService.setUnverified()
+        }
+      },
+    },
+  }
+
+  const websocket$ = api.openPatchWebsocket$(config).pipe(
+    timeout({ first: 21000 }),
+    catchError((e, watch$) => {
+      connectionService.setPatchError(e)
+
+      return from(api.echo({ message: 'ping' })).pipe(
+        retry({ delay: 4000 }),
+        switchMap(() => watch$),
+      )
+    }),
+    tap(() => connectionService.setPatchError(null)),
+  )
+
+  return authService.isVerified$.pipe(
+    switchMap(verified => (verified ? websocket$ : EMPTY)),
+  )
 }
 
-export function realSourceFactory(
-  _: any,
-  { defaultView }: Document,
-): Source<DataModel> {
-  const host = defaultView?.location.host
-  const protocol = defaultView?.location.protocol === 'http:' ? 'ws' : 'wss'
+// export function mockSourceFactory(api: MockApiService): Observable<Update<DataModel>> {
+//   return api.mockPatch$
+// }
 
-  return new WebsocketSource<DataModel>(`${protocol}://${host}/ws/db`)
-}
+// export function realSourceFactory(
+//   api: ApiService,
+//   authService: AuthService,
+//   connectionService: ConnectionService,
+// ): Observable<Update<DataModel>> {
+
+//   const config: WebSocketSubjectConfig<Update<DataModel>> = {
+//     url: `/db`,
+//     closeObserver: {
+//       next: (val) => {
+//         if (val.reason === 'UNAUTHORIZED') {
+//           authService.setUnverified()
+//         }
+//       }
+//     }
+//   }
+
+//   const websocket$ = api.openPatchWebsocket$(config).pipe(
+//     timeout({ first: 21000 }),
+//     catchError((e, watch$) => {
+//       connectionService.setPatchDbError(e)
+
+//       return from(api.echo({ message: 'ping' })).pipe(
+//         retry({ delay: 4000 }),
+//         switchMap(() => watch$)
+//       )
+//     }),
+//     tap(() => connectionService.setPatchDbError(null))
+//   )
+
+//   return authService.isVerified$.pipe(
+//     switchMap(verified => verified ? websocket$ : EMPTY)
+//   )
+// }
