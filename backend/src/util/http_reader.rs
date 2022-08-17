@@ -1,3 +1,5 @@
+use std::cmp::min;
+use std::convert::TryFrom;
 use std::fmt::Display;
 use std::io::Error as StdIOError;
 use std::pin::Pin;
@@ -73,7 +75,7 @@ impl HttpReader {
                     }
                 }
             }
-            // None can mean just get entire contents.
+            // None can mean just get entire contents, but we currently error out
             None => {
                 return Err(Error::new(
                     eyre!(
@@ -113,9 +115,10 @@ impl HttpReader {
         http_url: Url,
         start: usize,
         len: usize,
+        total_bytes: usize,
     ) -> Result<Vec<u8>, Error> {
         let mut data = Vec::new();
-        let end = (start + len) - 1;
+        let end = min((start + len) - 1, total_bytes);
 
         match range_unit {
             Some(unit) => {
@@ -164,6 +167,7 @@ impl AsyncRead for HttpReader {
                 this.http_url.clone(),
                 *this.cursor_pos,
                 buf.remaining(),
+                *this.total_bytes,
             )
             .boxed()
         };
@@ -210,19 +214,95 @@ impl AsyncSeek for HttpReader {
 
         match position {
             std::io::SeekFrom::Start(pos) => {
-                *this.cursor_pos = pos as usize;
+                let pos_res = usize::try_from(pos);
+
+                match pos_res {
+                    Ok(pos) => {
+                        if pos > *this.total_bytes {
+                            StdIOError::new(
+                                std::io::ErrorKind::InvalidInput,
+                                format!(
+                                    "position: {} cannot be greater than {} bytes",
+                                    pos, *this.total_bytes
+                                ),
+                            );
+                        }
+                        *this.cursor_pos = pos;
+                    }
+                    Err(err) => return Err(StdIOError::new(std::io::ErrorKind::InvalidInput, err)),
+                }
                 Ok(())
             }
+            std::io::SeekFrom::Current(pos) => {
+                let original_pos = pos;
+                let pos_res = usize::try_from(pos);
+
+                match pos_res {
+                    Ok(pos) => {
+                        if pos > *this.total_bytes {
+                            StdIOError::new(
+                                std::io::ErrorKind::InvalidInput,
+                                format!(
+                                    "position: {} cannot be greater than {} bytes",
+                                    pos, *this.total_bytes
+                                ),
+                            );
+                        }
+                        let total_bytes_res = i64::try_from(*this.total_bytes);
+
+                        match total_bytes_res {
+                            Ok(total_bytes) => {
+                                let new_pos_res = usize::try_from(total_bytes - original_pos);
+
+                                match new_pos_res {
+                                    Ok(pos) => {
+                                        *this.cursor_pos = pos;
+                                    }
+                                    Err(err) => {
+                                        return Err(StdIOError::new(
+                                            std::io::ErrorKind::InvalidInput,
+                                            err,
+                                        ))
+                                    }
+                                }
+                            }
+                            Err(err) => {
+                                return Err(StdIOError::new(
+                                    std::io::ErrorKind::InvalidInput,
+                                    err))
+                            }
+                        }
+                    }
+                    Err(err) => { 
+                        return Err(StdIOError::new(
+                            std::io::ErrorKind::InvalidInput,
+                            err)) 
+                        },
+                }
+
+                Ok(())
+            }
+
             std::io::SeekFrom::End(pos) => {
-                // if the result of this < 0, it will error out
-                *this.cursor_pos -= pos as usize;
+                let pos_res = usize::try_from(pos);
+
+                match pos_res {
+                    Ok(pos) => {
+                        if pos > *this.total_bytes {
+                            StdIOError::new(
+                                std::io::ErrorKind::InvalidInput,
+                                format!(
+                                    "position: {} cannot be greater than {} bytes",
+                                    pos, *this.total_bytes
+                                ),
+                            );
+                        }
+                        *this.cursor_pos += pos;
+                    }
+                    Err(err) => return Err(StdIOError::new(std::io::ErrorKind::InvalidInput, err)),
+                }
                 Ok(())
             }
-            std::io::SeekFrom::Current(pos) => 
-            {
-                *this.cursor_pos = (*this.total_bytes as i64 - pos) as usize;
-                Ok(())
-            },
         }
     }
 
