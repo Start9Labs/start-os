@@ -122,7 +122,7 @@ impl HttpReader {
         }
 
         let mut data = Vec::new();
-        let end = min((start + len) - 1, total_bytes);
+        let end = min(start + len, total_bytes) - 1;
 
         match range_unit {
             Some(unit) => {
