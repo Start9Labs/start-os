@@ -9,7 +9,7 @@ use futures::FutureExt;
 use http::header::{ACCEPT_RANGES, CONTENT_LENGTH, RANGE};
 use pin_project::pin_project;
 use reqwest::{Client, Url};
-use tokio::io::{AsyncRead, AsyncReadExt};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek};
 
 use crate::{Error, ResultExt};
 
@@ -112,9 +112,11 @@ impl HttpReader {
         http_client: Client,
         http_url: Url,
         start: usize,
-        end: usize,
+        len: usize,
     ) -> Result<Vec<u8>, Error> {
         let mut data = Vec::new();
+        let end = (start + len) - 1;
+
         match range_unit {
             Some(unit) => {
                 let data_range = format!("{}={}-{} ", unit, start, end);
@@ -161,18 +163,17 @@ impl AsyncRead for HttpReader {
                 this.http_client.clone(),
                 this.http_url.clone(),
                 *this.cursor_pos,
-                *this.total_bytes,
+                buf.remaining(),
             )
             .boxed()
         };
-        
+
         let res_poll = fut.as_mut().poll(cx);
         println!("polling");
         println!("buf remaining: {}", buf.remaining());
         match res_poll {
             Poll::Ready(result) => match result {
                 Ok(data_chunk) => {
-
                     println!("data chunk: len: {}", data_chunk.len());
                     println!("buf filled len: {}", buf.filled().len());
                     if data_chunk.len() <= buf.remaining() {
@@ -181,27 +182,52 @@ impl AsyncRead for HttpReader {
 
                         Poll::Ready(Ok(()))
                     } else {
+                        println!("data chunk: len: {}", data_chunk.len());
+                        println!("buf filled len: {}", buf.filled().len());
                         buf.put_slice(&data_chunk);
 
                         Poll::Ready(Ok(()))
                     }
                 }
-                Err(err) => {
-                    Poll::Ready(Err(StdIOError::new(
-                        std::io::ErrorKind::Interrupted,
-                        Box::<dyn std::error::Error + Send + Sync>::from(err.source),
-                    )))
-                }
+                Err(err) => Poll::Ready(Err(StdIOError::new(
+                    std::io::ErrorKind::Interrupted,
+                    Box::<dyn std::error::Error + Send + Sync>::from(err.source),
+                ))),
             },
             Poll::Pending => {
                 println!("Pending...");
                 *this.read_in_progress = Some(fut);
-                
+
                 Poll::Pending
             }
         }
-        
+    }
+}
 
+impl AsyncSeek for HttpReader {
+    fn start_seek(self: Pin<&mut Self>, position: std::io::SeekFrom) -> std::io::Result<()> {
+        let this = self.project();
+
+        match position {
+            std::io::SeekFrom::Start(pos) => {
+                *this.cursor_pos = pos as usize;
+                Ok(())
+            }
+            std::io::SeekFrom::End(pos) => {
+                // if the result of this < 0, it will error out
+                *this.cursor_pos -= pos as usize;
+                Ok(())
+            }
+            std::io::SeekFrom::Current(pos) => 
+            {
+                *this.cursor_pos = (*this.total_bytes as i64 - pos) as usize;
+                Ok(())
+            },
+        }
+    }
+
+    fn poll_complete(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<std::io::Result<u64>> {
+        Poll::Ready(Ok(self.cursor_pos as u64))
     }
 }
 
@@ -217,5 +243,5 @@ async fn test() {
 
     println!("bytes read: {}", bytes_read);
 
-    println!("{}", String::from_utf8(buf).unwrap());
+    //println!("{}", String::from_utf8(buf).unwrap());
 }
