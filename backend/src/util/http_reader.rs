@@ -12,6 +12,7 @@ use http::header::{ACCEPT_RANGES, CONTENT_LENGTH, RANGE};
 use pin_project::pin_project;
 use reqwest::{Client, Url};
 use tokio::io::{AsyncRead, AsyncSeek};
+use tracing::trace;
 
 use crate::{Error, ResultExt};
 
@@ -117,17 +118,19 @@ impl HttpReader {
         len: usize,
         total_bytes: usize,
     ) -> Result<Vec<u8>, Error> {
-        if start > len {
-            return Ok(Vec::new());
-        }
 
-        let mut data = Vec::new();
+        let mut data = Vec::with_capacity(len);
+   
         let end = min(start + len, total_bytes) - 1;
+   
+        if start > len {
+            return Ok(data);
+        }
 
         match range_unit {
             Some(unit) => {
                 let data_range = format!("{}={}-{} ", unit, start, end);
-                println!("get range alive? {}", data_range);
+                trace!("get range alive? {}", data_range);
 
                 let data_resp = http_client
                     .get(http_url)
@@ -177,21 +180,18 @@ impl AsyncRead for HttpReader {
         };
 
         let res_poll = fut.as_mut().poll(cx);
-        println!("polling");
-        println!("buf remaining: {}", buf.remaining());
+        trace!("Polled with remaining bytes in buf: {}", buf.remaining());
         match res_poll {
             Poll::Ready(result) => match result {
                 Ok(data_chunk) => {
-                    println!("data chunk: len: {}", data_chunk.len());
-                    println!("buf filled len: {}", buf.filled().len());
+                    trace!("data chunk: len: {}", data_chunk.len());
+                    trace!("buf filled len: {}", buf.filled().len());
                     if data_chunk.len() <= buf.remaining() {
                         buf.put_slice(&data_chunk);
                         *this.cursor_pos += data_chunk.len();
 
                         Poll::Ready(Ok(()))
                     } else {
-                        println!("data chunk: len: {}", data_chunk.len());
-                        println!("buf filled len: {}", buf.filled().len());
                         buf.put_slice(&data_chunk);
 
                         Poll::Ready(Ok(()))
@@ -203,7 +203,6 @@ impl AsyncRead for HttpReader {
                 ))),
             },
             Poll::Pending => {
-                println!("Pending...");
                 *this.read_in_progress = Some(fut);
 
                 Poll::Pending
@@ -226,7 +225,7 @@ impl AsyncSeek for HttpReader {
                             StdIOError::new(
                                 std::io::ErrorKind::InvalidInput,
                                 format!(
-                                    "position: {} cannot be greater than {} bytes",
+                                    "The offset: {} cannot be greater than {} bytes",
                                     pos, *this.total_bytes
                                 ),
                             );
@@ -240,8 +239,8 @@ impl AsyncSeek for HttpReader {
             std::io::SeekFrom::Current(offset) => {
                 // We explicitly check if we read before byte 0.
                 let new_pos = i64::try_from(*this.cursor_pos)
-                    .map_err(|err| StdIOError::new(std::io::ErrorKind::InvalidInput, err))?
-                    + offset;
+                .map_err(|err| StdIOError::new(std::io::ErrorKind::InvalidInput, err))?
+                + offset;
 
                 if new_pos < 0 {
                     return Err(StdIOError::new(
@@ -250,17 +249,15 @@ impl AsyncSeek for HttpReader {
                     ));
                 }
 
-                *this.cursor_pos = usize::try_from(new_pos)
-                    .map_err(|err| StdIOError::new(std::io::ErrorKind::InvalidInput, err))?;
-
+                *this.cursor_pos = new_pos as usize;
                 Ok(())
             }
 
             std::io::SeekFrom::End(offset) => {
                 // We explicitly check if we read before byte 0.
                 let new_pos = i64::try_from(*this.total_bytes)
-                    .map_err(|err| StdIOError::new(std::io::ErrorKind::InvalidInput, err))?
-                    + offset;
+                .map_err(|err| StdIOError::new(std::io::ErrorKind::InvalidInput, err))?
+                + offset;
 
                 if new_pos < 0 {
                     return Err(StdIOError::new(
@@ -268,9 +265,8 @@ impl AsyncSeek for HttpReader {
                         "Can't read before byte 0",
                     ));
                 }
-                *this.cursor_pos = usize::try_from(new_pos)
-                    .map_err(|err| StdIOError::new(std::io::ErrorKind::InvalidInput, err))?;
 
+                *this.cursor_pos = new_pos as usize;
                 Ok(())
             }
         }
@@ -282,11 +278,11 @@ impl AsyncSeek for HttpReader {
 }
 
 #[tokio::test]
-async fn test() {
+async fn main_test() {
     use tokio::io::AsyncReadExt;
     let http_url = Url::parse("https://start9.com/latest/_static/css/main.css").unwrap();
 
-    println!("{}", http_url);
+    println!("Getting this resource: {}", http_url);
     let mut test_reader = HttpReader::new(http_url).await.unwrap();
 
     let mut buf = vec![0; test_reader.total_bytes];
