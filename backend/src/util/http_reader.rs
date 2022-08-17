@@ -233,6 +233,7 @@ impl AsyncSeek for HttpReader {
 
 #[tokio::test]
 async fn test() {
+    use tokio:io::AsyncReadExt;
     let http_url = Url::parse("https://start9.com/latest/_static/css/main.css").unwrap();
 
     println!("{}", http_url);
