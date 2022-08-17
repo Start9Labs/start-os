@@ -93,7 +93,7 @@ impl PackageProcedure {
                 } ;
                 let docker_procedure: DockerProcedure = (container, injectable).into();
                 docker_procedure
-                    .execute(ctx, pkg_id, pkg_version, name, volumes, input, timeout)
+                    .inject(ctx, pkg_id, pkg_version, name, volumes, input, timeout)
                     .await
             }
             #[cfg(feature = "js_engine")]
