@@ -1,0 +1,234 @@
+name: Backend
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+env:
+  RUST_VERSION: "1.62.1"
+
+jobs:
+  build_libs:
+    name: Build libs
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [x86_64, aarch64]
+        include:
+          - target: x86_64
+            snapshot_command: ./build-v8-snapshot.sh
+            artifact_name: js_snapshot
+            artifact_path: libs/js_engine/src/artifacts/JS_SNAPSHOT.bin
+          - target: aarch64
+            snapshot_command: ./build-arm-v8-snapshot.sh
+            artifact_name: arm_js_snapshot
+            artifact_path: libs/js_engine/src/artifacts/ARM_JS_SNAPSHOT.bin
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+        
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v1
+      if: ${{ matrix.target == 'aarch64' }}
+      
+    - name: Set up Docker Buildx        
+      uses: docker/setup-buildx-action@v1
+      if: ${{ matrix.target == 'aarch64' }}
+
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: ${{ env.RUST_VERSION }}
+        override: true
+      if: ${{ matrix.target == 'x86_64' }}
+    
+    - uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          libs/target/
+        key: ${{ runner.os }}-cargo-libs-${{ matrix.target }}-${{ hashFiles('libs/Cargo.lock') }}
+
+    - name: Build v8 snapshot
+      run: ${{ matrix.snapshot_command }}
+      working-directory: libs
+
+    - uses: actions/upload-artifact@v3
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: ${{ matrix.artifact_path }}
+
+  build_backend:
+    name: Build backend
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [x86_64, aarch64]
+        include:
+          - target: x86_64
+            snapshot_download: js_snapshot
+          - target: aarch64
+            snapshot_download: arm_js_snapshot
+    runs-on: ubuntu-latest
+    needs: build_libs
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+    
+    - name: Download ${{ matrix.snapshot_download }} artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: ${{ matrix.snapshot_download }}
+        path: libs/js_engine/src/artifacts/
+        
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: ${{ env.RUST_VERSION }}
+        override: true
+      if: ${{ matrix.target == 'x86_64' }}
+    
+    - uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          backend/target/
+        key: ${{ runner.os }}-cargo-backend-${{ matrix.target }}-${{ hashFiles('backend/Cargo.lock') }}
+
+    - name: Install dependencies
+      run: sudo apt-get install libavahi-client-dev
+      if: ${{ matrix.target == 'x86_64' }}
+
+    - name: Check Git Hash
+      run: ./check-git-hash.sh
+
+    - name: Check Environment
+      run: ./check-environment.sh
+
+    - name: Build backend
+      run: cargo build --release --target x86_64-unknown-linux-gnu
+      working-directory: backend
+      if: ${{ matrix.target == 'x86_64' }}
+
+    - name: Build backend
+      run: |
+        docker run --rm \
+        -v "/home/runner/.cargo/registry":/root/.cargo/registry \
+        -v "$(pwd)":/home/rust/src \
+        -P start9/rust-arm-cross:aarch64 \
+        sh -c 'cd /home/rust/src/backend &&
+          rustup install ${{ env.RUST_VERSION }} &&
+          rustup override set ${{ env.RUST_VERSION }} &&
+          rustup target add aarch64-unknown-linux-gnu &&
+          cargo build --release --target ${{ matrix.target }}-unknown-linux-gnu'
+      if: ${{ matrix.target == 'aarch64' }}
+
+    - name: 'Tar files to preserve file permissions'
+      run: tar -cvf backend-${{ matrix.target }}.tar ENVIRONMENT.txt GIT_HASH.txt backend/target/${{ matrix.target }}-unknown-linux-gnu/release/embassy*
+
+    - uses: actions/upload-artifact@v3
+      with:
+        name: backend-${{ matrix.target }}
+        path: backend-${{ matrix.target }}.tar
+    
+    - name: Install nextest
+      uses: taiki-e/install-action@nextest
+
+    - name: Build and archive tests
+      run: cargo nextest archive --archive-file nextest-archive-${{ matrix.target }}.tar.zst --target ${{ matrix.target }}-unknown-linux-gnu
+      working-directory: backend
+      if: ${{ matrix.target == 'x86_64' }}
+
+    - name: Build and archive tests
+      run: |
+        docker run --rm \
+        -v "$HOME/.cargo/registry":/root/.cargo/registry \
+        -v "$(pwd)":/home/rust/src \
+        -P start9/rust-arm-cross:aarch64 \
+        sh -c 'cd /home/rust/src/backend &&
+          rustup install ${{ env.RUST_VERSION }} &&
+          rustup override set ${{ env.RUST_VERSION }} &&
+          rustup target add aarch64-unknown-linux-gnu &&
+          curl -LsSf https://get.nexte.st/latest/linux | tar zxf - -C ${CARGO_HOME:-~/.cargo}/bin &&
+          cargo nextest archive --archive-file nextest-archive-${{ matrix.target }}.tar.zst --target ${{ matrix.target }}-unknown-linux-gnu'
+      if: ${{ matrix.target == 'aarch64' }}
+
+    - name: Reset permissions
+      run: sudo chown -R $USER target
+      working-directory: backend
+      if: ${{ matrix.target == 'aarch64' }}
+
+    - name: Upload archive to workflow
+      uses: actions/upload-artifact@v3
+      with:
+        name: nextest-archive-${{ matrix.target }}
+        path: backend/nextest-archive-${{ matrix.target }}.tar.zst
+
+  run_tests_backend:
+    name: Test backend
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [x86_64, aarch64]
+        include:
+          - target: x86_64
+          - target: aarch64
+    runs-on: ubuntu-latest
+    needs: build_backend
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v1
+      if: ${{ matrix.target == 'aarch64' }}
+
+    - name: Set up Docker Buildx        
+      uses: docker/setup-buildx-action@v1
+      if: ${{ matrix.target == 'aarch64' }}
+
+    - run: mkdir -p ~/.cargo/bin
+      if: ${{ matrix.target == 'x86_64' }}
+
+    - name: Install nextest
+      uses: taiki-e/install-action@nextest
+      if: ${{ matrix.target == 'x86_64' }}
+
+    - name: Download archive
+      uses: actions/download-artifact@v3
+      with:
+        name: nextest-archive-${{ matrix.target }}
+
+    - name: Download nextest (aarch64)
+      run: wget -O nextest-aarch64.tar.gz https://get.nexte.st/latest/linux-arm
+      if: ${{ matrix.target == 'aarch64' }}
+
+    - name: Run tests
+      run: |
+        ${CARGO_HOME:-~/.cargo}/bin/cargo-nextest nextest run --no-fail-fast --archive-file nextest-archive-${{ matrix.target }}.tar.zst \
+        -E 'not (test(system::test_get_temp) | test(net::tor::test) | test(system::test_get_disk_usage) | test(net::ssl::certificate_details_persist) | test(net::ssl::ca_details_persist))'
+      if: ${{ matrix.target == 'x86_64' }}
+
+    - name: Run tests
+      run: |
+        docker run --rm --platform linux/arm64/v8 \
+        -v "/home/runner/.cargo/registry":/usr/local/cargo/registry \
+        -v "$(pwd)":/home/rust/src \
+        -e CARGO_TERM_COLOR=${{ env.CARGO_TERM_COLOR }} \
+        -P ubuntu:20.04 \
+        sh -c 'cd /home/rust/src &&
+          mkdir -p ~/.cargo/bin &&
+          tar -zxvf nextest-aarch64.tar.gz -C ${CARGO_HOME:-~/.cargo}/bin &&
+          ${CARGO_HOME:-~/.cargo}/bin/cargo-nextest nextest run --archive-file nextest-archive-${{ matrix.target }}.tar.zst \
+          -E "not (test(system::test_get_temp) | test(net::tor::test) | test(system::test_get_disk_usage) | test(net::ssl::certificate_details_persist) | test(net::ssl::ca_details_persist) | test(procedure::js_scripts::js_action_fetch) )"'
+      if: ${{ matrix.target == 'aarch64' }}
