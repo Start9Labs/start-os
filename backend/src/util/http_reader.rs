@@ -285,16 +285,32 @@ impl AsyncSeek for HttpReader {
 
 #[tokio::test]
 async fn main_test() {
-    use tokio::io::AsyncReadExt;
     let http_url = Url::parse("https://start9.com/latest/_static/css/main.css").unwrap();
 
     println!("Getting this resource: {}", http_url);
     let mut test_reader = HttpReader::new(http_url).await.unwrap();
 
-    let mut buf = vec![0; test_reader.total_bytes];
-    let bytes_read = test_reader.read(&mut buf).await.unwrap();
+    let mut buf = Vec::new();
 
-    println!("bytes read: {}", bytes_read);
+    tokio::io::copy(&mut test_reader, &mut buf).await.unwrap();
 
-    //println!("{}", String::from_utf8(buf).unwrap());
+    assert_eq!(buf.len(), test_reader.total_bytes)
+}
+
+#[tokio::test]
+async fn s9pk_test() {
+    use tokio::io::BufReader;
+
+    let http_url = Url::parse("https://github.com/Start9Labs/hello-world-wrapper/releases/download/v0.3.0/hello-world.s9pk").unwrap();
+
+    println!("Getting this resource: {}", http_url);
+    let mut test_reader =
+        BufReader::with_capacity(1024 * 1024, HttpReader::new(http_url).await.unwrap());
+
+    let mut s9pk = crate::s9pk::reader::S9pkReader::from_reader(test_reader, true)
+        .await
+        .unwrap();
+
+    let manifest = s9pk.manifest().await.unwrap();
+    assert_eq!(&**manifest.id, "hello-world");
 }
