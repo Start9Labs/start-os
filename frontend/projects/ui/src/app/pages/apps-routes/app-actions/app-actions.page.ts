@@ -103,7 +103,7 @@ export class AppActionsPage {
       } else if (last) {
         statusesStr = `${last}`
       } else {
-        error = `There is state for which this action may be run. This is a bug. Please file an issue with the service maintainer.`
+        error = `There is no status for which this action may be run. This is a bug. Please file an issue with the service maintainer.`
       }
       const alert = await this.alertCtrl.create({
         header: 'Forbidden',
@@ -187,7 +187,7 @@ export class AppActionsPage {
         'action-id': actionId,
         input,
       })
-      this.modalCtrl.dismiss()
+
       const successModal = await this.modalCtrl.create({
         component: ActionSuccessPage,
         componentProps: {
@@ -195,8 +195,8 @@ export class AppActionsPage {
         },
       })
 
-      setTimeout(() => successModal.present(), 400)
-      return true
+      setTimeout(() => successModal.present(), 500)
+      return false
     } catch (e: any) {
       this.errToast.present(e)
       return false
