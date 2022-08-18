@@ -1,5 +1,6 @@
 import {
   AfterViewInit,
+  ChangeDetectionStrategy,
   Component,
   ContentChildren,
   ElementRef,
@@ -21,6 +22,7 @@ import { ToastButtonDirective } from './toast-button.directive'
     <ng-content select="[toastButton]"></ng-content>
   `,
   styles: [':host { display: none !important; }'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ToastComponent<T> implements AfterViewInit, OnDestroy {
   @Output()

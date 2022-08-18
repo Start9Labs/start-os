@@ -1,5 +1,6 @@
 import {
   AfterViewInit,
+  ChangeDetectionStrategy,
   Component,
   ContentChildren,
   ElementRef,
@@ -19,9 +20,11 @@ import { AlertInputDirective } from './alert-input.directive'
   selector: 'alert',
   template: `
     <div #message><ng-content></ng-content></div>
+    <ng-content select="[alertInput]"></ng-content>
     <ng-content select="[alertButton]"></ng-content>
   `,
   styles: [':host { display: none !important; }'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AlertComponent<T> implements AfterViewInit, OnDestroy {
   @Output()

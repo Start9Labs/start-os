@@ -9,7 +9,7 @@ export class AlertButtonDirective implements AlertButton {
   icon?: string
 
   @Input()
-  role?: 'cancel' | string
+  role?: 'cancel' | 'destructive' | string
 
   handler = () => {
     this.elementRef.nativeElement.click()
