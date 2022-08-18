@@ -52,8 +52,8 @@ export class PatchDbService {
 
     console.log('patchDB: WATCHING ', argsString)
 
-    return this.connectionService.watchPatchConnection$().pipe(
-      filter(status => status === PatchConnection.Connected),
+    return this.connectionService.patchConnected$.pipe(
+      filter(Boolean),
       take(1),
       switchMap(() => this.patchDb.store.watch$(...(args as []))),
       tap(data => console.log('patchDB: NEW VALUE', argsString, data)),

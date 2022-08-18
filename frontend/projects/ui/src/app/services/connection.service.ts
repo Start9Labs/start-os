@@ -7,15 +7,7 @@ import {
   Observable,
   Subject,
 } from 'rxjs'
-import {
-  distinctUntilChanged,
-  filter,
-  map,
-  shareReplay,
-  startWith,
-  take,
-  tap,
-} from 'rxjs/operators'
+import { distinctUntilChanged, map, tap } from 'rxjs/operators'
 import { ConfigService } from './config.service'
 
 export enum PatchConnection {
@@ -32,42 +24,36 @@ export class ConnectionService {
   private readonly patchConnection$ = new BehaviorSubject<PatchConnection>(
     PatchConnection.Initializing,
   )
-  readonly patchConnected$ = this.watchPatchConnection$().pipe(
-    filter(status => status === PatchConnection.Connected),
-    take(1),
-    shareReplay(),
-  )
-
   private readonly networkState$ = merge(
-    fromEvent(window, 'online').pipe(map(() => true)),
-    fromEvent(window, 'offline').pipe(map(() => false)),
+    fromEvent(window, 'online'),
+    fromEvent(window, 'offline'),
   ).pipe(
-    startWith(null),
     map(() => navigator.onLine),
+    distinctUntilChanged(),
   )
-
   private readonly connectionFailure$ = new BehaviorSubject<ConnectionFailure>(
     ConnectionFailure.None,
   )
 
+  readonly patchConnected$ = this.patchConnection$.pipe(
+    map(status => status === PatchConnection.Connected),
+  )
+
+  readonly watchFailure$ = this.connectionFailure$.pipe(distinctUntilChanged())
+
+  readonly watchDisconnected$ = this.connectionFailure$.pipe(
+    map(failure => failure !== ConnectionFailure.None),
+    distinctUntilChanged(),
+  )
+
   constructor(private readonly configService: ConfigService) {}
-
-  watchFailure$() {
-    return this.connectionFailure$.asObservable()
-  }
-
-  watchDisconnected$() {
-    return this.connectionFailure$.pipe(
-      map(failure => failure !== ConnectionFailure.None),
-    )
-  }
 
   start(): Observable<unknown> {
     return combineLatest([
       // 1
-      this.networkState$.pipe(distinctUntilChanged()),
+      this.networkState$,
       // 2
-      this.watchPatchConnection$().pipe(distinctUntilChanged()),
+      this.patchConnection$,
     ]).pipe(
       tap(([network, patchConnection]) => {
         if (!network) {
@@ -81,10 +67,6 @@ export class ConnectionService {
         }
       }),
     )
-  }
-
-  watchPatchConnection$(): Observable<PatchConnection> {
-    return this.patchConnection$.asObservable()
   }
 
   setPatchConnection(status: PatchConnection) {

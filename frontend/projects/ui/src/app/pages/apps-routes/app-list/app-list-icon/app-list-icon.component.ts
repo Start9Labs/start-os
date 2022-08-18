@@ -12,7 +12,7 @@ export class AppListIconComponent {
   @Input()
   pkg!: PkgInfo
 
-  disconnected$ = this.connectionService.watchDisconnected$()
+  readonly disconnected$ = this.connectionService.watchDisconnected$
 
   constructor(private readonly connectionService: ConnectionService) {}
 }

@@ -14,7 +14,7 @@ export class AuthService {
   private readonly LOGGED_IN_KEY = 'loggedInKey'
   private readonly authState$ = new ReplaySubject<AuthState>(1)
 
-  readonly isVerified$ = this.watch$().pipe(
+  readonly isVerified$ = this.authState$.pipe(
     map(state => state === AuthState.VERIFIED),
   )
 
@@ -25,16 +25,12 @@ export class AuthService {
     this.authState$.next(loggedIn ? AuthState.VERIFIED : AuthState.UNVERIFIED)
   }
 
-  watch$(): Observable<AuthState> {
-    return this.authState$.pipe(distinctUntilChanged())
-  }
-
   async setVerified(): Promise<void> {
     await this.storage.set(this.LOGGED_IN_KEY, true)
     this.authState$.next(AuthState.VERIFIED)
   }
 
-  async setUnverified(): Promise<void> {
+  setUnverified(): void {
     this.authState$.next(AuthState.UNVERIFIED)
   }
 }

@@ -37,7 +37,7 @@ export class AppShowStatusComponent {
 
   PR = PrimaryRendering
 
-  disconnected$ = this.connectionService.watchDisconnected$()
+  readonly disconnected$ = this.connectionService.watchDisconnected$
 
   constructor(
     private readonly alertCtrl: AlertController,

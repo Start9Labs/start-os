@@ -23,16 +23,12 @@ import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 export class OfflineService extends Observable<unknown> {
   private current?: HTMLIonToastElement
 
-  private readonly connectionFailure$ = this.connectionService
-    .watchFailure$()
-    .pipe(distinctUntilChanged(), debounceTime(500))
-
   private updateProgress$ = this.patch
     .watch$('server-info', 'status-info', 'update-progress')
     .pipe(startWith(null), distinctUntilChanged())
 
   private failureInfo$ = combineLatest([
-    this.connectionFailure$,
+    this.connectionService.watchFailure$,
     this.updateProgress$,
   ]).pipe(
     map(([connectionFailure, progress]) => {
