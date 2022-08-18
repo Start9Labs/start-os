@@ -115,9 +115,7 @@ export class MockApiService extends ApiService {
     return params.message
   }
 
-  openPatchWebsocket$(
-    config: WebSocketSubjectConfig<Update<DataModel>>,
-  ): Observable<Update<DataModel>> {
+  openPatchWebsocket$(): Observable<Update<DataModel>> {
     return this.mockPatch$
   }
 

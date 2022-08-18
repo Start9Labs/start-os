@@ -1,13 +1,11 @@
 import {
   ClassProvider,
   ExistingProvider,
-  Inject,
   InjectionToken,
   NgModule,
-  OnDestroy,
   Type,
 } from '@angular/core'
-import { merge, Observable } from 'rxjs'
+import { Observable } from 'rxjs'
 import { OfflineService } from './services/offline.service'
 import { LogoutService } from './services/logout.service'
 import { PatchMonitorService } from './services/patch-monitor.service'

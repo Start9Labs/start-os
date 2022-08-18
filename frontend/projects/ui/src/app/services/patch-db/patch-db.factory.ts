@@ -1,11 +1,10 @@
 import { InjectionToken } from '@angular/core'
-import { catchError, retry, switchMap, tap, timeout } from 'rxjs/operators'
+import { catchError, switchMap, take, tap } from 'rxjs/operators'
 import { Bootstrapper, DBCache, Update } from 'patch-db-client'
 import { DataModel } from './data-model'
-import { WebSocketSubjectConfig } from 'rxjs/webSocket'
-import { combineLatest, EMPTY, from, Observable, of } from 'rxjs'
+import { EMPTY, from, interval, Observable } from 'rxjs'
 import { AuthService } from '../auth.service'
-import { ConnectionFailure, ConnectionService } from '../connection.service'
+import { ConnectionService } from '../connection.service'
 import { ApiService } from '../api/embassy-api.service'
 
 export const PATCH_SOURCE = new InjectionToken<Observable<Update<DataModel>>>(
@@ -21,37 +20,22 @@ export function sourceFactory(
   authService: AuthService,
   connectionService: ConnectionService,
 ): Observable<Update<DataModel>> {
-  const config: WebSocketSubjectConfig<Update<DataModel>> = {
-    url: `/db`,
-    closeObserver: {
-      next: val => {
-        if (val.reason === 'UNAUTHORIZED') authService.setUnverified()
-      },
-    },
-  }
-
-  const websocket$ = api.openPatchWebsocket$(config).pipe(
-    timeout({ first: 21000 }),
+  const websocket$ = api.openPatchWebsocket$().pipe(
     catchError((e, watch$) => {
       connectionService.setPatchError(e)
 
-      return of('').pipe(
-        switchMap(() => from(api.echo({ message: 'ping' }))),
-        retry({ delay: 4000 }),
+      return interval(4000).pipe(
+        switchMap(() =>
+          from(api.echo({ message: 'ping' })).pipe(catchError(() => EMPTY)),
+        ),
+        take(1),
         switchMap(() => watch$),
       )
     }),
     tap(() => connectionService.setPatchError(null)),
   )
 
-  return combineLatest([
-    authService.isVerified$,
-    connectionService.watchFailure$,
-  ]).pipe(
-    switchMap(([verified, failure]) => {
-      return verified && failure !== ConnectionFailure.Network
-        ? websocket$
-        : EMPTY
-    }),
+  return authService.isVerified$.pipe(
+    switchMap(verified => (verified ? websocket$ : EMPTY)),
   )
 }

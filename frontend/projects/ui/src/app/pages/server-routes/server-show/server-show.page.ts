@@ -29,7 +29,7 @@ export class ServerShowPage {
 
   readonly server$ = this.patch.watch$('server-info')
   readonly ui$ = this.patch.watch$('ui')
-  readonly connected$ = this.connectionService.patchConnected$
+  readonly patchInitializing$ = this.connectionService.patchInitializing$
   readonly showUpdate$ = this.eosService.showUpdate$
   readonly showDiskRepair$ = this.localStorageService.showDiskRepair$
 

@@ -11,7 +11,7 @@ import { RR } from './api.types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { ConfigService } from '../config.service'
 import { webSocket, WebSocketSubjectConfig } from 'rxjs/webSocket'
-import { Observable } from 'rxjs'
+import { Observable, timeout } from 'rxjs'
 import { AuthService } from '../auth.service'
 import { DOCUMENT } from '@angular/common'
 import { DataModel } from '../patch-db/data-model'
@@ -84,10 +84,17 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'echo', params })
   }
 
-  openPatchWebsocket$(
-    config: WebSocketSubjectConfig<Update<DataModel>>,
-  ): Observable<Update<DataModel>> {
-    return this.openWebsocket(config)
+  openPatchWebsocket$(): Observable<Update<DataModel>> {
+    const config: WebSocketSubjectConfig<Update<DataModel>> = {
+      url: `/db`,
+      closeObserver: {
+        next: val => {
+          if (val.reason === 'UNAUTHORIZED') this.auth.setUnverified()
+        },
+      },
+    }
+
+    return this.openWebsocket(config).pipe(timeout({ first: 21000 }))
   }
 
   openLogsWebsocket$(config: WebSocketSubjectConfig<Log>): Observable<Log> {

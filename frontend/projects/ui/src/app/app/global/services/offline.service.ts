@@ -3,7 +3,6 @@ import { ToastController, ToastOptions } from '@ionic/angular'
 import { ToastButton } from '@ionic/core'
 import { combineLatest, EMPTY, from, Observable } from 'rxjs'
 import {
-  debounceTime,
   distinctUntilChanged,
   filter,
   map,
@@ -36,9 +35,9 @@ export class OfflineService extends Observable<unknown> {
         return null
       } else if (!!progress && progress.downloaded === progress.size) {
         return null
-      } else {
-        return getMessage(connectionFailure)
       }
+
+      return getMessage(connectionFailure)
     }),
   )
 
@@ -87,16 +86,11 @@ const TOAST: ToastOptions = {
 
 function getMessage(failure: ConnectionFailure): OfflineMessage {
   switch (failure) {
-    case ConnectionFailure.Network:
+    case ConnectionFailure.Client:
       return { message: 'Phone or computer has no network connection.' }
-    case ConnectionFailure.Tor:
+    case ConnectionFailure.Server:
       return {
-        message: 'Browser unable to connect over Tor.',
-        link: 'https://start9.com/latest/support/common-issues',
-      }
-    case ConnectionFailure.Lan:
-      return {
-        message: 'Embassy not found on Local Area Network.',
+        message: 'Cannot connect to Embassy server.',
         link: 'https://start9.com/latest/support/common-issues',
       }
     default:

@@ -16,7 +16,7 @@ import { ConnectionService } from 'src/app/services/connection.service'
   templateUrl: './marketplace-list.page.html',
 })
 export class MarketplaceListPage {
-  readonly connected$ = this.connectionService.patchConnected$
+  readonly patchInitializing$ = this.connectionService.patchInitializing$
 
   readonly localPkgs$: Observable<Record<string, PackageDataEntry>> = this.patch
     .watch$('package-data')

@@ -1,44 +1,35 @@
 import { Inject, Injectable } from '@angular/core'
 import { ModalController } from '@ionic/angular'
-import { Observable, of } from 'rxjs'
-import { filter, share, switchMap, take, tap } from 'rxjs/operators'
-import { isEmptyObject } from '@start9labs/shared'
-
+import { Observable } from 'rxjs'
+import { filter, share, take, tap } from 'rxjs/operators'
+import { exists, isEmptyObject } from '@start9labs/shared'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { DataModel, UIData } from 'src/app/services/patch-db/data-model'
 import { EOSService } from 'src/app/services/eos.service'
 import { OSWelcomePage } from 'src/app/modals/os-welcome/os-welcome.page'
 import { ConfigService } from 'src/app/services/config.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { PatchMonitorService } from './patch-monitor.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
-import { AbstractMarketplaceService } from '../../../../../../marketplace/src/services/marketplace.service'
+import { AbstractMarketplaceService } from '@start9labs/marketplace'
 
 // Get data from PatchDb after is starts and act upon it
 @Injectable({
   providedIn: 'root',
 })
-export class PatchDataService extends Observable<DataModel | null> {
-  private readonly stream$ = this.patchMonitor.pipe(
-    switchMap(started =>
-      started
-        ? this.patch.watch$().pipe(
-            filter(obj => !isEmptyObject(obj)),
-            take(1),
-            tap(({ ui }) => {
-              // check for updates to EOS and services
-              this.checkForUpdates(ui)
-              // show eos welcome message
-              this.showEosWelcome(ui['ack-welcome'])
-            }),
-          )
-        : of(null),
-    ),
+export class PatchDataService extends Observable<DataModel> {
+  private readonly stream$ = this.patch.watch$().pipe(
+    filter(obj => exists(obj) && !isEmptyObject(obj)),
+    take(1),
+    tap(({ ui }) => {
+      // check for updates to EOS and services
+      this.checkForUpdates(ui)
+      // show eos welcome message
+      this.showEosWelcome(ui['ack-welcome'])
+    }),
     share(),
   )
 
   constructor(
-    private readonly patchMonitor: PatchMonitorService,
     private readonly patch: PatchDbService,
     private readonly eosService: EOSService,
     private readonly config: ConfigService,

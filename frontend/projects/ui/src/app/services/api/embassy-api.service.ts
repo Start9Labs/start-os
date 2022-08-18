@@ -42,9 +42,7 @@ export abstract class ApiService {
 
   abstract echo(params: RR.EchoReq): Promise<RR.EchoRes>
 
-  abstract openPatchWebsocket$(
-    config: WebSocketSubjectConfig<Update<DataModel>>,
-  ): Observable<Update<DataModel>>
+  abstract openPatchWebsocket$(): Observable<Update<DataModel>>
 
   abstract openLogsWebsocket$(
     config: WebSocketSubjectConfig<Log>,

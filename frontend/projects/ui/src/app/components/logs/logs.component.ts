@@ -47,7 +47,7 @@ export class LogsComponent {
   isOnBottom = true
   autoScroll = true
   websocketFail = false
-  limit = 200
+  limit = 400
   toProcess: Log[] = []
 
   constructor(
@@ -61,7 +61,7 @@ export class LogsComponent {
   async ngOnInit() {
     try {
       const { 'start-cursor': startCursor, guid } = await this.followLogs({
-        limit: 100,
+        limit: this.limit,
       })
 
       this.startCursor = startCursor
@@ -153,7 +153,7 @@ export class LogsComponent {
   }
 
   private processJob() {
-    timer(0, 500)
+    timer(100, 500)
       .pipe(
         map((_, index) => index),
         takeUntil(this.destroy$),

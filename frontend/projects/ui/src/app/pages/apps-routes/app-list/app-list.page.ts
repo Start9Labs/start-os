@@ -19,7 +19,7 @@ export class AppListPage {
   recoveredPkgs: readonly RecoveredInfo[] = []
   reordering = false
 
-  readonly connected$ = this.connectionService.patchConnected$
+  readonly patchInitializing$ = this.connectionService.patchInitializing$
 
   constructor(
     private readonly api: ApiService,

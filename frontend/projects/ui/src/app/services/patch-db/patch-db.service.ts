@@ -27,7 +27,7 @@ export class PatchDbService {
     private readonly connectionService: ConnectionService,
   ) {}
 
-  async start(): Promise<void> {
+  start(): void {
     this.sub = this.patchDb.cache$
       .pipe(
         debounceTime(420),
@@ -52,8 +52,8 @@ export class PatchDbService {
 
     console.log('patchDB: WATCHING ', argsString)
 
-    return this.connectionService.patchConnected$.pipe(
-      filter(Boolean),
+    return this.connectionService.patchInitializing$.pipe(
+      filter(initializing => !initializing),
       take(1),
       switchMap(() => this.patchDb.store.watch$(...(args as []))),
       tap(data => console.log('patchDB: NEW VALUE', argsString, data)),

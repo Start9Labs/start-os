@@ -7,15 +7,16 @@
 </ion-header>
 
 <ion-content class="ion-padding">
-  <marketplace-list-content
-    *ngIf="connected$ | async else loading"
-    [localPkgs]="(localPkgs$ | async) || {}"
-    [pkgs]="pkgs$ | async"
-    [categories]="categories$ | async"
-    [name]="(name$ | async) || ''"
-  ></marketplace-list-content>
-
-  <ng-template #loading>
+  <ng-container *ngIf="patchInitializing$ | async else initialized">
     <text-spinner text="Connecting to Embassy"></text-spinner>
+  </ng-container>
+
+  <ng-template #initialized>
+    <marketplace-list-content
+      [localPkgs]="(localPkgs$ | async) || {}"
+      [pkgs]="pkgs$ | async"
+      [categories]="categories$ | async"
+      [name]="(name$ | async) || ''"
+    ></marketplace-list-content>
   </ng-template>
 </ion-content>

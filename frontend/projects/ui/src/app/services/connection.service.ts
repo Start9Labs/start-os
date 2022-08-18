@@ -7,8 +7,7 @@ import {
   Observable,
   Subject,
 } from 'rxjs'
-import { distinctUntilChanged, map, tap } from 'rxjs/operators'
-import { ConfigService } from './config.service'
+import { distinctUntilChanged, map, startWith, tap } from 'rxjs/operators'
 
 export enum PatchConnection {
   Initializing = 'initializing',
@@ -28,11 +27,16 @@ export class ConnectionService {
     fromEvent(window, 'online'),
     fromEvent(window, 'offline'),
   ).pipe(
+    startWith(null),
     map(() => navigator.onLine),
     distinctUntilChanged(),
   )
   private readonly connectionFailure$ = new BehaviorSubject<ConnectionFailure>(
     ConnectionFailure.None,
+  )
+
+  readonly patchInitializing$ = this.patchConnection$.pipe(
+    map(status => status === PatchConnection.Initializing),
   )
 
   readonly patchConnected$ = this.patchConnection$.pipe(
@@ -46,8 +50,6 @@ export class ConnectionService {
     distinctUntilChanged(),
   )
 
-  constructor(private readonly configService: ConfigService) {}
-
   start(): Observable<unknown> {
     return combineLatest([
       // 1
@@ -57,13 +59,11 @@ export class ConnectionService {
     ]).pipe(
       tap(([network, patchConnection]) => {
         if (!network) {
-          this.connectionFailure$.next(ConnectionFailure.Network)
+          this.connectionFailure$.next(ConnectionFailure.Client)
         } else if (patchConnection !== PatchConnection.Disconnected) {
           this.connectionFailure$.next(ConnectionFailure.None)
-        } else if (!this.configService.isTor()) {
-          this.connectionFailure$.next(ConnectionFailure.Lan)
         } else {
-          this.connectionFailure$.next(ConnectionFailure.Tor)
+          this.connectionFailure$.next(ConnectionFailure.Server)
         }
       }),
     )
@@ -83,7 +83,6 @@ export class ConnectionService {
 
 export enum ConnectionFailure {
   None = 'none',
-  Network = 'network',
-  Tor = 'tor',
-  Lan = 'lan',
+  Client = 'client',
+  Server = 'server',
 }

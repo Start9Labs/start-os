@@ -1,10 +1,12 @@
 <ion-header>
   <ion-toolbar>
-    <ion-title *ngIf="connected$ | async else loading">
-      {{ (ui$ | async)?.name || "Embassy-" + (server$ | async)?.id }}
-    </ion-title>
-    <ng-template #loading>
+    <ion-title *ngIf="patchInitializing$ | async else initializedTitle">
       <ion-title>Loading<span class="loading-dots"></span></ion-title>
+    </ion-title>
+    <ng-template #initializedTitle>
+      <ion-title>
+        {{ (ui$ | async)?.name || "Embassy-" + (server$ | async)?.id }}
+      </ion-title>
     </ng-template>
     <ion-buttons slot="end">
       <badge-menu-button></badge-menu-button>
@@ -13,13 +15,13 @@
 </ion-header>
 
 <ion-content class="ion-padding">
-  <!-- loading -->
-  <ng-template #spinner>
+  <!-- initializing -->
+  <ng-container *ngIf="patchInitializing$ | async else initialized">
     <text-spinner text="Connecting to Embassy"></text-spinner>
-  </ng-template>
+  </ng-container>
 
-  <!-- not loading -->
-  <ng-container *ngIf="connected$ | async else spinner">
+  <!-- initialized -->
+  <ng-template #initialized>
     <ion-item-group *ngIf="server$ | async as server">
       <div *ngFor="let cat of settings | keyvalue : asIsOrder">
         <ion-item-divider>
@@ -95,5 +97,5 @@
         </ng-container>
       </div>
     </ion-item-group>
-  </ng-container>
+  </ng-template>
 </ion-content>
