@@ -1,15 +1,12 @@
 import { Directive, ElementRef, Input } from '@angular/core'
-import { ToastButton } from '@ionic/angular'
+import { AlertButton } from '@ionic/angular'
 
 @Directive({
-  selector: `button[toastButton], a[toastButton]`,
+  selector: `button[alertButton], a[alertButton]`,
 })
-export class ToastButtonDirective implements ToastButton {
+export class AlertButtonDirective implements AlertButton {
   @Input()
   icon?: string
-
-  @Input()
-  side?: 'start' | 'end'
 
   @Input()
   role?: 'cancel' | string
@@ -22,11 +19,11 @@ export class ToastButtonDirective implements ToastButton {
 
   constructor(private readonly elementRef: ElementRef<HTMLElement>) {}
 
-  get text(): string | undefined {
-    return this.elementRef.nativeElement.textContent?.trim() || undefined
+  get text(): string {
+    return this.elementRef.nativeElement.textContent?.trim() || ''
   }
 
-  get cssClass(): string | string[] {
+  get cssClass(): string[] {
     return Array.from(this.elementRef.nativeElement.classList)
   }
 }

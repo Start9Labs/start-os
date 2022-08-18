@@ -10,14 +10,9 @@ import {
   QueryList,
   ViewChild,
 } from '@angular/core'
-import {
-  IonicSafeString,
-  ToastButton,
-  ToastController,
-  ToastOptions,
-} from '@ionic/angular'
+import { IonicSafeString, ToastController, ToastOptions } from '@ionic/angular'
 import { OverlayEventDetail } from '@ionic/core'
-import { ToastButtonDirective } from './toast-button.component'
+import { ToastButtonDirective } from './toast-button.directive'
 
 @Component({
   selector: 'toast',
@@ -27,9 +22,7 @@ import { ToastButtonDirective } from './toast-button.component'
   `,
   styles: [':host { display: none !important; }'],
 })
-export class ToastComponent<T>
-  implements ToastOptions, AfterViewInit, OnDestroy
-{
+export class ToastComponent<T> implements AfterViewInit, OnDestroy {
   @Output()
   readonly dismiss = new EventEmitter<OverlayEventDetail<T>>()
 
@@ -46,7 +39,7 @@ export class ToastComponent<T>
   private readonly content?: ElementRef<HTMLElement>
 
   @ContentChildren(ToastButtonDirective)
-  private readonly directives: QueryList<ToastButtonDirective> = new QueryList()
+  private readonly buttons: QueryList<ToastButtonDirective> = new QueryList()
 
   private toast?: HTMLIonToastElement
 
@@ -57,10 +50,6 @@ export class ToastComponent<T>
 
   get cssClass(): string[] {
     return Array.from(this.elementRef.nativeElement.classList)
-  }
-
-  get buttons(): ToastButton[] {
-    return this.directives.toArray()
   }
 
   get message(): IonicSafeString {
@@ -82,6 +71,13 @@ export class ToastComponent<T>
 
   private getOptions(): ToastOptions {
     const { header, message, duration, position, cssClass, buttons } = this
-    return { header, message, duration, position, cssClass, buttons }
+    return {
+      header,
+      message,
+      duration,
+      position,
+      cssClass,
+      buttons: buttons.toArray(),
+    }
   }
 }
