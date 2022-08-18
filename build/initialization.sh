@@ -67,6 +67,7 @@ systemctl disable wpa_supplicant.service
 ln -rsf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 
 systemctl disable bluetooth.service
+systemctl disable hciuart.service
 systemctl disable triggerhappy.service
 
 apt-get autoremove -y
