@@ -144,3 +144,6 @@ url = { version = "2.2.2", features = ["serde"] }
 
 [profile.dev.package.backtrace]
 opt-level = 3
+
+[profile.test]
+opt-level = 3
