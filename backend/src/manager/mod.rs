@@ -190,9 +190,7 @@ async fn run_main(
     let interfaces = states_main_interfaces(state)?;
     let generated_certificate = generate_certificate(state, &interfaces).await?;
 
-    if let Some(wait) = persistant.get_notify_wait().await {
-        wait.notified().await;
-    }
+    persistant.wait_for_persistant().await;
     let is_injectable_main = check_is_injectable_main(&state);
     let mut runtime = match is_injectable_main {
         true => {
@@ -512,23 +510,23 @@ async fn manager_thread_loop(
     }
 }
 
-#[derive(Clone)]
 struct PersistantContainer {
     container_name: String,
     running_docker:
         Arc<Mutex<Option<NonDetachingJoinHandle<Result<Result<NoOutput, (i32, String)>, Error>>>>>,
     should_stop_running: Arc<std::sync::atomic::AtomicBool>,
-    wait_for_start: Arc<Mutex<Option<Arc<Notify>>>>,
+    wait_for_start: (Sender<bool>, Receiver<bool>),
 }
 
 impl PersistantContainer {
     #[instrument(skip(thread_shared))]
     fn new(thread_shared: &Arc<ManagerSharedState>) -> Arc<Self> {
+        let wait_for_start = channel(false);
         let container = Arc::new(Self {
             container_name: thread_shared.container_name.clone(),
             running_docker: Arc::new(Mutex::new(None)),
             should_stop_running: Arc::new(AtomicBool::new(false)),
-            wait_for_start: Arc::new(Mutex::new(None)),
+            wait_for_start: wait_for_start,
         });
         tokio::spawn(persistant_container(
             thread_shared.clone(),
@@ -555,28 +553,21 @@ impl PersistantContainer {
         {}
     }
 
-    async fn get_notify_wait(&self) -> Option<Arc<Notify>> {
-        (&*self.wait_for_start.lock().await).clone()
+    async fn wait_for_persistant(&self) {
+        let mut changed_rx = self.wait_for_start.1.clone();
+        loop {
+            if !*changed_rx.borrow() {
+                return;
+            }
+            changed_rx.changed().await.unwrap();
+        }
     }
 
-    async fn new_notify_wait(&self) {
-        let mut wait_for_start = self.wait_for_start.lock().await;
-        let original_waiter = (&*wait_for_start).clone();
-        let new_notifier = Arc::new(Notify::new());
-        *wait_for_start = Some(new_notifier.clone());
-        tokio::spawn(async move {
-            new_notifier.notified().await;
-            if let Some(notify) = original_waiter {
-                notify.notify_waiters();
-            }
-        });
+    async fn start_wait(&self) {
+        self.wait_for_start.0.send(true).unwrap();
     }
-    async fn notify_started(&self) {
-        let mut wait_for_start = self.wait_for_start.lock().await;
-        if let Some(notify) = &*wait_for_start {
-            notify.notify_waiters();
-        }
-        *wait_for_start = None;
+    async fn done_waiting(&self) {
+        self.wait_for_start.0.send(false).unwrap();
     }
 }
 impl Drop for PersistantContainer {
@@ -607,7 +598,7 @@ async fn persistant_container(
             if container.should_stop_running.load(Ordering::SeqCst) {
                 return;
             }
-            container.new_notify_wait().await;
+            container.start_wait().await;
             match run_persistant_container(&thread_shared, container.clone(), main.clone()).await {
                 Ok(_) => (),
                 Err(e) => {
@@ -678,7 +669,7 @@ async fn run_persistant_container(
             return Ok(());
         }
     };
-    persistant.notify_started().await;
+    persistant.done_waiting().await;
     add_network_for_main(state, ip, interfaces, generated_certificate).await?;
 
     fetch_starting_to_running(state);
