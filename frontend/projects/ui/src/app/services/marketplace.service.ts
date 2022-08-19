@@ -18,6 +18,7 @@ import {
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import {
   catchError,
+  distinctUntilChanged,
   filter,
   map,
   shareReplay,
@@ -36,6 +37,9 @@ export class MarketplaceService extends AbstractMarketplaceService {
     this.patch.watch$('ui', 'marketplace').pipe(
       tap(data => console.log('HAHAHAHAHAHHAA', data)),
       filter(exists),
+      distinctUntilChanged(
+        (prev, curr) => prev['selected-id'] === curr['selected-id'],
+      ),
       shareReplay(1),
     )
 

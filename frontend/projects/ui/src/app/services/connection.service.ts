@@ -1,11 +1,6 @@
 import { Injectable } from '@angular/core'
-import { BehaviorSubject, combineLatest, fromEvent, merge, Subject } from 'rxjs'
-import {
-  distinctUntilChanged,
-  map,
-  shareReplay,
-  startWith,
-} from 'rxjs/operators'
+import { combineLatest, fromEvent, merge, ReplaySubject } from 'rxjs'
+import { distinctUntilChanged, map, startWith } from 'rxjs/operators'
 
 @Injectable({
   providedIn: 'root',
@@ -19,9 +14,9 @@ export class ConnectionService {
     map(() => navigator.onLine),
     distinctUntilChanged(),
   )
-  readonly websocketConnected$ = new Subject<boolean>()
+  readonly websocketConnected$ = new ReplaySubject<boolean>(1)
   readonly connected$ = combineLatest([
     this.networkConnected$,
-    this.websocketConnected$.pipe(shareReplay(1)),
+    this.websocketConnected$,
   ]).pipe(map(([network, websocket]) => network && websocket))
 }
