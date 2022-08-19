@@ -34,12 +34,12 @@ pub async fn fetch_properties(ctx: RpcContext, id: PackageId) -> Result<Value, E
         props
             .execute::<(), Value>(
                 &ctx,
+                &manifest.container,
                 &manifest.id,
                 &manifest.version,
                 ProcedureName::Properties,
                 &manifest.volumes,
                 None,
-                false,
                 None,
             )
             .await?

@@ -14,7 +14,6 @@ use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use crate::config::action::{ConfigActions, ConfigRes};
 use crate::config::spec::PackagePointerSpec;
 use crate::config::{not_found, Config, ConfigReceipts, ConfigSpec};
 use crate::context::RpcContext;
@@ -27,6 +26,10 @@ use crate::util::serde::display_serializable;
 use crate::util::{display_none, Version};
 use crate::volume::Volumes;
 use crate::Error;
+use crate::{
+    config::action::{ConfigActions, ConfigRes},
+    procedure::docker::DockerContainer,
+};
 
 #[command(subcommands(configure))]
 pub fn dependency() -> Result<(), Error> {
@@ -63,6 +66,7 @@ pub struct TryHealReceipts {
     manifest_version: LockReceipt<Version, String>,
     current_dependencies: LockReceipt<CurrentDependencies, String>,
     dependency_errors: LockReceipt<DependencyErrors, String>,
+    docker_container: LockReceipt<DockerContainer, String>,
 }
 
 impl TryHealReceipts {
@@ -110,6 +114,13 @@ impl TryHealReceipts {
             .map(|x| x.status().dependency_errors())
             .make_locker(LockType::Write)
             .add_to_keys(locks);
+        let docker_container = crate::db::DatabaseModel::new()
+            .package_data()
+            .star()
+            .installed()
+            .and_then(|x| x.manifest().container())
+            .make_locker(LockType::Write)
+            .add_to_keys(locks);
         move |skeleton_key| {
             Ok(Self {
                 status: status.verify(skeleton_key)?,
@@ -117,6 +128,7 @@ impl TryHealReceipts {
                 current_dependencies: current_dependencies.verify(skeleton_key)?,
                 manifest: manifest.verify(skeleton_key)?,
                 dependency_errors: dependency_errors.verify(skeleton_key)?,
+                docker_container: docker_container.verify(skeleton_key)?,
             })
         }
     }
@@ -193,6 +205,7 @@ impl DependencyError {
         receipts: &'a TryHealReceipts,
     ) -> BoxFuture<'a, Result<Option<Self>, Error>> {
         async move {
+            let container = receipts.docker_container.get(db, id).await?;
             Ok(match self {
                 DependencyError::NotInstalled => {
                     if receipts.status.get(db, dependency).await?.is_some() {
@@ -240,6 +253,7 @@ impl DependencyError {
                         cfg_info
                             .get(
                                 ctx,
+                                &container,
                                 dependency,
                                 &dependency_manifest.version,
                                 &dependency_manifest.volumes,
@@ -254,6 +268,7 @@ impl DependencyError {
                         if let Err(error) = cfg_req
                             .check(
                                 ctx,
+                                &container,
                                 id,
                                 &dependent_manifest.version,
                                 &dependent_manifest.volumes,
@@ -494,6 +509,7 @@ impl DependencyConfig {
     pub async fn check(
         &self,
         ctx: &RpcContext,
+        container: &Option<DockerContainer>,
         dependent_id: &PackageId,
         dependent_version: &Version,
         dependent_volumes: &Volumes,
@@ -503,6 +519,7 @@ impl DependencyConfig {
         Ok(self
             .check
             .sandboxed(
+                container,
                 ctx,
                 dependent_id,
                 dependent_version,
@@ -517,6 +534,7 @@ impl DependencyConfig {
     pub async fn auto_configure(
         &self,
         ctx: &RpcContext,
+        container: &Option<DockerContainer>,
         dependent_id: &PackageId,
         dependent_version: &Version,
         dependent_volumes: &Volumes,
@@ -524,6 +542,7 @@ impl DependencyConfig {
     ) -> Result<Config, Error> {
         self.auto_configure
             .sandboxed(
+                container,
                 ctx,
                 dependent_id,
                 dependent_version,
@@ -545,6 +564,7 @@ pub struct DependencyConfigReceipts {
     dependency_config_action: LockReceipt<ConfigActions, ()>,
     package_volumes: LockReceipt<Volumes, ()>,
     package_version: LockReceipt<Version, ()>,
+    docker_container: LockReceipt<DockerContainer, String>,
 }
 
 impl DependencyConfigReceipts {
@@ -607,6 +627,13 @@ impl DependencyConfigReceipts {
             .map(|x| x.manifest().version())
             .make_locker(LockType::Write)
             .add_to_keys(locks);
+        let docker_container = crate::db::DatabaseModel::new()
+            .package_data()
+            .star()
+            .installed()
+            .and_then(|x| x.manifest().container())
+            .make_locker(LockType::Write)
+            .add_to_keys(locks);
         move |skeleton_key| {
             Ok(Self {
                 config: config(skeleton_key)?,
@@ -616,6 +643,7 @@ impl DependencyConfigReceipts {
                 dependency_config_action: dependency_config_action.verify(&skeleton_key)?,
                 package_volumes: package_volumes.verify(&skeleton_key)?,
                 package_version: package_version.verify(&skeleton_key)?,
+                docker_container: docker_container.verify(&skeleton_key)?,
             })
         }
     }
@@ -690,6 +718,8 @@ pub async fn configure_logic(
     let dependency_version = receipts.dependency_version.get(db).await?;
     let dependency_volumes = receipts.dependency_volumes.get(db).await?;
     let dependencies = receipts.dependencies.get(db).await?;
+    let dependency_docker_container = receipts.docker_container.get(db, &*dependency_id).await?;
+    let pkg_docker_container = receipts.docker_container.get(db, &*pkg_id).await?;
 
     let dependency = dependencies
         .0
@@ -722,6 +752,7 @@ pub async fn configure_logic(
     } = dependency_config_action
         .get(
             &ctx,
+            &dependency_docker_container,
             &dependency_id,
             &dependency_version,
             &dependency_volumes,
@@ -740,6 +771,7 @@ pub async fn configure_logic(
     let new_config = dependency
         .auto_configure
         .sandboxed(
+            &pkg_docker_container,
             &ctx,
             &pkg_id,
             &pkg_version,
