@@ -22,7 +22,11 @@ export class AuthService {
 
   async init(): Promise<void> {
     const loggedIn = await this.storage.get(this.LOGGED_IN_KEY)
-    this.authState$.next(loggedIn ? AuthState.VERIFIED : AuthState.UNVERIFIED)
+    if (loggedIn) {
+      this.setVerified()
+    } else {
+      this.setUnverified()
+    }
   }
 
   async setVerified(): Promise<void> {
@@ -32,5 +36,6 @@ export class AuthService {
 
   setUnverified(): void {
     this.authState$.next(AuthState.UNVERIFIED)
+    this.storage.clear()
   }
 }

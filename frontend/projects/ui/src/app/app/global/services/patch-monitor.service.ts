@@ -1,5 +1,4 @@
 import { Injectable } from '@angular/core'
-import { Storage } from '@ionic/storage-angular'
 import { Observable } from 'rxjs'
 import { map, share } from 'rxjs/operators'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
@@ -18,7 +17,6 @@ export class PatchMonitorService extends Observable<boolean> {
       }
 
       this.patch.stop()
-      this.storage.clear()
 
       return false
     }),
@@ -28,7 +26,6 @@ export class PatchMonitorService extends Observable<boolean> {
   constructor(
     private readonly authService: AuthService,
     private readonly patch: PatchDbService,
-    private readonly storage: Storage,
   ) {
     super(subscriber => this.stream$.subscribe(subscriber))
   }
