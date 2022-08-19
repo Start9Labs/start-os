@@ -7,7 +7,6 @@ import {
 } from '@angular/core'
 import { Observable } from 'rxjs'
 import { OfflineService } from './services/offline.service'
-import { LogoutService } from './services/logout.service'
 import { PatchMonitorService } from './services/patch-monitor.service'
 import { PatchDataService } from './services/patch-data.service'
 import { UnreadToastService } from './services/unread-toast.service'
@@ -22,7 +21,6 @@ export const GLOBAL_SERVICE = new InjectionToken<
 @NgModule({
   providers: [
     [
-      LogoutService,
       OfflineService,
       RefreshToastService,
       UnreadToastService,
