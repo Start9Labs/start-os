@@ -10,7 +10,6 @@ import { OfflineService } from './services/offline.service'
 import { PatchMonitorService } from './services/patch-monitor.service'
 import { PatchDataService } from './services/patch-data.service'
 import { UnreadToastService } from './services/unread-toast.service'
-import { RefreshToastService } from './services/refresh-toast.service'
 import { UpdateToastService } from './services/update-toast.service'
 
 export const GLOBAL_SERVICE = new InjectionToken<
@@ -22,7 +21,6 @@ export const GLOBAL_SERVICE = new InjectionToken<
   providers: [
     [
       OfflineService,
-      RefreshToastService,
       UnreadToastService,
       UpdateToastService,
     ].map(useClass),
