@@ -14,7 +14,6 @@ use tokio::io::AsyncWriteExt;
 use tracing::instrument;
 
 use self::target::PackageBackupInfo;
-use crate::context::RpcContext;
 use crate::dependencies::reconfigure_dependents_with_live_pointers;
 use crate::id::ImageId;
 use crate::install::PKG_ARCHIVE_DIR;
@@ -25,6 +24,7 @@ use crate::util::serde::IoFormat;
 use crate::util::Version;
 use crate::version::{Current, VersionT};
 use crate::volume::{backup_dir, Volume, VolumeId, Volumes, BACKUP_DIR};
+use crate::{context::RpcContext, procedure::docker::DockerContainer};
 use crate::{Error, ErrorKind, ResultExt};
 
 pub mod backup_bulk;
@@ -73,15 +73,16 @@ pub struct BackupActions {
 impl BackupActions {
     pub fn validate(
         &self,
+        container: &Option<DockerContainer>,
         eos_version: &Version,
         volumes: &Volumes,
         image_ids: &BTreeSet<ImageId>,
     ) -> Result<(), Error> {
         self.create
-            .validate(eos_version, volumes, image_ids, false)
+            .validate(container, eos_version, volumes, image_ids, false)
             .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Backup Create"))?;
         self.restore
-            .validate(eos_version, volumes, image_ids, false)
+            .validate(container, eos_version, volumes, image_ids, false)
             .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Backup Restore"))?;
         Ok(())
     }
@@ -100,18 +101,30 @@ impl BackupActions {
         let mut volumes = volumes.to_readonly();
         volumes.insert(VolumeId::Backup, Volume::Backup { readonly: false });
         let backup_dir = backup_dir(pkg_id);
+        let container = crate::db::DatabaseModel::new()
+            .package_data()
+            .idx_model(&pkg_id)
+            .and_then(|p| p.installed())
+            .expect(db)
+            .await
+            .with_kind(crate::ErrorKind::NotFound)?
+            .manifest()
+            .container()
+            .get(db, false)
+            .await?
+            .to_owned();
         if tokio::fs::metadata(&backup_dir).await.is_err() {
             tokio::fs::create_dir_all(&backup_dir).await?
         }
         self.create
             .execute::<(), NoOutput>(
                 ctx,
+                &container,
                 pkg_id,
                 pkg_version,
                 ProcedureName::CreateBackup,
                 &volumes,
                 None,
-                false,
                 None,
             )
             .await?
@@ -186,6 +199,7 @@ impl BackupActions {
     #[instrument(skip(ctx, db, secrets))]
     pub async fn restore<Ex, Db: DbHandle>(
         &self,
+        container: &Option<DockerContainer>,
         ctx: &RpcContext,
         db: &mut Db,
         secrets: &mut Ex,
@@ -202,12 +216,12 @@ impl BackupActions {
         self.restore
             .execute::<(), NoOutput>(
                 ctx,
+                container,
                 pkg_id,
                 pkg_version,
                 ProcedureName::RestoreBackup,
                 &volumes,
                 None,
-                false,
                 None,
             )
             .await?

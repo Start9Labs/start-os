@@ -425,7 +425,7 @@ async fn test() {
         fn(AsyncEvent<'static>) -> BoxFuture<'static, Result<(), ConnError>>,
     > = conn.into_authenticated().await;
     let tor_key = torut::onion::TorSecretKeyV3::generate();
-    dbg!(connection.get_conf("SocksPort").await.unwrap());
+    connection.get_conf("SocksPort").await.unwrap();
     connection
         .add_onion_v3(
             &tor_key,
