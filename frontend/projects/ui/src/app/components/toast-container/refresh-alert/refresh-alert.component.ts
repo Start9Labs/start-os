@@ -1,4 +1,4 @@
-import { Component, Inject } from '@angular/core'
+import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
 import { Observable, Subject, merge } from 'rxjs'
 
 import { RefreshAlertService } from './refresh-alert.service'
@@ -6,6 +6,7 @@ import { RefreshAlertService } from './refresh-alert.service'
 @Component({
   selector: 'refresh-alert',
   templateUrl: './refresh-alert.component.html',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RefreshAlertComponent {
   private readonly dismiss$ = new Subject<boolean>()
