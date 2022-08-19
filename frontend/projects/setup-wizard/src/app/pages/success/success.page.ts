@@ -16,8 +16,6 @@ import { StateService } from 'src/app/services/state.service'
 })
 export class SuccessPage {
   @Output() onDownload = new EventEmitter()
-  torOpen = false
-  lanOpen = false
 
   constructor(
     @Inject(DOCUMENT) private readonly document: Document,
@@ -67,14 +65,6 @@ export class SuccessPage {
       duration: 1000,
     })
     await toast.present()
-  }
-
-  toggleTor() {
-    this.torOpen = !this.torOpen
-  }
-
-  toggleLan() {
-    this.lanOpen = !this.lanOpen
   }
 
   installCert() {

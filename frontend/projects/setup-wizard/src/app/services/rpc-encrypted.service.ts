@@ -15,13 +15,13 @@ import {
   providedIn: 'root',
 })
 export class RPCEncryptedService {
-  productKey?: string
+  secret?: string
 
   constructor(private readonly http: HttpService) {}
 
   async rpcRequest<T>(opts: Omit<RPCOptions, 'timeout'>): Promise<T> {
     const encryptedBody = await AES_CTR.encryptPbkdf2(
-      this.productKey || '',
+      this.secret || '',
       encodeUtf8(JSON.stringify(opts)),
     )
 
@@ -36,7 +36,7 @@ export class RPCEncryptedService {
           'Content-Type': 'application/json',
         },
       })
-      .then(body => AES_CTR.decryptPbkdf2(this.productKey || '', body))
+      .then(body => AES_CTR.decryptPbkdf2(this.secret || '', body))
       .then(res => JSON.parse(res))
       .catch(e => {
         if (!e.status && !e.statusText) {

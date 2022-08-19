@@ -11,9 +11,6 @@ import { pauseFor, ErrorToastService } from '@start9labs/shared'
   providedIn: 'root',
 })
 export class StateService {
-  hasProductKey = false
-  isMigrating = false
-
   polling = false
   embassyLoaded = false
 

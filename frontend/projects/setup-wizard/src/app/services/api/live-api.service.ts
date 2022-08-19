@@ -65,13 +65,6 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async verifyProductKey() {
-    return this.encrypted.rpcRequest<void>({
-      method: 'echo',
-      params: { message: 'hello' },
-    })
-  }
-
   async importDrive(params: ImportDriveReq) {
     const res = await this.encrypted.rpcRequest<SetupEmbassyRes>({
       method: 'setup.attach',

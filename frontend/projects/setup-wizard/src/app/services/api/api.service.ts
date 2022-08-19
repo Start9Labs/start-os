@@ -7,14 +7,12 @@ export abstract class ApiService {
 
   // encrypted
   abstract verifyCifs(cifs: CifsRecoverySource): Promise<EmbassyOSRecoveryInfo> // setup.cifs.verify
-  abstract verifyProductKey(): Promise<void> // echo - throws error if invalid
   abstract importDrive(importInfo: ImportDriveReq): Promise<SetupEmbassyRes> // setup.attach
   abstract setupEmbassy(setupInfo: SetupEmbassyReq): Promise<SetupEmbassyRes> // setup.execute
   abstract setupComplete(): Promise<SetupEmbassyRes> // setup.complete
 }
 
 export type GetStatusRes = {
-  'product-key': boolean
   migrating: boolean
 }
 

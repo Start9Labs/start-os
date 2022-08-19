@@ -22,7 +22,6 @@ export class MockApiService extends ApiService {
   async getStatus() {
     await pauseFor(1000)
     return {
-      'product-key': true,
       migrating: false,
     }
   }
@@ -82,11 +81,6 @@ export class MockApiService extends ApiService {
         '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
       'wrapped-key': '',
     }
-  }
-
-  async verifyProductKey() {
-    await pauseFor(1000)
-    return
   }
 
   async importDrive(params: ImportDriveReq) {
