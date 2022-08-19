@@ -2,42 +2,32 @@ import { Injectable } from '@angular/core'
 import { ToastController, ToastOptions } from '@ionic/angular'
 import { ToastButton } from '@ionic/core'
 import { combineLatest, EMPTY, from, Observable } from 'rxjs'
-import {
-  distinctUntilChanged,
-  filter,
-  map,
-  startWith,
-  switchMap,
-  tap,
-} from 'rxjs/operators'
+import { filter, map, switchMap, tap } from 'rxjs/operators'
 import { AuthService } from 'src/app/services/auth.service'
-import {
-  ConnectionFailure,
-  ConnectionService,
-} from 'src/app/services/connection.service'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { ConnectionService } from 'src/app/services/connection.service'
+
+interface OfflineMessage {
+  readonly message: string
+  readonly link?: string
+}
 
 // Watch for connection status
 @Injectable()
 export class OfflineService extends Observable<unknown> {
   private current?: HTMLIonToastElement
 
-  private updateProgress$ = this.patch
-    .watch$('server-info', 'status-info', 'update-progress')
-    .pipe(startWith(null), distinctUntilChanged())
-
-  private failureInfo$ = combineLatest([
-    this.connectionService.watchFailure$,
-    this.updateProgress$,
+  private failureInfo$: Observable<OfflineMessage | null> = combineLatest([
+    this.connectionService.networkConnected$,
+    this.connectionService.websocketConnected$,
   ]).pipe(
-    map(([connectionFailure, progress]) => {
-      if (connectionFailure === ConnectionFailure.None) {
-        return null
-      } else if (!!progress && progress.downloaded === progress.size) {
-        return null
-      }
-
-      return getMessage(connectionFailure)
+    map(([network, websocket]) => {
+      if (!network) return { message: 'No Internet' }
+      if (!websocket)
+        return {
+          message: 'Connecting to Embassy...',
+          link: 'https://start9.com/latest/support/common-issues',
+        }
+      return null
     }),
   )
 
@@ -64,7 +54,6 @@ export class OfflineService extends Observable<unknown> {
   constructor(
     private readonly authService: AuthService,
     private readonly connectionService: ConnectionService,
-    private readonly patch: PatchDbService,
     private readonly toastCtrl: ToastController,
   ) {
     super(subscriber => this.stream$.subscribe(subscriber))
@@ -82,20 +71,6 @@ const TOAST: ToastOptions = {
   position: 'bottom',
   duration: 0,
   buttons: [],
-}
-
-function getMessage(failure: ConnectionFailure): OfflineMessage {
-  switch (failure) {
-    case ConnectionFailure.Client:
-      return { message: 'Phone or computer has no network connection.' }
-    case ConnectionFailure.Server:
-      return {
-        message: 'Cannot connect to Embassy server.',
-        link: 'https://start9.com/latest/support/common-issues',
-      }
-    default:
-      return { message: '' }
-  }
 }
 
 function getButtons(link?: string): ToastButton[] {
@@ -119,9 +94,4 @@ function getButtons(link?: string): ToastButton[] {
   }
 
   return buttons
-}
-
-interface OfflineMessage {
-  readonly message: string
-  readonly link?: string
 }

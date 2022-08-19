@@ -1,12 +1,11 @@
 import { Component } from '@angular/core'
 import { Observable } from 'rxjs'
-import { filter, first, map, startWith, switchMap } from 'rxjs/operators'
+import { filter, first, map, switchMap } from 'rxjs/operators'
 import { exists, isEmptyObject } from '@start9labs/shared'
 import {
   AbstractMarketplaceService,
   MarketplacePkg,
 } from '@start9labs/marketplace'
-
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { ConnectionService } from 'src/app/services/connection.service'
@@ -16,14 +15,11 @@ import { ConnectionService } from 'src/app/services/connection.service'
   templateUrl: './marketplace-list.page.html',
 })
 export class MarketplaceListPage {
-  readonly patchInitializing$ = this.connectionService.patchInitializing$
+  connected$ = this.connectionService.connected$
 
   readonly localPkgs$: Observable<Record<string, PackageDataEntry>> = this.patch
     .watch$('package-data')
-    .pipe(
-      filter(data => exists(data) && !isEmptyObject(data)),
-      startWith({}),
-    )
+    .pipe(filter(data => exists(data) && !isEmptyObject(data)))
 
   readonly categories$ = this.marketplaceService.getCategories()
 

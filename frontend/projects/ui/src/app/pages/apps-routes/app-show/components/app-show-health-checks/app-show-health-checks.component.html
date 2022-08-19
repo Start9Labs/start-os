@@ -3,19 +3,10 @@
 >
   <ng-container *ngIf="checks.length">
     <ion-item-divider>Health Checks</ion-item-divider>
-    <ng-container *ngIf="disconnected$ | async; else connected">
+    <!-- connected -->
+    <ng-container *ngIf="connected$ | async; else disconnected">
       <ion-item *ngFor="let health of checks">
-        <ion-avatar slot="start">
-          <ion-skeleton-text class="avatar"></ion-skeleton-text>
-        </ion-avatar>
-        <ion-label>
-          <ion-skeleton-text class="label"></ion-skeleton-text>
-          <ion-skeleton-text class="description"></ion-skeleton-text>
-        </ion-label>
-      </ion-item>
-    </ng-container>
-    <ng-template #connected>
-      <ion-item *ngFor="let health of checks">
+        <!-- result -->
         <ng-container *ngIf="health.value?.result as result; else noResult">
           <ion-spinner
             *ngIf="isLoading(result)"
@@ -69,6 +60,7 @@
             </ion-text>
           </ion-label>
         </ng-container>
+        <!-- no result -->
         <ng-template #noResult>
           <ion-spinner
             class="icon-spinner"
@@ -82,6 +74,18 @@
             <p class="primary">Awaiting result...</p>
           </ion-label>
         </ng-template>
+      </ion-item>
+    </ng-container>
+    <!-- disconnected -->
+    <ng-template #disconnected>
+      <ion-item *ngFor="let health of checks">
+        <ion-avatar slot="start">
+          <ion-skeleton-text class="avatar"></ion-skeleton-text>
+        </ion-avatar>
+        <ion-label>
+          <ion-skeleton-text class="label"></ion-skeleton-text>
+          <ion-skeleton-text class="description"></ion-skeleton-text>
+        </ion-label>
       </ion-item>
     </ng-template>
   </ng-container>

@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@angular/core'
 import { ModalController } from '@ionic/angular'
 import { Observable } from 'rxjs'
-import { filter, share, take, tap } from 'rxjs/operators'
+import { filter, share, switchMap, take, tap } from 'rxjs/operators'
 import { exists, isEmptyObject } from '@start9labs/shared'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { DataModel, UIData } from 'src/app/services/patch-db/data-model'
@@ -11,13 +11,16 @@ import { ConfigService } from 'src/app/services/config.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
+import { ConnectionService } from 'src/app/services/connection.service'
 
 // Get data from PatchDb after is starts and act upon it
 @Injectable({
   providedIn: 'root',
 })
 export class PatchDataService extends Observable<DataModel> {
-  private readonly stream$ = this.patch.watch$().pipe(
+  private readonly stream$ = this.connectionService.connected$.pipe(
+    filter(Boolean),
+    switchMap(() => this.patch.watch$()),
     filter(obj => exists(obj) && !isEmptyObject(obj)),
     take(1),
     tap(({ ui }) => {
@@ -37,6 +40,7 @@ export class PatchDataService extends Observable<DataModel> {
     private readonly embassyApi: ApiService,
     @Inject(AbstractMarketplaceService)
     private readonly marketplaceService: MarketplaceService,
+    private readonly connectionService: ConnectionService,
   ) {
     super(subscriber => this.stream$.subscribe(subscriber))
   }

@@ -21,8 +21,8 @@ export function sourceFactory(
   connectionService: ConnectionService,
 ): Observable<Update<DataModel>> {
   const websocket$ = api.openPatchWebsocket$().pipe(
-    catchError((e, watch$) => {
-      connectionService.setPatchError(e)
+    catchError((_, watch$) => {
+      connectionService.websocketConnected$.next(false)
 
       return interval(4000).pipe(
         switchMap(() =>
@@ -32,7 +32,7 @@ export function sourceFactory(
         switchMap(() => watch$),
       )
     }),
-    tap(() => connectionService.setPatchError(null)),
+    tap(() => connectionService.websocketConnected$.next(true)),
   )
 
   return authService.isVerified$.pipe(

@@ -9,12 +9,12 @@
 
 <ion-content class="ion-padding">
   <!-- loading -->
-  <ng-container *ngIf="patchInitializing$ | async else initialized">
+  <ng-container *ngIf="loading else loaded">
     <text-spinner text="Connecting to Embassy"></text-spinner>
   </ng-container>
 
-  <!-- not loading -->
-  <ng-template #initialized>
+  <!-- loaded -->
+  <ng-template #loaded>
     <app-list-empty
       *ngIf="empty; else list"
       class="ion-text-center ion-padding"

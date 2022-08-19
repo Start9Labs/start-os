@@ -6,7 +6,6 @@ import { filter, map, switchMap, take, takeUntil, tap } from 'rxjs/operators'
 import { isEmptyObject, exists, DestroyService } from '@start9labs/shared'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { parseDataModel, RecoveredInfo } from 'src/app/util/parse-data-model'
-import { ConnectionService } from 'src/app/services/connection.service'
 
 @Component({
   selector: 'app-list',
@@ -15,16 +14,14 @@ import { ConnectionService } from 'src/app/services/connection.service'
   providers: [DestroyService],
 })
 export class AppListPage {
+  loading = true
   pkgs: readonly PackageDataEntry[] = []
   recoveredPkgs: readonly RecoveredInfo[] = []
   reordering = false
 
-  readonly patchInitializing$ = this.connectionService.patchInitializing$
-
   constructor(
     private readonly api: ApiService,
     private readonly destroy$: DestroyService,
-    private readonly connectionService: ConnectionService,
     private readonly patch: PatchDbService,
   ) {}
 
@@ -40,6 +37,7 @@ export class AppListPage {
         take(1),
         map(parseDataModel),
         tap(({ pkgs, recoveredPkgs }) => {
+          this.loading = false
           this.pkgs = pkgs
           this.recoveredPkgs = recoveredPkgs
         }),

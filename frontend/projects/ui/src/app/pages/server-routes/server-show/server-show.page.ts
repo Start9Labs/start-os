@@ -9,14 +9,12 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActivatedRoute } from '@angular/router'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { Observable, of } from 'rxjs'
-import { filter, take } from 'rxjs/operators'
-import { exists, isEmptyObject, ErrorToastService } from '@start9labs/shared'
+import { tap } from 'rxjs/operators'
+import { isEmptyObject, ErrorToastService } from '@start9labs/shared'
 import { EOSService } from 'src/app/services/eos.service'
 import { LocalStorageService } from 'src/app/services/local-storage.service'
-import { RecoveredPackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { OSUpdatePage } from 'src/app/modals/os-update/os-update.page'
 import { getAllPackages } from '../../../util/get-package-data'
-import { ConnectionService } from 'src/app/services/connection.service'
 
 @Component({
   selector: 'server-show',
@@ -27,9 +25,12 @@ export class ServerShowPage {
   hasRecoveredPackage = false
   clicks = 0
 
-  readonly server$ = this.patch.watch$('server-info')
-  readonly ui$ = this.patch.watch$('ui')
-  readonly patchInitializing$ = this.connectionService.patchInitializing$
+  readonly patch$ = this.patch.watch$().pipe(
+    tap(data => {
+      this.hasRecoveredPackage = !isEmptyObject(data['recovered-packages'])
+    }),
+  )
+
   readonly showUpdate$ = this.eosService.showUpdate$
   readonly showDiskRepair$ = this.localStorageService.showDiskRepair$
 
@@ -44,17 +45,7 @@ export class ServerShowPage {
     private readonly patch: PatchDbService,
     private readonly eosService: EOSService,
     private readonly localStorageService: LocalStorageService,
-    private readonly connectionService: ConnectionService,
   ) {}
-
-  ngOnInit() {
-    this.patch
-      .watch$('recovered-packages')
-      .pipe(filter(exists), take(1))
-      .subscribe((rps: { [id: string]: RecoveredPackageDataEntry }) => {
-        this.hasRecoveredPackage = !isEmptyObject(rps)
-      })
-  }
 
   async updateEos(): Promise<void> {
     if (this.hasRecoveredPackage) {

@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { Emver, ErrorToastService } from '@start9labs/shared'
+import { Emver, ErrorToastService, exists } from '@start9labs/shared'
 import {
   MarketplacePkg,
   AbstractMarketplaceService,
@@ -32,17 +32,21 @@ export class MarketplaceService extends AbstractMarketplaceService {
   private readonly notes = new Map<string, Record<string, string>>()
   private readonly hasPackages$ = new Subject<boolean>()
 
-  private readonly uiMarketplaceData$: Observable<
-    UIMarketplaceData | undefined
-  > = this.patch.watch$('ui', 'marketplace').pipe(shareReplay(1))
+  private readonly uiMarketplaceData$: Observable<UIMarketplaceData> =
+    this.patch.watch$('ui', 'marketplace').pipe(
+      tap(data => console.log('HAHAHAHAHAHHAA', data)),
+      filter(exists),
+      shareReplay(1),
+    )
 
   private readonly marketplace$ = this.uiMarketplaceData$.pipe(
+    tap(data => console.log('LALALALALALALALA', data)),
     map(data => this.toMarketplace(data)),
   )
 
   private readonly serverInfo$: Observable<ServerInfo> = this.patch
     .watch$('server-info')
-    .pipe(take(1), shareReplay())
+    .pipe(filter(exists), take(1), shareReplay())
 
   private readonly registryData$: Observable<MarketplaceData> =
     this.uiMarketplaceData$.pipe(
