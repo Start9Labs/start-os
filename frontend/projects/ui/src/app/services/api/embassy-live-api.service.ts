@@ -400,9 +400,9 @@ export class LiveApiService extends ApiService {
   }
 
   private openWebsocket<T>(config: WebSocketSubjectConfig<T>): Observable<T> {
-    const protocol =
-      this.document.defaultView?.location.protocol === 'http:' ? 'ws' : 'wss'
-    const host = this.document.defaultView?.location.host
+    const { location } = this.document.defaultView!
+    const protocol = location.protocol === 'http:' ? 'ws' : 'wss'
+    const host = location.host
 
     config.url = `${protocol}://${host}/ws${config.url}`
 
