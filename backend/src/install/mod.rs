@@ -1318,6 +1318,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             .manifest
             .migrations
             .to(
+                &prev.manifest.container,
                 ctx,
                 version,
                 pkg_id,
@@ -1328,6 +1329,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         let migration = manifest
             .migrations
             .from(
+                &manifest.container,
                 ctx,
                 &prev.manifest.version,
                 pkg_id,
@@ -1411,6 +1413,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
         manifest
             .backup
             .restore(
+                &manifest.container,
                 ctx,
                 &mut tx,
                 &mut sql_tx,
@@ -1518,11 +1521,14 @@ async fn handle_recovered_package(
     tx: &mut patch_db::Transaction<&mut patch_db::PatchDbHandle>,
     receipts: &ConfigReceipts,
 ) -> Result<(), Error> {
-    let configured = if let Some(migration) =
-        manifest
-            .migrations
-            .from(ctx, &recovered.version, pkg_id, version, &manifest.volumes)
-    {
+    let configured = if let Some(migration) = manifest.migrations.from(
+        &manifest.container,
+        ctx,
+        &recovered.version,
+        pkg_id,
+        version,
+        &manifest.volumes,
+    ) {
         migration.await?.configured
     } else {
         false

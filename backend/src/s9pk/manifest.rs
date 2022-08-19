@@ -6,7 +6,6 @@ use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-use crate::action::Actions;
 use crate::backup::BackupActions;
 use crate::config::action::ConfigActions;
 use crate::dependencies::Dependencies;
@@ -18,6 +17,7 @@ use crate::util::Version;
 use crate::version::{Current, VersionT};
 use crate::volume::Volumes;
 use crate::Error;
+use crate::{action::Actions, procedure::docker::DockerContainer};
 
 fn current_version() -> Version {
     Current::new().semver().into()
@@ -70,6 +70,8 @@ pub struct Manifest {
     #[serde(default)]
     #[model]
     pub dependencies: Dependencies,
+    #[model]
+    pub container: Option<DockerContainer>,
 }
 
 impl Manifest {

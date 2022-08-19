@@ -1,6 +1,12 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use bollard::image::ListImagesOptions;
+use color_eyre::Report;
+use futures::FutureExt;
 use patch_db::{DbHandle, LockReceipt, LockTargetId, LockType, PatchDbHandle, Verifier};
 use sqlx::{Executor, Postgres};
 use tracing::instrument;
@@ -359,6 +365,14 @@ where
         packages.0.remove(id);
         packages
     };
+    let dependents_paths: Vec<PathBuf> = entry
+        .current_dependents
+        .0
+        .keys()
+        .flat_map(|x| packages.0.get(x))
+        .flat_map(|x| x.manifest_borrow().volumes.values())
+        .flat_map(|x| x.pointer_path(&ctx.datadir))
+        .collect();
     receipts.packages.set(&mut tx, packages).await?;
     // once we have removed the package entry, we can change all the dependent pointers to null
     reconfigure_dependents_with_live_pointers(ctx, &mut tx, &receipts.config, &entry).await?;
@@ -382,11 +396,11 @@ where
         .datadir
         .join(crate::volume::PKG_VOLUME_DIR)
         .join(&entry.manifest.id);
-    if tokio::fs::metadata(&volumes).await.is_ok() {
-        tokio::fs::remove_dir_all(&volumes).await?;
-    }
-    tx.commit().await?;
+
+    tracing::debug!("Cleaning up {:?} at {:?}", volumes, dependents_paths);
+    cleanup_folder(volumes, Arc::new(dependents_paths)).await;
     remove_tor_keys(secrets, &entry.manifest.id).await?;
+    tx.commit().await?;
     Ok(())
 }
 
@@ -400,4 +414,43 @@ where
         .execute(secrets)
         .await?;
     Ok(())
+}
+
+/// Needed to remove, without removing the folders that are mounted in the other docker containers
+pub fn cleanup_folder(
+    path: PathBuf,
+    dependents_volumes: Arc<Vec<PathBuf>>,
+) -> futures::future::BoxFuture<'static, ()> {
+    Box::pin(async move {
+        let meta_data = match tokio::fs::metadata(&path).await {
+            Ok(a) => a,
+            Err(e) => {
+                return;
+            }
+        };
+        if !meta_data.is_dir() {
+            tracing::error!("is_not dir, remove {:?}", path);
+            let _ = tokio::fs::remove_file(&path).await;
+            return;
+        }
+        if !dependents_volumes
+            .iter()
+            .any(|v| v.starts_with(&path) || v == &path)
+        {
+            tracing::error!("No parents, remove {:?}", path);
+            let _ = tokio::fs::remove_dir_all(&path).await;
+            return;
+        }
+        let mut read_dir = match tokio::fs::read_dir(&path).await {
+            Ok(a) => a,
+            Err(e) => {
+                return;
+            }
+        };
+        tracing::error!("Parents, recurse {:?}", path);
+        while let Some(entry) = read_dir.next_entry().await.ok().flatten() {
+            let entry_path = entry.path();
+            cleanup_folder(entry_path, dependents_volumes.clone()).await;
+        }
+    })
 }
