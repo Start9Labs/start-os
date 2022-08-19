@@ -113,7 +113,14 @@ pub async fn check<Db: DbHandle>(
     let health_results = if let Some(started) = started {
         manifest
             .health_checks
-            .check_all(ctx, started, id, &manifest.version, &manifest.volumes)
+            .check_all(
+                ctx,
+                &manifest.container,
+                started,
+                id,
+                &manifest.version,
+                &manifest.volumes,
+            )
             .await?
     } else {
         return Ok(());

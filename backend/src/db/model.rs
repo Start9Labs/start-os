@@ -240,6 +240,15 @@ impl PackageDataEntry {
             PackageDataEntry::Installed { manifest, .. } => manifest,
         }
     }
+    pub fn manifest_borrow(&self) -> &Manifest {
+        match self {
+            PackageDataEntry::Installing { manifest, .. } => manifest,
+            PackageDataEntry::Updating { manifest, .. } => manifest,
+            PackageDataEntry::Restoring { manifest, .. } => manifest,
+            PackageDataEntry::Removing { manifest, .. } => manifest,
+            PackageDataEntry::Installed { manifest, .. } => manifest,
+        }
+    }
 }
 impl PackageDataEntryModel {
     pub fn installed(self) -> OptionModel<InstalledPackageDataEntry> {
