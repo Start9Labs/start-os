@@ -229,7 +229,9 @@ jobs:
         -v "$(pwd)":/home/rust/src \
         -e CARGO_TERM_COLOR=${{ env.CARGO_TERM_COLOR }} \
         -P ubuntu:20.04 \
-        sh -c 'cd /home/rust/src &&
+        sh -c '
+          apt install ca-certificates &&
+          cd /home/rust/src &&
           mkdir -p ~/.cargo/bin &&
           tar -zxvf nextest-aarch64.tar.gz -C ${CARGO_HOME:-~/.cargo}/bin &&
           ${CARGO_HOME:-~/.cargo}/bin/cargo-nextest nextest run --archive-file nextest-archive-${{ matrix.target }}.tar.zst \
