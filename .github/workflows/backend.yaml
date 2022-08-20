@@ -231,7 +231,7 @@ jobs:
         -P ubuntu:20.04 \
         sh -c '
           apt update &&
-          apt install ca-certificates &&
+          apt install -y ca-certificates &&
           cd /home/rust/src &&
           mkdir -p ~/.cargo/bin &&
           tar -zxvf nextest-aarch64.tar.gz -C ${CARGO_HOME:-~/.cargo}/bin &&
