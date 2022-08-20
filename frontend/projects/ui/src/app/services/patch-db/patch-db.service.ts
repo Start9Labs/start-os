@@ -1,7 +1,8 @@
 import { Inject, Injectable } from '@angular/core'
 import { Bootstrapper, PatchDB, Store } from 'patch-db-client'
 import { Observable, of, Subscription } from 'rxjs'
-import { catchError, debounceTime, finalize, tap } from 'rxjs/operators'
+import { catchError, debounceTime, filter, finalize, tap } from 'rxjs/operators'
+import { exists } from '@start9labs/shared'
 import { DataModel } from './data-model'
 import { BOOTSTRAPPER } from './patch-db.factory'
 
@@ -51,4 +52,8 @@ export class PatchDbService {
       finalize(() => console.log('patchDB: UNSUBSCRIBING', argsString)),
     )
   }
+
+  readonly serverInfo$ = this.watch$('server-info').pipe(filter(exists))
+  readonly packageData$ = this.watch$('package-data').pipe(filter(exists))
+  readonly ui$ = this.watch$('ui').pipe(filter(exists))
 }

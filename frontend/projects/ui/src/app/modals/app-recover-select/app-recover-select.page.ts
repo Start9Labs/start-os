@@ -21,7 +21,7 @@ export class AppRecoverSelectPage {
   @Input() password!: string
   @Input() oldPassword?: string
 
-  readonly packageData$ = this.patch.watch$('package-data')
+  readonly packageData$ = this.patch.packageData$
 
   hasSelection = false
   error: string | IonicSafeString = ''

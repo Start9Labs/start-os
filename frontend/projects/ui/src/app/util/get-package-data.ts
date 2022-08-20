@@ -1,4 +1,3 @@
-import { first } from 'rxjs/operators'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { firstValueFrom } from 'rxjs'
@@ -13,5 +12,5 @@ export function getPackage(
 export function getAllPackages(
   patch: PatchDbService,
 ): Promise<Record<string, PackageDataEntry>> {
-  return firstValueFrom(patch.watch$('package-data'))
+  return firstValueFrom(patch.packageData$)
 }

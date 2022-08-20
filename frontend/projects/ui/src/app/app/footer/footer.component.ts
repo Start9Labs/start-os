@@ -1,5 +1,4 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-
+import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { heightCollapse } from '../../util/animations'
 import { PatchDbService } from '../../services/patch-db/patch-db.service'
 import { map } from 'rxjs/operators'

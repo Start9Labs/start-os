@@ -35,7 +35,6 @@ export class MarketplaceService extends AbstractMarketplaceService {
 
   private readonly uiMarketplaceData$: Observable<UIMarketplaceData> =
     this.patch.watch$('ui', 'marketplace').pipe(
-      tap(data => console.log('HAHAHAHAHAHHAA', data)),
       filter(exists),
       distinctUntilChanged(
         (prev, curr) => prev['selected-id'] === curr['selected-id'],
@@ -44,25 +43,23 @@ export class MarketplaceService extends AbstractMarketplaceService {
     )
 
   private readonly marketplace$ = this.uiMarketplaceData$.pipe(
-    tap(data => console.log('LALALALALALALALA', data)),
     map(data => this.toMarketplace(data)),
   )
 
-  private readonly serverInfo$: Observable<ServerInfo> = this.patch
-    .watch$('server-info')
-    .pipe(filter(exists), take(1), shareReplay())
+  private readonly serverInfo$: Observable<ServerInfo> =
+    this.patch.serverInfo$.pipe(take(1), shareReplay())
 
   private readonly registryData$: Observable<MarketplaceData> =
     this.uiMarketplaceData$.pipe(
-      switchMap(uiMarketplaceData =>
+      switchMap(data =>
         this.serverInfo$.pipe(
           switchMap(({ id }) =>
             from(
               this.getMarketplaceData(
                 { 'server-id': id },
-                this.toMarketplace(uiMarketplaceData).url,
+                this.toMarketplace(data).url,
               ),
-            ).pipe(tap(({ name }) => this.updateName(uiMarketplaceData, name))),
+            ).pipe(tap(({ name }) => this.updateName(data, name))),
           ),
         ),
       ),
@@ -102,7 +99,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
   private readonly updates$: Observable<MarketplacePkg[]> =
     this.hasPackages$.pipe(
       switchMap(() =>
-        this.patch.watch$('package-data').pipe(
+        this.patch.packageData$.pipe(
           switchMap(localPkgs =>
             this.pkgs$.pipe(
               map(pkgs => {
@@ -134,7 +131,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
     return this.marketplace$
   }
 
-  getAltMarketplace(): Observable<UIMarketplaceData | undefined> {
+  getAltMarketplaceData(): Observable<UIMarketplaceData> {
     return this.uiMarketplaceData$
   }
 

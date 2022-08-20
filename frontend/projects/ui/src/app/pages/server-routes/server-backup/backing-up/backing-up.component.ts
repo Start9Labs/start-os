@@ -15,7 +15,7 @@ import { Observable } from 'rxjs'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BackingUpComponent {
-  readonly pkgs$ = this.patch.watch$('package-data').pipe(take(1))
+  readonly pkgs$ = this.patch.packageData$.pipe(take(1))
   readonly backupProgress$ = this.patch.watch$(
     'server-info',
     'status-info',

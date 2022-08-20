@@ -10,7 +10,7 @@ import { copyToClipboard } from '@start9labs/shared'
   styleUrls: ['./server-specs.page.scss'],
 })
 export class ServerSpecsPage {
-  readonly server$ = this.patch.watch$('server-info')
+  readonly server$ = this.patch.serverInfo$
 
   constructor(
     private readonly toastCtrl: ToastController,

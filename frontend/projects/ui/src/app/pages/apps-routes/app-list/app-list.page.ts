@@ -60,8 +60,8 @@ export class AppListPage {
   }
 
   private watchNewlyRecovered(): Observable<unknown> {
-    return this.patch.watch$('package-data').pipe(
-      filter(pkgs => !!pkgs && Object.keys(pkgs).length !== this.pkgs.length),
+    return this.patch.packageData$.pipe(
+      filter(pkgs => Object.keys(pkgs).length !== this.pkgs.length),
       tap(pkgs => {
         const ids = Object.keys(pkgs)
         const newIds = ids.filter(

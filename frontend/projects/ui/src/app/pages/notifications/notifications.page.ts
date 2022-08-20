@@ -27,7 +27,7 @@ export class NotificationsPage {
   needInfinite = false
   fromToast = false
   readonly perPage = 40
-  readonly packageData$ = this.patch.watch$('package-data')
+  readonly packageData$ = this.patch.packageData$
 
   constructor(
     private readonly embassyApi: ApiService,

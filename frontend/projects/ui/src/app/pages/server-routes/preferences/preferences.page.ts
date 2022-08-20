@@ -21,8 +21,8 @@ import { LocalStorageService } from '../../../services/local-storage.service'
 export class PreferencesPage {
   clicks = 0
 
-  readonly ui$ = this.patch.watch$('ui')
-  readonly server$ = this.patch.watch$('server-info')
+  readonly ui$ = this.patch.ui$
+  readonly server$ = this.patch.serverInfo$
 
   constructor(
     private readonly loadingCtrl: LoadingController,

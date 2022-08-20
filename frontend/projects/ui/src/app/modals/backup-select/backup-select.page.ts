@@ -26,8 +26,7 @@ export class BackupSelectPage {
   ) {}
 
   ngOnInit() {
-    this.patch
-      .watch$('package-data')
+    this.patch.packageData$
       .pipe(
         map(pkgs => {
           return Object.values(pkgs).map(pkg => {

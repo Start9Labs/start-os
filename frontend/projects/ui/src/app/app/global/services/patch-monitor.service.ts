@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
 import { Observable } from 'rxjs'
-import { map, share } from 'rxjs/operators'
+import { map } from 'rxjs/operators'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { AuthService } from 'src/app/services/auth.service'
 
@@ -15,12 +15,9 @@ export class PatchMonitorService extends Observable<boolean> {
         this.patch.start()
         return true
       }
-
       this.patch.stop()
-
       return false
     }),
-    share(),
   )
 
   constructor(

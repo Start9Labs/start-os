@@ -9,7 +9,7 @@ import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 })
 export class LANPage {
   readonly downloadIsDisabled = !this.config.isTor()
-  readonly server$ = this.patch.watch$('server-info')
+  readonly server$ = this.patch.serverInfo$
 
   constructor(
     private readonly config: ConfigService,
