@@ -235,5 +235,5 @@ jobs:
           mkdir -p ~/.cargo/bin &&
           tar -zxvf nextest-aarch64.tar.gz -C ${CARGO_HOME:-~/.cargo}/bin &&
           ${CARGO_HOME:-~/.cargo}/bin/cargo-nextest nextest run --archive-file nextest-archive-${{ matrix.target }}.tar.zst \
-          -E "not (test(system::test_get_temp) | test(net::tor::test) | test(system::test_get_disk_usage) | test(net::ssl::certificate_details_persist) | test(net::ssl::ca_details_persist) | test(procedure::js_scripts::js_action_fetch) )"'
+          -E "not (test(system::test_get_temp) | test(net::tor::test) | test(system::test_get_disk_usage) | test(net::ssl::certificate_details_persist) | test(net::ssl::ca_details_persist))"'
       if: ${{ matrix.target == 'aarch64' }}
