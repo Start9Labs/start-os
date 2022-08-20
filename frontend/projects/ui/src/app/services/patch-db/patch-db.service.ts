@@ -19,6 +19,11 @@ export class PatchDbService {
   ) {}
 
   start(): void {
+    // Early return if already started
+    if (this.sub) {
+      return
+    }
+
     console.log('patchDB: STARTING')
     this.sub = this.patchDb.cache$
       .pipe(
@@ -31,9 +36,14 @@ export class PatchDbService {
   }
 
   stop(): void {
+    // Early return if already stopped
+    if (!this.sub) {
+      return
+    }
+
     console.log('patchDB: STOPPING')
     this.patchDb.store.reset()
-    this.sub?.unsubscribe()
+    this.sub.unsubscribe()
     this.sub = undefined
   }
 

@@ -11,10 +11,7 @@ import { OfflineMessage, OfflineToastService } from './offline-toast.service'
 export class OfflineToastComponent {
   private readonly dismiss$ = new Subject<null>()
 
-  readonly message$: Observable<OfflineMessage | null> = merge(
-    this.dismiss$,
-    this.failure$,
-  )
+  readonly message$ = merge(this.dismiss$, this.failure$)
 
   constructor(
     @Inject(OfflineToastService)
