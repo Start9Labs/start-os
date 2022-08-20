@@ -1,0 +1,17 @@
+<toast
+  *ngIf="visible$ | async as message"
+  header="Embassy"
+  [duration]="4000"
+  (dismiss)="onDismiss()"
+>
+  New notifications
+  <button toastButton icon="close" side="start" (click)="onDismiss()"></button>
+  <a
+    toastButton
+    side="end"
+    routerLink="/notifications"
+    [queryParams]="{ toast: true }"
+  >
+    View
+  </a>
+</toast>
