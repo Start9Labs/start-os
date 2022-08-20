@@ -230,6 +230,7 @@ jobs:
         -e CARGO_TERM_COLOR=${{ env.CARGO_TERM_COLOR }} \
         -P ubuntu:20.04 \
         sh -c '
+          apt update &&
           apt install ca-certificates &&
           cd /home/rust/src &&
           mkdir -p ~/.cargo/bin &&
