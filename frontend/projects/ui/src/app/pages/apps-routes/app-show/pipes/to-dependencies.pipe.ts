@@ -8,7 +8,6 @@ import {
   DependencyErrorType,
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
-import { exists } from '@start9labs/shared'
 import { DependentInfo } from 'src/app/types/dependent-info'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { ModalService } from 'src/app/services/modal.service'
@@ -49,7 +48,7 @@ export class ToDependenciesPipe implements PipeTransform {
         'dependency-errors',
       ),
     ]).pipe(
-      filter(deps => deps.every(exists) && !!pkg.installed),
+      filter(deps => deps.every(Boolean) && !!pkg.installed),
       map(([currentDeps, depErrors]) =>
         Object.keys(currentDeps)
           .filter(id => !!pkg.manifest.dependencies[id])

@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core'
+import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import {
@@ -22,6 +22,7 @@ import { hasCurrentDeps } from 'src/app/util/has-deps'
   selector: 'app-actions',
   templateUrl: './app-actions.page.html',
   styleUrls: ['./app-actions.page.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppActionsPage {
   readonly pkgId = getPkgId(this.route)
@@ -220,6 +221,7 @@ interface LocalAction {
   selector: 'app-actions-item',
   templateUrl: './app-actions-item.component.html',
   styleUrls: ['./app-actions.page.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppActionsItemComponent {
   @Input() action!: LocalAction

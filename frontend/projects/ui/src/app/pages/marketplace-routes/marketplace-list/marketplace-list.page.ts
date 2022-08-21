@@ -12,7 +12,7 @@ import { ConnectionService } from 'src/app/services/connection.service'
 export class MarketplaceListPage {
   readonly connected$ = this.connectionService.connected$
 
-  readonly localPkgs$ = this.patch.packageData$
+  readonly localPkgs$ = this.patch.watch$('package-data')
 
   readonly categories$ = this.marketplaceService.getCategories()
 

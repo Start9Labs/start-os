@@ -1,18 +1,18 @@
 <toast
-  *ngIf="message$ | async as message"
+  *ngIf="content$ | async as content"
   class="warning-toast"
   header="Unable to Connect"
   (dismiss)="onDismiss()"
 >
-  {{ message.message }}
+  {{ content.message }}
   <button toastButton icon="close" side="start" (click)="onDismiss()"></button>
   <a
-    *ngIf="message.link"
+    *ngIf="content.link"
     toastButton
     side="end"
     target="_blank"
     rel="noreferrer"
-    [href]="message.link"
+    [href]="content.link"
   >
     View solutions
   </a>

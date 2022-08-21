@@ -1,6 +1,6 @@
 <div class="wrapper">
   <ion-badge
-    *ngIf="unreadCount && !sidebarOpen"
+    *ngIf="!(sidebarOpen$ | async) && (unreadCount$ | async) as unreadCount"
     mode="md"
     class="md-badge"
     color="danger"

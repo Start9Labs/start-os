@@ -1,6 +1,6 @@
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
-import { firstValueFrom } from 'rxjs'
+import { filter, firstValueFrom } from 'rxjs'
 
 export function getPackage(
   patch: PatchDbService,
@@ -12,5 +12,5 @@ export function getPackage(
 export function getAllPackages(
   patch: PatchDbService,
 ): Promise<Record<string, PackageDataEntry>> {
-  return firstValueFrom(patch.packageData$)
+  return firstValueFrom(patch.watch$('package-data').pipe(filter(Boolean)))
 }

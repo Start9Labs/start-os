@@ -300,7 +300,6 @@ export class MockApiService extends ApiService {
         value: 0,
       },
     ]
-
     return this.withRevision(patch, Mock.Notifications)
   }
 

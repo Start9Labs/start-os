@@ -1,4 +1,4 @@
-import { Component } from '@angular/core'
+import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import {
   LoadingController,
@@ -17,12 +17,13 @@ import { LocalStorageService } from '../../../services/local-storage.service'
   selector: 'preferences',
   templateUrl: './preferences.page.html',
   styleUrls: ['./preferences.page.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PreferencesPage {
   clicks = 0
 
-  readonly ui$ = this.patch.ui$
-  readonly server$ = this.patch.serverInfo$
+  readonly ui$ = this.patch.watch$('ui')
+  readonly server$ = this.patch.watch$('server-info')
 
   constructor(
     private readonly loadingCtrl: LoadingController,

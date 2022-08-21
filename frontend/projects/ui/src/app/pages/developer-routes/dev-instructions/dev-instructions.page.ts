@@ -5,7 +5,6 @@ import { filter, take } from 'rxjs/operators'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import {
   debounce,
-  exists,
   ErrorToastService,
   MarkdownComponent,
 } from '@start9labs/shared'
@@ -20,8 +19,8 @@ import { getProjectId } from 'src/app/util/get-project-id'
 export class DevInstructionsPage {
   readonly projectId = getProjectId(this.route)
   editorOptions = { theme: 'vs-dark', language: 'markdown' }
-  code: string = ''
-  saving: boolean = false
+  code = ''
+  saving = false
 
   constructor(
     private readonly route: ActivatedRoute,
@@ -34,7 +33,7 @@ export class DevInstructionsPage {
   ngOnInit() {
     this.patchDb
       .watch$('ui', 'dev', this.projectId, 'instructions')
-      .pipe(filter(exists), take(1))
+      .pipe(filter(Boolean), take(1))
       .subscribe(config => {
         this.code = config
       })

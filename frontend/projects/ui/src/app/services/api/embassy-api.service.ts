@@ -6,7 +6,7 @@ import { Log, RequestError } from '@start9labs/shared'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 
 export abstract class ApiService {
-  protected readonly sync$ = new Subject<Update<DataModel>>()
+  readonly sync$ = new Subject<Update<DataModel>>()
 
   // http
 

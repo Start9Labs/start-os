@@ -2,7 +2,7 @@ import { InjectionToken } from '@angular/core'
 import { catchError, switchMap, take, tap } from 'rxjs/operators'
 import { Bootstrapper, DBCache, Update } from 'patch-db-client'
 import { DataModel } from './data-model'
-import { EMPTY, from, interval, Observable } from 'rxjs'
+import { EMPTY, from, interval, merge, Observable } from 'rxjs'
 import { AuthService } from '../auth.service'
 import { ConnectionService } from '../connection.service'
 import { ApiService } from '../api/embassy-api.service'
@@ -36,6 +36,6 @@ export function sourceFactory(
   )
 
   return authService.isVerified$.pipe(
-    switchMap(verified => (verified ? websocket$ : EMPTY)),
+    switchMap(verified => (verified ? merge(websocket$, api.sync$) : EMPTY)),
   )
 }

@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
-import { Observable, Subject, merge } from 'rxjs'
+import { Observable, Subject, merge, tap, map } from 'rxjs'
 
 import { OfflineMessage, OfflineToastService } from './offline-toast.service'
 
@@ -11,7 +11,7 @@ import { OfflineMessage, OfflineToastService } from './offline-toast.service'
 export class OfflineToastComponent {
   private readonly dismiss$ = new Subject<null>()
 
-  readonly message$ = merge(this.dismiss$, this.failure$)
+  readonly content$ = merge(this.dismiss$, this.failure$)
 
   constructor(
     @Inject(OfflineToastService)

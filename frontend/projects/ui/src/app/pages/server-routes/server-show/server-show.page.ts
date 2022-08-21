@@ -9,7 +9,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActivatedRoute } from '@angular/router'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { Observable, of } from 'rxjs'
-import { tap } from 'rxjs/operators'
+import { filter, take, tap } from 'rxjs/operators'
 import { isEmptyObject, ErrorToastService } from '@start9labs/shared'
 import { EOSService } from 'src/app/services/eos.service'
 import { LocalStorageService } from 'src/app/services/local-storage.service'
@@ -25,12 +25,8 @@ export class ServerShowPage {
   hasRecoveredPackage = false
   clicks = 0
 
-  readonly patch$ = this.patch.watch$().pipe(
-    tap(data => {
-      this.hasRecoveredPackage = !isEmptyObject(data['recovered-packages'])
-    }),
-  )
-
+  readonly server$ = this.patch.watch$('server-info')
+  readonly ui$ = this.patch.watch$('ui')
   readonly showUpdate$ = this.eosService.showUpdate$
   readonly showDiskRepair$ = this.localStorageService.showDiskRepair$
 
@@ -46,6 +42,17 @@ export class ServerShowPage {
     private readonly eosService: EOSService,
     private readonly localStorageService: LocalStorageService,
   ) {}
+
+  ngOnInit() {
+    this.patch
+      .watch$('recovered-packages')
+      .pipe(
+        filter(Boolean),
+        take(1),
+        tap(data => (this.hasRecoveredPackage = !isEmptyObject(data))),
+      )
+      .subscribe()
+  }
 
   async updateEos(): Promise<void> {
     if (this.hasRecoveredPackage) {
@@ -283,7 +290,7 @@ export class ServerShowPage {
         action: () =>
           this.navCtrl.navigateForward(['backup'], { relativeTo: this.route }),
         detail: true,
-        disabled: of(false),
+        disabled$: of(false),
       },
       {
         title: 'Restore From Backup',
@@ -292,7 +299,7 @@ export class ServerShowPage {
         action: () =>
           this.navCtrl.navigateForward(['restore'], { relativeTo: this.route }),
         detail: true,
-        disabled: this.eosService.updatingOrBackingUp$,
+        disabled$: this.eosService.updatingOrBackingUp$,
       },
     ],
     Settings: [
@@ -305,7 +312,7 @@ export class ServerShowPage {
             ? this.updateEos()
             : this.checkForEosUpdate(),
         detail: false,
-        disabled: this.eosService.updatingOrBackingUp$,
+        disabled$: this.eosService.updatingOrBackingUp$,
       },
       {
         title: 'Preferences',
@@ -316,7 +323,7 @@ export class ServerShowPage {
             relativeTo: this.route,
           }),
         detail: true,
-        disabled: of(false),
+        disabled$: of(false),
       },
       {
         title: 'LAN',
@@ -325,7 +332,7 @@ export class ServerShowPage {
         action: () =>
           this.navCtrl.navigateForward(['lan'], { relativeTo: this.route }),
         detail: true,
-        disabled: of(false),
+        disabled$: of(false),
       },
       {
         title: 'SSH',
@@ -334,7 +341,7 @@ export class ServerShowPage {
         action: () =>
           this.navCtrl.navigateForward(['ssh'], { relativeTo: this.route }),
         detail: true,
-        disabled: of(false),
+        disabled$: of(false),
       },
       {
         title: 'WiFi',
@@ -343,7 +350,7 @@ export class ServerShowPage {
         action: () =>
           this.navCtrl.navigateForward(['wifi'], { relativeTo: this.route }),
         detail: true,
-        disabled: of(false),
+        disabled$: of(false),
       },
       {
         title: 'Sideload Service',
@@ -354,7 +361,7 @@ export class ServerShowPage {
             relativeTo: this.route,
           }),
         detail: true,
-        disabled: of(false),
+        disabled$: of(false),
       },
       {
         title: 'Marketplace Settings',
@@ -365,7 +372,7 @@ export class ServerShowPage {
             relativeTo: this.route,
           }),
         detail: true,
-        disabled: of(false),
+        disabled$: of(false),
       },
     ],
     Insights: [
@@ -376,7 +383,7 @@ export class ServerShowPage {
         action: () =>
           this.navCtrl.navigateForward(['specs'], { relativeTo: this.route }),
         detail: true,
-        disabled: of(false),
+        disabled$: of(false),
       },
       {
         title: 'Monitor',
@@ -385,7 +392,7 @@ export class ServerShowPage {
         action: () =>
           this.navCtrl.navigateForward(['metrics'], { relativeTo: this.route }),
         detail: true,
-        disabled: of(false),
+        disabled$: of(false),
       },
       {
         title: 'Active Sessions',
@@ -396,7 +403,7 @@ export class ServerShowPage {
             relativeTo: this.route,
           }),
         detail: true,
-        disabled: of(false),
+        disabled$: of(false),
       },
       {
         title: 'OS Logs',
@@ -405,7 +412,7 @@ export class ServerShowPage {
         action: () =>
           this.navCtrl.navigateForward(['logs'], { relativeTo: this.route }),
         detail: true,
-        disabled: of(false),
+        disabled$: of(false),
       },
       {
         title: 'Kernel Logs',
@@ -417,7 +424,7 @@ export class ServerShowPage {
             relativeTo: this.route,
           }),
         detail: true,
-        disabled: of(false),
+        disabled$: of(false),
       },
     ],
     Support: [
@@ -432,7 +439,7 @@ export class ServerShowPage {
             'noreferrer',
           ),
         detail: true,
-        disabled: of(false),
+        disabled$: of(false),
       },
       {
         title: 'Contact Support',
@@ -445,7 +452,7 @@ export class ServerShowPage {
             'noreferrer',
           ),
         detail: true,
-        disabled: of(false),
+        disabled$: of(false),
       },
     ],
     Power: [
@@ -455,7 +462,7 @@ export class ServerShowPage {
         icon: 'reload',
         action: () => this.presentAlertRestart(),
         detail: false,
-        disabled: of(false),
+        disabled$: of(false),
       },
       {
         title: 'Shutdown',
@@ -463,7 +470,7 @@ export class ServerShowPage {
         icon: 'power',
         action: () => this.presentAlertShutdown(),
         detail: false,
-        disabled: of(false),
+        disabled$: of(false),
       },
       {
         title: 'System Rebuild',
@@ -471,7 +478,7 @@ export class ServerShowPage {
         icon: 'construct-outline',
         action: () => this.presentAlertSystemRebuild(),
         detail: false,
-        disabled: of(false),
+        disabled$: of(false),
       },
       {
         title: 'Repair Disk',
@@ -479,7 +486,7 @@ export class ServerShowPage {
         icon: 'medkit-outline',
         action: () => this.presentAlertRepairDisk(),
         detail: false,
-        disabled: of(false),
+        disabled$: of(false),
       },
     ],
   }
@@ -510,5 +517,5 @@ interface SettingBtn {
   icon: string
   action: Function
   detail: boolean
-  disabled: Observable<boolean>
+  disabled$: Observable<boolean>
 }

@@ -13,25 +13,23 @@ export interface OfflineMessage {
 @Injectable({ providedIn: 'root' })
 export class OfflineToastService extends Observable<OfflineMessage | null> {
   private readonly stream$ = this.authService.isVerified$.pipe(
-    switchMap(verified => (verified ? this.getMessage() : of(null))),
+    switchMap(verified => (verified ? this.failure$ : of(null))),
   )
 
-  private getMessage(): Observable<OfflineMessage | null> {
-    return combineLatest([
-      this.connectionService.networkConnected$,
-      this.connectionService.websocketConnected$,
-    ]).pipe(
-      map(([network, websocket]) => {
-        if (!network) return { message: 'No Internet' }
-        if (!websocket)
-          return {
-            message: 'Connecting to Embassy...',
-            link: 'https://start9.com/latest/support/common-issues',
-          }
-        return null
-      }),
-    )
-  }
+  private readonly failure$ = combineLatest([
+    this.connectionService.networkConnected$,
+    this.connectionService.websocketConnected$,
+  ]).pipe(
+    map(([network, websocket]) => {
+      if (!network) return { message: 'No Internet' }
+      if (!websocket)
+        return {
+          message: 'Connecting to Embassy...',
+          link: 'https://start9.com/latest/support/common-issues',
+        }
+      return null
+    }),
+  )
 
   constructor(
     private readonly authService: AuthService,

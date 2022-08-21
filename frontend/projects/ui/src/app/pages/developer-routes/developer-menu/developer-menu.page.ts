@@ -1,4 +1,4 @@
-import { Component } from '@angular/core'
+import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { LoadingController, ModalController } from '@ionic/angular'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
@@ -13,6 +13,7 @@ import { DevProjectData } from 'src/app/services/patch-db/data-model'
   selector: 'developer-menu',
   templateUrl: 'developer-menu.page.html',
   styleUrls: ['developer-menu.page.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DeveloperMenuPage {
   readonly projectId = getProjectId(this.route)
