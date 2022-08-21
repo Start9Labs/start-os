@@ -11,12 +11,9 @@
   <ng-container *ngIf="ui$ | async as ui">
     <ion-item-group *ngIf="server$ | async as server">
       <ion-item-divider>General</ion-item-divider>
-      <ion-item
-        button
-        (click)="presentModalName('Embassy-' + server.id, ui.name)"
-      >
+      <ion-item button (click)="presentModalName('My Embassy', ui.name)">
         <ion-label>Device Name</ion-label>
-        <ion-note slot="end">{{ ui.name || 'Embassy-' + server.id }}</ion-note>
+        <ion-note slot="end">{{ ui.name || 'My Embassy' }}</ion-note>
       </ion-item>
 
       <ion-item-divider>Marketplace</ion-item-divider>
