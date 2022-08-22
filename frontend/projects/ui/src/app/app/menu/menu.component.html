@@ -49,6 +49,7 @@
     </ion-item>
   </ion-menu-toggle>
 </ion-item-group>
+
 <img
   appSnek
   class="snek"
@@ -56,21 +57,6 @@
   src="assets/img/icons/snek.png"
   [appSnekHighScore]="snekScore$ | async"
 />
-<div class="bottom">
-  <div class="divider" style="margin-bottom: 10px"></div>
-  <ion-menu-toggle auto-hide="false">
-    <ion-item
-      button
-      lines="none"
-      style="--background: transparent; margin-bottom: 86px; text-align: center"
-      fill="clear"
-      (click)="presentAlertLogout()"
-    >
-      <ion-label class="inline">
-        <h2>Log Out</h2>
-        &nbsp;
-        <ion-icon name="log-out-outline"></ion-icon>
-      </ion-label>
-    </ion-item>
-  </ion-menu-toggle>
-</div>
+<ion-footer class="bottom">
+  <connection-bar></connection-bar>
+</ion-footer>

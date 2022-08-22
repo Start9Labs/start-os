@@ -16,6 +16,7 @@ import { EOSService } from 'src/app/services/eos.service'
 import { LocalStorageService } from 'src/app/services/local-storage.service'
 import { OSUpdatePage } from 'src/app/modals/os-update/os-update.page'
 import { getAllPackages } from '../../../util/get-package-data'
+import { AuthService } from 'src/app/services/auth.service'
 
 @Component({
   selector: 'server-show',
@@ -43,6 +44,7 @@ export class ServerShowPage {
     private readonly eosService: EOSService,
     private readonly localStorageService: LocalStorageService,
     private readonly serverNameService: ServerNameService,
+    private readonly authService: AuthService,
   ) {}
 
   ngOnInit() {
@@ -74,6 +76,27 @@ export class ServerShowPage {
       })
       modal.present()
     }
+  }
+
+  async presentAlertLogout() {
+    const alert = await this.alertCtrl.create({
+      header: 'Caution',
+      message:
+        'Do you know your password? If you log out and forget your password, you may permanently lose access to your Embassy.',
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel',
+        },
+        {
+          text: 'Logout',
+          handler: () => this.logout(),
+          cssClass: 'enter-click',
+        },
+      ],
+    })
+
+    await alert.present()
   }
 
   async presentAlertRestart() {
@@ -171,6 +194,12 @@ export class ServerShowPage {
       cssClass: 'alert-warning-message',
     })
     await alert.present()
+  }
+
+  // should wipe cache independent of actual BE logout
+  private logout() {
+    this.embassyApi.logout({}).catch(e => console.error('Failed to log out', e))
+    this.authService.setUnverified()
   }
 
   private async restart() {
@@ -458,6 +487,14 @@ export class ServerShowPage {
       },
     ],
     Power: [
+      {
+        title: 'Log Out',
+        description: '',
+        icon: 'log-out-outline',
+        action: () => this.presentAlertLogout(),
+        detail: false,
+        disabled$: of(false),
+      },
       {
         title: 'Restart',
         description: '',

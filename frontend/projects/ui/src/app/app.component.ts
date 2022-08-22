@@ -12,6 +12,7 @@ import { PatchMonitorService } from './services/patch-monitor.service'
 })
 export class AppComponent implements OnDestroy {
   readonly subscription = merge(this.patchData, this.patchMonitor).subscribe()
+  readonly sidebarOpen$ = this.splitPane.sidebarOpen$
 
   constructor(
     private readonly patchData: PatchDataService,

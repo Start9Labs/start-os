@@ -5,7 +5,6 @@ import { AlertModule, ToastModule } from '@start9labs/shared'
 
 import { ToastContainerComponent } from './toast-container.component'
 import { NotificationsToastComponent } from './notifications-toast/notifications-toast.component'
-import { OfflineToastComponent } from './offline-toast/offline-toast.component'
 import { RefreshAlertComponent } from './refresh-alert/refresh-alert.component'
 import { UpdateToastComponent } from './update-toast/update-toast.component'
 
@@ -14,7 +13,6 @@ import { UpdateToastComponent } from './update-toast/update-toast.component'
   declarations: [
     ToastContainerComponent,
     NotificationsToastComponent,
-    OfflineToastComponent,
     RefreshAlertComponent,
     UpdateToastComponent,
   ],
