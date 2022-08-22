@@ -17,7 +17,7 @@ export class AppShowHealthChecksComponent {
 
   HealthResult = HealthResult
 
-  readonly disconnected$ = this.connectionService.watchDisconnected$()
+  readonly connected$ = this.connectionService.connected$
 
   constructor(private readonly connectionService: ConnectionService) {}
 

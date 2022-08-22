@@ -14,11 +14,10 @@ import { parseDataModel, RecoveredInfo } from 'src/app/util/parse-data-model'
   providers: [DestroyService],
 })
 export class AppListPage {
+  loading = true
   pkgs: readonly PackageDataEntry[] = []
   recoveredPkgs: readonly RecoveredInfo[] = []
   reordering = false
-
-  readonly connected$ = this.patch.connected$
 
   constructor(
     private readonly api: ApiService,
@@ -38,6 +37,7 @@ export class AppListPage {
         take(1),
         map(parseDataModel),
         tap(({ pkgs, recoveredPkgs }) => {
+          this.loading = false
           this.pkgs = pkgs
           this.recoveredPkgs = recoveredPkgs
         }),

@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core'
+import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import {
@@ -22,6 +22,7 @@ import { hasCurrentDeps } from 'src/app/util/has-deps'
   selector: 'app-actions',
   templateUrl: './app-actions.page.html',
   styleUrls: ['./app-actions.page.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppActionsPage {
   readonly pkgId = getPkgId(this.route)
@@ -103,7 +104,7 @@ export class AppActionsPage {
       } else if (last) {
         statusesStr = `${last}`
       } else {
-        error = `There is state for which this action may be run. This is a bug. Please file an issue with the service maintainer.`
+        error = `There is no status for which this action may be run. This is a bug. Please file an issue with the service maintainer.`
       }
       const alert = await this.alertCtrl.create({
         header: 'Forbidden',
@@ -158,10 +159,12 @@ export class AppActionsPage {
 
     try {
       await this.embassyApi.uninstallPackage({ id: this.pkgId })
-      this.embassyApi.setDbValue({
-        pointer: `/ack-instructions/${this.pkgId}`,
-        value: false,
-      })
+      this.embassyApi
+        .setDbValue({
+          pointer: `/ack-instructions/${this.pkgId}`,
+          value: false,
+        })
+        .catch(e => console.error('Failed to mark instructions as unseen', e))
       this.navCtrl.navigateRoot('/services')
     } catch (e: any) {
       this.errToast.present(e)
@@ -185,7 +188,7 @@ export class AppActionsPage {
         'action-id': actionId,
         input,
       })
-      this.modalCtrl.dismiss()
+
       const successModal = await this.modalCtrl.create({
         component: ActionSuccessPage,
         componentProps: {
@@ -193,8 +196,8 @@ export class AppActionsPage {
         },
       })
 
-      setTimeout(() => successModal.present(), 400)
-      return true
+      setTimeout(() => successModal.present(), 500)
+      return false
     } catch (e: any) {
       this.errToast.present(e)
       return false
@@ -218,6 +221,7 @@ interface LocalAction {
   selector: 'app-actions-item',
   templateUrl: './app-actions-item.component.html',
   styleUrls: ['./app-actions.page.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppActionsItemComponent {
   @Input() action!: LocalAction

@@ -1,5 +1,4 @@
-import { DOCUMENT } from '@angular/common'
-import { Component, Inject, Input, ViewChild } from '@angular/core'
+import { Component, Input, ViewChild } from '@angular/core'
 import { IonContent, LoadingController } from '@ionic/angular'
 import { map, takeUntil, timer } from 'rxjs'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
@@ -48,11 +47,10 @@ export class LogsComponent {
   isOnBottom = true
   autoScroll = true
   websocketFail = false
-  limit = 200
+  limit = 400
   toProcess: Log[] = []
 
   constructor(
-    @Inject(DOCUMENT) private readonly document: Document,
     private readonly errToast: ErrorToastService,
     private readonly destroy$: DestroyService,
     private readonly api: ApiService,
@@ -63,17 +61,13 @@ export class LogsComponent {
   async ngOnInit() {
     try {
       const { 'start-cursor': startCursor, guid } = await this.followLogs({
-        limit: 100,
+        limit: this.limit,
       })
 
       this.startCursor = startCursor
 
-      const host = this.document.location.host
-      const protocol =
-        this.document.location.protocol === 'http:' ? 'ws' : 'wss'
-
       const config: WebSocketSubjectConfig<Log> = {
-        url: `${protocol}://${host}/ws/rpc/${guid}`,
+        url: `/rpc/${guid}`,
         openObserver: {
           next: () => {
             console.log('**** LOGS WEBSOCKET OPEN ****')
@@ -159,7 +153,7 @@ export class LogsComponent {
   }
 
   private processJob() {
-    timer(0, 500)
+    timer(100, 500)
       .pipe(
         map((_, index) => index),
         takeUntil(this.destroy$),

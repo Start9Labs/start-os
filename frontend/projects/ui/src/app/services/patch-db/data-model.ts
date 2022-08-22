@@ -41,8 +41,8 @@ export interface DevData {
 
 export interface DevProjectData {
   name: string
-  instructions?: string
-  config?: string
+  instructions: string
+  config: string
   'basic-info'?: BasicInfo
 }
 

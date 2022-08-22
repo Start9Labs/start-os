@@ -1,4 +1,4 @@
-import { Component } from '@angular/core'
+import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { ToastController } from '@ionic/angular'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { ConfigService } from 'src/app/services/config.service'
@@ -8,6 +8,7 @@ import { copyToClipboard } from '@start9labs/shared'
   selector: 'server-specs',
   templateUrl: './server-specs.page.html',
   styleUrls: ['./server-specs.page.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ServerSpecsPage {
   readonly server$ = this.patch.watch$('server-info')

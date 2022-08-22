@@ -18,6 +18,7 @@ import {
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import {
   catchError,
+  distinctUntilChanged,
   filter,
   map,
   shareReplay,
@@ -32,9 +33,14 @@ export class MarketplaceService extends AbstractMarketplaceService {
   private readonly notes = new Map<string, Record<string, string>>()
   private readonly hasPackages$ = new Subject<boolean>()
 
-  private readonly uiMarketplaceData$: Observable<
-    UIMarketplaceData | undefined
-  > = this.patch.watch$('ui', 'marketplace').pipe(shareReplay(1))
+  private readonly uiMarketplaceData$: Observable<UIMarketplaceData> =
+    this.patch.watch$('ui', 'marketplace').pipe(
+      filter(Boolean),
+      distinctUntilChanged(
+        (prev, curr) => prev['selected-id'] === curr['selected-id'],
+      ),
+      shareReplay(1),
+    )
 
   private readonly marketplace$ = this.uiMarketplaceData$.pipe(
     map(data => this.toMarketplace(data)),
@@ -42,19 +48,19 @@ export class MarketplaceService extends AbstractMarketplaceService {
 
   private readonly serverInfo$: Observable<ServerInfo> = this.patch
     .watch$('server-info')
-    .pipe(take(1), shareReplay())
+    .pipe(filter(Boolean), take(1), shareReplay())
 
   private readonly registryData$: Observable<MarketplaceData> =
     this.uiMarketplaceData$.pipe(
-      switchMap(uiMarketplaceData =>
+      switchMap(data =>
         this.serverInfo$.pipe(
           switchMap(({ id }) =>
             from(
               this.getMarketplaceData(
                 { 'server-id': id },
-                this.toMarketplace(uiMarketplaceData).url,
+                this.toMarketplace(data).url,
               ),
-            ).pipe(tap(({ name }) => this.updateName(uiMarketplaceData, name))),
+            ).pipe(tap(({ name }) => this.updateName(data, name))),
           ),
         ),
       ),
@@ -126,7 +132,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
     return this.marketplace$
   }
 
-  getAltMarketplace(): Observable<UIMarketplaceData | undefined> {
+  getAltMarketplaceData(): Observable<UIMarketplaceData> {
     return this.uiMarketplaceData$
   }
 

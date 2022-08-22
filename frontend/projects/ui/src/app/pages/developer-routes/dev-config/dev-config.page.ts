@@ -1,7 +1,7 @@
 import { Component } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { ModalController } from '@ionic/angular'
-import { debounce, exists, ErrorToastService } from '@start9labs/shared'
+import { debounce, ErrorToastService } from '@start9labs/shared'
 import * as yaml from 'js-yaml'
 import { filter, take } from 'rxjs/operators'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -31,7 +31,7 @@ export class DevConfigPage {
   ngOnInit() {
     this.patchDb
       .watch$('ui', 'dev', this.projectId, 'config')
-      .pipe(filter(exists), take(1))
+      .pipe(filter(Boolean), take(1))
       .subscribe(config => {
         this.code = config
       })

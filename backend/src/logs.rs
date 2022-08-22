@@ -1,15 +1,13 @@
 use std::future::Future;
 use std::marker::PhantomData;
-use std::ops::Deref;
-use std::ops::DerefMut;
+use std::ops::{Deref, DerefMut};
 use std::process::Stdio;
 use std::time::{Duration, UNIX_EPOCH};
 
 use chrono::{DateTime, Utc};
 use color_eyre::eyre::eyre;
 use futures::stream::BoxStream;
-use futures::Stream;
-use futures::{FutureExt, SinkExt, StreamExt, TryStreamExt};
+use futures::{FutureExt, SinkExt, Stream, StreamExt, TryStreamExt};
 use hyper::upgrade::Upgraded;
 use hyper::Error as HyperError;
 use rpc_toolkit::command;
@@ -30,7 +28,8 @@ use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::error::ResultExt;
 use crate::procedure::docker::DockerProcedure;
 use crate::s9pk::manifest::PackageId;
-use crate::util::{display_none, serde::Reversible};
+use crate::util::display_none;
+use crate::util::serde::Reversible;
 use crate::{Error, ErrorKind};
 
 #[pin_project::pin_project]

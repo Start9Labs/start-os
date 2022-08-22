@@ -1,15 +1,13 @@
 <p
   [style.color]="
-    (disconnected$ | async)
-      ? 'gray'
-      : 'var(--ion-color-' + rendering.color + ')'
+    (connected$ | async) ? 'var(--ion-color-' + rendering.color + ')' : 'gray'
   "
   [style.font-size]="size"
   [style.font-style]="style"
   [style.font-weight]="weight"
 >
   <span *ngIf="!installProgress">
-    {{ (disconnected$ | async) ? 'Unknown' : rendering.display }}
+    {{ (connected$ | async) ? rendering.display : 'Unknown' }}
     <span *ngIf="rendering.showDots" class="loading-dots"></span>
     <span
       *ngIf="

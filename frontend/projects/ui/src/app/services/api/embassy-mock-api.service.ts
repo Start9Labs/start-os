@@ -44,16 +44,6 @@ export class MockApiService extends ApiService {
     super()
   }
 
-  openLogsWebsocket$(config: WebSocketSubjectConfig<Log>): Observable<Log> {
-    return interval(100).pipe(
-      map((_, index) => {
-        // mock fire open observer
-        if (index === 0) config.openObserver?.next(new Event(''))
-        return Mock.ServerLogs[0]
-      }),
-    )
-  }
-
   async getStatic(url: string): Promise<string> {
     await pauseFor(2000)
     return markdown
@@ -119,6 +109,25 @@ export class MockApiService extends ApiService {
   }
 
   // server
+
+  async echo(params: RR.EchoReq): Promise<RR.EchoRes> {
+    await pauseFor(2000)
+    return params.message
+  }
+
+  openPatchWebsocket$(): Observable<Update<DataModel>> {
+    return this.mockPatch$
+  }
+
+  openLogsWebsocket$(config: WebSocketSubjectConfig<Log>): Observable<Log> {
+    return interval(100).pipe(
+      map((_, index) => {
+        // mock fire open observer
+        if (index === 0) config.openObserver?.next(new Event(''))
+        return Mock.ServerLogs[0]
+      }),
+    )
+  }
 
   async getServerLogs(
     params: RR.GetServerLogsReq,
@@ -291,7 +300,6 @@ export class MockApiService extends ApiService {
         value: 0,
       },
     ]
-
     return this.withRevision(patch, Mock.Notifications)
   }
 

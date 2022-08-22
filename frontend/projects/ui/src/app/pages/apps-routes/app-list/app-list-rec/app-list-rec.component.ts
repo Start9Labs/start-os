@@ -11,7 +11,7 @@ import { ErrorToastService } from '@start9labs/shared'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { from, merge, OperatorFunction, pipe, Subject } from 'rxjs'
-import { catchError, mapTo, startWith, switchMap, tap } from 'rxjs/operators'
+import { catchError, map, startWith, switchMap, tap } from 'rxjs/operators'
 import { RecoveredInfo } from 'src/app/util/parse-data-model'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 
@@ -103,7 +103,7 @@ function loading(
     // Show notification on error
     catchError(e => from(errToast.present(e))),
     // Map any result to false to stop loading indicator
-    mapTo(false),
+    map(() => false),
     // Start operation with true
     startWith(true),
   )

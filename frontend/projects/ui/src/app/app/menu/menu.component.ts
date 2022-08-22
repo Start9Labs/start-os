@@ -94,7 +94,7 @@ export class MenuComponent {
 
   // should wipe cache independent of actual BE logout
   private logout() {
-    this.embassyApi.logout({})
+    this.embassyApi.logout({}).catch(e => console.error('Failed to log out', e))
     this.authService.setUnverified()
   }
 }

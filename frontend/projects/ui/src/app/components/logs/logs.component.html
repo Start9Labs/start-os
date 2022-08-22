@@ -17,7 +17,7 @@
     id="scroller"
     *ngIf="!loading && needInfinite"
     position="top"
-    threshold="0"
+    threshold="1000"
     (ionInfinite)="doInfinite($event)"
   >
     <ion-infinite-scroll-content

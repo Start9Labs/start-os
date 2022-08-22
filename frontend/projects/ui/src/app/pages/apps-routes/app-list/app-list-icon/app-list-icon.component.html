@@ -1,9 +1,4 @@
-<div
-  *ngIf="disconnected$ | async; else connected"
-  class="bulb"
-  [style.background-color]="'var(--ion-color-dark)'"
-></div>
-<ng-template #connected>
+<ng-container *ngIf="connected$ | async; else disconnected">
   <ion-icon
     *ngIf="pkg.error; else noError"
     class="warning-icon"
@@ -28,4 +23,8 @@
       ></div>
     </ng-template>
   </ng-template>
+</ng-container>
+
+<ng-template #disconnected>
+  <div class="bulb" [style.background-color]="'var(--ion-color-dark)'"></div>
 </ng-template>

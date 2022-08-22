@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core'
 import { Emver } from '@start9labs/shared'
 import { BehaviorSubject, combineLatest } from 'rxjs'
-import { distinctUntilChanged, map } from 'rxjs/operators'
+import { distinctUntilChanged, filter, map } from 'rxjs/operators'
 
 import { MarketplaceEOS } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -16,6 +16,7 @@ export class EOSService {
   updateAvailable$ = new BehaviorSubject<boolean>(false)
 
   readonly updating$ = this.patch.watch$('server-info', 'status-info').pipe(
+    filter(Boolean),
     map(status => !!status['update-progress'] || status.updated),
     distinctUntilChanged(),
   )

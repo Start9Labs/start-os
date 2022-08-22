@@ -23,7 +23,7 @@ export class StatusComponent {
   @Input() installProgress?: InstallProgress
   @Input() sigtermTimeout?: string | null = null
 
-  disconnected$ = this.connectionService.watchDisconnected$()
+  readonly connected$ = this.connectionService.connected$
 
   constructor(private readonly connectionService: ConnectionService) {}
 }

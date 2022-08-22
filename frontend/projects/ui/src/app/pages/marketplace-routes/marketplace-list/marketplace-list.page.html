@@ -8,14 +8,9 @@
 
 <ion-content class="ion-padding">
   <marketplace-list-content
-    *ngIf="connected$ | async else loading"
     [localPkgs]="(localPkgs$ | async) || {}"
     [pkgs]="pkgs$ | async"
     [categories]="categories$ | async"
     [name]="(name$ | async) || ''"
   ></marketplace-list-content>
-
-  <ng-template #loading>
-    <text-spinner text="Connecting to Embassy"></text-spinner>
-  </ng-template>
 </ion-content>

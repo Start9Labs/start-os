@@ -1,0 +1,11 @@
+<toast
+  *ngIf="visible$ | async as message"
+  class="success-toast"
+  header="EOS download complete!"
+  (dismiss)="onDismiss()"
+>
+  Restart your Embassy for these updates to take effect. It can take several
+  minutes to come back online.
+  <button toastButton icon="close" side="start" (click)="onDismiss()"></button>
+  <button toastButton side="end" (click)="restart()">Restart</button>
+</toast>

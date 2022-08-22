@@ -1,10 +1,12 @@
 <ion-header>
   <ion-toolbar>
-    <ion-title *ngIf="connected$ | async else loading">
-      {{ (ui$ | async)?.name || "Embassy-" + (server$ | async)?.id }}
+    <ion-title *ngIf="ui$ | async as ui; else loadingTitle">
+      {{ ui.name || "My Embassy" }}
     </ion-title>
-    <ng-template #loading>
-      <ion-title>Loading<span class="loading-dots"></span></ion-title>
+    <ng-template #loadingTitle>
+      <ion-title>
+        <ion-title>Loading<span class="loading-dots"></span></ion-title>
+      </ion-title>
     </ng-template>
     <ion-buttons slot="end">
       <badge-menu-button></badge-menu-button>
@@ -14,86 +16,80 @@
 
 <ion-content class="ion-padding">
   <!-- loading -->
-  <ng-template #spinner>
+  <ng-template #loading>
     <text-spinner text="Connecting to Embassy"></text-spinner>
   </ng-template>
 
-  <!-- not loading -->
-  <ng-container *ngIf="connected$ | async else spinner">
-    <ion-item-group *ngIf="server$ | async as server">
-      <div *ngFor="let cat of settings | keyvalue : asIsOrder">
-        <ion-item-divider>
-          <ion-text color="dark" *ngIf="cat.key !== 'Power'">
-            {{ cat.key }}
-          </ion-text>
-          <ion-text
-            color="dark"
-            *ngIf="cat.key === 'Power'"
-            (click)="addClick()"
-          >
-            {{ cat.key }}
-          </ion-text>
-        </ion-item-divider>
-        <ng-container *ngFor="let button of cat.value">
-          <ion-item
-            button
-            [style.display]="(button.title === 'Repair Disk' && !(showDiskRepair$ | async)) ? 'none' : 'block'"
-            [detail]="button.detail"
-            [disabled]="button.disabled | async"
-            (click)="button.action()"
-          >
-            <ion-icon slot="start" [name]="button.icon"></ion-icon>
-            <ion-label>
-              <h2>{{ button.title }}</h2>
-              <p *ngIf="button.description">{{ button.description }}</p>
+  <!-- loaded -->
+  <ion-item-group *ngIf="server$ | async as server; else loading">
+    <div *ngFor="let cat of settings | keyvalue : asIsOrder">
+      <ion-item-divider>
+        <ion-text color="dark" *ngIf="cat.key !== 'Power'">
+          {{ cat.key }}
+        </ion-text>
+        <ion-text color="dark" *ngIf="cat.key === 'Power'" (click)="addClick()">
+          {{ cat.key }}
+        </ion-text>
+      </ion-item-divider>
+      <ng-container *ngFor="let button of cat.value">
+        <ion-item
+          button
+          [style.display]="(button.title === 'Repair Disk' && !(showDiskRepair$ | async)) ? 'none' : 'block'"
+          [detail]="button.detail"
+          [disabled]="button.disabled$ | async"
+          (click)="button.action()"
+        >
+          <ion-icon slot="start" [name]="button.icon"></ion-icon>
+          <ion-label>
+            <h2>{{ button.title }}</h2>
+            <p *ngIf="button.description">{{ button.description }}</p>
 
-              <!-- "Create Backup" button only -->
-              <p *ngIf="button.title === 'Create Backup'">
-                <ng-container *ngIf="server['status-info'] as statusInfo">
-                  <ion-text
-                    color="warning"
-                    *ngIf="!statusInfo['backup-progress'] && !statusInfo['update-progress']"
-                  >
-                    Last Backup: {{ server['last-backup'] ?
-                    (server['last-backup'] | date: 'medium') : 'never' }}
-                  </ion-text>
-                  <span *ngIf="!!statusInfo['backup-progress']" class="inline">
-                    <ion-spinner
-                      color="success"
-                      style="height: 12px; width: 12px; margin-right: 6px"
-                    ></ion-spinner>
-                    <ion-text color="success">Backing up</ion-text>
-                  </span>
-                </ng-container>
-              </p>
-              <!-- "Software Update" button only -->
-              <p *ngIf="button.title === 'Software Update'">
+            <!-- "Create Backup" button only -->
+            <p *ngIf="button.title === 'Create Backup'">
+              <ng-container *ngIf="server['status-info'] as statusInfo">
                 <ion-text
-                  *ngIf="server['status-info'].updated; else notUpdated"
-                  class="inline"
                   color="warning"
+                  *ngIf="!statusInfo['backup-progress'] && !statusInfo['update-progress']"
                 >
-                  Update Complete. Restart to apply changes
+                  Last Backup: {{ server['last-backup'] ? (server['last-backup']
+                  | date: 'medium') : 'never' }}
                 </ion-text>
-                <ng-template #notUpdated>
-                  <ng-container *ngIf="showUpdate$ | async; else check">
-                    <ion-text class="inline" color="success">
-                      <ion-icon name="rocket-outline"></ion-icon>
-                      Update Available
-                    </ion-text>
-                  </ng-container>
-                  <ng-template #check>
-                    <ion-text class="inline" color="dark">
-                      <ion-icon name="refresh"></ion-icon>
-                      Check for updates
-                    </ion-text>
-                  </ng-template>
+                <span *ngIf="!!statusInfo['backup-progress']" class="inline">
+                  <ion-spinner
+                    color="success"
+                    style="height: 12px; width: 12px; margin-right: 6px"
+                  ></ion-spinner>
+                  <ion-text color="success">Backing up</ion-text>
+                </span>
+              </ng-container>
+            </p>
+            <!-- "Software Update" button only -->
+            <p *ngIf="button.title === 'Software Update'">
+              <ion-text
+                *ngIf="server['status-info'].updated; else notUpdated"
+                class="inline"
+                color="warning"
+              >
+                Update Complete. Restart to apply changes
+              </ion-text>
+              <ng-template #notUpdated>
+                <ng-container *ngIf="showUpdate$ | async; else check">
+                  <ion-text class="inline" color="success">
+                    <ion-icon name="rocket-outline"></ion-icon>
+                    Update Available
+                  </ion-text>
+                </ng-container>
+                <ng-template #check>
+                  <ion-text class="inline" color="dark">
+                    <ion-icon name="refresh"></ion-icon>
+                    Check for updates
+                  </ion-text>
                 </ng-template>
-              </p>
-            </ion-label>
-          </ion-item>
-        </ng-container>
-      </div>
-    </ion-item-group>
-  </ng-container>
+              </ng-template>
+            </p>
+          </ion-label>
+        </ion-item>
+      </ng-container>
+    </div>
+  </ion-item-group>
 </ion-content>

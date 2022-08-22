@@ -5,10 +5,17 @@
 export * from './classes/http-error'
 export * from './classes/rpc-error'
 
+export * from './components/alert/alert.component'
+export * from './components/alert/alert.module'
+export * from './components/alert/alert-button.directive'
+export * from './components/alert/alert-input.directive'
 export * from './components/markdown/markdown.component'
 export * from './components/markdown/markdown.component.module'
 export * from './components/text-spinner/text-spinner.component'
 export * from './components/text-spinner/text-spinner.component.module'
+export * from './components/toast/toast.component'
+export * from './components/toast/toast.module'
+export * from './components/toast/toast-button.directive'
 
 export * from './directives/element/element.directive'
 export * from './directives/element/element.module'

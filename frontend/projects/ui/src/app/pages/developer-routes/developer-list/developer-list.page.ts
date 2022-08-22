@@ -5,7 +5,6 @@ import {
   AlertController,
   LoadingController,
   ModalController,
-  NavController,
 } from '@ionic/angular'
 import {
   GenericInputComponent,
@@ -17,7 +16,6 @@ import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import * as yaml from 'js-yaml'
 import { v4 } from 'uuid'
 import { DevData } from 'src/app/services/patch-db/data-model'
-import { ActivatedRoute } from '@angular/router'
 import { DestroyService, ErrorToastService } from '@start9labs/shared'
 import { takeUntil } from 'rxjs/operators'
 
@@ -36,8 +34,6 @@ export class DeveloperListPage {
     private readonly loadingCtrl: LoadingController,
     private readonly errToast: ErrorToastService,
     private readonly alertCtrl: AlertController,
-    private readonly navCtrl: NavController,
-    private readonly route: ActivatedRoute,
     private readonly destroy$: DestroyService,
     private readonly patch: PatchDbService,
     private readonly actionCtrl: ActionSheetController,

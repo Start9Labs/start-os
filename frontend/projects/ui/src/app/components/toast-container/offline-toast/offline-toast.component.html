@@ -1,0 +1,19 @@
+<toast
+  *ngIf="content$ | async as content"
+  class="warning-toast"
+  header="Unable to Connect"
+  (dismiss)="onDismiss()"
+>
+  {{ content.message }}
+  <button toastButton icon="close" side="start" (click)="onDismiss()"></button>
+  <a
+    *ngIf="content.link"
+    toastButton
+    side="end"
+    target="_blank"
+    rel="noreferrer"
+    [href]="content.link"
+  >
+    View solutions
+  </a>
+</toast>
