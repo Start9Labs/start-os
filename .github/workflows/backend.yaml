@@ -219,7 +219,7 @@ jobs:
     - name: Run tests
       run: |
         ${CARGO_HOME:-~/.cargo}/bin/cargo-nextest nextest run --no-fail-fast --archive-file nextest-archive-${{ matrix.target }}.tar.zst \
-        -E 'not (test(system::test_get_temp) | test(net::tor::test) | test(system::test_get_disk_usage) | test(net::ssl::certificate_details_persist) | test(net::ssl::ca_details_persist))'
+        --filter-expr 'not (test(system::test_get_temp) | test(net::tor::test) | test(system::test_get_disk_usage) | test(net::ssl::certificate_details_persist) | test(net::ssl::ca_details_persist) | test(logs::test_logs))'
       if: ${{ matrix.target == 'x86_64' }}
 
     - name: Run tests
@@ -236,5 +236,5 @@ jobs:
           mkdir -p ~/.cargo/bin &&
           tar -zxvf nextest-aarch64.tar.gz -C ${CARGO_HOME:-~/.cargo}/bin &&
           ${CARGO_HOME:-~/.cargo}/bin/cargo-nextest nextest run --archive-file nextest-archive-${{ matrix.target }}.tar.zst \
-          -E "not (test(system::test_get_temp) | test(net::tor::test) | test(system::test_get_disk_usage) | test(net::ssl::certificate_details_persist) | test(net::ssl::ca_details_persist))"'
+          --filter-expr "not (test(system::test_get_temp) | test(net::tor::test) | test(system::test_get_disk_usage) | test(net::ssl::certificate_details_persist) | test(net::ssl::ca_details_persist) | test(logs::test_logs))"'
       if: ${{ matrix.target == 'aarch64' }}
