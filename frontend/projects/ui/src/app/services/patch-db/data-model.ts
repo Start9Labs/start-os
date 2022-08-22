@@ -56,6 +56,7 @@ export interface ServerInfo {
   'status-info': ServerStatusInfo
   'eos-version-compat': string
   'password-hash': string
+  hostname: string
 }
 
 export interface ServerStatusInfo {

@@ -1,7 +1,7 @@
 <ion-header>
   <ion-toolbar>
-    <ion-title *ngIf="ui$ | async as ui; else loadingTitle">
-      {{ ui.name || "My Embassy" }}
+    <ion-title *ngIf="name$ | async as name; else loadingTitle">
+      {{ name.current }}
     </ion-title>
     <ng-template #loadingTitle>
       <ion-title>

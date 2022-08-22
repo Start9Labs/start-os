@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { Component } from '@angular/core'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import {
   ServerNotifications,

@@ -8,6 +8,7 @@ import {
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActivatedRoute } from '@angular/router'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { ServerNameService } from 'src/app/services/server-name.service'
 import { Observable, of } from 'rxjs'
 import { filter, take, tap } from 'rxjs/operators'
 import { isEmptyObject, ErrorToastService } from '@start9labs/shared'
@@ -26,7 +27,7 @@ export class ServerShowPage {
   clicks = 0
 
   readonly server$ = this.patch.watch$('server-info')
-  readonly ui$ = this.patch.watch$('ui')
+  readonly name$ = this.serverNameService.name$
   readonly showUpdate$ = this.eosService.showUpdate$
   readonly showDiskRepair$ = this.localStorageService.showDiskRepair$
 
@@ -41,6 +42,7 @@ export class ServerShowPage {
     private readonly patch: PatchDbService,
     private readonly eosService: EOSService,
     private readonly localStorageService: LocalStorageService,
+    private readonly serverNameService: ServerNameService,
   ) {}
 
   ngOnInit() {
