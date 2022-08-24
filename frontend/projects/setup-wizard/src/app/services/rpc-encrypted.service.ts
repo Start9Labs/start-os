@@ -48,6 +48,25 @@ export class RPCEncryptedService {
     if (isRpcError(res)) throw new RpcError(res.error)
     return res.result
   }
+
+  async setSecret() {
+    const keypair = (await window.crypto.subtle.generateKey('Ed25519', true, [
+      'decrypt',
+    ])) as CryptoKeyPair
+    const secret = await this.getSecret(keypair.publicKey)
+    this.secret = await window.crypto.subtle.decrypt(
+      'Ed25519',
+      keypair.privateKey,
+      secret,
+    )
+  }
+
+  private async getSecret(pubkey: CryptoKey): Promise<ArrayBuffer> {
+    return this.http.rpcRequest({
+      method: 'setup.get-secret',
+      params: { pubkey },
+    })
+  }
 }
 
 class EncryptionError {
