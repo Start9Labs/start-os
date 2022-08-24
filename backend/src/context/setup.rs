@@ -19,7 +19,6 @@ use tracing::instrument;
 use url::Host;
 
 use crate::db::model::Database;
-use crate::hostname::{derive_hostname, derive_id, get_product_key};
 use crate::init::{init_postgres, pgloader};
 use crate::net::tor::os_key;
 use crate::setup::{password_hash, RecoveryStatus};
@@ -101,14 +100,9 @@ impl SetupContext {
             .await
             .with_ctx(|_| (crate::ErrorKind::Filesystem, db_path.display().to_string()))?;
         if !db.exists(&<JsonPointer>::default()).await? {
-            let pkey = self.product_key().await?;
-            let sid = derive_id(&*pkey);
-            let hostname = derive_hostname(&sid);
             db.put(
                 &<JsonPointer>::default(),
                 &Database::init(
-                    sid,
-                    &hostname,
                     &os_key(&mut secret_store.acquire().await?).await?,
                     password_hash(&mut secret_store.acquire().await?).await?,
                 ),
@@ -133,23 +127,6 @@ impl SetupContext {
             pgloader(&old_db_path).await?;
         }
         Ok(secret_store)
-    }
-    #[instrument(skip(self))]
-    pub async fn product_key(&self) -> Result<Arc<String>, Error> {
-        Ok(
-            if let Some(k) = {
-                let guard = self.cached_product_key.read().await;
-                let res = guard.clone();
-                drop(guard);
-                res
-            } {
-                k
-            } else {
-                let k = Arc::new(get_product_key().await?);
-                *self.cached_product_key.write().await = Some(k.clone());
-                k
-            },
-        )
     }
 }
 

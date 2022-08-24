@@ -1,54 +1,42 @@
 use digest::Digest;
-use tokio::fs::File;
-use tokio::io::AsyncWriteExt;
+use patch_db::DbHandle;
 use tokio::process::Command;
 use tracing::instrument;
 
 use crate::util::Invoke;
-use crate::{Error, ErrorKind, ResultExt};
+use crate::{Error, ErrorKind};
+#[derive(Clone, serde::Deserialize, serde::Serialize, Debug)]
+pub struct HostName(String);
 
-pub const PRODUCT_KEY_PATH: &'static str = "/embassy-os/product_key.txt";
-
-#[instrument]
-pub async fn get_hostname() -> Result<String, Error> {
-    Ok(derive_hostname(&get_id().await?))
+impl AsRef<str> for HostName {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
 }
 
-pub fn derive_hostname(id: &str) -> String {
-    format!("embassy-{}", id)
+impl HostName {
+    pub fn lan_address(&self) -> String {
+        format!("https://{}.local", self.0)
+    }
 }
 
 #[instrument]
-pub async fn get_current_hostname() -> Result<String, Error> {
+pub async fn get_current_hostname() -> Result<HostName, Error> {
     let out = Command::new("hostname")
         .invoke(ErrorKind::ParseSysInfo)
         .await?;
     let out_string = String::from_utf8(out)?;
-    Ok(out_string.trim().to_owned())
+    Ok(HostName(out_string.trim().to_owned()))
 }
 
 #[instrument]
-pub async fn set_hostname(hostname: &str) -> Result<(), Error> {
+pub async fn set_hostname(hostname: &HostName) -> Result<(), Error> {
+    let hostname: &str = hostname.as_ref();
     let _out = Command::new("hostnamectl")
         .arg("set-hostname")
         .arg(hostname)
         .invoke(ErrorKind::ParseSysInfo)
         .await?;
-    Ok(())
-}
-
-#[instrument]
-pub async fn get_product_key() -> Result<String, Error> {
-    let out = tokio::fs::read_to_string(PRODUCT_KEY_PATH)
-        .await
-        .with_ctx(|_| (crate::ErrorKind::Filesystem, PRODUCT_KEY_PATH))?;
-    Ok(out.trim().to_owned())
-}
-
-#[instrument]
-pub async fn set_product_key(key: &str) -> Result<(), Error> {
-    let mut pkey_file = File::create(PRODUCT_KEY_PATH).await?;
-    pkey_file.write_all(key.as_bytes()).await?;
     Ok(())
 }
 
@@ -59,16 +47,34 @@ pub fn derive_id(key: &str) -> String {
     hex::encode(&res[0..4])
 }
 
-#[instrument]
-pub async fn get_id() -> Result<String, Error> {
-    let key = get_product_key().await?;
-    Ok(derive_id(&key))
+#[instrument(skip(handle))]
+pub async fn get_id<Db: DbHandle>(handle: &mut Db) -> Result<String, Error> {
+    let id = crate::db::DatabaseModel::new()
+        .server_info()
+        .id()
+        .get(handle, false)
+        .await?;
+    Ok(id.to_string())
 }
 
-// cat /embassy-os/product_key.txt | shasum -a 256 | head -c 8 | awk '{print "embassy-"$1}' | xargs hostnamectl set-hostname && systemctl restart avahi-daemon
-#[instrument]
-pub async fn sync_hostname() -> Result<(), Error> {
-    set_hostname(&format!("embassy-{}", get_id().await?)).await?;
+pub async fn get_hostname<Db: DbHandle>(handle: &mut Db) -> Result<HostName, Error> {
+    if let Ok(hostname) = crate::db::DatabaseModel::new()
+        .server_info()
+        .hostname()
+        .get(handle, false)
+        .await
+    {
+        return Ok(HostName(hostname.to_string()));
+    }
+    let id = get_id(handle).await?;
+    if id.contains("-") {
+        return Ok(HostName(id));
+    }
+    return Ok(HostName(format!("embassy-{}", id)));
+}
+#[instrument(skip(handle))]
+pub async fn sync_hostname<Db: DbHandle>(mut handle: Db) -> Result<(), Error> {
+    set_hostname(&get_hostname(&mut handle).await?).await?;
     Command::new("systemctl")
         .arg("restart")
         .arg("avahi-daemon")

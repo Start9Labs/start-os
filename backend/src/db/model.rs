@@ -6,6 +6,7 @@ use emver::VersionRange;
 use isocountry::CountryCode;
 use patch_db::json_ptr::JsonPointer;
 use patch_db::{HasModel, Map, MapModel, OptionModel};
+use rand::{thread_rng, Rng};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -31,22 +32,35 @@ pub struct Database {
     pub recovered_packages: BTreeMap<PackageId, RecoveredPackageInfo>,
     pub ui: Value,
 }
+lazy_static::lazy_static! {
+    static ref ADJECTIVES: Vec<String> = include_str!("../assets/adjectives.txt").lines().map(|x| x.to_string()).collect();
+    static ref NOUNS: Vec<String> = include_str!("../assets/nouns.txt").lines().map(|x| x.to_string()).collect();
+}
+fn generate_id() -> String {
+    let mut rng = thread_rng();
+    let adjective = &ADJECTIVES[rng.gen_range(0..ADJECTIVES.len())];
+    let noun = &NOUNS[rng.gen_range(0..NOUNS.len())];
+    format!("{adjective}-{noun}")
+}
+#[test]
+fn test_generate() {
+    assert_eq!("", &generate_id());
+}
 impl Database {
-    pub fn init(
-        id: String,
-        hostname: &str,
-        tor_key: &TorSecretKeyV3,
-        password_hash: String,
-    ) -> Self {
+    pub fn init(tor_key: &TorSecretKeyV3, password_hash: String) -> Self {
+        let id = generate_id();
+        let my_hostname = id.clone();
+        let lan_address = format!("https://{}.local", my_hostname).parse().unwrap();
         // TODO
         Database {
             server_info: ServerInfo {
                 id,
                 version: Current::new().semver().into(),
+                hostname: my_hostname,
                 last_backup: None,
                 last_wifi_region: None,
                 eos_version_compat: Current::new().compat().clone(),
-                lan_address: format!("https://{}.local", hostname).parse().unwrap(),
+                lan_address,
                 tor_address: format!("http://{}", tor_key.public().get_onion_address())
                     .parse()
                     .unwrap(),
@@ -83,6 +97,7 @@ impl DatabaseModel {
 #[serde(rename_all = "kebab-case")]
 pub struct ServerInfo {
     pub id: String,
+    pub hostname: String,
     pub version: Version,
     pub last_backup: Option<DateTime<Utc>>,
     /// Used in the wifi to determine the region to set the system to

@@ -152,7 +152,11 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
     Ok(())
 }
 
-pub async fn init(cfg: &RpcContextConfig, product_key: &str) -> Result<(), Error> {
+pub struct InitResult {
+    pub db: patch_db::PatchDb,
+}
+
+pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     let should_rebuild = tokio::fs::metadata(SYSTEM_REBUILD_PATH).await.is_ok();
     let secret_store = cfg.secret_store().await?;
     let log_dir = cfg.datadir().join("main/logs");
@@ -213,7 +217,7 @@ pub async fn init(cfg: &RpcContextConfig, product_key: &str) -> Result<(), Error
 
     crate::ssh::sync_keys_from_db(&secret_store, "/home/start9/.ssh/authorized_keys").await?;
     tracing::info!("Synced SSH Keys");
-    let db = cfg.db(&secret_store, product_key).await?;
+    let db = cfg.db(&secret_store).await?;
 
     let mut handle = db.handle();
     let receipts = InitReceipts::new(&mut handle).await?;
@@ -258,5 +262,5 @@ pub async fn init(cfg: &RpcContextConfig, product_key: &str) -> Result<(), Error
 
     tracing::info!("System initialized.");
 
-    Ok(())
+    Ok(InitResult { db })
 }

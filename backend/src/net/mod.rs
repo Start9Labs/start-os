@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
+use patch_db::DbHandle;
 use rpc_toolkit::command;
 use sqlx::PgPool;
 use torut::onion::{OnionAddressV3, TorSecretKeyV3};
@@ -14,6 +15,7 @@ use self::mdns::MdnsController;
 use self::nginx::NginxController;
 use self::ssl::SslManager;
 use self::tor::TorController;
+use crate::hostname::get_hostname;
 use crate::net::dns::DnsController;
 use crate::net::interface::TorConfig;
 use crate::net::nginx::InterfaceMetadata;
@@ -50,24 +52,26 @@ pub struct NetController {
     pub dns: DnsController,
 }
 impl NetController {
-    #[instrument(skip(db))]
-    pub async fn init(
+    #[instrument(skip(db, handle))]
+    pub async fn init<Db: DbHandle>(
         embassyd_addr: SocketAddr,
         embassyd_tor_key: TorSecretKeyV3,
         tor_control: SocketAddr,
         dns_bind: &[SocketAddr],
         db: PgPool,
         import_root_ca: Option<(PKey<Private>, X509)>,
+        handle: &mut Db,
     ) -> Result<Self, Error> {
         let ssl = match import_root_ca {
-            None => SslManager::init(db).await,
+            None => SslManager::init(db, handle).await,
             Some(a) => SslManager::import_root_ca(db, a.0, a.1).await,
         }?;
+        let hostname = get_hostname(handle).await?;
         Ok(Self {
             tor: TorController::init(embassyd_addr, embassyd_tor_key, tor_control).await?,
             #[cfg(feature = "avahi")]
             mdns: MdnsController::init(),
-            nginx: NginxController::init(PathBuf::from("/etc/nginx"), &ssl).await?,
+            nginx: NginxController::init(PathBuf::from("/etc/nginx"), &ssl, &hostname).await?,
             ssl,
             dns: DnsController::init(dns_bind).await?,
         })

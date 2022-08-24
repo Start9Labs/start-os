@@ -11,6 +11,7 @@ use openssl::nid::Nid;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::{X509Builder, X509Extension, X509NameBuilder, X509};
 use openssl::*;
+use patch_db::DbHandle;
 use sqlx::PgPool;
 use tokio::process::Command;
 use tokio::sync::Mutex;
@@ -161,13 +162,14 @@ lazy_static::lazy_static! {
 }
 
 impl SslManager {
-    #[instrument(skip(db))]
-    pub async fn init(db: PgPool) -> Result<Self, Error> {
+    #[instrument(skip(db, handle))]
+    pub async fn init<Db: DbHandle>(db: PgPool, handle: &mut Db) -> Result<Self, Error> {
         let store = SslStore::new(db)?;
+        let id = crate::hostname::get_id(handle).await?;
         let (root_key, root_cert) = match store.load_root_certificate().await? {
             None => {
                 let root_key = generate_key()?;
-                let server_id = crate::hostname::get_id().await?;
+                let server_id = id;
                 let root_cert = make_root_cert(&root_key, &server_id)?;
                 store.save_root_certificate(&root_key, &root_cert).await?;
                 Ok::<_, Error>((root_key, root_cert))

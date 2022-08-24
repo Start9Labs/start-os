@@ -40,7 +40,6 @@ fn err_to_500(e: Error) -> Response<Body> {
 #[instrument]
 async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
     let (rpc_ctx, shutdown) = {
-        embassy::hostname::sync_hostname().await?;
         let rpc_ctx = RpcContext::init(
             cfg_path,
             Arc::new(
@@ -82,6 +81,7 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
         });
 
         let mut db = rpc_ctx.db.handle();
+        embassy::hostname::sync_hostname(&mut db).await?;
         let receipts = embassy::context::rpc::RpcSetNginxReceipts::new(&mut db).await?;
 
         rpc_ctx.set_nginx_conf(&mut db, receipts).await?;
