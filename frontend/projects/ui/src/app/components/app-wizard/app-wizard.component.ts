@@ -37,7 +37,7 @@ export class AppWizardComponent {
 
   swiper?: Swiper
 
-  //a slide component gives us hook into a slide. Allows us to call load when slide comes into view
+  // a slide component gives us hook into a slide. Allows us to call load when slide comes into view
   @ViewChildren('components')
   slideComponentsQL?: QueryList<BaseSlide>
 

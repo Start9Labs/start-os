@@ -18,6 +18,12 @@ ion-alert {
   }
 }
 
+.swiper {
+  .swiper-slide {
+    display: unset;
+  }
+}
+
 ion-modal::part(content) {
   position: absolute;
   height: 90% !important;

@@ -1,12 +1,12 @@
 export abstract class ApiService {
   // unencrypted
   abstract getStatus(): Promise<GetStatusRes> // setup.status
+  abstract getSecret(pubkey: CryptoKey): Promise<string> // setup.get-secret
   abstract getDrives(): Promise<DiskListResponse> // setup.disk.list
   abstract set02XDrive(logicalname: string): Promise<void> // setup.recovery.v2.set
   abstract getRecoveryStatus(): Promise<RecoveryStatusRes> // setup.recovery.status
 
   // encrypted
-  abstract getSecret(pubkey: CryptoKey): Promise<string> // setup.get-secret
   abstract verifyCifs(cifs: CifsRecoverySource): Promise<EmbassyOSRecoveryInfo> // setup.cifs.verify
   abstract importDrive(importInfo: ImportDriveReq): Promise<SetupEmbassyRes> // setup.attach
   abstract setupEmbassy(setupInfo: SetupEmbassyReq): Promise<SetupEmbassyRes> // setup.execute

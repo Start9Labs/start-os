@@ -50,7 +50,6 @@ export class AdditionalComponent {
         {
           text: 'Ok',
           handler: (version: string) => this.version.emit(version),
-          cssClass: 'enter-click',
         },
       ],
     })

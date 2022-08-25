@@ -1,11 +1,5 @@
 import { Component, Input } from '@angular/core'
-import {
-  AlertController,
-  IonicSafeString,
-  LoadingController,
-  ModalController,
-  NavController,
-} from '@ionic/angular'
+import { AlertController, ModalController, NavController } from '@ionic/angular'
 import { CifsModal } from 'src/app/modals/cifs-modal/cifs-modal.page'
 import { ApiService, DiskBackupTarget } from 'src/app/services/api/api.service'
 import { ErrorToastService } from '@start9labs/shared'
@@ -20,7 +14,6 @@ import { PasswordPage } from '../../modals/password/password.page'
 export class RecoverPage {
   loading = true
   mappedDrives: MappedDisk[] = []
-  hasShownGuidAlert = false
 
   constructor(
     private readonly apiService: ApiService,
@@ -28,8 +21,7 @@ export class RecoverPage {
     private readonly modalCtrl: ModalController,
     private readonly modalController: ModalController,
     private readonly alertCtrl: AlertController,
-    private readonly loadingCtrl: LoadingController,
-    private readonly errorToastService: ErrorToastService,
+    private readonly errToastService: ErrorToastService,
     private readonly stateService: StateService,
   ) {}
 
@@ -85,44 +77,8 @@ export class RecoverPage {
         })
         await alert.present()
       }
-
-      const importableDrive = disks.find(d => !!d.guid)
-      if (!!importableDrive && !this.hasShownGuidAlert) {
-        const alert = await this.alertCtrl.create({
-          header: 'Embassy Detected',
-          message: new IonicSafeString(
-            `<strong>${importableDrive.vendor || 'Unknown Vendor'} - ${
-              importableDrive.model || 'Unknown Model'
-            }</strong> is a valid Embassy data drive.
-            <p>To use this drive, select <strong>"USE DRIVE"</strong>. This will complete the setup process.`,
-          ),
-          buttons: [
-            {
-              role: 'cancel',
-              text: 'Cancel',
-            },
-            {
-              text: 'Use Drive',
-              handler: async () => {
-                const modal = await this.modalController.create({
-                  component: PasswordPage,
-                  componentProps: { storageDrive: importableDrive },
-                })
-                modal.onDidDismiss().then(res => {
-                  if (res.data && res.data.password) {
-                    this.importDrive(importableDrive.guid!, res.data.password)
-                  }
-                })
-                await modal.present()
-              },
-            },
-          ],
-        })
-        await alert.present()
-        this.hasShownGuidAlert = true
-      }
     } catch (e: any) {
-      this.errorToastService.present(e)
+      this.errToastService.present(e)
     } finally {
       this.loading = false
     }
@@ -169,21 +125,6 @@ export class RecoverPage {
         }
       })
       await modal.present()
-    }
-  }
-
-  private async importDrive(guid: string, password: string) {
-    const loader = await this.loadingCtrl.create({
-      message: 'Importing Drive',
-    })
-    await loader.present()
-    try {
-      await this.stateService.importDrive(guid, password)
-      await this.navCtrl.navigateForward(`/success`)
-    } catch (e: any) {
-      this.errorToastService.present(e)
-    } finally {
-      loader.dismiss()
     }
   }
 

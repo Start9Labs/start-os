@@ -1,0 +1,15 @@
+.back-button {
+  position: absolute;
+  left: 16px;
+  top: 24px;
+  z-index: 1000000;
+}
+
+ion-item {
+  --background: var(--ion-color-medium);
+  --color: var(--ion-color-dark);
+}
+
+p {
+  color: var(--ion-color-dark);
+}
