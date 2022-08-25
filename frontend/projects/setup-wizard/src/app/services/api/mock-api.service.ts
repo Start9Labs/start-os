@@ -26,6 +26,19 @@ export class MockApiService extends ApiService {
     }
   }
 
+  async getSecret(pubkey: CryptoKey) {
+    await pauseFor(1000)
+
+    const ascii = 'thisisasecret'
+
+    const arr1 = []
+    for (let n = 0, l = ascii.length; n < l; n++) {
+      var hex = Number(ascii.charCodeAt(n)).toString(16)
+      arr1.push(hex)
+    }
+    return arr1.join('')
+  }
+
   async getDrives() {
     await pauseFor(1000)
     return {

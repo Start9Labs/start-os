@@ -34,6 +34,13 @@ export class LiveApiService extends ApiService {
     })
   }
 
+  async getSecret(pubkey: CryptoKey): Promise<string> {
+    return this.unencrypted.rpcRequest({
+      method: 'setup.get-secret',
+      params: { pubkey },
+    })
+  }
+
   async getDrives() {
     return this.unencrypted.rpcRequest<DiskListResponse>({
       method: 'setup.disk.list',
