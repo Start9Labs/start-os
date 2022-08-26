@@ -10,6 +10,7 @@ use digest::generic_array::GenericArray;
 use digest::OutputSizeUser;
 use futures::future::BoxFuture;
 use futures::{FutureExt, TryFutureExt, TryStreamExt};
+use josekit::jwk::Jwk;
 use nix::unistd::{Gid, Uid};
 use openssl::x509::X509;
 use patch_db::{DbHandle, LockType};
@@ -62,7 +63,7 @@ where
     Ok(password)
 }
 
-#[command(subcommands(status, disk, attach, execute, recovery, cifs, complete))]
+#[command(subcommands(status, disk, attach, execute, recovery, cifs, complete, get_secret))]
 pub fn setup() -> Result<(), Error> {
     Ok(())
 }
@@ -197,6 +198,47 @@ pub async fn recovery_status(
     ctx.recovery_status.read().await.clone().transpose()
 }
 
+/// We want to be able to get a secret, a shared private key with the frontend
+/// This way the frontend can send a secret, like the password for the setup/ recovory
+/// without knowing the password over clearnet. We use the public key shared across the network
+/// since it is fine to share the public, and encrypt against the public.
+#[command(rename = "get-secret", rpc_only, metadata(authenticated = false))]
+pub async fn get_secret(
+    #[context] ctx: SetupContext,
+    #[arg] pubkey: Jwk,
+) -> Result<String, RpcError> {
+    let secret = ctx.update_secret().await?;
+    let mut header = josekit::jwe::JweHeader::new();
+    header.set_algorithm("ECDH-ES");
+    header.set_content_encryption("A256GCM");
+
+    let encrypter = josekit::jwe::alg::ecdh_es::EcdhEsJweAlgorithm::EcdhEs
+        .encrypter_from_jwk(&pubkey)
+        .unwrap();
+
+    Ok(josekit::jwe::serialize_compact(secret.as_bytes(), &header, &encrypter).unwrap())
+    // Need to encrypt from the public key sent
+    // then encode via hex
+}
+
+// #[tokio::test]
+// async fn gen_secret() {
+//     use josekit::jwk::Jwk;
+//     use serde_json::json;
+//     let public_key = Jwk::from_bytes(
+//         &serde_json::to_vec(&json!({
+//             "kty": "EC",
+//             "crv": "P-256",
+//             "x": "G1lwQXq9pO32HRuyhiM3w9a-eA95sxv4rK4jDpyTIRc",
+//             "y": "sB6iIoX8V1Ayp-NOYV7JAoui4mcf9ME5OBzI0Pi9tU4"
+//         }))
+//         .unwrap(),
+//     )
+//     .unwrap();
+//     let message: &[u8] = b"This is a test of the tsunami alert system.";
+
+//     println!("{}", message);
+// }
 #[command(subcommands(verify_cifs))]
 pub fn cifs() -> Result<(), Error> {
     Ok(())

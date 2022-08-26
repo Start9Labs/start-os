@@ -38,21 +38,7 @@ export class HomePage {
 
   async ngOnInit() {
     try {
-      // /* get shared secret */
-      // const keypair = (await window.crypto.subtle.generateKey(
-      //   { name: 'Ed25519' },
-      //   true,
-      //   ['decrypt'],
-      // )) as CryptoKeyPair
-      // const hex = await this.unencrypted.getSecret(keypair.publicKey)
-      // const ascii = decodeHex(hex)
-      // const secret = new TextEncoder().encode(ascii)
-      // this.encrypted.secret = await window.crypto.subtle.decrypt(
-      //   'Ed25519',
-      //   keypair.privateKey,
-      //   secret,
-      // )
-      /* get disks */
+      this.encrypted.secret = await this.unencrypted.getSecret()
       const { disks } = await this.unencrypted.getDrives()
       this.guid = disks.find(d => !!d.guid)?.guid
     } catch (e: any) {

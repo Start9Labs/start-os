@@ -43,6 +43,7 @@
     "dompurify": "^2.3.6",
     "fast-json-patch": "^3.1.1",
     "fuse.js": "^6.4.6",
+    "jose": "^4.9.0",
     "js-yaml": "^4.1.0",
     "marked": "^4.0.0",
     "monaco-editor": "^0.33.0",

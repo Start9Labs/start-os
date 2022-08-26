@@ -13,6 +13,7 @@ import {
   SetupEmbassyRes,
 } from './api.service'
 import { RPCEncryptedService } from '../rpc-encrypted.service'
+import * as jose from 'jose'
 
 @Injectable({
   providedIn: 'root',
@@ -34,11 +35,28 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async getSecret(pubkey: CryptoKey): Promise<string> {
-    return this.unencrypted.rpcRequest({
-      method: 'setup.get-secret',
-      params: { pubkey },
+  /**
+   * We want to update the secret, which means that we will call in clearnet the
+   * getSecret, and all the information is never in the clear, and only public
+   *  information is sent across the network. We don't want to expose that we do
+   * this wil all public/private key, which means that there is no information loss
+   * through the network.
+   */
+  async getSecret() {
+    const { privateKey, publicKey } = await jose.generateKeyPair('ECDH-ES', {
+      extractable: true,
     })
+    console.log({ publicKey: await jose.exportJWK(publicKey) })
+    const response: string = await this.unencrypted.rpcRequest({
+      method: 'setup.get-secret',
+      params: { pubkey: await jose.exportJWK(publicKey) },
+    })
+
+    const { plaintext } = await jose.compactDecrypt(response, privateKey)
+    const decoded = new TextDecoder().decode(plaintext)
+    console.log({ decoded })
+
+    return decoded
   }
 
   async getDrives() {

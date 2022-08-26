@@ -48,14 +48,7 @@ async fn setup_or_init(cfg_path: Option<&str>) -> Result<(), Error> {
             .invoke(embassy::ErrorKind::Nginx)
             .await?;
         let ctx = SetupContext::init(cfg_path).await?;
-        // let keysource_ctx = ctx.clone();
-        // let keysource = move || {
-        //     let ctx = keysource_ctx.clone();
-        //     let
-        //     let id = get_id()
-        //     async move { ctx.product_key().await }
-        // };
-        // let encrypt = encrypt(keysource);
+        let encrypt = embassy::middleware::encrypt::encrypt(ctx.clone());
         tokio::time::sleep(Duration::from_secs(1)).await; // let the record state that I hate this
         CHIME.play().await?;
         rpc_server!({
@@ -64,7 +57,7 @@ async fn setup_or_init(cfg_path: Option<&str>) -> Result<(), Error> {
             status: status_fn,
             middleware: [
                 cors,
-                // encrypt,
+                encrypt,
             ]
         })
         .with_graceful_shutdown({

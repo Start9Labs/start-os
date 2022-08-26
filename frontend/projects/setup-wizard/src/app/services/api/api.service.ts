@@ -1,7 +1,7 @@
 export abstract class ApiService {
   // unencrypted
   abstract getStatus(): Promise<GetStatusRes> // setup.status
-  abstract getSecret(pubkey: CryptoKey): Promise<string> // setup.get-secret
+  abstract getSecret(): Promise<string> // setup.get-secret
   abstract getDrives(): Promise<DiskListResponse> // setup.disk.list
   abstract set02XDrive(logicalname: string): Promise<void> // setup.recovery.v2.set
   abstract getRecoveryStatus(): Promise<RecoveryStatusRes> // setup.recovery.status

@@ -26,7 +26,7 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async getSecret(pubkey: CryptoKey) {
+  async getSecret() {
     await pauseFor(1000)
 
     const ascii = 'thisisasecret'
