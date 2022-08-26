@@ -13,7 +13,7 @@ import {
   SetupEmbassyRes,
 } from './api.service'
 import { RPCEncryptedService } from '../rpc-encrypted.service'
-import * as jose from 'jose'
+import * as jose from 'node-jose'
 
 @Injectable({
   providedIn: 'root',
@@ -43,17 +43,22 @@ export class LiveApiService extends ApiService {
    * through the network.
    */
   async getSecret() {
-    const { privateKey, publicKey } = await jose.generateKeyPair('ECDH-ES', {
-      extractable: true,
-    })
-    console.log({ publicKey: await jose.exportJWK(publicKey) })
+    const keystore = jose.JWK.createKeyStore()
+    const key = await keystore.generate('EC', 'P-256')
+    // const { privateKey, publicKey } =
+
+    // jose.generateKeyPair('ECDH-ES', {
+    //   extractable: true,
+    // })
+    console.log({ publicKey: key.toJSON() })
     const response: string = await this.unencrypted.rpcRequest({
       method: 'setup.get-secret',
-      params: { pubkey: await jose.exportJWK(publicKey) },
+      params: { pubkey: key.toJSON() },
     })
 
-    const { plaintext } = await jose.compactDecrypt(response, privateKey)
-    const decoded = new TextDecoder().decode(plaintext)
+    // const { plaintext } = await jose.compactDecrypt(response, privateKey)
+    const decrypted = await jose.JWE.createDecrypt(key).decrypt(response)
+    const decoded = new TextDecoder().decode(decrypted.plaintext)
     console.log({ decoded })
 
     return decoded
