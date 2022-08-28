@@ -10,18 +10,18 @@ export interface ServerNameInfo {
 @Injectable({ providedIn: 'root' })
 export class ServerNameService {
   private readonly chosenName$ = this.patch.watch$('ui', 'name')
-  private readonly lanName$ = this.patch
+  private readonly hostname$ = this.patch
     .watch$('server-info', 'hostname')
     .pipe(filter(Boolean))
 
   readonly name$: Observable<ServerNameInfo> = combineLatest([
     this.chosenName$,
-    this.lanName$,
+    this.hostname$,
   ]).pipe(
-    map(([chosen, lan]) => {
+    map(([chosen, hostname]) => {
       return {
-        current: chosen || lan,
-        default: lan,
+        current: chosen || hostname,
+        default: hostname,
       }
     }),
   )
