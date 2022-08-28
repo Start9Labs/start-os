@@ -80,9 +80,8 @@ export class ServerShowPage {
 
   async presentAlertLogout() {
     const alert = await this.alertCtrl.create({
-      header: 'Caution',
-      message:
-        'Do you know your password? If you log out and forget your password, you may permanently lose access to your Embassy.',
+      header: 'Confirm',
+      message: 'Are you sure you want to log out?',
       buttons: [
         {
           text: 'Cancel',
