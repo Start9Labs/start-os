@@ -58,12 +58,6 @@
 
 $subheader-height: 48px;
 
-// .swiper {
-//   .swiper-slide {
-//     display: unset;
-//   }
-// }
-
 .btn-128 {
   min-width: 128px;
 }
@@ -261,12 +255,6 @@ ion-label {
 ion-loading {
   --spinner-color: var(--ion-color-warning) !important;
   z-index: 40000 !important;
-}
-
-.swiper-pagination {
-  position: fixed;
-  bottom: 0px;
-  padding-bottom: 3px;
 }
 
 .rec-item {
