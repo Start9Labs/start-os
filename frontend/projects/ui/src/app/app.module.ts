@@ -19,6 +19,7 @@ import { EnterModule } from './app/enter/enter.module'
 import { APP_PROVIDERS } from './app.providers'
 import { PatchDbModule } from './services/patch-db/patch-db.module'
 import { ToastContainerModule } from './components/toast-container/toast-container.module'
+import { ConnectionBarComponentModule } from './components/connection-bar/connection-bar.component.module'
 
 @NgModule({
   declarations: [AppComponent],
@@ -47,6 +48,7 @@ import { ToastContainerModule } from './components/toast-container/toast-contain
     MarketplaceModule,
     PatchDbModule,
     ToastContainerModule,
+    ConnectionBarComponentModule,
   ],
   providers: APP_PROVIDERS,
   bootstrap: [AppComponent],

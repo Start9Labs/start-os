@@ -41,6 +41,7 @@ export const mockPatchData: DataModel = {
       updated: false,
       'update-progress': null,
     },
+    hostname: 'random-words',
   },
   'recovered-packages': {
     'btc-rpc-proxy': {

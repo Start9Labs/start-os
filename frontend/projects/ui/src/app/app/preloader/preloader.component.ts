@@ -19,6 +19,7 @@ const ICONS = [
   'chevron-forward',
   'close',
   'cloud-outline',
+  'cloud-done',
   'cloud-done-outline',
   'cloud-download-outline',
   'cloud-offline-outline',

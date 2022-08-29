@@ -95,18 +95,14 @@ export class SideloadPage {
         manifest: this.toUpload.manifest!,
         icon: this.toUpload.icon!,
       })
-      this.api
-        .uploadPackage(guid, await blobToBuffer(this.toUpload.file!))
-        .catch(e => {
-          this.errToast.present(e)
-        })
+      const buffer = await blobToBuffer(this.toUpload.file!)
+      this.api.uploadPackage(guid, buffer).catch(e => console.error(e))
+
+      this.navCtrl.navigateRoot('/services')
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
       loader.dismiss()
-      await this.navCtrl.navigateForward(
-        `/services/${this.toUpload.manifest!.id}`,
-      )
       this.clearToUpload()
     }
   }

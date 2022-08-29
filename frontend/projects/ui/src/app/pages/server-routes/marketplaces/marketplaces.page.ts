@@ -1,6 +1,7 @@
 import { Component, Inject } from '@angular/core'
 import {
   ActionSheetController,
+  AlertController,
   LoadingController,
   ModalController,
 } from '@ionic/angular'
@@ -51,6 +52,7 @@ export class MarketplacesPage {
     private readonly config: ConfigService,
     private readonly patch: PatchDbService,
     private readonly destroy$: DestroyService,
+    private readonly alertCtrl: AlertController,
   ) {}
 
   ngOnInit() {
@@ -129,7 +131,7 @@ export class MarketplacesPage {
         text: 'Delete',
         role: 'destructive',
         handler: () => {
-          this.delete(id)
+          this.presentAlertDelete(id)
         },
       })
     }
@@ -187,6 +189,28 @@ export class MarketplacesPage {
         finalize(() => loader.dismiss()),
       )
       .subscribe()
+  }
+
+  private async presentAlertDelete(id: string) {
+    const name = this.marketplaces.find(m => m.id === id)?.name
+
+    const alert = await this.alertCtrl.create({
+      header: 'Confirm',
+      message: `Are you sure you want to delete ${name}?`,
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel',
+        },
+        {
+          text: 'Delete',
+          handler: () => this.delete(id),
+          cssClass: 'enter-click',
+        },
+      ],
+    })
+
+    await alert.present()
   }
 
   private async delete(id: string): Promise<void> {

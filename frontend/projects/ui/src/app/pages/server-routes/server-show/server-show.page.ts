@@ -8,6 +8,7 @@ import {
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActivatedRoute } from '@angular/router'
 import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { ServerNameService } from 'src/app/services/server-name.service'
 import { Observable, of } from 'rxjs'
 import { filter, take, tap } from 'rxjs/operators'
 import { isEmptyObject, ErrorToastService } from '@start9labs/shared'
@@ -15,6 +16,7 @@ import { EOSService } from 'src/app/services/eos.service'
 import { LocalStorageService } from 'src/app/services/local-storage.service'
 import { OSUpdatePage } from 'src/app/modals/os-update/os-update.page'
 import { getAllPackages } from '../../../util/get-package-data'
+import { AuthService } from 'src/app/services/auth.service'
 
 @Component({
   selector: 'server-show',
@@ -26,7 +28,7 @@ export class ServerShowPage {
   clicks = 0
 
   readonly server$ = this.patch.watch$('server-info')
-  readonly ui$ = this.patch.watch$('ui')
+  readonly name$ = this.serverNameService.name$
   readonly showUpdate$ = this.eosService.showUpdate$
   readonly showDiskRepair$ = this.localStorageService.showDiskRepair$
 
@@ -41,6 +43,8 @@ export class ServerShowPage {
     private readonly patch: PatchDbService,
     private readonly eosService: EOSService,
     private readonly localStorageService: LocalStorageService,
+    private readonly serverNameService: ServerNameService,
+    private readonly authService: AuthService,
   ) {}
 
   ngOnInit() {
@@ -72,6 +76,26 @@ export class ServerShowPage {
       })
       modal.present()
     }
+  }
+
+  async presentAlertLogout() {
+    const alert = await this.alertCtrl.create({
+      header: 'Confirm',
+      message: 'Are you sure you want to log out?',
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel',
+        },
+        {
+          text: 'Logout',
+          handler: () => this.logout(),
+          cssClass: 'enter-click',
+        },
+      ],
+    })
+
+    await alert.present()
   }
 
   async presentAlertRestart() {
@@ -169,6 +193,12 @@ export class ServerShowPage {
       cssClass: 'alert-warning-message',
     })
     await alert.present()
+  }
+
+  // should wipe cache independent of actual BE logout
+  private logout() {
+    this.embassyApi.logout({}).catch(e => console.error('Failed to log out', e))
+    this.authService.setUnverified()
   }
 
   private async restart() {
@@ -456,6 +486,14 @@ export class ServerShowPage {
       },
     ],
     Power: [
+      {
+        title: 'Log Out',
+        description: '',
+        icon: 'log-out-outline',
+        action: () => this.presentAlertLogout(),
+        detail: false,
+        disabled$: of(false),
+      },
       {
         title: 'Restart',
         description: '',

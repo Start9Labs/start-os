@@ -8,24 +8,21 @@
 </ion-header>
 
 <ion-content class="ion-padding-top">
-  <ng-container *ngIf="ui$ | async as ui">
-    <ion-item-group *ngIf="server$ | async as server">
-      <ion-item-divider>General</ion-item-divider>
-      <ion-item button (click)="presentModalName('My Embassy', ui.name)">
-        <ion-label>Device Name</ion-label>
-        <ion-note slot="end">{{ ui.name || 'My Embassy' }}</ion-note>
-      </ion-item>
+  <ion-item-group *ngIf="name$ | async as name">
+    <ion-item-divider>General</ion-item-divider>
+    <ion-item button (click)="presentModalName(name)">
+      <ion-label>Device Name</ion-label>
+      <ion-note slot="end">{{ name.current }}</ion-note>
+    </ion-item>
 
-      <ion-item-divider>Marketplace</ion-item-divider>
-      <ion-item
-        button
-        (click)="serverConfig.presentAlert('auto-check-updates', ui['auto-check-updates'] !== false)"
-      >
-        <ion-label>Auto Check for Updates</ion-label>
-        <ion-note slot="end">
-          {{ ui['auto-check-updates'] !== false ? 'Enabled' : 'Disabled' }}
-        </ion-note>
-      </ion-item>
-    </ion-item-group>
-  </ng-container>
+    <ion-item-divider>Marketplace</ion-item-divider>
+    <ion-item
+      *ngIf="autoCheck$ | async as auto"
+      button
+      (click)="serverConfig.presentAlert('auto-check-updates', auto)"
+    >
+      <ion-label>Auto Check for Updates</ion-label>
+      <ion-note slot="end"> {{ auto ? 'Enabled' : 'Disabled' }} </ion-note>
+    </ion-item>
+  </ion-item-group>
 </ion-content>

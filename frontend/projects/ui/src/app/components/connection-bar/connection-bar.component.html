@@ -1,0 +1,21 @@
+<ion-toolbar
+  *ngIf="connection$ | async as connection"
+  class="connection-toolbar"
+  [color]="connection.color"
+>
+  <div class="inline" slot="start">
+    <ion-icon
+      slot="end"
+      [name]="connection.icon"
+      class="icon"
+      color="light"
+    ></ion-icon>
+    <p style="margin: 8px 0; font-weight: 600">{{ connection.message }}</p>
+    <ion-spinner
+      *ngIf="connection.dots"
+      name="dots"
+      color="light"
+      class="ion-margin-start"
+    ></ion-spinner>
+  </div>
+</ion-toolbar>
