@@ -14,8 +14,6 @@ import {
   AdditionalModule,
   DependenciesModule,
 } from '@start9labs/marketplace'
-import { AppWizardComponentModule } from 'src/app/components/app-wizard/app-wizard.component.module'
-
 import { MarketplaceStatusModule } from '../marketplace-status/marketplace-status.module'
 import { MarketplaceShowPage } from './marketplace-show.page'
 import { MarketplaceShowHeaderComponent } from './marketplace-show-header/marketplace-show-header.component'
@@ -39,7 +37,6 @@ const routes: Routes = [
     EmverPipesModule,
     MarkdownPipeModule,
     MarketplaceStatusModule,
-    AppWizardComponentModule,
     PackageModule,
     AboutModule,
     DependenciesModule,
