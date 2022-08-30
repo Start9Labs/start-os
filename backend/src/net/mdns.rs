@@ -129,6 +129,7 @@ impl MdnsControllerInner {
                 }
                 tracing::info!("Published {:?}", lan_address_ptr);
             }
+            tracing::debug!("BLUJ: Should be done with adding cname");
         }
     }
     fn init() -> Self {

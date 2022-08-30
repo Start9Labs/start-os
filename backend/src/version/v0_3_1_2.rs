@@ -1,5 +1,7 @@
 use emver::VersionRange;
 
+use crate::hostname::{get_hostname, set_hostname, generate_id};
+
 use super::v0_3_0::V0_3_0_COMPAT;
 use super::*;
 
@@ -20,34 +22,48 @@ impl VersionT for Version {
         &*V0_3_0_COMPAT
     }
     async fn up<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error> {
-        let id = crate::db::DatabaseModel::new()
+        let hostname = get_hostname(db).await?;
+        set_hostname(&hostname).await?;
+        crate::db::DatabaseModel::new()
             .server_info()
             .hostname()
-            .get(db, false)
+            .put(db, &Some(hostname.0))
             .await?;
-        if crate::db::DatabaseModel::new()
+        crate::db::DatabaseModel::new()
             .server_info()
-            .hostname()
-            .get(db, false)
-            .await
-            .is_err()
-        {
-            crate::db::DatabaseModel::new()
-                .server_info()
-                .hostname()
-                .put(db, &format!("embassy-{}", &*id))
-                .await?;
+            .id()
+            .put(db, &generate_id())
+            .await?;
+
+
+        let mut ui = crate::db::DatabaseModel::new()
+        .ui()
+        .get(db, true)
+        .await?
+        .clone();
+        if let serde_json::Value::Object(ref mut ui) = ui {
+            ui.insert("ack-instructions".to_string(), serde_json::json!({}));
         }
-
-        // let ui = crate::db::DatabaseModel::new()
-        // .ui()
-        // .get(db, &false)
-        // .await
-        // .is_err()
-
+        crate::db::DatabaseModel::new()
+        .ui()
+        .put(db, &ui)
+        .await?;
         Ok(())
     }
-    async fn down<Db: DbHandle>(&self, _db: &mut Db) -> Result<(), Error> {
+    async fn down<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error> {
+
+        let mut ui = crate::db::DatabaseModel::new()
+        .ui()
+        .get(db, true)
+        .await?
+        .clone();
+        if let serde_json::Value::Object(ref mut ui) = ui {
+            ui.remove("ack-instructions");
+        }
+        crate::db::DatabaseModel::new()
+        .ui()
+        .put(db, &ui)
+        .await?;
         Ok(())
     }
 }

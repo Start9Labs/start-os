@@ -37,6 +37,10 @@ export class RPCEncryptedService {
         },
       })
       .then(body => AES_CTR.decryptPbkdf2(this.secret || '', body))
+      .then(x => {
+        console.log(`Network: ${x}`)
+        return x
+      })
       .then(res => JSON.parse(res))
       .catch(e => {
         if (!e.status && !e.statusText) {
