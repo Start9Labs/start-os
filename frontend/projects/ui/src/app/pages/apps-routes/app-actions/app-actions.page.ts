@@ -197,10 +197,10 @@ export class AppActionsPage {
       })
 
       setTimeout(() => successModal.present(), 500)
-      return false
+      return true // needed to dismiss original modal/alert
     } catch (e: any) {
       this.errToast.present(e)
-      return false
+      return false // don't dismiss original modal/alert
     } finally {
       loader.dismiss()
     }
