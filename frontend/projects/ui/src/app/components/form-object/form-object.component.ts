@@ -1,6 +1,7 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core'
 import {
   AbstractFormGroupDirective,
+  FormArray,
   UntypedFormArray,
   UntypedFormGroup,
 } from '@angular/forms'
@@ -152,35 +153,6 @@ export class FormObjectComponent {
     this.presentAlertChangeWarning(key, spec, () => this.addListItem(key))
   }
 
-  addListItem(key: string, markDirty = true, val?: string): void {
-    const arr = this.formGroup.get(key) as UntypedFormArray
-    if (markDirty) arr.markAsDirty()
-    const listSpec = this.objectSpec[key] as ValueSpecList
-    const newItem = this.formService.getListItem(listSpec, val)
-
-    if (!newItem) return
-
-    const index = arr.length
-
-    newItem.markAllAsTouched()
-    arr.insert(index, newItem)
-    if (['object', 'union'].includes(listSpec.subtype)) {
-      const displayAs = (listSpec.spec as ListValueSpecOf<'object'>)[
-        'display-as'
-      ]
-      this.objectListDisplay[key].push({
-        height: '0px',
-        expanded: false,
-        displayAs: displayAs ? Mustache.render(displayAs, newItem.value) : '',
-      })
-    }
-
-    pauseFor(400).then(() => {
-      const element = document.getElementById(this.getElementId(key, index))
-      element?.parentElement?.scrollIntoView({ behavior: 'smooth' })
-    })
-  }
-
   toggleExpandObject(key: string) {
     this.objectDisplay[key].expanded = !this.objectDisplay[key].expanded
     this.objectDisplay[key].height = this.objectDisplay[key].expanded
@@ -327,6 +299,36 @@ export class FormObjectComponent {
     await alert.present()
   }
 
+  private addListItem(key: string): void {
+    const arr = this.formGroup.get(key) as UntypedFormArray
+    const listSpec = this.objectSpec[key] as ValueSpecList
+    const newItem = this.formService.getListItem(listSpec, undefined)!
+
+    const index = arr.length
+    arr.insert(index, newItem)
+
+    if (['object', 'union'].includes(listSpec.subtype)) {
+      const displayAs = (listSpec.spec as ListValueSpecOf<'object'>)[
+        'display-as'
+      ]
+      this.objectListDisplay[key].push({
+        height: '0px',
+        expanded: false,
+        displayAs: displayAs ? Mustache.render(displayAs, newItem.value) : '',
+      })
+    }
+
+    this.onExpand.emit()
+
+    pauseFor(400).then(() => {
+      const element = document.getElementById(this.getElementId(key, index))
+      element?.parentElement?.scrollIntoView({ behavior: 'smooth' })
+    })
+
+    arr.markAsDirty()
+    newItem.markAllAsTouched()
+  }
+
   private deleteListItem(key: string, index: number, markDirty = true): void {
     if (this.objectListDisplay[key])
       this.objectListDisplay[key][index].height = '0px'
@@ -340,19 +342,25 @@ export class FormObjectComponent {
   }
 
   private updateEnumList(key: string, current: string[], updated: string[]) {
-    this.formGroup.get(key)?.markAsDirty()
+    const arr = this.formGroup.get(key) as FormArray
 
     for (let i = current.length - 1; i >= 0; i--) {
       if (!updated.includes(current[i])) {
-        this.deleteListItem(key, i, false)
+        arr.removeAt(i)
       }
     }
 
+    const listSpec = this.objectSpec[key] as ValueSpecList
+
     updated.forEach(val => {
       if (!current.includes(val)) {
-        this.addListItem(key, false, val)
+        const newItem = this.formService.getListItem(listSpec, val)!
+        arr.insert(arr.length, newItem)
       }
     })
+
+    arr.markAsDirty()
+    arr.markAllAsTouched()
   }
 
   private getDocSize(key: string, index = 0): string {
