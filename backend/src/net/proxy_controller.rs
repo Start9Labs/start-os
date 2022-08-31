@@ -11,17 +11,14 @@ use crate::net::ssl::SslManager;
 use crate::net::{InterfaceMetadata, PackageNetInfo};
 use crate::{Error, ResultExt};
 
-struct ProxyController {
-    pub proxy_root: PathBuf,
-    pub 
+pub struct ProxyController {
     inner: Mutex<ProxyControllerInner>,
 }
 
 impl ProxyController {
-    pub async fn init(proxy_root: PathBuf, ssl_manager: &SslManager) -> Result<Self, Error> {
+    pub async fn init(ssl_manager: &SslManager) -> Result<Self, Error> {
         Ok(ProxyController {
-            inner: Mutex::new(ProxyControllerInner::init(&proxy_root, ssl_manager).await?),
-            proxy_root,
+            inner: Mutex::new(ProxyControllerInner::init(ssl_manager).await?),
         })
     }
 
@@ -35,7 +32,7 @@ impl ProxyController {
         self.inner
             .lock()
             .await
-            .add(&self.proxy_root, ssl_manager, package, ipv4, interfaces)
+            .add(ssl_manager, package, ipv4, interfaces)
             .await
     }
 
@@ -54,7 +51,7 @@ struct ProxyControllerInner {
 
 impl ProxyControllerInner {
     #[instrument]
-    async fn init(proxy_root: &Path, ssl_manager: &SslManager) -> Result<Self, Error> {
+    async fn init(ssl_manager: &SslManager) -> Result<Self, Error> {
         let inner = ProxyControllerInner {
             interfaces: BTreeMap::new(),
         };
@@ -74,7 +71,6 @@ impl ProxyControllerInner {
     #[instrument(skip(self, interfaces))]
     async fn add<I: IntoIterator<Item = (InterfaceId, InterfaceMetadata)>>(
         &mut self,
-        nginx_root: &Path,
         ssl_manager: &SslManager,
         package: PackageId,
         ipv4: Ipv4Addr,

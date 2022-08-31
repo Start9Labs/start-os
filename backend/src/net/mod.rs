@@ -18,6 +18,7 @@ use self::ssl::SslManager;
 use self::tor::TorController;
 use crate::net::dns::DnsController;
 use crate::net::interface::{TorConfig, LanPortConfig};
+use crate::net::proxy_controller::ProxyController;
 //use crate::net::nginx::InterfaceMetadata;
 use crate::s9pk::manifest::PackageId;
 use crate::Error;
@@ -60,6 +61,7 @@ pub struct NetController {
     #[cfg(feature = "avahi")]
     pub mdns: MdnsController,
     pub nginx: NginxController,
+    pub proxy: ProxyController,
     pub ssl: SslManager,
     pub dns: DnsController,
 }
