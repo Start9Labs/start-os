@@ -1,6 +1,8 @@
+use std::collections::BTreeMap;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 
+use indexmap::IndexSet;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
 use rpc_toolkit::command;
@@ -15,10 +17,11 @@ use self::nginx::NginxController;
 use self::ssl::SslManager;
 use self::tor::TorController;
 use crate::net::dns::DnsController;
-use crate::net::interface::TorConfig;
-use crate::net::nginx::InterfaceMetadata;
+use crate::net::interface::{TorConfig, LanPortConfig};
+//use crate::net::nginx::InterfaceMetadata;
 use crate::s9pk::manifest::PackageId;
 use crate::Error;
+use crate::util::serde::Port;
 
 pub mod dns;
 pub mod interface;
@@ -28,12 +31,23 @@ pub mod nginx;
 pub mod ssl;
 pub mod tor;
 pub mod wifi;
+pub mod proxy_controller;
 
 const PACKAGE_CERT_PATH: &str = "/var/lib/embassy/ssl";
 
 #[command(subcommands(tor::tor))]
 pub fn net() -> Result<(), Error> {
     Ok(())
+}
+
+
+struct PackageNetInfo {
+    interfaces: BTreeMap<InterfaceId, InterfaceMetadata>,
+}
+pub struct InterfaceMetadata {
+    pub dns_base: String,
+    pub lan_config: BTreeMap<Port, LanPortConfig>,
+    pub protocols: IndexSet<String>,
 }
 
 /// Indicates that the net controller has created the
