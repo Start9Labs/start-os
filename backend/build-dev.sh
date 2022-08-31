@@ -16,7 +16,7 @@ fi
 alias 'rust-arm64-builder'='docker run $USE_TTY --rm -v "$HOME/.cargo/registry":/root/.cargo/registry -v "$(pwd)":/home/rust/src start9/rust-arm-cross:aarch64'
 
 cd ..
-rust-arm64-builder sh -c "(cd backend && cargo build)"
+rust-arm64-builder sh -c "(cd backend && cargo build --locked)"
 cd backend
 
 sudo chown -R $USER target
