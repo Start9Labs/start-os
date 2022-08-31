@@ -220,6 +220,11 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     let db = cfg.db(&secret_store).await?;
 
     let mut handle = db.handle();
+    crate::db::DatabaseModel::new()
+        .server_info()
+        .lock(&mut handle, LockType::Write)
+        .await?;
+
     let receipts = InitReceipts::new(&mut handle).await?;
 
     crate::net::wifi::synchronize_wpa_supplicant_conf(

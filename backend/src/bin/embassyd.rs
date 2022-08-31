@@ -333,8 +333,10 @@ fn main() {
                         tracing::error!("{}", e.source);
                         tracing::debug!("{:?}", e.source);
                         embassy::sound::BEETHOVEN.play().await?;
+                        tracing::debug!("BLUJ MdnsController PRE");
                         #[cfg(feature = "avahi")]
                         let _mdns = MdnsController::init();
+                        tracing::debug!("BLUJ MdnsController POST");
                         tokio::fs::write(
                             "/etc/nginx/sites-available/default",
                             include_str!("../nginx/diagnostic-ui.conf"),

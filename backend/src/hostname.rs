@@ -1,8 +1,7 @@
-use digest::Digest;
 use patch_db::DbHandle;
+use rand::{thread_rng, Rng};
 use tokio::process::Command;
 use tracing::instrument;
-use rand::{thread_rng, Rng};
 
 use crate::util::Invoke;
 use crate::{Error, ErrorKind};
@@ -32,7 +31,6 @@ pub fn generate_hostname() -> HostName {
     HostName(format!("{adjective}-{noun}"))
 }
 
-
 pub fn generate_id() -> String {
     let id = uuid::Uuid::new_v4();
     id.to_string()
@@ -50,7 +48,6 @@ pub async fn get_current_hostname() -> Result<HostName, Error> {
 #[instrument]
 pub async fn set_hostname(hostname: &HostName) -> Result<(), Error> {
     let hostname: &String = &hostname.0;
-    tracing::debug!("BLUJ: Hostname = {}", hostname);
     let _out = Command::new("hostnamectl")
         .arg("set-hostname")
         .arg(hostname)
@@ -87,8 +84,8 @@ pub async fn get_hostname<Db: DbHandle>(handle: &mut Db) -> Result<HostName, Err
     return Ok(HostName(format!("embassy-{}", id)));
 }
 #[instrument(skip(handle))]
-pub async fn sync_hostname<Db: DbHandle>(mut handle: Db) -> Result<(), Error> {
-    set_hostname(&get_hostname(&mut handle).await?).await?;
+pub async fn sync_hostname<Db: DbHandle>(handle: &mut Db) -> Result<(), Error> {
+    set_hostname(&get_hostname(handle).await?).await?;
     Command::new("systemctl")
         .arg("restart")
         .arg("avahi-daemon")

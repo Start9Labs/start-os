@@ -138,7 +138,7 @@ impl SetupContext {
     /// So we assume that there will only be one client that will ask for a secret,
     /// And during that time do we upsert to a new key
     pub async fn update_secret(&self) -> Result<String, Error> {
-        let new_secret:String = thread_rng()
+        let new_secret: String = thread_rng()
             .sample_iter(&Alphanumeric)
             .take(30)
             .map(char::from)

@@ -11,6 +11,7 @@ use libc::c_void;
 use tokio::process::Command;
 use tokio::sync::Mutex;
 use torut::onion::TorSecretKeyV3;
+use tracing::instrument;
 
 use super::interface::InterfaceId;
 use crate::s9pk::manifest::PackageId;
@@ -69,6 +70,7 @@ unsafe impl Send for MdnsControllerInner {}
 unsafe impl Sync for MdnsControllerInner {}
 
 impl MdnsControllerInner {
+    #[instrument(skip(self))]
     fn load_services(&mut self) {
         unsafe {
             tracing::debug!("Loading services for mDNS");
@@ -177,8 +179,11 @@ impl MdnsControllerInner {
                 services: BTreeMap::new(),
                 _client_error: box_err,
             };
+            tracing::debug!("BLUJ INIT pre load_services");
             res.load_services();
+            tracing::debug!("BLUJ INIT pre avahi_entry_group_commit");
             let commit_err = avahi_entry_group_commit(res.entry_group);
+            tracing::debug!("BLUJ After avahi");
             if commit_err < avahi_sys::AVAHI_OK {
                 log_str_error("reset Avahi entry group", commit_err);
                 panic!("Failed to load Avahi services: reset");
@@ -189,14 +194,23 @@ impl MdnsControllerInner {
     fn sync(&mut self) {
         unsafe {
             let mut res;
+            tracing::debug!("BLUJ Sync Pre avahi_entry_group_reset");
             res = avahi_entry_group_reset(self.entry_group);
+            tracing::debug!(
+                "BLUJ Sync Post avahi_entry_group_reset {} {}",
+                res,
+                avahi_sys::AVAHI_OK
+            );
             if res < avahi_sys::AVAHI_OK {
                 log_str_error("reset Avahi entry group", res);
                 panic!("Failed to load Avahi services: reset");
             }
+            tracing::debug!("BLUJ Sync Pre Load");
             self.load_services();
+            tracing::debug!("BLUJ Sync Pre avahi_entry_group_commit");
             res = avahi_entry_group_commit(self.entry_group);
-            if res < avahi_sys::AVAHI_OK {
+            tracing::debug!("BLUJ Sync POST avahi_entry_group_commit");
+            if dbg!(res < avahi_sys::AVAHI_OK) {
                 log_str_error("commit Avahi entry group", res);
                 panic!("Failed to load Avahi services: commit");
             }

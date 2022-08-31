@@ -221,24 +221,6 @@ pub async fn get_secret(
     // then encode via hex
 }
 
-// #[tokio::test]
-// async fn gen_secret() {
-//     use josekit::jwk::Jwk;
-//     use serde_json::json;
-//     let public_key = Jwk::from_bytes(
-//         &serde_json::to_vec(&json!({
-//             "kty": "EC",
-//             "crv": "P-256",
-//             "x": "G1lwQXq9pO32HRuyhiM3w9a-eA95sxv4rK4jDpyTIRc",
-//             "y": "sB6iIoX8V1Ayp-NOYV7JAoui4mcf9ME5OBzI0Pi9tU4"
-//         }))
-//         .unwrap(),
-//     )
-//     .unwrap();
-//     let message: &[u8] = b"This is a test of the tsunami alert system.";
-
-//     println!("{}", message);
-// }
 #[command(subcommands(verify_cifs))]
 pub fn cifs() -> Result<(), Error> {
     Ok(())

@@ -12,6 +12,7 @@ use serde_json::Value;
 use torut::onion::TorSecretKeyV3;
 
 use crate::config::spec::{PackagePointerSpec, SystemPointerSpec};
+use crate::hostname::{generate_hostname, generate_id};
 use crate::install::progress::InstallProgress;
 use crate::net::interface::InterfaceId;
 use crate::s9pk::manifest::{Manifest, ManifestModel, PackageId};
@@ -19,7 +20,6 @@ use crate::status::health_check::HealthCheckId;
 use crate::status::Status;
 use crate::util::Version;
 use crate::version::{Current, VersionT};
-use crate::hostname::{generate_hostname, generate_id};
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
@@ -31,10 +31,6 @@ pub struct Database {
     #[model]
     pub recovered_packages: BTreeMap<PackageId, RecoveredPackageInfo>,
     pub ui: Value,
-}
-#[test]
-fn test_generate() {
-    assert_eq!("", &generate_id());
 }
 impl Database {
     pub fn init(tor_key: &TorSecretKeyV3, password_hash: String) -> Self {
