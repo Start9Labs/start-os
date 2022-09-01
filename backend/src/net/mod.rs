@@ -84,6 +84,7 @@ impl NetController {
             #[cfg(feature = "avahi")]
             mdns: MdnsController::init(),
             nginx: NginxController::init(PathBuf::from("/etc/nginx"), &ssl).await?,
+            proxy: ProxyController::init(&ssl).await?,
             ssl,
             dns: DnsController::init(dns_bind).await?,
         })
@@ -143,7 +144,8 @@ impl NetController {
                             },
                         )),
                     });
-                self.nginx.add(&self.ssl, pkg_id.clone(), ip, interfaces)
+                self.nginx.add(&self.ssl, pkg_id.clone(), ip, interfaces.cloned());
+                self.proxy.add(&self.ssl, pkg_id.clone(), ip, interfaces)
             },
             self.dns.add(pkg_id, ip),
         );

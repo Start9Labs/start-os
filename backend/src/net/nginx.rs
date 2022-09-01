@@ -10,6 +10,7 @@ use tracing::instrument;
 use super::interface::{InterfaceId, LanPortConfig};
 use super::ssl::SslManager;
 use crate::hostname::get_hostname;
+use crate::net::{PackageNetInfo, InterfaceMetadata};
 use crate::s9pk::manifest::PackageId;
 use crate::util::serde::Port;
 use crate::util::Invoke;
@@ -235,11 +236,11 @@ impl NginxControllerInner {
         Ok(())
     }
 }
-struct PackageNetInfo {
-    interfaces: BTreeMap<InterfaceId, InterfaceMetadata>,
-}
-pub struct InterfaceMetadata {
-    pub dns_base: String,
-    pub lan_config: BTreeMap<Port, LanPortConfig>,
-    pub protocols: IndexSet<String>,
-}
+// struct PackageNetInfo {
+//     interfaces: BTreeMap<InterfaceId, InterfaceMetadata>,
+// }
+// pub struct InterfaceMetadata {
+//     pub dns_base: String,
+//     pub lan_config: BTreeMap<Port, LanPortConfig>,
+//     pub protocols: IndexSet<String>,
+// }
