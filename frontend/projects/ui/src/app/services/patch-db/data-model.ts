@@ -52,6 +52,7 @@ export interface ServerInfo {
   'last-backup': string | null
   'lan-address': Url
   'tor-address': Url
+  'last-wifi-region': string | null
   'unread-notification-count': number
   'status-info': ServerStatusInfo
   'eos-version-compat': string

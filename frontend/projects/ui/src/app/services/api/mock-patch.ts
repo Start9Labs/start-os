@@ -31,6 +31,7 @@ export const mockPatchData: DataModel = {
     'last-backup': null,
     'lan-address': 'https://embassy-abcdefgh.local',
     'tor-address': 'http://myveryownspecialtoraddress.onion',
+    'last-wifi-region': null,
     'unread-notification-count': 4,
     // password is asdfasdf
     'password-hash':
