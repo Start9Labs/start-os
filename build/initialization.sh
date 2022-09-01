@@ -1,7 +1,15 @@
 #!/bin/bash
 
-# Update repositories, install dependencies, do some initial configurations, set hostname, enable embassy-init, and config Tor
-set -e
+function flatline {
+	echo -n "0" > /sys/class/pwm/pwmchip0/export
+	sleep 0.5
+	echo -n "2272727" > /sys/class/pwm/pwmchip0/pwm0/period
+	echo -n "1136364" > /sys/class/pwm/pwmchip0/pwm0/duty_cycle
+	echo -n "1" > /sys/class/pwm/pwmchip0/pwm0/enable
+	exit 1
+}
+
+(set -e
 
 # introduce start9 username and embassy as default password
 if ! awk -F: '{ print $1 }' /etc/passwd | grep start9
@@ -146,9 +154,10 @@ systemctl disable nc-broadcast.service
 systemctl disable initialization.service
 sudo systemctl restart NetworkManager
 
-sync
-
 echo "fs.inotify.max_user_watches=1048576" > /etc/sysctl.d/97-embassy.conf
 
-# TODO: clean out ssh host keys
+sync
+
 reboot
+) || flatline
+
