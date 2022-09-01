@@ -106,10 +106,10 @@ export class FormObjectComponent {
   }
 
   updateUnion(e: any): void {
-    const primary = this.unionSpec?.tag.id
+    const id = this.unionSpec?.tag.id
 
     Object.keys(this.formGroup.controls).forEach(control => {
-      if (control === primary) return
+      if (control === id) return
       this.formGroup.removeControl(control)
     })
 
@@ -119,7 +119,7 @@ export class FormObjectComponent {
     )
 
     Object.keys(unionGroup.controls).forEach(control => {
-      if (control === primary) return
+      if (control === id) return
       this.formGroup.addControl(control, unionGroup.controls[control])
     })
 
