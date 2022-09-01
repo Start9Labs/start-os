@@ -13,6 +13,12 @@ fi
 
 passwd -l start9
 
+while ! ping -q -w 1 -c 1 `ip r | grep default | cut -d ' ' -f 3` > /dev/null; do
+	>&2 echo "Waiting for internet connection..."
+	sleep 1
+done
+echo "Connected to network"
+
 # change timezone
 timedatectl set-timezone Etc/UTC
 
@@ -45,7 +51,9 @@ apt-get install -y \
 	network-manager \
 	vim \
 	jq \
-	ncdu
+	ncdu \
+	postgresql \
+	pgloader
 
 # Setup repository from The Guardian Project and install latest stable Tor daemon
 touch /etc/apt/sources.list.d/tor.list
@@ -63,6 +71,10 @@ systemctl start systemd-resolved
 
 apt-get remove --purge openresolv dhcpcd5 -y
 systemctl disable wpa_supplicant.service
+
+sudo -u postgres createuser root
+sudo -u postgres createdb secrets -O root
+systemctl disable postgresql.service
 
 ln -rsf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 

@@ -4,7 +4,6 @@ use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::time::Duration;
 
 use bollard::Docker;
 use helpers::to_tmp_path;
@@ -14,8 +13,8 @@ use reqwest::Url;
 use rpc_toolkit::url::Host;
 use rpc_toolkit::Context;
 use serde::Deserialize;
-use sqlx::sqlite::SqliteConnectOptions;
-use sqlx::SqlitePool;
+use sqlx::postgres::PgConnectOptions;
+use sqlx::PgPool;
 use tokio::fs::File;
 use tokio::process::Command;
 use tokio::sync::{broadcast, oneshot, Mutex, RwLock};
@@ -24,6 +23,7 @@ use tracing::instrument;
 use crate::core::rpc_continuations::{RequestGuid, RestHandler, RpcContinuation};
 use crate::db::model::{Database, InstalledPackageDataEntry, PackageDataEntry};
 use crate::hostname::{derive_hostname, derive_id, get_product_key};
+use crate::init::{init_postgres, pgloader};
 use crate::install::cleanup::{cleanup_failed, uninstall, CleanupFailedReceipts};
 use crate::manager::ManagerMap;
 use crate::middleware::auth::HashSessionToken;
@@ -71,7 +71,7 @@ impl RpcContextConfig {
             .as_deref()
             .unwrap_or_else(|| Path::new("/embassy-data"))
     }
-    pub async fn db(&self, secret_store: &SqlitePool, product_key: &str) -> Result<PatchDb, Error> {
+    pub async fn db(&self, secret_store: &PgPool, product_key: &str) -> Result<PatchDb, Error> {
         let sid = derive_id(product_key);
         let hostname = derive_hostname(&sid);
         let db_path = self.datadir().join("main").join("embassy.db");
@@ -94,18 +94,19 @@ impl RpcContextConfig {
         Ok(db)
     }
     #[instrument]
-    pub async fn secret_store(&self) -> Result<SqlitePool, Error> {
-        let secret_store = SqlitePool::connect_with(
-            SqliteConnectOptions::new()
-                .filename(self.datadir().join("main").join("secrets.db"))
-                .create_if_missing(true)
-                .busy_timeout(Duration::from_secs(30)),
-        )
-        .await?;
+    pub async fn secret_store(&self) -> Result<PgPool, Error> {
+        init_postgres(self.datadir()).await?;
+        let secret_store =
+            PgPool::connect_with(PgConnectOptions::new().database("secrets").username("root"))
+                .await?;
         sqlx::migrate!()
             .run(&secret_store)
             .await
             .with_kind(crate::ErrorKind::Database)?;
+        let old_db_path = self.datadir().join("main/secrets.db");
+        if tokio::fs::metadata(&old_db_path).await.is_ok() {
+            pgloader(&old_db_path).await?;
+        }
         Ok(secret_store)
     }
 }
@@ -118,7 +119,7 @@ pub struct RpcContextSeed {
     pub datadir: PathBuf,
     pub disk_guid: Arc<String>,
     pub db: PatchDb,
-    pub secret_store: SqlitePool,
+    pub secret_store: PgPool,
     pub docker: Docker,
     pub net_controller: NetController,
     pub managers: ManagerMap,
@@ -214,7 +215,7 @@ impl RpcContext {
         )));
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
         let secret_store = base.secret_store().await?;
-        tracing::info!("Opened Sqlite DB");
+        tracing::info!("Opened Pg DB");
         let db = base.db(&secret_store, &get_product_key().await?).await?;
         tracing::info!("Opened PatchDB");
         let docker = Docker::connect_with_unix_defaults()?;

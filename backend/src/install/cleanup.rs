@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use bollard::image::ListImagesOptions;
 use patch_db::{DbHandle, LockReceipt, LockTargetId, LockType, PatchDbHandle, Verifier};
-use sqlx::{Executor, Sqlite};
+use sqlx::{Executor, Postgres};
 use tracing::instrument;
 
 use super::{PKG_ARCHIVE_DIR, PKG_DOCKER_DIR};
@@ -337,7 +337,7 @@ pub async fn uninstall<Ex>(
     id: &PackageId,
 ) -> Result<(), Error>
 where
-    for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
+    for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
 {
     let mut tx = db.begin().await?;
     let receipts = UninstallReceipts::new(&mut tx, id).await?;
@@ -383,10 +383,10 @@ where
 #[instrument(skip(secrets))]
 pub async fn remove_tor_keys<Ex>(secrets: &mut Ex, id: &PackageId) -> Result<(), Error>
 where
-    for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
+    for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
 {
     let id_str = id.as_str();
-    sqlx::query!("DELETE FROM tor WHERE package = ?", id_str)
+    sqlx::query!("DELETE FROM tor WHERE package = $1", id_str)
         .execute(secrets)
         .await?;
     Ok(())

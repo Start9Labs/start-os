@@ -10,7 +10,7 @@ use rpc_toolkit::command_helpers::prelude::{RequestParts, ResponseParts};
 use rpc_toolkit::yajrc::RpcError;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sqlx::{Executor, Sqlite};
+use sqlx::{Executor, Postgres};
 use tracing::instrument;
 
 use crate::context::{CliContext, RpcContext};
@@ -87,7 +87,7 @@ pub fn check_password(hash: &str, password: &str) -> Result<(), Error> {
 
 pub async fn check_password_against_db<Ex>(secrets: &mut Ex, password: &str) -> Result<(), Error>
 where
-    for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
+    for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
 {
     let pw_hash = sqlx::query!("SELECT password FROM account")
         .fetch_one(secrets)
@@ -124,7 +124,7 @@ pub async fn login(
     let metadata = serde_json::to_string(&metadata).with_kind(crate::ErrorKind::Database)?;
     let hash_token_hashed = hash_token.hashed();
     sqlx::query!(
-        "INSERT INTO session (id, user_agent, metadata) VALUES (?, ?, ?)",
+        "INSERT INTO session (id, user_agent, metadata) VALUES ($1, $2, $3)",
         hash_token_hashed,
         user_agent,
         metadata,
@@ -328,7 +328,7 @@ pub async fn set_password<Db: DbHandle, Ex>(
     password: &str,
 ) -> Result<(), Error>
 where
-    for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
+    for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
 {
     let password = argon2::hash_encoded(
         password.as_bytes(),
@@ -337,7 +337,7 @@ where
     )
     .with_kind(crate::ErrorKind::PasswordHashGeneration)?;
 
-    sqlx::query!("UPDATE account SET password = ?", password,)
+    sqlx::query!("UPDATE account SET password = $1", password,)
         .execute(secrets)
         .await?;
 

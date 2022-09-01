@@ -12,7 +12,7 @@ use color_eyre::eyre::eyre;
 use nix::sys::signal::Signal;
 use num_enum::TryFromPrimitive;
 use patch_db::DbHandle;
-use sqlx::{Executor, Sqlite};
+use sqlx::{Executor, Postgres};
 use tokio::sync::watch::error::RecvError;
 use tokio::sync::watch::{channel, Receiver, Sender};
 use tokio::sync::{Notify, RwLock};
@@ -47,7 +47,7 @@ impl ManagerMap {
         secrets: &mut Ex,
     ) -> Result<(), Error>
     where
-        for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
+        for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
     {
         let mut res = BTreeMap::new();
         for package in crate::db::DatabaseModel::new()

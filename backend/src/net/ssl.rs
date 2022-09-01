@@ -11,7 +11,7 @@ use openssl::nid::Nid;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::{X509Builder, X509Extension, X509NameBuilder, X509};
 use openssl::*;
-use sqlx::SqlitePool;
+use sqlx::PgPool;
 use tokio::process::Command;
 use tokio::sync::Mutex;
 use tracing::instrument;
@@ -33,17 +33,17 @@ pub struct SslManager {
 
 #[derive(Debug)]
 struct SslStore {
-    secret_store: SqlitePool,
+    secret_store: PgPool,
 }
 impl SslStore {
-    fn new(db: SqlitePool) -> Result<Self, Error> {
+    fn new(db: PgPool) -> Result<Self, Error> {
         Ok(SslStore { secret_store: db })
     }
     #[instrument(skip(self))]
     async fn save_root_certificate(&self, key: &PKey<Private>, cert: &X509) -> Result<(), Error> {
         let key_str = String::from_utf8(key.private_key_to_pem_pkcs8()?)?;
         let cert_str = String::from_utf8(cert.to_pem()?)?;
-        let _n = sqlx::query!("INSERT INTO certificates (id, priv_key_pem, certificate_pem, lookup_string, created_at, updated_at) VALUES (0, ?, ?, NULL, datetime('now'), datetime('now'))", key_str, cert_str).execute(&self.secret_store).await?;
+        let _n = sqlx::query!("INSERT INTO certificates (id, priv_key_pem, certificate_pem, lookup_string, created_at, updated_at) VALUES (0, $1, $2, NULL, now(), now())", key_str, cert_str).execute(&self.secret_store).await?;
         Ok(())
     }
     #[instrument(skip(self))]
@@ -69,7 +69,7 @@ impl SslStore {
     ) -> Result<(), Error> {
         let key_str = String::from_utf8(key.private_key_to_pem_pkcs8()?)?;
         let cert_str = String::from_utf8(cert.to_pem()?)?;
-        let _n = sqlx::query!("INSERT INTO certificates (id, priv_key_pem, certificate_pem, lookup_string, created_at, updated_at) VALUES (1, ?, ?, NULL, datetime('now'), datetime('now'))", key_str, cert_str).execute(&self.secret_store).await?;
+        let _n = sqlx::query!("INSERT INTO certificates (id, priv_key_pem, certificate_pem, lookup_string, created_at, updated_at) VALUES (1, $1, $2, NULL, now(), now())", key_str, cert_str).execute(&self.secret_store).await?;
         Ok(())
     }
     async fn load_intermediate_certificate(&self) -> Result<Option<(PKey<Private>, X509)>, Error> {
@@ -108,7 +108,7 @@ impl SslStore {
     ) -> Result<(), Error> {
         let key_str = String::from_utf8(key.private_key_to_pem_pkcs8()?)?;
         let cert_str = String::from_utf8(cert.to_pem()?)?;
-        let _n = sqlx::query!("INSERT INTO certificates (priv_key_pem, certificate_pem, lookup_string, created_at, updated_at) VALUES (?, ?, ?, datetime('now'), datetime('now'))", key_str, cert_str, lookup_string).execute(&self.secret_store).await?;
+        let _n = sqlx::query!("INSERT INTO certificates (priv_key_pem, certificate_pem, lookup_string, created_at, updated_at) VALUES ($1, $2, $3, now(), now())", key_str, cert_str, lookup_string).execute(&self.secret_store).await?;
         Ok(())
     }
     async fn load_certificate(
@@ -116,7 +116,7 @@ impl SslStore {
         lookup_string: &str,
     ) -> Result<Option<(PKey<Private>, X509)>, Error> {
         let m_row = sqlx::query!(
-            "SELECT priv_key_pem, certificate_pem FROM certificates WHERE lookup_string = ?",
+            "SELECT priv_key_pem, certificate_pem FROM certificates WHERE lookup_string = $1",
             lookup_string
         )
         .fetch_optional(&self.secret_store)
@@ -139,7 +139,8 @@ impl SslStore {
     ) -> Result<(), Error> {
         let key_str = String::from_utf8(key.private_key_to_pem_pkcs8()?)?;
         let cert_str = String::from_utf8(cert.to_pem()?)?;
-        let n = sqlx::query!("UPDATE certificates SET priv_key_pem = ?, certificate_pem = ?, updated_at = datetime('now') WHERE lookup_string = ?", key_str, cert_str, lookup_string).execute(&self.secret_store).await?;
+        let n = sqlx::query!("UPDATE certificates SET priv_key_pem = $1, certificate_pem = $2, updated_at = now() WHERE lookup_string = $3", key_str, cert_str, lookup_string)
+            .execute(&self.secret_store).await?;
         if n.rows_affected() == 0 {
             return Err(Error::new(
                 eyre!(
@@ -161,7 +162,7 @@ lazy_static::lazy_static! {
 
 impl SslManager {
     #[instrument(skip(db))]
-    pub async fn init(db: SqlitePool) -> Result<Self, Error> {
+    pub async fn init(db: PgPool) -> Result<Self, Error> {
         let store = SslStore::new(db)?;
         let (root_key, root_cert) = match store.load_root_certificate().await? {
             None => {
@@ -204,6 +205,10 @@ impl SslManager {
             }
             Some((key, cert)) => Ok((key, cert)),
         }?;
+
+        sqlx::query!("SELECT setval('certificates_id_seq', GREATEST(MAX(id) + 1, nextval('certificates_id_seq') - 1)) FROM certificates")
+            .fetch_one(&store.secret_store).await?;
+
         Ok(SslManager {
             store,
             root_cert,
@@ -221,7 +226,7 @@ impl SslManager {
     // the intermediate certificate
     #[instrument(skip(db))]
     pub async fn import_root_ca(
-        db: SqlitePool,
+        db: PgPool,
         root_key: PKey<Private>,
         root_cert: X509,
     ) -> Result<Self, Error> {
@@ -508,10 +513,11 @@ fn make_leaf_cert(
 
 #[tokio::test]
 async fn ca_details_persist() -> Result<(), Error> {
-    let pool = sqlx::Pool::<sqlx::Sqlite>::connect("sqlite::memory:").await?;
-    sqlx::query_file!("migrations/20210629193146_Init.sql")
-        .execute(&pool)
-        .await?;
+    let pool = sqlx::Pool::<sqlx::Postgres>::connect("postgres::memory:").await?;
+    sqlx::migrate!()
+        .run(&pool)
+        .await
+        .with_kind(crate::ErrorKind::Database)?;
     let mgr = SslManager::init(pool.clone()).await?;
     let root_cert0 = mgr.root_cert;
     let int_key0 = mgr.int_key;
@@ -532,10 +538,11 @@ async fn ca_details_persist() -> Result<(), Error> {
 
 #[tokio::test]
 async fn certificate_details_persist() -> Result<(), Error> {
-    let pool = sqlx::Pool::<sqlx::Sqlite>::connect("sqlite::memory:").await?;
-    sqlx::query_file!("migrations/20210629193146_Init.sql")
-        .execute(&pool)
-        .await?;
+    let pool = sqlx::Pool::<sqlx::Postgres>::connect("postgres::memory:").await?;
+    sqlx::migrate!()
+        .run(&pool)
+        .await
+        .with_kind(crate::ErrorKind::Database)?;
     let mgr = SslManager::init(pool.clone()).await?;
     let package_id = "bitcoind".parse().unwrap();
     let (key0, cert_chain0) = mgr.certificate_for("start9", &package_id).await?;

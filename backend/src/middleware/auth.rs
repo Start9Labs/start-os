@@ -41,7 +41,7 @@ impl HasLoggedOutSessions {
         for session in logged_out_sessions {
             let session = session.as_logout_session_id();
             sqlx::query!(
-                "UPDATE session SET logged_out = CURRENT_TIMESTAMP WHERE id = ?",
+                "UPDATE session SET logged_out = CURRENT_TIMESTAMP WHERE id = $1",
                 session
             )
             .execute(&mut sqlx_conn)
@@ -68,7 +68,7 @@ impl HasValidSession {
 
     pub async fn from_session(session: &HashSessionToken, ctx: &RpcContext) -> Result<Self, Error> {
         let session_hash = session.hashed();
-        let session = sqlx::query!("UPDATE session SET last_active = CURRENT_TIMESTAMP WHERE id = ? AND logged_out IS NULL OR logged_out > CURRENT_TIMESTAMP", session_hash)
+        let session = sqlx::query!("UPDATE session SET last_active = CURRENT_TIMESTAMP WHERE id = $1 AND logged_out IS NULL OR logged_out > CURRENT_TIMESTAMP", session_hash)
             .execute(&mut ctx.secret_store.acquire().await?)
             .await?;
         if session.rows_affected() == 0 {

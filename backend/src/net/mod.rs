@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
 use rpc_toolkit::command;
-use sqlx::SqlitePool;
+use sqlx::PgPool;
 use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 use tracing::instrument;
 
@@ -56,7 +56,7 @@ impl NetController {
         embassyd_tor_key: TorSecretKeyV3,
         tor_control: SocketAddr,
         dns_bind: &[SocketAddr],
-        db: SqlitePool,
+        db: PgPool,
         import_root_ca: Option<(PKey<Private>, X509)>,
     ) -> Result<Self, Error> {
         let ssl = match import_root_ca {

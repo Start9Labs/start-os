@@ -10,7 +10,7 @@ use digest::OutputSizeUser;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
-use sqlx::{Executor, Sqlite};
+use sqlx::{Executor, Postgres};
 use tracing::instrument;
 
 use self::cifs::CifsBackupTarget;
@@ -45,12 +45,12 @@ pub enum BackupTarget {
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum BackupTargetId {
     Disk { logicalname: PathBuf },
-    Cifs { id: u32 },
+    Cifs { id: i32 },
 }
 impl BackupTargetId {
     pub async fn load<Ex>(self, secrets: &mut Ex) -> Result<BackupTargetFS, Error>
     where
-        for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
+        for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
     {
         Ok(match self {
             BackupTargetId::Disk { logicalname } => {

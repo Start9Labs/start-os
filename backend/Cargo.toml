@@ -123,7 +123,7 @@ sqlx = { version = "0.6.0", features = [
   "chrono",
   "offline",
   "runtime-tokio-rustls",
-  "sqlite",
+  "postgres",
 ] }
 stderrlog = "0.5.3"
 tar = "0.4.38"
@@ -142,8 +142,11 @@ trust-dns-server = "0.21.2"
 typed-builder = "0.10.0"
 url = { version = "2.2.2", features = ["serde"] }
 
+[profile.test]
+opt-level = 3
+
 [profile.dev.package.backtrace]
 opt-level = 3
 
-[profile.test]
+[profile.dev.package.sqlx-macros]
 opt-level = 3
