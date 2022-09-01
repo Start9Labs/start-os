@@ -1147,7 +1147,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             if let Some(mut hdl) = rdr.scripts().await? {
                 tokio::io::copy(
                     &mut hdl,
-                    &mut File::create(dbg!(script_dir.join("embassy.js"))).await?,
+                    &mut File::create(script_dir.join("embassy.js")).await?,
                 )
                 .await?;
             }
