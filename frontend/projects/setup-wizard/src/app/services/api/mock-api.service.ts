@@ -12,11 +12,7 @@ let tries = 0
 @Injectable({
   providedIn: 'root',
 })
-export class MockApiService extends ApiService {
-  constructor() {
-    super()
-  }
-
+export class MockApiService implements ApiService {
   // ** UNENCRYPTED **
 
   async getStatus() {

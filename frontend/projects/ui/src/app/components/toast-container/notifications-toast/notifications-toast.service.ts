@@ -2,7 +2,8 @@ import { Injectable } from '@angular/core'
 import { endWith, Observable } from 'rxjs'
 import { filter, map, pairwise } from 'rxjs/operators'
 import { exists } from '@start9labs/shared'
-import { PatchDbService } from '../../../services/patch-db/patch-db.service'
+import { PatchDB } from 'patch-db-client'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 
 @Injectable({ providedIn: 'root' })
 export class NotificationsToastService extends Observable<boolean> {
@@ -15,7 +16,7 @@ export class NotificationsToastService extends Observable<boolean> {
       endWith(false),
     )
 
-  constructor(private readonly patch: PatchDbService) {
+  constructor(private readonly patch: PatchDB<DataModel>) {
     super(subscriber => this.stream$.subscribe(subscriber))
   }
 }

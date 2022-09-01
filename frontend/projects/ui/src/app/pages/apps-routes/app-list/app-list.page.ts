@@ -1,6 +1,9 @@
 import { Component } from '@angular/core'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { PatchDB } from 'patch-db-client'
+import {
+  DataModel,
+  PackageDataEntry,
+} from 'src/app/services/patch-db/data-model'
 import { Observable } from 'rxjs'
 import { filter, map, switchMap, take, takeUntil, tap } from 'rxjs/operators'
 import { isEmptyObject, exists, DestroyService } from '@start9labs/shared'
@@ -22,7 +25,7 @@ export class AppListPage {
   constructor(
     private readonly api: ApiService,
     private readonly destroy$: DestroyService,
-    private readonly patch: PatchDbService,
+    private readonly patch: PatchDB<DataModel>,
   ) {}
 
   get empty(): boolean {

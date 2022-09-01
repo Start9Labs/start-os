@@ -10,12 +10,12 @@ import {
   GenericInputComponent,
   GenericInputOptions,
 } from 'src/app/modals/generic-input/generic-input.component'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDB } from 'patch-db-client'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import * as yaml from 'js-yaml'
 import { v4 } from 'uuid'
-import { DevData } from 'src/app/services/patch-db/data-model'
+import { DataModel, DevData } from 'src/app/services/patch-db/data-model'
 import { DestroyService, ErrorToastService } from '@start9labs/shared'
 import { takeUntil } from 'rxjs/operators'
 
@@ -35,7 +35,7 @@ export class DeveloperListPage {
     private readonly errToast: ErrorToastService,
     private readonly alertCtrl: AlertController,
     private readonly destroy$: DestroyService,
-    private readonly patch: PatchDbService,
+    private readonly patch: PatchDB<DataModel>,
     private readonly actionCtrl: ActionSheetController,
   ) {}
 

@@ -8,6 +8,7 @@ import {
   removeTrailingSlash,
 } from '@start9labs/shared'
 import {
+  DataModel,
   PackageDataEntry,
   UIMarketplaceData,
 } from 'src/app/services/patch-db/data-model'
@@ -16,7 +17,8 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { from, map, Observable } from 'rxjs'
 import { Marketplace } from '@start9labs/marketplace'
 import { ActionMarketplaceComponent } from 'src/app/modals/action-marketplace/action-marketplace.component'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDB } from 'patch-db-client'
+
 export interface Button {
   title: string
   description: string
@@ -38,7 +40,7 @@ export class ToButtonsPipe implements PipeTransform {
     private readonly modalCtrl: ModalController,
     private readonly modalService: ModalService,
     private readonly apiService: ApiService,
-    private readonly patch: PatchDbService,
+    private readonly patch: PatchDB<DataModel>,
   ) {}
 
   transform(

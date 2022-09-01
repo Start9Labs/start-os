@@ -36,7 +36,7 @@ export class RPCEncryptedService {
           'Content-Type': 'application/json',
         },
       })
-      .then(body => AES_CTR.decryptPbkdf2(this.secret || '', body))
+      .then(res => AES_CTR.decryptPbkdf2(this.secret || '', res.body))
       .then(x => {
         console.log(`Network: ${x}`)
         return x

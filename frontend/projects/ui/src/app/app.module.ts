@@ -34,7 +34,7 @@ import { ConnectionBarComponentModule } from './components/connection-bar/connec
       storeName: '_embassykv',
       dbKey: '_embassykey',
       name: '_embassystorage',
-      driverOrder: [Drivers.LocalStorage, Drivers.IndexedDB],
+      driverOrder: [Drivers.LocalStorage],
     }),
     MenuModule,
     PreloaderModule,

@@ -1,9 +1,12 @@
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { UIMarketplaceData } from 'src/app/services/patch-db/data-model'
+import { PatchDB } from 'patch-db-client'
+import {
+  DataModel,
+  UIMarketplaceData,
+} from 'src/app/services/patch-db/data-model'
 import { filter, firstValueFrom } from 'rxjs'
 
 export function getMarketplace(
-  patch: PatchDbService,
+  patch: PatchDB<DataModel>,
 ): Promise<UIMarketplaceData> {
   return firstValueFrom(patch.watch$('ui', 'marketplace').pipe(filter(Boolean)))
 }

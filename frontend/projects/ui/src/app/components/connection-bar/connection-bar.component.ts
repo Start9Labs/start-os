@@ -1,7 +1,6 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core'
-import { combineLatest, map, Observable, startWith, tap } from 'rxjs'
+import { Component } from '@angular/core'
+import { combineLatest, map, Observable } from 'rxjs'
 import { ConnectionService } from 'src/app/services/connection.service'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 
 @Component({
   selector: 'connection-bar',
@@ -46,8 +45,5 @@ export class ConnectionBarComponent {
     }),
   )
 
-  constructor(
-    private readonly connectionService: ConnectionService,
-    private readonly patch: PatchDbService,
-  ) {}
+  constructor(private readonly connectionService: ConnectionService) {}
 }

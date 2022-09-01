@@ -1,36 +1,42 @@
 import { Inject, Injectable } from '@angular/core'
 import {
+  HttpOptions,
   HttpService,
+  isRpcError,
+  LocalHttpResponse,
   Log,
   Method,
-  RPCError,
+  RpcError,
   RPCOptions,
+  RPCResponse,
 } from '@start9labs/shared'
 import { ApiService } from './embassy-api.service'
 import { RR } from './api.types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { ConfigService } from '../config.service'
 import { webSocket, WebSocketSubjectConfig } from 'rxjs/webSocket'
-import { Observable, timeout } from 'rxjs'
+import { Observable } from 'rxjs'
 import { AuthService } from '../auth.service'
 import { DOCUMENT } from '@angular/common'
 import { DataModel } from '../patch-db/data-model'
-import { Update } from 'patch-db-client'
+import { PatchDB, Update } from 'patch-db-client'
+import { ResponseSyncService } from '../patch-db/response-sync.service'
 
 @Injectable()
-export class LiveApiService extends ApiService {
+export class LiveApiService implements ApiService {
   constructor(
     @Inject(DOCUMENT) private readonly document: Document,
     private readonly http: HttpService,
     private readonly config: ConfigService,
     private readonly auth: AuthService,
+    private readonly patch: PatchDB<DataModel>,
+    private readonly responseSync: ResponseSyncService,
   ) {
-    super()
-    ; (window as any).rpcClient = this
+    (window as any).rpcClient = this
   }
 
   async getStatic(url: string): Promise<string> {
-    return this.http.httpRequest({
+    return this.httpRequest({
       method: Method.GET,
       url,
       responseType: 'text',
@@ -38,7 +44,7 @@ export class LiveApiService extends ApiService {
   }
 
   async uploadPackage(guid: string, body: ArrayBuffer): Promise<string> {
-    return this.http.httpRequest({
+    return this.httpRequest({
       method: Method.POST,
       body,
       url: `/rest/rpc/${guid}`,
@@ -48,15 +54,7 @@ export class LiveApiService extends ApiService {
 
   // db
 
-  async getRevisions(since: number): Promise<RR.GetRevisionsRes> {
-    return this.rpcRequest({ method: 'db.revisions', params: { since } })
-  }
-
-  async getDump(): Promise<RR.GetDumpRes> {
-    return this.rpcRequest({ method: 'db.dump', params: {} })
-  }
-
-  async setDbValueRaw(params: RR.SetDBValueReq): Promise<RR.SetDBValueRes> {
+  async setDbValue(params: RR.SetDBValueReq): Promise<RR.SetDBValueRes> {
     return this.rpcRequest({ method: 'db.put.ui', params })
   }
 
@@ -94,7 +92,7 @@ export class LiveApiService extends ApiService {
       },
     }
 
-    return this.openWebsocket(config).pipe(timeout({ first: 21000 }))
+    return this.openWebsocket(config)
   }
 
   openLogsWebsocket$(config: WebSocketSubjectConfig<Log>): Observable<Log> {
@@ -131,10 +129,13 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'server.metrics', params })
   }
 
-  async updateServerRaw(
-    params: RR.UpdateServerReq,
-  ): Promise<RR.UpdateServerRes> {
+  async updateServer(params: RR.UpdateServerReq): Promise<RR.UpdateServerRes> {
     return this.rpcRequest({ method: 'server.update', params })
+    // const res = await this.updateServer(params)
+    // if (res.response === 'no-updates') {
+    //   throw new Error('Could not find a newer version of EmbassyOS')
+    // }
+    // return res
   }
 
   async restartServer(
@@ -182,7 +183,7 @@ export class LiveApiService extends ApiService {
 
   // notification
 
-  async getNotificationsRaw(
+  async getNotifications(
     params: RR.GetNotificationsReq,
   ): Promise<RR.GetNotificationsRes> {
     return this.rpcRequest({ method: 'notification.list', params })
@@ -277,9 +278,7 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'backup.target.info', params })
   }
 
-  async createBackupRaw(
-    params: RR.CreateBackupReq,
-  ): Promise<RR.CreateBackupRes> {
+  async createBackup(params: RR.CreateBackupReq): Promise<RR.CreateBackupRes> {
     return this.rpcRequest({ method: 'backup.create', params })
   }
 
@@ -288,9 +287,9 @@ export class LiveApiService extends ApiService {
   async getPackageProperties(
     params: RR.GetPackagePropertiesReq,
   ): Promise<RR.GetPackagePropertiesRes<2>['data']> {
-    return this.http
-      .rpcRequest({ method: 'package.properties', params })
-      .then(parsePropertiesPermissive)
+    return this.rpcRequest({ method: 'package.properties', params }).then(
+      parsePropertiesPermissive,
+    )
   }
 
   async getPackageLogs(
@@ -311,7 +310,7 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'package.metrics', params })
   }
 
-  async installPackageRaw(
+  async installPackage(
     params: RR.InstallPackageReq,
   ): Promise<RR.InstallPackageRes> {
     return this.rpcRequest({ method: 'package.install', params })
@@ -335,13 +334,13 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'package.config.set.dry', params })
   }
 
-  async setPackageConfigRaw(
+  async setPackageConfig(
     params: RR.SetPackageConfigReq,
   ): Promise<RR.SetPackageConfigRes> {
     return this.rpcRequest({ method: 'package.config.set', params })
   }
 
-  async restorePackagesRaw(
+  async restorePackages(
     params: RR.RestorePackagesReq,
   ): Promise<RR.RestorePackagesRes> {
     return this.rpcRequest({ method: 'package.backup.restore', params })
@@ -353,29 +352,27 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'package.action', params })
   }
 
-  async startPackageRaw(
-    params: RR.StartPackageReq,
-  ): Promise<RR.StartPackageRes> {
+  async startPackage(params: RR.StartPackageReq): Promise<RR.StartPackageRes> {
     return this.rpcRequest({ method: 'package.start', params })
   }
 
-  async restartPackageRaw(
+  async restartPackage(
     params: RR.RestartPackageReq,
   ): Promise<RR.RestartPackageRes> {
     return this.rpcRequest({ method: 'package.restart', params })
   }
 
-  async stopPackageRaw(params: RR.StopPackageReq): Promise<RR.StopPackageRes> {
+  async stopPackage(params: RR.StopPackageReq): Promise<RR.StopPackageRes> {
     return this.rpcRequest({ method: 'package.stop', params })
   }
 
-  async deleteRecoveredPackageRaw(
+  async deleteRecoveredPackage(
     params: RR.DeleteRecoveredPackageReq,
   ): Promise<RR.DeleteRecoveredPackageRes> {
     return this.rpcRequest({ method: 'package.delete-recovered', params })
   }
 
-  async uninstallPackageRaw(
+  async uninstallPackage(
     params: RR.UninstallPackageReq,
   ): Promise<RR.UninstallPackageRes> {
     return this.rpcRequest({ method: 'package.uninstall', params })
@@ -410,12 +407,34 @@ export class LiveApiService extends ApiService {
   }
 
   private async rpcRequest<T>(options: RPCOptions): Promise<T> {
-    return this.http.rpcRequest<T>(options).catch(e => {
-      if ((e as RPCError).error.code === 34) {
+    options.headers = {
+      'x-patch-sequence': String(this.patch.cache$.value.sequence),
+      ...(options.headers || {}),
+    }
+
+    const res = await this.http.rpcRequest<T>(options)
+    const encoded = res.headers.get('x-patch-updates')
+
+    if (encoded) {
+      const updates: Update<DataModel>[] = JSON.parse(decodeURI(encoded))
+      this.responseSync.stream$.next(updates)
+    }
+
+    const rpcRes = res.body
+
+    if (isRpcError(rpcRes)) {
+      if (rpcRes.error.code === 34) {
         console.error('Unauthenticated, logging out')
         this.auth.setUnverified()
       }
-      throw e
-    })
+      throw new RpcError(rpcRes.error)
+    }
+
+    return rpcRes.result
+  }
+
+  private async httpRequest<T>(opts: HttpOptions): Promise<T> {
+    const res = await this.http.httpRequest<T>(opts)
+    return res.body
   }
 }

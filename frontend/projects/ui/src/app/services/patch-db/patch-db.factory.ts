@@ -1,26 +1,25 @@
 import { InjectionToken } from '@angular/core'
-import { catchError, switchMap, take, tap } from 'rxjs/operators'
-import { Bootstrapper, DBCache, Update } from 'patch-db-client'
+import { bufferTime, catchError, switchMap, take, tap } from 'rxjs/operators'
+import { Update } from 'patch-db-client'
 import { DataModel } from './data-model'
 import { EMPTY, from, interval, merge, Observable } from 'rxjs'
 import { AuthService } from '../auth.service'
 import { ConnectionService } from '../connection.service'
 import { ApiService } from '../api/embassy-api.service'
+import { ResponseSyncService } from './response-sync.service'
 
 export const PATCH_SOURCE = new InjectionToken<Observable<Update<DataModel>>>(
   '',
 )
-export const PATCH_CACHE = new InjectionToken<DBCache<DataModel>>('', {
-  factory: () => ({} as any),
-})
-export const BOOTSTRAPPER = new InjectionToken<Bootstrapper<DataModel>>('')
 
 export function sourceFactory(
   api: ApiService,
   authService: AuthService,
   connectionService: ConnectionService,
-): Observable<Update<DataModel>> {
+  responseSync: ResponseSyncService,
+): Observable<Update<DataModel>[]> {
   const websocket$ = api.openPatchWebsocket$().pipe(
+    bufferTime(250),
     catchError((_, watch$) => {
       connectionService.websocketConnected$.next(false)
 
@@ -36,6 +35,8 @@ export function sourceFactory(
   )
 
   return authService.isVerified$.pipe(
-    switchMap(verified => (verified ? merge(websocket$, api.sync$) : EMPTY)),
+    switchMap(verified =>
+      verified ? merge(websocket$, responseSync.stream$) : EMPTY,
+    ),
   )
 }

@@ -11,9 +11,12 @@ import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ValueSpecObject } from 'src/app/pkg-config/config-types'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
-import { PatchDbService } from '../../../services/patch-db/patch-db.service'
+import { PatchDB } from 'patch-db-client'
 import { v4 } from 'uuid'
-import { UIMarketplaceData } from '../../../services/patch-db/data-model'
+import {
+  DataModel,
+  UIMarketplaceData,
+} from '../../../services/patch-db/data-model'
 import { ConfigService } from '../../../services/config.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import {
@@ -50,7 +53,7 @@ export class MarketplacesPage {
     @Inject(AbstractMarketplaceService)
     private readonly marketplaceService: MarketplaceService,
     private readonly config: ConfigService,
-    private readonly patch: PatchDbService,
+    private readonly patch: PatchDB<DataModel>,
     private readonly destroy$: DestroyService,
     private readonly alertCtrl: AlertController,
   ) {}

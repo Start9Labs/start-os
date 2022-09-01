@@ -2,8 +2,9 @@ import { Component } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import * as yaml from 'js-yaml'
 import { take } from 'rxjs/operators'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDB } from 'patch-db-client'
 import { getProjectId } from 'src/app/util/get-project-id'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 
 @Component({
   selector: 'dev-manifest',
@@ -17,11 +18,11 @@ export class DevManifestPage {
 
   constructor(
     private readonly route: ActivatedRoute,
-    private readonly patchDb: PatchDbService,
+    private readonly patch: PatchDB<DataModel>,
   ) {}
 
   ngOnInit() {
-    this.patchDb
+    this.patch
       .watch$('ui', 'dev', this.projectId)
       .pipe(take(1))
       .subscribe(devData => {

@@ -5,8 +5,9 @@ import { distinctUntilChanged, filter, map } from 'rxjs/operators'
 
 import { MarketplaceEOS } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDB } from 'patch-db-client'
 import { getServerInfo } from 'src/app/util/get-server-info'
+import { DataModel } from './patch-db/data-model'
 
 @Injectable({
   providedIn: 'root',
@@ -49,7 +50,7 @@ export class EOSService {
   constructor(
     private readonly api: ApiService,
     private readonly emver: Emver,
-    private readonly patch: PatchDbService,
+    private readonly patch: PatchDB<DataModel>,
   ) {}
 
   async getEOS(): Promise<boolean> {

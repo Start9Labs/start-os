@@ -1,8 +1,8 @@
 import { Component } from '@angular/core'
 import { ModalController } from '@ionic/angular'
 import { filter, map, take } from 'rxjs/operators'
-import { PackageState } from 'src/app/services/patch-db/data-model'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { DataModel, PackageState } from 'src/app/services/patch-db/data-model'
+import { PatchDB } from 'patch-db-client'
 
 @Component({
   selector: 'backup-select',
@@ -22,7 +22,7 @@ export class BackupSelectPage {
 
   constructor(
     private readonly modalCtrl: ModalController,
-    private readonly patch: PatchDbService,
+    private readonly patch: PatchDB<DataModel>,
   ) {}
 
   ngOnInit() {

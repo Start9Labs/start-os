@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { heightCollapse } from '../../util/animations'
-import { PatchDbService } from '../../services/patch-db/patch-db.service'
+import { PatchDB } from 'patch-db-client'
 import { map } from 'rxjs/operators'
-import { ServerInfo } from '../../services/patch-db/data-model'
+import { DataModel, ServerInfo } from '../../services/patch-db/data-model'
 
 @Component({
   selector: 'footer[appFooter]',
@@ -24,7 +24,7 @@ export class FooterComponent {
     },
   }
 
-  constructor(private readonly patch: PatchDbService) {}
+  constructor(private readonly patch: PatchDB<DataModel>) {}
 
   getProgress({
     downloaded,
