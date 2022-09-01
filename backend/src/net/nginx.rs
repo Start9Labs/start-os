@@ -9,7 +9,7 @@ use tracing::instrument;
 
 use super::interface::{InterfaceId, LanPortConfig};
 use super::ssl::SslManager;
-use crate::hostname::HostName;
+use crate::hostname::Hostname;
 use crate::s9pk::manifest::PackageId;
 use crate::util::serde::Port;
 use crate::util::Invoke;
@@ -23,7 +23,7 @@ impl NginxController {
     pub async fn init(
         nginx_root: PathBuf,
         ssl_manager: &SslManager,
-        host_name: &HostName,
+        host_name: &Hostname,
     ) -> Result<Self, Error> {
         Ok(NginxController {
             inner: Mutex::new(
@@ -62,7 +62,7 @@ impl NginxControllerInner {
     async fn init(
         nginx_root: &Path,
         ssl_manager: &SslManager,
-        host_name: &HostName,
+        host_name: &Hostname,
     ) -> Result<Self, Error> {
         let inner = NginxControllerInner {
             interfaces: BTreeMap::new(),

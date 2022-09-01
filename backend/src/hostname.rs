@@ -6,29 +6,29 @@ use tracing::instrument;
 use crate::util::Invoke;
 use crate::{Error, ErrorKind};
 #[derive(Clone, serde::Deserialize, serde::Serialize, Debug)]
-pub struct HostName(pub String);
+pub struct Hostname(pub String);
 
 lazy_static::lazy_static! {
     static ref ADJECTIVES: Vec<String> = include_str!("./assets/adjectives.txt").lines().map(|x| x.to_string()).collect();
     static ref NOUNS: Vec<String> = include_str!("./assets/nouns.txt").lines().map(|x| x.to_string()).collect();
 }
-impl AsRef<str> for HostName {
+impl AsRef<str> for Hostname {
     fn as_ref(&self) -> &str {
         &self.0
     }
 }
 
-impl HostName {
+impl Hostname {
     pub fn lan_address(&self) -> String {
         format!("https://{}.local", self.0)
     }
 }
 
-pub fn generate_hostname() -> HostName {
+pub fn generate_hostname() -> Hostname {
     let mut rng = thread_rng();
     let adjective = &ADJECTIVES[rng.gen_range(0..ADJECTIVES.len())];
     let noun = &NOUNS[rng.gen_range(0..NOUNS.len())];
-    HostName(format!("{adjective}-{noun}"))
+    Hostname(format!("{adjective}-{noun}"))
 }
 
 pub fn generate_id() -> String {
@@ -37,16 +37,16 @@ pub fn generate_id() -> String {
 }
 
 #[instrument]
-pub async fn get_current_hostname() -> Result<HostName, Error> {
+pub async fn get_current_hostname() -> Result<Hostname, Error> {
     let out = Command::new("hostname")
         .invoke(ErrorKind::ParseSysInfo)
         .await?;
     let out_string = String::from_utf8(out)?;
-    Ok(HostName(out_string.trim().to_owned()))
+    Ok(Hostname(out_string.trim().to_owned()))
 }
 
 #[instrument]
-pub async fn set_hostname(hostname: &HostName) -> Result<(), Error> {
+pub async fn set_hostname(hostname: &Hostname) -> Result<(), Error> {
     let hostname: &String = &hostname.0;
     let _out = Command::new("hostnamectl")
         .arg("set-hostname")
@@ -66,7 +66,7 @@ pub async fn get_id<Db: DbHandle>(handle: &mut Db) -> Result<String, Error> {
     Ok(id.to_string())
 }
 
-pub async fn get_hostname<Db: DbHandle>(handle: &mut Db) -> Result<HostName, Error> {
+pub async fn get_hostname<Db: DbHandle>(handle: &mut Db) -> Result<Hostname, Error> {
     if let Ok(hostname) = crate::db::DatabaseModel::new()
         .server_info()
         .hostname()
@@ -74,14 +74,14 @@ pub async fn get_hostname<Db: DbHandle>(handle: &mut Db) -> Result<HostName, Err
         .await
     {
         if let Some(hostname) = hostname.to_owned() {
-            return Ok(HostName(hostname));
+            return Ok(Hostname(hostname));
         }
     }
     let id = get_id(handle).await?;
     if id.len() != 8 {
         return Ok(generate_hostname());
     }
-    return Ok(HostName(format!("embassy-{}", id)));
+    return Ok(Hostname(format!("embassy-{}", id)));
 }
 #[instrument(skip(handle))]
 pub async fn sync_hostname<Db: DbHandle>(handle: &mut Db) -> Result<(), Error> {

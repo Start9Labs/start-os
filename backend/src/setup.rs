@@ -38,7 +38,7 @@ use crate::disk::mount::filesystem::ReadOnly;
 use crate::disk::mount::guard::TmpMountGuard;
 use crate::disk::util::{pvscan, recovery_info, DiskListResponse, EmbassyOsRecoveryInfo};
 use crate::disk::REPAIR_DISK_PATH;
-use crate::hostname::get_hostname;
+use crate::hostname::{get_hostname, Hostname};
 use crate::id::Id;
 use crate::init::init;
 use crate::install::PKG_PUBLIC_DIR;
@@ -259,8 +259,6 @@ pub async fn execute(
     if let Some(v2_drive) = &*ctx.selected_v2_drive.read().await {
         recovery_source = Some(BackupTargetFS::Disk(BlockDev::new(v2_drive.clone())))
     }
-    let secret_store = ctx.secret_store().await?;
-    let hostname = get_hostname(&mut ctx.db(&secret_store).await?.handle()).await?;
     match execute_inner(
         ctx.clone(),
         embassy_logicalname,
@@ -270,7 +268,7 @@ pub async fn execute(
     )
     .await
     {
-        Ok((tor_addr, root_ca)) => {
+        Ok((hostname, tor_addr, root_ca)) => {
             tracing::info!("Setup Successful! Tor Address: {}", tor_addr);
             Ok(SetupResult {
                 tor_address: format!("http://{}", tor_addr),
@@ -320,7 +318,7 @@ pub async fn execute_inner(
     embassy_password: String,
     recovery_source: Option<BackupTargetFS>,
     recovery_password: Option<String>,
-) -> Result<(OnionAddressV3, X509), Error> {
+) -> Result<(Hostname, OnionAddressV3, X509), Error> {
     if ctx.recovery_status.read().await.is_some() {
         return Err(Error::new(
             eyre!("Cannot execute setup while in recovery!"),
@@ -357,7 +355,7 @@ pub async fn execute_inner(
             .await?
             .db;
         let hostname = get_hostname(&mut db.handle()).await?;
-        let res = (tor_addr, root_ca.clone());
+        let res = (hostname.clone(), tor_addr, root_ca.clone());
         tokio::spawn(async move {
             if let Err(e) = recover_fut
                 .and_then(|_| async {
@@ -398,7 +396,8 @@ pub async fn execute_inner(
                 root_ca: String::from_utf8(root_ca.to_pem()?)?,
             },
         ));
-        (tor_addr, root_ca)
+        let hostname = get_hostname(&mut db.handle()).await?;
+        (hostname, tor_addr, root_ca)
     };
 
     Ok(res)
