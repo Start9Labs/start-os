@@ -134,6 +134,7 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
         )
     };
     if tokio::fs::metadata(&db_dir).await.is_err() {
+        tokio::fs::create_dir_all(&db_dir).await?;
         Command::new("cp")
             .arg("-ra")
             .arg("/var/lib/postgresql")
