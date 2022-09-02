@@ -24,7 +24,6 @@ use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::db::model::UpdateProgress;
-use crate::db::util::WithRevision;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::{FileSystem, ReadWrite};
 use crate::disk::mount::guard::TmpMountGuard;
@@ -46,26 +45,24 @@ lazy_static! {
 
 /// An user/ daemon would call this to update the system to the latest version and do the updates available,
 /// and this will return something if there is an update, and in that case there will need to be a restart.
-#[command(rename = "update", display(display_update_result))]
+#[command(
+    rename = "update",
+    display(display_update_result),
+    metadata(sync_db = true)
+)]
 #[instrument(skip(ctx))]
 pub async fn update_system(
     #[context] ctx: RpcContext,
     #[arg(rename = "marketplace-url")] marketplace_url: Url,
-) -> Result<WithRevision<UpdateResult>, Error> {
-    let noop = WithRevision {
-        response: UpdateResult::NoUpdates,
-        revision: None,
-    };
+) -> Result<UpdateResult, Error> {
     if UPDATED.load(Ordering::SeqCst) {
-        return Ok(noop);
+        return Ok(UpdateResult::NoUpdates);
     }
-    match maybe_do_update(ctx, marketplace_url).await? {
-        None => Ok(noop),
-        Some(r) => Ok(WithRevision {
-            response: UpdateResult::Updating,
-            revision: Some(r),
-        }),
-    }
+    Ok(if maybe_do_update(ctx, marketplace_url).await?.is_some() {
+        UpdateResult::Updating
+    } else {
+        UpdateResult::NoUpdates
+    })
 }
 
 /// What is the status of the updates?
@@ -76,8 +73,8 @@ pub enum UpdateResult {
     Updating,
 }
 
-fn display_update_result(status: WithRevision<UpdateResult>, _: &ArgMatches) {
-    match status.response {
+fn display_update_result(status: UpdateResult, _: &ArgMatches) {
+    match status {
         UpdateResult::Updating => {
             println!("Updating...");
         }
@@ -190,7 +187,7 @@ async fn maybe_do_update(
         downloaded: 0,
     });
     status.save(&mut tx).await?;
-    let rev = tx.commit(None).await?;
+    let rev = tx.commit().await?;
 
     tokio::spawn(async move {
         let mut db = ctx.db.handle();

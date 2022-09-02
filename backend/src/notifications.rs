@@ -12,7 +12,6 @@ use tracing::instrument;
 
 use crate::backup::BackupReport;
 use crate::context::RpcContext;
-use crate::db::util::WithRevision;
 use crate::s9pk::manifest::PackageId;
 use crate::util::display_none;
 use crate::util::serde::display_serializable;
@@ -29,7 +28,7 @@ pub async fn list(
     #[context] ctx: RpcContext,
     #[arg] before: Option<i32>,
     #[arg] limit: Option<u32>,
-) -> Result<WithRevision<Vec<Notification>>, Error> {
+) -> Result<Vec<Notification>, Error> {
     let limit = limit.unwrap_or(40);
     let mut handle = ctx.db.handle();
     match before {
@@ -72,11 +71,8 @@ pub async fn list(
                 })
                 .collect::<Result<Vec<Notification>, Error>>()?;
             // set notification count to zero
-            let r = model.put(&mut handle, &0).await?;
-            Ok(WithRevision {
-                response: notifs,
-                revision: r,
-            })
+            model.put(&mut handle, &0).await?;
+            Ok(notifs)
         }
         Some(before) => {
             let records = sqlx::query!(
@@ -113,10 +109,7 @@ pub async fn list(
                     })
                 })
                 .collect::<Result<Vec<Notification>, Error>>()?;
-            Ok(WithRevision {
-                response: res,
-                revision: None,
-            })
+            Ok(res)
         }
     }
 }

@@ -375,7 +375,7 @@ where
     if tokio::fs::metadata(&volumes).await.is_ok() {
         tokio::fs::remove_dir_all(&volumes).await?;
     }
-    tx.commit(None).await?;
+    tx.commit().await?;
     remove_tor_keys(secrets, &entry.manifest.id).await?;
     Ok(())
 }

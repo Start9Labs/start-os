@@ -103,14 +103,13 @@ impl SetupContext {
         let db = PatchDb::open(&db_path)
             .await
             .with_ctx(|_| (crate::ErrorKind::Filesystem, db_path.display().to_string()))?;
-        if !db.exists(&<JsonPointer>::default()).await? {
+        if !db.exists(&<JsonPointer>::default()).await {
             db.put(
                 &<JsonPointer>::default(),
                 &Database::init(
                     &os_key(&mut secret_store.acquire().await?).await?,
                     password_hash(&mut secret_store.acquire().await?).await?,
                 ),
-                None,
             )
             .await?;
         }

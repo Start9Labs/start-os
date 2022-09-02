@@ -22,7 +22,6 @@ use crate::auth::check_password_against_db;
 use crate::backup::{BackupReport, ServerBackupReport};
 use crate::context::RpcContext;
 use crate::db::model::BackupProgress;
-use crate::db::util::WithRevision;
 use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::TmpMountGuard;
@@ -135,7 +134,7 @@ pub async fn backup_all(
     )]
     package_ids: Option<BTreeSet<PackageId>>,
     #[arg] password: String,
-) -> Result<WithRevision<()>, Error> {
+) -> Result<(), Error> {
     let mut db = ctx.db.handle();
     check_password_against_db(&mut ctx.secret_store.acquire().await?, &password).await?;
     let fs = target_id
@@ -159,7 +158,7 @@ pub async fn backup_all(
     if old_password.is_some() {
         backup_guard.change_password(&password)?;
     }
-    let revision = assure_backing_up(&mut db, &package_ids).await?;
+    assure_backing_up(&mut db, &package_ids).await?;
     tokio::task::spawn(async move {
         let backup_res = perform_backup(&ctx, &mut db, backup_guard, &package_ids).await;
         let backup_progress = crate::db::DatabaseModel::new()
@@ -238,17 +237,14 @@ pub async fn backup_all(
             .await
             .expect("failed to change server status");
     });
-    Ok(WithRevision {
-        response: (),
-        revision,
-    })
+    Ok(())
 }
 
 #[instrument(skip(db, packages))]
 async fn assure_backing_up(
     db: &mut PatchDbHandle,
     packages: impl IntoIterator<Item = &PackageId>,
-) -> Result<Option<Arc<Revision>>, Error> {
+) -> Result<(), Error> {
     let mut tx = db.begin().await?;
     let mut backing_up = crate::db::DatabaseModel::new()
         .server_info()
@@ -279,7 +275,8 @@ async fn assure_backing_up(
             .collect(),
     );
     backing_up.save(&mut tx).await?;
-    Ok(tx.commit(None).await?)
+    tx.commit().await?;
+    Ok(())
 }
 
 #[instrument(skip(ctx, db, backup_guard))]

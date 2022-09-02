@@ -143,7 +143,7 @@ pub async fn attach(
 
     let tor_key = crate::net::tor::os_key(&mut secrets_tx).await?;
 
-    db_tx.commit(None).await?;
+    db_tx.commit().await?;
     secrets_tx.commit().await?;
     let hostname = get_hostname(&mut db_handle).await?;
 

@@ -6,7 +6,6 @@ use rpc_toolkit::command;
 use tracing::instrument;
 
 use crate::context::RpcContext;
-use crate::db::util::WithRevision;
 use crate::dependencies::{
     break_all_dependents_transitive, heal_all_dependents_transitive, BreakageRes, DependencyError,
     DependencyReceipt, TaggedDependencyError,
@@ -61,12 +60,9 @@ impl StartReceipts {
     }
 }
 
-#[command(display(display_none))]
+#[command(display(display_none), metadata(sync_db = true))]
 #[instrument(skip(ctx))]
-pub async fn start(
-    #[context] ctx: RpcContext,
-    #[arg] id: PackageId,
-) -> Result<WithRevision<()>, Error> {
+pub async fn start(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Result<(), Error> {
     let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
     let receipts = StartReceipts::new(&mut tx, &id).await?;
@@ -77,7 +73,7 @@ pub async fn start(
         .await?;
     heal_all_dependents_transitive(&ctx, &mut tx, &id, &receipts.dependency_receipt).await?;
 
-    let revision = tx.commit(None).await?;
+    tx.commit().await?;
     drop(receipts);
 
     ctx.managers
@@ -87,10 +83,7 @@ pub async fn start(
         .synchronize()
         .await;
 
-    Ok(WithRevision {
-        revision,
-        response: (),
-    })
+    Ok(())
 }
 #[derive(Clone)]
 pub struct StopReceipts {
@@ -150,7 +143,11 @@ async fn stop_common<Db: DbHandle>(
     Ok(())
 }
 
-#[command(subcommands(self(stop_impl(async)), stop_dry), display(display_none))]
+#[command(
+    subcommands(self(stop_impl(async)), stop_dry),
+    display(display_none),
+    metadata(sync_db = true)
+)]
 pub fn stop(#[arg] id: PackageId) -> Result<PackageId, Error> {
     Ok(id)
 }
@@ -173,23 +170,19 @@ pub async fn stop_dry(
 }
 
 #[instrument(skip(ctx))]
-pub async fn stop_impl(ctx: RpcContext, id: PackageId) -> Result<WithRevision<()>, Error> {
+pub async fn stop_impl(ctx: RpcContext, id: PackageId) -> Result<(), Error> {
     let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
 
     stop_common(&mut tx, &id, &mut BTreeMap::new()).await?;
 
-    Ok(WithRevision {
-        revision: tx.commit(None).await?,
-        response: (),
-    })
+    tx.commit().await?;
+
+    Ok(())
 }
 
-#[command(display(display_none))]
-pub async fn restart(
-    #[context] ctx: RpcContext,
-    #[arg] id: PackageId,
-) -> Result<WithRevision<()>, Error> {
+#[command(display(display_none), metadata(sync_db = true))]
+pub async fn restart(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Result<(), Error> {
     let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
 
@@ -208,9 +201,7 @@ pub async fn restart(
     }
     *status = Some(MainStatus::Restarting);
     status.save(&mut tx).await?;
+    tx.commit().await?;
 
-    Ok(WithRevision {
-        revision: tx.commit(None).await?,
-        response: (),
-    })
+    Ok(())
 }
