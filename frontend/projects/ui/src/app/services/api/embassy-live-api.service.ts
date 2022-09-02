@@ -3,12 +3,10 @@ import {
   HttpOptions,
   HttpService,
   isRpcError,
-  LocalHttpResponse,
   Log,
   Method,
   RpcError,
   RPCOptions,
-  RPCResponse,
 } from '@start9labs/shared'
 import { ApiService } from './embassy-api.service'
 import { RR } from './api.types'
@@ -61,7 +59,7 @@ export class LiveApiService implements ApiService {
   // auth
 
   async login(params: RR.LoginReq): Promise<RR.loginRes> {
-    return this.rpcRequest({ method: 'auth.login', params })
+    return this.rpcRequest({ method: 'auth.login', params }, false)
   }
 
   async logout(params: RR.LogoutReq): Promise<RR.LogoutRes> {
@@ -79,7 +77,7 @@ export class LiveApiService implements ApiService {
   // server
 
   async echo(params: RR.EchoReq): Promise<RR.EchoRes> {
-    return this.rpcRequest({ method: 'echo', params })
+    return this.rpcRequest({ method: 'echo', params }, false)
   }
 
   openPatchWebsocket$(): Observable<Update<DataModel>> {
@@ -406,10 +404,15 @@ export class LiveApiService implements ApiService {
     return webSocket(config)
   }
 
-  private async rpcRequest<T>(options: RPCOptions): Promise<T> {
-    options.headers = {
-      'x-patch-sequence': String(this.patch.cache$.value.sequence),
-      ...(options.headers || {}),
+  private async rpcRequest<T>(
+    options: RPCOptions,
+    addHeader = true,
+  ): Promise<T> {
+    if (addHeader) {
+      options.headers = {
+        'x-patch-sequence': String(this.patch.cache$.value.sequence),
+        ...(options.headers || {}),
+      }
     }
 
     const res = await this.http.rpcRequest<T>(options)

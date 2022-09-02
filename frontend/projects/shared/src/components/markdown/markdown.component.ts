@@ -14,16 +14,14 @@ export class MarkdownComponent {
   @Input() content!: string | Observable<string>
   @Input() title!: string
 
-  private readonly data$ = defer(() =>
+  readonly content$ = defer(() =>
     isObservable(this.content) ? this.content : of(this.content),
   ).pipe(share())
 
-  readonly error$ = this.data$.pipe(
+  readonly error$ = this.content$.pipe(
     ignoreElements(),
     catchError(e => of(getErrorMessage(e))),
   )
-
-  readonly content$ = this.data$.pipe(catchError(() => of([])))
 
   constructor(private readonly modalCtrl: ModalController) {}
 
