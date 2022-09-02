@@ -2,9 +2,8 @@ use std::collections::BTreeMap;
 use std::net::Ipv4Addr;
 
 use avahi_sys::{
-    self, avahi_client_errno, avahi_client_free, avahi_entry_group_add_service,
-    avahi_entry_group_commit, avahi_entry_group_free, avahi_entry_group_reset, avahi_free,
-    avahi_strerror, AvahiClient, AvahiEntryGroup,
+    self, avahi_client_errno, avahi_entry_group_add_service, avahi_entry_group_commit,
+    avahi_entry_group_free, avahi_free, avahi_strerror, AvahiClient, AvahiEntryGroup,
 };
 use color_eyre::eyre::eyre;
 use libc::c_void;
@@ -112,7 +111,6 @@ fn log_str_error(action: &str, e: i32) {
 struct MdnsEntryGroup {
     hostname: Vec<u8>,
     hostname_raw: *const libc::c_char,
-    avahi_client: *mut AvahiClient,
     entry_group: *mut AvahiEntryGroup,
     _client_error: std::pin::Pin<Box<i32>>,
 }
@@ -221,7 +219,6 @@ impl MdnsEntryGroup {
             let mut res = MdnsEntryGroup {
                 hostname: hostname_buf,
                 hostname_raw,
-                avahi_client,
                 entry_group: group,
                 _client_error: box_err,
             };

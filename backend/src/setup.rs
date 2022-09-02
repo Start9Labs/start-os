@@ -416,7 +416,6 @@ async fn fresh_setup(
     let tor_key = TorSecretKeyV3::generate();
     let key_vec = tor_key.as_bytes().to_vec();
     let sqlite_pool = ctx.secret_store().await?;
-    let db = ctx.db(&sqlite_pool).await?;
     sqlx::query!(
         "INSERT INTO account (id, password, tor_key) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET password = $2, tor_key = $3",
         0,
@@ -425,6 +424,7 @@ async fn fresh_setup(
     )
     .execute(&mut sqlite_pool.acquire().await?)
     .await?;
+    let db = ctx.db(&sqlite_pool).await?;
     let (_, root_ca) = SslManager::init(sqlite_pool.clone(), &mut db.handle())
         .await?
         .export_root_ca()

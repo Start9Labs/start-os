@@ -2,7 +2,6 @@ use std::net::{IpAddr, SocketAddr};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::Duration;
 
 use patch_db::json_ptr::JsonPointer;
 use patch_db::PatchDb;
@@ -14,7 +13,6 @@ use serde::{Deserialize, Serialize};
 use sqlx::postgres::PgConnectOptions;
 use sqlx::PgPool;
 use tokio::fs::File;
-use tokio::process::Command;
 use tokio::sync::broadcast::Sender;
 use tokio::sync::RwLock;
 use tracing::instrument;
@@ -25,7 +23,7 @@ use crate::init::{init_postgres, pgloader};
 use crate::net::tor::os_key;
 use crate::setup::{password_hash, RecoveryStatus};
 use crate::util::io::from_yaml_async_reader;
-use crate::util::{AsyncFileExt, Invoke};
+use crate::util::AsyncFileExt;
 use crate::{Error, ResultExt};
 
 #[derive(Clone, Serialize, Deserialize)]
