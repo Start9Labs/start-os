@@ -18,19 +18,18 @@ import { AuthService } from '../auth.service'
 import { DOCUMENT } from '@angular/common'
 import { DataModel } from '../patch-db/data-model'
 import { PatchDB, Update } from 'patch-db-client'
-import { ResponseSyncService } from '../patch-db/response-sync.service'
 
 @Injectable()
-export class LiveApiService implements ApiService {
+export class LiveApiService extends ApiService {
   constructor(
     @Inject(DOCUMENT) private readonly document: Document,
     private readonly http: HttpService,
     private readonly config: ConfigService,
     private readonly auth: AuthService,
     private readonly patch: PatchDB<DataModel>,
-    private readonly responseSync: ResponseSyncService,
   ) {
-    (window as any).rpcClient = this
+    super()
+    ; (window as any).rpcClient = this
   }
 
   async getStatic(url: string): Promise<string> {
@@ -420,7 +419,7 @@ export class LiveApiService implements ApiService {
 
     if (encoded) {
       const updates: Update<DataModel>[] = JSON.parse(decodeURI(encoded))
-      this.responseSync.stream$.next(updates)
+      this.patchStream$.next(updates)
     }
 
     const rpcRes = res.body

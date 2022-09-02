@@ -1,4 +1,4 @@
-import { Observable } from 'rxjs'
+import { Observable, ReplaySubject } from 'rxjs'
 import { Update } from 'patch-db-client'
 import { RR } from './api.types'
 import { DataModel } from 'src/app/services/patch-db/data-model'
@@ -6,6 +6,8 @@ import { Log } from '@start9labs/shared'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 
 export abstract class ApiService {
+  readonly patchStream$ = new ReplaySubject<Update<DataModel>[]>(1)
+
   // http
 
   // for getting static files: ex icons, instructions, licenses

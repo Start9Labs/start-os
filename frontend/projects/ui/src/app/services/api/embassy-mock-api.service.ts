@@ -19,7 +19,6 @@ import { BehaviorSubject, interval, map, Observable } from 'rxjs'
 import { LocalStorageBootstrap } from '../patch-db/local-storage-bootstrap'
 import { mockPatchData } from './mock-patch'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
-import { ResponseSyncService } from '../patch-db/response-sync.service'
 
 const PROGRESS: InstallProgress = {
   size: 120,
@@ -32,7 +31,7 @@ const PROGRESS: InstallProgress = {
 }
 
 @Injectable()
-export class MockApiService implements ApiService {
+export class MockApiService extends ApiService {
   readonly mockWsSource$ = new BehaviorSubject<Update<DataModel>>({
     id: 1,
     value: mockPatchData,
@@ -40,10 +39,9 @@ export class MockApiService implements ApiService {
   private readonly revertTime = 2000
   sequence = 0
 
-  constructor(
-    private readonly bootstrapper: LocalStorageBootstrap,
-    private readonly responseSync: ResponseSyncService,
-  ) {}
+  constructor(private readonly bootstrapper: LocalStorageBootstrap) {
+    super()
+  }
 
   async getStatic(url: string): Promise<string> {
     await pauseFor(2000)
@@ -965,7 +963,7 @@ export class MockApiService implements ApiService {
       this.sequence = sequence
     }
 
-    this.responseSync.stream$.next([
+    this.patchStream$.next([
       {
         id: ++this.sequence,
         patch,
