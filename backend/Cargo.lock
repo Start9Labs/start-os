@@ -1098,6 +1098,7 @@ dependencies = [
  "hex",
  "hmac 0.12.1",
  "http",
+ "http-body",
  "hyper",
  "hyper-ws-listener",
  "imbl 2.0.0",

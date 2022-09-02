@@ -1,5 +1,7 @@
 use bytes::Bytes;
-use http_body_util::{combinators::BoxBody, BodyExt, Empty, Full};
+use http_body::Body;
+use http_body::{combinators::BoxBody, Empty, Full};
+use hyper::upgrade::Upgraded;
 use std::collections::BTreeMap;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::path::{Path, PathBuf};
@@ -18,7 +20,7 @@ use crate::net::ssl::SslManager;
 use crate::net::{InterfaceMetadata, PackageNetInfo};
 use crate::{Error, ResultExt};
 
-use hyper::{Body, Error as HyperError};
+use hyper::{Error as HyperError, Recv};
 
 pub struct ProxyController {
     inner: Mutex<ProxyControllerInner>,
@@ -111,7 +113,7 @@ impl ProxyControllerInner {
                         if let Err(err) = Http::new()
                             .http1_preserve_header_case(true)
                             .http1_title_case_headers(true)
-                            .serve_connection(stream, service_fn(proxy))
+                            .serve_connection(stream, service_fn(Self::proxy))
                             .with_upgrades()
                             .await
                         {
@@ -136,7 +138,7 @@ impl ProxyControllerInner {
     }
 
     async fn proxy(
-        req: Request<Body>,
+        req: Request<Recv>,
     ) -> Result<Response<BoxBody<Bytes, hyper::Error>>, hyper::Error> {
         println!("req: {:?}", req);
 
@@ -158,7 +160,7 @@ impl ProxyControllerInner {
                 tokio::task::spawn(async move {
                     match hyper::upgrade::on(req).await {
                         Ok(upgraded) => {
-                            if let Err(e) = tunnel(upgraded, addr).await {
+                            if let Err(e) = Self::tunnel(upgraded, addr).await {
                                 eprintln!("server io error: {}", e);
                             };
                         }
@@ -169,7 +171,7 @@ impl ProxyControllerInner {
                 Ok(Response::new(Self::empty()))
             } else {
                 debug!("CONNECT host is not socket addr: {:?}", req.uri());
-                let mut resp = Response::new(full("CONNECT must be to a socket address"));
+                let mut resp = Response::new(Self::full("CONNECT must be to a socket address"));
                 *resp.status_mut() = http::StatusCode::BAD_REQUEST;
 
                 Ok(resp)
@@ -195,6 +197,25 @@ impl ProxyControllerInner {
             let resp = sender.send_request(req).await?;
             Ok(resp.map(|b| b.boxed()))
         }
+    }
+
+    // Create a TCP connection to host:port, build a tunnel between the connection and
+    // the upgraded connection
+    async fn tunnel(mut upgraded: Upgraded, addr: String) -> std::io::Result<()> {
+        // Connect to remote server
+        let mut server = TcpStream::connect(addr).await?;
+
+        // Proxying data
+        let (from_client, from_server) =
+            tokio::io::copy_bidirectional(&mut upgraded, &mut server).await?;
+
+        // Print message when done
+        println!(
+            "client wrote {} bytes and received {} bytes",
+            from_client, from_server
+        );
+
+        Ok(())
     }
 
     /// HTTP status code 500
