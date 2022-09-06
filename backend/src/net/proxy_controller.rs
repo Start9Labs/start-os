@@ -1,35 +1,34 @@
 use bytes::Bytes;
-use http_body::Body;
 use http_body::{combinators::BoxBody, Empty, Full};
 use hyper::upgrade::Upgraded;
 use std::collections::BTreeMap;
 use std::net::{Ipv4Addr, SocketAddr};
-use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
-use http::{Method, Request, Response, StatusCode};
-use hyper::client::conn::Builder;
-use hyper::server::conn::Http;
+use http::{Method, Request, Response};
 use hyper::service::{make_service_fn, service_fn};
 use models::{InterfaceId, PackageId};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::Mutex;
 use tracing::{debug, instrument};
 
+use crate::context::SetupContext;
 use crate::net::ssl::SslManager;
 use crate::net::{InterfaceMetadata, PackageNetInfo};
 use crate::{Error, ResultExt};
 
-use hyper::{Error as HyperError, Recv};
+use hyper::{Body, Client, Error as HyperError, Server};
+
+type HttpClient = Client<hyper::client::HttpConnector>;
 
 pub struct ProxyController {
     inner: Mutex<ProxyControllerInner>,
 }
 
 impl ProxyController {
-    pub async fn init(ssl_manager: &SslManager) -> Result<Self, Error> {
+    pub async fn init(ctx: SetupContext, ssl_manager: &SslManager) -> Result<Self, Error> {
         Ok(ProxyController {
-            inner: Mutex::new(ProxyControllerInner::init(ssl_manager).await?),
+            inner: Mutex::new(ProxyControllerInner::init(ctx, ssl_manager).await?),
         })
     }
 
@@ -48,25 +47,21 @@ impl ProxyController {
     }
 
     pub async fn remove(&self, package: &PackageId) -> Result<(), Error> {
-        self.inner
-            .lock()
-            .await
-            .remove(&self.proxy_root, package)
-            .await
+        self.inner.lock().await.remove(package).await
     }
 }
 
 struct ProxyControllerInner {
-    embassyd_addr: SocketAddr,
+    embassyd_ctx: SetupContext,
     interfaces: BTreeMap<PackageId, PackageNetInfo>,
 }
 
 impl ProxyControllerInner {
-    #[instrument]
-    async fn init(embassyd_addr: SocketAddr, ssl_manager: &SslManager) -> Result<Self, Error> {
+    #[instrument(skip(embassyd_ctx))]
+    async fn init(embassyd_ctx: SetupContext, ssl_manager: &SslManager) -> Result<Self, Error> {
         let inner = ProxyControllerInner {
             interfaces: BTreeMap::new(),
-            embassyd_addr,
+            embassyd_ctx,
         };
         // write main ssl key/cert to fs location
         // let (key, cert) = ssl_manager
@@ -99,28 +94,41 @@ impl ProxyControllerInner {
             })
             .collect::<BTreeMap<InterfaceId, InterfaceMetadata>>();
 
+        let client = Client::builder()
+            .http1_title_case_headers(true)
+            .http1_preserve_header_case(true)
+            .build_http();
+
         for (id, meta) in interface_map.iter() {
             for (port, lan_port_config) in meta.lan_config.iter() {
                 let listener_addr = SocketAddr::from_str(&format!("{}:{}", meta.dns_base, port.0))
                     .with_kind(crate::ErrorKind::InvalidIP)?;
 
-                let listener = TcpListener::bind(listener_addr).await?;
+                //   let listener = TcpListener::bind(listener_addr).await?;
                 debug!("Listening on {}", listener_addr);
+                let client = client.clone();
 
-                let make_service = make_service_fn(move |_| async move {
-                    let (stream, _) = listener.accept().await?;
-                    Ok::<_, HyperError>(service_fn(move |req| async move {
-                        if let Err(err) = Http::new()
-                            .http1_preserve_header_case(true)
-                            .http1_title_case_headers(true)
-                            .serve_connection(stream, service_fn(Self::proxy))
-                            .with_upgrades()
-                            .await
-                        {
-                            println!("Failed to serve connection: {:?}", err);
-                        }
-                    }))
+                let make_service = make_service_fn(move |_| {
+                    let client = client.clone();
+                    async move {
+                        Ok::<_, HyperError>(service_fn(move |req| Self::proxy(client.clone(), req)))
+                    }
                 });
+
+                let server = Server::bind(&listener_addr)
+                    .http1_preserve_header_case(true)
+                    .http1_title_case_headers(true)
+                    .serve(make_service)
+                    .with_graceful_shutdown({
+                        let mut shutdown = self.embassyd_ctx.shutdown.subscribe();
+                        async move {
+                            shutdown.recv().await.expect("context dropped");
+                        }
+                    })
+                    .await
+                    .with_kind(crate::ErrorKind::Network)?;
+
+                println!("Listening on http://{}", listener_addr);
             }
         }
         match self.interfaces.get_mut(&package) {
@@ -137,21 +145,32 @@ impl ProxyControllerInner {
         Ok(())
     }
 
-    async fn proxy(
-        req: Request<Recv>,
-    ) -> Result<Response<BoxBody<Bytes, hyper::Error>>, hyper::Error> {
+    #[instrument(skip(self))]
+    async fn remove(&mut self, package: &PackageId) -> Result<(), Error> {
+        let removed = self.interfaces.remove(package);
+        if let Some(net_info) = removed {
+            for (id, meta) in net_info.interfaces {
+                for (port, _lan_port_config) in meta.lan_config.iter() {
+                    // remove ssl certificates and nginx configs
+                }
+            }
+        }
+        Ok(())
+    }
+
+    async fn proxy(client: HttpClient, req: Request<Body>) -> Result<Response<Body>, hyper::Error> {
         println!("req: {:?}", req);
 
         if Method::CONNECT == req.method() {
             // Received an HTTP request like:
             // ```
-            // CONNECT www.domain.com:443 HTTP/1.1
+            // CONNECT www.domain.com:443 HTTP/1.1s
             // Host: www.domain.com:443
             // Proxy-Connection: Keep-Alive
             // ```
             //
             // When HTTP method is CONNECT we should return an empty body
-            // the n we can eventually upgrade the connection and talk a new protocol.
+            // then we can eventually upgrade the connection and talk a new protocol.
             //
             // Note: only after client received an empty body with STATUS_OK can the
             // connection be upgraded, so we can't return a response inside
@@ -168,34 +187,16 @@ impl ProxyControllerInner {
                     }
                 });
 
-                Ok(Response::new(Self::empty()))
+                Ok(Response::new(Body::empty()))
             } else {
-                debug!("CONNECT host is not socket addr: {:?}", req.uri());
-                let mut resp = Response::new(Self::full("CONNECT must be to a socket address"));
+                eprintln!("CONNECT host is not socket addr: {:?}", req.uri());
+                let mut resp = Response::new(Body::from("CONNECT must be to a socket address"));
                 *resp.status_mut() = http::StatusCode::BAD_REQUEST;
 
                 Ok(resp)
             }
         } else {
-            let host = req.uri().host().expect("uri has no host");
-            let port = req.uri().port_u16().unwrap_or(80);
-            let addr = format!("{}:{}", host, port);
-
-            let stream = TcpStream::connect(addr).await.unwrap();
-
-            let (mut sender, conn) = Builder::new()
-                .http1_preserve_header_case(true)
-                .http1_title_case_headers(true)
-                .handshake(stream)
-                .await?;
-            tokio::task::spawn(async move {
-                if let Err(err) = conn.await {
-                    println!("Connection failed: {:?}", err);
-                }
-            });
-
-            let resp = sender.send_request(req).await?;
-            Ok(resp.map(|b| b.boxed()))
+            client.request(req).await
         }
     }
 
@@ -218,27 +219,27 @@ impl ProxyControllerInner {
         Ok(())
     }
 
-    /// HTTP status code 500
-    fn server_error() -> Response<Body> {
-        Response::builder()
-            .status(StatusCode::INTERNAL_SERVER_ERROR)
-            .body("".into())
-            .unwrap()
-    }
+    // /// HTTP status code 500
+    // fn server_error() -> Response<dyn Body> {
+    //     Response::builder()
+    //         .status(StatusCode::INTERNAL_SERVER_ERROR)
+    //         .body("".into())
+    //         .unwrap()
+    // }
 
     fn host_addr(uri: &http::Uri) -> Option<String> {
         uri.authority().and_then(|auth| Some(auth.to_string()))
     }
 
-    fn empty() -> BoxBody<Bytes, hyper::Error> {
-        Empty::<Bytes>::new()
-            .map_err(|never| match never {})
-            .boxed()
-    }
+    // fn empty() -> BoxBody<Bytes, hyper::Error> {
+    //     Empty::<Bytes>::new()
+    //         .map_err(|never| match never {})
+    //         .boxed()
+    // }
 
-    fn full<T: Into<Bytes>>(chunk: T) -> BoxBody<Bytes, hyper::Error> {
-        Full::new(chunk.into())
-            .map_err(|never| match never {})
-            .boxed()
-    }
+    // fn full<T: Into<Bytes>>(chunk: T) -> BoxBody<Bytes, hyper::Error> {
+    //     Full::new(chunk.into())
+    //         .map_err(|never| match never {})
+    //         .boxed()
+    // }
 }

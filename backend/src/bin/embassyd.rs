@@ -42,6 +42,7 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
     let (rpc_ctx, shutdown) = {
         embassy::hostname::sync_hostname().await?;
         let rpc_ctx = RpcContext::init(
+            ctx,
             cfg_path,
             Arc::new(
                 tokio::fs::read_to_string("/embassy-os/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy

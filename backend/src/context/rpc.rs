@@ -21,6 +21,7 @@ use tokio::process::Command;
 use tokio::sync::{broadcast, oneshot, Mutex, RwLock};
 use tracing::instrument;
 
+use crate::context::SetupContext;
 use crate::core::rpc_continuations::{RequestGuid, RestHandler, RpcContinuation};
 use crate::db::model::{Database, InstalledPackageDataEntry, PackageDataEntry};
 use crate::hostname::{derive_hostname, derive_id, get_product_key};
@@ -203,8 +204,9 @@ impl RpcSetNginxReceipts {
 #[derive(Clone)]
 pub struct RpcContext(Arc<RpcContextSeed>);
 impl RpcContext {
-    #[instrument(skip(cfg_path))]
+    #[instrument(skip(cfg_path, ctx))]
     pub async fn init<P: AsRef<Path>>(
+        ctx: SetupContext,
         cfg_path: Option<P>,
         disk_guid: Arc<String>,
     ) -> Result<Self, Error> {
@@ -222,6 +224,7 @@ impl RpcContext {
         let docker = Docker::connect_with_unix_defaults()?;
         tracing::info!("Connected to Docker");
         let net_controller = NetController::init(
+            ctx,
             ([127, 0, 0, 1], 80).into(),
             crate::net::tor::os_key(&mut secret_store.acquire().await?).await?,
             base.tor_control

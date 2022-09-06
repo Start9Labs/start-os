@@ -16,6 +16,7 @@ use self::mdns::MdnsController;
 use self::nginx::NginxController;
 use self::ssl::SslManager;
 use self::tor::TorController;
+use crate::context::SetupContext;
 use crate::net::dns::DnsController;
 use crate::net::interface::{TorConfig, LanPortConfig};
 use crate::net::proxy_controller::ProxyController;
@@ -66,8 +67,9 @@ pub struct NetController {
     pub dns: DnsController,
 }
 impl NetController {
-    #[instrument(skip(db))]
+    #[instrument(skip(db, ctx))]
     pub async fn init(
+        ctx: SetupContext,
         embassyd_addr: SocketAddr,
         embassyd_tor_key: TorSecretKeyV3,
         tor_control: SocketAddr,
@@ -84,7 +86,7 @@ impl NetController {
             #[cfg(feature = "avahi")]
             mdns: MdnsController::init(),
             nginx: NginxController::init(PathBuf::from("/etc/nginx"), &ssl).await?,
-            proxy: ProxyController::init(&ssl).await?,
+            proxy: ProxyController::init(ctx, &ssl).await?,
             ssl,
             dns: DnsController::init(dns_bind).await?,
         })
