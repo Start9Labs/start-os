@@ -16,8 +16,7 @@ server {{
 
         server_name .{lan_hostname};
 
-        proxy_buffers 8 128k;
-        proxy_buffer_size 256k;
+        proxy_buffer_size 512k;
         proxy_buffering off;
         proxy_request_buffering off;
         proxy_socket_keepalive on;
@@ -73,8 +72,7 @@ server {{
 
         server_name .{tor_hostname};
 
-        proxy_buffers 8 128k;
-        proxy_buffer_size 256k;
+        proxy_buffer_size 512k;
         proxy_buffering off;
         proxy_request_buffering off;
         proxy_socket_keepalive on;
