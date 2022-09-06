@@ -418,7 +418,9 @@ export class LiveApiService extends ApiService {
     const encoded = res.headers.get('x-patch-updates')
 
     if (encoded) {
-      const updates: Update<DataModel>[] = JSON.parse(decodeURI(encoded))
+      const updates: Update<DataModel>[] = JSON.parse(
+        decodeURIComponent(encoded),
+      )
       this.patchStream$.next(updates)
     }
 
