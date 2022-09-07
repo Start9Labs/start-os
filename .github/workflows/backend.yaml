@@ -115,7 +115,7 @@ jobs:
       run: ./check-environment.sh
 
     - name: Build backend
-      run: cargo build --release --target x86_64-unknown-linux-gnu
+      run: cargo build --release --target x86_64-unknown-linux-gnu --locked
       working-directory: backend
       if: ${{ matrix.target == 'x86_64' }}
 
@@ -129,7 +129,7 @@ jobs:
           rustup install ${{ env.RUST_VERSION }} &&
           rustup override set ${{ env.RUST_VERSION }} &&
           rustup target add aarch64-unknown-linux-gnu &&
-          cargo build --release --target ${{ matrix.target }}-unknown-linux-gnu'
+          cargo build --release --target ${{ matrix.target }}-unknown-linux-gnu --locked'
       if: ${{ matrix.target == 'aarch64' }}
 
     - name: 'Tar files to preserve file permissions'
