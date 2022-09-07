@@ -75,7 +75,7 @@ jobs:
           - target: aarch64
             snapshot_download: arm_js_snapshot
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
     needs: build_libs
     steps:
     - uses: actions/checkout@v3
