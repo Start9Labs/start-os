@@ -1,4 +1,3 @@
-use std::future::Future;
 use std::sync::Arc;
 
 use aes::cipher::{CipherKey, NewCipher, Nonce, StreamCipher};
@@ -17,6 +16,7 @@ use rpc_toolkit::yajrc::RpcMethod;
 use rpc_toolkit::Metadata;
 use sha2::Sha256;
 
+use crate::context::SetupContext;
 use crate::util::Apply;
 use crate::Error;
 
@@ -35,7 +35,7 @@ pub fn encrypt_slice(input: impl AsRef<[u8]>, password: impl AsRef<[u8]>) -> Vec
     let prefix: [u8; 32] = rand::random();
     let aeskey = pbkdf2(password.as_ref(), &prefix[16..]);
     let ctr = Nonce::<Aes256Ctr>::from_slice(&prefix[..16]);
-    let mut aes = Aes256Ctr::new(&aeskey, &ctr);
+    let mut aes = Aes256Ctr::new(&aeskey, ctr);
     let mut res = Vec::with_capacity(32 + input.as_ref().len());
     res.extend_from_slice(&prefix[..]);
     res.extend_from_slice(input.as_ref());
@@ -50,7 +50,7 @@ pub fn decrypt_slice(input: impl AsRef<[u8]>, password: impl AsRef<[u8]>) -> Vec
     let (prefix, rest) = input.as_ref().split_at(32);
     let aeskey = pbkdf2(password.as_ref(), &prefix[16..]);
     let ctr = Nonce::<Aes256Ctr>::from_slice(&prefix[..16]);
-    let mut aes = Aes256Ctr::new(&aeskey, &ctr);
+    let mut aes = Aes256Ctr::new(&aeskey, ctr);
     let mut res = rest.to_vec();
     aes.apply_keystream(&mut res);
     res
@@ -92,20 +92,20 @@ impl Stream for DecryptStream {
                     aes.apply_keystream(&mut res);
                     res.into()
                 } else {
-                    if this.ctr.len() < 16 && buf.len() > 0 {
+                    if this.ctr.len() < 16 && !buf.is_empty() {
                         let to_read = std::cmp::min(16 - this.ctr.len(), buf.len());
                         this.ctr.extend_from_slice(&buf[0..to_read]);
                         buf = &buf[to_read..];
                     }
-                    if this.salt.len() < 16 && buf.len() > 0 {
+                    if this.salt.len() < 16 && !buf.is_empty() {
                         let to_read = std::cmp::min(16 - this.salt.len(), buf.len());
                         this.salt.extend_from_slice(&buf[0..to_read]);
                         buf = &buf[to_read..];
                     }
                     if this.ctr.len() == 16 && this.salt.len() == 16 {
                         let aeskey = pbkdf2(this.key.as_bytes(), &this.salt);
-                        let ctr = Nonce::<Aes256Ctr>::from_slice(&this.ctr);
-                        let mut aes = Aes256Ctr::new(&aeskey, &ctr);
+                        let ctr = Nonce::<Aes256Ctr>::from_slice(this.ctr);
+                        let mut aes = Aes256Ctr::new(&aeskey, ctr);
                         let mut res = buf.to_vec();
                         aes.apply_keystream(&mut res);
                         *this.aes = Some(aes);
@@ -132,7 +132,7 @@ impl EncryptStream {
         let prefix: [u8; 32] = rand::random();
         let aeskey = pbkdf2(key.as_bytes(), &prefix[16..]);
         let ctr = Nonce::<Aes256Ctr>::from_slice(&prefix[..16]);
-        let aes = Aes256Ctr::new(&aeskey, &ctr);
+        let aes = Aes256Ctr::new(&aeskey, ctr);
         EncryptStream {
             body,
             aes,
@@ -169,42 +169,42 @@ fn encrypted(headers: &HeaderMap) -> bool {
         .and_then(|h| {
             h.to_str()
                 .ok()?
-                .split(",")
+                .split(',')
                 .any(|s| s == "aesctr256")
                 .apply(Some)
         })
         .unwrap_or_default()
 }
 
-pub fn encrypt<
-    F: Fn() -> Fut + Send + Sync + Clone + 'static,
-    Fut: Future<Output = Result<Arc<String>, Error>> + Send + Sync + 'static,
-    M: Metadata,
->(
-    keysource: F,
-) -> DynMiddleware<M> {
+pub fn encrypt<M: Metadata>(ctx: SetupContext) -> DynMiddleware<M> {
     Box::new(
         move |req: &mut Request<Body>,
               metadata: M|
               -> BoxFuture<Result<Result<DynMiddlewareStage2, Response<Body>>, HttpError>> {
-            let keysource = keysource.clone();
+            let keysource = ctx.clone();
             async move {
                 let encrypted = encrypted(req.headers());
+                let current_secret: Option<String> = keysource.current_secret.read().await.clone();
                 let key = if encrypted {
-                    let key = match keysource().await {
-                        Ok(s) => s,
-                        Err(e) => {
+                    let key = match current_secret {
+                        Some(s) => s,
+                        None => {
                             let (res_parts, _) = Response::new(()).into_parts();
                             return Ok(Err(to_response(
                                 req.headers(),
                                 res_parts,
-                                Err(e.into()),
+                                Err(Error::new(
+                                    eyre!("No Secret has been set"),
+                                    crate::ErrorKind::RateLimited,
+                                )
+                                .into()),
                                 |_| StatusCode::OK,
                             )?));
                         }
                     };
                     let body = std::mem::take(req.body_mut());
-                    *req.body_mut() = Body::wrap_stream(DecryptStream::new(key.clone(), body));
+                    *req.body_mut() =
+                        Body::wrap_stream(DecryptStream::new(Arc::new(key.clone()), body));
                     Some(key)
                 } else {
                     None
@@ -213,7 +213,7 @@ pub fn encrypt<
                     async move {
                         if !encrypted
                             && metadata
-                                .get(&rpc_req.method.as_str(), "authenticated")
+                                .get(rpc_req.method.as_str(), "authenticated")
                                 .unwrap_or(true)
                         {
                             let (res_parts, _) = Response::new(()).into_parts();

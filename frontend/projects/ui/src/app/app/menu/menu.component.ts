@@ -1,11 +1,13 @@
 import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
 import { LocalStorageService } from '../../services/local-storage.service'
 import { EOSService } from '../../services/eos.service'
-import { PatchDbService } from '../../services/patch-db/patch-db.service'
+import { PatchDB } from 'patch-db-client'
 import { Observable } from 'rxjs'
 import { map } from 'rxjs/operators'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
+import { DataModel } from 'src/app/services/patch-db/data-model'
+import { SplitPaneTracker } from 'src/app/services/split-pane.service'
 
 @Component({
   selector: 'app-menu',
@@ -57,11 +59,14 @@ export class MenuComponent {
     .getUpdates()
     .pipe(map(pkgs => pkgs.length))
 
+  readonly sidebarOpen$ = this.splitPane.sidebarOpen$
+
   constructor(
-    private readonly patch: PatchDbService,
+    private readonly patch: PatchDB<DataModel>,
     private readonly localStorageService: LocalStorageService,
     private readonly eosService: EOSService,
     @Inject(AbstractMarketplaceService)
     private readonly marketplaceService: MarketplaceService,
+    private readonly splitPane: SplitPaneTracker,
   ) {}
 }

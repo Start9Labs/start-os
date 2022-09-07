@@ -14,8 +14,11 @@ import {
 } from '@start9labs/shared'
 import { DependentInfo } from 'src/app/types/dependent-info'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
-import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import {
+  DataModel,
+  PackageDataEntry,
+} from 'src/app/services/patch-db/data-model'
+import { PatchDB } from 'patch-db-client'
 import { UntypedFormGroup } from '@angular/forms'
 import {
   convertValuesRecursive,
@@ -57,7 +60,7 @@ export class AppConfigPage {
     private readonly alertCtrl: AlertController,
     private readonly modalCtrl: ModalController,
     private readonly formService: FormService,
-    private readonly patch: PatchDbService,
+    private readonly patch: PatchDB<DataModel>,
   ) {}
 
   async ngOnInit() {

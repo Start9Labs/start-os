@@ -1,19 +1,20 @@
 import { Pipe, PipeTransform } from '@angular/core'
 import {
+  DataModel,
   HealthCheckResult,
   PackageDataEntry,
   PackageMainStatus,
 } from 'src/app/services/patch-db/data-model'
 import { exists, isEmptyObject } from '@start9labs/shared'
 import { filter, map, startWith } from 'rxjs/operators'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDB } from 'patch-db-client'
 import { Observable } from 'rxjs'
 
 @Pipe({
   name: 'toHealthChecks',
 })
 export class ToHealthChecksPipe implements PipeTransform {
-  constructor(private readonly patch: PatchDbService) {}
+  constructor(private readonly patch: PatchDB<DataModel>) {}
 
   transform(
     pkg: PackageDataEntry,

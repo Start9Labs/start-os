@@ -1,6 +1,5 @@
 pub mod model;
 pub mod package;
-pub mod util;
 
 use std::future::Future;
 use std::sync::Arc;
@@ -14,7 +13,7 @@ use rpc_toolkit::hyper::{Body, Error as HyperError, Request, Response};
 use rpc_toolkit::yajrc::RpcError;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tokio::sync::{broadcast, oneshot};
+use tokio::sync::oneshot;
 use tokio::task::JoinError;
 use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
 use tokio_tungstenite::tungstenite::protocol::CloseFrame;
@@ -23,7 +22,6 @@ use tokio_tungstenite::WebSocketStream;
 use tracing::instrument;
 
 pub use self::model::DatabaseModel;
-use self::util::WithRevision;
 use crate::context::RpcContext;
 use crate::middleware::auth::{HasValidSession, HashSessionToken};
 use crate::util::serde::{display_serializable, IoFormat};
@@ -37,7 +35,7 @@ async fn ws_handler<
     session: Option<(HasValidSession, HashSessionToken)>,
     ws_fut: WSFut,
 ) -> Result<(), Error> {
-    let (dump, sub) = ctx.db.dump_and_sub().await;
+    let (dump, sub) = ctx.db.dump_and_sub().await?;
     let mut stream = ws_fut
         .await
         .with_kind(crate::ErrorKind::Network)?
@@ -79,7 +77,7 @@ async fn subscribe_to_session_kill(
 async fn deal_with_messages(
     _has_valid_authentication: HasValidSession,
     mut kill: oneshot::Receiver<()>,
-    mut sub: broadcast::Receiver<Arc<Revision>>,
+    mut sub: patch_db::Subscriber,
     mut stream: WebSocketStream<Upgraded>,
 ) -> Result<(), Error> {
     loop {
@@ -95,8 +93,8 @@ async fn deal_with_messages(
                     .with_kind(crate::ErrorKind::Network)?;
                 return Ok(())
             }
-            new_rev = sub.recv().fuse() => {
-                let rev = new_rev.with_kind(crate::ErrorKind::Database)?;
+            new_rev = sub.recv_async().fuse() => {
+                let rev = new_rev.expect("UNREACHABLE: patch-db is dropped");
                 stream
                     .send(Message::Text(serde_json::to_string(&rev).with_kind(crate::ErrorKind::Serialization)?))
                     .await
@@ -184,24 +182,11 @@ pub async fn revisions(
     #[allow(unused_variables)]
     #[arg(long = "format")]
     format: Option<IoFormat>,
-) -> Result<RevisionsRes, RpcError> {
-    let cache = ctx.revision_cache.read().await;
-    if cache
-        .front()
-        .map(|rev| rev.id <= since + 1)
-        .unwrap_or(false)
-    {
-        Ok(RevisionsRes::Revisions(
-            cache
-                .iter()
-                .skip_while(|rev| rev.id < since + 1)
-                .cloned()
-                .collect(),
-        ))
-    } else {
-        drop(cache);
-        Ok(RevisionsRes::Dump(ctx.db.dump().await))
-    }
+) -> Result<RevisionsRes, Error> {
+    Ok(match ctx.db.sync(since).await? {
+        Ok(revs) => RevisionsRes::Revisions(revs),
+        Err(dump) => RevisionsRes::Dump(dump),
+    })
 }
 
 #[command(display(display_serializable))]
@@ -210,8 +195,8 @@ pub async fn dump(
     #[allow(unused_variables)]
     #[arg(long = "format")]
     format: Option<IoFormat>,
-) -> Result<Dump, RpcError> {
-    Ok(ctx.db.dump().await)
+) -> Result<Dump, Error> {
+    Ok(ctx.db.dump().await?)
 }
 
 #[command(subcommands(ui))]
@@ -228,13 +213,11 @@ pub async fn ui(
     #[allow(unused_variables)]
     #[arg(long = "format")]
     format: Option<IoFormat>,
-) -> Result<WithRevision<()>, Error> {
+) -> Result<(), Error> {
     let ptr = "/ui"
         .parse::<JsonPointer>()
         .with_kind(crate::ErrorKind::Database)?
         + &pointer;
-    Ok(WithRevision {
-        response: (),
-        revision: ctx.db.put(&ptr, &value, None).await?,
-    })
+    ctx.db.put(&ptr, &value).await?;
+    Ok(())
 }

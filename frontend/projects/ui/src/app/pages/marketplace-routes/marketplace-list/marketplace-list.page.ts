@@ -1,8 +1,9 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { map } from 'rxjs/operators'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDB } from 'patch-db-client'
 import { ConnectionService } from 'src/app/services/connection.service'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 
 @Component({
   selector: 'marketplace-list',
@@ -23,7 +24,7 @@ export class MarketplaceListPage {
     .pipe(map(({ name }) => name))
 
   constructor(
-    private readonly patch: PatchDbService,
+    private readonly patch: PatchDB<DataModel>,
     private readonly marketplaceService: AbstractMarketplaceService,
     private readonly connectionService: ConnectionService,
   ) {}

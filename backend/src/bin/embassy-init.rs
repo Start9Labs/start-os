@@ -7,11 +7,9 @@ use embassy::context::{DiagnosticContext, SetupContext};
 use embassy::disk::fsck::RepairStrategy;
 use embassy::disk::main::DEFAULT_PASSWORD;
 use embassy::disk::REPAIR_DISK_PATH;
-use embassy::hostname::get_product_key;
 use embassy::init::STANDBY_MODE_PATH;
 use embassy::middleware::cors::cors;
 use embassy::middleware::diagnostic::diagnostic;
-use embassy::middleware::encrypt::encrypt;
 #[cfg(feature = "avahi")]
 use embassy::net::mdns::MdnsController;
 use embassy::shutdown::Shutdown;
@@ -50,12 +48,7 @@ async fn setup_or_init(cfg_path: Option<&str>) -> Result<(), Error> {
             .invoke(embassy::ErrorKind::Nginx)
             .await?;
         let ctx = SetupContext::init(cfg_path).await?;
-        let keysource_ctx = ctx.clone();
-        let keysource = move || {
-            let ctx = keysource_ctx.clone();
-            async move { ctx.product_key().await }
-        };
-        let encrypt = encrypt(keysource);
+        let encrypt = embassy::middleware::encrypt::encrypt(ctx.clone());
         tokio::time::sleep(Duration::from_secs(1)).await; // let the record state that I hate this
         CHIME.play().await?;
         rpc_server!({
@@ -103,7 +96,7 @@ async fn setup_or_init(cfg_path: Option<&str>) -> Result<(), Error> {
                 .await?;
         }
         tracing::info!("Loaded Disk");
-        embassy::init::init(&cfg, &get_product_key().await?).await?;
+        embassy::init::init(&cfg).await?;
     }
 
     Ok(())

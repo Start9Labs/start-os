@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDB } from 'patch-db-client'
 import {
   LoadingController,
   ModalController,
@@ -16,6 +16,7 @@ import {
   ServerNameInfo,
   ServerNameService,
 } from 'src/app/services/server-name.service'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 
 @Component({
   selector: 'preferences',
@@ -36,7 +37,7 @@ export class PreferencesPage {
     private readonly api: ApiService,
     private readonly toastCtrl: ToastController,
     private readonly localStorageService: LocalStorageService,
-    private readonly patch: PatchDbService,
+    private readonly patch: PatchDB<DataModel>,
     private readonly serverNameService: ServerNameService,
     readonly serverConfig: ServerConfigService,
   ) {}

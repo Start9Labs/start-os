@@ -1,20 +1,19 @@
 export abstract class ApiService {
   // unencrypted
   abstract getStatus(): Promise<GetStatusRes> // setup.status
+  abstract getSecret(): Promise<string> // setup.get-secret
   abstract getDrives(): Promise<DiskListResponse> // setup.disk.list
   abstract set02XDrive(logicalname: string): Promise<void> // setup.recovery.v2.set
   abstract getRecoveryStatus(): Promise<RecoveryStatusRes> // setup.recovery.status
 
   // encrypted
   abstract verifyCifs(cifs: CifsRecoverySource): Promise<EmbassyOSRecoveryInfo> // setup.cifs.verify
-  abstract verifyProductKey(): Promise<void> // echo - throws error if invalid
   abstract importDrive(importInfo: ImportDriveReq): Promise<SetupEmbassyRes> // setup.attach
   abstract setupEmbassy(setupInfo: SetupEmbassyReq): Promise<SetupEmbassyRes> // setup.execute
   abstract setupComplete(): Promise<SetupEmbassyRes> // setup.complete
 }
 
 export type GetStatusRes = {
-  'product-key': boolean
   migrating: boolean
 }
 

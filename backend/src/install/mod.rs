@@ -32,7 +32,6 @@ use crate::db::model::{
     CurrentDependencies, CurrentDependencyInfo, CurrentDependents, InstalledPackageDataEntry,
     PackageDataEntry, RecoveredPackageInfo, StaticDependencyInfo, StaticFiles,
 };
-use crate::db::util::WithRevision;
 use crate::dependencies::{
     add_dependent_to_current_dependents_lists, break_all_dependents_transitive,
     reconfigure_dependents_with_live_pointers, BreakTransitiveReceipts, BreakageRes,
@@ -115,7 +114,8 @@ impl std::fmt::Display for MinMax {
 
 #[command(
     custom_cli(cli_install(async, context(CliContext))),
-    display(display_none)
+    display(display_none),
+    metadata(sync_db = true)
 )]
 #[instrument(skip(ctx))]
 pub async fn install(
@@ -127,7 +127,7 @@ pub async fn install(
         String,
     >,
     #[arg(long = "version-priority", rename = "version-priority")] version_priority: Option<MinMax>,
-) -> Result<WithRevision<()>, Error> {
+) -> Result<(), Error> {
     let version_str = match &version_spec {
         None => "*",
         Some(v) => &*v,
@@ -287,7 +287,7 @@ pub async fn install(
         }
     }
     pde.save(&mut tx).await?;
-    let res = tx.commit(None).await?;
+    tx.commit().await?;
     drop(db_handle);
 
     tokio::spawn(async move {
@@ -323,10 +323,7 @@ pub async fn install(
         }
     });
 
-    Ok(WithRevision {
-        revision: res,
-        response: (),
-    })
+    Ok(())
 }
 
 #[command(rpc_only, display(display_none))]
@@ -427,7 +424,7 @@ pub async fn sideload(
                 }
             }
             pde.save(&mut tx).await?;
-            tx.commit(None).await?;
+            tx.commit().await?;
 
             if let Err(e) = download_install_s9pk(
                 &new_ctx,
@@ -559,7 +556,7 @@ async fn cli_install(
             ctx,
             "package.install",
             params,
-            PhantomData::<WithRevision<()>>,
+            PhantomData::<()>,
         )
         .await?
         .result?;
@@ -570,7 +567,8 @@ async fn cli_install(
 
 #[command(
     subcommands(self(uninstall_impl(async)), uninstall_dry),
-    display(display_none)
+    display(display_none),
+    metadata(sync_db = true)
 )]
 pub async fn uninstall(#[arg] id: PackageId) -> Result<PackageId, Error> {
     Ok(id)
@@ -601,7 +599,7 @@ pub async fn uninstall_dry(
 }
 
 #[instrument(skip(ctx))]
-pub async fn uninstall_impl(ctx: RpcContext, id: PackageId) -> Result<WithRevision<()>, Error> {
+pub async fn uninstall_impl(ctx: RpcContext, id: PackageId) -> Result<(), Error> {
     let mut handle = ctx.db.handle();
     let mut tx = handle.begin().await?;
 
@@ -629,7 +627,7 @@ pub async fn uninstall_impl(ctx: RpcContext, id: PackageId) -> Result<WithRevisi
         removing: installed,
     });
     pde.save(&mut tx).await?;
-    let res = tx.commit(None).await?;
+    tx.commit().await?;
     drop(handle);
 
     tokio::spawn(async move {
@@ -666,17 +664,18 @@ pub async fn uninstall_impl(ctx: RpcContext, id: PackageId) -> Result<WithRevisi
         }
     });
 
-    Ok(WithRevision {
-        revision: res,
-        response: (),
-    })
+    Ok(())
 }
 
-#[command(rename = "delete-recovered", display(display_none))]
+#[command(
+    rename = "delete-recovered",
+    display(display_none),
+    metadata(sync_db = true)
+)]
 pub async fn delete_recovered(
     #[context] ctx: RpcContext,
     #[arg] id: PackageId,
-) -> Result<WithRevision<()>, Error> {
+) -> Result<(), Error> {
     let mut handle = ctx.db.handle();
     let mut tx = handle.begin().await?;
     let mut sql_tx = ctx.secret_store.begin().await?;
@@ -699,13 +698,10 @@ pub async fn delete_recovered(
     }
     cleanup::remove_tor_keys(&mut sql_tx, &id).await?;
 
-    let res = tx.commit(None).await?;
+    tx.commit().await?;
     sql_tx.commit().await?;
 
-    Ok(WithRevision {
-        revision: res,
-        response: (),
-    })
+    Ok(())
 }
 
 pub struct DownloadInstallReceipts {
@@ -858,7 +854,7 @@ pub async fn download_install_s9pk(
             tracing::error!("Failed to clean up {}@{}: {}", pkg_id, version, e);
             tracing::debug!("{:?}", e);
         } else {
-            tx.commit(None).await?;
+            tx.commit().await?;
         }
         Err(e)
     } else {
@@ -1147,7 +1143,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
             if let Some(mut hdl) = rdr.scripts().await? {
                 tokio::io::copy(
                     &mut hdl,
-                    &mut File::create(dbg!(script_dir.join("embassy.js"))).await?,
+                    &mut File::create(script_dir.join("embassy.js")).await?,
                 )
                 .await?;
             }
@@ -1505,7 +1501,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
     }
 
     sql_tx.commit().await?;
-    tx.commit(None).await?;
+    tx.commit().await?;
 
     tracing::info!("Install {}@{}: Complete", pkg_id, version);
 

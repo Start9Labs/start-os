@@ -13,7 +13,8 @@ import {
 import { ActivatedRoute } from '@angular/router'
 import { ErrorToastService } from '@start9labs/shared'
 import { BackupReportPage } from 'src/app/modals/backup-report/backup-report.page'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDB } from 'patch-db-client'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 
 @Component({
   selector: 'notifications',
@@ -36,7 +37,7 @@ export class NotificationsPage {
     private readonly modalCtrl: ModalController,
     private readonly errToast: ErrorToastService,
     private readonly route: ActivatedRoute,
-    private readonly patch: PatchDbService,
+    private readonly patch: PatchDB<DataModel>,
   ) {}
 
   async ngOnInit() {

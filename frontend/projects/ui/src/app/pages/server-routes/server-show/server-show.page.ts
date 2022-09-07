@@ -7,7 +7,7 @@ import {
 } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActivatedRoute } from '@angular/router'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDB } from 'patch-db-client'
 import { ServerNameService } from 'src/app/services/server-name.service'
 import { Observable, of } from 'rxjs'
 import { filter, take, tap } from 'rxjs/operators'
@@ -17,6 +17,7 @@ import { LocalStorageService } from 'src/app/services/local-storage.service'
 import { OSUpdatePage } from 'src/app/modals/os-update/os-update.page'
 import { getAllPackages } from '../../../util/get-package-data'
 import { AuthService } from 'src/app/services/auth.service'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 
 @Component({
   selector: 'server-show',
@@ -40,7 +41,7 @@ export class ServerShowPage {
     private readonly embassyApi: ApiService,
     private readonly navCtrl: NavController,
     private readonly route: ActivatedRoute,
-    private readonly patch: PatchDbService,
+    private readonly patch: PatchDB<DataModel>,
     private readonly eosService: EOSService,
     private readonly localStorageService: LocalStorageService,
     private readonly serverNameService: ServerNameService,

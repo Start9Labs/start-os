@@ -12,19 +12,27 @@ let tries = 0
 @Injectable({
   providedIn: 'root',
 })
-export class MockApiService extends ApiService {
-  constructor() {
-    super()
-  }
-
+export class MockApiService implements ApiService {
   // ** UNENCRYPTED **
 
   async getStatus() {
     await pauseFor(1000)
     return {
-      'product-key': true,
       migrating: false,
     }
+  }
+
+  async getSecret() {
+    await pauseFor(1000)
+
+    const ascii = 'thisisasecret'
+
+    const arr1 = []
+    for (let n = 0, l = ascii.length; n < l; n++) {
+      var hex = Number(ascii.charCodeAt(n)).toString(16)
+      arr1.push(hex)
+    }
+    return arr1.join('')
   }
 
   async getDrives() {
@@ -82,11 +90,6 @@ export class MockApiService extends ApiService {
         '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
       'wrapped-key': '',
     }
-  }
-
-  async verifyProductKey() {
-    await pauseFor(1000)
-    return
   }
 
   async importDrive(params: ImportDriveReq) {

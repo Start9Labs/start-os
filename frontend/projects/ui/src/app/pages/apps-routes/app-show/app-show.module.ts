@@ -4,7 +4,6 @@ import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
 import { AppShowPage } from './app-show.page'
 import { EmverPipesModule } from '@start9labs/shared'
-import { AppWizardComponentModule } from 'src/app/components/app-wizard/app-wizard.component.module'
 import { StatusComponentModule } from 'src/app/components/status/status.component.module'
 import { AppConfigPageModule } from 'src/app/modals/app-config/app-config.module'
 import { LaunchablePipeModule } from 'src/app/pipes/launchable/launchable.module'
@@ -51,7 +50,6 @@ const routes: Routes = [
     StatusComponentModule,
     IonicModule,
     RouterModule.forChild(routes),
-    AppWizardComponentModule,
     AppConfigPageModule,
     EmverPipesModule,
     LaunchablePipeModule,

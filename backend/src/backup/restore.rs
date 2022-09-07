@@ -20,7 +20,6 @@ use super::target::BackupTargetId;
 use crate::backup::backup_bulk::OsBackup;
 use crate::context::{RpcContext, SetupContext};
 use crate::db::model::{PackageDataEntry, StaticFiles};
-use crate::db::util::WithRevision;
 use crate::disk::mount::backup::{BackupMountGuard, PackageBackupMountGuard};
 use crate::disk::mount::filesystem::ReadOnly;
 use crate::disk::mount::guard::TmpMountGuard;
@@ -50,7 +49,7 @@ pub async fn restore_packages_rpc(
     #[arg(parse(parse_comma_separated))] ids: Vec<PackageId>,
     #[arg(rename = "target-id")] target_id: BackupTargetId,
     #[arg] password: String,
-) -> Result<WithRevision<()>, Error> {
+) -> Result<(), Error> {
     let mut db = ctx.db.handle();
     let fs = target_id
         .load(&mut ctx.secret_store.acquire().await?)
@@ -114,10 +113,7 @@ pub async fn restore_packages_rpc(
         }
     });
 
-    Ok(WithRevision {
-        response: (),
-        revision,
-    })
+    Ok(())
 }
 
 async fn approximate_progress(
@@ -418,7 +414,7 @@ async fn assure_restoring(
         guards.push((manifest, guard));
     }
 
-    Ok((tx.commit(None).await?, guards))
+    Ok((tx.commit().await?, guards))
 }
 
 #[instrument(skip(ctx, guard))]

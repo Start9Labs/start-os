@@ -2,29 +2,28 @@ use std::net::{IpAddr, SocketAddr};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::Duration;
 
 use patch_db::json_ptr::JsonPointer;
 use patch_db::PatchDb;
+use rand::distributions::Alphanumeric;
+use rand::{thread_rng, Rng};
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::Context;
 use serde::{Deserialize, Serialize};
 use sqlx::postgres::PgConnectOptions;
 use sqlx::PgPool;
 use tokio::fs::File;
-use tokio::process::Command;
 use tokio::sync::broadcast::Sender;
 use tokio::sync::RwLock;
 use tracing::instrument;
 use url::Host;
 
 use crate::db::model::Database;
-use crate::hostname::{derive_hostname, derive_id, get_product_key};
 use crate::init::{init_postgres, pgloader};
 use crate::net::tor::os_key;
 use crate::setup::{password_hash, RecoveryStatus};
 use crate::util::io::from_yaml_async_reader;
-use crate::util::{AsyncFileExt, Invoke};
+use crate::util::AsyncFileExt;
 use crate::{Error, ResultExt};
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -69,6 +68,9 @@ pub struct SetupContextSeed {
     pub bind_rpc: SocketAddr,
     pub shutdown: Sender<()>,
     pub datadir: PathBuf,
+    /// Used to encrypt for hidding from snoopers for setups create password
+    /// Set via path
+    pub current_secret: RwLock<Option<String>>,
     pub selected_v2_drive: RwLock<Option<PathBuf>>,
     pub cached_product_key: RwLock<Option<Arc<String>>>,
     pub recovery_status: RwLock<Option<Result<RecoveryStatus, RpcError>>>,
@@ -88,6 +90,7 @@ impl SetupContext {
             bind_rpc: cfg.bind_rpc.unwrap_or(([127, 0, 0, 1], 5959).into()),
             shutdown,
             datadir,
+            current_secret: RwLock::new(None),
             selected_v2_drive: RwLock::new(None),
             cached_product_key: RwLock::new(None),
             recovery_status: RwLock::new(None),
@@ -100,19 +103,13 @@ impl SetupContext {
         let db = PatchDb::open(&db_path)
             .await
             .with_ctx(|_| (crate::ErrorKind::Filesystem, db_path.display().to_string()))?;
-        if !db.exists(&<JsonPointer>::default()).await? {
-            let pkey = self.product_key().await?;
-            let sid = derive_id(&*pkey);
-            let hostname = derive_hostname(&sid);
+        if !db.exists(&<JsonPointer>::default()).await {
             db.put(
                 &<JsonPointer>::default(),
                 &Database::init(
-                    sid,
-                    &hostname,
                     &os_key(&mut secret_store.acquire().await?).await?,
                     password_hash(&mut secret_store.acquire().await?).await?,
                 ),
-                None,
             )
             .await?;
         }
@@ -134,22 +131,17 @@ impl SetupContext {
         }
         Ok(secret_store)
     }
-    #[instrument(skip(self))]
-    pub async fn product_key(&self) -> Result<Arc<String>, Error> {
-        Ok(
-            if let Some(k) = {
-                let guard = self.cached_product_key.read().await;
-                let res = guard.clone();
-                drop(guard);
-                res
-            } {
-                k
-            } else {
-                let k = Arc::new(get_product_key().await?);
-                *self.cached_product_key.write().await = Some(k.clone());
-                k
-            },
-        )
+
+    /// So we assume that there will only be one client that will ask for a secret,
+    /// And during that time do we upsert to a new key
+    pub async fn update_secret(&self) -> Result<String, Error> {
+        let new_secret: String = thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(30)
+            .map(char::from)
+            .collect();
+        *self.current_secret.write().await = Some(new_secret.clone());
+        Ok(new_secret)
     }
 }
 

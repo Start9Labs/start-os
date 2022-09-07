@@ -1,12 +1,12 @@
-import { Subject, Observable } from 'rxjs'
-import { Update, Operation, Revision } from 'patch-db-client'
+import { Observable, ReplaySubject } from 'rxjs'
+import { Update } from 'patch-db-client'
 import { RR } from './api.types'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { Log, RequestError } from '@start9labs/shared'
+import { Log } from '@start9labs/shared'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 
 export abstract class ApiService {
-  readonly sync$ = new Subject<Update<DataModel>>()
+  readonly patchStream$ = new ReplaySubject<Update<DataModel>[]>(1)
 
   // http
 
@@ -18,15 +18,7 @@ export abstract class ApiService {
 
   // db
 
-  abstract getRevisions(since: number): Promise<RR.GetRevisionsRes>
-
-  abstract getDump(): Promise<RR.GetDumpRes>
-
-  protected abstract setDbValueRaw(
-    params: RR.SetDBValueReq,
-  ): Promise<RR.SetDBValueRes>
-  setDbValue = (params: RR.SetDBValueReq) =>
-    this.syncResponse(() => this.setDbValueRaw(params))()
+  abstract setDbValue(params: RR.SetDBValueReq): Promise<RR.SetDBValueRes>
 
   // auth
 
@@ -72,18 +64,7 @@ export abstract class ApiService {
     params: RR.GetPackageMetricsReq,
   ): Promise<RR.GetPackageMetricsRes>
 
-  protected abstract updateServerRaw(
-    params: RR.UpdateServerReq,
-  ): Promise<RR.UpdateServerRes>
-  updateServer = (params: RR.UpdateServerReq) =>
-    this.syncResponse(() => this.updateServerWrapper(params))()
-  async updateServerWrapper(params: RR.UpdateServerReq) {
-    const res = await this.updateServerRaw(params)
-    if (res.response === 'no-updates') {
-      throw new Error('Could not find a newer version of EmbassyOS')
-    }
-    return res
-  }
+  abstract updateServer(params: RR.UpdateServerReq): Promise<RR.UpdateServerRes>
 
   abstract restartServer(
     params: RR.RestartServerReq,
@@ -116,13 +97,9 @@ export abstract class ApiService {
 
   // notification
 
-  abstract getNotificationsRaw(
+  abstract getNotifications(
     params: RR.GetNotificationsReq,
   ): Promise<RR.GetNotificationsRes>
-  getNotifications = (params: RR.GetNotificationsReq) =>
-    this.syncResponse<RR.GetNotificationsRes['response'], any>(() =>
-      this.getNotificationsRaw(params),
-    )()
 
   abstract deleteNotification(
     params: RR.DeleteNotificationReq,
@@ -179,11 +156,7 @@ export abstract class ApiService {
     params: RR.GetBackupInfoReq,
   ): Promise<RR.GetBackupInfoRes>
 
-  protected abstract createBackupRaw(
-    params: RR.CreateBackupReq,
-  ): Promise<RR.CreateBackupRes>
-  createBackup = (params: RR.CreateBackupReq) =>
-    this.syncResponse(() => this.createBackupRaw(params))()
+  abstract createBackup(params: RR.CreateBackupReq): Promise<RR.CreateBackupRes>
 
   // package
 
@@ -199,11 +172,9 @@ export abstract class ApiService {
     params: RR.FollowPackageLogsReq,
   ): Promise<RR.FollowPackageLogsRes>
 
-  protected abstract installPackageRaw(
+  abstract installPackage(
     params: RR.InstallPackageReq,
   ): Promise<RR.InstallPackageRes>
-  installPackage = (params: RR.InstallPackageReq) =>
-    this.syncResponse(() => this.installPackageRaw(params))()
 
   abstract dryUpdatePackage(
     params: RR.DryUpdatePackageReq,
@@ -217,85 +188,39 @@ export abstract class ApiService {
     params: RR.DrySetPackageConfigReq,
   ): Promise<RR.DrySetPackageConfigRes>
 
-  protected abstract setPackageConfigRaw(
+  abstract setPackageConfig(
     params: RR.SetPackageConfigReq,
   ): Promise<RR.SetPackageConfigRes>
-  setPackageConfig = (params: RR.SetPackageConfigReq) =>
-    this.syncResponse(() => this.setPackageConfigRaw(params))()
 
-  protected abstract restorePackagesRaw(
+  abstract restorePackages(
     params: RR.RestorePackagesReq,
   ): Promise<RR.RestorePackagesRes>
-  restorePackages = (params: RR.RestorePackagesReq) =>
-    this.syncResponse(() => this.restorePackagesRaw(params))()
 
   abstract executePackageAction(
     params: RR.ExecutePackageActionReq,
   ): Promise<RR.ExecutePackageActionRes>
 
-  protected abstract startPackageRaw(
-    params: RR.StartPackageReq,
-  ): Promise<RR.StartPackageRes>
-  startPackage = (params: RR.StartPackageReq) =>
-    this.syncResponse(() => this.startPackageRaw(params))()
+  abstract startPackage(params: RR.StartPackageReq): Promise<RR.StartPackageRes>
 
-  protected abstract restartPackageRaw(
+  abstract restartPackage(
     params: RR.RestartPackageReq,
   ): Promise<RR.RestartPackageRes>
-  restartPackage = (params: RR.RestartPackageReq) =>
-    this.syncResponse(() => this.restartPackageRaw(params))()
 
-  protected abstract stopPackageRaw(
-    params: RR.StopPackageReq,
-  ): Promise<RR.StopPackageRes>
-  stopPackage = (params: RR.StopPackageReq) =>
-    this.syncResponse(() => this.stopPackageRaw(params))()
+  abstract stopPackage(params: RR.StopPackageReq): Promise<RR.StopPackageRes>
 
-  protected abstract uninstallPackageRaw(
+  abstract uninstallPackage(
     params: RR.UninstallPackageReq,
   ): Promise<RR.UninstallPackageRes>
-  uninstallPackage = (params: RR.UninstallPackageReq) =>
-    this.syncResponse(() => this.uninstallPackageRaw(params))()
 
   abstract dryConfigureDependency(
     params: RR.DryConfigureDependencyReq,
   ): Promise<RR.DryConfigureDependencyRes>
 
-  protected abstract deleteRecoveredPackageRaw(
+  abstract deleteRecoveredPackage(
     params: RR.UninstallPackageReq,
   ): Promise<RR.UninstallPackageRes>
-  deleteRecoveredPackage = (params: RR.UninstallPackageReq) =>
-    this.syncResponse(() => this.deleteRecoveredPackageRaw(params))()
 
   abstract sideloadPackage(
     params: RR.SideloadPackageReq,
   ): Promise<RR.SideloadPacakgeRes>
-
-  // Helper allowing quick decoration to sync the response patch and return the response contents.
-  // Pass in a tempUpdate function which returns a UpdateTemp corresponding to a temporary
-  // state change you'd like to enact prior to request and expired when request terminates.
-  private syncResponse<
-    T,
-    F extends (...args: any[]) => Promise<{ response: T; revision?: Revision }>,
-  >(f: F, temp?: Operation<unknown>): (...args: Parameters<F>) => Promise<T> {
-    return (...a) => {
-      // let expireId = undefined
-      // if (temp) {
-      //   expireId = uuid.v4()
-      //   this.sync.next({ patch: [temp], expiredBy: expireId })
-      // }
-
-      return f(a)
-        .catch((e: UIRequestError) => {
-          if (e.revision) this.sync$.next(e.revision)
-          throw e
-        })
-        .then(({ response, revision }) => {
-          if (revision) this.sync$.next(revision)
-          return response
-        })
-    }
-  }
 }
-
-type UIRequestError = RequestError & { revision: Revision }

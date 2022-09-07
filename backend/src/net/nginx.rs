@@ -9,7 +9,7 @@ use tracing::instrument;
 
 use super::interface::{InterfaceId, LanPortConfig};
 use super::ssl::SslManager;
-use crate::hostname::get_hostname;
+use crate::hostname::Hostname;
 use crate::s9pk::manifest::PackageId;
 use crate::util::serde::Port;
 use crate::util::Invoke;
@@ -20,9 +20,15 @@ pub struct NginxController {
     inner: Mutex<NginxControllerInner>,
 }
 impl NginxController {
-    pub async fn init(nginx_root: PathBuf, ssl_manager: &SslManager) -> Result<Self, Error> {
+    pub async fn init(
+        nginx_root: PathBuf,
+        ssl_manager: &SslManager,
+        host_name: &Hostname,
+    ) -> Result<Self, Error> {
         Ok(NginxController {
-            inner: Mutex::new(NginxControllerInner::init(&nginx_root, ssl_manager).await?),
+            inner: Mutex::new(
+                NginxControllerInner::init(&nginx_root, ssl_manager, host_name).await?,
+            ),
             nginx_root,
         })
     }
@@ -53,13 +59,17 @@ pub struct NginxControllerInner {
 }
 impl NginxControllerInner {
     #[instrument]
-    async fn init(nginx_root: &Path, ssl_manager: &SslManager) -> Result<Self, Error> {
+    async fn init(
+        nginx_root: &Path,
+        ssl_manager: &SslManager,
+        host_name: &Hostname,
+    ) -> Result<Self, Error> {
         let inner = NginxControllerInner {
             interfaces: BTreeMap::new(),
         };
         // write main ssl key/cert to fs location
         let (key, cert) = ssl_manager
-            .certificate_for(&get_hostname().await?, &"embassy".parse().unwrap())
+            .certificate_for(&host_name.lan_address(), &"embassy".parse().unwrap())
             .await?;
         let ssl_path_key = nginx_root.join(format!("ssl/embassy_main.key.pem"));
         let ssl_path_cert = nginx_root.join(format!("ssl/embassy_main.cert.pem"));

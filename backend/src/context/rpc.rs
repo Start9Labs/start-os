@@ -22,7 +22,6 @@ use tracing::instrument;
 
 use crate::core::rpc_continuations::{RequestGuid, RestHandler, RpcContinuation};
 use crate::db::model::{Database, InstalledPackageDataEntry, PackageDataEntry};
-use crate::hostname::{derive_hostname, derive_id, get_product_key};
 use crate::init::{init_postgres, pgloader};
 use crate::install::cleanup::{cleanup_failed, uninstall, CleanupFailedReceipts};
 use crate::manager::ManagerMap;
@@ -71,23 +70,18 @@ impl RpcContextConfig {
             .as_deref()
             .unwrap_or_else(|| Path::new("/embassy-data"))
     }
-    pub async fn db(&self, secret_store: &PgPool, product_key: &str) -> Result<PatchDb, Error> {
-        let sid = derive_id(product_key);
-        let hostname = derive_hostname(&sid);
+    pub async fn db(&self, secret_store: &PgPool) -> Result<PatchDb, Error> {
         let db_path = self.datadir().join("main").join("embassy.db");
         let db = PatchDb::open(&db_path)
             .await
             .with_ctx(|_| (crate::ErrorKind::Filesystem, db_path.display().to_string()))?;
-        if !db.exists(&<JsonPointer>::default()).await? {
+        if !db.exists(&<JsonPointer>::default()).await {
             db.put(
                 &<JsonPointer>::default(),
                 &Database::init(
-                    sid,
-                    &hostname,
                     &os_key(&mut secret_store.acquire().await?).await?,
                     password_hash(&mut secret_store.acquire().await?).await?,
                 ),
-                None,
             )
             .await?;
         }
@@ -216,7 +210,7 @@ impl RpcContext {
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
         let secret_store = base.secret_store().await?;
         tracing::info!("Opened Pg DB");
-        let db = base.db(&secret_store, &get_product_key().await?).await?;
+        let db = base.db(&secret_store).await?;
         tracing::info!("Opened PatchDB");
         let docker = Docker::connect_with_unix_defaults()?;
         tracing::info!("Connected to Docker");
@@ -231,6 +225,7 @@ impl RpcContext {
                 .unwrap_or(&[SocketAddr::from(([127, 0, 0, 1], 53))]),
             secret_store.clone(),
             None,
+            &mut db.handle(),
         )
         .await?;
         tracing::info!("Initialized Net Controller");

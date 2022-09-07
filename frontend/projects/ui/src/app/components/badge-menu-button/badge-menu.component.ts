@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { SplitPaneTracker } from 'src/app/services/split-pane.service'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDB } from 'patch-db-client'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 
 @Component({
   selector: 'badge-menu-button',
@@ -14,6 +15,6 @@ export class BadgeMenuComponent {
 
   constructor(
     private readonly splitPane: SplitPaneTracker,
-    private readonly patch: PatchDbService,
+    private readonly patch: PatchDB<DataModel>,
   ) {}
 }

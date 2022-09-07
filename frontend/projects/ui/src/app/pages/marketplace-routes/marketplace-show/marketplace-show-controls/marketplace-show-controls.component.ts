@@ -11,6 +11,7 @@ import {
 } from '@start9labs/marketplace'
 import { Emver, ErrorToastService, isEmptyObject } from '@start9labs/shared'
 import {
+  DataModel,
   PackageDataEntry,
   PackageState,
 } from 'src/app/services/patch-db/data-model'
@@ -19,7 +20,7 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { Breakages } from 'src/app/services/api/api.types'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDB } from 'patch-db-client'
 import { getAllPackages } from 'src/app/util/get-package-data'
 import { firstValueFrom } from 'rxjs'
 
@@ -49,7 +50,7 @@ export class MarketplaceShowControlsComponent {
     private readonly emver: Emver,
     private readonly errToast: ErrorToastService,
     private readonly embassyApi: ApiService,
-    private readonly patch: PatchDbService,
+    private readonly patch: PatchDB<DataModel>,
   ) {}
 
   get localVersion(): string {

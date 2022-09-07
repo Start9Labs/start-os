@@ -12,10 +12,11 @@ import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
 import {
+  DataModel,
   ServerInfo,
   UIMarketplaceData,
 } from 'src/app/services/patch-db/data-model'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDB } from 'patch-db-client'
 import {
   catchError,
   distinctUntilChanged,
@@ -119,7 +120,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
 
   constructor(
     private readonly api: ApiService,
-    private readonly patch: PatchDbService,
+    private readonly patch: PatchDB<DataModel>,
     private readonly config: ConfigService,
     private readonly errToast: ErrorToastService,
     private readonly emver: Emver,

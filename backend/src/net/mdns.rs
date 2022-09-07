@@ -3,14 +3,14 @@ use std::net::Ipv4Addr;
 
 use avahi_sys::{
     self, avahi_client_errno, avahi_entry_group_add_service, avahi_entry_group_commit,
-    avahi_entry_group_free, avahi_entry_group_reset, avahi_free, avahi_strerror, AvahiClient,
-    AvahiEntryGroup,
+    avahi_entry_group_free, avahi_free, avahi_strerror, AvahiClient, AvahiEntryGroup,
 };
 use color_eyre::eyre::eyre;
 use libc::c_void;
 use tokio::process::Command;
 use tokio::sync::Mutex;
 use torut::onion::TorSecretKeyV3;
+use tracing::instrument;
 
 use super::interface::InterfaceId;
 use crate::s9pk::manifest::PackageId;
@@ -59,17 +59,64 @@ impl MdnsController {
 }
 
 pub struct MdnsControllerInner {
-    hostname: Vec<u8>,
-    hostname_raw: *const libc::c_char,
-    entry_group: *mut AvahiEntryGroup,
+    entry_group: Option<MdnsEntryGroup>,
     services: BTreeMap<(PackageId, InterfaceId), TorSecretKeyV3>,
-    _client_error: std::pin::Pin<Box<i32>>,
 }
 unsafe impl Send for MdnsControllerInner {}
 unsafe impl Sync for MdnsControllerInner {}
 
 impl MdnsControllerInner {
-    fn load_services(&mut self) {
+    fn init() -> Self {
+        MdnsControllerInner {
+            entry_group: Some(MdnsEntryGroup::init(&BTreeMap::new())),
+            services: BTreeMap::new(),
+        }
+    }
+    fn sync(&mut self) {
+        drop(self.entry_group.take());
+        self.entry_group = Some(MdnsEntryGroup::init(&self.services));
+    }
+    fn add<'a, I: IntoIterator<Item = (InterfaceId, TorSecretKeyV3)>>(
+        &mut self,
+        pkg_id: &PackageId,
+        interfaces: I,
+    ) {
+        self.services.extend(
+            interfaces
+                .into_iter()
+                .map(|(interface_id, key)| ((pkg_id.clone(), interface_id), key)),
+        );
+        self.sync();
+    }
+    fn remove<I: IntoIterator<Item = InterfaceId>>(&mut self, pkg_id: &PackageId, interfaces: I) {
+        for interface_id in interfaces {
+            self.services.remove(&(pkg_id.clone(), interface_id));
+        }
+        self.sync();
+    }
+    fn free(&self) {}
+}
+
+fn log_str_error(action: &str, e: i32) {
+    unsafe {
+        let e_str = avahi_strerror(e);
+        tracing::error!(
+            "Could not {}: {:?}",
+            action,
+            std::ffi::CStr::from_ptr(e_str)
+        );
+    }
+}
+
+struct MdnsEntryGroup {
+    hostname: Vec<u8>,
+    hostname_raw: *const libc::c_char,
+    entry_group: *mut AvahiEntryGroup,
+    _client_error: std::pin::Pin<Box<i32>>,
+}
+impl MdnsEntryGroup {
+    #[instrument(skip(self))]
+    fn load_services(&mut self, services: &BTreeMap<(PackageId, InterfaceId), TorSecretKeyV3>) {
         unsafe {
             tracing::debug!("Loading services for mDNS");
             let mut res;
@@ -101,7 +148,7 @@ impl MdnsControllerInner {
                 "Published {:?}",
                 std::ffi::CStr::from_ptr(self.hostname_raw)
             );
-            for key in self.services.values() {
+            for key in services.values() {
                 let lan_address = key
                     .public()
                     .get_onion_address()
@@ -131,9 +178,10 @@ impl MdnsControllerInner {
             }
         }
     }
-    fn init() -> Self {
+    fn init(services: &BTreeMap<(PackageId, InterfaceId), TorSecretKeyV3>) -> Self {
         unsafe {
             tracing::debug!("Initializing mDNS controller");
+
             let simple_poll = avahi_sys::avahi_simple_poll_new();
             let poll = avahi_sys::avahi_simple_poll_get(simple_poll);
             let mut box_err = Box::pin(0 as i32);
@@ -168,15 +216,13 @@ impl MdnsControllerInner {
             // assume fixed length prefix on hostname due to local address
             hostname_buf[0] = (buflen - 8) as u8; // set the prefix length to len - 8 (leading byte, .local, nul) for the main address
             hostname_buf[buflen - 7] = 5; // set the prefix length to 5 for "local"
-
-            let mut res = MdnsControllerInner {
+            let mut res = MdnsEntryGroup {
                 hostname: hostname_buf,
                 hostname_raw,
                 entry_group: group,
-                services: BTreeMap::new(),
                 _client_error: box_err,
             };
-            res.load_services();
+            res.load_services(services);
             let commit_err = avahi_entry_group_commit(res.entry_group);
             if commit_err < avahi_sys::AVAHI_OK {
                 log_str_error("reset Avahi entry group", commit_err);
@@ -185,59 +231,14 @@ impl MdnsControllerInner {
             res
         }
     }
-    fn sync(&mut self) {
-        unsafe {
-            let mut res;
-            res = avahi_entry_group_reset(self.entry_group);
-            if res < avahi_sys::AVAHI_OK {
-                log_str_error("reset Avahi entry group", res);
-                panic!("Failed to load Avahi services: reset");
-            }
-            self.load_services();
-            res = avahi_entry_group_commit(self.entry_group);
-            if res < avahi_sys::AVAHI_OK {
-                log_str_error("commit Avahi entry group", res);
-                panic!("Failed to load Avahi services: commit");
-            }
-        }
-    }
-    fn add<'a, I: IntoIterator<Item = (InterfaceId, TorSecretKeyV3)>>(
-        &mut self,
-        pkg_id: &PackageId,
-        interfaces: I,
-    ) {
-        self.services.extend(
-            interfaces
-                .into_iter()
-                .map(|(interface_id, key)| ((pkg_id.clone(), interface_id), key)),
-        );
-        self.sync();
-    }
-    fn remove<I: IntoIterator<Item = InterfaceId>>(&mut self, pkg_id: &PackageId, interfaces: I) {
-        for interface_id in interfaces {
-            self.services.remove(&(pkg_id.clone(), interface_id));
-        }
-        self.sync();
-    }
 }
-impl Drop for MdnsControllerInner {
+impl Drop for MdnsEntryGroup {
     fn drop(&mut self) {
         unsafe {
             avahi_free(self.hostname_raw as *mut c_void);
             avahi_entry_group_free(self.entry_group);
+            // avahi_client_free(self.avahi_client);
         }
-    }
-}
-
-fn log_str_error(action: &str, e: i32) {
-    unsafe {
-        let e_str = avahi_strerror(e);
-        tracing::error!(
-            "Could not {}: {:?}",
-            action,
-            std::ffi::CStr::from_ptr(e_str)
-        );
-        avahi_free(e_str as *mut c_void);
     }
 }
 

@@ -1,34 +1,53 @@
-use digest::Digest;
-use tokio::fs::File;
-use tokio::io::AsyncWriteExt;
+use patch_db::DbHandle;
+use rand::{thread_rng, Rng};
 use tokio::process::Command;
 use tracing::instrument;
 
 use crate::util::Invoke;
-use crate::{Error, ErrorKind, ResultExt};
+use crate::{Error, ErrorKind};
+#[derive(Clone, serde::Deserialize, serde::Serialize, Debug)]
+pub struct Hostname(pub String);
 
-pub const PRODUCT_KEY_PATH: &'static str = "/embassy-os/product_key.txt";
-
-#[instrument]
-pub async fn get_hostname() -> Result<String, Error> {
-    Ok(derive_hostname(&get_id().await?))
+lazy_static::lazy_static! {
+    static ref ADJECTIVES: Vec<String> = include_str!("./assets/adjectives.txt").lines().map(|x| x.to_string()).collect();
+    static ref NOUNS: Vec<String> = include_str!("./assets/nouns.txt").lines().map(|x| x.to_string()).collect();
+}
+impl AsRef<str> for Hostname {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
 }
 
-pub fn derive_hostname(id: &str) -> String {
-    format!("embassy-{}", id)
+impl Hostname {
+    pub fn lan_address(&self) -> String {
+        format!("https://{}.local", self.0)
+    }
+}
+
+pub fn generate_hostname() -> Hostname {
+    let mut rng = thread_rng();
+    let adjective = &ADJECTIVES[rng.gen_range(0..ADJECTIVES.len())];
+    let noun = &NOUNS[rng.gen_range(0..NOUNS.len())];
+    Hostname(format!("{adjective}-{noun}"))
+}
+
+pub fn generate_id() -> String {
+    let id = uuid::Uuid::new_v4();
+    id.to_string()
 }
 
 #[instrument]
-pub async fn get_current_hostname() -> Result<String, Error> {
+pub async fn get_current_hostname() -> Result<Hostname, Error> {
     let out = Command::new("hostname")
         .invoke(ErrorKind::ParseSysInfo)
         .await?;
     let out_string = String::from_utf8(out)?;
-    Ok(out_string.trim().to_owned())
+    Ok(Hostname(out_string.trim().to_owned()))
 }
 
 #[instrument]
-pub async fn set_hostname(hostname: &str) -> Result<(), Error> {
+pub async fn set_hostname(hostname: &Hostname) -> Result<(), Error> {
+    let hostname: &String = &hostname.0;
     let _out = Command::new("hostnamectl")
         .arg("set-hostname")
         .arg(hostname)
@@ -37,38 +56,36 @@ pub async fn set_hostname(hostname: &str) -> Result<(), Error> {
     Ok(())
 }
 
-#[instrument]
-pub async fn get_product_key() -> Result<String, Error> {
-    let out = tokio::fs::read_to_string(PRODUCT_KEY_PATH)
+#[instrument(skip(handle))]
+pub async fn get_id<Db: DbHandle>(handle: &mut Db) -> Result<String, Error> {
+    let id = crate::db::DatabaseModel::new()
+        .server_info()
+        .id()
+        .get(handle, false)
+        .await?;
+    Ok(id.to_string())
+}
+
+pub async fn get_hostname<Db: DbHandle>(handle: &mut Db) -> Result<Hostname, Error> {
+    if let Ok(hostname) = crate::db::DatabaseModel::new()
+        .server_info()
+        .hostname()
+        .get(handle, false)
         .await
-        .with_ctx(|_| (crate::ErrorKind::Filesystem, PRODUCT_KEY_PATH))?;
-    Ok(out.trim().to_owned())
+    {
+        if let Some(hostname) = hostname.to_owned() {
+            return Ok(Hostname(hostname));
+        }
+    }
+    let id = get_id(handle).await?;
+    if id.len() != 8 {
+        return Ok(generate_hostname());
+    }
+    return Ok(Hostname(format!("embassy-{}", id)));
 }
-
-#[instrument]
-pub async fn set_product_key(key: &str) -> Result<(), Error> {
-    let mut pkey_file = File::create(PRODUCT_KEY_PATH).await?;
-    pkey_file.write_all(key.as_bytes()).await?;
-    Ok(())
-}
-
-pub fn derive_id(key: &str) -> String {
-    let mut hasher = sha2::Sha256::new();
-    hasher.update(key.as_bytes());
-    let res = hasher.finalize();
-    hex::encode(&res[0..4])
-}
-
-#[instrument]
-pub async fn get_id() -> Result<String, Error> {
-    let key = get_product_key().await?;
-    Ok(derive_id(&key))
-}
-
-// cat /embassy-os/product_key.txt | shasum -a 256 | head -c 8 | awk '{print "embassy-"$1}' | xargs hostnamectl set-hostname && systemctl restart avahi-daemon
-#[instrument]
-pub async fn sync_hostname() -> Result<(), Error> {
-    set_hostname(&format!("embassy-{}", get_id().await?)).await?;
+#[instrument(skip(handle))]
+pub async fn sync_hostname<Db: DbHandle>(handle: &mut Db) -> Result<(), Error> {
+    set_hostname(&get_hostname(handle).await?).await?;
     Command::new("systemctl")
         .arg("restart")
         .arg("avahi-daemon")

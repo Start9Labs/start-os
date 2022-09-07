@@ -1,11 +1,10 @@
-import { RpcErrorDetails } from '../types/rpc-error-details'
+import { RPCErrorDetails } from '../types/rpc.types'
 
-export class RpcError<T> {
+export class RpcError {
   readonly code = this.error.code
   readonly message = this.getMessage()
-  readonly revision = this.getRevision()
 
-  constructor(private readonly error: RpcErrorDetails<T>) {}
+  constructor(private readonly error: RPCErrorDetails) {}
 
   private getMessage(): string {
     if (typeof this.error.data === 'string') {
@@ -15,11 +14,5 @@ export class RpcError<T> {
     return this.error.data?.details
       ? `${this.error.message}\n\n${this.error.data.details}`
       : this.error.message
-  }
-
-  private getRevision(): T | null {
-    return typeof this.error.data === 'string'
-      ? null
-      : this.error.data?.revision || null
   }
 }

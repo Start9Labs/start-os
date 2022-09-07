@@ -3,7 +3,7 @@ import { ModalController } from '@ionic/angular'
 import { Observable } from 'rxjs'
 import { filter, share, switchMap, take, tap } from 'rxjs/operators'
 import { exists, isEmptyObject } from '@start9labs/shared'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDB } from 'patch-db-client'
 import { DataModel, UIData } from 'src/app/services/patch-db/data-model'
 import { EOSService } from 'src/app/services/eos.service'
 import { OSWelcomePage } from 'src/app/modals/os-welcome/os-welcome.page'
@@ -33,7 +33,7 @@ export class PatchDataService extends Observable<DataModel> {
   )
 
   constructor(
-    private readonly patch: PatchDbService,
+    private readonly patch: PatchDB<DataModel>,
     private readonly eosService: EOSService,
     private readonly config: ConfigService,
     private readonly modalCtrl: ModalController,

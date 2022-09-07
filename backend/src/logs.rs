@@ -120,7 +120,7 @@ pub struct LogResponse {
     end_cursor: Option<String>,
 }
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
-#[serde(rename_all = "kebab-case", tag = "type")]
+#[serde(rename_all = "kebab-case")]
 pub struct LogFollowResponse {
     start_cursor: Option<String>,
     guid: RequestGuid,

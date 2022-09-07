@@ -4,12 +4,13 @@ import { NavController } from '@ionic/angular'
 import { combineLatest, Observable } from 'rxjs'
 import { filter, map, startWith } from 'rxjs/operators'
 import {
+  DataModel,
   DependencyError,
   DependencyErrorType,
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
 import { DependentInfo } from 'src/app/types/dependent-info'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDB } from 'patch-db-client'
 import { ModalService } from 'src/app/services/modal.service'
 
 export interface DependencyInfo {
@@ -27,7 +28,7 @@ export interface DependencyInfo {
 })
 export class ToDependenciesPipe implements PipeTransform {
   constructor(
-    private readonly patch: PatchDbService,
+    private readonly patch: PatchDB<DataModel>,
     private readonly navCtrl: NavController,
     private readonly modalService: ModalService,
   ) {}

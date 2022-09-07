@@ -80,6 +80,7 @@ imbl = "2.0.0"
 indexmap = { version = "1.9.1", features = ["serde"] }
 isocountry = "0.3.2"
 itertools = "0.10.3"
+josekit = "0.8.1"
 js_engine = { path = '../libs/js_engine', optional = true }
 jsonpath_lib = "0.3.0"
 lazy_static = "1.4.0"
@@ -141,6 +142,7 @@ tracing-subscriber = { version = "0.3.14", features = ["env-filter"] }
 trust-dns-server = "0.21.2"
 typed-builder = "0.10.0"
 url = { version = "2.2.2", features = ["serde"] }
+uuid = { version = "1.1.2", features = ["v4"] }
 
 [profile.test]
 opt-level = 3

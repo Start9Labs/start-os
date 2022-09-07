@@ -214,15 +214,23 @@
         >
           <div class="nested-wrapper">
             <form-object
-              [objectSpec]="
-                spec.type === 'union'
-                  ? spec.variants[$any(entry.value).controls[spec.tag.id].value]
-                  : spec.spec
-              "
+              *ngIf="spec.type === 'object'"
+              [objectSpec]="spec.spec"
               [formGroup]="$any(entry.value)"
               [current]="current?.[entry.key]"
               [original]="original?.[entry.key]"
-              [unionSpec]="spec.type === 'union' ? spec : undefined"
+              (onExpand)="resize(entry.key)"
+              (hasNewOptions)="setHasNew(entry.key)"
+            ></form-object>
+            <form-object
+              *ngIf="spec.type === 'union'"
+              [objectSpec]="
+                spec.variants[$any(entry.value).controls[spec.tag.id].value]
+              "
+              [formGroup]="$any(entry.value)"
+              [current]="current?.[entry.key]"
+              [original]="original?.[entry.key][spec.tag.id] === current?.[entry.key][spec.tag.id] ? original?.[entry.key] : undefined"
+              [unionSpec]="spec"
               (onExpand)="resize(entry.key)"
               (hasNewOptions)="setHasNew(entry.key)"
             ></form-object>
@@ -366,6 +374,7 @@
                   </ion-input>
                   <ion-button
                     strong
+                    fill="clear"
                     slot="end"
                     color="danger"
                     (click)="presentAlertDelete(entry.key, i)"

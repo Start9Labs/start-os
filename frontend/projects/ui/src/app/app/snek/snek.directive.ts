@@ -1,9 +1,7 @@
 import { Directive, HostListener, Input } from '@angular/core'
 import { LoadingController, ModalController } from '@ionic/angular'
 import { ErrorToastService } from '@start9labs/shared'
-
 import { SnakePage } from '../../modals/snake/snake.page'
-import { PatchDbService } from '../../services/patch-db/patch-db.service'
 import { ApiService } from '../../services/api/embassy-api.service'
 
 @Directive({

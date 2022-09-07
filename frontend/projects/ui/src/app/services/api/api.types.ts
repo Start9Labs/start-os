@@ -16,8 +16,8 @@ export module RR {
 
   export type GetDumpRes = Dump<DataModel>
 
-  export type SetDBValueReq = WithExpire<{ pointer: string; value: any }> // db.put.ui
-  export type SetDBValueRes = WithRevision<null>
+  export type SetDBValueReq = { pointer: string; value: any } // db.put.ui
+  export type SetDBValueRes = null
 
   // auth
 
@@ -44,8 +44,8 @@ export module RR {
   export type GetServerMetricsReq = {} // server.metrics
   export type GetServerMetricsRes = Metrics
 
-  export type UpdateServerReq = WithExpire<{ 'marketplace-url': string }> // server.update
-  export type UpdateServerRes = WithRevision<'updating' | 'no-updates'>
+  export type UpdateServerReq = { 'marketplace-url': string } // server.update
+  export type UpdateServerRes = 'updating' | 'no-updates'
 
   export type RestartServerReq = {} // server.restart
   export type RestartServerRes = null
@@ -64,8 +64,8 @@ export module RR {
     sessions: { [hash: string]: Session }
   }
 
-  export type KillSessionsReq = WithExpire<{ ids: string[] }> // sessions.kill
-  export type KillSessionsRes = WithRevision<null>
+  export type KillSessionsReq = { ids: string[] } // sessions.kill
+  export type KillSessionsRes = null
 
   // password
 
@@ -74,11 +74,11 @@ export module RR {
 
   // notification
 
-  export type GetNotificationsReq = WithExpire<{
+  export type GetNotificationsReq = {
     before?: number
     limit?: number
-  }> // notification.list
-  export type GetNotificationsRes = WithRevision<ServerNotification<number>[]>
+  } // notification.list
+  export type GetNotificationsRes = ServerNotification<number>[]
 
   export type DeleteNotificationReq = { id: number } // notification.delete
   export type DeleteNotificationRes = null
@@ -96,8 +96,8 @@ export module RR {
     ssids: {
       [ssid: string]: number
     }
-    connected?: string
-    country: string
+    connected: string | null
+    country: string | null
     ethernet: boolean
     'available-wifi': AvailableWifi[]
   }
@@ -151,14 +151,14 @@ export module RR {
   export type GetBackupInfoReq = { 'target-id': string; password: string } // backup.target.info
   export type GetBackupInfoRes = BackupInfo
 
-  export type CreateBackupReq = WithExpire<{
+  export type CreateBackupReq = {
     // backup.create
     'target-id': string
     'package-ids': string[]
     'old-password': string | null
     password: string
-  }>
-  export type CreateBackupRes = WithRevision<null>
+  }
+  export type CreateBackupRes = null
 
   // package
 
@@ -175,13 +175,13 @@ export module RR {
   export type GetPackageMetricsReq = { id: string } // package.metrics
   export type GetPackageMetricsRes = Metric
 
-  export type InstallPackageReq = WithExpire<{
+  export type InstallPackageReq = {
     id: string
     'version-spec'?: string
     'version-priority'?: 'min' | 'max'
     'marketplace-url': string
-  }> // package.install
-  export type InstallPackageRes = WithRevision<null>
+  } // package.install
+  export type InstallPackageRes = null
 
   export type DryUpdatePackageReq = { id: string; version: string } // package.update.dry
   export type DryUpdatePackageRes = Breakages
@@ -192,17 +192,17 @@ export module RR {
   export type DrySetPackageConfigReq = { id: string; config: object } // package.config.set.dry
   export type DrySetPackageConfigRes = Breakages
 
-  export type SetPackageConfigReq = WithExpire<DrySetPackageConfigReq> // package.config.set
-  export type SetPackageConfigRes = WithRevision<null>
+  export type SetPackageConfigReq = DrySetPackageConfigReq // package.config.set
+  export type SetPackageConfigRes = null
 
-  export type RestorePackagesReq = WithExpire<{
+  export type RestorePackagesReq = {
     // package.backup.restore
     ids: string[]
     'target-id': string
     'old-password': string | null
     password: string
-  }>
-  export type RestorePackagesRes = WithRevision<null>
+  }
+  export type RestorePackagesRes = null
 
   export type ExecutePackageActionReq = {
     id: string
@@ -211,20 +211,20 @@ export module RR {
   } // package.action
   export type ExecutePackageActionRes = ActionResponse
 
-  export type StartPackageReq = WithExpire<{ id: string }> // package.start
-  export type StartPackageRes = WithRevision<null>
+  export type StartPackageReq = { id: string } // package.start
+  export type StartPackageRes = null
 
-  export type RestartPackageReq = WithExpire<{ id: string }> // package.restart
-  export type RestartPackageRes = WithRevision<null>
+  export type RestartPackageReq = { id: string } // package.restart
+  export type RestartPackageRes = null
 
-  export type StopPackageReq = WithExpire<{ id: string }> // package.stop
-  export type StopPackageRes = WithRevision<null>
+  export type StopPackageReq = { id: string } // package.stop
+  export type StopPackageRes = null
 
-  export type UninstallPackageReq = WithExpire<{ id: string }> // package.uninstall
-  export type UninstallPackageRes = WithRevision<null>
+  export type UninstallPackageReq = { id: string } // package.uninstall
+  export type UninstallPackageRes = null
 
   export type DeleteRecoveredPackageReq = { id: string } // package.delete-recovered
-  export type DeleteRecoveredPackageRes = WithRevision<null>
+  export type DeleteRecoveredPackageRes = null
 
   export type DryConfigureDependencyReq = {
     'dependency-id': string
@@ -267,9 +267,6 @@ export module RR {
   export type GetReleaseNotesReq = { id: string }
   export type GetReleaseNotesRes = { [version: string]: string }
 }
-
-export type WithExpire<T> = { 'expire-id'?: string } & T
-export type WithRevision<T> = { response: T | null; revision?: Revision }
 
 export interface MarketplaceEOS {
   version: string

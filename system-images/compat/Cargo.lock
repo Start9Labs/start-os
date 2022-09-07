@@ -638,6 +638,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2d0165d2900ae6778e36e80bbc4da3b5eefccee9ba939761f9c2882a5d9af3ff"
 
 [[package]]
+name = "crc32fast"
+version = "1.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b540bd8bc810d3885c6ea91e2018302f68baba2129ab3e88f32389ee9370880d"
+dependencies = [
+ "cfg-if",
+]
+
+[[package]]
 name = "crossbeam-queue"
 version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -960,6 +969,7 @@ dependencies = [
  "indexmap",
  "isocountry",
  "itertools 0.10.3",
+ "josekit",
  "jsonpath_lib",
  "lazy_static",
  "libc",
@@ -1160,6 +1170,16 @@ name = "fixedbitset"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "279fb028e20b3c4c320317955b77c5e0c9701f05a1d309905d6fc702cdc5053e"
+
+[[package]]
+name = "flate2"
+version = "1.0.24"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f82b0f4c27ad9f8bfd1f3208d882da2b09c301bc1c828fd3a00d0216d2fbbff6"
+dependencies = [
+ "crc32fast",
+ "miniz_oxide",
+]
 
 [[package]]
 name = "flume"
@@ -1740,6 +1760,24 @@ name = "itoa"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "112c678d4050afce233f4f2852bb2eb519230b3cf12f33585275537d7e41578d"
+
+[[package]]
+name = "josekit"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dee6af62ad98bdf699ad2ecc8323479a1fdc7aa5faa6043d93119d83f6c5fca8"
+dependencies = [
+ "anyhow",
+ "base64",
+ "flate2",
+ "once_cell",
+ "openssl",
+ "regex",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "time 0.3.11",
+]
 
 [[package]]
 name = "js-sys"
@@ -2933,9 +2971,9 @@ dependencies = [
 
 [[package]]
 name = "rpc-toolkit"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b2b40671737dff8e63a1294536eea6e186f3700930fe92d8b5c7dfd636d0df16"
+checksum = "9d5bfeb75c188f3af65774d5fe92f97dac2cede5e313c643c7a1b82a8e53b0e6"
 dependencies = [
  "clap 3.2.10",
  "futures",
@@ -2955,9 +2993,9 @@ dependencies = [
 
 [[package]]
 name = "rpc-toolkit-macro"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ad6cd35336587eb0459cdc01f873ddd5a8a3480f97c5268a46a820e1b23b9aa"
+checksum = "ecb48bdaace41cfbb514b3e541ae0fc1ac0fb8283498215ad8a3d22ca2ea5ae5"
 dependencies = [
  "proc-macro2 1.0.39",
  "rpc-toolkit-macro-internals",
@@ -2966,9 +3004,9 @@ dependencies = [
 
 [[package]]
 name = "rpc-toolkit-macro-internals"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aa57bace2d4fe20a2aeac1ef4e9f6f1574f07b72fde1e43c7bb55e963f1702e7"
+checksum = "b2a9e2bae02a2beecad48d87255e51cab941d0c89a2bcee05a03a77803a0a282"
 dependencies = [
  "proc-macro2 1.0.39",
  "quote 1.0.18",
@@ -3849,7 +3887,9 @@ checksum = "06cda1232a49558c46f8a504d5b93101d42c0bf7f911f12a105ba48168f821ae"
 dependencies = [
  "futures-util",
  "log",
+ "native-tls",
  "tokio",
+ "tokio-native-tls",
  "tungstenite",
 ]
 
@@ -4100,6 +4140,7 @@ dependencies = [
  "http",
  "httparse",
  "log",
+ "native-tls",
  "rand 0.8.5",
  "sha-1 0.10.0",
  "thiserror",

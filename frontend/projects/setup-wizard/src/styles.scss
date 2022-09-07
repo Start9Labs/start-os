@@ -38,7 +38,7 @@ ion-content {
 ion-grid {
   padding-top: 32px;
   height: 100%;
-  max-width: 600px;
+  max-width: 640px;
 }
 
 ion-row {
@@ -47,6 +47,8 @@ ion-row {
 
 ion-item {
   --color: var(--ion-color-light);
+  --highlight-color-valid: transparent;
+  --highlight-color-invalid: transparent;
 }
 
 ion-toolbar {
@@ -59,13 +61,6 @@ ion-toolbar {
 ion-avatar {
   width: 27px;
   height: 27px;
-}
-
-ion-item {
-  --highlight-color-valid: transparent;
-  --highlight-color-invalid: transparent;
-
-  --border-radius: 4px;
 }
 
 ion-card-title {

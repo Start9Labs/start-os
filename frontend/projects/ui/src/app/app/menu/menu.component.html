@@ -57,6 +57,6 @@
   src="assets/img/icons/snek.png"
   [appSnekHighScore]="snekScore$ | async"
 />
-<ion-footer class="bottom">
+<ion-footer *ngIf="sidebarOpen$ | async" class="bottom">
   <connection-bar></connection-bar>
 </ion-footer>

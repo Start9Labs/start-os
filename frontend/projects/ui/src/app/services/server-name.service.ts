@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core'
-import { PatchDbService } from './patch-db/patch-db.service'
+import { PatchDB } from 'patch-db-client'
 import { combineLatest, filter, map, Observable } from 'rxjs'
+import { DataModel } from './patch-db/data-model'
 
 export interface ServerNameInfo {
   current: string
@@ -26,5 +27,5 @@ export class ServerNameService {
     }),
   )
 
-  constructor(private readonly patch: PatchDbService) {}
+  constructor(private readonly patch: PatchDB<DataModel>) {}
 }

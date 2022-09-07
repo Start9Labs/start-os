@@ -15,7 +15,6 @@ use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::db::model::{CurrentDependencies, CurrentDependencyInfo, CurrentDependents};
-use crate::db::util::WithRevision;
 use crate::dependencies::{
     add_dependent_to_current_dependents_lists, break_transitive, heal_all_dependents_transitive,
     BreakTransitiveReceipts, BreakageRes, Dependencies, DependencyConfig, DependencyError,
@@ -237,7 +236,8 @@ pub async fn get(
 
 #[command(
     subcommands(self(set_impl(async, context(RpcContext))), set_dry),
-    display(display_none)
+    display(display_none),
+    metadata(sync_db = true)
 )]
 #[instrument]
 pub fn set(
@@ -247,9 +247,8 @@ pub fn set(
     format: Option<IoFormat>,
     #[arg(long = "timeout")] timeout: Option<crate::util::serde::Duration>,
     #[arg(stdin, parse(parse_stdin_deserializable))] config: Option<Config>,
-    #[arg(rename = "expire-id", long = "expire-id")] expire_id: Option<String>,
-) -> Result<(PackageId, Option<Config>, Option<Duration>, Option<String>), Error> {
-    Ok((id, config, timeout.map(|d| *d), expire_id))
+) -> Result<(PackageId, Option<Config>, Option<Duration>), Error> {
+    Ok((id, config, timeout.map(|d| *d)))
 }
 
 /// So, the new locking finds all the possible locks and lifts them up into a bundle of locks.
@@ -407,12 +406,7 @@ impl ConfigReceipts {
 #[instrument(skip(ctx))]
 pub async fn set_dry(
     #[context] ctx: RpcContext,
-    #[parent_data] (id, config, timeout, _): (
-        PackageId,
-        Option<Config>,
-        Option<Duration>,
-        Option<String>,
-    ),
+    #[parent_data] (id, config, timeout): (PackageId, Option<Config>, Option<Duration>),
 ) -> Result<BreakageRes, Error> {
     let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
@@ -439,8 +433,8 @@ pub async fn set_dry(
 #[instrument(skip(ctx))]
 pub async fn set_impl(
     ctx: RpcContext,
-    (id, config, timeout, expire_id): (PackageId, Option<Config>, Option<Duration>, Option<String>),
-) -> Result<WithRevision<()>, Error> {
+    (id, config, timeout): (PackageId, Option<Config>, Option<Duration>),
+) -> Result<(), Error> {
     let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
     let mut breakages = BTreeMap::new();
@@ -457,10 +451,8 @@ pub async fn set_impl(
         &locks,
     )
     .await?;
-    Ok(WithRevision {
-        response: (),
-        revision: tx.commit(expire_id).await?,
-    })
+    tx.commit().await?;
+    Ok(())
 }
 
 #[instrument(skip(ctx, db, receipts))]

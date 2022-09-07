@@ -128,20 +128,17 @@ pub async fn check<Db: DbHandle>(
 
         let status = receipts.status.get(&mut checkpoint).await?;
 
-        match status {
-            MainStatus::Running { health, started } => {
-                receipts
-                    .status
-                    .set(
-                        &mut checkpoint,
-                        MainStatus::Running {
-                            health: health_results.clone(),
-                            started,
-                        },
-                    )
-                    .await?;
-            }
-            _ => (),
+        if let MainStatus::Running { health: _, started } = status {
+            receipts
+                .status
+                .set(
+                    &mut checkpoint,
+                    MainStatus::Running {
+                        health: health_results.clone(),
+                        started,
+                    },
+                )
+                .await?;
         }
         let current_dependents = receipts.current_dependents.get(&mut checkpoint).await?;
 

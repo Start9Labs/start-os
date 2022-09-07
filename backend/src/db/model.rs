@@ -12,6 +12,7 @@ use serde_json::Value;
 use torut::onion::TorSecretKeyV3;
 
 use crate::config::spec::{PackagePointerSpec, SystemPointerSpec};
+use crate::hostname::{generate_hostname, generate_id};
 use crate::install::progress::InstallProgress;
 use crate::net::interface::InterfaceId;
 use crate::s9pk::manifest::{Manifest, ManifestModel, PackageId};
@@ -32,21 +33,20 @@ pub struct Database {
     pub ui: Value,
 }
 impl Database {
-    pub fn init(
-        id: String,
-        hostname: &str,
-        tor_key: &TorSecretKeyV3,
-        password_hash: String,
-    ) -> Self {
+    pub fn init(tor_key: &TorSecretKeyV3, password_hash: String) -> Self {
+        let id = generate_id();
+        let my_hostname = generate_hostname();
+        let lan_address = my_hostname.lan_address().parse().unwrap();
         // TODO
         Database {
             server_info: ServerInfo {
                 id,
                 version: Current::new().semver().into(),
+                hostname: Some(my_hostname.0),
                 last_backup: None,
                 last_wifi_region: None,
                 eos_version_compat: Current::new().compat().clone(),
-                lan_address: format!("https://{}.local", hostname).parse().unwrap(),
+                lan_address,
                 tor_address: format!("http://{}", tor_key.public().get_onion_address())
                     .parse()
                     .unwrap(),
@@ -83,6 +83,7 @@ impl DatabaseModel {
 #[serde(rename_all = "kebab-case")]
 pub struct ServerInfo {
     pub id: String,
+    pub hostname: Option<String>,
     pub version: Version,
     pub last_backup: Option<DateTime<Utc>>,
     /// Used in the wifi to determine the region to set the system to

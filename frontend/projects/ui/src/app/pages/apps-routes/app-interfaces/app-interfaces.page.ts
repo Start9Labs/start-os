@@ -4,10 +4,11 @@ import { ModalController, ToastController } from '@ionic/angular'
 import { getPkgId, copyToClipboard } from '@start9labs/shared'
 import { getUiInterfaceKey } from 'src/app/services/config.service'
 import {
+  DataModel,
   InstalledPackageDataEntry,
   InterfaceDef,
 } from 'src/app/services/patch-db/data-model'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDB } from 'patch-db-client'
 import { QRComponent } from 'src/app/components/qr/qr.component'
 import { getPackage } from '../../../util/get-package-data'
 
@@ -28,7 +29,7 @@ export class AppInterfacesPage {
 
   constructor(
     private readonly route: ActivatedRoute,
-    private readonly patch: PatchDbService,
+    private readonly patch: PatchDB<DataModel>,
   ) {}
 
   async ngOnInit() {

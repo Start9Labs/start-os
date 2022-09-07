@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
 import { NavController } from '@ionic/angular'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDB } from 'patch-db-client'
 import {
+  DataModel,
   PackageDataEntry,
   PackageMainStatus,
   PackageState,
@@ -62,7 +63,7 @@ export class AppShowPage {
   constructor(
     private readonly route: ActivatedRoute,
     private readonly navCtrl: NavController,
-    private readonly patch: PatchDbService,
+    private readonly patch: PatchDB<DataModel>,
     @Inject(AbstractMarketplaceService)
     private readonly marketplaceService: MarketplaceService,
   ) {}

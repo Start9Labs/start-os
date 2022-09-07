@@ -4,9 +4,12 @@ import {
   Pipe,
   PipeTransform,
 } from '@angular/core'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDB } from 'patch-db-client'
 import { filter, take } from 'rxjs/operators'
-import { PackageMainStatus } from 'src/app/services/patch-db/data-model'
+import {
+  DataModel,
+  PackageMainStatus,
+} from 'src/app/services/patch-db/data-model'
 import { Observable } from 'rxjs'
 
 @Component({
@@ -26,7 +29,7 @@ export class BackingUpComponent {
 
   PackageMainStatus = PackageMainStatus
 
-  constructor(private readonly patch: PatchDbService) {}
+  constructor(private readonly patch: PatchDB<DataModel>) {}
 }
 
 @Pipe({
@@ -44,5 +47,5 @@ export class PkgMainStatusPipe implements PipeTransform {
     )
   }
 
-  constructor(private readonly patch: PatchDbService) {}
+  constructor(private readonly patch: PatchDB<DataModel>) {}
 }
