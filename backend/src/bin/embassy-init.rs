@@ -33,22 +33,22 @@ async fn setup_or_init(cfg_path: Option<&str>) -> Result<(), Error> {
     if tokio::fs::metadata("/embassy-os/disk.guid").await.is_err() {
         #[cfg(feature = "avahi")]
         let _mdns = MdnsController::init();
-        tokio::fs::write(
-            "/etc/nginx/sites-available/default",
-            include_str!("../nginx/setup-wizard.conf"),
-        )
-        .await
-        .with_ctx(|_| {
-            (
-                embassy::ErrorKind::Filesystem,
-                "/etc/nginx/sites-available/default",
-            )
-        })?;
-        Command::new("systemctl")
-            .arg("reload")
-            .arg("nginx")
-            .invoke(embassy::ErrorKind::Nginx)
-            .await?;
+        // tokio::fs::write(
+        //     "/etc/nginx/sites-available/default",
+        //     include_str!("../nginx/setup-wizard.conf"),
+        // )
+        // .await
+        // .with_ctx(|_| {
+        //     (
+        //         embassy::ErrorKind::Filesystem,
+        //         "/etc/nginx/sites-available/default",
+        //     )
+        // })?;
+        // Command::new("systemctl")
+        //     .arg("reload")
+        //     .arg("nginx")
+        //     .invoke(embassy::ErrorKind::Nginx)
+        //     .await?;
         let ctx = SetupContext::init(cfg_path).await?;
         let keysource_ctx = ctx.clone();
         let keysource = move || {

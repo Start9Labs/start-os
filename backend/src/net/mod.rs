@@ -13,27 +13,26 @@ use tracing::instrument;
 use self::interface::{Interface, InterfaceId};
 #[cfg(feature = "avahi")]
 use self::mdns::MdnsController;
-use self::nginx::NginxController;
+//use self::nginx::NginxController;
 use self::ssl::SslManager;
 use self::tor::TorController;
-use crate::context::SetupContext;
 use crate::net::dns::DnsController;
-use crate::net::interface::{TorConfig, LanPortConfig};
+use crate::net::interface::{LanPortConfig, TorConfig};
 use crate::net::proxy_controller::ProxyController;
 //use crate::net::nginx::InterfaceMetadata;
 use crate::s9pk::manifest::PackageId;
-use crate::Error;
 use crate::util::serde::Port;
+use crate::Error;
 
 pub mod dns;
 pub mod interface;
 #[cfg(feature = "avahi")]
 pub mod mdns;
-pub mod nginx;
+//pub mod nginx;
+pub mod proxy_controller;
 pub mod ssl;
 pub mod tor;
 pub mod wifi;
-pub mod proxy_controller;
 
 const PACKAGE_CERT_PATH: &str = "/var/lib/embassy/ssl";
 
@@ -41,7 +40,6 @@ const PACKAGE_CERT_PATH: &str = "/var/lib/embassy/ssl";
 pub fn net() -> Result<(), Error> {
     Ok(())
 }
-
 
 struct PackageNetInfo {
     interfaces: BTreeMap<InterfaceId, InterfaceMetadata>,
@@ -61,15 +59,14 @@ pub struct NetController {
     pub tor: TorController,
     #[cfg(feature = "avahi")]
     pub mdns: MdnsController,
-    pub nginx: NginxController,
+    //pub nginx: NginxController,
     pub proxy: ProxyController,
     pub ssl: SslManager,
     pub dns: DnsController,
 }
 impl NetController {
-    #[instrument(skip(db, ctx))]
+    #[instrument(skip(db))]
     pub async fn init(
-        ctx: SetupContext,
         embassyd_addr: SocketAddr,
         embassyd_tor_key: TorSecretKeyV3,
         tor_control: SocketAddr,
@@ -85,8 +82,8 @@ impl NetController {
             tor: TorController::init(embassyd_addr, embassyd_tor_key, tor_control).await?,
             #[cfg(feature = "avahi")]
             mdns: MdnsController::init(),
-            nginx: NginxController::init(PathBuf::from("/etc/nginx"), &ssl).await?,
-            proxy: ProxyController::init(ctx, &ssl).await?,
+            //nginx: NginxController::init(PathBuf::from("/etc/nginx"), &ssl).await?,
+            proxy: ProxyController::init(&ssl).await?,
             ssl,
             dns: DnsController::init(dns_bind).await?,
         })
@@ -116,7 +113,7 @@ impl NetController {
                 Some(cfg) => Some((i.0, cfg, i.2)),
             })
             .collect::<Vec<(InterfaceId, TorConfig, TorSecretKeyV3)>>();
-        let (tor_res, _, nginx_res, _) = tokio::join!(
+        let (tor_res, _, proxy_res, _) = tokio::join!(
             self.tor.add(pkg_id, ip, interfaces_tor),
             {
                 #[cfg(feature = "avahi")]
@@ -132,11 +129,9 @@ impl NetController {
                 mdns_fut
             },
             {
-                let interfaces = interfaces
+                let interfaces = interfaces.clone()
                     .into_iter()
-                    .filter_map(|(id, interface, tor_key)| match &interface.lan_config {
-                        None => None,
-                        Some(cfg) => Some((
+                    .filter_map(|(id, interface, tor_key)| interface.lan_config.as_ref().map(|cfg| (
                             id,
                             InterfaceMetadata {
                                 dns_base: OnionAddressV3::from(&tor_key.public())
@@ -144,15 +139,15 @@ impl NetController {
                                 lan_config: cfg.clone(),
                                 protocols: interface.protocols.clone(),
                             },
-                        )),
-                    });
-                self.nginx.add(&self.ssl, pkg_id.clone(), ip, interfaces.cloned());
+                        )));
+                //self.nginx.add(&self.ssl, pkg_id.clone(), ip, interfaces)
                 self.proxy.add(&self.ssl, pkg_id.clone(), ip, interfaces)
             },
             self.dns.add(pkg_id, ip),
         );
         tor_res?;
-        nginx_res?;
+        //nginx_res?;
+        proxy_res?;
 
         Ok(())
     }
@@ -164,7 +159,7 @@ impl NetController {
         ip: Ipv4Addr,
         interfaces: I,
     ) -> Result<(), Error> {
-        let (tor_res, _, nginx_res, _) = tokio::join!(
+        let (tor_res, _, proxy_res, _) = tokio::join!(
             self.tor.remove(pkg_id, interfaces.clone()),
             {
                 #[cfg(feature = "avahi")]
@@ -173,11 +168,11 @@ impl NetController {
                 let mdns_fut = futures::future::ready(());
                 mdns_fut
             },
-            self.nginx.remove(pkg_id),
+            self.proxy.remove(pkg_id),
             self.dns.remove(pkg_id, ip),
         );
         tor_res?;
-        nginx_res?;
+        proxy_res?;
         Ok(())
     }
 

@@ -204,9 +204,8 @@ impl RpcSetNginxReceipts {
 #[derive(Clone)]
 pub struct RpcContext(Arc<RpcContextSeed>);
 impl RpcContext {
-    #[instrument(skip(cfg_path, ctx))]
+    #[instrument(skip(cfg_path))]
     pub async fn init<P: AsRef<Path>>(
-        ctx: SetupContext,
         cfg_path: Option<P>,
         disk_guid: Arc<String>,
     ) -> Result<Self, Error> {
@@ -224,7 +223,6 @@ impl RpcContext {
         let docker = Docker::connect_with_unix_defaults()?;
         tracing::info!("Connected to Docker");
         let net_controller = NetController::init(
-            ctx,
             ([127, 0, 0, 1], 80).into(),
             crate::net::tor::os_key(&mut secret_store.acquire().await?).await?,
             base.tor_control
@@ -280,34 +278,35 @@ impl RpcContext {
         Ok(res)
     }
 
-    #[instrument(skip(self, db, receipts))]
-    pub async fn set_nginx_conf<Db: DbHandle>(
-        &self,
-        db: &mut Db,
-        receipts: RpcSetNginxReceipts,
-    ) -> Result<(), Error> {
-        tokio::fs::write("/etc/nginx/sites-available/default", {
-            let info = receipts.server_info.get(db).await?;
-            format!(
-                include_str!("../nginx/main-ui.conf.template"),
-                lan_hostname = info.lan_address.host_str().unwrap(),
-                tor_hostname = info.tor_address.host_str().unwrap(),
-            )
-        })
-        .await
-        .with_ctx(|_| {
-            (
-                crate::ErrorKind::Filesystem,
-                "/etc/nginx/sites-available/default",
-            )
-        })?;
-        Command::new("systemctl")
-            .arg("reload")
-            .arg("nginx")
-            .invoke(crate::ErrorKind::Nginx)
-            .await?;
-        Ok(())
-    }
+    // #[instrument(skip(self, db, receipts))]
+    // pub async fn set_nginx_conf<Db: DbHandle>(
+    //     &self,
+    //     db: &mut Db,
+    //     receipts: RpcSetNginxReceipts,
+    // ) -> Result<(), Error> {
+    //     tokio::fs::write("/etc/nginx/sites-available/default", {
+    //         let info = receipts.server_info.get(db).await?;
+    //         format!(
+    //             include_str!("../nginx/main-ui.conf.template"),
+    //             lan_hostname = info.lan_address.host_str().unwrap(),
+    //             tor_hostname = info.tor_address.host_str().unwrap(),
+    //         )
+    //     })
+    //     .await
+    //     .with_ctx(|_| {
+    //         (
+    //             crate::ErrorKind::Filesystem,
+    //             "/etc/nginx/sites-available/default",
+    //         )
+    //     })?;
+    //     Command::new("systemctl")
+    //         .arg("reload")
+    //         .arg("nginx")
+    //         .invoke(crate::ErrorKind::Nginx)
+    //         .await?;
+    //     Ok(())
+    // }
+    
     #[instrument(skip(self))]
     pub async fn shutdown(self) -> Result<(), Error> {
         self.managers.empty().await?;

@@ -42,7 +42,6 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
     let (rpc_ctx, shutdown) = {
         embassy::hostname::sync_hostname().await?;
         let rpc_ctx = RpcContext::init(
-            ctx,
             cfg_path,
             Arc::new(
                 tokio::fs::read_to_string("/embassy-os/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
@@ -82,11 +81,11 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
                 .expect("send shutdown signal");
         });
 
-        let mut db = rpc_ctx.db.handle();
-        let receipts = embassy::context::rpc::RpcSetNginxReceipts::new(&mut db).await?;
+        //let mut db = rpc_ctx.db.handle();
+        //   let receipts = embassy::context::rpc::RpcSetNginxReceipts::new(&mut db).await?;
 
-        rpc_ctx.set_nginx_conf(&mut db, receipts).await?;
-        drop(db);
+        //rpc_ctx.set_nginx_conf(&mut db, receipts).await?;
+        //drop(db);
         let auth = auth(rpc_ctx.clone());
         let ctx = rpc_ctx.clone();
         let server = rpc_server!({
@@ -347,11 +346,11 @@ fn main() {
                                 "/etc/nginx/sites-available/default",
                             )
                         })?;
-                        Command::new("systemctl")
-                            .arg("reload")
-                            .arg("nginx")
-                            .invoke(embassy::ErrorKind::Nginx)
-                            .await?;
+                        // Command::new("systemctl")
+                        //     .arg("reload")
+                        //     .arg("nginx")
+                        //     .invoke(embassy::ErrorKind::Nginx)
+                        //     .await?;
                         let ctx = DiagnosticContext::init(
                             cfg_path,
                             if tokio::fs::metadata("/embassy-os/disk.guid").await.is_ok() {

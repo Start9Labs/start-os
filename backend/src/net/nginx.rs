@@ -3,7 +3,6 @@ use std::net::Ipv4Addr;
 use std::path::{Path, PathBuf};
 
 use futures::FutureExt;
-use indexmap::IndexSet;
 use tokio::sync::Mutex;
 use tracing::instrument;
 
@@ -12,7 +11,6 @@ use super::ssl::SslManager;
 use crate::hostname::get_hostname;
 use crate::net::{PackageNetInfo, InterfaceMetadata};
 use crate::s9pk::manifest::PackageId;
-use crate::util::serde::Port;
 use crate::util::Invoke;
 use crate::{Error, ErrorKind, ResultExt};
 

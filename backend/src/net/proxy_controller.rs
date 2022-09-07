@@ -10,7 +10,7 @@ use hyper::service::{make_service_fn, service_fn};
 use models::{InterfaceId, PackageId};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::Mutex;
-use tracing::{debug, instrument};
+use tracing::{debug, info, instrument};
 
 use crate::context::SetupContext;
 use crate::net::ssl::SslManager;
@@ -26,9 +26,9 @@ pub struct ProxyController {
 }
 
 impl ProxyController {
-    pub async fn init(ctx: SetupContext, ssl_manager: &SslManager) -> Result<Self, Error> {
+    pub async fn init(ssl_manager: &SslManager) -> Result<Self, Error> {
         Ok(ProxyController {
-            inner: Mutex::new(ProxyControllerInner::init(ctx, ssl_manager).await?),
+            inner: Mutex::new(ProxyControllerInner::init(ssl_manager).await?),
         })
     }
 
@@ -52,16 +52,14 @@ impl ProxyController {
 }
 
 struct ProxyControllerInner {
-    embassyd_ctx: SetupContext,
     interfaces: BTreeMap<PackageId, PackageNetInfo>,
 }
 
 impl ProxyControllerInner {
-    #[instrument(skip(embassyd_ctx))]
-    async fn init(embassyd_ctx: SetupContext, ssl_manager: &SslManager) -> Result<Self, Error> {
+    #[instrument]
+    async fn init(ssl_manager: &SslManager) -> Result<Self, Error> {
         let inner = ProxyControllerInner {
             interfaces: BTreeMap::new(),
-            embassyd_ctx,
         };
         // write main ssl key/cert to fs location
         // let (key, cert) = ssl_manager
@@ -114,21 +112,21 @@ impl ProxyControllerInner {
                         Ok::<_, HyperError>(service_fn(move |req| Self::proxy(client.clone(), req)))
                     }
                 });
+                let (tx, rx) = tokio::sync::oneshot::channel::<()>();
 
-                let server = Server::bind(&listener_addr)
+                Server::bind(&listener_addr)
                     .http1_preserve_header_case(true)
                     .http1_title_case_headers(true)
                     .serve(make_service)
                     .with_graceful_shutdown({
-                        let mut shutdown = self.embassyd_ctx.shutdown.subscribe();
-                        async move {
-                            shutdown.recv().await.expect("context dropped");
+                        async {
+                            rx.await.ok();
                         }
                     })
                     .await
                     .with_kind(crate::ErrorKind::Network)?;
 
-                println!("Listening on http://{}", listener_addr);
+                info!("Listening on http://{}", listener_addr);
             }
         }
         match self.interfaces.get_mut(&package) {
