@@ -71,7 +71,8 @@ pub enum ErrorKind {
     HttpRange = 62,
     ContentLength = 63,
     BytesError = 64,
-    InvalidIP = 65
+    InvalidIP = 65,
+    JoinError = 66
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -141,7 +142,8 @@ impl ErrorKind {
             HttpRange => "No Support for Web Server HTTP Ranges",
             ContentLength => "Request has no content length header",
             BytesError => "Could not get the bytes for this request",
-            InvalidIP => "Could not parse this IP address"
+            InvalidIP => "Could not parse this IP address",
+            JoinError => "Join Handle Error"
         }
     }
 }

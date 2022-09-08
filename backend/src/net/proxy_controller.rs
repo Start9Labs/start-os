@@ -1,18 +1,19 @@
-use bytes::Bytes;
-use http_body::{combinators::BoxBody, Empty, Full};
+use color_eyre::eyre::eyre;
+use helpers::NonDetachingJoinHandle;
 use hyper::upgrade::Upgraded;
+use libc::listen;
 use std::collections::BTreeMap;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::str::FromStr;
+use std::sync::Arc;
 
 use http::{Method, Request, Response};
 use hyper::service::{make_service_fn, service_fn};
 use models::{InterfaceId, PackageId};
-use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::Mutex;
-use tracing::{debug, info, instrument};
+use tokio::net::TcpStream;
+use tokio::sync::{oneshot, Mutex, RwLock};
+use tracing::{debug, error, info, instrument};
 
-use crate::context::SetupContext;
 use crate::net::ssl::SslManager;
 use crate::net::{InterfaceMetadata, PackageNetInfo};
 use crate::{Error, ResultExt};
@@ -20,6 +21,12 @@ use crate::{Error, ResultExt};
 use hyper::{Body, Client, Error as HyperError, Server};
 
 type HttpClient = Client<hyper::client::HttpConnector>;
+
+struct EmbassyHTTPServer {
+    mapping: Arc<RwLock<BTreeMap<String, SocketAddr>>>,
+    shutdown: oneshot::Sender<()>,
+    handle: NonDetachingJoinHandle<()>,
+}
 
 pub struct ProxyController {
     inner: Mutex<ProxyControllerInner>,
@@ -52,6 +59,8 @@ impl ProxyController {
 }
 
 struct ProxyControllerInner {
+    servers: BTreeMap<u16, EmbassyHTTPServer>,
+    iface_lookups: BTreeMap<(PackageId, InterfaceId), String>,
     interfaces: BTreeMap<PackageId, PackageNetInfo>,
 }
 
@@ -60,6 +69,8 @@ impl ProxyControllerInner {
     async fn init(ssl_manager: &SslManager) -> Result<Self, Error> {
         let inner = ProxyControllerInner {
             interfaces: BTreeMap::new(),
+            iface_lookups: BTreeMap::new(),
+            servers: BTreeMap::new(),
         };
         // write main ssl key/cert to fs location
         // let (key, cert) = ssl_manager
@@ -98,35 +109,62 @@ impl ProxyControllerInner {
             .build_http();
 
         for (id, meta) in interface_map.iter() {
-            for (port, lan_port_config) in meta.lan_config.iter() {
-                let listener_addr = SocketAddr::from_str(&format!("{}:{}", meta.dns_base, port.0))
-                    .with_kind(crate::ErrorKind::InvalidIP)?;
+            for (port, _lan_port_config) in meta.lan_config.iter() {
+                let listener_addr =
+                    SocketAddr::from_str(&format!("{}:{}", meta.dns_base.clone(), port.0))
+                        .with_kind(crate::ErrorKind::InvalidIP)?;
 
-                //   let listener = TcpListener::bind(listener_addr).await?;
                 debug!("Listening on {}", listener_addr);
                 let client = client.clone();
-
                 let make_service = make_service_fn(move |_| {
                     let client = client.clone();
                     async move {
                         Ok::<_, HyperError>(service_fn(move |req| Self::proxy(client.clone(), req)))
                     }
                 });
+
                 let (tx, rx) = tokio::sync::oneshot::channel::<()>();
 
-                Server::bind(&listener_addr)
-                    .http1_preserve_header_case(true)
-                    .http1_title_case_headers(true)
-                    .serve(make_service)
-                    .with_graceful_shutdown({
-                        async {
-                            rx.await.ok();
-                        }
-                    })
-                    .await
-                    .with_kind(crate::ErrorKind::Network)?;
+                let handle = tokio::spawn(async move {
+                    let server = Server::bind(&listener_addr)
+                        .http1_preserve_header_case(true)
+                        .http1_title_case_headers(true)
+                        .serve(make_service)
+                        .with_graceful_shutdown({
+                            async {
+                                rx.await.ok();
+                            }
+                        });
 
-                info!("Listening on http://{}", listener_addr);
+                    if let Err(e) = server.await {
+                        error!("Spawning hyper server errorr: {}", e);
+                    }
+                });
+
+                self.iface_lookups
+                    .insert((package.clone(), id.clone()), meta.dns_base.clone());
+
+                if let Some(server) = self.servers.get_mut(&port.0) {
+                    server
+                        .mapping
+                        .write()
+                        .await
+                        .insert(meta.dns_base.clone(), listener_addr);
+                } else {
+                    let mut mapping = BTreeMap::new();
+                    mapping.insert(meta.dns_base.clone(), listener_addr);
+                    let map_lock = Arc::new(RwLock::new(mapping));
+                    self.servers.insert(
+                        port.0,
+                        EmbassyHTTPServer {
+                            mapping: map_lock,
+                            shutdown: tx,
+                            handle: handle.into(),
+                        },
+                    );
+                }
+
+                info!("Listening on {}", listener_addr);
             }
         }
         match self.interfaces.get_mut(&package) {
@@ -148,8 +186,39 @@ impl ProxyControllerInner {
         let removed = self.interfaces.remove(package);
         if let Some(net_info) = removed {
             for (id, meta) in net_info.interfaces {
-                for (port, _lan_port_config) in meta.lan_config.iter() {
-                    // remove ssl certificates and nginx configs
+                for (service_ext_port, _lan_port_config) in meta.lan_config.iter() {
+                    if let Some((_server_port, server)) =
+                        self.servers.get_key_value(&service_ext_port.0)
+                    {
+                        let mut mapping = server.mapping.write().await;
+
+                        if let Some(dns_base) =
+                            self.iface_lookups.get(&(package.to_owned(), id.clone()))
+                        {
+                            let data = mapping.remove(dns_base);
+
+                            match data {
+                                Some(_) => (),
+                                None => {
+                                    async move {
+                                        server.shutdown.send(()).map_err(|_| {
+                                            Error::new(
+                                                eyre!("Hyper server did not quit properly"),
+                                                crate::ErrorKind::JoinError,
+                                            )
+                                        })?;
+                                        server
+                                            .handle
+                                            .await
+                                            .with_kind(crate::ErrorKind::JoinError)?;
+                                    };
+                                }
+                            }
+                        }
+                        if mapping.len() == 0 {
+                            self.servers.remove(&service_ext_port.0);
+                        }
+                    }
                 }
             }
         }
@@ -157,8 +226,6 @@ impl ProxyControllerInner {
     }
 
     async fn proxy(client: HttpClient, req: Request<Body>) -> Result<Response<Body>, hyper::Error> {
-        println!("req: {:?}", req);
-
         if Method::CONNECT == req.method() {
             // Received an HTTP request like:
             // ```
@@ -178,17 +245,20 @@ impl ProxyControllerInner {
                     match hyper::upgrade::on(req).await {
                         Ok(upgraded) => {
                             if let Err(e) = Self::tunnel(upgraded, addr).await {
-                                eprintln!("server io error: {}", e);
+                                error!("server io error: {}", e);
                             };
                         }
-                        Err(e) => eprintln!("upgrade error: {}", e),
+                        Err(e) => error!("upgrade error: {}", e),
                     }
                 });
 
                 Ok(Response::new(Body::empty()))
             } else {
-                eprintln!("CONNECT host is not socket addr: {:?}", req.uri());
-                let mut resp = Response::new(Body::from("CONNECT must be to a socket address"));
+                let err_txt = format!("CONNECT host is not socket addr: {:?}", req.uri());
+                let mut resp = Response::new(Body::from(format!(
+                    "CONNECT must be to a socket address: {}",
+                    err_txt
+                )));
                 *resp.status_mut() = http::StatusCode::BAD_REQUEST;
 
                 Ok(resp)
@@ -201,15 +271,12 @@ impl ProxyControllerInner {
     // Create a TCP connection to host:port, build a tunnel between the connection and
     // the upgraded connection
     async fn tunnel(mut upgraded: Upgraded, addr: String) -> std::io::Result<()> {
-        // Connect to remote server
         let mut server = TcpStream::connect(addr).await?;
 
-        // Proxying data
         let (from_client, from_server) =
             tokio::io::copy_bidirectional(&mut upgraded, &mut server).await?;
 
-        // Print message when done
-        println!(
+        info!(
             "client wrote {} bytes and received {} bytes",
             from_client, from_server
         );
@@ -217,27 +284,7 @@ impl ProxyControllerInner {
         Ok(())
     }
 
-    // /// HTTP status code 500
-    // fn server_error() -> Response<dyn Body> {
-    //     Response::builder()
-    //         .status(StatusCode::INTERNAL_SERVER_ERROR)
-    //         .body("".into())
-    //         .unwrap()
-    // }
-
     fn host_addr(uri: &http::Uri) -> Option<String> {
-        uri.authority().and_then(|auth| Some(auth.to_string()))
+        uri.authority().map(|auth| auth.to_string())
     }
-
-    // fn empty() -> BoxBody<Bytes, hyper::Error> {
-    //     Empty::<Bytes>::new()
-    //         .map_err(|never| match never {})
-    //         .boxed()
-    // }
-
-    // fn full<T: Into<Bytes>>(chunk: T) -> BoxBody<Bytes, hyper::Error> {
-    //     Full::new(chunk.into())
-    //         .map_err(|never| match never {})
-    //         .boxed()
-    // }
 }

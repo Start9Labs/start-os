@@ -56,7 +56,7 @@ async fn file_server_router(req: Request<Body>, ctx: RpcContext) -> Result<Respo
         request_parts
             .uri
             .path()
-            .strip_prefix("/")
+            .strip_prefix('/')
             .unwrap_or(request_parts.uri.path())
             .split_once("/"),
     ) {
@@ -125,7 +125,7 @@ async fn file_send(
         builder = with_content_length(&metadata, builder);
         let stream = FramedRead::new(file, BytesCodec::new());
         let body = Body::wrap_stream(stream);
-        return Ok(builder.body(body).with_kind(ErrorKind::Network)?);
+        return builder.body(body).with_kind(ErrorKind::Network);
     }
     tracing::debug!("File not found: {:?}", path);
 
