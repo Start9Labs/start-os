@@ -789,7 +789,7 @@ mod fns {
             tokio::fs::canonicalize(child).await?
         };
         let parent = tokio::fs::canonicalize(parent).await?;
-        Ok(child == parent || child.starts_with(parent))
+        Ok(child.starts_with(parent))
     }
 }
 
