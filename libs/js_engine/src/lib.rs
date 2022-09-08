@@ -772,9 +772,24 @@ mod fns {
         parent: impl AsRef<Path>,
         child: impl AsRef<Path>,
     ) -> Result<bool, AnyError> {
-        let child = tokio::fs::canonicalize(child).await?;
+        let child = {
+            let mut child = child.as_ref();
+            loop {
+                let meta = tokio::fs::metadata(child).await;
+                if meta.is_ok() {
+                    break;
+                }
+                child = match child.parent() {
+                    Some(child) => child,
+                    None => {
+                        return Ok(false);
+                    }
+                };
+            }
+            tokio::fs::canonicalize(child).await?
+        };
         let parent = tokio::fs::canonicalize(parent).await?;
-        Ok(child.starts_with(parent))
+        Ok(child == parent || child.starts_with(parent))
     }
 }
 
