@@ -381,7 +381,6 @@ export const mockPatchData: DataModel = {
             },
           },
         },
-        permissions: {},
         dependencies: {},
       },
       installed: {
@@ -578,7 +577,6 @@ export const mockPatchData: DataModel = {
             'input-spec': null,
           },
         },
-        permissions: {},
         dependencies: {
           bitcoind: {
             version: '=0.21.0',
