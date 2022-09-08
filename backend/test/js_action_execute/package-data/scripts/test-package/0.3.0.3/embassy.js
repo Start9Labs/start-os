@@ -94,45 +94,45 @@ export async function getConfig(effects) {
     const metadata = await effects.metadata({
       path: "./test.log",
       volumeId: "main",
-    })
+    });
 
-    if (typeof metadata.fileType !== 'string') {
-      throw new TypeError("File type is not a string")
+    if (typeof metadata.fileType !== "string") {
+      throw new TypeError("File type is not a string");
     }
-    if (typeof metadata.isDir !== 'boolean' ) {
-      throw new TypeError("isDir is not a boolean")
+    if (typeof metadata.isDir !== "boolean") {
+      throw new TypeError("isDir is not a boolean");
     }
-    if (typeof metadata.isFile !== 'boolean' ) {
-      throw new TypeError("isFile is not a boolean")
+    if (typeof metadata.isFile !== "boolean") {
+      throw new TypeError("isFile is not a boolean");
     }
-    if (typeof metadata.isSymlink !== 'boolean' ) {
-      throw new TypeError("isSymlink is not a boolean")
+    if (typeof metadata.isSymlink !== "boolean") {
+      throw new TypeError("isSymlink is not a boolean");
     }
-    if (typeof metadata.len !== 'number' ) {
-      throw new TypeError("len is not a number")
+    if (typeof metadata.len !== "number") {
+      throw new TypeError("len is not a number");
     }
-    if (typeof metadata.gid !== 'number' ) {
-      throw new TypeError("gid is not a number")
+    if (typeof metadata.gid !== "number") {
+      throw new TypeError("gid is not a number");
     }
-    if (typeof metadata.uid !== 'number' ) {
-      throw new TypeError("uid is not a number")
+    if (typeof metadata.uid !== "number") {
+      throw new TypeError("uid is not a number");
     }
-    if (typeof metadata.mode !== 'number' ) {
-      throw new TypeError("mode is not a number")
+    if (typeof metadata.mode !== "number") {
+      throw new TypeError("mode is not a number");
     }
-    if (!(metadata.modified instanceof  Date )) {
-      throw new TypeError("modified is not a Date")
+    if (!(metadata.modified instanceof Date)) {
+      throw new TypeError("modified is not a Date");
     }
-    if (!(metadata.accessed instanceof  Date )) {
-      throw new TypeError("accessed is not a Date")
+    if (!(metadata.accessed instanceof Date)) {
+      throw new TypeError("accessed is not a Date");
     }
-    if (!(metadata.created instanceof  Date )) {
-      throw new TypeError("created is not a Date")
+    if (!(metadata.created instanceof Date)) {
+      throw new TypeError("created is not a Date");
     }
-    if (typeof metadata.readonly !== 'boolean' ) {
-      throw new TypeError("readonly is not a boolean")
+    if (typeof metadata.readonly !== "boolean") {
+      throw new TypeError("readonly is not a boolean");
     }
-    effects.error(JSON.stringify(metadata))
+    effects.error(JSON.stringify(metadata));
   }
   return {
     result: {
@@ -724,97 +724,145 @@ export async function getConfig(effects) {
 
 export async function setConfig(effects) {
   return {
-    error: "Not setup"
+    error: "Not setup",
   };
 }
 
 const assert = (condition, message) => {
   if (!condition) {
-    throw new Error(message)
+    throw new Error(message);
   }
-}
+};
 
 export const action = {
   async fetch(effects, _input) {
-    const example = await effects.fetch("https://postman-echo.com/get?foo1=bar1&foo2=bar2");
-    assert(Number(example.headers['content-length']) > 0 && Number(example.headers['content-length']) <= 1000000,"Should have content length");
-    assert((example.text() instanceof Promise), "example.text() should be a promise");
-    assert((example.body === undefined), "example.body should not be defined");
-    assert((JSON.parse(await example.text()).args.foo1 === 'bar1'), "Body should be parsed");
+    const example = await effects.fetch(
+      "https://postman-echo.com/get?foo1=bar1&foo2=bar2"
+    );
+    assert(
+      Number(example.headers["content-length"]) > 0 &&
+        Number(example.headers["content-length"]) <= 1000000,
+      "Should have content length"
+    );
+    assert(
+      example.text() instanceof Promise,
+      "example.text() should be a promise"
+    );
+    assert(example.body === undefined, "example.body should not be defined");
+    assert(
+      JSON.parse(await example.text()).args.foo1 === "bar1",
+      "Body should be parsed"
+    );
     const message = `This worked @ ${new Date().toISOString()}`;
-    const secondResponse = await effects.fetch("https://postman-echo.com/post", {
-      method: "POST",
-      body:JSON.stringify({message }),
-      headers:{
-        test: "1234",
+    const secondResponse = await effects.fetch(
+      "https://postman-echo.com/post",
+      {
+        method: "POST",
+        body: JSON.stringify({ message }),
+        headers: {
+          test: "1234",
+        },
       }
-    })
-    assert(((await secondResponse.json()).json.message === message), "Body should be parsed from response");
-      return {
-          result: {
-              copyable: false,
-              message: "Done",
-              version: "0",
-              qr: false,
-          }
-      }
+    );
+    assert(
+      (await secondResponse.json()).json.message === message,
+      "Body should be parsed from response"
+    );
+    return {
+      result: {
+        copyable: false,
+        message: "Done",
+        version: "0",
+        qr: false,
+      },
+    };
   },
 
-  async 'js-action-var-arg'(_effects, _input, testInput) {
-
+  async "js-action-var-arg"(_effects, _input, testInput) {
     assert(testInput == 42, "Input should be passed in");
-      return {
-          result: {
-              copyable: false,
-              message: "Done",
-              version: "0",
-              qr: false,
-          }
-      }
+    return {
+      result: {
+        copyable: false,
+        message: "Done",
+        version: "0",
+        qr: false,
+      },
+    };
   },
-  async 'test-rename'(effects, _input) {
-
+  async "test-rename"(effects, _input) {
     await effects.writeFile({
-      volumeId: 'main',
-      path: 'test-rename.txt',
-      toWrite: 'Hello World',
+      volumeId: "main",
+      path: "test-rename.txt",
+      toWrite: "Hello World",
     });
     await effects.rename({
-      srcVolume: 'main',
-      srcPath: 'test-rename.txt',
-      dstVolume: 'main',
-      dstPath: 'test-rename-2.txt',
+      srcVolume: "main",
+      srcPath: "test-rename.txt",
+      dstVolume: "main",
+      dstPath: "test-rename-2.txt",
     });
 
     const readIn = await effects.readFile({
-      volumeId: 'main',
-      path: 'test-rename-2.txt',
+      volumeId: "main",
+      path: "test-rename-2.txt",
     });
-    assert(readIn === 'Hello World', "Contents should be the same");
+    assert(readIn === "Hello World", "Contents should be the same");
 
     await effects.removeFile({
       path: "test-rename-2.txt",
       volumeId: "main",
     });
 
-    try{
-
+    try {
       await effects.removeFile({
         path: "test-rename.txt",
         volumeId: "main",
       });
       assert(false, "Should not be able to remove file that doesn't exist");
-    }
-    catch (_){}
+    } catch (_) {}
 
+    return {
+      result: {
+        copyable: false,
+        message: "Done",
+        version: "0",
+        qr: false,
+      },
+    };
+  },
+  /**
+   * Created this test because of issue
+   * https://github.com/Start9Labs/embassy-os/issues/1737 
+   * which that we couldn't create a dir that was deeply nested, and the parents where
+   * not created yet. Found this out during the migrations, where the parent would die.
+   * @param {*} effects 
+   * @param {*} _input 
+   * @returns 
+   */
+  async "test-deep-dir"(effects, _input) {
+    effects.error("Test");
+    await effects
+      .removeDir({
+        volumeId: "main",
+        path: "test-deep-dir",
+      })
+      .catch(() => {});
+    await effects.createDir({
+      volumeId: "main",
+      path: "test-deep-dir/deep/123",
+    });
+    await effects.removeDir({
+      volumeId: "main",
+      path: "test-deep-dir",
+    });
 
-      return {
-          result: {
-              copyable: false,
-              message: "Done",
-              version: "0",
-              qr: false,
-          }
-      }
-  }
-}
+    return {
+      result: {
+        copyable: false,
+        message: "Done",
+        version: "0",
+        qr: false,
+      },
+    };
+  },
+};
