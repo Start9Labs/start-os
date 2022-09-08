@@ -1,6 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
-use std::sync::Arc;
 
 use chrono::Utc;
 use clap::ArgMatches;
@@ -8,7 +7,7 @@ use color_eyre::eyre::eyre;
 use helpers::AtomicFile;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
-use patch_db::{DbHandle, LockType, PatchDbHandle, Revision};
+use patch_db::{DbHandle, LockType, PatchDbHandle};
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

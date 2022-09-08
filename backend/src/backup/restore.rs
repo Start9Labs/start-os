@@ -9,7 +9,7 @@ use color_eyre::eyre::eyre;
 use futures::future::BoxFuture;
 use futures::FutureExt;
 use openssl::x509::X509;
-use patch_db::{DbHandle, PatchDbHandle, Revision};
+use patch_db::{DbHandle, PatchDbHandle};
 use rpc_toolkit::command;
 use tokio::fs::File;
 use tokio::task::JoinHandle;
@@ -57,8 +57,7 @@ pub async fn restore_packages_rpc(
     let backup_guard =
         BackupMountGuard::mount(TmpMountGuard::mount(&fs, ReadOnly).await?, &password).await?;
 
-    let (revision, backup_guard, tasks, _) =
-        restore_packages(&ctx, &mut db, backup_guard, ids).await?;
+    let (backup_guard, tasks, _) = restore_packages(&ctx, &mut db, backup_guard, ids).await?;
 
     tokio::spawn(async move {
         let res = futures::future::join_all(tasks).await;
@@ -246,7 +245,7 @@ pub async fn recover_full_embassy(
             .keys()
             .cloned()
             .collect();
-            let (_, backup_guard, tasks, progress_info) = restore_packages(
+            let (backup_guard, tasks, progress_info) = restore_packages(
                 &rpc_ctx,
                 &mut db,
                 backup_guard,
@@ -304,14 +303,13 @@ async fn restore_packages(
     ids: Vec<PackageId>,
 ) -> Result<
     (
-        Option<Arc<Revision>>,
         BackupMountGuard<TmpMountGuard>,
         Vec<JoinHandle<(Result<(), Error>, PackageId)>>,
         ProgressInfo,
     ),
     Error,
 > {
-    let (revision, guards) = assure_restoring(ctx, db, ids, &backup_guard).await?;
+    let guards = assure_restoring(ctx, db, ids, &backup_guard).await?;
 
     let mut progress_info = ProgressInfo::default();
 
@@ -339,7 +337,7 @@ async fn restore_packages(
         ));
     }
 
-    Ok((revision, backup_guard, tasks, progress_info))
+    Ok((backup_guard, tasks, progress_info))
 }
 
 #[instrument(skip(ctx, db, backup_guard))]
@@ -348,13 +346,7 @@ async fn assure_restoring(
     db: &mut PatchDbHandle,
     ids: Vec<PackageId>,
     backup_guard: &BackupMountGuard<TmpMountGuard>,
-) -> Result<
-    (
-        Option<Arc<Revision>>,
-        Vec<(Manifest, PackageBackupMountGuard)>,
-    ),
-    Error,
-> {
+) -> Result<Vec<(Manifest, PackageBackupMountGuard)>, Error> {
     let mut tx = db.begin().await?;
 
     let mut guards = Vec::with_capacity(ids.len());
@@ -414,7 +406,8 @@ async fn assure_restoring(
         guards.push((manifest, guard));
     }
 
-    Ok((tx.commit().await?, guards))
+    tx.commit().await?;
+    Ok(guards)
 }
 
 #[instrument(skip(ctx, guard))]
