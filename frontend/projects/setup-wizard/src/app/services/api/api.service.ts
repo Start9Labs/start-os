@@ -44,7 +44,6 @@ export type EmbassyOSRecoveryInfo = {
 
 export type DiskListResponse = {
   disks: DiskInfo[]
-  reconnect: string[]
 }
 
 export type DiskBackupTarget = {
