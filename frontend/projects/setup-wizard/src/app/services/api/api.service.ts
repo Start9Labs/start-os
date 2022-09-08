@@ -42,9 +42,7 @@ export type EmbassyOSRecoveryInfo = {
   'wrapped-key': string | null
 }
 
-export type DiskListResponse = {
-  disks: DiskInfo[]
-}
+export type DiskListResponse = DiskInfo[]
 
 export type DiskBackupTarget = {
   vendor: string | null

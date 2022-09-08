@@ -37,32 +37,29 @@ export class MockApiService implements ApiService {
 
   async getDrives() {
     await pauseFor(1000)
-    return {
-      disks: [
-        {
-          logicalname: 'abcd',
-          vendor: 'Samsung',
-          model: 'T5',
-          partitions: [
-            {
-              logicalname: 'pabcd',
-              label: null,
-              capacity: 73264762332,
-              used: null,
-              'embassy-os': {
-                version: '0.2.17',
-                full: true,
-                'password-hash': null,
-                'wrapped-key': null,
-              },
+    return [
+      {
+        logicalname: 'abcd',
+        vendor: 'Samsung',
+        model: 'T5',
+        partitions: [
+          {
+            logicalname: 'pabcd',
+            label: null,
+            capacity: 73264762332,
+            used: null,
+            'embassy-os': {
+              version: '0.2.17',
+              full: true,
+              'password-hash': null,
+              'wrapped-key': null,
             },
-          ],
-          capacity: 123456789123,
-          guid: 'uuid-uuid-uuid-uuid',
-        },
-      ],
-      reconnect: [],
-    }
+          },
+        ],
+        capacity: 123456789123,
+        guid: 'uuid-uuid-uuid-uuid',
+      },
+    ]
   }
 
   async set02XDrive() {

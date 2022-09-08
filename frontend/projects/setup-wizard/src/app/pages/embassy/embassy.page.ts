@@ -49,7 +49,7 @@ export class EmbassyPage {
   async getDrives() {
     this.loading = true
     try {
-      const { disks } = await this.apiService.getDrives()
+      const disks = await this.apiService.getDrives()
       this.storageDrives = disks.filter(
         d =>
           !d.partitions

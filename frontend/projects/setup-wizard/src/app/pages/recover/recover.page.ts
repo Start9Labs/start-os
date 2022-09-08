@@ -40,7 +40,7 @@ export class RecoverPage {
   async getDrives() {
     this.mappedDrives = []
     try {
-      const { disks } = await this.apiService.getDrives()
+      const disks = await this.apiService.getDrives()
       disks
         .filter(d => d.partitions.length)
         .forEach(d => {
