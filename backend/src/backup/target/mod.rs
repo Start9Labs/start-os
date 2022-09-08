@@ -134,7 +134,6 @@ pub fn target() -> Result<(), Error> {
     Ok(())
 }
 
-// TODO: incorporate reconnect into this response as well
 #[command(display(display_serializable))]
 pub async fn list(
     #[context] ctx: RpcContext,
@@ -143,7 +142,6 @@ pub async fn list(
     let (disks_res, cifs) =
         tokio::try_join!(crate::disk::util::list(), cifs::list(&mut sql_handle),)?;
     Ok(disks_res
-        .disks
         .into_iter()
         .flat_map(|mut disk| {
             std::mem::take(&mut disk.partitions)

@@ -41,7 +41,7 @@ export class LiveApiService implements ApiService {
   /**
    * We want to update the secret, which means that we will call in clearnet the
    * getSecret, and all the information is never in the clear, and only public
-   *  information is sent across the network. We don't want to expose that we do
+   * information is sent across the network. We don't want to expose that we do
    * this wil all public/private key, which means that there is no information loss
    * through the network.
    */

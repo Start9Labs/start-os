@@ -1,7 +1,7 @@
 use clap::ArgMatches;
 use rpc_toolkit::command;
 
-use self::util::DiskListResponse;
+use crate::disk::util::DiskInfo;
 use crate::util::display_none;
 use crate::util::serde::{display_serializable, IoFormat};
 use crate::Error;
@@ -9,7 +9,6 @@ use crate::Error;
 pub mod fsck;
 pub mod main;
 pub mod mount;
-pub mod quirks;
 pub mod util;
 
 pub const BOOT_RW_PATH: &str = "/media/boot-rw";
@@ -20,7 +19,7 @@ pub fn disk() -> Result<(), Error> {
     Ok(())
 }
 
-fn display_disk_info(info: DiskListResponse, matches: &ArgMatches) {
+fn display_disk_info(info: Vec<DiskInfo>, matches: &ArgMatches) {
     use prettytable::*;
 
     if matches.is_present("format") {
@@ -35,7 +34,7 @@ fn display_disk_info(info: DiskListResponse, matches: &ArgMatches) {
         "USED",
         "EMBASSY OS VERSION"
     ]);
-    for disk in info.disks {
+    for disk in info {
         let row = row![
             disk.logicalname.display(),
             "N/A",
@@ -79,7 +78,7 @@ pub async fn list(
     #[allow(unused_variables)]
     #[arg]
     format: Option<IoFormat>,
-) -> Result<DiskListResponse, Error> {
+) -> Result<Vec<DiskInfo>, Error> {
     crate::disk::util::list().await
 }
 

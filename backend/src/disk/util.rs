@@ -19,18 +19,10 @@ use tracing::instrument;
 use super::mount::filesystem::block_dev::BlockDev;
 use super::mount::filesystem::ReadOnly;
 use super::mount::guard::TmpMountGuard;
-use super::quirks::{fetch_quirks, save_quirks, update_quirks};
 use crate::util::io::from_yaml_async_reader;
 use crate::util::serde::IoFormat;
 use crate::util::{Invoke, Version};
 use crate::{Error, ResultExt as _};
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct DiskListResponse {
-    pub disks: Vec<DiskInfo>,
-    pub reconnect: Vec<String>,
-}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -240,10 +232,7 @@ pub async fn recovery_info(
 }
 
 #[instrument]
-pub async fn list() -> Result<DiskListResponse, Error> {
-    let mut quirks = fetch_quirks().await?;
-    let reconnect = update_quirks(&mut quirks).await?;
-    save_quirks(&mut quirks).await?;
+pub async fn list() -> Result<Vec<DiskInfo>, Error> {
     let disk_guids = pvscan().await?;
     let disks = tokio_stream::wrappers::ReadDirStream::new(
         tokio::fs::read_dir(DISK_PATH)
@@ -374,10 +363,7 @@ pub async fn list() -> Result<DiskListResponse, Error> {
         })
     }
 
-    Ok(DiskListResponse {
-        disks: res,
-        reconnect,
-    })
+    Ok(res)
 }
 
 fn parse_pvscan_output(pvscan_output: &str) -> BTreeMap<PathBuf, Option<String>> {

@@ -27,7 +27,7 @@ export const mockPatchData: DataModel = {
   },
   'server-info': {
     id: 'abcdefgh',
-    version: '0.3.1.1',
+    version: '0.3.2',
     'last-backup': new Date(new Date().valueOf() - 604800001).toISOString(),
     'lan-address': 'https://embassy-abcdefgh.local',
     'tor-address': 'http://myveryownspecialtoraddress.onion',
@@ -381,7 +381,6 @@ export const mockPatchData: DataModel = {
             },
           },
         },
-        permissions: {},
         dependencies: {},
       },
       installed: {
@@ -578,7 +577,6 @@ export const mockPatchData: DataModel = {
             'input-spec': null,
           },
         },
-        permissions: {},
         dependencies: {
           bitcoind: {
             version: '=0.21.0',

@@ -49,7 +49,7 @@ export class EmbassyPage {
   async getDrives() {
     this.loading = true
     try {
-      const { disks, reconnect } = await this.apiService.getDrives()
+      const disks = await this.apiService.getDrives()
       this.storageDrives = disks.filter(
         d =>
           !d.partitions
@@ -59,15 +59,6 @@ export class EmbassyPage {
                 ?.logicalname,
             ),
       )
-      if (!this.storageDrives.length && reconnect.length) {
-        const list = `<ul>${reconnect.map(recon => `<li>${recon}</li>`)}</ul>`
-        const alert = await this.alertCtrl.create({
-          header: 'Warning',
-          message: `One or more devices you connected had to be reconfigured to support the current hardware platform. Please unplug and replug the following device(s), then refresh the page:<br> ${list}`,
-          buttons: ['OK'],
-        })
-        await alert.present()
-      }
     } catch (e: any) {
       this.errorToastService.present(e)
     } finally {

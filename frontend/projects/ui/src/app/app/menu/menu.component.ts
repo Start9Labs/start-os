@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
-import { LocalStorageService } from '../../services/local-storage.service'
 import { EOSService } from '../../services/eos.service'
 import { PatchDB } from 'patch-db-client'
 import { Observable } from 'rxjs'
@@ -37,11 +36,6 @@ export class MenuComponent {
       url: '/notifications',
       icon: 'notifications-outline',
     },
-    {
-      title: 'Developer Tools',
-      url: '/developer',
-      icon: 'hammer-outline',
-    },
   ]
 
   readonly notificationCount$ = this.patch.watch$(
@@ -53,8 +47,6 @@ export class MenuComponent {
 
   readonly showEOSUpdate$ = this.eosService.showUpdate$
 
-  readonly showDevTools$ = this.localStorageService.showDevTools$
-
   readonly updateCount$: Observable<number> = this.marketplaceService
     .getUpdates()
     .pipe(map(pkgs => pkgs.length))
@@ -63,7 +55,6 @@ export class MenuComponent {
 
   constructor(
     private readonly patch: PatchDB<DataModel>,
-    private readonly localStorageService: LocalStorageService,
     private readonly eosService: EOSService,
     @Inject(AbstractMarketplaceService)
     private readonly marketplaceService: MarketplaceService,

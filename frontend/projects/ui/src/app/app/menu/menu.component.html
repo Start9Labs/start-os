@@ -3,9 +3,8 @@
 </a>
 <div class="divider"></div>
 <ion-item-group class="menu">
-  <ion-menu-toggle *ngFor="let page of pages; let i = index" auto-hide="false">
+  <ion-menu-toggle *ngFor="let page of pages" auto-hide="false">
     <ion-item
-      *ngIf="page.url !== '/developer' || (showDevTools$ | async)"
       button
       class="link"
       color="transparent"

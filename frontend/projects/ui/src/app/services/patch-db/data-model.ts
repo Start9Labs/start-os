@@ -147,7 +147,6 @@ export interface Manifest extends MarketplaceManifest<DependencyConfig | null> {
   backup: BackupActions
   migrations: Migrations | null
   actions: Record<string, Action>
-  permissions: any // @TODO 0.3.1
 }
 
 export interface DependencyConfig {

@@ -338,7 +338,6 @@ export module Mock {
         },
       },
     },
-    permissions: {},
     dependencies: {},
   }
 
@@ -472,7 +471,6 @@ export module Mock {
         'input-spec': null,
       },
     },
-    permissions: {},
     dependencies: {
       bitcoind: {
         version: '=0.21.0',
@@ -587,7 +585,6 @@ export module Mock {
     },
     migrations: null,
     actions: {},
-    permissions: {},
     dependencies: {
       bitcoind: {
         version: '>=0.20.0',

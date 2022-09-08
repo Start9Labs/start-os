@@ -508,26 +508,26 @@ pub async fn follow_logs(
 //     println!("{}", serialized);
 // }
 
-#[tokio::test]
-pub async fn test_logs() {
-    let mut cmd = Command::new("journalctl");
-    cmd.kill_on_drop(true);
+// #[tokio::test]
+// pub async fn test_logs() {
+//     let mut cmd = Command::new("journalctl");
+//     cmd.kill_on_drop(true);
 
-    cmd.arg("-f");
-    cmd.arg("CONTAINER_NAME=hello-world.embassy");
+//     cmd.arg("-f");
+//     cmd.arg("CONTAINER_NAME=hello-world.embassy");
 
-    let mut child = cmd.stdout(Stdio::piped()).spawn().unwrap();
-    let out = BufReader::new(
-        child
-            .stdout
-            .take()
-            .ok_or_else(|| Error::new(eyre!("No stdout available"), crate::ErrorKind::Journald))
-            .unwrap(),
-    );
+//     let mut child = cmd.stdout(Stdio::piped()).spawn().unwrap();
+//     let out = BufReader::new(
+//         child
+//             .stdout
+//             .take()
+//             .ok_or_else(|| Error::new(eyre!("No stdout available"), crate::ErrorKind::Journald))
+//             .unwrap(),
+//     );
 
-    let mut journalctl_entries = LinesStream::new(out.lines());
+//     let mut journalctl_entries = LinesStream::new(out.lines());
 
-    while let Some(line) = journalctl_entries.try_next().await.unwrap() {
-        dbg!(line);
-    }
-}
+//     while let Some(line) = journalctl_entries.try_next().await.unwrap() {
+//         dbg!(line);
+//     }
+// }

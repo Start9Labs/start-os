@@ -39,7 +39,7 @@ export class HomePage {
   async ngOnInit() {
     try {
       this.encrypted.secret = await this.unencrypted.getSecret()
-      const { disks } = await this.unencrypted.getDrives()
+      const disks = await this.unencrypted.getDrives()
       this.guid = disks.find(d => !!d.guid)?.guid
     } catch (e: any) {
       this.error = true

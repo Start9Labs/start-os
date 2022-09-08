@@ -77,7 +77,7 @@ async fn subscribe_to_session_kill(
 async fn deal_with_messages(
     _has_valid_authentication: HasValidSession,
     mut kill: oneshot::Receiver<()>,
-    mut sub: patch_db::Subscriber,
+    sub: patch_db::Subscriber,
     mut stream: WebSocketStream<Upgraded>,
 ) -> Result<(), Error> {
     loop {

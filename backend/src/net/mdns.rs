@@ -94,7 +94,6 @@ impl MdnsControllerInner {
         }
         self.sync();
     }
-    fn free(&self) {}
 }
 
 fn log_str_error(action: &str, e: i32) {

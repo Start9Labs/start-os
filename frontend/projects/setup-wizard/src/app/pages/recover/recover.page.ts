@@ -1,5 +1,5 @@
 import { Component, Input } from '@angular/core'
-import { AlertController, ModalController, NavController } from '@ionic/angular'
+import { ModalController, NavController } from '@ionic/angular'
 import { CifsModal } from 'src/app/modals/cifs-modal/cifs-modal.page'
 import { ApiService, DiskBackupTarget } from 'src/app/services/api/api.service'
 import { ErrorToastService } from '@start9labs/shared'
@@ -20,7 +20,6 @@ export class RecoverPage {
     private readonly navCtrl: NavController,
     private readonly modalCtrl: ModalController,
     private readonly modalController: ModalController,
-    private readonly alertCtrl: AlertController,
     private readonly errToastService: ErrorToastService,
     private readonly stateService: StateService,
   ) {}
@@ -41,7 +40,7 @@ export class RecoverPage {
   async getDrives() {
     this.mappedDrives = []
     try {
-      const { disks, reconnect } = await this.apiService.getDrives()
+      const disks = await this.apiService.getDrives()
       disks
         .filter(d => d.partitions.length)
         .forEach(d => {
@@ -62,21 +61,6 @@ export class RecoverPage {
             })
           })
         })
-
-      if (!this.mappedDrives.length && reconnect.length) {
-        const list = `<ul>${reconnect.map(recon => `<li>${recon}</li>`)}</ul>`
-        const alert = await this.alertCtrl.create({
-          header: 'Warning',
-          message: `One or more devices you connected had to be reconfigured to support the current hardware platform. Please unplug and replug the following device(s), then refresh the page:<br> ${list}`,
-          buttons: [
-            {
-              role: 'cancel',
-              text: 'OK',
-            },
-          ],
-        })
-        await alert.present()
-      }
     } catch (e: any) {
       this.errToastService.present(e)
     } finally {
