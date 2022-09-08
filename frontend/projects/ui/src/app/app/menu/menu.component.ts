@@ -37,11 +37,11 @@ export class MenuComponent {
       url: '/notifications',
       icon: 'notifications-outline',
     },
-    {
-      title: 'Developer Tools',
-      url: '/developer',
-      icon: 'hammer-outline',
-    },
+    // {
+    //   title: 'Developer Tools',
+    //   url: '/developer',
+    //   icon: 'hammer-outline',
+    // },
   ]
 
   readonly notificationCount$ = this.patch.watch$(
