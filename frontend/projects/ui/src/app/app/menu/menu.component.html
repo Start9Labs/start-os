@@ -5,7 +5,6 @@
 <ion-item-group class="menu">
   <ion-menu-toggle *ngFor="let page of pages" auto-hide="false">
     <ion-item
-      *ngIf="page.url !== '/developer' || (showDevTools$ | async)"
       button
       class="link"
       color="transparent"
