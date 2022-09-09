@@ -54,11 +54,9 @@ export class AppShowPage {
     ),
   )
 
-  readonly currentMarketplace$: Observable<Marketplace> =
-    this.marketplaceService.getMarketplace()
+  readonly currentMarketplace$ = this.marketplaceService.getMarketplace()
 
-  readonly altMarketplaceData$: Observable<UIMarketplaceData> =
-    this.marketplaceService.getAltMarketplaceData()
+  readonly altMarketplaceData$ = this.marketplaceService.getAltMarketplaceData()
 
   constructor(
     private readonly route: ActivatedRoute,

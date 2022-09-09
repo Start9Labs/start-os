@@ -34,11 +34,11 @@ export class MarketplaceService extends AbstractMarketplaceService {
   private readonly notes = new Map<string, Record<string, string>>()
   private readonly hasPackages$ = new Subject<boolean>()
 
-  private readonly uiMarketplaceData$: Observable<UIMarketplaceData> =
-    this.patch.watch$('ui', 'marketplace').pipe(
-      filter(Boolean),
+  private readonly uiMarketplaceData$ = this.patch
+    .watch$('ui', 'marketplace')
+    .pipe(
       distinctUntilChanged(
-        (prev, curr) => prev['selected-id'] === curr['selected-id'],
+        (prev, curr) => prev?.['selected-id'] === curr?.['selected-id'],
       ),
       shareReplay(1),
     )
@@ -133,7 +133,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
     return this.marketplace$
   }
 
-  getAltMarketplaceData(): Observable<UIMarketplaceData> {
+  getAltMarketplaceData() {
     return this.uiMarketplaceData$
   }
 
