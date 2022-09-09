@@ -125,11 +125,7 @@ jobs:
         -v "/home/runner/.cargo/registry":/root/.cargo/registry \
         -v "$(pwd)":/home/rust/src \
         -P start9/rust-arm-cross:aarch64 \
-        sh -c 'cd /home/rust/src/backend &&
-          rustup install ${{ env.RUST_VERSION }} &&
-          rustup override set ${{ env.RUST_VERSION }} &&
-          rustup target add aarch64-unknown-linux-gnu &&
-          cargo build --release --target ${{ matrix.target }}-unknown-linux-gnu --locked'
+        sh -c 'cd /home/rust/src/backend && cargo build --release --target aarch64-unknown-linux-gnu --locked'
       if: ${{ matrix.target == 'aarch64' }}
 
     - name: 'Tar files to preserve file permissions'
@@ -155,10 +151,6 @@ jobs:
         -v "$(pwd)":/home/rust/src \
         -P start9/rust-arm-cross:aarch64 \
         sh -c 'cd /home/rust/src/backend &&
-          rustup install ${{ env.RUST_VERSION }} &&
-          rustup override set ${{ env.RUST_VERSION }} &&
-          rustup target add aarch64-unknown-linux-gnu &&
-          curl -LsSf https://get.nexte.st/latest/linux | tar zxf - -C ${CARGO_HOME:-~/.cargo}/bin &&
           cargo nextest archive --archive-file nextest-archive-${{ matrix.target }}.tar.zst --target ${{ matrix.target }}-unknown-linux-gnu'
       if: ${{ matrix.target == 'aarch64' }}
 
