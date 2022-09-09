@@ -423,7 +423,7 @@ export class MockApiService extends ApiService {
 
   // email
 
-  async configureEmailRaw(
+  async configureEmail(
     params: RR.ConfigureEmailReq,
   ): Promise<RR.ConfigureEmailRes> {
     await pauseFor(2000)

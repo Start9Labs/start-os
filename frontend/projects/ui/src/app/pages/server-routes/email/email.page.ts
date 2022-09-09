@@ -1,5 +1,4 @@
 import { Component } from '@angular/core'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import {
   AlertController,
   LoadingController,
@@ -13,6 +12,8 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { getServerInfo } from 'src/app/util/get-server-info'
 import { ErrorToastService } from '@start9labs/shared'
 import { ServerConfigService } from 'src/app/services/server-config.service'
+import { PatchDB } from 'patch-db-client'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 
 @Component({
   selector: 'email',
@@ -27,7 +28,7 @@ export class EmailPage {
     private readonly loadingCtrl: LoadingController,
     private readonly modalCtrl: ModalController,
     private readonly alertCtrl: AlertController,
-    private readonly patch: PatchDbService,
+    private readonly patch: PatchDB<DataModel>,
     private readonly api: ApiService,
     private readonly errToast: ErrorToastService,
     readonly serverConfig: ServerConfigService,

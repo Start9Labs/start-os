@@ -279,10 +279,10 @@ export class LiveApiService extends ApiService {
 
   // email
 
-  async configureEmailRaw(
+  async configureEmail(
     params: RR.ConfigureEmailReq,
   ): Promise<RR.ConfigureEmailRes> {
-    return this.http.rpcRequest({ method: 'email.configure', params })
+    return this.rpcRequest({ method: 'email.configure', params })
   }
 
   // ssh

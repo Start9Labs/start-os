@@ -127,14 +127,14 @@ export module RR {
 
   // email
 
-  export type ConfigureEmailReq = WithExpire<{
+  export type ConfigureEmailReq = {
     address?: string
     notifications?: {
       os?: boolean
       services?: boolean
     }
-  }> // email.configure
-  export type ConfigureEmailRes = WithRevision<null>
+  } // email.configure
+  export type ConfigureEmailRes = null
 
   // ssh
 
