@@ -1,15 +1,5 @@
 #!/bin/bash
-
-function flatline {
-	echo -n "0" > /sys/class/pwm/pwmchip0/export
-	sleep 0.5
-	echo -n "2272727" > /sys/class/pwm/pwmchip0/pwm0/period
-	echo -n "1136364" > /sys/class/pwm/pwmchip0/pwm0/duty_cycle
-	echo -n "1" > /sys/class/pwm/pwmchip0/pwm0/enable
-	exit 1
-}
-
-(set -e
+set -e
 
 # introduce start9 username and embassy as default password
 if ! awk -F: '{ print $1 }' /etc/passwd | grep start9
@@ -64,7 +54,6 @@ apt-get install -y \
 	pgloader
 
 # Setup repository from The Guardian Project and install latest stable Tor daemon
-touch /etc/apt/sources.list.d/tor.list
 echo "deb     [arch=arm64 signed-by=/usr/share/keyrings/tor-archive-keyring.gpg] https://deb.torproject.org/torproject.org bullseye main" >> /etc/apt/sources.list.d/tor.list
 echo "deb-src [arch=arm64 signed-by=/usr/share/keyrings/tor-archive-keyring.gpg] https://deb.torproject.org/torproject.org bullseye main" >> /etc/apt/sources.list.d/tor.list
 wget -qO- https://deb.torproject.org/torproject.org/A3C4F0F979CAA22CDBA8F512EE8CBC9E886DDD89.asc | gpg --dearmor | tee /usr/share/keyrings/tor-archive-keyring.gpg >/dev/null
@@ -159,5 +148,4 @@ echo "fs.inotify.max_user_watches=1048576" > /etc/sysctl.d/97-embassy.conf
 sync
 
 reboot
-) || flatline
 

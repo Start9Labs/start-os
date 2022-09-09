@@ -95,6 +95,7 @@ if [[ "$ENVIRONMENT" =~ (^|-)dev($|-) ]]; then
 else
 	sudo cp ./build/initialization.sh /tmp/eos-mnt/usr/local/bin
 fi
+sudo cp ./build/init-with-sound.sh /tmp/eos-mnt/usr/local/bin
 
 sudo cp ./build/initialization.service /tmp/eos-mnt/etc/systemd/system/initialization.service
 sudo ln -s /etc/systemd/system/initialization.service /tmp/eos-mnt/etc/systemd/system/multi-user.target.wants/initialization.service
