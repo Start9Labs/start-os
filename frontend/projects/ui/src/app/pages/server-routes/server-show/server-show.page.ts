@@ -397,6 +397,15 @@ export class ServerShowPage {
         disabled$: of(false),
       },
       {
+        title: 'Emails',
+        description: 'Configure an SMTP server',
+        icon: 'mail-outline',
+        action: () =>
+          this.navCtrl.navigateForward(['email'], { relativeTo: this.route }),
+        detail: true,
+        disabled$: of(false),
+      },
+      {
         title: 'Sideload a Service',
         description: `Manually install a service`,
         icon: 'push-outline',

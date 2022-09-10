@@ -13,8 +13,8 @@
     <ion-item>
       <ion-label>
         <h2>
-          EmbassyOS comes with a built-in SMTP server for sending emails. It is
-          currently useful for two purposes:
+          Use an external SMTP server to send emails. This can be useful for two
+          purposes:
           <ol>
             <li>
               Your Embassy can send you an email when you have a new
@@ -43,8 +43,8 @@
 
       <ion-item button (click)="presentModalEmail()">
         <ion-label>
-          <h2>Email Address</h2>
-          <p>{{ server.email.address || 'None' }}</p>
+          <h2>Configure SMTP</h2>
+          <p>{{ server.email ? 'Configured' : 'None' }}</p>
         </ion-label>
       </ion-item>
 
