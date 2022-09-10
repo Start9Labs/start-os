@@ -5,27 +5,6 @@ import { MarketplacePkg } from '../types/marketplace-pkg'
 import { MarketplaceManifest } from '../types/marketplace-manifest'
 import { Emver } from '@start9labs/shared'
 
-const defaultOps = {
-  isCaseSensitive: false,
-  includeScore: true,
-  shouldSort: true,
-  includeMatches: false,
-  findAllMatches: false,
-  minMatchCharLength: 1,
-  location: 0,
-  threshold: 0.6,
-  distance: 100,
-  useExtendedSearch: false,
-  ignoreLocation: false,
-  ignoreFieldNorm: false,
-  keys: [
-    'manifest.id',
-    'manifest.title',
-    'manifest.description.short',
-    'manifest.description.long',
-  ],
-}
-
 @Pipe({
   name: 'filterPackages',
 })
@@ -38,12 +17,63 @@ export class FilterPackagesPipe implements PipeTransform {
     category: string,
     local: Record<string, { manifest: MarketplaceManifest }> = {},
   ): MarketplacePkg[] {
+    // query
     if (query) {
-      const fuse = new Fuse(packages, defaultOps)
+      let options: Fuse.IFuseOptions<MarketplacePkg> = {
+        includeScore: true,
+        includeMatches: true,
+      }
 
+      if (query.length < 4) {
+        options = {
+          ...options,
+          threshold: 0,
+          location: 0,
+          distance: 1,
+          keys: [
+            {
+              name: 'manifest.title',
+              weight: 1,
+            },
+            {
+              name: 'manifest.id',
+              weight: 0.5,
+            },
+          ],
+        }
+      } else {
+        options = {
+          ...options,
+          ignoreLocation: true,
+          useExtendedSearch: true,
+          keys: [
+            {
+              name: 'manifest.title',
+              weight: 1,
+            },
+            {
+              name: 'manifest.id',
+              weight: 0.5,
+            },
+            {
+              name: 'manifest.description.short',
+              weight: 0.4,
+            },
+            {
+              name: 'manifest.description.long',
+              weight: 0.1,
+            },
+          ],
+        }
+        query = `'${query}`
+      }
+
+      const fuse = new Fuse(packages, options)
+      console.log(fuse.search(query))
       return fuse.search(query).map(p => p.item)
     }
 
+    // updates
     if (category === 'updates') {
       return packages.filter(
         ({ manifest }) =>
@@ -55,14 +85,12 @@ export class FilterPackagesPipe implements PipeTransform {
       )
     }
 
-    const pkgsToSort = packages.filter(
-      p => category === 'all' || p.categories.includes(category),
-    )
-    const fuse = new Fuse(pkgsToSort, { ...defaultOps, threshold: 1 })
-
-    return fuse
-      .search(category !== 'all' ? category || '' : 'bit')
-      .map(p => p.item)
+    // category
+    return packages
+      .filter(p => category === 'all' || p.categories.includes(category))
+      .sort((a, b) => {
+        return a['published-at'] > b['published-at'] ? -1 : 1
+      })
   }
 }
 
