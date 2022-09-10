@@ -264,8 +264,9 @@ export class MarketplaceService extends AbstractMarketplaceService {
   private updateName(uiMarketplaceData: UIMarketplaceData, name: string) {
     const selectedId = uiMarketplaceData['selected-id']
     const knownHosts = uiMarketplaceData['known-hosts']
+    const altMarketplace = knownHosts[selectedId]
 
-    if (knownHosts[selectedId]?.name !== name) {
+    if (altMarketplace && altMarketplace.name !== name) {
       this.api.setDbValue({
         pointer: `/marketplace/known-hosts/${selectedId}/name`,
         value: name,

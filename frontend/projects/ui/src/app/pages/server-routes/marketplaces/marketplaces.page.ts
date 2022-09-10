@@ -21,10 +21,7 @@ import { ValueSpecObject } from 'src/app/pkg-config/config-types'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 import { PatchDB } from 'patch-db-client'
 import { v4 } from 'uuid'
-import {
-  DataModel,
-  UIMarketplaceData,
-} from '../../../services/patch-db/data-model'
+import { DataModel } from '../../../services/patch-db/data-model'
 import { ConfigService } from '../../../services/config.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import {
@@ -34,7 +31,6 @@ import {
   takeUntil,
 } from 'rxjs/operators'
 import { getServerInfo } from '../../../util/get-server-info'
-import { getMarketplace } from '../../../util/get-marketplace'
 
 type MarketplaceWithId = Marketplace & { id: string }
 
