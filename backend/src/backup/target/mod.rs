@@ -139,8 +139,10 @@ pub async fn list(
     #[context] ctx: RpcContext,
 ) -> Result<BTreeMap<BackupTargetId, BackupTarget>, Error> {
     let mut sql_handle = ctx.secret_store.acquire().await?;
-    let (disks_res, cifs) =
-        tokio::try_join!(crate::disk::util::list(), cifs::list(&mut sql_handle),)?;
+    let (disks_res, cifs) = tokio::try_join!(
+        crate::disk::util::list(&ctx.os_partitions),
+        cifs::list(&mut sql_handle),
+    )?;
     Ok(disks_res
         .into_iter()
         .flat_map(|mut disk| {

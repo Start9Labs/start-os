@@ -88,8 +88,8 @@ pub fn disk() -> Result<(), Error> {
 }
 
 #[command(rename = "list", rpc_only, metadata(authenticated = false))]
-pub async fn list_disks() -> Result<Vec<DiskInfo>, Error> {
-    crate::disk::list(None).await
+pub async fn list_disks(#[context] ctx: SetupContext) -> Result<Vec<DiskInfo>, Error> {
+    crate::disk::util::list(&ctx.os_partitions).await
 }
 
 #[command(rpc_only)]
