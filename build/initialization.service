@@ -4,7 +4,7 @@ After=network-online.target systemd-time-wait-sync.service
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/initialization.sh
+ExecStart=/usr/local/bin/init-with-sound.sh
 RemainAfterExit=true
 StandardOutput=append:/var/log/initialization.log
 
