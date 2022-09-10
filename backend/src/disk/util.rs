@@ -19,6 +19,7 @@ use tracing::instrument;
 use super::mount::filesystem::block_dev::BlockDev;
 use super::mount::filesystem::ReadOnly;
 use super::mount::guard::TmpMountGuard;
+use crate::disk::OsPartitionInfo;
 use crate::util::io::from_yaml_async_reader;
 use crate::util::serde::IoFormat;
 use crate::util::{Invoke, Version};
@@ -232,7 +233,7 @@ pub async fn recovery_info(
 }
 
 #[instrument]
-pub async fn list() -> Result<Vec<DiskInfo>, Error> {
+pub async fn list(os: &OsPartitionInfo) -> Result<Vec<DiskInfo>, Error> {
     let disk_guids = pvscan().await?;
     let disks = tokio_stream::wrappers::ReadDirStream::new(
         tokio::fs::read_dir(DISK_PATH)
@@ -262,13 +263,7 @@ pub async fn list() -> Result<Vec<DiskInfo>, Error> {
                     disk_path.display().to_string(),
                 )
             })?;
-            if &*disk == Path::new("/dev/mmcblk0") {
-                return Ok(disks);
-            }
-            if !disks.contains_key(&disk) {
-                disks.insert(disk.clone(), IndexSet::new());
-            }
-            if let Some(part_path) = part_path {
+            let part = if let Some(part_path) = part_path {
                 let part_path = Path::new(DISK_PATH).join(part_path);
                 let part = tokio::fs::canonicalize(&part_path).await.with_ctx(|_| {
                     (
@@ -276,7 +271,21 @@ pub async fn list() -> Result<Vec<DiskInfo>, Error> {
                         part_path.display().to_string(),
                     )
                 })?;
-                disks.get_mut(&disk).unwrap().insert(part);
+                Some(part)
+            } else {
+                None
+            };
+            if disk == os.disk {
+                if let Some(part) = part {
+                    disks.insert(part.clone(), IndexSet::new());
+                }
+            } else {
+                if !disks.contains_key(&disk) {
+                    disks.insert(disk.clone(), IndexSet::new());
+                }
+                if let Some(part) = part {
+                    disks.get_mut(&disk).unwrap().insert(part);
+                }
             }
         }
         Ok(disks)

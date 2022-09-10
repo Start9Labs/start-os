@@ -18,6 +18,7 @@ use tracing::instrument;
 use url::Host;
 
 use crate::db::model::Database;
+use crate::disk::OsPartitionInfo;
 use crate::init::{init_postgres, pgloader};
 use crate::net::tor::os_key;
 use crate::setup::{password_hash, RecoveryStatus};
@@ -36,6 +37,7 @@ pub struct SetupResult {
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct SetupContextConfig {
+    pub os_partitions: OsPartitionInfo,
     pub migration_batch_rows: Option<usize>,
     pub migration_prefetch_rows: Option<usize>,
     pub bind_rpc: Option<SocketAddr>,
@@ -65,6 +67,7 @@ impl SetupContextConfig {
 }
 
 pub struct SetupContextSeed {
+    pub os_partitions: OsPartitionInfo,
     pub config_path: Option<PathBuf>,
     pub migration_batch_rows: usize,
     pub migration_prefetch_rows: usize,
@@ -95,6 +98,7 @@ impl SetupContext {
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
         let datadir = cfg.datadir().to_owned();
         Ok(Self(Arc::new(SetupContextSeed {
+            os_partitions: cfg.os_partitions,
             config_path: path.as_ref().map(|p| p.as_ref().to_owned()),
             migration_batch_rows: cfg.migration_batch_rows.unwrap_or(25000),
             migration_prefetch_rows: cfg.migration_prefetch_rows.unwrap_or(100_000),

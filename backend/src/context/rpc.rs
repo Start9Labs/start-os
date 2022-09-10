@@ -23,6 +23,7 @@ use tracing::instrument;
 
 use crate::core::rpc_continuations::{RequestGuid, RestHandler, RpcContinuation};
 use crate::db::model::{Database, InstalledPackageDataEntry, PackageDataEntry};
+use crate::disk::OsPartitionInfo;
 use crate::hostname::HostNameReceipt;
 use crate::init::{init_postgres, pgloader};
 use crate::install::cleanup::{cleanup_failed, uninstall, CleanupFailedReceipts};
@@ -42,6 +43,7 @@ use crate::{Error, ErrorKind, ResultExt};
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct RpcContextConfig {
+    pub os_partitions: OsPartitionInfo,
     pub migration_batch_rows: Option<usize>,
     pub migration_prefetch_rows: Option<usize>,
     pub bind_rpc: Option<SocketAddr>,
@@ -116,6 +118,7 @@ impl RpcContextConfig {
 
 pub struct RpcContextSeed {
     is_closed: AtomicBool,
+    pub os_partitions: OsPartitionInfo,
     pub bind_rpc: SocketAddr,
     pub bind_ws: SocketAddr,
     pub bind_static: SocketAddr,
@@ -248,10 +251,11 @@ impl RpcContext {
         tracing::info!("Initialized Notification Manager");
         let seed = Arc::new(RpcContextSeed {
             is_closed: AtomicBool::new(false),
+            datadir: base.datadir().to_path_buf(),
+            os_partitions: base.os_partitions,
             bind_rpc: base.bind_rpc.unwrap_or(([127, 0, 0, 1], 5959).into()),
             bind_ws: base.bind_ws.unwrap_or(([127, 0, 0, 1], 5960).into()),
             bind_static: base.bind_static.unwrap_or(([127, 0, 0, 1], 5961).into()),
-            datadir: base.datadir().to_path_buf(),
             disk_guid,
             db,
             secret_store,
