@@ -25,6 +25,10 @@ name = "embassyd"
 path = "src/bin/embassyd.rs"
 
 [[bin]]
+name = "embassy-docker-runner"
+path = "src/bin/embassy-docker-runner.rs"
+
+[[bin]]
 name = "embassy-init"
 path = "src/bin/embassy-init.rs"
 
