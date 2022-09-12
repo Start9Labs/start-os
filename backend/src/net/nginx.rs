@@ -69,7 +69,7 @@ impl NginxControllerInner {
         };
         // write main ssl key/cert to fs location
         let (key, cert) = ssl_manager
-            .certificate_for(&host_name.lan_address(), &"embassy".parse().unwrap())
+            .certificate_for(host_name.as_ref(), &"embassy".parse().unwrap())
             .await?;
         let ssl_path_key = nginx_root.join(format!("ssl/embassy_main.key.pem"));
         let ssl_path_cert = nginx_root.join(format!("ssl/embassy_main.cert.pem"));
