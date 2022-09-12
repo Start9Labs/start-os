@@ -87,7 +87,7 @@ lazy_static = "1.4.0"
 libc = "0.2.126"
 log = "0.4.17"
 models = { version = "*", path = "../libs/models" }
-nix = "0.24.1"
+nix = "0.25.0"
 nom = "7.1.1"
 num = "0.4.0"
 num_enum = "0.5.7"
@@ -99,15 +99,15 @@ patch-db = { version = "*", path = "../patch-db/patch-db", features = [
 pbkdf2 = "0.11.0"
 pin-project = "1.0.11"
 pkcs8 = { version = "0.9.0", features = ["std"] }
-prettytable-rs = "0.8.0"
+prettytable-rs = "0.9.0"
 proptest = "1.0.0"
 proptest-derive = "0.3.0"
 rand = { version = "0.8.5", features = ["std"] }
 rand-old = { package = "rand", version = "0.7.3" }
 regex = "1.6.0"
 reqwest = { version = "0.11.11", features = ["stream", "json", "socks"] }
-reqwest_cookie_store = "0.3.0"
-rpassword = "6.0.1"
+reqwest_cookie_store = "0.4.0"
+rpassword = "7.0.0"
 rpc-toolkit = "0.2.1"
 rust-argon2 = "1.0.0"
 scopeguard = "1.1" # because avahi-sys fucks your shit up
@@ -115,8 +115,8 @@ serde = { version = "1.0.139", features = ["derive", "rc"] }
 serde_cbor = { package = "ciborium", version = "0.2.0" }
 serde_json = "1.0.82"
 serde_toml = { package = "toml", version = "0.5.9" }
-serde_with = { version = "1.14.0", features = ["macros", "json"] }
-serde_yaml = "0.8.25"
+serde_with = { version = "2.0.1", features = ["macros", "json"] }
+serde_yaml = "0.9.11"
 sha2 = "0.10.2"
 sha2-old = { package = "sha2", version = "0.9.9" }
 simple-logging = "2.0.2"
@@ -139,7 +139,7 @@ tracing = "0.1.35"
 tracing-error = "0.2.0"
 tracing-futures = "0.2.5"
 tracing-subscriber = { version = "0.3.14", features = ["env-filter"] }
-trust-dns-server = "0.21.2"
+trust-dns-server = "0.22.0"
 typed-builder = "0.10.0"
 url = { version = "2.2.2", features = ["serde"] }
 uuid = { version = "1.1.2", features = ["v4"] }

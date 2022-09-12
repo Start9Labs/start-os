@@ -113,7 +113,9 @@ where
     T: serde::Serialize,
     W: AsyncWrite + Unpin,
 {
-    let mut buffer = serde_yaml::to_vec(value).with_kind(crate::ErrorKind::Serialization)?;
+    let mut buffer = serde_yaml::to_string(value)
+        .with_kind(crate::ErrorKind::Serialization)?
+        .into_bytes();
     buffer.extend_from_slice(b"\n");
     writer.write_all(&buffer).await?;
     Ok(())

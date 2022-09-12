@@ -44,7 +44,7 @@ fn display_services(services: Vec<OnionAddressV3>, matches: &ArgMatches) {
         let row = row![&service.to_string()];
         table.add_row(row);
     }
-    table.print_tty(false);
+    table.print_tty(false).unwrap();
 }
 
 #[command(rename = "list-services", display(display_services))]
