@@ -37,6 +37,7 @@
     "@start9labs/emver": "^0.1.5",
     "aes-js": "^3.1.2",
     "ansi-to-html": "^0.7.2",
+    "base64-js": "^1.5.1",
     "cbor": "npm:@jprochazk/cbor@^0.4.9",
     "cbor-web": "^8.1.0",
     "core-js": "^3.21.1",
