@@ -23,6 +23,8 @@ all: eos.img
 
 gzip: eos.tar.gz
 
+deb: embassy-os.deb
+
 eos.tar.gz: eos.img
 	tar --format=posix -cS -f- eos.img | $(GZIP_BIN) > eos.tar.gz
 
@@ -49,6 +51,9 @@ sdk:
 eos.img: $(EMBASSY_SRC) system-images/compat/compat.tar system-images/utils/utils.tar system-images/binfmt/binfmt.tar cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast $(ENVIRONMENT_FILE) $(GIT_HASH_FILE)
 	! test -f eos.img || rm eos.img
 	if [ "$(NO_KEY)" = "1" ]; then NO_KEY=1 ./build/make-image.sh; else ./build/make-image.sh; fi
+
+embassy-os.deb: DEBIAN/control
+	./build/make-deb.sh
 
 system-images/compat/compat.tar: $(COMPAT_SRC)
 	cd system-images/compat && make

@@ -16,3 +16,5 @@ secrets.db
 /ENVIRONMENT.txt
 /GIT_HASH.txt
 /eos.tar.gz
+/debian
+/*.deb
