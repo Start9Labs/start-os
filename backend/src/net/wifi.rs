@@ -215,7 +215,7 @@ fn display_wifi_info(info: WiFiInfo, matches: &ArgMatches) {
         &info.country.alpha2(),
         &format!("{}", info.ethernet)
     ]);
-    table_global.print_tty(false);
+    table_global.print_tty(false).unwrap();
 
     let mut table_ssids = Table::new();
     table_ssids.add_row(row![bc => "SSID", "STRENGTH"]);
@@ -233,7 +233,7 @@ fn display_wifi_info(info: WiFiInfo, matches: &ArgMatches) {
             .for_each(drop);
         table_ssids.add_row(row);
     }
-    table_ssids.print_tty(false);
+    table_ssids.print_tty(false).unwrap();
 
     let mut table_global = Table::new();
     table_global.add_row(row![bc =>
@@ -249,7 +249,7 @@ fn display_wifi_info(info: WiFiInfo, matches: &ArgMatches) {
         ]);
     }
 
-    table_global.print_tty(false);
+    table_global.print_tty(false).unwrap();
 }
 
 fn display_wifi_list(info: Vec<WifiListOut>, matches: &ArgMatches) {
@@ -273,7 +273,7 @@ fn display_wifi_list(info: Vec<WifiListOut>, matches: &ArgMatches) {
         ]);
     }
 
-    table_global.print_tty(false);
+    table_global.print_tty(false).unwrap();
 }
 
 #[command(display(display_wifi_info))]

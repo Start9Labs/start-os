@@ -217,7 +217,7 @@ fn display_backup_info(info: BackupInfo, matches: &ArgMatches) {
         ];
         table.add_row(row);
     }
-    table.print_tty(false);
+    table.print_tty(false).unwrap();
 }
 
 #[command(display(display_backup_info))]

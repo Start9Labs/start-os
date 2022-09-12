@@ -203,7 +203,7 @@ fn display_sessions(arg: SessionList, matches: &ArgMatches) {
         }
         table.add_row(row);
     }
-    table.print_tty(false);
+    table.print_tty(false).unwrap();
 }
 
 #[command(display(display_sessions))]
