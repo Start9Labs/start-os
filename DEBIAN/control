@@ -23,4 +23,5 @@ Depends: nginx,
   jq,
   ncdu,
   postgresql,
-  pgloader
+  pgloader,
+  openssh-server
