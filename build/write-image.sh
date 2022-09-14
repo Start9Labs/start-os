@@ -34,7 +34,7 @@ sudo sed -i 's/ init=\/usr\/lib\/raspi-config\/init_resize.sh//g' /tmp/eos-mnt/c
 
 cat /tmp/eos-mnt/config.txt | grep -v "dtoverlay=" | sudo tee /tmp/eos-mnt/config.txt.tmp > /dev/null
 echo "dtoverlay=pwm-2chan,disable-bt" | sudo tee -a /tmp/eos-mnt/config.txt.tmp > /dev/null
-sudo sh -c 'echo "gpu_mem=16" >> /tmp/eos-mnt/config.txt.tmp'
+echo "gpu_mem=16" | sudo tee -a /tmp/eos-mnt/config.txt.tmp > /dev/null
 sudo mv /tmp/eos-mnt/config.txt.tmp /tmp/eos-mnt/config.txt
 sudo touch /tmp/eos-mnt/ssh
 
