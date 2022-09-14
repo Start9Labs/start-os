@@ -72,35 +72,17 @@ struct InputRpcId {
     input_rpc: InputRpc,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "jsonrpc", rename_all = "camelCase")]
 enum InputRpc {
     #[serde(rename = "2.0")]
     Two(Input),
 }
-// impl Deserialize for InputRpcId {
-//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-//     where
-//         S: Serializer,
-//     {
-//         let mut map = serializer.serialize_map(Some(3))?;
-//         map.serialize_entry("jsonrpc", "2.0")?;
-//         map.serialize_entry("id", &self.id)?;
-//         map.serialize_entry("result", &self.output)?;
-//         map.end()
-//     }
-// }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(tag = "method", rename_all = "camelCase")]
+#[serde(tag = "method", content = "params", rename_all = "camelCase")]
 enum Input {
-    Command { params: InputCommandParams },
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-struct InputCommandParams {
-    command: String,
-    args: Vec<String>,
+    Command { command: String, args: Vec<String> },
 }
 
 impl FromStr for InputRpcId {
@@ -152,11 +134,8 @@ impl Io {
             let input_rpc = &input.input_rpc;
             match input_rpc {
                 InputRpc::Two(Input::Command {
-                    params:
-                        InputCommandParams {
                             ref command,
                             ref args,
-                        },
                 }) => {
                     let mut cmd = Command::new(command);
                     cmd.args(args);
@@ -164,7 +143,7 @@ impl Io {
                     cmd.stdout(Stdio::piped());
                     cmd.stderr(Stdio::piped());
                     let mut child = match cmd.spawn() {
-                        Err(e) => return,
+                        Err(_e) => return,
                         Ok(a) => a,
                     };
 
@@ -262,6 +241,8 @@ fn example_input_line() {
     };
     let output_str = output.maybe_serialize();
     assert!(output_str.is_some());
-
-    println!("{:?}", output_str.unwrap());
+    assert_eq!(
+        &output_str.unwrap().to_string(),
+        r#"{"jsonrpc":"2.0","id":"test","result":{"Line":"world I am here"}}"#
+    );
 }
