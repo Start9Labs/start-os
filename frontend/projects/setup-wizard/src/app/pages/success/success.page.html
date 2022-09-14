@@ -1,4 +1,4 @@
-<ion-content>
+<ion-content [scrollEvents]="true" (ionScrollEnd)="checkBottom()">
   <ion-grid>
     <ion-row>
       <ion-col>
@@ -147,7 +147,26 @@
               </p>
             </div>
           </ion-card-content>
+          <div id="bottom-div"></div>
         </ion-card>
+
+        <!-- scroll down -->
+        <div
+          [ngStyle]="{
+            position: 'fixed',
+            bottom: isOnBottom ? '-42px' : '24px',
+            transition: 'bottom 0.15s ease-out 0s',
+            right: '50%',
+            width: '120px',
+            'margin-right': '-60px',
+            'z-index': '1000'
+          }"
+        >
+          <ion-button color="warning" (click)="scrollToBottom()">
+            More
+            <ion-icon slot="end" name="chevron-down"></ion-icon>
+          </ion-button>
+        </div>
 
         <!-- cert elem -->
         <a hidden id="install-cert" download="embassy.crt"></a>
