@@ -1,7 +1,7 @@
 <ng-container *ngIf="pkg$ | async as pkg">
   <app-show-header [pkg]="pkg"></app-show-header>
 
-  <ion-content *ngIf="pkg | toDependencies | async as dependencies">
+  <ion-content *ngIf="pkg | toDependencies as dependencies">
     <ion-item-group *ngIf="pkg | toStatus as status">
       <!-- ** status ** -->
       <app-show-status
