@@ -1,228 +1,111 @@
 use color_eyre::eyre::eyre;
+use futures::FutureExt;
 use helpers::NonDetachingJoinHandle;
+use hyper::server::conn::AddrStream;
 use hyper::upgrade::Upgraded;
-use libc::listen;
 use std::collections::BTreeMap;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::str::FromStr;
 use std::sync::Arc;
 
-use http::{Method, Request, Response};
+use http::{Method, StatusCode};
 use hyper::service::{make_service_fn, service_fn};
 use models::{InterfaceId, PackageId};
 use tokio::net::TcpStream;
 use tokio::sync::{oneshot, Mutex, RwLock};
 use tracing::{debug, error, info, instrument};
 
+use crate::net::interface::LanPortConfig;
 use crate::net::ssl::SslManager;
 use crate::net::{InterfaceMetadata, PackageNetInfo};
+//use crate::util::IntoDoubleEndedIterator;
 use crate::{Error, ResultExt};
 
-use hyper::{Body, Client, Error as HyperError, Server};
+use hyper::{Body, Client, Error as HyperError, Request, Response, Server};
 
 type HttpClient = Client<hyper::client::HttpConnector>;
 
+static RES_NOT_FOUND: &[u8] = b"503 Service Unavailable";
+
 struct EmbassyHTTPServer {
-    mapping: Arc<RwLock<BTreeMap<String, SocketAddr>>>,
+    docker_mapping: Arc<RwLock<BTreeMap<String, SocketAddr>>>,
     shutdown: oneshot::Sender<()>,
     handle: NonDetachingJoinHandle<()>,
 }
+impl EmbassyHTTPServer {
+    async fn new(listener_addr: SocketAddr) -> Result<Self, Error> {
+        let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+        let client = HttpClient::new();
 
-pub struct ProxyController {
-    inner: Mutex<ProxyControllerInner>,
-}
+        let docker_mapping = Arc::new(RwLock::new(BTreeMap::<String, SocketAddr>::new()));
+        let make_service = make_service_fn(move |_| {
+            let client = client.clone();
+            let docker_mapping1 = docker_mapping.clone();
 
-impl ProxyController {
-    pub async fn init(ssl_manager: &SslManager) -> Result<Self, Error> {
-        Ok(ProxyController {
-            inner: Mutex::new(ProxyControllerInner::init(ssl_manager).await?),
+            async move {
+                let docker_service_mapping = docker_mapping1.clone();
+
+                Ok::<_, HyperError>(service_fn(move |mut req| async move {
+
+                    let docker_service_mapping = docker_service_mapping.clone();
+                    
+                    let docker = docker_service_mapping
+                        .read_owned()
+                        .await
+                        .get(&Self::host_addr(req.uri()).unwrap())
+                        .unwrap()
+                        .clone();
+
+                    let uri_string = format!(
+                        "http://{}{}",
+                        docker.clone(),
+                        req.uri()
+                            .path_and_query()
+                            .map(|x| x.as_str())
+                            .unwrap_or("/")
+                    );
+                    let uri = uri_string.parse().unwrap();
+                    *req.uri_mut() = uri;
+
+                    Ok::<_, HyperError>(Response::new(Body::empty()))
+                    //return Self::proxy(client, req);
+                }))
+            }
+        });
+
+        let handle = tokio::spawn(async move {
+            let server = Server::bind(&listener_addr)
+                .http1_preserve_header_case(true)
+                .http1_title_case_headers(true)
+                .serve(make_service)
+                .with_graceful_shutdown({
+                    async {
+                        rx.await.ok();
+                    }
+                });
+
+            if let Err(e) = server.await {
+                error!("Spawning hyper server errorr: {}", e);
+            }
+        });
+
+        Ok(Self {
+            docker_mapping: docker_mapping.clone(),
+            handle: handle.into(),
+            shutdown: tx,
         })
     }
 
-    pub async fn add<I: IntoIterator<Item = (InterfaceId, InterfaceMetadata)>>(
-        &self,
-        ssl_manager: &SslManager,
-        package: PackageId,
-        ipv4: Ipv4Addr,
-        interfaces: I,
-    ) -> Result<(), Error> {
-        self.inner
-            .lock()
-            .await
-            .add(ssl_manager, package, ipv4, interfaces)
-            .await
+    async fn add_docker_mapping(&mut self, dns_base: &String, docker_addr: SocketAddr) {
+        let mut mapping = self.docker_mapping.write().await;
+
+        mapping.insert(dns_base.to_string(), docker_addr);
     }
 
-    pub async fn remove(&self, package: &PackageId) -> Result<(), Error> {
-        self.inner.lock().await.remove(package).await
-    }
-}
+    async fn remove_docker_mapping(&mut self, dns_base: String) {
+        let mut mapping = self.docker_mapping.write().await;
 
-struct ProxyControllerInner {
-    servers: BTreeMap<u16, EmbassyHTTPServer>,
-    iface_lookups: BTreeMap<(PackageId, InterfaceId), String>,
-    interfaces: BTreeMap<PackageId, PackageNetInfo>,
-}
-
-impl ProxyControllerInner {
-    #[instrument]
-    async fn init(ssl_manager: &SslManager) -> Result<Self, Error> {
-        let inner = ProxyControllerInner {
-            interfaces: BTreeMap::new(),
-            iface_lookups: BTreeMap::new(),
-            servers: BTreeMap::new(),
-        };
-        // write main ssl key/cert to fs location
-        // let (key, cert) = ssl_manager
-        //     .certificate_for(&get_hostname().await?, &"embassy".parse().unwrap())
-        //     .await?;
-        // let ssl_path_key = nginx_root.join(format!("ssl/embassy_main.key.pem"));
-        // let ssl_path_cert = nginx_root.join(format!("ssl/embassy_main.cert.pem"));
-        // tokio::try_join!(
-        //     crate::net::ssl::export_key(&key, &ssl_path_key),
-        //     crate::net::ssl::export_cert(&cert, &ssl_path_cert),
-        // )?;
-        Ok(inner)
-    }
-
-    #[instrument(skip(self, interfaces))]
-    async fn add<I: IntoIterator<Item = (InterfaceId, InterfaceMetadata)>>(
-        &mut self,
-        ssl_manager: &SslManager,
-        package: PackageId,
-        ipv4: Ipv4Addr,
-        interfaces: I,
-    ) -> Result<(), Error> {
-        let interface_map = interfaces
-            .into_iter()
-            .filter(|(_, meta)| {
-                // don't add nginx stuff for anything we can't connect to over some flavor of http
-                (meta.protocols.contains("http") || meta.protocols.contains("https"))
-                // also don't add nginx unless it has at least one exposed port
-                        && meta.lan_config.len() > 0
-            })
-            .collect::<BTreeMap<InterfaceId, InterfaceMetadata>>();
-
-        let client = Client::builder()
-            .http1_title_case_headers(true)
-            .http1_preserve_header_case(true)
-            .build_http();
-
-        for (id, meta) in interface_map.iter() {
-            for (port, _lan_port_config) in meta.lan_config.iter() {
-                let listener_addr =
-                    SocketAddr::from_str(&format!("{}:{}", meta.dns_base.clone(), port.0))
-                        .with_kind(crate::ErrorKind::InvalidIP)?;
-
-                debug!("Listening on {}", listener_addr);
-                let client = client.clone();
-                let make_service = make_service_fn(move |_| {
-                    let client = client.clone();
-                    async move {
-                        Ok::<_, HyperError>(service_fn(move |req| Self::proxy(client.clone(), req)))
-                    }
-                });
-
-                let (tx, rx) = tokio::sync::oneshot::channel::<()>();
-
-                let handle = tokio::spawn(async move {
-                    let server = Server::bind(&listener_addr)
-                        .http1_preserve_header_case(true)
-                        .http1_title_case_headers(true)
-                        .serve(make_service)
-                        .with_graceful_shutdown({
-                            async {
-                                rx.await.ok();
-                            }
-                        });
-
-                    if let Err(e) = server.await {
-                        error!("Spawning hyper server errorr: {}", e);
-                    }
-                });
-
-                self.iface_lookups
-                    .insert((package.clone(), id.clone()), meta.dns_base.clone());
-
-                if let Some(server) = self.servers.get_mut(&port.0) {
-                    server
-                        .mapping
-                        .write()
-                        .await
-                        .insert(meta.dns_base.clone(), listener_addr);
-                } else {
-                    let mut mapping = BTreeMap::new();
-                    mapping.insert(meta.dns_base.clone(), listener_addr);
-                    let map_lock = Arc::new(RwLock::new(mapping));
-                    self.servers.insert(
-                        port.0,
-                        EmbassyHTTPServer {
-                            mapping: map_lock,
-                            shutdown: tx,
-                            handle: handle.into(),
-                        },
-                    );
-                }
-
-                info!("Listening on {}", listener_addr);
-            }
-        }
-        match self.interfaces.get_mut(&package) {
-            None => {
-                let info = PackageNetInfo {
-                    interfaces: interface_map,
-                };
-                self.interfaces.insert(package, info);
-            }
-            Some(p) => {
-                p.interfaces.extend(interface_map);
-            }
-        };
-        Ok(())
-    }
-
-    #[instrument(skip(self))]
-    async fn remove(&mut self, package: &PackageId) -> Result<(), Error> {
-        let removed = self.interfaces.remove(package);
-        if let Some(net_info) = removed {
-            for (id, meta) in net_info.interfaces {
-                for (service_ext_port, _lan_port_config) in meta.lan_config.iter() {
-                    if let Some((_server_port, server)) =
-                        self.servers.get_key_value(&service_ext_port.0)
-                    {
-                        let mut mapping = server.mapping.write().await;
-
-                        if let Some(dns_base) =
-                            self.iface_lookups.get(&(package.to_owned(), id.clone()))
-                        {
-                            let data = mapping.remove(dns_base);
-
-                            match data {
-                                Some(_) => (),
-                                None => {
-                                    async move {
-                                        server.shutdown.send(()).map_err(|_| {
-                                            Error::new(
-                                                eyre!("Hyper server did not quit properly"),
-                                                crate::ErrorKind::JoinError,
-                                            )
-                                        })?;
-                                        server
-                                            .handle
-                                            .await
-                                            .with_kind(crate::ErrorKind::JoinError)?;
-                                    };
-                                }
-                            }
-                        }
-                        if mapping.len() == 0 {
-                            self.servers.remove(&service_ext_port.0);
-                        }
-                    }
-                }
-            }
-        }
-        Ok(())
+        mapping.remove(&dns_base);
     }
 
     async fn proxy(client: HttpClient, req: Request<Body>) -> Result<Response<Body>, hyper::Error> {
@@ -285,6 +168,171 @@ impl ProxyControllerInner {
     }
 
     fn host_addr(uri: &http::Uri) -> Option<String> {
+        // uri.authority().o
         uri.authority().map(|auth| auth.to_string())
     }
+}
+
+pub struct ProxyController {
+    inner: Mutex<ProxyControllerInner>,
+}
+
+impl ProxyController {
+    pub async fn init(embassyd_addr: SocketAddr, ssl_manager: &SslManager) -> Result<Self, Error> {
+        Ok(ProxyController {
+            inner: Mutex::new(ProxyControllerInner::init(embassyd_addr, ssl_manager).await?),
+        })
+    }
+
+    pub async fn add<I: IntoIterator<Item = (InterfaceId, InterfaceMetadata)>>(
+        &self,
+        ssl_manager: &SslManager,
+        package: PackageId,
+        ipv4: Ipv4Addr,
+        interfaces: I,
+    ) -> Result<(), Error> {
+        self.inner
+            .lock()
+            .await
+            .add(ssl_manager, package, ipv4, interfaces)
+            .await
+    }
+
+    pub async fn remove(&self, package: &PackageId) -> Result<(), Error> {
+        self.inner.lock().await.remove(package).await
+    }
+}
+
+struct ProxyControllerInner {
+    embassyd_addr: SocketAddr,
+    service_servers: BTreeMap<u16, EmbassyHTTPServer>,
+    iface_lookups: BTreeMap<(PackageId, InterfaceId), String>,
+    interfaces: BTreeMap<PackageId, PackageNetInfo>,
+}
+
+impl ProxyControllerInner {
+    #[instrument]
+    async fn init(embassyd_addr: SocketAddr, ssl_manager: &SslManager) -> Result<Self, Error> {
+        let inner = ProxyControllerInner {
+            embassyd_addr,
+            interfaces: BTreeMap::new(),
+            iface_lookups: BTreeMap::new(),
+            service_servers: BTreeMap::new(),
+        };
+
+        let emnbassyd_port_80_svc = EmbassyHTTPServer::new(embassyd_addr).await?;
+        Ok(inner)
+    }
+
+    #[instrument(skip(self, interfaces))]
+    async fn add<I: IntoIterator<Item = (InterfaceId, InterfaceMetadata)>>(
+        &mut self,
+        ssl_manager: &SslManager,
+        package: PackageId,
+        ipv4: Ipv4Addr,
+        interfaces: I,
+    ) -> Result<(), Error> {
+        let interface_map = interfaces
+            .into_iter()
+            .filter(|(_, meta)| {
+                // don't add nginx stuff for anything we can't connect to over some flavor of http
+                (meta.protocols.contains("http") || meta.protocols.contains("https"))
+                // also don't add nginx unless it has at least one exposed port
+                        && meta.lan_config.len() > 0
+            })
+            .collect::<BTreeMap<InterfaceId, InterfaceMetadata>>();
+
+        for (id, meta) in interface_map.iter() {
+            for (external_svc_port, lan_port_config) in meta.lan_config.iter() {
+                let mut listener_addr = self.embassyd_addr;
+                listener_addr.set_port(external_svc_port.0);
+
+                self.iface_lookups
+                    .insert((package.clone(), id.clone()), meta.dns_base.clone());
+
+                let docker_addr = SocketAddr::from((ipv4, lan_port_config.internal));
+                if let Some(server) = self.service_servers.get_mut(&external_svc_port.0) {
+                    server.add_docker_mapping(&meta.dns_base, docker_addr);
+                } else {
+                    let mut new_service_server = EmbassyHTTPServer::new(listener_addr).await?;
+                    new_service_server
+                        .add_docker_mapping(&meta.dns_base, docker_addr)
+                        .await;
+
+                    self.service_servers
+                        .insert(external_svc_port.0, new_service_server);
+                }
+            }
+        }
+
+        match self.interfaces.get_mut(&package) {
+            None => {
+                let info = PackageNetInfo {
+                    interfaces: interface_map,
+                };
+                self.interfaces.insert(package, info);
+            }
+            Some(p) => {
+                p.interfaces.extend(interface_map);
+            }
+        };
+
+        Ok(())
+    }
+
+    #[instrument(skip(self))]
+    async fn remove(&mut self, package: &PackageId) -> Result<(), Error> {
+        let mut server_removal = false;
+        let mut server_removal_port: u16 = 0;
+        let mut removed_interface_id;
+
+        let package_interface_info = self.interfaces.get(package);
+        if let Some(net_info) = package_interface_info {
+            for (id, meta) in &net_info.interfaces {
+                for (service_ext_port, _lan_port_config) in meta.lan_config.iter() {
+                    if let Some(server) = self.service_servers.get_mut(&service_ext_port.0) {
+                        if let Some(dns_base) =
+                            self.iface_lookups.get(&(package.clone(), id.clone()))
+                        {
+                            server.remove_docker_mapping(dns_base.to_string()).await;
+
+                            if server.docker_mapping.read().await.is_empty() {
+                                server_removal = true;
+                                server_removal_port = service_ext_port.0;
+                                removed_interface_id = id.to_owned();
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if server_removal {
+            if let Some(removed_server) = self.service_servers.remove(&server_removal_port) {
+                removed_server.shutdown.send(()).map_err(|_| {
+                    Error::new(
+                        eyre!("Hyper server did not quit properly"),
+                        crate::ErrorKind::JoinError,
+                    )
+                })?;
+                removed_server
+                    .handle
+                    .await
+                    .with_kind(crate::ErrorKind::JoinError)?;
+                self.interfaces.remove(&package.clone());
+                self.iface_lookups
+                    .remove(&(package.clone(), removed_interface_id));
+            }
+        }
+        Ok(())
+    }
+}
+
+/// HTTP status code 503
+fn res_not_found() -> Response<Body> {
+    Response::builder()
+        .status(StatusCode::SERVICE_UNAVAILABLE)
+        .body(RES_NOT_FOUND.into())
+        .unwrap()
 }

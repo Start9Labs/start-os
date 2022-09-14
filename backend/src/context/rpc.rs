@@ -17,7 +17,6 @@ use serde::Deserialize;
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::SqlitePool;
 use tokio::fs::File;
-use tokio::process::Command;
 use tokio::sync::{broadcast, oneshot, Mutex, RwLock};
 use tracing::instrument;
 
@@ -223,7 +222,7 @@ impl RpcContext {
         let docker = Docker::connect_with_unix_defaults()?;
         tracing::info!("Connected to Docker");
         let net_controller = NetController::init(
-            ([127, 0, 0, 1], 80).into(),
+            ([0, 0, 0, 0], 80).into(),
             crate::net::tor::os_key(&mut secret_store.acquire().await?).await?,
             base.tor_control
                 .unwrap_or(SocketAddr::from(([127, 0, 0, 1], 9051))),
