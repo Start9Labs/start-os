@@ -38,17 +38,17 @@ impl EmbassyHTTPServer {
         let client = HttpClient::new();
 
         let docker_mapping = Arc::new(RwLock::new(BTreeMap::<String, SocketAddr>::new()));
+        let dock_lock = docker_mapping.clone();
         let make_service = make_service_fn(move |_| {
             let client = client.clone();
-            let docker_mapping1 = docker_mapping.clone();
+            let docker_mapping1 = dock_lock.clone();
 
             async move {
                 let docker_service_mapping = docker_mapping1.clone();
 
                 Ok::<_, HyperError>(service_fn(move |mut req| async move {
-
                     let docker_service_mapping = docker_service_mapping.clone();
-                    
+
                     let docker = docker_service_mapping
                         .read_owned()
                         .await
@@ -67,8 +67,8 @@ impl EmbassyHTTPServer {
                     let uri = uri_string.parse().unwrap();
                     *req.uri_mut() = uri;
 
-                    Ok::<_, HyperError>(Response::new(Body::empty()))
-                    //return Self::proxy(client, req);
+                    // Ok::<_, HyperError>(Response::new(Body::empty()))
+                    return Ok::<_, HyperError>(Self::proxy(client, req).await?);
                 }))
             }
         });
@@ -284,7 +284,7 @@ impl ProxyControllerInner {
     async fn remove(&mut self, package: &PackageId) -> Result<(), Error> {
         let mut server_removal = false;
         let mut server_removal_port: u16 = 0;
-        let mut removed_interface_id;
+        let mut removed_interface_id = InterfaceId::default();
 
         let package_interface_info = self.interfaces.get(package);
         if let Some(net_info) = package_interface_info {

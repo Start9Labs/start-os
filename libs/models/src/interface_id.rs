@@ -4,7 +4,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::Id;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Default)]
 pub struct InterfaceId<S: AsRef<str> = String>(Id<S>);
 impl<S: AsRef<str>> From<Id<S>> for InterfaceId<S> {
     fn from(id: Id<S>) -> Self {
