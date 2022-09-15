@@ -135,7 +135,7 @@ impl NetController {
                             id,
                             InterfaceMetadata {
                                 dns_base: OnionAddressV3::from(&tor_key.public())
-                                    .get_address_without_dot_onion(),
+                                    .get_address_without_dot_onion() + ".local",
                                 lan_config: cfg.clone(),
                                 protocols: interface.protocols.clone(),
                             },

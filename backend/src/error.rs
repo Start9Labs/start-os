@@ -72,7 +72,9 @@ pub enum ErrorKind {
     ContentLength = 63,
     BytesError = 64,
     InvalidIP = 65,
-    JoinError = 66
+    JoinError = 66,
+    AsciiError = 67,
+    NoHost = 68,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -143,7 +145,9 @@ impl ErrorKind {
             ContentLength => "Request has no content length header",
             BytesError => "Could not get the bytes for this request",
             InvalidIP => "Could not parse this IP address",
-            JoinError => "Join Handle Error"
+            JoinError => "Join Handle Error",
+            AsciiError => "Could not parse ascii text",
+            NoHost => "No Host header" 
         }
     }
 }

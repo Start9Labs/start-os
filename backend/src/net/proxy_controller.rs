@@ -1,11 +1,9 @@
 use color_eyre::eyre::eyre;
-use futures::FutureExt;
 use helpers::NonDetachingJoinHandle;
-use hyper::server::conn::AddrStream;
 use hyper::upgrade::Upgraded;
 use std::collections::BTreeMap;
+use std::fmt::format;
 use std::net::{Ipv4Addr, SocketAddr};
-use std::str::FromStr;
 use std::sync::Arc;
 
 use http::{Method, StatusCode};
@@ -13,9 +11,8 @@ use hyper::service::{make_service_fn, service_fn};
 use models::{InterfaceId, PackageId};
 use tokio::net::TcpStream;
 use tokio::sync::{oneshot, Mutex, RwLock};
-use tracing::{debug, error, info, instrument};
+use tracing::{error, info, instrument};
 
-use crate::net::interface::LanPortConfig;
 use crate::net::ssl::SslManager;
 use crate::net::{InterfaceMetadata, PackageNetInfo};
 //use crate::util::IntoDoubleEndedIterator;
@@ -26,7 +23,7 @@ use hyper::{Body, Client, Error as HyperError, Request, Response, Server};
 type HttpClient = Client<hyper::client::HttpConnector>;
 
 static RES_NOT_FOUND: &[u8] = b"503 Service Unavailable";
-
+static NO_HOST: &[u8] = b"No host header found";
 struct EmbassyHTTPServer {
     docker_mapping: Arc<RwLock<BTreeMap<String, SocketAddr>>>,
     shutdown: oneshot::Sender<()>,
@@ -36,39 +33,61 @@ impl EmbassyHTTPServer {
     async fn new(listener_addr: SocketAddr) -> Result<Self, Error> {
         let (tx, rx) = tokio::sync::oneshot::channel::<()>();
         let client = HttpClient::new();
+        dbg!(listener_addr);
+        let docker_service_mapping = Arc::new(RwLock::new(BTreeMap::<String, SocketAddr>::new()));
 
-        let docker_mapping = Arc::new(RwLock::new(BTreeMap::<String, SocketAddr>::new()));
-        let dock_lock = docker_mapping.clone();
+        let docker_service_mapping1 = docker_service_mapping.clone();
+
         let make_service = make_service_fn(move |_| {
             let client = client.clone();
-            let docker_mapping1 = dock_lock.clone();
+            let docker_service_mapping = docker_service_mapping.clone();
 
             async move {
-                let docker_service_mapping = docker_mapping1.clone();
+                let docker_service_mapping = docker_service_mapping.clone();
 
-                Ok::<_, HyperError>(service_fn(move |mut req| async move {
+                Ok::<_, HyperError>(service_fn(move |mut req| {
                     let docker_service_mapping = docker_service_mapping.clone();
+                    let client = client.clone();
 
-                    let docker = docker_service_mapping
-                        .read_owned()
-                        .await
-                        .get(&Self::host_addr(req.uri()).unwrap())
-                        .unwrap()
-                        .clone();
+                    async move {
+                        let docker_service_mapping = docker_service_mapping.clone();
 
-                    let uri_string = format!(
-                        "http://{}{}",
-                        docker.clone(),
-                        req.uri()
-                            .path_and_query()
-                            .map(|x| x.as_str())
-                            .unwrap_or("/")
-                    );
-                    let uri = uri_string.parse().unwrap();
-                    *req.uri_mut() = uri;
+                        let host = Self::host_addr(&req);
 
-                    // Ok::<_, HyperError>(Response::new(Body::empty()))
-                    return Ok::<_, HyperError>(Self::proxy(client, req).await?);
+                        match host {
+                            Ok(host_str) => {
+                                let dns_base =
+                                    host_str.split(':').next().unwrap_or_default().to_string();
+
+                                let docker_option = {
+                                    let mapping = docker_service_mapping.read_owned().await;
+                                    mapping.get(dbg!(&dns_base)).copied()
+                                };
+
+                                match docker_option {
+                                    Some(docker_addr) => {
+                                        let uri_string = format!(
+                                            "http://{}{}",
+                                            docker_addr,
+                                            req.uri()
+                                                .path_and_query()
+                                                .map(|x| x.as_str())
+                                                .unwrap_or("/")
+                                        );
+
+                                        dbg!(uri_string.clone());
+                                         let uri = uri_string.parse().unwrap();
+                                        *req.uri_mut() = uri;
+
+                                        // Ok::<_, HyperError>(Response::new(Body::empty()))
+                                        return Self::proxy(client, req).await;
+                                    }
+                                    None => Ok(res_not_found()),
+                                }
+                            }
+                            Err(e) => Ok(no_host_found(e)),
+                        }
+                    }
                 }))
             }
         });
@@ -90,7 +109,7 @@ impl EmbassyHTTPServer {
         });
 
         Ok(Self {
-            docker_mapping: docker_mapping.clone(),
+            docker_mapping: docker_service_mapping1,
             handle: handle.into(),
             shutdown: tx,
         })
@@ -123,28 +142,31 @@ impl EmbassyHTTPServer {
             // Note: only after client received an empty body with STATUS_OK can the
             // connection be upgraded, so we can't return a response inside
             // `on_upgrade` future.
-            if let Some(addr) = Self::host_addr(req.uri()) {
-                tokio::task::spawn(async move {
-                    match hyper::upgrade::on(req).await {
-                        Ok(upgraded) => {
-                            if let Err(e) = Self::tunnel(upgraded, addr).await {
-                                error!("server io error: {}", e);
-                            };
+            match Self::host_addr(&req) {
+                Ok(host) => {
+                    tokio::task::spawn(async move {
+                        match hyper::upgrade::on(req).await {
+                            Ok(upgraded) => {
+                                if let Err(e) = Self::tunnel(upgraded, host).await {
+                                    error!("server io error: {}", e);
+                                };
+                            }
+                            Err(e) => error!("upgrade error: {}", e),
                         }
-                        Err(e) => error!("upgrade error: {}", e),
-                    }
-                });
+                    });
 
-                Ok(Response::new(Body::empty()))
-            } else {
-                let err_txt = format!("CONNECT host is not socket addr: {:?}", req.uri());
-                let mut resp = Response::new(Body::from(format!(
-                    "CONNECT must be to a socket address: {}",
-                    err_txt
-                )));
-                *resp.status_mut() = http::StatusCode::BAD_REQUEST;
+                    Ok(Response::new(Body::empty()))
+                }
+                Err(e) => {
+                    let err_txt = format!("CONNECT host is not socket addr: {:?}", &req.uri());
+                    let mut resp = Response::new(Body::from(format!(
+                        "CONNECT must be to a socket address: {}: {}",
+                        err_txt, e
+                    )));
+                    *resp.status_mut() = http::StatusCode::BAD_REQUEST;
 
-                Ok(resp)
+                    Ok(resp)
+                }
             }
         } else {
             client.request(req).await
@@ -167,9 +189,22 @@ impl EmbassyHTTPServer {
         Ok(())
     }
 
-    fn host_addr(uri: &http::Uri) -> Option<String> {
+    fn host_addr(req: &Request<Body>) -> Result<String, Error> {
         // uri.authority().o
-        uri.authority().map(|auth| auth.to_string())
+        let host = req.headers().get(http::header::HOST);
+
+        match host {
+            Some(host) => {
+                let host = host
+                    .to_str()
+                    .map_err(|e| Error::new(eyre!("{}", e), crate::ErrorKind::AsciiError))?
+                    .to_string();
+
+                Ok(host)
+            }
+
+            None => Err(Error::new(eyre!("No Host"), crate::ErrorKind::NoHost)),
+        }
     }
 }
 
@@ -220,7 +255,7 @@ impl ProxyControllerInner {
             service_servers: BTreeMap::new(),
         };
 
-        let emnbassyd_port_80_svc = EmbassyHTTPServer::new(embassyd_addr).await?;
+        // let emnbassyd_port_80_svc = EmbassyHTTPServer::new(embassyd_addr).await?;
         Ok(inner)
     }
 
@@ -246,17 +281,19 @@ impl ProxyControllerInner {
             for (external_svc_port, lan_port_config) in meta.lan_config.iter() {
                 let mut listener_addr = self.embassyd_addr;
                 listener_addr.set_port(external_svc_port.0);
+                info!("listener addr: {}", listener_addr);
 
                 self.iface_lookups
                     .insert((package.clone(), id.clone()), meta.dns_base.clone());
 
                 let docker_addr = SocketAddr::from((ipv4, lan_port_config.internal));
+                info!("docker ip: {}", docker_addr);
                 if let Some(server) = self.service_servers.get_mut(&external_svc_port.0) {
-                    server.add_docker_mapping(&meta.dns_base, docker_addr);
+                    server.add_docker_mapping(dbg!(&meta.dns_base), docker_addr).await;
                 } else {
                     let mut new_service_server = EmbassyHTTPServer::new(listener_addr).await?;
                     new_service_server
-                        .add_docker_mapping(&meta.dns_base, docker_addr)
+                        .add_docker_mapping(dbg!(&meta.dns_base), docker_addr)
                         .await;
 
                     self.service_servers
@@ -334,5 +371,13 @@ fn res_not_found() -> Response<Body> {
     Response::builder()
         .status(StatusCode::SERVICE_UNAVAILABLE)
         .body(RES_NOT_FOUND.into())
+        .unwrap()
+}
+
+fn no_host_found(err: Error) -> Response<Body> {
+    let err_txt = format!("{}: Error {}", String::from_utf8_lossy(NO_HOST), err);
+    Response::builder()
+        .status(StatusCode::BAD_REQUEST)
+        .body(err_txt.into())
         .unwrap()
 }
