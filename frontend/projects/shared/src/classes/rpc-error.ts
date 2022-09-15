@@ -7,12 +7,16 @@ export class RpcError {
   constructor(private readonly error: RPCErrorDetails) {}
 
   private getMessage(): string {
+    let message: string
+
     if (typeof this.error.data === 'string') {
-      return `${this.error.message}\n\n${this.error.data}`
+      message = `${this.error.message}\n\n${this.error.data}`
+    } else {
+      message = this.error.data?.details
+        ? `${this.error.message}\n\n${this.error.data.details}`
+        : this.error.message
     }
 
-    return this.error.data?.details
-      ? `${this.error.message}\n\n${this.error.data.details}`
-      : this.error.message
+    return `RPC ERROR: ${message}`
   }
 }
