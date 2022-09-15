@@ -63,6 +63,7 @@ cd backend/
 sudo cp target/aarch64-unknown-linux-gnu/release/embassy-init /tmp/eos-mnt/usr/local/bin
 sudo cp target/aarch64-unknown-linux-gnu/release/embassyd /tmp/eos-mnt/usr/local/bin
 sudo cp target/aarch64-unknown-linux-gnu/release/embassy-cli /tmp/eos-mnt/usr/local/bin
+sudo cp target/aarch64-unknown-linux-gnu/release/avahi-alias /tmp/eos-mnt/usr/local/bin
 sudo cp *.service /tmp/eos-mnt/etc/systemd/system/
 
 cd ..
