@@ -70,7 +70,6 @@ export class MockApiService extends ApiService {
   // db
 
   async setDbValue(params: RR.SetDBValueReq): Promise<RR.SetDBValueRes> {
-    console.log('DB VALUE', params)
     await pauseFor(2000)
     const patch = [
       {
