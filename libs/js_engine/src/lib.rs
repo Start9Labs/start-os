@@ -798,15 +798,6 @@ mod fns {
         let parent = tokio::fs::canonicalize(parent).await?;
         Ok(child.starts_with(parent))
     }
-    #[tokio::test]
-    async fn test_is_subset() {
-        assert!(!dbg!(is_subset(
-            "/home/jm",
-            "/home/jm/code/Projects/../../.."
-        )
-        .await
-        .unwrap_or(false)))
-    }
 }
 
 fn system_time_as_unix_ms(system_time: &SystemTime) -> Option<u64> {
