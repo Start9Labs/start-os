@@ -70,7 +70,7 @@ impl NetController {
         Ok(Self {
             tor: TorController::init(embassyd_addr, embassyd_tor_key, tor_control).await?,
             #[cfg(feature = "avahi")]
-            mdns: MdnsController::init(),
+            mdns: MdnsController::init().await?,
             nginx: NginxController::init(PathBuf::from("/etc/nginx"), &ssl, &hostname).await?,
             ssl,
             dns: DnsController::init(dns_bind).await?,

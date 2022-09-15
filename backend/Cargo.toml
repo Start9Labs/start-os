@@ -36,6 +36,10 @@ path = "src/bin/embassy-sdk.rs"
 name = "embassy-cli"
 path = "src/bin/embassy-cli.rs"
 
+[[bin]]
+name = "avahi-alias"
+path = "src/bin/avahi-alias.rs"
+
 [features]
 avahi = ["avahi-sys"]
 default = ["avahi", "sound", "metal", "js_engine"]
