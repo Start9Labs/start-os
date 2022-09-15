@@ -37,8 +37,13 @@ export class MarketplaceService extends AbstractMarketplaceService {
   private readonly uiMarketplaceData$ = this.patch
     .watch$('ui', 'marketplace')
     .pipe(
+      filter(Boolean),
+      startWith({
+        'selected-id': null,
+        'known-hosts': {},
+      }),
       distinctUntilChanged(
-        (prev, curr) => prev?.['selected-id'] === curr?.['selected-id'],
+        (prev, curr) => prev['selected-id'] === curr['selected-id'],
       ),
       shareReplay(1),
     )
@@ -280,8 +285,8 @@ export class MarketplaceService extends AbstractMarketplaceService {
     }
   }
 
-  private toMarketplace(marketplace?: UIMarketplaceData): Marketplace {
-    return marketplace?.['selected-id']
+  private toMarketplace(marketplace: UIMarketplaceData): Marketplace {
+    return marketplace['selected-id']
       ? marketplace['known-hosts'][marketplace['selected-id']]
       : this.config.marketplace
   }
