@@ -26,6 +26,7 @@ import { ConfigService } from '../../../services/config.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import {
   distinctUntilChanged,
+  filter,
   finalize,
   first,
   takeUntil,
@@ -71,16 +72,20 @@ export class MarketplacesPage {
       .watch$('ui', 'marketplace')
       .pipe(distinctUntilChanged(), takeUntil(this.destroy$))
       .subscribe(mp => {
-        this.altMarketplaces = Object.entries(mp['known-hosts']).map(
-          ([k, v]) => {
-            return {
-              id: k,
-              name: v.name,
-              url: v.url,
-            }
-          },
-        )
-        this.selectedId = mp['selected-id']
+        if (mp) {
+          this.altMarketplaces = Object.entries(mp['known-hosts']).map(
+            ([k, v]) => {
+              return {
+                id: k,
+                name: v.name,
+                url: v.url,
+              }
+            },
+          )
+          this.selectedId = mp['selected-id']
+        } else {
+          this.selectedId = 'start9'
+        }
       })
   }
 
