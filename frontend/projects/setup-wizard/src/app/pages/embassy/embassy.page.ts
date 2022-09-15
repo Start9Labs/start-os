@@ -13,6 +13,7 @@ import {
 import { ErrorToastService } from '@start9labs/shared'
 import { StateService } from 'src/app/services/state.service'
 import { PasswordPage } from '../../modals/password/password.page'
+import { ActivatedRoute } from '@angular/router'
 
 @Component({
   selector: 'app-embassy',
@@ -22,6 +23,7 @@ import { PasswordPage } from '../../modals/password/password.page'
 export class EmbassyPage {
   storageDrives: DiskInfo[] = []
   loading = true
+  incomingAction = undefined
 
   constructor(
     private readonly apiService: ApiService,
@@ -31,10 +33,14 @@ export class EmbassyPage {
     private readonly stateService: StateService,
     private readonly loadingCtrl: LoadingController,
     private readonly errorToastService: ErrorToastService,
+    private route: ActivatedRoute,
   ) {}
 
   async ngOnInit() {
     await this.getDrives()
+    this.route.queryParams.subscribe(params => {
+      this.incomingAction = params['action']
+    })
   }
 
   tooSmall(drive: DiskInfo) {
@@ -129,7 +135,9 @@ export class EmbassyPage {
     try {
       await this.stateService.setupEmbassy(logicalname, password)
       if (!!this.stateService.recoverySource) {
-        await this.navCtrl.navigateForward(`/loading`)
+        await this.navCtrl.navigateForward(`/loading`, {
+          queryParams: { action: this.incomingAction },
+        })
       } else {
         await this.navCtrl.navigateForward(`/success`)
       }

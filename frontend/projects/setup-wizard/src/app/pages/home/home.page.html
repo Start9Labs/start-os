@@ -47,9 +47,7 @@
                   <ion-icon color="dark" slot="start" name="reload"></ion-icon>
                   <ion-label>
                     <h2><ion-text color="danger">Recover</ion-text></h2>
-                    <p>
-                      Restore from backup or use an existing Embassy data drive
-                    </p>
+                    <p>Recover, restore, upgrade, or migrate Embassy data</p>
                   </ion-label>
                 </ion-item>
               </ng-template>
@@ -70,6 +68,40 @@
                       <ion-text color="primary">Use Existing Drive</ion-text>
                     </h2>
                     <p>Attach and use a valid Embassy data drive</p>
+                  </ion-label>
+                </ion-item>
+                <ion-item
+                  button
+                  detail="true"
+                  lines="none"
+                  routerLink="/migrate"
+                >
+                  <ion-icon
+                    color="dark"
+                    slot="start"
+                    name="duplicate"
+                  ></ion-icon>
+                  <ion-label>
+                    <h2>
+                      <ion-text color="success">Migrate to EmbassyPro</ion-text>
+                    </h2>
+                    <p>Migrate data from an EmbassyOne to an EmbassyPro</p>
+                  </ion-label>
+                </ion-item>
+                <ion-item
+                  button
+                  detail="true"
+                  lines="none"
+                  routerLink="/migrate"
+                >
+                  <ion-icon
+                    color="dark"
+                    slot="start"
+                    name="arrow-up-circle"
+                  ></ion-icon>
+                  <ion-label>
+                    <h2><ion-text color="tertiary">Upgrade Drive</ion-text></h2>
+                    <p>Migrate data from one external hard drive to another</p>
                   </ion-label>
                 </ion-item>
               </ng-template>

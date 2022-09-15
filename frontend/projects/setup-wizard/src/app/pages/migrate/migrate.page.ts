@@ -37,8 +37,6 @@ export class MigratePage {
     return mapped.drive['embassy-os']?.full
   }
 
-  // like recover, make sure drive has guid, attach rpc,
-
   async getDrives() {
     this.mappedDrives = []
     try {
@@ -92,7 +90,10 @@ export class MigratePage {
       logicalname,
     }
     this.stateService.recoveryPassword = password
-    this.navCtrl.navigateForward(`/embassy`)
+    console.log(this.stateService)
+    this.navCtrl.navigateForward(`/embassy`, {
+      queryParams: { action: 'migrate' },
+    })
   }
 }
 

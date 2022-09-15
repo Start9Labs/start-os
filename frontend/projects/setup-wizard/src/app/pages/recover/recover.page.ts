@@ -118,7 +118,9 @@ export class RecoverPage {
       logicalname,
     }
     this.stateService.recoveryPassword = password
-    this.navCtrl.navigateForward(`/embassy`)
+    this.navCtrl.navigateForward(`/embassy`, {
+      queryParams: { action: 'recover' },
+    })
   }
 }
 

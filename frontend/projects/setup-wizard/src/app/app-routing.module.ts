@@ -14,6 +14,11 @@ const routes: Routes = [
       import('./pages/recover/recover.module').then(m => m.RecoverPageModule),
   },
   {
+    path: 'migrate',
+    loadChildren: () =>
+      import('./pages/migrate/migrate.module').then(m => m.MigratePageModule),
+  },
+  {
     path: 'embassy',
     loadChildren: () =>
       import('./pages/embassy/embassy.module').then(m => m.EmbassyPageModule),
