@@ -29,6 +29,13 @@ apt-mark hold raspberrypi-kernel
 # Convert all repos to use https:// before apt update
 sed -i "s/http:/https:/g" /etc/apt/sources.list /etc/apt/sources.list.d/*.list
 
+# switch dns to systemd-resolved
+systemctl enable systemd-resolved
+systemctl start systemd-resolved
+apt-get remove --purge openresolv dhcpcd5 -y
+systemctl disable wpa_supplicant.service
+ln -rsf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+
 apt-get update
 apt-get install -y \
 	nginx \
@@ -60,19 +67,10 @@ apt update && apt install -y tor deb.torproject.org-keyring
 
 curl -fsSL https://get.docker.com | sh # TODO: commit this script into git instead of live fetching it
 
-# enable embassyd dns server
-systemctl enable systemd-resolved
-sed -i '/\(^\|#\)DNS=/c\DNS=127.0.0.1' /etc/systemd/resolved.conf
-systemctl start systemd-resolved
-
-apt-get remove --purge openresolv dhcpcd5 -y
-systemctl disable wpa_supplicant.service
-
 sudo -u postgres createuser root
 sudo -u postgres createdb secrets -O root
 systemctl disable postgresql.service
 
-ln -rsf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 
 systemctl disable bluetooth.service
 systemctl disable hciuart.service
@@ -86,6 +84,7 @@ sed -i 's/ExecStart=\/usr\/bin\/dockerd/ExecStart=\/usr\/bin\/dockerd --exec-opt
 sed -i '/}/i \ \ \ \ application\/wasm \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ wasm;' /etc/nginx/mime.types
 sed -i 's/# server_names_hash_bucket_size 64;/server_names_hash_bucket_size 128;/g' /etc/nginx/nginx.conf
 sed -i 's/#allow-interfaces=eth0/allow-interfaces=eth0,wlan0/g' /etc/avahi/avahi-daemon.conf
+sed -i '/\(^\|#\)DNS=/c\DNS=127.0.0.1' /etc/systemd/resolved.conf
 echo "#" > /etc/network/interfaces
 echo '{ "cgroup-parent": "docker-engine.slice" }' > /etc/docker/daemon.json
 mkdir -p /etc/nginx/ssl
