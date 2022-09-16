@@ -790,6 +790,7 @@ export const action = {
     };
   },
   async "test-rename"(effects, _input) {
+    let failed = false;
     await effects.writeFile({
       volumeId: "main",
       path: "test-rename.txt",
@@ -813,13 +814,17 @@ export const action = {
       volumeId: "main",
     });
 
+    failed = false;
     try {
       await effects.removeFile({
         path: "test-rename.txt",
         volumeId: "main",
       });
-      assert(false, "Should not be able to remove file that doesn't exist");
-    } catch (_) {}
+    } catch (_) {
+      failed = true;
+    }
+    assert(failed, "Should not be able to remove file that doesn't exist");
+    
 
     return {
       result: {
@@ -840,7 +845,6 @@ export const action = {
    * @returns 
    */
   async "test-deep-dir"(effects, _input) {
-    effects.error("Test");
     await effects
       .removeDir({
         volumeId: "main",
@@ -855,6 +859,32 @@ export const action = {
       volumeId: "main",
       path: "test-deep-dir",
     });
+    return {
+      result: {
+        copyable: false,
+        message: "Done",
+        version: "0",
+        qr: false,
+      },
+    };
+  },
+  /**
+   * Found case where we could escape with the new deeper dir fix.
+   * @param {*} effects 
+   * @param {*} _input 
+   * @returns 
+   */
+  async "test-deep-dir-escape"(effects, _input) {
+    await effects
+      .removeDir({
+        volumeId: "main",
+        path: "test-deep-dir",
+      })
+      .catch(() => {});
+    await effects.createDir({
+      volumeId: "main",
+      path: "test-deep-dir/../../test",
+    }).then(_ => {throw new Error("Should not be able to create sub")}, _ => {});
 
     return {
       result: {

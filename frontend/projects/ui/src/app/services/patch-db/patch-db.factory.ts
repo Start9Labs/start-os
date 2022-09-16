@@ -1,5 +1,12 @@
 import { InjectionToken, Injector } from '@angular/core'
-import { bufferTime, catchError, switchMap, take, tap } from 'rxjs/operators'
+import {
+  bufferTime,
+  catchError,
+  filter,
+  switchMap,
+  take,
+  tap,
+} from 'rxjs/operators'
 import { Update } from 'patch-db-client'
 import { DataModel } from './data-model'
 import { defer, EMPTY, from, interval, merge, Observable } from 'rxjs'
@@ -22,6 +29,7 @@ export function sourceFactory(
 
     const websocket$ = api.openPatchWebsocket$().pipe(
       bufferTime(250),
+      filter(updates => !!updates.length),
       catchError((_, watch$) => {
         connectionService.websocketConnected$.next(false)
 

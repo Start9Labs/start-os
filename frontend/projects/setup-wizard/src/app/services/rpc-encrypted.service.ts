@@ -44,7 +44,7 @@ export class RPCEncryptedService {
       .then(res => JSON.parse(res))
       .catch(e => {
         if (!e.status && !e.statusText) {
-          throw new EncryptionError()
+          throw new NetworkError()
         } else {
           throw new HttpError(e)
         }
@@ -54,9 +54,10 @@ export class RPCEncryptedService {
   }
 }
 
-class EncryptionError {
+class NetworkError {
   readonly code = null
-  readonly message = 'Invalid Key'
+  readonly message =
+    'Network Error. Please try refreshing the page or clearing your browser cache'
   readonly details = null
 }
 

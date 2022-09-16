@@ -15,8 +15,8 @@
     "build:setup-wizard": "ng run setup-wizard:build",
     "build:ui": "ng run ui:build",
     "build:all": "npm run build:deps && npm run build:diagnostic-ui && npm run build:setup-wizard && npm run build:ui",
-    "start:diagnostic-ui": "npm run-script build-config && ionic serve --project diagnostic-ui --host 0.0.0.0",
-    "start:setup-wizard": "npm run-script build-config && ionic serve --project setup-wizard --host 0.0.0.0",
+    "start:diagnostic": "npm run-script build-config && ionic serve --project diagnostic-ui --host 0.0.0.0",
+    "start:setup": "npm run-script build-config && ionic serve --project setup-wizard --host 0.0.0.0",
     "start:ui": "npm run-script build-config && ionic serve --project ui --ip --host 0.0.0.0",
     "start:ui:proxy": "npm run-script build-config && ionic serve --project ui --ip --host 0.0.0.0 -- --proxy-config proxy.conf.json",
     "build-config": "node build-config.js"
@@ -37,6 +37,7 @@
     "@start9labs/emver": "^0.1.5",
     "aes-js": "^3.1.2",
     "ansi-to-html": "^0.7.2",
+    "base64-js": "^1.5.1",
     "cbor": "npm:@jprochazk/cbor@^0.4.9",
     "cbor-web": "^8.1.0",
     "core-js": "^3.21.1",

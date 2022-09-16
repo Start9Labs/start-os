@@ -863,11 +863,16 @@ export class MockApiService extends ApiService {
     }
 
     setTimeout(() => {
-      const patch2: Operation<PackageDataEntry>[] = [
+      const patch2: Operation<any>[] = [
         {
           op: PatchOp.REPLACE,
-          path: `/package-data/${id}`,
-          value: { ...Mock.LocalPkgs[id] },
+          path: `/package-data/${id}/state`,
+          value: PackageState.Installed,
+        },
+        {
+          op: PatchOp.ADD,
+          path: `/package-data/${id}/installed`,
+          value: { ...Mock.LocalPkgs[id].installed },
         },
         {
           op: PatchOp.REMOVE,

@@ -20,9 +20,6 @@
     "module": "es2020",
     "lib": ["es2020", "dom"],
     "paths": {
-      "stream": ["./node_modules/stream-browserify"],
-      "crypto": ["./node_modules/crypto-browserify"],
-      "vm": ["./node_modules/vm-browserify"],
       /* These paths are relative to each app base folder */
       "@start9labs/marketplace": ["../marketplace/src/public-api"],
       "@start9labs/shared": ["../shared/src/public-api"]

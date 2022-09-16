@@ -6,7 +6,6 @@ import {
   PackageDataEntry,
   PackageMainStatus,
   PackageState,
-  UIMarketplaceData,
 } from 'src/app/services/patch-db/data-model'
 import {
   PackageStatus,
@@ -16,11 +15,7 @@ import { filter, tap } from 'rxjs/operators'
 import { ActivatedRoute } from '@angular/router'
 import { getPkgId } from '@start9labs/shared'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
-import {
-  AbstractMarketplaceService,
-  Marketplace,
-} from '@start9labs/marketplace'
-import { Observable } from 'rxjs'
+import { AbstractMarketplaceService } from '@start9labs/marketplace'
 
 const STATES = [
   PackageState.Installing,

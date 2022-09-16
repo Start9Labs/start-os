@@ -47,10 +47,10 @@ pub fn db<M: Metadata>(ctx: RpcContext) -> DynMiddleware<M> {
                                             Err(dump) => serde_json::to_vec(&[dump]),
                                         }
                                         .with_kind(crate::ErrorKind::Serialization)?;
-                                        Ok::<_, Error>(
-                                            url::form_urlencoded::byte_serialize(&json)
-                                                .collect::<String>(),
-                                        )
+                                        Ok::<_, Error>(base64::encode_config(
+                                            &json,
+                                            base64::URL_SAFE,
+                                        ))
                                     }
                                     .await
                                     {
@@ -60,10 +60,10 @@ pub fn db<M: Metadata>(ctx: RpcContext) -> DynMiddleware<M> {
                                         Err(e) => res.headers.append(
                                             "X-Patch-Error",
                                             HeaderValue::from_str(
-                                                &url::form_urlencoded::byte_serialize(
-                                                    e.to_string().as_bytes(),
-                                                )
-                                                .collect::<String>(),
+                                                &base64::encode_config(
+                                                    &e.to_string(),
+                                                    base64::URL_SAFE,
+                                                ),
                                             )?,
                                         ),
                                     };

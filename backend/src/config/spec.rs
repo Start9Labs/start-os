@@ -1334,6 +1334,8 @@ impl DefaultableWith for ValueSpecString {
                     if &now.elapsed() > timeout {
                         return Err(TimeoutError);
                     }
+                } else {
+                    return Ok(Value::String(candidate));
                 }
             }
         } else {

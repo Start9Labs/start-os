@@ -1,6 +1,6 @@
 ENVIRONMENT_FILE := $(shell ./check-environment.sh)
 GIT_HASH_FILE := $(shell ./check-git-hash.sh)
-EMBASSY_BINS := backend/target/aarch64-unknown-linux-gnu/release/embassyd backend/target/aarch64-unknown-linux-gnu/release/embassy-init backend/target/aarch64-unknown-linux-gnu/release/embassy-cli backend/target/aarch64-unknown-linux-gnu/release/embassy-sdk
+EMBASSY_BINS := backend/target/aarch64-unknown-linux-gnu/release/embassyd backend/target/aarch64-unknown-linux-gnu/release/embassy-init backend/target/aarch64-unknown-linux-gnu/release/embassy-cli backend/target/aarch64-unknown-linux-gnu/release/embassy-sdk backend/target/aarch64-unknown-linux-gnu/release/avahi-alias
 EMBASSY_UIS := frontend/dist/ui frontend/dist/setup-wizard frontend/dist/diagnostic-ui
 EMBASSY_SRC := raspios.img product_key.txt $(EMBASSY_BINS) backend/embassyd.service backend/embassy-init.service $(EMBASSY_UIS) $(shell find build)
 COMPAT_SRC := $(shell find system-images/compat/src)
