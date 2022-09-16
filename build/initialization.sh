@@ -84,7 +84,6 @@ sed -i 's/ExecStart=\/usr\/bin\/dockerd/ExecStart=\/usr\/bin\/dockerd --exec-opt
 sed -i '/}/i \ \ \ \ application\/wasm \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ wasm;' /etc/nginx/mime.types
 sed -i 's/# server_names_hash_bucket_size 64;/server_names_hash_bucket_size 128;/g' /etc/nginx/nginx.conf
 sed -i 's/#allow-interfaces=eth0/allow-interfaces=eth0,wlan0/g' /etc/avahi/avahi-daemon.conf
-sed -i '/\(^\|#\)DNS=/c\DNS=127.0.0.1' /etc/systemd/resolved.conf
 echo "#" > /etc/network/interfaces
 echo '{ "cgroup-parent": "docker-engine.slice" }' > /etc/docker/daemon.json
 mkdir -p /etc/nginx/ssl
@@ -141,6 +140,8 @@ systemctl disable initialization.service
 sudo systemctl restart NetworkManager
 
 echo "fs.inotify.max_user_watches=1048576" > /etc/sysctl.d/97-embassy.conf
+
+sed -i '/\(^\|#\)DNS=/c\DNS=127.0.0.1' /etc/systemd/resolved.conf
 
 sync
 
