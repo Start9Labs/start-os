@@ -34,6 +34,8 @@ export class AppInterfacesPage {
 
   async ngOnInit() {
     const pkg = await getPackage(this.patch, this.pkgId)
+    if (!pkg) return
+
     const interfaces = pkg.manifest.interfaces
     const uiKey = getUiInterfaceKey(interfaces)
 
