@@ -2,23 +2,12 @@ use std::sync::Arc;
 
 use aes::cipher::{CipherKey, NewCipher, Nonce, StreamCipher};
 use aes::Aes256Ctr;
-use color_eyre::eyre::eyre;
-use futures::future::BoxFuture;
-use futures::{FutureExt, Stream};
+use futures::Stream;
 use hmac::Hmac;
-use http::{HeaderMap, HeaderValue};
-use rpc_toolkit::hyper::http::Error as HttpError;
-use rpc_toolkit::hyper::{self, Body, Request, Response, StatusCode};
-use rpc_toolkit::rpc_server_helpers::{
-    to_response, DynMiddleware, DynMiddlewareStage2, DynMiddlewareStage3, DynMiddlewareStage4,
-};
-use rpc_toolkit::yajrc::RpcMethod;
-use rpc_toolkit::Metadata;
+use josekit::jwk::Jwk;
+use rpc_toolkit::hyper::{self, Body};
+use serde::{Deserialize, Serialize};
 use sha2::Sha256;
-
-use crate::context::SetupContext;
-use crate::util::Apply;
-use crate::Error;
 
 pub fn pbkdf2(password: impl AsRef<[u8]>, salt: impl AsRef<[u8]>) -> CipherKey<Aes256Ctr> {
     let mut aeskey = CipherKey::<Aes256Ctr>::default();
@@ -162,113 +151,42 @@ impl Stream for EncryptStream {
         }
     }
 }
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct EncryptedWire {
+    encrypted: String,
+}
+impl EncryptedWire {
+    pub fn decrypt(self, current_secret: impl AsRef<Jwk>) -> Option<String> {
+        let current_secret = current_secret.as_ref();
 
-fn encrypted(headers: &HeaderMap) -> bool {
-    headers
-        .get("Content-Encoding")
-        .and_then(|h| {
-            h.to_str()
-                .ok()?
-                .split(',')
-                .any(|s| s == "aesctr256")
-                .apply(Some)
-        })
-        .unwrap_or_default()
+        let decrypter = josekit::jwe::alg::ecdh_es::EcdhEsJweAlgorithm::EcdhEs
+            .decrypter_from_jwk(current_secret)
+            .unwrap();
+        let (decoded, _) = josekit::jwe::deserialize_json(&self.encrypted, &decrypter).ok()?;
+        String::from_utf8(decoded).ok()
+    }
 }
 
-pub fn encrypt<M: Metadata>(ctx: SetupContext) -> DynMiddleware<M> {
-    Box::new(
-        move |req: &mut Request<Body>,
-              metadata: M|
-              -> BoxFuture<Result<Result<DynMiddlewareStage2, Response<Body>>, HttpError>> {
-            let keysource = ctx.clone();
-            async move {
-                let encrypted = encrypted(req.headers());
-                let current_secret: Option<String> = keysource.current_secret.read().await.clone();
-                let key = if encrypted {
-                    let key = match current_secret {
-                        Some(s) => s,
-                        None => {
-                            let (res_parts, _) = Response::new(()).into_parts();
-                            return Ok(Err(to_response(
-                                req.headers(),
-                                res_parts,
-                                Err(Error::new(
-                                    eyre!("No Secret has been set"),
-                                    crate::ErrorKind::RateLimited,
-                                )
-                                .into()),
-                                |_| StatusCode::OK,
-                            )?));
-                        }
-                    };
-                    let body = std::mem::take(req.body_mut());
-                    *req.body_mut() =
-                        Body::wrap_stream(DecryptStream::new(Arc::new(key.clone()), body));
-                    Some(key)
-                } else {
-                    None
-                };
-                let res: DynMiddlewareStage2 = Box::new(move |req, rpc_req| {
-                    async move {
-                        if !encrypted
-                            && metadata
-                                .get(rpc_req.method.as_str(), "authenticated")
-                                .unwrap_or(true)
-                        {
-                            let (res_parts, _) = Response::new(()).into_parts();
-                            Ok(Err(to_response(
-                                &req.headers,
-                                res_parts,
-                                Err(Error::new(
-                                    eyre!("Must be encrypted"),
-                                    crate::ErrorKind::Authorization,
-                                )
-                                .into()),
-                                |_| StatusCode::OK,
-                            )?))
-                        } else {
-                            let res: DynMiddlewareStage3 = Box::new(move |_, _| {
-                                async move {
-                                    let res: DynMiddlewareStage4 = Box::new(move |res| {
-                                        async move {
-                                            if let Some(key) = key {
-                                                res.headers_mut().insert(
-                                                    "Content-Encoding",
-                                                    HeaderValue::from_static("aesctr256"),
-                                                );
-                                                if let Some(len_header) =
-                                                    res.headers_mut().get_mut("Content-Length")
-                                                {
-                                                    if let Some(len) = len_header
-                                                        .to_str()
-                                                        .ok()
-                                                        .and_then(|l| l.parse::<u64>().ok())
-                                                    {
-                                                        *len_header = HeaderValue::from(len + 32);
-                                                    }
-                                                }
-                                                let body = std::mem::take(res.body_mut());
-                                                *res.body_mut() = Body::wrap_stream(
-                                                    EncryptStream::new(key.as_ref(), body),
-                                                );
-                                            }
-                                            Ok(())
-                                        }
-                                        .boxed()
-                                    });
-                                    Ok(Ok(res))
-                                }
-                                .boxed()
-                            });
-                            Ok(Ok(res))
-                        }
-                    }
-                    .boxed()
-                });
-                Ok(Ok(res))
-            }
-            .boxed()
-        },
+/// We created this test by first making the private key, then restoring from this private key for recreatability.
+/// After this the frontend then encoded an password, then we are testing that the output that we got (hand coded)
+/// will be the shape we want.
+#[test]
+fn test_gen_awk() {
+    let private_key: Jwk = serde_json::from_str(
+        r#"{
+            "kty": "EC",
+            "crv": "P-256",
+            "d": "3P-MxbUJtEhdGGpBCRFXkUneGgdyz_DGZWfIAGSCHOU",
+            "x": "yHTDYSfjU809fkSv9MmN4wuojf5c3cnD7ZDN13n-jz4",
+            "y": "8Mpkn744A5KDag0DmX2YivB63srjbugYZzWc3JOpQXI"
+          }"#,
     )
+    .unwrap();
+    let encrypted: EncryptedWire =  serde_json::from_str(r#"{
+        "encrypted": "\n    {\n        \"protected\": \"eyJlbmMiOiJBMTI4Q0JDLUhTMjU2IiwiYWxnIjoiRUNESC1FUyIsImtpZCI6ImgtZnNXUVh2Tm95dmJEazM5dUNsQ0NUdWc5N3MyZnJockJnWUVBUWVtclUiLCJlcGsiOnsia3R5IjoiRUMiLCJjcnYiOiJQLTI1NiIsIngiOiJmRkF0LXNWYWU2aGNkdWZJeUlmVVdUd3ZvWExaTkdKRHZIWVhIckxwOXNNIiwieSI6IjFvVFN6b00teHlFZC1SLUlBaUFHdXgzS1dJZmNYZHRMQ0JHLUh6MVkzY2sifX0\",\n        \"iv\": \"NbwvfvWOdLpZfYRIZUrkcw\",\n        \"ciphertext\": \"Zc5Br5kYOlhPkIjQKOLMJw\",\n        \"tag\": \"EPoch52lDuCsbUUulzZGfg\"\n    }\n"
+      }"#).unwrap();
+    assert_eq!(
+        "testing12345",
+        &encrypted.decrypt(Arc::new(private_key)).unwrap()
+    );
 }
