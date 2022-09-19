@@ -64,7 +64,7 @@ where
     Ok(password)
 }
 
-#[command(subcommands(status, disk, attach, execute, recovery, cifs, complete, get_secret))]
+#[command(subcommands(status, disk, attach, execute, recovery, cifs, complete, get_pubkey))]
 pub fn setup() -> Result<(), Error> {
     Ok(())
 }
@@ -204,11 +204,11 @@ pub async fn recovery_status(
 /// This way the frontend can send a secret, like the password for the setup/ recovory
 /// without knowing the password over clearnet. We use the public key shared across the network
 /// since it is fine to share the public, and encrypt against the public.
-#[command(rename = "get-secret", rpc_only, metadata(authenticated = false))]
-pub async fn get_secret(#[context] ctx: SetupContext) -> Result<Arc<Jwk>, RpcError> {
+#[command(rename = "get-pubkey", rpc_only, metadata(authenticated = false))]
+pub async fn get_pubkey(#[context] ctx: SetupContext) -> Result<Jwk, RpcError> {
     let secret = ctx.current_secret.clone();
-    // let pub_key = secret.to_public_key()?;
-    Ok(secret)
+    let pub_key = secret.to_public_key()?;
+    Ok(pub_key)
 }
 
 #[command(subcommands(verify_cifs))]
