@@ -58,12 +58,13 @@ apt-get install -y \
 	jq \
 	ncdu \
 	postgresql \
-	pgloader
+	pgloader \
+	dnsutils
 
 # Setup repository from The Guardian Project and install latest stable Tor daemon
 echo "deb     [arch=arm64 signed-by=/usr/share/keyrings/tor-archive-keyring.gpg] https://deb.torproject.org/torproject.org bullseye main" > /etc/apt/sources.list.d/tor.list
 wget -qO- https://deb.torproject.org/torproject.org/A3C4F0F979CAA22CDBA8F512EE8CBC9E886DDD89.asc | gpg --dearmor | tee /usr/share/keyrings/tor-archive-keyring.gpg >/dev/null
-apt update && apt install -y tor deb.torproject.org-keyring
+apt-get update && apt-get install -y tor deb.torproject.org-keyring
 
 curl -fsSL https://get.docker.com | sh # TODO: commit this script into git instead of live fetching it
 
@@ -84,7 +85,7 @@ sed -i 's/ExecStart=\/usr\/bin\/dockerd/ExecStart=\/usr\/bin\/dockerd --exec-opt
 sed -i '/}/i \ \ \ \ application\/wasm \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ wasm;' /etc/nginx/mime.types
 sed -i 's/# server_names_hash_bucket_size 64;/server_names_hash_bucket_size 128;/g' /etc/nginx/nginx.conf
 sed -i 's/#allow-interfaces=eth0/allow-interfaces=eth0,wlan0/g' /etc/avahi/avahi-daemon.conf
-echo "#" > /etc/network/interfaces
+# echo "#" > /etc/network/interfaces
 echo '{ "cgroup-parent": "docker-engine.slice" }' > /etc/docker/daemon.json
 mkdir -p /etc/nginx/ssl
 
