@@ -117,7 +117,6 @@ export class MarketplacesPage {
   async presentAction(id: string | null) {
     // no need to view actions if is selected marketplace
     const marketplace = await getMarketplace(this.patch)
-
     if (id === marketplace['selected-id']) return
 
     const buttons: ActionSheetButton[] = [

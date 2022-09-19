@@ -8,7 +8,7 @@ import { filter, firstValueFrom } from 'rxjs'
 export function getPackage(
   patch: PatchDB<DataModel>,
   id: string,
-): Promise<PackageDataEntry> {
+): Promise<PackageDataEntry | undefined> {
   return firstValueFrom(patch.watch$('package-data', id))
 }
 
