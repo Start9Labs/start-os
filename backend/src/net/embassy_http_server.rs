@@ -58,6 +58,7 @@ impl EmbassyHTTPServer {
 
                         match host {
                             Ok(host_str) => {
+                                // host_str is a string like example.com:443, we just want the fqdn before the semi colon
                                 let dns_base =
                                     host_str.split(':').next().unwrap_or_default().to_string();
 

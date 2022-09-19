@@ -103,6 +103,7 @@ fn server_error() -> Response<Body> {
         .body("".into())
         .unwrap()
 }
+
 async fn file_send(
     _valid_session: HasValidSession,
     _ctx: &RpcContext,
@@ -190,6 +191,7 @@ fn with_content_type(path: &Path, builder: Builder) -> Builder {
     };
     builder.header("Content-Type", content_type)
 }
+
 fn with_content_length(metadata: &Metadata, builder: Builder) -> Builder {
-    builder.header("Content-Length", metadata.len())
+    builder.header(http::header::CONTENT_LENGTH, metadata.len())
 }
