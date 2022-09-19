@@ -153,7 +153,7 @@ impl Stream for EncryptStream {
 }
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct EncryptedWire {
-    encrypted: String,
+    encrypted: serde_json::Value,
 }
 impl EncryptedWire {
     pub fn decrypt(self, current_secret: impl AsRef<Jwk>) -> Option<String> {
@@ -162,7 +162,8 @@ impl EncryptedWire {
         let decrypter = josekit::jwe::alg::ecdh_es::EcdhEsJweAlgorithm::EcdhEs
             .decrypter_from_jwk(current_secret)
             .unwrap();
-        let (decoded, _) = josekit::jwe::deserialize_json(&self.encrypted, &decrypter).ok()?;
+        let encrypted = serde_json::to_string(&self.encrypted).ok()?;
+        let (decoded, _) = josekit::jwe::deserialize_json(&encrypted, &decrypter).ok()?;
         String::from_utf8(decoded).ok()
     }
 }
@@ -183,7 +184,7 @@ fn test_gen_awk() {
     )
     .unwrap();
     let encrypted: EncryptedWire =  serde_json::from_str(r#"{
-        "encrypted": "\n    {\n        \"protected\": \"eyJlbmMiOiJBMTI4Q0JDLUhTMjU2IiwiYWxnIjoiRUNESC1FUyIsImtpZCI6ImgtZnNXUVh2Tm95dmJEazM5dUNsQ0NUdWc5N3MyZnJockJnWUVBUWVtclUiLCJlcGsiOnsia3R5IjoiRUMiLCJjcnYiOiJQLTI1NiIsIngiOiJmRkF0LXNWYWU2aGNkdWZJeUlmVVdUd3ZvWExaTkdKRHZIWVhIckxwOXNNIiwieSI6IjFvVFN6b00teHlFZC1SLUlBaUFHdXgzS1dJZmNYZHRMQ0JHLUh6MVkzY2sifX0\",\n        \"iv\": \"NbwvfvWOdLpZfYRIZUrkcw\",\n        \"ciphertext\": \"Zc5Br5kYOlhPkIjQKOLMJw\",\n        \"tag\": \"EPoch52lDuCsbUUulzZGfg\"\n    }\n"
+        "encrypted":     {        "protected": "eyJlbmMiOiJBMTI4Q0JDLUhTMjU2IiwiYWxnIjoiRUNESC1FUyIsImtpZCI6ImgtZnNXUVh2Tm95dmJEazM5dUNsQ0NUdWc5N3MyZnJockJnWUVBUWVtclUiLCJlcGsiOnsia3R5IjoiRUMiLCJjcnYiOiJQLTI1NiIsIngiOiJmRkF0LXNWYWU2aGNkdWZJeUlmVVdUd3ZvWExaTkdKRHZIWVhIckxwOXNNIiwieSI6IjFvVFN6b00teHlFZC1SLUlBaUFHdXgzS1dJZmNYZHRMQ0JHLUh6MVkzY2sifX0",        "iv": "NbwvfvWOdLpZfYRIZUrkcw",        "ciphertext": "Zc5Br5kYOlhPkIjQKOLMJw",        "tag": "EPoch52lDuCsbUUulzZGfg"    }
       }"#).unwrap();
     assert_eq!(
         "testing12345",
