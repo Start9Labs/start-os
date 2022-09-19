@@ -28,11 +28,6 @@ type Encrypted = {
   encrypted: string
 }
 
-export function encodeUtf8(str: string): Uint8Array {
-  const encoder = new TextEncoder()
-  return encoder.encode(str)
-}
-
 export type GetStatusRes = {
   migrating: boolean
 }
