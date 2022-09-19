@@ -79,10 +79,10 @@ frontend/dist/ui: $(FRONTEND_UI_SRC) $(FRONTEND_SHARED_SRC) $(ENVIRONMENT_FILE)
 	npm --prefix frontend run build:ui
 
 frontend/dist/setup-wizard: $(FRONTEND_SETUP_WIZARD_SRC) $(FRONTEND_SHARED_SRC) $(ENVIRONMENT_FILE)
-	npm --prefix frontend run build:setup-wizard
+	npm --prefix frontend run build:setup
 
 frontend/dist/diagnostic-ui: $(FRONTEND_DIAGNOSTIC_UI_SRC) $(FRONTEND_SHARED_SRC) $(ENVIRONMENT_FILE)
-	npm --prefix frontend run build:diagnostic-ui
+	npm --prefix frontend run build:dui
 
 frontend/config.json: $(GIT_HASH_FILE) frontend/config-sample.json
 	jq '.useMocks = false' frontend/config-sample.json > frontend/config.json
