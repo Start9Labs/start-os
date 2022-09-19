@@ -17,7 +17,6 @@ export abstract class ApiService {
     const encrypted = await jose.JWE.createEncrypt(this.pubkey!)
       .update(toEncrypt)
       .final()
-    console.log(encrypted)
     return {
       encrypted,
     }
