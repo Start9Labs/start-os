@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { pauseFor } from '@start9labs/shared'
+import { encodeBase64, pauseFor } from '@start9labs/shared'
 import {
   ApiService,
   CifsRecoverySource,
@@ -131,7 +131,7 @@ YJidaq7je6k18AdgPA0Kh8y1XtfUH3fTaVw4
 const setupRes = {
   'tor-address': 'http://asdafsadasdasasdasdfasdfasdf.onion',
   'lan-address': 'https://embassy-abcdefgh.local',
-  'root-ca': btoa(rootCA),
+  'root-ca': encodeBase64(rootCA),
 }
 
 const disks = [

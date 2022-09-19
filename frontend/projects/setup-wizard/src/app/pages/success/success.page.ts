@@ -104,7 +104,6 @@ export class SuccessPage {
 
   checkBottom() {
     const bottomDiv = document.getElementById('bottom-div')
-    console.error(bottomDiv)
     this.isOnBottom =
       !!bottomDiv &&
       bottomDiv.getBoundingClientRect().top - 192 < window.innerHeight

@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core'
 import {
+  encodeBase64,
   HttpService,
   isRpcError,
   RpcError,
@@ -48,21 +49,13 @@ export class LiveApiService implements ApiService {
   async getSecret() {
     const keystore = jose.JWK.createKeyStore()
     const key = await keystore.generate('EC', 'P-256')
-    // const { privateKey, publicKey } =
-
-    // jose.generateKeyPair('ECDH-ES', {
-    //   extractable: true,
-    // })
-    console.log({ publicKey: key.toJSON() })
     const response: string = await this.rpcRequest({
       method: 'setup.get-secret',
       params: { pubkey: key.toJSON() },
     })
 
-    // const { plaintext } = await jose.compactDecrypt(response, privateKey)
     const decrypted = await jose.JWE.createDecrypt(key).decrypt(response)
     const decoded = new TextDecoder().decode(decrypted.plaintext)
-    console.log({ decoded })
 
     return decoded
   }
@@ -106,7 +99,7 @@ export class LiveApiService implements ApiService {
 
     return {
       ...res,
-      'root-ca': btoa(res['root-ca']),
+      'root-ca': encodeBase64(res['root-ca']),
     }
   }
 
@@ -124,7 +117,7 @@ export class LiveApiService implements ApiService {
 
     return {
       ...res,
-      'root-ca': btoa(res['root-ca']),
+      'root-ca': encodeBase64(res['root-ca']),
     }
   }
 
@@ -136,7 +129,7 @@ export class LiveApiService implements ApiService {
 
     return {
       ...res,
-      'root-ca': btoa(res['root-ca']),
+      'root-ca': encodeBase64(res['root-ca']),
     }
   }
 

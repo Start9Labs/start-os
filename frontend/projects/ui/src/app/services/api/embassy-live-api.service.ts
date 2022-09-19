@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@angular/core'
 import {
+  decodeBase64,
   HttpOptions,
   HttpService,
   isRpcError,
@@ -18,7 +19,6 @@ import { AuthService } from '../auth.service'
 import { DOCUMENT } from '@angular/common'
 import { DataModel } from '../patch-db/data-model'
 import { PatchDB, Update } from 'patch-db-client'
-import * as Base64 from 'base64-js'
 
 @Injectable()
 export class LiveApiService extends ApiService {
@@ -420,15 +420,13 @@ export class LiveApiService extends ApiService {
     const encodedError = res.headers.get('x-patch-error')
 
     if (encodedUpdates) {
-      const decoded = new TextDecoder().decode(
-        Base64.toByteArray(encodedUpdates),
-      )
+      const decoded = decodeBase64(encodedUpdates)
       const updates: Update<DataModel>[] = JSON.parse(decoded)
       this.patchStream$.next(updates)
     }
 
     if (encodedError) {
-      const error = new TextDecoder().decode(Base64.toByteArray(encodedError))
+      const error = decodeBase64(encodedError)
       console.error(error)
     }
 
