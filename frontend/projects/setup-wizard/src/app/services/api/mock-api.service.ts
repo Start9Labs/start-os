@@ -25,7 +25,17 @@ export class MockApiService extends ApiService {
     await pauseFor(1000)
 
     const keystore = jose.JWK.createKeyStore()
-    this.pubkey = await keystore.generate('EC', 'P-256')
+
+    // randomly generated
+    // this.pubkey = await keystore.generate('EC', 'P-256')
+
+    // generated from backend
+    this.pubkey = await jose.JWK.asKey({
+      kty: 'EC',
+      crv: 'P-256',
+      x: 'yHTDYSfjU809fkSv9MmN4wuojf5c3cnD7ZDN13n-jz4',
+      y: '8Mpkn744A5KDag0DmX2YivB63srjbugYZzWc3JOpQXI',
+    })
   }
 
   async getDrives() {
