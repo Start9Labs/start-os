@@ -26,7 +26,6 @@ import { ConfigService } from '../../../services/config.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import {
   distinctUntilChanged,
-  filter,
   finalize,
   first,
   takeUntil,
@@ -292,13 +291,6 @@ export class MarketplacesPage {
     return this.standardMarketplaces
       .concat(this.altMarketplaces)
       .find(m => m.id === id)!
-  }
-
-  private dismissLoader() {
-    if (this.loader) {
-      this.loader.dismiss()
-      this.loader = undefined
-    }
   }
 }
 
