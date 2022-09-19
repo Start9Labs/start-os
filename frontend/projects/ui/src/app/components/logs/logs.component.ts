@@ -70,7 +70,6 @@ export class LogsComponent {
         url: `/rpc/${guid}`,
         openObserver: {
           next: () => {
-            console.log('**** LOGS WEBSOCKET OPEN ****')
             this.websocketFail = false
             this.processJob()
           },

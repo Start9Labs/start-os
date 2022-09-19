@@ -69,7 +69,6 @@ export class FilterPackagesPipe implements PipeTransform {
       }
 
       const fuse = new Fuse(packages, options)
-      console.log(fuse.search(query))
       return fuse.search(query).map(p => p.item)
     }
 
