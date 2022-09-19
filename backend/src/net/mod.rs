@@ -19,7 +19,7 @@ use self::tor::TorController;
 use crate::net::dns::DnsController;
 use crate::net::interface::{LanPortConfig, TorConfig};
 use crate::net::proxy_controller::ProxyController;
-//use crate::net::nginx::InterfaceMetadata;
+
 use crate::s9pk::manifest::PackageId;
 use crate::util::serde::Port;
 use crate::Error;
@@ -30,6 +30,7 @@ pub mod interface;
 pub mod mdns;
 //pub mod nginx;
 pub mod proxy_controller;
+pub mod embassy_http_server;
 pub mod ssl;
 pub mod tor;
 pub mod wifi;
@@ -45,7 +46,7 @@ struct PackageNetInfo {
     interfaces: BTreeMap<InterfaceId, InterfaceMetadata>,
 }
 pub struct InterfaceMetadata {
-    pub dns_base: String,
+    pub fqdn: String,
     pub lan_config: BTreeMap<Port, LanPortConfig>,
     pub protocols: IndexSet<String>,
 }
@@ -134,7 +135,7 @@ impl NetController {
                     .filter_map(|(id, interface, tor_key)| interface.lan_config.as_ref().map(|cfg| (
                             id,
                             InterfaceMetadata {
-                                dns_base: OnionAddressV3::from(&tor_key.public())
+                                fqdn: OnionAddressV3::from(&tor_key.public())
                                     .get_address_without_dot_onion() + ".local",
                                 lan_config: cfg.clone(),
                                 protocols: interface.protocols.clone(),
