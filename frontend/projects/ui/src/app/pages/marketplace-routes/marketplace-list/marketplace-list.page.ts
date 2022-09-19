@@ -23,6 +23,8 @@ export class MarketplaceListPage {
     .getMarketplace()
     .pipe(map(({ name }) => name))
 
+  readonly description$ = this.marketplaceService.getDescription()
+
   constructor(
     private readonly patch: PatchDB<DataModel>,
     private readonly marketplaceService: AbstractMarketplaceService,

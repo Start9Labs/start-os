@@ -14,3 +14,27 @@
 .status {
   font-size: 14px;
 }
+
+.description {
+
+  ion-label {
+    padding-left: 8px;
+    font-size: 1.4rem;
+    
+    @media small {
+      font-size: 1rem;
+    }
+  }
+}
+
+.center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  height: 30%; // overwrites styles.scss
+}
+
+.text-center {
+  text-align: center;
+}

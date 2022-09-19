@@ -148,6 +148,10 @@ export class MarketplaceService extends AbstractMarketplaceService {
     return this.categories$
   }
 
+  getDescription(): Observable<string | undefined> {
+    return this.registryData$.pipe(map(({ description }) => description))
+  }
+
   getPackages(): Observable<MarketplacePkg[]> {
     return this.pkgs$
   }
