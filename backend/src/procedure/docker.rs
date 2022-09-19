@@ -10,7 +10,7 @@ use bollard::container::RemoveContainerOptions;
 use color_eyre::eyre::eyre;
 use color_eyre::Report;
 use futures::future::Either as EitherFuture;
-use futures::TryStreamExt;
+use futures::{Stream, TryStreamExt};
 use helpers::NonDetachingJoinHandle;
 use nix::sys::signal;
 use nix::unistd::Pid;
@@ -138,6 +138,194 @@ impl DockerProcedure {
         input: Option<I>,
         timeout: Option<Duration>,
     ) -> Result<Result<O, (i32, String)>, Error> {
+        let name = name.docker_name();
+        let name: Option<&str> = name.as_ref().map(|x| &**x);
+        let mut cmd = tokio::process::Command::new("docker");
+        tracing::debug!("{:?} is run", name);
+        let container_name = Self::container_name(pkg_id, name);
+        cmd.arg("run")
+            .arg("--rm")
+            .arg("--network=start9")
+            .arg(format!("--add-host=embassy:{}", Ipv4Addr::from(HOST_IP)))
+            .arg("--name")
+            .arg(&container_name)
+            .arg(format!("--hostname={}", &container_name))
+            .arg("--no-healthcheck");
+        match ctx
+            .docker
+            .remove_container(
+                &container_name,
+                Some(RemoveContainerOptions {
+                    v: false,
+                    force: true,
+                    link: false,
+                }),
+            )
+            .await
+        {
+            Ok(())
+            | Err(bollard::errors::Error::DockerResponseServerError {
+                status_code: 404, // NOT FOUND
+                ..
+            }) => Ok(()),
+            Err(e) => Err(e),
+        }?;
+        cmd.args(self.docker_args(ctx, pkg_id, pkg_version, volumes).await?);
+        let input_buf = if let (Some(input), Some(format)) = (&input, &self.io_format) {
+            cmd.stdin(std::process::Stdio::piped());
+            Some(format.to_vec(input)?)
+        } else {
+            None
+        };
+        cmd.stdout(std::process::Stdio::piped());
+        cmd.stderr(std::process::Stdio::piped());
+        tracing::trace!(
+            "{}",
+            format!("{:?}", cmd)
+                .split(r#"" ""#)
+                .collect::<Vec<&str>>()
+                .join(" ")
+        );
+        let mut handle = cmd.spawn().with_kind(crate::ErrorKind::Docker)?;
+        let id = handle.id();
+        let timeout_fut = if let Some(timeout) = timeout {
+            EitherFuture::Right(async move {
+                tokio::time::sleep(timeout).await;
+
+                Ok(())
+            })
+        } else {
+            EitherFuture::Left(futures::future::pending::<Result<_, Error>>())
+        };
+        if let (Some(input), Some(mut stdin)) = (&input_buf, handle.stdin.take()) {
+            use tokio::io::AsyncWriteExt;
+            stdin
+                .write_all(input)
+                .await
+                .with_kind(crate::ErrorKind::Docker)?;
+            stdin.flush().await?;
+            stdin.shutdown().await?;
+            drop(stdin);
+        }
+        enum Race<T> {
+            Done(T),
+            TimedOut,
+        }
+
+        let io_format = self.io_format;
+        let mut output = BufReader::new(
+            handle
+                .stdout
+                .take()
+                .ok_or_else(|| eyre!("Can't takeout stout"))
+                .with_kind(crate::ErrorKind::Docker)?,
+        );
+        let output = NonDetachingJoinHandle::from(tokio::spawn(async move {
+            match async {
+                if let Some(format) = io_format {
+                    return match max_by_lines(&mut output, None).await {
+                        MaxByLines::Done(buffer) => {
+                            Ok::<Value, Error>(
+                                match format.from_slice(buffer.as_bytes()) {
+                                    Ok(a) => a,
+                                    Err(e) => {
+                                        tracing::trace!(
+                                        "Failed to deserialize stdout from {}: {}, falling back to UTF-8 string.",
+                                        format,
+                                        e
+                                    );
+                                        Value::String(buffer)
+                                    }
+                                },
+                            )
+                        },
+                        MaxByLines::Error(e) => Err(e),
+                        MaxByLines::Overflow(buffer) => Ok(Value::String(buffer))
+                    }
+                }
+
+                let lines = buf_reader_to_lines(&mut output, 1000).await?;
+                if lines.is_empty() {
+                    return Ok(Value::Null);
+                }
+
+                let joined_output = lines.join("\n");
+                Ok(Value::String(joined_output))
+            }.await {
+                Ok(a) => Ok((a, output)),
+                Err(e) => Err((e, output))
+            }
+        }));
+        let err_output = BufReader::new(
+            handle
+                .stderr
+                .take()
+                .ok_or_else(|| eyre!("Can't takeout std err"))
+                .with_kind(crate::ErrorKind::Docker)?,
+        );
+
+        let err_output = NonDetachingJoinHandle::from(tokio::spawn(async move {
+            let lines = buf_reader_to_lines(err_output, 1000).await?;
+            let joined_output = lines.join("\n");
+            Ok::<_, Error>(joined_output)
+        }));
+
+        let res = tokio::select! {
+            res = handle.wait() => Race::Done(res.with_kind(crate::ErrorKind::Docker)?),
+            res = timeout_fut => {
+                res?;
+                Race::TimedOut
+            },
+        };
+        let exit_status = match res {
+            Race::Done(x) => x,
+            Race::TimedOut => {
+                if let Some(id) = id {
+                    signal::kill(Pid::from_raw(id as i32), signal::SIGKILL)
+                        .with_kind(crate::ErrorKind::Docker)?;
+                }
+                return Ok(Err((143, "Timed out. Retrying soon...".to_owned())));
+            }
+        };
+        Ok(
+            if exit_status.success() || exit_status.code() == Some(143) {
+                Ok(serde_json::from_value(
+                    output
+                        .await
+                        .with_kind(crate::ErrorKind::Unknown)?
+                        .map(|(v, _)| v)
+                        .map_err(|(e, _)| tracing::warn!("{}", e))
+                        .unwrap_or_default(),
+                )
+                .with_kind(crate::ErrorKind::Deserialization)?)
+            } else {
+                Err((
+                    exit_status.code().unwrap_or_default(),
+                    err_output.await.with_kind(crate::ErrorKind::Unknown)??,
+                ))
+            },
+        )
+    }
+
+    /// We created a new exec runner, where we are going to be passing the commands for it to run.
+    /// Idea is that we are going to send it command and get the inputs be filtered back from the manager.
+    /// Then we could in theory run commands without the cost of running the docker exec which is known to have
+    /// a dely of > 200ms which is not acceptable.
+    #[instrument(skip(ctx, input))]
+    pub async fn long_running_execute<I, O, S>(
+        &self,
+        ctx: &RpcContext,
+        pkg_id: &PackageId,
+        pkg_version: &Version,
+        name: ProcedureName,
+        volumes: &Volumes,
+        input: S,
+    ) -> Result<Result<O, (i32, String)>, Error>
+    where
+        I: Serialize,
+        O: Stream<Item = String>,
+        S: Stream<Item = String>,
+    {
         let name = name.docker_name();
         let name: Option<&str> = name.as_ref().map(|x| &**x);
         let mut cmd = tokio::process::Command::new("docker");
