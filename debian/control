@@ -1,6 +1,11 @@
+Source: embassy-os
+Maintainer: Aiden McClelland <aiden@start9labs.com>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 3.9.3
+Section: unknown
+
 Package: embassy-os
-Version: 0.3.2
-Section: base
+Section: unknown
 Priority: required
 Architecture: amd64
 Depends: nginx,

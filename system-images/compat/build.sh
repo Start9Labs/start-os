@@ -18,3 +18,6 @@ alias 'rust-musl-builder'='docker run $USE_TTY --rm -v "$HOME"/.cargo/registry:/
 cd ../../..
 rust-musl-builder sh -c "(git config --global --add safe.directory '*'; cd embassy-os/system-images/compat && cargo +beta build --release --target=aarch64-unknown-linux-musl --no-default-features)"
 cd embassy-os/system-images/compat
+
+sudo chown -R $(whoami) target
+sudo chown -R $(whoami) ~/.cargo
