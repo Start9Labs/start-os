@@ -98,7 +98,18 @@ pub async fn attach(
     #[arg] guid: Arc<String>,
     #[arg(rename = "embassy-password")] password: Option<EncryptedWire>,
 ) -> Result<SetupResult, Error> {
-    let password: Option<String> = password.map(|x| x.decrypt(&*ctx)).flatten();
+    let password: Option<String> = match password {
+        Some(a) => match a.decrypt(&*ctx) {
+            a @ Some(_) => a,
+            None => {
+                return Err(Error::new(
+                    color_eyre::eyre::eyre!("Couldn't decode password"),
+                    crate::ErrorKind::Unknown,
+                ));
+            }
+        },
+        None => None,
+    };
     let requires_reboot = crate::disk::main::import(
         &*guid,
         &ctx.datadir,
