@@ -12,6 +12,6 @@
     [pkgs]="pkgs$ | async"
     [categories]="categories$ | async"
     [name]="(name$ | async) || ''"
-    [selected]="(selected$ | async) || undefined"
+    [selected]="(selected$ | async) || null"
   ></marketplace-list-content>
 </ion-content>

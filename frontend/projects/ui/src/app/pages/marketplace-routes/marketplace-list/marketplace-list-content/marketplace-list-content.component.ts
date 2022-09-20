@@ -27,12 +27,13 @@ export class MarketplaceListContentComponent {
   name = ''
 
   @Input()
-  selected: string | undefined = undefined
+  selected: string | null = null
 
   category = 'featured'
   query = ''
 
   onCategoryChange(category: string): void {
+    console.log(this.selected)
     this.category = category
     this.query = ''
   }
