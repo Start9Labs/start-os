@@ -244,7 +244,7 @@ export class MarketplacesPage {
         }
 
     // no-op on duplicates
-    const currentUrls = this.marketplaces.map(mp => mp.url)
+    const currentUrls = this.marketplaces.map(mp => new URL(mp.url).hostname)
     if (currentUrls.includes(new URL(url).hostname)) return
 
     const loader = await this.loadingCtrl.create({
@@ -288,7 +288,7 @@ export class MarketplacesPage {
         }
 
     // no-op on duplicates
-    const currentUrls = this.marketplaces.map(mp => mp.url)
+    const currentUrls = this.marketplaces.map(mp => new URL(mp.url).hostname)
     if (currentUrls.includes(new URL(url).hostname)) return
 
     const loader = await this.loadingCtrl.create({
