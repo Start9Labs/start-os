@@ -29,14 +29,19 @@ eos.tar.gz: eos.img
 	tar --format=posix -cS -f- eos.img | $(GZIP_BIN) > eos.tar.gz
 
 clean:
+	rm -f 2022-01-28-raspios-bullseye-arm64-lite.zip
+	rm -f raspios.img
 	rm -f eos.img
 	rm -f ubuntu.img
 	rm -f product_key.txt
 	rm -f system-images/**/*.tar
-	sudo rm -f $(EMBASSY_BINS)
+	rm -rf system-images/compat/target
+	rm -rf backend/target
+	rm -rf frontend/.angular
 	rm -f frontend/config.json
 	rm -rf frontend/node_modules
 	rm -rf frontend/dist
+	rm -rf libs/target
 	rm -rf patch-db/client/node_modules
 	rm -rf patch-db/client/dist
 	sudo rm -rf cargo-deps
@@ -51,6 +56,30 @@ sdk:
 eos.img: $(EMBASSY_SRC) system-images/compat/compat.tar system-images/utils/utils.tar system-images/binfmt/binfmt.tar cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast $(ENVIRONMENT_FILE) $(GIT_HASH_FILE)
 	! test -f eos.img || rm eos.img
 	if [ "$(NO_KEY)" = "1" ]; then NO_KEY=1 ./build/make-image.sh; else ./build/make-image.sh; fi
+
+# For creating dpkg. DO NOT USE
+install: $(EMBASSY_SRC) system-images/compat/compat.tar system-images/utils/utils.tar cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast $(ENVIRONMENT_FILE) $(GIT_HASH_FILE)
+	mkdir -p $(DESTDIR)/etc/embassy
+	cp ENVIRONMENT.txt $(DESTDIR)/etc/embassy/
+	cp GIT_HASH.txt $(DESTDIR)/etc/embassy/
+
+	mkdir -p $(DESTDIR)/usr/local/bin
+	cp backend/target/aarch64-unknown-linux-gnu/release/embassy-init $(DESTDIR)/usr/local/bin/
+	cp backend/target/aarch64-unknown-linux-gnu/release/embassyd $(DESTDIR)/usr/local/bin/
+	cp backend/target/aarch64-unknown-linux-gnu/release/embassy-cli $(DESTDIR)/usr/local/bin/
+
+	mkdir -p $(DESTDIR)/etc/systemd/system
+	cp backend/embassy-init.service $(DESTDIR)/etc/systemd/system/
+	cp backend/embassyd.service $(DESTDIR)/etc/systemd/system/
+
+	mkdir -p $(DESTDIR)/var/lib/embassy/system-images
+	cp system-images/**/*.tar $(DESTDIR)/var/lib/embassy/system-images/
+
+	mkdir -p $(DESTDIR)/var/www/html
+	cp -r frontend/dist/diagnostic-ui $(DESTDIR)/var/www/html/diagnostic
+	cp -r frontend/dist/setup-wizard $(DESTDIR)/var/www/html/setup
+	cp -r frontend/dist/ui $(DESTDIR)/var/www/html/main
+	cp index.html $(DESTDIR)/var/www/html/
 
 embassy-os.deb: DEBIAN/control
 	./build/make-deb.sh

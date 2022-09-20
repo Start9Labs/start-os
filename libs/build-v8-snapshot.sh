@@ -10,7 +10,9 @@ fi
 
 echo "Creating v8 Snapshot"
 cargo run -p snapshot-creator --release
-sudo chown ${whoami}:${whoami} JS_SNAPSHOT.bin
+sudo chown -R $(whoami) target
+sudo chown -R $(whoami) ~/.cargo
+sudo chown $USER JS_SNAPSHOT.bin
 sudo chmod 0644 JS_SNAPSHOT.bin
 
 sudo mv -f JS_SNAPSHOT.bin ./js_engine/src/artifacts/JS_SNAPSHOT.bin
