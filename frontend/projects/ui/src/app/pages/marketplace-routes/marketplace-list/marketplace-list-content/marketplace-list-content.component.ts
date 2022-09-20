@@ -29,7 +29,6 @@ export class MarketplaceListContentComponent {
   @Input()
   selected: string | undefined = undefined
 
-  description: string | undefined = undefined
   category = 'featured'
   query = ''
 
