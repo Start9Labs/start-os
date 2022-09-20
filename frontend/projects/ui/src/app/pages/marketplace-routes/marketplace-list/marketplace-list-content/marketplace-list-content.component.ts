@@ -5,9 +5,8 @@ import {
   OnInit,
 } from '@angular/core'
 import { MarketplacePkg, Marketplace } from '@start9labs/marketplace'
-import { MarkdownPipe } from '@start9labs/shared'
+import { getUrlHostname, MarkdownPipe } from '@start9labs/shared'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
-import { getUrlHostname } from '../../../../util/web.util'
 @Component({
   selector: 'marketplace-list-content',
   templateUrl: 'marketplace-list-content.component.html',

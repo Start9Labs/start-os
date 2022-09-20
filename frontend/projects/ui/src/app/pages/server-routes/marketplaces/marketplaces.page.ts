@@ -6,7 +6,11 @@ import {
   ModalController,
 } from '@ionic/angular'
 import { ActionSheetButton } from '@ionic/core'
-import { DestroyService, ErrorToastService } from '@start9labs/shared'
+import {
+  DestroyService,
+  ErrorToastService,
+  getUrlHostname,
+} from '@start9labs/shared'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ValueSpecObject } from 'src/app/pkg-config/config-types'
@@ -27,7 +31,6 @@ import {
 } from 'rxjs/operators'
 import { getServerInfo } from '../../../util/get-server-info'
 import { getMarketplace } from '../../../util/get-marketplace'
-import { getUrlHostname } from 'src/app/util/web.util'
 
 type Marketplaces = {
   id: string | null

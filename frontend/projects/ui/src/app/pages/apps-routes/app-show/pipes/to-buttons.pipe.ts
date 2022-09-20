@@ -2,7 +2,7 @@ import { Inject, Pipe, PipeTransform } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { DOCUMENT } from '@angular/common'
 import { AlertController, ModalController, NavController } from '@ionic/angular'
-import { MarkdownComponent } from '@start9labs/shared'
+import { getUrlHostname, MarkdownComponent } from '@start9labs/shared'
 import {
   DataModel,
   PackageDataEntry,
@@ -14,7 +14,6 @@ import { from, map, Observable } from 'rxjs'
 import { Marketplace } from '@start9labs/marketplace'
 import { ActionMarketplaceComponent } from 'src/app/modals/action-marketplace/action-marketplace.component'
 import { PatchDB } from 'patch-db-client'
-import { getUrlHostname } from 'src/app/util/web.util'
 
 export interface Button {
   title: string
