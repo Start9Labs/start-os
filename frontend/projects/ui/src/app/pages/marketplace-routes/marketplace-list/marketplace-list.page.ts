@@ -25,7 +25,7 @@ export class MarketplaceListPage {
     .pipe(map(({ name }) => name))
 
   readonly selected$ = this.marketplaceService
-    .getUIMarketplaceData()
+    .getAltMarketplaceData()
     .pipe(map(m => m['selected-id']))
 
   constructor(

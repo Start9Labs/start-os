@@ -144,10 +144,6 @@ export class MarketplaceService extends AbstractMarketplaceService {
     return this.uiMarketplaceData$
   }
 
-  getUIMarketplaceData() {
-    return this.uiMarketplaceData$
-  }
-
   getCategories(): Observable<Set<string>> {
     return this.categories$
   }

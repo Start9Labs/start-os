@@ -33,7 +33,6 @@ export class MarketplaceListContentComponent {
   query = ''
 
   onCategoryChange(category: string): void {
-    console.log(this.selected)
     this.category = category
     this.query = ''
   }
