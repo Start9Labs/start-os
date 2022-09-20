@@ -26,15 +26,3 @@
     }
   }
 }
-
-.center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  height: 30%; // overwrites styles.scss
-}
-
-.text-center {
-  text-align: center;
-}
