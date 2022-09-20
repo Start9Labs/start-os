@@ -14,6 +14,7 @@ import { from, map, Observable } from 'rxjs'
 import { Marketplace } from '@start9labs/marketplace'
 import { ActionMarketplaceComponent } from 'src/app/modals/action-marketplace/action-marketplace.component'
 import { PatchDB } from 'patch-db-client'
+import { getUrlHostname } from 'src/app/util/web.util'
 
 export interface Button {
   title: string
@@ -157,15 +158,15 @@ export class ToButtonsPipe implements PipeTransform {
     } else if (
       pkgMarketplaceUrl &&
       currentMarketplace &&
-      new URL(pkgMarketplaceUrl).hostname !==
-        new URL(currentMarketplace.url).hostname
+      getUrlHostname(pkgMarketplaceUrl) !==
+        getUrlHostname(currentMarketplace.url)
     ) {
       // attempt to get name for pkg marketplace
-      let pkgMarketplaceName = new URL(pkgMarketplaceUrl).hostname
+      let pkgMarketplaceName = getUrlHostname(pkgMarketplaceUrl)
       if (altMarketplaces) {
         const pkgMarketplaces = Object.values(
           altMarketplaces['known-hosts'],
-        ).filter(m => new URL(m.url).hostname === pkgMarketplaceName)
+        ).filter(m => getUrlHostname(m.url) === pkgMarketplaceName)
         if (pkgMarketplaces.length) {
           // if multiple of the same url exist, they will have the same name, so fine to grab first
           pkgMarketplaceName = pkgMarketplaces[0].name

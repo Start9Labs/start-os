@@ -27,6 +27,7 @@ import {
 } from 'rxjs/operators'
 import { getServerInfo } from '../../../util/get-server-info'
 import { getMarketplace } from '../../../util/get-marketplace'
+import { getUrlHostname } from 'src/app/util/web.util'
 
 type Marketplaces = {
   id: string | null
@@ -244,8 +245,8 @@ export class MarketplacesPage {
         }
 
     // no-op on duplicates
-    const currentUrls = this.marketplaces.map(mp => new URL(mp.url).hostname)
-    if (currentUrls.includes(new URL(url).hostname)) return
+    const currentUrls = this.marketplaces.map(mp => getUrlHostname(mp.url))
+    if (currentUrls.includes(getUrlHostname(url))) return
 
     const loader = await this.loadingCtrl.create({
       message: 'Validating Marketplace...',
@@ -288,8 +289,11 @@ export class MarketplacesPage {
         }
 
     // no-op on duplicates
-    const currentUrls = this.marketplaces.map(mp => new URL(mp.url).hostname)
-    if (currentUrls.includes(new URL(url).hostname)) return
+    const currentUrls = this.marketplaces.map(mp => getUrlHostname(mp.url))
+    if (currentUrls.includes(getUrlHostname(url))) {
+      this.errToast.present({ message: 'Marketplace already added' })
+      return
+    }
 
     const loader = await this.loadingCtrl.create({
       message: 'Validating Marketplace...',

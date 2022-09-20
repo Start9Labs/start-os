@@ -3,7 +3,6 @@ export function strip(html: string) {
   return doc.body.textContent || ''
 }
 
-export function getUrlDomain(url: string): string | null {
-  const matches = url.match(/^https?\:\/\/([^\/:?#]+)(?:[\/:?#]|$)/i)
-  return matches && matches[1]
+export function getUrlHostname(url: string): string {
+  return new URL(url).hostname
 }

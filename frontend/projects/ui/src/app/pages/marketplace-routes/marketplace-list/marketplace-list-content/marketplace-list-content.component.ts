@@ -7,7 +7,7 @@ import {
 import { MarketplacePkg, Marketplace } from '@start9labs/marketplace'
 import { MarkdownPipe } from '@start9labs/shared'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
-import { getUrlDomain } from '../../../../util/web.util'
+import { getUrlHostname } from '../../../../util/web.util'
 @Component({
   selector: 'marketplace-list-content',
   templateUrl: 'marketplace-list-content.component.html',
@@ -39,7 +39,7 @@ export class MarketplaceListContentComponent implements OnInit {
     if (this.details) {
       this.name = this.details.name
 
-      switch (getUrlDomain(this.details.url)) {
+      switch (getUrlHostname(this.details.url)) {
         case 'registry.start9.com':
           this.color = 'success'
           this.description = this.markdown.transform(
