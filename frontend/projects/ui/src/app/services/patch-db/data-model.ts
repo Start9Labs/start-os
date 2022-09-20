@@ -31,7 +31,6 @@ export interface UIMarketplaceData {
     [id: string]: {
       url: string
       name: string
-      description?: string
     }
   }
 }

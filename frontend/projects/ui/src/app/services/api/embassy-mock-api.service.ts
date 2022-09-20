@@ -248,8 +248,6 @@ export class MockApiService extends ApiService {
           'social',
           'alt coin',
         ],
-        description:
-          'Welcome to the Community Marketplace. Services in this marketplace are packaged and maintained by members of the Start9 community. <b>Install at your own risk</b>. If you experience an issue or have a question related to a service in this marketplace, please reach out to the package developer for assistance.',
       }
     } else if (path === '/package/v0/index') {
       return Mock.MarketplacePkgsList

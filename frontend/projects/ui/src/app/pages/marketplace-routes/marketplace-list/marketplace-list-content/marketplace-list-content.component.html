@@ -1,9 +1,24 @@
 <ion-grid>
-  <ion-row>
+  <ion-row *ngIf="selected">
     <ion-col size-lg="10" offset-lg="1" size-sm="12">
-      <ion-item *ngIf="description" class="description" color="tertiary">
+      <ion-item class="description" color="tertiary">
         <ion-icon size="large" name="information-circle-outline"></ion-icon>
-        <ion-label [innerHTML]="description"></ion-label>
+        <ion-label *ngIf="selected; else defaultMsg">
+          Welcome to an alternative marketplace! Services in this marketplace
+          are packaged and maintained by members of the Start9 community.
+          <b>Install at your own risk</b>. If you experience an issue or have a
+          question related to a service in this marketplace, please reach out to
+          the package developer for assistance.
+        </ion-label>
+        <ng-template #defaultMsg>
+          <ion-label>
+            Welcome to the official Start9 Marketplace! Services in this
+            marketplace are packaged and maintained by the Start9 team. If you
+            experience an issue or have a questions related to a service in this
+            marketplace, one of our dedicated support staff will be happy to
+            assist you.
+          </ion-label>
+        </ng-template>
       </ion-item>
     </ion-col>
   </ion-row>

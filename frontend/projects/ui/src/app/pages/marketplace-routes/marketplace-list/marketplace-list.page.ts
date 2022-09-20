@@ -1,9 +1,10 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
 import { map } from 'rxjs/operators'
-import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { PatchDB } from 'patch-db-client'
 import { ConnectionService } from 'src/app/services/connection.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
+import { MarketplaceService } from 'src/app/services/marketplace.service'
+import { AbstractMarketplaceService } from '@start9labs/marketplace'
 
 @Component({
   selector: 'marketplace-list',
@@ -23,11 +24,14 @@ export class MarketplaceListPage {
     .getMarketplace()
     .pipe(map(({ name }) => name))
 
-  readonly description$ = this.marketplaceService.getDescription()
+  readonly selected$ = this.marketplaceService
+    .getUIMarketplaceData()
+    .pipe(map(m => m['selected-id']))
 
   constructor(
     private readonly patch: PatchDB<DataModel>,
-    private readonly marketplaceService: AbstractMarketplaceService,
+    @Inject(AbstractMarketplaceService)
+    private readonly marketplaceService: MarketplaceService,
     private readonly connectionService: ConnectionService,
   ) {}
 }

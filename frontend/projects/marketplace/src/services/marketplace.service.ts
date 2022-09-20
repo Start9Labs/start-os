@@ -9,8 +9,6 @@ export abstract class AbstractMarketplaceService {
 
   abstract getCategories(): Observable<Set<string>>
 
-  abstract getDescription(): Observable<string | undefined>
-
   abstract getPackages(): Observable<MarketplacePkg[]>
 
   abstract getPackageMarkdown(type: string, pkgId: string): Observable<string>
