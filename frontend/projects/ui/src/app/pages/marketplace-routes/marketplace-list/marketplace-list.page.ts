@@ -20,13 +20,7 @@ export class MarketplaceListPage {
 
   readonly pkgs$ = this.marketplaceService.getPackages()
 
-  readonly name$ = this.marketplaceService
-    .getMarketplace()
-    .pipe(map(({ name }) => name))
-
-  readonly selected$ = this.marketplaceService
-    .getAltMarketplaceData()
-    .pipe(map(m => m['selected-id']))
+  readonly details$ = this.marketplaceService.getMarketplace()
 
   constructor(
     private readonly patch: PatchDB<DataModel>,

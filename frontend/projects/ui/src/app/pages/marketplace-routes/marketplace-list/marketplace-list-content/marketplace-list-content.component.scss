@@ -17,12 +17,16 @@
 
 .description {
 
-  ion-label {
-    padding-left: 8px;
-    font-size: 1.2rem;
-    
-    @media small {
-      font-size: 1rem;
-    }
+  ion-icon {
+    padding-right: 8px;
+  }
+  
+  @media (min-width: 1000px) {
+    ion-label {
+        ::ng-deep p {
+          font-size: 1.2rem;
+          line-height: 25px;
+        }
+      }
   }
 }
