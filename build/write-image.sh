@@ -53,6 +53,8 @@ sudo cp ENVIRONMENT.txt /tmp/eos-mnt/etc/embassy
 sudo cp GIT_HASH.txt /tmp/eos-mnt/etc/embassy
 sudo cp build/fstab /tmp/eos-mnt/etc/fstab
 sudo cp build/journald.conf /tmp/eos-mnt/etc/systemd/journald.conf
+sudo sed -i 's/raspberrypi/embassy/g' /tmp/eos-mnt/etc/hostname
+sudo sed -i 's/raspberrypi/embassy/g' /tmp/eos-mnt/etc/hosts
 
 # copy over cargo dependencies
 sudo cp cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast /tmp/eos-mnt/usr/local/bin
