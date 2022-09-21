@@ -8,6 +8,7 @@ use futures::TryFutureExt;
 use helpers::NonDetachingJoinHandle;
 use models::PackageId;
 use tokio::net::{TcpListener, UdpSocket};
+use tokio::process::Command;
 use tokio::sync::RwLock;
 use trust_dns_server::authority::MessageResponseBuilder;
 use trust_dns_server::client::op::{Header, ResponseCode};
@@ -17,7 +18,8 @@ use trust_dns_server::ServerFuture;
 
 #[cfg(feature = "avahi")]
 use crate::net::mdns::resolve_mdns;
-use crate::{Error, ErrorKind, ResultExt};
+use crate::util::Invoke;
+use crate::{Error, ErrorKind, ResultExt, HOST_IP};
 
 pub struct DnsController {
     services: Arc<RwLock<BTreeMap<PackageId, BTreeSet<Ipv4Addr>>>>,
@@ -31,25 +33,6 @@ struct Resolver {
 impl Resolver {
     async fn resolve(&self, name: &Name) -> Option<Vec<Ipv4Addr>> {
         match name.iter().next_back() {
-            #[cfg(feature = "avahi")]
-            Some(b"local") => match resolve_mdns(&format!(
-                "{}.local",
-                name.iter()
-                    .rev()
-                    .skip(1)
-                    .next()
-                    .and_then(|v| std::str::from_utf8(v).ok())
-                    .unwrap_or_default()
-            ))
-            .await
-            {
-                Ok(ip) => Some(vec![ip]),
-                Err(e) => {
-                    tracing::error!("{}", e);
-                    tracing::debug!("{:?}", e);
-                    None
-                }
-            },
             Some(b"embassy") => {
                 if let Some(pkg) = name.iter().rev().skip(1).next() {
                     if let Some(ip) = self
@@ -63,7 +46,7 @@ impl Resolver {
                         None
                     }
                 } else {
-                    None
+                    Some(vec![HOST_IP.into()])
                 }
             }
             _ => None,
@@ -81,7 +64,11 @@ impl RequestHandler for Resolver {
         let query = request.request_info().query;
         if let Some(ip) = self.resolve(query.name().borrow()).await {
             if query.query_type() != RecordType::A {
-                tracing::warn!("Non A-Record requested for {}", query.name());
+                tracing::warn!(
+                    "Non A-Record requested for {}: {:?}",
+                    query.name(),
+                    query.query_type()
+                );
             }
             response_handle
                 .send_response(
@@ -142,6 +129,13 @@ impl DnsController {
         );
         server.register_socket(UdpSocket::bind(bind).await.with_kind(ErrorKind::Network)?);
 
+        Command::new("systemd-resolve")
+            .arg("--set-dns=127.0.0.1")
+            .arg("--interface=br-start9")
+            .arg("--set-domain=embassy")
+            .invoke(ErrorKind::Network)
+            .await?;
+
         let dns_server = tokio::spawn(
             server
                 .block_until_done()
@@ -170,4 +164,6 @@ impl DnsController {
             writable.insert(pkg_id.clone(), ips);
         }
     }
+
+    pub async fn shutdown(&self) {}
 }
