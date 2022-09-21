@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
 import { ModalController } from '@ionic/angular'
-import { filter, map, take } from 'rxjs/operators'
+import { map, take } from 'rxjs/operators'
 import { DataModel, PackageState } from 'src/app/services/patch-db/data-model'
 import { PatchDB } from 'patch-db-client'
 
@@ -29,7 +29,6 @@ export class BackupSelectPage {
     this.patch
       .watch$('package-data')
       .pipe(
-        filter(Boolean),
         map(pkgs => {
           return Object.values(pkgs).map(pkg => {
             const { id, title } = pkg.manifest

@@ -19,6 +19,7 @@ import { BehaviorSubject, interval, map, Observable } from 'rxjs'
 import { LocalStorageBootstrap } from '../patch-db/local-storage-bootstrap'
 import { mockPatchData } from './mock-patch'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
+import { AuthService } from '../auth.service'
 
 const PROGRESS: InstallProgress = {
   size: 120,
@@ -39,8 +40,21 @@ export class MockApiService extends ApiService {
   private readonly revertTime = 2000
   sequence = 0
 
-  constructor(private readonly bootstrapper: LocalStorageBootstrap) {
+  constructor(
+    private readonly bootstrapper: LocalStorageBootstrap,
+    private readonly auth: AuthService,
+  ) {
     super()
+    this.auth.isVerified$.subscribe(verified => {
+      if (!verified) {
+        this.patchStream$.next([])
+        this.mockWsSource$.next({
+          id: 1,
+          value: mockPatchData,
+        })
+        this.sequence = 0
+      }
+    })
   }
 
   async getStatic(url: string): Promise<string> {
