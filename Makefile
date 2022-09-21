@@ -12,6 +12,7 @@ FRONTEND_UI_SRC := $(shell find frontend/projects/ui)
 FRONTEND_SETUP_WIZARD_SRC := $(shell find frontend/projects/setup-wizard)
 FRONTEND_DIAGNOSTIC_UI_SRC := $(shell find frontend/projects/diagnostic-ui)
 PATCH_DB_CLIENT_SRC := $(shell find patch-db/client -not -path patch-db/client/dist)
+GZIP_BIN := $(shell which pigz || which gzip)
 $(shell sudo true)
 
 .DELETE_ON_ERROR:
@@ -21,7 +22,7 @@ all: eos.img
 gzip: eos.tar.gz
 
 eos.tar.gz: eos.img
-	tar --format=posix -cS -f- eos.img | gzip > eos.tar.gz
+	tar --format=posix -cS -f- eos.img | $(GZIP_BIN) > eos.tar.gz
 
 clean:
 	rm -f eos.img
