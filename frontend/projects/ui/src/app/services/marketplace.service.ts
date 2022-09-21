@@ -56,7 +56,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
 
   private readonly serverInfo$: Observable<ServerInfo> = this.patch
     .watch$('server-info')
-    .pipe(filter(Boolean), take(1), shareReplay())
+    .pipe(take(1), shareReplay())
 
   private readonly registryData$: Observable<MarketplaceData> =
     this.uiMarketplaceData$.pipe(

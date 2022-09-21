@@ -7,10 +7,76 @@
 </ion-header>
 
 <ion-content class="ion-padding">
-  <marketplace-list-content
-    [localPkgs]="(localPkgs$ | async) || {}"
-    [pkgs]="pkgs$ | async"
-    [categories]="categories$ | async"
-    [name]="(name$ | async) || ''"
-  ></marketplace-list-content>
+  <ion-grid *ngIf="details$ | async as details">
+    <ion-row>
+      <ion-col size-lg="10" offset-lg="1" size-sm="12">
+        <ion-item class="description" [color]="details.color">
+          <ion-icon
+            text-wrap
+            size="large"
+            name="information-circle-outline"
+          ></ion-icon>
+          <ion-label [innerHtml]="details.description"></ion-label>
+        </ion-item>
+      </ion-col>
+    </ion-row>
+    <ion-row>
+      <ion-col size="12">
+        <h1 class="heading montserrat ion-text-center">{{ details.name }}</h1>
+        <p style="margin-top: 0">{{ details.url }}</p>
+        <marketplace-search [(query)]="query"></marketplace-search>
+      </ion-col>
+    </ion-row>
+    <ion-row class="ion-align-items-center">
+      <ion-col size="12">
+        <ng-container *ngIf="pkgs$ | async as pkgs; else loading">
+          <ng-container *ngIf="localPkgs$ | async as localPkgs">
+            <marketplace-categories
+              *ngIf="categories$ | async as categories"
+              [categories]="categories"
+              [category]="category"
+              [updatesAvailable]="
+                (pkgs | filterPackages: '':'updates':localPkgs).length
+              "
+              (categoryChange)="onCategoryChange($event)"
+            ></marketplace-categories>
+
+            <div class="divider"></div>
+
+            <ion-grid
+              *ngIf="pkgs | filterPackages: query:category:localPkgs as filtered"
+            >
+              <div
+                *ngIf="!filtered.length && category === 'updates'"
+                class="ion-padding"
+              >
+                <h1>All services are up to date!</h1>
+              </div>
+
+              <ion-row>
+                <ion-col
+                  *ngFor="let pkg of filtered"
+                  sizeXs="12"
+                  sizeSm="12"
+                  sizeMd="6"
+                >
+                  <marketplace-item [pkg]="pkg">
+                    <marketplace-status
+                      class="status"
+                      [version]="pkg.manifest.version"
+                      [localPkg]="localPkgs[pkg.manifest.id]"
+                    ></marketplace-status>
+                  </marketplace-item>
+                </ion-col>
+              </ion-row>
+            </ion-grid>
+          </ng-container>
+        </ng-container>
+
+        <ng-template #loading>
+          <marketplace-skeleton></marketplace-skeleton>
+        </ng-template>
+      </ion-col>
+    </ion-row>
+  </ion-grid>
 </ion-content>

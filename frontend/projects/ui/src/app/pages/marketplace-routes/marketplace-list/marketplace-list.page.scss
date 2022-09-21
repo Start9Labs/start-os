@@ -1,0 +1,32 @@
+.heading {
+  font-size: 42px;
+  margin-top: 32px;
+}
+
+.divider {
+  margin: 24px;
+}
+
+.ion-padding {
+  text-align: center;
+}
+
+.status {
+  font-size: 14px;
+}
+
+.description {
+
+  ion-icon {
+    padding-right: 8px;
+  }
+  
+  @media (min-width: 1000px) {
+    ion-label {
+        ::ng-deep p {
+          font-size: 1.1rem;
+          line-height: 25px;
+        }
+      }
+  }
+}

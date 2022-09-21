@@ -15,5 +15,5 @@ export function getPackage(
 export function getAllPackages(
   patch: PatchDB<DataModel>,
 ): Promise<Record<string, PackageDataEntry>> {
-  return firstValueFrom(patch.watch$('package-data').pipe(filter(Boolean)))
+  return firstValueFrom(patch.watch$('package-data'))
 }
