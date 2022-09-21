@@ -97,7 +97,6 @@ touch /root/.docker/config.json
 docker run --privileged --rm tonistiigi/binfmt --install all
 docker network create -d bridge --subnet 172.18.0.1/16 start9 || true
 mkdir -p /etc/embassy
-hostnamectl set-hostname "embassy"
 systemctl enable embassyd.service embassy-init.service
 cat << EOF > /etc/tor/torrc
 SocksPort 0.0.0.0:9050
