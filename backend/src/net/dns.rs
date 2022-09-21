@@ -16,8 +16,6 @@ use trust_dns_server::client::rr::{Name, Record, RecordType};
 use trust_dns_server::server::{Request, RequestHandler, ResponseHandler, ResponseInfo};
 use trust_dns_server::ServerFuture;
 
-#[cfg(feature = "avahi")]
-use crate::net::mdns::resolve_mdns;
 use crate::util::Invoke;
 use crate::{Error, ErrorKind, ResultExt, HOST_IP};
 
@@ -164,6 +162,4 @@ impl DnsController {
             writable.insert(pkg_id.clone(), ips);
         }
     }
-
-    pub async fn shutdown(&self) {}
 }
