@@ -10,7 +10,7 @@ import { ActivatedRoute } from '@angular/router'
 import { PatchDB } from 'patch-db-client'
 import { ServerNameService } from 'src/app/services/server-name.service'
 import { Observable, of } from 'rxjs'
-import { filter, take, tap } from 'rxjs/operators'
+import { take, tap } from 'rxjs/operators'
 import { isEmptyObject, ErrorToastService } from '@start9labs/shared'
 import { EOSService } from 'src/app/services/eos.service'
 import { LocalStorageService } from 'src/app/services/local-storage.service'
@@ -52,7 +52,6 @@ export class ServerShowPage {
     this.patch
       .watch$('recovered-packages')
       .pipe(
-        filter(Boolean),
         take(1),
         tap(data => (this.hasRecoveredPackage = !isEmptyObject(data))),
       )

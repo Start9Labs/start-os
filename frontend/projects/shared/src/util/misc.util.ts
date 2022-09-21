@@ -49,3 +49,7 @@ export function isValidHttpUrl(string: string): boolean {
     return false
   }
 }
+
+export function getUrlHostname(url: string): string {
+  return new URL(url).hostname
+}

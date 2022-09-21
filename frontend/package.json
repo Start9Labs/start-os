@@ -65,7 +65,6 @@
     "@angular/compiler-cli": "^14.1.0",
     "@angular/language-service": "^14.1.0",
     "@ionic/cli": "^6.19.0",
-    "@types/aes-js": "^3.1.1",
     "@types/dompurify": "^2.3.3",
     "@types/estree": "^0.0.51",
     "@types/js-yaml": "^4.0.5",

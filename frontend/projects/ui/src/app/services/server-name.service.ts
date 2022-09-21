@@ -11,9 +11,7 @@ export interface ServerNameInfo {
 @Injectable({ providedIn: 'root' })
 export class ServerNameService {
   private readonly chosenName$ = this.patch.watch$('ui', 'name')
-  private readonly hostname$ = this.patch
-    .watch$('server-info', 'hostname')
-    .pipe(filter(Boolean))
+  private readonly hostname$ = this.patch.watch$('server-info', 'hostname')
 
   readonly name$: Observable<ServerNameInfo> = combineLatest([
     this.chosenName$,
