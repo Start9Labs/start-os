@@ -6,15 +6,14 @@ import {
   ImportDriveReq,
   SetupEmbassyReq,
 } from './api.service'
+import * as jose from 'node-jose'
 
 let tries = 0
 
 @Injectable({
   providedIn: 'root',
 })
-export class MockApiService implements ApiService {
-  // ** UNENCRYPTED **
-
+export class MockApiService extends ApiService {
   async getStatus() {
     await pauseFor(1000)
     return {
@@ -22,17 +21,21 @@ export class MockApiService implements ApiService {
     }
   }
 
-  async getSecret() {
+  async getPubKey() {
     await pauseFor(1000)
 
-    const ascii = 'thisisasecret'
+    const keystore = jose.JWK.createKeyStore()
 
-    const arr1 = []
-    for (let n = 0, l = ascii.length; n < l; n++) {
-      var hex = Number(ascii.charCodeAt(n)).toString(16)
-      arr1.push(hex)
-    }
-    return arr1.join('')
+    // randomly generated
+    // this.pubkey = await keystore.generate('EC', 'P-256')
+
+    // generated from backend
+    this.pubkey = await jose.JWK.asKey({
+      kty: 'EC',
+      crv: 'P-256',
+      x: 'yHTDYSfjU809fkSv9MmN4wuojf5c3cnD7ZDN13n-jz4',
+      y: '8Mpkn744A5KDag0DmX2YivB63srjbugYZzWc3JOpQXI',
+    })
   }
 
   async getDrives() {
@@ -75,8 +78,6 @@ export class MockApiService implements ApiService {
       complete: tries === 4,
     }
   }
-
-  // ** ENCRYPTED **
 
   async verifyCifs(params: CifsRecoverySource) {
     await pauseFor(1000)

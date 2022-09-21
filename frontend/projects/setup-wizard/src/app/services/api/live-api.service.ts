@@ -18,19 +18,15 @@ import {
   SetupEmbassyReq,
   SetupEmbassyRes,
 } from './api.service'
-import { RPCEncryptedService } from '../rpc-encrypted.service'
 import * as jose from 'node-jose'
 
 @Injectable({
   providedIn: 'root',
 })
-export class LiveApiService implements ApiService {
-  constructor(
-    private readonly unencrypted: HttpService,
-    private readonly encrypted: RPCEncryptedService,
-  ) {}
-
-  // ** UNENCRYPTED **
+export class LiveApiService extends ApiService {
+  constructor(private readonly http: HttpService) {
+    super()
+  }
 
   async getStatus() {
     return this.rpcRequest<GetStatusRes>({
@@ -40,24 +36,19 @@ export class LiveApiService implements ApiService {
   }
 
   /**
-   * We want to update the secret, which means that we will call in clearnet the
-   * getSecret, and all the information is never in the clear, and only public
+   * We want to update the pubkey, which means that we will call in clearnet the
+   * getPubKey, and all the information is never in the clear, and only public
    * information is sent across the network. We don't want to expose that we do
    * this wil all public/private key, which means that there is no information loss
    * through the network.
    */
-  async getSecret() {
-    const keystore = jose.JWK.createKeyStore()
-    const key = await keystore.generate('EC', 'P-256')
-    const response: string = await this.rpcRequest({
-      method: 'setup.get-secret',
-      params: { pubkey: key.toJSON() },
+  async getPubKey() {
+    const response: jose.JWK.Key = await this.rpcRequest({
+      method: 'setup.get-pubkey',
+      params: {},
     })
 
-    const decrypted = await jose.JWE.createDecrypt(key).decrypt(response)
-    const decoded = new TextDecoder().decode(decrypted.plaintext)
-
-    return decoded
+    this.pubkey = response
   }
 
   async getDrives() {
@@ -81,18 +72,16 @@ export class LiveApiService implements ApiService {
     })
   }
 
-  // ** ENCRYPTED **
-
   async verifyCifs(source: CifsRecoverySource) {
     source.path = source.path.replace('/\\/g', '/')
-    return this.encrypted.rpcRequest<EmbassyOSRecoveryInfo>({
+    return this.rpcRequest<EmbassyOSRecoveryInfo>({
       method: 'setup.cifs.verify',
       params: source,
     })
   }
 
   async importDrive(params: ImportDriveReq) {
-    const res = await this.encrypted.rpcRequest<SetupEmbassyRes>({
+    const res = await this.rpcRequest<SetupEmbassyRes>({
       method: 'setup.attach',
       params,
     })
@@ -110,7 +99,7 @@ export class LiveApiService implements ApiService {
       ].path.replace('/\\/g', '/')
     }
 
-    const res = await this.encrypted.rpcRequest<SetupEmbassyRes>({
+    const res = await this.rpcRequest<SetupEmbassyRes>({
       method: 'setup.execute',
       params: setupInfo,
     })
@@ -122,7 +111,7 @@ export class LiveApiService implements ApiService {
   }
 
   async setupComplete() {
-    const res = await this.encrypted.rpcRequest<SetupEmbassyRes>({
+    const res = await this.rpcRequest<SetupEmbassyRes>({
       method: 'setup.complete',
       params: {},
     })
@@ -134,7 +123,7 @@ export class LiveApiService implements ApiService {
   }
 
   private async rpcRequest<T>(opts: RPCOptions): Promise<T> {
-    const res = await this.unencrypted.rpcRequest<T>(opts)
+    const res = await this.http.rpcRequest<T>(opts)
 
     const rpcRes = res.body
 

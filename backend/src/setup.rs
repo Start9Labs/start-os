@@ -42,6 +42,7 @@ use crate::hostname::{get_hostname, Hostname};
 use crate::id::Id;
 use crate::init::init;
 use crate::install::PKG_PUBLIC_DIR;
+use crate::middleware::encrypt::EncryptedWire;
 use crate::net::ssl::SslManager;
 use crate::s9pk::manifest::PackageId;
 use crate::sound::BEETHOVEN;
@@ -63,7 +64,7 @@ where
     Ok(password)
 }
 
-#[command(subcommands(status, disk, attach, execute, recovery, cifs, complete, get_secret))]
+#[command(subcommands(status, disk, attach, execute, recovery, cifs, complete, get_pubkey))]
 pub fn setup() -> Result<(), Error> {
     Ok(())
 }
@@ -95,8 +96,20 @@ pub async fn list_disks() -> Result<Vec<DiskInfo>, Error> {
 pub async fn attach(
     #[context] ctx: SetupContext,
     #[arg] guid: Arc<String>,
-    #[arg(rename = "embassy-password")] password: Option<String>,
+    #[arg(rename = "embassy-password")] password: Option<EncryptedWire>,
 ) -> Result<SetupResult, Error> {
+    let password: Option<String> = match password {
+        Some(a) => match a.decrypt(&*ctx) {
+            a @ Some(_) => a,
+            None => {
+                return Err(Error::new(
+                    color_eyre::eyre::eyre!("Couldn't decode password"),
+                    crate::ErrorKind::Unknown,
+                ));
+            }
+        },
+        None => None,
+    };
     let requires_reboot = crate::disk::main::import(
         &*guid,
         &ctx.datadir,
@@ -202,23 +215,11 @@ pub async fn recovery_status(
 /// This way the frontend can send a secret, like the password for the setup/ recovory
 /// without knowing the password over clearnet. We use the public key shared across the network
 /// since it is fine to share the public, and encrypt against the public.
-#[command(rename = "get-secret", rpc_only, metadata(authenticated = false))]
-pub async fn get_secret(
-    #[context] ctx: SetupContext,
-    #[arg] pubkey: Jwk,
-) -> Result<String, RpcError> {
-    let secret = ctx.update_secret().await?;
-    let mut header = josekit::jwe::JweHeader::new();
-    header.set_algorithm("ECDH-ES");
-    header.set_content_encryption("A256GCM");
-
-    let encrypter = josekit::jwe::alg::ecdh_es::EcdhEsJweAlgorithm::EcdhEs
-        .encrypter_from_jwk(&pubkey)
-        .unwrap();
-
-    Ok(josekit::jwe::serialize_compact(secret.as_bytes(), &header, &encrypter).unwrap())
-    // Need to encrypt from the public key sent
-    // then encode via hex
+#[command(rename = "get-pubkey", rpc_only, metadata(authenticated = false))]
+pub async fn get_pubkey(#[context] ctx: SetupContext) -> Result<Jwk, RpcError> {
+    let secret = ctx.current_secret.clone();
+    let pub_key = secret.to_public_key()?;
+    Ok(pub_key)
 }
 
 #[command(subcommands(verify_cifs))]
@@ -228,11 +229,13 @@ pub fn cifs() -> Result<(), Error> {
 
 #[command(rename = "verify", rpc_only)]
 pub async fn verify_cifs(
+    #[context] ctx: SetupContext,
     #[arg] hostname: String,
     #[arg] path: PathBuf,
     #[arg] username: String,
-    #[arg] password: Option<String>,
+    #[arg] password: Option<EncryptedWire>,
 ) -> Result<EmbassyOsRecoveryInfo, Error> {
+    let password: Option<String> = password.map(|x| x.decrypt(&*ctx)).flatten();
     let guard = TmpMountGuard::mount(
         &Cifs {
             hostname,
@@ -252,10 +255,31 @@ pub async fn verify_cifs(
 pub async fn execute(
     #[context] ctx: SetupContext,
     #[arg(rename = "embassy-logicalname")] embassy_logicalname: PathBuf,
-    #[arg(rename = "embassy-password")] embassy_password: String,
+    #[arg(rename = "embassy-password")] embassy_password: EncryptedWire,
     #[arg(rename = "recovery-source")] mut recovery_source: Option<BackupTargetFS>,
-    #[arg(rename = "recovery-password")] recovery_password: Option<String>,
+    #[arg(rename = "recovery-password")] recovery_password: Option<EncryptedWire>,
 ) -> Result<SetupResult, Error> {
+    let embassy_password = match embassy_password.decrypt(&*ctx) {
+        Some(a) => a,
+        None => {
+            return Err(Error::new(
+                color_eyre::eyre::eyre!("Couldn't decode embassy_password"),
+                crate::ErrorKind::Unknown,
+            ))
+        }
+    };
+    let recovery_password: Option<String> = match recovery_password {
+        Some(a) => match a.decrypt(&*ctx) {
+            Some(a) => Some(a),
+            None => {
+                return Err(Error::new(
+                    color_eyre::eyre::eyre!("Couldn't decode recovery_password"),
+                    crate::ErrorKind::Unknown,
+                ))
+            }
+        },
+        None => None,
+    };
     if let Some(v2_drive) = &*ctx.selected_v2_drive.read().await {
         recovery_source = Some(BackupTargetFS::Disk(BlockDev::new(v2_drive.clone())))
     }

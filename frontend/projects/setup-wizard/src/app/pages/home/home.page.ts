@@ -8,7 +8,6 @@ import {
 } from '@ionic/angular'
 import { PasswordPage } from 'src/app/modals/password/password.page'
 import { ApiService } from 'src/app/services/api/api.service'
-import { RPCEncryptedService } from 'src/app/services/rpc-encrypted.service'
 import { StateService } from 'src/app/services/state.service'
 import SwiperCore, { Swiper } from 'swiper'
 import { ErrorToastService } from '@start9labs/shared'
@@ -26,8 +25,7 @@ export class HomePage {
   error = false
 
   constructor(
-    private readonly unencrypted: ApiService,
-    private readonly encrypted: RPCEncryptedService,
+    private readonly api: ApiService,
     private readonly modalCtrl: ModalController,
     private readonly alertCtrl: AlertController,
     private readonly loadingCtrl: LoadingController,
@@ -38,8 +36,8 @@ export class HomePage {
 
   async ngOnInit() {
     try {
-      this.encrypted.secret = await this.unencrypted.getSecret()
-      const disks = await this.unencrypted.getDrives()
+      await this.api.getPubKey()
+      const disks = await this.api.getDrives()
       this.guid = disks.find(d => !!d.guid)?.guid
     } catch (e: any) {
       this.error = true
