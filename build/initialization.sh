@@ -11,9 +11,14 @@ fi
 
 passwd -l start9
 
+START=$(date +%s)
 while ! ping -q -w 1 -c 1 `ip r | grep default | cut -d ' ' -f 3` > /dev/null; do
 	>&2 echo "Waiting for internet connection..."
 	sleep 1
+	if [ "$[$START + 60]" -lt $(date +%s) ]; then
+		>&2 echo "Timed out waiting for internet connection..."
+		exit 1
+	fi
 done
 echo "Connected to network"
 
@@ -72,9 +77,14 @@ EOF
 sudo systemctl restart NetworkManager
 nmcli device modify eth0 ipv4.ignore-auto-dns no
 
+START=$(date +%s)
 while ! ping -q -w 1 -c 1 start9.com > /dev/null; do
 	>&2 echo "Waiting for network to reinitialize..."
 	sleep 1
+	if [ "$[$START + 60]" -lt $(date +%s) ]; then
+		>&2 echo "Timed out waiting for network to reinitialize..."
+		exit 1
+	fi
 done
 echo "Network reinitialized"
 
