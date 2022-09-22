@@ -97,7 +97,7 @@ jobs:
     name: Build image
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    needs: [compat,utils,backend,frontend]
+    needs: [compat,utils,binfmt,backend,frontend]
     steps:
     - uses: actions/checkout@v3
       with:
