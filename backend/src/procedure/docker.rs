@@ -10,22 +10,28 @@ use bollard::container::RemoveContainerOptions;
 use color_eyre::eyre::eyre;
 use color_eyre::Report;
 use futures::future::Either as EitherFuture;
-use futures::{Stream, TryStreamExt};
+use futures::{Stream, StreamExt, TryStreamExt};
 use helpers::NonDetachingJoinHandle;
 use nix::sys::signal;
 use nix::unistd::Pid;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tokio::io::{AsyncBufRead, AsyncBufReadExt, BufReader};
+use tokio::{
+    io::{AsyncBufRead, AsyncBufReadExt, BufReader},
+    process::Child,
+};
 use tracing::instrument;
 
 use super::ProcedureName;
-use crate::context::RpcContext;
 use crate::id::{Id, ImageId};
 use crate::s9pk::manifest::{PackageId, SYSTEM_PACKAGE_ID};
 use crate::util::serde::{Duration as SerdeDuration, IoFormat};
 use crate::util::Version;
 use crate::volume::{VolumeId, Volumes};
+use crate::{
+    context::RpcContext,
+    docker_runner::{InputRpcId, OutputRpcId},
+};
 use crate::{Error, ResultExt, HOST_IP};
 
 pub const NET_TLD: &str = "embassy";
@@ -151,25 +157,7 @@ impl DockerProcedure {
             .arg(&container_name)
             .arg(format!("--hostname={}", &container_name))
             .arg("--no-healthcheck");
-        match ctx
-            .docker
-            .remove_container(
-                &container_name,
-                Some(RemoveContainerOptions {
-                    v: false,
-                    force: true,
-                    link: false,
-                }),
-            )
-            .await
-        {
-            Ok(())
-            | Err(bollard::errors::Error::DockerResponseServerError {
-                status_code: 404, // NOT FOUND
-                ..
-            }) => Ok(()),
-            Err(e) => Err(e),
-        }?;
+        cleanup_previous_container(ctx, &container_name).await?;
         cmd.args(self.docker_args(ctx, pkg_id, pkg_version, volumes).await?);
         let input_buf = if let (Some(input), Some(format)) = (&input, &self.io_format) {
             cmd.stdin(std::process::Stdio::piped());
@@ -312,7 +300,7 @@ impl DockerProcedure {
     /// Then we could in theory run commands without the cost of running the docker exec which is known to have
     /// a dely of > 200ms which is not acceptable.
     #[instrument(skip(ctx, input))]
-    pub async fn long_running_execute<I, O, S>(
+    pub async fn long_running_execute<S>(
         &self,
         ctx: &RpcContext,
         pkg_id: &PackageId,
@@ -320,179 +308,44 @@ impl DockerProcedure {
         name: ProcedureName,
         volumes: &Volumes,
         input: S,
-    ) -> Result<Result<O, (i32, String)>, Error>
+    ) -> Result<LongRunning, Error>
     where
-        I: Serialize,
-        O: Stream<Item = String>,
-        S: Stream<Item = String>,
+        S: Stream<Item = InputRpcId>,
     {
         let name = name.docker_name();
         let name: Option<&str> = name.as_ref().map(|x| &**x);
-        let mut cmd = tokio::process::Command::new("docker");
-        tracing::debug!("{:?} is run", name);
         let container_name = Self::container_name(pkg_id, name);
-        cmd.arg("run")
-            .arg("--rm")
-            .arg("--network=start9")
-            .arg(format!("--add-host=embassy:{}", Ipv4Addr::from(HOST_IP)))
-            .arg("--name")
-            .arg(&container_name)
-            .arg(format!("--hostname={}", &container_name))
-            .arg("--no-healthcheck");
-        match ctx
-            .docker
-            .remove_container(
-                &container_name,
-                Some(RemoveContainerOptions {
-                    v: false,
-                    force: true,
-                    link: false,
-                }),
-            )
-            .await
-        {
-            Ok(())
-            | Err(bollard::errors::Error::DockerResponseServerError {
-                status_code: 404, // NOT FOUND
-                ..
-            }) => Ok(()),
-            Err(e) => Err(e),
-        }?;
-        cmd.args(self.docker_args(ctx, pkg_id, pkg_version, volumes).await?);
-        let input_buf = if let (Some(input), Some(format)) = (&input, &self.io_format) {
-            cmd.stdin(std::process::Stdio::piped());
-            Some(format.to_vec(input)?)
-        } else {
-            None
-        };
-        cmd.stdout(std::process::Stdio::piped());
-        cmd.stderr(std::process::Stdio::piped());
-        tracing::trace!(
-            "{}",
-            format!("{:?}", cmd)
-                .split(r#"" ""#)
-                .collect::<Vec<&str>>()
-                .join(" ")
-        );
+
+        let mut cmd = LongRunning::setup_long_running_docker_cmd(
+            self,
+            ctx,
+            &container_name,
+            volumes,
+            pkg_id,
+            pkg_version,
+        )
+        .await?;
+
+        cleanup_previous_container(ctx, &container_name).await?;
+
         let mut handle = cmd.spawn().with_kind(crate::ErrorKind::Docker)?;
         let id = handle.id();
-        let timeout_fut = if let Some(timeout) = timeout {
-            EitherFuture::Right(async move {
-                tokio::time::sleep(timeout).await;
+        let input_handle = LongRunning::spawn_input_handle(&mut handle, input)?;
 
-                Ok(())
-            })
-        } else {
-            EitherFuture::Left(futures::future::pending::<Result<_, Error>>())
-        };
-        if let (Some(input), Some(mut stdin)) = (&input_buf, handle.stdin.take()) {
-            use tokio::io::AsyncWriteExt;
-            stdin
-                .write_all(input)
-                .await
-                .with_kind(crate::ErrorKind::Docker)?;
-            stdin.flush().await?;
-            stdin.shutdown().await?;
-            drop(stdin);
-        }
-        enum Race<T> {
-            Done(T),
-            TimedOut,
-        }
+        let (output, output_handle) = LongRunning::spawn_output_handle(&mut handle)?;
+        let err_handle = LongRunning::spawn_error_handle(&mut handle)?;
 
-        let io_format = self.io_format;
-        let mut output = BufReader::new(
-            handle
-                .stdout
-                .take()
-                .ok_or_else(|| eyre!("Can't takeout stout"))
-                .with_kind(crate::ErrorKind::Docker)?,
-        );
-        let output = NonDetachingJoinHandle::from(tokio::spawn(async move {
-            match async {
-                if let Some(format) = io_format {
-                    return match max_by_lines(&mut output, None).await {
-                        MaxByLines::Done(buffer) => {
-                            Ok::<Value, Error>(
-                                match format.from_slice(buffer.as_bytes()) {
-                                    Ok(a) => a,
-                                    Err(e) => {
-                                        tracing::trace!(
-                                        "Failed to deserialize stdout from {}: {}, falling back to UTF-8 string.",
-                                        format,
-                                        e
-                                    );
-                                        Value::String(buffer)
-                                    }
-                                },
-                            )
-                        },
-                        MaxByLines::Error(e) => Err(e),
-                        MaxByLines::Overflow(buffer) => Ok(Value::String(buffer))
-                    }
-                }
-
-                let lines = buf_reader_to_lines(&mut output, 1000).await?;
-                if lines.is_empty() {
-                    return Ok(Value::Null);
-                }
-
-                let joined_output = lines.join("\n");
-                Ok(Value::String(joined_output))
-            }.await {
-                Ok(a) => Ok((a, output)),
-                Err(e) => Err((e, output))
-            }
-        }));
-        let err_output = BufReader::new(
-            handle
-                .stderr
-                .take()
-                .ok_or_else(|| eyre!("Can't takeout std err"))
-                .with_kind(crate::ErrorKind::Docker)?,
-        );
-
-        let err_output = NonDetachingJoinHandle::from(tokio::spawn(async move {
-            let lines = buf_reader_to_lines(err_output, 1000).await?;
-            let joined_output = lines.join("\n");
-            Ok::<_, Error>(joined_output)
+        let running_output = NonDetachingJoinHandle::from(tokio::spawn(async move {
+            handle.wait().await;
+            err_handle.await;
+            output_handle.await;
+            input_handle.await;
         }));
 
-        let res = tokio::select! {
-            res = handle.wait() => Race::Done(res.with_kind(crate::ErrorKind::Docker)?),
-            res = timeout_fut => {
-                res?;
-                Race::TimedOut
-            },
-        };
-        let exit_status = match res {
-            Race::Done(x) => x,
-            Race::TimedOut => {
-                if let Some(id) = id {
-                    signal::kill(Pid::from_raw(id as i32), signal::SIGKILL)
-                        .with_kind(crate::ErrorKind::Docker)?;
-                }
-                return Ok(Err((143, "Timed out. Retrying soon...".to_owned())));
-            }
-        };
-        Ok(
-            if exit_status.success() || exit_status.code() == Some(143) {
-                Ok(serde_json::from_value(
-                    output
-                        .await
-                        .with_kind(crate::ErrorKind::Unknown)?
-                        .map(|(v, _)| v)
-                        .map_err(|(e, _)| tracing::warn!("{}", e))
-                        .unwrap_or_default(),
-                )
-                .with_kind(crate::ErrorKind::Deserialization)?)
-            } else {
-                Err((
-                    exit_status.code().unwrap_or_default(),
-                    err_output.await.with_kind(crate::ErrorKind::Unknown)??,
-                ))
-            },
-        )
+        Ok(LongRunning {
+            output: output.boxed(),
+            running_output,
+        })
     }
 
     #[instrument(skip(ctx, input))]
@@ -787,6 +640,21 @@ impl DockerProcedure {
         pkg_version: &Version,
         volumes: &Volumes,
     ) -> Result<Vec<Cow<'_, OsStr>>, Error> {
+        let mut res = self
+            .docker_args_without_final_args(volumes, ctx, pkg_id, pkg_version)
+            .await?;
+
+        res.extend(self.args.iter().map(|s| OsStr::new(s).into()));
+
+        Ok(res)
+    }
+    async fn docker_args_without_final_args(
+        &self,
+        volumes: &Volumes,
+        ctx: &RpcContext,
+        pkg_id: &PackageId,
+        pkg_version: &Version,
+    ) -> Result<Vec<Cow<'_, OsStr>>, Error> {
         let mut res = self.new_docker_args();
         for (volume_id, dst) in &self.mounts {
             let volume = if let Some(v) = volumes.get(volume_id) {
@@ -814,7 +682,6 @@ impl DockerProcedure {
             res.push(OsString::from(format!("{}m", shm_size_mb)).into());
         }
         res.push(OsStr::new("--interactive").into());
-
         res.push(OsStr::new("--log-driver=journald").into());
         res.push(OsStr::new("--entrypoint").into());
         res.push(OsStr::new(&self.entrypoint).into());
@@ -823,9 +690,6 @@ impl DockerProcedure {
         } else {
             res.push(OsString::from(self.image.for_package(pkg_id, Some(pkg_version))).into());
         }
-
-        res.extend(self.args.iter().map(|s| OsStr::new(s).into()));
-
         Ok(res)
     }
 
@@ -881,6 +745,142 @@ impl<T> RingVec<T> {
     }
 }
 
+struct LongRunning {
+    pub output: std::pin::Pin<Box<dyn Stream<Item = OutputRpcId>>>,
+    running_output: NonDetachingJoinHandle<()>,
+}
+
+impl LongRunning {
+    async fn setup_long_running_docker_cmd(
+        docker: &DockerProcedure,
+        ctx: &RpcContext,
+        container_name: &str,
+        volumes: &Volumes,
+        pkg_id: &PackageId,
+        pkg_version: &Version,
+    ) -> Result<tokio::process::Command, Error> {
+        tracing::trace!("setup_long_running_docker_cmd");
+        let mut cmd = tokio::process::Command::new("bash");
+        cmd.arg("-j");
+        let docker_run_part = {
+            let docker_ip = Ipv4Addr::from(HOST_IP);
+            let mut cmd = format!("docker run --rm --networ=start9 --add-host=embassy:{docker_ip} --name {container_name} --hostname={container_name} --no-healthcheck");
+            cmd.push_str(
+                &docker
+                    .docker_args_without_final_args(volumes, ctx, pkg_id, pkg_version)
+                    .await?
+                    .into_iter()
+                    .filter_map(|x| x.to_str().map(|x| x.to_owned()))
+                    .collect::<Vec<_>>()
+                    .join(" "),
+            );
+            cmd
+        };
+        cmd.arg(format!(r#"cat embassy-docker-runner | {docker_run_part} "tee /usr/local/bin/embassy-docker-runner > /dev/null; embassy-docker-runner" "#));
+
+        cmd.stdout(std::process::Stdio::piped());
+        cmd.stderr(std::process::Stdio::piped());
+        Ok(cmd)
+    }
+    fn spawn_input_handle<S>(
+        handle: &mut Child,
+        input: S,
+    ) -> Result<NonDetachingJoinHandle<()>, Error>
+    where
+        S: Stream<Item = InputRpcId>,
+    {
+        use tokio::io::AsyncWriteExt;
+        let mut stdin = handle
+            .stdin
+            .take()
+            .ok_or_else(|| eyre!("Can't takeout stout"))
+            .with_kind(crate::ErrorKind::Docker)?;
+        Ok(NonDetachingJoinHandle::from(tokio::spawn(async move {
+            tokio::pin!(input);
+            while let Some(input) = input.next().await {
+                let input = match serde_json::to_string(&input) {
+                    Ok(a) => a,
+                    Err(e) => {
+                        tracing::debug!("{:?}", e);
+                        tracing::error!("Docker Input Serialization issue");
+                        continue;
+                    }
+                };
+                if let Err(e) = stdin.write_all(format!("{input}\n").as_bytes()).await {
+                    tracing::debug!("{:?}", e);
+                    tracing::error!("Docker Input issue");
+                }
+            }
+        })))
+    }
+    fn spawn_error_handle(handle: &mut Child) -> Result<NonDetachingJoinHandle<()>, Error> {
+        let id = handle.id();
+        let mut output = tokio::io::BufReader::new(
+            handle
+                .stderr
+                .take()
+                .ok_or_else(|| eyre!("Can't takeout stderr"))
+                .with_kind(crate::ErrorKind::Docker)?,
+        )
+        .lines();
+        Ok(NonDetachingJoinHandle::from(tokio::spawn(async move {
+            while let Ok(Some(line)) = output.next_line().await {
+                tracing::debug!("{:?}", id);
+                tracing::error!("Error from long running container");
+            }
+        })))
+    }
+
+    fn spawn_output_handle(
+        handle: &mut Child,
+    ) -> Result<(impl Stream<Item = OutputRpcId>, NonDetachingJoinHandle<()>), Error> {
+        let mut output = tokio::io::BufReader::new(
+            handle
+                .stdout
+                .take()
+                .ok_or_else(|| eyre!("Can't takeout stout"))
+                .with_kind(crate::ErrorKind::Docker)?,
+        )
+        .lines();
+        let (sender, receiver) = tokio::sync::mpsc::unbounded_channel::<OutputRpcId>();
+        Ok((
+            receiver,
+            NonDetachingJoinHandle::from(tokio::spawn(async move {
+                loop {
+                    let next = match output
+                        .next_line()
+                        .await
+                        .map(|x| x.map(|x| serde_json::from_str(&x)))
+                    {
+                        Ok(a) => a,
+                        Err(e) => {
+                            tracing::debug!("{:?}", e);
+                            tracing::error!("Output from docker, killing");
+                            break;
+                        }
+                    };
+                    let next = match next {
+                        Some(a) => a,
+                        None => continue,
+                    };
+                    let next = match next {
+                        Ok(a) => a,
+                        Err(e) => {
+                            tracing::debug!("{:?}", e);
+                            tracing::error!("Could not decode output from long running binary");
+                            break;
+                        }
+                    };
+                    if let Err(e) = sender.send(next) {
+                        tracing::debug!("{:?}", e);
+                        tracing::error!("Could no longer send output");
+                        break;
+                    }
+                }
+            })),
+        ))
+    }
+}
 async fn buf_reader_to_lines(
     reader: impl AsyncBufRead + Unpin,
     limit: impl Into<Option<usize>>,
@@ -903,6 +903,28 @@ async fn buf_reader_to_lines(
         .with_kind(crate::ErrorKind::Unknown)?;
     let output: Vec<String> = output.value.into_iter().collect();
     Ok(output)
+}
+
+async fn cleanup_previous_container(ctx: &RpcContext, container_name: &str) -> Result<(), Error> {
+    match ctx
+        .docker
+        .remove_container(
+            &container_name,
+            Some(RemoveContainerOptions {
+                v: false,
+                force: true,
+                link: false,
+            }),
+        )
+        .await
+    {
+        Ok(())
+        | Err(bollard::errors::Error::DockerResponseServerError {
+            status_code: 404, // NOT FOUND
+            ..
+        }) => Ok(()),
+        Err(e) => Err(e)?,
+    }
 }
 
 enum MaxByLines {
@@ -944,6 +966,7 @@ async fn max_by_lines(
     }
     MaxByLines::Done(answer)
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -965,4 +988,57 @@ mod tests {
         assert_eq!(CAPACITY_IN, ring.value.capacity());
         assert_eq!(CAPACITY_IN, ring.value.len());
     }
+}
+
+#[tokio::test]
+async fn test() {
+    use tokio::io::AsyncWriteExt;
+    use tokio::process::Command;
+    let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel::<String>();
+
+    tokio::spawn(async move {
+        let mut cmd = Command::new("echo-all");
+        cmd.args([">", "/tmp/test"]);
+
+        // Specifying that we want pipe both the output and the input.
+        // Similarly to capturing the output, by configuring the pipe
+        // to stdin it can now be used as an asynchronous writer.
+        cmd.stdout(std::process::Stdio::piped());
+        cmd.stdin(std::process::Stdio::piped());
+
+        let mut child = cmd.spawn().expect("failed to spawn command");
+
+        // These are the animals we want to sort
+        let animals: &[&str] = &["dog", "bird", "frog", "cat", "fish"];
+
+        let mut stdin = child
+            .stdin
+            .take()
+            .expect("child did not have a handle to stdin");
+
+        while let Some(mess) = receiver.recv().await {
+            stdin
+                .write_all(mess.as_bytes())
+                .await
+                .expect("could not write to stdin");
+        }
+
+        // Write our animals to the child process
+        // Note that the behavior of `sort` is to buffer _all input_ before writing any output.
+        // In the general sense, it is recommended to write to the child in a separate task as
+        // awaiting its exit (or output) to avoid deadlocks (for example, the child tries to write
+        // some output but gets stuck waiting on the parent to read from it, meanwhile the parent
+        // is stuck waiting to write its input completely before reading the output).
+    });
+    sender.send("apple\n".to_string()).unwrap();
+    tokio::time::sleep(Duration::from_millis(5000)).await;
+
+    sender.send("bannana\n".to_string()).unwrap();
+    tokio::time::sleep(Duration::from_millis(5000)).await;
+
+    sender.send("cherry\n".to_string()).unwrap();
+    tokio::time::sleep(Duration::from_millis(5000)).await;
+
+    sender.send("durian\n".to_string()).unwrap();
+    tokio::time::sleep(Duration::from_secs(u64::MAX)).await;
 }

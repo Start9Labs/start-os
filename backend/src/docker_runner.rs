@@ -12,7 +12,7 @@ pub enum RpcId {
     String(String),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct OutputRpcId {
     id: Option<RpcId>,
     output: Output,
@@ -64,6 +64,15 @@ pub struct InputRpcId {
     id: Option<RpcId>,
     #[serde(flatten)]
     input_rpc: InputRpc,
+}
+
+impl InputRpcId {
+    fn new_cmd(count: i64, command: String, args: Vec<String>) -> Self {
+        InputRpcId {
+            id: Some(RpcId::Int(count)),
+            input_rpc: InputRpc::Two(Input::Command { command, args }),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
