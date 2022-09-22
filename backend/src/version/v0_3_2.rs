@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use emver::VersionRange;
 
 use crate::hostname::{generate_id, get_hostname, sync_hostname};
