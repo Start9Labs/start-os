@@ -11,9 +11,14 @@ fi
 
 passwd -l start9
 
+START=$(date +%s)
 while ! ping -q -w 1 -c 1 `ip r | grep default | cut -d ' ' -f 3` > /dev/null; do
 	>&2 echo "Waiting for internet connection..."
 	sleep 1
+	if [ "$[$START + 60]" -lt $(date +%s) ]; then
+		>&2 echo "Timed out waiting for internet connection..."
+		exit 1
+	fi
 done
 echo "Connected to network"
 
@@ -41,39 +46,56 @@ apt-get install -y \
 	cryptsetup \
 	exfat-utils \
 	sqlite3 \
+	network-manager \
 	wireless-tools \
 	net-tools \
 	ecryptfs-utils \
 	cifs-utils \
 	samba-common-bin \
-	network-manager \
 	vim \
 	jq \
 	ncdu \
 	postgresql \
-	pgloader
+	pgloader \
+	dnsutils
+
+# switch to systemd-resolved & network-manager
+systemctl enable systemd-resolved
+systemctl start systemd-resolved
+apt-get remove --purge openresolv dhcpcd5 -y
+echo "#" > /etc/network/interfaces
+systemctl disable wpa_supplicant.service
+ln -rsf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+cat << EOF > /etc/NetworkManager/NetworkManager.conf
+[main]
+plugins=ifupdown,keyfile
+dns=systemd-resolved
+
+[ifupdown]
+managed=true
+EOF
+sudo systemctl restart NetworkManager
+nmcli device modify eth0 ipv4.ignore-auto-dns no
+
+START=$(date +%s)
+while ! ping -q -w 1 -c 1 start9.com > /dev/null; do
+	>&2 echo "Waiting for network to reinitialize..."
+	sleep 1
+	if [ "$[$START + 60]" -lt $(date +%s) ]; then
+		>&2 echo "Timed out waiting for network to reinitialize..."
+		exit 1
+	fi
+done
+echo "Network reinitialized"
 
 # Setup repository from The Guardian Project and install latest stable Tor daemon
-echo "deb     [arch=arm64 signed-by=/usr/share/keyrings/tor-archive-keyring.gpg] https://deb.torproject.org/torproject.org bullseye main" > /etc/apt/sources.list.d/tor.list
 wget -qO- https://deb.torproject.org/torproject.org/A3C4F0F979CAA22CDBA8F512EE8CBC9E886DDD89.asc | gpg --dearmor | tee /usr/share/keyrings/tor-archive-keyring.gpg >/dev/null
-apt update && apt install -y tor deb.torproject.org-keyring
+echo "deb     [arch=arm64 signed-by=/usr/share/keyrings/tor-archive-keyring.gpg] https://deb.torproject.org/torproject.org bullseye main" > /etc/apt/sources.list.d/tor.list
+apt-get update && apt-get install -y tor deb.torproject.org-keyring
 
 curl -fsSL https://get.docker.com | sh # TODO: commit this script into git instead of live fetching it
 
-# enable embassyd dns server
-systemctl enable systemd-resolved
-sed -i '/\(^\|#\)DNS=/c\DNS=127.0.0.1' /etc/systemd/resolved.conf
-systemctl start systemd-resolved
-
-apt-get remove --purge openresolv dhcpcd5 -y
-systemctl disable wpa_supplicant.service
-
-sudo -u postgres createuser root
-sudo -u postgres createdb secrets -O root
 systemctl disable postgresql.service
-
-ln -rsf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
-
 systemctl disable bluetooth.service
 systemctl disable hciuart.service
 systemctl disable triggerhappy.service
@@ -86,7 +108,6 @@ sed -i 's/ExecStart=\/usr\/bin\/dockerd/ExecStart=\/usr\/bin\/dockerd --exec-opt
 sed -i '/}/i \ \ \ \ application\/wasm \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ wasm;' /etc/nginx/mime.types
 sed -i 's/# server_names_hash_bucket_size 64;/server_names_hash_bucket_size 128;/g' /etc/nginx/nginx.conf
 sed -i 's/#allow-interfaces=eth0/allow-interfaces=eth0,wlan0/g' /etc/avahi/avahi-daemon.conf
-echo "#" > /etc/network/interfaces
 echo '{ "cgroup-parent": "docker-engine.slice" }' > /etc/docker/daemon.json
 mkdir -p /etc/nginx/ssl
 
@@ -94,8 +115,6 @@ mkdir -p /etc/nginx/ssl
 mkdir -p /root/.docker
 touch /root/.docker/config.json
 
-docker run --privileged --rm tonistiigi/binfmt --install all
-docker network create -d bridge --subnet 172.18.0.1/16 start9 || true
 mkdir -p /etc/embassy
 systemctl enable embassyd.service embassy-init.service
 cat << EOF > /etc/tor/torrc
@@ -107,14 +126,6 @@ ControlPort 9051
 CookieAuthentication 1
 EOF
 
-cat << EOF > /etc/NetworkManager/NetworkManager.conf
-[main]
-plugins=ifupdown,keyfile
-dns=systemd-resolved
-
-[ifupdown]
-managed=false
-EOF
 
 
 if [ -f /embassy-os/product_key.txt ]
@@ -139,9 +150,9 @@ sed -i 's/rootwait quiet.*/rootwait cgroup_enable=cpuset cgroup_memory=1 cgroup_
 
 systemctl disable nc-broadcast.service
 systemctl disable initialization.service
-sudo systemctl restart NetworkManager
 
 echo "fs.inotify.max_user_watches=1048576" > /etc/sysctl.d/97-embassy.conf
+
 
 sync
 

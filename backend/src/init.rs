@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::Path;
 use std::process::Stdio;
 use std::time::Duration;
@@ -132,7 +133,8 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
                 .success(),
         )
     };
-    if tokio::fs::metadata(&db_dir).await.is_err() {
+    let exists = tokio::fs::metadata(&db_dir).await.is_ok();
+    if !exists {
         Command::new("cp")
             .arg("-ra")
             .arg("/var/lib/postgresql")
@@ -143,11 +145,35 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
     if !is_mountpoint().await? {
         crate::disk::mount::util::bind(&db_dir, "/var/lib/postgresql", false).await?;
     }
+    Command::new("chown")
+        .arg("-R")
+        .arg("postgres")
+        .arg("/var/lib/postgresql")
+        .invoke(crate::ErrorKind::Database)
+        .await?;
     Command::new("systemctl")
         .arg("start")
         .arg("postgresql")
         .invoke(crate::ErrorKind::Database)
         .await?;
+    if !exists {
+        Command::new("sudo")
+            .arg("-u")
+            .arg("postgres")
+            .arg("createuser")
+            .arg("root")
+            .invoke(crate::ErrorKind::Database)
+            .await?;
+        Command::new("sudo")
+            .arg("-u")
+            .arg("postgres")
+            .arg("createdb")
+            .arg("secrets")
+            .arg("-O")
+            .arg("root")
+            .invoke(crate::ErrorKind::Database)
+            .await?;
+    }
     Ok(())
 }
 
@@ -205,6 +231,28 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     tracing::info!("Mounted Docker Data");
 
     if should_rebuild || !tmp_docker_exists {
+        tracing::info!("Creating Docker Network");
+        bollard::Docker::connect_with_unix_defaults()?
+            .create_network(bollard::network::CreateNetworkOptions {
+                name: "start9",
+                driver: "bridge",
+                ipam: bollard::models::Ipam {
+                    config: Some(vec![bollard::models::IpamConfig {
+                        subnet: Some("172.18.0.1/24".into()),
+                        ..Default::default()
+                    }]),
+                    ..Default::default()
+                },
+                options: {
+                    let mut m = HashMap::new();
+                    m.insert("com.docker.network.bridge.name", "br-start9");
+                    m
+                },
+                ..Default::default()
+            })
+            .await?;
+        tracing::info!("Created Docker Network");
+
         tracing::info!("Loading System Docker Images");
         crate::install::load_images("/var/lib/embassy/system-images").await?;
         tracing::info!("Loaded System Docker Images");
@@ -213,6 +261,18 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         crate::install::load_images(cfg.datadir().join(PKG_DOCKER_DIR)).await?;
         tracing::info!("Loaded Package Docker Images");
     }
+
+    tracing::info!("Enabling Docker QEMU Emulation");
+    Command::new("docker")
+        .arg("run")
+        .arg("--privileged")
+        .arg("--rm")
+        .arg("start9/x_system/binfmt")
+        .arg("--install")
+        .arg("all")
+        .invoke(crate::ErrorKind::Docker)
+        .await?;
+    tracing::info!("Enabled Docker QEMU Emulation");
 
     crate::ssh::sync_keys_from_db(&secret_store, "/home/start9/.ssh/authorized_keys").await?;
     tracing::info!("Synced SSH Keys");

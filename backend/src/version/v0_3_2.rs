@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use emver::VersionRange;
 
 use crate::hostname::{generate_id, get_hostname, sync_hostname};
@@ -44,6 +46,30 @@ impl VersionT for Version {
             ui.insert("ack-instructions".to_string(), serde_json::json!({}));
         }
         crate::db::DatabaseModel::new().ui().put(db, &ui).await?;
+
+        let docker = bollard::Docker::connect_with_unix_defaults()?;
+        docker.remove_network("start9").await?;
+        docker
+            .create_network(bollard::network::CreateNetworkOptions {
+                name: "start9",
+                driver: "bridge",
+                ipam: bollard::models::Ipam {
+                    config: Some(vec![bollard::models::IpamConfig {
+                        subnet: Some("172.18.0.1/24".into()),
+                        ..Default::default()
+                    }]),
+                    ..Default::default()
+                },
+                options: {
+                    let mut m = HashMap::new();
+                    m.insert("com.docker.network.bridge.name", "br-start9");
+                    m
+                },
+                ..Default::default()
+            })
+            .await?;
+        crate::install::load_images("/var/lib/embassy/system-images").await?;
+
         Ok(())
     }
     async fn down<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error> {
