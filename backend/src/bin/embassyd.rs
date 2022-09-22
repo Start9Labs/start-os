@@ -10,12 +10,13 @@ use embassy::middleware::cors::cors;
 use embassy::middleware::diagnostic::diagnostic;
 #[cfg(feature = "avahi")]
 use embassy::net::mdns::MdnsController;
+use embassy::net::static_server;
 use embassy::net::tor::tor_health_check;
 use embassy::shutdown::Shutdown;
 use embassy::system::launch_metrics_task;
 use embassy::util::logger::EmbassyLogger;
 use embassy::util::{daemon, Invoke};
-use embassy::{static_server, Error, ErrorKind, ResultExt};
+use embassy::{Error, ErrorKind, ResultExt};
 use futures::{FutureExt, TryFutureExt};
 use reqwest::{Client, Proxy};
 use rpc_toolkit::hyper::{Body, Response, Server, StatusCode};
@@ -81,11 +82,8 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
                 .expect("send shutdown signal");
         });
 
-        //let mut db = rpc_ctx.db.handle();
-        //   let receipts = embassy::context::rpc::RpcSetNginxReceipts::new(&mut db).await?;
+        rpc_ctx.net_controller.add_main_server(rpc_ctx.clone()).await;
 
-        //rpc_ctx.set_nginx_conf(&mut db, receipts).await?;
-        //drop(db);
         let auth = auth(rpc_ctx.clone());
         let ctx = rpc_ctx.clone();
         let server = rpc_server!({
@@ -224,16 +222,6 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
             }
         });
 
-        let file_server_ctx = rpc_ctx.clone();
-        let file_server = {
-            static_server::init(file_server_ctx, {
-                let mut shutdown = rpc_ctx.shutdown.subscribe();
-                async move {
-                    shutdown.recv().await.expect("context dropped");
-                }
-            })
-        };
-
         let tor_health_ctx = rpc_ctx.clone();
         let tor_client = Client::builder()
             .proxy(
@@ -277,9 +265,6 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
             ws_server
                 .map_err(|e| Error::new(e, ErrorKind::Network))
                 .map_ok(|_| tracing::debug!("WebSocket Server Shutdown")),
-            file_server
-                .map_err(|e| Error::new(e, ErrorKind::Network))
-                .map_ok(|_| tracing::debug!("Static File Server Shutdown")),
             tor_health_daemon
                 .map_err(|e| Error::new(
                     e.wrap_err("Tor Health daemon panicked!"),

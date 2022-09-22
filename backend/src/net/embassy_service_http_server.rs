@@ -27,13 +27,14 @@ type HttpHandler = Arc<
 
 static RES_NOT_FOUND: &[u8] = b"503 Service Unavailable";
 static NO_HOST: &[u8] = b"No host header found";
-pub struct EmbassyHTTPServer {
+pub struct EmbassyServiceHTTPServer {
+    // String: Virtual 
     pub docker_mapping: Arc<RwLock<BTreeMap<String, HttpHandler>>>,
     pub shutdown: oneshot::Sender<()>,
     pub handle: NonDetachingJoinHandle<()>,
 }
 
-impl EmbassyHTTPServer {
+impl EmbassyServiceHTTPServer {
     pub async fn new(listener_addr: IpAddr, port: u16) -> Result<Self, Error> {
         let (tx, rx) = tokio::sync::oneshot::channel::<()>();
 

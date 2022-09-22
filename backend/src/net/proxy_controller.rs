@@ -6,8 +6,9 @@ use models::{InterfaceId, PackageId};
 use tokio::sync::Mutex;
 use tracing::{info, instrument};
 
-use crate::net::embassy_http_server::EmbassyHTTPServer;
+use crate::net::embassy_service_http_server::EmbassyServiceHTTPServer;
 use crate::net::ssl::SslManager;
+use crate::net::static_server::StaticServer;
 use crate::net::{InterfaceMetadata, PackageNetInfo};
 
 use crate::{Error, ResultExt};
@@ -40,11 +41,16 @@ impl ProxyController {
     pub async fn remove(&self, package: &PackageId) -> Result<(), Error> {
         self.inner.lock().await.remove(package).await
     }
+
+    pub async fn add_main_server(&self, server: StaticServer) {
+        self.inner.lock().await.main_server = Some(server);
+    }
 }
 
 struct ProxyControllerInner {
     embassyd_addr: SocketAddr,
-    service_servers: BTreeMap<u16, EmbassyHTTPServer>,
+    main_server: Option<StaticServer>,
+    service_servers: BTreeMap<u16, EmbassyServiceHTTPServer>,
     iface_lookups: BTreeMap<(PackageId, InterfaceId), String>,
     interfaces: BTreeMap<PackageId, PackageNetInfo>,
 }
@@ -54,6 +60,7 @@ impl ProxyControllerInner {
     async fn init(embassyd_addr: SocketAddr, ssl_manager: &SslManager) -> Result<Self, Error> {
         let inner = ProxyControllerInner {
             embassyd_addr,
+            main_server: None,
             interfaces: BTreeMap::new(),
             iface_lookups: BTreeMap::new(),
             service_servers: BTreeMap::new(),
@@ -93,7 +100,7 @@ impl ProxyControllerInner {
                     server.add_docker_mapping(meta.fqdn.to_owned(), docker_addr).await;
                 } else {
                     let mut new_service_server =
-                        EmbassyHTTPServer::new(self.embassyd_addr.ip(), external_svc_port.0)
+                        EmbassyServiceHTTPServer::new(self.embassyd_addr.ip(), external_svc_port.0)
                             .await?;
                     new_service_server
                         .add_docker_mapping(meta.fqdn.to_owned(), docker_addr)

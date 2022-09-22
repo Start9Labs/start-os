@@ -4,11 +4,13 @@ use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
 use digest::Digest;
+use helpers::NonDetachingJoinHandle;
 use http::response::Builder;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Error as HyperError, Method, Request, Response, Server, StatusCode};
 use tokio::fs::File;
 use tokio_util::codec::{BytesCodec, FramedRead};
+use tracing::error;
 
 use crate::context::RpcContext;
 use crate::install::PKG_PUBLIC_DIR;
@@ -18,36 +20,52 @@ use crate::{Error, ErrorKind, ResultExt};
 static NOT_FOUND: &[u8] = b"Not Found";
 static NOT_AUTHORIZED: &[u8] = b"Not Authorized";
 
-pub fn init(
-    ctx: RpcContext,
-    shutdown: impl Future<Output = ()> + Send + 'static,
-) -> impl Future<Output = Result<(), HyperError>> {
-    let addr = ctx.bind_static;
+pub struct StaticServer {
+    //shutdown: oneshot::Sender<()>,
+    handle: NonDetachingJoinHandle<()>,
+}
 
-    let make_service = make_service_fn(move |_| {
-        let ctx = ctx.clone();
-        async move {
-            Ok::<_, HyperError>(service_fn(move |req| {
-                let ctx = ctx.clone();
-                async move {
-                    match file_server_router(req, ctx).await {
-                        Ok(x) => Ok::<_, HyperError>(x),
-                        Err(err) => {
-                            tracing::error!("{:?}", err);
-                            Ok(server_error())
+impl StaticServer {
+    pub fn init(ctx: RpcContext, shutdown: impl Future<Output = ()> + Send + 'static) -> Self {
+        let addr = ctx.bind_proxy_non_ssl;
+
+        let make_service = make_service_fn(move |_| {
+            let ctx = ctx.clone();
+            async move {
+                Ok::<_, HyperError>(service_fn(move |req| {
+                    let ctx = ctx.clone();
+                    async move {
+                        match file_server_router(req, ctx).await {
+                            Ok(x) => Ok::<_, HyperError>(x),
+                            Err(err) => {
+                                tracing::error!("{:?}", err);
+                                Ok(server_error())
+                            }
                         }
                     }
-                }
-            }))
-        }
-    });
+                }))
+            }
+        });
 
-    Server::bind(&addr)
-        .serve(make_service)
-        .with_graceful_shutdown(shutdown)
+        let handle = tokio::spawn(async move {
+            let server = Server::bind(&addr)
+                .serve(make_service)
+                .with_graceful_shutdown(shutdown);
+
+            if let Err(e) = server.await {
+                error!("Spawning hyper server errorr: {}", e);
+            }
+        });
+
+        Self {
+            handle: handle.into(),
+        }
+    }
 }
 
 async fn file_server_router(req: Request<Body>, ctx: RpcContext) -> Result<Response<Body>, Error> {
+
+    dbg!(req.uri());
     let (request_parts, _body) = req.into_parts();
     let valid_session = HasValidSession::from_request_parts(&request_parts, &ctx).await;
     match (
@@ -58,32 +76,37 @@ async fn file_server_router(req: Request<Body>, ctx: RpcContext) -> Result<Respo
             .path()
             .strip_prefix('/')
             .unwrap_or(request_parts.uri.path())
-            .split_once("/"),
+            .split_once('/'),
     ) {
+        // (Err(error), Method::GET, Some("public")) => {
+        //     tracing::warn!("unauthorized for {} @{:?}", error, request_parts.uri.path());
+        //     tracing::debug!("{:?}", error);
+        //     Ok(Response::builder()
+        //         .status(StatusCode::UNAUTHORIZED)
+        //         .body(NOT_AUTHORIZED.into())
+        //         .unwrap())
+        // }
         (Err(error), _, _) => {
             tracing::warn!("unauthorized for {} @{:?}", error, request_parts.uri.path());
             tracing::debug!("{:?}", error);
-            return Ok(Response::builder()
+            Ok(Response::builder()
                 .status(StatusCode::UNAUTHORIZED)
                 .body(NOT_AUTHORIZED.into())
-                .unwrap());
+                .unwrap())
         }
         (Ok(valid_session), Method::GET, Some(("package-data", path))) => {
             file_send(
-                valid_session,
-                &ctx,
                 ctx.datadir.join(PKG_PUBLIC_DIR).join(path),
             )
             .await
         }
         (Ok(valid_session), Method::GET, Some(("eos", "local.crt"))) => {
             file_send(
-                valid_session,
-                &ctx,
                 PathBuf::from(crate::net::ssl::ROOT_CA_STATIC_PATH),
             )
             .await
         }
+
         _ => Ok(not_found()),
     }
 }
@@ -105,8 +128,6 @@ fn server_error() -> Response<Body> {
 }
 
 async fn file_send(
-    _valid_session: HasValidSession,
-    _ctx: &RpcContext,
     path: impl AsRef<Path>,
 ) -> Result<Response<Body>, Error> {
     // Serve a file by asynchronously reading it by chunks using tokio-util crate.

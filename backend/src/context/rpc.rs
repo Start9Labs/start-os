@@ -29,7 +29,7 @@ use crate::manager::ManagerMap;
 use crate::middleware::auth::HashSessionToken;
 use crate::net::tor::os_key;
 use crate::net::wifi::WpaCli;
-use crate::net::NetController;
+use crate::net::net_controller::NetController;
 use crate::notifications::NotificationManager;
 use crate::setup::password_hash;
 use crate::shutdown::Shutdown;
@@ -44,7 +44,8 @@ pub struct RpcContextConfig {
     pub bind_rpc: Option<SocketAddr>,
     pub bind_ws: Option<SocketAddr>,
     pub bind_static: Option<SocketAddr>,
-    pub bind_proxy: Option<SocketAddr>,
+    pub bind_proxy_non_ssl: Option<SocketAddr>,
+    pub bind_proxy_ssl: Option<SocketAddr>,
     pub tor_control: Option<SocketAddr>,
     pub tor_socks: Option<SocketAddr>,
     pub dns_bind: Option<Vec<SocketAddr>>,
@@ -115,8 +116,8 @@ pub struct RpcContextSeed {
     is_closed: AtomicBool,
     pub bind_rpc: SocketAddr,
     pub bind_ws: SocketAddr,
-    pub bind_static: SocketAddr,
-    pub bind_proxy: SocketAddr,
+    pub bind_proxy_non_ssl: SocketAddr,
+    pub bind_proxy_ssl: SocketAddr,
     pub datadir: PathBuf,
     pub disk_guid: Arc<String>,
     pub db: PatchDb,
@@ -241,10 +242,10 @@ impl RpcContext {
         tracing::info!("Initialized Notification Manager");
         let seed = Arc::new(RpcContextSeed {
             is_closed: AtomicBool::new(false),
-            bind_rpc: base.bind_rpc.unwrap_or(([127, 0, 0, 1], 5959).into()),
-            bind_ws: base.bind_ws.unwrap_or(([127, 0, 0, 1], 5960).into()),
-            bind_static: base.bind_static.unwrap_or(([127, 0, 0, 1], 5961).into()),
-            bind_proxy: base.bind_proxy.unwrap_or(([127, 0, 0, 1], 80).into()),
+            bind_rpc: base.bind_rpc.unwrap_or_else(|| ([127, 0, 0, 1], 5959).into()),
+            bind_ws: base.bind_ws.unwrap_or_else(|| ([127, 0, 0, 1], 5960).into()),
+            bind_proxy_non_ssl: base.bind_proxy_non_ssl.unwrap_or_else(|| ([0, 0, 0, 0], 80).into()),
+            bind_proxy_ssl: base.bind_proxy_ssl.unwrap_or_else(|| ([0, 0, 0, 0], 443).into()),
             datadir: base.datadir().to_path_buf(),
             disk_guid,
             db,
@@ -277,35 +278,6 @@ impl RpcContext {
         Ok(res)
     }
 
-    // #[instrument(skip(self, db, receipts))]
-    // pub async fn set_nginx_conf<Db: DbHandle>(
-    //     &self,
-    //     db: &mut Db,
-    //     receipts: RpcSetNginxReceipts,
-    // ) -> Result<(), Error> {
-    //     tokio::fs::write("/etc/nginx/sites-available/default", {
-    //         let info = receipts.server_info.get(db).await?;
-    //         format!(
-    //             include_str!("../nginx/main-ui.conf.template"),
-    //             lan_hostname = info.lan_address.host_str().unwrap(),
-    //             tor_hostname = info.tor_address.host_str().unwrap(),
-    //         )
-    //     })
-    //     .await
-    //     .with_ctx(|_| {
-    //         (
-    //             crate::ErrorKind::Filesystem,
-    //             "/etc/nginx/sites-available/default",
-    //         )
-    //     })?;
-    //     Command::new("systemctl")
-    //         .arg("reload")
-    //         .arg("nginx")
-    //         .invoke(crate::ErrorKind::Nginx)
-    //         .await?;
-    //     Ok(())
-    // }
-    
     #[instrument(skip(self))]
     pub async fn shutdown(self) -> Result<(), Error> {
         self.managers.empty().await?;
