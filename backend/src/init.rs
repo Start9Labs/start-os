@@ -11,6 +11,7 @@ use crate::context::rpc::RpcContextConfig;
 use crate::db::model::ServerStatus;
 use crate::install::PKG_DOCKER_DIR;
 use crate::util::Invoke;
+use crate::version::VersionT;
 use crate::Error;
 
 pub const SYSTEM_REBUILD_PATH: &str = "/embassy-os/system-rebuild";
@@ -182,8 +183,19 @@ pub struct InitResult {
 }
 
 pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
-    let should_rebuild = tokio::fs::metadata(SYSTEM_REBUILD_PATH).await.is_ok();
     let secret_store = cfg.secret_store().await?;
+    let db = cfg.db(&secret_store).await?;
+    let mut handle = db.handle();
+    crate::db::DatabaseModel::new()
+        .server_info()
+        .lock(&mut handle, LockType::Write)
+        .await?;
+    let receipts = InitReceipts::new(&mut handle).await?;
+
+    let should_rebuild = tokio::fs::metadata(SYSTEM_REBUILD_PATH).await.is_ok()
+        || &*receipts.server_version.get(&mut handle).await?
+            < &crate::version::Current::new().semver();
+
     let log_dir = cfg.datadir().join("main/logs");
     if tokio::fs::metadata(&log_dir).await.is_err() {
         tokio::fs::create_dir_all(&log_dir).await?;
@@ -276,15 +288,6 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
 
     crate::ssh::sync_keys_from_db(&secret_store, "/home/start9/.ssh/authorized_keys").await?;
     tracing::info!("Synced SSH Keys");
-    let db = cfg.db(&secret_store).await?;
-
-    let mut handle = db.handle();
-    crate::db::DatabaseModel::new()
-        .server_info()
-        .lock(&mut handle, LockType::Write)
-        .await?;
-
-    let receipts = InitReceipts::new(&mut handle).await?;
 
     crate::net::wifi::synchronize_wpa_supplicant_conf(
         &cfg.datadir().join("main"),
