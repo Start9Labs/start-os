@@ -31,7 +31,7 @@ else
 fi
 cd backend
 
-sudo chown -R $(whoami) target
-sudo chown -R $(whoami) ~/.cargo
+sudo chown -R $USER target
+sudo chown -R $USER ~/.cargo
 
 #rust-arm64-builder aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/embassyd

@@ -19,5 +19,5 @@ cd ..
 rust-musl-builder sh -c "(cd backend && cargo +beta build --target=x86_64-unknown-linux-musl --no-default-features --locked)"
 cd backend
 
-sudo chown -R $(whoami) target
-sudo chown -R $(whoami) ~/.cargo
+sudo chown -R $USER target
+sudo chown -R $USER ~/.cargo

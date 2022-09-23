@@ -2,8 +2,9 @@ ARCH = aarch64
 ENVIRONMENT_FILE := $(shell ./check-environment.sh)
 GIT_HASH_FILE := $(shell ./check-git-hash.sh)
 EMBASSY_BINS := backend/target/$(ARCH)-unknown-linux-gnu/release/embassyd backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-init backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-cli backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-sdk backend/target/$(ARCH)-unknown-linux-gnu/release/avahi-alias
+EMBASSY_NATIVE_BINS := backend/target/release/embassyd backend/target/release/embassy-init backend/target/release/embassy-cli backend/target/release/embassy-sdk backend/target/release/avahi-alias
 EMBASSY_UIS := frontend/dist/ui frontend/dist/setup-wizard frontend/dist/diagnostic-ui
-EMBASSY_SRC := raspios.img product_key.txt $(EMBASSY_BINS) backend/embassyd.service backend/embassy-init.service $(EMBASSY_UIS) $(shell find build)
+EMBASSY_SRC := backend/embassyd.service backend/embassy-init.service $(EMBASSY_UIS) $(shell find build)
 COMPAT_SRC := $(shell find system-images/compat/ -not -path 'system-images/compat/target/*' -and -not -name compat.tar -and -not -name target)
 UTILS_SRC := $(shell find system-images/utils/ -not -name utils.tar)
 BINFMT_SRC := $(shell find system-images/binfmt/ -not -name binfmt.tar)
@@ -32,6 +33,7 @@ clean:
 	rm -f 2022-01-28-raspios-bullseye-arm64-lite.zip
 	rm -f raspios.img
 	rm -f eos.img
+	rm -f eos.tar.gz
 	rm -f ubuntu.img
 	rm -f product_key.txt
 	rm -f system-images/**/*.tar
@@ -44,29 +46,34 @@ clean:
 	rm -rf libs/target
 	rm -rf patch-db/client/node_modules
 	rm -rf patch-db/client/dist
-	sudo rm -rf cargo-deps
+	rm -rf patch-db/target
+	rm -rf cargo-deps
+	rm -rf debian/.debhelper
 
 format:
 	cd backend && cargo +nightly fmt
 	cd libs && cargo +nightly fmt
 
-sdk: 
+sdk:
 	cd backend/ && ./install-sdk.sh
 
-eos.img: $(EMBASSY_SRC) system-images/compat/compat.tar system-images/utils/utils.tar system-images/binfmt/binfmt.tar cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast $(ENVIRONMENT_FILE) $(GIT_HASH_FILE)
+eos.img: raspios.img $(EMBASSY_SRC) $(EMBASSY_BINS) system-images/compat/compat.tar system-images/utils/utils.tar system-images/binfmt/binfmt.tar cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast $(ENVIRONMENT_FILE) $(GIT_HASH_FILE)
 	! test -f eos.img || rm eos.img
 	if [ "$(NO_KEY)" = "1" ]; then NO_KEY=1 ./build/make-image.sh; else ./build/make-image.sh; fi
 
+dpkg_deps: $(EMBASSY_SRC) $(EMBASSY_NATIVE_BINS) system-images/compat/compat.tar system-images/utils/utils.tar system-images/binfmt/binfmt.tar $(ENVIRONMENT_FILE) $(GIT_HASH_FILE)
+
 # For creating dpkg. DO NOT USE
-install: $(EMBASSY_SRC) system-images/compat/compat.tar system-images/utils/utils.tar cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast $(ENVIRONMENT_FILE) $(GIT_HASH_FILE)
+install: dpkg_deps
 	mkdir -p $(DESTDIR)/etc/embassy
 	cp ENVIRONMENT.txt $(DESTDIR)/etc/embassy/
 	cp GIT_HASH.txt $(DESTDIR)/etc/embassy/
 
-	mkdir -p $(DESTDIR)/usr/local/bin
-	cp backend/target/aarch64-unknown-linux-gnu/release/embassy-init $(DESTDIR)/usr/local/bin/
-	cp backend/target/aarch64-unknown-linux-gnu/release/embassyd $(DESTDIR)/usr/local/bin/
-	cp backend/target/aarch64-unknown-linux-gnu/release/embassy-cli $(DESTDIR)/usr/local/bin/
+	mkdir -p $(DESTDIR)/usr/bin
+	cp backend/target/release/embassy-init $(DESTDIR)/usr/bin/
+	cp backend/target/release/embassyd $(DESTDIR)/usr/bin/
+	cp backend/target/release/embassy-cli $(DESTDIR)/usr/bin/
+	cp backend/target/release/avahi-alias $(DESTDIR)/usr/bin/
 
 	mkdir -p $(DESTDIR)/etc/systemd/system
 	cp backend/embassy-init.service $(DESTDIR)/etc/systemd/system/
@@ -81,7 +88,7 @@ install: $(EMBASSY_SRC) system-images/compat/compat.tar system-images/utils/util
 	cp -r frontend/dist/ui $(DESTDIR)/var/www/html/main
 	cp index.html $(DESTDIR)/var/www/html/
 
-embassy-os.deb: DEBIAN/control
+embassy-os.deb: debian/control
 	./build/make-deb.sh
 
 system-images/compat/compat.tar: $(COMPAT_SRC)
@@ -111,6 +118,10 @@ snapshots: libs/snapshot-creator/Cargo.toml
 $(EMBASSY_BINS): $(BACKEND_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) frontend/patchdb-ui-seed.json
 	cd backend && ./build-prod.sh
 	touch $(EMBASSY_BINS)
+
+$(EMBASSY_NATIVE_BINS): $(BACKEND_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE)
+	cd backend && ./build-prod-native.sh
+	touch $(EMBASSY_NATIVE_BINS)
 
 frontend/node_modules: frontend/package.json
 	npm --prefix frontend ci

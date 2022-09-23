@@ -1,1 +1,3 @@
 /.debhelper
+/embassy-os
+/embassy-os.*

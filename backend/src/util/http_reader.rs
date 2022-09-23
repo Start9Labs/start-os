@@ -62,6 +62,7 @@ impl Display for RangeUnit {
 impl HttpReader {
     pub async fn new(http_url: Url) -> Result<Self, Error> {
         let http_client = Client::builder()
+            .proxy(reqwest::Proxy::all("socks5h://127.0.0.1:9050").unwrap())
             .build()
             .with_kind(crate::ErrorKind::TLSInit)?;
 
@@ -342,16 +343,16 @@ async fn main_test() {
 async fn s9pk_test() {
     use tokio::io::BufReader;
 
-    let http_url = Url::parse("https://github.com/Start9Labs/hello-world-wrapper/releases/download/v0.3.0/hello-world.s9pk").unwrap();
+    let http_url = Url::parse("http://qhc6ac47cytstejcepk2ia3ipadzjhlkc5qsktsbl4e7u2krfmfuaqqd.onion/content/files/2022/09/ghost.s9pk").unwrap();
 
     println!("Getting this resource: {}", http_url);
     let test_reader =
         BufReader::with_capacity(1024 * 1024, HttpReader::new(http_url).await.unwrap());
 
-    let mut s9pk = crate::s9pk::reader::S9pkReader::from_reader(test_reader, true)
+    let mut s9pk = crate::s9pk::reader::S9pkReader::from_reader(test_reader, false)
         .await
         .unwrap();
 
     let manifest = s9pk.manifest().await.unwrap();
-    assert_eq!(&**manifest.id, "hello-world");
+    assert_eq!(&**manifest.id, "ghost");
 }
