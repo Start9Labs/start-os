@@ -82,7 +82,7 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
                 .expect("send shutdown signal");
         });
 
-        rpc_ctx.net_controller.add_main_server(rpc_ctx.clone()).await;
+        rpc_ctx.net_controller.add_handle(rpc_ctx.clone()).await;
 
         let auth = auth(rpc_ctx.clone());
         let ctx = rpc_ctx.clone();

@@ -18,6 +18,7 @@ pub mod mdns;
 pub mod embassy_service_http_server;
 pub mod net_controller;
 pub mod proxy_controller;
+pub mod vhost_controller;
 pub mod ssl;
 pub mod static_server;
 pub mod tor;

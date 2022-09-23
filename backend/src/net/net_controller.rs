@@ -1,7 +1,6 @@
 use crate::context::RpcContext;
 #[cfg(feature = "avahi")]
 use crate::net::mdns::MdnsController;
-use crate::net::static_server::StaticServer;
 use crate::net::{
     static_server, GeneratedCertificateMountPoint, InterfaceMetadata, PACKAGE_CERT_PATH,
 };
@@ -61,7 +60,7 @@ impl NetController {
         PathBuf::from(PACKAGE_CERT_PATH).join(pkg_id)
     }
 
-    pub async fn add_main_server(&self, ctx: RpcContext) {
+    pub async fn add_handle(&self, ctx: RpcContext) {
         let rpc_ctx = ctx.clone();
 
         let file_server = {

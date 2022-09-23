@@ -8,7 +8,7 @@ use tracing::{info, instrument};
 
 use crate::net::embassy_service_http_server::EmbassyServiceHTTPServer;
 use crate::net::ssl::SslManager;
-use crate::net::static_server::StaticServer;
+use crate::net::vhost_controller::VHOSTController;
 use crate::net::{InterfaceMetadata, PackageNetInfo};
 
 use crate::{Error, ResultExt};
@@ -41,18 +41,10 @@ impl ProxyController {
     pub async fn remove(&self, package: &PackageId) -> Result<(), Error> {
         self.inner.lock().await.remove(package).await
     }
-
-    pub async fn add_main_server(&self, server: StaticServer) {
-        self.inner.lock().await.main_server = Some(server);
-    }
 }
-
 struct ProxyControllerInner {
     embassyd_addr: SocketAddr,
-    main_server: Option<StaticServer>,
-    service_servers: BTreeMap<u16, EmbassyServiceHTTPServer>,
-    iface_lookups: BTreeMap<(PackageId, InterfaceId), String>,
-    interfaces: BTreeMap<PackageId, PackageNetInfo>,
+    vhosts: VHOSTController, //  service_servers: BTreeMap<u16, EmbassyServiceHTTPServer>,
 }
 
 impl ProxyControllerInner {
@@ -60,118 +52,90 @@ impl ProxyControllerInner {
     async fn init(embassyd_addr: SocketAddr, ssl_manager: &SslManager) -> Result<Self, Error> {
         let inner = ProxyControllerInner {
             embassyd_addr,
-            main_server: None,
-            interfaces: BTreeMap::new(),
-            iface_lookups: BTreeMap::new(),
-            service_servers: BTreeMap::new(),
+            vhosts: todo!(),
         };
 
         // let emnbassyd_port_80_svc = EmbassyHTTPServer::new(embassyd_addr).await?;
         Ok(inner)
     }
 
-    #[instrument(skip(self, interfaces))]
-    async fn add<I: IntoIterator<Item = (InterfaceId, InterfaceMetadata)>>(
-        &mut self,
-        ssl_manager: &SslManager,
-        package: PackageId,
-        ipv4: Ipv4Addr,
-        interfaces: I,
-    ) -> Result<(), Error> {
-        let interface_map = interfaces
-            .into_iter()
-            .filter(|(_, meta)| {
-                // don't add nginx stuff for anything we can't connect to over some flavor of http
-                (meta.protocols.contains("http") || meta.protocols.contains("https"))
-                // also don't add nginx unless it has at least one exposed port
-                        && !meta.lan_config.is_empty()
-            })
-            .collect::<BTreeMap<InterfaceId, InterfaceMetadata>>();
-
-        for (id, meta) in interface_map.iter() {
-            for (external_svc_port, lan_port_config) in meta.lan_config.iter() {
-                self.iface_lookups
-                    .insert((package.clone(), id.clone()), meta.fqdn.clone());
-
-                let docker_addr = SocketAddr::from((ipv4, lan_port_config.internal));
-                info!("docker ip: {}", docker_addr);
-
-                if let Some(server) = self.service_servers.get_mut(&external_svc_port.0) {
-                    server.add_docker_mapping(meta.fqdn.to_owned(), docker_addr).await;
-                } else {
-                    let mut new_service_server =
-                        EmbassyServiceHTTPServer::new(self.embassyd_addr.ip(), external_svc_port.0)
-                            .await?;
-                    new_service_server
-                        .add_docker_mapping(meta.fqdn.to_owned(), docker_addr)
-                        .await;
-
-                    self.service_servers
-                        .insert(external_svc_port.0, new_service_server);
-                }
-            }
-        }
-
-        match self.interfaces.get_mut(&package) {
-            None => {
-                let info = PackageNetInfo {
-                    interfaces: interface_map,
-                };
-                self.interfaces.insert(package, info);
-            }
-            Some(p) => {
-                p.interfaces.extend(interface_map);
-            }
-        };
-
-        Ok(())
-    }
-
-    #[instrument(skip(self))]
-    async fn remove(&mut self, package: &PackageId) -> Result<(), Error> {
-        let mut server_removal = false;
-        let mut server_removal_port: u16 = 0;
-        let mut removed_interface_id = InterfaceId::default();
-
-        let package_interface_info = self.interfaces.get(package);
-        if let Some(net_info) = package_interface_info {
-            for (id, meta) in &net_info.interfaces {
-                for (service_ext_port, _lan_port_config) in meta.lan_config.iter() {
-                    if let Some(server) = self.service_servers.get_mut(&service_ext_port.0) {
-                        if let Some(dns_base) =
-                            self.iface_lookups.get(&(package.clone(), id.clone()))
-                        {
-                            server.remove_docker_mapping(dns_base.to_string()).await;
-
-                            if server.docker_mapping.read().await.is_empty() {
-                                server_removal = true;
-                                server_removal_port = service_ext_port.0;
-                                removed_interface_id = id.to_owned();
-                                break;
+    async fn proxy(client: HttpClient, req: Request<Body>) -> Result<Response<Body>, HyperError> {
+        if Method::CONNECT == req.method() {
+            // Received an HTTP request like:
+            // ```
+            // CONNECT www.domain.com:443 HTTP/1.1s
+            // Host: www.domain.com:443
+            // Proxy-Connection: Keep-Alive
+            // ```
+            //
+            // When HTTP method is CONNECT we should return an empty body
+            // then we can eventually upgrade the connection and talk a new protocol.
+            //
+            // Note: only after client received an empty body with STATUS_OK can the
+            // connection be upgraded, so we can't return a response inside
+            // `on_upgrade` future.
+            match Self::host_addr(&req) {
+                Ok(host) => {
+                    tokio::task::spawn(async move {
+                        match hyper::upgrade::on(req).await {
+                            Ok(upgraded) => {
+                                if let Err(e) = Self::tunnel(upgraded, host).await {
+                                    error!("server io error: {}", e);
+                                };
                             }
+                            Err(e) => error!("upgrade error: {}", e),
                         }
-                    }
+                    });
+
+                    Ok(Response::new(Body::empty()))
+                }
+                Err(e) => {
+                    let err_txt = format!("CONNECT host is not socket addr: {:?}", &req.uri());
+                    let mut resp = Response::new(Body::from(format!(
+                        "CONNECT must be to a socket address: {}: {}",
+                        err_txt, e
+                    )));
+                    *resp.status_mut() = http::StatusCode::BAD_REQUEST;
+
+                    Ok(resp)
                 }
             }
+        } else {
+            client.request(req).await
         }
+    }
 
-        if server_removal {
-            if let Some(removed_server) = self.service_servers.remove(&server_removal_port) {
-                removed_server.shutdown.send(()).map_err(|_| {
-                    Error::new(
-                        eyre!("Hyper server did not quit properly"),
-                        crate::ErrorKind::JoinError,
-                    )
-                })?;
-                removed_server
-                    .handle
-                    .await
-                    .with_kind(crate::ErrorKind::JoinError)?;
-                self.interfaces.remove(&package.clone());
-                self.iface_lookups
-                    .remove(&(package.clone(), removed_interface_id));
-            }
-        }
+    // Create a TCP connection to host:port, build a tunnel between the connection and
+    // the upgraded connection
+    async fn tunnel(mut upgraded: Upgraded, addr: String) -> std::io::Result<()> {
+        let mut server = TcpStream::connect(addr).await?;
+
+        let (from_client, from_server) =
+            tokio::io::copy_bidirectional(&mut upgraded, &mut server).await?;
+
+        info!(
+            "client wrote {} bytes and received {} bytes",
+            from_client, from_server
+        );
+
         Ok(())
     }
+
+    fn host_addr(req: &Request<Body>) -> Result<String, Error> {
+        let host = req.headers().get(http::header::HOST);
+
+        match host {
+            Some(host) => {
+                let host = host
+                    .to_str()
+                    .map_err(|e| Error::new(eyre!("{}", e), crate::ErrorKind::AsciiError))?
+                    .to_string();
+
+                Ok(host)
+            }
+
+            None => Err(Error::new(eyre!("No Host"), crate::ErrorKind::NoHost)),
+        }
+    }
+
 }

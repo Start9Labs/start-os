@@ -15,6 +15,7 @@ use tokio::net::TcpStream;
 use tokio::sync::{oneshot, RwLock};
 use tracing::{error, info};
 
+
 use crate::net::ssl::SslManager;
 use crate::Error;
 
@@ -27,8 +28,9 @@ type HttpHandler = Arc<
 
 static RES_NOT_FOUND: &[u8] = b"503 Service Unavailable";
 static NO_HOST: &[u8] = b"No host header found";
+
 pub struct EmbassyServiceHTTPServer {
-    // String: Virtual 
+    // String: Virtual
     pub docker_mapping: Arc<RwLock<BTreeMap<String, HttpHandler>>>,
     pub shutdown: oneshot::Sender<()>,
     pub handle: NonDetachingJoinHandle<()>,
@@ -136,85 +138,7 @@ impl EmbassyServiceHTTPServer {
         mapping.remove(&dns_base);
     }
 
-    async fn proxy(client: HttpClient, req: Request<Body>) -> Result<Response<Body>, HyperError> {
-        if Method::CONNECT == req.method() {
-            // Received an HTTP request like:
-            // ```
-            // CONNECT www.domain.com:443 HTTP/1.1s
-            // Host: www.domain.com:443
-            // Proxy-Connection: Keep-Alive
-            // ```
-            //
-            // When HTTP method is CONNECT we should return an empty body
-            // then we can eventually upgrade the connection and talk a new protocol.
-            //
-            // Note: only after client received an empty body with STATUS_OK can the
-            // connection be upgraded, so we can't return a response inside
-            // `on_upgrade` future.
-            match Self::host_addr(&req) {
-                Ok(host) => {
-                    tokio::task::spawn(async move {
-                        match hyper::upgrade::on(req).await {
-                            Ok(upgraded) => {
-                                if let Err(e) = Self::tunnel(upgraded, host).await {
-                                    error!("server io error: {}", e);
-                                };
-                            }
-                            Err(e) => error!("upgrade error: {}", e),
-                        }
-                    });
-
-                    Ok(Response::new(Body::empty()))
-                }
-                Err(e) => {
-                    let err_txt = format!("CONNECT host is not socket addr: {:?}", &req.uri());
-                    let mut resp = Response::new(Body::from(format!(
-                        "CONNECT must be to a socket address: {}: {}",
-                        err_txt, e
-                    )));
-                    *resp.status_mut() = http::StatusCode::BAD_REQUEST;
-
-                    Ok(resp)
-                }
-            }
-        } else {
-            client.request(req).await
-        }
     }
-
-    // Create a TCP connection to host:port, build a tunnel between the connection and
-    // the upgraded connection
-    async fn tunnel(mut upgraded: Upgraded, addr: String) -> std::io::Result<()> {
-        let mut server = TcpStream::connect(addr).await?;
-
-        let (from_client, from_server) =
-            tokio::io::copy_bidirectional(&mut upgraded, &mut server).await?;
-
-        info!(
-            "client wrote {} bytes and received {} bytes",
-            from_client, from_server
-        );
-
-        Ok(())
-    }
-
-    fn host_addr(req: &Request<Body>) -> Result<String, Error> {
-        let host = req.headers().get(http::header::HOST);
-
-        match host {
-            Some(host) => {
-                let host = host
-                    .to_str()
-                    .map_err(|e| Error::new(eyre!("{}", e), crate::ErrorKind::AsciiError))?
-                    .to_string();
-
-                Ok(host)
-            }
-
-            None => Err(Error::new(eyre!("No Host"), crate::ErrorKind::NoHost)),
-        }
-    }
-}
 
 /// HTTP status code 503
 fn res_not_found() -> Response<Body> {

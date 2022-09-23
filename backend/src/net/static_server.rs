@@ -20,48 +20,6 @@ use crate::{Error, ErrorKind, ResultExt};
 static NOT_FOUND: &[u8] = b"Not Found";
 static NOT_AUTHORIZED: &[u8] = b"Not Authorized";
 
-pub struct StaticServer {
-    //shutdown: oneshot::Sender<()>,
-    handle: NonDetachingJoinHandle<()>,
-}
-
-impl StaticServer {
-    pub fn init(ctx: RpcContext, shutdown: impl Future<Output = ()> + Send + 'static) -> Self {
-        let addr = ctx.bind_proxy_non_ssl;
-
-        let make_service = make_service_fn(move |_| {
-            let ctx = ctx.clone();
-            async move {
-                Ok::<_, HyperError>(service_fn(move |req| {
-                    let ctx = ctx.clone();
-                    async move {
-                        match file_server_router(req, ctx).await {
-                            Ok(x) => Ok::<_, HyperError>(x),
-                            Err(err) => {
-                                tracing::error!("{:?}", err);
-                                Ok(server_error())
-                            }
-                        }
-                    }
-                }))
-            }
-        });
-
-        let handle = tokio::spawn(async move {
-            let server = Server::bind(&addr)
-                .serve(make_service)
-                .with_graceful_shutdown(shutdown);
-
-            if let Err(e) = server.await {
-                error!("Spawning hyper server errorr: {}", e);
-            }
-        });
-
-        Self {
-            handle: handle.into(),
-        }
-    }
-}
 
 async fn file_server_router(req: Request<Body>, ctx: RpcContext) -> Result<Response<Body>, Error> {
 
