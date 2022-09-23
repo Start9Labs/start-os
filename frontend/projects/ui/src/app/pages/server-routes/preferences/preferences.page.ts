@@ -27,7 +27,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 export class PreferencesPage {
   clicks = 0
 
-  readonly autoCheck$ = this.patch.watch$('ui', 'auto-check-updates')
+  readonly ui$ = this.patch.watch$('ui')
   readonly server$ = this.patch.watch$('server-info')
   readonly name$ = this.serverNameService.name$
 

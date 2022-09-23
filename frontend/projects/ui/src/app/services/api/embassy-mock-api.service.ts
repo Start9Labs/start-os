@@ -120,7 +120,7 @@ export class MockApiService extends ApiService {
   }
 
   openLogsWebsocket$(config: WebSocketSubjectConfig<Log>): Observable<Log> {
-    return interval(100).pipe(
+    return interval(50).pipe(
       map((_, index) => {
         // mock fire open observer
         if (index === 0) config.openObserver?.next(new Event(''))
