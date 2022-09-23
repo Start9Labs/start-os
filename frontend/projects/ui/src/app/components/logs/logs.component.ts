@@ -1,6 +1,6 @@
 import { Component, Input, ViewChild } from '@angular/core'
 import { IonContent, LoadingController } from '@ionic/angular'
-import { map, takeUntil, timer } from 'rxjs'
+import { buffer, bufferTime, map, takeUntil, tap, timer } from 'rxjs'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 import {
   LogsRes,
@@ -13,6 +13,7 @@ import {
 } from '@start9labs/shared'
 import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { count } from 'console'
 
 var Convert = require('ansi-to-html')
 var convert = new Convert({
@@ -42,13 +43,12 @@ export class LogsComponent {
   @Input() title!: string
 
   loading = true
-  needInfinite = true
+  needInfinite = false
   startCursor?: string
   isOnBottom = true
   autoScroll = true
   websocketFail = false
   limit = 400
-  toProcess: Log[] = []
 
   constructor(
     private readonly errToast: ErrorToastService,
@@ -71,18 +71,27 @@ export class LogsComponent {
         openObserver: {
           next: () => {
             this.websocketFail = false
-            this.processJob()
           },
         },
       }
 
+      let totalLogs = 0
+
       this.api
         .openLogsWebsocket$(config)
-        .pipe(takeUntil(this.destroy$))
+        .pipe(
+          tap(_ => {
+            totalLogs++
+            if (totalLogs === this.limit) this.needInfinite = true
+          }),
+          bufferTime(500),
+          tap(msgs => {
+            this.loading = false
+            this.processRes({ entries: msgs })
+          }),
+          takeUntil(this.destroy$),
+        )
         .subscribe({
-          next: msg => {
-            this.toProcess.push(msg)
-          },
           error: () => {
             this.websocketFail = true
             if (this.isOnBottom) this.scrollToBottom()
@@ -121,7 +130,7 @@ export class LogsComponent {
   }
 
   scrollToBottom() {
-    this.content?.scrollToBottom(250)
+    this.content?.scrollToBottom(100)
   }
 
   async download() {
@@ -151,19 +160,6 @@ export class LogsComponent {
     }
   }
 
-  private processJob() {
-    timer(100, 500)
-      .pipe(
-        map((_, index) => index),
-        takeUntil(this.destroy$),
-      )
-      .subscribe(index => {
-        this.processRes({ entries: this.toProcess })
-        this.toProcess = []
-        if (index === 0) this.loading = false
-      })
-  }
-
   private processRes(res: LogsRes) {
     const { entries, 'start-cursor': startCursor } = res
 
@@ -176,7 +172,7 @@ export class LogsComponent {
 
     newLogs.innerHTML = this.convertToAnsi(entries)
 
-    // if respone contains startCursor, it means we are scrolling backwards
+    // if response contains a startCursor, it means we are scrolling backwards
     if (startCursor) {
       this.startCursor = startCursor
 
