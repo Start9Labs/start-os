@@ -1,6 +1,6 @@
 import { Component, Input, ViewChild } from '@angular/core'
 import { IonContent, LoadingController } from '@ionic/angular'
-import { buffer, bufferTime, map, takeUntil, tap, timer } from 'rxjs'
+import { bufferTime, takeUntil, tap } from 'rxjs'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 import {
   LogsRes,
@@ -13,7 +13,6 @@ import {
 } from '@start9labs/shared'
 import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { count } from 'console'
 
 var Convert = require('ansi-to-html')
 var convert = new Convert({
@@ -130,7 +129,7 @@ export class LogsComponent {
   }
 
   scrollToBottom() {
-    this.content?.scrollToBottom(100)
+    this.content?.scrollToBottom(250)
   }
 
   async download() {
