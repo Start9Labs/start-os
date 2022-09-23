@@ -324,7 +324,11 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     crate::version::init(&mut handle, &receipts).await?;
 
     if should_rebuild {
-        tokio::fs::remove_file(SYSTEM_REBUILD_PATH).await?;
+        match tokio::fs::remove_file(SYSTEM_REBUILD_PATH).await {
+            Ok(()) => Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(e) => Err(e),
+        }?;
     }
 
     tracing::info!("System initialized.");
