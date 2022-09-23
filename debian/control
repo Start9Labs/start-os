@@ -1,6 +1,6 @@
 Source: embassy-os
 Maintainer: Aiden McClelland <aiden@start9labs.com>
-Build-Depends: debhelper-compat (= 13)
+Build-Depends: debhelper-compat (= 12)
 Standards-Version: 3.9.3
 Section: unknown
 
@@ -8,25 +8,4 @@ Package: embassy-os
 Section: unknown
 Priority: required
 Architecture: amd64
-Depends: nginx,
-  libavahi-client3,
-  avahi-daemon,
-  avahi-utils,
-  iotop,
-  bmon,
-  lvm2,
-  cryptsetup,
-  exfat-utils,
-  sqlite3,
-  wireless-tools,
-  net-tools,
-  ecryptfs-utils,
-  cifs-utils,
-  samba-common-bin,
-  network-manager,
-  vim,
-  jq,
-  ncdu,
-  postgresql,
-  pgloader,
-  openssh-server
+Depends: ${shlibs:Depends}, ${misc:Depends}

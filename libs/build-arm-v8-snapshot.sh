@@ -20,8 +20,8 @@ cd -
 
 echo "Creating Arm v8 Snapshot"
 docker run --platform linux/arm64/v8 --mount type=bind,src=$(pwd),dst=/mnt arm64v8/ubuntu:20.04 /bin/sh -c "cd /mnt && /mnt/target/aarch64-unknown-linux-gnu/release/snapshot-creator"
-sudo chown -R $(whoami) target
-sudo chown -R $(whoami) ~/.cargo
+sudo chown -R $USER target
+sudo chown -R $USER ~/.cargo
 sudo chown $USER JS_SNAPSHOT.bin
 sudo chmod 0644 JS_SNAPSHOT.bin
 

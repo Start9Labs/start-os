@@ -163,7 +163,7 @@ jobs:
       if: ${{ matrix.target == 'aarch64' }}
 
     - name: Reset permissions
-      run: sudo chown -R $(whoami) target
+      run: sudo chown -R $USER target
       working-directory: backend
       if: ${{ matrix.target == 'aarch64' }}
 
