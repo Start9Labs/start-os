@@ -17,6 +17,7 @@ $(shell sudo true)
 
 .DELETE_ON_ERROR:
 
+.PHONY: all gzip clean format sdk snapshots frontends ui backend
 all: eos.img
 
 gzip: eos.tar.gz
@@ -99,13 +100,21 @@ patch-db/client/dist: $(PATCH_DB_CLIENT_SRC) patch-db/client/node_modules
 	! test -d patch-db/client/dist || rm -rf patch-db/client/dist
 	npm --prefix frontend run build:deps
 
+# used by github actions
+backend-x86_64.tar: $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(EMBASSY_BINS)
+	tar -cvf $@ $^
+
+# used by github actions
+backend-aarch64.tar: $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(EMBASSY_BINS)
+	tar -cvf $@ $^
+
 # this is a convenience step to build all frontends - it is not referenced elsewhere in this file
 frontends: $(EMBASSY_UIS) 
 
 # this is a convenience step to build the UI
 ui: frontend/dist/ui
 
-# this is a convenience step to build the backend
+# used by github actions
 backend: $(EMBASSY_BINS)
 
 cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast:
