@@ -1,6 +1,7 @@
+ARCH = aarch64
 ENVIRONMENT_FILE := $(shell ./check-environment.sh)
 GIT_HASH_FILE := $(shell ./check-git-hash.sh)
-EMBASSY_BINS := backend/target/aarch64-unknown-linux-gnu/release/embassyd backend/target/aarch64-unknown-linux-gnu/release/embassy-init backend/target/aarch64-unknown-linux-gnu/release/embassy-cli backend/target/aarch64-unknown-linux-gnu/release/embassy-sdk backend/target/aarch64-unknown-linux-gnu/release/avahi-alias
+EMBASSY_BINS := backend/target/$(ARCH)-unknown-linux-gnu/release/embassyd backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-init backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-cli backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-sdk backend/target/$(ARCH)-unknown-linux-gnu/release/avahi-alias
 EMBASSY_UIS := frontend/dist/ui frontend/dist/setup-wizard frontend/dist/diagnostic-ui
 EMBASSY_SRC := raspios.img product_key.txt $(EMBASSY_BINS) backend/embassyd.service backend/embassy-init.service $(EMBASSY_UIS) $(shell find build)
 COMPAT_SRC := $(shell find system-images/compat/ -not -path 'system-images/compat/target/*' -and -not -name compat.tar -and -not -name target)
@@ -101,11 +102,7 @@ patch-db/client/dist: $(PATCH_DB_CLIENT_SRC) patch-db/client/node_modules
 	npm --prefix frontend run build:deps
 
 # used by github actions
-backend-x86_64.tar: $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(EMBASSY_BINS)
-	tar -cvf $@ $^
-
-# used by github actions
-backend-aarch64.tar: $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(EMBASSY_BINS)
+backend-$(ARCH).tar: $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(EMBASSY_BINS)
 	tar -cvf $@ $^
 
 # this is a convenience step to build all frontends - it is not referenced elsewhere in this file
