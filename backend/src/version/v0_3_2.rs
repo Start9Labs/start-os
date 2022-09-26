@@ -39,7 +39,7 @@ impl VersionT for Version {
         sync_hostname(db).await?;
         Ok(())
     }
-    async fn down<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error> {
+    async fn down<Db: DbHandle>(&self, _db: &mut Db) -> Result<(), Error> {
         Ok(())
     }
 }
