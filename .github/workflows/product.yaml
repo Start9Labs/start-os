@@ -13,83 +13,36 @@ on:
 
 jobs:
   compat:
-    name: Build compat.tar
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        submodules: recursive
-
-    - name: Set up Docker Buildx        
-      uses: docker/setup-buildx-action@v1
-
-    - uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        override: true
-
-    - uses: actions/cache@v3
-      with:
-        path: |
-          ~/.cargo/bin/
-          ~/.cargo/registry/index/
-          ~/.cargo/registry/cache/
-          ~/.cargo/git/db/
-          target/
-        key: ${{ runner.os }}-cargo-compat-${{ hashFiles('**/system-images/compat/Cargo.lock') }}
-
-    - name: Build image
-      run: make system-images/compat/compat.tar
-
-    - uses: actions/upload-artifact@v3
-      with:
-        name: compat.tar
-        path: system-images/compat/compat.tar
+    uses: ./.github/workflows/reusable-workflow.yaml
+    with:
+      build_command: make system-images/compat/compat.tar
+      artifact_name: compat.tar
+      artifact_path: system-images/compat/compat.tar
 
   utils:
-    name: Build utils.tar
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        submodules: recursive
-
-    - name: Set up Docker Buildx        
-      uses: docker/setup-buildx-action@v1
-
-    - name: Build image
-      run: make system-images/utils/utils.tar
-
-    - uses: actions/upload-artifact@v3
-      with:
-        name: utils.tar
-        path: system-images/utils/utils.tar
+    uses: ./.github/workflows/reusable-workflow.yaml
+    with:
+      build_command: make system-images/utils/utils.tar
+      artifact_name: utils.tar
+      artifact_path: system-images/utils/utils.tar
 
   binfmt:
-    name: Build binfmt.tar
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        submodules: recursive
+    uses: ./.github/workflows/reusable-workflow.yaml
+    with:
+      build_command: make system-images/binfmt/binfmt.tar
+      artifact_name: binfmt.tar
+      artifact_path: system-images/binfmt/binfmt.tar
 
-    - name: Set up Docker Buildx        
-      uses: docker/setup-buildx-action@v1
-
-    - name: Build image
-      run: make system-images/binfmt/binfmt.tar
-
-    - uses: actions/upload-artifact@v3
-      with:
-        name: binfmt.tar
-        path: system-images/binfmt/binfmt.tar
+  nc-broadcast:
+    uses: ./.github/workflows/reusable-workflow.yaml
+    with:
+      build_command: make cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast
+      artifact_name: nc-broadcast.tar
+      artifact_path: cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast
 
   backend:
     uses: ./.github/workflows/backend.yaml
-  
+
   frontend:
     uses: ./.github/workflows/frontend.yaml
     
@@ -97,7 +50,7 @@ jobs:
     name: Build image
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    needs: [compat,utils,binfmt,backend,frontend]
+    needs: [compat,utils,binfmt,nc-broadcast,backend,frontend]
     steps:
     - uses: actions/checkout@v3
       with:
@@ -120,6 +73,12 @@ jobs:
       with:
         name: binfmt.tar
         path: system-images/binfmt
+
+    - name: Download nc-broadcast.tar artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: nc-broadcast.tar
+        path: cargo-deps/aarch64-unknown-linux-gnu/release
 
     - name: Download js_snapshot artifact
       uses: actions/download-artifact@v3
