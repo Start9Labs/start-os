@@ -814,19 +814,6 @@ export class MockApiService extends ApiService {
     return this.withRevision(patch)
   }
 
-  async deleteRecoveredPackage(
-    params: RR.DeleteRecoveredPackageReq,
-  ): Promise<RR.DeleteRecoveredPackageRes> {
-    await pauseFor(2000)
-    const patch: RemoveOperation[] = [
-      {
-        op: PatchOp.REMOVE,
-        path: `/recovered-packages/${params.id}`,
-      },
-    ]
-    return this.withRevision(patch)
-  }
-
   async dryConfigureDependency(
     params: RR.DryConfigureDependencyReq,
   ): Promise<RR.DryConfigureDependencyRes> {
@@ -891,10 +878,6 @@ export class MockApiService extends ApiService {
         {
           op: PatchOp.REMOVE,
           path: `/package-data/${id}/install-progress`,
-        },
-        {
-          op: PatchOp.REMOVE,
-          path: `/recovered-packages/${id}`,
         },
       ]
       this.mockRevision(patch2)
