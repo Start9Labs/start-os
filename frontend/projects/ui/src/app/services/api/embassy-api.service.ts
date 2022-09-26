@@ -216,10 +216,6 @@ export abstract class ApiService {
     params: RR.DryConfigureDependencyReq,
   ): Promise<RR.DryConfigureDependencyRes>
 
-  abstract deleteRecoveredPackage(
-    params: RR.UninstallPackageReq,
-  ): Promise<RR.UninstallPackageRes>
-
   abstract sideloadPackage(
     params: RR.SideloadPackageReq,
   ): Promise<RR.SideloadPacakgeRes>
