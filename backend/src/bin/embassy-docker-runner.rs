@@ -1,14 +1,12 @@
-use std::{process::Stdio, str::FromStr};
+use std::process::Stdio;
 
 use async_stream::stream;
-use color_eyre::Report;
 use futures::{pin_mut, Stream, StreamExt};
-use serde::{ser::SerializeMap, Deserialize, Serialize, Serializer};
 use tokio::io::AsyncBufReadExt;
 use tokio::{io::BufReader, process::Command};
 use tracing::instrument;
 
-use embassy::docker_runner::{Input, InputJsonRpc, JsonRpc, Output, OutputJsonRpc, RpcId};
+use embassy::docker_runner::{Input, InputJsonRpc, JsonRpc, Output, OutputJsonRpc};
 
 const MAX_COMMANDS: usize = 10;
 
@@ -36,7 +34,7 @@ impl Io {
     #[instrument]
     fn command(&self, input: InputJsonRpc) -> impl Stream<Item = OutputJsonRpc> {
         stream! {
-            let (id, command) = input.as_pair();
+            let (id, command) = input.into_pair();
             match command {
                 Input::Command {
                             ref command,

@@ -16,7 +16,7 @@ pub enum RpcId {
 pub struct JsonRpc<T> {
     id: Option<RpcId>,
     #[serde(flatten)]
-    pub versionRpc: VersionRpc<T>,
+    pub version_rpc: VersionRpc<T>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
@@ -33,12 +33,12 @@ where
     pub fn new(id: Option<RpcId>, body: T) -> Self {
         JsonRpc {
             id,
-            versionRpc: VersionRpc::Two(body),
+            version_rpc: VersionRpc::Two(body),
         }
     }
-    pub fn as_pair(self) -> (Option<RpcId>, T) {
-        let Self { id, versionRpc } = self;
-        let VersionRpc::Two(body) = versionRpc;
+    pub fn into_pair(self) -> (Option<RpcId>, T) {
+        let Self { id, version_rpc } = self;
+        let VersionRpc::Two(body) = version_rpc;
         (id, body)
     }
     #[instrument]

@@ -204,7 +204,7 @@ impl DockerProcedure {
             handle
                 .stdout
                 .take()
-                .ok_or_else(|| eyre!("Can't takeout stout"))
+                .ok_or_else(|| eyre!("Can't takeout stdout in execute"))
                 .with_kind(crate::ErrorKind::Docker)?,
         );
         let output = NonDetachingJoinHandle::from(tokio::spawn(async move {
@@ -334,15 +334,27 @@ impl DockerProcedure {
         let err_handle = LongRunning::spawn_error_handle(&mut handle)?;
 
         let running_output = NonDetachingJoinHandle::from(tokio::spawn(async move {
-            handle.wait().await;
-            err_handle.await;
-            output_handle.await;
-            input_handle.await;
+            if let Err(join_error) = handle.wait().await {
+                tracing::debug!("{:?}", join_error);
+                tracing::error!("Main handle join error");
+            }
+            if let Err(join_error) = err_handle.await {
+                tracing::debug!("{:?}", join_error);
+                tracing::error!("Error handle join error");
+            }
+            if let Err(join_error) = output_handle.await {
+                tracing::debug!("{:?}", join_error);
+                tracing::error!("Output handle join error");
+            }
+            if let Err(join_error) = input_handle.await {
+                tracing::debug!("{:?}", join_error);
+                tracing::error!("Input handle join error");
+            }
         }));
 
         Ok(LongRunning {
             output,
-            _running_output: running_output,
+            running_output,
         })
     }
 
@@ -411,7 +423,7 @@ impl DockerProcedure {
             handle
                 .stdout
                 .take()
-                .ok_or_else(|| eyre!("Can't takeout stout"))
+                .ok_or_else(|| eyre!("Can't takeout stdout in inject"))
                 .with_kind(crate::ErrorKind::Docker)?,
         );
         let output = NonDetachingJoinHandle::from(tokio::spawn(async move {
@@ -552,7 +564,7 @@ impl DockerProcedure {
             handle
                 .stdout
                 .take()
-                .ok_or_else(|| eyre!("Can't takeout stout"))
+                .ok_or_else(|| eyre!("Can't takeout stdout in sandboxed"))
                 .with_kind(crate::ErrorKind::Docker)?,
         );
         let output = NonDetachingJoinHandle::from(tokio::spawn(async move {
@@ -661,7 +673,7 @@ impl DockerProcedure {
                 continue;
             };
             let src = volume.path_for(&ctx.datadir, pkg_id, pkg_version, volume_id);
-            if let Err(e) = tokio::fs::metadata(&src).await {
+            if let Err(_e) = tokio::fs::metadata(&src).await {
                 tokio::fs::create_dir_all(&src).await?;
             }
             res.push(OsStr::new("--mount").into());
@@ -740,7 +752,7 @@ impl<T> RingVec<T> {
 
 pub struct LongRunning {
     pub output: UnboundedReceiver<OutputJsonRpc>,
-    _running_output: NonDetachingJoinHandle<()>,
+    pub running_output: NonDetachingJoinHandle<()>,
 }
 
 impl LongRunning {
@@ -757,7 +769,7 @@ impl LongRunning {
         cmd.arg("-j");
         let docker_run_part = {
             let docker_ip = Ipv4Addr::from(HOST_IP);
-            let mut cmd = format!("docker run --rm --networ=start9 --add-host=embassy:{docker_ip} --name {container_name} --hostname={container_name} --no-healthcheck");
+            let mut cmd = format!("docker run -it --rm --network=start9 --add-host=embassy:{docker_ip} --name {container_name} --hostname={container_name} --no-healthcheck");
             cmd.push_str(
                 &docker
                     .docker_args_without_final_args(volumes, ctx, pkg_id, pkg_version)
@@ -769,7 +781,7 @@ impl LongRunning {
             );
             cmd
         };
-        cmd.arg(format!(r#"cat embassy-docker-runner | {docker_run_part} "tee /usr/local/bin/embassy-docker-runner > /dev/null; embassy-docker-runner" "#));
+        cmd.arg(format!(r#"cat /usr/local/bin/embassy-docker-runner | {docker_run_part} sh -c "tee /usr/local/bin/embassy-docker-runner > /dev/null; chmod +x /usr/local/bin/embassy-docker-runner; embassy-docker-runner"" "#));
 
         cmd.stdout(std::process::Stdio::piped());
         cmd.stderr(std::process::Stdio::piped());
@@ -786,7 +798,7 @@ impl LongRunning {
         let mut stdin = handle
             .stdin
             .take()
-            .ok_or_else(|| eyre!("Can't takeout stout"))
+            .ok_or_else(|| eyre!("Can't takeout stdin"))
             .with_kind(crate::ErrorKind::Docker)?;
         let handle = NonDetachingJoinHandle::from(tokio::spawn(async move {
             let input = input;
@@ -834,7 +846,7 @@ impl LongRunning {
             handle
                 .stdout
                 .take()
-                .ok_or_else(|| eyre!("Can't takeout stout"))
+                .ok_or_else(|| eyre!("Can't takeout stdout for long running"))
                 .with_kind(crate::ErrorKind::Docker)?,
         )
         .lines();

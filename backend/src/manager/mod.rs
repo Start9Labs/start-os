@@ -660,9 +660,9 @@ async fn run_persistant_container(
 ) -> Result<(), Error> {
     let interfaces = states_main_interfaces(state)?;
     let generated_certificate = generate_certificate(state, &interfaces).await?;
-    let mut runtime = tokio::spawn(long_running_docker(state.clone(), docker_procedure));
+    let mut runtime = long_running_docker(state.clone(), docker_procedure).await?;
 
-    let ip = match get_running_ip(state, &mut runtime).await {
+    let ip = match get_long_running_ip(state, &mut runtime).await {
         GetRunninIp::Ip(x) => x,
         GetRunninIp::Error(e) => return Err(e),
         GetRunninIp::EarlyExit(e) => {
@@ -676,7 +676,7 @@ async fn run_persistant_container(
 
     fetch_starting_to_running(state);
     let res = tokio::select! {
-        a = runtime => a.map_err(|_| Error::new(eyre!("Manager runtime panicked!"), crate::ErrorKind::Docker)).map(|_| ()),
+        a = runtime.running_output => a.map_err(|_| Error::new(eyre!("Manager runtime panicked!"), crate::ErrorKind::Docker)).map(|_| ()),
     };
     remove_network_for_main(state, ip).await?;
     res
@@ -815,6 +815,48 @@ async fn get_running_ip(
             Poll::Ready(res) => match res {
                 Ok(Ok(response)) => return GetRunninIp::EarlyExit(response),
                 Err(_) | Ok(Err(_)) => {
+                    return GetRunninIp::Error(Error::new(
+                        eyre!("Manager runtime panicked!"),
+                        crate::ErrorKind::Docker,
+                    ))
+                }
+            },
+            _ => (),
+        }
+    }
+}
+
+async fn get_long_running_ip(
+    state: &Arc<ManagerSharedState>,
+    runtime: &mut LongRunning,
+) -> GetRunninIp {
+    loop {
+        match container_inspect(state).await {
+            Ok(res) => {
+                match res
+                    .network_settings
+                    .and_then(|ns| ns.networks)
+                    .and_then(|mut n| n.remove("start9"))
+                    .and_then(|es| es.ip_address)
+                    .filter(|ip| !ip.is_empty())
+                    .map(|ip| ip.parse())
+                    .transpose()
+                {
+                    Ok(Some(ip_addr)) => return GetRunninIp::Ip(ip_addr),
+                    Ok(None) => (),
+                    Err(e) => return GetRunninIp::Error(e.into()),
+                }
+            }
+            Err(bollard::errors::Error::DockerResponseServerError {
+                status_code: 404, // NOT FOUND
+                ..
+            }) => (),
+            Err(e) => return GetRunninIp::Error(e.into()),
+        }
+        match futures::poll!(&mut runtime.running_output) {
+            Poll::Ready(res) => match res {
+                Ok(_) => return GetRunninIp::EarlyExit(Ok(NoOutput)),
+                Err(e) => {
                     return GetRunninIp::Error(Error::new(
                         eyre!("Manager runtime panicked!"),
                         crate::ErrorKind::Docker,
