@@ -77,7 +77,7 @@ async fn subscribe_to_session_kill(
 async fn deal_with_messages(
     _has_valid_authentication: HasValidSession,
     mut kill: oneshot::Receiver<()>,
-    sub: patch_db::Subscriber,
+    mut sub: patch_db::Subscriber,
     mut stream: WebSocketStream<Upgraded>,
 ) -> Result<(), Error> {
     loop {
@@ -93,7 +93,7 @@ async fn deal_with_messages(
                     .with_kind(crate::ErrorKind::Network)?;
                 return Ok(())
             }
-            new_rev = sub.recv_async().fuse() => {
+            new_rev = sub.recv().fuse() => {
                 let rev = new_rev.expect("UNREACHABLE: patch-db is dropped");
                 stream
                     .send(Message::Text(serde_json::to_string(&rev).with_kind(crate::ErrorKind::Serialization)?))
