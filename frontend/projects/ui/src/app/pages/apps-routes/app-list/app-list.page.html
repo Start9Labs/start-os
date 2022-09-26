@@ -21,23 +21,20 @@
     ></app-list-empty>
 
     <ng-template #list>
-      <app-list-reorder
-        *ngIf="pkgs.length"
-        [(pkgs)]="pkgs"
-        [reordering]="reordering"
-        (reorderingChange)="onReordering($event)"
-      ></app-list-reorder>
+      <ion-item-divider class="ion-padding-bottom"
+        >Installed Services</ion-item-divider
+      >
 
-      <ng-container *ngIf="recoveredPkgs.length && !reordering">
-        <ion-item-group>
-          <ion-item-divider>Recovered Services</ion-item-divider>
-          <app-list-rec
-            *ngFor="let rec of recoveredPkgs"
-            [rec]="rec"
-            (deleted)="deleteRecovered(rec)"
-          ></app-list-rec>
-        </ion-item-group>
-      </ng-container>
+      <ion-grid>
+        <ion-row>
+          <ion-col *ngFor="let pkg of pkgs" sizeSm="12" sizeLg="6">
+            <app-list-pkg
+              *ngIf="pkg | packageInfo | async as info"
+              [pkg]="info"
+            ></app-list-pkg>
+          </ion-col>
+        </ion-row>
+      </ion-grid>
     </ng-template>
   </ng-template>
 </ion-content>

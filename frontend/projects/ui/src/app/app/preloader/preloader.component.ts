@@ -71,7 +71,6 @@ const ICONS = [
   'remove',
   'remove-circle-outline',
   'remove-outline',
-  'reorder-three',
   'rocket-outline',
   'save-outline',
   'shield-checkmark-outline',
