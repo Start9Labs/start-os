@@ -26,16 +26,16 @@ use crate::s9pk::manifest::PackageId;
 
 pub type HttpClient = Client<hyper::client::HttpConnector>;
 
-pub struct NetController<'a> {
+pub struct NetController {
     pub tor: TorController,
     #[cfg(feature = "avahi")]
     pub mdns: MdnsController,
     //pub nginx: NginxController,
-    pub proxy: ProxyController<'a>,
+    pub proxy: ProxyController,
     pub ssl: SslManager,
     pub dns: DnsController,
 }
-impl NetController<'_> {
+impl NetController {
     #[instrument(skip(db))]
     pub async fn init(
         embassyd_addr: SocketAddr,
@@ -69,6 +69,40 @@ impl NetController<'_> {
 
         //        self.proxy.add_main_server(file_server).await;
     }
+
+    async fn add_handle_helper(&mut self, fqdn: String, proxy_addr: SocketAddr) {
+        let svc_handler: HttpHandler = Arc::new(move |mut req| {
+            async move {
+                let client = HttpClient::new();
+
+                let uri_string = format!(
+                    "http://{}{}",
+                    proxy_addr,
+                    req.uri()
+                        .path_and_query()
+                        .map(|x| x.as_str())
+                        .unwrap_or("/")
+                );
+
+                let uri = uri_string.parse().unwrap();
+                *req.uri_mut() = uri;
+
+                // Ok::<_, HyperError>(Response::new(Body::empty()))
+                return ProxyController::proxy(client, req).await;
+            }
+            .boxed()
+        });
+        let mut mapping = self.proxy.vhosts.g.write().await;
+
+        mapping.insert(fqdn.to_string(), svc_handler);
+    }
+
+    pub async fn remove_docker_mapping(&mut self, dns_base: String) {
+        let mut mapping = self.docker_mapping.write().await;
+
+        mapping.remove(&dns_base);
+    }
+
     #[instrument(skip(self, interfaces, _generated_certificate))]
     pub async fn add<'a, I>(
         &self,

@@ -18,11 +18,11 @@ use tracing::{error, info, instrument};
 
 use crate::{Error, ResultExt};
 
-pub struct ProxyController<'a> {
-    inner: Mutex<ProxyControllerInner<'a>>,
+pub struct ProxyController {
+    inner: Mutex<ProxyControllerInner>,
 }
 
-impl ProxyController<'_> {
+impl ProxyController {
     pub async fn init(embassyd_addr: SocketAddr, ssl_manager: &SslManager) -> Result<Self, Error> {
         Ok(ProxyController {
             inner: Mutex::new(ProxyControllerInner::init(embassyd_addr, ssl_manager).await?),
@@ -47,27 +47,9 @@ impl ProxyController<'_> {
     pub async fn remove_service(&self, package: &PackageId) -> Result<(), Error> {
         self.inner.lock().await.vhosts.remove_service(package).await
     }
-}
-struct ProxyControllerInner<'a> {
-    embassyd_addr: SocketAddr,
-    ssl_manager: &'a SslManager,
-    vhosts: VHOSTController, //  service_servers: BTreeMap<u16, EmbassyServiceHTTPServer>,
-}
 
-impl ProxyControllerInner<'_> {
-    #[instrument]
-    async fn init(embassyd_addr: SocketAddr, ssl_manager: &SslManager) -> Result<Self, Error> {
-        let inner = ProxyControllerInner {
-            embassyd_addr,
-            vhosts: VHOSTController::init(embassyd_addr),
-            ssl_manager,
-        };
 
-        // let emnbassyd_port_80_svc = EmbassyHTTPServer::new(embassyd_addr).await?;
-        Ok(inner)
-    }
-
-    async fn proxy(client: HttpClient, req: Request<Body>) -> Result<Response<Body>, HyperError> {
+    pub async fn proxy(client: HttpClient, req: Request<Body>) -> Result<Response<Body>, HyperError> {
         if Method::CONNECT == req.method() {
             // Received an HTTP request like:
             // ```
@@ -128,4 +110,24 @@ impl ProxyControllerInner<'_> {
 
         Ok(())
     }
+}
+struct ProxyControllerInner {
+    embassyd_addr: SocketAddr,
+    ssl_manager: SslManager,
+    vhosts: VHOSTController, //  service_servers: BTreeMap<u16, EmbassyServiceHTTPServer>,
+}
+
+impl ProxyControllerInner {
+    #[instrument]
+    async fn init(embassyd_addr: SocketAddr, ssl_manager: &SslManager) -> Result<Self, Error> {
+        let inner = ProxyControllerInner {
+            embassyd_addr,
+            vhosts: VHOSTController::init(embassyd_addr),
+            ssl_manager: ssl_manager.clone(),
+        };
+
+        // let emnbassyd_port_80_svc = EmbassyHTTPServer::new(embassyd_addr).await?;
+        Ok(inner)
+    }
+
 }

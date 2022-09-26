@@ -16,6 +16,8 @@ use tokio::sync::{oneshot, RwLock};
 use tracing::{error, info};
 
 
+use crate::net::net_controller::HttpClient;
+use crate::net::proxy_controller::ProxyController;
 use crate::net::ssl::SslManager;
 use crate::Error;
 
@@ -30,7 +32,7 @@ static NO_HOST: &[u8] = b"No host header found";
 
 pub struct EmbassyServiceHTTPServer {
     // String: Virtual
-    pub docker_mapping: Arc<RwLock<BTreeMap<String, HttpHandler>>>,
+    pub svc_mapping: Arc<RwLock<BTreeMap<String, HttpHandler>>>,
     pub shutdown: oneshot::Sender<()>,
     pub handle: NonDetachingJoinHandle<()>,
 }
@@ -41,20 +43,20 @@ impl EmbassyServiceHTTPServer {
 
         let listener_socket_addr = SocketAddr::from((listener_addr, port));
 
-        let docker_service_mapping = Arc::new(RwLock::new(BTreeMap::<String, HttpHandler>::new()));
-        let docker_service_mapping1 = docker_service_mapping.clone();
+        let server_service_mapping = Arc::new(RwLock::new(BTreeMap::<String, HttpHandler>::new()));
+        let server_service_mapping1 = server_service_mapping.clone();
 
         let make_service = make_service_fn(move |_| {
-            let docker_service_mapping = docker_service_mapping.clone();
+            let server_service_mapping = server_service_mapping.clone();
 
             async move {
-                let docker_service_mapping = docker_service_mapping.clone();
+                let server_service_mapping = server_service_mapping.clone();
 
                 Ok::<_, HyperError>(service_fn(move |req| {
-                    let docker_service_mapping = docker_service_mapping.clone();
+                    let server_service_mapping = server_service_mapping.clone();
 
                     async move {
-                        let docker_service_mapping = docker_service_mapping.clone();
+                        let server_service_mapping = server_service_mapping.clone();
 
                         let host = Self::host_addr(&req);
 
@@ -64,12 +66,12 @@ impl EmbassyServiceHTTPServer {
                                 let dns_base =
                                     host_str.split(':').next().unwrap_or_default().to_string();
 
-                                let docker_handler_option = {
-                                    let mapping = docker_service_mapping.read().await;
+                                let server_handler_option = {
+                                    let mapping = server_service_mapping.read().await;
                                     mapping.get(&dns_base).cloned()
                                 };
 
-                                match docker_handler_option {
+                                match server_handler_option {
                                     Some(handler) => handler(req).await,
                                     None => Ok(res_not_found()),
                                 }
@@ -98,45 +100,13 @@ impl EmbassyServiceHTTPServer {
         });
 
         Ok(Self {
-            docker_mapping: docker_service_mapping1,
+            svc_mapping: server_service_mapping1,
             handle: handle.into(),
             shutdown: tx,
         })
     }
 
-    pub async fn add_docker_mapping(&mut self, dns_base: String, docker_addr: SocketAddr) {
-        let docker_handler: HttpHandler = Arc::new(move |mut req| {
-            async move {
-                let client = HttpClient::new();
-
-                let uri_string = format!(
-                    "http://{}{}",
-                    docker_addr,
-                    req.uri()
-                        .path_and_query()
-                        .map(|x| x.as_str())
-                        .unwrap_or("/")
-                );
-
-                let uri = uri_string.parse().unwrap();
-                *req.uri_mut() = uri;
-
-                // Ok::<_, HyperError>(Response::new(Body::empty()))
-                return Self::proxy(client, req).await;
-            }
-            .boxed()
-        });
-        let mut mapping = self.docker_mapping.write().await;
-
-        mapping.insert(dns_base.to_string(), docker_handler);
-    }
-
-    pub async fn remove_docker_mapping(&mut self, dns_base: String) {
-        let mut mapping = self.docker_mapping.write().await;
-
-        mapping.remove(&dns_base);
-    }
-
+   
     }
 
 /// HTTP status code 503

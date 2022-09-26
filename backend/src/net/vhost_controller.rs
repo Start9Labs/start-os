@@ -27,6 +27,11 @@ impl VHOSTController {
             iface_lookups: BTreeMap::new(),
         }
     }
+
+    pub fn get_server(&self, port: u16) -> Option<&EmbassyServiceHTTPServer> {
+        self.service_servers.get(&port)
+    }
+
     #[instrument(skip(self, interfaces))]
     pub async fn add_service<I: IntoIterator<Item = (InterfaceId, InterfaceMetadata)>>(
         &mut self,
@@ -102,7 +107,7 @@ impl VHOSTController {
                         {
                             server.remove_docker_mapping(dns_base.to_string()).await;
 
-                            if server.docker_mapping.read().await.is_empty() {
+                            if server.svc_mapping.read().await.is_empty() {
                                 server_removal = true;
                                 server_removal_port = service_ext_port.0;
                                 removed_interface_id = id.to_owned();
