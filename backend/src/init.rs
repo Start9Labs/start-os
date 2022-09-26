@@ -4,12 +4,14 @@ use std::process::Stdio;
 use std::time::Duration;
 
 use color_eyre::eyre::eyre;
+use helpers::NonDetachingJoinHandle;
 use patch_db::{DbHandle, LockReceipt, LockType};
 use tokio::process::Command;
 
 use crate::context::rpc::RpcContextConfig;
 use crate::db::model::ServerStatus;
 use crate::install::PKG_DOCKER_DIR;
+use crate::sound::{circle_of_fifths, CircleOf, Interval, Note, Semitone, Song, TimeSlice, FIFTH};
 use crate::util::Invoke;
 use crate::version::VersionT;
 use crate::Error;
@@ -195,6 +197,26 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     let should_rebuild = tokio::fs::metadata(SYSTEM_REBUILD_PATH).await.is_ok()
         || &*receipts.server_version.get(&mut handle).await?
             < &crate::version::Current::new().semver();
+
+    let song = if should_rebuild {
+        Some(NonDetachingJoinHandle::from(tokio::spawn(async {
+            Song {
+                tempo_qpm: 120,
+                note_sequence: CircleOf::new(
+                    &FIFTH,
+                    Note {
+                        semitone: Semitone::A,
+                        octave: 4,
+                    },
+                    TimeSlice::Quarter,
+                ),
+            }
+            .play()
+            .await
+        })))
+    } else {
+        None
+    };
 
     let log_dir = cfg.datadir().join("main/logs");
     if tokio::fs::metadata(&log_dir).await.is_err() {
