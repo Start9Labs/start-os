@@ -11,13 +11,13 @@ export interface DataModel {
 }
 
 export interface UIData {
-  name: string
+  name: string | null
   'auto-check-updates': boolean
   'pkg-order': string[]
-  'ack-welcome': string // EOS version
-  marketplace?: UIMarketplaceData
-  dev?: DevData
-  gaming?: {
+  'ack-welcome': string // EOS emver
+  marketplace: UIMarketplaceData
+  dev: DevData
+  gaming: {
     snake: {
       'high-score': number
     }

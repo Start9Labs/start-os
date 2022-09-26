@@ -23,6 +23,12 @@ export const mockPatchData: DataModel = {
         },
       },
     },
+    dev: {},
+    gaming: {
+      snake: {
+        'high-score': 0,
+      },
+    },
     'ack-instructions': {},
   },
   'server-info': {

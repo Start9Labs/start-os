@@ -1,6 +1,8 @@
 use emver::VersionRange;
 
+use crate::config::util::MergeWith;
 use crate::hostname::{generate_id, get_hostname, sync_hostname};
+use crate::ErrorKind;
 
 use super::v0_3_0::V0_3_0_COMPAT;
 use super::*;
@@ -35,28 +37,9 @@ impl VersionT for Version {
             .await?;
 
         sync_hostname(db).await?;
-        let mut ui = crate::db::DatabaseModel::new()
-            .ui()
-            .get(db, false)
-            .await?
-            .clone();
-        if let serde_json::Value::Object(ref mut ui) = ui {
-            ui.insert("ack-instructions".to_string(), serde_json::json!({}));
-        }
-        crate::db::DatabaseModel::new().ui().put(db, &ui).await?;
-
         Ok(())
     }
-    async fn down<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error> {
-        let mut ui = crate::db::DatabaseModel::new()
-            .ui()
-            .get(db, false)
-            .await?
-            .clone();
-        if let serde_json::Value::Object(ref mut ui) = ui {
-            ui.remove("ack-instructions");
-        }
-        crate::db::DatabaseModel::new().ui().put(db, &ui).await?;
+    async fn down<Db: DbHandle>(&self, _db: &mut Db) -> Result<(), Error> {
         Ok(())
     }
 }
