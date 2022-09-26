@@ -749,7 +749,7 @@ export module Mock {
             icon: PROXY_ICON,
           },
         },
-        'published-at': new Date().toISOString(),
+        'published-at': new Date(new Date().valueOf() + 10).toISOString(),
       },
     },
     'btc-rpc-proxy': {

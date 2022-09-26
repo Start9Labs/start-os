@@ -364,12 +364,6 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'package.stop', params })
   }
 
-  async deleteRecoveredPackage(
-    params: RR.DeleteRecoveredPackageReq,
-  ): Promise<RR.DeleteRecoveredPackageRes> {
-    return this.rpcRequest({ method: 'package.delete-recovered', params })
-  }
-
   async uninstallPackage(
     params: RR.UninstallPackageReq,
   ): Promise<RR.UninstallPackageRes> {
