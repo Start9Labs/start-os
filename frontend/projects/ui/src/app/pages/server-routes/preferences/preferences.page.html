@@ -17,12 +17,14 @@
 
     <ion-item-divider>Marketplace</ion-item-divider>
     <ion-item
-      *ngIf="autoCheck$ | async as auto"
+      *ngIf="ui$ | async as ui"
       button
-      (click)="serverConfig.presentAlert('auto-check-updates', auto)"
+      (click)="serverConfig.presentAlert('auto-check-updates', ui['auto-check-updates'])"
     >
       <ion-label>Auto Check for Updates</ion-label>
-      <ion-note slot="end"> {{ auto ? 'Enabled' : 'Disabled' }} </ion-note>
+      <ion-note slot="end">
+        {{ ui['auto-check-updates'] ? 'Enabled' : 'Disabled' }}
+      </ion-note>
     </ion-item>
   </ion-item-group>
 </ion-content>

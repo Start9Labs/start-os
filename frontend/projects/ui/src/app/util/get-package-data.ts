@@ -8,12 +8,12 @@ import { filter, firstValueFrom } from 'rxjs'
 export function getPackage(
   patch: PatchDB<DataModel>,
   id: string,
-): Promise<PackageDataEntry> {
+): Promise<PackageDataEntry | undefined> {
   return firstValueFrom(patch.watch$('package-data', id))
 }
 
 export function getAllPackages(
   patch: PatchDB<DataModel>,
 ): Promise<Record<string, PackageDataEntry>> {
-  return firstValueFrom(patch.watch$('package-data').pipe(filter(Boolean)))
+  return firstValueFrom(patch.watch$('package-data'))
 }

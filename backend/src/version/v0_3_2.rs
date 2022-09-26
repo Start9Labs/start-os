@@ -44,6 +44,7 @@ impl VersionT for Version {
             ui.insert("ack-instructions".to_string(), serde_json::json!({}));
         }
         crate::db::DatabaseModel::new().ui().put(db, &ui).await?;
+
         Ok(())
     }
     async fn down<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error> {

@@ -2,11 +2,7 @@ import { Inject, Pipe, PipeTransform } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { DOCUMENT } from '@angular/common'
 import { AlertController, ModalController, NavController } from '@ionic/angular'
-import {
-  isValidHttpUrl,
-  MarkdownComponent,
-  removeTrailingSlash,
-} from '@start9labs/shared'
+import { getUrlHostname, MarkdownComponent } from '@start9labs/shared'
 import {
   DataModel,
   PackageDataEntry,
@@ -144,7 +140,7 @@ export class ToButtonsPipe implements PipeTransform {
     currentMarketplace: Marketplace | null,
     altMarketplaces: UIMarketplaceData | null | undefined,
   ): Button {
-    const pkgMarketplace = pkg.installed?.['marketplace-url']
+    const pkgMarketplaceUrl = pkg.installed?.['marketplace-url']
     // default button if package marketplace and current marketplace are the same
     let button: Button = {
       title: 'Marketplace',
@@ -154,37 +150,32 @@ export class ToButtonsPipe implements PipeTransform {
       disabled: false,
       description: 'View service in marketplace',
     }
-    if (!pkgMarketplace) {
+    if (!pkgMarketplaceUrl) {
       button.disabled = true
       button.description = 'This package was not installed from a marketplace.'
       button.action = () => {}
     } else if (
-      pkgMarketplace &&
+      pkgMarketplaceUrl &&
       currentMarketplace &&
-      removeTrailingSlash(pkgMarketplace) !==
-        removeTrailingSlash(currentMarketplace.url)
+      getUrlHostname(pkgMarketplaceUrl) !==
+        getUrlHostname(currentMarketplace.url)
     ) {
       // attempt to get name for pkg marketplace
-      let pkgTitle = removeTrailingSlash(pkgMarketplace)
+      let pkgMarketplaceName = getUrlHostname(pkgMarketplaceUrl)
       if (altMarketplaces) {
-        const nameOptions = Object.values(
+        const pkgMarketplaces = Object.values(
           altMarketplaces['known-hosts'],
-        ).filter(m => m.url === pkgTitle)
-        if (nameOptions.length) {
+        ).filter(m => getUrlHostname(m.url) === pkgMarketplaceName)
+        if (pkgMarketplaces.length) {
           // if multiple of the same url exist, they will have the same name, so fine to grab first
-          pkgTitle = nameOptions[0].name
+          pkgMarketplaceName = pkgMarketplaces[0].name
         }
-      }
-      let marketplaceTitle = removeTrailingSlash(currentMarketplace.url)
-      // if we found a name for the pkg marketplace, use the name of the currently connected marketplace
-      if (!isValidHttpUrl(pkgTitle)) {
-        marketplaceTitle = currentMarketplace.name
       }
 
       button.action = () =>
         this.differentMarketplaceAction(
-          pkgTitle,
-          marketplaceTitle,
+          pkgMarketplaceName,
+          currentMarketplace.name,
           pkg.manifest.id,
         )
       button.description = 'Service was installed from a different marketplace'

@@ -216,7 +216,7 @@ export class WifiPage {
         }
       } catch (e) {
         attempts++
-        console.error(e)
+        console.warn(e)
       }
     }
   }

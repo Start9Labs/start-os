@@ -2,23 +2,13 @@ use std::sync::Arc;
 
 use aes::cipher::{CipherKey, NewCipher, Nonce, StreamCipher};
 use aes::Aes256Ctr;
-use color_eyre::eyre::eyre;
-use futures::future::BoxFuture;
-use futures::{FutureExt, Stream};
+use futures::Stream;
 use hmac::Hmac;
-use http::{HeaderMap, HeaderValue};
-use rpc_toolkit::hyper::http::Error as HttpError;
-use rpc_toolkit::hyper::{self, Body, Request, Response, StatusCode};
-use rpc_toolkit::rpc_server_helpers::{
-    to_response, DynMiddleware, DynMiddlewareStage2, DynMiddlewareStage3, DynMiddlewareStage4,
-};
-use rpc_toolkit::yajrc::RpcMethod;
-use rpc_toolkit::Metadata;
+use josekit::jwk::Jwk;
+use rpc_toolkit::hyper::{self, Body};
+use serde::{Deserialize, Serialize};
 use sha2::Sha256;
-
-use crate::context::SetupContext;
-use crate::util::Apply;
-use crate::Error;
+use tracing::instrument;
 
 pub fn pbkdf2(password: impl AsRef<[u8]>, salt: impl AsRef<[u8]>) -> CipherKey<Aes256Ctr> {
     let mut aeskey = CipherKey::<Aes256Ctr>::default();
@@ -56,219 +46,73 @@ pub fn decrypt_slice(input: impl AsRef<[u8]>, password: impl AsRef<[u8]>) -> Vec
     res
 }
 
-#[pin_project::pin_project]
-pub struct DecryptStream {
-    key: Arc<String>,
-    #[pin]
-    body: Body,
-    ctr: Vec<u8>,
-    salt: Vec<u8>,
-    aes: Option<Aes256Ctr>,
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct EncryptedWire {
+    encrypted: serde_json::Value,
 }
-impl DecryptStream {
-    pub fn new(key: Arc<String>, body: Body) -> Self {
-        DecryptStream {
-            key,
-            body,
-            ctr: Vec::new(),
-            salt: Vec::new(),
-            aes: None,
-        }
-    }
-}
-impl Stream for DecryptStream {
-    type Item = hyper::Result<hyper::body::Bytes>;
-    fn poll_next(
-        self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Option<Self::Item>> {
-        let this = self.project();
-        match this.body.poll_next(cx) {
-            std::task::Poll::Pending => std::task::Poll::Pending,
-            std::task::Poll::Ready(Some(Ok(bytes))) => std::task::Poll::Ready(Some(Ok({
-                let mut buf = &*bytes;
-                if let Some(aes) = this.aes.as_mut() {
-                    let mut res = buf.to_vec();
-                    aes.apply_keystream(&mut res);
-                    res.into()
-                } else {
-                    if this.ctr.len() < 16 && !buf.is_empty() {
-                        let to_read = std::cmp::min(16 - this.ctr.len(), buf.len());
-                        this.ctr.extend_from_slice(&buf[0..to_read]);
-                        buf = &buf[to_read..];
-                    }
-                    if this.salt.len() < 16 && !buf.is_empty() {
-                        let to_read = std::cmp::min(16 - this.salt.len(), buf.len());
-                        this.salt.extend_from_slice(&buf[0..to_read]);
-                        buf = &buf[to_read..];
-                    }
-                    if this.ctr.len() == 16 && this.salt.len() == 16 {
-                        let aeskey = pbkdf2(this.key.as_bytes(), &this.salt);
-                        let ctr = Nonce::<Aes256Ctr>::from_slice(this.ctr);
-                        let mut aes = Aes256Ctr::new(&aeskey, ctr);
-                        let mut res = buf.to_vec();
-                        aes.apply_keystream(&mut res);
-                        *this.aes = Some(aes);
-                        res.into()
-                    } else {
-                        hyper::body::Bytes::new()
-                    }
-                }
-            }))),
-            std::task::Poll::Ready(a) => std::task::Poll::Ready(a),
-        }
-    }
-}
+impl EncryptedWire {
+    #[instrument(skip(current_secret))]
+    pub fn decrypt(self, current_secret: impl AsRef<Jwk>) -> Option<String> {
+        let current_secret = current_secret.as_ref();
 
-#[pin_project::pin_project]
-pub struct EncryptStream {
-    #[pin]
-    body: Body,
-    aes: Aes256Ctr,
-    prefix: Option<[u8; 32]>,
-}
-impl EncryptStream {
-    pub fn new(key: &str, body: Body) -> Self {
-        let prefix: [u8; 32] = rand::random();
-        let aeskey = pbkdf2(key.as_bytes(), &prefix[16..]);
-        let ctr = Nonce::<Aes256Ctr>::from_slice(&prefix[..16]);
-        let aes = Aes256Ctr::new(&aeskey, ctr);
-        EncryptStream {
-            body,
-            aes,
-            prefix: Some(prefix),
-        }
-    }
-}
-impl Stream for EncryptStream {
-    type Item = hyper::Result<hyper::body::Bytes>;
-    fn poll_next(
-        self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Option<Self::Item>> {
-        let this = self.project();
-        if let Some(prefix) = this.prefix.take() {
-            std::task::Poll::Ready(Some(Ok(prefix.to_vec().into())))
-        } else {
-            match this.body.poll_next(cx) {
-                std::task::Poll::Pending => std::task::Poll::Pending,
-                std::task::Poll::Ready(Some(Ok(bytes))) => std::task::Poll::Ready(Some(Ok({
-                    let mut res = bytes.to_vec();
-                    this.aes.apply_keystream(&mut res);
-                    res.into()
-                }))),
-                std::task::Poll::Ready(a) => std::task::Poll::Ready(a),
+        let decrypter = match josekit::jwe::alg::ecdh_es::EcdhEsJweAlgorithm::EcdhEs
+            .decrypter_from_jwk(current_secret)
+        {
+            Ok(a) => a,
+            Err(e) => {
+                tracing::warn!("Could not setup awk");
+                tracing::debug!("{:?}", e);
+                return None;
+            }
+        };
+        let encrypted = match serde_json::to_string(&self.encrypted) {
+            Ok(a) => a,
+            Err(e) => {
+                tracing::warn!("Could not deserialize");
+                tracing::debug!("{:?}", e);
+
+                return None;
+            }
+        };
+        let (decoded, _) = match josekit::jwe::deserialize_json(&encrypted, &decrypter) {
+            Ok(a) => a,
+            Err(e) => {
+                tracing::warn!("Could not decrypt");
+                tracing::debug!("{:?}", e);
+                return None;
+            }
+        };
+        match String::from_utf8(decoded) {
+            Ok(a) => Some(a),
+            Err(e) => {
+                tracing::warn!("Could not decrypt into utf8");
+                tracing::debug!("{:?}", e);
+                return None;
             }
         }
     }
 }
 
-fn encrypted(headers: &HeaderMap) -> bool {
-    headers
-        .get("Content-Encoding")
-        .and_then(|h| {
-            h.to_str()
-                .ok()?
-                .split(',')
-                .any(|s| s == "aesctr256")
-                .apply(Some)
-        })
-        .unwrap_or_default()
-}
-
-pub fn encrypt<M: Metadata>(ctx: SetupContext) -> DynMiddleware<M> {
-    Box::new(
-        move |req: &mut Request<Body>,
-              metadata: M|
-              -> BoxFuture<Result<Result<DynMiddlewareStage2, Response<Body>>, HttpError>> {
-            let keysource = ctx.clone();
-            async move {
-                let encrypted = encrypted(req.headers());
-                let current_secret: Option<String> = keysource.current_secret.read().await.clone();
-                let key = if encrypted {
-                    let key = match current_secret {
-                        Some(s) => s,
-                        None => {
-                            let (res_parts, _) = Response::new(()).into_parts();
-                            return Ok(Err(to_response(
-                                req.headers(),
-                                res_parts,
-                                Err(Error::new(
-                                    eyre!("No Secret has been set"),
-                                    crate::ErrorKind::RateLimited,
-                                )
-                                .into()),
-                                |_| StatusCode::OK,
-                            )?));
-                        }
-                    };
-                    let body = std::mem::take(req.body_mut());
-                    *req.body_mut() =
-                        Body::wrap_stream(DecryptStream::new(Arc::new(key.clone()), body));
-                    Some(key)
-                } else {
-                    None
-                };
-                let res: DynMiddlewareStage2 = Box::new(move |req, rpc_req| {
-                    async move {
-                        if !encrypted
-                            && metadata
-                                .get(rpc_req.method.as_str(), "authenticated")
-                                .unwrap_or(true)
-                        {
-                            let (res_parts, _) = Response::new(()).into_parts();
-                            Ok(Err(to_response(
-                                &req.headers,
-                                res_parts,
-                                Err(Error::new(
-                                    eyre!("Must be encrypted"),
-                                    crate::ErrorKind::Authorization,
-                                )
-                                .into()),
-                                |_| StatusCode::OK,
-                            )?))
-                        } else {
-                            let res: DynMiddlewareStage3 = Box::new(move |_, _| {
-                                async move {
-                                    let res: DynMiddlewareStage4 = Box::new(move |res| {
-                                        async move {
-                                            if let Some(key) = key {
-                                                res.headers_mut().insert(
-                                                    "Content-Encoding",
-                                                    HeaderValue::from_static("aesctr256"),
-                                                );
-                                                if let Some(len_header) =
-                                                    res.headers_mut().get_mut("Content-Length")
-                                                {
-                                                    if let Some(len) = len_header
-                                                        .to_str()
-                                                        .ok()
-                                                        .and_then(|l| l.parse::<u64>().ok())
-                                                    {
-                                                        *len_header = HeaderValue::from(len + 32);
-                                                    }
-                                                }
-                                                let body = std::mem::take(res.body_mut());
-                                                *res.body_mut() = Body::wrap_stream(
-                                                    EncryptStream::new(key.as_ref(), body),
-                                                );
-                                            }
-                                            Ok(())
-                                        }
-                                        .boxed()
-                                    });
-                                    Ok(Ok(res))
-                                }
-                                .boxed()
-                            });
-                            Ok(Ok(res))
-                        }
-                    }
-                    .boxed()
-                });
-                Ok(Ok(res))
-            }
-            .boxed()
-        },
+/// We created this test by first making the private key, then restoring from this private key for recreatability.
+/// After this the frontend then encoded an password, then we are testing that the output that we got (hand coded)
+/// will be the shape we want.
+#[test]
+fn test_gen_awk() {
+    let private_key: Jwk = serde_json::from_str(
+        r#"{
+            "kty": "EC",
+            "crv": "P-256",
+            "d": "3P-MxbUJtEhdGGpBCRFXkUneGgdyz_DGZWfIAGSCHOU",
+            "x": "yHTDYSfjU809fkSv9MmN4wuojf5c3cnD7ZDN13n-jz4",
+            "y": "8Mpkn744A5KDag0DmX2YivB63srjbugYZzWc3JOpQXI"
+          }"#,
     )
+    .unwrap();
+    let encrypted: EncryptedWire =  serde_json::from_str(r#"{
+        "encrypted":     {        "protected": "eyJlbmMiOiJBMTI4Q0JDLUhTMjU2IiwiYWxnIjoiRUNESC1FUyIsImtpZCI6ImgtZnNXUVh2Tm95dmJEazM5dUNsQ0NUdWc5N3MyZnJockJnWUVBUWVtclUiLCJlcGsiOnsia3R5IjoiRUMiLCJjcnYiOiJQLTI1NiIsIngiOiJmRkF0LXNWYWU2aGNkdWZJeUlmVVdUd3ZvWExaTkdKRHZIWVhIckxwOXNNIiwieSI6IjFvVFN6b00teHlFZC1SLUlBaUFHdXgzS1dJZmNYZHRMQ0JHLUh6MVkzY2sifX0",        "iv": "NbwvfvWOdLpZfYRIZUrkcw",        "ciphertext": "Zc5Br5kYOlhPkIjQKOLMJw",        "tag": "EPoch52lDuCsbUUulzZGfg"    }
+      }"#).unwrap();
+    assert_eq!(
+        "testing12345",
+        &encrypted.decrypt(Arc::new(private_key)).unwrap()
+    );
 }

@@ -28,7 +28,7 @@ pub fn generate_hostname() -> Hostname {
     let mut rng = thread_rng();
     let adjective = &ADJECTIVES[rng.gen_range(0..ADJECTIVES.len())];
     let noun = &NOUNS[rng.gen_range(0..NOUNS.len())];
-    Hostname(format!("{adjective}-{noun}"))
+    Hostname(format!("embassy-{adjective}-{noun}"))
 }
 
 pub fn generate_id() -> String {

@@ -37,11 +37,13 @@ export class MarketplaceService extends AbstractMarketplaceService {
   private readonly uiMarketplaceData$ = this.patch
     .watch$('ui', 'marketplace')
     .pipe(
-      filter(Boolean),
-      startWith({
-        'selected-id': null,
-        'known-hosts': {},
-      }),
+      map(
+        m =>
+          m || {
+            'selected-id': null,
+            'known-hosts': {},
+          },
+      ),
       distinctUntilChanged(
         (prev, curr) => prev['selected-id'] === curr['selected-id'],
       ),
@@ -54,7 +56,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
 
   private readonly serverInfo$: Observable<ServerInfo> = this.patch
     .watch$('server-info')
-    .pipe(filter(Boolean), take(1), shareReplay())
+    .pipe(take(1), shareReplay())
 
   private readonly registryData$: Observable<MarketplaceData> =
     this.uiMarketplaceData$.pipe(

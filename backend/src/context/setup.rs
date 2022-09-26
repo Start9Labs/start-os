@@ -3,10 +3,9 @@ use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use josekit::jwk::Jwk;
 use patch_db::json_ptr::JsonPointer;
 use patch_db::PatchDb;
-use rand::distributions::Alphanumeric;
-use rand::{thread_rng, Rng};
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::Context;
 use serde::{Deserialize, Serialize};
@@ -70,11 +69,17 @@ pub struct SetupContextSeed {
     pub datadir: PathBuf,
     /// Used to encrypt for hidding from snoopers for setups create password
     /// Set via path
-    pub current_secret: RwLock<Option<String>>,
+    pub current_secret: Arc<Jwk>,
     pub selected_v2_drive: RwLock<Option<PathBuf>>,
     pub cached_product_key: RwLock<Option<Arc<String>>>,
     pub recovery_status: RwLock<Option<Result<RecoveryStatus, RpcError>>>,
     pub setup_result: RwLock<Option<(Arc<String>, SetupResult)>>,
+}
+
+impl AsRef<Jwk> for SetupContextSeed {
+    fn as_ref(&self) -> &Jwk {
+        &self.current_secret
+    }
 }
 
 #[derive(Clone)]
@@ -90,7 +95,16 @@ impl SetupContext {
             bind_rpc: cfg.bind_rpc.unwrap_or(([127, 0, 0, 1], 5959).into()),
             shutdown,
             datadir,
-            current_secret: RwLock::new(None),
+            current_secret: Arc::new(
+                Jwk::generate_ec_key(josekit::jwk::alg::ec::EcCurve::P256).map_err(|e| {
+                    tracing::debug!("{:?}", e);
+                    tracing::error!("Couldn't generate ec key");
+                    Error::new(
+                        color_eyre::eyre::eyre!("Couldn't generate ec key"),
+                        crate::ErrorKind::Unknown,
+                    )
+                })?,
+            ),
             selected_v2_drive: RwLock::new(None),
             cached_product_key: RwLock::new(None),
             recovery_status: RwLock::new(None),
@@ -130,18 +144,6 @@ impl SetupContext {
             pgloader(&old_db_path).await?;
         }
         Ok(secret_store)
-    }
-
-    /// So we assume that there will only be one client that will ask for a secret,
-    /// And during that time do we upsert to a new key
-    pub async fn update_secret(&self) -> Result<String, Error> {
-        let new_secret: String = thread_rng()
-            .sample_iter(&Alphanumeric)
-            .take(30)
-            .map(char::from)
-            .collect();
-        *self.current_secret.write().await = Some(new_secret.clone());
-        Ok(new_secret)
     }
 }
 

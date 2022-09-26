@@ -6,7 +6,11 @@ import {
   ModalController,
 } from '@ionic/angular'
 import { ActionSheetButton } from '@ionic/core'
-import { DestroyService, ErrorToastService } from '@start9labs/shared'
+import {
+  DestroyService,
+  ErrorToastService,
+  getUrlHostname,
+} from '@start9labs/shared'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ValueSpecObject } from 'src/app/pkg-config/config-types'
@@ -117,7 +121,6 @@ export class MarketplacesPage {
   async presentAction(id: string | null) {
     // no need to view actions if is selected marketplace
     const marketplace = await getMarketplace(this.patch)
-
     if (id === marketplace['selected-id']) return
 
     const buttons: ActionSheetButton[] = [
@@ -245,8 +248,8 @@ export class MarketplacesPage {
         }
 
     // no-op on duplicates
-    const currentUrls = this.marketplaces.map(mp => mp.url)
-    if (currentUrls.includes(new URL(url).hostname)) return
+    const currentUrls = this.marketplaces.map(mp => getUrlHostname(mp.url))
+    if (currentUrls.includes(getUrlHostname(url))) return
 
     const loader = await this.loadingCtrl.create({
       message: 'Validating Marketplace...',
@@ -289,8 +292,11 @@ export class MarketplacesPage {
         }
 
     // no-op on duplicates
-    const currentUrls = this.marketplaces.map(mp => mp.url)
-    if (currentUrls.includes(new URL(url).hostname)) return
+    const currentUrls = this.marketplaces.map(mp => getUrlHostname(mp.url))
+    if (currentUrls.includes(getUrlHostname(url))) {
+      this.errToast.present({ message: 'Marketplace already added' })
+      return
+    }
 
     const loader = await this.loadingCtrl.create({
       message: 'Validating Marketplace...',

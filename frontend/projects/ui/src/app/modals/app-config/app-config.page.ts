@@ -65,7 +65,9 @@ export class AppConfigPage {
 
   async ngOnInit() {
     try {
-      this.pkg = await getPackage(this.patch, this.pkgId)
+      const pkg = await getPackage(this.patch, this.pkgId)
+      if (!pkg) return
+      this.pkg = pkg
 
       if (!this.pkg.manifest.config) return
 

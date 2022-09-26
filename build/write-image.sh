@@ -38,10 +38,6 @@ echo "gpu_mem=16" | sudo tee -a /tmp/eos-mnt/config.txt.tmp > /dev/null
 sudo mv /tmp/eos-mnt/config.txt.tmp /tmp/eos-mnt/config.txt
 sudo touch /tmp/eos-mnt/ssh
 
-# Unmount the boot partition and mount embassy partition
-sudo umount /tmp/eos-mnt
-sudo mount `partition_for ${OUTPUT_DEVICE} 2` /tmp/eos-mnt
-if [ "$NO_KEY" != "1" ]; then sudo cp product_key.txt /tmp/eos-mnt; else echo "This image is being written with no product key"; fi
 sudo umount /tmp/eos-mnt
 
 sudo mount `partition_for ${OUTPUT_DEVICE} 3` /tmp/eos-mnt
@@ -53,6 +49,8 @@ sudo cp ENVIRONMENT.txt /tmp/eos-mnt/etc/embassy
 sudo cp GIT_HASH.txt /tmp/eos-mnt/etc/embassy
 sudo cp build/fstab /tmp/eos-mnt/etc/fstab
 sudo cp build/journald.conf /tmp/eos-mnt/etc/systemd/journald.conf
+sudo sed -i 's/raspberrypi/embassy/g' /tmp/eos-mnt/etc/hostname
+sudo sed -i 's/raspberrypi/embassy/g' /tmp/eos-mnt/etc/hosts
 
 # copy over cargo dependencies
 sudo cp cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast /tmp/eos-mnt/usr/local/bin

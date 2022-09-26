@@ -46,6 +46,7 @@ export * from './types/url'
 export * from './types/workspace-config'
 
 export * from './util/copy-to-clipboard'
+export * from './util/base-64'
 export * from './util/get-pkg-id'
 export * from './util/misc.util'
 export * from './util/rpc.util'
