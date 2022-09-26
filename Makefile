@@ -8,7 +8,7 @@ COMPAT_SRC := $(shell find system-images/compat/ -not -path 'system-images/compa
 UTILS_SRC := $(shell find system-images/utils/ -not -name utils.tar)
 BINFMT_SRC := $(shell find system-images/binfmt/ -not -name binfmt.tar)
 BACKEND_SRC := $(shell find backend/src) $(shell find backend/migrations) $(shell find patch-db/*/src) backend/Cargo.toml backend/Cargo.lock
-FRONTEND_SHARED_SRC := $(shell find frontend/projects/shared) $(shell find frontend/assets) $(shell ls -p frontend/ | grep -v / | sed 's/^/frontend\//g') frontend/node_modules frontend/config.json patch-db/client/dist
+FRONTEND_SHARED_SRC := $(shell find frontend/projects/shared) $(shell find frontend/assets) $(shell ls -p frontend/ | grep -v / | sed 's/^/frontend\//g') frontend/node_modules frontend/config.json patch-db/client/dist frontend/patchdb-ui-seed.json
 FRONTEND_UI_SRC := $(shell find frontend/projects/ui)
 FRONTEND_SETUP_WIZARD_SRC := $(shell find frontend/projects/setup-wizard)
 FRONTEND_DIAGNOSTIC_UI_SRC := $(shell find frontend/projects/diagnostic-ui)
@@ -74,7 +74,7 @@ snapshots: libs/snapshot-creator/Cargo.toml
 	cd libs/  && ./build-v8-snapshot.sh
 	cd libs/  && ./build-arm-v8-snapshot.sh
 
-$(EMBASSY_BINS): $(BACKEND_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE)
+$(EMBASSY_BINS): $(BACKEND_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) frontend/patchdb-ui-seed.json
 	cd backend && ./build-prod.sh
 	touch $(EMBASSY_BINS)
 
@@ -93,6 +93,10 @@ frontend/dist/diagnostic-ui: $(FRONTEND_DIAGNOSTIC_UI_SRC) $(FRONTEND_SHARED_SRC
 frontend/config.json: $(GIT_HASH_FILE) frontend/config-sample.json
 	jq '.useMocks = false' frontend/config-sample.json > frontend/config.json
 	npm --prefix frontend run-script build-config
+
+frontend/patchdb-ui-seed.json: frontend/package.json
+	jq '."ack-welcome" = "$(shell yq '.version' frontend/package.json)"' frontend/patchdb-ui-seed.json > ui-seed.tmp
+	mv ui-seed.tmp frontend/patchdb-ui-seed.json
 
 patch-db/client/node_modules: patch-db/client/package.json
 	npm --prefix patch-db/client ci
