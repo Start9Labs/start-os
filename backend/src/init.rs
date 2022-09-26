@@ -7,6 +7,7 @@ use color_eyre::eyre::eyre;
 use patch_db::{DbHandle, LockReceipt, LockType};
 use tokio::process::Command;
 
+use crate::config::util::MergeWith;
 use crate::context::rpc::RpcContextConfig;
 use crate::db::model::ServerStatus;
 use crate::install::PKG_DOCKER_DIR;
@@ -190,6 +191,25 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         .server_info()
         .lock(&mut handle, LockType::Write)
         .await?;
+
+    let defaults: serde_json::Value =
+        serde_json::from_str(include_str!("../../frontend/patchdb-ui-seed.json")).map_err(|x| {
+            Error::new(
+                eyre!("Serialization error {:?}", x),
+                crate::ErrorKind::Serialization,
+            )
+        })?;
+    let mut ui = crate::db::DatabaseModel::new()
+        .ui()
+        .get(&mut handle, false)
+        .await?
+        .clone();
+    ui.merge_with(&defaults);
+    crate::db::DatabaseModel::new()
+        .ui()
+        .put(&mut handle, &ui)
+        .await?;
+
     let receipts = InitReceipts::new(&mut handle).await?;
 
     let should_rebuild = tokio::fs::metadata(SYSTEM_REBUILD_PATH).await.is_ok()

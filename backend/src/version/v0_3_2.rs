@@ -37,23 +37,6 @@ impl VersionT for Version {
             .await?;
 
         sync_hostname(db).await?;
-        let defaults: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../frontend/patchdb-ui-seed.json"
-        ))
-        .map_err(|x| {
-            Error::new(
-                eyre!("Serialization error {:?}", x),
-                ErrorKind::Serialization,
-            )
-        })?;
-        let mut ui = crate::db::DatabaseModel::new()
-            .ui()
-            .get(db, false)
-            .await?
-            .clone();
-        ui.merge_with(&defaults);
-        crate::db::DatabaseModel::new().ui().put(db, &ui).await?;
-
         Ok(())
     }
     async fn down<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error> {
