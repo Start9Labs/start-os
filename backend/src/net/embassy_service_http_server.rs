@@ -21,7 +21,6 @@ use crate::Error;
 
 use hyper::{Body, Client, Error as HyperError, Request, Response, Server};
 
-type HttpClient = Client<hyper::client::HttpConnector>;
 type HttpHandler = Arc<
     dyn Fn(Request<Body>) -> BoxFuture<'static, Result<Response<Body>, HyperError>> + Send + Sync,
 >;

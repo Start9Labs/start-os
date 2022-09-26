@@ -5,6 +5,7 @@ use crate::net::{
     static_server, GeneratedCertificateMountPoint, InterfaceMetadata, PACKAGE_CERT_PATH,
 };
 use crate::Error;
+use hyper::Client;
 use models::InterfaceId;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
@@ -22,16 +23,19 @@ use crate::net::ssl::SslManager;
 use crate::net::tor::TorController;
 use crate::s9pk::manifest::PackageId;
 
-pub struct NetController {
+
+pub type HttpClient = Client<hyper::client::HttpConnector>;
+
+pub struct NetController<'a> {
     pub tor: TorController,
     #[cfg(feature = "avahi")]
     pub mdns: MdnsController,
     //pub nginx: NginxController,
-    pub proxy: ProxyController,
+    pub proxy: ProxyController<'a>,
     pub ssl: SslManager,
     pub dns: DnsController,
 }
-impl NetController {
+impl NetController<'_> {
     #[instrument(skip(db))]
     pub async fn init(
         embassyd_addr: SocketAddr,
@@ -63,16 +67,7 @@ impl NetController {
     pub async fn add_handle(&self, ctx: RpcContext) {
         let rpc_ctx = ctx.clone();
 
-        let file_server = {
-            StaticServer::init(ctx, {
-                let mut shutdown = rpc_ctx.shutdown.subscribe();
-                async move {
-                    shutdown.recv().await.expect("context dropped");
-                }
-            })
-        };
-
-        self.proxy.add_main_server(file_server).await;
+        //        self.proxy.add_main_server(file_server).await;
     }
     #[instrument(skip(self, interfaces, _generated_certificate))]
     pub async fn add<'a, I>(
@@ -129,7 +124,7 @@ impl NetController {
                             })
                         });
                 //self.nginx.add(&self.ssl, pkg_id.clone(), ip, interfaces)
-                self.proxy.add(&self.ssl, pkg_id.clone(), ip, interfaces)
+                self.proxy.add_service(&self.ssl, pkg_id.clone(), ip, interfaces)
             },
             self.dns.add(pkg_id, ip),
         );
@@ -156,7 +151,7 @@ impl NetController {
                 let mdns_fut = futures::future::ready(());
                 mdns_fut
             },
-            self.proxy.remove(pkg_id),
+            self.proxy.remove_service(pkg_id),
             self.dns.remove(pkg_id, ip),
         );
         tor_res?;

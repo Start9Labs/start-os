@@ -1,15 +1,17 @@
 use crate::net::embassy_service_http_server::EmbassyServiceHTTPServer;
 use crate::net::ssl::SslManager;
-use crate::Error;
+use crate::{Error, ResultExt};
 use std::collections::BTreeMap;
 use std::net::{Ipv4Addr, SocketAddr};
 
+use color_eyre::eyre::eyre;
 use models::{InterfaceId, PackageId};
 use tracing::instrument;
 
 use crate::net::{InterfaceMetadata, PackageNetInfo};
 
 pub struct VHOSTController {
+    embassyd_addr: SocketAddr,
     service_servers: BTreeMap<u16, EmbassyServiceHTTPServer>,
 
     interfaces: BTreeMap<PackageId, PackageNetInfo>,
@@ -17,8 +19,16 @@ pub struct VHOSTController {
 }
 
 impl VHOSTController {
+    pub fn init(embassyd_addr: SocketAddr) -> Self {
+        Self {
+            embassyd_addr,
+            service_servers: BTreeMap::new(),
+            interfaces: BTreeMap::new(),
+            iface_lookups: BTreeMap::new(),
+        }
+    }
     #[instrument(skip(self, interfaces))]
-    async fn add<I: IntoIterator<Item = (InterfaceId, InterfaceMetadata)>>(
+    pub async fn add_service<I: IntoIterator<Item = (InterfaceId, InterfaceMetadata)>>(
         &mut self,
         ssl_manager: &SslManager,
         package: PackageId,
@@ -77,7 +87,7 @@ impl VHOSTController {
     }
 
     #[instrument(skip(self))]
-    async fn remove(&mut self, package: &PackageId) -> Result<(), Error> {
+    pub async fn remove_service(&mut self, package: &PackageId) -> Result<(), Error> {
         let mut server_removal = false;
         let mut server_removal_port: u16 = 0;
         let mut removed_interface_id = InterfaceId::default();

@@ -1,30 +1,35 @@
-use color_eyre::eyre::eyre;
-use std::collections::BTreeMap;
+use http::{Method, Request, Response};
+use hyper::upgrade::Upgraded;
+
+use hyper::Body;
+use hyper::Error as HyperError;
+use tokio::net::TcpStream;
+
 use std::net::{Ipv4Addr, SocketAddr};
 
-use models::{InterfaceId, PackageId};
-use tokio::sync::Mutex;
-use tracing::{info, instrument};
-
-use crate::net::embassy_service_http_server::EmbassyServiceHTTPServer;
+use crate::net::net_controller::HttpClient;
+use crate::net::net_utils::host_addr;
 use crate::net::ssl::SslManager;
 use crate::net::vhost_controller::VHOSTController;
-use crate::net::{InterfaceMetadata, PackageNetInfo};
+use crate::net::InterfaceMetadata;
+use models::{InterfaceId, PackageId};
+use tokio::sync::Mutex;
+use tracing::{error, info, instrument};
 
 use crate::{Error, ResultExt};
 
-pub struct ProxyController {
-    inner: Mutex<ProxyControllerInner>,
+pub struct ProxyController<'a> {
+    inner: Mutex<ProxyControllerInner<'a>>,
 }
 
-impl ProxyController {
+impl ProxyController<'_> {
     pub async fn init(embassyd_addr: SocketAddr, ssl_manager: &SslManager) -> Result<Self, Error> {
         Ok(ProxyController {
             inner: Mutex::new(ProxyControllerInner::init(embassyd_addr, ssl_manager).await?),
         })
     }
 
-    pub async fn add<I: IntoIterator<Item = (InterfaceId, InterfaceMetadata)>>(
+    pub async fn add_service<I: IntoIterator<Item = (InterfaceId, InterfaceMetadata)>>(
         &self,
         ssl_manager: &SslManager,
         package: PackageId,
@@ -34,25 +39,28 @@ impl ProxyController {
         self.inner
             .lock()
             .await
-            .add(ssl_manager, package, ipv4, interfaces)
+            .vhosts
+            .add_service(ssl_manager, package, ipv4, interfaces)
             .await
     }
 
-    pub async fn remove(&self, package: &PackageId) -> Result<(), Error> {
-        self.inner.lock().await.remove(package).await
+    pub async fn remove_service(&self, package: &PackageId) -> Result<(), Error> {
+        self.inner.lock().await.vhosts.remove_service(package).await
     }
 }
-struct ProxyControllerInner {
+struct ProxyControllerInner<'a> {
     embassyd_addr: SocketAddr,
+    ssl_manager: &'a SslManager,
     vhosts: VHOSTController, //  service_servers: BTreeMap<u16, EmbassyServiceHTTPServer>,
 }
 
-impl ProxyControllerInner {
+impl ProxyControllerInner<'_> {
     #[instrument]
     async fn init(embassyd_addr: SocketAddr, ssl_manager: &SslManager) -> Result<Self, Error> {
         let inner = ProxyControllerInner {
             embassyd_addr,
-            vhosts: todo!(),
+            vhosts: VHOSTController::init(embassyd_addr),
+            ssl_manager,
         };
 
         // let emnbassyd_port_80_svc = EmbassyHTTPServer::new(embassyd_addr).await?;
@@ -74,7 +82,7 @@ impl ProxyControllerInner {
             // Note: only after client received an empty body with STATUS_OK can the
             // connection be upgraded, so we can't return a response inside
             // `on_upgrade` future.
-            match Self::host_addr(&req) {
+            match host_addr(&req) {
                 Ok(host) => {
                     tokio::task::spawn(async move {
                         match hyper::upgrade::on(req).await {
@@ -120,22 +128,4 @@ impl ProxyControllerInner {
 
         Ok(())
     }
-
-    fn host_addr(req: &Request<Body>) -> Result<String, Error> {
-        let host = req.headers().get(http::header::HOST);
-
-        match host {
-            Some(host) => {
-                let host = host
-                    .to_str()
-                    .map_err(|e| Error::new(eyre!("{}", e), crate::ErrorKind::AsciiError))?
-                    .to_string();
-
-                Ok(host)
-            }
-
-            None => Err(Error::new(eyre!("No Host"), crate::ErrorKind::NoHost)),
-        }
-    }
-
 }

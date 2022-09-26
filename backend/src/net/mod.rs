@@ -23,6 +23,7 @@ pub mod ssl;
 pub mod static_server;
 pub mod tor;
 pub mod wifi;
+pub mod net_utils;
 
 const PACKAGE_CERT_PATH: &str = "/var/lib/embassy/ssl";
 

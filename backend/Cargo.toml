@@ -76,7 +76,6 @@ hex = "0.4.3"
 hmac = "0.12.1"
 http = "0.2.8"
 hyper = "0.14.20"
-http-body = "0.4.5"
 hyper-ws-listener = "0.2.0"
 imbl = "2.0.0"
 indexmap = { version = "1.9.1", features = ["serde"] }
