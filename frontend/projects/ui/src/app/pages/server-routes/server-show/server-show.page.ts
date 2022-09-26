@@ -10,8 +10,7 @@ import { ActivatedRoute } from '@angular/router'
 import { PatchDB } from 'patch-db-client'
 import { ServerNameService } from 'src/app/services/server-name.service'
 import { Observable, of } from 'rxjs'
-import { take, tap } from 'rxjs/operators'
-import { isEmptyObject, ErrorToastService } from '@start9labs/shared'
+import { ErrorToastService } from '@start9labs/shared'
 import { EOSService } from 'src/app/services/eos.service'
 import { LocalStorageService } from 'src/app/services/local-storage.service'
 import { OSUpdatePage } from 'src/app/modals/os-update/os-update.page'
@@ -25,7 +24,6 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
   styleUrls: ['server-show.page.scss'],
 })
 export class ServerShowPage {
-  hasRecoveredPackage = false
   clicks = 0
 
   readonly server$ = this.patch.watch$('server-info')
@@ -48,34 +46,14 @@ export class ServerShowPage {
     private readonly authService: AuthService,
   ) {}
 
-  ngOnInit() {
-    this.patch
-      .watch$('recovered-packages')
-      .pipe(
-        take(1),
-        tap(data => (this.hasRecoveredPackage = !isEmptyObject(data))),
-      )
-      .subscribe()
-  }
-
   async updateEos(): Promise<void> {
-    if (this.hasRecoveredPackage) {
-      const alert = await this.alertCtrl.create({
-        header: 'Cannot Update',
-        message:
-          'You cannot update embassyOS when you have unresolved recovered services.',
-        buttons: ['OK'],
-      })
-      await alert.present()
-    } else {
-      const modal = await this.modalCtrl.create({
-        componentProps: {
-          releaseNotes: this.eosService.eos?.['release-notes'],
-        },
-        component: OSUpdatePage,
-      })
-      modal.present()
-    }
+    const modal = await this.modalCtrl.create({
+      componentProps: {
+        releaseNotes: this.eosService.eos?.['release-notes'],
+      },
+      component: OSUpdatePage,
+    })
+    modal.present()
   }
 
   async presentAlertLogout() {
