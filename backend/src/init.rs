@@ -11,7 +11,7 @@ use tokio::process::Command;
 use crate::context::rpc::RpcContextConfig;
 use crate::db::model::ServerStatus;
 use crate::install::PKG_DOCKER_DIR;
-use crate::sound::{circle_of_fifths, CircleOf, Interval, Note, Semitone, Song, TimeSlice, FIFTH};
+use crate::sound::CIRCLE_OF_5THS_SHORT;
 use crate::util::Invoke;
 use crate::version::VersionT;
 use crate::Error;
@@ -200,19 +200,10 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
 
     let song = if should_rebuild {
         Some(NonDetachingJoinHandle::from(tokio::spawn(async {
-            Song {
-                tempo_qpm: 120,
-                note_sequence: CircleOf::new(
-                    &FIFTH,
-                    Note {
-                        semitone: Semitone::A,
-                        octave: 4,
-                    },
-                    TimeSlice::Quarter,
-                ),
+            loop {
+                CIRCLE_OF_5THS_SHORT.play().await.unwrap();
+                tokio::time::sleep(Duration::from_secs(10)).await;
             }
-            .play()
-            .await
         })))
     } else {
         None
@@ -352,6 +343,8 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
             Err(e) => Err(e),
         }?;
     }
+
+    drop(song);
 
     tracing::info!("System initialized.");
 
