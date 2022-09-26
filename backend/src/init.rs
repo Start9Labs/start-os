@@ -4,12 +4,14 @@ use std::process::Stdio;
 use std::time::Duration;
 
 use color_eyre::eyre::eyre;
+use helpers::NonDetachingJoinHandle;
 use patch_db::{DbHandle, LockReceipt, LockType};
 use tokio::process::Command;
 
 use crate::context::rpc::RpcContextConfig;
 use crate::db::model::ServerStatus;
 use crate::install::PKG_DOCKER_DIR;
+use crate::sound::CIRCLE_OF_5THS_SHORT;
 use crate::util::Invoke;
 use crate::version::VersionT;
 use crate::Error;
@@ -196,6 +198,17 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         || &*receipts.server_version.get(&mut handle).await?
             < &crate::version::Current::new().semver();
 
+    let song = if should_rebuild {
+        Some(NonDetachingJoinHandle::from(tokio::spawn(async {
+            loop {
+                CIRCLE_OF_5THS_SHORT.play().await.unwrap();
+                tokio::time::sleep(Duration::from_secs(10)).await;
+            }
+        })))
+    } else {
+        None
+    };
+
     let log_dir = cfg.datadir().join("main/logs");
     if tokio::fs::metadata(&log_dir).await.is_err() {
         tokio::fs::create_dir_all(&log_dir).await?;
@@ -330,6 +343,8 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
             Err(e) => Err(e),
         }?;
     }
+
+    drop(song);
 
     tracing::info!("System initialized.");
 
