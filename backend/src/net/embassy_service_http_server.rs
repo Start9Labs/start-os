@@ -1,31 +1,20 @@
-use color_eyre::eyre::eyre;
-use futures::future::BoxFuture;
-use futures::FutureExt;
 use helpers::NonDetachingJoinHandle;
-use hyper::upgrade::Upgraded;
 use std::collections::BTreeMap;
 use std::net::IpAddr;
 
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use http::{Method, StatusCode};
+use http::StatusCode;
 use hyper::service::{make_service_fn, service_fn};
-use tokio::net::TcpStream;
 use tokio::sync::{oneshot, RwLock};
-use tracing::{error, info};
-
-
-use crate::net::net_controller::HttpClient;
-use crate::net::proxy_controller::ProxyController;
-use crate::net::ssl::SslManager;
+use tracing::error;
 use crate::Error;
+use crate::net::HttpHandler;
+use crate::net::net_utils::host_addr;
+use hyper::{Body, Error as HyperError, Response, Server};
 
-use hyper::{Body, Client, Error as HyperError, Request, Response, Server};
 
-type HttpHandler = Arc<
-    dyn Fn(Request<Body>) -> BoxFuture<'static, Result<Response<Body>, HyperError>> + Send + Sync,
->;
 
 static RES_NOT_FOUND: &[u8] = b"503 Service Unavailable";
 static NO_HOST: &[u8] = b"No host header found";
@@ -58,7 +47,7 @@ impl EmbassyServiceHTTPServer {
                     async move {
                         let server_service_mapping = server_service_mapping.clone();
 
-                        let host = Self::host_addr(&req);
+                        let host = host_addr(&req);
 
                         match host {
                             Ok(host_str) => {
@@ -106,8 +95,17 @@ impl EmbassyServiceHTTPServer {
         })
     }
 
-   
+    pub async fn add_svc_mapping(&mut self, fqdn: String, svc_handle: HttpHandler) {
+        let mut mapping = self.svc_mapping.write().await;
+        mapping.insert(fqdn, svc_handle);
     }
+
+    pub async fn remove_svc_mapping(&mut self, fqdn: String) {
+        let mut mapping = self.svc_mapping.write().await;
+
+        mapping.remove(&fqdn);
+    }
+}
 
 /// HTTP status code 503
 fn res_not_found() -> Response<Body> {

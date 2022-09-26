@@ -15,13 +15,14 @@ use tracing::error;
 use crate::context::RpcContext;
 use crate::install::PKG_PUBLIC_DIR;
 use crate::middleware::auth::HasValidSession;
+use crate::net::HttpHandler;
 use crate::{Error, ErrorKind, ResultExt};
 
 static NOT_FOUND: &[u8] = b"Not Found";
 static NOT_AUTHORIZED: &[u8] = b"Not Authorized";
 
 
-async fn file_server_router(req: Request<Body>, ctx: RpcContext) -> Result<Response<Body>, Error> {
+async fn file_server_router(req: Request<Body>, ctx: RpcContext) -> Result<HttpHandler, Error> {
 
     dbg!(req.uri());
     let (request_parts, _body) = req.into_parts();

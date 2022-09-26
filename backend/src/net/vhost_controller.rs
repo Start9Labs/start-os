@@ -1,21 +1,22 @@
 use crate::net::embassy_service_http_server::EmbassyServiceHTTPServer;
+use crate::net::proxy_controller::ProxyController;
 use crate::net::ssl::SslManager;
 use crate::{Error, ResultExt};
 use std::collections::BTreeMap;
 use std::net::{Ipv4Addr, SocketAddr};
+use std::sync::Arc;
 
 use color_eyre::eyre::eyre;
+use futures::FutureExt;
+use hyper::Client;
 use models::{InterfaceId, PackageId};
 use tracing::instrument;
 
-use crate::net::{InterfaceMetadata, PackageNetInfo};
+use crate::net::{HttpHandler, InterfaceMetadata, PackageNetInfo, HttpClient};
 
 pub struct VHOSTController {
+    pub service_servers: BTreeMap<u16, EmbassyServiceHTTPServer>,
     embassyd_addr: SocketAddr,
-    service_servers: BTreeMap<u16, EmbassyServiceHTTPServer>,
-
-    interfaces: BTreeMap<PackageId, PackageNetInfo>,
-    iface_lookups: BTreeMap<(PackageId, InterfaceId), String>,
 }
 
 impl VHOSTController {
@@ -23,8 +24,6 @@ impl VHOSTController {
         Self {
             embassyd_addr,
             service_servers: BTreeMap::new(),
-            interfaces: BTreeMap::new(),
-            iface_lookups: BTreeMap::new(),
         }
     }
 
@@ -32,109 +31,43 @@ impl VHOSTController {
         self.service_servers.get(&port)
     }
 
-    #[instrument(skip(self, interfaces))]
-    pub async fn add_service<I: IntoIterator<Item = (InterfaceId, InterfaceMetadata)>>(
+    pub async fn add_svc_handle(
         &mut self,
-        ssl_manager: &SslManager,
-        package: PackageId,
-        ipv4: Ipv4Addr,
-        interfaces: I,
+        external_svc_port: u16,
+        fqdn: String,
+        proxy_addr: SocketAddr,
     ) -> Result<(), Error> {
-        let interface_map = interfaces
-            .into_iter()
-            .filter(|(_, meta)| {
-                // don't add nginx stuff for anything we can't connect to over some flavor of http
-                (meta.protocols.contains("http") || meta.protocols.contains("https"))
-                // also don't add nginx unless it has at least one exposed port
-                        && !meta.lan_config.is_empty()
-            })
-            .collect::<BTreeMap<InterfaceId, InterfaceMetadata>>();
+        let svc_handler: HttpHandler = Arc::new(move |mut req| {
+            async move {
+                let client = HttpClient::new();
 
-        for (id, meta) in interface_map.iter() {
-            for (external_svc_port, lan_port_config) in meta.lan_config.iter() {
-                self.iface_lookups
-                    .insert((package.clone(), id.clone()), meta.fqdn.clone());
+                let uri_string = format!(
+                    "http://{}{}",
+                    proxy_addr,
+                    req.uri()
+                        .path_and_query()
+                        .map(|x| x.as_str())
+                        .unwrap_or("/")
+                );
 
-                let docker_addr = SocketAddr::from((ipv4, lan_port_config.internal));
-                // info!("docker ip: {}", docker_addr);
+                let uri = uri_string.parse().unwrap();
+                *req.uri_mut() = uri;
 
-                if let Some(server) = self.service_servers.get_mut(&external_svc_port.0) {
-                    server
-                        .add_docker_mapping(meta.fqdn.to_owned(), docker_addr)
-                        .await;
-                } else {
-                    let mut new_service_server =
-                        EmbassyServiceHTTPServer::new(self.embassyd_addr.ip(), external_svc_port.0)
-                            .await?;
-                    new_service_server
-                        .add_docker_mapping(meta.fqdn.to_owned(), docker_addr)
-                        .await;
-
-                    self.service_servers
-                        .insert(external_svc_port.0, new_service_server);
-                }
+                // Ok::<_, HyperError>(Response::new(Body::empty()))
+                return ProxyController::proxy(client, req).await;
             }
-        }
+            .boxed()
+        });
 
-        match self.interfaces.get_mut(&package) {
-            None => {
-                let info = PackageNetInfo {
-                    interfaces: interface_map,
-                };
-                self.interfaces.insert(package, info);
-            }
-            Some(p) => {
-                p.interfaces.extend(interface_map);
-            }
-        };
+        if let Some(server) = self.service_servers.get_mut(&external_svc_port) {
+            server.add_svc_mapping(fqdn, svc_handler).await;
+        } else {
+            let mut new_service_server =
+                EmbassyServiceHTTPServer::new(self.embassyd_addr.ip(), external_svc_port).await?;
+            new_service_server.add_svc_mapping(fqdn, svc_handler).await;
 
-        Ok(())
-    }
-
-    #[instrument(skip(self))]
-    pub async fn remove_service(&mut self, package: &PackageId) -> Result<(), Error> {
-        let mut server_removal = false;
-        let mut server_removal_port: u16 = 0;
-        let mut removed_interface_id = InterfaceId::default();
-
-        let package_interface_info = self.interfaces.get(package);
-        if let Some(net_info) = package_interface_info {
-            for (id, meta) in &net_info.interfaces {
-                for (service_ext_port, _lan_port_config) in meta.lan_config.iter() {
-                    if let Some(server) = self.service_servers.get_mut(&service_ext_port.0) {
-                        if let Some(dns_base) =
-                            self.iface_lookups.get(&(package.clone(), id.clone()))
-                        {
-                            server.remove_docker_mapping(dns_base.to_string()).await;
-
-                            if server.svc_mapping.read().await.is_empty() {
-                                server_removal = true;
-                                server_removal_port = service_ext_port.0;
-                                removed_interface_id = id.to_owned();
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        if server_removal {
-            if let Some(removed_server) = self.service_servers.remove(&server_removal_port) {
-                removed_server.shutdown.send(()).map_err(|_| {
-                    Error::new(
-                        eyre!("Hyper server did not quit properly"),
-                        crate::ErrorKind::JoinError,
-                    )
-                })?;
-                removed_server
-                    .handle
-                    .await
-                    .with_kind(crate::ErrorKind::JoinError)?;
-                self.interfaces.remove(&package.clone());
-                self.iface_lookups
-                    .remove(&(package.clone(), removed_interface_id));
-            }
+            self.service_servers
+                .insert(external_svc_port, new_service_server);
         }
         Ok(())
     }
