@@ -6,7 +6,6 @@ import { BasicInfo } from 'src/app/pages/developer-routes/developer-menu/form-in
 export interface DataModel {
   'server-info': ServerInfo
   'package-data': { [id: string]: PackageDataEntry }
-  'recovered-packages': { [id: string]: RecoveredPackageDataEntry }
   ui: UIData
 }
 
@@ -74,11 +73,6 @@ export enum ServerStatus {
   Running = 'running',
   Updated = 'updated',
   BackingUp = 'backing-up',
-}
-export interface RecoveredPackageDataEntry {
-  title: string
-  icon: Url
-  version: string
 }
 
 export interface PackageDataEntry {
