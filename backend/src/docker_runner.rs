@@ -1,10 +1,10 @@
-use std::str::FromStr;
-
-use color_eyre::Report;
-use serde::{ser::SerializeMap, Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+pub type InputJsonRpc = JsonRpc<Input>;
+pub type OutputJsonRpc = JsonRpc<Output>;
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(untagged)]
 pub enum RpcId {
     Int(i64),
@@ -12,28 +12,37 @@ pub enum RpcId {
     String(String),
 }
 
-#[derive(Debug, Clone, Deserialize)]
-pub struct OutputRpcId {
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+pub struct JsonRpc<T> {
     id: Option<RpcId>,
-    output: Output,
+    #[serde(flatten)]
+    pub versionRpc: VersionRpc<T>,
 }
 
-impl Serialize for OutputRpcId {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut map = serializer.serialize_map(Some(3))?;
-        map.serialize_entry("jsonrpc", "2.0")?;
-        map.serialize_entry("id", &self.id)?;
-        map.serialize_entry("result", &self.output)?;
-        map.end()
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[serde(tag = "jsonrpc", rename_all = "camelCase")]
+pub enum VersionRpc<T> {
+    #[serde(rename = "2.0")]
+    Two(T),
+}
+
+impl<T> JsonRpc<T>
+where
+    T: Serialize + for<'de> serde::Deserialize<'de> + std::fmt::Debug,
+{
+    pub fn new(id: Option<RpcId>, body: T) -> Self {
+        JsonRpc {
+            id,
+            versionRpc: VersionRpc::Two(body),
+        }
     }
-}
-
-impl OutputRpcId {
+    pub fn as_pair(self) -> (Option<RpcId>, T) {
+        let Self { id, versionRpc } = self;
+        let VersionRpc::Two(body) = versionRpc;
+        (id, body)
+    }
     #[instrument]
-    fn maybe_serialize(&self) -> Option<String> {
+    pub fn maybe_serialize(&self) -> Option<String> {
         tracing::trace!("Should be serializing");
         match serde_json::to_string(self) {
             Ok(x) => Some(x),
@@ -44,60 +53,8 @@ impl OutputRpcId {
             }
         }
     }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(tag = "jsonrpc", rename_all = "camelCase")]
-pub enum OutputRpc {
-    #[serde(rename = "2.0")]
-    Two(Output),
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum Output {
-    Line(String),
-    Error(String),
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct InputRpcId {
-    id: Option<RpcId>,
-    #[serde(flatten)]
-    input_rpc: InputRpc,
-}
-
-impl InputRpcId {
-    fn new_cmd(count: i64, command: String, args: Vec<String>) -> Self {
-        InputRpcId {
-            id: Some(RpcId::Int(count)),
-            input_rpc: InputRpc::Two(Input::Command { command, args }),
-        }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(tag = "jsonrpc", rename_all = "camelCase")]
-pub enum InputRpc {
-    #[serde(rename = "2.0")]
-    Two(Input),
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(tag = "method", content = "params", rename_all = "camelCase")]
-pub enum Input {
-    Command { command: String, args: Vec<String> },
-}
-
-impl FromStr for InputRpcId {
-    type Err = Report;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let input: Self = serde_json::from_str(s)?;
-        Ok(input)
-    }
-}
-impl InputRpcId {
-    fn maybe_parse(s: &str) -> Option<Self> {
+    #[instrument]
+    pub fn maybe_parse(s: &str) -> Option<Self> {
         match serde_json::from_str::<Self>(s) {
             Ok(a) => Some(a),
             Err(e) => {
@@ -107,4 +64,41 @@ impl InputRpcId {
             }
         }
     }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(tag = "method", content = "params", rename_all = "camelCase")]
+pub enum Output {
+    Line(String),
+    Error(String),
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(tag = "method", content = "params", rename_all = "camelCase")]
+pub enum Input {
+    Command { command: String, args: Vec<String> },
+}
+
+#[test]
+fn example_echo_line() {
+    let input = r#"{"id":"test","jsonrpc":"2.0","method":"command","params":{"command":"echo","args":["world I am here"]}}"#;
+    let new_input = JsonRpc::<Input>::maybe_parse(input);
+    assert!(new_input.is_some());
+    assert_eq!(input, &serde_json::to_string(&new_input.unwrap()).unwrap());
+}
+
+#[test]
+fn example_input_line() {
+    let output = JsonRpc::new(
+        Some(RpcId::String("test".to_string())),
+        Output::Line("world I am here".to_string()),
+    );
+    let output_str = output.maybe_serialize();
+    assert!(output_str.is_some());
+    let output_str = output_str.unwrap();
+    assert_eq!(
+        &output_str,
+        r#"{"id":"test","jsonrpc":"2.0","method":"line","params":"world I am here"}"#
+    );
+    assert_eq!(output, serde_json::from_str(&output_str).unwrap());
 }

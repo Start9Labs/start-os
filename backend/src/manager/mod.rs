@@ -14,18 +14,18 @@ use nix::sys::signal::Signal;
 use num_enum::TryFromPrimitive;
 use patch_db::DbHandle;
 use sqlx::{Executor, Postgres};
-use tokio::io::BufReader;
 use tokio::sync::watch::error::RecvError;
 use tokio::sync::watch::{channel, Receiver, Sender};
 use tokio::sync::{Mutex, Notify, RwLock};
-use tokio::task::JoinHandle;
+use tokio_stream::wrappers::UnboundedReceiverStream;
 use torut::onion::TorSecretKeyV3;
 use tracing::instrument;
 
+use crate::docker_runner::InputJsonRpc;
 use crate::net::interface::InterfaceId;
 use crate::net::GeneratedCertificateMountPoint;
 use crate::notifications::NotificationLevel;
-use crate::procedure::docker::DockerProcedure;
+use crate::procedure::docker::{DockerProcedure, LongRunning};
 use crate::procedure::{NoOutput, PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::status::MainStatus;
@@ -526,7 +526,7 @@ impl PersistantContainer {
             container_name: thread_shared.container_name.clone(),
             running_docker: Arc::new(Mutex::new(None)),
             should_stop_running: Arc::new(AtomicBool::new(false)),
-            wait_for_start: wait_for_start,
+            wait_for_start,
         });
         tokio::spawn(persistant_container(
             thread_shared.clone(),
@@ -683,16 +683,20 @@ async fn run_persistant_container(
 async fn long_running_docker(
     rt_state: Arc<ManagerSharedState>,
     main_status: Arc<DockerProcedure>,
-) -> Result<Result<NoOutput, (i32, String)>, Error> {
+) -> Result<LongRunning, Error> {
+    let (sender, receiver) = tokio::sync::mpsc::unbounded_channel::<InputJsonRpc>();
+    tokio::spawn(async move {
+        tokio::time::sleep(Duration::from_secs(u64::MAX)).await;
+        drop(sender);
+    });
     main_status
-        .execute::<(), NoOutput>(
+        .long_running_execute(
             &rt_state.ctx,
             &rt_state.manifest.id,
             &rt_state.manifest.version,
             ProcedureName::LongRunning,
             &rt_state.manifest.volumes,
-            None,
-            None,
+            UnboundedReceiverStream::new(receiver),
         )
         .await
 }

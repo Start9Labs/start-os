@@ -8,7 +8,7 @@ use tokio::io::AsyncBufReadExt;
 use tokio::{io::BufReader, process::Command};
 use tracing::instrument;
 
-use embassy::docker_runner;
+use embassy::docker_runner::{Input, InputJsonRpc, JsonRpc, Output, OutputJsonRpc, RpcId};
 
 const MAX_COMMANDS: usize = 10;
 
@@ -34,15 +34,14 @@ impl Io {
     }
 
     #[instrument]
-    fn command(&self, input: InputRpcId) -> impl Stream<Item = OutputRpcId> {
+    fn command(&self, input: InputJsonRpc) -> impl Stream<Item = OutputJsonRpc> {
         stream! {
-            let id = &input.id;
-            let input_rpc = &input.input_rpc;
-            match input_rpc {
-                InputRpc::Two(Input::Command {
+            let (id, command) = input.as_pair();
+            match command {
+                Input::Command {
                             ref command,
                             ref args,
-                }) => {
+                } => {
                     let mut cmd = Command::new(command);
                     cmd.args(args);
 
@@ -76,14 +75,12 @@ impl Io {
                     while let Ok(Some(line)) = buff_out.next_line().await {
                         let id = id.clone();
                         let output = Output::Line(line);
-                        tracing::trace!("OutputRpcId {{ id, output_rpc }} = {:?}",OutputRpcId { id: id.clone(), output: output.clone() });
-                        yield OutputRpcId { id, output };
+                        let output = JsonRpc::new(id, output);
+                        tracing::trace!("OutputJsonRpc {{ id, output_rpc }} = {:?}", output);
+                        yield output;
                     }
                     while let Ok(Some(line)) = buff_err.next_line().await {
-                        yield OutputRpcId {
-                                id: input.id.clone(),
-                                output: Output::Error(line),
-                            };
+                        yield JsonRpc::new(id.clone(), Output::Error(line));
                     }
                     if let Err(e) = spawned.await {
                         tracing::error!("command join failed");
@@ -123,32 +120,9 @@ async fn main() {
     tracing::debug!("Debuggin!");
     let outputs = io
         .inputs()
-        .filter_map(|x| async move { InputRpcId::maybe_parse(&x) })
+        .filter_map(|x| async move { InputJsonRpc::maybe_parse(&x) })
         .flat_map_unordered(MAX_COMMANDS, |x| io.command(x).boxed())
         .filter_map(|x| async move { x.maybe_serialize() });
 
     io.output(outputs).await;
-}
-
-// Test parse input example command
-// Test io command
-#[test]
-fn example_echo_line() {
-    let input = r#"{"id": "test", "jsonrpc": "2.0", "method":"command", "params": {"command": "echo", "args": ["world I am here"]}}"#;
-    let new_input = InputRpcId::maybe_parse(input);
-    assert!(new_input.is_some());
-}
-
-#[test]
-fn example_input_line() {
-    let output = OutputRpcId {
-        id: Some(RpcId::String("test".to_string())),
-        output: Output::Line("world I am here".to_string()),
-    };
-    let output_str = output.maybe_serialize();
-    assert!(output_str.is_some());
-    assert_eq!(
-        &output_str.unwrap().to_string(),
-        r#"{"jsonrpc":"2.0","id":"test","result":{"Line":"world I am here"}}"#
-    );
 }
