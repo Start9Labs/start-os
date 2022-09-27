@@ -44,13 +44,6 @@ export const mockPatchData: DataModel = {
     },
     hostname: 'random-words',
   },
-  'recovered-packages': {
-    'btc-rpc-proxy': {
-      title: 'Bitcoin Proxy',
-      icon: 'assets/img/service-icons/btc-rpc-proxy.png',
-      version: '0.2.2',
-    },
-  },
   'package-data': {
     bitcoind: {
       state: PackageState.Installed,

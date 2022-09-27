@@ -223,9 +223,6 @@ export module RR {
   export type UninstallPackageReq = { id: string } // package.uninstall
   export type UninstallPackageRes = null
 
-  export type DeleteRecoveredPackageReq = { id: string } // package.delete-recovered
-  export type DeleteRecoveredPackageRes = null
-
   export type DryConfigureDependencyReq = {
     'dependency-id': string
     'dependent-id': string
