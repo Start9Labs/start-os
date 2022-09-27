@@ -3,6 +3,7 @@ import { BehaviorSubject } from 'rxjs'
 import {
   ApiService,
   CifsRecoverySource,
+  DiskMigrateSource,
   DiskRecoverySource,
 } from './api/api.service'
 import { pauseFor, ErrorToastService } from '@start9labs/shared'
@@ -14,7 +15,7 @@ export class StateService {
   polling = false
   embassyLoaded = false
 
-  recoverySource?: CifsRecoverySource | DiskRecoverySource
+  recoverySource?: CifsRecoverySource | DiskRecoverySource | DiskMigrateSource
   recoveryPassword?: string
 
   dataTransferProgress?: {

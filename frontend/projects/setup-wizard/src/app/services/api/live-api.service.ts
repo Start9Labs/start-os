@@ -10,6 +10,7 @@ import {
   ApiService,
   CifsRecoverySource,
   DiskListResponse,
+  DiskMigrateSource,
   DiskRecoverySource,
   EmbassyOSRecoveryInfo,
   GetStatusRes,
@@ -136,7 +137,7 @@ export class LiveApiService extends ApiService {
 }
 
 function isCifsSource(
-  source: CifsRecoverySource | DiskRecoverySource | null,
+  source: CifsRecoverySource | DiskRecoverySource | DiskMigrateSource | null,
 ): source is CifsRecoverySource {
   return !!(source as CifsRecoverySource)?.hostname
 }
