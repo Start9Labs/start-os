@@ -75,11 +75,7 @@ install: dpkg_deps
 	cp backend/target/release/embassyd $(DESTDIR)/usr/bin/
 	cp backend/target/release/embassy-cli $(DESTDIR)/usr/bin/
 	cp backend/target/release/avahi-alias $(DESTDIR)/usr/bin/
-
-	mkdir -p $(DESTDIR)/etc/systemd/system
-	cp backend/embassy-init.service $(DESTDIR)/etc/systemd/system/
-	cp backend/embassyd.service $(DESTDIR)/etc/systemd/system/
-
+	
 	mkdir -p $(DESTDIR)/var/lib/embassy/system-images
 	cp system-images/**/*.tar $(DESTDIR)/var/lib/embassy/system-images/
 
