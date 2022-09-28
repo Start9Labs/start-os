@@ -86,12 +86,14 @@ export class EmbassyPage {
           {
             text: 'Continue',
             handler: () => {
+              // for backup recoveries
               if (this.stateService.recoveryPassword) {
                 this.setupEmbassy(
                   drive.logicalname,
                   this.stateService.recoveryPassword,
                 )
               } else {
+                // for migrations and fresh setups
                 this.presentModalPassword(drive.logicalname)
               }
             },
@@ -100,9 +102,11 @@ export class EmbassyPage {
       })
       await alert.present()
     } else {
+      // for backup recoveries
       if (this.stateService.recoveryPassword) {
         this.setupEmbassy(drive.logicalname, this.stateService.recoveryPassword)
       } else {
+        // for migrations and fresh setups
         this.presentModalPassword(drive.logicalname)
       }
     }
