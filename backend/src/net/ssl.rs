@@ -165,7 +165,8 @@ impl SslManager {
     #[instrument(skip(db, handle))]
     pub async fn init<Db: DbHandle>(db: PgPool, handle: &mut Db) -> Result<Self, Error> {
         let store = SslStore::new(db)?;
-        let id = crate::hostname::get_id(handle).await?;
+        let receipts = crate::hostname::HostNameReceipt::new(handle).await?;
+        let id = crate::hostname::get_id(handle, &receipts).await?;
         let (root_key, root_cert) = match store.load_root_certificate().await? {
             None => {
                 let root_key = generate_key()?;
@@ -528,7 +529,7 @@ fn make_leaf_cert(
 //     let root_cert1 = mgr.root_cert;
 //     let int_key1 = mgr.int_key;
 //     let int_cert1 = mgr.int_cert;
-// 
+//
 //     assert_eq!(root_cert0.to_pem()?, root_cert1.to_pem()?);
 //     assert_eq!(
 //         int_key0.private_key_to_pem_pkcs8()?,
@@ -537,7 +538,7 @@ fn make_leaf_cert(
 //     assert_eq!(int_cert0.to_pem()?, int_cert1.to_pem()?);
 //     Ok(())
 // }
-// 
+//
 // #[tokio::test]
 // async fn certificate_details_persist() -> Result<(), Error> {
 //     let pool = sqlx::Pool::<sqlx::Postgres>::connect("postgres::memory:").await?;
@@ -549,7 +550,7 @@ fn make_leaf_cert(
 //     let package_id = "bitcoind".parse().unwrap();
 //     let (key0, cert_chain0) = mgr.certificate_for("start9", &package_id).await?;
 //     let (key1, cert_chain1) = mgr.certificate_for("start9", &package_id).await?;
-// 
+//
 //     assert_eq!(
 //         key0.private_key_to_pem_pkcs8()?,
 //         key1.private_key_to_pem_pkcs8()?

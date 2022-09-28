@@ -22,6 +22,7 @@ use tracing::instrument;
 
 use crate::core::rpc_continuations::{RequestGuid, RestHandler, RpcContinuation};
 use crate::db::model::{Database, InstalledPackageDataEntry, PackageDataEntry};
+use crate::hostname::HostNameReceipt;
 use crate::init::{init_postgres, pgloader};
 use crate::install::cleanup::{cleanup_failed, uninstall, CleanupFailedReceipts};
 use crate::manager::ManagerMap;
@@ -167,6 +168,7 @@ impl RpcCleanReceipts {
 }
 
 pub struct RpcSetNginxReceipts {
+    pub hostname_receipts: HostNameReceipt,
     server_info: LockReceipt<crate::db::model::ServerInfo, ()>,
 }
 
@@ -181,12 +183,14 @@ impl RpcSetNginxReceipts {
     pub fn setup(
         locks: &mut Vec<patch_db::LockTargetId>,
     ) -> impl FnOnce(&patch_db::Verifier) -> Result<Self, Error> {
+        let hostname_receipts = HostNameReceipt::setup(locks);
         let server_info = crate::db::DatabaseModel::new()
             .server_info()
             .make_locker(LockType::Read)
             .add_to_keys(locks);
         move |skeleton_key| {
             Ok(Self {
+                hostname_receipts: hostname_receipts(skeleton_key)?,
                 server_info: server_info.verify(skeleton_key)?,
             })
         }
