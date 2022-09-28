@@ -66,7 +66,9 @@ impl NetController {
             None => SslManager::init(db, handle).await,
             Some(a) => SslManager::import_root_ca(db, a.0, a.1).await,
         }?;
-        let hostname = get_hostname(handle).await?;
+
+        let hostname_receipts = crate::hostname::HostNameReceipt::new(handle).await?;
+        let hostname = get_hostname(handle, &hostname_receipts).await?;
         Ok(Self {
             tor: TorController::init(embassyd_addr, embassyd_tor_key, tor_control).await?,
             #[cfg(feature = "avahi")]
