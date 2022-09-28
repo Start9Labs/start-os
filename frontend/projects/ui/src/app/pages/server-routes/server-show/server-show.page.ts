@@ -511,11 +511,11 @@ export class ServerShowPage {
     return 0
   }
 
-  async addClick() {
+  addClick() {
     this.clicks++
     if (this.clicks >= 5) {
       this.clicks = 0
-      await this.localStorageService.toggleShowDiskRepair()
+      this.localStorageService.toggleShowDiskRepair()
     }
     setTimeout(() => {
       this.clicks = Math.max(this.clicks - 1, 0)

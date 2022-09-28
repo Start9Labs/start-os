@@ -2,7 +2,6 @@ import { APP_INITIALIZER, Provider } from '@angular/core'
 import { UntypedFormBuilder } from '@angular/forms'
 import { Router, RouteReuseStrategy } from '@angular/router'
 import { IonicRouteStrategy, IonNav } from '@ionic/angular'
-import { Storage } from '@ionic/storage-angular'
 import { WorkspaceConfig } from '@start9labs/shared'
 import { ApiService } from './services/api/embassy-api.service'
 import { MockApiService } from './services/api/embassy-mock-api.service'
@@ -27,23 +26,20 @@ export const APP_PROVIDERS: Provider[] = [
   },
   {
     provide: APP_INITIALIZER,
-    deps: [Storage, AuthService, LocalStorageService, Router],
+    deps: [AuthService, LocalStorageService, Router],
     useFactory: appInitializer,
     multi: true,
   },
 ]
 
 export function appInitializer(
-  storage: Storage,
   auth: AuthService,
   localStorage: LocalStorageService,
   router: Router,
-): () => Promise<void> {
-  return async () => {
-    await storage.create()
-    await auth.init()
-    await localStorage.init()
-
+): () => void {
+  return () => {
+    auth.init()
+    localStorage.init()
     router.initialNavigation()
   }
 }

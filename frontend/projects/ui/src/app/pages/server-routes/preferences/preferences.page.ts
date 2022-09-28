@@ -83,7 +83,7 @@ export class PreferencesPage {
     this.clicks++
     if (this.clicks >= 5) {
       this.clicks = 0
-      const newVal = await this.localStorageService.toggleShowDevTools()
+      const newVal = this.localStorageService.toggleShowDevTools()
       const toast = await this.toastCtrl.create({
         header: newVal ? 'Dev tools unlocked' : 'Dev tools hidden',
         position: 'bottom',

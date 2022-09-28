@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
-import { Storage } from '@ionic/storage-angular'
 import { BehaviorSubject } from 'rxjs'
+import { StorageService } from './storage.service'
 const SHOW_DEV_TOOLS = 'SHOW_DEV_TOOLS'
 const SHOW_DISK_REPAIR = 'SHOW_DISK_REPAIR'
 
@@ -11,25 +11,23 @@ export class LocalStorageService {
   readonly showDevTools$ = new BehaviorSubject<boolean>(false)
   readonly showDiskRepair$ = new BehaviorSubject<boolean>(false)
 
-  constructor(private readonly storage: Storage) {}
+  constructor(private readonly storage: StorageService) {}
 
-  async init() {
-    const devTools = await this.storage.get(SHOW_DEV_TOOLS)
-    this.showDevTools$.next(!!devTools)
-    const diskRepair = await this.storage.get(SHOW_DISK_REPAIR)
-    this.showDiskRepair$.next(!!diskRepair)
+  init() {
+    this.showDevTools$.next(!!this.storage.get(SHOW_DEV_TOOLS))
+    this.showDiskRepair$.next(!!this.storage.get(SHOW_DISK_REPAIR))
   }
 
-  async toggleShowDevTools(): Promise<boolean> {
-    const newVal = !(await this.storage.get(SHOW_DEV_TOOLS))
-    await this.storage.set(SHOW_DEV_TOOLS, newVal)
+  toggleShowDevTools(): boolean {
+    const newVal = !this.storage.get(SHOW_DEV_TOOLS)
+    this.storage.set(SHOW_DEV_TOOLS, newVal)
     this.showDevTools$.next(newVal)
     return newVal
   }
 
-  async toggleShowDiskRepair(): Promise<boolean> {
-    const newVal = !(await this.storage.get(SHOW_DISK_REPAIR))
-    await this.storage.set(SHOW_DISK_REPAIR, newVal)
+  toggleShowDiskRepair(): boolean {
+    const newVal = !this.storage.get(SHOW_DISK_REPAIR)
+    this.storage.set(SHOW_DISK_REPAIR, newVal)
     this.showDiskRepair$.next(newVal)
     return newVal
   }

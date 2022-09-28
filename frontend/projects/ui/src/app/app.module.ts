@@ -2,8 +2,6 @@ import { HttpClientModule } from '@angular/common/http'
 import { NgModule } from '@angular/core'
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
 import { IonicModule } from '@ionic/angular'
-import { Drivers } from '@ionic/storage'
-import { IonicStorageModule } from '@ionic/storage-angular'
 import { MonacoEditorModule } from '@materia-ui/ngx-monaco-editor'
 import { MarkdownModule, SharedPipesModule } from '@start9labs/shared'
 
@@ -30,12 +28,6 @@ import { ConnectionBarComponentModule } from './components/connection-bar/connec
       mode: 'md',
     }),
     AppRoutingModule,
-    IonicStorageModule.forRoot({
-      storeName: '_embassykv',
-      dbKey: '_embassykey',
-      name: '_embassystorage',
-      driverOrder: [Drivers.LocalStorage],
-    }),
     MenuModule,
     PreloaderModule,
     FooterModule,
