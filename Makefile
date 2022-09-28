@@ -1,6 +1,6 @@
 ARCH = aarch64
-ENVIRONMENT_FILE := $(shell ./check-environment.sh)
-GIT_HASH_FILE := $(shell ./check-git-hash.sh)
+ENVIRONMENT_FILE = $(shell ./check-environment.sh)
+GIT_HASH_FILE = $(shell ./check-git-hash.sh)
 EMBASSY_BINS := backend/target/$(ARCH)-unknown-linux-gnu/release/embassyd backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-init backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-cli backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-sdk backend/target/$(ARCH)-unknown-linux-gnu/release/avahi-alias
 EMBASSY_NATIVE_BINS := backend/target/release/embassyd backend/target/release/embassy-init backend/target/release/embassy-cli backend/target/release/embassy-sdk backend/target/release/avahi-alias
 EMBASSY_UIS := frontend/dist/ui frontend/dist/setup-wizard frontend/dist/diagnostic-ui
