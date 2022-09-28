@@ -4,6 +4,7 @@ use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
 
 use bollard::Docker;
 use helpers::to_tmp_path;
@@ -212,7 +213,8 @@ impl RpcContext {
         tracing::info!("Opened Pg DB");
         let db = base.db(&secret_store).await?;
         tracing::info!("Opened PatchDB");
-        let docker = Docker::connect_with_unix_defaults()?;
+        let mut docker = Docker::connect_with_unix_defaults()?;
+        docker.set_timeout(Duration::from_secs(600));
         tracing::info!("Connected to Docker");
         let net_controller = NetController::init(
             ([127, 0, 0, 1], 80).into(),
