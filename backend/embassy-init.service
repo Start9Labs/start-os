@@ -6,7 +6,7 @@ Wants=avahi-daemon.service nginx.service tor.service
 
 [Service]
 Type=oneshot
-Environment=RUST_LOG=embassy_init=debug,embassy=debug,js_engine=debug,patch_db=debug
+Environment=RUST_LOG=embassy_init=debug,embassy=debug,js_engine=debug,patch_db=warn
 ExecStart=/usr/local/bin/embassy-init
 RemainAfterExit=true
 StandardOutput=append:/var/log/embassy-init.log
