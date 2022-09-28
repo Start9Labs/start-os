@@ -42,7 +42,7 @@ path = "src/bin/avahi-alias.rs"
 
 [features]
 avahi = ["avahi-sys"]
-default = ["avahi", "sound", "metal", "js_engine"]
+default = ["avahi", "metal", "js_engine"]
 dev = []
 metal = []
 sound = []
