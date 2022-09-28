@@ -56,36 +56,83 @@ pub async fn set_hostname(hostname: &Hostname) -> Result<(), Error> {
     Ok(())
 }
 
-#[instrument(skip(handle))]
-pub async fn get_id<Db: DbHandle>(handle: &mut Db) -> Result<String, Error> {
-    let id = crate::db::DatabaseModel::new()
-        .server_info()
-        .id()
-        .get(handle, false)
-        .await?;
-    Ok(id.to_string())
+#[instrument(skip(handle, receipts))]
+pub async fn get_id<Db: DbHandle>(
+    handle: &mut Db,
+    receipts: &HostNameReceipt,
+) -> Result<String, Error> {
+    let id = receipts.id.get(handle).await?;
+    Ok(id)
 }
 
-pub async fn get_hostname<Db: DbHandle>(handle: &mut Db) -> Result<Hostname, Error> {
-    if let Ok(hostname) = crate::db::DatabaseModel::new()
-        .server_info()
-        .hostname()
-        .get(handle, false)
-        .await
-    {
+pub async fn get_hostname<Db: DbHandle>(
+    handle: &mut Db,
+    receipts: &HostNameReceipt,
+) -> Result<Hostname, Error> {
+    if let Ok(hostname) = receipts.hostname.get(handle).await {
         if let Some(hostname) = hostname.to_owned() {
             return Ok(Hostname(hostname));
         }
     }
-    let id = get_id(handle).await?;
+    let id = get_id(handle, receipts).await?;
     if id.len() != 8 {
         return Ok(generate_hostname());
     }
     return Ok(Hostname(format!("embassy-{}", id)));
 }
-#[instrument(skip(handle))]
-pub async fn sync_hostname<Db: DbHandle>(handle: &mut Db) -> Result<(), Error> {
-    set_hostname(&get_hostname(handle).await?).await?;
+
+pub async fn ensure_hostname_is_set<Db: DbHandle>(
+    handle: &mut Db,
+    receipts: &HostNameReceipt,
+) -> Result<(), Error> {
+    let hostname = get_hostname(handle, &receipts).await?;
+    receipts.hostname.set(handle, Some(hostname.0)).await?;
+    Ok(())
+}
+
+#[derive(Clone)]
+pub struct HostNameReceipt {
+    hostname: patch_db::LockReceipt<Option<String>, ()>,
+    pub id: patch_db::LockReceipt<String, ()>,
+}
+
+impl HostNameReceipt {
+    pub async fn new<'a>(db: &'a mut impl DbHandle) -> Result<Self, Error> {
+        let mut locks = Vec::new();
+
+        let setup = Self::setup(&mut locks);
+        setup(&db.lock_all(locks).await?)
+    }
+
+    pub fn setup(
+        locks: &mut Vec<patch_db::LockTargetId>,
+    ) -> impl FnOnce(&patch_db::Verifier) -> Result<Self, Error> {
+        use patch_db::LockType;
+        let hostname = crate::db::DatabaseModel::new()
+            .server_info()
+            .hostname()
+            .make_locker(LockType::Write)
+            .add_to_keys(locks);
+        let id = crate::db::DatabaseModel::new()
+            .server_info()
+            .id()
+            .make_locker(LockType::Write)
+            .add_to_keys(locks);
+        move |skeleton_key| {
+            Ok(Self {
+                hostname: hostname.verify(skeleton_key)?,
+                id: id.verify(skeleton_key)?,
+            })
+        }
+    }
+}
+
+#[instrument(skip(handle, receipts))]
+pub async fn sync_hostname<Db: DbHandle>(
+    handle: &mut Db,
+    receipts: &HostNameReceipt,
+) -> Result<(), Error> {
+    set_hostname(&get_hostname(handle, receipts).await?).await?;
     Command::new("systemctl")
         .arg("restart")
         .arg("avahi-daemon")
