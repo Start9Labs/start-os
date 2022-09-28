@@ -156,7 +156,6 @@ impl DockerProcedure {
             .arg(&container_name)
             .arg(format!("--hostname={}", &container_name))
             .arg("--no-healthcheck");
-        cleanup_previous_container(ctx, &container_name).await?;
         cmd.args(self.docker_args(ctx, pkg_id, pkg_version, volumes).await?);
         let input_buf = if let (Some(input), Some(format)) = (&input, &self.io_format) {
             cmd.stdin(std::process::Stdio::piped());
@@ -324,8 +323,6 @@ impl DockerProcedure {
             pkg_version,
         )
         .await?;
-
-        cleanup_previous_container(ctx, &container_name).await?;
 
         let mut handle = cmd.spawn().with_kind(crate::ErrorKind::Docker)?;
         let input_handle = LongRunning::spawn_input_handle(&mut handle, input)?;
@@ -650,21 +647,6 @@ impl DockerProcedure {
         pkg_version: &Version,
         volumes: &Volumes,
     ) -> Result<Vec<Cow<'_, OsStr>>, Error> {
-        let mut res = self
-            .docker_args_without_final_args(volumes, ctx, pkg_id, pkg_version)
-            .await?;
-
-        res.extend(self.args.iter().map(|s| OsStr::new(s).into()));
-
-        Ok(res)
-    }
-    async fn docker_args_without_final_args(
-        &self,
-        volumes: &Volumes,
-        ctx: &RpcContext,
-        pkg_id: &PackageId,
-        pkg_version: &Version,
-    ) -> Result<Vec<Cow<'_, OsStr>>, Error> {
         let mut res = self.new_docker_args();
         for (volume_id, dst) in &self.mounts {
             let volume = if let Some(v) = volumes.get(volume_id) {
@@ -700,6 +682,9 @@ impl DockerProcedure {
         } else {
             res.push(OsString::from(self.image.for_package(pkg_id, Some(pkg_version))).into());
         }
+
+        res.extend(self.args.iter().map(|s| OsStr::new(s).into()));
+
         Ok(res)
     }
 
@@ -765,27 +750,108 @@ impl LongRunning {
         pkg_version: &Version,
     ) -> Result<tokio::process::Command, Error> {
         tracing::trace!("setup_long_running_docker_cmd");
-        let mut cmd = tokio::process::Command::new("bash");
-        cmd.arg("-j");
-        let docker_run_part = {
-            let docker_ip = Ipv4Addr::from(HOST_IP);
-            let mut cmd = format!("docker run -it --rm --network=start9 --add-host=embassy:{docker_ip} --name {container_name} --hostname={container_name} --no-healthcheck");
-            cmd.push_str(
-                &docker
-                    .docker_args_without_final_args(volumes, ctx, pkg_id, pkg_version)
-                    .await?
-                    .into_iter()
-                    .filter_map(|x| x.to_str().map(|x| x.to_owned()))
-                    .collect::<Vec<_>>()
-                    .join(" "),
-            );
-            cmd
-        };
-        cmd.arg(format!(r#"cat /usr/local/bin/embassy-docker-runner | {docker_run_part} sh -c "tee /usr/local/bin/embassy-docker-runner > /dev/null; chmod +x /usr/local/bin/embassy-docker-runner; embassy-docker-runner"" "#));
 
+        LongRunning::cleanup_previous_container(ctx, &container_name).await?;
+        let mut cmd = tokio::process::Command::new("docker");
+        cmd.arg("create")
+            .arg("--network=start9")
+            .arg(format!("--add-host=embassy:{}", Ipv4Addr::from(HOST_IP)))
+            .arg("--name")
+            .arg(&container_name)
+            .arg(format!("--hostname={}", &container_name));
+
+        for (volume_id, dst) in &docker.mounts {
+            let volume = if let Some(v) = volumes.get(volume_id) {
+                v
+            } else {
+                continue;
+            };
+            let src = volume.path_for(&ctx.datadir, pkg_id, pkg_version, volume_id);
+            if let Err(_e) = tokio::fs::metadata(&src).await {
+                tokio::fs::create_dir_all(&src).await?;
+            }
+            cmd.arg("--mount").arg(format!(
+                "type=bind,src={},dst={}{}",
+                src.display(),
+                dst.display(),
+                if volume.readonly() { ",readonly" } else { "" }
+            ));
+        }
+        if let Some(shm_size_mb) = docker.shm_size_mb {
+            cmd.arg("--shm-size").arg(format!("{}m", shm_size_mb));
+        }
+        cmd.arg("--log-driver=journald");
+        cmd.arg("--entrypoint");
+        cmd.arg("/usr/local/bin/embassy-docker-runner");
+        if docker.system {
+            cmd.arg(docker.image.for_package(SYSTEM_PACKAGE_ID, None));
+        } else {
+            cmd.arg(docker.image.for_package(pkg_id, Some(pkg_version)));
+        }
+        dbg!(&cmd);
+        if !cmd.output().await?.status.success() {
+            return Err(Error::new(
+                eyre!("failed to create {container_name}"),
+                crate::ErrorKind::Docker,
+            ));
+        }
+
+        let mut cmd = tokio::process::Command::new("docker");
+        cmd.args([
+            "cp",
+            "/usr/local/bin/embassy-docker-runner",
+            &format!("{container_name}:/usr/local/bin/embassy-docker-runner"),
+        ]);
+        dbg!(&cmd);
+        if !cmd.output().await?.status.success() {
+            return Err(Error::new(
+                eyre!("failed to copy bin {container_name}"),
+                crate::ErrorKind::Docker,
+            ));
+        }
+
+        let mut cmd = tokio::process::Command::new("docker");
+        cmd.args(["container", "start", container_name]);
+        dbg!(&cmd);
+        if !cmd.output().await?.status.success() {
+            return Err(Error::new(
+                eyre!("failed to start {container_name}"),
+                crate::ErrorKind::Docker,
+            ));
+        }
+
+        let mut cmd = tokio::process::Command::new("docker");
+        cmd.args(["attach", container_name]);
         cmd.stdout(std::process::Stdio::piped());
         cmd.stderr(std::process::Stdio::piped());
+        cmd.stdin(std::process::Stdio::piped());
+        dbg!(&cmd);
         Ok(cmd)
+    }
+
+    async fn cleanup_previous_container(
+        ctx: &RpcContext,
+        container_name: &str,
+    ) -> Result<(), Error> {
+        match ctx
+            .docker
+            .remove_container(
+                container_name,
+                Some(RemoveContainerOptions {
+                    v: false,
+                    force: true,
+                    link: false,
+                }),
+            )
+            .await
+        {
+            Ok(())
+            | Err(bollard::errors::Error::DockerResponseServerError {
+                status_code: 404, // NOT FOUND
+                ..
+            }) => Ok(()),
+            Err(e) => Err(e)?,
+        }
     }
     fn spawn_input_handle<S>(
         handle: &mut Child,
@@ -911,28 +977,6 @@ async fn buf_reader_to_lines(
         .with_kind(crate::ErrorKind::Unknown)?;
     let output: Vec<String> = output.value.into_iter().collect();
     Ok(output)
-}
-
-async fn cleanup_previous_container(ctx: &RpcContext, container_name: &str) -> Result<(), Error> {
-    match ctx
-        .docker
-        .remove_container(
-            container_name,
-            Some(RemoveContainerOptions {
-                v: false,
-                force: true,
-                link: false,
-            }),
-        )
-        .await
-    {
-        Ok(())
-        | Err(bollard::errors::Error::DockerResponseServerError {
-            status_code: 404, // NOT FOUND
-            ..
-        }) => Ok(()),
-        Err(e) => Err(e)?,
-    }
 }
 
 enum MaxByLines {
