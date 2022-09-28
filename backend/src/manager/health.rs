@@ -113,7 +113,14 @@ pub async fn check<Db: DbHandle>(
     let health_results = if let Some(started) = started {
         manifest
             .health_checks
-            .check_all(ctx, started, id, &manifest.version, &manifest.volumes)
+            .check_all(
+                ctx,
+                &manifest.container,
+                started,
+                id,
+                &manifest.version,
+                &manifest.volumes,
+            )
             .await?
     } else {
         return Ok(());
@@ -128,20 +135,17 @@ pub async fn check<Db: DbHandle>(
 
         let status = receipts.status.get(&mut checkpoint).await?;
 
-        match status {
-            MainStatus::Running { health, started } => {
-                receipts
-                    .status
-                    .set(
-                        &mut checkpoint,
-                        MainStatus::Running {
-                            health: health_results.clone(),
-                            started,
-                        },
-                    )
-                    .await?;
-            }
-            _ => (),
+        if let MainStatus::Running { health: _, started } = status {
+            receipts
+                .status
+                .set(
+                    &mut checkpoint,
+                    MainStatus::Running {
+                        health: health_results.clone(),
+                        started,
+                    },
+                )
+                .await?;
         }
         let current_dependents = receipts.current_dependents.get(&mut checkpoint).await?;
 

@@ -1,6 +1,6 @@
 import { Injectable, NgZone } from '@angular/core'
 import { ReplaySubject } from 'rxjs'
-import { map } from 'rxjs/operators'
+import { distinctUntilChanged, map } from 'rxjs/operators'
 import { Storage } from '@ionic/storage-angular'
 import { Router } from '@angular/router'
 
@@ -17,6 +17,7 @@ export class AuthService {
 
   readonly isVerified$ = this.authState$.pipe(
     map(state => state === AuthState.VERIFIED),
+    distinctUntilChanged(),
   )
 
   constructor(

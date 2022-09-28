@@ -2,9 +2,9 @@ import { Injectable } from '@angular/core'
 import { endWith, Observable } from 'rxjs'
 import { map } from 'rxjs/operators'
 import { Emver } from '@start9labs/shared'
-
-import { PatchDbService } from '../../../services/patch-db/patch-db.service'
+import { PatchDB } from 'patch-db-client'
 import { ConfigService } from '../../../services/config.service'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 
 // Watch for connection status
 @Injectable({ providedIn: 'root' })
@@ -15,7 +15,7 @@ export class RefreshAlertService extends Observable<boolean> {
   )
 
   constructor(
-    private readonly patch: PatchDbService,
+    private readonly patch: PatchDB<DataModel>,
     private readonly emver: Emver,
     private readonly config: ConfigService,
   ) {

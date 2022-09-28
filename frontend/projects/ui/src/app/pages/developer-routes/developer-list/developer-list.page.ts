@@ -10,12 +10,12 @@ import {
   GenericInputComponent,
   GenericInputOptions,
 } from 'src/app/modals/generic-input/generic-input.component'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDB } from 'patch-db-client'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import * as yaml from 'js-yaml'
 import { v4 } from 'uuid'
-import { DevData } from 'src/app/services/patch-db/data-model'
+import { DataModel, DevData } from 'src/app/services/patch-db/data-model'
 import { DestroyService, ErrorToastService } from '@start9labs/shared'
 import { takeUntil } from 'rxjs/operators'
 
@@ -35,7 +35,7 @@ export class DeveloperListPage {
     private readonly errToast: ErrorToastService,
     private readonly alertCtrl: AlertController,
     private readonly destroy$: DestroyService,
-    private readonly patch: PatchDbService,
+    private readonly patch: PatchDB<DataModel>,
     private readonly actionCtrl: ActionSheetController,
   ) {}
 
@@ -49,7 +49,7 @@ export class DeveloperListPage {
   }
 
   async openCreateProjectModal() {
-    const projNumber = Object.keys(this.devData || {}).length + 1
+    const projNumber = Object.keys(this.devData).length + 1
     const options: GenericInputOptions = {
       title: 'Add new project',
       message: 'Create a new dev project.',
@@ -130,7 +130,7 @@ export class DeveloperListPage {
   async createProject(name: string) {
     // fail silently if duplicate project name
     if (
-      Object.values(this.devData || {})
+      Object.values(this.devData)
         .map(v => v.name)
         .includes(name)
     )
@@ -148,11 +148,7 @@ export class DeveloperListPage {
         .replace(/warning:/g, '# Optional\n  warning:')
 
       const def = { name, config, instructions: SAMPLE_INSTUCTIONS }
-      if (this.devData) {
-        await this.api.setDbValue({ pointer: `/dev/${id}`, value: def })
-      } else {
-        await this.api.setDbValue({ pointer: `/dev`, value: { [id]: def } })
-      }
+      await this.api.setDbValue({ pointer: `/dev/${id}`, value: def })
     } catch (e: any) {
       this.errToast.present(e)
     } finally {

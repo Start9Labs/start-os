@@ -338,7 +338,6 @@ export module Mock {
         },
       },
     },
-    permissions: {},
     dependencies: {},
   }
 
@@ -472,7 +471,6 @@ export module Mock {
         'input-spec': null,
       },
     },
-    permissions: {},
     dependencies: {
       bitcoind: {
         version: '=0.21.0',
@@ -587,7 +585,6 @@ export module Mock {
     },
     migrations: null,
     actions: {},
-    permissions: {},
     dependencies: {
       bitcoind: {
         version: '>=0.20.0',
@@ -679,7 +676,7 @@ export module Mock {
         manifest: {
           ...Mock.MockManifestBitcoind,
           'release-notes':
-            'For a complete list of changes, please visit <a href="https://bitcoincore.org/en/releases/0.21.0/">https://bitcoincore.org/en/releases/0.21.0/</a><br /><ul><li>Taproot!</li><li>New RPCs</li><li>Experimental Descriptor Wallets</li></ul>',
+            'For a complete list of changes, please visit <a href="https://bitcoincore.org/en/releases/0.21.0/" target="_blank">https://bitcoincore.org/en/releases/0.21.0/</a><br />Or in [markdown](https://bitcoincore.org/en/releases/0.21.0/)<ul><li>Taproot!</li><li>New RPCs</li><li>Experimental Descriptor Wallets</li></ul>',
         },
         categories: ['bitcoin', 'cryptocurrency'],
         versions: ['0.19.0', '0.20.0', '0.21.0'],
@@ -751,7 +748,7 @@ export module Mock {
             icon: PROXY_ICON,
           },
         },
-        'published-at': new Date().toISOString(),
+        'published-at': new Date(new Date().valueOf() + 10).toISOString(),
       },
     },
     'btc-rpc-proxy': {
@@ -1469,6 +1466,14 @@ export module Mock {
             masked: false,
             copyable: true,
           },
+          'private-domain': {
+            name: 'Private Domain',
+            type: 'string',
+            description: 'the private address of the node',
+            nullable: false,
+            masked: true,
+            copyable: true,
+          },
         },
       },
     },
@@ -1726,7 +1731,10 @@ export module Mock {
       rpcuser: '123',
       rulemakers: [],
     },
-    'bitcoin-node': undefined,
+    'bitcoin-node': {
+      type: 'external',
+      'public-domain': 'hello.com',
+    },
     port: 20,
     rpcallowip: undefined,
     rpcauth: ['matt: 8273gr8qwoidm1uid91jeh8y23gdio1kskmwejkdnm'],
@@ -1778,7 +1786,7 @@ export module Mock {
       },
       'current-dependencies': {},
       'dependency-info': {},
-      'marketplace-url': 'marketplace-url.com',
+      'marketplace-url': 'https://marketplace-url.com',
       'developer-key': 'developer-key',
     },
     'install-progress': undefined,
@@ -1827,7 +1835,7 @@ export module Mock {
           icon: 'assets/img/service-icons/bitcoind.png',
         },
       },
-      'marketplace-url': 'marketplace-url.com',
+      'marketplace-url': 'https://marketplace-url.com',
       'developer-key': 'developer-key',
     },
     'install-progress': undefined,
@@ -1887,7 +1895,7 @@ export module Mock {
           icon: 'assets/img/service-icons/btc-rpc-proxy.png',
         },
       },
-      'marketplace-url': 'marketplace-url.com',
+      'marketplace-url': 'https://marketplace-url.com',
       'developer-key': 'developer-key',
     },
     'install-progress': undefined,

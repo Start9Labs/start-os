@@ -10,8 +10,11 @@ import {
 } from '@ionic/angular'
 import { PackageProperties } from 'src/app/util/properties.util'
 import { QRComponent } from 'src/app/components/qr/qr.component'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { PackageMainStatus } from 'src/app/services/patch-db/data-model'
+import { PatchDB } from 'patch-db-client'
+import {
+  DataModel,
+  PackageMainStatus,
+} from 'src/app/services/patch-db/data-model'
 import {
   DestroyService,
   ErrorToastService,
@@ -37,9 +40,9 @@ export class AppPropertiesPage {
   properties: PackageProperties = {}
   unmasked: { [key: string]: boolean } = {}
 
-  notRunning$ = this.patch
+  stopped$ = this.patch
     .watch$('package-data', this.pkgId, 'installed', 'status', 'main', 'status')
-    .pipe(map(status => status !== PackageMainStatus.Running))
+    .pipe(map(status => status === PackageMainStatus.Stopped))
 
   @ViewChild(IonBackButtonDelegate, { static: false })
   backButton?: IonBackButtonDelegate
@@ -52,7 +55,7 @@ export class AppPropertiesPage {
     private readonly toastCtrl: ToastController,
     private readonly modalCtrl: ModalController,
     private readonly navCtrl: NavController,
-    private readonly patch: PatchDbService,
+    private readonly patch: PatchDB<DataModel>,
     private readonly destroy$: DestroyService,
   ) {}
 

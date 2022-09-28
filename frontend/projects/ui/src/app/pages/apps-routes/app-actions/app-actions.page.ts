@@ -7,9 +7,10 @@ import {
   ModalController,
   NavController,
 } from '@ionic/angular'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDB } from 'patch-db-client'
 import {
   Action,
+  DataModel,
   PackageDataEntry,
   PackageMainStatus,
 } from 'src/app/services/patch-db/data-model'
@@ -36,7 +37,7 @@ export class AppActionsPage {
     private readonly errToast: ErrorToastService,
     private readonly loadingCtrl: LoadingController,
     private readonly navCtrl: NavController,
-    private readonly patch: PatchDbService,
+    private readonly patch: PatchDB<DataModel>,
   ) {}
 
   async handleAction(
@@ -197,10 +198,10 @@ export class AppActionsPage {
       })
 
       setTimeout(() => successModal.present(), 500)
-      return false
+      return true // needed to dismiss original modal/alert
     } catch (e: any) {
       this.errToast.present(e)
-      return false
+      return false // don't dismiss original modal/alert
     } finally {
       loader.dismiss()
     }

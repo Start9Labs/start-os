@@ -12,10 +12,11 @@ import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
 import {
+  DataModel,
   ServerInfo,
   UIMarketplaceData,
 } from 'src/app/services/patch-db/data-model'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDB } from 'patch-db-client'
 import {
   catchError,
   distinctUntilChanged,
@@ -33,9 +34,9 @@ export class MarketplaceService extends AbstractMarketplaceService {
   private readonly notes = new Map<string, Record<string, string>>()
   private readonly hasPackages$ = new Subject<boolean>()
 
-  private readonly uiMarketplaceData$: Observable<UIMarketplaceData> =
-    this.patch.watch$('ui', 'marketplace').pipe(
-      filter(Boolean),
+  private readonly uiMarketplaceData$ = this.patch
+    .watch$('ui', 'marketplace')
+    .pipe(
       distinctUntilChanged(
         (prev, curr) => prev['selected-id'] === curr['selected-id'],
       ),
@@ -48,7 +49,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
 
   private readonly serverInfo$: Observable<ServerInfo> = this.patch
     .watch$('server-info')
-    .pipe(filter(Boolean), take(1), shareReplay())
+    .pipe(take(1), shareReplay())
 
   private readonly registryData$: Observable<MarketplaceData> =
     this.uiMarketplaceData$.pipe(
@@ -119,7 +120,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
 
   constructor(
     private readonly api: ApiService,
-    private readonly patch: PatchDbService,
+    private readonly patch: PatchDB<DataModel>,
     private readonly config: ConfigService,
     private readonly errToast: ErrorToastService,
     private readonly emver: Emver,
@@ -132,7 +133,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
     return this.marketplace$
   }
 
-  getAltMarketplaceData(): Observable<UIMarketplaceData> {
+  getAltMarketplaceData() {
     return this.uiMarketplaceData$
   }
 
@@ -279,8 +280,8 @@ export class MarketplaceService extends AbstractMarketplaceService {
     }
   }
 
-  private toMarketplace(marketplace?: UIMarketplaceData): Marketplace {
-    return marketplace?.['selected-id']
+  private toMarketplace(marketplace: UIMarketplaceData): Marketplace {
+    return marketplace['selected-id']
       ? marketplace['known-hosts'][marketplace['selected-id']]
       : this.config.marketplace
   }

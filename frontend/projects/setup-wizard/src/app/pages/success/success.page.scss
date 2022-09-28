@@ -4,26 +4,12 @@ p {
 
 a {
   text-decoration: none;
+  font-weight: bold;
+  cursor: pointer;
 }
 
-.toggle-label {
-  padding: 24px 0 8px 0;
-  cursor: pointer;
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-
-  * {
-    display: inline-block;
-    vertical-align: middle;
-  }
-
-  h2 {
-    font-weight: bold;
-  }
-
-  ion-icon {
-    text-align: right;
-    font-size: 24px;
-  }
+.line {
+  margin-bottom: 48px;
+  padding-bottom: 48px;
+  border-bottom: solid 1px;
 }

@@ -1,0 +1,7 @@
+load database
+     from sqlite://{sqlite_path}
+     into postgresql://root@unix:/var/run/postgresql:5432/secrets
+
+ with include no drop, truncate, reset sequences, data only
+
+  excluding table names like '_sqlx_migrations';

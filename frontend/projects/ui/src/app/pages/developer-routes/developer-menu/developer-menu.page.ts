@@ -3,11 +3,11 @@ import { ActivatedRoute } from '@angular/router'
 import { LoadingController, ModalController } from '@ionic/angular'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 import { BasicInfo, getBasicInfoSpec } from './form-info'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDB } from 'patch-db-client'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ErrorToastService } from '@start9labs/shared'
 import { getProjectId } from 'src/app/util/get-project-id'
-import { DevProjectData } from 'src/app/services/patch-db/data-model'
+import { DataModel, DevProjectData } from 'src/app/services/patch-db/data-model'
 
 @Component({
   selector: 'developer-menu',
@@ -25,7 +25,7 @@ export class DeveloperMenuPage {
     private readonly loadingCtrl: LoadingController,
     private readonly api: ApiService,
     private readonly errToast: ErrorToastService,
-    private readonly patch: PatchDbService,
+    private readonly patch: PatchDB<DataModel>,
   ) {}
 
   async openBasicInfoModal(data: DevProjectData) {

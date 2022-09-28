@@ -48,7 +48,7 @@
             <p *ngIf="button.title === 'Create Backup'">
               <ng-container *ngIf="server['status-info'] as statusInfo">
                 <ion-text
-                  color="warning"
+                  [color]="server['last-backup'] | backupColor"
                   *ngIf="!statusInfo['backup-progress'] && !statusInfo['update-progress']"
                 >
                   Last Backup: {{ server['last-backup'] ? (server['last-backup']

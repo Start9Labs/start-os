@@ -1,11 +1,11 @@
 import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
 import { NavController } from '@ionic/angular'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDB } from 'patch-db-client'
 import {
+  DataModel,
   PackageDataEntry,
   PackageMainStatus,
   PackageState,
-  UIMarketplaceData,
 } from 'src/app/services/patch-db/data-model'
 import {
   PackageStatus,
@@ -15,11 +15,7 @@ import { filter, tap } from 'rxjs/operators'
 import { ActivatedRoute } from '@angular/router'
 import { getPkgId } from '@start9labs/shared'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
-import {
-  AbstractMarketplaceService,
-  Marketplace,
-} from '@start9labs/marketplace'
-import { Observable } from 'rxjs'
+import { AbstractMarketplaceService } from '@start9labs/marketplace'
 
 const STATES = [
   PackageState.Installing,
@@ -53,16 +49,14 @@ export class AppShowPage {
     ),
   )
 
-  readonly currentMarketplace$: Observable<Marketplace> =
-    this.marketplaceService.getMarketplace()
+  readonly currentMarketplace$ = this.marketplaceService.getMarketplace()
 
-  readonly altMarketplaceData$: Observable<UIMarketplaceData> =
-    this.marketplaceService.getAltMarketplaceData()
+  readonly altMarketplaceData$ = this.marketplaceService.getAltMarketplaceData()
 
   constructor(
     private readonly route: ActivatedRoute,
     private readonly navCtrl: NavController,
-    private readonly patch: PatchDbService,
+    private readonly patch: PatchDB<DataModel>,
     @Inject(AbstractMarketplaceService)
     private readonly marketplaceService: MarketplaceService,
   ) {}

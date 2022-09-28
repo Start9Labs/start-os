@@ -17,6 +17,9 @@ export class ConnectionService {
   readonly websocketConnected$ = new ReplaySubject<boolean>(1)
   readonly connected$ = combineLatest([
     this.networkConnected$,
-    this.websocketConnected$,
-  ]).pipe(map(([network, websocket]) => network && websocket))
+    this.websocketConnected$.pipe(distinctUntilChanged()),
+  ]).pipe(
+    map(([network, websocket]) => network && websocket),
+    distinctUntilChanged(),
+  )
 }

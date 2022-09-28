@@ -1,11 +1,12 @@
 import { Injectable } from '@angular/core'
-import { pauseFor } from '@start9labs/shared'
+import { encodeBase64, pauseFor } from '@start9labs/shared'
 import {
   ApiService,
   CifsRecoverySource,
   ImportDriveReq,
   SetupEmbassyReq,
 } from './api.service'
+import * as jose from 'node-jose'
 
 let tries = 0
 
@@ -13,48 +14,55 @@ let tries = 0
   providedIn: 'root',
 })
 export class MockApiService extends ApiService {
-  constructor() {
-    super()
-  }
-
-  // ** UNENCRYPTED **
-
   async getStatus() {
     await pauseFor(1000)
     return {
-      'product-key': true,
       migrating: false,
     }
   }
 
+  async getPubKey() {
+    await pauseFor(1000)
+
+    const keystore = jose.JWK.createKeyStore()
+
+    // randomly generated
+    // this.pubkey = await keystore.generate('EC', 'P-256')
+
+    // generated from backend
+    this.pubkey = await jose.JWK.asKey({
+      kty: 'EC',
+      crv: 'P-256',
+      x: 'yHTDYSfjU809fkSv9MmN4wuojf5c3cnD7ZDN13n-jz4',
+      y: '8Mpkn744A5KDag0DmX2YivB63srjbugYZzWc3JOpQXI',
+    })
+  }
+
   async getDrives() {
     await pauseFor(1000)
-    return {
-      disks: [
-        {
-          logicalname: 'abcd',
-          vendor: 'Samsung',
-          model: 'T5',
-          partitions: [
-            {
-              logicalname: 'pabcd',
-              label: null,
-              capacity: 73264762332,
-              used: null,
-              'embassy-os': {
-                version: '0.2.17',
-                full: true,
-                'password-hash': null,
-                'wrapped-key': null,
-              },
+    return [
+      {
+        logicalname: 'abcd',
+        vendor: 'Samsung',
+        model: 'T5',
+        partitions: [
+          {
+            logicalname: 'pabcd',
+            label: null,
+            capacity: 73264762332,
+            used: null,
+            'embassy-os': {
+              version: '0.2.17',
+              full: true,
+              'password-hash': null,
+              'wrapped-key': null,
             },
-          ],
-          capacity: 123456789123,
-          guid: 'uuid-uuid-uuid-uuid',
-        },
-      ],
-      reconnect: [],
-    }
+          },
+        ],
+        capacity: 123456789123,
+        guid: 'uuid-uuid-uuid-uuid',
+      },
+    ]
   }
 
   async set02XDrive() {
@@ -71,8 +79,6 @@ export class MockApiService extends ApiService {
     }
   }
 
-  // ** ENCRYPTED **
-
   async verifyCifs(params: CifsRecoverySource) {
     await pauseFor(1000)
     return {
@@ -82,11 +88,6 @@ export class MockApiService extends ApiService {
         '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
       'wrapped-key': '',
     }
-  }
-
-  async verifyProductKey() {
-    await pauseFor(1000)
-    return
   }
 
   async importDrive(params: ImportDriveReq) {
@@ -131,7 +132,7 @@ YJidaq7je6k18AdgPA0Kh8y1XtfUH3fTaVw4
 const setupRes = {
   'tor-address': 'http://asdafsadasdasasdasdfasdfasdf.onion',
   'lan-address': 'https://embassy-abcdefgh.local',
-  'root-ca': btoa(rootCA),
+  'root-ca': encodeBase64(rootCA),
 }
 
 const disks = [

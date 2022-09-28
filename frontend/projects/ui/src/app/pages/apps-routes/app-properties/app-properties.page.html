@@ -21,11 +21,11 @@
 
   <ng-template #loaded>
     <!-- not running -->
-    <ion-item *ngIf="notRunning$ | async" class="ion-margin-bottom">
+    <ion-item *ngIf="stopped$ | async" class="ion-margin-bottom">
       <ion-label>
         <p>
           <ion-text color="warning"
-            >Service not running. Information on this page could be
+            >Service is stopped. Information on this page could be
             inaccurate.</ion-text
           >
         </p>

@@ -156,7 +156,6 @@ export class HomePage {
               console.error(e)
             }
           },
-          cssClass: 'enter-click',
         },
       ],
       cssClass: 'alert-warning-message',

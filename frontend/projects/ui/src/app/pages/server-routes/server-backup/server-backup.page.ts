@@ -9,7 +9,7 @@ import {
   GenericInputComponent,
   GenericInputOptions,
 } from 'src/app/modals/generic-input/generic-input.component'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDB } from 'patch-db-client'
 import { skip, takeUntil } from 'rxjs/operators'
 import { MappedBackupTarget } from 'src/app/types/mapped-backup-target'
 import * as argon2 from '@start9labs/argon2'
@@ -21,6 +21,7 @@ import { BackupSelectPage } from 'src/app/modals/backup-select/backup-select.pag
 import { EOSService } from 'src/app/services/eos.service'
 import { DestroyService } from '@start9labs/shared'
 import { getServerInfo } from 'src/app/util/get-server-info'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 
 @Component({
   selector: 'server-backup',
@@ -40,7 +41,7 @@ export class ServerBackupPage {
     private readonly navCtrl: NavController,
     private readonly destroy$: DestroyService,
     private readonly eosService: EOSService,
-    private readonly patch: PatchDbService,
+    private readonly patch: PatchDB<DataModel>,
   ) {}
 
   ngOnInit() {

@@ -27,7 +27,7 @@ export class CifsModal {
 
   constructor(
     private readonly modalController: ModalController,
-    private readonly apiService: ApiService,
+    private readonly api: ApiService,
     private readonly loadingCtrl: LoadingController,
     private readonly alertCtrl: AlertController,
   ) {}
@@ -44,7 +44,12 @@ export class CifsModal {
     await loader.present()
 
     try {
-      const embassyOS = await this.apiService.verifyCifs(this.cifs)
+      const embassyOS = await this.api.verifyCifs({
+        ...this.cifs,
+        password: this.cifs.password
+          ? await this.api.encrypt(this.cifs.password)
+          : null,
+      })
 
       await loader.dismiss()
 

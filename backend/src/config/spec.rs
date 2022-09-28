@@ -18,15 +18,15 @@ use regex::Regex;
 use serde::de::{MapAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::{Number, Value};
-use sqlx::SqlitePool;
+use sqlx::PgPool;
 
 use super::util::{self, CharSet, NumRange, UniqueBy, STATIC_NULL};
 use super::{Config, MatchError, NoMatchWithPath, TimeoutError, TypeOf};
-use crate::config::ConfigurationError;
 use crate::context::RpcContext;
 use crate::net::interface::InterfaceId;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::Error;
+use crate::{config::ConfigurationError, procedure::docker::DockerContainer};
 
 // Config Value Specifications
 #[async_trait]
@@ -1334,6 +1334,8 @@ impl DefaultableWith for ValueSpecString {
                     if &now.elapsed() > timeout {
                         return Err(TimeoutError);
                     }
+                } else {
+                    return Ok(Value::String(candidate));
                 }
             }
         } else {
@@ -1880,6 +1882,7 @@ pub struct ConfigPointerReceipts {
     manifest_volumes: LockReceipt<crate::volume::Volumes, String>,
     manifest_version: LockReceipt<crate::util::Version, String>,
     config_actions: LockReceipt<super::action::ConfigActions, String>,
+    docker_container: LockReceipt<DockerContainer, String>,
 }
 
 impl ConfigPointerReceipts {
@@ -1916,12 +1919,20 @@ impl ConfigPointerReceipts {
             .and_then(|x| x.manifest().config())
             .make_locker(LockType::Read)
             .add_to_keys(locks);
+        let docker_container = crate::db::DatabaseModel::new()
+            .package_data()
+            .star()
+            .installed()
+            .and_then(|x| x.manifest().container())
+            .make_locker(LockType::Write)
+            .add_to_keys(locks);
         move |skeleton_key| {
             Ok(Self {
                 interface_addresses_receipt: interface_addresses_receipt(skeleton_key)?,
                 manifest_volumes: manifest_volumes.verify(skeleton_key)?,
                 config_actions: config_actions.verify(skeleton_key)?,
                 manifest_version: manifest_version.verify(skeleton_key)?,
+                docker_container: docker_container.verify(skeleton_key)?,
             })
         }
     }
@@ -1951,11 +1962,12 @@ impl ConfigPointer {
             let version = receipts.manifest_version.get(db, id).await.ok().flatten();
             let cfg_actions = receipts.config_actions.get(db, id).await.ok().flatten();
             let volumes = receipts.manifest_volumes.get(db, id).await.ok().flatten();
+            let container = receipts.docker_container.get(db, id).await.ok().flatten();
             if let (Some(version), Some(cfg_actions), Some(volumes)) =
                 (&version, &cfg_actions, &volumes)
             {
                 let cfg_res = cfg_actions
-                    .get(ctx, &self.package_id, version, volumes)
+                    .get(ctx, &container, &self.package_id, version, volumes)
                     .await
                     .map_err(|e| ConfigurationError::SystemError(e))?;
                 if let Some(cfg) = cfg_res.config {
@@ -2050,7 +2062,7 @@ impl TorKeyPointer {
     async fn deref(
         &self,
         source_package: &PackageId,
-        secrets: &SqlitePool,
+        secrets: &PgPool,
     ) -> Result<Value, ConfigurationError> {
         if &self.package_id != source_package {
             return Err(ConfigurationError::PermissionDenied(
@@ -2058,7 +2070,7 @@ impl TorKeyPointer {
             ));
         }
         let x = sqlx::query!(
-            "SELECT key FROM tor WHERE package = ? AND interface = ?",
+            "SELECT key FROM tor WHERE package = $1 AND interface = $2",
             *self.package_id,
             *self.interface
         )

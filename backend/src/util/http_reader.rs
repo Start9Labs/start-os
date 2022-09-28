@@ -345,7 +345,7 @@ async fn s9pk_test() {
     let http_url = Url::parse("https://github.com/Start9Labs/hello-world-wrapper/releases/download/v0.3.0/hello-world.s9pk").unwrap();
 
     println!("Getting this resource: {}", http_url);
-    let mut test_reader =
+    let test_reader =
         BufReader::with_capacity(1024 * 1024, HttpReader::new(http_url).await.unwrap());
 
     let mut s9pk = crate::s9pk::reader::S9pkReader::from_reader(test_reader, true)

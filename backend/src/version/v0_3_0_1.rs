@@ -4,7 +4,6 @@ use emver::VersionRange;
 use tokio::process::Command;
 
 use super::*;
-use crate::disk::quirks::{fetch_quirks, save_quirks, update_quirks};
 use crate::disk::BOOT_RW_PATH;
 use crate::update::query_mounted_label;
 use crate::util::Invoke;
@@ -36,9 +35,6 @@ impl VersionT for Version {
             .arg(Path::new(BOOT_RW_PATH).join("cmdline.txt.orig"))
             .invoke(crate::ErrorKind::Filesystem)
             .await?;
-        let mut q = fetch_quirks().await?;
-        update_quirks(&mut q).await?;
-        save_quirks(&q).await?;
         Ok(())
     }
     async fn down<Db: DbHandle>(&self, _db: &mut Db) -> Result<(), Error> {

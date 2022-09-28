@@ -4,7 +4,7 @@ use chrono::Utc;
 use clap::ArgMatches;
 use color_eyre::eyre::eyre;
 use rpc_toolkit::command;
-use sqlx::{Pool, Sqlite};
+use sqlx::{Pool, Postgres};
 use tracing::instrument;
 
 use crate::context::RpcContext;
@@ -61,7 +61,7 @@ pub async fn add(#[context] ctx: RpcContext, #[arg] key: PubKey) -> Result<SshKe
     let pool = &ctx.secret_store;
     // check fingerprint for duplicates
     let fp = key.0.fingerprint_md5();
-    match sqlx::query!("SELECT * FROM ssh_keys WHERE fingerprint = ?", fp)
+    match sqlx::query!("SELECT * FROM ssh_keys WHERE fingerprint = $1", fp)
         .fetch_optional(pool)
         .await?
     {
@@ -70,7 +70,7 @@ pub async fn add(#[context] ctx: RpcContext, #[arg] key: PubKey) -> Result<SshKe
             let raw_key = format!("{}", key.0);
             let created_at = Utc::now().to_rfc3339();
             sqlx::query!(
-                "INSERT INTO ssh_keys (fingerprint, openssh_pubkey, created_at) VALUES (?, ?, ?)",
+                "INSERT INTO ssh_keys (fingerprint, openssh_pubkey, created_at) VALUES ($1, $2, $3)",
                 fp,
                 raw_key,
                 created_at
@@ -96,7 +96,7 @@ pub async fn delete(#[context] ctx: RpcContext, #[arg] fingerprint: String) -> R
     let pool = &ctx.secret_store;
     // check if fingerprint is in DB
     // if in DB, remove it from DB
-    let n = sqlx::query!("DELETE FROM ssh_keys WHERE fingerprint = ?", fingerprint)
+    let n = sqlx::query!("DELETE FROM ssh_keys WHERE fingerprint = $1", fingerprint)
         .execute(pool)
         .await?
         .rows_affected();
@@ -137,7 +137,7 @@ fn display_all_ssh_keys(all: Vec<SshKeyResponse>, matches: &ArgMatches) {
         ];
         table.add_row(row);
     }
-    table.print_tty(false);
+    table.print_tty(false).unwrap();
 }
 
 #[command(display(display_all_ssh_keys))]
@@ -172,7 +172,10 @@ pub async fn list(
 }
 
 #[instrument(skip(pool, dest))]
-pub async fn sync_keys_from_db<P: AsRef<Path>>(pool: &Pool<Sqlite>, dest: P) -> Result<(), Error> {
+pub async fn sync_keys_from_db<P: AsRef<Path>>(
+    pool: &Pool<Postgres>,
+    dest: P,
+) -> Result<(), Error> {
     let dest = dest.as_ref();
     let keys = sqlx::query!("SELECT openssh_pubkey FROM ssh_keys")
         .fetch_all(pool)

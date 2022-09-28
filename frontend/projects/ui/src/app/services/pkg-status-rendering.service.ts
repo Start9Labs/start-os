@@ -167,7 +167,11 @@ export const PrimaryRendering: Record<string, StatusRendering> = {
     color: 'success',
     showDots: false,
   },
-  [PrimaryStatus.NeedsConfig]: { display: 'Needs Config', color: 'warning' },
+  [PrimaryStatus.NeedsConfig]: {
+    display: 'Needs Config',
+    color: 'warning',
+    showDots: false,
+  },
 }
 
 export const DependencyRendering: Record<string, StatusRendering> = {

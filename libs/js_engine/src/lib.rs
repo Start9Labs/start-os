@@ -39,6 +39,7 @@ pub enum JsError {
     FileSystem,
     Code(i32),
     Timeout,
+    NotValidProcedureName,
 }
 
 impl JsError {
@@ -50,6 +51,7 @@ impl JsError {
             JsError::BoundryLayerSerDe => 4,
             JsError::Tokio => 5,
             JsError::FileSystem => 6,
+            JsError::NotValidProcedureName => 7,
             JsError::Code(code) => *code,
             JsError::Timeout => 143,
         }
@@ -287,7 +289,15 @@ impl JsExecutionEnvironment {
         let ext_answer_state = answer_state.clone();
         let js_ctx = JsContext {
             datadir: base_directory,
-            run_function: procedure_name.js_function_name(),
+            run_function: procedure_name
+                .js_function_name()
+                .map(Ok)
+                .unwrap_or_else(|| {
+                    Err((
+                        JsError::NotValidProcedureName,
+                        format!("procedure is not value: {:?}", procedure_name),
+                    ))
+                })?,
             package_id: self.package_id.clone(),
             volumes: self.volumes.clone(),
             version: self.version.clone(),
@@ -772,7 +782,29 @@ mod fns {
         parent: impl AsRef<Path>,
         child: impl AsRef<Path>,
     ) -> Result<bool, AnyError> {
-        let child = tokio::fs::canonicalize(child).await?;
+        let child = {
+            let mut child_count = 0;
+            let mut child = child.as_ref();
+            loop {
+                if child.ends_with("..") {
+                    child_count += 1;
+                } else if child_count > 0 {
+                    child_count -= 1;
+                } else {
+                    let meta = tokio::fs::metadata(child).await;
+                    if meta.is_ok() {
+                        break;
+                    }
+                }
+                child = match child.parent() {
+                    Some(child) => child,
+                    None => {
+                        return Ok(false);
+                    }
+                };
+            }
+            tokio::fs::canonicalize(child).await?
+        };
         let parent = tokio::fs::canonicalize(parent).await?;
         Ok(child.starts_with(parent))
     }

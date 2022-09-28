@@ -1,6 +1,12 @@
 import { DOCUMENT } from '@angular/common'
-import { Component, EventEmitter, Inject, Output } from '@angular/core'
-import { ToastController } from '@ionic/angular'
+import {
+  Component,
+  EventEmitter,
+  Inject,
+  Output,
+  ViewChild,
+} from '@angular/core'
+import { IonContent, ToastController } from '@ionic/angular'
 import {
   copyToClipboard,
   DownloadHTMLService,
@@ -15,9 +21,12 @@ import { StateService } from 'src/app/services/state.service'
   providers: [DownloadHTMLService],
 })
 export class SuccessPage {
+  @ViewChild(IonContent)
+  private content?: IonContent
+
   @Output() onDownload = new EventEmitter()
-  torOpen = false
-  lanOpen = false
+
+  isOnBottom = true
 
   constructor(
     @Inject(DOCUMENT) private readonly document: Document,
@@ -40,6 +49,8 @@ export class SuccessPage {
   }
 
   async ngAfterViewInit() {
+    setTimeout(() => this.checkBottom(), 42)
+
     try {
       await this.stateService.completeEmbassy()
       this.document
@@ -69,14 +80,6 @@ export class SuccessPage {
     await toast.present()
   }
 
-  toggleTor() {
-    this.torOpen = !this.torOpen
-  }
-
-  toggleLan() {
-    this.lanOpen = !this.lanOpen
-  }
-
   installCert() {
     this.document.getElementById('install-cert')?.click()
   }
@@ -97,5 +100,16 @@ export class SuccessPage {
       )
     let html = this.document.getElementById('downloadable')?.innerHTML || ''
     this.downloadHtml.download('embassy-info.html', html)
+  }
+
+  checkBottom() {
+    const bottomDiv = document.getElementById('bottom-div')
+    this.isOnBottom =
+      !!bottomDiv &&
+      bottomDiv.getBoundingClientRect().top - 192 < window.innerHeight
+  }
+
+  scrollToBottom() {
+    this.content?.scrollToBottom(250)
   }
 }

@@ -10,7 +10,7 @@ use digest::OutputSizeUser;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
-use sqlx::{Executor, Sqlite};
+use sqlx::{Executor, Postgres};
 use tracing::instrument;
 
 use self::cifs::CifsBackupTarget;
@@ -45,12 +45,12 @@ pub enum BackupTarget {
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum BackupTargetId {
     Disk { logicalname: PathBuf },
-    Cifs { id: u32 },
+    Cifs { id: i32 },
 }
 impl BackupTargetId {
     pub async fn load<Ex>(self, secrets: &mut Ex) -> Result<BackupTargetFS, Error>
     where
-        for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
+        for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
     {
         Ok(match self {
             BackupTargetId::Disk { logicalname } => {
@@ -134,7 +134,6 @@ pub fn target() -> Result<(), Error> {
     Ok(())
 }
 
-// TODO: incorporate reconnect into this response as well
 #[command(display(display_serializable))]
 pub async fn list(
     #[context] ctx: RpcContext,
@@ -143,7 +142,6 @@ pub async fn list(
     let (disks_res, cifs) =
         tokio::try_join!(crate::disk::util::list(), cifs::list(&mut sql_handle),)?;
     Ok(disks_res
-        .disks
         .into_iter()
         .flat_map(|mut disk| {
             std::mem::take(&mut disk.partitions)
@@ -219,7 +217,7 @@ fn display_backup_info(info: BackupInfo, matches: &ArgMatches) {
         ];
         table.add_row(row);
     }
-    table.print_tty(false);
+    table.print_tty(false).unwrap();
 }
 
 #[command(display(display_backup_info))]

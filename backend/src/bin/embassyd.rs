@@ -7,6 +7,7 @@ use embassy::core::rpc_continuations::RequestGuid;
 use embassy::db::subscribe;
 use embassy::middleware::auth::auth;
 use embassy::middleware::cors::cors;
+use embassy::middleware::db::db as db_middleware;
 use embassy::middleware::diagnostic::diagnostic;
 #[cfg(feature = "avahi")]
 use embassy::net::mdns::MdnsController;
@@ -41,7 +42,6 @@ fn err_to_500(e: Error) -> Response<Body> {
 #[instrument]
 async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
     let (rpc_ctx, shutdown) = {
-        embassy::hostname::sync_hostname().await?;
         let rpc_ctx = RpcContext::init(
             cfg_path,
             Arc::new(
@@ -83,8 +83,14 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
         });
 
         rpc_ctx.net_controller.add_handle(rpc_ctx.clone()).await;
+        {
+            let mut db = rpc_ctx.db.handle();
+            let receipts = embassy::context::rpc::RpcSetNginxReceipts::new(&mut db).await?;
+            embassy::hostname::sync_hostname(&mut db, &receipts.hostname_receipts).await?;
+        }
 
         let auth = auth(rpc_ctx.clone());
+        let db_middleware = db_middleware(rpc_ctx.clone());
         let ctx = rpc_ctx.clone();
         let server = rpc_server!({
             command: embassy::main_api,
@@ -93,6 +99,7 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
             middleware: [
                 cors,
                 auth,
+                db_middleware,
             ]
         })
         .with_graceful_shutdown({
@@ -108,29 +115,6 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
                 metrics_ctx.shutdown.subscribe()
             })
             .await
-        });
-
-        let rev_cache_ctx = rpc_ctx.clone();
-        let revision_cache_task = tokio::spawn(async move {
-            let mut sub = rev_cache_ctx.db.subscribe();
-            let mut shutdown = rev_cache_ctx.shutdown.subscribe();
-            loop {
-                let rev = match tokio::select! {
-                    a = sub.recv() => a,
-                    _ = shutdown.recv() => break,
-                } {
-                    Ok(a) => a,
-                    Err(_) => {
-                        rev_cache_ctx.revision_cache.write().await.truncate(0);
-                        continue;
-                    }
-                }; // TODO: handle falling behind
-                let mut cache = rev_cache_ctx.revision_cache.write().await;
-                cache.push_back(rev);
-                if cache.len() > rev_cache_ctx.revision_cache_size {
-                    cache.pop_front();
-                }
-            }
         });
 
         let ws_ctx = rpc_ctx.clone();
@@ -256,12 +240,6 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
                     ErrorKind::Unknown
                 ))
                 .map_ok(|_| tracing::debug!("Metrics daemon Shutdown")),
-            revision_cache_task
-                .map_err(|e| Error::new(
-                    eyre!("{}", e).wrap_err("Revision Cache daemon panicked!"),
-                    ErrorKind::Unknown
-                ))
-                .map_ok(|_| tracing::debug!("Revision Cache daemon Shutdown")),
             ws_server
                 .map_err(|e| Error::new(e, ErrorKind::Network))
                 .map_ok(|_| tracing::debug!("WebSocket Server Shutdown")),

@@ -7,16 +7,16 @@ import {
 } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActivatedRoute } from '@angular/router'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { PatchDB } from 'patch-db-client'
 import { ServerNameService } from 'src/app/services/server-name.service'
 import { Observable, of } from 'rxjs'
-import { filter, take, tap } from 'rxjs/operators'
-import { isEmptyObject, ErrorToastService } from '@start9labs/shared'
+import { ErrorToastService } from '@start9labs/shared'
 import { EOSService } from 'src/app/services/eos.service'
 import { LocalStorageService } from 'src/app/services/local-storage.service'
 import { OSUpdatePage } from 'src/app/modals/os-update/os-update.page'
 import { getAllPackages } from '../../../util/get-package-data'
 import { AuthService } from 'src/app/services/auth.service'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 
 @Component({
   selector: 'server-show',
@@ -24,7 +24,6 @@ import { AuthService } from 'src/app/services/auth.service'
   styleUrls: ['server-show.page.scss'],
 })
 export class ServerShowPage {
-  hasRecoveredPackage = false
   clicks = 0
 
   readonly server$ = this.patch.watch$('server-info')
@@ -40,42 +39,21 @@ export class ServerShowPage {
     private readonly embassyApi: ApiService,
     private readonly navCtrl: NavController,
     private readonly route: ActivatedRoute,
-    private readonly patch: PatchDbService,
+    private readonly patch: PatchDB<DataModel>,
     private readonly eosService: EOSService,
     private readonly localStorageService: LocalStorageService,
     private readonly serverNameService: ServerNameService,
     private readonly authService: AuthService,
   ) {}
 
-  ngOnInit() {
-    this.patch
-      .watch$('recovered-packages')
-      .pipe(
-        filter(Boolean),
-        take(1),
-        tap(data => (this.hasRecoveredPackage = !isEmptyObject(data))),
-      )
-      .subscribe()
-  }
-
   async updateEos(): Promise<void> {
-    if (this.hasRecoveredPackage) {
-      const alert = await this.alertCtrl.create({
-        header: 'Cannot Update',
-        message:
-          'You cannot update EmbassyOS when you have unresolved recovered services.',
-        buttons: ['OK'],
-      })
-      await alert.present()
-    } else {
-      const modal = await this.modalCtrl.create({
-        componentProps: {
-          releaseNotes: this.eosService.eos?.['release-notes'],
-        },
-        component: OSUpdatePage,
-      })
-      modal.present()
-    }
+    const modal = await this.modalCtrl.create({
+      componentProps: {
+        releaseNotes: this.eosService.eos?.['release-notes'],
+      },
+      component: OSUpdatePage,
+    })
+    modal.present()
   }
 
   async presentAlertLogout() {
@@ -537,7 +515,7 @@ export class ServerShowPage {
     this.clicks++
     if (this.clicks >= 5) {
       this.clicks = 0
-      const newVal = await this.localStorageService.toggleShowDiskRepair()
+      await this.localStorageService.toggleShowDiskRepair()
     }
     setTimeout(() => {
       this.clicks = Math.max(this.clicks - 1, 0)

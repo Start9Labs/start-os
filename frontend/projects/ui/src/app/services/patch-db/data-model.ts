@@ -6,18 +6,17 @@ import { BasicInfo } from 'src/app/pages/developer-routes/developer-menu/form-in
 export interface DataModel {
   'server-info': ServerInfo
   'package-data': { [id: string]: PackageDataEntry }
-  'recovered-packages': { [id: string]: RecoveredPackageDataEntry }
   ui: UIData
 }
 
 export interface UIData {
-  name: string
+  name: string | null
   'auto-check-updates': boolean
   'pkg-order': string[]
-  'ack-welcome': string // EOS version
-  marketplace?: UIMarketplaceData
-  dev?: DevData
-  gaming?: {
+  'ack-welcome': string // EOS emver
+  marketplace: UIMarketplaceData
+  dev: DevData
+  gaming: {
     snake: {
       'high-score': number
     }
@@ -52,6 +51,7 @@ export interface ServerInfo {
   'last-backup': string | null
   'lan-address': Url
   'tor-address': Url
+  'last-wifi-region': string | null
   'unread-notification-count': number
   'status-info': ServerStatusInfo
   'eos-version-compat': string
@@ -73,11 +73,6 @@ export enum ServerStatus {
   Running = 'running',
   Updated = 'updated',
   BackingUp = 'backing-up',
-}
-export interface RecoveredPackageDataEntry {
-  title: string
-  icon: Url
-  version: string
 }
 
 export interface PackageDataEntry {
@@ -146,7 +141,6 @@ export interface Manifest extends MarketplaceManifest<DependencyConfig | null> {
   backup: BackupActions
   migrations: Migrations | null
   actions: Record<string, Action>
-  permissions: any // @TODO 0.3.1
 }
 
 export interface DependencyConfig {
