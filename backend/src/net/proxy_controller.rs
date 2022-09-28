@@ -4,6 +4,7 @@ use hyper::upgrade::Upgraded;
 
 use hyper::Body;
 use hyper::Error as HyperError;
+use sqlx::SqlitePool;
 use tokio::net::TcpStream;
 
 use std::collections::BTreeMap;
@@ -27,9 +28,9 @@ pub struct ProxyController {
 }
 
 impl ProxyController {
-    pub async fn init(embassyd_addr: SocketAddr, ssl_manager: SslManager) -> Result<Self, Error> {
+    pub async fn init(embassyd_addr: SocketAddr, db: SqlitePool, ssl_manager: SslManager) -> Result<Self, Error> {
         Ok(ProxyController {
-            inner: Mutex::new(ProxyControllerInner::init(embassyd_addr, ssl_manager).await?),
+            inner: Mutex::new(ProxyControllerInner::init(embassyd_addr, db, ssl_manager).await?),
         })
     }
 
@@ -51,7 +52,9 @@ impl ProxyController {
     }
 
     pub fn add_handle(ext_port: u16 , handler: HttpHandler) {
+
         
+
     }
 
     pub async fn proxy(
@@ -123,6 +126,7 @@ struct ProxyControllerInner {
     embassyd_addr: SocketAddr,
     ssl_manager: SslManager,
     vhosts: VHOSTController,
+    db: SqlitePool,
     interfaces: BTreeMap<PackageId, PackageNetInfo>,
     iface_lookups: BTreeMap<(PackageId, InterfaceId), String>,
     //  service_servers: BTreeMap<u16, EmbassyServiceHTTPServer>,
@@ -130,11 +134,12 @@ struct ProxyControllerInner {
 
 impl ProxyControllerInner {
     #[instrument]
-    async fn init(embassyd_addr: SocketAddr, ssl_manager: SslManager) -> Result<Self, Error> {
+    async fn init(embassyd_addr: SocketAddr, db: SqlitePool, ssl_manager: SslManager) -> Result<Self, Error> {
         let inner = ProxyControllerInner {
             embassyd_addr,
             vhosts: VHOSTController::init(embassyd_addr),
             ssl_manager,
+            db,
             interfaces: BTreeMap::new(),
             iface_lookups: BTreeMap::new(),
         };
@@ -168,7 +173,7 @@ impl ProxyControllerInner {
                 let docker_addr = SocketAddr::from((ipv4, lan_port_config.internal));
                 // info!("docker ip: {}", docker_addr);
                 self.vhosts
-                    .add_svc_handle(external_svc_port.0, meta.fqdn.clone(), docker_addr)
+                    .add_docker_svc_handle(external_svc_port.0, meta.fqdn.clone(), docker_addr)
                     .await?;
             }
         }

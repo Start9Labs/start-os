@@ -23,7 +23,7 @@ use crate::{Error, ErrorKind, ResultExt};
 static CERTIFICATE_VERSION: i32 = 2; // X509 version 3 is actually encoded as '2' in the cert because fuck you.
 pub const ROOT_CA_STATIC_PATH: &str = "/var/lib/embassy/ssl/root-ca.crt";
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SslManager {
     store: SslStore,
     root_cert: X509,
@@ -31,7 +31,7 @@ pub struct SslManager {
     int_cert: X509,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct SslStore {
     secret_store: SqlitePool,
 }

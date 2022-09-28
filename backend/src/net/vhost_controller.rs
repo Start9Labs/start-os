@@ -27,11 +27,11 @@ impl VHOSTController {
         }
     }
 
-    pub fn get_server(&self, port: u16) -> Option<&EmbassyServiceHTTPServer> {
-        self.service_servers.get(&port)
+    pub fn add_handle(handle: HttpHandler, ext_port: u16) {
+
     }
 
-    pub async fn add_svc_handle(
+    pub async fn add_docker_svc_handle(
         &mut self,
         external_svc_port: u16,
         fqdn: String,
@@ -59,7 +59,12 @@ impl VHOSTController {
             .boxed()
         });
 
-        if let Some(server) = self.service_servers.get_mut(&external_svc_port) {
+        self.add_server_if_needed(external_svc_port, fqdn, svc_handler).await?;
+        Ok(())
+    }
+
+    async fn add_server_if_needed(&mut self, external_svc_port: u16, fqdn: String, svc_handler: HttpHandler) -> Result<(), Error> {
+        Ok(if let Some(server) = self.service_servers.get_mut(&external_svc_port) {
             server.add_svc_mapping(fqdn, svc_handler).await;
         } else {
             let mut new_service_server =
@@ -68,7 +73,6 @@ impl VHOSTController {
 
             self.service_servers
                 .insert(external_svc_port, new_service_server);
-        }
-        Ok(())
+        })
     }
 }

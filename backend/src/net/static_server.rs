@@ -1,9 +1,11 @@
 use std::fs::Metadata;
 use std::future::Future;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::UNIX_EPOCH;
 
 use digest::Digest;
+use futures::FutureExt;
 use helpers::NonDetachingJoinHandle;
 use http::response::Builder;
 use hyper::service::{make_service_fn, service_fn};
@@ -21,53 +23,83 @@ use crate::{Error, ErrorKind, ResultExt};
 static NOT_FOUND: &[u8] = b"Not Found";
 static NOT_AUTHORIZED: &[u8] = b"Not Authorized";
 
+pub const WWW_DIR: &str = "/var/www/html/main";
 
 async fn file_server_router(req: Request<Body>, ctx: RpcContext) -> Result<HttpHandler, Error> {
+    let handler: HttpHandler = Arc::new(move |mut req| {
+        let ctx = ctx.clone();
+        async move {
+            dbg!(req.uri());
+            let (request_parts, _body) = req.into_parts();
+            let valid_session = HasValidSession::from_request_parts(&request_parts, &ctx).await;
 
-    dbg!(req.uri());
-    let (request_parts, _body) = req.into_parts();
-    let valid_session = HasValidSession::from_request_parts(&request_parts, &ctx).await;
-    match (
-        valid_session,
-        request_parts.method,
-        request_parts
-            .uri
-            .path()
-            .strip_prefix('/')
-            .unwrap_or(request_parts.uri.path())
-            .split_once('/'),
-    ) {
-        // (Err(error), Method::GET, Some("public")) => {
-        //     tracing::warn!("unauthorized for {} @{:?}", error, request_parts.uri.path());
-        //     tracing::debug!("{:?}", error);
-        //     Ok(Response::builder()
-        //         .status(StatusCode::UNAUTHORIZED)
-        //         .body(NOT_AUTHORIZED.into())
-        //         .unwrap())
-        // }
-        (Err(error), _, _) => {
-            tracing::warn!("unauthorized for {} @{:?}", error, request_parts.uri.path());
-            tracing::debug!("{:?}", error);
-            Ok(Response::builder()
-                .status(StatusCode::UNAUTHORIZED)
-                .body(NOT_AUTHORIZED.into())
-                .unwrap())
-        }
-        (Ok(valid_session), Method::GET, Some(("package-data", path))) => {
-            file_send(
-                ctx.datadir.join(PKG_PUBLIC_DIR).join(path),
-            )
-            .await
-        }
-        (Ok(valid_session), Method::GET, Some(("eos", "local.crt"))) => {
-            file_send(
-                PathBuf::from(crate::net::ssl::ROOT_CA_STATIC_PATH),
-            )
-            .await
-        }
+            let t = match valid_session {
+                Ok(_valid) => {
+                    match (
+                        request_parts.method,
+                        request_parts
+                            .uri
+                            .path()
+                            .strip_prefix('/')
+                            .unwrap_or(request_parts.uri.path())
+                            .split_once('/'),
+                    ) {
+                        (Method::GET, Some(("public", path))) => {
+                            file_send(ctx.datadir.join(PKG_PUBLIC_DIR).join(path)).await
+                        }
+                        (Method::GET, Some(("eos", "local.crt"))) => {
+                            file_send(PathBuf::from(crate::net::ssl::ROOT_CA_STATIC_PATH)).await
+                        }
+                        (Method::GET, Some(("/", path))) => {
+                            file_send(PathBuf::from(WWW_DIR).join(path)).await
+                        }
 
-        _ => Ok(not_found()),
-    }
+                        _ => Ok(not_found()),
+                    }
+                }
+                Err(err) => {
+                    match (
+                        request_parts.method,
+                        request_parts
+                            .uri
+                            .path()
+                            .strip_prefix('/')
+                            .unwrap_or(request_parts.uri.path())
+                            .split_once('/'),
+                    ) {
+                        (Method::GET, Some(("public", _path))) => {
+                            un_authorized(err, request_parts.uri.path())
+                        }
+                        (Method::GET, Some(("eos", "local.crt"))) => {
+                            un_authorized(err, request_parts.uri.path())
+                        }
+                        (Method::GET, Some(("/", path))) => {
+                            file_send(PathBuf::from(WWW_DIR).join(path)).await
+                        }
+
+                        _ => Ok(not_found()),
+                    }
+                }
+            };
+
+            match t {
+                Ok(data) => Ok(data),
+                Err(_) => Ok(not_found()),
+            }
+        }
+        .boxed()
+    });
+
+    Ok(handler)
+}
+
+fn un_authorized(err: Error, path: &str) -> Result<Response<Body>, Error> {
+    tracing::warn!("unauthorized for {} @{:?}", err, path);
+    tracing::debug!("{:?}", err);
+    Ok(Response::builder()
+        .status(StatusCode::UNAUTHORIZED)
+        .body(NOT_AUTHORIZED.into())
+        .unwrap())
 }
 
 /// HTTP status code 404
@@ -86,9 +118,7 @@ fn server_error() -> Response<Body> {
         .unwrap()
 }
 
-async fn file_send(
-    path: impl AsRef<Path>,
-) -> Result<Response<Body>, Error> {
+async fn file_send(path: impl AsRef<Path>) -> Result<Response<Body>, Error> {
     // Serve a file by asynchronously reading it by chunks using tokio-util crate.
 
     let path = path.as_ref();

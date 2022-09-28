@@ -9,6 +9,7 @@ use hyper::Client;
 use models::InterfaceId;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
+use patch_db::PatchDb;
 use sqlx::SqlitePool;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
@@ -40,8 +41,11 @@ impl NetController {
         tor_control: SocketAddr,
         dns_bind: &[SocketAddr],
         db: SqlitePool,
+        db_handle: PatchDb,
         import_root_ca: Option<(PKey<Private>, X509)>,
     ) -> Result<Self, Error> {
+
+        let embassy_host_name = db_handle.get(ptr)
         let ssl = match import_root_ca {
             None => SslManager::init(db).await,
             Some(a) => SslManager::import_root_ca(db, a.0, a.1).await,
@@ -51,7 +55,7 @@ impl NetController {
             #[cfg(feature = "avahi")]
             mdns: MdnsController::init(),
             //nginx: NginxController::init(PathBuf::from("/etc/nginx"), &ssl).await?,
-            proxy: ProxyController::init(embassyd_addr, ssl).await?,
+            proxy: ProxyController::init(embassyd_addr, db, ssl.clone()).await?,
             ssl,
             dns: DnsController::init(dns_bind).await?,
         })
