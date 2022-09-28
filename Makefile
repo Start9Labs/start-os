@@ -48,7 +48,8 @@ clean:
 	rm -rf patch-db/client/dist
 	rm -rf patch-db/target
 	rm -rf cargo-deps
-	rm -rf debian/.debhelper
+	rm ENVIRONMENT.txt
+	rm GIT_HASH.txt
 
 format:
 	cd backend && cargo +nightly fmt
