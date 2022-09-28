@@ -9,8 +9,8 @@ use hyper::Client;
 use models::InterfaceId;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
-use patch_db::PatchDb;
-use sqlx::SqlitePool;
+use patch_db::{PatchDb, DbHandle};
+use sqlx::PgPool;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 use torut::onion::{OnionAddressV3, TorSecretKeyV3};
@@ -34,26 +34,26 @@ pub struct NetController {
     pub dns: DnsController,
 }
 impl NetController {
-    #[instrument(skip(db))]
-    pub async fn init(
+    #[instrument(skip(db, db_handle))]
+    pub async fn init<Db: DbHandle>(
         embassyd_addr: SocketAddr,
         embassyd_tor_key: TorSecretKeyV3,
         tor_control: SocketAddr,
         dns_bind: &[SocketAddr],
-        db: SqlitePool,
-        db_handle: PatchDb,
+        db: PgPool,
+        db_handle: &mut Db,
         import_root_ca: Option<(PKey<Private>, X509)>,
     ) -> Result<Self, Error> {
 
-        let embassy_host_name = db_handle.get(ptr)
+        // let embassy_host_name = db_handle.get(ptr)
         let ssl = match import_root_ca {
-            None => SslManager::init(db).await,
-            Some(a) => SslManager::import_root_ca(db, a.0, a.1).await,
+            None => SslManager::init(db.clone(), db_handle).await,
+            Some(a) => SslManager::import_root_ca(db.clone(), a.0, a.1).await,
         }?;
         Ok(Self {
             tor: TorController::init(embassyd_addr, embassyd_tor_key, tor_control).await?,
             #[cfg(feature = "avahi")]
-            mdns: MdnsController::init(),
+            mdns: MdnsController::init().await?,
             //nginx: NginxController::init(PathBuf::from("/etc/nginx"), &ssl).await?,
             proxy: ProxyController::init(embassyd_addr, db, ssl.clone()).await?,
             ssl,

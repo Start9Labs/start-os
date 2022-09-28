@@ -4,7 +4,7 @@ use hyper::upgrade::Upgraded;
 
 use hyper::Body;
 use hyper::Error as HyperError;
-use sqlx::SqlitePool;
+use sqlx::PgPool;
 use tokio::net::TcpStream;
 
 use std::collections::BTreeMap;
@@ -28,7 +28,7 @@ pub struct ProxyController {
 }
 
 impl ProxyController {
-    pub async fn init(embassyd_addr: SocketAddr, db: SqlitePool, ssl_manager: SslManager) -> Result<Self, Error> {
+    pub async fn init(embassyd_addr: SocketAddr, db: PgPool, ssl_manager: SslManager) -> Result<Self, Error> {
         Ok(ProxyController {
             inner: Mutex::new(ProxyControllerInner::init(embassyd_addr, db, ssl_manager).await?),
         })
@@ -126,7 +126,7 @@ struct ProxyControllerInner {
     embassyd_addr: SocketAddr,
     ssl_manager: SslManager,
     vhosts: VHOSTController,
-    db: SqlitePool,
+    db: PgPool,
     interfaces: BTreeMap<PackageId, PackageNetInfo>,
     iface_lookups: BTreeMap<(PackageId, InterfaceId), String>,
     //  service_servers: BTreeMap<u16, EmbassyServiceHTTPServer>,
@@ -134,7 +134,7 @@ struct ProxyControllerInner {
 
 impl ProxyControllerInner {
     #[instrument]
-    async fn init(embassyd_addr: SocketAddr, db: SqlitePool, ssl_manager: SslManager) -> Result<Self, Error> {
+    async fn init(embassyd_addr: SocketAddr, db: PgPool, ssl_manager: SslManager) -> Result<Self, Error> {
         let inner = ProxyControllerInner {
             embassyd_addr,
             vhosts: VHOSTController::init(embassyd_addr),

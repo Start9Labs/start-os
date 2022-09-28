@@ -231,8 +231,8 @@ impl RpcContext {
                 .map(|v| v.as_slice())
                 .unwrap_or(&[SocketAddr::from(([127, 0, 0, 1], 53))]),
             secret_store.clone(),
-            None,
             &mut db.handle(),
+            None,
         )
         .await?;
         tracing::info!("Initialized Net Controller");
