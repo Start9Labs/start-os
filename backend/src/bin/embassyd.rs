@@ -82,8 +82,8 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
         });
 
         let mut db = rpc_ctx.db.handle();
-        embassy::hostname::sync_hostname(&mut db).await?;
         let receipts = embassy::context::rpc::RpcSetNginxReceipts::new(&mut db).await?;
+        embassy::hostname::sync_hostname(&mut db, &receipts.hostname_receipts).await?;
 
         rpc_ctx.set_nginx_conf(&mut db, receipts).await?;
         drop(db);
