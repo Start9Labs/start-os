@@ -35,7 +35,8 @@
                 "glob": "**/*",
                 "input": "node_modules/monaco-editor",
                 "output": "assets/monaco-editor/"
-              }
+              },
+              "projects/ui/src/manifest.webmanifest"
             ],
             "styles": [
               "projects/shared/styles/variables.scss",
@@ -43,7 +44,9 @@
               "projects/shared/styles/shared.scss",
               "projects/ui/src/styles.scss"
             ],
-            "scripts": []
+            "scripts": [],
+            "serviceWorker": true,
+            "ngswConfigPath": "projects/ui/ngsw-config.json"
           },
           "configurations": {
             "production": {
