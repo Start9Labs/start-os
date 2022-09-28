@@ -11,10 +11,8 @@ import { TransferPageRoutingModule } from './transfer-routing.module'
   declarations: [TransferPage],
   imports: [
     CommonModule,
-    FormsModule,
     IonicModule,
     TransferPageRoutingModule,
-    PasswordPageModule,
     UnitConversionPipesModule,
   ],
 })
