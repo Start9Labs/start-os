@@ -8,6 +8,14 @@ if [ "$0" != "./build-prod-native.sh" ]; then
 	exit 1
 fi
 
+USE_TTY=
+if tty -s; then
+	USE_TTY="-it"
+fi
+
+alias 'rust-native-builder'='docker run $USE_TTY --rm -v "$HOME/.cargo/registry":/root/.cargo/registry -v "$(pwd)":/root -P rust'
+
+cd ..
 FLAGS=""
 if [[ "$ENVIRONMENT" =~ (^|-)unstable($|-) ]]; then
 	FLAGS="unstable,$FLAGS"
@@ -16,11 +24,12 @@ if [[ "$ENVIRONMENT" =~ (^|-)dev($|-) ]]; then
 	FLAGS="dev,$FLAGS"
 fi
 if [[ "$FLAGS" = "" ]]; then
-	cargo +stable build --release --locked
+	rust-native-builder sh -c "cd ~/backend && cargo build --release --locked"
 else
 	echo "FLAGS=$FLAGS"
-	cargo +stable build --release --features $FLAGS --locked
+	rust-native-builder sh -c "cd ~/backend && cargo build --release --features $FLAGS --locked"
 fi
+cd backend
 
 sudo chown -R $USER target
 sudo chown -R $USER ~/.cargo
