@@ -1,28 +1,31 @@
 import { Injectable } from '@angular/core'
 import { Observable } from 'rxjs'
-import { map } from 'rxjs/operators'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
+import { tap } from 'rxjs/operators'
+import { PatchDB } from 'patch-db-client'
 import { AuthService } from 'src/app/services/auth.service'
+import { DataModel } from './patch-db/data-model'
+import { LocalStorageBootstrap } from './patch-db/local-storage-bootstrap'
 
 // Start and stop PatchDb upon verification
 @Injectable({
   providedIn: 'root',
 })
-export class PatchMonitorService extends Observable<boolean> {
+export class PatchMonitorService extends Observable<any> {
+  // @TODO not happy with Observable<void>
   private readonly stream$ = this.authService.isVerified$.pipe(
-    map(verified => {
+    tap(verified => {
       if (verified) {
-        this.patch.start()
-        return true
+        this.patch.start(this.bootstrapper)
+      } else {
+        this.patch.stop()
       }
-      this.patch.stop()
-      return false
     }),
   )
 
   constructor(
     private readonly authService: AuthService,
-    private readonly patch: PatchDbService,
+    private readonly patch: PatchDB<DataModel>,
+    private readonly bootstrapper: LocalStorageBootstrap,
   ) {
     super(subscriber => this.stream$.subscribe(subscriber))
   }

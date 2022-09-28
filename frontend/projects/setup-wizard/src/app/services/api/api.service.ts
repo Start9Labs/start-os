@@ -1,33 +1,46 @@
+import * as jose from 'node-jose'
 export abstract class ApiService {
-  // unencrypted
+  pubkey?: jose.JWK.Key
+
   abstract getStatus(): Promise<GetStatusRes> // setup.status
+  abstract getPubKey(): Promise<void> // setup.get-pubkey
   abstract getDrives(): Promise<DiskListResponse> // setup.disk.list
   abstract set02XDrive(logicalname: string): Promise<void> // setup.recovery.v2.set
   abstract getRecoveryStatus(): Promise<RecoveryStatusRes> // setup.recovery.status
-
-  // encrypted
   abstract verifyCifs(cifs: CifsRecoverySource): Promise<EmbassyOSRecoveryInfo> // setup.cifs.verify
-  abstract verifyProductKey(): Promise<void> // echo - throws error if invalid
   abstract importDrive(importInfo: ImportDriveReq): Promise<SetupEmbassyRes> // setup.attach
   abstract setupEmbassy(setupInfo: SetupEmbassyReq): Promise<SetupEmbassyRes> // setup.execute
   abstract setupComplete(): Promise<SetupEmbassyRes> // setup.complete
+
+  async encrypt(toEncrypt: string): Promise<Encrypted> {
+    if (!this.pubkey) throw new Error('No pubkey found!')
+    const encrypted = await jose.JWE.createEncrypt(this.pubkey!)
+      .update(toEncrypt)
+      .final()
+    return {
+      encrypted,
+    }
+  }
+}
+
+type Encrypted = {
+  encrypted: string
 }
 
 export type GetStatusRes = {
-  'product-key': boolean
   migrating: boolean
 }
 
 export type ImportDriveReq = {
   guid: string
-  'embassy-password': string
+  'embassy-password': Encrypted
 }
 
 export type SetupEmbassyReq = {
   'embassy-logicalname': string
-  'embassy-password': string
+  'embassy-password': Encrypted
   'recovery-source': CifsRecoverySource | DiskRecoverySource | null
-  'recovery-password': string | null
+  'recovery-password': Encrypted | null
 }
 
 export type SetupEmbassyRes = {
@@ -43,10 +56,7 @@ export type EmbassyOSRecoveryInfo = {
   'wrapped-key': string | null
 }
 
-export type DiskListResponse = {
-  disks: DiskInfo[]
-  reconnect: string[]
-}
+export type DiskListResponse = DiskInfo[]
 
 export type DiskBackupTarget = {
   vendor: string | null
@@ -76,7 +86,7 @@ export type CifsRecoverySource = {
   hostname: string
   path: string
   username: string
-  password: string | null
+  password: Encrypted | null
 }
 
 export type DiskInfo = {

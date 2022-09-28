@@ -5,10 +5,10 @@ import {
   MarketplacePkg,
   AbstractMarketplaceService,
 } from '@start9labs/marketplace'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
-import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { PatchDB } from 'patch-db-client'
 import { BehaviorSubject, Observable, of } from 'rxjs'
 import { catchError, filter, shareReplay, switchMap } from 'rxjs/operators'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 
 @Component({
   selector: 'marketplace-show',
@@ -40,7 +40,7 @@ export class MarketplaceShowPage {
   constructor(
     private readonly route: ActivatedRoute,
     private readonly errToast: ErrorToastService,
-    private readonly patch: PatchDbService,
+    private readonly patch: PatchDB<DataModel>,
     private readonly marketplaceService: AbstractMarketplaceService,
   ) {}
 

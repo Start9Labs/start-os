@@ -1,15 +1,12 @@
 import { Pipe, PipeTransform } from '@angular/core'
 import { NavigationExtras } from '@angular/router'
 import { NavController } from '@ionic/angular'
-import { combineLatest, Observable } from 'rxjs'
-import { filter, map, startWith } from 'rxjs/operators'
 import {
   DependencyError,
   DependencyErrorType,
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
 import { DependentInfo } from 'src/app/types/dependent-info'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 import { ModalService } from 'src/app/services/modal.service'
 
 export interface DependencyInfo {
@@ -27,35 +24,18 @@ export interface DependencyInfo {
 })
 export class ToDependenciesPipe implements PipeTransform {
   constructor(
-    private readonly patch: PatchDbService,
     private readonly navCtrl: NavController,
     private readonly modalService: ModalService,
   ) {}
 
-  transform(pkg: PackageDataEntry): Observable<DependencyInfo[]> {
-    return combineLatest([
-      this.patch.watch$(
-        'package-data',
-        pkg.manifest.id,
-        'installed',
-        'current-dependencies',
-      ),
-      this.patch.watch$(
-        'package-data',
-        pkg.manifest.id,
-        'installed',
-        'status',
-        'dependency-errors',
-      ),
-    ]).pipe(
-      filter(deps => deps.every(Boolean) && !!pkg.installed),
-      map(([currentDeps, depErrors]) =>
-        Object.keys(currentDeps)
-          .filter(id => !!pkg.manifest.dependencies[id])
-          .map(id => this.setDepValues(pkg, id, depErrors)),
-      ),
-      startWith([]),
-    )
+  transform(pkg: PackageDataEntry): DependencyInfo[] {
+    if (!pkg.installed) return []
+
+    return Object.keys(pkg.installed?.['current-dependencies'])
+      .filter(id => !!pkg.manifest.dependencies[id])
+      .map(id =>
+        this.setDepValues(pkg, id, pkg.installed!.status['dependency-errors']),
+      )
   }
 
   private setDepValues(

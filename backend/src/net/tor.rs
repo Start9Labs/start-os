@@ -9,7 +9,7 @@ use futures::FutureExt;
 use reqwest::Client;
 use rpc_toolkit::command;
 use serde_json::json;
-use sqlx::{Executor, Sqlite};
+use sqlx::{Executor, Postgres};
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 use torut::control::{AsyncEvent, AuthenticatedConn, ConnError};
@@ -44,7 +44,7 @@ fn display_services(services: Vec<OnionAddressV3>, matches: &ArgMatches) {
         let row = row![&service.to_string()];
         table.add_row(row);
     }
-    table.print_tty(false);
+    table.print_tty(false).unwrap();
 }
 
 #[command(rename = "list-services", display(display_services))]
@@ -60,7 +60,7 @@ pub async fn list_services(
 #[instrument(skip(secrets))]
 pub async fn os_key<Ex>(secrets: &mut Ex) -> Result<TorSecretKeyV3, Error>
 where
-    for<'a> &'a mut Ex: Executor<'a, Database = Sqlite>,
+    for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
 {
     let key = sqlx::query!("SELECT tor_key FROM account")
         .fetch_one(secrets)
@@ -425,7 +425,7 @@ async fn test() {
         fn(AsyncEvent<'static>) -> BoxFuture<'static, Result<(), ConnError>>,
     > = conn.into_authenticated().await;
     let tor_key = torut::onion::TorSecretKeyV3::generate();
-    dbg!(connection.get_conf("SocksPort").await.unwrap());
+    connection.get_conf("SocksPort").await.unwrap();
     connection
         .add_onion_v3(
             &tor_key,

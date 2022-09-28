@@ -6,14 +6,21 @@ import {
   ModalController,
 } from '@ionic/angular'
 import { ActionSheetButton } from '@ionic/core'
-import { DestroyService, ErrorToastService } from '@start9labs/shared'
+import {
+  DestroyService,
+  ErrorToastService,
+  getUrlHostname,
+} from '@start9labs/shared'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ValueSpecObject } from 'src/app/pkg-config/config-types'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
-import { PatchDbService } from '../../../services/patch-db/patch-db.service'
+import { PatchDB } from 'patch-db-client'
 import { v4 } from 'uuid'
-import { UIMarketplaceData } from '../../../services/patch-db/data-model'
+import {
+  DataModel,
+  UIMarketplaceData,
+} from '../../../services/patch-db/data-model'
 import { ConfigService } from '../../../services/config.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import {
@@ -50,7 +57,7 @@ export class MarketplacesPage {
     @Inject(AbstractMarketplaceService)
     private readonly marketplaceService: MarketplaceService,
     private readonly config: ConfigService,
-    private readonly patch: PatchDbService,
+    private readonly patch: PatchDB<DataModel>,
     private readonly destroy$: DestroyService,
     private readonly alertCtrl: AlertController,
   ) {}
@@ -59,7 +66,7 @@ export class MarketplacesPage {
     this.patch
       .watch$('ui', 'marketplace')
       .pipe(distinctUntilChanged(), takeUntil(this.destroy$))
-      .subscribe((mp: UIMarketplaceData | undefined) => {
+      .subscribe((mp: UIMarketplaceData) => {
         let marketplaces: Marketplaces = [
           {
             id: null,
@@ -67,17 +74,15 @@ export class MarketplacesPage {
             url: this.config.marketplace.url,
           },
         ]
-        if (mp) {
-          this.selectedId = mp['selected-id']
-          const alts = Object.entries(mp['known-hosts']).map(([k, v]) => {
-            return {
-              id: k,
-              name: v.name,
-              url: v.url,
-            }
-          })
-          marketplaces = marketplaces.concat(alts)
-        }
+        this.selectedId = mp['selected-id']
+        const alts = Object.entries(mp['known-hosts']).map(([k, v]) => {
+          return {
+            id: k,
+            name: v.name,
+            url: v.url,
+          }
+        })
+        marketplaces = marketplaces.concat(alts)
         this.marketplaces = marketplaces
       })
   }
@@ -114,7 +119,6 @@ export class MarketplacesPage {
   async presentAction(id: string | null) {
     // no need to view actions if is selected marketplace
     const marketplace = await getMarketplace(this.patch)
-
     if (id === marketplace['selected-id']) return
 
     const buttons: ActionSheetButton[] = [
@@ -242,8 +246,8 @@ export class MarketplacesPage {
         }
 
     // no-op on duplicates
-    const currentUrls = this.marketplaces.map(mp => mp.url)
-    if (currentUrls.includes(new URL(url).hostname)) return
+    const currentUrls = this.marketplaces.map(mp => getUrlHostname(mp.url))
+    if (currentUrls.includes(getUrlHostname(url))) return
 
     const loader = await this.loadingCtrl.create({
       message: 'Validating Marketplace...',
@@ -286,8 +290,11 @@ export class MarketplacesPage {
         }
 
     // no-op on duplicates
-    const currentUrls = this.marketplaces.map(mp => mp.url)
-    if (currentUrls.includes(new URL(url).hostname)) return
+    const currentUrls = this.marketplaces.map(mp => getUrlHostname(mp.url))
+    if (currentUrls.includes(getUrlHostname(url))) {
+      this.errToast.present({ message: 'Marketplace already added' })
+      return
+    }
 
     const loader = await this.loadingCtrl.create({
       message: 'Validating Marketplace...',

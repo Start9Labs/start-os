@@ -23,14 +23,21 @@ export const mockPatchData: DataModel = {
         },
       },
     },
+    dev: {},
+    gaming: {
+      snake: {
+        'high-score': 0,
+      },
+    },
     'ack-instructions': {},
   },
   'server-info': {
     id: 'abcdefgh',
-    version: '0.3.1.1',
-    'last-backup': null,
+    version: '0.3.2',
+    'last-backup': new Date(new Date().valueOf() - 604800001).toISOString(),
     'lan-address': 'https://embassy-abcdefgh.local',
     'tor-address': 'http://myveryownspecialtoraddress.onion',
+    'last-wifi-region': null,
     'unread-notification-count': 4,
     // password is asdfasdf
     'password-hash':
@@ -42,13 +49,6 @@ export const mockPatchData: DataModel = {
       'update-progress': null,
     },
     hostname: 'random-words',
-  },
-  'recovered-packages': {
-    'btc-rpc-proxy': {
-      title: 'Bitcoin Proxy',
-      icon: 'assets/img/service-icons/btc-rpc-proxy.png',
-      version: '0.2.2',
-    },
   },
   'package-data': {
     bitcoind: {
@@ -380,7 +380,6 @@ export const mockPatchData: DataModel = {
             },
           },
         },
-        permissions: {},
         dependencies: {},
       },
       installed: {
@@ -436,7 +435,7 @@ export const mockPatchData: DataModel = {
         },
         'current-dependencies': {},
         'dependency-info': {},
-        'marketplace-url': 'marketplace-url.com',
+        'marketplace-url': 'https://marketplace-url.com',
         'developer-key': 'developer-key',
       },
     },
@@ -577,7 +576,6 @@ export const mockPatchData: DataModel = {
             'input-spec': null,
           },
         },
-        permissions: {},
         dependencies: {
           bitcoind: {
             version: '=0.21.0',
@@ -651,7 +649,7 @@ export const mockPatchData: DataModel = {
             icon: 'assets/img/service-icons/btc-rpc-proxy.png',
           },
         },
-        'marketplace-url': 'marketplace-url.com',
+        'marketplace-url': 'https://marketplace-url.com',
         'developer-key': 'developer-key',
       },
     },

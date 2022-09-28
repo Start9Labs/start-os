@@ -4,11 +4,7 @@ import { ApiService, GetErrorRes } from './api.service'
 import { LogsRes, ServerLogsReq, Log } from '@start9labs/shared'
 
 @Injectable()
-export class MockApiService extends ApiService {
-  constructor() {
-    super()
-  }
-
+export class MockApiService implements ApiService {
   async getError(): Promise<GetErrorRes> {
     await pauseFor(1000)
     return {

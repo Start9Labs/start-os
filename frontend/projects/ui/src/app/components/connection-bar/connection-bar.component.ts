@@ -1,7 +1,6 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core'
-import { combineLatest, map, Observable, startWith, tap } from 'rxjs'
+import { Component } from '@angular/core'
+import { combineLatest, map, Observable } from 'rxjs'
 import { ConnectionService } from 'src/app/services/connection.service'
-import { PatchDbService } from 'src/app/services/patch-db/patch-db.service'
 
 @Component({
   selector: 'connection-bar',
@@ -14,8 +13,9 @@ export class ConnectionBarComponent {
 
   readonly connection$: Observable<{
     message: string
-    icon: string
     color: string
+    icon: string
+    iconColor: string
     dots: boolean
   }> = combineLatest([
     this.connectionService.networkConnected$,
@@ -25,29 +25,29 @@ export class ConnectionBarComponent {
       if (!network)
         return {
           message: 'No Internet',
+          color: 'danger',
           icon: 'cloud-offline-outline',
-          color: 'dark',
+          iconColor: 'dark',
           dots: false,
         }
       if (!websocket)
         return {
           message: 'Connecting',
-          icon: 'cloud-offline-outline',
           color: 'warning',
+          icon: 'cloud-offline-outline',
+          iconColor: 'light',
           dots: true,
         }
 
       return {
         message: 'Connected',
-        icon: 'cloud-done',
         color: 'success',
+        icon: 'cloud-done',
+        iconColor: 'light',
         dots: false,
       }
     }),
   )
 
-  constructor(
-    private readonly connectionService: ConnectionService,
-    private readonly patch: PatchDbService,
-  ) {}
+  constructor(private readonly connectionService: ConnectionService) {}
 }

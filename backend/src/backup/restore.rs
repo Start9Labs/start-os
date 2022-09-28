@@ -9,7 +9,7 @@ use color_eyre::eyre::eyre;
 use futures::future::BoxFuture;
 use futures::FutureExt;
 use openssl::x509::X509;
-use patch_db::{DbHandle, PatchDbHandle, Revision};
+use patch_db::{DbHandle, PatchDbHandle};
 use rpc_toolkit::command;
 use tokio::fs::File;
 use tokio::task::JoinHandle;
@@ -20,7 +20,6 @@ use super::target::BackupTargetId;
 use crate::backup::backup_bulk::OsBackup;
 use crate::context::{RpcContext, SetupContext};
 use crate::db::model::{PackageDataEntry, StaticFiles};
-use crate::db::util::WithRevision;
 use crate::disk::mount::backup::{BackupMountGuard, PackageBackupMountGuard};
 use crate::disk::mount::filesystem::ReadOnly;
 use crate::disk::mount::guard::TmpMountGuard;
@@ -50,7 +49,7 @@ pub async fn restore_packages_rpc(
     #[arg(parse(parse_comma_separated))] ids: Vec<PackageId>,
     #[arg(rename = "target-id")] target_id: BackupTargetId,
     #[arg] password: String,
-) -> Result<WithRevision<()>, Error> {
+) -> Result<(), Error> {
     let mut db = ctx.db.handle();
     let fs = target_id
         .load(&mut ctx.secret_store.acquire().await?)
@@ -58,8 +57,7 @@ pub async fn restore_packages_rpc(
     let backup_guard =
         BackupMountGuard::mount(TmpMountGuard::mount(&fs, ReadOnly).await?, &password).await?;
 
-    let (revision, backup_guard, tasks, _) =
-        restore_packages(&ctx, &mut db, backup_guard, ids).await?;
+    let (backup_guard, tasks, _) = restore_packages(&ctx, &mut db, backup_guard, ids).await?;
 
     tokio::spawn(async move {
         let res = futures::future::join_all(tasks).await;
@@ -114,10 +112,7 @@ pub async fn restore_packages_rpc(
         }
     });
 
-    Ok(WithRevision {
-        response: (),
-        revision,
-    })
+    Ok(())
 }
 
 async fn approximate_progress(
@@ -221,7 +216,7 @@ pub async fn recover_full_embassy(
     let key_vec = os_backup.tor_key.as_bytes().to_vec();
     let secret_store = ctx.secret_store().await?;
     sqlx::query!(
-        "REPLACE INTO account (id, password, tor_key) VALUES (?, ?, ?)",
+        "INSERT INTO account (id, password, tor_key) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET password = $2, tor_key = $3",
         0,
         password,
         key_vec,
@@ -250,7 +245,7 @@ pub async fn recover_full_embassy(
             .keys()
             .cloned()
             .collect();
-            let (_, backup_guard, tasks, progress_info) = restore_packages(
+            let (backup_guard, tasks, progress_info) = restore_packages(
                 &rpc_ctx,
                 &mut db,
                 backup_guard,
@@ -308,14 +303,13 @@ async fn restore_packages(
     ids: Vec<PackageId>,
 ) -> Result<
     (
-        Option<Arc<Revision>>,
         BackupMountGuard<TmpMountGuard>,
         Vec<JoinHandle<(Result<(), Error>, PackageId)>>,
         ProgressInfo,
     ),
     Error,
 > {
-    let (revision, guards) = assure_restoring(ctx, db, ids, &backup_guard).await?;
+    let guards = assure_restoring(ctx, db, ids, &backup_guard).await?;
 
     let mut progress_info = ProgressInfo::default();
 
@@ -343,7 +337,7 @@ async fn restore_packages(
         ));
     }
 
-    Ok((revision, backup_guard, tasks, progress_info))
+    Ok((backup_guard, tasks, progress_info))
 }
 
 #[instrument(skip(ctx, db, backup_guard))]
@@ -352,13 +346,7 @@ async fn assure_restoring(
     db: &mut PatchDbHandle,
     ids: Vec<PackageId>,
     backup_guard: &BackupMountGuard<TmpMountGuard>,
-) -> Result<
-    (
-        Option<Arc<Revision>>,
-        Vec<(Manifest, PackageBackupMountGuard)>,
-    ),
-    Error,
-> {
+) -> Result<Vec<(Manifest, PackageBackupMountGuard)>, Error> {
     let mut tx = db.begin().await?;
 
     let mut guards = Vec::with_capacity(ids.len());
@@ -418,7 +406,8 @@ async fn assure_restoring(
         guards.push((manifest, guard));
     }
 
-    Ok((tx.commit(None).await?, guards))
+    tx.commit().await?;
+    Ok(guards)
 }
 
 #[instrument(skip(ctx, guard))]

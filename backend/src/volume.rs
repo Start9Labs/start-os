@@ -189,6 +189,29 @@ impl Volume {
             Volume::Backup { .. } => backup_dir(pkg_id),
         }
     }
+
+    pub fn pointer_path(&self, data_dir_path: impl AsRef<Path>) -> Option<PathBuf> {
+        if let Volume::Pointer {
+            path,
+            package_id,
+            volume_id,
+            ..
+        } = self
+        {
+            Some(
+                data_dir(data_dir_path.as_ref(), package_id, volume_id).join(
+                    if path.is_absolute() {
+                        path.strip_prefix("/").unwrap()
+                    } else {
+                        path.as_ref()
+                    },
+                ),
+            )
+        } else {
+            None
+        }
+    }
+
     pub fn set_readonly(&mut self) {
         match self {
             Volume::Data { readonly } => {

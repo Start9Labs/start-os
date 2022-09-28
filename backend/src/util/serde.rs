@@ -337,7 +337,9 @@ impl IoFormat {
             IoFormat::JsonPretty => {
                 serde_json::to_vec_pretty(value).with_kind(crate::ErrorKind::Serialization)
             }
-            IoFormat::Yaml => serde_yaml::to_vec(value).with_kind(crate::ErrorKind::Serialization),
+            IoFormat::Yaml => serde_yaml::to_string(value)
+                .with_kind(crate::ErrorKind::Serialization)
+                .map(|s| s.into_bytes()),
             IoFormat::Cbor => {
                 let mut res = Vec::new();
                 serde_cbor::ser::into_writer(value, &mut res)

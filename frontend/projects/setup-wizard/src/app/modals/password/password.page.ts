@@ -1,7 +1,6 @@
 import { Component, Input, ViewChild } from '@angular/core'
 import { IonInput, ModalController } from '@ionic/angular'
 import {
-  DiskInfo,
   CifsBackupTarget,
   DiskBackupTarget,
 } from 'src/app/services/api/api.service'
@@ -15,7 +14,7 @@ import * as argon2 from '@start9labs/argon2'
 export class PasswordPage {
   @ViewChild('focusInput') elem?: IonInput
   @Input() target?: CifsBackupTarget | DiskBackupTarget
-  @Input() storageDrive?: DiskInfo
+  @Input() storageDrive = false
 
   pwError = ''
   password = ''

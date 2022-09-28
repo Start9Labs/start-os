@@ -1,0 +1,17 @@
+{
+  "name": null,
+  "auto-check-updates": true,
+  "pkg-order": [],
+  "ack-welcome": "0.3.0",
+  "marketplace": {
+    "selected-id": null,
+    "known-hosts": {}
+  },
+  "dev": {},
+  "gaming": {
+    "snake": {
+      "high-score": 0
+    }
+  },
+  "ack-instructions": {}
+}

@@ -1,82 +1,106 @@
 {
-  "db": "SQLite",
-  "10350f5a16f1b2a6ce91672ae5dc6acc46691bd8f901861545ec83c326a8ccef": {
+  "db": "PostgreSQL",
+  "094882d4d46d52e814f9aaf5fae172a5dd745b06cbde347f47b18e6498167269": {
     "describe": {
       "columns": [],
       "nullable": [],
       "parameters": {
-        "Right": 3
+        "Left": [
+          "Text",
+          "Text",
+          "Text"
+        ]
       }
     },
-    "query": "INSERT INTO ssh_keys (fingerprint, openssh_pubkey, created_at) VALUES (?, ?, ?)"
-  },
-  "118d59de5cf930d5a3b5667b2220e9a3d593bd84276beb2b76c93b2694b0fd72": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Right": 3
-      }
-    },
-    "query": "INSERT INTO session (id, user_agent, metadata) VALUES (?, ?, ?)"
+    "query": "UPDATE certificates SET priv_key_pem = $1, certificate_pem = $2, updated_at = now() WHERE lookup_string = $3"
   },
   "165daa7d6a60cb42122373b2c5ac7d39399bcc99992f0002ee7bfef50a8daceb": {
     "describe": {
       "columns": [],
       "nullable": [],
       "parameters": {
-        "Right": 0
+        "Left": []
       }
     },
     "query": "DELETE FROM certificates WHERE id = 0 OR id = 1;"
   },
-  "177c4b9cc7901a3b906e5969b86b1c11e6acbfb8e86e98f197d7333030b17964": {
+  "1f7936d27d63f01118ecd6f824e8a79607ed2b6e6def23f3e2487466dd2ddfe1": {
     "describe": {
       "columns": [],
       "nullable": [],
       "parameters": {
-        "Right": 1
+        "Left": [
+          "Text",
+          "Text",
+          "Text"
+        ]
       }
     },
-    "query": "DELETE FROM notifications WHERE id = ?"
+    "query": "INSERT INTO certificates (priv_key_pem, certificate_pem, lookup_string, created_at, updated_at) VALUES ($1, $2, $3, now(), now())"
   },
-  "1b2242afa55e730b37b00929b656d80940b457ec86c234ddd0de917bd8872611": {
+  "21471490cdc3adb206274cc68e1ea745ffa5da4479478c1fd2158a45324b1930": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Text"
+        ]
+      }
+    },
+    "query": "DELETE FROM ssh_keys WHERE fingerprint = $1"
+  },
+  "22613628ff50341fdc35366e194fdcd850118824763cfe0dfff68dadc72167e9": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Text",
+          "Text",
+          "Bytea"
+        ]
+      }
+    },
+    "query": "INSERT INTO tor (package, interface, key) VALUES ($1, $2, $3) ON CONFLICT (package, interface) DO UPDATE SET key = $3"
+  },
+  "28ea34bbde836e0618c5fc9bb7c36e463c20c841a7d6a0eb15be0f24f4a928ec": {
     "describe": {
       "columns": [
         {
-          "name": "id: u32",
+          "name": "hostname",
           "ordinal": 0,
-          "type_info": "Int64"
+          "type_info": "Text"
+        },
+        {
+          "name": "path",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "username",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "password",
+          "ordinal": 3,
+          "type_info": "Text"
         }
       ],
       "nullable": [
-        false
+        false,
+        false,
+        false,
+        true
       ],
       "parameters": {
-        "Right": 4
+        "Left": [
+          "Int4"
+        ]
       }
     },
-    "query": "INSERT INTO cifs_shares (hostname, path, username, password) VALUES (?, ?, ?, ?) RETURNING id AS \"id: u32\""
-  },
-  "1eee1fdc793919c391008854407143d7a11b4668486c11a760b49af49992f9f8": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Right": 2
-      }
-    },
-    "query": "REPLACE INTO tor (package, interface, key) VALUES (?, 'main', ?)"
-  },
-  "2932aa02735b6422fca4ba889abfb3de8598178d4690076dc278898753d9df62": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Right": 1
-      }
-    },
-    "query": "UPDATE session SET logged_out = CURRENT_TIMESTAMP WHERE id = ?"
+    "query": "SELECT hostname, path, username, password FROM cifs_shares WHERE id = $1"
   },
   "3502e58f2ab48fb4566d21c920c096f81acfa3ff0d02f970626a4dcd67bac71d": {
     "describe": {
@@ -84,35 +108,75 @@
         {
           "name": "tor_key",
           "ordinal": 0,
-          "type_info": "Blob"
+          "type_info": "Bytea"
         }
       ],
       "nullable": [
         false
       ],
       "parameters": {
-        "Right": 0
+        "Left": []
       }
     },
     "query": "SELECT tor_key FROM account"
   },
-  "3e57a0e52b69f33e9411c13b03a5d82c5856d63f0375eb4c23b255a09c54f8b1": {
+  "4099028a5c0de578255bf54a67cef6cb0f1e9a4e158260700f1639dd4b438997": {
     "describe": {
       "columns": [
         {
-          "name": "key",
+          "name": "fingerprint",
           "ordinal": 0,
-          "type_info": "Blob"
+          "type_info": "Text"
+        },
+        {
+          "name": "openssh_pubkey",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "created_at",
+          "ordinal": 2,
+          "type_info": "Text"
         }
       ],
       "nullable": [
+        false,
+        false,
         false
       ],
       "parameters": {
-        "Right": 2
+        "Left": [
+          "Text"
+        ]
       }
     },
-    "query": "SELECT key FROM tor WHERE package = ? AND interface = ?"
+    "query": "SELECT * FROM ssh_keys WHERE fingerprint = $1"
+  },
+  "46815a4ac2c43e1dfbab3c0017ed09d5c833062e523205db4245a5218b2562b8": {
+    "describe": {
+      "columns": [
+        {
+          "name": "priv_key_pem",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "certificate_pem",
+          "ordinal": 1,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Text"
+        ]
+      }
+    },
+    "query": "SELECT priv_key_pem, certificate_pem FROM certificates WHERE lookup_string = $1"
   },
   "4691e3a2ce80b59009ac17124f54f925f61dc5ea371903e62cdffa5d7b67ca96": {
     "describe": {
@@ -125,17 +189,17 @@
         {
           "name": "logged_in",
           "ordinal": 1,
-          "type_info": "Datetime"
+          "type_info": "Timestamp"
         },
         {
           "name": "logged_out",
           "ordinal": 2,
-          "type_info": "Datetime"
+          "type_info": "Timestamp"
         },
         {
           "name": "last_active",
           "ordinal": 3,
-          "type_info": "Datetime"
+          "type_info": "Timestamp"
         },
         {
           "name": "user_agent",
@@ -157,50 +221,40 @@
         false
       ],
       "parameters": {
-        "Right": 0
+        "Left": []
       }
     },
     "query": "SELECT * FROM session WHERE logged_out IS NULL OR logged_out > CURRENT_TIMESTAMP"
   },
-  "530192a2a530ee6b92e5b98e1eb1bf6d1426c7b0cb2578593a367cb0bf2c3ca8": {
+  "4bcfbefb1eb3181343871a1cd7fc3afb81c2be5c681cfa8b4be0ce70610e9c3a": {
     "describe": {
       "columns": [],
       "nullable": [],
       "parameters": {
-        "Right": 3
+        "Left": [
+          "Text"
+        ]
       }
     },
-    "query": "UPDATE certificates SET priv_key_pem = ?, certificate_pem = ?, updated_at = datetime('now') WHERE lookup_string = ?"
+    "query": "UPDATE session SET logged_out = CURRENT_TIMESTAMP WHERE id = $1"
   },
-  "56b986f2a2b7091d9c3acdd78f75d9842242de1f4da8f3672f2793d9fb256928": {
+  "548448e8ed8bcdf9efdc813d65af2cc55064685293b936f0f09e07f91a328eb9": {
     "describe": {
-      "columns": [],
-      "nullable": [],
+      "columns": [
+        {
+          "name": "setval",
+          "ordinal": 0,
+          "type_info": "Int8"
+        }
+      ],
+      "nullable": [
+        null
+      ],
       "parameters": {
-        "Right": 1
+        "Left": []
       }
     },
-    "query": "DELETE FROM tor WHERE package = ?"
-  },
-  "5b114c450073f77f466c980a2541293f30087b57301c379630326e5e5c2fb792": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Right": 3
-      }
-    },
-    "query": "REPLACE INTO tor (package, interface, key) VALUES (?, ?, ?)"
-  },
-  "5c47da44b9c84468e95a13fc47301989900f130b3b5899d1ee6664df3ed812ac": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Right": 2
-      }
-    },
-    "query": "INSERT INTO certificates (id, priv_key_pem, certificate_pem, lookup_string, created_at, updated_at) VALUES (0, ?, ?, NULL, datetime('now'), datetime('now'))"
+    "query": "SELECT setval('certificates_id_seq', GREATEST(MAX(id) + 1, nextval('certificates_id_seq') - 1)) FROM certificates"
   },
   "629be61c3c341c131ddbbff0293a83dbc6afd07cae69d246987f62cf0cc35c2a": {
     "describe": {
@@ -215,38 +269,75 @@
         false
       ],
       "parameters": {
-        "Right": 0
+        "Left": []
       }
     },
     "query": "SELECT password FROM account"
   },
-  "63785dc5f193ea31e6f641a910c75857ccd288a3f6e9c4f704331531e4f0689f": {
+  "687688055e63d27123cdc89a5bbbd8361776290a9411d527eaf1fdb40bef399d": {
+    "describe": {
+      "columns": [
+        {
+          "name": "key",
+          "ordinal": 0,
+          "type_info": "Bytea"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Text",
+          "Text"
+        ]
+      }
+    },
+    "query": "SELECT key FROM tor WHERE package = $1 AND interface = $2"
+  },
+  "6c96d76bffcc5f03290d8d8544a58521345ed2a843a509b17bbcd6257bb81821": {
+    "describe": {
+      "columns": [
+        {
+          "name": "priv_key_pem",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "certificate_pem",
+          "ordinal": 1,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": []
+      }
+    },
+    "query": "SELECT priv_key_pem, certificate_pem FROM certificates WHERE id = 1;"
+  },
+  "6d35ccf780fb2bb62586dd1d3df9c1550a41ee580dad3f49d35cb843ebef10ca": {
     "describe": {
       "columns": [],
       "nullable": [],
       "parameters": {
-        "Right": 1
+        "Left": [
+          "Text"
+        ]
       }
     },
-    "query": "UPDATE session SET last_active = CURRENT_TIMESTAMP WHERE id = ? AND logged_out IS NULL OR logged_out > CURRENT_TIMESTAMP"
+    "query": "UPDATE session SET last_active = CURRENT_TIMESTAMP WHERE id = $1 AND logged_out IS NULL OR logged_out > CURRENT_TIMESTAMP"
   },
-  "6440354d73a67c041ea29508b43b5f309d45837a44f1a562051ad540d894c7d6": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Right": 1
-      }
-    },
-    "query": "DELETE FROM ssh_keys WHERE fingerprint = ?"
-  },
-  "65e6c3fbb138da5cf385af096fdd3c062b6e826e12a8a4b23e16fcc773004c29": {
+  "7b64f032d507e8ffe37c41f4c7ad514a66c421a11ab04c26d89a7aa8f6b67210": {
     "describe": {
       "columns": [
         {
           "name": "id",
           "ordinal": 0,
-          "type_info": "Int64"
+          "type_info": "Int4"
         },
         {
           "name": "package_id",
@@ -256,12 +347,12 @@
         {
           "name": "created_at",
           "ordinal": 2,
-          "type_info": "Datetime"
+          "type_info": "Timestamp"
         },
         {
           "name": "code",
           "ordinal": 3,
-          "type_info": "Int64"
+          "type_info": "Int4"
         },
         {
           "name": "level",
@@ -295,18 +386,109 @@
         true
       ],
       "parameters": {
-        "Right": 2
+        "Left": [
+          "Int4",
+          "Int8"
+        ]
       }
     },
-    "query": "SELECT id, package_id, created_at, code, level, title, message, data FROM notifications WHERE id < ? ORDER BY id DESC LIMIT ?"
+    "query": "SELECT id, package_id, created_at, code, level, title, message, data FROM notifications WHERE id < $1 ORDER BY id DESC LIMIT $2"
   },
-  "668f39c868f90cdbcc635858bac9e55ed73192ed2aec5c52dcfba9800a7a4a41": {
+  "7e0649d839927e57fa03ee51a2c9f96a8bdb0fc97ee8a3c6df1069e1e2b98576": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Text"
+        ]
+      }
+    },
+    "query": "DELETE FROM tor WHERE package = $1"
+  },
+  "8951b9126fbf60dbb5997241e11e3526b70bccf3e407327917294a993bc17ed5": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Text",
+          "Text",
+          "Bytea"
+        ]
+      }
+    },
+    "query": "INSERT INTO tor (package, interface, key) VALUES ($1, $2, $3) ON CONFLICT (package, interface) DO NOTHING"
+  },
+  "94d471bb374b4965c6cbedf8c17bbf6bea226d38efaf6559923c79a36d5ca08c": {
     "describe": {
       "columns": [
         {
-          "name": "id: u32",
+          "name": "id",
           "ordinal": 0,
-          "type_info": "Int64"
+          "type_info": "Int4"
+        },
+        {
+          "name": "package_id",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "created_at",
+          "ordinal": 2,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "code",
+          "ordinal": 3,
+          "type_info": "Int4"
+        },
+        {
+          "name": "level",
+          "ordinal": 4,
+          "type_info": "Text"
+        },
+        {
+          "name": "title",
+          "ordinal": 5,
+          "type_info": "Text"
+        },
+        {
+          "name": "message",
+          "ordinal": 6,
+          "type_info": "Text"
+        },
+        {
+          "name": "data",
+          "ordinal": 7,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true
+      ],
+      "parameters": {
+        "Left": [
+          "Int8"
+        ]
+      }
+    },
+    "query": "SELECT id, package_id, created_at, code, level, title, message, data FROM notifications ORDER BY id DESC LIMIT $1"
+  },
+  "95c4ab4c645f3302568c6ff13d85ab58252362694cf0f56999bf60194d20583a": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int4"
         },
         {
           "name": "hostname",
@@ -337,142 +519,49 @@
         true
       ],
       "parameters": {
-        "Right": 0
+        "Left": []
       }
     },
-    "query": "SELECT id AS \"id: u32\", hostname, path, username, password FROM cifs_shares"
+    "query": "SELECT id, hostname, path, username, password FROM cifs_shares"
   },
-  "6b9abc9e079cff975f8a7f07ff70548c7877ecae3be0d0f2d3f439a6713326c0": {
+  "a60d6e66719325b08dc4ecfacaf337527233c84eee758ac9be967906e5841d27": {
     "describe": {
       "columns": [],
       "nullable": [],
       "parameters": {
-        "Right": 1
+        "Left": [
+          "Int4"
+        ]
       }
     },
-    "query": "DELETE FROM notifications WHERE id < ?"
+    "query": "DELETE FROM cifs_shares WHERE id = $1"
   },
-  "6c96d76bffcc5f03290d8d8544a58521345ed2a843a509b17bbcd6257bb81821": {
-    "describe": {
-      "columns": [
-        {
-          "name": "priv_key_pem",
-          "ordinal": 0,
-          "type_info": "Text"
-        },
-        {
-          "name": "certificate_pem",
-          "ordinal": 1,
-          "type_info": "Text"
-        }
-      ],
-      "nullable": [
-        false,
-        false
-      ],
-      "parameters": {
-        "Right": 0
-      }
-    },
-    "query": "SELECT priv_key_pem, certificate_pem FROM certificates WHERE id = 1;"
-  },
-  "7d548d2472fa3707bd17364b4800e229b9c2b1c0a22e245bf4e635b9b16b8c24": {
+  "a645d636be810a4ba61dcadf22e90de6e9baf3614aa9e97f053ff480cb3118a2": {
     "describe": {
       "columns": [],
       "nullable": [],
       "parameters": {
-        "Right": 3
+        "Left": [
+          "Text",
+          "Bytea"
+        ]
       }
     },
-    "query": "INSERT INTO certificates (priv_key_pem, certificate_pem, lookup_string, created_at, updated_at) VALUES (?, ?, ?, datetime('now'), datetime('now'))"
+    "query": "INSERT INTO tor (package, interface, key) VALUES ($1, 'main', $2) ON CONFLICT (package, interface) DO UPDATE SET key = $2"
   },
-  "82a8fa7eae8a73b5345015c72af024b4f21489b1d9b42235398d7eb8977fb132": {
+  "a6645d91f76b3d5fac2191ea3bec5dab7d7d124715fde02e6a816fa5dbc7acf2": {
     "describe": {
       "columns": [],
       "nullable": [],
       "parameters": {
-        "Right": 1
+        "Left": [
+          "Int4",
+          "Text",
+          "Bytea"
+        ]
       }
     },
-    "query": "UPDATE account SET password = ?"
-  },
-  "8595651866e7db772260bd79e19d55b7271fd795b82a99821c935a9237c1aa16": {
-    "describe": {
-      "columns": [
-        {
-          "name": "interface",
-          "ordinal": 0,
-          "type_info": "Text"
-        },
-        {
-          "name": "key",
-          "ordinal": 1,
-          "type_info": "Blob"
-        }
-      ],
-      "nullable": [
-        false,
-        false
-      ],
-      "parameters": {
-        "Right": 1
-      }
-    },
-    "query": "SELECT interface, key FROM tor WHERE package = ?"
-  },
-  "9496e17a73672ac3675e02efa7c4bf8bd479b866c0d31fa1e3a85ef159310a57": {
-    "describe": {
-      "columns": [
-        {
-          "name": "priv_key_pem",
-          "ordinal": 0,
-          "type_info": "Text"
-        },
-        {
-          "name": "certificate_pem",
-          "ordinal": 1,
-          "type_info": "Text"
-        }
-      ],
-      "nullable": [
-        false,
-        false
-      ],
-      "parameters": {
-        "Right": 1
-      }
-    },
-    "query": "SELECT priv_key_pem, certificate_pem FROM certificates WHERE lookup_string = ?"
-  },
-  "9fcedab1ba34daa2c6ae97c5953c09821b35b55be75b0c66045ab31a2cf4553e": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Right": 3
-      }
-    },
-    "query": "REPLACE INTO account (id, password, tor_key) VALUES (?, ?, ?)"
-  },
-  "a1cbaac36d8e14c8c3e7276237c4824bff18861f91b0b08aa5791704c492acb7": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Right": 2
-      }
-    },
-    "query": "INSERT INTO certificates (id, priv_key_pem, certificate_pem, lookup_string, created_at, updated_at) VALUES (1, ?, ?, NULL, datetime('now'), datetime('now'))"
-  },
-  "a4e7162322b28508310b9de7ebc891e619b881ff6d3ea09eba13da39626ab12f": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Right": 5
-      }
-    },
-    "query": "UPDATE cifs_shares SET hostname = ?, path = ?, username = ?, password = ? WHERE id = ?"
+    "query": "INSERT INTO account (id, password, tor_key) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET password = $2, tor_key = $3"
   },
   "a6b0c8909a3a5d6d9156aebfb359424e6b5a1d1402e028219e21726f1ebd282e": {
     "describe": {
@@ -499,116 +588,39 @@
         false
       ],
       "parameters": {
-        "Right": 0
+        "Left": []
       }
     },
     "query": "SELECT fingerprint, openssh_pubkey, created_at FROM ssh_keys"
   },
-  "abfdeea8cd10343b85f647d7abc5dc3bd0b5891101b143485938192ee3b8c907": {
-    "describe": {
-      "columns": [
-        {
-          "name": "id",
-          "ordinal": 0,
-          "type_info": "Int64"
-        },
-        {
-          "name": "package_id",
-          "ordinal": 1,
-          "type_info": "Text"
-        },
-        {
-          "name": "created_at",
-          "ordinal": 2,
-          "type_info": "Datetime"
-        },
-        {
-          "name": "code",
-          "ordinal": 3,
-          "type_info": "Int64"
-        },
-        {
-          "name": "level",
-          "ordinal": 4,
-          "type_info": "Text"
-        },
-        {
-          "name": "title",
-          "ordinal": 5,
-          "type_info": "Text"
-        },
-        {
-          "name": "message",
-          "ordinal": 6,
-          "type_info": "Text"
-        },
-        {
-          "name": "data",
-          "ordinal": 7,
-          "type_info": "Text"
-        }
-      ],
-      "nullable": [
-        false,
-        true,
-        false,
-        false,
-        false,
-        false,
-        false,
-        true
-      ],
-      "parameters": {
-        "Right": 1
-      }
-    },
-    "query": "SELECT id, package_id, created_at, code, level, title, message, data FROM notifications ORDER BY id DESC LIMIT ?"
-  },
-  "b376d9e77e0861a9af2d1081ca48d14e83abc5a1546213d15bb570972c403beb": {
+  "b1147beaaabbed89f2ab8c1e13ec4393a9a8fde2833cf096af766a979d94dee6": {
     "describe": {
       "columns": [],
       "nullable": [],
       "parameters": {
-        "Right": 0
+        "Left": [
+          "Text",
+          "Text",
+          "Text",
+          "Text",
+          "Int4"
+        ]
       }
     },
-    "query": "-- Add migration script here\nCREATE TABLE IF NOT EXISTS tor\n(\n    package     TEXT NOT NULL,\n    interface   TEXT NOT NULL,\n    key         BLOB NOT NULL CHECK (length(key) = 64),\n    PRIMARY KEY (package, interface)\n);\nCREATE TABLE IF NOT EXISTS session\n(\n    id         TEXT NOT NULL PRIMARY KEY,\n    logged_in TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n    logged_out TIMESTAMP,\n    last_active TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n    user_agent TEXT,\n    metadata   TEXT NOT NULL DEFAULT 'null'\n);\nCREATE TABLE IF NOT EXISTS account\n(\n    id INTEGER PRIMARY KEY CHECK (id = 0),\n    password TEXT NOT NULL,\n    tor_key BLOB NOT NULL CHECK (length(tor_key) = 64)\n);\nCREATE TABLE IF NOT EXISTS ssh_keys\n(\n    fingerprint     TEXT NOT NULL,\n    openssh_pubkey  TEXT NOT NULL,\n    created_at      TEXT NOT NULL,\n    PRIMARY KEY (fingerprint)\n);\nCREATE TABLE IF NOT EXISTS certificates\n(\n    id INTEGER PRIMARY KEY, -- Root = 0, Int = 1, Other = 2..\n    priv_key_pem TEXT NOT NULL,\n    certificate_pem TEXT NOT NULL,\n    lookup_string TEXT UNIQUE,\n    created_at TEXT,\n    updated_at TEXT\n);\nCREATE TABLE IF NOT EXISTS notifications\n(\n    id INTEGER PRIMARY KEY,\n    package_id TEXT,\n    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n    code INTEGER NOT NULL,\n    level TEXT NOT NULL,\n    title TEXT NOT NULL,\n    message TEXT NOT NULL,\n    data TEXT\n);\nCREATE TABLE IF NOT EXISTS cifs_shares\n(\n    id INTEGER PRIMARY KEY,\n    hostname TEXT NOT NULL,\n    path TEXT NOT NULL,\n    username TEXT NOT NULL,\n    password TEXT\n);"
+    "query": "UPDATE cifs_shares SET hostname = $1, path = $2, username = $3, password = $4 WHERE id = $5"
   },
-  "cc33fe2958fe7caeac6999a217f918a68b45ad596664170b4d07671c6ea49566": {
+  "cec8112be0ebc02ef7e651631be09efe26d1677b5b8aa95ceb3a92aff1afdbcc": {
     "describe": {
-      "columns": [
-        {
-          "name": "hostname",
-          "ordinal": 0,
-          "type_info": "Text"
-        },
-        {
-          "name": "path",
-          "ordinal": 1,
-          "type_info": "Text"
-        },
-        {
-          "name": "username",
-          "ordinal": 2,
-          "type_info": "Text"
-        },
-        {
-          "name": "password",
-          "ordinal": 3,
-          "type_info": "Text"
-        }
-      ],
-      "nullable": [
-        false,
-        false,
-        false,
-        true
-      ],
+      "columns": [],
+      "nullable": [],
       "parameters": {
-        "Right": 1
+        "Left": [
+          "Text",
+          "Text"
+        ]
       }
     },
-    "query": "SELECT hostname, path, username, password FROM cifs_shares WHERE id = ?"
+    "query": "INSERT INTO certificates (id, priv_key_pem, certificate_pem, lookup_string, created_at, updated_at) VALUES (1, $1, $2, NULL, now(), now())"
   },
   "d5117054072476377f3c4f040ea429d4c9b2cf534e76f35c80a2bf60e8599cca": {
     "describe": {
@@ -623,60 +635,139 @@
         false
       ],
       "parameters": {
-        "Right": 0
+        "Left": []
       }
     },
     "query": "SELECT openssh_pubkey FROM ssh_keys"
   },
-  "d54bd5b53f8c760e1f8cde604aa8b1bdc66e4e025a636bc44ffbcd788b5168fd": {
+  "da71f94b29798d1738d2b10b9a721ea72db8cfb362e7181c8226d9297507c62b": {
     "describe": {
       "columns": [],
       "nullable": [],
       "parameters": {
-        "Right": 6
+        "Left": [
+          "Text",
+          "Int4",
+          "Text",
+          "Text",
+          "Text",
+          "Text"
+        ]
       }
     },
-    "query": "INSERT INTO notifications (package_id, code, level, title, message, data) VALUES (?, ?, ?, ?, ?, ?)"
+    "query": "INSERT INTO notifications (package_id, code, level, title, message, data) VALUES ($1, $2, $3, $4, $5, $6)"
   },
-  "d79d608ceb862c15b741a6040044c6dd54a837a3a0c5594d15a6041c7bc68ea8": {
+  "df4428ccb891bd791824bcd7990550cc9651e1cfaab1db33833ff7959d113b2c": {
     "describe": {
       "columns": [],
       "nullable": [],
       "parameters": {
-        "Right": 3
+        "Left": [
+          "Text",
+          "Text"
+        ]
       }
     },
-    "query": "INSERT OR IGNORE INTO tor (package, interface, key) VALUES (?, ?, ?)"
+    "query": "INSERT INTO certificates (id, priv_key_pem, certificate_pem, lookup_string, created_at, updated_at) VALUES (0, $1, $2, NULL, now(), now())"
   },
-  "de2a5e90798d606047ab8180c044baac05469c0cdf151316bd58ee8c7196fdef": {
+  "e185203cf84e43b801dfb23b4159e34aeaef1154dcd3d6811ab504915497ccf7": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Int4"
+        ]
+      }
+    },
+    "query": "DELETE FROM notifications WHERE id = $1"
+  },
+  "e25e53c45c5a494a45cdb4d145de507df6f322ac6706e71b86895f1c64195f41": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Text"
+        ]
+      }
+    },
+    "query": "UPDATE account SET password = $1"
+  },
+  "e5843c5b0e7819b29aa1abf2266799bd4f82e761837b526a0972c3d4439a264d": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Text",
+          "Text",
+          "Text"
+        ]
+      }
+    },
+    "query": "INSERT INTO session (id, user_agent, metadata) VALUES ($1, $2, $3)"
+  },
+  "e85749336fce4afaf16627bee8cfcb70be6f189ea7d1f05f9a26bead4be11839": {
     "describe": {
       "columns": [
         {
-          "name": "fingerprint",
+          "name": "interface",
           "ordinal": 0,
           "type_info": "Text"
         },
         {
-          "name": "openssh_pubkey",
+          "name": "key",
           "ordinal": 1,
-          "type_info": "Text"
-        },
-        {
-          "name": "created_at",
-          "ordinal": 2,
-          "type_info": "Text"
+          "type_info": "Bytea"
         }
       ],
       "nullable": [
         false,
-        false,
         false
       ],
       "parameters": {
-        "Right": 1
+        "Left": [
+          "Text"
+        ]
       }
     },
-    "query": "SELECT * FROM ssh_keys WHERE fingerprint = ?"
+    "query": "SELECT interface, key FROM tor WHERE package = $1"
+  },
+  "eb750adaa305bdbf3c5b70aaf59139c7b7569602adb58f2d6b3a94da4f167b0a": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Int4"
+        ]
+      }
+    },
+    "query": "DELETE FROM notifications WHERE id < $1"
+  },
+  "ecc765d8205c0876956f95f76944ac6a5f34dd820c4073b7728c7067aab9fded": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int4"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Text",
+          "Text",
+          "Text",
+          "Text"
+        ]
+      }
+    },
+    "query": "INSERT INTO cifs_shares (hostname, path, username, password) VALUES ($1, $2, $3, $4) RETURNING id"
   },
   "ed848affa5bf92997cd441e3a50b3616b6724df3884bd9d199b3225e0bea8a54": {
     "describe": {
@@ -697,19 +788,23 @@
         false
       ],
       "parameters": {
-        "Right": 0
+        "Left": []
       }
     },
     "query": "SELECT priv_key_pem, certificate_pem FROM certificates WHERE id = 0;"
   },
-  "f63c8c5a8754b34a49ef5d67802fa2b72aa409bbec92ecc6901492092974b71a": {
+  "f6d1c5ef0f9d9577bea8382318967b9deb46da75788c7fe6082b43821c22d556": {
     "describe": {
       "columns": [],
       "nullable": [],
       "parameters": {
-        "Right": 1
+        "Left": [
+          "Text",
+          "Text",
+          "Text"
+        ]
       }
     },
-    "query": "DELETE FROM cifs_shares WHERE id = ?"
+    "query": "INSERT INTO ssh_keys (fingerprint, openssh_pubkey, created_at) VALUES ($1, $2, $3)"
   }
 }

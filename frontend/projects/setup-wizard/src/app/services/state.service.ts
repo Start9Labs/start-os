@@ -11,9 +11,6 @@ import { pauseFor, ErrorToastService } from '@start9labs/shared'
   providedIn: 'root',
 })
 export class StateService {
-  hasProductKey = false
-  isMigrating = false
-
   polling = false
   embassyLoaded = false
 
@@ -33,7 +30,7 @@ export class StateService {
   cert = ''
 
   constructor(
-    private readonly apiService: ApiService,
+    private readonly api: ApiService,
     private readonly errorToastService: ErrorToastService,
   ) {}
 
@@ -48,7 +45,7 @@ export class StateService {
 
     let progress
     try {
-      progress = await this.apiService.getRecoveryStatus()
+      progress = await this.api.getRecoveryStatus()
     } catch (e: any) {
       this.errorToastService.present({
         message: `${e.message}\n\nRestart Embassy to try again.`,
@@ -70,9 +67,9 @@ export class StateService {
   }
 
   async importDrive(guid: string, password: string): Promise<void> {
-    const ret = await this.apiService.importDrive({
+    const ret = await this.api.importDrive({
       guid,
-      'embassy-password': password,
+      'embassy-password': await this.api.encrypt(password),
     })
     this.torAddress = ret['tor-address']
     this.lanAddress = ret['lan-address']
@@ -83,11 +80,13 @@ export class StateService {
     storageLogicalname: string,
     password: string,
   ): Promise<void> {
-    const ret = await this.apiService.setupEmbassy({
+    const ret = await this.api.setupEmbassy({
       'embassy-logicalname': storageLogicalname,
-      'embassy-password': password,
+      'embassy-password': await this.api.encrypt(password),
       'recovery-source': this.recoverySource || null,
-      'recovery-password': this.recoveryPassword || null,
+      'recovery-password': this.recoveryPassword
+        ? await this.api.encrypt(this.recoveryPassword)
+        : null,
     })
     this.torAddress = ret['tor-address']
     this.lanAddress = ret['lan-address']
@@ -95,7 +94,7 @@ export class StateService {
   }
 
   async completeEmbassy(): Promise<void> {
-    const ret = await this.apiService.setupComplete()
+    const ret = await this.api.setupComplete()
     this.torAddress = ret['tor-address']
     this.lanAddress = ret['lan-address']
     this.cert = ret['root-ca']

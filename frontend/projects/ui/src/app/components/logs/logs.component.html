@@ -15,7 +15,7 @@
 >
   <ion-infinite-scroll
     id="scroller"
-    *ngIf="!loading && needInfinite"
+    [disabled]="!needInfinite"
     position="top"
     threshold="1000"
     (ionInfinite)="doInfinite($event)"

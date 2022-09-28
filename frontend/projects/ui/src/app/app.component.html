@@ -7,7 +7,7 @@
     >
       <ion-menu contentId="main-content" type="overlay">
         <ion-content color="light" scrollY="false">
-          <app-menu></app-menu>
+          <app-menu *ngIf="authService.isVerified$ | async"></app-menu>
         </ion-content>
       </ion-menu>
       <ion-router-outlet id="main-content"></ion-router-outlet>

@@ -49,7 +49,7 @@ export class EmbassyPage {
   async getDrives() {
     this.loading = true
     try {
-      const { disks, reconnect } = await this.apiService.getDrives()
+      const disks = await this.apiService.getDrives()
       this.storageDrives = disks.filter(
         d =>
           !d.partitions
@@ -59,20 +59,6 @@ export class EmbassyPage {
                 ?.logicalname,
             ),
       )
-      if (!this.storageDrives.length && reconnect.length) {
-        const list = `<ul>${reconnect.map(recon => `<li>${recon}</li>`)}</ul>`
-        const alert = await this.alertCtrl.create({
-          header: 'Warning',
-          message: `One or more devices you connected had to be reconfigured to support the current hardware platform. Please unplug and replug the following device(s), then refresh the page:<br> ${list}`,
-          buttons: [
-            {
-              role: 'cancel',
-              text: 'OK',
-            },
-          ],
-        })
-        await alert.present()
-      }
     } catch (e: any) {
       this.errorToastService.present(e)
     } finally {
@@ -95,40 +81,45 @@ export class EmbassyPage {
             text: 'Continue',
             handler: () => {
               if (this.stateService.recoveryPassword) {
-                this.setupEmbassy(drive, this.stateService.recoveryPassword)
+                this.setupEmbassy(
+                  drive.logicalname,
+                  this.stateService.recoveryPassword,
+                )
               } else {
-                this.presentModalPassword(drive)
+                this.presentModalPassword(drive.logicalname)
               }
             },
-            cssClass: 'enter-click',
           },
         ],
       })
       await alert.present()
     } else {
       if (this.stateService.recoveryPassword) {
-        this.setupEmbassy(drive, this.stateService.recoveryPassword)
+        this.setupEmbassy(drive.logicalname, this.stateService.recoveryPassword)
       } else {
-        this.presentModalPassword(drive)
+        this.presentModalPassword(drive.logicalname)
       }
     }
   }
 
-  private async presentModalPassword(drive: DiskInfo): Promise<void> {
+  private async presentModalPassword(logicalname: string): Promise<void> {
     const modal = await this.modalController.create({
       component: PasswordPage,
       componentProps: {
-        storageDrive: drive,
+        storageDrive: true,
       },
     })
     modal.onDidDismiss().then(async ret => {
       if (!ret.data || !ret.data.password) return
-      this.setupEmbassy(drive, ret.data.password)
+      this.setupEmbassy(logicalname, ret.data.password)
     })
     await modal.present()
   }
 
-  private async setupEmbassy(drive: DiskInfo, password: string): Promise<void> {
+  private async setupEmbassy(
+    logicalname: string,
+    password: string,
+  ): Promise<void> {
     const loader = await this.loadingCtrl.create({
       message: 'Initializing data drive. This could take a while...',
     })
@@ -136,7 +127,7 @@ export class EmbassyPage {
     await loader.present()
 
     try {
-      await this.stateService.setupEmbassy(drive.logicalname, password)
+      await this.stateService.setupEmbassy(logicalname, password)
       if (!!this.stateService.recoverySource) {
         await this.navCtrl.navigateForward(`/loading`)
       } else {

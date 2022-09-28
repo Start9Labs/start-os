@@ -6,13 +6,12 @@ use chrono::{DateTime, Utc};
 use color_eyre::eyre::eyre;
 use patch_db::{DbHandle, LockType};
 use rpc_toolkit::command;
-use sqlx::SqlitePool;
+use sqlx::PgPool;
 use tokio::sync::Mutex;
 use tracing::instrument;
 
 use crate::backup::BackupReport;
 use crate::context::RpcContext;
-use crate::db::util::WithRevision;
 use crate::s9pk::manifest::PackageId;
 use crate::util::display_none;
 use crate::util::serde::display_serializable;
@@ -27,9 +26,9 @@ pub async fn notification() -> Result<(), Error> {
 #[instrument(skip(ctx))]
 pub async fn list(
     #[context] ctx: RpcContext,
-    #[arg] before: Option<u32>,
+    #[arg] before: Option<i32>,
     #[arg] limit: Option<u32>,
-) -> Result<WithRevision<Vec<Notification>>, Error> {
+) -> Result<Vec<Notification>, Error> {
     let limit = limit.unwrap_or(40);
     let mut handle = ctx.db.handle();
     match before {
@@ -39,8 +38,8 @@ pub async fn list(
                 .unread_notification_count();
             model.lock(&mut handle, LockType::Write).await?;
             let records = sqlx::query!(
-                "SELECT id, package_id, created_at, code, level, title, message, data FROM notifications ORDER BY id DESC LIMIT ?",
-                limit
+                "SELECT id, package_id, created_at, code, level, title, message, data FROM notifications ORDER BY id DESC LIMIT $1",
+                limit as i64
             ).fetch_all(&ctx.secret_store).await?;
             let notifs = records
                 .into_iter()
@@ -72,17 +71,14 @@ pub async fn list(
                 })
                 .collect::<Result<Vec<Notification>, Error>>()?;
             // set notification count to zero
-            let r = model.put(&mut handle, &0).await?;
-            Ok(WithRevision {
-                response: notifs,
-                revision: r,
-            })
+            model.put(&mut handle, &0).await?;
+            Ok(notifs)
         }
         Some(before) => {
             let records = sqlx::query!(
-                "SELECT id, package_id, created_at, code, level, title, message, data FROM notifications WHERE id < ? ORDER BY id DESC LIMIT ?",
+                "SELECT id, package_id, created_at, code, level, title, message, data FROM notifications WHERE id < $1 ORDER BY id DESC LIMIT $2",
                 before,
-                limit
+                limit as i64
             ).fetch_all(&ctx.secret_store).await?;
             let res = records
                 .into_iter()
@@ -113,25 +109,22 @@ pub async fn list(
                     })
                 })
                 .collect::<Result<Vec<Notification>, Error>>()?;
-            Ok(WithRevision {
-                response: res,
-                revision: None,
-            })
+            Ok(res)
         }
     }
 }
 
 #[command(display(display_none))]
-pub async fn delete(#[context] ctx: RpcContext, #[arg] id: u32) -> Result<(), Error> {
-    sqlx::query!("DELETE FROM notifications WHERE id = ?", id)
+pub async fn delete(#[context] ctx: RpcContext, #[arg] id: i32) -> Result<(), Error> {
+    sqlx::query!("DELETE FROM notifications WHERE id = $1", id)
         .execute(&ctx.secret_store)
         .await?;
     Ok(())
 }
 
 #[command(rename = "delete-before", display(display_none))]
-pub async fn delete_before(#[context] ctx: RpcContext, #[arg] before: u32) -> Result<(), Error> {
-    sqlx::query!("DELETE FROM notifications WHERE id < ?", before)
+pub async fn delete_before(#[context] ctx: RpcContext, #[arg] before: i32) -> Result<(), Error> {
+    sqlx::query!("DELETE FROM notifications WHERE id < $1", before)
         .execute(&ctx.secret_store)
         .await?;
     Ok(())
@@ -218,22 +211,22 @@ pub struct Notification {
 pub trait NotificationType:
     serde::Serialize + for<'de> serde::Deserialize<'de> + std::fmt::Debug
 {
-    const CODE: u32;
+    const CODE: i32;
 }
 
 impl NotificationType for () {
-    const CODE: u32 = 0;
+    const CODE: i32 = 0;
 }
 impl NotificationType for BackupReport {
-    const CODE: u32 = 1;
+    const CODE: i32 = 1;
 }
 
 pub struct NotificationManager {
-    sqlite: SqlitePool,
+    sqlite: PgPool,
     cache: Mutex<HashMap<(Option<PackageId>, NotificationLevel, String), i64>>,
 }
 impl NotificationManager {
-    pub fn new(sqlite: SqlitePool) -> Self {
+    pub fn new(sqlite: PgPool) -> Self {
         NotificationManager {
             sqlite,
             cache: Mutex::new(HashMap::new()),
@@ -267,9 +260,9 @@ impl NotificationManager {
         let sql_data =
             serde_json::to_string(&subtype).with_kind(crate::ErrorKind::Serialization)?;
         sqlx::query!(
-        "INSERT INTO notifications (package_id, code, level, title, message, data) VALUES (?, ?, ?, ?, ?, ?)",
+        "INSERT INTO notifications (package_id, code, level, title, message, data) VALUES ($1, $2, $3, $4, $5, $6)",
         sql_package_id,
-        sql_code,
+        sql_code as i32,
         sql_level,
         title,
         message,

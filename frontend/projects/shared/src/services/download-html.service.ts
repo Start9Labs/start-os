@@ -11,7 +11,6 @@ export class DownloadHTMLService {
       .join(';')
     const styleString = entries ? `<style>html{${entries}}></style>` : ''
 
-    console.log('STYLES', styleString)
     html = styleString + html
 
     const elem = this.document.createElement('a')

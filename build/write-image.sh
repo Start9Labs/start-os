@@ -34,13 +34,10 @@ sudo sed -i 's/ init=\/usr\/lib\/raspi-config\/init_resize.sh//g' /tmp/eos-mnt/c
 
 cat /tmp/eos-mnt/config.txt | grep -v "dtoverlay=" | sudo tee /tmp/eos-mnt/config.txt.tmp > /dev/null
 echo "dtoverlay=pwm-2chan,disable-bt" | sudo tee -a /tmp/eos-mnt/config.txt.tmp > /dev/null
+echo "gpu_mem=16" | sudo tee -a /tmp/eos-mnt/config.txt.tmp > /dev/null
 sudo mv /tmp/eos-mnt/config.txt.tmp /tmp/eos-mnt/config.txt
 sudo touch /tmp/eos-mnt/ssh
 
-# Unmount the boot partition and mount embassy partition
-sudo umount /tmp/eos-mnt
-sudo mount `partition_for ${OUTPUT_DEVICE} 2` /tmp/eos-mnt
-if [ "$NO_KEY" != "1" ]; then sudo cp product_key.txt /tmp/eos-mnt; else echo "This image is being written with no product key"; fi
 sudo umount /tmp/eos-mnt
 
 sudo mount `partition_for ${OUTPUT_DEVICE} 3` /tmp/eos-mnt
@@ -52,6 +49,8 @@ sudo cp ENVIRONMENT.txt /tmp/eos-mnt/etc/embassy
 sudo cp GIT_HASH.txt /tmp/eos-mnt/etc/embassy
 sudo cp build/fstab /tmp/eos-mnt/etc/fstab
 sudo cp build/journald.conf /tmp/eos-mnt/etc/systemd/journald.conf
+sudo sed -i 's/raspberrypi/embassy/g' /tmp/eos-mnt/etc/hostname
+sudo sed -i 's/raspberrypi/embassy/g' /tmp/eos-mnt/etc/hosts
 
 # copy over cargo dependencies
 sudo cp cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast /tmp/eos-mnt/usr/local/bin
@@ -62,6 +61,7 @@ cd backend/
 sudo cp target/aarch64-unknown-linux-gnu/release/embassy-init /tmp/eos-mnt/usr/local/bin
 sudo cp target/aarch64-unknown-linux-gnu/release/embassyd /tmp/eos-mnt/usr/local/bin
 sudo cp target/aarch64-unknown-linux-gnu/release/embassy-cli /tmp/eos-mnt/usr/local/bin
+sudo cp target/aarch64-unknown-linux-gnu/release/avahi-alias /tmp/eos-mnt/usr/local/bin
 sudo cp *.service /tmp/eos-mnt/etc/systemd/system/
 
 cd ..
@@ -95,6 +95,7 @@ if [[ "$ENVIRONMENT" =~ (^|-)dev($|-) ]]; then
 else
 	sudo cp ./build/initialization.sh /tmp/eos-mnt/usr/local/bin
 fi
+sudo cp ./build/init-with-sound.sh /tmp/eos-mnt/usr/local/bin
 
 sudo cp ./build/initialization.service /tmp/eos-mnt/etc/systemd/system/initialization.service
 sudo ln -s /etc/systemd/system/initialization.service /tmp/eos-mnt/etc/systemd/system/multi-user.target.wants/initialization.service

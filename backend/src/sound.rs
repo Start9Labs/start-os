@@ -109,8 +109,8 @@ impl SoundInterface {
 }
 
 pub struct Song<Notes> {
-    tempo_qpm: u16,
-    note_sequence: Notes,
+    pub tempo_qpm: u16,
+    pub note_sequence: Notes,
 }
 impl<'a, T> Song<T>
 where
@@ -157,8 +157,8 @@ impl Drop for SoundInterface {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Arbitrary)]
 pub struct Note {
-    semitone: Semitone,
-    octave: i8,
+    pub semitone: Semitone,
+    pub octave: i8,
 }
 impl Note {
     pub fn frequency(&self) -> f64 {
