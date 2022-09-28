@@ -13,7 +13,7 @@ if tty -s; then
 	USE_TTY="-it"
 fi
 
-alias 'rust-native-builder'='docker run $USE_TTY --rm -v "$HOME/.cargo/registry":/root/.cargo/registry -v "$(pwd)":/root -P rust'
+alias 'rust-native-builder'='docker run $USE_TTY --rm -v "$HOME/.cargo/registry":/root/.cargo/registry -v "$(pwd)":/root -P start9/rust'
 
 cd ..
 FLAGS=""
