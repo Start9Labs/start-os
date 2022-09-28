@@ -1,13 +1,8 @@
-import { Component, Input } from '@angular/core'
-import { ModalController, NavController } from '@ionic/angular'
-import {
-  ApiService,
-  DiskBackupTarget,
-  DiskInfo,
-} from 'src/app/services/api/api.service'
+import { Component } from '@angular/core'
+import { AlertController, NavController } from '@ionic/angular'
+import { ApiService, DiskInfo } from 'src/app/services/api/api.service'
 import { ErrorToastService } from '@start9labs/shared'
 import { StateService } from 'src/app/services/state.service'
-import { PasswordPage } from '../../modals/password/password.page'
 
 @Component({
   selector: 'app-transfer',
@@ -21,6 +16,7 @@ export class TransferPage {
   constructor(
     private readonly apiService: ApiService,
     private readonly navCtrl: NavController,
+    private readonly alertCtrl: AlertController,
     private readonly errToastService: ErrorToastService,
     private readonly stateService: StateService,
   ) {}
@@ -50,12 +46,29 @@ export class TransferPage {
 
     if (!logicalname) return
 
-    this.stateService.recoverySource = {
-      type: 'migrate',
-      guid: guid!,
-    }
-    this.navCtrl.navigateForward(`/embassy`, {
-      queryParams: { action: 'transfer' },
+    const alert = await this.alertCtrl.create({
+      header: 'Warning',
+      message:
+        'Data from this drive will not be deleted, but you will not be able to use this drive to run embassyOS after the data is transferred.',
+      buttons: [
+        {
+          role: 'cancel',
+          text: 'Cancel',
+        },
+        {
+          text: 'Continue',
+          handler: () => {
+            this.stateService.recoverySource = {
+              type: 'migrate',
+              guid: guid!,
+            }
+            this.navCtrl.navigateForward(`/embassy`, {
+              queryParams: { action: 'transfer' },
+            })
+          },
+        },
+      ],
     })
+    await alert.present()
   }
 }
