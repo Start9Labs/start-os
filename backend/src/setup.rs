@@ -38,7 +38,7 @@ use crate::disk::mount::filesystem::ReadOnly;
 use crate::disk::mount::guard::TmpMountGuard;
 use crate::disk::util::{pvscan, recovery_info, DiskInfo, EmbassyOsRecoveryInfo};
 use crate::disk::REPAIR_DISK_PATH;
-use crate::hostname::{get_hostname, Hostname};
+use crate::hostname::{get_hostname, HostNameReceipt, Hostname};
 use crate::id::Id;
 use crate::init::init;
 use crate::install::PKG_PUBLIC_DIR;
@@ -158,7 +158,9 @@ pub async fn attach(
 
     db_tx.commit().await?;
     secrets_tx.commit().await?;
-    let hostname = get_hostname(&mut db_handle).await?;
+
+    let hostname_receipts = HostNameReceipt::new(&mut db_handle).await?;
+    let hostname = get_hostname(&mut db_handle, &hostname_receipts).await?;
 
     let (_, root_ca) = SslManager::init(secrets, &mut db_handle)
         .await?
@@ -321,9 +323,10 @@ pub async fn complete(#[context] ctx: SetupContext) -> Result<SetupResult, Error
     };
     let secrets = ctx.secret_store().await?;
     let mut db = ctx.db(&secrets).await?.handle();
-    let hostname = crate::hostname::get_hostname(&mut db).await?;
+    let receipts = crate::hostname::HostNameReceipt::new(&mut db).await?;
+    let hostname = crate::hostname::get_hostname(&mut db, &receipts).await?;
     let si = crate::db::DatabaseModel::new().server_info();
-    let id = crate::hostname::get_id(&mut db).await?;
+    let id = crate::hostname::get_id(&mut db, &receipts).await?;
     si.clone().id().put(&mut db, &id).await?;
     si.lan_address()
         .put(&mut db, &hostname.lan_address().parse().unwrap())
@@ -378,7 +381,11 @@ pub async fn execute_inner(
         let db = init(&RpcContextConfig::load(ctx.config_path.as_ref()).await?)
             .await?
             .db;
-        let hostname = get_hostname(&mut db.handle()).await?;
+        let hostname = {
+            let mut handle = db.handle();
+            let receipts = crate::hostname::HostNameReceipt::new(&mut handle).await?;
+            get_hostname(&mut handle, &receipts).await?
+        };
         let res = (hostname.clone(), tor_addr, root_ca.clone());
         tokio::spawn(async move {
             if let Err(e) = recover_fut
@@ -412,15 +419,17 @@ pub async fn execute_inner(
         let db = init(&RpcContextConfig::load(ctx.config_path.as_ref()).await?)
             .await?
             .db;
+        let mut handle = db.handle();
+        let receipts = crate::hostname::HostNameReceipt::new(&mut handle).await?;
         *ctx.setup_result.write().await = Some((
             guid,
             SetupResult {
                 tor_address: format!("http://{}", tor_addr),
-                lan_address: get_hostname(&mut db.handle()).await?.lan_address(),
+                lan_address: get_hostname(&mut handle, &receipts).await?.lan_address(),
                 root_ca: String::from_utf8(root_ca.to_pem()?)?,
             },
         ));
-        let hostname = get_hostname(&mut db.handle()).await?;
+        let hostname = get_hostname(&mut handle, &receipts).await?;
         (hostname, tor_addr, root_ca)
     };
 
