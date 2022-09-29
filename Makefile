@@ -93,10 +93,10 @@ embassy-os.deb: debian/control
 system-images/compat/docker-images/aarch64.tar: $(COMPAT_SRC)
 	cd system-images/compat && make
 
-system-images/utils/docker-images/aarch64.tar system-images/utils/docker-images/aarch64.tar: $(UTILS_SRC)
+system-images/utils/docker-images/aarch64.tar system-images/utils/docker-images/x86_64.tar: $(UTILS_SRC)
 	cd system-images/utils && make
 
-system-images/binfmt/docker-images/aarch64.tar system-images/binfmt/docker-images/aarch64.tar: $(BINFMT_SRC)
+system-images/binfmt/docker-images/aarch64.tar system-images/binfmt/docker-images/x86_64.tar: $(BINFMT_SRC)
 	cd system-images/binfmt && make
 
 raspios.img:
