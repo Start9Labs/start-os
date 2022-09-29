@@ -265,7 +265,7 @@ pub struct BufferedWriteReader {
 impl BufferedWriteReader {
     pub fn new<
         W: FnOnce(WriteHalf<DuplexStream>) -> Fut,
-        Fut: Future<Output = Result<(), std::io::Error>> + Send + Sync,
+        Fut: Future<Output = Result<(), std::io::Error>> + Send + Sync + 'static,
     >(
         write_fn: W,
         max_buf_size: usize,

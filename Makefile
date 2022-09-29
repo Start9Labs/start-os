@@ -5,9 +5,9 @@ EMBASSY_BINS := backend/target/$(ARCH)-unknown-linux-gnu/release/embassyd backen
 EMBASSY_NATIVE_BINS := backend/target/release/embassyd backend/target/release/embassy-init backend/target/release/embassy-cli backend/target/release/embassy-sdk backend/target/release/avahi-alias
 EMBASSY_UIS := frontend/dist/ui frontend/dist/setup-wizard frontend/dist/diagnostic-ui
 EMBASSY_SRC := backend/embassyd.service backend/embassy-init.service $(EMBASSY_UIS) $(shell find build)
-COMPAT_SRC := $(shell find system-images/compat/ -not -path 'system-images/compat/target/*' -and -not -name compat.tar -and -not -name target)
-UTILS_SRC := $(shell find system-images/utils/ -not -name utils.tar)
-BINFMT_SRC := $(shell find system-images/binfmt/ -not -name binfmt.tar)
+COMPAT_SRC := $(shell find system-images/compat/ -not -path 'system-images/compat/target/*' -and -not -name *.tar -and -not -name target)
+UTILS_SRC := $(shell find system-images/utils/ -not -name *.tar)
+BINFMT_SRC := $(shell find system-images/binfmt/ -not -name *.tar)
 BACKEND_SRC := $(shell find backend/src) $(shell find backend/migrations) $(shell find patch-db/*/src) backend/Cargo.toml backend/Cargo.lock
 FRONTEND_SHARED_SRC := $(shell find frontend/projects/shared) $(shell find frontend/assets) $(shell ls -p frontend/ | grep -v / | sed 's/^/frontend\//g') frontend/node_modules frontend/config.json patch-db/client/dist frontend/patchdb-ui-seed.json
 FRONTEND_UI_SRC := $(shell find frontend/projects/ui)
@@ -58,14 +58,14 @@ format:
 sdk:
 	cd backend/ && ./install-sdk.sh
 
-eos.img: raspios.img $(EMBASSY_SRC) $(EMBASSY_BINS) system-images/compat/compat.tar system-images/utils/utils.tar system-images/binfmt/binfmt.tar cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast $(ENVIRONMENT_FILE) $(GIT_HASH_FILE)
+eos.img: raspios.img $(EMBASSY_SRC) $(EMBASSY_BINS) system-images/compat/docker-images/aarch64.tar system-images/utils/docker-images/aarch64.tar system-images/binfmt/docker-images/aarch64.tar cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast $(ENVIRONMENT_FILE) $(GIT_HASH_FILE)
 	! test -f eos.img || rm eos.img
 	if [ "$(NO_KEY)" = "1" ]; then NO_KEY=1 ./build/make-image.sh; else ./build/make-image.sh; fi
 
-dpkg_deps: $(EMBASSY_SRC) $(EMBASSY_NATIVE_BINS) system-images/compat/compat.tar system-images/utils/utils.tar system-images/binfmt/binfmt.tar $(ENVIRONMENT_FILE) $(GIT_HASH_FILE)
+install-dependencies: $(EMBASSY_SRC) $(EMBASSY_NATIVE_BINS) system-images/compat/docker-images/aarch64.tar system-images/utils/docker-images/$(shell uname -m).tar system-images/binfmt/docker-images/$(shell uname -m).tar $(ENVIRONMENT_FILE) $(GIT_HASH_FILE)
 
 # For creating dpkg. DO NOT USE
-install: dpkg_deps
+install: install-dependencies
 	mkdir -p $(DESTDIR)/etc/embassy
 	cp ENVIRONMENT.txt $(DESTDIR)/etc/embassy/
 	cp GIT_HASH.txt $(DESTDIR)/etc/embassy/
@@ -77,7 +77,9 @@ install: dpkg_deps
 	cp backend/target/release/avahi-alias $(DESTDIR)/usr/bin/
 	
 	mkdir -p $(DESTDIR)/var/lib/embassy/system-images
-	cp system-images/**/*.tar $(DESTDIR)/var/lib/embassy/system-images/
+	cp system-images/compat/docker-images/aarch64.tar $(DESTDIR)/var/lib/embassy/system-images/compat.tar
+	cp system-images/utils/docker-images/$(shell uname -m).tar $(DESTDIR)/var/lib/embassy/system-images/utils.tar
+	cp system-images/binfmt/docker-images/$(shell uname -m).tar $(DESTDIR)/var/lib/embassy/system-images/binfmt.tar
 
 	mkdir -p $(DESTDIR)/var/www/html
 	cp -r frontend/dist/diagnostic-ui $(DESTDIR)/var/www/html/diagnostic
@@ -88,13 +90,13 @@ install: dpkg_deps
 embassy-os.deb: debian/control
 	./build/make-deb.sh
 
-system-images/compat/compat.tar: $(COMPAT_SRC)
+system-images/compat/docker-images/aarch64.tar: $(COMPAT_SRC)
 	cd system-images/compat && make
 
-system-images/utils/utils.tar: $(UTILS_SRC)
+system-images/utils/docker-images/aarch64.tar system-images/utils/docker-images/aarch64.tar: $(UTILS_SRC)
 	cd system-images/utils && make
 
-system-images/binfmt/binfmt.tar: $(BINFMT_SRC)
+system-images/binfmt/docker-images/aarch64.tar system-images/binfmt/docker-images/aarch64.tar: $(BINFMT_SRC)
 	cd system-images/binfmt && make
 
 raspios.img:
