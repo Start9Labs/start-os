@@ -36,7 +36,12 @@
                 "input": "node_modules/monaco-editor",
                 "output": "assets/monaco-editor/"
               },
-              "projects/ui/src/manifest.webmanifest"
+              "projects/ui/src/manifest.webmanifest",
+              {
+                "glob": "ngsw.json",
+                "input": "dist/ui",
+                "output": "projects/ui/src"
+              }
             ],
             "styles": [
               "projects/shared/styles/variables.scss",

@@ -1,10 +1,17 @@
 {
-  "name": "EmbassyOS UI",
+  "name": "embassyOS UI",
   "short_name": "eos-ui",
   "theme_color": "#ff5b71",
   "background_color": "#1e1e1e",
   "display": "standalone",
-  "scope": "./",
-  "start_url": "./",
-  "icons": []
+  "scope": ".",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "assets/icon/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
 }
