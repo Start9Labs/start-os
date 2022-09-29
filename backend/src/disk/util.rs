@@ -235,7 +235,7 @@ pub async fn recovery_info(
 #[instrument]
 pub async fn list(os: &OsPartitionInfo) -> Result<Vec<DiskInfo>, Error> {
     let disk_guids = pvscan().await?;
-    let disks = tokio_stream::wrappers::ReadDirStream::new(
+    let (disks, internal) = tokio_stream::wrappers::ReadDirStream::new(
         tokio::fs::read_dir(DISK_PATH)
             .await
             .with_ctx(|_| (crate::ErrorKind::Filesystem, DISK_PATH))?,
@@ -246,52 +246,55 @@ pub async fn list(os: &OsPartitionInfo) -> Result<Vec<DiskInfo>, Error> {
             crate::ErrorKind::Filesystem,
         )
     })
-    .try_fold(BTreeMap::new(), |mut disks, dir_entry| async move {
-        if let Some(disk_path) = dir_entry.path().file_name().and_then(|s| s.to_str()) {
-            let (disk_path, part_path) = if let Some(end) = PARTITION_REGEX.find(disk_path) {
-                (
-                    disk_path.strip_suffix(end.as_str()).unwrap_or_default(),
-                    Some(disk_path),
-                )
-            } else {
-                (disk_path, None)
-            };
-            let disk_path = Path::new(DISK_PATH).join(disk_path);
-            let disk = tokio::fs::canonicalize(&disk_path).await.with_ctx(|_| {
-                (
-                    crate::ErrorKind::Filesystem,
-                    disk_path.display().to_string(),
-                )
-            })?;
-            let part = if let Some(part_path) = part_path {
-                let part_path = Path::new(DISK_PATH).join(part_path);
-                let part = tokio::fs::canonicalize(&part_path).await.with_ctx(|_| {
+    .try_fold(
+        (BTreeMap::new(), Vec::new()),
+        |(mut disks, mut internal), dir_entry| async move {
+            if let Some(disk_path) = dir_entry.path().file_name().and_then(|s| s.to_str()) {
+                let (disk_path, part_path) = if let Some(end) = PARTITION_REGEX.find(disk_path) {
+                    (
+                        disk_path.strip_suffix(end.as_str()).unwrap_or_default(),
+                        Some(disk_path),
+                    )
+                } else {
+                    (disk_path, None)
+                };
+                let disk_path = Path::new(DISK_PATH).join(disk_path);
+                let disk = tokio::fs::canonicalize(&disk_path).await.with_ctx(|_| {
                     (
                         crate::ErrorKind::Filesystem,
-                        part_path.display().to_string(),
+                        disk_path.display().to_string(),
                     )
                 })?;
-                Some(part)
-            } else {
-                None
-            };
-            if disk == os.disk {
-                if let Some(part) = part {
-                    if !os.contains(&part) {
-                        disks.insert(part.clone(), IndexSet::new());
+                let part = if let Some(part_path) = part_path {
+                    let part_path = Path::new(DISK_PATH).join(part_path);
+                    let part = tokio::fs::canonicalize(&part_path).await.with_ctx(|_| {
+                        (
+                            crate::ErrorKind::Filesystem,
+                            part_path.display().to_string(),
+                        )
+                    })?;
+                    Some(part)
+                } else {
+                    None
+                };
+                if disk == os.disk {
+                    if let Some(part) = part {
+                        if !os.contains(&part) {
+                            internal.push(part.clone());
+                        }
+                    }
+                } else {
+                    if !disks.contains_key(&disk) {
+                        disks.insert(disk.clone(), IndexSet::new());
+                    }
+                    if let Some(part) = part {
+                        disks.get_mut(&disk).unwrap().insert(part);
                     }
                 }
-            } else {
-                if !disks.contains_key(&disk) {
-                    disks.insert(disk.clone(), IndexSet::new());
-                }
-                if let Some(part) = part {
-                    disks.get_mut(&disk).unwrap().insert(part);
-                }
             }
-        }
-        Ok(disks)
-    })
+            Ok((disks, internal))
+        },
+    )
     .await?;
 
     let mut res = Vec::with_capacity(disks.len());
@@ -369,6 +372,42 @@ pub async fn list(os: &OsPartitionInfo) -> Result<Vec<DiskInfo>, Error> {
             vendor,
             model,
             partitions,
+            capacity,
+            guid,
+        })
+    }
+    for disk in internal {
+        let mut guid: Option<String> = None;
+        let vendor = get_vendor(&os.disk)
+            .await
+            .map_err(|e| {
+                tracing::warn!(
+                    "Could not get vendor of {}: {}",
+                    os.disk.display(),
+                    e.source
+                )
+            })
+            .unwrap_or_default();
+        let model = get_model(&os.disk)
+            .await
+            .map_err(|e| {
+                tracing::warn!("Could not get model of {}: {}", os.disk.display(), e.source)
+            })
+            .unwrap_or_default();
+        let capacity = get_capacity(&disk)
+            .await
+            .map_err(|e| {
+                tracing::warn!("Could not get capacity of {}: {}", disk.display(), e.source)
+            })
+            .unwrap_or_default();
+        if let Some(g) = disk_guids.get(&disk) {
+            guid = g.clone();
+        }
+        res.push(DiskInfo {
+            logicalname: disk,
+            vendor,
+            model,
+            partitions: Vec::new(),
             capacity,
             guid,
         })
