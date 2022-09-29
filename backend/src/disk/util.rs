@@ -277,7 +277,9 @@ pub async fn list(os: &OsPartitionInfo) -> Result<Vec<DiskInfo>, Error> {
             };
             if disk == os.disk {
                 if let Some(part) = part {
-                    disks.insert(part.clone(), IndexSet::new());
+                    if !os.contains(&part) {
+                        disks.insert(part.clone(), IndexSet::new());
+                    }
                 }
             } else {
                 if !disks.contains_key(&disk) {

@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use clap::ArgMatches;
 use rpc_toolkit::command;
@@ -26,6 +26,14 @@ pub struct OsPartitionInfo {
     pub embassy: PathBuf,
     pub green: PathBuf,
     pub blue: PathBuf,
+}
+impl OsPartitionInfo {
+    pub fn contains(&self, logicalname: impl AsRef<Path>) -> bool {
+        &*self.boot == logicalname.as_ref()
+            || &*self.embassy == logicalname.as_ref()
+            || &*self.green == logicalname.as_ref()
+            || &*self.blue == logicalname.as_ref()
+    }
 }
 
 #[command(subcommands(list, repair))]
