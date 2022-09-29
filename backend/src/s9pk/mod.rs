@@ -109,8 +109,8 @@ pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> R
                         arch_info.available.insert(tar.path().file_stem().unwrap_or_default().to_str().unwrap_or_default().to_owned());
                     }
                 }
-                if arch_info.available.contains("arm64") {
-                    arch_info.default = "arm64".to_owned();
+                if arch_info.available.contains("aarch64") {
+                    arch_info.default = "aarch64".to_owned();
                 } else {
                     arch_info.default = arch_info.available.iter().next().cloned().unwrap_or_default();
                 }
