@@ -1,6 +1,15 @@
 .DELETE_ON_ERROR:
 
-all: utils.tar
+all: docker-images/aarch64.tar docker-images/x86_64.tar
 
-utils.tar: Dockerfile
-	DOCKER_CLI_EXPERIMENTAL=enabled docker buildx build --tag start9/x_system/utils --platform=linux/arm64 -o type=docker,dest=utils.tar .
+clean:
+	rm -rf docker-images
+
+docker-images:
+	mkdir docker-images
+
+docker-images/aarch64.tar: Dockerfile docker-images
+	docker buildx build --tag start9/x_system/utils --platform=linux/arm64 -o type=docker,dest=docker-images/aarch64.tar .
+
+docker-images/x86_64.tar: Dockerfile docker-images
+	docker buildx build --tag start9/x_system/utils --platform=linux/amd64 -o type=docker,dest=docker-images/x86_64.tar .
