@@ -118,7 +118,7 @@ pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> R
                 Box::new(BufferedWriteReader::new(|w| async move {
                     let mut docker_images = tokio_tar::Builder::new(w);
                     let mut multiarch_header = tokio_tar::Header::new_gnu();
-                    multiarch_header.set_path("multiarch.cbor");
+                    multiarch_header.set_path("multiarch.cbor")?;
                     multiarch_header.set_size(arch_info_cbor.len() as u64);
                     multiarch_header.set_cksum();
                     docker_images.append(&multiarch_header, std::io::Cursor::new(arch_info_cbor)).await?;
