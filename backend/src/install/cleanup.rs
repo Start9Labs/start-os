@@ -119,10 +119,20 @@ pub async fn cleanup(ctx: &RpcContext, id: &PackageId, version: &Version) -> Res
         .await
         .apply(|res| errors.handle(res));
     errors.extend(
-        futures::future::join_all(images.into_iter().flatten().map(|image| async {
-            let image = image; // move into future
-            ctx.docker.remove_image(&image.id, None, None).await
-        }))
+        futures::future::join_all(
+            images
+                .into_iter()
+                .flatten()
+                .flat_map(|image| image.repo_tags)
+                .filter(|tag| {
+                    tag.starts_with(&format!("start9/{}/", id))
+                        && tag.ends_with(&format!(":{}", version))
+                })
+                .map(|tag| async {
+                    let tag = tag; // move into future
+                    ctx.docker.remove_image(&tag, None, None).await
+                }),
+        )
         .await,
     );
     let pkg_archive_dir = ctx
