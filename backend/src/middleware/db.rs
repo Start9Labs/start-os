@@ -59,12 +59,10 @@ pub fn db<M: Metadata>(ctx: RpcContext) -> DynMiddleware<M> {
                                             .append("X-Patch-Updates", HeaderValue::from_str(&a)?),
                                         Err(e) => res.headers.append(
                                             "X-Patch-Error",
-                                            HeaderValue::from_str(
-                                                &base64::encode_config(
-                                                    &e.to_string(),
-                                                    base64::URL_SAFE,
-                                                ),
-                                            )?,
+                                            HeaderValue::from_str(&base64::encode_config(
+                                                &e.to_string(),
+                                                base64::URL_SAFE,
+                                            ))?,
                                         ),
                                     };
                                 }

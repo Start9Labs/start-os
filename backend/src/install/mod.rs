@@ -896,7 +896,7 @@ impl InstallS9Receipts {
 }
 
 #[instrument(skip(ctx, rdr))]
-pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin>(
+pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
     ctx: &RpcContext,
     pkg_id: &PackageId,
     version: &Version,
