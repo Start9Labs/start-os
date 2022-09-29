@@ -32,78 +32,107 @@ pub async fn file_server_router(ctx: RpcContext) -> Result<HttpHandler, Error> {
             dbg!(req.uri());
             let (request_parts, _body) = req.into_parts();
             let valid_session = HasValidSession::from_request_parts(&request_parts, &ctx).await;
+            if request_parts.uri.path() == "/" {
+                let full_path = PathBuf::from(WWW_DIR).join("index.html");
+                dbg!(full_path.clone().display());
 
-            let t = match valid_session {
-                Ok(_valid) => {
-                    let test123 = request_parts
-                        .uri
-                        .path()
-                        .strip_prefix('/')
-                        .unwrap_or(request_parts.uri.path())
-                        .split_once('/');
-
-                    dbg!(test123);
-                    match (
-                        request_parts.method,
-                        request_parts
+                match file_send(full_path).await {
+                    Ok(resp) => Ok(resp),
+                    Err(err) => Ok(server_error(err)),
+                }
+            } else {
+                let t = match valid_session {
+                    Ok(_valid) => {
+                        let test123 = request_parts
                             .uri
                             .path()
                             .strip_prefix('/')
                             .unwrap_or(request_parts.uri.path())
-                            .split_once('/'),
-                    ) {
-                        (Method::GET, Some(("public", path))) => {
-                            file_send(ctx.datadir.join(PKG_PUBLIC_DIR).join(path)).await
-                        }
-                        (Method::GET, Some(("eos", "local.crt"))) => {
-                            file_send(PathBuf::from(crate::net::ssl::ROOT_CA_STATIC_PATH)).await
-                        }
+                            .split_once('/');
 
-                        (Method::GET, None) => {
-                            let uri_path = request_parts.uri.path();
-                            dbg!(uri_path);
+                        dbg!(test123);
+                        match (
+                            request_parts.method,
+                            request_parts
+                                .uri
+                                .path()
+                                .strip_prefix('/')
+                                .unwrap_or(request_parts.uri.path())
+                                .split_once('/'),
+                        ) {
+                            (Method::GET, Some(("public", path))) => {
+                                file_send(ctx.datadir.join(PKG_PUBLIC_DIR).join(path)).await
+                            }
+                            (Method::GET, Some(("eos", "local.crt"))) => {
+                                file_send(PathBuf::from(crate::net::ssl::ROOT_CA_STATIC_PATH)).await
+                            }
 
-                            let full_path = PathBuf::from(WWW_DIR).join(uri_path);
-                            dbg!(full_path.clone());
+                            (Method::GET, None) => {
+                                let uri_path = request_parts
+                                    .uri
+                                    .path()
+                                    .strip_prefix('/')
+                                    .unwrap_or(request_parts.uri.path());
+                                dbg!(uri_path);
 
-                            file_send(full_path).await
+                                let full_path = PathBuf::from(WWW_DIR).join(uri_path);
+                                dbg!(full_path.clone().display());
+                                file_send(full_path).await
+                            }
+
+                            (Method::GET, Some((dir, file))) => {
+                                let full_path = PathBuf::from(WWW_DIR).join(dir).join(file);
+                                dbg!(full_path.clone().display());
+                                file_send(full_path).await
+                            }
+
+                            _ => Ok(not_found()),
                         }
-                        _ => Ok(not_found()),
                     }
-                }
-                Err(err) => {
-                    match (
-                        request_parts.method,
-                        request_parts
-                            .uri
-                            .path()
-                            .strip_prefix('/')
-                            .unwrap_or(request_parts.uri.path())
-                            .split_once('/'),
-                    ) {
-                        (Method::GET, Some(("public", _path))) => {
-                            un_authorized(err, request_parts.uri.path())
-                        }
-                        (Method::GET, Some(("eos", "local.crt"))) => {
-                            un_authorized(err, request_parts.uri.path())
-                        }
-                        (Method::GET, None) => {
-                            let uri_path = request_parts.uri.path();
-                            dbg!(uri_path);
+                    Err(err) => {
+                        match (
+                            request_parts.method,
+                            request_parts
+                                .uri
+                                .path()
+                                .strip_prefix('/')
+                                .unwrap_or(request_parts.uri.path())
+                                .split_once('/'),
+                        ) {
+                            (Method::GET, Some(("public", _path))) => {
+                                un_authorized(err, request_parts.uri.path())
+                            }
+                            (Method::GET, Some(("eos", "local.crt"))) => {
+                                un_authorized(err, request_parts.uri.path())
+                            }
+                            (Method::GET, None) => {
+                                let uri_path = request_parts
+                                    .uri
+                                    .path()
+                                    .strip_prefix('/')
+                                    .unwrap_or(request_parts.uri.path());
+                                dbg!(uri_path);
 
-                            let full_path = PathBuf::from(WWW_DIR).join(uri_path);
-                            dbg!(full_path.clone().display());
-                            file_send(full_path).await
-                        }
+                                let full_path = PathBuf::from(WWW_DIR).join(uri_path);
+                                dbg!(full_path.clone().display());
+                                file_send(full_path).await
+                            }
 
-                        _ => Ok(not_found()),
+                            (Method::GET, Some((dir, file))) => {
+                                let full_path = PathBuf::from(WWW_DIR).join(dir).join(file);
+                                dbg!(full_path.clone().display());
+                                file_send(full_path).await
+                            }
+
+                            _ => Ok(not_found()),
+                        }
                     }
-                }
-            };
+                };
 
-            match t {
-                Ok(data) => Ok(data),
-                Err(_) => Ok(not_found()),
+                match t {
+                    Ok(data) => Ok(data),
+                    Err(err) => Ok(server_error(err)),
+                }
             }
         }
         .boxed()
@@ -128,7 +157,14 @@ fn not_found() -> Response<Body> {
         .body(NOT_FOUND.into())
         .unwrap()
 }
-    
+
+fn server_error(err: Error) -> Response<Body> {
+    Response::builder()
+        .status(StatusCode::INTERNAL_SERVER_ERROR)
+        .body(err.to_string().into())
+        .unwrap()
+}
+
 async fn file_send(path: impl AsRef<Path>) -> Result<Response<Body>, Error> {
     // Serve a file by asynchronously reading it by chunks using tokio-util crate.
 
@@ -206,6 +242,8 @@ fn with_content_type(path: &Path, builder: Builder) -> Builder {
             Some("php") => "text/php",
             Some("plain") | Some("md") | Some("txt") => "text/plain",
             Some("xml") => "text/xml",
+            Some("js") => "text/javascript",
+            Some("wasm") => "application/wasm",
             None | Some(_) => "text/plain",
         },
         None => "text/plain",
