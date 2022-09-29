@@ -100,7 +100,14 @@ impl RpcContextConfig {
             .with_kind(crate::ErrorKind::Database)?;
         let old_db_path = self.datadir().join("main/secrets.db");
         if tokio::fs::metadata(&old_db_path).await.is_ok() {
-            pgloader(&old_db_path).await?;
+            let mut res = Ok(());
+            for _ in 0..5 {
+                res = pgloader(&old_db_path).await;
+                if res.is_ok() {
+                    break;
+                }
+            }
+            res?
         }
         Ok(secret_store)
     }
