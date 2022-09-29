@@ -42,6 +42,8 @@ impl EmbassyServiceHTTPServer {
                 let server_service_mapping = server_service_mapping.clone();
 
                 Ok::<_, HyperError>(service_fn(move |req| {
+
+                    dbg!(req.uri());
                     let server_service_mapping = server_service_mapping.clone();
 
                     async move {

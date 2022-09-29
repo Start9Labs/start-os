@@ -4,17 +4,16 @@ use hyper::upgrade::Upgraded;
 
 use hyper::Body;
 use hyper::Error as HyperError;
-use sqlx::PgPool;
 use tokio::net::TcpStream;
 
 use std::collections::BTreeMap;
 use std::net::{Ipv4Addr, SocketAddr};
 
-use crate::net::HttpClient;
-use crate::net::HttpHandler;
 use crate::net::net_utils::host_addr;
 use crate::net::ssl::SslManager;
 use crate::net::vhost_controller::VHOSTController;
+use crate::net::HttpClient;
+use crate::net::HttpHandler;
 use crate::net::InterfaceMetadata;
 use crate::net::PackageNetInfo;
 use models::{InterfaceId, PackageId};
@@ -28,9 +27,15 @@ pub struct ProxyController {
 }
 
 impl ProxyController {
-    pub async fn init(embassyd_addr: SocketAddr, db: PgPool, ssl_manager: SslManager) -> Result<Self, Error> {
+    pub async fn init(
+        embassyd_addr: SocketAddr,
+        embassy_hostname: String,
+        ssl_manager: SslManager,
+    ) -> Result<Self, Error> {
         Ok(ProxyController {
-            inner: Mutex::new(ProxyControllerInner::init(embassyd_addr, db, ssl_manager).await?),
+            inner: Mutex::new(
+                ProxyControllerInner::init(embassyd_addr, embassy_hostname, ssl_manager).await?,
+            ),
         })
     }
 
@@ -51,10 +56,21 @@ impl ProxyController {
         self.inner.lock().await.remove_service(package).await
     }
 
-    pub fn add_handle(ext_port: u16 , handler: HttpHandler) {
+    pub async fn add_handle(
+        &self,
+        ext_port: u16,
+        fqdn: String,
+        handler: HttpHandler,
+    ) -> Result<(), Error> {
+        self.inner
+            .lock()
+            .await
+            .add_handle(ext_port, fqdn, handler)
+            .await
+    }
 
-        
-
+    pub async fn get_hostname(&self) -> String {
+        self.inner.lock().await.get_hostname()
     }
 
     pub async fn proxy(
@@ -126,7 +142,7 @@ struct ProxyControllerInner {
     embassyd_addr: SocketAddr,
     ssl_manager: SslManager,
     vhosts: VHOSTController,
-    db: PgPool,
+    embassy_hostname: String,
     interfaces: BTreeMap<PackageId, PackageNetInfo>,
     iface_lookups: BTreeMap<(PackageId, InterfaceId), String>,
     //  service_servers: BTreeMap<u16, EmbassyServiceHTTPServer>,
@@ -134,18 +150,33 @@ struct ProxyControllerInner {
 
 impl ProxyControllerInner {
     #[instrument]
-    async fn init(embassyd_addr: SocketAddr, db: PgPool, ssl_manager: SslManager) -> Result<Self, Error> {
+    async fn init(
+        embassyd_addr: SocketAddr,
+        embassy_hostname: String,
+        ssl_manager: SslManager,
+    ) -> Result<Self, Error> {
         let inner = ProxyControllerInner {
             embassyd_addr,
             vhosts: VHOSTController::init(embassyd_addr),
             ssl_manager,
-            db,
+            embassy_hostname,
             interfaces: BTreeMap::new(),
             iface_lookups: BTreeMap::new(),
         };
 
         // let emnbassyd_port_80_svc = EmbassyHTTPServer::new(embassyd_addr).await?;
         Ok(inner)
+    }
+
+    pub async fn add_handle(
+        &mut self,
+        external_svc_port: u16,
+        fqdn: String,
+        svc_handler: HttpHandler,
+    ) -> Result<(), Error> {
+        self.vhosts
+            .add_server_or_handle(external_svc_port, fqdn, svc_handler)
+            .await
     }
 
     #[instrument(skip(self, interfaces))]
@@ -239,5 +270,9 @@ impl ProxyControllerInner {
             }
         }
         Ok(())
+    }
+
+    pub fn get_hostname(&self) -> String {
+        self.embassy_hostname.to_owned()
     }
 }

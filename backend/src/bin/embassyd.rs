@@ -11,8 +11,8 @@ use embassy::middleware::db::db as db_middleware;
 use embassy::middleware::diagnostic::diagnostic;
 #[cfg(feature = "avahi")]
 use embassy::net::mdns::MdnsController;
-use embassy::net::static_server;
 use embassy::net::tor::tor_health_check;
+use embassy::net::{static_server, HttpHandler};
 use embassy::shutdown::Shutdown;
 use embassy::system::launch_metrics_task;
 use embassy::util::logger::EmbassyLogger;
@@ -52,6 +52,18 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
             ),
         )
         .await?;
+
+        let host_name = rpc_ctx.net_controller.proxy.get_hostname().await;
+        dbg!(host_name.clone());
+        let handler: HttpHandler =
+            embassy::net::static_server::file_server_router(rpc_ctx.clone()).await?;
+
+        rpc_ctx
+            .net_controller
+            .proxy
+            .add_handle(80, host_name, handler)
+            .await?;
+
         let mut shutdown_recv = rpc_ctx.shutdown.subscribe();
 
         let sig_handler_ctx = rpc_ctx.clone();
@@ -82,7 +94,6 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
                 .expect("send shutdown signal");
         });
 
-        rpc_ctx.net_controller.add_handle(rpc_ctx.clone()).await;
         {
             let mut db = rpc_ctx.db.handle();
             let receipts = embassy::context::rpc::RpcSetNginxReceipts::new(&mut db).await?;

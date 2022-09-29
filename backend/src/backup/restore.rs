@@ -25,7 +25,9 @@ use crate::disk::mount::filesystem::ReadOnly;
 use crate::disk::mount::guard::TmpMountGuard;
 use crate::install::progress::InstallProgress;
 use crate::install::{download_install_s9pk, PKG_PUBLIC_DIR};
+use crate::net::HttpHandler;
 use crate::net::ssl::SslManager;
+use crate::net::static_server::file_server_router;
 use crate::notifications::NotificationLevel;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::s9pk::reader::S9pkReader;
@@ -237,6 +239,20 @@ pub async fn recover_full_embassy(
         os_backup.root_ca_cert,
         async move {
             let rpc_ctx = RpcContext::init(ctx.config_path.as_ref(), disk_guid).await?;
+
+
+       
+        let host_name = rpc_ctx.net_controller.proxy.get_hostname().await;
+        dbg!(host_name.clone());
+        let handler: HttpHandler =
+            file_server_router(rpc_ctx.clone()).await?;
+
+        rpc_ctx
+            .net_controller
+            .proxy
+            .add_handle(80, host_name, handler)
+            .await?;
+            
             let mut db = rpc_ctx.db.handle();
 
             let ids = backup_guard

@@ -25,8 +25,8 @@ static NOT_AUTHORIZED: &[u8] = b"Not Authorized";
 
 pub const WWW_DIR: &str = "/var/www/html/main";
 
-async fn file_server_router(req: Request<Body>, ctx: RpcContext) -> Result<HttpHandler, Error> {
-    let handler: HttpHandler = Arc::new(move |mut req| {
+pub async fn file_server_router(ctx: RpcContext) -> Result<HttpHandler, Error> {
+    let handler: HttpHandler = Arc::new(move |req| {
         let ctx = ctx.clone();
         async move {
             dbg!(req.uri());
@@ -35,6 +35,14 @@ async fn file_server_router(req: Request<Body>, ctx: RpcContext) -> Result<HttpH
 
             let t = match valid_session {
                 Ok(_valid) => {
+                    let test123 = request_parts
+                        .uri
+                        .path()
+                        .strip_prefix('/')
+                        .unwrap_or(request_parts.uri.path())
+                        .split_once('/');
+
+                    dbg!(test123);
                     match (
                         request_parts.method,
                         request_parts
@@ -50,10 +58,16 @@ async fn file_server_router(req: Request<Body>, ctx: RpcContext) -> Result<HttpH
                         (Method::GET, Some(("eos", "local.crt"))) => {
                             file_send(PathBuf::from(crate::net::ssl::ROOT_CA_STATIC_PATH)).await
                         }
-                        (Method::GET, Some(("/", path))) => {
-                            file_send(PathBuf::from(WWW_DIR).join(path)).await
-                        }
 
+                        (Method::GET, None) => {
+                            let uri_path = request_parts.uri.path();
+                            dbg!(uri_path);
+
+                            let full_path = PathBuf::from(WWW_DIR).join(uri_path);
+                            dbg!(full_path.clone());
+
+                            file_send(full_path).await
+                        }
                         _ => Ok(not_found()),
                     }
                 }
@@ -73,8 +87,13 @@ async fn file_server_router(req: Request<Body>, ctx: RpcContext) -> Result<HttpH
                         (Method::GET, Some(("eos", "local.crt"))) => {
                             un_authorized(err, request_parts.uri.path())
                         }
-                        (Method::GET, Some(("/", path))) => {
-                            file_send(PathBuf::from(WWW_DIR).join(path)).await
+                        (Method::GET, None) => {
+                            let uri_path = request_parts.uri.path();
+                            dbg!(uri_path);
+
+                            let full_path = PathBuf::from(WWW_DIR).join(uri_path);
+                            dbg!(full_path.clone().display());
+                            file_send(full_path).await
                         }
 
                         _ => Ok(not_found()),
@@ -109,15 +128,7 @@ fn not_found() -> Response<Body> {
         .body(NOT_FOUND.into())
         .unwrap()
 }
-
-/// HTTP status code 500
-fn server_error() -> Response<Body> {
-    Response::builder()
-        .status(StatusCode::INTERNAL_SERVER_ERROR)
-        .body("".into())
-        .unwrap()
-}
-
+    
 async fn file_send(path: impl AsRef<Path>) -> Result<Response<Body>, Error> {
     // Serve a file by asynchronously reading it by chunks using tokio-util crate.
 

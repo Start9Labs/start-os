@@ -1,4 +1,5 @@
 use crate::context::RpcContext;
+use crate::hostname::{HostNameReceipt, get_hostname};
 #[cfg(feature = "avahi")]
 use crate::net::mdns::MdnsController;
 use crate::net::{
@@ -45,7 +46,11 @@ impl NetController {
         import_root_ca: Option<(PKey<Private>, X509)>,
     ) -> Result<Self, Error> {
 
-        // let embassy_host_name = db_handle.get(ptr)
+        let receipts = HostNameReceipt::new(db_handle).await?;
+        let embassy_host_name = get_hostname(db_handle, &receipts).await?;
+        let name = embassy_host_name.local_name();
+
+         
         let ssl = match import_root_ca {
             None => SslManager::init(db.clone(), db_handle).await,
             Some(a) => SslManager::import_root_ca(db.clone(), a.0, a.1).await,
@@ -55,7 +60,7 @@ impl NetController {
             #[cfg(feature = "avahi")]
             mdns: MdnsController::init().await?,
             //nginx: NginxController::init(PathBuf::from("/etc/nginx"), &ssl).await?,
-            proxy: ProxyController::init(embassyd_addr, db, ssl.clone()).await?,
+            proxy: ProxyController::init(embassyd_addr, name, ssl.clone()).await?,
             ssl,
             dns: DnsController::init(dns_bind).await?,
         })
@@ -65,11 +70,6 @@ impl NetController {
         PathBuf::from(PACKAGE_CERT_PATH).join(pkg_id)
     }
 
-    pub async fn add_handle(&self, ctx: RpcContext) {
-        let rpc_ctx = ctx.clone();
-
-        //        self.proxy.add_main_server(file_server).await;
-    }
 
     #[instrument(skip(self, interfaces, _generated_certificate))]
     pub async fn add<'a, I>(

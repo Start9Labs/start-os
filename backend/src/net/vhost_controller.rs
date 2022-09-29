@@ -12,7 +12,7 @@ use hyper::Client;
 use models::{InterfaceId, PackageId};
 use tracing::instrument;
 
-use crate::net::{HttpHandler, InterfaceMetadata, PackageNetInfo, HttpClient};
+use crate::net::{HttpClient, HttpHandler, InterfaceMetadata, PackageNetInfo};
 
 pub struct VHOSTController {
     pub service_servers: BTreeMap<u16, EmbassyServiceHTTPServer>,
@@ -25,10 +25,6 @@ impl VHOSTController {
             embassyd_addr,
             service_servers: BTreeMap::new(),
         }
-    }
-
-    pub fn add_handle(handle: HttpHandler, ext_port: u16) {
-
     }
 
     pub async fn add_docker_svc_handle(
@@ -59,12 +55,18 @@ impl VHOSTController {
             .boxed()
         });
 
-        self.add_server_if_needed(external_svc_port, fqdn, svc_handler).await?;
+        self.add_server_or_handle(external_svc_port, fqdn, svc_handler)
+            .await?;
         Ok(())
     }
 
-    async fn add_server_if_needed(&mut self, external_svc_port: u16, fqdn: String, svc_handler: HttpHandler) -> Result<(), Error> {
-        Ok(if let Some(server) = self.service_servers.get_mut(&external_svc_port) {
+    pub async fn add_server_or_handle(
+        &mut self,
+        external_svc_port: u16,
+        fqdn: String,
+        svc_handler: HttpHandler,
+    ) -> Result<(), Error> {
+        if let Some(server) = self.service_servers.get_mut(&external_svc_port) {
             server.add_svc_mapping(fqdn, svc_handler).await;
         } else {
             let mut new_service_server =
@@ -73,6 +75,8 @@ impl VHOSTController {
 
             self.service_servers
                 .insert(external_svc_port, new_service_server);
-        })
+        }
+
+        Ok(())
     }
 }
