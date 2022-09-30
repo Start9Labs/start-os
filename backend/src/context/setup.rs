@@ -141,14 +141,7 @@ impl SetupContext {
             .with_kind(crate::ErrorKind::Database)?;
         let old_db_path = self.datadir.join("main/secrets.db");
         if tokio::fs::metadata(&old_db_path).await.is_ok() {
-            let mut res = Ok(());
-            for _ in 0..5 {
-                res = pgloader(&old_db_path).await;
-                if res.is_ok() {
-                    break;
-                }
-            }
-            res?
+            pgloader(&old_db_path).await?;
         }
         Ok(secret_store)
     }
