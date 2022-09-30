@@ -155,7 +155,7 @@ pub async fn delete(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<(
     let ssid = Ssid(ssid);
     let is_current_being_removed = matches!(current, Some(current) if current == ssid);
     let is_current_removed_and_no_hardwire =
-        is_current_being_removed && !interface_connected("eth0").await?;
+        is_current_being_removed && !interface_connected(&ctx.ethernet_interface).await?;
     if is_current_removed_and_no_hardwire {
         return Err(Error::new(color_eyre::eyre::eyre!("Forbidden: Deleting this Network would make your Embassy Unreachable. Either connect to ethernet or connect to a different WiFi network to remedy this."), ErrorKind::Wifi));
     }
@@ -289,7 +289,7 @@ pub async fn get(
         wpa_supplicant.list_networks_low(),
         wpa_supplicant.get_current_network(),
         wpa_supplicant.get_country_low(),
-        interface_connected("eth0"), // TODO: pull from config
+        interface_connected(&ctx.ethernet_interface),
         wpa_supplicant.list_wifi_low()
     );
     let signal_strengths = signal_strengths?;
@@ -365,7 +365,7 @@ pub async fn set_country(
     #[context] ctx: RpcContext,
     #[arg(parse(country_code_parse))] country: CountryCode,
 ) -> Result<(), Error> {
-    if !interface_connected("eth0").await? {
+    if !interface_connected(&ctx.ethernet_interface).await? {
         return Err(Error::new(
             color_eyre::eyre::eyre!("Won't change country without hardwire connection"),
             crate::ErrorKind::Wifi,

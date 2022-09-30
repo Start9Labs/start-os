@@ -25,6 +25,7 @@ use crate::util::Version;
 use crate::{Error, ResultExt};
 
 #[pin_project::pin_project]
+#[derive(Debug)]
 pub struct ReadHandle<'a, R = File> {
     pos: &'a mut u64,
     range: Range<u64>,
@@ -44,14 +45,14 @@ impl<'a, R: AsyncRead + Unpin> AsyncRead for ReadHandle<'a, R> {
         cx: &mut Context<'_>,
         buf: &mut ReadBuf<'_>,
     ) -> Poll<std::io::Result<()>> {
-        let start = buf.filled().len();
         let this = self.project();
-        let res = AsyncRead::poll_read(
-            this.rdr,
-            cx,
-            &mut buf.take(this.range.end.saturating_sub(**this.pos) as usize),
-        );
-        **this.pos += (buf.filled().len() - start) as u64;
+        let start = buf.filled().len();
+        let mut take_buf = buf.take(this.range.end.saturating_sub(**this.pos) as usize);
+        let res = AsyncRead::poll_read(this.rdr, cx, &mut take_buf);
+        let n = take_buf.filled().len();
+        unsafe { buf.assume_init(start + n) };
+        buf.advance(n);
+        **this.pos += n as u64;
         res
     }
 }
