@@ -43,6 +43,7 @@ use crate::{Error, ErrorKind, ResultExt};
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct RpcContextConfig {
+    pub wifi_interface: String,
     pub os_partitions: OsPartitionInfo,
     pub migration_batch_rows: Option<usize>,
     pub migration_prefetch_rows: Option<usize>,
@@ -270,7 +271,7 @@ impl RpcContext {
             notification_manager,
             open_authed_websockets: Mutex::new(BTreeMap::new()),
             rpc_stream_continuations: Mutex::new(BTreeMap::new()),
-            wifi_manager: Arc::new(RwLock::new(WpaCli::init("wlan0".to_string()))),
+            wifi_manager: Arc::new(RwLock::new(WpaCli::init(base.wifi_interface))),
         });
 
         let res = Self(seed);

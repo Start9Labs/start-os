@@ -776,6 +776,7 @@ pub fn country_code_parse(code: &str, _matches: &ArgMatches) -> Result<CountryCo
 #[instrument(skip(main_datadir))]
 pub async fn synchronize_wpa_supplicant_conf<P: AsRef<Path>>(
     main_datadir: P,
+    wifi_iface: &str,
     last_country_code: &Option<CountryCode>,
 ) -> Result<(), Error> {
     let persistent = main_datadir.as_ref().join("system-connections");
@@ -797,7 +798,7 @@ pub async fn synchronize_wpa_supplicant_conf<P: AsRef<Path>>(
         .invoke(ErrorKind::Wifi)
         .await?;
     Command::new("ifconfig")
-        .arg("wlan0")
+        .arg(wifi_iface)
         .arg("up")
         .invoke(ErrorKind::Wifi)
         .await?;
