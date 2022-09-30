@@ -84,6 +84,10 @@ pub async fn pgloader(old_db_path: impl AsRef<Path>) -> Result<(), Error> {
         ),
     )
     .await?;
+    match tokio::fs::remove_dir_all("/tmp/pgloader").await {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        a => a,
+    }?;
     tracing::info!("Running pgloader");
     let out = Command::new("pgloader")
         .arg("-v")
