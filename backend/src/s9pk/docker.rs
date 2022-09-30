@@ -20,6 +20,7 @@ pub struct DockerMultiArch {
 }
 
 #[pin_project::pin_project(project = DockerReaderProject)]
+#[derive(Debug)]
 pub enum DockerReader<R: AsyncRead + Unpin> {
     SingleArch(#[pin] R),
     MultiArch(#[pin] Entry<Archive<R>>),

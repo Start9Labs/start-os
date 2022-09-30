@@ -44,6 +44,7 @@ use crate::{Error, ErrorKind, ResultExt};
 #[serde(rename_all = "kebab-case")]
 pub struct RpcContextConfig {
     pub wifi_interface: String,
+    pub ethernet_interface: String,
     pub os_partitions: OsPartitionInfo,
     pub migration_batch_rows: Option<usize>,
     pub migration_prefetch_rows: Option<usize>,
@@ -120,6 +121,8 @@ impl RpcContextConfig {
 pub struct RpcContextSeed {
     is_closed: AtomicBool,
     pub os_partitions: OsPartitionInfo,
+    pub wifi_interface: String,
+    pub ethernet_interface: String,
     pub bind_rpc: SocketAddr,
     pub bind_ws: SocketAddr,
     pub bind_static: SocketAddr,
@@ -254,6 +257,8 @@ impl RpcContext {
             is_closed: AtomicBool::new(false),
             datadir: base.datadir().to_path_buf(),
             os_partitions: base.os_partitions,
+            wifi_interface: base.wifi_interface.clone(),
+            ethernet_interface: base.ethernet_interface,
             bind_rpc: base.bind_rpc.unwrap_or(([127, 0, 0, 1], 5959).into()),
             bind_ws: base.bind_ws.unwrap_or(([127, 0, 0, 1], 5960).into()),
             bind_static: base.bind_static.unwrap_or(([127, 0, 0, 1], 5961).into()),
