@@ -334,6 +334,7 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
 
     crate::net::wifi::synchronize_wpa_supplicant_conf(
         &cfg.datadir().join("main"),
+        &cfg.wifi_interface,
         &receipts.last_wifi_region.get(&mut handle).await?,
     )
     .await?;
