@@ -7,7 +7,7 @@ import { ApiService } from './services/api/embassy-api.service'
 import { MockApiService } from './services/api/embassy-mock-api.service'
 import { LiveApiService } from './services/api/embassy-live-api.service'
 import { AuthService } from './services/auth.service'
-import { LocalStorageService } from './services/local-storage.service'
+import { ClientStorageService } from './services/client-storage.service'
 import { FilterPackagesPipe } from '../../../marketplace/src/pipes/filter-packages.pipe'
 
 const { useMocks } = require('../../../../config.json') as WorkspaceConfig
@@ -26,7 +26,7 @@ export const APP_PROVIDERS: Provider[] = [
   },
   {
     provide: APP_INITIALIZER,
-    deps: [AuthService, LocalStorageService, Router],
+    deps: [AuthService, ClientStorageService, Router],
     useFactory: appInitializer,
     multi: true,
   },
@@ -34,7 +34,7 @@ export const APP_PROVIDERS: Provider[] = [
 
 export function appInitializer(
   auth: AuthService,
-  localStorage: LocalStorageService,
+  localStorage: ClientStorageService,
   router: Router,
 ): () => void {
   return () => {

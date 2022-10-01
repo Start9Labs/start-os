@@ -7,7 +7,7 @@ const SHOW_DISK_REPAIR = 'SHOW_DISK_REPAIR'
 @Injectable({
   providedIn: 'root',
 })
-export class LocalStorageService {
+export class ClientStorageService {
   readonly showDevTools$ = new BehaviorSubject<boolean>(false)
   readonly showDiskRepair$ = new BehaviorSubject<boolean>(false)
 
