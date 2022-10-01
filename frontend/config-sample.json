@@ -9,16 +9,6 @@
     "mocks": {
       "maskAs": "tor",
       "skipStartupAlerts": true
-    },
-    "marketplaces": {
-      "start9": {
-        "url": "https://registry.start9.com/",
-        "name": "Start9 Marketplace"
-      },
-      "community": {
-        "url": "https://community-registry.start9.com/",
-        "name": "Community Marketplace"
-      }
     }
   },
   "gitHash": ""

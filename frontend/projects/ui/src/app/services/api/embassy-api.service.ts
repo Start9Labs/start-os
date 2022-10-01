@@ -18,7 +18,10 @@ export abstract class ApiService {
 
   // db
 
-  abstract setDbValue(params: RR.SetDBValueReq): Promise<RR.SetDBValueRes>
+  abstract setDbValue(
+    pathArr: Array<string | number>,
+    value: any,
+  ): Promise<RR.SetDBValueRes>
 
   // auth
 

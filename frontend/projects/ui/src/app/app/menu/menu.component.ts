@@ -48,8 +48,15 @@ export class MenuComponent {
   readonly showEOSUpdate$ = this.eosService.showUpdate$
 
   readonly updateCount$: Observable<number> = this.marketplaceService
-    .getUpdates()
-    .pipe(map(pkgs => pkgs.length))
+    .getUpdates$()
+    .pipe(
+      map(arr => {
+        return arr.reduce(
+          (acc, marketplace) => acc + marketplace.pkgs.length,
+          0,
+        )
+      }),
+    )
 
   readonly sidebarOpen$ = this.splitPane.sidebarOpen$
 

@@ -22,7 +22,6 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { Breakages } from 'src/app/services/api/api.types'
 import { PatchDB } from 'patch-db-client'
 import { getAllPackages } from 'src/app/util/get-package-data'
-import { firstValueFrom } from 'rxjs'
 
 @Component({
   selector: 'marketplace-show-controls',
@@ -31,6 +30,9 @@ import { firstValueFrom } from 'rxjs'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MarketplaceShowControlsComponent {
+  @Input()
+  url?: string
+
   @Input()
   pkg!: MarketplacePkg
 
@@ -138,12 +140,7 @@ export class MarketplaceShowControlsComponent {
     const { id, version } = this.pkg.manifest
 
     try {
-      await firstValueFrom(
-        this.marketplaceService.installPackage({
-          id,
-          'version-spec': `=${version}`,
-        }),
-      )
+      await this.marketplaceService.installPackage(id, version, this.url)
     } catch (e: any) {
       this.errToast.present(e)
     } finally {

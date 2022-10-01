@@ -1,9 +1,8 @@
 import { NgModule, Pipe, PipeTransform } from '@angular/core'
-import Fuse from 'fuse.js'
-
 import { MarketplacePkg } from '../types/marketplace-pkg'
 import { MarketplaceManifest } from '../types/marketplace-manifest'
 import { Emver } from '@start9labs/shared'
+import Fuse from 'fuse.js'
 
 @Pipe({
   name: 'filterPackages',

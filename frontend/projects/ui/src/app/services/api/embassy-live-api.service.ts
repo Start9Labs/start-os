@@ -18,7 +18,8 @@ import { Observable } from 'rxjs'
 import { AuthService } from '../auth.service'
 import { DOCUMENT } from '@angular/common'
 import { DataModel } from '../patch-db/data-model'
-import { PatchDB, Update } from 'patch-db-client'
+import { PatchDB, pathFromArray, Update } from 'patch-db-client'
+import { getStart9MarketplaceUrl } from 'src/app/util/get-server-info'
 
 @Injectable()
 export class LiveApiService extends ApiService {
@@ -52,7 +53,12 @@ export class LiveApiService extends ApiService {
 
   // db
 
-  async setDbValue(params: RR.SetDBValueReq): Promise<RR.SetDBValueRes> {
+  async setDbValue(
+    pathArr: Array<string | number>,
+    value: any,
+  ): Promise<RR.SetDBValueRes> {
+    const pointer = pathFromArray(pathArr)
+    const params: RR.SetDBValueReq = { pointer, value }
     return this.rpcRequest({ method: 'db.put.ui', params })
   }
 
@@ -129,11 +135,6 @@ export class LiveApiService extends ApiService {
 
   async updateServer(params: RR.UpdateServerReq): Promise<RR.UpdateServerRes> {
     return this.rpcRequest({ method: 'server.update', params })
-    // const res = await this.updateServer(params)
-    // if (res.response === 'no-updates') {
-    //   throw new Error('Could not find a newer version of embassyOS')
-    // }
-    // return res
   }
 
   async restartServer(
@@ -172,11 +173,8 @@ export class LiveApiService extends ApiService {
   async getEos(
     params: RR.GetMarketplaceEOSReq,
   ): Promise<RR.GetMarketplaceEOSRes> {
-    return this.marketplaceProxy(
-      '/eos/v0/latest',
-      params,
-      this.config.marketplaces.start9.url,
-    )
+    const url = await getStart9MarketplaceUrl(this.patch)
+    return this.marketplaceProxy('/eos/v0/latest', params, url)
   }
 
   // notification

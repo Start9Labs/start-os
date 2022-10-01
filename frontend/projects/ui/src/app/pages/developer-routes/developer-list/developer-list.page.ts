@@ -148,7 +148,7 @@ export class DeveloperListPage {
         .replace(/warning:/g, '# Optional\n  warning:')
 
       const def = { name, config, instructions: SAMPLE_INSTUCTIONS }
-      await this.api.setDbValue({ pointer: `/dev/${id}`, value: def })
+      await this.api.setDbValue(['dev', id], def)
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
@@ -184,7 +184,7 @@ export class DeveloperListPage {
     await loader.present()
 
     try {
-      await this.api.setDbValue({ pointer: `/dev/${id}/name`, value: newName })
+      await this.api.setDbValue(['dev', id, 'name'], newName)
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
@@ -201,7 +201,7 @@ export class DeveloperListPage {
     try {
       const devDataToSave: DevData = JSON.parse(JSON.stringify(this.devData))
       delete devDataToSave[id]
-      await this.api.setDbValue({ pointer: `/dev`, value: devDataToSave })
+      await this.api.setDbValue(['dev'], devDataToSave)
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
