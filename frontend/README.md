@@ -1,10 +1,10 @@
-# EmbassyOS Frontend
+# embassyOS Frontend
 
-EmbassyOS has three user interfaces and a shared library, all written in Ionic/Angular/Typescript using an Angular workspace environment:
+embassyOS has three user interfaces and a shared library, all written in Ionic/Angular/Typescript using an Angular workspace environment:
 
 1. **ui**: the main user interface
 1. **setup-wizard**: used to facilitate initial setup
-1. **diagnostic-ui**: used to display certain diagnostic information in the event EmbassyOS fails to initialize
+1. **diagnostic-ui**: used to display certain diagnostic information in the event embassyOS fails to initialize
 1. **marketplace**: abstracted ui elements to search for, list and display details for packages and their dependencies
 1. **shared**: contains components, types, and functions shared amongst all of the UIs.
 

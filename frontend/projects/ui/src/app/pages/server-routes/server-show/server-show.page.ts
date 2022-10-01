@@ -283,7 +283,7 @@ export class ServerShowPage {
   private async presentAlertLatest() {
     const alert = await this.alertCtrl.create({
       header: 'Up to date!',
-      message: 'You are on the latest version of EmbassyOS.',
+      message: 'You are on the latest version of embassyOS.',
       buttons: [
         {
           text: 'OK',

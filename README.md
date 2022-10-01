@@ -1,4 +1,4 @@
-# EmbassyOS
+# embassyOS
 [![version](https://img.shields.io/github/v/tag/Start9Labs/embassy-os?color=success)](https://github.com/Start9Labs/embassy-os/releases)
 [![build](https://github.com/Start9Labs/embassy-os/actions/workflows/product.yaml/badge.svg)](https://github.com/Start9Labs/embassy-os/actions/workflows/product.yaml)
 [![community](https://img.shields.io/badge/community-matrix-yellow)](https://matrix.to/#/#community:matrix.start9labs.com)
@@ -12,10 +12,10 @@
 
 ### _Welcome to the era of Sovereign Computing_ ###
 
-EmbassyOS is a browser-based, graphical operating system for a personal server. EmbassyOS facilitates the discovery, installation, network configuration, service configuration, data backup, dependency management, and health monitoring of self-hosted software services. It is the most advanced, secure, reliable, and user friendly personal server OS in the world.
+embassyOS is a browser-based, graphical operating system for a personal server. embassyOS facilitates the discovery, installation, network configuration, service configuration, data backup, dependency management, and health monitoring of self-hosted software services. It is the most advanced, secure, reliable, and user friendly personal server OS in the world.
 
-## Running EmbassyOS
-There are multiple ways to get your hands on EmbassyOS.
+## Running embassyOS
+There are multiple ways to get your hands on embassyOS.
 
 ### :moneybag: Buy an Embassy
 This is the most convenient option. Simply [buy an Embassy](https://start9.com) from Start9 and plug it in. Depending on where you live, shipping costs and import duties will vary.
@@ -29,17 +29,17 @@ While not as convenient as buying an Embassy, this option is easier than you mig
 
 To pursue this option, follow this [guide](https://start9.com/latest/diy).
 
-### :hammer_and_wrench: Build EmbassyOS from Source
+### :hammer_and_wrench: Build embassyOS from Source
 
-EmbassyOS can be built from source, for personal use, for free.
+embassyOS can be built from source, for personal use, for free.
 A detailed guide for doing so can be found [here](https://github.com/Start9Labs/embassy-os/blob/master/build/README.md).
 
 ## :heart: Contributing
-There are multiple ways to contribute: work directly on EmbassyOS, package a service for the marketplace, or help with documentation and guides. To learn more about contributing, see [here](https://github.com/Start9Labs/embassy-os/blob/master/CONTRIBUTING.md).
+There are multiple ways to contribute: work directly on embassyOS, package a service for the marketplace, or help with documentation and guides. To learn more about contributing, see [here](https://github.com/Start9Labs/embassy-os/blob/master/CONTRIBUTING.md).
 
 ## UI Screenshots
 <p align="center">
-<img src="assets/EmbassyOS.png" alt="EmbassyOS" width="65%">
+<img src="assets/embassyOS.png" alt="embassyOS" width="65%">
 </p>
 <p align="center">
 <img src="assets/eos-services.png" alt="Embassy Services" width="45%">

@@ -484,7 +484,7 @@ async fn recover(
         .await?
     } else {
         return Err(Error::new(
-            eyre!("Unsupported version of EmbassyOS: {}", recovery_version),
+            eyre!("Unsupported version of embassyOS: {}", recovery_version),
             crate::ErrorKind::VersionIncompatible,
         ));
     };

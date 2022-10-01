@@ -215,7 +215,7 @@ async fn maybe_do_update(
                         &mut db,
                         None,
                         NotificationLevel::Error,
-                        "EmbassyOS Update Failed".to_owned(),
+                        "embassyOS Update Failed".to_owned(),
                         format!("Update was not successful because of {}", e),
                         (),
                         None,

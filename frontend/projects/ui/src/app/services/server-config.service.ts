@@ -113,7 +113,7 @@ export const serverConfig: ConfigSpec = {
     type: 'boolean',
     name: 'Auto Check for Updates',
     description:
-      'If enabled, EmbassyOS will automatically check for updates of itself and installed services. Updating will still require your approval and action. Updates will never be performed automatically.',
+      'If enabled, embassyOS will automatically check for updates of itself and installed services. Updating will still require your approval and action. Updates will never be performed automatically.',
     default: true,
   },
 }
