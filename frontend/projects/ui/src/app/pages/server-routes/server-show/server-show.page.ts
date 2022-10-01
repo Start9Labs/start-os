@@ -63,7 +63,7 @@ export class ServerShowPage {
       const alert = await this.alertCtrl.create({
         header: 'Cannot Update',
         message:
-          'You cannot update EmbassyOS when you have unresolved recovered services.',
+          'You cannot update embassyOS when you have unresolved recovered services.',
         buttons: ['OK'],
       })
       await alert.present()
@@ -335,7 +335,7 @@ export class ServerShowPage {
     Settings: [
       {
         title: 'Software Update',
-        description: 'Get the latest version of EmbassyOS',
+        description: 'Get the latest version of embassyOS',
         icon: 'cog-outline',
         action: () =>
           this.eosService.updateAvailable$.getValue()
