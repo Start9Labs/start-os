@@ -4,6 +4,7 @@ import { AuthService } from './services/auth.service'
 import { SplitPaneTracker } from './services/split-pane.service'
 import { PatchDataService } from './services/patch-data.service'
 import { PatchMonitorService } from './services/patch-monitor.service'
+import { ConnectionService } from './services/connection.service'
 
 @Component({
   selector: 'app-root',
@@ -19,6 +20,7 @@ export class AppComponent implements OnDestroy {
     private readonly patchMonitor: PatchMonitorService,
     private readonly splitPane: SplitPaneTracker,
     readonly authService: AuthService,
+    readonly connection: ConnectionService,
   ) {}
 
   splitPaneVisible({ detail }: any) {

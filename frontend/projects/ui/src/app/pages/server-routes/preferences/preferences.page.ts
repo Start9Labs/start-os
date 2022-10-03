@@ -11,7 +11,7 @@ import {
 } from 'src/app/modals/generic-input/generic-input.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ServerConfigService } from 'src/app/services/server-config.service'
-import { LocalStorageService } from '../../../services/local-storage.service'
+import { ClientStorageService } from '../../../services/client-storage.service'
 import {
   ServerNameInfo,
   ServerNameService,
@@ -36,7 +36,7 @@ export class PreferencesPage {
     private readonly modalCtrl: ModalController,
     private readonly api: ApiService,
     private readonly toastCtrl: ToastController,
-    private readonly localStorageService: LocalStorageService,
+    private readonly ClientStorageService: ClientStorageService,
     private readonly patch: PatchDB<DataModel>,
     private readonly serverNameService: ServerNameService,
     readonly serverConfig: ServerConfigService,
@@ -83,7 +83,7 @@ export class PreferencesPage {
     this.clicks++
     if (this.clicks >= 5) {
       this.clicks = 0
-      const newVal = await this.localStorageService.toggleShowDevTools()
+      const newVal = this.ClientStorageService.toggleShowDevTools()
       const toast = await this.toastCtrl.create({
         header: newVal ? 'Dev tools unlocked' : 'Dev tools hidden',
         position: 'bottom',

@@ -46,9 +46,8 @@ export class LoginPage {
       })
 
       this.password = ''
-      this.authService
-        .setVerified()
-        .then(() => this.router.navigate([''], { replaceUrl: true }))
+      this.authService.setVerified()
+      this.router.navigate([''], { replaceUrl: true })
     } catch (e: any) {
       // code 7 is for incorrect password
       this.error = e.code === 7 ? 'Invalid Password' : e.message
