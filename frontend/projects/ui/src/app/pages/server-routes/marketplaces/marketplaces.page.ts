@@ -26,20 +26,20 @@ import { firstValueFrom } from 'rxjs'
 export class MarketplacesPage {
   marketplace$ = this.patch.watch$('ui', 'marketplace').pipe(
     map(m => {
-      const selected = m['selected-id']
+      const selected = m['selected-url']
       const hosts = Object.entries(m['known-hosts'])
 
       const standard = hosts
         .map(([url, name]) => {
           return { url, name }
         })
-        .slice(0, 1)
+        .slice(0, 1) // 0 and 1 will always be prod and community
 
       const alt = hosts
         .map(([url, name]) => {
           return { url, name }
         })
-        .slice(2)
+        .slice(2) // 2 and beyond will always be alts
 
       return { selected, standard, alt }
     }),
@@ -151,7 +151,7 @@ export class MarketplacesPage {
     }
 
     try {
-      await this.api.setDbValue(['marketplace', 'selected-id'], url)
+      await this.api.setDbValue(['marketplace', 'selected-url'], url)
     } catch (e: any) {
       this.errToast.present(e)
     } finally {

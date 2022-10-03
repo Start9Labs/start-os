@@ -13,14 +13,12 @@ import { filter, map, pairwise, startWith } from 'rxjs/operators'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppListPage {
-  loading = true
   readonly pkgs$ = this.patch.watch$('package-data').pipe(
     map(pkgs => Object.values(pkgs)),
     startWith<PackageDataEntry[]>([]),
     pairwise(),
     filter(([prev, next]) => prev.length !== next.length),
     map(([_, pkgs]) => {
-      this.loading = false
       return pkgs.sort((a, b) => (b.manifest.title > a.manifest.title ? -1 : 1))
     }),
   )

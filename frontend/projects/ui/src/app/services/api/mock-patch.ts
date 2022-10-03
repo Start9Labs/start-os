@@ -15,7 +15,7 @@ export const mockPatchData: DataModel = {
     'pkg-order': [],
     'ack-welcome': '1.0.0',
     marketplace: {
-      'selected-id': 'https://registry.start9.com/',
+      'selected-url': 'https://registry.start9.com/',
       'known-hosts': {
         'https://registry.start9.com/': 'Start9 Marketplace',
         'https://community-registry.start9.com/': 'Community Marketplace',

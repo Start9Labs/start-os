@@ -17,7 +17,7 @@ import {
 })
 export class CategoriesComponent {
   @Input()
-  categories!: string[]
+  categories!: Set<string>
 
   @Input()
   category!: string

@@ -5,7 +5,7 @@ import {
   AbstractMarketplaceService,
   MarketplaceInfo,
 } from '@start9labs/marketplace'
-import { combineLatest, firstValueFrom, from, Observable, of } from 'rxjs'
+import { combineLatest, from, Observable, of } from 'rxjs'
 import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import {
@@ -18,6 +18,7 @@ import {
   distinctUntilChanged,
   map,
   shareReplay,
+  startWith,
   switchMap,
   take,
   tap,
@@ -38,10 +39,10 @@ export class MarketplaceService implements AbstractMarketplaceService {
   private readonly uiMarketplace$: Observable<{ url: string; name: string }> =
     this.patch.watch$('ui', 'marketplace').pipe(
       distinctUntilChanged(
-        (prev, curr) => prev['selected-id'] === curr['selected-id'],
+        (prev, curr) => prev['selected-url'] === curr['selected-url'],
       ),
       map(data => {
-        const url = data['selected-id']
+        const url = data['selected-url']
         return {
           url,
           name: data['known-hosts'][url],
@@ -71,7 +72,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
   private readonly updates$: Observable<
     { url: string; pkgs: MarketplacePkg[] }[]
   > = this.patch.watch$('package-data').pipe(
-    take(1),
+    take(1), // check once per app instance
     map(localPkgs => {
       return Object.values(localPkgs)
         .filter(localPkg => localPkg.state === PackageState.Installed)
@@ -107,6 +108,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
             })
             return { url, pkgs: filtered }
           }),
+          startWith({ url, pkgs: [] }), // needed for combineLatest to emit right away
         )
       })
       return combineLatest(requests)
@@ -140,8 +142,6 @@ export class MarketplaceService implements AbstractMarketplaceService {
     return this.uiMarketplace$.pipe(
       switchMap(m => {
         url = url || m.url
-        console.error(id, version, url)
-        console.warn(this.cache)
         if (this.cache.has(url)) {
           const pkg = this.getPkgFromCache(id, version, url)
           if (pkg) return of(pkg)
@@ -163,12 +163,12 @@ export class MarketplaceService implements AbstractMarketplaceService {
   async installPackage(
     id: string,
     version: string,
-    url?: string,
+    url: string,
   ): Promise<void> {
     const params: RR.InstallPackageReq = {
       id,
       'version-spec': `=${version}`,
-      'marketplace-url': url || (await firstValueFrom(this.uiMarketplace$)).url,
+      'marketplace-url': url,
     }
 
     await this.api.installPackage(params)

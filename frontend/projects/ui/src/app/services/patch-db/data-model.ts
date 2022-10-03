@@ -25,7 +25,7 @@ export interface UIData {
 }
 
 export interface UIMarketplaceData {
-  'selected-id': string
+  'selected-url': string
   'known-hosts': {
     'https://registry.start9.com/': string
     'https://community-registry.start9.com/': string

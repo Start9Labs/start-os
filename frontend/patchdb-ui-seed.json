@@ -3,7 +3,7 @@
   "auto-check-updates": true,
   "ack-welcome": "0.3.3",
   "marketplace": {
-    "selected-id": "https://registry.start9.com/",
+    "selected-url": "https://registry.start9.com/",
     "known-hosts": {
       "https://registry.start9.com/": "Start9 Marketplace",
       "https://community-registry.start9.com/": "Community Marketplace"

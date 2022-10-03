@@ -49,7 +49,7 @@
       *ngFor="let a of m.alt"
       detail="false"
       [button]="a.url !== m.selected"
-      (click)="a.url === m.selected ? '' : presentAction(a)"
+      (click)="a.url === m.selected ? '' : presentAction(a, true)"
     >
       <ion-icon
         *ngIf="a.url === m.selected"

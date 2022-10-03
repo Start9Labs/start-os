@@ -23,7 +23,7 @@ export class MarketplaceListPage {
         set.add('updates')
         categories.forEach(c => set.add(c))
         set.add('all')
-        return Array.from(set)
+        return set
       }),
     )
 
