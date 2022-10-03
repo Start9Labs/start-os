@@ -1,12 +1,12 @@
-import { Component } from '@angular/core'
-import { combineLatest, map, Observable } from 'rxjs'
+import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { combineLatest, map, Observable, startWith } from 'rxjs'
 import { ConnectionService } from 'src/app/services/connection.service'
 
 @Component({
   selector: 'connection-bar',
   templateUrl: './connection-bar.component.html',
   styleUrls: ['./connection-bar.component.scss'],
-  // changeDetection: ChangeDetectionStrategy.OnPush,
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ConnectionBarComponent {
   private readonly websocket$ = this.connectionService.websocketConnected$
@@ -19,7 +19,7 @@ export class ConnectionBarComponent {
     dots: boolean
   }> = combineLatest([
     this.connectionService.networkConnected$,
-    this.websocket$,
+    this.websocket$.pipe(startWith(false)),
   ]).pipe(
     map(([network, websocket]) => {
       if (!network)
