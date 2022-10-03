@@ -41,7 +41,7 @@ export class HomePage {
           code: 20,
           problem: 'Storage drive not found',
           solution:
-            'Insert your EmbassyOS storage drive and click RESTART EMBASSY below.',
+            'Insert your embassyOS storage drive and click RESTART EMBASSY below.',
           details: error.data?.details,
         }
         // drive corrupted

@@ -46,7 +46,7 @@ export function getBasicInfoSpec(devData: DevProjectData): ConfigSpec {
       type: 'string',
       name: 'Service Version',
       description:
-        'Service version - accepts up to four digits, where the last confirms to revisions necessary for EmbassyOS - see documentation: https://github.com/Start9Labs/emver-rs. This value will change with each release of the service',
+        'Service version - accepts up to four digits, where the last confirms to revisions necessary for embassyOS - see documentation: https://github.com/Start9Labs/emver-rs. This value will change with each release of the service',
       placeholder: 'e.g. 0.1.2.3',
       nullable: false,
       masked: false,

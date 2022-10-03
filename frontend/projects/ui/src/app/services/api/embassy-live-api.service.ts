@@ -131,7 +131,7 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'server.update', params })
     // const res = await this.updateServer(params)
     // if (res.response === 'no-updates') {
-    //   throw new Error('Could not find a newer version of EmbassyOS')
+    //   throw new Error('Could not find a newer version of embassyOS')
     // }
     // return res
   }
