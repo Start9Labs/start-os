@@ -10,7 +10,11 @@
           <app-menu *ngIf="authService.isVerified$ | async"></app-menu>
         </ion-content>
       </ion-menu>
-      <ion-router-outlet id="main-content"></ion-router-outlet>
+      <ion-router-outlet
+        id="main-content"
+        class="container"
+        [class.container_offline]="!(connection.connected$ | async)"
+      ></ion-router-outlet>
     </ion-split-pane>
 
     <section appPreloader></section>

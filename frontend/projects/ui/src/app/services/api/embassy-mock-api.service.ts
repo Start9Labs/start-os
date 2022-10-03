@@ -946,7 +946,7 @@ export class MockApiService extends ApiService {
 
   private async mockRevision<T>(patch: Operation<T>[]): Promise<void> {
     if (!this.sequence) {
-      const { sequence } = await this.bootstrapper.init()
+      const { sequence } = this.bootstrapper.init()
       this.sequence = sequence
     }
     const revision = {
@@ -961,7 +961,7 @@ export class MockApiService extends ApiService {
     response: T | null = null,
   ): Promise<T> {
     if (!this.sequence) {
-      const { sequence } = await this.bootstrapper.init()
+      const { sequence } = this.bootstrapper.init()
       this.sequence = sequence
     }
 
