@@ -5,3 +5,11 @@
 ion-split-pane {
   --side-max-width: 280px;
 }
+
+.container {
+  transition: filter 0.3s;
+
+  &_offline {
+    filter: saturate(0) contrast(0.85);
+  }
+}

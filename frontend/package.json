@@ -31,7 +31,6 @@
     "@angular/platform-browser-dynamic": "^14.1.0",
     "@angular/router": "^14.1.0",
     "@ionic/angular": "^6.1.15",
-    "@ionic/storage-angular": "^3.0.6",
     "@materia-ui/ngx-monaco-editor": "^6.0.0",
     "@start9labs/argon2": "^0.1.0",
     "@start9labs/emver": "^0.1.5",

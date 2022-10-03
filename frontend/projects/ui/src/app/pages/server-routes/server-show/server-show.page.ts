@@ -12,7 +12,7 @@ import { ServerNameService } from 'src/app/services/server-name.service'
 import { Observable, of } from 'rxjs'
 import { ErrorToastService } from '@start9labs/shared'
 import { EOSService } from 'src/app/services/eos.service'
-import { LocalStorageService } from 'src/app/services/local-storage.service'
+import { ClientStorageService } from 'src/app/services/client-storage.service'
 import { OSUpdatePage } from 'src/app/modals/os-update/os-update.page'
 import { getAllPackages } from '../../../util/get-package-data'
 import { AuthService } from 'src/app/services/auth.service'
@@ -29,7 +29,7 @@ export class ServerShowPage {
   readonly server$ = this.patch.watch$('server-info')
   readonly name$ = this.serverNameService.name$
   readonly showUpdate$ = this.eosService.showUpdate$
-  readonly showDiskRepair$ = this.localStorageService.showDiskRepair$
+  readonly showDiskRepair$ = this.ClientStorageService.showDiskRepair$
 
   constructor(
     private readonly alertCtrl: AlertController,
@@ -41,7 +41,7 @@ export class ServerShowPage {
     private readonly route: ActivatedRoute,
     private readonly patch: PatchDB<DataModel>,
     private readonly eosService: EOSService,
-    private readonly localStorageService: LocalStorageService,
+    private readonly ClientStorageService: ClientStorageService,
     private readonly serverNameService: ServerNameService,
     private readonly authService: AuthService,
   ) {}
@@ -511,11 +511,11 @@ export class ServerShowPage {
     return 0
   }
 
-  async addClick() {
+  addClick() {
     this.clicks++
     if (this.clicks >= 5) {
       this.clicks = 0
-      await this.localStorageService.toggleShowDiskRepair()
+      this.ClientStorageService.toggleShowDiskRepair()
     }
     setTimeout(() => {
       this.clicks = Math.max(this.clicks - 1, 0)
