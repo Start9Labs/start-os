@@ -7,10 +7,10 @@ use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
 
-use crate::docker_runner::InputJsonRpc;
 use bollard::container::{KillContainerOptions, StopContainerOptions};
 use chrono::Utc;
 use color_eyre::eyre::eyre;
+use embassy_container_init::InputJsonRpc;
 use nix::sys::signal::Signal;
 use num_enum::TryFromPrimitive;
 use patch_db::DbHandle;

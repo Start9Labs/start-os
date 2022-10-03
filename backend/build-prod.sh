@@ -14,7 +14,7 @@ if tty -s; then
 fi
 
 alias 'rust-arm64-builder'='docker run $USE_TTY --rm -v "$HOME/.cargo/registry":/root/.cargo/registry -v "$(pwd)":/home/rust/src -P start9/rust-arm-cross:aarch64'
-alias 'rust-arm64-musl-builder'='docker run $USE_TTY --rm -v "$HOME/.cargo/registry":/root/.cargo/registry -v "$(pwd)":/home/rust/src -P start9/rust-musl-cross:aarch64-musl'
+alias 'rust-arm64-musl-builder'='docker run $USE_TTY --rm -v "$HOME/.cargo/registry":/root/.cargo/registry -v "$(pwd)":/home/rust/src -it -P messense/rust-musl-cross:aarch64-musl'
 
 cd ..
 FLAGS=""
@@ -26,15 +26,16 @@ if [[ "$ENVIRONMENT" =~ (^|-)dev($|-) ]]; then
 fi
 if [[ "$FLAGS" = "" ]]; then
 	rust-arm64-builder sh -c "(git config --global --add safe.directory '*'; cd backend && cargo build --release --locked)"
-	rust-arm64-musl-builder sh -c "(git config --global --add safe.directory '*'; cd backend && cargo build --release --locked --bin embassy-docker-runner)"
+	rust-arm64-musl-builder sh -c "(git config --global --add safe.directory '*'; cd libs && rust-musl-builder cargo build --release --locked --bin embassy_container_init)"
 else
 	echo "FLAGS=$FLAGS"
 	rust-arm64-builder sh -c "(git config --global --add safe.directory '*'; cd backend && cargo build --release --features $FLAGS --locked)"
-	rust-arm64-musl-builder sh -c "(git config --global --add safe.directory '*'; cd backend && cargo build --release --features $FLAGS --locked --bin embassy-docker-runner)"
+	rust-arm64-musl-builder sh -c "(git config --global --add safe.directory '*'; cd libs && cargo build --release --features $FLAGS --locked --bin embassy_container_init)"
 fi
 cd backend
 
 sudo chown -R $USER target
 sudo chown -R $USER ~/.cargo
+sudo chown -R $USER ../libs/target
 
 #rust-arm64-builder aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/embassyd

@@ -9,6 +9,7 @@ use async_stream::stream;
 use bollard::container::RemoveContainerOptions;
 use color_eyre::eyre::eyre;
 use color_eyre::Report;
+use embassy_container_init::{InputJsonRpc, OutputJsonRpc};
 use futures::future::Either as EitherFuture;
 use futures::{Stream, StreamExt, TryStreamExt};
 use helpers::NonDetachingJoinHandle;
@@ -24,15 +25,12 @@ use tokio::{
 use tracing::instrument;
 
 use super::ProcedureName;
+use crate::context::RpcContext;
 use crate::id::{Id, ImageId};
 use crate::s9pk::manifest::{PackageId, SYSTEM_PACKAGE_ID};
 use crate::util::serde::{Duration as SerdeDuration, IoFormat};
 use crate::util::Version;
 use crate::volume::{VolumeId, Volumes};
-use crate::{
-    context::RpcContext,
-    docker_runner::{InputJsonRpc, OutputJsonRpc},
-};
 use crate::{Error, ResultExt, HOST_IP};
 
 pub const NET_TLD: &str = "embassy";
@@ -749,11 +747,12 @@ impl LongRunning {
         pkg_id: &PackageId,
         pkg_version: &Version,
     ) -> Result<tokio::process::Command, Error> {
+        const init_exec: &str = "/usr/local/bin/embassy_container_init";
         tracing::trace!("setup_long_running_docker_cmd");
 
         LongRunning::cleanup_previous_container(ctx, &container_name).await?;
         let mut cmd = tokio::process::Command::new("docker");
-        cmd.arg("create")
+        cmd.arg("run")
             .arg("--network=start9")
             .arg(format!("--add-host=embassy:{}", Ipv4Addr::from(HOST_IP)))
             .arg("--name")
@@ -781,13 +780,13 @@ impl LongRunning {
             cmd.arg("--shm-size").arg(format!("{}m", shm_size_mb));
         }
         cmd.arg("--log-driver=journald");
-        cmd.arg("--entrypoint");
-        cmd.arg("/usr/local/bin/embassy-docker-runner");
         if docker.system {
             cmd.arg(docker.image.for_package(SYSTEM_PACKAGE_ID, None));
         } else {
             cmd.arg(docker.image.for_package(pkg_id, Some(pkg_version)));
         }
+        cmd.arg("sleep");
+        cmd.arg("infinity");
         dbg!(&cmd);
         if !cmd.output().await?.status.success() {
             return Err(Error::new(
@@ -797,11 +796,7 @@ impl LongRunning {
         }
 
         let mut cmd = tokio::process::Command::new("docker");
-        cmd.args([
-            "cp",
-            "/usr/local/bin/embassy-docker-runner",
-            &format!("{container_name}:/usr/local/bin/embassy-docker-runner"),
-        ]);
+        cmd.args(["cp", init_exec, &format!("{container_name}:{init_exec}")]);
         dbg!(&cmd);
         if !cmd.output().await?.status.success() {
             return Err(Error::new(
@@ -810,18 +805,18 @@ impl LongRunning {
             ));
         }
 
-        let mut cmd = tokio::process::Command::new("docker");
-        cmd.args(["container", "start", container_name]);
-        dbg!(&cmd);
-        if !cmd.output().await?.status.success() {
-            return Err(Error::new(
-                eyre!("failed to start {container_name}"),
-                crate::ErrorKind::Docker,
-            ));
-        }
+        // let mut cmd = tokio::process::Command::new("docker");
+        // cmd.args(["container", "start", container_name]);
+        // dbg!(&cmd);
+        // if !cmd.output().await?.status.success() {
+        //     return Err(Error::new(
+        //         eyre!("failed to start {container_name}"),
+        //         crate::ErrorKind::Docker,
+        //     ));
+        // }
 
         let mut cmd = tokio::process::Command::new("docker");
-        cmd.args(["attach", container_name]);
+        cmd.args(["container", "exec", "-i", container_name, init_exec]);
         cmd.stdout(std::process::Stdio::piped());
         cmd.stderr(std::process::Stdio::piped());
         cmd.stdin(std::process::Stdio::piped());
@@ -941,7 +936,7 @@ impl LongRunning {
                         Ok(a) => a,
                         Err(e) => {
                             tracing::debug!("{:?}", e);
-                            tracing::error!("Could not decode output from long running binary");
+                            tracing::warn!("Could not decode output from long running binary");
                             break;
                         }
                     };

@@ -1168,6 +1168,7 @@ dependencies = [
  "divrem",
  "ed25519",
  "ed25519-dalek",
+ "embassy_container_init",
  "emver",
  "fd-lock-rs",
  "futures",
@@ -1237,6 +1238,23 @@ dependencies = [
  "typed-builder",
  "url",
  "uuid",
+]
+
+[[package]]
+name = "embassy_container_init"
+version = "0.1.0"
+dependencies = [
+ "async-stream",
+ "color-eyre",
+ "futures",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-stream",
+ "tracing",
+ "tracing-error 0.2.0",
+ "tracing-futures",
+ "tracing-subscriber 0.3.15",
 ]
 
 [[package]]

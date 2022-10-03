@@ -6,7 +6,7 @@ use tokio::io::AsyncBufReadExt;
 use tokio::{io::BufReader, process::Command};
 use tracing::instrument;
 
-use embassy::docker_runner::{Input, InputJsonRpc, JsonRpc, Output, OutputJsonRpc};
+use embassy_container_init::{Input, InputJsonRpc, JsonRpc, Output, OutputJsonRpc};
 
 const MAX_COMMANDS: usize = 10;
 
@@ -19,7 +19,7 @@ impl Io {
         use tracing_subscriber::prelude::*;
         use tracing_subscriber::{fmt, EnvFilter};
 
-        let filter_layer = EnvFilter::new("embassy_docker_runner=trace");
+        let filter_layer = EnvFilter::new("embassy_container_init=trace");
         let fmt_layer = fmt::layer().with_target(true);
 
         tracing_subscriber::registry()
