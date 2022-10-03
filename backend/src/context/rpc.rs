@@ -41,6 +41,8 @@ use crate::{Error, ErrorKind, ResultExt};
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct RpcContextConfig {
+    pub migration_batch_rows: Option<usize>,
+    pub migration_prefetch_rows: Option<usize>,
     pub bind_rpc: Option<SocketAddr>,
     pub bind_ws: Option<SocketAddr>,
     pub bind_static: Option<SocketAddr>,
@@ -100,7 +102,12 @@ impl RpcContextConfig {
             .with_kind(crate::ErrorKind::Database)?;
         let old_db_path = self.datadir().join("main/secrets.db");
         if tokio::fs::metadata(&old_db_path).await.is_ok() {
-            pgloader(&old_db_path).await?;
+            pgloader(
+                &old_db_path,
+                self.migration_batch_rows.unwrap_or(25000),
+                self.migration_prefetch_rows.unwrap_or(100_000),
+            )
+            .await?;
         }
         Ok(secret_store)
     }
