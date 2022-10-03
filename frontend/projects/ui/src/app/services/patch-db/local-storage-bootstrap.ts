@@ -1,7 +1,7 @@
 import { Bootstrapper, DBCache } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { Injectable } from '@angular/core'
-import { Storage } from '@ionic/storage-angular'
+import { StorageService } from '../storage.service'
 
 @Injectable({
   providedIn: 'root',
@@ -9,16 +9,17 @@ import { Storage } from '@ionic/storage-angular'
 export class LocalStorageBootstrap implements Bootstrapper<DataModel> {
   static CONTENT_KEY = 'patch-db-cache'
 
-  constructor(private readonly storage: Storage) {}
+  constructor(private readonly storage: StorageService) {}
 
-  async init(): Promise<DBCache<DataModel>> {
-    const cache: DBCache<DataModel> = await this.storage.get(
+  init(): DBCache<DataModel> {
+    const cache = this.storage.get<DBCache<DataModel>>(
       LocalStorageBootstrap.CONTENT_KEY,
     )
+
     return cache || { sequence: 0, data: {} as DataModel }
   }
 
-  async update(cache: DBCache<DataModel>): Promise<void> {
-    await this.storage.set(LocalStorageBootstrap.CONTENT_KEY, cache)
+  update(cache: DBCache<DataModel>): void {
+    this.storage.set(LocalStorageBootstrap.CONTENT_KEY, cache)
   }
 }
