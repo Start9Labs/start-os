@@ -2,6 +2,6 @@ load database
      from sqlite://{sqlite_path}
      into postgresql://root@unix:/var/run/postgresql:5432/secrets
 
- with include no drop, truncate, reset sequences, data only
+ with include no drop, truncate, reset sequences, data only, workers = 1, concurrency = 1, max parallel create index = 1, batch rows = {batch_rows}, prefetch rows = {prefetch_rows}
 
-  excluding table names like '_sqlx_migrations';
+  excluding table names like '_sqlx_migrations', 'notifications';

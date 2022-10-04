@@ -36,6 +36,8 @@ pub struct SetupResult {
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct SetupContextConfig {
+    pub migration_batch_rows: Option<usize>,
+    pub migration_prefetch_rows: Option<usize>,
     pub bind_rpc: Option<SocketAddr>,
     pub datadir: Option<PathBuf>,
 }
@@ -64,6 +66,8 @@ impl SetupContextConfig {
 
 pub struct SetupContextSeed {
     pub config_path: Option<PathBuf>,
+    pub migration_batch_rows: usize,
+    pub migration_prefetch_rows: usize,
     pub bind_rpc: SocketAddr,
     pub shutdown: Sender<()>,
     pub datadir: PathBuf,
@@ -92,6 +96,8 @@ impl SetupContext {
         let datadir = cfg.datadir().to_owned();
         Ok(Self(Arc::new(SetupContextSeed {
             config_path: path.as_ref().map(|p| p.as_ref().to_owned()),
+            migration_batch_rows: cfg.migration_batch_rows.unwrap_or(25000),
+            migration_prefetch_rows: cfg.migration_prefetch_rows.unwrap_or(100_000),
             bind_rpc: cfg.bind_rpc.unwrap_or(([127, 0, 0, 1], 5959).into()),
             shutdown,
             datadir,
@@ -141,14 +147,12 @@ impl SetupContext {
             .with_kind(crate::ErrorKind::Database)?;
         let old_db_path = self.datadir.join("main/secrets.db");
         if tokio::fs::metadata(&old_db_path).await.is_ok() {
-            let mut res = Ok(());
-            for _ in 0..5 {
-                res = pgloader(&old_db_path).await;
-                if res.is_ok() {
-                    break;
-                }
-            }
-            res?
+            pgloader(
+                &old_db_path,
+                self.migration_batch_rows,
+                self.migration_prefetch_rows,
+            )
+            .await?;
         }
         Ok(secret_store)
     }
