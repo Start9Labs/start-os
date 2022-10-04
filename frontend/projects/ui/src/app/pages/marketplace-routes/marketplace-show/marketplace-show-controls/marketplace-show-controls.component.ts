@@ -109,7 +109,7 @@ export class MarketplaceShowControlsComponent {
     return new Promise(async resolve => {
       const alert = await this.alertCtrl.create({
         header: 'Warning',
-        message: `This service was oringally ${
+        message: `This service was originally ${
           originalName ? 'installed from ' + originalName : 'side loaded'
         }, but you are currently connected to ${name}. To install from ${name} anyway, click "Continue".`,
         buttons: [
