@@ -39,12 +39,13 @@ There are multiple ways to contribute: work directly on embassyOS, package a ser
 
 ## UI Screenshots
 <p align="center">
-<img src="assets/embassyOS.png" alt="embassyOS" width="65%">
+<img src="assets/embassyOS.png" alt="embassyOS" width="85%">
 </p>
 <p align="center">
-<img src="assets/eos-services.png" alt="Embassy Services" width="45%">
-<img src="assets/eos-preferences.png" alt="Embassy Preferences" width="45%">
+<img src="assets/eOS-preferences.png" alt="Embassy Preferences" width="49%">
+<img src="assets/eOS-ghost.png" alt="Embassy Ghost Service" width="49%">
 </p>
 <p align="center">
-<img src="assets/eos-bitcoind-health-check.png" alt="Embassy Bitcoin Health Checks" width="45%"> <img src="assets/eos-logs.png" alt="Embassy Logs" width="45%">
+<img src="assets/eOS-synapse-health-check.png" alt="Embassy Synapse Health Checks" width="49%">
+<img src="assets/eOS-sideload.png" alt="Embassy Sideload Service" width="49%">
 </p>
