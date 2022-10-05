@@ -5,16 +5,14 @@ use std::net::IpAddr;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use crate::net::net_utils::host_addr;
+use crate::net::HttpHandler;
+use crate::Error;
 use http::StatusCode;
 use hyper::service::{make_service_fn, service_fn};
+use hyper::{Body, Error as HyperError, Response, Server};
 use tokio::sync::{oneshot, RwLock};
 use tracing::error;
-use crate::Error;
-use crate::net::HttpHandler;
-use crate::net::net_utils::host_addr;
-use hyper::{Body, Error as HyperError, Response, Server};
-
-
 
 static RES_NOT_FOUND: &[u8] = b"503 Service Unavailable";
 static NO_HOST: &[u8] = b"No host header found";
@@ -42,8 +40,8 @@ impl EmbassyServiceHTTPServer {
                 let server_service_mapping = server_service_mapping.clone();
 
                 Ok::<_, HyperError>(service_fn(move |req| {
-
                     dbg!(req.uri());
+
                     let server_service_mapping = server_service_mapping.clone();
 
                     async move {

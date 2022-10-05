@@ -143,8 +143,8 @@ struct ProxyControllerInner {
     ssl_manager: SslManager,
     vhosts: VHOSTController,
     embassy_hostname: String,
-    interfaces: BTreeMap<PackageId, PackageNetInfo>,
-    iface_lookups: BTreeMap<(PackageId, InterfaceId), String>,
+    docker_interfaces: BTreeMap<PackageId, PackageNetInfo>,
+    docker_iface_lookups: BTreeMap<(PackageId, InterfaceId), String>,
     //  service_servers: BTreeMap<u16, EmbassyServiceHTTPServer>,
 }
 
@@ -160,8 +160,8 @@ impl ProxyControllerInner {
             vhosts: VHOSTController::init(embassyd_addr),
             ssl_manager,
             embassy_hostname,
-            interfaces: BTreeMap::new(),
-            iface_lookups: BTreeMap::new(),
+            docker_interfaces: BTreeMap::new(),
+            docker_iface_lookups: BTreeMap::new(),
         };
 
         // let emnbassyd_port_80_svc = EmbassyHTTPServer::new(embassyd_addr).await?;
@@ -198,7 +198,7 @@ impl ProxyControllerInner {
 
         for (id, meta) in interface_map.iter() {
             for (external_svc_port, lan_port_config) in meta.lan_config.iter() {
-                self.iface_lookups
+                self.docker_iface_lookups
                     .insert((package.clone(), id.clone()), meta.fqdn.clone());
 
                 let docker_addr = SocketAddr::from((ipv4, lan_port_config.internal));
@@ -209,12 +209,12 @@ impl ProxyControllerInner {
             }
         }
 
-        match self.interfaces.get_mut(&package) {
+        match self.docker_interfaces.get_mut(&package) {
             None => {
                 let info = PackageNetInfo {
                     interfaces: interface_map,
                 };
-                self.interfaces.insert(package, info);
+                self.docker_interfaces.insert(package, info);
             }
             Some(p) => {
                 p.interfaces.extend(interface_map);
@@ -230,13 +230,13 @@ impl ProxyControllerInner {
         let mut server_removal_port: u16 = 0;
         let mut removed_interface_id = InterfaceId::default();
 
-        let package_interface_info = self.interfaces.get(package);
+        let package_interface_info = self.docker_interfaces.get(package);
         if let Some(net_info) = package_interface_info {
             for (id, meta) in &net_info.interfaces {
                 for (service_ext_port, _lan_port_config) in meta.lan_config.iter() {
                     if let Some(server) = self.vhosts.service_servers.get_mut(&service_ext_port.0) {
                         if let Some(dns_base) =
-                            self.iface_lookups.get(&(package.clone(), id.clone()))
+                            self.docker_iface_lookups.get(&(package.clone(), id.clone()))
                         {
                             server.remove_svc_mapping(dns_base.to_string()).await;
 
@@ -264,8 +264,8 @@ impl ProxyControllerInner {
                     .handle
                     .await
                     .with_kind(crate::ErrorKind::JoinError)?;
-                self.interfaces.remove(&package.clone());
-                self.iface_lookups
+                self.docker_interfaces.remove(&package.clone());
+                self.docker_iface_lookups
                     .remove(&(package.clone(), removed_interface_id));
             }
         }

@@ -6,15 +6,15 @@ use std::time::UNIX_EPOCH;
 
 use digest::Digest;
 use futures::FutureExt;
-use helpers::NonDetachingJoinHandle;
 use http::response::Builder;
-use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Error as HyperError, Method, Request, Response, Server, StatusCode};
 use tokio::fs::File;
 use tokio_util::codec::{BytesCodec, FramedRead};
 use tracing::error;
 
 use crate::context::RpcContext;
+use crate::core::rpc_continuations::RequestGuid;
+use crate::db::subscribe;
 use crate::install::PKG_PUBLIC_DIR;
 use crate::middleware::auth::HasValidSession;
 use crate::net::HttpHandler;
@@ -30,115 +30,154 @@ pub async fn file_server_router(ctx: RpcContext) -> Result<HttpHandler, Error> {
         let ctx = ctx.clone();
         async move {
             dbg!(req.uri());
-            let (request_parts, _body) = req.into_parts();
-            let valid_session = HasValidSession::from_request_parts(&request_parts, &ctx).await;
-            if request_parts.uri.path() == "/" {
-                let full_path = PathBuf::from(WWW_DIR).join("index.html");
-                dbg!(full_path.clone().display());
 
-                match file_send(full_path).await {
-                    Ok(resp) => Ok(resp),
-                    Err(err) => Ok(server_error(err)),
-                }
-            } else {
-                let t = match valid_session {
-                    Ok(_valid) => {
-                        let test123 = request_parts
-                            .uri
-                            .path()
-                            .strip_prefix('/')
-                            .unwrap_or(request_parts.uri.path())
-                            .split_once('/');
-
-                        dbg!(test123);
-                        match (
-                            request_parts.method,
-                            request_parts
-                                .uri
-                                .path()
-                                .strip_prefix('/')
-                                .unwrap_or(request_parts.uri.path())
-                                .split_once('/'),
-                        ) {
-                            (Method::GET, Some(("public", path))) => {
-                                file_send(ctx.datadir.join(PKG_PUBLIC_DIR).join(path)).await
-                            }
-                            (Method::GET, Some(("eos", "local.crt"))) => {
-                                file_send(PathBuf::from(crate::net::ssl::ROOT_CA_STATIC_PATH)).await
-                            }
-
-                            (Method::GET, None) => {
-                                let uri_path = request_parts
-                                    .uri
-                                    .path()
-                                    .strip_prefix('/')
-                                    .unwrap_or(request_parts.uri.path());
-                                dbg!(uri_path);
-
-                                let full_path = PathBuf::from(WWW_DIR).join(uri_path);
-                                dbg!(full_path.clone().display());
-                                file_send(full_path).await
-                            }
-
-                            (Method::GET, Some((dir, file))) => {
-                                let full_path = PathBuf::from(WWW_DIR).join(dir).join(file);
-                                dbg!(full_path.clone().display());
-                                file_send(full_path).await
-                            }
-
-                            _ => Ok(not_found()),
+            let res = match req.uri().path() {
+                "/ws/db" => subscribe(ctx, req).await,
+                path if path.starts_with("/ws/rpc/") => {
+                    match RequestGuid::from(path.strip_prefix("/ws/rpc/").unwrap()) {
+                        None => {
+                            tracing::debug!("No Guid Path");
+                            Ok(bad_request())
                         }
-                    }
-                    Err(err) => {
-                        match (
-                            request_parts.method,
-                            request_parts
-                                .uri
-                                .path()
-                                .strip_prefix('/')
-                                .unwrap_or(request_parts.uri.path())
-                                .split_once('/'),
-                        ) {
-                            (Method::GET, Some(("public", _path))) => {
-                                un_authorized(err, request_parts.uri.path())
-                            }
-                            (Method::GET, Some(("eos", "local.crt"))) => {
-                                un_authorized(err, request_parts.uri.path())
-                            }
-                            (Method::GET, None) => {
-                                let uri_path = request_parts
-                                    .uri
-                                    .path()
-                                    .strip_prefix('/')
-                                    .unwrap_or(request_parts.uri.path());
-                                dbg!(uri_path);
-
-                                let full_path = PathBuf::from(WWW_DIR).join(uri_path);
-                                dbg!(full_path.clone().display());
-                                file_send(full_path).await
-                            }
-
-                            (Method::GET, Some((dir, file))) => {
-                                let full_path = PathBuf::from(WWW_DIR).join(dir).join(file);
-                                dbg!(full_path.clone().display());
-                                file_send(full_path).await
-                            }
-
+                        Some(guid) => match ctx.get_ws_continuation_handler(&guid).await {
+                            Some(cont) => match cont(req).await {
+                                Ok(r) => Ok(r),
+                                Err(err) => Ok(server_error(err)),
+                            },
                             _ => Ok(not_found()),
-                        }
+                        },
                     }
-                };
-
-                match t {
-                    Ok(data) => Ok(data),
-                    Err(err) => Ok(server_error(err)),
                 }
+                path if path.starts_with("/rest/rpc/") => {
+                    match RequestGuid::from(path.strip_prefix("/rest/rpc/").unwrap()) {
+                        None => {
+                            tracing::debug!("No Guid Path");
+                            Ok(bad_request())
+                        }
+                        Some(guid) => match ctx.get_rest_continuation_handler(&guid).await {
+                            None => Ok(not_found()),
+                            Some(cont) => match cont(req).await {
+                                Ok(r) => Ok(r),
+                                Err(e) => Ok(server_error(e)),
+                            },
+                        },
+                    }
+                }
+                _ => main_ui(req, ctx).await,
+            };
+
+            match res {
+                Ok(data) => Ok(data),
+                Err(err) => Ok(server_error(err)),
             }
         }
         .boxed()
     });
 
     Ok(handler)
+}
+
+async fn main_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response<Body>, Error> {
+    let (request_parts, _body) = req.into_parts();
+    match request_parts.uri.path() {
+        "/" => {
+            let full_path = PathBuf::from(WWW_DIR).join("index.html");
+            dbg!(full_path.clone().display());
+
+            file_send(full_path).await
+        }
+        _ => {
+            let valid_session = HasValidSession::from_request_parts(&request_parts, &ctx).await;
+
+            match valid_session {
+                Ok(_valid) => {
+                    let test123 = request_parts
+                        .uri
+                        .path()
+                        .strip_prefix('/')
+                        .unwrap_or(request_parts.uri.path())
+                        .split_once('/');
+
+                    dbg!(test123);
+                    match (
+                        request_parts.method,
+                        request_parts
+                            .uri
+                            .path()
+                            .strip_prefix('/')
+                            .unwrap_or(request_parts.uri.path())
+                            .split_once('/'),
+                    ) {
+                        (Method::GET, Some(("public", path))) => {
+                            file_send(ctx.datadir.join(PKG_PUBLIC_DIR).join(path)).await
+                        }
+                        (Method::GET, Some(("eos", "local.crt"))) => {
+                            file_send(PathBuf::from(crate::net::ssl::ROOT_CA_STATIC_PATH)).await
+                        }
+
+                        (Method::GET, None) => {
+                            let uri_path = request_parts
+                                .uri
+                                .path()
+                                .strip_prefix('/')
+                                .unwrap_or(request_parts.uri.path());
+                            dbg!(uri_path);
+
+                            let full_path = PathBuf::from(WWW_DIR).join(uri_path);
+                            dbg!(full_path.clone().display());
+                            file_send(full_path).await
+                        }
+
+                        (Method::GET, Some((dir, file))) => {
+                            let full_path = PathBuf::from(WWW_DIR).join(dir).join(file);
+                            dbg!(full_path.clone().display());
+                            file_send(full_path).await
+                        }
+
+                        _ => Ok(not_found()),
+                    }
+                }
+                Err(err) => {
+                    match (
+                        request_parts.method,
+                        request_parts
+                            .uri
+                            .path()
+                            .strip_prefix('/')
+                            .unwrap_or(request_parts.uri.path())
+                            .split_once('/'),
+                    ) {
+                        (Method::GET, Some(("public", _path))) => {
+                            un_authorized(err, request_parts.uri.path())
+                        }
+                        (Method::GET, Some(("eos", "local.crt"))) => {
+                            un_authorized(err, request_parts.uri.path())
+                        }
+                        (Method::GET, None) => {
+                            let uri_path = request_parts
+                                .uri
+                                .path()
+                                .strip_prefix('/')
+                                .unwrap_or(request_parts.uri.path());
+                            dbg!(uri_path);
+
+                            let full_path = PathBuf::from(WWW_DIR).join(uri_path);
+                            dbg!(full_path.clone().display());
+                            file_send(full_path).await
+                        }
+
+                        (Method::GET, Some((dir, file))) => {
+                            let full_path = PathBuf::from(WWW_DIR).join(dir).join(file);
+                            dbg!(full_path.clone().display());
+                            file_send(full_path).await
+                        }
+
+                        _ => Ok(not_found()),
+                    }
+                }
+            }
+        }
+    }
 }
 
 fn un_authorized(err: Error, path: &str) -> Result<Response<Body>, Error> {
@@ -162,6 +201,13 @@ fn server_error(err: Error) -> Response<Body> {
     Response::builder()
         .status(StatusCode::INTERNAL_SERVER_ERROR)
         .body(err.to_string().into())
+        .unwrap()
+}
+
+fn bad_request() -> Response<Body> {
+    Response::builder()
+        .status(StatusCode::BAD_REQUEST)
+        .body(Body::empty())
         .unwrap()
 }
 

@@ -1,18 +1,13 @@
 use crate::net::embassy_service_http_server::EmbassyServiceHTTPServer;
 use crate::net::proxy_controller::ProxyController;
 use crate::net::ssl::SslManager;
-use crate::{Error, ResultExt};
+use crate::{Error};
 use std::collections::BTreeMap;
-use std::net::{Ipv4Addr, SocketAddr};
+use std::net::SocketAddr;
 use std::sync::Arc;
-
-use color_eyre::eyre::eyre;
 use futures::FutureExt;
-use hyper::Client;
-use models::{InterfaceId, PackageId};
-use tracing::instrument;
 
-use crate::net::{HttpClient, HttpHandler, InterfaceMetadata, PackageNetInfo};
+use crate::net::{HttpClient, HttpHandler};
 
 pub struct VHOSTController {
     pub service_servers: BTreeMap<u16, EmbassyServiceHTTPServer>,
