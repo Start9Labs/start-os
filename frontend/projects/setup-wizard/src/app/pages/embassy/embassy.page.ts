@@ -23,7 +23,6 @@ import { ActivatedRoute } from '@angular/router'
 export class EmbassyPage {
   storageDrives: DiskInfo[] = []
   loading = true
-  incomingAction = undefined
 
   constructor(
     private readonly apiService: ApiService,
@@ -38,9 +37,6 @@ export class EmbassyPage {
 
   async ngOnInit() {
     await this.getDrives()
-    this.route.queryParams.subscribe(params => {
-      this.incomingAction = params['action']
-    })
   }
 
   tooSmall(drive: DiskInfo) {
@@ -140,7 +136,7 @@ export class EmbassyPage {
       await this.stateService.setupEmbassy(logicalname, password)
       if (!!this.stateService.recoverySource) {
         await this.navCtrl.navigateForward(`/loading`, {
-          queryParams: { action: this.incomingAction },
+          queryParams: { action: this.route.snapshot.paramMap.get('action') },
         })
       } else {
         await this.navCtrl.navigateForward(`/success`)

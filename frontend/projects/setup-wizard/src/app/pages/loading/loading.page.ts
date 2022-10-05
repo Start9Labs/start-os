@@ -9,7 +9,7 @@ import { StateService } from 'src/app/services/state.service'
   styleUrls: ['loading.page.scss'],
 })
 export class LoadingPage {
-  incomingAction = undefined
+  incomingAction!: string
 
   constructor(
     public stateService: StateService,
@@ -18,9 +18,7 @@ export class LoadingPage {
   ) {}
 
   ngOnInit() {
-    this.route.queryParams.subscribe(params => {
-      this.incomingAction = params['action']
-    })
+    this.incomingAction = this.route.snapshot.paramMap.get('action')!
     this.stateService.pollDataTransferProgress()
     const progSub = this.stateService.dataCompletionSubject.subscribe(
       async complete => {
