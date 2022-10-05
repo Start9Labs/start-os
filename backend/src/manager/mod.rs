@@ -16,6 +16,7 @@ use num_enum::TryFromPrimitive;
 use patch_db::DbHandle;
 use sqlx::{Executor, Postgres};
 use tokio::io::BufReader;
+use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::watch::error::RecvError;
 use tokio::sync::watch::{channel, Receiver, Sender};
 use tokio::sync::{Mutex, Notify, RwLock};
@@ -512,12 +513,77 @@ async fn manager_thread_loop(
     }
 }
 
+struct LongRunningHandle(NonDetachingJoinHandle<()>);
+struct CommandInserter {
+    command_counter: i64,
+    input: UnboundedSender<InputJsonRpc>,
+    outputs: Arc<Mutex<BTreeMap<i64, UnboundedSender<embassy_container_init::Output>>>>,
+}
+impl CommandInserter {
+    fn new(
+        long_running: LongRunning,
+        input: UnboundedSender<InputJsonRpc>,
+    ) -> (Self, LongRunningHandle) {
+        let LongRunning {
+            mut output,
+            running_output,
+        } = long_running;
+        let command_counter = 0;
+        let outputs: Arc<Mutex<BTreeMap<i64, UnboundedSender<embassy_container_init::Output>>>> =
+            Default::default();
+        let handle = LongRunningHandle(running_output);
+        tokio::spawn({
+            let outputs = outputs.clone();
+            async move {
+                while let Some(output) = output.recv().await {
+                    let (id, output) = output.into_pair();
+                    let mut outputs = outputs.lock().await;
+                    if let Some(embassy_container_init::RpcId::Int(id)) = id {
+                        let mut output_sender = outputs.get_mut(&id);
+                        if let Some(output_sender) = output_sender {
+                            output_sender.send(output);
+                        }
+                    }
+                }
+            }
+        });
+
+        (
+            Self {
+                command_counter,
+                input,
+                outputs,
+            },
+            handle,
+        )
+    }
+    async fn new_command(
+        &mut self,
+        command: String,
+        args: Vec<String>,
+        sender: UnboundedSender<embassy_container_init::Output>,
+    ) {
+        use embassy_container_init::{Input, JsonRpc, RpcId};
+        let command_counter = self.command_counter;
+        let command_id = RpcId::Int(command_counter);
+        let mut outputs = self.outputs.lock().await;
+        outputs.insert(command_counter, sender);
+        self.input.send(JsonRpc::new(
+            Some(command_id),
+            Input::Command { command, args },
+        ));
+
+        self.command_counter += 1;
+    }
+}
+
 struct PersistantContainer {
     container_name: String,
     running_docker:
         Arc<Mutex<Option<NonDetachingJoinHandle<Result<Result<NoOutput, (i32, String)>, Error>>>>>,
     should_stop_running: Arc<std::sync::atomic::AtomicBool>,
     wait_for_start: (Sender<bool>, Receiver<bool>),
+    command_inserter: Arc<Mutex<Option<CommandInserter>>>,
 }
 
 impl PersistantContainer {
@@ -529,6 +595,7 @@ impl PersistantContainer {
             running_docker: Arc::new(Mutex::new(None)),
             should_stop_running: Arc::new(AtomicBool::new(false)),
             wait_for_start,
+            command_inserter: Default::default(),
         });
         tokio::spawn(persistant_container(
             thread_shared.clone(),
@@ -660,7 +727,8 @@ async fn run_persistant_container(
 ) -> Result<(), Error> {
     let interfaces = states_main_interfaces(state)?;
     let generated_certificate = generate_certificate(state, &interfaces).await?;
-    let mut runtime = long_running_docker(state.clone(), docker_procedure).await?;
+    let mut runtime =
+        long_running_docker(state.clone(), docker_procedure, persistant.clone()).await?;
 
     let ip = match get_long_running_ip(state, &mut runtime).await {
         GetRunninIp::Ip(x) => x,
@@ -676,7 +744,7 @@ async fn run_persistant_container(
 
     fetch_starting_to_running(state);
     let res = tokio::select! {
-        a = runtime.running_output => a.map_err(|_| Error::new(eyre!("Manager runtime panicked!"), crate::ErrorKind::Docker)).map(|_| ()),
+        a = runtime.0 => a.map_err(|_| Error::new(eyre!("Manager runtime panicked!"), crate::ErrorKind::Docker)).map(|_| ()),
     };
     remove_network_for_main(state, ip).await?;
     res
@@ -685,13 +753,10 @@ async fn run_persistant_container(
 async fn long_running_docker(
     rt_state: Arc<ManagerSharedState>,
     main_status: Arc<DockerProcedure>,
-) -> Result<LongRunning, Error> {
-    let (sender, receiver) = tokio::sync::mpsc::unbounded_channel::<InputJsonRpc>();
-    tokio::spawn(async move {
-        tokio::time::sleep(Duration::from_secs(u64::MAX)).await;
-        drop(sender);
-    });
-    main_status
+    container: Arc<PersistantContainer>,
+) -> Result<LongRunningHandle, Error> {
+    let (sender, receiver) = tokio::sync::mpsc::unbounded_channel();
+    let long_running = main_status
         .long_running_execute(
             &rt_state.ctx,
             &rt_state.manifest.id,
@@ -700,7 +765,10 @@ async fn long_running_docker(
             &rt_state.manifest.volumes,
             UnboundedReceiverStream::new(receiver),
         )
-        .await
+        .await?;
+    let (command_inserter, long_running_handle) = CommandInserter::new(long_running, sender);
+    *container.command_inserter.lock().await = Some(command_inserter);
+    Ok(long_running_handle)
 }
 
 async fn remove_network_for_main(
@@ -828,7 +896,7 @@ async fn get_running_ip(
 
 async fn get_long_running_ip(
     state: &Arc<ManagerSharedState>,
-    runtime: &mut LongRunning,
+    runtime: &mut LongRunningHandle,
 ) -> GetRunninIp {
     loop {
         match container_inspect(state).await {
@@ -853,7 +921,7 @@ async fn get_long_running_ip(
             }) => (),
             Err(e) => return GetRunninIp::Error(e.into()),
         }
-        match futures::poll!(&mut runtime.running_output) {
+        match futures::poll!(&mut runtime.0) {
             Poll::Ready(res) => match res {
                 Ok(_) => return GetRunninIp::EarlyExit(Ok(NoOutput)),
                 Err(e) => {

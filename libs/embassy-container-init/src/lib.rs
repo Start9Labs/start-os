@@ -4,6 +4,9 @@ use tracing::instrument;
 pub type InputJsonRpc = JsonRpc<Input>;
 pub type OutputJsonRpc = JsonRpc<Output>;
 
+// TODO: Output::StopOutput
+// TODO: Input::Stop process Id
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(untagged)]
 pub enum RpcId {
