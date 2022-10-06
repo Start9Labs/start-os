@@ -73,7 +73,7 @@ export class PreferencesPage {
     await loader.present()
 
     try {
-      await this.api.setDbValue({ pointer: `/${key}`, value })
+      await this.api.setDbValue([key], value)
     } finally {
       loader.dismiss()
     }

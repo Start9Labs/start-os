@@ -1,26 +1,21 @@
 import { Injectable } from '@angular/core'
-import { Emver, ErrorToastService } from '@start9labs/shared'
+import { Emver } from '@start9labs/shared'
 import {
   MarketplacePkg,
   AbstractMarketplaceService,
-  Marketplace,
-  FilterPackagesPipe,
-  MarketplaceData,
+  MarketplaceInfo,
 } from '@start9labs/marketplace'
-import { from, Observable, of, Subject } from 'rxjs'
+import { combineLatest, from, Observable, of } from 'rxjs'
 import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ConfigService } from 'src/app/services/config.service'
 import {
   DataModel,
-  ServerInfo,
-  UIMarketplaceData,
+  Manifest,
+  PackageState,
 } from 'src/app/services/patch-db/data-model'
 import { PatchDB } from 'patch-db-client'
 import {
-  catchError,
   distinctUntilChanged,
-  filter,
   map,
   shareReplay,
   startWith,
@@ -28,275 +23,321 @@ import {
   take,
   tap,
 } from 'rxjs/operators'
+import { getServerInfo } from '../util/get-server-info'
+
+type MarketplaceURL = string
+interface MarketplaceData {
+  info: MarketplaceInfo | null
+  packages: MarketplacePkg[]
+}
+type MasterCache = Map<MarketplaceURL, MarketplaceData>
 
 @Injectable()
-export class MarketplaceService extends AbstractMarketplaceService {
-  private readonly notes = new Map<string, Record<string, string>>()
-  private readonly hasPackages$ = new Subject<boolean>()
+export class MarketplaceService implements AbstractMarketplaceService {
+  private readonly cache: MasterCache = new Map()
 
-  private readonly uiMarketplaceData$ = this.patch
-    .watch$('ui', 'marketplace')
-    .pipe(
+  private readonly uiMarketplace$: Observable<{ url: string; name: string }> =
+    this.patch.watch$('ui', 'marketplace').pipe(
       distinctUntilChanged(
-        (prev, curr) => prev['selected-id'] === curr['selected-id'],
+        (prev, curr) => prev['selected-url'] === curr['selected-url'],
       ),
+      map(data => {
+        const url = data['selected-url']
+        return {
+          url,
+          name: data['known-hosts'][url],
+        }
+      }),
       shareReplay(1),
     )
 
-  private readonly marketplace$ = this.uiMarketplaceData$.pipe(
-    map(data => this.toMarketplace(data)),
-  )
-
-  private readonly serverInfo$: Observable<ServerInfo> = this.patch
-    .watch$('server-info')
-    .pipe(take(1), shareReplay())
-
-  private readonly registryData$: Observable<MarketplaceData> =
-    this.uiMarketplaceData$.pipe(
-      switchMap(data =>
-        this.serverInfo$.pipe(
-          switchMap(({ id }) =>
-            from(
-              this.getMarketplaceData(
-                { 'server-id': id },
-                this.toMarketplace(data).url,
-              ),
-            ).pipe(tap(({ name }) => this.updateName(data, name))),
-          ),
+  private readonly marketplaceData$: Observable<MarketplaceData> =
+    this.uiMarketplace$.pipe(
+      switchMap(({ url, name }) =>
+        from(this.loadMarketplace(url)).pipe(
+          tap(data => {
+            this.updateName(url, name, data.info!.name)
+          }),
         ),
       ),
       shareReplay(1),
     )
 
-  private readonly categories$: Observable<Set<string>> =
-    this.registryData$.pipe(
-      map(
-        ({ categories }) =>
-          new Set(['featured', 'updates', ...categories, 'all']),
-      ),
-    )
+  private readonly marketplaceInfo$: Observable<MarketplaceInfo> =
+    this.marketplaceData$.pipe(map(data => data.info!))
 
-  private readonly pkgs$: Observable<MarketplacePkg[]> = this.marketplace$.pipe(
-    switchMap(({ url }) =>
-      this.serverInfo$.pipe(
-        switchMap(info =>
-          from(
-            this.getMarketplacePkgs(
-              { page: 1, 'per-page': 100 },
-              url,
-              info['eos-version-compat'],
-            ),
-          ).pipe(tap(() => this.hasPackages$.next(true))),
-        ),
-      ),
-    ),
-    catchError(e => {
-      this.errToast.present(e)
+  private readonly marketplacePkgs$: Observable<MarketplacePkg[]> =
+    this.marketplaceData$.pipe(map(data => data.packages))
 
-      return of([])
+  private readonly updates$: Observable<
+    { url: string; pkgs: MarketplacePkg[] }[]
+  > = this.patch.watch$('package-data').pipe(
+    take(1), // check once per app instance
+    map(localPkgs => {
+      return Object.values(localPkgs)
+        .filter(localPkg => localPkg.state === PackageState.Installed)
+        .reduce((localPkgMap, pkg) => {
+          const url = pkg.installed!['marketplace-url'] || '' // side-laoded services will not have marketplace-url
+          const cached = this.cache
+            .get(url)
+            ?.packages.find(p => p.manifest.id === pkg.manifest.id)
+          if (url && !cached) {
+            const arr = localPkgMap.get(url) || []
+            localPkgMap.set(url, arr.concat(pkg.manifest))
+          }
+          return localPkgMap
+        }, new Map<string, Manifest[]>())
+    }),
+    switchMap(localPkgMap => {
+      const urls = Array.from(localPkgMap.keys())
+      const requests = urls.map(url => {
+        const ids = localPkgMap.get(url)?.map(({ id }) => {
+          return { id, version: '*' }
+        })
+        return from(this.loadPackages({ ids }, url)).pipe(
+          map(pkgs => {
+            const manifests = localPkgMap.get(url)!
+            const filtered = pkgs.filter(pkg => {
+              const localVersion = manifests.find(
+                m => m.id === pkg.manifest.id,
+              )?.version
+              return (
+                localVersion &&
+                this.emver.compare(pkg.manifest.version, localVersion) === 1
+              )
+            })
+            return { url, pkgs: filtered }
+          }),
+          startWith({ url, pkgs: [] }), // needed for combineLatest to emit right away
+        )
+      })
+      return combineLatest(requests)
     }),
     shareReplay(1),
   )
 
-  private readonly updates$: Observable<MarketplacePkg[]> =
-    this.hasPackages$.pipe(
-      switchMap(() =>
-        this.patch.watch$('package-data').pipe(
-          switchMap(localPkgs =>
-            this.pkgs$.pipe(
-              map(pkgs => {
-                return this.filterPkgsPipe.transform(
-                  pkgs,
-                  '',
-                  'updates',
-                  localPkgs,
-                )
-              }),
-            ),
-          ),
-        ),
-      ),
-    )
-
   constructor(
     private readonly api: ApiService,
     private readonly patch: PatchDB<DataModel>,
-    private readonly config: ConfigService,
-    private readonly errToast: ErrorToastService,
     private readonly emver: Emver,
-    private readonly filterPkgsPipe: FilterPackagesPipe,
-  ) {
-    super()
+  ) {}
+
+  getUiMarketplace$(): Observable<{ url: string; name: string }> {
+    return this.uiMarketplace$
   }
 
-  getMarketplace(): Observable<Marketplace> {
-    return this.marketplace$
+  getMarketplaceInfo$(): Observable<MarketplaceInfo> {
+    return this.marketplaceInfo$
   }
 
-  getAltMarketplaceData() {
-    return this.uiMarketplaceData$
+  getPackages$(): Observable<MarketplacePkg[]> {
+    return this.marketplacePkgs$
   }
 
-  getCategories(): Observable<Set<string>> {
-    return this.categories$
-  }
-
-  getPackages(): Observable<MarketplacePkg[]> {
-    return this.pkgs$
-  }
-
-  getPackage(id: string, version: string): Observable<MarketplacePkg | null> {
-    const params = { ids: [{ id, version }] }
-    const fallback$ = this.marketplace$.pipe(
-      switchMap(({ url }) =>
-        this.serverInfo$.pipe(
-          switchMap(info =>
-            from(
-              this.getMarketplacePkgs(params, url, info['eos-version-compat']),
-            ),
-          ),
-        ),
-      ),
-      map(pkgs => this.findPackage(pkgs, id, version)),
-      startWith(null),
-    )
-
-    return this.getPackages().pipe(
-      map(pkgs => this.findPackage(pkgs, id, version)),
-      switchMap(pkg => (pkg ? of(pkg) : fallback$)),
-      filter((pkg): pkg is MarketplacePkg | null => {
-        if (pkg === undefined) {
-          throw new Error(`No results for ${id}${version ? ' ' + version : ''}`)
+  getPackage(
+    id: string,
+    version: string,
+    url?: string,
+  ): Observable<MarketplacePkg | undefined> {
+    return this.uiMarketplace$.pipe(
+      switchMap(m => {
+        url = url || m.url
+        if (this.cache.has(url)) {
+          const pkg = this.getPkgFromCache(id, version, url)
+          if (pkg) return of(pkg)
         }
 
-        return true
+        if (version === '*') {
+          return from(this.loadPackage(id, url))
+        } else {
+          return from(this.fetchPackage(id, version, url))
+        }
       }),
     )
   }
 
-  getUpdates(): Observable<MarketplacePkg[]> {
+  getUpdates$(): Observable<{ url: string; pkgs: MarketplacePkg[] }[]> {
     return this.updates$
   }
 
-  getReleaseNotes(id: string): Observable<Record<string, string>> {
-    if (this.notes.has(id)) {
-      return of(this.notes.get(id) || {})
+  async installPackage(
+    id: string,
+    version: string,
+    url: string,
+  ): Promise<void> {
+    const params: RR.InstallPackageReq = {
+      id,
+      'version-spec': `=${version}`,
+      'marketplace-url': url,
     }
 
-    return this.marketplace$.pipe(
-      switchMap(({ url }) => this.loadReleaseNotes(id, url)),
-      tap(response => this.notes.set(id, response)),
-      catchError(e => {
-        this.errToast.present(e)
+    await this.api.installPackage(params)
+  }
 
-        return of({})
+  async validateMarketplace(url: string): Promise<string> {
+    await this.loadInfo(url)
+    return this.cache.get(url)!.info!.name
+  }
+
+  fetchReleaseNotes(
+    id: string,
+    url?: string,
+  ): Observable<Record<string, string>> {
+    return this.uiMarketplace$.pipe(
+      switchMap(m => {
+        return from(
+          this.api.marketplaceProxy<Record<string, string>>(
+            `/package/v0/release-notes/${id}`,
+            {},
+            url || m.url,
+          ),
+        )
       }),
     )
   }
 
-  installPackage(
-    req: Omit<RR.InstallPackageReq, 'marketplace-url'>,
-  ): Observable<unknown> {
-    return this.getMarketplace().pipe(
-      take(1),
-      switchMap(({ url }) =>
-        from(
-          this.api.installPackage({
-            ...req,
-            'marketplace-url': url,
-          }),
-        ),
-      ),
-    )
-  }
-
-  getPackageMarkdown(type: string, pkgId: string): Observable<string> {
-    return this.getMarketplace().pipe(
-      switchMap(({ url }) =>
-        from(
+  fetchPackageMarkdown(
+    id: string,
+    type: string,
+    url?: string,
+  ): Observable<string> {
+    return this.uiMarketplace$.pipe(
+      switchMap(m => {
+        return from(
           this.api.marketplaceProxy<string>(
-            `/package/v0/${type}/${pkgId}`,
+            `/package/v0/${type}/${id}`,
             {},
-            url,
+            url || m.url,
           ),
-        ),
-      ),
+        )
+      }),
     )
   }
 
-  async getMarketplaceData(
-    params: RR.GetMarketplaceDataReq,
-    url: string,
-  ): Promise<RR.GetMarketplaceDataRes> {
-    return this.api.marketplaceProxy('/package/v0/info', params, url)
+  private async loadMarketplace(url: string): Promise<MarketplaceData> {
+    const cachedInfo = this.cache.get(url)?.info
+    const [info, packages] = await Promise.all([
+      cachedInfo || this.loadInfo(url),
+      this.loadPackages({}, url),
+    ])
+    return { info, packages }
   }
 
-  async getMarketplacePkgs(
-    params: Omit<RR.GetMarketplacePackagesReq, 'eos-version-compat'>,
-    url: string,
-    eosVersionCompat: string,
-  ): Promise<RR.GetMarketplacePackagesRes> {
-    let clonedParams = { ...params }
-    if (params.query) delete params.category
-    if (clonedParams.ids) clonedParams.ids = JSON.stringify(clonedParams.ids)
-
-    const qp: RR.GetMarketplacePackagesReq = {
-      ...clonedParams,
-      'eos-version-compat': eosVersionCompat,
-    }
-
-    return this.api.marketplaceProxy('/package/v0/index', qp, url)
+  private async loadInfo(url: string): Promise<MarketplaceInfo> {
+    const info = await this.fetchInfo(url)
+    this.updateCache(url, info)
+    return info
   }
 
-  private loadReleaseNotes(
+  private async loadPackage(
     id: string,
     url: string,
-  ): Observable<Record<string, string>> {
-    return from(
-      this.api.marketplaceProxy<Record<string, string>>(
-        `/package/v0/release-notes/${id}`,
-        {},
-        url,
-      ),
+  ): Promise<MarketplacePkg | undefined> {
+    const pkgs = await this.loadPackages({ ids: [{ id, version: '*' }] }, url)
+    return pkgs[0]
+  }
+
+  private async loadPackages(
+    params: Omit<
+      RR.GetMarketplacePackagesReq,
+      'eos-version-compat' | 'page' | 'per-page'
+    >,
+    url: string,
+  ): Promise<MarketplacePkg[]> {
+    const pkgs = await this.fetchPackages(params, url)
+    this.updateCache(url, undefined, pkgs)
+    return pkgs
+  }
+
+  private async fetchInfo(url: string): Promise<RR.GetMarketplaceDataRes> {
+    const { id } = await getServerInfo(this.patch)
+
+    const params: RR.GetMarketplaceDataReq = {
+      'server-id': id,
+    }
+
+    return this.api.marketplaceProxy<RR.GetMarketplaceDataRes>(
+      '/package/v0/info',
+      params,
+      url,
     )
   }
 
-  private updateName(
-    uiMarketplaceData: UIMarketplaceData | undefined,
-    name: string,
-  ) {
-    if (!uiMarketplaceData?.['selected-id']) {
-      return
-    }
-
-    const selectedId = uiMarketplaceData['selected-id']
-    const knownHosts = uiMarketplaceData['known-hosts']
-
-    if (knownHosts[selectedId].name !== name) {
-      this.api.setDbValue({
-        pointer: `/marketplace/known-hosts/${selectedId}/name`,
-        value: name,
-      })
-    }
-  }
-
-  private toMarketplace(marketplace: UIMarketplaceData): Marketplace {
-    return marketplace['selected-id']
-      ? marketplace['known-hosts'][marketplace['selected-id']]
-      : this.config.marketplace
-  }
-
-  private findPackage(
-    pkgs: readonly MarketplacePkg[],
+  private async fetchPackage(
     id: string,
     version: string,
-  ): MarketplacePkg | undefined {
-    return pkgs.find(pkg => {
-      const versionIsSame =
-        version === '*' ||
-        this.emver.compare(pkg.manifest.version, version) === 0
+    url: string,
+  ): Promise<MarketplacePkg | undefined> {
+    const pkgs = await this.fetchPackages({ ids: [{ id, version }] }, url)
+    return pkgs[0]
+  }
 
-      return pkg.manifest.id === id && versionIsSame
+  private async fetchPackages(
+    params: Omit<
+      RR.GetMarketplacePackagesReq,
+      'eos-version-compat' | 'page' | 'per-page'
+    >,
+    url: string,
+  ): Promise<RR.GetMarketplacePackagesRes> {
+    const qp: RR.GetMarketplacePackagesReq = {
+      ...params,
+      'eos-version-compat': (await getServerInfo(this.patch))[
+        'eos-version-compat'
+      ],
+      page: 1,
+      'per-page': 100,
+    }
+    if (qp.ids) qp.ids = JSON.stringify(qp.ids)
+
+    return this.api.marketplaceProxy<RR.GetMarketplacePackagesRes>(
+      '/package/v0/index',
+      qp,
+      url,
+    )
+  }
+
+  private async updateName(
+    url: string,
+    name: string,
+    newName: string,
+  ): Promise<void> {
+    if (name !== newName) {
+      this.api.setDbValue(['marketplace', 'known-hosts', url], newName)
+    }
+  }
+
+  private getPkgFromCache(
+    id: string,
+    version: string,
+    url: string,
+  ): MarketplacePkg | undefined {
+    return this.cache.get(url)?.packages.find(p => {
+      const versionIsSame =
+        version === '*' || this.emver.compare(p.manifest.version, version) === 0
+
+      return p.manifest.id === id && versionIsSame
+    })
+  }
+
+  private updateCache(
+    url: string,
+    info?: MarketplaceInfo,
+    pkgs?: MarketplacePkg[],
+  ): void {
+    const cache = this.cache.get(url)
+
+    let packages = cache?.packages || []
+    if (pkgs) {
+      const filtered = packages.filter(
+        cachedPkg =>
+          !pkgs.find(pkg => pkg.manifest.id === cachedPkg.manifest.id),
+      )
+      packages = filtered.concat(pkgs)
+    }
+
+    this.cache.set(url, {
+      info: info || cache?.info || null,
+      packages,
     })
   }
 }

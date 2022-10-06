@@ -1,7 +1,13 @@
 import { Injectable } from '@angular/core'
 import { pauseFor, Log } from '@start9labs/shared'
 import { ApiService } from './embassy-api.service'
-import { PatchOp, Update, Operation, RemoveOperation } from 'patch-db-client'
+import {
+  PatchOp,
+  Update,
+  Operation,
+  RemoveOperation,
+  pathFromArray,
+} from 'patch-db-client'
 import {
   DataModel,
   DependencyErrorType,
@@ -15,11 +21,22 @@ import { CifsBackupTarget, RR } from './api.types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { Mock } from './api.fixures'
 import markdown from 'raw-loader!../../../../../../assets/markdown/md-sample.md'
-import { BehaviorSubject, interval, map, Observable } from 'rxjs'
+import {
+  EMPTY,
+  iif,
+  interval,
+  map,
+  Observable,
+  ReplaySubject,
+  switchMap,
+  tap,
+  timer,
+} from 'rxjs'
 import { LocalStorageBootstrap } from '../patch-db/local-storage-bootstrap'
 import { mockPatchData } from './mock-patch'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 import { AuthService } from '../auth.service'
+import { ConnectionService } from '../connection.service'
 
 const PROGRESS: InstallProgress = {
   size: 120,
@@ -33,28 +50,35 @@ const PROGRESS: InstallProgress = {
 
 @Injectable()
 export class MockApiService extends ApiService {
-  readonly mockWsSource$ = new BehaviorSubject<Update<DataModel>>({
-    id: 1,
-    value: mockPatchData,
-  })
+  readonly mockWsSource$ = new ReplaySubject<Update<DataModel>>()
   private readonly revertTime = 2000
   sequence = 0
 
   constructor(
     private readonly bootstrapper: LocalStorageBootstrap,
+    private readonly connectionService: ConnectionService,
     private readonly auth: AuthService,
   ) {
     super()
-    this.auth.isVerified$.subscribe(verified => {
-      if (!verified) {
-        this.patchStream$.next([])
-        this.mockWsSource$.next({
-          id: 1,
-          value: mockPatchData,
-        })
-        this.sequence = 0
-      }
-    })
+    this.auth.isVerified$
+      .pipe(
+        tap(() => {
+          this.sequence = 0
+          this.patchStream$.next([])
+        }),
+        switchMap(verified =>
+          iif(
+            () => verified,
+            timer(2000).pipe(
+              tap(() => {
+                this.connectionService.websocketConnected$.next(true)
+              }),
+            ),
+            EMPTY,
+          ),
+        ),
+      )
+      .subscribe()
   }
 
   async getStatic(url: string): Promise<string> {
@@ -69,7 +93,12 @@ export class MockApiService extends ApiService {
 
   // db
 
-  async setDbValue(params: RR.SetDBValueReq): Promise<RR.SetDBValueRes> {
+  async setDbValue(
+    pathArr: Array<string | number>,
+    value: any,
+  ): Promise<RR.SetDBValueRes> {
+    const pointer = pathFromArray(pathArr)
+    const params: RR.SetDBValueReq = { pointer, value }
     await pauseFor(2000)
     const patch = [
       {
@@ -198,7 +227,7 @@ export class MockApiService extends ApiService {
     return Mock.getAppMetrics()
   }
 
-  async updateServer(params: RR.UpdateServerReq): Promise<RR.UpdateServerRes> {
+  async updateServer(url?: string): Promise<RR.UpdateServerRes> {
     await pauseFor(2000)
     const initialProgress = {
       size: 10000,
@@ -254,10 +283,10 @@ export class MockApiService extends ApiService {
       return {
         name: 'Dark69',
         categories: [
-          'featured',
           'bitcoin',
           'lightning',
           'data',
+          'featured',
           'messaging',
           'social',
           'alt coin',
