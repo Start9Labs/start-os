@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::convert::TryInto;
 use std::future::Future;
 use std::net::Ipv4Addr;
+use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::task::Poll;
@@ -11,6 +12,7 @@ use bollard::container::{KillContainerOptions, StopContainerOptions};
 use chrono::Utc;
 use color_eyre::eyre::eyre;
 use embassy_container_init::InputJsonRpc;
+use js_engine::ExecCommand;
 use nix::sys::signal::Signal;
 use num_enum::TryFromPrimitive;
 use patch_db::DbHandle;
@@ -514,7 +516,7 @@ async fn manager_thread_loop(
 }
 
 struct LongRunningHandle(NonDetachingJoinHandle<()>);
-struct CommandInserter {
+pub struct CommandInserter {
     command_counter: i64,
     input: UnboundedSender<InputJsonRpc>,
     outputs: Arc<Mutex<BTreeMap<i64, UnboundedSender<embassy_container_init::Output>>>>,
@@ -557,7 +559,8 @@ impl CommandInserter {
             handle,
         )
     }
-    async fn new_command(
+
+    pub async fn exec_command(
         &mut self,
         command: String,
         args: Vec<String>,
@@ -568,13 +571,24 @@ impl CommandInserter {
         let command_id = RpcId::Int(command_counter);
         let mut outputs = self.outputs.lock().await;
         outputs.insert(command_counter, sender);
-        self.input.send(JsonRpc::new(
+        if let Err(err) = self.input.send(JsonRpc::new(
             Some(command_id),
             Input::Command { command, args },
-        ));
+        )) {
+            tracing::warn!("Trying to send to input but can't");
+            tracing::debug!("{err:?}");
+        }
 
         self.command_counter += 1;
     }
+}
+
+fn command_inserter_as_fn(cloned: Arc<Mutex<Option<CommandInserter>>>) -> ExecCommand {
+    Pin::new(Box::new(|command, args, sender| async move {
+        let lock = cloned.lock().await;
+
+        Ok(())
+    }))
 }
 
 struct PersistantContainer {

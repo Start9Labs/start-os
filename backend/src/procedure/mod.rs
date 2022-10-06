@@ -9,6 +9,7 @@ use tracing::instrument;
 use self::docker::{DockerContainer, DockerInject, DockerProcedure};
 use crate::context::RpcContext;
 use crate::id::ImageId;
+use crate::manager::CommandInserter;
 use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
 use crate::volume::Volumes;
@@ -78,6 +79,7 @@ impl PackageProcedure {
         volumes: &Volumes,
         input: Option<I>,
         timeout: Option<Duration>,
+        command_inserter: &mut Option<CommandInserter>,
     ) -> Result<Result<O, (i32, String)>, Error> {
         tracing::trace!("Procedure execute {} {} - {:?}", self, pkg_id, name);
         match self {
@@ -124,6 +126,7 @@ impl PackageProcedure {
         volumes: &Volumes,
         input: Option<I>,
         timeout: Option<Duration>,
+        command_inserter: &mut Option<CommandInserter>,
     ) -> Result<Result<O, (i32, String)>, Error> {
         tracing::trace!("Procedure inject {} {} - {:?}", self, pkg_id, name);
         match self {
@@ -153,6 +156,7 @@ impl PackageProcedure {
                         volumes,
                         input,
                         timeout,
+                        command_inserter,
                     )
                     .await
             }

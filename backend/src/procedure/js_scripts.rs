@@ -62,6 +62,7 @@ impl JsProcedure {
         volumes: &Volumes,
         input: Option<I>,
         timeout: Option<Duration>,
+        command_inserter: &mut Option<CommandInserter>,
     ) -> Result<Result<O, (i32, String)>, Error> {
         Ok(async move {
             let running_action = JsExecutionEnvironment::load_from_package(
@@ -69,6 +70,7 @@ impl JsProcedure {
                 pkg_id,
                 pkg_version,
                 Box::new(volumes.clone()),
+                move || ,
             )
             .await?
             .run_action(name, input, self.args.clone());

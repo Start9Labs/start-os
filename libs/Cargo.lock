@@ -978,10 +978,12 @@ dependencies = [
 name = "js_engine"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "dashmap",
  "deno_ast",
  "deno_core",
  "dprint-swc-ext",
+ "embassy_container_init",
  "helpers",
  "models",
  "reqwest",

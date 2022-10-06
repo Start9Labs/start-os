@@ -1,8 +1,10 @@
+use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::SystemTime;
 
+use async_trait::async_trait;
 use deno_core::anyhow::{anyhow, bail};
 use deno_core::error::AnyError;
 use deno_core::{
@@ -14,6 +16,8 @@ use models::{PackageId, ProcedureName, Version, VolumeId};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::io::AsyncReadExt;
+use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::Mutex;
 
 pub trait PathForVolumeId: Send + Sync {
     fn path_for(
@@ -90,6 +94,7 @@ struct JsContext {
     volumes: Arc<dyn PathForVolumeId>,
     input: Value,
     variable_args: Vec<serde_json::Value>,
+    command_inserter: ExecCommand,
 }
 
 #[derive(Clone, Default)]
@@ -162,6 +167,25 @@ impl ModuleLoader for ModsLoader {
         })
     }
 }
+
+// #[async_trait]
+// pub trait ExecCommand {
+//     async fn exec_command(
+//         &mut self,
+//         command: String,
+//         args: Vec<String>,
+//         sender: UnboundedSender<embassy_container_init::Output>,
+//     );
+// }
+pub type ExecCommand = Arc<
+    dyn Fn(
+            String,
+            Vec<String>,
+            UnboundedSender<embassy_container_init::Output>,
+        ) -> Pin<Box<dyn Future<Output = Result<(), String>>>>
+        + Send
+        + Sync,
+>;
 pub struct JsExecutionEnvironment {
     sandboxed: bool,
     base_directory: PathBuf,
@@ -169,6 +193,7 @@ pub struct JsExecutionEnvironment {
     package_id: PackageId,
     version: Version,
     volumes: Arc<dyn PathForVolumeId>,
+    command_inserter: ExecCommand,
 }
 
 impl JsExecutionEnvironment {
@@ -177,7 +202,8 @@ impl JsExecutionEnvironment {
         package_id: &PackageId,
         version: &Version,
         volumes: Box<dyn PathForVolumeId>,
-    ) -> Result<Self, (JsError, String)> {
+        command_inserter: ExecCommand,
+    ) -> Result<JsExecutionEnvironment, (JsError, String)> {
         let data_dir = data_directory.as_ref();
         let base_directory = data_dir;
         let js_code = JsCode({
@@ -203,13 +229,14 @@ impl JsExecutionEnvironment {
             };
             buffer
         });
-        Ok(Self {
+        Ok(JsExecutionEnvironment {
             base_directory: base_directory.to_owned(),
             module_loader: ModsLoader { code: js_code },
             package_id: package_id.clone(),
             version: version.clone(),
             volumes: volumes.into(),
             sandboxed: false,
+            command_inserter,
         })
     }
     pub fn read_only_effects(mut self) -> Self {
@@ -304,6 +331,7 @@ impl JsExecutionEnvironment {
             sandboxed: self.sandboxed,
             input,
             variable_args,
+            command_inserter: self.command_inserter.clone(),
         };
         let ext = Extension::builder()
             .ops(Self::declarations())
@@ -351,6 +379,7 @@ mod fns {
     use std::cell::RefCell;
     use std::collections::BTreeMap;
     use std::convert::TryFrom;
+    use std::ops::DerefMut;
     use std::os::unix::fs::MetadataExt;
     use std::path::{Path, PathBuf};
     use std::rc::Rc;
@@ -363,7 +392,7 @@ mod fns {
     use serde_json::Value;
     use tokio::io::AsyncWriteExt;
 
-    use super::{AnswerState, JsContext};
+    use super::{AnswerState, ExecCommand, JsContext};
     use crate::{system_time_as_unix_ms, MetadataJs};
 
     #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Default)]
@@ -775,6 +804,42 @@ mod fns {
     fn is_sandboxed(state: &mut OpState) -> Result<bool, AnyError> {
         let ctx = state.borrow::<JsContext>();
         Ok(ctx.sandboxed)
+    }
+
+    #[op]
+    async fn run_command(
+        state: Rc<RefCell<OpState>>,
+        command: String,
+        args: Vec<String>,
+    ) -> Result<String, AnyError> {
+        use embassy_container_init::Output;
+        let state = state.borrow();
+        let ctx = state.borrow::<JsContext>();
+
+        let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel::<Output>();
+        if let Err(err) = (ctx.command_inserter)(
+            command,
+            args.into_iter().map(|x| x.to_string()).collect(),
+            sender,
+        )
+        .await
+        {
+            bail!("{err}");
+        }
+        let mut answer = String::new();
+        while let Some(output) = receiver.recv().await {
+            match output {
+                Output::Line(value) => {
+                    answer.push_str(&value);
+                    answer.push('\n');
+                }
+                Output::Error(error) => {
+                    bail!("Error in command: {error}\n Input so far is: {answer}")
+                }
+            }
+        }
+
+        Ok(answer)
     }
 
     /// We need to make sure that during the file accessing, we don't reach beyond our scope of control
