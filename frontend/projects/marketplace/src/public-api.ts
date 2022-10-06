@@ -26,7 +26,6 @@ export * from './pipes/filter-packages.pipe'
 export * from './services/marketplace.service'
 
 export * from './types/dependency'
-export * from './types/marketplace'
-export * from './types/marketplace-data'
+export * from './types/marketplace-info'
 export * from './types/marketplace-manifest'
 export * from './types/marketplace-pkg'

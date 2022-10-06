@@ -100,10 +100,7 @@ export class ServerConfigService {
 
   saveFns: { [key: string]: (val: any) => Promise<any> } = {
     'auto-check-updates': async (enabled: boolean) => {
-      return this.embassyApi.setDbValue({
-        pointer: '/auto-check-updates',
-        value: enabled,
-      })
+      return this.embassyApi.setDbValue(['auto-check-updates'], enabled)
     },
   }
 }
