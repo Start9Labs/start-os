@@ -11,7 +11,7 @@ use color_eyre::eyre::eyre;
 use color_eyre::Report;
 use embassy_container_init::{InputJsonRpc, OutputJsonRpc};
 use futures::future::Either as EitherFuture;
-use futures::{Stream, StreamExt, TryStreamExt};
+use futures::{Stream, StreamExt, TryFutureExt, TryStreamExt};
 use helpers::NonDetachingJoinHandle;
 use nix::sys::signal;
 use nix::unistd::Pid;
@@ -323,27 +323,25 @@ impl DockerProcedure {
         .await?;
 
         let mut handle = cmd.spawn().with_kind(crate::ErrorKind::Docker)?;
-        let input_handle = LongRunning::spawn_input_handle(&mut handle, input)?;
+        let input_handle = LongRunning::spawn_input_handle(&mut handle, input)?
+            .map_err(|e| eyre!("Input Handle Error: {e:?}"));
 
         let (output, output_handle) = LongRunning::spawn_output_handle(&mut handle)?;
-        let err_handle = LongRunning::spawn_error_handle(&mut handle)?;
+        let output_handle = output_handle.map_err(|e| eyre!("Output Handle Error: {e:?}"));
+        let err_handle = LongRunning::spawn_error_handle(&mut handle)?
+            .map_err(|e| eyre!("Err Handle Error: {e:?}"));
 
         let running_output = NonDetachingJoinHandle::from(tokio::spawn(async move {
-            if let Err(join_error) = handle.wait().await {
-                tracing::debug!("{:?}", join_error);
-                tracing::error!("Main handle join error");
-            }
-            if let Err(join_error) = err_handle.await {
-                tracing::debug!("{:?}", join_error);
-                tracing::error!("Error handle join error");
-            }
-            if let Err(join_error) = output_handle.await {
-                tracing::debug!("{:?}", join_error);
-                tracing::error!("Output handle join error");
-            }
-            if let Err(join_error) = input_handle.await {
-                tracing::debug!("{:?}", join_error);
-                tracing::error!("Input handle join error");
+            if let Err(err) = tokio::try_join!(
+                handle.wait().map_err(|e| eyre!("Runtime error: {e:?}")),
+                err_handle,
+                output_handle,
+                input_handle
+            )
+            .map(|_| ())
+            {
+                tracing::debug!("{:?}", err);
+                tracing::error!("Join error");
             }
         }));
 
