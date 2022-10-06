@@ -26,11 +26,6 @@ use tokio::process::Command;
 use tokio::signal::unix::signal;
 use tracing::instrument;
 
-fn status_fn(_: i32) -> StatusCode {
-    StatusCode::OK
-}
-
-
 #[instrument]
 async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
     let (rpc_ctx, shutdown) = {
@@ -92,25 +87,9 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
             embassy::hostname::sync_hostname(&mut db, &receipts.hostname_receipts).await?;
         }
 
-        let auth = auth(rpc_ctx.clone());
-        let db_middleware = db_middleware(rpc_ctx.clone());
-        let ctx = rpc_ctx.clone();
-        let server = rpc_server!({
-            command: embassy::main_api,
-            context: ctx,
-            status: status_fn,
-            middleware: [
-                cors,
-                auth,
-                db_middleware,
-            ]
-        })
-        .with_graceful_shutdown({
-            let mut shutdown = rpc_ctx.shutdown.subscribe();
-            async move {
-                shutdown.recv().await.expect("context dropped");
-            }
-        });
+        // let auth = auth(rpc_ctx.clone());
+        // let db_middleware = db_middleware(rpc_ctx.clone());
+        // let ctx = rpc_ctx.clone();
 
         let metrics_ctx = rpc_ctx.clone();
         let metrics_task = tokio::spawn(async move {
@@ -119,9 +98,6 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
             })
             .await
         });
-
-        // TODO: let ws_ctx = rpc_ctx.clone();
-    
 
         let tor_health_ctx = rpc_ctx.clone();
         let tor_client = Client::builder()
@@ -148,9 +124,6 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
         embassy::sound::CHIME.play().await?;
 
         futures::try_join!(
-            server
-                .map_err(|e| Error::new(e, ErrorKind::Network))
-                .map_ok(|_| tracing::debug!("RPC Server Shutdown")),
             metrics_task
                 .map_err(|e| Error::new(
                     eyre!("{}", e).wrap_err("Metrics daemon panicked!"),
@@ -244,23 +217,7 @@ fn main() {
                         )
                         .await?;
                         let mut shutdown = ctx.shutdown.subscribe();
-                        rpc_server!({
-                            command: embassy::diagnostic_api,
-                            context: ctx.clone(),
-                            status: status_fn,
-                            middleware: [
-                                cors,
-                                diagnostic,
-                            ]
-                        })
-                        .with_graceful_shutdown({
-                            let mut shutdown = ctx.shutdown.subscribe();
-                            async move {
-                                shutdown.recv().await.expect("context dropped");
-                            }
-                        })
-                        .await
-                        .with_kind(embassy::ErrorKind::Network)?;
+                        
                         Ok::<_, Error>(shutdown.recv().await.with_kind(crate::ErrorKind::Unknown)?)
                     })()
                     .await

@@ -4,10 +4,13 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::UNIX_EPOCH;
 
+use color_eyre::eyre::eyre;
 use digest::Digest;
 use futures::FutureExt;
 use http::response::Builder;
 use hyper::{Body, Error as HyperError, Method, Request, Response, Server, StatusCode};
+use log::debug;
+use rpc_toolkit::{rpc_handler, RpcHandler};
 use tokio::fs::File;
 use tokio_util::codec::{BytesCodec, FramedRead};
 use tracing::error;
@@ -16,6 +19,7 @@ use crate::context::RpcContext;
 use crate::core::rpc_continuations::RequestGuid;
 use crate::db::subscribe;
 use crate::install::PKG_PUBLIC_DIR;
+use crate::main_api;
 use crate::middleware::auth::HasValidSession;
 use crate::net::HttpHandler;
 use crate::{Error, ErrorKind, ResultExt};
@@ -25,6 +29,10 @@ static NOT_AUTHORIZED: &[u8] = b"Not Authorized";
 
 pub const WWW_DIR: &str = "/var/www/html/main";
 
+fn status_fn(_: i32) -> StatusCode {
+    StatusCode::OK
+}
+
 pub async fn file_server_router(ctx: RpcContext) -> Result<HttpHandler, Error> {
     let handler: HttpHandler = Arc::new(move |req| {
         let ctx = ctx.clone();
@@ -32,19 +40,28 @@ pub async fn file_server_router(ctx: RpcContext) -> Result<HttpHandler, Error> {
             dbg!(req.uri());
 
             let res = match req.uri().path() {
+                path if path.starts_with("/rpc/") => {
+                    let rpc_handler1 =
+                        rpc_handler!({command: main_api, context: ctx, status: status_fn});
+
+                    let test = rpc_handler1(req)
+                        .await
+                        .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::Network));
+                    test
+                }
                 "/ws/db" => subscribe(ctx, req).await,
                 path if path.starts_with("/ws/rpc/") => {
                     match RequestGuid::from(path.strip_prefix("/ws/rpc/").unwrap()) {
                         None => {
                             tracing::debug!("No Guid Path");
-                            Ok(bad_request())
+                            Ok::<_, Error>(bad_request())
                         }
                         Some(guid) => match ctx.get_ws_continuation_handler(&guid).await {
                             Some(cont) => match cont(req).await {
-                                Ok(r) => Ok(r),
-                                Err(err) => Ok(server_error(err)),
+                                Ok::<_, Error>(r) => Ok::<_, Error>(r),
+                                Err(err) => Ok::<_, Error>(server_error(err)),
                             },
-                            _ => Ok(not_found()),
+                            _ => Ok::<_, Error>(not_found()),
                         },
                     }
                 }
@@ -52,13 +69,13 @@ pub async fn file_server_router(ctx: RpcContext) -> Result<HttpHandler, Error> {
                     match RequestGuid::from(path.strip_prefix("/rest/rpc/").unwrap()) {
                         None => {
                             tracing::debug!("No Guid Path");
-                            Ok(bad_request())
+                            Ok::<_, Error>(bad_request())
                         }
                         Some(guid) => match ctx.get_rest_continuation_handler(&guid).await {
-                            None => Ok(not_found()),
+                            None => Ok::<_, Error>(not_found()),
                             Some(cont) => match cont(req).await {
-                                Ok(r) => Ok(r),
-                                Err(e) => Ok(server_error(e)),
+                                Ok::<_, Error>(r) => Ok::<_, Error>(r),
+                                Err(e) => Ok::<_, Error>(server_error(e)),
                             },
                         },
                     }
@@ -109,7 +126,19 @@ async fn main_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response<Body>, 
                             .split_once('/'),
                     ) {
                         (Method::GET, Some(("public", path))) => {
-                            file_send(ctx.datadir.join(PKG_PUBLIC_DIR).join(path)).await
+                            let sub_path = Path::new(path);
+                            if let Ok(rest) = sub_path.strip_prefix("package-data") {
+                                file_send(ctx.datadir.join(PKG_PUBLIC_DIR).join(rest)).await
+                            } else if let Ok(rest) = sub_path.strip_prefix("eos") {
+                                match rest.to_str().unwrap() {
+                                    "local.crt" => {
+                                        file_send(crate::net::ssl::ROOT_CA_STATIC_PATH).await
+                                    }
+                                    _ => Ok(not_found()),
+                                }
+                            } else {
+                                Ok(not_found())
+                            }
                         }
                         (Method::GET, Some(("eos", "local.crt"))) => {
                             file_send(PathBuf::from(crate::net::ssl::ROOT_CA_STATIC_PATH)).await
