@@ -69,10 +69,7 @@ export class DevConfigPage {
   async save() {
     this.saving = true
     try {
-      await this.api.setDbValue({
-        pointer: `/dev/${this.projectId}/config`,
-        value: this.code,
-      })
+      await this.api.setDbValue(['dev', this.projectId, 'config'], this.code)
     } catch (e: any) {
       this.errToast.present(e)
     } finally {

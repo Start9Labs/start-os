@@ -18,7 +18,10 @@ export abstract class ApiService {
 
   // db
 
-  abstract setDbValue(params: RR.SetDBValueReq): Promise<RR.SetDBValueRes>
+  abstract setDbValue(
+    pathArr: Array<string | number>,
+    value: any,
+  ): Promise<RR.SetDBValueRes>
 
   // auth
 
@@ -64,7 +67,7 @@ export abstract class ApiService {
     params: RR.GetPackageMetricsReq,
   ): Promise<RR.GetPackageMetricsRes>
 
-  abstract updateServer(params: RR.UpdateServerReq): Promise<RR.UpdateServerRes>
+  abstract updateServer(url?: string): Promise<RR.UpdateServerRes>
 
   abstract restartServer(
     params: RR.RestartServerReq,

@@ -1,11 +1,13 @@
 {
   "name": null,
   "auto-check-updates": true,
-  "pkg-order": [],
-  "ack-welcome": "0.3.2.1",
+  "ack-welcome": "0.3.3",
   "marketplace": {
-    "selected-id": null,
-    "known-hosts": {}
+    "selected-url": "https://registry.start9.com/",
+    "known-hosts": {
+      "https://registry.start9.com/": "Start9 Marketplace",
+      "https://community-registry.start9.com/": "Community Marketplace"
+    }
   },
   "dev": {},
   "gaming": {

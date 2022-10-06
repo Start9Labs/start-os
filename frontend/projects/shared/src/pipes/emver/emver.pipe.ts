@@ -26,7 +26,7 @@ export class EmverComparesPipe implements PipeTransform {
     try {
       return this.emver.compare(first, second) as SemverResult
     } catch (e) {
-      console.warn(`emver comparison failed`, e, first, second)
+      console.error(`emver comparison failed`, e, first, second)
       return 'comparison-impossible'
     }
   }

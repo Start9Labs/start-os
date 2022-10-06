@@ -11,7 +11,7 @@ const {
   targetArch,
   gitHash,
   useMocks,
-  ui: { api, mocks, marketplace },
+  ui: { api, mocks },
 } = require('../../../../../config.json') as WorkspaceConfig
 
 @Injectable({
@@ -25,7 +25,6 @@ export class ConfigService {
   targetArch = targetArch
   gitHash = gitHash
   api = api
-  marketplace = marketplace
   skipStartupAlerts = useMocks && mocks.skipStartupAlerts
   isConsulate = (window as any)['platform'] === 'ios'
   supportsWebSockets = !!window.WebSocket || this.isConsulate
