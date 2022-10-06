@@ -2,14 +2,14 @@
 printf "\n"
 printf "Welcome to\n"
 cat << "ASCII"
-,---.     |                        ,---.,---.
-|--- ,-.-.|---.,---.,---.,---.,   .|   |`---.
-|    | | ||   |,---|`---.`---.|   ||   |    |
+          |                        ,---.,---.
+,---.,-.-.|---.,---.,---.,---.,   .|   |`---.
+|---'| | ||   |,---|`---.`---.|   ||   |    |
 `---'` ' '`---'`---^`---'`---'`---|`---'`---'
                               `---'
 ASCII
 printf "   %s (%s %s)\n" "$(uname -o)" "$(uname -r)" "$(uname -m)"
-printf "   $(embassy-cli --version | sed 's/Embassy CLI /EmbassyOS v/g') - $(embassy-cli git-info)\n"
+printf "   $(embassy-cli --version | sed 's/Embassy CLI /embassyOS v/g') - $(embassy-cli git-info)\n"
 
 printf "\n"
 printf " * Documentation:  https://start9.com\n"

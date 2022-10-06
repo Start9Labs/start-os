@@ -4,12 +4,15 @@ use std::process::Stdio;
 use std::time::Duration;
 
 use color_eyre::eyre::eyre;
+use helpers::NonDetachingJoinHandle;
 use patch_db::{DbHandle, LockReceipt, LockType};
 use tokio::process::Command;
 
+use crate::config::util::MergeWith;
 use crate::context::rpc::RpcContextConfig;
 use crate::db::model::ServerStatus;
 use crate::install::PKG_DOCKER_DIR;
+use crate::sound::CIRCLE_OF_5THS_SHORT;
 use crate::util::Invoke;
 use crate::version::VersionT;
 use crate::Error;
@@ -72,15 +75,25 @@ impl InitReceipts {
     }
 }
 
-pub async fn pgloader(old_db_path: impl AsRef<Path>) -> Result<(), Error> {
+pub async fn pgloader(
+    old_db_path: impl AsRef<Path>,
+    batch_rows: usize,
+    prefetch_rows: usize,
+) -> Result<(), Error> {
     tokio::fs::write(
         "/etc/embassy/migrate.load",
         format!(
             include_str!("migrate.load"),
-            sqlite_path = old_db_path.as_ref().display()
+            sqlite_path = old_db_path.as_ref().display(),
+            batch_rows = batch_rows,
+            prefetch_rows = prefetch_rows
         ),
     )
     .await?;
+    match tokio::fs::remove_dir_all("/tmp/pgloader").await {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        a => a,
+    }?;
     tracing::info!("Running pgloader");
     let out = Command::new("pgloader")
         .arg("-v")
@@ -190,11 +203,41 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         .server_info()
         .lock(&mut handle, LockType::Write)
         .await?;
+
+    let defaults: serde_json::Value =
+        serde_json::from_str(include_str!("../../frontend/patchdb-ui-seed.json")).map_err(|x| {
+            Error::new(
+                eyre!("Deserialization error {:?}", x),
+                crate::ErrorKind::Deserialization,
+            )
+        })?;
+    let mut ui = crate::db::DatabaseModel::new()
+        .ui()
+        .get(&mut handle, false)
+        .await?
+        .clone();
+    ui.merge_with(&defaults);
+    crate::db::DatabaseModel::new()
+        .ui()
+        .put(&mut handle, &ui)
+        .await?;
+
     let receipts = InitReceipts::new(&mut handle).await?;
 
     let should_rebuild = tokio::fs::metadata(SYSTEM_REBUILD_PATH).await.is_ok()
         || &*receipts.server_version.get(&mut handle).await?
             < &crate::version::Current::new().semver();
+
+    let song = if should_rebuild {
+        Some(NonDetachingJoinHandle::from(tokio::spawn(async {
+            loop {
+                CIRCLE_OF_5THS_SHORT.play().await.unwrap();
+                tokio::time::sleep(Duration::from_secs(10)).await;
+            }
+        })))
+    } else {
+        None
+    };
 
     let log_dir = cfg.datadir().join("main/logs");
     if tokio::fs::metadata(&log_dir).await.is_err() {
@@ -330,6 +373,8 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
             Err(e) => Err(e),
         }?;
     }
+
+    drop(song);
 
     tracing::info!("System initialized.");
 

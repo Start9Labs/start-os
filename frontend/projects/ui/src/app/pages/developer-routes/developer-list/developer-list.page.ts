@@ -49,7 +49,7 @@ export class DeveloperListPage {
   }
 
   async openCreateProjectModal() {
-    const projNumber = Object.keys(this.devData || {}).length + 1
+    const projNumber = Object.keys(this.devData).length + 1
     const options: GenericInputOptions = {
       title: 'Add new project',
       message: 'Create a new dev project.',
@@ -130,7 +130,7 @@ export class DeveloperListPage {
   async createProject(name: string) {
     // fail silently if duplicate project name
     if (
-      Object.values(this.devData || {})
+      Object.values(this.devData)
         .map(v => v.name)
         .includes(name)
     )
@@ -148,11 +148,7 @@ export class DeveloperListPage {
         .replace(/warning:/g, '# Optional\n  warning:')
 
       const def = { name, config, instructions: SAMPLE_INSTUCTIONS }
-      if (this.devData) {
-        await this.api.setDbValue({ pointer: `/dev/${id}`, value: def })
-      } else {
-        await this.api.setDbValue({ pointer: `/dev`, value: { [id]: def } })
-      }
+      await this.api.setDbValue({ pointer: `/dev/${id}`, value: def })
     } catch (e: any) {
       this.errToast.present(e)
     } finally {

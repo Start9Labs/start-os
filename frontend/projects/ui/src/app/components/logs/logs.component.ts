@@ -38,6 +38,7 @@ export class LogsComponent {
     params: RR.FollowServerLogsReq,
   ) => Promise<RR.FollowServerLogsRes>
   @Input() fetchLogs!: (params: ServerLogsReq) => Promise<LogsRes>
+  @Input() context!: string
   @Input() defaultBack!: string
   @Input() title!: string
 
@@ -151,7 +152,7 @@ export class LogsComponent {
       }
       const html = this.convertToAnsi(entries)
 
-      this.downloadHtml.download('logs.html', html, styles)
+      this.downloadHtml.download(`${this.context}-logs.html`, html, styles)
     } catch (e: any) {
       this.errToast.present(e)
     } finally {

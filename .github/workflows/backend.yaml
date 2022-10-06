@@ -133,7 +133,7 @@ jobs:
       if: ${{ matrix.target == 'aarch64' }}
 
     - name: 'Tar files to preserve file permissions'
-      run: tar -cvf backend-${{ matrix.target }}.tar ENVIRONMENT.txt GIT_HASH.txt backend/target/${{ matrix.target }}-unknown-linux-gnu/release/embassy*
+      run: make ARCH=${{ matrix.target }} backend-${{ matrix.target }}.tar
 
     - uses: actions/upload-artifact@v3
       with:

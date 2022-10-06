@@ -4,6 +4,7 @@ use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
 
 use bollard::Docker;
 use helpers::to_tmp_path;
@@ -22,6 +23,7 @@ use tracing::instrument;
 
 use crate::core::rpc_continuations::{RequestGuid, RestHandler, RpcContinuation};
 use crate::db::model::{Database, InstalledPackageDataEntry, PackageDataEntry};
+use crate::hostname::HostNameReceipt;
 use crate::init::{init_postgres, pgloader};
 use crate::install::cleanup::{cleanup_failed, uninstall, CleanupFailedReceipts};
 use crate::manager::ManagerMap;
@@ -40,6 +42,8 @@ use crate::{Error, ErrorKind, ResultExt};
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct RpcContextConfig {
+    pub migration_batch_rows: Option<usize>,
+    pub migration_prefetch_rows: Option<usize>,
     pub bind_rpc: Option<SocketAddr>,
     pub bind_ws: Option<SocketAddr>,
     pub bind_static: Option<SocketAddr>,
@@ -99,7 +103,12 @@ impl RpcContextConfig {
             .with_kind(crate::ErrorKind::Database)?;
         let old_db_path = self.datadir().join("main/secrets.db");
         if tokio::fs::metadata(&old_db_path).await.is_ok() {
-            pgloader(&old_db_path).await?;
+            pgloader(
+                &old_db_path,
+                self.migration_batch_rows.unwrap_or(25000),
+                self.migration_prefetch_rows.unwrap_or(100_000),
+            )
+            .await?;
         }
         Ok(secret_store)
     }
@@ -167,6 +176,7 @@ impl RpcCleanReceipts {
 }
 
 pub struct RpcSetNginxReceipts {
+    pub hostname_receipts: HostNameReceipt,
     server_info: LockReceipt<crate::db::model::ServerInfo, ()>,
 }
 
@@ -181,12 +191,14 @@ impl RpcSetNginxReceipts {
     pub fn setup(
         locks: &mut Vec<patch_db::LockTargetId>,
     ) -> impl FnOnce(&patch_db::Verifier) -> Result<Self, Error> {
+        let hostname_receipts = HostNameReceipt::setup(locks);
         let server_info = crate::db::DatabaseModel::new()
             .server_info()
             .make_locker(LockType::Read)
             .add_to_keys(locks);
         move |skeleton_key| {
             Ok(Self {
+                hostname_receipts: hostname_receipts(skeleton_key)?,
                 server_info: server_info.verify(skeleton_key)?,
             })
         }
@@ -212,7 +224,8 @@ impl RpcContext {
         tracing::info!("Opened Pg DB");
         let db = base.db(&secret_store).await?;
         tracing::info!("Opened PatchDB");
-        let docker = Docker::connect_with_unix_defaults()?;
+        let mut docker = Docker::connect_with_unix_defaults()?;
+        docker.set_timeout(Duration::from_secs(600));
         tracing::info!("Connected to Docker");
         let net_controller = NetController::init(
             ([127, 0, 0, 1], 80).into(),

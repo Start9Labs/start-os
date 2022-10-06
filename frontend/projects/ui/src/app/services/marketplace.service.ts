@@ -37,13 +37,6 @@ export class MarketplaceService extends AbstractMarketplaceService {
   private readonly uiMarketplaceData$ = this.patch
     .watch$('ui', 'marketplace')
     .pipe(
-      map(
-        m =>
-          m || {
-            'selected-id': null,
-            'known-hosts': {},
-          },
-      ),
       distinctUntilChanged(
         (prev, curr) => prev['selected-id'] === curr['selected-id'],
       ),

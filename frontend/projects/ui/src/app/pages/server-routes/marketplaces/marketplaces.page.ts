@@ -66,7 +66,7 @@ export class MarketplacesPage {
     this.patch
       .watch$('ui', 'marketplace')
       .pipe(distinctUntilChanged(), takeUntil(this.destroy$))
-      .subscribe((mp: UIMarketplaceData | undefined) => {
+      .subscribe((mp: UIMarketplaceData) => {
         let marketplaces: Marketplaces = [
           {
             id: null,
@@ -74,17 +74,15 @@ export class MarketplacesPage {
             url: this.config.marketplace.url,
           },
         ]
-        if (mp) {
-          this.selectedId = mp['selected-id']
-          const alts = Object.entries(mp['known-hosts']).map(([k, v]) => {
-            return {
-              id: k,
-              name: v.name,
-              url: v.url,
-            }
-          })
-          marketplaces = marketplaces.concat(alts)
-        }
+        this.selectedId = mp['selected-id']
+        const alts = Object.entries(mp['known-hosts']).map(([k, v]) => {
+          return {
+            id: k,
+            name: v.name,
+            url: v.url,
+          }
+        })
+        marketplaces = marketplaces.concat(alts)
         this.marketplaces = marketplaces
       })
   }

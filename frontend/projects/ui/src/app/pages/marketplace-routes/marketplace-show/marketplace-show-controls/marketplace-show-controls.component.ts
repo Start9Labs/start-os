@@ -15,7 +15,7 @@ import {
   PackageDataEntry,
   PackageState,
 } from 'src/app/services/patch-db/data-model'
-import { LocalStorageService } from 'src/app/services/local-storage.service'
+import { ClientStorageService } from 'src/app/services/client-storage.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -37,13 +37,13 @@ export class MarketplaceShowControlsComponent {
   @Input()
   localPkg!: PackageDataEntry | null
 
-  readonly showDevTools$ = this.localStorageService.showDevTools$
+  readonly showDevTools$ = this.ClientStorageService.showDevTools$
 
   readonly PackageState = PackageState
 
   constructor(
     private readonly alertCtrl: AlertController,
-    private readonly localStorageService: LocalStorageService,
+    private readonly ClientStorageService: ClientStorageService,
     @Inject(AbstractMarketplaceService)
     private readonly marketplaceService: MarketplaceService,
     private readonly loadingCtrl: LoadingController,

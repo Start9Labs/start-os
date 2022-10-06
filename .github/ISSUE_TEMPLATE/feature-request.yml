@@ -1,5 +1,5 @@
 name: 💡 Feature Request
-description: Suggest an idea for EmbassyOS
+description: Suggest an idea for embassyOS
 title: '[feat]: '
 labels: [Enhancement]
 assignees:
@@ -27,7 +27,7 @@ body:
   - type: textarea
     attributes:
       label: Describe Preferred Solution
-      description: How you want this feature added to EmbassyOS?
+      description: How you want this feature added to embassyOS?
   - type: textarea
     attributes:
       label: Describe Alternatives

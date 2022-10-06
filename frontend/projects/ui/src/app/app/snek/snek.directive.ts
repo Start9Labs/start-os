@@ -39,8 +39,8 @@ export class SnekDirective {
 
       try {
         await this.embassyApi.setDbValue({
-          pointer: '/gaming',
-          value: { snake: { 'high-score': data.highScore } },
+          pointer: '/gaming/snake/high-score',
+          value: data.highScore,
         })
       } catch (e: any) {
         this.errToast.present(e)

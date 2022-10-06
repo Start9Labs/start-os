@@ -69,7 +69,8 @@ impl Database {
             },
             package_data: AllPackageData::default(),
             recovered_packages: BTreeMap::new(),
-            ui: Value::Object(Default::default()),
+            ui: serde_json::from_str(include_str!("../../../frontend/patchdb-ui-seed.json"))
+                .unwrap(),
         }
     }
 }

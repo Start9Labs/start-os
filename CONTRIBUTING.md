@@ -136,21 +136,21 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/Start9
 
 ### Project Structure
 
-EmbassyOS is composed of the following components. Please visit the README for each component to understand the dependency requirements and installation instructions.
-- [`ui`](frontend/README.md) (Typescript Ionic Angular) is the code that is deployed to the browser to provide the user interface for EmbassyOS.
-- [`backend`](backend/README.md) (Rust) is a command line utility, daemon, and software development kit that sets up and manages services and their environments, provides the interface for the ui, manages system state, and provides utilities for packaging services for EmbassyOS.
+embassyOS is composed of the following components. Please visit the README for each component to understand the dependency requirements and installation instructions.
+- [`ui`](frontend/README.md) (Typescript Ionic Angular) is the code that is deployed to the browser to provide the user interface for embassyOS.
+- [`backend`](backend/README.md) (Rust) is a command line utility, daemon, and software development kit that sets up and manages services and their environments, provides the interface for the ui, manages system state, and provides utilities for packaging services for embassyOS.
 - `patch-db` - A diff based data store that is used to synchronize data between the front and backend.
   - Notably, `patch-db` has a [client](https://github.com/Start9Labs/patch-db/tree/master/client) with its own dependency and installation requirements.
 - `rpc-toolkit` - A library for generating an rpc server with cli bindings from Rust functions.
-- `system-images` - (Docker, Rust) A suite of utility Docker images that are preloaded with EmbassyOS to assist with functions relating to services (eg. configuration, backups, health checks).
-- [`setup-wizard`](frontend/README.md)- Code for the user interface that is displayed during the setup and recovery process for EmbassyOS.
-- [`diagnostic-ui`](frontend/README.md) - Code for the user interface that is displayed when something has gone wrong with starting up EmbassyOS, which provides helpful debugging tools.
+- `system-images` - (Docker, Rust) A suite of utility Docker images that are preloaded with embassyOS to assist with functions relating to services (eg. configuration, backups, health checks).
+- [`setup-wizard`](frontend/README.md)- Code for the user interface that is displayed during the setup and recovery process for embassyOS.
+- [`diagnostic-ui`](frontend/README.md) - Code for the user interface that is displayed when something has gone wrong with starting up embassyOS, which provides helpful debugging tools.
 
 ### Your First Code Contribution
 
 #### Setting Up Your Development Environment
 
-First, clone the EmbassyOS repository and from the project root, pull in the submodules for dependent libraries.
+First, clone the embassyOS repository and from the project root, pull in the submodules for dependent libraries.
 
 ```sh
 git clone https://github.com/Start9Labs/embassy-os.git
@@ -160,7 +160,7 @@ git submodule update --init --recursive
 Depending on which component of the ecosystem you are interested in contributing to, follow the installation requirements listed in that component's README (linked [above](#project-structure))
 
 #### Building The Image
-This step is for setting up an environment in which to test your code changes if you do not yet have a EmbassyOS.
+This step is for setting up an environment in which to test your code changes if you do not yet have a embassyOS.
 
 - Requirements
   - `ext4fs` (available if running on the Linux kernel)
@@ -177,7 +177,7 @@ Contributions in the form of setup guides for integrations with external applica
 
 ## Styleguides
 ### Formatting
-Each component of EmbassyOS contains its own style guide. Code must be formatted with the formatter designated for each component. These are outlined within each component folder's README.
+Each component of embassyOS contains its own style guide. Code must be formatted with the formatter designated for each component. These are outlined within each component folder's README.
 
 ### Atomic Commits
 Commits [should be atomic](https://en.wikipedia.org/wiki/Atomic_commit#Atomic_commit_convention) and diffs should be easy to read.
