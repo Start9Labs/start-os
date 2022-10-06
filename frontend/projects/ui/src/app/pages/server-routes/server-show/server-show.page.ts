@@ -48,9 +48,6 @@ export class ServerShowPage {
 
   async updateEos(): Promise<void> {
     const modal = await this.modalCtrl.create({
-      componentProps: {
-        releaseNotes: this.eosService.eos?.['release-notes'],
-      },
       component: OSUpdatePage,
     })
     modal.present()

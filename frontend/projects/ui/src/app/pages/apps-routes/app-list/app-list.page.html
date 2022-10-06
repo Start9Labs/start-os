@@ -8,15 +8,10 @@
 </ion-header>
 
 <ion-content class="ion-padding">
-  <!-- loading -->
-  <ng-container *ngIf="loading else loaded">
-    <text-spinner text="Connecting to Embassy"></text-spinner>
-  </ng-container>
-
   <!-- loaded -->
-  <ng-template #loaded>
+  <ng-container *ngIf="pkgs$ | async as pkgs; else loading">
     <app-list-empty
-      *ngIf="empty; else list"
+      *ngIf="!pkgs.length; else list"
       class="ion-text-center ion-padding"
     ></app-list-empty>
 
@@ -36,5 +31,10 @@
         </ion-row>
       </ion-grid>
     </ng-template>
+  </ng-container>
+
+  <!-- loading -->
+  <ng-template #loading>
+    <text-spinner text="Connecting to Embassy"></text-spinner>
   </ng-template>
 </ion-content>

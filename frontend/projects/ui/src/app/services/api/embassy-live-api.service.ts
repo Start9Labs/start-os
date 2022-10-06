@@ -18,10 +18,12 @@ import { Observable } from 'rxjs'
 import { AuthService } from '../auth.service'
 import { DOCUMENT } from '@angular/common'
 import { DataModel } from '../patch-db/data-model'
-import { PatchDB, Update } from 'patch-db-client'
+import { PatchDB, pathFromArray, Update } from 'patch-db-client'
 
 @Injectable()
 export class LiveApiService extends ApiService {
+  readonly eosMarketplaceUrl = 'https://registry.start9.com/'
+
   constructor(
     @Inject(DOCUMENT) private readonly document: Document,
     private readonly http: HttpService,
@@ -52,7 +54,12 @@ export class LiveApiService extends ApiService {
 
   // db
 
-  async setDbValue(params: RR.SetDBValueReq): Promise<RR.SetDBValueRes> {
+  async setDbValue(
+    pathArr: Array<string | number>,
+    value: any,
+  ): Promise<RR.SetDBValueRes> {
+    const pointer = pathFromArray(pathArr)
+    const params: RR.SetDBValueReq = { pointer, value }
     return this.rpcRequest({ method: 'db.put.ui', params })
   }
 
@@ -127,13 +134,11 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'server.metrics', params })
   }
 
-  async updateServer(params: RR.UpdateServerReq): Promise<RR.UpdateServerRes> {
+  async updateServer(url?: string): Promise<RR.UpdateServerRes> {
+    const params = {
+      'marketplace-url': url || this.eosMarketplaceUrl,
+    }
     return this.rpcRequest({ method: 'server.update', params })
-    // const res = await this.updateServer(params)
-    // if (res.response === 'no-updates') {
-    //   throw new Error('Could not find a newer version of embassyOS')
-    // }
-    // return res
   }
 
   async restartServer(
@@ -160,12 +165,12 @@ export class LiveApiService extends ApiService {
 
   // marketplace URLs
 
-  async marketplaceProxy<T>(path: string, qp: {}, url: string): Promise<T> {
+  async marketplaceProxy<T>(path: string, qp: {}, baseUrl: string): Promise<T> {
     Object.assign(qp, { arch: this.config.targetArch })
-    const fullURL = `${url}${path}?${new URLSearchParams(qp).toString()}`
+    const fullUrl = `${baseUrl}${path}?${new URLSearchParams(qp).toString()}`
     return this.rpcRequest({
       method: 'marketplace.get',
-      params: { url: fullURL },
+      params: { url: fullUrl },
     })
   }
 
@@ -175,7 +180,7 @@ export class LiveApiService extends ApiService {
     return this.marketplaceProxy(
       '/eos/v0/latest',
       params,
-      this.config.marketplace.url,
+      this.eosMarketplaceUrl,
     )
   }
 

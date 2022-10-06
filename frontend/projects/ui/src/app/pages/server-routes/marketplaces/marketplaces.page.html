@@ -8,8 +8,34 @@
 </ion-header>
 
 <ion-content class="ion-padding-top">
-  <ion-item-group>
-    <ion-item-divider>Saved Marketplaces</ion-item-divider>
+  <ion-item-group *ngIf="marketplace$ | async as m">
+    <ion-item>
+      <ion-label>
+        Connect to a standard marketplaces or an alternative marketplace.
+      </ion-label>
+    </ion-item>
+
+    <ion-item-divider>Standard Marketplaces</ion-item-divider>
+    <ion-item
+      *ngFor="let s of m.standard"
+      detail="false"
+      [button]="s.url !== m.selected"
+      (click)="s.url === m.selected ? '' : presentAction(s)"
+    >
+      <ion-icon
+        *ngIf="s.url === m.selected"
+        slot="end"
+        size="large"
+        name="checkmark"
+        color="success"
+      ></ion-icon>
+      <ion-label>
+        <h2>{{ s.name }}</h2>
+        <p>{{ s.url }}</p>
+      </ion-label>
+    </ion-item>
+
+    <ion-item-divider>Alt Marketplaces</ion-item-divider>
     <ion-item button detail="false" (click)="presentModalAdd()">
       <ion-icon slot="start" name="add" color="dark"></ion-icon>
       <ion-label>
@@ -20,22 +46,21 @@
     </ion-item>
 
     <ion-item
-      *ngFor="let mp of marketplaces"
+      *ngFor="let a of m.alt"
       detail="false"
-      [button]="mp.id !== selectedId"
-      (click)="presentAction(mp.id)"
+      [button]="a.url !== m.selected"
+      (click)="a.url === m.selected ? '' : presentAction(a, true)"
     >
-      <div *ngIf="mp.id !== selectedId" slot="start" class="padding"></div>
       <ion-icon
-        *ngIf="mp.id === selectedId"
-        slot="start"
+        *ngIf="a.url === m.selected"
+        slot="end"
         size="large"
         name="checkmark"
         color="success"
       ></ion-icon>
       <ion-label>
-        <h2>{{ mp.name }}</h2>
-        <p>{{ mp.url }}</p>
+        <h2>{{ a.name }}</h2>
+        <p>{{ a.url }}</p>
       </ion-label>
     </ion-item>
   </ion-item-group>

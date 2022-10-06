@@ -7,7 +7,6 @@ import {
 } from '@angular/core'
 import { AlertController, ModalController } from '@ionic/angular'
 import { displayEmver, Emver, MarkdownComponent } from '@start9labs/shared'
-
 import { AbstractMarketplaceService } from '../../../services/marketplace.service'
 import { MarketplacePkg } from '../../../types/marketplace-pkg'
 
@@ -58,9 +57,9 @@ export class AdditionalComponent {
   }
 
   async presentModalMd(title: string) {
-    const content = this.marketplaceService.getPackageMarkdown(
-      title,
+    const content = this.marketplaceService.fetchPackageMarkdown(
       this.pkg.manifest.id,
+      title,
     )
 
     const modal = await this.modalCtrl.create({

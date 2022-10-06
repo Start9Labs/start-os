@@ -32,6 +32,9 @@ import { firstValueFrom } from 'rxjs'
 })
 export class MarketplaceShowControlsComponent {
   @Input()
+  url?: string
+
+  @Input()
   pkg!: MarketplacePkg
 
   @Input()
@@ -58,22 +61,81 @@ export class MarketplaceShowControlsComponent {
   }
 
   async tryInstall() {
+    const currentMarketplace = await firstValueFrom(
+      this.marketplaceService.getUiMarketplace$(),
+    )
+    const url = this.url || currentMarketplace.url
+
     if (!this.localPkg) {
-      this.alertInstall()
+      this.alertInstall(url)
     } else {
+      const originalUrl = this.localPkg.installed?.['marketplace-url']
+
+      if (url !== originalUrl) {
+        const proceed = await this.presentAlertDifferentMarketplace(
+          url,
+          originalUrl,
+        )
+        if (!proceed) return
+      }
+
       if (
         this.emver.compare(this.localVersion, this.pkg.manifest.version) !==
           0 &&
         hasCurrentDeps(this.localPkg)
       ) {
-        this.dryInstall()
+        this.dryInstall(url)
       } else {
-        this.install()
+        this.install(url)
       }
     }
   }
 
-  private async dryInstall() {
+  private async presentAlertDifferentMarketplace(
+    url: string,
+    originalUrl: string | null | undefined,
+  ): Promise<boolean> {
+    const marketplaces = await firstValueFrom(
+      this.patch.watch$('ui', 'marketplace'),
+    )
+
+    const name = marketplaces['known-hosts'][url] || url
+
+    let originalName: string | undefined
+    if (originalUrl) {
+      originalName = marketplaces['known-hosts'][originalUrl] || originalUrl
+    }
+
+    return new Promise(async resolve => {
+      const alert = await this.alertCtrl.create({
+        header: 'Warning',
+        message: `This service was originally ${
+          originalName ? 'installed from ' + originalName : 'side loaded'
+        }, but you are currently connected to ${name}. To install from ${name} anyway, click "Continue".`,
+        buttons: [
+          {
+            text: 'Cancel',
+            role: 'cancel',
+            handler: () => {
+              resolve(false)
+            },
+          },
+          {
+            text: 'Continue',
+            handler: () => {
+              resolve(true)
+            },
+            cssClass: 'enter-click',
+          },
+        ],
+        cssClass: 'alert-warning-message',
+      })
+
+      await alert.present()
+    })
+  }
+
+  private async dryInstall(url: string) {
     const loader = await this.loadingCtrl.create({
       message: 'Checking dependent services...',
     })
@@ -88,12 +150,12 @@ export class MarketplaceShowControlsComponent {
       })
 
       if (isEmptyObject(breakages)) {
-        this.install(loader)
+        this.install(url, loader)
       } else {
         await loader.dismiss()
         const proceed = await this.presentAlertBreakages(breakages)
         if (proceed) {
-          this.install()
+          this.install(url)
         }
       }
     } catch (e: any) {
@@ -101,10 +163,10 @@ export class MarketplaceShowControlsComponent {
     }
   }
 
-  private async alertInstall() {
+  private async alertInstall(url: string) {
     const installAlert = this.pkg.manifest.alerts.install
 
-    if (!installAlert) return this.install()
+    if (!installAlert) return this.install(url)
 
     const alert = await this.alertCtrl.create({
       header: 'Alert',
@@ -117,7 +179,7 @@ export class MarketplaceShowControlsComponent {
         {
           text: 'Install',
           handler: () => {
-            this.install()
+            this.install(url)
           },
           cssClass: 'enter-click',
         },
@@ -126,7 +188,7 @@ export class MarketplaceShowControlsComponent {
     await alert.present()
   }
 
-  private async install(loader?: HTMLIonLoadingElement) {
+  private async install(url: string, loader?: HTMLIonLoadingElement) {
     const message = 'Beginning Install...'
     if (loader) {
       loader.message = message
@@ -138,12 +200,7 @@ export class MarketplaceShowControlsComponent {
     const { id, version } = this.pkg.manifest
 
     try {
-      await firstValueFrom(
-        this.marketplaceService.installPackage({
-          id,
-          'version-spec': `=${version}`,
-        }),
-      )
+      await this.marketplaceService.installPackage(id, version, url)
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
