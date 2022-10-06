@@ -1,8 +1,9 @@
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::Duration;
 
 pub use js_engine::JsError;
-use js_engine::{JsExecutionEnvironment, PathForVolumeId};
+use js_engine::{ExecCommand, JsExecutionEnvironment, PathForVolumeId};
 use models::VolumeId;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -52,7 +53,7 @@ impl JsProcedure {
         Ok(())
     }
 
-    #[instrument(skip(directory, input))]
+    #[instrument(skip(directory, input, exec_command))]
     pub async fn execute<I: Serialize, O: for<'de> Deserialize<'de>>(
         &self,
         directory: &PathBuf,
@@ -62,7 +63,7 @@ impl JsProcedure {
         volumes: &Volumes,
         input: Option<I>,
         timeout: Option<Duration>,
-        command_inserter: &mut Option<CommandInserter>,
+        exec_command: ExecCommand,
     ) -> Result<Result<O, (i32, String)>, Error> {
         Ok(async move {
             let running_action = JsExecutionEnvironment::load_from_package(
@@ -70,7 +71,7 @@ impl JsProcedure {
                 pkg_id,
                 pkg_version,
                 Box::new(volumes.clone()),
-                move || ,
+                exec_command,
             )
             .await?
             .run_action(name, input, self.args.clone());
@@ -104,6 +105,9 @@ impl JsProcedure {
                 pkg_id,
                 pkg_version,
                 Box::new(volumes.clone()),
+                Arc::new(|_, _, _| {
+                    Box::pin(async { Err("Can't run commands in sandox mode".to_string()) })
+                }),
             )
             .await?
             .read_only_effects()
@@ -183,6 +187,9 @@ async fn js_action_execute() {
             &volumes,
             input,
             timeout,
+            Arc::new(|_, _, _| {
+                Box::pin(async move { Err("Can't run commands in test".to_string()) })
+            }),
         )
         .await
         .unwrap()
@@ -238,6 +245,9 @@ async fn js_action_execute_error() {
             &volumes,
             input,
             timeout,
+            Arc::new(|_, _, _| {
+                Box::pin(async move { Err("Can't run commands in test".to_string()) })
+            }),
         )
         .await
         .unwrap();
@@ -282,6 +292,9 @@ async fn js_action_fetch() {
             &volumes,
             input,
             timeout,
+            Arc::new(|_, _, _| {
+                Box::pin(async move { Err("Can't run commands in test".to_string()) })
+            }),
         )
         .await
         .unwrap()
@@ -327,6 +340,9 @@ async fn js_action_var_arg() {
             &volumes,
             input,
             timeout,
+            Arc::new(|_, _, _| {
+                Box::pin(async move { Err("Can't run commands in test".to_string()) })
+            }),
         )
         .await
         .unwrap()
@@ -371,6 +387,9 @@ async fn js_action_test_rename() {
             &volumes,
             input,
             timeout,
+            Arc::new(|_, _, _| {
+                Box::pin(async move { Err("Can't run commands in test".to_string()) })
+            }),
         )
         .await
         .unwrap()
@@ -415,6 +434,9 @@ async fn js_action_test_deep_dir() {
             &volumes,
             input,
             timeout,
+            Arc::new(|_, _, _| {
+                Box::pin(async move { Err("Can't run commands in test".to_string()) })
+            }),
         )
         .await
         .unwrap()
@@ -458,6 +480,9 @@ async fn js_action_test_deep_dir_escape() {
             &volumes,
             input,
             timeout,
+            Arc::new(|_, _, _| {
+                Box::pin(async move { Err("Can't run commands in test".to_string()) })
+            }),
         )
         .await
         .unwrap()

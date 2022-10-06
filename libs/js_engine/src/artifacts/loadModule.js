@@ -37,6 +37,12 @@ const writeFile = (
 const readFile = (
   { volumeId = requireParam("volumeId"), path = requireParam("path") } = requireParam("options"),
 ) => Deno.core.opAsync("read_file", volumeId, path);
+
+
+const runCommand = (
+  { command = requireParam("command"), args = requireParam("args") } = requireParam("options"),
+) => Deno.core.opAsync("run_command", command, args);
+
 const rename = (
   {
     srcVolume = requireParam("srcVolume"),
@@ -122,6 +128,7 @@ const effects = {
   removeDir,
   metadata,
   rename,
+  runCommand,
 };
 
 const runFunction = jsonPointerValue(mainModule, currentFunction);

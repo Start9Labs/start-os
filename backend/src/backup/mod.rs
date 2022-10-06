@@ -116,6 +116,20 @@ impl BackupActions {
         if tokio::fs::metadata(&backup_dir).await.is_err() {
             tokio::fs::create_dir_all(&backup_dir).await?
         }
+        let exec_command = match ctx
+            .managers
+            .get(&(pkg_id.clone(), pkg_version.clone()))
+            .await
+        {
+            None => {
+                return Err(Error::new(
+                    eyre!("No manager found for {pkg_id}"),
+                    ErrorKind::NotFound,
+                ))
+            }
+            Some(x) => x,
+        }
+        .exec_command();
         self.create
             .execute::<(), NoOutput>(
                 ctx,
@@ -126,6 +140,7 @@ impl BackupActions {
                 &volumes,
                 None,
                 None,
+                exec_command,
             )
             .await?
             .map_err(|e| eyre!("{}", e.1))
@@ -213,6 +228,20 @@ impl BackupActions {
     {
         let mut volumes = volumes.clone();
         volumes.insert(VolumeId::Backup, Volume::Backup { readonly: true });
+        let exec_command = match ctx
+            .managers
+            .get(&(pkg_id.clone(), pkg_version.clone()))
+            .await
+        {
+            None => {
+                return Err(Error::new(
+                    eyre!("No manager found for {pkg_id}"),
+                    ErrorKind::NotFound,
+                ))
+            }
+            Some(x) => x,
+        }
+        .exec_command();
         self.restore
             .execute::<(), NoOutput>(
                 ctx,
@@ -223,6 +252,7 @@ impl BackupActions {
                 &volumes,
                 None,
                 None,
+                exec_command,
             )
             .await?
             .map_err(|e| eyre!("{}", e.1))

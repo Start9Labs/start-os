@@ -19,7 +19,7 @@ use crate::{
     config::{Config, ConfigSpec},
     procedure::docker::DockerContainer,
 };
-use crate::{Error, ResultExt};
+use crate::{Error, ErrorKind, ResultExt};
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Actions(pub BTreeMap<ActionId, Action>);
 
@@ -92,6 +92,20 @@ impl Action {
                 .matches(&input)
                 .with_kind(crate::ErrorKind::ConfigSpecViolation)?;
         }
+        let exec_command = match ctx
+            .managers
+            .get(&(pkg_id.clone(), pkg_version.clone()))
+            .await
+        {
+            None => {
+                return Err(Error::new(
+                    eyre!("No manager found for {pkg_id}"),
+                    ErrorKind::NotFound,
+                ))
+            }
+            Some(x) => x,
+        }
+        .exec_command();
         self.implementation
             .execute(
                 ctx,
@@ -102,6 +116,7 @@ impl Action {
                 volumes,
                 input,
                 None,
+                exec_command,
             )
             .await?
             .map_err(|e| Error::new(eyre!("{}", e.1), crate::ErrorKind::Action))

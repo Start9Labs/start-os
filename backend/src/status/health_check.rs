@@ -12,7 +12,7 @@ use crate::util::serde::Duration;
 use crate::util::Version;
 use crate::volume::Volumes;
 use crate::{context::RpcContext, procedure::docker::DockerContainer};
-use crate::{Error, ResultExt};
+use crate::{Error, ErrorKind, ResultExt};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct HealthChecks(pub BTreeMap<HealthCheckId, HealthCheck>);
@@ -81,6 +81,20 @@ impl HealthCheck {
         pkg_version: &Version,
         volumes: &Volumes,
     ) -> Result<HealthCheckResult, Error> {
+        let exec_command = match ctx
+            .managers
+            .get(&(pkg_id.clone(), pkg_version.clone()))
+            .await
+        {
+            None => {
+                return Err(Error::new(
+                    color_eyre::eyre::eyre!("No manager found for {pkg_id}"),
+                    ErrorKind::NotFound,
+                ))
+            }
+            Some(x) => x,
+        }
+        .exec_command();
         let res = self
             .implementation
             .execute(
@@ -95,6 +109,7 @@ impl HealthCheck {
                     self.timeout
                         .map_or(std::time::Duration::from_secs(30), |d| *d),
                 ),
+                exec_command,
             )
             .await?;
         Ok(match res {

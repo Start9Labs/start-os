@@ -197,13 +197,14 @@ async fn run_main(
 
     persistant.wait_for_persistant().await;
     let is_injectable_main = check_is_injectable_main(&state);
+    let exec_command = persistant.exec_command();
     let mut runtime = match is_injectable_main {
-        true => {
-            tokio::spawn(
-                async move { start_up_inject_image(rt_state, generated_certificate).await },
-            )
-        }
-        false => tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await }),
+        true => tokio::spawn(async move {
+            start_up_inject_image(rt_state, generated_certificate, exec_command).await
+        }),
+        false => tokio::spawn(async move {
+            start_up_image(rt_state, generated_certificate, exec_command).await
+        }),
     };
     let ip = match is_injectable_main {
         false => Some(match get_running_ip(state, &mut runtime).await {
@@ -236,6 +237,7 @@ async fn run_main(
 async fn start_up_image(
     rt_state: Arc<ManagerSharedState>,
     _generated_certificate: GeneratedCertificateMountPoint,
+    exec_command: ExecCommand,
 ) -> Result<Result<NoOutput, (i32, String)>, Error> {
     rt_state
         .manifest
@@ -249,6 +251,7 @@ async fn start_up_image(
             &rt_state.manifest.volumes,
             None,
             None,
+            exec_command,
         )
         .await
 }
@@ -258,6 +261,7 @@ async fn start_up_image(
 async fn start_up_inject_image(
     rt_state: Arc<ManagerSharedState>,
     _generated_certificate: GeneratedCertificateMountPoint,
+    exec_command: ExecCommand,
 ) -> Result<Result<NoOutput, (i32, String)>, Error> {
     rt_state
         .manifest
@@ -271,6 +275,7 @@ async fn start_up_inject_image(
             &rt_state.manifest.volumes,
             None,
             None,
+            exec_command,
         )
         .await
 }
@@ -419,6 +424,11 @@ impl Manager {
         self.shared.synchronize_now.notify_waiters();
         self.shared.synchronized.notified().await
     }
+
+    pub fn exec_command(&self) -> ExecCommand {
+        let cloned = self.persistant_container.command_inserter.clone();
+        self.persistant_container.exec_command()
+    }
 }
 
 async fn manager_thread_loop(
@@ -517,7 +527,7 @@ async fn manager_thread_loop(
 
 struct LongRunningHandle(NonDetachingJoinHandle<()>);
 pub struct CommandInserter {
-    command_counter: i64,
+    command_counter: Mutex<i64>,
     input: UnboundedSender<InputJsonRpc>,
     outputs: Arc<Mutex<BTreeMap<i64, UnboundedSender<embassy_container_init::Output>>>>,
 }
@@ -530,7 +540,7 @@ impl CommandInserter {
             mut output,
             running_output,
         } = long_running;
-        let command_counter = 0;
+        let command_counter = Mutex::new(0);
         let outputs: Arc<Mutex<BTreeMap<i64, UnboundedSender<embassy_container_init::Output>>>> =
             Default::default();
         let handle = LongRunningHandle(running_output);
@@ -561,15 +571,16 @@ impl CommandInserter {
     }
 
     pub async fn exec_command(
-        &mut self,
+        &self,
         command: String,
         args: Vec<String>,
         sender: UnboundedSender<embassy_container_init::Output>,
     ) {
         use embassy_container_init::{Input, JsonRpc, RpcId};
-        let command_counter = self.command_counter;
-        let command_id = RpcId::Int(command_counter);
+        let mut command_counter_lock = self.command_counter.lock().await;
         let mut outputs = self.outputs.lock().await;
+        let command_counter = command_counter_lock.clone();
+        let command_id = RpcId::Int(command_counter);
         outputs.insert(command_counter, sender);
         if let Err(err) = self.input.send(JsonRpc::new(
             Some(command_id),
@@ -579,16 +590,8 @@ impl CommandInserter {
             tracing::debug!("{err:?}");
         }
 
-        self.command_counter += 1;
+        *command_counter_lock += 1;
     }
-}
-
-fn command_inserter_as_fn(cloned: Arc<Mutex<Option<CommandInserter>>>) -> ExecCommand {
-    Pin::new(Box::new(|command, args, sender| async move {
-        let lock = cloned.lock().await;
-
-        Ok(())
-    }))
 }
 
 struct PersistantContainer {
@@ -651,6 +654,25 @@ impl PersistantContainer {
     }
     async fn done_waiting(&self) {
         self.wait_for_start.0.send(false).unwrap();
+    }
+
+    fn exec_command(&self) -> ExecCommand {
+        let cloned = self.command_inserter.clone();
+        Arc::new(move |command, args, sender| {
+            let cloned = cloned.clone();
+            Box::pin(async move {
+                let lock = cloned.lock().await;
+                match &*lock {
+                    Some(command_inserter) => {
+                        command_inserter.exec_command(command, args, sender).await
+                    }
+                    None => {
+                        return Err("Couldn't get a command inserter in current service".to_string())
+                    }
+                }
+                Ok::<(), String>(())
+            })
+        })
     }
 }
 impl Drop for PersistantContainer {

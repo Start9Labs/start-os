@@ -14,7 +14,7 @@ use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
 use crate::volume::Volumes;
 use crate::{context::RpcContext, procedure::docker::DockerContainer};
-use crate::{Error, ResultExt};
+use crate::{Error, ErrorKind, ResultExt};
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
@@ -69,7 +69,21 @@ impl Migrations {
             .iter()
             .find(|(range, _)| version.satisfies(*range))
         {
-            Some(
+            Some(async move {
+                let exec_command = match ctx
+                    .managers
+                    .get(&(pkg_id.clone(), pkg_version.clone()))
+                    .await
+                {
+                    None => {
+                        return Err(Error::new(
+                            eyre!("No manager found for {pkg_id}"),
+                            ErrorKind::NotFound,
+                        ))
+                    }
+                    Some(x) => x,
+                }
+                .exec_command();
                 migration
                     .execute(
                         ctx,
@@ -80,6 +94,7 @@ impl Migrations {
                         volumes,
                         Some(version),
                         None,
+                        exec_command,
                     )
                     .map(|r| {
                         r.and_then(|r| {
@@ -87,8 +102,9 @@ impl Migrations {
                                 Error::new(eyre!("{}", e.1), crate::ErrorKind::MigrationFailed)
                             })
                         })
-                    }),
-            )
+                    })
+                    .await
+            })
         } else {
             None
         }
@@ -105,7 +121,21 @@ impl Migrations {
         volumes: &'a Volumes,
     ) -> Option<impl Future<Output = Result<MigrationRes, Error>> + 'a> {
         if let Some((_, migration)) = self.to.iter().find(|(range, _)| version.satisfies(*range)) {
-            Some(
+            Some(async move {
+                let exec_command = match ctx
+                    .managers
+                    .get(&(pkg_id.clone(), pkg_version.clone()))
+                    .await
+                {
+                    None => {
+                        return Err(Error::new(
+                            eyre!("No manager found for {pkg_id}"),
+                            ErrorKind::NotFound,
+                        ))
+                    }
+                    Some(x) => x,
+                }
+                .exec_command();
                 migration
                     .execute(
                         ctx,
@@ -116,6 +146,7 @@ impl Migrations {
                         volumes,
                         Some(version),
                         None,
+                        exec_command,
                     )
                     .map(|r| {
                         r.and_then(|r| {
@@ -123,8 +154,9 @@ impl Migrations {
                                 Error::new(eyre!("{}", e.1), crate::ErrorKind::MigrationFailed)
                             })
                         })
-                    }),
-            )
+                    })
+                    .await
+            })
         } else {
             None
         }

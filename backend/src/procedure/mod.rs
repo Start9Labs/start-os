@@ -2,6 +2,7 @@ use std::collections::BTreeSet;
 use std::time::Duration;
 
 use color_eyre::eyre::{bail, eyre};
+use js_engine::ExecCommand;
 use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -68,7 +69,7 @@ impl PackageProcedure {
         }
     }
 
-    #[instrument(skip(ctx, input, container))]
+    #[instrument(skip(ctx, input, container, exec_command))]
     pub async fn execute<I: Serialize, O: for<'de> Deserialize<'de>>(
         &self,
         ctx: &RpcContext,
@@ -79,7 +80,7 @@ impl PackageProcedure {
         volumes: &Volumes,
         input: Option<I>,
         timeout: Option<Duration>,
-        command_inserter: &mut Option<CommandInserter>,
+        exec_command: ExecCommand,
     ) -> Result<Result<O, (i32, String)>, Error> {
         tracing::trace!("Procedure execute {} {} - {:?}", self, pkg_id, name);
         match self {
@@ -109,13 +110,14 @@ impl PackageProcedure {
                         volumes,
                         input,
                         timeout,
+                        exec_command,
                     )
                     .await
             }
         }
     }
 
-    #[instrument(skip(ctx, input, container))]
+    #[instrument(skip(ctx, input, container, exec_command))]
     pub async fn inject<I: Serialize, O: for<'de> Deserialize<'de>>(
         &self,
         ctx: &RpcContext,
@@ -126,7 +128,7 @@ impl PackageProcedure {
         volumes: &Volumes,
         input: Option<I>,
         timeout: Option<Duration>,
-        command_inserter: &mut Option<CommandInserter>,
+        exec_command: ExecCommand,
     ) -> Result<Result<O, (i32, String)>, Error> {
         tracing::trace!("Procedure inject {} {} - {:?}", self, pkg_id, name);
         match self {
@@ -156,7 +158,7 @@ impl PackageProcedure {
                         volumes,
                         input,
                         timeout,
-                        command_inserter,
+                        exec_command,
                     )
                     .await
             }

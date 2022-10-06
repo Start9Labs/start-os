@@ -168,15 +168,6 @@ impl ModuleLoader for ModsLoader {
     }
 }
 
-// #[async_trait]
-// pub trait ExecCommand {
-//     async fn exec_command(
-//         &mut self,
-//         command: String,
-//         args: Vec<String>,
-//         sender: UnboundedSender<embassy_container_init::Output>,
-//     );
-// }
 pub type ExecCommand = Arc<
     dyn Fn(
             String,
@@ -302,6 +293,7 @@ impl JsExecutionEnvironment {
             fns::get_variable_args::decl(),
             fns::set_value::decl(),
             fns::is_sandboxed::decl(),
+            fns::run_command::decl(),
         ]
     }
 
