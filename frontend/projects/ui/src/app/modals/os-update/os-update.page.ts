@@ -3,7 +3,6 @@ import { LoadingController, ModalController } from '@ionic/angular'
 import { ApiService } from '../../services/api/embassy-api.service'
 import { ErrorToastService } from '@start9labs/shared'
 import { EOSService } from 'src/app/services/eos.service'
-import { getStart9MarketplaceUrl } from 'src/app/util/get-server-info'
 import { PatchDB } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 
@@ -50,9 +49,7 @@ export class OSUpdatePage {
     await loader.present()
 
     try {
-      await this.embassyApi.updateServer({
-        'marketplace-url': await getStart9MarketplaceUrl(this.patch),
-      })
+      await this.embassyApi.updateServer()
       this.dismiss()
     } catch (e: any) {
       this.errToast.present(e)

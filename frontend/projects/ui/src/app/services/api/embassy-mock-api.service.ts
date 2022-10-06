@@ -227,7 +227,7 @@ export class MockApiService extends ApiService {
     return Mock.getAppMetrics()
   }
 
-  async updateServer(params: RR.UpdateServerReq): Promise<RR.UpdateServerRes> {
+  async updateServer(url?: string): Promise<RR.UpdateServerRes> {
     await pauseFor(2000)
     const initialProgress = {
       size: 10000,

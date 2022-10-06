@@ -19,10 +19,11 @@ import { AuthService } from '../auth.service'
 import { DOCUMENT } from '@angular/common'
 import { DataModel } from '../patch-db/data-model'
 import { PatchDB, pathFromArray, Update } from 'patch-db-client'
-import { getStart9MarketplaceUrl } from 'src/app/util/get-server-info'
 
 @Injectable()
 export class LiveApiService extends ApiService {
+  readonly eosMarketplaceUrl = 'https://registry.start9.com/'
+
   constructor(
     @Inject(DOCUMENT) private readonly document: Document,
     private readonly http: HttpService,
@@ -133,7 +134,10 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'server.metrics', params })
   }
 
-  async updateServer(params: RR.UpdateServerReq): Promise<RR.UpdateServerRes> {
+  async updateServer(url?: string): Promise<RR.UpdateServerRes> {
+    const params = {
+      'marketplace-url': url || this.eosMarketplaceUrl,
+    }
     return this.rpcRequest({ method: 'server.update', params })
   }
 
@@ -161,20 +165,23 @@ export class LiveApiService extends ApiService {
 
   // marketplace URLs
 
-  async marketplaceProxy<T>(path: string, qp: {}, url: string): Promise<T> {
+  async marketplaceProxy<T>(path: string, qp: {}, baseUrl: string): Promise<T> {
     Object.assign(qp, { arch: this.config.targetArch })
-    const fullURL = `${url}${path}?${new URLSearchParams(qp).toString()}`
+    const fullUrl = `${baseUrl}${path}?${new URLSearchParams(qp).toString()}`
     return this.rpcRequest({
       method: 'marketplace.get',
-      params: { url: fullURL },
+      params: { url: fullUrl },
     })
   }
 
   async getEos(
     params: RR.GetMarketplaceEOSReq,
   ): Promise<RR.GetMarketplaceEOSRes> {
-    const url = await getStart9MarketplaceUrl(this.patch)
-    return this.marketplaceProxy('/eos/v0/latest', params, url)
+    return this.marketplaceProxy(
+      '/eos/v0/latest',
+      params,
+      this.eosMarketplaceUrl,
+    )
   }
 
   // notification

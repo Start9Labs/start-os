@@ -1,9 +1,6 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { PatchDB } from 'patch-db-client'
-import {
-  DataModel,
-  PackageDataEntry,
-} from 'src/app/services/patch-db/data-model'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 import { filter, map, pairwise, startWith } from 'rxjs/operators'
 
 @Component({
@@ -15,9 +12,12 @@ import { filter, map, pairwise, startWith } from 'rxjs/operators'
 export class AppListPage {
   readonly pkgs$ = this.patch.watch$('package-data').pipe(
     map(pkgs => Object.values(pkgs)),
-    startWith<PackageDataEntry[]>([]),
+    startWith([]),
     pairwise(),
-    filter(([prev, next]) => prev.length !== next.length),
+    filter(([prev, next]) => {
+      const length = next.length
+      return !length || prev.length !== length
+    }),
     map(([_, pkgs]) => {
       return pkgs.sort((a, b) => (b.manifest.title > a.manifest.title ? -1 : 1))
     }),

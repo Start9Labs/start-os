@@ -7,16 +7,3 @@ export async function getServerInfo(
 ): Promise<ServerInfo> {
   return firstValueFrom(patch.watch$('server-info'))
 }
-
-export async function getStart9MarketplaceUrl(
-  patch: PatchDB<DataModel>,
-): Promise<string> {
-  return firstValueFrom(
-    patch.watch$(
-      'ui',
-      'marketplace',
-      'known-hosts',
-      'https://registry.start9.com/',
-    ),
-  )
-}

@@ -33,7 +33,7 @@ export class MarketplacesPage {
         .map(([url, name]) => {
           return { url, name }
         })
-        .slice(0, 1) // 0 and 1 will always be prod and community
+        .slice(0, 2) // 0 and 1 will always be prod and community
 
       const alt = hosts
         .map(([url, name]) => {

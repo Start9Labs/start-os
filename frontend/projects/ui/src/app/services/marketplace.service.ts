@@ -287,6 +287,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
       page: 1,
       'per-page': 100,
     }
+    if (qp.ids) qp.ids = JSON.stringify(qp.ids)
 
     return this.api.marketplaceProxy<RR.GetMarketplacePackagesRes>(
       '/package/v0/index',
