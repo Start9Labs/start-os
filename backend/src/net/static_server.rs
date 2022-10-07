@@ -130,10 +130,11 @@ async fn main_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response<Body>, 
                             if let Ok(rest) = sub_path.strip_prefix("package-data") {
                                 file_send(ctx.datadir.join(PKG_PUBLIC_DIR).join(rest)).await
                             } else if let Ok(rest) = sub_path.strip_prefix("eos") {
-                                match rest.to_str().unwrap() {
-                                    "local.crt" => {
+                                match rest.to_str() {
+                                     Some("local.crt") => {
                                         file_send(crate::net::ssl::ROOT_CA_STATIC_PATH).await
                                     }
+                                    None => Ok(bad_request()),
                                     _ => Ok(not_found()),
                                 }
                             } else {
