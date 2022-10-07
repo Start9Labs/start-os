@@ -36,8 +36,7 @@ export class HttpService {
     @Inject(DOCUMENT) private readonly document: Document,
     private readonly http: HttpClient,
   ) {
-    const { protocol, hostname, port } = this.document.location
-    this.fullUrl = `${protocol}//${hostname}:${port}`
+    this.fullUrl = this.document.location.origin
   }
 
   async rpcRequest<T>(

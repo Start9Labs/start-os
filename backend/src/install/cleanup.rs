@@ -429,7 +429,6 @@ pub fn cleanup_folder(
             }
         };
         if !meta_data.is_dir() {
-            tracing::error!("is_not dir, remove {:?}", path);
             let _ = tokio::fs::remove_file(&path).await;
             return;
         }
@@ -437,17 +436,15 @@ pub fn cleanup_folder(
             .iter()
             .any(|v| v.starts_with(&path) || v == &path)
         {
-            tracing::error!("No parents, remove {:?}", path);
             let _ = tokio::fs::remove_dir_all(&path).await;
             return;
         }
         let mut read_dir = match tokio::fs::read_dir(&path).await {
             Ok(a) => a,
-            Err(e) => {
+            Err(_e) => {
                 return;
             }
         };
-        tracing::error!("Parents, recurse {:?}", path);
         while let Some(entry) = read_dir.next_entry().await.ok().flatten() {
             let entry_path = entry.path();
             cleanup_folder(entry_path, dependents_volumes.clone()).await;

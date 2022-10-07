@@ -2,7 +2,6 @@ import { Inject, Injectable } from '@angular/core'
 import { ModalController } from '@ionic/angular'
 import { Observable } from 'rxjs'
 import { filter, share, switchMap, take, tap } from 'rxjs/operators'
-import { exists, isEmptyObject } from '@start9labs/shared'
 import { PatchDB } from 'patch-db-client'
 import { DataModel, UIData } from 'src/app/services/patch-db/data-model'
 import { EOSService } from 'src/app/services/eos.service'
@@ -21,7 +20,6 @@ export class PatchDataService extends Observable<DataModel> {
   private readonly stream$ = this.connectionService.connected$.pipe(
     filter(Boolean),
     switchMap(() => this.patch.watch$()),
-    filter(obj => exists(obj) && !isEmptyObject(obj)),
     take(1),
     tap(({ ui }) => {
       // check for updates to EOS and services
@@ -48,8 +46,8 @@ export class PatchDataService extends Observable<DataModel> {
   private checkForUpdates(ui: UIData): void {
     if (ui['auto-check-updates'] !== false) {
       this.eosService.getEOS()
-      this.marketplaceService.getPackages().pipe(take(1)).subscribe()
-      this.marketplaceService.getCategories().pipe(take(1)).subscribe()
+      this.marketplaceService.getMarketplaceInfo$().pipe(take(1)).subscribe()
+      this.marketplaceService.getUpdates$().pipe(take(1)).subscribe()
     }
   }
 
@@ -64,9 +62,7 @@ export class PatchDataService extends Observable<DataModel> {
       backdropDismiss: false,
     })
     modal.onWillDismiss().then(() => {
-      this.embassyApi
-        .setDbValue({ pointer: '/ack-welcome', value: this.config.version })
-        .catch()
+      this.embassyApi.setDbValue(['ack-welcome'], this.config.version).catch()
     })
 
     await modal.present()

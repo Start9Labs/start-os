@@ -55,10 +55,10 @@ export class DeveloperMenuPage {
     await loader.present()
 
     try {
-      await this.api.setDbValue({
-        pointer: `/dev/${this.projectId}/basic-info`,
-        value: basicInfo,
-      })
+      await this.api.setDbValue(
+        ['dev', this.projectId, 'basic-info'],
+        basicInfo,
+      )
     } catch (e: any) {
       this.errToast.present(e)
     } finally {

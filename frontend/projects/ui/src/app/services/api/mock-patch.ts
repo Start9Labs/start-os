@@ -15,12 +15,11 @@ export const mockPatchData: DataModel = {
     'pkg-order': [],
     'ack-welcome': '1.0.0',
     marketplace: {
-      'selected-id': '1234',
+      'selected-url': 'https://registry.start9.com/',
       'known-hosts': {
-        '1234': {
-          name: 'Dark9',
-          url: 'https://test-marketplace.com',
-        },
+        'https://registry.start9.com/': 'Start9 Marketplace',
+        'https://community-registry.start9.com/': 'Community Marketplace',
+        'https://dark9-marketplace.com/': 'Dark9',
       },
     },
     dev: {},

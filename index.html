@@ -1,15 +1,36 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title></title>
+    <title>Embassy | Initializing</title>
     <style>
-    body {
-      background: #181818;
+      body {
+        background: #333333;
+        font-family:'Montserrat';
+        color:#F4F4F5;
+        text-align: center;
+        font-size: 20PX;
+      }
+      .header-title {
+        padding-top: 6rem;
+      }
+      .header-title span {
+        position: relative;
+      }
+      .header-title span:before {
+        content: "";
+        position: absolute;
+        top: 100%;
+        width: 100%;
+        left: 0;
+        height: 3px;
+        border-radius: 2px;
+        background: linear-gradient(130deg,#EE6570,#FF4961,#993E4A);
     }
     </style>
   </head>
   <body>
-    <h2 style="color: #e0e0e0; text-align: center; padding-top: 20px;">embassyOS is initializing...</h2>
-    <p style="color: #e0e0e0; text-align: center;">This process can take up to several minutes to complete. Please wait to refresh the page.</p>
+    <h2 class="header-title"><span>embassyOS Initializing</span></h2>
+    <p style="padding: 20px;">This process can take up to several minutes to complete.</p>
+    <p>Please wait to refresh the page until you hear a chime from your device.</p>
   </body>
 </html>
