@@ -44,10 +44,10 @@ pub async fn file_server_router(ctx: RpcContext) -> Result<HttpHandler, Error> {
                     let rpc_handler1 =
                         rpc_handler!({command: main_api, context: ctx, status: status_fn});
 
-                    let test = rpc_handler1(req)
+                    let resp = rpc_handler1(req)
                         .await
                         .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::Network));
-                    test
+                    resp
                 }
                 "/ws/db" => subscribe(ctx, req).await,
                 path if path.starts_with("/ws/rpc/") => {
@@ -99,7 +99,6 @@ async fn main_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response<Body>, 
     match request_parts.uri.path() {
         "/" => {
             let full_path = PathBuf::from(WWW_DIR).join("index.html");
-            dbg!(full_path.clone().display());
 
             file_send(full_path).await
         }
@@ -108,14 +107,6 @@ async fn main_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response<Body>, 
 
             match valid_session {
                 Ok(_valid) => {
-                    let test123 = request_parts
-                        .uri
-                        .path()
-                        .strip_prefix('/')
-                        .unwrap_or(request_parts.uri.path())
-                        .split_once('/');
-
-                    dbg!(test123);
                     match (
                         request_parts.method,
                         request_parts
@@ -131,7 +122,7 @@ async fn main_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response<Body>, 
                                 file_send(ctx.datadir.join(PKG_PUBLIC_DIR).join(rest)).await
                             } else if let Ok(rest) = sub_path.strip_prefix("eos") {
                                 match rest.to_str() {
-                                     Some("local.crt") => {
+                                    Some("local.crt") => {
                                         file_send(crate::net::ssl::ROOT_CA_STATIC_PATH).await
                                     }
                                     None => Ok(bad_request()),
