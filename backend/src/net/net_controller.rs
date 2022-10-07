@@ -3,7 +3,7 @@ use crate::hostname::{HostNameReceipt, get_hostname};
 #[cfg(feature = "avahi")]
 use crate::net::mdns::MdnsController;
 use crate::net::{
-    static_server, GeneratedCertificateMountPoint, InterfaceMetadata, PACKAGE_CERT_PATH,
+    static_server, GeneratedCertificateMountPoint, PACKAGE_CERT_PATH, InterfaceMetadata,
 };
 use crate::Error;
 use hyper::Client;
