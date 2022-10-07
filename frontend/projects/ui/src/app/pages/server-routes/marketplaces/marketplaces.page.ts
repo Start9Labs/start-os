@@ -1,4 +1,4 @@
-import { Component, Inject } from '@angular/core'
+import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
 import {
   ActionSheetController,
   AlertController,
@@ -6,47 +6,44 @@ import {
   ModalController,
 } from '@ionic/angular'
 import { ActionSheetButton } from '@ionic/core'
-import {
-  DestroyService,
-  ErrorToastService,
-  getUrlHostname,
-} from '@start9labs/shared'
+import { ErrorToastService } from '@start9labs/shared'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ValueSpecObject } from 'src/app/pkg-config/config-types'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 import { PatchDB } from 'patch-db-client'
-import { v4 } from 'uuid'
-import {
-  DataModel,
-  UIMarketplaceData,
-} from '../../../services/patch-db/data-model'
-import { ConfigService } from '../../../services/config.service'
+import { DataModel } from '../../../services/patch-db/data-model'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
-import {
-  distinctUntilChanged,
-  finalize,
-  first,
-  takeUntil,
-} from 'rxjs/operators'
-import { getServerInfo } from '../../../util/get-server-info'
-import { getMarketplace } from '../../../util/get-marketplace'
-
-type Marketplaces = {
-  id: string | null
-  name: string
-  url: string
-}[]
+import { map } from 'rxjs/operators'
+import { firstValueFrom } from 'rxjs'
 
 @Component({
   selector: 'marketplaces',
   templateUrl: 'marketplaces.page.html',
   styleUrls: ['marketplaces.page.scss'],
-  providers: [DestroyService],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MarketplacesPage {
-  selectedId: string | null = null
-  marketplaces: Marketplaces = []
+  marketplace$ = this.patch.watch$('ui', 'marketplace').pipe(
+    map(m => {
+      const selected = m['selected-url']
+      const hosts = Object.entries(m['known-hosts'])
+
+      const standard = hosts
+        .map(([url, name]) => {
+          return { url, name }
+        })
+        .slice(0, 2) // 0 and 1 will always be prod and community
+
+      const alt = hosts
+        .map(([url, name]) => {
+          return { url, name }
+        })
+        .slice(2) // 2 and beyond will always be alts
+
+      return { selected, standard, alt }
+    }),
+  )
 
   constructor(
     private readonly api: ApiService,
@@ -56,55 +53,28 @@ export class MarketplacesPage {
     private readonly actionCtrl: ActionSheetController,
     @Inject(AbstractMarketplaceService)
     private readonly marketplaceService: MarketplaceService,
-    private readonly config: ConfigService,
     private readonly patch: PatchDB<DataModel>,
-    private readonly destroy$: DestroyService,
     private readonly alertCtrl: AlertController,
   ) {}
 
-  ngOnInit() {
-    this.patch
-      .watch$('ui', 'marketplace')
-      .pipe(distinctUntilChanged(), takeUntil(this.destroy$))
-      .subscribe((mp: UIMarketplaceData) => {
-        let marketplaces: Marketplaces = [
-          {
-            id: null,
-            name: this.config.marketplace.name,
-            url: this.config.marketplace.url,
-          },
-        ]
-        this.selectedId = mp['selected-id']
-        const alts = Object.entries(mp['known-hosts']).map(([k, v]) => {
-          return {
-            id: k,
-            name: v.name,
-            url: v.url,
-          }
-        })
-        marketplaces = marketplaces.concat(alts)
-        this.marketplaces = marketplaces
-      })
-  }
-
   async presentModalAdd() {
-    const marketplaceSpec = getMarketplaceValueSpec()
+    const { name, spec } = getMarketplaceValueSpec()
     const modal = await this.modalCtrl.create({
       component: GenericFormPage,
       componentProps: {
-        title: marketplaceSpec.name,
-        spec: marketplaceSpec.spec,
+        title: name,
+        spec,
         buttons: [
           {
             text: 'Save for Later',
             handler: (value: { url: string }) => {
-              this.save(value.url)
+              this.saveOnly(new URL(value.url))
             },
           },
           {
             text: 'Save and Connect',
             handler: (value: { url: string }) => {
-              this.saveAndConnect(value.url)
+              this.saveAndConnect(new URL(value.url))
             },
             isSubmit: true,
           },
@@ -116,32 +86,31 @@ export class MarketplacesPage {
     await modal.present()
   }
 
-  async presentAction(id: string | null) {
-    // no need to view actions if is selected marketplace
-    const marketplace = await getMarketplace(this.patch)
-    if (id === marketplace['selected-id']) return
-
+  async presentAction(
+    { url, name }: { url: string; name: string },
+    canDelete = false,
+  ) {
     const buttons: ActionSheetButton[] = [
       {
         text: 'Connect',
         handler: () => {
-          this.connect(id)
+          this.connect(url)
         },
       },
     ]
 
-    if (id) {
+    if (canDelete) {
       buttons.unshift({
         text: 'Delete',
         role: 'destructive',
         handler: () => {
-          this.presentAlertDelete(id)
+          this.presentAlertDelete(url, name)
         },
       })
     }
 
     const action = await this.actionCtrl.create({
-      header: this.marketplaces.find(mp => mp.id === id)?.name,
+      header: name,
       mode: 'ios',
       buttons,
     })
@@ -149,55 +118,7 @@ export class MarketplacesPage {
     await action.present()
   }
 
-  private async connect(id: string | null): Promise<void> {
-    const marketplace = await getMarketplace(this.patch)
-
-    const url = id
-      ? marketplace['known-hosts'][id].url
-      : this.config.marketplace.url
-
-    const loader = await this.loadingCtrl.create({
-      message: 'Validating Marketplace...',
-    })
-    await loader.present()
-
-    try {
-      const { id } = await getServerInfo(this.patch)
-      await this.marketplaceService.getMarketplaceData({ 'server-id': id }, url)
-    } catch (e: any) {
-      this.errToast.present(e)
-      loader.dismiss()
-      return
-    }
-
-    loader.message = 'Changing Marketplace...'
-
-    const value: UIMarketplaceData = {
-      ...marketplace,
-      'selected-id': id,
-    }
-
-    try {
-      await this.api.setDbValue({ pointer: `/marketplace`, value })
-    } catch (e: any) {
-      this.errToast.present(e)
-      loader.dismiss()
-    }
-
-    loader.message = 'Syncing store...'
-
-    this.marketplaceService
-      .getPackages()
-      .pipe(
-        first(),
-        finalize(() => loader.dismiss()),
-      )
-      .subscribe()
-  }
-
-  private async presentAlertDelete(id: string) {
-    const name = this.marketplaces.find(m => m.id === id)?.name
-
+  private async presentAlertDelete(url: string, name: string) {
     const alert = await this.alertCtrl.create({
       header: 'Confirm',
       message: `Are you sure you want to delete ${name}?`,
@@ -208,7 +129,7 @@ export class MarketplacesPage {
         },
         {
           text: 'Delete',
-          handler: () => this.delete(id),
+          handler: () => this.delete(url),
           cssClass: 'enter-click',
         },
       ],
@@ -217,124 +138,103 @@ export class MarketplacesPage {
     await alert.present()
   }
 
-  private async delete(id: string): Promise<void> {
-    const data = await getMarketplace(this.patch)
-    const marketplace: UIMarketplaceData = JSON.parse(JSON.stringify(data))
+  private async connect(
+    url: string,
+    loader?: HTMLIonLoadingElement,
+  ): Promise<void> {
+    const message = 'Changing Marketplace...'
+    if (!loader) {
+      loader = await this.loadingCtrl.create({ message })
+      await loader.present()
+    } else {
+      loader.message = message
+    }
 
+    try {
+      await this.api.setDbValue(['marketplace', 'selected-url'], url)
+    } catch (e: any) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
+  }
+
+  private async saveOnly(url: URL): Promise<void> {
+    const loader = await this.loadingCtrl.create()
+
+    try {
+      await this.validateAndSave(url, loader)
+    } catch (e: any) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
+  }
+
+  private async saveAndConnect(url: URL): Promise<void> {
+    const loader = await this.loadingCtrl.create()
+
+    try {
+      await this.validateAndSave(url, loader)
+      await this.connect(url.toString(), loader)
+    } catch (e: any) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
+  }
+
+  private async validateAndSave(
+    urlObj: URL,
+    loader: HTMLIonLoadingElement,
+  ): Promise<void> {
+    const url = urlObj.toString()
+    // Error on duplicates
+    const hosts = await firstValueFrom(
+      this.patch.watch$('ui', 'marketplace', 'known-hosts'),
+    )
+    const currentUrls = Object.keys(hosts)
+    if (currentUrls.includes(url)) throw new Error('marketplace already added')
+
+    // Validate
+    loader.message = 'Validating marketplace...'
+    await loader.present()
+
+    const name = await this.marketplaceService.validateMarketplace(url)
+
+    // Save
+    loader.message = 'Saving...'
+
+    await this.api.setDbValue(['marketplace', 'known-hosts', url], name)
+  }
+
+  private async delete(url: string): Promise<void> {
     const loader = await this.loadingCtrl.create({
       message: 'Deleting...',
     })
     await loader.present()
 
+    const hosts = await firstValueFrom(
+      this.patch.watch$('ui', 'marketplace', 'known-hosts'),
+    )
+
+    const filtered = Object.keys(hosts)
+      .filter(key => key !== url)
+      .reduce((prev, curr) => {
+        const name = hosts[curr]
+        return {
+          ...prev,
+          [curr]: name,
+        }
+      }, {})
+
     try {
-      delete marketplace['known-hosts'][id]
-      await this.api.setDbValue({ pointer: `/marketplace`, value: marketplace })
+      await this.api.setDbValue(['marketplace', 'known-hosts'], filtered)
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
       loader.dismiss()
     }
-  }
-
-  private async save(url: string): Promise<void> {
-    const data = await getMarketplace(this.patch)
-    const marketplace: UIMarketplaceData = data
-      ? JSON.parse(JSON.stringify(data))
-      : {
-          'selected-id': null,
-          'known-hosts': {},
-        }
-
-    // no-op on duplicates
-    const currentUrls = this.marketplaces.map(mp => getUrlHostname(mp.url))
-    if (currentUrls.includes(getUrlHostname(url))) return
-
-    const loader = await this.loadingCtrl.create({
-      message: 'Validating Marketplace...',
-    })
-
-    await loader.present()
-
-    try {
-      const id = v4()
-      const { id: serverId } = await getServerInfo(this.patch)
-      const { name } = await this.marketplaceService.getMarketplaceData(
-        { 'server-id': serverId },
-        url,
-      )
-      marketplace['known-hosts'][id] = { name, url }
-    } catch (e: any) {
-      this.errToast.present(e)
-      loader.dismiss()
-      return
-    }
-
-    loader.message = 'Saving...'
-
-    try {
-      await this.api.setDbValue({ pointer: `/marketplace`, value: marketplace })
-    } catch (e: any) {
-      this.errToast.present(e)
-    } finally {
-      loader.dismiss()
-    }
-  }
-
-  private async saveAndConnect(url: string): Promise<void> {
-    const data = await getMarketplace(this.patch)
-    const marketplace: UIMarketplaceData = data
-      ? JSON.parse(JSON.stringify(data))
-      : {
-          'selected-id': null,
-          'known-hosts': {},
-        }
-
-    // no-op on duplicates
-    const currentUrls = this.marketplaces.map(mp => getUrlHostname(mp.url))
-    if (currentUrls.includes(getUrlHostname(url))) {
-      this.errToast.present({ message: 'Marketplace already added' })
-      return
-    }
-
-    const loader = await this.loadingCtrl.create({
-      message: 'Validating Marketplace...',
-    })
-    await loader.present()
-
-    try {
-      const id = v4()
-      const { id: serverId } = await getServerInfo(this.patch)
-      const { name } = await this.marketplaceService.getMarketplaceData(
-        { 'server-id': serverId },
-        url,
-      )
-      marketplace['known-hosts'][id] = { name, url }
-      marketplace['selected-id'] = id
-    } catch (e: any) {
-      this.errToast.present(e)
-      loader.dismiss()
-      return
-    }
-
-    loader.message = 'Saving...'
-
-    try {
-      await this.api.setDbValue({ pointer: `/marketplace`, value: marketplace })
-    } catch (e: any) {
-      this.errToast.present(e)
-      loader.dismiss()
-      return
-    }
-
-    loader.message = 'Syncing marketplace data...'
-
-    this.marketplaceService
-      .getPackages()
-      .pipe(
-        first(),
-        finalize(() => loader.dismiss()),
-      )
-      .subscribe()
   }
 }
 

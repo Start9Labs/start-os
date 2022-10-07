@@ -22,6 +22,7 @@ impl Hostname {
     pub fn lan_address(&self) -> String {
         format!("https://{}.local", self.0)
     }
+
     pub fn local_name(&self) -> String {
         format!("{}.local", self.0)
     }

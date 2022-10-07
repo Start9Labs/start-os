@@ -100,10 +100,7 @@ export class ServerConfigService {
 
   saveFns: { [key: string]: (val: any) => Promise<any> } = {
     'auto-check-updates': async (enabled: boolean) => {
-      return this.embassyApi.setDbValue({
-        pointer: '/auto-check-updates',
-        value: enabled,
-      })
+      return this.embassyApi.setDbValue(['auto-check-updates'], enabled)
     },
   }
 }
@@ -113,7 +110,7 @@ export const serverConfig: ConfigSpec = {
     type: 'boolean',
     name: 'Auto Check for Updates',
     description:
-      'If enabled, EmbassyOS will automatically check for updates of itself and installed services. Updating will still require your approval and action. Updates will never be performed automatically.',
+      'If enabled, embassyOS will automatically check for updates of itself and installed services. Updating will still require your approval and action. Updates will never be performed automatically.',
     default: true,
   },
 }

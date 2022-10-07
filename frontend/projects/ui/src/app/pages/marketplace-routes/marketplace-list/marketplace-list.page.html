@@ -1,5 +1,6 @@
 <ion-header>
   <ion-toolbar>
+    <ion-title>Marketplace</ion-title>
     <ion-buttons slot="end">
       <badge-menu-button></badge-menu-button>
     </ion-buttons>
@@ -28,14 +29,13 @@
     </ion-row>
     <ion-row class="ion-align-items-center">
       <ion-col size="12">
-        <ng-container *ngIf="pkgs$ | async as pkgs; else loading">
+        <ng-container *ngIf="marketplace$ | async as marketplace; else loading">
           <ng-container *ngIf="localPkgs$ | async as localPkgs">
             <marketplace-categories
-              *ngIf="categories$ | async as categories"
-              [categories]="categories"
+              [categories]="marketplace.categories"
               [category]="category"
               [updatesAvailable]="
-                (pkgs | filterPackages: '':'updates':localPkgs).length
+                (marketplace.pkgs | filterPackages: '':'updates':localPkgs).length
               "
               (categoryChange)="onCategoryChange($event)"
             ></marketplace-categories>
@@ -43,7 +43,7 @@
             <div class="divider"></div>
 
             <ion-grid
-              *ngIf="pkgs | filterPackages: query:category:localPkgs as filtered"
+              *ngIf="marketplace.pkgs | filterPackages: query:category:localPkgs as filtered"
             >
               <div
                 *ngIf="!filtered.length && category === 'updates'"

@@ -17,13 +17,13 @@ import {
 })
 export class CategoriesComponent {
   @Input()
-  categories = new Set<string>()
+  categories!: Set<string>
 
   @Input()
-  category = ''
+  category!: string
 
   @Input()
-  updatesAvailable = 0
+  updatesAvailable!: number
 
   @Output()
   readonly categoryChange = new EventEmitter<string>()

@@ -17,7 +17,7 @@ pub struct LatestInformation {
 /// Captured from https://beta-registry-0-3.start9labs.com/eos/latest 2021-09-24
 #[test]
 fn latest_information_from_server() {
-    let data_from_server = r#"{"release-notes":{"0.3.0":"This major software release encapsulates the optimal performance, security, and management enhancments to the EmbassyOS experience."},"headline":"Major EmbassyOS release","version":"0.3.0"}"#;
+    let data_from_server = r#"{"release-notes":{"0.3.0":"This major software release encapsulates the optimal performance, security, and management enhancments to the embassyOS experience."},"headline":"Major embassyOS release","version":"0.3.0"}"#;
     let latest_information: LatestInformation = serde_json::from_str(data_from_server).unwrap();
     assert_eq!(latest_information.version.minor(), 3);
 }

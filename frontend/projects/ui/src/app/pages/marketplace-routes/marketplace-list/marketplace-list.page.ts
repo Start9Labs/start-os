@@ -1,8 +1,8 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
-import { getUrlHostname } from '@start9labs/shared'
 import { PatchDB } from 'patch-db-client'
-import { map } from 'rxjs'
+import { combineLatest, map } from 'rxjs'
+import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 
 @Component({
@@ -12,25 +12,45 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MarketplaceListPage {
+  private readonly pkgs$ = this.marketplaceService.getPackages$()
+
+  private readonly categories$ = this.marketplaceService
+    .getMarketplaceInfo$()
+    .pipe(
+      map(({ categories }) => {
+        const set = new Set<string>()
+        if (categories.includes('featured')) set.add('featured')
+        set.add('updates')
+        categories.forEach(c => set.add(c))
+        set.add('all')
+        return set
+      }),
+    )
+
+  readonly marketplace$ = combineLatest([this.pkgs$, this.categories$]).pipe(
+    map(arr => {
+      return { pkgs: arr[0], categories: arr[1] }
+    }),
+  )
+
   readonly localPkgs$ = this.patch.watch$('package-data')
-  readonly categories$ = this.marketplaceService.getCategories()
-  readonly pkgs$ = this.marketplaceService.getPackages()
-  readonly details$ = this.marketplaceService.getMarketplace().pipe(
-    map(d => {
+
+  readonly details$ = this.marketplaceService.getUiMarketplace$().pipe(
+    map(({ url, name }) => {
       let color: string
       let description: string
-      switch (getUrlHostname(d.url)) {
-        case 'registry.start9.com':
+      switch (url) {
+        case 'https://registry.start9.com/':
           color = 'success'
           description =
             'Services in this marketplace are packaged and maintained by the Start9 team. If you experience an issue or have a questions related to a service in this marketplace, one of our dedicated support staff will be happy to assist you.'
           break
-        case 'beta-registry-0-3.start9labs.com':
+        case 'https://beta-registry-0-3.start9labs.com/':
           color = 'primary'
           description =
             'Services in this marketplace are undergoing active testing and may contain bugs. <b>Install at your own risk</b>. If you discover a bug or have a suggestion for improvement, please report it to the Start9 team in our community testing channel on Matrix.'
           break
-        case 'community.start9labs.com':
+        case 'https://community.start9labs.com/':
           color = 'tertiary'
           description =
             'Services in this marketplace are packaged and maintained by members of the Start9 community. <b>Install at your own risk</b>. If you experience an issue or have a question related to a service in this marketplace, please reach out to the package developer for assistance.'
@@ -43,7 +63,8 @@ export class MarketplaceListPage {
       }
 
       return {
-        ...d,
+        name,
+        url,
         color,
         description,
       }
@@ -52,7 +73,8 @@ export class MarketplaceListPage {
 
   constructor(
     private readonly patch: PatchDB<DataModel>,
-    private readonly marketplaceService: AbstractMarketplaceService,
+    @Inject(AbstractMarketplaceService)
+    private readonly marketplaceService: MarketplaceService,
   ) {}
 
   category = 'featured'

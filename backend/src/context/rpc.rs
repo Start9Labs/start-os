@@ -4,6 +4,7 @@ use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
 
 use bollard::Docker;
 use helpers::to_tmp_path;
@@ -41,6 +42,8 @@ use crate::{Error, ErrorKind, ResultExt};
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct RpcContextConfig {
+    pub migration_batch_rows: Option<usize>,
+    pub migration_prefetch_rows: Option<usize>,
     pub bind_rpc: Option<SocketAddr>,
     pub bind_ws: Option<SocketAddr>,
     pub bind_static: Option<SocketAddr>,
@@ -102,7 +105,12 @@ impl RpcContextConfig {
             .with_kind(crate::ErrorKind::Database)?;
         let old_db_path = self.datadir().join("main/secrets.db");
         if tokio::fs::metadata(&old_db_path).await.is_ok() {
-            pgloader(&old_db_path).await?;
+            pgloader(
+                &old_db_path,
+                self.migration_batch_rows.unwrap_or(25000),
+                self.migration_prefetch_rows.unwrap_or(100_000),
+            )
+            .await?;
         }
         Ok(secret_store)
     }
@@ -219,7 +227,8 @@ impl RpcContext {
         tracing::info!("Opened Pg DB");
         let db = base.db(&secret_store).await?;
         tracing::info!("Opened PatchDB");
-        let docker = Docker::connect_with_unix_defaults()?;
+        let mut docker = Docker::connect_with_unix_defaults()?;
+        docker.set_timeout(Duration::from_secs(600));
         tracing::info!("Connected to Docker");
         let net_controller = NetController::init(
             ([0, 0, 0, 0], 80).into(),

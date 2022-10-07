@@ -1,8 +1,8 @@
 import { Injectable, NgZone } from '@angular/core'
 import { ReplaySubject } from 'rxjs'
 import { distinctUntilChanged, map } from 'rxjs/operators'
-import { Storage } from '@ionic/storage-angular'
 import { Router } from '@angular/router'
+import { StorageService } from './storage.service'
 
 export enum AuthState {
   UNVERIFIED,
@@ -21,13 +21,13 @@ export class AuthService {
   )
 
   constructor(
-    private readonly storage: Storage,
+    private readonly storage: StorageService,
     private readonly zone: NgZone,
     private readonly router: Router,
   ) {}
 
-  async init(): Promise<void> {
-    const loggedIn = await this.storage.get(this.LOGGED_IN_KEY)
+  init(): void {
+    const loggedIn = this.storage.get(this.LOGGED_IN_KEY)
     if (loggedIn) {
       this.setVerified()
     } else {
@@ -35,8 +35,8 @@ export class AuthService {
     }
   }
 
-  async setVerified(): Promise<void> {
-    await this.storage.set(this.LOGGED_IN_KEY, true)
+  setVerified(): void {
+    this.storage.set(this.LOGGED_IN_KEY, true)
     this.authState$.next(AuthState.VERIFIED)
   }
 

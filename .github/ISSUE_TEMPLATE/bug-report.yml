@@ -1,5 +1,5 @@
 name: 🐛 Bug Report
-description: Create a report to help us improve EmbassyOS
+description: Create a report to help us improve embassyOS
 title: '[bug]: '
 labels: [Bug, Needs Triage]
 assignees:
@@ -14,8 +14,8 @@ body:
           required: true
   - type: input
     attributes:
-      label: EmbassyOS Version
-      description: What version of EmbassyOS are you running?
+      label: embassyOS Version
+      description: What version of embassyOS are you running?
       placeholder: e.g. 0.3.0
     validations:
       required: true

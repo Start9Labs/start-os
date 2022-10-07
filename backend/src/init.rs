@@ -75,15 +75,25 @@ impl InitReceipts {
     }
 }
 
-pub async fn pgloader(old_db_path: impl AsRef<Path>) -> Result<(), Error> {
+pub async fn pgloader(
+    old_db_path: impl AsRef<Path>,
+    batch_rows: usize,
+    prefetch_rows: usize,
+) -> Result<(), Error> {
     tokio::fs::write(
         "/etc/embassy/migrate.load",
         format!(
             include_str!("migrate.load"),
-            sqlite_path = old_db_path.as_ref().display()
+            sqlite_path = old_db_path.as_ref().display(),
+            batch_rows = batch_rows,
+            prefetch_rows = prefetch_rows
         ),
     )
     .await?;
+    match tokio::fs::remove_dir_all("/tmp/pgloader").await {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        a => a,
+    }?;
     tracing::info!("Running pgloader");
     let out = Command::new("pgloader")
         .arg("-v")

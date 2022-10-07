@@ -56,10 +56,10 @@ export class DevInstructionsPage {
   async save() {
     this.saving = true
     try {
-      await this.api.setDbValue({
-        pointer: `/dev/${this.projectId}/instructions`,
-        value: this.code,
-      })
+      await this.api.setDbValue(
+        ['dev', this.projectId, 'instructions'],
+        this.code,
+      )
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
