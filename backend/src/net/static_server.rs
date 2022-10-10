@@ -44,10 +44,10 @@ pub async fn file_server_router(ctx: RpcContext) -> Result<HttpHandler, Error> {
                     let rpc_handler1 =
                         rpc_handler!({command: main_api, context: ctx, status: status_fn});
 
-                    let resp = rpc_handler1(req)
+                    
+                    rpc_handler1(req)
                         .await
-                        .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::Network));
-                    resp
+                        .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::Network))
                 }
                 "/ws/db" => subscribe(ctx, req).await,
                 path if path.starts_with("/ws/rpc/") => {
@@ -239,7 +239,8 @@ async fn file_send(path: impl AsRef<Path>) -> Result<Response<Body>, Error> {
 
     if let Ok(file) = File::open(path).await {
         let metadata = file.metadata().await.with_kind(ErrorKind::Filesystem)?;
-        let _is_non_empty = match IsNonEmptyFile::new(&metadata, path) {
+        
+        match IsNonEmptyFile::new(&metadata, path) {
             Some(a) => a,
             None => return Ok(not_found()),
         };

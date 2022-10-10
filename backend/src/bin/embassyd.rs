@@ -3,26 +3,24 @@ use std::time::Duration;
 
 use color_eyre::eyre::eyre;
 use embassy::context::{DiagnosticContext, RpcContext};
-use embassy::core::rpc_continuations::RequestGuid;
-use embassy::db::subscribe;
-use embassy::middleware::auth::auth;
-use embassy::middleware::cors::cors;
-use embassy::middleware::db::db as db_middleware;
-use embassy::middleware::diagnostic::diagnostic;
+// use embassy::context::{DiagnosticContext, RpcContext};
+// use embassy::core::rpc_continuations::RequestGuid;
+// use embassy::db::subscribe;
+// use embassy::middleware::auth::auth;
+// use embassy::middleware::cors::cors;
+// use embassy::middleware::db::db as db_middleware;
+// use embassy::middleware::diagnostic::diagnostic;
 #[cfg(feature = "avahi")]
 use embassy::net::mdns::MdnsController;
 use embassy::net::tor::tor_health_check;
-use embassy::net::{static_server, HttpHandler};
+use embassy::net::HttpHandler;
 use embassy::shutdown::Shutdown;
 use embassy::system::launch_metrics_task;
+use embassy::util::daemon;
 use embassy::util::logger::EmbassyLogger;
-use embassy::util::{daemon, Invoke};
 use embassy::{Error, ErrorKind, ResultExt};
 use futures::{FutureExt, TryFutureExt};
 use reqwest::{Client, Proxy};
-use rpc_toolkit::hyper::{Body, Response, Server, StatusCode};
-use rpc_toolkit::rpc_server;
-use tokio::process::Command;
 use tokio::signal::unix::signal;
 use tracing::instrument;
 
@@ -83,7 +81,7 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
 
         {
             let mut db = rpc_ctx.db.handle();
-            let receipts = embassy::context::rpc::RpcSetNginxReceipts::new(&mut db).await?;
+            let receipts = embassy::context::rpc::RpcSetHostNameReceipts::new(&mut db).await?;
             embassy::hostname::sync_hostname(&mut db, &receipts.hostname_receipts).await?;
         }
 
@@ -185,22 +183,6 @@ fn main() {
                         embassy::sound::BEETHOVEN.play().await?;
                         #[cfg(feature = "avahi")]
                         let _mdns = MdnsController::init();
-                        tokio::fs::write(
-                            "/etc/nginx/sites-available/default",
-                            include_str!("../nginx/diagnostic-ui.conf"),
-                        )
-                        .await
-                        .with_ctx(|_| {
-                            (
-                                embassy::ErrorKind::Filesystem,
-                                "/etc/nginx/sites-available/default",
-                            )
-                        })?;
-                        // Command::new("systemctl")
-                        //     .arg("reload")
-                        //     .arg("nginx")
-                        //     .invoke(embassy::ErrorKind::Nginx)
-                        //     .await?;
                         let ctx = DiagnosticContext::init(
                             cfg_path,
                             if tokio::fs::metadata("/embassy-os/disk.guid").await.is_ok() {
@@ -217,7 +199,7 @@ fn main() {
                         )
                         .await?;
                         let mut shutdown = ctx.shutdown.subscribe();
-                        
+
                         Ok::<_, Error>(shutdown.recv().await.with_kind(crate::ErrorKind::Unknown)?)
                     })()
                     .await

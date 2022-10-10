@@ -178,12 +178,12 @@ impl RpcCleanReceipts {
     }
 }
 
-pub struct RpcSetNginxReceipts {
+pub struct RpcSetHostNameReceipts {
     pub hostname_receipts: HostNameReceipt,
     server_info: LockReceipt<crate::db::model::ServerInfo, ()>,
 }
 
-impl RpcSetNginxReceipts {
+impl RpcSetHostNameReceipts {
     pub async fn new(db: &'_ mut impl DbHandle) -> Result<Self, Error> {
         let mut locks = Vec::new();
 

@@ -138,22 +138,8 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
             embassy::sound::BEETHOVEN.play().await?;
             #[cfg(feature = "avahi")]
             let _mdns = MdnsController::init();
-            tokio::fs::write(
-                "/etc/nginx/sites-available/default",
-                include_str!("../nginx/diagnostic-ui.conf"),
-            )
-            .await
-            .with_ctx(|_| {
-                (
-                    embassy::ErrorKind::Filesystem,
-                    "/etc/nginx/sites-available/default",
-                )
-            })?;
-            Command::new("systemctl")
-                .arg("reload")
-                .arg("nginx")
-                .invoke(embassy::ErrorKind::Nginx)
-                .await?;
+         
+            
             let ctx = DiagnosticContext::init(
                 cfg_path,
                 if tokio::fs::metadata("/embassy-os/disk.guid").await.is_ok() {
