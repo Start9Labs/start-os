@@ -27,6 +27,11 @@ export class MenuComponent {
       icon: 'cube-outline',
     },
     {
+      title: 'Updates',
+      url: '/updates',
+      icon: 'globe-outline',
+    },
+    {
       title: 'Marketplace',
       url: '/marketplace',
       icon: 'storefront-outline',
@@ -47,21 +52,21 @@ export class MenuComponent {
 
   readonly showEOSUpdate$ = this.eosService.showUpdate$
 
-  readonly updateCount$: Observable<number> = this.patch
-    .watch$('ui', 'auto-check-updates')
-    .pipe(
-      filter(Boolean),
-      switchMap(() =>
-        this.marketplaceService.getUpdates$().pipe(
-          map(arr => {
-            return arr.reduce(
-              (acc, marketplace) => acc + marketplace.pkgs.length,
-              0,
-            )
-          }),
-        ),
-      ),
-    )
+  // readonly updateCount$: Observable<number> = this.patch
+  //   .watch$('ui', 'auto-check-updates')
+  //   .pipe(
+  //     filter(Boolean),
+  //     switchMap(() =>
+  //       this.marketplaceService.getUpdates$().pipe(
+  //         map(arr => {
+  //           return arr.reduce(
+  //             (acc, marketplace) => acc + marketplace.pkgs.length,
+  //             0,
+  //           )
+  //         }),
+  //       ),
+  //     ),
+  //   )
 
   readonly sidebarOpen$ = this.splitPane.sidebarOpen$
 
