@@ -5,7 +5,7 @@ import {
   AbstractMarketplaceService,
   MarketplaceInfo,
 } from '@start9labs/marketplace'
-import { combineLatest, from, Observable, of } from 'rxjs'
+import { BehaviorSubject, firstValueFrom, from, Observable, of } from 'rxjs'
 import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import {
@@ -18,7 +18,6 @@ import {
   distinctUntilChanged,
   map,
   shareReplay,
-  startWith,
   switchMap,
   take,
   tap,
@@ -26,15 +25,27 @@ import {
 import { getServerInfo } from '../util/get-server-info'
 
 type MarketplaceURL = string
+
 interface MarketplaceData {
   info: MarketplaceInfo | null
   packages: MarketplacePkg[]
 }
-type MasterCache = Map<MarketplaceURL, MarketplaceData>
+type MasterCache = Record<MarketplaceURL, MarketplaceData>
+
+type UpdateRequests = Record<MarketplaceURL, RequestStatus>
+
+export enum RequestStatus {
+  Queued = 'queued',
+  Active = 'active',
+  Complete = 'complete',
+  Failed = 'failed',
+}
 
 @Injectable()
 export class MarketplaceService implements AbstractMarketplaceService {
-  private readonly cache: MasterCache = new Map()
+  private readonly cache: MasterCache = {}
+  private readonly cache$ = new BehaviorSubject(this.cache)
+  private readonly updateRequests$ = new BehaviorSubject<UpdateRequests>({})
 
   private readonly uiMarketplace$: Observable<{ url: string; name: string }> =
     this.patch.watch$('ui', 'marketplace').pipe(
@@ -69,51 +80,26 @@ export class MarketplaceService implements AbstractMarketplaceService {
   private readonly marketplacePkgs$: Observable<MarketplacePkg[]> =
     this.marketplaceData$.pipe(map(data => data.packages))
 
-  private readonly updates$: Observable<
-    { url: string; pkgs: MarketplacePkg[] }[]
+  private readonly urlToLocalMap$: Observable<
+    Record<MarketplaceURL, Manifest[]>
   > = this.patch.watch$('package-data').pipe(
-    take(1), // check once per app instance
-    map(localPkgs => {
-      return Object.values(localPkgs)
+    take(1),
+    map(pkgs =>
+      Object.values(pkgs)
         .filter(localPkg => localPkg.state === PackageState.Installed)
         .reduce((localPkgMap, pkg) => {
-          const url = pkg.installed!['marketplace-url'] || '' // side-laoded services will not have marketplace-url
-          const cached = this.cache
-            .get(url)
-            ?.packages.find(p => p.manifest.id === pkg.manifest.id)
-          if (url && !cached) {
-            const arr = localPkgMap.get(url) || []
-            localPkgMap.set(url, arr.concat(pkg.manifest))
+          const url = pkg.installed!['marketplace-url'] || '' // side-loaded services will not have marketplace-url
+          if (url) {
+            if (!localPkgMap[url]) {
+              localPkgMap[url] = [pkg.manifest]
+            } else {
+              localPkgMap[url].push(pkg.manifest)
+            }
           }
           return localPkgMap
-        }, new Map<string, Manifest[]>())
-    }),
-    switchMap(localPkgMap => {
-      const urls = Array.from(localPkgMap.keys())
-      const requests = urls.map(url => {
-        const ids = localPkgMap.get(url)?.map(({ id }) => {
-          return { id, version: '*' }
-        })
-        return from(this.loadPackages({ ids }, url)).pipe(
-          map(pkgs => {
-            const manifests = localPkgMap.get(url)!
-            const filtered = pkgs.filter(pkg => {
-              const localVersion = manifests.find(
-                m => m.id === pkg.manifest.id,
-              )?.version
-              return (
-                localVersion &&
-                this.emver.compare(pkg.manifest.version, localVersion) === 1
-              )
-            })
-            return { url, pkgs: filtered }
-          }),
-          startWith({ url, pkgs: [] }), // needed for combineLatest to emit right away
-        )
-      })
-      return combineLatest(requests)
-    }),
-    shareReplay(1),
+        }, {} as Record<MarketplaceURL, Manifest[]>),
+    ),
+    shareReplay(),
   )
 
   constructor(
@@ -121,6 +107,14 @@ export class MarketplaceService implements AbstractMarketplaceService {
     private readonly patch: PatchDB<DataModel>,
     private readonly emver: Emver,
   ) {}
+
+  getUpdateRequests$() {
+    return this.updateRequests$
+  }
+
+  getCache$() {
+    return this.cache$
+  }
 
   getUiMarketplace$(): Observable<{ url: string; name: string }> {
     return this.uiMarketplace$
@@ -134,7 +128,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
     return this.marketplacePkgs$
   }
 
-  getPackage(
+  getPackage$(
     id: string,
     version: string,
     url?: string,
@@ -142,7 +136,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
     return this.uiMarketplace$.pipe(
       switchMap(m => {
         url = url || m.url
-        if (this.cache.has(url)) {
+        if (this.cache[url]) {
           const pkg = this.getPkgFromCache(id, version, url)
           if (pkg) return of(pkg)
         }
@@ -154,10 +148,6 @@ export class MarketplaceService implements AbstractMarketplaceService {
         }
       }),
     )
-  }
-
-  getUpdates$(): Observable<{ url: string; pkgs: MarketplacePkg[] }[]> {
-    return this.updates$
   }
 
   async installPackage(
@@ -176,10 +166,10 @@ export class MarketplaceService implements AbstractMarketplaceService {
 
   async validateMarketplace(url: string): Promise<string> {
     await this.loadInfo(url)
-    return this.cache.get(url)!.info!.name
+    return this.cache[url]!.info!.name
   }
 
-  fetchReleaseNotes(
+  fetchReleaseNotes$(
     id: string,
     url?: string,
   ): Observable<Record<string, string>> {
@@ -196,7 +186,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
     )
   }
 
-  fetchPackageMarkdown(
+  fetchPackageMarkdown$(
     id: string,
     type: string,
     url?: string,
@@ -214,8 +204,43 @@ export class MarketplaceService implements AbstractMarketplaceService {
     )
   }
 
+  async loadUpdates(): Promise<void> {
+    const localMap = await firstValueFrom(this.urlToLocalMap$)
+
+    const urls = Object.keys(localMap)
+
+    const statusMap = urls.reduce((obj, url) => {
+      return {
+        ...obj,
+        [url]: RequestStatus.Active,
+      }
+    }, {} as UpdateRequests)
+
+    this.updateRequests$.next(statusMap)
+
+    urls.forEach(url => {
+      const ids = localMap[url].map(({ id }) => {
+        return { id, version: '*' }
+      })
+
+      this.loadPackages({ ids }, url)
+        .catch(() => {
+          this.updateRequests$.next({
+            ...this.updateRequests$.value,
+            [url]: RequestStatus.Failed,
+          })
+        })
+        .then(() => {
+          this.updateRequests$.next({
+            ...this.updateRequests$.value,
+            [url]: RequestStatus.Complete,
+          })
+        })
+    })
+  }
+
   private async loadMarketplace(url: string): Promise<MarketplaceData> {
-    const cachedInfo = this.cache.get(url)?.info
+    const cachedInfo = this.cache[url]?.info
     const [info, packages] = await Promise.all([
       cachedInfo || this.loadInfo(url),
       this.loadPackages({}, url),
@@ -311,7 +336,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
     version: string,
     url: string,
   ): MarketplacePkg | undefined {
-    return this.cache.get(url)?.packages.find(p => {
+    return this.cache[url]?.packages.find(p => {
       const versionIsSame =
         version === '*' || this.emver.compare(p.manifest.version, version) === 0
 
@@ -324,7 +349,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
     info?: MarketplaceInfo,
     pkgs?: MarketplacePkg[],
   ): void {
-    const cache = this.cache.get(url)
+    const cache = this.cache[url]
 
     let packages = cache?.packages || []
     if (pkgs) {
@@ -335,9 +360,11 @@ export class MarketplaceService implements AbstractMarketplaceService {
       packages = filtered.concat(pkgs)
     }
 
-    this.cache.set(url, {
+    this.cache[url] = {
       info: info || cache?.info || null,
       packages,
-    })
+    }
+
+    this.cache$.next(this.cache)
   }
 }

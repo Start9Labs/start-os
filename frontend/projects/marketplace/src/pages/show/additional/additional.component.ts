@@ -57,7 +57,7 @@ export class AdditionalComponent {
   }
 
   async presentModalMd(title: string) {
-    const content = this.marketplaceService.fetchPackageMarkdown(
+    const content = this.marketplaceService.fetchPackageMarkdown$(
       this.pkg.manifest.id,
       title,
     )

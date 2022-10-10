@@ -7,18 +7,18 @@ export abstract class AbstractMarketplaceService {
 
   abstract getPackages$(): Observable<MarketplacePkg[]>
 
-  abstract getPackage(
+  abstract getPackage$(
     id: string,
     version: string,
     url?: string,
   ): Observable<MarketplacePkg | undefined>
 
-  abstract fetchReleaseNotes(
+  abstract fetchReleaseNotes$(
     id: string,
     url?: string,
   ): Observable<Record<string, string>>
 
-  abstract fetchPackageMarkdown(
+  abstract fetchPackageMarkdown$(
     id: string,
     type: string,
     url?: string,
