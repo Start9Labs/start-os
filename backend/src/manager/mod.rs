@@ -547,6 +547,7 @@ impl CommandInserter {
                             if let Err(err) = output_sender.send(output) {
                                 tracing::warn!("Could no longer send an output");
                                 tracing::debug!("{err:?}");
+                                outputs.remove(&id);
                             }
                         }
                     }
@@ -571,6 +572,7 @@ impl CommandInserter {
         sender: UnboundedSender<embassy_container_init::Output>,
     ) {
         use embassy_container_init::{Input, JsonRpc, RpcId};
+        tracing::error!("Exec Command");
         let mut command_counter_lock = self.command_counter.lock().await;
         let mut outputs = self.outputs.lock().await;
         let command_counter = command_counter_lock.clone();
@@ -785,6 +787,10 @@ async fn long_running_docker(
     main_status: Arc<DockerProcedure>,
     container: Arc<PersistantContainer>,
 ) -> Result<LongRunningHandle, Error> {
+    tracing::error!(
+        "BLUJ Should be setting a new long running executor? {}",
+        rt_state.container_name
+    );
     let (sender, receiver) = tokio::sync::mpsc::unbounded_channel();
     let long_running = main_status
         .long_running_execute(

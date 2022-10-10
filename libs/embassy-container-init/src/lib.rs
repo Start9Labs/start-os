@@ -4,7 +4,6 @@ use tracing::instrument;
 pub type InputJsonRpc = JsonRpc<Input>;
 pub type OutputJsonRpc = JsonRpc<Output>;
 
-// BLUJ_TODO: Output::StopOutput
 // BLUJ_TODO: Input::Stop process Id
 // BLUJ_TODO Need to have a better long running startup, maybe make it create dockerfile in temp?
 
@@ -75,6 +74,7 @@ where
 pub enum Output {
     Line(String),
     Error(String),
+    Done(),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]

@@ -755,7 +755,8 @@ impl LongRunning {
             .arg(format!("--add-host=embassy:{}", Ipv4Addr::from(HOST_IP)))
             .arg("--name")
             .arg(&container_name)
-            .arg(format!("--hostname={}", &container_name));
+            .arg(format!("--hostname={}", &container_name))
+            .arg("-d");
 
         for (volume_id, dst) in &docker.mounts {
             let volume = if let Some(v) = volumes.get(volume_id) {
@@ -792,6 +793,7 @@ impl LongRunning {
                 crate::ErrorKind::Docker,
             ));
         }
+        tracing::error!("Should have created our background process now");
 
         let mut cmd = tokio::process::Command::new("docker");
         cmd.args(["cp", INIT_EXEC, &format!("{container_name}:{INIT_EXEC}")]);
@@ -914,16 +916,23 @@ impl LongRunning {
             receiver,
             NonDetachingJoinHandle::from(tokio::spawn(async move {
                 loop {
-                    let next = match output
-                        .next_line()
-                        .await
-                        .map(|x| x.map(|x| serde_json::from_str(&x)))
+                    let next = output.next_line().await;
+                    let next = match next
+                        .as_ref()
+                        .map(|x| x.as_ref().map(|x| serde_json::from_str(x)))
                     {
                         Ok(a) => a,
-                        Err(e) => {
-                            tracing::debug!("{:?}", e);
-                            tracing::error!("Output from docker, killing");
-                            break;
+                        Err(_e) => {
+                            match &next {
+                                Ok(Some(a)) => tracing::debug!("{a:?}"),
+                                Ok(_) => (),
+                                Err(e) => {
+                                    tracing::debug!("{:?}", e);
+                                    tracing::error!("Output from docker, killing");
+                                    break;
+                                }
+                            }
+                            continue;
                         }
                     };
                     let next = match next {
@@ -931,11 +940,14 @@ impl LongRunning {
                         None => continue,
                     };
                     let next = match next {
-                        Ok(a) => a,
+                        Ok(a) => {
+                            tracing::error!("BLUJ Testing that we got a real value {a:?}");
+                            a
+                        }
                         Err(e) => {
                             tracing::debug!("{:?}", e);
                             tracing::warn!("Could not decode output from long running binary");
-                            break;
+                            continue;
                         }
                     };
                     if let Err(e) = sender.send(next) {

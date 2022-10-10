@@ -19,7 +19,7 @@ use crate::{
     config::{Config, ConfigSpec},
     procedure::docker::DockerContainer,
 };
-use crate::{Error, ErrorKind, ResultExt};
+use crate::{Error, ResultExt};
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Actions(pub BTreeMap<ActionId, Action>);
 

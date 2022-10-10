@@ -2,7 +2,6 @@ use std::collections::BTreeSet;
 use std::time::Duration;
 
 use color_eyre::eyre::{bail, eyre};
-use models::ExecCommand;
 use patch_db::HasModel;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use tracing::instrument;

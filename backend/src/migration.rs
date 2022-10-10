@@ -14,7 +14,7 @@ use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
 use crate::volume::Volumes;
 use crate::{context::RpcContext, procedure::docker::DockerContainer};
-use crate::{Error, ErrorKind, ResultExt};
+use crate::{Error, ResultExt};
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]

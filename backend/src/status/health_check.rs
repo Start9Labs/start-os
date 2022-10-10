@@ -12,7 +12,7 @@ use crate::util::serde::Duration;
 use crate::util::Version;
 use crate::volume::Volumes;
 use crate::{context::RpcContext, procedure::docker::DockerContainer};
-use crate::{Error, ErrorKind, ResultExt};
+use crate::{Error, ResultExt};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct HealthChecks(pub BTreeMap<HealthCheckId, HealthCheck>);

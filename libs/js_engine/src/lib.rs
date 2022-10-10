@@ -801,6 +801,7 @@ mod fns {
         }
         let mut answer = String::new();
         while let Some(output) = receiver.recv().await {
+            tracing::error!("new input: {output:?}");
             match output {
                 Output::Line(value) => {
                     answer.push_str(&value);
@@ -808,6 +809,9 @@ mod fns {
                 }
                 Output::Error(error) => {
                     bail!("Error in command: {error}\n Input so far is: {answer}")
+                }
+                Output::Done() => {
+                    break;
                 }
             }
         }

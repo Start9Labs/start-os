@@ -15,7 +15,7 @@ use crate::status::health_check::HealthCheckId;
 use crate::util::Version;
 use crate::volume::Volumes;
 use crate::{context::RpcContext, procedure::docker::DockerContainer};
-use crate::{Error, ErrorKind, ResultExt};
+use crate::{Error, ResultExt};
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]

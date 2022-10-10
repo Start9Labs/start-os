@@ -80,6 +80,7 @@ impl Io {
                     while let Ok(Some(line)) = buff_err.next_line().await {
                         yield JsonRpc::new(id.clone(), Output::Error(line));
                     }
+                    yield JsonRpc::new(id, Output::Done());
                     if let Err(e) = spawned.await {
                         tracing::error!("command join failed");
                         tracing::debug!("{:?}", e);
