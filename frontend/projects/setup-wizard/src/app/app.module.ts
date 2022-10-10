@@ -16,9 +16,12 @@ import { SuccessPageModule } from './pages/success/success.module'
 import { HomePageModule } from './pages/home/home.module'
 import { LoadingPageModule } from './pages/loading/loading.module'
 import { RecoverPageModule } from './pages/recover/recover.module'
-import { WorkspaceConfig } from '@start9labs/shared'
+import { RELATIVE_URL, WorkspaceConfig } from '@start9labs/shared'
 
-const { useMocks } = require('../../../../config.json') as WorkspaceConfig
+const {
+  useMocks,
+  ui: { api },
+} = require('../../../../config.json') as WorkspaceConfig
 
 @NgModule({
   declarations: [AppComponent],
@@ -40,6 +43,10 @@ const { useMocks } = require('../../../../config.json') as WorkspaceConfig
     {
       provide: ApiService,
       useClass: useMocks ? MockApiService : LiveApiService,
+    },
+    {
+      provide: RELATIVE_URL,
+      useValue: `/${api.url}/${api.version}`,
     },
   ],
   bootstrap: [AppComponent],
