@@ -25,6 +25,13 @@ const routes: Routes = [
       ),
   },
   {
+    path: 'updates',
+    canActivate: [AuthGuard],
+    canActivateChild: [AuthGuard],
+    loadChildren: () =>
+      import('./pages/updates/updates.module').then(m => m.UpdatesPageModule),
+  },
+  {
     path: 'marketplace',
     canActivate: [AuthGuard],
     canActivateChild: [AuthGuard],

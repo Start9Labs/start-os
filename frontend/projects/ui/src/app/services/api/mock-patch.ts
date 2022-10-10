@@ -7,6 +7,7 @@ import {
   PackageMainStatus,
   PackageState,
 } from 'src/app/services/patch-db/data-model'
+import { Mock } from './api.fixures'
 
 export const mockPatchData: DataModel = {
   ui: {
@@ -382,7 +383,10 @@ export const mockPatchData: DataModel = {
         dependencies: {},
       },
       installed: {
-        manifest: {} as Manifest,
+        manifest: {
+          ...Mock.MockManifestBitcoind,
+          version: '0.20.0',
+        },
         'last-backup': null,
         status: {
           configured: true,
@@ -434,7 +438,7 @@ export const mockPatchData: DataModel = {
         },
         'current-dependencies': {},
         'dependency-info': {},
-        'marketplace-url': 'https://marketplace-url.com',
+        'marketplace-url': 'https://registry.start9.com/',
         'developer-key': 'developer-key',
       },
     },
@@ -648,7 +652,7 @@ export const mockPatchData: DataModel = {
             icon: 'assets/img/service-icons/btc-rpc-proxy.png',
           },
         },
-        'marketplace-url': 'https://marketplace-url.com',
+        'marketplace-url': 'https://registry.start9.com/',
         'developer-key': 'developer-key',
       },
     },

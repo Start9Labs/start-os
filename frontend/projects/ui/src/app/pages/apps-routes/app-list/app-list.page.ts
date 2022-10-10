@@ -18,9 +18,9 @@ export class AppListPage {
       const length = next.length
       return !length || prev.length !== length
     }),
-    map(([_, pkgs]) => {
-      return pkgs.sort((a, b) => (b.manifest.title > a.manifest.title ? -1 : 1))
-    }),
+    map(([_, pkgs]) =>
+      pkgs.sort((a, b) => (b.manifest.title > a.manifest.title ? -1 : 1)),
+    ),
   )
 
   constructor(private readonly patch: PatchDB<DataModel>) {}

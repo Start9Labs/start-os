@@ -28,14 +28,14 @@
         size="small"
         name="rocket-outline"
       ></ion-icon>
-      <ion-badge
+      <!-- <ion-badge
         *ngIf="
-          page.url === '/marketplace' && (updateCount$ | async) as updateCount
+          page.url === '/updates' && (updateCount$ | async) as updateCount
         "
         color="success"
       >
         {{ updateCount }}
-      </ion-badge>
+      </ion-badge> -->
       <ion-badge
         *ngIf="
           page.url === '/notifications' &&
