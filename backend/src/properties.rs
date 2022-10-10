@@ -32,20 +32,6 @@ pub async fn fetch_properties(ctx: RpcContext, id: PackageId) -> Result<Value, E
         .to_owned()
         .ok_or_else(|| Error::new(eyre!("{} is not installed", id), ErrorKind::NotFound))?;
     if let Some(props) = manifest.properties {
-        let exec_command = match ctx
-            .managers
-            .get(&(manifest.id.clone(), manifest.version.clone()))
-            .await
-        {
-            None => {
-                return Err(Error::new(
-                    eyre!("No manager found for {}", manifest.id),
-                    ErrorKind::NotFound,
-                ))
-            }
-            Some(x) => x,
-        }
-        .exec_command();
         props
             .execute::<(), Value>(
                 &ctx,
@@ -56,7 +42,6 @@ pub async fn fetch_properties(ctx: RpcContext, id: PackageId) -> Result<Value, E
                 &manifest.volumes,
                 None,
                 None,
-                exec_command,
             )
             .await?
             .map_err(|(_, e)| Error::new(eyre!("{}", e), ErrorKind::Docker))

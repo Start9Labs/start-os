@@ -2,19 +2,18 @@ use std::collections::BTreeSet;
 use std::time::Duration;
 
 use color_eyre::eyre::{bail, eyre};
-use js_engine::ExecCommand;
+use models::ExecCommand;
 use patch_db::HasModel;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use tracing::instrument;
 
 use self::docker::{DockerContainer, DockerInject, DockerProcedure};
 use crate::context::RpcContext;
 use crate::id::ImageId;
-use crate::manager::CommandInserter;
 use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
 use crate::volume::Volumes;
-use crate::Error;
+use crate::{Error, ErrorKind};
 
 pub mod docker;
 #[cfg(feature = "js_engine")]
@@ -69,8 +68,8 @@ impl PackageProcedure {
         }
     }
 
-    #[instrument(skip(ctx, input, container, exec_command))]
-    pub async fn execute<I: Serialize, O: for<'de> Deserialize<'de>>(
+    // #[instrument(skip(ctx, input, container, exec_command))]
+    pub async fn execute<I: Serialize, O: DeserializeOwned + 'static>(
         &self,
         ctx: &RpcContext,
         container: &Option<DockerContainer>,
@@ -80,9 +79,22 @@ impl PackageProcedure {
         volumes: &Volumes,
         input: Option<I>,
         timeout: Option<Duration>,
-        exec_command: ExecCommand,
     ) -> Result<Result<O, (i32, String)>, Error> {
         tracing::trace!("Procedure execute {} {} - {:?}", self, pkg_id, name);
+        let exec_command = match ctx
+            .managers
+            .get(&(pkg_id.clone(), pkg_version.clone()))
+            .await
+        {
+            None => {
+                return Err(Error::new(
+                    eyre!("No manager found for {}", pkg_id),
+                    ErrorKind::NotFound,
+                ))
+            }
+            Some(x) => x,
+        }
+        .exec_command();
         match self {
             PackageProcedure::Docker(procedure) => {
                 procedure
@@ -117,8 +129,8 @@ impl PackageProcedure {
         }
     }
 
-    #[instrument(skip(ctx, input, container, exec_command))]
-    pub async fn inject<I: Serialize, O: for<'de> Deserialize<'de>>(
+    // #[instrument(skip(ctx, input, container))]
+    pub async fn inject<I: Serialize, O: DeserializeOwned + 'static>(
         &self,
         ctx: &RpcContext,
         container: &Option<DockerContainer>,
@@ -128,9 +140,21 @@ impl PackageProcedure {
         volumes: &Volumes,
         input: Option<I>,
         timeout: Option<Duration>,
-        exec_command: ExecCommand,
     ) -> Result<Result<O, (i32, String)>, Error> {
-        tracing::trace!("Procedure inject {} {} - {:?}", self, pkg_id, name);
+        let exec_command = match ctx
+            .managers
+            .get(&(pkg_id.clone(), pkg_version.clone()))
+            .await
+        {
+            None => {
+                return Err(Error::new(
+                    eyre!("No manager found for {}", pkg_id),
+                    ErrorKind::NotFound,
+                ))
+            }
+            Some(x) => x,
+        }
+        .exec_command();
         match self {
             PackageProcedure::Docker(procedure) => {
                 procedure
@@ -165,7 +189,7 @@ impl PackageProcedure {
         }
     }
     #[instrument(skip(ctx, input))]
-    pub async fn sandboxed<I: Serialize, O: for<'de> Deserialize<'de>>(
+    pub async fn sandboxed<I: Serialize, O: DeserializeOwned>(
         &self,
         container: &Option<DockerContainer>,
         ctx: &RpcContext,
@@ -214,6 +238,13 @@ impl std::fmt::Display for PackageProcedure {
         Ok(())
     }
 }
+
+// fn deserialize<D>(_: D) -> Result<Self, D::Error>
+// where
+//     D: DeserializeOwned,
+// {
+//     Ok(NoOutput)
+// }
 #[derive(Debug)]
 pub struct NoOutput;
 impl<'de> Deserialize<'de> for NoOutput {

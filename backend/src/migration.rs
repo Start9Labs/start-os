@@ -70,20 +70,6 @@ impl Migrations {
             .find(|(range, _)| version.satisfies(*range))
         {
             Some(async move {
-                let exec_command = match ctx
-                    .managers
-                    .get(&(pkg_id.clone(), pkg_version.clone()))
-                    .await
-                {
-                    None => {
-                        return Err(Error::new(
-                            eyre!("No manager found for {pkg_id}"),
-                            ErrorKind::NotFound,
-                        ))
-                    }
-                    Some(x) => x,
-                }
-                .exec_command();
                 migration
                     .execute(
                         ctx,
@@ -94,7 +80,6 @@ impl Migrations {
                         volumes,
                         Some(version),
                         None,
-                        exec_command,
                     )
                     .map(|r| {
                         r.and_then(|r| {
@@ -122,20 +107,6 @@ impl Migrations {
     ) -> Option<impl Future<Output = Result<MigrationRes, Error>> + 'a> {
         if let Some((_, migration)) = self.to.iter().find(|(range, _)| version.satisfies(*range)) {
             Some(async move {
-                let exec_command = match ctx
-                    .managers
-                    .get(&(pkg_id.clone(), pkg_version.clone()))
-                    .await
-                {
-                    None => {
-                        return Err(Error::new(
-                            eyre!("No manager found for {pkg_id}"),
-                            ErrorKind::NotFound,
-                        ))
-                    }
-                    Some(x) => x,
-                }
-                .exec_command();
                 migration
                     .execute(
                         ctx,
@@ -146,7 +117,6 @@ impl Migrations {
                         volumes,
                         Some(version),
                         None,
-                        exec_command,
                     )
                     .map(|r| {
                         r.and_then(|r| {

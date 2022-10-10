@@ -55,20 +55,6 @@ impl ConfigActions {
         pkg_version: &Version,
         volumes: &Volumes,
     ) -> Result<ConfigRes, Error> {
-        let exec_command = match ctx
-            .managers
-            .get(&(pkg_id.clone(), pkg_version.clone()))
-            .await
-        {
-            None => {
-                return Err(Error::new(
-                    eyre!("No manager found for {pkg_id}"),
-                    ErrorKind::NotFound,
-                ))
-            }
-            Some(x) => x,
-        }
-        .exec_command();
         self.get
             .execute(
                 ctx,
@@ -79,7 +65,6 @@ impl ConfigActions {
                 volumes,
                 None::<()>,
                 None,
-                exec_command,
             )
             .await
             .and_then(|res| {
@@ -98,20 +83,6 @@ impl ConfigActions {
         volumes: &Volumes,
         input: &Config,
     ) -> Result<SetResult, Error> {
-        let exec_command = match ctx
-            .managers
-            .get(&(pkg_id.clone(), pkg_version.clone()))
-            .await
-        {
-            None => {
-                return Err(Error::new(
-                    eyre!("No manager found for {pkg_id}"),
-                    ErrorKind::NotFound,
-                ))
-            }
-            Some(x) => x,
-        }
-        .exec_command();
         let res: SetResult = self
             .set
             .execute(
@@ -123,7 +94,6 @@ impl ConfigActions {
                 volumes,
                 Some(input),
                 None,
-                exec_command,
             )
             .await
             .and_then(|res| {

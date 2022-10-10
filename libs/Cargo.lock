@@ -1181,11 +1181,13 @@ dependencies = [
 name = "models"
 version = "0.1.0"
 dependencies = [
+ "embassy_container_init",
  "emver",
  "patch-db",
  "rand",
  "serde",
  "thiserror",
+ "tokio",
 ]
 
 [[package]]

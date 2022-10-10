@@ -15,7 +15,7 @@ use futures::{Stream, StreamExt, TryFutureExt, TryStreamExt};
 use helpers::NonDetachingJoinHandle;
 use nix::sys::signal;
 use nix::unistd::Pid;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value;
 use tokio::{
     io::{AsyncBufRead, AsyncBufReadExt, BufReader},
@@ -107,7 +107,7 @@ impl From<(&DockerContainer, &DockerInject)> for DockerProcedure {
 impl DockerProcedure {
     pub fn validate(
         &self,
-        eos_version: &Version,
+        _eos_version: &Version,
         volumes: &Volumes,
         image_ids: &BTreeSet<ImageId>,
         expected_io: bool,
@@ -131,7 +131,7 @@ impl DockerProcedure {
     }
 
     #[instrument(skip(ctx, input))]
-    pub async fn execute<I: Serialize, O: for<'de> Deserialize<'de>>(
+    pub async fn execute<I: Serialize, O: DeserializeOwned>(
         &self,
         ctx: &RpcContext,
         pkg_id: &PackageId,
@@ -351,10 +351,10 @@ impl DockerProcedure {
         })
     }
 
-    #[instrument(skip(ctx, input))]
-    pub async fn inject<I: Serialize, O: for<'de> Deserialize<'de>>(
+    #[instrument(skip(_ctx, input))]
+    pub async fn inject<I: Serialize, O: DeserializeOwned>(
         &self,
-        ctx: &RpcContext,
+        _ctx: &RpcContext,
         pkg_id: &PackageId,
         pkg_version: &Version,
         name: ProcedureName,
@@ -507,7 +507,7 @@ impl DockerProcedure {
     }
 
     #[instrument(skip(ctx, input))]
-    pub async fn sandboxed<I: Serialize, O: for<'de> Deserialize<'de>>(
+    pub async fn sandboxed<I: Serialize, O: DeserializeOwned>(
         &self,
         ctx: &RpcContext,
         pkg_id: &PackageId,
@@ -745,7 +745,7 @@ impl LongRunning {
         pkg_id: &PackageId,
         pkg_version: &Version,
     ) -> Result<tokio::process::Command, Error> {
-        const init_exec: &str = "/usr/local/bin/embassy_container_init";
+        const INIT_EXEC: &str = "/usr/local/bin/embassy_container_init";
         tracing::trace!("setup_long_running_docker_cmd");
 
         LongRunning::cleanup_previous_container(ctx, &container_name).await?;
@@ -794,7 +794,7 @@ impl LongRunning {
         }
 
         let mut cmd = tokio::process::Command::new("docker");
-        cmd.args(["cp", init_exec, &format!("{container_name}:{init_exec}")]);
+        cmd.args(["cp", INIT_EXEC, &format!("{container_name}:{INIT_EXEC}")]);
         dbg!(&cmd);
         if !cmd.output().await?.status.success() {
             return Err(Error::new(
@@ -814,7 +814,7 @@ impl LongRunning {
         // }
 
         let mut cmd = tokio::process::Command::new("docker");
-        cmd.args(["container", "exec", "-i", container_name, init_exec]);
+        cmd.args(["container", "exec", "-i", container_name, INIT_EXEC]);
         cmd.stdout(std::process::Stdio::piped());
         cmd.stderr(std::process::Stdio::piped());
         cmd.stdin(std::process::Stdio::piped());

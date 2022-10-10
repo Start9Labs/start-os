@@ -3,9 +3,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 pub use js_engine::JsError;
-use js_engine::{ExecCommand, JsExecutionEnvironment, PathForVolumeId};
+use js_engine::{JsExecutionEnvironment, PathForVolumeId};
+use models::ExecCommand;
 use models::VolumeId;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use tracing::instrument;
 
 use super::ProcedureName;
@@ -54,7 +55,7 @@ impl JsProcedure {
     }
 
     #[instrument(skip(directory, input, exec_command))]
-    pub async fn execute<I: Serialize, O: for<'de> Deserialize<'de>>(
+    pub async fn execute<I: Serialize, O: DeserializeOwned + 'static>(
         &self,
         directory: &PathBuf,
         pkg_id: &PackageId,
@@ -89,7 +90,7 @@ impl JsProcedure {
     }
 
     #[instrument(skip(ctx, input))]
-    pub async fn sandboxed<I: Serialize, O: for<'de> Deserialize<'de>>(
+    pub async fn sandboxed<I: Serialize, O: DeserializeOwned>(
         &self,
         ctx: &RpcContext,
         pkg_id: &PackageId,
@@ -126,7 +127,7 @@ impl JsProcedure {
     }
 }
 
-fn unwrap_known_error<O: for<'de> Deserialize<'de>>(
+fn unwrap_known_error<O: DeserializeOwned>(
     error_value: ErrorValue,
 ) -> Result<O, (JsError, String)> {
     match error_value {

@@ -1,10 +1,8 @@
-use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::SystemTime;
 
-use async_trait::async_trait;
 use deno_core::anyhow::{anyhow, bail};
 use deno_core::error::AnyError;
 use deno_core::{
@@ -12,12 +10,10 @@ use deno_core::{
     ModuleSpecifier, ModuleType, OpDecl, RuntimeOptions, Snapshot,
 };
 use helpers::{script_dir, NonDetachingJoinHandle};
-use models::{PackageId, ProcedureName, Version, VolumeId};
+use models::{ExecCommand, PackageId, ProcedureName, Version, VolumeId};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::io::AsyncReadExt;
-use tokio::sync::mpsc::UnboundedSender;
-use tokio::sync::Mutex;
 
 pub trait PathForVolumeId: Send + Sync {
     fn path_for(
@@ -168,15 +164,6 @@ impl ModuleLoader for ModsLoader {
     }
 }
 
-pub type ExecCommand = Arc<
-    dyn Fn(
-            String,
-            Vec<String>,
-            UnboundedSender<embassy_container_init::Output>,
-        ) -> Pin<Box<dyn Future<Output = Result<(), String>>>>
-        + Send
-        + Sync,
->;
 pub struct JsExecutionEnvironment {
     sandboxed: bool,
     base_directory: PathBuf,
@@ -371,7 +358,6 @@ mod fns {
     use std::cell::RefCell;
     use std::collections::BTreeMap;
     use std::convert::TryFrom;
-    use std::ops::DerefMut;
     use std::os::unix::fs::MetadataExt;
     use std::path::{Path, PathBuf};
     use std::rc::Rc;
@@ -384,7 +370,7 @@ mod fns {
     use serde_json::Value;
     use tokio::io::AsyncWriteExt;
 
-    use super::{AnswerState, ExecCommand, JsContext};
+    use super::{AnswerState, JsContext};
     use crate::{system_time_as_unix_ms, MetadataJs};
 
     #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Default)]
@@ -809,12 +795,7 @@ mod fns {
         let ctx = state.borrow::<JsContext>();
 
         let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel::<Output>();
-        if let Err(err) = (ctx.command_inserter)(
-            command,
-            args.into_iter().map(|x| x.to_string()).collect(),
-            sender,
-        )
-        .await
+        if let Err(err) = (ctx.command_inserter)(command, args.into_iter().collect(), sender).await
         {
             bail!("{err}");
         }

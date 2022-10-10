@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 use std::convert::TryInto;
 use std::future::Future;
 use std::net::Ipv4Addr;
-use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::task::Poll;
@@ -12,17 +11,15 @@ use bollard::container::{KillContainerOptions, StopContainerOptions};
 use chrono::Utc;
 use color_eyre::eyre::eyre;
 use embassy_container_init::InputJsonRpc;
-use js_engine::ExecCommand;
+use models::ExecCommand;
 use nix::sys::signal::Signal;
 use num_enum::TryFromPrimitive;
 use patch_db::DbHandle;
 use sqlx::{Executor, Postgres};
-use tokio::io::BufReader;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::watch::error::RecvError;
 use tokio::sync::watch::{channel, Receiver, Sender};
 use tokio::sync::{Mutex, Notify, RwLock};
-use tokio::task::JoinHandle;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use torut::onion::TorSecretKeyV3;
 use tracing::instrument;
@@ -197,14 +194,13 @@ async fn run_main(
 
     persistant.wait_for_persistant().await;
     let is_injectable_main = check_is_injectable_main(&state);
-    let exec_command = persistant.exec_command();
     let mut runtime = match is_injectable_main {
-        true => tokio::spawn(async move {
-            start_up_inject_image(rt_state, generated_certificate, exec_command).await
-        }),
-        false => tokio::spawn(async move {
-            start_up_image(rt_state, generated_certificate, exec_command).await
-        }),
+        true => {
+            tokio::spawn(
+                async move { start_up_inject_image(rt_state, generated_certificate).await },
+            )
+        }
+        false => tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await }),
     };
     let ip = match is_injectable_main {
         false => Some(match get_running_ip(state, &mut runtime).await {
@@ -237,7 +233,6 @@ async fn run_main(
 async fn start_up_image(
     rt_state: Arc<ManagerSharedState>,
     _generated_certificate: GeneratedCertificateMountPoint,
-    exec_command: ExecCommand,
 ) -> Result<Result<NoOutput, (i32, String)>, Error> {
     rt_state
         .manifest
@@ -251,7 +246,6 @@ async fn start_up_image(
             &rt_state.manifest.volumes,
             None,
             None,
-            exec_command,
         )
         .await
 }
@@ -261,7 +255,6 @@ async fn start_up_image(
 async fn start_up_inject_image(
     rt_state: Arc<ManagerSharedState>,
     _generated_certificate: GeneratedCertificateMountPoint,
-    exec_command: ExecCommand,
 ) -> Result<Result<NoOutput, (i32, String)>, Error> {
     rt_state
         .manifest
@@ -275,7 +268,6 @@ async fn start_up_inject_image(
             &rt_state.manifest.volumes,
             None,
             None,
-            exec_command,
         )
         .await
 }
@@ -426,7 +418,6 @@ impl Manager {
     }
 
     pub fn exec_command(&self) -> ExecCommand {
-        let cloned = self.persistant_container.command_inserter.clone();
         self.persistant_container.exec_command()
     }
 }
@@ -551,9 +542,12 @@ impl CommandInserter {
                     let (id, output) = output.into_pair();
                     let mut outputs = outputs.lock().await;
                     if let Some(embassy_container_init::RpcId::Int(id)) = id {
-                        let mut output_sender = outputs.get_mut(&id);
+                        let output_sender = outputs.get_mut(&id);
                         if let Some(output_sender) = output_sender {
-                            output_sender.send(output);
+                            if let Err(err) = output_sender.send(output) {
+                                tracing::warn!("Could no longer send an output");
+                                tracing::debug!("{err:?}");
+                            }
                         }
                     }
                 }
@@ -720,8 +714,8 @@ fn injectable_main(thread_shared: &Arc<ManagerSharedState>) -> Option<Arc<Docker
     if let (
         PackageProcedure::DockerInject(DockerInject {
             system,
-            entrypoint,
-            args,
+            entrypoint: _entrypoint,
+            args: _args,
             io_format,
             sigterm_timeout,
         }),
@@ -751,7 +745,7 @@ fn injectable_main(thread_shared: &Arc<ManagerSharedState>) -> Option<Arc<Docker
 fn check_is_injectable_main(thread_shared: &ManagerSharedState) -> bool {
     match &thread_shared.manifest.main {
         PackageProcedure::Docker(_a) => false,
-        PackageProcedure::DockerInject(a) => true,
+        PackageProcedure::DockerInject(_a) => true,
         #[cfg(feature = "js_engine")]
         PackageProcedure::Script(_) => false,
     }
@@ -960,7 +954,7 @@ async fn get_long_running_ip(
         match futures::poll!(&mut runtime.0) {
             Poll::Ready(res) => match res {
                 Ok(_) => return GetRunninIp::EarlyExit(Ok(NoOutput)),
-                Err(e) => {
+                Err(_e) => {
                     return GetRunninIp::Error(Error::new(
                         eyre!("Manager runtime panicked!"),
                         crate::ErrorKind::Docker,
