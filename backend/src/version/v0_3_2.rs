@@ -1,8 +1,6 @@
 use emver::VersionRange;
 
-use crate::config::util::MergeWith;
 use crate::hostname::{generate_id, get_hostname, sync_hostname};
-use crate::ErrorKind;
 
 use super::v0_3_0::V0_3_0_COMPAT;
 use super::*;

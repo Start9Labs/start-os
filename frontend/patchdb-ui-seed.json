@@ -2,7 +2,7 @@
   "name": null,
   "auto-check-updates": true,
   "pkg-order": [],
-  "ack-welcome": "0.3.2",
+  "ack-welcome": "0.3.2.1",
   "marketplace": {
     "selected-id": null,
     "known-hosts": {}
