@@ -1,14 +1,6 @@
+import { DOCUMENT } from '@angular/common'
 import { Inject, Injectable } from '@angular/core'
 import { HttpClient } from '@angular/common/http'
-import { HttpError } from '../classes/http-error'
-import {
-  HttpAngularOptions,
-  HttpOptions,
-  LocalHttpResponse,
-  Method,
-} from '../types/http.types'
-import { RPCResponse, RPCOptions } from '../types/rpc.types'
-import { WorkspaceConfig } from '../types/workspace-config'
 import {
   firstValueFrom,
   from,
@@ -19,20 +11,25 @@ import {
   race,
   take,
 } from 'rxjs'
-import { DOCUMENT } from '@angular/common'
 
-const {
-  ui: { api },
-} = require('../../../../config.json') as WorkspaceConfig
+import { HttpError } from '../classes/http-error'
+import {
+  HttpAngularOptions,
+  HttpOptions,
+  LocalHttpResponse,
+  Method,
+} from '../types/http.types'
+import { RPCResponse, RPCOptions } from '../types/rpc.types'
+import { RELATIVE_URL } from '../tokens/relative-url'
 
 @Injectable({
   providedIn: 'root',
 })
 export class HttpService {
-  relativeUrl = `/${api.url}/${api.version}`
   private fullUrl: string
 
   constructor(
+    @Inject(RELATIVE_URL) private readonly relativeUrl: string,
     @Inject(DOCUMENT) private readonly document: Document,
     private readonly http: HttpClient,
   ) {

@@ -45,6 +45,8 @@ export * from './types/rpc.types'
 export * from './types/url'
 export * from './types/workspace-config'
 
+export * from './tokens/relative-url'
+
 export * from './util/copy-to-clipboard'
 export * from './util/base-64'
 export * from './util/get-pkg-id'
