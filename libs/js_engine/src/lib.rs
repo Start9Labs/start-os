@@ -789,19 +789,20 @@ mod fns {
         state: Rc<RefCell<OpState>>,
         command: String,
         args: Vec<String>,
+        timeout: u64,
     ) -> Result<String, AnyError> {
         use embassy_container_init::Output;
         let state = state.borrow();
         let ctx = state.borrow::<JsContext>();
 
         let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel::<Output>();
-        if let Err(err) = (ctx.command_inserter)(command, args.into_iter().collect(), sender).await
+        if let Err(err) =
+            (ctx.command_inserter)(command, args.into_iter().collect(), sender, timeout).await
         {
             bail!("{err}");
         }
         let mut answer = String::new();
         while let Some(output) = receiver.recv().await {
-            tracing::error!("new input: {output:?}");
             match output {
                 Output::Line(value) => {
                     answer.push_str(&value);

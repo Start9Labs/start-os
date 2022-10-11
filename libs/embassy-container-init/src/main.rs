@@ -1,19 +1,44 @@
-use std::process::Stdio;
+use std::{collections::BTreeMap, process::Stdio, sync::Arc};
 
 use async_stream::stream;
 use futures::{pin_mut, Stream, StreamExt};
-use tokio::io::AsyncBufReadExt;
+use tokio::{
+    io::AsyncBufReadExt,
+    sync::{oneshot, Mutex},
+};
 use tokio::{io::BufReader, process::Command};
 use tracing::instrument;
 
-use embassy_container_init::{Input, InputJsonRpc, JsonRpc, Output, OutputJsonRpc};
+use embassy_container_init::{Input, InputJsonRpc, JsonRpc, Output, OutputJsonRpc, RpcId};
 
 const MAX_COMMANDS: usize = 10;
 
-#[derive(Debug, Copy, Clone)]
-struct Io;
+#[derive(Debug, Clone)]
+struct Io {
+    commands: Arc<Mutex<BTreeMap<RpcId, oneshot::Sender<()>>>>,
+}
 
 impl Io {
+    async fn trigger_end_command(&self, id: RpcId) {
+        if let Some(command) = self.commands.lock().await.remove(&id) {
+            if command.send(()).is_err() {
+                tracing::trace!("Command {id:?} could not be ended, possible error or was done");
+            }
+        }
+    }
+
+    async fn create_end_command(&self, id: RpcId) -> oneshot::Receiver<()> {
+        let (send, receiver) = oneshot::channel();
+        if let Some(other_command) = self.commands.lock().await.insert(id.clone(), send) {
+            if other_command.send(()).is_err() {
+                tracing::trace!(
+                    "Found other command {id:?} could not be ended, possible error or was done"
+                );
+            }
+        }
+        receiver
+    }
+
     fn start() -> Self {
         use tracing_error::ErrorLayer;
         use tracing_subscriber::prelude::*;
@@ -28,11 +53,14 @@ impl Io {
             .with(ErrorLayer::default())
             .init();
         color_eyre::install().unwrap();
-        Self
+        Self {
+            commands: Default::default(),
+        }
     }
 
     #[instrument]
     fn command(&self, input: InputJsonRpc) -> impl Stream<Item = OutputJsonRpc> {
+        let io = self.clone();
         stream! {
             let (id, command) = input.into_pair();
             match command {
@@ -62,18 +90,31 @@ impl Io {
                     let mut buff_out = BufReader::new(stdout).lines();
                     let mut buff_err = BufReader::new(stderr).lines();
 
-                    let spawned = tokio::spawn(async move {
-                        let status = child
-                            .wait()
-                            .await
-                            .expect("child process encountered an error");
+                    let spawned = tokio::spawn({
+                        let id = id.clone();
+                        async move {
+                            let end_command_receiver = io.create_end_command(id.clone()).await;
+                            tokio::select!{
+                                status = child
+                                    .wait() => {
+                                        if let Err(err) = status {
+                                            tracing::debug!("Child {id:?} got error: {err:?}")
+                                        }
+                                    },
+                                _ = end_command_receiver => {
+                                    if let Err(err) = child.kill().await {
+                                        tracing::error!("Error while trying to kill a process {id:?}");
+                                        tracing::debug!("{err:?}");
+                                    }
+                                },
 
-                        tracing::trace!("child status was: {}", status);
+                            }
+                        }
+
                     });
                     while let Ok(Some(line)) = buff_out.next_line().await {
-                        let id = id.clone();
                         let output = Output::Line(line);
-                        let output = JsonRpc::new(id, output);
+                        let output = JsonRpc::new(id.clone(), output);
                         tracing::trace!("OutputJsonRpc {{ id, output_rpc }} = {:?}", output);
                         yield output;
                     }
@@ -85,6 +126,9 @@ impl Io {
                         tracing::error!("command join failed");
                         tracing::debug!("{:?}", e);
                     }
+                },
+                Input::Kill() => {
+                    io.trigger_end_command(id).await;
                 }
             }
         }
@@ -98,7 +142,6 @@ impl Io {
             for line in stdin.lock().lines().flatten() {
                 tracing::trace!("Line = {}", line);
                 sender.blocking_send(line).unwrap();
-                // yield line;
             }
         });
         tokio_stream::wrappers::ReceiverStream::new(receiver)
@@ -116,7 +159,6 @@ impl Io {
 #[tokio::main]
 async fn main() {
     let io = Io::start();
-    tracing::debug!("Debuggin!");
     let outputs = io
         .inputs()
         .filter_map(|x| async move { InputJsonRpc::maybe_parse(&x) })

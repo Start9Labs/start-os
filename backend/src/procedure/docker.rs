@@ -940,10 +940,7 @@ impl LongRunning {
                         None => continue,
                     };
                     let next = match next {
-                        Ok(a) => {
-                            tracing::error!("BLUJ Testing that we got a real value {a:?}");
-                            a
-                        }
+                        Ok(a) => a,
                         Err(e) => {
                             tracing::debug!("{:?}", e);
                             tracing::warn!("Could not decode output from long running binary");

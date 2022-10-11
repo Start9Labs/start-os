@@ -106,7 +106,7 @@ impl JsProcedure {
                 pkg_id,
                 pkg_version,
                 Box::new(volumes.clone()),
-                Arc::new(|_, _, _| {
+                Arc::new(|_, _, _, _| {
                     Box::pin(async { Err("Can't run commands in sandox mode".to_string()) })
                 }),
             )
@@ -188,7 +188,7 @@ async fn js_action_execute() {
             &volumes,
             input,
             timeout,
-            Arc::new(|_, _, _| {
+            Arc::new(|_, _, _, _| {
                 Box::pin(async move { Err("Can't run commands in test".to_string()) })
             }),
         )
@@ -246,7 +246,7 @@ async fn js_action_execute_error() {
             &volumes,
             input,
             timeout,
-            Arc::new(|_, _, _| {
+            Arc::new(|_, _, _, _| {
                 Box::pin(async move { Err("Can't run commands in test".to_string()) })
             }),
         )
@@ -293,7 +293,7 @@ async fn js_action_fetch() {
             &volumes,
             input,
             timeout,
-            Arc::new(|_, _, _| {
+            Arc::new(|_, _, _, _| {
                 Box::pin(async move { Err("Can't run commands in test".to_string()) })
             }),
         )
@@ -341,7 +341,7 @@ async fn js_action_var_arg() {
             &volumes,
             input,
             timeout,
-            Arc::new(|_, _, _| {
+            Arc::new(|_, _, _, _| {
                 Box::pin(async move { Err("Can't run commands in test".to_string()) })
             }),
         )
@@ -388,7 +388,7 @@ async fn js_action_test_rename() {
             &volumes,
             input,
             timeout,
-            Arc::new(|_, _, _| {
+            Arc::new(|_, _, _, _| {
                 Box::pin(async move { Err("Can't run commands in test".to_string()) })
             }),
         )
@@ -435,7 +435,7 @@ async fn js_action_test_deep_dir() {
             &volumes,
             input,
             timeout,
-            Arc::new(|_, _, _| {
+            Arc::new(|_, _, _, _| {
                 Box::pin(async move { Err("Can't run commands in test".to_string()) })
             }),
         )
@@ -481,7 +481,7 @@ async fn js_action_test_deep_dir_escape() {
             &volumes,
             input,
             timeout,
-            Arc::new(|_, _, _| {
+            Arc::new(|_, _, _, _| {
                 Box::pin(async move { Err("Can't run commands in test".to_string()) })
             }),
         )

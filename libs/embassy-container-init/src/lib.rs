@@ -4,25 +4,22 @@ use tracing::instrument;
 pub type InputJsonRpc = JsonRpc<Input>;
 pub type OutputJsonRpc = JsonRpc<Output>;
 
-// BLUJ_TODO: Input::Stop process Id
 // BLUJ_TODO Need to have a better long running startup, maybe make it create dockerfile in temp?
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(untagged)]
 pub enum RpcId {
-    Int(i64),
-    Float(f64),
-    String(String),
+    UInt(u64),
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct JsonRpc<T> {
-    id: Option<RpcId>,
+    id: RpcId,
     #[serde(flatten)]
     pub version_rpc: VersionRpc<T>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(tag = "jsonrpc", rename_all = "camelCase")]
 pub enum VersionRpc<T> {
     #[serde(rename = "2.0")]
@@ -33,20 +30,19 @@ impl<T> JsonRpc<T>
 where
     T: Serialize + for<'de> serde::Deserialize<'de> + std::fmt::Debug,
 {
-    pub fn new(id: Option<RpcId>, body: T) -> Self {
+    pub fn new(id: RpcId, body: T) -> Self {
         JsonRpc {
             id,
             version_rpc: VersionRpc::Two(body),
         }
     }
-    pub fn into_pair(self) -> (Option<RpcId>, T) {
+    pub fn into_pair(self) -> (RpcId, T) {
         let Self { id, version_rpc } = self;
         let VersionRpc::Two(body) = version_rpc;
         (id, body)
     }
     #[instrument]
     pub fn maybe_serialize(&self) -> Option<String> {
-        tracing::trace!("Should be serializing");
         match serde_json::to_string(self) {
             Ok(x) => Some(x),
             Err(e) => {
@@ -69,7 +65,7 @@ where
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(tag = "method", content = "params", rename_all = "camelCase")]
 pub enum Output {
     Line(String),
@@ -77,10 +73,11 @@ pub enum Output {
     Done(),
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(tag = "method", content = "params", rename_all = "camelCase")]
 pub enum Input {
     Command { command: String, args: Vec<String> },
+    Kill(),
 }
 
 #[test]
@@ -93,16 +90,13 @@ fn example_echo_line() {
 
 #[test]
 fn example_input_line() {
-    let output = JsonRpc::new(
-        Some(RpcId::String("test".to_string())),
-        Output::Line("world I am here".to_string()),
-    );
+    let output = JsonRpc::new(RpcId::UInt(0), Output::Line("world I am here".to_string()));
     let output_str = output.maybe_serialize();
     assert!(output_str.is_some());
     let output_str = output_str.unwrap();
     assert_eq!(
         &output_str,
-        r#"{"id":"test","jsonrpc":"2.0","method":"line","params":"world I am here"}"#
+        r#"{"id":0,"jsonrpc":"2.0","method":"line","params":"world I am here"}"#
     );
     assert_eq!(output, serde_json::from_str(&output_str).unwrap());
 }

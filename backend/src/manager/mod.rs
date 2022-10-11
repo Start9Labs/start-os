@@ -16,10 +16,10 @@ use nix::sys::signal::Signal;
 use num_enum::TryFromPrimitive;
 use patch_db::DbHandle;
 use sqlx::{Executor, Postgres};
-use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::watch::error::RecvError;
 use tokio::sync::watch::{channel, Receiver, Sender};
 use tokio::sync::{Mutex, Notify, RwLock};
+use tokio::{sync::mpsc::UnboundedSender, task::JoinHandle};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use torut::onion::TorSecretKeyV3;
 use tracing::instrument;
@@ -193,7 +193,7 @@ async fn run_main(
     let generated_certificate = generate_certificate(state, &interfaces).await?;
 
     persistant.wait_for_persistant().await;
-    let is_injectable_main = check_is_injectable_main(&state);
+    let is_injectable_main = check_is_injectable_main(state);
     let mut runtime = match is_injectable_main {
         true => {
             tokio::spawn(
@@ -357,7 +357,7 @@ impl Manager {
             })
             | PackageProcedure::DockerInject(DockerInject {
                 sigterm_timeout, ..
-            }) => sigterm_timeout.clone(),
+            }) => *sigterm_timeout,
             #[cfg(feature = "js_engine")]
             PackageProcedure::Script(_) => return Ok(()),
         };
@@ -466,7 +466,7 @@ async fn manager_thread_loop(
                 );
             }
         }
-        match run_main(&thread_shared, persistant_container.clone()).await {
+        match run_main(thread_shared, persistant_container.clone()).await {
             Ok(Ok(NoOutput)) => (), // restart
             Ok(Err(e)) => {
                 let mut db = thread_shared.ctx.db.handle();
@@ -495,12 +495,9 @@ async fn manager_thread_loop(
                         Some(3600) // 1 hour
                     )
                     .await;
-                        match res {
-                            Err(e) => {
-                                tracing::error!("Failed to issue notification: {}", e);
-                                tracing::debug!("{:?}", e);
-                            }
-                            Ok(()) => {}
+                        if let Err(e) = res {
+                            tracing::error!("Failed to issue notification: {}", e);
+                            tracing::debug!("{:?}", e);
                         }
                     }
                     _ => tracing::error!("service just started. not issuing crash notification"),
@@ -518,9 +515,17 @@ async fn manager_thread_loop(
 
 struct LongRunningHandle(NonDetachingJoinHandle<()>);
 pub struct CommandInserter {
-    command_counter: Mutex<i64>,
+    command_counter: Mutex<u64>,
     input: UnboundedSender<InputJsonRpc>,
-    outputs: Arc<Mutex<BTreeMap<i64, UnboundedSender<embassy_container_init::Output>>>>,
+    outputs: Arc<Mutex<BTreeMap<u64, UnboundedSender<embassy_container_init::Output>>>>,
+}
+impl Drop for CommandInserter {
+    fn drop(&mut self) {
+        use embassy_container_init::{Input, JsonRpc, RpcId};
+        for i in 0..*self.command_counter.blocking_lock() {
+            let _ignored_result = self.input.send(JsonRpc::new(RpcId::UInt(i), Input::Kill()));
+        }
+    }
 }
 impl CommandInserter {
     fn new(
@@ -532,7 +537,7 @@ impl CommandInserter {
             running_output,
         } = long_running;
         let command_counter = Mutex::new(0);
-        let outputs: Arc<Mutex<BTreeMap<i64, UnboundedSender<embassy_container_init::Output>>>> =
+        let outputs: Arc<Mutex<BTreeMap<u64, UnboundedSender<embassy_container_init::Output>>>> =
             Default::default();
         let handle = LongRunningHandle(running_output);
         tokio::spawn({
@@ -541,14 +546,13 @@ impl CommandInserter {
                 while let Some(output) = output.recv().await {
                     let (id, output) = output.into_pair();
                     let mut outputs = outputs.lock().await;
-                    if let Some(embassy_container_init::RpcId::Int(id)) = id {
-                        let output_sender = outputs.get_mut(&id);
-                        if let Some(output_sender) = output_sender {
-                            if let Err(err) = output_sender.send(output) {
-                                tracing::warn!("Could no longer send an output");
-                                tracing::debug!("{err:?}");
-                                outputs.remove(&id);
-                            }
+                    let embassy_container_init::RpcId::UInt(id) = id;
+                    let output_sender = outputs.get_mut(&id);
+                    if let Some(output_sender) = output_sender {
+                        if let Err(err) = output_sender.send(output) {
+                            tracing::warn!("Could no longer send an output");
+                            tracing::debug!("{err:?}");
+                            outputs.remove(&id);
                         }
                     }
                 }
@@ -570,18 +574,26 @@ impl CommandInserter {
         command: String,
         args: Vec<String>,
         sender: UnboundedSender<embassy_container_init::Output>,
+        timeout: u64,
     ) {
         use embassy_container_init::{Input, JsonRpc, RpcId};
-        tracing::error!("Exec Command");
         let mut command_counter_lock = self.command_counter.lock().await;
         let mut outputs = self.outputs.lock().await;
-        let command_counter = command_counter_lock.clone();
-        let command_id = RpcId::Int(command_counter);
+        let command_counter = *command_counter_lock;
+        let command_id = RpcId::UInt(command_counter);
         outputs.insert(command_counter, sender);
-        if let Err(err) = self.input.send(JsonRpc::new(
-            Some(command_id),
-            Input::Command { command, args },
-        )) {
+        tokio::spawn({
+            let input = self.input.clone();
+            let command_id = command_id.clone();
+            async move {
+                tokio::time::sleep(Duration::from_millis(timeout)).await;
+                let _ignored_output = input.send(JsonRpc::new(command_id, Input::Kill()));
+            }
+        });
+        if let Err(err) = self
+            .input
+            .send(JsonRpc::new(command_id, Input::Command { command, args }))
+        {
             tracing::warn!("Trying to send to input but can't");
             tracing::debug!("{err:?}");
         }
@@ -590,10 +602,11 @@ impl CommandInserter {
     }
 }
 
+type RunningDocker =
+    Arc<Mutex<Option<NonDetachingJoinHandle<Result<Result<NoOutput, (i32, String)>, Error>>>>>;
 struct PersistantContainer {
     container_name: String,
-    running_docker:
-        Arc<Mutex<Option<NonDetachingJoinHandle<Result<Result<NoOutput, (i32, String)>, Error>>>>>,
+    running_docker: RunningDocker,
     should_stop_running: Arc<std::sync::atomic::AtomicBool>,
     wait_for_start: (Sender<bool>, Receiver<bool>),
     command_inserter: Arc<Mutex<Option<CommandInserter>>>,
@@ -624,12 +637,12 @@ impl PersistantContainer {
         *running_docker = None;
         use tokio::process::Command;
         if let Err(_err) = Command::new("docker")
-            .args(["stop", "-t", "0", &*container_name])
+            .args(["stop", "-t", "0", container_name])
             .output()
             .await
         {}
         if let Err(_err) = Command::new("docker")
-            .args(["kill", &*container_name])
+            .args(["kill", container_name])
             .output()
             .await
         {}
@@ -654,13 +667,15 @@ impl PersistantContainer {
 
     fn exec_command(&self) -> ExecCommand {
         let cloned = self.command_inserter.clone();
-        Arc::new(move |command, args, sender| {
+        Arc::new(move |command, args, sender, timeout| {
             let cloned = cloned.clone();
             Box::pin(async move {
                 let lock = cloned.lock().await;
                 match &*lock {
                     Some(command_inserter) => {
-                        command_inserter.exec_command(command, args, sender).await
+                        command_inserter
+                            .exec_command(command, args, sender, timeout)
+                            .await
                     }
                     None => {
                         return Err("Couldn't get a command inserter in current service".to_string())
@@ -787,10 +802,6 @@ async fn long_running_docker(
     main_status: Arc<DockerProcedure>,
     container: Arc<PersistantContainer>,
 ) -> Result<LongRunningHandle, Error> {
-    tracing::error!(
-        "BLUJ Should be setting a new long running executor? {}",
-        rt_state.container_name
-    );
     let (sender, receiver) = tokio::sync::mpsc::unbounded_channel();
     let long_running = main_status
         .long_running_execute(
@@ -888,9 +899,11 @@ enum GetRunninIp {
     EarlyExit(Result<NoOutput, (i32, String)>),
 }
 
+type RuntimeOfCommand = JoinHandle<Result<Result<NoOutput, (i32, String)>, Error>>;
+
 async fn get_running_ip(
     state: &Arc<ManagerSharedState>,
-    mut runtime: &mut tokio::task::JoinHandle<Result<Result<NoOutput, (i32, String)>, Error>>,
+    mut runtime: &mut RuntimeOfCommand,
 ) -> GetRunninIp {
     loop {
         match container_inspect(state).await {
@@ -915,8 +928,8 @@ async fn get_running_ip(
             }) => (),
             Err(e) => return GetRunninIp::Error(e.into()),
         }
-        match futures::poll!(&mut runtime) {
-            Poll::Ready(res) => match res {
+        if let Poll::Ready(res) = futures::poll!(&mut runtime) {
+            match res {
                 Ok(Ok(response)) => return GetRunninIp::EarlyExit(response),
                 Err(_) | Ok(Err(_)) => {
                     return GetRunninIp::Error(Error::new(
@@ -924,8 +937,7 @@ async fn get_running_ip(
                         crate::ErrorKind::Docker,
                     ))
                 }
-            },
-            _ => (),
+            }
         }
     }
 }
@@ -957,8 +969,8 @@ async fn get_long_running_ip(
             }) => (),
             Err(e) => return GetRunninIp::Error(e.into()),
         }
-        match futures::poll!(&mut runtime.0) {
-            Poll::Ready(res) => match res {
+        if let Poll::Ready(res) = futures::poll!(&mut runtime.0) {
+            match res {
                 Ok(_) => return GetRunninIp::EarlyExit(Ok(NoOutput)),
                 Err(_e) => {
                     return GetRunninIp::Error(Error::new(
@@ -966,8 +978,7 @@ async fn get_long_running_ip(
                         crate::ErrorKind::Docker,
                     ))
                 }
-            },
-            _ => (),
+            }
         }
     }
 }
@@ -990,11 +1001,11 @@ async fn generate_certificate(
         TorSecretKeyV3,
     )>,
 ) -> Result<GeneratedCertificateMountPoint, Error> {
-    Ok(state
+    state
         .ctx
         .net_controller
         .generate_certificate_mountpoint(&state.manifest.id, interfaces)
-        .await?)
+        .await
 }
 
 fn states_main_interfaces(
@@ -1007,7 +1018,7 @@ fn states_main_interfaces(
     )>,
     Error,
 > {
-    Ok(state
+    state
         .manifest
         .interfaces
         .0
@@ -1025,7 +1036,7 @@ fn states_main_interfaces(
                     .clone(),
             ))
         })
-        .collect::<Result<Vec<_>, Error>>()?)
+        .collect::<Result<Vec<_>, Error>>()
 }
 
 #[instrument(skip(shared))]
