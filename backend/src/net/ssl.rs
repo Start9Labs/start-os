@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 use std::path::Path;
+use std::sync::Arc;
 
 use color_eyre::eyre::eyre;
 use futures::FutureExt;
@@ -15,14 +16,20 @@ use patch_db::DbHandle;
 use sqlx::PgPool;
 use tokio::process::Command;
 use tokio::sync::Mutex;
+use tokio_rustls::rustls::server::{ResolvesServerCert, ResolvesServerCertUsingSni};
+use tokio_rustls::rustls::sign::CertifiedKey;
 use tracing::instrument;
 
+use tracing::error;
+
+use crate::net::proxy_controller::ProxyController;
 use crate::s9pk::manifest::PackageId;
 use crate::util::Invoke;
 use crate::{Error, ErrorKind, ResultExt};
 
 static CERTIFICATE_VERSION: i32 = 2; // X509 version 3 is actually encoded as '2' in the cert because fuck you.
 pub const ROOT_CA_STATIC_PATH: &str = "/var/lib/embassy/ssl/root-ca.crt";
+
 
 #[derive(Debug, Clone)]
 pub struct SslManager {

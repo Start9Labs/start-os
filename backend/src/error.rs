@@ -75,6 +75,7 @@ pub enum ErrorKind {
     JoinError = 66,
     AsciiError = 67,
     NoHost = 68,
+    SignError = 69
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -147,7 +148,8 @@ impl ErrorKind {
             InvalidIP => "Could not parse this IP address",
             JoinError => "Join Handle Error",
             AsciiError => "Could not parse ascii text",
-            NoHost => "No Host header " 
+            NoHost => "No Host header ",
+            SignError => "Signing error"
         }
     }
 }

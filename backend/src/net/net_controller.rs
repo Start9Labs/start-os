@@ -126,7 +126,7 @@ impl NetController {
                             })
                         });
                 //self.nginx.add(&self.ssl, pkg_id.clone(), ip, interfaces)
-                self.proxy.add_service(pkg_id.clone(), ip, interfaces)
+                self.proxy.add_docker_service(pkg_id.clone(), ip, interfaces)
             },
             self.dns.add(pkg_id, ip),
         );
@@ -153,7 +153,7 @@ impl NetController {
                 let mdns_fut = futures::future::ready(());
                 mdns_fut
             },
-            self.proxy.remove_service(pkg_id),
+            self.proxy.remove_docker_service(pkg_id),
             self.dns.remove(pkg_id, ip),
         );
         tor_res?;

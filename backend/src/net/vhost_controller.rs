@@ -1,16 +1,23 @@
 use crate::net::embassy_service_http_server::EmbassyServiceHTTPServer;
 use crate::net::proxy_controller::ProxyController;
 use crate::net::ssl::SslManager;
-use crate::{Error};
+use crate::Error;
+use futures::FutureExt;
+use lazy_static::__Deref;
+use models::PackageId;
 use std::collections::BTreeMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use futures::FutureExt;
+use tokio::sync::Mutex;
+use tokio_rustls::rustls::server::ResolvesServerCertUsingSni;
+use tokio_rustls::rustls::ServerConfig;
 
 use crate::net::{HttpClient, HttpHandler};
 
 pub struct VHOSTController {
     pub service_servers: BTreeMap<u16, EmbassyServiceHTTPServer>,
+    pub svc_dns_base_package_names: BTreeMap<String, PackageId>,
+    pub cert_resolver: ResolvesServerCertUsingSni,
     embassyd_addr: SocketAddr,
 }
 
@@ -19,6 +26,8 @@ impl VHOSTController {
         Self {
             embassyd_addr,
             service_servers: BTreeMap::new(),
+            svc_dns_base_package_names: BTreeMap::new(),
+            cert_resolver: ResolvesServerCertUsingSni::new()
         }
     }
 
@@ -45,7 +54,7 @@ impl VHOSTController {
                 *req.uri_mut() = uri;
 
                 // Ok::<_, HyperError>(Response::new(Body::empty()))
-                return ProxyController::proxy(client, req).await;
+                ProxyController::proxy(client, req).await
             }
             .boxed()
         });
@@ -53,6 +62,18 @@ impl VHOSTController {
         self.add_server_or_handle(external_svc_port, fqdn, svc_handler)
             .await?;
         Ok(())
+    }
+
+    pub fn build_ssl_svr_cfg(self) -> Result<ServerConfig, Error> {
+        let ssl_cfg = ServerConfig::builder()
+            .with_safe_default_cipher_suites()
+            .with_safe_default_kx_groups()
+            .with_safe_default_protocol_versions()
+            .unwrap()
+            .with_no_client_auth()
+            .with_cert_resolver(Arc::new(self.cert_resolver));
+
+        Ok(ssl_cfg)
     }
 
     pub async fn add_server_or_handle(

@@ -12,6 +12,7 @@ lazy_static::lazy_static! {
 }
 
 fn inner_main() -> Result<(), Error> {
+
     run_cli!({
         command: embassy::main_api,
         app: app => app

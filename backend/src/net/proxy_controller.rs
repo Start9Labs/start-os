@@ -4,10 +4,23 @@ use hyper::upgrade::Upgraded;
 
 use hyper::Body;
 use hyper::Error as HyperError;
+use openssl::pkey::PKey;
+use openssl::pkey::Private;
+use openssl::x509::X509;
 use tokio::net::TcpStream;
+use tokio_rustls::rustls::server::ResolvesServerCertUsingSni;
+use tokio_rustls::rustls::sign::any_supported_type;
+use tokio_rustls::rustls::sign::CertifiedKey;
+use tokio_rustls::rustls::sign::RSASigningKey;
+use tokio_rustls::rustls::sign::RsaSigningKey;
+use tokio_rustls::rustls::Certificate;
+use tokio_rustls::rustls::PrivateKey;
+use tokio_rustls::rustls::ResolvesServerCertUsingSNI;
+use tokio_rustls::rustls::ServerConfig;
 
 use std::collections::BTreeMap;
 use std::net::{Ipv4Addr, SocketAddr};
+use std::sync::Arc;
 
 use crate::net::net_utils::host_addr;
 use crate::net::ssl::SslManager;
@@ -39,7 +52,7 @@ impl ProxyController {
         })
     }
 
-    pub async fn add_service<I: IntoIterator<Item = (InterfaceId, InterfaceMetadata)>>(
+    pub async fn add_docker_service<I: IntoIterator<Item = (InterfaceId, InterfaceMetadata)>>(
         &self,
         package: PackageId,
         ipv4: Ipv4Addr,
@@ -48,12 +61,29 @@ impl ProxyController {
         self.inner
             .lock()
             .await
-            .add_service(package, ipv4, interfaces)
+            .add_docker_service(package, ipv4, interfaces)
             .await
     }
 
-    pub async fn remove_service(&self, package: &PackageId) -> Result<(), Error> {
-        self.inner.lock().await.remove_service(package).await
+    pub async fn remove_docker_service(&self, package: &PackageId) -> Result<(), Error> {
+        self.inner.lock().await.remove_docker_service(package).await
+    }
+
+    pub async fn get_package_id(&self, fqdn: &String) -> Option<PackageId> {
+        self.inner.lock().await.get_package_id(fqdn).await
+    }
+
+    pub async fn get_package_cert(
+        &self,
+        fqdn: &String,
+        package_id: PackageId,
+    ) -> Result<(PKey<Private>, Vec<X509>), Error> {
+        self.inner
+            .lock()
+            .await
+            .ssl_manager
+            .certificate_for(fqdn, &package_id)
+            .await
     }
 
     pub async fn add_handle(
@@ -137,6 +167,14 @@ impl ProxyController {
 
         Ok(())
     }
+
+    async fn add_certificate_to_resolver(&self, hostname: String) -> Result<(), Error> {
+        self.inner
+            .lock()
+            .await
+            .add_certificate_to_resolver(hostname)
+            .await
+    }
 }
 struct ProxyControllerInner {
     embassyd_addr: SocketAddr,
@@ -145,7 +183,6 @@ struct ProxyControllerInner {
     embassy_hostname: String,
     docker_interfaces: BTreeMap<PackageId, PackageNetInfo>,
     docker_iface_lookups: BTreeMap<(PackageId, InterfaceId), String>,
-    //  service_servers: BTreeMap<u16, EmbassyServiceHTTPServer>,
 }
 
 impl ProxyControllerInner {
@@ -168,6 +205,51 @@ impl ProxyControllerInner {
         Ok(inner)
     }
 
+    pub async fn get_package_id(&self, fqdn: &String) -> Option<PackageId> {
+        self.vhosts.svc_dns_base_package_names.get(fqdn).cloned()
+    }
+
+    async fn add_certificate_to_resolver(&mut self, hostname: String) -> Result<(), Error> {
+        let pkg_id = match self.get_package_id(&hostname).await {
+            Some(pkg_id) => pkg_id,
+            None => {
+                return Err(Error::new(
+                    eyre!("No found cert for {}", hostname.clone()),
+                    crate::ErrorKind::Network,
+                ))
+            }
+        };
+
+        let package_cert = self.ssl_manager.certificate_for(&hostname, &pkg_id).await?;
+
+        let cert_chain = package_cert.1;
+        let private_keys = package_cert
+            .0
+            .private_key_to_der()
+            .map_err(|err| Error::new(eyre!("err {}", err), crate::ErrorKind::BytesError))?;
+
+        let cert = Certificate(
+            cert_chain[0]
+                .to_der()
+                .map_err(|err| Error::new(eyre!("err: {}", err), crate::ErrorKind::BytesError))?,
+        );
+
+        let pre_sign_key = PrivateKey(private_keys);
+        let actual_sign_key = any_supported_type(&pre_sign_key)
+            .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::SignError))?;
+
+        self.vhosts.cert_resolver
+            .add(&hostname, CertifiedKey::new(vec![cert], actual_sign_key))
+            .map_err(|err| {
+                Error::new(
+                    eyre!("Unable to add ssl cert to the resolver: {}", err),
+                    crate::ErrorKind::Network,
+                )
+            })?;
+
+        Ok(())
+    }
+
     pub async fn add_handle(
         &mut self,
         external_svc_port: u16,
@@ -180,10 +262,10 @@ impl ProxyControllerInner {
     }
 
     #[instrument(skip(self, interfaces))]
-    pub async fn add_service<I: IntoIterator<Item = (InterfaceId, InterfaceMetadata)>>(
+    pub async fn add_docker_service<I: IntoIterator<Item = (InterfaceId, InterfaceMetadata)>>(
         &mut self,
         package: PackageId,
-        ipv4: Ipv4Addr,
+        docker_ipv4: Ipv4Addr,
         interfaces: I,
     ) -> Result<(), Error> {
         let interface_map = interfaces
@@ -201,7 +283,7 @@ impl ProxyControllerInner {
                 self.docker_iface_lookups
                     .insert((package.clone(), id.clone()), meta.fqdn.clone());
 
-                let docker_addr = SocketAddr::from((ipv4, lan_port_config.internal));
+                let docker_addr = SocketAddr::from((docker_ipv4, lan_port_config.internal));
 
                 let is_ssl = lan_port_config.ssl;
                 // info!("docker ip: {}", docker_addr);
@@ -227,7 +309,7 @@ impl ProxyControllerInner {
     }
 
     #[instrument(skip(self))]
-    pub async fn remove_service(&mut self, package: &PackageId) -> Result<(), Error> {
+    pub async fn remove_docker_service(&mut self, package: &PackageId) -> Result<(), Error> {
         let mut server_removal = false;
         let mut server_removal_port: u16 = 0;
         let mut removed_interface_id = InterfaceId::default();
@@ -237,8 +319,9 @@ impl ProxyControllerInner {
             for (id, meta) in &net_info.interfaces {
                 for (service_ext_port, _lan_port_config) in meta.lan_config.iter() {
                     if let Some(server) = self.vhosts.service_servers.get_mut(&service_ext_port.0) {
-                        if let Some(dns_base) =
-                            self.docker_iface_lookups.get(&(package.clone(), id.clone()))
+                        if let Some(dns_base) = self
+                            .docker_iface_lookups
+                            .get(&(package.clone(), id.clone()))
                         {
                             server.remove_svc_mapping(dns_base.to_string()).await;
 
