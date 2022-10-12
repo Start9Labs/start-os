@@ -285,7 +285,9 @@ impl ProxyControllerInner {
 
                 let docker_addr = SocketAddr::from((docker_ipv4, lan_port_config.internal));
 
-                let is_ssl = lan_port_config.ssl;
+                if lan_port_config.ssl {
+                    self.add_certificate_to_resolver(meta.fqdn.clone()).await?;
+                }
                 // info!("docker ip: {}", docker_addr);
                 self.vhosts
                     .add_docker_svc_handle(external_svc_port.0, meta.fqdn.clone(), docker_addr)
