@@ -523,7 +523,7 @@ impl Drop for CommandInserter {
     fn drop(&mut self) {
         use embassy_container_init::{Input, JsonRpc, RpcId};
         for i in 0..*self.command_counter.blocking_lock() {
-            let _ignored_result = self.input.send(JsonRpc::new(RpcId::UInt(i), Input::Kill()));
+            let _ignored_result = self.input.send(JsonRpc::new(RpcId::UInt(i), Input::Term()));
         }
     }
 }
@@ -637,7 +637,7 @@ impl PersistantContainer {
         *running_docker = None;
         use tokio::process::Command;
         if let Err(_err) = Command::new("docker")
-            .args(["stop", "-t", "0", container_name])
+            .args(["stop", "-t", "30", container_name])
             .output()
             .await
         {}
@@ -689,18 +689,6 @@ impl PersistantContainer {
 impl Drop for PersistantContainer {
     fn drop(&mut self) {
         self.should_stop_running.store(true, Ordering::SeqCst);
-        let container_name = self.container_name.clone();
-        let running_docker = self.running_docker.clone();
-        tokio::spawn(async move {
-            let mut running_docker = running_docker.lock().await;
-            *running_docker = None;
-
-            use std::process::Command;
-            if let Err(_err) = Command::new("docker")
-                .args(["kill", &*container_name])
-                .output()
-            {}
-        });
     }
 }
 

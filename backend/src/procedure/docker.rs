@@ -745,18 +745,24 @@ impl LongRunning {
         pkg_id: &PackageId,
         pkg_version: &Version,
     ) -> Result<tokio::process::Command, Error> {
-        const INIT_EXEC: &str = "/usr/local/bin/embassy_container_init";
+        const INIT_EXEC: &str = "/start9/embassy_container_init";
+        const BIND_LOCATION: &str = "/var/lib/embassy/container";
         tracing::trace!("setup_long_running_docker_cmd");
 
-        LongRunning::cleanup_previous_container(ctx, &container_name).await?;
+        LongRunning::cleanup_previous_container(ctx, container_name).await?;
         let mut cmd = tokio::process::Command::new("docker");
         cmd.arg("run")
             .arg("--network=start9")
             .arg(format!("--add-host=embassy:{}", Ipv4Addr::from(HOST_IP)))
+            .arg("--mount")
+            .arg(format!("type=bind,src={BIND_LOCATION},dst=/start9"))
             .arg("--name")
             .arg(&container_name)
             .arg(format!("--hostname={}", &container_name))
-            .arg("-d");
+            .arg("--entrypoint")
+            .arg(INIT_EXEC)
+            .arg("-i")
+            .arg("--rm");
 
         for (volume_id, dst) in &docker.mounts {
             let volume = if let Some(v) = volumes.get(volume_id) {
@@ -784,43 +790,9 @@ impl LongRunning {
         } else {
             cmd.arg(docker.image.for_package(pkg_id, Some(pkg_version)));
         }
-        cmd.arg("sleep");
-        cmd.arg("infinity");
-        dbg!(&cmd);
-        if !cmd.output().await?.status.success() {
-            return Err(Error::new(
-                eyre!("failed to create {container_name}"),
-                crate::ErrorKind::Docker,
-            ));
-        }
-        tracing::error!("Should have created our background process now");
-
-        let mut cmd = tokio::process::Command::new("docker");
-        cmd.args(["cp", INIT_EXEC, &format!("{container_name}:{INIT_EXEC}")]);
-        dbg!(&cmd);
-        if !cmd.output().await?.status.success() {
-            return Err(Error::new(
-                eyre!("failed to copy bin {container_name}"),
-                crate::ErrorKind::Docker,
-            ));
-        }
-
-        // let mut cmd = tokio::process::Command::new("docker");
-        // cmd.args(["container", "start", container_name]);
-        // dbg!(&cmd);
-        // if !cmd.output().await?.status.success() {
-        //     return Err(Error::new(
-        //         eyre!("failed to start {container_name}"),
-        //         crate::ErrorKind::Docker,
-        //     ));
-        // }
-
-        let mut cmd = tokio::process::Command::new("docker");
-        cmd.args(["container", "exec", "-i", container_name, INIT_EXEC]);
         cmd.stdout(std::process::Stdio::piped());
         cmd.stderr(std::process::Stdio::piped());
         cmd.stdin(std::process::Stdio::piped());
-        dbg!(&cmd);
         Ok(cmd)
     }
 
@@ -917,29 +889,19 @@ impl LongRunning {
             NonDetachingJoinHandle::from(tokio::spawn(async move {
                 loop {
                     let next = output.next_line().await;
-                    let next = match next
-                        .as_ref()
-                        .map(|x| x.as_ref().map(|x| serde_json::from_str(x)))
-                    {
-                        Ok(a) => a,
-                        Err(_e) => {
-                            match &next {
-                                Ok(Some(a)) => tracing::debug!("{a:?}"),
-                                Ok(_) => (),
-                                Err(e) => {
-                                    tracing::debug!("{:?}", e);
-                                    tracing::error!("Output from docker, killing");
-                                    break;
-                                }
-                            }
-                            continue;
+                    let next = match next {
+                        Ok(Some(a)) => a,
+                        Ok(None) => {
+                            tracing::error!("The docker pipe is closed?");
+                            break;
+                        }
+                        Err(e) => {
+                            tracing::debug!("{:?}", e);
+                            tracing::error!("Output from docker, killing");
+                            break;
                         }
                     };
-                    let next = match next {
-                        Some(a) => a,
-                        None => continue,
-                    };
-                    let next = match next {
+                    let next = match serde_json::from_str(&next) {
                         Ok(a) => a,
                         Err(e) => {
                             tracing::debug!("{:?}", e);

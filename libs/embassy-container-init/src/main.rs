@@ -1,9 +1,11 @@
 use std::{collections::BTreeMap, process::Stdio, sync::Arc};
 
 use async_stream::stream;
+use color_eyre::Report;
 use futures::{pin_mut, Stream, StreamExt};
 use tokio::{
     io::AsyncBufReadExt,
+    select,
     sync::{oneshot, Mutex},
 };
 use tokio::{io::BufReader, process::Command};
@@ -16,9 +18,16 @@ const MAX_COMMANDS: usize = 10;
 #[derive(Debug, Clone)]
 struct Io {
     commands: Arc<Mutex<BTreeMap<RpcId, oneshot::Sender<()>>>>,
+    ids: Arc<Mutex<BTreeMap<RpcId, u32>>>,
 }
 
 impl Io {
+    async fn clean_id(&self, id: &RpcId) -> (Option<u32>, Option<oneshot::Sender<()>>) {
+        (
+            self.ids.lock().await.remove(id),
+            self.commands.lock().await.remove(id),
+        )
+    }
     async fn trigger_end_command(&self, id: RpcId) {
         if let Some(command) = self.commands.lock().await.remove(&id) {
             if command.send(()).is_err() {
@@ -55,6 +64,7 @@ impl Io {
         color_eyre::install().unwrap();
         Self {
             commands: Default::default(),
+            ids: Default::default(),
         }
     }
 
@@ -78,6 +88,10 @@ impl Io {
                         Ok(a) => a,
                     };
 
+                    if let Some(child_id) = child.id() {
+                        io.ids.lock().await.insert(id.clone(), child_id);
+                    }
+
                     let stdout = child
                         .stdout
                         .take()
@@ -97,6 +111,7 @@ impl Io {
                             tokio::select!{
                                 status = child
                                     .wait() => {
+                                        io.clean_id(&id).await;
                                         if let Err(err) = status {
                                             tracing::debug!("Child {id:?} got error: {err:?}")
                                         }
@@ -130,15 +145,46 @@ impl Io {
                 Input::Kill() => {
                     io.trigger_end_command(id).await;
                 }
+                Input::Term() => {
+                    io.term_by_rpc(&id).await;
+                }
             }
         }
+    }
+
+    async fn term_by_rpc(&self, rpc: &RpcId) {
+        let output = match self.remove_cmd_id(rpc).await {
+            Some(id) => {
+                let mut cmd = tokio::process::Command::new("kill");
+                cmd.arg(format!("{id}"));
+                cmd.output().await
+            }
+            None => return,
+        };
+        match output {
+            Ok(_) => (),
+            Err(err) => {
+                tracing::error!("Could not kill rpc {rpc:?}");
+                tracing::debug!("{err}");
+            }
+        }
+    }
+
+    async fn term_all(&self) {
+        let ids: Vec<_> = self.ids.lock().await.keys().cloned().collect();
+        for id in ids {
+            self.term_by_rpc(&id).await;
+        }
+    }
+
+    async fn remove_cmd_id(&self, rpc: &RpcId) -> Option<u32> {
+        self.ids.lock().await.remove(rpc)
     }
     fn inputs(&self) -> impl Stream<Item = String> {
         use std::io::BufRead;
         let (sender, receiver) = tokio::sync::mpsc::channel(100);
         tokio::task::spawn_blocking(move || {
             let stdin = std::io::stdin();
-            pin_mut!(stdin);
             for line in stdin.lock().lines().flatten() {
                 tracing::trace!("Line = {}", line);
                 sender.blocking_send(line).unwrap();
@@ -155,9 +201,14 @@ impl Io {
         }
     }
 }
-
 #[tokio::main]
 async fn main() {
+    use futures::StreamExt;
+    use tokio::signal::unix::{signal, SignalKind};
+    let mut sigint = signal(SignalKind::interrupt()).unwrap();
+    let mut sigterm = signal(SignalKind::terminate()).unwrap();
+    let mut sigquit = signal(SignalKind::quit()).unwrap();
+    let mut sighangup = signal(SignalKind::hangup()).unwrap();
     let io = Io::start();
     let outputs = io
         .inputs()
@@ -165,5 +216,24 @@ async fn main() {
         .flat_map_unordered(MAX_COMMANDS, |x| io.command(x).boxed())
         .filter_map(|x| async move { x.maybe_serialize() });
 
-    io.output(outputs).await;
+    select! {
+        _ = io.output(outputs) => {
+            tracing::debug!("Done with inputs/outputs")
+        },
+        _ = sigint.recv() => {
+            tracing::debug!("Sigint")
+        },
+        _ = sigterm.recv() => {
+            tracing::debug!("Sig Term")
+        },
+        _ = sigquit.recv() => {
+            tracing::debug!("Sigquit")
+        },
+        _ = sighangup.recv() => {
+            tracing::debug!("Sighangup")
+        }
+    }
+    io.term_all().await;
+    nix::unistd::close(0).unwrap();
+    // ::std::process::exit(0);
 }

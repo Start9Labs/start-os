@@ -4,8 +4,6 @@ use tracing::instrument;
 pub type InputJsonRpc = JsonRpc<Input>;
 pub type OutputJsonRpc = JsonRpc<Output>;
 
-// BLUJ_TODO Need to have a better long running startup, maybe make it create dockerfile in temp?
-
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(untagged)]
 pub enum RpcId {
@@ -78,11 +76,12 @@ pub enum Output {
 pub enum Input {
     Command { command: String, args: Vec<String> },
     Kill(),
+    Term(),
 }
 
 #[test]
 fn example_echo_line() {
-    let input = r#"{"id":"test","jsonrpc":"2.0","method":"command","params":{"command":"echo","args":["world I am here"]}}"#;
+    let input = r#"{"id":0,"jsonrpc":"2.0","method":"command","params":{"command":"echo","args":["world I am here"]}}"#;
     let new_input = JsonRpc::<Input>::maybe_parse(input);
     assert!(new_input.is_some());
     assert_eq!(input, &serde_json::to_string(&new_input.unwrap()).unwrap());

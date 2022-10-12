@@ -55,7 +55,8 @@ sudo sed -i 's/raspberrypi/embassy/g' /tmp/eos-mnt/etc/hosts
 # copy over cargo dependencies
 sudo cp cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast /tmp/eos-mnt/usr/local/bin
 
-sudo cp libs/target/aarch64-unknown-linux-musl/release/embassy_container_init /tmp/eos-mnt/usr/local/bin
+sudo mkdir -p /tmp/eos-mnt/var/lib/embassy/container
+sudo cp libs/target/aarch64-unknown-linux-musl/release/embassy_container_init /tmp/eos-mnt/var/lib/embassy/container
 # Enter the backend directory, copy over the built EmbassyOS binaries and systemd services, edit the nginx config, then create the .ssh directory
 cd backend/
 
