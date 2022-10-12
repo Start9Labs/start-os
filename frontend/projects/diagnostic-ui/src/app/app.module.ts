@@ -1,4 +1,4 @@
-import { ErrorHandler, NgModule } from '@angular/core'
+import { NgModule } from '@angular/core'
 import { BrowserModule } from '@angular/platform-browser'
 import { RouteReuseStrategy } from '@angular/router'
 import { IonicModule, IonicRouteStrategy } from '@ionic/angular'
@@ -8,9 +8,12 @@ import { HttpClientModule } from '@angular/common/http'
 import { ApiService } from './services/api/api.service'
 import { MockApiService } from './services/api/mock-api.service'
 import { LiveApiService } from './services/api/live-api.service'
-import { WorkspaceConfig } from '@start9labs/shared'
+import { RELATIVE_URL, WorkspaceConfig } from '@start9labs/shared'
 
-const { useMocks } = require('../../../../config.json') as WorkspaceConfig
+const {
+  useMocks,
+  ui: { api },
+} = require('../../../../config.json') as WorkspaceConfig
 
 @NgModule({
   declarations: [AppComponent],
@@ -27,6 +30,10 @@ const { useMocks } = require('../../../../config.json') as WorkspaceConfig
     {
       provide: ApiService,
       useClass: useMocks ? MockApiService : LiveApiService,
+    },
+    {
+      provide: RELATIVE_URL,
+      useValue: `/${api.url}/${api.version}`,
     },
   ],
   bootstrap: [AppComponent],
