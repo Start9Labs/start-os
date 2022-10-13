@@ -1,10 +1,10 @@
 use std::{collections::BTreeMap, process::Stdio, sync::Arc};
 
 use async_stream::stream;
-use color_eyre::Report;
 use futures::{pin_mut, Stream, StreamExt};
 use tokio::{
     io::AsyncBufReadExt,
+    process::Child,
     select,
     sync::{oneshot, Mutex},
 };
@@ -15,6 +15,41 @@ use embassy_container_init::{Input, InputJsonRpc, JsonRpc, Output, OutputJsonRpc
 
 const MAX_COMMANDS: usize = 10;
 
+/// Created from the child and rpc, to prove that the cmd was the one who died
+struct DoneProgram {
+    id: RpcId,
+    status: Result<std::process::ExitStatus, std::io::Error>,
+}
+
+/// Used to attach the running command with the rpc
+struct ChildAndRpc {
+    id: RpcId,
+    child: Child,
+}
+
+impl ChildAndRpc {
+    fn new(id: RpcId, mut command: tokio::process::Command) -> ::std::io::Result<Self> {
+        Ok(Self {
+            id,
+            child: command.spawn()?,
+        })
+    }
+    async fn wait(&mut self) -> DoneProgram {
+        let status = self.child.wait().await;
+        DoneProgram {
+            id: self.id.clone(),
+            status,
+        }
+    }
+    async fn kill(mut self) -> ::std::io::Result<()> {
+        self.child.kill().await
+    }
+}
+
+/// Controlls the tracing + other io events
+/// Can get the inputs from stdin
+/// Can start a command from an intputrpc returning stream of outputs
+/// Can output to stdout
 #[derive(Debug, Clone)]
 struct Io {
     commands: Arc<Mutex<BTreeMap<RpcId, oneshot::Sender<()>>>>,
@@ -22,32 +57,6 @@ struct Io {
 }
 
 impl Io {
-    async fn clean_id(&self, id: &RpcId) -> (Option<u32>, Option<oneshot::Sender<()>>) {
-        (
-            self.ids.lock().await.remove(id),
-            self.commands.lock().await.remove(id),
-        )
-    }
-    async fn trigger_end_command(&self, id: RpcId) {
-        if let Some(command) = self.commands.lock().await.remove(&id) {
-            if command.send(()).is_err() {
-                tracing::trace!("Command {id:?} could not be ended, possible error or was done");
-            }
-        }
-    }
-
-    async fn create_end_command(&self, id: RpcId) -> oneshot::Receiver<()> {
-        let (send, receiver) = oneshot::channel();
-        if let Some(other_command) = self.commands.lock().await.insert(id.clone(), send) {
-            if other_command.send(()).is_err() {
-                tracing::trace!(
-                    "Found other command {id:?} could not be ended, possible error or was done"
-                );
-            }
-        }
-        receiver
-    }
-
     fn start() -> Self {
         use tracing_error::ErrorLayer;
         use tracing_subscriber::prelude::*;
@@ -83,20 +92,20 @@ impl Io {
 
                     cmd.stdout(Stdio::piped());
                     cmd.stderr(Stdio::piped());
-                    let mut child = match cmd.spawn() {
+                    let mut child_and_rpc = match ChildAndRpc::new(id.clone(), cmd) {
                         Err(_e) => return,
                         Ok(a) => a,
                     };
 
-                    if let Some(child_id) = child.id() {
+                    if let Some(child_id) = child_and_rpc.child.id() {
                         io.ids.lock().await.insert(id.clone(), child_id);
                     }
 
-                    let stdout = child
+                    let stdout = child_and_rpc.child
                         .stdout
                         .take()
                         .expect("child did not have a handle to stdout");
-                    let stderr = child
+                    let stderr = child_and_rpc.child
                         .stderr
                         .take()
                         .expect("child did not have a handle to stderr");
@@ -109,15 +118,15 @@ impl Io {
                         async move {
                             let end_command_receiver = io.create_end_command(id.clone()).await;
                             tokio::select!{
-                                status = child
+                                waited = child_and_rpc
                                     .wait() => {
-                                        io.clean_id(&id).await;
-                                        if let Err(err) = status {
+                                        io.clean_id(&waited).await;
+                                        if let Err(err) = &waited.status {
                                             tracing::debug!("Child {id:?} got error: {err:?}")
                                         }
                                     },
                                 _ = end_command_receiver => {
-                                    if let Err(err) = child.kill().await {
+                                    if let Err(err) = child_and_rpc.kill().await {
                                         tracing::error!("Error while trying to kill a process {id:?}");
                                         tracing::debug!("{err:?}");
                                     }
@@ -151,7 +160,65 @@ impl Io {
             }
         }
     }
+    /// Used to get the string lines from the stdin
+    fn inputs(&self) -> impl Stream<Item = String> {
+        use std::io::BufRead;
+        let (sender, receiver) = tokio::sync::mpsc::channel(100);
+        tokio::task::spawn_blocking(move || {
+            let stdin = std::io::stdin();
+            for line in stdin.lock().lines().flatten() {
+                tracing::trace!("Line = {}", line);
+                sender.blocking_send(line).unwrap();
+            }
+        });
+        tokio_stream::wrappers::ReceiverStream::new(receiver)
+    }
 
+    ///Convert a stream of string to stdout
+    async fn output(&self, outputs: impl Stream<Item = String>) {
+        pin_mut!(outputs);
+        while let Some(output) = outputs.next().await {
+            tracing::info!("{}", output);
+            println!("{}", output);
+        }
+    }
+
+    /// Helper for the command fn
+    /// Part of a pair for the signal map, that indicates that we should kill the command
+    async fn trigger_end_command(&self, id: RpcId) {
+        if let Some(command) = self.commands.lock().await.remove(&id) {
+            if command.send(()).is_err() {
+                tracing::trace!("Command {id:?} could not be ended, possible error or was done");
+            }
+        }
+    }
+
+    /// Helper for the command fn
+    /// Part of a pair for the signal map, that indicates that we should kill the command
+    async fn create_end_command(&self, id: RpcId) -> oneshot::Receiver<()> {
+        let (send, receiver) = oneshot::channel();
+        if let Some(other_command) = self.commands.lock().await.insert(id.clone(), send) {
+            if other_command.send(()).is_err() {
+                tracing::trace!(
+                    "Found other command {id:?} could not be ended, possible error or was done"
+                );
+            }
+        }
+        receiver
+    }
+
+    /// Used during cleaning up a procress
+    async fn clean_id(
+        &self,
+        done_program: &DoneProgram,
+    ) -> (Option<u32>, Option<oneshot::Sender<()>>) {
+        (
+            self.ids.lock().await.remove(&done_program.id),
+            self.commands.lock().await.remove(&done_program.id),
+        )
+    }
+
+    /// Given the rpcid, will try and term the running command
     async fn term_by_rpc(&self, rpc: &RpcId) {
         let output = match self.remove_cmd_id(rpc).await {
             Some(id) => {
@@ -170,7 +237,8 @@ impl Io {
         }
     }
 
-    async fn term_all(&self) {
+    /// Used as a cleanup
+    async fn term_all(self) {
         let ids: Vec<_> = self.ids.lock().await.keys().cloned().collect();
         for id in ids {
             self.term_by_rpc(&id).await;
@@ -179,26 +247,6 @@ impl Io {
 
     async fn remove_cmd_id(&self, rpc: &RpcId) -> Option<u32> {
         self.ids.lock().await.remove(rpc)
-    }
-    fn inputs(&self) -> impl Stream<Item = String> {
-        use std::io::BufRead;
-        let (sender, receiver) = tokio::sync::mpsc::channel(100);
-        tokio::task::spawn_blocking(move || {
-            let stdin = std::io::stdin();
-            for line in stdin.lock().lines().flatten() {
-                tracing::trace!("Line = {}", line);
-                sender.blocking_send(line).unwrap();
-            }
-        });
-        tokio_stream::wrappers::ReceiverStream::new(receiver)
-    }
-
-    async fn output(&self, outputs: impl Stream<Item = String>) {
-        pin_mut!(outputs);
-        while let Some(output) = outputs.next().await {
-            tracing::info!("{}", output);
-            println!("{}", output);
-        }
     }
 }
 #[tokio::main]
@@ -234,6 +282,5 @@ async fn main() {
         }
     }
     io.term_all().await;
-    nix::unistd::close(0).unwrap();
-    // ::std::process::exit(0);
+    ::std::process::exit(0);
 }

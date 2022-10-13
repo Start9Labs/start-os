@@ -55,7 +55,7 @@ impl JsProcedure {
     }
 
     #[instrument(skip(directory, input, exec_command))]
-    pub async fn execute<I: Serialize, O: DeserializeOwned + 'static>(
+    pub async fn execute<I: Serialize, O: DeserializeOwned>(
         &self,
         directory: &PathBuf,
         pkg_id: &PackageId,

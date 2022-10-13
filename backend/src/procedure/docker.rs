@@ -154,6 +154,26 @@ impl DockerProcedure {
             .arg(&container_name)
             .arg(format!("--hostname={}", &container_name))
             .arg("--no-healthcheck");
+
+        match ctx
+            .docker
+            .remove_container(
+                &container_name,
+                Some(RemoveContainerOptions {
+                    v: false,
+                    force: true,
+                    link: false,
+                }),
+            )
+            .await
+        {
+            Ok(())
+            | Err(bollard::errors::Error::DockerResponseServerError {
+                status_code: 404, // NOT FOUND
+                ..
+            }) => Ok(()),
+            Err(e) => Err(e),
+        }?;
         cmd.args(self.docker_args(ctx, pkg_id, pkg_version, volumes).await?);
         let input_buf = if let (Some(input), Some(format)) = (&input, &self.io_format) {
             cmd.stdin(std::process::Stdio::piped());
@@ -731,6 +751,9 @@ impl<T> RingVec<T> {
     }
 }
 
+/// This is created when we wanted a long running docker executor that we could send commands to and get the responses back.
+/// We wanted a long running since we want to be able to have the equivelent to the docker execute without the heavy costs of 400 + ms time lag.
+/// Also the long running let's us have the ability to start/ end the services quicker.
 pub struct LongRunning {
     pub output: UnboundedReceiver<OutputJsonRpc>,
     pub running_output: NonDetachingJoinHandle<()>,

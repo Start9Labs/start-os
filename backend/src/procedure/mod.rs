@@ -67,7 +67,7 @@ impl PackageProcedure {
         }
     }
 
-    // #[instrument(skip(ctx, input, container, exec_command))]
+    #[instrument(skip(ctx, input, container))]
     pub async fn execute<I: Serialize, O: DeserializeOwned + 'static>(
         &self,
         ctx: &RpcContext,
@@ -128,7 +128,7 @@ impl PackageProcedure {
         }
     }
 
-    // #[instrument(skip(ctx, input, container))]
+    #[instrument(skip(ctx, input, container))]
     pub async fn inject<I: Serialize, O: DeserializeOwned + 'static>(
         &self,
         ctx: &RpcContext,
@@ -238,12 +238,6 @@ impl std::fmt::Display for PackageProcedure {
     }
 }
 
-// fn deserialize<D>(_: D) -> Result<Self, D::Error>
-// where
-//     D: DeserializeOwned,
-// {
-//     Ok(NoOutput)
-// }
 #[derive(Debug)]
 pub struct NoOutput;
 impl<'de> Deserialize<'de> for NoOutput {

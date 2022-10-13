@@ -789,7 +789,7 @@ mod fns {
         state: Rc<RefCell<OpState>>,
         command: String,
         args: Vec<String>,
-        timeout: u64,
+        timeout: Option<u64>,
     ) -> Result<String, AnyError> {
         use embassy_container_init::Output;
         let state = state.borrow();

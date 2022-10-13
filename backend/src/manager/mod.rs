@@ -574,7 +574,7 @@ impl CommandInserter {
         command: String,
         args: Vec<String>,
         sender: UnboundedSender<embassy_container_init::Output>,
-        timeout: u64,
+        timeout: Option<u64>,
     ) {
         use embassy_container_init::{Input, JsonRpc, RpcId};
         let mut command_counter_lock = self.command_counter.lock().await;
@@ -582,14 +582,16 @@ impl CommandInserter {
         let command_counter = *command_counter_lock;
         let command_id = RpcId::UInt(command_counter);
         outputs.insert(command_counter, sender);
-        tokio::spawn({
-            let input = self.input.clone();
-            let command_id = command_id.clone();
-            async move {
-                tokio::time::sleep(Duration::from_millis(timeout)).await;
-                let _ignored_output = input.send(JsonRpc::new(command_id, Input::Kill()));
-            }
-        });
+        if let Some(timeout) = timeout {
+            tokio::spawn({
+                let input = self.input.clone();
+                let command_id = command_id.clone();
+                async move {
+                    tokio::time::sleep(Duration::from_millis(timeout)).await;
+                    let _ignored_output = input.send(JsonRpc::new(command_id, Input::Kill()));
+                }
+            });
+        }
         if let Err(err) = self
             .input
             .send(JsonRpc::new(command_id, Input::Command { command, args }))
@@ -638,11 +640,6 @@ impl PersistantContainer {
         use tokio::process::Command;
         if let Err(_err) = Command::new("docker")
             .args(["stop", "-t", "30", container_name])
-            .output()
-            .await
-        {}
-        if let Err(_err) = Command::new("docker")
-            .args(["kill", container_name])
             .output()
             .await
         {}

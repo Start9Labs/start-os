@@ -8,7 +8,7 @@ pub type ExecCommand = Arc<
             String,
             Vec<String>,
             UnboundedSender<embassy_container_init::Output>,
-            u64,
+            Option<u64>,
         ) -> Pin<Box<dyn Future<Output = Result<(), String>> + 'static>>
         + Send
         + Sync

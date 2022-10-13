@@ -1221,7 +1221,6 @@ dependencies = [
  "async-stream",
  "color-eyre",
  "futures",
- "nix 0.23.1",
  "serde",
  "serde_json",
  "tokio",

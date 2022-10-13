@@ -46,7 +46,7 @@ const runCommand = (
 const rename = (
   {
     srcVolume = requireParam("srcVolume"),
-    dstVolume = requireParam("dstVolume"),
+    dstVolume = requirePapram("dstVolume"),
     srcPath = requireParam("srcPath"),
     dstPath = requireParam("dstPath"),
   } = requireParam("options"),
