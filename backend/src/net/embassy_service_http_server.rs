@@ -1,16 +1,17 @@
-use futures::Future;
+use color_eyre::eyre::eyre;
 use futures::ready;
+use futures::Future;
 use helpers::NonDetachingJoinHandle;
 use hyper::server::accept::Accept;
 use hyper::server::conn::AddrIncoming;
 use hyper::server::conn::AddrStream;
+use std::collections::BTreeMap;
+use std::io;
+use std::net::IpAddr;
 use tokio::io::AsyncRead;
 use tokio::io::AsyncWrite;
 use tokio::io::ReadBuf;
 use tokio_rustls::rustls::ServerConfig;
-use std::collections::BTreeMap;
-use std::io;
-use std::net::IpAddr;
 
 use std::net::SocketAddr;
 use std::pin::Pin;
@@ -35,7 +36,7 @@ pub struct EmbassyServiceHTTPServer {
     pub svc_mapping: Arc<RwLock<BTreeMap<String, HttpHandler>>>,
     pub shutdown: oneshot::Sender<()>,
     pub handle: NonDetachingJoinHandle<()>,
-    pub ssl_cfg: Option<Arc<ServerConfig>>
+    pub ssl_cfg: Option<Arc<ServerConfig>>,
 }
 enum State {
     Handshaking(tokio_rustls::Accept<AddrStream>),
@@ -191,7 +192,9 @@ impl EmbassyServiceHTTPServer {
         });
 
         let handle = tokio::spawn(async move {
-            let server = Server::builder(TlsAcceptor::new) bind(&listener_socket_addr)
+            let incoming = AddrIncoming::bind(&listener_socket_addr).unwrap();
+
+            let server = Server::builder(TlsAcceptor::new(ssl_cfg, incoming))
                 .http1_preserve_header_case(true)
                 .http1_title_case_headers(true)
                 .serve(make_service)
