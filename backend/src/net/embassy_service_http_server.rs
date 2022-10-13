@@ -31,13 +31,6 @@ use tracing::error;
 static RES_NOT_FOUND: &[u8] = b"503 Service Unavailable";
 static NO_HOST: &[u8] = b"No host header found";
 
-pub struct EmbassyServiceHTTPServer {
-    // String: Virtual
-    pub svc_mapping: Arc<RwLock<BTreeMap<String, HttpHandler>>>,
-    pub shutdown: oneshot::Sender<()>,
-    pub handle: NonDetachingJoinHandle<()>,
-    pub ssl_cfg: Option<Arc<ServerConfig>>,
-}
 enum State {
     Handshaking(tokio_rustls::Accept<AddrStream>),
     Streaming(tokio_rustls::server::TlsStream<AddrStream>),
@@ -143,8 +136,20 @@ impl Accept for TlsAcceptor {
     }
 }
 
+pub struct EmbassyServiceHTTPServer {
+    // String: Virtual
+    pub svc_mapping: Arc<RwLock<BTreeMap<String, HttpHandler>>>,
+    pub shutdown: oneshot::Sender<()>,
+    pub handle: NonDetachingJoinHandle<()>,
+    pub ssl_cfg: Option<Arc<ServerConfig>>,
+}
+
 impl EmbassyServiceHTTPServer {
-    pub async fn new(listener_addr: IpAddr, port: u16) -> Result<Self, Error> {
+    pub async fn new(
+        listener_addr: IpAddr,
+        port: u16,
+        ssl_cfg: Option<Arc<ServerConfig>>,
+    ) -> Result<Self, Error> {
         let (tx, rx) = tokio::sync::oneshot::channel::<()>();
 
         let listener_socket_addr = SocketAddr::from((listener_addr, port));
@@ -192,21 +197,39 @@ impl EmbassyServiceHTTPServer {
         });
 
         let handle = tokio::spawn(async move {
-            let incoming = AddrIncoming::bind(&listener_socket_addr).unwrap();
+            match ssl_cfg {
+                Some(cfg) => {
+                    let incoming = AddrIncoming::bind(&listener_socket_addr).unwrap();
 
-            let server = Server::builder(TlsAcceptor::new(ssl_cfg, incoming))
-                .http1_preserve_header_case(true)
-                .http1_title_case_headers(true)
-                .serve(make_service)
-                .with_graceful_shutdown({
-                    async {
-                        rx.await.ok();
+                    let server = Server::builder(TlsAcceptor::new(cfg, incoming))
+                        .http1_preserve_header_case(true)
+                        .http1_title_case_headers(true)
+                        .serve(make_service)
+                        .with_graceful_shutdown({
+                            async {
+                                rx.await.ok();
+                            }
+                        });
+
+                    if let Err(e) = server.await {
+                        error!("Spawning hyper server errorr: {}", e);
                     }
-                });
-
-            if let Err(e) = server.await {
-                error!("Spawning hyper server errorr: {}", e);
-            }
+                }
+                None => {
+                    let server = Server::bind(&listener_socket_addr)
+                        .http1_preserve_header_case(true)
+                        .http1_title_case_headers(true)
+                        .serve(make_service)
+                        .with_graceful_shutdown({
+                            async {
+                                rx.await.ok();
+                            }
+                        });
+                    if let Err(e) = server.await {
+                        error!("Spawning hyper server errorr: {}", e);
+                    }
+                }
+            };
         });
 
         Ok(Self {
