@@ -287,8 +287,8 @@ impl Manager {
         let managers_persistant = persistant_container.clone();
         let thread = tokio::spawn(async move {
             tokio::select! {
-                _ = manager_thread_loop(recv, &thread_shared, managers_persistant) => (),
-                _ = synchronizer(&*thread_shared) => (),
+                _ = manager_thread_loop(recv, &thread_shared, managers_persistant.clone()) => (),
+                _ = synchronizer(&*thread_shared, managers_persistant) => (),
             }
         });
         Ok(Manager {
@@ -384,7 +384,11 @@ impl Manager {
                 a => a?,
             };
         } else {
-            stop_non_first(&*self.shared.container_name).await;
+            stop_long_running_processes(
+                &*self.shared.container_name,
+                self.persistant_container.command_inserter.clone(),
+            )
+            .await;
         }
 
         self.shared.status.store(
@@ -507,7 +511,7 @@ struct LongRunningHandle(NonDetachingJoinHandle<()>);
 pub struct CommandInserter {
     command_counter: Mutex<u64>,
     input: UnboundedSender<InputJsonRpc>,
-    outputs: Arc<Mutex<BTreeMap<u64, UnboundedSender<embassy_container_init::Output>>>>,
+    outputs: Arc<Mutex<BTreeMap<RpcId, UnboundedSender<embassy_container_init::Output>>>>,
 }
 impl Drop for CommandInserter {
     fn drop(&mut self) {
@@ -527,7 +531,7 @@ impl CommandInserter {
             running_output,
         } = long_running;
         let command_counter = Mutex::new(0);
-        let outputs: Arc<Mutex<BTreeMap<u64, UnboundedSender<embassy_container_init::Output>>>> =
+        let outputs: Arc<Mutex<BTreeMap<RpcId, UnboundedSender<embassy_container_init::Output>>>> =
             Default::default();
         let handle = LongRunningHandle(running_output);
         tokio::spawn({
@@ -536,7 +540,6 @@ impl CommandInserter {
                 while let Some(output) = output.recv().await {
                     let (id, output) = output.into_pair();
                     let mut outputs = outputs.lock().await;
-                    let embassy_container_init::RpcId::UInt(id) = id;
                     let output_sender = outputs.get_mut(&id);
                     if let Some(output_sender) = output_sender {
                         if let Err(err) = output_sender.send(output) {
@@ -571,7 +574,7 @@ impl CommandInserter {
         let mut outputs = self.outputs.lock().await;
         let command_counter = *command_counter_lock;
         let command_id = RpcId::UInt(command_counter);
-        outputs.insert(command_counter, sender);
+        outputs.insert(command_id.clone(), sender);
         if let Some(timeout) = timeout {
             tokio::spawn({
                 let input = self.input.clone();
@@ -596,13 +599,20 @@ impl CommandInserter {
     }
     pub async fn term(&self, id: RpcId) {
         use embassy_container_init::{Input, JsonRpc};
+        self.outputs.lock().await.remove(&id);
         let _ignored_term = self.input.send(JsonRpc::new(id, Input::Term()));
+    }
+
+    pub async fn term_all(&self) {
+        for i in 0..*self.command_counter.blocking_lock() {
+            self.term(RpcId::UInt(i)).await;
+        }
     }
 }
 
 type RunningDocker =
     Arc<Mutex<Option<NonDetachingJoinHandle<Result<Result<NoOutput, (i32, String)>, Error>>>>>;
-struct PersistantContainer {
+pub struct PersistantContainer {
     container_name: String,
     running_docker: RunningDocker,
     should_stop_running: Arc<std::sync::atomic::AtomicBool>,
@@ -812,12 +822,13 @@ fn injectable_main<'a>(
         _ => None,
     }
 }
+// TODO BLUJ Fix this to allow scripts
 fn check_is_injectable_main(thread_shared: &ManagerSharedState) -> bool {
     match &thread_shared.manifest.main {
         PackageProcedure::Docker(_a) => false,
         PackageProcedure::DockerInject(_a) => true,
         #[cfg(feature = "js_engine")]
-        PackageProcedure::Script(_) => false,
+        PackageProcedure::Script(_) => true,
     }
 }
 async fn run_persistant_container(
@@ -1092,8 +1103,11 @@ fn states_main_interfaces(
         .collect::<Result<Vec<_>, Error>>()
 }
 
-#[instrument(skip(shared))]
-async fn stop(shared: &ManagerSharedState) -> Result<(), Error> {
+#[instrument(skip(shared, persistant_container))]
+async fn stop(
+    shared: &ManagerSharedState,
+    persistant_container: Arc<PersistantContainer>,
+) -> Result<(), Error> {
     shared
         .commit_health_check_results
         .store(false, Ordering::SeqCst);
@@ -1146,7 +1160,11 @@ async fn stop(shared: &ManagerSharedState) -> Result<(), Error> {
                     a => a?,
                 };
             } else {
-                stop_non_first(&shared.container_name).await;
+                stop_long_running_processes(
+                    &shared.container_name,
+                    persistant_container.command_inserter.clone(),
+                )
+                .await;
             }
         }
         #[cfg(feature = "js_engine")]
@@ -1161,11 +1179,13 @@ async fn stop(shared: &ManagerSharedState) -> Result<(), Error> {
 }
 
 /// So the sleep infinity, which is the long running, is pid 1. So we kill the others
-async fn stop_non_first(container_name: &str) {
-    // tracing::error!("BLUJ TODO: sudo docker exec {} sh -c \"ps ax | awk '\\$1 ~ /^[:0-9:]/ && \\$1 > 1 {{print \\$1}}' | xargs kill\"", container_name);
-
-    // (sleep infinity) & export RUNNING=$! && echo $! && (wait $RUNNING && echo "DONE FOR $RUNNING") &
-    // (RUNNING=$(sleep infinity & echo $!); echo "running $RUNNING"; wait $RUNNING; echo "DONE FOR ?") &
+async fn stop_long_running_processes(
+    container_name: &str,
+    command_inserter: Arc<Mutex<Option<CommandInserter>>>,
+) {
+    if let Some(command_inserter) = &*command_inserter.lock().await {
+        command_inserter.term_all().await;
+    }
 
     let _ = tokio::process::Command::new("docker")
         .args([
@@ -1179,24 +1199,6 @@ async fn stop_non_first(container_name: &str) {
         .output()
         .await;
 }
-
-// #[test]
-// fn test_stop_non_first() {
-//     assert_eq!(
-//         &format!(
-//             "{}",
-//             tokio::process::Command::new("docker").args([
-//                 "container",
-//                 "exec",
-//                 "container_name",
-//                 "sh",
-//                 "-c",
-//                 "ps ax | awk \"\\$1 ~ /^[:0-9:]/ && \\$1 > 1 {print \\$1}\"| xargs kill",
-//             ])
-//         ),
-//         ""
-//     );
-// }
 
 #[instrument(skip(shared))]
 async fn start(shared: &ManagerSharedState) -> Result<(), Error> {
@@ -1218,8 +1220,11 @@ async fn start(shared: &ManagerSharedState) -> Result<(), Error> {
     Ok(())
 }
 
-#[instrument(skip(shared))]
-async fn pause(shared: &ManagerSharedState) -> Result<(), Error> {
+#[instrument(skip(shared, persistant_container))]
+async fn pause(
+    shared: &ManagerSharedState,
+    persistant_container: Arc<PersistantContainer>,
+) -> Result<(), Error> {
     if let Err(e) = shared
         .ctx
         .docker
@@ -1228,7 +1233,7 @@ async fn pause(shared: &ManagerSharedState) -> Result<(), Error> {
     {
         tracing::error!("failed to pause container. stopping instead. {}", e);
         tracing::debug!("{:?}", e);
-        return stop(shared).await;
+        return stop(shared, persistant_container).await;
     }
     shared
         .status
