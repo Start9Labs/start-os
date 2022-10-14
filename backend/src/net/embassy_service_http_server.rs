@@ -5,12 +5,20 @@ use helpers::NonDetachingJoinHandle;
 use hyper::server::accept::Accept;
 use hyper::server::conn::AddrIncoming;
 use hyper::server::conn::AddrStream;
+use openssl::pkey::PKey;
+use openssl::pkey::Private;
+use openssl::x509::X509;
 use std::collections::BTreeMap;
 use std::io;
 use std::net::IpAddr;
 use tokio::io::AsyncRead;
 use tokio::io::AsyncWrite;
 use tokio::io::ReadBuf;
+use tokio_rustls::rustls::server::ResolvesServerCert;
+use tokio_rustls::rustls::sign::any_supported_type;
+use tokio_rustls::rustls::sign::CertifiedKey;
+use tokio_rustls::rustls::Certificate;
+use tokio_rustls::rustls::PrivateKey;
 use tokio_rustls::rustls::ServerConfig;
 
 use std::net::SocketAddr;
@@ -105,6 +113,79 @@ impl AsyncWrite for TlsStream {
             State::Handshaking(_) => Poll::Ready(Ok(())),
             State::Streaming(ref mut stream) => Pin::new(stream).poll_shutdown(cx),
         }
+    }
+}
+
+impl ResolvesServerCert for EmbassyCertResolver {
+    fn resolve(
+        &self,
+        client_hello: tokio_rustls::rustls::server::ClientHello,
+    ) -> Option<Arc<tokio_rustls::rustls::sign::CertifiedKey>> {
+        let hostname = client_hello.server_name();
+
+        match hostname {
+            Some(hostname) => {
+                let lock = self.cert_mapping.blocking_read();
+
+                lock.get(hostname).map(|cert_key| Arc::new(cert_key.to_owned()))
+            }
+            None => None,
+        }
+    }
+}
+
+impl Default for EmbassyCertResolver {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[derive(Clone)]
+pub struct EmbassyCertResolver {
+    cert_mapping: Arc<RwLock<BTreeMap<String, CertifiedKey>>>,
+}
+
+impl EmbassyCertResolver {
+    pub fn new() -> Self {
+        Self::default()
+    }
+    pub async fn add_certificate_to_resolver(
+        &mut self,
+        hostname: String,
+        package_cert_data: (PKey<Private>, Vec<X509>),
+    ) -> Result<(), Error> {
+        let x509_cert_chain = package_cert_data.1;
+        let private_keys = package_cert_data
+            .0
+            .private_key_to_der()
+            .map_err(|err| Error::new(eyre!("err {}", err), crate::ErrorKind::BytesError))?;
+
+        let mut full_rustls_certs = Vec::new();
+        for cert in x509_cert_chain.iter() {
+            let cert =
+                Certificate(cert.to_der().map_err(|err| {
+                    Error::new(eyre!("err: {}", err), crate::ErrorKind::BytesError)
+                })?);
+
+            full_rustls_certs.push(cert);
+        }
+        let pre_sign_key = PrivateKey(private_keys);
+        let actual_sign_key = any_supported_type(&pre_sign_key)
+            .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::SignError))?;
+
+        let cert_key = CertifiedKey::new(full_rustls_certs, actual_sign_key);
+
+        let mut lock = self.cert_mapping.write().await;
+
+        lock.insert(hostname, cert_key);
+
+        Ok(())
+    }
+
+    pub async fn remove_cert(&mut self, hostname: String)  {
+        let mut lock = self.cert_mapping.write().await;
+
+        lock.remove(&hostname);
     }
 }
 

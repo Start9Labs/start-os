@@ -43,12 +43,18 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
         let handler: HttpHandler =
             embassy::net::static_server::file_server_router(rpc_ctx.clone()).await?;
 
-        rpc_ctx
+            rpc_ctx 
             .net_controller
             .proxy
-            .add_handle(80, host_name, handler)
+            .add_handle(80, host_name.clone(), handler.clone(), false)
             .await?;
-
+            
+        rpc_ctx 
+            .net_controller
+            .proxy
+            .add_handle(443, host_name, handler, true)
+            .await?;
+        
         let mut shutdown_recv = rpc_ctx.shutdown.subscribe();
 
         let sig_handler_ctx = rpc_ctx.clone();

@@ -247,13 +247,26 @@ pub async fn recover_full_embassy(
         let handler: HttpHandler =
             file_server_router(rpc_ctx.clone()).await?;
 
-        rpc_ctx
+        rpc_ctx 
             .net_controller
             .proxy
-            .add_handle(80, host_name, handler)
+            .add_handle(80, host_name.clone(), handler.clone(), false)
             .await?;
-            
-            let mut db = rpc_ctx.db.handle();
+    
+        let root_crt = rpc_ctx.net_controller.ssl.export_root_ca().await?;            
+
+        rpc_ctx.net_controller.proxy.add_certificate_to_resolver(host_name.clone(), root_crt);
+
+
+
+
+        rpc_ctx 
+            .net_controller
+            .proxy
+            .add_handle(443, host_name, handler, true)
+            .await?;
+        
+        let mut db = rpc_ctx.db.handle();
 
             let ids = backup_guard
             .metadata

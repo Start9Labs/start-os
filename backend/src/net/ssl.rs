@@ -30,7 +30,6 @@ use crate::{Error, ErrorKind, ResultExt};
 static CERTIFICATE_VERSION: i32 = 2; // X509 version 3 is actually encoded as '2' in the cert because fuck you.
 pub const ROOT_CA_STATIC_PATH: &str = "/var/lib/embassy/ssl/root-ca.crt";
 
-
 #[derive(Debug, Clone)]
 pub struct SslManager {
     store: SslStore,
@@ -184,7 +183,7 @@ impl SslManager {
             }
             Some((key, cert)) => Ok((key, cert)),
         }?;
-        // generate static file for download, this will get blown up on embassy restart so it's good to write it on
+        // generate static file for download, this will gte blown up on embassy restart so it's good to write it on
         // every ssl manager init
         tokio::fs::create_dir_all(
             Path::new(ROOT_CA_STATIC_PATH)

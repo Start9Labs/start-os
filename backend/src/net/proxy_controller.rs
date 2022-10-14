@@ -1,4 +1,5 @@
 use color_eyre::eyre::eyre;
+use futures::FutureExt;
 use http::{Method, Request, Response};
 use hyper::upgrade::Upgraded;
 
@@ -7,20 +8,10 @@ use hyper::Error as HyperError;
 use openssl::pkey::PKey;
 use openssl::pkey::Private;
 use openssl::x509::X509;
-use tokio::net::TcpStream;
-use tokio_rustls::rustls::server::ResolvesServerCertUsingSni;
-use tokio_rustls::rustls::sign::any_supported_type;
-use tokio_rustls::rustls::sign::CertifiedKey;
-use tokio_rustls::rustls::sign::RSASigningKey;
-use tokio_rustls::rustls::sign::RsaSigningKey;
-use tokio_rustls::rustls::Certificate;
-use tokio_rustls::rustls::PrivateKey;
-use tokio_rustls::rustls::ResolvesServerCertUsingSNI;
-use tokio_rustls::rustls::ServerConfig;
-
 use std::collections::BTreeMap;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::Arc;
+use tokio::net::TcpStream;
 
 use crate::net::net_utils::host_addr;
 use crate::net::ssl::SslManager;
@@ -86,16 +77,29 @@ impl ProxyController {
             .await
     }
 
+    pub async fn add_certificate_to_resolver(
+        &self,
+        fqdn: String,
+        cert_data: (PKey<Private>, Vec<X509>),
+    ) {
+        self.inner
+            .lock()
+            .await
+            .add_certificate_to_resolver(fqdn, cert_data)
+            .await;
+    }
+
     pub async fn add_handle(
         &self,
         ext_port: u16,
         fqdn: String,
         handler: HttpHandler,
+        is_ssl: bool,
     ) -> Result<(), Error> {
         self.inner
             .lock()
             .await
-            .add_handle(ext_port, fqdn, handler)
+            .add_handle(ext_port, fqdn, handler, is_ssl)
             .await
     }
 
@@ -168,11 +172,11 @@ impl ProxyController {
         Ok(())
     }
 
-    async fn add_certificate_to_resolver(&self, hostname: String) -> Result<(), Error> {
+    async fn add_package_certificate_to_resolver(&self, hostname: String) -> Result<(), Error> {
         self.inner
             .lock()
             .await
-            .add_certificate_to_resolver(hostname)
+            .add_package_certificate_to_resolver(hostname)
             .await
     }
 }
@@ -209,7 +213,26 @@ impl ProxyControllerInner {
         self.vhosts.svc_dns_base_package_names.get(fqdn).cloned()
     }
 
-    async fn add_certificate_to_resolver(&mut self, hostname: String) -> Result<(), Error> {
+    async fn add_certificate_to_resolver(
+        &mut self,
+        hostname: String,
+        cert_data: (PKey<Private>, Vec<X509>),
+    ) -> Result<(), Error> {
+        self.vhosts
+            .cert_resolver
+            .add_certificate_to_resolver(hostname, cert_data)
+            .await
+            .map_err(|err| {
+                Error::new(
+                    eyre!("Unable to add ssl cert to the resolver: {}", err),
+                    crate::ErrorKind::Network,
+                )
+            })?;
+
+        Ok(())
+    }
+
+    async fn add_package_certificate_to_resolver(&mut self, hostname: String) -> Result<(), Error> {
         let pkg_id = match self.get_package_id(&hostname).await {
             Some(pkg_id) => pkg_id,
             None => {
@@ -222,24 +245,10 @@ impl ProxyControllerInner {
 
         let package_cert = self.ssl_manager.certificate_for(&hostname, &pkg_id).await?;
 
-        let cert_chain = package_cert.1;
-        let private_keys = package_cert
-            .0
-            .private_key_to_der()
-            .map_err(|err| Error::new(eyre!("err {}", err), crate::ErrorKind::BytesError))?;
-
-        let cert = Certificate(
-            cert_chain[0]
-                .to_der()
-                .map_err(|err| Error::new(eyre!("err: {}", err), crate::ErrorKind::BytesError))?,
-        );
-
-        let pre_sign_key = PrivateKey(private_keys);
-        let actual_sign_key = any_supported_type(&pre_sign_key)
-            .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::SignError))?;
-
-        self.vhosts.cert_resolver
-            .add(&hostname, CertifiedKey::new(vec![cert], actual_sign_key))
+        self.vhosts
+            .cert_resolver
+            .add_certificate_to_resolver(hostname, package_cert)
+            .await
             .map_err(|err| {
                 Error::new(
                     eyre!("Unable to add ssl cert to the resolver: {}", err),
@@ -255,9 +264,10 @@ impl ProxyControllerInner {
         external_svc_port: u16,
         fqdn: String,
         svc_handler: HttpHandler,
+        is_ssl: bool,
     ) -> Result<(), Error> {
         self.vhosts
-            .add_server_or_handle(external_svc_port, fqdn, svc_handler)
+            .add_server_or_handle(external_svc_port, fqdn, svc_handler, is_ssl)
             .await
     }
 
@@ -283,15 +293,22 @@ impl ProxyControllerInner {
                 self.docker_iface_lookups
                     .insert((package.clone(), id.clone()), meta.fqdn.clone());
 
-                let docker_addr = SocketAddr::from((docker_ipv4, lan_port_config.internal));
-
+                let svc_handler: HttpHandler;
                 if lan_port_config.ssl {
-                    self.add_certificate_to_resolver(meta.fqdn.clone()).await?;
+                    self.add_package_certificate_to_resolver(meta.fqdn.clone())
+                        .await?;
+                    svc_handler = Self::create_docker_handle(meta.fqdn.clone(), true).await;
+                } else {
+                    svc_handler = Self::create_docker_handle(meta.fqdn.clone(), false).await;
                 }
-                // info!("docker ip: {}", docker_addr);
-                self.vhosts
-                    .add_docker_svc_handle(external_svc_port.0, meta.fqdn.clone(), docker_addr)
-                    .await?;
+
+                self.add_handle(
+                    external_svc_port.0,
+                    meta.fqdn.clone(),
+                    svc_handler,
+                    lan_port_config.ssl,
+                )
+                .await?;
             }
         }
 
@@ -310,6 +327,43 @@ impl ProxyControllerInner {
         Ok(())
     }
 
+    async fn create_docker_handle(proxy_addr: String, is_ssl: bool) -> HttpHandler {
+        let svc_handler: HttpHandler = Arc::new(move |mut req| {
+            let proxy_addr = proxy_addr.clone();
+            async move {
+                let client = HttpClient::new();
+
+                let uri_string = if is_ssl {
+                    format!(
+                        "https://{}{}",
+                        proxy_addr,
+                        req.uri()
+                            .path_and_query()
+                            .map(|x| x.as_str())
+                            .unwrap_or("/")
+                    )
+                } else {
+                    format!(
+                        "http://{}{}",
+                        proxy_addr,
+                        req.uri()
+                            .path_and_query()
+                            .map(|x| x.as_str())
+                            .unwrap_or("/")
+                    )
+                };
+                let uri = uri_string.parse().unwrap();
+                *req.uri_mut() = uri;
+
+                // Ok::<_, HyperError>(Response::new(Body::empty()))
+                ProxyController::proxy(client, req).await
+            }
+            .boxed()
+        });
+
+        svc_handler
+    }
+
     #[instrument(skip(self))]
     pub async fn remove_docker_service(&mut self, package: &PackageId) -> Result<(), Error> {
         let mut server_removal = false;
@@ -321,11 +375,15 @@ impl ProxyControllerInner {
             for (id, meta) in &net_info.interfaces {
                 for (service_ext_port, _lan_port_config) in meta.lan_config.iter() {
                     if let Some(server) = self.vhosts.service_servers.get_mut(&service_ext_port.0) {
-                        if let Some(dns_base) = self
+                        if let Some(fqdn) = self
                             .docker_iface_lookups
                             .get(&(package.clone(), id.clone()))
                         {
-                            server.remove_svc_mapping(dns_base.to_string()).await;
+                            server.remove_svc_mapping(fqdn.to_string()).await;
+                            self.vhosts
+                                .cert_resolver
+                                .remove_cert(fqdn.to_string())
+                                .await;
 
                             if server.svc_mapping.read().await.is_empty() {
                                 server_removal = true;
