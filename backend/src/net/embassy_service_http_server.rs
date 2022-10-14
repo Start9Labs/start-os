@@ -136,6 +136,51 @@ impl Accept for TlsAcceptor {
     }
 }
 
+fn get_make_svc<F>(
+    server_service_mapping: Arc<RwLock<BTreeMap<String, HttpHandler>>>,
+) -> ???  {
+    let make_service = make_service_fn(move |_| {
+        let server_service_mapping = server_service_mapping.clone();
+
+        async move {
+            let server_service_mapping = server_service_mapping.clone();
+
+            Ok::<_, HyperError>(service_fn(move |req| {
+                dbg!(req.uri());
+
+                let server_service_mapping = server_service_mapping.clone();
+
+                async move {
+                    let server_service_mapping = server_service_mapping.clone();
+
+                    let host = host_addr(&req);
+
+                    match host {
+                        Ok(host_str) => {
+                            // host_str is a string like example.com:443, we just want the fqdn before the semi colon
+                            let dns_base =
+                                host_str.split(':').next().unwrap_or_default().to_string();
+
+                            let server_handler_option = {
+                                let mapping = server_service_mapping.read().await;
+                                mapping.get(&dns_base).cloned()
+                            };
+
+                            match server_handler_option {
+                                Some(handler) => handler(req).await,
+                                None => Ok(res_not_found()),
+                            }
+                        }
+                        Err(e) => Ok(no_host_found(e)),
+                    }
+                }
+            }))
+        }
+    });
+
+    make_service
+}
+
 pub struct EmbassyServiceHTTPServer {
     // String: Virtual
     pub svc_mapping: Arc<RwLock<BTreeMap<String, HttpHandler>>>,
@@ -156,45 +201,6 @@ impl EmbassyServiceHTTPServer {
 
         let server_service_mapping = Arc::new(RwLock::new(BTreeMap::<String, HttpHandler>::new()));
         let server_service_mapping1 = server_service_mapping.clone();
-
-        let make_service = make_service_fn(move |_| {
-            let server_service_mapping = server_service_mapping.clone();
-
-            async move {
-                let server_service_mapping = server_service_mapping.clone();
-
-                Ok::<_, HyperError>(service_fn(move |req| {
-                    dbg!(req.uri());
-
-                    let server_service_mapping = server_service_mapping.clone();
-
-                    async move {
-                        let server_service_mapping = server_service_mapping.clone();
-
-                        let host = host_addr(&req);
-
-                        match host {
-                            Ok(host_str) => {
-                                // host_str is a string like example.com:443, we just want the fqdn before the semi colon
-                                let dns_base =
-                                    host_str.split(':').next().unwrap_or_default().to_string();
-
-                                let server_handler_option = {
-                                    let mapping = server_service_mapping.read().await;
-                                    mapping.get(&dns_base).cloned()
-                                };
-
-                                match server_handler_option {
-                                    Some(handler) => handler(req).await,
-                                    None => Ok(res_not_found()),
-                                }
-                            }
-                            Err(e) => Ok(no_host_found(e)),
-                        }
-                    }
-                }))
-            }
-        });
 
         let handle = tokio::spawn(async move {
             match ssl_cfg {
@@ -236,6 +242,7 @@ impl EmbassyServiceHTTPServer {
             svc_mapping: server_service_mapping1,
             handle: handle.into(),
             shutdown: tx,
+            ssl_cfg,
         })
     }
 
