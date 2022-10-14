@@ -81,7 +81,7 @@ pub enum Output {
     /// This is some kind of error with the program
     Error(String),
     /// Indication that the command is done
-    Done(),
+    Done(Option<i32>),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]

@@ -790,18 +790,25 @@ mod fns {
         command: String,
         args: Vec<String>,
         timeout: Option<u64>,
-    ) -> Result<String, AnyError> {
+    ) -> Result<Result<String, (i32, String)>, AnyError> {
         use embassy_container_init::Output;
         let state = state.borrow();
         let ctx = state.borrow::<JsContext>();
 
         let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel::<Output>();
-        if let Err(err) =
-            (ctx.command_inserter)(command, args.into_iter().collect(), sender, timeout).await
+        if let Err(err) = (ctx.command_inserter)(
+            command,
+            args.into_iter().collect(),
+            sender,
+            timeout.map(std::time::Duration::from_millis),
+        )
+        .await
         {
-            bail!("{err}");
+            return Ok(Err((1, err)));
         }
         let mut answer = String::new();
+        let mut command_error = String::new();
+        let mut status: Option<i32> = None;
         while let Some(output) = receiver.recv().await {
             match output {
                 Output::Line(value) => {
@@ -809,15 +816,20 @@ mod fns {
                     answer.push('\n');
                 }
                 Output::Error(error) => {
-                    bail!("Error in command: {error}\n Input so far is: {answer}")
+                    command_error.push_str(&error);
+                    command_error.push('\n');
                 }
-                Output::Done() => {
+                Output::Done(error_code) => {
+                    status = error_code;
                     break;
                 }
             }
         }
+        if !command_error.is_empty() {
+            return Ok(Err((status.unwrap_or_default(), command_error)));
+        }
 
-        Ok(answer)
+        Ok(Ok(answer))
     }
 
     /// We need to make sure that during the file accessing, we don't reach beyond our scope of control

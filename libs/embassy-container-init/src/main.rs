@@ -121,9 +121,11 @@ impl Io {
                                 waited = child_and_rpc
                                     .wait() => {
                                         io.clean_id(&waited).await;
-                                        if let Err(err) = &waited.status {
-                                            tracing::debug!("Child {id:?} got error: {err:?}")
+                                        match &waited.status {
+                                            Ok(st) => return st.code(),
+                                            Err(err) => tracing::debug!("Child {id:?} got error: {err:?}")
                                         }
+
                                     },
                                 _ = end_command_receiver => {
                                     if let Err(err) = child_and_rpc.kill().await {
@@ -131,8 +133,8 @@ impl Io {
                                         tracing::debug!("{err:?}");
                                     }
                                 },
-
                             }
+                            None
                         }
 
                     });
@@ -145,11 +147,8 @@ impl Io {
                     while let Ok(Some(line)) = buff_err.next_line().await {
                         yield JsonRpc::new(id.clone(), Output::Error(line));
                     }
-                    yield JsonRpc::new(id, Output::Done());
-                    if let Err(e) = spawned.await {
-                        tracing::error!("command join failed");
-                        tracing::debug!("{:?}", e);
-                    }
+                    let code = spawned.await.ok().flatten();
+                    yield JsonRpc::new(id, Output::Done(code));
                 },
                 Input::Kill() => {
                     io.trigger_end_command(id).await;

@@ -10,14 +10,14 @@ use std::time::Duration;
 use bollard::container::{KillContainerOptions, StopContainerOptions};
 use chrono::Utc;
 use color_eyre::eyre::eyre;
-use embassy_container_init::InputJsonRpc;
+use embassy_container_init::{InputJsonRpc, RpcId};
 use models::ExecCommand;
 use nix::sys::signal::Signal;
 use num_enum::TryFromPrimitive;
 use patch_db::DbHandle;
 use sqlx::{Executor, Postgres};
-use tokio::sync::watch::error::RecvError;
-use tokio::sync::watch::{channel, Receiver, Sender};
+use tokio::sync::watch::{self, channel, Receiver, Sender};
+use tokio::sync::{mpsc, watch::error::RecvError};
 use tokio::sync::{Mutex, Notify, RwLock};
 use tokio::{sync::mpsc::UnboundedSender, task::JoinHandle};
 use tokio_stream::wrappers::UnboundedReceiverStream;
@@ -194,13 +194,15 @@ async fn run_main(
 
     persistant.wait_for_persistant().await;
     let is_injectable_main = check_is_injectable_main(state);
-    let mut runtime = match is_injectable_main {
-        true => {
-            tokio::spawn(
-                async move { start_up_inject_image(rt_state, generated_certificate).await },
-            )
+    let mut runtime = match injectable_main(state) {
+        Some((_, injectable)) => {
+            let persistant = persistant.clone();
+            let injectable = injectable.clone();
+            tokio::spawn(async move {
+                start_up_inject_image(persistant, injectable, generated_certificate).await
+            })
         }
-        false => tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await }),
+        None => tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await }),
     };
     let ip = match is_injectable_main {
         false => Some(match get_running_ip(state, &mut runtime).await {
@@ -253,23 +255,11 @@ async fn start_up_image(
 /// We want to start up the manifest, but in this case we want to know that we have generated the certificates.
 /// Note for _generated_certificate: Needed to know that before we start the state we have generated the certificate
 async fn start_up_inject_image(
-    rt_state: Arc<ManagerSharedState>,
+    persistant: Arc<PersistantContainer>,
+    docker_inject: DockerInject,
     _generated_certificate: GeneratedCertificateMountPoint,
 ) -> Result<Result<NoOutput, (i32, String)>, Error> {
-    rt_state
-        .manifest
-        .main
-        .inject::<(), NoOutput>(
-            &rt_state.ctx,
-            &rt_state.manifest.container,
-            &rt_state.manifest.id,
-            &rt_state.manifest.version,
-            ProcedureName::Main,
-            &rt_state.manifest.volumes,
-            None,
-            None,
-        )
-        .await
+    persistant.exec_main(docker_inject).await
 }
 
 impl Manager {
@@ -521,7 +511,7 @@ pub struct CommandInserter {
 }
 impl Drop for CommandInserter {
     fn drop(&mut self) {
-        use embassy_container_init::{Input, JsonRpc, RpcId};
+        use embassy_container_init::{Input, JsonRpc};
         for i in 0..*self.command_counter.blocking_lock() {
             let _ignored_result = self.input.send(JsonRpc::new(RpcId::UInt(i), Input::Term()));
         }
@@ -574,9 +564,9 @@ impl CommandInserter {
         command: String,
         args: Vec<String>,
         sender: UnboundedSender<embassy_container_init::Output>,
-        timeout: Option<u64>,
-    ) {
-        use embassy_container_init::{Input, JsonRpc, RpcId};
+        timeout: Option<Duration>,
+    ) -> Option<RpcId> {
+        use embassy_container_init::{Input, JsonRpc};
         let mut command_counter_lock = self.command_counter.lock().await;
         let mut outputs = self.outputs.lock().await;
         let command_counter = *command_counter_lock;
@@ -587,20 +577,26 @@ impl CommandInserter {
                 let input = self.input.clone();
                 let command_id = command_id.clone();
                 async move {
-                    tokio::time::sleep(Duration::from_millis(timeout)).await;
+                    tokio::time::sleep(timeout).await;
                     let _ignored_output = input.send(JsonRpc::new(command_id, Input::Kill()));
                 }
             });
         }
-        if let Err(err) = self
-            .input
-            .send(JsonRpc::new(command_id, Input::Command { command, args }))
-        {
+        if let Err(err) = self.input.send(JsonRpc::new(
+            command_id.clone(),
+            Input::Command { command, args },
+        )) {
             tracing::warn!("Trying to send to input but can't");
             tracing::debug!("{err:?}");
+            return None;
         }
 
         *command_counter_lock += 1;
+        Some(command_id)
+    }
+    pub async fn term(&self, id: RpcId) {
+        use embassy_container_init::{Input, JsonRpc};
+        let _ignored_term = self.input.send(JsonRpc::new(id, Input::Term()));
     }
 }
 
@@ -612,18 +608,24 @@ struct PersistantContainer {
     should_stop_running: Arc<std::sync::atomic::AtomicBool>,
     wait_for_start: (Sender<bool>, Receiver<bool>),
     command_inserter: Arc<Mutex<Option<CommandInserter>>>,
+    running_main_id: (
+        watch::Receiver<Option<RpcId>>,
+        Mutex<watch::Sender<Option<RpcId>>>,
+    ),
 }
 
 impl PersistantContainer {
     #[instrument(skip(thread_shared))]
     fn new(thread_shared: &Arc<ManagerSharedState>) -> Arc<Self> {
         let wait_for_start = channel(false);
+        let (sender, receiver) = watch::channel(None);
         let container = Arc::new(Self {
             container_name: thread_shared.container_name.clone(),
             running_docker: Arc::new(Mutex::new(None)),
             should_stop_running: Arc::new(AtomicBool::new(false)),
             wait_for_start,
             command_inserter: Default::default(),
+            running_main_id: (receiver, Mutex::new(sender)),
         });
         tokio::spawn(persistant_container(
             thread_shared.clone(),
@@ -672,7 +674,7 @@ impl PersistantContainer {
                     Some(command_inserter) => {
                         command_inserter
                             .exec_command(command, args, sender, timeout)
-                            .await
+                            .await;
                     }
                     None => {
                         return Err("Couldn't get a command inserter in current service".to_string())
@@ -681,6 +683,92 @@ impl PersistantContainer {
                 Ok::<(), String>(())
             })
         })
+    }
+
+    async fn exec_main(
+        &self,
+        docker_inject: DockerInject,
+    ) -> Result<Result<NoOutput, (i32, String)>, Error> {
+        self.term_main().await;
+        let (sender, mut receiver) = mpsc::unbounded_channel();
+        let running_ip = {
+            let locked = self.command_inserter.lock().await;
+            let command_inserter = match &*locked {
+                Some(a) => a,
+                None => {
+                    return Err(Error::new(
+                        eyre!("Could not start running main because there is no current long running main "),
+                        crate::ErrorKind::Docker,
+                    ))
+                }
+            };
+            match command_inserter
+                .exec_command(
+                    docker_inject.entrypoint.clone(),
+                    docker_inject.args.clone(),
+                    sender,
+                    docker_inject.sigterm_timeout.map(|x| *x),
+                )
+                .await {
+                    Some(a) => a,
+                    None => return Err(Error::new(
+                        eyre!("Could not start the main process because it no longer is accepting commands"),
+                        crate::ErrorKind::Docker,
+                    ))
+                }
+        };
+
+        if let Err(_err) = self
+            .running_main_id
+            .1
+            .lock()
+            .await
+            .send(Some(running_ip.clone()))
+        {
+            return Err(Error::new(
+                eyre!("Could no longer set the long running container"),
+                crate::ErrorKind::Docker,
+            ));
+        }
+
+        let mut command_error = String::new();
+        let mut status: Option<i32> = None;
+        while let Some(next) = receiver.recv().await {
+            match next {
+                embassy_container_init::Output::Line(_a) => (),
+                embassy_container_init::Output::Error(e) => command_error.push_str(&e),
+
+                embassy_container_init::Output::Done(new_status) => {
+                    status = new_status;
+                    break;
+                }
+            }
+        }
+        let _ignored_result = self.running_main_id.1.lock().await.send(None);
+        if !command_error.is_empty() {
+            return Ok(Err((status.unwrap_or_default(), command_error)));
+        }
+
+        Ok(Ok(NoOutput))
+    }
+
+    async fn term_main(&self) {
+        loop {
+            let id = {
+                // Try and keep a borrow as short live as possible as tokio watch recommends
+                let current_running = self.running_main_id.0.borrow();
+                match &*current_running {
+                    None => return,
+                    Some(a) => a.clone(),
+                }
+            };
+            if let Some(command_inserter) = &*self.command_inserter.lock().await {
+                command_inserter.term(id.clone()).await;
+            }
+            if self.running_main_id.0.clone().changed().await.is_err() {
+                return;
+            }
+        }
     }
 }
 impl Drop for PersistantContainer {
@@ -695,12 +783,13 @@ async fn persistant_container(
 ) {
     let main_docker_procedure_for_long = injectable_main(&thread_shared);
     match main_docker_procedure_for_long {
-        Some(main) => loop {
+        Some(set) => loop {
+            let main: DockerProcedure = set.into();
             if container.should_stop_running.load(Ordering::SeqCst) {
                 return;
             }
             container.start_wait().await;
-            match run_persistant_container(&thread_shared, container.clone(), main.clone()).await {
+            match run_persistant_container(&thread_shared, container.clone(), main).await {
                 Ok(_) => (),
                 Err(e) => {
                     tracing::error!("failed to start persistant container: {}", e);
@@ -712,36 +801,15 @@ async fn persistant_container(
     }
 }
 
-fn injectable_main(thread_shared: &Arc<ManagerSharedState>) -> Option<Arc<DockerProcedure>> {
-    if let (
-        PackageProcedure::DockerInject(DockerInject {
-            system,
-            entrypoint: _entrypoint,
-            args: _args,
-            io_format,
-            sigterm_timeout,
-        }),
-        Some(DockerContainer {
-            image,
-            mounts,
-            shm_size_mb,
-        }),
-    ) = (
+fn injectable_main<'a>(
+    thread_shared: &'a Arc<ManagerSharedState>,
+) -> Option<(&DockerContainer, &DockerInject)> {
+    match (
         &thread_shared.manifest.main,
         &thread_shared.manifest.container,
     ) {
-        Some(Arc::new(DockerProcedure {
-            image: image.clone(),
-            mounts: mounts.clone(),
-            io_format: *io_format,
-            shm_size_mb: *shm_size_mb,
-            sigterm_timeout: *sigterm_timeout,
-            system: *system,
-            entrypoint: "sleep".to_string(),
-            args: vec!["infinity".to_string()],
-        }))
-    } else {
-        None
+        (PackageProcedure::DockerInject(inject), Some(container)) => Some((container, inject)),
+        _ => None,
     }
 }
 fn check_is_injectable_main(thread_shared: &ManagerSharedState) -> bool {
@@ -755,7 +823,7 @@ fn check_is_injectable_main(thread_shared: &ManagerSharedState) -> bool {
 async fn run_persistant_container(
     state: &Arc<ManagerSharedState>,
     persistant: Arc<PersistantContainer>,
-    docker_procedure: Arc<DockerProcedure>,
+    docker_procedure: DockerProcedure,
 ) -> Result<(), Error> {
     let interfaces = states_main_interfaces(state)?;
     let generated_certificate = generate_certificate(state, &interfaces).await?;
@@ -784,7 +852,7 @@ async fn run_persistant_container(
 
 async fn long_running_docker(
     rt_state: Arc<ManagerSharedState>,
-    main_status: Arc<DockerProcedure>,
+    main_status: DockerProcedure,
     container: Arc<PersistantContainer>,
 ) -> Result<LongRunningHandle, Error> {
     let (sender, receiver) = tokio::sync::mpsc::unbounded_channel();

@@ -93,13 +93,13 @@ impl From<(&DockerContainer, &DockerInject)> for DockerProcedure {
     fn from((container, injectable): (&DockerContainer, &DockerInject)) -> Self {
         DockerProcedure {
             image: container.image.clone(),
-            system: injectable.system.clone(),
+            system: injectable.system,
             entrypoint: injectable.entrypoint.clone(),
             args: injectable.args.clone(),
             mounts: container.mounts.clone(),
-            io_format: injectable.io_format.clone(),
-            sigterm_timeout: injectable.sigterm_timeout.clone(),
-            shm_size_mb: container.shm_size_mb.clone(),
+            io_format: injectable.io_format,
+            sigterm_timeout: injectable.sigterm_timeout,
+            shm_size_mb: container.shm_size_mb,
         }
     }
 }
@@ -927,8 +927,7 @@ impl LongRunning {
                     let next = match serde_json::from_str(&next) {
                         Ok(a) => a,
                         Err(e) => {
-                            tracing::debug!("{:?}", e);
-                            tracing::warn!("Could not decode output from long running binary");
+                            tracing::trace!("Could not decode output from long running binary");
                             continue;
                         }
                     };

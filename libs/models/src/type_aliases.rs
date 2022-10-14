@@ -1,4 +1,4 @@
-use std::{future::Future, pin::Pin, sync::Arc};
+use std::{future::Future, pin::Pin, sync::Arc, time::Duration};
 
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -8,7 +8,7 @@ pub type ExecCommand = Arc<
             String,
             Vec<String>,
             UnboundedSender<embassy_container_init::Output>,
-            Option<u64>,
+            Option<Duration>,
         ) -> Pin<Box<dyn Future<Output = Result<(), String>> + 'static>>
         + Send
         + Sync
