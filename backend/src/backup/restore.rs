@@ -254,10 +254,10 @@ pub async fn recover_full_embassy(
             .await?;
     
         let root_crt = rpc_ctx.net_controller.ssl.export_root_ca().await?;            
+        let fixed_crt = (root_crt.0, vec![root_crt.1]);
 
-        rpc_ctx.net_controller.proxy.add_certificate_to_resolver(host_name.clone(), root_crt);
 
-
+        rpc_ctx.net_controller.proxy.add_certificate_to_resolver(host_name.clone(), fixed_crt).await?;
 
 
         rpc_ctx 

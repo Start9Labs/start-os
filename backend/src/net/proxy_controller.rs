@@ -81,12 +81,12 @@ impl ProxyController {
         &self,
         fqdn: String,
         cert_data: (PKey<Private>, Vec<X509>),
-    ) {
+    ) -> Result<(), Error> {
         self.inner
             .lock()
             .await
             .add_certificate_to_resolver(fqdn, cert_data)
-            .await;
+            .await
     }
 
     pub async fn add_handle(
@@ -170,14 +170,6 @@ impl ProxyController {
         );
 
         Ok(())
-    }
-
-    async fn add_package_certificate_to_resolver(&self, hostname: String) -> Result<(), Error> {
-        self.inner
-            .lock()
-            .await
-            .add_package_certificate_to_resolver(hostname)
-            .await
     }
 }
 struct ProxyControllerInner {
