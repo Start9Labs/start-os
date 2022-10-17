@@ -10,6 +10,7 @@ use crate::Error;
 pub mod block_dev;
 pub mod cifs;
 pub mod ecryptfs;
+pub mod httpdirfs;
 pub mod label;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

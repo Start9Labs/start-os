@@ -9,7 +9,7 @@ use std::task::{Context, Poll};
 use color_eyre::eyre::eyre;
 use digest_old::Output;
 use ed25519_dalek::PublicKey;
-use futures::{FutureExt, TryStreamExt};
+use futures::TryStreamExt;
 use sha2_old::{Digest, Sha512};
 use tokio::fs::File;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, ReadBuf};
