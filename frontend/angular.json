@@ -392,10 +392,7 @@
           },
           "configurations": {
             "production": {
-              "tsConfig": "projects/marketplace/tsconfig.prod.json"
-            },
-            "development": {
-              "tsConfig": "projects/marketplace/tsconfig.json"
+              "tsConfig": "tsconfig.lib.json"
             }
           },
           "defaultConfiguration": "production"
@@ -415,10 +412,7 @@
           },
           "configurations": {
             "production": {
-              "tsConfig": "projects/shared/tsconfig.prod.json"
-            },
-            "development": {
-              "tsConfig": "projects/shared/tsconfig.json"
+              "tsConfig": "tsconfig.lib.json"
             }
           },
           "defaultConfiguration": "production"

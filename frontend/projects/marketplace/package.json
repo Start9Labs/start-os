@@ -4,6 +4,7 @@
   "peerDependencies": {
     "@angular/common": "^13.2.0",
     "@angular/core": "^13.2.0",
+    "@ionic/angular": "^6.0.3",
     "@start9labs/shared": "^0.0.1",
     "fuse.js": "^6.4.6"
   },
