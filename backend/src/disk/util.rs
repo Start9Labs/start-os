@@ -234,8 +234,12 @@ pub async fn recovery_info(
 
 #[instrument]
 pub async fn list(os: &OsPartitionInfo) -> Result<Vec<DiskInfo>, Error> {
+    struct DiskIndex {
+        parts: IndexSet<PathBuf>,
+        internal: bool,
+    }
     let disk_guids = pvscan().await?;
-    let (disks, internal) = tokio_stream::wrappers::ReadDirStream::new(
+    let disks = tokio_stream::wrappers::ReadDirStream::new(
         tokio::fs::read_dir(DISK_PATH)
             .await
             .with_ctx(|_| (crate::ErrorKind::Filesystem, DISK_PATH))?,
@@ -247,8 +251,8 @@ pub async fn list(os: &OsPartitionInfo) -> Result<Vec<DiskInfo>, Error> {
         )
     })
     .try_fold(
-        (BTreeMap::new(), Vec::new()),
-        |(mut disks, mut internal), dir_entry| async move {
+        BTreeMap::<PathBuf, DiskIndex>::new(),
+        |mut disks, dir_entry| async move {
             if let Some(disk_path) = dir_entry.path().file_name().and_then(|s| s.to_str()) {
                 let (disk_path, part_path) = if let Some(end) = PARTITION_REGEX.find(disk_path) {
                     (
@@ -277,143 +281,123 @@ pub async fn list(os: &OsPartitionInfo) -> Result<Vec<DiskInfo>, Error> {
                 } else {
                     None
                 };
-                if disk == os.disk {
-                    if let Some(part) = part {
-                        if !os.contains(&part) {
-                            internal.push(part.clone());
-                        }
-                    }
-                } else {
-                    if !disks.contains_key(&disk) {
-                        disks.insert(disk.clone(), IndexSet::new());
-                    }
-                    if let Some(part) = part {
-                        disks.get_mut(&disk).unwrap().insert(part);
+                if !disks.contains_key(&disk) {
+                    disks.insert(
+                        disk.clone(),
+                        DiskIndex {
+                            parts: IndexSet::new(),
+                            internal: false,
+                        },
+                    );
+                }
+                if let Some(part) = part {
+                    if os.contains(&part) {
+                        disks.get_mut(&disk).unwrap().internal = true;
+                    } else {
+                        disks.get_mut(&disk).unwrap().parts.insert(part);
                     }
                 }
             }
-            Ok((disks, internal))
+            Ok(disks)
         },
     )
     .await?;
 
     let mut res = Vec::with_capacity(disks.len());
-    for (disk, parts) in disks {
-        let mut guid: Option<String> = None;
-        let mut partitions = Vec::with_capacity(parts.len());
-        let vendor = get_vendor(&disk)
-            .await
-            .map_err(|e| tracing::warn!("Could not get vendor of {}: {}", disk.display(), e.source))
-            .unwrap_or_default();
-        let model = get_model(&disk)
-            .await
-            .map_err(|e| tracing::warn!("Could not get model of {}: {}", disk.display(), e.source))
-            .unwrap_or_default();
-        let capacity = get_capacity(&disk)
-            .await
-            .map_err(|e| {
-                tracing::warn!("Could not get capacity of {}: {}", disk.display(), e.source)
-            })
-            .unwrap_or_default();
-        if let Some(g) = disk_guids.get(&disk) {
-            guid = g.clone();
-        } else {
-            for part in parts {
-                let mut embassy_os = None;
-                let label = get_label(&part).await?;
-                let capacity = get_capacity(&part)
-                    .await
-                    .map_err(|e| {
-                        tracing::warn!("Could not get capacity of {}: {}", part.display(), e.source)
-                    })
-                    .unwrap_or_default();
-                let mut used = None;
-
-                match TmpMountGuard::mount(&BlockDev::new(&part), ReadOnly).await {
-                    Err(e) => tracing::warn!("Could not collect usage information: {}", e.source),
-                    Ok(mount_guard) => {
-                        used = get_used(&mount_guard)
-                            .await
-                            .map_err(|e| {
-                                tracing::warn!(
-                                    "Could not get usage of {}: {}",
-                                    part.display(),
-                                    e.source
-                                )
-                            })
-                            .ok();
-                        if let Some(recovery_info) = match recovery_info(&mount_guard).await {
-                            Ok(a) => a,
-                            Err(e) => {
-                                tracing::error!(
-                                    "Error fetching unencrypted backup metadata: {}",
-                                    e
-                                );
-                                None
-                            }
-                        } {
-                            embassy_os = Some(recovery_info)
-                        }
-                        mount_guard.unmount().await?;
-                    }
+    for (disk, index) in disks {
+        if index.internal {
+            for part in index.parts {
+                let mut disk_info = disk_info(disk.clone()).await;
+                if let Some(g) = disk_guids.get(&disk) {
+                    disk_info.guid = g.clone();
+                } else {
+                    disk_info.partitions = vec![part_info(part).await];
                 }
-
-                partitions.push(PartitionInfo {
-                    logicalname: part,
-                    label,
-                    capacity,
-                    used,
-                    embassy_os,
-                });
+                res.push(disk_info);
             }
+        } else {
+            let mut disk_info = disk_info(disk).await;
+            disk_info.partitions = Vec::with_capacity(index.parts.len());
+            if let Some(g) = disk_guids.get(&disk_info.logicalname) {
+                disk_info.guid = g.clone();
+            } else {
+                for part in index.parts {
+                    disk_info.partitions.push(part_info(part).await);
+                }
+            }
+            res.push(disk_info);
         }
-        res.push(DiskInfo {
-            logicalname: disk,
-            vendor,
-            model,
-            partitions,
-            capacity,
-            guid,
-        })
-    }
-    for disk in internal {
-        let mut guid: Option<String> = None;
-        let vendor = get_vendor(&os.disk)
-            .await
-            .map_err(|e| {
-                tracing::warn!(
-                    "Could not get vendor of {}: {}",
-                    os.disk.display(),
-                    e.source
-                )
-            })
-            .unwrap_or_default();
-        let model = get_model(&os.disk)
-            .await
-            .map_err(|e| {
-                tracing::warn!("Could not get model of {}: {}", os.disk.display(), e.source)
-            })
-            .unwrap_or_default();
-        let capacity = get_capacity(&disk)
-            .await
-            .map_err(|e| {
-                tracing::warn!("Could not get capacity of {}: {}", disk.display(), e.source)
-            })
-            .unwrap_or_default();
-        if let Some(g) = disk_guids.get(&disk) {
-            guid = g.clone();
-        }
-        res.push(DiskInfo {
-            logicalname: disk,
-            vendor,
-            model,
-            partitions: Vec::new(),
-            capacity,
-            guid,
-        })
     }
 
     Ok(res)
+}
+
+async fn disk_info(disk: PathBuf) -> DiskInfo {
+    let vendor = get_vendor(&disk)
+        .await
+        .map_err(|e| tracing::warn!("Could not get vendor of {}: {}", disk.display(), e.source))
+        .unwrap_or_default();
+    let model = get_model(&disk)
+        .await
+        .map_err(|e| tracing::warn!("Could not get model of {}: {}", disk.display(), e.source))
+        .unwrap_or_default();
+    let capacity = get_capacity(&disk)
+        .await
+        .map_err(|e| tracing::warn!("Could not get capacity of {}: {}", disk.display(), e.source))
+        .unwrap_or_default();
+    DiskInfo {
+        logicalname: disk,
+        vendor,
+        model,
+        partitions: Vec::new(),
+        capacity,
+        guid: None,
+    }
+}
+
+async fn part_info(part: PathBuf) -> PartitionInfo {
+    let mut embassy_os = None;
+    let label = get_label(&part)
+        .await
+        .map_err(|e| tracing::warn!("Could not get label of {}: {}", part.display(), e.source))
+        .unwrap_or_default();
+    let capacity = get_capacity(&part)
+        .await
+        .map_err(|e| tracing::warn!("Could not get capacity of {}: {}", part.display(), e.source))
+        .unwrap_or_default();
+    let mut used = None;
+
+    match TmpMountGuard::mount(&BlockDev::new(&part), ReadOnly).await {
+        Err(e) => tracing::warn!("Could not collect usage information: {}", e.source),
+        Ok(mount_guard) => {
+            used = get_used(&mount_guard)
+                .await
+                .map_err(|e| {
+                    tracing::warn!("Could not get usage of {}: {}", part.display(), e.source)
+                })
+                .ok();
+            if let Some(recovery_info) = match recovery_info(&mount_guard).await {
+                Ok(a) => a,
+                Err(e) => {
+                    tracing::error!("Error fetching unencrypted backup metadata: {}", e);
+                    None
+                }
+            } {
+                embassy_os = Some(recovery_info)
+            }
+            if let Err(e) = mount_guard.unmount().await {
+                tracing::error!("Error unmounting partition {}: {}", part.display(), e);
+            }
+        }
+    }
+
+    PartitionInfo {
+        logicalname: part,
+        label,
+        capacity,
+        used,
+        embassy_os,
+    }
 }
 
 fn parse_pvscan_output(pvscan_output: &str) -> BTreeMap<PathBuf, Option<String>> {

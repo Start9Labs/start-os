@@ -332,13 +332,15 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     crate::ssh::sync_keys_from_db(&secret_store, "/home/start9/.ssh/authorized_keys").await?;
     tracing::info!("Synced SSH Keys");
 
-    crate::net::wifi::synchronize_wpa_supplicant_conf(
-        &cfg.datadir().join("main"),
-        &cfg.wifi_interface,
-        &receipts.last_wifi_region.get(&mut handle).await?,
-    )
-    .await?;
-    tracing::info!("Synchronized wpa_supplicant.conf");
+    if let Some(wifi_interface) = &cfg.wifi_interface {
+        crate::net::wifi::synchronize_wpa_supplicant_conf(
+            &cfg.datadir().join("main"),
+            wifi_interface,
+            &receipts.last_wifi_region.get(&mut handle).await?,
+        )
+        .await?;
+        tracing::info!("Synchronized WiFi");
+    }
     receipts
         .status_info
         .set(

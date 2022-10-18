@@ -43,7 +43,7 @@ use crate::{Error, ErrorKind, ResultExt};
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct RpcContextConfig {
-    pub wifi_interface: String,
+    pub wifi_interface: Option<String>,
     pub ethernet_interface: String,
     pub os_partitions: OsPartitionInfo,
     pub migration_batch_rows: Option<usize>,
@@ -121,7 +121,7 @@ impl RpcContextConfig {
 pub struct RpcContextSeed {
     is_closed: AtomicBool,
     pub os_partitions: OsPartitionInfo,
-    pub wifi_interface: String,
+    pub wifi_interface: Option<String>,
     pub ethernet_interface: String,
     pub bind_rpc: SocketAddr,
     pub bind_ws: SocketAddr,
@@ -141,7 +141,7 @@ pub struct RpcContextSeed {
     pub notification_manager: NotificationManager,
     pub open_authed_websockets: Mutex<BTreeMap<HashSessionToken, Vec<oneshot::Sender<()>>>>,
     pub rpc_stream_continuations: Mutex<BTreeMap<RequestGuid, RpcContinuation>>,
-    pub wifi_manager: Arc<RwLock<WpaCli>>,
+    pub wifi_manager: Option<Arc<RwLock<WpaCli>>>,
 }
 
 pub struct RpcCleanReceipts {
@@ -276,7 +276,9 @@ impl RpcContext {
             notification_manager,
             open_authed_websockets: Mutex::new(BTreeMap::new()),
             rpc_stream_continuations: Mutex::new(BTreeMap::new()),
-            wifi_manager: Arc::new(RwLock::new(WpaCli::init(base.wifi_interface))),
+            wifi_manager: base
+                .wifi_interface
+                .map(|i| Arc::new(RwLock::new(WpaCli::init(i)))),
         });
 
         let res = Self(seed);

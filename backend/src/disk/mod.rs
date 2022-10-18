@@ -21,18 +21,12 @@ pub const REPAIR_DISK_PATH: &str = "/embassy-os/repair-disk";
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct OsPartitionInfo {
-    pub disk: PathBuf,
     pub boot: PathBuf,
-    pub embassy: PathBuf,
-    pub green: PathBuf,
-    pub blue: PathBuf,
+    pub root: PathBuf,
 }
 impl OsPartitionInfo {
     pub fn contains(&self, logicalname: impl AsRef<Path>) -> bool {
-        &*self.boot == logicalname.as_ref()
-            || &*self.embassy == logicalname.as_ref()
-            || &*self.green == logicalname.as_ref()
-            || &*self.blue == logicalname.as_ref()
+        &*self.boot == logicalname.as_ref() || &*self.root == logicalname.as_ref()
     }
 }
 
