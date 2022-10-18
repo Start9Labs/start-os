@@ -20,7 +20,7 @@ import {
 import { CifsBackupTarget, RR } from './api.types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { Mock } from './api.fixures'
-import markdown from 'raw-loader!../../../../../../assets/markdown/md-sample.md'
+import markdown from 'raw-loader!../../../../../shared/assets/markdown/md-sample.md'
 import {
   EMPTY,
   iif,
