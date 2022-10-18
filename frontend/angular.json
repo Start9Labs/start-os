@@ -23,7 +23,7 @@
             "assets": [
               {
                 "glob": "**/*",
-                "input": "assets",
+                "input": "projects/shared/assets",
                 "output": "assets"
               },
               {
@@ -148,7 +148,7 @@
             "assets": [
               {
                 "glob": "**/*",
-                "input": "assets",
+                "input": "projects/shared/assets",
                 "output": "assets"
               },
               {
@@ -268,7 +268,7 @@
             "assets": [
               {
                 "glob": "**/*",
-                "input": "assets",
+                "input": "projects/shared/assets",
                 "output": "assets"
               },
               {

@@ -4,15 +4,15 @@ Size Limit is a performance budget tool for JavaScript. It checks every commit
 on CI, calculates the real cost of your JS for end-users and throws an error
 if the cost exceeds the limit.
 
-* **ES modules** and **tree-shaking** support.
-* Add Size Limit to **Travis CI**, **Circle CI**, **GitHub Actions**
+- **ES modules** and **tree-shaking** support.
+- Add Size Limit to **Travis CI**, **Circle CI**, **GitHub Actions**
   or another CI system to know if a pull request adds a massive dependency.
-* **Modular** to fit different use cases: big JS applications
+- **Modular** to fit different use cases: big JS applications
   that use their own bundler or small npm libraries with many files.
-* Can calculate **the time** it would take a browser
+- Can calculate **the time** it would take a browser
   to download and **execute** your JS. Time is a much more accurate
   and understandable metric compared to the size in bytes.
-* Calculations include **all dependencies and polyfills**
+- Calculations include **all dependencies and polyfills**
   used in your JS.
 
 <p align="center">
@@ -28,7 +28,7 @@ in pull request discussion.
   width="686" height="289">
 </p>
 
-With `--why`, Size Limit can tell you *why* your library is of this size
+With `--why`, Size Limit can tell you _why_ your library is of this size
 and show the real cost of all your internal dependencies.
 
 <p align="center">
@@ -42,28 +42,27 @@ and show the real cost of all your internal dependencies.
   </a>
 </p>
 
-[GitHub action]: https://github.com/andresz1/size-limit-action
-[cult-img]:      http://cultofmartians.com/assets/badges/badge.svg
-[cult]:          http://cultofmartians.com/tasks/size-limit-config.html
+[github action]: https://github.com/andresz1/size-limit-action
+[cult-img]: http://cultofmartians.com/assets/badges/badge.svg
+[cult]: http://cultofmartians.com/tasks/size-limit-config.html
 
 ## Who Uses Size Limit
 
-* [MobX](https://github.com/mobxjs/mobx)
-* [Material-UI](https://github.com/callemall/material-ui)
-* [Autoprefixer](https://github.com/postcss/autoprefixer)
-* [PostCSS](https://github.com/postcss/postcss) reduced
+- [MobX](https://github.com/mobxjs/mobx)
+- [Material-UI](https://github.com/callemall/material-ui)
+- [Autoprefixer](https://github.com/postcss/autoprefixer)
+- [PostCSS](https://github.com/postcss/postcss) reduced
   [25% of the size](https://github.com/postcss/postcss/commit/150edaa42f6d7ede73d8c72be9909f0a0f87a70f).
-* [Browserslist](https://github.com/ai/browserslist) reduced
+- [Browserslist](https://github.com/ai/browserslist) reduced
   [25% of the size](https://github.com/ai/browserslist/commit/640b62fa83a20897cae75298a9f2715642531623).
-* [EmojiMart](https://github.com/missive/emoji-mart) reduced
+- [EmojiMart](https://github.com/missive/emoji-mart) reduced
   [20% of the size](https://github.com/missive/emoji-mart/pull/111)
-* [nanoid](https://github.com/ai/nanoid) reduced
+- [nanoid](https://github.com/ai/nanoid) reduced
   [33% of the size](https://github.com/ai/nanoid/commit/036612e7d6cc5760313a8850a2751a5e95184eab).
-* [React Focus Lock](https://github.com/theKashey/react-focus-lock) reduced
+- [React Focus Lock](https://github.com/theKashey/react-focus-lock) reduced
   [32% of the size](https://github.com/theKashey/react-focus-lock/pull/48).
-* [Logux](https://github.com/logux) reduced
+- [Logux](https://github.com/logux) reduced
   [90% of the size](https://github.com/logux/logux-client/commit/62b258e20e1818b23ae39b9c4cd49e2495781e91).
-
 
 ## How It Works
 
@@ -84,7 +83,6 @@ and show the real cost of all your internal dependencies.
    be unstable. [See here](https://github.com/mbalabash/estimo/issues/5)
    for more details.
 
-
 ## Usage
 
 ### JS Applications
@@ -98,58 +96,58 @@ interactive elements, using React/Vue/Svelte lib or vanilla JS.
 
 1. Install the preset:
 
-    ```sh
-    $ npm install --save-dev size-limit @size-limit/preset-app
-    ```
+   ```sh
+   $ npm install --save-dev size-limit @size-limit/preset-app
+   ```
 
 2. Add the `size-limit` section and the `size` script to your `package.json`:
 
-    ```diff
-    + "size-limit": [
-    +   {
-    +     "path": "dist/app-*.js"
-    +   }
-    + ],
-      "scripts": {
-        "build": "webpack ./webpack.config.js",
-    +   "size": "npm run build && size-limit",
-        "test": "jest && eslint ."
-      }
-    ```
+   ```diff
+   + "size-limit": [
+   +   {
+   +     "path": "dist/app-*.js"
+   +   }
+   + ],
+     "scripts": {
+       "build": "webpack ./webpack.config.js",
+   +   "size": "npm run build && size-limit",
+       "test": "jest && eslint ."
+     }
+   ```
 
 3. Here’s how you can get the size for your current project:
 
-    ```sh
-    $ npm run size
+   ```sh
+   $ npm run size
 
-      Package size: 30.08 KB with all dependencies, minified and gzipped
-      Loading time: 602 ms   on slow 3G
-      Running time: 214 ms   on Snapdragon 410
-      Total time:   815 ms
-    ```
+     Package size: 30.08 KB with all dependencies, minified and gzipped
+     Loading time: 602 ms   on slow 3G
+     Running time: 214 ms   on Snapdragon 410
+     Total time:   815 ms
+   ```
 
 4. Now, let’s set the limit. Add 25% to the current total time and use that as
    the limit in your `package.json`:
 
-    ```diff
-      "size-limit": [
-        {
-    +     "limit": "1 s",
-          "path": "dist/app-*.js"
-        }
-      ],
-    ```
+   ```diff
+     "size-limit": [
+       {
+   +     "limit": "1 s",
+         "path": "dist/app-*.js"
+       }
+     ],
+   ```
 
 5. Add the `size` script to your test suite:
 
-    ```diff
-      "scripts": {
-        "build": "webpack ./webpack.config.js",
-        "size": "npm run build && size-limit",
-    -   "test": "jest && eslint ."
-    +   "test": "jest && eslint . && npm run size"
-      }
-    ```
+   ```diff
+     "scripts": {
+       "build": "webpack ./webpack.config.js",
+       "size": "npm run build && size-limit",
+   -   "test": "jest && eslint ."
+   +   "test": "jest && eslint . && npm run size"
+     }
+   ```
 
 6. If you don’t have a continuous integration service running, don’t forget
    to add one — start with [Travis CI].
@@ -165,7 +163,7 @@ on Size Limit output.
 2. Add the following action inside `.github/workflows/size-limit.yml`
 
 ```yaml
-name: "size"
+name: 'size'
 on:
   pull_request:
     branches:
