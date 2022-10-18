@@ -1,12 +1,15 @@
 {
   "name": "@start9labs/shared",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "peerDependencies": {
     "@angular/common": ">=13.2.0",
     "@angular/core": ">=13.2.0",
     "@angular/router": ">=13.2.0",
     "@ionic/angular": ">=6.0.0",
     "@start9labs/emver": "^0.1.5"
+  },
+  "exports": {
+    "./assets/": "./assets/"
   },
   "dependencies": {
     "tslib": "^2.3.0"
