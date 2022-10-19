@@ -3,7 +3,7 @@ set -e
 
 SYSTEMCTL=systemctl
 if [ -n "DPKG_MAINTSCRIPT_PACKAGE" ]; then
-	SYSTEMCTL=deb-systemd-helper
+	  SYSTEMCTL=deb-systemd-helper
 fi
 
 mv /usr/sbin/grub-probe /usr/sbin/grub-probe-default
@@ -11,12 +11,15 @@ ln -s /usr/lib/embassy/scripts/grub-probe-eos /usr/sbin/grub-probe
 
 cp /usr/lib/embassy/scripts/embassy-initramfs-module /etc/initramfs-tools/scripts/embassy
 
-  # add the overlay to the list of modules
 if ! grep overlay /etc/initramfs-tools/modules > /dev/null; then
-  echo overlay >> /etc/initramfs-tools/modules
+    echo overlay >> /etc/initramfs-tools/modules
 fi
 
 update-initramfs -u -k all
+
+if [ -f /etc/default/grub ]; then
+    sed -i '/\(^\|#\)GRUB_CMDLINE_LINUX=/c\GRUB_CMDLINE_LINUX="boot=embassy"' /etc/default/grub
+fi
 
 # change timezone
 rm -f /etc/localtime
