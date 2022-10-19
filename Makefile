@@ -75,10 +75,10 @@ install: all
 	cp ENVIRONMENT.txt $(DESTDIR)/usr/lib/embassy/
 	cp GIT_HASH.txt $(DESTDIR)/usr/lib/embassy/
 
-	mkdir -p $(DESTDIR)/var/lib/embassy/system-images
-	cp system-images/compat/docker-images/aarch64.tar $(DESTDIR)/var/lib/embassy/system-images/compat.tar
-	cp system-images/utils/docker-images/$(shell uname -m).tar $(DESTDIR)/var/lib/embassy/system-images/utils.tar
-	cp system-images/binfmt/docker-images/$(shell uname -m).tar $(DESTDIR)/var/lib/embassy/system-images/binfmt.tar
+	mkdir -p $(DESTDIR)/usr/lib/embassy/system-images
+	cp system-images/compat/docker-images/aarch64.tar $(DESTDIR)/usr/lib/embassy/system-images/compat.tar
+	cp system-images/utils/docker-images/$(shell uname -m).tar $(DESTDIR)/usr/lib/embassy/system-images/utils.tar
+	cp system-images/binfmt/docker-images/$(shell uname -m).tar $(DESTDIR)/usr/lib/embassy/system-images/binfmt.tar
 
 	mkdir -p $(DESTDIR)/var/www/html
 	cp -r frontend/dist/diagnostic-ui $(DESTDIR)/var/www/html/diagnostic

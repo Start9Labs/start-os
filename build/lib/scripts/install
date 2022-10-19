@@ -44,10 +44,8 @@ fi
   echo        #   Default Starting Position
   echo '+1G'  #   1GB
   echo t      #   Change Type
-  echo 1      #     (Still Index #1)
   echo 0b     #     W95 FAT32
   echo a      #   Set Bootable
-  echo 1      #     (Still Index #1)
   echo n      # New Partition
   echo p      #   Primary
   echo 2      #   Index #2
@@ -100,4 +98,10 @@ mount --bind /proc /mnt/current/proc
 
 chroot /mnt/current update-grub
 
-# TODO update grub to use eos initramfs
+umount /mnt/current/dev
+umount /mnt/current/sys
+umount /mnt/current/proc
+
+umount /mnt/current/boot
+
+umount /mnt
