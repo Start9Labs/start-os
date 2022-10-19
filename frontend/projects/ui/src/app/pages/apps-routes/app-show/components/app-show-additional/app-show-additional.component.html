@@ -54,13 +54,14 @@
           </ion-item>
           <ion-item
             [href]="manifest['support-site']"
+            [disabled]="!manifest['support-site']"
             target="_blank"
             rel="noreferrer"
             detail="false"
           >
             <ion-label>
               <h2>Support Site</h2>
-              <p>{{ manifest['support-site'] }}</p>
+              <p>{{ manifest['support-site'] || 'Not provided' }}</p>
             </ion-label>
             <ion-icon slot="end" name="open-outline"></ion-icon>
           </ion-item>
