@@ -15,6 +15,5 @@ secrets.db
 /cargo-deps/**/*
 /ENVIRONMENT.txt
 /GIT_HASH.txt
-/eos.tar.gz
-/embassy-os-*.tar.gz
+/embassyos-*.tar.gz
 /*.deb

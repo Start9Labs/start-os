@@ -16,7 +16,7 @@ pub mod mount;
 pub mod util;
 
 pub const BOOT_RW_PATH: &str = "/media/boot-rw";
-pub const REPAIR_DISK_PATH: &str = "/embassy-os/repair-disk";
+pub const REPAIR_DISK_PATH: &str = "/media/embassy/config/repair-disk";
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]

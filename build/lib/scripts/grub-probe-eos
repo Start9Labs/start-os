@@ -1,0 +1,34 @@
+#!/bin/sh
+
+ARGS=
+
+for ARG in $@; do
+ if [ "${ARG%%[!/]*}" = "/" ]; then
+
+  OPTIONS=
+
+  path="$ARG"
+  while true; do
+   if FSTYPE=$( findmnt -n -o FSTYPE "$path" ); then
+    if [ "$FSTYPE" = "overlay" ]; then
+  OPTIONS=$(findmnt -n -o OPTIONS "$path")
+  break
+ else
+  break
+    fi
+   fi
+   if [ "$path" = "/" ]; then break; fi
+   path=$(dirname "$path")
+  done
+
+  if LOWERDIR=$(echo "$OPTIONS" | grep -m 1 -oP 'lowerdir=\K[^,]+'); then
+   #echo "[DEBUG] Overlay filesystem detected ${ARG} --> ${LOWERDIR}${ARG%*/}" 1>&2
+   ARG=/media/embassy/embassyfs"${ARG%*/}"
+  fi
+ fi
+ ARGS="$ARGS $ARG"
+done
+
+grub-probe-default $ARGS
+
+exit $?

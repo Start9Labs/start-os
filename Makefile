@@ -1,8 +1,7 @@
-ARCH = aarch64
+ARCH = $(shell uname -m)
 ENVIRONMENT_FILE = $(shell ./check-environment.sh)
 GIT_HASH_FILE = $(shell ./check-git-hash.sh)
 EMBASSY_BINS := backend/target/$(ARCH)-unknown-linux-gnu/release/embassyd backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-init backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-cli backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-sdk backend/target/$(ARCH)-unknown-linux-gnu/release/avahi-alias
-EMBASSY_NATIVE_BINS := backend/target/release/embassyd backend/target/release/embassy-init backend/target/release/embassy-cli backend/target/release/embassy-sdk backend/target/release/avahi-alias
 EMBASSY_UIS := frontend/dist/ui frontend/dist/setup-wizard frontend/dist/diagnostic-ui
 EMBASSY_SRC := backend/embassyd.service backend/embassy-init.service $(EMBASSY_UIS) $(shell find build)
 COMPAT_SRC := $(shell find system-images/compat/ -not -path 'system-images/compat/target/*' -and -not -name *.tar -and -not -name target)
@@ -19,21 +18,20 @@ $(shell sudo true)
 
 .DELETE_ON_ERROR:
 
-.PHONY: all gzip clean format sdk snapshots frontends ui backend
-all: eos.img
+.PHONY: all gzip install clean format sdk snapshots frontends ui backend
 
-gzip: eos.tar.gz
+all: $(EMBASSY_SRC) $(EMBASSY_BINS) system-images/compat/docker-images/aarch64.tar system-images/utils/docker-images/$(ARCH).tar system-images/binfmt/docker-images/$(ARCH).tar $(ENVIRONMENT_FILE) $(GIT_HASH_FILE)
 
-deb: embassy-os.deb
+gzip: embassyos-raspi.tar.gz
 
-eos.tar.gz: eos.img
-	tar --format=posix -cS -f- eos.img | $(GZIP_BIN) > eos.tar.gz
+embassyos-raspi.tar.gz: embassyos-raspi.img
+	tar --format=posix -cS -f- eos.img | $(GZIP_BIN) > embassyos-raspi.tar.gz
 
 clean:
 	rm -f 2022-01-28-raspios-bullseye-arm64-lite.zip
 	rm -f raspios.img
-	rm -f eos.img
-	rm -f eos.tar.gz
+	rm -f embassyos-raspi.img
+	rm -f embassyos-raspi.tar.gz
 	rm -f ubuntu.img
 	rm -f product_key.txt
 	rm -f system-images/**/*.tar
@@ -58,24 +56,23 @@ format:
 sdk:
 	cd backend/ && ./install-sdk.sh
 
-eos.img: raspios.img $(EMBASSY_SRC) $(EMBASSY_BINS) system-images/compat/docker-images/aarch64.tar system-images/utils/docker-images/aarch64.tar system-images/binfmt/docker-images/aarch64.tar cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast $(ENVIRONMENT_FILE) $(GIT_HASH_FILE)
-	! test -f eos.img || rm eos.img
-	if [ "$(NO_KEY)" = "1" ]; then NO_KEY=1 ./build/make-image.sh; else ./build/make-image.sh; fi
+embassyos-raspi.img: all raspios.img cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast
+	! test -f embassyos-raspi.img || rm embassyos-raspi.img
+	./build/raspberry-pi/make-image.sh
 
-install-dependencies: $(EMBASSY_SRC) $(EMBASSY_NATIVE_BINS) system-images/compat/docker-images/aarch64.tar system-images/utils/docker-images/$(shell uname -m).tar system-images/binfmt/docker-images/$(shell uname -m).tar $(ENVIRONMENT_FILE) $(GIT_HASH_FILE)
-
-# For creating dpkg. DO NOT USE
-install: install-dependencies
-	mkdir -p $(DESTDIR)/etc/embassy
-	cp ENVIRONMENT.txt $(DESTDIR)/etc/embassy/
-	cp GIT_HASH.txt $(DESTDIR)/etc/embassy/
-
+# For creating os images. DO NOT USE
+install: all
 	mkdir -p $(DESTDIR)/usr/bin
-	cp backend/target/release/embassy-init $(DESTDIR)/usr/bin/
-	cp backend/target/release/embassyd $(DESTDIR)/usr/bin/
-	cp backend/target/release/embassy-cli $(DESTDIR)/usr/bin/
-	cp backend/target/release/avahi-alias $(DESTDIR)/usr/bin/
+	cp backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-init $(DESTDIR)/usr/bin/
+	cp backend/target/$(ARCH)-unknown-linux-gnu/release/embassyd $(DESTDIR)/usr/bin/
+	cp backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-cli $(DESTDIR)/usr/bin/
+	cp backend/target/$(ARCH)-unknown-linux-gnu/release/avahi-alias $(DESTDIR)/usr/bin/
 	
+	cp -r build/lib $(DESTDIR)/usr/lib/embassy
+
+	cp ENVIRONMENT.txt $(DESTDIR)/usr/lib/embassy/
+	cp GIT_HASH.txt $(DESTDIR)/usr/lib/embassy/
+
 	mkdir -p $(DESTDIR)/var/lib/embassy/system-images
 	cp system-images/compat/docker-images/aarch64.tar $(DESTDIR)/var/lib/embassy/system-images/compat.tar
 	cp system-images/utils/docker-images/$(shell uname -m).tar $(DESTDIR)/var/lib/embassy/system-images/utils.tar
@@ -86,9 +83,6 @@ install: install-dependencies
 	cp -r frontend/dist/setup-wizard $(DESTDIR)/var/www/html/setup
 	cp -r frontend/dist/ui $(DESTDIR)/var/www/html/main
 	cp index.html $(DESTDIR)/var/www/html/
-
-embassy-os.deb: debian/control
-	./build/make-deb.sh
 
 system-images/compat/docker-images/aarch64.tar: $(COMPAT_SRC)
 	cd system-images/compat && make
@@ -115,12 +109,8 @@ snapshots: libs/snapshot-creator/Cargo.toml
 	cd libs/  && ./build-arm-v8-snapshot.sh
 
 $(EMBASSY_BINS): $(BACKEND_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) frontend/patchdb-ui-seed.json
-	cd backend && ./build-prod.sh
+	cd backend && ARCH=$(ARCH) ./build-prod.sh
 	touch $(EMBASSY_BINS)
-
-$(EMBASSY_NATIVE_BINS): $(BACKEND_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE)
-	cd backend && ./build-prod-native.sh
-	touch $(EMBASSY_NATIVE_BINS)
 
 frontend/node_modules: frontend/package.json
 	npm --prefix frontend ci

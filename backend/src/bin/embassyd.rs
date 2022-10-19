@@ -44,7 +44,7 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
         let rpc_ctx = RpcContext::init(
             cfg_path,
             Arc::new(
-                tokio::fs::read_to_string("/embassy-os/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
+                tokio::fs::read_to_string("/media/embassy/config/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
                     .await?
                     .trim()
                     .to_owned(),
@@ -327,9 +327,12 @@ fn main() {
                             .await?;
                         let ctx = DiagnosticContext::init(
                             cfg_path,
-                            if tokio::fs::metadata("/embassy-os/disk.guid").await.is_ok() {
+                            if tokio::fs::metadata("/media/embassy/config/disk.guid")
+                                .await
+                                .is_ok()
+                            {
                                 Some(Arc::new(
-                                    tokio::fs::read_to_string("/embassy-os/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
+                                    tokio::fs::read_to_string("/media/embassy/config/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
                                         .await?
                                         .trim()
                                         .to_owned(),

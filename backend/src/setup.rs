@@ -331,7 +331,7 @@ pub async fn complete(#[context] ctx: SetupContext) -> Result<SetupResult, Error
     si.lan_address()
         .put(&mut db, &hostname.lan_address().parse().unwrap())
         .await?;
-    let mut guid_file = File::create("/embassy-os/disk.guid").await?;
+    let mut guid_file = File::create("/media/embassy/config/disk.guid").await?;
     guid_file.write_all(guid.as_bytes()).await?;
     guid_file.sync_all().await?;
     ctx.shutdown.send(()).expect("failed to shutdown");
