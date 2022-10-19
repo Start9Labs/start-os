@@ -9,7 +9,7 @@ fi
 mv /usr/sbin/grub-probe /usr/sbin/grub-probe-default
 ln -s /usr/lib/embassy/scripts/grub-probe-eos /usr/sbin/grub-probe
 
-ln -sf /usr/lib/embassy/scripts/embassy-initramfs-modules /etc/initramfs-tools/scripts/embassy
+ln -sf /usr/lib/embassy/scripts/embassy-initramfs-module /etc/initramfs-tools/scripts/embassy
 
   # add the overlay to the list of modules
 if ! grep overlay /etc/initramfs-tools/modules > /dev/null; then
