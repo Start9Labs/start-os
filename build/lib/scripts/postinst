@@ -57,6 +57,10 @@ sed -i '/}/i \ \ \ \ application\/wasm \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \
 sed -i 's/# server_names_hash_bucket_size 64;/server_names_hash_bucket_size 128;/g' /etc/nginx/nginx.conf
 sed -i 's/#allow-interfaces=eth0/allow-interfaces=eno0,wlp1s0/g' /etc/avahi/avahi-daemon.conf
 sed -i '/\(^\|#\)entries-per-entry-group-max=/c\entries-per-entry-group-max=128' /etc/avahi/avahi-daemon.conf
+sed -i '/\(^\|#\)Storage=/c\Storage=persistent' /etc/systemd/journald.conf
+sed -i '/\(^\|#\)Compress=/c\Compress=yes' /etc/systemd/journald.conf
+sed -i '/\(^\|#\)SystemMaxUse=/c\SystemMaxUse=1G' /etc/systemd/journald.conf
+sed -i '/\(^\|#\)ForwardToSyslog=/c\ForwardToSyslog=no' /etc/systemd/journald.conf
 mkdir -p /etc/docker
 ln -s /usr/lib/embassy/docker-engine.slice /etc/systemd/system/docker-engine.slice
 echo '{ "cgroup-parent": "docker-engine.slice" }' > /etc/docker/daemon.json
