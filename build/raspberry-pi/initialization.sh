@@ -28,7 +28,7 @@ sed -i "s/http:/https:/g" /etc/apt/sources.list /etc/apt/sources.list.d/*.list
 apt-get update
 apt-get upgrade -y
 apt-get install -y $(cat /usr/lib/embassy/depends)
-apt-get remove --purge -y $(cat /usr/lib/embassy/conflicts)
+apt-get remove --purge -y $(cat /usr/lib/embassy/conflicts) beep
 apt-get autoremove -y
 
 systemctl stop tor

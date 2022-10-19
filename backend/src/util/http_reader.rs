@@ -79,7 +79,7 @@ impl Display for RangeUnit {
 impl HttpReader {
     pub async fn new(http_url: Url) -> Result<Self, Error> {
         let http_client = Client::builder()
-            .proxy(reqwest::Proxy::all("socks5h://127.0.0.1:9050").unwrap())
+            // .proxy(reqwest::Proxy::all("socks5h://127.0.0.1:9050").unwrap())
             .build()
             .with_kind(crate::ErrorKind::TLSInit)?;
 
@@ -361,6 +361,7 @@ async fn main_test() {
 }
 
 #[tokio::test]
+#[ignore]
 async fn s9pk_test() {
     use tokio::io::BufReader;
 
