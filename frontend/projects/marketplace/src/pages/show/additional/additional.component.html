@@ -66,25 +66,27 @@
           </ion-item>
           <ion-item
             [href]="manifest['support-site']"
+            [disabled]="!manifest['support-site']"
             target="_blank"
             rel="noreferrer"
             detail="false"
           >
             <ion-label>
               <h2>Support Site</h2>
-              <p>{{ manifest['support-site'] }}</p>
+              <p>{{ manifest['support-site'] || 'Not provided' }}</p>
             </ion-label>
             <ion-icon slot="end" name="open-outline"></ion-icon>
           </ion-item>
           <ion-item
             [href]="manifest['marketing-site']"
+            [disabled]="!manifest['marketing-site']"
             target="_blank"
             rel="noreferrer"
             detail="false"
           >
             <ion-label>
               <h2>Marketing Site</h2>
-              <p>{{ manifest['marketing-site'] }}</p>
+              <p>{{ manifest['marketing-site'] || 'Not provided' }}</p>
             </ion-label>
             <ion-icon slot="end" name="open-outline"></ion-icon>
           </ion-item>
