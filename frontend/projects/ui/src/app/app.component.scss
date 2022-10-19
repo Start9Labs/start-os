@@ -10,6 +10,6 @@ ion-split-pane {
   transition: filter 0.3s;
 
   &_offline {
-    filter: saturate(0) contrast(0.85);
+    filter: saturate(0.75) contrast(0.85);
   }
 }
