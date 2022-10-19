@@ -71,6 +71,7 @@ mkdir /mnt/current
 mkdir /mnt/next
 
 mkdir /mnt/current/boot
+mount $BOOTPART /mnt/current/boot
 
 unsquashfs -f -d /mnt/current /cdrom/casper/filesystem.squashfs
 
