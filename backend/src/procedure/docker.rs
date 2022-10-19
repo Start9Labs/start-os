@@ -105,7 +105,7 @@ impl From<(&DockerContainer, &DockerInject)> for DockerProcedure {
 }
 
 impl From<(&DockerContainer, &JsProcedure)> for DockerProcedure {
-    fn from((container, injectable): (&DockerContainer, &JsProcedure)) -> Self {
+    fn from((container, _injectable): (&DockerContainer, &JsProcedure)) -> Self {
         DockerProcedure {
             image: container.image.clone(),
             system: false,
@@ -115,6 +115,18 @@ impl From<(&DockerContainer, &JsProcedure)> for DockerProcedure {
             io_format: None,
             sigterm_timeout: None,
             shm_size_mb: container.shm_size_mb,
+        }
+    }
+}
+
+impl From<(&DockerContainer, &JsProcedure)> for DockerInject {
+    fn from((_container, _injectable): (&DockerContainer, &JsProcedure)) -> Self {
+        DockerInject {
+            system: false,
+            entrypoint: String::new(),
+            args: Vec::new(),
+            io_format: None,
+            sigterm_timeout: None,
         }
     }
 }

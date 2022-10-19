@@ -208,9 +208,7 @@ async fn run_main(
             })
         }
         #[cfg(feature = "js_engine")]
-        InjectableMain::Script((_, injectable)) => {
-            let persistant = persistant.clone();
-            let injectable = injectable.clone();
+        InjectableMain::Script(_) => {
             tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await })
         }
     };
@@ -696,7 +694,6 @@ impl PersistantContainer {
             fn drop(&mut self) {
                 let command_inserter = self.command_inserter.clone();
                 let ids = ::std::mem::take(&mut self.ids);
-                tracing::error!("BLUJ SHould be cleaning up!");
                 tokio::spawn(async move {
                     let command_inserter_lock = command_inserter.lock().await;
                     let command_inserter = match &*command_inserter_lock {
@@ -706,7 +703,6 @@ impl PersistantContainer {
                         }
                     };
                     for id in ids {
-                        tracing::error!("BLUJ SHould be term up! {id:?}");
                         command_inserter.term(id).await;
                     }
                 });
@@ -728,7 +724,6 @@ impl PersistantContainer {
                             .exec_command(command.clone(), args.clone(), sender, timeout)
                             .await
                         {
-                            tracing::error!("BLUJ Clean should clean {id:?} {command} {args:?}");
                             cleaner.ids.insert(id);
                         }
                     }
@@ -1239,7 +1234,15 @@ async fn stop(
             }
         }
         #[cfg(feature = "js_engine")]
-        PackageProcedure::Script(_) => return Ok(()),
+        PackageProcedure::Script(_) => {
+            if check_is_injectable_main(shared) {
+                stop_long_running_processes(
+                    &shared.container_name,
+                    persistant_container.command_inserter.clone(),
+                )
+                .await;
+            }
+        }
     };
     tracing::debug!("Stopping a docker");
     shared.status.store(

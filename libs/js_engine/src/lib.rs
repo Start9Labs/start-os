@@ -530,7 +530,6 @@ mod fns {
         path_in: PathBuf,
         write: String,
     ) -> Result<(), AnyError> {
-        tracing::error!("BLUJ2 write_file");
         let (volumes, volume_path) = {
             let state = state.borrow();
             let ctx: &JsContext = state.borrow();
@@ -634,7 +633,6 @@ mod fns {
         volume_id: VolumeId,
         path_in: PathBuf,
     ) -> Result<(), AnyError> {
-        tracing::error!("BLUJ2 remove_file");
         let (volumes, volume_path) = {
             let state = state.borrow();
             let ctx: &JsContext = state.borrow();
@@ -665,7 +663,6 @@ mod fns {
         volume_id: VolumeId,
         path_in: PathBuf,
     ) -> Result<(), AnyError> {
-        tracing::error!("BLUJ2 remove_dir");
         let (volumes, volume_path) = {
             let state = state.borrow();
             let ctx: &JsContext = state.borrow();
@@ -696,7 +693,6 @@ mod fns {
         volume_id: VolumeId,
         path_in: PathBuf,
     ) -> Result<(), AnyError> {
-        tracing::error!("BLUJ2 create_dir");
         let (volumes, volume_path) = {
             let state = state.borrow();
             let ctx: &JsContext = state.borrow();
@@ -755,7 +751,6 @@ mod fns {
     }
     #[op]
     fn log_error(state: &mut OpState, input: String) -> Result<(), AnyError> {
-        tracing::error!("BLUJ2 log_error");
         let ctx = state.borrow::<JsContext>();
         tracing::error!(
             package_id = tracing::field::display(&ctx.package_id),
@@ -818,7 +813,6 @@ mod fns {
         timeout: Option<u64>,
     ) -> Result<Result<String, (i32, String)>, AnyError> {
         use embassy_container_init::Output;
-        tracing::error!("BLUJ2 Run Command");
         let command_inserter = {
             let state = state.borrow();
             let ctx = state.borrow::<JsContext>();
