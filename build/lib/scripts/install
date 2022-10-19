@@ -80,6 +80,7 @@ mkdir /mnt/current/boot
 mount $BOOTPART /mnt/current/boot
 
 unsquashfs -f -d /mnt/current /cdrom/casper/filesystem.squashfs
+touch /mnt/embassyfs
 
 cat > /mnt/config/config.yaml << EOF
 os-partitions:
@@ -97,6 +98,7 @@ mount --bind /sys /mnt/current/sys
 mount --bind /proc /mnt/current/proc
 
 chroot /mnt/current update-grub
+chroot /mnt/current grub-install $OSDISK
 
 umount /mnt/current/dev
 umount /mnt/current/sys

@@ -10,6 +10,8 @@
 
 local_mount_root()
 {
+	echo 'using embassy initramfs module'
+
 	local_top
 	local_device_setup "${ROOT}" "root file system"
 	ROOT="${DEV}"
@@ -36,8 +38,11 @@ local_mount_root()
 	fi
 
 	if ! [ -f ${rootmnt}/embassyfs ]; then
+		echo 'non embassyfs disk found - mounting normally'
 		return
 	fi
+
+	echo 'mounting embassyfs'
 
 	mkdir /embassyfs
 
@@ -71,6 +76,8 @@ local_mount_root()
 			mkdir /embassyfs/next
 		fi
 	fi
+
+	mkdir /lower /upper
 
 	mount -r --bind /embassyfs/current /lower
 
