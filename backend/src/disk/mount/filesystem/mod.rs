@@ -7,6 +7,7 @@ use sha2::Sha256;
 
 use crate::Error;
 
+pub mod bind;
 pub mod block_dev;
 pub mod cifs;
 pub mod ecryptfs;

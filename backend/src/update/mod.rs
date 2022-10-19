@@ -1,42 +1,31 @@
-use std::future::Future;
-use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::time::Duration;
 
 use clap::ArgMatches;
 use color_eyre::eyre::{eyre, Result};
-use digest::Digest;
 use emver::Version;
-use futures::Stream;
-use helpers::AtomicFile;
 use lazy_static::lazy_static;
 use patch_db::{DbHandle, LockType, Revision};
-use regex::Regex;
 use reqwest::Url;
 use rpc_toolkit::command;
-use sha2::Sha256;
-use tokio::io::AsyncWriteExt;
-use tokio::pin;
 use tokio::process::Command;
-use tokio::time::Instant;
 use tokio_stream::StreamExt;
 use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::db::model::UpdateProgress;
+use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::httpdirfs::HttpDirFS;
 use crate::disk::mount::filesystem::ReadOnly;
-use crate::disk::mount::filesystem::{FileSystem, ReadWrite};
-use crate::disk::mount::guard::TmpMountGuard;
-use crate::disk::BOOT_RW_PATH;
+use crate::disk::mount::filesystem::ReadWrite;
+use crate::disk::mount::guard::{MountGuard, TmpMountGuard};
 use crate::notifications::NotificationLevel;
 use crate::sound::{
     CIRCLE_OF_5THS_SHORT, UPDATE_FAILED_1, UPDATE_FAILED_2, UPDATE_FAILED_3, UPDATE_FAILED_4,
 };
 use crate::update::latest_information::LatestInformation;
-use crate::util::rsync::Rsync;
+use crate::util::rsync::{Rsync, RsyncOptions};
 use crate::util::Invoke;
 use crate::version::{Current, VersionT};
 use crate::{Error, ErrorKind, ResultExt};
@@ -228,7 +217,11 @@ async fn do_update(
     new_fs: TmpMountGuard,
     new_block_dev: TmpMountGuard,
 ) -> Result<(), Error> {
-    let mut rsync = Rsync::new(new_fs.as_ref().join(""), "/media/embassy/next", true)?;
+    let mut rsync = Rsync::new(
+        new_fs.as_ref().join(""),
+        "/media/embassy/next",
+        Default::default(),
+    )?;
     while let Some(progress) = rsync.progress.next().await {
         crate::db::DatabaseModel::new()
             .server_info()
@@ -243,11 +236,14 @@ async fn do_update(
             )
             .await?;
     }
+    rsync.wait().await?;
     new_fs.unmount().await?;
     new_block_dev.unmount().await?;
 
+    copy_fstab().await?;
     copy_machine_id().await?;
     copy_ssh_host_keys().await?;
+    sync_boot().await?;
     swap_boot_label().await?;
 
     Ok(())
@@ -269,6 +265,11 @@ impl std::fmt::Display for EosUrl {
             &*crate::ARCH,
         )
     }
+}
+
+async fn copy_fstab() -> Result<(), Error> {
+    tokio::fs::copy("/etc/fstab", "/media/embassy/next/etc/fstab").await?;
+    Ok(())
 }
 
 async fn copy_machine_id() -> Result<(), Error> {
@@ -307,6 +308,38 @@ async fn copy_ssh_host_keys() -> Result<(), Error> {
         "/media/embassy/next/etc/ssh/ssh_host_ed25519_key.pub",
     )
     .await?;
+    Ok(())
+}
+
+async fn sync_boot() -> Result<(), Error> {
+    Rsync::new(
+        "/media/embassy/next/boot/",
+        "/boot",
+        RsyncOptions {
+            delete: false,
+            force: false,
+            ignore_existing: true,
+        },
+    )?
+    .wait()
+    .await?;
+    let dev_mnt =
+        MountGuard::mount(&Bind::new("/dev"), "/media/embassy/next/dev", ReadWrite).await?;
+    let sys_mnt =
+        MountGuard::mount(&Bind::new("/sys"), "/media/embassy/next/sys", ReadWrite).await?;
+    let proc_mnt =
+        MountGuard::mount(&Bind::new("/proc"), "/media/embassy/next/proc", ReadWrite).await?;
+    let boot_mnt =
+        MountGuard::mount(&Bind::new("/boot"), "/media/embassy/next/boot", ReadWrite).await?;
+    Command::new("chroot")
+        .arg("/media/embassy/next")
+        .arg("update-grub")
+        .invoke(ErrorKind::MigrationFailed)
+        .await?;
+    boot_mnt.unmount().await?;
+    proc_mnt.unmount().await?;
+    sys_mnt.unmount().await?;
+    dev_mnt.unmount().await?;
     Ok(())
 }
 

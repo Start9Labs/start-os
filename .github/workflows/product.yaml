@@ -60,19 +60,28 @@ jobs:
       uses: actions/download-artifact@v3
       with:
         name: compat.tar
-        path: system-images/compat/docker-images/aarch64.tar
+        path: system-images/compat/docker-images/
+
+    - name: Rename compat.tar artifact
+      run: mv system-images/compat/docker-images/compat.tar system-images/compat/docker-images/aarch64.tar
     
     - name: Download utils.tar artifact
       uses: actions/download-artifact@v3
       with:
         name: utils.tar
-        path: system-images/utils/docker-images/aarch64.tar
+        path: system-images/utils/docker-images/
+    
+    - name: Rename utils.tar artifact
+      run: mv system-images/utils/docker-images/utils.tar system-images/utils/docker-images/aarch64.tar
 
     - name: Download binfmt.tar artifact
       uses: actions/download-artifact@v3
       with:
         name: binfmt.tar
-        path: system-images/binfmt/docker-images/aarch64.tar
+        path: system-images/binfmt/docker-images/
+
+    - name: Rename binfmt.tar artifact
+      run: mv system-images/binfmt/docker-images/binfmt.tar system-images/binfmt/docker-images/aarch64.tar
 
     - name: Download nc-broadcast.tar artifact
       uses: actions/download-artifact@v3
