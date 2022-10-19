@@ -1,6 +1,12 @@
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use bollard::image::ListImagesOptions;
+use color_eyre::Report;
+use futures::FutureExt;
 use patch_db::{DbHandle, LockReceipt, LockTargetId, LockType, PatchDbHandle, Verifier};
 use sqlx::{Executor, Postgres};
 use tracing::instrument;
@@ -423,6 +429,7 @@ pub fn cleanup_folder(
             }
         };
         if !meta_data.is_dir() {
+            tracing::error!("is_not dir, remove {:?}", path);
             let _ = tokio::fs::remove_file(&path).await;
             return;
         }
@@ -430,6 +437,7 @@ pub fn cleanup_folder(
             .iter()
             .any(|v| v.starts_with(&path) || v == &path)
         {
+            tracing::error!("No parents, remove {:?}", path);
             let _ = tokio::fs::remove_dir_all(&path).await;
             return;
         }
@@ -439,6 +447,7 @@ pub fn cleanup_folder(
                 return;
             }
         };
+        tracing::error!("Parents, recurse {:?}", path);
         while let Some(entry) = read_dir.next_entry().await.ok().flatten() {
             let entry_path = entry.path();
             cleanup_folder(entry_path, dependents_volumes.clone()).await;

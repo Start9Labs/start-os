@@ -33,22 +33,10 @@
             >instructions</a
           >.
         </h2>
-        <ng-container *ngIf="downloadIsDisabled && (server$ | async) as server">
-          <br />
-          <ion-text color="warning">
-            For security reasons, you must setup LAN over a
-            <a
-              [attr.href]="server['tor-address']"
-              target="_blank"
-              rel="noreferrer"
-              >Tor connection</a
-            >.
-          </ion-text>
-        </ng-container>
       </ion-label>
     </ion-item>
 
-    <ion-item button (click)="installCert()" [disabled]="downloadIsDisabled">
+    <ion-item button (click)="installCert()">
       <ion-icon slot="start" name="download-outline" size="large"></ion-icon>
       <ion-label>
         <h1>Download Root CA</h1>

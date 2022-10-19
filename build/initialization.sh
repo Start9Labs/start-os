@@ -108,6 +108,7 @@ sed -i 's/ExecStart=\/usr\/bin\/dockerd/ExecStart=\/usr\/bin\/dockerd --exec-opt
 sed -i '/}/i \ \ \ \ application\/wasm \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ wasm;' /etc/nginx/mime.types
 sed -i 's/# server_names_hash_bucket_size 64;/server_names_hash_bucket_size 128;/g' /etc/nginx/nginx.conf
 sed -i 's/#allow-interfaces=eth0/allow-interfaces=eth0,wlan0/g' /etc/avahi/avahi-daemon.conf
+sed -i '/\(^\|#\)entries-per-entry-group-max=/c\entries-per-entry-group-max=128' /etc/avahi/avahi-daemon.conf
 echo '{ "cgroup-parent": "docker-engine.slice" }' > /etc/docker/daemon.json
 mkdir -p /etc/nginx/ssl
 

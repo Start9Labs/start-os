@@ -181,7 +181,6 @@ impl DockerProcedure {
             .arg(&container_name)
             .arg(format!("--hostname={}", &container_name))
             .arg("--no-healthcheck");
-
         match ctx
             .docker
             .remove_container(
