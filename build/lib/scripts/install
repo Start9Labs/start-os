@@ -37,22 +37,30 @@ if [ -z "$ETH_IFACE" ]; then
 fi
 
 (
-  echo g      # GPT
+  echo o      # GPT
   echo n      # New Partition
+  echo p      #   Primary
   echo 1      #   Index #1
   echo        #   Default Starting Position
   echo '+1G'  #   1GB
+  echo t      #   Change Type
+  echo 1      #     (Still Index #1)
+  echo 0b     #     W95 FAT32
+  echo a      #   Set Bootable
+  echo 1      #     (Still Index #1)
   echo n      # New Partition
+  echo p      #   Primary
   echo 2      #   Index #2
   echo        #   Default Starting Position
   echo '+15G' #   15GB
   echo n      # New Partition
+  echo p      #   Primary
   echo 3      #   Index #3
   echo        #   Default Starting Position
   echo        #   Use Full Remaining
   echo t      #   Change Type
   echo 3      #     (Still Index #3)
-  echo lvm    #     Linux LVM
+  echo 8e     #     Linux LVM
   echo w      # Write Changes
 ) | fdisk $OSDISK
 
