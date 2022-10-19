@@ -135,7 +135,7 @@ pub async fn attach(
             ErrorKind::DiskManagement,
         ));
     }
-    init(&RpcContextConfig::load(ctx.config_path.as_ref()).await?).await?;
+    init(&RpcContextConfig::load(ctx.config_path.clone()).await?).await?;
     let secrets = ctx.secret_store().await?;
     let db = ctx.db(&secrets).await?;
     let mut secrets_handle = secrets.acquire().await?;
@@ -378,7 +378,7 @@ pub async fn execute_inner(
             recovery_password,
         )
         .await?;
-        let db = init(&RpcContextConfig::load(ctx.config_path.as_ref()).await?)
+        let db = init(&RpcContextConfig::load(ctx.config_path.clone()).await?)
             .await?
             .db;
         let hostname = {
@@ -416,7 +416,7 @@ pub async fn execute_inner(
         res
     } else {
         let (tor_addr, root_ca) = fresh_setup(&ctx, &embassy_password).await?;
-        let db = init(&RpcContextConfig::load(ctx.config_path.as_ref()).await?)
+        let db = init(&RpcContextConfig::load(ctx.config_path.clone()).await?)
             .await?
             .db;
         let mut handle = db.handle();
