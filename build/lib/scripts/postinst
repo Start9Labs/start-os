@@ -16,12 +16,7 @@ if ! grep embassy /etc/initramfs-tools/modules > /dev/null; then
   echo embassy >> /etc/initramfs-tools/modules
 fi
 
-for KERN in $(ls /boot/vmlinuz-* | sed 's/\/boot\/vmlinuz-//g'); do
-	mv /boot/initrd.img-"$KERN" /boot/initrd.img-"$KERN"-old
-
-	# build the new initramfs
-	update-initramfs -c -k "$KERN"
-done
+update-initramfs -u -k all
 
 # change timezone
 rm -f /etc/localtime
