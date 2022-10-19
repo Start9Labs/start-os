@@ -88,8 +88,6 @@ fn display_update_result(status: UpdateResult, _: &ArgMatches) {
     }
 }
 
-const HEADER_KEY: &str = "x-eos-hash";
-
 #[instrument(skip(ctx))]
 async fn maybe_do_update(
     ctx: RpcContext,
@@ -230,7 +228,7 @@ async fn do_update(
     new_fs: TmpMountGuard,
     new_block_dev: TmpMountGuard,
 ) -> Result<(), Error> {
-    let mut rsync = Rsync::new(new_fs.as_ref().join(""), "/gboverlay/unselected")?;
+    let mut rsync = Rsync::new(new_fs.as_ref().join(""), "/media/embassy/next", true)?;
     while let Some(progress) = rsync.progress.next().await {
         crate::db::DatabaseModel::new()
             .server_info()
@@ -274,39 +272,39 @@ impl std::fmt::Display for EosUrl {
 }
 
 async fn copy_machine_id() -> Result<(), Error> {
-    tokio::fs::copy("/etc/machine-id", "/gboverlay/unselected/etc/machine-id").await?;
+    tokio::fs::copy("/etc/machine-id", "/media/embassy/next/etc/machine-id").await?;
     Ok(())
 }
 
 async fn copy_ssh_host_keys() -> Result<(), Error> {
     tokio::fs::copy(
         "/etc/ssh/ssh_host_rsa_key",
-        "/gboverlay/unselected/etc/ssh/ssh_host_rsa_key",
+        "/media/embassy/next/etc/ssh/ssh_host_rsa_key",
     )
     .await?;
     tokio::fs::copy(
         "/etc/ssh/ssh_host_rsa_key.pub",
-        "/gboverlay/unselected/etc/ssh/ssh_host_rsa_key.pub",
+        "/media/embassy/next/etc/ssh/ssh_host_rsa_key.pub",
     )
     .await?;
     tokio::fs::copy(
         "/etc/ssh/ssh_host_ecdsa_key",
-        "/gboverlay/unselected/etc/ssh/ssh_host_ecdsa_key",
+        "/media/embassy/next/etc/ssh/ssh_host_ecdsa_key",
     )
     .await?;
     tokio::fs::copy(
         "/etc/ssh/ssh_host_ecdsa_key.pub",
-        "/gboverlay/unselected/etc/ssh/ssh_host_ecdsa_key.pub",
+        "/media/embassy/next/etc/ssh/ssh_host_ecdsa_key.pub",
     )
     .await?;
     tokio::fs::copy(
         "/etc/ssh/ssh_host_ed25519_key",
-        "/gboverlay/unselected/etc/ssh/ssh_host_ed25519_key",
+        "/media/embassy/next/etc/ssh/ssh_host_ed25519_key",
     )
     .await?;
     tokio::fs::copy(
         "/etc/ssh/ssh_host_ed25519_key.pub",
-        "/gboverlay/unselected/etc/ssh/ssh_host_ed25519_key.pub",
+        "/media/embassy/next/etc/ssh/ssh_host_ed25519_key.pub",
     )
     .await?;
     Ok(())
@@ -314,27 +312,6 @@ async fn copy_ssh_host_keys() -> Result<(), Error> {
 
 #[instrument]
 async fn swap_boot_label() -> Result<(), Error> {
-    let current = tokio::fs::read_to_string("/gboverlay/config/selected").await?;
-    let target = if current == "green" { "blue" } else { "green" };
-    let mut selected = AtomicFile::new("/gboverlay/config/selected", None::<&str>)
-        .await
-        .with_kind(ErrorKind::Filesystem)?;
-    selected.write_all(target.as_bytes()).await?;
-    selected.save().await.with_kind(ErrorKind::Filesystem)?;
-    UPDATED.store(true, Ordering::SeqCst);
+    tokio::fs::write("/media/embassy/config/upgrade", b"").await?;
     Ok(())
-}
-
-/// Captured from doing an fstab with an embassy box and the cat from the /etc/fstab
-#[test]
-fn test_capture() {
-    let output = r#"
-LABEL=blue       /       ext4    discard,errors=remount-ro       0       1
-LABEL=system-boot       /media/boot-rw  vfat    defaults        0       1
-/media/boot-rw  /boot   none    defaults,bind,ro        0       0
-LABEL=EMBASSY   /embassy-os     vfat    defaults        0       1
-# a swapfile is not a swap partition, no line here
-# use dphys-swapfile swap[on|off] for that
-"#;
-    assert_eq!(&PARSE_COLOR.captures(&output).unwrap()[1], "blue");
 }

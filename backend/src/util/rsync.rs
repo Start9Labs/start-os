@@ -15,8 +15,12 @@ pub struct Rsync {
     pub progress: WatchStream<f64>,
 }
 impl Rsync {
-    pub fn new(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<Self, Error> {
-        let mut command = Command::new("rsync")
+    pub fn new(src: impl AsRef<Path>, dst: impl AsRef<Path>, delete: bool) -> Result<Self, Error> {
+        let mut cmd = Command::new("rsync");
+        if delete {
+            cmd.arg("--delete");
+        }
+        let mut command = cmd
             .arg("-a")
             .arg("--no-devices")
             .arg("--info=progress2")

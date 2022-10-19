@@ -61,6 +61,7 @@ local_mount_root()
 	if [ -f /embassyfs/config/upgrade ] && [ -d /embassyfs/next ]; then
 		mv /embassyfs/current /embassyfs/prev
 		mv /embassyfs/next /embassyfs/current
+		rm /embassyfs/config/upgrade
 	fi
 
 	if ! [ -d /embassyfs/next ]; then
