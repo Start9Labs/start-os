@@ -68,6 +68,8 @@ install: all
 	cp backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-cli $(DESTDIR)/usr/bin/
 	cp backend/target/$(ARCH)-unknown-linux-gnu/release/avahi-alias $(DESTDIR)/usr/bin/
 	
+	mkdir -p $(DESTDIR)/usr/lib
+	rm -rf $(DESTDIR)/usr/lib/embassy
 	cp -r build/lib $(DESTDIR)/usr/lib/embassy
 
 	cp ENVIRONMENT.txt $(DESTDIR)/usr/lib/embassy/
