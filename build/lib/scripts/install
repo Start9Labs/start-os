@@ -80,7 +80,6 @@ mkdir /mnt/current/boot
 mount $BOOTPART /mnt/current/boot
 
 unsquashfs -f -d /mnt/current /cdrom/casper/filesystem.squashfs
-touch /mnt/embassyfs
 
 cat > /mnt/config/config.yaml << EOF
 os-partitions:

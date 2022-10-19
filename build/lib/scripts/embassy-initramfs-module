@@ -37,11 +37,6 @@ local_mount_root()
 		mount ${ROOTFLAGS} ${ROOT} ${rootmnt}
 	fi
 
-	if ! [ -f ${rootmnt}/embassyfs ]; then
-		echo 'non embassyfs disk found - mounting normally'
-		return
-	fi
-
 	echo 'mounting embassyfs'
 
 	mkdir /embassyfs
@@ -55,7 +50,7 @@ local_mount_root()
 	if ! [ -d /embassyfs/current ]; then
 		mkdir /embassyfs/current
 		for FILE in $(ls /embassyfs); do
-			if [ "$FILE" != current ] && [ "$FILE" != embassyfs ]; then
+			if [ "$FILE" != current ]; then
 				mv /embassyfs/$FILE /embassyfs/current/
 			fi
 		done

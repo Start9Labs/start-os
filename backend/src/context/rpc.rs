@@ -16,7 +16,6 @@ use rpc_toolkit::Context;
 use serde::Deserialize;
 use sqlx::postgres::PgConnectOptions;
 use sqlx::PgPool;
-use tokio::fs::File;
 use tokio::process::Command;
 use tokio::sync::{broadcast, oneshot, Mutex, RwLock};
 use tracing::instrument;
@@ -36,8 +35,8 @@ use crate::notifications::NotificationManager;
 use crate::setup::password_hash;
 use crate::shutdown::Shutdown;
 use crate::status::{MainStatus, Status};
-use crate::util::io::from_yaml_async_reader;
-use crate::util::{AsyncFileExt, Invoke};
+use crate::util::config::load_config_from_paths;
+use crate::util::Invoke;
 use crate::{Error, ErrorKind, ResultExt};
 
 #[derive(Debug, Default, Deserialize)]
@@ -59,19 +58,20 @@ pub struct RpcContextConfig {
     pub log_server: Option<Url>,
 }
 impl RpcContextConfig {
-    pub async fn load<P: AsRef<Path>>(path: Option<P>) -> Result<Self, Error> {
-        let cfg_path = path
-            .as_ref()
-            .map(|p| p.as_ref())
-            .unwrap_or(Path::new(crate::util::config::CONFIG_PATH));
-        if let Some(f) = File::maybe_open(cfg_path)
-            .await
-            .with_ctx(|_| (crate::ErrorKind::Filesystem, cfg_path.display().to_string()))?
-        {
-            from_yaml_async_reader(f).await
-        } else {
-            Ok(Self::default())
-        }
+    pub async fn load<P: AsRef<Path> + Send + 'static>(path: Option<P>) -> Result<Self, Error> {
+        tokio::task::spawn_blocking(move || {
+            load_config_from_paths(
+                path.as_ref()
+                    .into_iter()
+                    .map(|p| p.as_ref())
+                    .chain(std::iter::once(Path::new(
+                        "/media/embassy/config/config.yaml",
+                    )))
+                    .chain(std::iter::once(Path::new(crate::util::config::CONFIG_PATH))),
+            )
+        })
+        .await
+        .unwrap()
     }
     pub fn datadir(&self) -> &Path {
         self.datadir
@@ -216,7 +216,7 @@ impl RpcSetNginxReceipts {
 pub struct RpcContext(Arc<RpcContextSeed>);
 impl RpcContext {
     #[instrument(skip(cfg_path))]
-    pub async fn init<P: AsRef<Path>>(
+    pub async fn init<P: AsRef<Path> + Send + 'static>(
         cfg_path: Option<P>,
         disk_guid: Arc<String>,
     ) -> Result<Self, Error> {
