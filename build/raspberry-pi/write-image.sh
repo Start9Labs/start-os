@@ -30,6 +30,8 @@ sudo sed -i 's/raspberrypi/embassy/g' /tmp/eos-mnt/etc/hostname
 sudo sed -i 's/raspberrypi/embassy/g' /tmp/eos-mnt/etc/hosts
 sudo cp cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast /tmp/eos-mnt/usr/local/bin
 sudo cp backend/*.service /tmp/eos-mnt/etc/systemd/system/
+sudo mkdir -p /tmp/eos-mnt/etc/embassy
+sudo cp build/raspberry-pi/config.yaml /tmp/eos-mnt/etc/embassy/config.yaml
 
 # Make the .ssh directory for UID 1000 user
 sudo mkdir -p /tmp/eos-mnt/home/$(awk -v val=1000 -F ":" '$3==val{print $1}' /tmp/eos-mnt/etc/passwd)/.ssh

@@ -25,7 +25,7 @@ all: $(EMBASSY_SRC) $(EMBASSY_BINS) system-images/compat/docker-images/aarch64.t
 gzip: embassyos-raspi.tar.gz
 
 embassyos-raspi.tar.gz: embassyos-raspi.img
-	tar --format=posix -cS -f- eos.img | $(GZIP_BIN) > embassyos-raspi.tar.gz
+	tar --format=posix -cS -f- embassyos-raspi.img | $(GZIP_BIN) > embassyos-raspi.tar.gz
 
 clean:
 	rm -f 2022-01-28-raspios-bullseye-arm64-lite.zip

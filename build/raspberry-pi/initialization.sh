@@ -47,7 +47,7 @@ systemctl disable initialization.service
 
 passwd -l start9
 
-touch /embassyfs
+sed -i /tmp/eos-mnt/cmdline.txt -e "s/^/boot=embassy /"
 
 sync
 
