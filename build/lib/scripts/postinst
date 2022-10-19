@@ -12,8 +12,8 @@ ln -s /usr/lib/embassy/scripts/grub-probe-eos /usr/sbin/grub-probe
 ln -sf /usr/lib/embassy/scripts/embassy-initramfs-modules /etc/initramfs-tools/scripts/embassy
 
   # add the overlay to the list of modules
-if ! grep embassy /etc/initramfs-tools/modules > /dev/null; then
-  echo embassy >> /etc/initramfs-tools/modules
+if ! grep overlay /etc/initramfs-tools/modules > /dev/null; then
+  echo overlay >> /etc/initramfs-tools/modules
 fi
 
 update-initramfs -u -k all
