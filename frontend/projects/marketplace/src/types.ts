@@ -36,6 +36,7 @@ export interface MarketplaceManifest<T = unknown> {
   id: string
   title: string
   version: string
+  'git-hash': string
   description: {
     short: string
     long: string
