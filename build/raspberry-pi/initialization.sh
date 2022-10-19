@@ -26,10 +26,10 @@ sed -i "s/http:/https:/g" /etc/apt/sources.list /etc/apt/sources.list.d/*.list
 . /usr/lib/embassy/scripts/add-apt-sources
 
 apt-get update
-apt-get install -y $(cat /usr/lib/embassy/dependencies)
+apt-get upgrade -y
+apt-get install -y $(cat /usr/lib/embassy/depends)
 apt-get remove --purge -y $(cat /usr/lib/embassy/conflicts)
 apt-get autoremove -y
-apt-get upgrade -y
 
 systemctl stop tor
 
@@ -45,9 +45,14 @@ sed -i 's/rootwait quiet.*/rootwait cgroup_enable=cpuset cgroup_memory=1 cgroup_
 systemctl disable nc-broadcast.service
 systemctl disable initialization.service
 
-passwd -l start9
+update-initramfs -c -k "$(uname -r)"
 
-sed -i /tmp/eos-mnt/cmdline.txt -e "s/^/boot=embassy /"
+sed -i /boot/config.txt -e "/initramfs.*/d" 
+echo initramfs "initrd.img-$(uname -r)" >> /boot/config.txt
+
+sed -i /boot/cmdline.txt -e "s/^/boot=embassy /"
+
+passwd -l start9
 
 sync
 

@@ -8,7 +8,7 @@ COMPAT_SRC := $(shell find system-images/compat/ -not -path 'system-images/compa
 UTILS_SRC := $(shell find system-images/utils/ -not -name *.tar)
 BINFMT_SRC := $(shell find system-images/binfmt/ -not -name *.tar)
 BACKEND_SRC := $(shell find backend/src) $(shell find backend/migrations) $(shell find patch-db/*/src) backend/Cargo.toml backend/Cargo.lock
-FRONTEND_SHARED_SRC := $(shell find frontend/projects/shared) $(shell find frontend/assets) $(shell ls -p frontend/ | grep -v / | sed 's/^/frontend\//g') frontend/node_modules frontend/config.json patch-db/client/dist frontend/patchdb-ui-seed.json
+FRONTEND_SHARED_SRC := $(shell find frontend/projects/shared) $(shell ls -p frontend/ | grep -v / | sed 's/^/frontend\//g') frontend/node_modules frontend/config.json patch-db/client/dist frontend/patchdb-ui-seed.json
 FRONTEND_UI_SRC := $(shell find frontend/projects/ui)
 FRONTEND_SETUP_WIZARD_SRC := $(shell find frontend/projects/setup-wizard)
 FRONTEND_DIAGNOSTIC_UI_SRC := $(shell find frontend/projects/diagnostic-ui)
@@ -77,8 +77,8 @@ install: all
 
 	mkdir -p $(DESTDIR)/usr/lib/embassy/system-images
 	cp system-images/compat/docker-images/aarch64.tar $(DESTDIR)/usr/lib/embassy/system-images/compat.tar
-	cp system-images/utils/docker-images/$(shell uname -m).tar $(DESTDIR)/usr/lib/embassy/system-images/utils.tar
-	cp system-images/binfmt/docker-images/$(shell uname -m).tar $(DESTDIR)/usr/lib/embassy/system-images/binfmt.tar
+	cp system-images/utils/docker-images/$(ARCH).tar $(DESTDIR)/usr/lib/embassy/system-images/utils.tar
+	cp system-images/binfmt/docker-images/$(ARCH).tar $(DESTDIR)/usr/lib/embassy/system-images/binfmt.tar
 
 	mkdir -p $(DESTDIR)/var/www/html
 	cp -r frontend/dist/diagnostic-ui $(DESTDIR)/var/www/html/diagnostic

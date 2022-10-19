@@ -2,12 +2,14 @@
 set -e
 
 SYSTEMCTL=systemctl
-if [ -n "DPKG_MAINTSCRIPT_PACKAGE" ]; then
+if [ -n "$DPKG_MAINTSCRIPT_PACKAGE" ]; then
 	  SYSTEMCTL=deb-systemd-helper
 fi
 
-mv /usr/sbin/grub-probe /usr/sbin/grub-probe-default
-ln -s /usr/lib/embassy/scripts/grub-probe-eos /usr/sbin/grub-probe
+if [ -f /usr/sbin/grub-probe ]; then
+  mv /usr/sbin/grub-probe /usr/sbin/grub-probe-default
+  ln -s /usr/lib/embassy/scripts/grub-probe-eos /usr/sbin/grub-probe
+fi
 
 cp /usr/lib/embassy/scripts/embassy-initramfs-module /etc/initramfs-tools/scripts/embassy
 
@@ -64,7 +66,7 @@ sed -i '/\(^\|#\)Compress=/c\Compress=yes' /etc/systemd/journald.conf
 sed -i '/\(^\|#\)SystemMaxUse=/c\SystemMaxUse=1G' /etc/systemd/journald.conf
 sed -i '/\(^\|#\)ForwardToSyslog=/c\ForwardToSyslog=no' /etc/systemd/journald.conf
 mkdir -p /etc/docker
-ln -s /usr/lib/embassy/docker-engine.slice /etc/systemd/system/docker-engine.slice
+ln -sf /usr/lib/embassy/docker-engine.slice /etc/systemd/system/docker-engine.slice
 echo '{ "cgroup-parent": "docker-engine.slice" }' > /etc/docker/daemon.json
 mkdir -p /etc/nginx/ssl
 
@@ -85,7 +87,7 @@ rm -rf /var/lib/tor/*
 
 echo "fs.inotify.max_user_watches=1048576" > /etc/sysctl.d/97-embassy.conf
 
-rm /etc/motd
-ln -s /usr/lib/embassy/motd /etc/update-motd.d/00-embassy
+rm -f /etc/motd
+ln -sf /usr/lib/embassy/motd /etc/update-motd.d/00-embassy
 chmod -x /etc/update-motd.d/*
 chmod +x /etc/update-motd.d/00-embassy

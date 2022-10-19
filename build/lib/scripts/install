@@ -66,10 +66,10 @@ BOOTPART=`partition_for $OSDISK 1`
 ROOTPART=`partition_for $OSDISK 2`
 
 mkfs.vfat $BOOTPART
-fatlabel $BOOTPART BOOT
+fatlabel $BOOTPART boot
 
 mkfs.ext4 $ROOTPART
-e2label $ROOTPART embassyos
+e2label $ROOTPART rootfs
 
 mount $ROOTPART /mnt
 mkdir /mnt/config
