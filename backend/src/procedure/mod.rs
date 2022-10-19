@@ -54,6 +54,7 @@ impl PackageProcedure {
                 action.validate(eos_version, volumes, image_ids, expected_io)
             }
             PackageProcedure::DockerInject(injectable) => {
+                // BLUJ TODO Work with injectable
                 let container = match container {
                     None => bail!("For the docker injectable procedure, a container must be exist on the config"),
                     Some(container) => container,
@@ -61,7 +62,7 @@ impl PackageProcedure {
                 let docker_procedure: DockerProcedure = (container, injectable).into();
                 docker_procedure.validate(eos_version, volumes, image_ids, expected_io)
             }
-
+            // BLUJ TODO Work with injectable Script!
             #[cfg(feature = "js_engine")]
             PackageProcedure::Script(action) => action.validate(volumes),
         }

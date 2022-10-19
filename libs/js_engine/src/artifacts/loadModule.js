@@ -42,6 +42,8 @@ const readFile = (
 const runCommand = (
   { command = requireParam("command"), args = requireParam("args"), timeoutMillis = 30000 } = requireParam("options"),
 ) => Deno.core.opAsync("run_command", command, args, timeoutMillis);
+const sleep = (timeMs = requireParam("timeMs"),
+) => Deno.core.opAsync("sleep", timeMs);
 
 const rename = (
   {
@@ -129,6 +131,7 @@ const effects = {
   metadata,
   rename,
   runCommand,
+  sleep
 };
 
 const runFunction = jsonPointerValue(mainModule, currentFunction);

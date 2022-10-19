@@ -24,7 +24,7 @@ use tokio::{
 };
 use tracing::instrument;
 
-use super::ProcedureName;
+use super::{js_scripts::JsProcedure, ProcedureName};
 use crate::context::RpcContext;
 use crate::id::{Id, ImageId};
 use crate::s9pk::manifest::{PackageId, SYSTEM_PACKAGE_ID};
@@ -99,6 +99,21 @@ impl From<(&DockerContainer, &DockerInject)> for DockerProcedure {
             mounts: container.mounts.clone(),
             io_format: injectable.io_format,
             sigterm_timeout: injectable.sigterm_timeout,
+            shm_size_mb: container.shm_size_mb,
+        }
+    }
+}
+
+impl From<(&DockerContainer, &JsProcedure)> for DockerProcedure {
+    fn from((container, injectable): (&DockerContainer, &JsProcedure)) -> Self {
+        DockerProcedure {
+            image: container.image.clone(),
+            system: false,
+            entrypoint: "sleep".to_string(),
+            args: Vec::new(),
+            mounts: container.mounts.clone(),
+            io_format: None,
+            sigterm_timeout: None,
             shm_size_mb: container.shm_size_mb,
         }
     }
@@ -926,7 +941,7 @@ impl LongRunning {
                     };
                     let next = match serde_json::from_str(&next) {
                         Ok(a) => a,
-                        Err(e) => {
+                        Err(_e) => {
                             tracing::trace!("Could not decode output from long running binary");
                             continue;
                         }

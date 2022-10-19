@@ -28,6 +28,8 @@ use crate::net::interface::InterfaceId;
 use crate::net::GeneratedCertificateMountPoint;
 use crate::notifications::NotificationLevel;
 use crate::procedure::docker::{DockerProcedure, LongRunning};
+#[cfg(feature = "js_engine")]
+use crate::procedure::js_scripts::JsProcedure;
 use crate::procedure::{NoOutput, PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::status::MainStatus;
@@ -195,14 +197,22 @@ async fn run_main(
     persistant.wait_for_persistant().await;
     let is_injectable_main = check_is_injectable_main(state);
     let mut runtime = match injectable_main(state) {
-        Some((_, injectable)) => {
+        InjectableMain::None => {
+            tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await })
+        }
+        InjectableMain::DockerInject((_, injectable)) => {
             let persistant = persistant.clone();
             let injectable = injectable.clone();
             tokio::spawn(async move {
                 start_up_inject_image(persistant, injectable, generated_certificate).await
             })
         }
-        None => tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await }),
+        #[cfg(feature = "js_engine")]
+        InjectableMain::Script((_, injectable)) => {
+            let persistant = persistant.clone();
+            let injectable = injectable.clone();
+            tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await })
+        }
     };
     let ip = match is_injectable_main {
         false => Some(match get_running_ip(state, &mut runtime).await {
@@ -604,7 +614,7 @@ impl CommandInserter {
     }
 
     pub async fn term_all(&self) {
-        for i in 0..*self.command_counter.blocking_lock() {
+        for i in 0..*self.command_counter.lock().await {
             self.term(RpcId::UInt(i)).await;
         }
     }
@@ -676,15 +686,51 @@ impl PersistantContainer {
 
     fn exec_command(&self) -> ExecCommand {
         let cloned = self.command_inserter.clone();
+
+        /// A handle that on drop will clean all the ids that are inserter in the fn.
+        struct Cleaner {
+            command_inserter: Arc<Mutex<Option<CommandInserter>>>,
+            ids: ::std::collections::BTreeSet<RpcId>,
+        }
+        impl Drop for Cleaner {
+            fn drop(&mut self) {
+                let command_inserter = self.command_inserter.clone();
+                let ids = ::std::mem::take(&mut self.ids);
+                tracing::error!("BLUJ SHould be cleaning up!");
+                tokio::spawn(async move {
+                    let command_inserter_lock = command_inserter.lock().await;
+                    let command_inserter = match &*command_inserter_lock {
+                        Some(a) => a,
+                        None => {
+                            return;
+                        }
+                    };
+                    for id in ids {
+                        tracing::error!("BLUJ SHould be term up! {id:?}");
+                        command_inserter.term(id).await;
+                    }
+                });
+            }
+        }
+        let cleaner = Arc::new(Mutex::new(Cleaner {
+            command_inserter: cloned.clone(),
+            ids: Default::default(),
+        }));
         Arc::new(move |command, args, sender, timeout| {
             let cloned = cloned.clone();
+            let cleaner = cleaner.clone();
             Box::pin(async move {
                 let lock = cloned.lock().await;
+                let mut cleaner = cleaner.lock().await;
                 match &*lock {
                     Some(command_inserter) => {
-                        command_inserter
-                            .exec_command(command, args, sender, timeout)
-                            .await;
+                        if let Some(id) = command_inserter
+                            .exec_command(command.clone(), args.clone(), sender, timeout)
+                            .await
+                        {
+                            tracing::error!("BLUJ Clean should clean {id:?} {command} {args:?}");
+                            cleaner.ids.insert(id);
+                        }
                     }
                     None => {
                         return Err("Couldn't get a command inserter in current service".to_string())
@@ -793,7 +839,8 @@ async fn persistant_container(
 ) {
     let main_docker_procedure_for_long = injectable_main(&thread_shared);
     match main_docker_procedure_for_long {
-        Some(set) => loop {
+        InjectableMain::None => futures::future::pending().await,
+        InjectableMain::DockerInject(set) => loop {
             let main: DockerProcedure = set.into();
             if container.should_stop_running.load(Ordering::SeqCst) {
                 return;
@@ -807,22 +854,46 @@ async fn persistant_container(
                 }
             }
         },
-        None => futures::future::pending().await,
+        #[cfg(feature = "js_engine")]
+        InjectableMain::Script(set) => loop {
+            let main: DockerProcedure = set.into();
+            if container.should_stop_running.load(Ordering::SeqCst) {
+                return;
+            }
+            container.start_wait().await;
+            match run_persistant_container(&thread_shared, container.clone(), main).await {
+                Ok(_) => (),
+                Err(e) => {
+                    tracing::error!("failed to start persistant container: {}", e);
+                    tracing::debug!("{:?}", e);
+                }
+            }
+        },
     }
 }
 
-fn injectable_main<'a>(
-    thread_shared: &'a Arc<ManagerSharedState>,
-) -> Option<(&DockerContainer, &DockerInject)> {
+enum InjectableMain<'a> {
+    None,
+    DockerInject((&'a DockerContainer, &'a DockerInject)),
+    #[cfg(feature = "js_engine")]
+    Script((&'a DockerContainer, &'a JsProcedure)),
+}
+
+fn injectable_main<'a>(thread_shared: &'a Arc<ManagerSharedState>) -> InjectableMain {
     match (
         &thread_shared.manifest.main,
         &thread_shared.manifest.container,
     ) {
-        (PackageProcedure::DockerInject(inject), Some(container)) => Some((container, inject)),
-        _ => None,
+        (PackageProcedure::DockerInject(inject), Some(container)) => {
+            InjectableMain::DockerInject((container, inject))
+        }
+        #[cfg(feature = "js_engine")]
+        (PackageProcedure::Script(inject), Some(container)) => {
+            InjectableMain::Script((container, inject))
+        }
+        _ => InjectableMain::None,
     }
 }
-// TODO BLUJ Fix this to allow scripts
 fn check_is_injectable_main(thread_shared: &ManagerSharedState) -> bool {
     match &thread_shared.manifest.main {
         PackageProcedure::Docker(_a) => false,

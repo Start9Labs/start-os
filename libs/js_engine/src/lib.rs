@@ -281,6 +281,7 @@ impl JsExecutionEnvironment {
             fns::set_value::decl(),
             fns::is_sandboxed::decl(),
             fns::run_command::decl(),
+            fns::sleep::decl(),
         ]
     }
 
@@ -355,12 +356,12 @@ impl JsExecutionEnvironment {
 
 /// Note: Make sure that we have the assumption that all these methods are callable at any time, and all call restrictions should be in rust
 mod fns {
-    use std::cell::RefCell;
     use std::collections::BTreeMap;
     use std::convert::TryFrom;
     use std::os::unix::fs::MetadataExt;
     use std::path::{Path, PathBuf};
     use std::rc::Rc;
+    use std::{cell::RefCell, time::Duration};
 
     use deno_core::anyhow::{anyhow, bail};
     use deno_core::error::AnyError;
@@ -393,10 +394,13 @@ mod fns {
         url: url::Url,
         options: Option<FetchOptions>,
     ) -> Result<FetchResponse, AnyError> {
-        let state = state.borrow();
-        let ctx: &JsContext = state.borrow();
+        let sandboxed = {
+            let state = state.borrow();
+            let ctx: &JsContext = state.borrow();
+            ctx.sandboxed
+        };
 
-        if ctx.sandboxed {
+        if sandboxed {
             bail!("Will not run fetch in sandboxed mode");
         }
 
@@ -439,7 +443,7 @@ mod fns {
             body: response.text().await.ok(),
         };
 
-        return Ok(fetch_response);
+        Ok(fetch_response)
     }
 
     #[op]
@@ -448,12 +452,13 @@ mod fns {
         volume_id: VolumeId,
         path_in: PathBuf,
     ) -> Result<String, AnyError> {
-        let state = state.borrow();
-        let ctx: &JsContext = state.borrow();
-        let volume_path = ctx
-            .volumes
-            .path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id)
-            .ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?;
+        let volume_path = {
+            let state = state.borrow();
+            let ctx: &JsContext = state.borrow();
+            ctx.volumes
+                .path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id)
+                .ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?
+        };
         //get_path_for in volume.rs
         let new_file = volume_path.join(path_in);
         if !is_subset(&volume_path, &new_file).await? {
@@ -472,12 +477,13 @@ mod fns {
         volume_id: VolumeId,
         path_in: PathBuf,
     ) -> Result<MetadataJs, AnyError> {
-        let state = state.borrow();
-        let ctx: &JsContext = state.borrow();
-        let volume_path = ctx
-            .volumes
-            .path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id)
-            .ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?;
+        let volume_path = {
+            let state = state.borrow();
+            let ctx: &JsContext = state.borrow();
+            ctx.volumes
+                .path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id)
+                .ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?
+        };
         //get_path_for in volume.rs
         let new_file = volume_path.join(path_in);
         if !is_subset(&volume_path, &new_file).await? {
@@ -524,13 +530,17 @@ mod fns {
         path_in: PathBuf,
         write: String,
     ) -> Result<(), AnyError> {
-        let state = state.borrow();
-        let ctx: &JsContext = state.borrow();
-        let volume_path = ctx
-            .volumes
-            .path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id)
-            .ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?;
-        if ctx.volumes.readonly(&volume_id) {
+        tracing::error!("BLUJ2 write_file");
+        let (volumes, volume_path) = {
+            let state = state.borrow();
+            let ctx: &JsContext = state.borrow();
+            let volume_path = ctx
+                .volumes
+                .path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id)
+                .ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?;
+            (ctx.volumes.clone(), volume_path)
+        };
+        if volumes.readonly(&volume_id) {
             bail!("Volume {} is readonly", volume_id);
         }
 
@@ -573,17 +583,20 @@ mod fns {
         dst_volume: VolumeId,
         dst_path: PathBuf,
     ) -> Result<(), AnyError> {
-        let state = state.borrow();
-        let ctx: &JsContext = state.borrow();
-        let volume_path = ctx
-            .volumes
-            .path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &src_volume)
-            .ok_or_else(|| anyhow!("There is no {} in volumes", src_volume))?;
-        let volume_path_out = ctx
-            .volumes
-            .path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &dst_volume)
-            .ok_or_else(|| anyhow!("There is no {} in volumes", dst_volume))?;
-        if ctx.volumes.readonly(&dst_volume) {
+        let (volumes, volume_path, volume_path_out) = {
+            let state = state.borrow();
+            let ctx: &JsContext = state.borrow();
+            let volume_path = ctx
+                .volumes
+                .path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &src_volume)
+                .ok_or_else(|| anyhow!("There is no {} in volumes", src_volume))?;
+            let volume_path_out = ctx
+                .volumes
+                .path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &dst_volume)
+                .ok_or_else(|| anyhow!("There is no {} in volumes", dst_volume))?;
+            (ctx.volumes.clone(), volume_path, volume_path_out)
+        };
+        if volumes.readonly(&dst_volume) {
             bail!("Volume {} is readonly", dst_volume);
         }
 
@@ -621,13 +634,17 @@ mod fns {
         volume_id: VolumeId,
         path_in: PathBuf,
     ) -> Result<(), AnyError> {
-        let state = state.borrow();
-        let ctx: &JsContext = state.borrow();
-        let volume_path = ctx
-            .volumes
-            .path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id)
-            .ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?;
-        if ctx.volumes.readonly(&volume_id) {
+        tracing::error!("BLUJ2 remove_file");
+        let (volumes, volume_path) = {
+            let state = state.borrow();
+            let ctx: &JsContext = state.borrow();
+            let volume_path = ctx
+                .volumes
+                .path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id)
+                .ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?;
+            (ctx.volumes.clone(), volume_path)
+        };
+        if volumes.readonly(&volume_id) {
             bail!("Volume {} is readonly", volume_id);
         }
         let new_file = volume_path.join(path_in);
@@ -648,13 +665,17 @@ mod fns {
         volume_id: VolumeId,
         path_in: PathBuf,
     ) -> Result<(), AnyError> {
-        let state = state.borrow();
-        let ctx: &JsContext = state.borrow();
-        let volume_path = ctx
-            .volumes
-            .path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id)
-            .ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?;
-        if ctx.volumes.readonly(&volume_id) {
+        tracing::error!("BLUJ2 remove_dir");
+        let (volumes, volume_path) = {
+            let state = state.borrow();
+            let ctx: &JsContext = state.borrow();
+            let volume_path = ctx
+                .volumes
+                .path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id)
+                .ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?;
+            (ctx.volumes.clone(), volume_path)
+        };
+        if volumes.readonly(&volume_id) {
             bail!("Volume {} is readonly", volume_id);
         }
         let new_file = volume_path.join(path_in);
@@ -675,13 +696,17 @@ mod fns {
         volume_id: VolumeId,
         path_in: PathBuf,
     ) -> Result<(), AnyError> {
-        let state = state.borrow();
-        let ctx: &JsContext = state.borrow();
-        let volume_path = ctx
-            .volumes
-            .path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id)
-            .ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?;
-        if ctx.volumes.readonly(&volume_id) {
+        tracing::error!("BLUJ2 create_dir");
+        let (volumes, volume_path) = {
+            let state = state.borrow();
+            let ctx: &JsContext = state.borrow();
+            let volume_path = ctx
+                .volumes
+                .path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id)
+                .ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?;
+            (ctx.volumes.clone(), volume_path)
+        };
+        if volumes.readonly(&volume_id) {
             bail!("Volume {} is readonly", volume_id);
         }
         let new_file = volume_path.join(path_in);
@@ -730,6 +755,7 @@ mod fns {
     }
     #[op]
     fn log_error(state: &mut OpState, input: String) -> Result<(), AnyError> {
+        tracing::error!("BLUJ2 log_error");
         let ctx = state.borrow::<JsContext>();
         tracing::error!(
             package_id = tracing::field::display(&ctx.package_id),
@@ -792,11 +818,15 @@ mod fns {
         timeout: Option<u64>,
     ) -> Result<Result<String, (i32, String)>, AnyError> {
         use embassy_container_init::Output;
-        let state = state.borrow();
-        let ctx = state.borrow::<JsContext>();
+        tracing::error!("BLUJ2 Run Command");
+        let command_inserter = {
+            let state = state.borrow();
+            let ctx = state.borrow::<JsContext>();
+            ctx.command_inserter.clone()
+        };
 
         let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel::<Output>();
-        if let Err(err) = (ctx.command_inserter)(
+        if let Err(err) = command_inserter(
             command,
             args.into_iter().collect(),
             sender,
@@ -830,6 +860,12 @@ mod fns {
         }
 
         Ok(Ok(answer))
+    }
+    #[op]
+    async fn sleep(time_ms: u64) -> Result<(), AnyError> {
+        tokio::time::sleep(Duration::from_millis(time_ms)).await;
+
+        Ok(())
     }
 
     /// We need to make sure that during the file accessing, we don't reach beyond our scope of control
