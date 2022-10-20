@@ -16,13 +16,13 @@ use rpc_toolkit::Context;
 use serde::Deserialize;
 use sqlx::postgres::PgConnectOptions;
 use sqlx::PgPool;
-use tokio::fs::File;
 use tokio::process::Command;
 use tokio::sync::{broadcast, oneshot, Mutex, RwLock};
 use tracing::instrument;
 
 use crate::core::rpc_continuations::{RequestGuid, RestHandler, RpcContinuation};
 use crate::db::model::{Database, InstalledPackageDataEntry, PackageDataEntry};
+use crate::disk::OsPartitionInfo;
 use crate::hostname::HostNameReceipt;
 use crate::init::{init_postgres, pgloader};
 use crate::install::cleanup::{cleanup_failed, uninstall, CleanupFailedReceipts};
@@ -35,13 +35,16 @@ use crate::notifications::NotificationManager;
 use crate::setup::password_hash;
 use crate::shutdown::Shutdown;
 use crate::status::{MainStatus, Status};
-use crate::util::io::from_yaml_async_reader;
-use crate::util::{AsyncFileExt, Invoke};
+use crate::util::config::load_config_from_paths;
+use crate::util::Invoke;
 use crate::{Error, ErrorKind, ResultExt};
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct RpcContextConfig {
+    pub wifi_interface: Option<String>,
+    pub ethernet_interface: String,
+    pub os_partitions: OsPartitionInfo,
     pub migration_batch_rows: Option<usize>,
     pub migration_prefetch_rows: Option<usize>,
     pub bind_rpc: Option<SocketAddr>,
@@ -55,19 +58,20 @@ pub struct RpcContextConfig {
     pub log_server: Option<Url>,
 }
 impl RpcContextConfig {
-    pub async fn load<P: AsRef<Path>>(path: Option<P>) -> Result<Self, Error> {
-        let cfg_path = path
-            .as_ref()
-            .map(|p| p.as_ref())
-            .unwrap_or(Path::new(crate::util::config::CONFIG_PATH));
-        if let Some(f) = File::maybe_open(cfg_path)
-            .await
-            .with_ctx(|_| (crate::ErrorKind::Filesystem, cfg_path.display().to_string()))?
-        {
-            from_yaml_async_reader(f).await
-        } else {
-            Ok(Self::default())
-        }
+    pub async fn load<P: AsRef<Path> + Send + 'static>(path: Option<P>) -> Result<Self, Error> {
+        tokio::task::spawn_blocking(move || {
+            load_config_from_paths(
+                path.as_ref()
+                    .into_iter()
+                    .map(|p| p.as_ref())
+                    .chain(std::iter::once(Path::new(
+                        "/media/embassy/config/config.yaml",
+                    )))
+                    .chain(std::iter::once(Path::new(crate::util::config::CONFIG_PATH))),
+            )
+        })
+        .await
+        .unwrap()
     }
     pub fn datadir(&self) -> &Path {
         self.datadir
@@ -116,6 +120,9 @@ impl RpcContextConfig {
 
 pub struct RpcContextSeed {
     is_closed: AtomicBool,
+    pub os_partitions: OsPartitionInfo,
+    pub wifi_interface: Option<String>,
+    pub ethernet_interface: String,
     pub bind_rpc: SocketAddr,
     pub bind_ws: SocketAddr,
     pub bind_static: SocketAddr,
@@ -134,7 +141,7 @@ pub struct RpcContextSeed {
     pub notification_manager: NotificationManager,
     pub open_authed_websockets: Mutex<BTreeMap<HashSessionToken, Vec<oneshot::Sender<()>>>>,
     pub rpc_stream_continuations: Mutex<BTreeMap<RequestGuid, RpcContinuation>>,
-    pub wifi_manager: Arc<RwLock<WpaCli>>,
+    pub wifi_manager: Option<Arc<RwLock<WpaCli>>>,
 }
 
 pub struct RpcCleanReceipts {
@@ -209,7 +216,7 @@ impl RpcSetNginxReceipts {
 pub struct RpcContext(Arc<RpcContextSeed>);
 impl RpcContext {
     #[instrument(skip(cfg_path))]
-    pub async fn init<P: AsRef<Path>>(
+    pub async fn init<P: AsRef<Path> + Send + 'static>(
         cfg_path: Option<P>,
         disk_guid: Arc<String>,
     ) -> Result<Self, Error> {
@@ -248,10 +255,13 @@ impl RpcContext {
         tracing::info!("Initialized Notification Manager");
         let seed = Arc::new(RpcContextSeed {
             is_closed: AtomicBool::new(false),
+            datadir: base.datadir().to_path_buf(),
+            os_partitions: base.os_partitions,
+            wifi_interface: base.wifi_interface.clone(),
+            ethernet_interface: base.ethernet_interface,
             bind_rpc: base.bind_rpc.unwrap_or(([127, 0, 0, 1], 5959).into()),
             bind_ws: base.bind_ws.unwrap_or(([127, 0, 0, 1], 5960).into()),
             bind_static: base.bind_static.unwrap_or(([127, 0, 0, 1], 5961).into()),
-            datadir: base.datadir().to_path_buf(),
             disk_guid,
             db,
             secret_store,
@@ -266,7 +276,9 @@ impl RpcContext {
             notification_manager,
             open_authed_websockets: Mutex::new(BTreeMap::new()),
             rpc_stream_continuations: Mutex::new(BTreeMap::new()),
-            wifi_manager: Arc::new(RwLock::new(WpaCli::init("wlan0".to_string()))),
+            wifi_manager: base
+                .wifi_interface
+                .map(|i| Arc::new(RwLock::new(WpaCli::init(i)))),
         });
 
         let res = Self(seed);

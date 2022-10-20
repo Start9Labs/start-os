@@ -11,7 +11,7 @@ use super::util::unmount;
 use crate::util::Invoke;
 use crate::Error;
 
-pub const TMP_MOUNTPOINT: &'static str = "/media/embassy-os/tmp";
+pub const TMP_MOUNTPOINT: &'static str = "/media/embassy/tmp";
 
 #[async_trait::async_trait]
 pub trait GenericMountGuard: AsRef<Path> + std::fmt::Debug + Send + Sync + 'static {

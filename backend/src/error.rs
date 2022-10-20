@@ -70,7 +70,7 @@ pub enum ErrorKind {
     TLSInit = 61,
     HttpRange = 62,
     ContentLength = 63,
-    BytesError = 64
+    BytesError = 64,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -139,7 +139,7 @@ impl ErrorKind {
             TLSInit => "TLS Backend Initialize Error",
             HttpRange => "No Support for Web Server HTTP Ranges",
             ContentLength => "Request has no content length header",
-            BytesError => "Could not get the bytes for this request"
+            BytesError => "Could not get the bytes for this request",
         }
     }
 }
@@ -244,8 +244,6 @@ impl From<openssl::error::ErrorStack> for Error {
     fn from(e: openssl::error::ErrorStack) -> Self {
         Error::new(eyre!("OpenSSL ERROR:\n{}", e), ErrorKind::OpenSsl)
     }
-
-
 }
 impl From<Error> for RpcError {
     fn from(e: Error) -> Self {

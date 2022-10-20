@@ -3,6 +3,10 @@
 set -e
 shopt -s expand_aliases
 
+if [ -z "$ARCH" ]; then
+	ARCH=$(uname -m)
+fi
+
 if [ "$0" != "./build-prod.sh" ]; then
 	>&2 echo "Must be run from backend directory"
 	exit 1
