@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -27,8 +27,11 @@ fn status_fn(_: i32) -> StatusCode {
 }
 
 #[instrument]
-async fn setup_or_init(cfg_path: Option<&str>) -> Result<(), Error> {
-    if tokio::fs::metadata("/embassy-os/disk.guid").await.is_err() {
+async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
+    if tokio::fs::metadata("/media/embassy/config/disk.guid")
+        .await
+        .is_err()
+    {
         #[cfg(feature = "avahi")]
         let _mdns = MdnsController::init();
         tokio::fs::write(
@@ -68,7 +71,7 @@ async fn setup_or_init(cfg_path: Option<&str>) -> Result<(), Error> {
         .with_kind(embassy::ErrorKind::Network)?;
     } else {
         let cfg = RpcContextConfig::load(cfg_path).await?;
-        let guid_string = tokio::fs::read_to_string("/embassy-os/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
+        let guid_string = tokio::fs::read_to_string("/media/embassy/config/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
             .await?;
         let guid = guid_string.trim();
         let requires_reboot = embassy::disk::main::import(
@@ -119,7 +122,7 @@ async fn run_script_if_exists<P: AsRef<Path>>(path: P) {
 }
 
 #[instrument]
-async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
+async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error> {
     if tokio::fs::metadata(STANDBY_MODE_PATH).await.is_ok() {
         tokio::fs::remove_file(STANDBY_MODE_PATH).await?;
         Command::new("sync").invoke(ErrorKind::Filesystem).await?;
@@ -129,10 +132,10 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
 
     embassy::sound::BEP.play().await?;
 
-    run_script_if_exists("/embassy-os/preinit.sh").await;
+    run_script_if_exists("/media/embassy/config/preinit.sh").await;
 
-    let res = if let Err(e) = setup_or_init(cfg_path).await {
-        async {
+    let res = if let Err(e) = setup_or_init(cfg_path.clone()).await {
+        async move {
             tracing::error!("{}", e.source);
             tracing::debug!("{}", e.source);
             embassy::sound::BEETHOVEN.play().await?;
@@ -156,9 +159,12 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
                 .await?;
             let ctx = DiagnosticContext::init(
                 cfg_path,
-                if tokio::fs::metadata("/embassy-os/disk.guid").await.is_ok() {
+                if tokio::fs::metadata("/media/embassy/config/disk.guid")
+                    .await
+                    .is_ok()
+                {
                     Some(Arc::new(
-                        tokio::fs::read_to_string("/embassy-os/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
+                        tokio::fs::read_to_string("/media/embassy/config/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
                             .await?
                             .trim()
                             .to_owned(),
@@ -200,7 +206,7 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
         Ok(None)
     };
 
-    run_script_if_exists("/embassy-os/postinit.sh").await;
+    run_script_if_exists("/media/embassy/config/postinit.sh").await;
 
     res
 }
@@ -217,7 +223,7 @@ fn main() {
 
     EmbassyLogger::init();
 
-    let cfg_path = matches.value_of("config");
+    let cfg_path = matches.value_of("config").map(|p| Path::new(p).to_owned());
     let res = {
         let rt = tokio::runtime::Builder::new_multi_thread()
             .enable_all()

@@ -113,6 +113,7 @@ impl InstallProgress {
 }
 
 #[pin_project::pin_project]
+#[derive(Debug)]
 pub struct InstallProgressTracker<RW> {
     #[pin]
     inner: RW,

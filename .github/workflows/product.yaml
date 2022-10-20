@@ -15,23 +15,23 @@ jobs:
   compat:
     uses: ./.github/workflows/reusable-workflow.yaml
     with:
-      build_command: make system-images/compat/compat.tar
+      build_command: make system-images/compat/docker-images/aarch64.tar
       artifact_name: compat.tar
-      artifact_path: system-images/compat/compat.tar
+      artifact_path: system-images/compat/docker-images/aarch64.tar
 
   utils:
     uses: ./.github/workflows/reusable-workflow.yaml
     with:
-      build_command: make system-images/utils/utils.tar
+      build_command: make system-images/utils/docker-images/aarch64.tar
       artifact_name: utils.tar
-      artifact_path: system-images/utils/utils.tar
+      artifact_path: system-images/utils/docker-images/aarch64.tar
 
   binfmt:
     uses: ./.github/workflows/reusable-workflow.yaml
     with:
-      build_command: make system-images/binfmt/binfmt.tar
+      build_command: make system-images/binfmt/docker-images/aarch64.tar
       artifact_name: binfmt.tar
-      artifact_path: system-images/binfmt/binfmt.tar
+      artifact_path: system-images/binfmt/docker-images/aarch64.tar
 
   nc-broadcast:
     uses: ./.github/workflows/reusable-workflow.yaml
@@ -60,19 +60,19 @@ jobs:
       uses: actions/download-artifact@v3
       with:
         name: compat.tar
-        path: system-images/compat
-    
+        path: system-images/compat/docker-images/
+
     - name: Download utils.tar artifact
       uses: actions/download-artifact@v3
       with:
         name: utils.tar
-        path: system-images/utils
-
+        path: system-images/utils/docker-images/
+    
     - name: Download binfmt.tar artifact
       uses: actions/download-artifact@v3
       with:
         name: binfmt.tar
-        path: system-images/binfmt
+        path: system-images/binfmt/docker-images/
 
     - name: Download nc-broadcast.tar artifact
       uses: actions/download-artifact@v3
@@ -126,12 +126,9 @@ jobs:
         key: cache-raspios
     
     - name: Build image
-      run: "make V=1 NO_KEY=1 eos.img --debug"
-      
-    - name: Compress image
-      run: "make gzip"
+      run: "make V=1 ARCH=aarch64 embassyos-raspi.img --debug"
       
     - uses: actions/upload-artifact@v3
       with:
         name: image
-        path: eos.tar.gz
+        path: embassyos-raspi.img

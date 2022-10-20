@@ -18,6 +18,19 @@ use crate::util::serde::{display_serializable, IoFormat};
 use crate::util::{display_none, Invoke};
 use crate::{Error, ErrorKind};
 
+type WifiManager = Arc<RwLock<WpaCli>>;
+
+pub fn wifi_manager(ctx: &RpcContext) -> Result<&WifiManager, Error> {
+    if let Some(wifi_manager) = ctx.wifi_manager.as_ref() {
+        Ok(wifi_manager)
+    } else {
+        Err(Error::new(
+            color_eyre::eyre::eyre!("No WiFi interface available"),
+            ErrorKind::Wifi,
+        ))
+    }
+}
+
 #[command(subcommands(add, connect, delete, get, country, available))]
 pub async fn wifi() -> Result<(), Error> {
     Ok(())
@@ -42,6 +55,7 @@ pub async fn add(
     #[arg] priority: isize,
     #[arg] connect: bool,
 ) -> Result<(), Error> {
+    let wifi_manager = wifi_manager(&ctx)?;
     if !ssid.is_ascii() {
         return Err(Error::new(
             color_eyre::eyre::eyre!("SSID may not have special characters"),
@@ -56,7 +70,7 @@ pub async fn add(
     }
     async fn add_procedure(
         db: impl DbHandle,
-        wifi_manager: Arc<RwLock<WpaCli>>,
+        wifi_manager: WifiManager,
         ssid: &Ssid,
         password: &Psk,
         priority: isize,
@@ -71,7 +85,7 @@ pub async fn add(
     }
     if let Err(err) = add_procedure(
         &mut ctx.db.handle(),
-        ctx.wifi_manager.clone(),
+        wifi_manager.clone(),
         &Ssid(ssid.clone()),
         &Psk(password.clone()),
         priority,
@@ -91,6 +105,7 @@ pub async fn add(
 #[command(display(display_none))]
 #[instrument(skip(ctx))]
 pub async fn connect(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<(), Error> {
+    let wifi_manager = wifi_manager(&ctx)?;
     if !ssid.is_ascii() {
         return Err(Error::new(
             color_eyre::eyre::eyre!("SSID may not have special characters"),
@@ -99,7 +114,7 @@ pub async fn connect(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<
     }
     async fn connect_procedure(
         mut db: impl DbHandle,
-        wifi_manager: Arc<RwLock<WpaCli>>,
+        wifi_manager: WifiManager,
         ssid: &Ssid,
     ) -> Result<(), Error> {
         let wpa_supplicant = wifi_manager.read().await;
@@ -125,7 +140,7 @@ pub async fn connect(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<
 
     if let Err(err) = connect_procedure(
         &mut ctx.db.handle(),
-        ctx.wifi_manager.clone(),
+        wifi_manager.clone(),
         &Ssid(ssid.clone()),
     )
     .await
@@ -142,20 +157,21 @@ pub async fn connect(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<
 #[command(display(display_none))]
 #[instrument(skip(ctx))]
 pub async fn delete(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<(), Error> {
+    let wifi_manager = wifi_manager(&ctx)?;
     if !ssid.is_ascii() {
         return Err(Error::new(
             color_eyre::eyre::eyre!("SSID may not have special characters"),
             ErrorKind::Wifi,
         ));
     }
-    let wpa_supplicant = ctx.wifi_manager.read().await;
+    let wpa_supplicant = wifi_manager.read().await;
     let current = wpa_supplicant.get_current_network().await?;
     drop(wpa_supplicant);
-    let mut wpa_supplicant = ctx.wifi_manager.write().await;
+    let mut wpa_supplicant = wifi_manager.write().await;
     let ssid = Ssid(ssid);
     let is_current_being_removed = matches!(current, Some(current) if current == ssid);
     let is_current_removed_and_no_hardwire =
-        is_current_being_removed && !interface_connected("eth0").await?;
+        is_current_being_removed && !interface_connected(&ctx.ethernet_interface).await?;
     if is_current_removed_and_no_hardwire {
         return Err(Error::new(color_eyre::eyre::eyre!("Forbidden: Deleting this Network would make your Embassy Unreachable. Either connect to ethernet or connect to a different WiFi network to remedy this."), ErrorKind::Wifi));
     }
@@ -284,12 +300,13 @@ pub async fn get(
     #[arg(long = "format")]
     format: Option<IoFormat>,
 ) -> Result<WiFiInfo, Error> {
-    let wpa_supplicant = ctx.wifi_manager.read().await;
+    let wifi_manager = wifi_manager(&ctx)?;
+    let wpa_supplicant = wifi_manager.read().await;
     let (list_networks, current_res, country_res, ethernet_res, signal_strengths) = tokio::join!(
         wpa_supplicant.list_networks_low(),
         wpa_supplicant.get_current_network(),
         wpa_supplicant.get_country_low(),
-        interface_connected("eth0"), // TODO: pull from config
+        interface_connected(&ctx.ethernet_interface),
         wpa_supplicant.list_wifi_low()
     );
     let signal_strengths = signal_strengths?;
@@ -337,7 +354,8 @@ pub async fn get_available(
     #[arg(long = "format")]
     format: Option<IoFormat>,
 ) -> Result<Vec<WifiListOut>, Error> {
-    let wpa_supplicant = ctx.wifi_manager.read().await;
+    let wifi_manager = wifi_manager(&ctx)?;
+    let wpa_supplicant = wifi_manager.read().await;
     let (wifi_list, network_list) = tokio::join!(
         wpa_supplicant.list_wifi_low(),
         wpa_supplicant.list_networks_low()
@@ -365,13 +383,14 @@ pub async fn set_country(
     #[context] ctx: RpcContext,
     #[arg(parse(country_code_parse))] country: CountryCode,
 ) -> Result<(), Error> {
-    if !interface_connected("eth0").await? {
+    let wifi_manager = wifi_manager(&ctx)?;
+    if !interface_connected(&ctx.ethernet_interface).await? {
         return Err(Error::new(
             color_eyre::eyre::eyre!("Won't change country without hardwire connection"),
             crate::ErrorKind::Wifi,
         ));
     }
-    let mut wpa_supplicant = ctx.wifi_manager.write().await;
+    let mut wpa_supplicant = wifi_manager.write().await;
     wpa_supplicant.set_country_low(country.alpha2()).await?;
     for (network_id, _wifi_info) in wpa_supplicant.list_networks_low().await? {
         wpa_supplicant.remove_network_low(network_id).await?;
@@ -776,6 +795,7 @@ pub fn country_code_parse(code: &str, _matches: &ArgMatches) -> Result<CountryCo
 #[instrument(skip(main_datadir))]
 pub async fn synchronize_wpa_supplicant_conf<P: AsRef<Path>>(
     main_datadir: P,
+    wifi_iface: &str,
     last_country_code: &Option<CountryCode>,
 ) -> Result<(), Error> {
     let persistent = main_datadir.as_ref().join("system-connections");
@@ -797,7 +817,7 @@ pub async fn synchronize_wpa_supplicant_conf<P: AsRef<Path>>(
         .invoke(ErrorKind::Wifi)
         .await?;
     Command::new("ifconfig")
-        .arg("wlan0")
+        .arg(wifi_iface)
         .arg("up")
         .invoke(ErrorKind::Wifi)
         .await?;

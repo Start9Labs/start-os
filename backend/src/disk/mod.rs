@@ -1,6 +1,10 @@
+use std::path::{Path, PathBuf};
+
 use clap::ArgMatches;
 use rpc_toolkit::command;
+use serde::Deserialize;
 
+use crate::context::RpcContext;
 use crate::disk::util::DiskInfo;
 use crate::util::display_none;
 use crate::util::serde::{display_serializable, IoFormat};
@@ -12,7 +16,19 @@ pub mod mount;
 pub mod util;
 
 pub const BOOT_RW_PATH: &str = "/media/boot-rw";
-pub const REPAIR_DISK_PATH: &str = "/embassy-os/repair-disk";
+pub const REPAIR_DISK_PATH: &str = "/media/embassy/config/repair-disk";
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct OsPartitionInfo {
+    pub boot: PathBuf,
+    pub root: PathBuf,
+}
+impl OsPartitionInfo {
+    pub fn contains(&self, logicalname: impl AsRef<Path>) -> bool {
+        &*self.boot == logicalname.as_ref() || &*self.root == logicalname.as_ref()
+    }
+}
 
 #[command(subcommands(list, repair))]
 pub fn disk() -> Result<(), Error> {
@@ -75,11 +91,12 @@ fn display_disk_info(info: Vec<DiskInfo>, matches: &ArgMatches) {
 
 #[command(display(display_disk_info))]
 pub async fn list(
+    #[context] ctx: RpcContext,
     #[allow(unused_variables)]
     #[arg]
     format: Option<IoFormat>,
 ) -> Result<Vec<DiskInfo>, Error> {
-    crate::disk::util::list().await
+    crate::disk::util::list(&ctx.os_partitions).await
 }
 
 #[command(display(display_none))]

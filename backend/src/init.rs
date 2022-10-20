@@ -17,8 +17,8 @@ use crate::util::Invoke;
 use crate::version::VersionT;
 use crate::Error;
 
-pub const SYSTEM_REBUILD_PATH: &str = "/embassy-os/system-rebuild";
-pub const STANDBY_MODE_PATH: &str = "/embassy-os/standby";
+pub const SYSTEM_REBUILD_PATH: &str = "/media/embassy/config/system-rebuild";
+pub const STANDBY_MODE_PATH: &str = "/media/embassy/config/standby";
 
 pub async fn check_time_is_synchronized() -> Result<bool, Error> {
     Ok(String::from_utf8(
@@ -309,7 +309,7 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         tracing::info!("Created Docker Network");
 
         tracing::info!("Loading System Docker Images");
-        crate::install::load_images("/var/lib/embassy/system-images").await?;
+        crate::install::load_images("/usr/lib/embassy/system-images").await?;
         tracing::info!("Loaded System Docker Images");
 
         tracing::info!("Loading Package Docker Images");
@@ -332,12 +332,15 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     crate::ssh::sync_keys_from_db(&secret_store, "/home/start9/.ssh/authorized_keys").await?;
     tracing::info!("Synced SSH Keys");
 
-    crate::net::wifi::synchronize_wpa_supplicant_conf(
-        &cfg.datadir().join("main"),
-        &receipts.last_wifi_region.get(&mut handle).await?,
-    )
-    .await?;
-    tracing::info!("Synchronized wpa_supplicant.conf");
+    if let Some(wifi_interface) = &cfg.wifi_interface {
+        crate::net::wifi::synchronize_wpa_supplicant_conf(
+            &cfg.datadir().join("main"),
+            wifi_interface,
+            &receipts.last_wifi_region.get(&mut handle).await?,
+        )
+        .await?;
+        tracing::info!("Synchronized WiFi");
+    }
     receipts
         .status_info
         .set(

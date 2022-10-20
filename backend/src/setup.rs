@@ -88,8 +88,8 @@ pub fn disk() -> Result<(), Error> {
 }
 
 #[command(rename = "list", rpc_only, metadata(authenticated = false))]
-pub async fn list_disks() -> Result<Vec<DiskInfo>, Error> {
-    crate::disk::list(None).await
+pub async fn list_disks(#[context] ctx: SetupContext) -> Result<Vec<DiskInfo>, Error> {
+    crate::disk::util::list(&ctx.os_partitions).await
 }
 
 #[command(rpc_only)]
@@ -135,7 +135,7 @@ pub async fn attach(
             ErrorKind::DiskManagement,
         ));
     }
-    init(&RpcContextConfig::load(ctx.config_path.as_ref()).await?).await?;
+    init(&RpcContextConfig::load(ctx.config_path.clone()).await?).await?;
     let secrets = ctx.secret_store().await?;
     let db = ctx.db(&secrets).await?;
     let mut secrets_handle = secrets.acquire().await?;
@@ -331,7 +331,7 @@ pub async fn complete(#[context] ctx: SetupContext) -> Result<SetupResult, Error
     si.lan_address()
         .put(&mut db, &hostname.lan_address().parse().unwrap())
         .await?;
-    let mut guid_file = File::create("/embassy-os/disk.guid").await?;
+    let mut guid_file = File::create("/media/embassy/config/disk.guid").await?;
     guid_file.write_all(guid.as_bytes()).await?;
     guid_file.sync_all().await?;
     ctx.shutdown.send(()).expect("failed to shutdown");
@@ -378,7 +378,7 @@ pub async fn execute_inner(
             recovery_password,
         )
         .await?;
-        let db = init(&RpcContextConfig::load(ctx.config_path.as_ref()).await?)
+        let db = init(&RpcContextConfig::load(ctx.config_path.clone()).await?)
             .await?
             .db;
         let hostname = {
@@ -416,7 +416,7 @@ pub async fn execute_inner(
         res
     } else {
         let (tor_addr, root_ca) = fresh_setup(&ctx, &embassy_password).await?;
-        let db = init(&RpcContextConfig::load(ctx.config_path.as_ref()).await?)
+        let db = init(&RpcContextConfig::load(ctx.config_path.clone()).await?)
             .await?
             .db;
         let mut handle = db.handle();
