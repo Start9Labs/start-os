@@ -1,10 +1,18 @@
+use std::future::Future;
 use std::path::Path;
+use std::task::Poll;
 
-use futures::future::BoxFuture;
-use futures::{FutureExt, TryStreamExt};
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
+use futures::future::{BoxFuture, Fuse};
+use futures::{AsyncSeek, FutureExt, TryStreamExt};
+use helpers::NonDetachingJoinHandle;
+use tokio::io::{
+    duplex, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf, WriteHalf,
+};
 
 use crate::ResultExt;
+
+pub trait AsyncReadSeek: AsyncRead + AsyncSeek {}
+impl<T: AsyncRead + AsyncSeek> AsyncReadSeek for T {}
 
 #[derive(Clone, Debug)]
 pub struct AsyncCompat<T>(pub T);
@@ -245,4 +253,73 @@ pub fn response_to_reader(response: reqwest::Response) -> impl AsyncRead + Unpin
             e,
         )
     }))
+}
+
+#[pin_project::pin_project]
+pub struct BufferedWriteReader {
+    #[pin]
+    hdl: Fuse<NonDetachingJoinHandle<Result<(), std::io::Error>>>,
+    #[pin]
+    rdr: DuplexStream,
+}
+impl BufferedWriteReader {
+    pub fn new<
+        W: FnOnce(WriteHalf<DuplexStream>) -> Fut,
+        Fut: Future<Output = Result<(), std::io::Error>> + Send + Sync + 'static,
+    >(
+        write_fn: W,
+        max_buf_size: usize,
+    ) -> Self {
+        let (w, rdr) = duplex(max_buf_size);
+        let (_, w) = tokio::io::split(w);
+        BufferedWriteReader {
+            hdl: NonDetachingJoinHandle::from(tokio::spawn(write_fn(w))).fuse(),
+            rdr,
+        }
+    }
+}
+impl AsyncRead for BufferedWriteReader {
+    fn poll_read(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        let this = self.project();
+        let res = this.rdr.poll_read(cx, buf);
+        match this.hdl.poll(cx) {
+            Poll::Ready(Ok(Err(e))) => return Poll::Ready(Err(e)),
+            Poll::Ready(Err(e)) => {
+                return Poll::Ready(Err(std::io::Error::new(std::io::ErrorKind::BrokenPipe, e)))
+            }
+            _ => res,
+        }
+    }
+}
+
+#[pin_project::pin_project]
+pub struct ByteReplacementReader<R> {
+    pub replace: u8,
+    pub with: u8,
+    #[pin]
+    pub inner: R,
+}
+impl<R: AsyncRead> AsyncRead for ByteReplacementReader<R> {
+    fn poll_read(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        let this = self.project();
+        match this.inner.poll_read(cx, buf) {
+            Poll::Ready(Ok(())) => {
+                for idx in 0..buf.filled().len() {
+                    if buf.filled()[idx] == *this.replace {
+                        buf.filled_mut()[idx] = *this.with;
+                    }
+                }
+                Poll::Ready(Ok(()))
+            }
+            a => a,
+        }
+    }
 }

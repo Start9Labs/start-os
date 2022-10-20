@@ -11,18 +11,17 @@ use rpc_toolkit::Context;
 use serde::{Deserialize, Serialize};
 use sqlx::postgres::PgConnectOptions;
 use sqlx::PgPool;
-use tokio::fs::File;
 use tokio::sync::broadcast::Sender;
 use tokio::sync::RwLock;
 use tracing::instrument;
 use url::Host;
 
 use crate::db::model::Database;
+use crate::disk::OsPartitionInfo;
 use crate::init::{init_postgres, pgloader};
 use crate::net::tor::os_key;
 use crate::setup::{password_hash, RecoveryStatus};
-use crate::util::io::from_yaml_async_reader;
-use crate::util::AsyncFileExt;
+use crate::util::config::load_config_from_paths;
 use crate::{Error, ResultExt};
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -36,6 +35,7 @@ pub struct SetupResult {
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct SetupContextConfig {
+    pub os_partitions: OsPartitionInfo,
     pub migration_batch_rows: Option<usize>,
     pub migration_prefetch_rows: Option<usize>,
     pub bind_rpc: Option<SocketAddr>,
@@ -43,19 +43,20 @@ pub struct SetupContextConfig {
 }
 impl SetupContextConfig {
     #[instrument(skip(path))]
-    pub async fn load<P: AsRef<Path>>(path: Option<P>) -> Result<Self, Error> {
-        let cfg_path = path
-            .as_ref()
-            .map(|p| p.as_ref())
-            .unwrap_or(Path::new(crate::util::config::CONFIG_PATH));
-        if let Some(f) = File::maybe_open(cfg_path)
-            .await
-            .with_ctx(|_| (crate::ErrorKind::Filesystem, cfg_path.display().to_string()))?
-        {
-            from_yaml_async_reader(f).await
-        } else {
-            Ok(Self::default())
-        }
+    pub async fn load<P: AsRef<Path> + Send + 'static>(path: Option<P>) -> Result<Self, Error> {
+        tokio::task::spawn_blocking(move || {
+            load_config_from_paths(
+                path.as_ref()
+                    .into_iter()
+                    .map(|p| p.as_ref())
+                    .chain(std::iter::once(Path::new(
+                        "/media/embassy/config/config.yaml",
+                    )))
+                    .chain(std::iter::once(Path::new(crate::util::config::CONFIG_PATH))),
+            )
+        })
+        .await
+        .unwrap()
     }
     pub fn datadir(&self) -> &Path {
         self.datadir
@@ -65,6 +66,7 @@ impl SetupContextConfig {
 }
 
 pub struct SetupContextSeed {
+    pub os_partitions: OsPartitionInfo,
     pub config_path: Option<PathBuf>,
     pub migration_batch_rows: usize,
     pub migration_prefetch_rows: usize,
@@ -90,11 +92,12 @@ impl AsRef<Jwk> for SetupContextSeed {
 pub struct SetupContext(Arc<SetupContextSeed>);
 impl SetupContext {
     #[instrument(skip(path))]
-    pub async fn init<P: AsRef<Path>>(path: Option<P>) -> Result<Self, Error> {
-        let cfg = SetupContextConfig::load(path.as_ref()).await?;
+    pub async fn init<P: AsRef<Path> + Send + 'static>(path: Option<P>) -> Result<Self, Error> {
+        let cfg = SetupContextConfig::load(path.as_ref().map(|p| p.as_ref().to_owned())).await?;
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
         let datadir = cfg.datadir().to_owned();
         Ok(Self(Arc::new(SetupContextSeed {
+            os_partitions: cfg.os_partitions,
             config_path: path.as_ref().map(|p| p.as_ref().to_owned()),
             migration_batch_rows: cfg.migration_batch_rows.unwrap_or(25000),
             migration_prefetch_rows: cfg.migration_prefetch_rows.unwrap_or(100_000),

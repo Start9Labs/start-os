@@ -1,0 +1,96 @@
+# Local filesystem mounting			-*- shell-script -*-
+
+#
+# This script overrides local_mount_root() in /scripts/local
+# and mounts root as a read-only filesystem with a temporary (rw)
+# overlay filesystem.
+#
+
+. /scripts/local
+
+local_mount_root()
+{
+	echo 'using embassy initramfs module'
+
+	local_top
+	local_device_setup "${ROOT}" "root file system"
+	ROOT="${DEV}"
+
+	# Get the root filesystem type if not set
+	if [ -z "${ROOTFSTYPE}" ]; then
+		FSTYPE=$(get_fstype "${ROOT}")
+	else
+		FSTYPE=${ROOTFSTYPE}
+	fi
+
+	local_premount
+
+	# CHANGES TO THE ORIGINAL FUNCTION BEGIN HERE
+	# N.B. this code still lacks error checking
+
+	modprobe ${FSTYPE}
+	checkfs ${ROOT} root "${FSTYPE}"
+
+	if [ "${FSTYPE}" != "unknown" ]; then
+		mount -t ${FSTYPE} ${ROOTFLAGS} ${ROOT} ${rootmnt}
+	else
+		mount ${ROOTFLAGS} ${ROOT} ${rootmnt}
+	fi
+
+	echo 'mounting embassyfs'
+
+	mkdir /embassyfs
+
+	mount --move ${rootmnt} /embassyfs
+
+	if ! [ -d /embassyfs/current ] && [ -d /embassyfs/prev ]; then
+		mv /embassyfs/prev /embassyfs/current
+	fi
+
+	if ! [ -d /embassyfs/current ]; then
+		mkdir /embassyfs/current
+		for FILE in $(ls /embassyfs); do
+			if [ "$FILE" != current ]; then
+				mv /embassyfs/$FILE /embassyfs/current/
+			fi
+		done
+	fi
+
+	mkdir -p /embassyfs/config
+
+	if [ -f /embassyfs/config/upgrade ] && [ -d /embassyfs/next ]; then
+		mv /embassyfs/current /embassyfs/prev
+		mv /embassyfs/next /embassyfs/current
+		rm /embassyfs/config/upgrade
+	fi
+
+	if ! [ -d /embassyfs/next ]; then
+		if [ -d /embassyfs/prev ]; then
+			mv /embassyfs/prev /embassyfs/next
+		else
+			mkdir /embassyfs/next
+		fi
+	fi
+
+	mkdir /lower /upper
+
+	mount -r --bind /embassyfs/current /lower
+
+	modprobe overlay || insmod "/lower/lib/modules/$(uname -r)/kernel/fs/overlayfs/overlay.ko"
+
+	# Mount a tmpfs for the overlay in /upper
+	mount -t tmpfs tmpfs /upper
+	mkdir /upper/data /upper/work
+
+	# Mount the final overlay-root in $rootmnt
+	mount -t overlay \
+	    -olowerdir=/lower,upperdir=/upper/data,workdir=/upper/work \
+	    overlay ${rootmnt}
+
+	mkdir -p ${rootmnt}/media/embassy/config
+	mount --bind /embassyfs/config ${rootmnt}/media/embassy/config
+	mkdir -p ${rootmnt}/media/embassy/next
+	mount --bind /embassyfs/next ${rootmnt}/media/embassy/next
+	mkdir -p ${rootmnt}/media/embassy/embassyfs
+	mount -r --bind /embassyfs ${rootmnt}/media/embassy/embassyfs
+}

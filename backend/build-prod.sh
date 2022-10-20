@@ -3,6 +3,10 @@
 set -e
 shopt -s expand_aliases
 
+if [ -z "$ARCH" ]; then
+	ARCH=$(uname -m)
+fi
+
 if [ "$0" != "./build-prod.sh" ]; then
 	>&2 echo "Must be run from backend directory"
 	exit 1
@@ -24,10 +28,10 @@ if [[ "$ENVIRONMENT" =~ (^|-)dev($|-) ]]; then
 	FLAGS="dev,$FLAGS"
 fi
 if [[ "$FLAGS" = "" ]]; then
-	rust-arm64-builder sh -c "(git config --global --add safe.directory '*'; cd backend && cargo build --release --locked)"
+	rust-arm64-builder sh -c "(git config --global --add safe.directory '*'; cd backend && cargo build --release --locked --target=$ARCH-unknown-linux-gnu)"
 else
 	echo "FLAGS=$FLAGS"
-	rust-arm64-builder sh -c "(git config --global --add safe.directory '*'; cd backend && cargo build --release --features $FLAGS --locked)"
+	rust-arm64-builder sh -c "(git config --global --add safe.directory '*'; cd backend && cargo build --release --features $FLAGS --locked --target=$ARCH-unknown-linux-gnu)"
 fi
 cd backend
 

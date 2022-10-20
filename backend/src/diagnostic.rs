@@ -58,7 +58,7 @@ pub fn disk() -> Result<(), Error> {
 
 #[command(rename = "forget", display(display_none))]
 pub async fn forget_disk() -> Result<(), Error> {
-    let disk_guid = Path::new("/embassy-os/disk.guid");
+    let disk_guid = Path::new("/media/embassy/config/disk.guid");
     if tokio::fs::metadata(disk_guid).await.is_ok() {
         tokio::fs::remove_file(disk_guid).await?;
     }

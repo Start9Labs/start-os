@@ -6,18 +6,19 @@ use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
+use crate::action::Actions;
 use crate::backup::BackupActions;
 use crate::config::action::ConfigActions;
 use crate::dependencies::Dependencies;
 use crate::migration::Migrations;
 use crate::net::interface::Interfaces;
+use crate::procedure::docker::DockerContainer;
 use crate::procedure::PackageProcedure;
 use crate::status::health_check::HealthChecks;
 use crate::util::Version;
 use crate::version::{Current, VersionT};
 use crate::volume::Volumes;
 use crate::Error;
-use crate::{action::Actions, procedure::docker::DockerContainer};
 
 fn current_version() -> Version {
     Current::new().semver().into()
@@ -143,7 +144,7 @@ impl Assets {
         self.docker_images
             .as_ref()
             .map(|a| a.as_path())
-            .unwrap_or(Path::new("image.tar"))
+            .unwrap_or(Path::new("docker-images"))
     }
     pub fn assets_path(&self) -> &Path {
         self.assets
