@@ -241,6 +241,7 @@ pub async fn recover_full_embassy(
             let rpc_ctx = RpcContext::init(ctx.config_path.as_ref(), disk_guid).await?;
 
 
+            dbg!("am i stopping here");
        
         let host_name = rpc_ctx.net_controller.proxy.get_hostname().await;
         dbg!(host_name.clone());

@@ -37,12 +37,14 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
             ),
         )
         .await?;
-
+        dbg!("am i stopping here");
         let host_name = rpc_ctx.net_controller.proxy.get_hostname().await;
-        dbg!(host_name.clone());
+        
         let handler: HttpHandler =
             embassy::net::static_server::file_server_router(rpc_ctx.clone()).await?;
 
+
+        
         rpc_ctx
             .net_controller
             .proxy

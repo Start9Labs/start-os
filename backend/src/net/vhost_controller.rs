@@ -23,12 +23,14 @@ pub struct VHOSTController {
 
 impl VHOSTController {
     pub fn init(embassyd_addr: SocketAddr) -> Self {
+        dbg!("vhost controller init");
         Self {
             embassyd_addr,
             service_servers: BTreeMap::new(),
             svc_dns_base_package_names: BTreeMap::new(),
             cert_resolver: EmbassyCertResolver::new(),
         }
+        
     }
 
     pub fn build_ssl_svr_cfg(&self) -> Result<Arc<ServerConfig>, Error> {

@@ -97,7 +97,7 @@ fn main() {
                 log_str_error("add CNAME record to Avahi entry group", res);
                 panic!("Failed to load Avahi services");
             }
-            eprintln!("Published {:?}", lan_address_ptr);
+            dbg!("Published {:?}", lan_address_ptr);
         }
         let commit_err = avahi_entry_group_commit(group);
         if commit_err < avahi_sys::AVAHI_OK {

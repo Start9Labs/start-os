@@ -125,9 +125,11 @@ impl ResolvesServerCert for EmbassyCertResolver {
 
         match hostname {
             Some(hostname) => {
+                dbg!("am i stopping here at resolving");
                 let lock = self.cert_mapping.blocking_read();
 
-                lock.get(hostname).map(|cert_key| Arc::new(cert_key.to_owned()))
+                lock.get(hostname)
+                    .map(|cert_key| Arc::new(cert_key.to_owned()))
             }
             None => None,
         }
@@ -182,7 +184,7 @@ impl EmbassyCertResolver {
         Ok(())
     }
 
-    pub async fn remove_cert(&mut self, hostname: String)  {
+    pub async fn remove_cert(&mut self, hostname: String) {
         let mut lock = self.cert_mapping.write().await;
 
         lock.remove(&hostname);

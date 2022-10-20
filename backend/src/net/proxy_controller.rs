@@ -36,6 +36,7 @@ impl ProxyController {
         embassy_hostname: String,
         ssl_manager: SslManager,
     ) -> Result<Self, Error> {
+        dbg!("starting proxy");
         Ok(ProxyController {
             inner: Mutex::new(
                 ProxyControllerInner::init(embassyd_addr, embassy_hostname, ssl_manager).await?,
@@ -234,6 +235,8 @@ impl ProxyControllerInner {
                 ))
             }
         };
+
+        dbg!("adding cert");
 
         let package_cert = self.ssl_manager.certificate_for(&hostname, &pkg_id).await?;
 
