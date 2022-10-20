@@ -10,7 +10,7 @@ pub type OutputJsonRpc = JsonRpc<Output>;
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(untagged)]
 pub enum RpcId {
-    UInt(u64),
+    UInt(u32),
 }
 
 /// We use the JSON rpc as the format to share between the stdin and stdout for the executable.

@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Arc;
@@ -10,10 +12,11 @@ use deno_core::{
     ModuleSpecifier, ModuleType, OpDecl, RuntimeOptions, Snapshot,
 };
 use helpers::{script_dir, NonDetachingJoinHandle};
-use models::{ExecCommand, PackageId, ProcedureName, Version, VolumeId};
+use models::{ExecCommand, PackageId, ProcedureName, TermCommand, Version, VolumeId};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::io::AsyncReadExt;
+use tokio::sync::Mutex;
 
 pub trait PathForVolumeId: Send + Sync {
     fn path_for(
@@ -80,6 +83,8 @@ const SNAPSHOT_BYTES: &[u8] = include_bytes!("./artifacts/JS_SNAPSHOT.bin");
 
 #[cfg(target_arch = "aarch64")]
 const SNAPSHOT_BYTES: &[u8] = include_bytes!("./artifacts/ARM_JS_SNAPSHOT.bin");
+type WaitFns = Arc<Mutex<BTreeMap<u32, Pin<Box<dyn Future<Output = ResultType>>>>>>;
+
 #[derive(Clone)]
 struct JsContext {
     sandboxed: bool,
@@ -91,8 +96,16 @@ struct JsContext {
     input: Value,
     variable_args: Vec<serde_json::Value>,
     command_inserter: ExecCommand,
+    term_command: TermCommand,
+    wait_fns: WaitFns,
 }
-
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "kebab-case")]
+enum ResultType {
+    Error(String),
+    ErrorCode(i32, String),
+    Result(serde_json::Value),
+}
 #[derive(Clone, Default)]
 struct AnswerState(std::sync::Arc<deno_core::parking_lot::Mutex<Value>>);
 
@@ -172,6 +185,7 @@ pub struct JsExecutionEnvironment {
     version: Version,
     volumes: Arc<dyn PathForVolumeId>,
     command_inserter: ExecCommand,
+    term_command: TermCommand,
 }
 
 impl JsExecutionEnvironment {
@@ -181,6 +195,7 @@ impl JsExecutionEnvironment {
         version: &Version,
         volumes: Box<dyn PathForVolumeId>,
         command_inserter: ExecCommand,
+        term_command: TermCommand,
     ) -> Result<JsExecutionEnvironment, (JsError, String)> {
         let data_dir = data_directory.as_ref();
         let base_directory = data_dir;
@@ -215,6 +230,7 @@ impl JsExecutionEnvironment {
             volumes: volumes.into(),
             sandboxed: false,
             command_inserter,
+            term_command,
         })
     }
     pub fn read_only_effects(mut self) -> Self {
@@ -280,8 +296,10 @@ impl JsExecutionEnvironment {
             fns::get_variable_args::decl(),
             fns::set_value::decl(),
             fns::is_sandboxed::decl(),
-            fns::run_command::decl(),
+            fns::start_command::decl(),
+            fns::wait_command::decl(),
             fns::sleep::decl(),
+            fns::term_command::decl(),
         ]
     }
 
@@ -312,6 +330,8 @@ impl JsExecutionEnvironment {
             input,
             variable_args,
             command_inserter: self.command_inserter.clone(),
+            term_command: self.term_command.clone(),
+            wait_fns: Default::default(),
         };
         let ext = Extension::builder()
             .ops(Self::declarations())
@@ -366,13 +386,14 @@ mod fns {
     use deno_core::anyhow::{anyhow, bail};
     use deno_core::error::AnyError;
     use deno_core::*;
+    use embassy_container_init::RpcId;
     use helpers::{to_tmp_path, AtomicFile};
-    use models::VolumeId;
+    use models::{TermCommand, VolumeId};
     use serde_json::Value;
     use tokio::io::AsyncWriteExt;
 
     use super::{AnswerState, JsContext};
-    use crate::{system_time_as_unix_ms, MetadataJs};
+    use crate::{system_time_as_unix_ms, MetadataJs, ResultType};
 
     #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Default)]
     struct FetchOptions {
@@ -806,21 +827,34 @@ mod fns {
     }
 
     #[op]
-    async fn run_command(
+    async fn term_command(state: Rc<RefCell<OpState>>, id: u32) -> Result<(), AnyError> {
+        let term_command_impl: TermCommand = {
+            let state = state.borrow();
+            let ctx = state.borrow::<JsContext>();
+            ctx.term_command.clone()
+        };
+        if let Err(err) = term_command_impl(embassy_container_init::RpcId::UInt(id)).await {
+            bail!("{}", err);
+        }
+        Ok(())
+    }
+
+    #[op]
+    async fn start_command(
         state: Rc<RefCell<OpState>>,
         command: String,
         args: Vec<String>,
         timeout: Option<u64>,
-    ) -> Result<Result<String, (i32, String)>, AnyError> {
+    ) -> Result<u32, AnyError> {
         use embassy_container_init::Output;
-        let command_inserter = {
+        let (command_inserter, wait_fns) = {
             let state = state.borrow();
             let ctx = state.borrow::<JsContext>();
-            ctx.command_inserter.clone()
+            (ctx.command_inserter.clone(), ctx.wait_fns.clone())
         };
 
         let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel::<Output>();
-        if let Err(err) = command_inserter(
+        let id = match command_inserter(
             command,
             args.into_iter().collect(),
             sender,
@@ -828,32 +862,58 @@ mod fns {
         )
         .await
         {
-            return Ok(Err((1, err)));
-        }
-        let mut answer = String::new();
-        let mut command_error = String::new();
-        let mut status: Option<i32> = None;
-        while let Some(output) = receiver.recv().await {
-            match output {
-                Output::Line(value) => {
-                    answer.push_str(&value);
-                    answer.push('\n');
-                }
-                Output::Error(error) => {
-                    command_error.push_str(&error);
-                    command_error.push('\n');
-                }
-                Output::Done(error_code) => {
-                    status = error_code;
-                    break;
+            Err(err) => bail!(err),
+            Ok(RpcId::UInt(a)) => a,
+        };
+
+        let wait = async move {
+            let mut answer = String::new();
+            let mut command_error = String::new();
+            let mut status: Option<i32> = None;
+            while let Some(output) = receiver.recv().await {
+                match output {
+                    Output::Line(value) => {
+                        answer.push_str(&value);
+                        answer.push('\n');
+                    }
+                    Output::Error(error) => {
+                        command_error.push_str(&error);
+                        command_error.push('\n');
+                    }
+                    Output::Done(error_code) => {
+                        status = error_code;
+                        break;
+                    }
                 }
             }
-        }
-        if !command_error.is_empty() {
-            return Ok(Err((status.unwrap_or_default(), command_error)));
-        }
+            if !command_error.is_empty() {
+                if let Some(status) = status {
+                    return ResultType::ErrorCode(status, command_error);
+                }
 
-        Ok(Ok(answer))
+                return ResultType::Error(command_error);
+            }
+
+            ResultType::Result(serde_json::Value::String(answer))
+        };
+        wait_fns.lock().await.insert(id, Box::pin(wait));
+        Ok(id)
+    }
+
+    #[op]
+    async fn wait_command(state: Rc<RefCell<OpState>>, id: u32) -> Result<ResultType, AnyError> {
+        let wait_fns = {
+            let state = state.borrow();
+            let ctx = state.borrow::<JsContext>();
+            ctx.wait_fns.clone()
+        };
+
+        let found_future = match wait_fns.lock().await.remove(&id) {
+            Some(a) => a,
+            None => bail!("No future for id {id}, could have been removed already"),
+        };
+
+        Ok(found_future.await)
     }
     #[op]
     async fn sleep(time_ms: u64) -> Result<(), AnyError> {

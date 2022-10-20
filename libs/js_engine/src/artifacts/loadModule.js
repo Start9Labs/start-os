@@ -39,9 +39,28 @@ const readFile = (
 ) => Deno.core.opAsync("read_file", volumeId, path);
 
 
-const runCommand = (
-  { command = requireParam("command"), args = requireParam("args"), timeoutMillis = 30000 } = requireParam("options"),
-) => Deno.core.opAsync("run_command", command, args, timeoutMillis);
+
+const runDaemon = (
+  { command = requireParam("command"), args = [] } = requireParam("options"),
+) => {
+  let id = Deno.core.opAsync("start_command", command, args, null);
+  let waitPromise = null;
+  return {
+    async wait() {
+      waitPromise = waitPromise || Deno.core.opAsync("wait_command", await id)
+      return waitPromise
+    },
+    async term() {
+      return Deno.core.opAsync("term_command", await id)
+    }
+  }
+};
+const runCommand = async (
+  { command = requireParam("command"), args = [], timeoutMillis = 30000 } = requireParam("options"),
+) => {
+  let id = Deno.core.opAsync("start_command", command, args, timeoutMillis);
+  return Deno.core.opAsync("wait_command", await id)
+};
 const sleep = (timeMs = requireParam("timeMs"),
 ) => Deno.core.opAsync("sleep", timeMs);
 
@@ -131,7 +150,8 @@ const effects = {
   metadata,
   rename,
   runCommand,
-  sleep
+  sleep,
+  runDaemon
 };
 
 const runFunction = jsonPointerValue(mainModule, currentFunction);

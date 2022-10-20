@@ -11,7 +11,7 @@ use bollard::container::{KillContainerOptions, StopContainerOptions};
 use chrono::Utc;
 use color_eyre::eyre::eyre;
 use embassy_container_init::{InputJsonRpc, RpcId};
-use models::ExecCommand;
+use models::{ExecCommand, TermCommand};
 use nix::sys::signal::Signal;
 use num_enum::TryFromPrimitive;
 use patch_db::DbHandle;
@@ -422,6 +422,9 @@ impl Manager {
     pub fn exec_command(&self) -> ExecCommand {
         self.persistant_container.exec_command()
     }
+    pub fn term_command(&self) -> TermCommand {
+        self.persistant_container.term_command()
+    }
 }
 
 async fn manager_thread_loop(
@@ -517,7 +520,7 @@ async fn manager_thread_loop(
 
 struct LongRunningHandle(NonDetachingJoinHandle<()>);
 pub struct CommandInserter {
-    command_counter: Mutex<u64>,
+    command_counter: Mutex<u32>,
     input: UnboundedSender<InputJsonRpc>,
     outputs: Arc<Mutex<BTreeMap<RpcId, UnboundedSender<embassy_container_init::Output>>>>,
 }
@@ -681,6 +684,22 @@ impl PersistantContainer {
     async fn done_waiting(&self) {
         self.wait_for_start.0.send(false).unwrap();
     }
+    fn term_command(&self) -> TermCommand {
+        let cloned = self.command_inserter.clone();
+        Arc::new(move |id| {
+            let cloned = cloned.clone();
+            Box::pin(async move {
+                let lock = cloned.lock().await;
+                let id = match &*lock {
+                    Some(command_inserter) => command_inserter.term(id).await,
+                    None => {
+                        return Err("Couldn't get a command inserter in current service".to_string())
+                    }
+                };
+                Ok::<(), String>(())
+            })
+        })
+    }
 
     fn exec_command(&self) -> ExecCommand {
         let cloned = self.command_inserter.clone();
@@ -718,20 +737,23 @@ impl PersistantContainer {
             Box::pin(async move {
                 let lock = cloned.lock().await;
                 let mut cleaner = cleaner.lock().await;
-                match &*lock {
+                let id = match &*lock {
                     Some(command_inserter) => {
                         if let Some(id) = command_inserter
                             .exec_command(command.clone(), args.clone(), sender, timeout)
                             .await
                         {
-                            cleaner.ids.insert(id);
+                            cleaner.ids.insert(id.clone());
+                            id
+                        } else {
+                            return Err("Couldn't get command started ".to_string());
                         }
                     }
                     None => {
                         return Err("Couldn't get a command inserter in current service".to_string())
                     }
-                }
-                Ok::<(), String>(())
+                };
+                Ok::<RpcId, String>(id)
             })
         })
     }

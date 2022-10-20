@@ -4,8 +4,8 @@ use std::time::Duration;
 
 pub use js_engine::JsError;
 use js_engine::{JsExecutionEnvironment, PathForVolumeId};
-use models::ExecCommand;
 use models::VolumeId;
+use models::{ExecCommand, TermCommand};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use tracing::instrument;
 
@@ -54,7 +54,7 @@ impl JsProcedure {
         Ok(())
     }
 
-    #[instrument(skip(directory, input, exec_command))]
+    #[instrument(skip(directory, input, exec_command, term_command))]
     pub async fn execute<I: Serialize, O: DeserializeOwned>(
         &self,
         directory: &PathBuf,
@@ -65,6 +65,7 @@ impl JsProcedure {
         input: Option<I>,
         timeout: Option<Duration>,
         exec_command: ExecCommand,
+        term_command: TermCommand,
     ) -> Result<Result<O, (i32, String)>, Error> {
         Ok(async move {
             let running_action = JsExecutionEnvironment::load_from_package(
@@ -73,6 +74,7 @@ impl JsProcedure {
                 pkg_version,
                 Box::new(volumes.clone()),
                 exec_command,
+                term_command,
             )
             .await?
             .run_action(name, input, self.args.clone());
@@ -108,6 +110,9 @@ impl JsProcedure {
                 Box::new(volumes.clone()),
                 Arc::new(|_, _, _, _| {
                     Box::pin(async { Err("Can't run commands in sandox mode".to_string()) })
+                }),
+                Arc::new(|_| {
+                    Box::pin(async move { Err("Can't run commands in test".to_string()) })
                 }),
             )
             .await?
@@ -191,6 +196,7 @@ async fn js_action_execute() {
             Arc::new(|_, _, _, _| {
                 Box::pin(async move { Err("Can't run commands in test".to_string()) })
             }),
+            Arc::new(|_| Box::pin(async move { Err("Can't run commands in test".to_string()) })),
         )
         .await
         .unwrap()
@@ -249,6 +255,7 @@ async fn js_action_execute_error() {
             Arc::new(|_, _, _, _| {
                 Box::pin(async move { Err("Can't run commands in test".to_string()) })
             }),
+            Arc::new(|_| Box::pin(async move { Err("Can't run commands in test".to_string()) })),
         )
         .await
         .unwrap();
@@ -296,6 +303,7 @@ async fn js_action_fetch() {
             Arc::new(|_, _, _, _| {
                 Box::pin(async move { Err("Can't run commands in test".to_string()) })
             }),
+            Arc::new(|_| Box::pin(async move { Err("Can't run commands in test".to_string()) })),
         )
         .await
         .unwrap()
@@ -344,6 +352,7 @@ async fn js_action_var_arg() {
             Arc::new(|_, _, _, _| {
                 Box::pin(async move { Err("Can't run commands in test".to_string()) })
             }),
+            Arc::new(|_| Box::pin(async move { Err("Can't run commands in test".to_string()) })),
         )
         .await
         .unwrap()
@@ -391,6 +400,7 @@ async fn js_action_test_rename() {
             Arc::new(|_, _, _, _| {
                 Box::pin(async move { Err("Can't run commands in test".to_string()) })
             }),
+            Arc::new(|_| Box::pin(async move { Err("Can't run commands in test".to_string()) })),
         )
         .await
         .unwrap()
@@ -438,6 +448,7 @@ async fn js_action_test_deep_dir() {
             Arc::new(|_, _, _, _| {
                 Box::pin(async move { Err("Can't run commands in test".to_string()) })
             }),
+            Arc::new(|_| Box::pin(async move { Err("Can't run commands in test".to_string()) })),
         )
         .await
         .unwrap()
@@ -484,6 +495,7 @@ async fn js_action_test_deep_dir_escape() {
             Arc::new(|_, _, _, _| {
                 Box::pin(async move { Err("Can't run commands in test".to_string()) })
             }),
+            Arc::new(|_| Box::pin(async move { Err("Can't run commands in test".to_string()) })),
         )
         .await
         .unwrap()

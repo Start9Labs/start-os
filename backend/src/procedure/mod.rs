@@ -79,20 +79,6 @@ impl PackageProcedure {
         timeout: Option<Duration>,
     ) -> Result<Result<O, (i32, String)>, Error> {
         tracing::trace!("Procedure execute {} {} - {:?}", self, pkg_id, name);
-        let exec_command = match ctx
-            .managers
-            .get(&(pkg_id.clone(), pkg_version.clone()))
-            .await
-        {
-            None => {
-                return Err(Error::new(
-                    eyre!("No manager found for {}", pkg_id),
-                    ErrorKind::NotFound,
-                ))
-            }
-            Some(x) => x,
-        }
-        .exec_command();
         match self {
             PackageProcedure::Docker(procedure) => {
                 procedure
@@ -111,6 +97,34 @@ impl PackageProcedure {
             }
             #[cfg(feature = "js_engine")]
             PackageProcedure::Script(procedure) => {
+                let exec_command = match ctx
+                    .managers
+                    .get(&(pkg_id.clone(), pkg_version.clone()))
+                    .await
+                {
+                    None => {
+                        return Err(Error::new(
+                            eyre!("No manager found for {}", pkg_id),
+                            ErrorKind::NotFound,
+                        ))
+                    }
+                    Some(x) => x,
+                }
+                .exec_command();
+                let term_command = match ctx
+                    .managers
+                    .get(&(pkg_id.clone(), pkg_version.clone()))
+                    .await
+                {
+                    None => {
+                        return Err(Error::new(
+                            eyre!("No manager found for {}", pkg_id),
+                            ErrorKind::NotFound,
+                        ))
+                    }
+                    Some(x) => x,
+                }
+                .term_command();
                 procedure
                     .execute(
                         &ctx.datadir,
@@ -121,6 +135,7 @@ impl PackageProcedure {
                         input,
                         timeout,
                         exec_command,
+                        term_command,
                     )
                     .await
             }
@@ -139,20 +154,6 @@ impl PackageProcedure {
         input: Option<I>,
         timeout: Option<Duration>,
     ) -> Result<Result<O, (i32, String)>, Error> {
-        let exec_command = match ctx
-            .managers
-            .get(&(pkg_id.clone(), pkg_version.clone()))
-            .await
-        {
-            None => {
-                return Err(Error::new(
-                    eyre!("No manager found for {}", pkg_id),
-                    ErrorKind::NotFound,
-                ))
-            }
-            Some(x) => x,
-        }
-        .exec_command();
         match self {
             PackageProcedure::Docker(procedure) => {
                 procedure
@@ -171,6 +172,34 @@ impl PackageProcedure {
             }
             #[cfg(feature = "js_engine")]
             PackageProcedure::Script(procedure) => {
+                let exec_command = match ctx
+                    .managers
+                    .get(&(pkg_id.clone(), pkg_version.clone()))
+                    .await
+                {
+                    None => {
+                        return Err(Error::new(
+                            eyre!("No manager found for {}", pkg_id),
+                            ErrorKind::NotFound,
+                        ))
+                    }
+                    Some(x) => x,
+                }
+                .exec_command();
+                let term_command = match ctx
+                    .managers
+                    .get(&(pkg_id.clone(), pkg_version.clone()))
+                    .await
+                {
+                    None => {
+                        return Err(Error::new(
+                            eyre!("No manager found for {}", pkg_id),
+                            ErrorKind::NotFound,
+                        ))
+                    }
+                    Some(x) => x,
+                }
+                .term_command();
                 procedure
                     .execute(
                         &ctx.datadir,
@@ -181,6 +210,7 @@ impl PackageProcedure {
                         input,
                         timeout,
                         exec_command,
+                        term_command,
                     )
                     .await
             }
