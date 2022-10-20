@@ -236,7 +236,7 @@ pub async fn recover_full_embassy(
         os_backup.tor_key.public().get_onion_address(),
         os_backup.root_ca_cert,
         async move {
-            let rpc_ctx = RpcContext::init(ctx.config_path.as_ref(), disk_guid).await?;
+            let rpc_ctx = RpcContext::init(ctx.config_path.clone(), disk_guid).await?;
             let mut db = rpc_ctx.db.handle();
 
             let ids = backup_guard

@@ -1,22 +1,27 @@
+use std::ffi::OsStr;
 use std::path::PathBuf;
 
 use color_eyre::eyre::eyre;
+use futures::TryStreamExt;
 use imbl::OrdMap;
-use patch_db::{LockReceipt, LockType};
 use rpc_toolkit::command;
 use serde_json::Value;
+use tokio::io::AsyncRead;
 use tracing::instrument;
 
+use crate::context::SdkContext;
 use crate::s9pk::builder::S9pkPacker;
+use crate::s9pk::docker::DockerMultiArch;
 use crate::s9pk::manifest::Manifest;
 use crate::s9pk::reader::S9pkReader;
 use crate::util::display_none;
+use crate::util::io::BufferedWriteReader;
 use crate::util::serde::IoFormat;
 use crate::volume::Volume;
-use crate::{context::SdkContext, procedure::docker::DockerContainer};
 use crate::{Error, ErrorKind, ResultExt};
 
 pub mod builder;
+pub mod docker;
 pub mod header;
 pub mod manifest;
 pub mod reader;
@@ -94,33 +99,73 @@ pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> R
                     )
                 })?,
         )
-        .docker_images(
-            File::open(path.join(manifest.assets.docker_images_path()))
-                .await
-                .with_ctx(|_| {
-                    (
-                        crate::ErrorKind::Filesystem,
-                        manifest.assets.docker_images_path().display().to_string(),
-                    )
-                })?,
-        )
+        .docker_images({
+            let docker_images_path = path.join(manifest.assets.docker_images_path());
+            let res: Box<dyn AsyncRead + Unpin + Send + Sync> = if tokio::fs::metadata(&docker_images_path).await?.is_dir() {
+                let tars: Vec<_> = tokio_stream::wrappers::ReadDirStream::new(tokio::fs::read_dir(&docker_images_path).await?).try_collect().await?;
+                let mut arch_info = DockerMultiArch::default();
+                for tar in &tars {
+                    if tar.path().extension() == Some(OsStr::new("tar")) {
+                        arch_info.available.insert(tar.path().file_stem().unwrap_or_default().to_str().unwrap_or_default().to_owned());
+                    }
+                }
+                if arch_info.available.contains("aarch64") {
+                    arch_info.default = "aarch64".to_owned();
+                } else {
+                    arch_info.default = arch_info.available.iter().next().cloned().unwrap_or_default();
+                }
+                let arch_info_cbor = IoFormat::Cbor.to_vec(&arch_info)?;
+                Box::new(BufferedWriteReader::new(|w| async move {
+                    let mut docker_images = tokio_tar::Builder::new(w);
+                    let mut multiarch_header = tokio_tar::Header::new_gnu();
+                    multiarch_header.set_path("multiarch.cbor")?;
+                    multiarch_header.set_size(arch_info_cbor.len() as u64);
+                    multiarch_header.set_cksum();
+                    docker_images.append(&multiarch_header, std::io::Cursor::new(arch_info_cbor)).await?;
+                    for tar in tars
+                    {
+                        docker_images
+                            .append_path_with_name(
+                                tar.path(),
+                                tar.file_name(),
+                            )
+                            .await?;
+                    }
+                    Ok::<_, std::io::Error>(())
+                }, 1024 * 1024))
+            } else {
+                Box::new(File::open(docker_images_path)
+                    .await
+                    .with_ctx(|_| {
+                        (
+                            crate::ErrorKind::Filesystem,
+                            manifest.assets.docker_images_path().display().to_string(),
+                        )
+                    })?)
+            };
+            res
+        })
         .assets({
-            let mut assets = tokio_tar::Builder::new(Vec::new()); // TODO: Ideally stream this? best not to buffer in memory
+            let asset_volumes = manifest
+            .volumes
+            .iter()
+            .filter(|(_, v)| matches!(v, &&Volume::Assets {})).map(|(id, _)| id.clone()).collect::<Vec<_>>();
+            let assets_path = manifest.assets.assets_path().to_owned();
+            let path = path.clone();
 
-            for (asset_volume, _) in manifest
-                .volumes
-                .iter()
-                .filter(|(_, v)| matches!(v, &&Volume::Assets {}))
-            {
-                assets
-                    .append_dir_all(
-                        asset_volume,
-                        path.join(manifest.assets.assets_path()).join(asset_volume),
-                    )
-                    .await?;
-            }
-
-            std::io::Cursor::new(assets.into_inner().await?)
+            BufferedWriteReader::new(|w| async move {
+                let mut assets = tokio_tar::Builder::new(w);
+                for asset_volume in asset_volumes
+                {
+                    assets
+                        .append_dir_all(
+                            &asset_volume,
+                            path.join(&assets_path).join(&asset_volume),
+                        )
+                        .await?;
+                }
+                Ok::<_, std::io::Error>(())
+            }, 1024 * 1024)
         })
         .scripts({
             let script_path = path.join(manifest.assets.scripts_path()).join("embassy.js");

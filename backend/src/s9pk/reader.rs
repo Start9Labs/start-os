@@ -1,5 +1,6 @@
 use std::collections::BTreeSet;
 use std::io::SeekFrom;
+use std::ops::Range;
 use std::path::Path;
 use std::pin::Pin;
 use std::str::FromStr;
@@ -11,42 +12,72 @@ use ed25519_dalek::PublicKey;
 use futures::TryStreamExt;
 use sha2_old::{Digest, Sha512};
 use tokio::fs::File;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, ReadBuf, Take};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, ReadBuf};
 use tracing::instrument;
 
 use super::header::{FileSection, Header, TableOfContents};
 use super::manifest::{Manifest, PackageId};
 use super::SIG_CONTEXT;
+use crate::id::ImageId;
 use crate::install::progress::InstallProgressTracker;
+use crate::s9pk::docker::DockerReader;
 use crate::util::Version;
-use crate::{id::ImageId, procedure::docker::DockerContainer};
 use crate::{Error, ResultExt};
 
 #[pin_project::pin_project]
-pub struct ReadHandle<'a, R: AsyncRead + AsyncSeek + Unpin = File> {
+#[derive(Debug)]
+pub struct ReadHandle<'a, R = File> {
     pos: &'a mut u64,
+    range: Range<u64>,
     #[pin]
-    rdr: Take<&'a mut R>,
+    rdr: &'a mut R,
 }
-impl<'a, R: AsyncRead + AsyncSeek + Unpin> ReadHandle<'a, R> {
+impl<'a, R: AsyncRead + Unpin> ReadHandle<'a, R> {
     pub async fn to_vec(mut self) -> std::io::Result<Vec<u8>> {
-        let mut buf = vec![0; self.rdr.limit() as usize];
+        let mut buf = vec![0; (self.range.end - self.range.start) as usize];
         self.read_exact(&mut buf).await?;
         Ok(buf)
     }
 }
-impl<'a, R: AsyncRead + AsyncSeek + Unpin> AsyncRead for ReadHandle<'a, R> {
+impl<'a, R: AsyncRead + Unpin> AsyncRead for ReadHandle<'a, R> {
     fn poll_read(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
         buf: &mut ReadBuf<'_>,
     ) -> Poll<std::io::Result<()>> {
-        let start = buf.filled().len();
         let this = self.project();
-        let pos = this.pos;
-        let res = AsyncRead::poll_read(this.rdr, cx, buf);
-        **pos += (buf.filled().len() - start) as u64;
+        let start = buf.filled().len();
+        let mut take_buf = buf.take(this.range.end.saturating_sub(**this.pos) as usize);
+        let res = AsyncRead::poll_read(this.rdr, cx, &mut take_buf);
+        let n = take_buf.filled().len();
+        unsafe { buf.assume_init(start + n) };
+        buf.advance(n);
+        **this.pos += n as u64;
         res
+    }
+}
+impl<'a, R: AsyncSeek + Unpin> AsyncSeek for ReadHandle<'a, R> {
+    fn start_seek(self: Pin<&mut Self>, position: SeekFrom) -> std::io::Result<()> {
+        let this = self.project();
+        AsyncSeek::start_seek(
+            this.rdr,
+            match position {
+                SeekFrom::Current(n) => SeekFrom::Current(n),
+                SeekFrom::End(n) => SeekFrom::Start((this.range.end as i64 + n) as u64),
+                SeekFrom::Start(n) => SeekFrom::Start(this.range.start + n),
+            },
+        )
+    }
+    fn poll_complete(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<u64>> {
+        let this = self.project();
+        match AsyncSeek::poll_complete(this.rdr, cx) {
+            Poll::Ready(Ok(n)) => {
+                let res = n.saturating_sub(this.range.start);
+                **this.pos = this.range.start + res;
+                Poll::Ready(Ok(res))
+            }
+            a => a,
+        }
     }
 }
 
@@ -110,7 +141,7 @@ impl FromStr for ImageTag {
     }
 }
 
-pub struct S9pkReader<R: AsyncRead + AsyncSeek + Unpin = File> {
+pub struct S9pkReader<R: AsyncRead + AsyncSeek + Unpin + Send + Sync = File> {
     hash: Option<Output<Sha512>>,
     hash_string: Option<String>,
     developer_key: PublicKey,
@@ -128,12 +159,12 @@ impl S9pkReader {
         Self::from_reader(rdr, check_sig).await
     }
 }
-impl<R: AsyncRead + AsyncSeek + Unpin> S9pkReader<InstallProgressTracker<R>> {
+impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<InstallProgressTracker<R>> {
     pub fn validated(&mut self) {
         self.rdr.validated()
     }
 }
-impl<R: AsyncRead + AsyncSeek + Unpin> S9pkReader<R> {
+impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
     #[instrument(skip(self))]
     pub async fn validate(&mut self) -> Result<(), Error> {
         if self.toc.icon.length > 102_400 {
@@ -309,8 +340,9 @@ impl<R: AsyncRead + AsyncSeek + Unpin> S9pkReader<R> {
             self.pos = section.position;
         }
         Ok(ReadHandle {
+            range: self.pos..(self.pos + section.length),
             pos: &mut self.pos,
-            rdr: (&mut self.rdr).take(section.length),
+            rdr: &mut self.rdr,
         })
     }
 
@@ -336,8 +368,8 @@ impl<R: AsyncRead + AsyncSeek + Unpin> S9pkReader<R> {
         Ok(self.read_handle(self.toc.icon).await?)
     }
 
-    pub async fn docker_images<'a>(&'a mut self) -> Result<ReadHandle<'a, R>, Error> {
-        Ok(self.read_handle(self.toc.docker_images).await?)
+    pub async fn docker_images<'a>(&'a mut self) -> Result<DockerReader<ReadHandle<'a, R>>, Error> {
+        DockerReader::new(self.read_handle(self.toc.docker_images).await?).await
     }
 
     pub async fn assets<'a>(&'a mut self) -> Result<ReadHandle<'a, R>, Error> {

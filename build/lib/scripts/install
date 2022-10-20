@@ -1,0 +1,122 @@
+#!/bin/bash
+
+set -e
+
+function partition_for () {
+    if [[ "$1" =~ [0-9]+$ ]]; then
+        echo "$1p$2"
+    else
+        echo "$1$2"
+    fi
+}
+
+OSDISK=$1
+if [ -z "$OSDISK" ]; then
+  >&2 echo 'usage: embassy-install <TARGET DISK>'
+  exit 1
+fi
+
+WIFI_IFACE=
+for IFACE in $(ls /sys/class/net); do
+    if [ -d /sys/class/net/$IFACE/wireless ]; then
+        WIFI_IFACE=$IFACE
+        break
+    fi
+done
+
+ETH_IFACE=
+for IFACE in $(ls /sys/class/net); do
+    if ! [ -d /sys/class/net/$IFACE/wireless ] && [ -d /sys/class/net/$IFACE/device ]; then
+        ETH_IFACE=$IFACE
+        break
+    fi
+done
+if [ -z "$ETH_IFACE" ]; then
+    >&2 echo 'Could not detect ethernet interface'
+    exit 1
+fi
+
+(
+  echo o      # GPT
+  echo n      # New Partition
+  echo p      #   Primary
+  echo 1      #   Index #1
+  echo        #   Default Starting Position
+  echo '+1G'  #   1GB
+  echo t      #   Change Type
+  echo 0b     #     W95 FAT32
+  echo a      #   Set Bootable
+  echo n      # New Partition
+  echo p      #   Primary
+  echo 2      #   Index #2
+  echo        #   Default Starting Position
+  echo '+15G' #   15GB
+  echo n      # New Partition
+  echo p      #   Primary
+  echo 3      #   Index #3
+  echo        #   Default Starting Position
+  echo        #   Use Full Remaining
+  echo t      #   Change Type
+  echo 3      #     (Still Index #3)
+  echo 8e     #     Linux LVM
+  echo w      # Write Changes
+) | fdisk $OSDISK
+
+BOOTPART=`partition_for $OSDISK 1`
+ROOTPART=`partition_for $OSDISK 2`
+
+mkfs.vfat $BOOTPART
+fatlabel $BOOTPART boot
+
+mkfs.ext4 $ROOTPART
+e2label $ROOTPART rootfs
+
+mount $ROOTPART /mnt
+mkdir /mnt/config
+mkdir /mnt/current
+mkdir /mnt/next
+
+mkdir /mnt/current/boot
+mount $BOOTPART /mnt/current/boot
+
+unsquashfs -f -d /mnt/current /cdrom/casper/filesystem.squashfs
+
+cat > /mnt/config/config.yaml << EOF
+os-partitions:
+  boot: $BOOTPART
+  root: $ROOTPART
+ethernet-interface: $ETH_IFACE
+EOF
+
+if [ -n "$WIFI_IFACE" ]; then
+    echo "wifi-interface: $WIFI_IFACE" >> /mnt/config/config.yaml
+fi
+
+# gen fstab
+cat > /mnt/current/etc/fstab << EOF
+$BOOTPART   /boot   vfat    defaults    0   2
+$ROOTPART   /       ext4    defaults    0   1
+EOF
+
+# gen machine-id
+chroot /mnt/current systemd-machine-id-setup
+
+# gen ssh host keys
+ssh-keygen -t rsa /mnt/current/etc/ssh_host_rsa_key
+ssh-keygen -t ecdsa /mnt/current/etc/ssh_host_ecdsa_key
+ssh-keygen -t ed25519 /mnt/current/etc/ssh_host_ed25519_key
+
+mount --bind /dev /mnt/current/dev
+mount --bind /sys /mnt/current/sys
+mount --bind /proc /mnt/current/proc
+
+chroot /mnt/current update-grub
+chroot /mnt/current grub-install $OSDISK
+
+umount /mnt/current/dev
+umount /mnt/current/sys
+umount /mnt/current/proc
+
+umount /mnt/current/boot
+
+umount /mnt

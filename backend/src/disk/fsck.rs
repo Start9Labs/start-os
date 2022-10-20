@@ -63,7 +63,7 @@ fn backup_existing_undo_file<'a>(path: &'a Path) -> BoxFuture<'a, Result<(), Err
 pub async fn e2fsck_aggressive(
     logicalname: impl AsRef<Path> + std::fmt::Debug,
 ) -> Result<RequiresReboot, Error> {
-    let undo_path = Path::new("/embassy-os")
+    let undo_path = Path::new("/media/embassy/config")
         .join(
             logicalname
                 .as_ref()

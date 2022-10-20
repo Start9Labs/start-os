@@ -14,10 +14,12 @@ use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
+use crate::config::action::{ConfigActions, ConfigRes};
 use crate::config::spec::PackagePointerSpec;
 use crate::config::{not_found, Config, ConfigReceipts, ConfigSpec};
 use crate::context::RpcContext;
 use crate::db::model::{CurrentDependencies, CurrentDependents, InstalledPackageDataEntry};
+use crate::procedure::docker::DockerContainer;
 use crate::procedure::{NoOutput, PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::status::health_check::{HealthCheckId, HealthCheckResult};
@@ -26,10 +28,6 @@ use crate::util::serde::display_serializable;
 use crate::util::{display_none, Version};
 use crate::volume::Volumes;
 use crate::Error;
-use crate::{
-    config::action::{ConfigActions, ConfigRes},
-    procedure::docker::DockerContainer,
-};
 
 #[command(subcommands(configure))]
 pub fn dependency() -> Result<(), Error> {

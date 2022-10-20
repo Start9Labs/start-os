@@ -24,9 +24,10 @@ use tracing::instrument;
 use crate::shutdown::Shutdown;
 use crate::{Error, ErrorKind, ResultExt as _};
 pub mod config;
-pub mod io;
 pub mod http_reader;
+pub mod io;
 pub mod logger;
+pub mod rsync;
 pub mod serde;
 
 #[derive(Clone, Copy, Debug)]
