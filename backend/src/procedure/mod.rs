@@ -109,38 +109,6 @@ impl PackageProcedure {
                     .inject(ctx, pkg_id, pkg_version, name, volumes, input, timeout)
                     .await
             }
-        }
-    }
-
-    #[instrument(skip(ctx, input, container))]
-    pub async fn inject<I: Serialize, O: for<'de> Deserialize<'de>>(
-        &self,
-        ctx: &RpcContext,
-        container: &Option<DockerContainer>,
-        pkg_id: &PackageId,
-        pkg_version: &Version,
-        name: ProcedureName,
-        volumes: &Volumes,
-        input: Option<I>,
-        timeout: Option<Duration>,
-    ) -> Result<Result<O, (i32, String)>, Error> {
-        tracing::trace!("Procedure inject {} {} - {:?}", self, pkg_id, name);
-        match self {
-            PackageProcedure::Docker(procedure) => {
-                procedure
-                    .inject(ctx, pkg_id, pkg_version, name, volumes, input, timeout)
-                    .await
-            }
-            PackageProcedure::DockerInject(injectable) => {
-                let container = match container {
-                    None => return Err(Error::new(eyre!("For the docker injectable procedure, a container must be exist on the config"), crate::ErrorKind::Action)),
-                    Some(container) => container,
-                } ;
-                let docker_procedure: DockerProcedure = (container, injectable).into();
-                docker_procedure
-                    .inject(ctx, pkg_id, pkg_version, name, volumes, input, timeout)
-                    .await
-            }
             #[cfg(feature = "js_engine")]
             PackageProcedure::Script(procedure) => {
                 procedure

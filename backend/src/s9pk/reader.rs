@@ -17,9 +17,9 @@ use tracing::instrument;
 use super::header::{FileSection, Header, TableOfContents};
 use super::manifest::{Manifest, PackageId};
 use super::SIG_CONTEXT;
+use crate::id::ImageId;
 use crate::install::progress::InstallProgressTracker;
 use crate::util::Version;
-use crate::{id::ImageId, procedure::docker::DockerContainer};
 use crate::{Error, ResultExt};
 
 #[pin_project::pin_project]

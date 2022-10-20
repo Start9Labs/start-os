@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use color_eyre::eyre::eyre;
 use imbl::OrdMap;
-use patch_db::{LockReceipt, LockType};
 use rpc_toolkit::command;
 use serde_json::Value;
 use tracing::instrument;
@@ -13,7 +12,7 @@ use crate::s9pk::reader::S9pkReader;
 use crate::util::display_none;
 use crate::util::serde::IoFormat;
 use crate::volume::Volume;
-use crate::{context::SdkContext, procedure::docker::DockerContainer};
+use crate::{context::SdkContext};
 use crate::{Error, ErrorKind, ResultExt};
 
 pub mod builder;
