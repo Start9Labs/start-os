@@ -1,6 +1,6 @@
-ARCH = aarch64
-ENVIRONMENT_FILE := $(shell ./check-environment.sh)
-GIT_HASH_FILE := $(shell ./check-git-hash.sh)
+ARCH = $(shell uname -m)
+ENVIRONMENT_FILE = $(shell ./check-environment.sh)
+GIT_HASH_FILE = $(shell ./check-git-hash.sh)
 EMBASSY_BINS := backend/target/$(ARCH)-unknown-linux-gnu/release/embassyd backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-init backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-cli backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-sdk backend/target/$(ARCH)-unknown-linux-gnu/release/avahi-alias libs/target/$(ARCH)-unknown-linux-musl/release/embassy_container_init
 EMBASSY_UIS := frontend/dist/ui frontend/dist/setup-wizard frontend/dist/diagnostic-ui
 EMBASSY_SRC := backend/embassyd.service backend/embassy-init.service $(EMBASSY_UIS) $(shell find build)
@@ -75,10 +75,8 @@ install: all
 	cp ENVIRONMENT.txt $(DESTDIR)/usr/lib/embassy/
 	cp GIT_HASH.txt $(DESTDIR)/usr/lib/embassy/
 
-
-	mkdir -p $(DESTDIR)/var/lib/embassy/container
-	cp libs/target/$(ARCH)-unknown-linux-musl/release/embassy_container_init $(DESTDIR)/var/lib/embassy/container
-
+	mkdir -p $(DESTDIR)/usr/lib/embassy/container
+	cp libs/target/$(ARCH)-unknown-linux-musl/release/embassy_container_init $(DESTDIR)/usr/lib/embassy/container
 
 	mkdir -p $(DESTDIR)/usr/lib/embassy/system-images
 	cp system-images/compat/docker-images/aarch64.tar $(DESTDIR)/usr/lib/embassy/system-images/compat.tar

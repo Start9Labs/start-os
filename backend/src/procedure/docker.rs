@@ -24,7 +24,9 @@ use tokio::{
 };
 use tracing::instrument;
 
-use super::{js_scripts::JsProcedure, ProcedureName};
+#[cfg(feature = "js_engine")]
+use super::js_scripts::JsProcedure;
+use super::ProcedureName;
 use crate::context::RpcContext;
 use crate::id::{Id, ImageId};
 use crate::s9pk::manifest::{PackageId, SYSTEM_PACKAGE_ID};
@@ -103,7 +105,7 @@ impl From<(&DockerContainer, &DockerInject)> for DockerProcedure {
         }
     }
 }
-
+#[cfg(feature = "js_engine")]
 impl From<(&DockerContainer, &JsProcedure)> for DockerProcedure {
     fn from((container, _injectable): (&DockerContainer, &JsProcedure)) -> Self {
         DockerProcedure {
@@ -119,6 +121,7 @@ impl From<(&DockerContainer, &JsProcedure)> for DockerProcedure {
     }
 }
 
+#[cfg(feature = "js_engine")]
 impl From<(&DockerContainer, &JsProcedure)> for DockerInject {
     fn from((_container, _injectable): (&DockerContainer, &JsProcedure)) -> Self {
         DockerInject {
@@ -795,7 +798,7 @@ impl LongRunning {
         pkg_version: &Version,
     ) -> Result<tokio::process::Command, Error> {
         const INIT_EXEC: &str = "/start9/embassy_container_init";
-        const BIND_LOCATION: &str = "/var/lib/embassy/container";
+        const BIND_LOCATION: &str = "/usr/lib/embassy/container";
         tracing::trace!("setup_long_running_docker_cmd");
 
         LongRunning::cleanup_previous_container(ctx, container_name).await?;
