@@ -1,14 +1,13 @@
 use std::cmp::min;
 use std::convert::TryFrom;
 use std::fmt::Display;
+use std::future::Future;
 use std::io::Error as StdIOError;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use color_eyre::eyre::eyre;
-use futures::future::BoxFuture;
-use futures::stream::BoxStream;
-use futures::{FutureExt, StreamExt};
+use futures::{FutureExt, Stream};
 use http::header::{ACCEPT_RANGES, CONTENT_LENGTH, RANGE};
 use hyper::body::Bytes;
 use pin_project::pin_project;
@@ -30,9 +29,27 @@ pub struct HttpReader {
 enum ReadInProgress {
     None,
     InProgress(
-        BoxFuture<'static, Result<BoxStream<'static, Result<Bytes, reqwest::Error>>, Error>>,
+        Pin<
+            Box<
+                dyn Future<
+                        Output = Result<
+                            Pin<
+                                Box<
+                                    dyn Stream<Item = Result<Bytes, reqwest::Error>>
+                                        + Send
+                                        + Sync
+                                        + 'static,
+                                >,
+                            >,
+                            Error,
+                        >,
+                    > + Send
+                    + Sync
+                    + 'static,
+            >,
+        >,
     ),
-    Complete(BoxStream<'static, Result<Bytes, reqwest::Error>>),
+    Complete(Pin<Box<dyn Stream<Item = Result<Bytes, reqwest::Error>> + Send + Sync + 'static>>),
 }
 impl ReadInProgress {
     fn take(&mut self) -> Self {
@@ -62,6 +79,7 @@ impl Display for RangeUnit {
 impl HttpReader {
     pub async fn new(http_url: Url) -> Result<Self, Error> {
         let http_client = Client::builder()
+            // .proxy(reqwest::Proxy::all("socks5h://127.0.0.1:9050").unwrap())
             .build()
             .with_kind(crate::ErrorKind::TLSInit)?;
 
@@ -141,11 +159,14 @@ impl HttpReader {
         start: usize,
         len: usize,
         total_bytes: usize,
-    ) -> Result<BoxStream<'static, Result<Bytes, reqwest::Error>>, Error> {
+    ) -> Result<
+        Pin<Box<dyn Stream<Item = Result<Bytes, reqwest::Error>> + Send + Sync + 'static>>,
+        Error,
+    > {
         let end = min(start + len, total_bytes) - 1;
 
         if start > end {
-            return Ok(futures::stream::empty().boxed());
+            return Ok(Box::pin(futures::stream::empty()));
         }
 
         let data_range = format!("{}={}-{} ", range_unit.unwrap_or_default(), start, end);
@@ -159,7 +180,7 @@ impl HttpReader {
             .error_for_status()
             .with_kind(crate::ErrorKind::Network)?;
 
-        Ok(data_resp.bytes_stream().boxed())
+        Ok(Box::pin(data_resp.bytes_stream()))
     }
 }
 
@@ -170,7 +191,9 @@ impl AsyncRead for HttpReader {
         buf: &mut tokio::io::ReadBuf<'_>,
     ) -> Poll<std::io::Result<()>> {
         fn poll_complete(
-            body: &mut BoxStream<'static, Result<Bytes, reqwest::Error>>,
+            body: &mut Pin<
+                Box<dyn Stream<Item = Result<Bytes, reqwest::Error>> + Send + Sync + 'static>,
+            >,
             cx: &mut Context<'_>,
             buf: &mut tokio::io::ReadBuf<'_>,
         ) -> Poll<Option<std::io::Result<usize>>> {
@@ -220,15 +243,14 @@ impl AsyncRead for HttpReader {
                         continue;
                     }
                 },
-                ReadInProgress::None => HttpReader::get_range(
+                ReadInProgress::None => Box::pin(HttpReader::get_range(
                     *this.range_unit,
                     this.http_client.clone(),
                     this.http_url.clone(),
                     *this.cursor_pos,
                     buf.remaining(),
                     *this.total_bytes,
-                )
-                .boxed(),
+                )),
                 ReadInProgress::InProgress(fut) => fut,
             };
 
@@ -339,19 +361,20 @@ async fn main_test() {
 }
 
 #[tokio::test]
+#[ignore]
 async fn s9pk_test() {
     use tokio::io::BufReader;
 
-    let http_url = Url::parse("https://github.com/Start9Labs/hello-world-wrapper/releases/download/v0.3.0/hello-world.s9pk").unwrap();
+    let http_url = Url::parse("http://qhc6ac47cytstejcepk2ia3ipadzjhlkc5qsktsbl4e7u2krfmfuaqqd.onion/content/files/2022/09/ghost.s9pk").unwrap();
 
     println!("Getting this resource: {}", http_url);
     let test_reader =
         BufReader::with_capacity(1024 * 1024, HttpReader::new(http_url).await.unwrap());
 
-    let mut s9pk = crate::s9pk::reader::S9pkReader::from_reader(test_reader, true)
+    let mut s9pk = crate::s9pk::reader::S9pkReader::from_reader(test_reader, false)
         .await
         .unwrap();
 
     let manifest = s9pk.manifest().await.unwrap();
-    assert_eq!(&**manifest.id, "hello-world");
+    assert_eq!(&**manifest.id, "ghost");
 }

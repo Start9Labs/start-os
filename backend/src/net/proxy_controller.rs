@@ -363,7 +363,7 @@ impl ProxyControllerInner {
     pub async fn remove_docker_service(&mut self, package: &PackageId) -> Result<(), Error> {
         let mut server_removal = false;
         let mut server_removal_port: u16 = 0;
-        let mut removed_interface_id = InterfaceId::default();
+        let mut removed_interface_id = InterfaceId::<String>::default();
 
         let package_interface_info = self.docker_interfaces.get(package);
         if let Some(net_info) = package_interface_info {

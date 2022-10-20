@@ -13,7 +13,9 @@
       <ion-router-outlet
         id="main-content"
         class="container"
-        [class.container_offline]="!(connection.connected$ | async)"
+        [class.container_offline]="
+          (authService.isVerified$ | async) && !(connection.connected$ | async)
+        "
       ></ion-router-outlet>
     </ion-split-pane>
 

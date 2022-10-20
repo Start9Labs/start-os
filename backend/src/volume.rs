@@ -16,7 +16,7 @@ use crate::util::Version;
 use crate::{Error, ResultExt};
 
 pub const PKG_VOLUME_DIR: &str = "package-data/volumes";
-pub const BACKUP_DIR: &str = "/media/embassy-os/backups";
+pub const BACKUP_DIR: &str = "/media/embassy/backups";
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Volumes(BTreeMap<VolumeId, Volume>);

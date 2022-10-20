@@ -22,17 +22,17 @@ use tokio::task::JoinHandle;
 use torut::onion::TorSecretKeyV3;
 use tracing::instrument;
 
+use crate::context::RpcContext;
+use crate::manager::sync::synchronizer;
 use crate::net::interface::InterfaceId;
 use crate::net::GeneratedCertificateMountPoint;
 use crate::notifications::NotificationLevel;
-use crate::procedure::docker::DockerProcedure;
+use crate::procedure::docker::{DockerContainer, DockerInject, DockerProcedure};
 use crate::procedure::{NoOutput, PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::status::MainStatus;
 use crate::util::{Container, NonDetachingJoinHandle, Version};
 use crate::Error;
-use crate::{context::RpcContext, procedure::docker::DockerContainer};
-use crate::{manager::sync::synchronizer, procedure::docker::DockerInject};
 
 pub mod health;
 mod sync;

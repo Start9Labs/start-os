@@ -75,7 +75,7 @@ pub enum ErrorKind {
     JoinError = 66,
     AsciiError = 67,
     NoHost = 68,
-    SignError = 69
+    SignError = 69,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -149,7 +149,7 @@ impl ErrorKind {
             JoinError => "Join Handle Error",
             AsciiError => "Could not parse ascii text",
             NoHost => "No Host header ",
-            SignError => "Signing error"
+            SignError => "Signing error",
         }
     }
 }
@@ -254,8 +254,6 @@ impl From<openssl::error::ErrorStack> for Error {
     fn from(e: openssl::error::ErrorStack) -> Self {
         Error::new(eyre!("OpenSSL ERROR:\n{}", e), ErrorKind::OpenSsl)
     }
-
-
 }
 impl From<Error> for RpcError {
     fn from(e: Error) -> Self {

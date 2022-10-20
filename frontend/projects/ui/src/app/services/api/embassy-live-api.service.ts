@@ -139,11 +139,6 @@ export class LiveApiService extends ApiService {
       'marketplace-url': url || this.eosMarketplaceUrl,
     }
     return this.rpcRequest({ method: 'server.update', params })
-    // const res = await this.updateServer(params)
-    // if (res.response === 'no-updates') {
-    //   throw new Error('Could not find a newer version of EmbassyOS')
-    // }
-    // return res
   }
 
   async restartServer(

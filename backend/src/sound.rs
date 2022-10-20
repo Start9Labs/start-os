@@ -4,9 +4,10 @@ use std::time::{Duration, Instant};
 
 use divrem::DivRem;
 use proptest_derive::Arbitrary;
+use tokio::process::Command;
 use tracing::instrument;
 
-use crate::util::FileLock;
+use crate::util::{FileLock, Invoke};
 use crate::{Error, ErrorKind, ResultExt};
 
 lazy_static::lazy_static! {
@@ -22,31 +23,49 @@ lazy_static::lazy_static! {
 
 pub const SOUND_LOCK_FILE: &'static str = "/etc/embassy/sound.lock";
 
-struct SoundInterface(Option<FileLock>);
+struct SoundInterface {
+    use_beep: bool,
+    guard: Option<FileLock>,
+}
 impl SoundInterface {
     #[instrument]
     pub async fn lease() -> Result<Self, Error> {
         let guard = FileLock::new(SOUND_LOCK_FILE, true).await?;
-        tokio::fs::write(&*EXPORT_FILE, "0")
+        if Command::new("which")
+            .arg("beep")
+            .invoke(ErrorKind::NotFound)
             .await
-            .or_else(|e| {
-                if e.raw_os_error() == Some(16) {
-                    Ok(())
-                } else {
-                    Err(e)
-                }
-            })
-            .with_ctx(|_| (ErrorKind::SoundError, EXPORT_FILE.to_string_lossy()))?;
-        let instant = Instant::now();
-        while tokio::fs::metadata(&*PERIOD_FILE).await.is_err()
-            && instant.elapsed() < Duration::from_secs(1)
+            .is_ok()
         {
-            tokio::time::sleep(Duration::from_millis(1)).await;
+            Ok(SoundInterface {
+                use_beep: true,
+                guard: Some(guard),
+            })
+        } else {
+            tokio::fs::write(&*EXPORT_FILE, "0")
+                .await
+                .or_else(|e| {
+                    if e.raw_os_error() == Some(16) {
+                        Ok(())
+                    } else {
+                        Err(e)
+                    }
+                })
+                .with_ctx(|_| (ErrorKind::SoundError, EXPORT_FILE.to_string_lossy()))?;
+            let instant = Instant::now();
+            while tokio::fs::metadata(&*PERIOD_FILE).await.is_err()
+                && instant.elapsed() < Duration::from_secs(1)
+            {
+                tokio::time::sleep(Duration::from_millis(1)).await;
+            }
+            Ok(SoundInterface {
+                use_beep: false,
+                guard: Some(guard),
+            })
         }
-        Ok(SoundInterface(Some(guard)))
     }
     #[instrument(skip(self))]
-    pub async fn play(&mut self, note: &Note) -> Result<(), Error> {
+    async fn play_pwm(&mut self, note: &Note) -> Result<(), Error> {
         let curr_period = tokio::fs::read_to_string(&*PERIOD_FILE)
             .await
             .with_ctx(|_| (ErrorKind::SoundError, PERIOD_FILE.to_string_lossy()))?;
@@ -71,38 +90,47 @@ impl SoundInterface {
         Ok(())
     }
     #[instrument(skip(self))]
-    pub async fn play_for_time_slice(
-        &mut self,
-        tempo_qpm: u16,
-        note: &Note,
-        time_slice: &TimeSlice,
-    ) -> Result<(), Error> {
-        if let Err(e) = async {
-            self.play(note).await?;
-            tokio::time::sleep(time_slice.to_duration(tempo_qpm) * 19 / 20).await;
-            self.stop().await?;
-            tokio::time::sleep(time_slice.to_duration(tempo_qpm) / 20).await;
-            Ok::<_, Error>(())
-        }
-        .await
-        {
-            // we could catch this error and propagate but I'd much prefer the original error bubble up
-            let _mute = self.stop().await;
-            Err(e)
-        } else {
-            Ok(())
-        }
-    }
-    #[instrument(skip(self))]
-    pub async fn stop(&mut self) -> Result<(), Error> {
+    async fn stop_pwm(&mut self) -> Result<(), Error> {
         tokio::fs::write(&*SWITCH_FILE, "0")
             .await
             .with_ctx(|_| (ErrorKind::SoundError, SWITCH_FILE.to_string_lossy()))
     }
     #[instrument(skip(self))]
     pub async fn close(mut self) -> Result<(), Error> {
-        if let Some(lock) = self.0.take() {
+        if let Some(lock) = self.guard.take() {
             lock.unlock().await?;
+        }
+        Ok(())
+    }
+    #[instrument(skip(self))]
+    pub async fn play_for_time_slice(
+        &mut self,
+        tempo_qpm: u16,
+        note: &Note,
+        time_slice: &TimeSlice,
+    ) -> Result<(), Error> {
+        if self.use_beep {
+            Command::new("beep")
+                .arg("-f")
+                .arg(note.frequency().to_string())
+                .arg("-l")
+                .arg(time_slice.to_duration(tempo_qpm).as_millis().to_string())
+                .invoke(ErrorKind::SoundError)
+                .await?;
+        } else {
+            if let Err(e) = async {
+                self.play_pwm(note).await?;
+                tokio::time::sleep(time_slice.to_duration(tempo_qpm) * 19 / 20).await;
+                self.stop_pwm().await?;
+                tokio::time::sleep(time_slice.to_duration(tempo_qpm) / 20).await;
+                Ok::<_, Error>(())
+            }
+            .await
+            {
+                // we could catch this error and propagate but I'd much prefer the original error bubble up
+                let _mute = self.stop_pwm().await;
+                return Err(e);
+            }
         }
         Ok(())
     }
@@ -139,7 +167,7 @@ where
 
 impl Drop for SoundInterface {
     fn drop(&mut self) {
-        let guard = self.0.take();
+        let guard = self.guard.take();
         tokio::spawn(async move {
             if let Err(e) = tokio::fs::write(&*UNEXPORT_FILE, "0").await {
                 tracing::error!("Failed to Unexport Sound Interface: {}", e);

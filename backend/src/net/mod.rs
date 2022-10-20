@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use futures::future::BoxFuture;
-use hyper::{Body, Error as HyperError, Request, Response, Client};
+use hyper::{Body, Client, Error as HyperError, Request, Response};
 use indexmap::IndexSet;
 use rpc_toolkit::command;
 
@@ -15,7 +15,7 @@ use openssl::pkey::{PKey, Private};
 use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 use tracing::instrument;
 
-use self::interface::{Interface};
+use self::interface::Interface;
 #[cfg(feature = "avahi")]
 use self::ssl::SslManager;
 
@@ -60,6 +60,5 @@ pub struct GeneratedCertificateMountPoint(());
 pub type HttpHandler = Arc<
     dyn Fn(Request<Body>) -> BoxFuture<'static, Result<Response<Body>, HyperError>> + Send + Sync,
 >;
-
 
 pub type HttpClient = Client<hyper::client::HttpConnector>;

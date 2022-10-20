@@ -1,3 +1,4 @@
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -25,12 +26,12 @@ use tokio::signal::unix::signal;
 use tracing::instrument;
 
 #[instrument]
-async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
+async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error> {
     let (rpc_ctx, shutdown) = {
         let rpc_ctx = RpcContext::init(
             cfg_path,
             Arc::new(
-                tokio::fs::read_to_string("/embassy-os/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
+                tokio::fs::read_to_string("/media/embassy/config/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
                     .await?
                     .trim()
                     .to_owned(),
@@ -39,12 +40,10 @@ async fn inner_main(cfg_path: Option<&str>) -> Result<Option<Shutdown>, Error> {
         .await?;
         dbg!("am i stopping here");
         let host_name = rpc_ctx.net_controller.proxy.get_hostname().await;
-        
+
         let handler: HttpHandler =
             embassy::net::static_server::file_server_router(rpc_ctx.clone()).await?;
 
-
-        
         rpc_ctx
             .net_controller
             .proxy
@@ -182,7 +181,7 @@ fn main() {
 
     EmbassyLogger::init();
 
-    let cfg_path = matches.value_of("config");
+    let cfg_path = matches.value_of("config").map(|p| Path::new(p).to_owned());
 
     let res = {
         let rt = tokio::runtime::Builder::new_multi_thread()
@@ -190,7 +189,7 @@ fn main() {
             .build()
             .expect("failed to initialize runtime");
         rt.block_on(async {
-            match inner_main(cfg_path).await {
+            match inner_main(cfg_path.clone()).await {
                 Ok(a) => Ok(a),
                 Err(e) => {
                     (|| async {
@@ -201,9 +200,12 @@ fn main() {
                         let _mdns = MdnsController::init();
                         let ctx = DiagnosticContext::init(
                             cfg_path,
-                            if tokio::fs::metadata("/embassy-os/disk.guid").await.is_ok() {
+                            if tokio::fs::metadata("/media/embassy/config/disk.guid")
+                                .await
+                                .is_ok()
+                            {
                                 Some(Arc::new(
-                                    tokio::fs::read_to_string("/embassy-os/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
+                                    tokio::fs::read_to_string("/media/embassy/config/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
                                         .await?
                                         .trim()
                                         .to_owned(),

@@ -2,7 +2,7 @@
 authors = ["Aiden McClelland <me@drbonez.dev>"]
 description = "The core of the Start9 Embassy Operating System"
 documentation = "https://docs.rs/embassy-os"
-edition = "2018"
+edition = "2021"
 keywords = [
   "self-hosted",
   "raspberry-pi",
@@ -14,7 +14,7 @@ keywords = [
 name = "embassy-os"
 readme = "README.md"
 repository = "https://github.com/Start9Labs/embassy-os"
-version = "0.3.2"
+version = "0.3.2-rev.1"
 
 [lib]
 name = "embassy"
@@ -42,7 +42,7 @@ path = "src/bin/avahi-alias.rs"
 
 [features]
 avahi = ["avahi-sys"]
-default = ["avahi", "sound", "metal", "js_engine"]
+default = ["avahi", "metal", "sound", "js_engine"]
 dev = []
 metal = []
 sound = []

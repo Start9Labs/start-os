@@ -65,8 +65,6 @@ export class MenuComponent {
 
   readonly sidebarOpen$ = this.splitPane.sidebarOpen$
 
-  readonly sidebarOpen$ = this.splitPane.sidebarOpen$
-
   constructor(
     private readonly patch: PatchDB<DataModel>,
     private readonly eosService: EOSService,
