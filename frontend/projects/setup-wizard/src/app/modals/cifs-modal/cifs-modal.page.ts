@@ -53,18 +53,7 @@ export class CifsModal {
 
       await loader.dismiss()
 
-      const is02x = embassyOS.version.startsWith('0.2')
-
-      if (is02x) {
-        this.modalController.dismiss(
-          {
-            cifs: this.cifs,
-          },
-          'success',
-        )
-      } else {
-        this.presentModalPassword(embassyOS)
-      }
+      this.presentModalPassword(embassyOS)
     } catch (e) {
       await loader.dismiss()
       this.presentAlertFailed()

@@ -70,14 +70,14 @@ export class BackupDrivesComponent {
   ): void {
     if (target.entry.type === 'cifs' && !target.entry.mountable) {
       const message =
-        'Unable to connect to LAN Shared Folder. Ensure (1) target computer is connected to LAN, (2) target folder is being shared, and (3) hostname, path, and credentials are accurate.'
+        'Unable to connect to Network Folder. Ensure (1) target computer is connected to LAN, (2) target folder is being shared, and (3) hostname, path, and credentials are accurate.'
       this.presentAlertError(message)
       return
     }
 
     if (this.type === 'restore' && !target.hasValidBackup) {
       const message = `${
-        target.entry.type === 'cifs' ? 'LAN Shared Folder' : 'Drive partition'
+        target.entry.type === 'cifs' ? 'Network Folder' : 'Drive partition'
       } does not contain a valid Embassy backup.`
       this.presentAlertError(message)
       return
@@ -90,7 +90,7 @@ export class BackupDrivesComponent {
     const modal = await this.modalCtrl.create({
       component: GenericFormPage,
       componentProps: {
-        title: 'New LAN Shared Folder',
+        title: 'New Network Folder',
         spec: CifsSpec,
         buttons: [
           {
