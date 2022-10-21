@@ -264,6 +264,22 @@ async fn js_action_execute_error() {
 
 #[tokio::test]
 async fn js_action_fetch() {
+    {
+        use tracing_error::ErrorLayer;
+        use tracing_subscriber::prelude::*;
+        use tracing_subscriber::{fmt, EnvFilter};
+
+        let filter_layer = EnvFilter::new("debug");
+        let fmt_layer = fmt::layer().with_target(true);
+
+        tracing_subscriber::registry()
+            .with(filter_layer)
+            .with(fmt_layer)
+            .with(ErrorLayer::default())
+            .init();
+        color_eyre::install().unwrap();
+    }
+
     let js_action = JsProcedure { args: vec![] };
     let path: PathBuf = "test/js_action_execute/"
         .parse::<PathBuf>()
@@ -291,7 +307,9 @@ async fn js_action_fetch() {
     .unwrap();
     let input: Option<serde_json::Value> = None;
     let timeout = Some(Duration::from_secs(10));
-    js_action
+    tracing::error!("testing start");
+    tokio::select! {
+     a = js_action
         .execute::<serde_json::Value, serde_json::Value>(
             &path,
             &package_id,
@@ -305,9 +323,14 @@ async fn js_action_fetch() {
             }),
             Arc::new(|_| Box::pin(async move { Err("Can't run commands in test".to_string()) })),
         )
-        .await
+         => {a
         .unwrap()
-        .unwrap();
+        .unwrap();},
+        _ = tokio::time::sleep(Duration::from_secs(1)) => ()
+    }
+    tracing::error!("testing end should");
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    tracing::error!("Done");
 }
 #[tokio::test]
 async fn js_action_var_arg() {

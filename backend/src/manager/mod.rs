@@ -231,6 +231,7 @@ async fn run_main(
     let res = tokio::select! {
         a = runtime => a.map_err(|_| Error::new(eyre!("Manager runtime panicked!"), crate::ErrorKind::Docker)).and_then(|a| a),
         _ = health => Err(Error::new(eyre!("Health check daemon exited!"), crate::ErrorKind::Unknown)),
+
     };
     if let Some(ip) = ip {
         remove_network_for_main(state, ip).await?;

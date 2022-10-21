@@ -109,6 +109,6 @@ fn test_gen_awk() {
       }"#).unwrap();
     assert_eq!(
         "testing12345",
-        &encrypted.decrypt(Arc::new(private_key)).unwrap()
+        &encrypted.decrypt(std::sync::Arc::new(private_key)).unwrap()
     );
 }
