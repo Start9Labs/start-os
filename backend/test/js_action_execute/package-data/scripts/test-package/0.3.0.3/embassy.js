@@ -746,13 +746,16 @@ const ackermann = (m, n) => {
 }
 
 export const action = {
-  async fetch(effects, _input) {
+  async slow(effects, _input) {
     while(true) {
       effects.error("A");
-      // ackermann(3,10);
+      // await ackermann(3,10);
       await effects.sleep(100);
 
     }
+  },
+
+  async fetch(effects, _input) {
     const example = await effects.fetch(
       "https://postman-echo.com/get?foo1=bar1&foo2=bar2"
     );

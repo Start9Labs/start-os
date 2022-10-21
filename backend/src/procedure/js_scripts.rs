@@ -264,22 +264,6 @@ async fn js_action_execute_error() {
 
 #[tokio::test]
 async fn js_action_fetch() {
-    {
-        use tracing_error::ErrorLayer;
-        use tracing_subscriber::prelude::*;
-        use tracing_subscriber::{fmt, EnvFilter};
-
-        let filter_layer = EnvFilter::new("debug");
-        let fmt_layer = fmt::layer().with_target(true);
-
-        tracing_subscriber::registry()
-            .with(filter_layer)
-            .with(fmt_layer)
-            .with(ErrorLayer::default())
-            .init();
-        color_eyre::install().unwrap();
-    }
-
     let js_action = JsProcedure { args: vec![] };
     let path: PathBuf = "test/js_action_execute/"
         .parse::<PathBuf>()
@@ -307,7 +291,55 @@ async fn js_action_fetch() {
     .unwrap();
     let input: Option<serde_json::Value> = None;
     let timeout = Some(Duration::from_secs(10));
-    tracing::error!("testing start");
+    js_action
+        .execute::<serde_json::Value, serde_json::Value>(
+            &path,
+            &package_id,
+            &package_version,
+            name,
+            &volumes,
+            input,
+            timeout,
+            Arc::new(|_, _, _, _| {
+                Box::pin(async move { Err("Can't run commands in test".to_string()) })
+            }),
+            Arc::new(|_| Box::pin(async move { Err("Can't run commands in test".to_string()) })),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+}
+
+#[tokio::test]
+async fn js_test_slow() {
+    let js_action = JsProcedure { args: vec![] };
+    let path: PathBuf = "test/js_action_execute/"
+        .parse::<PathBuf>()
+        .unwrap()
+        .canonicalize()
+        .unwrap();
+    let package_id = "test-package".parse().unwrap();
+    let package_version: Version = "0.3.0.3".parse().unwrap();
+    let name = ProcedureName::Action("slow".parse().unwrap());
+    let volumes: Volumes = serde_json::from_value(serde_json::json!({
+        "main": {
+            "type": "data"
+        },
+        "compat": {
+            "type": "assets"
+        },
+        "filebrowser" :{
+            "package-id": "filebrowser",
+            "path": "data",
+            "readonly": true,
+            "type": "pointer",
+            "volume-id": "main",
+        }
+    }))
+    .unwrap();
+    let input: Option<serde_json::Value> = None;
+    let timeout = Some(Duration::from_secs(10));
+    tracing::debug!("testing start");
     tokio::select! {
      a = js_action
         .execute::<serde_json::Value, serde_json::Value>(
@@ -328,9 +360,9 @@ async fn js_action_fetch() {
         .unwrap();},
         _ = tokio::time::sleep(Duration::from_secs(1)) => ()
     }
-    tracing::error!("testing end should");
+    tracing::debug!("testing end should");
     tokio::time::sleep(Duration::from_secs(2)).await;
-    tracing::error!("Done");
+    tracing::debug!("Done");
 }
 #[tokio::test]
 async fn js_action_var_arg() {

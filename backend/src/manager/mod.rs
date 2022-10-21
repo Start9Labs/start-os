@@ -691,7 +691,7 @@ impl PersistantContainer {
             let cloned = cloned.clone();
             Box::pin(async move {
                 let lock = cloned.lock().await;
-                let id = match &*lock {
+                let _id = match &*lock {
                     Some(command_inserter) => command_inserter.term(id).await,
                     None => {
                         return Err("Couldn't get a command inserter in current service".to_string())

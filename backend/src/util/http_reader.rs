@@ -7,7 +7,7 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use color_eyre::eyre::eyre;
-use futures::{FutureExt, Stream};
+use futures::Stream;
 use http::header::{ACCEPT_RANGES, CONTENT_LENGTH, RANGE};
 use hyper::body::Bytes;
 use pin_project::pin_project;
@@ -26,29 +26,29 @@ pub struct HttpReader {
     read_in_progress: ReadInProgress,
 }
 
+type InProgress = Pin<
+    Box<
+        dyn Future<
+                Output = Result<
+                    Pin<
+                        Box<
+                            dyn Stream<Item = Result<Bytes, reqwest::Error>>
+                                + Send
+                                + Sync
+                                + 'static,
+                        >,
+                    >,
+                    Error,
+                >,
+            > + Send
+            + Sync
+            + 'static,
+    >,
+>;
+
 enum ReadInProgress {
     None,
-    InProgress(
-        Pin<
-            Box<
-                dyn Future<
-                        Output = Result<
-                            Pin<
-                                Box<
-                                    dyn Stream<Item = Result<Bytes, reqwest::Error>>
-                                        + Send
-                                        + Sync
-                                        + 'static,
-                                >,
-                            >,
-                            Error,
-                        >,
-                    > + Send
-                    + Sync
-                    + 'static,
-            >,
-        >,
-    ),
+    InProgress(InProgress),
     Complete(Pin<Box<dyn Stream<Item = Result<Bytes, reqwest::Error>> + Send + Sync + 'static>>),
 }
 impl ReadInProgress {

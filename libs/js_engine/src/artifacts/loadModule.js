@@ -51,7 +51,7 @@ const runDaemon = (
       return waitPromise
     },
     async term() {
-      return Deno.core.opAsync("term_command", await id)
+      return Deno.core.opAsync("term_command_js", await id)
     }
   }
 };
