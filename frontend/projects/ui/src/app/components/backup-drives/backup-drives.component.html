@@ -21,18 +21,26 @@
     <ng-template #noError>
       <ion-item-group>
         <!-- ** cifs ** -->
-        <ion-item-divider>LAN Shared Folders</ion-item-divider>
+        <ion-item-divider>Network Folders</ion-item-divider>
         <ion-item>
           <ion-label>
             <h2>
-              LAN Shared Folders are the recommended way to create Embassy
-              backups. View the
+              {{
+                type === 'create'
+                  ? 'Backup your Embassy to'
+                  : 'Restore your services from'
+              }}
+              a folder on another computer that is connected to the same network
+              as your Embassy. View the
               <a
                 href="https://start9.com/latest/user-manual/backups/cifs-setup"
                 target="_blank"
                 noreferrer
-                >Instructions</a
+                style="text-decoration: none"
               >
+                Instructions
+                <ion-icon name="open-outline" size="small"></ion-icon>
+              </a>
             </h2>
           </ion-label>
         </ion-item>
@@ -40,7 +48,7 @@
         <ion-item button detail="false" (click)="presentModalAddCifs()">
           <ion-icon
             slot="start"
-            name="folder-open-outline"
+            name="add"
             size="large"
             color="dark"
           ></ion-icon>
@@ -89,32 +97,50 @@
 
         <!-- ** drives ** -->
         <ion-item-divider>Physical Drives</ion-item-divider>
-        <!-- no drives -->
-        <ion-item
-          *ngIf="!drives.length; else hasDrives"
-          class="ion-padding-bottom"
-        >
+        <!-- always -->
+        <ion-item>
           <ion-label>
             <h2>
-              <ion-text color="warning">
-                Warning! Plugging a 2nd physical drive directly into your
-                Embassy can lead to data corruption.
-              </ion-text>
-              To safely create a backup to a physical drive, view the
+              {{
+                type === 'create'
+                  ? 'Backup your Embassy to'
+                  : 'Restore your services from'
+              }}
+              a physcial drive that is plugged directly into your Embassy. View
+              the
               <a
                 href="https://start9.com/latest/user-manual/backups/backups-create/#backup-using-a-physical-drive"
                 target="_blank"
                 noreferrer
-                >instructions</a
-              >.
-            </h2>
-            <br />
-            <h2>
-              If your drive is plugged in and does not appear, try
-              <a (click)="refresh()" style="cursor: pointer">refreshing</a>.
+                style="text-decoration: none"
+              >
+                Instructions
+                <ion-icon name="open-outline" size="small"></ion-icon>
+              </a>
+              .
+              <ion-text color="warning"
+                >Warning. Do not use this option if you are using a Raspberry Pi
+                with an external SSD. The Raspberry Pi does not support more
+                than one external drive without additional power and can cause
+                data corruption.</ion-text
+              >
             </h2>
           </ion-label>
         </ion-item>
+
+        <!-- no drives -->
+        <div
+          *ngIf="!drives.length; else hasDrives"
+          class="ion-padding-bottom ion-text-center"
+        >
+          <br />
+          <p>
+            No drives detected.
+            <a style="cursor: pointer" (click)="refresh()"
+              >Refresh<ion-icon name="refresh"></ion-icon
+            ></a>
+          </p>
+        </div>
         <!-- drives detected -->
         <ng-template #hasDrives>
           <ion-item
