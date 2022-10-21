@@ -12,7 +12,7 @@ use crate::config::action::ConfigActions;
 use crate::dependencies::Dependencies;
 use crate::migration::Migrations;
 use crate::net::interface::Interfaces;
-use crate::procedure::docker::DockerContainer;
+use crate::procedure::docker::DockerContainers;
 use crate::procedure::PackageProcedure;
 use crate::status::health_check::HealthChecks;
 use crate::util::Version;
@@ -72,7 +72,7 @@ pub struct Manifest {
     #[model]
     pub dependencies: Dependencies,
     #[model]
-    pub container: Option<DockerContainer>,
+    pub containers: Option<DockerContainers>,
 }
 
 impl Manifest {

@@ -250,7 +250,7 @@ async fn start_up_image(
         .main
         .execute::<(), NoOutput>(
             &rt_state.ctx,
-            &rt_state.manifest.container,
+            &rt_state.manifest.containers,
             &rt_state.manifest.id,
             &rt_state.manifest.version,
             ProcedureName::Main,
@@ -737,13 +737,13 @@ impl PersistantContainer {
             let cleaner = cleaner.clone();
             Box::pin(async move {
                 let lock = cloned.lock().await;
-                let mut cleaner = cleaner.lock().await;
                 let id = match &*lock {
                     Some(command_inserter) => {
                         if let Some(id) = command_inserter
                             .exec_command(command.clone(), args.clone(), sender, timeout)
                             .await
                         {
+                            let mut cleaner = cleaner.lock().await;
                             cleaner.ids.insert(id.clone());
                             id
                         } else {
@@ -858,8 +858,8 @@ async fn persistant_container(
     let main_docker_procedure_for_long = injectable_main(&thread_shared);
     match main_docker_procedure_for_long {
         InjectableMain::None => futures::future::pending().await,
-        InjectableMain::DockerInject(set) => loop {
-            let main: DockerProcedure = set.into();
+        InjectableMain::DockerInject((container_inject, injectable)) => loop {
+            let main = DockerProcedure::main_docker_procedure(container_inject, injectable);
             if container.should_stop_running.load(Ordering::SeqCst) {
                 return;
             }
@@ -873,8 +873,8 @@ async fn persistant_container(
             }
         },
         #[cfg(feature = "js_engine")]
-        InjectableMain::Script(set) => loop {
-            let main: DockerProcedure = set.into();
+        InjectableMain::Script((container_inject, procedure)) => loop {
+            let main = DockerProcedure::main_docker_procedure_js(container_inject, procedure);
             if container.should_stop_running.load(Ordering::SeqCst) {
                 return;
             }
@@ -900,7 +900,7 @@ enum InjectableMain<'a> {
 fn injectable_main<'a>(thread_shared: &'a Arc<ManagerSharedState>) -> InjectableMain {
     match (
         &thread_shared.manifest.main,
-        &thread_shared.manifest.container,
+        &thread_shared.manifest.containers.as_ref().map(|x| &x.main),
     ) {
         (PackageProcedure::DockerInject(inject), Some(container)) => {
             InjectableMain::DockerInject((container, inject))

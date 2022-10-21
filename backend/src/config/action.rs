@@ -10,7 +10,7 @@ use super::{Config, ConfigSpec};
 use crate::context::RpcContext;
 use crate::dependencies::Dependencies;
 use crate::id::ImageId;
-use crate::procedure::docker::DockerContainer;
+use crate::procedure::docker::DockerContainers;
 use crate::procedure::{PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::PackageId;
 use crate::status::health_check::HealthCheckId;
@@ -34,7 +34,7 @@ impl ConfigActions {
     #[instrument]
     pub fn validate(
         &self,
-        container: &Option<DockerContainer>,
+        container: &Option<DockerContainers>,
         eos_version: &Version,
         volumes: &Volumes,
         image_ids: &BTreeSet<ImageId>,
@@ -51,7 +51,7 @@ impl ConfigActions {
     pub async fn get(
         &self,
         ctx: &RpcContext,
-        container: &Option<DockerContainer>,
+        container: &Option<DockerContainers>,
         pkg_id: &PackageId,
         pkg_version: &Version,
         volumes: &Volumes,
@@ -77,7 +77,7 @@ impl ConfigActions {
     pub async fn set(
         &self,
         ctx: &RpcContext,
-        container: &Option<DockerContainer>,
+        container: &Option<DockerContainers>,
         pkg_id: &PackageId,
         pkg_version: &Version,
         dependencies: &Dependencies,

@@ -30,7 +30,7 @@ if [[ "$ENVIRONMENT" =~ (^|-)dev($|-) ]]; then
 fi
 if [[ "$FLAGS" = "" ]]; then
 	rust-gnu-builder sh -c "(git config --global --add safe.directory '*'; cd backend && cargo build --release --locked  --target=$ARCH-unknown-linux-gnu)"
-	rust-musl-builder sh -c "(git config --global --add safe.directory '*'; cd libs && rust-musl-builder cargo build --release --locked --bin embassy_container_init)"
+	rust-musl-builder sh -c "(git config --global --add safe.directory '*'; cd libs && cargo build --release --locked --bin embassy_container_init)"
 else
 	echo "FLAGS=$FLAGS"
 	rust-gnu-builder sh -c "(git config --global --add safe.directory '*'; cd backend && cargo build --release --features $FLAGS --locked --target=$ARCH-unknown-linux-gnu)"

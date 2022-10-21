@@ -255,85 +255,9 @@ impl JsExecutionEnvironment {
                 ));
             }
         };
-        // let safer_handle = tokio::spawn(self.execute(procedure_name, input, variable_args)).into();
-        let safer_handle = SingleThreadJoinHandle::new(
-            // {
-            //     let Self {
-            //         sandboxed,
-            //         base_directory,
-            //         module_loader,
-            //         package_id,
-            //         version,
-            //         volumes,
-            //         command_inserter,
-            //         term_command,
-            //     } = self;
-            //     move || async move {
-            //         let base_directory = base_directory;
-            //         let answer_state = AnswerState::default();
-            //         let ext_answer_state = answer_state.clone();
-            //         let js_ctx = JsContext {
-            //             datadir: base_directory,
-            //             run_function: procedure_name.js_function_name().map(Ok).unwrap_or_else(
-            //                 || {
-            //                     Err((
-            //                         JsError::NotValidProcedureName,
-            //                         format!("procedure is not value: {:?}", procedure_name),
-            //                     ))
-            //                 },
-            //             )?,
-            //             package_id: package_id,
-            //             volumes: volumes,
-            //             version: version,
-            //             sandboxed: sandboxed,
-            //             input,
-            //             variable_args,
-            //             command_inserter: command_inserter,
-            //             term_command: term_command,
-            //             wait_fns: Default::default(),
-            //         };
-            //         let ext = Extension::builder()
-            //             .ops(Self::declarations())
-            //             .state(move |state| {
-            //                 state.put(ext_answer_state.clone());
-            //                 state.put(js_ctx.clone());
-            //                 Ok(())
-            //             })
-            //             .build();
-
-            //         let loader = std::rc::Rc::new(module_loader);
-            //         let runtime_options = RuntimeOptions {
-            //             module_loader: Some(loader),
-            //             extensions: vec![ext],
-            //             startup_snapshot: Some(Snapshot::Static(SNAPSHOT_BYTES)),
-            //             ..Default::default()
-            //         };
-            //         let mut runtime = JsRuntime::new(runtime_options);
-
-            //         let future = async move {
-            //             let mod_id = runtime
-            //                 .load_main_module(&"file:///loadModule.js".parse().unwrap(), None)
-            //                 .await?;
-            //             let evaluated = runtime.mod_evaluate(mod_id);
-            //             let res = runtime.run_event_loop(false).await;
-            //             res?;
-            //             evaluated.await??;
-            //             Ok::<_, AnyError>(())
-            //         };
-
-            //         future.await.map_err(|e| {
-            //             tracing::debug!("{:?}", e);
-            //             (JsError::Javascript, format!("{}", e))
-            //         })?;
-
-            //         let answer = answer_state.0.lock().clone();
-            //         Ok(answer)
-            //     }
-            // },
-            move || self.execute(procedure_name, input, variable_args),
-        );
+        let safer_handle =
+            SingleThreadJoinHandle::new(move || self.execute(procedure_name, input, variable_args));
         let output = safer_handle.await?;
-        // .map_err(|err| (JsError::Tokio, format!("Tokio gave us the error: {}", err)))??;
         match serde_json::from_value(output.clone()) {
             Ok(x) => Ok(x),
             Err(err) => {

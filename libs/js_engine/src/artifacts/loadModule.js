@@ -43,7 +43,7 @@ const readFile = (
 const runDaemon = (
   { command = requireParam("command"), args = [] } = requireParam("options"),
 ) => {
-  let id = Deno.core.opAsync("start_command", command, args, null);
+  let id = Deno.core.opAsync("start_command", command, args);
   let waitPromise = null;
   return {
     async wait() {
@@ -51,7 +51,7 @@ const runDaemon = (
       return waitPromise
     },
     async term() {
-      return Deno.core.opAsync("term_command_js", await id)
+      return Deno.core.opAsync("term_command", await id)
     }
   }
 };

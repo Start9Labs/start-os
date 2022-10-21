@@ -115,7 +115,7 @@ pub async fn check<Db: DbHandle>(
             .health_checks
             .check_all(
                 ctx,
-                &manifest.container,
+                &manifest.containers,
                 started,
                 id,
                 &manifest.version,

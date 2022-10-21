@@ -176,7 +176,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
         }
         let image_tags = self.image_tags().await?;
         let man = self.manifest().await?;
-        let container = &man.container;
+        let containers = &man.containers;
         let validated_image_ids = image_tags
             .into_iter()
             .map(|i| i.validate(&man.id, &man.version).map(|_| i.image_id))
@@ -187,7 +187,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
             .iter()
             .map(|(_, action)| {
                 action.validate(
-                    container,
+                    containers,
                     &man.eos_version,
                     &man.volumes,
                     &validated_image_ids,
@@ -195,21 +195,21 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
             })
             .collect::<Result<(), Error>>()?;
         man.backup.validate(
-            container,
+            containers,
             &man.eos_version,
             &man.volumes,
             &validated_image_ids,
         )?;
         if let Some(cfg) = &man.config {
             cfg.validate(
-                container,
+                containers,
                 &man.eos_version,
                 &man.volumes,
                 &validated_image_ids,
             )?;
         }
         man.health_checks.validate(
-            container,
+            containers,
             &man.eos_version,
             &man.volumes,
             &validated_image_ids,
@@ -217,7 +217,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
         man.interfaces.validate()?;
         man.main
             .validate(
-                container,
+                containers,
                 &man.eos_version,
                 &man.volumes,
                 &validated_image_ids,
@@ -225,7 +225,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
             )
             .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Main"))?;
         man.migrations.validate(
-            container,
+            containers,
             &man.eos_version,
             &man.volumes,
             &validated_image_ids,
@@ -233,7 +233,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
         if let Some(props) = &man.properties {
             props
                 .validate(
-                    container,
+                    containers,
                     &man.eos_version,
                     &man.volumes,
                     &validated_image_ids,

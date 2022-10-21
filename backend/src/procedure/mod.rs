@@ -6,7 +6,7 @@ use patch_db::HasModel;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use tracing::instrument;
 
-use self::docker::{DockerContainer, DockerInject, DockerProcedure};
+use self::docker::{DockerContainers, DockerInject, DockerProcedure};
 use crate::context::RpcContext;
 use crate::id::ImageId;
 use crate::s9pk::manifest::PackageId;
@@ -43,7 +43,7 @@ impl PackageProcedure {
     #[instrument]
     pub fn validate(
         &self,
-        container: &Option<DockerContainer>,
+        container: &Option<DockerContainers>,
         eos_version: &Version,
         volumes: &Volumes,
         image_ids: &BTreeSet<ImageId>,
@@ -54,11 +54,12 @@ impl PackageProcedure {
                 action.validate(eos_version, volumes, image_ids, expected_io)
             }
             PackageProcedure::DockerInject(injectable) => {
-                let container = match container {
+                let container = match container.as_ref().map(|x| &x.main) {
                     None => bail!("For the docker injectable procedure, a container must be exist on the config"),
                     Some(container) => container,
                 } ;
-                let docker_procedure: DockerProcedure = (container, injectable).into();
+                let docker_procedure =
+                    DockerProcedure::main_docker_procedure(container, injectable);
                 docker_procedure.validate(eos_version, volumes, image_ids, expected_io)
             }
             #[cfg(feature = "js_engine")]
@@ -70,7 +71,7 @@ impl PackageProcedure {
     pub async fn execute<I: Serialize, O: DeserializeOwned + 'static>(
         &self,
         ctx: &RpcContext,
-        container: &Option<DockerContainer>,
+        container: &Option<DockerContainers>,
         pkg_id: &PackageId,
         pkg_version: &Version,
         name: ProcedureName,
@@ -86,11 +87,12 @@ impl PackageProcedure {
                     .await
             }
             PackageProcedure::DockerInject(injectable) => {
-                let container = match container {
+                let container = match container.as_ref().map(|x| &x.main) {
                     None => return Err(Error::new(eyre!("For the docker injectable procedure, a container must be exist on the config"), crate::ErrorKind::Action)),
                     Some(container) => container,
                 } ;
-                let docker_procedure: DockerProcedure = (container, injectable).into();
+                let docker_procedure =
+                    DockerProcedure::main_docker_procedure(container, injectable);
                 docker_procedure
                     .inject(ctx, pkg_id, pkg_version, name, volumes, input, timeout)
                     .await
@@ -146,7 +148,7 @@ impl PackageProcedure {
     pub async fn inject<I: Serialize, O: DeserializeOwned + 'static>(
         &self,
         ctx: &RpcContext,
-        container: &Option<DockerContainer>,
+        container: &Option<DockerContainers>,
         pkg_id: &PackageId,
         pkg_version: &Version,
         name: ProcedureName,
@@ -161,11 +163,12 @@ impl PackageProcedure {
                     .await
             }
             PackageProcedure::DockerInject(injectable) => {
-                let container = match container {
+                let container = match container.as_ref().map(|x| &x.main) {
                     None => return Err(Error::new(eyre!("For the docker injectable procedure, a container must be exist on the config"), crate::ErrorKind::Action)),
                     Some(container) => container,
                 } ;
-                let docker_procedure: DockerProcedure = (container, injectable).into();
+                let docker_procedure =
+                    DockerProcedure::main_docker_procedure(container, injectable);
                 docker_procedure
                     .inject(ctx, pkg_id, pkg_version, name, volumes, input, timeout)
                     .await
@@ -219,7 +222,7 @@ impl PackageProcedure {
     #[instrument(skip(ctx, input))]
     pub async fn sandboxed<I: Serialize, O: DeserializeOwned>(
         &self,
-        container: &Option<DockerContainer>,
+        container: &Option<DockerContainers>,
         ctx: &RpcContext,
         pkg_id: &PackageId,
         pkg_version: &Version,
@@ -236,11 +239,12 @@ impl PackageProcedure {
                     .await
             }
             PackageProcedure::DockerInject(injectable) => {
-                let container = match container {
+                let container = match container.as_ref().map(|x|& x.main) {
                     None => return Err(Error::new(eyre!("For the docker injectable procedure, a container must be exist on the config"), crate::ErrorKind::Action)),
                     Some(container) => container,
                 } ;
-                let docker_procedure: DockerProcedure = (container, injectable).into();
+                let docker_procedure =
+                    DockerProcedure::main_docker_procedure(container, injectable);
                 docker_procedure
                     .sandboxed(ctx, pkg_id, pkg_version, volumes, input, timeout)
                     .await

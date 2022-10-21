@@ -21,7 +21,7 @@ use crate::dependencies::{
     DependencyErrors, DependencyReceipt, TaggedDependencyError, TryHealReceipts,
 };
 use crate::install::cleanup::{remove_from_current_dependents_lists, UpdateDependencyReceipts};
-use crate::procedure::docker::DockerContainer;
+use crate::procedure::docker::DockerContainers;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::util::display_none;
 use crate::util::serde::{display_serializable, parse_stdin_deserializable, IoFormat};
@@ -168,7 +168,7 @@ pub struct ConfigGetReceipts {
     manifest_volumes: LockReceipt<crate::volume::Volumes, ()>,
     manifest_version: LockReceipt<crate::util::Version, ()>,
     manifest_config: LockReceipt<Option<ConfigActions>, ()>,
-    docker_container: LockReceipt<DockerContainer, String>,
+    docker_containers: LockReceipt<DockerContainers, String>,
 }
 
 impl ConfigGetReceipts {
@@ -204,11 +204,11 @@ impl ConfigGetReceipts {
             .map(|x| x.manifest().config())
             .make_locker(LockType::Write)
             .add_to_keys(locks);
-        let docker_container = crate::db::DatabaseModel::new()
+        let docker_containers = crate::db::DatabaseModel::new()
             .package_data()
             .star()
             .installed()
-            .and_then(|x| x.manifest().container())
+            .and_then(|x| x.manifest().containers())
             .make_locker(LockType::Write)
             .add_to_keys(locks);
         move |skeleton_key| {
@@ -216,7 +216,7 @@ impl ConfigGetReceipts {
                 manifest_volumes: manifest_volumes.verify(skeleton_key)?,
                 manifest_version: manifest_version.verify(skeleton_key)?,
                 manifest_config: manifest_config.verify(skeleton_key)?,
-                docker_container: docker_container.verify(skeleton_key)?,
+                docker_containers: docker_containers.verify(skeleton_key)?,
             })
         }
     }
@@ -239,7 +239,7 @@ pub async fn get(
         .await?
         .ok_or_else(|| Error::new(eyre!("{} has no config", id), crate::ErrorKind::NotFound))?;
 
-    let container = receipts.docker_container.get(&mut db, &id).await?;
+    let container = receipts.docker_containers.get(&mut db, &id).await?;
 
     let volumes = receipts.manifest_volumes.get(&mut db).await?;
     let version = receipts.manifest_version.get(&mut db).await?;
@@ -286,7 +286,7 @@ pub struct ConfigReceipts {
     pub current_dependencies: LockReceipt<CurrentDependencies, String>,
     dependency_errors: LockReceipt<DependencyErrors, String>,
     manifest_dependencies_config: LockReceipt<DependencyConfig, (String, String)>,
-    docker_container: LockReceipt<DockerContainer, String>,
+    docker_containers: LockReceipt<DockerContainers, String>,
 }
 
 impl ConfigReceipts {
@@ -391,11 +391,11 @@ impl ConfigReceipts {
             .and_then(|x| x.manifest().dependencies().star().config())
             .make_locker(LockType::Write)
             .add_to_keys(locks);
-        let docker_container = crate::db::DatabaseModel::new()
+        let docker_containers = crate::db::DatabaseModel::new()
             .package_data()
             .star()
             .installed()
-            .and_then(|x| x.manifest().container())
+            .and_then(|x| x.manifest().containers())
             .make_locker(LockType::Write)
             .add_to_keys(locks);
 
@@ -417,7 +417,7 @@ impl ConfigReceipts {
                 current_dependencies: current_dependencies.verify(skeleton_key)?,
                 dependency_errors: dependency_errors.verify(skeleton_key)?,
                 manifest_dependencies_config: manifest_dependencies_config.verify(skeleton_key)?,
-                docker_container: docker_container.verify(skeleton_key)?,
+                docker_containers: docker_containers.verify(skeleton_key)?,
             })
         }
     }
@@ -509,7 +509,7 @@ pub fn configure_rec<'a, Db: DbHandle>(
     receipts: &'a ConfigReceipts,
 ) -> BoxFuture<'a, Result<(), Error>> {
     async move {
-        let container = receipts.docker_container.get(db, &id).await?;
+        let container = receipts.docker_containers.get(db, &id).await?;
         let container = &container;
         // fetch data from db
         let action = receipts
@@ -702,7 +702,7 @@ pub fn configure_rec<'a, Db: DbHandle>(
             .unwrap_or_default();
         let next = Value::Object(config.clone());
         for (dependent, dep_info) in dependents.0.iter().filter(|(dep_id, _)| dep_id != &id) {
-            let dependent_container = receipts.docker_container.get(db, &dependent).await?;
+            let dependent_container = receipts.docker_containers.get(db, &dependent).await?;
             let dependent_container = &dependent_container;
             // check if config passes dependent check
             if let Some(cfg) = receipts

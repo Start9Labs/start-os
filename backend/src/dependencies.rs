@@ -19,7 +19,7 @@ use crate::config::spec::PackagePointerSpec;
 use crate::config::{not_found, Config, ConfigReceipts, ConfigSpec};
 use crate::context::RpcContext;
 use crate::db::model::{CurrentDependencies, CurrentDependents, InstalledPackageDataEntry};
-use crate::procedure::docker::DockerContainer;
+use crate::procedure::docker::DockerContainers;
 use crate::procedure::{NoOutput, PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::status::health_check::{HealthCheckId, HealthCheckResult};
@@ -64,7 +64,7 @@ pub struct TryHealReceipts {
     manifest_version: LockReceipt<Version, String>,
     current_dependencies: LockReceipt<CurrentDependencies, String>,
     dependency_errors: LockReceipt<DependencyErrors, String>,
-    docker_container: LockReceipt<DockerContainer, String>,
+    docker_containers: LockReceipt<DockerContainers, String>,
 }
 
 impl TryHealReceipts {
@@ -112,11 +112,11 @@ impl TryHealReceipts {
             .map(|x| x.status().dependency_errors())
             .make_locker(LockType::Write)
             .add_to_keys(locks);
-        let docker_container = crate::db::DatabaseModel::new()
+        let docker_containers = crate::db::DatabaseModel::new()
             .package_data()
             .star()
             .installed()
-            .and_then(|x| x.manifest().container())
+            .and_then(|x| x.manifest().containers())
             .make_locker(LockType::Write)
             .add_to_keys(locks);
         move |skeleton_key| {
@@ -126,7 +126,7 @@ impl TryHealReceipts {
                 current_dependencies: current_dependencies.verify(skeleton_key)?,
                 manifest: manifest.verify(skeleton_key)?,
                 dependency_errors: dependency_errors.verify(skeleton_key)?,
-                docker_container: docker_container.verify(skeleton_key)?,
+                docker_containers: docker_containers.verify(skeleton_key)?,
             })
         }
     }
@@ -203,7 +203,7 @@ impl DependencyError {
         receipts: &'a TryHealReceipts,
     ) -> BoxFuture<'a, Result<Option<Self>, Error>> {
         async move {
-            let container = receipts.docker_container.get(db, id).await?;
+            let container = receipts.docker_containers.get(db, id).await?;
             Ok(match self {
                 DependencyError::NotInstalled => {
                     if receipts.status.get(db, dependency).await?.is_some() {
@@ -507,7 +507,7 @@ impl DependencyConfig {
     pub async fn check(
         &self,
         ctx: &RpcContext,
-        container: &Option<DockerContainer>,
+        container: &Option<DockerContainers>,
         dependent_id: &PackageId,
         dependent_version: &Version,
         dependent_volumes: &Volumes,
@@ -532,7 +532,7 @@ impl DependencyConfig {
     pub async fn auto_configure(
         &self,
         ctx: &RpcContext,
-        container: &Option<DockerContainer>,
+        container: &Option<DockerContainers>,
         dependent_id: &PackageId,
         dependent_version: &Version,
         dependent_volumes: &Volumes,
@@ -562,7 +562,7 @@ pub struct DependencyConfigReceipts {
     dependency_config_action: LockReceipt<ConfigActions, ()>,
     package_volumes: LockReceipt<Volumes, ()>,
     package_version: LockReceipt<Version, ()>,
-    docker_container: LockReceipt<DockerContainer, String>,
+    docker_containers: LockReceipt<DockerContainers, String>,
 }
 
 impl DependencyConfigReceipts {
@@ -625,11 +625,11 @@ impl DependencyConfigReceipts {
             .map(|x| x.manifest().version())
             .make_locker(LockType::Write)
             .add_to_keys(locks);
-        let docker_container = crate::db::DatabaseModel::new()
+        let docker_containers = crate::db::DatabaseModel::new()
             .package_data()
             .star()
             .installed()
-            .and_then(|x| x.manifest().container())
+            .and_then(|x| x.manifest().containers())
             .make_locker(LockType::Write)
             .add_to_keys(locks);
         move |skeleton_key| {
@@ -641,7 +641,7 @@ impl DependencyConfigReceipts {
                 dependency_config_action: dependency_config_action.verify(&skeleton_key)?,
                 package_volumes: package_volumes.verify(&skeleton_key)?,
                 package_version: package_version.verify(&skeleton_key)?,
-                docker_container: docker_container.verify(&skeleton_key)?,
+                docker_containers: docker_containers.verify(&skeleton_key)?,
             })
         }
     }
@@ -716,8 +716,8 @@ pub async fn configure_logic(
     let dependency_version = receipts.dependency_version.get(db).await?;
     let dependency_volumes = receipts.dependency_volumes.get(db).await?;
     let dependencies = receipts.dependencies.get(db).await?;
-    let dependency_docker_container = receipts.docker_container.get(db, &*dependency_id).await?;
-    let pkg_docker_container = receipts.docker_container.get(db, &*pkg_id).await?;
+    let dependency_docker_container = receipts.docker_containers.get(db, &*dependency_id).await?;
+    let pkg_docker_container = receipts.docker_containers.get(db, &*pkg_id).await?;
 
     let dependency = dependencies
         .0

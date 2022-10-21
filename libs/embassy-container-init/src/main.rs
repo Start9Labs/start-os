@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, process::Stdio, sync::Arc};
 
 use async_stream::stream;
-use futures::{pin_mut, Stream, StreamExt};
+use futures::{future::Either, pin_mut, Stream, StreamExt};
 use tokio::{
     io::AsyncBufReadExt,
     process::Child,
@@ -15,10 +15,14 @@ use embassy_container_init::{Input, InputJsonRpc, JsonRpc, Output, OutputJsonRpc
 
 const MAX_COMMANDS: usize = 10;
 
+enum DoneProgramStatus {
+    Wait(Result<std::process::ExitStatus, std::io::Error>),
+    Killed,
+}
 /// Created from the child and rpc, to prove that the cmd was the one who died
 struct DoneProgram {
     id: RpcId,
-    status: Result<std::process::ExitStatus, std::io::Error>,
+    status: DoneProgramStatus,
 }
 
 /// Used to attach the running command with the rpc
@@ -35,14 +39,22 @@ impl ChildAndRpc {
         })
     }
     async fn wait(&mut self) -> DoneProgram {
-        let status = self.child.wait().await;
+        let status = DoneProgramStatus::Wait(self.child.wait().await);
         DoneProgram {
             id: self.id.clone(),
             status,
         }
     }
-    async fn kill(mut self) -> ::std::io::Result<()> {
-        self.child.kill().await
+    async fn kill(mut self) -> DoneProgram {
+        if let Err(err) = self.child.kill().await {
+            let id = &self.id;
+            tracing::error!("Error while trying to kill a process {id:?}");
+            tracing::debug!("{err:?}");
+        }
+        DoneProgram {
+            id: self.id.clone(),
+            status: DoneProgramStatus::Killed,
+        }
     }
 }
 
@@ -122,16 +134,15 @@ impl Io {
                                     .wait() => {
                                         io.clean_id(&waited).await;
                                         match &waited.status {
-                                            Ok(st) => return st.code(),
-                                            Err(err) => tracing::debug!("Child {id:?} got error: {err:?}")
+                                            DoneProgramStatus::Wait(Ok(st)) =>  return st.code(),
+                                            DoneProgramStatus::Wait(Err(err)) => tracing::debug!("Child {id:?} got error: {err:?}"),
+                                            DoneProgramStatus::Killed => tracing::debug!("Child {id:?} already killed?"),
                                         }
 
                                     },
                                 _ = end_command_receiver => {
-                                    if let Err(err) = child_and_rpc.kill().await {
-                                        tracing::error!("Error while trying to kill a process {id:?}");
-                                        tracing::debug!("{err:?}");
-                                    }
+                                    let status = child_and_rpc.kill().await;
+                                    io.clean_id(&status).await;
                                 },
                             }
                             None

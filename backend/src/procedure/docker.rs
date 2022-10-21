@@ -24,8 +24,6 @@ use tokio::{
 };
 use tracing::instrument;
 
-#[cfg(feature = "js_engine")]
-use super::js_scripts::JsProcedure;
 use super::ProcedureName;
 use crate::context::RpcContext;
 use crate::id::{Id, ImageId};
@@ -48,6 +46,13 @@ lazy_static::lazy_static! {
     };
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize, patch_db::HasModel)]
+#[serde(rename_all = "kebab-case")]
+pub struct DockerContainers {
+    pub main: DockerContainer,
+    #[serde(default)]
+    pub auxilery: BTreeMap<String, DockerContainer>,
+}
 #[derive(Clone, Debug, Deserialize, Serialize, patch_db::HasModel)]
 #[serde(rename_all = "kebab-case")]
 pub struct DockerContainer {
@@ -77,7 +82,7 @@ pub struct DockerProcedure {
     pub shm_size_mb: Option<usize>, // TODO: use postfix sizing? like 1k vs 1m vs 1g
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, Default)]
 #[serde(rename_all = "kebab-case")]
 pub struct DockerInject {
     #[serde(default)]
@@ -90,9 +95,11 @@ pub struct DockerInject {
     #[serde(default)]
     pub sigterm_timeout: Option<SerdeDuration>,
 }
-
-impl From<(&DockerContainer, &DockerInject)> for DockerProcedure {
-    fn from((container, injectable): (&DockerContainer, &DockerInject)) -> Self {
+impl DockerProcedure {
+    pub fn main_docker_procedure(
+        container: &DockerContainer,
+        injectable: &DockerInject,
+    ) -> DockerProcedure {
         DockerProcedure {
             image: container.image.clone(),
             system: injectable.system,
@@ -104,10 +111,11 @@ impl From<(&DockerContainer, &DockerInject)> for DockerProcedure {
             shm_size_mb: container.shm_size_mb,
         }
     }
-}
-#[cfg(feature = "js_engine")]
-impl From<(&DockerContainer, &JsProcedure)> for DockerProcedure {
-    fn from((container, _injectable): (&DockerContainer, &JsProcedure)) -> Self {
+    #[cfg(feature = "js_engine")]
+    pub fn main_docker_procedure_js(
+        container: &DockerContainer,
+        _procedure: &super::js_scripts::JsProcedure,
+    ) -> DockerProcedure {
         DockerProcedure {
             image: container.image.clone(),
             system: false,
@@ -119,22 +127,7 @@ impl From<(&DockerContainer, &JsProcedure)> for DockerProcedure {
             shm_size_mb: container.shm_size_mb,
         }
     }
-}
 
-#[cfg(feature = "js_engine")]
-impl From<(&DockerContainer, &JsProcedure)> for DockerInject {
-    fn from((_container, _injectable): (&DockerContainer, &JsProcedure)) -> Self {
-        DockerInject {
-            system: false,
-            entrypoint: String::new(),
-            args: Vec::new(),
-            io_format: None,
-            sigterm_timeout: None,
-        }
-    }
-}
-
-impl DockerProcedure {
     pub fn validate(
         &self,
         _eos_version: &Version,

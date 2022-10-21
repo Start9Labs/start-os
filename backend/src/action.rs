@@ -11,7 +11,7 @@ use tracing::instrument;
 use crate::config::{Config, ConfigSpec};
 use crate::context::RpcContext;
 use crate::id::ImageId;
-use crate::procedure::docker::DockerContainer;
+use crate::procedure::docker::DockerContainers;
 use crate::procedure::{PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::PackageId;
 use crate::util::serde::{display_serializable, parse_stdin_deserializable, IoFormat};
@@ -59,7 +59,7 @@ impl Action {
     #[instrument]
     pub fn validate(
         &self,
-        container: &Option<DockerContainer>,
+        container: &Option<DockerContainers>,
         eos_version: &Version,
         volumes: &Volumes,
         image_ids: &BTreeSet<ImageId>,
@@ -78,7 +78,7 @@ impl Action {
     pub async fn execute(
         &self,
         ctx: &RpcContext,
-        container: &Option<DockerContainer>,
+        container: &Option<DockerContainers>,
         pkg_id: &PackageId,
         pkg_version: &Version,
         action_id: &ActionId,
@@ -145,7 +145,7 @@ pub async fn action(
         .await?
         .to_owned();
 
-    let container = crate::db::DatabaseModel::new()
+    let containers = crate::db::DatabaseModel::new()
         .package_data()
         .idx_model(&pkg_id)
         .and_then(|p| p.installed())
@@ -153,7 +153,7 @@ pub async fn action(
         .await
         .with_kind(crate::ErrorKind::NotFound)?
         .manifest()
-        .container()
+        .containers()
         .get(&mut db, false)
         .await?
         .to_owned();
@@ -161,7 +161,7 @@ pub async fn action(
         action
             .execute(
                 &ctx,
-                &container,
+                &containers,
                 &manifest.id,
                 &manifest.version,
                 &action_id,

@@ -19,7 +19,7 @@ use crate::dependencies::reconfigure_dependents_with_live_pointers;
 use crate::id::ImageId;
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::net::interface::{InterfaceId, Interfaces};
-use crate::procedure::docker::DockerContainer;
+use crate::procedure::docker::DockerContainers;
 use crate::procedure::{NoOutput, PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::PackageId;
 use crate::util::serde::IoFormat;
@@ -74,7 +74,7 @@ pub struct BackupActions {
 impl BackupActions {
     pub fn validate(
         &self,
-        container: &Option<DockerContainer>,
+        container: &Option<DockerContainers>,
         eos_version: &Version,
         volumes: &Volumes,
         image_ids: &BTreeSet<ImageId>,
@@ -102,7 +102,7 @@ impl BackupActions {
         let mut volumes = volumes.to_readonly();
         volumes.insert(VolumeId::Backup, Volume::Backup { readonly: false });
         let backup_dir = backup_dir(pkg_id);
-        let container = crate::db::DatabaseModel::new()
+        let containers = crate::db::DatabaseModel::new()
             .package_data()
             .idx_model(&pkg_id)
             .and_then(|p| p.installed())
@@ -110,7 +110,7 @@ impl BackupActions {
             .await
             .with_kind(crate::ErrorKind::NotFound)?
             .manifest()
-            .container()
+            .containers()
             .get(db, false)
             .await?
             .to_owned();
@@ -120,7 +120,7 @@ impl BackupActions {
         self.create
             .execute::<(), NoOutput>(
                 ctx,
-                &container,
+                &containers,
                 pkg_id,
                 pkg_version,
                 ProcedureName::CreateBackup,
@@ -200,7 +200,7 @@ impl BackupActions {
     #[instrument(skip(ctx, db, secrets))]
     pub async fn restore<Ex, Db: DbHandle>(
         &self,
-        container: &Option<DockerContainer>,
+        container: &Option<DockerContainers>,
         ctx: &RpcContext,
         db: &mut Db,
         secrets: &mut Ex,

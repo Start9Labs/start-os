@@ -10,7 +10,7 @@ use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::id::ImageId;
-use crate::procedure::docker::DockerContainer;
+use crate::procedure::docker::DockerContainers;
 use crate::procedure::{PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
@@ -27,7 +27,7 @@ impl Migrations {
     #[instrument]
     pub fn validate(
         &self,
-        container: &Option<DockerContainer>,
+        container: &Option<DockerContainers>,
         eos_version: &Version,
         volumes: &Volumes,
         image_ids: &BTreeSet<ImageId>,
@@ -58,7 +58,7 @@ impl Migrations {
     #[instrument(skip(ctx))]
     pub fn from<'a>(
         &'a self,
-        container: &'a Option<DockerContainer>,
+        container: &'a Option<DockerContainers>,
         ctx: &'a RpcContext,
         version: &'a Version,
         pkg_id: &'a PackageId,
@@ -99,7 +99,7 @@ impl Migrations {
     #[instrument(skip(ctx))]
     pub fn to<'a>(
         &'a self,
-        container: &'a Option<DockerContainer>,
+        container: &'a Option<DockerContainers>,
         ctx: &'a RpcContext,
         version: &'a Version,
         pkg_id: &'a PackageId,
