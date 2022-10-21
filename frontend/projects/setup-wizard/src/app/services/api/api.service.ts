@@ -5,7 +5,6 @@ export abstract class ApiService {
   abstract getStatus(): Promise<GetStatusRes> // setup.status
   abstract getPubKey(): Promise<void> // setup.get-pubkey
   abstract getDrives(): Promise<DiskListResponse> // setup.disk.list
-  abstract set02XDrive(logicalname: string): Promise<void> // setup.recovery.v2.set
   abstract getRecoveryStatus(): Promise<RecoveryStatusRes> // setup.recovery.status
   abstract verifyCifs(cifs: CifsRecoverySource): Promise<EmbassyOSRecoveryInfo> // setup.cifs.verify
   abstract importDrive(importInfo: ImportDriveReq): Promise<SetupEmbassyRes> // setup.attach

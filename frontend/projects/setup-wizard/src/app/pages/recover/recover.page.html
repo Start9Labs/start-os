@@ -25,7 +25,7 @@
             <!-- loaded -->
             <ion-item-group *ngIf="!loading" class="ion-text-center">
               <!-- cifs -->
-              <h2 class="target-label">LAN Shared Folder</h2>
+              <h2 class="target-label">Network Folder</h2>
               <p class="ion-padding-bottom">
                 Using a LAN Shared Folder is the recommended way to recover from
                 backup, since it works with all Embassy hardware configurations.
@@ -42,7 +42,7 @@
               <ion-item button lines="none" (click)="presentModalCifs()">
                 <ion-icon
                   slot="start"
-                  name="folder-open-outline"
+                  name="add"
                   size="large"
                   color="light"
                 ></ion-icon>

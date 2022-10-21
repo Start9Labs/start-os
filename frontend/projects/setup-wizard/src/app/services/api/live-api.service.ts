@@ -59,13 +59,6 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async set02XDrive(logicalname: string) {
-    return this.rpcRequest<void>({
-      method: 'setup.recovery.v2.set',
-      params: { logicalname },
-    })
-  }
-
   async getRecoveryStatus() {
     return this.rpcRequest<RecoveryStatusRes>({
       method: 'setup.recovery.status',

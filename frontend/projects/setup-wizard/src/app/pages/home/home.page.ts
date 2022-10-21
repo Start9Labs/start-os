@@ -100,11 +100,3 @@ export class HomePage {
     }
   }
 }
-
-function decodeHex(hex: string) {
-  let str = ''
-  for (let n = 0; n < hex.length; n += 2) {
-    str += String.fromCharCode(parseInt(hex.substring(n, 2), 16))
-  }
-  return str
-}

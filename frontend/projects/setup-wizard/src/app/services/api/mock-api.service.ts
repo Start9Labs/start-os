@@ -88,11 +88,6 @@ export class MockApiService extends ApiService {
     ]
   }
 
-  async set02XDrive() {
-    await pauseFor(1000)
-    return
-  }
-
   async getRecoveryStatus() {
     tries = Math.min(tries + 1, 4)
     return {
