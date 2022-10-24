@@ -116,7 +116,6 @@ jobs:
 
     - name: Build backend
       run: make ARCH=${{ matrix.target }} backend
-      working-directory: backend
 
     - name: 'Tar files to preserve file permissions'
       run: make ARCH=${{ matrix.target }} backend-${{ matrix.target }}.tar
