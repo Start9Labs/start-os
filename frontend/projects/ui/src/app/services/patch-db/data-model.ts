@@ -11,7 +11,6 @@ export interface DataModel {
 
 export interface UIData {
   name: string | null
-  'auto-check-updates': boolean
   'pkg-order': string[]
   'ack-welcome': string // EOS emver
   marketplace: UIMarketplaceData

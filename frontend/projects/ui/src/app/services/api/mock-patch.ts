@@ -12,7 +12,6 @@ import { Mock } from './api.fixures'
 export const mockPatchData: DataModel = {
   ui: {
     name: `Matt's Embassy`,
-    'auto-check-updates': true,
     'pkg-order': [],
     'ack-welcome': '1.0.0',
     marketplace: {
