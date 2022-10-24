@@ -1,8 +1,7 @@
 import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
 import { EOSService } from '../../services/eos.service'
 import { PatchDB } from 'patch-db-client'
-import { iif, Observable } from 'rxjs'
-import { filter, map, switchMap } from 'rxjs/operators'
+import { Observable, of } from 'rxjs'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
@@ -52,21 +51,7 @@ export class MenuComponent {
 
   readonly showEOSUpdate$ = this.eosService.showUpdate$
 
-  // readonly updateCount$: Observable<number> = this.patch
-  //   .watch$('ui', 'auto-check-updates')
-  //   .pipe(
-  //     filter(Boolean),
-  //     switchMap(() =>
-  //       this.marketplaceService.getUpdates$().pipe(
-  //         map(arr => {
-  //           return arr.reduce(
-  //             (acc, marketplace) => acc + marketplace.pkgs.length,
-  //             0,
-  //           )
-  //         }),
-  //       ),
-  //     ),
-  //   )
+  readonly updateCount$: Observable<number> = of(10) // @TODO do this for real
 
   readonly sidebarOpen$ = this.splitPane.sidebarOpen$
 

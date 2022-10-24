@@ -49,13 +49,6 @@ const routes: Routes = [
       ),
   },
   {
-    path: 'preferences',
-    loadChildren: () =>
-      import('./preferences/preferences.module').then(
-        m => m.PreferencesPageModule,
-      ),
-  },
-  {
     path: 'restore',
     loadChildren: () =>
       import('./restore/restore.component.module').then(

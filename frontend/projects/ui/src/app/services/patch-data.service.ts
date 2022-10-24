@@ -44,11 +44,9 @@ export class PatchDataService extends Observable<DataModel> {
   }
 
   private checkForUpdates(ui: UIData): void {
-    if (ui['auto-check-updates'] !== false) {
-      this.eosService.getEOS()
-      this.marketplaceService.getMarketplaceInfo$().pipe(take(1)).subscribe()
-      this.marketplaceService.loadUpdates()
-    }
+    this.eosService.getEOS()
+    this.marketplaceService.getMarketplaceInfo$().pipe(take(1)).subscribe()
+    this.marketplaceService.loadUpdates()
   }
 
   private async showEosWelcome(ackVersion: string): Promise<void> {
