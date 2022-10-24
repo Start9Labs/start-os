@@ -11,7 +11,7 @@ use deno_core::{
     resolve_import, Extension, JsRuntime, ModuleLoader, ModuleSource, ModuleSourceFuture,
     ModuleSpecifier, ModuleType, OpDecl, RuntimeOptions, Snapshot,
 };
-use helpers::{script_dir, NonDetachingJoinHandle, SingleThreadJoinHandle};
+use helpers::{script_dir, SingleThreadJoinHandle};
 use models::{ExecCommand, PackageId, ProcedureName, TermCommand, Version, VolumeId};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

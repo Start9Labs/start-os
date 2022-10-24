@@ -893,6 +893,7 @@ impl LongRunning {
                 if let Err(e) = stdin.write_all(format!("{input}\n").as_bytes()).await {
                     tracing::debug!("{:?}", e);
                     tracing::error!("Docker Input issue");
+                    return;
                 }
             }
         }));
