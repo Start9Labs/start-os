@@ -37,6 +37,8 @@ systemctl stop tor
 
 systemctl enable embassyd.service embassy-init.service
 
+. /usr/lib/embassy/scripts/enable-kiosk
+
 sed -i 's/^/usb-storage.quirks=152d:0562:u,14cd:121c:u,0781:cfcb:u /g' /boot/cmdline.txt
 
 # making that *sudo docker stats* command fulfil its purpose by displaying all metrics

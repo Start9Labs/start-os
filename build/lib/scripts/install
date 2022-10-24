@@ -102,9 +102,7 @@ EOF
 chroot /mnt/current systemd-machine-id-setup
 
 # gen ssh host keys
-ssh-keygen -t rsa /mnt/current/etc/ssh_host_rsa_key
-ssh-keygen -t ecdsa /mnt/current/etc/ssh_host_ecdsa_key
-ssh-keygen -t ed25519 /mnt/current/etc/ssh_host_ed25519_key
+chroot /mnt/current ssh-keygen -A
 
 mount --bind /dev /mnt/current/dev
 mount --bind /sys /mnt/current/sys
