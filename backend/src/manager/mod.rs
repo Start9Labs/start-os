@@ -786,7 +786,7 @@ enum InjectableMain<'a> {
     Script((&'a DockerContainer, &'a JsProcedure)),
 }
 
-fn injectable_main<'a>(thread_shared: &'a Arc<ManagerSharedState>) -> InjectableMain {
+fn injectable_main(thread_shared: &Arc<ManagerSharedState>) -> InjectableMain {
     match (
         &thread_shared.manifest.main,
         &thread_shared.manifest.containers.as_ref().map(|x| &x.main),
