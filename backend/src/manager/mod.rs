@@ -508,15 +508,21 @@ async fn manager_thread_loop(
 
 struct LongRunningHandle(NonDetachingJoinHandle<()>);
 pub struct CommandInserter {
-    command_counter: Mutex<u32>,
+    command_counter: AtomicUsize,
     input: UnboundedSender<InputJsonRpc>,
     outputs: Arc<Mutex<BTreeMap<RpcId, UnboundedSender<embassy_container_init::Output>>>>,
 }
 impl Drop for CommandInserter {
     fn drop(&mut self) {
         use embassy_container_init::{Input, JsonRpc};
-        for i in 0..*self.command_counter.blocking_lock() {
-            let _ignored_result = self.input.send(JsonRpc::new(RpcId::UInt(i), Input::Term()));
+        let CommandInserter {
+            command_counter,
+            input,
+            outputs: _,
+        } = self;
+        let upper: usize = command_counter.load(Ordering::Relaxed);
+        for i in 0..upper {
+            let _ignored_result = input.send(JsonRpc::new(RpcId::UInt(i as u32), Input::Term()));
         }
     }
 }
@@ -529,7 +535,7 @@ impl CommandInserter {
             mut output,
             running_output,
         } = long_running;
-        let command_counter = Mutex::new(0);
+        let command_counter = AtomicUsize::new(0);
         let outputs: Arc<Mutex<BTreeMap<RpcId, UnboundedSender<embassy_container_init::Output>>>> =
             Default::default();
         let handle = LongRunningHandle(running_output);
@@ -569,9 +575,8 @@ impl CommandInserter {
         timeout: Option<Duration>,
     ) -> Option<RpcId> {
         use embassy_container_init::{Input, JsonRpc};
-        let mut command_counter_lock = self.command_counter.lock().await;
         let mut outputs = self.outputs.lock().await;
-        let command_counter = *command_counter_lock;
+        let command_counter = self.command_counter.fetch_add(1, Ordering::SeqCst) as u32;
         let command_id = RpcId::UInt(command_counter);
         outputs.insert(command_id.clone(), sender);
         if let Some(timeout) = timeout {
@@ -593,7 +598,6 @@ impl CommandInserter {
             return None;
         }
 
-        *command_counter_lock += 1;
         Some(command_id)
     }
     pub async fn term(&self, id: RpcId) {
@@ -603,8 +607,8 @@ impl CommandInserter {
     }
 
     pub async fn term_all(&self) {
-        for i in 0..*self.command_counter.lock().await {
-            self.term(RpcId::UInt(i)).await;
+        for i in 0..self.command_counter.load(Ordering::Relaxed) {
+            self.term(RpcId::UInt(i as u32)).await;
         }
     }
 }

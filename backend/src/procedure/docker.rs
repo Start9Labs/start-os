@@ -792,6 +792,7 @@ impl LongRunning {
         pkg_id: &PackageId,
         pkg_version: &Version,
     ) -> Result<tokio::process::Command, Error> {
+        tracing::error!("BLUJ setup_long_running_docker_cmd {container_name}");
         const INIT_EXEC: &str = "/start9/embassy_container_init";
         const BIND_LOCATION: &str = "/usr/lib/embassy/container";
         tracing::trace!("setup_long_running_docker_cmd");
