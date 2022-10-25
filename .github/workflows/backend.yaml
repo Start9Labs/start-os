@@ -119,22 +119,7 @@ jobs:
       run: ./check-environment.sh
 
     - name: Build backend
-      run: cargo build --release --target x86_64-unknown-linux-gnu --locked
-      working-directory: backend
-      if: ${{ matrix.target == 'x86_64' }}
-
-    - name: Build backend
-      run: |
-        docker run --rm \
-        -v "/home/runner/.cargo/registry":/root/.cargo/registry \
-        -v "$(pwd)":/home/rust/src \
-        -P start9/rust-arm-cross:aarch64 \
-        sh -c 'cd /home/rust/src/backend &&
-          rustup install ${{ env.RUST_VERSION }} &&
-          rustup override set ${{ env.RUST_VERSION }} &&
-          rustup target add aarch64-unknown-linux-gnu &&
-          cargo build --release --target ${{ matrix.target }}-unknown-linux-gnu --locked'
-      if: ${{ matrix.target == 'aarch64' }}
+      run: make ARCH=${{ matrix.target }} backend
 
     - name: 'Tar files to preserve file permissions'
       run: make ARCH=${{ matrix.target }} backend-${{ matrix.target }}.tar

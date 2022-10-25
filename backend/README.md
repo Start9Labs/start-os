@@ -40,4 +40,3 @@ If you have questions about how various pieces of the backend system work. Open
 an issue and tag the following people
 
 - dr-bonez
-- ProofOfKeags
