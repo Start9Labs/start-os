@@ -795,6 +795,23 @@ impl LongRunning {
         tracing::trace!("setup_long_running_docker_cmd");
 
         LongRunning::cleanup_previous_container(ctx, container_name).await?;
+
+        let image_architecture = {
+            let mut cmd = tokio::process::Command::new("docker");
+            cmd.arg("image")
+                .arg("inspect")
+                .arg("--format")
+                .arg("'{{.Architecture}}'");
+
+            if docker.system {
+                cmd.arg(docker.image.for_package(SYSTEM_PACKAGE_ID, None));
+            } else {
+                cmd.arg(docker.image.for_package(pkg_id, Some(pkg_version)));
+            }
+            let arch = String::from_utf8(cmd.output().await?.stdout)?;
+            arch.replace('\'', "").trim().to_string()
+        };
+
         let mut cmd = tokio::process::Command::new("docker");
         cmd.arg("run")
             .arg("--network=start9")
@@ -805,7 +822,7 @@ impl LongRunning {
             .arg(&container_name)
             .arg(format!("--hostname={}", &container_name))
             .arg("--entrypoint")
-            .arg(INIT_EXEC)
+            .arg(format!("{INIT_EXEC}.{image_architecture}"))
             .arg("-i")
             .arg("--rm");
 
