@@ -1,16 +1,19 @@
-use std::collections::BTreeMap;
 use std::convert::TryInto;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
+use std::{collections::BTreeMap, sync::Arc};
 
 use chrono::Utc;
 
-use super::{pause, resume, start, stop, ManagerSharedState, Status};
+use super::{pause, resume, start, stop, ManagerSharedState, PersistantContainer, Status};
 use crate::status::MainStatus;
 use crate::Error;
 
 /// Allocates a db handle. DO NOT CALL with a db handle already in scope
-async fn synchronize_once(shared: &ManagerSharedState) -> Result<Status, Error> {
+async fn synchronize_once(
+    shared: &ManagerSharedState,
+    persistant_container: Arc<PersistantContainer>,
+) -> Result<Status, Error> {
     let mut db = shared.ctx.db.handle();
     let mut status = crate::db::DatabaseModel::new()
         .package_data()
@@ -45,16 +48,16 @@ async fn synchronize_once(shared: &ManagerSharedState) -> Result<Status, Error> 
         },
         Status::Starting => match *status {
             MainStatus::Stopped | MainStatus::Stopping | MainStatus::Restarting => {
-                stop(shared).await?;
+                stop(shared, persistant_container).await?;
             }
             MainStatus::Starting { .. } | MainStatus::Running { .. } => (),
             MainStatus::BackingUp { .. } => {
-                pause(shared).await?;
+                pause(shared, persistant_container).await?;
             }
         },
         Status::Running => match *status {
             MainStatus::Stopped | MainStatus::Stopping | MainStatus::Restarting => {
-                stop(shared).await?;
+                stop(shared, persistant_container).await?;
             }
             MainStatus::Starting { .. } => {
                 *status = MainStatus::Running {
@@ -64,12 +67,12 @@ async fn synchronize_once(shared: &ManagerSharedState) -> Result<Status, Error> 
             }
             MainStatus::Running { .. } => (),
             MainStatus::BackingUp { .. } => {
-                pause(shared).await?;
+                pause(shared, persistant_container).await?;
             }
         },
         Status::Paused => match *status {
             MainStatus::Stopped | MainStatus::Stopping | MainStatus::Restarting => {
-                stop(shared).await?;
+                stop(shared, persistant_container).await?;
             }
             MainStatus::Starting { .. } | MainStatus::Running { .. } => {
                 resume(shared).await?;
@@ -82,13 +85,16 @@ async fn synchronize_once(shared: &ManagerSharedState) -> Result<Status, Error> 
     Ok(manager_status)
 }
 
-pub async fn synchronizer(shared: &ManagerSharedState) {
+pub async fn synchronizer(
+    shared: &ManagerSharedState,
+    persistant_container: Arc<PersistantContainer>,
+) {
     loop {
         tokio::select! {
             _ = tokio::time::sleep(Duration::from_secs(5)) => (),
             _ = shared.synchronize_now.notified() => (),
         }
-        let status = match synchronize_once(shared).await {
+        let status = match synchronize_once(shared, persistant_container.clone()).await {
             Err(e) => {
                 tracing::error!(
                     "Synchronizer for {}@{} failed: {}",

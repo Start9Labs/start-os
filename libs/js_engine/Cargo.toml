@@ -6,10 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+async-trait = "0.1.56"
 dashmap = "5.3.4"
 deno_core = "=0.136.0"
 deno_ast = { version = "=0.15.0", features = ["transpiling"] }
 dprint-swc-ext = "=0.1.1"
+embassy_container_init = { path = "../embassy-container-init" }
 reqwest = { version = "0.11.11" }
 swc_atoms = "=0.2.11"
 swc_common = "=0.18.7"

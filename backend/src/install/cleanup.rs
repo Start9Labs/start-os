@@ -1,10 +1,6 @@
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use bollard::image::ListImagesOptions;
-use color_eyre::Report;
-use futures::FutureExt;
 use patch_db::{DbHandle, LockReceipt, LockTargetId, LockType, PatchDbHandle, Verifier};
 use sqlx::{Executor, Postgres};
 use tracing::instrument;
@@ -422,7 +418,7 @@ pub fn cleanup_folder(
     Box::pin(async move {
         let meta_data = match tokio::fs::metadata(&path).await {
             Ok(a) => a,
-            Err(e) => {
+            Err(_e) => {
                 return;
             }
         };
@@ -441,7 +437,7 @@ pub fn cleanup_folder(
         }
         let mut read_dir = match tokio::fs::read_dir(&path).await {
             Ok(a) => a,
-            Err(e) => {
+            Err(_e) => {
                 return;
             }
         };

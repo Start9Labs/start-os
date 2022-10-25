@@ -4,5 +4,6 @@ members = [
     "snapshot-creator",
     "models",
     "js_engine",
-    "helpers"
+    "helpers",
+    "embassy-container-init",
 ]

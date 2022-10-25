@@ -25,7 +25,6 @@ use super::{Config, MatchError, NoMatchWithPath, TimeoutError, TypeOf};
 use crate::config::ConfigurationError;
 use crate::context::RpcContext;
 use crate::net::interface::InterfaceId;
-use crate::procedure::docker::DockerContainer;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::Error;
 
@@ -1883,7 +1882,6 @@ pub struct ConfigPointerReceipts {
     manifest_volumes: LockReceipt<crate::volume::Volumes, String>,
     manifest_version: LockReceipt<crate::util::Version, String>,
     config_actions: LockReceipt<super::action::ConfigActions, String>,
-    docker_container: LockReceipt<DockerContainer, String>,
 }
 
 impl ConfigPointerReceipts {
@@ -1920,20 +1918,12 @@ impl ConfigPointerReceipts {
             .and_then(|x| x.manifest().config())
             .make_locker(LockType::Read)
             .add_to_keys(locks);
-        let docker_container = crate::db::DatabaseModel::new()
-            .package_data()
-            .star()
-            .installed()
-            .and_then(|x| x.manifest().container())
-            .make_locker(LockType::Write)
-            .add_to_keys(locks);
         move |skeleton_key| {
             Ok(Self {
                 interface_addresses_receipt: interface_addresses_receipt(skeleton_key)?,
                 manifest_volumes: manifest_volumes.verify(skeleton_key)?,
                 config_actions: config_actions.verify(skeleton_key)?,
                 manifest_version: manifest_version.verify(skeleton_key)?,
-                docker_container: docker_container.verify(skeleton_key)?,
             })
         }
     }
@@ -1963,12 +1953,11 @@ impl ConfigPointer {
             let version = receipts.manifest_version.get(db, id).await.ok().flatten();
             let cfg_actions = receipts.config_actions.get(db, id).await.ok().flatten();
             let volumes = receipts.manifest_volumes.get(db, id).await.ok().flatten();
-            let container = receipts.docker_container.get(db, id).await.ok().flatten();
             if let (Some(version), Some(cfg_actions), Some(volumes)) =
                 (&version, &cfg_actions, &volumes)
             {
                 let cfg_res = cfg_actions
-                    .get(ctx, &container, &self.package_id, version, volumes)
+                    .get(ctx, &self.package_id, version, volumes)
                     .await
                     .map_err(|e| ConfigurationError::SystemError(e))?;
                 if let Some(cfg) = cfg_res.config {
