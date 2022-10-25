@@ -102,25 +102,12 @@ impl BackupActions {
         let mut volumes = volumes.to_readonly();
         volumes.insert(VolumeId::Backup, Volume::Backup { readonly: false });
         let backup_dir = backup_dir(pkg_id);
-        let containers = crate::db::DatabaseModel::new()
-            .package_data()
-            .idx_model(&pkg_id)
-            .and_then(|p| p.installed())
-            .expect(db)
-            .await
-            .with_kind(crate::ErrorKind::NotFound)?
-            .manifest()
-            .containers()
-            .get(db, false)
-            .await?
-            .to_owned();
         if tokio::fs::metadata(&backup_dir).await.is_err() {
             tokio::fs::create_dir_all(&backup_dir).await?
         }
         self.create
             .execute::<(), NoOutput>(
                 ctx,
-                &containers,
                 pkg_id,
                 pkg_version,
                 ProcedureName::CreateBackup,
@@ -200,7 +187,6 @@ impl BackupActions {
     #[instrument(skip(ctx, db, secrets))]
     pub async fn restore<Ex, Db: DbHandle>(
         &self,
-        container: &Option<DockerContainers>,
         ctx: &RpcContext,
         db: &mut Db,
         secrets: &mut Ex,
@@ -217,7 +203,6 @@ impl BackupActions {
         self.restore
             .execute::<(), NoOutput>(
                 ctx,
-                container,
                 pkg_id,
                 pkg_version,
                 ProcedureName::RestoreBackup,

@@ -51,7 +51,7 @@ lazy_static::lazy_static! {
 pub struct DockerContainers {
     pub main: DockerContainer,
     #[serde(default)]
-    pub auxilery: BTreeMap<String, DockerContainer>,
+    pub auxilery: BTreeMap<String, DockerProcedure>,
 }
 #[derive(Clone, Debug, Deserialize, Serialize, patch_db::HasModel)]
 #[serde(rename_all = "kebab-case")]
@@ -61,6 +61,10 @@ pub struct DockerContainer {
     pub mounts: BTreeMap<VolumeId, PathBuf>,
     #[serde(default)]
     pub shm_size_mb: Option<usize>, // TODO: use postfix sizing? like 1k vs 1m vs 1g
+    #[serde(default)]
+    pub sigterm_timeout: Option<SerdeDuration>,
+    #[serde(default)]
+    pub system: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -118,12 +122,12 @@ impl DockerProcedure {
     ) -> DockerProcedure {
         DockerProcedure {
             image: container.image.clone(),
-            system: false,
+            system: container.system,
             entrypoint: "sleep".to_string(),
             args: Vec::new(),
             mounts: container.mounts.clone(),
             io_format: None,
-            sigterm_timeout: None,
+            sigterm_timeout: container.sigterm_timeout,
             shm_size_mb: container.shm_size_mb,
         }
     }

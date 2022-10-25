@@ -78,7 +78,6 @@ impl Action {
     pub async fn execute(
         &self,
         ctx: &RpcContext,
-        container: &Option<DockerContainers>,
         pkg_id: &PackageId,
         pkg_version: &Version,
         action_id: &ActionId,
@@ -93,7 +92,6 @@ impl Action {
         self.implementation
             .execute(
                 ctx,
-                container,
                 pkg_id,
                 pkg_version,
                 ProcedureName::Action(action_id.clone()),
@@ -145,23 +143,10 @@ pub async fn action(
         .await?
         .to_owned();
 
-    let containers = crate::db::DatabaseModel::new()
-        .package_data()
-        .idx_model(&pkg_id)
-        .and_then(|p| p.installed())
-        .expect(&mut db)
-        .await
-        .with_kind(crate::ErrorKind::NotFound)?
-        .manifest()
-        .containers()
-        .get(&mut db, false)
-        .await?
-        .to_owned();
     if let Some(action) = manifest.actions.0.get(&action_id) {
         action
             .execute(
                 &ctx,
-                &containers,
                 &manifest.id,
                 &manifest.version,
                 &action_id,

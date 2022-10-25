@@ -16,8 +16,8 @@ use nix::sys::signal::Signal;
 use num_enum::TryFromPrimitive;
 use patch_db::DbHandle;
 use sqlx::{Executor, Postgres};
-use tokio::sync::watch::{self, channel, Receiver, Sender};
-use tokio::sync::{mpsc, watch::error::RecvError};
+use tokio::sync::watch::error::RecvError;
+use tokio::sync::watch::{channel, Receiver, Sender};
 use tokio::sync::{Mutex, Notify, RwLock};
 use tokio::{sync::mpsc::UnboundedSender, task::JoinHandle};
 use tokio_stream::wrappers::UnboundedReceiverStream;
@@ -29,7 +29,7 @@ use crate::manager::sync::synchronizer;
 use crate::net::interface::InterfaceId;
 use crate::net::GeneratedCertificateMountPoint;
 use crate::notifications::NotificationLevel;
-use crate::procedure::docker::{DockerContainer, DockerInject, DockerProcedure, LongRunning};
+use crate::procedure::docker::{DockerContainer, DockerProcedure, LongRunning};
 #[cfg(feature = "js_engine")]
 use crate::procedure::js_scripts::JsProcedure;
 use crate::procedure::{NoOutput, PackageProcedure, ProcedureName};
@@ -200,13 +200,6 @@ async fn run_main(
         InjectableMain::None => {
             tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await })
         }
-        InjectableMain::DockerInject((_, injectable)) => {
-            let persistant = persistant.clone();
-            let injectable = injectable.clone();
-            tokio::spawn(async move {
-                start_up_inject_image(persistant, injectable, generated_certificate).await
-            })
-        }
         #[cfg(feature = "js_engine")]
         InjectableMain::Script(_) => {
             tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await })
@@ -250,7 +243,6 @@ async fn start_up_image(
         .main
         .execute::<(), NoOutput>(
             &rt_state.ctx,
-            &rt_state.manifest.containers,
             &rt_state.manifest.id,
             &rt_state.manifest.version,
             ProcedureName::Main,
@@ -259,16 +251,6 @@ async fn start_up_image(
             None,
         )
         .await
-}
-
-/// We want to start up the manifest, but in this case we want to know that we have generated the certificates.
-/// Note for _generated_certificate: Needed to know that before we start the state we have generated the certificate
-async fn start_up_inject_image(
-    persistant: Arc<PersistantContainer>,
-    docker_inject: DockerInject,
-    _generated_certificate: GeneratedCertificateMountPoint,
-) -> Result<Result<NoOutput, (i32, String)>, Error> {
-    persistant.exec_main(docker_inject).await
 }
 
 impl Manager {
@@ -349,16 +331,21 @@ impl Manager {
             .commit_health_check_results
             .store(false, Ordering::SeqCst);
         let _ = self.shared.on_stop.send(OnStop::Exit);
-        let sigterm_timeout: Option<crate::util::serde::Duration> = match &self.shared.manifest.main
+        let sigterm_timeout: Option<crate::util::serde::Duration> = match self
+            .shared
+            .manifest
+            .containers
+            .as_ref()
+            .map(|x| x.main.sigterm_timeout)
         {
-            PackageProcedure::Docker(DockerProcedure {
-                sigterm_timeout, ..
-            })
-            | PackageProcedure::DockerInject(DockerInject {
-                sigterm_timeout, ..
-            }) => *sigterm_timeout,
-            #[cfg(feature = "js_engine")]
-            PackageProcedure::Script(_) => return Ok(()),
+            Some(a) => a,
+            None => match &self.shared.manifest.main {
+                PackageProcedure::Docker(DockerProcedure {
+                    sigterm_timeout, ..
+                }) => *sigterm_timeout,
+                #[cfg(feature = "js_engine")]
+                PackageProcedure::Script(_) => return Ok(()),
+            },
         };
         self.persistant_container.stop().await;
 
@@ -630,24 +617,18 @@ pub struct PersistantContainer {
     should_stop_running: Arc<std::sync::atomic::AtomicBool>,
     wait_for_start: (Sender<bool>, Receiver<bool>),
     command_inserter: Arc<Mutex<Option<CommandInserter>>>,
-    running_main_id: (
-        watch::Receiver<Option<RpcId>>,
-        Mutex<watch::Sender<Option<RpcId>>>,
-    ),
 }
 
 impl PersistantContainer {
     #[instrument(skip(thread_shared))]
     fn new(thread_shared: &Arc<ManagerSharedState>) -> Arc<Self> {
         let wait_for_start = channel(false);
-        let (sender, receiver) = watch::channel(None);
         let container = Arc::new(Self {
             container_name: thread_shared.container_name.clone(),
             running_docker: Arc::new(Mutex::new(None)),
             should_stop_running: Arc::new(AtomicBool::new(false)),
             wait_for_start,
             command_inserter: Default::default(),
-            running_main_id: (receiver, Mutex::new(sender)),
         });
         tokio::spawn(persistant_container(
             thread_shared.clone(),
@@ -758,92 +739,6 @@ impl PersistantContainer {
             })
         })
     }
-
-    async fn exec_main(
-        &self,
-        docker_inject: DockerInject,
-    ) -> Result<Result<NoOutput, (i32, String)>, Error> {
-        self.term_main().await;
-        let (sender, mut receiver) = mpsc::unbounded_channel();
-        let running_ip = {
-            let locked = self.command_inserter.lock().await;
-            let command_inserter = match &*locked {
-                Some(a) => a,
-                None => {
-                    return Err(Error::new(
-                        eyre!("Could not start running main because there is no current long running main "),
-                        crate::ErrorKind::Docker,
-                    ))
-                }
-            };
-            match command_inserter
-                .exec_command(
-                    docker_inject.entrypoint.clone(),
-                    docker_inject.args.clone(),
-                    sender,
-                    docker_inject.sigterm_timeout.map(|x| *x),
-                )
-                .await {
-                    Some(a) => a,
-                    None => return Err(Error::new(
-                        eyre!("Could not start the main process because it no longer is accepting commands"),
-                        crate::ErrorKind::Docker,
-                    ))
-                }
-        };
-
-        if let Err(_err) = self
-            .running_main_id
-            .1
-            .lock()
-            .await
-            .send(Some(running_ip.clone()))
-        {
-            return Err(Error::new(
-                eyre!("Could no longer set the long running container"),
-                crate::ErrorKind::Docker,
-            ));
-        }
-
-        let mut command_error = String::new();
-        let mut status: Option<i32> = None;
-        while let Some(next) = receiver.recv().await {
-            match next {
-                embassy_container_init::Output::Line(_a) => (),
-                embassy_container_init::Output::Error(e) => command_error.push_str(&e),
-
-                embassy_container_init::Output::Done(new_status) => {
-                    status = new_status;
-                    break;
-                }
-            }
-        }
-        let _ignored_result = self.running_main_id.1.lock().await.send(None);
-        if !command_error.is_empty() {
-            return Ok(Err((status.unwrap_or_default(), command_error)));
-        }
-
-        Ok(Ok(NoOutput))
-    }
-
-    async fn term_main(&self) {
-        loop {
-            let id = {
-                // Try and keep a borrow as short live as possible as tokio watch recommends
-                let current_running = self.running_main_id.0.borrow();
-                match &*current_running {
-                    None => return,
-                    Some(a) => a.clone(),
-                }
-            };
-            if let Some(command_inserter) = &*self.command_inserter.lock().await {
-                command_inserter.term(id.clone()).await;
-            }
-            if self.running_main_id.0.clone().changed().await.is_err() {
-                return;
-            }
-        }
-    }
 }
 impl Drop for PersistantContainer {
     fn drop(&mut self) {
@@ -858,20 +753,6 @@ async fn persistant_container(
     let main_docker_procedure_for_long = injectable_main(&thread_shared);
     match main_docker_procedure_for_long {
         InjectableMain::None => futures::future::pending().await,
-        InjectableMain::DockerInject((container_inject, injectable)) => loop {
-            let main = DockerProcedure::main_docker_procedure(container_inject, injectable);
-            if container.should_stop_running.load(Ordering::SeqCst) {
-                return;
-            }
-            container.start_wait().await;
-            match run_persistant_container(&thread_shared, container.clone(), main).await {
-                Ok(_) => (),
-                Err(e) => {
-                    tracing::error!("failed to start persistant container: {}", e);
-                    tracing::debug!("{:?}", e);
-                }
-            }
-        },
         #[cfg(feature = "js_engine")]
         InjectableMain::Script((container_inject, procedure)) => loop {
             let main = DockerProcedure::main_docker_procedure_js(container_inject, procedure);
@@ -892,7 +773,6 @@ async fn persistant_container(
 
 enum InjectableMain<'a> {
     None,
-    DockerInject((&'a DockerContainer, &'a DockerInject)),
     #[cfg(feature = "js_engine")]
     Script((&'a DockerContainer, &'a JsProcedure)),
 }
@@ -902,9 +782,6 @@ fn injectable_main<'a>(thread_shared: &'a Arc<ManagerSharedState>) -> Injectable
         &thread_shared.manifest.main,
         &thread_shared.manifest.containers.as_ref().map(|x| &x.main),
     ) {
-        (PackageProcedure::DockerInject(inject), Some(container)) => {
-            InjectableMain::DockerInject((container, inject))
-        }
         #[cfg(feature = "js_engine")]
         (PackageProcedure::Script(inject), Some(container)) => {
             InjectableMain::Script((container, inject))
@@ -915,7 +792,6 @@ fn injectable_main<'a>(thread_shared: &'a Arc<ManagerSharedState>) -> Injectable
 fn check_is_injectable_main(thread_shared: &ManagerSharedState) -> bool {
     match &thread_shared.manifest.main {
         PackageProcedure::Docker(_a) => false,
-        PackageProcedure::DockerInject(_a) => true,
         #[cfg(feature = "js_engine")]
         PackageProcedure::Script(_) => true,
     }
@@ -1214,9 +1090,6 @@ async fn stop(
     }
     match &shared.manifest.main {
         PackageProcedure::Docker(DockerProcedure {
-            sigterm_timeout, ..
-        })
-        | PackageProcedure::DockerInject(DockerInject {
             sigterm_timeout, ..
         }) => {
             if !check_is_injectable_main(shared) {

@@ -168,7 +168,6 @@ pub struct ConfigGetReceipts {
     manifest_volumes: LockReceipt<crate::volume::Volumes, ()>,
     manifest_version: LockReceipt<crate::util::Version, ()>,
     manifest_config: LockReceipt<Option<ConfigActions>, ()>,
-    docker_containers: LockReceipt<DockerContainers, String>,
 }
 
 impl ConfigGetReceipts {
@@ -204,19 +203,11 @@ impl ConfigGetReceipts {
             .map(|x| x.manifest().config())
             .make_locker(LockType::Write)
             .add_to_keys(locks);
-        let docker_containers = crate::db::DatabaseModel::new()
-            .package_data()
-            .star()
-            .installed()
-            .and_then(|x| x.manifest().containers())
-            .make_locker(LockType::Write)
-            .add_to_keys(locks);
         move |skeleton_key| {
             Ok(Self {
                 manifest_volumes: manifest_volumes.verify(skeleton_key)?,
                 manifest_version: manifest_version.verify(skeleton_key)?,
                 manifest_config: manifest_config.verify(skeleton_key)?,
-                docker_containers: docker_containers.verify(skeleton_key)?,
             })
         }
     }
@@ -239,11 +230,9 @@ pub async fn get(
         .await?
         .ok_or_else(|| Error::new(eyre!("{} has no config", id), crate::ErrorKind::NotFound))?;
 
-    let container = receipts.docker_containers.get(&mut db, &id).await?;
-
     let volumes = receipts.manifest_volumes.get(&mut db).await?;
     let version = receipts.manifest_version.get(&mut db).await?;
-    action.get(&ctx, &container, &id, &version, &volumes).await
+    action.get(&ctx, &id, &version, &volumes).await
 }
 
 #[command(
@@ -509,8 +498,6 @@ pub fn configure_rec<'a, Db: DbHandle>(
     receipts: &'a ConfigReceipts,
 ) -> BoxFuture<'a, Result<(), Error>> {
     async move {
-        let container = receipts.docker_containers.get(db, &id).await?;
-        let container = &container;
         // fetch data from db
         let action = receipts
             .config_actions
@@ -534,7 +521,7 @@ pub fn configure_rec<'a, Db: DbHandle>(
         let ConfigRes {
             config: old_config,
             spec,
-        } = action.get(ctx, container, id, &version, &volumes).await?;
+        } = action.get(ctx, id, &version, &volumes).await?;
 
         // determine new config to use
         let mut config = if let Some(config) = config.or_else(|| old_config.clone()) {
@@ -602,15 +589,7 @@ pub fn configure_rec<'a, Db: DbHandle>(
         let signal = if !dry_run {
             // run config action
             let res = action
-                .set(
-                    ctx,
-                    container,
-                    id,
-                    &version,
-                    &dependencies,
-                    &volumes,
-                    &config,
-                )
+                .set(ctx, id, &version, &dependencies, &volumes, &config)
                 .await?;
 
             // track dependencies with no pointers

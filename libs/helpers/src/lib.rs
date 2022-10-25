@@ -6,7 +6,6 @@ use std::time::Duration;
 use color_eyre::eyre::{eyre, Context, Error};
 use futures::future::{pending, BoxFuture};
 use futures::FutureExt;
-use futures::TryFutureExt;
 use tokio::fs::File;
 use tokio::sync::oneshot;
 use tokio::task::{JoinError, JoinHandle};
@@ -211,25 +210,27 @@ impl<T: 'static + Send> TimedResource<T> {
     }
 }
 
+type SingThreadTask<T> = futures::future::Select<
+    futures::future::Then<
+        oneshot::Receiver<T>,
+        futures::future::Either<futures::future::Ready<T>, futures::future::Pending<T>>,
+        fn(
+            Result<T, oneshot::error::RecvError>,
+        )
+            -> futures::future::Either<futures::future::Ready<T>, futures::future::Pending<T>>,
+    >,
+    futures::future::Then<
+        JoinHandle<()>,
+        futures::future::Pending<T>,
+        fn(Result<(), JoinError>) -> futures::future::Pending<T>,
+    >,
+>;
+
 #[pin_project::pin_project(PinnedDrop)]
 pub struct SingleThreadJoinHandle<T> {
     abort: Option<oneshot::Sender<()>>,
     #[pin]
-    task: futures::future::Select<
-        futures::future::Then<
-            oneshot::Receiver<T>,
-            futures::future::Either<futures::future::Ready<T>, futures::future::Pending<T>>,
-            fn(
-                Result<T, oneshot::error::RecvError>,
-            )
-                -> futures::future::Either<futures::future::Ready<T>, futures::future::Pending<T>>,
-        >,
-        futures::future::Then<
-            JoinHandle<()>,
-            futures::future::Pending<T>,
-            fn(Result<(), JoinError>) -> futures::future::Pending<T>,
-        >,
-    >,
+    task: SingThreadTask<T>,
 }
 impl<T: Send + 'static> SingleThreadJoinHandle<T> {
     pub fn new<Fut: Future<Output = T>>(fut: impl FnOnce() -> Fut + Send + 'static) -> Self {

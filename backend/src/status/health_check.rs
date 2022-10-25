@@ -86,7 +86,6 @@ impl HealthCheck {
             .implementation
             .execute(
                 ctx,
-                container,
                 pkg_id,
                 pkg_version,
                 ProcedureName::Health(id.clone()),

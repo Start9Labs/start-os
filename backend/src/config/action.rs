@@ -51,7 +51,6 @@ impl ConfigActions {
     pub async fn get(
         &self,
         ctx: &RpcContext,
-        container: &Option<DockerContainers>,
         pkg_id: &PackageId,
         pkg_version: &Version,
         volumes: &Volumes,
@@ -59,7 +58,6 @@ impl ConfigActions {
         self.get
             .execute(
                 ctx,
-                container,
                 pkg_id,
                 pkg_version,
                 ProcedureName::GetConfig,
@@ -77,7 +75,6 @@ impl ConfigActions {
     pub async fn set(
         &self,
         ctx: &RpcContext,
-        container: &Option<DockerContainers>,
         pkg_id: &PackageId,
         pkg_version: &Version,
         dependencies: &Dependencies,
@@ -88,7 +85,6 @@ impl ConfigActions {
             .set
             .execute(
                 ctx,
-                container,
                 pkg_id,
                 pkg_version,
                 ProcedureName::SetConfig,

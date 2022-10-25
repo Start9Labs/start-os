@@ -1318,7 +1318,6 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             .manifest
             .migrations
             .to(
-                &prev.manifest.containers,
                 ctx,
                 version,
                 pkg_id,
@@ -1413,7 +1412,6 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         manifest
             .backup
             .restore(
-                &manifest.containers,
                 ctx,
                 &mut tx,
                 &mut sql_tx,

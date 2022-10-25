@@ -251,7 +251,6 @@ impl DependencyError {
                         cfg_info
                             .get(
                                 ctx,
-                                &container,
                                 dependency,
                                 &dependency_manifest.version,
                                 &dependency_manifest.volumes,
@@ -716,7 +715,6 @@ pub async fn configure_logic(
     let dependency_version = receipts.dependency_version.get(db).await?;
     let dependency_volumes = receipts.dependency_volumes.get(db).await?;
     let dependencies = receipts.dependencies.get(db).await?;
-    let dependency_docker_container = receipts.docker_containers.get(db, &*dependency_id).await?;
     let pkg_docker_container = receipts.docker_containers.get(db, &*pkg_id).await?;
 
     let dependency = dependencies
@@ -750,7 +748,6 @@ pub async fn configure_logic(
     } = dependency_config_action
         .get(
             &ctx,
-            &dependency_docker_container,
             &dependency_id,
             &dependency_version,
             &dependency_volumes,

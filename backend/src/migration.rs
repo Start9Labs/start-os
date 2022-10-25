@@ -74,7 +74,6 @@ impl Migrations {
                 migration
                     .execute(
                         ctx,
-                        container,
                         pkg_id,
                         pkg_version,
                         ProcedureName::Migration, // Migrations cannot be executed concurrently
@@ -99,7 +98,6 @@ impl Migrations {
     #[instrument(skip(ctx))]
     pub fn to<'a>(
         &'a self,
-        container: &'a Option<DockerContainers>,
         ctx: &'a RpcContext,
         version: &'a Version,
         pkg_id: &'a PackageId,
@@ -111,7 +109,6 @@ impl Migrations {
                 migration
                     .execute(
                         ctx,
-                        container,
                         pkg_id,
                         pkg_version,
                         ProcedureName::Migration,
