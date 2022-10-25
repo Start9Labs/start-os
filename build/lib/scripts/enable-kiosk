@@ -13,8 +13,17 @@ PROFILE=$(mktemp -d)
 if [ -f /usr/local/share/ca-certificates/embassy-root-ca.crt ]; then
     certutil -A -n "Embassy Local Root CA" -t "TCu,Cuw,Tuw" -i /usr/local/share/ca-certificates/embassy-root-ca.crt -d $PROFILE
 fi
+cat >> $PROFILE/prefs.js << EOT
+user_pref("network.proxy.autoconfig_url", "file:///usr/lib/embassy/proxy.pac");
+user_pref("network.proxy.socks_remote_dns", true);
+user_pref("network.proxy.type", 2);
+user_pref("dom.securecontext.allowlist_onions", true);
+user_pref("dom.securecontext.whitelist_onions", true);
+user_pref("signon.rememberSignons", false);
+EOT
 matchbox-window-manager -use_titlebar yes &
 firefox-esr --kiosk http://$(hostname).local --profile $PROFILE
+rm -rf $PROFILE
 EOF
 chmod +x /home/start9/kiosk.sh
 sed -i 's/=console/=anybody/g' /etc/X11/Xwrapper.config
