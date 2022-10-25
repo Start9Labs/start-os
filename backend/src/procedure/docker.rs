@@ -378,14 +378,12 @@ impl DockerProcedure {
             .map_err(|e| eyre!("Err Handle Error: {e:?}"));
 
         let running_output = NonDetachingJoinHandle::from(tokio::spawn(async move {
-            if let Err(err) = tokio::try_join!(
-                handle.wait().map_err(|e| eyre!("Runtime error: {e:?}")),
-                err_handle,
-                output_handle,
-                input_handle
-            )
-            .map(|_| ())
-            {
+            if let Err(err) = tokio::select!(
+                x = handle.wait().map_err(|e| eyre!("Runtime error: {e:?}")) => x.map(|_| ()),
+                x = err_handle => x.map(|_| ()),
+                x = output_handle => x.map(|_| ()),
+                x = input_handle => x.map(|_| ())
+            ) {
                 tracing::debug!("{:?}", err);
                 tracing::error!("Join error");
             }

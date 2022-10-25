@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, process::Stdio, sync::Arc};
 
 use async_stream::stream;
-use futures::{future::Either, pin_mut, Stream, StreamExt};
+use futures::{pin_mut, Stream, StreamExt};
 use tokio::{
     io::AsyncBufReadExt,
     process::Child,
