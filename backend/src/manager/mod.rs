@@ -775,9 +775,14 @@ async fn persistant_container(
     }
 }
 
+#[cfg(not(feature = "js_engine"))]
+enum InjectableMain {
+    None,
+}
+
+#[cfg(feature = "js_engine")]
 enum InjectableMain<'a> {
     None,
-    #[cfg(feature = "js_engine")]
     Script((&'a DockerContainer, &'a JsProcedure)),
 }
 
