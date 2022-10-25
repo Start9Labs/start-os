@@ -1,5 +1,8 @@
 .DS_Store
 .idea
+system-images/binfmt/binfmt.tar
+system-images/compat/compat.tar
+system-images/util/util.tar
 /*.img
 /*.img.gz
 /*.img.xz

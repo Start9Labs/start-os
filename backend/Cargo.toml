@@ -75,6 +75,7 @@ fd-lock-rs = "0.1.4"
 futures = "0.3.21"
 git-version = "0.3.5"
 helpers = { path = "../libs/helpers" }
+embassy_container_init = { path = "../libs/embassy-container-init" }
 hex = "0.4.3"
 hmac = "0.12.1"
 http = "0.2.8"

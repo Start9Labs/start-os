@@ -37,10 +37,37 @@ const writeFile = (
 const readFile = (
   { volumeId = requireParam("volumeId"), path = requireParam("path") } = requireParam("options"),
 ) => Deno.core.opAsync("read_file", volumeId, path);
+
+
+
+const runDaemon = (
+  { command = requireParam("command"), args = [] } = requireParam("options"),
+) => {
+  let id = Deno.core.opAsync("start_command", command, args);
+  let waitPromise = null;
+  return {
+    async wait() {
+      waitPromise = waitPromise || Deno.core.opAsync("wait_command", await id)
+      return waitPromise
+    },
+    async term() {
+      return Deno.core.opAsync("term_command", await id)
+    }
+  }
+};
+const runCommand = async (
+  { command = requireParam("command"), args = [], timeoutMillis = 30000 } = requireParam("options"),
+) => {
+  let id = Deno.core.opAsync("start_command", command, args, timeoutMillis);
+  return Deno.core.opAsync("wait_command", await id)
+};
+const sleep = (timeMs = requireParam("timeMs"),
+) => Deno.core.opAsync("sleep", timeMs);
+
 const rename = (
   {
     srcVolume = requireParam("srcVolume"),
-    dstVolume = requireParam("dstVolume"),
+    dstVolume = requirePapram("dstVolume"),
     srcPath = requireParam("srcPath"),
     dstPath = requireParam("dstPath"),
   } = requireParam("options"),
@@ -122,6 +149,9 @@ const effects = {
   removeDir,
   metadata,
   rename,
+  runCommand,
+  sleep,
+  runDaemon
 };
 
 const runFunction = jsonPointerValue(mainModule, currentFunction);
