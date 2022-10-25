@@ -6,6 +6,7 @@ pub struct EmbassyLogger {}
 
 impl EmbassyLogger {
     fn base_subscriber() -> impl Subscriber {
+        use std::time::Duration;
         use tracing_error::ErrorLayer;
         use tracing_subscriber::prelude::*;
         use tracing_subscriber::{fmt, EnvFilter};
@@ -13,7 +14,15 @@ impl EmbassyLogger {
         let filter_layer = EnvFilter::from_default_env();
         let fmt_layer = fmt::layer().with_target(true);
 
+        // spawn the console server in the background,
+        // returning a `Layer`:
+        let console_layer = console_subscriber::ConsoleLayer::builder()
+            // set the address the server is bound to
+            .server_addr(([0, 0, 0, 0], 6969))
+            .spawn();
+
         tracing_subscriber::registry()
+            .with(console_layer)
             .with(filter_layer)
             .with(fmt_layer)
             .with(ErrorLayer::default())

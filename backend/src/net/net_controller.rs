@@ -1,16 +1,16 @@
 use crate::context::RpcContext;
-use crate::hostname::{HostNameReceipt, get_hostname};
+use crate::hostname::{get_hostname, HostNameReceipt};
 #[cfg(feature = "avahi")]
 use crate::net::mdns::MdnsController;
 use crate::net::{
-    static_server, GeneratedCertificateMountPoint, PACKAGE_CERT_PATH, InterfaceMetadata,
+    static_server, GeneratedCertificateMountPoint, InterfaceMetadata, PACKAGE_CERT_PATH,
 };
 use crate::Error;
 use hyper::Client;
 use models::InterfaceId;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
-use patch_db::{PatchDb, DbHandle};
+use patch_db::{DbHandle, PatchDb};
 use sqlx::PgPool;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
@@ -45,16 +45,18 @@ impl NetController {
         db_handle: &mut Db,
         import_root_ca: Option<(PKey<Private>, X509)>,
     ) -> Result<Self, Error> {
-
         let receipts = HostNameReceipt::new(db_handle).await?;
         let embassy_host_name = get_hostname(db_handle, &receipts).await?;
         let name = embassy_host_name.local_name();
 
-         
+        dbg!("get ssl cert for root ca");
+
         let ssl = match import_root_ca {
             None => SslManager::init(db.clone(), db_handle).await,
             Some(a) => SslManager::import_root_ca(db.clone(), a.0, a.1).await,
         }?;
+        dbg!("got ssl cert for root ca");
+
         Ok(Self {
             tor: TorController::init(embassyd_addr, embassyd_tor_key, tor_control).await?,
             #[cfg(feature = "avahi")]
@@ -70,7 +72,6 @@ impl NetController {
         PathBuf::from(PACKAGE_CERT_PATH).join(pkg_id)
     }
 
-
     #[instrument(skip(self, interfaces, _generated_certificate))]
     pub async fn add<'a, I>(
         &self,
@@ -83,6 +84,7 @@ impl NetController {
         I: IntoIterator<Item = (InterfaceId, &'a Interface, TorSecretKeyV3)> + Clone,
         for<'b> &'b I: IntoIterator<Item = &'b (InterfaceId, &'a Interface, TorSecretKeyV3)>,
     {
+        dbg!("this is the start of add()");
         let interfaces_tor = interfaces
             .clone()
             .into_iter()
@@ -91,6 +93,7 @@ impl NetController {
                 Some(cfg) => Some((i.0, cfg, i.2)),
             })
             .collect::<Vec<(InterfaceId, TorConfig, TorSecretKeyV3)>>();
+        dbg!("got interfaces_tor");
         let (tor_res, _, proxy_res, _) = tokio::join!(
             self.tor.add(pkg_id, ip, interfaces_tor),
             {
@@ -102,6 +105,8 @@ impl NetController {
                         .into_iter()
                         .map(|(interface_id, _, key)| (interface_id, key)),
                 );
+                dbg!("mdns add: done");
+
                 #[cfg(not(feature = "avahi"))]
                 let mdns_fut = futures::future::ready(());
                 mdns_fut
@@ -126,13 +131,17 @@ impl NetController {
                             })
                         });
                 //self.nginx.add(&self.ssl, pkg_id.clone(), ip, interfaces)
-                self.proxy.add_docker_service(pkg_id.clone(), ip, interfaces)
+                dbg!("adding docker svc to proxy"); 
+                self.proxy
+                    .add_docker_service(pkg_id.clone(), ip, interfaces)
             },
             self.dns.add(pkg_id, ip),
         );
         tor_res?;
         //nginx_res?;
         proxy_res?;
+
+        dbg!("proxy:: add done");
 
         Ok(())
     }

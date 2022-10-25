@@ -198,6 +198,8 @@ impl ProxyControllerInner {
             docker_iface_lookups: BTreeMap::new(),
         };
 
+        dbg!("inner proxy controller ready");
+
         // let emnbassyd_port_80_svc = EmbassyHTTPServer::new(embassyd_addr).await?;
         Ok(inner)
     }

@@ -38,7 +38,6 @@ use crate::setup::password_hash;
 use crate::shutdown::Shutdown;
 use crate::status::{MainStatus, Status};
 use crate::util::config::load_config_from_paths;
-use crate::util::Invoke;
 use crate::{Error, ErrorKind, ResultExt};
 
 #[derive(Debug, Default, Deserialize)]
@@ -50,10 +49,6 @@ pub struct RpcContextConfig {
     pub migration_batch_rows: Option<usize>,
     pub migration_prefetch_rows: Option<usize>,
     pub bind_rpc: Option<SocketAddr>,
-    pub bind_ws: Option<SocketAddr>,
-    pub bind_static: Option<SocketAddr>,
-    pub bind_proxy_non_ssl: Option<SocketAddr>,
-    pub bind_proxy_ssl: Option<SocketAddr>,
     pub tor_control: Option<SocketAddr>,
     pub tor_socks: Option<SocketAddr>,
     pub dns_bind: Option<Vec<SocketAddr>>,
@@ -128,9 +123,6 @@ pub struct RpcContextSeed {
     pub wifi_interface: Option<String>,
     pub ethernet_interface: String,
     pub bind_rpc: SocketAddr,
-    pub bind_ws: SocketAddr,
-    pub bind_proxy_non_ssl: SocketAddr,
-    pub bind_proxy_ssl: SocketAddr,
     pub datadir: PathBuf,
     pub disk_guid: Arc<String>,
     pub db: PatchDb,
@@ -263,15 +255,6 @@ impl RpcContext {
             bind_rpc: base
                 .bind_rpc
                 .unwrap_or_else(|| ([127, 0, 0, 1], 5959).into()),
-            bind_ws: base
-                .bind_ws
-                .unwrap_or_else(|| ([127, 0, 0, 1], 5960).into()),
-            bind_proxy_non_ssl: base
-                .bind_proxy_non_ssl
-                .unwrap_or_else(|| ([0, 0, 0, 0], 80).into()),
-            bind_proxy_ssl: base
-                .bind_proxy_ssl
-                .unwrap_or_else(|| ([0, 0, 0, 0], 443).into()),
             datadir: base.datadir().to_path_buf(),
             os_partitions: base.os_partitions,
             wifi_interface: base.wifi_interface.clone(),

@@ -1054,6 +1054,7 @@ dependencies = [
  "tar",
  "thiserror",
  "tokio",
+ "tokio-rustls",
  "tokio-stream",
  "tokio-tar",
  "tokio-tungstenite",
@@ -3027,9 +3028,9 @@ dependencies = [
 
 [[package]]
 name = "rpc-toolkit"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d5bfeb75c188f3af65774d5fe92f97dac2cede5e313c643c7a1b82a8e53b0e6"
+checksum = "5353673ffd8265292281141560d2b851e4da49e83e2f5e255fd473736d45ee10"
 dependencies = [
  "clap 3.2.10",
  "futures",
@@ -3049,9 +3050,9 @@ dependencies = [
 
 [[package]]
 name = "rpc-toolkit-macro"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ecb48bdaace41cfbb514b3e541ae0fc1ac0fb8283498215ad8a3d22ca2ea5ae5"
+checksum = "f8e4b9cb00baf2d61bcd35e98d67dcb760382a3b4540df7e63b38d053c8a7b8b"
 dependencies = [
  "proc-macro2 1.0.39",
  "rpc-toolkit-macro-internals",
@@ -3060,9 +3061,9 @@ dependencies = [
 
 [[package]]
 name = "rpc-toolkit-macro-internals"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b2a9e2bae02a2beecad48d87255e51cab941d0c89a2bcee05a03a77803a0a282"
+checksum = "d3e2ce21b936feaecdab9c9a8e75b9dca64374ccc11951a58045ad6559b75f42"
 dependencies = [
  "proc-macro2 1.0.39",
  "quote 1.0.18",

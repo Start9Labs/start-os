@@ -122,6 +122,7 @@ impl SetupContext {
     }
     #[instrument(skip(self))]
     pub async fn db(&self, secret_store: &PgPool) -> Result<PatchDb, Error> {
+        dbg!("db open fail?");
         let db_path = self.datadir.join("main").join("embassy.db");
         let db = PatchDb::open(&db_path)
             .await

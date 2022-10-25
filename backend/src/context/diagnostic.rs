@@ -62,6 +62,9 @@ impl DiagnosticContext {
         disk_guid: Option<Arc<String>>,
         error: Error,
     ) -> Result<Self, Error> {
+        tracing::error!("Error: {}: Starting diagnostic UI", error);
+        tracing::debug!("{:?}", error);
+
         let cfg = DiagnosticContextConfig::load(path).await?;
 
         let (shutdown, _) = tokio::sync::broadcast::channel(1);

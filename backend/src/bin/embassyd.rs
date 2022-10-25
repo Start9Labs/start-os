@@ -41,28 +41,28 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
         dbg!("am i stopping here");
         let host_name = rpc_ctx.net_controller.proxy.get_hostname().await;
 
-        let handler: HttpHandler =
-            embassy::net::static_server::file_server_router(rpc_ctx.clone()).await?;
+        // let handler: HttpHandler =
+        //     embassy::net::static_server::file_server_router(rpc_ctx.clone()).await?;
 
-        rpc_ctx
-            .net_controller
-            .proxy
-            .add_handle(80, host_name.clone(), handler.clone(), false)
-            .await?;
-        let root_crt = rpc_ctx.net_controller.ssl.export_root_ca().await?;
-        let fixed_crt = (root_crt.0, vec![root_crt.1]);
+        // rpc_ctx
+        //     .net_controller
+        //     .proxy
+        //     .add_handle(80, host_name.clone(), handler.clone(), false)
+        //     .await?;
+        // let root_crt = rpc_ctx.net_controller.ssl.export_root_ca().await?;
+        // let fixed_crt = (root_crt.0, vec![root_crt.1]);
 
-        rpc_ctx
-            .net_controller
-            .proxy
-            .add_certificate_to_resolver(host_name.clone(), fixed_crt)
-            .await?;
+        // rpc_ctx
+        //     .net_controller
+        //     .proxy
+        //     .add_certificate_to_resolver(host_name.clone(), fixed_crt)
+        //     .await?;
 
-        rpc_ctx
-            .net_controller
-            .proxy
-            .add_handle(443, host_name, handler, true)
-            .await?;
+        // rpc_ctx
+        //     .net_controller
+        //     .proxy
+        //     .add_handle(443, host_name, handler, true)
+        //     .await?;
 
         let mut shutdown_recv = rpc_ctx.shutdown.subscribe();
 
