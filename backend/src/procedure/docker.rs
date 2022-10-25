@@ -51,7 +51,7 @@ lazy_static::lazy_static! {
 pub struct DockerContainers {
     pub main: DockerContainer,
     #[serde(default)]
-    pub auxilery: BTreeMap<String, DockerProcedure>,
+    pub aux: BTreeMap<String, DockerProcedure>,
 }
 #[derive(Clone, Debug, Deserialize, Serialize, patch_db::HasModel)]
 #[serde(rename_all = "kebab-case")]
