@@ -136,13 +136,7 @@ impl ResolvesServerCert for EmbassyCertResolver {
     }
 }
 
-impl Default for EmbassyCertResolver {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct EmbassyCertResolver {
     cert_mapping: Arc<RwLock<BTreeMap<String, CertifiedKey>>>,
 }
