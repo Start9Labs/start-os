@@ -733,8 +733,28 @@ const assert = (condition, message) => {
     throw new Error(message);
   }
 };
+const ackermann = (m, n) => {
+  if (m === 0) {
+     return n+1
+  }
+  if (n === 0) {
+     return ackermann((m - 1), 1); 
+  }
+  if (m !== 0 && n !== 0) {
+     return ackermann((m-1), ackermann(m, (n-1)))
+  }
+}
 
 export const action = {
+  async slow(effects, _input) {
+    while(true) {
+      effects.error("A");
+      // await ackermann(3,10);
+      await effects.sleep(100);
+
+    }
+  },
+
   async fetch(effects, _input) {
     const example = await effects.fetch(
       "https://postman-echo.com/get?foo1=bar1&foo2=bar2"

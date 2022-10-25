@@ -17,7 +17,7 @@ impl VersionT for Version {
     fn compat(&self) -> &'static emver::VersionRange {
         &*V0_3_0_COMPAT
     }
-    async fn up<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error> {
+    async fn up<Db: DbHandle>(&self, _db: &mut Db) -> Result<(), Error> {
         Ok(())
     }
     async fn down<Db: DbHandle>(&self, _db: &mut Db) -> Result<(), Error> {

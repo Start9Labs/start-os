@@ -1142,6 +1142,7 @@ dependencies = [
  "divrem",
  "ed25519",
  "ed25519-dalek",
+ "embassy_container_init",
  "emver",
  "fd-lock-rs",
  "futures",
@@ -1211,6 +1212,23 @@ dependencies = [
  "typed-builder",
  "url",
  "uuid",
+]
+
+[[package]]
+name = "embassy_container_init"
+version = "0.1.0"
+dependencies = [
+ "async-stream",
+ "color-eyre",
+ "futures",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-stream",
+ "tracing",
+ "tracing-error 0.2.0",
+ "tracing-futures",
+ "tracing-subscriber 0.3.15",
 ]
 
 [[package]]
@@ -2020,10 +2038,12 @@ dependencies = [
 name = "js_engine"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "dashmap",
  "deno_ast",
  "deno_core",
  "dprint-swc-ext",
+ "embassy_container_init",
  "helpers",
  "models",
  "reqwest",
@@ -2344,11 +2364,13 @@ dependencies = [
 name = "models"
 version = "0.1.0"
 dependencies = [
+ "embassy_container_init",
  "emver",
  "patch-db",
  "rand 0.8.5",
  "serde",
  "thiserror",
+ "tokio",
 ]
 
 [[package]]
@@ -4645,9 +4667,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-stream"
-version = "0.1.9"
+version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df54d54117d6fdc4e4fea40fe1e4e566b3505700e148a6827e59b34b0d2600d9"
+checksum = "d660770404473ccd7bc9f8b28494a811bc18542b915c0855c51e8f419d5223ce"
 dependencies = [
  "futures-core",
  "pin-project-lite",

@@ -1318,7 +1318,6 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             .manifest
             .migrations
             .to(
-                &prev.manifest.container,
                 ctx,
                 version,
                 pkg_id,
@@ -1329,7 +1328,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         let migration = manifest
             .migrations
             .from(
-                &manifest.container,
+                &manifest.containers,
                 ctx,
                 &prev.manifest.version,
                 pkg_id,
@@ -1413,7 +1412,6 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         manifest
             .backup
             .restore(
-                &manifest.container,
                 ctx,
                 &mut tx,
                 &mut sql_tx,
@@ -1522,7 +1520,7 @@ async fn handle_recovered_package(
     receipts: &ConfigReceipts,
 ) -> Result<(), Error> {
     let configured = if let Some(migration) = manifest.migrations.from(
-        &manifest.container,
+        &manifest.containers,
         ctx,
         &recovered.version,
         pkg_id,
