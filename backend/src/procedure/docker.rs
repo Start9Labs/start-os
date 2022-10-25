@@ -54,6 +54,9 @@ pub struct DockerContainers {
     // pub aux: BTreeMap<String, DockerContainer>,
 }
 
+/// This is like the docker procedures of the past designs,
+/// but this time all the entrypoints and args are not
+/// part of this struct by choice. Used for the times that we are creating our own entry points
 #[derive(Clone, Debug, Deserialize, Serialize, patch_db::HasModel)]
 #[serde(rename_all = "kebab-case")]
 pub struct DockerContainer {
