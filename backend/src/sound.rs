@@ -167,11 +167,14 @@ where
 
 impl Drop for SoundInterface {
     fn drop(&mut self) {
+        let use_beep = self.use_beep;
         let guard = self.guard.take();
         tokio::spawn(async move {
-            if let Err(e) = tokio::fs::write(&*UNEXPORT_FILE, "0").await {
-                tracing::error!("Failed to Unexport Sound Interface: {}", e);
-                tracing::debug!("{:?}", e);
+            if !use_beep {
+                if let Err(e) = tokio::fs::write(&*UNEXPORT_FILE, "0").await {
+                    tracing::error!("Failed to Unexport Sound Interface: {}", e);
+                    tracing::debug!("{:?}", e);
+                }
             }
             if let Some(guard) = guard {
                 if let Err(e) = guard.unlock().await {
