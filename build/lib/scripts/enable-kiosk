@@ -26,7 +26,6 @@ firefox-esr --kiosk http://$(hostname).local --profile $PROFILE
 rm -rf $PROFILE
 EOF
 chmod +x /home/start9/kiosk.sh
-sed -i 's/=console/=anybody/g' /etc/X11/Xwrapper.config
 
 # use kiosk if tty (not pts)
 if ! grep -q 'kiosk' /home/start9/.profile; then
