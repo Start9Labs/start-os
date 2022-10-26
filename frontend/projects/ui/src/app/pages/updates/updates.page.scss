@@ -6,3 +6,7 @@ ion-avatar {
 ion-label {
   margin-left: 64px;
 }
+
+.name:only-child {
+  display: none;
+}

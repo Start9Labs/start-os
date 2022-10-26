@@ -5,17 +5,26 @@ import {
   AbstractMarketplaceService,
   MarketplaceInfo,
 } from '@start9labs/marketplace'
-import { BehaviorSubject, firstValueFrom, from, Observable, of } from 'rxjs'
+import {
+  BehaviorSubject,
+  combineLatest,
+  distinctUntilKeyChanged,
+  from,
+  Observable,
+  of,
+  startWith,
+} from 'rxjs'
 import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import {
   DataModel,
   Manifest,
+  PackageDataEntry,
   PackageState,
 } from 'src/app/services/patch-db/data-model'
 import { PatchDB } from 'patch-db-client'
 import {
-  distinctUntilChanged,
+  catchError,
   map,
   shareReplay,
   switchMap,
@@ -32,33 +41,41 @@ interface MarketplaceData {
 }
 type MasterCache = Record<MarketplaceURL, MarketplaceData>
 
-type UpdateRequests = Record<MarketplaceURL, RequestStatus>
-
-export enum RequestStatus {
-  Queued = 'queued',
-  Active = 'active',
-  Complete = 'complete',
-  Failed = 'failed',
-}
-
 @Injectable()
 export class MarketplaceService implements AbstractMarketplaceService {
+  private readonly errors$ = new BehaviorSubject<string[]>([])
+
+  private readonly data$ = this.patch.watch$('ui', 'marketplace')
+
+  private readonly marketplaces$ = this.data$.pipe(
+    map(data => Object.keys(data['known-hosts'])),
+    shareReplay(1),
+  )
+
+  private readonly packages$ = this.marketplaces$.pipe(
+    switchMap(urls =>
+      combineLatest(
+        urls.reduce<Record<string, Observable<MarketplacePkg[] | null>>>(
+          (acc, url) => ({
+            ...acc,
+            [url]: this.loadMarketplacePackages(url),
+          }),
+          {},
+        ),
+      ),
+    ),
+    shareReplay(1),
+  )
+
   private readonly cache: MasterCache = {}
-  private readonly cache$ = new BehaviorSubject(this.cache)
-  private readonly updateRequests$ = new BehaviorSubject<UpdateRequests>({})
 
   private readonly uiMarketplace$: Observable<{ url: string; name: string }> =
-    this.patch.watch$('ui', 'marketplace').pipe(
-      distinctUntilChanged(
-        (prev, curr) => prev['selected-url'] === curr['selected-url'],
-      ),
-      map(data => {
-        const url = data['selected-url']
-        return {
-          url,
-          name: data['known-hosts'][url],
-        }
-      }),
+    this.data$.pipe(
+      distinctUntilKeyChanged('selected-url'),
+      map(data => ({
+        url: data['selected-url'],
+        name: data['known-hosts'][data['selected-url']],
+      })),
       shareReplay(1),
     )
 
@@ -80,27 +97,9 @@ export class MarketplaceService implements AbstractMarketplaceService {
   private readonly marketplacePkgs$: Observable<MarketplacePkg[]> =
     this.marketplaceData$.pipe(map(data => data.packages))
 
-  private readonly urlToLocalMap$: Observable<
-    Record<MarketplaceURL, Manifest[]>
-  > = this.patch.watch$('package-data').pipe(
-    take(1),
-    map(pkgs =>
-      Object.values(pkgs)
-        .filter(localPkg => localPkg.state === PackageState.Installed)
-        .reduce((localPkgMap, pkg) => {
-          const url = pkg.installed!['marketplace-url'] || '' // side-loaded services will not have marketplace-url
-          if (url) {
-            if (!localPkgMap[url]) {
-              localPkgMap[url] = [pkg.manifest]
-            } else {
-              localPkgMap[url].push(pkg.manifest)
-            }
-          }
-          return localPkgMap
-        }, {} as Record<MarketplaceURL, Manifest[]>),
-    ),
-    shareReplay(),
-  )
+  private readonly urlToLocalMap$ = this.patch
+    .watch$('package-data')
+    .pipe(take(1), map(toLocalMap), shareReplay())
 
   constructor(
     private readonly api: ApiService,
@@ -108,12 +107,12 @@ export class MarketplaceService implements AbstractMarketplaceService {
     private readonly emver: Emver,
   ) {}
 
-  getUpdateRequests$() {
-    return this.updateRequests$
+  getAllPackages$(): Observable<Record<string, MarketplacePkg[] | null>> {
+    return this.packages$
   }
 
-  getCache$() {
-    return this.cache$
+  getErrors$(): Observable<string[]> {
+    return this.errors$
   }
 
   getUiMarketplace$(): Observable<{ url: string; name: string }> {
@@ -204,39 +203,18 @@ export class MarketplaceService implements AbstractMarketplaceService {
     )
   }
 
-  async loadUpdates(): Promise<void> {
-    const localMap = await firstValueFrom(this.urlToLocalMap$)
+  private loadMarketplacePackages(
+    url: string,
+  ): Observable<MarketplacePkg[] | null> {
+    return from(this.loadMarketplace(url)).pipe(
+      map(({ packages }) => packages),
+      catchError(() => {
+        this.errors$.next(this.errors$.value.concat(url))
 
-    const urls = Object.keys(localMap)
-
-    const statusMap = urls.reduce((obj, url) => {
-      return {
-        ...obj,
-        [url]: RequestStatus.Active,
-      }
-    }, {} as UpdateRequests)
-
-    this.updateRequests$.next(statusMap)
-
-    urls.forEach(url => {
-      const ids = localMap[url].map(({ id }) => {
-        return { id, version: '*' }
-      })
-
-      this.loadPackages({ ids }, url)
-        .catch(() => {
-          this.updateRequests$.next({
-            ...this.updateRequests$.value,
-            [url]: RequestStatus.Failed,
-          })
-        })
-        .then(() => {
-          this.updateRequests$.next({
-            ...this.updateRequests$.value,
-            [url]: RequestStatus.Complete,
-          })
-        })
-    })
+        return of([])
+      }),
+      startWith(null),
+    )
   }
 
   private async loadMarketplace(url: string): Promise<MarketplaceData> {
@@ -364,7 +342,24 @@ export class MarketplaceService implements AbstractMarketplaceService {
       info: info || cache?.info || null,
       packages,
     }
-
-    this.cache$.next(this.cache)
   }
+}
+
+function toLocalMap(
+  pkgs: Record<string, PackageDataEntry>,
+): Record<string, Manifest[]> {
+  return Object.values(pkgs)
+    .filter(({ state }) => state === PackageState.Installed)
+    .reduce<Record<string, Manifest[]>>(
+      (localPkgMap, { installed, manifest }) => {
+        const url = installed?.['marketplace-url'] || '' // side-loaded services will not have marketplace-url
+
+        if (url) {
+          localPkgMap[url] = (localPkgMap[url] || []).concat(manifest)
+        }
+
+        return localPkgMap
+      },
+      {},
+    )
 }
