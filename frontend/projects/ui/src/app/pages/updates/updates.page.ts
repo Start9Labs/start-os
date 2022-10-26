@@ -31,7 +31,7 @@ interface UpdatesData {
 })
 export class UpdatesPage {
   readonly data$: Observable<UpdatesData> = combineLatest({
-    hosts: this.patch.watch$('ui', 'marketplace', 'known-hosts'),
+    hosts: this.marketplaceService.getHosts$(),
     packages: this.marketplaceService.getAllPackages$(),
     localPkgs: this.patch.watch$('package-data'),
     errors: this.marketplaceService.getErrors$(),

@@ -16,21 +16,9 @@ import {
 } from 'rxjs'
 import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import {
-  DataModel,
-  Manifest,
-  PackageDataEntry,
-  PackageState,
-} from 'src/app/services/patch-db/data-model'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 import { PatchDB } from 'patch-db-client'
-import {
-  catchError,
-  map,
-  shareReplay,
-  switchMap,
-  take,
-  tap,
-} from 'rxjs/operators'
+import { catchError, map, shareReplay, switchMap, tap } from 'rxjs/operators'
 import { getServerInfo } from '../util/get-server-info'
 
 type MarketplaceURL = string
@@ -45,17 +33,18 @@ type MasterCache = Record<MarketplaceURL, MarketplaceData>
 export class MarketplaceService implements AbstractMarketplaceService {
   private readonly errors$ = new BehaviorSubject<string[]>([])
 
-  private readonly data$ = this.patch.watch$('ui', 'marketplace')
-
-  private readonly marketplaces$ = this.data$.pipe(
-    map(data => Object.keys(data['known-hosts'])),
-    shareReplay(1),
+  private readonly hosts$ = this.patch.watch$(
+    'ui',
+    'marketplace',
+    'known-hosts',
   )
 
-  private readonly packages$ = this.marketplaces$.pipe(
-    switchMap(urls =>
+  private readonly packages$ = this.hosts$.pipe(
+    switchMap(hosts =>
       combineLatest(
-        urls.reduce<Record<string, Observable<MarketplacePkg[] | null>>>(
+        Object.keys(hosts).reduce<
+          Record<string, Observable<MarketplacePkg[] | null>>
+        >(
           (acc, url) => ({
             ...acc,
             [url]: this.loadMarketplacePackages(url),
@@ -70,7 +59,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
   private readonly cache: MasterCache = {}
 
   private readonly uiMarketplace$: Observable<{ url: string; name: string }> =
-    this.data$.pipe(
+    this.patch.watch$('ui', 'marketplace').pipe(
       distinctUntilKeyChanged('selected-url'),
       map(data => ({
         url: data['selected-url'],
@@ -97,15 +86,15 @@ export class MarketplaceService implements AbstractMarketplaceService {
   private readonly marketplacePkgs$: Observable<MarketplacePkg[]> =
     this.marketplaceData$.pipe(map(data => data.packages))
 
-  private readonly urlToLocalMap$ = this.patch
-    .watch$('package-data')
-    .pipe(take(1), map(toLocalMap), shareReplay())
-
   constructor(
     private readonly api: ApiService,
     private readonly patch: PatchDB<DataModel>,
     private readonly emver: Emver,
   ) {}
+
+  getHosts$(): Observable<Record<string, string>> {
+    return this.hosts$
+  }
 
   getAllPackages$(): Observable<Record<string, MarketplacePkg[] | null>> {
     return this.packages$
@@ -343,23 +332,4 @@ export class MarketplaceService implements AbstractMarketplaceService {
       packages,
     }
   }
-}
-
-function toLocalMap(
-  pkgs: Record<string, PackageDataEntry>,
-): Record<string, Manifest[]> {
-  return Object.values(pkgs)
-    .filter(({ state }) => state === PackageState.Installed)
-    .reduce<Record<string, Manifest[]>>(
-      (localPkgMap, { installed, manifest }) => {
-        const url = installed?.['marketplace-url'] || '' // side-loaded services will not have marketplace-url
-
-        if (url) {
-          localPkgMap[url] = (localPkgMap[url] || []).concat(manifest)
-        }
-
-        return localPkgMap
-      },
-      {},
-    )
 }
