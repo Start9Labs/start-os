@@ -4,17 +4,25 @@ import { PatchDB } from 'patch-db-client'
 import {
   DataModel,
   PackageDataEntry,
+  PackageState,
 } from 'src/app/services/patch-db/data-model'
-import {
-  MarketplaceService,
-  RequestStatus,
-} from 'src/app/services/marketplace.service'
+import { MarketplaceService } from 'src/app/services/marketplace.service'
 import {
   AbstractMarketplaceService,
+  MarketplaceManifest,
   MarketplacePkg,
 } from '@start9labs/marketplace'
 import { Emver } from '@start9labs/shared'
 import { Pipe, PipeTransform } from '@angular/core'
+import { combineLatest, Observable } from 'rxjs'
+import { PrimaryRendering } from '../../services/pkg-status-rendering.service'
+
+interface UpdatesData {
+  hosts: Record<string, string>
+  packages: Record<string, MarketplacePkg[] | null>
+  localPkgs: Record<string, PackageDataEntry>
+  errors: string[]
+}
 
 @Component({
   selector: 'updates',
@@ -22,12 +30,15 @@ import { Pipe, PipeTransform } from '@angular/core'
   styleUrls: ['updates.page.scss'],
 })
 export class UpdatesPage {
-  readonly hosts$ = this.patch.watch$('ui', 'marketplace', 'known-hosts')
-  readonly updateRequests$ = this.marketplaceService.getUpdateRequests$()
-  readonly localPkgs$ = this.patch.watch$('package-data')
-  readonly marketplaceCache$ = this.marketplaceService.getCache$()
+  readonly data$: Observable<UpdatesData> = combineLatest({
+    hosts: this.marketplaceService.getHosts$(),
+    packages: this.marketplaceService.getAllPackages$(),
+    localPkgs: this.patch.watch$('package-data'),
+    errors: this.marketplaceService.getErrors$(),
+  })
 
-  RequestStatus = RequestStatus
+  readonly state = PackageState
+  readonly rendering = PrimaryRendering[PackageState.Installing]
 
   constructor(
     @Inject(AbstractMarketplaceService)
@@ -50,14 +61,31 @@ export class FilterUpdatesPipe implements PipeTransform {
   transform(
     pkgs: MarketplacePkg[],
     local: Record<string, PackageDataEntry> = {},
+    url: string,
   ): MarketplacePkg[] {
     return pkgs.filter(
       ({ manifest }) =>
-        local[manifest.id] &&
-        this.emver.compare(
-          manifest.version,
-          local[manifest.id].installed?.manifest.version || '',
-        ) === 1,
+        marketplaceSame(manifest, local, url) &&
+        versionLower(manifest, local, this.emver),
     )
   }
+}
+
+export function marketplaceSame(
+  { id }: MarketplaceManifest,
+  local: Record<string, PackageDataEntry>,
+  url: string,
+): boolean {
+  return local[id]?.installed?.['marketplace-url'] === url
+}
+
+export function versionLower(
+  { version, id }: MarketplaceManifest,
+  local: Record<string, PackageDataEntry>,
+  emver: Emver,
+): boolean {
+  return (
+    local[id].state === PackageState.Installing ||
+    emver.compare(version, local[id].installed?.manifest.version || '') === 1
+  )
 }

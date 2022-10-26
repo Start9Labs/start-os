@@ -1,11 +1,13 @@
 import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
 import { EOSService } from '../../services/eos.service'
 import { PatchDB } from 'patch-db-client'
-import { Observable, of } from 'rxjs'
+import { combineLatest, map, Observable, of, startWith } from 'rxjs'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { SplitPaneTracker } from 'src/app/services/split-pane.service'
+import { Emver } from '@start9labs/shared'
+import { marketplaceSame, versionLower } from '../../pages/updates/updates.page'
 
 @Component({
   selector: 'app-menu',
@@ -51,7 +53,24 @@ export class MenuComponent {
 
   readonly showEOSUpdate$ = this.eosService.showUpdate$
 
-  readonly updateCount$: Observable<number> = of(10) // @TODO do this for real
+  readonly updateCount$: Observable<number> = combineLatest([
+    this.marketplaceService.getAllPackages$(),
+    this.patch.watch$('package-data'),
+  ]).pipe(
+    map(([all, local]) =>
+      Object.entries(all).reduce(
+        (length, [url, packages]) =>
+          length +
+          (packages?.filter(
+            ({ manifest }) =>
+              marketplaceSame(manifest, local, url) &&
+              versionLower(manifest, local, this.emver),
+          ).length || 0),
+        0,
+      ),
+    ),
+    startWith(0),
+  )
 
   readonly sidebarOpen$ = this.splitPane.sidebarOpen$
 
@@ -61,5 +80,6 @@ export class MenuComponent {
     @Inject(AbstractMarketplaceService)
     private readonly marketplaceService: MarketplaceService,
     private readonly splitPane: SplitPaneTracker,
+    private readonly emver: Emver,
   ) {}
 }
