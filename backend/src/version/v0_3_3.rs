@@ -57,7 +57,39 @@ impl VersionT for Version {
         ui.save(db).await?;
         Ok(())
     }
-    async fn down<Db: DbHandle>(&self, _db: &mut Db) -> Result<(), Error> {
+    async fn down<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error> {
+        let mut ui = crate::db::DatabaseModel::new().ui().get_mut(db).await?;
+        let selected_url = ui["marketplace"]["selected-url"]
+            .as_str()
+            .map(|x| x.to_owned());
+        let known_hosts = ui["marketplace"]["known-hosts"].take();
+        ui["marketplace"]["known-hosts"] = json!({});
+        if let Value::Object(known_hosts) = known_hosts {
+            for (url, name) in known_hosts {
+                if let Value::String(name) = name {
+                    let id = uuid::Uuid::new_v4().to_string();
+                    if Some(&name) == selected_url.as_ref() {
+                        ui["marketplace"]["selected-id"] = Value::String(id.clone());
+                    }
+                    ui["marketplace"]["known-hosts"][id.as_str()] = json!({
+                        "name": name,
+                        "url": url
+                    });
+                }
+            }
+        }
+        ui["auto-check-updates"] = Value::Bool(true);
+        ui["pkg-order"] = json!(crate::db::DatabaseModel::new()
+            .package_data()
+            .keys(db, false)
+            .await?
+            .iter()
+            .map(|x| x.to_string())
+            .collect::<Vec<String>>());
+        if let Some(Value::Object(ref mut obj)) = ui.get_mut("marketplace") {
+            obj.remove("selected-url");
+        }
+        ui.save(db).await?;
         Ok(())
     }
 }
