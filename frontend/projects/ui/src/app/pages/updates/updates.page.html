@@ -8,76 +8,62 @@
 </ion-header>
 
 <ion-content class="ion-padding">
-  <ng-container *ngIf="hosts$ | async as hosts">
-    <ng-container *ngIf="updateRequests$ | async as requests">
-      <ng-container *ngIf="marketplaceCache$ | async as cache">
-        <ng-container *ngIf="localPkgs$ | async as localPkgs">
-          <ion-item-group>
-            <ng-container *ngFor="let reqMap of requests | keyvalue">
-              <ion-item-divider
-                >{{ hosts[reqMap.key] ? hosts[reqMap.key] : reqMap.key
-                }}</ion-item-divider
+  <ion-item-group *ngIf="data$ | async as data">
+    <ng-container *ngFor="let host of data.hosts | keyvalue">
+      <ion-item-divider> {{ host.value }} </ion-item-divider>
+
+      <ion-item *ngIf="data.errors.includes(host.key)">
+        <ion-text color="danger">Request Failed</ion-text>
+      </ion-item>
+
+      <ng-container *ngIf="data.packages[host.key] as packages else loading">
+        <ng-container
+          *ngIf="packages | filterUpdates : data.localPkgs : host.key as updates"
+        >
+          <ion-item *ngFor="let pkg of updates">
+            <ng-container *ngIf="data.localPkgs[pkg.manifest.id] as local">
+              <ion-avatar slot="start">
+                <img [src]="'data:image/png;base64,' + pkg.icon | trustUrl" />
+              </ion-avatar>
+              <ion-label>
+                <h1>{{ pkg.manifest.title }}</h1>
+                <status
+                  *ngIf="local.state === state.Installing else versions"
+                  [installProgress]="local['install-progress']"
+                  [rendering]="rendering"
+                  [sigtermTimeout]="local.manifest.main['sigterm-timeout']"
+                ></status>
+                <ng-template #versions>
+                  <h2 class="inline">
+                    <span>{{ local.manifest.version }}</span>
+                    &nbsp;<ion-icon name="arrow-forward"></ion-icon>&nbsp;
+                    <ion-text color="success">
+                      {{ pkg.manifest.version }}
+                    </ion-text>
+                  </h2>
+                  <p [innerHTML]="pkg.manifest['release-notes'] | markdown"></p>
+                </ng-template>
+              </ion-label>
+              <ion-button
+                *ngIf="local.state !== state.Installing"
+                slot="end"
+                fill="clear"
+                (click)="update(pkg.manifest.id, host.key)"
               >
-
-              <skeleton-list
-                *ngIf="requests[reqMap.key] === RequestStatus.Active"
-                [showAvatar]="true"
-              ></skeleton-list>
-
-              <ion-item *ngIf="requests[reqMap.key] === RequestStatus.Failed">
-                <ion-text color="danger">Request Failed</ion-text>
-              </ion-item>
-
-              <ng-container
-                *ngIf="requests[reqMap.key] === RequestStatus.Complete"
-              >
-                <ng-container
-                  *ngIf="cache[reqMap.key].packages | filterUpdates: localPkgs as updates"
-                >
-                  <ng-container *ngIf="updates.length; else noUpdates">
-                    <ion-item *ngFor="let pkg of updates">
-                      <ion-avatar slot="start">
-                        <img
-                          [src]="'data:image/png;base64,' + pkg.icon | trustUrl"
-                        />
-                      </ion-avatar>
-                      <ion-label>
-                        <h1>{{ pkg.manifest.title }}</h1>
-                        <h2 class="inline">
-                          <span
-                            >{{ localPkgs[pkg.manifest.id].manifest.version
-                            }}</span
-                          >
-                          &nbsp;<ion-icon name="arrow-forward"></ion-icon>&nbsp;
-                          <ion-text color="success">
-                            {{ pkg.manifest.version }}</ion-text
-                          >
-                        </h2>
-                        <p
-                          [innerHTML]="pkg.manifest['release-notes'] | markdown"
-                        ></p>
-                      </ion-label>
-                      <ion-button
-                        slot="end"
-                        fill="clear"
-                        (click)="update(pkg.manifest.id, reqMap.key)"
-                      >
-                        Update
-                      </ion-button>
-                    </ion-item>
-                  </ng-container>
-
-                  <ng-template #noUpdates>
-                    <ion-item>
-                      <p>All services are up to date</p>
-                    </ion-item>
-                  </ng-template>
-                </ng-container>
-              </ng-container>
+                Update
+              </ion-button>
             </ng-container>
-          </ion-item-group>
+          </ion-item>
+
+          <ion-item *ngIf="!updates.length">
+            <p>All services are up to date</p>
+          </ion-item>
         </ng-container>
       </ng-container>
+
+      <ng-template #loading>
+        <skeleton-list [showAvatar]="true"></skeleton-list>
+      </ng-template>
     </ng-container>
-  </ng-container>
+  </ion-item-group>
 </ion-content>
