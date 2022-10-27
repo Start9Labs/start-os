@@ -1,29 +1,23 @@
+use std::collections::BTreeMap;
+use std::net::{Ipv4Addr, SocketAddr};
+use std::sync::Arc;
+
 use color_eyre::eyre::eyre;
 use futures::FutureExt;
 use http::{Method, Request, Response};
 use hyper::upgrade::Upgraded;
-
-use hyper::Body;
-use hyper::Error as HyperError;
-use openssl::pkey::PKey;
-use openssl::pkey::Private;
+use hyper::{Body, Error as HyperError};
+use models::{InterfaceId, PackageId};
+use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
-use std::collections::BTreeMap;
-use std::net::{Ipv4Addr, SocketAddr};
-use std::sync::Arc;
 use tokio::net::TcpStream;
+use tokio::sync::Mutex;
+use tracing::{error, info, instrument};
 
 use crate::net::net_utils::host_addr;
 use crate::net::ssl::SslManager;
 use crate::net::vhost_controller::VHOSTController;
-use crate::net::HttpClient;
-use crate::net::HttpHandler;
-use crate::net::InterfaceMetadata;
-use crate::net::PackageNetInfo;
-use models::{InterfaceId, PackageId};
-use tokio::sync::Mutex;
-use tracing::{error, info, instrument};
-
+use crate::net::{HttpClient, HttpHandler, InterfaceMetadata, PackageNetInfo};
 use crate::{Error, ResultExt};
 
 pub struct ProxyController {
@@ -380,9 +374,14 @@ impl ProxyControllerInner {
                             self.vhosts
                                 .cert_resolver
                                 .remove_cert(fqdn.to_string())
-                                .await;
+                                .await?;
 
-                            if server.svc_mapping.read().await.is_empty() {
+                            let mapping = server.svc_mapping.read().await;
+                            // .map_err(|err| {
+                            //     Error::new(eyre!("{}", err), crate::ErrorKind::Network)
+                            // })?;
+
+                            if mapping.is_empty() {
                                 server_removal = true;
                                 server_removal_port = service_ext_port.0;
                                 removed_interface_id = id.to_owned();

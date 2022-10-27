@@ -21,6 +21,7 @@ use embassy::util::daemon;
 use embassy::util::logger::EmbassyLogger;
 use embassy::{Error, ErrorKind, ResultExt};
 use futures::{FutureExt, TryFutureExt};
+use models::PackageId;
 use reqwest::{Client, Proxy};
 use tokio::signal::unix::signal;
 use tracing::instrument;
@@ -41,28 +42,46 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
         dbg!("am i stopping here");
         let host_name = rpc_ctx.net_controller.proxy.get_hostname().await;
 
-        // let handler: HttpHandler =
-        //     embassy::net::static_server::file_server_router(rpc_ctx.clone()).await?;
+        let handler: HttpHandler =
+            embassy::net::static_server::file_server_router(rpc_ctx.clone()).await?;
 
-        // rpc_ctx
-        //     .net_controller
-        //     .proxy
-        //     .add_handle(80, host_name.clone(), handler.clone(), false)
-        //     .await?;
-        // let root_crt = rpc_ctx.net_controller.ssl.export_root_ca().await?;
-        // let fixed_crt = (root_crt.0, vec![root_crt.1]);
+        rpc_ctx
+            .net_controller
+            .proxy
+            .add_handle(80, host_name.clone(), handler.clone(), false)
+            .await?;
 
-        // rpc_ctx
-        //     .net_controller
-        //     .proxy
-        //     .add_certificate_to_resolver(host_name.clone(), fixed_crt)
-        //     .await?;
+        rpc_ctx
+            .net_controller
+            .proxy
+            .add_handle(80, "192.168.1.102".to_string(), handler.clone(), false)
+            .await?;
 
-        // rpc_ctx
-        //     .net_controller
-        //     .proxy
-        //     .add_handle(443, host_name, handler, true)
-        //     .await?;
+        let eos_pkg_id: PackageId = "embassy".parse().unwrap();
+
+        let root_crt = rpc_ctx
+            .net_controller
+            .ssl
+            .certificate_for(&host_name, &eos_pkg_id)
+            .await?;
+
+        rpc_ctx
+            .net_controller
+            .proxy
+            .add_certificate_to_resolver(host_name.clone(), root_crt)
+            .await?;
+
+        rpc_ctx
+            .net_controller
+            .proxy
+            .add_handle(443, host_name, handler.clone(), true)
+            .await?;
+
+        rpc_ctx
+            .net_controller
+            .proxy
+            .add_handle(443, "12.168.1.102".to_string(), handler.clone(), false)
+            .await?;
 
         let mut shutdown_recv = rpc_ctx.shutdown.subscribe();
 
@@ -104,13 +123,13 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
         // let db_middleware = db_middleware(rpc_ctx.clone());
         // let ctx = rpc_ctx.clone();
 
-        let metrics_ctx = rpc_ctx.clone();
-        let metrics_task = tokio::spawn(async move {
-            launch_metrics_task(&metrics_ctx.metrics_cache, || {
-                metrics_ctx.shutdown.subscribe()
-            })
-            .await
-        });
+        // let metrics_ctx = rpc_ctx.clone();
+        // let metrics_task = tokio::spawn(async move {
+        //     launch_metrics_task(&metrics_ctx.metrics_cache, || {
+        //         metrics_ctx.shutdown.subscribe()
+        //     })
+        //     .await
+        // });
 
         let tor_health_ctx = rpc_ctx.clone();
         let tor_client = Client::builder()
@@ -137,12 +156,12 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
         embassy::sound::CHIME.play().await?;
 
         futures::try_join!(
-            metrics_task
-                .map_err(|e| Error::new(
-                    eyre!("{}", e).wrap_err("Metrics daemon panicked!"),
-                    ErrorKind::Unknown
-                ))
-                .map_ok(|_| tracing::debug!("Metrics daemon Shutdown")),
+            // metrics_task
+            //     .map_err(|e| Error::new(
+            //         eyre!("{}", e).wrap_err("Metrics daemon panicked!"),
+            //         ErrorKind::Unknown
+            //     ))
+            //     .map_ok(|_| tracing::debug!("Metrics daemon Shutdown")),
             tor_health_daemon
                 .map_err(|e| Error::new(
                     e.wrap_err("Tor Health daemon panicked!"),

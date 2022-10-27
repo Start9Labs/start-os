@@ -244,21 +244,21 @@ pub async fn recover_full_embassy(
             dbg!("am i stopping here");
        
         let host_name = rpc_ctx.net_controller.proxy.get_hostname().await;
-        dbg!(host_name.clone());
-        // let handler: HttpHandler =
-        //     file_server_router(rpc_ctx.clone()).await?;
+        // dbg!(host_name.clone());
+        // // let handler: HttpHandler =
+        // //     file_server_router(rpc_ctx.clone()).await?;
 
-        // rpc_ctx 
-        //     .net_controller
-        //     .proxy
-        //     .add_handle(80, host_name.clone(), handler.clone(), false)
-        //     .await?;
+        // // rpc_ctx 
+        // //     .net_controller
+        // //     .proxy
+        // //     .add_handle(80, host_name.clone(), handler.clone(), false)
+        // //     .await?;
     
-        // let root_crt = rpc_ctx.net_controller.ssl.export_root_ca().await?;            
-        // let fixed_crt = (root_crt.0, vec![root_crt.1]);
+        // // let root_crt = rpc_ctx.net_controller.ssl.export_root_ca().await?;            
+        // // let fixed_crt = (root_crt.0, vec![root_crt.1]);
 
 
-        // rpc_ctx.net_controller.proxy.add_certificate_to_resolver(host_name.clone(), fixed_crt).await?;
+        // // rpc_ctx.net_controller.proxy.add_certificate_to_resolver(host_name.clone(), fixed_crt).await?;
 
 
         // rpc_ctx 
