@@ -42,10 +42,8 @@ path = "src/bin/avahi-alias.rs"
 
 [features]
 avahi = ["avahi-sys"]
-default = ["avahi", "metal", "sound", "js_engine"]
+default = ["avahi", "js_engine"]
 dev = []
-metal = []
-sound = []
 unstable = ["patch-db/unstable"]
 
 [dependencies]
