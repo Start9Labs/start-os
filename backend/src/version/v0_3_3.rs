@@ -9,7 +9,18 @@ use crate::{COMMUNITY_MARKETPLACE, DEFAULT_MARKETPLACE};
 const V0_3_3: emver::Version = emver::Version::new(0, 3, 3, 0);
 
 lazy_static::lazy_static! {
-    static ref COMMUNITY_PACKAGES: Vec<&'static str> = vec![];
+    static ref COMMUNITY_PACKAGES: Vec<&'static str> = vec![
+        "robosats",
+        "syncthing",
+        "balanceofsatoshis",
+        "lightning-jet",
+        "mastodon",
+        "sphinx-relay",
+        "agora",
+        "lndg",
+        "synapse",
+        "thunderhub",
+    ];
 }
 
 #[derive(Clone, Debug)]
