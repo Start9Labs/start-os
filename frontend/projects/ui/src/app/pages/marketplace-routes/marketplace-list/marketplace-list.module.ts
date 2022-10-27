@@ -14,6 +14,7 @@ import {
 import { BadgeMenuComponentModule } from 'src/app/components/badge-menu-button/badge-menu.component.module'
 import { MarketplaceStatusModule } from '../marketplace-status/marketplace-status.module'
 import { MarketplaceListPage } from './marketplace-list.page'
+import { MarketplaceSettingsPageModule } from 'src/app/modals/marketplace-settings/marketplace-settings.module'
 
 const routes: Routes = [
   {
@@ -37,6 +38,7 @@ const routes: Routes = [
     CategoriesModule,
     SearchModule,
     SkeletonModule,
+    MarketplaceSettingsPageModule,
   ],
   declarations: [MarketplaceListPage],
   exports: [MarketplaceListPage],
