@@ -2,8 +2,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-use color_eyre::eyre::eyre;
 use embassy::context::{DiagnosticContext, RpcContext};
+use embassy::hostname::get_current_ip;
 // use embassy::context::{DiagnosticContext, RpcContext};
 // use embassy::core::rpc_continuations::RequestGuid;
 // use embassy::db::subscribe;
@@ -19,7 +19,7 @@ use embassy::shutdown::Shutdown;
 use embassy::system::launch_metrics_task;
 use embassy::util::daemon;
 use embassy::util::logger::EmbassyLogger;
-use embassy::{Error, ErrorKind, ResultExt};
+use embassy::{hostname, Error, ErrorKind, ResultExt};
 use futures::{FutureExt, TryFutureExt};
 use models::PackageId;
 use reqwest::{Client, Proxy};
@@ -41,6 +41,7 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
         .await?;
         dbg!("am i stopping here");
         let host_name = rpc_ctx.net_controller.proxy.get_hostname().await;
+        let ip = get_current_ip(rpc_ctx.ethernet_interface.to_owned()).await?;
 
         let handler: HttpHandler =
             embassy::net::static_server::file_server_router(rpc_ctx.clone()).await?;
@@ -54,17 +55,19 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
         rpc_ctx
             .net_controller
             .proxy
-            .add_handle(80, "192.168.1.102".to_string(), handler.clone(), false)
+            .add_handle(80, ip.to_owned(), handler.clone(), false)
             .await?;
 
         let eos_pkg_id: PackageId = "embassy".parse().unwrap();
 
         dbg!("hostname: {}", host_name.clone());
 
+        let no_dot_host_name = rpc_ctx.net_controller.proxy.get_no_dot_name().await;
+
         let root_crt = rpc_ctx
             .net_controller
             .ssl
-            .certificate_for(&host_name, &eos_pkg_id)
+            .certificate_for(&no_dot_host_name, &eos_pkg_id)
             .await?;
 
         rpc_ctx
@@ -82,12 +85,12 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
         rpc_ctx
             .net_controller
             .proxy
-            .add_certificate_to_resolver("192.168.1.102".to_string(), root_crt)
+            .add_certificate_to_resolver(ip.to_owned(), root_crt)
             .await?;
         rpc_ctx
             .net_controller
             .proxy
-            .add_handle(443, "192.168.1.102".to_string(), handler.clone(), false)
+            .add_handle(443, ip.to_owned(), handler.clone(), false)
             .await?;
 
         let mut shutdown_recv = rpc_ctx.shutdown.subscribe();

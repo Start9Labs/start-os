@@ -53,7 +53,7 @@ impl VHOSTController {
         is_ssl: bool,
     ) -> Result<(), Error> {
         if let Some(server) = self.service_servers.get_mut(&external_svc_port) {
-            server.add_svc_mapping(fqdn, svc_handler).await;
+            server.add_svc_mapping(fqdn, svc_handler).await?;
         } else {
             let ssl_cfg = if is_ssl {
                 Some(self.build_ssl_svr_cfg()?)
@@ -63,7 +63,7 @@ impl VHOSTController {
             let mut new_service_server =
                 EmbassyServiceHTTPServer::new(self.embassyd_addr.ip(), external_svc_port, ssl_cfg)
                     .await?;
-            new_service_server.add_svc_mapping(fqdn, svc_handler).await;
+            new_service_server.add_svc_mapping(fqdn, svc_handler).await?;
 
             self.service_servers
                 .insert(external_svc_port, new_service_server);

@@ -27,13 +27,20 @@ pub struct ProxyController {
 impl ProxyController {
     pub async fn init(
         embassyd_addr: SocketAddr,
+        no_dot_embassy_hostname: String,
         embassy_hostname: String,
         ssl_manager: SslManager,
     ) -> Result<Self, Error> {
         dbg!("starting proxy");
         Ok(ProxyController {
             inner: Mutex::new(
-                ProxyControllerInner::init(embassyd_addr, embassy_hostname, ssl_manager).await?,
+                ProxyControllerInner::init(
+                    embassyd_addr,
+                    embassy_hostname,
+                    no_dot_embassy_hostname,
+                    ssl_manager,
+                )
+                .await?,
             ),
         })
     }
@@ -101,7 +108,9 @@ impl ProxyController {
     pub async fn get_hostname(&self) -> String {
         self.inner.lock().await.get_hostname()
     }
-
+    pub async fn get_no_dot_name(&self) -> String {
+        self.inner.lock().await.get_no_dot_name()
+    }
     pub async fn proxy(
         client: HttpClient,
         req: Request<Body>,
@@ -172,6 +181,7 @@ struct ProxyControllerInner {
     ssl_manager: SslManager,
     vhosts: VHOSTController,
     embassy_hostname: String,
+    no_dot_embassy_hostname: String,
     docker_interfaces: BTreeMap<PackageId, PackageNetInfo>,
     docker_iface_lookups: BTreeMap<(PackageId, InterfaceId), String>,
 }
@@ -181,6 +191,7 @@ impl ProxyControllerInner {
     async fn init(
         embassyd_addr: SocketAddr,
         embassy_hostname: String,
+        no_dot_embassy_hostname: String,
         ssl_manager: SslManager,
     ) -> Result<Self, Error> {
         let inner = ProxyControllerInner {
@@ -188,6 +199,7 @@ impl ProxyControllerInner {
             vhosts: VHOSTController::init(embassyd_addr),
             ssl_manager,
             embassy_hostname,
+            no_dot_embassy_hostname,
             docker_interfaces: BTreeMap::new(),
             docker_iface_lookups: BTreeMap::new(),
         };
@@ -370,7 +382,7 @@ impl ProxyControllerInner {
                             .docker_iface_lookups
                             .get(&(package.clone(), id.clone()))
                         {
-                            server.remove_svc_mapping(fqdn.to_string()).await;
+                            server.remove_svc_mapping(fqdn.to_string()).await?;
                             self.vhosts
                                 .cert_resolver
                                 .remove_cert(fqdn.to_string())
@@ -415,5 +427,9 @@ impl ProxyControllerInner {
 
     pub fn get_hostname(&self) -> String {
         self.embassy_hostname.to_owned()
+    }
+
+    pub fn get_no_dot_name(&self) -> String {
+        self.no_dot_embassy_hostname.to_owned()
     }
 }

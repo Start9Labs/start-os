@@ -23,6 +23,7 @@ use crate::db::model::{PackageDataEntry, StaticFiles};
 use crate::disk::mount::backup::{BackupMountGuard, PackageBackupMountGuard};
 use crate::disk::mount::filesystem::ReadOnly;
 use crate::disk::mount::guard::TmpMountGuard;
+use crate::hostname::get_current_ip;
 use crate::install::progress::InstallProgress;
 use crate::install::{download_install_s9pk, PKG_PUBLIC_DIR};
 use crate::net::HttpHandler;
@@ -242,31 +243,59 @@ pub async fn recover_full_embassy(
 
 
             dbg!("am i stopping here");
-       
         let host_name = rpc_ctx.net_controller.proxy.get_hostname().await;
-        // dbg!(host_name.clone());
-        // // let handler: HttpHandler =
-        // //     file_server_router(rpc_ctx.clone()).await?;
+        let ip = get_current_ip(rpc_ctx.ethernet_interface.to_owned()).await?;
 
-        // // rpc_ctx 
-        // //     .net_controller
-        // //     .proxy
-        // //     .add_handle(80, host_name.clone(), handler.clone(), false)
-        // //     .await?;
-    
-        // // let root_crt = rpc_ctx.net_controller.ssl.export_root_ca().await?;            
-        // // let fixed_crt = (root_crt.0, vec![root_crt.1]);
+        let handler: HttpHandler =
+            crate::net::static_server::file_server_router(rpc_ctx.clone()).await?;
 
+        rpc_ctx
+            .net_controller
+            .proxy
+            .add_handle(80, host_name.clone(), handler.clone(), false)
+            .await?;
 
-        // // rpc_ctx.net_controller.proxy.add_certificate_to_resolver(host_name.clone(), fixed_crt).await?;
+        rpc_ctx
+            .net_controller
+            .proxy
+            .add_handle(80, ip.to_owned(), handler.clone(), false)
+            .await?;
 
+        let eos_pkg_id: PackageId = "embassy".parse().unwrap();
 
-        // rpc_ctx 
-        //     .net_controller
-        //     .proxy
-        //     .add_handle(443, host_name, handler, true)
-        //     .await?;
-        
+        dbg!("hostname: {}", host_name.clone());
+
+        let no_dot_host_name = rpc_ctx.net_controller.proxy.get_no_dot_name().await;
+
+        let root_crt = rpc_ctx
+            .net_controller
+            .ssl
+            .certificate_for(&no_dot_host_name, &eos_pkg_id)
+            .await?;
+
+        rpc_ctx
+            .net_controller
+            .proxy
+            .add_certificate_to_resolver(host_name.clone(), root_crt.clone())
+            .await?;
+
+        rpc_ctx
+            .net_controller
+            .proxy
+            .add_handle(443, host_name, handler.clone(), true)
+            .await?;
+
+        rpc_ctx
+            .net_controller
+            .proxy
+            .add_certificate_to_resolver(ip.to_owned(), root_crt)
+            .await?;
+        rpc_ctx
+            .net_controller
+            .proxy
+            .add_handle(443, ip.to_owned(), handler.clone(), false)
+            .await?;
+
         let mut db = rpc_ctx.db.handle();
 
             let ids = backup_guard

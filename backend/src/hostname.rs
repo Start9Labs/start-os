@@ -31,6 +31,17 @@ impl Hostname {
     }
 }
 
+pub async fn get_current_ip(eth: String) -> Result<String, Error> {
+
+    let cmd = format!(r"ifconfig {} | awk '/inet / {{print $2}}'", eth);
+
+    let out = Command::new("bash").arg("-c").arg(cmd)
+        .invoke(ErrorKind::ParseSysInfo)
+        .await?;
+    let out_string = String::from_utf8(out)?;
+    Ok(out_string.trim().to_owned())
+}
+
 pub fn generate_hostname() -> Hostname {
     let mut rng = thread_rng();
     let adjective = &ADJECTIVES[rng.gen_range(0..ADJECTIVES.len())];
