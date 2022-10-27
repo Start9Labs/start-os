@@ -133,7 +133,7 @@ export class HomePage {
   private async presentAlertComplete() {
     const alert = await this.alertCtrl.create({
       header: 'Rebooting',
-      message: 'Please wait for Embassy to restart, then refresh this page',
+      message: 'Please wait for embassyOS to restart, then refresh this page',
       buttons: ['OK'],
       cssClass: 'alert-warning-message',
     })
