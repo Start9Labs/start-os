@@ -39,6 +39,7 @@
     "@materia-ui/ngx-monaco-editor": "^6.0.0",
     "@start9labs/argon2": "^0.1.0",
     "@start9labs/emver": "^0.1.5",
+    "angular-svg-round-progressbar": "^9.0.0",
     "ansi-to-html": "^0.7.2",
     "base64-js": "^1.5.1",
     "cbor": "npm:@jprochazk/cbor@^0.4.9",

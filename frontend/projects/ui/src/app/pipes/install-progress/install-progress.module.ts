@@ -1,8 +1,11 @@
 import { NgModule } from '@angular/core'
-import { InstallProgressPipe } from './install-progress.pipe'
+import {
+  InstallProgressDisplayPipe,
+  InstallProgressPipe,
+} from './install-progress.pipe'
 
 @NgModule({
-  declarations: [InstallProgressPipe],
-  exports: [InstallProgressPipe],
+  declarations: [InstallProgressPipe, InstallProgressDisplayPipe],
+  exports: [InstallProgressPipe, InstallProgressDisplayPipe],
 })
 export class InstallProgressPipeModule {}

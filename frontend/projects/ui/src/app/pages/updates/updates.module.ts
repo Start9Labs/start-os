@@ -6,7 +6,8 @@ import { FilterUpdatesPipe, UpdatesPage } from './updates.page'
 import { BadgeMenuComponentModule } from 'src/app/components/badge-menu-button/badge-menu.component.module'
 import { MarkdownPipeModule, SharedPipesModule } from '@start9labs/shared'
 import { SkeletonListComponentModule } from 'src/app/components/skeleton-list/skeleton-list.component.module'
-import { StatusComponentModule } from '../../components/status/status.component.module'
+import { RoundProgressModule } from 'angular-svg-round-progressbar'
+import { InstallProgressPipeModule } from 'src/app/pipes/install-progress/install-progress.module'
 
 const routes: Routes = [
   {
@@ -24,8 +25,8 @@ const routes: Routes = [
     SharedPipesModule,
     SkeletonListComponentModule,
     MarkdownPipeModule,
-    StatusComponentModule,
-    StatusComponentModule,
+    RoundProgressModule,
+    InstallProgressPipeModule,
   ],
   declarations: [UpdatesPage, FilterUpdatesPipe],
 })
