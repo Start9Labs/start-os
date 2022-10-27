@@ -11,8 +11,10 @@ import {
   combineLatest,
   distinctUntilKeyChanged,
   from,
+  mergeMap,
   Observable,
   of,
+  scan,
 } from 'rxjs'
 import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -22,11 +24,13 @@ import {
   catchError,
   filter,
   map,
+  pairwise,
   shareReplay,
   startWith,
   switchMap,
   tap,
 } from 'rxjs/operators'
+import { getNewEntries } from '@start9labs/shared'
 
 @Injectable()
 export class MarketplaceService implements AbstractMarketplaceService {
@@ -46,23 +50,26 @@ export class MarketplaceService implements AbstractMarketplaceService {
   )
 
   private readonly marketplace$ = this.knownHosts$.pipe(
-    switchMap(hosts =>
-      combineLatest(
-        Object.entries(hosts).reduce<
-          Record<string, Observable<StoreData | null>>
-        >(
-          (acc, [url, name]) => ({
-            ...acc,
-            [url]: this.fetchStore$(url).pipe(
-              tap(({ info }) => {
-                if (info) this.updateName(url, name, info.name)
-              }),
-              startWith(null),
-            ),
-          }),
-          {},
-        ),
+    startWith<Record<string, string>>({}),
+    pairwise(),
+    mergeMap(([prev, curr]) => from(Object.entries(getNewEntries(prev, curr)))),
+    mergeMap(([url, name]) =>
+      this.fetchStore$(url).pipe(
+        map<StoreData, [string, StoreData | null]>(data => {
+          if (data.info) this.updateName(url, name, data.info.name)
+
+          return [url, data]
+        }),
+        startWith<[string, StoreData | null]>([url, null]),
       ),
+    ),
+    scan<[string, StoreData | null], Record<string, StoreData | null>>(
+      (requests, [url, store]) => {
+        requests[url] = store
+
+        return requests
+      },
+      {},
     ),
     shareReplay(1),
   )
