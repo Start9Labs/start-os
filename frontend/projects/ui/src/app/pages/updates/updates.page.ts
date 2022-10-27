@@ -3,13 +3,13 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PatchDB } from 'patch-db-client'
 import {
   DataModel,
-  InstallProgress,
   PackageDataEntry,
   PackageState,
 } from 'src/app/services/patch-db/data-model'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import {
   AbstractMarketplaceService,
+  Marketplace,
   MarketplaceManifest,
   MarketplacePkg,
 } from '@start9labs/marketplace'
@@ -20,7 +20,7 @@ import { PrimaryRendering } from '../../services/pkg-status-rendering.service'
 
 interface UpdatesData {
   hosts: Record<string, string>
-  packages: Record<string, MarketplacePkg[] | null>
+  marketplace: Marketplace
   localPkgs: Record<string, PackageDataEntry>
   errors: string[]
 }
@@ -34,10 +34,10 @@ export class UpdatesPage {
   queued: Record<string, boolean> = {}
 
   readonly data$: Observable<UpdatesData> = combineLatest({
-    hosts: this.marketplaceService.getHosts$(),
-    packages: this.marketplaceService.getAllPackages$(),
+    hosts: this.marketplaceService.getKnownHosts$(),
+    marketplace: this.marketplaceService.getMarketplace$(),
     localPkgs: this.patch.watch$('package-data'),
-    errors: this.marketplaceService.getErrors$(),
+    errors: this.marketplaceService.getRequestErrors$(),
   })
 
   readonly PackageState = PackageState

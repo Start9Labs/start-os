@@ -200,7 +200,7 @@ export class MarketplacesPage {
     loader.message = 'Validating marketplace...'
     await loader.present()
 
-    const name = await this.marketplaceService.validateMarketplace(url)
+    const name = await firstValueFrom(this.marketplaceService.fetchInfo$(url))
 
     // Save
     loader.message = 'Saving...'
