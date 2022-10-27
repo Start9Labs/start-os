@@ -17,7 +17,7 @@
     "build:install-wiz": "ng run install-wizard:build",
     "build:setup": "ng run setup-wizard:build",
     "build:ui": "ng run ui:build",
-    "build:all": "npm run build:deps && npm run build:dui && npm run build:setup && npm run build:ui",
+    "build:all": "npm run build:deps && npm run build:dui && npm run build:setup && npm run build:ui && npm run build:install-wiz",
     "build:shared": "ng build shared",
     "build:marketplace": "npm run build:shared && ng build marketplace",
     "publish:shared": "npm run build:shared && npm publish ./dist/shared --access public",
