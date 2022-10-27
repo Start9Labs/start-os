@@ -4,12 +4,13 @@ import {
   LoadingController,
   NavController,
   ModalController,
+  ToastController,
 } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActivatedRoute } from '@angular/router'
 import { PatchDB } from 'patch-db-client'
 import { ServerNameService } from 'src/app/services/server-name.service'
-import { Observable, of } from 'rxjs'
+import { firstValueFrom, Observable, of } from 'rxjs'
 import { ErrorToastService } from '@start9labs/shared'
 import { EOSService } from 'src/app/services/eos.service'
 import { ClientStorageService } from 'src/app/services/client-storage.service'
@@ -17,6 +18,10 @@ import { OSUpdatePage } from 'src/app/modals/os-update/os-update.page'
 import { getAllPackages } from '../../../util/get-package-data'
 import { AuthService } from 'src/app/services/auth.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
+import {
+  GenericInputComponent,
+  GenericInputOptions,
+} from 'src/app/modals/generic-input/generic-input.component'
 
 @Component({
   selector: 'server-show',
@@ -24,7 +29,8 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
   styleUrls: ['server-show.page.scss'],
 })
 export class ServerShowPage {
-  clicks = 0
+  settingsClicks = 0
+  powerClicks = 0
 
   readonly server$ = this.patch.watch$('server-info')
   readonly name$ = this.serverNameService.name$
@@ -44,7 +50,34 @@ export class ServerShowPage {
     private readonly ClientStorageService: ClientStorageService,
     private readonly serverNameService: ServerNameService,
     private readonly authService: AuthService,
+    private readonly toastCtrl: ToastController,
   ) {}
+
+  async presentModalName(): Promise<void> {
+    const name = await firstValueFrom(this.name$)
+
+    const options: GenericInputOptions = {
+      title: 'Edit Device Name',
+      message: 'This is for your reference only.',
+      label: 'Device Name',
+      useMask: false,
+      placeholder: name.default,
+      nullable: true,
+      initialValue: name.current,
+      buttonText: 'Save',
+      submitFn: (value: string) =>
+        this.setDbValue('name', value || name.default),
+    }
+
+    const modal = await this.modalCtrl.create({
+      componentProps: { options },
+      cssClass: 'alertlike-modal',
+      presentingElement: await this.modalCtrl.getTop(),
+      component: GenericInputComponent,
+    })
+
+    await modal.present()
+  }
 
   async updateEos(): Promise<void> {
     const modal = await this.modalCtrl.create({
@@ -168,6 +201,32 @@ export class ServerShowPage {
       cssClass: 'alert-warning-message',
     })
     await alert.present()
+  }
+
+  addClick(title: string) {
+    switch (title) {
+      case 'Settings':
+        this.addSettingsClick()
+        break
+      case 'Power':
+        this.addPowerClick()
+        break
+      default:
+        return
+    }
+  }
+
+  private async setDbValue(key: string, value: string): Promise<void> {
+    const loader = await this.loadingCtrl.create({
+      message: 'Saving...',
+    })
+    await loader.present()
+
+    try {
+      await this.embassyApi.setDbValue([key], value)
+    } finally {
+      loader.dismiss()
+    }
   }
 
   // should wipe cache independent of actual BE logout
@@ -311,7 +370,7 @@ export class ServerShowPage {
       {
         title: 'Software Update',
         description: 'Get the latest version of embassyOS',
-        icon: 'cog-outline',
+        icon: 'cloud-download-outline',
         action: () =>
           this.eosService.updateAvailable$.getValue()
             ? this.updateEos()
@@ -320,14 +379,11 @@ export class ServerShowPage {
         disabled$: this.eosService.updatingOrBackingUp$,
       },
       {
-        title: 'Preferences',
-        description: 'Device name, background tasks',
-        icon: 'options-outline',
-        action: () =>
-          this.navCtrl.navigateForward(['preferences'], {
-            relativeTo: this.route,
-          }),
-        detail: true,
+        title: 'Device Name',
+        description: 'Edit the local display name of your Embassy',
+        icon: 'pricetag-outline',
+        action: () => this.presentModalName(),
+        detail: false,
         disabled$: of(false),
       },
       {
@@ -504,19 +560,31 @@ export class ServerShowPage {
     ],
   }
 
-  asIsOrder() {
-    return 0
+  private async addSettingsClick() {
+    this.settingsClicks++
+    if (this.settingsClicks === 5) {
+      this.settingsClicks = 0
+      const newVal = this.ClientStorageService.toggleShowDevTools()
+      const toast = await this.toastCtrl.create({
+        header: newVal ? 'Dev tools unlocked' : 'Dev tools hidden',
+        position: 'bottom',
+        duration: 1000,
+      })
+
+      await toast.present()
+    }
   }
 
-  addClick() {
-    this.clicks++
-    if (this.clicks >= 5) {
-      this.clicks = 0
+  private addPowerClick() {
+    this.powerClicks++
+    if (this.powerClicks === 5) {
+      this.powerClicks = 0
       this.ClientStorageService.toggleShowDiskRepair()
     }
-    setTimeout(() => {
-      this.clicks = Math.max(this.clicks - 1, 0)
-    }, 10000)
+  }
+
+  asIsOrder() {
+    return 0
   }
 }
 
