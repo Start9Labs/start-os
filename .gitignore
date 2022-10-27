@@ -20,3 +20,4 @@ secrets.db
 /GIT_HASH.txt
 /embassyos-*.tar.gz
 /*.deb
+/target
