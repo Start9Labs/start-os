@@ -49,7 +49,7 @@ impl NetController {
         let embassy_host_name = get_hostname(db_handle, &receipts).await?;
         let name = embassy_host_name.local_name();
 
-        dbg!("get ssl cert for root ca");
+    
 
         let ssl = match import_root_ca {
             None => SslManager::init(db.clone(), db_handle).await,

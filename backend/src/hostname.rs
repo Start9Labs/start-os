@@ -26,6 +26,9 @@ impl Hostname {
     pub fn local_name(&self) -> String {
         format!("{}.local", self.0)
     }
+    pub fn no_dot_host_name(&self) -> String {
+        self.0.to_owned()
+    }
 }
 
 pub fn generate_hostname() -> Hostname {

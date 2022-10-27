@@ -59,6 +59,8 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
 
         let eos_pkg_id: PackageId = "embassy".parse().unwrap();
 
+        dbg!("hostname: {}", host_name.clone());
+
         let root_crt = rpc_ctx
             .net_controller
             .ssl
@@ -68,7 +70,7 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
         rpc_ctx
             .net_controller
             .proxy
-            .add_certificate_to_resolver(host_name.clone(), root_crt)
+            .add_certificate_to_resolver(host_name.clone(), root_crt.clone())
             .await?;
 
         rpc_ctx
@@ -80,7 +82,12 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
         rpc_ctx
             .net_controller
             .proxy
-            .add_handle(443, "12.168.1.102".to_string(), handler.clone(), false)
+            .add_certificate_to_resolver("192.168.1.102".to_string(), root_crt)
+            .await?;
+        rpc_ctx
+            .net_controller
+            .proxy
+            .add_handle(443, "192.168.1.102".to_string(), handler.clone(), false)
             .await?;
 
         let mut shutdown_recv = rpc_ctx.shutdown.subscribe();
