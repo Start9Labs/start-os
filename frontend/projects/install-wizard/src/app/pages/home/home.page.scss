@@ -1,0 +1,28 @@
+/** Ionic CSS Variables overrides **/
+:root {
+  --ion-font-family: 'Benton Sans';
+}
+
+ion-content {
+  --background: var(--ion-color-medium);
+}
+
+ion-grid {
+  padding-top: 32px;
+  height: 100%;
+  max-width: 640px;
+}
+
+.back-button {
+  position: absolute;
+  left: 16px;
+  top: 24px;
+  z-index: 1000000;
+}
+
+ion-card-title {
+  margin: 16px 0;
+  font-family: 'Montserrat';
+  font-size: x-large;
+  --color: var(--ion-color-light);
+}
