@@ -567,7 +567,6 @@ export class MockApiService extends ApiService {
           ...Mock.LocalPkgs[params.id],
           state: PackageState.Installing,
           'install-progress': { ...PROGRESS },
-          installed: undefined,
         },
       },
     ]

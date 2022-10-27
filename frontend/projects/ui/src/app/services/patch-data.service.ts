@@ -23,7 +23,7 @@ export class PatchDataService extends Observable<DataModel> {
     take(1),
     tap(({ ui }) => {
       // check for updates to EOS and services
-      this.checkForUpdates(ui)
+      this.checkForUpdates()
       // show eos welcome message
       this.showEosWelcome(ui['ack-welcome'])
     }),
@@ -43,12 +43,9 @@ export class PatchDataService extends Observable<DataModel> {
     super(subscriber => this.stream$.subscribe(subscriber))
   }
 
-  private checkForUpdates(ui: UIData): void {
-    if (ui['auto-check-updates'] !== false) {
-      this.eosService.getEOS()
-      this.marketplaceService.getMarketplaceInfo$().pipe(take(1)).subscribe()
-      this.marketplaceService.getUpdates$().pipe(take(1)).subscribe()
-    }
+  private checkForUpdates(): void {
+    this.eosService.getEOS()
+    this.marketplaceService.getMarketplace$().pipe(take(1)).subscribe()
   }
 
   private async showEosWelcome(ackVersion: string): Promise<void> {

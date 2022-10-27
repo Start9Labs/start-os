@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { PatchDB } from 'patch-db-client'
-import { combineLatest, map } from 'rxjs'
+import { filter, map } from 'rxjs'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 
@@ -12,30 +12,22 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MarketplaceListPage {
-  private readonly pkgs$ = this.marketplaceService.getPackages$()
+  readonly store$ = this.marketplaceService.getSelectedStore$().pipe(
+    filter(Boolean),
+    map(({ info, packages }) => {
+      const categories = new Set<string>()
+      if (info.categories.includes('featured')) categories.add('featured')
+      categories.add('updates')
+      info.categories.forEach(c => categories.add(c))
+      categories.add('all')
 
-  private readonly categories$ = this.marketplaceService
-    .getMarketplaceInfo$()
-    .pipe(
-      map(({ categories }) => {
-        const set = new Set<string>()
-        if (categories.includes('featured')) set.add('featured')
-        set.add('updates')
-        categories.forEach(c => set.add(c))
-        set.add('all')
-        return set
-      }),
-    )
-
-  readonly marketplace$ = combineLatest([this.pkgs$, this.categories$]).pipe(
-    map(arr => {
-      return { pkgs: arr[0], categories: arr[1] }
+      return { categories, packages }
     }),
   )
 
   readonly localPkgs$ = this.patch.watch$('package-data')
 
-  readonly details$ = this.marketplaceService.getUiMarketplace$().pipe(
+  readonly details$ = this.marketplaceService.getSelectedHost$().pipe(
     map(({ url, name }) => {
       let color: string
       let description: string

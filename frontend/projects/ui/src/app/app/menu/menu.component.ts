@@ -1,12 +1,13 @@
 import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
 import { EOSService } from '../../services/eos.service'
 import { PatchDB } from 'patch-db-client'
-import { iif, Observable } from 'rxjs'
-import { filter, map, switchMap } from 'rxjs/operators'
+import { combineLatest, map, Observable, of, startWith } from 'rxjs'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { SplitPaneTracker } from 'src/app/services/split-pane.service'
+import { Emver } from '@start9labs/shared'
+import { marketplaceSame, versionLower } from '../../pages/updates/updates.page'
 
 @Component({
   selector: 'app-menu',
@@ -25,6 +26,11 @@ export class MenuComponent {
       title: 'Embassy',
       url: '/embassy',
       icon: 'cube-outline',
+    },
+    {
+      title: 'Updates',
+      url: '/updates',
+      icon: 'globe-outline',
     },
     {
       title: 'Marketplace',
@@ -47,21 +53,24 @@ export class MenuComponent {
 
   readonly showEOSUpdate$ = this.eosService.showUpdate$
 
-  readonly updateCount$: Observable<number> = this.patch
-    .watch$('ui', 'auto-check-updates')
-    .pipe(
-      filter(Boolean),
-      switchMap(() =>
-        this.marketplaceService.getUpdates$().pipe(
-          map(arr => {
-            return arr.reduce(
-              (acc, marketplace) => acc + marketplace.pkgs.length,
-              0,
-            )
-          }),
-        ),
+  readonly updateCount$: Observable<number> = combineLatest([
+    this.marketplaceService.getMarketplace$(),
+    this.patch.watch$('package-data'),
+  ]).pipe(
+    map(([marketplace, local]) =>
+      Object.entries(marketplace).reduce(
+        (length, [url, store]) =>
+          length +
+          (store?.packages.filter(
+            ({ manifest }) =>
+              marketplaceSame(manifest, local, url) &&
+              versionLower(manifest, local, this.emver),
+          ).length || 0),
+        0,
       ),
-    )
+    ),
+    startWith(0),
+  )
 
   readonly sidebarOpen$ = this.splitPane.sidebarOpen$
 
@@ -71,5 +80,6 @@ export class MenuComponent {
     @Inject(AbstractMarketplaceService)
     private readonly marketplaceService: MarketplaceService,
     private readonly splitPane: SplitPaneTracker,
+    private readonly emver: Emver,
   ) {}
 }
