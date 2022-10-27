@@ -1,0 +1,84 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Updates</ion-title>
+    <ion-buttons slot="end">
+      <badge-menu-button></badge-menu-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <ion-item-group *ngIf="data$ | async as data">
+    <ng-container *ngFor="let host of data.hosts | keyvalue">
+      <ion-item-divider> {{ host.value }} </ion-item-divider>
+
+      <div class="ion-padding-start ion-padding-bottom">
+        <ion-item *ngIf="data.errors.includes(host.key)">
+          <ion-text color="danger">Request Failed</ion-text>
+        </ion-item>
+
+        <ng-container
+          *ngIf="data.marketplace[host.key]?.packages as packages else loading"
+        >
+          <ng-container
+            *ngIf="packages | filterUpdates : data.localPkgs : host.key as updates"
+          >
+            <ion-item *ngFor="let pkg of updates">
+              <ng-container *ngIf="data.localPkgs[pkg.manifest.id] as local">
+                <ion-avatar slot="start">
+                  <img [src]="'data:image/png;base64,' + pkg.icon | trustUrl" />
+                </ion-avatar>
+                <ion-label>
+                  <h1>{{ pkg.manifest.title }}</h1>
+                  <h2 class="inline">
+                    <span>{{ local.manifest.version }}</span>
+                    &nbsp;<ion-icon name="arrow-forward"></ion-icon>&nbsp;
+                    <ion-text color="success">
+                      {{ pkg.manifest.version }}
+                    </ion-text>
+                  </h2>
+                  <p [innerHTML]="pkg.manifest['release-notes'] | markdown"></p>
+                </ion-label>
+
+                <div slot="end">
+                  <round-progress
+                    *ngIf="local.state === PackageState.Installing else notInstalling"
+                    [current]="local['install-progress'] | installProgress"
+                    [max]="100"
+                    [radius]="24"
+                    [stroke]="4"
+                    [rounded]="true"
+                    color="var(--ion-color-primary)"
+                  ></round-progress>
+                  <ng-template #notInstalling>
+                    <ion-spinner
+                      *ngIf="queued[pkg.manifest.id] else updateBtn"
+                      color="dark"
+                    ></ion-spinner>
+                    <ng-template #updateBtn>
+                      <ion-button
+                        (click)="update(pkg.manifest.id, host.key)"
+                        color="dark"
+                        strong
+                      >
+                        Update
+                      </ion-button>
+                    </ng-template>
+                  </ng-template>
+                </div>
+              </ng-container>
+            </ion-item>
+
+            <ion-item *ngIf="!updates.length">
+              <p>All services are up to date!</p>
+            </ion-item>
+          </ng-container>
+        </ng-container>
+
+        <ng-template #loading>
+          <skeleton-list [showAvatar]="true" [rows]="2"></skeleton-list>
+        </ng-template>
+      </div>
+    </ng-container>
+  </ion-item-group>
+</ion-content>

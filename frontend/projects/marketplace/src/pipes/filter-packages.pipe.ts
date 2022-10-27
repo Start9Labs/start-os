@@ -1,7 +1,6 @@
 import { NgModule, Pipe, PipeTransform } from '@angular/core'
-import { MarketplacePkg } from '../types/marketplace-pkg'
-import { MarketplaceManifest } from '../types/marketplace-manifest'
 import { Emver } from '@start9labs/shared'
+import { MarketplaceManifest, MarketplacePkg } from '../types'
 import Fuse from 'fuse.js'
 
 @Pipe({

@@ -1,24 +1,33 @@
 import { Observable } from 'rxjs'
-import { MarketplaceInfo } from '../types/marketplace-info'
-import { MarketplacePkg } from '../types/marketplace-pkg'
+import {
+  MarketplacePkg,
+  Marketplace,
+  MarketplaceURL,
+  MarketplaceName,
+  StoreData,
+} from '../types'
 
 export abstract class AbstractMarketplaceService {
-  abstract getMarketplaceInfo$(): Observable<MarketplaceInfo>
+  abstract getKnownHosts$(): Observable<Record<MarketplaceURL, MarketplaceName>>
 
-  abstract getPackages$(): Observable<MarketplacePkg[]>
+  abstract getSelectedHost$(): Observable<{ url: string; name: string }>
 
-  abstract getPackage(
+  abstract getMarketplace$(): Observable<Marketplace>
+
+  abstract getSelectedStore$(): Observable<StoreData | null>
+
+  abstract getPackage$(
     id: string,
     version: string,
     url?: string,
   ): Observable<MarketplacePkg | undefined>
 
-  abstract fetchReleaseNotes(
+  abstract fetchReleaseNotes$(
     id: string,
     url?: string,
   ): Observable<Record<string, string>>
 
-  abstract fetchPackageMarkdown(
+  abstract fetchStatic$(
     id: string,
     type: string,
     url?: string,

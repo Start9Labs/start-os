@@ -24,10 +24,7 @@
   <ion-item-group *ngIf="server$ | async as server; else loading">
     <div *ngFor="let cat of settings | keyvalue : asIsOrder">
       <ion-item-divider>
-        <ion-text color="dark" *ngIf="cat.key !== 'Power'">
-          {{ cat.key }}
-        </ion-text>
-        <ion-text color="dark" *ngIf="cat.key === 'Power'" (click)="addClick()">
+        <ion-text color="dark" (click)="addClick(cat.key)">
           {{ cat.key }}
         </ion-text>
       </ion-item-divider>
