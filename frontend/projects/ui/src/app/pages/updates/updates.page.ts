@@ -3,6 +3,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PatchDB } from 'patch-db-client'
 import {
   DataModel,
+  InstallProgress,
   PackageDataEntry,
   PackageState,
 } from 'src/app/services/patch-db/data-model'
@@ -30,6 +31,8 @@ interface UpdatesData {
   styleUrls: ['updates.page.scss'],
 })
 export class UpdatesPage {
+  queued: Record<string, boolean> = {}
+
   readonly data$: Observable<UpdatesData> = combineLatest({
     hosts: this.marketplaceService.getHosts$(),
     packages: this.marketplaceService.getAllPackages$(),
@@ -37,7 +40,7 @@ export class UpdatesPage {
     errors: this.marketplaceService.getErrors$(),
   })
 
-  readonly state = PackageState
+  readonly PackageState = PackageState
   readonly rendering = PrimaryRendering[PackageState.Installing]
 
   constructor(
@@ -48,6 +51,7 @@ export class UpdatesPage {
   ) {}
 
   async update(id: string, url: string): Promise<void> {
+    this.queued[id] = true
     this.api.installPackage({ id, 'marketplace-url': url })
   }
 }
