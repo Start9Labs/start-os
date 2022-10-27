@@ -26,7 +26,6 @@ import { firstValueFrom } from 'rxjs'
 export class MarketplaceSettingsPage {
   marketplace$ = this.patch.watch$('ui', 'marketplace').pipe(
     map(m => {
-      console.log('** MARKETPLACE', m)
       const selected = m['selected-url']
       const hosts = Object.entries(m['known-hosts'])
 
