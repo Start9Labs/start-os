@@ -54,14 +54,14 @@ export class MenuComponent {
   readonly showEOSUpdate$ = this.eosService.showUpdate$
 
   readonly updateCount$: Observable<number> = combineLatest([
-    this.marketplaceService.getAllPackages$(),
+    this.marketplaceService.getMarketplace$(),
     this.patch.watch$('package-data'),
   ]).pipe(
-    map(([all, local]) =>
-      Object.entries(all).reduce(
-        (length, [url, packages]) =>
+    map(([marketplace, local]) =>
+      Object.entries(marketplace).reduce(
+        (length, [url, store]) =>
           length +
-          (packages?.filter(
+          (store?.packages.filter(
             ({ manifest }) =>
               marketplaceSame(manifest, local, url) &&
               versionLower(manifest, local, this.emver),

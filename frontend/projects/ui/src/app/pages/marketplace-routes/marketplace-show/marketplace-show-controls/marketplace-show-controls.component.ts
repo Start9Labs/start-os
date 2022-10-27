@@ -62,7 +62,7 @@ export class MarketplaceShowControlsComponent {
 
   async tryInstall() {
     const currentMarketplace = await firstValueFrom(
-      this.marketplaceService.getUiMarketplace$(),
+      this.marketplaceService.getSelectedHost$(),
     )
     const url = this.url || currentMarketplace.url
 

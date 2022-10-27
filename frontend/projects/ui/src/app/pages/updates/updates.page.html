@@ -17,7 +17,9 @@
           <ion-text color="danger">Request Failed</ion-text>
         </ion-item>
 
-        <ng-container *ngIf="data.packages[host.key] as packages else loading">
+        <ng-container
+          *ngIf="data.marketplace[host.key]?.packages as packages else loading"
+        >
           <ng-container
             *ngIf="packages | filterUpdates : data.localPkgs : host.key as updates"
           >
