@@ -7,8 +7,14 @@ use super::*;
 use crate::{COMMUNITY_MARKETPLACE, DEFAULT_MARKETPLACE};
 
 const V0_3_3: emver::Version = emver::Version::new(0, 3, 3, 0);
+
+lazy_static::lazy_static! {
+    static ref COMMUNITY_PACKAGES: Vec<&'static str> = vec![];
+}
+
 #[derive(Clone, Debug)]
 pub struct Version;
+
 #[async_trait]
 impl VersionT for Version {
     type Previous = v0_3_2_1::Version;
@@ -55,6 +61,29 @@ impl VersionT for Version {
             ui["marketplace"]["selected-url"] = json!(MarketPlaceUrls::Default.url());
         }
         ui.save(db).await?;
+
+        for package_id in crate::db::DatabaseModel::new()
+            .package_data()
+            .keys(db, false)
+            .await?
+            .iter()
+        {
+            let id: &str = &**package_id;
+            if COMMUNITY_PACKAGES.iter().find(|x| x == &&id).is_none() {
+                continue;
+            }
+            let mut package = crate::db::DatabaseModel::new()
+                .package_data()
+                .idx_model(package_id)
+                .and_then(|x| x.installed())
+                .get_mut(db)
+                .await?;
+            if let Some(ref mut package) = *package {
+                package.marketplace_url = Some(MarketPlaceUrls::Community.url().parse().unwrap());
+            }
+            package.save(db).await;
+        }
+
         Ok(())
     }
     async fn down<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error> {
