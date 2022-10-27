@@ -18,7 +18,7 @@ use crate::logs::{
 use crate::shutdown::Shutdown;
 use crate::util::display_none;
 use crate::util::serde::{display_serializable, IoFormat};
-use crate::{Error, ErrorKind};
+use crate::{Error, ErrorKind, ResultExt};
 
 pub const SYSTEMD_UNIT: &'static str = "embassyd";
 
@@ -238,7 +238,7 @@ impl<'de> Deserialize<'de> for GigaBytes {
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct MetricsGeneral {
     #[serde(rename = "Temperature")]
-    temperature: Celsius,
+    temperature: Option<Celsius>,
 }
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct MetricsMemory {
@@ -283,7 +283,6 @@ pub struct MetricsDisk {
 }
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Metrics {
-    #[cfg(feature = "metal")]
     #[serde(rename = "General")]
     general: MetricsGeneral,
     #[serde(rename = "Memory")]
@@ -316,20 +315,14 @@ pub async fn launch_metrics_task<F: FnMut() -> Receiver<Option<Shutdown>>>(
     mut mk_shutdown: F,
 ) {
     // fetch init temp
-    let init_temp;
-    loop {
-        match get_temp().await {
-            Ok(a) => {
-                init_temp = a;
-                break;
-            }
-            Err(e) => {
-                tracing::error!("Could not get initial temperature: {}", e);
-                tracing::debug!("{:?}", e);
-            }
+    let init_temp = match get_temp().await {
+        Ok(a) => Some(a),
+        Err(e) => {
+            tracing::error!("Could not get initial temperature: {}", e);
+            tracing::debug!("{:?}", e);
+            None
         }
-        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-    }
+    };
     // fetch init cpu
     let init_cpu;
     let proc_stat;
@@ -383,7 +376,6 @@ pub async fn launch_metrics_task<F: FnMut() -> Receiver<Option<Shutdown>>>(
         }
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
     }
-    #[cfg(feature = "metal")]
     {
         // lock for writing
         let mut guard = cache.write().await;
@@ -397,28 +389,30 @@ pub async fn launch_metrics_task<F: FnMut() -> Receiver<Option<Shutdown>>>(
             disk: init_disk,
         })
     }
-    // launch persistent temp task
-    #[cfg(feature = "metal")]
-    let temp_task = launch_temp_task(cache, mk_shutdown());
-    // launch persistent cpu task
-    let cpu_task = launch_cpu_task(cache, proc_stat, mk_shutdown());
-    // launch persistent mem task
-    let mem_task = launch_mem_task(cache, mk_shutdown());
-    // launch persistent disk task
-    let disk_task = launch_disk_task(cache, mk_shutdown());
 
     let mut task_vec = Vec::new();
-    task_vec.push(cpu_task.boxed());
-    task_vec.push(mem_task.boxed());
-    task_vec.push(disk_task.boxed());
-
-    #[cfg(feature = "metal")]
-    task_vec.push(temp_task.boxed());
+    // launch persistent temp task
+    if cache
+        .read()
+        .await
+        .as_ref()
+        .unwrap()
+        .general
+        .temperature
+        .is_some()
+    {
+        task_vec.push(launch_temp_task(cache, mk_shutdown()).boxed());
+    }
+    // launch persistent cpu task
+    task_vec.push(launch_cpu_task(cache, proc_stat, mk_shutdown()).boxed());
+    // launch persistent mem task
+    task_vec.push(launch_mem_task(cache, mk_shutdown()).boxed());
+    // launch persistent disk task
+    task_vec.push(launch_disk_task(cache, mk_shutdown()).boxed());
 
     futures::future::join_all(task_vec).await;
 }
 
-#[cfg(feature = "metal")]
 async fn launch_temp_task(
     cache: &RwLock<Option<Metrics>>,
     mut shutdown: Receiver<Option<Shutdown>>,
@@ -427,7 +421,7 @@ async fn launch_temp_task(
         match get_temp().await {
             Ok(a) => {
                 let mut lock = cache.write().await;
-                (*lock).as_mut().unwrap().general.temperature = a
+                (*lock).as_mut().unwrap().general.temperature = Some(a)
             }
             Err(e) => {
                 tracing::error!("Could not get new temperature: {}", e);
@@ -512,8 +506,10 @@ async fn launch_disk_task(
 
 #[instrument]
 async fn get_temp() -> Result<Celsius, Error> {
-    let milli = tokio::fs::read_to_string("/sys/class/thermal/thermal_zone0/temp")
-        .await?
+    let temp_file = "/sys/class/thermal/thermal_zone0/temp";
+    let milli = tokio::fs::read_to_string(temp_file)
+        .await
+        .with_ctx(|_| (crate::ErrorKind::Filesystem, temp_file))?
         .trim()
         .parse::<f64>()?;
     Ok(Celsius(milli / 1000.0))

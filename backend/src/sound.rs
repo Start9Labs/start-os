@@ -146,21 +146,18 @@ where
 {
     #[instrument(skip(self))]
     pub async fn play(&self) -> Result<(), Error> {
-        #[cfg(feature = "sound")]
-        {
-            let mut sound = SoundInterface::lease().await?;
-            for (note, slice) in self.note_sequence.clone() {
-                match note {
-                    None => tokio::time::sleep(slice.to_duration(self.tempo_qpm)).await,
-                    Some(n) => {
-                        sound
-                            .play_for_time_slice(self.tempo_qpm, &n, &slice)
-                            .await?
-                    }
-                };
-            }
-            sound.close().await?;
+        let mut sound = SoundInterface::lease().await?;
+        for (note, slice) in self.note_sequence.clone() {
+            match note {
+                None => tokio::time::sleep(slice.to_duration(self.tempo_qpm)).await,
+                Some(n) => {
+                    sound
+                        .play_for_time_slice(self.tempo_qpm, &n, &slice)
+                        .await?
+                }
+            };
         }
+        sound.close().await?;
         Ok(())
     }
 }
