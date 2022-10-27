@@ -76,7 +76,7 @@ export class HomePage {
 
   private async presentAlertDanger(logicalname: string, embassyData: boolean) {
     const message = embassyData
-      ? 'This action is COMPLETELY erase your existing Emabssy data'
+      ? 'This action COMPLETELY erases your existing Embassy data'
       : `This action is COMPLETELY erase the disk ${logicalname} and install embassyOS`
 
     const alert = await this.alertCtrl.create({
