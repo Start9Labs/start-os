@@ -15,6 +15,7 @@ export class HomePage {
   disks: Disk[] = []
   selectedDisk?: Disk
   error = ''
+  loaded = false
 
   constructor(
     private readonly loadingCtrl: LoadingController,
@@ -57,6 +58,22 @@ export class HomePage {
     await this.presentAlertDanger(logicalname, embassyData)
   }
 
+  private async install(logicalname: string, overwrite: boolean) {
+    const loader = await this.loadingCtrl.create({
+      message: 'Installing embassyOS...',
+    })
+    await loader.present()
+
+    try {
+      await this.api.install({ logicalname, overwrite })
+      this.presentAlertReboot()
+    } catch (e: any) {
+      this.error = e.message
+    } finally {
+      loader.dismiss()
+    }
+  }
+
   private async presentAlertDanger(logicalname: string, embassyData: boolean) {
     const message = embassyData
       ? 'This action is COMPLETELY erase your existing Emabssy data'
@@ -82,18 +99,44 @@ export class HomePage {
     await alert.present()
   }
 
-  async install(logicalname: string, overwrite: boolean) {
-    const loader = await this.loadingCtrl.create({
-      message: 'Installing embassyOS...',
+  private async presentAlertReboot() {
+    const alert = await this.alertCtrl.create({
+      header: 'Install Success',
+      message: 'Reboot your device to begin using your new Emabssy',
+      buttons: [
+        {
+          text: 'Reboot',
+          handler: () => {
+            this.reboot()
+          },
+        },
+      ],
+      cssClass: 'alert-warning-message',
     })
+    await alert.present()
+  }
+
+  private async reboot() {
+    const loader = await this.loadingCtrl.create()
     await loader.present()
 
     try {
-      await this.api.install({ logicalname, overwrite })
+      await this.api.reboot()
+      this.presentAlertComplete()
     } catch (e: any) {
       this.error = e.message
     } finally {
       loader.dismiss()
     }
+  }
+
+  private async presentAlertComplete() {
+    const alert = await this.alertCtrl.create({
+      header: 'Rebooting',
+      message: 'Please wait for Embassy to restart, then refresh this page',
+      buttons: ['OK'],
+      cssClass: 'alert-warning-message',
+    })
+    await alert.present()
   }
 }

@@ -11,17 +11,24 @@ import { ApiService, GetDisksRes, InstallReq } from './api.service'
 export class LiveApiService implements ApiService {
   constructor(private readonly http: HttpService) {}
 
-  getDisks(): Promise<GetDisksRes> {
+  async getDisks(): Promise<GetDisksRes> {
     return this.rpcRequest({
       method: 'install.status',
       params: {},
     })
   }
 
-  install(params: InstallReq): Promise<void> {
+  async install(params: InstallReq): Promise<void> {
     return this.rpcRequest<void>({
-      method: 'install.install',
+      method: 'install.execute',
       params,
+    })
+  }
+
+  async reboot(): Promise<void> {
+    return this.rpcRequest<void>({
+      method: 'install.reboot',
+      params: {},
     })
   }
 

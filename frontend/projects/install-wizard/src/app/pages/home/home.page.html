@@ -6,7 +6,7 @@
           <img src="assets/img/logo.png" style="max-width: 240px" />
         </div>
 
-        <ion-card color="dark">
+        <ion-card color="dark" *ngIf="loaded">
           <ion-card-header>
             <ion-button
               *ngIf="swiper?.activeIndex === 1"
@@ -20,9 +20,12 @@
             <ion-card-title>
               {{ swiper?.activeIndex === 0 ? 'Select Disk' : 'Install Type' }}
             </ion-card-title>
+            <ion-card-subtitle *ngIf="error">
+              <ion-text color="danger">{{ error }}</ion-text>
+            </ion-card-subtitle>
           </ion-card-header>
           <ion-card-content class="ion-margin-bottom">
-            <swiper (swiper)="setSwiperInstance($event)">
+            <swiper [autoHeight]="true" (swiper)="setSwiperInstance($event)">
               <ng-template swiperSlide>
                 <ion-item
                   *ngFor="let disk of disks"

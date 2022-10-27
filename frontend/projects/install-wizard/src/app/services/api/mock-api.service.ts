@@ -17,4 +17,8 @@ export class MockApiService implements ApiService {
   async install(params: InstallReq): Promise<void> {
     await pauseFor(1000)
   }
+
+  async reboot(): Promise<void> {
+    await pauseFor(1000)
+  }
 }
