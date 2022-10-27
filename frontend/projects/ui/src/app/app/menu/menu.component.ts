@@ -61,7 +61,7 @@ export class MenuComponent {
       Object.entries(marketplace).reduce(
         (length, [url, store]) =>
           length +
-          (store?.packages?.filter(
+          (store?.packages.filter(
             ({ manifest }) =>
               marketplaceSame(manifest, local, url) &&
               versionLower(manifest, local, this.emver),
