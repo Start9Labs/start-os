@@ -25,8 +25,15 @@ sed -i "s/http:/https:/g" /etc/apt/sources.list /etc/apt/sources.list.d/*.list
 
 . /usr/lib/embassy/scripts/add-apt-sources
 
+KERN=$(dpkg -s raspberrypi-kernel | grep Version | awk '{print $2}')
 apt-get update
 apt-get upgrade -y
+if [ "$KERN" != "$(dpkg -s raspberrypi-kernel | grep Version | awk '{print $2}')" ]; then
+	echo "Kernel updated, restarting..."
+	sync
+	reboot
+fi
+
 apt-get install -y $(cat /usr/lib/embassy/depends)
 apt-get remove --purge -y $(cat /usr/lib/embassy/conflicts) beep
 apt-get autoremove -y
@@ -36,6 +43,8 @@ systemctl stop tor
 . /usr/lib/embassy/scripts/postinst
 
 systemctl enable embassyd.service embassy-init.service
+
+. /usr/lib/embassy/scripts/enable-kiosk
 
 sed -i 's/^/usb-storage.quirks=152d:0562:u,14cd:121c:u,0781:cfcb:u /g' /boot/cmdline.txt
 

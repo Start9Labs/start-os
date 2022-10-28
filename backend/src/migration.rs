@@ -10,7 +10,7 @@ use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::id::ImageId;
-use crate::procedure::docker::DockerContainer;
+use crate::procedure::docker::DockerContainers;
 use crate::procedure::{PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
@@ -27,7 +27,7 @@ impl Migrations {
     #[instrument]
     pub fn validate(
         &self,
-        container: &Option<DockerContainer>,
+        container: &Option<DockerContainers>,
         eos_version: &Version,
         volumes: &Volumes,
         image_ids: &BTreeSet<ImageId>,
@@ -58,7 +58,7 @@ impl Migrations {
     #[instrument(skip(ctx))]
     pub fn from<'a>(
         &'a self,
-        container: &'a Option<DockerContainer>,
+        container: &'a Option<DockerContainers>,
         ctx: &'a RpcContext,
         version: &'a Version,
         pkg_id: &'a PackageId,
@@ -70,11 +70,10 @@ impl Migrations {
             .iter()
             .find(|(range, _)| version.satisfies(*range))
         {
-            Some(
+            Some(async move {
                 migration
                     .execute(
                         ctx,
-                        container,
                         pkg_id,
                         pkg_version,
                         ProcedureName::Migration, // Migrations cannot be executed concurrently
@@ -88,8 +87,9 @@ impl Migrations {
                                 Error::new(eyre!("{}", e.1), crate::ErrorKind::MigrationFailed)
                             })
                         })
-                    }),
-            )
+                    })
+                    .await
+            })
         } else {
             None
         }
@@ -98,7 +98,6 @@ impl Migrations {
     #[instrument(skip(ctx))]
     pub fn to<'a>(
         &'a self,
-        container: &'a Option<DockerContainer>,
         ctx: &'a RpcContext,
         version: &'a Version,
         pkg_id: &'a PackageId,
@@ -106,11 +105,10 @@ impl Migrations {
         volumes: &'a Volumes,
     ) -> Option<impl Future<Output = Result<MigrationRes, Error>> + 'a> {
         if let Some((_, migration)) = self.to.iter().find(|(range, _)| version.satisfies(*range)) {
-            Some(
+            Some(async move {
                 migration
                     .execute(
                         ctx,
-                        container,
                         pkg_id,
                         pkg_version,
                         ProcedureName::Migration,
@@ -124,8 +122,9 @@ impl Migrations {
                                 Error::new(eyre!("{}", e.1), crate::ErrorKind::MigrationFailed)
                             })
                         })
-                    }),
-            )
+                    })
+                    .await
+            })
         } else {
             None
         }

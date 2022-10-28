@@ -1,18 +1,18 @@
 use std::collections::BTreeSet;
 use std::time::Duration;
 
-use color_eyre::eyre::{bail, eyre};
+use color_eyre::eyre::eyre;
 use patch_db::HasModel;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use tracing::instrument;
 
-use self::docker::{DockerContainer, DockerInject, DockerProcedure};
+use self::docker::{DockerContainers, DockerProcedure};
 use crate::context::RpcContext;
 use crate::id::ImageId;
 use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
 use crate::volume::Volumes;
-use crate::Error;
+use crate::{Error, ErrorKind};
 
 pub mod docker;
 #[cfg(feature = "js_engine")]
@@ -26,7 +26,6 @@ pub use models::ProcedureName;
 #[serde(tag = "type")]
 pub enum PackageProcedure {
     Docker(DockerProcedure),
-    DockerInject(DockerInject),
 
     #[cfg(feature = "js_engine")]
     Script(js_scripts::JsProcedure),
@@ -43,7 +42,7 @@ impl PackageProcedure {
     #[instrument]
     pub fn validate(
         &self,
-        container: &Option<DockerContainer>,
+        container: &Option<DockerContainers>,
         eos_version: &Version,
         volumes: &Volumes,
         image_ids: &BTreeSet<ImageId>,
@@ -53,25 +52,15 @@ impl PackageProcedure {
             PackageProcedure::Docker(action) => {
                 action.validate(eos_version, volumes, image_ids, expected_io)
             }
-            PackageProcedure::DockerInject(injectable) => {
-                let container = match container {
-                    None => bail!("For the docker injectable procedure, a container must be exist on the config"),
-                    Some(container) => container,
-                } ;
-                let docker_procedure: DockerProcedure = (container, injectable).into();
-                docker_procedure.validate(eos_version, volumes, image_ids, expected_io)
-            }
-
             #[cfg(feature = "js_engine")]
             PackageProcedure::Script(action) => action.validate(volumes),
         }
     }
 
-    #[instrument(skip(ctx, input, container))]
-    pub async fn execute<I: Serialize, O: for<'de> Deserialize<'de>>(
+    #[instrument(skip(ctx, input))]
+    pub async fn execute<I: Serialize, O: DeserializeOwned + 'static>(
         &self,
         ctx: &RpcContext,
-        container: &Option<DockerContainer>,
         pkg_id: &PackageId,
         pkg_version: &Version,
         name: ProcedureName,
@@ -86,18 +75,36 @@ impl PackageProcedure {
                     .execute(ctx, pkg_id, pkg_version, name, volumes, input, timeout)
                     .await
             }
-            PackageProcedure::DockerInject(injectable) => {
-                let container = match container {
-                    None => return Err(Error::new(eyre!("For the docker injectable procedure, a container must be exist on the config"), crate::ErrorKind::Action)),
-                    Some(container) => container,
-                } ;
-                let docker_procedure: DockerProcedure = (container, injectable).into();
-                docker_procedure
-                    .inject(ctx, pkg_id, pkg_version, name, volumes, input, timeout)
-                    .await
-            }
             #[cfg(feature = "js_engine")]
             PackageProcedure::Script(procedure) => {
+                let exec_command = match ctx
+                    .managers
+                    .get(&(pkg_id.clone(), pkg_version.clone()))
+                    .await
+                {
+                    None => {
+                        return Err(Error::new(
+                            eyre!("No manager found for {}", pkg_id),
+                            ErrorKind::NotFound,
+                        ))
+                    }
+                    Some(x) => x,
+                }
+                .exec_command();
+                let term_command = match ctx
+                    .managers
+                    .get(&(pkg_id.clone(), pkg_version.clone()))
+                    .await
+                {
+                    None => {
+                        return Err(Error::new(
+                            eyre!("No manager found for {}", pkg_id),
+                            ErrorKind::NotFound,
+                        ))
+                    }
+                    Some(x) => x,
+                }
+                .term_command();
                 procedure
                     .execute(
                         &ctx.datadir,
@@ -107,17 +114,18 @@ impl PackageProcedure {
                         volumes,
                         input,
                         timeout,
+                        exec_command,
+                        term_command,
                     )
                     .await
             }
         }
     }
 
-    #[instrument(skip(ctx, input, container))]
-    pub async fn inject<I: Serialize, O: for<'de> Deserialize<'de>>(
+    #[instrument(skip(ctx, input))]
+    pub async fn inject<I: Serialize, O: DeserializeOwned + 'static>(
         &self,
         ctx: &RpcContext,
-        container: &Option<DockerContainer>,
         pkg_id: &PackageId,
         pkg_version: &Version,
         name: ProcedureName,
@@ -125,25 +133,42 @@ impl PackageProcedure {
         input: Option<I>,
         timeout: Option<Duration>,
     ) -> Result<Result<O, (i32, String)>, Error> {
-        tracing::trace!("Procedure inject {} {} - {:?}", self, pkg_id, name);
         match self {
             PackageProcedure::Docker(procedure) => {
                 procedure
                     .inject(ctx, pkg_id, pkg_version, name, volumes, input, timeout)
                     .await
             }
-            PackageProcedure::DockerInject(injectable) => {
-                let container = match container {
-                    None => return Err(Error::new(eyre!("For the docker injectable procedure, a container must be exist on the config"), crate::ErrorKind::Action)),
-                    Some(container) => container,
-                } ;
-                let docker_procedure: DockerProcedure = (container, injectable).into();
-                docker_procedure
-                    .inject(ctx, pkg_id, pkg_version, name, volumes, input, timeout)
-                    .await
-            }
             #[cfg(feature = "js_engine")]
             PackageProcedure::Script(procedure) => {
+                let exec_command = match ctx
+                    .managers
+                    .get(&(pkg_id.clone(), pkg_version.clone()))
+                    .await
+                {
+                    None => {
+                        return Err(Error::new(
+                            eyre!("No manager found for {}", pkg_id),
+                            ErrorKind::NotFound,
+                        ))
+                    }
+                    Some(x) => x,
+                }
+                .exec_command();
+                let term_command = match ctx
+                    .managers
+                    .get(&(pkg_id.clone(), pkg_version.clone()))
+                    .await
+                {
+                    None => {
+                        return Err(Error::new(
+                            eyre!("No manager found for {}", pkg_id),
+                            ErrorKind::NotFound,
+                        ))
+                    }
+                    Some(x) => x,
+                }
+                .term_command();
                 procedure
                     .execute(
                         &ctx.datadir,
@@ -153,15 +178,17 @@ impl PackageProcedure {
                         volumes,
                         input,
                         timeout,
+                        exec_command,
+                        term_command,
                     )
                     .await
             }
         }
     }
     #[instrument(skip(ctx, input))]
-    pub async fn sandboxed<I: Serialize, O: for<'de> Deserialize<'de>>(
+    pub async fn sandboxed<I: Serialize, O: DeserializeOwned>(
         &self,
-        container: &Option<DockerContainer>,
+        container: &Option<DockerContainers>,
         ctx: &RpcContext,
         pkg_id: &PackageId,
         pkg_version: &Version,
@@ -174,16 +201,6 @@ impl PackageProcedure {
         match self {
             PackageProcedure::Docker(procedure) => {
                 procedure
-                    .sandboxed(ctx, pkg_id, pkg_version, volumes, input, timeout)
-                    .await
-            }
-            PackageProcedure::DockerInject(injectable) => {
-                let container = match container {
-                    None => return Err(Error::new(eyre!("For the docker injectable procedure, a container must be exist on the config"), crate::ErrorKind::Action)),
-                    Some(container) => container,
-                } ;
-                let docker_procedure: DockerProcedure = (container, injectable).into();
-                docker_procedure
                     .sandboxed(ctx, pkg_id, pkg_version, volumes, input, timeout)
                     .await
             }
@@ -200,7 +217,6 @@ impl PackageProcedure {
 impl std::fmt::Display for PackageProcedure {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            PackageProcedure::DockerInject(_) => write!(f, "Docker Injectable")?,
             PackageProcedure::Docker(_) => write!(f, "Docker")?,
             #[cfg(feature = "js_engine")]
             PackageProcedure::Script(_) => write!(f, "JS")?,
@@ -208,6 +224,7 @@ impl std::fmt::Display for PackageProcedure {
         Ok(())
     }
 }
+
 #[derive(Debug)]
 pub struct NoOutput;
 impl<'de> Deserialize<'de> for NoOutput {

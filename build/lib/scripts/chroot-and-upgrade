@@ -1,0 +1,30 @@
+#!/bin/bash
+
+if [ "$UID" -ne 0 ]; then
+    >&2 echo 'Must be run as root'
+    exit 1
+fi
+
+echo 'Syncing...'
+
+rsync -a --delete --force --info=progress2 /media/embassy/embassyfs/current/ /media/embassy/next
+
+mount --bind /run /media/embassy/next/run
+mount --bind /dev /media/embassy/next/dev
+mount --bind /sys /media/embassy/next/sys
+mount --bind /proc /media/embassy/next/proc
+
+chroot /media/embassy/next
+
+umount /media/embassy/next/run
+umount /media/embassy/next/dev
+umount /media/embassy/next/sys
+umount /media/embassy/next/proc
+
+echo 'Upgrading...'
+
+touch /media/embassy/config/upgrade
+
+sync
+
+reboot

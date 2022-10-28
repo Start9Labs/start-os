@@ -10,15 +10,17 @@ use std::time::Duration;
 use bollard::container::{KillContainerOptions, StopContainerOptions};
 use chrono::Utc;
 use color_eyre::eyre::eyre;
+use embassy_container_init::{InputJsonRpc, RpcId};
+use models::{ExecCommand, TermCommand};
 use nix::sys::signal::Signal;
 use num_enum::TryFromPrimitive;
 use patch_db::DbHandle;
 use sqlx::{Executor, Postgres};
-use tokio::io::BufReader;
 use tokio::sync::watch::error::RecvError;
 use tokio::sync::watch::{channel, Receiver, Sender};
 use tokio::sync::{Mutex, Notify, RwLock};
-use tokio::task::JoinHandle;
+use tokio::{sync::mpsc::UnboundedSender, task::JoinHandle};
+use tokio_stream::wrappers::UnboundedReceiverStream;
 use torut::onion::TorSecretKeyV3;
 use tracing::instrument;
 
@@ -27,7 +29,9 @@ use crate::manager::sync::synchronizer;
 use crate::net::interface::InterfaceId;
 use crate::net::GeneratedCertificateMountPoint;
 use crate::notifications::NotificationLevel;
-use crate::procedure::docker::{DockerContainer, DockerInject, DockerProcedure};
+use crate::procedure::docker::{DockerContainer, DockerProcedure, LongRunning};
+#[cfg(feature = "js_engine")]
+use crate::procedure::js_scripts::JsProcedure;
 use crate::procedure::{NoOutput, PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::status::MainStatus;
@@ -191,14 +195,15 @@ async fn run_main(
     let generated_certificate = generate_certificate(state, &interfaces).await?;
 
     persistant.wait_for_persistant().await;
-    let is_injectable_main = check_is_injectable_main(&state);
-    let mut runtime = match is_injectable_main {
-        true => {
-            tokio::spawn(
-                async move { start_up_inject_image(rt_state, generated_certificate).await },
-            )
+    let is_injectable_main = check_is_injectable_main(state);
+    let mut runtime = match injectable_main(state) {
+        InjectableMain::None => {
+            tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await })
         }
-        false => tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await }),
+        #[cfg(feature = "js_engine")]
+        InjectableMain::Script(_) => {
+            tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await })
+        }
     };
     let ip = match is_injectable_main {
         false => Some(match get_running_ip(state, &mut runtime).await {
@@ -219,6 +224,7 @@ async fn run_main(
     let res = tokio::select! {
         a = runtime => a.map_err(|_| Error::new(eyre!("Manager runtime panicked!"), crate::ErrorKind::Docker)).and_then(|a| a),
         _ = health => Err(Error::new(eyre!("Health check daemon exited!"), crate::ErrorKind::Unknown)),
+
     };
     if let Some(ip) = ip {
         remove_network_for_main(state, ip).await?;
@@ -237,29 +243,6 @@ async fn start_up_image(
         .main
         .execute::<(), NoOutput>(
             &rt_state.ctx,
-            &rt_state.manifest.container,
-            &rt_state.manifest.id,
-            &rt_state.manifest.version,
-            ProcedureName::Main,
-            &rt_state.manifest.volumes,
-            None,
-            None,
-        )
-        .await
-}
-
-/// We want to start up the manifest, but in this case we want to know that we have generated the certificates.
-/// Note for _generated_certificate: Needed to know that before we start the state we have generated the certificate
-async fn start_up_inject_image(
-    rt_state: Arc<ManagerSharedState>,
-    _generated_certificate: GeneratedCertificateMountPoint,
-) -> Result<Result<NoOutput, (i32, String)>, Error> {
-    rt_state
-        .manifest
-        .main
-        .inject::<(), NoOutput>(
-            &rt_state.ctx,
-            &rt_state.manifest.container,
             &rt_state.manifest.id,
             &rt_state.manifest.version,
             ProcedureName::Main,
@@ -295,8 +278,8 @@ impl Manager {
         let managers_persistant = persistant_container.clone();
         let thread = tokio::spawn(async move {
             tokio::select! {
-                _ = manager_thread_loop(recv, &thread_shared, managers_persistant) => (),
-                _ = synchronizer(&*thread_shared) => (),
+                _ = manager_thread_loop(recv, &thread_shared, managers_persistant.clone()) => (),
+                _ = synchronizer(&*thread_shared, managers_persistant) => (),
             }
         });
         Ok(Manager {
@@ -348,16 +331,21 @@ impl Manager {
             .commit_health_check_results
             .store(false, Ordering::SeqCst);
         let _ = self.shared.on_stop.send(OnStop::Exit);
-        let sigterm_timeout: Option<crate::util::serde::Duration> = match &self.shared.manifest.main
+        let sigterm_timeout: Option<crate::util::serde::Duration> = match self
+            .shared
+            .manifest
+            .containers
+            .as_ref()
+            .map(|x| x.main.sigterm_timeout)
         {
-            PackageProcedure::Docker(DockerProcedure {
-                sigterm_timeout, ..
-            })
-            | PackageProcedure::DockerInject(DockerInject {
-                sigterm_timeout, ..
-            }) => sigterm_timeout.clone(),
-            #[cfg(feature = "js_engine")]
-            PackageProcedure::Script(_) => return Ok(()),
+            Some(a) => a,
+            None => match &self.shared.manifest.main {
+                PackageProcedure::Docker(DockerProcedure {
+                    sigterm_timeout, ..
+                }) => *sigterm_timeout,
+                #[cfg(feature = "js_engine")]
+                PackageProcedure::Script(_) => return Ok(()),
+            },
         };
         self.persistant_container.stop().await;
 
@@ -392,7 +380,11 @@ impl Manager {
                 a => a?,
             };
         } else {
-            stop_non_first(&*self.shared.container_name).await;
+            stop_long_running_processes(
+                &*self.shared.container_name,
+                self.persistant_container.command_inserter.clone(),
+            )
+            .await;
         }
 
         self.shared.status.store(
@@ -413,6 +405,13 @@ impl Manager {
     pub async fn synchronize(&self) {
         self.shared.synchronize_now.notify_waiters();
         self.shared.synchronized.notified().await
+    }
+
+    pub fn exec_command(&self) -> ExecCommand {
+        self.persistant_container.exec_command()
+    }
+    pub fn term_command(&self) -> TermCommand {
+        self.persistant_container.term_command()
     }
 }
 
@@ -460,7 +459,7 @@ async fn manager_thread_loop(
                 );
             }
         }
-        match run_main(&thread_shared, persistant_container.clone()).await {
+        match run_main(thread_shared, persistant_container.clone()).await {
             Ok(Ok(NoOutput)) => (), // restart
             Ok(Err(e)) => {
                 let mut db = thread_shared.ctx.db.handle();
@@ -489,12 +488,9 @@ async fn manager_thread_loop(
                         Some(3600) // 1 hour
                     )
                     .await;
-                        match res {
-                            Err(e) => {
-                                tracing::error!("Failed to issue notification: {}", e);
-                                tracing::debug!("{:?}", e);
-                            }
-                            Ok(()) => {}
+                        if let Err(e) = res {
+                            tracing::error!("Failed to issue notification: {}", e);
+                            tracing::debug!("{:?}", e);
                         }
                     }
                     _ => tracing::error!("service just started. not issuing crash notification"),
@@ -510,12 +506,121 @@ async fn manager_thread_loop(
     }
 }
 
-struct PersistantContainer {
+struct LongRunningHandle(NonDetachingJoinHandle<()>);
+pub struct CommandInserter {
+    command_counter: AtomicUsize,
+    input: UnboundedSender<InputJsonRpc>,
+    outputs: Arc<Mutex<BTreeMap<RpcId, UnboundedSender<embassy_container_init::Output>>>>,
+}
+impl Drop for CommandInserter {
+    fn drop(&mut self) {
+        use embassy_container_init::{Input, JsonRpc};
+        let CommandInserter {
+            command_counter,
+            input,
+            outputs: _,
+        } = self;
+        let upper: usize = command_counter.load(Ordering::Relaxed);
+        for i in 0..upper {
+            let _ignored_result = input.send(JsonRpc::new(RpcId::UInt(i as u32), Input::Term()));
+        }
+    }
+}
+impl CommandInserter {
+    fn new(
+        long_running: LongRunning,
+        input: UnboundedSender<InputJsonRpc>,
+    ) -> (Self, LongRunningHandle) {
+        let LongRunning {
+            mut output,
+            running_output,
+        } = long_running;
+        let command_counter = AtomicUsize::new(0);
+        let outputs: Arc<Mutex<BTreeMap<RpcId, UnboundedSender<embassy_container_init::Output>>>> =
+            Default::default();
+        let handle = LongRunningHandle(running_output);
+        tokio::spawn({
+            let outputs = outputs.clone();
+            async move {
+                while let Some(output) = output.recv().await {
+                    let (id, output) = output.into_pair();
+                    let mut outputs = outputs.lock().await;
+                    let output_sender = outputs.get_mut(&id);
+                    if let Some(output_sender) = output_sender {
+                        if let Err(err) = output_sender.send(output) {
+                            tracing::warn!("Could no longer send an output");
+                            tracing::debug!("{err:?}");
+                            outputs.remove(&id);
+                        }
+                    }
+                }
+            }
+        });
+
+        (
+            Self {
+                command_counter,
+                input,
+                outputs,
+            },
+            handle,
+        )
+    }
+
+    pub async fn exec_command(
+        &self,
+        command: String,
+        args: Vec<String>,
+        sender: UnboundedSender<embassy_container_init::Output>,
+        timeout: Option<Duration>,
+    ) -> Option<RpcId> {
+        use embassy_container_init::{Input, JsonRpc};
+        let mut outputs = self.outputs.lock().await;
+        let command_counter = self.command_counter.fetch_add(1, Ordering::SeqCst) as u32;
+        let command_id = RpcId::UInt(command_counter);
+        outputs.insert(command_id.clone(), sender);
+        if let Some(timeout) = timeout {
+            tokio::spawn({
+                let input = self.input.clone();
+                let command_id = command_id.clone();
+                async move {
+                    tokio::time::sleep(timeout).await;
+                    let _ignored_output = input.send(JsonRpc::new(command_id, Input::Kill()));
+                }
+            });
+        }
+        if let Err(err) = self.input.send(JsonRpc::new(
+            command_id.clone(),
+            Input::Command { command, args },
+        )) {
+            tracing::warn!("Trying to send to input but can't");
+            tracing::debug!("{err:?}");
+            return None;
+        }
+
+        Some(command_id)
+    }
+    pub async fn term(&self, id: RpcId) {
+        use embassy_container_init::{Input, JsonRpc};
+        self.outputs.lock().await.remove(&id);
+        let _ignored_term = self.input.send(JsonRpc::new(id, Input::Term()));
+    }
+
+    pub async fn term_all(&self) {
+        for i in 0..self.command_counter.load(Ordering::Relaxed) {
+            self.term(RpcId::UInt(i as u32)).await;
+        }
+    }
+}
+
+type RunningDocker =
+    Arc<Mutex<Option<NonDetachingJoinHandle<Result<Result<NoOutput, (i32, String)>, Error>>>>>;
+pub struct PersistantContainer {
     container_name: String,
-    running_docker:
-        Arc<Mutex<Option<NonDetachingJoinHandle<Result<Result<NoOutput, (i32, String)>, Error>>>>>,
+    running_docker: RunningDocker,
     should_stop_running: Arc<std::sync::atomic::AtomicBool>,
     wait_for_start: (Sender<bool>, Receiver<bool>),
+    command_inserter: Arc<Mutex<Option<CommandInserter>>>,
 }
 
 impl PersistantContainer {
@@ -526,7 +631,8 @@ impl PersistantContainer {
             container_name: thread_shared.container_name.clone(),
             running_docker: Arc::new(Mutex::new(None)),
             should_stop_running: Arc::new(AtomicBool::new(false)),
-            wait_for_start: wait_for_start,
+            wait_for_start,
+            command_inserter: Default::default(),
         });
         tokio::spawn(persistant_container(
             thread_shared.clone(),
@@ -542,12 +648,7 @@ impl PersistantContainer {
         *running_docker = None;
         use tokio::process::Command;
         if let Err(_err) = Command::new("docker")
-            .args(["stop", "-t", "0", &*container_name])
-            .output()
-            .await
-        {}
-        if let Err(_err) = Command::new("docker")
-            .args(["kill", &*container_name])
+            .args(["stop", "-t", "30", container_name])
             .output()
             .await
         {}
@@ -569,22 +670,83 @@ impl PersistantContainer {
     async fn done_waiting(&self) {
         self.wait_for_start.0.send(false).unwrap();
     }
+    fn term_command(&self) -> TermCommand {
+        let cloned = self.command_inserter.clone();
+        Arc::new(move |id| {
+            let cloned = cloned.clone();
+            Box::pin(async move {
+                let lock = cloned.lock().await;
+                let _id = match &*lock {
+                    Some(command_inserter) => command_inserter.term(id).await,
+                    None => {
+                        return Err("Couldn't get a command inserter in current service".to_string())
+                    }
+                };
+                Ok::<(), String>(())
+            })
+        })
+    }
+
+    fn exec_command(&self) -> ExecCommand {
+        let cloned = self.command_inserter.clone();
+
+        /// A handle that on drop will clean all the ids that are inserter in the fn.
+        struct Cleaner {
+            command_inserter: Arc<Mutex<Option<CommandInserter>>>,
+            ids: ::std::collections::BTreeSet<RpcId>,
+        }
+        impl Drop for Cleaner {
+            fn drop(&mut self) {
+                let command_inserter = self.command_inserter.clone();
+                let ids = ::std::mem::take(&mut self.ids);
+                tokio::spawn(async move {
+                    let command_inserter_lock = command_inserter.lock().await;
+                    let command_inserter = match &*command_inserter_lock {
+                        Some(a) => a,
+                        None => {
+                            return;
+                        }
+                    };
+                    for id in ids {
+                        command_inserter.term(id).await;
+                    }
+                });
+            }
+        }
+        let cleaner = Arc::new(Mutex::new(Cleaner {
+            command_inserter: cloned.clone(),
+            ids: Default::default(),
+        }));
+        Arc::new(move |command, args, sender, timeout| {
+            let cloned = cloned.clone();
+            let cleaner = cleaner.clone();
+            Box::pin(async move {
+                let lock = cloned.lock().await;
+                let id = match &*lock {
+                    Some(command_inserter) => {
+                        if let Some(id) = command_inserter
+                            .exec_command(command.clone(), args.clone(), sender, timeout)
+                            .await
+                        {
+                            let mut cleaner = cleaner.lock().await;
+                            cleaner.ids.insert(id.clone());
+                            id
+                        } else {
+                            return Err("Couldn't get command started ".to_string());
+                        }
+                    }
+                    None => {
+                        return Err("Couldn't get a command inserter in current service".to_string())
+                    }
+                };
+                Ok::<RpcId, String>(id)
+            })
+        })
+    }
 }
 impl Drop for PersistantContainer {
     fn drop(&mut self) {
         self.should_stop_running.store(true, Ordering::SeqCst);
-        let container_name = self.container_name.clone();
-        let running_docker = self.running_docker.clone();
-        tokio::spawn(async move {
-            let mut running_docker = running_docker.lock().await;
-            *running_docker = None;
-
-            use std::process::Command;
-            if let Err(_err) = Command::new("docker")
-                .args(["kill", &*container_name])
-                .output()
-            {}
-        });
     }
 }
 
@@ -594,12 +756,15 @@ async fn persistant_container(
 ) {
     let main_docker_procedure_for_long = injectable_main(&thread_shared);
     match main_docker_procedure_for_long {
-        Some(main) => loop {
+        InjectableMain::None => futures::future::pending().await,
+        #[cfg(feature = "js_engine")]
+        InjectableMain::Script((container_inject, procedure)) => loop {
+            let main = DockerProcedure::main_docker_procedure_js(container_inject, procedure);
             if container.should_stop_running.load(Ordering::SeqCst) {
                 return;
             }
             container.start_wait().await;
-            match run_persistant_container(&thread_shared, container.clone(), main.clone()).await {
+            match run_persistant_container(&thread_shared, container.clone(), main).await {
                 Ok(_) => (),
                 Err(e) => {
                     tracing::error!("failed to start persistant container: {}", e);
@@ -607,60 +772,50 @@ async fn persistant_container(
                 }
             }
         },
-        None => futures::future::pending().await,
     }
 }
 
-fn injectable_main(thread_shared: &Arc<ManagerSharedState>) -> Option<Arc<DockerProcedure>> {
-    if let (
-        PackageProcedure::DockerInject(DockerInject {
-            system,
-            entrypoint,
-            args,
-            io_format,
-            sigterm_timeout,
-        }),
-        Some(DockerContainer {
-            image,
-            mounts,
-            shm_size_mb,
-        }),
-    ) = (
+#[cfg(not(feature = "js_engine"))]
+enum InjectableMain {
+    None,
+}
+
+#[cfg(feature = "js_engine")]
+enum InjectableMain<'a> {
+    None,
+    Script((&'a DockerContainer, &'a JsProcedure)),
+}
+
+fn injectable_main(thread_shared: &Arc<ManagerSharedState>) -> InjectableMain {
+    match (
         &thread_shared.manifest.main,
-        &thread_shared.manifest.container,
+        &thread_shared.manifest.containers.as_ref().map(|x| &x.main),
     ) {
-        Some(Arc::new(DockerProcedure {
-            image: image.clone(),
-            mounts: mounts.clone(),
-            io_format: *io_format,
-            shm_size_mb: *shm_size_mb,
-            sigterm_timeout: *sigterm_timeout,
-            system: *system,
-            entrypoint: "sleep".to_string(),
-            args: vec!["infinity".to_string()],
-        }))
-    } else {
-        None
+        #[cfg(feature = "js_engine")]
+        (PackageProcedure::Script(inject), Some(container)) => {
+            InjectableMain::Script((container, inject))
+        }
+        _ => InjectableMain::None,
     }
 }
 fn check_is_injectable_main(thread_shared: &ManagerSharedState) -> bool {
     match &thread_shared.manifest.main {
         PackageProcedure::Docker(_a) => false,
-        PackageProcedure::DockerInject(a) => true,
         #[cfg(feature = "js_engine")]
-        PackageProcedure::Script(_) => false,
+        PackageProcedure::Script(_) => true,
     }
 }
 async fn run_persistant_container(
     state: &Arc<ManagerSharedState>,
     persistant: Arc<PersistantContainer>,
-    docker_procedure: Arc<DockerProcedure>,
+    docker_procedure: DockerProcedure,
 ) -> Result<(), Error> {
     let interfaces = states_main_interfaces(state)?;
     let generated_certificate = generate_certificate(state, &interfaces).await?;
-    let mut runtime = tokio::spawn(long_running_docker(state.clone(), docker_procedure));
+    let mut runtime =
+        long_running_docker(state.clone(), docker_procedure, persistant.clone()).await?;
 
-    let ip = match get_running_ip(state, &mut runtime).await {
+    let ip = match get_long_running_ip(state, &mut runtime).await {
         GetRunninIp::Ip(x) => x,
         GetRunninIp::Error(e) => return Err(e),
         GetRunninIp::EarlyExit(e) => {
@@ -674,7 +829,7 @@ async fn run_persistant_container(
 
     fetch_starting_to_running(state);
     let res = tokio::select! {
-        a = runtime => a.map_err(|_| Error::new(eyre!("Manager runtime panicked!"), crate::ErrorKind::Docker)).map(|_| ()),
+        a = runtime.0 => a.map_err(|_| Error::new(eyre!("Manager runtime panicked!"), crate::ErrorKind::Docker)).map(|_| ()),
     };
     remove_network_for_main(state, ip).await?;
     res
@@ -682,19 +837,23 @@ async fn run_persistant_container(
 
 async fn long_running_docker(
     rt_state: Arc<ManagerSharedState>,
-    main_status: Arc<DockerProcedure>,
-) -> Result<Result<NoOutput, (i32, String)>, Error> {
-    main_status
-        .execute::<(), NoOutput>(
+    main_status: DockerProcedure,
+    container: Arc<PersistantContainer>,
+) -> Result<LongRunningHandle, Error> {
+    let (sender, receiver) = tokio::sync::mpsc::unbounded_channel();
+    let long_running = main_status
+        .long_running_execute(
             &rt_state.ctx,
             &rt_state.manifest.id,
             &rt_state.manifest.version,
             ProcedureName::LongRunning,
             &rt_state.manifest.volumes,
-            None,
-            None,
+            UnboundedReceiverStream::new(receiver),
         )
-        .await
+        .await?;
+    let (command_inserter, long_running_handle) = CommandInserter::new(long_running, sender);
+    *container.command_inserter.lock().await = Some(command_inserter);
+    Ok(long_running_handle)
 }
 
 async fn remove_network_for_main(
@@ -778,9 +937,11 @@ enum GetRunninIp {
     EarlyExit(Result<NoOutput, (i32, String)>),
 }
 
+type RuntimeOfCommand = JoinHandle<Result<Result<NoOutput, (i32, String)>, Error>>;
+
 async fn get_running_ip(
     state: &Arc<ManagerSharedState>,
-    mut runtime: &mut tokio::task::JoinHandle<Result<Result<NoOutput, (i32, String)>, Error>>,
+    mut runtime: &mut RuntimeOfCommand,
 ) -> GetRunninIp {
     loop {
         match container_inspect(state).await {
@@ -805,8 +966,8 @@ async fn get_running_ip(
             }) => (),
             Err(e) => return GetRunninIp::Error(e.into()),
         }
-        match futures::poll!(&mut runtime) {
-            Poll::Ready(res) => match res {
+        if let Poll::Ready(res) = futures::poll!(&mut runtime) {
+            match res {
                 Ok(Ok(response)) => return GetRunninIp::EarlyExit(response),
                 Err(_) | Ok(Err(_)) => {
                     return GetRunninIp::Error(Error::new(
@@ -814,8 +975,48 @@ async fn get_running_ip(
                         crate::ErrorKind::Docker,
                     ))
                 }
-            },
-            _ => (),
+            }
+        }
+    }
+}
+
+async fn get_long_running_ip(
+    state: &Arc<ManagerSharedState>,
+    runtime: &mut LongRunningHandle,
+) -> GetRunninIp {
+    loop {
+        match container_inspect(state).await {
+            Ok(res) => {
+                match res
+                    .network_settings
+                    .and_then(|ns| ns.networks)
+                    .and_then(|mut n| n.remove("start9"))
+                    .and_then(|es| es.ip_address)
+                    .filter(|ip| !ip.is_empty())
+                    .map(|ip| ip.parse())
+                    .transpose()
+                {
+                    Ok(Some(ip_addr)) => return GetRunninIp::Ip(ip_addr),
+                    Ok(None) => (),
+                    Err(e) => return GetRunninIp::Error(e.into()),
+                }
+            }
+            Err(bollard::errors::Error::DockerResponseServerError {
+                status_code: 404, // NOT FOUND
+                ..
+            }) => (),
+            Err(e) => return GetRunninIp::Error(e.into()),
+        }
+        if let Poll::Ready(res) = futures::poll!(&mut runtime.0) {
+            match res {
+                Ok(_) => return GetRunninIp::EarlyExit(Ok(NoOutput)),
+                Err(_e) => {
+                    return GetRunninIp::Error(Error::new(
+                        eyre!("Manager runtime panicked!"),
+                        crate::ErrorKind::Docker,
+                    ))
+                }
+            }
         }
     }
 }
@@ -838,11 +1039,11 @@ async fn generate_certificate(
         TorSecretKeyV3,
     )>,
 ) -> Result<GeneratedCertificateMountPoint, Error> {
-    Ok(state
+    state
         .ctx
         .net_controller
         .generate_certificate_mountpoint(&state.manifest.id, interfaces)
-        .await?)
+        .await
 }
 
 fn states_main_interfaces(
@@ -855,7 +1056,7 @@ fn states_main_interfaces(
     )>,
     Error,
 > {
-    Ok(state
+    state
         .manifest
         .interfaces
         .0
@@ -873,11 +1074,14 @@ fn states_main_interfaces(
                     .clone(),
             ))
         })
-        .collect::<Result<Vec<_>, Error>>()?)
+        .collect::<Result<Vec<_>, Error>>()
 }
 
-#[instrument(skip(shared))]
-async fn stop(shared: &ManagerSharedState) -> Result<(), Error> {
+#[instrument(skip(shared, persistant_container))]
+async fn stop(
+    shared: &ManagerSharedState,
+    persistant_container: Arc<PersistantContainer>,
+) -> Result<(), Error> {
     shared
         .commit_health_check_results
         .store(false, Ordering::SeqCst);
@@ -895,9 +1099,6 @@ async fn stop(shared: &ManagerSharedState) -> Result<(), Error> {
     }
     match &shared.manifest.main {
         PackageProcedure::Docker(DockerProcedure {
-            sigterm_timeout, ..
-        })
-        | PackageProcedure::DockerInject(DockerInject {
             sigterm_timeout, ..
         }) => {
             if !check_is_injectable_main(shared) {
@@ -930,11 +1131,23 @@ async fn stop(shared: &ManagerSharedState) -> Result<(), Error> {
                     a => a?,
                 };
             } else {
-                stop_non_first(&shared.container_name).await;
+                stop_long_running_processes(
+                    &shared.container_name,
+                    persistant_container.command_inserter.clone(),
+                )
+                .await;
             }
         }
         #[cfg(feature = "js_engine")]
-        PackageProcedure::Script(_) => return Ok(()),
+        PackageProcedure::Script(_) => {
+            if check_is_injectable_main(shared) {
+                stop_long_running_processes(
+                    &shared.container_name,
+                    persistant_container.command_inserter.clone(),
+                )
+                .await;
+            }
+        }
     };
     tracing::debug!("Stopping a docker");
     shared.status.store(
@@ -945,11 +1158,13 @@ async fn stop(shared: &ManagerSharedState) -> Result<(), Error> {
 }
 
 /// So the sleep infinity, which is the long running, is pid 1. So we kill the others
-async fn stop_non_first(container_name: &str) {
-    // tracing::error!("BLUJ TODO: sudo docker exec {} sh -c \"ps ax | awk '\\$1 ~ /^[:0-9:]/ && \\$1 > 1 {{print \\$1}}' | xargs kill\"", container_name);
-
-    // (sleep infinity) & export RUNNING=$! && echo $! && (wait $RUNNING && echo "DONE FOR $RUNNING") &
-    // (RUNNING=$(sleep infinity & echo $!); echo "running $RUNNING"; wait $RUNNING; echo "DONE FOR ?") &
+async fn stop_long_running_processes(
+    container_name: &str,
+    command_inserter: Arc<Mutex<Option<CommandInserter>>>,
+) {
+    if let Some(command_inserter) = &*command_inserter.lock().await {
+        command_inserter.term_all().await;
+    }
 
     let _ = tokio::process::Command::new("docker")
         .args([
@@ -963,24 +1178,6 @@ async fn stop_non_first(container_name: &str) {
         .output()
         .await;
 }
-
-// #[test]
-// fn test_stop_non_first() {
-//     assert_eq!(
-//         &format!(
-//             "{}",
-//             tokio::process::Command::new("docker").args([
-//                 "container",
-//                 "exec",
-//                 "container_name",
-//                 "sh",
-//                 "-c",
-//                 "ps ax | awk \"\\$1 ~ /^[:0-9:]/ && \\$1 > 1 {print \\$1}\"| xargs kill",
-//             ])
-//         ),
-//         ""
-//     );
-// }
 
 #[instrument(skip(shared))]
 async fn start(shared: &ManagerSharedState) -> Result<(), Error> {
@@ -1002,8 +1199,11 @@ async fn start(shared: &ManagerSharedState) -> Result<(), Error> {
     Ok(())
 }
 
-#[instrument(skip(shared))]
-async fn pause(shared: &ManagerSharedState) -> Result<(), Error> {
+#[instrument(skip(shared, persistant_container))]
+async fn pause(
+    shared: &ManagerSharedState,
+    persistant_container: Arc<PersistantContainer>,
+) -> Result<(), Error> {
     if let Err(e) = shared
         .ctx
         .docker
@@ -1012,7 +1212,7 @@ async fn pause(shared: &ManagerSharedState) -> Result<(), Error> {
     {
         tracing::error!("failed to pause container. stopping instead. {}", e);
         tracing::debug!("{:?}", e);
-        return stop(shared).await;
+        return stop(shared, persistant_container).await;
     }
     shared
         .status

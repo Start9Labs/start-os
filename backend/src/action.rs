@@ -11,7 +11,7 @@ use tracing::instrument;
 use crate::config::{Config, ConfigSpec};
 use crate::context::RpcContext;
 use crate::id::ImageId;
-use crate::procedure::docker::DockerContainer;
+use crate::procedure::docker::DockerContainers;
 use crate::procedure::{PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::PackageId;
 use crate::util::serde::{display_serializable, parse_stdin_deserializable, IoFormat};
@@ -59,7 +59,7 @@ impl Action {
     #[instrument]
     pub fn validate(
         &self,
-        container: &Option<DockerContainer>,
+        container: &Option<DockerContainers>,
         eos_version: &Version,
         volumes: &Volumes,
         image_ids: &BTreeSet<ImageId>,
@@ -78,7 +78,6 @@ impl Action {
     pub async fn execute(
         &self,
         ctx: &RpcContext,
-        container: &Option<DockerContainer>,
         pkg_id: &PackageId,
         pkg_version: &Version,
         action_id: &ActionId,
@@ -93,7 +92,6 @@ impl Action {
         self.implementation
             .execute(
                 ctx,
-                container,
                 pkg_id,
                 pkg_version,
                 ProcedureName::Action(action_id.clone()),
@@ -145,23 +143,10 @@ pub async fn action(
         .await?
         .to_owned();
 
-    let container = crate::db::DatabaseModel::new()
-        .package_data()
-        .idx_model(&pkg_id)
-        .and_then(|p| p.installed())
-        .expect(&mut db)
-        .await
-        .with_kind(crate::ErrorKind::NotFound)?
-        .manifest()
-        .container()
-        .get(&mut db, false)
-        .await?
-        .to_owned();
     if let Some(action) = manifest.actions.0.get(&action_id) {
         action
             .execute(
                 &ctx,
-                &container,
                 &manifest.id,
                 &manifest.version,
                 &action_id,

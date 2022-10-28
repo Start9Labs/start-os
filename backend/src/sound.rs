@@ -146,32 +146,32 @@ where
 {
     #[instrument(skip(self))]
     pub async fn play(&self) -> Result<(), Error> {
-        #[cfg(feature = "sound")]
-        {
-            let mut sound = SoundInterface::lease().await?;
-            for (note, slice) in self.note_sequence.clone() {
-                match note {
-                    None => tokio::time::sleep(slice.to_duration(self.tempo_qpm)).await,
-                    Some(n) => {
-                        sound
-                            .play_for_time_slice(self.tempo_qpm, &n, &slice)
-                            .await?
-                    }
-                };
-            }
-            sound.close().await?;
+        let mut sound = SoundInterface::lease().await?;
+        for (note, slice) in self.note_sequence.clone() {
+            match note {
+                None => tokio::time::sleep(slice.to_duration(self.tempo_qpm)).await,
+                Some(n) => {
+                    sound
+                        .play_for_time_slice(self.tempo_qpm, &n, &slice)
+                        .await?
+                }
+            };
         }
+        sound.close().await?;
         Ok(())
     }
 }
 
 impl Drop for SoundInterface {
     fn drop(&mut self) {
+        let use_beep = self.use_beep;
         let guard = self.guard.take();
         tokio::spawn(async move {
-            if let Err(e) = tokio::fs::write(&*UNEXPORT_FILE, "0").await {
-                tracing::error!("Failed to Unexport Sound Interface: {}", e);
-                tracing::debug!("{:?}", e);
+            if !use_beep {
+                if let Err(e) = tokio::fs::write(&*UNEXPORT_FILE, "0").await {
+                    tracing::error!("Failed to Unexport Sound Interface: {}", e);
+                    tracing::debug!("{:?}", e);
+                }
             }
             if let Some(guard) = guard {
                 if let Err(e) = guard.unlock().await {

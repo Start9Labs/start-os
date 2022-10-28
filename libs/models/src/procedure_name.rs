@@ -35,7 +35,7 @@ impl ProcedureName {
     }
     pub fn js_function_name(&self) -> Option<String> {
         match self {
-            ProcedureName::Main => None,
+            ProcedureName::Main => Some("/main".to_string()),
             ProcedureName::LongRunning => None,
             ProcedureName::CreateBackup => Some("/createBackup".to_string()),
             ProcedureName::RestoreBackup => Some("/restoreBackup".to_string()),

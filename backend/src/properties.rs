@@ -21,6 +21,7 @@ pub async fn properties(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Res
 #[instrument(skip(ctx))]
 pub async fn fetch_properties(ctx: RpcContext, id: PackageId) -> Result<Value, Error> {
     let mut db = ctx.db.handle();
+
     let manifest: Manifest = crate::db::DatabaseModel::new()
         .package_data()
         .idx_model(&id)
@@ -34,7 +35,6 @@ pub async fn fetch_properties(ctx: RpcContext, id: PackageId) -> Result<Value, E
         props
             .execute::<(), Value>(
                 &ctx,
-                &manifest.container,
                 &manifest.id,
                 &manifest.version,
                 ProcedureName::Properties,

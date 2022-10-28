@@ -47,8 +47,9 @@ export * from './types/workspace-config'
 
 export * from './tokens/relative-url'
 
-export * from './util/copy-to-clipboard'
 export * from './util/base-64'
+export * from './util/copy-to-clipboard'
+export * from './util/get-new-entries'
 export * from './util/get-pkg-id'
 export * from './util/misc.util'
 export * from './util/rpc.util'

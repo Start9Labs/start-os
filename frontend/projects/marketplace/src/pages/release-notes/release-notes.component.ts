@@ -14,7 +14,7 @@ export class ReleaseNotesComponent {
 
   private selected: string | null = null
 
-  readonly notes$ = this.marketplaceService.fetchReleaseNotes(this.pkgId)
+  readonly notes$ = this.marketplaceService.fetchReleaseNotes$(this.pkgId)
 
   constructor(
     private readonly route: ActivatedRoute,

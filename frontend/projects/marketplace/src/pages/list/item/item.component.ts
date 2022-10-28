@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-
-import { MarketplacePkg } from '../../../types/marketplace-pkg'
+import { MarketplacePkg } from '../../../types'
 
 @Component({
   selector: 'marketplace-item',

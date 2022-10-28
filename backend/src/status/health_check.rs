@@ -7,7 +7,7 @@ use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::id::ImageId;
-use crate::procedure::docker::DockerContainer;
+use crate::procedure::docker::DockerContainers;
 use crate::procedure::{NoOutput, PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::PackageId;
 use crate::util::serde::Duration;
@@ -21,7 +21,7 @@ impl HealthChecks {
     #[instrument]
     pub fn validate(
         &self,
-        container: &Option<DockerContainer>,
+        container: &Option<DockerContainers>,
         eos_version: &Version,
         volumes: &Volumes,
         image_ids: &BTreeSet<ImageId>,
@@ -42,7 +42,7 @@ impl HealthChecks {
     pub async fn check_all(
         &self,
         ctx: &RpcContext,
-        container: &Option<DockerContainer>,
+        container: &Option<DockerContainers>,
         started: DateTime<Utc>,
         pkg_id: &PackageId,
         pkg_version: &Version,
@@ -75,7 +75,7 @@ impl HealthCheck {
     pub async fn check(
         &self,
         ctx: &RpcContext,
-        container: &Option<DockerContainer>,
+        container: &Option<DockerContainers>,
         id: &HealthCheckId,
         started: DateTime<Utc>,
         pkg_id: &PackageId,
@@ -86,7 +86,6 @@ impl HealthCheck {
             .implementation
             .execute(
                 ctx,
-                container,
                 pkg_id,
                 pkg_version,
                 ProcedureName::Health(id.clone()),

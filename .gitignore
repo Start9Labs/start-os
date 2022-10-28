@@ -1,5 +1,8 @@
 .DS_Store
 .idea
+system-images/binfmt/binfmt.tar
+system-images/compat/compat.tar
+system-images/util/util.tar
 /*.img
 /*.img.gz
 /*.img.xz
@@ -17,3 +20,4 @@ secrets.db
 /GIT_HASH.txt
 /embassyos-*.tar.gz
 /*.deb
+/target

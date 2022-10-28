@@ -1,5 +1,5 @@
 import { Dump, Revision } from 'patch-db-client'
-import { MarketplaceInfo, MarketplacePkg } from '@start9labs/marketplace'
+import { MarketplacePkg, StoreInfo } from '@start9labs/marketplace'
 import { PackagePropertiesVersioned } from 'src/app/util/properties.util'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import {
@@ -241,8 +241,8 @@ export module RR {
 
   // marketplace
 
-  export type GetMarketplaceDataReq = { 'server-id': string }
-  export type GetMarketplaceDataRes = MarketplaceInfo
+  export type GetMarketplaceInfoReq = { 'server-id': string }
+  export type GetMarketplaceInfoRes = StoreInfo
 
   export type GetMarketplaceEOSReq = {
     'server-id': string

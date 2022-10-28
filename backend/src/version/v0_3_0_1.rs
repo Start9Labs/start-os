@@ -1,11 +1,6 @@
-use std::path::Path;
-
 use emver::VersionRange;
-use tokio::process::Command;
 
 use super::*;
-use crate::disk::BOOT_RW_PATH;
-use crate::util::Invoke;
 
 const V0_3_0_1: emver::Version = emver::Version::new(0, 3, 0, 1);
 
