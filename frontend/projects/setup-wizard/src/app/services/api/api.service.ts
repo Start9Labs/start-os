@@ -38,11 +38,7 @@ export type ImportDriveReq = {
 export type SetupEmbassyReq = {
   'embassy-logicalname': string
   'embassy-password': Encrypted
-  'recovery-source':
-    | CifsRecoverySource
-    | DiskRecoverySource
-    | DiskMigrateSource
-    | null
+  'recovery-source': RecoverySource | null
   'recovery-password': Encrypted | null
 }
 
@@ -83,6 +79,12 @@ export type DiskRecoverySource = {
   type: 'disk'
   logicalname: string // partition logicalname
 }
+
+export type BackupRecoverySource = {
+  type: 'backup'
+  target: CifsRecoverySource | DiskRecoverySource
+}
+export type RecoverySource = BackupRecoverySource | DiskMigrateSource
 
 export type DiskMigrateSource = {
   type: 'migrate'

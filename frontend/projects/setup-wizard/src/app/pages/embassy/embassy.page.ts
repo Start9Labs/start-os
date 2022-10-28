@@ -7,6 +7,7 @@ import {
 } from '@ionic/angular'
 import {
   ApiService,
+  BackupRecoverySource,
   DiskInfo,
   DiskRecoverySource,
 } from 'src/app/services/api/api.service'
@@ -57,8 +58,10 @@ export class EmbassyPage {
           !d.partitions
             .map(p => p.logicalname)
             .includes(
-              (this.stateService.recoverySource as DiskRecoverySource)
-                ?.logicalname,
+              (
+                (this.stateService.recoverySource as BackupRecoverySource)
+                  ?.target as DiskRecoverySource
+              )?.logicalname,
             ),
       )
     } catch (e: any) {

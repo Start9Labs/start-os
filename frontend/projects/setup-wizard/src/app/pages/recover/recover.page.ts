@@ -75,11 +75,14 @@ export class RecoverPage {
       if (res.role === 'success') {
         const { hostname, path, username, password } = res.data.cifs
         this.stateService.recoverySource = {
-          type: 'cifs',
-          hostname,
-          path,
-          username,
-          password,
+          type: 'backup',
+          target: {
+            type: 'cifs',
+            hostname,
+            path,
+            username,
+            password,
+          },
         }
         this.stateService.recoveryPassword = res.data.recoveryPassword
         this.navCtrl.navigateForward('/embassy')
@@ -108,8 +111,11 @@ export class RecoverPage {
 
   private async selectRecoverySource(logicalname: string, password?: string) {
     this.stateService.recoverySource = {
-      type: 'disk',
-      logicalname,
+      type: 'backup',
+      target: {
+        type: 'disk',
+        logicalname,
+      },
     }
     this.stateService.recoveryPassword = password
     this.navCtrl.navigateForward(`/embassy`, {

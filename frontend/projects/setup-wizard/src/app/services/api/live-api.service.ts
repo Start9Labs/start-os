@@ -87,10 +87,12 @@ export class LiveApiService extends ApiService {
   }
 
   async setupEmbassy(setupInfo: SetupEmbassyReq) {
-    if (isCifsSource(setupInfo['recovery-source'])) {
-      setupInfo['recovery-source'].path = setupInfo[
-        'recovery-source'
-      ].path.replace('/\\/g', '/')
+    if (setupInfo['recovery-source']?.type === 'backup') {
+      if (isCifsSource(setupInfo['recovery-source'].target)) {
+        setupInfo['recovery-source'].target.path = setupInfo[
+          'recovery-source'
+        ].target.path.replace('/\\/g', '/')
+      }
     }
 
     const res = await this.rpcRequest<SetupEmbassyRes>({
@@ -130,7 +132,7 @@ export class LiveApiService extends ApiService {
 }
 
 function isCifsSource(
-  source: CifsRecoverySource | DiskRecoverySource | DiskMigrateSource | null,
+  source: CifsRecoverySource | DiskRecoverySource | null,
 ): source is CifsRecoverySource {
   return !!(source as CifsRecoverySource)?.hostname
 }
