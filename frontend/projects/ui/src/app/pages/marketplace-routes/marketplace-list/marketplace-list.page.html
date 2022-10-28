@@ -24,6 +24,10 @@
     <ion-row>
       <ion-col size="12">
         <h1 class="heading montserrat ion-text-center">{{ details.name }}</h1>
+        <ion-button fill="clear" (click)="presentModalMarketplaceSettings()">
+          <ion-icon slot="start" name="repeat-outline"></ion-icon>
+          Switch Marketplaces
+        </ion-button>
         <marketplace-search [(query)]="query"></marketplace-search>
       </ion-col>
     </ion-row>

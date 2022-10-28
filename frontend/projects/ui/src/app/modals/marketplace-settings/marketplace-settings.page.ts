@@ -12,18 +12,18 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ValueSpecObject } from 'src/app/pkg-config/config-types'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 import { PatchDB } from 'patch-db-client'
-import { DataModel } from '../../../services/patch-db/data-model'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { map } from 'rxjs/operators'
 import { firstValueFrom } from 'rxjs'
 
 @Component({
-  selector: 'marketplaces',
-  templateUrl: 'marketplaces.page.html',
-  styleUrls: ['marketplaces.page.scss'],
+  selector: 'marketplace-settings',
+  templateUrl: 'marketplace-settings.page.html',
+  styleUrls: ['marketplace-settings.page.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class MarketplacesPage {
+export class MarketplaceSettingsPage {
   marketplace$ = this.patch.watch$('ui', 'marketplace').pipe(
     map(m => {
       const selected = m['selected-url']
@@ -56,6 +56,10 @@ export class MarketplacesPage {
     private readonly patch: PatchDB<DataModel>,
     private readonly alertCtrl: AlertController,
   ) {}
+
+  async dismiss() {
+    this.modalCtrl.dismiss()
+  }
 
   async presentModalAdd() {
     const { name, spec } = getMarketplaceValueSpec()
@@ -200,7 +204,9 @@ export class MarketplacesPage {
     loader.message = 'Validating marketplace...'
     await loader.present()
 
-    const name = await firstValueFrom(this.marketplaceService.fetchInfo$(url))
+    const { name } = await firstValueFrom(
+      this.marketplaceService.fetchInfo$(url),
+    )
 
     // Save
     loader.message = 'Saving...'
