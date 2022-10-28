@@ -31,7 +31,12 @@ impl ProxyController {
         embassy_hostname: String,
         ssl_manager: SslManager,
     ) -> Result<Self, Error> {
+        
         dbg!("starting proxy");
+        if no_dot_embassy_hostname.contains(".local") {
+
+            panic!("Our host name no_dot_host_name should not include the .local {}", no_dot_embassy_hostname);
+        }
         Ok(ProxyController {
             inner: Mutex::new(
                 ProxyControllerInner::init(

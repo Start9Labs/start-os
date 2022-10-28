@@ -243,58 +243,69 @@ pub async fn recover_full_embassy(
 
 
             dbg!("am i stopping here");
-        let host_name = rpc_ctx.net_controller.proxy.get_hostname().await;
-        let ip = get_current_ip(rpc_ctx.ethernet_interface.to_owned()).await?;
+   
 
-        let handler: HttpHandler =
-            crate::net::static_server::file_server_router(rpc_ctx.clone()).await?;
+            let host_name = rpc_ctx.net_controller.proxy.get_hostname().await;
 
-        rpc_ctx
-            .net_controller
-            .proxy
-            .add_handle(80, host_name.clone(), handler.clone(), false)
-            .await?;
-
-        rpc_ctx
-            .net_controller
-            .proxy
-            .add_handle(80, ip.to_owned(), handler.clone(), false)
-            .await?;
-
-        let eos_pkg_id: PackageId = "embassy".parse().unwrap();
-
-        dbg!("hostname: {}", host_name.clone());
-
-        let no_dot_host_name = rpc_ctx.net_controller.proxy.get_no_dot_name().await;
-
-        let root_crt = rpc_ctx
-            .net_controller
-            .ssl
-            .certificate_for(&no_dot_host_name, &eos_pkg_id)
-            .await?;
-
-        rpc_ctx
-            .net_controller
-            .proxy
-            .add_certificate_to_resolver(host_name.clone(), root_crt.clone())
-            .await?;
-
-        rpc_ctx
-            .net_controller
-            .proxy
-            .add_handle(443, host_name, handler.clone(), true)
-            .await?;
-
-        rpc_ctx
-            .net_controller
-            .proxy
-            .add_certificate_to_resolver(ip.to_owned(), root_crt)
-            .await?;
-        rpc_ctx
-            .net_controller
-            .proxy
-            .add_handle(443, ip.to_owned(), handler.clone(), false)
-            .await?;
+            // super hacky
+            let no_dot_host_name = rpc_ctx.net_controller.proxy.get_no_dot_name().await;
+            if no_dot_host_name.contains(".local") {
+                panic!("Our host name no_dot_host_name should not include the .local {}", no_dot_host_name);
+            }
+            let ip = get_current_ip(rpc_ctx.ethernet_interface.to_owned()).await?;
+    
+            let handler: HttpHandler =
+                crate::net::static_server::file_server_router(rpc_ctx.clone()).await?;
+    
+            rpc_ctx
+                .net_controller
+                .proxy
+                .add_handle(80, host_name.clone(), handler.clone(), false)
+                .await?;
+    
+            rpc_ctx
+                .net_controller
+                .proxy
+                .add_handle(80, ip.to_owned(), handler.clone(), false)
+                .await?;
+    
+            let eos_pkg_id: PackageId = "embassy".parse().unwrap();
+    
+            dbg!("hostname: {}", host_name.clone());
+    
+    
+            dbg!("hostname: {}", no_dot_host_name.clone());
+    
+            let root_crt = rpc_ctx
+                .net_controller
+                .ssl
+                .certificate_for(&no_dot_host_name, &eos_pkg_id)
+                .await?;
+    
+            rpc_ctx
+                .net_controller
+                .proxy
+                .add_certificate_to_resolver(host_name.clone(), root_crt.clone())
+                .await?;
+    
+            rpc_ctx
+                .net_controller
+                .proxy
+                .add_handle(443, host_name, handler.clone(), true)
+                .await?;
+    
+            rpc_ctx
+                .net_controller
+                .proxy
+                .add_certificate_to_resolver(ip.to_owned(), root_crt)
+                .await?;
+   
+             rpc_ctx
+                .net_controller
+                .proxy
+                .add_handle(443, ip.to_owned(), handler.clone(), false)
+                .await?;
+    
 
         let mut db = rpc_ctx.db.handle();
 

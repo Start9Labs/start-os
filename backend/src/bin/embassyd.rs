@@ -40,7 +40,18 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
         )
         .await?;
         dbg!("am i stopping here");
+
+     
+        dbg!("am i stopping here");
+   
+
         let host_name = rpc_ctx.net_controller.proxy.get_hostname().await;
+
+        // super hacky
+        let no_dot_host_name = rpc_ctx.net_controller.proxy.get_no_dot_name().await;
+        if no_dot_host_name.contains(".local") {
+            panic!("Our host name no_dot_host_name should not include the .local {}", no_dot_host_name);
+        }
         let ip = get_current_ip(rpc_ctx.ethernet_interface.to_owned()).await?;
 
         let handler: HttpHandler =
@@ -62,7 +73,8 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
 
         dbg!("hostname: {}", host_name.clone());
 
-        let no_dot_host_name = rpc_ctx.net_controller.proxy.get_no_dot_name().await;
+
+        dbg!("hostname: {}", no_dot_host_name.clone());
 
         let root_crt = rpc_ctx
             .net_controller
@@ -87,11 +99,14 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
             .proxy
             .add_certificate_to_resolver(ip.to_owned(), root_crt)
             .await?;
-        rpc_ctx
+
+         rpc_ctx
             .net_controller
             .proxy
             .add_handle(443, ip.to_owned(), handler.clone(), false)
             .await?;
+
+
 
         let mut shutdown_recv = rpc_ctx.shutdown.subscribe();
 

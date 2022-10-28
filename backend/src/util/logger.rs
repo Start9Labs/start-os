@@ -16,9 +16,10 @@ impl EmbassyLogger {
 
         // spawn the console server in the background,
         // returning a `Layer`:
+        // https://github.com/tokio-rs/console
         let console_layer = console_subscriber::ConsoleLayer::builder()
             // set the address the server is bound to
-            .server_addr(([0, 0, 0, 0], 6969))
+            .server_addr(([0, 0, 0, 0], 8989))
             .spawn();
 
         tracing_subscriber::registry()

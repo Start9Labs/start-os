@@ -63,7 +63,7 @@ impl NetController {
             #[cfg(feature = "avahi")]
             mdns: MdnsController::init().await?,
             //nginx: NginxController::init(PathBuf::from("/etc/nginx"), &ssl).await?,
-            proxy: ProxyController::init(embassyd_addr, embassy_name, no_dot_name, ssl.clone()).await?,
+            proxy: ProxyController::init(embassyd_addr, no_dot_name, embassy_name, ssl.clone()).await?,
             ssl,
             dns: DnsController::init(dns_bind).await?,
         })

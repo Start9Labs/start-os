@@ -946,13 +946,13 @@ async fn get_running_ip(
     loop {
         match container_inspect(state).await {
             Ok(res) => {
-                match res
-                    .network_settings
-                    .and_then(|ns| ns.networks)
-                    .and_then(|mut n| n.remove("start9"))
-                    .and_then(|es| es.ip_address)
+                match dbg!(res
+                    .network_settings)
+                    .and_then(|ns| dbg!(ns.networks))
+                    .and_then(|mut n| dbg!(n.remove("start9")))
+                    .and_then(|es| dbg!(es.ip_address))
                     .filter(|ip| !ip.is_empty())
-                    .map(|ip| ip.parse())
+                    .map(|ip| dbg!(ip.parse()))
                     .transpose()
                 {
                     Ok(Some(ip_addr)) => return GetRunninIp::Ip(ip_addr),
