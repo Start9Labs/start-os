@@ -234,8 +234,8 @@ jobs:
         -e CARGO_TERM_COLOR=${{ env.CARGO_TERM_COLOR }} \
         -P ubuntu:20.04 \
         sh -c '
-          apt update &&
-          apt install -y ca-certificates &&
+          apt-get update &&
+          apt-get install -y ca-certificates &&
           cd /home/rust/src &&
           mkdir -p ~/.cargo/bin &&
           tar -zxvf nextest-aarch64.tar.gz -C ${CARGO_HOME:-~/.cargo}/bin &&
