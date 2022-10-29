@@ -38,10 +38,11 @@ jobs:
       uses: docker/setup-buildx-action@v2
       if: ${{ matrix.target == 'aarch64' }}
 
-    - uses: actions-rs/toolchain@v1
-      with:
-        toolchain: ${{ env.RUST_VERSION }}
-        override: true
+    - name: "Install Rust"
+      run: |
+        rustup toolchain install ${{ env.RUST_VERSION }} --profile minimal --no-self-update
+        rustup default ${{ inputs.rust }}
+      shell: bash
       if: ${{ matrix.target == 'x86_64' }}
     
     - uses: actions/cache@v3
@@ -88,10 +89,11 @@ jobs:
         name: ${{ matrix.snapshot_download }}
         path: libs/js_engine/src/artifacts/
         
-    - uses: actions-rs/toolchain@v1
-      with:
-        toolchain: ${{ env.RUST_VERSION }}
-        override: true
+    - name: "Install Rust"
+      run: |
+        rustup toolchain install ${{ env.RUST_VERSION }} --profile minimal --no-self-update
+        rustup default ${{ inputs.rust }}
+      shell: bash
       if: ${{ matrix.target == 'x86_64' }}
     
     - uses: actions/cache@v3
