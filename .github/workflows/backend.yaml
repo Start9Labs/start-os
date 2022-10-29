@@ -107,7 +107,9 @@ jobs:
         key: ${{ runner.os }}-cargo-backend-${{ matrix.target }}-${{ hashFiles('backend/Cargo.lock') }}
 
     - name: Install dependencies
-      run: sudo apt-get install libavahi-client-dev
+      run: |
+        sudo apt-get update
+        sudo apt-get install libavahi-client-dev
       if: ${{ matrix.target == 'x86_64' }}
 
     - name: Check Git Hash
