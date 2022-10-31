@@ -71,18 +71,6 @@ impl ProxyController {
         self.inner.lock().await.get_package_id(fqdn).await
     }
 
-    pub async fn get_package_cert(
-        &self,
-        fqdn: &String,
-        package_id: PackageId,
-    ) -> Result<(PKey<Private>, Vec<X509>), Error> {
-        self.inner
-            .lock()
-            .await
-            .ssl_manager
-            .certificate_for(fqdn, &package_id)
-            .await
-    }
 
     pub async fn add_certificate_to_resolver(
         &self,
@@ -238,7 +226,7 @@ impl ProxyControllerInner {
         Ok(())
     }
 
-    async fn add_package_certificate_to_resolver(&mut self, hostname: String) -> Result<(), Error> {
+    async fn add_package_certificate_to_resolver(&mut self, hostname: String, no_dot_docker_name: String) -> Result<(), Error> {
         let pkg_id = match self.get_package_id(&hostname).await {
             Some(pkg_id) => pkg_id,
             None => {
@@ -255,7 +243,7 @@ impl ProxyControllerInner {
 
         self.vhosts
             .cert_resolver
-            .add_certificate_to_resolver(hostname, package_cert)
+            .add_certificate_to_resolver(no_dot_docker_name, package_cert)
             .await
             .map_err(|err| {
                 Error::new(
@@ -303,7 +291,8 @@ impl ProxyControllerInner {
 
                 let svc_handler: HttpHandler;
                 if lan_port_config.ssl {
-                    self.add_package_certificate_to_resolver(meta.fqdn.clone())
+                    let no_dot_docker_fqdn = meta.fqdn.strip_suffix(".local").unwrap().to_string();
+                    self.add_package_certificate_to_resolver(meta.fqdn.clone(), no_dot_docker_fqdn)
                         .await?;
                     svc_handler = Self::create_docker_handle(meta.fqdn.clone(), true).await;
                 } else {
