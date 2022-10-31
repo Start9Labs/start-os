@@ -31,11 +31,12 @@ impl ProxyController {
         embassy_hostname: String,
         ssl_manager: SslManager,
     ) -> Result<Self, Error> {
-        
         dbg!("starting proxy");
         if no_dot_embassy_hostname.contains(".local") {
-
-            panic!("Our host name no_dot_host_name should not include the .local {}", no_dot_embassy_hostname);
+            panic!(
+                "Our host name no_dot_host_name should not include the .local {}",
+                no_dot_embassy_hostname
+            );
         }
         Ok(ProxyController {
             inner: Mutex::new(
@@ -70,7 +71,6 @@ impl ProxyController {
     pub async fn get_package_id(&self, fqdn: &String) -> Option<PackageId> {
         self.inner.lock().await.get_package_id(fqdn).await
     }
-
 
     pub async fn add_certificate_to_resolver(
         &self,
@@ -226,7 +226,11 @@ impl ProxyControllerInner {
         Ok(())
     }
 
-    async fn add_package_certificate_to_resolver(&mut self, hostname: String, no_dot_docker_name: String) -> Result<(), Error> {
+    async fn add_package_certificate_to_resolver(
+        &mut self,
+        hostname: String,
+        no_dot_docker_name: String,
+    ) -> Result<(), Error> {
         let pkg_id = match self.get_package_id(&hostname).await {
             Some(pkg_id) => pkg_id,
             None => {
@@ -239,11 +243,14 @@ impl ProxyControllerInner {
 
         dbg!("adding cert");
 
-        let package_cert = self.ssl_manager.certificate_for(&hostname, &pkg_id).await?;
+        let package_cert = self
+            .ssl_manager
+            .certificate_for(&no_dot_docker_name, &pkg_id)
+            .await?;
 
         self.vhosts
             .cert_resolver
-            .add_certificate_to_resolver(no_dot_docker_name, package_cert)
+            .add_certificate_to_resolver(hostname, package_cert)
             .await
             .map_err(|err| {
                 Error::new(
@@ -298,6 +305,10 @@ impl ProxyControllerInner {
                 } else {
                     svc_handler = Self::create_docker_handle(meta.fqdn.clone(), false).await;
                 }
+
+                self.vhosts
+                    .svc_dns_base_package_names
+                    .insert(meta.fqdn.clone(), package.clone());
 
                 self.add_handle(
                     external_svc_port.0,
@@ -387,6 +398,8 @@ impl ProxyControllerInner {
                             //     Error::new(eyre!("{}", err), crate::ErrorKind::Network)
                             // })?;
 
+                            self.vhosts.svc_dns_base_package_names.remove(&meta.fqdn);
+
                             if mapping.is_empty() {
                                 server_removal = true;
                                 server_removal_port = service_ext_port.0;
@@ -394,6 +407,7 @@ impl ProxyControllerInner {
                                 break;
                             }
                         }
+
                     }
                 }
             }
