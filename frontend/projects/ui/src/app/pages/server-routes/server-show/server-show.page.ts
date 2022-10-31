@@ -424,17 +424,6 @@ export class ServerShowPage {
         detail: true,
         disabled$: of(false),
       },
-      {
-        title: 'Marketplace Settings',
-        description: 'Add or remove marketplaces',
-        icon: 'storefront-outline',
-        action: () =>
-          this.navCtrl.navigateForward(['marketplaces'], {
-            relativeTo: this.route,
-          }),
-        detail: true,
-        disabled$: of(false),
-      },
     ],
     Insights: [
       {
