@@ -201,7 +201,8 @@ Current or aspiring contributors? Join our community developer [Matrix channel](
 Just interested in or using the project? Join our community [Telegram](https://t.me/start9_labs) or [Matrix](https://matrix.to/#/#community:matrix.start9labs.com).
 
 ## Join The Project Team
-Interested in becoming a part of the Start9 Labs team? Send an email to <jobs@start9labs.com>
+
+Interested in becoming a part of the Start9 Labs team? Send an email to <jobs@start9.com>
 
 <!-- omit in toc -->
 ## Attribution
