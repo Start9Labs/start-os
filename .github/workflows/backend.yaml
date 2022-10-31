@@ -31,17 +31,18 @@ jobs:
         submodules: recursive
         
     - name: Set up QEMU
-      uses: docker/setup-qemu-action@v1
+      uses: docker/setup-qemu-action@v2
       if: ${{ matrix.target == 'aarch64' }}
       
     - name: Set up Docker Buildx        
-      uses: docker/setup-buildx-action@v1
+      uses: docker/setup-buildx-action@v2
       if: ${{ matrix.target == 'aarch64' }}
 
-    - uses: actions-rs/toolchain@v1
-      with:
-        toolchain: ${{ env.RUST_VERSION }}
-        override: true
+    - name: "Install Rust"
+      run: |
+        rustup toolchain install ${{ env.RUST_VERSION }} --profile minimal --no-self-update
+        rustup default ${{ inputs.rust }}
+      shell: bash
       if: ${{ matrix.target == 'x86_64' }}
     
     - uses: actions/cache@v3
@@ -88,10 +89,11 @@ jobs:
         name: ${{ matrix.snapshot_download }}
         path: libs/js_engine/src/artifacts/
         
-    - uses: actions-rs/toolchain@v1
-      with:
-        toolchain: ${{ env.RUST_VERSION }}
-        override: true
+    - name: "Install Rust"
+      run: |
+        rustup toolchain install ${{ env.RUST_VERSION }} --profile minimal --no-self-update
+        rustup default ${{ inputs.rust }}
+      shell: bash
       if: ${{ matrix.target == 'x86_64' }}
     
     - uses: actions/cache@v3
@@ -105,7 +107,9 @@ jobs:
         key: ${{ runner.os }}-cargo-backend-${{ matrix.target }}-${{ hashFiles('backend/Cargo.lock') }}
 
     - name: Install dependencies
-      run: sudo apt-get install libavahi-client-dev
+      run: |
+        sudo apt-get update
+        sudo apt-get install libavahi-client-dev
       if: ${{ matrix.target == 'x86_64' }}
 
     - name: Check Git Hash
@@ -193,11 +197,11 @@ jobs:
         submodules: recursive
 
     - name: Set up QEMU
-      uses: docker/setup-qemu-action@v1
+      uses: docker/setup-qemu-action@v2
       if: ${{ matrix.target == 'aarch64' }}
 
     - name: Set up Docker Buildx        
-      uses: docker/setup-buildx-action@v1
+      uses: docker/setup-buildx-action@v2
       if: ${{ matrix.target == 'aarch64' }}
 
     - run: mkdir -p ~/.cargo/bin
@@ -230,8 +234,8 @@ jobs:
         -e CARGO_TERM_COLOR=${{ env.CARGO_TERM_COLOR }} \
         -P ubuntu:20.04 \
         sh -c '
-          apt update &&
-          apt install -y ca-certificates &&
+          apt-get update &&
+          apt-get install -y ca-certificates &&
           cd /home/rust/src &&
           mkdir -p ~/.cargo/bin &&
           tar -zxvf nextest-aarch64.tar.gz -C ${CARGO_HOME:-~/.cargo}/bin &&
