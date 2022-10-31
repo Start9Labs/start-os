@@ -196,15 +196,7 @@ async fn run_main(
 
     persistant.wait_for_persistant().await;
     let is_injectable_main = check_is_injectable_main(state);
-    let mut runtime = match injectable_main(state) {
-        InjectableMain::None => {
-            tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await })
-        }
-        #[cfg(feature = "js_engine")]
-        InjectableMain::Script(_) => {
-            tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await })
-        }
-    };
+    let mut runtime = start_up_image(rt_state, generated_certificate).await;
     let ip = match is_injectable_main {
         false => Some(match get_running_ip(state, &mut runtime).await {
             GetRunninIp::Ip(x) => x,
