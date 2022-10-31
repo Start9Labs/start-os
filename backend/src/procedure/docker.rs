@@ -81,6 +81,8 @@ pub struct DockerProcedure {
     #[serde(default)]
     pub args: Vec<String>,
     #[serde(default)]
+    pub inject: bool,
+    #[serde(default)]
     pub mounts: BTreeMap<VolumeId, PathBuf>,
     #[serde(default)]
     pub io_format: Option<IoFormat>,
@@ -113,6 +115,7 @@ impl DockerProcedure {
             system: injectable.system,
             entrypoint: injectable.entrypoint.clone(),
             args: injectable.args.clone(),
+            inject: false,
             mounts: container.mounts.clone(),
             io_format: injectable.io_format,
             sigterm_timeout: injectable.sigterm_timeout,
@@ -129,6 +132,7 @@ impl DockerProcedure {
             system: container.system,
             entrypoint: "sleep".to_string(),
             args: Vec::new(),
+            inject: false,
             mounts: container.mounts.clone(),
             io_format: None,
             sigterm_timeout: container.sigterm_timeout,

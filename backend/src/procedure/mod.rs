@@ -70,6 +70,11 @@ impl PackageProcedure {
     ) -> Result<Result<O, (i32, String)>, Error> {
         tracing::trace!("Procedure execute {} {} - {:?}", self, pkg_id, name);
         match self {
+            PackageProcedure::Docker(procedure) if procedure.inject == true => {
+                procedure
+                    .inject(ctx, pkg_id, pkg_version, name, volumes, input, timeout)
+                    .await
+            }
             PackageProcedure::Docker(procedure) => {
                 procedure
                     .execute(ctx, pkg_id, pkg_version, name, volumes, input, timeout)
