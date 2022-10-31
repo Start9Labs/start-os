@@ -728,7 +728,7 @@ impl PersistantContainer {
                         }
                     }
                     None => {
-                        return Err("Couldn't get a command inserter in current service".to_string())
+                        return Err("Expecting containers.main in the package manifest".to_string())
                     }
                 };
                 Ok::<RpcId, String>(id)
