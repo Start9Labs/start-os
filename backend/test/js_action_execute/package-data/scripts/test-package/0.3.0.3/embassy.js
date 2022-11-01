@@ -749,8 +749,8 @@ export const action = {
   async slow(effects, _input) {
     while(true) {
       effects.error("A");
-      // await ackermann(3,10);
-      await effects.sleep(100);
+      await ackermann(3,10);
+      // await effects.sleep(100);
 
     }
   },
