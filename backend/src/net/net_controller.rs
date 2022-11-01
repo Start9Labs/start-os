@@ -1,8 +1,11 @@
+use std::cmp::Ordering;
 use std::fmt;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 use std::str::FromStr;
 
+use color_eyre::eyre::eyre;
+use http::Uri;
 use models::InterfaceId;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
@@ -16,6 +19,7 @@ use crate::net::dns::DnsController;
 use crate::net::interface::{Interface, TorConfig};
 #[cfg(feature = "avahi")]
 use crate::net::mdns::MdnsController;
+use crate::net::net_utils::Fqdn;
 use crate::net::proxy_controller::ProxyController;
 use crate::net::ssl::SslManager;
 use crate::net::tor::TorController;
@@ -23,59 +27,6 @@ use crate::net::{GeneratedCertificateMountPoint, InterfaceMetadata, PACKAGE_CERT
 use crate::s9pk::manifest::PackageId;
 use crate::Error;
 
-#[derive(PartialEq, PartialOrd, Ord, Eq, Debug, Clone)]
-pub struct Fqdn {
-    root: String,
-    tld: Tld,
-}
-
-#[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Clone)]
-pub enum Tld {
-    Local,
-    Onion,
-    Embassy,
-}
-
-impl fmt::Display for Tld {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Tld::Local => write!(f, ".local"),
-            Tld::Onion => write!(f, ".onion"),
-            Tld::Embassy => write!(f, ".embassy"),
-        }
-    }
-}
-
-
-impl FromStr for Fqdn {
-
-    type Err = ();
-
-    fn from_str(input: &str) -> Result<Fqdn, Self::Err> {
-        let hostname_split: Vec<&str> = input.split('.').collect();
-
-        if hostname_split.len() != 2 {
-            Err(())
-        }
-
-        match hostname_split[1] {
-            ".local" => Ok(Fqdn {
-                root: hostname_split[0].to_owned(),
-                tld: Tld::Local,
-            }),
-            ".embassy" => Ok(Fqdn {
-                root: hostname_split[0].to_owned(),
-                tld: Tld::Embassy,
-            }),
-            ".onion" => Ok(Fqdn {
-                root: hostname_split[0].to_owned(),
-                tld: Tld::Onion,
-            }),
-            _ => Err(())
-        }
-        
-    }
-}
 
 pub struct NetController {
     pub tor: TorController,
@@ -101,8 +52,9 @@ impl NetController {
         let receipts = HostNameReceipt::new(db_handle).await?;
         let embassy_host_name = get_hostname(db_handle, &receipts).await?;
         let embassy_name = embassy_host_name.local_domain_name();
-        let no_dot_name = embassy_host_name.no_dot_host_name();
 
+        let fqdn_name = Fqdn::from_str(&embassy_name)?;
+   
         let ssl = match import_root_ca {
             None => SslManager::init(db.clone(), db_handle).await,
             Some(a) => SslManager::import_root_ca(db.clone(), a.0, a.1).await,
@@ -114,7 +66,7 @@ impl NetController {
             #[cfg(feature = "avahi")]
             mdns: MdnsController::init().await?,
             //nginx: NginxController::init(PathBuf::from("/etc/nginx"), &ssl).await?,
-            proxy: ProxyController::init(embassyd_addr, no_dot_name, embassy_name, ssl.clone())
+            proxy: ProxyController::init(embassyd_addr, fqdn_name, ssl.clone())
                 .await?,
             ssl,
             dns: DnsController::init(dns_bind).await?,

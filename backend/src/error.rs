@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use color_eyre::eyre::eyre;
+use http::uri::InvalidUri;
 use models::InvalidId;
 use patch_db::Revision;
 use rpc_toolkit::yajrc::RpcError;
@@ -255,6 +256,13 @@ impl From<openssl::error::ErrorStack> for Error {
         Error::new(eyre!("OpenSSL ERROR:\n{}", e), ErrorKind::OpenSsl)
     }
 }
+
+impl From<InvalidUri> for Error {
+    fn from(e: InvalidUri) -> Self {
+        Error::new(eyre!("{}", e), ErrorKind::ParseUrl)
+    }
+}
+
 impl From<Error> for RpcError {
     fn from(e: Error) -> Self {
         let mut data_object = serde_json::Map::with_capacity(3);

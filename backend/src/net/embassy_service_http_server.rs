@@ -23,8 +23,7 @@ use tokio_rustls::rustls::sign::{any_supported_type, CertifiedKey};
 use tokio_rustls::rustls::{Certificate, PrivateKey, ServerConfig};
 use tracing::error;
 
-use crate::net::net_controller::Fqdn;
-use crate::net::net_utils::host_addr;
+use crate::net::net_utils::{host_addr_fqdn, Fqdn};
 use crate::net::HttpHandler;
 use crate::Error;
 
@@ -249,9 +248,10 @@ impl EmbassyServiceHTTPServer {
         let listener_socket_addr = SocketAddr::from((listener_addr, port));
 
         let server_service_mapping = Arc::new(tokio::sync::RwLock::new(BTreeMap::<
-            String,
+            Fqdn,
             HttpHandler,
         >::new()));
+
         let server_service_mapping1 = server_service_mapping.clone();
 
         let bare_make_service_fn = move || {
@@ -269,24 +269,20 @@ impl EmbassyServiceHTTPServer {
                         // let server
                         server_service_mapping = server_service_mapping.clone();
 
-                        let host = host_addr(&req);
+                        let host = host_addr_fqdn(&req);
 
                         match host {
-                            Ok(host_str) => {
+                            Ok(host_uri) => {
                                 // host_str is a string like example.com:443, we just want the fqdn before the semi colon
-                                let dns_base =
-                                    host_str.split(':').next().unwrap_or_default().to_string();
+                                // let dns_base =
+                                //     host_str.split(':').next().unwrap_or_default().to_string();
 
                                 let res = {
                                     let mapping = server_service_mapping.read().await;
 
-                                    let res = {
-                                        let opt_handler = mapping.get(&dns_base).cloned();
+                                    let opt_handler = mapping.get(&host_uri).cloned();
 
-                                        opt_handler
-                                    };
-
-                                    res
+                                    opt_handler
                                 };
                                 match res {
                                     Some(opt_handler) => opt_handler(req).await,

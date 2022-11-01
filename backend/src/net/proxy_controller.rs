@@ -1,10 +1,11 @@
 use std::collections::BTreeMap;
 use std::net::{Ipv4Addr, SocketAddr};
+use std::str::FromStr;
 use std::sync::Arc;
 
 use color_eyre::eyre::eyre;
 use futures::FutureExt;
-use http::{Method, Request, Response};
+use http::{Method, Request, Response, Uri};
 use hyper::upgrade::Upgraded;
 use hyper::{Body, Error as HyperError};
 use models::{InterfaceId, PackageId};
@@ -14,8 +15,8 @@ use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 use tracing::{error, info, instrument};
 
-use crate::net::net_controller::Fqdn;
-use crate::net::net_utils::host_addr;
+use crate::net::net_utils::Fqdn;
+use crate::net::net_utils::host_addr_fqdn;
 use crate::net::ssl::SslManager;
 use crate::net::vhost_controller::VHOSTController;
 use crate::net::{HttpClient, HttpHandler, InterfaceMetadata, PackageNetInfo};
@@ -27,20 +28,14 @@ pub struct ProxyController {
 
 impl ProxyController {
     pub async fn init(
-        embassyd_addr: SocketAddr,
+        embassyd_socket_addr: SocketAddr,
         embassy: Fqdn,
         ssl_manager: SslManager,
     ) -> Result<Self, Error> {
         dbg!("starting proxy");
-        if no_dot_embassy_hostname.contains(".local") {
-            panic!(
-                "Our host name no_dot_host_name should not include the .local {}",
-                no_dot_embassy_hostname
-            );
-        }
         Ok(ProxyController {
             inner: Mutex::new(
-                ProxyControllerInner::init(embassyd_addr, embassy, ssl_manager).await?,
+                ProxyControllerInner::init(embassyd_socket_addr, embassy, ssl_manager).await?,
             ),
         })
     }
@@ -60,10 +55,6 @@ impl ProxyController {
 
     pub async fn remove_docker_service(&self, package: &PackageId) -> Result<(), Error> {
         self.inner.lock().await.remove_docker_service(package).await
-    }
-
-    pub async fn get_package_id(&self, fqdn: &Fqdn) -> Option<PackageId> {
-        self.inner.lock().await.get_package_id(fqdn).await
     }
 
     pub async fn add_certificate_to_resolver(
@@ -95,6 +86,7 @@ impl ProxyController {
     pub async fn get_hostname(&self) -> String {
         self.inner.lock().await.get_hostname()
     }
+
     pub async fn get_no_dot_name(&self) -> String {
         self.inner.lock().await.get_no_dot_name()
     }
@@ -116,12 +108,12 @@ impl ProxyController {
             // Note: only after client received an empty body with STATUS_OK can the
             // connection be upgraded, so we can't return a response inside
             // `on_upgrade` future.
-            match host_addr(&req) {
+            match host_addr_fqdn(&req) {
                 Ok(host) => {
                     tokio::task::spawn(async move {
                         match hyper::upgrade::on(req).await {
                             Ok(upgraded) => {
-                                if let Err(e) = Self::tunnel(upgraded, host).await {
+                                if let Err(e) = Self::tunnel(upgraded, host.full_uri).await {
                                     error!("server io error: {}", e);
                                 };
                             }
@@ -149,8 +141,8 @@ impl ProxyController {
 
     // Create a TCP connection to host:port, build a tunnel between the connection and
     // the upgraded connection
-    async fn tunnel(mut upgraded: Upgraded, addr: String) -> std::io::Result<()> {
-        let mut server = TcpStream::connect(addr).await?;
+    async fn tunnel(mut upgraded: Upgraded, addr: Uri) -> std::io::Result<()> {
+        let mut server = TcpStream::connect(addr.to_string()).await?;
 
         let (from_client, from_server) =
             tokio::io::copy_bidirectional(&mut upgraded, &mut server).await?;
@@ -164,10 +156,10 @@ impl ProxyController {
     }
 }
 struct ProxyControllerInner {
-    embassyd_addr: SocketAddr,
+    embassyd_socket_addr: SocketAddr,
     ssl_manager: SslManager,
     vhosts: VHOSTController,
-    domain_name: Fqdn,
+    embassyd_fqdn: Fqdn,
     docker_interfaces: BTreeMap<PackageId, PackageNetInfo>,
     docker_iface_lookups: BTreeMap<(PackageId, InterfaceId), Fqdn>,
 }
@@ -175,15 +167,15 @@ struct ProxyControllerInner {
 impl ProxyControllerInner {
     #[instrument]
     async fn init(
-        embassyd_addr: SocketAddr,
-        domain_name: Fqdn,
+        embassyd_socket_addr: SocketAddr,
+        embassyd_fqdn: Fqdn,
         ssl_manager: SslManager,
     ) -> Result<Self, Error> {
         let inner = ProxyControllerInner {
-            embassyd_addr,
-            vhosts: VHOSTController::init(embassyd_addr),
+            embassyd_socket_addr,
+            vhosts: VHOSTController::init(embassyd_socket_addr),
             ssl_manager,
-            domain_name,
+            embassyd_fqdn,
             docker_interfaces: BTreeMap::new(),
             docker_iface_lookups: BTreeMap::new(),
         };
@@ -193,9 +185,9 @@ impl ProxyControllerInner {
         Ok(inner)
     }
 
-    pub async fn get_package_id(&self, fqdn: &Fqdn) -> Option<PackageId> {
-        self.vhosts.svc_dns_base_package_names.get(fqdn).cloned()
-    }
+    // pub async fn get_package_id(&self, fqdn: &Fqdn) -> Option<PackageId> {
+    //     self.vhosts.svc_dns_base_package_names.get(fqdn).cloned()
+    // }
 
     async fn add_certificate_to_resolver(
         &mut self,
@@ -216,26 +208,13 @@ impl ProxyControllerInner {
         Ok(())
     }
 
-    async fn add_package_certificate_to_resolver(
-        &mut self,
-        hostname: Fqdn,
-        no_dot_docker_name: String,
-    ) -> Result<(), Error> {
-        let pkg_id = match self.get_package_id(&hostname).await {
-            Some(pkg_id) => pkg_id,
-            None => {
-                return Err(Error::new(
-                    eyre!("No found cert for {:?}", hostname.clone()),
-                    crate::ErrorKind::Network,
-                ))
-            }
-        };
-
+    async fn add_package_certificate_to_resolver(&mut self, hostname: Fqdn, pkg_id: PackageId) -> Result<(), Error> {
+  
         dbg!("adding cert");
 
         let package_cert = self
             .ssl_manager
-            .certificate_for(&no_dot_docker_name, &pkg_id)
+            .certificate_for(&hostname.root, &pkg_id)
             .await?;
 
         self.vhosts
@@ -255,7 +234,7 @@ impl ProxyControllerInner {
     pub async fn add_handle(
         &mut self,
         external_svc_port: u16,
-        fqdn: String,
+        fqdn: Fqdn,
         svc_handler: HttpHandler,
         is_ssl: bool,
     ) -> Result<(), Error> {
@@ -283,26 +262,23 @@ impl ProxyControllerInner {
 
         for (id, meta) in interface_map.iter() {
             for (external_svc_port, lan_port_config) in meta.lan_config.iter() {
+                let full_fqdn = Fqdn::from_str(&meta.fqdn).unwrap();
+
                 self.docker_iface_lookups
-                    .insert((package.clone(), id.clone()), meta.fqdn.clone());
+                    .insert((package.clone(), id.clone()), full_fqdn.clone());
 
                 let svc_handler: HttpHandler;
                 if lan_port_config.ssl {
-                    let no_dot_docker_fqdn = meta.fqdn.strip_suffix(".local").unwrap().to_string();
-                    self.add_package_certificate_to_resolver(meta.fqdn.clone(), no_dot_docker_fqdn)
+                    self.add_package_certificate_to_resolver(full_fqdn.clone(), package.clone())
                         .await?;
-                    svc_handler = Self::create_docker_handle(meta.fqdn.clone(), true).await;
+                    svc_handler = Self::create_docker_handle(full_fqdn.clone(), true).await;
                 } else {
-                    svc_handler = Self::create_docker_handle(meta.fqdn.clone(), false).await;
+                    svc_handler = Self::create_docker_handle(full_fqdn.clone(), false).await;
                 }
-
-                self.vhosts
-                    .svc_dns_base_package_names
-                    .insert(meta.fqdn.clone(), package.clone());
 
                 self.add_handle(
                     external_svc_port.0,
-                    meta.fqdn.clone(),
+                    full_fqdn.clone(),
                     svc_handler,
                     lan_port_config.ssl,
                 )
@@ -325,7 +301,7 @@ impl ProxyControllerInner {
         Ok(())
     }
 
-    async fn create_docker_handle(proxy_addr: String, is_ssl: bool) -> HttpHandler {
+    async fn create_docker_handle(proxy_addr: Fqdn, is_ssl: bool) -> HttpHandler {
         let svc_handler: HttpHandler = Arc::new(move |mut req| {
             let proxy_addr = proxy_addr.clone();
             async move {
@@ -377,19 +353,14 @@ impl ProxyControllerInner {
                             .docker_iface_lookups
                             .get(&(package.clone(), id.clone()))
                         {
-                            server.remove_svc_handler_mapping(fqdn.to_string()).await?;
+                            server.remove_svc_handler_mapping(fqdn.to_owned()).await?;
                             self.vhosts
                                 .cert_resolver
-                                .remove_cert(fqdn.to_string())
+                                .remove_cert(fqdn.to_owned())
                                 .await?;
 
                             let mapping = server.svc_mapping.read().await;
-                            // .map_err(|err| {
-                            //     Error::new(eyre!("{}", err), crate::ErrorKind::Network)
-                            // })?;
-
-                            self.vhosts.svc_dns_base_package_names.remove(&meta.fqdn);
-
+                    
                             if mapping.is_empty() {
                                 server_removal = true;
                                 server_removal_port = service_ext_port.0;
@@ -423,10 +394,10 @@ impl ProxyControllerInner {
     }
 
     pub fn get_hostname(&self) -> String {
-        self.embassy_hostname.to_owned()
+        self.embassyd_fqdn.to_string()
     }
 
     pub fn get_no_dot_name(&self) -> String {
-        self.no_dot_embassy_hostname.to_owned()
+        self.embassyd_fqdn.root
     }
 }
