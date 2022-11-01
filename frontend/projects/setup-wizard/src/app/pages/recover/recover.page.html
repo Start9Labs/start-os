@@ -8,11 +8,7 @@
 
         <ion-card color="dark">
           <ion-card-header class="ion-text-center">
-            <ion-card-title>Recover</ion-card-title>
-            <ion-card-subtitle
-              >Select the LAN Shared Folder or physical drive containing your
-              Embassy backup</ion-card-subtitle
-            >
+            <ion-card-title>Restore from Backup</ion-card-title>
           </ion-card-header>
 
           <ion-card-content class="ion-margin">
@@ -25,17 +21,10 @@
             <!-- loaded -->
             <ion-item-group *ngIf="!loading" class="ion-text-center">
               <!-- cifs -->
-              <h2 class="target-label">LAN Shared Folder</h2>
-              <p class="ion-padding-bottom">
-                Using a LAN Shared Folder is the recommended way to recover from
-                backup, since it works with all Embassy hardware configurations.
-                View the
-                <a
-                  href="https://start9.com/latest/user-manual/backups/backup-restore"
-                  target="_blank"
-                  noreferrer
-                  >instructions</a
-                >.
+              <h2 class="target-label">Network Folder</h2>
+              <p class="ion-padding-bottom ion-text-left">
+                Restore your Embassy from a folder on another computer that is
+                connected to the same network as your Embassy.
               </p>
 
               <!-- connect -->
@@ -47,7 +36,7 @@
                   color="light"
                 ></ion-icon>
                 <ion-label>
-                  <b>Open New</b>
+                  <b>Open</b>
                 </ion-label>
               </ion-item>
 
@@ -55,18 +44,20 @@
               <br />
 
               <!-- drives -->
-              <h2 class="target-label">Physical Drives</h2>
-              <p class="ion-padding-bottom">
-                Warning! Plugging in more than one physical drive to Embassy can
-                lead to power failure and data corruption. To recover from a
-                physical drive, please follow the
-                <a
-                  href="https://start9.com/latest/user-manual/backups/backup-restore"
-                  target="_blank"
-                  noreferrer
-                  >instructions</a
-                >.
-              </p>
+              <h2 class="target-label">Physical Drive</h2>
+              <div class="ion-text-left ion-padding-bottom">
+                <p>
+                  Restore your Emabssy from a physcial drive that is plugged
+                  directly into your Embassy.
+                </p>
+                <br />
+                <b>
+                  Warning. Do not use this option if you are using a Raspberry
+                  Pi with an external SSD as your main data drive. The Raspberry
+                  Pi cannot not support more than one external drive without
+                  additional power and can cause data corruption.
+                </b>
+              </div>
 
               <ng-container *ngFor="let mapped of mappedDrives">
                 <ion-item
@@ -86,7 +77,6 @@
                     <h1>{{ drive.label || drive.logicalname }}</h1>
                     <drive-status
                       [hasValidBackup]="mapped.hasValidBackup"
-                      [is02x]="mapped.is02x"
                     ></drive-status>
                     <p>
                       {{ drive.vendor || 'Unknown Vendor' }} - {{ drive.model ||

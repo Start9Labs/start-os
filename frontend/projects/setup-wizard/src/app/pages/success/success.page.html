@@ -11,7 +11,7 @@
             <ion-card-title>Setup Complete</ion-card-title>
             <ion-card-subtitle
               ><b
-                >You have successully claimed your Embassy!</b
+                >You have successfully claimed your Embassy!</b
               ></ion-card-subtitle
             >
             <br />
@@ -19,11 +19,13 @@
           <ion-card-content>
             <br />
             <br />
-            <h2
-              *ngIf="recoverySource && recoverySource.type === 'disk'"
-              class="ion-padding-bottom"
-            >
-              You can now safely unplug your backup drive.
+            <h2 *ngIf="recoverySource" class="ion-padding-bottom">
+              <span *ngIf="recoverySource.type === 'backup'"
+                >You can now safely unplug your backup drive.</span
+              >
+              <span *ngIf="recoverySource.type === 'migrate'"
+                >You can now safely unplug your old drive.</span
+              >
             </h2>
             <h2 style="font-weight: bold">
               Access your Embassy using the methods below. You should
@@ -40,7 +42,7 @@
 
             <div class="ion-padding ion-text-start">
               <p>
-                Visit the address below when you are conncted to the same WiFi
+                Visit the address below when you are connected to the same WiFi
                 or Local Area Network (LAN) as your Embassy:
               </p>
 
@@ -94,7 +96,7 @@
                   follow the instructions
                   <ion-icon name="open-outline"></ion-icon>
                 </a>
-                to downlaod and trust your Embassy's Root Certificate Authority.
+                to download and trust your Embassy's Root Certificate Authority.
               </p>
 
               <ion-button style="margin-top: 24px" (click)="installCert()">
