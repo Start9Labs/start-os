@@ -14,7 +14,6 @@ use crate::db::model::ServerStatus;
 use crate::install::PKG_DOCKER_DIR;
 use crate::sound::CIRCLE_OF_5THS_SHORT;
 use crate::util::Invoke;
-use crate::version::VersionT;
 use crate::Error;
 
 pub const SYSTEM_REBUILD_PATH: &str = "/media/embassy/config/system-rebuild";

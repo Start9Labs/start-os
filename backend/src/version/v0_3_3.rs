@@ -92,7 +92,7 @@ impl VersionT for Version {
             if let Some(ref mut package) = *package {
                 package.marketplace_url = Some(MarketPlaceUrls::Community.url().parse().unwrap());
             }
-            package.save(db).await;
+            package.save(db).await?;
         }
 
         Ok(())
