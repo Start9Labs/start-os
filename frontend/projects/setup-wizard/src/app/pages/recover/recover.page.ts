@@ -56,7 +56,6 @@ export class RecoverPage {
             }
             this.mappedDrives.push({
               hasValidBackup: !!p['embassy-os']?.full,
-              is02x: !!drive['embassy-os']?.version.startsWith('0.2'),
               drive,
             })
           })
@@ -76,11 +75,14 @@ export class RecoverPage {
       if (res.role === 'success') {
         const { hostname, path, username, password } = res.data.cifs
         this.stateService.recoverySource = {
-          type: 'cifs',
-          hostname,
-          path,
-          username,
-          password,
+          type: 'backup',
+          target: {
+            type: 'cifs',
+            hostname,
+            path,
+            username,
+            password,
+          },
         }
         this.stateService.recoveryPassword = res.data.recoveryPassword
         this.navCtrl.navigateForward('/embassy')
@@ -90,35 +92,35 @@ export class RecoverPage {
   }
 
   async select(target: DiskBackupTarget) {
-    const is02x = target['embassy-os']?.version.startsWith('0.2')
     const { logicalname } = target
 
     if (!logicalname) return
 
-    if (is02x) {
-      this.selectRecoverySource(logicalname)
-    } else {
-      const modal = await this.modalController.create({
-        component: PasswordPage,
-        componentProps: { target },
-        cssClass: 'alertlike-modal',
-      })
-      modal.onDidDismiss().then(res => {
-        if (res.data?.password) {
-          this.selectRecoverySource(logicalname, res.data.password)
-        }
-      })
-      await modal.present()
-    }
+    const modal = await this.modalController.create({
+      component: PasswordPage,
+      componentProps: { target },
+      cssClass: 'alertlike-modal',
+    })
+    modal.onDidDismiss().then(res => {
+      if (res.data?.password) {
+        this.selectRecoverySource(logicalname, res.data.password)
+      }
+    })
+    await modal.present()
   }
 
   private async selectRecoverySource(logicalname: string, password?: string) {
     this.stateService.recoverySource = {
-      type: 'disk',
-      logicalname,
+      type: 'backup',
+      target: {
+        type: 'disk',
+        logicalname,
+      },
     }
     this.stateService.recoveryPassword = password
-    this.navCtrl.navigateForward(`/embassy`)
+    this.navCtrl.navigateForward(`/embassy`, {
+      queryParams: { action: 'recover' },
+    })
   }
 }
 
@@ -129,11 +131,9 @@ export class RecoverPage {
 })
 export class DriveStatusComponent {
   @Input() hasValidBackup!: boolean
-  @Input() is02x!: boolean
 }
 
 interface MappedDisk {
-  is02x: boolean
   hasValidBackup: boolean
   drive: DiskBackupTarget
 }

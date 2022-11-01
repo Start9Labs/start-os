@@ -7,12 +7,14 @@ import {
 } from '@ionic/angular'
 import {
   ApiService,
+  BackupRecoverySource,
   DiskInfo,
   DiskRecoverySource,
 } from 'src/app/services/api/api.service'
 import { ErrorToastService } from '@start9labs/shared'
 import { StateService } from 'src/app/services/state.service'
 import { PasswordPage } from '../../modals/password/password.page'
+import { ActivatedRoute } from '@angular/router'
 
 @Component({
   selector: 'app-embassy',
@@ -31,6 +33,7 @@ export class EmbassyPage {
     private readonly stateService: StateService,
     private readonly loadingCtrl: LoadingController,
     private readonly errorToastService: ErrorToastService,
+    private route: ActivatedRoute,
   ) {}
 
   async ngOnInit() {
@@ -55,8 +58,10 @@ export class EmbassyPage {
           !d.partitions
             .map(p => p.logicalname)
             .includes(
-              (this.stateService.recoverySource as DiskRecoverySource)
-                ?.logicalname,
+              (
+                (this.stateService.recoverySource as BackupRecoverySource)
+                  ?.target as DiskRecoverySource
+              )?.logicalname,
             ),
       )
     } catch (e: any) {
@@ -80,12 +85,14 @@ export class EmbassyPage {
           {
             text: 'Continue',
             handler: () => {
+              // for backup recoveries
               if (this.stateService.recoveryPassword) {
                 this.setupEmbassy(
                   drive.logicalname,
                   this.stateService.recoveryPassword,
                 )
               } else {
+                // for migrations and fresh setups
                 this.presentModalPassword(drive.logicalname)
               }
             },
@@ -94,9 +101,11 @@ export class EmbassyPage {
       })
       await alert.present()
     } else {
+      // for backup recoveries
       if (this.stateService.recoveryPassword) {
         this.setupEmbassy(drive.logicalname, this.stateService.recoveryPassword)
       } else {
+        // for migrations and fresh setups
         this.presentModalPassword(drive.logicalname)
       }
     }
@@ -129,7 +138,9 @@ export class EmbassyPage {
     try {
       await this.stateService.setupEmbassy(logicalname, password)
       if (!!this.stateService.recoverySource) {
-        await this.navCtrl.navigateForward(`/loading`)
+        await this.navCtrl.navigateForward(`/loading`, {
+          queryParams: { action: this.route.snapshot.paramMap.get('action') },
+        })
       } else {
         await this.navCtrl.navigateForward(`/success`)
       }

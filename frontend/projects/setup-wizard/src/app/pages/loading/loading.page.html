@@ -8,7 +8,10 @@
 
         <ion-card color="dark">
           <ion-card-header>
-            <ion-card-title style="font-size: 40px">Recovering</ion-card-title>
+            <ion-card-title style="font-size: 40px">
+              <span *ngIf="incomingAction === 'transfer'">Transferring</span>
+              <span *ngIf="incomingAction === 'recover'">Recovering</span>
+            </ion-card-title>
             <ion-card-subtitle
               >Progress: {{ (stateService.dataProgress * 100).toFixed(0)
               }}%</ion-card-subtitle
