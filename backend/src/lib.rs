@@ -1,4 +1,5 @@
 pub const DEFAULT_MARKETPLACE: &str = "https://registry.start9.com";
+pub const COMMUNITY_MARKETPLACE: &str = "https://community-registry.start9.com";
 pub const BUFFER_SIZE: usize = 1024;
 pub const HOST_IP: [u8; 4] = [172, 18, 0, 1];
 pub const TARGET: &str = current_platform::CURRENT_PLATFORM;
@@ -97,7 +98,6 @@ pub fn server() -> Result<(), RpcError> {
     install::install,
     install::sideload,
     install::uninstall,
-    install::delete_recovered,
     install::list,
     install::update::update,
     config::config,

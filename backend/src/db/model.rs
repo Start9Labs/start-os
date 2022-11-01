@@ -28,8 +28,6 @@ pub struct Database {
     pub server_info: ServerInfo,
     #[model]
     pub package_data: AllPackageData,
-    #[model]
-    pub recovered_packages: BTreeMap<PackageId, RecoveredPackageInfo>,
     pub ui: Value,
 }
 impl Database {
@@ -68,7 +66,6 @@ impl Database {
                 password_hash,
             },
             package_data: AllPackageData::default(),
-            recovered_packages: BTreeMap::new(),
             ui: serde_json::from_str(include_str!("../../../frontend/patchdb-ui-seed.json"))
                 .unwrap(),
         }
