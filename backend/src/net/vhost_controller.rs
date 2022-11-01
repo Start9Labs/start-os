@@ -1,22 +1,18 @@
-use crate::net::embassy_service_http_server::{EmbassyCertResolver, EmbassyServiceHTTPServer};
-use crate::net::proxy_controller::ProxyController;
-use crate::net::ssl::SslManager;
-use crate::Error;
-use futures::FutureExt;
-use lazy_static::__Deref;
-use models::PackageId;
 use std::collections::BTreeMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::sync::Mutex;
-use tokio_rustls::rustls::server::ResolvesServerCertUsingSni;
+
+use models::PackageId;
 use tokio_rustls::rustls::ServerConfig;
 
-use crate::net::{HttpClient, HttpHandler};
+use crate::net::embassy_service_http_server::{EmbassyCertResolver, EmbassyServiceHTTPServer};
+use crate::net::net_controller::Fqdn;
+use crate::net::HttpHandler;
+use crate::Error;
 
 pub struct VHOSTController {
     pub service_servers: BTreeMap<u16, EmbassyServiceHTTPServer>,
-    pub svc_dns_base_package_names: BTreeMap<String, PackageId>,
+    pub svc_dns_base_package_names: BTreeMap<Fqdn, PackageId>,
     pub cert_resolver: EmbassyCertResolver,
     embassyd_addr: SocketAddr,
 }
@@ -30,7 +26,6 @@ impl VHOSTController {
             svc_dns_base_package_names: BTreeMap::new(),
             cert_resolver: EmbassyCertResolver::new(),
         }
-        
     }
 
     pub fn build_ssl_svr_cfg(&self) -> Result<Arc<ServerConfig>, Error> {
@@ -53,7 +48,7 @@ impl VHOSTController {
         is_ssl: bool,
     ) -> Result<(), Error> {
         if let Some(server) = self.service_servers.get_mut(&external_svc_port) {
-            server.add_svc_mapping(fqdn, svc_handler).await?;
+            server.add_svc_handler_mapping(fqdn, svc_handler).await?;
         } else {
             let ssl_cfg = if is_ssl {
                 Some(self.build_ssl_svr_cfg()?)
@@ -63,7 +58,9 @@ impl VHOSTController {
             let mut new_service_server =
                 EmbassyServiceHTTPServer::new(self.embassyd_addr.ip(), external_svc_port, ssl_cfg)
                     .await?;
-            new_service_server.add_svc_mapping(fqdn, svc_handler).await?;
+            new_service_server
+                .add_svc_handler_mapping(fqdn, svc_handler)
+                .await?;
 
             self.service_servers
                 .insert(external_svc_port, new_service_server);

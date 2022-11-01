@@ -184,7 +184,8 @@ impl DockerProcedure {
             .arg("--name")
             .arg(&container_name)
             .arg(format!("--hostname={}", &container_name))
-            .arg("--no-healthcheck");
+            .arg("--no-healthcheck")
+            .kill_on_drop(true);
         match ctx
             .docker
             .remove_container(
@@ -831,7 +832,8 @@ impl LongRunning {
             .arg("--entrypoint")
             .arg(format!("{INIT_EXEC}.{image_architecture}"))
             .arg("-i")
-            .arg("--rm");
+            .arg("--rm")            
+            .kill_on_drop(true);
 
         for (volume_id, dst) in &docker.mounts {
             let volume = if let Some(v) = volumes.get(volume_id) {

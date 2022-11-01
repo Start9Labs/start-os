@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::io;
 use std::net::{IpAddr, SocketAddr};
 use std::pin::Pin;
+use std::str::FromStr;
 use std::sync::{Arc, RwLock};
 use std::task::{Context, Poll};
 
@@ -22,6 +23,7 @@ use tokio_rustls::rustls::sign::{any_supported_type, CertifiedKey};
 use tokio_rustls::rustls::{Certificate, PrivateKey, ServerConfig};
 use tracing::error;
 
+use crate::net::net_controller::Fqdn;
 use crate::net::net_utils::host_addr;
 use crate::net::HttpHandler;
 use crate::Error;
@@ -111,16 +113,25 @@ impl ResolvesServerCert for EmbassyCertResolver {
         &self,
         client_hello: tokio_rustls::rustls::server::ClientHello,
     ) -> Option<Arc<tokio_rustls::rustls::sign::CertifiedKey>> {
-        let hostname = client_hello.server_name();
+        let hostname_raw = client_hello.server_name();
 
-        match hostname {
-            Some(hostname) => {
+        match hostname_raw {
+            Some(hostname_str) => {
                 dbg!("am i stopping here at resolving");
+
+                let full_fqdn = match Fqdn::from_str(hostname_str) {
+                    Ok(fqdn) => fqdn,
+                    Err(_) => {
+                        tracing::error!("Error converting {} to fqdn struct", hostname_str);
+                        return None;
+                    }
+                };
+
                 let lock = self.cert_mapping.read();
 
                 match lock {
                     Ok(lock) => lock
-                        .get(hostname)
+                        .get(&full_fqdn)
                         .map(|cert_key| Arc::new(cert_key.to_owned())),
                     Err(err) => {
                         tracing::error!("resolve fn Error: {}", err);
@@ -135,7 +146,7 @@ impl ResolvesServerCert for EmbassyCertResolver {
 
 #[derive(Clone, Default)]
 pub struct EmbassyCertResolver {
-    cert_mapping: Arc<RwLock<BTreeMap<String, CertifiedKey>>>,
+    cert_mapping: Arc<RwLock<BTreeMap<Fqdn, CertifiedKey>>>,
 }
 
 impl EmbassyCertResolver {
@@ -144,7 +155,7 @@ impl EmbassyCertResolver {
     }
     pub async fn add_certificate_to_resolver(
         &mut self,
-        hostname: String,
+        hostname: Fqdn,
         package_cert_data: (PKey<Private>, Vec<X509>),
     ) -> Result<(), Error> {
         let x509_cert_chain = package_cert_data.1;
@@ -162,6 +173,7 @@ impl EmbassyCertResolver {
 
             full_rustls_certs.push(cert);
         }
+
         let pre_sign_key = PrivateKey(private_keys);
         let actual_sign_key = any_supported_type(&pre_sign_key)
             .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::SignError))?;
@@ -178,7 +190,7 @@ impl EmbassyCertResolver {
         Ok(())
     }
 
-    pub async fn remove_cert(&mut self, hostname: String) -> Result<(), Error> {
+    pub async fn remove_cert(&mut self, hostname: Fqdn) -> Result<(), Error> {
         let mut lock = self
             .cert_mapping
             .write()
@@ -220,7 +232,7 @@ impl Accept for TlsAcceptor {
 
 pub struct EmbassyServiceHTTPServer {
     // String: Virtual
-    pub svc_mapping: Arc<tokio::sync::RwLock<BTreeMap<String, HttpHandler>>>,
+    pub svc_mapping: Arc<tokio::sync::RwLock<BTreeMap<Fqdn, HttpHandler>>>,
     pub shutdown: oneshot::Sender<()>,
     pub handle: NonDetachingJoinHandle<()>,
     pub ssl_cfg: Option<Arc<ServerConfig>>,
@@ -334,9 +346,9 @@ impl EmbassyServiceHTTPServer {
         })
     }
 
-    pub async fn add_svc_mapping(
+    pub async fn add_svc_handler_mapping(
         &mut self,
-        fqdn: String,
+        fqdn: Fqdn,
         svc_handle: HttpHandler,
     ) -> Result<(), Error> {
         let mut mapping = self.svc_mapping.write().await;
@@ -347,7 +359,7 @@ impl EmbassyServiceHTTPServer {
         Ok(())
     }
 
-    pub async fn remove_svc_mapping(&mut self, fqdn: String) -> Result<(), Error> {
+    pub async fn remove_svc_handler_mapping(&mut self, fqdn: Fqdn) -> Result<(), Error> {
         let mut mapping = self.svc_mapping.write().await;
         // .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::Network))?;
 

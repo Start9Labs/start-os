@@ -23,7 +23,7 @@ impl Hostname {
         format!("https://{}.local", self.0)
     }
 
-    pub fn local_name(&self) -> String {
+    pub fn local_domain_name(&self) -> String {
         format!("{}.local", self.0)
     }
     pub fn no_dot_host_name(&self) -> String {

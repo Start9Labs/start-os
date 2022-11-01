@@ -14,6 +14,7 @@ use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 use tracing::{error, info, instrument};
 
+use crate::net::net_controller::Fqdn;
 use crate::net::net_utils::host_addr;
 use crate::net::ssl::SslManager;
 use crate::net::vhost_controller::VHOSTController;
@@ -27,8 +28,7 @@ pub struct ProxyController {
 impl ProxyController {
     pub async fn init(
         embassyd_addr: SocketAddr,
-        no_dot_embassy_hostname: String,
-        embassy_hostname: String,
+        embassy: Fqdn,
         ssl_manager: SslManager,
     ) -> Result<Self, Error> {
         dbg!("starting proxy");
@@ -40,13 +40,7 @@ impl ProxyController {
         }
         Ok(ProxyController {
             inner: Mutex::new(
-                ProxyControllerInner::init(
-                    embassyd_addr,
-                    embassy_hostname,
-                    no_dot_embassy_hostname,
-                    ssl_manager,
-                )
-                .await?,
+                ProxyControllerInner::init(embassyd_addr, embassy, ssl_manager).await?,
             ),
         })
     }
@@ -68,13 +62,13 @@ impl ProxyController {
         self.inner.lock().await.remove_docker_service(package).await
     }
 
-    pub async fn get_package_id(&self, fqdn: &String) -> Option<PackageId> {
+    pub async fn get_package_id(&self, fqdn: &Fqdn) -> Option<PackageId> {
         self.inner.lock().await.get_package_id(fqdn).await
     }
 
     pub async fn add_certificate_to_resolver(
         &self,
-        fqdn: String,
+        fqdn: Fqdn,
         cert_data: (PKey<Private>, Vec<X509>),
     ) -> Result<(), Error> {
         self.inner
@@ -87,7 +81,7 @@ impl ProxyController {
     pub async fn add_handle(
         &self,
         ext_port: u16,
-        fqdn: String,
+        fqdn: Fqdn,
         handler: HttpHandler,
         is_ssl: bool,
     ) -> Result<(), Error> {
@@ -173,43 +167,39 @@ struct ProxyControllerInner {
     embassyd_addr: SocketAddr,
     ssl_manager: SslManager,
     vhosts: VHOSTController,
-    embassy_hostname: String,
-    no_dot_embassy_hostname: String,
+    domain_name: Fqdn,
     docker_interfaces: BTreeMap<PackageId, PackageNetInfo>,
-    docker_iface_lookups: BTreeMap<(PackageId, InterfaceId), String>,
+    docker_iface_lookups: BTreeMap<(PackageId, InterfaceId), Fqdn>,
 }
 
 impl ProxyControllerInner {
     #[instrument]
     async fn init(
         embassyd_addr: SocketAddr,
-        embassy_hostname: String,
-        no_dot_embassy_hostname: String,
+        domain_name: Fqdn,
         ssl_manager: SslManager,
     ) -> Result<Self, Error> {
         let inner = ProxyControllerInner {
             embassyd_addr,
             vhosts: VHOSTController::init(embassyd_addr),
             ssl_manager,
-            embassy_hostname,
-            no_dot_embassy_hostname,
+            domain_name,
             docker_interfaces: BTreeMap::new(),
             docker_iface_lookups: BTreeMap::new(),
         };
 
         dbg!("inner proxy controller ready");
 
-        // let emnbassyd_port_80_svc = EmbassyHTTPServer::new(embassyd_addr).await?;
         Ok(inner)
     }
 
-    pub async fn get_package_id(&self, fqdn: &String) -> Option<PackageId> {
+    pub async fn get_package_id(&self, fqdn: &Fqdn) -> Option<PackageId> {
         self.vhosts.svc_dns_base_package_names.get(fqdn).cloned()
     }
 
     async fn add_certificate_to_resolver(
         &mut self,
-        hostname: String,
+        hostname: Fqdn,
         cert_data: (PKey<Private>, Vec<X509>),
     ) -> Result<(), Error> {
         self.vhosts
@@ -228,14 +218,14 @@ impl ProxyControllerInner {
 
     async fn add_package_certificate_to_resolver(
         &mut self,
-        hostname: String,
+        hostname: Fqdn,
         no_dot_docker_name: String,
     ) -> Result<(), Error> {
         let pkg_id = match self.get_package_id(&hostname).await {
             Some(pkg_id) => pkg_id,
             None => {
                 return Err(Error::new(
-                    eyre!("No found cert for {}", hostname.clone()),
+                    eyre!("No found cert for {:?}", hostname.clone()),
                     crate::ErrorKind::Network,
                 ))
             }
@@ -387,7 +377,7 @@ impl ProxyControllerInner {
                             .docker_iface_lookups
                             .get(&(package.clone(), id.clone()))
                         {
-                            server.remove_svc_mapping(fqdn.to_string()).await?;
+                            server.remove_svc_handler_mapping(fqdn.to_string()).await?;
                             self.vhosts
                                 .cert_resolver
                                 .remove_cert(fqdn.to_string())
@@ -407,7 +397,6 @@ impl ProxyControllerInner {
                                 break;
                             }
                         }
-
                     }
                 }
             }

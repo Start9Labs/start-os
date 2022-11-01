@@ -1,29 +1,81 @@
-use crate::context::RpcContext;
-use crate::hostname::{get_hostname, HostNameReceipt};
-#[cfg(feature = "avahi")]
-use crate::net::mdns::MdnsController;
-use crate::net::{
-    static_server, GeneratedCertificateMountPoint, InterfaceMetadata, PACKAGE_CERT_PATH,
-};
-use crate::Error;
-use hyper::Client;
+use std::fmt;
+use std::net::{Ipv4Addr, SocketAddr};
+use std::path::PathBuf;
+use std::str::FromStr;
+
 use models::InterfaceId;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
-use patch_db::{DbHandle, PatchDb};
+use patch_db::DbHandle;
 use sqlx::PgPool;
-use std::net::{Ipv4Addr, SocketAddr};
-use std::path::PathBuf;
 use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 use tracing::instrument;
 
+use crate::hostname::{get_hostname, HostNameReceipt};
 use crate::net::dns::DnsController;
 use crate::net::interface::{Interface, TorConfig};
+#[cfg(feature = "avahi")]
+use crate::net::mdns::MdnsController;
 use crate::net::proxy_controller::ProxyController;
-
 use crate::net::ssl::SslManager;
 use crate::net::tor::TorController;
+use crate::net::{GeneratedCertificateMountPoint, InterfaceMetadata, PACKAGE_CERT_PATH};
 use crate::s9pk::manifest::PackageId;
+use crate::Error;
+
+#[derive(PartialEq, PartialOrd, Ord, Eq, Debug, Clone)]
+pub struct Fqdn {
+    root: String,
+    tld: Tld,
+}
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Clone)]
+pub enum Tld {
+    Local,
+    Onion,
+    Embassy,
+}
+
+impl fmt::Display for Tld {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Tld::Local => write!(f, ".local"),
+            Tld::Onion => write!(f, ".onion"),
+            Tld::Embassy => write!(f, ".embassy"),
+        }
+    }
+}
+
+
+impl FromStr for Fqdn {
+
+    type Err = ();
+
+    fn from_str(input: &str) -> Result<Fqdn, Self::Err> {
+        let hostname_split: Vec<&str> = input.split('.').collect();
+
+        if hostname_split.len() != 2 {
+            Err(())
+        }
+
+        match hostname_split[1] {
+            ".local" => Ok(Fqdn {
+                root: hostname_split[0].to_owned(),
+                tld: Tld::Local,
+            }),
+            ".embassy" => Ok(Fqdn {
+                root: hostname_split[0].to_owned(),
+                tld: Tld::Embassy,
+            }),
+            ".onion" => Ok(Fqdn {
+                root: hostname_split[0].to_owned(),
+                tld: Tld::Onion,
+            }),
+            _ => Err(())
+        }
+        
+    }
+}
 
 pub struct NetController {
     pub tor: TorController,
@@ -34,6 +86,7 @@ pub struct NetController {
     pub ssl: SslManager,
     pub dns: DnsController,
 }
+
 impl NetController {
     #[instrument(skip(db, db_handle))]
     pub async fn init<Db: DbHandle>(
@@ -47,10 +100,8 @@ impl NetController {
     ) -> Result<Self, Error> {
         let receipts = HostNameReceipt::new(db_handle).await?;
         let embassy_host_name = get_hostname(db_handle, &receipts).await?;
-        let embassy_name = embassy_host_name.local_name();
+        let embassy_name = embassy_host_name.local_domain_name();
         let no_dot_name = embassy_host_name.no_dot_host_name();
-
-    
 
         let ssl = match import_root_ca {
             None => SslManager::init(db.clone(), db_handle).await,
@@ -63,7 +114,8 @@ impl NetController {
             #[cfg(feature = "avahi")]
             mdns: MdnsController::init().await?,
             //nginx: NginxController::init(PathBuf::from("/etc/nginx"), &ssl).await?,
-            proxy: ProxyController::init(embassyd_addr, no_dot_name, embassy_name, ssl.clone()).await?,
+            proxy: ProxyController::init(embassyd_addr, no_dot_name, embassy_name, ssl.clone())
+                .await?,
             ssl,
             dns: DnsController::init(dns_bind).await?,
         })
@@ -132,7 +184,7 @@ impl NetController {
                             })
                         });
                 //self.nginx.add(&self.ssl, pkg_id.clone(), ip, interfaces)
-                dbg!("adding docker svc to proxy"); 
+                dbg!("adding docker svc to proxy");
                 self.proxy
                     .add_docker_service(pkg_id.clone(), ip, interfaces)
             },

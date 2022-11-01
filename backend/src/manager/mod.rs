@@ -16,10 +16,11 @@ use nix::sys::signal::Signal;
 use num_enum::TryFromPrimitive;
 use patch_db::DbHandle;
 use sqlx::{Executor, Postgres};
+use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::watch::error::RecvError;
 use tokio::sync::watch::{channel, Receiver, Sender};
 use tokio::sync::{Mutex, Notify, RwLock};
-use tokio::{sync::mpsc::UnboundedSender, task::JoinHandle};
+use tokio::task::JoinHandle;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use torut::onion::TorSecretKeyV3;
 use tracing::instrument;
@@ -196,15 +197,17 @@ async fn run_main(
 
     persistant.wait_for_persistant().await;
     let is_injectable_main = check_is_injectable_main(state);
-    let mut runtime = match injectable_main(state) {
-        InjectableMain::None => {
-            tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await })
-        }
-        #[cfg(feature = "js_engine")]
-        InjectableMain::Script(_) => {
-            tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await })
-        }
-    };
+    let mut runtime = NonDetachingJoinHandle::from(tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await }));
+    
+    // match injectable_main(state) {
+    //     InjectableMain::None => {
+    //         tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await })
+    //     }
+    //     #[cfg(feature = "js_engine")]
+    //     InjectableMain::Script(_) => {
+    //         tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await })
+    //     }
+    // };
     let ip = match is_injectable_main {
         false => Some(match get_running_ip(state, &mut runtime).await {
             GetRunninIp::Ip(x) => x,
@@ -627,7 +630,7 @@ impl PersistantContainer {
     #[instrument(skip(thread_shared))]
     fn new(thread_shared: &Arc<ManagerSharedState>) -> Arc<Self> {
         let wait_for_start = channel(false);
-        let container = Arc::new(Self {
+        let mut container = Arc::new(Self {
             container_name: thread_shared.container_name.clone(),
             running_docker: Arc::new(Mutex::new(None)),
             should_stop_running: Arc::new(AtomicBool::new(false)),
@@ -937,7 +940,7 @@ enum GetRunninIp {
     EarlyExit(Result<NoOutput, (i32, String)>),
 }
 
-type RuntimeOfCommand = JoinHandle<Result<Result<NoOutput, (i32, String)>, Error>>;
+type RuntimeOfCommand = NonDetachingJoinHandle<Result<Result<NoOutput, (i32, String)>, Error>>;
 
 async fn get_running_ip(
     state: &Arc<ManagerSharedState>,
@@ -946,8 +949,7 @@ async fn get_running_ip(
     loop {
         match container_inspect(state).await {
             Ok(res) => {
-                match dbg!(res
-                    .network_settings)
+                match dbg!(res.network_settings)
                     .and_then(|ns| dbg!(ns.networks))
                     .and_then(|mut n| dbg!(n.remove("start9")))
                     .and_then(|es| dbg!(es.ip_address))
@@ -969,11 +971,19 @@ async fn get_running_ip(
         if let Poll::Ready(res) = futures::poll!(&mut runtime) {
             match res {
                 Ok(Ok(response)) => return GetRunninIp::EarlyExit(response),
-                Err(_) | Ok(Err(_)) => {
+                Err(err) => {
+                    dbg!(err);
                     return GetRunninIp::Error(Error::new(
                         eyre!("Manager runtime panicked!"),
                         crate::ErrorKind::Docker,
-                    ))
+                    ));
+                }
+                Ok(Err(err2)) => {
+                    dbg!(err2);
+                    return GetRunninIp::Error(Error::new(
+                        eyre!("Manager runtime panicked!"),
+                        crate::ErrorKind::Docker,
+                    ));
                 }
             }
         }
