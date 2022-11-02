@@ -1,10 +1,6 @@
 import { Injectable } from '@angular/core'
 import { BehaviorSubject } from 'rxjs'
-import {
-  ApiService,
-  CifsRecoverySource,
-  DiskRecoverySource,
-} from './api/api.service'
+import { ApiService, RecoverySource } from './api/api.service'
 import { pauseFor, ErrorToastService } from '@start9labs/shared'
 
 @Injectable({
@@ -14,7 +10,7 @@ export class StateService {
   polling = false
   embassyLoaded = false
 
-  recoverySource?: CifsRecoverySource | DiskRecoverySource
+  recoverySource?: RecoverySource
   recoveryPassword?: string
 
   dataTransferProgress?: {

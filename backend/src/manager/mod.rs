@@ -197,17 +197,15 @@ async fn run_main(
 
     persistant.wait_for_persistant().await;
     let is_injectable_main = check_is_injectable_main(state);
-    let mut runtime = NonDetachingJoinHandle::from(tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await }));
-    
-    // match injectable_main(state) {
-    //     InjectableMain::None => {
-    //         tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await })
-    //     }
-    //     #[cfg(feature = "js_engine")]
-    //     InjectableMain::Script(_) => {
-    //         tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await })
-    //     }
-    // };
+    let mut runtime = match injectable_main(state) {
+        InjectableMain::None => {
+            tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await })
+        }
+        #[cfg(feature = "js_engine")]
+        InjectableMain::Script(_) => {
+            tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await })
+        }
+    };
     let ip = match is_injectable_main {
         false => Some(match get_running_ip(state, &mut runtime).await {
             GetRunninIp::Ip(x) => x,
@@ -630,7 +628,7 @@ impl PersistantContainer {
     #[instrument(skip(thread_shared))]
     fn new(thread_shared: &Arc<ManagerSharedState>) -> Arc<Self> {
         let wait_for_start = channel(false);
-        let mut container = Arc::new(Self {
+        let container = Arc::new(Self {
             container_name: thread_shared.container_name.clone(),
             running_docker: Arc::new(Mutex::new(None)),
             should_stop_running: Arc::new(AtomicBool::new(false)),
@@ -940,7 +938,7 @@ enum GetRunninIp {
     EarlyExit(Result<NoOutput, (i32, String)>),
 }
 
-type RuntimeOfCommand = NonDetachingJoinHandle<Result<Result<NoOutput, (i32, String)>, Error>>;
+type RuntimeOfCommand = JoinHandle<Result<Result<NoOutput, (i32, String)>, Error>>;
 
 async fn get_running_ip(
     state: &Arc<ManagerSharedState>,
@@ -949,12 +947,13 @@ async fn get_running_ip(
     loop {
         match container_inspect(state).await {
             Ok(res) => {
-                match dbg!(res.network_settings)
-                    .and_then(|ns| dbg!(ns.networks))
-                    .and_then(|mut n| dbg!(n.remove("start9")))
-                    .and_then(|es| dbg!(es.ip_address))
+                match res
+                    .network_settings
+                    .and_then(|ns| ns.networks)
+                    .and_then(|mut n| n.remove("start9"))
+                    .and_then(|es| es.ip_address)
                     .filter(|ip| !ip.is_empty())
-                    .map(|ip| dbg!(ip.parse()))
+                    .map(|ip| ip.parse())
                     .transpose()
                 {
                     Ok(Some(ip_addr)) => return GetRunninIp::Ip(ip_addr),
@@ -971,19 +970,11 @@ async fn get_running_ip(
         if let Poll::Ready(res) = futures::poll!(&mut runtime) {
             match res {
                 Ok(Ok(response)) => return GetRunninIp::EarlyExit(response),
-                Err(err) => {
-                    dbg!(err);
+                Err(_) | Ok(Err(_)) => {
                     return GetRunninIp::Error(Error::new(
                         eyre!("Manager runtime panicked!"),
                         crate::ErrorKind::Docker,
-                    ));
-                }
-                Ok(Err(err2)) => {
-                    dbg!(err2);
-                    return GetRunninIp::Error(Error::new(
-                        eyre!("Manager runtime panicked!"),
-                        crate::ErrorKind::Docker,
-                    ));
+                    ))
                 }
             }
         }

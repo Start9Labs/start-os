@@ -17,8 +17,9 @@ mod v0_3_1_1;
 mod v0_3_1_2;
 mod v0_3_2;
 mod v0_3_2_1;
+mod v0_3_3;
 
-pub type Current = v0_3_2_1::Version;
+pub type Current = v0_3_3::Version;
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 #[serde(untagged)]
@@ -32,6 +33,7 @@ enum Version {
     V0_3_1_2(Wrapper<v0_3_1_2::Version>),
     V0_3_2(Wrapper<v0_3_2::Version>),
     V0_3_2_1(Wrapper<v0_3_2_1::Version>),
+    V0_3_3(Wrapper<v0_3_3::Version>),
     Other(emver::Version),
 }
 
@@ -56,6 +58,7 @@ impl Version {
             Version::V0_3_1_2(Wrapper(x)) => x.semver(),
             Version::V0_3_2(Wrapper(x)) => x.semver(),
             Version::V0_3_2_1(Wrapper(x)) => x.semver(),
+            Version::V0_3_3(Wrapper(x)) => x.semver(),
             Version::Other(x) => x.clone(),
         }
     }
@@ -191,6 +194,7 @@ pub async fn init<Db: DbHandle>(
         Version::V0_3_1_2(v) => v.0.migrate_to(&Current::new(), db, receipts).await?,
         Version::V0_3_2(v) => v.0.migrate_to(&Current::new(), db, receipts).await?,
         Version::V0_3_2_1(v) => v.0.migrate_to(&Current::new(), db, receipts).await?,
+        Version::V0_3_3(v) => v.0.migrate_to(&Current::new(), db, receipts).await?,
         Version::Other(_) => {
             return Err(Error::new(
                 eyre!("Cannot downgrade"),
@@ -232,6 +236,7 @@ mod tests {
             Just(Version::V0_3_1_2(Wrapper(v0_3_1_2::Version::new()))),
             Just(Version::V0_3_2(Wrapper(v0_3_2::Version::new()))),
             Just(Version::V0_3_2_1(Wrapper(v0_3_2_1::Version::new()))),
+            Just(Version::V0_3_3(Wrapper(v0_3_3::Version::new()))),
             em_version().prop_map(Version::Other),
         ]
     }

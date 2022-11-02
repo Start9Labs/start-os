@@ -23,6 +23,7 @@ export class HomePage {
   swiper?: Swiper
   guid?: string | null
   error = false
+  loaded = false
 
   constructor(
     private readonly api: ApiService,
@@ -46,6 +47,7 @@ export class HomePage {
   }
 
   async ionViewDidEnter() {
+    this.loaded = true // needed to accomodate autoHight="true" on swiper. Otherwise Swiper height might be 0 when navigatging *to* this page from later page. Happens on refresh.
     if (this.swiper) {
       this.swiper.allowTouchMove = false
     }
@@ -99,12 +101,4 @@ export class HomePage {
       loader.dismiss()
     }
   }
-}
-
-function decodeHex(hex: string) {
-  let str = ''
-  for (let n = 0; n < hex.length; n += 2) {
-    str += String.fromCharCode(parseInt(hex.substring(n, 2), 16))
-  }
-  return str
 }

@@ -10,6 +10,7 @@ import {
   ApiService,
   CifsRecoverySource,
   DiskListResponse,
+  DiskMigrateSource,
   DiskRecoverySource,
   EmbassyOSRecoveryInfo,
   GetStatusRes,
@@ -58,13 +59,6 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async set02XDrive(logicalname: string) {
-    return this.rpcRequest<void>({
-      method: 'setup.recovery.v2.set',
-      params: { logicalname },
-    })
-  }
-
   async getRecoveryStatus() {
     return this.rpcRequest<RecoveryStatusRes>({
       method: 'setup.recovery.status',
@@ -93,10 +87,12 @@ export class LiveApiService extends ApiService {
   }
 
   async setupEmbassy(setupInfo: SetupEmbassyReq) {
-    if (isCifsSource(setupInfo['recovery-source'])) {
-      setupInfo['recovery-source'].path = setupInfo[
-        'recovery-source'
-      ].path.replace('/\\/g', '/')
+    if (setupInfo['recovery-source']?.type === 'backup') {
+      if (isCifsSource(setupInfo['recovery-source'].target)) {
+        setupInfo['recovery-source'].target.path = setupInfo[
+          'recovery-source'
+        ].target.path.replace('/\\/g', '/')
+      }
     }
 
     const res = await this.rpcRequest<SetupEmbassyRes>({

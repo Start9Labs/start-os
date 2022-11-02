@@ -16,7 +16,6 @@ use rpc_toolkit::Context;
 use serde::Deserialize;
 use sqlx::postgres::PgConnectOptions;
 use sqlx::PgPool;
-use tokio::fs::File;
 use tokio::process::Command;
 use tokio::sync::{broadcast, oneshot, Mutex, RwLock};
 use tracing::instrument;

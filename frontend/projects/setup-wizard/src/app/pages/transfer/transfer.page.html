@@ -1,0 +1,63 @@
+<ion-content>
+  <ion-grid>
+    <ion-row>
+      <ion-col>
+        <div style="padding-bottom: 32px" class="ion-text-center">
+          <img src="assets/img/logo.png" style="max-width: 240px" />
+        </div>
+
+        <ion-card color="dark">
+          <ion-card-header class="ion-text-center">
+            <ion-card-title>Transfer</ion-card-title>
+            <ion-card-subtitle
+              >Select the physical drive containing your previous Embassy
+              data</ion-card-subtitle
+            >
+          </ion-card-header>
+
+          <ion-card-content class="ion-margin">
+            <ion-spinner
+              *ngIf="loading"
+              class="center-spinner"
+              name="lines"
+            ></ion-spinner>
+
+            <!-- loaded -->
+            <ion-item-group *ngIf="!loading" class="ion-text-center">
+              <!-- drives -->
+              <h2 class="target-label">Available Drives</h2>
+
+              <ng-container *ngFor="let drive of drives">
+                <ion-item button (click)="select(drive)" lines="none">
+                  <ion-icon
+                    slot="start"
+                    name="save-outline"
+                    size="large"
+                    color="light"
+                  ></ion-icon>
+                  <ion-label>
+                    <h1>{{ drive.logicalname }}</h1>
+                    <p>
+                      {{ drive.vendor || 'Unknown Vendor' }} - {{ drive.model ||
+                      'Unknown Model' }}
+                    </p>
+                    <p>Capacity: {{ drive.capacity | convertBytes }}</p>
+                  </ion-label>
+                </ion-item>
+              </ng-container>
+              <ion-button
+                class="ion-margin-top"
+                fill="clear"
+                color="primary"
+                (click)="refresh()"
+              >
+                <ion-icon slot="start" name="refresh"></ion-icon>
+                Refresh
+              </ion-button>
+            </ion-item-group>
+          </ion-card-content>
+        </ion-card>
+      </ion-col>
+    </ion-row>
+  </ion-grid>
+</ion-content>

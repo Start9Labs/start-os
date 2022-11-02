@@ -41,7 +41,6 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
         )
         .await?;
         NetController::setup_embassy_ui(rpc_ctx.clone()).await?;
-        
 
         let mut shutdown_recv = rpc_ctx.shutdown.subscribe();
 
