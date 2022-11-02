@@ -28,38 +28,11 @@ pub fn host_addr_fqdn(req: &Request<Body>) -> Result<Fqdn, Error> {
     }
 }
 
-impl PartialOrd for Fqdn {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for Fqdn {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.cmp(other)
-    }
-}
-
-impl PartialEq for Fqdn {
-    fn eq(&self, other: &Self) -> bool {
-        // match self {
-        //     Fqdn::IpAddr(ip_left) => match other {
-        //         Fqdn::IpAddr(ip_right) => ip_left == ip_right,
-        //         Fqdn::Uri { full_uri, root, tld } => {
-
-        //         },
-        //     },
-        //     Fqdn::Uri { full_uri, root, tld } => todo!(),
-        // }
-        self == other
-    }
-}
-
-#[derive(Eq, Debug, Clone)]
+#[derive(Eq, PartialEq, PartialOrd, Ord, Debug, Clone)]
 pub enum Fqdn {
     IpAddr(IpAddr),
     Uri {
-        full_uri: Uri,
+        full_uri: String,
         root: String,
         tld: Tld,
     },
@@ -106,7 +79,7 @@ impl FromStr for Fqdn {
 
         dbg!(input);
 
-        
+
         let full_fqdn = {
             if let Ok(ip) = input.parse::<IpAddr>() {
                 Ok(Fqdn::IpAddr(ip))
@@ -121,19 +94,21 @@ impl FromStr for Fqdn {
                 ));
                     }
 
+                    dbg!(hostname_split.clone());
+
                     match hostname_split[1] {
-                        ".local" => Ok(Fqdn::Uri {
-                            full_uri: input.parse::<Uri>()?,
+                        "local" => Ok(Fqdn::Uri {
+                            full_uri: input.to_owned(),
                             root: hostname_split[0].to_owned(),
                             tld: Tld::Local,
                         }),
-                        ".embassy" => Ok(Fqdn::Uri {
-                            full_uri: input.parse::<Uri>()?,
+                        "embassy" => Ok(Fqdn::Uri {
+                            full_uri: input.to_owned(),
                             root: hostname_split[0].to_owned(),
                             tld: Tld::Embassy,
                         }),
-                        ".onion" => Ok(Fqdn::Uri {
-                            full_uri: input.parse::<Uri>()?,
+                        "onion" => Ok(Fqdn::Uri {
+                            full_uri: input.to_owned(),
                             root: hostname_split[0].to_owned(),
                             tld: Tld::Onion,
                         }),

@@ -949,12 +949,12 @@ async fn get_running_ip(
     loop {
         match container_inspect(state).await {
             Ok(res) => {
-                match dbg!(res.network_settings)
-                    .and_then(|ns| dbg!(ns.networks))
-                    .and_then(|mut n| dbg!(n.remove("start9")))
-                    .and_then(|es| dbg!(es.ip_address))
+                match res.network_settings
+                    .and_then(|ns| ns.networks)
+                    .and_then(|mut n| n.remove("start9"))
+                    .and_then(|es| es.ip_address)
                     .filter(|ip| !ip.is_empty())
-                    .map(|ip| dbg!(ip.parse()))
+                    .map(|ip| ip.parse())
                     .transpose()
                 {
                     Ok(Some(ip_addr)) => return GetRunninIp::Ip(ip_addr),

@@ -68,6 +68,8 @@ impl VHOSTController {
             None
         };
 
+        dbg!("add server fqdn:", fqdn.clone());
+
         let mut new_service_server =
             EmbassyServiceHTTPServer::new(self.embassyd_addr.ip(), external_svc_port, ssl_cfg)
                 .await?;
@@ -76,6 +78,7 @@ impl VHOSTController {
             .await?;
         self.service_servers
             .insert(external_svc_port, new_service_server);
+   
         Ok(())
     }
 }

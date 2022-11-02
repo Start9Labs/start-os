@@ -125,7 +125,7 @@ impl ResolvesServerCert for EmbassyCertResolver {
                         return None;
                     }
                 };
-
+                dbg!(full_fqdn.clone());
                 let lock = self.cert_mapping.read();
 
                 match lock {
@@ -183,7 +183,7 @@ impl EmbassyCertResolver {
             .cert_mapping
             .write()
             .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::Network))?;
-
+        dbg!(hostname.clone());
         lock.insert(hostname, cert_key);
 
         Ok(())
@@ -282,6 +282,11 @@ impl EmbassyServiceHTTPServer {
 
                                     let opt_handler = mapping.get(&host_uri).cloned();
 
+                                    for (value, _fg) in mapping.clone().into_iter() {
+                                        dbg!(value);
+                                    }
+                            
+
                                     opt_handler
                                 };
                                 match res {
@@ -349,9 +354,10 @@ impl EmbassyServiceHTTPServer {
     ) -> Result<(), Error> {
         let mut mapping = self.svc_mapping.write().await;
         // .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::Network))?;
-
+        dbg!("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh");
         mapping.insert(fqdn, svc_handle);
-
+        
+    
         Ok(())
     }
 
