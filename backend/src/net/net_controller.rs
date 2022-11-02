@@ -14,7 +14,8 @@ use sqlx::PgPool;
 use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 use tracing::instrument;
 
-use crate::hostname::{get_hostname, HostNameReceipt};
+use crate::context::RpcContext;
+use crate::hostname::{get_current_ip, get_hostname, HostNameReceipt};
 use crate::net::dns::DnsController;
 use crate::net::interface::{Interface, TorConfig};
 #[cfg(feature = "avahi")]
@@ -23,10 +24,11 @@ use crate::net::net_utils::Fqdn;
 use crate::net::proxy_controller::ProxyController;
 use crate::net::ssl::SslManager;
 use crate::net::tor::TorController;
-use crate::net::{GeneratedCertificateMountPoint, InterfaceMetadata, PACKAGE_CERT_PATH};
+use crate::net::{
+    GeneratedCertificateMountPoint, HttpHandler, InterfaceMetadata, PACKAGE_CERT_PATH,
+};
 use crate::s9pk::manifest::PackageId;
 use crate::Error;
-
 
 pub struct NetController {
     pub tor: TorController,
@@ -54,7 +56,7 @@ impl NetController {
         let embassy_name = embassy_host_name.local_domain_name();
 
         let fqdn_name = Fqdn::from_str(&embassy_name)?;
-   
+
         let ssl = match import_root_ca {
             None => SslManager::init(db.clone(), db_handle).await,
             Some(a) => SslManager::import_root_ca(db.clone(), a.0, a.1).await,
@@ -66,11 +68,112 @@ impl NetController {
             #[cfg(feature = "avahi")]
             mdns: MdnsController::init().await?,
             //nginx: NginxController::init(PathBuf::from("/etc/nginx"), &ssl).await?,
-            proxy: ProxyController::init(embassyd_addr, fqdn_name, ssl.clone())
-                .await?,
+            proxy: ProxyController::init(embassyd_addr, fqdn_name, ssl.clone()).await?,
             ssl,
             dns: DnsController::init(dns_bind).await?,
         })
+    }
+
+    pub async fn setup_embassy_ui(rpc_ctx: RpcContext) -> Result<(), Error> {
+        NetController::setup_embassy_http_ui_handle(rpc_ctx.clone()).await?;
+        NetController::setup_embassy_https_ui_handle(rpc_ctx.clone()).await?;
+
+        Ok(())
+    }
+
+    async fn setup_embassy_https_ui_handle(rpc_ctx: RpcContext) -> Result<(), Error> {
+        let host_name = rpc_ctx.net_controller.proxy.get_hostname().await;
+        let ip = get_current_ip(rpc_ctx.ethernet_interface.to_owned()).await?;
+
+        let host_name_fqdn: Fqdn = host_name.parse()?;
+        let ip_fqdn: Fqdn = ip.parse()?;
+
+        let handler: HttpHandler =
+            crate::net::static_server::file_server_router(rpc_ctx.clone()).await?;
+
+        let eos_pkg_id: PackageId = "embassy".parse().unwrap();
+
+        if let Fqdn::Uri {
+            full_uri,
+            root,
+            tld,
+        } = host_name_fqdn.clone()
+        {
+            let root_cert = rpc_ctx
+                .net_controller
+                .ssl
+                .certificate_for(&root, &eos_pkg_id)
+                .await?;
+
+            rpc_ctx
+                .net_controller
+                .proxy
+                .add_certificate_to_resolver(host_name_fqdn.clone(), root_cert.clone())
+                .await?;
+
+            rpc_ctx
+                .net_controller
+                .proxy
+                .add_handle(443, host_name_fqdn.clone(), handler.clone(), true)
+                .await?;
+        };
+
+        if let Fqdn::IpAddr(ip) = ip_fqdn.clone()
+        {
+            let root_cert = rpc_ctx
+                .net_controller
+                .ssl
+                .certificate_for(&ip.to_string(), &eos_pkg_id)
+                .await?;
+
+            rpc_ctx
+                .net_controller
+                .proxy
+                .add_certificate_to_resolver(ip_fqdn.clone(), root_cert.clone())
+                .await?;
+
+            rpc_ctx
+                .net_controller
+                .proxy
+                .add_handle(443, ip_fqdn.clone(), handler.clone(), true)
+                .await?;
+        };
+
+
+        dbg!("hostname fqdn: {}", host_name_fqdn.clone());
+
+        dbg!("ip fqdn: {}", ip_fqdn.clone());
+
+        Ok(())
+    }
+
+    async fn setup_embassy_http_ui_handle(rpc_ctx: RpcContext) -> Result<(), Error> {
+        let host_name = rpc_ctx.net_controller.proxy.get_hostname().await;
+        let ip = get_current_ip(rpc_ctx.ethernet_interface.to_owned()).await?;
+
+        let host_name_fqdn: Fqdn = host_name.parse()?;
+        let ip_fqdn: Fqdn = ip.parse()?;
+
+        let handler: HttpHandler =
+            crate::net::static_server::file_server_router(rpc_ctx.clone()).await?;
+
+        rpc_ctx
+            .net_controller
+            .proxy
+            .add_handle(80, host_name_fqdn.clone(), handler.clone(), false)
+            .await?;
+
+        rpc_ctx
+            .net_controller
+            .proxy
+            .add_handle(80, ip_fqdn.clone(), handler.clone(), false)
+            .await?;
+
+        dbg!("hostname fqdn: {}", host_name_fqdn.clone());
+
+        dbg!("ip fqdn: {}", ip_fqdn.clone());
+
+        Ok(())
     }
 
     pub fn ssl_directory_for(pkg_id: &PackageId) -> PathBuf {

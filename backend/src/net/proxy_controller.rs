@@ -15,8 +15,7 @@ use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 use tracing::{error, info, instrument};
 
-use crate::net::net_utils::Fqdn;
-use crate::net::net_utils::host_addr_fqdn;
+use crate::net::net_utils::{host_addr_fqdn, Fqdn};
 use crate::net::ssl::SslManager;
 use crate::net::vhost_controller::VHOSTController;
 use crate::net::{HttpClient, HttpHandler, InterfaceMetadata, PackageNetInfo};
@@ -87,9 +86,9 @@ impl ProxyController {
         self.inner.lock().await.get_hostname()
     }
 
-    pub async fn get_no_dot_name(&self) -> String {
-        self.inner.lock().await.get_no_dot_name()
-    }
+    // pub async fn get_no_dot_name(&self) -> String {
+    //     self.inner.lock().await.get_no_dot_name()
+    // }
     pub async fn proxy(
         client: HttpClient,
         req: Request<Body>,
@@ -112,11 +111,24 @@ impl ProxyController {
                 Ok(host) => {
                     tokio::task::spawn(async move {
                         match hyper::upgrade::on(req).await {
-                            Ok(upgraded) => {
-                                if let Err(e) = Self::tunnel(upgraded, host.full_uri).await {
-                                    error!("server io error: {}", e);
-                                };
-                            }
+                            Ok(upgraded) => match host {
+                                Fqdn::IpAddr(ip) => {
+                                    if let Err(e) = Self::tunnel(upgraded, ip.to_string()).await {
+                                        error!("server io error: {}", e);
+                                    };
+                                }
+                                Fqdn::Uri {
+                                    full_uri,
+                                    root,
+                                    tld,
+                                } => {
+                                    if let Err(e) =
+                                        Self::tunnel(upgraded, full_uri.to_string()).await
+                                    {
+                                        error!("server io error: {}", e);
+                                    };
+                                }
+                            },
                             Err(e) => error!("upgrade error: {}", e),
                         }
                     });
@@ -141,8 +153,8 @@ impl ProxyController {
 
     // Create a TCP connection to host:port, build a tunnel between the connection and
     // the upgraded connection
-    async fn tunnel(mut upgraded: Upgraded, addr: Uri) -> std::io::Result<()> {
-        let mut server = TcpStream::connect(addr.to_string()).await?;
+    async fn tunnel(mut upgraded: Upgraded, addr: String) -> std::io::Result<()> {
+        let mut server = TcpStream::connect(addr).await?;
 
         let (from_client, from_server) =
             tokio::io::copy_bidirectional(&mut upgraded, &mut server).await?;
@@ -208,18 +220,29 @@ impl ProxyControllerInner {
         Ok(())
     }
 
-    async fn add_package_certificate_to_resolver(&mut self, hostname: Fqdn, pkg_id: PackageId) -> Result<(), Error> {
-  
+    async fn add_package_certificate_to_resolver(
+        &mut self,
+        resource_fqdn: Fqdn,
+        pkg_id: PackageId,
+    ) -> Result<(), Error> {
         dbg!("adding cert");
 
-        let package_cert = self
-            .ssl_manager
-            .certificate_for(&hostname.root, &pkg_id)
-            .await?;
+        let package_cert = match resource_fqdn.clone() {
+            Fqdn::IpAddr(ip) => {
+                self.ssl_manager
+                    .certificate_for(&ip.to_string(), &pkg_id)
+                    .await?
+            }
+            Fqdn::Uri {
+                full_uri,
+                root,
+                tld,
+            } => self.ssl_manager.certificate_for(&root, &pkg_id).await?,
+        };
 
         self.vhosts
             .cert_resolver
-            .add_certificate_to_resolver(hostname, package_cert)
+            .add_certificate_to_resolver(resource_fqdn, package_cert)
             .await
             .map_err(|err| {
                 Error::new(
@@ -360,7 +383,7 @@ impl ProxyControllerInner {
                                 .await?;
 
                             let mapping = server.svc_mapping.read().await;
-                    
+
                             if mapping.is_empty() {
                                 server_removal = true;
                                 server_removal_port = service_ext_port.0;
@@ -397,7 +420,8 @@ impl ProxyControllerInner {
         self.embassyd_fqdn.to_string()
     }
 
-    pub fn get_no_dot_name(&self) -> String {
-        self.embassyd_fqdn.root
-    }
+    // pub fn get_no_dot_name(&self) -> String {
+        
+    //     self.embassyd_fqdn.root
+    // }
 }

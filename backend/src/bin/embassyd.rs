@@ -13,6 +13,7 @@ use embassy::hostname::get_current_ip;
 // use embassy::middleware::diagnostic::diagnostic;
 #[cfg(feature = "avahi")]
 use embassy::net::mdns::MdnsController;
+use embassy::net::net_controller::NetController;
 use embassy::net::tor::tor_health_check;
 use embassy::net::HttpHandler;
 use embassy::shutdown::Shutdown;
@@ -39,60 +40,8 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
             ),
         )
         .await?;
-        let host_name = rpc_ctx.net_controller.proxy.get_hostname().await;
-
-        let no_dot_host_name = rpc_ctx.net_controller.proxy.get_no_dot_name().await;
-
-        let ip = get_current_ip(rpc_ctx.ethernet_interface.to_owned()).await?;
-
-        let handler: HttpHandler =
-            embassy::net::static_server::file_server_router(rpc_ctx.clone()).await?;
-
-        rpc_ctx
-            .net_controller
-            .proxy
-            .add_handle(80, host_name.clone(), handler.clone(), false)
-            .await?;
-
-        rpc_ctx
-            .net_controller
-            .proxy
-            .add_handle(80, ip.to_owned(), handler.clone(), false)
-            .await?;
-
-        let eos_pkg_id: PackageId = "embassy".parse().unwrap();
-
-        let root_crt = rpc_ctx
-            .net_controller
-            .ssl
-            .certificate_for(&no_dot_host_name, &eos_pkg_id)
-            .await?;
-
-        rpc_ctx
-            .net_controller
-            .proxy
-            .add_certificate_to_resolver(host_name.clone(), root_crt.clone())
-            .await?;
-
-        rpc_ctx
-            .net_controller
-            .proxy
-            .add_handle(443, host_name, handler.clone(), true)
-            .await?;
-
-        rpc_ctx
-            .net_controller
-            .proxy
-            .add_certificate_to_resolver(ip.to_owned(), root_crt)
-            .await?;
-
-         rpc_ctx
-            .net_controller
-            .proxy
-            .add_handle(443, ip.to_owned(), handler.clone(), false)
-            .await?;
-
-
+        NetController::setup_embassy_ui(rpc_ctx.clone()).await?;
+        
 
         let mut shutdown_recv = rpc_ctx.shutdown.subscribe();
 
@@ -109,7 +58,7 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
                 .map(|s| {
                     async move {
                         signal(*s)
-                            .expect(&format!("register {:?} handler", s))
+                            .unwrap_or_else(|_| panic!("register {:?} handler", s))
                             .recv()
                             .await
                     }

@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 use std::fmt;
+use std::net::IpAddr;
 use std::str::FromStr;
 
 use color_eyre::eyre::eyre;
@@ -41,20 +42,43 @@ impl Ord for Fqdn {
 
 impl PartialEq for Fqdn {
     fn eq(&self, other: &Self) -> bool {
-        self.full_uri == other.full_uri
+        // match self {
+        //     Fqdn::IpAddr(ip_left) => match other {
+        //         Fqdn::IpAddr(ip_right) => ip_left == ip_right,
+        //         Fqdn::Uri { full_uri, root, tld } => {
+
+        //         },
+        //     },
+        //     Fqdn::Uri { full_uri, root, tld } => todo!(),
+        // }
+        self == other
     }
 }
 
 #[derive(Eq, Debug, Clone)]
-pub struct Fqdn {
-    pub full_uri: Uri,
-    pub root: String,
-    pub tld: Tld,
+pub enum Fqdn {
+    IpAddr(IpAddr),
+    Uri {
+        full_uri: Uri,
+        root: String,
+        tld: Tld,
+    },
 }
 
 impl fmt::Display for Fqdn {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", format!("{}", self.full_uri))
+        match self {
+            Fqdn::IpAddr(ip) => {
+                write!(f, "{}", ip)
+            }
+            Fqdn::Uri {
+                full_uri,
+                root,
+                tld,
+            } => {
+                write!(f, "{}", format!("{}", full_uri))
+            }
+        }
     }
 }
 
@@ -79,36 +103,48 @@ impl FromStr for Fqdn {
     type Err = Error;
 
     fn from_str(input: &str) -> Result<Fqdn, Self::Err> {
-        let hostname_split: Vec<&str> = input.split('.').collect();
+        let full_fqdn = {
+            if let Ok(ip) = input.parse::<IpAddr>() {
+                Ok(Fqdn::IpAddr(ip))
+            } else {
+                let fqdn_url = {
+                    let hostname_split: Vec<&str> = input.split('.').collect();
 
-        if hostname_split.len() != 2 {
-            return Err(Error::new(
-                eyre!("invalid url tld number: add support for tldextract to parse complex urls like blah.domain.co.uk and etc?"),
-                crate::ErrorKind::ParseUrl,
-            ));
-        }
+                    if hostname_split.len() != 2 {
+                        return Err(Error::new(
+                    eyre!("invalid url tld number: add support for tldextract to parse complex urls like blah.domain.co.uk and etc?"),
+                    crate::ErrorKind::ParseUrl,
+                ));
+                    }
 
-        match hostname_split[1] {
-            ".local" => Ok(Fqdn {
-                full_uri: input.parse::<Uri>()?,
-                root: hostname_split[0].to_owned(),
-                tld: Tld::Local,
-            }),
-            ".embassy" => Ok(Fqdn {
-                full_uri: input.parse::<Uri>()?,
-                root: hostname_split[0].to_owned(),
-                tld: Tld::Embassy,
-            }),
-            ".onion" => Ok(Fqdn {
-                full_uri: input.parse::<Uri>()?,
-                root: hostname_split[0].to_owned(),
-                tld: Tld::Onion,
-            }),
-            _ => Err(Error::new(
-                eyre!("Unknown TLD for enum"),
-                crate::ErrorKind::ParseUrl,
-            )),
-        }
+                    match hostname_split[1] {
+                        ".local" => Ok(Fqdn::Uri {
+                            full_uri: input.parse::<Uri>()?,
+                            root: hostname_split[0].to_owned(),
+                            tld: Tld::Local,
+                        }),
+                        ".embassy" => Ok(Fqdn::Uri {
+                            full_uri: input.parse::<Uri>()?,
+                            root: hostname_split[0].to_owned(),
+                            tld: Tld::Embassy,
+                        }),
+                        ".onion" => Ok(Fqdn::Uri {
+                            full_uri: input.parse::<Uri>()?,
+                            root: hostname_split[0].to_owned(),
+                            tld: Tld::Onion,
+                        }),
+                        _ => Err(Error::new(
+                            eyre!("Unknown TLD for enum"),
+                            crate::ErrorKind::ParseUrl,
+                        )),
+                    }
+                };
+
+                fqdn_url
+            }
+        };
+
+        full_fqdn
     }
 }
 
