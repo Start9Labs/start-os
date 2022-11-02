@@ -4,11 +4,12 @@ use std::sync::Arc;
 
 use tokio_rustls::rustls::ServerConfig;
 
-use crate::net::embassy_service_http_server::{EmbassyCertResolver, EmbassyServiceHTTPServer};
+use crate::net::CertResolver::EmbassyCertResolver;
+use crate::net::embassy_service_http_server::{EmbassyServiceHTTPServer};
 
 use crate::net::HttpHandler;
 use crate::Error;
-use crate::net::net_utils::Fqdn;
+use crate::net::net_utils::ResourceFqdn;
 
 pub struct VHOSTController {
     pub service_servers: BTreeMap<u16, EmbassyServiceHTTPServer>,
@@ -41,7 +42,7 @@ impl VHOSTController {
     pub async fn add_server_or_handle(
         &mut self,
         external_svc_port: u16,
-        fqdn: Fqdn,
+        fqdn: ResourceFqdn,
         svc_handler: HttpHandler,
         is_ssl: bool,
     ) -> Result<(), Error> {
@@ -59,7 +60,7 @@ impl VHOSTController {
         &mut self,
         is_ssl: bool,
         external_svc_port: u16,
-        fqdn: Fqdn,
+        fqdn: ResourceFqdn,
         svc_handler: HttpHandler,
     ) -> Result<(), Error> {
         let ssl_cfg = if is_ssl {
@@ -74,10 +75,12 @@ impl VHOSTController {
             EmbassyServiceHTTPServer::new(self.embassyd_addr.ip(), external_svc_port, ssl_cfg)
                 .await?;
         new_service_server
-            .add_svc_handler_mapping(fqdn, svc_handler)
+            .add_svc_handler_mapping(fqdn.clone(), svc_handler)
             .await?;
-        self.service_servers
-            .insert(external_svc_port, new_service_server);
+        if let Some(other) = self.service_servers
+            .insert(external_svc_port, new_service_server) {
+                tracing::error!("REDRAGONX Dropping {fqdn}")
+            }
    
         Ok(())
     }

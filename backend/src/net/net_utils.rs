@@ -9,8 +9,9 @@ use hyper::Body;
 
 use crate::Error;
 
-pub fn host_addr_fqdn(req: &Request<Body>) -> Result<Fqdn, Error> {
+pub fn host_addr_fqdn(req: &Request<Body>) -> Result<ResourceFqdn, Error> {
     let host = req.headers().get(http::header::HOST);
+
 
     match host {
         Some(host) => {
@@ -19,7 +20,7 @@ pub fn host_addr_fqdn(req: &Request<Body>) -> Result<Fqdn, Error> {
                 .map_err(|e| Error::new(eyre!("{}", e), crate::ErrorKind::AsciiError))?
                 .to_string();
 
-            let host_uri: Fqdn = host_str.parse()?;
+            let host_uri: ResourceFqdn = host_str.parse()?;
 
             Ok(host_uri)
         }
@@ -28,8 +29,9 @@ pub fn host_addr_fqdn(req: &Request<Body>) -> Result<Fqdn, Error> {
     }
 }
 
+
 #[derive(Eq, PartialEq, PartialOrd, Ord, Debug, Clone)]
-pub enum Fqdn {
+pub enum ResourceFqdn {
     IpAddr(IpAddr),
     Uri {
         full_uri: String,
@@ -38,13 +40,13 @@ pub enum Fqdn {
     },
 }
 
-impl fmt::Display for Fqdn {
+impl fmt::Display for ResourceFqdn {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Fqdn::IpAddr(ip) => {
+            ResourceFqdn::IpAddr(ip) => {
                 write!(f, "{}", ip)
             }
-            Fqdn::Uri {
+            ResourceFqdn::Uri {
                 full_uri,
                 root,
                 tld,
@@ -72,62 +74,53 @@ impl fmt::Display for Tld {
     }
 }
 
-impl FromStr for Fqdn {
+impl FromStr for ResourceFqdn {
     type Err = Error;
 
-    fn from_str(input: &str) -> Result<Fqdn, Self::Err> {
+    fn from_str(input: &str) -> Result<ResourceFqdn, Self::Err> {
 
         dbg!(input);
+        if let Ok(ip) = input.parse::<IpAddr>() {
+            return Ok(ResourceFqdn::IpAddr(ip));
+        }
 
+       
+        let hostname_split: Vec<&str> = input.split('.').collect();
 
-        let full_fqdn = {
-            if let Ok(ip) = input.parse::<IpAddr>() {
-                Ok(Fqdn::IpAddr(ip))
-            } else {
-                let fqdn_url = {
-                    let hostname_split: Vec<&str> = input.split('.').collect();
+        if hostname_split.len() != 2 {
+            return Err(Error::new(
+                eyre!("invalid url tld number: add support for tldextract to parse complex urls like blah.domain.co.uk and etc?"),
+                crate::ErrorKind::ParseUrl,
+            ));
+        }
 
-                    if hostname_split.len() != 2 {
-                        return Err(Error::new(
-                    eyre!("invalid url tld number: add support for tldextract to parse complex urls like blah.domain.co.uk and etc?"),
-                    crate::ErrorKind::ParseUrl,
-                ));
-                    }
+        dbg!(hostname_split.clone());
 
-                    dbg!(hostname_split.clone());
-
-                    match hostname_split[1] {
-                        "local" => Ok(Fqdn::Uri {
-                            full_uri: input.to_owned(),
-                            root: hostname_split[0].to_owned(),
-                            tld: Tld::Local,
-                        }),
-                        "embassy" => Ok(Fqdn::Uri {
-                            full_uri: input.to_owned(),
-                            root: hostname_split[0].to_owned(),
-                            tld: Tld::Embassy,
-                        }),
-                        "onion" => Ok(Fqdn::Uri {
-                            full_uri: input.to_owned(),
-                            root: hostname_split[0].to_owned(),
-                            tld: Tld::Onion,
-                        }),
-                        _ => Err(Error::new(
-                            eyre!("Unknown TLD for enum"),
-                            crate::ErrorKind::ParseUrl,
-                        )),
-                    }
-                };
-
-                fqdn_url
-            }
-        };
-
-        full_fqdn
+        match hostname_split[1] {
+            "local" => Ok(ResourceFqdn::Uri {
+                full_uri: input.to_owned(),
+                root: hostname_split[0].to_owned(),
+                tld: Tld::Local,
+            }),
+            "embassy" => Ok(ResourceFqdn::Uri {
+                full_uri: input.to_owned(),
+                root: hostname_split[0].to_owned(),
+                tld: Tld::Embassy,
+            }),
+            "onion" => Ok(ResourceFqdn::Uri {
+                full_uri: input.to_owned(),
+                root: hostname_split[0].to_owned(),
+                tld: Tld::Onion,
+            }),
+            _ => Err(Error::new(
+                eyre!("Unknown TLD for enum"),
+                crate::ErrorKind::ParseUrl,
+            )),
+        }
     }
 }
 
-impl TryFrom<Uri> for Fqdn {
+impl TryFrom<Uri> for ResourceFqdn {
     type Error = Error;
 
     fn try_from(value: Uri) -> Result<Self, Self::Error> {

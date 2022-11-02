@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use color_eyre::eyre::eyre;
 use futures::FutureExt;
-use http::{Method, Request, Response, Uri};
+use http::{Method, Request, Response};
 use hyper::upgrade::Upgraded;
 use hyper::{Body, Error as HyperError};
 use models::{InterfaceId, PackageId};
@@ -15,7 +15,7 @@ use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 use tracing::{error, info, instrument};
 
-use crate::net::net_utils::{host_addr_fqdn, Fqdn};
+use crate::net::net_utils::{host_addr_fqdn, ResourceFqdn};
 use crate::net::ssl::SslManager;
 use crate::net::vhost_controller::VHOSTController;
 use crate::net::{HttpClient, HttpHandler, InterfaceMetadata, PackageNetInfo};
@@ -28,7 +28,7 @@ pub struct ProxyController {
 impl ProxyController {
     pub async fn init(
         embassyd_socket_addr: SocketAddr,
-        embassy: Fqdn,
+        embassy: ResourceFqdn,
         ssl_manager: SslManager,
     ) -> Result<Self, Error> {
         dbg!("starting proxy");
@@ -58,7 +58,7 @@ impl ProxyController {
 
     pub async fn add_certificate_to_resolver(
         &self,
-        fqdn: Fqdn,
+        fqdn: ResourceFqdn,
         cert_data: (PKey<Private>, Vec<X509>),
     ) -> Result<(), Error> {
         self.inner
@@ -71,7 +71,7 @@ impl ProxyController {
     pub async fn add_handle(
         &self,
         ext_port: u16,
-        fqdn: Fqdn,
+        fqdn: ResourceFqdn,
         handler: HttpHandler,
         is_ssl: bool,
     ) -> Result<(), Error> {
@@ -112,12 +112,12 @@ impl ProxyController {
                     tokio::task::spawn(async move {
                         match hyper::upgrade::on(req).await {
                             Ok(upgraded) => match host {
-                                Fqdn::IpAddr(ip) => {
+                                ResourceFqdn::IpAddr(ip) => {
                                     if let Err(e) = Self::tunnel(upgraded, ip.to_string()).await {
                                         error!("server io error: {}", e);
                                     };
                                 }
-                                Fqdn::Uri {
+                                ResourceFqdn::Uri {
                                     full_uri,
                                     root,
                                     tld,
@@ -171,16 +171,16 @@ struct ProxyControllerInner {
     embassyd_socket_addr: SocketAddr,
     ssl_manager: SslManager,
     vhosts: VHOSTController,
-    embassyd_fqdn: Fqdn,
+    embassyd_fqdn: ResourceFqdn,
     docker_interfaces: BTreeMap<PackageId, PackageNetInfo>,
-    docker_iface_lookups: BTreeMap<(PackageId, InterfaceId), Fqdn>,
+    docker_iface_lookups: BTreeMap<(PackageId, InterfaceId), ResourceFqdn>,
 }
 
 impl ProxyControllerInner {
     #[instrument]
     async fn init(
         embassyd_socket_addr: SocketAddr,
-        embassyd_fqdn: Fqdn,
+        embassyd_fqdn: ResourceFqdn,
         ssl_manager: SslManager,
     ) -> Result<Self, Error> {
         let inner = ProxyControllerInner {
@@ -203,7 +203,7 @@ impl ProxyControllerInner {
 
     async fn add_certificate_to_resolver(
         &mut self,
-        hostname: Fqdn,
+        hostname: ResourceFqdn,
         cert_data: (PKey<Private>, Vec<X509>),
     ) -> Result<(), Error> {
         self.vhosts
@@ -222,18 +222,18 @@ impl ProxyControllerInner {
 
     async fn add_package_certificate_to_resolver(
         &mut self,
-        resource_fqdn: Fqdn,
+        resource_fqdn: ResourceFqdn,
         pkg_id: PackageId,
     ) -> Result<(), Error> {
         dbg!("adding cert");
 
         let package_cert = match resource_fqdn.clone() {
-            Fqdn::IpAddr(ip) => {
+            ResourceFqdn::IpAddr(ip) => {
                 self.ssl_manager
                     .certificate_for(&ip.to_string(), &pkg_id)
                     .await?
             }
-            Fqdn::Uri {
+            ResourceFqdn::Uri {
                 full_uri,
                 root,
                 tld,
@@ -257,7 +257,7 @@ impl ProxyControllerInner {
     pub async fn add_handle(
         &mut self,
         external_svc_port: u16,
-        fqdn: Fqdn,
+        fqdn: ResourceFqdn,
         svc_handler: HttpHandler,
         is_ssl: bool,
     ) -> Result<(), Error> {
@@ -285,7 +285,7 @@ impl ProxyControllerInner {
 
         for (id, meta) in interface_map.iter() {
             for (external_svc_port, lan_port_config) in meta.lan_config.iter() {
-                let full_fqdn = Fqdn::from_str(&meta.fqdn).unwrap();
+                let full_fqdn = ResourceFqdn::from_str(&meta.fqdn).unwrap();
 
                 self.docker_iface_lookups
                     .insert((package.clone(), id.clone()), full_fqdn.clone());
@@ -324,7 +324,7 @@ impl ProxyControllerInner {
         Ok(())
     }
 
-    async fn create_docker_handle(proxy_addr: Fqdn, is_ssl: bool) -> HttpHandler {
+    async fn create_docker_handle(proxy_addr: ResourceFqdn, is_ssl: bool) -> HttpHandler {
         let svc_handler: HttpHandler = Arc::new(move |mut req| {
             let proxy_addr = proxy_addr.clone();
             async move {
@@ -332,7 +332,7 @@ impl ProxyControllerInner {
 
                 let uri_string = if is_ssl {
                     format!(
-                        "https://{}{}",
+                        "http://{}{}",
                         proxy_addr,
                         req.uri()
                             .path_and_query()
@@ -352,6 +352,8 @@ impl ProxyControllerInner {
                 let uri = uri_string.parse().unwrap();
                 *req.uri_mut() = uri;
 
+                tracing::error!("REDRAGONX Running docker handler for {req:?}");
+
                 // Ok::<_, HyperError>(Response::new(Body::empty()))
                 ProxyController::proxy(client, req).await
             }
@@ -363,6 +365,7 @@ impl ProxyControllerInner {
 
     #[instrument(skip(self))]
     pub async fn remove_docker_service(&mut self, package: &PackageId) -> Result<(), Error> {
+        tracing::error!("REDRAGONX REmoving a docker {package:?}", );
         let mut server_removal = false;
         let mut server_removal_port: u16 = 0;
         let mut removed_interface_id = InterfaceId::<String>::default();

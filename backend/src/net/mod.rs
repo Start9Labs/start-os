@@ -31,6 +31,7 @@ pub mod net_controller;
 pub mod net_utils;
 pub mod proxy_controller;
 pub mod ssl;
+pub mod CertResolver;
 pub mod static_server;
 pub mod tor;
 pub mod vhost_controller;

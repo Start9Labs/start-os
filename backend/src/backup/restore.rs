@@ -27,7 +27,7 @@ use crate::hostname::get_current_ip;
 use crate::install::progress::InstallProgress;
 use crate::install::{download_install_s9pk, PKG_PUBLIC_DIR};
 use crate::net::net_controller::NetController;
-use crate::net::net_utils::Fqdn;
+use crate::net::net_utils::ResourceFqdn;
 use crate::net::ssl::SslManager;
 use crate::net::static_server::file_server_router;
 use crate::net::HttpHandler;
@@ -242,7 +242,7 @@ pub async fn recover_full_embassy(
         os_backup.root_ca_cert,
         async move {
             let rpc_ctx = RpcContext::init(ctx.config_path.clone(), disk_guid).await?;
-
+            tracing::error!("REDRAGONX: RESTORE.RS WAS CALLED");
             NetController::setup_embassy_ui(rpc_ctx.clone()).await?;
 
             let mut db = rpc_ctx.db.handle();

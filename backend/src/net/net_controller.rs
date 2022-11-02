@@ -20,7 +20,7 @@ use crate::net::dns::DnsController;
 use crate::net::interface::{Interface, TorConfig};
 #[cfg(feature = "avahi")]
 use crate::net::mdns::MdnsController;
-use crate::net::net_utils::Fqdn;
+use crate::net::net_utils::ResourceFqdn;
 use crate::net::proxy_controller::ProxyController;
 use crate::net::ssl::SslManager;
 use crate::net::tor::TorController;
@@ -55,7 +55,7 @@ impl NetController {
         let embassy_host_name = get_hostname(db_handle, &receipts).await?;
         let embassy_name = embassy_host_name.local_domain_name();
 
-        let fqdn_name = Fqdn::from_str(&embassy_name)?;
+        let fqdn_name = ResourceFqdn::from_str(&embassy_name)?;
 
         let ssl = match import_root_ca {
             None => SslManager::init(db.clone(), db_handle).await,
@@ -85,18 +85,18 @@ impl NetController {
         let host_name = rpc_ctx.net_controller.proxy.get_hostname().await;
         let ip = get_current_ip(rpc_ctx.ethernet_interface.to_owned()).await?;
 
-        let host_name_fqdn: Fqdn = host_name.parse()?;
-        let ip_fqdn: Fqdn = ip.parse()?;
+        let host_name_fqdn: ResourceFqdn = host_name.parse()?;
+        let ip_fqdn: ResourceFqdn = ip.parse()?;
 
         let handler: HttpHandler =
             crate::net::static_server::file_server_router(rpc_ctx.clone()).await?;
 
         let eos_pkg_id: PackageId = "embassy".parse().unwrap();
 
-        if let Fqdn::Uri {
-            full_uri,
+        if let ResourceFqdn::Uri {
+            full_uri: _,
             root,
-            tld,
+            tld: _,
         } = host_name_fqdn.clone()
         {
             let root_cert = rpc_ctx
@@ -118,7 +118,7 @@ impl NetController {
                 .await?;
         };
 
-        if let Fqdn::IpAddr(ip) = ip_fqdn.clone()
+        if let ResourceFqdn::IpAddr(ip) = ip_fqdn.clone()
         {
             let root_cert = rpc_ctx
                 .net_controller
@@ -129,7 +129,7 @@ impl NetController {
             rpc_ctx
                 .net_controller
                 .proxy
-                .add_certificate_to_resolver(ip_fqdn.clone(), root_cert.clone())
+                .add_certificate_to_resolver(ip_fqdn.clone(), root_cert)
                 .await?;
 
             rpc_ctx
@@ -151,8 +151,8 @@ impl NetController {
         let host_name = rpc_ctx.net_controller.proxy.get_hostname().await;
         let ip = get_current_ip(rpc_ctx.ethernet_interface.to_owned()).await?;
 
-        let host_name_fqdn: Fqdn = host_name.parse()?;
-        let ip_fqdn: Fqdn = ip.parse()?;
+        let host_name_fqdn: ResourceFqdn = host_name.parse()?;
+        let ip_fqdn: ResourceFqdn = ip.parse()?;
 
         let handler: HttpHandler =
             crate::net::static_server::file_server_router(rpc_ctx.clone()).await?;

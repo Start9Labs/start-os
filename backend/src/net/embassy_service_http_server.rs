@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::future::ready;
 use std::io;
 use std::net::{IpAddr, SocketAddr};
 use std::pin::Pin;
@@ -23,215 +24,17 @@ use tokio_rustls::rustls::sign::{any_supported_type, CertifiedKey};
 use tokio_rustls::rustls::{Certificate, PrivateKey, ServerConfig};
 use tracing::error;
 
-use crate::net::net_utils::{host_addr_fqdn, Fqdn};
+use crate::net::net_utils::{host_addr_fqdn, ResourceFqdn};
+use crate::net::CertResolver::TlsAcceptor;
 use crate::net::HttpHandler;
 use crate::Error;
 
 static RES_NOT_FOUND: &[u8] = b"503 Service Unavailable";
 static NO_HOST: &[u8] = b"No host header found";
 
-enum State {
-    Handshaking(tokio_rustls::Accept<AddrStream>),
-    Streaming(tokio_rustls::server::TlsStream<AddrStream>),
-}
-
-// tokio_rustls::server::TlsStream doesn't expose constructor methods,
-// so we have to TlsAcceptor::accept and handshake to have access to it
-// TlsStream implements AsyncRead/AsyncWrite handshaking tokio_rustls::Accept first
-pub struct TlsStream {
-    state: State,
-}
-
-impl TlsStream {
-    fn new(stream: AddrStream, config: Arc<ServerConfig>) -> TlsStream {
-        let accept = tokio_rustls::TlsAcceptor::from(config).accept(stream);
-        TlsStream {
-            state: State::Handshaking(accept),
-        }
-    }
-}
-
-impl AsyncRead for TlsStream {
-    fn poll_read(
-        self: Pin<&mut Self>,
-        cx: &mut Context,
-        buf: &mut ReadBuf,
-    ) -> Poll<io::Result<()>> {
-        let pin = self.get_mut();
-        match pin.state {
-            State::Handshaking(ref mut accept) => match ready!(Pin::new(accept).poll(cx)) {
-                Ok(mut stream) => {
-                    let result = Pin::new(&mut stream).poll_read(cx, buf);
-                    pin.state = State::Streaming(stream);
-                    result
-                }
-                Err(err) => Poll::Ready(Err(err)),
-            },
-            State::Streaming(ref mut stream) => Pin::new(stream).poll_read(cx, buf),
-        }
-    }
-}
-
-impl AsyncWrite for TlsStream {
-    fn poll_write(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &[u8],
-    ) -> Poll<io::Result<usize>> {
-        let pin = self.get_mut();
-        match pin.state {
-            State::Handshaking(ref mut accept) => match ready!(Pin::new(accept).poll(cx)) {
-                Ok(mut stream) => {
-                    let result = Pin::new(&mut stream).poll_write(cx, buf);
-                    pin.state = State::Streaming(stream);
-                    result
-                }
-                Err(err) => Poll::Ready(Err(err)),
-            },
-            State::Streaming(ref mut stream) => Pin::new(stream).poll_write(cx, buf),
-        }
-    }
-
-    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        match self.state {
-            State::Handshaking(_) => Poll::Ready(Ok(())),
-            State::Streaming(ref mut stream) => Pin::new(stream).poll_flush(cx),
-        }
-    }
-
-    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        match self.state {
-            State::Handshaking(_) => Poll::Ready(Ok(())),
-            State::Streaming(ref mut stream) => Pin::new(stream).poll_shutdown(cx),
-        }
-    }
-}
-
-impl ResolvesServerCert for EmbassyCertResolver {
-    fn resolve(
-        &self,
-        client_hello: tokio_rustls::rustls::server::ClientHello,
-    ) -> Option<Arc<tokio_rustls::rustls::sign::CertifiedKey>> {
-        let hostname_raw = client_hello.server_name();
-
-        match hostname_raw {
-            Some(hostname_str) => {
-                dbg!("am i stopping here at resolving");
-
-                let full_fqdn = match Fqdn::from_str(hostname_str) {
-                    Ok(fqdn) => fqdn,
-                    Err(_) => {
-                        tracing::error!("Error converting {} to fqdn struct", hostname_str);
-                        return None;
-                    }
-                };
-                dbg!(full_fqdn.clone());
-                let lock = self.cert_mapping.read();
-
-                match lock {
-                    Ok(lock) => lock
-                        .get(&full_fqdn)
-                        .map(|cert_key| Arc::new(cert_key.to_owned())),
-                    Err(err) => {
-                        tracing::error!("resolve fn Error: {}", err);
-                        None
-                    }
-                }
-            }
-            None => None,
-        }
-    }
-}
-
-#[derive(Clone, Default)]
-pub struct EmbassyCertResolver {
-    cert_mapping: Arc<RwLock<BTreeMap<Fqdn, CertifiedKey>>>,
-}
-
-impl EmbassyCertResolver {
-    pub fn new() -> Self {
-        Self::default()
-    }
-    pub async fn add_certificate_to_resolver(
-        &mut self,
-        hostname: Fqdn,
-        package_cert_data: (PKey<Private>, Vec<X509>),
-    ) -> Result<(), Error> {
-        let x509_cert_chain = package_cert_data.1;
-        let private_keys = package_cert_data
-            .0
-            .private_key_to_der()
-            .map_err(|err| Error::new(eyre!("err {}", err), crate::ErrorKind::BytesError))?;
-
-        let mut full_rustls_certs = Vec::new();
-        for cert in x509_cert_chain.iter() {
-            let cert =
-                Certificate(cert.to_der().map_err(|err| {
-                    Error::new(eyre!("err: {}", err), crate::ErrorKind::BytesError)
-                })?);
-
-            full_rustls_certs.push(cert);
-        }
-
-        let pre_sign_key = PrivateKey(private_keys);
-        let actual_sign_key = any_supported_type(&pre_sign_key)
-            .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::SignError))?;
-
-        let cert_key = CertifiedKey::new(full_rustls_certs, actual_sign_key);
-
-        let mut lock = self
-            .cert_mapping
-            .write()
-            .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::Network))?;
-        dbg!(hostname.clone());
-        lock.insert(hostname, cert_key);
-
-        Ok(())
-    }
-
-    pub async fn remove_cert(&mut self, hostname: Fqdn) -> Result<(), Error> {
-        let mut lock = self
-            .cert_mapping
-            .write()
-            .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::Network))?;
-
-        lock.remove(&hostname);
-
-        Ok(())
-    }
-}
-
-pub struct TlsAcceptor {
-    config: Arc<ServerConfig>,
-    incoming: AddrIncoming,
-}
-
-impl TlsAcceptor {
-    pub fn new(config: Arc<ServerConfig>, incoming: AddrIncoming) -> TlsAcceptor {
-        TlsAcceptor { config, incoming }
-    }
-}
-
-impl Accept for TlsAcceptor {
-    type Conn = TlsStream;
-    type Error = io::Error;
-
-    fn poll_accept(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
-        let pin = self.get_mut();
-        match ready!(Pin::new(&mut pin.incoming).poll_accept(cx)) {
-            Some(Ok(sock)) => Poll::Ready(Some(Ok(TlsStream::new(sock, pin.config.clone())))),
-            Some(Err(e)) => Poll::Ready(Some(Err(e))),
-            None => Poll::Ready(None),
-        }
-    }
-}
-
 pub struct EmbassyServiceHTTPServer {
     // String: Virtual
-    pub svc_mapping: Arc<tokio::sync::RwLock<BTreeMap<Fqdn, HttpHandler>>>,
+    pub svc_mapping: Arc<tokio::sync::RwLock<BTreeMap<ResourceFqdn, HttpHandler>>>,
     pub shutdown: oneshot::Sender<()>,
     pub handle: NonDetachingJoinHandle<()>,
     pub ssl_cfg: Option<Arc<ServerConfig>>,
@@ -248,7 +51,7 @@ impl EmbassyServiceHTTPServer {
         let listener_socket_addr = SocketAddr::from((listener_addr, port));
 
         let server_service_mapping = Arc::new(tokio::sync::RwLock::new(BTreeMap::<
-            Fqdn,
+            ResourceFqdn,
             HttpHandler,
         >::new()));
 
@@ -261,8 +64,6 @@ impl EmbassyServiceHTTPServer {
                 // let server_service_mapping = server_service_mapping.clone();
 
                 Ok::<_, HyperError>(service_fn(move |req| {
-                    dbg!(req.uri());
-
                     let mut server_service_mapping = server_service_mapping.clone();
 
                     async move {
@@ -270,7 +71,6 @@ impl EmbassyServiceHTTPServer {
                         server_service_mapping = server_service_mapping.clone();
 
                         let host = host_addr_fqdn(&req);
-
                         match host {
                             Ok(host_uri) => {
                                 // host_str is a string like example.com:443, we just want the fqdn before the semi colon
@@ -282,16 +82,32 @@ impl EmbassyServiceHTTPServer {
 
                                     let opt_handler = mapping.get(&host_uri).cloned();
 
+                                    tracing::error!(
+                                        "REDRAGONX Keys  {:?}",
+                                        mapping.keys().collect::<Vec<_>>()
+                                    );
                                     for (value, _fg) in mapping.clone().into_iter() {
                                         dbg!(value);
                                     }
-                            
 
                                     opt_handler
                                 };
                                 match res {
-                                    Some(opt_handler) => opt_handler(req).await,
-                                    None => Ok(res_not_found()),
+                                    Some(opt_handler) => {
+                                        tracing::error!("REDRAGONX Running handler for {host_uri}");
+                                        let response = opt_handler(req).await;
+
+                                        // response
+
+                                        match response {
+                                            Ok(resp) => Ok::<Response<Body>, hyper::Error>(resp),
+                                            Err(err) => Ok(respond_hyper_error(err)),
+                                        }
+                                    }
+                                    None => {
+                                        tracing::error!("REDRAGONX Could not find a handler for {host_uri} {host_uri:?}");
+                                        Ok(res_not_found())
+                                    }
                                 }
                                 //         //
                             }
@@ -349,19 +165,20 @@ impl EmbassyServiceHTTPServer {
 
     pub async fn add_svc_handler_mapping(
         &mut self,
-        fqdn: Fqdn,
+        fqdn: ResourceFqdn,
         svc_handle: HttpHandler,
     ) -> Result<(), Error> {
         let mut mapping = self.svc_mapping.write().await;
         // .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::Network))?;
-        dbg!("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh");
-        mapping.insert(fqdn, svc_handle);
-        
-    
+        tracing::error!("REDRAGONX Adding svc handler {fqdn}");
+        if let Some(older_service) = mapping.insert(fqdn.clone(), svc_handle) {
+            tracing::error!("REDRAGONX Adding svc handler {fqdn} removing a svc_handle");
+        }
+
         Ok(())
     }
 
-    pub async fn remove_svc_handler_mapping(&mut self, fqdn: Fqdn) -> Result<(), Error> {
+    pub async fn remove_svc_handler_mapping(&mut self, fqdn: ResourceFqdn) -> Result<(), Error> {
         let mut mapping = self.svc_mapping.write().await;
         // .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::Network))?;
 
@@ -379,6 +196,21 @@ fn res_not_found() -> Response<Body> {
 }
 
 fn no_host_found(err: Error) -> Response<Body> {
+    let err_txt = format!("{}: Error {}", String::from_utf8_lossy(NO_HOST), err);
+    Response::builder()
+        .status(StatusCode::BAD_REQUEST)
+        .body(err_txt.into())
+        .unwrap()
+}
+
+// fn error_str(err: &str) -> Response<Body> {
+//     Response::builder()
+//         .status(StatusCode::BAD_REQUEST)
+//         .body(err.into())
+//         .unwrap()
+// }
+
+fn respond_hyper_error(err: hyper::Error) -> Response<Body> {
     let err_txt = format!("{}: Error {}", String::from_utf8_lossy(NO_HOST), err);
     Response::builder()
         .status(StatusCode::BAD_REQUEST)
