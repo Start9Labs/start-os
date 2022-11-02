@@ -11,7 +11,7 @@ use deno_core::{
     resolve_import, Extension, JsRuntime, ModuleLoader, ModuleSource, ModuleSourceFuture,
     ModuleSpecifier, ModuleType, OpDecl, RuntimeOptions, Snapshot,
 };
-use helpers::{script_dir, SingleThreadJoinHandle};
+use helpers::{script_dir, spawn_local};
 use models::{ExecCommand, PackageId, ProcedureName, TermCommand, Version, VolumeId};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -255,9 +255,8 @@ impl JsExecutionEnvironment {
                 ));
             }
         };
-        let safer_handle =
-            SingleThreadJoinHandle::new(move || self.execute(procedure_name, input, variable_args));
-        let output = safer_handle.await?;
+        let safer_handle = spawn_local(|| self.execute(procedure_name, input, variable_args)).await;
+        let output = safer_handle.await.unwrap()?;
         match serde_json::from_value(output.clone()) {
             Ok(x) => Ok(x),
             Err(err) => {

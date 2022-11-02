@@ -54,7 +54,30 @@ export class MockApiService extends ApiService {
             'embassy-os': {
               version: '0.2.17',
               full: true,
-              'password-hash': null,
+              'password-hash':
+                '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+              'wrapped-key': null,
+            },
+          },
+        ],
+        capacity: 123456789123,
+        guid: 'uuid-uuid-uuid-uuid',
+      },
+      {
+        logicalname: 'dcba',
+        vendor: 'Samsung',
+        model: 'T5',
+        partitions: [
+          {
+            logicalname: 'pbcba',
+            label: null,
+            capacity: 73264762332,
+            used: null,
+            'embassy-os': {
+              version: '0.3.1',
+              full: true,
+              'password-hash':
+                '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
               'wrapped-key': null,
             },
           },
@@ -63,11 +86,6 @@ export class MockApiService extends ApiService {
         guid: 'uuid-uuid-uuid-uuid',
       },
     ]
-  }
-
-  async set02XDrive() {
-    await pauseFor(1000)
-    return
   }
 
   async getRecoveryStatus() {
@@ -134,105 +152,3 @@ const setupRes = {
   'lan-address': 'https://embassy-abcdefgh.local',
   'root-ca': encodeBase64(rootCA),
 }
-
-const disks = [
-  {
-    vendor: 'Samsung',
-    model: 'SATA',
-    logicalname: '/dev/sda',
-    guid: 'theguid',
-    partitions: [
-      {
-        logicalname: 'sda1',
-        label: 'label 1',
-        capacity: 100000,
-        used: 200.1255312,
-        'embassy-os': null,
-      },
-      {
-        logicalname: 'sda2',
-        label: 'label 2',
-        capacity: 50000,
-        used: 200.1255312,
-        'embassy-os': null,
-      },
-    ],
-    capacity: 150000,
-  },
-  {
-    vendor: 'Samsung',
-    model: null,
-    logicalname: 'dev/sdb',
-    partitions: [],
-    capacity: 34359738369,
-    guid: null,
-  },
-  {
-    vendor: 'Crucial',
-    model: 'MX500',
-    logicalname: 'dev/sdc',
-    guid: null,
-    partitions: [
-      {
-        logicalname: 'sdc1',
-        label: 'label 1',
-        capacity: 0,
-        used: null,
-        'embassy-os': {
-          version: '0.3.3',
-          full: true,
-          'password-hash': 'asdfasdfasdf',
-          'wrapped-key': '',
-        },
-      },
-      {
-        logicalname: 'sdc1MOCKTESTER',
-        label: 'label 1',
-        capacity: 0,
-        used: null,
-        'embassy-os': {
-          version: '0.3.6',
-          full: true,
-          // password is 'asdfasdf'
-          'password-hash':
-            '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-          'wrapped-key': '',
-        },
-      },
-      {
-        logicalname: 'sdc1',
-        label: 'label 1',
-        capacity: 0,
-        used: null,
-        'embassy-os': {
-          version: '0.3.3',
-          full: false,
-          'password-hash': 'asdfasdfasdf',
-          'wrapped-key': '',
-        },
-      },
-    ],
-    capacity: 100000,
-  },
-  {
-    vendor: 'Sandisk',
-    model: null,
-    logicalname: '/dev/sdd',
-    guid: null,
-    partitions: [
-      {
-        logicalname: 'sdd1',
-        label: null,
-        capacity: 10000,
-        used: null,
-        'embassy-os': {
-          version: '0.2.7',
-          full: true,
-          'password-hash': 'asdfasdfasdf',
-          'wrapped-key': '',
-        },
-      },
-    ],
-    capacity: 10000,
-  },
-]

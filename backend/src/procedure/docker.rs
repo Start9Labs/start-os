@@ -832,7 +832,7 @@ impl LongRunning {
             .arg("--entrypoint")
             .arg(format!("{INIT_EXEC}.{image_architecture}"))
             .arg("-i")
-            .arg("--rm")            
+            .arg("--rm")
             .kill_on_drop(true);
 
         for (volume_id, dst) in &docker.mounts {

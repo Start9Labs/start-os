@@ -14,7 +14,7 @@ use futures::{FutureExt, StreamExt, TryStreamExt};
 use http::header::CONTENT_LENGTH;
 use http::{Request, Response, StatusCode};
 use hyper::Body;
-use patch_db::{DbHandle, LockReceipt, LockType};
+use patch_db::{DbHandle, LockType};
 use reqwest::Url;
 use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
@@ -30,7 +30,7 @@ use crate::context::{CliContext, RpcContext};
 use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::db::model::{
     CurrentDependencies, CurrentDependencyInfo, CurrentDependents, InstalledPackageDataEntry,
-    PackageDataEntry, RecoveredPackageInfo, StaticDependencyInfo, StaticFiles,
+    PackageDataEntry, StaticDependencyInfo, StaticFiles,
 };
 use crate::dependencies::{
     add_dependent_to_current_dependents_lists, break_all_dependents_transitive,
@@ -667,43 +667,6 @@ pub async fn uninstall_impl(ctx: RpcContext, id: PackageId) -> Result<(), Error>
     Ok(())
 }
 
-#[command(
-    rename = "delete-recovered",
-    display(display_none),
-    metadata(sync_db = true)
-)]
-pub async fn delete_recovered(
-    #[context] ctx: RpcContext,
-    #[arg] id: PackageId,
-) -> Result<(), Error> {
-    let mut handle = ctx.db.handle();
-    let mut tx = handle.begin().await?;
-    let mut sql_tx = ctx.secret_store.begin().await?;
-
-    let mut recovered_packages = crate::db::DatabaseModel::new()
-        .recovered_packages()
-        .get_mut(&mut tx)
-        .await?;
-    recovered_packages.remove(&id).ok_or_else(|| {
-        Error::new(
-            eyre!("{} not in recovered-packages", id),
-            crate::ErrorKind::NotFound,
-        )
-    })?;
-    recovered_packages.save(&mut tx).await?;
-
-    let volumes = ctx.datadir.join(crate::volume::PKG_VOLUME_DIR).join(&id);
-    if tokio::fs::metadata(&volumes).await.is_ok() {
-        tokio::fs::remove_dir_all(&volumes).await?;
-    }
-    cleanup::remove_tor_keys(&mut sql_tx, &id).await?;
-
-    tx.commit().await?;
-    sql_tx.commit().await?;
-
-    Ok(())
-}
-
 pub struct DownloadInstallReceipts {
     package_receipts: crate::db::package::PackageReceipts,
     manifest_receipts: crate::db::package::ManifestReceipts,
@@ -864,8 +827,6 @@ pub async fn download_install_s9pk(
 
 pub struct InstallS9Receipts {
     config: ConfigReceipts,
-
-    recovered_packages: LockReceipt<BTreeMap<PackageId, RecoveredPackageInfo>, ()>,
 }
 
 impl InstallS9Receipts {
@@ -880,16 +841,9 @@ impl InstallS9Receipts {
         locks: &mut Vec<patch_db::LockTargetId>,
     ) -> impl FnOnce(&patch_db::Verifier) -> Result<Self, Error> {
         let config = ConfigReceipts::setup(locks);
-
-        let recovered_packages = crate::db::DatabaseModel::new()
-            .recovered_packages()
-            .make_locker(LockType::Write)
-            .add_to_keys(locks);
-
         move |skeleton_key| {
             Ok(Self {
                 config: config(skeleton_key)?,
-                recovered_packages: recovered_packages.verify(skeleton_key)?,
             })
         }
     }
@@ -1436,38 +1390,6 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             &receipts.config.update_dependency_receipts,
         )
         .await?;
-    } else if let Some(recovered) = {
-        receipts
-            .recovered_packages
-            .get(&mut tx)
-            .await?
-            .remove(pkg_id)
-    } {
-        handle_recovered_package(
-            recovered,
-            manifest,
-            ctx,
-            pkg_id,
-            version,
-            &mut tx,
-            &receipts.config,
-        )
-        .await?;
-        add_dependent_to_current_dependents_lists(
-            &mut tx,
-            pkg_id,
-            &current_dependencies,
-            &receipts.config.current_dependents,
-        )
-        .await?;
-        update_dependency_errors_of_dependents(
-            ctx,
-            &mut tx,
-            pkg_id,
-            &current_dependents,
-            &receipts.config.update_dependency_receipts,
-        )
-        .await?;
     } else {
         add_dependent_to_current_dependents_lists(
             &mut tx,
@@ -1485,16 +1407,6 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         )
         .await?;
     }
-
-    let recovered_packages = {
-        let mut r = receipts.recovered_packages.get(&mut tx).await?;
-        r.remove(pkg_id);
-        r
-    };
-    receipts
-        .recovered_packages
-        .set(&mut tx, recovered_packages)
-        .await?;
 
     if let Some(installed) = pde.installed() {
         reconfigure_dependents_with_live_pointers(ctx, &mut tx, &receipts.config, installed)
@@ -1505,46 +1417,6 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
     tx.commit().await?;
 
     tracing::info!("Install {}@{}: Complete", pkg_id, version);
-
-    Ok(())
-}
-
-#[instrument(skip(ctx, tx, receipts))]
-async fn handle_recovered_package(
-    recovered: RecoveredPackageInfo,
-    manifest: Manifest,
-    ctx: &RpcContext,
-    pkg_id: &PackageId,
-    version: &Version,
-    tx: &mut patch_db::Transaction<&mut patch_db::PatchDbHandle>,
-    receipts: &ConfigReceipts,
-) -> Result<(), Error> {
-    let configured = if let Some(migration) = manifest.migrations.from(
-        &manifest.containers,
-        ctx,
-        &recovered.version,
-        pkg_id,
-        version,
-        &manifest.volumes,
-    ) {
-        migration.await?.configured
-    } else {
-        false
-    };
-    if configured && manifest.config.is_some() {
-        crate::config::configure(
-            ctx,
-            tx,
-            pkg_id,
-            None,
-            &None,
-            false,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &receipts,
-        )
-        .await?;
-    }
 
     Ok(())
 }

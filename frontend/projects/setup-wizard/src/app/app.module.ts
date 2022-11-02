@@ -16,6 +16,7 @@ import { SuccessPageModule } from './pages/success/success.module'
 import { HomePageModule } from './pages/home/home.module'
 import { LoadingPageModule } from './pages/loading/loading.module'
 import { RecoverPageModule } from './pages/recover/recover.module'
+import { TransferPageModule } from './pages/transfer/transfer.module'
 import { RELATIVE_URL, WorkspaceConfig } from '@start9labs/shared'
 
 const {
@@ -37,6 +38,7 @@ const {
     HomePageModule,
     LoadingPageModule,
     RecoverPageModule,
+    TransferPageModule,
   ],
   providers: [
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },

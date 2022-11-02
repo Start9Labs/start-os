@@ -1,4 +1,4 @@
-<ion-content>
+<ion-content *ngIf="loaded">
   <ion-grid>
     <ion-row>
       <ion-col class="ion-text-center">
@@ -23,7 +23,7 @@
             </ion-card-title>
           </ion-card-header>
           <ion-card-content class="ion-margin-bottom">
-            <swiper (swiper)="setSwiperInstance($event)">
+            <swiper [autoHeight]="true" (swiper)="setSwiperInstance($event)">
               <ng-template swiperSlide>
                 <ion-item
                   button
@@ -47,29 +47,56 @@
                   <ion-icon color="dark" slot="start" name="reload"></ion-icon>
                   <ion-label>
                     <h2><ion-text color="danger">Recover</ion-text></h2>
-                    <p>
-                      Restore from backup or use an existing Embassy data drive
-                    </p>
+                    <p>Recover, restore, or transfer Embassy data</p>
                   </ion-label>
                 </ion-item>
               </ng-template>
               <ng-template swiperSlide>
                 <ion-item button detail="true" routerLink="/recover">
-                  <ion-icon color="dark" slot="start" name="save"></ion-icon>
+                  <ion-icon
+                    color="dark"
+                    slot="start"
+                    name="save-outline"
+                  ></ion-icon>
                   <ion-label>
                     <h2>
                       <ion-text color="warning">Restore From Backup</ion-text>
                     </h2>
-                    <p>Recover an Embassy from encrypted backup</p>
+                    <p>Recover an Embassy from an encrypted backup</p>
                   </ion-label>
                 </ion-item>
                 <ion-item button detail="true" lines="none" (click)="import()">
-                  <ion-icon color="dark" slot="start" name="cube"></ion-icon>
+                  <ion-icon
+                    color="dark"
+                    slot="start"
+                    name="cube-outline"
+                  ></ion-icon>
                   <ion-label>
                     <h2>
                       <ion-text color="primary">Use Existing Drive</ion-text>
                     </h2>
                     <p>Attach and use a valid Embassy data drive</p>
+                  </ion-label>
+                </ion-item>
+                <ion-item
+                  button
+                  detail="true"
+                  lines="none"
+                  routerLink="/transfer"
+                >
+                  <ion-icon
+                    color="dark"
+                    slot="start"
+                    name="share-outline"
+                  ></ion-icon>
+                  <ion-label>
+                    <h2>
+                      <ion-text color="success">Transfer</ion-text>
+                    </h2>
+                    <p>
+                      Transfer data to a new drive<br />(e.g. upgrade to a
+                      larger drive or an Embassy Pro)
+                    </p>
                   </ion-label>
                 </ion-item>
               </ng-template>

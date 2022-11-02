@@ -5,7 +5,6 @@ export abstract class ApiService {
   abstract getStatus(): Promise<GetStatusRes> // setup.status
   abstract getPubKey(): Promise<void> // setup.get-pubkey
   abstract getDrives(): Promise<DiskListResponse> // setup.disk.list
-  abstract set02XDrive(logicalname: string): Promise<void> // setup.recovery.v2.set
   abstract getRecoveryStatus(): Promise<RecoveryStatusRes> // setup.recovery.status
   abstract verifyCifs(cifs: CifsRecoverySource): Promise<EmbassyOSRecoveryInfo> // setup.cifs.verify
   abstract importDrive(importInfo: ImportDriveReq): Promise<SetupEmbassyRes> // setup.attach
@@ -39,7 +38,7 @@ export type ImportDriveReq = {
 export type SetupEmbassyReq = {
   'embassy-logicalname': string
   'embassy-password': Encrypted
-  'recovery-source': CifsRecoverySource | DiskRecoverySource | null
+  'recovery-source': RecoverySource | null
   'recovery-password': Encrypted | null
 }
 
@@ -81,6 +80,17 @@ export type DiskRecoverySource = {
   logicalname: string // partition logicalname
 }
 
+export type BackupRecoverySource = {
+  type: 'backup'
+  target: CifsRecoverySource | DiskRecoverySource
+}
+export type RecoverySource = BackupRecoverySource | DiskMigrateSource
+
+export type DiskMigrateSource = {
+  type: 'migrate'
+  guid: string
+}
+
 export type CifsRecoverySource = {
   type: 'cifs'
   hostname: string
@@ -95,7 +105,7 @@ export type DiskInfo = {
   model: string | null
   partitions: PartitionInfo[]
   capacity: number
-  guid: string | null // cant back up if guid exists
+  guid: string | null // cant back up if guid exists, but needed if migrating
 }
 
 export type RecoveryStatusRes = {
