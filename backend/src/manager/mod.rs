@@ -16,10 +16,10 @@ use nix::sys::signal::Signal;
 use num_enum::TryFromPrimitive;
 use patch_db::DbHandle;
 use sqlx::{Executor, Postgres};
+use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::watch::error::RecvError;
 use tokio::sync::watch::{channel, Receiver, Sender};
 use tokio::sync::{Mutex, Notify, RwLock};
-use tokio::{sync::mpsc::UnboundedSender, task::JoinHandle};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use torut::onion::TorSecretKeyV3;
 use tracing::instrument;
@@ -196,15 +196,10 @@ async fn run_main(
 
     persistant.wait_for_persistant().await;
     let is_injectable_main = check_is_injectable_main(state);
-    let mut runtime = match injectable_main(state) {
-        InjectableMain::None => {
-            tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await })
-        }
-        #[cfg(feature = "js_engine")]
-        InjectableMain::Script(_) => {
-            tokio::spawn(async move { start_up_image(rt_state, generated_certificate).await })
-        }
-    };
+    let mut runtime = NonDetachingJoinHandle::from(tokio::spawn(start_up_image(
+        rt_state,
+        generated_certificate,
+    )));
     let ip = match is_injectable_main {
         false => Some(match get_running_ip(state, &mut runtime).await {
             GetRunninIp::Ip(x) => x,
@@ -276,16 +271,16 @@ impl Manager {
         let thread_shared = shared.clone();
         let persistant_container = PersistantContainer::new(&thread_shared);
         let managers_persistant = persistant_container.clone();
-        let thread = tokio::spawn(async move {
+        let thread = NonDetachingJoinHandle::from(tokio::spawn(async move {
             tokio::select! {
                 _ = manager_thread_loop(recv, &thread_shared, managers_persistant.clone()) => (),
                 _ = synchronizer(&*thread_shared, managers_persistant) => (),
             }
-        });
+        }));
         Ok(Manager {
             shared,
             persistant_container,
-            thread: Container::new(Some(thread.into())),
+            thread: Container::new(Some(thread)),
         })
     }
 
@@ -736,7 +731,7 @@ impl PersistantContainer {
                         }
                     }
                     None => {
-                        return Err("Couldn't get a command inserter in current service".to_string())
+                        return Err("Expecting containers.main in the package manifest".to_string())
                     }
                 };
                 Ok::<RpcId, String>(id)
@@ -937,7 +932,7 @@ enum GetRunninIp {
     EarlyExit(Result<NoOutput, (i32, String)>),
 }
 
-type RuntimeOfCommand = JoinHandle<Result<Result<NoOutput, (i32, String)>, Error>>;
+type RuntimeOfCommand = NonDetachingJoinHandle<Result<Result<NoOutput, (i32, String)>, Error>>;
 
 async fn get_running_ip(
     state: &Arc<ManagerSharedState>,
