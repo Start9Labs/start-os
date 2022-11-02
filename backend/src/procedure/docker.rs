@@ -81,6 +81,8 @@ pub struct DockerProcedure {
     #[serde(default)]
     pub args: Vec<String>,
     #[serde(default)]
+    pub inject: bool,
+    #[serde(default)]
     pub mounts: BTreeMap<VolumeId, PathBuf>,
     #[serde(default)]
     pub io_format: Option<IoFormat>,
@@ -113,6 +115,7 @@ impl DockerProcedure {
             system: injectable.system,
             entrypoint: injectable.entrypoint.clone(),
             args: injectable.args.clone(),
+            inject: false,
             mounts: container.mounts.clone(),
             io_format: injectable.io_format,
             sigterm_timeout: injectable.sigterm_timeout,
@@ -129,6 +132,7 @@ impl DockerProcedure {
             system: container.system,
             entrypoint: "sleep".to_string(),
             args: Vec::new(),
+            inject: false,
             mounts: container.mounts.clone(),
             io_format: None,
             sigterm_timeout: container.sigterm_timeout,
@@ -184,7 +188,8 @@ impl DockerProcedure {
             .arg("--name")
             .arg(&container_name)
             .arg(format!("--hostname={}", &container_name))
-            .arg("--no-healthcheck");
+            .arg("--no-healthcheck")
+            .kill_on_drop(true);
         match ctx
             .docker
             .remove_container(
@@ -796,7 +801,6 @@ impl LongRunning {
         pkg_id: &PackageId,
         pkg_version: &Version,
     ) -> Result<tokio::process::Command, Error> {
-        tracing::error!("BLUJ setup_long_running_docker_cmd {container_name}");
         const INIT_EXEC: &str = "/start9/embassy_container_init";
         const BIND_LOCATION: &str = "/usr/lib/embassy/container";
         tracing::trace!("setup_long_running_docker_cmd");
@@ -831,7 +835,8 @@ impl LongRunning {
             .arg("--entrypoint")
             .arg(format!("{INIT_EXEC}.{image_architecture}"))
             .arg("-i")
-            .arg("--rm");
+            .arg("--rm")
+            .kill_on_drop(true);
 
         for (volume_id, dst) in &docker.mounts {
             let volume = if let Some(v) = volumes.get(volume_id) {
