@@ -36,7 +36,7 @@ impl PartialOrd for Fqdn {
 
 impl Ord for Fqdn {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.cmp(&other)
+        self.cmp(other)
     }
 }
 
@@ -76,7 +76,7 @@ impl fmt::Display for Fqdn {
                 root,
                 tld,
             } => {
-                write!(f, "{}", format!("{}", full_uri))
+                write!(f, "{}", full_uri)
             }
         }
     }
@@ -103,6 +103,10 @@ impl FromStr for Fqdn {
     type Err = Error;
 
     fn from_str(input: &str) -> Result<Fqdn, Self::Err> {
+
+        dbg!(input);
+
+        
         let full_fqdn = {
             if let Ok(ip) = input.parse::<IpAddr>() {
                 Ok(Fqdn::IpAddr(ip))
