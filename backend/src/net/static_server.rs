@@ -37,7 +37,6 @@ pub async fn file_server_router(ctx: RpcContext) -> Result<HttpHandler, Error> {
     let handler: HttpHandler = Arc::new(move |req| {
         let ctx = ctx.clone();
         async move {
-            dbg!(req.uri());
 
             let res = match req.uri().path() {
                 path if path.starts_with("/rpc/") => {
@@ -142,16 +141,13 @@ async fn main_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response<Body>, 
                                 .path()
                                 .strip_prefix('/')
                                 .unwrap_or(request_parts.uri.path());
-                            dbg!(uri_path);
 
                             let full_path = PathBuf::from(WWW_DIR).join(uri_path);
-                            dbg!(full_path.clone().display());
                             file_send(full_path).await
                         }
 
                         (Method::GET, Some((dir, file))) => {
                             let full_path = PathBuf::from(WWW_DIR).join(dir).join(file);
-                            dbg!(full_path.clone().display());
                             file_send(full_path).await
                         }
 
@@ -180,16 +176,13 @@ async fn main_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response<Body>, 
                                 .path()
                                 .strip_prefix('/')
                                 .unwrap_or(request_parts.uri.path());
-                            dbg!(uri_path);
 
                             let full_path = PathBuf::from(WWW_DIR).join(uri_path);
-                            dbg!(full_path.clone().display());
                             file_send(full_path).await
                         }
 
                         (Method::GET, Some((dir, file))) => {
                             let full_path = PathBuf::from(WWW_DIR).join(dir).join(file);
-                            dbg!(full_path.clone().display());
                             file_send(full_path).await
                         }
 

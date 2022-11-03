@@ -216,7 +216,6 @@ async fn run_main(
     };
 
     if let Some(ip) = ip {
-        tracing::error!("REDRAGONX Adding {} - {}",ip, state.container_name);
         add_network_for_main(state, ip, interfaces, generated_certificate).await?;
     }
 
@@ -229,7 +228,6 @@ async fn run_main(
 
     };
     if let Some(ip) = ip {
-        tracing::error!("REDRAGONX Removing {} - {}",ip, state.container_name);
         remove_network_for_main(state, ip).await?;
     }
     res

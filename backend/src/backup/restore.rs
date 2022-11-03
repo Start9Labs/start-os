@@ -242,7 +242,6 @@ pub async fn recover_full_embassy(
         os_backup.root_ca_cert,
         async move {
             let rpc_ctx = RpcContext::init(ctx.config_path.clone(), disk_guid).await?;
-            tracing::error!("REDRAGONX: RESTORE.RS WAS CALLED");
             NetController::setup_embassy_ui(rpc_ctx.clone()).await?;
 
             let mut db = rpc_ctx.db.handle();

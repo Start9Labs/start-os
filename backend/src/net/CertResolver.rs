@@ -105,7 +105,6 @@ impl ResolvesServerCert for EmbassyCertResolver {
 
         match hostname_raw {
             Some(hostname_str) => {
-                dbg!("am i stopping here at resolving");
 
                 let full_fqdn = match ResourceFqdn::from_str(hostname_str) {
                     Ok(fqdn) => fqdn,
@@ -114,7 +113,6 @@ impl ResolvesServerCert for EmbassyCertResolver {
                         return None;
                     }
                 };
-                dbg!(full_fqdn.clone());
                 let lock = self.cert_mapping.read();
 
                 match lock {
@@ -172,7 +170,6 @@ impl EmbassyCertResolver {
             .cert_mapping
             .write()
             .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::Network))?;
-        dbg!(service_resource_fqdn.clone());
         lock.insert(service_resource_fqdn, cert_key);
 
         Ok(())

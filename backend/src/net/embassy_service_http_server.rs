@@ -48,7 +48,7 @@ impl EmbassyServiceHTTPServer {
     ) -> Result<Self, Error> {
         let (tx, rx) = tokio::sync::oneshot::channel::<()>();
 
-        let listener_socket_addr = SocketAddr::from((listener_addr, port));
+        let listener_socket_addr = SocketAddr::from((listener_addr.clone(), port));
 
         let server_service_mapping = Arc::new(tokio::sync::RwLock::new(BTreeMap::<
             ResourceFqdn,
@@ -59,6 +59,7 @@ impl EmbassyServiceHTTPServer {
 
         let bare_make_service_fn = move || {
             let server_service_mapping = server_service_mapping.clone();
+            let listener_addr = listener_addr.clone();
 
             async move {
                 // let server_service_mapping = server_service_mapping.clone();
@@ -82,19 +83,11 @@ impl EmbassyServiceHTTPServer {
 
                                     let opt_handler = mapping.get(&host_uri).cloned();
 
-                                    tracing::error!(
-                                        "REDRAGONX Keys  {:?}",
-                                        mapping.keys().collect::<Vec<_>>()
-                                    );
-                                    for (value, _fg) in mapping.clone().into_iter() {
-                                        dbg!(value);
-                                    }
 
                                     opt_handler
                                 };
                                 match res {
                                     Some(opt_handler) => {
-                                        tracing::error!("REDRAGONX Running handler for {host_uri}");
                                         let response = opt_handler(req).await;
 
                                         // response
@@ -105,7 +98,6 @@ impl EmbassyServiceHTTPServer {
                                         }
                                     }
                                     None => {
-                                        tracing::error!("REDRAGONX Could not find a handler for {host_uri} {host_uri:?}");
                                         Ok(res_not_found())
                                     }
                                 }
@@ -170,19 +162,20 @@ impl EmbassyServiceHTTPServer {
     ) -> Result<(), Error> {
         let mut mapping = self.svc_mapping.write().await;
         // .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::Network))?;
-        tracing::error!("REDRAGONX Adding svc handler {fqdn}");
         if let Some(older_service) = mapping.insert(fqdn.clone(), svc_handle) {
-            tracing::error!("REDRAGONX Adding svc handler {fqdn} removing a svc_handle");
         }
+
 
         Ok(())
     }
 
     pub async fn remove_svc_handler_mapping(&mut self, fqdn: ResourceFqdn) -> Result<(), Error> {
+        
         let mut mapping = self.svc_mapping.write().await;
         // .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::Network))?;
 
         mapping.remove(&fqdn);
+
         Ok(())
     }
 }

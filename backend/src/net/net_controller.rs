@@ -61,8 +61,6 @@ impl NetController {
             None => SslManager::init(db.clone(), db_handle).await,
             Some(a) => SslManager::import_root_ca(db.clone(), a.0, a.1).await,
         }?;
-        dbg!("got ssl cert for root ca");
-
         Ok(Self {
             tor: TorController::init(embassyd_addr, embassyd_tor_key, tor_control).await?,
             #[cfg(feature = "avahi")]
@@ -140,10 +138,6 @@ impl NetController {
         };
 
 
-        dbg!("hostname fqdn: {}", host_name_fqdn.clone());
-
-        dbg!("ip fqdn: {}", ip_fqdn.clone());
-
         Ok(())
     }
 
@@ -169,10 +163,6 @@ impl NetController {
             .add_handle(80, ip_fqdn.clone(), handler.clone(), false)
             .await?;
 
-        dbg!("hostname fqdn: {}", host_name_fqdn.clone());
-
-        dbg!("ip fqdn: {}", ip_fqdn.clone());
-
         Ok(())
     }
 
@@ -192,7 +182,6 @@ impl NetController {
         I: IntoIterator<Item = (InterfaceId, &'a Interface, TorSecretKeyV3)> + Clone,
         for<'b> &'b I: IntoIterator<Item = &'b (InterfaceId, &'a Interface, TorSecretKeyV3)>,
     {
-        dbg!("this is the start of add()");
         let interfaces_tor = interfaces
             .clone()
             .into_iter()
@@ -201,7 +190,6 @@ impl NetController {
                 Some(cfg) => Some((i.0, cfg, i.2)),
             })
             .collect::<Vec<(InterfaceId, TorConfig, TorSecretKeyV3)>>();
-        dbg!("got interfaces_tor");
         let (tor_res, _, proxy_res, _) = tokio::join!(
             self.tor.add(pkg_id, ip, interfaces_tor),
             {
@@ -213,7 +201,6 @@ impl NetController {
                         .into_iter()
                         .map(|(interface_id, _, key)| (interface_id, key)),
                 );
-                dbg!("mdns add: done");
 
                 #[cfg(not(feature = "avahi"))]
                 let mdns_fut = futures::future::ready(());
@@ -239,7 +226,6 @@ impl NetController {
                             })
                         });
                 //self.nginx.add(&self.ssl, pkg_id.clone(), ip, interfaces)
-                dbg!("adding docker svc to proxy");
                 self.proxy
                     .add_docker_service(pkg_id.clone(), ip, interfaces)
             },
@@ -249,7 +235,6 @@ impl NetController {
         //nginx_res?;
         proxy_res?;
 
-        dbg!("proxy:: add done");
 
         Ok(())
     }

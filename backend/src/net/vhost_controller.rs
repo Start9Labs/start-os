@@ -19,7 +19,6 @@ pub struct VHOSTController {
 
 impl VHOSTController {
     pub fn init(embassyd_addr: SocketAddr) -> Self {
-        dbg!("vhost controller init");
         Self {
             embassyd_addr,
             service_servers: BTreeMap::new(),
@@ -69,7 +68,6 @@ impl VHOSTController {
             None
         };
 
-        dbg!("add server fqdn:", fqdn.clone());
 
         let mut new_service_server =
             EmbassyServiceHTTPServer::new(self.embassyd_addr.ip(), external_svc_port, ssl_cfg)
@@ -77,10 +75,8 @@ impl VHOSTController {
         new_service_server
             .add_svc_handler_mapping(fqdn.clone(), svc_handler)
             .await?;
-        if let Some(other) = self.service_servers
-            .insert(external_svc_port, new_service_server) {
-                tracing::error!("REDRAGONX Dropping {fqdn}")
-            }
+        self.service_servers
+            .insert(external_svc_port, new_service_server);
    
         Ok(())
     }

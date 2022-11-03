@@ -79,7 +79,6 @@ impl FromStr for ResourceFqdn {
 
     fn from_str(input: &str) -> Result<ResourceFqdn, Self::Err> {
 
-        dbg!(input);
         if let Ok(ip) = input.parse::<IpAddr>() {
             return Ok(ResourceFqdn::IpAddr(ip));
         }
@@ -94,7 +93,6 @@ impl FromStr for ResourceFqdn {
             ));
         }
 
-        dbg!(hostname_split.clone());
 
         match hostname_split[1] {
             "local" => Ok(ResourceFqdn::Uri {

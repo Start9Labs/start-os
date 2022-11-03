@@ -44,6 +44,7 @@ pub fn net() -> Result<(), Error> {
     Ok(())
 }
 
+#[derive(Default)]
 struct PackageNetInfo {
     interfaces: BTreeMap<InterfaceId, InterfaceMetadata>,
 }

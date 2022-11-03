@@ -31,7 +31,6 @@ impl ProxyController {
         embassy: ResourceFqdn,
         ssl_manager: SslManager,
     ) -> Result<Self, Error> {
-        dbg!("starting proxy");
         Ok(ProxyController {
             inner: Mutex::new(
                 ProxyControllerInner::init(embassyd_socket_addr, embassy, ssl_manager).await?,
@@ -192,8 +191,6 @@ impl ProxyControllerInner {
             docker_iface_lookups: BTreeMap::new(),
         };
 
-        dbg!("inner proxy controller ready");
-
         Ok(inner)
     }
 
@@ -225,8 +222,6 @@ impl ProxyControllerInner {
         resource_fqdn: ResourceFqdn,
         pkg_id: PackageId,
     ) -> Result<(), Error> {
-        dbg!("adding cert");
-
         let package_cert = match resource_fqdn.clone() {
             ResourceFqdn::IpAddr(ip) => {
                 self.ssl_manager
@@ -273,7 +268,7 @@ impl ProxyControllerInner {
         docker_ipv4: Ipv4Addr,
         interfaces: I,
     ) -> Result<(), Error> {
-        let interface_map = interfaces
+        let mut interface_map = interfaces
             .into_iter()
             .filter(|(_, meta)| {
                 // don't add nginx stuff for anything we can't connect to over some flavor of http
@@ -294,9 +289,17 @@ impl ProxyControllerInner {
                 if lan_port_config.ssl {
                     self.add_package_certificate_to_resolver(full_fqdn.clone(), package.clone())
                         .await?;
-                    svc_handler = Self::create_docker_handle(full_fqdn.clone(), true).await;
+                    svc_handler = Self::create_docker_handle(
+                        docker_ipv4.to_string(),
+                        lan_port_config.internal,
+                    )
+                    .await;
                 } else {
-                    svc_handler = Self::create_docker_handle(full_fqdn.clone(), false).await;
+                    svc_handler = Self::create_docker_handle(
+                        docker_ipv4.to_string(),
+                        lan_port_config.internal,
+                    )
+                    .await;
                 }
 
                 self.add_handle(
@@ -309,30 +312,22 @@ impl ProxyControllerInner {
             }
         }
 
-        match self.docker_interfaces.get_mut(&package) {
-            None => {
-                let info = PackageNetInfo {
-                    interfaces: interface_map,
-                };
-                self.docker_interfaces.insert(package, info);
-            }
-            Some(p) => {
-                p.interfaces.extend(interface_map);
-            }
-        };
+        let docker_interface = self.docker_interfaces.entry(package.clone()).or_default();
+        docker_interface.interfaces.append(&mut interface_map);
 
         Ok(())
     }
 
-    async fn create_docker_handle(proxy_addr: ResourceFqdn, _is_ssl: bool) -> HttpHandler {
+    async fn create_docker_handle(internal_ip: String, port: u16) -> HttpHandler {
         let svc_handler: HttpHandler = Arc::new(move |mut req| {
-            let proxy_addr = proxy_addr.clone();
+            let proxy_addr = internal_ip.clone();
             async move {
                 let client = HttpClient::new();
 
                 let uri_string = format!(
-                    "http://{}{}",
+                    "http://{}:{}{}",
                     proxy_addr,
+                    port,
                     req.uri()
                         .path_and_query()
                         .map(|x| x.as_str())
@@ -341,8 +336,6 @@ impl ProxyControllerInner {
 
                 let uri = uri_string.parse().unwrap();
                 *req.uri_mut() = uri;
-
-                tracing::error!("REDRAGONX Running docker handler for {req:?}");
 
                 // Ok::<_, HyperError>(Response::new(Body::empty()))
                 ProxyController::proxy(client, req).await
@@ -355,42 +348,40 @@ impl ProxyControllerInner {
 
     #[instrument(skip(self))]
     pub async fn remove_docker_service(&mut self, package: &PackageId) -> Result<(), Error> {
-        tracing::error!("REDRAGONX REmoving a docker {package:?}",);
-        let mut server_removal = false;
-        let mut server_removal_port: u16 = 0;
-        let mut removed_interface_id = InterfaceId::<String>::default();
+        let mut server_removals: Vec<(u16, InterfaceId)> = Default::default();
+        // let mut server_removal = false;
+        // let mut server_removal_port: u16 = 0;
+        // let mut removed_interface_id = InterfaceId::<String>::default();
 
-        let package_interface_info = self.docker_interfaces.get(package);
-        if let Some(net_info) = package_interface_info {
-            for (id, meta) in &net_info.interfaces {
-                for (service_ext_port, _lan_port_config) in meta.lan_config.iter() {
-                    if let Some(server) = self.vhosts.service_servers.get_mut(&service_ext_port.0) {
-                        if let Some(fqdn) = self
-                            .docker_iface_lookups
-                            .get(&(package.clone(), id.clone()))
-                        {
-                            server.remove_svc_handler_mapping(fqdn.to_owned()).await?;
-                            self.vhosts
-                                .cert_resolver
-                                .remove_cert(fqdn.to_owned())
-                                .await?;
+        let net_info = match self.docker_interfaces.get(package) {
+            Some(a) => a,
+            None => return Ok(()),
+        };
+        for (id, meta) in &net_info.interfaces {
+            for (service_ext_port, _lan_port_config) in meta.lan_config.iter() {
+                if let Some(server) = self.vhosts.service_servers.get_mut(&service_ext_port.0) {
+                    if let Some(fqdn) = self
+                        .docker_iface_lookups
+                        .get(&(package.clone(), id.clone()))
+                    {
+                        server.remove_svc_handler_mapping(fqdn.to_owned()).await?;
+                        self.vhosts
+                            .cert_resolver
+                            .remove_cert(fqdn.to_owned())
+                            .await?;
 
-                            let mapping = server.svc_mapping.read().await;
+                        let mapping = server.svc_mapping.read().await;
 
-                            if mapping.is_empty() {
-                                server_removal = true;
-                                server_removal_port = service_ext_port.0;
-                                removed_interface_id = id.to_owned();
-                                break;
-                            }
+                        if mapping.is_empty() {
+                            server_removals.push((service_ext_port.0, id.to_owned()));
                         }
                     }
                 }
             }
         }
 
-        if server_removal {
-            if let Some(removed_server) = self.vhosts.service_servers.remove(&server_removal_port) {
+        for (port, interface_id) in server_removals {
+            if let Some(removed_server) = self.vhosts.service_servers.remove(&port) {
                 removed_server.shutdown.send(()).map_err(|_| {
                     Error::new(
                         eyre!("Hyper server did not quit properly"),
@@ -403,7 +394,7 @@ impl ProxyControllerInner {
                     .with_kind(crate::ErrorKind::JoinError)?;
                 self.docker_interfaces.remove(&package.clone());
                 self.docker_iface_lookups
-                    .remove(&(package.clone(), removed_interface_id));
+                    .remove(&(package.clone(), interface_id));
             }
         }
         Ok(())
