@@ -324,31 +324,21 @@ impl ProxyControllerInner {
         Ok(())
     }
 
-    async fn create_docker_handle(proxy_addr: ResourceFqdn, is_ssl: bool) -> HttpHandler {
+    async fn create_docker_handle(proxy_addr: ResourceFqdn, _is_ssl: bool) -> HttpHandler {
         let svc_handler: HttpHandler = Arc::new(move |mut req| {
             let proxy_addr = proxy_addr.clone();
             async move {
                 let client = HttpClient::new();
 
-                let uri_string = if is_ssl {
-                    format!(
-                        "http://{}{}",
-                        proxy_addr,
-                        req.uri()
-                            .path_and_query()
-                            .map(|x| x.as_str())
-                            .unwrap_or("/")
-                    )
-                } else {
-                    format!(
-                        "http://{}{}",
-                        proxy_addr,
-                        req.uri()
-                            .path_and_query()
-                            .map(|x| x.as_str())
-                            .unwrap_or("/")
-                    )
-                };
+                let uri_string = format!(
+                    "http://{}{}",
+                    proxy_addr,
+                    req.uri()
+                        .path_and_query()
+                        .map(|x| x.as_str())
+                        .unwrap_or("/")
+                );
+
                 let uri = uri_string.parse().unwrap();
                 *req.uri_mut() = uri;
 
@@ -365,7 +355,7 @@ impl ProxyControllerInner {
 
     #[instrument(skip(self))]
     pub async fn remove_docker_service(&mut self, package: &PackageId) -> Result<(), Error> {
-        tracing::error!("REDRAGONX REmoving a docker {package:?}", );
+        tracing::error!("REDRAGONX REmoving a docker {package:?}",);
         let mut server_removal = false;
         let mut server_removal_port: u16 = 0;
         let mut removed_interface_id = InterfaceId::<String>::default();
@@ -424,7 +414,7 @@ impl ProxyControllerInner {
     }
 
     // pub fn get_no_dot_name(&self) -> String {
-        
+
     //     self.embassyd_fqdn.root
     // }
 }
