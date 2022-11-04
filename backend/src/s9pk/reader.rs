@@ -230,6 +230,15 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
             &man.volumes,
             &validated_image_ids,
         )?;
+
+        if man.containers.is_some()
+            && matches!(man.main, crate::procedure::PackageProcedure::Docker(_))
+        {
+            return Err(Error::new(
+                eyre!("Cannot have a main docker and a main in containers"),
+                crate::ErrorKind::ValidateS9pk,
+            ));
+        }
         if let Some(props) = &man.properties {
             props
                 .validate(
