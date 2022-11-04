@@ -1,11 +1,7 @@
-use std::cmp::Ordering;
-use std::fmt;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use color_eyre::eyre::eyre;
-use http::Uri;
 use models::InterfaceId;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
@@ -23,7 +19,6 @@ use crate::net::mdns::MdnsController;
 use crate::net::net_utils::ResourceFqdn;
 use crate::net::proxy_controller::ProxyController;
 use crate::net::ssl::SslManager;
-use crate::net::static_server::UiMode;
 use crate::net::tor::TorController;
 use crate::net::{
     GeneratedCertificateMountPoint, HttpHandler, InterfaceMetadata, PACKAGE_CERT_PATH,
@@ -35,7 +30,6 @@ pub struct NetController {
     pub tor: TorController,
     #[cfg(feature = "avahi")]
     pub mdns: MdnsController,
-    //pub nginx: NginxController,
     pub proxy: ProxyController,
     pub ssl: SslManager,
     pub dns: DnsController,
@@ -66,7 +60,6 @@ impl NetController {
             tor: TorController::init(embassyd_addr, embassyd_tor_key, tor_control).await?,
             #[cfg(feature = "avahi")]
             mdns: MdnsController::init().await?,
-            //nginx: NginxController::init(PathBuf::from("/etc/nginx"), &ssl).await?,
             proxy: ProxyController::init(embassyd_addr, fqdn_name, ssl.clone()).await?,
             ssl,
             dns: DnsController::init(dns_bind).await?,
@@ -215,14 +208,12 @@ impl NetController {
                                 )
                             })
                         });
-                //self.nginx.add(&self.ssl, pkg_id.clone(), ip, interfaces)
                 self.proxy
                     .add_docker_service(pkg_id.clone(), ip, interfaces)
             },
             self.dns.add(pkg_id, ip),
         );
         tor_res?;
-        //nginx_res?;
         proxy_res?;
 
         Ok(())

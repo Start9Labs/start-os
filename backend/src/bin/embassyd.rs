@@ -2,15 +2,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
+use color_eyre::eyre::eyre;
 use embassy::context::{DiagnosticContext, RpcContext};
-use embassy::hostname::get_current_ip;
-// use embassy::context::{DiagnosticContext, RpcContext};
-// use embassy::core::rpc_continuations::RequestGuid;
-// use embassy::db::subscribe;
-// use embassy::middleware::auth::auth;
-// use embassy::middleware::cors::cors;
-// use embassy::middleware::db::db as db_middleware;
-// use embassy::middleware::diagnostic::diagnostic;
+
 #[cfg(feature = "avahi")]
 use embassy::net::mdns::MdnsController;
 use embassy::net::net_controller::NetController;
@@ -19,9 +13,8 @@ use embassy::shutdown::Shutdown;
 use embassy::system::launch_metrics_task;
 use embassy::util::daemon;
 use embassy::util::logger::EmbassyLogger;
-use embassy::{hostname, Error, ErrorKind, ResultExt};
+use embassy::{Error, ErrorKind, ResultExt};
 use futures::{FutureExt, TryFutureExt};
-use models::PackageId;
 use reqwest::{Client, Proxy};
 use tokio::signal::unix::signal;
 use tracing::instrument;
@@ -77,17 +70,13 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
             embassy::hostname::sync_hostname(&mut db, &receipts.hostname_receipts).await?;
         }
 
-        // let auth = auth(rpc_ctx.clone());
-        // let db_middleware = db_middleware(rpc_ctx.clone());
-        // let ctx = rpc_ctx.clone();
-
-        // let metrics_ctx = rpc_ctx.clone();
-        // let metrics_task = tokio::spawn(async move {
-        //     launch_metrics_task(&metrics_ctx.metrics_cache, || {
-        //         metrics_ctx.shutdown.subscribe()
-        //     })
-        //     .await
-        // });
+        let metrics_ctx = rpc_ctx.clone();
+        let metrics_task = tokio::spawn(async move {
+            launch_metrics_task(&metrics_ctx.metrics_cache, || {
+                metrics_ctx.shutdown.subscribe()
+            })
+            .await
+        });
 
         let tor_health_ctx = rpc_ctx.clone();
         let tor_client = Client::builder()
@@ -114,12 +103,12 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
         embassy::sound::CHIME.play().await?;
 
         futures::try_join!(
-            // metrics_task
-            //     .map_err(|e| Error::new(
-            //         eyre!("{}", e).wrap_err("Metrics daemon panicked!"),
-            //         ErrorKind::Unknown
-            //     ))
-            //     .map_ok(|_| tracing::debug!("Metrics daemon Shutdown")),
+            metrics_task
+                .map_err(|e| Error::new(
+                    eyre!("{}", e).wrap_err("Metrics daemon panicked!"),
+                    ErrorKind::Unknown
+                ))
+                .map_ok(|_| tracing::debug!("Metrics daemon Shutdown")),
             tor_health_daemon
                 .map_err(|e| Error::new(
                     e.wrap_err("Tor Health daemon panicked!"),
@@ -195,7 +184,7 @@ fn main() {
                         .await?;
                         let mut shutdown = ctx.shutdown.subscribe();
 
-                        Ok::<_, Error>(shutdown.recv().await.with_kind(crate::ErrorKind::Unknown)?)
+                        shutdown.recv().await.with_kind(crate::ErrorKind::Unknown)
                     })()
                     .await
                 }

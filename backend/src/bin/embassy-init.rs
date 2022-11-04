@@ -16,7 +16,7 @@ use embassy::net::embassy_service_http_server::EmbassyServiceHTTPServer;
 #[cfg(feature = "avahi")]
 use embassy::net::mdns::MdnsController;
 use embassy::net::net_utils::ResourceFqdn;
-use embassy::net::static_server::{main_ui_server_router, setup_ui_file_router, UiMode, diag_ui_file_router};
+use embassy::net::static_server::{diag_ui_file_router, setup_ui_file_router};
 use embassy::shutdown::Shutdown;
 use embassy::sound::CHIME;
 use embassy::util::logger::EmbassyLogger;
@@ -38,19 +38,23 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
         .is_err()
     {
         #[cfg(feature = "avahi")]
-        let _mdns = MdnsController::init();
+        let _mdns = MdnsController::init().await?;
 
         let ctx = SetupContext::init(cfg_path).await?;
 
         let embassy_ip = get_current_ip(ctx.ethernet_interface.to_owned()).await?;
         let embassy_ip_fqdn: ResourceFqdn = embassy_ip.parse()?;
+        let embassy_fqdn: ResourceFqdn = "embassy.local".parse()?;
 
         let setup_ui_handler = setup_ui_file_router(ctx.clone()).await?;
 
         let mut setup_http_server =
             EmbassyServiceHTTPServer::new(embassy_ip.parse::<IpAddr>()?, 80, None).await?;
         setup_http_server
-            .add_svc_handler_mapping(embassy_ip_fqdn, setup_ui_handler)
+            .add_svc_handler_mapping(embassy_ip_fqdn, setup_ui_handler.clone())
+            .await?;
+        setup_http_server
+            .add_svc_handler_mapping(embassy_fqdn, setup_ui_handler)
             .await?;
 
         tokio::time::sleep(Duration::from_secs(1)).await; // let the record state that I hate this
@@ -142,7 +146,7 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
             tracing::debug!("{}", e.source);
             embassy::sound::BEETHOVEN.play().await?;
             #[cfg(feature = "avahi")]
-            let _mdns = MdnsController::init();
+            let _mdns = MdnsController::init().await?;
 
             let ctx = DiagnosticContext::init(
                 cfg_path,
@@ -165,15 +169,18 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
 
             let embassy_ip = get_current_ip(ctx.ethernet_interface.to_owned()).await?;
             let embassy_ip_fqdn: ResourceFqdn = embassy_ip.parse()?;
-    ;
-            let setup_ui_handler = diag_ui_file_router(ctx.clone()).await?;
-    
-            let mut setup_http_server =
+            let embassy_fqdn: ResourceFqdn = "embassy.local".parse()?;
+
+            let diag_ui_handler = diag_ui_file_router(ctx.clone()).await?;
+
+            let mut diag_http_server =
                 EmbassyServiceHTTPServer::new(embassy_ip.parse::<IpAddr>()?, 80, None).await?;
-            setup_http_server
-                .add_svc_handler_mapping(embassy_ip_fqdn, setup_ui_handler)
+            diag_http_server
+                .add_svc_handler_mapping(embassy_ip_fqdn, diag_ui_handler.clone())
                 .await?;
-    
+            diag_http_server
+                .add_svc_handler_mapping(embassy_fqdn, diag_ui_handler)
+                .await?;
 
             let mut shutdown_recv = ctx.shutdown.subscribe();
             rpc_server!({
@@ -194,12 +201,10 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
             .await
             .with_kind(embassy::ErrorKind::Network)?;
 
-            Ok::<_, Error>(
-                shutdown_recv
+            shutdown_recv
                     .recv()
                     .await
-                    .with_kind(embassy::ErrorKind::Network)?,
-            )
+                    .with_kind(embassy::ErrorKind::Network)
         }
         .await
     } else {

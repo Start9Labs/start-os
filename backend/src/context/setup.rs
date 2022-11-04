@@ -21,7 +21,7 @@ use crate::disk::OsPartitionInfo;
 use crate::init::{init_postgres, pgloader};
 use crate::net::tor::os_key;
 use crate::setup::{password_hash, RecoveryStatus};
-use crate::util::config::load_config_from_paths;
+use crate::util::config::{load_config_from_paths, CONFIG_PATH};
 use crate::{Error, ResultExt};
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -51,9 +51,9 @@ impl SetupContextConfig {
                     .into_iter()
                     .map(|p| p.as_ref())
                     .chain(std::iter::once(Path::new(
-                        "/media/embassy/config/config.yaml",
+                        CONFIG_PATH,
                     )))
-                    .chain(std::iter::once(Path::new(crate::util::config::CONFIG_PATH))),
+                    .chain(std::iter::once(Path::new(CONFIG_PATH))),
             )
         })
         .await

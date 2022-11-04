@@ -11,27 +11,18 @@ use self::interface::InterfaceId;
 use crate::net::interface::LanPortConfig;
 
 use crate::util::serde::Port;
-use openssl::pkey::{PKey, Private};
-use torut::onion::{OnionAddressV3, TorSecretKeyV3};
-use tracing::instrument;
-
-use self::interface::Interface;
-#[cfg(feature = "avahi")]
-use self::ssl::SslManager;
-
 use crate::Error;
 
 pub mod dns;
 pub mod interface;
 #[cfg(feature = "avahi")]
 pub mod mdns;
-//pub mod nginx;
 pub mod embassy_service_http_server;
 pub mod net_controller;
 pub mod net_utils;
 pub mod proxy_controller;
 pub mod ssl;
-pub mod CertResolver;
+pub mod cert_resolver;
 pub mod static_server;
 pub mod tor;
 pub mod vhost_controller;

@@ -1,6 +1,5 @@
 use std::cmp::Ordering;
 use std::path::Path;
-use std::sync::Arc;
 
 use color_eyre::eyre::eyre;
 use futures::FutureExt;
@@ -16,13 +15,8 @@ use patch_db::DbHandle;
 use sqlx::PgPool;
 use tokio::process::Command;
 use tokio::sync::Mutex;
-use tokio_rustls::rustls::server::{ResolvesServerCert, ResolvesServerCertUsingSni};
-use tokio_rustls::rustls::sign::CertifiedKey;
 use tracing::instrument;
 
-use tracing::error;
-
-use crate::net::proxy_controller::ProxyController;
 use crate::s9pk::manifest::PackageId;
 use crate::util::Invoke;
 use crate::{Error, ErrorKind, ResultExt};
@@ -519,57 +513,3 @@ fn make_leaf_cert(
     let cert = builder.build();
     Ok(cert)
 }
-
-// #[tokio::test]
-// async fn ca_details_persist() -> Result<(), Error> {
-//     let pool = sqlx::Pool::<sqlx::Postgres>::connect("postgres::memory:").await?;
-//     sqlx::migrate!()
-//         .run(&pool)
-//         .await
-//         .with_kind(crate::ErrorKind::Database)?;
-//     let mgr = SslManager::init(pool.clone()).await?;
-//     let root_cert0 = mgr.root_cert;
-//     let int_key0 = mgr.int_key;
-//     let int_cert0 = mgr.int_cert;
-//     let mgr = SslManager::init(pool).await?;
-//     let root_cert1 = mgr.root_cert;
-//     let int_key1 = mgr.int_key;
-//     let int_cert1 = mgr.int_cert;
-//
-//     assert_eq!(root_cert0.to_pem()?, root_cert1.to_pem()?);
-//     assert_eq!(
-//         int_key0.private_key_to_pem_pkcs8()?,
-//         int_key1.private_key_to_pem_pkcs8()?
-//     );
-//     assert_eq!(int_cert0.to_pem()?, int_cert1.to_pem()?);
-//     Ok(())
-// }
-//
-// #[tokio::test]
-// async fn certificate_details_persist() -> Result<(), Error> {
-//     let pool = sqlx::Pool::<sqlx::Postgres>::connect("postgres::memory:").await?;
-//     sqlx::migrate!()
-//         .run(&pool)
-//         .await
-//         .with_kind(crate::ErrorKind::Database)?;
-//     let mgr = SslManager::init(pool.clone()).await?;
-//     let package_id = "bitcoind".parse().unwrap();
-//     let (key0, cert_chain0) = mgr.certificate_for("start9", &package_id).await?;
-//     let (key1, cert_chain1) = mgr.certificate_for("start9", &package_id).await?;
-//
-//     assert_eq!(
-//         key0.private_key_to_pem_pkcs8()?,
-//         key1.private_key_to_pem_pkcs8()?
-//     );
-//     assert_eq!(
-//         cert_chain0
-//             .iter()
-//             .map(|cert| cert.to_pem().unwrap())
-//             .collect::<Vec<Vec<u8>>>(),
-//         cert_chain1
-//             .iter()
-//             .map(|cert| cert.to_pem().unwrap())
-//             .collect::<Vec<Vec<u8>>>()
-//     );
-//     Ok(())
-// }

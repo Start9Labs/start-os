@@ -12,9 +12,8 @@ use tracing::instrument;
 use url::Host;
 
 use crate::shutdown::Shutdown;
-use crate::util::io::from_toml_async_reader;
-use crate::util::AsyncFileExt;
-use crate::{Error, ResultExt};
+use crate::util::config::{load_config_from_paths, CONFIG_PATH};
+use crate::{Error};
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -25,20 +24,22 @@ pub struct DiagnosticContextConfig {
 }
 impl DiagnosticContextConfig {
     #[instrument(skip(path))]
-    pub async fn load<P: AsRef<Path>>(path: Option<P>) -> Result<Self, Error> {
-        let cfg_path = path
-            .as_ref()
-            .map(|p| p.as_ref())
-            .unwrap_or(Path::new(crate::util::config::CONFIG_PATH));
-        if let Some(f) = File::maybe_open(cfg_path)
-            .await
-            .with_ctx(|_| (crate::ErrorKind::Filesystem, cfg_path.display().to_string()))?
-        {
-            from_toml_async_reader(f).await
-        } else {
-            Ok(Self::default())
-        }
+    pub async fn load<P: AsRef<Path> + Send + 'static>(path: Option<P>) -> Result<Self, Error> {
+        tokio::task::spawn_blocking(move || {
+            load_config_from_paths(
+                path.as_ref()
+                    .into_iter()
+                    .map(|p| p.as_ref())
+                    .chain(std::iter::once(Path::new(
+                        CONFIG_PATH,
+                    )))
+                    .chain(std::iter::once(Path::new(CONFIG_PATH))),
+            )
+        })
+        .await
+        .unwrap()
     }
+    
     pub fn datadir(&self) -> &Path {
         self.datadir
             .as_deref()
@@ -59,7 +60,7 @@ pub struct DiagnosticContextSeed {
 pub struct DiagnosticContext(Arc<DiagnosticContextSeed>);
 impl DiagnosticContext {
     #[instrument(skip(path))]
-    pub async fn init<P: AsRef<Path>>(
+    pub async fn init<P: AsRef<Path> + Send + 'static>(
         path: Option<P>,
         disk_guid: Option<Arc<String>>,
         error: Error,

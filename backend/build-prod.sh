@@ -32,26 +32,26 @@ fi
 set +e
 fail=
 if [[ "$FLAGS" = "" ]]; then
-	rust-gnu-builder sh -c "(git config --global --add safe.directory '*'; cd backend && RUSTFLAGS=\"--cfg tokio_unstable\" cargo build --release --locked  --target=$ARCH-unknown-linux-gnu)"
+	rust-gnu-builder sh -c "(git config --global --add safe.directory '*'; cd backend && cargo build --release --locked  --target=$ARCH-unknown-linux-gnu)"
 	if test $? -ne 0; then 
 		fail=true
 	fi
 	for ARCH in x86_64 aarch64
 	do
-		rust-musl-builder sh -c "(git config --global --add safe.directory '*'; cd libs && RUSTFLAGS=\"--cfg tokio_unstable\"  cargo build --release --locked --bin embassy_container_init )"
+		rust-musl-builder sh -c "(git config --global --add safe.directory '*'; cd libs && cargo build --release --locked --bin embassy_container_init )"
 		if test $? -ne 0; then 
 			fail=true
 		fi
 	done
 else
 	echo "FLAGS=$FLAGS"
-	rust-gnu-builder sh -c "(git config --global --add safe.directory '*'; cd backend && RUSTFLAGS=\"--cfg tokio_unstable\" cargo build --release --features $FLAGS --locked --target=$ARCH-unknown-linux-gnu)"
+	rust-gnu-builder sh -c "(git config --global --add safe.directory '*'; cd backend && cargo build --release --features $FLAGS --locked --target=$ARCH-unknown-linux-gnu)"
 	if test $? -ne 0; then 
 		fail=true
 	fi
 	for ARCH in x86_64 aarch64
 	do
-		rust-musl-builder sh -c "(git config --global --add safe.directory '*'; cd libs && RUSTFLAGS=\"--cfg tokio_unstable\" cargo build --release --features $FLAGS --locked --bin embassy_container_init)"
+		rust-musl-builder sh -c "(git config --global --add safe.directory '*'; cd libs && cargo build --release --features $FLAGS --locked --bin embassy_container_init)"
 		if test $? -ne 0; then 
 			fail=true
 		fi

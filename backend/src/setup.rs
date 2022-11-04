@@ -29,7 +29,6 @@ use crate::disk::mount::guard::TmpMountGuard;
 use crate::disk::util::{pvscan, recovery_info, DiskInfo, EmbassyOsRecoveryInfo};
 use crate::disk::REPAIR_DISK_PATH;
 use crate::hostname::{get_hostname, HostNameReceipt, Hostname};
-use crate::id::Id;
 use crate::init::init;
 use crate::middleware::encrypt::EncryptedWire;
 use crate::net::ssl::SslManager;

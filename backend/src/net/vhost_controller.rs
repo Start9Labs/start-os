@@ -3,8 +3,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use tokio_rustls::rustls::ServerConfig;
-
-use crate::net::CertResolver::EmbassyCertResolver;
+use crate::net::cert_resolver::EmbassyCertResolver;
 use crate::net::embassy_service_http_server::{EmbassyServiceHTTPServer};
 
 use crate::net::HttpHandler;

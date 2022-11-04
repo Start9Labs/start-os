@@ -1,4 +1,3 @@
-use std::cmp::Ordering;
 use std::fmt;
 use std::net::IpAddr;
 use std::str::FromStr;
@@ -11,7 +10,6 @@ use crate::Error;
 
 pub fn host_addr_fqdn(req: &Request<Body>) -> Result<ResourceFqdn, Error> {
     let host = req.headers().get(http::header::HOST);
-
 
     match host {
         Some(host) => {
@@ -28,7 +26,6 @@ pub fn host_addr_fqdn(req: &Request<Body>) -> Result<ResourceFqdn, Error> {
         None => Err(Error::new(eyre!("No Host"), crate::ErrorKind::NoHost)),
     }
 }
-
 
 #[derive(Eq, PartialEq, PartialOrd, Ord, Debug, Clone)]
 pub enum ResourceFqdn {
@@ -48,8 +45,8 @@ impl fmt::Display for ResourceFqdn {
             }
             ResourceFqdn::Uri {
                 full_uri,
-                root,
-                tld,
+                root: _,
+                tld: _,
             } => {
                 write!(f, "{}", full_uri)
             }
@@ -78,12 +75,12 @@ impl FromStr for ResourceFqdn {
     type Err = Error;
 
     fn from_str(input: &str) -> Result<ResourceFqdn, Self::Err> {
+        tracing::error!(input);
 
         if let Ok(ip) = input.parse::<IpAddr>() {
             return Ok(ResourceFqdn::IpAddr(ip));
         }
 
-       
         let hostname_split: Vec<&str> = input.split('.').collect();
 
         if hostname_split.len() != 2 {
@@ -92,7 +89,6 @@ impl FromStr for ResourceFqdn {
                 crate::ErrorKind::ParseUrl,
             ));
         }
-
 
         match hostname_split[1] {
             "local" => Ok(ResourceFqdn::Uri {

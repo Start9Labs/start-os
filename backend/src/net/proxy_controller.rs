@@ -82,12 +82,9 @@ impl ProxyController {
     }
 
     pub async fn get_hostname(&self) -> String {
-        self.inner.lock().await.get_hostname()
+        self.inner.lock().await.get_embassy_hostname()
     }
 
-    // pub async fn get_no_dot_name(&self) -> String {
-    //     self.inner.lock().await.get_no_dot_name()
-    // }
     pub async fn proxy(
         client: HttpClient,
         req: Request<Body>,
@@ -192,10 +189,6 @@ impl ProxyControllerInner {
         Ok(inner)
     }
 
-    // pub async fn get_package_id(&self, fqdn: &Fqdn) -> Option<PackageId> {
-    //     self.vhosts.svc_dns_base_package_names.get(fqdn).cloned()
-    // }
-
     async fn add_certificate_to_resolver(
         &mut self,
         hostname: ResourceFqdn,
@@ -269,9 +262,9 @@ impl ProxyControllerInner {
         let mut interface_map = interfaces
             .into_iter()
             .filter(|(_, meta)| {
-                // don't add nginx stuff for anything we can't connect to over some flavor of http
+                // don't add stuff for anything we can't connect to over some flavor of http
                 (meta.protocols.contains("http") || meta.protocols.contains("https"))
-                // also don't add nginx unless it has at least one exposed port
+                // also don't add anything unless it has at least one exposed port
                         && !meta.lan_config.is_empty()
             })
             .collect::<BTreeMap<InterfaceId, InterfaceMetadata>>();
@@ -283,22 +276,12 @@ impl ProxyControllerInner {
                 self.docker_iface_lookups
                     .insert((package.clone(), id.clone()), full_fqdn.clone());
 
-                let svc_handler: HttpHandler;
-                if lan_port_config.ssl {
-                    self.add_package_certificate_to_resolver(full_fqdn.clone(), package.clone())
-                        .await?;
-                    svc_handler = Self::create_docker_handle(
-                        docker_ipv4.to_string(),
-                        lan_port_config.internal,
-                    )
-                    .await;
-                } else {
-                    svc_handler = Self::create_docker_handle(
-                        docker_ipv4.to_string(),
-                        lan_port_config.internal,
-                    )
-                    .await;
-                }
+                self.add_package_certificate_to_resolver(full_fqdn.clone(), package.clone())
+                    .await?;
+
+                let svc_handler =
+                    Self::create_docker_handle(docker_ipv4.to_string(), lan_port_config.internal)
+                        .await;
 
                 self.add_handle(
                     external_svc_port.0,
@@ -335,7 +318,6 @@ impl ProxyControllerInner {
                 let uri = uri_string.parse().unwrap();
                 *req.uri_mut() = uri;
 
-                // Ok::<_, HyperError>(Response::new(Body::empty()))
                 ProxyController::proxy(client, req).await
             }
             .boxed()
@@ -347,14 +329,12 @@ impl ProxyControllerInner {
     #[instrument(skip(self))]
     pub async fn remove_docker_service(&mut self, package: &PackageId) -> Result<(), Error> {
         let mut server_removals: Vec<(u16, InterfaceId)> = Default::default();
-        // let mut server_removal = false;
-        // let mut server_removal_port: u16 = 0;
-        // let mut removed_interface_id = InterfaceId::<String>::default();
 
         let net_info = match self.docker_interfaces.get(package) {
             Some(a) => a,
             None => return Ok(()),
         };
+
         for (id, meta) in &net_info.interfaces {
             for (service_ext_port, _lan_port_config) in meta.lan_config.iter() {
                 if let Some(server) = self.vhosts.service_servers.get_mut(&service_ext_port.0) {
@@ -398,12 +378,7 @@ impl ProxyControllerInner {
         Ok(())
     }
 
-    pub fn get_hostname(&self) -> String {
+    pub fn get_embassy_hostname(&self) -> String {
         self.embassyd_fqdn.to_string()
     }
-
-    // pub fn get_no_dot_name(&self) -> String {
-
-    //     self.embassyd_fqdn.root
-    // }
 }

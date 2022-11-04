@@ -1,5 +1,4 @@
 use std::fs::Metadata;
-use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::UNIX_EPOCH;
@@ -8,12 +7,11 @@ use color_eyre::eyre::eyre;
 use digest::Digest;
 use futures::FutureExt;
 use http::response::Builder;
-use hyper::{Body, Error as HyperError, Method, Request, Response, Server, StatusCode};
-use log::debug;
-use rpc_toolkit::{rpc_handler, RpcHandler};
+use hyper::{Body, Method, Request, Response, StatusCode};
+
+use rpc_toolkit::rpc_handler;
 use tokio::fs::File;
 use tokio_util::codec::{BytesCodec, FramedRead};
-use tracing::error;
 
 use crate::context::{RpcContext, SetupContext, DiagnosticContext};
 use crate::core::rpc_continuations::RequestGuid;
@@ -144,7 +142,7 @@ pub async fn main_ui_server_router(ctx: RpcContext) -> Result<HttpHandler, Error
                         },
                     }
                 }
-                _ => main_ui(req, ctx).await,
+                _ => main_embassy_ui(req, ctx).await,
             };
 
             match res {
@@ -207,7 +205,7 @@ async fn setup_or_diag_ui(
     }
 }
 
-async fn main_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response<Body>, Error> {
+async fn main_embassy_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response<Body>, Error> {
     let selected_root_dir = MAIN_UI_WWW_DIR;
 
     let (request_parts, _body) = req.into_parts();
