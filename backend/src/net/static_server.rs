@@ -15,36 +15,101 @@ use tokio::fs::File;
 use tokio_util::codec::{BytesCodec, FramedRead};
 use tracing::error;
 
-use crate::context::RpcContext;
+use crate::context::{RpcContext, SetupContext, DiagnosticContext};
 use crate::core::rpc_continuations::RequestGuid;
 use crate::db::subscribe;
 use crate::install::PKG_PUBLIC_DIR;
-use crate::main_api;
 use crate::middleware::auth::HasValidSession;
 use crate::net::HttpHandler;
-use crate::{Error, ErrorKind, ResultExt};
+use crate::{main_api, setup_api, Error, ErrorKind, ResultExt, diagnostic_api};
 
 static NOT_FOUND: &[u8] = b"Not Found";
 static NOT_AUTHORIZED: &[u8] = b"Not Authorized";
 
-pub const WWW_DIR: &str = "/var/www/html/main";
+pub const MAIN_UI_WWW_DIR: &str = "/var/www/html/main";
+pub const SETUP_UI_WWW_DIR: &str = "/var/www/html/setup";
+pub const DIAG_UI_WWW_DIR: &str = "/var/www/html/diagnostic";
 
 fn status_fn(_: i32) -> StatusCode {
     StatusCode::OK
 }
 
-pub async fn file_server_router(ctx: RpcContext) -> Result<HttpHandler, Error> {
+#[derive(Clone)]
+pub enum UiMode {
+    Setup,
+    Diag,
+    Main,
+}
+
+pub async fn setup_ui_file_router(ctx: SetupContext) -> Result<HttpHandler, Error> {
     let handler: HttpHandler = Arc::new(move |req| {
         let ctx = ctx.clone();
+        
+        let ui_mode = UiMode::Setup;
         async move {
-
             let res = match req.uri().path() {
                 path if path.starts_with("/rpc/") => {
-                    let rpc_handler1 =
+                    let rpc_handler =
+                        rpc_handler!({command: setup_api, context: ctx, status: status_fn});
+
+                    rpc_handler(req)
+                        .await
+                        .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::Network))
+                }
+                _ => setup_or_diag_ui(req, ui_mode).await,
+            };
+
+            match res {
+                Ok(data) => Ok(data),
+                Err(err) => Ok(server_error(err)),
+            }
+        }
+        .boxed()
+    });
+
+    Ok(handler)
+}
+
+pub async fn diag_ui_file_router(ctx: DiagnosticContext) -> Result<HttpHandler, Error> {
+    let handler: HttpHandler = Arc::new(move |req| {
+        let ctx = ctx.clone();
+        let ui_mode = UiMode::Diag;
+        async move {
+            let res = match req.uri().path() {
+                path if path.starts_with("/rpc/") => {
+                    let rpc_handler =
+                        rpc_handler!({command: diagnostic_api, context: ctx, status: status_fn});
+
+                    rpc_handler(req)
+                        .await
+                        .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::Network))
+                }
+                _ => setup_or_diag_ui(req, ui_mode).await,
+            };
+
+            match res {
+                Ok(data) => Ok(data),
+                Err(err) => Ok(server_error(err)),
+            }
+        }
+        .boxed()
+    });
+
+    Ok(handler)
+}
+
+
+pub async fn main_ui_server_router(ctx: RpcContext) -> Result<HttpHandler, Error> {
+    let handler: HttpHandler = Arc::new(move |req| {
+        let ctx = ctx.clone();
+
+        async move {
+            let res = match req.uri().path() {
+                path if path.starts_with("/rpc/") => {
+                    let rpc_handler =
                         rpc_handler!({command: main_api, context: ctx, status: status_fn});
 
-                    
-                    rpc_handler1(req)
+                    rpc_handler(req)
                         .await
                         .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::Network))
                 }
@@ -93,11 +158,62 @@ pub async fn file_server_router(ctx: RpcContext) -> Result<HttpHandler, Error> {
     Ok(handler)
 }
 
-async fn main_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response<Body>, Error> {
+async fn setup_or_diag_ui(
+    req: Request<Body>,
+    ui_mode: UiMode,
+) -> Result<Response<Body>, Error> {
+    let selected_root_dir = match ui_mode {
+        UiMode::Setup => SETUP_UI_WWW_DIR,
+        UiMode::Diag => DIAG_UI_WWW_DIR,
+        UiMode::Main => MAIN_UI_WWW_DIR,
+    };
+
     let (request_parts, _body) = req.into_parts();
     match request_parts.uri.path() {
         "/" => {
-            let full_path = PathBuf::from(WWW_DIR).join("index.html");
+            let full_path = PathBuf::from(selected_root_dir).join("index.html");
+
+            file_send(full_path).await
+        }
+        _ => {
+            match (
+                request_parts.method,
+                request_parts
+                    .uri
+                    .path()
+                    .strip_prefix('/')
+                    .unwrap_or(request_parts.uri.path())
+                    .split_once('/'),
+            ) {
+                (Method::GET, None) => {
+                    let uri_path = request_parts
+                        .uri
+                        .path()
+                        .strip_prefix('/')
+                        .unwrap_or(request_parts.uri.path());
+
+                    let full_path = PathBuf::from(selected_root_dir).join(uri_path);
+                    file_send(full_path).await
+                }
+
+                (Method::GET, Some((dir, file))) => {
+                    let full_path = PathBuf::from(selected_root_dir).join(dir).join(file);
+                    file_send(full_path).await
+                }
+
+                _ => Ok(not_found()),
+            }
+        }
+    }
+}
+
+async fn main_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response<Body>, Error> {
+    let selected_root_dir = MAIN_UI_WWW_DIR;
+
+    let (request_parts, _body) = req.into_parts();
+    match request_parts.uri.path() {
+        "/" => {
+            let full_path = PathBuf::from(selected_root_dir).join("index.html");
 
             file_send(full_path).await
         }
@@ -142,12 +258,12 @@ async fn main_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response<Body>, 
                                 .strip_prefix('/')
                                 .unwrap_or(request_parts.uri.path());
 
-                            let full_path = PathBuf::from(WWW_DIR).join(uri_path);
+                            let full_path = PathBuf::from(selected_root_dir).join(uri_path);
                             file_send(full_path).await
                         }
 
                         (Method::GET, Some((dir, file))) => {
-                            let full_path = PathBuf::from(WWW_DIR).join(dir).join(file);
+                            let full_path = PathBuf::from(selected_root_dir).join(dir).join(file);
                             file_send(full_path).await
                         }
 
@@ -177,12 +293,12 @@ async fn main_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response<Body>, 
                                 .strip_prefix('/')
                                 .unwrap_or(request_parts.uri.path());
 
-                            let full_path = PathBuf::from(WWW_DIR).join(uri_path);
+                            let full_path = PathBuf::from(selected_root_dir).join(uri_path);
                             file_send(full_path).await
                         }
 
                         (Method::GET, Some((dir, file))) => {
-                            let full_path = PathBuf::from(WWW_DIR).join(dir).join(file);
+                            let full_path = PathBuf::from(selected_root_dir).join(dir).join(file);
                             file_send(full_path).await
                         }
 
@@ -232,7 +348,7 @@ async fn file_send(path: impl AsRef<Path>) -> Result<Response<Body>, Error> {
 
     if let Ok(file) = File::open(path).await {
         let metadata = file.metadata().await.with_kind(ErrorKind::Filesystem)?;
-        
+
         match IsNonEmptyFile::new(&metadata, path) {
             Some(a) => a,
             None => return Ok(not_found()),

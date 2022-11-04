@@ -1,27 +1,14 @@
 use std::collections::BTreeMap;
-use std::future::ready;
-use std::io;
 use std::net::{IpAddr, SocketAddr};
-use std::pin::Pin;
-use std::str::FromStr;
-use std::sync::{Arc, RwLock};
-use std::task::{Context, Poll};
+use std::sync::Arc;
 
-use color_eyre::eyre::eyre;
-use futures::{ready, Future};
 use helpers::NonDetachingJoinHandle;
 use http::StatusCode;
-use hyper::server::accept::Accept;
-use hyper::server::conn::{AddrIncoming, AddrStream};
+use hyper::server::conn::AddrIncoming;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Error as HyperError, Response, Server};
-use openssl::pkey::{PKey, Private};
-use openssl::x509::X509;
-use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::sync::oneshot;
-use tokio_rustls::rustls::server::ResolvesServerCert;
-use tokio_rustls::rustls::sign::{any_supported_type, CertifiedKey};
-use tokio_rustls::rustls::{Certificate, PrivateKey, ServerConfig};
+use tokio_rustls::rustls::ServerConfig;
 use tracing::error;
 
 use crate::net::net_utils::{host_addr_fqdn, ResourceFqdn};
@@ -48,7 +35,7 @@ impl EmbassyServiceHTTPServer {
     ) -> Result<Self, Error> {
         let (tx, rx) = tokio::sync::oneshot::channel::<()>();
 
-        let listener_socket_addr = SocketAddr::from((listener_addr.clone(), port));
+        let listener_socket_addr = SocketAddr::from((listener_addr, port));
 
         let server_service_mapping = Arc::new(tokio::sync::RwLock::new(BTreeMap::<
             ResourceFqdn,
@@ -59,7 +46,6 @@ impl EmbassyServiceHTTPServer {
 
         let bare_make_service_fn = move || {
             let server_service_mapping = server_service_mapping.clone();
-            let listener_addr = listener_addr.clone();
 
             async move {
                 // let server_service_mapping = server_service_mapping.clone();
@@ -83,7 +69,6 @@ impl EmbassyServiceHTTPServer {
 
                                     let opt_handler = mapping.get(&host_uri).cloned();
 
-
                                     opt_handler
                                 };
                                 match res {
@@ -97,9 +82,7 @@ impl EmbassyServiceHTTPServer {
                                             Err(err) => Ok(respond_hyper_error(err)),
                                         }
                                     }
-                                    None => {
-                                        Ok(res_not_found())
-                                    }
+                                    None => Ok(res_not_found()),
                                 }
                                 //         //
                             }
@@ -162,15 +145,12 @@ impl EmbassyServiceHTTPServer {
     ) -> Result<(), Error> {
         let mut mapping = self.svc_mapping.write().await;
         // .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::Network))?;
-        if let Some(older_service) = mapping.insert(fqdn.clone(), svc_handle) {
-        }
-
+        mapping.insert(fqdn.clone(), svc_handle);
 
         Ok(())
     }
 
     pub async fn remove_svc_handler_mapping(&mut self, fqdn: ResourceFqdn) -> Result<(), Error> {
-        
         let mut mapping = self.svc_mapping.write().await;
         // .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::Network))?;
 

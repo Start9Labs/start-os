@@ -29,7 +29,7 @@ use crate::install::{download_install_s9pk, PKG_PUBLIC_DIR};
 use crate::net::net_controller::NetController;
 use crate::net::net_utils::ResourceFqdn;
 use crate::net::ssl::SslManager;
-use crate::net::static_server::file_server_router;
+use crate::net::static_server::main_ui_server_router;
 use crate::net::HttpHandler;
 use crate::notifications::NotificationLevel;
 use crate::s9pk::manifest::{Manifest, PackageId};

@@ -28,12 +28,12 @@ pub struct ProxyController {
 impl ProxyController {
     pub async fn init(
         embassyd_socket_addr: SocketAddr,
-        embassy: ResourceFqdn,
+        embassy_fqdn: ResourceFqdn,
         ssl_manager: SslManager,
     ) -> Result<Self, Error> {
         Ok(ProxyController {
             inner: Mutex::new(
-                ProxyControllerInner::init(embassyd_socket_addr, embassy, ssl_manager).await?,
+                ProxyControllerInner::init(embassyd_socket_addr, embassy_fqdn, ssl_manager).await?,
             ),
         })
     }
@@ -118,8 +118,8 @@ impl ProxyController {
                                 }
                                 ResourceFqdn::Uri {
                                     full_uri,
-                                    root,
-                                    tld,
+                                    root: _,
+                                    tld: _,
                                 } => {
                                     if let Err(e) =
                                         Self::tunnel(upgraded, full_uri.to_string()).await
@@ -167,7 +167,6 @@ impl ProxyController {
     }
 }
 struct ProxyControllerInner {
-    embassyd_socket_addr: SocketAddr,
     ssl_manager: SslManager,
     vhosts: VHOSTController,
     embassyd_fqdn: ResourceFqdn,
@@ -183,7 +182,6 @@ impl ProxyControllerInner {
         ssl_manager: SslManager,
     ) -> Result<Self, Error> {
         let inner = ProxyControllerInner {
-            embassyd_socket_addr,
             vhosts: VHOSTController::init(embassyd_socket_addr),
             ssl_manager,
             embassyd_fqdn,
@@ -229,9 +227,9 @@ impl ProxyControllerInner {
                     .await?
             }
             ResourceFqdn::Uri {
-                full_uri,
+                full_uri: _,
                 root,
-                tld,
+                tld: _,
             } => self.ssl_manager.certificate_for(&root, &pkg_id).await?,
         };
 

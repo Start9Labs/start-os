@@ -15,7 +15,7 @@ use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 use tracing::instrument;
 
 use crate::context::RpcContext;
-use crate::hostname::{get_current_ip, get_hostname, HostNameReceipt};
+use crate::hostname::{get_current_ip, get_embassyd_tor_addr, get_hostname, HostNameReceipt};
 use crate::net::dns::DnsController;
 use crate::net::interface::{Interface, TorConfig};
 #[cfg(feature = "avahi")]
@@ -23,6 +23,7 @@ use crate::net::mdns::MdnsController;
 use crate::net::net_utils::ResourceFqdn;
 use crate::net::proxy_controller::ProxyController;
 use crate::net::ssl::SslManager;
+use crate::net::static_server::UiMode;
 use crate::net::tor::TorController;
 use crate::net::{
     GeneratedCertificateMountPoint, HttpHandler, InterfaceMetadata, PACKAGE_CERT_PATH,
@@ -81,13 +82,11 @@ impl NetController {
 
     async fn setup_embassy_https_ui_handle(rpc_ctx: RpcContext) -> Result<(), Error> {
         let host_name = rpc_ctx.net_controller.proxy.get_hostname().await;
-        let ip = get_current_ip(rpc_ctx.ethernet_interface.to_owned()).await?;
 
         let host_name_fqdn: ResourceFqdn = host_name.parse()?;
-        let ip_fqdn: ResourceFqdn = ip.parse()?;
 
         let handler: HttpHandler =
-            crate::net::static_server::file_server_router(rpc_ctx.clone()).await?;
+            crate::net::static_server::main_ui_server_router(rpc_ctx.clone()).await?;
 
         let eos_pkg_id: PackageId = "embassy".parse().unwrap();
 
@@ -116,27 +115,7 @@ impl NetController {
                 .await?;
         };
 
-        if let ResourceFqdn::IpAddr(ip) = ip_fqdn.clone()
-        {
-            let root_cert = rpc_ctx
-                .net_controller
-                .ssl
-                .certificate_for(&ip.to_string(), &eos_pkg_id)
-                .await?;
-
-            rpc_ctx
-                .net_controller
-                .proxy
-                .add_certificate_to_resolver(ip_fqdn.clone(), root_cert)
-                .await?;
-
-            rpc_ctx
-                .net_controller
-                .proxy
-                .add_handle(443, ip_fqdn.clone(), handler.clone(), true)
-                .await?;
-        };
-
+        // serving ip https is not yet supported
 
         Ok(())
     }
@@ -145,11 +124,22 @@ impl NetController {
         let host_name = rpc_ctx.net_controller.proxy.get_hostname().await;
         let ip = get_current_ip(rpc_ctx.ethernet_interface.to_owned()).await?;
 
+        let embassy_tor_addr = get_embassyd_tor_addr(rpc_ctx.clone()).await?;
+
+        let embassy_tor_fqdn: ResourceFqdn = embassy_tor_addr.parse()?;
+
         let host_name_fqdn: ResourceFqdn = host_name.parse()?;
         let ip_fqdn: ResourceFqdn = ip.parse()?;
 
+
         let handler: HttpHandler =
-            crate::net::static_server::file_server_router(rpc_ctx.clone()).await?;
+            crate::net::static_server::main_ui_server_router(rpc_ctx.clone()).await?;
+
+        rpc_ctx
+            .net_controller
+            .proxy
+            .add_handle(80, embassy_tor_fqdn.clone(), handler.clone(), false)
+            .await?;
 
         rpc_ctx
             .net_controller
@@ -234,7 +224,6 @@ impl NetController {
         tor_res?;
         //nginx_res?;
         proxy_res?;
-
 
         Ok(())
     }

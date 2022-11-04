@@ -20,6 +20,7 @@ use crate::{Error, ResultExt};
 #[serde(rename_all = "kebab-case")]
 pub struct DiagnosticContextConfig {
     pub bind_rpc: Option<SocketAddr>,
+    pub ethernet_interface: String,
     pub datadir: Option<PathBuf>,
 }
 impl DiagnosticContextConfig {
@@ -47,6 +48,7 @@ impl DiagnosticContextConfig {
 
 pub struct DiagnosticContextSeed {
     pub bind_rpc: SocketAddr,
+    pub ethernet_interface: String,
     pub datadir: PathBuf,
     pub shutdown: Sender<Option<Shutdown>>,
     pub error: Arc<RpcError>,
@@ -71,6 +73,7 @@ impl DiagnosticContext {
 
         Ok(Self(Arc::new(DiagnosticContextSeed {
             bind_rpc: cfg.bind_rpc.unwrap_or(([127, 0, 0, 1], 5959).into()),
+            ethernet_interface: cfg.ethernet_interface.clone(),
             datadir: cfg.datadir().to_owned(),
             shutdown,
             disk_guid,
