@@ -25,6 +25,7 @@ export class HomePage {
 
   async ngOnInit() {
     this.disks = await this.api.getDisks()
+    this.loaded = true
   }
 
   async ionViewDidEnter() {
