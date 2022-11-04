@@ -5,11 +5,15 @@ import { ApiService, GetDisksRes, InstallReq } from './api.service'
 @Injectable()
 export class MockApiService implements ApiService {
   async getDisks(): Promise<GetDisksRes> {
-    await pauseFor(1000)
+    await pauseFor(500)
     return [
       {
         logicalname: 'abcdefgh',
         'embassy-data': false,
+      },
+      {
+        logicalname: '12345678',
+        'embassy-data': true,
       },
     ]
   }

@@ -15,7 +15,6 @@ export class HomePage {
   disks: Disk[] = []
   selectedDisk?: Disk
   error = ''
-  loaded = false
 
   constructor(
     private readonly loadingCtrl: LoadingController,
@@ -25,7 +24,6 @@ export class HomePage {
 
   async ngOnInit() {
     this.disks = await this.api.getDisks()
-    this.loaded = true
   }
 
   async ionViewDidEnter() {
