@@ -12,7 +12,7 @@ FRONTEND_SHARED_SRC := $(shell find frontend/projects/shared) $(shell ls -p fron
 FRONTEND_UI_SRC := $(shell find frontend/projects/ui)
 FRONTEND_SETUP_WIZARD_SRC := $(shell find frontend/projects/setup-wizard)
 FRONTEND_DIAGNOSTIC_UI_SRC := $(shell find frontend/projects/diagnostic-ui)
-FRONTEND_DIAGNOSTIC_UI_SRC := $(shell find frontend/projects/install-wizard)
+FRONTEND_INSTALL_WIZARD_SRC := $(shell find frontend/projects/install-wizard)
 PATCH_DB_CLIENT_SRC := $(shell find patch-db/client -not -path patch-db/client/dist)
 GZIP_BIN := $(shell which pigz || which gzip)
 $(shell sudo true)
@@ -88,6 +88,7 @@ install: all
 	mkdir -p $(DESTDIR)/var/www/html
 	cp -r frontend/dist/diagnostic-ui $(DESTDIR)/var/www/html/diagnostic
 	cp -r frontend/dist/setup-wizard $(DESTDIR)/var/www/html/setup
+	cp -r frontend/dist/install-wizard $(DESTDIR)/var/www/html/install
 	cp -r frontend/dist/ui $(DESTDIR)/var/www/html/main
 	cp index.html $(DESTDIR)/var/www/html/
 
@@ -131,7 +132,7 @@ frontend/dist/setup-wizard: $(FRONTEND_SETUP_WIZARD_SRC) $(FRONTEND_SHARED_SRC) 
 frontend/dist/diagnostic-ui: $(FRONTEND_DIAGNOSTIC_UI_SRC) $(FRONTEND_SHARED_SRC) $(ENVIRONMENT_FILE)
 	npm --prefix frontend run build:dui
 
-frontend/dist/install-wizard: $(FRONTEND_INSTALL_UI_SRC) $(FRONTEND_SHARED_SRC) $(ENVIRONMENT_FILE)
+frontend/dist/install-wizard: $(FRONTEND_INSTALL_WIZARD_SRC) $(FRONTEND_SHARED_SRC) $(ENVIRONMENT_FILE)
 	npm --prefix frontend run build:install-wiz
 
 frontend/config.json: $(GIT_HASH_FILE) frontend/config-sample.json
