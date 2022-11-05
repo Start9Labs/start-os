@@ -8,4 +8,4 @@ if [ "$0" != "./install-sdk.sh" ]; then
 	exit 1
 fi
 
-RUSTFLAGS="--cfg tokio_unstable" cargo install --bin=embassy-sdk --bin=embassy-cli --path=. --no-default-features --features=js_engine --locked
+cargo install --bin=embassy-sdk --bin=embassy-cli --path=. --no-default-features --features=js_engine --locked
