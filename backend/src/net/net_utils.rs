@@ -75,7 +75,6 @@ impl FromStr for ResourceFqdn {
     type Err = Error;
 
     fn from_str(input: &str) -> Result<ResourceFqdn, Self::Err> {
-        tracing::error!(input);
 
         if let Ok(ip) = input.parse::<IpAddr>() {
             return Ok(ResourceFqdn::IpAddr(ip));
