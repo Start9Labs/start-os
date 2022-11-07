@@ -48,12 +48,13 @@ impl Rsync {
             cmd.arg("--ignore-existing");
         }
         let mut command = cmd
-            .arg("-a")
+            .arg("-ac")
             .arg("--info=progress2")
             .arg(src.as_ref())
             .arg(dst.as_ref())
             .kill_on_drop(true)
             .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
             .spawn()?;
         let cmd_stdout = command.stdout.take().unwrap();
         let mut cmd_stderr = command.stderr.take().unwrap();
