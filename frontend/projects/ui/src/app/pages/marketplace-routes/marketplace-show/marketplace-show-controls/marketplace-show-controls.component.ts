@@ -103,7 +103,8 @@ export class MarketplaceShowControlsComponent {
 
     let originalName: string | undefined
     if (originalUrl) {
-      originalName = marketplaces['known-hosts'][originalUrl] || originalUrl
+      originalName =
+        marketplaces['known-hosts'][originalUrl].name || originalUrl
     }
 
     return new Promise(async resolve => {

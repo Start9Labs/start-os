@@ -19,7 +19,7 @@ const {
 })
 export class ConfigService {
   origin = removePort(removeProtocol(window.origin))
-  version = require('../../../../../package.json').version
+  version = require('../../../../../package.json').version as string
   useMocks = useMocks
   mocks = mocks
   targetArch = targetArch
