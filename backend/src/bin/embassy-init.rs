@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use embassy::context::rpc::RpcContextConfig;
-use embassy::context::{DiagnosticContext, SetupContext};
+use embassy::context::{DiagnosticContext, InstallContext, SetupContext};
 use embassy::disk::fsck::RepairStrategy;
 use embassy::disk::main::DEFAULT_PASSWORD;
 use embassy::disk::REPAIR_DISK_PATH;
@@ -28,7 +28,45 @@ fn status_fn(_: i32) -> StatusCode {
 
 #[instrument]
 async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
-    if tokio::fs::metadata("/media/embassy/config/disk.guid")
+    if tokio::fs::metadata("/cdrom").await.is_ok() {
+        #[cfg(feature = "avahi")]
+        let _mdns = MdnsController::init();
+        tokio::fs::write(
+            "/etc/nginx/sites-available/default",
+            include_str!("../nginx/install-wizard.conf"),
+        )
+        .await
+        .with_ctx(|_| {
+            (
+                embassy::ErrorKind::Filesystem,
+                "/etc/nginx/sites-available/default",
+            )
+        })?;
+        Command::new("systemctl")
+            .arg("reload")
+            .arg("nginx")
+            .invoke(embassy::ErrorKind::Nginx)
+            .await?;
+        let ctx = InstallContext::init(cfg_path).await?;
+        tokio::time::sleep(Duration::from_secs(1)).await; // let the record state that I hate this
+        CHIME.play().await?;
+        rpc_server!({
+            command: embassy::install_api,
+            context: ctx.clone(),
+            status: status_fn,
+            middleware: [
+                cors,
+            ]
+        })
+        .with_graceful_shutdown({
+            let mut shutdown = ctx.shutdown.subscribe();
+            async move {
+                shutdown.recv().await.expect("context dropped");
+            }
+        })
+        .await
+        .with_kind(embassy::ErrorKind::Network)?;
+    } else if tokio::fs::metadata("/media/embassy/config/disk.guid")
         .await
         .is_err()
     {

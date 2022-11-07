@@ -1,0 +1,2 @@
+{boot}  /boot   vfat    defaults    0   2
+{root}  /       ext4    defaults    0   1

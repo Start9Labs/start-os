@@ -35,6 +35,7 @@ pub mod middleware;
 pub mod migration;
 pub mod net;
 pub mod notifications;
+pub mod os_install;
 pub mod procedure;
 pub mod properties;
 pub mod s9pk;
@@ -131,5 +132,10 @@ pub fn diagnostic_api() -> Result<(), RpcError> {
 
 #[command(subcommands(version::git_info, echo, setup::setup))]
 pub fn setup_api() -> Result<(), RpcError> {
+    Ok(())
+}
+
+#[command(subcommands(version::git_info, echo, os_install::install))]
+pub fn install_api() -> Result<(), RpcError> {
     Ok(())
 }

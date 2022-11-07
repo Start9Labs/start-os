@@ -2,7 +2,7 @@ ARCH = $(shell uname -m)
 ENVIRONMENT_FILE = $(shell ./check-environment.sh)
 GIT_HASH_FILE = $(shell ./check-git-hash.sh)
 EMBASSY_BINS := backend/target/$(ARCH)-unknown-linux-gnu/release/embassyd backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-init backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-cli backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-sdk backend/target/$(ARCH)-unknown-linux-gnu/release/avahi-alias libs/target/aarch64-unknown-linux-musl/release/embassy_container_init libs/target/x86_64-unknown-linux-musl/release/embassy_container_init
-EMBASSY_UIS := frontend/dist/ui frontend/dist/setup-wizard frontend/dist/diagnostic-ui
+EMBASSY_UIS := frontend/dist/ui frontend/dist/setup-wizard frontend/dist/diagnostic-ui frontend/dist/install-wizard
 EMBASSY_SRC := backend/embassyd.service backend/embassy-init.service $(EMBASSY_UIS) $(shell find build)
 COMPAT_SRC := $(shell find system-images/compat/ -not -path 'system-images/compat/target/*' -and -not -name *.tar -and -not -name target)
 UTILS_SRC := $(shell find system-images/utils/ -not -name *.tar)
@@ -12,6 +12,7 @@ FRONTEND_SHARED_SRC := $(shell find frontend/projects/shared) $(shell ls -p fron
 FRONTEND_UI_SRC := $(shell find frontend/projects/ui)
 FRONTEND_SETUP_WIZARD_SRC := $(shell find frontend/projects/setup-wizard)
 FRONTEND_DIAGNOSTIC_UI_SRC := $(shell find frontend/projects/diagnostic-ui)
+FRONTEND_INSTALL_WIZARD_SRC := $(shell find frontend/projects/install-wizard)
 PATCH_DB_CLIENT_SRC := $(shell find patch-db/client -not -path patch-db/client/dist)
 GZIP_BIN := $(shell which pigz || which gzip)
 $(shell sudo true)
@@ -87,6 +88,7 @@ install: all
 	mkdir -p $(DESTDIR)/var/www/html
 	cp -r frontend/dist/diagnostic-ui $(DESTDIR)/var/www/html/diagnostic
 	cp -r frontend/dist/setup-wizard $(DESTDIR)/var/www/html/setup
+	cp -r frontend/dist/install-wizard $(DESTDIR)/var/www/html/install
 	cp -r frontend/dist/ui $(DESTDIR)/var/www/html/main
 	cp index.html $(DESTDIR)/var/www/html/
 
@@ -129,6 +131,9 @@ frontend/dist/setup-wizard: $(FRONTEND_SETUP_WIZARD_SRC) $(FRONTEND_SHARED_SRC) 
 
 frontend/dist/diagnostic-ui: $(FRONTEND_DIAGNOSTIC_UI_SRC) $(FRONTEND_SHARED_SRC) $(ENVIRONMENT_FILE)
 	npm --prefix frontend run build:dui
+
+frontend/dist/install-wizard: $(FRONTEND_INSTALL_WIZARD_SRC) $(FRONTEND_SHARED_SRC) $(ENVIRONMENT_FILE)
+	npm --prefix frontend run build:install-wiz
 
 frontend/config.json: $(GIT_HASH_FILE) frontend/config-sample.json
 	jq '.useMocks = false' frontend/config-sample.json > frontend/config.json

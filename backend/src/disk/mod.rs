@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use clap::ArgMatches;
 use rpc_toolkit::command;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::context::RpcContext;
 use crate::disk::util::DiskInfo;
@@ -18,7 +18,7 @@ pub mod util;
 pub const BOOT_RW_PATH: &str = "/media/boot-rw";
 pub const REPAIR_DISK_PATH: &str = "/media/embassy/config/repair-disk";
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct OsPartitionInfo {
     pub boot: PathBuf,

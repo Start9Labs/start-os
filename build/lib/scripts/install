@@ -12,7 +12,7 @@ function partition_for () {
 
 OSDISK=$1
 if [ -z "$OSDISK" ]; then
-  >&2 echo 'usage: embassy-install <TARGET DISK>'
+  >&2 echo "usage: $0 <TARGET DISK>"
   exit 1
 fi
 
@@ -37,7 +37,7 @@ if [ -z "$ETH_IFACE" ]; then
 fi
 
 (
-  echo o      # GPT
+  echo o      # MBR
   echo n      # New Partition
   echo p      #   Primary
   echo 1      #   Index #1
