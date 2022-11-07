@@ -7,7 +7,9 @@ edition = "2021"
 
 [dependencies]
 embassy_container_init = { path = "../embassy-container-init" }
-emver = { version = "0.1", features = ["serde"] }
+emver = { version = "0.1", git = "https://github.com/Start9Labs/emver-rs.git", features = [
+  "serde",
+] }
 patch-db = { version = "*", path = "../../patch-db/patch-db", features = [
   "trace",
 ] }

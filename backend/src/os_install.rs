@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
 
 use color_eyre::eyre::eyre;
+use mbrman::{MBRPartitionEntry, CHS, MBR};
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
-use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
 
 use crate::disk::mount::filesystem::bind::Bind;
@@ -13,27 +13,7 @@ use crate::disk::mount::guard::{MountGuard, TmpMountGuard};
 use crate::disk::OsPartitionInfo;
 use crate::util::serde::IoFormat;
 use crate::util::{display_none, Invoke};
-use crate::Error;
-
-const OS_PARTITION_SCHEME: &'static str = concat!(
-    "n\n",
-    "p\n",
-    "1\n",
-    "2048\n",
-    "2099199\n",
-    "n\n",
-    "p\n",
-    "2\n",
-    "2099200\n",
-    "33556479\n",
-    "t\n",
-    "1\n",
-    "b\n",
-    "a\n",
-    "1\n",
-);
-const DATA_PARTITION_SCHEME: &'static str =
-    concat!("n\n", "p\n", "3\n", "\n", "\n", "t\n", "3\n", "8e\n");
+use crate::{Error, ResultExt};
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -43,7 +23,7 @@ pub struct PostInstallConfig {
     wifi_interface: Option<String>,
 }
 
-#[command(subcommands(status, execute))]
+#[command(subcommands(status, execute, reboot))]
 pub fn install() -> Result<(), Error> {
     Ok(())
 }
@@ -104,6 +84,16 @@ pub async fn find_eth_iface() -> Result<String, Error> {
     ))
 }
 
+// pub struct FDisk {
+//     child: Child,
+//     stdin: ChildStdin,
+// }
+// impl FDisk {
+//     pub async fn command(&mut self, cmd: &[u8]) -> Result<(), Error> {
+
+//     }
+// }
+
 pub fn partition_for(disk: impl AsRef<Path>, idx: usize) -> PathBuf {
     let disk_path = disk.as_ref();
     let (root, leaf) = if let (Some(root), Some(leaf)) = (
@@ -138,38 +128,79 @@ pub async fn execute(
         })?;
     let eth_iface = find_eth_iface().await?;
     let wifi_iface = find_wifi_iface().await?;
-    let mut fdisk = Command::new("fdisk")
-        .arg(&logicalname)
-        .stdin(std::process::Stdio::piped())
-        .spawn()?;
-    let mut fdisk_stdin = fdisk.stdin.take().unwrap();
+
     overwrite |= disk.guid.is_none() && disk.partitions.iter().all(|p| p.guid.is_none());
-    if overwrite {
-        fdisk_stdin.write_all(b"o\n").await?; // NEW MBR
-    } else {
-        for (idx, part_info) in disk.partitions.iter().enumerate() {
-            if part_info.guid.is_none() {
-                fdisk_stdin
-                    .write_all(format!("d\n{}\n", idx + 1).as_bytes())
-                    .await?; // delete partition (partition indexes start at 1 not 0)
+    let sectors = (disk.capacity / 512) as u32;
+    tokio::task::spawn_blocking(move || {
+        let mut file = std::fs::File::options()
+            .read(true)
+            .write(true)
+            .open(&logicalname)?;
+        let (mut mbr, guid_part) = if overwrite {
+            (MBR::new_from(&mut file, 512, rand::random())?, None)
+        } else {
+            let mut mbr = MBR::read_from(&mut file, 512)?;
+            let mut guid_part = None;
+            for (idx, part_info) in disk
+                .partitions
+                .iter()
+                .enumerate()
+                .map(|(idx, x)| (idx + 1, x))
+            {
+                if let Some(entry) = mbr.get_mut(idx) {
+                    if entry.starting_lba >= 33556480 {
+                        if idx < 3 {
+                            guid_part = Some(std::mem::replace(entry, MBRPartitionEntry::empty()))
+                        }
+                        break;
+                    }
+                    if part_info.guid.is_some() {
+                        return Err(Error::new(
+                            eyre!("Not enough space before embassy data"),
+                            crate::ErrorKind::InvalidRequest,
+                        ));
+                    }
+                    *entry = MBRPartitionEntry::empty();
+                }
             }
+            (mbr, guid_part)
+        };
+
+        mbr[1] = MBRPartitionEntry {
+            boot: 0x80,
+            first_chs: CHS::empty(),
+            sys: 0x0b,
+            last_chs: CHS::empty(),
+            starting_lba: 2048,
+            sectors: 2099200 - 2048,
+        };
+        mbr[2] = MBRPartitionEntry {
+            boot: 0,
+            first_chs: CHS::empty(),
+            sys: 0x83,
+            last_chs: CHS::empty(),
+            starting_lba: 2099200,
+            sectors: 33556480 - 2099200,
+        };
+
+        if overwrite {
+            mbr[3] = MBRPartitionEntry {
+                boot: 0,
+                first_chs: CHS::empty(),
+                sys: 0x8e,
+                last_chs: CHS::empty(),
+                starting_lba: 33556480,
+                sectors: sectors - 33556480,
+            }
+        } else if let Some(guid_part) = guid_part {
+            mbr[3] = guid_part;
         }
-    }
-    fdisk_stdin
-        .write_all(OS_PARTITION_SCHEME.as_bytes())
-        .await?;
-    if overwrite {
-        fdisk_stdin
-            .write_all(DATA_PARTITION_SCHEME.as_bytes())
-            .await?;
-    }
-    fdisk_stdin.write_all(b"w\n").await?;
-    if !fdisk.wait().await?.success() {
-        return Err(Error::new(
-            eyre!("fdisk failed"),
-            crate::ErrorKind::DiskManagement,
-        ));
-    }
+        mbr.write_into(&mut file)?;
+
+        Ok(())
+    })
+    .await
+    .unwrap()?;
 
     let boot_part = partition_for(&disk.logicalname, 1);
     let root_part = partition_for(&disk.logicalname, 2);
@@ -261,6 +292,7 @@ pub async fn execute(
     Command::new("chroot")
         .arg(&current)
         .arg("grub-install")
+        .arg(&disk.logicalname)
         .invoke(crate::ErrorKind::Unknown) // TODO grub
         .await?;
 
@@ -270,5 +302,16 @@ pub async fn execute(
     boot.unmount().await?;
     rootfs.unmount().await?;
 
+    Ok(())
+}
+
+#[command(display(display_none))]
+pub async fn reboot() -> Result<(), Error> {
+    Command::new("sync")
+        .invoke(crate::ErrorKind::Filesystem)
+        .await?;
+    Command::new("reboot")
+        .invoke(crate::ErrorKind::Filesystem)
+        .await?;
     Ok(())
 }

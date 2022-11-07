@@ -242,7 +242,12 @@ impl From<std::net::AddrParseError> for Error {
 }
 impl From<openssl::error::ErrorStack> for Error {
     fn from(e: openssl::error::ErrorStack) -> Self {
-        Error::new(eyre!("OpenSSL ERROR:\n{}", e), ErrorKind::OpenSsl)
+        Error::new(eyre!("{}", e), ErrorKind::OpenSsl)
+    }
+}
+impl From<mbrman::Error> for Error {
+    fn from(e: mbrman::Error) -> Self {
+        Error::new(e, ErrorKind::DiskManagement)
     }
 }
 impl From<Error> for RpcError {
