@@ -20,7 +20,6 @@ use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::watch::error::RecvError;
 use tokio::sync::watch::{channel, Receiver, Sender};
 use tokio::sync::{Mutex, Notify, RwLock};
-use tokio::task::JoinHandle;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use torut::onion::TorSecretKeyV3;
 use tracing::instrument;

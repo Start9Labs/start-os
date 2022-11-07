@@ -1,10 +1,9 @@
 use std::future::Future;
 use std::path::{Path, PathBuf};
-use std::pin::Pin;
 use std::time::Duration;
 
 use color_eyre::eyre::{eyre, Context, Error};
-use futures::future::{pending, BoxFuture};
+use futures::future::BoxFuture;
 use futures::FutureExt;
 use tokio::fs::File;
 use tokio::sync::oneshot;

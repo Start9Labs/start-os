@@ -6,14 +6,13 @@ use std::sync::Arc;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::Context;
 use serde::Deserialize;
-use tokio::fs::File;
 use tokio::sync::broadcast::Sender;
 use tracing::instrument;
 use url::Host;
 
 use crate::shutdown::Shutdown;
-use crate::util::config::{load_config_from_paths, CONFIG_PATH};
-use crate::{Error};
+use crate::util::config::load_config_from_paths;
+use crate::Error;
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -31,15 +30,15 @@ impl DiagnosticContextConfig {
                     .into_iter()
                     .map(|p| p.as_ref())
                     .chain(std::iter::once(Path::new(
-                        CONFIG_PATH,
+                        crate::util::config::DEVICE_CONFIG_PATH,
                     )))
-                    .chain(std::iter::once(Path::new(CONFIG_PATH))),
+                    .chain(std::iter::once(Path::new(crate::util::config::CONFIG_PATH))),
             )
         })
         .await
         .unwrap()
     }
-    
+
     pub fn datadir(&self) -> &Path {
         self.datadir
             .as_deref()

@@ -4,12 +4,12 @@ use std::path::PathBuf;
 use color_eyre::eyre::eyre;
 use futures::TryStreamExt;
 use imbl::OrdMap;
-use patch_db::{LockReceipt, LockType};
 use rpc_toolkit::command;
 use serde_json::Value;
 use tokio::io::AsyncRead;
 use tracing::instrument;
 
+use crate::context::SdkContext;
 use crate::s9pk::builder::S9pkPacker;
 use crate::s9pk::docker::DockerMultiArch;
 use crate::s9pk::manifest::Manifest;
@@ -18,7 +18,6 @@ use crate::util::display_none;
 use crate::util::io::BufferedWriteReader;
 use crate::util::serde::IoFormat;
 use crate::volume::Volume;
-use crate::{context::SdkContext, procedure::docker::DockerContainer};
 use crate::{Error, ErrorKind, ResultExt};
 
 pub mod builder;

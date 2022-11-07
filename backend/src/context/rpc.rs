@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, VecDeque};
-use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
+use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -11,16 +11,13 @@ use helpers::to_tmp_path;
 use patch_db::json_ptr::JsonPointer;
 use patch_db::{DbHandle, LockReceipt, LockType, PatchDb, Revision};
 use reqwest::Url;
-use rpc_toolkit::url::Host;
 use rpc_toolkit::Context;
 use serde::Deserialize;
 use sqlx::postgres::PgConnectOptions;
 use sqlx::PgPool;
-use tokio::process::Command;
 use tokio::sync::{broadcast, oneshot, Mutex, RwLock};
 use tracing::instrument;
 
-use crate::context::SetupContext;
 use crate::core::rpc_continuations::{RequestGuid, RestHandler, RpcContinuation};
 use crate::db::model::{Database, InstalledPackageDataEntry, PackageDataEntry};
 use crate::disk::OsPartitionInfo;
@@ -63,7 +60,7 @@ impl RpcContextConfig {
                     .into_iter()
                     .map(|p| p.as_ref())
                     .chain(std::iter::once(Path::new(
-                        "/media/embassy/config/config.yaml",
+                        crate::util::config::DEVICE_CONFIG_PATH,
                     )))
                     .chain(std::iter::once(Path::new(crate::util::config::CONFIG_PATH))),
             )
@@ -121,7 +118,6 @@ pub struct RpcContextSeed {
     pub os_partitions: OsPartitionInfo,
     pub wifi_interface: Option<String>,
     pub ethernet_interface: String,
-    pub bind_rpc: SocketAddr,
     pub datadir: PathBuf,
     pub disk_guid: Arc<String>,
     pub db: PatchDb,
@@ -180,6 +176,7 @@ impl RpcCleanReceipts {
 
 pub struct RpcSetHostNameReceipts {
     pub hostname_receipts: HostNameReceipt,
+    #[allow(dead_code)]
     server_info: LockReceipt<crate::db::model::ServerInfo, ()>,
 }
 
@@ -251,9 +248,6 @@ impl RpcContext {
         tracing::info!("Initialized Notification Manager");
         let seed = Arc::new(RpcContextSeed {
             is_closed: AtomicBool::new(false),
-            bind_rpc: base
-                .bind_rpc
-                .unwrap_or_else(|| ([127, 0, 0, 1], 5959).into()),
             datadir: base.datadir().to_path_buf(),
             os_partitions: base.os_partitions,
             wifi_interface: base.wifi_interface.clone(),
@@ -429,17 +423,7 @@ impl RpcContext {
         }
     }
 }
-impl Context for RpcContext {
-    fn host(&self) -> Host<&str> {
-        match self.0.bind_rpc.ip() {
-            IpAddr::V4(a) => Host::Ipv4(a),
-            IpAddr::V6(a) => Host::Ipv6(a),
-        }
-    }
-    fn port(&self) -> u16 {
-        self.0.bind_rpc.port()
-    }
-}
+impl Context for RpcContext {}
 impl Deref for RpcContext {
     type Target = RpcContextSeed;
     fn deref(&self) -> &Self::Target {

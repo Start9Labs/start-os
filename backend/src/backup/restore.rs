@@ -23,14 +23,9 @@ use crate::db::model::{PackageDataEntry, StaticFiles};
 use crate::disk::mount::backup::{BackupMountGuard, PackageBackupMountGuard};
 use crate::disk::mount::filesystem::ReadOnly;
 use crate::disk::mount::guard::TmpMountGuard;
-use crate::hostname::get_current_ip;
 use crate::install::progress::InstallProgress;
 use crate::install::{download_install_s9pk, PKG_PUBLIC_DIR};
-use crate::net::net_controller::NetController;
-use crate::net::net_utils::ResourceFqdn;
 use crate::net::ssl::SslManager;
-use crate::net::static_server::main_ui_server_router;
-use crate::net::HttpHandler;
 use crate::notifications::NotificationLevel;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::s9pk::reader::S9pkReader;
@@ -237,13 +232,11 @@ pub async fn recover_full_embassy(
     .await?;
     secret_store.close().await;
 
-    let embassy_recovered_data = (
+    Ok((
         os_backup.tor_key.public().get_onion_address(),
         os_backup.root_ca_cert,
         async move {
             let rpc_ctx = RpcContext::init(ctx.config_path.clone(), disk_guid).await?;
-            NetController::setup_embassy_ui(rpc_ctx.clone()).await?;
-
             let mut db = rpc_ctx.db.handle();
 
             let ids = backup_guard
@@ -300,8 +293,7 @@ pub async fn recover_full_embassy(
             backup_guard.unmount().await?;
             rpc_ctx.shutdown().await
         }.boxed()
-    );
-    Ok(embassy_recovered_data)
+    ))
 }
 
 async fn restore_packages(
