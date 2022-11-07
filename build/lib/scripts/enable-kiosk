@@ -22,7 +22,11 @@ user_pref("dom.securecontext.whitelist_onions", true);
 user_pref("signon.rememberSignons", false);
 EOT
 matchbox-window-manager -use_titlebar yes &
-firefox-esr --kiosk http://$(hostname).local --profile $PROFILE
+if [ "$(hostname)" == "embassy" ]; then
+    firefox-esr --kiosk http://localhost --profile $PROFILE
+else
+    firefox-esr --kiosk https://$(hostname).local --profile $PROFILE
+fi
 rm -rf $PROFILE
 EOF
 chmod +x /home/start9/kiosk.sh

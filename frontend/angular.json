@@ -129,6 +129,136 @@
         }
       }
     },
+    "install-wizard": {
+      "projectType": "application",
+      "schematics": {},
+      "root": "projects/install-wizard",
+      "sourceRoot": "projects/install-wizard/src",
+      "prefix": "app",
+      "architect": {
+        "build": {
+          "builder": "@angular-devkit/build-angular:browser",
+          "options": {
+            "outputPath": "dist/install-wizard",
+            "index": "projects/install-wizard/src/index.html",
+            "main": "projects/install-wizard/src/main.ts",
+            "polyfills": "projects/install-wizard/src/polyfills.ts",
+            "tsConfig": "projects/install-wizard/tsconfig.json",
+            "inlineStyleLanguage": "scss",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "projects/shared/assets",
+                "output": "assets"
+              },
+              {
+                "glob": "**/*.svg",
+                "input": "node_modules/ionicons/dist/ionicons/svg",
+                "output": "./svg"
+              }
+            ],
+            "styles": [
+              "projects/shared/styles/variables.scss",
+              "projects/shared/styles/global.scss",
+              "projects/shared/styles/shared.scss",
+              "projects/install-wizard/src/styles.scss"
+            ],
+            "scripts": []
+          },
+          "configurations": {
+            "production": {
+              "fileReplacements": [
+                {
+                  "replace": "projects/install-wizard/src/environments/environment.ts",
+                  "with": "projects/install-wizard/src/environments/environment.prod.ts"
+                }
+              ],
+              "optimization": true,
+              "outputHashing": "all",
+              "sourceMap": false,
+              "namedChunks": false,
+              "aot": true,
+              "extractLicenses": true,
+              "vendorChunk": false,
+              "buildOptimizer": true,
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "2mb",
+                  "maximumError": "5mb"
+                }
+              ]
+            },
+            "ci": {
+              "progress": false
+            },
+            "development": {
+              "buildOptimizer": false,
+              "optimization": false,
+              "vendorChunk": true,
+              "extractLicenses": false,
+              "sourceMap": true,
+              "namedChunks": true
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular-devkit/build-angular:dev-server",
+          "options": {
+            "browserTarget": "install-wizard:build"
+          },
+          "configurations": {
+            "production": {
+              "browserTarget": "install-wizard:build:production"
+            },
+            "development": {
+              "browserTarget": "install-wizard:build:development"
+            }
+          },
+          "defaultConfiguration": "development"
+        },
+        "extract-i18n": {
+          "builder": "@angular-devkit/build-angular:extract-i18n",
+          "options": {
+            "browserTarget": "install-wizard:build"
+          }
+        },
+        "lint": {
+          "builder": "@angular-eslint/builder:lint",
+          "options": {
+            "lintFilePatterns": [
+              "projects/install-wizard/src/**/*.ts",
+              "projects/install-wizard/src/**/*.html"
+            ]
+          }
+        },
+        "ionic-cordova-build": {
+          "builder": "@ionic/angular-toolkit:cordova-build",
+          "options": {
+            "browserTarget": "install-wizard:build"
+          },
+          "configurations": {
+            "production": {
+              "browserTarget": "install-wizard:build:production"
+            }
+          }
+        },
+        "ionic-cordova-serve": {
+          "builder": "@ionic/angular-toolkit:cordova-serve",
+          "options": {
+            "cordovaBuildTarget": "install-wizard:ionic-cordova-build",
+            "devServerTarget": "install-wizard:serve"
+          },
+          "configurations": {
+            "production": {
+              "cordovaBuildTarget": "install-wizard:ionic-cordova-build:production",
+              "devServerTarget": "install-wizard:serve:production"
+            }
+          }
+        }
+      }
+    },
     "setup-wizard": {
       "projectType": "application",
       "schematics": {},

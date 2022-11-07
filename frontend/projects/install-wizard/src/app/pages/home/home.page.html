@@ -1,0 +1,77 @@
+<ion-content>
+  <ion-grid>
+    <ion-row>
+      <ion-col class="ion-text-center">
+        <div style="padding-bottom: 32px">
+          <img src="assets/img/logo.png" style="max-width: 240px" />
+        </div>
+
+        <ion-card color="dark">
+          <ion-card-header>
+            <ion-button
+              *ngIf="swiper?.activeIndex === 1"
+              class="back-button"
+              fill="clear"
+              color="light"
+              (click)="previous()"
+            >
+              <ion-icon slot="icon-only" name="arrow-back"></ion-icon>
+            </ion-button>
+            <ion-card-title>
+              {{ !swiper || swiper.activeIndex === 0 ? 'Select Disk' : 'Install
+              Type' }}
+            </ion-card-title>
+            <ion-card-subtitle *ngIf="error">
+              <ion-text color="danger">{{ error }}</ion-text>
+            </ion-card-subtitle>
+          </ion-card-header>
+          <ion-card-content class="ion-margin-bottom">
+            <swiper (swiper)="setSwiperInstance($event)">
+              <ng-template swiperSlide>
+                <ion-item
+                  *ngFor="let disk of disks"
+                  button
+                  detail="true"
+                  (click)="next(disk)"
+                >
+                  <ion-icon
+                    color="dark"
+                    slot="start"
+                    name="save-outline"
+                  ></ion-icon>
+                  <ion-label>{{ disk.logicalname }}</ion-label>
+                </ion-item>
+              </ng-template>
+              <ng-template swiperSlide>
+                <ion-item button (click)="tryInstall(false)">
+                  <ion-icon
+                    color="dark"
+                    slot="start"
+                    name="medkit-outline"
+                  ></ion-icon>
+                  <ion-label>
+                    <h2><ion-text color="success">Light Install</ion-text></h2>
+                    <p>Reinstall embassyOS but keep your existing data</p>
+                  </ion-label>
+                </ion-item>
+                <ion-item button lines="none" (click)="tryInstall(true)">
+                  <ion-icon
+                    color="dark"
+                    slot="start"
+                    name="download-outline"
+                  ></ion-icon>
+                  <ion-label>
+                    <h2><ion-text color="warning">Full Install</ion-text></h2>
+                    <p>
+                      Install embassyOS and delete all existing data on disk
+                    </p>
+                  </ion-label>
+                </ion-item>
+              </ng-template>
+            </swiper>
+          </ion-card-content>
+        </ion-card>
+      </ion-col>
+    </ion-row>
+  </ion-grid>
+</ion-content>

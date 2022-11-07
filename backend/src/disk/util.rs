@@ -12,7 +12,6 @@ use nom::sequence::{pair, preceded, terminated};
 use nom::IResult;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use tokio::fs::File;
 use tokio::process::Command;
 use tracing::instrument;
 
@@ -20,7 +19,6 @@ use super::mount::filesystem::block_dev::BlockDev;
 use super::mount::filesystem::ReadOnly;
 use super::mount::guard::TmpMountGuard;
 use crate::disk::OsPartitionInfo;
-use crate::util::io::from_yaml_async_reader;
 use crate::util::serde::IoFormat;
 use crate::util::{Invoke, Version};
 use crate::{Error, ResultExt as _};
@@ -44,6 +42,7 @@ pub struct PartitionInfo {
     pub capacity: u64,
     pub used: Option<u64>,
     pub embassy_os: Option<EmbassyOsRecoveryInfo>,
+    pub guid: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -219,15 +218,6 @@ pub async fn recovery_info(
             )?,
         ));
     }
-    let version_path = mountpoint.as_ref().join("root/appmgr/version");
-    if tokio::fs::metadata(&version_path).await.is_ok() {
-        return Ok(Some(EmbassyOsRecoveryInfo {
-            version: from_yaml_async_reader(File::open(&version_path).await?).await?,
-            full: true,
-            password_hash: None,
-            wrapped_key: None,
-        }));
-    }
 
     Ok(None)
 }
@@ -323,7 +313,11 @@ pub async fn list(os: &OsPartitionInfo) -> Result<Vec<DiskInfo>, Error> {
                 disk_info.guid = g.clone();
             } else {
                 for part in index.parts {
-                    disk_info.partitions.push(part_info(part).await);
+                    let mut part_info = part_info(part).await;
+                    if let Some(g) = disk_guids.get(&part_info.logicalname) {
+                        part_info.guid = g.clone();
+                    }
+                    disk_info.partitions.push(part_info);
                 }
             }
             res.push(disk_info);
@@ -398,6 +392,7 @@ async fn part_info(part: PathBuf) -> PartitionInfo {
         capacity,
         used,
         embassy_os,
+        guid: None,
     }
 }
 

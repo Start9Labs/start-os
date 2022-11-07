@@ -64,7 +64,7 @@ sudo chown -R $USER target
 sudo chown -R $USER ~/.cargo
 sudo chown -R $USER ../libs/target
 
-if [-n fail]; then
+if [ -n "$fail" ]; then
 	exit 1
 fi
 
