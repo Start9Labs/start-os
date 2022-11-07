@@ -13,13 +13,13 @@ use rpc_toolkit::rpc_handler;
 use tokio::fs::File;
 use tokio_util::codec::{BytesCodec, FramedRead};
 
-use crate::context::{RpcContext, SetupContext, DiagnosticContext};
+use crate::context::{DiagnosticContext, InstallContext, RpcContext, SetupContext};
 use crate::core::rpc_continuations::RequestGuid;
 use crate::db::subscribe;
 use crate::install::PKG_PUBLIC_DIR;
 use crate::middleware::auth::HasValidSession;
 use crate::net::HttpHandler;
-use crate::{main_api, setup_api, Error, ErrorKind, ResultExt, diagnostic_api};
+use crate::{diagnostic_api, install_api, main_api, setup_api, Error, ErrorKind, ResultExt};
 
 static NOT_FOUND: &[u8] = b"Not Found";
 static NOT_AUTHORIZED: &[u8] = b"Not Authorized";
@@ -27,6 +27,7 @@ static NOT_AUTHORIZED: &[u8] = b"Not Authorized";
 pub const MAIN_UI_WWW_DIR: &str = "/var/www/html/main";
 pub const SETUP_UI_WWW_DIR: &str = "/var/www/html/setup";
 pub const DIAG_UI_WWW_DIR: &str = "/var/www/html/diagnostic";
+pub const INSTALL_UI_WWW_DIR: &str = "/var/www/html/install";
 
 fn status_fn(_: i32) -> StatusCode {
     StatusCode::OK
@@ -36,13 +37,14 @@ fn status_fn(_: i32) -> StatusCode {
 pub enum UiMode {
     Setup,
     Diag,
+    Install,
     Main,
 }
 
 pub async fn setup_ui_file_router(ctx: SetupContext) -> Result<HttpHandler, Error> {
     let handler: HttpHandler = Arc::new(move |req| {
         let ctx = ctx.clone();
-        
+
         let ui_mode = UiMode::Setup;
         async move {
             let res = match req.uri().path() {
@@ -54,7 +56,7 @@ pub async fn setup_ui_file_router(ctx: SetupContext) -> Result<HttpHandler, Erro
                         .await
                         .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::Network))
                 }
-                _ => setup_or_diag_ui(req, ui_mode).await,
+                _ => alt_ui(req, ui_mode).await,
             };
 
             match res {
@@ -82,7 +84,7 @@ pub async fn diag_ui_file_router(ctx: DiagnosticContext) -> Result<HttpHandler, 
                         .await
                         .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::Network))
                 }
-                _ => setup_or_diag_ui(req, ui_mode).await,
+                _ => alt_ui(req, ui_mode).await,
             };
 
             match res {
@@ -96,6 +98,33 @@ pub async fn diag_ui_file_router(ctx: DiagnosticContext) -> Result<HttpHandler, 
     Ok(handler)
 }
 
+pub async fn install_ui_file_router(ctx: InstallContext) -> Result<HttpHandler, Error> {
+    let handler: HttpHandler = Arc::new(move |req| {
+        let ctx = ctx.clone();
+        let ui_mode = UiMode::Diag;
+        async move {
+            let res = match req.uri().path() {
+                path if path.starts_with("/rpc/") => {
+                    let rpc_handler =
+                        rpc_handler!({command: install_api, context: ctx, status: status_fn});
+
+                    rpc_handler(req)
+                        .await
+                        .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::Network))
+                }
+                _ => alt_ui(req, ui_mode).await,
+            };
+
+            match res {
+                Ok(data) => Ok(data),
+                Err(err) => Ok(server_error(err)),
+            }
+        }
+        .boxed()
+    });
+
+    Ok(handler)
+}
 
 pub async fn main_ui_server_router(ctx: RpcContext) -> Result<HttpHandler, Error> {
     let handler: HttpHandler = Arc::new(move |req| {
@@ -156,13 +185,11 @@ pub async fn main_ui_server_router(ctx: RpcContext) -> Result<HttpHandler, Error
     Ok(handler)
 }
 
-async fn setup_or_diag_ui(
-    req: Request<Body>,
-    ui_mode: UiMode,
-) -> Result<Response<Body>, Error> {
+async fn alt_ui(req: Request<Body>, ui_mode: UiMode) -> Result<Response<Body>, Error> {
     let selected_root_dir = match ui_mode {
         UiMode::Setup => SETUP_UI_WWW_DIR,
         UiMode::Diag => DIAG_UI_WWW_DIR,
+        UiMode::Install => INSTALL_UI_WWW_DIR,
         UiMode::Main => MAIN_UI_WWW_DIR,
     };
 

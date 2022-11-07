@@ -1,4 +1,3 @@
-use std::net::{IpAddr, SocketAddr};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -14,7 +13,6 @@ use sqlx::PgPool;
 use tokio::sync::broadcast::Sender;
 use tokio::sync::RwLock;
 use tracing::instrument;
-use url::Host;
 
 use crate::db::model::Database;
 use crate::disk::OsPartitionInfo;
@@ -39,7 +37,6 @@ pub struct SetupContextConfig {
     pub ethernet_interface: String,
     pub migration_batch_rows: Option<usize>,
     pub migration_prefetch_rows: Option<usize>,
-    pub bind_rpc: Option<SocketAddr>,
     pub datadir: Option<PathBuf>,
 }
 impl SetupContextConfig {
@@ -50,9 +47,7 @@ impl SetupContextConfig {
                 path.as_ref()
                     .into_iter()
                     .map(|p| p.as_ref())
-                    .chain(std::iter::once(Path::new(
-                        CONFIG_PATH,
-                    )))
+                    .chain(std::iter::once(Path::new(CONFIG_PATH)))
                     .chain(std::iter::once(Path::new(CONFIG_PATH))),
             )
         })
@@ -72,7 +67,6 @@ pub struct SetupContextSeed {
     pub config_path: Option<PathBuf>,
     pub migration_batch_rows: usize,
     pub migration_prefetch_rows: usize,
-    pub bind_rpc: SocketAddr,
     pub shutdown: Sender<()>,
     pub datadir: PathBuf,
     /// Used to encrypt for hidding from snoopers for setups create password
@@ -104,7 +98,6 @@ impl SetupContext {
             config_path: path.as_ref().map(|p| p.as_ref().to_owned()),
             migration_batch_rows: cfg.migration_batch_rows.unwrap_or(25000),
             migration_prefetch_rows: cfg.migration_prefetch_rows.unwrap_or(100_000),
-            bind_rpc: cfg.bind_rpc.unwrap_or(([127, 0, 0, 1], 5959).into()),
             shutdown,
             datadir,
             current_secret: Arc::new(
@@ -164,17 +157,7 @@ impl SetupContext {
     }
 }
 
-impl Context for SetupContext {
-    fn host(&self) -> Host<&str> {
-        match self.0.bind_rpc.ip() {
-            IpAddr::V4(a) => Host::Ipv4(a),
-            IpAddr::V6(a) => Host::Ipv6(a),
-        }
-    }
-    fn port(&self) -> u16 {
-        self.0.bind_rpc.port()
-    }
-}
+impl Context for SetupContext {}
 impl Deref for SetupContext {
     type Target = SetupContextSeed;
     fn deref(&self) -> &Self::Target {
