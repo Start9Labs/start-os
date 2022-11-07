@@ -16,7 +16,7 @@ import {
   Emver,
   MarkdownComponent,
 } from '@start9labs/shared'
-import { MarketplacePkg } from 'src/types'
+import { MarketplacePkg } from '../../../types'
 import { AbstractMarketplaceService } from '../../../services/marketplace.service'
 
 @Component({
