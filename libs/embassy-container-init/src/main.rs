@@ -74,7 +74,7 @@ impl Io {
         use tracing_subscriber::prelude::*;
         use tracing_subscriber::{fmt, EnvFilter};
 
-        let filter_layer = EnvFilter::new("embassy_container_init=trace");
+        let filter_layer = EnvFilter::new("embassy_container_init=debug");
         let fmt_layer = fmt::layer().with_target(true);
 
         tracing_subscriber::registry()
