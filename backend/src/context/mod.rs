@@ -1,11 +1,13 @@
 pub mod cli;
 pub mod diagnostic;
+pub mod install;
 pub mod rpc;
 pub mod sdk;
 pub mod setup;
 
 pub use cli::CliContext;
 pub use diagnostic::DiagnosticContext;
+pub use install::InstallContext;
 pub use rpc::RpcContext;
 pub use sdk::SdkContext;
 pub use setup::SetupContext;
@@ -32,6 +34,11 @@ impl From<SdkContext> for () {
 }
 impl From<SetupContext> for () {
     fn from(_: SetupContext) -> Self {
+        ()
+    }
+}
+impl From<InstallContext> for () {
+    fn from(_: InstallContext) -> Self {
         ()
     }
 }

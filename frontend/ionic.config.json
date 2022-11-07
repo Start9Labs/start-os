@@ -6,6 +6,12 @@
       "type": "angular",
       "root": "projects/ui"
     },
+    "install-wizard": {
+      "name": "install-wizard",
+      "integrations": {},
+      "type": "angular",
+      "root": "projects/install-wizard"
+    },
     "setup-wizard": {
       "name": "setup-wizard",
       "integrations": {},
