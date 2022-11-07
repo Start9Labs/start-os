@@ -28,14 +28,14 @@ impl AsRef<str> for GitHash {
     }
 }
 
-#[tokio::test]
-async fn test_githash_for_current() {
-    let answer: GitHash = GitHash::from_path(std::env::current_dir().unwrap())
-        .await
-        .unwrap();
-    let answer_str: &str = answer.as_ref();
-    assert!(
-        !answer_str.is_empty(),
-        "Should have a hash for this current working"
-    );
-}
+// #[tokio::test]
+// async fn test_githash_for_current() {
+//     let answer: GitHash = GitHash::from_path(std::env::current_dir().unwrap())
+//         .await
+//         .unwrap();
+//     let answer_str: &str = answer.as_ref();
+//     assert!(
+//         !answer_str.is_empty(),
+//         "Should have a hash for this current working"
+//     );
+// }
