@@ -94,7 +94,7 @@ export class MarketplaceSettingsPage {
   }
 
   async presentAction(
-    { url, name }: { url: string; name: string },
+    { url, name }: { url: string; name?: string },
     canDelete = false,
   ) {
     const buttons: ActionSheetButton[] = [
@@ -111,7 +111,7 @@ export class MarketplaceSettingsPage {
         text: 'Delete',
         role: 'destructive',
         handler: () => {
-          this.presentAlertDelete(url, name)
+          this.presentAlertDelete(url, name!)
         },
       })
     }
