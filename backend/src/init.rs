@@ -203,24 +203,6 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         .lock(&mut handle, LockType::Write)
         .await?;
 
-    let defaults: serde_json::Value =
-        serde_json::from_str(include_str!("../../frontend/patchdb-ui-seed.json")).map_err(|x| {
-            Error::new(
-                eyre!("Deserialization error {:?}", x),
-                crate::ErrorKind::Deserialization,
-            )
-        })?;
-    let mut ui = crate::db::DatabaseModel::new()
-        .ui()
-        .get(&mut handle, false)
-        .await?
-        .clone();
-    ui.merge_with(&defaults);
-    crate::db::DatabaseModel::new()
-        .ui()
-        .put(&mut handle, &ui)
-        .await?;
-
     let receipts = InitReceipts::new(&mut handle).await?;
 
     let should_rebuild = tokio::fs::metadata(SYSTEM_REBUILD_PATH).await.is_ok()
