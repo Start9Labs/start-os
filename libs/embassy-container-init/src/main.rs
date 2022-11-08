@@ -1,17 +1,15 @@
-use std::{collections::BTreeMap, process::Stdio, sync::Arc};
+use std::collections::BTreeMap;
+use std::process::Stdio;
+use std::sync::Arc;
 
 use async_stream::stream;
-use futures::{pin_mut, Stream, StreamExt};
-use tokio::{
-    io::AsyncBufReadExt,
-    process::Child,
-    select,
-    sync::{oneshot, Mutex},
-};
-use tokio::{io::BufReader, process::Command};
-use tracing::instrument;
-
 use embassy_container_init::{Input, InputJsonRpc, JsonRpc, Output, OutputJsonRpc, RpcId};
+use futures::{pin_mut, Stream, StreamExt};
+use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::process::{Child, Command};
+use tokio::select;
+use tokio::sync::{oneshot, Mutex};
+use tracing::instrument;
 
 const MAX_COMMANDS: usize = 10;
 
@@ -188,7 +186,6 @@ impl Io {
     async fn output(&self, outputs: impl Stream<Item = String>) {
         pin_mut!(outputs);
         while let Some(output) = outputs.next().await {
-            tracing::info!("{}", output);
             println!("{}", output);
         }
     }
