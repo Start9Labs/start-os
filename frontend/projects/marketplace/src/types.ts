@@ -5,7 +5,7 @@ export type StoreName = string
 export type StoreIcon = string // base64
 
 export interface StoreIdentifier {
-  name: StoreName
+  name?: StoreName
   icon?: StoreIcon // base64
 }
 
@@ -18,7 +18,7 @@ export interface StoreData {
 
 export interface StoreInfo {
   name: StoreName
-  icon?: string
+  icon?: StoreIcon
   categories: string[]
 }
 

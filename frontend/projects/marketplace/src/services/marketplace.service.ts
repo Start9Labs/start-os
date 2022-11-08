@@ -10,11 +10,7 @@ import {
 export abstract class AbstractMarketplaceService {
   abstract getKnownHosts$(): Observable<Record<StoreURL, StoreIdentifier>>
 
-  abstract getSelectedHost$(): Observable<{
-    url: string
-    name: string
-    icon?: string
-  }>
+  abstract getSelectedHost$(): Observable<StoreIdentifier & { url: string }>
 
   abstract getMarketplace$(): Observable<Marketplace>
 

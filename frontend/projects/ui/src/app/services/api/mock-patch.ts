@@ -23,7 +23,6 @@ export const mockPatchData: DataModel = {
           icon: START9_REGISTRY,
         },
         'https://community-registry.start9.com/': {
-          name: 'Community Registry',
           icon: COMMUNITY_REGISTRY,
         },
         'https://dark9-marketplace.com/': {

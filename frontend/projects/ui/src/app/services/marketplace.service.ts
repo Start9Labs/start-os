@@ -89,7 +89,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
     return this.knownHosts$
   }
 
-  getSelectedHost$(): Observable<{ url: string; name: string; icon?: string }> {
+  getSelectedHost$(): Observable<StoreIdentifier & { url: string }> {
     return this.selectedHost$
   }
 
