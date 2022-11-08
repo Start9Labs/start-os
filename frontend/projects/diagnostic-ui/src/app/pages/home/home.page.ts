@@ -60,7 +60,7 @@ export class HomePage {
           code: 2,
           problem: 'Filesystem I/O error.',
           solution:
-            'Repairing the disk could help resolve this issue. This will occur on a restart between the bep and chime. Please DO NOT unplug the drive or Embassy during this time or the situation will become worse.',
+            'Repairing the disk could help resolve this issue. Please DO NOT unplug the drive or Embassy during this time or the situation will become worse.',
           details: error.data?.details,
         }
         // disk management error - disk needs repair
@@ -69,7 +69,7 @@ export class HomePage {
           code: 48,
           problem: 'Disk management error.',
           solution:
-            'Repairing the disk could help resolve this issue. This will occur on a restart between the bep and chime. Please DO NOT unplug the drive or Embassy during this time or the situation will become worse.',
+            'Repairing the disk could help resolve this issue. Please DO NOT unplug the drive or Embassy during this time or the situation will become worse.',
           details: error.data?.details,
         }
       } else {
@@ -139,7 +139,7 @@ export class HomePage {
     const alert = await this.alertCtrl.create({
       header: 'Warning',
       message:
-        'This action will attempt to preform a disk repair operation and system reboot. No data will be deleted. This action should only be executed if directed by a Start9 support specialist. We recommend backing up your device before preforming this action. If anything happens to the device during the reboot (between the bep and chime), such as losing power, a power surge, unplugging the drive, or unplugging the Embassy, the filesystem *will* be in an unrecoverable state. Please proceed with caution.',
+        'This action will attempt to preform a disk repair operation and system reboot. No data will be deleted. This action should only be executed if directed by a Start9 support specialist. We recommend backing up your device before preforming this action. If anything happens to the device during the reboot, such as losing power, a power surge, unplugging the drive, or unplugging the Embassy, the filesystem *will* be in an unrecoverable state. Please proceed with caution.',
       buttons: [
         {
           text: 'Cancel',
