@@ -58,14 +58,18 @@ impl VersionT for Version {
             obj.remove("auto-check-updates");
         }
         let known_hosts = ui["marketplace"]["known-hosts"].take();
+        ui["marketplace"]["known-hosts"] = json!({});
         if let Value::Object(known_hosts) = known_hosts {
             for (_id, value) in known_hosts {
-                if let (Value::String(name), Value::String(_url)) = (&value["name"], &value["url"])
-                {
-                    ui["marketplace"]["known-hosts"][name] = json!({});
+                if let Value::String(url) = &value["url"] {
+                    ui["marketplace"]["known-hosts"][url] = json!({});
                 }
             }
         }
+
+        ui["marketplace"]["known-hosts"]["https://registry.start9.com/"] = json!({});
+        ui["marketplace"]["known-hosts"]["https://community-registry.start9.com/"] = json!({});
+
         if let Some(Value::Object(ref mut obj)) = ui.get_mut("marketplace") {
             obj.remove("selected-id");
         }
