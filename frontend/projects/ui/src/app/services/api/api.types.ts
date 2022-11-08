@@ -7,7 +7,7 @@ import {
   DependencyError,
   Manifest,
 } from 'src/app/services/patch-db/data-model'
-import { LogsRes, ServerLogsReq } from '@start9labs/shared'
+import { EmbassyOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
 
 export module RR {
   // DB
@@ -332,13 +332,6 @@ export type PlatformType =
 
 export type BackupTarget = DiskBackupTarget | CifsBackupTarget
 
-export interface EmbassyOSRecoveryInfo {
-  version: string
-  full: boolean
-  'password-hash': string | null
-  'wrapped-key': string | null
-}
-
 export interface DiskBackupTarget {
   type: 'disk'
   vendor: string | null
@@ -347,7 +340,7 @@ export interface DiskBackupTarget {
   label: string | null
   capacity: number
   used: number | null
-  'embassy-os': EmbassyOSRecoveryInfo | null
+  'embassy-os': EmbassyOSDiskInfo | null
 }
 
 export interface CifsBackupTarget {
@@ -356,7 +349,7 @@ export interface CifsBackupTarget {
   path: string
   username: string
   mountable: boolean
-  'embassy-os': EmbassyOSRecoveryInfo | null
+  'embassy-os': EmbassyOSDiskInfo | null
 }
 
 export type RecoverySource = DiskRecoverySource | CifsRecoverySource
@@ -372,28 +365,6 @@ export interface CifsRecoverySource {
   path: string
   username: string
   password: string
-}
-
-export interface DiskInfo {
-  logicalname: string
-  vendor: string | null
-  model: string | null
-  partitions: PartitionInfo[]
-  capacity: number
-  guid: string | null
-}
-
-export interface PartitionInfo {
-  logicalname: string
-  label: string | null
-  capacity: number
-  used: number | null
-  'embassy-os': EmbassyOsDiskInfo | null
-}
-
-export interface EmbassyOsDiskInfo {
-  version: string
-  full: boolean
 }
 
 export interface BackupInfo {

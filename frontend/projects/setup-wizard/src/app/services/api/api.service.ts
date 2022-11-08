@@ -1,4 +1,5 @@
 import * as jose from 'node-jose'
+import { DiskListResponse, EmbassyOSDiskInfo } from '@start9labs/shared'
 export abstract class ApiService {
   pubkey?: jose.JWK.Key
 
@@ -6,7 +7,7 @@ export abstract class ApiService {
   abstract getPubKey(): Promise<void> // setup.get-pubkey
   abstract getDrives(): Promise<DiskListResponse> // setup.disk.list
   abstract getRecoveryStatus(): Promise<RecoveryStatusRes> // setup.recovery.status
-  abstract verifyCifs(cifs: CifsRecoverySource): Promise<EmbassyOSRecoveryInfo> // setup.cifs.verify
+  abstract verifyCifs(cifs: CifsRecoverySource): Promise<EmbassyOSDiskInfo> // setup.cifs.verify
   abstract importDrive(importInfo: ImportDriveReq): Promise<SetupEmbassyRes> // setup.attach
   abstract setupEmbassy(setupInfo: SetupEmbassyReq): Promise<SetupEmbassyRes> // setup.execute
   abstract setupComplete(): Promise<SetupEmbassyRes> // setup.complete
@@ -48,15 +49,6 @@ export type SetupEmbassyRes = {
   'root-ca': string
 }
 
-export type EmbassyOSRecoveryInfo = {
-  version: string
-  full: boolean
-  'password-hash': string | null
-  'wrapped-key': string | null
-}
-
-export type DiskListResponse = DiskInfo[]
-
 export type DiskBackupTarget = {
   vendor: string | null
   model: string | null
@@ -64,7 +56,7 @@ export type DiskBackupTarget = {
   label: string | null
   capacity: number
   used: number | null
-  'embassy-os': EmbassyOSRecoveryInfo | null
+  'embassy-os': EmbassyOSDiskInfo | null
 }
 
 export type CifsBackupTarget = {
@@ -72,7 +64,7 @@ export type CifsBackupTarget = {
   path: string
   username: string
   mountable: boolean
-  'embassy-os': EmbassyOSRecoveryInfo | null
+  'embassy-os': EmbassyOSDiskInfo | null
 }
 
 export type DiskRecoverySource = {
@@ -99,25 +91,8 @@ export type CifsRecoverySource = {
   password: Encrypted | null
 }
 
-export type DiskInfo = {
-  logicalname: string
-  vendor: string | null
-  model: string | null
-  partitions: PartitionInfo[]
-  capacity: number
-  guid: string | null // cant back up if guid exists, but needed if migrating
-}
-
 export type RecoveryStatusRes = {
   'bytes-transferred': number
   'total-bytes': number
   complete: boolean
-}
-
-export type PartitionInfo = {
-  logicalname: string
-  label: string | null
-  capacity: number
-  used: number | null
-  'embassy-os': EmbassyOSRecoveryInfo | null
 }

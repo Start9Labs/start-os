@@ -4,11 +4,8 @@ import {
   LoadingController,
   ModalController,
 } from '@ionic/angular'
-import {
-  ApiService,
-  CifsBackupTarget,
-  EmbassyOSRecoveryInfo,
-} from 'src/app/services/api/api.service'
+import { ApiService, CifsBackupTarget } from 'src/app/services/api/api.service'
+import { EmbassyOSDiskInfo } from '@start9labs/shared'
 import { PasswordPage } from '../password/password.page'
 
 @Component({
@@ -61,7 +58,7 @@ export class CifsModal {
   }
 
   private async presentModalPassword(
-    embassyOS: EmbassyOSRecoveryInfo,
+    embassyOS: EmbassyOSDiskInfo,
   ): Promise<void> {
     const target: CifsBackupTarget = {
       ...this.cifs,
