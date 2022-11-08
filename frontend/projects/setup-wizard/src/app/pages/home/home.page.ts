@@ -47,7 +47,7 @@ export class HomePage {
   }
 
   async ionViewDidEnter() {
-    this.loaded = true // needed to accomodate autoHight="true" on swiper. Otherwise Swiper height might be 0 when navigatging *to* this page from later page. Happens on refresh.
+    this.loaded = true // needed to accommodate autoHight="true" on swiper. Otherwise Swiper height might be 0 when navigating *to* this page from later page. Happens on refresh.
     if (this.swiper) {
       this.swiper.allowTouchMove = false
     }
