@@ -56,7 +56,7 @@ export class DevInstructionsPage {
   async save() {
     this.saving = true
     try {
-      await this.api.setDbValue(
+      await this.api.setDbValue<string>(
         ['dev', this.projectId, 'instructions'],
         this.code,
       )

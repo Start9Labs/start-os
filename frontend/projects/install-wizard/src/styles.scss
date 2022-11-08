@@ -39,3 +39,21 @@
   --spinner-color: var(--ion-color-warning) !important;
   z-index: 40000 !important;
 }
+
+.alert-danger-message {
+  .alert-title {
+    color: var(--ion-color-danger);
+  }
+}
+
+.alert-success-message {
+  .alert-title {
+    color: var(--ion-color-success);
+  }
+}
+
+ion-alert {
+  .alert-button {
+    color: var(--ion-color-dark) !important;
+  }
+}

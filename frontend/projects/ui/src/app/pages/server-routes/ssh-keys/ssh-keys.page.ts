@@ -20,7 +20,7 @@ import {
 export class SSHKeysPage {
   loading = true
   sshKeys: SSHKey[] = []
-  readonly docsUrl = 'https://start9.com/latest/user-manual/ssh'
+  readonly docsUrl = 'https://docs.start9.com/latest/user-manual/ssh'
 
   constructor(
     private readonly loadingCtrl: LoadingController,

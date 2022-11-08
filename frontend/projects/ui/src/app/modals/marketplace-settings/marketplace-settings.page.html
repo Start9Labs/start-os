@@ -1,6 +1,6 @@
 <ion-header>
   <ion-toolbar>
-    <ion-title>Marketplace Settings</ion-title>
+    <ion-title>Change Registry</ion-title>
     <ion-buttons slot="end">
       <ion-button (click)="dismiss()">
         <ion-icon slot="icon-only" name="close"></ion-icon>
@@ -11,19 +11,20 @@
 
 <ion-content class="ion-padding-top">
   <ion-item-group *ngIf="marketplace$ | async as m">
-    <ion-item>
-      <ion-label>
-        Connect to a standard marketplaces or an alternative marketplace.
-      </ion-label>
-    </ion-item>
-
-    <ion-item-divider>Standard Marketplaces</ion-item-divider>
+    <ion-item-divider>Default Registries</ion-item-divider>
     <ion-item
       *ngFor="let s of m.standard"
       detail="false"
       [button]="s.url !== m.selected"
       (click)="s.url === m.selected ? '' : presentAction(s)"
     >
+      <ion-avatar slot="start">
+        <img [src]="'data:image/png;base64,' + s.icon | trustUrl" alt="" />
+      </ion-avatar>
+      <ion-label>
+        <h2>{{ s.name }}</h2>
+        <p>{{ s.url }}</p>
+      </ion-label>
       <ion-icon
         *ngIf="s.url === m.selected"
         slot="end"
@@ -31,18 +32,14 @@
         name="checkmark"
         color="success"
       ></ion-icon>
-      <ion-label>
-        <h2>{{ s.name }}</h2>
-        <p>{{ s.url }}</p>
-      </ion-label>
     </ion-item>
 
-    <ion-item-divider>Alt Marketplaces</ion-item-divider>
+    <ion-item-divider>Custom Registries</ion-item-divider>
     <ion-item button detail="false" (click)="presentModalAdd()">
       <ion-icon slot="start" name="add" color="dark"></ion-icon>
       <ion-label>
         <ion-text color="dark">
-          <b>Add Alt Marketplace</b>
+          <b>Add custom registry</b>
         </ion-text>
       </ion-label>
     </ion-item>
@@ -53,6 +50,11 @@
       [button]="a.url !== m.selected"
       (click)="a.url === m.selected ? '' : presentAction(a, true)"
     >
+      <ion-icon slot="start" name="storefront-outline"></ion-icon>
+      <ion-label>
+        <h2>{{ a.name }}</h2>
+        <p>{{ a.url }}</p>
+      </ion-label>
       <ion-icon
         *ngIf="a.url === m.selected"
         slot="end"
@@ -60,10 +62,6 @@
         name="checkmark"
         color="success"
       ></ion-icon>
-      <ion-label>
-        <h2>{{ a.name }}</h2>
-        <p>{{ a.url }}</p>
-      </ion-label>
     </ion-item>
   </ion-item-group>
 </ion-content>

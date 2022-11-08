@@ -16,7 +16,7 @@ export module RR {
 
   export type GetDumpRes = Dump<DataModel>
 
-  export type SetDBValueReq = { pointer: string; value: any } // db.put.ui
+  export type SetDBValueReq<T> = { pointer: string; value: T } // db.put.ui
   export type SetDBValueRes = null
 
   // auth

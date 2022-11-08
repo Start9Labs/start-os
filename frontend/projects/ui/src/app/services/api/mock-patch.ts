@@ -7,6 +7,7 @@ import {
   PackageMainStatus,
   PackageState,
 } from 'src/app/services/patch-db/data-model'
+import { COMMUNITY_REGISTRY, START9_REGISTRY } from './api-icons'
 import { Mock } from './api.fixures'
 
 export const mockPatchData: DataModel = {
@@ -17,9 +18,16 @@ export const mockPatchData: DataModel = {
     marketplace: {
       'selected-url': 'https://registry.start9.com/',
       'known-hosts': {
-        'https://registry.start9.com/': 'Start9 Marketplace',
-        'https://community-registry.start9.com/': 'Community Marketplace',
-        'https://dark9-marketplace.com/': 'Dark9',
+        'https://registry.start9.com/': {
+          name: 'Start9 Registry',
+          icon: START9_REGISTRY,
+        },
+        'https://community-registry.start9.com/': {
+          icon: COMMUNITY_REGISTRY,
+        },
+        'https://dark9-marketplace.com/': {
+          name: 'Dark9',
+        },
       },
     },
     dev: {},
@@ -453,7 +461,6 @@ export const mockPatchData: DataModel = {
         id: 'lnd',
         title: 'Lightning Network Daemon',
         version: '0.11.1',
-        'git-hash': 'lalalalalala',
         description: {
           short: 'A bolt spec compliant client.',
           long: 'More info about LND. More info about LND. More info about LND.',
