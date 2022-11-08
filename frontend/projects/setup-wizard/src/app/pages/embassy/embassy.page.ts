@@ -8,10 +8,9 @@ import {
 import {
   ApiService,
   BackupRecoverySource,
-  DiskInfo,
   DiskRecoverySource,
 } from 'src/app/services/api/api.service'
-import { ErrorToastService } from '@start9labs/shared'
+import { DiskInfo, ErrorToastService } from '@start9labs/shared'
 import { StateService } from 'src/app/services/state.service'
 import { PasswordPage } from '../../modals/password/password.page'
 import { ActivatedRoute } from '@angular/router'

@@ -8,12 +8,48 @@ export class MockApiService implements ApiService {
     await pauseFor(500)
     return [
       {
-        logicalname: 'abcdefgh',
-        'embassy-data': false,
+        logicalname: 'abcd',
+        vendor: 'Samsung',
+        model: 'T5',
+        partitions: [
+          {
+            logicalname: 'pabcd',
+            label: null,
+            capacity: 73264762332,
+            used: null,
+            'embassy-os': {
+              version: '0.2.17',
+              full: true,
+              'password-hash':
+                '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+              'wrapped-key': null,
+            },
+          },
+        ],
+        capacity: 123456789123,
+        guid: 'uuid-uuid-uuid-uuid',
       },
       {
-        logicalname: '12345678',
-        'embassy-data': true,
+        logicalname: 'dcba',
+        vendor: 'Crucial',
+        model: 'MX500',
+        partitions: [
+          {
+            logicalname: 'pbcba',
+            label: null,
+            capacity: 73264762332,
+            used: null,
+            'embassy-os': {
+              version: '0.3.1',
+              full: true,
+              'password-hash':
+                '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+              'wrapped-key': null,
+            },
+          },
+        ],
+        capacity: 123456789123,
+        guid: null,
       },
     ]
   }

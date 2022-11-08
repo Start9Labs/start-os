@@ -31,50 +31,61 @@
                 <ion-item
                   *ngFor="let disk of disks"
                   button
-                  detail="true"
                   (click)="next(disk)"
                 >
                   <ion-icon
-                    color="dark"
                     slot="start"
                     name="save-outline"
+                    size="large"
+                    color="dark"
                   ></ion-icon>
-                  <ion-label>{{ disk.logicalname }}</ion-label>
+                  <ion-label class="ion-text-wrap">
+                    <h1>
+                      {{ disk.vendor || 'Unknown Vendor' }} - {{ disk.model ||
+                      'Unknown Model' }}
+                    </h1>
+                    <h2>
+                      {{ disk.logicalname }} - {{ disk.capacity | convertBytes
+                      }}
+                    </h2>
+                  </ion-label>
                 </ion-item>
               </ng-template>
               <ng-template swiperSlide>
                 <ion-item
-                  *ngIf="selectedDisk?.['embassy-data']"
+                  *ngIf="!!selectedDisk?.guid"
                   button
                   (click)="tryInstall(false)"
                 >
                   <ion-icon
                     color="dark"
                     slot="start"
+                    size="large"
                     name="medkit-outline"
                   ></ion-icon>
                   <ion-label>
-                    <h2>
+                    <h1>
                       <ion-text color="success">Re-Install embassyOS</ion-text>
-                    </h2>
-                    <h4>Will preserve existing embassyOS data</h4>
+                    </h1>
+                    <h2>Will preserve existing embassyOS data</h2>
                   </ion-label>
                 </ion-item>
                 <ion-item button lines="none" (click)="tryInstall(true)">
                   <ion-icon
                     color="dark"
                     slot="start"
+                    size="large"
                     name="download-outline"
                   ></ion-icon>
                   <ion-label>
-                    <h2>
+                    <h1>
                       <ion-text
-                        [color]="selectedDisk?.['embassy-data'] ? 'danger' : 'success'"
-                        >{{ selectedDisk?.['embassy-data'] ? 'Factory Reset' :
-                        'Install embassyOS' }}</ion-text
+                        [color]="!!selectedDisk?.guid ? 'danger' : 'success'"
+                        >{{ !!selectedDisk?.guid ? 'Factory Reset' : 'Install
+                        embassyOS' }}</ion-text
                       >
-                    </h2>
-                    <h4>Will delete existing data on disk</h4>
+                    </h1>
+                    <h2>Will delete existing data on disk</h2>
                   </ion-label>
                 </ion-item>
               </ng-template>
