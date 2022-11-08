@@ -348,7 +348,6 @@ export module Mock {
     id: 'lnd',
     title: 'Lightning Network Daemon',
     version: '0.11.1',
-    'git-hash': 'lalalalalala',
     description: {
       short: 'A bolt spec compliant client.',
       long: 'More info about LND. More info about LND. More info about LND.',

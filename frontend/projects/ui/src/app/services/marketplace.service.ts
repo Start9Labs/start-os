@@ -5,6 +5,7 @@ import {
   StoreData,
   Marketplace,
   StoreInfo,
+  StoreIdentifier,
 } from '@start9labs/marketplace'
 import {
   BehaviorSubject,
@@ -28,7 +29,6 @@ import {
   shareReplay,
   startWith,
   switchMap,
-  tap,
 } from 'rxjs/operators'
 import { getNewEntries } from '@start9labs/shared'
 
@@ -44,19 +44,19 @@ export class MarketplaceService implements AbstractMarketplaceService {
     distinctUntilKeyChanged('selected-url'),
     map(data => ({
       url: data['selected-url'],
-      name: data['known-hosts'][data['selected-url']],
+      ...data['known-hosts'][data['selected-url']],
     })),
     shareReplay(1),
   )
 
   private readonly marketplace$ = this.knownHosts$.pipe(
-    startWith<Record<string, string>>({}),
+    startWith<Record<string, StoreIdentifier>>({}),
     pairwise(),
     mergeMap(([prev, curr]) => from(Object.entries(getNewEntries(prev, curr)))),
-    mergeMap(([url, name]) =>
+    mergeMap(([url, registry]) =>
       this.fetchStore$(url).pipe(
         map<StoreData, [string, StoreData | null]>(data => {
-          if (data.info) this.updateName(url, name, data.info.name)
+          if (data.info) this.updateStoreIdentifier(url, registry, data.info)
 
           return [url, data]
         }),
@@ -85,11 +85,11 @@ export class MarketplaceService implements AbstractMarketplaceService {
     private readonly patch: PatchDB<DataModel>,
   ) {}
 
-  getKnownHosts$(): Observable<Record<string, string>> {
+  getKnownHosts$(): Observable<Record<string, StoreIdentifier>> {
     return this.knownHosts$
   }
 
-  getSelectedHost$(): Observable<{ url: string; name: string }> {
+  getSelectedHost$(): Observable<StoreIdentifier & { url: string }> {
     return this.selectedHost$
   }
 
@@ -233,13 +233,16 @@ export class MarketplaceService implements AbstractMarketplaceService {
     )
   }
 
-  private async updateName(
+  private async updateStoreIdentifier(
     url: string,
-    name: string,
-    newName: string,
+    oldInfo: StoreIdentifier,
+    newInfo: StoreIdentifier,
   ): Promise<void> {
-    if (name !== newName) {
-      this.api.setDbValue(['marketplace', 'known-hosts', url], newName)
+    if (oldInfo.name !== newInfo.name || oldInfo.icon !== newInfo.icon) {
+      this.api.setDbValue<StoreIdentifier>(
+        ['marketplace', 'known-hosts', url],
+        newInfo,
+      )
     }
   }
 }

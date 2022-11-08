@@ -30,35 +30,36 @@ export class MarketplaceListPage {
   readonly localPkgs$ = this.patch.watch$('package-data')
 
   readonly details$ = this.marketplaceService.getSelectedHost$().pipe(
-    map(({ url, name }) => {
+    map(({ url, name, icon }) => {
       let color: string
       let description: string
       switch (url) {
         case 'https://registry.start9.com/':
           color = 'success'
           description =
-            'Services in this marketplace are packaged and maintained by the Start9 team. If you experience an issue or have a questions related to a service in this marketplace, one of our dedicated support staff will be happy to assist you.'
+            'Services from this registry are packaged and maintained by the Start9 team. If you experience an issue or have a questions related to a service from this registry, one of our dedicated support staff will be happy to assist you.'
           break
-        case 'https://beta-registry-0-3.start9labs.com/':
+        case 'https://beta-registry.start9.com/':
           color = 'primary'
           description =
-            'Services in this marketplace are undergoing active testing and may contain bugs. <b>Install at your own risk</b>. If you discover a bug or have a suggestion for improvement, please report it to the Start9 team in our community testing channel on Matrix.'
+            'Services from this registry are undergoing active testing and may contain bugs. <b>Install at your own risk</b>. If you discover a bug or have a suggestion for improvement, please report it to the Start9 team in our community testing channel on Matrix.'
           break
-        case 'https://community.start9labs.com/':
+        case 'https://community-registry.start9.com/':
           color = 'tertiary'
           description =
-            'Services in this marketplace are packaged and maintained by members of the Start9 community. <b>Install at your own risk</b>. If you experience an issue or have a question related to a service in this marketplace, please reach out to the package developer for assistance.'
+            'Services from this registry are packaged and maintained by members of the Start9 community. <b>Install at your own risk</b>. If you experience an issue or have a question related to a service in this marketplace, please reach out to the package developer for assistance.'
           break
         default:
           // alt marketplace
           color = 'warning'
           description =
-            'Warning. This is an <b>Alternative</b> Marketplace. Start9 cannot verify the integrity or functionality of services in this marketplace, and they may cause harm to your system. <b>Install at your own risk</b>.'
+            'Warning. This is a <b>Custom</b> Registry. Start9 cannot verify the integrity or functionality of services from this registry, and they may cause harm to your system. <b>Install at your own risk</b>.'
       }
 
       return {
         name,
         url,
+        icon,
         color,
         description,
       }

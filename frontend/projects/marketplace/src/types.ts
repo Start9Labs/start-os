@@ -1,10 +1,15 @@
 import { Url } from '@start9labs/shared'
 
-export type MarketplaceURL = string
+export type StoreURL = string
+export type StoreName = string
+export type StoreIcon = string // base64
 
-export type MarketplaceName = string
+export interface StoreIdentifier {
+  name?: StoreName
+  icon?: StoreIcon // base64
+}
 
-export type Marketplace = Record<MarketplaceURL, StoreData | null>
+export type Marketplace = Record<StoreURL, StoreData | null>
 
 export interface StoreData {
   info: StoreInfo
@@ -12,7 +17,8 @@ export interface StoreData {
 }
 
 export interface StoreInfo {
-  name: MarketplaceName
+  name: StoreName
+  icon?: StoreIcon
   categories: string[]
 }
 
@@ -36,7 +42,7 @@ export interface MarketplaceManifest<T = unknown> {
   id: string
   title: string
   version: string
-  'git-hash': string
+  'git-hash'?: string
   description: {
     short: string
     long: string
