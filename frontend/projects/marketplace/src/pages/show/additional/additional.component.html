@@ -4,13 +4,26 @@
     <ion-row>
       <ion-col sizeXs="12" sizeMd="6">
         <ion-item-group>
-          <ion-item button detail="false" (click)="copy(manifest['git-hash'])">
+          <ion-item
+            *ngIf="manifest['git-hash'] as gitHash; else noHash"
+            button
+            detail="false"
+            (click)="copy(gitHash)"
+          >
             <ion-label>
               <h2>Git Hash</h2>
-              <p>{{ manifest['git-hash'] }}</p>
+              <p>{{ gitHash }}</p>
             </ion-label>
             <ion-icon slot="end" name="copy-outline"></ion-icon>
           </ion-item>
+          <ng-template #noHash>
+            <ion-item>
+              <ion-label>
+                <h2>Git Hash</h2>
+                <p>Unknown</p>
+              </ion-label>
+            </ion-item>
+          </ng-template>
           <ion-item button detail="false" (click)="presentAlertVersions()">
             <ion-label>
               <h2>Other Versions</h2>

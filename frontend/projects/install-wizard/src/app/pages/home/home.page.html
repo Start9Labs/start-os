@@ -43,15 +43,21 @@
                 </ion-item>
               </ng-template>
               <ng-template swiperSlide>
-                <ion-item button (click)="tryInstall(false)">
+                <ion-item
+                  *ngIf="selectedDisk?.['embassy-data']"
+                  button
+                  (click)="tryInstall(false)"
+                >
                   <ion-icon
                     color="dark"
                     slot="start"
                     name="medkit-outline"
                   ></ion-icon>
                   <ion-label>
-                    <h2><ion-text color="success">Light Install</ion-text></h2>
-                    <p>Reinstall embassyOS but keep your existing data</p>
+                    <h2>
+                      <ion-text color="success">Re-Install embassyOS</ion-text>
+                    </h2>
+                    <h4>Will preserve existing embassyOS data</h4>
                   </ion-label>
                 </ion-item>
                 <ion-item button lines="none" (click)="tryInstall(true)">
@@ -61,10 +67,14 @@
                     name="download-outline"
                   ></ion-icon>
                   <ion-label>
-                    <h2><ion-text color="warning">Full Install</ion-text></h2>
-                    <p>
-                      Install embassyOS and delete all existing data on disk
-                    </p>
+                    <h2>
+                      <ion-text
+                        [color]="selectedDisk?.['embassy-data'] ? 'danger' : 'success'"
+                        >{{ selectedDisk?.['embassy-data'] ? 'Factory Reset' :
+                        'Install embassyOS' }}</ion-text
+                      >
+                    </h2>
+                    <h4>Will delete existing data on disk</h4>
                   </ion-label>
                 </ion-item>
               </ng-template>

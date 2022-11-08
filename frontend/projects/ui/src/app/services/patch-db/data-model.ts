@@ -1,6 +1,6 @@
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { Url } from '@start9labs/shared'
-import { MarketplaceManifest } from '@start9labs/marketplace'
+import { MarketplaceManifest, StoreIdentifier } from '@start9labs/marketplace'
 import { BasicInfo } from 'src/app/pages/developer-routes/developer-menu/form-info'
 
 export interface DataModel {
@@ -26,9 +26,9 @@ export interface UIData {
 export interface UIMarketplaceData {
   'selected-url': string
   'known-hosts': {
-    'https://registry.start9.com/': string
-    'https://community-registry.start9.com/': string
-    [url: string]: string
+    'https://registry.start9.com/': StoreIdentifier
+    'https://community-registry.start9.com/': StoreIdentifier
+    [url: string]: StoreIdentifier
   }
 }
 

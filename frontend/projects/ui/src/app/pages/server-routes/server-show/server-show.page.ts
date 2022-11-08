@@ -223,7 +223,7 @@ export class ServerShowPage {
     await loader.present()
 
     try {
-      await this.embassyApi.setDbValue([key], value)
+      await this.embassyApi.setDbValue<string>([key], value)
     } finally {
       loader.dismiss()
     }
@@ -484,7 +484,7 @@ export class ServerShowPage {
         icon: 'map-outline',
         action: () =>
           window.open(
-            'https://start9.com/latest/user-manual/',
+            'https://docs.start9.com/latest/user-manual',
             '_blank',
             'noreferrer',
           ),
@@ -497,7 +497,7 @@ export class ServerShowPage {
         icon: 'chatbubbles-outline',
         action: () =>
           window.open(
-            'https://start9.com/latest/support/contact/',
+            'https://docs.start9.com/latest/support/contact',
             '_blank',
             'noreferrer',
           ),

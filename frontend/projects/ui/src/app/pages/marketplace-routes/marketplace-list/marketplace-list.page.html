@@ -23,10 +23,20 @@
     </ion-row>
     <ion-row>
       <ion-col size="12">
-        <h1 class="heading montserrat ion-text-center">{{ details.name }}</h1>
+        <div class="heading">
+          <img
+            *ngIf="details.icon; else noIcon"
+            [src]="'data:image/png;base64,' + details.icon | trustUrl"
+            alt=""
+          />
+          <ng-template #noIcon>
+            <ion-icon name="storefront-outline"></ion-icon>
+          </ng-template>
+          <h1 class="montserrat ion-text-center">{{ details.name }}</h1>
+        </div>
         <ion-button fill="clear" (click)="presentModalMarketplaceSettings()">
           <ion-icon slot="start" name="repeat-outline"></ion-icon>
-          Switch Marketplaces
+          Change
         </ion-button>
         <marketplace-search [(query)]="query"></marketplace-search>
       </ion-col>
