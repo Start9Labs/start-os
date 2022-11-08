@@ -57,7 +57,7 @@
                     <h2>
                       <ion-text color="success">Re-Install embassyOS</ion-text>
                     </h2>
-                    <p>Preserves existing embassyOS data</p>
+                    <h4>Will preserve existing embassyOS data</h4>
                   </ion-label>
                 </ion-item>
                 <ion-item button lines="none" (click)="tryInstall(true)">
@@ -70,11 +70,11 @@
                     <h2>
                       <ion-text
                         [color]="selectedDisk?.['embassy-data'] ? 'danger' : 'success'"
-                        >{{ selectedDisk?.['embassy-data'] ? 'Ractory Reset' :
-                        'Install embassyOS'</ion-text
+                        >{{ selectedDisk?.['embassy-data'] ? 'Factory Reset' :
+                        'Install embassyOS' }}</ion-text
                       >
                     </h2>
-                    <p>Deletes existing data on disk</p>
+                    <h4>Will deletes existing data on disk</h4>
                   </ion-label>
                 </ion-item>
               </ng-template>

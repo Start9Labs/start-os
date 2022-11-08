@@ -75,8 +75,8 @@ export class HomePage {
 
   private async presentAlertDanger(logicalname: string, embassyData: boolean) {
     const message = embassyData
-      ? 'This action COMPLETELY erases your existing Embassy data'
-      : `This action COMPLETELY erases the disk ${logicalname} and installs embassyOS`
+      ? 'This action will COMPLETELY erase your existing Embassy data'
+      : `This action will COMPLETELY erase the disk <b>${logicalname}</b> and install embassyOS!`
 
     const alert = await this.alertCtrl.create({
       header: 'Warning',
@@ -93,7 +93,7 @@ export class HomePage {
           },
         },
       ],
-      cssClass: 'alert-warning-message',
+      cssClass: 'alert-danger-message',
     })
     await alert.present()
   }
@@ -101,7 +101,7 @@ export class HomePage {
   private async presentAlertReboot() {
     const alert = await this.alertCtrl.create({
       header: 'Install Success',
-      message: 'Reboot your device to begin using your new Emabssy',
+      message: 'Reboot your device to begin using your new Embassy',
       buttons: [
         {
           text: 'Reboot',
@@ -110,7 +110,7 @@ export class HomePage {
           },
         },
       ],
-      cssClass: 'alert-warning-message',
+      cssClass: 'alert-success-message',
     })
     await alert.present()
   }
@@ -134,7 +134,6 @@ export class HomePage {
       header: 'Rebooting',
       message: 'Please wait for embassyOS to restart, then refresh this page',
       buttons: ['OK'],
-      cssClass: 'alert-warning-message',
     })
     await alert.present()
   }
