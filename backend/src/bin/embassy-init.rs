@@ -1,4 +1,3 @@
-use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
@@ -33,14 +32,14 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
 
         let ctx = InstallContext::init(cfg_path).await?;
 
-        let embassy_ip = get_current_ip(ctx.ethernet_interface.to_owned()).await?;
+        let embassy_ip = dbg!(get_current_ip(ctx.ethernet_interface.to_owned()).await?);
         let embassy_ip_fqdn: ResourceFqdn = embassy_ip.parse()?;
-        let embassy_fqdn: ResourceFqdn = "embassy.local".parse()?;
+        let embassy_fqdn: ResourceFqdn = "pureos.local".parse()?;
 
         let install_ui_handler = install_ui_file_router(ctx.clone()).await?;
 
         let mut install_http_server =
-            EmbassyServiceHTTPServer::new(embassy_ip.parse::<IpAddr>()?, 80, None).await?;
+            EmbassyServiceHTTPServer::new([0, 0, 0, 0].into(), 80, None).await?;
         install_http_server
             .add_svc_handler_mapping(embassy_ip_fqdn, install_ui_handler.clone())
             .await?;
@@ -76,7 +75,7 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
         let setup_ui_handler = setup_ui_file_router(ctx.clone()).await?;
 
         let mut setup_http_server =
-            EmbassyServiceHTTPServer::new(embassy_ip.parse::<IpAddr>()?, 80, None).await?;
+            EmbassyServiceHTTPServer::new([0, 0, 0, 0].into(), 80, None).await?;
         setup_http_server
             .add_svc_handler_mapping(embassy_ip_fqdn, setup_ui_handler.clone())
             .await?;
@@ -191,7 +190,7 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
             let diag_ui_handler = diag_ui_file_router(ctx.clone()).await?;
 
             let mut diag_http_server =
-                EmbassyServiceHTTPServer::new(embassy_ip.parse::<IpAddr>()?, 80, None).await?;
+                EmbassyServiceHTTPServer::new([0, 0, 0, 0].into(), 80, None).await?;
             diag_http_server
                 .add_svc_handler_mapping(embassy_ip_fqdn, diag_ui_handler.clone())
                 .await?;

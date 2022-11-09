@@ -101,7 +101,7 @@ pub async fn diag_ui_file_router(ctx: DiagnosticContext) -> Result<HttpHandler, 
 pub async fn install_ui_file_router(ctx: InstallContext) -> Result<HttpHandler, Error> {
     let handler: HttpHandler = Arc::new(move |req| {
         let ctx = ctx.clone();
-        let ui_mode = UiMode::Diag;
+        let ui_mode = UiMode::Install;
         async move {
             let res = match req.uri().path() {
                 path if path.starts_with("/rpc/") => {

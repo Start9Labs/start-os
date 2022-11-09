@@ -19,7 +19,7 @@ use crate::disk::OsPartitionInfo;
 use crate::init::{init_postgres, pgloader};
 use crate::net::tor::os_key;
 use crate::setup::{password_hash, RecoveryStatus};
-use crate::util::config::{load_config_from_paths, CONFIG_PATH};
+use crate::util::config::load_config_from_paths;
 use crate::{Error, ResultExt};
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -47,8 +47,10 @@ impl SetupContextConfig {
                 path.as_ref()
                     .into_iter()
                     .map(|p| p.as_ref())
-                    .chain(std::iter::once(Path::new(CONFIG_PATH)))
-                    .chain(std::iter::once(Path::new(CONFIG_PATH))),
+                    .chain(std::iter::once(Path::new(
+                        crate::util::config::DEVICE_CONFIG_PATH,
+                    )))
+                    .chain(std::iter::once(Path::new(crate::util::config::CONFIG_PATH))),
             )
         })
         .await

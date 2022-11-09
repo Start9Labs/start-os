@@ -5,9 +5,13 @@ use std::time::Duration;
 use color_eyre::eyre::eyre;
 use embassy::context::{DiagnosticContext, RpcContext};
 
+use embassy::hostname::get_current_ip;
+use embassy::net::embassy_service_http_server::EmbassyServiceHTTPServer;
 #[cfg(feature = "avahi")]
 use embassy::net::mdns::MdnsController;
 use embassy::net::net_controller::NetController;
+use embassy::net::net_utils::ResourceFqdn;
+use embassy::net::static_server::diag_ui_file_router;
 use embassy::net::tor::tor_health_check;
 use embassy::shutdown::Shutdown;
 use embassy::system::launch_metrics_task;
@@ -163,7 +167,7 @@ fn main() {
                         tracing::debug!("{:?}", e.source);
                         embassy::sound::BEETHOVEN.play().await?;
                         #[cfg(feature = "avahi")]
-                        let _mdns = MdnsController::init();
+                        let _mdns = MdnsController::init().await?;
                         let ctx = DiagnosticContext::init(
                             cfg_path,
                             if tokio::fs::metadata("/media/embassy/config/disk.guid")
@@ -182,6 +186,22 @@ fn main() {
                             e,
                         )
                         .await?;
+
+                        let embassy_ip = get_current_ip(ctx.ethernet_interface.to_owned()).await?;
+                        let embassy_ip_fqdn: ResourceFqdn = embassy_ip.parse()?;
+                        let embassy_fqdn: ResourceFqdn = "embassy.local".parse()?;
+
+                        let diag_ui_handler = diag_ui_file_router(ctx.clone()).await?;
+
+                        let mut diag_http_server =
+                            EmbassyServiceHTTPServer::new([0, 0, 0, 0].into(), 80, None).await?;
+                        diag_http_server
+                            .add_svc_handler_mapping(embassy_ip_fqdn, diag_ui_handler.clone())
+                            .await?;
+                        diag_http_server
+                            .add_svc_handler_mapping(embassy_fqdn, diag_ui_handler)
+                            .await?;
+
                         let mut shutdown = ctx.shutdown.subscribe();
 
                         shutdown.recv().await.with_kind(crate::ErrorKind::Unknown)

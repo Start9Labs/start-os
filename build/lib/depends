@@ -29,3 +29,4 @@ iw
 squashfs-tools
 rsync
 systemd-timesyncd
+magic-wormhole
