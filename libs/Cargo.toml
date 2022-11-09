@@ -1,9 +1,9 @@
 [workspace]
 
 members = [
-    "snapshot-creator",
+    "snapshot_creator",
     "models",
     "js_engine",
     "helpers",
-    "embassy-container-init",
+    "embassy_container_init",
 ]

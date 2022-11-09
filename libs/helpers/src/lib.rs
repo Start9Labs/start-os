@@ -9,7 +9,11 @@ use tokio::fs::File;
 use tokio::sync::oneshot;
 use tokio::task::{JoinError, JoinHandle, LocalSet};
 
+mod byte_replacement_reader;
+mod rsync;
 mod script_dir;
+pub use byte_replacement_reader::*;
+pub use rsync::*;
 pub use script_dir::*;
 
 pub fn to_tmp_path(path: impl AsRef<Path>) -> Result<PathBuf, Error> {

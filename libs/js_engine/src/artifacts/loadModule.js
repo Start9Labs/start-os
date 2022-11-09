@@ -44,14 +44,18 @@ const runDaemon = (
   { command = requireParam("command"), args = [] } = requireParam("options"),
 ) => {
   let id = Deno.core.opAsync("start_command", command, args);
+  let rpcId = id.then(x => x.rpcId)
+  let processId = id.then(x => x.processId)
   let waitPromise = null;
   return {
+    processId,
+    rpcId,
     async wait() {
-      waitPromise = waitPromise || Deno.core.opAsync("wait_command", await id)
+      waitPromise = waitPromise || Deno.core.opAsync("wait_command", await rpcId)
       return waitPromise
     },
     async term() {
-      return Deno.core.opAsync("term_command", await id)
+      return Deno.core.opAsync("term_command", await rpcId)
     }
   }
 };
@@ -128,6 +132,31 @@ const fetch = async (url = requireParam ('url'), options = null) => {
   };
 };
 
+const runRsync = (
+  { 
+    srcVolume = requireParam("srcVolume"),
+    dstVolume = requireParam("dstVolume"),
+    srcPath = requireParam("srcPath"),
+    dstPath = requireParam("dstPath"),
+    options = requireParam("options"),
+ } = requireParam("options"),
+) => {
+  let id = Deno.core.opAsync("rsync", srcVolume, srcPath, dstVolume, dstPath, options);
+  let waitPromise = null;
+  return {
+    async id() {
+      return id
+    },
+    async wait() {
+      waitPromise = waitPromise || Deno.core.opAsync("rsync_wait", await id)
+      return waitPromise
+    },
+    async progress() {
+      return Deno.core.opAsync("rsync_progress", await id)
+    }
+  }
+};
+
 const currentFunction = Deno.core.opSync("current_function");
 const input = Deno.core.opSync("get_input");
 const variable_args = Deno.core.opSync("get_variable_args");
@@ -151,7 +180,8 @@ const effects = {
   rename,
   runCommand,
   sleep,
-  runDaemon
+  runDaemon,
+  runRsync
 };
 
 const runFunction = jsonPointerValue(mainModule, currentFunction);
