@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use color_eyre::eyre::eyre;
+use http::uri::InvalidUri;
 use models::InvalidId;
 use patch_db::Revision;
 use rpc_toolkit::yajrc::RpcError;
@@ -22,7 +23,7 @@ pub enum ErrorKind {
     Utf8 = 13,
     ParseVersion = 14,
     IncorrectDisk = 15,
-    Nginx = 16,
+    // Nginx = 16,
     Dependency = 17,
     ParseS9pk = 18,
     ParseUrl = 19,
@@ -71,6 +72,11 @@ pub enum ErrorKind {
     HttpRange = 62,
     ContentLength = 63,
     BytesError = 64,
+    InvalidIP = 65,
+    JoinError = 66,
+    AsciiError = 67,
+    NoHost = 68,
+    SignError = 69,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -91,7 +97,7 @@ impl ErrorKind {
             Utf8 => "UTF-8 Parse Error",
             ParseVersion => "Version Parsing Error",
             IncorrectDisk => "Incorrect Disk",
-            Nginx => "Nginx Error",
+            // Nginx => "Nginx Error",
             Dependency => "Dependency Error",
             ParseS9pk => "S9PK Parsing Error",
             ParseUrl => "URL Parsing Error",
@@ -140,6 +146,11 @@ impl ErrorKind {
             HttpRange => "No Support for Web Server HTTP Ranges",
             ContentLength => "Request has no content length header",
             BytesError => "Could not get the bytes for this request",
+            InvalidIP => "Could not parse this IP address",
+            JoinError => "Join Handle Error",
+            AsciiError => "Could not parse ascii text",
+            NoHost => "No Host header ",
+            SignError => "Signing error",
         }
     }
 }
@@ -250,6 +261,13 @@ impl From<mbrman::Error> for Error {
         Error::new(e, ErrorKind::DiskManagement)
     }
 }
+
+impl From<InvalidUri> for Error {
+    fn from(e: InvalidUri) -> Self {
+        Error::new(eyre!("{}", e), ErrorKind::ParseUrl)
+    }
+}
+
 impl From<Error> for RpcError {
     fn from(e: Error) -> Self {
         let mut data_object = serde_json::Map::with_capacity(3);

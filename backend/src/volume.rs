@@ -10,7 +10,7 @@ use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::net::interface::{InterfaceId, Interfaces};
-use crate::net::NetController;
+use crate::net::net_controller::NetController;
 use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
 use crate::{Error, ResultExt};

@@ -7,7 +7,7 @@ use crate::invalid_id::InvalidId;
 
 pub const SYSTEM_ID: Id<&'static str> = Id("x_system");
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct Id<S: AsRef<str> = String>(S);
 impl<S: AsRef<str>> Id<S> {
     pub fn try_from(value: S) -> Result<Self, InvalidId> {

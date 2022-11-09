@@ -7,6 +7,7 @@ use serde_json::Value;
 use crate::util::serde::IoFormat;
 use crate::{Config, Error, ResultExt};
 
+pub const DEVICE_CONFIG_PATH: &str = "/media/embassy/config/config.yaml";
 pub const CONFIG_PATH: &str = "/etc/embassy/config.yaml";
 pub const CONFIG_PATH_LOCAL: &str = ".embassy/config.yaml";
 

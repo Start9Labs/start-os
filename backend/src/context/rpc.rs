@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, VecDeque};
-use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
+use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -11,12 +11,10 @@ use helpers::to_tmp_path;
 use patch_db::json_ptr::JsonPointer;
 use patch_db::{DbHandle, LockReceipt, LockType, PatchDb, Revision};
 use reqwest::Url;
-use rpc_toolkit::url::Host;
 use rpc_toolkit::Context;
 use serde::Deserialize;
 use sqlx::postgres::PgConnectOptions;
 use sqlx::PgPool;
-use tokio::process::Command;
 use tokio::sync::{broadcast, oneshot, Mutex, RwLock};
 use tracing::instrument;
 
@@ -28,15 +26,14 @@ use crate::init::{init_postgres, pgloader};
 use crate::install::cleanup::{cleanup_failed, uninstall, CleanupFailedReceipts};
 use crate::manager::ManagerMap;
 use crate::middleware::auth::HashSessionToken;
+use crate::net::net_controller::NetController;
 use crate::net::tor::os_key;
 use crate::net::wifi::WpaCli;
-use crate::net::NetController;
 use crate::notifications::NotificationManager;
 use crate::setup::password_hash;
 use crate::shutdown::Shutdown;
 use crate::status::{MainStatus, Status};
 use crate::util::config::load_config_from_paths;
-use crate::util::Invoke;
 use crate::{Error, ErrorKind, ResultExt};
 
 #[derive(Debug, Default, Deserialize)]
@@ -48,8 +45,6 @@ pub struct RpcContextConfig {
     pub migration_batch_rows: Option<usize>,
     pub migration_prefetch_rows: Option<usize>,
     pub bind_rpc: Option<SocketAddr>,
-    pub bind_ws: Option<SocketAddr>,
-    pub bind_static: Option<SocketAddr>,
     pub tor_control: Option<SocketAddr>,
     pub tor_socks: Option<SocketAddr>,
     pub dns_bind: Option<Vec<SocketAddr>>,
@@ -65,7 +60,7 @@ impl RpcContextConfig {
                     .into_iter()
                     .map(|p| p.as_ref())
                     .chain(std::iter::once(Path::new(
-                        "/media/embassy/config/config.yaml",
+                        crate::util::config::DEVICE_CONFIG_PATH,
                     )))
                     .chain(std::iter::once(Path::new(crate::util::config::CONFIG_PATH))),
             )
@@ -123,9 +118,6 @@ pub struct RpcContextSeed {
     pub os_partitions: OsPartitionInfo,
     pub wifi_interface: Option<String>,
     pub ethernet_interface: String,
-    pub bind_rpc: SocketAddr,
-    pub bind_ws: SocketAddr,
-    pub bind_static: SocketAddr,
     pub datadir: PathBuf,
     pub disk_guid: Arc<String>,
     pub db: PatchDb,
@@ -182,12 +174,13 @@ impl RpcCleanReceipts {
     }
 }
 
-pub struct RpcSetNginxReceipts {
+pub struct RpcSetHostNameReceipts {
     pub hostname_receipts: HostNameReceipt,
+    #[allow(dead_code)]
     server_info: LockReceipt<crate::db::model::ServerInfo, ()>,
 }
 
-impl RpcSetNginxReceipts {
+impl RpcSetHostNameReceipts {
     pub async fn new(db: &'_ mut impl DbHandle) -> Result<Self, Error> {
         let mut locks = Vec::new();
 
@@ -235,7 +228,7 @@ impl RpcContext {
         docker.set_timeout(Duration::from_secs(600));
         tracing::info!("Connected to Docker");
         let net_controller = NetController::init(
-            ([127, 0, 0, 1], 80).into(),
+            ([0, 0, 0, 0], 80).into(),
             crate::net::tor::os_key(&mut secret_store.acquire().await?).await?,
             base.tor_control
                 .unwrap_or(SocketAddr::from(([127, 0, 0, 1], 9051))),
@@ -244,8 +237,8 @@ impl RpcContext {
                 .map(|v| v.as_slice())
                 .unwrap_or(&[SocketAddr::from(([127, 0, 0, 1], 53))]),
             secret_store.clone(),
-            None,
             &mut db.handle(),
+            None,
         )
         .await?;
         tracing::info!("Initialized Net Controller");
@@ -259,9 +252,6 @@ impl RpcContext {
             os_partitions: base.os_partitions,
             wifi_interface: base.wifi_interface.clone(),
             ethernet_interface: base.ethernet_interface,
-            bind_rpc: base.bind_rpc.unwrap_or(([127, 0, 0, 1], 5959).into()),
-            bind_ws: base.bind_ws.unwrap_or(([127, 0, 0, 1], 5960).into()),
-            bind_static: base.bind_static.unwrap_or(([127, 0, 0, 1], 5961).into()),
             disk_guid,
             db,
             secret_store,
@@ -295,39 +285,12 @@ impl RpcContext {
         Ok(res)
     }
 
-    #[instrument(skip(self, db, receipts))]
-    pub async fn set_nginx_conf<Db: DbHandle>(
-        &self,
-        db: &mut Db,
-        receipts: RpcSetNginxReceipts,
-    ) -> Result<(), Error> {
-        tokio::fs::write("/etc/nginx/sites-available/default", {
-            let info = receipts.server_info.get(db).await?;
-            format!(
-                include_str!("../nginx/main-ui.conf.template"),
-                lan_hostname = info.lan_address.host_str().unwrap(),
-                tor_hostname = info.tor_address.host_str().unwrap(),
-            )
-        })
-        .await
-        .with_ctx(|_| {
-            (
-                crate::ErrorKind::Filesystem,
-                "/etc/nginx/sites-available/default",
-            )
-        })?;
-        Command::new("systemctl")
-            .arg("reload")
-            .arg("nginx")
-            .invoke(crate::ErrorKind::Nginx)
-            .await?;
-        Ok(())
-    }
     #[instrument(skip(self))]
     pub async fn shutdown(self) -> Result<(), Error> {
         self.managers.empty().await?;
         self.secret_store.close().await;
         self.is_closed.store(true, Ordering::SeqCst);
+        // TODO: shutdown http servers
         Ok(())
     }
 
@@ -461,17 +424,7 @@ impl RpcContext {
         }
     }
 }
-impl Context for RpcContext {
-    fn host(&self) -> Host<&str> {
-        match self.0.bind_rpc.ip() {
-            IpAddr::V4(a) => Host::Ipv4(a),
-            IpAddr::V6(a) => Host::Ipv6(a),
-        }
-    }
-    fn port(&self) -> u16 {
-        self.0.bind_rpc.port()
-    }
-}
+impl Context for RpcContext {}
 impl Deref for RpcContext {
     type Target = RpcContextSeed;
     fn deref(&self) -> &Self::Target {

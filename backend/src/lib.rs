@@ -43,7 +43,6 @@ pub mod setup;
 pub mod shutdown;
 pub mod sound;
 pub mod ssh;
-pub mod static_server;
 pub mod status;
 pub mod system;
 pub mod update;

@@ -29,7 +29,10 @@ ln -s /usr/share/zoneinfo/Etc/UTC /etc/localtime
 
 # switch to systemd-resolved & network-manager
 echo "#" > /etc/network/interfaces
-[ -f /run/systemd/resolve/stub-resolv.conf ] || mkdir -p /run/systemd/resolve && cp /etc/resolv.conf /run/systemd/resolve/stub-resolv.conf
+if ! [ -f /run/systemd/resolve/stub-resolv.conf ]; then
+    mkdir -p /run/systemd/resolve
+    cp /etc/resolv.conf /run/systemd/resolve/stub-resolv.conf
+fi
 ln -rsf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 cat << EOF > /etc/NetworkManager/NetworkManager.conf
 [main]
@@ -59,8 +62,6 @@ fi
 
 sed -i 's/Restart=on-failure/Restart=always/g' /lib/systemd/system/tor@default.service
 sed -i 's/ExecStart=\/usr\/bin\/dockerd/ExecStart=\/usr\/bin\/dockerd --exec-opt native.cgroupdriver=systemd/g' /lib/systemd/system/docker.service
-sed -i '/}/i \ \ \ \ application\/wasm \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ wasm;' /etc/nginx/mime.types
-sed -i 's/# server_names_hash_bucket_size 64;/server_names_hash_bucket_size 128;/g' /etc/nginx/nginx.conf
 sed -i '/\(^\|#\)entries-per-entry-group-max=/c\entries-per-entry-group-max=128' /etc/avahi/avahi-daemon.conf
 sed -i '/\(^\|#\)Storage=/c\Storage=persistent' /etc/systemd/journald.conf
 sed -i '/\(^\|#\)Compress=/c\Compress=yes' /etc/systemd/journald.conf
