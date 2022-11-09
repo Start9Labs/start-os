@@ -23,7 +23,7 @@ export class MarketplaceListPage {
       info.categories.forEach(c => categories.add(c))
       categories.add('all')
 
-      return { categories, packages }
+      return { categories: Array.from(categories), packages }
     }),
   )
 
