@@ -29,7 +29,10 @@ ln -s /usr/share/zoneinfo/Etc/UTC /etc/localtime
 
 # switch to systemd-resolved & network-manager
 echo "#" > /etc/network/interfaces
-[ -f /run/systemd/resolve/stub-resolv.conf ] || mkdir -p /run/systemd/resolve && cp /etc/resolv.conf /run/systemd/resolve/stub-resolv.conf
+if ! [ -f /run/systemd/resolve/stub-resolv.conf ]; then
+    mkdir -p /run/systemd/resolve
+    cp /etc/resolv.conf /run/systemd/resolve/stub-resolv.conf
+fi
 ln -rsf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 cat << EOF > /etc/NetworkManager/NetworkManager.conf
 [main]
