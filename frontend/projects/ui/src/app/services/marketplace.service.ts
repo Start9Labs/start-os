@@ -55,8 +55,8 @@ export class MarketplaceService implements AbstractMarketplaceService {
     mergeMap(([prev, curr]) => from(Object.entries(getNewEntries(prev, curr)))),
     mergeMap(([url, registry]) =>
       this.fetchStore$(url).pipe(
-        map<StoreData, [string, StoreData | null]>(data => {
-          if (data.info) this.updateStoreIdentifier(url, registry, data.info)
+        map<StoreData | null, [string, StoreData | null]>(data => {
+          if (data?.info) this.updateStoreIdentifier(url, registry, data.info)
 
           return [url, data]
         }),
@@ -156,12 +156,13 @@ export class MarketplaceService implements AbstractMarketplaceService {
       )
   }
 
-  private fetchStore$(url: string): Observable<StoreData> {
+  private fetchStore$(url: string): Observable<StoreData | null> {
     return combineLatest([this.fetchInfo$(url), this.fetchPackages$(url)]).pipe(
       map(([info, packages]) => ({ info, packages })),
       catchError(e => {
+        console.error(e)
         this.requestErrors$.next(this.requestErrors$.value.concat(url))
-        return of(e)
+        return of(null)
       }),
     )
   }
