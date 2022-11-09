@@ -43,6 +43,7 @@ dns=systemd-resolved
 managed=true
 EOF
 $SYSTEMCTL enable systemd-resolved.service
+$SYSTEMCTL enable systemd-networkd-wait-online.service
 $SYSTEMCTL disable wpa_supplicant.service
 
 $SYSTEMCTL disable postgresql.service
