@@ -1,3 +1,4 @@
 openresolv
 dhcpcd5
 firewalld
+nginx
