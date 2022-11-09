@@ -16,7 +16,6 @@ use crate::disk::util::DiskInfo;
 use crate::disk::OsPartitionInfo;
 use crate::util::serde::IoFormat;
 use crate::util::{display_none, Invoke};
-use crate::Error;
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
