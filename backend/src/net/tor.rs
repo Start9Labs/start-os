@@ -374,36 +374,36 @@ pub async fn tor_health_check(client: &Client, tor_controller: &TorController) {
         )
         .send()
         .await;
-    match result {
-        // if success, do nothing
-        Ok(_) => {
-            tracing::debug!(
-                "Successfully verified main tor address liveness at {}",
-                onion_addr
-            )
-        }
-        // if failure, disconnect tor control port, and restart tor controller
-        Err(e) => {
-            tracing::error!("Unable to reach self over tor, we will retry now... Retry number: {}", e);
-            let mut num_attempt = 1;
-            loop {
-                tracing::debug!("Retry attempt #{}", num_attempt);
-                match tor_controller.replace().await {
-                    Ok(restarted) => {
-                        if restarted {
-                            tracing::error!("Tor has been recently restarted, refusing to restart");
-                        }
-                        break;
+    if let Err(e) = result {
+        let mut num_attempt = 1;
+        tracing::error!(
+            "Unable to reach self over tor, we will retry now...");
+        tracing::error!("The first TOR error: {}", e);
+
+        loop {
+            tracing::debug!("TOR Reconnecting retry number: {num_attempt}");
+
+            match tor_controller.replace().await {
+                Ok(restarted) => {
+                    if restarted {
+                        tracing::error!("Tor has been recently restarted, we are ready again...");
                     }
-                    Err(e) => {
-                        tracing::error!("Unable to restart tor: {}", e);
-                        tracing::debug!("{:?}", e);
-                        num_attempt += 1;
-                        continue;
-                    }
+                    break;
+                }
+                Err(e) => {
+                    tracing::error!("TOR retryy error: {}", e);
+                    tracing::error!("Unable to restart tor on attempt {num_attempt}...Retrying");
+
+                    num_attempt += 1;
+                    continue;
                 }
             }
         }
+    } else {
+        tracing::debug!(
+            "Successfully verified main tor address liveness at {}",
+            onion_addr
+        )
     }
 }
 
