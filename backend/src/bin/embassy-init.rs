@@ -32,7 +32,7 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
 
         let ctx = InstallContext::init(cfg_path).await?;
 
-        let embassy_ip = dbg!(get_current_ip(ctx.ethernet_interface.to_owned()).await?);
+        let embassy_ip = get_current_ip(ctx.ethernet_interface.to_owned()).await?;
         let embassy_ip_fqdn: ResourceFqdn = embassy_ip.parse()?;
         let embassy_fqdn: ResourceFqdn = "pureos.local".parse()?;
 
