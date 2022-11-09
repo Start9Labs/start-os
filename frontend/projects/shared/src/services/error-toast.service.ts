@@ -47,7 +47,7 @@ export function getErrorMessage(
 ): string | IonicSafeString {
   if (!message) {
     message = 'Unknown Error.'
-    link = 'https://start9.com/latest/support/FAQ'
+    link = 'https://docs.start9.com/latest/support/faq'
   }
 
   if (link) {

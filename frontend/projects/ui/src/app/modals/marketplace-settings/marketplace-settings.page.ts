@@ -7,7 +7,10 @@ import {
 } from '@ionic/angular'
 import { ActionSheetButton } from '@ionic/core'
 import { ErrorToastService } from '@start9labs/shared'
-import { AbstractMarketplaceService } from '@start9labs/marketplace'
+import {
+  AbstractMarketplaceService,
+  StoreIdentifier,
+} from '@start9labs/marketplace'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ValueSpecObject } from 'src/app/pkg-config/config-types'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
@@ -30,14 +33,14 @@ export class MarketplaceSettingsPage {
       const hosts = Object.entries(m['known-hosts'])
 
       const standard = hosts
-        .map(([url, name]) => {
-          return { url, name }
+        .map(([url, info]) => {
+          return { url, ...info }
         })
         .slice(0, 2) // 0 and 1 will always be prod and community
 
       const alt = hosts
-        .map(([url, name]) => {
-          return { url, name }
+        .map(([url, info]) => {
+          return { url, ...info }
         })
         .slice(2) // 2 and beyond will always be alts
 
@@ -91,7 +94,7 @@ export class MarketplaceSettingsPage {
   }
 
   async presentAction(
-    { url, name }: { url: string; name: string },
+    { url, name }: { url: string; name?: string },
     canDelete = false,
   ) {
     const buttons: ActionSheetButton[] = [
@@ -108,7 +111,7 @@ export class MarketplaceSettingsPage {
         text: 'Delete',
         role: 'destructive',
         handler: () => {
-          this.presentAlertDelete(url, name)
+          this.presentAlertDelete(url, name!)
         },
       })
     }
@@ -146,7 +149,7 @@ export class MarketplaceSettingsPage {
     url: string,
     loader?: HTMLIonLoadingElement,
   ): Promise<void> {
-    const message = 'Changing Marketplace...'
+    const message = 'Changing Registry...'
     if (!loader) {
       loader = await this.loadingCtrl.create({ message })
       await loader.present()
@@ -155,7 +158,7 @@ export class MarketplaceSettingsPage {
     }
 
     try {
-      await this.api.setDbValue(['marketplace', 'selected-url'], url)
+      await this.api.setDbValue<string>(['marketplace', 'selected-url'], url)
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
@@ -204,14 +207,17 @@ export class MarketplaceSettingsPage {
     loader.message = 'Validating marketplace...'
     await loader.present()
 
-    const { name } = await firstValueFrom(
+    const { name, icon } = await firstValueFrom(
       this.marketplaceService.fetchInfo$(url),
     )
 
     // Save
     loader.message = 'Saving...'
 
-    await this.api.setDbValue(['marketplace', 'known-hosts', url], name)
+    await this.api.setDbValue<StoreIdentifier>(
+      ['marketplace', 'known-hosts', url],
+      { name, icon },
+    )
   }
 
   private async delete(url: string): Promise<void> {
@@ -224,7 +230,7 @@ export class MarketplaceSettingsPage {
       this.patch.watch$('ui', 'marketplace', 'known-hosts'),
     )
 
-    const filtered = Object.keys(hosts)
+    const filtered: { [url: string]: StoreIdentifier } = Object.keys(hosts)
       .filter(key => key !== url)
       .reduce((prev, curr) => {
         const name = hosts[curr]
@@ -235,7 +241,10 @@ export class MarketplaceSettingsPage {
       }, {})
 
     try {
-      await this.api.setDbValue(['marketplace', 'known-hosts'], filtered)
+      await this.api.setDbValue<{ [url: string]: StoreIdentifier }>(
+        ['marketplace', 'known-hosts'],
+        filtered,
+      )
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
@@ -247,12 +256,12 @@ export class MarketplaceSettingsPage {
 function getMarketplaceValueSpec(): ValueSpecObject {
   return {
     type: 'object',
-    name: 'Add Marketplace',
+    name: 'Add Custom Registry',
     spec: {
       url: {
         type: 'string',
         name: 'URL',
-        description: 'The fully-qualified URL of the alt marketplace.',
+        description: 'A fully-qualified URL of the custom registry',
         nullable: false,
         masked: false,
         copyable: false,

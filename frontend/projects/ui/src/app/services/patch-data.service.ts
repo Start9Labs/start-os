@@ -59,7 +59,9 @@ export class PatchDataService extends Observable<DataModel> {
       backdropDismiss: false,
     })
     modal.onWillDismiss().then(() => {
-      this.embassyApi.setDbValue(['ack-welcome'], this.config.version).catch()
+      this.embassyApi
+        .setDbValue<string>(['ack-welcome'], this.config.version)
+        .catch()
     })
 
     await modal.present()

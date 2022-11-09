@@ -55,7 +55,7 @@ export class DeveloperMenuPage {
     await loader.present()
 
     try {
-      await this.api.setDbValue(
+      await this.api.setDbValue<BasicInfo>(
         ['dev', this.projectId, 'basic-info'],
         basicInfo,
       )

@@ -109,7 +109,7 @@ export class ToButtonsPipe implements PipeTransform {
 
   private async presentModalInstructions(pkg: PackageDataEntry) {
     this.apiService
-      .setDbValue(['ack-instructions', pkg.manifest.id], true)
+      .setDbValue<boolean>(['ack-instructions', pkg.manifest.id], true)
       .catch(e => console.error('Failed to mark instructions as seen', e))
 
     const modal = await this.modalCtrl.create({
@@ -130,19 +130,19 @@ export class ToButtonsPipe implements PipeTransform {
     const queryParams = url ? { url } : {}
 
     let button: Button = {
-      title: 'Marketplace',
+      title: 'Marketplace Listing',
       icon: 'storefront-outline',
       action: () =>
         this.navCtrl.navigateForward([`marketplace/${pkg.manifest.id}`], {
           queryParams,
         }),
       disabled: false,
-      description: 'View service in marketplace',
+      description: 'View service in the marketplace',
     }
 
     if (!url) {
       button.disabled = true
-      button.description = 'This package was not installed from a marketplace.'
+      button.description = 'This package was not installed from the marketplace'
       button.action = () => {}
     }
 
