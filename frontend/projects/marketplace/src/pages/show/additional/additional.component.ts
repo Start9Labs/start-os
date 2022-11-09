@@ -5,8 +5,17 @@ import {
   Input,
   Output,
 } from '@angular/core'
-import { AlertController, ModalController } from '@ionic/angular'
-import { displayEmver, Emver, MarkdownComponent } from '@start9labs/shared'
+import {
+  AlertController,
+  ModalController,
+  ToastController,
+} from '@ionic/angular'
+import {
+  copyToClipboard,
+  displayEmver,
+  Emver,
+  MarkdownComponent,
+} from '@start9labs/shared'
 import { MarketplacePkg } from '../../../types'
 import { AbstractMarketplaceService } from '../../../services/marketplace.service'
 
@@ -27,7 +36,22 @@ export class AdditionalComponent {
     private readonly modalCtrl: ModalController,
     private readonly emver: Emver,
     private readonly marketplaceService: AbstractMarketplaceService,
+    private readonly toastCtrl: ToastController,
   ) {}
+
+  async copy(address: string): Promise<void> {
+    const success = await copyToClipboard(address)
+    const message = success
+      ? 'Copied to clipboard!'
+      : 'Failed to copy to clipboard.'
+
+    const toast = await this.toastCtrl.create({
+      header: message,
+      position: 'bottom',
+      duration: 1000,
+    })
+    await toast.present()
+  }
 
   async presentAlertVersions() {
     const alert = await this.alertCtrl.create({

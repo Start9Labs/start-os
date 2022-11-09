@@ -20,6 +20,8 @@ use crate::version::{Current, VersionT};
 use crate::volume::Volumes;
 use crate::Error;
 
+use super::git_hash::GitHash;
+
 fn current_version() -> Version {
     Current::new().semver().into()
 }
@@ -30,6 +32,8 @@ pub struct Manifest {
     #[serde(default = "current_version")]
     pub eos_version: Version,
     pub id: PackageId,
+    #[serde(default)]
+    pub git_hash: Option<GitHash>,
     pub title: String,
     #[model]
     pub version: Version,
@@ -95,6 +99,11 @@ impl Manifest {
             .chain(backups)
             .chain(migrations)
             .chain(actions)
+    }
+
+    pub fn with_git_hash(mut self, git_hash: GitHash) -> Self {
+        self.git_hash = Some(git_hash);
+        self
     }
 }
 
