@@ -112,7 +112,7 @@ product_key.txt:
 	if [ "$(KEY)" != "" ]; then $(shell which echo) -n "$(KEY)" > product_key.txt; fi
 	echo >> product_key.txt
 
-snapshots: libs/snapshot-creator/Cargo.toml
+snapshots: libs/snapshot_creator/Cargo.toml
 	cd libs/  && ./build-v8-snapshot.sh
 	cd libs/  && ./build-arm-v8-snapshot.sh
 

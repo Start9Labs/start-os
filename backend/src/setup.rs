@@ -4,6 +4,7 @@ use std::sync::Arc;
 use color_eyre::eyre::eyre;
 use futures::future::BoxFuture;
 use futures::{StreamExt, TryFutureExt};
+use helpers::{Rsync, RsyncOptions};
 use josekit::jwk::Jwk;
 use openssl::x509::X509;
 use patch_db::DbHandle;
@@ -33,7 +34,6 @@ use crate::init::init;
 use crate::middleware::encrypt::EncryptedWire;
 use crate::net::ssl::SslManager;
 use crate::sound::BEETHOVEN;
-use crate::util::rsync::{Rsync, RsyncOptions};
 use crate::{Error, ErrorKind, ResultExt};
 
 #[instrument(skip(secrets))]

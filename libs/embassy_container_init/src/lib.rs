@@ -7,11 +7,14 @@ pub type InputJsonRpc = JsonRpc<Input>;
 pub type OutputJsonRpc = JsonRpc<Output>;
 
 /// Based on the jsonrpc spec, but we are limiting the rpc to a subset
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Serialize, Copy, Deserialize, Clone, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(untagged)]
 pub enum RpcId {
     UInt(u32),
 }
+/// Know what the process is called
+#[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ProcessId(pub u32);
 
 /// We use the JSON rpc as the format to share between the stdin and stdout for the executable.
 /// Note: We are not allowing the id to not exist, used to ensure all pairs of messages are tracked
@@ -76,6 +79,9 @@ where
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(tag = "method", content = "params", rename_all = "camelCase")]
 pub enum Output {
+    /// Will be called almost right away and only once per RpcId. Indicates what
+    /// was spawned in the container.
+    ProcessId(ProcessId),
     /// This is the line buffered output of the command
     Line(String),
     /// This is some kind of error with the program

@@ -8,6 +8,9 @@ edition = "2021"
 [dependencies]
 color-eyre = "0.6.2"
 futures = "0.3.21"
-pin-project = "1.0.11"
-tokio = { version = "1.19.2", features = ["full"] }
 models = { path = "../models" }
+pin-project = "1.0.11"
+serde = { version = "1.0", features = ["derive", "rc"] }
+tokio = { version = "1.19.2", features = ["full"] }
+tokio-stream = { version = "0.1.9", features = ["io-util", "sync"] }
+tracing = "0.1.35"

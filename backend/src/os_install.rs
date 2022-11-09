@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 
 use color_eyre::eyre::eyre;
 use mbrman::{MBRPartitionEntry, CHS, MBR};
+use models::Error;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;

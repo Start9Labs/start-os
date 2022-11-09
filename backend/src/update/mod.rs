@@ -4,6 +4,7 @@ use std::sync::Arc;
 use clap::ArgMatches;
 use color_eyre::eyre::{eyre, Result};
 use emver::Version;
+use helpers::{Rsync, RsyncOptions};
 use lazy_static::lazy_static;
 use patch_db::{DbHandle, LockType, Revision};
 use reqwest::Url;
@@ -25,7 +26,7 @@ use crate::sound::{
     CIRCLE_OF_5THS_SHORT, UPDATE_FAILED_1, UPDATE_FAILED_2, UPDATE_FAILED_3, UPDATE_FAILED_4,
 };
 use crate::update::latest_information::LatestInformation;
-use crate::util::rsync::{Rsync, RsyncOptions};
+
 use crate::util::Invoke;
 use crate::version::{Current, VersionT};
 use crate::{Error, ErrorKind, ResultExt};

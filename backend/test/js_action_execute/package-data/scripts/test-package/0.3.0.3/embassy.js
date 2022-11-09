@@ -915,4 +915,63 @@ export const action = {
       },
     };
   },
+
+
+  /**
+   * Want to test that rsync works
+   * @param {*} effects 
+   * @param {*} _input 
+   * @returns 
+   */
+  async "test-rsync"(effects, _input) {
+    try {
+      await effects
+        .removeDir({
+          volumeId: "main",
+          path: "test-rsync-out",
+        })
+        .catch(() => {});
+      const runningRsync = effects.runRsync({
+        srcVolume: "main",
+        srcPath: "testing-rsync",
+        dstVolume: "main",
+        dstPath: "test-rsync-out",
+        options: {
+          delete: true,
+          force: true,
+          ignoreExisting: false,
+        }
+      });
+      assert(await runningRsync.id() >= 1, "Expect that we have an id");
+      const progress = await runningRsync.progress()
+      assert(progress >= 0 && progress <= 1, `Expect progress to be 0 <= progress(${progress}) <= 1`);
+      await runningRsync.wait();
+      assert((await effects.readFile({
+        volumeId: "main",
+        path: "test-rsync-out/testing-rsync/someFile.txt",
+      })).length > 0, 'Asserting that we read in the file "test_rsync/test-package/0.3.0.3/embassy.js"');
+
+
+      return {
+        result: {
+          copyable: false,
+          message: "Done",
+          version: "0",
+          qr: false,
+        },
+      };
+    }
+    catch (e) {
+      throw e;
+    }
+    finally {
+      await effects
+        .removeDir({
+          volumeId: "main",
+          path: "test-rsync-out",
+        })
+        .catch(() => {});
+    }
+  },
+
 };
