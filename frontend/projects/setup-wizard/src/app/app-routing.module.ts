@@ -9,6 +9,11 @@ const routes: Routes = [
       import('./pages/home/home.module').then(m => m.HomePageModule),
   },
   {
+    path: 'attach',
+    loadChildren: () =>
+      import('./pages/attach/attach.module').then(m => m.AttachPageModule),
+  },
+  {
     path: 'recover',
     loadChildren: () =>
       import('./pages/recover/recover.module').then(m => m.RecoverPageModule),
