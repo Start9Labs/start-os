@@ -13,7 +13,7 @@ export class LiveApiService implements ApiService {
 
   async getDisks(): Promise<GetDisksRes> {
     return this.rpcRequest({
-      method: 'install.status',
+      method: 'install.disk.list',
       params: {},
     })
   }
