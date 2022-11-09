@@ -4,40 +4,24 @@ use std::time::Duration;
 
 use color_eyre::eyre::eyre;
 use embassy::context::{DiagnosticContext, RpcContext};
-use embassy::core::rpc_continuations::RequestGuid;
-use embassy::db::subscribe;
-use embassy::middleware::auth::auth;
-use embassy::middleware::cors::cors;
-use embassy::middleware::db::db as db_middleware;
-use embassy::middleware::diagnostic::diagnostic;
+
+use embassy::hostname::get_current_ip;
+use embassy::net::embassy_service_http_server::EmbassyServiceHTTPServer;
 #[cfg(feature = "avahi")]
 use embassy::net::mdns::MdnsController;
+use embassy::net::net_controller::NetController;
+use embassy::net::net_utils::ResourceFqdn;
+use embassy::net::static_server::diag_ui_file_router;
 use embassy::net::tor::tor_health_check;
 use embassy::shutdown::Shutdown;
 use embassy::system::launch_metrics_task;
+use embassy::util::daemon;
 use embassy::util::logger::EmbassyLogger;
-use embassy::util::{daemon, Invoke};
-use embassy::{static_server, Error, ErrorKind, ResultExt};
+use embassy::{Error, ErrorKind, ResultExt};
 use futures::{FutureExt, TryFutureExt};
 use reqwest::{Client, Proxy};
-use rpc_toolkit::hyper::{Body, Response, Server, StatusCode};
-use rpc_toolkit::rpc_server;
-use tokio::process::Command;
 use tokio::signal::unix::signal;
 use tracing::instrument;
-
-fn status_fn(_: i32) -> StatusCode {
-    StatusCode::OK
-}
-
-fn err_to_500(e: Error) -> Response<Body> {
-    tracing::error!("{}", e);
-    tracing::debug!("{:?}", e);
-    Response::builder()
-        .status(StatusCode::INTERNAL_SERVER_ERROR)
-        .body(Body::empty())
-        .unwrap()
-}
 
 #[instrument]
 async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error> {
@@ -52,6 +36,8 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
             ),
         )
         .await?;
+        NetController::setup_embassy_ui(rpc_ctx.clone()).await?;
+
         let mut shutdown_recv = rpc_ctx.shutdown.subscribe();
 
         let sig_handler_ctx = rpc_ctx.clone();
@@ -67,7 +53,7 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
                 .map(|s| {
                     async move {
                         signal(*s)
-                            .expect(&format!("register {:?} handler", s))
+                            .unwrap_or_else(|_| panic!("register {:?} handler", s))
                             .recv()
                             .await
                     }
@@ -82,31 +68,11 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
                 .expect("send shutdown signal");
         });
 
-        let mut db = rpc_ctx.db.handle();
-        let receipts = embassy::context::rpc::RpcSetNginxReceipts::new(&mut db).await?;
-        embassy::hostname::sync_hostname(&mut db, &receipts.hostname_receipts).await?;
-
-        rpc_ctx.set_nginx_conf(&mut db, receipts).await?;
-        drop(db);
-        let auth = auth(rpc_ctx.clone());
-        let db_middleware = db_middleware(rpc_ctx.clone());
-        let ctx = rpc_ctx.clone();
-        let server = rpc_server!({
-            command: embassy::main_api,
-            context: ctx,
-            status: status_fn,
-            middleware: [
-                cors,
-                auth,
-                db_middleware,
-            ]
-        })
-        .with_graceful_shutdown({
-            let mut shutdown = rpc_ctx.shutdown.subscribe();
-            async move {
-                shutdown.recv().await.expect("context dropped");
-            }
-        });
+        {
+            let mut db = rpc_ctx.db.handle();
+            let receipts = embassy::context::rpc::RpcSetHostNameReceipts::new(&mut db).await?;
+            embassy::hostname::sync_hostname(&mut db, &receipts.hostname_receipts).await?;
+        }
 
         let metrics_ctx = rpc_ctx.clone();
         let metrics_task = tokio::spawn(async move {
@@ -115,105 +81,6 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
             })
             .await
         });
-
-        let ws_ctx = rpc_ctx.clone();
-        let ws_server = {
-            let builder = Server::bind(&ws_ctx.bind_ws);
-
-            let make_svc = ::rpc_toolkit::hyper::service::make_service_fn(move |_| {
-                let ctx = ws_ctx.clone();
-                async move {
-                    Ok::<_, ::rpc_toolkit::hyper::Error>(::rpc_toolkit::hyper::service::service_fn(
-                        move |req| {
-                            let ctx = ctx.clone();
-                            async move {
-                                tracing::debug!("Request to {}", req.uri().path());
-                                match req.uri().path() {
-                                    "/ws/db" => {
-                                        Ok(subscribe(ctx, req).await.unwrap_or_else(err_to_500))
-                                    }
-                                    path if path.starts_with("/ws/rpc/") => {
-                                        match RequestGuid::from(
-                                            path.strip_prefix("/ws/rpc/").unwrap(),
-                                        ) {
-                                            None => {
-                                                tracing::debug!("No Guid Path");
-                                                Response::builder()
-                                                    .status(StatusCode::BAD_REQUEST)
-                                                    .body(Body::empty())
-                                            }
-                                            Some(guid) => {
-                                                match ctx.get_ws_continuation_handler(&guid).await {
-                                                    Some(cont) => match cont(req).await {
-                                                        Ok(r) => Ok(r),
-                                                        Err(e) => Response::builder()
-                                                            .status(
-                                                                StatusCode::INTERNAL_SERVER_ERROR,
-                                                            )
-                                                            .body(Body::from(format!("{}", e))),
-                                                    },
-                                                    _ => Response::builder()
-                                                        .status(StatusCode::NOT_FOUND)
-                                                        .body(Body::empty()),
-                                                }
-                                            }
-                                        }
-                                    }
-                                    path if path.starts_with("/rest/rpc/") => {
-                                        match RequestGuid::from(
-                                            path.strip_prefix("/rest/rpc/").unwrap(),
-                                        ) {
-                                            None => {
-                                                tracing::debug!("No Guid Path");
-                                                Response::builder()
-                                                    .status(StatusCode::BAD_REQUEST)
-                                                    .body(Body::empty())
-                                            }
-                                            Some(guid) => {
-                                                match ctx.get_rest_continuation_handler(&guid).await
-                                                {
-                                                    None => Response::builder()
-                                                        .status(StatusCode::NOT_FOUND)
-                                                        .body(Body::empty()),
-                                                    Some(cont) => match cont(req).await {
-                                                        Ok(r) => Ok(r),
-                                                        Err(e) => Response::builder()
-                                                            .status(
-                                                                StatusCode::INTERNAL_SERVER_ERROR,
-                                                            )
-                                                            .body(Body::from(format!("{}", e))),
-                                                    },
-                                                }
-                                            }
-                                        }
-                                    }
-                                    _ => Response::builder()
-                                        .status(StatusCode::NOT_FOUND)
-                                        .body(Body::empty()),
-                                }
-                            }
-                        },
-                    ))
-                }
-            });
-            builder.serve(make_svc)
-        }
-        .with_graceful_shutdown({
-            let mut shutdown = rpc_ctx.shutdown.subscribe();
-            async move {
-                shutdown.recv().await.expect("context dropped");
-            }
-        });
-
-        let file_server_ctx = rpc_ctx.clone();
-        let file_server = {
-            static_server::init(file_server_ctx, {
-                let mut shutdown = rpc_ctx.shutdown.subscribe();
-                async move {
-                    shutdown.recv().await.expect("context dropped");
-                }
-            })
-        };
 
         let tor_health_ctx = rpc_ctx.clone();
         let tor_client = Client::builder()
@@ -240,21 +107,12 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
         embassy::sound::CHIME.play().await?;
 
         futures::try_join!(
-            server
-                .map_err(|e| Error::new(e, ErrorKind::Network))
-                .map_ok(|_| tracing::debug!("RPC Server Shutdown")),
             metrics_task
                 .map_err(|e| Error::new(
                     eyre!("{}", e).wrap_err("Metrics daemon panicked!"),
                     ErrorKind::Unknown
                 ))
                 .map_ok(|_| tracing::debug!("Metrics daemon Shutdown")),
-            ws_server
-                .map_err(|e| Error::new(e, ErrorKind::Network))
-                .map_ok(|_| tracing::debug!("WebSocket Server Shutdown")),
-            file_server
-                .map_err(|e| Error::new(e, ErrorKind::Network))
-                .map_ok(|_| tracing::debug!("Static File Server Shutdown")),
             tor_health_daemon
                 .map_err(|e| Error::new(
                     e.wrap_err("Tor Health daemon panicked!"),
@@ -309,23 +167,7 @@ fn main() {
                         tracing::debug!("{:?}", e.source);
                         embassy::sound::BEETHOVEN.play().await?;
                         #[cfg(feature = "avahi")]
-                        let _mdns = MdnsController::init();
-                        tokio::fs::write(
-                            "/etc/nginx/sites-available/default",
-                            include_str!("../nginx/diagnostic-ui.conf"),
-                        )
-                        .await
-                        .with_ctx(|_| {
-                            (
-                                embassy::ErrorKind::Filesystem,
-                                "/etc/nginx/sites-available/default",
-                            )
-                        })?;
-                        Command::new("systemctl")
-                            .arg("reload")
-                            .arg("nginx")
-                            .invoke(embassy::ErrorKind::Nginx)
-                            .await?;
+                        let _mdns = MdnsController::init().await?;
                         let ctx = DiagnosticContext::init(
                             cfg_path,
                             if tokio::fs::metadata("/media/embassy/config/disk.guid")
@@ -344,25 +186,25 @@ fn main() {
                             e,
                         )
                         .await?;
+
+                        let embassy_ip = get_current_ip(ctx.ethernet_interface.to_owned()).await?;
+                        let embassy_ip_fqdn: ResourceFqdn = embassy_ip.parse()?;
+                        let embassy_fqdn: ResourceFqdn = "embassy.local".parse()?;
+
+                        let diag_ui_handler = diag_ui_file_router(ctx.clone()).await?;
+
+                        let mut diag_http_server =
+                            EmbassyServiceHTTPServer::new([0, 0, 0, 0].into(), 80, None).await?;
+                        diag_http_server
+                            .add_svc_handler_mapping(embassy_ip_fqdn, diag_ui_handler.clone())
+                            .await?;
+                        diag_http_server
+                            .add_svc_handler_mapping(embassy_fqdn, diag_ui_handler)
+                            .await?;
+
                         let mut shutdown = ctx.shutdown.subscribe();
-                        rpc_server!({
-                            command: embassy::diagnostic_api,
-                            context: ctx.clone(),
-                            status: status_fn,
-                            middleware: [
-                                cors,
-                                diagnostic,
-                            ]
-                        })
-                        .with_graceful_shutdown({
-                            let mut shutdown = ctx.shutdown.subscribe();
-                            async move {
-                                shutdown.recv().await.expect("context dropped");
-                            }
-                        })
-                        .await
-                        .with_kind(embassy::ErrorKind::Network)?;
-                        Ok::<_, Error>(shutdown.recv().await.with_kind(crate::ErrorKind::Unknown)?)
+
+                        shutdown.recv().await.with_kind(crate::ErrorKind::Unknown)
                     })()
                     .await
                 }

@@ -6,6 +6,7 @@ use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 
+use crate::context::InstallContext;
 use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::ReadWrite;
@@ -83,16 +84,6 @@ pub async fn find_eth_iface() -> Result<String, Error> {
         crate::ErrorKind::Network,
     ))
 }
-
-// pub struct FDisk {
-//     child: Child,
-//     stdin: ChildStdin,
-// }
-// impl FDisk {
-//     pub async fn command(&mut self, cmd: &[u8]) -> Result<(), Error> {
-
-//     }
-// }
 
 pub fn partition_for(disk: impl AsRef<Path>, idx: usize) -> PathBuf {
     let disk_path = disk.as_ref();
@@ -306,12 +297,10 @@ pub async fn execute(
 }
 
 #[command(display(display_none))]
-pub async fn reboot() -> Result<(), Error> {
+pub async fn reboot(#[context] ctx: InstallContext) -> Result<(), Error> {
     Command::new("sync")
         .invoke(crate::ErrorKind::Filesystem)
         .await?;
-    Command::new("reboot")
-        .invoke(crate::ErrorKind::Filesystem)
-        .await?;
+    ctx.shutdown.send(()).unwrap();
     Ok(())
 }

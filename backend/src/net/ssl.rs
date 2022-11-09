@@ -24,7 +24,7 @@ use crate::{Error, ErrorKind, ResultExt};
 static CERTIFICATE_VERSION: i32 = 2; // X509 version 3 is actually encoded as '2' in the cert because fuck you.
 pub const ROOT_CA_STATIC_PATH: &str = "/var/lib/embassy/ssl/root-ca.crt";
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SslManager {
     store: SslStore,
     root_cert: X509,
@@ -32,7 +32,7 @@ pub struct SslManager {
     int_cert: X509,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct SslStore {
     secret_store: PgPool,
 }
@@ -177,7 +177,7 @@ impl SslManager {
             }
             Some((key, cert)) => Ok((key, cert)),
         }?;
-        // generate static file for download, this will get blown up on embassy restart so it's good to write it on
+        // generate static file for download, this will gte blown up on embassy restart so it's good to write it on
         // every ssl manager init
         tokio::fs::create_dir_all(
             Path::new(ROOT_CA_STATIC_PATH)
@@ -513,57 +513,3 @@ fn make_leaf_cert(
     let cert = builder.build();
     Ok(cert)
 }
-
-// #[tokio::test]
-// async fn ca_details_persist() -> Result<(), Error> {
-//     let pool = sqlx::Pool::<sqlx::Postgres>::connect("postgres::memory:").await?;
-//     sqlx::migrate!()
-//         .run(&pool)
-//         .await
-//         .with_kind(crate::ErrorKind::Database)?;
-//     let mgr = SslManager::init(pool.clone()).await?;
-//     let root_cert0 = mgr.root_cert;
-//     let int_key0 = mgr.int_key;
-//     let int_cert0 = mgr.int_cert;
-//     let mgr = SslManager::init(pool).await?;
-//     let root_cert1 = mgr.root_cert;
-//     let int_key1 = mgr.int_key;
-//     let int_cert1 = mgr.int_cert;
-//
-//     assert_eq!(root_cert0.to_pem()?, root_cert1.to_pem()?);
-//     assert_eq!(
-//         int_key0.private_key_to_pem_pkcs8()?,
-//         int_key1.private_key_to_pem_pkcs8()?
-//     );
-//     assert_eq!(int_cert0.to_pem()?, int_cert1.to_pem()?);
-//     Ok(())
-// }
-//
-// #[tokio::test]
-// async fn certificate_details_persist() -> Result<(), Error> {
-//     let pool = sqlx::Pool::<sqlx::Postgres>::connect("postgres::memory:").await?;
-//     sqlx::migrate!()
-//         .run(&pool)
-//         .await
-//         .with_kind(crate::ErrorKind::Database)?;
-//     let mgr = SslManager::init(pool.clone()).await?;
-//     let package_id = "bitcoind".parse().unwrap();
-//     let (key0, cert_chain0) = mgr.certificate_for("start9", &package_id).await?;
-//     let (key1, cert_chain1) = mgr.certificate_for("start9", &package_id).await?;
-//
-//     assert_eq!(
-//         key0.private_key_to_pem_pkcs8()?,
-//         key1.private_key_to_pem_pkcs8()?
-//     );
-//     assert_eq!(
-//         cert_chain0
-//             .iter()
-//             .map(|cert| cert.to_pem().unwrap())
-//             .collect::<Vec<Vec<u8>>>(),
-//         cert_chain1
-//             .iter()
-//             .map(|cert| cert.to_pem().unwrap())
-//             .collect::<Vec<Vec<u8>>>()
-//     );
-//     Ok(())
-// }

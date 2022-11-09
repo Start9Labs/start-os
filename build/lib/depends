@@ -1,5 +1,4 @@
 tor
-nginx
 avahi-daemon
 avahi-utils
 iotop
@@ -30,3 +29,4 @@ iw
 squashfs-tools
 rsync
 systemd-timesyncd
+magic-wormhole

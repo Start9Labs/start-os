@@ -25,7 +25,7 @@ user_pref("signon.rememberSignons", false);
 EOT
 matchbox-window-manager -use_titlebar yes &
 if [ -z "$use_https" ]; then
-    firefox-esr --kiosk http://localhost --profile $PROFILE
+    firefox-esr --kiosk http://$(hostname).local --profile $PROFILE
 else
     firefox-esr --kiosk https://$(hostname).local --profile $PROFILE
 fi
