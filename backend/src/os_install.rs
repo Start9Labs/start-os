@@ -12,9 +12,11 @@ use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::{MountGuard, TmpMountGuard};
+use crate::disk::util::DiskInfo;
 use crate::disk::OsPartitionInfo;
 use crate::util::serde::IoFormat;
 use crate::util::{display_none, Invoke};
+use crate::Error;
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -24,28 +26,19 @@ pub struct PostInstallConfig {
     wifi_interface: Option<String>,
 }
 
-#[command(subcommands(status, execute, reboot))]
+#[command(subcommands(disk, execute, reboot))]
 pub fn install() -> Result<(), Error> {
     Ok(())
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct InstallTarget {
-    logicalname: PathBuf,
-    embassy_data: bool,
+#[command(subcommands(list))]
+pub fn disk() -> Result<(), Error> {
+    Ok(())
 }
 
 #[command(display(display_none))]
-pub async fn status() -> Result<Vec<InstallTarget>, Error> {
-    let disks = crate::disk::util::list(&Default::default()).await?;
-    Ok(disks
-        .into_iter()
-        .map(|d| InstallTarget {
-            logicalname: d.logicalname,
-            embassy_data: d.guid.is_some() || d.partitions.into_iter().any(|p| p.guid.is_some()),
-        })
-        .collect())
+pub async fn list() -> Result<Vec<DiskInfo>, Error> {
+    crate::disk::util::list(&Default::default()).await
 }
 
 pub async fn find_wifi_iface() -> Result<Option<String>, Error> {
