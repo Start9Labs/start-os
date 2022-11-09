@@ -8,7 +8,6 @@ use std::task::Poll;
 use std::time::Duration;
 
 use bollard::container::{KillContainerOptions, StopContainerOptions};
-use chrono::Utc;
 use color_eyre::eyre::eyre;
 use embassy_container_init::{InputJsonRpc, RpcId};
 use models::{ExecCommand, TermCommand};
@@ -41,7 +40,8 @@ use crate::Error;
 pub mod health;
 mod sync;
 
-pub const HEALTH_CHECK_COOLDOWN_SECONDS: u64 = 60;
+pub const HEALTH_CHECK_COOLDOWN_SECONDS: u64 = 15;
+pub const HEALTH_CHECK_GRACE_PERIOD_SECONDS: u64 = 5;
 
 #[derive(Default)]
 pub struct ManagerMap(RwLock<BTreeMap<(PackageId, Version), Arc<Manager>>>);
@@ -466,12 +466,7 @@ async fn manager_thread_loop(
                     .get(&mut db, false)
                     .await;
                 match started.as_deref() {
-                    Ok(Some(MainStatus::Running { started, .. }))
-                        if cfg!(feature = "unstable")
-                            || (Utc::now().signed_duration_since(*started)
-                                > chrono::Duration::from_std(Duration::from_secs(60)).unwrap()
-                                && !matches!(&*thread_shared.on_stop.borrow(), &OnStop::Exit)) =>
-                    {
+                    Ok(Some(MainStatus::Running { .. })) if cfg!(feature = "unstable") => {
                         let res = thread_shared.ctx.notification_manager
                     .notify(
                         &mut db,
@@ -880,7 +875,7 @@ fn fetch_starting_to_running(state: &Arc<ManagerSharedState>) {
 }
 
 async fn main_health_check_daemon(state: Arc<ManagerSharedState>) {
-    tokio::time::sleep(Duration::from_secs(10)).await;
+    tokio::time::sleep(Duration::from_secs(HEALTH_CHECK_GRACE_PERIOD_SECONDS)).await;
     loop {
         let mut db = state.ctx.db.handle();
         if let Err(e) = health::check(
