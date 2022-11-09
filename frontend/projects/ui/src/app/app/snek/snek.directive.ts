@@ -38,7 +38,7 @@ export class SnekDirective {
       await loader.present()
 
       try {
-        await this.embassyApi.setDbValue(
+        await this.embassyApi.setDbValue<number>(
           ['gaming', 'snake', 'high-score'],
           data.highScore,
         )

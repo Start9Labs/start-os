@@ -2,15 +2,15 @@ import { Observable } from 'rxjs'
 import {
   MarketplacePkg,
   Marketplace,
-  MarketplaceURL,
-  MarketplaceName,
+  StoreURL,
   StoreData,
+  StoreIdentifier,
 } from '../types'
 
 export abstract class AbstractMarketplaceService {
-  abstract getKnownHosts$(): Observable<Record<MarketplaceURL, MarketplaceName>>
+  abstract getKnownHosts$(): Observable<Record<StoreURL, StoreIdentifier>>
 
-  abstract getSelectedHost$(): Observable<{ url: string; name: string }>
+  abstract getSelectedHost$(): Observable<StoreIdentifier & { url: string }>
 
   abstract getMarketplace$(): Observable<Marketplace>
 

@@ -32,19 +32,8 @@ export type RPCResponse<T> = RPCSuccessRes<T> | RPCErrorRes
 
 export interface RPCOptions {
   method: string
-  headers?: {
-    [header: string]: string | string[]
-  }
-  params: {
-    [param: string]:
-      | string
-      | number
-      | boolean
-      | object
-      | string[]
-      | number[]
-      | null
-  }
+  headers?: Record<string, string | string[]>
+  params: Record<string, any>
   timeout?: number
 }
 

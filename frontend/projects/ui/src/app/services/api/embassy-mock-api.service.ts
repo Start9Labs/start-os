@@ -37,6 +37,8 @@ import { mockPatchData } from './mock-patch'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 import { AuthService } from '../auth.service'
 import { ConnectionService } from '../connection.service'
+import { StoreInfo } from '@start9labs/marketplace'
+import { COMMUNITY_REGISTRY, START9_REGISTRY } from './api-icons'
 
 const PROGRESS: InstallProgress = {
   size: 120,
@@ -93,12 +95,12 @@ export class MockApiService extends ApiService {
 
   // db
 
-  async setDbValue(
+  async setDbValue<T>(
     pathArr: Array<string | number>,
-    value: any,
+    value: T,
   ): Promise<RR.SetDBValueRes> {
     const pointer = pathFromArray(pathArr)
-    const params: RR.SetDBValueReq = { pointer, value }
+    const params: RR.SetDBValueReq<T> = { pointer, value }
     await pauseFor(2000)
     const patch = [
       {
@@ -280,8 +282,9 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
 
     if (path === '/package/v0/info') {
-      return {
-        name: 'Dark69',
+      const info: StoreInfo = {
+        name: 'Start9 Registry',
+        icon: START9_REGISTRY,
         categories: [
           'bitcoin',
           'lightning',
@@ -292,6 +295,7 @@ export class MockApiService extends ApiService {
           'alt coin',
         ],
       }
+      return info
     } else if (path === '/package/v0/index') {
       return Mock.MarketplacePkgsList
     } else if (path.startsWith('/package/v0/release-notes')) {

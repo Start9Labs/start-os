@@ -54,12 +54,12 @@ export class LiveApiService extends ApiService {
 
   // db
 
-  async setDbValue(
+  async setDbValue<T>(
     pathArr: Array<string | number>,
-    value: any,
+    value: T,
   ): Promise<RR.SetDBValueRes> {
     const pointer = pathFromArray(pathArr)
-    const params: RR.SetDBValueReq = { pointer, value }
+    const params: RR.SetDBValueReq<T> = { pointer, value }
     return this.rpcRequest({ method: 'db.put.ui', params })
   }
 
