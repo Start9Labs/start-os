@@ -1,5 +1,9 @@
-<alert *ngIf="show$ | async" header="Refresh needed" (dismiss)="onDismiss()">
+<alert *ngIf="show$ | async" header="Refresh Needed" (dismiss)="onDismiss()">
   Your user interface is cached and out of date. Hard refresh the page to get
   the latest UI.
-  <a alertButton class="enter-click" href=".">Refresh Page</a>
+  <ul>
+    <li><b>On Mac</b>: cmd + shift + R</li>
+    <li><b>On Linux/Windows</b>: ctrl + shift + R</li>
+  </ul>
+  <a alertButton class="enter-click" role="cancel">Ok</a>
 </alert>
