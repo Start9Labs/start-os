@@ -10,7 +10,14 @@
 <ion-content class="ion-padding">
   <ion-item-group *ngIf="data$ | async as data">
     <ng-container *ngFor="let host of data.hosts | keyvalue">
-      <ion-item-divider> {{ host.value }} </ion-item-divider>
+      <ion-item-divider>
+        {{ host.value.name }} &nbsp;
+        <img
+          style="max-width: 24px"
+          [src]="'data:image/png;base64,' + host.value.icon | trustUrl"
+          alt=""
+        />
+      </ion-item-divider>
 
       <div class="ion-padding-start ion-padding-bottom">
         <ion-item *ngIf="data.errors.includes(host.key)">
@@ -25,7 +32,7 @@
           >
             <ion-item *ngFor="let pkg of updates">
               <ng-container *ngIf="data.localPkgs[pkg.manifest.id] as local">
-                <ion-avatar slot="start">
+                <ion-avatar slot="start" class="service-avatar">
                   <img [src]="'data:image/png;base64,' + pkg.icon | trustUrl" />
                 </ion-avatar>
                 <ion-label>

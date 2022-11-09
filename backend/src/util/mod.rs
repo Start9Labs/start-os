@@ -27,7 +27,6 @@ pub mod config;
 pub mod http_reader;
 pub mod io;
 pub mod logger;
-pub mod rsync;
 pub mod serde;
 
 #[derive(Clone, Copy, Debug)]

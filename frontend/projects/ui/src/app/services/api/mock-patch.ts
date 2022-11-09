@@ -7,6 +7,7 @@ import {
   PackageMainStatus,
   PackageState,
 } from 'src/app/services/patch-db/data-model'
+import { COMMUNITY_REGISTRY, START9_REGISTRY } from './api-icons'
 import { Mock } from './api.fixures'
 
 export const mockPatchData: DataModel = {
@@ -17,9 +18,16 @@ export const mockPatchData: DataModel = {
     marketplace: {
       'selected-url': 'https://registry.start9.com/',
       'known-hosts': {
-        'https://registry.start9.com/': 'Start9 Marketplace',
-        'https://community-registry.start9.com/': 'Community Marketplace',
-        'https://dark9-marketplace.com/': 'Dark9',
+        'https://registry.start9.com/': {
+          name: 'Start9 Registry',
+          icon: START9_REGISTRY,
+        },
+        'https://community-registry.start9.com/': {
+          icon: COMMUNITY_REGISTRY,
+        },
+        'https://dark9-marketplace.com/': {
+          name: 'Dark9',
+        },
       },
     },
     dev: {},
@@ -61,6 +69,7 @@ export const mockPatchData: DataModel = {
         id: 'bitcoind',
         title: 'Bitcoin Core',
         version: '0.20.0',
+        'git-hash': 'abcdefgh',
         description: {
           short: 'A Bitcoin full node by Bitcoin Core.',
           long: 'Bitcoin is a decentralized consensus protocol and settlement network.',

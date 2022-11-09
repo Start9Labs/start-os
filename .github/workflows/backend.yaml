@@ -221,6 +221,7 @@ jobs:
         sh -c '
           apt-get update &&
           apt-get install -y ca-certificates &&
+          apt-get install -y rsync &&
           cd /home/rust/src &&
           mkdir -p ~/.cargo/bin &&
           tar -zxvf nextest-aarch64.tar.gz -C ${CARGO_HOME:-~/.cargo}/bin &&

@@ -12,6 +12,7 @@ use tracing::instrument;
 use crate::context::SdkContext;
 use crate::s9pk::builder::S9pkPacker;
 use crate::s9pk::docker::DockerMultiArch;
+use crate::s9pk::git_hash::GitHash;
 use crate::s9pk::manifest::Manifest;
 use crate::s9pk::reader::S9pkReader;
 use crate::util::display_none;
@@ -22,6 +23,7 @@ use crate::{Error, ErrorKind, ResultExt};
 
 pub mod builder;
 pub mod docker;
+pub mod git_hash;
 pub mod header;
 pub mod manifest;
 pub mod reader;
@@ -56,8 +58,10 @@ pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> R
             crate::ErrorKind::Pack,
         ));
     };
-    let manifest: Manifest = serde_json::from_value(manifest_value.clone())
-        .with_kind(crate::ErrorKind::Deserialization)?;
+
+    let manifest: Manifest = serde_json::from_value::<Manifest>(manifest_value.clone())
+        .with_kind(crate::ErrorKind::Deserialization)?
+        .with_git_hash(GitHash::from_path(&path).await?);
     let extra_keys =
         enumerate_extra_keys(&serde_json::to_value(&manifest).unwrap(), &manifest_value);
     for k in extra_keys {

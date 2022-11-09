@@ -99,11 +99,12 @@ export class MarketplaceShowControlsComponent {
       this.patch.watch$('ui', 'marketplace'),
     )
 
-    const name = marketplaces['known-hosts'][url] || url
+    const name: string = marketplaces['known-hosts'][url]?.name || url
 
     let originalName: string | undefined
     if (originalUrl) {
-      originalName = marketplaces['known-hosts'][originalUrl] || originalUrl
+      originalName =
+        marketplaces['known-hosts'][originalUrl]?.name || originalUrl
     }
 
     return new Promise(async resolve => {

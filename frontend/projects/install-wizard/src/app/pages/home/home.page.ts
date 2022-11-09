@@ -1,7 +1,8 @@
 import { Component } from '@angular/core'
 import { AlertController, IonicSlides, LoadingController } from '@ionic/angular'
-import { ApiService, Disk } from 'src/app/services/api/api.service'
+import { ApiService } from 'src/app/services/api/api.service'
 import SwiperCore, { Swiper } from 'swiper'
+import { DiskInfo } from '@start9labs/shared'
 
 SwiperCore.use([IonicSlides])
 
@@ -12,8 +13,8 @@ SwiperCore.use([IonicSlides])
 })
 export class HomePage {
   swiper?: Swiper
-  disks: Disk[] = []
-  selectedDisk?: Disk
+  disks: DiskInfo[] = []
+  selectedDisk?: DiskInfo
   error = ''
 
   constructor(
@@ -36,7 +37,7 @@ export class HomePage {
     this.swiper = swiper
   }
 
-  next(disk: Disk) {
+  next(disk: DiskInfo) {
     this.selectedDisk = disk
     this.swiper?.slideNext(500)
   }
@@ -48,13 +49,15 @@ export class HomePage {
   async tryInstall(overwrite: boolean) {
     if (!this.selectedDisk) return
 
-    const { logicalname, 'embassy-data': embassyData } = this.selectedDisk
+    const { logicalname, guid } = this.selectedDisk
 
-    if (embassyData && !overwrite) {
+    const hasEmbassyData = !!guid
+
+    if (hasEmbassyData && !overwrite) {
       return this.install(logicalname, overwrite)
     }
 
-    await this.presentAlertDanger(logicalname, embassyData)
+    await this.presentAlertDanger(logicalname, hasEmbassyData)
   }
 
   private async install(logicalname: string, overwrite: boolean) {
@@ -73,8 +76,11 @@ export class HomePage {
     }
   }
 
-  private async presentAlertDanger(logicalname: string, embassyData: boolean) {
-    const message = embassyData
+  private async presentAlertDanger(
+    logicalname: string,
+    hasEmbassyData: boolean,
+  ) {
+    const message = hasEmbassyData
       ? 'This action COMPLETELY erases your existing Embassy data'
       : `This action COMPLETELY erases the disk ${logicalname} and installs embassyOS`
 
@@ -93,7 +99,7 @@ export class HomePage {
           },
         },
       ],
-      cssClass: 'alert-warning-message',
+      cssClass: 'alert-danger-message',
     })
     await alert.present()
   }
@@ -101,7 +107,7 @@ export class HomePage {
   private async presentAlertReboot() {
     const alert = await this.alertCtrl.create({
       header: 'Install Success',
-      message: 'Reboot your device to begin using your new Emabssy',
+      message: 'Reboot your device to begin using your new Embassy',
       buttons: [
         {
           text: 'Reboot',
@@ -110,7 +116,7 @@ export class HomePage {
           },
         },
       ],
-      cssClass: 'alert-warning-message',
+      cssClass: 'alert-success-message',
     })
     await alert.present()
   }
@@ -134,7 +140,6 @@ export class HomePage {
       header: 'Rebooting',
       message: 'Please wait for embassyOS to restart, then refresh this page',
       buttons: ['OK'],
-      cssClass: 'alert-warning-message',
     })
     await alert.present()
   }

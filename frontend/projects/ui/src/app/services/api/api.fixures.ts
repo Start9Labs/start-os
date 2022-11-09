@@ -42,6 +42,7 @@ export module Mock {
     id: 'bitcoind',
     title: 'Bitcoin Core',
     version: '0.21.0',
+    'git-hash': 'abcdefgh',
     description: {
       short: 'A Bitcoin full node by Bitcoin Core.',
       long: 'Bitcoin is a decentralized consensus protocol and settlement network.',
@@ -500,6 +501,7 @@ export module Mock {
     id: 'btc-rpc-proxy',
     title: 'Bitcoin Proxy',
     version: '0.2.2',
+    'git-hash': 'lmnopqrx',
     description: {
       short: 'A super charger for your Bitcoin node.',
       long: 'More info about Bitcoin Proxy. More info about Bitcoin Proxy. More info about Bitcoin Proxy.',

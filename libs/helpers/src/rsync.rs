@@ -1,15 +1,15 @@
 use color_eyre::eyre::eyre;
 use std::path::Path;
 
-use helpers::NonDetachingJoinHandle;
+use crate::{ByteReplacementReader, NonDetachingJoinHandle};
+use models::{Error, ErrorKind};
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
 use tokio::process::{Child, Command};
 use tokio::sync::watch;
 use tokio_stream::wrappers::WatchStream;
 
-use crate::util::io::ByteReplacementReader;
-use crate::{Error, ErrorKind};
-
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RsyncOptions {
     pub delete: bool,
     pub force: bool,
@@ -56,8 +56,24 @@ impl Rsync {
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped())
             .spawn()?;
-        let cmd_stdout = command.stdout.take().unwrap();
-        let mut cmd_stderr = command.stderr.take().unwrap();
+        let cmd_stdout = match command.stdout.take() {
+            None => {
+                return Err(Error::new(
+                    eyre!("rsync command stdout is none"),
+                    ErrorKind::Filesystem,
+                ))
+            }
+            Some(a) => a,
+        };
+        let mut cmd_stderr = match command.stderr.take() {
+            None => {
+                return Err(Error::new(
+                    eyre!("rsync command stderr is none"),
+                    ErrorKind::Filesystem,
+                ))
+            }
+            Some(a) => a,
+        };
         let (send, recv) = watch::channel(0.0);
         let stderr = tokio::spawn(async move {
             let mut res = String::new();
@@ -77,7 +93,12 @@ impl Rsync {
                     .split_ascii_whitespace()
                     .find_map(|col| col.strip_suffix("%"))
                 {
-                    send.send(percentage.parse::<f64>()? / 100.0).unwrap();
+                    if let Err(err) = send.send(percentage.parse::<f64>()? / 100.0) {
+                        return Err(Error::new(
+                            eyre!("rsync progress send error: {}", err),
+                            ErrorKind::Filesystem,
+                        ));
+                    }
                 }
             }
             Ok(())
@@ -92,12 +113,24 @@ impl Rsync {
     }
     pub async fn wait(mut self) -> Result<(), Error> {
         let status = self.command.wait().await?;
-        let stderr = self.stderr.await.unwrap()?;
+        let stderr = match self.stderr.await {
+            Err(err) => {
+                return Err(Error::new(
+                    eyre!("rsync stderr error: {}", err),
+                    ErrorKind::Filesystem,
+                ))
+            }
+            Ok(a) => a?,
+        };
         if status.success() {
             tracing::info!("rsync: {}", stderr);
         } else {
             return Err(Error::new(
-                eyre!("rsync error: {}", stderr),
+                eyre!(
+                    "rsync error: {} {} ",
+                    status.code().map(|x| x.to_string()).unwrap_or_default(),
+                    stderr
+                ),
                 ErrorKind::Filesystem,
             ));
         }

@@ -1,4 +1,5 @@
 mod action_id;
+mod errors;
 mod health_check_id;
 mod id;
 mod id_unchecked;
@@ -11,6 +12,7 @@ mod version;
 mod volume_id;
 
 pub use action_id::*;
+pub use errors::*;
 pub use health_check_id::*;
 pub use id::*;
 pub use id_unchecked::*;

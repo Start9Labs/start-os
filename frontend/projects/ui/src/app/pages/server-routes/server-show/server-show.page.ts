@@ -178,7 +178,7 @@ export class ServerShowPage {
   async presentAlertRepairDisk() {
     const alert = await this.alertCtrl.create({
       header: 'Warning',
-      message: `<p>This action will attempt to preform a disk repair operation and system reboot. No data will be deleted. This action should only be executed if directed by a Start9 support specialist. We recommend backing up your device before preforming this action.</p><p>If anything happens to the device during the reboot (between the bep and chime), such as losing power, a power surge, unplugging the drive, or unplugging the Embassy, the filesystem <i>will</i> be in an unrecoverable state. Please proceed with caution.</p>`,
+      message: `<p>This action will attempt to preform a disk repair operation and system reboot. No data will be deleted. This action should only be executed if directed by a Start9 support specialist. We recommend backing up your device before preforming this action.</p><p>If anything happens to the device during the reboot, such as losing power, a power surge, unplugging the drive, or unplugging the Embassy, the filesystem <i>will</i> be in an unrecoverable state. Please proceed with caution.</p>`,
       buttons: [
         {
           text: 'Cancel',
@@ -223,7 +223,7 @@ export class ServerShowPage {
     await loader.present()
 
     try {
-      await this.embassyApi.setDbValue([key], value)
+      await this.embassyApi.setDbValue<string>([key], value)
     } finally {
       loader.dismiss()
     }
@@ -333,7 +333,7 @@ export class ServerShowPage {
   private async presentAlertInProgress(verb: string, message: string) {
     const alert = await this.alertCtrl.create({
       header: `${verb} In Progress...`,
-      message: `Stopping all services gracefully. This can take a while.<br /><br />Your Embassy will then <b>♫ play a melody ♫</b> and become unreachable${message}`,
+      message: `Stopping all services gracefully. This can take a while.<br /><br />If you have a speaker, your Embassy will <b>♫ play a melody ♫</b> before shutting down. Your Embassy will then become unreachable${message}`,
       buttons: [
         {
           text: 'OK',
@@ -484,7 +484,7 @@ export class ServerShowPage {
         icon: 'map-outline',
         action: () =>
           window.open(
-            'https://start9.com/latest/user-manual/',
+            'https://docs.start9.com/latest/user-manual',
             '_blank',
             'noreferrer',
           ),
@@ -497,7 +497,7 @@ export class ServerShowPage {
         icon: 'chatbubbles-outline',
         action: () =>
           window.open(
-            'https://start9.com/latest/support/contact/',
+            'https://docs.start9.com/latest/support/contact',
             '_blank',
             'noreferrer',
           ),
