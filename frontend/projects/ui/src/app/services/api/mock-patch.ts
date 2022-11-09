@@ -61,6 +61,7 @@ export const mockPatchData: DataModel = {
         id: 'bitcoind',
         title: 'Bitcoin Core',
         version: '0.20.0',
+        'git-hash': 'abcdefgh',
         description: {
           short: 'A Bitcoin full node by Bitcoin Core.',
           long: 'Bitcoin is a decentralized consensus protocol and settlement network.',
@@ -452,6 +453,7 @@ export const mockPatchData: DataModel = {
         id: 'lnd',
         title: 'Lightning Network Daemon',
         version: '0.11.1',
+        'git-hash': 'lalalalalala',
         description: {
           short: 'A bolt spec compliant client.',
           long: 'More info about LND. More info about LND. More info about LND.',
