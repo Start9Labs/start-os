@@ -8,7 +8,6 @@ use helpers::NonDetachingJoinHandle;
 use patch_db::{DbHandle, LockReceipt, LockType};
 use tokio::process::Command;
 
-use crate::config::util::MergeWith;
 use crate::context::rpc::RpcContextConfig;
 use crate::db::model::ServerStatus;
 use crate::install::PKG_DOCKER_DIR;
