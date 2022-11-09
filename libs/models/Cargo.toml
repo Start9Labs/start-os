@@ -6,14 +6,29 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-embassy_container_init = { path = "../embassy-container-init" }
+bollard = "0.13.0"
+color-eyre = "0.6.1"
+ed25519-dalek = { version = "1.0.1", features = ["serde"] }
+mbrman = "0.5.0"
+embassy_container_init = { path = "../embassy_container_init" }
 emver = { version = "0.1", git = "https://github.com/Start9Labs/emver-rs.git", features = [
   "serde",
 ] }
+openssl = { version = "0.10.41", features = ["vendored"] }
 patch-db = { version = "*", path = "../../patch-db/patch-db", features = [
   "trace",
 ] }
-serde = { version = "1.0", features = ["derive", "rc"] }
 rand = "0.8"
-tokio = { version = "1", features = ["full"] }
+rpc-toolkit = "0.2.1"
+serde = { version = "1.0", features = ["derive", "rc"] }
+serde_json = "1.0.82"
+sqlx = { version = "0.6.0", features = [
+  "chrono",
+  "offline",
+  "runtime-tokio-rustls",
+  "postgres",
+] }
 thiserror = "1.0"
+tokio = { version = "1", features = ["full"] }
+torut = "0.2.1"
+tracing = "0.1.35"

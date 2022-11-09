@@ -9,7 +9,7 @@ if [ "$0" != "./build-v8-snapshot.sh" ]; then
 fi
 
 echo "Creating v8 Snapshot"
-cargo run -p snapshot-creator --release
+cargo run -p snapshot_creator --release
 sudo chown -R $USER target
 sudo chown -R $USER ~/.cargo
 sudo chown $USER JS_SNAPSHOT.bin

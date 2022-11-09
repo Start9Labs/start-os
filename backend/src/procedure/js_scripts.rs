@@ -556,3 +556,51 @@ async fn js_action_test_deep_dir_escape() {
         .unwrap()
         .unwrap();
 }
+
+#[tokio::test]
+async fn js_rsync() {
+    let js_action = JsProcedure { args: vec![] };
+    let path: PathBuf = "test/js_action_execute/"
+        .parse::<PathBuf>()
+        .unwrap()
+        .canonicalize()
+        .unwrap();
+    let package_id = "test-package".parse().unwrap();
+    let package_version: Version = "0.3.0.3".parse().unwrap();
+    let name = ProcedureName::Action("test-rsync".parse().unwrap());
+    let volumes: Volumes = serde_json::from_value(serde_json::json!({
+        "main": {
+            "type": "data"
+        },
+        "compat": {
+            "type": "assets"
+        },
+        "filebrowser" :{
+            "package-id": "filebrowser",
+            "path": "data",
+            "readonly": true,
+            "type": "pointer",
+            "volume-id": "main",
+        }
+    }))
+    .unwrap();
+    let input: Option<serde_json::Value> = None;
+    let timeout = Some(Duration::from_secs(10));
+    js_action
+        .execute::<serde_json::Value, serde_json::Value>(
+            &path,
+            &package_id,
+            &package_version,
+            name,
+            &volumes,
+            input,
+            timeout,
+            Arc::new(|_, _, _, _| {
+                Box::pin(async move { Err("Can't run commands in test".to_string()) })
+            }),
+            Arc::new(|_| Box::pin(async move { Err("Can't run commands in test".to_string()) })),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+}

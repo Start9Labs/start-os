@@ -3,7 +3,9 @@ use std::process::Stdio;
 use std::sync::Arc;
 
 use async_stream::stream;
-use embassy_container_init::{Input, InputJsonRpc, JsonRpc, Output, OutputJsonRpc, RpcId};
+use embassy_container_init::{
+    Input, InputJsonRpc, JsonRpc, Output, OutputJsonRpc, ProcessId, RpcId,
+};
 use futures::{pin_mut, Stream, StreamExt};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
@@ -36,6 +38,9 @@ impl ChildAndRpc {
             child: command.spawn()?,
         })
     }
+    fn id(&self) -> Option<ProcessId> {
+        self.child.id().map(ProcessId)
+    }
     async fn wait(&mut self) -> DoneProgram {
         let status = DoneProgramStatus::Wait(self.child.wait().await);
         DoneProgram {
@@ -63,7 +68,7 @@ impl ChildAndRpc {
 #[derive(Debug, Clone)]
 struct Io {
     commands: Arc<Mutex<BTreeMap<RpcId, oneshot::Sender<()>>>>,
-    ids: Arc<Mutex<BTreeMap<RpcId, u32>>>,
+    ids: Arc<Mutex<BTreeMap<RpcId, ProcessId>>>,
 }
 
 impl Io {
@@ -107,8 +112,9 @@ impl Io {
                         Ok(a) => a,
                     };
 
-                    if let Some(child_id) = child_and_rpc.child.id() {
-                        io.ids.lock().await.insert(id.clone(), child_id);
+                    if let Some(child_id) = child_and_rpc.id() {
+                        io.ids.lock().await.insert(id.clone(), child_id.clone());
+                        yield JsonRpc::new(id.clone(), Output::ProcessId(child_id));
                     }
 
                     let stdout = child_and_rpc.child
@@ -218,7 +224,7 @@ impl Io {
     async fn clean_id(
         &self,
         done_program: &DoneProgram,
-    ) -> (Option<u32>, Option<oneshot::Sender<()>>) {
+    ) -> (Option<ProcessId>, Option<oneshot::Sender<()>>) {
         (
             self.ids.lock().await.remove(&done_program.id),
             self.commands.lock().await.remove(&done_program.id),
@@ -230,7 +236,7 @@ impl Io {
         let output = match self.remove_cmd_id(rpc).await {
             Some(id) => {
                 let mut cmd = tokio::process::Command::new("kill");
-                cmd.arg(format!("{id}"));
+                cmd.arg(format!("{}", id.0));
                 cmd.output().await
             }
             None => return,
@@ -252,7 +258,7 @@ impl Io {
         }
     }
 
-    async fn remove_cmd_id(&self, rpc: &RpcId) -> Option<u32> {
+    async fn remove_cmd_id(&self, rpc: &RpcId) -> Option<ProcessId> {
         self.ids.lock().await.remove(rpc)
     }
 }

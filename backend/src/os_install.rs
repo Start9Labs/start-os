@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 
 use color_eyre::eyre::eyre;
 use mbrman::{MBRPartitionEntry, CHS, MBR};
+use models::Error;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
@@ -14,7 +15,6 @@ use crate::disk::mount::guard::{MountGuard, TmpMountGuard};
 use crate::disk::OsPartitionInfo;
 use crate::util::serde::IoFormat;
 use crate::util::{display_none, Invoke};
-use crate::{Error, ResultExt};
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
