@@ -10,10 +10,10 @@ apt install --no-install-recommends -y xserver-xorg x11-xserver-utils xinit fire
 cat > /home/start9/kiosk.sh << 'EOF'
 #!/bin/sh
 PROFILE=$(mktemp -d)
-use_https=
+protocol=http
 if [ -f /usr/local/share/ca-certificates/embassy-root-ca.crt ]; then
     certutil -A -n "Embassy Local Root CA" -t "TCu,Cuw,Tuw" -i /usr/local/share/ca-certificates/embassy-root-ca.crt -d $PROFILE
-    use_https=yes
+    protocol=https
 fi
 cat >> $PROFILE/prefs.js << EOT
 user_pref("network.proxy.autoconfig_url", "file:///usr/lib/embassy/proxy.pac");
@@ -23,12 +23,11 @@ user_pref("dom.securecontext.allowlist_onions", true);
 user_pref("dom.securecontext.whitelist_onions", true);
 user_pref("signon.rememberSignons", false);
 EOT
+while ! curl "${protocol}://$(hostname).local" > /dev/null; do
+    sleep 1
+done
 matchbox-window-manager -use_titlebar yes &
-if [ -z "$use_https" ]; then
-    firefox-esr --kiosk http://$(hostname).local --profile $PROFILE
-else
-    firefox-esr --kiosk https://$(hostname).local --profile $PROFILE
-fi
+firefox-esr --kiosk ${protocol}://$(hostname).local --profile $PROFILE
 rm -rf $PROFILE
 EOF
 chmod +x /home/start9/kiosk.sh
