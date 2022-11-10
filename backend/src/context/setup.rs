@@ -18,7 +18,7 @@ use crate::db::model::Database;
 use crate::disk::OsPartitionInfo;
 use crate::init::{init_postgres, pgloader};
 use crate::net::tor::os_key;
-use crate::setup::{password_hash, RecoveryStatus};
+use crate::setup::{password_hash, SetupStatus};
 use crate::util::config::load_config_from_paths;
 use crate::{Error, ResultExt};
 
@@ -76,7 +76,7 @@ pub struct SetupContextSeed {
     pub current_secret: Arc<Jwk>,
     pub selected_v2_drive: RwLock<Option<PathBuf>>,
     pub cached_product_key: RwLock<Option<Arc<String>>>,
-    pub recovery_status: RwLock<Option<Result<RecoveryStatus, RpcError>>>,
+    pub setup_status: RwLock<Option<Result<SetupStatus, RpcError>>>,
     pub setup_result: RwLock<Option<(Arc<String>, SetupResult)>>,
 }
 
@@ -114,7 +114,7 @@ impl SetupContext {
             ),
             selected_v2_drive: RwLock::new(None),
             cached_product_key: RwLock::new(None),
-            recovery_status: RwLock::new(None),
+            setup_status: RwLock::new(None),
             setup_result: RwLock::new(None),
         })))
     }
