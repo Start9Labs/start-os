@@ -1486,7 +1486,10 @@ dependencies = [
  "futures",
  "models",
  "pin-project",
+ "serde",
  "tokio",
+ "tokio-stream",
+ "tracing",
 ]
 
 [[package]]
@@ -2038,13 +2041,23 @@ dependencies = [
 name = "models"
 version = "0.1.0"
 dependencies = [
+ "bollard",
+ "color-eyre",
+ "ed25519-dalek",
  "embassy_container_init",
  "emver",
+ "mbrman",
+ "openssl",
  "patch-db",
  "rand 0.8.5",
+ "rpc-toolkit",
  "serde",
+ "serde_json",
+ "sqlx",
  "thiserror",
  "tokio",
+ "torut",
+ "tracing",
 ]
 
 [[package]]

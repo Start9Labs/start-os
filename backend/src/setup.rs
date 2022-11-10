@@ -66,10 +66,9 @@ async fn setup_init(
     ctx: &SetupContext,
     password: Option<String>,
 ) -> Result<(Hostname, OnionAddressV3, X509), Error> {
-    init(&RpcContextConfig::load(ctx.config_path.clone()).await?).await?;
-    let secrets = ctx.secret_store().await?;
-    let db = ctx.db(&secrets).await?;
-    let mut secrets_handle = secrets.acquire().await?;
+    let InitResult { secret_store, db } =
+        init(&RpcContextConfig::load(ctx.config_path.clone()).await?).await?;
+    let mut secrets_handle = secret_store.acquire().await?;
     let mut db_handle = db.handle();
     let mut secrets_tx = secrets_handle.begin().await?;
     let mut db_tx = db_handle.begin().await?;
@@ -93,7 +92,7 @@ async fn setup_init(
     let hostname_receipts = HostNameReceipt::new(&mut db_handle).await?;
     let hostname = get_hostname(&mut db_handle, &hostname_receipts).await?;
 
-    let (_, root_ca) = SslManager::init(secrets, &mut db_handle)
+    let (_, root_ca) = SslManager::init(secret_store, &mut db_handle)
         .await?
         .export_root_ca()
         .await?;
@@ -159,12 +158,11 @@ pub async fn attach(
                 ));
             }
             let (hostname, tor_addr, root_ca) = setup_init(&ctx, password).await?;
-            let setup_result = SetupResult {
+            *ctx.setup_result.write().await = Some((guid, SetupResult {
                 tor_address: format!("http://{}", tor_addr),
                 lan_address: hostname.lan_address(),
                 root_ca: String::from_utf8(root_ca.to_pem()?)?,
-            };
-            *ctx.setup_result.write().await = Some((guid, setup_result.clone()));
+            }));
             *ctx.setup_status.write().await = Some(Ok(SetupStatus {
                 bytes_transferred: 0,
                 total_bytes: 0,
@@ -294,6 +292,7 @@ pub async fn execute(
         .await
         {
             Ok((guid, hostname, tor_addr, root_ca)) => {
+                tracing::info!("Setup Complete!");
                 *ctx.setup_result.write().await = Some((
                     guid,
                     SetupResult {
@@ -305,9 +304,11 @@ pub async fn execute(
                         .expect("invalid pem string"),
                     },
                 ));
-                if let Some(Ok(setup_status)) = &mut *ctx.setup_status.write().await {
-                    setup_status.complete = true;
-                }
+                *ctx.setup_status.write().await = Some(Ok(SetupStatus {
+                    bytes_transferred: 0,
+                    total_bytes: 0,
+                    complete: true,
+                }));
             }
             Err(e) => {
                 tracing::error!("Error Setting Up Embassy: {}", e);
@@ -405,7 +406,7 @@ async fn fresh_setup(
     let mut handle = db.handle();
     let receipts = crate::hostname::HostNameReceipt::new(&mut handle).await?;
     let hostname = get_hostname(&mut handle, &receipts).await?;
-    let (_, root_ca) = SslManager::init(secret_store.clone(), &mut db.handle())
+    let (_, root_ca) = SslManager::init(secret_store.clone(), &mut handle)
         .await?
         .export_root_ca()
         .await?;
