@@ -275,6 +275,7 @@ pub async fn execute(
     Command::new("chroot")
         .arg(&current)
         .arg("grub-install")
+        .arg("--target=i386-pc")
         .arg(&disk.logicalname)
         .invoke(crate::ErrorKind::Unknown) // TODO grub
         .await?;
