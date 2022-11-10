@@ -10,7 +10,7 @@ use tokio::process::Command;
 
 use crate::context::rpc::RpcContextConfig;
 use crate::db::model::ServerStatus;
-use crate::install::PKG_DOCKER_DIR;
+use crate::install::PKG_ARCHIVE_DIR;
 use crate::sound::CIRCLE_OF_5THS_SHORT;
 use crate::util::Invoke;
 use crate::Error;
@@ -292,7 +292,7 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         tracing::info!("Loaded System Docker Images");
 
         tracing::info!("Loading Package Docker Images");
-        crate::install::load_images(cfg.datadir().join(PKG_DOCKER_DIR)).await?;
+        crate::install::load_images(cfg.datadir().join(PKG_ARCHIVE_DIR)).await?;
         tracing::info!("Loaded Package Docker Images");
     }
 

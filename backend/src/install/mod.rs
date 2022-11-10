@@ -56,7 +56,6 @@ pub mod update;
 
 pub const PKG_ARCHIVE_DIR: &str = "package-data/archive";
 pub const PKG_PUBLIC_DIR: &str = "package-data/public";
-pub const PKG_DOCKER_DIR: &str = "package-data/docker";
 pub const PKG_WASM_DIR: &str = "package-data/wasm";
 
 #[command(display(display_serializable))]
@@ -1014,44 +1013,11 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
     tracing::info!("Install {}@{}: Unpacking Docker Images", pkg_id, version);
     progress
         .track_read_during(progress_model.clone(), &ctx.db, || async {
-            let image_tar_dir = ctx
-                .datadir
-                .join(PKG_DOCKER_DIR)
-                .join(pkg_id)
-                .join(version.as_str());
-            if tokio::fs::metadata(&image_tar_dir).await.is_err() {
-                tokio::fs::create_dir_all(&image_tar_dir)
-                    .await
-                    .with_ctx(|_| {
-                        (
-                            crate::ErrorKind::Filesystem,
-                            image_tar_dir.display().to_string(),
-                        )
-                    })?;
-            }
-            let image_tar_path = image_tar_dir.join("image.tar");
-            let mut tee = Command::new("tee")
-                .arg(&image_tar_path)
-                .stdin(Stdio::piped())
-                .stdout(Stdio::piped())
-                .spawn()?;
             let mut load = Command::new("docker")
                 .arg("load")
                 .stdin(Stdio::piped())
                 .stderr(Stdio::piped())
                 .spawn()?;
-            let tee_in = tee.stdin.take().ok_or_else(|| {
-                Error::new(
-                    eyre!("Could not write to stdin of tee"),
-                    crate::ErrorKind::Docker,
-                )
-            })?;
-            let mut tee_out = tee.stdout.take().ok_or_else(|| {
-                Error::new(
-                    eyre!("Could not read from stdout of tee"),
-                    crate::ErrorKind::Docker,
-                )
-            })?;
             let load_in = load.stdin.take().ok_or_else(|| {
                 Error::new(
                     eyre!("Could not write to stdin of docker load"),
@@ -1059,10 +1025,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
                 )
             })?;
             let mut docker_rdr = rdr.docker_images().await?;
-            tokio::try_join!(
-                copy_and_shutdown(&mut docker_rdr, tee_in),
-                copy_and_shutdown(&mut tee_out, load_in),
-            )?;
+            copy_and_shutdown(&mut docker_rdr, load_in).await?;
             let res = load.wait_with_output().await?;
             if !res.status.success() {
                 Err(Error::new(
@@ -1435,7 +1398,9 @@ pub fn load_images<'a, P: AsRef<Path> + 'a + Send + Sync>(
                 .try_for_each(|entry| async move {
                     let m = entry.metadata().await?;
                     if m.is_file() {
-                        if entry.path().extension().and_then(|ext| ext.to_str()) == Some("tar") {
+                        let path = entry.path();
+                        let ext = path.extension().and_then(|ext| ext.to_str());
+                        if ext == Some("tar") || ext == Some("s9pk") {
                             let mut load = Command::new("docker")
                                 .arg("load")
                                 .stdin(Stdio::piped())
@@ -1447,8 +1412,24 @@ pub fn load_images<'a, P: AsRef<Path> + 'a + Send + Sync>(
                                     crate::ErrorKind::Docker,
                                 )
                             })?;
-                            let mut docker_rdr = File::open(&entry.path()).await?;
-                            copy_and_shutdown(&mut docker_rdr, load_in).await?;
+                            match ext {
+                                Some("tar") => {
+                                    copy_and_shutdown(&mut File::open(&path).await?, load_in)
+                                        .await?
+                                }
+                                Some("s9pk") => {
+                                    copy_and_shutdown(
+                                        &mut S9pkReader::open(&path, false)
+                                            .await?
+                                            .docker_images()
+                                            .await?,
+                                        load_in,
+                                    )
+                                    .await?
+                                }
+                                _ => unreachable!(),
+                            };
+
                             let res = load.wait_with_output().await?;
                             if !res.status.success() {
                                 Err(Error::new(

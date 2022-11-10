@@ -5,7 +5,7 @@ use patch_db::{DbHandle, LockReceipt, LockTargetId, LockType, PatchDbHandle, Ver
 use sqlx::{Executor, Postgres};
 use tracing::instrument;
 
-use super::{PKG_ARCHIVE_DIR, PKG_DOCKER_DIR};
+use super::PKG_ARCHIVE_DIR;
 use crate::config::{not_found, ConfigReceipts};
 use crate::context::RpcContext;
 use crate::db::model::{
@@ -142,16 +142,6 @@ pub async fn cleanup(ctx: &RpcContext, id: &PackageId, version: &Version) -> Res
         .join(version.as_str());
     if tokio::fs::metadata(&pkg_archive_dir).await.is_ok() {
         tokio::fs::remove_dir_all(&pkg_archive_dir)
-            .await
-            .apply(|res| errors.handle(res));
-    }
-    let docker_path = ctx
-        .datadir
-        .join(PKG_DOCKER_DIR)
-        .join(id)
-        .join(version.as_str());
-    if tokio::fs::metadata(&docker_path).await.is_ok() {
-        tokio::fs::remove_dir_all(&docker_path)
             .await
             .apply(|res| errors.handle(res));
     }
