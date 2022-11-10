@@ -3,21 +3,36 @@ import { encodeBase64, pauseFor } from '@start9labs/shared'
 import {
   ApiService,
   CifsRecoverySource,
-  ImportDriveReq,
-  SetupEmbassyReq,
+  AttachReq,
+  ExecuteReq,
+  CompleteRes,
 } from './api.service'
 import * as jose from 'node-jose'
 
-let tries = 0
+let tries: number
 
 @Injectable({
   providedIn: 'root',
 })
 export class MockApiService extends ApiService {
   async getStatus() {
+    const restoreOrMigrate = true
+    const total = 4
+
     await pauseFor(1000)
+
+    if (tries === undefined) {
+      tries = 0
+      return null
+    }
+
+    tries++
+    const progress = tries - 1
+
     return {
-      migrating: false,
+      'bytes-transferred': restoreOrMigrate ? progress : 0,
+      'total-bytes': restoreOrMigrate ? total : 0,
+      complete: progress === total,
     }
   }
 
@@ -112,15 +127,6 @@ export class MockApiService extends ApiService {
     ]
   }
 
-  async getRecoveryStatus() {
-    tries = Math.min(tries + 1, 4)
-    return {
-      'bytes-transferred': tries,
-      'total-bytes': 4,
-      complete: tries === 4,
-    }
-  }
-
   async verifyCifs(params: CifsRecoverySource) {
     await pauseFor(1000)
     return {
@@ -132,19 +138,25 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async importDrive(params: ImportDriveReq) {
-    await pauseFor(3000)
-    return setupRes
-  }
-
-  async setupEmbassy(setupInfo: SetupEmbassyReq) {
-    await pauseFor(3000)
-    return setupRes
-  }
-
-  async setupComplete() {
+  async attach(params: AttachReq) {
     await pauseFor(1000)
-    return setupRes
+  }
+
+  async execute(setupInfo: ExecuteReq) {
+    await pauseFor(1000)
+  }
+
+  async complete(): Promise<CompleteRes> {
+    await pauseFor(1000)
+    return {
+      'tor-address': 'http://asdafsadasdasasdasdfasdfasdf.onion',
+      'lan-address': 'https://embassy-abcdefgh.local',
+      'root-ca': encodeBase64(rootCA),
+    }
+  }
+
+  async exit() {
+    await pauseFor(1000)
   }
 }
 
@@ -170,9 +182,3 @@ Rf3ZOPm9QP92YpWyYDkfAU04xdDo1vR0MYjKPkl4LjRqSU/tcCJnPMbJiwq+bWpX
 2WJoEBXB/p15Kn6JxjI0ze2SnSI48JZ8it4fvxrhOo0VoLNIuCuNXJOwU17Rdl1W
 YJidaq7je6k18AdgPA0Kh8y1XtfUH3fTaVw4
 -----END CERTIFICATE-----`
-
-const setupRes = {
-  'tor-address': 'http://asdafsadasdasasdasdfasdfasdf.onion',
-  'lan-address': 'https://embassy-abcdefgh.local',
-  'root-ca': encodeBase64(rootCA),
-}

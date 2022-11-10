@@ -17,8 +17,14 @@ export class AppComponent {
 
   async ngOnInit() {
     try {
-      const { migrating } = await this.apiService.getStatus()
-      await this.navCtrl.navigateForward(migrating ? '/loading' : '/home')
+      const inProgress = await this.apiService.getStatus()
+
+      let route = '/home'
+      if (inProgress) {
+        route = inProgress.complete ? '/success' : '/loading'
+      }
+
+      await this.navCtrl.navigateForward(route)
     } catch (e: any) {
       this.errorToastService.present(e)
     }

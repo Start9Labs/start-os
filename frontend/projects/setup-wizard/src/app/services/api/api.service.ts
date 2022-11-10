@@ -3,14 +3,14 @@ import { DiskListResponse, EmbassyOSDiskInfo } from '@start9labs/shared'
 export abstract class ApiService {
   pubkey?: jose.JWK.Key
 
-  abstract getStatus(): Promise<GetStatusRes> // setup.status
+  abstract getStatus(): Promise<StatusRes> // setup.status
   abstract getPubKey(): Promise<void> // setup.get-pubkey
   abstract getDrives(): Promise<DiskListResponse> // setup.disk.list
-  abstract getRecoveryStatus(): Promise<RecoveryStatusRes> // setup.recovery.status
   abstract verifyCifs(cifs: CifsRecoverySource): Promise<EmbassyOSDiskInfo> // setup.cifs.verify
-  abstract importDrive(importInfo: ImportDriveReq): Promise<SetupEmbassyRes> // setup.attach
-  abstract setupEmbassy(setupInfo: SetupEmbassyReq): Promise<SetupEmbassyRes> // setup.execute
-  abstract setupComplete(): Promise<SetupEmbassyRes> // setup.complete
+  abstract attach(importInfo: AttachReq): Promise<void> // setup.attach
+  abstract execute(setupInfo: ExecuteReq): Promise<void> // setup.execute
+  abstract complete(): Promise<CompleteRes> // setup.complete
+  abstract exit(): Promise<void> // setup.exit
 
   async encrypt(toEncrypt: string): Promise<Encrypted> {
     if (!this.pubkey) throw new Error('No pubkey found!')
@@ -27,23 +27,25 @@ type Encrypted = {
   encrypted: string
 }
 
-export type GetStatusRes = {
-  migrating: boolean
-}
+export type StatusRes = {
+  'bytes-transferred': number
+  'total-bytes': number
+  complete: boolean
+} | null
 
-export type ImportDriveReq = {
+export type AttachReq = {
   guid: string
   'embassy-password': Encrypted
 }
 
-export type SetupEmbassyReq = {
+export type ExecuteReq = {
   'embassy-logicalname': string
   'embassy-password': Encrypted
   'recovery-source': RecoverySource | null
   'recovery-password': Encrypted | null
 }
 
-export type SetupEmbassyRes = {
+export type CompleteRes = {
   'tor-address': string
   'lan-address': string
   'root-ca': string
@@ -89,10 +91,4 @@ export type CifsRecoverySource = {
   path: string
   username: string
   password: Encrypted | null
-}
-
-export type RecoveryStatusRes = {
-  'bytes-transferred': number
-  'total-bytes': number
-  complete: boolean
 }

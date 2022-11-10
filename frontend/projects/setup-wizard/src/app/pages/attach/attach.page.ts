@@ -61,13 +61,11 @@ export class AttachPage {
   }
 
   private async attachDrive(guid: string, password: string) {
-    const loader = await this.loadingCtrl.create({
-      message: 'Attaching Drive',
-    })
+    const loader = await this.loadingCtrl.create()
     await loader.present()
     try {
       await this.stateService.importDrive(guid, password)
-      await this.navCtrl.navigateForward(`/success`)
+      await this.navCtrl.navigateForward(`/loading`)
     } catch (e: any) {
       this.errToastService.present(e)
     } finally {

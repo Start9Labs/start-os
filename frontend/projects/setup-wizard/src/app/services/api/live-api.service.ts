@@ -12,11 +12,10 @@ import {
   ApiService,
   CifsRecoverySource,
   DiskRecoverySource,
-  GetStatusRes,
-  ImportDriveReq,
-  RecoveryStatusRes,
-  SetupEmbassyReq,
-  SetupEmbassyRes,
+  StatusRes,
+  AttachReq,
+  ExecuteReq,
+  CompleteRes,
 } from './api.service'
 import * as jose from 'node-jose'
 
@@ -29,7 +28,7 @@ export class LiveApiService extends ApiService {
   }
 
   async getStatus() {
-    return this.rpcRequest<GetStatusRes>({
+    return this.rpcRequest<StatusRes>({
       method: 'setup.status',
       params: {},
     })
@@ -58,13 +57,6 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async getRecoveryStatus() {
-    return this.rpcRequest<RecoveryStatusRes>({
-      method: 'setup.recovery.status',
-      params: {},
-    })
-  }
-
   async verifyCifs(source: CifsRecoverySource) {
     source.path = source.path.replace('/\\/g', '/')
     return this.rpcRequest<EmbassyOSDiskInfo>({
@@ -73,19 +65,14 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async importDrive(params: ImportDriveReq) {
-    const res = await this.rpcRequest<SetupEmbassyRes>({
+  async attach(params: AttachReq) {
+    await this.rpcRequest<void>({
       method: 'setup.attach',
       params,
     })
-
-    return {
-      ...res,
-      'root-ca': encodeBase64(res['root-ca']),
-    }
   }
 
-  async setupEmbassy(setupInfo: SetupEmbassyReq) {
+  async execute(setupInfo: ExecuteReq) {
     if (setupInfo['recovery-source']?.type === 'backup') {
       if (isCifsSource(setupInfo['recovery-source'].target)) {
         setupInfo['recovery-source'].target.path = setupInfo[
@@ -94,19 +81,14 @@ export class LiveApiService extends ApiService {
       }
     }
 
-    const res = await this.rpcRequest<SetupEmbassyRes>({
+    await this.rpcRequest<void>({
       method: 'setup.execute',
       params: setupInfo,
     })
-
-    return {
-      ...res,
-      'root-ca': encodeBase64(res['root-ca']),
-    }
   }
 
-  async setupComplete() {
-    const res = await this.rpcRequest<SetupEmbassyRes>({
+  async complete() {
+    const res = await this.rpcRequest<CompleteRes>({
       method: 'setup.complete',
       params: {},
     })
@@ -115,6 +97,13 @@ export class LiveApiService extends ApiService {
       ...res,
       'root-ca': encodeBase64(res['root-ca']),
     }
+  }
+
+  async exit() {
+    await this.rpcRequest<void>({
+      method: 'setup.exit',
+      params: {},
+    })
   }
 
   private async rpcRequest<T>(opts: RPCOptions): Promise<T> {

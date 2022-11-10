@@ -58,9 +58,7 @@ export class TransferPage {
               type: 'migrate',
               guid,
             }
-            this.navCtrl.navigateForward(`/embassy`, {
-              queryParams: { action: 'transfer' },
-            })
+            this.navCtrl.navigateForward(`/embassy`)
           },
         },
       ],

@@ -8,11 +8,8 @@
 
         <ion-card color="dark">
           <ion-card-header>
-            <ion-card-title style="font-size: 40px">
-              <span *ngIf="incomingAction === 'transfer'">Transferring</span>
-              <span *ngIf="incomingAction === 'recover'">Recovering</span>
-            </ion-card-title>
-            <ion-card-subtitle
+            <ion-card-title>Initializing Embassy</ion-card-title>
+            <ion-card-subtitle *ngIf="stateService.dataProgress"
               >Progress: {{ (stateService.dataProgress * 100).toFixed(0)
               }}%</ion-card-subtitle
             >
@@ -27,8 +24,10 @@
                 padding-bottom: 20px;
                 margin-bottom: 40px;
               "
+              [type]="stateService.dataProgress ? 'determinate' : 'indeterminate'"
               [value]="stateService.dataProgress"
             ></ion-progress-bar>
+            <p>Setting up your Embassy. This can take a while.</p>
           </ion-card-content>
         </ion-card>
       </ion-col>
