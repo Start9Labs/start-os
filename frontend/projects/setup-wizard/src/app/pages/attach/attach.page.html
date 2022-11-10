@@ -8,7 +8,7 @@
 
         <ion-card color="dark">
           <ion-card-header class="ion-text-center">
-            <ion-card-title>Transfer</ion-card-title>
+            <ion-card-title>Use Existing Drive</ion-card-title>
             <ion-card-subtitle
               >Select the physical drive containing your Embassy
               data</ion-card-subtitle
@@ -26,6 +26,12 @@
             <ion-item-group *ngIf="!loading" class="ion-text-center">
               <!-- drives -->
               <h2 class="target-label">Available Drives</h2>
+
+              <p *ngIf="!drives.length">
+                No valid Embassy data drives found. Please make sure the drive
+                is a valid Embassy data drive (not a backup) and is firmly
+                connected, then refresh the page.
+              </p>
 
               <ng-container *ngFor="let drive of drives">
                 <ion-item

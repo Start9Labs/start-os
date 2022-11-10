@@ -32,6 +32,7 @@ export interface PartitionInfo {
   capacity: number
   used: number | null
   'embassy-os': EmbassyOSDiskInfo | null
+  guid: string | null
 }
 
 export type EmbassyOSDiskInfo = {

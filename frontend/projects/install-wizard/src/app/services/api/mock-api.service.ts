@@ -24,6 +24,7 @@ export class MockApiService implements ApiService {
                 '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
               'wrapped-key': null,
             },
+            guid: null,
           },
         ],
         capacity: 123456789123,
@@ -40,15 +41,39 @@ export class MockApiService implements ApiService {
             capacity: 73264762332,
             used: null,
             'embassy-os': {
-              version: '0.3.1',
+              version: '0.3.3',
               full: true,
               'password-hash':
                 '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
               'wrapped-key': null,
             },
+            guid: null,
           },
         ],
-        capacity: 123456789123,
+        capacity: 124456789123,
+        guid: null,
+      },
+      {
+        logicalname: 'wxyz',
+        vendor: 'SanDisk',
+        model: 'Specialness',
+        partitions: [
+          {
+            logicalname: 'pbcba',
+            label: null,
+            capacity: 73264762332,
+            used: null,
+            'embassy-os': {
+              version: '0.3.2',
+              full: true,
+              'password-hash':
+                '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+              'wrapped-key': null,
+            },
+            guid: 'guid-guid-guid-guid',
+          },
+        ],
+        capacity: 123459789123,
         guid: null,
       },
     ]

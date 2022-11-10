@@ -1,4 +1,4 @@
-<ion-content *ngIf="loaded">
+<ion-content>
   <ion-grid>
     <ion-row>
       <ion-col class="ion-text-center">
@@ -6,7 +6,7 @@
           <img src="assets/img/logo.png" style="max-width: 240px" />
         </div>
 
-        <ion-card color="dark">
+        <ion-card *ngIf="!loading" color="dark">
           <ion-card-header>
             <ion-button
               *ngIf="swiper?.activeIndex === 1"
@@ -23,8 +23,10 @@
             </ion-card-title>
           </ion-card-header>
           <ion-card-content class="ion-margin-bottom">
-            <swiper [autoHeight]="true" (swiper)="setSwiperInstance($event)">
+            <swiper (swiper)="setSwiperInstance($event)">
+              <!-- SLIDE 1 -->
               <ng-template swiperSlide>
+                <!-- fresh -->
                 <ion-item
                   button
                   [disabled]="error"
@@ -37,6 +39,8 @@
                     <p>Get started with a brand new Embassy</p>
                   </ion-label>
                 </ion-item>
+
+                <!-- recover -->
                 <ion-item
                   button
                   [disabled]="error"
@@ -51,7 +55,10 @@
                   </ion-label>
                 </ion-item>
               </ng-template>
+
+              <!-- SLIDE 2 -->
               <ng-template swiperSlide>
+                <!-- restore from backup -->
                 <ion-item button detail="true" routerLink="/recover">
                   <ion-icon
                     color="dark"
@@ -62,10 +69,17 @@
                     <h2>
                       <ion-text color="warning">Restore From Backup</ion-text>
                     </h2>
-                    <p>Recover an Embassy from an encrypted backup</p>
+                    <p>Restore an Embassy from an encrypted backup</p>
                   </ion-label>
                 </ion-item>
-                <ion-item button detail="true" lines="none" (click)="import()">
+
+                <!-- attach -->
+                <ion-item
+                  button
+                  detail="true"
+                  lines="none"
+                  routerLink="/attach"
+                >
                   <ion-icon
                     color="dark"
                     slot="start"
@@ -75,9 +89,13 @@
                     <h2>
                       <ion-text color="primary">Use Existing Drive</ion-text>
                     </h2>
-                    <p>Attach and use a valid Embassy data drive</p>
+                    <p>
+                      Use an existing, valid Embassy data drive (not a backup)
+                    </p>
                   </ion-label>
                 </ion-item>
+
+                <!-- transfer -->
                 <ion-item
                   button
                   detail="true"
@@ -94,8 +112,9 @@
                       <ion-text color="success">Transfer</ion-text>
                     </h2>
                     <p>
-                      Transfer data to a new drive<br />(e.g. upgrade to a
-                      larger drive or an Embassy Pro)
+                      Transfer data from an existing, valid Embassy data drive
+                      (not a backup) to a new drive<br />(e.g. in order to
+                      transfer data to another device)
                     </p>
                   </ion-label>
                 </ion-item>

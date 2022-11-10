@@ -32,8 +32,8 @@ export class TransferPage {
 
   async getDrives() {
     try {
-      const disks = await this.apiService.getDrives()
-      this.drives = disks.filter(d => d.partitions.length && d.guid)
+      const drives = await this.apiService.getDrives()
+      this.drives = drives.filter(d => d.partitions.length)
     } catch (e: any) {
       this.errToastService.present(e)
     } finally {
@@ -41,11 +41,7 @@ export class TransferPage {
     }
   }
 
-  async select(target: DiskInfo) {
-    const { logicalname, guid } = target
-
-    if (!logicalname) return
-
+  async select(guid: string) {
     const alert = await this.alertCtrl.create({
       header: 'Warning',
       message:
@@ -60,7 +56,7 @@ export class TransferPage {
           handler: () => {
             this.stateService.recoverySource = {
               type: 'migrate',
-              guid: guid!,
+              guid,
             }
             this.navCtrl.navigateForward(`/embassy`, {
               queryParams: { action: 'transfer' },
