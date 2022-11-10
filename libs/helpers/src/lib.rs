@@ -16,6 +16,10 @@ pub use byte_replacement_reader::*;
 pub use rsync::*;
 pub use script_dir::*;
 
+pub fn const_true() -> bool {
+    true
+}
+
 pub fn to_tmp_path(path: impl AsRef<Path>) -> Result<PathBuf, Error> {
     let path = path.as_ref();
     if let (Some(parent), Some(file_name)) =
