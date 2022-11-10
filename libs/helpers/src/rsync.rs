@@ -1,7 +1,7 @@
 use color_eyre::eyre::eyre;
 use std::path::Path;
 
-use crate::{ByteReplacementReader, NonDetachingJoinHandle};
+use crate::{const_true, ByteReplacementReader, NonDetachingJoinHandle};
 use models::{Error, ErrorKind};
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
 use tokio::process::{Child, Command};
@@ -11,9 +11,14 @@ use tokio_stream::wrappers::WatchStream;
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RsyncOptions {
+    #[serde(default = "const_true")]
     pub delete: bool,
+    #[serde(default = "const_true")]
     pub force: bool,
+    #[serde(default)]
     pub ignore_existing: bool,
+    #[serde(default)]
+    pub exclude: Vec<String>,
 }
 impl Default for RsyncOptions {
     fn default() -> Self {
@@ -21,6 +26,7 @@ impl Default for RsyncOptions {
             delete: true,
             force: true,
             ignore_existing: false,
+            exclude: Vec::new(),
         }
     }
 }
@@ -46,6 +52,9 @@ impl Rsync {
         }
         if options.ignore_existing {
             cmd.arg("--ignore-existing");
+        }
+        for exclude in options.exclude {
+            cmd.arg(format!("--exclude={}", exclude));
         }
         let mut command = cmd
             .arg("-ac")

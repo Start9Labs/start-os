@@ -81,7 +81,6 @@ async fn setup_init(
     ctx: &SetupContext,
     password: Option<String>,
 ) -> Result<(Hostname, OnionAddressV3, X509), Error> {
-    init(&RpcContextConfig::load(ctx.config_path.clone()).await?).await?;
     let secrets = ctx.secret_store().await?;
     let db = ctx.db(&secrets).await?;
     let mut secrets_handle = secrets.acquire().await?;
@@ -159,6 +158,7 @@ pub async fn attach(
         ));
     }
     let (hostname, tor_addr, root_ca) = setup_init(&ctx, password).await?;
+    init(&RpcContextConfig::load(ctx.config_path.clone()).await?).await?;
     let setup_result = SetupResult {
         tor_address: format!("http://{}", tor_addr),
         lan_address: hostname.lan_address(),
@@ -410,6 +410,7 @@ pub async fn execute_inner(
                 delete: true,
                 force: true,
                 ignore_existing: false,
+                exclude: Vec::new(),
             },
         )?
         .wait()
@@ -429,6 +430,7 @@ pub async fn execute_inner(
                 delete: true,
                 force: true,
                 ignore_existing: false,
+                exclude: vec!["tmp".to_owned()],
             },
         )?;
         *ctx.recovery_status.write().await = Some(Ok(RecoveryStatus {
@@ -448,6 +450,7 @@ pub async fn execute_inner(
                     }));
                 }
                 package_data_transfer.wait().await?;
+                init(&RpcContextConfig::load(ctx.config_path.clone()).await?).await?;
                 Ok::<_, Error>(())
             }
             .and_then(|_| async {
