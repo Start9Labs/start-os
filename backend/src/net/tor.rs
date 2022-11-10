@@ -387,7 +387,7 @@ pub async fn tor_health_check(client: &Client, tor_controller: &TorController) {
             match tor_controller.replace().await {
                 Ok(restarted) => {
                     if restarted {
-                        tracing::error!("Tor has been recently restarted, we are ready again...");
+                        tracing::error!("Tor has been recently restarted, refusing to restart again right now...");
                     }
                     break;
                 }
