@@ -5,17 +5,17 @@ import {
   GuidPipePipesModule,
   UnitConversionPipesModule,
 } from '@start9labs/shared'
-import { TransferPage } from './transfer.page'
-import { TransferPageRoutingModule } from './transfer-routing.module'
+import { AttachPage } from './attach.page'
+import { AttachPageRoutingModule } from './attach-routing.module'
 
 @NgModule({
-  declarations: [TransferPage],
+  declarations: [AttachPage],
   imports: [
     CommonModule,
     IonicModule,
-    TransferPageRoutingModule,
+    AttachPageRoutingModule,
     UnitConversionPipesModule,
     GuidPipePipesModule,
   ],
 })
-export class TransferPageModule {}
+export class AttachPageModule {}

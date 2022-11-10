@@ -5,7 +5,10 @@ import { IonicModule } from '@ionic/angular'
 import { FormsModule } from '@angular/forms'
 import { HomePage } from './home.page'
 import { SwiperModule } from 'swiper/angular'
-import { UnitConversionPipesModule } from '@start9labs/shared'
+import {
+  UnitConversionPipesModule,
+  GuidPipePipesModule,
+} from '@start9labs/shared'
 
 const routes: Routes = [
   {
@@ -22,6 +25,7 @@ const routes: Routes = [
     RouterModule.forChild(routes),
     SwiperModule,
     UnitConversionPipesModule,
+    GuidPipePipesModule,
   ],
   declarations: [HomePage],
 })

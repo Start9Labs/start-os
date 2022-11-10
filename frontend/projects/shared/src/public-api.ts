@@ -24,6 +24,8 @@ export * from './directives/safe-links/safe-links.module'
 
 export * from './pipes/emver/emver.module'
 export * from './pipes/emver/emver.pipe'
+export * from './pipes/guid/guid.module'
+export * from './pipes/guid/guid.pipe'
 export * from './pipes/markdown/markdown.module'
 export * from './pipes/markdown/markdown.pipe'
 export * from './pipes/shared/shared.module'
