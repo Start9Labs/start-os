@@ -391,7 +391,7 @@ pub async fn tor_health_check(client: &Client, tor_controller: &TorController) {
                     break;
                 }
                 Err(e) => {
-                    tracing::error!("TOR retryy error: {}", e);
+                    tracing::error!("TOR retry error: {}", e);
                     tracing::error!("Unable to restart tor on attempt {num_attempt}...Retrying");
 
                     num_attempt += 1;
