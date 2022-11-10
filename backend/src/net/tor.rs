@@ -313,6 +313,7 @@ impl TorControllerInner {
                 }
                 Err(e) => {
                     tracing::info!("Failed to reconnect to tor control socket: {}", e);
+                    tracing::info!("Trying again in one second");
                 }
             }
             tokio::time::sleep(Duration::from_secs(1)).await;
