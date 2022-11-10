@@ -38,7 +38,8 @@ export class AttachPage {
 
   async getDrives() {
     try {
-      this.drives = await this.apiService.getDrives()
+      const drives = await this.apiService.getDrives()
+      this.drives = drives.filter(d => d.partitions.length)
     } catch (e: any) {
       this.errToastService.present(e)
     } finally {

@@ -19,6 +19,7 @@ import { ActivatedRoute } from '@angular/router'
   selector: 'app-embassy',
   templateUrl: 'embassy.page.html',
   styleUrls: ['embassy.page.scss'],
+  providers: [GuidPipe],
 })
 export class EmbassyPage {
   storageDrives: DiskInfo[] = []

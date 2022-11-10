@@ -1,7 +1,10 @@
 import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { IonicModule } from '@ionic/angular'
-import { UnitConversionPipesModule } from '@start9labs/shared'
+import {
+  GuidPipePipesModule,
+  UnitConversionPipesModule,
+} from '@start9labs/shared'
 import { TransferPage } from './transfer.page'
 import { TransferPageRoutingModule } from './transfer-routing.module'
 
@@ -12,6 +15,7 @@ import { TransferPageRoutingModule } from './transfer-routing.module'
     IonicModule,
     TransferPageRoutingModule,
     UnitConversionPipesModule,
+    GuidPipePipesModule,
   ],
 })
 export class TransferPageModule {}

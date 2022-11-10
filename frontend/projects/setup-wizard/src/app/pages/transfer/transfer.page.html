@@ -10,7 +10,7 @@
           <ion-card-header class="ion-text-center">
             <ion-card-title>Transfer</ion-card-title>
             <ion-card-subtitle
-              >Select the physical drive containing your previous Embassy
+              >Select the physical drive containing your Embassy
               data</ion-card-subtitle
             >
           </ion-card-header>
@@ -28,7 +28,12 @@
               <h2 class="target-label">Available Drives</h2>
 
               <ng-container *ngFor="let drive of drives">
-                <ion-item button (click)="select(drive)" lines="none">
+                <ion-item
+                  *ngIf="drive | guid as guid"
+                  button
+                  (click)="select(guid)"
+                  lines="none"
+                >
                   <ion-icon
                     slot="start"
                     name="save-outline"

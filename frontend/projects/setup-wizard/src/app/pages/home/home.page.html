@@ -6,7 +6,7 @@
           <img src="assets/img/logo.png" style="max-width: 240px" />
         </div>
 
-        <ion-card *ngIf="loaded" color="dark">
+        <ion-card *ngIf="!loading" color="dark">
           <ion-card-header>
             <ion-button
               *ngIf="swiper?.activeIndex === 1"
@@ -23,7 +23,7 @@
             </ion-card-title>
           </ion-card-header>
           <ion-card-content class="ion-margin-bottom">
-            <swiper [autoHeight]="true" (swiper)="setSwiperInstance($event)">
+            <swiper (swiper)="setSwiperInstance($event)">
               <!-- SLIDE 1 -->
               <ng-template swiperSlide>
                 <!-- fresh -->
