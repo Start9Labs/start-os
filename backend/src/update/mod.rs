@@ -320,6 +320,7 @@ async fn sync_boot() -> Result<(), Error> {
             delete: false,
             force: false,
             ignore_existing: true,
+            exclude: Vec::new(),
         },
     )?
     .wait()
