@@ -410,6 +410,7 @@ pub async fn execute_inner(
                 delete: true,
                 force: true,
                 ignore_existing: false,
+                exclude: Vec::new(),
             },
         )?
         .wait()
@@ -429,6 +430,7 @@ pub async fn execute_inner(
                 delete: true,
                 force: true,
                 ignore_existing: false,
+                exclude: vec!["tmp".to_owned()],
             },
         )?;
         *ctx.recovery_status.write().await = Some(Ok(RecoveryStatus {

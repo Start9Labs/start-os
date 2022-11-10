@@ -14,6 +14,7 @@ pub struct RsyncOptions {
     pub delete: bool,
     pub force: bool,
     pub ignore_existing: bool,
+    pub exclude: Vec<String>,
 }
 impl Default for RsyncOptions {
     fn default() -> Self {
@@ -21,6 +22,7 @@ impl Default for RsyncOptions {
             delete: true,
             force: true,
             ignore_existing: false,
+            exclude: Vec::new(),
         }
     }
 }
@@ -46,6 +48,9 @@ impl Rsync {
         }
         if options.ignore_existing {
             cmd.arg("--ignore-existing");
+        }
+        for exclude in options.exclude {
+            cmd.arg(format!("--exclude={}", exclude));
         }
         let mut command = cmd
             .arg("-ac")
