@@ -35,6 +35,7 @@ pub enum ResourceFqdn {
         root: String,
         tld: Tld,
     },
+    LocalHost
 }
 
 impl fmt::Display for ResourceFqdn {
@@ -50,6 +51,7 @@ impl fmt::Display for ResourceFqdn {
             } => {
                 write!(f, "{}", full_uri)
             }
+            ResourceFqdn::LocalHost => write!(f, "localhost")
         }
     }
 }
@@ -76,6 +78,10 @@ impl FromStr for ResourceFqdn {
 
     fn from_str(input: &str) -> Result<ResourceFqdn, Self::Err> {
 
+        if input == "localhost" {
+            return Ok(ResourceFqdn::LocalHost);
+        }
+        
         if let Ok(ip) = input.parse::<IpAddr>() {
             return Ok(ResourceFqdn::IpAddr(ip));
         }

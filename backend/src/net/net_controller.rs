@@ -118,12 +118,11 @@ impl NetController {
         let ip = get_current_ip(rpc_ctx.ethernet_interface.to_owned()).await?;
 
         let embassy_tor_addr = get_embassyd_tor_addr(rpc_ctx.clone()).await?;
-
         let embassy_tor_fqdn: ResourceFqdn = embassy_tor_addr.parse()?;
-
         let host_name_fqdn: ResourceFqdn = host_name.parse()?;
         let ip_fqdn: ResourceFqdn = ip.parse()?;
 
+        let localhost_fqdn = ResourceFqdn::LocalHost;
 
         let handler: HttpHandler =
             crate::net::static_server::main_ui_server_router(rpc_ctx.clone()).await?;
@@ -144,6 +143,12 @@ impl NetController {
             .net_controller
             .proxy
             .add_handle(80, ip_fqdn.clone(), handler.clone(), false)
+            .await?;
+
+        rpc_ctx
+            .net_controller
+            .proxy
+            .add_handle(80, localhost_fqdn.clone(), handler.clone(), false)
             .await?;
 
         Ok(())

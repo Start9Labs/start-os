@@ -124,6 +124,13 @@ impl ProxyController {
                                         error!("server io error: {}", e);
                                     };
                                 }
+                                ResourceFqdn::LocalHost => {
+                                    if let Err(e) =
+                                        Self::tunnel(upgraded, "localhost".to_string()).await
+                                    {
+                                        error!("server io error: {}", e);
+                                    };
+                                }
                             },
                             Err(e) => error!("upgrade error: {}", e),
                         }
@@ -224,6 +231,12 @@ impl ProxyControllerInner {
                 root,
                 tld: _,
             } => self.ssl_manager.certificate_for(&root, &pkg_id).await?,
+            ResourceFqdn::LocalHost => {
+                return Err(Error::new(
+                    eyre!("ssl not supported for localhost"),
+                    crate::ErrorKind::Network,
+                ))
+            }
         };
 
         self.vhosts

@@ -36,6 +36,8 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
         let embassy_ip_fqdn: ResourceFqdn = embassy_ip.parse()?;
         let embassy_fqdn: ResourceFqdn = "pureos.local".parse()?;
 
+        let localhost_fqdn = ResourceFqdn::LocalHost;
+
         let install_ui_handler = install_ui_file_router(ctx.clone()).await?;
 
         let mut install_http_server =
@@ -44,7 +46,11 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
             .add_svc_handler_mapping(embassy_ip_fqdn, install_ui_handler.clone())
             .await?;
         install_http_server
-            .add_svc_handler_mapping(embassy_fqdn, install_ui_handler)
+            .add_svc_handler_mapping(embassy_fqdn, install_ui_handler.clone())
+            .await?;
+
+        install_http_server
+            .add_svc_handler_mapping(localhost_fqdn, install_ui_handler.clone())
             .await?;
 
         tokio::time::sleep(Duration::from_secs(1)).await; // let the record state that I hate this
@@ -71,6 +77,7 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
         let embassy_ip = get_current_ip(ctx.ethernet_interface.to_owned()).await?;
         let embassy_ip_fqdn: ResourceFqdn = embassy_ip.parse()?;
         let embassy_fqdn: ResourceFqdn = "embassy.local".parse()?;
+        let localhost_fqdn = ResourceFqdn::LocalHost;
 
         let setup_ui_handler = setup_ui_file_router(ctx.clone()).await?;
 
@@ -80,7 +87,11 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
             .add_svc_handler_mapping(embassy_ip_fqdn, setup_ui_handler.clone())
             .await?;
         setup_http_server
-            .add_svc_handler_mapping(embassy_fqdn, setup_ui_handler)
+            .add_svc_handler_mapping(embassy_fqdn, setup_ui_handler.clone())
+            .await?;
+
+        setup_http_server
+            .add_svc_handler_mapping(localhost_fqdn, setup_ui_handler.clone())
             .await?;
 
         tokio::time::sleep(Duration::from_secs(1)).await; // let the record state that I hate this
@@ -187,6 +198,8 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
             let embassy_ip_fqdn: ResourceFqdn = embassy_ip.parse()?;
             let embassy_fqdn: ResourceFqdn = "embassy.local".parse()?;
 
+            let localhost_fqdn = ResourceFqdn::LocalHost;
+
             let diag_ui_handler = diag_ui_file_router(ctx.clone()).await?;
 
             let mut diag_http_server =
@@ -195,7 +208,11 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
                 .add_svc_handler_mapping(embassy_ip_fqdn, diag_ui_handler.clone())
                 .await?;
             diag_http_server
-                .add_svc_handler_mapping(embassy_fqdn, diag_ui_handler)
+                .add_svc_handler_mapping(embassy_fqdn, diag_ui_handler.clone())
+                .await?;
+
+            diag_http_server
+                .add_svc_handler_mapping(localhost_fqdn, diag_ui_handler.clone())
                 .await?;
 
             let shutdown = ctx.shutdown.subscribe().recv().await.unwrap();
