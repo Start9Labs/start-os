@@ -1,0 +1,57 @@
+name: PureOS Based ISO
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  push:
+    branches:
+    - master
+    - next
+    - feature/iso-ci
+
+jobs:
+  dpkg:
+    uses: ./.github/workflows/debian.yaml
+
+  iso:
+    name: Build iso
+    runs-on: ubuntu-latest
+    needs: [dpkg]
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        repository: Start9Labs/eos-image-recipes
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install debspawn
+
+    - name: Configure debspawn
+      run: |
+        sudo mkdir -p /etc/debspawn/
+        echo "AllowUnsafePermissions=true" | sudo tee /etc/debspawn/global.toml
+
+    - uses: actions/cache@v3
+      id: debspawn-cache
+      with:
+        path: /var/lib/debspawn
+
+    - name: Make build container
+      run: "debspawn list | grep byzantium-buildd-amd64 || debspawn create byzantium"
+
+    - run: "mkdir -p overlays/vendor/root"
+
+    - name: Download dpkg
+      uses: actions/download-artifact@v3
+      with:
+        name: deb
+        path: overlays/vendor/root
+
+    - name: Run build
+      run: "./run-local-build.sh byzantium none custom "" true"
+
+    - uses: actions/upload-artifact@v3
+      with:
+        name: iso
+        path: results/*.iso

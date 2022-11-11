@@ -3,11 +3,6 @@ name: Debian Package
 on:
   workflow_call:
   workflow_dispatch:
-  push:
-    branches:
-    - master
-    - next
-    - feature/iso-ci
 
 env:
   NODEJS_VERSION: '16'
