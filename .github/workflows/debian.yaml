@@ -34,6 +34,11 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-node-
 
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install debmake
+
     - name: Run build
       run: "make VERSION=0.3.x TAG=${{ github.ref_name }}"
 
