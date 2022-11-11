@@ -5,7 +5,7 @@
     [src]="'data:image/png;base64,' + pkg.icon | trustUrl"
   />
   <div class="text">
-    <h1 class="title">{{ pkg.manifest.title }}</h1>
+    <h1 ticker class="title">{{ pkg.manifest.title }}</h1>
     <p class="version">{{ pkg.manifest.version | displayEmver }}</p>
     <p class="published">
       Released: {{ pkg['published-at'] | date: 'medium' }}

@@ -1,0 +1,11 @@
+:host {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: text-indent 1s;
+
+  &:hover {
+    text-indent: var(--indent, 0);
+    text-overflow: clip;
+  }
+}
