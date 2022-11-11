@@ -7,11 +7,13 @@
 .text {
   display: inline-block;
   vertical-align: top;
+  overflow: hidden;
 }
 
 .logo {
   width: 80px;
   margin-right: 16px;
+  border-radius: 100%;
 }
 
 .title {
