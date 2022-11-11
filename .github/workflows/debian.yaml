@@ -1,0 +1,42 @@
+name: Debian Package
+
+on:
+  workflow_call:
+  workflow_dispatch:
+    push:
+      branches:
+      - master
+      - next
+
+jobs:
+  dpkg:
+    name: Build dpkg
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        repository: Start9Labs/embassy-os-deb
+    
+    - uses: actions/setup-node@v3
+      with:
+        node-version: ${{ env.NODEJS_VERSION }}
+    
+    - name: Get npm cache directory
+      id: npm-cache-dir
+      run: |
+        echo "dir=$(npm config get cache)" >> $GITHUB_OUTPUT
+    - uses: actions/cache@v3
+      id: npm-cache
+      with:
+        path: ${{ steps.npm-cache-dir.outputs.dir }}
+        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+
+    - name: Run build
+      run: "make VERSION=0.3.x TAG=${{ github.ref_name }}"
+
+    - uses: actions/upload-artifact@v3
+      with:
+        name: deb
+        path: embassy
