@@ -37,6 +37,12 @@ jobs:
         sudo apt-get update
         sudo apt-get install debmake debhelper-compat
 
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v2
+      
+    - name: Set up Docker Buildx        
+      uses: docker/setup-buildx-action@v2
+
     - name: Run build
       run: "make VERSION=0.3.x TAG=${{ github.ref_name }}"
 
