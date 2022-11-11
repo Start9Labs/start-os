@@ -8,7 +8,11 @@
     >
       <ion-item [routerLink]="['/marketplace', dep.key]">
         <ion-thumbnail slot="start">
-          <img alt="" [src]="getImg(dep.key) | trustUrl" />
+          <img
+            alt=""
+            style="border-radius: 100%"
+            [src]="getImg(dep.key) | trustUrl"
+          />
         </ion-thumbnail>
         <ion-label>
           <h2>
