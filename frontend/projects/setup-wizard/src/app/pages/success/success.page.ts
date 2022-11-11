@@ -12,6 +12,7 @@ import {
   DownloadHTMLService,
   ErrorToastService,
 } from '@start9labs/shared'
+import { ApiService } from 'src/app/services/api/api.service'
 import { StateService } from 'src/app/services/state.service'
 
 @Component({
@@ -26,6 +27,10 @@ export class SuccessPage {
 
   @Output() onDownload = new EventEmitter()
 
+  torAddress = ''
+  lanAddress = ''
+  cert = ''
+
   isOnBottom = true
 
   constructor(
@@ -33,6 +38,7 @@ export class SuccessPage {
     private readonly toastCtrl: ToastController,
     private readonly errCtrl: ErrorToastService,
     private readonly stateService: StateService,
+    private api: ApiService,
     private readonly downloadHtml: DownloadHTMLService,
   ) {}
 
@@ -40,27 +46,30 @@ export class SuccessPage {
     return this.stateService.recoverySource
   }
 
-  get torAddress() {
-    return this.stateService.torAddress
-  }
-
-  get lanAddress() {
-    return this.stateService.lanAddress
+  get isKiosk() {
+    return ['localhost', '127.0.0.1'].includes(this.document.location.hostname)
   }
 
   async ngAfterViewInit() {
-    setTimeout(() => this.checkBottom(), 42)
-
     try {
-      await this.stateService.completeEmbassy()
-      this.document
-        .getElementById('install-cert')
-        ?.setAttribute(
-          'href',
-          'data:application/x-x509-ca-cert;base64,' +
-            encodeURIComponent(this.stateService.cert),
-        )
-      this.download()
+      const ret = await this.api.complete()
+      if (!this.isKiosk) {
+        setTimeout(() => this.checkBottom(), 42)
+
+        this.torAddress = ret['tor-address']
+        this.lanAddress = ret['lan-address']
+        this.cert = ret['root-ca']
+
+        this.document
+          .getElementById('install-cert')
+          ?.setAttribute(
+            'href',
+            'data:application/x-x509-ca-cert;base64,' +
+              encodeURIComponent(this.cert),
+          )
+        this.download()
+      }
+      await this.api.exit()
     } catch (e: any) {
       await this.errCtrl.present(e)
     }
@@ -88,15 +97,15 @@ export class SuccessPage {
     const torAddress = this.document.getElementById('tor-addr')
     const lanAddress = this.document.getElementById('lan-addr')
 
-    if (torAddress) torAddress.innerHTML = this.stateService.torAddress
-    if (lanAddress) lanAddress.innerHTML = this.stateService.lanAddress
+    if (torAddress) torAddress.innerHTML = this.torAddress
+    if (lanAddress) lanAddress.innerHTML = this.lanAddress
 
     this.document
       .getElementById('cert')
       ?.setAttribute(
         'href',
         'data:application/x-x509-ca-cert;base64,' +
-          encodeURIComponent(this.stateService.cert),
+          encodeURIComponent(this.cert),
       )
     let html = this.document.getElementById('downloadable')?.innerHTML || ''
     this.downloadHtml.download('embassy-info.html', html)

@@ -102,6 +102,15 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
             .await
             .expect("context dropped");
         setup_http_server.shutdown.send(()).unwrap();
+        tokio::task::yield_now().await;
+        if let Err(e) = Command::new("killall")
+            .arg("firefox-esr")
+            .invoke(ErrorKind::NotFound)
+            .await
+        {
+            tracing::error!("Failed to kill kiosk: {}", e);
+            tracing::debug!("{:?}", e);
+        }
     } else {
         let cfg = RpcContextConfig::load(cfg_path).await?;
         let guid_string = tokio::fs::read_to_string("/media/embassy/config/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy

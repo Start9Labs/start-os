@@ -13,7 +13,6 @@ import {
 import { DiskInfo, ErrorToastService, GuidPipe } from '@start9labs/shared'
 import { StateService } from 'src/app/services/state.service'
 import { PasswordPage } from '../../modals/password/password.page'
-import { ActivatedRoute } from '@angular/router'
 
 @Component({
   selector: 'app-embassy',
@@ -34,7 +33,6 @@ export class EmbassyPage {
     private readonly loadingCtrl: LoadingController,
     private readonly errorToastService: ErrorToastService,
     private readonly guidPipe: GuidPipe,
-    private route: ActivatedRoute,
   ) {}
 
   async ngOnInit() {
@@ -133,21 +131,12 @@ export class EmbassyPage {
     logicalname: string,
     password: string,
   ): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Initializing data drive. This could take a while...',
-    })
-
+    const loader = await this.loadingCtrl.create()
     await loader.present()
 
     try {
       await this.stateService.setupEmbassy(logicalname, password)
-      if (!!this.stateService.recoverySource) {
-        await this.navCtrl.navigateForward(`/loading`, {
-          queryParams: { action: this.route.snapshot.paramMap.get('action') },
-        })
-      } else {
-        await this.navCtrl.navigateForward(`/success`)
-      }
+      await this.navCtrl.navigateForward(`/loading`)
     } catch (e: any) {
       this.errorToastService.present({
         message: `${e.message}\n\nRestart Embassy to try again.`,

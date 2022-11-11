@@ -38,8 +38,7 @@ export class AttachPage {
 
   async getDrives() {
     try {
-      const drives = await this.apiService.getDrives()
-      this.drives = drives.filter(d => d.partitions.length)
+      this.drives = await this.apiService.getDrives()
     } catch (e: any) {
       this.errToastService.present(e)
     } finally {
@@ -61,13 +60,11 @@ export class AttachPage {
   }
 
   private async attachDrive(guid: string, password: string) {
-    const loader = await this.loadingCtrl.create({
-      message: 'Attaching Drive',
-    })
+    const loader = await this.loadingCtrl.create()
     await loader.present()
     try {
       await this.stateService.importDrive(guid, password)
-      await this.navCtrl.navigateForward(`/success`)
+      await this.navCtrl.navigateForward(`/loading`)
     } catch (e: any) {
       this.errToastService.present(e)
     } finally {
