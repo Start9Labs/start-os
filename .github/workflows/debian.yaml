@@ -9,6 +9,9 @@ on:
     - next
     - feature/iso-ci
 
+env:
+  NODEJS_VERSION: '16'
+
 jobs:
   dpkg:
     name: Build dpkg
@@ -45,4 +48,4 @@ jobs:
     - uses: actions/upload-artifact@v3
       with:
         name: deb
-        path: embassy
+        path: embassyos_0.3.x-1_amd64.deb
