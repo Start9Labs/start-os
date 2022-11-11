@@ -3,11 +3,11 @@ name: Debian Package
 on:
   workflow_call:
   workflow_dispatch:
-    push:
-      branches:
-      - master
-      - next
-      - feature/iso-ci
+  push:
+    branches:
+    - master
+    - next
+    - feature/iso-ci
 
 jobs:
   dpkg:
