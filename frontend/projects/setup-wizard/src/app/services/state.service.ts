@@ -7,9 +7,6 @@ import { pauseFor, ErrorToastService } from '@start9labs/shared'
   providedIn: 'root',
 })
 export class StateService {
-  polling = false
-  embassyLoaded = false
-
   recoverySource?: RecoverySource
   recoveryPassword?: string
 
@@ -21,17 +18,12 @@ export class StateService {
   dataProgress = 0
   dataCompletionSubject = new BehaviorSubject(false)
 
-  torAddress = ''
-  lanAddress = ''
-  cert = ''
-
   constructor(
     private readonly api: ApiService,
     private readonly errorToastService: ErrorToastService,
   ) {}
 
   async pollDataTransferProgress() {
-    this.polling = true
     await pauseFor(500)
 
     if (this.dataTransferProgress?.complete) {
@@ -39,15 +31,10 @@ export class StateService {
       return
     }
 
-    let progress
     try {
-      progress = await this.api.getRecoveryStatus()
-    } catch (e: any) {
-      this.errorToastService.present({
-        message: `${e.message}\n\nRestart Embassy to try again.`,
-      })
-    }
-    if (progress) {
+      const progress = await this.api.getStatus()
+      if (!progress) return
+
       this.dataTransferProgress = {
         bytesTransferred: progress['bytes-transferred'],
         totalBytes: progress['total-bytes'],
@@ -58,25 +45,26 @@ export class StateService {
           this.dataTransferProgress.bytesTransferred /
           this.dataTransferProgress.totalBytes
       }
+    } catch (e: any) {
+      this.errorToastService.present({
+        message: `${e.message}\n\nRestart Embassy to try again.`,
+      })
     }
     setTimeout(() => this.pollDataTransferProgress(), 0) // prevent call stack from growing
   }
 
   async importDrive(guid: string, password: string): Promise<void> {
-    const ret = await this.api.importDrive({
+    await this.api.attach({
       guid,
       'embassy-password': await this.api.encrypt(password),
     })
-    this.torAddress = ret['tor-address']
-    this.lanAddress = ret['lan-address']
-    this.cert = ret['root-ca']
   }
 
   async setupEmbassy(
     storageLogicalname: string,
     password: string,
   ): Promise<void> {
-    const ret = await this.api.setupEmbassy({
+    await this.api.execute({
       'embassy-logicalname': storageLogicalname,
       'embassy-password': await this.api.encrypt(password),
       'recovery-source': this.recoverySource || null,
@@ -84,15 +72,5 @@ export class StateService {
         ? await this.api.encrypt(this.recoveryPassword)
         : null,
     })
-    this.torAddress = ret['tor-address']
-    this.lanAddress = ret['lan-address']
-    this.cert = ret['root-ca']
-  }
-
-  async completeEmbassy(): Promise<void> {
-    const ret = await this.api.setupComplete()
-    this.torAddress = ret['tor-address']
-    this.lanAddress = ret['lan-address']
-    this.cert = ret['root-ca']
   }
 }

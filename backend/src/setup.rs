@@ -2,8 +2,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use color_eyre::eyre::eyre;
-use futures::future::BoxFuture;
-use futures::{StreamExt, TryFutureExt};
+use futures::StreamExt;
 use helpers::{Rsync, RsyncOptions};
 use josekit::jwk::Jwk;
 use openssl::x509::X509;
@@ -30,10 +29,9 @@ use crate::disk::mount::guard::TmpMountGuard;
 use crate::disk::util::{pvscan, recovery_info, DiskInfo, EmbassyOsRecoveryInfo};
 use crate::disk::REPAIR_DISK_PATH;
 use crate::hostname::{get_hostname, HostNameReceipt, Hostname};
-use crate::init::init;
+use crate::init::{init, InitResult};
 use crate::middleware::encrypt::EncryptedWire;
 use crate::net::ssl::SslManager;
-use crate::sound::BEETHOVEN;
 use crate::{Error, ErrorKind, ResultExt};
 
 #[instrument(skip(secrets))]
@@ -49,22 +47,9 @@ where
     Ok(password)
 }
 
-#[command(subcommands(status, disk, attach, execute, recovery, cifs, complete, get_pubkey))]
+#[command(subcommands(status, disk, attach, execute, cifs, complete, get_pubkey, exit))]
 pub fn setup() -> Result<(), Error> {
     Ok(())
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct StatusRes {
-    migrating: bool,
-}
-
-#[command(rpc_only, metadata(authenticated = false))]
-pub async fn status(#[context] ctx: SetupContext) -> Result<StatusRes, Error> {
-    Ok(StatusRes {
-        migrating: ctx.recovery_status.read().await.is_some(),
-    })
 }
 
 #[command(subcommands(list_disks))]
@@ -81,9 +66,9 @@ async fn setup_init(
     ctx: &SetupContext,
     password: Option<String>,
 ) -> Result<(Hostname, OnionAddressV3, X509), Error> {
-    let secrets = ctx.secret_store().await?;
-    let db = ctx.db(&secrets).await?;
-    let mut secrets_handle = secrets.acquire().await?;
+    let InitResult { secret_store, db } =
+        init(&RpcContextConfig::load(ctx.config_path.clone()).await?).await?;
+    let mut secrets_handle = secret_store.acquire().await?;
     let mut db_handle = db.handle();
     let mut secrets_tx = secrets_handle.begin().await?;
     let mut db_tx = db_handle.begin().await?;
@@ -107,7 +92,7 @@ async fn setup_init(
     let hostname_receipts = HostNameReceipt::new(&mut db_handle).await?;
     let hostname = get_hostname(&mut db_handle, &hostname_receipts).await?;
 
-    let (_, root_ca) = SslManager::init(secrets, &mut db_handle)
+    let (_, root_ca) = SslManager::init(secret_store, &mut db_handle)
         .await?
         .export_root_ca()
         .await?;
@@ -119,73 +104,91 @@ pub async fn attach(
     #[context] ctx: SetupContext,
     #[arg] guid: Arc<String>,
     #[arg(rename = "embassy-password")] password: Option<EncryptedWire>,
-) -> Result<SetupResult, Error> {
-    let password: Option<String> = match password {
-        Some(a) => match a.decrypt(&*ctx) {
-            a @ Some(_) => a,
-            None => {
-                return Err(Error::new(
-                    color_eyre::eyre::eyre!("Couldn't decode password"),
-                    crate::ErrorKind::Unknown,
-                ));
-            }
-        },
-        None => None,
-    };
-    let requires_reboot = crate::disk::main::import(
-        &*guid,
-        &ctx.datadir,
-        if tokio::fs::metadata(REPAIR_DISK_PATH).await.is_ok() {
-            RepairStrategy::Aggressive
-        } else {
-            RepairStrategy::Preen
-        },
-        DEFAULT_PASSWORD,
-    )
-    .await?;
-    if tokio::fs::metadata(REPAIR_DISK_PATH).await.is_ok() {
-        tokio::fs::remove_file(REPAIR_DISK_PATH)
-            .await
-            .with_ctx(|_| (ErrorKind::Filesystem, REPAIR_DISK_PATH))?;
-    }
-    if requires_reboot.0 {
-        crate::disk::main::export(&*guid, &ctx.datadir).await?;
+) -> Result<(), Error> {
+    let mut status = ctx.setup_status.write().await;
+    if status.is_some() {
         return Err(Error::new(
-            eyre!(
-                "Errors were corrected with your disk, but the Embassy must be restarted in order to proceed"
-            ),
-            ErrorKind::DiskManagement,
+            eyre!("Setup already in progress"),
+            ErrorKind::InvalidRequest,
         ));
     }
-    let (hostname, tor_addr, root_ca) = setup_init(&ctx, password).await?;
-    init(&RpcContextConfig::load(ctx.config_path.clone()).await?).await?;
-    let setup_result = SetupResult {
-        tor_address: format!("http://{}", tor_addr),
-        lan_address: hostname.lan_address(),
-        root_ca: String::from_utf8(root_ca.to_pem()?)?,
-    };
-    *ctx.setup_result.write().await = Some((guid, setup_result.clone()));
-    Ok(setup_result)
-}
-
-#[command(subcommands(recovery_status))]
-pub fn recovery() -> Result<(), Error> {
+    *status = Some(Ok(SetupStatus {
+        bytes_transferred: 0,
+        total_bytes: 0,
+        complete: false,
+    }));
+    drop(status);
+    tokio::task::spawn(async move {
+        if let Err(e) = async {
+            let password: Option<String> = match password {
+                Some(a) => match a.decrypt(&*ctx) {
+                    a @ Some(_) => a,
+                    None => {
+                        return Err(Error::new(
+                            color_eyre::eyre::eyre!("Couldn't decode password"),
+                            crate::ErrorKind::Unknown,
+                        ));
+                    }
+                },
+                None => None,
+            };
+            let requires_reboot = crate::disk::main::import(
+                &*guid,
+                &ctx.datadir,
+                if tokio::fs::metadata(REPAIR_DISK_PATH).await.is_ok() {
+                    RepairStrategy::Aggressive
+                } else {
+                    RepairStrategy::Preen
+                },
+                DEFAULT_PASSWORD,
+            )
+            .await?;
+            if tokio::fs::metadata(REPAIR_DISK_PATH).await.is_ok() {
+                tokio::fs::remove_file(REPAIR_DISK_PATH)
+                    .await
+                    .with_ctx(|_| (ErrorKind::Filesystem, REPAIR_DISK_PATH))?;
+            }
+            if requires_reboot.0 {
+                crate::disk::main::export(&*guid, &ctx.datadir).await?;
+                return Err(Error::new(
+                    eyre!(
+                        "Errors were corrected with your disk, but the Embassy must be restarted in order to proceed"
+                    ),
+                    ErrorKind::DiskManagement,
+                ));
+            }
+            let (hostname, tor_addr, root_ca) = setup_init(&ctx, password).await?;
+            *ctx.setup_result.write().await = Some((guid, SetupResult {
+                tor_address: format!("http://{}", tor_addr),
+                lan_address: hostname.lan_address(),
+                root_ca: String::from_utf8(root_ca.to_pem()?)?,
+            }));
+            *ctx.setup_status.write().await = Some(Ok(SetupStatus {
+                bytes_transferred: 0,
+                total_bytes: 0,
+                complete: true,
+            }));
+            Ok(())
+        }.await {
+            tracing::error!("Error Setting Up Embassy: {}", e);
+            tracing::debug!("{:?}", e);
+            *ctx.setup_status.write().await = Some(Err(e.into()));
+        }
+    });
     Ok(())
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
-pub struct RecoveryStatus {
+pub struct SetupStatus {
     pub bytes_transferred: u64,
     pub total_bytes: u64,
     pub complete: bool,
 }
 
-#[command(rename = "status", rpc_only, metadata(authenticated = false))]
-pub async fn recovery_status(
-    #[context] ctx: SetupContext,
-) -> Result<Option<RecoveryStatus>, RpcError> {
-    ctx.recovery_status.read().await.clone().transpose()
+#[command(rpc_only, metadata(authenticated = false))]
+pub async fn status(#[context] ctx: SetupContext) -> Result<Option<SetupStatus>, RpcError> {
+    ctx.setup_status.read().await.clone().transpose()
 }
 
 /// We want to be able to get a secret, a shared private key with the frontend
@@ -243,7 +246,7 @@ pub async fn execute(
     #[arg(rename = "embassy-password")] embassy_password: EncryptedWire,
     #[arg(rename = "recovery-source")] recovery_source: Option<RecoverySource>,
     #[arg(rename = "recovery-password")] recovery_password: Option<EncryptedWire>,
-) -> Result<SetupResult, Error> {
+) -> Result<(), Error> {
     let embassy_password = match embassy_password.decrypt(&*ctx) {
         Some(a) => a,
         None => {
@@ -265,29 +268,56 @@ pub async fn execute(
         },
         None => None,
     };
-    match execute_inner(
-        ctx.clone(),
-        embassy_logicalname,
-        embassy_password,
-        recovery_source,
-        recovery_password,
-    )
-    .await
-    {
-        Ok((hostname, tor_addr, root_ca)) => {
-            tracing::info!("Setup Successful! Tor Address: {}", tor_addr);
-            Ok(SetupResult {
-                tor_address: format!("http://{}", tor_addr),
-                lan_address: hostname.lan_address(),
-                root_ca: String::from_utf8(root_ca.to_pem()?)?,
-            })
-        }
-        Err(e) => {
-            tracing::error!("Error Setting Up Embassy: {}", e);
-            tracing::debug!("{:?}", e);
-            Err(e)
-        }
+    let mut status = ctx.setup_status.write().await;
+    if status.is_some() {
+        return Err(Error::new(
+            eyre!("Setup already in progress"),
+            ErrorKind::InvalidRequest,
+        ));
     }
+    *status = Some(Ok(SetupStatus {
+        bytes_transferred: 0,
+        total_bytes: 0,
+        complete: false,
+    }));
+    drop(status);
+    tokio::task::spawn(async move {
+        match execute_inner(
+            ctx.clone(),
+            embassy_logicalname,
+            embassy_password,
+            recovery_source,
+            recovery_password,
+        )
+        .await
+        {
+            Ok((guid, hostname, tor_addr, root_ca)) => {
+                tracing::info!("Setup Complete!");
+                *ctx.setup_result.write().await = Some((
+                    guid,
+                    SetupResult {
+                        tor_address: format!("http://{}", tor_addr),
+                        lan_address: hostname.lan_address(),
+                        root_ca: String::from_utf8(
+                            root_ca.to_pem().expect("failed to serialize root ca"),
+                        )
+                        .expect("invalid pem string"),
+                    },
+                ));
+                *ctx.setup_status.write().await = Some(Ok(SetupStatus {
+                    bytes_transferred: 0,
+                    total_bytes: 0,
+                    complete: true,
+                }));
+            }
+            Err(e) => {
+                tracing::error!("Error Setting Up Embassy: {}", e);
+                tracing::debug!("{:?}", e);
+                *ctx.setup_status.write().await = Some(Err(e.into()));
+            }
+        }
+    });
+    Ok(())
 }
 
 #[instrument(skip(ctx))]
@@ -301,21 +331,17 @@ pub async fn complete(#[context] ctx: SetupContext) -> Result<SetupResult, Error
             crate::ErrorKind::InvalidRequest,
         ));
     };
-    let secrets = ctx.secret_store().await?;
-    let mut db = ctx.db(&secrets).await?.handle();
-    let receipts = crate::hostname::HostNameReceipt::new(&mut db).await?;
-    let hostname = crate::hostname::get_hostname(&mut db, &receipts).await?;
-    let si = crate::db::DatabaseModel::new().server_info();
-    let id = crate::hostname::get_id(&mut db, &receipts).await?;
-    si.clone().id().put(&mut db, &id).await?;
-    si.lan_address()
-        .put(&mut db, &hostname.lan_address().parse().unwrap())
-        .await?;
     let mut guid_file = File::create("/media/embassy/config/disk.guid").await?;
     guid_file.write_all(guid.as_bytes()).await?;
     guid_file.sync_all().await?;
-    ctx.shutdown.send(()).expect("failed to shutdown");
     Ok(setup_result)
+}
+
+#[instrument(skip(ctx))]
+#[command(rpc_only)]
+pub async fn exit(#[context] ctx: SetupContext) -> Result<(), Error> {
+    ctx.shutdown.send(()).expect("failed to shutdown");
+    Ok(())
 }
 
 #[instrument(skip(ctx, embassy_password, recovery_password))]
@@ -325,13 +351,7 @@ pub async fn execute_inner(
     embassy_password: String,
     recovery_source: Option<RecoverySource>,
     recovery_password: Option<String>,
-) -> Result<(Hostname, OnionAddressV3, X509), Error> {
-    if ctx.recovery_status.read().await.is_some() {
-        return Err(Error::new(
-            eyre!("Cannot execute setup while in recovery!"),
-            crate::ErrorKind::InvalidRequest,
-        ));
-    }
+) -> Result<(Arc<String>, Hostname, OnionAddressV3, X509), Error> {
     let guid = Arc::new(
         crate::disk::main::create(
             &[embassy_logicalname],
@@ -349,161 +369,20 @@ pub async fn execute_inner(
     )
     .await?;
 
-    let res = if let Some(RecoverySource::Backup { target }) = recovery_source {
-        let (tor_addr, root_ca, recover_fut) = recover(
-            ctx.clone(),
-            guid.clone(),
-            embassy_password,
-            target,
-            recovery_password,
-        )
-        .await?;
-        let db = init(&RpcContextConfig::load(ctx.config_path.clone()).await?)
-            .await?
-            .db;
-        let hostname = {
-            let mut handle = db.handle();
-            let receipts = crate::hostname::HostNameReceipt::new(&mut handle).await?;
-            get_hostname(&mut handle, &receipts).await?
-        };
-        let res = (hostname.clone(), tor_addr, root_ca.clone());
-        tokio::spawn(async move {
-            if let Err(e) = recover_fut
-                .and_then(|_| async {
-                    *ctx.setup_result.write().await = Some((
-                        guid,
-                        SetupResult {
-                            tor_address: format!("http://{}", tor_addr),
-                            lan_address: hostname.lan_address(),
-                            root_ca: String::from_utf8(root_ca.to_pem()?)?,
-                        },
-                    ));
-                    if let Some(Ok(recovery_status)) = &mut *ctx.recovery_status.write().await {
-                        recovery_status.complete = true;
-                    }
-                    Ok(())
-                })
-                .await
-            {
-                (&BEETHOVEN).play().await.unwrap_or_default(); // ignore error in playing the song
-                tracing::error!("Error recovering drive!: {}", e);
-                tracing::debug!("{:?}", e);
-                *ctx.recovery_status.write().await = Some(Err(e.into()));
-            } else {
-                tracing::info!("Recovery Complete!");
-            }
-        });
-        res
+    if let Some(RecoverySource::Backup { target }) = recovery_source {
+        recover(ctx, guid, embassy_password, target, recovery_password).await
     } else if let Some(RecoverySource::Migrate { guid: old_guid }) = recovery_source {
-        let _ = crate::disk::main::mount_fs(
-            &old_guid,
-            "/media/embassy/migrate",
-            "main",
-            RepairStrategy::Preen,
-            DEFAULT_PASSWORD,
-        )
-        .await?;
-        Rsync::new(
-            "/media/embassy/migrate/main",
-            "/embassy-data/main",
-            RsyncOptions {
-                delete: true,
-                force: true,
-                ignore_existing: false,
-                exclude: Vec::new(),
-            },
-        )?
-        .wait()
-        .await?;
-        let _ = crate::disk::main::mount_fs(
-            &old_guid,
-            "/media/embassy/migrate",
-            "package-data",
-            RepairStrategy::Preen,
-            DEFAULT_PASSWORD,
-        )
-        .await?;
-        let mut package_data_transfer = Rsync::new(
-            "/media/embassy/migrate/package-data",
-            "/embassy-data/package-data",
-            RsyncOptions {
-                delete: true,
-                force: true,
-                ignore_existing: false,
-                exclude: vec!["tmp".to_owned()],
-            },
-        )?;
-        *ctx.recovery_status.write().await = Some(Ok(RecoveryStatus {
-            bytes_transferred: 0,
-            total_bytes: 100,
-            complete: false,
-        }));
-        let (hostname, tor_addr, root_ca) = setup_init(&ctx, Some(embassy_password)).await?;
-        let res = (hostname.clone(), tor_addr.clone(), root_ca.clone());
-        tokio::spawn(async move {
-            if let Err(e) = async {
-                while let Some(progress) = package_data_transfer.progress.next().await {
-                    *ctx.recovery_status.write().await = Some(Ok(RecoveryStatus {
-                        bytes_transferred: (progress * 100.0) as u64,
-                        total_bytes: 100,
-                        complete: false,
-                    }));
-                }
-                package_data_transfer.wait().await?;
-                init(&RpcContextConfig::load(ctx.config_path.clone()).await?).await?;
-                Ok::<_, Error>(())
-            }
-            .and_then(|_| async {
-                *ctx.setup_result.write().await = Some((
-                    guid,
-                    SetupResult {
-                        tor_address: format!("http://{}", tor_addr),
-                        lan_address: hostname.lan_address(),
-                        root_ca: String::from_utf8(root_ca.to_pem()?)?,
-                    },
-                ));
-                if let Some(Ok(recovery_status)) = &mut *ctx.recovery_status.write().await {
-                    recovery_status.complete = true;
-                }
-                Ok(())
-            })
-            .await
-            {
-                (&BEETHOVEN).play().await.unwrap_or_default(); // ignore error in playing the song
-                tracing::error!("Error recovering drive!: {}", e);
-                tracing::debug!("{:?}", e);
-                *ctx.recovery_status.write().await = Some(Err(e.into()));
-            } else {
-                tracing::info!("Recovery Complete!");
-            }
-        });
-        res
+        migrate(ctx, guid, &old_guid, embassy_password).await
     } else {
-        let (tor_addr, root_ca) = fresh_setup(&ctx, &embassy_password).await?;
-        let db = init(&RpcContextConfig::load(ctx.config_path.clone()).await?)
-            .await?
-            .db;
-        let mut handle = db.handle();
-        let receipts = crate::hostname::HostNameReceipt::new(&mut handle).await?;
-        *ctx.setup_result.write().await = Some((
-            guid,
-            SetupResult {
-                tor_address: format!("http://{}", tor_addr),
-                lan_address: get_hostname(&mut handle, &receipts).await?.lan_address(),
-                root_ca: String::from_utf8(root_ca.to_pem()?)?,
-            },
-        ));
-        let hostname = get_hostname(&mut handle, &receipts).await?;
-        (hostname, tor_addr, root_ca)
-    };
-
-    Ok(res)
+        let (hostname, tor_addr, root_ca) = fresh_setup(&ctx, &embassy_password).await?;
+        Ok((guid, hostname, tor_addr, root_ca))
+    }
 }
 
 async fn fresh_setup(
     ctx: &SetupContext,
     embassy_password: &str,
-) -> Result<(OnionAddressV3, X509), Error> {
+) -> Result<(Hostname, OnionAddressV3, X509), Error> {
     let password = argon2::hash_encoded(
         embassy_password.as_bytes(),
         &rand::random::<[u8; 16]>()[..],
@@ -521,13 +400,18 @@ async fn fresh_setup(
     )
     .execute(&mut sqlite_pool.acquire().await?)
     .await?;
-    let db = ctx.db(&sqlite_pool).await?;
-    let (_, root_ca) = SslManager::init(sqlite_pool.clone(), &mut db.handle())
+    sqlite_pool.close().await;
+    let InitResult { secret_store, db } =
+        init(&RpcContextConfig::load(ctx.config_path.clone()).await?).await?;
+    let mut handle = db.handle();
+    let receipts = crate::hostname::HostNameReceipt::new(&mut handle).await?;
+    let hostname = get_hostname(&mut handle, &receipts).await?;
+    let (_, root_ca) = SslManager::init(secret_store.clone(), &mut handle)
         .await?
         .export_root_ca()
         .await?;
-    sqlite_pool.close().await;
-    Ok((tor_key.public().get_onion_address(), root_ca))
+    secret_store.close().await;
+    Ok((hostname, tor_key.public().get_onion_address(), root_ca))
 }
 
 #[instrument(skip(ctx, embassy_password, recovery_password))]
@@ -537,7 +421,7 @@ async fn recover(
     embassy_password: String,
     recovery_source: BackupTargetFS,
     recovery_password: Option<String>,
-) -> Result<(OnionAddressV3, X509, BoxFuture<'static, Result<(), Error>>), Error> {
+) -> Result<(Arc<String>, Hostname, OnionAddressV3, X509), Error> {
     let recovery_source = TmpMountGuard::mount(&recovery_source, ReadOnly).await?;
     recover_full_embassy(
         ctx.clone(),
@@ -547,4 +431,76 @@ async fn recover(
         recovery_password,
     )
     .await
+}
+
+#[instrument(skip(ctx, embassy_password))]
+async fn migrate(
+    ctx: SetupContext,
+    guid: Arc<String>,
+    old_guid: &str,
+    embassy_password: String,
+) -> Result<(Arc<String>, Hostname, OnionAddressV3, X509), Error> {
+    *ctx.setup_status.write().await = Some(Ok(SetupStatus {
+        bytes_transferred: 0,
+        total_bytes: 110,
+        complete: false,
+    }));
+    let _ = crate::disk::main::mount_fs(
+        &old_guid,
+        "/media/embassy/migrate",
+        "main",
+        RepairStrategy::Preen,
+        DEFAULT_PASSWORD,
+    )
+    .await?;
+    let mut main_transfer = Rsync::new(
+        "/media/embassy/migrate/main",
+        "/embassy-data/main",
+        RsyncOptions {
+            delete: true,
+            force: true,
+            ignore_existing: false,
+            exclude: Vec::new(),
+        },
+    )?;
+    while let Some(progress) = main_transfer.progress.next().await {
+        *ctx.setup_status.write().await = Some(Ok(SetupStatus {
+            bytes_transferred: (progress * 10.0) as u64,
+            total_bytes: 110,
+            complete: false,
+        }));
+    }
+    main_transfer.wait().await?;
+    crate::disk::main::unmount_fs(&old_guid, "/media/embassy/migrate", "main").await?;
+    let _ = crate::disk::main::mount_fs(
+        &old_guid,
+        "/media/embassy/migrate",
+        "package-data",
+        RepairStrategy::Preen,
+        DEFAULT_PASSWORD,
+    )
+    .await?;
+    let mut package_data_transfer = Rsync::new(
+        "/media/embassy/migrate/package-data",
+        "/embassy-data/package-data",
+        RsyncOptions {
+            delete: true,
+            force: true,
+            ignore_existing: false,
+            exclude: vec!["tmp".to_owned()],
+        },
+    )?;
+    while let Some(progress) = package_data_transfer.progress.next().await {
+        *ctx.setup_status.write().await = Some(Ok(SetupStatus {
+            bytes_transferred: 10 + (progress * 100.0) as u64,
+            total_bytes: 110,
+            complete: false,
+        }));
+    }
+    package_data_transfer.wait().await?;
+    crate::disk::main::unmount_fs(&old_guid, "/media/embassy/migrate", "package-data").await?;
+
+    let (hostname, tor_addr, root_ca) = setup_init(&ctx, Some(embassy_password)).await?;
+
+    Ok((guid, hostname, tor_addr, root_ca))
 }

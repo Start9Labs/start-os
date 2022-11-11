@@ -23,13 +23,14 @@ use crate::db::model::{PackageDataEntry, StaticFiles};
 use crate::disk::mount::backup::{BackupMountGuard, PackageBackupMountGuard};
 use crate::disk::mount::filesystem::ReadOnly;
 use crate::disk::mount::guard::TmpMountGuard;
+use crate::hostname::{get_hostname, Hostname};
 use crate::install::progress::InstallProgress;
 use crate::install::{download_install_s9pk, PKG_PUBLIC_DIR};
 use crate::net::ssl::SslManager;
 use crate::notifications::NotificationLevel;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::s9pk::reader::S9pkReader;
-use crate::setup::RecoveryStatus;
+use crate::setup::SetupStatus;
 use crate::util::display_none;
 use crate::util::io::dir_size;
 use crate::util::serde::IoFormat;
@@ -140,7 +141,7 @@ async fn approximate_progress_loop(
             tracing::error!("Failed to approximate restore progress: {}", e);
             tracing::debug!("{:?}", e);
         } else {
-            *ctx.recovery_status.write().await = Some(Ok(starting_info.flatten()));
+            *ctx.setup_status.write().await = Some(Ok(starting_info.flatten()));
         }
         tokio::time::sleep(Duration::from_secs(1)).await;
     }
@@ -153,7 +154,7 @@ struct ProgressInfo {
     target_volume_size: BTreeMap<PackageId, u64>,
 }
 impl ProgressInfo {
-    fn flatten(&self) -> RecoveryStatus {
+    fn flatten(&self) -> SetupStatus {
         let mut total_bytes = 0;
         let mut bytes_transferred = 0;
 
@@ -176,7 +177,7 @@ impl ProgressInfo {
             bytes_transferred = total_bytes;
         }
 
-        RecoveryStatus {
+        SetupStatus {
             total_bytes,
             bytes_transferred,
             complete: false,
@@ -191,7 +192,7 @@ pub async fn recover_full_embassy(
     embassy_password: String,
     recovery_source: TmpMountGuard,
     recovery_password: Option<String>,
-) -> Result<(OnionAddressV3, X509, BoxFuture<'static, Result<(), Error>>), Error> {
+) -> Result<(Arc<String>, Hostname, OnionAddressV3, X509), Error> {
     let backup_guard = BackupMountGuard::mount(
         recovery_source,
         recovery_password.as_deref().unwrap_or_default(),
@@ -232,67 +233,69 @@ pub async fn recover_full_embassy(
     .await?;
     secret_store.close().await;
 
+    let rpc_ctx = RpcContext::init(ctx.config_path.clone(), disk_guid.clone()).await?;
+    let mut db = rpc_ctx.db.handle();
+
+    let receipts = crate::hostname::HostNameReceipt::new(&mut db).await?;
+    let hostname = get_hostname(&mut db, &receipts).await?;
+
+    drop(db);
+    let mut db = rpc_ctx.db.handle();
+
+    let ids = backup_guard
+        .metadata
+        .package_backups
+        .keys()
+        .cloned()
+        .collect();
+    let (backup_guard, tasks, progress_info) =
+        restore_packages(&rpc_ctx, &mut db, backup_guard, ids).await?;
+
+    tokio::select! {
+        res = futures::future::join_all(tasks) => {
+            for res in res {
+                match res.with_kind(crate::ErrorKind::Unknown) {
+                    Ok((Ok(_), _)) => (),
+                    Ok((Err(err), package_id)) => {
+                        if let Err(err) = rpc_ctx.notification_manager.notify(
+                            &mut db,
+                            Some(package_id.clone()),
+                            NotificationLevel::Error,
+                            "Restoration Failure".to_string(), format!("Error restoring package {}: {}", package_id,err), (), None).await{
+                            tracing::error!("Failed to notify: {}", err);
+                            tracing::debug!("{:?}", err);
+                            };
+                        tracing::error!("Error restoring package {}: {}", package_id, err);
+                        tracing::debug!("{:?}", err);
+                    },
+                    Err(e) => {
+                        if let Err(err) = rpc_ctx.notification_manager.notify(
+                            &mut db,
+                            None,
+                            NotificationLevel::Error,
+                            "Restoration Failure".to_string(), format!("Error during restoration: {}", e), (), None).await {
+
+                            tracing::error!("Failed to notify: {}", err);
+                            tracing::debug!("{:?}", err);
+                        }
+                        tracing::error!("Error restoring packages: {}", e);
+                        tracing::debug!("{:?}", e);
+                    },
+
+                }
+            }
+        },
+        _ = approximate_progress_loop(&ctx, &rpc_ctx, progress_info) => unreachable!(concat!(module_path!(), "::approximate_progress_loop should not terminate")),
+    }
+
+    backup_guard.unmount().await?;
+    rpc_ctx.shutdown().await?;
+
     Ok((
+        disk_guid,
+        hostname,
         os_backup.tor_key.public().get_onion_address(),
         os_backup.root_ca_cert,
-        async move {
-            let rpc_ctx = RpcContext::init(ctx.config_path.clone(), disk_guid).await?;
-            let mut db = rpc_ctx.db.handle();
-
-            let ids = backup_guard
-            .metadata
-            .package_backups
-            .keys()
-            .cloned()
-            .collect();
-            let (backup_guard, tasks, progress_info) = restore_packages(
-                &rpc_ctx,
-                &mut db,
-                backup_guard,
-                ids,
-            )
-            .await?;
-
-            tokio::select! {
-                res = futures::future::join_all(tasks) => {
-                    for res in res {
-                        match res.with_kind(crate::ErrorKind::Unknown) {
-                            Ok((Ok(_), _)) => (),
-                            Ok((Err(err), package_id)) => {
-                                if let Err(err) = rpc_ctx.notification_manager.notify(
-                                    &mut db,
-                                    Some(package_id.clone()),
-                                    NotificationLevel::Error,
-                                    "Restoration Failure".to_string(), format!("Error restoring package {}: {}", package_id,err), (), None).await{
-                                    tracing::error!("Failed to notify: {}", err);
-                                    tracing::debug!("{:?}", err);
-                                    };
-                                tracing::error!("Error restoring package {}: {}", package_id, err);
-                                tracing::debug!("{:?}", err);
-                            },
-                            Err(e) => {
-                                if let Err(err) = rpc_ctx.notification_manager.notify(
-                                    &mut db,
-                                    None,
-                                    NotificationLevel::Error,
-                                    "Restoration Failure".to_string(), format!("Error during restoration: {}", e), (), None).await {
-
-                                    tracing::error!("Failed to notify: {}", err);
-                                    tracing::debug!("{:?}", err);
-                                }
-                                tracing::error!("Error restoring packages: {}", e);
-                                tracing::debug!("{:?}", e);
-                            },
-
-                        }
-                    }
-                },
-                _ = approximate_progress_loop(&ctx, &rpc_ctx, progress_info) => unreachable!(concat!(module_path!(), "::approximate_progress_loop should not terminate")),
-            }
-
-            backup_guard.unmount().await?;
-            rpc_ctx.shutdown().await
-        }.boxed()
     ))
 }
 

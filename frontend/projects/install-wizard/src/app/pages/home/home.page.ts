@@ -47,27 +47,24 @@ export class HomePage {
   }
 
   async tryInstall(overwrite: boolean) {
-    if (!this.selectedDisk) return
-
-    const { logicalname, guid } = this.selectedDisk
-
-    const hasEmbassyData = !!guid
-
-    if (hasEmbassyData && !overwrite) {
-      return this.install(logicalname, overwrite)
+    if (overwrite) {
+      return this.presentAlertDanger()
     }
 
-    await this.presentAlertDanger(logicalname, hasEmbassyData)
+    this.install(false)
   }
 
-  private async install(logicalname: string, overwrite: boolean) {
+  private async install(overwrite: boolean) {
     const loader = await this.loadingCtrl.create({
       message: 'Installing embassyOS...',
     })
     await loader.present()
 
     try {
-      await this.api.install({ logicalname, overwrite })
+      await this.api.install({
+        logicalname: this.selectedDisk!.logicalname,
+        overwrite,
+      })
       this.presentAlertReboot()
     } catch (e: any) {
       this.error = e.message
@@ -76,17 +73,14 @@ export class HomePage {
     }
   }
 
-  private async presentAlertDanger(
-    logicalname: string,
-    hasEmbassyData: boolean,
-  ) {
-    const message = hasEmbassyData
-      ? 'This action COMPLETELY erases your existing Embassy data'
-      : `This action COMPLETELY erases the disk ${logicalname} and installs embassyOS`
+  private async presentAlertDanger() {
+    const { vendor, model } = this.selectedDisk!
 
     const alert = await this.alertCtrl.create({
       header: 'Warning',
-      message,
+      message: `This action will COMPLETELY erase the disk ${
+        vendor || 'Unknown Vendor'
+      } - ${model || 'Unknown Model'} and install embassyOS in its place`,
       buttons: [
         {
           text: 'Cancel',
@@ -95,7 +89,7 @@ export class HomePage {
         {
           text: 'Continue',
           handler: () => {
-            this.install(logicalname, true)
+            this.install(true)
           },
         },
       ],

@@ -32,8 +32,7 @@ export class TransferPage {
 
   async getDrives() {
     try {
-      const drives = await this.apiService.getDrives()
-      this.drives = drives.filter(d => d.partitions.length)
+      this.drives = await this.apiService.getDrives()
     } catch (e: any) {
       this.errToastService.present(e)
     } finally {
@@ -58,9 +57,7 @@ export class TransferPage {
               type: 'migrate',
               guid,
             }
-            this.navCtrl.navigateForward(`/embassy`, {
-              queryParams: { action: 'transfer' },
-            })
+            this.navCtrl.navigateForward(`/embassy`)
           },
         },
       ],
