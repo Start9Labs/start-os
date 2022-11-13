@@ -36,6 +36,7 @@ jobs:
       id: debspawn-cache
       with:
         path: /var/lib/debspawn
+        key: ${{ runner.os }}-debspawn-byzantium
 
     - name: Make build container
       run: "debspawn list | grep byzantium-buildd-amd64 || debspawn create byzantium"
