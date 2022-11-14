@@ -22,7 +22,7 @@ export class PatchDataService extends Observable<DataModel> {
     switchMap(() => this.patch.watch$()),
     take(1),
     tap(({ ui }) => {
-      // check for updates to EOS and services
+      // check for updates to eOS and services
       this.checkForUpdates()
       // show eos welcome message
       this.showEosWelcome(ui['ack-welcome'])
