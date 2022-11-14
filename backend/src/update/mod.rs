@@ -244,7 +244,7 @@ impl EosUrl {
             .ok_or_else(|| Error::new(eyre!("Could not get host of base"), ErrorKind::ParseUrl))?;
         let version: &Version = &self.version;
         let arch = &*crate::ARCH;
-        Ok(format!("{host}::{version}/{arch}")
+        Ok(format!("{host}::{version}/{arch}/")
             .parse()
             .map_err(|e| Error::new(eyre!("Could not parse path"), ErrorKind::ParseUrl))?)
     }
