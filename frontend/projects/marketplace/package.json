@@ -1,11 +1,11 @@
 {
   "name": "@start9labs/marketplace",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "peerDependencies": {
     "@angular/common": ">=13.2.0",
     "@angular/core": ">=13.2.0",
     "@ionic/angular": ">=6.0.0",
-    "@start9labs/shared": ">=0.2.0",
+    "@start9labs/shared": ">=0.3.0",
     "fuse.js": "^6.4.6"
   },
   "dependencies": {
