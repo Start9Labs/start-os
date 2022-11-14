@@ -98,7 +98,7 @@ pub enum Input {
     /// Send the sigkill to the process
     Kill(),
     /// Send the sigterm to the process
-    Term(),
+    SendSignal(u32),
 }
 
 #[test]

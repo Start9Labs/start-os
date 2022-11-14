@@ -17,8 +17,8 @@ pub type ExecCommand = Arc<
 >;
 
 /// Used by the js-executor, it is the ability to just create a command in an already running exec
-pub type TermCommand = Arc<
-    dyn Fn(RpcId) -> Pin<Box<dyn Future<Output = Result<(), String>> + 'static>>
+pub type SendKillSignal = Arc<
+    dyn Fn(RpcId, u32) -> Pin<Box<dyn Future<Output = Result<(), String>> + 'static>>
         + Send
         + Sync
         + 'static,

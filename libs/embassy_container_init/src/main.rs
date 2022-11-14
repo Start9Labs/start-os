@@ -168,8 +168,8 @@ impl Io {
                 Input::Kill() => {
                     io.trigger_end_command(id).await;
                 }
-                Input::Term() => {
-                    io.term_by_rpc(&id).await;
+                Input::SendSignal(signal) => {
+                    io.send_signal(&id,signal).await;
                 }
             }
         }
@@ -232,11 +232,13 @@ impl Io {
     }
 
     /// Given the rpcid, will try and term the running command
-    async fn term_by_rpc(&self, rpc: &RpcId) {
-        let output = match self.remove_cmd_id(rpc).await {
+    async fn send_signal(&self, rpc: &RpcId, signal: u32) {
+        let output = match self.get_cmd_id(rpc).await {
             Some(id) => {
                 let mut cmd = tokio::process::Command::new("kill");
-                cmd.arg(format!("{}", id.0));
+                cmd.arg("-s")
+                    .arg(format!("{signal}"))
+                    .arg(format!("{}", id.0));
                 cmd.output().await
             }
             None => return,
@@ -251,15 +253,15 @@ impl Io {
     }
 
     /// Used as a cleanup
-    async fn term_all(self) {
+    async fn cleanup_processes(self) {
         let ids: Vec<_> = self.ids.lock().await.keys().cloned().collect();
         for id in ids {
-            self.term_by_rpc(&id).await;
+            self.send_signal(&id, 15).await;
         }
     }
 
-    async fn remove_cmd_id(&self, rpc: &RpcId) -> Option<ProcessId> {
-        self.ids.lock().await.remove(rpc)
+    async fn get_cmd_id(&self, rpc: &RpcId) -> Option<ProcessId> {
+        self.ids.lock().await.get(rpc).cloned()
     }
 }
 #[tokio::main]
@@ -294,6 +296,6 @@ async fn main() {
             tracing::debug!("Sighangup")
         }
     }
-    io.term_all().await;
+    io.cleanup_processes().await;
     ::std::process::exit(0);
 }

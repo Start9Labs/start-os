@@ -54,8 +54,8 @@ const runDaemon = (
       waitPromise = waitPromise || Deno.core.opAsync("wait_command", await rpcId)
       return waitPromise
     },
-    async term() {
-      return Deno.core.opAsync("term_command", await rpcId)
+    async term(signal = 15) {
+      return Deno.core.opAsync("term_command", await rpcId, 15)
     }
   }
 };

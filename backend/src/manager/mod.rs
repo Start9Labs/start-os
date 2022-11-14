@@ -10,7 +10,7 @@ use std::time::Duration;
 use bollard::container::{KillContainerOptions, StopContainerOptions};
 use color_eyre::eyre::eyre;
 use embassy_container_init::{InputJsonRpc, RpcId};
-use models::{ExecCommand, TermCommand};
+use models::{ExecCommand, SendKillSignal};
 use nix::sys::signal::Signal;
 use num_enum::TryFromPrimitive;
 use patch_db::DbHandle;
@@ -405,8 +405,8 @@ impl Manager {
     pub fn exec_command(&self) -> ExecCommand {
         self.persistant_container.exec_command()
     }
-    pub fn term_command(&self) -> TermCommand {
-        self.persistant_container.term_command()
+    pub fn term_command(&self) -> SendKillSignal {
+        self.persistant_container.create_send_kill_signal()
     }
 }
 
@@ -512,7 +512,7 @@ impl Drop for CommandInserter {
         } = self;
         let upper: usize = command_counter.load(Ordering::Relaxed);
         for i in 0..upper {
-            let _ignored_result = input.send(JsonRpc::new(RpcId::UInt(i as u32), Input::Term()));
+            let _ignored_result = input.send(JsonRpc::new(RpcId::UInt(i as u32), Input::Kill()));
         }
     }
 }
@@ -568,21 +568,21 @@ impl CommandInserter {
         let mut outputs = self.outputs.lock().await;
         let command_counter = self.command_counter.fetch_add(1, Ordering::SeqCst) as u32;
         let command_id = RpcId::UInt(command_counter);
-        outputs.insert(command_id.clone(), sender);
+        outputs.insert(command_id, sender);
         if let Some(timeout) = timeout {
             tokio::spawn({
                 let input = self.input.clone();
-                let command_id = command_id.clone();
+                let command_id = command_id;
                 async move {
                     tokio::time::sleep(timeout).await;
                     let _ignored_output = input.send(JsonRpc::new(command_id, Input::Kill()));
                 }
             });
         }
-        if let Err(err) = self.input.send(JsonRpc::new(
-            command_id.clone(),
-            Input::Command { command, args },
-        )) {
+        if let Err(err) = self
+            .input
+            .send(JsonRpc::new(command_id, Input::Command { command, args }))
+        {
             tracing::warn!("Trying to send to input but can't");
             tracing::debug!("{err:?}");
             return None;
@@ -590,15 +590,17 @@ impl CommandInserter {
 
         Some(command_id)
     }
-    pub async fn term(&self, id: RpcId) {
+    pub async fn send_kill_command(&self, id: RpcId, command: u32) {
         use embassy_container_init::{Input, JsonRpc};
         self.outputs.lock().await.remove(&id);
-        let _ignored_term = self.input.send(JsonRpc::new(id, Input::Term()));
+        let _ignored_term = self
+            .input
+            .send(JsonRpc::new(id, Input::SendSignal(command)));
     }
 
     pub async fn term_all(&self) {
         for i in 0..self.command_counter.load(Ordering::Relaxed) {
-            self.term(RpcId::UInt(i as u32)).await;
+            self.send_kill_command(RpcId::UInt(i as u32), 15).await;
         }
     }
 }
@@ -660,18 +662,18 @@ impl PersistantContainer {
     async fn done_waiting(&self) {
         self.wait_for_start.0.send(false).unwrap();
     }
-    fn term_command(&self) -> TermCommand {
+    fn create_send_kill_signal(&self) -> SendKillSignal {
         let cloned = self.command_inserter.clone();
-        Arc::new(move |id| {
+        Arc::new(move |id, signal| {
             let cloned = cloned.clone();
             Box::pin(async move {
                 let lock = cloned.lock().await;
-                let _id = match &*lock {
-                    Some(command_inserter) => command_inserter.term(id).await,
+                match &*lock {
+                    Some(command_inserter) => command_inserter.send_kill_command(id, signal).await,
                     None => {
                         return Err("Couldn't get a command inserter in current service".to_string())
                     }
-                };
+                }
                 Ok::<(), String>(())
             })
         })
@@ -698,7 +700,7 @@ impl PersistantContainer {
                         }
                     };
                     for id in ids {
-                        command_inserter.term(id).await;
+                        command_inserter.send_kill_command(id, 9).await;
                     }
                 });
             }
@@ -719,7 +721,7 @@ impl PersistantContainer {
                             .await
                         {
                             let mut cleaner = cleaner.lock().await;
-                            cleaner.ids.insert(id.clone());
+                            cleaner.ids.insert(id);
                             id
                         } else {
                             return Err("Couldn't get command started ".to_string());

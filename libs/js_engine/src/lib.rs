@@ -13,7 +13,7 @@ use deno_core::{
 };
 use embassy_container_init::RpcId;
 use helpers::{script_dir, spawn_local, Rsync};
-use models::{ExecCommand, PackageId, ProcedureName, TermCommand, Version, VolumeId};
+use models::{ExecCommand, PackageId, ProcedureName, SendKillSignal, Version, VolumeId};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::io::AsyncReadExt;
@@ -97,7 +97,7 @@ struct JsContext {
     input: Value,
     variable_args: Vec<serde_json::Value>,
     command_inserter: ExecCommand,
-    term_command: TermCommand,
+    term_command: SendKillSignal,
     wait_fns: WaitFns,
     rsyncs: Arc<Mutex<(usize, BTreeMap<usize, Rsync>)>>,
 }
@@ -187,7 +187,7 @@ pub struct JsExecutionEnvironment {
     version: Version,
     volumes: Arc<dyn PathForVolumeId>,
     command_inserter: ExecCommand,
-    term_command: TermCommand,
+    term_command: SendKillSignal,
 }
 
 impl JsExecutionEnvironment {
@@ -197,7 +197,7 @@ impl JsExecutionEnvironment {
         version: &Version,
         volumes: Box<dyn PathForVolumeId>,
         command_inserter: ExecCommand,
-        term_command: TermCommand,
+        term_command: SendKillSignal,
     ) -> Result<JsExecutionEnvironment, (JsError, String)> {
         let data_dir = data_directory.as_ref();
         let base_directory = data_dir;
@@ -390,7 +390,7 @@ mod fns {
     use deno_core::*;
     use embassy_container_init::{ProcessId, RpcId};
     use helpers::{to_tmp_path, AtomicFile, Rsync, RsyncOptions};
-    use models::{TermCommand, VolumeId};
+    use models::{SendKillSignal, VolumeId};
     use serde::{Deserialize, Serialize};
     use serde_json::Value;
     use tokio::io::AsyncWriteExt;
@@ -930,13 +930,17 @@ mod fns {
     }
 
     #[op]
-    async fn term_command(state: Rc<RefCell<OpState>>, id: u32) -> Result<(), AnyError> {
-        let term_command_impl: TermCommand = {
+    async fn term_command(
+        state: Rc<RefCell<OpState>>,
+        id: u32,
+        signal: u32,
+    ) -> Result<(), AnyError> {
+        let term_command_impl: SendKillSignal = {
             let state = state.borrow();
             let ctx = state.borrow::<JsContext>();
             ctx.term_command.clone()
         };
-        if let Err(err) = term_command_impl(embassy_container_init::RpcId::UInt(id)).await {
+        if let Err(err) = term_command_impl(embassy_container_init::RpcId::UInt(id), signal).await {
             bail!("{}", err);
         }
         Ok(())
