@@ -15,7 +15,7 @@ jobs:
 
   iso:
     name: Build iso
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: [dpkg]
     steps:
     - uses: actions/checkout@v3
