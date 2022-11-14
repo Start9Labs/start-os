@@ -24,6 +24,7 @@ jobs:
 
     - name: Install dependencies
       run: |
+        apt update
         wget http://repo.pureos.net/pureos/pool/main/d/debspawn/debspawn_0.5.1-1_all.deb
         sudo apt-get install -y ./debspawn_0.5.1-1_all.deb
         wget https://repo.pureos.net/pureos/pool/main/d/debootstrap/debootstrap_1.0.125pureos1_all.deb
