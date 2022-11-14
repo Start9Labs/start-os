@@ -26,10 +26,6 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y debspawn
-        wget https://repo.pureos.net/pureos/pool/main/d/debootstrap/debootstrap_1.0.125pureos1_all.deb
-        sudo apt-get install -y ./debootstrap_1.0.125pureos1_all.deb
-        wget https://repo.pureos.net/pureos/pool/main/p/pureos-archive-keyring/pureos-archive-keyring_2021.11.0_all.deb
-        sudo apt-get install -y ./pureos-archive-keyring_2021.11.0_all.deb
 
     - name: Configure debspawn
       run: |
