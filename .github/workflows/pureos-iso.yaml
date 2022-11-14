@@ -54,7 +54,7 @@ jobs:
         path: overlays/vendor/root
 
     - name: Run build
-      run: './run-local-build.sh byzantium none custom "" true'
+      run: './run-local-build.sh --no-fakemachine byzantium none custom "" true'
 
     - uses: actions/upload-artifact@v3
       with:
