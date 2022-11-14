@@ -8,6 +8,8 @@
 
 
 cat > /etc/rsyncd.conf << RD
+uid = root
+gid = root
 use chroot = yes
 max connections = 4
 pid file = /var/run/rsyncd.pid
