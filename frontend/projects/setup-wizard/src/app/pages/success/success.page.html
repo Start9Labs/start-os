@@ -2,245 +2,267 @@
   <ion-grid>
     <ion-row>
       <ion-col>
-        <ion-card color="dark">
-          <ion-card-header class="ion-text-center" color="success">
-            <ion-icon
-              style="font-size: 80px"
-              name="checkmark-circle-outline"
-            ></ion-icon>
-            <ion-card-title>Setup Complete</ion-card-title>
-            <ion-card-subtitle
-              ><b
-                >You have successfully claimed your Embassy!</b
-              ></ion-card-subtitle
-            >
-            <br />
-          </ion-card-header>
-          <ion-card-content>
-            <br />
-            <br />
-            <h2 *ngIf="recoverySource" class="ion-padding-bottom">
-              <span *ngIf="recoverySource.type === 'backup'"
-                >You can now safely unplug your backup drive.</span
+        <!-- kiosk mode  -->
+        <ng-container *ngIf="isKiosk; else notKiosk">
+          <ion-card color="dark">
+            <ion-card-header class="ion-text-center" color="success">
+              <ion-icon
+                style="font-size: 80px"
+                name="checkmark-circle-outline"
+              ></ion-icon>
+              <ion-card-title>Setup Complete</ion-card-title>
+              <ion-card-subtitle
+                ><b>You will be redirected momentarily</b></ion-card-subtitle
               >
-              <span *ngIf="recoverySource.type === 'migrate'"
-                >You can now safely unplug your old drive.</span
-              >
-            </h2>
-            <h2 style="font-weight: bold">
-              Access your Embassy using the methods below. You should
-              <a (click)="download()" class="inline">
-                download this page <ion-icon name="download-outline"></ion-icon>
-              </a>
-              for your records.
-            </h2>
-
-            <div class="line"></div>
-
-            <!-- LAN Instructions -->
-            <h1><b>From Home (LAN)</b></h1>
-
-            <div class="ion-padding ion-text-start">
-              <p>
-                Visit the address below when you are connected to the same WiFi
-                or Local Area Network (LAN) as your Embassy:
-              </p>
-
               <br />
+            </ion-card-header>
+          </ion-card>
+        </ng-container>
 
-              <p>
-                <b>Note:</b> embassy.local was for setup purposes only, it will
-                no longer work.
-              </p>
-
-              <ion-item
-                lines="none"
-                color="dark"
-                class="ion-padding-top ion-padding-bottom"
+        <!-- not kiosk -->
+        <ng-template #notKiosk>
+          <ion-card color="dark">
+            <ion-card-header class="ion-text-center" color="success">
+              <ion-icon
+                style="font-size: 80px"
+                name="checkmark-circle-outline"
+              ></ion-icon>
+              <ion-card-title>Setup Complete</ion-card-title>
+              <ion-card-subtitle
+                ><b>See below for next steps</b></ion-card-subtitle
               >
-                <ion-label class="ion-text-wrap">
-                  <code
-                    ><ion-text color="light"
-                      ><b>{{ lanAddress }}</b></ion-text
-                    ></code
-                  >
-                </ion-label>
-                <ion-button
-                  color="light"
-                  fill="clear"
-                  [href]="lanAddress"
-                  target="_blank"
+              <br />
+            </ion-card-header>
+            <ion-card-content>
+              <br />
+              <br />
+              <h2 *ngIf="recoverySource" class="ion-padding-bottom">
+                <span *ngIf="recoverySource.type === 'backup'"
+                  >You can now safely unplug your backup drive.</span
                 >
-                  <ion-icon slot="icon-only" name="open-outline"></ion-icon>
-                </ion-button>
-                <ion-button
-                  color="light"
-                  fill="clear"
-                  (click)="copy(lanAddress)"
+                <span *ngIf="recoverySource.type === 'migrate'"
+                  >You can now safely unplug your old drive.</span
                 >
-                  <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
-                </ion-button>
-              </ion-item>
-
-              <p>
-                <b>Important!</b>
-                Your browser will warn you that the website is untrusted. You
-                can bypass this warning on most browsers. The warning will go
-                away after you
-                <a
-                  href="https://docs.start9.com/latest/user-manual/connecting/connecting-lan"
-                  target="_blank"
-                  rel="noreferrer"
-                  class="inline"
-                >
-                  follow the instructions
-                  <ion-icon name="open-outline"></ion-icon>
+              </h2>
+              <h2 style="font-weight: bold">
+                Access your Embassy using the methods below. You should
+                <a (click)="download()" class="inline">
+                  download this page
+                  <ion-icon name="download-outline"></ion-icon>
                 </a>
-                to download and trust your Embassy's Root Certificate Authority.
-              </p>
+                for your records.
+              </h2>
 
-              <ion-button style="margin-top: 24px" (click)="installCert()">
-                Download Root CA
-                <ion-icon slot="end" name="download-outline"></ion-icon>
-              </ion-button>
-            </div>
+              <div class="line"></div>
 
-            <div class="line"></div>
+              <!-- LAN Instructions -->
+              <h1><b>From Home (LAN)</b></h1>
 
-            <!-- Tor Instructions -->
-            <h1><b>On The Go (Tor)</b></h1>
+              <div class="ion-padding ion-text-start">
+                <p>
+                  Visit the address below when you are connected to the same
+                  WiFi or Local Area Network (LAN) as your Embassy:
+                </p>
 
-            <div class="ion-padding ion-text-start">
-              <p>Visit the address below when you are away from home:</p>
+                <br />
 
-              <ion-item
-                lines="none"
-                color="dark"
-                class="ion-padding-top ion-padding-bottom"
-              >
-                <ion-label class="ion-text-wrap">
-                  <code
-                    ><ion-text color="light"
-                      ><b>{{ torAddress }}</b></ion-text
-                    ></code
+                <p>
+                  <b>Note:</b> embassy.local was for setup purposes only, it
+                  will no longer work.
+                </p>
+
+                <ion-item
+                  lines="none"
+                  color="dark"
+                  class="ion-padding-top ion-padding-bottom"
+                >
+                  <ion-label class="ion-text-wrap">
+                    <code
+                      ><ion-text color="light"
+                        ><b>{{ lanAddress }}</b></ion-text
+                      ></code
+                    >
+                  </ion-label>
+                  <ion-button
+                    color="light"
+                    fill="clear"
+                    [href]="lanAddress"
+                    target="_blank"
                   >
-                </ion-label>
-                <ion-button
-                  color="light"
-                  fill="clear"
-                  (click)="copy(torAddress)"
-                >
-                  <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
-                </ion-button>
-              </ion-item>
+                    <ion-icon slot="icon-only" name="open-outline"></ion-icon>
+                  </ion-button>
+                  <ion-button
+                    color="light"
+                    fill="clear"
+                    (click)="copy(lanAddress)"
+                  >
+                    <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
+                  </ion-button>
+                </ion-item>
 
-              <p>
-                <b>Important!</b>
-                This address will only work from a
-                <a
-                  href="https://docs.start9.com/latest/user-manual/connecting/connecting-tor"
-                  target="_blank"
-                  rel="noreferrer"
-                  class="inline"
-                >
-                  Tor-enabled browser
-                  <ion-icon name="open-outline"></ion-icon> </a
-                >.
-              </p>
-            </div>
-          </ion-card-content>
-          <div id="bottom-div"></div>
-        </ion-card>
+                <p>
+                  <b>Important!</b>
+                  Your browser will warn you that the website is untrusted. You
+                  can bypass this warning on most browsers. The warning will go
+                  away after you
+                  <a
+                    href="https://docs.start9.com/latest/user-manual/connecting/connecting-lan"
+                    target="_blank"
+                    rel="noreferrer"
+                    class="inline"
+                  >
+                    follow the instructions
+                    <ion-icon name="open-outline"></ion-icon>
+                  </a>
+                  to download and trust your Embassy's Root Certificate
+                  Authority.
+                </p>
 
-        <!-- scroll down -->
-        <div
-          [ngStyle]="{
-            position: 'fixed',
-            bottom: isOnBottom ? '-42px' : '24px',
-            transition: 'bottom 0.15s ease-out 0s',
-            right: '50%',
-            width: '120px',
-            'margin-right': '-60px',
-            'z-index': '1000'
-          }"
-        >
-          <ion-button color="warning" (click)="scrollToBottom()">
-            More
-            <ion-icon slot="end" name="chevron-down"></ion-icon>
-          </ion-button>
-        </div>
-
-        <!-- cert elem -->
-        <a hidden id="install-cert" download="embassy.crt"></a>
-
-        <!-- download elem -->
-        <div hidden id="downloadable">
-          <div style="padding: 0 24px; font-family: Courier">
-            <h1>Embassy Info</h1>
-
-            <section style="padding: 16px; border: solid 1px">
-              <h2>Tor Info</h2>
-              <p>
-                To use your Embassy over Tor, visit its unique Tor address from
-                any Tor-enabled browser.
-              </p>
-              <p>
-                For more detailed instructions, click
-                <a
-                  href="https://docs.start9.com/latest/user-manual/connecting/connecting-tor"
-                  target="_blank"
-                  rel="noreferrer"
-                  ><b>here</b></a
-                >.
-              </p>
-              <p><b>Tor Address: </b><code id="tor-addr"></code></p>
-            </section>
-
-            <section style="padding: 16px; border: solid 1px; border-top: none">
-              <h2>LAN Info</h2>
-              <p>To use your Embassy locally, you must:</p>
-              <ol>
-                <li>
-                  Currently be connected to the same Local Area Network (LAN) as
-                  your Embassy.
-                </li>
-                <li>Download your Embassy's Root Certificate Authority.</li>
-                <li>
-                  Trust your Embassy's Root CA on <i>both</i> your
-                  computer/phone and in your browser settings.
-                </li>
-              </ol>
-              <p>
-                For step-by-step instructions, click
-                <a
-                  href="https://docs.start9.com/latest/user-manual/connecting/connecting-lan"
-                  target="_blank"
-                  rel="noreferrer"
-                  ><b>here</b></a
-                >.
-              </p>
-
-              <div style="margin: 42px 0">
-                <a
-                  id="cert"
-                  download="embassy.crt"
-                  style="
-                    background: #25272b;
-                    padding: 10px;
-                    text-decoration: none;
-                    text-align: center;
-                    border-radius: 4px;
-                    color: white;
-                  "
-                >
+                <ion-button style="margin-top: 24px" (click)="installCert()">
                   Download Root CA
-                </a>
+                  <ion-icon slot="end" name="download-outline"></ion-icon>
+                </ion-button>
               </div>
 
-              <p><b>LAN Address: </b><code id="lan-addr"></code></p>
-            </section>
+              <div class="line"></div>
+
+              <!-- Tor Instructions -->
+              <h1><b>On The Go (Tor)</b></h1>
+
+              <div class="ion-padding ion-text-start">
+                <p>Visit the address below when you are away from home:</p>
+
+                <ion-item
+                  lines="none"
+                  color="dark"
+                  class="ion-padding-top ion-padding-bottom"
+                >
+                  <ion-label class="ion-text-wrap">
+                    <code
+                      ><ion-text color="light"
+                        ><b>{{ torAddress }}</b></ion-text
+                      ></code
+                    >
+                  </ion-label>
+                  <ion-button
+                    color="light"
+                    fill="clear"
+                    (click)="copy(torAddress)"
+                  >
+                    <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
+                  </ion-button>
+                </ion-item>
+
+                <p>
+                  <b>Important!</b>
+                  This address will only work from a
+                  <a
+                    href="https://docs.start9.com/latest/user-manual/connecting/connecting-tor"
+                    target="_blank"
+                    rel="noreferrer"
+                    class="inline"
+                  >
+                    Tor-enabled browser
+                    <ion-icon name="open-outline"></ion-icon> </a
+                  >.
+                </p>
+              </div>
+            </ion-card-content>
+            <div id="bottom-div"></div>
+          </ion-card>
+
+          <!-- scroll down -->
+          <div
+            [ngStyle]="{
+              position: 'fixed',
+              bottom: isOnBottom ? '-42px' : '24px',
+              transition: 'bottom 0.15s ease-out 0s',
+              right: '50%',
+              width: '120px',
+              'margin-right': '-60px',
+              'z-index': '1000'
+            }"
+          >
+            <ion-button color="warning" (click)="scrollToBottom()">
+              More
+              <ion-icon slot="end" name="chevron-down"></ion-icon>
+            </ion-button>
           </div>
-        </div>
+
+          <!-- cert elem -->
+          <a hidden id="install-cert" download="embassy.crt"></a>
+
+          <!-- download elem -->
+          <div hidden id="downloadable">
+            <div style="padding: 0 24px; font-family: Courier">
+              <h1>Embassy Info</h1>
+
+              <section style="padding: 16px; border: solid 1px">
+                <h2>Tor Info</h2>
+                <p>
+                  To use your Embassy over Tor, visit its unique Tor address
+                  from any Tor-enabled browser.
+                </p>
+                <p>
+                  For more detailed instructions, click
+                  <a
+                    href="https://docs.start9.com/latest/user-manual/connecting/connecting-tor"
+                    target="_blank"
+                    rel="noreferrer"
+                    ><b>here</b></a
+                  >.
+                </p>
+                <p><b>Tor Address: </b><code id="tor-addr"></code></p>
+              </section>
+
+              <section
+                style="padding: 16px; border: solid 1px; border-top: none"
+              >
+                <h2>LAN Info</h2>
+                <p>To use your Embassy locally, you must:</p>
+                <ol>
+                  <li>
+                    Currently be connected to the same Local Area Network (LAN)
+                    as your Embassy.
+                  </li>
+                  <li>Download your Embassy's Root Certificate Authority.</li>
+                  <li>
+                    Trust your Embassy's Root CA on <i>both</i> your
+                    computer/phone and in your browser settings.
+                  </li>
+                </ol>
+                <p>
+                  For step-by-step instructions, click
+                  <a
+                    href="https://docs.start9.com/latest/user-manual/connecting/connecting-lan"
+                    target="_blank"
+                    rel="noreferrer"
+                    ><b>here</b></a
+                  >.
+                </p>
+
+                <div style="margin: 42px 0">
+                  <a
+                    id="cert"
+                    download="embassy.crt"
+                    style="
+                      background: #25272b;
+                      padding: 10px;
+                      text-decoration: none;
+                      text-align: center;
+                      border-radius: 4px;
+                      color: white;
+                    "
+                  >
+                    Download Root CA
+                  </a>
+                </div>
+
+                <p><b>LAN Address: </b><code id="lan-addr"></code></p>
+              </section>
+            </div>
+          </div>
+        </ng-template>
       </ion-col>
     </ion-row>
   </ion-grid>

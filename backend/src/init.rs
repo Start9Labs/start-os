@@ -6,6 +6,7 @@ use std::time::Duration;
 use color_eyre::eyre::eyre;
 use helpers::NonDetachingJoinHandle;
 use patch_db::{DbHandle, LockReceipt, LockType};
+use sqlx::{Pool, Postgres};
 use tokio::process::Command;
 
 use crate::context::rpc::RpcContextConfig;
@@ -190,6 +191,7 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
 }
 
 pub struct InitResult {
+    pub secret_store: Pool<Postgres>,
     pub db: patch_db::PatchDb,
 }
 
@@ -360,5 +362,5 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
 
     tracing::info!("System initialized.");
 
-    Ok(InitResult { db })
+    Ok(InitResult { secret_store, db })
 }
