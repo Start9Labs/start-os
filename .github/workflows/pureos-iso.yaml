@@ -24,8 +24,8 @@ jobs:
 
     - name: Install dependencies
       run: |
-        sudo apt-get update
-        sudo apt-get install -y debspawn
+        wget http://repo.pureos.net/pureos/pool/main/d/debspawn/debspawn_0.5.1-1_all.deb
+        sudo apt-get install -y ./debspawn_0.5.1-1_all.deb
         wget https://repo.pureos.net/pureos/pool/main/d/debootstrap/debootstrap_1.0.125pureos1_all.deb
         sudo apt-get install -y --allow-downgrades ./debootstrap_1.0.125pureos1_all.deb
         wget https://repo.pureos.net/pureos/pool/main/p/pureos-archive-keyring/pureos-archive-keyring_2021.11.0_all.deb
@@ -54,9 +54,7 @@ jobs:
 
     - name: Run build
       run: |
-        cat run-local-build.sh | grep -v kvm > run-local-build-no-kvm.sh
-        chmod +x run-local-build-no-kvm.sh
-        ./run-local-build-no-kvm.sh byzantium none custom "" true
+        ./run-local-build.sh --no-fakemachine byzantium none custom "" true
 
     - uses: actions/upload-artifact@v3
       with:
