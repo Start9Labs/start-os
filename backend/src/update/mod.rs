@@ -27,7 +27,7 @@ use crate::update::latest_information::LatestInformation;
 
 use crate::util::Invoke;
 use crate::version::{Current, VersionT};
-use crate::{Error, ErrorKind, ResultExt};
+use crate::{Error, ErrorKind, ResultExt, IS_RASPBERRY_PI};
 
 mod latest_information;
 
@@ -243,7 +243,11 @@ impl EosUrl {
             .host_str()
             .ok_or_else(|| Error::new(eyre!("Could not get host of base"), ErrorKind::ParseUrl))?;
         let version: &Version = &self.version;
-        let arch = &*crate::ARCH;
+        let arch = if *IS_RASPBERRY_PI {
+            "raspberry_pi"
+        } else {
+            *crate::ARCH
+        };
         Ok(format!("{host}::{version}/{arch}/")
             .parse()
             .map_err(|e| Error::new(eyre!("Could not parse path"), ErrorKind::ParseUrl))?)
