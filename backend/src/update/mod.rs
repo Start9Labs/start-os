@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
@@ -16,11 +17,8 @@ use tracing::instrument;
 use crate::context::RpcContext;
 use crate::db::model::UpdateProgress;
 use crate::disk::mount::filesystem::bind::Bind;
-use crate::disk::mount::filesystem::block_dev::BlockDev;
-use crate::disk::mount::filesystem::httpdirfs::HttpDirFS;
-use crate::disk::mount::filesystem::ReadOnly;
 use crate::disk::mount::filesystem::ReadWrite;
-use crate::disk::mount::guard::{MountGuard, TmpMountGuard};
+use crate::disk::mount::guard::MountGuard;
 use crate::notifications::NotificationLevel;
 use crate::sound::{
     CIRCLE_OF_5THS_SHORT, UPDATE_FAILED_1, UPDATE_FAILED_2, UPDATE_FAILED_3, UPDATE_FAILED_4,
@@ -29,7 +27,7 @@ use crate::update::latest_information::LatestInformation;
 
 use crate::util::Invoke;
 use crate::version::{Current, VersionT};
-use crate::{Error, ErrorKind, ResultExt};
+use crate::{Error, ErrorKind, ResultExt, IS_RASPBERRY_PI};
 
 mod latest_information;
 
@@ -131,23 +129,10 @@ async fn maybe_do_update(
     // validate (hash) fs
     // kernel update?
     // swap selected fs
-    let new_block_dev = TmpMountGuard::mount(
-        &HttpDirFS::new(
-            EosUrl {
-                base: marketplace_url,
-                version: latest_version,
-            }
-            .to_string()
-            .parse()?,
-        ),
-        ReadOnly,
-    )
-    .await?;
-    let new_fs = TmpMountGuard::mount(
-        &BlockDev::new(new_block_dev.as_ref().join("eos.img")),
-        ReadOnly,
-    )
-    .await?;
+    let eos_url = EosUrl {
+        base: marketplace_url,
+        version: latest_version,
+    };
 
     status.update_progress = Some(UpdateProgress {
         size: Some(100),
@@ -157,7 +142,7 @@ async fn maybe_do_update(
     let rev = tx.commit().await?;
 
     tokio::spawn(async move {
-        let res = do_update(ctx.clone(), new_fs, new_block_dev).await;
+        let res = do_update(ctx.clone(), eos_url).await;
         let mut db = ctx.db.handle();
         let mut status = crate::db::DatabaseModel::new()
             .server_info()
@@ -212,14 +197,10 @@ async fn maybe_do_update(
     Ok(rev)
 }
 
-#[instrument(skip(ctx, new_fs, new_block_dev))]
-async fn do_update(
-    ctx: RpcContext,
-    new_fs: TmpMountGuard,
-    new_block_dev: TmpMountGuard,
-) -> Result<(), Error> {
+#[instrument(skip(ctx, eos_url))]
+async fn do_update(ctx: RpcContext, eos_url: EosUrl) -> Result<(), Error> {
     let mut rsync = Rsync::new(
-        new_fs.as_ref().join(""),
+        eos_url.rsync_path()?,
         "/media/embassy/next",
         Default::default(),
     )?;
@@ -238,8 +219,6 @@ async fn do_update(
             .await?;
     }
     rsync.wait().await?;
-    new_fs.unmount().await?;
-    new_block_dev.unmount().await?;
 
     copy_fstab().await?;
     copy_machine_id().await?;
@@ -255,16 +234,23 @@ struct EosUrl {
     base: Url,
     version: Version,
 }
-impl std::fmt::Display for EosUrl {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}/eos/v0/eos.img?spec=={}&eos-version={}&arch={}",
-            self.base,
-            self.version,
-            Current::new().semver(),
-            &*crate::ARCH,
-        )
+
+impl EosUrl {
+    #[instrument()]
+    pub fn rsync_path(&self) -> Result<PathBuf, Error> {
+        let host = self
+            .base
+            .host_str()
+            .ok_or_else(|| Error::new(eyre!("Could not get host of base"), ErrorKind::ParseUrl))?;
+        let version: &Version = &self.version;
+        let arch = if *IS_RASPBERRY_PI {
+            "raspberry_pi"
+        } else {
+            *crate::ARCH
+        };
+        Ok(format!("{host}::{version}/{arch}/")
+            .parse()
+            .map_err(|e| Error::new(eyre!("Could not parse path"), ErrorKind::ParseUrl))?)
     }
 }
 
