@@ -9,7 +9,7 @@ lazy_static::lazy_static! {
         arch
     };
     pub static ref IS_RASPBERRY_PI: bool = {
-        false
+        *ARCH == "aarch64"
     };
 }
 
