@@ -8,6 +8,9 @@ lazy_static::lazy_static! {
         let (arch, _) = TARGET.split_once("-").unwrap();
         arch
     };
+    pub static ref IS_RASPBERRY_PI: bool = {
+        *ARCH == "aarch64"
+    };
 }
 
 pub mod action;

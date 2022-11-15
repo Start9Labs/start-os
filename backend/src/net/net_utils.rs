@@ -18,7 +18,7 @@ pub fn host_addr_fqdn(req: &Request<Body>) -> Result<ResourceFqdn, Error> {
                 .map_err(|e| Error::new(eyre!("{}", e), crate::ErrorKind::AsciiError))?
                 .to_string();
 
-            let host_uri: ResourceFqdn = host_str.parse()?;
+            let host_uri: ResourceFqdn = host_str.split(':').next().unwrap().parse()?;
 
             Ok(host_uri)
         }
@@ -35,7 +35,7 @@ pub enum ResourceFqdn {
         root: String,
         tld: Tld,
     },
-    LocalHost
+    LocalHost,
 }
 
 impl fmt::Display for ResourceFqdn {
@@ -51,7 +51,7 @@ impl fmt::Display for ResourceFqdn {
             } => {
                 write!(f, "{}", full_uri)
             }
-            ResourceFqdn::LocalHost => write!(f, "localhost")
+            ResourceFqdn::LocalHost => write!(f, "localhost"),
         }
     }
 }
@@ -77,11 +77,10 @@ impl FromStr for ResourceFqdn {
     type Err = Error;
 
     fn from_str(input: &str) -> Result<ResourceFqdn, Self::Err> {
-
         if input == "localhost" {
             return Ok(ResourceFqdn::LocalHost);
         }
-        
+
         if let Ok(ip) = input.parse::<IpAddr>() {
             return Ok(ResourceFqdn::IpAddr(ip));
         }
