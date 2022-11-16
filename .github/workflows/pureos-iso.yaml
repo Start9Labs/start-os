@@ -40,10 +40,10 @@ jobs:
     - uses: actions/cache@v3
       with:
         path: /var/lib/debspawn
-        key: ${{ runner.os }}-debspawn-byzantium
+        key: ${{ runner.os }}-debspawn-init-byzantium
 
     - name: Make build container
-      run: "debspawn list | grep byzantium-buildd-amd64 || debspawn create byzantium"
+      run: "debspawn list | grep byzantium || debspawn create --with-init byzantium"
 
     - run: "mkdir -p overlays/vendor/root"
 
