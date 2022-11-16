@@ -160,28 +160,6 @@ export class AppShowStatusComponent {
     }
   }
 
-  async presentAlertRestart(): Promise<void> {
-    const alert = await this.alertCtrl.create({
-      header: 'Confirm',
-      message: 'Are you sure you want to restart this service?',
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
-        },
-        {
-          text: 'Restart',
-          handler: () => {
-            this.restart()
-          },
-          cssClass: 'enter-click',
-        },
-      ],
-    })
-
-    await alert.present()
-  }
-
   private get id(): string {
     return this.pkg.manifest.id
   }
