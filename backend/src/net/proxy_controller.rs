@@ -104,35 +104,16 @@ impl ProxyController {
             // connection be upgraded, so we can't return a response inside
             // `on_upgrade` future.
             match host_addr_fqdn(&req) {
-                Ok(host) => {
+                Ok(_host) => {
                     tokio::task::spawn(async move {
                         let addr = req.uri().clone();
+
                         match hyper::upgrade::on(req).await {
-                            Ok(upgraded) => match host {
-                                ResourceFqdn::IpAddr => {
-                                    if let Err(e) = Self::tunnel(upgraded, addr.to_string()).await {
-                                        error!("server io error: {}", e);
-                                    };
+                            Ok(upgraded) => {
+                                if let Err(e) = Self::tunnel(upgraded, addr.to_string()).await {
+                                    error!("server io error: {}", e);
                                 }
-                                ResourceFqdn::Uri {
-                                    full_uri,
-                                    root: _,
-                                    tld: _,
-                                } => {
-                                    if let Err(e) =
-                                        Self::tunnel(upgraded, full_uri.to_string()).await
-                                    {
-                                        error!("server io error: {}", e);
-                                    };
-                                }
-                                ResourceFqdn::LocalHost => {
-                                    if let Err(e) =
-                                        Self::tunnel(upgraded, "localhost".to_string()).await
-                                    {
-                                        error!("server io error: {}", e);
-                                    };
-                                }
-                            },
+                            }
                             Err(e) => error!("upgrade error: {}", e),
                         }
                     });

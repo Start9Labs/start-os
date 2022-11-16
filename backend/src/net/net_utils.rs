@@ -75,6 +75,10 @@ impl FromStr for ResourceFqdn {
     type Err = Error;
 
     fn from_str(input: &str) -> Result<ResourceFqdn, Self::Err> {
+        if input.parse::<IpAddr>().is_ok() {
+            return Ok(ResourceFqdn::IpAddr);
+        }
+
         if input == "localhost" {
             return Ok(ResourceFqdn::LocalHost);
         }
