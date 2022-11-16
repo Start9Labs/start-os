@@ -279,46 +279,6 @@ pub async fn execute(
         .arg(&disk.logicalname)
         .invoke(crate::ErrorKind::Unknown) // TODO grub
         .await?;
-    let kern_version = String::from_utf8(
-        Command::new("uname")
-            .arg("-r")
-            .invoke(crate::ErrorKind::Unknown) // TODO kernel
-            .await?,
-    )?;
-    let root_uuid = String::from_utf8(
-        Command::new("grub-probe")
-            .arg("-d")
-            .arg("-target=fs_uuid")
-            .arg(&root_part)
-            .invoke(crate::ErrorKind::Unknown)
-            .await?,
-    )?;
-    tokio::fs::write(
-        current.join("boot/kexec_default.1.txt"),
-        format!(
-            concat!(
-                "Debian GNU/Linux|",
-                "elf|",
-                "kernel /vmlinuz-{kern_version}|",
-                "initrd /initrd.img-{kern_version}|",
-                "append root=UUID={root_uuid} ro boot=embassy quiet splash",
-            ),
-            kern_version = &kern_version,
-            root_uuid = &root_uuid,
-        )
-        .as_bytes(),
-    )
-    .await?;
-    tokio::fs::write(
-        current.join("boot/kexec_default_hashes.txt"),
-        Command::new("sha256sum")
-            .arg(format!("./vmlinuz-{}", kern_version))
-            .arg(format!("./initrd.img-{}", kern_version))
-            .current_dir(current.join("boot"))
-            .invoke(crate::ErrorKind::Filesystem)
-            .await?,
-    )
-    .await?;
 
     dev.unmount().await?;
     sys.unmount().await?;
