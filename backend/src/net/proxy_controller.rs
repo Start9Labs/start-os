@@ -106,10 +106,11 @@ impl ProxyController {
             match host_addr_fqdn(&req) {
                 Ok(host) => {
                     tokio::task::spawn(async move {
+                        let addr = req.uri().clone();
                         match hyper::upgrade::on(req).await {
                             Ok(upgraded) => match host {
-                                ResourceFqdn::IpAddr(ip) => {
-                                    if let Err(e) = Self::tunnel(upgraded, ip.to_string()).await {
+                                ResourceFqdn::IpAddr => {
+                                    if let Err(e) = Self::tunnel(upgraded, addr.to_string()).await {
                                         error!("server io error: {}", e);
                                     };
                                 }
@@ -221,10 +222,11 @@ impl ProxyControllerInner {
         pkg_id: PackageId,
     ) -> Result<(), Error> {
         let package_cert = match resource_fqdn.clone() {
-            ResourceFqdn::IpAddr(ip) => {
-                self.ssl_manager
-                    .certificate_for(&ip.to_string(), &pkg_id)
-                    .await?
+            ResourceFqdn::IpAddr => {
+                return Err(Error::new(
+                    eyre!("ssl not supported for ip addresses"),
+                    crate::ErrorKind::Network,
+                ))
             }
             ResourceFqdn::Uri {
                 full_uri: _,
