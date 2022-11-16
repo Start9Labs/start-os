@@ -232,12 +232,12 @@ export class MockApiService extends ApiService {
   async updateServer(url?: string): Promise<RR.UpdateServerRes> {
     await pauseFor(2000)
     const initialProgress = {
-      size: 10000,
+      size: null,
       downloaded: 0,
     }
 
     setTimeout(() => {
-      this.updateOSProgress(initialProgress.size)
+      this.updateOSProgress()
     }, 500)
 
     const patch = [
@@ -916,8 +916,19 @@ export class MockApiService extends ApiService {
     }, 1000)
   }
 
-  private async updateOSProgress(size: number) {
+  private async updateOSProgress() {
+    let size = 10000
     let downloaded = 0
+
+    const patch0 = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/server-info/status-info/update-progress/size`,
+        value: size,
+      },
+    ]
+    this.mockRevision(patch0)
+
     while (downloaded < size) {
       await pauseFor(250)
       downloaded += 500
