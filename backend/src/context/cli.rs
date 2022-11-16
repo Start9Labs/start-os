@@ -21,7 +21,6 @@ use crate::ResultExt;
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct CliContextConfig {
-    pub bind_rpc: Option<SocketAddr>,
     pub host: Option<Url>,
     #[serde(deserialize_with = "crate::util::serde::deserialize_from_str_opt")]
     #[serde(default)]
@@ -81,11 +80,7 @@ impl CliContext {
         } else if let Some(host) = base.host {
             host
         } else {
-            format!(
-                "http://{}",
-                base.bind_rpc.unwrap_or(([127, 0, 0, 1], 80).into())
-            )
-            .parse()?
+            format!("http://localhost").parse()?
         };
         let proxy = if let Some(proxy) = matches.value_of("proxy") {
             Some(proxy.parse()?)

@@ -15,7 +15,6 @@ use crate::Error;
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct DiagnosticContextConfig {
-    pub ethernet_interface: String,
     pub datadir: Option<PathBuf>,
 }
 impl DiagnosticContextConfig {
@@ -44,7 +43,6 @@ impl DiagnosticContextConfig {
 }
 
 pub struct DiagnosticContextSeed {
-    pub ethernet_interface: String,
     pub datadir: PathBuf,
     pub shutdown: Sender<Option<Shutdown>>,
     pub error: Arc<RpcError>,
@@ -68,7 +66,6 @@ impl DiagnosticContext {
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
 
         Ok(Self(Arc::new(DiagnosticContextSeed {
-            ethernet_interface: cfg.ethernet_interface.clone(),
             datadir: cfg.datadir().to_owned(),
             shutdown,
             disk_guid,
