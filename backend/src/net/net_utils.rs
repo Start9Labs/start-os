@@ -29,7 +29,7 @@ pub fn host_addr_fqdn(req: &Request<Body>) -> Result<ResourceFqdn, Error> {
 
 #[derive(Eq, PartialEq, PartialOrd, Ord, Debug, Clone)]
 pub enum ResourceFqdn {
-    IpAddr(IpAddr),
+    IpAddr,
     Uri {
         full_uri: String,
         root: String,
@@ -41,9 +41,6 @@ pub enum ResourceFqdn {
 impl fmt::Display for ResourceFqdn {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ResourceFqdn::IpAddr(ip) => {
-                write!(f, "{}", ip)
-            }
             ResourceFqdn::Uri {
                 full_uri,
                 root: _,
@@ -52,6 +49,7 @@ impl fmt::Display for ResourceFqdn {
                 write!(f, "{}", full_uri)
             }
             ResourceFqdn::LocalHost => write!(f, "localhost"),
+            ResourceFqdn::IpAddr => write!(f, "ip-address"),
         }
     }
 }
@@ -77,12 +75,12 @@ impl FromStr for ResourceFqdn {
     type Err = Error;
 
     fn from_str(input: &str) -> Result<ResourceFqdn, Self::Err> {
-        if input == "localhost" {
-            return Ok(ResourceFqdn::LocalHost);
+        if input.parse::<IpAddr>().is_ok() {
+            return Ok(ResourceFqdn::IpAddr);
         }
 
-        if let Ok(ip) = input.parse::<IpAddr>() {
-            return Ok(ResourceFqdn::IpAddr(ip));
+        if input == "localhost" {
+            return Ok(ResourceFqdn::LocalHost);
         }
 
         let hostname_split: Vec<&str> = input.split('.').collect();

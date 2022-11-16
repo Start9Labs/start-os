@@ -7,7 +7,6 @@ use embassy::context::{DiagnosticContext, InstallContext, SetupContext};
 use embassy::disk::fsck::RepairStrategy;
 use embassy::disk::main::DEFAULT_PASSWORD;
 use embassy::disk::REPAIR_DISK_PATH;
-use embassy::hostname::get_current_ip;
 use embassy::init::STANDBY_MODE_PATH;
 use embassy::net::embassy_service_http_server::EmbassyServiceHTTPServer;
 #[cfg(feature = "avahi")]
@@ -32,8 +31,7 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
 
         let ctx = InstallContext::init(cfg_path).await?;
 
-        let embassy_ip = get_current_ip(ctx.ethernet_interface.to_owned()).await?;
-        let embassy_ip_fqdn: ResourceFqdn = embassy_ip.parse()?;
+        let embassy_ip_fqdn: ResourceFqdn = ResourceFqdn::IpAddr;
         let embassy_fqdn: ResourceFqdn = "pureos.local".parse()?;
 
         let localhost_fqdn = ResourceFqdn::LocalHost;
@@ -74,8 +72,7 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
 
         let ctx = SetupContext::init(cfg_path).await?;
 
-        let embassy_ip = get_current_ip(ctx.ethernet_interface.to_owned()).await?;
-        let embassy_ip_fqdn: ResourceFqdn = embassy_ip.parse()?;
+        let embassy_ip_fqdn: ResourceFqdn = ResourceFqdn::IpAddr;
         let embassy_fqdn: ResourceFqdn = "embassy.local".parse()?;
         let localhost_fqdn = ResourceFqdn::LocalHost;
 
@@ -203,8 +200,7 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
             )
             .await?;
 
-            let embassy_ip = get_current_ip(ctx.ethernet_interface.to_owned()).await?;
-            let embassy_ip_fqdn: ResourceFqdn = embassy_ip.parse()?;
+            let embassy_ip_fqdn: ResourceFqdn = ResourceFqdn::IpAddr;
             let embassy_fqdn: ResourceFqdn = "embassy.local".parse()?;
 
             let localhost_fqdn = ResourceFqdn::LocalHost;

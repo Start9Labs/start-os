@@ -34,7 +34,6 @@ pub struct SetupResult {
 #[serde(rename_all = "kebab-case")]
 pub struct SetupContextConfig {
     pub os_partitions: OsPartitionInfo,
-    pub ethernet_interface: String,
     pub migration_batch_rows: Option<usize>,
     pub migration_prefetch_rows: Option<usize>,
     pub datadir: Option<PathBuf>,
@@ -65,7 +64,6 @@ impl SetupContextConfig {
 
 pub struct SetupContextSeed {
     pub os_partitions: OsPartitionInfo,
-    pub ethernet_interface: String,
     pub config_path: Option<PathBuf>,
     pub migration_batch_rows: usize,
     pub migration_prefetch_rows: usize,
@@ -96,7 +94,6 @@ impl SetupContext {
         let datadir = cfg.datadir().to_owned();
         Ok(Self(Arc::new(SetupContextSeed {
             os_partitions: cfg.os_partitions,
-            ethernet_interface: cfg.ethernet_interface,
             config_path: path.as_ref().map(|p| p.as_ref().to_owned()),
             migration_batch_rows: cfg.migration_batch_rows.unwrap_or(25000),
             migration_prefetch_rows: cfg.migration_prefetch_rows.unwrap_or(100_000),
