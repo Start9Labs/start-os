@@ -15,6 +15,27 @@
 @font-face {
   font-family: 'Montserrat';
   font-style: normal;
+  font-weight: 600;
+  src: url('/assets/fonts/Montserrat/Montserrat-SemiBold.ttf');
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: bold;
+  src: url('/assets/fonts/Montserrat/Montserrat-Bold.ttf');
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 500;
+  src: url('/assets/fonts/Montserrat/Montserrat-Medium.ttf');
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
   font-weight: thin;
   src: url('/assets/fonts/Montserrat/Montserrat-Light.ttf');
 }
@@ -26,13 +47,110 @@
   src: url('/assets/fonts/Benton_Sans/BentonSans-Regular.otf');
 }
 
+@font-face {
+  font-family: 'Open Sans';
+  font-style: normal;
+  font-weight: normal;
+  src: url('/assets/fonts/Open_Sans/OpenSans-Regular.ttf');
+}
+
+@font-face {
+  font-family: 'Open Sans';
+  font-style: normal;
+  font-weight: bold;
+  src: url('/assets/fonts/Open_Sans/OpenSans-Bold.ttf');
+}
+
+@font-face {
+  font-family: 'Open Sans';
+  font-style: normal;
+  font-weight: 600;
+  src: url('/assets/fonts/Open_Sans/OpenSans-SemiBold.ttf');
+}
+
+@font-face {
+  font-family: 'Open Sans';
+  font-style: normal;
+  font-weight: thin;
+  src: url('/assets/fonts/Open_Sans/OpenSans-Light.ttf');
+}
+
+:root {
+  --ion-background-color: #333333;
+  --ion-background-color-rgb: 51, 51, 51;
+
+  --ion-text-color: #F4F4F5;
+  --ion-text-color-rgb: 244, 244, 245;
+
+  --ion-color-step-50: #3d3d3d;
+  --ion-color-step-100: #464646;
+  --ion-color-step-150: #505050;
+  --ion-color-step-200: #5a5a5a;
+  --ion-color-step-250: #636364;
+  --ion-color-step-300: #6d6d6d;
+  --ion-color-step-350: #777777;
+  --ion-color-step-400: #808081;
+  --ion-color-step-450: #8a8a8a;
+  --ion-color-step-500: #949494;
+  --ion-color-step-550: #9d9d9e;
+  --ion-color-step-600: #a7a7a7;
+  --ion-color-step-650: #b0b0b1;
+  --ion-color-step-700: #bababb;
+  --ion-color-step-750: #c4c4c5;
+  --ion-color-step-800: #cdcdce;
+  --ion-color-step-850: #d7d7d8;
+  --ion-color-step-900: #e1e1e2;
+  --ion-color-step-950: #eaeaeb;
+
+
+  --ion-color-dark: var(--ion-color-step-50) !important;
+  // --ion-color-base-rgb: 
+  --ion-color-dark-contrast: var(--ion-color-step-950) !important;
+  // --ion-color-dark-contrast-rgb:
+  --ion-color-dark-shade: var(--ion-color-step-100) !important;
+  --ion-color-dark-tint: var(--ion-color-step-250) !important;
+}
+
+h1,
+h2,
+h3,
+h4,
+ion-card-title {
+  font-weight: 400;
+}
+
+ion-label ion-text {
+  font-size: 1.2rem;
+  font-weight: 500;
+}
+p {
+  color: var(--ion-color-dark-contrast) !important;
+  font-size: 1.1rem !important;
+}
+
+ion-icon {
+  color: var(--ion-color-dark-contrast) !important;
+}
+
 /** Ionic CSS Variables overrides **/
 :root {
-  --ion-font-family: 'Benton Sans';
+  --ion-font-family: 'Montserrat';
+}
+
+p {
+  font-family: 'Open Sans';
+}
+
+h1 {
+  font-size: 42px;
+}
+
+.small-caps {
+  font-variant-caps: small-caps;
 }
 
 ion-content {
-  --background: var(--ion-color-medium);
+  // --background: var(--ion-color-medium);
 }
 
 ion-grid {
@@ -46,15 +164,15 @@ ion-row {
 }
 
 ion-item {
-  --color: var(--ion-color-light);
+  // --color: var(--ion-color-light);
   --highlight-color-valid: transparent;
   --highlight-color-invalid: transparent;
 }
 
 ion-toolbar {
-  --ion-background-color: var(--ion-color-light);
+  // --ion-background-color: var(--ion-color-light);
   ion-title {
-    color: var(--ion-color-dark);
+    // color: var(--ion-color-dark);
   }
 }
 
