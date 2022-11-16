@@ -739,12 +739,32 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
     const path = `/package-data/${params.id}/installed/status/main`
 
-    setTimeout(() => {
-      const patch2 = [
+    setTimeout(async () => {
+      const patch2: Operation<any>[] = [
+        {
+          op: PatchOp.REPLACE,
+          path: path + '/status',
+          value: PackageMainStatus.Starting,
+        },
+        {
+          op: PatchOp.ADD,
+          path: path + '/restarting',
+          value: true,
+        },
+      ]
+      this.mockRevision(patch2)
+
+      await pauseFor(2000)
+
+      const patch3: Operation<any>[] = [
         {
           op: PatchOp.REPLACE,
           path: path + '/status',
           value: PackageMainStatus.Running,
+        },
+        {
+          op: PatchOp.REMOVE,
+          path: path + '/restarting',
         },
         {
           op: PatchOp.REPLACE,
@@ -770,7 +790,7 @@ export class MockApiService extends ApiService {
           },
         } as any,
       ]
-      this.mockRevision(patch2)
+      this.mockRevision(patch3)
     }, this.revertTime)
 
     const patch = [

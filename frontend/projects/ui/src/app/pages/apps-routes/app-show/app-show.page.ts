@@ -4,14 +4,13 @@ import { PatchDB } from 'patch-db-client'
 import {
   DataModel,
   PackageDataEntry,
-  PackageMainStatus,
   PackageState,
 } from 'src/app/services/patch-db/data-model'
 import {
   PackageStatus,
   PrimaryStatus,
 } from 'src/app/services/pkg-status-rendering.service'
-import { filter, tap } from 'rxjs/operators'
+import { tap } from 'rxjs/operators'
 import { ActivatedRoute } from '@angular/router'
 import { getPkgId } from '@start9labs/shared'
 
@@ -36,15 +35,9 @@ export class AppShowPage {
         this.navCtrl.navigateRoot('/services')
       }
     }),
-    filter(
-      (p?: PackageDataEntry) =>
-        // will be undefined when sideloading
-        !!p &&
-        !(
-          p.installed?.status.main.status === PackageMainStatus.Starting &&
-          p.installed?.status.main.restarting
-        ),
-    ),
+    tap(p => {
+      console.log('PACKAGE', p)
+    }),
   )
 
   constructor(
