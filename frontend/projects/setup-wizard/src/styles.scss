@@ -114,9 +114,19 @@
 h1,
 h2,
 h3,
-h4,
-ion-card-title {
+h4 {
   font-weight: 400;
+}
+
+ion-card-title {
+  font-variant: small-caps;
+}
+
+ion-card-subtitle {
+  font-size: 18px;
+  font-weight: 200;
+  padding: 0.7rem;
+  color: var(--ion-color-step-800) !important;
 }
 
 ion-label ion-text {
@@ -197,7 +207,7 @@ ion-toast {
 }
 
 .center-spinner {
-  height: 20vh;
+  height: 6vh;
   width: 100%;
 }
 

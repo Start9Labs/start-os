@@ -12,10 +12,10 @@
             style="padding-bottom: 8px"
             *ngIf="loading || storageDrives.length; else empty"
           >
-            <ion-card-title>Select Storage Drive</ion-card-title>
+            <ion-card-title>select storage drive</ion-card-title>
             <ion-card-subtitle
-              >Select the drive where your Embassy data will be
-              stored.</ion-card-subtitle
+              >This is the drive where your<br />
+              Embassy data will be stored.</ion-card-subtitle
             >
           </ion-card-header>
           <ng-template #empty>
@@ -36,7 +36,7 @@
             <ion-spinner
               *ngIf="loading; else loaded"
               class="center-spinner"
-              name="lines"
+              name="lines-sharp"
             ></ion-spinner>
 
             <!-- not loading -->
@@ -54,7 +54,6 @@
                     slot="start"
                     name="save-outline"
                     size="large"
-                    color="light"
                   ></ion-icon>
                   <ion-label class="ion-text-wrap">
                     <h1>
@@ -73,7 +72,7 @@
                   </ion-label>
                 </ion-item>
               </ion-item-group>
-              <ion-button fill="clear" color="primary" (click)="getDrives()">
+              <ion-button fill="solid" color="primary" (click)="getDrives()">
                 <ion-icon slot="start" name="refresh"></ion-icon>
                 Refresh
               </ion-button>
