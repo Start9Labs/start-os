@@ -31,12 +31,7 @@ export class AppShowPage {
   readonly pkg$ = this.patch.watch$('package-data', this.pkgId).pipe(
     tap(pkg => {
       // if package disappears, navigate to list page
-      if (!pkg) {
-        this.navCtrl.navigateRoot('/services')
-      }
-    }),
-    tap(p => {
-      console.log('PACKAGE', p)
+      if (!pkg) this.navCtrl.navigateRoot('/services')
     }),
   )
 
