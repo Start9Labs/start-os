@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { heightCollapse } from '../../util/animations'
 import { PatchDB } from 'patch-db-client'
 import { map } from 'rxjs/operators'
-import { DataModel, ServerInfo } from '../../services/patch-db/data-model'
+import { DataModel } from '../../services/patch-db/data-model'
 
 @Component({
   selector: 'footer[appFooter]',
@@ -26,10 +26,7 @@ export class FooterComponent {
 
   constructor(private readonly patch: PatchDB<DataModel>) {}
 
-  getProgress({
-    downloaded,
-    size,
-  }: NonNullable<ServerInfo['status-info']['update-progress']>): number {
-    return Math.round((100 * (downloaded || 1)) / (size || 1))
+  getProgress(size: number, downloaded: number): number {
+    return Math.round((100 * downloaded) / (size || 1))
   }
 }

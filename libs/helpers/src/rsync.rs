@@ -98,15 +98,17 @@ impl Rsync {
             })
             .lines();
             while let Some(line) = lines.next_line().await? {
-                if let Some(percentage) = line
-                    .split_ascii_whitespace()
-                    .find_map(|col| col.strip_suffix("%"))
-                {
-                    if let Err(err) = send.send(percentage.parse::<f64>()? / 100.0) {
-                        return Err(Error::new(
-                            eyre!("rsync progress send error: {}", err),
-                            ErrorKind::Filesystem,
-                        ));
+                if line.contains(" to-chk=0/") {
+                    if let Some(percentage) = line
+                        .split_ascii_whitespace()
+                        .find_map(|col| col.strip_suffix("%"))
+                    {
+                        if let Err(err) = send.send(percentage.parse::<f64>()? / 100.0) {
+                            return Err(Error::new(
+                                eyre!("rsync progress send error: {}", err),
+                                ErrorKind::Filesystem,
+                            ));
+                        }
                     }
                 }
             }
