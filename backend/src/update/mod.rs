@@ -150,7 +150,7 @@ async fn maybe_do_update(
     .await?;
 
     status.update_progress = Some(UpdateProgress {
-        size: Some(100),
+        size: None,
         downloaded: 0,
     });
     status.save(&mut tx).await?;
@@ -315,7 +315,7 @@ async fn copy_ssh_host_keys() -> Result<(), Error> {
 async fn sync_boot() -> Result<(), Error> {
     Rsync::new(
         "/media/embassy/next/boot/",
-        "/boot",
+        "/boot/",
         RsyncOptions {
             delete: false,
             force: false,
