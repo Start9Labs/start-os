@@ -39,7 +39,9 @@ sudo mv /tmp/eos-mnt/etc/sudoers.d/010_pi-nopasswd /tmp/eos-mnt/etc/sudoers.d/01
 sudo sed -i 's/pi/start9/g' /tmp/eos-mnt/etc/sudoers.d/010_start9-nopasswd
 sudo sed -i 's/ pi / start9 /g' /tmp/eos-mnt/etc/systemd/system/autologin@.service
 
-if [[ "$ENVIRONMENT" =~ (^|-)dev($|-) ]]; then
+if [ "$LITE_UPGRADE_IMAGE" = "1" ]; then
+        sudo cp ./build/raspberry-pi/033-upgrade.sh /tmp/eos-mnt/usr/local/bin/initialization.sh
+elif [[ "$ENVIRONMENT" =~ (^|-)dev($|-) ]]; then
 	cat ./build/raspberry-pi/initialization.sh | grep -v "passwd -l start9" | sudo tee /tmp/eos-mnt/usr/local/bin/initialization.sh > /dev/null
 	sudo chmod +x /tmp/eos-mnt/usr/local/bin/initialization.sh
 else
