@@ -12,11 +12,12 @@
             style="padding-bottom: 8px"
             *ngIf="loading || storageDrives.length; else empty"
           >
-            <ion-card-title>select storage drive</ion-card-title>
-            <ion-card-subtitle
-              >This is the drive where your<br />
-              Embassy data will be stored.</ion-card-subtitle
-            >
+            <ion-card-title>Select storage drive</ion-card-title>
+            <div class="center-wrapper">
+              <ion-card-subtitle>
+                This is the drive where your Embassy data will be stored.
+              </ion-card-subtitle>
+            </div>
           </ion-card-header>
           <ng-template #empty>
             <ion-card-header

@@ -75,7 +75,10 @@
   src: url('/assets/fonts/Open_Sans/OpenSans-Light.ttf');
 }
 
+/** Ionic CSS Variables overrides **/
 :root {
+  --ion-font-family: 'Montserrat';
+
   --ion-background-color: #333333;
   --ion-background-color-rgb: 51, 51, 51;
 
@@ -109,6 +112,8 @@
   // --ion-color-dark-contrast-rgb:
   --ion-color-dark-shade: var(--ion-color-step-100) !important;
   --ion-color-dark-tint: var(--ion-color-step-250) !important;
+
+  --color-accent: #6866cc;
 }
 
 h1,
@@ -118,15 +123,20 @@ h4 {
   font-weight: 400;
 }
 
+h1 {
+  font-size: 42px;
+}
+
 ion-card-title {
-  font-variant: small-caps;
+  font-variant-caps: all-small-caps;
 }
 
 ion-card-subtitle {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 200;
+  max-width: 400px;
   padding: 0.7rem;
-  color: var(--ion-color-step-800) !important;
+  color: var(--ion-color-step-900) !important;
 }
 
 ion-label ion-text {
@@ -135,28 +145,17 @@ ion-label ion-text {
 }
 p {
   color: var(--ion-color-dark-contrast) !important;
-  font-size: 1.1rem !important;
+  font-size: 1.12rem !important;
+  font-family: 'Open Sans';
+  font-weight: normal;
 }
 
 ion-icon {
   color: var(--ion-color-dark-contrast) !important;
 }
 
-/** Ionic CSS Variables overrides **/
-:root {
-  --ion-font-family: 'Montserrat';
-}
-
-p {
-  font-family: 'Open Sans';
-}
-
-h1 {
-  font-size: 42px;
-}
-
 .small-caps {
-  font-variant-caps: small-caps;
+  font-variant-caps: all-small-caps;
 }
 
 ion-content {
@@ -243,4 +242,41 @@ ion-toast {
 .success-border {
   border: 2px solid var(--ion-color-success);
   border-radius: 4px;
+}
+
+
+ion-modal.stack-modal {
+  --box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+  --backdrop-opacity: var(--ion-backdrop-opacity, 0.32);
+}
+
+.sc-ion-label-md-s p {
+  line-height: 23px;
+}
+
+ion-item {
+  border: var(--ion-color-step-750) 1px solid;
+  margin: 2rem;
+  --background: transparent;
+  --border-color: var(--ion-item-border-color, var(--ion-border-color, var(--ion-color-step-150, rgba(0, 0, 0, 0.13))));
+  transition: all 350ms ease;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+
+  &:hover {
+    transition-property: transform;
+    transform: scale(1.05);
+    transition-delay: 40ms;
+  }
+}
+
+.center-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+}
+
+
+.loader {
+  --spinner-color: var(--ion-color-tertiary) !important;
 }

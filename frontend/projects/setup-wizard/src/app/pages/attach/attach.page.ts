@@ -60,7 +60,10 @@ export class AttachPage {
   }
 
   private async attachDrive(guid: string, password: string) {
-    const loader = await this.loadingCtrl.create()
+    const loader = await this.loadingCtrl.create({
+      message: 'Connecting to drive...',
+      cssClass: 'loader',
+    })
     await loader.present()
     try {
       await this.stateService.importDrive(guid, password)

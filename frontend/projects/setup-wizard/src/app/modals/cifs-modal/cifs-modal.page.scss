@@ -1,3 +1,20 @@
-ion-content {
-  --ion-text-color: var(--ion-color-dark);
+.item-interactive {
+  --highlight-background: var(--ion-color-dark) !important;
+}
+
+ion-item {
+
+  &:hover {
+    transition-property: transform;
+    transform: none;
+  }
+
+}
+
+.item-has-focus {
+  --background: var(--ion-color-dark-tint) !important;
+}
+
+ion-modal {
+  --backdrop-opacity: 0.7;
 }

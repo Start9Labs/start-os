@@ -44,7 +44,7 @@ export class TransferPage {
     const alert = await this.alertCtrl.create({
       header: 'Warning',
       message:
-        'Data from this drive will not be deleted, but you will not be able to use this drive to run embassyOS after the data is transferred. Attempting to use this drive after data is transferred could cause transferred services to not function properly, and may cause data corruption.',
+        'Data from this drive will not be deleted, but you will not be able to use this drive to run embassyOS after the data is transferred.<br/><br/>Attempting to use this drive after data is transferred could cause services to malfunction, and may cause data corruption.',
       buttons: [
         {
           role: 'cancel',
