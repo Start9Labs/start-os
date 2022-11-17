@@ -38,7 +38,6 @@ import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 import { AuthService } from '../auth.service'
 import { ConnectionService } from '../connection.service'
 import { StoreInfo } from '@start9labs/marketplace'
-import { COMMUNITY_REGISTRY, START9_REGISTRY } from './api-icons'
 
 const PROGRESS: InstallProgress = {
   size: 120,
@@ -284,7 +283,6 @@ export class MockApiService extends ApiService {
     if (path === '/package/v0/info') {
       const info: StoreInfo = {
         name: 'Start9 Registry',
-        icon: START9_REGISTRY,
         categories: [
           'bitcoin',
           'lightning',

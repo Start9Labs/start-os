@@ -30,7 +30,7 @@ export class MarketplaceListPage {
   readonly localPkgs$ = this.patch.watch$('package-data')
 
   readonly details$ = this.marketplaceService.getSelectedHost$().pipe(
-    map(({ url, name, icon }) => {
+    map(({ url, name }) => {
       let color: string
       let description: string
       switch (url) {
@@ -39,15 +39,15 @@ export class MarketplaceListPage {
           description =
             'Services from this registry are packaged and maintained by the Start9 team. If you experience an issue or have a questions related to a service from this registry, one of our dedicated support staff will be happy to assist you.'
           break
-        case 'https://beta-registry.start9.com/':
-          color = 'primary'
-          description =
-            'Services from this registry are undergoing active testing and may contain bugs. <b>Install at your own risk</b>. If you discover a bug or have a suggestion for improvement, please report it to the Start9 team in our community testing channel on Matrix.'
-          break
         case 'https://community-registry.start9.com/':
           color = 'tertiary'
           description =
             'Services from this registry are packaged and maintained by members of the Start9 community. <b>Install at your own risk</b>. If you experience an issue or have a question related to a service in this marketplace, please reach out to the package developer for assistance.'
+          break
+        case 'https://beta-registry.start9.com/':
+          color = 'primary'
+          description =
+            'Services from this registry are undergoing active testing and may contain bugs. <b>Install at your own risk</b>. If you discover a bug or have a suggestion for improvement, please report it to the Start9 team in our community testing channel on Matrix.'
           break
         default:
           // alt marketplace
@@ -59,7 +59,6 @@ export class MarketplaceListPage {
       return {
         name,
         url,
-        icon,
         color,
         description,
       }

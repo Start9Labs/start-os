@@ -5,7 +5,7 @@ import {
   StoreData,
   Marketplace,
   StoreInfo,
-  StoreIdentifier,
+  StoreIdentity,
 } from '@start9labs/marketplace'
 import {
   BehaviorSubject,
@@ -29,35 +29,46 @@ import {
   shareReplay,
   startWith,
   switchMap,
+  take,
+  tap,
 } from 'rxjs/operators'
-import { getNewEntries } from '@start9labs/shared'
 
 @Injectable()
 export class MarketplaceService implements AbstractMarketplaceService {
-  private readonly knownHosts$ = this.patch.watch$(
-    'ui',
-    'marketplace',
-    'known-hosts',
-  )
+  private readonly knownHosts$: Observable<StoreIdentity[]> = this.patch
+    .watch$('ui', 'marketplace', 'known-hosts')
+    .pipe(
+      map(hosts => {
+        return Object.entries(hosts).map(([url, store]) => ({
+          url,
+          ...store,
+        }))
+      }),
+    )
 
-  private readonly selectedHost$ = this.patch.watch$('ui', 'marketplace').pipe(
-    distinctUntilKeyChanged('selected-url'),
-    map(data => ({
-      url: data['selected-url'],
-      ...data['known-hosts'][data['selected-url']],
-    })),
-    shareReplay(1),
-  )
+  private readonly selectedHost$: Observable<StoreIdentity> = this.patch
+    .watch$('ui', 'marketplace')
+    .pipe(
+      distinctUntilKeyChanged('selected-url'),
+      map(m => ({
+        url: m['selected-url'],
+        ...m['known-hosts'][m['selected-url']],
+      })),
+      shareReplay(1),
+    )
 
   private readonly marketplace$ = this.knownHosts$.pipe(
-    startWith<Record<string, StoreIdentifier>>({}),
+    startWith<StoreIdentity[]>([]),
     pairwise(),
-    mergeMap(([prev, curr]) => from(Object.entries(getNewEntries(prev, curr)))),
-    mergeMap(([url, registry]) =>
+    mergeMap(([prev, curr]) =>
+      curr.filter(c => !prev.find(p => c.url === p.url)),
+    ),
+    mergeMap(({ url, name }) =>
       this.fetchStore$(url).pipe(
+        tap(data => {
+          if (data?.info) this.updateStoreName(url, name, data.info.name)
+        }),
         map<StoreData | null, [string, StoreData | null]>(data => {
-          if (data?.info) this.updateStoreIdentifier(url, registry, data.info)
-
           return [url, data]
         }),
         startWith<[string, StoreData | null]>([url, null]),
@@ -74,9 +85,16 @@ export class MarketplaceService implements AbstractMarketplaceService {
     shareReplay(1),
   )
 
-  private readonly selectedStore$ = this.selectedHost$.pipe(
-    switchMap(({ url }) => this.marketplace$.pipe(map(m => m[url]))),
-  )
+  private readonly selectedStore$: Observable<StoreData | null> =
+    this.selectedHost$.pipe(
+      switchMap(({ url }) =>
+        this.marketplace$.pipe(
+          filter(m => !!m[url]),
+          take(1),
+          map(m => m[url]),
+        ),
+      ),
+    )
 
   private readonly requestErrors$ = new BehaviorSubject<string[]>([])
 
@@ -85,11 +103,11 @@ export class MarketplaceService implements AbstractMarketplaceService {
     private readonly patch: PatchDB<DataModel>,
   ) {}
 
-  getKnownHosts$(): Observable<Record<string, StoreIdentifier>> {
+  getKnownHosts$(): Observable<StoreIdentity[]> {
     return this.knownHosts$
   }
 
-  getSelectedHost$(): Observable<StoreIdentifier & { url: string }> {
+  getSelectedHost$(): Observable<StoreIdentity> {
     return this.selectedHost$
   }
 
@@ -234,15 +252,15 @@ export class MarketplaceService implements AbstractMarketplaceService {
     )
   }
 
-  private async updateStoreIdentifier(
+  private async updateStoreName(
     url: string,
-    oldInfo: StoreIdentifier,
-    newInfo: StoreIdentifier,
+    oldName: string | undefined,
+    newName: string,
   ): Promise<void> {
-    if (oldInfo.name !== newInfo.name || oldInfo.icon !== newInfo.icon) {
-      this.api.setDbValue<StoreIdentifier>(
-        ['marketplace', 'known-hosts', url],
-        newInfo,
+    if (oldName !== newName) {
+      this.api.setDbValue<string>(
+        ['marketplace', 'known-hosts', url, 'name'],
+        newName,
       )
     }
   }
