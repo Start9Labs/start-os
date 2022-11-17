@@ -5,6 +5,7 @@ import {
   Pipe,
   PipeTransform,
 } from '@angular/core'
+import { ConfigService } from 'src/app/services/config.service'
 
 @Component({
   selector: 'store-icon',
@@ -20,10 +21,14 @@ export class StoreIconComponent {
   name: 'getIcon',
 })
 export class GetIconPipe implements PipeTransform {
+  constructor(private readonly config: ConfigService) {}
+
   transform(url: string): string | null {
-    if (url === 'https://registry.start9.com/') {
+    const { start9, community } = this.config.marketplace
+
+    if (url === start9) {
       return 'assets/img/icon.png'
-    } else if (url === 'https://community-registry.start9.com/') {
+    } else if (url === community) {
       return 'assets/img/community-store.png'
     }
     return null

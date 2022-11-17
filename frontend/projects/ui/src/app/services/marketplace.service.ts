@@ -19,7 +19,7 @@ import {
 } from 'rxjs'
 import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { DataModel } from 'src/app/services/patch-db/data-model'
+import { DataModel, UIStore } from 'src/app/services/patch-db/data-model'
 import { PatchDB } from 'patch-db-client'
 import {
   catchError,
@@ -32,6 +32,7 @@ import {
   take,
   tap,
 } from 'rxjs/operators'
+import { ConfigService } from './config.service'
 
 @Injectable()
 export class MarketplaceService implements AbstractMarketplaceService {
@@ -39,10 +40,17 @@ export class MarketplaceService implements AbstractMarketplaceService {
     .watch$('ui', 'marketplace', 'known-hosts')
     .pipe(
       map(hosts => {
-        return Object.entries(hosts).map(([url, store]) => ({
-          url,
-          ...store,
-        }))
+        const { start9, community } = this.config.marketplace
+        let arr = [
+          toStoreIdentity(start9, hosts[start9]),
+          toStoreIdentity(community, hosts[community]),
+        ]
+
+        return arr.concat(
+          Object.entries(hosts)
+            .filter(([url, _]) => ![start9, community].includes(url as any))
+            .map(([url, store]) => toStoreIdentity(url, store)),
+        )
       }),
     )
 
@@ -50,9 +58,9 @@ export class MarketplaceService implements AbstractMarketplaceService {
     .watch$('ui', 'marketplace')
     .pipe(
       distinctUntilKeyChanged('selected-url'),
-      map(m => ({
-        url: m['selected-url'],
-        ...m['known-hosts'][m['selected-url']],
+      map(({ 'selected-url': url, 'known-hosts': hosts }) => ({
+        url,
+        ...hosts[url],
       })),
       shareReplay(1),
     )
@@ -101,6 +109,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
   constructor(
     private readonly api: ApiService,
     private readonly patch: PatchDB<DataModel>,
+    private readonly config: ConfigService,
   ) {}
 
   getKnownHosts$(): Observable<StoreIdentity[]> {
@@ -263,5 +272,12 @@ export class MarketplaceService implements AbstractMarketplaceService {
         newName,
       )
     }
+  }
+}
+
+function toStoreIdentity(url: string, uiStore: UIStore): StoreIdentity {
+  return {
+    url,
+    ...uiStore,
   }
 }

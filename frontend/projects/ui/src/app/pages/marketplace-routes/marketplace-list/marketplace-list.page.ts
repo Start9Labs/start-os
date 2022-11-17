@@ -4,6 +4,7 @@ import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { PatchDB } from 'patch-db-client'
 import { filter, map } from 'rxjs'
 import { MarketplaceSettingsPage } from 'src/app/modals/marketplace-settings/marketplace-settings.page'
+import { ConfigService } from 'src/app/services/config.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 
@@ -31,20 +32,21 @@ export class MarketplaceListPage {
 
   readonly details$ = this.marketplaceService.getSelectedHost$().pipe(
     map(({ url, name }) => {
+      const { start9, community, beta } = this.config.marketplace
       let color: string
       let description: string
       switch (url) {
-        case 'https://registry.start9.com/':
+        case start9:
           color = 'success'
           description =
             'Services from this registry are packaged and maintained by the Start9 team. If you experience an issue or have a questions related to a service from this registry, one of our dedicated support staff will be happy to assist you.'
           break
-        case 'https://community-registry.start9.com/':
+        case community:
           color = 'tertiary'
           description =
             'Services from this registry are packaged and maintained by members of the Start9 community. <b>Install at your own risk</b>. If you experience an issue or have a question related to a service in this marketplace, please reach out to the package developer for assistance.'
           break
-        case 'https://beta-registry.start9.com/':
+        case beta:
           color = 'primary'
           description =
             'Services from this registry are undergoing active testing and may contain bugs. <b>Install at your own risk</b>. If you discover a bug or have a suggestion for improvement, please report it to the Start9 team in our community testing channel on Matrix.'
@@ -70,6 +72,7 @@ export class MarketplaceListPage {
     @Inject(AbstractMarketplaceService)
     private readonly marketplaceService: MarketplaceService,
     private readonly modalCtrl: ModalController,
+    private readonly config: ConfigService,
   ) {}
 
   category = 'featured'
