@@ -3,12 +3,12 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use tokio_rustls::rustls::ServerConfig;
-use crate::net::cert_resolver::EmbassyCertResolver;
-use crate::net::embassy_service_http_server::{EmbassyServiceHTTPServer};
 
+use crate::net::cert_resolver::EmbassyCertResolver;
+use crate::net::embassy_service_http_server::EmbassyServiceHTTPServer;
+use crate::net::net_utils::ResourceFqdn;
 use crate::net::HttpHandler;
 use crate::Error;
-use crate::net::net_utils::ResourceFqdn;
 
 pub struct VHOSTController {
     pub service_servers: BTreeMap<u16, EmbassyServiceHTTPServer>,
@@ -67,7 +67,6 @@ impl VHOSTController {
             None
         };
 
-
         let mut new_service_server =
             EmbassyServiceHTTPServer::new(self.embassyd_addr.ip(), external_svc_port, ssl_cfg)
                 .await?;
@@ -76,7 +75,7 @@ impl VHOSTController {
             .await?;
         self.service_servers
             .insert(external_svc_port, new_service_server);
-   
+
         Ok(())
     }
 }

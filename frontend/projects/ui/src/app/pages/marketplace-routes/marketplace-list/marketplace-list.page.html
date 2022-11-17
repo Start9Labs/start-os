@@ -24,14 +24,7 @@
     <ion-row>
       <ion-col size="12">
         <div class="heading">
-          <img
-            *ngIf="details.icon; else noIcon"
-            [src]="'data:image/png;base64,' + details.icon | trustUrl"
-            alt=""
-          />
-          <ng-template #noIcon>
-            <ion-icon name="storefront-outline"></ion-icon>
-          </ng-template>
+          <store-icon class="icon" [url]="details.url"></store-icon>
           <h1 class="montserrat ion-text-center">{{ details.name }}</h1>
         </div>
         <ion-button fill="clear" (click)="presentModalMarketplaceSettings()">

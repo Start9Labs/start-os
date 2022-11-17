@@ -105,7 +105,6 @@ impl ResolvesServerCert for EmbassyCertResolver {
 
         match hostname_raw {
             Some(hostname_str) => {
-
                 let full_fqdn = match ResourceFqdn::from_str(hostname_str) {
                     Ok(fqdn) => fqdn,
                     Err(_) => {

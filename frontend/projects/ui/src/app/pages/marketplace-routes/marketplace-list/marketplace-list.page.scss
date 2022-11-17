@@ -1,15 +1,14 @@
 .heading {
-  $icon-size: 64px;
   margin-top: 32px;
-  img {
-    max-width: $icon-size;
-  }
   h1 {
     font-size: 42px;
   }
-  ion-icon {
-    font-size: $icon-size;
-  }
+}
+
+.icon {
+  display: inline-block;
+  max-width: 80px;
+  font-size: 80px;
 }
 
 .divider {

@@ -1,6 +1,6 @@
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { Url } from '@start9labs/shared'
-import { MarketplaceManifest, StoreIdentifier } from '@start9labs/marketplace'
+import { MarketplaceManifest } from '@start9labs/marketplace'
 import { BasicInfo } from 'src/app/pages/developer-routes/developer-menu/form-info'
 
 export interface DataModel {
@@ -11,7 +11,6 @@ export interface DataModel {
 
 export interface UIData {
   name: string | null
-  'pkg-order': string[]
   'ack-welcome': string // eOS emver
   marketplace: UIMarketplaceData
   dev: DevData
@@ -26,10 +25,14 @@ export interface UIData {
 export interface UIMarketplaceData {
   'selected-url': string
   'known-hosts': {
-    'https://registry.start9.com/': StoreIdentifier
-    'https://community-registry.start9.com/': StoreIdentifier
-    [url: string]: StoreIdentifier
+    'https://registry.start9.com/': UIStore
+    'https://community-registry.start9.com/': UIStore
+    [url: string]: UIStore
   }
+}
+
+export interface UIStore {
+  name?: string
 }
 
 export interface DevData {

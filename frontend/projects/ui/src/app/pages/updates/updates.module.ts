@@ -8,6 +8,7 @@ import { MarkdownPipeModule, SharedPipesModule } from '@start9labs/shared'
 import { SkeletonListComponentModule } from 'src/app/components/skeleton-list/skeleton-list.component.module'
 import { RoundProgressModule } from 'angular-svg-round-progressbar'
 import { InstallProgressPipeModule } from 'src/app/pipes/install-progress/install-progress.module'
+import { StoreIconComponentModule } from 'src/app/components/store-icon/store-icon.component.module'
 
 const routes: Routes = [
   {
@@ -27,6 +28,7 @@ const routes: Routes = [
     MarkdownPipeModule,
     RoundProgressModule,
     InstallProgressPipeModule,
+    StoreIconComponentModule,
   ],
   declarations: [UpdatesPage, FilterUpdatesPipe],
 })

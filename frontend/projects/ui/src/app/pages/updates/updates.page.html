@@ -9,26 +9,24 @@
 
 <ion-content class="ion-padding">
   <ion-item-group *ngIf="data$ | async as data">
-    <ng-container *ngFor="let host of data.hosts | keyvalue">
+    <ng-container *ngFor="let host of data.hosts">
       <ion-item-divider>
-        {{ host.value.name }} &nbsp;
-        <img
-          style="max-width: 24px"
-          [src]="'data:image/png;base64,' + host.value.icon | trustUrl"
-          alt=""
-        />
+        {{ host.name }} &nbsp;
+        <div style="max-width: 16px">
+          <store-icon [url]="host.url"></store-icon>
+        </div>
       </ion-item-divider>
 
       <div class="ion-padding-start ion-padding-bottom">
-        <ion-item *ngIf="data.errors.includes(host.key)">
+        <ion-item *ngIf="data.errors.includes(host.url)">
           <ion-text color="danger">Request Failed</ion-text>
         </ion-item>
 
         <ng-container
-          *ngIf="data.marketplace[host.key]?.packages as packages else loading"
+          *ngIf="data.marketplace[host.url]?.packages as packages else loading"
         >
           <ng-container
-            *ngIf="packages | filterUpdates : data.localPkgs : host.key as updates"
+            *ngIf="packages | filterUpdates : data.localPkgs : host.url as updates"
           >
             <ion-item *ngFor="let pkg of updates">
               <ng-container *ngIf="data.localPkgs[pkg.manifest.id] as local">
@@ -64,7 +62,7 @@
                     ></ion-spinner>
                     <ng-template #updateBtn>
                       <ion-button
-                        (click)="update(pkg.manifest.id, host.key)"
+                        (click)="update(pkg.manifest.id, host.url)"
                         color="dark"
                         strong
                       >
