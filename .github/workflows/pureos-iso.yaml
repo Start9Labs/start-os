@@ -1,0 +1,64 @@
+name: PureOS Based ISO
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  push:
+    branches:
+    - master
+    - next
+    - feature/iso-ci
+
+jobs:
+  dpkg:
+    uses: ./.github/workflows/debian.yaml
+
+  iso:
+    name: Build iso
+    runs-on: ubuntu-22.04
+    needs: [dpkg]
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        repository: Start9Labs/eos-image-recipes
+
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        wget http://ftp.us.debian.org/debian/pool/main/d/debspawn/debspawn_0.6.0-1.1_all.deb
+        sha256sum ./debspawn_0.6.0-1.1_all.deb | grep 6cdb444844825b82ef388378f2c508fd8886f79a49800d4547a353ea6772d493
+        sudo apt-get install -y ./debspawn_0.6.0-1.1_all.deb
+        wget https://repo.pureos.net/pureos/pool/main/d/debootstrap/debootstrap_1.0.125pureos1_all.deb
+        sudo apt-get install -y --allow-downgrades ./debootstrap_1.0.125pureos1_all.deb
+        wget https://repo.pureos.net/pureos/pool/main/p/pureos-archive-keyring/pureos-archive-keyring_2021.11.0_all.deb
+        sudo apt-get install -y ./pureos-archive-keyring_2021.11.0_all.deb
+
+    - name: Configure debspawn
+      run: |
+        sudo mkdir -p /etc/debspawn/
+        echo "AllowUnsafePermissions=true" | sudo tee /etc/debspawn/global.toml
+
+    - uses: actions/cache@v3
+      with:
+        path: /var/lib/debspawn
+        key: ${{ runner.os }}-debspawn-init-byzantium
+
+    - name: Make build container
+      run: "debspawn list | grep byzantium || debspawn create --with-init byzantium"
+
+    - run: "mkdir -p overlays/vendor/root"
+
+    - name: Download dpkg
+      uses: actions/download-artifact@v3
+      with:
+        name: deb
+        path: overlays/vendor/root
+
+    - name: Run build
+      run: |
+        ./run-local-build.sh --no-fakemachine byzantium none custom "" true
+
+    - uses: actions/upload-artifact@v3
+      with:
+        name: iso
+        path: results/*.iso

@@ -187,8 +187,7 @@ fn main() {
                         )
                         .await?;
 
-                        let embassy_ip = get_current_ip(ctx.ethernet_interface.to_owned()).await?;
-                        let embassy_ip_fqdn: ResourceFqdn = embassy_ip.parse()?;
+                        let embassy_ip_fqdn: ResourceFqdn = ResourceFqdn::IpAddr;
                         let embassy_fqdn: ResourceFqdn = "embassy.local".parse()?;
 
                         let diag_ui_handler = diag_ui_file_router(ctx.clone()).await?;

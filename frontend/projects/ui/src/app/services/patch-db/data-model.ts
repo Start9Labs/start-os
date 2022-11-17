@@ -12,7 +12,7 @@ export interface DataModel {
 export interface UIData {
   name: string | null
   'pkg-order': string[]
-  'ack-welcome': string // EOS emver
+  'ack-welcome': string // eOS emver
   marketplace: UIMarketplaceData
   dev: DevData
   gaming: {

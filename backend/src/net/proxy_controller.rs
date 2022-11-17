@@ -103,52 +103,21 @@ impl ProxyController {
             // Note: only after client received an empty body with STATUS_OK can the
             // connection be upgraded, so we can't return a response inside
             // `on_upgrade` future.
-            match host_addr_fqdn(&req) {
-                Ok(host) => {
-                    tokio::task::spawn(async move {
-                        match hyper::upgrade::on(req).await {
-                            Ok(upgraded) => match host {
-                                ResourceFqdn::IpAddr(ip) => {
-                                    if let Err(e) = Self::tunnel(upgraded, ip.to_string()).await {
-                                        error!("server io error: {}", e);
-                                    };
-                                }
-                                ResourceFqdn::Uri {
-                                    full_uri,
-                                    root: _,
-                                    tld: _,
-                                } => {
-                                    if let Err(e) =
-                                        Self::tunnel(upgraded, full_uri.to_string()).await
-                                    {
-                                        error!("server io error: {}", e);
-                                    };
-                                }
-                                ResourceFqdn::LocalHost => {
-                                    if let Err(e) =
-                                        Self::tunnel(upgraded, "localhost".to_string()).await
-                                    {
-                                        error!("server io error: {}", e);
-                                    };
-                                }
-                            },
-                            Err(e) => error!("upgrade error: {}", e),
+
+            tokio::task::spawn(async move {
+                let addr = req.uri().clone();
+
+                match hyper::upgrade::on(req).await {
+                    Ok(upgraded) => {
+                        if let Err(e) = Self::tunnel(upgraded, addr.to_string()).await {
+                            error!("server io error: {}", e);
                         }
-                    });
-
-                    Ok(Response::new(Body::empty()))
+                    }
+                    Err(e) => error!("upgrade error: {}", e),
                 }
-                Err(e) => {
-                    let err_txt = format!("CONNECT host is not socket addr: {:?}", &req.uri());
-                    let mut resp = Response::new(Body::from(format!(
-                        "CONNECT must be to a socket address: {}: {}",
-                        err_txt, e
-                    )));
-                    *resp.status_mut() = http::StatusCode::BAD_REQUEST;
+            });
 
-                    Ok(resp)
-                }
-            }
+            Ok(Response::new(Body::empty()))
         } else {
             client.request(req).await
         }
@@ -221,10 +190,11 @@ impl ProxyControllerInner {
         pkg_id: PackageId,
     ) -> Result<(), Error> {
         let package_cert = match resource_fqdn.clone() {
-            ResourceFqdn::IpAddr(ip) => {
-                self.ssl_manager
-                    .certificate_for(&ip.to_string(), &pkg_id)
-                    .await?
+            ResourceFqdn::IpAddr => {
+                return Err(Error::new(
+                    eyre!("ssl not supported for ip addresses"),
+                    crate::ErrorKind::Network,
+                ))
             }
             ResourceFqdn::Uri {
                 full_uri: _,
