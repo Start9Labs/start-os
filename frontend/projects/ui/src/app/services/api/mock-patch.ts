@@ -7,24 +7,19 @@ import {
   PackageMainStatus,
   PackageState,
 } from 'src/app/services/patch-db/data-model'
-import { COMMUNITY_REGISTRY, START9_REGISTRY } from './api-icons'
 import { Mock } from './api.fixures'
 
 export const mockPatchData: DataModel = {
   ui: {
     name: `Matt's Embassy`,
-    'pkg-order': [],
     'ack-welcome': '1.0.0',
     marketplace: {
       'selected-url': 'https://registry.start9.com/',
       'known-hosts': {
         'https://registry.start9.com/': {
           name: 'Start9 Registry',
-          icon: START9_REGISTRY,
         },
-        'https://community-registry.start9.com/': {
-          icon: COMMUNITY_REGISTRY,
-        },
+        'https://community-registry.start9.com/': {},
         'https://dark9-marketplace.com/': {
           name: 'Dark9',
         },

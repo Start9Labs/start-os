@@ -8,6 +8,11 @@ export type WorkspaceConfig = {
       url: string
       version: string
     }
+    marketplace: {
+      start9: 'https://registry.start9.com/'
+      community: 'https://community-registry.start9.com/'
+      beta: 'https://beta-registry.start9.com/'
+    }
     mocks: {
       maskAs: 'tor' | 'lan'
       skipStartupAlerts: boolean

@@ -22,8 +22,6 @@ import { PatchDB, pathFromArray, Update } from 'patch-db-client'
 
 @Injectable()
 export class LiveApiService extends ApiService {
-  readonly eosMarketplaceUrl = 'https://registry.start9.com/'
-
   constructor(
     @Inject(DOCUMENT) private readonly document: Document,
     private readonly http: HttpService,
@@ -136,7 +134,7 @@ export class LiveApiService extends ApiService {
 
   async updateServer(url?: string): Promise<RR.UpdateServerRes> {
     const params = {
-      'marketplace-url': url || this.eosMarketplaceUrl,
+      'marketplace-url': url || this.config.marketplace.start9,
     }
     return this.rpcRequest({ method: 'server.update', params })
   }
@@ -180,7 +178,7 @@ export class LiveApiService extends ApiService {
     return this.marketplaceProxy(
       '/eos/v0/latest',
       params,
-      this.eosMarketplaceUrl,
+      this.config.marketplace.start9,
     )
   }
 

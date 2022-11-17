@@ -10,23 +10,23 @@
 </ion-header>
 
 <ion-content class="ion-padding-top">
-  <ion-item-group *ngIf="marketplace$ | async as m">
+  <ion-item-group *ngIf="stores$ | async as stores">
     <ion-item-divider>Default Registries</ion-item-divider>
     <ion-item
-      *ngFor="let s of m.standard"
+      *ngFor="let s of stores.standard"
       detail="false"
-      [button]="s.url !== m.selected"
-      (click)="s.url === m.selected ? '' : presentAction(s)"
+      [button]="!s.selected"
+      (click)="s.selected ? '' : presentAction(s)"
     >
       <ion-avatar slot="start">
-        <img [src]="'data:image/png;base64,' + s.icon | trustUrl" alt="" />
+        <store-icon [url]="s.url"></store-icon>
       </ion-avatar>
       <ion-label>
         <h2>{{ s.name }}</h2>
         <p>{{ s.url }}</p>
       </ion-label>
       <ion-icon
-        *ngIf="s.url === m.selected"
+        *ngIf="s.selected"
         slot="end"
         size="large"
         name="checkmark"
@@ -45,18 +45,22 @@
     </ion-item>
 
     <ion-item
-      *ngFor="let a of m.alt"
+      *ngFor="let a of stores.alt"
       detail="false"
-      [button]="a.url !== m.selected"
-      (click)="a.url === m.selected ? '' : presentAction(a, true)"
+      [button]="!a.selected"
+      (click)="a.selected ? '' : presentAction(a, true)"
     >
-      <ion-icon slot="start" name="storefront-outline"></ion-icon>
+      <store-icon
+        slot="start"
+        [url]="a.url"
+        style="font-size: 36px"
+      ></store-icon>
       <ion-label>
         <h2>{{ a.name }}</h2>
         <p>{{ a.url }}</p>
       </ion-label>
       <ion-icon
-        *ngIf="a.url === m.selected"
+        *ngIf="a.selected"
         slot="end"
         size="large"
         name="checkmark"
