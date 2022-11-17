@@ -1,6 +1,7 @@
-use std::collections::BTreeMap;
+use imbl::OrdMap;
 use std::process::Stdio;
 use std::sync::Arc;
+use std::time::Duration;
 
 use async_stream::stream;
 use embassy_container_init::{
@@ -10,7 +11,7 @@ use futures::{pin_mut, Stream, StreamExt};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
 use tokio::select;
-use tokio::sync::{oneshot, Mutex};
+use tokio::sync::{oneshot, watch, Mutex};
 use tracing::instrument;
 
 const MAX_COMMANDS: usize = 10;
@@ -44,7 +45,7 @@ impl ChildAndRpc {
     async fn wait(&mut self) -> DoneProgram {
         let status = DoneProgramStatus::Wait(self.child.wait().await);
         DoneProgram {
-            id: self.id.clone(),
+            id: self.id,
             status,
         }
     }
@@ -55,11 +56,13 @@ impl ChildAndRpc {
             tracing::debug!("{err:?}");
         }
         DoneProgram {
-            id: self.id.clone(),
+            id: self.id,
             status: DoneProgramStatus::Killed,
         }
     }
 }
+
+type Commands = Arc<watch::Sender<OrdMap<RpcId, Arc<Mutex<Option<oneshot::Sender<()>>>>>>>;
 
 /// Controlls the tracing + other io events
 /// Can get the inputs from stdin
@@ -67,8 +70,8 @@ impl ChildAndRpc {
 /// Can output to stdout
 #[derive(Debug, Clone)]
 struct Io {
-    commands: Arc<Mutex<BTreeMap<RpcId, oneshot::Sender<()>>>>,
-    ids: Arc<Mutex<BTreeMap<RpcId, ProcessId>>>,
+    commands: Commands,
+    ids: Arc<watch::Sender<OrdMap<RpcId, ProcessId>>>,
 }
 
 impl Io {
@@ -86,9 +89,11 @@ impl Io {
             .with(ErrorLayer::default())
             .init();
         color_eyre::install().unwrap();
+        let (commands, _) = watch::channel(Default::default());
+        let (ids, _) = watch::channel(Default::default());
         Self {
-            commands: Default::default(),
-            ids: Default::default(),
+            commands: Arc::new(commands),
+            ids: Arc::new(ids),
         }
     }
 
@@ -113,7 +118,7 @@ impl Io {
                     };
 
                     if let Some(child_id) = child_and_rpc.id() {
-                        io.ids.lock().await.insert(id.clone(), child_id.clone());
+                        io.ids.send_modify(|ids| {ids.insert(id, child_id);});
                         yield JsonRpc::new(id.clone(), Output::ProcessId(child_id));
                     }
 
@@ -171,6 +176,9 @@ impl Io {
                 Input::SendSignal(signal) => {
                     io.send_signal(&id,signal).await;
                 }
+                Input::StopThenKill(duration) => {
+                    tokio::spawn(io.stop_then_kill(id, duration.unwrap_or_else(|| Duration::from_secs(30))));
+                }
             }
         }
     }
@@ -199,7 +207,11 @@ impl Io {
     /// Helper for the command fn
     /// Part of a pair for the signal map, that indicates that we should kill the command
     async fn trigger_end_command(&self, id: RpcId) {
-        if let Some(command) = self.commands.lock().await.remove(&id) {
+        let mut removed = None;
+        self.commands.send_modify(|x| {
+            removed = x.remove(&id);
+        });
+        if let Some(command) = extract_once(removed).await {
             if command.send(()).is_err() {
                 tracing::trace!("Command {id:?} could not be ended, possible error or was done");
             }
@@ -210,8 +222,12 @@ impl Io {
     /// Part of a pair for the signal map, that indicates that we should kill the command
     async fn create_end_command(&self, id: RpcId) -> oneshot::Receiver<()> {
         let (send, receiver) = oneshot::channel();
-        if let Some(other_command) = self.commands.lock().await.insert(id.clone(), send) {
-            if other_command.send(()).is_err() {
+        let mut removed = None;
+        self.commands.send_modify(|x| {
+            removed = x.insert(id, Arc::new(Mutex::new(Some(send))));
+        });
+        if let Some(removed) = extract_once(removed).await {
+            if removed.send(()).is_err() {
                 tracing::trace!(
                     "Found other command {id:?} could not be ended, possible error or was done"
                 );
@@ -225,10 +241,15 @@ impl Io {
         &self,
         done_program: &DoneProgram,
     ) -> (Option<ProcessId>, Option<oneshot::Sender<()>>) {
-        (
-            self.ids.lock().await.remove(&done_program.id),
-            self.commands.lock().await.remove(&done_program.id),
-        )
+        let mut id = None;
+        let mut sender = None;
+        self.commands.send_modify(|x| {
+            sender = x.remove(&done_program.id);
+        });
+        self.ids.send_modify(|x| {
+            id = x.remove(&done_program.id);
+        });
+        (id, extract_once(sender).await)
     }
 
     /// Given the rpcid, will try and term the running command
@@ -252,18 +273,40 @@ impl Io {
         }
     }
 
+    /// Try and let a command clean itself up, but if it takes too long kill it
+    async fn stop_then_kill(self, id: RpcId, timeout: Duration) {
+        if !self.ids.borrow().contains_key(&id) {
+            return;
+        }
+
+        self.send_signal(&id, 15).await;
+        tokio::time::sleep(timeout).await;
+        if !self.ids.borrow().contains_key(&id) {
+            return;
+        }
+
+        self.send_signal(&id, 9).await;
+    }
+
     /// Used as a cleanup
     async fn cleanup_processes(self) {
-        let ids: Vec<_> = self.ids.lock().await.keys().cloned().collect();
-        for id in ids {
-            self.send_signal(&id, 15).await;
+        for id in self.ids.borrow().keys() {
+            self.send_signal(id, 15).await;
         }
     }
 
     async fn get_cmd_id(&self, rpc: &RpcId) -> Option<ProcessId> {
-        self.ids.lock().await.get(rpc).cloned()
+        self.ids.borrow().get(rpc).cloned()
     }
 }
+
+async fn extract_once<T>(value: Option<Arc<Mutex<Option<T>>>>) -> Option<T> {
+    match value {
+        None => None,
+        Some(a) => a.lock().await.take(),
+    }
+}
+
 #[tokio::main]
 async fn main() {
     use futures::StreamExt;

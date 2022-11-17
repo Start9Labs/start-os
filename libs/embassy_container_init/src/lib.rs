@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
@@ -99,6 +101,8 @@ pub enum Input {
     Kill(),
     /// Send the sigterm to the process
     SendSignal(u32),
+    /// When we want a sigterm of 15, then after timeout sigkill 9
+    StopThenKill(Option<Duration>),
 }
 
 #[test]

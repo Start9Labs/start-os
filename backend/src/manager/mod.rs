@@ -680,34 +680,51 @@ impl PersistantContainer {
     }
 
     fn exec_command(&self) -> ExecCommand {
+        use std::collections::BTreeSet;
+        use tokio::sync::oneshot;
         let cloned = self.command_inserter.clone();
+
+        let (trigger_drop, drop) = oneshot::channel::<BTreeSet<RpcId>>();
+        tokio::spawn({
+            let command_inserter = self.command_inserter.clone();
+            async move {
+                let ids = match drop.await {
+                    Err(err) => {
+                        tracing::warn!("Channel cleanup issue {err:?}");
+                        return;
+                    }
+                    Ok(a) => a,
+                };
+                let command_inserter_lock = command_inserter.lock().await;
+                let command_inserter = match &*command_inserter_lock {
+                    Some(a) => a,
+                    None => {
+                        return;
+                    }
+                };
+                for id in ids {
+                    command_inserter.send_kill_command(id, 9).await;
+                }
+            }
+        });
 
         /// A handle that on drop will clean all the ids that are inserter in the fn.
         struct Cleaner {
             command_inserter: Arc<Mutex<Option<CommandInserter>>>,
-            ids: ::std::collections::BTreeSet<RpcId>,
+            ids: BTreeSet<RpcId>,
+            trigger_drop: Option<oneshot::Sender<BTreeSet<RpcId>>>,
         }
         impl Drop for Cleaner {
             fn drop(&mut self) {
-                let command_inserter = self.command_inserter.clone();
-                let ids = ::std::mem::take(&mut self.ids);
-                tokio::spawn(async move {
-                    let command_inserter_lock = command_inserter.lock().await;
-                    let command_inserter = match &*command_inserter_lock {
-                        Some(a) => a,
-                        None => {
-                            return;
-                        }
-                    };
-                    for id in ids {
-                        command_inserter.send_kill_command(id, 9).await;
-                    }
-                });
+                if let Some(trigger_drop) = self.trigger_drop.take() {
+                    trigger_drop.send(::std::mem::take(&mut self.ids));
+                }
             }
         }
         let cleaner = Arc::new(Mutex::new(Cleaner {
             command_inserter: cloned.clone(),
             ids: Default::default(),
+            trigger_drop: Some(trigger_drop),
         }));
         Arc::new(move |command, args, sender, timeout| {
             let cloned = cloned.clone();
