@@ -2,13 +2,11 @@ import { Url } from '@start9labs/shared'
 
 export type StoreURL = string
 export type StoreName = string
-export type StoreIcon = string // base64
 
-export interface StoreIdentifier {
+export interface StoreIdentity {
+  url: StoreURL
   name?: StoreName
-  icon?: StoreIcon // base64
 }
-
 export type Marketplace = Record<StoreURL, StoreData | null>
 
 export interface StoreData {
@@ -18,7 +16,6 @@ export interface StoreData {
 
 export interface StoreInfo {
   name: StoreName
-  icon?: StoreIcon
   categories: string[]
 }
 

@@ -1,0 +1,4 @@
+<img *ngIf="url | getIcon as icon; else noIcon" [src]="icon" alt="" />
+<ng-template #noIcon>
+  <ion-icon name="storefront-outline"></ion-icon>
+</ng-template>

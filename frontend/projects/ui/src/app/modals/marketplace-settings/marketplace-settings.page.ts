@@ -7,18 +7,15 @@ import {
 } from '@ionic/angular'
 import { ActionSheetButton } from '@ionic/core'
 import { ErrorToastService } from '@start9labs/shared'
-import {
-  AbstractMarketplaceService,
-  StoreIdentifier,
-} from '@start9labs/marketplace'
+import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ValueSpecObject } from 'src/app/pkg-config/config-types'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 import { PatchDB } from 'patch-db-client'
-import { DataModel } from 'src/app/services/patch-db/data-model'
+import { DataModel, UIStore } from 'src/app/services/patch-db/data-model'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { map } from 'rxjs/operators'
-import { firstValueFrom } from 'rxjs'
+import { combineLatest, firstValueFrom } from 'rxjs'
 
 @Component({
   selector: 'marketplace-settings',
@@ -27,24 +24,21 @@ import { firstValueFrom } from 'rxjs'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MarketplaceSettingsPage {
-  marketplace$ = this.patch.watch$('ui', 'marketplace').pipe(
-    map(m => {
-      const selected = m['selected-url']
-      const hosts = Object.entries(m['known-hosts'])
+  stores$ = combineLatest([
+    this.marketplaceService.getKnownHosts$(),
+    this.marketplaceService.getSelectedHost$(),
+  ]).pipe(
+    map(([stores, selected]) => {
+      const hmmm = stores.map(s => ({
+        ...s,
+        selected: s.url === selected.url,
+      }))
+      // 0 and 1 are prod and community
+      const standard = hmmm.slice(0, 2)
+      // 2 and beyond are alts
+      const alt = hmmm.slice(2)
 
-      const standard = hosts
-        .map(([url, info]) => {
-          return { url, ...info }
-        })
-        .slice(0, 2) // 0 and 1 will always be prod and community
-
-      const alt = hosts
-        .map(([url, info]) => {
-          return { url, ...info }
-        })
-        .slice(2) // 2 and beyond will always be alts
-
-      return { selected, standard, alt }
+      return { standard, alt }
     }),
   )
 
@@ -207,16 +201,16 @@ export class MarketplaceSettingsPage {
     loader.message = 'Validating marketplace...'
     await loader.present()
 
-    const { name, icon } = await firstValueFrom(
+    const { name } = await firstValueFrom(
       this.marketplaceService.fetchInfo$(url),
     )
 
     // Save
     loader.message = 'Saving...'
 
-    await this.api.setDbValue<StoreIdentifier>(
+    await this.api.setDbValue<{ name: string }>(
       ['marketplace', 'known-hosts', url],
-      { name, icon },
+      { name },
     )
   }
 
@@ -230,7 +224,7 @@ export class MarketplaceSettingsPage {
       this.patch.watch$('ui', 'marketplace', 'known-hosts'),
     )
 
-    const filtered: { [url: string]: StoreIdentifier } = Object.keys(hosts)
+    const filtered: { [url: string]: UIStore } = Object.keys(hosts)
       .filter(key => key !== url)
       .reduce((prev, curr) => {
         const name = hosts[curr]
@@ -241,7 +235,7 @@ export class MarketplaceSettingsPage {
       }, {})
 
     try {
-      await this.api.setDbValue<{ [url: string]: StoreIdentifier }>(
+      await this.api.setDbValue<{ [url: string]: UIStore }>(
         ['marketplace', 'known-hosts'],
         filtered,
       )

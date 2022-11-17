@@ -12,7 +12,7 @@ import {
   Marketplace,
   MarketplaceManifest,
   MarketplacePkg,
-  StoreIdentifier,
+  StoreIdentity,
 } from '@start9labs/marketplace'
 import { Emver } from '@start9labs/shared'
 import { Pipe, PipeTransform } from '@angular/core'
@@ -20,7 +20,7 @@ import { combineLatest, Observable } from 'rxjs'
 import { PrimaryRendering } from '../../services/pkg-status-rendering.service'
 
 interface UpdatesData {
-  hosts: Record<string, StoreIdentifier>
+  hosts: StoreIdentity[]
   marketplace: Marketplace
   localPkgs: Record<string, PackageDataEntry>
   errors: string[]
