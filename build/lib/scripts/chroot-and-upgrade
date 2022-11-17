@@ -9,6 +9,10 @@ echo 'Syncing...'
 
 rsync -a --delete --force --info=progress2 /media/embassy/embassyfs/current/ /media/embassy/next
 
+mkdir -p /media/embassy/next/run
+mkdir -p /media/embassy/next/dev
+mkdir -p /media/embassy/next/sys
+mkdir -p /media/embassy/next/proc
 mount --bind /run /media/embassy/next/run
 mount --bind /dev /media/embassy/next/dev
 mount --bind /sys /media/embassy/next/sys
