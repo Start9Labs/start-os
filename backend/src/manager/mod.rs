@@ -623,11 +623,11 @@ impl PersistentContainer {
     fn exec_command(&self) -> ExecCommand {
         use std::collections::BTreeSet;
         use tokio::sync::oneshot;
-        let cloned = self.command_inserter.clone();
+        let cloned = self.command_inserter.borrow().clone();
 
         let (trigger_drop, drop) = oneshot::channel::<BTreeSet<RpcId>>();
         tokio::spawn({
-            let command_inserter = self.command_inserter.clone();
+            // let command_inserter = self.command_inserter.borrow().clone();
             async move {
                 let ids = match drop.await {
                     Err(err) => {
@@ -636,22 +636,15 @@ impl PersistentContainer {
                     }
                     Ok(a) => a,
                 };
-                let command_inserter_lock = command_inserter.lock().await;
-                let command_inserter = match &*command_inserter_lock {
-                    Some(a) => a,
-                    None => {
-                        return;
-                    }
-                };
                 for id in ids {
-                    command_inserter.send_kill_command(id, 9).await;
+                    // command_inserter.send_kill_command(id, 9).await;
                 }
             }
         });
 
         /// A handle that on drop will clean all the ids that are inserter in the fn.
         struct Cleaner {
-            command_inserter: Arc<Mutex<Option<CommandInserter>>>,
+            command_inserter: Arc<CommandInserter>,
             ids: BTreeSet<RpcId>,
             trigger_drop: Option<oneshot::Sender<BTreeSet<RpcId>>>,
         }
@@ -671,23 +664,16 @@ impl PersistentContainer {
             let cloned = cloned.clone();
             let cleaner = cleaner.clone();
             Box::pin(async move {
-                let lock = cloned.lock().await;
-                let id = match &*lock {
-                    Some(command_inserter) => {
-                        if let Some(id) = command_inserter
-                            .exec_command(command.clone(), args.clone(), sender, timeout)
-                            .await
-                        {
-                            let mut cleaner = cleaner.lock().await;
-                            cleaner.ids.insert(id);
-                            id
-                        } else {
-                            return Err("Couldn't get command started ".to_string());
-                        }
-                    }
-                    None => {
-                        return Err("Expecting containers.main in the package manifest".to_string())
-                    }
+                let command_inserter = cloned.clone();
+                let id = if let Some(id) = command_inserter
+                    .exec_command(command.clone(), args.clone(), sender, timeout)
+                    .await
+                {
+                    let mut cleaner = cleaner.lock().await;
+                    cleaner.ids.insert(id);
+                    id
+                } else {
+                    return Err("Couldn't get command started ".to_string());
                 };
                 Ok::<RpcId, String>(id)
             })
