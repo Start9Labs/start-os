@@ -15,13 +15,12 @@ use futures::{Stream, StreamExt, TryFutureExt, TryStreamExt};
 use helpers::NonDetachingJoinHandle;
 use nix::sys::signal;
 use nix::unistd::Pid;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tokio::{
-    io::{AsyncBufRead, AsyncBufReadExt, BufReader},
-    process::Child,
-    sync::mpsc::UnboundedReceiver,
-};
+use tokio::io::{AsyncBufRead, AsyncBufReadExt, BufReader};
+use tokio::process::Child;
+use tokio::sync::mpsc::UnboundedReceiver;
 use tracing::instrument;
 
 use super::ProcedureName;
@@ -69,6 +68,62 @@ pub struct DockerContainer {
     pub sigterm_timeout: Option<SerdeDuration>,
     #[serde(default)]
     pub system: bool,
+}
+impl DockerContainer {
+    /// We created a new exec runner, where we are going to be passing the commands for it to run.
+    /// Idea is that we are going to send it command and get the inputs be filtered back from the manager.
+    /// Then we could in theory run commands without the cost of running the docker exec which is known to have
+    /// a dely of > 200ms which is not acceptable.
+    #[instrument(skip(ctx, input))]
+    pub async fn long_running_execute<S>(
+        &self,
+        ctx: &RpcContext,
+        pkg_id: &PackageId,
+        pkg_version: &Version,
+        volumes: &Volumes,
+        input: S,
+    ) -> Result<LongRunning, Error>
+    where
+        S: Stream<Item = InputJsonRpc> + Send + 'static,
+    {
+        let container_name = DockerProcedure::container_name(pkg_id, None);
+
+        let mut cmd = LongRunning::setup_long_running_docker_cmd(
+            self,
+            ctx,
+            &container_name,
+            volumes,
+            pkg_id,
+            pkg_version,
+        )
+        .await?;
+
+        let mut handle = cmd.spawn().with_kind(crate::ErrorKind::Docker)?;
+        let input_handle = LongRunning::spawn_input_handle(&mut handle, input)?
+            .map_err(|e| eyre!("Input Handle Error: {e:?}"));
+
+        let (output, output_handle) = LongRunning::spawn_output_handle(&mut handle)?;
+        let output_handle = output_handle.map_err(|e| eyre!("Output Handle Error: {e:?}"));
+        let err_handle = LongRunning::spawn_error_handle(&mut handle)?
+            .map_err(|e| eyre!("Err Handle Error: {e:?}"));
+
+        let running_output = NonDetachingJoinHandle::from(tokio::spawn(async move {
+            if let Err(err) = tokio::select!(
+                x = handle.wait().map_err(|e| eyre!("Runtime error: {e:?}")) => x.map(|_| ()),
+                x = err_handle => x.map(|_| ()),
+                x = output_handle => x.map(|_| ()),
+                x = input_handle => x.map(|_| ())
+            ) {
+                tracing::debug!("{:?}", err);
+                tracing::error!("Join error");
+            }
+        }));
+
+        Ok(LongRunning {
+            output,
+            running_output,
+        })
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -119,23 +174,6 @@ impl DockerProcedure {
             mounts: container.mounts.clone(),
             io_format: injectable.io_format,
             sigterm_timeout: injectable.sigterm_timeout,
-            shm_size_mb: container.shm_size_mb,
-        }
-    }
-    #[cfg(feature = "js_engine")]
-    pub fn main_docker_procedure_js(
-        container: &DockerContainer,
-        _procedure: &super::js_scripts::JsProcedure,
-    ) -> DockerProcedure {
-        DockerProcedure {
-            image: container.image.clone(),
-            system: container.system,
-            entrypoint: "sleep".to_string(),
-            args: Vec::new(),
-            inject: false,
-            mounts: container.mounts.clone(),
-            io_format: None,
-            sigterm_timeout: container.sigterm_timeout,
             shm_size_mb: container.shm_size_mb,
         }
     }
@@ -344,64 +382,6 @@ impl DockerProcedure {
                 ))
             },
         )
-    }
-
-    /// We created a new exec runner, where we are going to be passing the commands for it to run.
-    /// Idea is that we are going to send it command and get the inputs be filtered back from the manager.
-    /// Then we could in theory run commands without the cost of running the docker exec which is known to have
-    /// a dely of > 200ms which is not acceptable.
-    #[instrument(skip(ctx, input))]
-    pub async fn long_running_execute<S>(
-        &self,
-        ctx: &RpcContext,
-        pkg_id: &PackageId,
-        pkg_version: &Version,
-        name: ProcedureName,
-        volumes: &Volumes,
-        input: S,
-    ) -> Result<LongRunning, Error>
-    where
-        S: Stream<Item = InputJsonRpc> + Send + 'static,
-    {
-        let name = name.docker_name();
-        let name: Option<&str> = name.as_deref();
-        let container_name = Self::container_name(pkg_id, name);
-
-        let mut cmd = LongRunning::setup_long_running_docker_cmd(
-            self,
-            ctx,
-            &container_name,
-            volumes,
-            pkg_id,
-            pkg_version,
-        )
-        .await?;
-
-        let mut handle = cmd.spawn().with_kind(crate::ErrorKind::Docker)?;
-        let input_handle = LongRunning::spawn_input_handle(&mut handle, input)?
-            .map_err(|e| eyre!("Input Handle Error: {e:?}"));
-
-        let (output, output_handle) = LongRunning::spawn_output_handle(&mut handle)?;
-        let output_handle = output_handle.map_err(|e| eyre!("Output Handle Error: {e:?}"));
-        let err_handle = LongRunning::spawn_error_handle(&mut handle)?
-            .map_err(|e| eyre!("Err Handle Error: {e:?}"));
-
-        let running_output = NonDetachingJoinHandle::from(tokio::spawn(async move {
-            if let Err(err) = tokio::select!(
-                x = handle.wait().map_err(|e| eyre!("Runtime error: {e:?}")) => x.map(|_| ()),
-                x = err_handle => x.map(|_| ()),
-                x = output_handle => x.map(|_| ()),
-                x = input_handle => x.map(|_| ())
-            ) {
-                tracing::debug!("{:?}", err);
-                tracing::error!("Join error");
-            }
-        }));
-
-        Ok(LongRunning {
-            output,
-            running_output,
-        })
     }
 
     #[instrument(skip(_ctx, input))]
@@ -794,7 +774,7 @@ pub struct LongRunning {
 
 impl LongRunning {
     async fn setup_long_running_docker_cmd(
-        docker: &DockerProcedure,
+        docker: &DockerContainer,
         ctx: &RpcContext,
         container_name: &str,
         volumes: &Volumes,

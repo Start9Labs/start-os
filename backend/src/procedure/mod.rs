@@ -3,7 +3,8 @@ use std::time::Duration;
 
 use color_eyre::eyre::eyre;
 use patch_db::HasModel;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use self::docker::{DockerContainers, DockerProcedure};
@@ -95,7 +96,13 @@ impl PackageProcedure {
                     }
                     Some(x) => x,
                 }
-                .exec_command();
+                .exec_command()
+                .ok_or_else(|| {
+                    Error::new(
+                        eyre!("No persistent container for {}", pkg_id),
+                        ErrorKind::NotFound,
+                    )
+                })?;
                 let term_command = match ctx
                     .managers
                     .get(&(pkg_id.clone(), pkg_version.clone()))
@@ -109,7 +116,13 @@ impl PackageProcedure {
                     }
                     Some(x) => x,
                 }
-                .term_command();
+                .term_command()
+                .ok_or_else(|| {
+                    Error::new(
+                        eyre!("No persistent container for {}", pkg_id),
+                        ErrorKind::NotFound,
+                    )
+                })?;
                 procedure
                     .execute(
                         &ctx.datadir,
@@ -159,7 +172,13 @@ impl PackageProcedure {
                     }
                     Some(x) => x,
                 }
-                .exec_command();
+                .exec_command()
+                .ok_or_else(|| {
+                    Error::new(
+                        eyre!("No persistent container for {}", pkg_id),
+                        ErrorKind::NotFound,
+                    )
+                })?;
                 let term_command = match ctx
                     .managers
                     .get(&(pkg_id.clone(), pkg_version.clone()))
@@ -173,7 +192,13 @@ impl PackageProcedure {
                     }
                     Some(x) => x,
                 }
-                .term_command();
+                .term_command()
+                .ok_or_else(|| {
+                    Error::new(
+                        eyre!("No persistent container for {}", pkg_id),
+                        ErrorKind::NotFound,
+                    )
+                })?;
                 procedure
                     .execute(
                         &ctx.datadir,

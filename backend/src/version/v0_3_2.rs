@@ -2,10 +2,8 @@ use emver::VersionRange;
 
 use super::v0_3_0::V0_3_0_COMPAT;
 use super::*;
-use crate::{
-    config::util::MergeWith,
-    hostname::{generate_id, sync_hostname},
-};
+use crate::config::util::MergeWith;
+use crate::hostname::{generate_id, sync_hostname};
 
 const V0_3_2: emver::Version = emver::Version::new(0, 3, 2, 0);
 
