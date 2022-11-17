@@ -58,10 +58,9 @@ export class MarketplaceService implements AbstractMarketplaceService {
     .watch$('ui', 'marketplace')
     .pipe(
       distinctUntilKeyChanged('selected-url'),
-      map(({ 'selected-url': url, 'known-hosts': hosts }) => ({
-        url,
-        ...hosts[url],
-      })),
+      map(({ 'selected-url': url, 'known-hosts': hosts }) =>
+        toStoreIdentity(url, hosts[url]),
+      ),
       shareReplay(1),
     )
 
