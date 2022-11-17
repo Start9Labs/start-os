@@ -63,7 +63,8 @@ const runCommand = async (
   { command = requireParam("command"), args = [], timeoutMillis = 30000 } = requireParam("options"),
 ) => {
   let id = Deno.core.opAsync("start_command", command, args, timeoutMillis);
-  return Deno.core.opAsync("wait_command", await id)
+  let rpcId = id.then(x => x.rpcId)
+  return Deno.core.opAsync("wait_command", await rpcId)
 };
 const sleep = (timeMs = requireParam("timeMs"),
 ) => Deno.core.opAsync("sleep", timeMs);
