@@ -9,6 +9,7 @@ use embassy_container_init::{
     ReadLineStdoutParams, RunCommandParams, SendSignalParams,
 };
 use futures::StreamExt;
+use nix::errno::Errno;
 use nix::sys::signal::Signal;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -221,9 +222,10 @@ impl Handler {
             self.children
                 .lock()
                 .await
-                .remove(&pid)
+                .get(&pid)
                 .ok_or_else(not_found)?
                 .1
+                .clone()
         }
         .lock_owned()
         .await;
@@ -239,9 +241,12 @@ impl Handler {
                         .or_else(|| output.status.signal().map(|s| 128 + s))
                         .unwrap_or(0),
                     message: "Command failed".into(),
-                    data: Some(json!(
-                        String::from_utf8(output.stderr).map_err(|_| yajrc::PARSE_ERROR)?
-                    )),
+                    data: Some(json!(String::from_utf8(if output.stderr.is_empty() {
+                        output.stdout
+                    } else {
+                        output.stderr
+                    })
+                    .map_err(|_| yajrc::PARSE_ERROR)?)),
                 })
             }
         } else {
@@ -270,10 +275,7 @@ impl Handler {
             return Err(not_found());
         }
 
-        nix::sys::signal::kill(
-            nix::unistd::Pid::from_raw(pid.0 as i32),
-            Some(Signal::try_from(signal as i32)?),
-        )?;
+        Self::killall(pid, Signal::try_from(signal as i32)?)?;
 
         if signal == 9 {
             self.children
@@ -299,12 +301,25 @@ impl Handler {
             }
         }
         for pid in to_kill {
-            nix::sys::signal::kill(
-                nix::unistd::Pid::from_raw(pid.0 as i32),
-                Some(Signal::SIGKILL),
-            )?;
+            tracing::info!("Killing pid {}", pid.0);
+            Self::killall(pid, Signal::SIGKILL)?;
         }
 
+        Ok(())
+    }
+
+    fn killall(pid: ProcessId, signal: Signal) -> Result<(), RpcError> {
+        for proc in procfs::process::all_processes()? {
+            let stat = proc?.stat()?;
+            if ProcessId::from(stat.ppid) == pid {
+                Self::killall(stat.pid.into(), signal)?;
+            }
+        }
+        if let Err(e) = nix::sys::signal::kill(pid.into(), Some(signal)) {
+            if e != Errno::ESRCH {
+                tracing::error!("Failed to kill pid {}: {}", pid.0, e);
+            }
+        }
         Ok(())
     }
 
@@ -313,10 +328,7 @@ impl Handler {
             std::mem::take(self.children.lock().await.deref_mut()).into_iter(),
         )
         .for_each_concurrent(None, |(pid, child)| async move {
-            let _ = nix::sys::signal::kill(
-                nix::unistd::Pid::from_raw(pid.0 as i32),
-                Some(Signal::SIGTERM),
-            );
+            let _ = Self::killall(pid, Signal::SIGTERM);
             if let Some(child) = child.1.lock().await.take() {
                 let _ = child.0.wait_with_output().await;
             }
@@ -332,6 +344,20 @@ async fn main() {
     let mut sigterm = signal(SignalKind::terminate()).unwrap();
     let mut sigquit = signal(SignalKind::quit()).unwrap();
     let mut sighangup = signal(SignalKind::hangup()).unwrap();
+
+    use tracing_error::ErrorLayer;
+    use tracing_subscriber::prelude::*;
+    use tracing_subscriber::{fmt, EnvFilter};
+
+    let filter_layer = EnvFilter::new("embassy_container_init=debug");
+    let fmt_layer = fmt::layer().with_target(true);
+
+    tracing_subscriber::registry()
+        .with(filter_layer)
+        .with(fmt_layer)
+        .with(ErrorLayer::default())
+        .init();
+    color_eyre::install().unwrap();
 
     let handler = Handler::new();
     let mut lines = BufReader::new(tokio::io::stdin()).lines();

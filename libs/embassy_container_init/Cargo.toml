@@ -25,6 +25,7 @@ tracing-error = "0.2"
 tracing-futures = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 yajrc = { version = "*", git = "https://github.com/dr-bonez/yajrc.git", branch = "develop" }
+procfs = "0.14"
 
 [profile.test]
 opt-level = 3

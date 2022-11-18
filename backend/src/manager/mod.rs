@@ -771,7 +771,6 @@ async fn stop(shared: &ManagerSharedState) -> Result<(), Error> {
     )
     .await;
     shared.killer.notify_waiters();
-    dbg!("Killed", &shared.seed.container_name);
 
     Ok(())
 }
