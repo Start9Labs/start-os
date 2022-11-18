@@ -832,7 +832,7 @@ async fn send_signal(shared: &ManagerSharedState, signal: &Signal) -> Result<(),
         .as_ref()
         .map(|c| c.rpc_client.borrow().clone())
     {
-        JsProcedure::default()
+        if let Err(e) = JsProcedure::default()
             .execute::<_, NoOutput>(
                 &shared.seed.ctx.datadir,
                 &shared.seed.manifest.id,
@@ -848,7 +848,11 @@ async fn send_signal(shared: &ManagerSharedState, signal: &Signal) -> Result<(),
                 ),
                 Some(rpc_client),
             )
-            .await?;
+            .await?
+        {
+            tracing::error!("Failed to send js signal: {}", e.1);
+            tracing::debug!("{:?}", e);
+        }
     } else {
         // send signal to container
         shared

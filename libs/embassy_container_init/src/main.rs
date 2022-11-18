@@ -9,6 +9,7 @@ use embassy_container_init::{
     ReadLineStdoutParams, RunCommandParams, SendSignalParams,
 };
 use futures::StreamExt;
+use nix::sys::signal::Signal;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tokio::io::{AsyncBufReadExt, BufReader};
@@ -269,12 +270,10 @@ impl Handler {
             return Err(not_found());
         }
 
-        let _ = Command::new("kill")
-            .arg("-s")
-            .arg(signal.to_string())
-            .arg(pid.0.to_string())
-            .output()
-            .await;
+        nix::sys::signal::kill(
+            nix::unistd::Pid::from_raw(pid.0 as i32),
+            Some(Signal::try_from(signal as i32)?),
+        )?;
 
         if signal == 9 {
             self.children
@@ -300,11 +299,10 @@ impl Handler {
             }
         }
         for pid in to_kill {
-            let _ = Command::new("kill")
-                .arg("-9")
-                .arg(pid.0.to_string())
-                .output()
-                .await;
+            nix::sys::signal::kill(
+                nix::unistd::Pid::from_raw(pid.0 as i32),
+                Some(Signal::SIGKILL),
+            )?;
         }
 
         Ok(())
@@ -315,7 +313,10 @@ impl Handler {
             std::mem::take(self.children.lock().await.deref_mut()).into_iter(),
         )
         .for_each_concurrent(None, |(pid, child)| async move {
-            let _ = Command::new("kill").arg(pid.0.to_string()).output().await;
+            let _ = nix::sys::signal::kill(
+                nix::unistd::Pid::from_raw(pid.0 as i32),
+                Some(Signal::SIGTERM),
+            );
             if let Some(child) = child.1.lock().await.take() {
                 let _ = child.0.wait_with_output().await;
             }
@@ -339,6 +340,7 @@ async fn main() {
             let local_hdlr = handler.clone();
             tokio::spawn(async move {
                 if let Err(e) = async {
+                    eprintln!("{}", line);
                     let req = serde_json::from_str::<IncomingRpc>(&line)?;
                     match local_hdlr.handle(req.input).await {
                         Ok(output) => {

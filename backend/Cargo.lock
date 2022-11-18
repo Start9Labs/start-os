@@ -1282,6 +1282,7 @@ dependencies = [
  "color-eyre",
  "futures",
  "imbl 2.0.0",
+ "nix 0.25.0",
  "serde",
  "serde_json",
  "tokio",
