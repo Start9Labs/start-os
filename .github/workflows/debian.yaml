@@ -20,10 +20,10 @@ jobs:
       with:
         path: embassyos-0.3.x
     - run: |
-      cp -r debian embassyos-$(VERSION)/
-      VERSION=0.3.x ./control.sh
-      cp embassyos-0.3.x/backend/embassyd.service embassyos-0.3.x/debian/embassyos.embassyd.service
-      cp embassyos-0.3.x/backend/embassy-init.service embassyos-0.3.x/debian/embassyos.embassy-init.service
+        cp -r debian embassyos-$(VERSION)/
+        VERSION=0.3.x ./control.sh
+        cp embassyos-0.3.x/backend/embassyd.service embassyos-0.3.x/debian/embassyos.embassyd.service
+        cp embassyos-0.3.x/backend/embassy-init.service embassyos-0.3.x/debian/embassyos.embassy-init.service
     
     - uses: actions/setup-node@v3
       with:

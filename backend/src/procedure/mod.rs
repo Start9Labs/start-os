@@ -94,15 +94,7 @@ impl PackageProcedure {
                             ErrorKind::NotFound,
                         ))
                     }
-                    Some(man) => (
-                        man.new_gid(),
-                        man.rpc_client().ok_or_else(|| {
-                            Error::new(
-                                eyre!("No long-running container for {}", pkg_id),
-                                ErrorKind::NotFound,
-                            )
-                        })?,
-                    ),
+                    Some(man) => (man.new_gid(), man.rpc_client()),
                 };
 
                 procedure

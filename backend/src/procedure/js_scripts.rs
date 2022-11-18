@@ -68,17 +68,21 @@ impl JsProcedure {
         input: Option<I>,
         timeout: Option<Duration>,
         gid: ProcessGroupId,
-        rpc_client: Arc<RpcClient>,
+        rpc_client: Option<Arc<RpcClient>>,
     ) -> Result<Result<O, (i32, String)>, Error> {
         let cleaner_client = rpc_client.clone();
         let cleaner = GeneralGuard::new(move || {
             tokio::spawn(async move {
-                cleaner_client
-                    .request(KillGroup, KillGroupParams { gid })
-                    .await
-                    .map_err(|e| {
-                        Error::new(eyre!("{}: {:?}", e.message, e.data), ErrorKind::Docker)
-                    })
+                if let Some(client) = cleaner_client {
+                    client
+                        .request(KillGroup, KillGroupParams { gid })
+                        .await
+                        .map_err(|e| {
+                            Error::new(eyre!("{}: {:?}", e.message, e.data), ErrorKind::Docker)
+                        })
+                } else {
+                    Ok(())
+                }
             })
         });
         let res = async move {
@@ -125,7 +129,7 @@ impl JsProcedure {
                 pkg_version,
                 Box::new(volumes.clone()),
                 ProcessGroupId(0),
-                Arc::new(RpcClient::new(tokio::io::sink(), tokio::io::empty())),
+                None,
             )
             .await?
             .read_only_effects()
@@ -205,10 +209,8 @@ async fn js_action_execute() {
             &volumes,
             input,
             timeout,
-            Arc::new(|_, _, _, _| {
-                Box::pin(async move { Err("Can't run commands in test".to_string()) })
-            }),
-            Arc::new(|_, _| Box::pin(async move { Err("Can't run commands in test".to_string()) })),
+            ProcessGroupId(0),
+            None,
         )
         .await
         .unwrap()
@@ -264,10 +266,8 @@ async fn js_action_execute_error() {
             &volumes,
             input,
             timeout,
-            Arc::new(|_, _, _, _| {
-                Box::pin(async move { Err("Can't run commands in test".to_string()) })
-            }),
-            Arc::new(|_, _| Box::pin(async move { Err("Can't run commands in test".to_string()) })),
+            ProcessGroupId(0),
+            None,
         )
         .await
         .unwrap();
@@ -312,10 +312,8 @@ async fn js_action_fetch() {
             &volumes,
             input,
             timeout,
-            Arc::new(|_, _, _, _| {
-                Box::pin(async move { Err("Can't run commands in test".to_string()) })
-            }),
-            Arc::new(|_, _| Box::pin(async move { Err("Can't run commands in test".to_string()) })),
+            ProcessGroupId(0),
+            None,
         )
         .await
         .unwrap()
@@ -353,23 +351,18 @@ async fn js_test_slow() {
     let timeout = Some(Duration::from_secs(10));
     tracing::debug!("testing start");
     tokio::select! {
-     a = js_action
-        .execute::<serde_json::Value, serde_json::Value>(
-            &path,
-            &package_id,
-            &package_version,
-            name,
-            &volumes,
-            input,
-            timeout,
-            Arc::new(|_, _, _, _| {
-                Box::pin(async move { Err("Can't run commands in test".to_string()) })
-            }),
-            Arc::new(|_, _| Box::pin(async move { Err("Can't run commands in test".to_string()) })),
-        )
-         => {a
-        .unwrap()
-        .unwrap();},
+        a = js_action
+            .execute::<serde_json::Value, serde_json::Value>(
+                &path,
+                &package_id,
+                &package_version,
+                name,
+                &volumes,
+                input,
+                timeout,
+                ProcessGroupId(0),
+                None,
+            ) => { a.unwrap().unwrap(); },
         _ = tokio::time::sleep(Duration::from_secs(1)) => ()
     }
     tracing::debug!("testing end should");
@@ -416,10 +409,8 @@ async fn js_action_var_arg() {
             &volumes,
             input,
             timeout,
-            Arc::new(|_, _, _, _| {
-                Box::pin(async move { Err("Can't run commands in test".to_string()) })
-            }),
-            Arc::new(|_, _| Box::pin(async move { Err("Can't run commands in test".to_string()) })),
+            ProcessGroupId(0),
+            None,
         )
         .await
         .unwrap()
@@ -464,10 +455,8 @@ async fn js_action_test_rename() {
             &volumes,
             input,
             timeout,
-            Arc::new(|_, _, _, _| {
-                Box::pin(async move { Err("Can't run commands in test".to_string()) })
-            }),
-            Arc::new(|_, _| Box::pin(async move { Err("Can't run commands in test".to_string()) })),
+            ProcessGroupId(0),
+            None,
         )
         .await
         .unwrap()
@@ -512,10 +501,8 @@ async fn js_action_test_deep_dir() {
             &volumes,
             input,
             timeout,
-            Arc::new(|_, _, _, _| {
-                Box::pin(async move { Err("Can't run commands in test".to_string()) })
-            }),
-            Arc::new(|_, _| Box::pin(async move { Err("Can't run commands in test".to_string()) })),
+            ProcessGroupId(0),
+            None,
         )
         .await
         .unwrap()
@@ -559,10 +546,8 @@ async fn js_action_test_deep_dir_escape() {
             &volumes,
             input,
             timeout,
-            Arc::new(|_, _, _, _| {
-                Box::pin(async move { Err("Can't run commands in test".to_string()) })
-            }),
-            Arc::new(|_, _| Box::pin(async move { Err("Can't run commands in test".to_string()) })),
+            ProcessGroupId(0),
+            None,
         )
         .await
         .unwrap()
@@ -607,10 +592,8 @@ async fn js_rsync() {
             &volumes,
             input,
             timeout,
-            Arc::new(|_, _, _, _| {
-                Box::pin(async move { Err("Can't run commands in test".to_string()) })
-            }),
-            Arc::new(|_, _| Box::pin(async move { Err("Can't run commands in test".to_string()) })),
+            ProcessGroupId(0),
+            None,
         )
         .await
         .unwrap()

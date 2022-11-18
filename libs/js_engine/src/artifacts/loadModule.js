@@ -44,18 +44,16 @@ const runDaemon = (
   { command = requireParam("command"), args = [] } = requireParam("options"),
 ) => {
   let id = Deno.core.opAsync("start_command", command, args);
-  let rpcId = id.then(x => x.rpcId)
   let processId = id.then(x => x.processId)
   let waitPromise = null;
   return {
     processId,
-    rpcId,
     async wait() {
-      waitPromise = waitPromise || Deno.core.opAsync("wait_command", await rpcId)
+      waitPromise = waitPromise || Deno.core.opAsync("wait_command", await processId)
       return waitPromise
     },
     async term(signal = 15) {
-      return Deno.core.opAsync("term_command", await rpcId, 15)
+      return Deno.core.opAsync("send_signal", await processId, 15)
     }
   }
 };
@@ -63,8 +61,8 @@ const runCommand = async (
   { command = requireParam("command"), args = [], timeoutMillis = 30000 } = requireParam("options"),
 ) => {
   let id = Deno.core.opAsync("start_command", command, args, timeoutMillis);
-  let rpcId = id.then(x => x.rpcId)
-  return Deno.core.opAsync("wait_command", await rpcId)
+  let pid = id.then(x => x.processId)
+  return Deno.core.opAsync("wait_command", await pid)
 };
 const sleep = (timeMs = requireParam("timeMs"),
 ) => Deno.core.opAsync("sleep", timeMs);

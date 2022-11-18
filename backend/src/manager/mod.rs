@@ -846,7 +846,7 @@ async fn send_signal(shared: &ManagerSharedState, signal: &Signal) -> Result<(),
                         .next_gid
                         .fetch_add(1, std::sync::atomic::Ordering::SeqCst),
                 ),
-                rpc_client,
+                Some(rpc_client),
             )
             .await?;
     } else {

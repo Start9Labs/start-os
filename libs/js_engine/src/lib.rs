@@ -95,7 +95,7 @@ struct JsContext {
     input: Value,
     variable_args: Vec<serde_json::Value>,
     container_process_gid: ProcessGroupId,
-    container_rpc_client: Arc<RpcClient>,
+    container_rpc_client: Option<Arc<RpcClient>>,
     rsyncs: Arc<Mutex<(usize, BTreeMap<usize, Rsync>)>>,
 }
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -184,7 +184,7 @@ pub struct JsExecutionEnvironment {
     version: Version,
     volumes: Arc<dyn PathForVolumeId>,
     container_process_gid: ProcessGroupId,
-    container_rpc_client: Arc<RpcClient>,
+    container_rpc_client: Option<Arc<RpcClient>>,
 }
 
 impl JsExecutionEnvironment {
@@ -194,7 +194,7 @@ impl JsExecutionEnvironment {
         version: &Version,
         volumes: Box<dyn PathForVolumeId>,
         container_process_gid: ProcessGroupId,
-        container_rpc_client: Arc<RpcClient>,
+        container_rpc_client: Option<Arc<RpcClient>>,
     ) -> Result<JsExecutionEnvironment, (JsError, String)> {
         let data_dir = data_directory.as_ref();
         let base_directory = data_dir;
@@ -934,24 +934,26 @@ mod fns {
         pid: u32,
         signal: u32,
     ) -> Result<(), AnyError> {
-        let rpc_client = {
+        if let Some(rpc_client) = {
             let state = state.borrow();
             let ctx = state.borrow::<JsContext>();
             ctx.container_rpc_client.clone()
-        };
+        } {
+            rpc_client
+                .request(
+                    SendSignal,
+                    SendSignalParams {
+                        pid: ProcessId(pid),
+                        signal,
+                    },
+                )
+                .await
+                .map_err(|e| anyhow!("{}: {:?}", e.message, e.data))?;
 
-        rpc_client
-            .request(
-                SendSignal,
-                SendSignalParams {
-                    pid: ProcessId(pid),
-                    signal,
-                },
-            )
-            .await
-            .map_err(|e| anyhow!("{}: {:?}", e.message, e.data))?;
-
-        Ok(())
+            Ok(())
+        } else {
+            Err(anyhow!("No RpcClient for command operations"))
+        }
     }
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -967,25 +969,27 @@ mod fns {
         args: Vec<String>,
         timeout: Option<u64>,
     ) -> Result<StartCommand, AnyError> {
-        let (gid, rpc_client) = {
+        if let (gid, Some(rpc_client)) = {
             let state = state.borrow();
             let ctx = state.borrow::<JsContext>();
             (ctx.container_process_gid, ctx.container_rpc_client.clone())
-        };
+        } {
+            let pid = rpc_client
+                .request(
+                    RunCommand,
+                    RunCommandParams {
+                        gid: Some(gid),
+                        command,
+                        args,
+                    },
+                )
+                .await
+                .map_err(|e| anyhow!("{}: {:?}", e.message, e.data))?;
 
-        let pid = rpc_client
-            .request(
-                RunCommand,
-                RunCommandParams {
-                    gid: Some(gid),
-                    command,
-                    args,
-                },
-            )
-            .await
-            .map_err(|e| anyhow!("{}: {:?}", e.message, e.data))?;
-
-        Ok(StartCommand { process_id: pid })
+            Ok(StartCommand { process_id: pid })
+        } else {
+            Err(anyhow!("No RpcClient for command operations"))
+        }
     }
 
     #[op]
@@ -993,27 +997,29 @@ mod fns {
         state: Rc<RefCell<OpState>>,
         pid: ProcessId,
     ) -> Result<ResultType, AnyError> {
-        let rpc_client = {
+        if let Some(rpc_client) = {
             let state = state.borrow();
             let ctx = state.borrow::<JsContext>();
             ctx.container_rpc_client.clone()
-        };
-
-        Ok(
-            match rpc_client
-                .request(embassy_container_init::Output, OutputParams { pid })
-                .await
-            {
-                Ok(a) => ResultType::Result(json!(a)),
-                Err(e) => ResultType::ErrorCode(
-                    e.code,
-                    match e.data {
-                        Some(Value::String(s)) => s,
-                        e => format!("{:?}", e),
-                    },
-                ),
-            },
-        )
+        } {
+            Ok(
+                match rpc_client
+                    .request(embassy_container_init::Output, OutputParams { pid })
+                    .await
+                {
+                    Ok(a) => ResultType::Result(json!(a)),
+                    Err(e) => ResultType::ErrorCode(
+                        e.code,
+                        match e.data {
+                            Some(Value::String(s)) => s,
+                            e => format!("{:?}", e),
+                        },
+                    ),
+                },
+            )
+        } else {
+            Err(anyhow!("No RpcClient for command operations"))
+        }
     }
 
     #[op]
