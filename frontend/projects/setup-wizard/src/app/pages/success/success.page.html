@@ -1,10 +1,11 @@
+<canvas #canvas> Your browser does not support the canvas element. </canvas>
 <ion-content [scrollEvents]="true" (ionScrollEnd)="checkBottom()">
   <ion-grid>
     <ion-row>
       <ion-col>
         <!-- kiosk mode  -->
         <ng-container *ngIf="isKiosk; else notKiosk">
-          <ion-card color="dark">
+          <ion-card>
             <ion-card-header class="ion-text-center" color="success">
               <ion-icon
                 style="font-size: 80px"
@@ -21,7 +22,7 @@
 
         <!-- not kiosk -->
         <ng-template #notKiosk>
-          <ion-card color="dark">
+          <ion-card>
             <ion-card-header class="ion-text-center" color="success">
               <ion-icon
                 style="font-size: 80px"

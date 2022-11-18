@@ -13,3 +13,18 @@ a {
   padding-bottom: 48px;
   border-bottom: solid 1px;
 }
+
+canvas {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: -1;
+}
+
+ion-content {
+  position: absolute;
+  z-index: 0;
+  left: 12px;
+  top: 10px;
+  --background: transparent;
+}
