@@ -64,6 +64,11 @@ const runCommand = async (
   let pid = id.then(x => x.processId)
   return Deno.core.opAsync("wait_command", await pid)
 };
+const signalGroup = async (
+  { gid = requireParam("gid"), signal = requireParam("signal") } = requireParam("gid and signal")
+) => {
+  return Deno.core.opAsync("signal_group", gid, signal);
+};
 const sleep = (timeMs = requireParam("timeMs"),
 ) => Deno.core.opAsync("sleep", timeMs);
 
@@ -180,10 +185,17 @@ const effects = {
   runCommand,
   sleep,
   runDaemon,
+  signalGroup,
   runRsync
 };
 
-const runFunction = jsonPointerValue(mainModule, currentFunction);
+const defaults = {
+  "handleSignal": (effects, { gid, signal }) => {
+    return effects.signalGroup({ gid, signal })
+  }
+}
+
+const runFunction = jsonPointerValue(mainModule, currentFunction) || jsonPointerValue(defaults, currentFunction);
 (async () => {
   if (typeof runFunction !== "function") {
     error(`Expecting ${currentFunction} to be a function`);

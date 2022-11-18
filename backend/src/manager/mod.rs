@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use bollard::container::{KillContainerOptions, StopContainerOptions};
 use color_eyre::eyre::eyre;
-use embassy_container_init::ProcessGroupId;
+use embassy_container_init::{ProcessGroupId, SignalGroupParams};
 use helpers::RpcClient;
 use nix::sys::signal::Signal;
 use patch_db::DbHandle;
@@ -27,7 +27,7 @@ use crate::procedure::docker::{DockerContainer, DockerProcedure, LongRunning};
 use crate::procedure::js_scripts::JsProcedure;
 use crate::procedure::{NoOutput, PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::{Manifest, PackageId};
-use crate::util::{Container, NonDetachingJoinHandle, Version};
+use crate::util::{ApplyRef, Container, NonDetachingJoinHandle, Version};
 use crate::Error;
 
 pub mod health;
@@ -174,6 +174,7 @@ pub struct ManagerSharedState {
     synchronize_now: Notify,
     commit_health_check_results: AtomicBool,
     next_gid: AtomicU32,
+    main_gid: (Sender<ProcessGroupId>, Receiver<ProcessGroupId>),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -268,7 +269,8 @@ impl Manager {
             synchronized: Notify::new(),
             synchronize_now: Notify::new(),
             commit_health_check_results: AtomicBool::new(true),
-            next_gid: AtomicU32::new(0),
+            next_gid: AtomicU32::new(1),
+            main_gid: channel(ProcessGroupId(0)),
         });
         shared.synchronize_now.notify_one();
         let thread_shared = shared.clone();
@@ -348,6 +350,13 @@ impl Manager {
                 .fetch_add(1, std::sync::atomic::Ordering::SeqCst),
         )
     }
+
+    pub fn new_main_gid(&self) -> ProcessGroupId {
+        let gid = self.new_gid();
+        self.shared.main_gid.0.send_modify(|x| *x = gid);
+        gid
+    }
+
     pub fn rpc_client(&self) -> Option<Arc<RpcClient>> {
         self.shared
             .persistent_container
@@ -733,7 +742,10 @@ fn main_interfaces(
 
 async fn wait_for_status(shared: &ManagerSharedState, status: Status) {
     let mut recv = shared.status.0.subscribe();
-    while *recv.borrow() != status {
+    while {
+        let s = *recv.borrow();
+        s != status
+    } {
         if recv.changed().await.is_ok() {
             break;
         }
@@ -838,7 +850,10 @@ async fn send_signal(shared: &ManagerSharedState, signal: &Signal) -> Result<(),
                 &shared.seed.manifest.version,
                 ProcedureName::Signal,
                 &shared.seed.manifest.volumes,
-                Some(*signal as i32),
+                Some(SignalGroupParams {
+                    gid: shared.main_gid.1.apply_ref(|g| *g.borrow()),
+                    signal: *signal as u32,
+                }),
                 None, // TODO
                 ProcessGroupId(
                     shared

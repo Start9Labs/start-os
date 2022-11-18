@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use color_eyre::eyre::eyre;
-use embassy_container_init::{KillGroup, KillGroupParams, ProcessGroupId};
+use embassy_container_init::{ProcessGroupId, SignalGroup, SignalGroupParams};
 use helpers::RpcClient;
 pub use js_engine::JsError;
 use js_engine::{JsExecutionEnvironment, PathForVolumeId};
@@ -75,7 +75,7 @@ impl JsProcedure {
             tokio::spawn(async move {
                 if let Some(client) = cleaner_client {
                     client
-                        .request(KillGroup, KillGroupParams { gid })
+                        .request(SignalGroup, SignalGroupParams { gid, signal: 9 })
                         .await
                         .map_err(|e| {
                             Error::new(eyre!("{}: {:?}", e.message, e.data), ErrorKind::Docker)

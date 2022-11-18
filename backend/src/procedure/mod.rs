@@ -94,7 +94,14 @@ impl PackageProcedure {
                             ErrorKind::NotFound,
                         ))
                     }
-                    Some(man) => (man.new_gid(), man.rpc_client()),
+                    Some(man) => (
+                        if matches!(name, ProcedureName::Main) {
+                            man.new_main_gid()
+                        } else {
+                            man.new_gid()
+                        },
+                        man.rpc_client(),
+                    ),
                 };
 
                 procedure

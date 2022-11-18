@@ -5,8 +5,8 @@ use std::process::Stdio;
 use std::sync::Arc;
 
 use embassy_container_init::{
-    KillGroupParams, OutputParams, ProcessGroupId, ProcessId, ReadLineStderrParams,
-    ReadLineStdoutParams, RunCommandParams, SendSignalParams,
+    OutputParams, ProcessGroupId, ProcessId, ReadLineStderrParams, ReadLineStdoutParams,
+    RunCommandParams, SendSignalParams, SignalGroupParams,
 };
 use futures::StreamExt;
 use nix::errno::Errno;
@@ -28,7 +28,7 @@ enum Output {
     ReadLineStderr(String),
     Output(String),
     Signal,
-    KillGroup,
+    SignalGroup,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -44,8 +44,8 @@ enum Input {
     Output(OutputParams),
     /// Send the sigterm to the process
     Signal(SendSignalParams),
-    /// Kill a group of processes
-    KillGroup(KillGroupParams),
+    /// Signal a group of processes
+    SignalGroup(SignalGroupParams),
 }
 
 #[derive(Deserialize)]
@@ -99,9 +99,9 @@ impl Handler {
                 self.signal(pid, signal).await?;
                 Output::Signal
             }
-            Input::KillGroup(KillGroupParams { gid }) => {
-                self.kill_group(gid).await?;
-                Output::KillGroup
+            Input::SignalGroup(SignalGroupParams { gid, signal }) => {
+                self.signal_group(gid, signal).await?;
+                Output::SignalGroup
             }
         })
     }
@@ -287,7 +287,7 @@ impl Handler {
         Ok(())
     }
 
-    async fn kill_group(&self, gid: ProcessGroupId) -> Result<(), RpcError> {
+    async fn signal_group(&self, gid: ProcessGroupId, signal: u32) -> Result<(), RpcError> {
         let mut to_kill = Vec::new();
         {
             let mut children_ref = self.children.lock().await;
@@ -302,7 +302,7 @@ impl Handler {
         }
         for pid in to_kill {
             tracing::info!("Killing pid {}", pid.0);
-            Self::killall(pid, Signal::SIGKILL)?;
+            Self::killall(pid, Signal::try_from(signal as i32)?)?;
         }
 
         Ok(())

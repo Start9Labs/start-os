@@ -139,8 +139,8 @@ impl RpcMethod for SendSignal {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct KillGroup;
-impl Serialize for KillGroup {
+pub struct SignalGroup;
+impl Serialize for SignalGroup {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -150,14 +150,15 @@ impl Serialize for KillGroup {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct KillGroupParams {
+pub struct SignalGroupParams {
     pub gid: ProcessGroupId,
+    pub signal: u32,
 }
-impl RpcMethod for KillGroup {
-    type Params = KillGroupParams;
+impl RpcMethod for SignalGroup {
+    type Params = SignalGroupParams;
     type Response = ();
     fn as_str<'a>(&'a self) -> &'a str {
-        "kill-group"
+        "signal-group"
     }
 }
 
