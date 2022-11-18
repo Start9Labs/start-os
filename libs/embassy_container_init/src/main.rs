@@ -5,10 +5,11 @@ use std::process::Stdio;
 use std::sync::Arc;
 
 use embassy_container_init::{
-    OutputParams, ProcessGroupId, ProcessId, ReadLineStderrParams, ReadLineStdoutParams,
-    RunCommandParams, SendSignalParams, SignalGroupParams,
+    OutputParams, OutputStrategy, ProcessGroupId, ProcessId, ReadLineStderrParams,
+    ReadLineStdoutParams, RunCommandParams, SendSignalParams, SignalGroupParams,
 };
 use futures::StreamExt;
+use helpers::NonDetachingJoinHandle;
 use nix::errno::Errno;
 use nix::sys::signal::Signal;
 use serde::{Deserialize, Serialize};
@@ -16,7 +17,7 @@ use serde_json::json;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, ChildStderr, ChildStdout, Command};
 use tokio::select;
-use tokio::sync::Mutex;
+use tokio::sync::{watch, Mutex};
 use yajrc::{Id, RpcError};
 
 /// Outputs embedded in the JSONRpc output of the executable.
@@ -36,10 +37,10 @@ enum Output {
 enum Input {
     /// Run a new command, with the args
     Command(RunCommandParams),
-    /// Get a line of stdout from the command
-    ReadLineStdout(ReadLineStdoutParams),
-    /// Get a line of stderr from the command
-    ReadLineStderr(ReadLineStderrParams),
+    // /// Get a line of stdout from the command
+    // ReadLineStdout(ReadLineStdoutParams),
+    // /// Get a line of stderr from the command
+    // ReadLineStderr(ReadLineStderrParams),
     /// Get output of command
     Output(OutputParams),
     /// Send the sigterm to the process
@@ -55,27 +56,21 @@ struct IncomingRpc {
     input: Input,
 }
 
+struct ChildInfo {
+    gid: Option<ProcessGroupId>,
+    child: Arc<Mutex<Option<Child>>>,
+    output: Option<InheritOutput>,
+}
+
+struct InheritOutput {
+    _thread: NonDetachingJoinHandle<()>,
+    stdout: watch::Receiver<String>,
+    stderr: watch::Receiver<String>,
+}
+
 #[derive(Clone)]
 struct Handler {
-    children: Arc<
-        Mutex<
-            BTreeMap<
-                ProcessId,
-                (
-                    Option<ProcessGroupId>,
-                    Arc<
-                        Mutex<
-                            Option<(
-                                Child,
-                                Option<BufReader<ChildStdout>>,
-                                Option<BufReader<ChildStderr>>,
-                            )>,
-                        >,
-                    >,
-                ),
-            >,
-        >,
-    >,
+    children: Arc<Mutex<BTreeMap<ProcessId, ChildInfo>>>,
 }
 impl Handler {
     fn new() -> Self {
@@ -85,15 +80,18 @@ impl Handler {
     }
     async fn handle(&self, req: Input) -> Result<Output, RpcError> {
         Ok(match req {
-            Input::Command(RunCommandParams { gid, command, args }) => {
-                Output::Command(self.command(gid, command, args).await?)
-            }
-            Input::ReadLineStdout(ReadLineStdoutParams { pid }) => {
-                Output::ReadLineStdout(self.read_line_stdout(pid).await?)
-            }
-            Input::ReadLineStderr(ReadLineStderrParams { pid }) => {
-                Output::ReadLineStderr(self.read_line_stderr(pid).await?)
-            }
+            Input::Command(RunCommandParams {
+                gid,
+                command,
+                args,
+                output,
+            }) => Output::Command(self.command(gid, command, args, output).await?),
+            // Input::ReadLineStdout(ReadLineStdoutParams { pid }) => {
+            //     Output::ReadLineStdout(self.read_line_stdout(pid).await?)
+            // }
+            // Input::ReadLineStderr(ReadLineStderrParams { pid }) => {
+            //     Output::ReadLineStderr(self.read_line_stderr(pid).await?)
+            // }
             Input::Output(OutputParams { pid }) => Output::Output(self.output(pid).await?),
             Input::Signal(SendSignalParams { pid, signal }) => {
                 self.signal(pid, signal).await?;
@@ -111,13 +109,14 @@ impl Handler {
         gid: Option<ProcessGroupId>,
         command: String,
         args: Vec<String>,
+        output: OutputStrategy,
     ) -> Result<ProcessId, RpcError> {
         let mut cmd = Command::new(command);
         cmd.args(args);
         cmd.kill_on_drop(true);
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
-        let child = cmd.spawn().map_err(|e| {
+        let mut child = cmd.spawn().map_err(|e| {
             let mut err = yajrc::INTERNAL_ERROR.clone();
             err.data = Some(json!(e.to_string()));
             err
@@ -127,89 +126,73 @@ impl Handler {
             err.data = Some(json!("Child has no pid"));
             err
         })?);
-        self.children
-            .lock()
-            .await
-            .insert(pid, (gid, Arc::new(Mutex::new(Some((child, None, None))))));
+        let output = match output {
+            OutputStrategy::Inherit => {
+                let (stdout_send, stdout) = watch::channel(String::new());
+                let (stderr_send, stderr) = watch::channel(String::new());
+                if let (Some(child_stdout), Some(child_stderr)) =
+                    (child.stdout.take(), child.stderr.take())
+                {
+                    Some(InheritOutput {
+                        _thread: tokio::spawn(async move {
+                            tokio::join!(
+                                async {
+                                    if let Err(e) = async {
+                                        let mut lines = BufReader::new(child_stdout).lines();
+                                        while let Some(line) = lines.next_line().await? {
+                                            tracing::info!("({}): {}", pid.0, line);
+                                            let _ = stdout_send.send(line);
+                                        }
+                                        Ok::<_, std::io::Error>(())
+                                    }
+                                    .await
+                                    {
+                                        tracing::error!(
+                                            "Error reading stdout of pid {}: {}",
+                                            pid.0,
+                                            e
+                                        );
+                                    }
+                                },
+                                async {
+                                    if let Err(e) = async {
+                                        let mut lines = BufReader::new(child_stderr).lines();
+                                        while let Some(line) = lines.next_line().await? {
+                                            tracing::warn!("({}): {}", pid.0, line);
+                                            let _ = stderr_send.send(line);
+                                        }
+                                        Ok::<_, std::io::Error>(())
+                                    }
+                                    .await
+                                    {
+                                        tracing::error!(
+                                            "Error reading stdout of pid {}: {}",
+                                            pid.0,
+                                            e
+                                        );
+                                    }
+                                }
+                            );
+                        })
+                        .into(),
+                        stdout,
+                        stderr,
+                    })
+                } else {
+                    None
+                }
+            }
+            OutputStrategy::Collect => None,
+        };
+        self.children.lock().await.insert(
+            pid,
+            ChildInfo {
+                gid,
+                child: Arc::new(Mutex::new(Some(child))),
+                output,
+            },
+        );
         Ok(pid)
-    }
-
-    async fn read_line_stdout(&self, pid: ProcessId) -> Result<String, RpcError> {
-        let not_found = || {
-            let mut err = yajrc::INTERNAL_ERROR.clone();
-            err.data = Some(json!(format!("Child with pid {} not found", pid.0)));
-            err
-        };
-        let mut child = {
-            self.children
-                .lock()
-                .await
-                .get(&pid)
-                .ok_or_else(not_found)?
-                .1
-                .clone()
-        }
-        .lock_owned()
-        .await;
-        if let Some(mut child) = child.as_mut() {
-            if let Some(stdout) = child.0.stdout.take() {
-                child.1 = Some(BufReader::new(stdout));
-            }
-            if let Some(stdout) = child.1.as_mut() {
-                let mut res = String::new();
-                stdout.read_line(&mut res).await.map_err(|e| {
-                    let mut err = yajrc::INTERNAL_ERROR.clone();
-                    err.data = Some(json!(e.to_string()));
-                    err
-                })?;
-                Ok(res)
-            } else {
-                let mut err = yajrc::INTERNAL_ERROR.clone();
-                err.data = Some(json!("Child has no stdout handle"));
-                Err(err)
-            }
-        } else {
-            Err(not_found())
-        }
-    }
-
-    async fn read_line_stderr(&self, pid: ProcessId) -> Result<String, RpcError> {
-        let not_found = || {
-            let mut err = yajrc::INTERNAL_ERROR.clone();
-            err.data = Some(json!(format!("Child with pid {} not found", pid.0)));
-            err
-        };
-        let mut child = {
-            self.children
-                .lock()
-                .await
-                .get(&pid)
-                .ok_or_else(not_found)?
-                .1
-                .clone()
-        }
-        .lock_owned()
-        .await;
-        if let Some(mut child) = child.as_mut() {
-            if let Some(stderr) = child.0.stderr.take() {
-                child.2 = Some(BufReader::new(stderr));
-            }
-            if let Some(stderr) = child.2.as_mut() {
-                let mut res = String::new();
-                stderr.read_line(&mut res).await.map_err(|e| {
-                    let mut err = yajrc::INTERNAL_ERROR.clone();
-                    err.data = Some(json!(e.to_string()));
-                    err
-                })?;
-                Ok(res)
-            } else {
-                let mut err = yajrc::INTERNAL_ERROR.clone();
-                err.data = Some(json!("Child has no stderr handle"));
-                Err(err)
-            }
-        } else {
-            Err(not_found())
-        }
     }
 
     async fn output(&self, pid: ProcessId) -> Result<String, RpcError> {
@@ -224,13 +207,13 @@ impl Handler {
                 .await
                 .get(&pid)
                 .ok_or_else(not_found)?
-                .1
+                .child
                 .clone()
         }
         .lock_owned()
         .await;
         if let Some(child) = child.take() {
-            let output = child.0.wait_with_output().await?;
+            let output = child.wait_with_output().await?;
             if output.status.success() {
                 Ok(String::from_utf8(output.stdout).map_err(|_| yajrc::PARSE_ERROR)?)
             } else {
@@ -260,20 +243,6 @@ impl Handler {
             err.data = Some(json!(format!("Child with pid {} not found", pid.0)));
             err
         };
-        let child = {
-            self.children
-                .lock()
-                .await
-                .get(&pid)
-                .ok_or_else(not_found)?
-                .1
-                .clone()
-        }
-        .lock_owned()
-        .await;
-        if !child.is_some() {
-            return Err(not_found());
-        }
 
         Self::killall(pid, Signal::try_from(signal as i32)?)?;
 
@@ -292,11 +261,11 @@ impl Handler {
         {
             let mut children_ref = self.children.lock().await;
             let children = std::mem::take(children_ref.deref_mut());
-            for (pid, (child_gid, child)) in children {
-                if child_gid == Some(gid) {
+            for (pid, child_info) in children {
+                if child_info.gid == Some(gid) {
                     to_kill.push(pid);
                 } else {
-                    children_ref.insert(pid, (child_gid, child));
+                    children_ref.insert(pid, child_info);
                 }
             }
         }
@@ -329,8 +298,8 @@ impl Handler {
         )
         .for_each_concurrent(None, |(pid, child)| async move {
             let _ = Self::killall(pid, Signal::SIGTERM);
-            if let Some(child) = child.1.lock().await.take() {
-                let _ = child.0.wait_with_output().await;
+            if let Some(child) = child.child.lock().await.take() {
+                let _ = child.wait_with_output().await;
             }
         });
         kill_all.await

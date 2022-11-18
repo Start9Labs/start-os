@@ -43,7 +43,7 @@ const readFile = (
 const runDaemon = (
   { command = requireParam("command"), args = [] } = requireParam("options"),
 ) => {
-  let id = Deno.core.opAsync("start_command", command, args);
+  let id = Deno.core.opAsync("start_command", command, args, "inherit", null);
   let processId = id.then(x => x.processId)
   let waitPromise = null;
   return {
@@ -60,7 +60,7 @@ const runDaemon = (
 const runCommand = async (
   { command = requireParam("command"), args = [], timeoutMillis = 30000 } = requireParam("options"),
 ) => {
-  let id = Deno.core.opAsync("start_command", command, args, timeoutMillis);
+  let id = Deno.core.opAsync("start_command", command, args, "collect", timeoutMillis);
   let pid = id.then(x => x.processId)
   return Deno.core.opAsync("wait_command", await pid)
 };

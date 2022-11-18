@@ -328,6 +328,8 @@ impl Manager {
             a => a?,
         };
 
+        self.shared.killer.notify_waiters();
+
         if let Some(thread) = self.thread.take().await {
             thread.await.map_err(|e| {
                 Error::new(

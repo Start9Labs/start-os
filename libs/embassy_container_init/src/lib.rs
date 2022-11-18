@@ -24,6 +24,13 @@ impl From<i32> for ProcessId {
 #[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ProcessGroupId(pub u32);
 
+#[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[serde(rename_all = "kebab-case")]
+pub enum OutputStrategy {
+    Inherit,
+    Collect,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct RunCommand;
 impl Serialize for RunCommand {
@@ -39,6 +46,7 @@ pub struct RunCommandParams {
     pub gid: Option<ProcessGroupId>,
     pub command: String,
     pub args: Vec<String>,
+    pub output: OutputStrategy,
 }
 impl RpcMethod for RunCommand {
     type Params = RunCommandParams;

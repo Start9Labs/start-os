@@ -387,8 +387,8 @@ mod fns {
     use deno_core::error::AnyError;
     use deno_core::*;
     use embassy_container_init::{
-        OutputParams, ProcessGroupId, ProcessId, RunCommand, RunCommandParams, SendSignal,
-        SendSignalParams, SignalGroup, SignalGroupParams,
+        OutputParams, OutputStrategy, ProcessGroupId, ProcessId, RunCommand, RunCommandParams,
+        SendSignal, SendSignalParams, SignalGroup, SignalGroupParams,
     };
     use helpers::{to_tmp_path, AtomicFile, Rsync, RsyncOptions};
     use models::VolumeId;
@@ -997,6 +997,7 @@ mod fns {
         state: Rc<RefCell<OpState>>,
         command: String,
         args: Vec<String>,
+        output: OutputStrategy,
         timeout: Option<u64>,
     ) -> Result<StartCommand, AnyError> {
         if let (gid, Some(rpc_client)) = {
@@ -1011,6 +1012,7 @@ mod fns {
                         gid: Some(gid),
                         command,
                         args,
+                        output,
                     },
                 )
                 .await
