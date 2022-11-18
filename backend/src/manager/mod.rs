@@ -404,7 +404,8 @@ async fn manager_thread_loop(mut recv: Receiver<OnStop>, thread_shared: &Arc<Man
             Ok(Err(e)) => {
                 #[cfg(feature = "unstable")]
                 {
-                    use crate::{notifications::NotificationLevel, status::MainStatus};
+                    use crate::notifications::NotificationLevel;
+                    use crate::status::MainStatus;
                     let mut db = thread_shared.seed.ctx.db.handle();
                     let started = crate::db::DatabaseModel::new()
                         .package_data()

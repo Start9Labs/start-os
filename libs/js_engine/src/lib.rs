@@ -295,6 +295,7 @@ impl JsExecutionEnvironment {
             fns::wait_command::decl(),
             fns::sleep::decl(),
             fns::send_signal::decl(),
+            fns::signal_group::decl(),
             fns::rsync::decl(),
             fns::rsync_wait::decl(),
             fns::rsync_progress::decl(),
@@ -386,8 +387,8 @@ mod fns {
     use deno_core::error::AnyError;
     use deno_core::*;
     use embassy_container_init::{
-        OutputParams, OutputStrategy, ProcessId, RunCommand, RunCommandParams, SendSignal,
-        SendSignalParams,
+        OutputParams, OutputStrategy, ProcessGroupId, ProcessId, RunCommand, RunCommandParams,
+        SendSignal, SendSignalParams, SignalGroup, SignalGroupParams,
     };
     use helpers::{to_tmp_path, AtomicFile, Rsync, RsyncOptions};
     use models::VolumeId;
@@ -945,6 +946,34 @@ mod fns {
                     SendSignal,
                     SendSignalParams {
                         pid: ProcessId(pid),
+                        signal,
+                    },
+                )
+                .await
+                .map_err(|e| anyhow!("{}: {:?}", e.message, e.data))?;
+
+            Ok(())
+        } else {
+            Err(anyhow!("No RpcClient for command operations"))
+        }
+    }
+
+    #[op]
+    async fn signal_group(
+        state: Rc<RefCell<OpState>>,
+        gid: u32,
+        signal: u32,
+    ) -> Result<(), AnyError> {
+        if let Some(rpc_client) = {
+            let state = state.borrow();
+            let ctx = state.borrow::<JsContext>();
+            ctx.container_rpc_client.clone()
+        } {
+            rpc_client
+                .request(
+                    SignalGroup,
+                    SignalGroupParams {
+                        gid: ProcessGroupId(gid),
                         signal,
                     },
                 )
