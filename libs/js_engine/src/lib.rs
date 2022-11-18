@@ -1009,9 +1009,16 @@ mod fns {
                     }
                 }
             }
-            if !command_error.is_empty() {
+            if status.map(|x| x > 0).unwrap_or(false) || !command_error.is_empty() {
                 if let Some(status) = status {
-                    return ResultType::ErrorCode(status, command_error);
+                    return ResultType::ErrorCode(
+                        status,
+                        if command_error.is_empty() {
+                            answer
+                        } else {
+                            command_error
+                        },
+                    );
                 }
 
                 return ResultType::Error(command_error);
