@@ -24,7 +24,41 @@ canvas {
 ion-content {
   position: absolute;
   z-index: 0;
-  left: 12px;
-  top: 10px;
+  // left: 12px;
+  // top: 10px;
   --background: transparent;
+}
+
+.inline {
+  * {
+    display: inline-block;
+    vertical-align: middle;
+  }
+}
+
+ion-grid {
+  max-width: 90vw;
+  min-width: 70vw;
+}
+
+ion-card {
+  // min-width: 50vw;
+
+  ion-card-title {
+    color: var(--ion-color-success);
+  }
+  .inline ion-icon {
+    font-size: 40px;
+    color: var(--ion-color-success);
+  }
+}
+
+
+.success-content {
+  margin: 7rem;
+  min-width: 70vw;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
 }

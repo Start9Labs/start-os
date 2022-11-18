@@ -37,7 +37,7 @@ export class SuccessPage {
   cert = ''
   isOnBottom = true
 
-  tileSize = 20
+  tileSize = 18
   // a higher fade factor will make the characters fade quicker
   fadeFactor = 0.07
   columns: any[] = []

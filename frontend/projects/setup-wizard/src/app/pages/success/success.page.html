@@ -1,88 +1,70 @@
 <canvas #canvas> Your browser does not support the canvas element. </canvas>
 <ion-content [scrollEvents]="true" (ionScrollEnd)="checkBottom()">
-  <ion-grid>
-    <ion-row>
-      <ion-col>
-        <!-- kiosk mode  -->
-        <ng-container *ngIf="isKiosk; else notKiosk">
-          <ion-card>
-            <ion-card-header class="ion-text-center" color="success">
-              <ion-icon
-                style="font-size: 80px"
-                name="checkmark-circle-outline"
-              ></ion-icon>
-              <ion-card-title>Setup Complete</ion-card-title>
-              <ion-card-subtitle
-                ><b>You will be redirected momentarily</b></ion-card-subtitle
-              >
-              <br />
-            </ion-card-header>
-          </ion-card>
-        </ng-container>
-
-        <!-- not kiosk -->
-        <ng-template #notKiosk>
-          <ion-card>
-            <ion-card-header class="ion-text-center" color="success">
-              <ion-icon
-                style="font-size: 80px"
-                name="checkmark-circle-outline"
-              ></ion-icon>
-              <ion-card-title>Setup Complete</ion-card-title>
-              <ion-card-subtitle
-                ><b>See below for next steps</b></ion-card-subtitle
-              >
-              <br />
-            </ion-card-header>
-            <ion-card-content>
-              <br />
-              <br />
-              <h2 *ngIf="recoverySource" class="ion-padding-bottom">
-                <span *ngIf="recoverySource.type === 'backup'"
+  <!-- kiosk mode  -->
+  <ng-container *ngIf="isKiosk; else notKiosk">
+    <ion-card>
+      <ion-card-header class="ion-text-center" color="success">
+        <ion-icon
+          style="font-size: 80px"
+          name="checkmark-circle-outline"
+        ></ion-icon>
+        <ion-card-title>Setup Complete!</ion-card-title>
+        <ion-card-subtitle>
+          <b>You will be redirected momentarily</b>
+        </ion-card-subtitle>
+        <br />
+      </ion-card-header>
+    </ion-card>
+  </ng-container>
+  <!-- not kiosk -->
+  <ng-template #notKiosk>
+    <ion-content>
+      <ion-grid [fixed]="true">
+        <div class="">
+          <ion-row>
+            <ion-col size-xs="12" class="ion-text-center">
+              <div class="inline">
+                <ion-icon name="checkmark-circle-outline"></ion-icon>
+                <h1>Setup Complete!</h1>
+              </div>
+              <h3>
+                <span *ngIf="recoverySource && recoverySource.type === 'backup'"
                   >You can now safely unplug your backup drive.</span
                 >
-                <span *ngIf="recoverySource.type === 'migrate'"
+                <span
+                  *ngIf="recoverySource && recoverySource.type === 'migrate'"
                   >You can now safely unplug your old drive.</span
                 >
-              </h2>
-              <h2 style="font-weight: bold">
-                Access your Embassy using the methods below. You should
-                <a (click)="download()" class="inline">
-                  download this page
-                  <ion-icon name="download-outline"></ion-icon>
-                </a>
-                for your records.
-              </h2>
-
-              <div class="line"></div>
-
-              <!-- LAN Instructions -->
-              <h1><b>From Home (LAN)</b></h1>
-
-              <div class="ion-padding ion-text-start">
+                &nbsp;Download this page for your records.
+              </h3>
+              <p>
+                NOTE: embassy.local was for setup purposes only. It will no
+                longer be accessible.
+              </p>
+              <ion-button (click)="download()">
+                Save this page
+                <ion-icon slot="end" name="download-outline"></ion-icon>
+              </ion-button>
+            </ion-col>
+          </ion-row>
+          <ion-row>
+            <ion-col class="ion-text-center">
+              <h1>Access your Embassy</h1>
+            </ion-col>
+          </ion-row>
+          <ion-row>
+            <ion-col size-sm="12" size-md="6">
+              <ion-card>
+                <h2>From home (LAN)</h2>
                 <p>
                   Visit the address below when you are connected to the same
                   WiFi or Local Area Network (LAN) as your Embassy:
                 </p>
-
-                <br />
-
-                <p>
-                  <b>Note:</b> embassy.local was for setup purposes only, it
-                  will no longer work.
-                </p>
-
-                <ion-item
-                  lines="none"
-                  color="dark"
-                  class="ion-padding-top ion-padding-bottom"
-                >
+                <ion-item class="ion-padding-top ion-padding-bottom">
                   <ion-label class="ion-text-wrap">
-                    <code
-                      ><ion-text color="light"
-                        ><b>{{ lanAddress }}</b></ion-text
-                      ></code
-                    >
+                    <code>
+                      <ion-text><b>{{ lanAddress }}</b></ion-text>
+                    </code>
                   </ion-label>
                   <ion-button
                     color="light"
@@ -100,51 +82,49 @@
                     <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
                   </ion-button>
                 </ion-item>
-
-                <p>
-                  <b>Important!</b>
-                  Your browser will warn you that the website is untrusted. You
-                  can bypass this warning on most browsers. The warning will go
-                  away after you
-                  <a
-                    href="https://docs.start9.com/latest/user-manual/connecting/connecting-lan"
-                    target="_blank"
-                    rel="noreferrer"
-                    class="inline"
-                  >
-                    follow the instructions
-                    <ion-icon name="open-outline"></ion-icon>
-                  </a>
-                  to download and trust your Embassy's Root Certificate
-                  Authority.
-                </p>
-
+                <div>
+                  <h3>Important!</h3>
+                  <p>
+                    Your browser will warn you that the website is untrusted.
+                    You can bypass this warning on most browsers. The warning
+                    will go away after you
+                    <a
+                      href="https://docs.start9.com/latest/user-manual/connecting/connecting-lan"
+                      target="_blank"
+                      rel="noreferrer"
+                      class="inline"
+                    >
+                      follow the instructions
+                      <ion-icon name="open-outline"></ion-icon>
+                    </a>
+                    to download and trust your Embassy's Root Certificate
+                    Authority.
+                  </p>
+                </div>
                 <ion-button style="margin-top: 24px" (click)="installCert()">
                   Download Root CA
                   <ion-icon slot="end" name="download-outline"></ion-icon>
                 </ion-button>
-              </div>
-
-              <div class="line"></div>
-
-              <!-- Tor Instructions -->
-              <h1><b>On The Go (Tor)</b></h1>
-
-              <div class="ion-padding ion-text-start">
+              </ion-card>
+            </ion-col>
+            <ion-col size-sm="12" size-md="6">
+              <ion-card>
+                <h2>On the go (TOR)</h2>
                 <p>Visit the address below when you are away from home:</p>
-
-                <ion-item
-                  lines="none"
-                  color="dark"
-                  class="ion-padding-top ion-padding-bottom"
-                >
+                <ion-item class="ion-padding-top ion-padding-bottom">
                   <ion-label class="ion-text-wrap">
-                    <code
-                      ><ion-text color="light"
-                        ><b>{{ torAddress }}</b></ion-text
-                      ></code
-                    >
+                    <code>
+                      <ion-text><b>{{ torAddress }}</b></ion-text>
+                    </code>
                   </ion-label>
+                  <ion-button
+                    color="light"
+                    fill="clear"
+                    [href]="lanAddress"
+                    target="_blank"
+                  >
+                    <ion-icon slot="icon-only" name="open-outline"></ion-icon>
+                  </ion-button>
                   <ion-button
                     color="light"
                     fill="clear"
@@ -153,118 +133,46 @@
                     <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
                   </ion-button>
                 </ion-item>
-
-                <p>
-                  <b>Important!</b>
-                  This address will only work from a
-                  <a
-                    href="https://docs.start9.com/latest/user-manual/connecting/connecting-tor"
-                    target="_blank"
-                    rel="noreferrer"
-                    class="inline"
-                  >
-                    Tor-enabled browser
-                    <ion-icon name="open-outline"></ion-icon> </a
-                  >.
-                </p>
-              </div>
-            </ion-card-content>
-            <div id="bottom-div"></div>
-          </ion-card>
-
-          <!-- scroll down -->
-          <div
-            [ngStyle]="{
-              position: 'fixed',
-              bottom: isOnBottom ? '-42px' : '24px',
-              transition: 'bottom 0.15s ease-out 0s',
-              right: '50%',
-              width: '120px',
-              'margin-right': '-60px',
-              'z-index': '1000'
-            }"
-          >
-            <ion-button color="warning" (click)="scrollToBottom()">
-              More
-              <ion-icon slot="end" name="chevron-down"></ion-icon>
-            </ion-button>
-          </div>
-
-          <!-- cert elem -->
-          <a hidden id="install-cert" download="embassy.crt"></a>
-
-          <!-- download elem -->
-          <div hidden id="downloadable">
-            <div style="padding: 0 24px; font-family: Courier">
-              <h1>Embassy Info</h1>
-
-              <section style="padding: 16px; border: solid 1px">
-                <h2>Tor Info</h2>
-                <p>
-                  To use your Embassy over Tor, visit its unique Tor address
-                  from any Tor-enabled browser.
-                </p>
-                <p>
-                  For more detailed instructions, click
-                  <a
-                    href="https://docs.start9.com/latest/user-manual/connecting/connecting-tor"
-                    target="_blank"
-                    rel="noreferrer"
-                    ><b>here</b></a
-                  >.
-                </p>
-                <p><b>Tor Address: </b><code id="tor-addr"></code></p>
-              </section>
-
-              <section
-                style="padding: 16px; border: solid 1px; border-top: none"
-              >
-                <h2>LAN Info</h2>
-                <p>To use your Embassy locally, you must:</p>
-                <ol>
-                  <li>
-                    Currently be connected to the same Local Area Network (LAN)
-                    as your Embassy.
-                  </li>
-                  <li>Download your Embassy's Root Certificate Authority.</li>
-                  <li>
-                    Trust your Embassy's Root CA on <i>both</i> your
-                    computer/phone and in your browser settings.
-                  </li>
-                </ol>
-                <p>
-                  For step-by-step instructions, click
-                  <a
-                    href="https://docs.start9.com/latest/user-manual/connecting/connecting-lan"
-                    target="_blank"
-                    rel="noreferrer"
-                    ><b>here</b></a
-                  >.
-                </p>
-
-                <div style="margin: 42px 0">
-                  <a
-                    id="cert"
-                    download="embassy.crt"
-                    style="
-                      background: #25272b;
-                      padding: 10px;
-                      text-decoration: none;
-                      text-align: center;
-                      border-radius: 4px;
-                      color: white;
-                    "
-                  >
-                    Download Root CA
-                  </a>
+                <div>
+                  <h3>Important!</h3>
+                  <p>
+                    This address will only work from a Tor-enabled browser.
+                    Follow the
+                    <a
+                      href="https://docs.start9.com/latest/user-manual/connecting/connecting-tor"
+                      target="_blank"
+                      rel="noreferrer"
+                      class="inline"
+                    >
+                      instructions
+                      <ion-icon name="open-outline"></ion-icon>
+                    </a>
+                    to get setup.
+                  </p>
                 </div>
+              </ion-card>
+            </ion-col>
+          </ion-row>
+        </div>
+      </ion-grid>
+    </ion-content>
 
-                <p><b>LAN Address: </b><code id="lan-addr"></code></p>
-              </section>
-            </div>
-          </div>
-        </ng-template>
-      </ion-col>
-    </ion-row>
-  </ion-grid>
+    <!-- scroll down -->
+    <div
+      [ngStyle]="{
+          position: 'fixed',
+          bottom: isOnBottom ? '-42px' : '24px',
+          transition: 'bottom 0.15s ease-out 0s',
+          right: '50%',
+          width: '120px',
+          'margin-right': '-60px',
+          'z-index': '1000'
+        }"
+    >
+      <ion-button color="warning" (click)="scrollToBottom()">
+        More
+        <ion-icon slot="end" name="chevron-down"></ion-icon>
+      </ion-button>
+    </div>
+  </ng-template>
 </ion-content>
