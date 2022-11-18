@@ -24,6 +24,7 @@ use crate::manager::sync::synchronizer;
 use crate::net::interface::InterfaceId;
 use crate::net::GeneratedCertificateMountPoint;
 use crate::procedure::docker::{DockerContainer, DockerProcedure, LongRunning};
+#[cfg(feature = "js_engine")]
 use crate::procedure::js_scripts::JsProcedure;
 use crate::procedure::{NoOutput, PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::{Manifest, PackageId};
@@ -843,6 +844,7 @@ async fn send_signal(shared: &ManagerSharedState, signal: &Signal) -> Result<(),
         .as_ref()
         .map(|c| c.rpc_client.borrow().clone())
     {
+        #[cfg(feature = "js_engine")]
         if let Err(e) = JsProcedure::default()
             .execute::<_, NoOutput>(
                 &shared.seed.ctx.datadir,
