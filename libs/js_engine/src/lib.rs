@@ -295,7 +295,6 @@ impl JsExecutionEnvironment {
             fns::wait_command::decl(),
             fns::sleep::decl(),
             fns::send_signal::decl(),
-            fns::signal_group::decl(),
             fns::rsync::decl(),
             fns::rsync_wait::decl(),
             fns::rsync_progress::decl(),
@@ -387,8 +386,8 @@ mod fns {
     use deno_core::error::AnyError;
     use deno_core::*;
     use embassy_container_init::{
-        OutputParams, OutputStrategy, ProcessGroupId, ProcessId, RunCommand, RunCommandParams,
-        SendSignal, SendSignalParams, SignalGroup, SignalGroupParams,
+        OutputParams, OutputStrategy, ProcessId, RunCommand, RunCommandParams, SendSignal,
+        SendSignalParams,
     };
     use helpers::{to_tmp_path, AtomicFile, Rsync, RsyncOptions};
     use models::VolumeId;
@@ -958,34 +957,6 @@ mod fns {
         }
     }
 
-    #[op]
-    async fn signal_group(
-        state: Rc<RefCell<OpState>>,
-        gid: u32,
-        signal: u32,
-    ) -> Result<(), AnyError> {
-        if let Some(rpc_client) = {
-            let state = state.borrow();
-            let ctx = state.borrow::<JsContext>();
-            ctx.container_rpc_client.clone()
-        } {
-            rpc_client
-                .request(
-                    SignalGroup,
-                    SignalGroupParams {
-                        gid: ProcessGroupId(gid),
-                        signal,
-                    },
-                )
-                .await
-                .map_err(|e| anyhow!("{}: {:?}", e.message, e.data))?;
-
-            Ok(())
-        } else {
-            Err(anyhow!("No RpcClient for command operations"))
-        }
-    }
-
     #[derive(Debug, Clone, Serialize, Deserialize)]
     #[serde(rename_all = "camelCase")]
     pub struct StartCommand {
@@ -1017,6 +988,20 @@ mod fns {
                 )
                 .await
                 .map_err(|e| anyhow!("{}: {:?}", e.message, e.data))?;
+
+            if let Some(timeout) = timeout {
+                tokio::spawn(async move {
+                    tokio::time::sleep(Duration::from_micros(timeout)).await;
+                    if let Err(err) = rpc_client
+                        .request(SendSignal, SendSignalParams { pid, signal: 9 })
+                        .await
+                        .map_err(|e| anyhow!("{}: {:?}", e.message, e.data))
+                    {
+                        tracing::warn!("Could not kill process {pid:?}");
+                        tracing::debug!("{err:?}");
+                    }
+                });
+            }
 
             Ok(StartCommand { process_id: pid })
         } else {
