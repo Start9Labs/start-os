@@ -83,7 +83,7 @@ impl PackageProcedure {
             }
             #[cfg(feature = "js_engine")]
             PackageProcedure::Script(procedure) => {
-                let exec_command = match ctx
+                let (gid, rpc_client) = match ctx
                     .managers
                     .get(&(pkg_id.clone(), pkg_version.clone()))
                     .await
@@ -94,35 +94,17 @@ impl PackageProcedure {
                             ErrorKind::NotFound,
                         ))
                     }
-                    Some(x) => x,
-                }
-                .exec_command()
-                .ok_or_else(|| {
-                    Error::new(
-                        eyre!("No persistent container for {}", pkg_id),
-                        ErrorKind::NotFound,
-                    )
-                })?;
-                let term_command = match ctx
-                    .managers
-                    .get(&(pkg_id.clone(), pkg_version.clone()))
-                    .await
-                {
-                    None => {
-                        return Err(Error::new(
-                            eyre!("No manager found for {}", pkg_id),
-                            ErrorKind::NotFound,
-                        ))
-                    }
-                    Some(x) => x,
-                }
-                .term_command()
-                .ok_or_else(|| {
-                    Error::new(
-                        eyre!("No persistent container for {}", pkg_id),
-                        ErrorKind::NotFound,
-                    )
-                })?;
+                    Some(man) => (
+                        man.new_gid(),
+                        man.rpc_client().ok_or_else(|| {
+                            Error::new(
+                                eyre!("No long-running container for {}", pkg_id),
+                                ErrorKind::NotFound,
+                            )
+                        })?,
+                    ),
+                };
+
                 procedure
                     .execute(
                         &ctx.datadir,
@@ -132,89 +114,14 @@ impl PackageProcedure {
                         volumes,
                         input,
                         timeout,
-                        exec_command,
-                        term_command,
+                        gid,
+                        rpc_client,
                     )
                     .await
             }
         }
     }
 
-    #[instrument(skip(ctx, input))]
-    pub async fn inject<I: Serialize, O: DeserializeOwned + 'static>(
-        &self,
-        ctx: &RpcContext,
-        pkg_id: &PackageId,
-        pkg_version: &Version,
-        name: ProcedureName,
-        volumes: &Volumes,
-        input: Option<I>,
-        timeout: Option<Duration>,
-    ) -> Result<Result<O, (i32, String)>, Error> {
-        match self {
-            PackageProcedure::Docker(procedure) => {
-                procedure
-                    .inject(ctx, pkg_id, pkg_version, name, volumes, input, timeout)
-                    .await
-            }
-            #[cfg(feature = "js_engine")]
-            PackageProcedure::Script(procedure) => {
-                let exec_command = match ctx
-                    .managers
-                    .get(&(pkg_id.clone(), pkg_version.clone()))
-                    .await
-                {
-                    None => {
-                        return Err(Error::new(
-                            eyre!("No manager found for {}", pkg_id),
-                            ErrorKind::NotFound,
-                        ))
-                    }
-                    Some(x) => x,
-                }
-                .exec_command()
-                .ok_or_else(|| {
-                    Error::new(
-                        eyre!("No persistent container for {}", pkg_id),
-                        ErrorKind::NotFound,
-                    )
-                })?;
-                let term_command = match ctx
-                    .managers
-                    .get(&(pkg_id.clone(), pkg_version.clone()))
-                    .await
-                {
-                    None => {
-                        return Err(Error::new(
-                            eyre!("No manager found for {}", pkg_id),
-                            ErrorKind::NotFound,
-                        ))
-                    }
-                    Some(x) => x,
-                }
-                .term_command()
-                .ok_or_else(|| {
-                    Error::new(
-                        eyre!("No persistent container for {}", pkg_id),
-                        ErrorKind::NotFound,
-                    )
-                })?;
-                procedure
-                    .execute(
-                        &ctx.datadir,
-                        pkg_id,
-                        pkg_version,
-                        name,
-                        volumes,
-                        input,
-                        timeout,
-                        exec_command,
-                        term_command,
-                    )
-                    .await
-            }
-        }
-    }
     #[instrument(skip(ctx, input))]
     pub async fn sandboxed<I: Serialize, O: DeserializeOwned>(
         &self,

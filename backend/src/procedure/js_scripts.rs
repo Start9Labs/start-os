@@ -2,9 +2,12 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
+use color_eyre::eyre::eyre;
+use embassy_container_init::{KillGroup, KillGroupParams, ProcessGroupId};
+use helpers::RpcClient;
 pub use js_engine::JsError;
 use js_engine::{JsExecutionEnvironment, PathForVolumeId};
-use models::{ExecCommand, SendKillSignal, VolumeId};
+use models::{ErrorKind, VolumeId};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -12,7 +15,7 @@ use tracing::instrument;
 use super::ProcedureName;
 use crate::context::RpcContext;
 use crate::s9pk::manifest::PackageId;
-use crate::util::Version;
+use crate::util::{GeneralGuard, Version};
 use crate::volume::Volumes;
 use crate::Error;
 
@@ -42,7 +45,7 @@ impl PathForVolumeId for Volumes {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct JsProcedure {
     #[serde(default)]
@@ -54,7 +57,7 @@ impl JsProcedure {
         Ok(())
     }
 
-    #[instrument(skip(directory, input, exec_command, term_command))]
+    #[instrument(skip(directory, input, rpc_client))]
     pub async fn execute<I: Serialize, O: DeserializeOwned>(
         &self,
         directory: &PathBuf,
@@ -64,17 +67,28 @@ impl JsProcedure {
         volumes: &Volumes,
         input: Option<I>,
         timeout: Option<Duration>,
-        exec_command: ExecCommand,
-        term_command: SendKillSignal,
+        gid: ProcessGroupId,
+        rpc_client: Arc<RpcClient>,
     ) -> Result<Result<O, (i32, String)>, Error> {
-        Ok(async move {
+        let cleaner_client = rpc_client.clone();
+        let cleaner = GeneralGuard::new(move || {
+            tokio::spawn(async move {
+                cleaner_client
+                    .request(KillGroup, KillGroupParams { gid })
+                    .await
+                    .map_err(|e| {
+                        Error::new(eyre!("{}: {:?}", e.message, e.data), ErrorKind::Docker)
+                    })
+            })
+        });
+        let res = async move {
             let running_action = JsExecutionEnvironment::load_from_package(
                 directory,
                 pkg_id,
                 pkg_version,
                 Box::new(volumes.clone()),
-                exec_command,
-                term_command,
+                gid,
+                rpc_client,
             )
             .await?
             .run_action(name, input, self.args.clone());
@@ -88,7 +102,9 @@ impl JsProcedure {
             Ok(output)
         }
         .await
-        .map_err(|(error, message)| (error.as_code_num(), message)))
+        .map_err(|(error, message)| (error.as_code_num(), message));
+        cleaner.drop().await.unwrap()?;
+        Ok(res)
     }
 
     #[instrument(skip(ctx, input))]
@@ -108,12 +124,8 @@ impl JsProcedure {
                 pkg_id,
                 pkg_version,
                 Box::new(volumes.clone()),
-                Arc::new(|_, _, _, _| {
-                    Box::pin(async { Err("Can't run commands in sandox mode".to_string()) })
-                }),
-                Arc::new(|_, _| {
-                    Box::pin(async move { Err("Can't run commands in test".to_string()) })
-                }),
+                ProcessGroupId(0),
+                Arc::new(RpcClient::new(tokio::io::sink(), tokio::io::empty())),
             )
             .await?
             .read_only_effects()

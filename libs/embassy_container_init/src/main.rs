@@ -1,344 +1,391 @@
-use imbl::OrdMap;
+use std::collections::BTreeMap;
+use std::ops::DerefMut;
+use std::os::unix::process::ExitStatusExt;
 use std::process::Stdio;
 use std::sync::Arc;
-use std::time::Duration;
 
-use async_stream::stream;
 use embassy_container_init::{
-    Input, InputJsonRpc, JsonRpc, Output, OutputJsonRpc, ProcessId, RpcId,
+    KillGroupParams, OutputParams, ProcessGroupId, ProcessId, ReadLineStderrParams,
+    ReadLineStdoutParams, RunCommandParams, SendSignalParams,
 };
-use futures::{pin_mut, Stream, StreamExt};
+use futures::StreamExt;
+use serde::{Deserialize, Serialize};
+use serde_json::json;
 use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::process::{Child, Command};
+use tokio::process::{Child, ChildStderr, ChildStdout, Command};
 use tokio::select;
-use tokio::sync::{oneshot, watch, Mutex};
-use tracing::instrument;
+use tokio::sync::Mutex;
+use yajrc::{Id, RpcError};
 
-const MAX_COMMANDS: usize = 10;
-
-enum DoneProgramStatus {
-    Wait(Result<std::process::ExitStatus, std::io::Error>),
-    Killed,
-}
-/// Created from the child and rpc, to prove that the cmd was the one who died
-struct DoneProgram {
-    id: RpcId,
-    status: DoneProgramStatus,
-}
-
-/// Used to attach the running command with the rpc
-struct ChildAndRpc {
-    id: RpcId,
-    child: Child,
+/// Outputs embedded in the JSONRpc output of the executable.
+#[derive(Debug, Clone, Serialize)]
+#[serde(untagged)]
+enum Output {
+    Command(ProcessId),
+    ReadLineStdout(String),
+    ReadLineStderr(String),
+    Output(String),
+    Signal,
+    KillGroup,
 }
 
-impl ChildAndRpc {
-    fn new(id: RpcId, mut command: tokio::process::Command) -> ::std::io::Result<Self> {
-        Ok(Self {
-            id,
-            child: command.spawn()?,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "method", content = "params", rename_all = "kebab-case")]
+enum Input {
+    /// Run a new command, with the args
+    Command(RunCommandParams),
+    /// Get a line of stdout from the command
+    ReadLineStdout(ReadLineStdoutParams),
+    /// Get a line of stderr from the command
+    ReadLineStderr(ReadLineStderrParams),
+    /// Get output of command
+    Output(OutputParams),
+    /// Send the sigterm to the process
+    Signal(SendSignalParams),
+    /// Kill a group of processes
+    KillGroup(KillGroupParams),
+}
+
+#[derive(Deserialize)]
+struct IncomingRpc {
+    id: Id,
+    #[serde(flatten)]
+    input: Input,
+}
+
+#[derive(Clone)]
+struct Handler {
+    children: Arc<
+        Mutex<
+            BTreeMap<
+                ProcessId,
+                (
+                    Option<ProcessGroupId>,
+                    Arc<
+                        Mutex<
+                            Option<(
+                                Child,
+                                Option<BufReader<ChildStdout>>,
+                                Option<BufReader<ChildStderr>>,
+                            )>,
+                        >,
+                    >,
+                ),
+            >,
+        >,
+    >,
+}
+impl Handler {
+    fn new() -> Self {
+        Handler {
+            children: Arc::new(Mutex::new(BTreeMap::new())),
+        }
+    }
+    async fn handle(&self, req: Input) -> Result<Output, RpcError> {
+        Ok(match req {
+            Input::Command(RunCommandParams { gid, command, args }) => {
+                Output::Command(self.command(gid, command, args).await?)
+            }
+            Input::ReadLineStdout(ReadLineStdoutParams { pid }) => {
+                Output::ReadLineStdout(self.read_line_stdout(pid).await?)
+            }
+            Input::ReadLineStderr(ReadLineStderrParams { pid }) => {
+                Output::ReadLineStderr(self.read_line_stderr(pid).await?)
+            }
+            Input::Output(OutputParams { pid }) => Output::Output(self.output(pid).await?),
+            Input::Signal(SendSignalParams { pid, signal }) => {
+                self.signal(pid, signal).await?;
+                Output::Signal
+            }
+            Input::KillGroup(KillGroupParams { gid }) => {
+                self.kill_group(gid).await?;
+                Output::KillGroup
+            }
         })
     }
-    fn id(&self) -> Option<ProcessId> {
-        self.child.id().map(ProcessId)
-    }
-    async fn wait(&mut self) -> DoneProgram {
-        let status = DoneProgramStatus::Wait(self.child.wait().await);
-        DoneProgram {
-            id: self.id,
-            status,
-        }
-    }
-    async fn kill(mut self) -> DoneProgram {
-        if let Err(err) = self.child.kill().await {
-            let id = &self.id;
-            tracing::error!("Error while trying to kill a process {id:?}");
-            tracing::debug!("{err:?}");
-        }
-        DoneProgram {
-            id: self.id,
-            status: DoneProgramStatus::Killed,
-        }
-    }
-}
 
-type Commands = Arc<watch::Sender<OrdMap<RpcId, Arc<Mutex<Option<oneshot::Sender<()>>>>>>>;
-
-/// Controlls the tracing + other io events
-/// Can get the inputs from stdin
-/// Can start a command from an intputrpc returning stream of outputs
-/// Can output to stdout
-#[derive(Debug, Clone)]
-struct Io {
-    commands: Commands,
-    ids: Arc<watch::Sender<OrdMap<RpcId, ProcessId>>>,
-}
-
-impl Io {
-    fn start() -> Self {
-        use tracing_error::ErrorLayer;
-        use tracing_subscriber::prelude::*;
-        use tracing_subscriber::{fmt, EnvFilter};
-
-        let filter_layer = EnvFilter::new("embassy_container_init=debug");
-        let fmt_layer = fmt::layer().with_target(true);
-
-        tracing_subscriber::registry()
-            .with(filter_layer)
-            .with(fmt_layer)
-            .with(ErrorLayer::default())
-            .init();
-        color_eyre::install().unwrap();
-        let (commands, _) = watch::channel(Default::default());
-        let (ids, _) = watch::channel(Default::default());
-        Self {
-            commands: Arc::new(commands),
-            ids: Arc::new(ids),
-        }
-    }
-
-    #[instrument]
-    fn command(&self, input: InputJsonRpc) -> impl Stream<Item = OutputJsonRpc> {
-        let io = self.clone();
-        stream! {
-            let (id, command) = input.into_pair();
-            match command {
-                Input::Command {
-                            ref command,
-                            ref args,
-                } => {
-                    let mut cmd = Command::new(command);
-                    cmd.args(args);
-
-                    cmd.stdout(Stdio::piped());
-                    cmd.stderr(Stdio::piped());
-                    let mut child_and_rpc = match ChildAndRpc::new(id.clone(), cmd) {
-                        Err(_e) => return,
-                        Ok(a) => a,
-                    };
-
-                    if let Some(child_id) = child_and_rpc.id() {
-                        io.ids.send_modify(|ids| {ids.insert(id, child_id);});
-                        yield JsonRpc::new(id.clone(), Output::ProcessId(child_id));
-                    }
-
-                    let stdout = child_and_rpc.child
-                        .stdout
-                        .take()
-                        .expect("child did not have a handle to stdout");
-                    let stderr = child_and_rpc.child
-                        .stderr
-                        .take()
-                        .expect("child did not have a handle to stderr");
-
-                    let mut buff_out = BufReader::new(stdout).lines();
-                    let mut buff_err = BufReader::new(stderr).lines();
-
-                    let spawned = tokio::spawn({
-                        let id = id.clone();
-                        async move {
-                            let end_command_receiver = io.create_end_command(id.clone()).await;
-                            tokio::select!{
-                                waited = child_and_rpc
-                                    .wait() => {
-                                        io.clean_id(&waited).await;
-                                        match &waited.status {
-                                            DoneProgramStatus::Wait(Ok(st)) =>  return st.code(),
-                                            DoneProgramStatus::Wait(Err(err)) => tracing::debug!("Child {id:?} got error: {err:?}"),
-                                            DoneProgramStatus::Killed => tracing::debug!("Child {id:?} already killed?"),
-                                        }
-
-                                    },
-                                _ = end_command_receiver => {
-                                    let status = child_and_rpc.kill().await;
-                                    io.clean_id(&status).await;
-                                },
-                            }
-                            None
-                        }
-
-                    });
-                    while let Ok(Some(line)) = buff_out.next_line().await {
-                        let output = Output::Line(line);
-                        let output = JsonRpc::new(id.clone(), output);
-                        tracing::trace!("OutputJsonRpc {{ id, output_rpc }} = {:?}", output);
-                        yield output;
-                    }
-                    while let Ok(Some(line)) = buff_err.next_line().await {
-                        yield JsonRpc::new(id.clone(), Output::Error(line));
-                    }
-                    let code = spawned.await.ok().flatten();
-                    yield JsonRpc::new(id, Output::Done(code));
-                },
-                Input::Kill() => {
-                    io.trigger_end_command(id).await;
-                }
-                Input::SendSignal(signal) => {
-                    io.send_signal(&id,signal).await;
-                }
-                Input::StopThenKill(duration) => {
-                    tokio::spawn(io.stop_then_kill(id, duration.unwrap_or_else(|| Duration::from_secs(30))));
-                }
-            }
-        }
-    }
-    /// Used to get the string lines from the stdin
-    fn inputs(&self) -> impl Stream<Item = String> {
-        use std::io::BufRead;
-        let (sender, receiver) = tokio::sync::mpsc::channel(100);
-        tokio::task::spawn_blocking(move || {
-            let stdin = std::io::stdin();
-            for line in stdin.lock().lines().flatten() {
-                tracing::trace!("Line = {}", line);
-                sender.blocking_send(line).unwrap();
-            }
-        });
-        tokio_stream::wrappers::ReceiverStream::new(receiver)
-    }
-
-    ///Convert a stream of string to stdout
-    async fn output(&self, outputs: impl Stream<Item = String>) {
-        pin_mut!(outputs);
-        while let Some(output) = outputs.next().await {
-            println!("{}", output);
-        }
-    }
-
-    /// Helper for the command fn
-    /// Part of a pair for the signal map, that indicates that we should kill the command
-    async fn trigger_end_command(&self, id: RpcId) {
-        let mut removed = None;
-        self.commands.send_modify(|x| {
-            removed = x.remove(&id);
-        });
-        if let Some(command) = extract_once(removed).await {
-            if command.send(()).is_err() {
-                tracing::trace!("Command {id:?} could not be ended, possible error or was done");
-            }
-        }
-    }
-
-    /// Helper for the command fn
-    /// Part of a pair for the signal map, that indicates that we should kill the command
-    async fn create_end_command(&self, id: RpcId) -> oneshot::Receiver<()> {
-        let (send, receiver) = oneshot::channel();
-        let mut removed = None;
-        self.commands.send_modify(|x| {
-            removed = x.insert(id, Arc::new(Mutex::new(Some(send))));
-        });
-        if let Some(removed) = extract_once(removed).await {
-            if removed.send(()).is_err() {
-                tracing::trace!(
-                    "Found other command {id:?} could not be ended, possible error or was done"
-                );
-            }
-        }
-        receiver
-    }
-
-    /// Used during cleaning up a procress
-    async fn clean_id(
+    async fn command(
         &self,
-        done_program: &DoneProgram,
-    ) -> (Option<ProcessId>, Option<oneshot::Sender<()>>) {
-        let mut id = None;
-        let mut sender = None;
-        self.commands.send_modify(|x| {
-            sender = x.remove(&done_program.id);
-        });
-        self.ids.send_modify(|x| {
-            id = x.remove(&done_program.id);
-        });
-        (id, extract_once(sender).await)
+        gid: Option<ProcessGroupId>,
+        command: String,
+        args: Vec<String>,
+    ) -> Result<ProcessId, RpcError> {
+        let mut cmd = Command::new(command);
+        cmd.args(args);
+        cmd.kill_on_drop(true);
+        cmd.stdout(Stdio::piped());
+        cmd.stderr(Stdio::piped());
+        let child = cmd.spawn().map_err(|e| {
+            let mut err = yajrc::INTERNAL_ERROR.clone();
+            err.data = Some(json!(e.to_string()));
+            err
+        })?;
+        let pid = ProcessId(child.id().ok_or_else(|| {
+            let mut err = yajrc::INTERNAL_ERROR.clone();
+            err.data = Some(json!("Child has no pid"));
+            err
+        })?);
+        self.children
+            .lock()
+            .await
+            .insert(pid, (gid, Arc::new(Mutex::new(Some((child, None, None))))));
+        Ok(pid)
     }
 
-    /// Given the rpcid, will try and term the running command
-    async fn send_signal(&self, rpc: &RpcId, signal: u32) {
-        let output = match self.get_cmd_id(rpc).await {
-            Some(id) => {
-                let mut cmd = tokio::process::Command::new("kill");
-                cmd.arg("-s")
-                    .arg(format!("{signal}"))
-                    .arg(format!("{}", id.0));
-                cmd.output().await
-            }
-            None => return,
+    async fn read_line_stdout(&self, pid: ProcessId) -> Result<String, RpcError> {
+        let not_found = || {
+            let mut err = yajrc::INTERNAL_ERROR.clone();
+            err.data = Some(json!(format!("Child with pid {} not found", pid.0)));
+            err
         };
-        match output {
-            Ok(_) => (),
-            Err(err) => {
-                tracing::error!("Could not kill rpc {rpc:?}");
-                tracing::debug!("{err}");
+        let mut child = {
+            self.children
+                .lock()
+                .await
+                .get(&pid)
+                .ok_or_else(not_found)?
+                .1
+                .clone()
+        }
+        .lock_owned()
+        .await;
+        if let Some(mut child) = child.as_mut() {
+            if let Some(stdout) = child.0.stdout.take() {
+                child.1 = Some(BufReader::new(stdout));
+            }
+            if let Some(stdout) = child.1.as_mut() {
+                let mut res = String::new();
+                stdout.read_line(&mut res).await.map_err(|e| {
+                    let mut err = yajrc::INTERNAL_ERROR.clone();
+                    err.data = Some(json!(e.to_string()));
+                    err
+                })?;
+                Ok(res)
+            } else {
+                let mut err = yajrc::INTERNAL_ERROR.clone();
+                err.data = Some(json!("Child has no stdout handle"));
+                Err(err)
+            }
+        } else {
+            Err(not_found())
+        }
+    }
+
+    async fn read_line_stderr(&self, pid: ProcessId) -> Result<String, RpcError> {
+        let not_found = || {
+            let mut err = yajrc::INTERNAL_ERROR.clone();
+            err.data = Some(json!(format!("Child with pid {} not found", pid.0)));
+            err
+        };
+        let mut child = {
+            self.children
+                .lock()
+                .await
+                .get(&pid)
+                .ok_or_else(not_found)?
+                .1
+                .clone()
+        }
+        .lock_owned()
+        .await;
+        if let Some(mut child) = child.as_mut() {
+            if let Some(stderr) = child.0.stderr.take() {
+                child.2 = Some(BufReader::new(stderr));
+            }
+            if let Some(stderr) = child.2.as_mut() {
+                let mut res = String::new();
+                stderr.read_line(&mut res).await.map_err(|e| {
+                    let mut err = yajrc::INTERNAL_ERROR.clone();
+                    err.data = Some(json!(e.to_string()));
+                    err
+                })?;
+                Ok(res)
+            } else {
+                let mut err = yajrc::INTERNAL_ERROR.clone();
+                err.data = Some(json!("Child has no stderr handle"));
+                Err(err)
+            }
+        } else {
+            Err(not_found())
+        }
+    }
+
+    async fn output(&self, pid: ProcessId) -> Result<String, RpcError> {
+        let not_found = || {
+            let mut err = yajrc::INTERNAL_ERROR.clone();
+            err.data = Some(json!(format!("Child with pid {} not found", pid.0)));
+            err
+        };
+        let mut child = {
+            self.children
+                .lock()
+                .await
+                .remove(&pid)
+                .ok_or_else(not_found)?
+                .1
+        }
+        .lock_owned()
+        .await;
+        if let Some(child) = child.take() {
+            let output = child.0.wait_with_output().await?;
+            if output.status.success() {
+                Ok(String::from_utf8(output.stdout).map_err(|_| yajrc::PARSE_ERROR)?)
+            } else {
+                Err(RpcError {
+                    code: output
+                        .status
+                        .code()
+                        .or_else(|| output.status.signal().map(|s| 128 + s))
+                        .unwrap_or(0),
+                    message: "Command failed".into(),
+                    data: Some(json!(
+                        String::from_utf8(output.stderr).map_err(|_| yajrc::PARSE_ERROR)?
+                    )),
+                })
+            }
+        } else {
+            Err(not_found())
+        }
+    }
+
+    async fn signal(&self, pid: ProcessId, signal: u32) -> Result<(), RpcError> {
+        let not_found = || {
+            let mut err = yajrc::INTERNAL_ERROR.clone();
+            err.data = Some(json!(format!("Child with pid {} not found", pid.0)));
+            err
+        };
+        let child = {
+            self.children
+                .lock()
+                .await
+                .get(&pid)
+                .ok_or_else(not_found)?
+                .1
+                .clone()
+        }
+        .lock_owned()
+        .await;
+        if !child.is_some() {
+            return Err(not_found());
+        }
+
+        let _ = Command::new("kill")
+            .arg("-s")
+            .arg(signal.to_string())
+            .arg(pid.0.to_string())
+            .output()
+            .await;
+
+        if signal == 9 {
+            self.children
+                .lock()
+                .await
+                .remove(&pid)
+                .ok_or_else(not_found)?;
+        }
+        Ok(())
+    }
+
+    async fn kill_group(&self, gid: ProcessGroupId) -> Result<(), RpcError> {
+        let mut to_kill = Vec::new();
+        {
+            let mut children_ref = self.children.lock().await;
+            let children = std::mem::take(children_ref.deref_mut());
+            for (pid, (child_gid, child)) in children {
+                if child_gid == Some(gid) {
+                    to_kill.push(pid);
+                } else {
+                    children_ref.insert(pid, (child_gid, child));
+                }
             }
         }
-    }
-
-    /// Try and let a command clean itself up, but if it takes too long kill it
-    async fn stop_then_kill(self, id: RpcId, timeout: Duration) {
-        if !self.ids.borrow().contains_key(&id) {
-            return;
+        for pid in to_kill {
+            let _ = Command::new("kill")
+                .arg("-9")
+                .arg(pid.0.to_string())
+                .output()
+                .await;
         }
 
-        self.send_signal(&id, 15).await;
-        tokio::time::sleep(timeout).await;
-        if !self.ids.borrow().contains_key(&id) {
-            return;
-        }
-
-        self.send_signal(&id, 9).await;
+        Ok(())
     }
 
-    /// Used as a cleanup
-    async fn cleanup_processes(self) {
-        for id in self.ids.borrow().keys() {
-            self.send_signal(id, 15).await;
-        }
-    }
-
-    async fn get_cmd_id(&self, rpc: &RpcId) -> Option<ProcessId> {
-        self.ids.borrow().get(rpc).cloned()
-    }
-}
-
-async fn extract_once<T>(value: Option<Arc<Mutex<Option<T>>>>) -> Option<T> {
-    match value {
-        None => None,
-        Some(a) => a.lock().await.take(),
+    async fn graceful_exit(self) {
+        let kill_all = futures::stream::iter(
+            std::mem::take(self.children.lock().await.deref_mut()).into_iter(),
+        )
+        .for_each_concurrent(None, |(pid, child)| async move {
+            let _ = Command::new("kill").arg(pid.0.to_string()).output().await;
+            if let Some(child) = child.1.lock().await.take() {
+                let _ = child.0.wait_with_output().await;
+            }
+        });
+        kill_all.await
     }
 }
 
 #[tokio::main]
 async fn main() {
-    use futures::StreamExt;
     use tokio::signal::unix::{signal, SignalKind};
     let mut sigint = signal(SignalKind::interrupt()).unwrap();
     let mut sigterm = signal(SignalKind::terminate()).unwrap();
     let mut sigquit = signal(SignalKind::quit()).unwrap();
     let mut sighangup = signal(SignalKind::hangup()).unwrap();
-    let io = Io::start();
-    let outputs = io
-        .inputs()
-        .filter_map(|x| async move { InputJsonRpc::maybe_parse(&x) })
-        .flat_map_unordered(MAX_COMMANDS, |x| io.command(x).boxed())
-        .filter_map(|x| async move { x.maybe_serialize() });
+
+    let handler = Handler::new();
+    let mut lines = BufReader::new(tokio::io::stdin()).lines();
+    let handler_thread = async {
+        while let Some(line) = lines.next_line().await? {
+            let local_hdlr = handler.clone();
+            tokio::spawn(async move {
+                if let Err(e) = async {
+                    let req = serde_json::from_str::<IncomingRpc>(&line)?;
+                    match local_hdlr.handle(req.input).await {
+                        Ok(output) => {
+                            println!(
+                                "{}",
+                                json!({ "id": req.id, "jsonrpc": "2.0", "result": output })
+                            )
+                        }
+                        Err(e) => {
+                            println!("{}", json!({ "id": req.id, "jsonrpc": "2.0", "error": e }))
+                        }
+                    }
+                    Ok::<_, serde_json::Error>(())
+                }
+                .await
+                {
+                    tracing::error!("Error parsing RPC request: {}", e);
+                    tracing::debug!("{:?}", e);
+                }
+            });
+        }
+        Ok::<_, std::io::Error>(())
+    };
 
     select! {
-        _ = io.output(outputs) => {
-            tracing::debug!("Done with inputs/outputs")
+        res = handler_thread => {
+            match res {
+                Ok(()) => tracing::debug!("Done with inputs/outputs"),
+                Err(e) => {
+                    tracing::error!("Error reading RPC input: {}", e);
+                    tracing::debug!("{:?}", e);
+                }
+            }
         },
         _ = sigint.recv() => {
-            tracing::debug!("Sigint")
+            tracing::debug!("SIGINT");
         },
         _ = sigterm.recv() => {
-            tracing::debug!("Sig Term")
+            tracing::debug!("SIGTERM");
         },
         _ = sigquit.recv() => {
-            tracing::debug!("Sigquit")
+            tracing::debug!("SIGQUIT");
         },
         _ = sighangup.recv() => {
-            tracing::debug!("Sighangup")
+            tracing::debug!("SIGHUP");
         }
     }
-    io.cleanup_processes().await;
-    ::std::process::exit(0);
+    handler.graceful_exit().await;
+    ::std::process::exit(0)
 }

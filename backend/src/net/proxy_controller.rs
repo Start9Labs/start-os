@@ -15,7 +15,7 @@ use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 use tracing::{error, info, instrument};
 
-use crate::net::net_utils::{host_addr_fqdn, ResourceFqdn};
+use crate::net::net_utils::ResourceFqdn;
 use crate::net::ssl::SslManager;
 use crate::net::vhost_controller::VHOSTController;
 use crate::net::{HttpClient, HttpHandler, InterfaceMetadata, PackageNetInfo};

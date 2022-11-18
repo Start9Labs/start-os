@@ -802,6 +802,7 @@ dependencies = [
  "tracing-error 0.2.0",
  "tracing-futures",
  "tracing-subscriber 0.3.16",
+ "yajrc 0.1.0 (git+https://github.com/dr-bonez/yajrc.git?branch=develop)",
 ]
 
 [[package]]
@@ -1145,9 +1146,11 @@ dependencies = [
  "models",
  "pin-project",
  "serde",
+ "serde_json",
  "tokio",
  "tokio-stream",
  "tracing",
+ "yajrc 0.1.0 (git+https://github.com/dr-bonez/yajrc.git?branch=develop)",
 ]
 
 [[package]]
@@ -2381,7 +2384,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "url",
- "yajrc",
+ "yajrc 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -4103,6 +4106,17 @@ name = "yajrc"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b40687b4c165cb760e35730055c8840f36897e7c98099b2d3d66ba8cb624c79a"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "yajrc"
+version = "0.1.0"
+source = "git+https://github.com/dr-bonez/yajrc.git?branch=develop#72a22f7ac2197d7a5cdce4be601cf20e5280eec5"
 dependencies = [
  "anyhow",
  "serde",

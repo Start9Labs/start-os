@@ -1,9 +1,11 @@
 use std::fmt::Display;
 
-use crate::InvalidId;
 use color_eyre::eyre::eyre;
 use patch_db::Revision;
-use rpc_toolkit::{hyper::http::uri::InvalidUri, yajrc::RpcError};
+use rpc_toolkit::hyper::http::uri::InvalidUri;
+use rpc_toolkit::yajrc::RpcError;
+
+use crate::InvalidId;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ErrorKind {

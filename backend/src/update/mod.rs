@@ -249,7 +249,7 @@ impl EosUrl {
         };
         Ok(format!("{host}::{version}/{arch}/")
             .parse()
-            .map_err(|e| Error::new(eyre!("Could not parse path"), ErrorKind::ParseUrl))?)
+            .map_err(|_| Error::new(eyre!("Could not parse path"), ErrorKind::ParseUrl))?)
     }
 }
 

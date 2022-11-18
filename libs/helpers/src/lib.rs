@@ -10,9 +10,11 @@ use tokio::sync::oneshot;
 use tokio::task::{JoinError, JoinHandle, LocalSet};
 
 mod byte_replacement_reader;
+mod rpc_client;
 mod rsync;
 mod script_dir;
 pub use byte_replacement_reader::*;
+pub use rpc_client::RpcClient;
 pub use rsync::*;
 pub use script_dir::*;
 

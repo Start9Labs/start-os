@@ -1,23 +1,21 @@
 use std::collections::BTreeMap;
 use std::future::Future;
 use std::net::Ipv4Addr;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
 
 use bollard::container::{KillContainerOptions, StopContainerOptions};
 use color_eyre::eyre::eyre;
-use embassy_container_init::{InputJsonRpc, RpcId};
-use models::{ExecCommand, SendKillSignal};
+use embassy_container_init::ProcessGroupId;
+use helpers::RpcClient;
 use nix::sys::signal::Signal;
 use patch_db::DbHandle;
 use sqlx::{Executor, Postgres};
-use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::watch::error::RecvError;
 use tokio::sync::watch::{channel, Receiver, Sender};
-use tokio::sync::{oneshot, Mutex, Notify, RwLock};
-use tokio_stream::wrappers::UnboundedReceiverStream;
+use tokio::sync::{oneshot, Notify, RwLock};
 use torut::onion::TorSecretKeyV3;
 use tracing::instrument;
 
@@ -25,11 +23,10 @@ use crate::context::RpcContext;
 use crate::manager::sync::synchronizer;
 use crate::net::interface::InterfaceId;
 use crate::net::GeneratedCertificateMountPoint;
-use crate::notifications::NotificationLevel;
 use crate::procedure::docker::{DockerContainer, DockerProcedure, LongRunning};
+use crate::procedure::js_scripts::JsProcedure;
 use crate::procedure::{NoOutput, PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::{Manifest, PackageId};
-use crate::status::MainStatus;
 use crate::util::{Container, NonDetachingJoinHandle, Version};
 use crate::Error;
 
@@ -176,6 +173,7 @@ pub struct ManagerSharedState {
     synchronized: Notify,
     synchronize_now: Notify,
     commit_health_check_results: AtomicBool,
+    next_gid: AtomicU32,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -270,6 +268,7 @@ impl Manager {
             synchronized: Notify::new(),
             synchronize_now: Notify::new(),
             commit_health_check_results: AtomicBool::new(true),
+            next_gid: AtomicU32::new(0),
         });
         shared.synchronize_now.notify_one();
         let thread_shared = shared.clone();
@@ -286,40 +285,7 @@ impl Manager {
     }
 
     pub async fn signal(&self, signal: &Signal) -> Result<(), Error> {
-        // stop health checks from committing their results
-        self.shared
-            .commit_health_check_results
-            .store(false, Ordering::SeqCst);
-
-        // send signal to container
-        self.shared
-            .seed
-            .ctx
-            .docker
-            .kill_container(
-                &self.shared.seed.container_name,
-                Some(KillContainerOptions {
-                    signal: signal.to_string(),
-                }),
-            )
-            .await
-            .or_else(|e| {
-                if matches!(
-                    e,
-                    bollard::errors::Error::DockerResponseServerError {
-                        status_code: 409, // CONFLICT
-                        ..
-                    } | bollard::errors::Error::DockerResponseServerError {
-                        status_code: 404, // NOT FOUND
-                        ..
-                    }
-                ) {
-                    Ok(())
-                } else {
-                    Err(e)
-                }
-            })?;
-        Ok(())
+        send_signal(&self.shared, signal).await
     }
 
     #[instrument(skip(self))]
@@ -375,17 +341,18 @@ impl Manager {
         self.shared.synchronized.notified().await
     }
 
-    pub fn exec_command(&self) -> Option<ExecCommand> {
-        self.shared
-            .persistent_container
-            .as_ref()
-            .map(|p| p.exec_command())
+    pub fn new_gid(&self) -> ProcessGroupId {
+        ProcessGroupId(
+            self.shared
+                .next_gid
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst),
+        )
     }
-    pub fn term_command(&self) -> Option<SendKillSignal> {
+    pub fn rpc_client(&self) -> Option<Arc<RpcClient>> {
         self.shared
             .persistent_container
             .as_ref()
-            .map(|p| p.term_command())
+            .map(|c| c.rpc_client.borrow().clone())
     }
 }
 
@@ -423,7 +390,8 @@ async fn manager_thread_loop(mut recv: Receiver<OnStop>, thread_shared: &Arc<Man
         match run_main(thread_shared).await {
             Ok(Ok(NoOutput)) => (), // restart
             Ok(Err(e)) => {
-                if cfg!(feature = "unstable") {
+                #[cfg(feature = "unstable")]
+                {
                     let mut db = thread_shared.seed.ctx.db.handle();
                     let started = crate::db::DatabaseModel::new()
                         .package_data()
@@ -466,217 +434,23 @@ async fn manager_thread_loop(mut recv: Receiver<OnStop>, thread_shared: &Arc<Man
     }
 }
 
-struct LongRunningHandle(NonDetachingJoinHandle<()>);
-pub struct CommandInserter {
-    command_counter: AtomicUsize,
-    input: UnboundedSender<InputJsonRpc>,
-    outputs: Arc<Mutex<BTreeMap<RpcId, UnboundedSender<embassy_container_init::Output>>>>,
-}
-impl Drop for CommandInserter {
-    fn drop(&mut self) {
-        use embassy_container_init::{Input, JsonRpc};
-        let CommandInserter {
-            command_counter,
-            input,
-            outputs: _,
-        } = self;
-        let upper: usize = command_counter.load(Ordering::Relaxed);
-        for i in 0..upper {
-            let _ignored_result = input.send(JsonRpc::new(RpcId::UInt(i as u32), Input::Kill()));
-        }
-    }
-}
-impl CommandInserter {
-    fn new(
-        long_running: LongRunning,
-        input: UnboundedSender<InputJsonRpc>,
-    ) -> (LongRunningHandle, Self) {
-        let LongRunning {
-            mut output,
-            running_output,
-        } = long_running;
-        let command_counter = AtomicUsize::new(0);
-        let outputs: Arc<Mutex<BTreeMap<RpcId, UnboundedSender<embassy_container_init::Output>>>> =
-            Default::default();
-        let handle = LongRunningHandle(running_output);
-        tokio::spawn({
-            let outputs = outputs.clone();
-            async move {
-                while let Some(output) = output.recv().await {
-                    let (id, output) = output.into_pair();
-                    let mut outputs = outputs.lock().await;
-                    let output_sender = outputs.get_mut(&id);
-                    if let Some(output_sender) = output_sender {
-                        if let Err(err) = output_sender.send(output) {
-                            tracing::warn!("Could no longer send an output");
-                            tracing::debug!("{err:?}");
-                            outputs.remove(&id);
-                        }
-                    }
-                }
-            }
-        });
-
-        (
-            handle,
-            Self {
-                command_counter,
-                input,
-                outputs,
-            },
-        )
-    }
-
-    pub async fn exec_command(
-        &self,
-        command: String,
-        args: Vec<String>,
-        sender: UnboundedSender<embassy_container_init::Output>,
-        timeout: Option<Duration>,
-    ) -> Option<RpcId> {
-        use embassy_container_init::{Input, JsonRpc};
-        let mut outputs = self.outputs.lock().await;
-        let command_counter = self.command_counter.fetch_add(1, Ordering::SeqCst) as u32;
-        let command_id = RpcId::UInt(command_counter);
-        outputs.insert(command_id, sender);
-        if let Some(timeout) = timeout {
-            tokio::spawn({
-                let input = self.input.clone();
-                let command_id = command_id;
-                async move {
-                    tokio::time::sleep(timeout).await;
-                    let _ignored_output = input.send(JsonRpc::new(command_id, Input::Kill()));
-                }
-            });
-        }
-        if let Err(err) = self
-            .input
-            .send(JsonRpc::new(command_id, Input::Command { command, args }))
-        {
-            tracing::warn!("Trying to send to input but can't");
-            tracing::debug!("{err:?}");
-            return None;
-        }
-
-        Some(command_id)
-    }
-    pub async fn send_kill_command(&self, id: RpcId, command: u32) {
-        use embassy_container_init::{Input, JsonRpc};
-        self.outputs.lock().await.remove(&id);
-        let _ignored_term = self
-            .input
-            .send(JsonRpc::new(id, Input::SendSignal(command)));
-    }
-
-    pub async fn term_all(&self) {
-        for i in 0..self.command_counter.load(Ordering::Relaxed) {
-            self.send_kill_command(RpcId::UInt(i as u32), 15).await;
-        }
-    }
-}
-
 pub struct PersistentContainer {
-    container_name: String,
-    running_docker: NonDetachingJoinHandle<()>,
-    command_inserter: Receiver<Arc<CommandInserter>>,
+    _running_docker: NonDetachingJoinHandle<()>,
+    rpc_client: Receiver<Arc<RpcClient>>,
 }
 
 impl PersistentContainer {
     #[instrument(skip(seed))]
     async fn init(seed: &Arc<ManagerSeed>) -> Result<Option<Self>, Error> {
         Ok(if let Some(containers) = &seed.manifest.containers {
-            let (running_docker, command_inserter) =
+            let (running_docker, rpc_client) =
                 spawn_persistent_container(seed.clone(), containers.main.clone()).await?;
             Some(Self {
-                container_name: DockerProcedure::container_name(&seed.manifest.id, None),
-                running_docker,
-                command_inserter,
+                _running_docker: running_docker,
+                rpc_client,
             })
         } else {
             None
-        })
-    }
-
-    #[instrument(skip(self))]
-    async fn exit(&self) {
-        let container_name = &self.container_name;
-        use tokio::process::Command;
-        if let Err(_err) = Command::new("docker")
-            .args(["stop", "-t", "30", container_name])
-            .output()
-            .await
-        {}
-    }
-
-    fn term_command(&self) -> SendKillSignal {
-        let cloned = self.command_inserter.clone();
-        Arc::new(move |id, signal| {
-            let cloned = cloned.clone();
-            Box::pin(async move {
-                let command_inserter = { cloned.borrow().clone() };
-                command_inserter.send_kill_command(id, signal).await;
-                Ok::<(), String>(())
-            })
-        })
-    }
-
-    fn exec_command(&self) -> ExecCommand {
-        use std::collections::BTreeSet;
-        use tokio::sync::oneshot;
-        let cloned = self.command_inserter.borrow().clone();
-
-        let (trigger_drop, drop) = oneshot::channel::<BTreeSet<RpcId>>();
-        tokio::spawn({
-            // let command_inserter = self.command_inserter.borrow().clone();
-            async move {
-                let ids = match drop.await {
-                    Err(err) => {
-                        tracing::warn!("Channel cleanup issue {err:?}");
-                        return;
-                    }
-                    Ok(a) => a,
-                };
-                for id in ids {
-                    // command_inserter.send_kill_command(id, 9).await;
-                }
-            }
-        });
-
-        /// A handle that on drop will clean all the ids that are inserter in the fn.
-        struct Cleaner {
-            command_inserter: Arc<CommandInserter>,
-            ids: BTreeSet<RpcId>,
-            trigger_drop: Option<oneshot::Sender<BTreeSet<RpcId>>>,
-        }
-        impl Drop for Cleaner {
-            fn drop(&mut self) {
-                if let Some(trigger_drop) = self.trigger_drop.take() {
-                    trigger_drop.send(::std::mem::take(&mut self.ids));
-                }
-            }
-        }
-        let cleaner = Arc::new(Mutex::new(Cleaner {
-            command_inserter: cloned.clone(),
-            ids: Default::default(),
-            trigger_drop: Some(trigger_drop),
-        }));
-        Arc::new(move |command, args, sender, timeout| {
-            let cloned = cloned.clone();
-            let cleaner = cleaner.clone();
-            Box::pin(async move {
-                let command_inserter = cloned.clone();
-                let id = if let Some(id) = command_inserter
-                    .exec_command(command.clone(), args.clone(), sender, timeout)
-                    .await
-                {
-                    let mut cleaner = cleaner.lock().await;
-                    cleaner.ids.insert(id);
-                    id
-                } else {
-                    return Err("Couldn't get command started ".to_string());
-                };
-                Ok::<RpcId, String>(id)
-            })
         })
     }
 }
@@ -684,12 +458,12 @@ impl PersistentContainer {
 async fn spawn_persistent_container(
     seed: Arc<ManagerSeed>,
     container: DockerContainer,
-) -> Result<(NonDetachingJoinHandle<()>, Receiver<Arc<CommandInserter>>), Error> {
+) -> Result<(NonDetachingJoinHandle<()>, Receiver<Arc<RpcClient>>), Error> {
     let (send_inserter, inserter) = oneshot::channel();
     Ok((
         tokio::task::spawn(async move {
-            let mut inserter_send: Option<Sender<Arc<CommandInserter>>> = None;
-            let mut send_inserter: Option<oneshot::Sender<Receiver<Arc<CommandInserter>>>> = Some(send_inserter);
+            let mut inserter_send: Option<Sender<Arc<RpcClient>>> = None;
+            let mut send_inserter: Option<oneshot::Sender<Receiver<Arc<RpcClient>>>> = Some(send_inserter);
             loop {
                 if let Err(e) = async {
                     let interfaces = main_interfaces(&*seed)?;
@@ -719,7 +493,7 @@ async fn spawn_persistent_container(
                     }
 
                     let res = tokio::select! {
-                        a = runtime.0 => a.map_err(|_| Error::new(eyre!("Manager runtime panicked!"), crate::ErrorKind::Docker)).map(|_| ()),
+                        a = runtime.running_output => a.map_err(|_| Error::new(eyre!("Manager runtime panicked!"), crate::ErrorKind::Docker)).map(|_| ()),
                     };
 
                     remove_network_for_main(&*seed, ip).await?;
@@ -741,18 +515,15 @@ async fn spawn_persistent_container(
 async fn long_running_docker(
     seed: &ManagerSeed,
     container: &DockerContainer,
-) -> Result<(LongRunningHandle, CommandInserter), Error> {
-    let (sender, receiver) = tokio::sync::mpsc::unbounded_channel();
-    let long_running = container
+) -> Result<(LongRunning, RpcClient), Error> {
+    container
         .long_running_execute(
             &seed.ctx,
             &seed.manifest.id,
             &seed.manifest.version,
             &seed.manifest.volumes,
-            UnboundedReceiverStream::new(receiver),
         )
-        .await?;
-    Ok(CommandInserter::new(long_running, sender))
+        .await
 }
 
 async fn remove_network_for_main(seed: &ManagerSeed, ip: std::net::Ipv4Addr) -> Result<(), Error> {
@@ -870,7 +641,7 @@ async fn get_running_ip(
     }
 }
 
-async fn get_long_running_ip(seed: &ManagerSeed, runtime: &mut LongRunningHandle) -> GetRunningIp {
+async fn get_long_running_ip(seed: &ManagerSeed, runtime: &mut LongRunning) -> GetRunningIp {
     loop {
         match container_inspect(seed).await {
             Ok(res) => {
@@ -894,7 +665,7 @@ async fn get_long_running_ip(seed: &ManagerSeed, runtime: &mut LongRunningHandle
             }) => (),
             Err(e) => return GetRunningIp::Error(e.into()),
         }
-        if let Poll::Ready(res) = futures::poll!(&mut runtime.0) {
+        if let Poll::Ready(res) = futures::poll!(&mut runtime.running_output) {
             match res {
                 Ok(_) => return GetRunningIp::EarlyExit(Ok(NoOutput)),
                 Err(_e) => {
@@ -993,13 +764,14 @@ async fn stop(shared: &ManagerSharedState) -> Result<(), Error> {
     if *shared.status.1.borrow() == Status::Paused {
         resume(shared).await?;
     }
-    // shared.signal.send(SigTerm);
+    send_signal(shared, &Signal::SIGTERM).await?;
     let _ = tokio::time::timeout(
         sigterm_timeout(&shared.seed.manifest).unwrap_or(Duration::from_secs(30)),
         wait_for_status(shared, Status::Stopped),
     )
     .await;
     shared.killer.notify_waiters();
+    dbg!("Killed", &shared.seed.container_name);
 
     Ok(())
 }
@@ -1046,5 +818,67 @@ async fn resume(shared: &ManagerSharedState) -> Result<(), Error> {
         .unpause_container(&shared.seed.container_name)
         .await?;
     let _ = shared.status.0.send(Status::Running);
+    Ok(())
+}
+
+async fn send_signal(shared: &ManagerSharedState, signal: &Signal) -> Result<(), Error> {
+    // stop health checks from committing their results
+    shared
+        .commit_health_check_results
+        .store(false, Ordering::SeqCst);
+
+    if let Some(rpc_client) = shared
+        .persistent_container
+        .as_ref()
+        .map(|c| c.rpc_client.borrow().clone())
+    {
+        JsProcedure::default()
+            .execute::<_, NoOutput>(
+                &shared.seed.ctx.datadir,
+                &shared.seed.manifest.id,
+                &shared.seed.manifest.version,
+                ProcedureName::Signal,
+                &shared.seed.manifest.volumes,
+                Some(*signal as i32),
+                None, // TODO
+                ProcessGroupId(
+                    shared
+                        .next_gid
+                        .fetch_add(1, std::sync::atomic::Ordering::SeqCst),
+                ),
+                rpc_client,
+            )
+            .await?;
+    } else {
+        // send signal to container
+        shared
+            .seed
+            .ctx
+            .docker
+            .kill_container(
+                &shared.seed.container_name,
+                Some(KillContainerOptions {
+                    signal: signal.to_string(),
+                }),
+            )
+            .await
+            .or_else(|e| {
+                if matches!(
+                    e,
+                    bollard::errors::Error::DockerResponseServerError {
+                        status_code: 409, // CONFLICT
+                        ..
+                    } | bollard::errors::Error::DockerResponseServerError {
+                        status_code: 404, // NOT FOUND
+                        ..
+                    }
+                ) {
+                    Ok(())
+                } else {
+                    Err(e)
+                }
+            })?;
+    }
+
     Ok(())
 }
