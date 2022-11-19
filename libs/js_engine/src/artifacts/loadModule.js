@@ -43,27 +43,31 @@ const readFile = (
 const runDaemon = (
   { command = requireParam("command"), args = [] } = requireParam("options"),
 ) => {
-  let id = Deno.core.opAsync("start_command", command, args);
-  let rpcId = id.then(x => x.rpcId)
+  let id = Deno.core.opAsync("start_command", command, args, "inherit", null);
   let processId = id.then(x => x.processId)
   let waitPromise = null;
   return {
     processId,
-    rpcId,
     async wait() {
-      waitPromise = waitPromise || Deno.core.opAsync("wait_command", await rpcId)
+      waitPromise = waitPromise || Deno.core.opAsync("wait_command", await processId)
       return waitPromise
     },
-    async term() {
-      return Deno.core.opAsync("term_command", await rpcId)
+    async term(signal = 15) {
+      return Deno.core.opAsync("send_signal", await processId, 15)
     }
   }
 };
 const runCommand = async (
   { command = requireParam("command"), args = [], timeoutMillis = 30000 } = requireParam("options"),
 ) => {
-  let id = Deno.core.opAsync("start_command", command, args, timeoutMillis);
-  return Deno.core.opAsync("wait_command", await id)
+  let id = Deno.core.opAsync("start_command", command, args, "collect", timeoutMillis);
+  let pid = id.then(x => x.processId)
+  return Deno.core.opAsync("wait_command", await pid)
+};
+const signalGroup = async (
+  { gid = requireParam("gid"), signal = requireParam("signal") } = requireParam("gid and signal")
+) => {
+  return Deno.core.opAsync("signal_group", gid, signal);
 };
 const sleep = (timeMs = requireParam("timeMs"),
 ) => Deno.core.opAsync("sleep", timeMs);
@@ -181,10 +185,17 @@ const effects = {
   runCommand,
   sleep,
   runDaemon,
+  signalGroup,
   runRsync
 };
 
-const runFunction = jsonPointerValue(mainModule, currentFunction);
+const defaults = {
+  "handleSignal": (effects, { gid, signal }) => {
+    return effects.signalGroup({ gid, signal })
+  }
+}
+
+const runFunction = jsonPointerValue(mainModule, currentFunction) || jsonPointerValue(defaults, currentFunction);
 (async () => {
   if (typeof runFunction !== "function") {
     error(`Expecting ${currentFunction} to be a function`);

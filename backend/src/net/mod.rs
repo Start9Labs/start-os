@@ -7,22 +7,20 @@ use indexmap::IndexSet;
 use rpc_toolkit::command;
 
 use self::interface::InterfaceId;
-
 use crate::net::interface::LanPortConfig;
-
 use crate::util::serde::Port;
 use crate::Error;
 
+pub mod cert_resolver;
 pub mod dns;
+pub mod embassy_service_http_server;
 pub mod interface;
 #[cfg(feature = "avahi")]
 pub mod mdns;
-pub mod embassy_service_http_server;
 pub mod net_controller;
 pub mod net_utils;
 pub mod proxy_controller;
 pub mod ssl;
-pub mod cert_resolver;
 pub mod static_server;
 pub mod tor;
 pub mod vhost_controller;

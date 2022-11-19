@@ -1,23 +1,18 @@
-use std::convert::TryInto;
-use std::sync::atomic::Ordering;
+use std::collections::BTreeMap;
 use std::time::Duration;
-use std::{collections::BTreeMap, sync::Arc};
 
 use chrono::Utc;
 
-use super::{pause, resume, start, stop, ManagerSharedState, PersistantContainer, Status};
+use super::{pause, resume, start, stop, ManagerSharedState, Status};
 use crate::status::MainStatus;
 use crate::Error;
 
 /// Allocates a db handle. DO NOT CALL with a db handle already in scope
-async fn synchronize_once(
-    shared: &ManagerSharedState,
-    persistant_container: Arc<PersistantContainer>,
-) -> Result<Status, Error> {
-    let mut db = shared.ctx.db.handle();
+async fn synchronize_once(shared: &ManagerSharedState) -> Result<Status, Error> {
+    let mut db = shared.seed.ctx.db.handle();
     let mut status = crate::db::DatabaseModel::new()
         .package_data()
-        .idx_model(&shared.manifest.id)
+        .idx_model(&shared.seed.manifest.id)
         .expect(&mut db)
         .await?
         .installed()
@@ -27,7 +22,7 @@ async fn synchronize_once(
         .main()
         .get_mut(&mut db)
         .await?;
-    let manager_status = shared.status.load(Ordering::SeqCst).try_into().unwrap();
+    let manager_status = *shared.status.1.borrow();
     match manager_status {
         Status::Stopped => match &mut *status {
             MainStatus::Stopped => (),
@@ -48,16 +43,16 @@ async fn synchronize_once(
         },
         Status::Starting => match *status {
             MainStatus::Stopped | MainStatus::Stopping | MainStatus::Restarting => {
-                stop(shared, persistant_container).await?;
+                stop(shared).await?;
             }
             MainStatus::Starting { .. } | MainStatus::Running { .. } => (),
             MainStatus::BackingUp { .. } => {
-                pause(shared, persistant_container).await?;
+                pause(shared).await?;
             }
         },
         Status::Running => match *status {
             MainStatus::Stopped | MainStatus::Stopping | MainStatus::Restarting => {
-                stop(shared, persistant_container).await?;
+                stop(shared).await?;
             }
             MainStatus::Starting { .. } => {
                 *status = MainStatus::Running {
@@ -67,12 +62,12 @@ async fn synchronize_once(
             }
             MainStatus::Running { .. } => (),
             MainStatus::BackingUp { .. } => {
-                pause(shared, persistant_container).await?;
+                pause(shared).await?;
             }
         },
         Status::Paused => match *status {
             MainStatus::Stopped | MainStatus::Stopping | MainStatus::Restarting => {
-                stop(shared, persistant_container).await?;
+                stop(shared).await?;
             }
             MainStatus::Starting { .. } | MainStatus::Running { .. } => {
                 resume(shared).await?;
@@ -85,21 +80,20 @@ async fn synchronize_once(
     Ok(manager_status)
 }
 
-pub async fn synchronizer(
-    shared: &ManagerSharedState,
-    persistant_container: Arc<PersistantContainer>,
-) {
+pub async fn synchronizer(shared: &ManagerSharedState) {
+    let mut status_recv = shared.status.0.subscribe();
     loop {
         tokio::select! {
             _ = tokio::time::sleep(Duration::from_secs(5)) => (),
             _ = shared.synchronize_now.notified() => (),
+            _ = status_recv.changed() => (),
         }
-        let status = match synchronize_once(shared, persistant_container.clone()).await {
+        let status = match synchronize_once(shared).await {
             Err(e) => {
                 tracing::error!(
                     "Synchronizer for {}@{} failed: {}",
-                    shared.manifest.id,
-                    shared.manifest.version,
+                    shared.seed.manifest.id,
+                    shared.seed.manifest.version,
                     e
                 );
                 tracing::debug!("{:?}", e);
@@ -107,7 +101,7 @@ pub async fn synchronizer(
             }
             Ok(status) => status,
         };
-        tracing::trace!("{} status synchronized", shared.manifest.id);
+        tracing::trace!("{} status synchronized", shared.seed.manifest.id);
         shared.synchronized.notify_waiters();
         match status {
             Status::Shutdown => {

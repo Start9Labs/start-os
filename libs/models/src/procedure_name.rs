@@ -14,6 +14,7 @@ pub enum ProcedureName {
     AutoConfig(PackageId),
     Health(HealthCheckId),
     Action(ActionId),
+    Signal,
 }
 
 impl ProcedureName {
@@ -31,6 +32,7 @@ impl ProcedureName {
             ProcedureName::Action(id) => Some(format!("{}Action", id)),
             ProcedureName::Check(_) => None,
             ProcedureName::AutoConfig(_) => None,
+            ProcedureName::Signal => None,
         }
     }
     pub fn js_function_name(&self) -> Option<String> {
@@ -47,6 +49,7 @@ impl ProcedureName {
             ProcedureName::Action(id) => Some(format!("/action/{}", id)),
             ProcedureName::Check(id) => Some(format!("/dependencies/{}/check", id)),
             ProcedureName::AutoConfig(id) => Some(format!("/dependencies/{}/autoConfigure", id)),
+            ProcedureName::Signal => Some("/handleSignal".to_string()),
         }
     }
 }

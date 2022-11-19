@@ -11,17 +11,22 @@ unstable = []
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
-async-stream = "0.3.*"
-color-eyre = "0.6.*"
-futures = "0.3.*"
-serde = { version = "1.*", features = ["derive", "rc"] }
-serde_json = "1.*"
-tokio = { version = "1.*", features = ["full"] }
+async-stream = "0.3"
+color-eyre = "0.6"
+futures = "0.3"
+serde = { version = "1", features = ["derive", "rc"] }
+serde_json = "1"
+helpers = { path = "../helpers" }
+imbl = "2"
+nix = "0.25"
+procfs = "0.14"
+tokio = { version = "1", features = ["full"] }
 tokio-stream = { version = "0.1.11" }
-tracing = "0.1.*"
-tracing-error = "0.2.*"
-tracing-futures = "0.2.*"
-tracing-subscriber = { version = "0.3.*", features = ["env-filter"] }
+tracing = "0.1"
+tracing-error = "0.2"
+tracing-futures = "0.2"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+yajrc = { version = "*", git = "https://github.com/dr-bonez/yajrc.git", branch = "develop" }
 
 [profile.test]
 opt-level = 3

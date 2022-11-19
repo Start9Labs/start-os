@@ -377,8 +377,7 @@ pub async fn tor_health_check(client: &Client, tor_controller: &TorController) {
         .await;
     if let Err(e) = result {
         let mut num_attempt = 1;
-        tracing::error!(
-            "Unable to reach self over tor, we will retry now...");
+        tracing::error!("Unable to reach self over tor, we will retry now...");
         tracing::error!("The first TOR error: {}", e);
 
         loop {

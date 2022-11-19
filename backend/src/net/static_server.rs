@@ -8,7 +8,6 @@ use digest::Digest;
 use futures::FutureExt;
 use http::response::Builder;
 use hyper::{Body, Method, Request, Response, StatusCode};
-
 use rpc_toolkit::rpc_handler;
 use tokio::fs::File;
 use tokio_util::codec::{BytesCodec, FramedRead};

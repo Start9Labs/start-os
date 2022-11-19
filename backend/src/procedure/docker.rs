@@ -9,19 +9,15 @@ use async_stream::stream;
 use bollard::container::RemoveContainerOptions;
 use color_eyre::eyre::eyre;
 use color_eyre::Report;
-use embassy_container_init::{InputJsonRpc, OutputJsonRpc};
 use futures::future::Either as EitherFuture;
-use futures::{Stream, StreamExt, TryFutureExt, TryStreamExt};
-use helpers::NonDetachingJoinHandle;
+use futures::TryStreamExt;
+use helpers::{NonDetachingJoinHandle, RpcClient};
 use nix::sys::signal;
 use nix::unistd::Pid;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tokio::{
-    io::{AsyncBufRead, AsyncBufReadExt, BufReader},
-    process::Child,
-    sync::mpsc::UnboundedReceiver,
-};
+use tokio::io::{AsyncBufRead, AsyncBufReadExt, BufReader};
 use tracing::instrument;
 
 use super::ProcedureName;
@@ -69,6 +65,57 @@ pub struct DockerContainer {
     pub sigterm_timeout: Option<SerdeDuration>,
     #[serde(default)]
     pub system: bool,
+}
+impl DockerContainer {
+    /// We created a new exec runner, where we are going to be passing the commands for it to run.
+    /// Idea is that we are going to send it command and get the inputs be filtered back from the manager.
+    /// Then we could in theory run commands without the cost of running the docker exec which is known to have
+    /// a dely of > 200ms which is not acceptable.
+    #[instrument(skip(ctx))]
+    pub async fn long_running_execute(
+        &self,
+        ctx: &RpcContext,
+        pkg_id: &PackageId,
+        pkg_version: &Version,
+        volumes: &Volumes,
+    ) -> Result<(LongRunning, RpcClient), Error> {
+        let container_name = DockerProcedure::container_name(pkg_id, None);
+
+        let mut cmd = LongRunning::setup_long_running_docker_cmd(
+            self,
+            ctx,
+            &container_name,
+            volumes,
+            pkg_id,
+            pkg_version,
+        )
+        .await?;
+
+        let mut handle = cmd.spawn().with_kind(crate::ErrorKind::Docker)?;
+
+        let client =
+            if let (Some(stdin), Some(stdout)) = (handle.stdin.take(), handle.stdout.take()) {
+                RpcClient::new(stdin, stdout)
+            } else {
+                return Err(Error::new(
+                    eyre!("No stdin/stdout handle for container init"),
+                    crate::ErrorKind::Incoherent,
+                ));
+            };
+
+        let running_output = NonDetachingJoinHandle::from(tokio::spawn(async move {
+            if let Err(err) = handle
+                .wait()
+                .await
+                .map_err(|e| eyre!("Runtime error: {e:?}"))
+            {
+                tracing::error!("{}", err);
+                tracing::debug!("{:?}", err);
+            }
+        }));
+
+        Ok((LongRunning { running_output }, client))
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -119,23 +166,6 @@ impl DockerProcedure {
             mounts: container.mounts.clone(),
             io_format: injectable.io_format,
             sigterm_timeout: injectable.sigterm_timeout,
-            shm_size_mb: container.shm_size_mb,
-        }
-    }
-    #[cfg(feature = "js_engine")]
-    pub fn main_docker_procedure_js(
-        container: &DockerContainer,
-        _procedure: &super::js_scripts::JsProcedure,
-    ) -> DockerProcedure {
-        DockerProcedure {
-            image: container.image.clone(),
-            system: container.system,
-            entrypoint: "sleep".to_string(),
-            args: Vec::new(),
-            inject: false,
-            mounts: container.mounts.clone(),
-            io_format: None,
-            sigterm_timeout: container.sigterm_timeout,
             shm_size_mb: container.shm_size_mb,
         }
     }
@@ -344,64 +374,6 @@ impl DockerProcedure {
                 ))
             },
         )
-    }
-
-    /// We created a new exec runner, where we are going to be passing the commands for it to run.
-    /// Idea is that we are going to send it command and get the inputs be filtered back from the manager.
-    /// Then we could in theory run commands without the cost of running the docker exec which is known to have
-    /// a dely of > 200ms which is not acceptable.
-    #[instrument(skip(ctx, input))]
-    pub async fn long_running_execute<S>(
-        &self,
-        ctx: &RpcContext,
-        pkg_id: &PackageId,
-        pkg_version: &Version,
-        name: ProcedureName,
-        volumes: &Volumes,
-        input: S,
-    ) -> Result<LongRunning, Error>
-    where
-        S: Stream<Item = InputJsonRpc> + Send + 'static,
-    {
-        let name = name.docker_name();
-        let name: Option<&str> = name.as_deref();
-        let container_name = Self::container_name(pkg_id, name);
-
-        let mut cmd = LongRunning::setup_long_running_docker_cmd(
-            self,
-            ctx,
-            &container_name,
-            volumes,
-            pkg_id,
-            pkg_version,
-        )
-        .await?;
-
-        let mut handle = cmd.spawn().with_kind(crate::ErrorKind::Docker)?;
-        let input_handle = LongRunning::spawn_input_handle(&mut handle, input)?
-            .map_err(|e| eyre!("Input Handle Error: {e:?}"));
-
-        let (output, output_handle) = LongRunning::spawn_output_handle(&mut handle)?;
-        let output_handle = output_handle.map_err(|e| eyre!("Output Handle Error: {e:?}"));
-        let err_handle = LongRunning::spawn_error_handle(&mut handle)?
-            .map_err(|e| eyre!("Err Handle Error: {e:?}"));
-
-        let running_output = NonDetachingJoinHandle::from(tokio::spawn(async move {
-            if let Err(err) = tokio::select!(
-                x = handle.wait().map_err(|e| eyre!("Runtime error: {e:?}")) => x.map(|_| ()),
-                x = err_handle => x.map(|_| ()),
-                x = output_handle => x.map(|_| ()),
-                x = input_handle => x.map(|_| ())
-            ) {
-                tracing::debug!("{:?}", err);
-                tracing::error!("Join error");
-            }
-        }));
-
-        Ok(LongRunning {
-            output,
-            running_output,
-        })
     }
 
     #[instrument(skip(_ctx, input))]
@@ -788,13 +760,12 @@ impl<T> RingVec<T> {
 /// We wanted a long running since we want to be able to have the equivelent to the docker execute without the heavy costs of 400 + ms time lag.
 /// Also the long running let's us have the ability to start/ end the services quicker.
 pub struct LongRunning {
-    pub output: UnboundedReceiver<OutputJsonRpc>,
     pub running_output: NonDetachingJoinHandle<()>,
 }
 
 impl LongRunning {
     async fn setup_long_running_docker_cmd(
-        docker: &DockerProcedure,
+        docker: &DockerContainer,
         ctx: &RpcContext,
         container_name: &str,
         volumes: &Volumes,
@@ -865,7 +836,7 @@ impl LongRunning {
             cmd.arg(docker.image.for_package(pkg_id, Some(pkg_version)));
         }
         cmd.stdout(std::process::Stdio::piped());
-        cmd.stderr(std::process::Stdio::piped());
+        cmd.stderr(std::process::Stdio::inherit());
         cmd.stdin(std::process::Stdio::piped());
         Ok(cmd)
     }
@@ -893,104 +864,6 @@ impl LongRunning {
             }) => Ok(()),
             Err(e) => Err(e)?,
         }
-    }
-    fn spawn_input_handle<S>(
-        handle: &mut Child,
-        input: S,
-    ) -> Result<NonDetachingJoinHandle<()>, Error>
-    where
-        S: Stream<Item = InputJsonRpc> + Send + 'static,
-    {
-        use tokio::io::AsyncWriteExt;
-        let mut stdin = handle
-            .stdin
-            .take()
-            .ok_or_else(|| eyre!("Can't takeout stdin"))
-            .with_kind(crate::ErrorKind::Docker)?;
-        let handle = NonDetachingJoinHandle::from(tokio::spawn(async move {
-            let input = input;
-            tokio::pin!(input);
-            while let Some(input) = input.next().await {
-                let input = match serde_json::to_string(&input) {
-                    Ok(a) => a,
-                    Err(e) => {
-                        tracing::debug!("{:?}", e);
-                        tracing::error!("Docker Input Serialization issue");
-                        continue;
-                    }
-                };
-                if let Err(e) = stdin.write_all(format!("{input}\n").as_bytes()).await {
-                    tracing::debug!("{:?}", e);
-                    tracing::error!("Docker Input issue");
-                    return;
-                }
-            }
-        }));
-        Ok(handle)
-    }
-    fn spawn_error_handle(handle: &mut Child) -> Result<NonDetachingJoinHandle<()>, Error> {
-        let id = handle.id();
-        let mut output = tokio::io::BufReader::new(
-            handle
-                .stderr
-                .take()
-                .ok_or_else(|| eyre!("Can't takeout stderr"))
-                .with_kind(crate::ErrorKind::Docker)?,
-        )
-        .lines();
-        Ok(NonDetachingJoinHandle::from(tokio::spawn(async move {
-            while let Ok(Some(line)) = output.next_line().await {
-                tracing::debug!("{:?}", id);
-                tracing::error!("Error from long running container");
-                tracing::error!("{}", line);
-            }
-        })))
-    }
-
-    fn spawn_output_handle(
-        handle: &mut Child,
-    ) -> Result<(UnboundedReceiver<OutputJsonRpc>, NonDetachingJoinHandle<()>), Error> {
-        let mut output = tokio::io::BufReader::new(
-            handle
-                .stdout
-                .take()
-                .ok_or_else(|| eyre!("Can't takeout stdout for long running"))
-                .with_kind(crate::ErrorKind::Docker)?,
-        )
-        .lines();
-        let (sender, receiver) = tokio::sync::mpsc::unbounded_channel::<OutputJsonRpc>();
-        Ok((
-            receiver,
-            NonDetachingJoinHandle::from(tokio::spawn(async move {
-                loop {
-                    let next = output.next_line().await;
-                    let next = match next {
-                        Ok(Some(a)) => a,
-                        Ok(None) => {
-                            tracing::error!("The docker pipe is closed?");
-                            break;
-                        }
-                        Err(e) => {
-                            tracing::debug!("{:?}", e);
-                            tracing::error!("Output from docker, killing");
-                            break;
-                        }
-                    };
-                    let next = match serde_json::from_str(&next) {
-                        Ok(a) => a,
-                        Err(_e) => {
-                            tracing::trace!("Could not decode output from long running binary");
-                            continue;
-                        }
-                    };
-                    if let Err(e) = sender.send(next) {
-                        tracing::debug!("{:?}", e);
-                        tracing::error!("Could no longer send output");
-                        break;
-                    }
-                }
-            })),
-        ))
     }
 }
 async fn buf_reader_to_lines(

@@ -1,6 +1,6 @@
 use std::fs::File;
 use std::io::BufReader;
-use std::net::{Ipv4Addr, SocketAddr};
+use std::net::Ipv4Addr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 

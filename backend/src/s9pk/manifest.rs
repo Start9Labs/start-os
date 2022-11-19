@@ -6,6 +6,7 @@ use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
+use super::git_hash::GitHash;
 use crate::action::Actions;
 use crate::backup::BackupActions;
 use crate::config::action::ConfigActions;
@@ -19,8 +20,6 @@ use crate::util::Version;
 use crate::version::{Current, VersionT};
 use crate::volume::Volumes;
 use crate::Error;
-
-use super::git_hash::GitHash;
 
 fn current_version() -> Version {
     Current::new().semver().into()
