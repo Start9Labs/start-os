@@ -1,7 +1,6 @@
 import { Component, ViewChild } from '@angular/core'
 import {
   AlertController,
-  IonInput,
   LoadingController,
   ModalController,
 } from '@ionic/angular'
@@ -15,7 +14,6 @@ import { PasswordPage } from '../password/password.page'
   styleUrls: ['cifs-modal.page.scss'],
 })
 export class CifsModal {
-  @ViewChild('focusInput') elem?: IonInput
   cifs = {
     type: 'cifs' as 'cifs',
     hostname: '',
@@ -30,10 +28,6 @@ export class CifsModal {
     private readonly loadingCtrl: LoadingController,
     private readonly alertCtrl: AlertController,
   ) {}
-
-  ngAfterViewInit() {
-    setTimeout(() => this.elem?.setFocus(), 400)
-  }
 
   cancel() {
     this.modalController.dismiss()
