@@ -109,18 +109,17 @@
         <!-- cert elem -->
         <a hidden id="install-cert" download="embassy.crt"></a>
         <!-- download elem -->
-        <div
-          hidden
-          id="downloadable"
-          style="
-            font-family: Montserrat;
-            color: #333333;
-            max-width: 35vw;
-            display: flex;
-            margin: auto;
-          "
-        >
-          <div style="padding: 16px 256px">
+        <div hidden id="downloadable">
+          <div
+            style="
+              font-family: Montserrat;
+              color: #333333;
+              display: flex;
+              flex-direction: column;
+              margin: auto;
+              width: clamp(900px, 35vw, 600px);
+            "
+          >
             <h1
               style="
                 font-variant-caps: all-small-caps;
@@ -145,8 +144,15 @@
                 Visit the address below when you are connected to the same WiFi
                 or Local Area Network (LAN) as your Embassy:
               </p>
-              <p style="padding: 16px; font-weight: bold; font-size: 1.1rem">
-                <code id="lan-addr">sdfsfsdf</code>
+              <p
+                style="
+                  padding: 16px;
+                  font-weight: bold;
+                  font-size: 1.1rem;
+                  overflow: auto;
+                "
+              >
+                <code id="lan-addr"></code>
               </p>
               <div>
                 <h3 style="color: #f8546a; font-weight: bold">Important!</h3>
@@ -171,10 +177,17 @@
                   id="cert"
                   download="embassy.crt"
                   style="
-                    background: #6866cc;
-                    padding: 14px 16px;
+                    display: inline-block;
+                    padding: 1em 1.2em;
+                    box-sizing: border-box;
+                    font-size: 1rem;
                     text-decoration: none;
-                    border-radius: 24px;
+                    text-align: center;
+                    border-radius: clamp(2rem, 3rem, 4rem);
+                    cursor: pointer;
+                    box-shadow: rgba(0, 0, 0, 0.1) 0px 4px 6px -1px,
+                      rgba(0, 0, 0, 0.06) 0px 2px 4px -1px;
+                    background: #6866cc;
                     color: #f4f4f5;
                   "
                 >
@@ -190,8 +203,15 @@
                 Access on the go (Tor)
               </h2>
               <p>Visit the address below when you are away from home:</p>
-              <p style="padding: 16px; font-weight: bold; font-size: 1.1rem">
-                <code id="tor-addr">sdfsdfsds</code>
+              <p
+                style="
+                  padding: 16px;
+                  font-weight: bold;
+                  font-size: 1.1rem;
+                  overflow: auto;
+                "
+              >
+                <code id="tor-addr"></code>
               </p>
               <div>
                 <h3 style="color: #f8546a; font-weight: bold">Important!</h3>
