@@ -37,7 +37,7 @@ export class SuccessPage {
   cert = ''
   isOnBottom = true
 
-  tileSize = 18
+  tileSize = 16
   // a higher fade factor will make the characters fade quicker
   fadeFactor = 0.07
   columns: any[] = []
@@ -58,8 +58,7 @@ export class SuccessPage {
   }
 
   get isKiosk() {
-    // return ['localhost', '127.0.0.1'].includes(this.document.location.hostname)
-    return false
+    return ['localhost', '127.0.0.1'].includes(this.document.location.hostname)
   }
 
   ngOnInit() {}
@@ -82,7 +81,6 @@ export class SuccessPage {
             'data:application/x-x509-ca-cert;base64,' +
               encodeURIComponent(this.cert),
           )
-        // this.download()
       }
       await this.api.exit()
     } catch (e: any) {
@@ -131,10 +129,6 @@ export class SuccessPage {
     this.isOnBottom =
       !!bottomDiv &&
       bottomDiv.getBoundingClientRect().top - 192 < window.innerHeight
-  }
-
-  scrollToBottom() {
-    this.content?.scrollToBottom(250)
   }
 
   initMatrix() {

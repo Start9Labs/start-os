@@ -128,7 +128,11 @@ h1 {
 }
 
 ion-card-title {
+  margin: 16px 0;
   font-variant-caps: all-small-caps;
+  font-family: 'Montserrat';
+  font-size: x-large;
+  --color: var(--ion-color-light);
 }
 
 ion-card-subtitle {
@@ -143,6 +147,7 @@ ion-label ion-text {
   font-size: 1.2rem;
   font-weight: 500;
 }
+
 p {
   color: var(--ion-color-dark-contrast) !important;
   font-size: 1.12rem !important;
@@ -158,14 +163,10 @@ ion-icon {
   font-variant-caps: all-small-caps;
 }
 
-ion-content {
-  // --background: var(--ion-color-medium);
-}
-
 ion-grid {
   padding-top: 32px;
   height: 100%;
-  max-width: 640px;
+  max-width: 695px;
 }
 
 ion-row {
@@ -173,28 +174,13 @@ ion-row {
 }
 
 ion-item {
-  // --color: var(--ion-color-light);
   --highlight-color-valid: transparent;
   --highlight-color-invalid: transparent;
-}
-
-ion-toolbar {
-  // --ion-background-color: var(--ion-color-light);
-  ion-title {
-    // color: var(--ion-color-dark);
-  }
 }
 
 ion-avatar {
   width: 27px;
   height: 27px;
-}
-
-ion-card-title {
-  margin: 16px 0;
-  font-family: 'Montserrat';
-  font-size: x-large;
-  --color: var(--ion-color-light);
 }
 
 ion-toast {
