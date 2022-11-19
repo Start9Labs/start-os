@@ -15,6 +15,16 @@ jobs:
     - uses: actions/checkout@v3
       with:
         repository: Start9Labs/embassy-os-deb
+
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+        path: embassyos-0.3.x
+    - run: |
+        cp -r debian embassyos-0.3.x/
+        VERSION=0.3.x ./control.sh
+        cp embassyos-0.3.x/backend/embassyd.service embassyos-0.3.x/debian/embassyos.embassyd.service
+        cp embassyos-0.3.x/backend/embassy-init.service embassyos-0.3.x/debian/embassyos.embassy-init.service
     
     - uses: actions/setup-node@v3
       with:

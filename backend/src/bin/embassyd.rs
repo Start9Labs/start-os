@@ -4,8 +4,6 @@ use std::time::Duration;
 
 use color_eyre::eyre::eyre;
 use embassy::context::{DiagnosticContext, RpcContext};
-
-use embassy::hostname::get_current_ip;
 use embassy::net::embassy_service_http_server::EmbassyServiceHTTPServer;
 #[cfg(feature = "avahi")]
 use embassy::net::mdns::MdnsController;

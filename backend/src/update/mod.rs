@@ -24,7 +24,6 @@ use crate::sound::{
     CIRCLE_OF_5THS_SHORT, UPDATE_FAILED_1, UPDATE_FAILED_2, UPDATE_FAILED_3, UPDATE_FAILED_4,
 };
 use crate::update::latest_information::LatestInformation;
-
 use crate::util::Invoke;
 use crate::version::{Current, VersionT};
 use crate::{Error, ErrorKind, ResultExt, IS_RASPBERRY_PI};
@@ -250,7 +249,7 @@ impl EosUrl {
         };
         Ok(format!("{host}::{version}/{arch}/")
             .parse()
-            .map_err(|e| Error::new(eyre!("Could not parse path"), ErrorKind::ParseUrl))?)
+            .map_err(|_| Error::new(eyre!("Could not parse path"), ErrorKind::ParseUrl))?)
     }
 }
 

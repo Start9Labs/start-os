@@ -1,104 +1,173 @@
-use serde::{Deserialize, Serialize};
-use tracing::instrument;
+use nix::unistd::Pid;
+use serde::{Deserialize, Serialize, Serializer};
+use yajrc::RpcMethod;
 
-/// The inputs that the executable is expecting
-pub type InputJsonRpc = JsonRpc<Input>;
-/// The outputs that the executable is expected to output
-pub type OutputJsonRpc = JsonRpc<Output>;
-
-/// Based on the jsonrpc spec, but we are limiting the rpc to a subset
-#[derive(Debug, Serialize, Copy, Deserialize, Clone, PartialEq, Eq, PartialOrd, Ord)]
-#[serde(untagged)]
-pub enum RpcId {
-    UInt(u32),
-}
 /// Know what the process is called
-#[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ProcessId(pub u32);
-
-/// We use the JSON rpc as the format to share between the stdin and stdout for the executable.
-/// Note: We are not allowing the id to not exist, used to ensure all pairs of messages are tracked
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
-pub struct JsonRpc<T> {
-    id: RpcId,
-    #[serde(flatten)]
-    pub version_rpc: VersionRpc<T>,
+impl From<ProcessId> for Pid {
+    fn from(pid: ProcessId) -> Self {
+        Pid::from_raw(pid.0 as i32)
+    }
 }
-
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
-#[serde(tag = "jsonrpc", rename_all = "camelCase")]
-pub enum VersionRpc<T> {
-    #[serde(rename = "2.0")]
-    Two(T),
+impl From<Pid> for ProcessId {
+    fn from(pid: Pid) -> Self {
+        ProcessId(pid.as_raw() as u32)
+    }
 }
-
-impl<T> JsonRpc<T>
-where
-    T: Serialize + for<'de> serde::Deserialize<'de> + std::fmt::Debug,
-{
-    /// Using this to simplify creating this nested struct. Used for creating input mostly for executable stdin
-    pub fn new(id: RpcId, body: T) -> Self {
-        JsonRpc {
-            id,
-            version_rpc: VersionRpc::Two(body),
-        }
-    }
-    /// Use this to get the data out of the probably destructed output
-    pub fn into_pair(self) -> (RpcId, T) {
-        let Self { id, version_rpc } = self;
-        let VersionRpc::Two(body) = version_rpc;
-        (id, body)
-    }
-    /// Used during the execution.
-    #[instrument]
-    pub fn maybe_serialize(&self) -> Option<String> {
-        match serde_json::to_string(self) {
-            Ok(x) => Some(x),
-            Err(e) => {
-                tracing::warn!("Could not stringify and skipping");
-                tracing::debug!("{:?}", e);
-                None
-            }
-        }
-    }
-    /// Used during the execution
-    #[instrument]
-    pub fn maybe_parse(s: &str) -> Option<Self> {
-        match serde_json::from_str::<Self>(s) {
-            Ok(a) => Some(a),
-            Err(e) => {
-                tracing::warn!("Could not parse and skipping: {}", s);
-                tracing::debug!("{:?}", e);
-                None
-            }
-        }
+impl From<i32> for ProcessId {
+    fn from(pid: i32) -> Self {
+        ProcessId(pid as u32)
     }
 }
 
-/// Outputs embedded in the JSONRpc output of the executable.
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-#[serde(tag = "method", content = "params", rename_all = "camelCase")]
-pub enum Output {
-    /// Will be called almost right away and only once per RpcId. Indicates what
-    /// was spawned in the container.
-    ProcessId(ProcessId),
-    /// This is the line buffered output of the command
-    Line(String),
-    /// This is some kind of error with the program
-    Error(String),
-    /// Indication that the command is done
-    Done(Option<i32>),
+#[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ProcessGroupId(pub u32);
+
+#[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[serde(rename_all = "kebab-case")]
+pub enum OutputStrategy {
+    Inherit,
+    Collect,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-#[serde(tag = "method", content = "params", rename_all = "camelCase")]
-pub enum Input {
-    /// Create a new command, with the args
-    Command { command: String, args: Vec<String> },
-    /// Send the sigkill to the process
-    Kill(),
-    /// Send the sigterm to the process
-    Term(),
+#[derive(Debug, Clone, Copy)]
+pub struct RunCommand;
+impl Serialize for RunCommand {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        Serialize::serialize(Self.as_str(), serializer)
+    }
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RunCommandParams {
+    pub gid: Option<ProcessGroupId>,
+    pub command: String,
+    pub args: Vec<String>,
+    pub output: OutputStrategy,
+}
+impl RpcMethod for RunCommand {
+    type Params = RunCommandParams;
+    type Response = ProcessId;
+    fn as_str<'a>(&'a self) -> &'a str {
+        "command"
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ReadLineStdout;
+impl Serialize for ReadLineStdout {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        Serialize::serialize(Self.as_str(), serializer)
+    }
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReadLineStdoutParams {
+    pub pid: ProcessId,
+}
+impl RpcMethod for ReadLineStdout {
+    type Params = ReadLineStdoutParams;
+    type Response = String;
+    fn as_str<'a>(&'a self) -> &'a str {
+        "read-line-stdout"
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ReadLineStderr;
+impl Serialize for ReadLineStderr {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        Serialize::serialize(Self.as_str(), serializer)
+    }
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReadLineStderrParams {
+    pub pid: ProcessId,
+}
+impl RpcMethod for ReadLineStderr {
+    type Params = ReadLineStderrParams;
+    type Response = String;
+    fn as_str<'a>(&'a self) -> &'a str {
+        "read-line-stderr"
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Output;
+impl Serialize for Output {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        Serialize::serialize(Self.as_str(), serializer)
+    }
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OutputParams {
+    pub pid: ProcessId,
+}
+impl RpcMethod for Output {
+    type Params = OutputParams;
+    type Response = String;
+    fn as_str<'a>(&'a self) -> &'a str {
+        "output"
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct SendSignal;
+impl Serialize for SendSignal {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        Serialize::serialize(Self.as_str(), serializer)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SendSignalParams {
+    pub pid: ProcessId,
+    pub signal: u32,
+}
+impl RpcMethod for SendSignal {
+    type Params = SendSignalParams;
+    type Response = ();
+    fn as_str<'a>(&'a self) -> &'a str {
+        "signal"
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct SignalGroup;
+impl Serialize for SignalGroup {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        Serialize::serialize(Self.as_str(), serializer)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SignalGroupParams {
+    pub gid: ProcessGroupId,
+    pub signal: u32,
+}
+impl RpcMethod for SignalGroup {
+    type Params = SignalGroupParams;
+    type Response = ();
+    fn as_str<'a>(&'a self) -> &'a str {
+        "signal-group"
+    }
 }
 
 #[test]

@@ -1281,6 +1281,10 @@ dependencies = [
  "async-stream",
  "color-eyre",
  "futures",
+ "helpers",
+ "imbl 2.0.0",
+ "nix 0.25.0",
+ "procfs",
  "serde",
  "serde_json",
  "tokio",
@@ -1289,6 +1293,7 @@ dependencies = [
  "tracing-error 0.2.0",
  "tracing-futures",
  "tracing-subscriber 0.3.16",
+ "yajrc 0.1.0 (git+https://github.com/dr-bonez/yajrc.git?branch=develop)",
 ]
 
 [[package]]
@@ -1380,6 +1385,27 @@ dependencies = [
  "log",
  "regex",
  "termcolor",
+]
+
+[[package]]
+name = "errno"
+version = "0.2.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f639046355ee4f37944e44f60642c6f3a7efa3cf6b78c78a0d989a8ce6c396a1"
+dependencies = [
+ "errno-dragonfly",
+ "libc",
+ "winapi",
+]
+
+[[package]]
+name = "errno-dragonfly"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aa68f1b12764fab894d2755d2518754e71b4fd80ecfb822714a1206c2aab39bf"
+dependencies = [
+ "cc",
+ "libc",
 ]
 
 [[package]]
@@ -1747,9 +1773,11 @@ dependencies = [
  "models",
  "pin-project",
  "serde",
+ "serde_json",
  "tokio",
  "tokio-stream",
  "tracing",
+ "yajrc 0.1.0 (git+https://github.com/dr-bonez/yajrc.git?branch=develop)",
 ]
 
 [[package]]
@@ -2029,6 +2057,12 @@ checksum = "7a5bbe824c507c5da5956355e86a746d82e0e1464f65d862cc5e71da70e94b2c"
 dependencies = [
  "cfg-if 1.0.0",
 ]
+
+[[package]]
+name = "io-lifetimes"
+version = "0.7.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "59ce5ef949d49ee85593fc4d3f3f95ad61657076395cbbce23e2121fc5542074"
 
 [[package]]
 name = "ipnet"
@@ -2337,6 +2371,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "linux-raw-sys"
+version = "0.0.46"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d4d2456c373231a208ad294c33dc5bff30051eafd954cd4caae83a712b12854d"
+
+[[package]]
 name = "lock_api"
 version = "0.4.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2458,7 +2498,6 @@ dependencies = [
  "bollard",
  "color-eyre",
  "ed25519-dalek",
- "embassy_container_init",
  "emver",
  "mbrman",
  "openssl",
@@ -3111,6 +3150,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "procfs"
+version = "0.14.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2dfb6451c91904606a1abe93e83a8ec851f45827fa84273f256ade45dc095818"
+dependencies = [
+ "bitflags",
+ "byteorder",
+ "chrono",
+ "flate2",
+ "hex",
+ "lazy_static",
+ "rustix",
+]
+
+[[package]]
 name = "proptest"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3452,7 +3506,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "url",
- "yajrc",
+ "yajrc 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -3517,6 +3571,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bfa0f585226d2e68097d4f95d113b15b83a82e819ab25717ec0590d9584ef366"
 dependencies = [
  "semver 1.0.14",
+]
+
+[[package]]
+name = "rustix"
+version = "0.35.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "727a1a6d65f786ec22df8a81ca3121107f235970dc1705ed681d3e6e8b9cd5f9"
+dependencies = [
+ "bitflags",
+ "errno",
+ "io-lifetimes",
+ "libc",
+ "linux-raw-sys",
+ "windows-sys 0.42.0",
 ]
 
 [[package]]
@@ -5586,6 +5654,17 @@ name = "yajrc"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b40687b4c165cb760e35730055c8840f36897e7c98099b2d3d66ba8cb624c79a"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "yajrc"
+version = "0.1.0"
+source = "git+https://github.com/dr-bonez/yajrc.git?branch=develop#72a22f7ac2197d7a5cdce4be601cf20e5280eec5"
 dependencies = [
  "anyhow",
  "serde",

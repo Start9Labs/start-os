@@ -10,7 +10,6 @@ bollard = "0.13.0"
 color-eyre = "0.6.1"
 ed25519-dalek = { version = "1.0.1", features = ["serde"] }
 mbrman = "0.5.0"
-embassy_container_init = { path = "../embassy_container_init" }
 emver = { version = "0.1", git = "https://github.com/Start9Labs/emver-rs.git", features = [
   "serde",
 ] }

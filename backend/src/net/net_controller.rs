@@ -11,7 +11,7 @@ use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 use tracing::instrument;
 
 use crate::context::RpcContext;
-use crate::hostname::{get_current_ip, get_embassyd_tor_addr, get_hostname, HostNameReceipt};
+use crate::hostname::{get_embassyd_tor_addr, get_hostname, HostNameReceipt};
 use crate::net::dns::DnsController;
 use crate::net::interface::{Interface, TorConfig};
 #[cfg(feature = "avahi")]
@@ -115,7 +115,7 @@ impl NetController {
 
     async fn setup_embassy_http_ui_handle(rpc_ctx: RpcContext) -> Result<(), Error> {
         let host_name = rpc_ctx.net_controller.proxy.get_hostname().await;
-        
+
         let embassy_tor_addr = get_embassyd_tor_addr(rpc_ctx.clone()).await?;
         let embassy_tor_fqdn: ResourceFqdn = embassy_tor_addr.parse()?;
         let host_name_fqdn: ResourceFqdn = host_name.parse()?;

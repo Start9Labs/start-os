@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Arc;
@@ -11,9 +10,9 @@ use deno_core::{
     resolve_import, Extension, JsRuntime, ModuleLoader, ModuleSource, ModuleSourceFuture,
     ModuleSpecifier, ModuleType, OpDecl, RuntimeOptions, Snapshot,
 };
-use embassy_container_init::RpcId;
-use helpers::{script_dir, spawn_local, Rsync};
-use models::{ExecCommand, PackageId, ProcedureName, TermCommand, Version, VolumeId};
+use embassy_container_init::ProcessGroupId;
+use helpers::{script_dir, spawn_local, RpcClient, Rsync};
+use models::{PackageId, ProcedureName, Version, VolumeId};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::io::AsyncReadExt;
@@ -84,7 +83,6 @@ const SNAPSHOT_BYTES: &[u8] = include_bytes!("./artifacts/JS_SNAPSHOT.bin");
 
 #[cfg(target_arch = "aarch64")]
 const SNAPSHOT_BYTES: &[u8] = include_bytes!("./artifacts/ARM_JS_SNAPSHOT.bin");
-type WaitFns = Arc<Mutex<BTreeMap<RpcId, Pin<Box<dyn Future<Output = ResultType>>>>>>;
 
 #[derive(Clone)]
 struct JsContext {
@@ -96,9 +94,8 @@ struct JsContext {
     volumes: Arc<dyn PathForVolumeId>,
     input: Value,
     variable_args: Vec<serde_json::Value>,
-    command_inserter: ExecCommand,
-    term_command: TermCommand,
-    wait_fns: WaitFns,
+    container_process_gid: ProcessGroupId,
+    container_rpc_client: Option<Arc<RpcClient>>,
     rsyncs: Arc<Mutex<(usize, BTreeMap<usize, Rsync>)>>,
 }
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -186,8 +183,8 @@ pub struct JsExecutionEnvironment {
     package_id: PackageId,
     version: Version,
     volumes: Arc<dyn PathForVolumeId>,
-    command_inserter: ExecCommand,
-    term_command: TermCommand,
+    container_process_gid: ProcessGroupId,
+    container_rpc_client: Option<Arc<RpcClient>>,
 }
 
 impl JsExecutionEnvironment {
@@ -196,8 +193,8 @@ impl JsExecutionEnvironment {
         package_id: &PackageId,
         version: &Version,
         volumes: Box<dyn PathForVolumeId>,
-        command_inserter: ExecCommand,
-        term_command: TermCommand,
+        container_process_gid: ProcessGroupId,
+        container_rpc_client: Option<Arc<RpcClient>>,
     ) -> Result<JsExecutionEnvironment, (JsError, String)> {
         let data_dir = data_directory.as_ref();
         let base_directory = data_dir;
@@ -231,8 +228,8 @@ impl JsExecutionEnvironment {
             version: version.clone(),
             volumes: volumes.into(),
             sandboxed: false,
-            command_inserter,
-            term_command,
+            container_process_gid,
+            container_rpc_client,
         })
     }
     pub fn read_only_effects(mut self) -> Self {
@@ -297,7 +294,8 @@ impl JsExecutionEnvironment {
             fns::start_command::decl(),
             fns::wait_command::decl(),
             fns::sleep::decl(),
-            fns::term_command::decl(),
+            fns::send_signal::decl(),
+            fns::signal_group::decl(),
             fns::rsync::decl(),
             fns::rsync_wait::decl(),
             fns::rsync_progress::decl(),
@@ -330,9 +328,8 @@ impl JsExecutionEnvironment {
             sandboxed: self.sandboxed,
             input,
             variable_args,
-            command_inserter: self.command_inserter.clone(),
-            term_command: self.term_command.clone(),
-            wait_fns: Default::default(),
+            container_process_gid: self.container_process_gid,
+            container_rpc_client: self.container_rpc_client.clone(),
             rsyncs: Default::default(),
         };
         let ext = Extension::builder()
@@ -378,21 +375,25 @@ impl JsExecutionEnvironment {
 
 /// Note: Make sure that we have the assumption that all these methods are callable at any time, and all call restrictions should be in rust
 mod fns {
+    use std::cell::RefCell;
     use std::collections::BTreeMap;
     use std::convert::TryFrom;
     use std::os::unix::fs::MetadataExt;
     use std::path::{Path, PathBuf};
     use std::rc::Rc;
-    use std::{cell::RefCell, time::Duration};
+    use std::time::Duration;
 
     use deno_core::anyhow::{anyhow, bail};
     use deno_core::error::AnyError;
     use deno_core::*;
-    use embassy_container_init::{ProcessId, RpcId};
+    use embassy_container_init::{
+        OutputParams, OutputStrategy, ProcessGroupId, ProcessId, RunCommand, RunCommandParams,
+        SendSignal, SendSignalParams, SignalGroup, SignalGroupParams,
+    };
     use helpers::{to_tmp_path, AtomicFile, Rsync, RsyncOptions};
-    use models::{TermCommand, VolumeId};
+    use models::VolumeId;
     use serde::{Deserialize, Serialize};
-    use serde_json::Value;
+    use serde_json::{json, Value};
     use tokio::io::AsyncWriteExt;
 
     use super::{AnswerState, JsContext};
@@ -930,22 +931,64 @@ mod fns {
     }
 
     #[op]
-    async fn term_command(state: Rc<RefCell<OpState>>, id: u32) -> Result<(), AnyError> {
-        let term_command_impl: TermCommand = {
+    async fn send_signal(
+        state: Rc<RefCell<OpState>>,
+        pid: u32,
+        signal: u32,
+    ) -> Result<(), AnyError> {
+        if let Some(rpc_client) = {
             let state = state.borrow();
             let ctx = state.borrow::<JsContext>();
-            ctx.term_command.clone()
-        };
-        if let Err(err) = term_command_impl(embassy_container_init::RpcId::UInt(id)).await {
-            bail!("{}", err);
+            ctx.container_rpc_client.clone()
+        } {
+            rpc_client
+                .request(
+                    SendSignal,
+                    SendSignalParams {
+                        pid: ProcessId(pid),
+                        signal,
+                    },
+                )
+                .await
+                .map_err(|e| anyhow!("{}: {:?}", e.message, e.data))?;
+
+            Ok(())
+        } else {
+            Err(anyhow!("No RpcClient for command operations"))
         }
-        Ok(())
+    }
+
+    #[op]
+    async fn signal_group(
+        state: Rc<RefCell<OpState>>,
+        gid: u32,
+        signal: u32,
+    ) -> Result<(), AnyError> {
+        if let Some(rpc_client) = {
+            let state = state.borrow();
+            let ctx = state.borrow::<JsContext>();
+            ctx.container_rpc_client.clone()
+        } {
+            rpc_client
+                .request(
+                    SignalGroup,
+                    SignalGroupParams {
+                        gid: ProcessGroupId(gid),
+                        signal,
+                    },
+                )
+                .await
+                .map_err(|e| anyhow!("{}: {:?}", e.message, e.data))?;
+
+            Ok(())
+        } else {
+            Err(anyhow!("No RpcClient for command operations"))
+        }
     }
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
     #[serde(rename_all = "camelCase")]
     pub struct StartCommand {
-        rpc_id: RpcId,
         process_id: ProcessId,
     }
 
@@ -954,91 +997,77 @@ mod fns {
         state: Rc<RefCell<OpState>>,
         command: String,
         args: Vec<String>,
+        output: OutputStrategy,
         timeout: Option<u64>,
     ) -> Result<StartCommand, AnyError> {
-        use embassy_container_init::Output;
-        let (command_inserter, wait_fns) = {
+        if let (gid, Some(rpc_client)) = {
             let state = state.borrow();
             let ctx = state.borrow::<JsContext>();
-            (ctx.command_inserter.clone(), ctx.wait_fns.clone())
-        };
+            (ctx.container_process_gid, ctx.container_rpc_client.clone())
+        } {
+            let pid = rpc_client
+                .request(
+                    RunCommand,
+                    RunCommandParams {
+                        gid: Some(gid),
+                        command,
+                        args,
+                        output,
+                    },
+                )
+                .await
+                .map_err(|e| anyhow!("{}: {:?}", e.message, e.data))?;
 
-        let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel::<Output>();
-        let rpc_id = match command_inserter(
-            command,
-            args.into_iter().collect(),
-            sender,
-            timeout.map(std::time::Duration::from_millis),
-        )
-        .await
-        {
-            Err(err) => bail!(err),
-            Ok(rpc_id) => rpc_id,
-        };
-
-        let (process_id_send, process_id_recv) = tokio::sync::oneshot::channel::<ProcessId>();
-
-        let wait = async move {
-            let mut answer = String::new();
-            let mut command_error = String::new();
-            let mut status: Option<i32> = None;
-            let mut process_id_send = Some(process_id_send);
-            while let Some(output) = receiver.recv().await {
-                match output {
-                    Output::ProcessId(process_id) => {
-                        if let Some(process_id_send) = process_id_send.take() {
-                            if let Err(err) = process_id_send.send(process_id) {
-                                tracing::error!(
-                                    "Could not get a process id {process_id:?} sent for {rpc_id:?}"
-                                );
-                                tracing::debug!("{err:?}");
-                            }
-                        }
+            if let Some(timeout) = timeout {
+                tokio::spawn(async move {
+                    tokio::time::sleep(Duration::from_micros(timeout)).await;
+                    if let Err(err) = rpc_client
+                        .request(SendSignal, SendSignalParams { pid, signal: 9 })
+                        .await
+                        .map_err(|e| anyhow!("{}: {:?}", e.message, e.data))
+                    {
+                        tracing::warn!("Could not kill process {pid:?}");
+                        tracing::debug!("{err:?}");
                     }
-                    Output::Line(value) => {
-                        answer.push_str(&value);
-                        answer.push('\n');
-                    }
-                    Output::Error(error) => {
-                        command_error.push_str(&error);
-                        command_error.push('\n');
-                    }
-                    Output::Done(error_code) => {
-                        status = error_code;
-                        break;
-                    }
-                }
-            }
-            if !command_error.is_empty() {
-                if let Some(status) = status {
-                    return ResultType::ErrorCode(status, command_error);
-                }
-
-                return ResultType::Error(command_error);
+                });
             }
 
-            ResultType::Result(serde_json::Value::String(answer))
-        };
-        wait_fns.lock().await.insert(rpc_id, Box::pin(wait));
-        let process_id = process_id_recv.await?;
-        Ok(StartCommand { rpc_id, process_id })
+            Ok(StartCommand { process_id: pid })
+        } else {
+            Err(anyhow!("No RpcClient for command operations"))
+        }
     }
 
     #[op]
-    async fn wait_command(state: Rc<RefCell<OpState>>, id: RpcId) -> Result<ResultType, AnyError> {
-        let wait_fns = {
+    async fn wait_command(
+        state: Rc<RefCell<OpState>>,
+        pid: ProcessId,
+    ) -> Result<ResultType, AnyError> {
+        if let Some(rpc_client) = {
             let state = state.borrow();
             let ctx = state.borrow::<JsContext>();
-            ctx.wait_fns.clone()
-        };
-
-        let found_future = match wait_fns.lock().await.remove(&id) {
-            Some(a) => a,
-            None => bail!("No future for id {id:?}, could have been removed already"),
-        };
-
-        Ok(found_future.await)
+            ctx.container_rpc_client.clone()
+        } {
+            Ok(
+                match rpc_client
+                    .request(embassy_container_init::Output, OutputParams { pid })
+                    .await
+                {
+                    Ok(a) => ResultType::Result(json!(a)),
+                    Err(e) => ResultType::ErrorCode(
+                        e.code,
+                        match e.data {
+                            Some(Value::String(s)) => s,
+                            e => format!("{:?}", e),
+                        },
+                    ),
+                },
+            )
+        } else {
+            Err(anyhow!("No RpcClient for command operations"))
+        }
     }
+
     #[op]
     async fn sleep(time_ms: u64) -> Result<(), AnyError> {
         tokio::time::sleep(Duration::from_millis(time_ms)).await;

@@ -1,12 +1,13 @@
-use color_eyre::eyre::eyre;
 use std::path::Path;
 
-use crate::{const_true, ByteReplacementReader, NonDetachingJoinHandle};
+use color_eyre::eyre::eyre;
 use models::{Error, ErrorKind};
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
 use tokio::process::{Child, Command};
 use tokio::sync::watch;
 use tokio_stream::wrappers::WatchStream;
+
+use crate::{const_true, ByteReplacementReader, NonDetachingJoinHandle};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
