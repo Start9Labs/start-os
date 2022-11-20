@@ -15,6 +15,7 @@ import { AppListIconComponent } from './app-list-icon/app-list-icon.component'
 import { AppListEmptyComponent } from './app-list-empty/app-list-empty.component'
 import { AppListPkgComponent } from './app-list-pkg/app-list-pkg.component'
 import { PackageInfoPipe } from './package-info.pipe'
+import { WidgetCardComponentModule } from 'src/app/components/widget-card/widget-card.component.module'
 
 const routes: Routes = [
   {
@@ -34,6 +35,7 @@ const routes: Routes = [
     IonicModule,
     RouterModule.forChild(routes),
     BadgeMenuComponentModule,
+    WidgetCardComponentModule,
   ],
   declarations: [
     AppListPage,

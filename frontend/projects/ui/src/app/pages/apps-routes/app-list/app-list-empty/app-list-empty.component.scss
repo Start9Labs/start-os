@@ -1,18 +1,7 @@
-:host {
-  display: block;
-}
-
-.welcome {
+.grid-center-wrapper {
+  height: 80%;
+  width: 100%;
   display: flex;
-  flex-direction: column;
   justify-content: center;
-  height: 40vh;
-}
-
-.embassy {
-  font-family: "Montserrat", sans-serif;
-}
-
-.marketplace {
-  width: 50%;
+  align-items: center;
 }

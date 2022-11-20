@@ -1,16 +1,15 @@
-<div class="welcome">
-  <h2>
-    Welcome to
-    <ion-text color="danger" class="embassy">Embassy</ion-text>
-  </h2>
-  <p class="ion-text-wrap">Get started by installing your first service.</p>
+<div class="grid-center-wrapper">
+  <ion-grid>
+    <ion-row>
+      <ion-col sizeSm="12" sizeLg="4" offsetLg="4">
+        <widget-card
+          title="Visit the Marketplace"
+          icon="storefront-outline"
+          color="var(--alt-blue)"
+          description="Start shopping for your favorite services"
+          link="/marketplace/browse"
+        ></widget-card>
+      </ion-col>
+    </ion-row>
+  </ion-grid>
 </div>
-<ion-button
-  color="dark"
-  routerLink="/marketplace"
-  routerDirection="root"
-  class="marketplace"
->
-  <ion-icon slot="start" name="storefront-outline"></ion-icon>
-  Marketplace
-</ion-button>
