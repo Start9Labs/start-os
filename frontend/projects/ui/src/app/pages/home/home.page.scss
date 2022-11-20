@@ -1,0 +1,32 @@
+.welcome-header {
+  padding: 1rem;
+  text-align: center;
+
+  h1 {
+    font-weight: bold;
+    font-size: 2rem;
+  }
+  
+  h3 {
+    font-size: 1.3rem;
+  }
+}
+
+
+ion-row {
+  grid-row-gap: 1rem;
+}
+
+ion-col {
+  padding: 0 0.5rem 0.5rem 1rem;
+}
+
+@media (min-width: 1000px) {
+  ion-header {
+    display: none;
+  }
+
+  .welcome-header {
+    padding: 2rem 0 2rem 0;
+  }
+}

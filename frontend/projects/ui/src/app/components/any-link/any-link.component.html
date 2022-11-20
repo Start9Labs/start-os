@@ -1,0 +1,10 @@
+<ng-template #content>
+  <ng-content></ng-content>
+</ng-template>
+
+<a [href]="link" target="_blank" *ngIf="externalLink">
+  <ng-container *ngTemplateOutlet="content"></ng-container>
+</a>
+<a [routerLink]="link" *ngIf="!externalLink">
+  <ng-container *ngTemplateOutlet="content"></ng-container>
+</a>

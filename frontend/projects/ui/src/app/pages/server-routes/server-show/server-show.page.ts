@@ -366,7 +366,7 @@ export class ServerShowPage {
         disabled$: this.eosService.updatingOrBackingUp$,
       },
     ],
-    Settings: [
+    Manage: [
       {
         title: 'Software Update',
         description: 'Get the latest version of embassyOS',
