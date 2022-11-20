@@ -31,6 +31,7 @@ const ICONS = [
   'cube-outline',
   'desktop-outline',
   'download-outline',
+  'duplicate-outline',
   'earth-outline',
   'ellipsis-horizontal',
   'eye-off-outline',

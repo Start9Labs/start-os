@@ -39,14 +39,14 @@ export class HomePage {
     },
     {
       title: 'Create a backup',
-      icon: 'hardware-chip-outline',
+      icon: 'duplicate-outline',
       color: 'var(--alt-purple)',
       description: 'Backup your device information and service data',
       link: '/settings/backup',
     },
     {
       title: 'Setup LAN',
-      icon: 'storefront-outline',
+      icon: 'lock-closed-outline',
       color: 'var(--alt-orange)',
       description: 'Install your certificate for a secure local connection',
       link: '/settings/lan',
