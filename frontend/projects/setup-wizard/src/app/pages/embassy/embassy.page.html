@@ -2,10 +2,6 @@
   <ion-grid>
     <ion-row>
       <ion-col class="ion-text-center">
-        <div style="padding-bottom: 32px">
-          <img src="assets/img/logo.png" style="max-width: 240px" />
-        </div>
-
         <ion-card color="dark">
           <ion-card-header
             class="ion-text-center"
@@ -42,7 +38,10 @@
 
             <!-- not loading -->
             <ng-template #loaded>
-              <ion-item-group *ngIf="storageDrives.length">
+              <ion-item-group
+                *ngIf="storageDrives.length"
+                class="ion-padding-bottom"
+              >
                 <ion-item
                   (click)="chooseDrive(drive)"
                   class="ion-margin-bottom"

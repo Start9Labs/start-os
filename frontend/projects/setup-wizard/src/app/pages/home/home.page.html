@@ -8,7 +8,6 @@
             class="pb-1"
             style="max-width: 220px"
           />
-          <h1 class="small-caps">Setup embassyOS</h1>
         </div>
 
         <ion-card *ngIf="!loading" color="dark">
@@ -23,12 +22,16 @@
               <ion-icon slot="icon-only" name="arrow-back"></ion-icon>
             </ion-button>
             <ion-card-title>
-              Select an option
-              <span *ngIf="swiper?.activeIndex === 1"> (recover)</span>
+              {{ swiper?.activeIndex === 0 ? 'embassyOS Setup' : 'Recover
+              Options' }}
             </ion-card-title>
           </ion-card-header>
           <ion-card-content class="ion-margin-bottom">
-            <swiper (swiper)="setSwiperInstance($event)">
+            <swiper
+              [autoHeight]="true"
+              [observeParents]="true"
+              (swiper)="setSwiperInstance($event)"
+            >
               <!-- SLIDE 1 -->
               <ng-template swiperSlide>
                 <!-- fresh -->

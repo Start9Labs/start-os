@@ -58,10 +58,8 @@ export class SuccessPage {
   }
 
   get isKiosk() {
-    return ['localhost', '127.0.0.1'].includes(this.document.location.hostname)
+    return !['localhost', '127.0.0.1'].includes(this.document.location.hostname)
   }
-
-  ngOnInit() {}
 
   async ngAfterViewInit() {
     this.ngZone.runOutsideAngular(() => this.initMatrix())

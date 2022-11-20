@@ -2,10 +2,6 @@
   <ion-grid>
     <ion-row>
       <ion-col>
-        <div style="padding-bottom: 32px" class="ion-text-center">
-          <img src="assets/img/logo.png" style="max-width: 240px" />
-        </div>
-
         <ion-card color="dark">
           <ion-card-header class="ion-text-center">
             <ion-card-title>Transfer</ion-card-title>
@@ -26,8 +22,6 @@
             <!-- loaded -->
             <ion-item-group *ngIf="!loading" class="ion-text-center">
               <!-- drives -->
-              <h2 class="target-label">Available drives</h2>
-
               <ng-container *ngFor="let drive of drives">
                 <ion-item
                   *ngIf="drive | guid as guid"
