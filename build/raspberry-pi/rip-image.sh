@@ -95,7 +95,7 @@ mkdir $TMPDIR/rootmnt
 mkdir $TMPDIR/bootmnt
 sudo mount update.img $TMPDIR/rootmnt
 sudo mount $BOOT_PARTITION $TMPDIR/bootmnt
-rsync -acvAXUH --info=progress2 $TMPDIR/bootmnt/ $TMPDIR/rootmnt/boot/
+rsync -acvAXH --info=progress2 $TMPDIR/bootmnt/ $TMPDIR/rootmnt/boot/
 
 echo "Compressing..."
 if which pv > /dev/null; then
