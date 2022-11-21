@@ -2,21 +2,18 @@
   <ion-grid>
     <ion-row>
       <ion-col class="ion-text-center">
-        <div style="padding-bottom: 32px">
-          <img src="assets/img/logo.png" style="max-width: 240px" />
-        </div>
-
         <ion-card color="dark">
           <ion-card-header
             class="ion-text-center"
             style="padding-bottom: 8px"
             *ngIf="loading || storageDrives.length; else empty"
           >
-            <ion-card-title>Select Storage Drive</ion-card-title>
-            <ion-card-subtitle
-              >Select the drive where your Embassy data will be
-              stored.</ion-card-subtitle
-            >
+            <ion-card-title>Select storage drive</ion-card-title>
+            <div class="center-wrapper">
+              <ion-card-subtitle>
+                This is the drive where your Embassy data will be stored.
+              </ion-card-subtitle>
+            </div>
           </ion-card-header>
           <ng-template #empty>
             <ion-card-header
@@ -36,12 +33,15 @@
             <ion-spinner
               *ngIf="loading; else loaded"
               class="center-spinner"
-              name="lines"
+              name="lines-sharp"
             ></ion-spinner>
 
             <!-- not loading -->
             <ng-template #loaded>
-              <ion-item-group *ngIf="storageDrives.length">
+              <ion-item-group
+                *ngIf="storageDrives.length"
+                class="ion-padding-bottom"
+              >
                 <ion-item
                   (click)="chooseDrive(drive)"
                   class="ion-margin-bottom"
@@ -54,7 +54,6 @@
                     slot="start"
                     name="save-outline"
                     size="large"
-                    color="light"
                   ></ion-icon>
                   <ion-label class="ion-text-wrap">
                     <h1>
@@ -73,7 +72,7 @@
                   </ion-label>
                 </ion-item>
               </ion-item-group>
-              <ion-button fill="clear" color="primary" (click)="getDrives()">
+              <ion-button fill="solid" color="primary" (click)="getDrives()">
                 <ion-icon slot="start" name="refresh"></ion-icon>
                 Refresh
               </ion-button>

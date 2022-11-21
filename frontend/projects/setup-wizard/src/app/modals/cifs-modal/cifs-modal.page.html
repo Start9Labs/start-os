@@ -1,8 +1,6 @@
 <ion-header>
   <ion-toolbar>
-    <ion-title>
-      Connect Shared Folder
-    </ion-title>
+    <ion-title> Connect Network Folder </ion-title>
   </ion-toolbar>
 </ion-header>
 
@@ -21,7 +19,10 @@
       ></ion-input>
     </ion-item>
     <p [hidden]="hostname.valid || hostname.pristine">
-      <ion-text color="danger">Hostname is required. e.g. 'My Computer' OR 'my-computer.local'</ion-text>
+      <ion-text color="danger"
+        >Hostname is required. e.g. 'My Computer' OR
+        'my-computer.local'</ion-text
+      >
     </p>
 
     <p>Path *</p>
@@ -71,12 +72,23 @@
 
 <ion-footer>
   <ion-toolbar>
-    <ion-button class="ion-padding-end" slot="end" color="dark" fill="clear" (click)="cancel()">
+    <ion-button
+      class="ion-padding-end"
+      slot="end"
+      color="warning"
+      (click)="cancel()"
+    >
       Cancel
     </ion-button>
-    <ion-button class="ion-padding-end" slot="end" color="dark" fill="clear" strong="true" [disabled]="!cifsForm.form.valid" (click)="submit()">
+    <ion-button
+      class="ion-padding-end"
+      slot="end"
+      color="primary"
+      strong="true"
+      [disabled]="!cifsForm.form.valid"
+      (click)="submit()"
+    >
       Verify
     </ion-button>
   </ion-toolbar>
 </ion-footer>
-

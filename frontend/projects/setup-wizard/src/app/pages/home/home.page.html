@@ -3,7 +3,11 @@
     <ion-row>
       <ion-col class="ion-text-center">
         <div style="padding-bottom: 32px">
-          <img src="assets/img/logo.png" style="max-width: 240px" />
+          <img
+            src="assets/img/logo.png"
+            class="pb-1"
+            style="max-width: 220px"
+          />
         </div>
 
         <ion-card *ngIf="!loading" color="dark">
@@ -18,22 +22,27 @@
               <ion-icon slot="icon-only" name="arrow-back"></ion-icon>
             </ion-button>
             <ion-card-title>
-              Embassy Setup
-              <span *ngIf="swiper?.activeIndex === 1"> (recover)</span>
+              {{ swiper?.activeIndex === 0 ? 'embassyOS Setup' : 'Recover
+              Options' }}
             </ion-card-title>
           </ion-card-header>
           <ion-card-content class="ion-margin-bottom">
-            <swiper (swiper)="setSwiperInstance($event)">
+            <swiper
+              [autoHeight]="true"
+              [observeParents]="true"
+              (swiper)="setSwiperInstance($event)"
+            >
               <!-- SLIDE 1 -->
               <ng-template swiperSlide>
                 <!-- fresh -->
                 <ion-item
                   button
                   [disabled]="error"
-                  detail="true"
+                  detail="false"
+                  lines="none"
                   routerLink="/embassy"
                 >
-                  <ion-icon color="dark" slot="start" name="add"></ion-icon>
+                  <ion-icon slot="start" name="add"></ion-icon>
                   <ion-label>
                     <h2><ion-text color="success">Start Fresh</ion-text></h2>
                     <p>Get started with a brand new Embassy</p>
@@ -44,11 +53,11 @@
                 <ion-item
                   button
                   [disabled]="error"
-                  detail="true"
+                  detail="false"
                   lines="none"
                   (click)="next()"
                 >
-                  <ion-icon color="dark" slot="start" name="reload"></ion-icon>
+                  <ion-icon slot="start" name="reload"></ion-icon>
                   <ion-label>
                     <h2><ion-text color="danger">Recover</ion-text></h2>
                     <p>Recover, restore, or transfer Embassy data</p>
@@ -59,12 +68,13 @@
               <!-- SLIDE 2 -->
               <ng-template swiperSlide>
                 <!-- restore from backup -->
-                <ion-item button detail="true" routerLink="/recover">
-                  <ion-icon
-                    color="dark"
-                    slot="start"
-                    name="save-outline"
-                  ></ion-icon>
+                <ion-item
+                  button
+                  lines="none"
+                  detail="false"
+                  routerLink="/recover"
+                >
+                  <ion-icon slot="start" name="save-outline"></ion-icon>
                   <ion-label>
                     <h2>
                       <ion-text color="warning">Restore From Backup</ion-text>
@@ -76,15 +86,11 @@
                 <!-- attach -->
                 <ion-item
                   button
-                  detail="true"
+                  detail="false"
                   lines="none"
                   routerLink="/attach"
                 >
-                  <ion-icon
-                    color="dark"
-                    slot="start"
-                    name="cube-outline"
-                  ></ion-icon>
+                  <ion-icon slot="start" name="cube-outline"></ion-icon>
                   <ion-label>
                     <h2>
                       <ion-text color="primary">Use Existing Drive</ion-text>
@@ -98,15 +104,11 @@
                 <!-- transfer -->
                 <ion-item
                   button
-                  detail="true"
+                  detail="false"
                   lines="none"
                   routerLink="/transfer"
                 >
-                  <ion-icon
-                    color="dark"
-                    slot="start"
-                    name="share-outline"
-                  ></ion-icon>
+                  <ion-icon slot="start" name="share-outline"></ion-icon>
                   <ion-label>
                     <h2>
                       <ion-text color="success">Transfer</ion-text>

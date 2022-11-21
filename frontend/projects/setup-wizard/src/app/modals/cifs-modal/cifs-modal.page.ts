@@ -69,7 +69,6 @@ export class CifsModal {
     const modal = await this.modalController.create({
       component: PasswordPage,
       componentProps: { target },
-      cssClass: 'alertlike-modal',
     })
     modal.onDidDismiss().then(res => {
       if (res.role === 'success') {
