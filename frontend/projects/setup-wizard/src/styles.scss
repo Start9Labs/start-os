@@ -115,6 +115,13 @@
 
   --color-accent: #6866cc;
   --color-dark-black: #121212;
+
+    --alt-red: #FF4961;
+    --alt-orange: #F89248;
+    --alt-yellow: #E5D53E;
+    --alt-green: #3DCF6F;
+    --alt-blue: #00A8A8;
+    --alt-purple: #9747FF;
 }
 
 h1,
@@ -173,6 +180,10 @@ ion-row {
   height: 100%;
 }
 
+ion-card {
+  border-radius: 31px;
+}
+
 ion-item {
   --highlight-color-valid: transparent;
   --highlight-color-invalid: transparent;
@@ -200,6 +211,7 @@ ion-toast {
   * {
     display: inline-block;
     vertical-align: middle;
+    padding: 0.3rem;
   }
 }
 

@@ -17,127 +17,133 @@ ion-content {
 }
 
 ion-grid {
-  padding-top: 13rem;
-  // max-width: max-content;
+  padding-top: 2rem;
+  max-width: 760px;
   margin: auto;
+}
+
+.grid-center-wrapper {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 ion-card {
   padding: 3rem;
 
-  .inline {
-    * {
-      display: inline-block;
-      vertical-align: middle;
+  h1 {
+    color: var(--ion-color-success);
+    padding-left: 0.5rem;
+  }
+  ion-icon {
+    font-size: 40px;
+  }
+
+  li {
+    margin-bottom: 2rem;
+  }
+
+  ion-card {
+    max-width: 91%;
+    background: #615F5F;
+    color: var(--ion-text-color);
+    box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+    border-radius: 44px;
+    margin: auto;
+    text-align: left;
+    cursor: pointer;
+    position: relative;
+    padding: 1rem 2rem;
+    transition: all 350ms ease;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  
+    &:hover {
+        transition-property: transform;
+        transform: scale(1.05);
+        transition-delay: 40ms;
+      }
+      
+    ion-card-title {
+      color: var(--ion-text-color);
+      font-size: 1.3rem;
     }
-    h1 {
-      color: var(--ion-color-success);
-      padding-left: 0.5rem;
+
+    ion-card-content {
+      padding-bottom: 4rem;
+
+      p {
+        padding: 1rem 0;
+      }
     }
-    ion-icon {
-      font-size: 40px;
+
+    p {
+      a {
+        text-decoration: none;
+        font-weight: bold;
+        color: var(--ion-text-color);
+      }
     }
+
+    ion-footer {
+      position: absolute;
+      bottom: 10px;
+      left: 0;
+      color: var(--ion-text-color);
+
+      p {
+        font-size: 1.1rem;
+        font-weight: bold;
+        margin: unset;
+      }
+
+      ion-icon {
+        font-size: 1.6rem;
+      }
+
+      .container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+    }
+
+    .footer-md::before {
+      background-image: none;
+    }
+  }
+
+  #launch:after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 80%;
+    width: 100%;
+    height: 100%;
+    background: var(--alt-blue);
+  }
+  
+  #information:after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 77%;
+    width: 100%;
+    height: 100%;
+    background: var(--color-accent);
   }
 }
 
-.alt-button {
-  --background: #6866CC;
-  --border-radius: 50px;
-  --padding-top: 1.5rem;
-  --padding-bottom: 1.5rem;
-  --padding-start: 1.3rem;
-  --padding-end: 1.3rem;
-  transition: all 350ms ease;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-
-  &:hover {
-    transition-property: transform;
-    transform: scale(1.05);
-    transition-delay: 40ms;
-  }
+.card-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 2rem;
 }
 
-.pushable {
-  position: relative;
-  border: none;
-  background: transparent;
-  padding: 0;
-  cursor: pointer;
-  outline-offset: 4px;
-  transition: filter 250ms;
-}
-
-.shadow {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  border-radius: 24px;
-  background: hsl(0deg 0% 0% / 0.25);
-  will-change: transform;
-  transform: translateY(2px);
-  transition:
-    transform 600ms cubic-bezier(.3, .7, .4, 1);
-}
-
-.edge {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  border-radius: 24px;
-  background: linear-gradient(to left,
-    hsl(352, 42%, 30%) 0%,
-    hsl(352, 42%, 42%) 8%,
-    hsl(352, 42%, 42%) 92%,
-    hsl(352, 42%, 30%) 100%);
-}
-
-.front {
-  display: block;
-  position: relative;
-  padding: 12px 42px;
-  border-radius: 24px;
-  font-size: 1.5rem;
-  color: var(--ion-text-color);
-  font-weight: 500;
-  letter-spacing: 1.1px;
-  font-variant: all-small-caps;
-  background: hsl(352, 100%, 64%);
-  will-change: transform;
-  transform: translateY(-4px);
-  transition:
-    transform 600ms cubic-bezier(.3, .7, .4, 1);
-}
-
-.pushable:hover {
-  filter: brightness(110%);
-}
-
-.pushable:hover .front {
-  transform: translateY(-6px);
-  transition:
-    transform 250ms cubic-bezier(.3, .7, .4, 1.5);
-}
-
-.pushable:active .front {
-  transform: translateY(-2px);
-  transition: transform 34ms;
-}
-
-.pushable:hover .shadow {
-  transform: translateY(4px);
-  transition:
-    transform 250ms cubic-bezier(.3, .7, .4, 1.5);
-}
-
-.pushable:active .shadow {
-  transform: translateY(1px);
-  transition: transform 34ms;
-}
-
-.pushable:focus:not(:focus-visible) {
-  outline: none;
+.emphasis-warn {
+  font-weight: 600;
+  color: var(--ion-color-warning);
 }
