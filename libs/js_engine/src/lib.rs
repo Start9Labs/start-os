@@ -1020,7 +1020,7 @@ mod fns {
 
             if let Some(timeout) = timeout {
                 tokio::spawn(async move {
-                    tokio::time::sleep(Duration::from_micros(timeout)).await;
+                    tokio::time::sleep(Duration::from_millis(timeout)).await;
                     if let Err(err) = rpc_client
                         .request(SendSignal, SendSignalParams { pid, signal: 9 })
                         .await
