@@ -2,7 +2,7 @@ import {
   Component,
   Input,
   ChangeDetectionStrategy,
-  OnChanges,
+  OnInit,
 } from '@angular/core'
 
 @Component({
@@ -11,11 +11,11 @@ import {
   styleUrls: ['./any-link.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class AnyLinkComponent implements OnChanges {
+export class AnyLinkComponent implements OnInit {
   @Input() link!: string
   externalLink: boolean = false
 
-  ngOnChanges() {
+  ngOnInit() {
     try {
       const _ = new URL(this.link)
       this.externalLink = true
