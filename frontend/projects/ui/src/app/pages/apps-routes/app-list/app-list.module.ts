@@ -12,9 +12,9 @@ import { StatusComponentModule } from 'src/app/components/status/status.componen
 import { LaunchablePipeModule } from 'src/app/pipes/launchable/launchable.module'
 import { UiPipeModule } from 'src/app/pipes/ui/ui.module'
 import { AppListIconComponent } from './app-list-icon/app-list-icon.component'
-import { AppListEmptyComponent } from './app-list-empty/app-list-empty.component'
 import { AppListPkgComponent } from './app-list-pkg/app-list-pkg.component'
 import { PackageInfoPipe } from './package-info.pipe'
+import { WidgetListComponentModule } from 'src/app/components/widget-list/widget-list.component.module'
 
 const routes: Routes = [
   {
@@ -34,11 +34,11 @@ const routes: Routes = [
     IonicModule,
     RouterModule.forChild(routes),
     BadgeMenuComponentModule,
+    WidgetListComponentModule,
   ],
   declarations: [
     AppListPage,
     AppListIconComponent,
-    AppListEmptyComponent,
     AppListPkgComponent,
     PackageInfoPipe,
   ],

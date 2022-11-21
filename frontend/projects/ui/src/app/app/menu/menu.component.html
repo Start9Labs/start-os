@@ -1,7 +1,6 @@
-<a class="logo ion-padding" routerLink="/services">
+<a class="logo ion-padding" routerLink="/home">
   <img alt="Start9" src="assets/img/logo.png" />
 </a>
-<div class="divider"></div>
 <ion-item-group class="menu">
   <ion-menu-toggle *ngFor="let page of pages" auto-hide="false">
     <ion-item
@@ -23,7 +22,7 @@
         {{ page.title }}
       </ion-label>
       <ion-icon
-        *ngIf="page.url === '/embassy' && (showEOSUpdate$ | async)"
+        *ngIf="page.url === '/settings' && (showEOSUpdate$ | async)"
         color="success"
         size="small"
         name="rocket-outline"

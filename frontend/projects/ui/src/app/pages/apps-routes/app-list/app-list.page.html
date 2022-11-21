@@ -1,6 +1,6 @@
 <ion-header>
   <ion-toolbar>
-    <ion-title>Services</ion-title>
+    <ion-title>Installed Services</ion-title>
     <ion-buttons slot="end">
       <badge-menu-button></badge-menu-button>
     </ion-buttons>
@@ -10,16 +10,14 @@
 <ion-content class="ion-padding">
   <!-- loaded -->
   <ng-container *ngIf="pkgs$ | async as pkgs; else loading">
-    <app-list-empty
-      *ngIf="!pkgs.length; else list"
-      class="ion-text-center ion-padding"
-    ></app-list-empty>
+    <ng-container *ngIf="!pkgs.length; else list">
+      <div class="welcome-header">
+        <h1>Welcome to embassyOS</h1>
+      </div>
+      <widget-list></widget-list>
+    </ng-container>
 
     <ng-template #list>
-      <ion-item-divider class="ion-padding-bottom"
-        >Installed Services</ion-item-divider
-      >
-
       <ion-grid>
         <ion-row>
           <ion-col *ngFor="let pkg of pkgs" sizeSm="12" sizeLg="6">

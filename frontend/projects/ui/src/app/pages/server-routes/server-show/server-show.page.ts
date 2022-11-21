@@ -33,7 +33,6 @@ export class ServerShowPage {
   powerClicks = 0
 
   readonly server$ = this.patch.watch$('server-info')
-  readonly name$ = this.serverNameService.name$
   readonly showUpdate$ = this.eosService.showUpdate$
   readonly showDiskRepair$ = this.ClientStorageService.showDiskRepair$
 
@@ -54,11 +53,11 @@ export class ServerShowPage {
   ) {}
 
   async presentModalName(): Promise<void> {
-    const name = await firstValueFrom(this.name$)
+    const name = await firstValueFrom(this.serverNameService.name$)
 
     const options: GenericInputOptions = {
-      title: 'Edit Device Name',
-      message: 'This is for your reference only.',
+      title: 'Set Device Name',
+      message: 'This will be displayed in your browser tab',
       label: 'Device Name',
       useMask: false,
       placeholder: name.default,
@@ -349,8 +348,8 @@ export class ServerShowPage {
     Backups: [
       {
         title: 'Create Backup',
-        description: 'Back up your Embassy and all its services',
-        icon: 'save-outline',
+        description: 'Back up your Embassy and service data',
+        icon: 'duplicate-outline',
         action: () =>
           this.navCtrl.navigateForward(['backup'], { relativeTo: this.route }),
         detail: true,
@@ -358,7 +357,7 @@ export class ServerShowPage {
       },
       {
         title: 'Restore From Backup',
-        description: 'Restore one or more services from a prior backup',
+        description: 'Restore one or more services from backup',
         icon: 'color-wand-outline',
         action: () =>
           this.navCtrl.navigateForward(['restore'], { relativeTo: this.route }),
@@ -366,7 +365,7 @@ export class ServerShowPage {
         disabled$: this.eosService.updatingOrBackingUp$,
       },
     ],
-    Settings: [
+    Manage: [
       {
         title: 'Software Update',
         description: 'Get the latest version of embassyOS',
@@ -379,8 +378,8 @@ export class ServerShowPage {
         disabled$: this.eosService.updatingOrBackingUp$,
       },
       {
-        title: 'Device Name',
-        description: 'Edit the local display name of your Embassy',
+        title: 'Set Device Name',
+        description: 'Give your device a name for easy identification',
         icon: 'pricetag-outline',
         action: () => this.presentModalName(),
         detail: false,
@@ -388,7 +387,8 @@ export class ServerShowPage {
       },
       {
         title: 'LAN',
-        description: 'Access your Embassy on the Local Area Network',
+        description:
+          'Install your Embassy certificate for a secure local connection',
         icon: 'home-outline',
         action: () =>
           this.navCtrl.navigateForward(['lan'], { relativeTo: this.route }),
@@ -397,7 +397,8 @@ export class ServerShowPage {
       },
       {
         title: 'SSH',
-        description: 'Access your Embassy from the command line',
+        description:
+          'Manage your SSH keys to access your Embassy from the command line',
         icon: 'terminal-outline',
         action: () =>
           this.navCtrl.navigateForward(['ssh'], { relativeTo: this.route }),
@@ -480,7 +481,7 @@ export class ServerShowPage {
     Support: [
       {
         title: 'User Manual',
-        description: 'View the Embassy user manual and FAQ',
+        description: 'Discover what your Embassy can do',
         icon: 'map-outline',
         action: () =>
           window.open(

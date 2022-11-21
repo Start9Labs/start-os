@@ -23,9 +23,9 @@ export class MenuComponent {
       icon: 'grid-outline',
     },
     {
-      title: 'Embassy',
-      url: '/embassy',
-      icon: 'cube-outline',
+      title: 'Marketplace',
+      url: '/marketplace',
+      icon: 'storefront-outline',
     },
     {
       title: 'Updates',
@@ -33,14 +33,14 @@ export class MenuComponent {
       icon: 'globe-outline',
     },
     {
-      title: 'Marketplace',
-      url: '/marketplace',
-      icon: 'storefront-outline',
-    },
-    {
       title: 'Notifications',
       url: '/notifications',
       icon: 'notifications-outline',
+    },
+    {
+      title: 'System Settings',
+      url: '/settings',
+      icon: 'settings-outline',
     },
   ]
 
