@@ -69,7 +69,7 @@ echo Verifying...
 INPUT_HASH=$TMPDIR/input.hash
 OUTPUT_HASH=$TMPDIR/output.hash
 if which pv > /dev/null; then
-	PV_IN=TMPDIR/fifo
+	PV_IN=$TMPDIR/fifo
 	mkfifo $PV_IN
 fi
 sudo cat ${ROOT_PARTITION} | head -c $FS_SIZE | tee -a $PV_IN | sha256sum > $INPUT_HASH &
