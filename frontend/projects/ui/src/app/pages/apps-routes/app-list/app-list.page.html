@@ -10,10 +10,12 @@
 <ion-content class="ion-padding">
   <!-- loaded -->
   <ng-container *ngIf="pkgs$ | async as pkgs; else loading">
-    <widget-list
-      *ngIf="!pkgs.length; else list"
-      style="position: absolute; top: -1rem"
-    ></widget-list>
+    <ng-container *ngIf="!pkgs.length; else list">
+      <div class="welcome-header">
+        <h1>Welcome to embassyOS</h1>
+      </div>
+      <widget-list></widget-list>
+    </ng-container>
 
     <ng-template #list>
       <ion-grid>
