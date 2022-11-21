@@ -3,11 +3,11 @@
 set -e
 
 function partition_for () {
-        if [[ "$1" =~ [0-9]+$ ]]; then
-                echo "$1p$2"
-        else
-                echo "$1$2"
-        fi
+    if [[ "$1" =~ [0-9]+$ ]]; then
+        echo "$1p$2"
+    else
+        echo "$1$2"
+    fi
 }
 
 # Mount the boot partition and config
@@ -39,13 +39,11 @@ sudo mv /tmp/eos-mnt/etc/sudoers.d/010_pi-nopasswd /tmp/eos-mnt/etc/sudoers.d/01
 sudo sed -i 's/pi/start9/g' /tmp/eos-mnt/etc/sudoers.d/010_start9-nopasswd
 sudo sed -i 's/ pi / start9 /g' /tmp/eos-mnt/etc/systemd/system/autologin@.service
 
-if [ "$LITE_UPGRADE_IMAGE" = "1" ]; then
-        sudo cp ./build/raspberry-pi/033-upgrade.sh /tmp/eos-mnt/usr/local/bin/initialization.sh
-elif [[ "$ENVIRONMENT" =~ (^|-)dev($|-) ]]; then
-	cat ./build/raspberry-pi/initialization.sh | grep -v "passwd -l start9" | sudo tee /tmp/eos-mnt/usr/local/bin/initialization.sh > /dev/null
-	sudo chmod +x /tmp/eos-mnt/usr/local/bin/initialization.sh
+if [[ "$ENVIRONMENT" =~ (^|-)dev($|-) ]]; then
+    cat ./build/raspberry-pi/initialization.sh | grep -v "passwd -l start9" | sudo tee /tmp/eos-mnt/usr/local/bin/initialization.sh > /dev/null
+    sudo chmod +x /tmp/eos-mnt/usr/local/bin/initialization.sh
 else
-	sudo cp ./build/raspberry-pi/initialization.sh /tmp/eos-mnt/usr/local/bin
+    sudo cp ./build/raspberry-pi/initialization.sh /tmp/eos-mnt/usr/local/bin
 fi
 sudo cp ./build/raspberry-pi/init-with-sound.sh /tmp/eos-mnt/usr/local/bin
 

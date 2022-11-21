@@ -14,17 +14,16 @@ fi
 e2fsck -f /dev/mmcblk0p3
 resize2fs /dev/mmcblk0p3
 
-umount /embassy-os
 mkdir -p /media/root-rw
+mkfs.ext4 /dev/mmcblk0p3
 mount /dev/mmcblk0p3 /media/root-rw
 
 mkdir -p /media/root-rw/config
 mkdir -p /media/root-rw/current
 mkdir -p /media/root-rw/next
-while ! rsync -acvAXUH --delete --force --info=progress2 alpha-registry-x.start9.com::0.3.3/raspberrypi/ /media/root-rw/current/; do
-    >&2 echo "Failed to sync rootfs, retrying in 10s"
-    sleep 10
-done
+rsync -acvAXUH --info=progress2 /embassy-os/ /media/root-rw/config/
+rsync -acvAXUH --info=progress2 /033-update/ /media/root-rw/current/
+rsync -acvAXUH --info=progress2 /media/root-rw/current/boot/ /media/boot-rw/
 cp /etc/machine-id /media/root-rw/current/etc/machine-id
 cp /etc/ssh/ssh_host_rsa_key /media/root-rw/current/etc/ssh/ssh_host_rsa_key
 cp /etc/ssh/ssh_host_rsa_key.pub /media/root-rw/current/etc/ssh/ssh_host_rsa_key.pub
@@ -32,12 +31,13 @@ cp /etc/ssh/ssh_host_ecdsa_key /media/root-rw/current/etc/ssh/ssh_host_ecdsa_key
 cp /etc/ssh/ssh_host_ecdsa_key.pub /media/root-rw/current/etc/ssh/ssh_host_ecdsa_key.pub
 cp /etc/ssh/ssh_host_ed25519_key /media/root-rw/current/etc/ssh/ssh_host_ed25519_key
 cp /etc/ssh/ssh_host_ed25519_key.pub /media/root-rw/current/etc/ssh/ssh_host_ed25519_key.pub
-rsync -acvAXUH --info=progress2 /media/root-rw/current/boot/ /media/boot-rw/
 
 sync
 
+umount /embassy-os
 umount /media/root-rw
 
+e2label /dev/mmcblk0p1 boot
 e2label /dev/mmcblk0p3 rootfs
 
 (

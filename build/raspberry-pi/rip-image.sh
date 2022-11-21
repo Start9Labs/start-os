@@ -2,12 +2,7 @@
 
 set -e
 
-function mktmpfifo () {
-	TMP_PATH=$(mktemp)
-	rm $TMP_PATH
-	mkfifo $TMP_PATH
-	echo $TMP_PATH
-}
+TMPDIR=$(mktemp -d)
 
 if ! which pv > /dev/null; then
 	>&2 echo 'This script would like to use `pv` to show a progress indicator, but it is not installed.'
@@ -40,13 +35,14 @@ if [[ "$(uname)" == "Darwin" ]]; then
 	exit 1
 fi
 
-if ! test -e /dev/disk/by-label/green; then
-	>&2 echo '`green` partition not found'
+if ! test -e /dev/disk/by-label/rootfs; then
+	>&2 echo '`rootfs` partition not found'
 	exit 1
 fi
-export SOURCE_PARTITION=$(readlink -f /dev/disk/by-label/green)
+ROOT_PARTITION=$(readlink -f /dev/disk/by-label/rootfs)
+BOOT_PARTITION=$(readlink -f /dev/disk/by-label/boot)
 
-if [[ "$SOURCE_PARTITION" =~ ^/dev/loop ]]; then
+if [[ "$ROOT_PARTITION" =~ ^/dev/loop ]] || [[ "$BOOT_PARTITION" =~ ^/dev/loop ]]; then
 	>&2 echo 'You are currently ripping from a loop device.'
 	>&2 echo 'This is probably a mistake, and usually means you failed to detach a .img file.'
 	read -p "Continue anyway? [y/N]" -n 1 -r
@@ -56,29 +52,30 @@ if [[ "$SOURCE_PARTITION" =~ ^/dev/loop ]]; then
 	fi
 fi
 
-sudo e2fsck -f ${SOURCE_PARTITION}
-sudo resize2fs -M ${SOURCE_PARTITION}
-export BLOCK_INFO=$(sudo dumpe2fs ${SOURCE_PARTITION})
-export BLOCK_COUNT=$(echo "$BLOCK_INFO" | grep "Block count:" | sed 's/Block count:\s\+//g')
-export BLOCK_SIZE=$(echo "$BLOCK_INFO" | grep "Block size:" | sed 's/Block size:\s\+//g')
-export FS_SIZE=$[$BLOCK_COUNT*$BLOCK_SIZE]
+sudo e2fsck -f ${ROOT_PARTITION}
+sudo resize2fs -M ${ROOT_PARTITION}
+BLOCK_INFO=$(sudo dumpe2fs ${ROOT_PARTITION})
+BLOCK_COUNT=$(echo "$BLOCK_INFO" | grep "Block count:" | sed 's/Block count:\s\+//g')
+BLOCK_SIZE=$(echo "$BLOCK_INFO" | grep "Block size:" | sed 's/Block size:\s\+//g')
+FS_SIZE=$[$BLOCK_COUNT*$BLOCK_SIZE]
 
-echo "Ripping $FS_SIZE bytes from $SOURCE_PARTITION"
+echo "Ripping $FS_SIZE bytes from $ROOT_PARTITION"
 if which pv > /dev/null; then
-	sudo cat ${SOURCE_PARTITION} | head -c $FS_SIZE | pv -s $FS_SIZE | sudo dd of=update.img bs=1M iflag=fullblock oflag=direct conv=fsync 2>/dev/null 
+	sudo cat ${ROOT_PARTITION} | head -c $FS_SIZE | pv -s $FS_SIZE | sudo dd of=update.img bs=1M iflag=fullblock oflag=direct conv=fsync 2>/dev/null 
 else
-	sudo cat ${SOURCE_PARTITION} | head -c $FS_SIZE | sudo dd of=update.img bs=1M iflag=fullblock oflag=direct conv=fsync
+	sudo cat ${ROOT_PARTITION} | head -c $FS_SIZE | sudo dd of=update.img bs=1M iflag=fullblock oflag=direct conv=fsync
 fi
 echo Verifying...
-export INPUT_HASH=$(mktemp)
-export OUTPUT_HASH=$(mktemp)
+INPUT_HASH=$TMPDIR/input.hash
+OUTPUT_HASH=$TMPDIR/output.hash
 if which pv > /dev/null; then
-	export PV_IN=$(mktmpfifo)
+	PV_IN=TMPDIR/fifo
+	mkfifo $PV_IN
 fi
-sudo cat ${SOURCE_PARTITION} | head -c $FS_SIZE | tee -a $PV_IN | sha256sum > $INPUT_HASH &
-export INPUT_CHILD=$!
+sudo cat ${ROOT_PARTITION} | head -c $FS_SIZE | tee -a $PV_IN | sha256sum > $INPUT_HASH &
+INPUT_CHILD=$!
 sudo cat update.img | head -c $FS_SIZE | tee -a $PV_IN | sha256sum > $OUTPUT_HASH &
-export OUTPUT_CHILD=$!
+OUTPUT_CHILD=$!
 if which pv > /dev/null; then
 	pv -s $[$FS_SIZE*2] < $PV_IN > /dev/null &
 fi
@@ -94,8 +91,11 @@ fi
 rm $INPUT_HASH $OUTPUT_HASH
 echo "Verification Succeeded"
 
-sudo e2label update.img red
-echo "Image Relabeled to \"red\""
+mkdir $TMPDIR/rootmnt
+mkdir $TMPDIR/bootmnt
+sudo mount update.img $TMPDIR/rootmnt
+sudo mount $BOOT_PARTITION $TMPDIR/bootmnt
+rsync -acvAXUH --info=progress2 $TMPDIR/bootmnt/ $TMPDIR/rootmnt/boot/
 
 echo "Compressing..."
 if which pv > /dev/null; then

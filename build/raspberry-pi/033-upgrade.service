@@ -1,0 +1,12 @@
+[Unit]
+Description=Boot process for system initialization.
+After=network-online.target systemd-time-wait-sync.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/033-upgrade.sh
+RemainAfterExit=true
+StandardOutput=append:/var/log/initialization.log
+
+[Install]
+WantedBy=multi-user.target
