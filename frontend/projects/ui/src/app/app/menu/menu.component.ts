@@ -33,14 +33,14 @@ export class MenuComponent {
       icon: 'globe-outline',
     },
     {
-      title: 'Settings',
-      url: '/settings',
-      icon: 'settings-outline',
-    },
-    {
       title: 'Notifications',
       url: '/notifications',
       icon: 'notifications-outline',
+    },
+    {
+      title: 'System Settings',
+      url: '/settings',
+      icon: 'settings-outline',
     },
   ]
 

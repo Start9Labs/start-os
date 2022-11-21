@@ -42,7 +42,6 @@ const ICONS = [
   'grid-outline',
   'help-circle-outline',
   'hammer-outline',
-  'hardware-chip-outline',
   'home-outline',
   'information-circle-outline',
   'key-outline',

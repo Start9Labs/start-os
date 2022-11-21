@@ -2,9 +2,16 @@
   <ng-content></ng-content>
 </ng-template>
 
-<a [href]="link" target="_blank" *ngIf="externalLink">
+<a
+  *ngIf="externalLink; else internal"
+  [href]="link"
+  target="_blank"
+  rel="noreferrer"
+>
   <ng-container *ngTemplateOutlet="content"></ng-container>
 </a>
-<a [routerLink]="link" *ngIf="!externalLink">
-  <ng-container *ngTemplateOutlet="content"></ng-container>
-</a>
+<ng-template #internal>
+  <a [routerLink]="link">
+    <ng-container *ngTemplateOutlet="content"></ng-container>
+  </a>
+</ng-template>
