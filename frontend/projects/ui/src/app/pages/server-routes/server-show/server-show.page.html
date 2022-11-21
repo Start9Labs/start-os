@@ -1,13 +1,6 @@
 <ion-header>
   <ion-toolbar>
-    <ion-title *ngIf="name$ | async as name; else loadingTitle">
-      {{ name.current }}
-    </ion-title>
-    <ng-template #loadingTitle>
-      <ion-title>
-        <ion-title>Loading<span class="loading-dots"></span></ion-title>
-      </ion-title>
-    </ng-template>
+    <ion-title> System Settings </ion-title>
     <ion-buttons slot="end">
       <badge-menu-button></badge-menu-button>
     </ion-buttons>
