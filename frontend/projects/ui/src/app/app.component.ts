@@ -1,5 +1,5 @@
 import { Component, OnDestroy } from '@angular/core'
-import { merge, take } from 'rxjs'
+import { merge } from 'rxjs'
 import { AuthService } from './services/auth.service'
 import { SplitPaneTracker } from './services/split-pane.service'
 import { PatchDataService } from './services/patch-data.service'
@@ -28,9 +28,9 @@ export class AppComponent implements OnDestroy {
   ) {}
 
   ngOnInit() {
-    this.serverNameService.name$
-      .pipe(take(1))
-      .subscribe(({ current }) => this.titleService.setTitle(current))
+    this.serverNameService.name$.subscribe(({ current }) =>
+      this.titleService.setTitle(current),
+    )
   }
 
   splitPaneVisible({ detail }: any) {

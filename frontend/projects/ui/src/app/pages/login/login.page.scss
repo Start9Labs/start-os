@@ -1,14 +1,33 @@
 ion-card-title {
   margin: 24px 0;
   font-family: 'Montserrat';
+  font-weight: 500;
   font-size: x-large;
-  --color: var(--ion-color-light);
+  font-variant: all-small-caps;
+  --color: var(--ion-color-dark);
+}
+
+ion-button {
+  --border-radius: 0 4px 4px 0;
 }
 
 ion-item {
   --border-style: solid;
-  --border-width: 1px;
   --border-color: var(--ion-color-light);
+  --border-radius: 4px 0 0 4px;
+  box-shadow: 0 3px 1px -2px rgba(0, 0, 0, 0.2),
+    0 2px 2px 0 rgba(0, 0, 0, 0.14),
+    0 1px 5px 0 rgba(0, 0, 0, 0.12);
+
+  ion-button {
+    --border-radius: 4px;
+  }
+}
+
+ion-card {
+  background: var(--ion-color-step-200);
+  box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+  border-radius: 44px;
 }
 
 .input-label {
@@ -16,12 +35,22 @@ ion-item {
   padding-bottom: 2px;
   font-size: small;
   font-weight: bold;
+  color: var(--ion-color-dark);
 }
 
 .login-button {
   margin-inline-start: 0;
   margin-inline-end: 0;
-  margin-top: 24px;
-  height: 48px;
-  --background: linear-gradient(45deg, var(--ion-color-light) 16%, var(--ion-color-dark) 150%);
+  height: 49px;
+}
+
+.inline {
+  * {
+    display: inline-block;
+    vertical-align: middle;
+  }
+}
+
+.item-interactive {
+  --highlight-background: var(--ion-color-tertiary) !important;
 }
