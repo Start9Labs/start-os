@@ -10,10 +10,10 @@
 <ion-content class="ion-padding">
   <!-- loaded -->
   <ng-container *ngIf="pkgs$ | async as pkgs; else loading">
-    <app-list-empty
+    <widget-list
       *ngIf="!pkgs.length; else list"
-      class="ion-text-center ion-padding"
-    ></app-list-empty>
+      style="position: absolute; top: -1rem"
+    ></widget-list>
 
     <ng-template #list>
       <ion-grid>

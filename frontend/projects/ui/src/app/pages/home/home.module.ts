@@ -4,7 +4,7 @@ import { IonicModule } from '@ionic/angular'
 import { RouterModule, Routes } from '@angular/router'
 import { HomePage } from './home.page'
 import { BadgeMenuComponentModule } from 'src/app/components/badge-menu-button/badge-menu.component.module'
-import { WidgetCardComponentModule } from 'src/app/components/widget-card/widget-card.component.module'
+import { WidgetListComponentModule } from 'src/app/components/widget-list/widget-list.component.module'
 
 const routes: Routes = [
   {
@@ -19,7 +19,7 @@ const routes: Routes = [
     IonicModule,
     RouterModule.forChild(routes),
     BadgeMenuComponentModule,
-    WidgetCardComponentModule,
+    WidgetListComponentModule,
   ],
   declarations: [HomePage],
 })
