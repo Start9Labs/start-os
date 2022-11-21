@@ -235,7 +235,7 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
 }
 
 #[tokio::main]
-fn main() {
+async fn main() {
     let matches = clap::App::new("embassy-init")
         .arg(
             clap::Arg::with_name("config")
@@ -248,7 +248,7 @@ fn main() {
     EmbassyLogger::init();
 
     let cfg_path = matches.value_of("config").map(|p| Path::new(p).to_owned());
-    let res = inner_main(cfg_path).await?;
+    let res = inner_main(cfg_path).await;
 
     match res {
         Ok(Some(shutdown)) => shutdown.execute(),
