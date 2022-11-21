@@ -15,6 +15,27 @@
 @font-face {
   font-family: 'Montserrat';
   font-style: normal;
+  font-weight: 600;
+  src: url('/assets/fonts/Montserrat/Montserrat-SemiBold.ttf');
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: bold;
+  src: url('/assets/fonts/Montserrat/Montserrat-Bold.ttf');
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 500;
+  src: url('/assets/fonts/Montserrat/Montserrat-Medium.ttf');
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
   font-weight: thin;
   src: url('/assets/fonts/Montserrat/Montserrat-Light.ttf');
 }
@@ -26,41 +47,92 @@
   src: url('/assets/fonts/Benton_Sans/BentonSans-Regular.otf');
 }
 
+@font-face {
+  font-family: 'Open Sans';
+  font-style: normal;
+  font-weight: normal;
+  src: url('/assets/fonts/Open_Sans/OpenSans-Regular.ttf');
+}
+
+@font-face {
+  font-family: 'Open Sans';
+  font-style: normal;
+  font-weight: bold;
+  src: url('/assets/fonts/Open_Sans/OpenSans-Bold.ttf');
+}
+
+@font-face {
+  font-family: 'Open Sans';
+  font-style: normal;
+  font-weight: 600;
+  src: url('/assets/fonts/Open_Sans/OpenSans-SemiBold.ttf');
+}
+
+@font-face {
+  font-family: 'Open Sans';
+  font-style: normal;
+  font-weight: thin;
+  src: url('/assets/fonts/Open_Sans/OpenSans-Light.ttf');
+}
+
 /** Ionic CSS Variables overrides **/
 :root {
-  --ion-font-family: 'Benton Sans';
+  --ion-font-family: 'Montserrat';
+
+  --ion-background-color: #333333;
+  --ion-background-color-rgb: 51, 51, 51;
+
+  --ion-text-color: #F4F4F5;
+  --ion-text-color-rgb: 244, 244, 245;
+
+  --ion-color-step-50: #3d3d3d;
+  --ion-color-step-100: #464646;
+  --ion-color-step-150: #505050;
+  --ion-color-step-200: #5a5a5a;
+  --ion-color-step-250: #636364;
+  --ion-color-step-300: #6d6d6d;
+  --ion-color-step-350: #777777;
+  --ion-color-step-400: #808081;
+  --ion-color-step-450: #8a8a8a;
+  --ion-color-step-500: #949494;
+  --ion-color-step-550: #9d9d9e;
+  --ion-color-step-600: #a7a7a7;
+  --ion-color-step-650: #b0b0b1;
+  --ion-color-step-700: #bababb;
+  --ion-color-step-750: #c4c4c5;
+  --ion-color-step-800: #cdcdce;
+  --ion-color-step-850: #d7d7d8;
+  --ion-color-step-900: #e1e1e2;
+  --ion-color-step-950: #eaeaeb;
+
+
+  --ion-color-dark: var(--ion-color-step-50) !important;
+  // --ion-color-base-rgb: 
+  --ion-color-dark-contrast: var(--ion-color-step-950) !important;
+  // --ion-color-dark-contrast-rgb:
+  --ion-color-dark-shade: var(--ion-color-step-100) !important;
+  --ion-color-dark-tint: var(--ion-color-step-250) !important;
+
+  --color-accent: #6866cc;
+  --color-dark-black: #121212;
+
+    --alt-red: #FF4961;
+    --alt-orange: #F89248;
+    --alt-yellow: #E5D53E;
+    --alt-green: #3DCF6F;
+    --alt-blue: #00A8A8;
+    --alt-purple: #9747FF;
 }
 
-ion-content {
-  --background: var(--ion-color-medium);
+h1,
+h2,
+h3,
+h4 {
+  font-weight: 400;
 }
 
-ion-grid {
-  padding-top: 32px;
-  height: 100%;
-  max-width: 640px;
-}
-
-ion-row {
-  height: 100%;
-}
-
-ion-item {
-  --color: var(--ion-color-light);
-  --highlight-color-valid: transparent;
-  --highlight-color-invalid: transparent;
-}
-
-ion-toolbar {
-  --ion-background-color: var(--ion-color-light);
-  ion-title {
-    color: var(--ion-color-dark);
-  }
-}
-
-ion-avatar {
-  width: 27px;
-  height: 27px;
+h1 {
+  font-size: 42px;
 }
 
 ion-card-title {
@@ -68,6 +140,58 @@ ion-card-title {
   font-family: 'Montserrat';
   font-size: x-large;
   --color: var(--ion-color-light);
+}
+
+ion-card-subtitle {
+  font-size: 20px;
+  font-weight: 200;
+  max-width: 400px;
+  padding: 0.7rem;
+  color: var(--ion-color-step-900) !important;
+}
+
+ion-label ion-text {
+  font-size: 1.2rem;
+  font-weight: 500;
+}
+
+p {
+  color: var(--ion-color-dark-contrast) !important;
+  font-size: 1.12rem !important;
+  font-family: 'Open Sans';
+  font-weight: normal;
+}
+
+ion-icon {
+  color: var(--ion-color-dark-contrast) !important;
+}
+
+.small-caps {
+  font-variant-caps: all-small-caps;
+}
+
+ion-grid {
+  padding-top: 32px;
+  height: 100%;
+  max-width: 695px;
+}
+
+ion-row {
+  height: 100%;
+}
+
+ion-card {
+  border-radius: 31px;
+}
+
+ion-item {
+  --highlight-color-valid: transparent;
+  --highlight-color-invalid: transparent;
+}
+
+ion-avatar {
+  width: 27px;
+  height: 27px;
 }
 
 ion-toast {
@@ -79,7 +203,7 @@ ion-toast {
 }
 
 .center-spinner {
-  height: 20vh;
+  height: 6vh;
   width: 100%;
 }
 
@@ -87,6 +211,7 @@ ion-toast {
   * {
     display: inline-block;
     vertical-align: middle;
+    padding: 0.3rem;
   }
 }
 
@@ -115,4 +240,98 @@ ion-toast {
 .success-border {
   border: 2px solid var(--ion-color-success);
   border-radius: 4px;
+}
+
+
+ion-modal.stack-modal {
+  --box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+  --backdrop-opacity: var(--ion-backdrop-opacity, 0.32);
+}
+
+.sc-ion-label-md-s p {
+  line-height: 23px;
+}
+
+ion-button {
+  --padding-top: 1.3rem;
+  --padding-bottom: 1.3rem;
+}
+
+ion-item {
+  border: var(--ion-color-step-750) 1px solid;
+  margin: 2rem;
+  --background: transparent;
+  --border-color: var(--ion-item-border-color, var(--ion-border-color, var(--ion-color-step-150, rgba(0, 0, 0, 0.13))));
+  transition: all 350ms ease;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+
+  &:hover {
+    transition-property: transform;
+    transform: scale(1.05);
+    transition-delay: 40ms;
+  }
+
+  ion-button {
+    --padding-top: unset;
+    --padding-bottom: unset;
+  }
+}
+
+.item.sc-ion-label-md-h,
+.item .sc-ion-label-md-h {
+  white-space: normal;
+}
+
+.center-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+}
+
+
+.loader {
+  --spinner-color: var(--ion-color-tertiary) !important;
+}
+
+.toolbar-background {
+  background: #2a2a2a !important;
+}
+
+.toolbar-container {
+  padding-right: 2rem !important;
+}
+
+ion-header {
+  ion-toolbar {
+    --border-color: var(--ion-color-step-950);
+    --border-width: 0 0 1px 0;
+  
+    --min-height: 80px;
+    --padding-top: 20px;
+    --padding-bottom: 20px;
+    --padding-end: 2rem;
+  }
+}
+
+ion-footer {
+  ion-toolbar {
+    --border-width: 0;
+    --padding-end: 2.3rem;
+    --padding-bottom: 2rem;
+  }
+}
+
+.footer-md::before {
+  content: none;
+}
+
+@media (max-width: 500px) {
+  h1 {
+    font-size: 36px;
+  }
+
+  ion-item {
+    margin: 0 0.5rem 2rem 0.5rem;
+  }
 }

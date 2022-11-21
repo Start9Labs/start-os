@@ -5,11 +5,13 @@
   z-index: 1000000;
 }
 
-ion-item {
-  --background: var(--ion-color-medium);
-  --color: var(--ion-color-dark);
+.inline {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  justify-content: center;
 }
 
-p {
-  color: var(--ion-color-dark);
+ion-card-title {
+  font-variant-caps: all-small-caps;
 }

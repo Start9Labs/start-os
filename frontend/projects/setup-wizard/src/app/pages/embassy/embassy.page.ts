@@ -131,7 +131,10 @@ export class EmbassyPage {
     logicalname: string,
     password: string,
   ): Promise<void> {
-    const loader = await this.loadingCtrl.create()
+    const loader = await this.loadingCtrl.create({
+      message: 'Connecting to drive...',
+      cssClass: 'loader',
+    })
     await loader.present()
 
     try {

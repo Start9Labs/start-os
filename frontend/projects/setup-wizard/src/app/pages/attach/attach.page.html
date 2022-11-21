@@ -2,17 +2,15 @@
   <ion-grid>
     <ion-row>
       <ion-col>
-        <div style="padding-bottom: 32px" class="ion-text-center">
-          <img src="assets/img/logo.png" style="max-width: 240px" />
-        </div>
-
         <ion-card color="dark">
           <ion-card-header class="ion-text-center">
-            <ion-card-title>Use Existing Drive</ion-card-title>
-            <ion-card-subtitle
-              >Select the physical drive containing your Embassy
-              data</ion-card-subtitle
-            >
+            <ion-card-title>Use existing drive</ion-card-title>
+            <div class="center-wrapper">
+              <ion-card-subtitle
+                >Select the physical drive containing your Embassy
+                data</ion-card-subtitle
+              >
+            </div>
           </ion-card-header>
 
           <ion-card-content class="ion-margin">
@@ -25,8 +23,6 @@
             <!-- loaded -->
             <ion-item-group *ngIf="!loading" class="ion-text-center">
               <!-- drives -->
-              <h2 class="target-label">Available Drives</h2>
-
               <p *ngIf="!drives.length">
                 No valid Embassy data drives found. Please make sure the drive
                 is a valid Embassy data drive (not a backup) and is firmly
@@ -44,7 +40,6 @@
                     slot="start"
                     name="save-outline"
                     size="large"
-                    color="light"
                   ></ion-icon>
                   <ion-label>
                     <h1>{{ drive.logicalname }}</h1>
@@ -58,7 +53,6 @@
               </ng-container>
               <ion-button
                 class="ion-margin-top"
-                fill="clear"
                 color="primary"
                 (click)="refresh()"
               >
