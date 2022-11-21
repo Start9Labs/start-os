@@ -1,32 +1,55 @@
 <ion-content>
-  <ion-grid style="height: 100%; max-width: 540px;">
-    <ion-row class="ion-align-items-center" style="height: 90%;">
+  <ion-grid style="height: 100%; max-width: 540px">
+    <ion-row class="ion-align-items-center" style="height: 90%">
       <ion-col class="ion-text-center">
-
-        <div style="padding-bottom: 16px;">
-          <img src="assets/img/logo.png" style="max-width: 240px;" />
+        <div style="padding-bottom: 16px">
+          <img src="assets/img/logo.png" style="max-width: 240px" />
         </div>
 
-        <ion-card color="dark">
-          <ion-card-header class="ion-text-center" style="padding-bottom: 8px;">
-            <ion-card-title>Log in to Embassy</ion-card-title>
+        <ion-card>
+          <ion-card-header class="ion-text-center" style="padding-bottom: 8px">
+            <ion-card-title>Embassy Login</ion-card-title>
           </ion-card-header>
 
-          <ion-card-content class="ion-margin">
-            <form (submit)="submit()" style="margin-bottom: 12px;">
+          <ion-card-content class="ion-margin ion-text-center">
+            <form
+              class="inline"
+              (submit)="submit()"
+              style="margin-bottom: 12px"
+            >
               <ion-item-group>
-                <p class="input-label">Password</p>
                 <ion-item color="dark">
-                  <ion-icon slot="start" name="key-outline" style="margin-right: 16px;"></ion-icon>
-                  <ion-input [type]="unmasked ? 'text' : 'password'" name="password" [(ngModel)]="password" (ionChange)="error = ''"></ion-input>
+                  <ion-icon
+                    slot="start"
+                    name="key-outline"
+                    style="margin-right: 16px"
+                  ></ion-icon>
+                  <ion-input
+                    [type]="unmasked ? 'text' : 'password'"
+                    name="password"
+                    [(ngModel)]="password"
+                    (ionChange)="error = ''"
+                    placeholder="Password"
+                  ></ion-input>
                   <ion-button fill="clear" color="light" (click)="toggleMask()">
-                    <ion-icon slot="icon-only" [name]="unmasked ? 'eye-off-outline' : 'eye-outline'" size="small"></ion-icon>
+                    <ion-icon
+                      slot="icon-only"
+                      [name]="unmasked ? 'eye-off-outline' : 'eye-outline'"
+                      size="small"
+                    ></ion-icon>
                   </ion-button>
                 </ion-item>
-                <p style="text-align: left; padding-top: 4px"><ion-text color="danger">{{ error }}</ion-text></p>
+                <p style="text-align: left; padding-top: 4px">
+                  <ion-text color="danger">{{ error }}</ion-text>
+                </p>
               </ion-item-group>
-              <ion-button class="login-button" type="submit" expand="block">
-                <span style="font-size: larger; font-weight: bold;">Log In</span>
+              <ion-button
+                class="login-button"
+                type="submit"
+                expand="block"
+                color="tertiary"
+              >
+                <span style="font-size: larger; font-weight: bold">Login</span>
               </ion-button>
             </form>
           </ion-card-content>
