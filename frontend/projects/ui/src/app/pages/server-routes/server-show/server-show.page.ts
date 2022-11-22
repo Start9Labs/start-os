@@ -29,7 +29,7 @@ import {
   styleUrls: ['server-show.page.scss'],
 })
 export class ServerShowPage {
-  settingsClicks = 0
+  manageClicks = 0
   powerClicks = 0
 
   readonly server$ = this.patch.watch$('server-info')
@@ -204,8 +204,8 @@ export class ServerShowPage {
 
   addClick(title: string) {
     switch (title) {
-      case 'Settings':
-        this.addSettingsClick()
+      case 'Manage':
+        this.addManageClick()
         break
       case 'Power':
         this.addPowerClick()
@@ -550,10 +550,10 @@ export class ServerShowPage {
     ],
   }
 
-  private async addSettingsClick() {
-    this.settingsClicks++
-    if (this.settingsClicks === 5) {
-      this.settingsClicks = 0
+  private async addManageClick() {
+    this.manageClicks++
+    if (this.manageClicks === 5) {
+      this.manageClicks = 0
       const newVal = this.ClientStorageService.toggleShowDevTools()
       const toast = await this.toastCtrl.create({
         header: newVal ? 'Dev tools unlocked' : 'Dev tools hidden',
