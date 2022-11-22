@@ -17,9 +17,8 @@ ion-content {
 }
 
 ion-grid {
-  padding-top: 2rem;
   max-width: 760px;
-  margin: auto;
+  height: 100%;
 }
 
 .grid-center-wrapper {
@@ -75,12 +74,6 @@ ion-card {
 
       p {
         padding: 1rem 0;
-      }
-    }
-
-    p {
-      a {
-        color: var(--ion-text-color);
       }
     }
 
