@@ -2,7 +2,7 @@
 
 set -e
 
-if grep 'cb15ae4d-03' /media/boot-rw/cmdline.txt; then
+if grep 'cb15ae4d-03' /boot/cmdline.txt; then
     BLOCK_COUNT=$(tune2fs -l /dev/mmcblk0p3 | grep "^Block count:" | awk '{print $3}')
     BLOCK_SIZE=$(tune2fs -l /dev/mmcblk0p3 | grep "^Block size:" | awk '{print $3}')
     cat /dev/mmcblk0p3 | head -c $[$BLOCK_COUNT * $BLOCK_SIZE] > /dev/mmcblk0p4
@@ -11,19 +11,19 @@ if grep 'cb15ae4d-03' /media/boot-rw/cmdline.txt; then
     reboot
 fi
 
-e2fsck -f /dev/mmcblk0p3
-resize2fs /dev/mmcblk0p3
-
 mkdir -p /media/root-rw
 mkfs.ext4 /dev/mmcblk0p3
 mount /dev/mmcblk0p3 /media/root-rw
+
+mkdir -p /embassy-os
+mount /dev/mmcblk0p2 /embassy-os
 
 mkdir -p /media/root-rw/config
 mkdir -p /media/root-rw/current
 mkdir -p /media/root-rw/next
 rsync -acvAXUH --info=progress2 /embassy-os/ /media/root-rw/config/
-rsync -acvAXUH --info=progress2 /033-update/ /media/root-rw/current/
-rsync -acvAXUH --info=progress2 /media/root-rw/current/boot/ /media/boot-rw/
+rsync -acvAXUH --info=progress2 /update/ /media/root-rw/current/
+rsync -acvAXUH --info=progress2 /media/root-rw/current/boot/ /boot/
 cp /etc/machine-id /media/root-rw/current/etc/machine-id
 cp /etc/ssh/ssh_host_rsa_key /media/root-rw/current/etc/ssh/ssh_host_rsa_key
 cp /etc/ssh/ssh_host_rsa_key.pub /media/root-rw/current/etc/ssh/ssh_host_rsa_key.pub
@@ -37,7 +37,7 @@ sync
 umount /embassy-os
 umount /media/root-rw
 
-e2label /dev/mmcblk0p1 boot
+fatlabel /dev/mmcblk0p1 boot
 e2label /dev/mmcblk0p3 rootfs
 
 (

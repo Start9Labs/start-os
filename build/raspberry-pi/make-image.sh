@@ -11,12 +11,14 @@ function partition_for () {
 }
 
 TARGET_NAME=embassyos-raspi.img
+TARGET_SIZE=2400000000
 if [ "$LITE_UPGRADE_IMAGE" = "1" ]; then
     TARGET_NAME=lite-upgrade.img
+    TARGET_SIZE=7000000000
 fi
 
 cp raspios.img $TARGET_NAME
-truncate -s 3000000000 $TARGET_NAME
+truncate -s $TARGET_SIZE $TARGET_NAME
 (
     echo d
     echo 2
