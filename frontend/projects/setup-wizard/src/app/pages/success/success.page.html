@@ -66,21 +66,18 @@
                       </div>
                     </ion-footer>
                   </ion-card>
-                  <ion-card id="launch" href="{{ lanAddress }}" target="_blank">
-                    <ion-card-content>
-                      <ion-card-title>Access your Embassy</ion-card-title>
-                      <p>
-                        Launch the website to login to your personal server.
-                      </p>
-                    </ion-card-content>
-                    <ion-footer>
-                      <div class="container">
-                        <div class="inline">
-                          <p>Go to login</p>
-                          <ion-icon name="open-outline"></ion-icon>
-                        </div>
+                  <ion-card
+                    [disabled]="disableLogin"
+                    id="launch"
+                    href="{{ lanAddress }}"
+                    target="_blank"
+                  >
+                    <div class="container">
+                      <div class="inline">
+                        <p>Go to Embassy login</p>
+                        <ion-icon name="open-outline"></ion-icon>
                       </div>
-                    </ion-footer>
+                    </div>
                   </ion-card>
                 </div>
               </ion-col>

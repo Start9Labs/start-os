@@ -42,6 +42,7 @@ export class SuccessPage {
   fadeFactor = 0.07
   columns: any[] = []
   maxStackHeight: any
+  disableLogin = true
 
   constructor(
     @Inject(DOCUMENT) private readonly document: Document,
@@ -119,7 +120,9 @@ export class SuccessPage {
           encodeURIComponent(this.cert),
       )
     let html = this.document.getElementById('downloadable')?.innerHTML || ''
-    this.downloadHtml.download('embassy-info.html', html)
+    this.downloadHtml.download('embassy-info.html', html).then(_ => {
+      this.disableLogin = false
+    })
   }
 
   checkBottom() {
