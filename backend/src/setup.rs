@@ -445,14 +445,23 @@ async fn migrate(
         total_bytes: 110,
         complete: false,
     }));
-    let _ = crate::disk::main::mount_fs(
+
+    let _ = crate::disk::main::import(
         &old_guid,
         "/media/embassy/migrate",
-        "main",
         RepairStrategy::Preen,
         DEFAULT_PASSWORD,
     )
     .await?;
+
+    // let _ = crate::disk::main::mount_fs(
+    //     &old_guid,
+    //     "/media/embassy/migrate",
+    //     "main",
+    //     RepairStrategy::Preen,
+    //     DEFAULT_PASSWORD,
+    // )
+    // .await?;
     let mut main_transfer = Rsync::new(
         "/media/embassy/migrate/main",
         "/embassy-data/main",
@@ -471,15 +480,15 @@ async fn migrate(
         }));
     }
     main_transfer.wait().await?;
-    crate::disk::main::unmount_fs(&old_guid, "/media/embassy/migrate", "main").await?;
-    let _ = crate::disk::main::mount_fs(
-        &old_guid,
-        "/media/embassy/migrate",
-        "package-data",
-        RepairStrategy::Preen,
-        DEFAULT_PASSWORD,
-    )
-    .await?;
+    // crate::disk::main::unmount_fs(&old_guid, "/media/embassy/migrate", "main").await?;
+    // let _ = crate::disk::main::mount_fs(
+    //     &old_guid,
+    //     "/media/embassy/migrate",
+    //     "package-data",
+    //     RepairStrategy::Preen,
+    //     DEFAULT_PASSWORD,
+    // )
+    // .await?;
     let mut package_data_transfer = Rsync::new(
         "/media/embassy/migrate/package-data",
         "/embassy-data/package-data",
@@ -498,7 +507,8 @@ async fn migrate(
         }));
     }
     package_data_transfer.wait().await?;
-    crate::disk::main::unmount_fs(&old_guid, "/media/embassy/migrate", "package-data").await?;
+    crate::disk::main::export(&old_guid, "/media/embassy/migrate").await?;
+    // crate::disk::main::unmount_fs(&old_guid, "/media/embassy/migrate", "package-data").await?;
 
     let (hostname, tor_addr, root_ca) = setup_init(&ctx, Some(embassy_password)).await?;
 
