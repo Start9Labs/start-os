@@ -55,8 +55,6 @@ where
                 .invoke(crate::ErrorKind::DiskManagement)
                 .await?;
         }
-
-        
         tokio::fs::write(disk.as_ref(), &[0; 2048]).await?; // wipe partition table
         Command::new("pvcreate")
             .arg("-yff")
