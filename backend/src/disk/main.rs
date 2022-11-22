@@ -48,19 +48,21 @@ where
         .invoke(crate::ErrorKind::DiskManagement)
         .await?;
     for disk in disks {
-        if pvscan.contains_key(disk.as_ref()) {
-            Command::new("pvremove")
-                .arg("-yff")
-                .arg(disk.as_ref())
-                .invoke(crate::ErrorKind::DiskManagement)
-                .await?;
-        }
-        tokio::fs::write(disk.as_ref(), &[0; 2048]).await?; // wipe partition table
+        dbg!(Command::new("wipefs")
+            .arg("-a")
+            .arg("-f")
+            .arg(disk.as_ref())
+            .invoke(crate::ErrorKind::DiskManagement)
+            .await?);
+
+        //tokio::fs::write(disk.as_ref(), &[0; 2048]).await?; // wipe partition table
         Command::new("pvcreate")
             .arg("-yff")
             .arg(disk.as_ref())
             .invoke(crate::ErrorKind::DiskManagement)
             .await?;
+
+        dbg!(disk.as_ref());
     }
     let guid = format!(
         "EMBASSY_{}",
