@@ -1,15 +1,25 @@
-<ion-card>
-  <any-link link="{{ link }}">
-    <div class="p1">
-      <ion-card-header>
-        <ion-card-title>{{ title }}</ion-card-title>
-      </ion-card-header>
-      <ion-card-content>
-        <ion-icon name="{{ icon }}" style="color: {{ color }}"></ion-icon>
-      </ion-card-content>
-      <ion-footer>
-        {{ description }}
-      </ion-footer>
-    </div>
-  </any-link>
-</ion-card>
+<div
+  class="outer-wrapper"
+  #outerWrapper
+  [ngStyle]="{ height: outerHeight, width: outerWidth }"
+>
+  <div
+    class="inner-wrapper"
+    #innerWrapper
+    [ngStyle]="{ transform: innerTransform }"
+  >
+    <ion-card>
+      <any-link link="{{ link }}">
+        <ion-card-header>
+          <ion-card-title>{{ title }}</ion-card-title>
+        </ion-card-header>
+        <ion-card-content>
+          <ion-icon name="{{ icon }}" style="color: {{ color }}"></ion-icon>
+        </ion-card-content>
+        <ion-footer>
+          <p>{{ description }}</p>
+        </ion-footer>
+      </any-link>
+    </ion-card>
+  </div>
+</div>

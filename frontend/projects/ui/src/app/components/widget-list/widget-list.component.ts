@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  HostListener,
+  Input,
+  ViewChild,
+} from '@angular/core'
 
 @Component({
   selector: 'widget-list',
@@ -7,7 +14,28 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WidgetListComponent {
+  @ViewChild('gridContent') gridContent: ElementRef<HTMLElement> =
+    {} as ElementRef<HTMLElement>
+  @HostListener('window:resize', ['$event'])
+  onResize() {
+    this.setContainerDimensions()
+  }
   constructor() {}
+
+  containerDimensions: Dimension = {} as Dimension
+
+  ngAfterViewInit() {
+    this.setContainerDimensions()
+  }
+
+  setContainerDimensions() {
+    this.containerDimensions.height = (<HTMLElement> (
+      this.gridContent.nativeElement
+    )).getBoundingClientRect().height
+    this.containerDimensions.width = (<HTMLElement> (
+      this.gridContent.nativeElement
+    )).getBoundingClientRect().width
+  }
 
   cards: Card[] = [
     {
@@ -62,4 +90,9 @@ interface Card {
   color: string
   description: string
   link: string
+}
+
+interface Dimension {
+  height: number
+  width: number
 }
