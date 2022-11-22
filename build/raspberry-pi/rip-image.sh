@@ -39,6 +39,14 @@ sudo umount $TMPDIR/target
 
 rm -rf $TMPDIR
 
+sudo e2fsck -f -y update.img
+sudo resize2fs -M update.img
+BLOCK_INFO=$(sudo dumpe2fs update.img)
+BLOCK_COUNT=$(echo "$BLOCK_INFO" | grep "Block count:" | sed 's/Block count:\s\+//g')
+BLOCK_SIZE=$(echo "$BLOCK_INFO" | grep "Block size:" | sed 's/Block size:\s\+//g')
+FS_SIZE=$[$BLOCK_COUNT*$BLOCK_SIZE]
+truncate -s $FS_SIZE update.img
+
 echo "Compressing..."
 if which pv > /dev/null; then
 	cat update.img | pv -s $FS_SIZE | gzip > update.img.gz
