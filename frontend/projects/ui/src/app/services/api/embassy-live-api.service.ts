@@ -19,6 +19,7 @@ import { AuthService } from '../auth.service'
 import { DOCUMENT } from '@angular/common'
 import { DataModel } from '../patch-db/data-model'
 import { PatchDB, pathFromArray, Update } from 'patch-db-client'
+import * as jose from 'node-jose'
 
 @Injectable()
 export class LiveApiService extends ApiService {
@@ -33,6 +34,25 @@ export class LiveApiService extends ApiService {
     ; (window as any).rpcClient = this
   }
 
+  // http
+
+  /**
+   * We want to update the pubkey, which means that we will call in clearnet the
+   * getPubKey, and all the information is never in the clear, and only public
+   * information is sent across the network. We don't want to expose that we do
+   * this wil all public/private key, which means that there is no information loss
+   * through the network.
+   */
+  async getPubKey() {
+    const response: jose.JWK.Key = await this.rpcRequest({
+      method: 'setup.get-pubkey',
+      params: {},
+    })
+
+    this.pubkey = response
+  }
+
+  // for getting static files: ex icons, instructions, licenses
   async getStatic(url: string): Promise<string> {
     return this.httpRequest({
       method: Method.GET,
@@ -41,6 +61,7 @@ export class LiveApiService extends ApiService {
     })
   }
 
+  // for sideloading packages
   async uploadPackage(guid: string, body: ArrayBuffer): Promise<string> {
     return this.httpRequest({
       method: Method.POST,

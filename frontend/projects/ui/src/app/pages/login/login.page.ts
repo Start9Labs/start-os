@@ -22,6 +22,14 @@ export class LoginPage {
     private readonly api: ApiService,
   ) {}
 
+  async ionViewDidEnter() {
+    try {
+      await this.api.getPubKey()
+    } catch (e: any) {
+      this.error = e
+    }
+  }
+
   ngOnDestroy() {
     this.loader?.dismiss()
   }
@@ -45,7 +53,7 @@ export class LoginPage {
         return
       }
       await this.api.login({
-        password: this.password,
+        password: await this.api.encrypt(this.password),
         metadata: { platforms: getPlatforms() },
       })
 
