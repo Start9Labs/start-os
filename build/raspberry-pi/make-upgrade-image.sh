@@ -40,3 +40,8 @@ sudo umount $TMPDIR/target
 
 sudo e2fsck -f -y $TARGET_NAME
 sudo resize2fs -M $TARGET_NAME
+BLOCK_INFO=$(sudo dumpe2fs $TARGET_NAME)
+BLOCK_COUNT=$(echo "$BLOCK_INFO" | grep "Block count:" | sed 's/Block count:\s\+//g')
+BLOCK_SIZE=$(echo "$BLOCK_INFO" | grep "Block size:" | sed 's/Block size:\s\+//g')
+FS_SIZE=$[$BLOCK_COUNT*$BLOCK_SIZE]
+truncate -s $FS_SIZE $TARGET_NAME
