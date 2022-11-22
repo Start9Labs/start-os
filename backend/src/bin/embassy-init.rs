@@ -234,8 +234,7 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
     res
 }
 
-#[tokio::main]
-async fn main() {
+fn main() {
     let matches = clap::App::new("embassy-init")
         .arg(
             clap::Arg::with_name("config")
@@ -248,7 +247,13 @@ async fn main() {
     EmbassyLogger::init();
 
     let cfg_path = matches.value_of("config").map(|p| Path::new(p).to_owned());
-    let res = inner_main(cfg_path).await;
+    let res = {
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .expect("failed to initialize runtime");
+        rt.block_on(inner_main(cfg_path))
+    };
 
     match res {
         Ok(Some(shutdown)) => shutdown.execute(),
