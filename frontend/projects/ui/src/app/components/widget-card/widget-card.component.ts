@@ -19,6 +19,7 @@ export class WidgetCardComponent {
   @Input() color: string = ''
   @Input() description: string = ''
   @Input() link: string = ''
+  @Input() qp?: Record<string, string>
   @Input() containerDimensions: any
   @ViewChild('outerWrapper') outerWrapper: ElementRef<HTMLElement> =
     {} as ElementRef<HTMLElement>

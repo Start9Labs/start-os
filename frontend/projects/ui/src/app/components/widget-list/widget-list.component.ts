@@ -3,7 +3,6 @@ import {
   Component,
   ElementRef,
   HostListener,
-  Input,
   ViewChild,
 } from '@angular/core'
 
@@ -43,7 +42,8 @@ export class WidgetListComponent {
       icon: 'storefront-outline',
       color: 'var(--alt-blue)',
       description: 'Shop for your favorite open source services',
-      link: '/marketplace/browse',
+      link: '/marketplace',
+      qp: { back: 'true' },
     },
     {
       title: 'LAN Setup',
@@ -90,6 +90,7 @@ interface Card {
   color: string
   description: string
   link: string
+  qp?: Record<string, string>
 }
 
 interface Dimension {

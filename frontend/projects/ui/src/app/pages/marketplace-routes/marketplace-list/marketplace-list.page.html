@@ -1,5 +1,8 @@
 <ion-header>
   <ion-toolbar>
+    <ion-buttons slot="start" *ngIf="back">
+      <ion-back-button></ion-back-button>
+    </ion-buttons>
     <ion-title>Marketplace</ion-title>
     <ion-buttons slot="end">
       <badge-menu-button></badge-menu-button>
