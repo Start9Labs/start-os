@@ -64,7 +64,7 @@ embassyos-raspi.img: all raspios.img cargo-deps/aarch64-unknown-linux-gnu/releas
 
 lite-upgrade.img: raspios.img cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast $(BUILD_SRC) update.img
 	! test -f lite-upgrade.img || rm lite-upgrade.img
-	LITE_UPGRADE_IMAGE=1 ./build/raspberry-pi/make-image.sh
+	./build/raspberry-pi/make-upgrade-image.sh
 
 # For creating os images. DO NOT USE
 install: all

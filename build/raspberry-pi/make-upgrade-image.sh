@@ -10,14 +10,23 @@ function partition_for () {
     fi
 }
 
-# Mount the boot partition and config
+TARGET_NAME=lite-upgrade.img
+TARGET_SIZE=7000000000
+
+LOOPDEV=$(sudo losetup --show -fP raspios.img)
+sudo cat `partition_for ${LOOPDEV} 2` > $TARGET_NAME
+sudo losetup -d $LOOPDEV
+truncate -s $TARGET_SIZE $TARGET_NAME
+sudo e2fsck -f -y $TARGET_NAME
+sudo resize2fs $TARGET_NAME
+
 TMPDIR=$(mktemp -d)
 mkdir $TMPDIR/target
 mkdir $TMPDIR/source
 
 sudo mount update.img $TMPDIR/source
 
-sudo mount `partition_for ${OUTPUT_DEVICE} 2` $TMPDIR/target
+sudo mount $TARGET_NAME $TMPDIR/target
 
 sudo mkdir -p $TMPDIR/target/update
 sudo rsync -acvAXH $TMPDIR/source/ $TMPDIR/target/update/
@@ -28,3 +37,6 @@ sudo cp ./build/raspberry-pi/nc-broadcast.service $TMPDIR/target/etc/systemd/sys
 sudo ln -s /etc/systemd/system/nc-broadcast.service $TMPDIR/target/etc/systemd/system/multi-user.target.wants/nc-broadcast.service
 
 sudo umount $TMPDIR/target
+
+sudo e2fsck -f -y $TARGET_NAME
+sudo resize2fs -M $TARGET_NAME

@@ -12,10 +12,6 @@ function partition_for () {
 
 TARGET_NAME=embassyos-raspi.img
 TARGET_SIZE=2400000000
-if [ "$LITE_UPGRADE_IMAGE" = "1" ]; then
-    TARGET_NAME=lite-upgrade.img
-    TARGET_SIZE=7000000000
-fi
 
 cp raspios.img $TARGET_NAME
 truncate -s $TARGET_SIZE $TARGET_NAME
@@ -32,11 +28,7 @@ truncate -s $TARGET_SIZE $TARGET_NAME
 export OUTPUT_DEVICE=$(sudo losetup --show -fP $TARGET_NAME)
 sudo e2fsck -f -y `partition_for ${OUTPUT_DEVICE} 2`
 sudo resize2fs `partition_for ${OUTPUT_DEVICE} 2`
-if [ "$LITE_UPGRADE_IMAGE" = "1" ]; then
-    ./build/raspberry-pi/write-lite-upgrade-image.sh
-else
-    ./build/raspberry-pi/write-image.sh
-fi
+./build/raspberry-pi/write-image.sh
 sudo e2fsck -f -y `partition_for ${OUTPUT_DEVICE} 2`
 sudo resize2fs -M `partition_for ${OUTPUT_DEVICE} 2`
 sudo losetup -d $OUTPUT_DEVICE
