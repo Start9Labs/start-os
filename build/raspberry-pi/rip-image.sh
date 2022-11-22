@@ -20,7 +20,10 @@ fi
 mkdir -p $TMPDIR/source
 mkdir -p $TMPDIR/target
 
+rm -f update.img
 truncate -s 5000000000 update.img
+mkfs.ext4 update.img
+e2label update.img rootfs
 sudo mount update.img $TMPDIR/target/
 
 sudo mount $ROOT_PARTITION $TMPDIR/source/
