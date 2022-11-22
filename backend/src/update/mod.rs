@@ -81,18 +81,20 @@ async fn maybe_do_update(
     marketplace_url: Url,
 ) -> Result<Option<Arc<Revision>>, Error> {
     let mut db = ctx.db.handle();
-    let latest_version = reqwest::get(format!(
-        "{}/eos/v0/latest?eos-version={}&arch={}",
-        marketplace_url,
-        Current::new().semver(),
-        &*crate::ARCH,
-    ))
-    .await
-    .with_kind(ErrorKind::Network)?
-    .json::<LatestInformation>()
-    .await
-    .with_kind(ErrorKind::Network)?
-    .version;
+    let latest_version: Version = "0.3.3.1".parse().unwrap();
+
+    // reqwest::get(format!(
+    //     "{}/eos/v0/latest?eos-version={}&arch={}",
+    //     marketplace_url,
+    //     Current::new().semver(),
+    //     &*crate::ARCH,
+    // ))
+    // .await
+    // .with_kind(ErrorKind::Network)?
+    // .json::<LatestInformation>()
+    // .await
+    // .with_kind(ErrorKind::Network)?
+    // .version;
     crate::db::DatabaseModel::new()
         .server_info()
         .lock(&mut db, LockType::Write)
