@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  HostListener,
+  ViewChild,
+} from '@angular/core'
+import { Card, Dimension } from '../widget-card/widget-card.component'
 
 @Component({
   selector: 'widget-list',
@@ -7,7 +14,27 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WidgetListComponent {
-  constructor() {}
+  @ViewChild('gridContent') gridContent: ElementRef<HTMLElement> =
+    {} as ElementRef<HTMLElement>
+  @HostListener('window:resize', ['$event'])
+  onResize() {
+    this.setContainerDimensions()
+  }
+
+  containerDimensions: Dimension = {} as Dimension
+
+  ngAfterViewInit() {
+    this.setContainerDimensions()
+  }
+
+  setContainerDimensions() {
+    this.containerDimensions.height = (<HTMLElement> (
+      this.gridContent.nativeElement
+    )).getBoundingClientRect().height
+    this.containerDimensions.width = (<HTMLElement> (
+      this.gridContent.nativeElement
+    )).getBoundingClientRect().width
+  }
 
   cards: Card[] = [
     {
@@ -15,7 +42,8 @@ export class WidgetListComponent {
       icon: 'storefront-outline',
       color: 'var(--alt-blue)',
       description: 'Shop for your favorite open source services',
-      link: '/marketplace/browse',
+      link: '/marketplace',
+      qp: { back: 'true' },
     },
     {
       title: 'LAN Setup',
@@ -23,21 +51,21 @@ export class WidgetListComponent {
       color: 'var(--alt-orange)',
       description:
         'Install your Embassy certificate for a secure local connection',
-      link: '/settings/lan',
+      link: '/system/lan',
     },
     {
       title: 'Create Backup',
       icon: 'duplicate-outline',
       color: 'var(--alt-purple)',
       description: 'Back up your Embassy and service data',
-      link: '/settings/backup',
+      link: '/system/backup',
     },
     {
       title: 'Embassy Info',
       icon: 'information-circle-outline',
       color: 'var(--alt-green)',
       description: 'View basic information about your Embassy',
-      link: '/settings/specs',
+      link: '/system/specs',
     },
     {
       title: 'User Manual',
@@ -54,12 +82,4 @@ export class WidgetListComponent {
       link: 'https://docs.start9.com/latest/support/contact',
     },
   ]
-}
-
-interface Card {
-  title: string
-  icon: string
-  color: string
-  description: string
-  link: string
 }

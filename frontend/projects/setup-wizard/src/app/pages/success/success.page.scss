@@ -17,9 +17,8 @@ ion-content {
 }
 
 ion-grid {
-  padding-top: 2rem;
   max-width: 760px;
-  margin: auto;
+  height: 100%;
 }
 
 .grid-center-wrapper {
@@ -47,6 +46,7 @@ ion-card {
 
   ion-card {
     max-width: 91%;
+    min-width: 91%;
     background: #615F5F;
     color: var(--ion-text-color);
     box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
@@ -78,14 +78,6 @@ ion-card {
       }
     }
 
-    p {
-      a {
-        text-decoration: none;
-        font-weight: bold;
-        color: var(--ion-text-color);
-      }
-    }
-
     ion-footer {
       position: absolute;
       bottom: 10px;
@@ -101,12 +93,6 @@ ion-card {
       ion-icon {
         font-size: 1.6rem;
       }
-
-      .container {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-      }
     }
 
     .footer-md::before {
@@ -114,21 +100,31 @@ ion-card {
     }
   }
 
-  #launch:after {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 80%;
-    width: 100%;
-    height: 100%;
+  .container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  #launch {
     background: var(--alt-blue);
+    height: 100%;
+    
+    .container p {
+      font-size: 1.4rem !important;
+      font-weight: bold;
+    }
+
+    ion-icon {
+      font-size: 1.7rem;
+    }
   }
   
   #information:after {
     content: '';
     position: absolute;
     left: 0;
-    top: 77%;
+    top: 80%;
     width: 100%;
     height: 100%;
     background: var(--color-accent);

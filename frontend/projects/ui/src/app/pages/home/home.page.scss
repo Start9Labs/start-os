@@ -1,0 +1,9 @@
+.padding-top {
+  padding-top: 2rem;
+}
+
+@media (min-width: 2000px) {
+  .padding-top {
+    padding-top: 10rem;
+  }
+}

@@ -40,6 +40,10 @@ export class LoginPage {
 
     try {
       document.cookie = ''
+      if (this.password.length > 64) {
+        this.error = 'Password must be less than 65 characters'
+        return
+      }
       await this.api.login({
         password: this.password,
         metadata: { platforms: getPlatforms() },

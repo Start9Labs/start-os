@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
+import { ActivatedRoute } from '@angular/router'
 import { ModalController } from '@ionic/angular'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { PatchDB } from 'patch-db-client'
@@ -15,6 +16,8 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MarketplaceListPage {
+  readonly back = !!this.route.snapshot.queryParamMap.get('back')
+
   readonly store$ = this.marketplaceService.getSelectedStore$().pipe(
     filter(Boolean),
     map(({ info, packages }) => {
@@ -73,6 +76,7 @@ export class MarketplaceListPage {
     private readonly marketplaceService: MarketplaceService,
     private readonly modalCtrl: ModalController,
     private readonly config: ConfigService,
+    private readonly route: ActivatedRoute,
   ) {}
 
   category = 'featured'

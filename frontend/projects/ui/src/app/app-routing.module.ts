@@ -22,7 +22,7 @@ const routes: Routes = [
       import('./pages/home/home.module').then(m => m.HomePageModule),
   },
   {
-    path: 'settings',
+    path: 'system',
     canActivate: [AuthGuard],
     canActivateChild: [AuthGuard],
     loadChildren: () =>
