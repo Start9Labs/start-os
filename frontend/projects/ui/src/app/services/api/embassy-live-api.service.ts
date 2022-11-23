@@ -19,7 +19,6 @@ import { AuthService } from '../auth.service'
 import { DOCUMENT } from '@angular/common'
 import { DataModel } from '../patch-db/data-model'
 import { PatchDB, pathFromArray, Update } from 'patch-db-client'
-import * as jose from 'node-jose'
 
 @Injectable()
 export class LiveApiService extends ApiService {
@@ -72,12 +71,10 @@ export class LiveApiService extends ApiService {
    * information is sent across the network.
    */
   async getPubKey() {
-    const response: jose.JWK.Key = await this.rpcRequest({
+    this.pubkey = await this.rpcRequest({
       method: 'auth.get-pubkey',
       params: {},
     })
-
-    this.pubkey = response
   }
 
   async login(params: RR.LoginReq): Promise<RR.loginRes> {
