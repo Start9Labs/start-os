@@ -9,11 +9,7 @@
         class="ion-align-self-center"
       >
         <widget-card
-          title="{{ card.title }}"
-          icon="{{ card.icon }}"
-          color="{{ card.color }}"
-          description="{{ card.description }}"
-          link="{{ card.link }}"
+          [cardDetails]="card"
           [qp]="card.qp"
           [containerDimensions]="containerDimensions"
         ></widget-card>

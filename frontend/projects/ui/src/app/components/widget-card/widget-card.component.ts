@@ -14,11 +14,7 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WidgetCardComponent {
-  @Input() title: string = ''
-  @Input() icon: string = ''
-  @Input() color: string = ''
-  @Input() description: string = ''
-  @Input() link: string = ''
+  @Input() cardDetails!: Card
   @Input() qp?: Record<string, string>
   @Input() containerDimensions: any
   @ViewChild('outerWrapper') outerWrapper: ElementRef<HTMLElement> =
@@ -61,4 +57,12 @@ export class WidgetCardComponent {
 interface Dimension {
   height: number
   width: number
+}
+
+interface Card {
+  title: string
+  icon: string
+  color: string
+  description: string
+  link: string
 }

@@ -9,15 +9,18 @@
     [ngStyle]="{ transform: innerTransform }"
   >
     <ion-card>
-      <any-link link="{{ link }}" [qp]="qp">
+      <any-link link="{{ cardDetails.link }}" [qp]="qp">
         <ion-card-header>
-          <ion-card-title>{{ title }}</ion-card-title>
+          <ion-card-title>{{ cardDetails.title }}</ion-card-title>
         </ion-card-header>
         <ion-card-content>
-          <ion-icon name="{{ icon }}" style="color: {{ color }}"></ion-icon>
+          <ion-icon
+            name="{{ cardDetails.icon }}"
+            style="color: {{ cardDetails.color }}"
+          ></ion-icon>
         </ion-card-content>
         <ion-footer>
-          <p>{{ description }}</p>
+          <p>{{ cardDetails.description }}</p>
         </ion-footer>
       </any-link>
     </ion-card>

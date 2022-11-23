@@ -51,21 +51,21 @@ export class WidgetListComponent {
       color: 'var(--alt-orange)',
       description:
         'Install your Embassy certificate for a secure local connection',
-      link: '/settings/lan',
+      link: '/system/lan',
     },
     {
       title: 'Create Backup',
       icon: 'duplicate-outline',
       color: 'var(--alt-purple)',
       description: 'Back up your Embassy and service data',
-      link: '/settings/backup',
+      link: '/system/backup',
     },
     {
       title: 'Embassy Info',
       icon: 'information-circle-outline',
       color: 'var(--alt-green)',
       description: 'View basic information about your Embassy',
-      link: '/settings/specs',
+      link: '/system/specs',
     },
     {
       title: 'User Manual',
