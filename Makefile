@@ -3,7 +3,8 @@ ENVIRONMENT_FILE = $(shell ./check-environment.sh)
 GIT_HASH_FILE = $(shell ./check-git-hash.sh)
 EMBASSY_BINS := backend/target/$(ARCH)-unknown-linux-gnu/release/embassyd backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-init backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-cli backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-sdk backend/target/$(ARCH)-unknown-linux-gnu/release/avahi-alias libs/target/aarch64-unknown-linux-musl/release/embassy_container_init libs/target/x86_64-unknown-linux-musl/release/embassy_container_init
 EMBASSY_UIS := frontend/dist/ui frontend/dist/setup-wizard frontend/dist/diagnostic-ui frontend/dist/install-wizard
-EMBASSY_SRC := backend/embassyd.service backend/embassy-init.service $(EMBASSY_UIS) $(shell find build)
+BUILD_SRC := $(shell find build)
+EMBASSY_SRC := backend/embassyd.service backend/embassy-init.service $(EMBASSY_UIS) $(BUILD_SRC)
 COMPAT_SRC := $(shell find system-images/compat/ -not -path 'system-images/compat/target/*' -and -not -name *.tar -and -not -name target)
 UTILS_SRC := $(shell find system-images/utils/ -not -name *.tar)
 BINFMT_SRC := $(shell find system-images/binfmt/ -not -name *.tar)
@@ -60,6 +61,10 @@ sdk:
 embassyos-raspi.img: all raspios.img cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast
 	! test -f embassyos-raspi.img || rm embassyos-raspi.img
 	./build/raspberry-pi/make-image.sh
+
+lite-upgrade.img: raspios.img cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast $(BUILD_SRC) update.img
+	! test -f lite-upgrade.img || rm lite-upgrade.img
+	./build/raspberry-pi/make-upgrade-image.sh
 
 # For creating os images. DO NOT USE
 install: all
