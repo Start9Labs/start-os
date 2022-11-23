@@ -440,6 +440,7 @@ async fn migrate(
     old_guid: &str,
     embassy_password: String,
 ) -> Result<(Arc<String>, Hostname, OnionAddressV3, X509), Error> {
+    use crate::util::Invoke;
     *ctx.setup_status.write().await = Some(Ok(SetupStatus {
         bytes_transferred: 0,
         total_bytes: 110,
@@ -454,17 +455,9 @@ async fn migrate(
     )
     .await?;
 
-    // let _ = crate::disk::main::mount_fs(
-    //     &old_guid,
-    //     "/media/embassy/migrate",
-    //     "main",
-    //     RepairStrategy::Preen,
-    //     DEFAULT_PASSWORD,
-    // )
-    // .await?;
     let mut main_transfer = Rsync::new(
-        "/media/embassy/migrate/main",
-        "/embassy-data/main",
+        "/media/embassy/migrate/main/",
+        "/embassy-data/main/",
         RsyncOptions {
             delete: true,
             force: true,
@@ -480,18 +473,10 @@ async fn migrate(
         }));
     }
     main_transfer.wait().await?;
-    // crate::disk::main::unmount_fs(&old_guid, "/media/embassy/migrate", "main").await?;
-    // let _ = crate::disk::main::mount_fs(
-    //     &old_guid,
-    //     "/media/embassy/migrate",
-    //     "package-data",
-    //     RepairStrategy::Preen,
-    //     DEFAULT_PASSWORD,
-    // )
-    // .await?;
+
     let mut package_data_transfer = Rsync::new(
-        "/media/embassy/migrate/package-data",
-        "/embassy-data/package-data",
+        "/media/embassy/migrate/package-data/",
+        "/embassy-data/package-data/",
         RsyncOptions {
             delete: true,
             force: true,
@@ -507,10 +492,9 @@ async fn migrate(
         }));
     }
     package_data_transfer.wait().await?;
-    crate::disk::main::export(&old_guid, "/media/embassy/migrate").await?;
-    // crate::disk::main::unmount_fs(&old_guid, "/media/embassy/migrate", "package-data").await?;
-
     let (hostname, tor_addr, root_ca) = setup_init(&ctx, Some(embassy_password)).await?;
+
+    crate::disk::main::export(&old_guid, "/media/embassy/migrate").await?;
 
     Ok((guid, hostname, tor_addr, root_ca))
 }
