@@ -38,9 +38,9 @@ export class MenuComponent {
       icon: 'notifications-outline',
     },
     {
-      title: 'System Settings',
-      url: '/settings',
-      icon: 'settings-outline',
+      title: 'System',
+      url: '/system',
+      icon: 'construct-outline',
     },
   ]
 
