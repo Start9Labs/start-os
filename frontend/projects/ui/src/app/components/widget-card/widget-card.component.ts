@@ -15,8 +15,7 @@ import {
 })
 export class WidgetCardComponent {
   @Input() cardDetails!: Card
-  @Input() qp?: Record<string, string>
-  @Input() containerDimensions: any
+  @Input() containerDimensions!: Dimension
   @ViewChild('outerWrapper') outerWrapper: ElementRef<HTMLElement> =
     {} as ElementRef<HTMLElement>
   @ViewChild('innerWrapper') innerWrapper: ElementRef<HTMLElement> =
@@ -54,15 +53,16 @@ export class WidgetCardComponent {
   }
 }
 
-interface Dimension {
+export interface Dimension {
   height: number
   width: number
 }
 
-interface Card {
+export interface Card {
   title: string
   icon: string
   color: string
   description: string
   link: string
+  qp?: Record<string, string>
 }

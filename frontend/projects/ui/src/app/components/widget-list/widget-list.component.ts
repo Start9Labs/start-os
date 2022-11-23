@@ -5,6 +5,7 @@ import {
   HostListener,
   ViewChild,
 } from '@angular/core'
+import { Card, Dimension } from '../widget-card/widget-card.component'
 
 @Component({
   selector: 'widget-list',
@@ -19,7 +20,6 @@ export class WidgetListComponent {
   onResize() {
     this.setContainerDimensions()
   }
-  constructor() {}
 
   containerDimensions: Dimension = {} as Dimension
 
@@ -82,18 +82,4 @@ export class WidgetListComponent {
       link: 'https://docs.start9.com/latest/support/contact',
     },
   ]
-}
-
-interface Card {
-  title: string
-  icon: string
-  color: string
-  description: string
-  link: string
-  qp?: Record<string, string>
-}
-
-interface Dimension {
-  height: number
-  width: number
 }
