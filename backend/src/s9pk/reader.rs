@@ -232,6 +232,15 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
         )?;
 
         if man.containers.is_some()
+            || matches!(man.main, crate::procedure::PackageProcedure::Script(_))
+        {
+            return Err(Error::new(
+                eyre!("Right now we don't support the containers and the long running main"),
+                crate::ErrorKind::ValidateS9pk,
+            ));
+        }
+
+        if man.containers.is_some()
             && matches!(man.main, crate::procedure::PackageProcedure::Docker(_))
         {
             return Err(Error::new(
