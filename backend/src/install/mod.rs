@@ -63,7 +63,7 @@ pub async fn list(#[context] ctx: RpcContext) -> Result<Vec<(PackageId, Version)
     let mut hdl = ctx.db.handle();
     let package_data = crate::db::DatabaseModel::new()
         .package_data()
-        .get(&mut hdl, true)
+        .get(&mut hdl)
         .await?;
 
     Ok(package_data
@@ -879,7 +879,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             .package_data()
             .idx_model(dep)
             .map::<_, Manifest>(|pde| pde.manifest())
-            .get(&mut ctx.db.handle(), false)
+            .get(&mut ctx.db.handle())
             .await?
             .into_owned()
         {
@@ -1119,7 +1119,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         let mut deps = BTreeMap::new();
         for package in crate::db::DatabaseModel::new()
             .package_data()
-            .keys(&mut tx, true)
+            .keys(&mut tx)
             .await?
         {
             // update dependency_info on dependents
@@ -1153,7 +1153,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
                 .await?
                 .installed()
                 .and_then(|i| i.current_dependencies().idx_model(pkg_id))
-                .get(&mut tx, true)
+                .get(&mut tx)
                 .await?
                 .to_owned()
             {
