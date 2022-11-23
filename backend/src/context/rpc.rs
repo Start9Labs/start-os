@@ -8,6 +8,7 @@ use std::time::Duration;
 
 use bollard::Docker;
 use helpers::to_tmp_path;
+use josekit::jwk::Jwk;
 use patch_db::json_ptr::JsonPointer;
 use patch_db::{DbHandle, LockReceipt, LockType, PatchDb, Revision};
 use reqwest::Url;
@@ -35,6 +36,8 @@ use crate::shutdown::Shutdown;
 use crate::status::{MainStatus, Status};
 use crate::util::config::load_config_from_paths;
 use crate::{Error, ErrorKind, ResultExt};
+
+use super::setup::CURRENT_SECRET;
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -134,6 +137,7 @@ pub struct RpcContextSeed {
     pub open_authed_websockets: Mutex<BTreeMap<HashSessionToken, Vec<oneshot::Sender<()>>>>,
     pub rpc_stream_continuations: Mutex<BTreeMap<RequestGuid, RpcContinuation>>,
     pub wifi_manager: Option<Arc<RwLock<WpaCli>>>,
+    pub current_secret: Arc<Jwk>,
 }
 
 pub struct RpcCleanReceipts {
@@ -269,6 +273,16 @@ impl RpcContext {
             wifi_manager: base
                 .wifi_interface
                 .map(|i| Arc::new(RwLock::new(WpaCli::init(i)))),
+            current_secret: Arc::new(
+                Jwk::generate_ec_key(josekit::jwk::alg::ec::EcCurve::P256).map_err(|e| {
+                    tracing::debug!("{:?}", e);
+                    tracing::error!("Couldn't generate ec key");
+                    Error::new(
+                        color_eyre::eyre::eyre!("Couldn't generate ec key"),
+                        crate::ErrorKind::Unknown,
+                    )
+                })?,
+            ),
         });
 
         let res = Self(seed);
@@ -422,6 +436,11 @@ impl RpcContext {
         } else {
             None
         }
+    }
+}
+impl AsRef<Jwk> for RpcContext {
+    fn as_ref(&self) -> &Jwk {
+        &*CURRENT_SECRET
     }
 }
 impl Context for RpcContext {}

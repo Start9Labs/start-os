@@ -4,6 +4,7 @@ use std::marker::PhantomData;
 use chrono::{DateTime, Utc};
 use clap::ArgMatches;
 use color_eyre::eyre::eyre;
+use josekit::jwk::Jwk;
 use patch_db::{DbHandle, LockReceipt};
 use rpc_toolkit::command;
 use rpc_toolkit::command_helpers::prelude::{RequestParts, ResponseParts};
@@ -15,11 +16,53 @@ use tracing::instrument;
 
 use crate::context::{CliContext, RpcContext};
 use crate::middleware::auth::{AsLogoutSessionId, HasLoggedOutSessions, HashSessionToken};
+use crate::middleware::encrypt::EncryptedWire;
 use crate::util::display_none;
 use crate::util::serde::{display_serializable, IoFormat};
 use crate::{ensure_code, Error, ResultExt};
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum PasswordType {
+    EncryptedWire(EncryptedWire),
+    String(String),
+}
+impl PasswordType {
+    pub fn decrypt(self, current_secret: impl AsRef<Jwk>) -> Result<String, Error> {
+        match self {
+            PasswordType::String(x) => Ok(x),
+            PasswordType::EncryptedWire(x) => x.decrypt(current_secret).ok_or_else(|| {
+                Error::new(
+                    color_eyre::eyre::eyre!("Couldn't decode password"),
+                    crate::ErrorKind::Unknown,
+                )
+            }),
+        }
+    }
+}
+impl Default for PasswordType {
+    fn default() -> Self {
+        PasswordType::String(String::default())
+    }
+}
+impl std::fmt::Debug for PasswordType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "<REDACTED_PASSWORD>")?;
+        Ok(())
+    }
+}
 
-#[command(subcommands(login, logout, session, reset_password))]
+impl std::str::FromStr for PasswordType {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match serde_json::from_str(s) {
+            Ok(a) => a,
+            Err(_) => PasswordType::String(s.to_string()),
+        })
+    }
+}
+
+#[command(subcommands(login, logout, session, reset_password, get_pubkey))]
 pub fn auth() -> Result<(), Error> {
     Ok(())
 }
@@ -50,11 +93,11 @@ fn gen_pwd() {
 #[instrument(skip(ctx, password))]
 async fn cli_login(
     ctx: CliContext,
-    password: Option<String>,
+    password: Option<PasswordType>,
     metadata: Value,
 ) -> Result<(), RpcError> {
     let password = if let Some(password) = password {
-        password
+        password.decrypt(&ctx)?
     } else {
         rpassword::prompt_password("Password: ")?
     };
@@ -107,7 +150,7 @@ pub async fn login(
     #[context] ctx: RpcContext,
     #[request] req: &RequestParts,
     #[response] res: &mut ResponseParts,
-    #[arg] password: Option<String>,
+    #[arg] password: Option<PasswordType>,
     #[arg(
         parse(parse_metadata),
         default = "cli_metadata",
@@ -115,7 +158,7 @@ pub async fn login(
     )]
     metadata: Value,
 ) -> Result<(), Error> {
-    let password = password.unwrap_or_default();
+    let password = password.unwrap_or_default().decrypt(&ctx)?;
     let mut handle = ctx.secret_store.acquire().await?;
     check_password_against_db(&mut handle, &password).await?;
 
@@ -265,17 +308,17 @@ pub async fn kill(
 #[instrument(skip(ctx, old_password, new_password))]
 async fn cli_reset_password(
     ctx: CliContext,
-    old_password: Option<String>,
-    new_password: Option<String>,
+    old_password: Option<PasswordType>,
+    new_password: Option<PasswordType>,
 ) -> Result<(), RpcError> {
     let old_password = if let Some(old_password) = old_password {
-        old_password
+        old_password.decrypt(&ctx)?
     } else {
         rpassword::prompt_password("Current Password: ")?
     };
 
     let new_password = if let Some(new_password) = new_password {
-        new_password
+        new_password.decrypt(&ctx)?
     } else {
         let new_password = rpassword::prompt_password("New Password: ")?;
         if new_password != rpassword::prompt_password("Confirm: ")? {
@@ -354,11 +397,11 @@ where
 #[instrument(skip(ctx, old_password, new_password))]
 pub async fn reset_password(
     #[context] ctx: RpcContext,
-    #[arg(rename = "old-password")] old_password: Option<String>,
-    #[arg(rename = "new-password")] new_password: Option<String>,
+    #[arg(rename = "old-password")] old_password: Option<PasswordType>,
+    #[arg(rename = "new-password")] new_password: Option<PasswordType>,
 ) -> Result<(), Error> {
-    let old_password = old_password.unwrap_or_default();
-    let new_password = new_password.unwrap_or_default();
+    let old_password = old_password.unwrap_or_default().decrypt(&ctx)?;
+    let new_password = new_password.unwrap_or_default().decrypt(&ctx)?;
 
     let mut secrets = ctx.secret_store.acquire().await?;
     check_password_against_db(&mut secrets, &old_password).await?;
@@ -370,4 +413,12 @@ pub async fn reset_password(
     set_password(&mut db, &set_password_receipt, &mut secrets, &new_password).await?;
 
     Ok(())
+}
+
+#[command(rename = "get-pubkey", display(display_none))]
+#[instrument(skip(ctx))]
+pub async fn get_pubkey(#[context] ctx: RpcContext) -> Result<Jwk, RpcError> {
+    let secret = ctx.as_ref().clone();
+    let pub_key = secret.to_public_key()?;
+    Ok(pub_key)
 }
