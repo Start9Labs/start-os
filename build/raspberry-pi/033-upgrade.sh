@@ -6,7 +6,7 @@ if grep 'cb15ae4d-03' /boot/cmdline.txt; then
     BLOCK_COUNT=$(tune2fs -l /dev/mmcblk0p3 | grep "^Block count:" | awk '{print $3}')
     BLOCK_SIZE=$(tune2fs -l /dev/mmcblk0p3 | grep "^Block size:" | awk '{print $3}')
     cat /dev/mmcblk0p3 | head -c $[$BLOCK_COUNT * $BLOCK_SIZE] > /dev/mmcblk0p4
-    sed -i 's/PARTUUID=cb15ae4d-03/PARTUUID=cb15ae4d-04/g' /media/boot-rw/cmdline.txt
+    sed -i 's/PARTUUID=cb15ae4d-03/PARTUUID=cb15ae4d-04/g' /boot/cmdline.txt
     sync
     reboot
 fi
