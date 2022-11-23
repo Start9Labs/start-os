@@ -4,11 +4,7 @@ import { Routes, RouterModule } from '@angular/router'
 const routes: Routes = [
   {
     path: '',
-    redirectTo: 'browse',
     pathMatch: 'full',
-  },
-  {
-    path: 'browse',
     loadChildren: () =>
       import('./marketplace-list/marketplace-list.module').then(
         m => m.MarketplaceListPageModule,

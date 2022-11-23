@@ -1,17 +1,18 @@
-<ion-grid>
-  <ion-row class="ion-justify-content-center ion-align-items-center">
-    <ion-col
-      *ngFor="let card of cards"
-      size="auto"
-      class="ion-align-self-center"
-    >
-      <widget-card
-        title="{{ card.title }}"
-        icon="{{ card.icon }}"
-        color="{{ card.color }}"
-        description="{{ card.description }}"
-        link="{{ card.link }}"
-      ></widget-card>
-    </ion-col>
-  </ion-row>
-</ion-grid>
+<div #gridContent>
+  <ion-grid>
+    <ion-row class="ion-justify-content-center ion-align-items-center">
+      <ion-col
+        *ngFor="let card of cards"
+        sizeLg="4"
+        sizeSm="6"
+        sizeXs="12"
+        class="ion-align-self-center"
+      >
+        <widget-card
+          [cardDetails]="card"
+          [containerDimensions]="containerDimensions"
+        ></widget-card>
+      </ion-col>
+    </ion-row>
+  </ion-grid>
+</div>

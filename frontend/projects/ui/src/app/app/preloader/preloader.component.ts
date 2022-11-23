@@ -54,6 +54,7 @@ const ICONS = [
   'newspaper-outline',
   'notifications-outline',
   'open-outline',
+  'options-outline',
   'pencil',
   'phone-portrait-outline',
   'play-circle-outline',

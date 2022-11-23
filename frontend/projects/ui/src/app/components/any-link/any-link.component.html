@@ -11,7 +11,7 @@
   <ng-container *ngTemplateOutlet="content"></ng-container>
 </a>
 <ng-template #internal>
-  <a [routerLink]="link">
+  <a [routerLink]="link" [queryParams]="qp">
     <ng-container *ngTemplateOutlet="content"></ng-container>
   </a>
 </ng-template>
