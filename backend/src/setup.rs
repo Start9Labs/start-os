@@ -197,7 +197,7 @@ pub async fn status(#[context] ctx: SetupContext) -> Result<Option<SetupStatus>,
 /// since it is fine to share the public, and encrypt against the public.
 #[command(rename = "get-pubkey", rpc_only, metadata(authenticated = false))]
 pub async fn get_pubkey(#[context] ctx: SetupContext) -> Result<Jwk, RpcError> {
-    let secret = ctx.current_secret.clone();
+    let secret = ctx.as_ref().clone();
     let pub_key = secret.to_public_key()?;
     Ok(pub_key)
 }

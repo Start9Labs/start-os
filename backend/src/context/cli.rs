@@ -7,6 +7,7 @@ use std::sync::Arc;
 use clap::ArgMatches;
 use color_eyre::eyre::eyre;
 use cookie_store::CookieStore;
+use josekit::jwk::Jwk;
 use reqwest::Proxy;
 use reqwest_cookie_store::CookieStoreMutex;
 use rpc_toolkit::reqwest::{Client, Url};
@@ -17,6 +18,8 @@ use tracing::instrument;
 
 use crate::util::config::{load_config_from_paths, local_config_path};
 use crate::ResultExt;
+
+use super::setup::CURRENT_SECRET;
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -124,6 +127,11 @@ impl CliContext {
             cookie_store,
             cookie_path,
         })))
+    }
+}
+impl AsRef<Jwk> for CliContext {
+    fn as_ref(&self) -> &Jwk {
+        &*CURRENT_SECRET
     }
 }
 impl std::ops::Deref for CliContext {
