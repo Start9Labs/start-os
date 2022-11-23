@@ -10,9 +10,6 @@ export abstract class ApiService {
   readonly patchStream$ = new BehaviorSubject<Update<DataModel>[]>([])
   pubkey?: jose.JWK.Key
 
-  // http
-  abstract getPubKey(): Promise<void>
-
   async encrypt(toEncrypt: string): Promise<Encrypted> {
     if (!this.pubkey) throw new Error('No pubkey found!')
     const encrypted = await jose.JWE.createEncrypt(this.pubkey!)
@@ -22,6 +19,8 @@ export abstract class ApiService {
       encrypted,
     }
   }
+
+  // http
 
   // for getting static files: ex icons, instructions, licenses
   abstract getStatic(url: string): Promise<string>
@@ -37,6 +36,8 @@ export abstract class ApiService {
   ): Promise<RR.SetDBValueRes>
 
   // auth
+
+  abstract getPubKey(): Promise<void>
 
   abstract login(params: RR.LoginReq): Promise<RR.loginRes>
 

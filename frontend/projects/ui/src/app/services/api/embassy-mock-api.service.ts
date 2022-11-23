@@ -83,22 +83,6 @@ export class MockApiService extends ApiService {
       .subscribe()
   }
 
-  async getPubKey() {
-    await pauseFor(1000)
-
-    // randomly generated
-    // const keystore = jose.JWK.createKeyStore()
-    // this.pubkey = await keystore.generate('EC', 'P-256')
-
-    // generated from backend
-    this.pubkey = await jose.JWK.asKey({
-      kty: 'EC',
-      crv: 'P-256',
-      x: 'yHTDYSfjU809fkSv9MmN4wuojf5c3cnD7ZDN13n-jz4',
-      y: '8Mpkn744A5KDag0DmX2YivB63srjbugYZzWc3JOpQXI',
-    })
-  }
-
   async getStatic(url: string): Promise<string> {
     await pauseFor(2000)
     return markdown
@@ -129,6 +113,22 @@ export class MockApiService extends ApiService {
   }
 
   // auth
+
+  async getPubKey() {
+    await pauseFor(1000)
+
+    // randomly generated
+    // const keystore = jose.JWK.createKeyStore()
+    // this.pubkey = await keystore.generate('EC', 'P-256')
+
+    // generated from backend
+    this.pubkey = await jose.JWK.asKey({
+      kty: 'EC',
+      crv: 'P-256',
+      x: 'yHTDYSfjU809fkSv9MmN4wuojf5c3cnD7ZDN13n-jz4',
+      y: '8Mpkn744A5KDag0DmX2YivB63srjbugYZzWc3JOpQXI',
+    })
+  }
 
   async login(params: RR.LoginReq): Promise<RR.loginRes> {
     await pauseFor(2000)
