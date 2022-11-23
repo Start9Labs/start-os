@@ -15,7 +15,7 @@ export class LoginPage {
   unmasked = false
   error = ''
   loader?: HTMLIonLoadingElement
-  needsEncryption = !window.isSecureContext || !this.config.isTor()
+  secure = window.isSecureContext || this.config.isTor()
 
   constructor(
     private readonly router: Router,
@@ -26,7 +26,7 @@ export class LoginPage {
   ) {}
 
   async ionViewDidEnter() {
-    if (this.needsEncryption) {
+    if (!this.secure) {
       try {
         await this.api.getPubKey()
       } catch (e: any) {
@@ -58,9 +58,9 @@ export class LoginPage {
         return
       }
       await this.api.login({
-        password: this.needsEncryption
-          ? await this.api.encrypt(this.password)
-          : this.password,
+        password: this.secure
+          ? this.password
+          : await this.api.encrypt(this.password),
         metadata: { platforms: getPlatforms() },
       })
 
