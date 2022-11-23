@@ -10,8 +10,11 @@ function partition_for () {
     fi
 }
 
-cp raspios.img embassyos-raspi.img
-truncate -s 3000000000 embassyos-raspi.img
+TARGET_NAME=embassyos-raspi.img
+TARGET_SIZE=2400000000
+
+cp raspios.img $TARGET_NAME
+truncate -s $TARGET_SIZE $TARGET_NAME
 (
     echo d
     echo 2
@@ -21,8 +24,8 @@ truncate -s 3000000000 embassyos-raspi.img
     echo 532480
     echo
     echo w
-) | fdisk embassyos-raspi.img
-export OUTPUT_DEVICE=$(sudo losetup --show -fP embassyos-raspi.img)
+) | fdisk $TARGET_NAME
+export OUTPUT_DEVICE=$(sudo losetup --show -fP $TARGET_NAME)
 sudo e2fsck -f -y `partition_for ${OUTPUT_DEVICE} 2`
 sudo resize2fs `partition_for ${OUTPUT_DEVICE} 2`
 ./build/raspberry-pi/write-image.sh
