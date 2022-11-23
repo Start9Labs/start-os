@@ -488,10 +488,21 @@ async fn spawn_persistent_container(
                     let ip = match get_long_running_ip(&*seed, &mut runtime).await {
                         GetRunningIp::Ip(x) => x,
                         GetRunningIp::Error(e) => return Err(e),
-                        GetRunningIp::EarlyExit(e) => {
-                            tracing::error!("Early Exit");
-                            tracing::debug!("{:?}", e);
-                            return Ok(());
+                        GetRunningIp::EarlyExit(res) => {
+                            match res {
+                                Ok(_) => {
+                                    return Err(Error::new(
+                                        eyre!("Container exited (ExitSuccess??) before ip assigned"), 
+                                        crate::ErrorKind::Docker
+                                    ));
+                                },
+                                Err(e) => {
+                                    return Err(Error::new(
+                                        eyre!("Container exited ({}) before ip assigned: {}", e.0, e.1), 
+                                        crate::ErrorKind::Docker
+                                    ));
+                                }
+                            }
                         }
                     };
                     add_network_for_main(&*seed, ip, interfaces, generated_certificate).await?;
@@ -681,7 +692,7 @@ async fn get_long_running_ip(seed: &ManagerSeed, runtime: &mut LongRunning) -> G
         }
         if let Poll::Ready(res) = futures::poll!(&mut runtime.running_output) {
             match res {
-                Ok(_) => return GetRunningIp::EarlyExit(Ok(NoOutput)),
+                Ok(res) => return GetRunningIp::EarlyExit(res),
                 Err(_e) => {
                     return GetRunningIp::Error(Error::new(
                         eyre!("Manager runtime panicked!"),

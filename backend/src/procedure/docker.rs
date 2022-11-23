@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::ffi::{OsStr, OsString};
 use std::net::Ipv4Addr;
+use std::os::unix::process::ExitStatusExt;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -12,6 +13,7 @@ use color_eyre::Report;
 use futures::future::Either as EitherFuture;
 use futures::TryStreamExt;
 use helpers::{NonDetachingJoinHandle, RpcClient};
+use itertools::Itertools;
 use nix::sys::signal;
 use nix::unistd::Pid;
 use serde::de::DeserializeOwned;
@@ -23,6 +25,7 @@ use tracing::instrument;
 use super::ProcedureName;
 use crate::context::RpcContext;
 use crate::id::{Id, ImageId};
+use crate::procedure::NoOutput;
 use crate::s9pk::manifest::{PackageId, SYSTEM_PACKAGE_ID};
 use crate::util::serde::{Duration as SerdeDuration, IoFormat};
 use crate::util::Version;
@@ -104,13 +107,39 @@ impl DockerContainer {
             };
 
         let running_output = NonDetachingJoinHandle::from(tokio::spawn(async move {
-            if let Err(err) = handle
-                .wait()
-                .await
-                .map_err(|e| eyre!("Runtime error: {e:?}"))
-            {
-                tracing::error!("{}", err);
-                tracing::debug!("{:?}", err);
+            let stderr = handle.stderr.take();
+            let stderr_fut = async {
+                if let Some(stderr) = stderr {
+                    let mut buf = RingVec::new(10);
+                    let mut lines = BufReader::new(stderr).lines();
+                    while let Some(line) = lines.next_line().await.transpose() {
+                        match line {
+                            Ok(line) => {
+                                buf.push(line);
+                            }
+                            Err(e) => {
+                                tracing::error!(
+                                    "Error reading stderr from persistent container: {}",
+                                    e
+                                );
+                                tracing::debug!("{:?}", e);
+                                break;
+                            }
+                        }
+                    }
+                    buf.value.into_iter().join("\n")
+                } else {
+                    String::new()
+                }
+            };
+            let (exit, stderr) = tokio::join!(handle.wait(), stderr_fut);
+            match exit {
+                Ok(s) if s.success() => Ok(NoOutput),
+                Ok(s) => Err((
+                    s.code().or(s.signal().map(|s| s + 128)).unwrap_or_default(),
+                    stderr,
+                )),
+                Err(e) => Err((0, e.to_string())),
             }
         }));
 
@@ -760,7 +789,7 @@ impl<T> RingVec<T> {
 /// We wanted a long running since we want to be able to have the equivelent to the docker execute without the heavy costs of 400 + ms time lag.
 /// Also the long running let's us have the ability to start/ end the services quicker.
 pub struct LongRunning {
-    pub running_output: NonDetachingJoinHandle<()>,
+    pub running_output: NonDetachingJoinHandle<Result<NoOutput, (i32, String)>>,
 }
 
 impl LongRunning {
@@ -836,7 +865,7 @@ impl LongRunning {
             cmd.arg(docker.image.for_package(pkg_id, Some(pkg_version)));
         }
         cmd.stdout(std::process::Stdio::piped());
-        cmd.stderr(std::process::Stdio::inherit());
+        cmd.stderr(std::process::Stdio::piped());
         cmd.stdin(std::process::Stdio::piped());
         Ok(cmd)
     }

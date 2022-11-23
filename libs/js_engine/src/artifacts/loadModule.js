@@ -190,8 +190,8 @@ const effects = {
 };
 
 const defaults = {
-  "handleSignal": (effects, { gid, signal }) => {
-    return effects.signalGroup({ gid, signal })
+  "handleSignal": async (effects, { gid, signal }) => {
+    return { result: await effects.signalGroup({ gid, signal }) }
   }
 }
 
