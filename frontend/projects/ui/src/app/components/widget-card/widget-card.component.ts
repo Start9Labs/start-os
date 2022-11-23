@@ -30,8 +30,6 @@ export class WidgetCardComponent {
   outerWidth: any
   outerHeight: any
 
-  constructor() {}
-
   ngAfterViewInit() {
     this.maxHeight = (<HTMLElement> (
       this.innerWrapper.nativeElement
