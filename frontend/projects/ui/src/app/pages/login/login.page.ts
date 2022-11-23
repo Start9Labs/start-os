@@ -3,6 +3,7 @@ import { LoadingController, getPlatforms } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { AuthService } from 'src/app/services/auth.service'
 import { Router } from '@angular/router'
+import { ConfigService } from 'src/app/services/config.service'
 
 @Component({
   selector: 'login',
@@ -14,19 +15,23 @@ export class LoginPage {
   unmasked = false
   error = ''
   loader?: HTMLIonLoadingElement
+  needsEncryption = !window.isSecureContext && !this.config.isTor()
 
   constructor(
     private readonly router: Router,
     private readonly authService: AuthService,
     private readonly loadingCtrl: LoadingController,
     private readonly api: ApiService,
+    private readonly config: ConfigService,
   ) {}
 
   async ionViewDidEnter() {
-    try {
-      await this.api.getPubKey()
-    } catch (e: any) {
-      this.error = e
+    if (this.needsEncryption) {
+      try {
+        await this.api.getPubKey()
+      } catch (e: any) {
+        this.error = e
+      }
     }
   }
 
@@ -53,7 +58,9 @@ export class LoginPage {
         return
       }
       await this.api.login({
-        password: await this.api.encrypt(this.password),
+        password: this.needsEncryption
+          ? await this.api.encrypt(this.password)
+          : this.password,
         metadata: { platforms: getPlatforms() },
       })
 
