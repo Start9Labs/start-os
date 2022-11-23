@@ -90,6 +90,13 @@ rm -rf /var/lib/tor/*
 
 echo "fs.inotify.max_user_watches=1048576" > /etc/sysctl.d/97-embassy.conf
 
+# Old pi was set with this locale, because of pg we are now stuck with including that locale
+locale-gen en_GB en_GB.UTF-8 
+echo "locales locales/locales_to_be_generated multiselect en_GB.UTF-8 UTF-8" | debconf-set-selections
+update-locale  LANGUAGE
+rm "/etc/locale.gen"
+dpkg-reconfigure --frontend noninteractive locales
+
 rm -f /etc/motd
 ln -sf /usr/lib/embassy/motd /etc/update-motd.d/00-embassy
 chmod -x /etc/update-motd.d/*
