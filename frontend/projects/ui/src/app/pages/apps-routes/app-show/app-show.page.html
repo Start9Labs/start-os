@@ -2,71 +2,76 @@
   <app-show-header [pkg]="pkg"></app-show-header>
 
   <ion-content>
-    <ng-container *ngIf="secure; else insecure">
-      <ng-container *ngIf="pkg | toDependencies as dependencies">
-        <ion-item-group *ngIf="pkg | toStatus as status">
-          <!-- ** status ** -->
-          <app-show-status
-            [pkg]="pkg"
-            [dependencies]="dependencies"
-            [status]="status"
-          ></app-show-status>
-          <!-- ** installed && !backing-up ** -->
-          <ng-container *ngIf="isInstalled(pkg) && !isBackingUp(status)">
-            <!-- ** health checks ** -->
-            <app-show-health-checks
-              *ngIf="isRunning(status)"
-              [pkg]="pkg"
-            ></app-show-health-checks>
-            <!-- ** dependencies ** -->
-            <app-show-dependencies
-              *ngIf="dependencies.length"
-              [dependencies]="dependencies"
-            ></app-show-dependencies>
-            <!-- ** menu ** -->
-            <app-show-menu [buttons]="pkg | toButtons"></app-show-menu>
-            <!-- ** additional ** -->
-            <app-show-additional [pkg]="pkg"></app-show-additional>
-          </ng-container>
-        </ion-item-group>
-
-        <!-- ** installing, updating, restoring ** -->
-        <ion-content *ngIf="showProgress(pkg)">
-          <app-show-progress
-            *ngIf="pkg | progressData as progressData"
-            [pkg]="pkg"
-            [progressData]="progressData"
-          ></app-show-progress>
-        </ion-content>
-      </ng-container>
+    <!-- ** installing, updating, restoring ** -->
+    <ng-container *ngIf="showProgress(pkg); else installed">
+      <app-show-progress
+        *ngIf="pkg | progressData as progressData"
+        [pkg]="pkg"
+        [progressData]="progressData"
+      ></app-show-progress>
     </ng-container>
 
-    <ng-template #insecure>
-      <ion-grid style="height: 100%; max-width: 540px">
-        <ion-row class="ion-align-items-center" style="height: 90%">
-          <ion-col class="ion-text-center">
-            <h2>
-              <ion-text color="warning">
-                You are using an unencrypted http connection
-              </ion-text>
-            </h2>
-            <p class="ion-padding-bottom">
-              Click the button below to switch to https. Your browser will warn
-              you that the page is insecure. You can bypass this warning. It
-              will go away after you
-              <a
-                [routerLink]="['/system', 'lan']"
-                style="color: var(--ion-color-dark)"
-                >download and trust your Embassy's certificate</a
-              >.
-            </p>
-            <ion-button (click)="launchHttps()">
-              Open https
-              <ion-icon slot="end" name="open-outline"></ion-icon>
-            </ion-button>
-          </ion-col>
-        </ion-row>
-      </ion-grid>
+    <!-- Installed -->
+    <ng-template #installed>
+      <!-- SECURE -->
+      <ng-container *ngIf="secure; else insecure">
+        <ng-container *ngIf="pkg | toDependencies as dependencies">
+          <ion-item-group *ngIf="pkg | toStatus as status">
+            <!-- ** status ** -->
+            <app-show-status
+              [pkg]="pkg"
+              [dependencies]="dependencies"
+              [status]="status"
+            ></app-show-status>
+            <!-- ** installed && !backing-up ** -->
+            <ng-container *ngIf="isInstalled(pkg) && !isBackingUp(status)">
+              <!-- ** health checks ** -->
+              <app-show-health-checks
+                *ngIf="isRunning(status)"
+                [pkg]="pkg"
+              ></app-show-health-checks>
+              <!-- ** dependencies ** -->
+              <app-show-dependencies
+                *ngIf="dependencies.length"
+                [dependencies]="dependencies"
+              ></app-show-dependencies>
+              <!-- ** menu ** -->
+              <app-show-menu [buttons]="pkg | toButtons"></app-show-menu>
+              <!-- ** additional ** -->
+              <app-show-additional [pkg]="pkg"></app-show-additional>
+            </ng-container>
+          </ion-item-group>
+        </ng-container>
+      </ng-container>
+
+      <!-- INSECURE -->
+      <ng-template #insecure>
+        <ion-grid style="height: 100%; max-width: 540px">
+          <ion-row class="ion-align-items-center" style="height: 90%">
+            <ion-col class="ion-text-center">
+              <h2>
+                <ion-text color="warning">
+                  You are using an unencrypted http connection
+                </ion-text>
+              </h2>
+              <p class="ion-padding-bottom">
+                Click the button below to switch to https. Your browser may warn
+                you that the page is insecure. You can safely bypass this
+                warning. It will go away after you
+                <a
+                  [routerLink]="['/system', 'lan']"
+                  style="color: var(--ion-color-dark)"
+                  >download and trust your Embassy's certificate</a
+                >.
+              </p>
+              <ion-button (click)="launchHttps()">
+                Open https
+                <ion-icon slot="end" name="open-outline"></ion-icon>
+              </ion-button>
+            </ion-col>
+          </ion-row>
+        </ion-grid>
+      </ng-template>
     </ng-template>
   </ion-content>
 </ng-container>
