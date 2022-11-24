@@ -46,11 +46,10 @@ export class WidgetListComponent {
       qp: { back: 'true' },
     },
     {
-      title: 'LAN Setup',
+      title: 'Secure LAN',
       icon: 'home-outline',
       color: 'var(--alt-orange)',
-      description:
-        'Install your Embassy certificate for a secure local connection',
+      description: `Download and trust your Embassy's certificate`,
       link: '/system/lan',
     },
     {

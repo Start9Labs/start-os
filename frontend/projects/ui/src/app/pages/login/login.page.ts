@@ -15,7 +15,7 @@ export class LoginPage {
   unmasked = false
   error = ''
   loader?: HTMLIonLoadingElement
-  secure = window.isSecureContext || this.config.isTor()
+  secure = this.config.isSecure()
 
   constructor(
     private readonly router: Router,

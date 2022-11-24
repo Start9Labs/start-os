@@ -61,7 +61,7 @@ export class WifiPage {
       const alert = await this.alertCtrl.create({
         header: 'Cannot Complete Action',
         message:
-          'You must be connected to your Emassy via LAN to change the country.',
+          'You must be connected to your Embassy via LAN to change the country.',
         buttons: [
           {
             text: 'OK',

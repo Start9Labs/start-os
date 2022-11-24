@@ -387,8 +387,7 @@ export class ServerShowPage {
       },
       {
         title: 'LAN',
-        description:
-          'Install your Embassy certificate for a secure local connection',
+        description: `Download and trust your Embassy's certificate for a secure local connection`,
         icon: 'home-outline',
         action: () =>
           this.navCtrl.navigateForward(['lan'], { relativeTo: this.route }),
