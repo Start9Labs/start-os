@@ -1,6 +1,7 @@
 ARCH = $(shell uname -m)
 ENVIRONMENT_FILE = $(shell ./check-environment.sh)
 GIT_HASH_FILE = $(shell ./check-git-hash.sh)
+VERSION_FILE = $(shell ./check-version.sh)
 EMBASSY_BINS := backend/target/$(ARCH)-unknown-linux-gnu/release/embassyd backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-init backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-cli backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-sdk backend/target/$(ARCH)-unknown-linux-gnu/release/avahi-alias libs/target/aarch64-unknown-linux-musl/release/embassy_container_init libs/target/x86_64-unknown-linux-musl/release/embassy_container_init
 EMBASSY_UIS := frontend/dist/ui frontend/dist/setup-wizard frontend/dist/diagnostic-ui frontend/dist/install-wizard
 BUILD_SRC := $(shell find build)
@@ -22,7 +23,7 @@ $(shell sudo true)
 
 .PHONY: all gzip install clean format sdk snapshots frontends ui backend
 
-all: $(EMBASSY_SRC) $(EMBASSY_BINS) system-images/compat/docker-images/aarch64.tar system-images/utils/docker-images/$(ARCH).tar system-images/binfmt/docker-images/$(ARCH).tar $(ENVIRONMENT_FILE) $(GIT_HASH_FILE)
+all: $(EMBASSY_SRC) $(EMBASSY_BINS) system-images/compat/docker-images/aarch64.tar system-images/utils/docker-images/$(ARCH).tar system-images/binfmt/docker-images/$(ARCH).tar $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE)
 
 gzip: embassyos-raspi.tar.gz
 
@@ -50,6 +51,7 @@ clean:
 	rm -rf cargo-deps
 	rm ENVIRONMENT.txt
 	rm GIT_HASH.txt
+	rm VERSION.txt
 
 format:
 	cd backend && cargo +nightly fmt
@@ -80,6 +82,7 @@ install: all
 
 	cp ENVIRONMENT.txt $(DESTDIR)/usr/lib/embassy/
 	cp GIT_HASH.txt $(DESTDIR)/usr/lib/embassy/
+	cp VERSION.txt $(DESTDIR)/usr/lib/embassy/
 
 	mkdir -p $(DESTDIR)/usr/lib/embassy/container
 	cp libs/target/aarch64-unknown-linux-musl/release/embassy_container_init $(DESTDIR)/usr/lib/embassy/container/embassy_container_init.arm64
