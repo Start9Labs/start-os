@@ -70,12 +70,11 @@ pub enum ErrorKind {
     Javascript = 59,
     Pem = 60,
     TLSInit = 61,
-    ParseIpAddr = 62,
-    Ascii = 63,
-    MissingHeader = 64,
-    Grub = 65,
-    Systemd = 66,
-    OpenSsh = 67,
+    Ascii = 62,
+    MissingHeader = 63,
+    Grub = 64,
+    Systemd = 65,
+    OpenSsh = 66,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -142,7 +141,6 @@ impl ErrorKind {
             Javascript => "Javascript Engine Error",
             Pem => "PEM Encoding Error",
             TLSInit => "TLS Backend Initialization Error",
-            ParseIpAddr => "IP Address Parsing Error",
             Ascii => "ASCII Parse Error",
             MissingHeader => "Missing Header",
             Grub => "Grub Error",
