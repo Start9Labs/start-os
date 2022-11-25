@@ -231,6 +231,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
             &validated_image_ids,
         )?;
 
+        #[cfg(feature = "js_engine")]
         if man.containers.is_some()
             || matches!(man.main, crate::procedure::PackageProcedure::Script(_))
         {
