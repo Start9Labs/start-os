@@ -81,7 +81,7 @@ async fn maybe_do_update(
     marketplace_url: Url,
 ) -> Result<Option<Arc<Revision>>, Error> {
     let mut db = ctx.db.handle();
-    let latest_version = reqwest::get(format!(
+    let latest_version: Version = reqwest::get(format!(
         "{}/eos/v0/latest?eos-version={}&arch={}",
         marketplace_url,
         Current::new().semver(),

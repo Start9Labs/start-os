@@ -26,7 +26,7 @@ export class NotificationsPage {
   notifications: ServerNotifications = []
   beforeCursor?: number
   needInfinite = false
-  fromToast = false
+  fromToast = !!this.route.snapshot.queryParamMap.get('toast')
   readonly perPage = 40
   readonly packageData$ = this.patch.watch$('package-data')
 
@@ -41,7 +41,6 @@ export class NotificationsPage {
   ) {}
 
   async ngOnInit() {
-    this.fromToast = !!this.route.snapshot.queryParamMap.get('toast')
     this.notifications = await this.getNotifications()
     this.loading = false
   }

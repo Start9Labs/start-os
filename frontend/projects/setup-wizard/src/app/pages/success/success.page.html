@@ -1,32 +1,13 @@
-<canvas #canvas> Your browser does not support the canvas element. </canvas>
+<canvas #canvas>Your browser does not support the canvas element.</canvas>
 <ion-content>
-  <div class="grid-center-wrapper">
-    <ion-grid [fixed]="true">
-      <!-- kiosk mode  -->
-      <ng-container *ngIf="isKiosk; else notKiosk">
-        <ion-card>
-          <ion-row>
-            <ion-col size-xs="12" class="ion-text-center">
-              <div class="inline">
-                <ion-icon
-                  name="checkmark-circle-outline"
-                  color="success"
-                ></ion-icon>
-                <h1>Setup Complete!</h1>
-              </div>
-              <h3 class="ion-padding-top">
-                You will be redirected momentarily.
-              </h3>
-            </ion-col>
-          </ion-row>
-        </ion-card>
-      </ng-container>
-      <!-- not kiosk -->
-      <ng-template #notKiosk>
-        <ion-card>
-          <ion-row>
-            <ion-col size-xs="12" class="ion-text-center">
-              <div style="margin-bottom: 4rem">
+  <ion-grid>
+    <ion-row class="ion-align-items-center">
+      <ion-col>
+        <!-- kiosk mode  -->
+        <ng-container *ngIf="isKiosk; else notKiosk">
+          <ion-card>
+            <ion-row class="ion-align-items-center">
+              <ion-col size-xs="12" class="ion-text-center">
                 <div class="inline">
                   <ion-icon
                     name="checkmark-circle-outline"
@@ -34,199 +15,215 @@
                   ></ion-icon>
                   <h1>Setup Complete!</h1>
                 </div>
-                <h3 *ngIf="recoverySource && recoverySource.type === 'backup'">
-                  You can now safely unplug your backup drive
+                <h3 class="ion-padding-top">
+                  You will be redirected momentarily.
                 </h3>
-                <h3 *ngIf="recoverySource && recoverySource.type === 'migrate'">
-                  You can now safely unplug your old drive
-                </h3>
-              </div>
-              <div class="card-container">
-                <ion-card id="information" (click)="download()">
-                  <ion-card-content>
-                    <ion-card-title
-                      >Download your Embassy's address information for permanent
-                      access</ion-card-title
-                    >
-                    <p>
-                      <code>embassy.local</code> was for setup only. It will no
-                      longer work.
-                    </p>
-                  </ion-card-content>
-                  <ion-footer>
+              </ion-col>
+            </ion-row>
+          </ion-card>
+        </ng-container>
+        <!-- not kiosk -->
+        <ng-template #notKiosk>
+          <ion-card>
+            <ion-row class="ion-align-items-center">
+              <ion-col size-xs="12" class="ion-text-center">
+                <div style="margin-bottom: 4rem">
+                  <div class="inline">
+                    <ion-icon
+                      name="checkmark-circle-outline"
+                      color="success"
+                    ></ion-icon>
+                    <h1>Setup Complete!</h1>
+                  </div>
+                  <h3
+                    *ngIf="recoverySource && recoverySource.type === 'backup'"
+                  >
+                    You can now safely unplug your backup drive
+                  </h3>
+                  <h3
+                    *ngIf="recoverySource && recoverySource.type === 'migrate'"
+                  >
+                    You can now safely unplug your old drive
+                  </h3>
+                </div>
+                <div class="card-container">
+                  <ion-card id="information" (click)="download()">
+                    <ion-card-content>
+                      <ion-card-title
+                        >Download permanent address info</ion-card-title
+                      >
+                      <p>
+                        embassy.local was for setup purposes only. It will no
+                        longer work.
+                      </p>
+                    </ion-card-content>
+                    <ion-footer>
+                      <div class="container">
+                        <div class="inline">
+                          <p>Download</p>
+                          <ion-icon name="download-outline"></ion-icon>
+                        </div>
+                      </div>
+                    </ion-footer>
+                  </ion-card>
+                  <ion-card
+                    [disabled]="disableLogin"
+                    id="launch"
+                    href="{{ lanAddress }}"
+                    target="_blank"
+                  >
                     <div class="container">
                       <div class="inline">
-                        <p>Download</p>
-                        <ion-icon name="download-outline"></ion-icon>
+                        <p>Go to Embassy login</p>
+                        <ion-icon name="open-outline"></ion-icon>
                       </div>
                     </div>
-                  </ion-footer>
-                </ion-card>
-                <ion-card id="launch" href="{{ lanAddress }}" target="_blank">
-                  <ion-card-content>
-                    <ion-card-title
-                      >Launch to login to your Embassy</ion-card-title
-                    >
-                    <p class="ion-padding-bottom">
-                      <span class="emphasis-warn">Important!</span><br />
-                      Your browser will warn you that the page is untrusted. You
-                      can safely bypass this warning. It will go away after you
+                  </ion-card>
+                </div>
+              </ion-col>
+            </ion-row>
+            <!-- cert elem -->
+            <a hidden id="install-cert" download="embassy.crt"></a>
+            <!-- download elem -->
+            <div hidden id="downloadable">
+              <div
+                style="
+                  font-family: Montserrat;
+                  color: #333333;
+                  display: flex;
+                  flex-direction: column;
+                  margin: auto;
+                  width: clamp(900px, 35vw, 600px);
+                "
+              >
+                <h1
+                  style="
+                    font-variant-caps: all-small-caps;
+                    text-align: center;
+                    padding: 1rem;
+                  "
+                >
+                  Embassy Address Info
+                </h1>
+
+                <section
+                  style="
+                    padding: 1rem 3rem 2rem 3rem;
+                    border: solid #c4c4c5 3px;
+                    margin-bottom: 24px;
+                  "
+                >
+                  <h2 style="font-variant-caps: all-small-caps">
+                    Access from home (LAN)
+                  </h2>
+                  <p>
+                    Visit the address below when you are connected to the same
+                    WiFi or Local Area Network (LAN) as your Embassy:
+                  </p>
+                  <p
+                    style="
+                      padding: 16px;
+                      font-weight: bold;
+                      font-size: 1.1rem;
+                      overflow: auto;
+                    "
+                  >
+                    <code id="lan-addr"></code>
+                  </p>
+                  <div>
+                    <h3 style="color: #f8546a; font-weight: bold">
+                      Important!
+                    </h3>
+                    <p>
+                      Be sure to
                       <a
                         href="https://docs.start9.com/latest/user-manual/connecting/connecting-lan"
                         target="_blank"
                         rel="noreferrer"
+                        style="
+                          color: #6866cc;
+                          font-weight: bold;
+                          text-decoration: none;
+                        "
                       >
-                        setup a secure connection </a
-                      >.
+                        follow the instructions
+                      </a>
+                      to establish a secure connection by installing your
+                      Embassy's certificate.
                     </p>
-                  </ion-card-content>
-                  <ion-footer>
-                    <div class="container">
-                      <div class="inline">
-                        <p>Launch</p>
-                        <ion-icon name="rocket-outline"></ion-icon>
-                      </div>
-                    </div>
-                  </ion-footer>
-                </ion-card>
-              </div>
-            </ion-col>
-          </ion-row>
-          <!-- cert elem -->
-          <a hidden id="install-cert" download="embassy.crt"></a>
-          <!-- download elem -->
-          <div hidden id="downloadable">
-            <div
-              style="
-                font-family: Montserrat;
-                color: #333333;
-                display: flex;
-                flex-direction: column;
-                margin: auto;
-                width: clamp(900px, 35vw, 600px);
-              "
-            >
-              <h1
-                style="
-                  font-variant-caps: all-small-caps;
-                  text-align: center;
-                  padding: 1rem;
-                "
-              >
-                Embassy Address Info
-              </h1>
+                  </div>
 
-              <section
-                style="
-                  padding: 1rem 3rem 2rem 3rem;
-                  border: solid #c4c4c5 3px;
-                  margin-bottom: 24px;
-                "
-              >
-                <h2 style="font-variant-caps: all-small-caps">
-                  Access from home (LAN)
-                </h2>
-                <p>
-                  Visit the address below when you are connected to the same
-                  WiFi or Local Area Network (LAN) as your Embassy:
-                </p>
-                <p
-                  style="
-                    padding: 16px;
-                    font-weight: bold;
-                    font-size: 1.1rem;
-                    overflow: auto;
-                  "
-                >
-                  <code id="lan-addr"></code>
-                </p>
-                <div>
-                  <h3 style="color: #f8546a; font-weight: bold">Important!</h3>
-                  <p>
-                    Your browser will warn you that the page is untrusted. You
-                    can safely bypass this warning. It will go away after you
+                  <div style="padding: 2rem; text-align: center">
                     <a
-                      href="https://docs.start9.com/latest/user-manual/connecting/connecting-lan"
-                      target="_blank"
-                      rel="noreferrer"
+                      id="cert"
+                      download="embassy.crt"
                       style="
-                        color: #6866cc;
-                        font-weight: bold;
+                        display: inline-block;
+                        padding: 1em 1.2em;
+                        box-sizing: border-box;
+                        font-size: 1rem;
                         text-decoration: none;
+                        text-align: center;
+                        border-radius: clamp(2rem, 3rem, 4rem);
+                        cursor: pointer;
+                        box-shadow: rgba(0, 0, 0, 0.1) 0px 4px 6px -1px,
+                          rgba(0, 0, 0, 0.06) 0px 2px 4px -1px;
+                        background: #6866cc;
+                        color: #f4f4f5;
                       "
                     >
-                      follow the instructions
+                      Download certificate
                     </a>
-                    to download and trust your Embassy's Root Certificate
-                    Authority.
-                  </p>
-                </div>
+                  </div>
+                </section>
 
-                <div style="padding: 2rem; text-align: center">
-                  <a
-                    id="cert"
-                    download="embassy.crt"
+                <section
+                  style="
+                    padding: 1rem 3rem 2rem 3rem;
+                    border: solid #c4c4c5 3px;
+                  "
+                >
+                  <h2 style="font-variant-caps: all-small-caps">
+                    Access on the go (Tor)
+                  </h2>
+                  <p>Visit the address below when you are away from home:</p>
+                  <p
                     style="
-                      display: inline-block;
-                      padding: 1em 1.2em;
-                      box-sizing: border-box;
-                      font-size: 1rem;
-                      text-decoration: none;
-                      text-align: center;
-                      border-radius: clamp(2rem, 3rem, 4rem);
-                      cursor: pointer;
-                      box-shadow: rgba(0, 0, 0, 0.1) 0px 4px 6px -1px,
-                        rgba(0, 0, 0, 0.06) 0px 2px 4px -1px;
-                      background: #6866cc;
-                      color: #f4f4f5;
+                      padding: 16px;
+                      font-weight: bold;
+                      font-size: 1.1rem;
+                      overflow: auto;
                     "
                   >
-                    Download Root CA
-                  </a>
-                </div>
-              </section>
-
-              <section
-                style="padding: 1rem 3rem 2rem 3rem; border: solid #c4c4c5 3px"
-              >
-                <h2 style="font-variant-caps: all-small-caps">
-                  Access on the go (Tor)
-                </h2>
-                <p>Visit the address below when you are away from home:</p>
-                <p
-                  style="
-                    padding: 16px;
-                    font-weight: bold;
-                    font-size: 1.1rem;
-                    overflow: auto;
-                  "
-                >
-                  <code id="tor-addr"></code>
-                </p>
-                <div>
-                  <h3 style="color: #f8546a; font-weight: bold">Important!</h3>
-                  <p>
-                    This address will only work from a Tor-enabled browser.
-                    <a
-                      href="https://docs.start9.com/latest/user-manual/connecting/connecting-tor"
-                      target="_blank"
-                      rel="noreferrer"
-                      style="
-                        color: #6866cc;
-                        font-weight: bold;
-                        text-decoration: none;
-                      "
-                    >
-                      Follow the instructions
-                    </a>
-                    to get setup.
+                    <code id="tor-addr"></code>
                   </p>
-                </div>
-              </section>
+                  <div>
+                    <h3 style="color: #f8546a; font-weight: bold">
+                      Important!
+                    </h3>
+                    <p>
+                      This address will only work from a Tor-enabled browser.
+                      <a
+                        href="https://docs.start9.com/latest/user-manual/connecting/connecting-tor"
+                        target="_blank"
+                        rel="noreferrer"
+                        style="
+                          color: #6866cc;
+                          font-weight: bold;
+                          text-decoration: none;
+                        "
+                      >
+                        Follow the instructions
+                      </a>
+                      to get setup.
+                    </p>
+                  </div>
+                </section>
+              </div>
             </div>
-          </div>
-        </ion-card>
-      </ng-template>
-    </ion-grid>
-  </div>
+          </ion-card>
+        </ng-template>
+      </ion-col>
+    </ion-row>
+  </ion-grid>
 </ion-content>

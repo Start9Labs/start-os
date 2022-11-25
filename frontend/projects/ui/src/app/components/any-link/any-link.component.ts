@@ -13,7 +13,8 @@ import {
 })
 export class AnyLinkComponent implements OnInit {
   @Input() link!: string
-  externalLink: boolean = false
+  @Input() qp?: Record<string, string>
+  externalLink = false
 
   ngOnInit() {
     try {

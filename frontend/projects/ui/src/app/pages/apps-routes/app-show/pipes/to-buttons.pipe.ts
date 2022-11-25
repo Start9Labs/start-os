@@ -56,7 +56,7 @@ export class ToButtonsPipe implements PipeTransform {
           this.modalService.presentModalConfig({ pkgId: pkg.manifest.id }),
         title: 'Config',
         description: `Customize ${pkgTitle}`,
-        icon: 'construct-outline',
+        icon: 'options-outline',
       },
       // properties
       {

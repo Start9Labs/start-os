@@ -63,6 +63,8 @@ export class PasswordPage {
 
     if (this.password.length < 12) {
       this.pwError = 'Must be 12 characters or greater'
+    } else if (this.password.length > 64) {
+      this.pwError = 'Must be less than 65 characters'
     } else {
       this.pwError = ''
     }

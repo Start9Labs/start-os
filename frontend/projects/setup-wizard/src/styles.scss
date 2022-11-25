@@ -116,12 +116,12 @@
   --color-accent: #6866cc;
   --color-dark-black: #121212;
 
-    --alt-red: #FF4961;
-    --alt-orange: #F89248;
-    --alt-yellow: #E5D53E;
-    --alt-green: #3DCF6F;
-    --alt-blue: #00A8A8;
-    --alt-purple: #9747FF;
+  --alt-red: #FF4961;
+  --alt-orange: #F89248;
+  --alt-yellow: #E5D53E;
+  --alt-green: #3DCF6F;
+  --alt-blue: #00A8A8;
+  --alt-purple: #9747FF;
 }
 
 h1,
@@ -177,7 +177,7 @@ ion-grid {
 }
 
 ion-row {
-  height: 100%;
+  height: 90%;
 }
 
 ion-card {
@@ -334,4 +334,11 @@ ion-footer {
   ion-item {
     margin: 0 0.5rem 2rem 0.5rem;
   }
+}
+
+p a {
+  color: var(--ion-text-color);
+  // text-decoration: none;
+  font-weight: 600;
+  text-underline-offset: 0.4rem;
 }
