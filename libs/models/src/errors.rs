@@ -70,14 +70,12 @@ pub enum ErrorKind {
     Javascript = 59,
     Pem = 60,
     TLSInit = 61,
-    HttpRange = 62,
-    ContentLength = 63,
-    BytesError = 64,
-    InvalidIP = 65,
-    JoinError = 66,
-    AsciiError = 67,
-    NoHost = 68,
-    SignError = 69,
+    ParseIpAddr = 62,
+    Ascii = 63,
+    MissingHeader = 64,
+    Grub = 65,
+    Systemd = 66,
+    OpenSsh = 67,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -143,15 +141,13 @@ impl ErrorKind {
             LanPortConflict => "Incompatible LAN Port Configuration",
             Javascript => "Javascript Engine Error",
             Pem => "PEM Encoding Error",
-            TLSInit => "TLS Backend Initialize Error",
-            HttpRange => "No Support for Web Server HTTP Ranges",
-            ContentLength => "Request has no content length header",
-            BytesError => "Could not get the bytes for this request",
-            InvalidIP => "Could not parse this IP address",
-            JoinError => "Join Handle Error",
-            AsciiError => "Could not parse ascii text",
-            NoHost => "No Host header ",
-            SignError => "Signing error",
+            TLSInit => "TLS Backend Initialization Error",
+            ParseIpAddr => "IP Address Parsing Error",
+            Ascii => "ASCII Parse Error",
+            MissingHeader => "Missing Header",
+            Grub => "Grub Error",
+            Systemd => "Systemd Error",
+            OpenSsh => "OpenSSH Error",
         }
     }
 }

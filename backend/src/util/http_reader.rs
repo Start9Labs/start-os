@@ -108,7 +108,7 @@ impl HttpReader {
                                 "{} HTTP range downloading not supported with this unit {value}",
                                 http_url
                             ),
-                            crate::ErrorKind::HttpRange,
+                            crate::ErrorKind::MissingHeader,
                         ));
                     }
                 }
@@ -121,7 +121,7 @@ impl HttpReader {
                         "{} HTTP range downloading not supported with this url",
                         http_url
                     ),
-                    crate::ErrorKind::HttpRange,
+                    crate::ErrorKind::MissingHeader,
                 ))
             }
         };
@@ -136,7 +136,7 @@ impl HttpReader {
             None => {
                 return Err(Error::new(
                     eyre!("No content length headers for {}", http_url),
-                    crate::ErrorKind::ContentLength,
+                    crate::ErrorKind::MissingHeader,
                 ))
             }
         };

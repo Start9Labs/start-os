@@ -15,7 +15,7 @@ pub fn host_addr_fqdn(req: &Request<Body>) -> Result<ResourceFqdn, Error> {
         Some(host) => {
             let host_str = host
                 .to_str()
-                .map_err(|e| Error::new(eyre!("{}", e), crate::ErrorKind::AsciiError))?
+                .map_err(|e| Error::new(eyre!("{}", e), crate::ErrorKind::Ascii))?
                 .to_string();
 
             let host_uri: ResourceFqdn = host_str.split(':').next().unwrap().parse()?;
@@ -23,7 +23,10 @@ pub fn host_addr_fqdn(req: &Request<Body>) -> Result<ResourceFqdn, Error> {
             Ok(host_uri)
         }
 
-        None => Err(Error::new(eyre!("No Host"), crate::ErrorKind::NoHost)),
+        None => Err(Error::new(
+            eyre!("No Host header"),
+            crate::ErrorKind::MissingHeader,
+        )),
     }
 }
 

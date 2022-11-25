@@ -346,13 +346,13 @@ impl ProxyControllerInner {
                 removed_server.shutdown.send(()).map_err(|_| {
                     Error::new(
                         eyre!("Hyper server did not quit properly"),
-                        crate::ErrorKind::JoinError,
+                        crate::ErrorKind::Unknown,
                     )
                 })?;
                 removed_server
                     .handle
                     .await
-                    .with_kind(crate::ErrorKind::JoinError)?;
+                    .with_kind(crate::ErrorKind::Unknown)?;
                 self.docker_interfaces.remove(&package.clone());
                 self.docker_iface_lookups
                     .remove(&(package.clone(), interface_id));

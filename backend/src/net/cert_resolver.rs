@@ -147,21 +147,21 @@ impl EmbassyCertResolver {
         let private_keys = package_cert_data
             .0
             .private_key_to_der()
-            .map_err(|err| Error::new(eyre!("err {}", err), crate::ErrorKind::BytesError))?;
+            .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::OpenSsl))?;
 
         let mut full_rustls_certs = Vec::new();
         for cert in x509_cert_chain.iter() {
-            let cert =
-                Certificate(cert.to_der().map_err(|err| {
-                    Error::new(eyre!("err: {}", err), crate::ErrorKind::BytesError)
-                })?);
+            let cert = Certificate(
+                cert.to_der()
+                    .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::OpenSsl))?,
+            );
 
             full_rustls_certs.push(cert);
         }
 
         let pre_sign_key = PrivateKey(private_keys);
         let actual_sign_key = any_supported_type(&pre_sign_key)
-            .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::SignError))?;
+            .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::OpenSsl))?;
 
         let cert_key = CertifiedKey::new(full_rustls_certs, actual_sign_key);
 
