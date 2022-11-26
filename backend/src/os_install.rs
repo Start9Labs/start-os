@@ -37,7 +37,23 @@ pub fn disk() -> Result<(), Error> {
 
 #[command(display(display_none))]
 pub async fn list() -> Result<Vec<DiskInfo>, Error> {
-    crate::disk::util::list(&Default::default()).await
+    let skip = Path::new(
+        &String::from_utf8(
+            Command::new("grub-probe-default")
+                .arg("-t")
+                .arg("disk")
+                .arg("/cdrom")
+                .invoke(crate::ErrorKind::Grub)
+                .await?,
+        )?
+        .trim(),
+    )
+    .to_owned();
+    Ok(crate::disk::util::list(&Default::default())
+        .await?
+        .into_iter()
+        .filter(|i| &*i.logicalname != skip)
+        .collect())
 }
 
 pub async fn find_wifi_iface() -> Result<Option<String>, Error> {
@@ -253,14 +269,14 @@ pub async fn execute(
     Command::new("chroot")
         .arg(&current)
         .arg("systemd-machine-id-setup")
-        .invoke(crate::ErrorKind::Unknown) // TODO systemd
+        .invoke(crate::ErrorKind::Systemd)
         .await?;
 
     Command::new("chroot")
         .arg(&current)
         .arg("ssh-keygen")
         .arg("-A")
-        .invoke(crate::ErrorKind::Unknown) // TODO ssh
+        .invoke(crate::ErrorKind::OpenSsh)
         .await?;
 
     let dev = MountGuard::mount(&Bind::new("/dev"), current.join("dev"), ReadWrite).await?;
@@ -270,14 +286,14 @@ pub async fn execute(
     Command::new("chroot")
         .arg(&current)
         .arg("update-grub")
-        .invoke(crate::ErrorKind::Unknown) // TODO grub
+        .invoke(crate::ErrorKind::Grub)
         .await?;
     Command::new("chroot")
         .arg(&current)
         .arg("grub-install")
         .arg("--target=i386-pc")
         .arg(&disk.logicalname)
-        .invoke(crate::ErrorKind::Unknown) // TODO grub
+        .invoke(crate::ErrorKind::Grub)
         .await?;
 
     dev.unmount().await?;
