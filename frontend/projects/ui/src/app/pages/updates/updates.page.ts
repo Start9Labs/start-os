@@ -18,6 +18,7 @@ import { Emver } from '@start9labs/shared'
 import { Pipe, PipeTransform } from '@angular/core'
 import { combineLatest, Observable } from 'rxjs'
 import { PrimaryRendering } from '../../services/pkg-status-rendering.service'
+import { NavController } from '@ionic/angular'
 
 interface UpdatesData {
   hosts: StoreIdentity[]
@@ -49,11 +50,21 @@ export class UpdatesPage {
     private readonly marketplaceService: MarketplaceService,
     private readonly api: ApiService,
     private readonly patch: PatchDB<DataModel>,
+    private readonly navCtrl: NavController,
   ) {}
 
   async update(id: string, url: string): Promise<void> {
     this.queued[id] = true
     this.api.installPackage({ id, 'marketplace-url': url })
+  }
+
+  viewInMarketplace(pkg: PackageDataEntry) {
+    const url = pkg.installed?.['marketplace-url']
+    const queryParams = url ? { url } : {}
+
+    this.navCtrl.navigateForward([`marketplace/${pkg.manifest.id}`], {
+      queryParams,
+    })
   }
 }
 
