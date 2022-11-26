@@ -51,6 +51,9 @@
                     </ion-text>
                   </h2>
                   <p [innerHTML]="pkg.manifest['release-notes'] | markdown"></p>
+                  <p *ngIf="errors[pkg.manifest.id] as error">
+                    <ion-text color="danger">{{ error }}</ion-text>
+                  </p>
                 </ion-label>
 
                 <div slot="end">
@@ -70,11 +73,11 @@
                     ></ion-spinner>
                     <ng-template #updateBtn>
                       <ion-button
-                        (click)="update(pkg.manifest.id, host.url)"
-                        color="dark"
+                        (click)="tryUpdate(pkg.manifest, host.url, local)"
+                        [color]="errors[pkg.manifest.id] ? 'danger' : 'dark'"
                         strong
                       >
-                        Update
+                        {{ errors[pkg.manifest.id] ? 'Retry' : 'Update' }}
                       </ion-button>
                     </ng-template>
                   </ng-template>
