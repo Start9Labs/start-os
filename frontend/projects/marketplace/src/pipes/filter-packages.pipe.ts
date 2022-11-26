@@ -1,6 +1,6 @@
 import { NgModule, Pipe, PipeTransform } from '@angular/core'
 import { Emver } from '@start9labs/shared'
-import { MarketplaceManifest, MarketplacePkg } from '../types'
+import { MarketplacePkg } from '../types'
 import Fuse from 'fuse.js'
 
 @Pipe({
@@ -13,73 +13,38 @@ export class FilterPackagesPipe implements PipeTransform {
     packages: MarketplacePkg[],
     query: string,
     category: string,
-    local: Record<string, { manifest: MarketplaceManifest }> = {},
   ): MarketplacePkg[] {
     // query
     if (query) {
       let options: Fuse.IFuseOptions<MarketplacePkg> = {
         includeScore: true,
         includeMatches: true,
+        ignoreLocation: true,
+        useExtendedSearch: true,
+        keys: [
+          {
+            name: 'manifest.title',
+            weight: 1,
+          },
+          {
+            name: 'manifest.id',
+            weight: 0.5,
+          },
+          {
+            name: 'manifest.description.short',
+            weight: 0.4,
+          },
+          {
+            name: 'manifest.description.long',
+            weight: 0.1,
+          },
+        ],
       }
 
-      if (query.length < 4) {
-        options = {
-          ...options,
-          threshold: 0,
-          location: 0,
-          distance: 1,
-          keys: [
-            {
-              name: 'manifest.title',
-              weight: 1,
-            },
-            {
-              name: 'manifest.id',
-              weight: 0.5,
-            },
-          ],
-        }
-      } else {
-        options = {
-          ...options,
-          ignoreLocation: true,
-          useExtendedSearch: true,
-          keys: [
-            {
-              name: 'manifest.title',
-              weight: 1,
-            },
-            {
-              name: 'manifest.id',
-              weight: 0.5,
-            },
-            {
-              name: 'manifest.description.short',
-              weight: 0.4,
-            },
-            {
-              name: 'manifest.description.long',
-              weight: 0.1,
-            },
-          ],
-        }
-        query = `'${query}`
-      }
+      query = `'${query}`
 
       const fuse = new Fuse(packages, options)
       return fuse.search(query).map(p => p.item)
-    }
-
-    // updates
-    if (category === 'updates') {
-      return packages.filter(
-        ({ manifest }) =>
-          local[manifest.id] &&
-          this.emver.compare(
-            manifest.version,
-            local[manifest.id].manifest.version,
-          ) === 1,
-      )
     }
 
     // category

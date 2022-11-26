@@ -36,46 +36,35 @@
       <ion-row class="ion-align-items-center">
         <ion-col size="12">
           <ng-container *ngIf="store$ | async as store; else loading">
-            <ng-container *ngIf="localPkgs$ | async as localPkgs">
-              <marketplace-categories
-                [categories]="store.categories"
-                [category]="category"
-                [updatesAvailable]="
-                  (store.packages | filterPackages: '':'updates':localPkgs).length
-                "
-                (categoryChange)="onCategoryChange($event)"
-              ></marketplace-categories>
+            <marketplace-categories
+              [categories]="store.categories"
+              [category]="category"
+              [disableCategories]="!!query"
+              (categoryChange)="onCategoryChange($event)"
+            ></marketplace-categories>
 
-              <div class="divider"></div>
+            <div class="divider"></div>
 
-              <ion-grid
-                *ngIf="store.packages | filterPackages: query:category:localPkgs as filtered"
-              >
-                <div
-                  *ngIf="!filtered.length && category === 'updates'"
-                  class="ion-padding"
+            <ion-grid
+              *ngIf="store.packages | filterPackages: query:category as filtered"
+            >
+              <ion-row *ngIf="localPkgs$ | async as localPkgs">
+                <ion-col
+                  *ngFor="let pkg of filtered"
+                  sizeXs="12"
+                  sizeSm="12"
+                  sizeMd="6"
                 >
-                  <h1>All services are up to date!</h1>
-                </div>
-
-                <ion-row>
-                  <ion-col
-                    *ngFor="let pkg of filtered"
-                    sizeXs="12"
-                    sizeSm="12"
-                    sizeMd="6"
-                  >
-                    <marketplace-item [pkg]="pkg">
-                      <marketplace-status
-                        class="status"
-                        [version]="pkg.manifest.version"
-                        [localPkg]="localPkgs[pkg.manifest.id]"
-                      ></marketplace-status>
-                    </marketplace-item>
-                  </ion-col>
-                </ion-row>
-              </ion-grid>
-            </ng-container>
+                  <marketplace-item [pkg]="pkg">
+                    <marketplace-status
+                      class="status"
+                      [version]="pkg.manifest.version"
+                      [localPkg]="localPkgs[pkg.manifest.id]"
+                    ></marketplace-status>
+                  </marketplace-item>
+                </ion-col>
+              </ion-row>
+            </ion-grid>
           </ng-container>
 
           <ng-template #loading>

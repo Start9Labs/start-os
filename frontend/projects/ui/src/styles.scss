@@ -155,6 +155,13 @@ img {
   border-radius: 100%;
 }
 
+ion-back-button {
+  margin-left: 16px;
+  &::part(native) {
+    border: 1px solid white;
+  }
+}
+
 ion-card-title {
   font-family: 'Montserrat';
 }
