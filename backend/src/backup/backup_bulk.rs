@@ -125,23 +125,31 @@ fn parse_comma_separated(arg: &str, _: &ArgMatches) -> Result<BTreeSet<PackageId
 pub async fn backup_all(
     #[context] ctx: RpcContext,
     #[arg(rename = "target-id")] target_id: BackupTargetId,
-    #[arg(rename = "old-password", long = "old-password")] old_password: Option<String>,
+    #[arg(rename = "old-password", long = "old-password")] old_password: Option<
+        crate::auth::PasswordType,
+    >,
     #[arg(
         rename = "package-ids",
         long = "package-ids",
         parse(parse_comma_separated)
     )]
     package_ids: Option<BTreeSet<PackageId>>,
-    #[arg] password: String,
+    #[arg] password: crate::auth::PasswordType,
 ) -> Result<(), Error> {
     let mut db = ctx.db.handle();
+    let old_password_decrypted = old_password
+        .as_ref()
+        .unwrap_or(&password)
+        .clone()
+        .decrypt(&ctx)?;
+    let password = password.decrypt(&ctx)?;
     check_password_against_db(&mut ctx.secret_store.acquire().await?, &password).await?;
     let fs = target_id
         .load(&mut ctx.secret_store.acquire().await?)
         .await?;
     let mut backup_guard = BackupMountGuard::mount(
         TmpMountGuard::mount(&fs, ReadWrite).await?,
-        old_password.as_ref().unwrap_or(&password),
+        &old_password_decrypted,
     )
     .await?;
     let all_packages = crate::db::DatabaseModel::new()

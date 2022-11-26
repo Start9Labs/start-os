@@ -22,6 +22,14 @@ use crate::setup::{password_hash, SetupStatus};
 use crate::util::config::load_config_from_paths;
 use crate::{Error, ResultExt};
 
+lazy_static::lazy_static! {
+    pub static ref CURRENT_SECRET: Jwk = Jwk::generate_ec_key(josekit::jwk::alg::ec::EcCurve::P256).unwrap_or_else(|e| {
+        tracing::debug!("{:?}", e);
+        tracing::error!("Couldn't generate ec key");
+        panic!("Couldn't generate ec key")
+    });
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct SetupResult {
@@ -69,9 +77,6 @@ pub struct SetupContextSeed {
     pub migration_prefetch_rows: usize,
     pub shutdown: Sender<()>,
     pub datadir: PathBuf,
-    /// Used to encrypt for hidding from snoopers for setups create password
-    /// Set via path
-    pub current_secret: Arc<Jwk>,
     pub selected_v2_drive: RwLock<Option<PathBuf>>,
     pub cached_product_key: RwLock<Option<Arc<String>>>,
     pub setup_status: RwLock<Option<Result<SetupStatus, RpcError>>>,
@@ -80,7 +85,7 @@ pub struct SetupContextSeed {
 
 impl AsRef<Jwk> for SetupContextSeed {
     fn as_ref(&self) -> &Jwk {
-        &self.current_secret
+        &*CURRENT_SECRET
     }
 }
 
@@ -99,16 +104,6 @@ impl SetupContext {
             migration_prefetch_rows: cfg.migration_prefetch_rows.unwrap_or(100_000),
             shutdown,
             datadir,
-            current_secret: Arc::new(
-                Jwk::generate_ec_key(josekit::jwk::alg::ec::EcCurve::P256).map_err(|e| {
-                    tracing::debug!("{:?}", e);
-                    tracing::error!("Couldn't generate ec key");
-                    Error::new(
-                        color_eyre::eyre::eyre!("Couldn't generate ec key"),
-                        crate::ErrorKind::Unknown,
-                    )
-                })?,
-            ),
             selected_v2_drive: RwLock::new(None),
             cached_product_key: RwLock::new(None),
             setup_status: RwLock::new(None),

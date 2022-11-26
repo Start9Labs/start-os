@@ -70,7 +70,7 @@ export class BackupDrivesComponent {
   ): void {
     if (target.entry.type === 'cifs' && !target.entry.mountable) {
       const message =
-        'Unable to connect to Network Folder. Ensure (1) target computer is connected to LAN, (2) target folder is being shared, and (3) hostname, path, and credentials are accurate.'
+        'Unable to connect to Network Folder. Ensure (1) target computer is connected to the same LAN as your Embassy, (2) target folder is being shared, and (3) hostname, path, and credentials are accurate.'
       this.presentAlertError(message)
       return
     }

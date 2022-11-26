@@ -47,6 +47,10 @@ export class ConfigService {
     )
   }
 
+  isSecure(): boolean {
+    return window.isSecureContext || this.isTor()
+  }
+
   isLaunchable(
     state: PackageState,
     status: PackageMainStatus,

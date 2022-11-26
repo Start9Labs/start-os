@@ -101,7 +101,8 @@ export class HomePage {
   private async presentAlertReboot() {
     const alert = await this.alertCtrl.create({
       header: 'Install Success',
-      message: 'Reboot your device to begin using your new Embassy',
+      message:
+        'Remove the USB stick and reboot your device to begin using your new Embassy',
       buttons: [
         {
           text: 'Reboot',

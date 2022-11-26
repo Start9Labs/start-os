@@ -1,6 +1,6 @@
 <ion-header>
   <ion-toolbar>
-    <ion-title>LAN Settings</ion-title>
+    <ion-title>Secure LAN</ion-title>
     <ion-buttons slot="start">
       <ion-back-button defaultHref="embassy"></ion-back-button>
     </ion-buttons>
@@ -13,25 +13,14 @@
     <ion-item class="ion-padding-bottom">
       <ion-label>
         <h2>
-          Connecting to your Embassy over LAN provides a lightning fast
-          experience and is a reliable fallback in case Tor is having problems.
-          To connect to your Embassy's .local address, you must:
-          <ol>
-            <li>
-              Be connected to the same Local Area Network (LAN) as your Embassy.
-            </li>
-            <li>
-              Download and trust your Embassy's SSL Certificate Authority
-              (below).
-            </li>
-          </ol>
-          View the full
+          For a secure local connection,
           <a
             href="https://docs.start9.com/latest/user-manual/connecting/connecting-lan"
             target="_blank"
             rel="noreferrer"
-            >instructions</a
-          >.
+            >follow instructions</a
+          >
+          to download and trust your Embassy's Root Certificate Authority
         </h2>
       </ion-label>
     </ion-item>
@@ -39,11 +28,7 @@
     <ion-item button (click)="installCert()">
       <ion-icon slot="start" name="download-outline" size="large"></ion-icon>
       <ion-label>
-        <h1>Download Root CA</h1>
-        <p>
-          Download and trust your Embassy's Root Certificate Authority to
-          establish a secure, https connection over LAN.
-        </p>
+        <h1>Download Certificate</h1>
       </ion-label>
     </ion-item>
   </ion-item-group>

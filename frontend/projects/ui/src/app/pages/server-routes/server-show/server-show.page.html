@@ -15,6 +15,23 @@
 
   <!-- loaded -->
   <ion-item-group *ngIf="server$ | async as server; else loading">
+    <ion-item *ngIf="!secure" color="warning">
+      <ion-icon slot="start" name="warning-outline"></ion-icon>
+      <ion-label>
+        <h2 style="font-weight: bold">You are using unencrypted http</h2>
+        <p style="font-weight: 600">
+          Click the button on the right to switch to https. Your browser may
+          warn you that the page is insecure. You can safely bypass this
+          warning. It will go away after you download and trust your Embassy's
+          certificate
+        </p>
+      </ion-label>
+      <ion-button slot="end" color="light" (click)="launchHttps()">
+        Open Https
+        <ion-icon slot="end" name="open-outline"></ion-icon>
+      </ion-button>
+    </ion-item>
+
     <div *ngFor="let cat of settings | keyvalue : asIsOrder">
       <ion-item-divider>
         <ion-text color="dark" (click)="addClick(cat.key)">
