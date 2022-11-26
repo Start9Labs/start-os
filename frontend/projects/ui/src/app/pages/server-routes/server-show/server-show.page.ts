@@ -1,4 +1,4 @@
-import { Component } from '@angular/core'
+import { Component, Inject } from '@angular/core'
 import {
   AlertController,
   LoadingController,
@@ -10,7 +10,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActivatedRoute } from '@angular/router'
 import { PatchDB } from 'patch-db-client'
 import { ServerNameService } from 'src/app/services/server-name.service'
-import { firstValueFrom, Observable, of } from 'rxjs'
+import { combineLatest, firstValueFrom, map, Observable, of } from 'rxjs'
 import { ErrorToastService } from '@start9labs/shared'
 import { EOSService } from 'src/app/services/eos.service'
 import { ClientStorageService } from 'src/app/services/client-storage.service'
@@ -22,6 +22,8 @@ import {
   GenericInputComponent,
   GenericInputOptions,
 } from 'src/app/modals/generic-input/generic-input.component'
+import { ConfigService } from 'src/app/services/config.service'
+import { DOCUMENT } from '@angular/common'
 
 @Component({
   selector: 'server-show',
@@ -35,6 +37,8 @@ export class ServerShowPage {
   readonly server$ = this.patch.watch$('server-info')
   readonly showUpdate$ = this.eosService.showUpdate$
   readonly showDiskRepair$ = this.ClientStorageService.showDiskRepair$
+
+  readonly secure = this.config.isSecure()
 
   constructor(
     private readonly alertCtrl: AlertController,
@@ -50,6 +54,8 @@ export class ServerShowPage {
     private readonly serverNameService: ServerNameService,
     private readonly authService: AuthService,
     private readonly toastCtrl: ToastController,
+    private readonly config: ConfigService,
+    @Inject(DOCUMENT) private readonly document: Document,
   ) {}
 
   async presentModalName(): Promise<void> {
@@ -200,6 +206,10 @@ export class ServerShowPage {
       cssClass: 'alert-warning-message',
     })
     await alert.present()
+  }
+
+  launchHttps() {
+    window.open(this.document.location.href.replace('http', 'https'))
   }
 
   addClick(title: string) {
@@ -353,7 +363,7 @@ export class ServerShowPage {
         action: () =>
           this.navCtrl.navigateForward(['backup'], { relativeTo: this.route }),
         detail: true,
-        disabled$: of(false),
+        disabled$: of(!this.secure),
       },
       {
         title: 'Restore From Backup',
@@ -362,7 +372,10 @@ export class ServerShowPage {
         action: () =>
           this.navCtrl.navigateForward(['restore'], { relativeTo: this.route }),
         detail: true,
-        disabled$: this.eosService.updatingOrBackingUp$,
+        disabled$: combineLatest([
+          this.eosService.updatingOrBackingUp$,
+          of(this.secure),
+        ]).pipe(map(([updating, secure]) => updating || !secure)),
       },
     ],
     Manage: [
@@ -387,8 +400,7 @@ export class ServerShowPage {
       },
       {
         title: 'LAN',
-        description:
-          'Install your Embassy certificate for a secure local connection',
+        description: `Download and trust your Embassy's certificate for a secure local connection`,
         icon: 'home-outline',
         action: () =>
           this.navCtrl.navigateForward(['lan'], { relativeTo: this.route }),
