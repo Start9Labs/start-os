@@ -14,10 +14,18 @@ import {
   MarketplacePkg,
   StoreIdentity,
 } from '@start9labs/marketplace'
-import { Emver } from '@start9labs/shared'
+import { Emver, isEmptyObject } from '@start9labs/shared'
 import { Pipe, PipeTransform } from '@angular/core'
 import { combineLatest, Observable } from 'rxjs'
 import { PrimaryRendering } from '../../services/pkg-status-rendering.service'
+import {
+  AlertController,
+  LoadingController,
+  NavController,
+} from '@ionic/angular'
+import { hasCurrentDeps } from 'src/app/util/has-deps'
+import { getAllPackages } from 'src/app/util/get-package-data'
+import { Breakages } from 'src/app/services/api/api.types'
 
 interface UpdatesData {
   hosts: StoreIdentity[]
@@ -33,6 +41,7 @@ interface UpdatesData {
 })
 export class UpdatesPage {
   queued: Record<string, boolean> = {}
+  errors: Record<string, string> = {}
 
   readonly data$: Observable<UpdatesData> = combineLatest({
     hosts: this.marketplaceService.getKnownHosts$(),
@@ -49,11 +58,115 @@ export class UpdatesPage {
     private readonly marketplaceService: MarketplaceService,
     private readonly api: ApiService,
     private readonly patch: PatchDB<DataModel>,
+    private readonly navCtrl: NavController,
+    private readonly loadingCtrl: LoadingController,
+    private readonly alertCtrl: AlertController,
   ) {}
 
-  async update(id: string, url: string): Promise<void> {
+  viewInMarketplace(pkg: PackageDataEntry) {
+    const url = pkg.installed?.['marketplace-url']
+    const queryParams = url ? { url } : {}
+
+    this.navCtrl.navigateForward([`marketplace/${pkg.manifest.id}`], {
+      queryParams,
+    })
+  }
+
+  async tryUpdate(
+    manifest: MarketplaceManifest,
+    url: string,
+    local: PackageDataEntry,
+  ): Promise<void> {
+    const { id, version } = manifest
+
+    delete this.errors[id]
     this.queued[id] = true
-    this.api.installPackage({ id, 'marketplace-url': url })
+
+    if (hasCurrentDeps(local)) {
+      this.dryUpdate(manifest, url)
+    } else {
+      this.update(id, version, url)
+    }
+  }
+
+  private async dryUpdate(manifest: MarketplaceManifest, url: string) {
+    const loader = await this.loadingCtrl.create({
+      message: 'Checking dependent services...',
+    })
+    await loader.present()
+
+    const { id, version } = manifest
+
+    try {
+      const breakages = await this.api.dryUpdatePackage({
+        id,
+        version: `${version}`,
+      })
+      await loader.dismiss()
+
+      if (isEmptyObject(breakages)) {
+        this.update(id, version, url)
+      } else {
+        const proceed = await this.presentAlertBreakages(
+          manifest.title,
+          breakages,
+        )
+        if (proceed) {
+          this.update(id, version, url)
+        } else {
+          delete this.queued[id]
+        }
+      }
+    } catch (e: any) {
+      delete this.queued[id]
+      this.errors[id] = e.message
+    }
+  }
+
+  private async presentAlertBreakages(
+    title: string,
+    breakages: Breakages,
+  ): Promise<boolean> {
+    let message: string = `As a result of updating ${title}, the following services will no longer work properly and may crash:<ul>`
+    const localPkgs = await getAllPackages(this.patch)
+    const bullets = Object.keys(breakages).map(id => {
+      const title = localPkgs[id].manifest.title
+      return `<li><b>${title}</b></li>`
+    })
+    message = `${message}${bullets.join('')}</ul>`
+
+    return new Promise(async resolve => {
+      const alert = await this.alertCtrl.create({
+        header: 'Warning',
+        message,
+        buttons: [
+          {
+            text: 'Cancel',
+            role: 'cancel',
+            handler: () => {
+              resolve(false)
+            },
+          },
+          {
+            text: 'Continue',
+            handler: () => {
+              resolve(true)
+            },
+            cssClass: 'enter-click',
+          },
+        ],
+        cssClass: 'alert-warning-message',
+      })
+
+      await alert.present()
+    })
+  }
+
+  private update(id: string, version: string, url: string) {
+    this.marketplaceService.installPackage(id, version, url).catch(e => {
+      delete this.queued[id]
+      this.errors[id] = e.message
+    })
   }
 }
 

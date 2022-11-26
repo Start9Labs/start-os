@@ -23,7 +23,7 @@ export class CategoriesComponent {
   category = ''
 
   @Input()
-  updatesAvailable = 0
+  disableCategories = false
 
   @Output()
   readonly categoryChange = new EventEmitter<string>()

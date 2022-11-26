@@ -1,7 +1,20 @@
-<ng-container *ngIf="pkg$ | async as pkg">
-  <app-show-header [pkg]="pkg"></app-show-header>
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="services"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Service Details</ion-title>
+  </ion-toolbar>
+</ion-header>
 
-  <ion-content>
+<ion-content class="ion-padding">
+  <ng-container *ngIf="pkg$ | async as pkg">
+    <div class="ion-text-center ion-padding-top">
+      <img [src]="pkg['static-files'].icon" alt="" style="width: 84px" />
+      <h1>{{ pkg.manifest.title }}</h1>
+      <h4>{{ pkg.manifest.version | displayEmver }}</h4>
+    </div>
+
     <!-- ** installing, updating, restoring ** -->
     <ng-container *ngIf="showProgress(pkg); else installed">
       <app-show-progress
@@ -73,5 +86,5 @@
         </ion-grid>
       </ng-template>
     </ng-template>
-  </ion-content>
-</ng-container>
+  </ng-container>
+</ion-content>

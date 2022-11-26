@@ -30,11 +30,19 @@
           >
             <ion-item *ngFor="let pkg of updates">
               <ng-container *ngIf="data.localPkgs[pkg.manifest.id] as local">
-                <ion-avatar slot="start" class="service-avatar">
+                <ion-avatar
+                  class="service-avatar"
+                  (click)="viewInMarketplace(local)"
+                >
                   <img [src]="'data:image/png;base64,' + pkg.icon | trustUrl" />
                 </ion-avatar>
                 <ion-label>
-                  <h1>{{ pkg.manifest.title }}</h1>
+                  <h1
+                    (click)="viewInMarketplace(local)"
+                    style="cursor: pointer"
+                  >
+                    {{ pkg.manifest.title }}
+                  </h1>
                   <h2 class="inline">
                     <span>{{ local.manifest.version }}</span>
                     &nbsp;<ion-icon name="arrow-forward"></ion-icon>&nbsp;
@@ -43,6 +51,9 @@
                     </ion-text>
                   </h2>
                   <p [innerHTML]="pkg.manifest['release-notes'] | markdown"></p>
+                  <p *ngIf="errors[pkg.manifest.id] as error">
+                    <ion-text color="danger">{{ error }}</ion-text>
+                  </p>
                 </ion-label>
 
                 <div slot="end">
@@ -62,11 +73,11 @@
                     ></ion-spinner>
                     <ng-template #updateBtn>
                       <ion-button
-                        (click)="update(pkg.manifest.id, host.url)"
-                        color="dark"
+                        (click)="tryUpdate(pkg.manifest, host.url, local)"
+                        [color]="errors[pkg.manifest.id] ? 'danger' : 'dark'"
                         strong
                       >
-                        Update
+                        {{ errors[pkg.manifest.id] ? 'Retry' : 'Update' }}
                       </ion-button>
                     </ng-template>
                   </ng-template>
