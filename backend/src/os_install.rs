@@ -37,14 +37,17 @@ pub fn disk() -> Result<(), Error> {
 
 #[command(display(display_none))]
 pub async fn list() -> Result<Vec<DiskInfo>, Error> {
-    let skip = Path::new(&String::from_utf8(
-        Command::new("grub-probe-default")
-            .arg("-t")
-            .arg("disk")
-            .arg("/cdrom")
-            .invoke(crate::ErrorKind::Grub)
-            .await?,
-    )?)
+    let skip = Path::new(
+        &String::from_utf8(
+            Command::new("grub-probe-default")
+                .arg("-t")
+                .arg("disk")
+                .arg("/cdrom")
+                .invoke(crate::ErrorKind::Grub)
+                .await?,
+        )?
+        .trim(),
+    )
     .to_owned();
     Ok(crate::disk::util::list(&Default::default())
         .await?
