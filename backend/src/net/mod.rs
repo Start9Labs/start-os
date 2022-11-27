@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use futures::future::BoxFuture;
-use hyper::{Body, Client, Error as HyperError, Request, Response};
+use hyper::{Body, Error as HyperError, Request, Response};
 use indexmap::IndexSet;
 use rpc_toolkit::command;
 
@@ -51,5 +51,3 @@ pub struct GeneratedCertificateMountPoint(());
 pub type HttpHandler = Arc<
     dyn Fn(Request<Body>) -> BoxFuture<'static, Result<Response<Body>, HyperError>> + Send + Sync,
 >;
-
-pub type HttpClient = Client<hyper::client::HttpConnector>;
