@@ -91,12 +91,7 @@ impl ProxyController {
     ) -> Result<Response<Body>, HyperError> {
         let mut uri = std::mem::take(req.uri_mut()).into_parts();
         uri.scheme = Some(Scheme::HTTP);
-        uri.authority = req
-            .headers()
-            .get(http::header::HOST)
-            .and_then(|h| h.to_str().ok())
-            // .and_then(|h| Authority::from_str(h).ok());
-            .and_then(|_| Authority::from_str(&addr.to_string()).ok());
+        uri.authority = Authority::from_str(&addr.to_string()).ok();
         match Uri::from_parts(uri) {
             Ok(uri) => *req.uri_mut() = uri,
             Err(e) => error!("Error rewriting uri: {}", e),
