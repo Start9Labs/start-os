@@ -601,6 +601,11 @@ pub async fn uninstall_dry(
 pub async fn uninstall_impl(ctx: RpcContext, id: PackageId) -> Result<(), Error> {
     let mut handle = ctx.db.handle();
     let mut tx = handle.begin().await?;
+    crate::db::DatabaseModel::new()
+        .package_data()
+        .idx_model(&id)
+        .lock(&mut tx, LockType::Write)
+        .await?;
 
     let mut pde = crate::db::DatabaseModel::new()
         .package_data()

@@ -342,6 +342,11 @@ where
     for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
 {
     let mut tx = db.begin().await?;
+    crate::db::DatabaseModel::new()
+        .package_data()
+        .idx_model(&id)
+        .lock(&mut tx, LockType::Write)
+        .await?;
     let receipts = UninstallReceipts::new(&mut tx, id).await?;
     let entry = receipts.removing.get(&mut tx).await?;
     cleanup(ctx, &entry.manifest.id, &entry.manifest.version).await?;
