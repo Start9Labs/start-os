@@ -18,6 +18,7 @@ use tracing::instrument;
 
 use super::target::BackupTargetId;
 use crate::backup::backup_bulk::OsBackup;
+use crate::backup::BackupMetadata;
 use crate::context::{RpcContext, SetupContext};
 use crate::db::model::{PackageDataEntry, StaticFiles};
 use crate::disk::mount::backup::{BackupMountGuard, PackageBackupMountGuard};
@@ -419,9 +420,37 @@ async fn restore_package<'a>(
     manifest: Manifest,
     guard: PackageBackupMountGuard,
 ) -> Result<(Arc<InstallProgress>, BoxFuture<'static, Result<(), Error>>), Error> {
+    let id = manifest.id.clone();
     let s9pk_path = Path::new(BACKUP_DIR)
         .join(&manifest.id)
-        .join(format!("{}.s9pk", manifest.id));
+        .join(format!("{}.s9pk", id));
+
+    let metadata_path = Path::new(BACKUP_DIR).join(&id).join("metadata.cbor");
+    let metadata: BackupMetadata =
+        IoFormat::Cbor.from_slice(&tokio::fs::read(&metadata_path).await.with_ctx(|_| {
+            (
+                crate::ErrorKind::Filesystem,
+                metadata_path.display().to_string(),
+            )
+        })?)?;
+    for (iface, key) in metadata.tor_keys {
+        let key_vec = base32::decode(base32::Alphabet::RFC4648 { padding: true }, &key)
+            .ok_or_else(|| {
+                Error::new(
+                    eyre!("invalid base32 string"),
+                    crate::ErrorKind::Deserialization,
+                )
+            })?;
+        sqlx::query!(
+                "INSERT INTO tor (package, interface, key) VALUES ($1, $2, $3) ON CONFLICT (package, interface) DO UPDATE SET key = $3",
+                *id,
+                *iface,
+                key_vec,
+            )
+            .execute(&ctx.secret_store)
+            .await?;
+    }
+
     let len = tokio::fs::metadata(&s9pk_path)
         .await
         .with_ctx(|_| {

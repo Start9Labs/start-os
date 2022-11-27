@@ -81,11 +81,16 @@ async fn maybe_do_update(
     marketplace_url: Url,
 ) -> Result<Option<Arc<Revision>>, Error> {
     let mut db = ctx.db.handle();
+    let arch = if *IS_RASPBERRY_PI {
+        "raspberrypi"
+    } else {
+        *crate::ARCH
+    };
     let latest_version: Version = reqwest::get(format!(
         "{}/eos/v0/latest?eos-version={}&arch={}",
         marketplace_url,
         Current::new().semver(),
-        &*crate::ARCH,
+        arch,
     ))
     .await
     .with_kind(ErrorKind::Network)?
@@ -121,13 +126,6 @@ async fn maybe_do_update(
         return Ok(None);
     }
 
-    // mount httpdirfs
-    // losetup remote fs
-    // BEGIN TASK
-    // rsync fs
-    // validate (hash) fs
-    // kernel update?
-    // swap selected fs
     let eos_url = EosUrl {
         base: marketplace_url,
         version: latest_version,
@@ -243,7 +241,7 @@ impl EosUrl {
             .ok_or_else(|| Error::new(eyre!("Could not get host of base"), ErrorKind::ParseUrl))?;
         let version: &Version = &self.version;
         let arch = if *IS_RASPBERRY_PI {
-            "raspberry_pi"
+            "raspberrypi"
         } else {
             *crate::ARCH
         };
@@ -310,23 +308,25 @@ async fn sync_boot() -> Result<(), Error> {
     )?
     .wait()
     .await?;
-    let dev_mnt =
-        MountGuard::mount(&Bind::new("/dev"), "/media/embassy/next/dev", ReadWrite).await?;
-    let sys_mnt =
-        MountGuard::mount(&Bind::new("/sys"), "/media/embassy/next/sys", ReadWrite).await?;
-    let proc_mnt =
-        MountGuard::mount(&Bind::new("/proc"), "/media/embassy/next/proc", ReadWrite).await?;
-    let boot_mnt =
-        MountGuard::mount(&Bind::new("/boot"), "/media/embassy/next/boot", ReadWrite).await?;
-    Command::new("chroot")
-        .arg("/media/embassy/next")
-        .arg("update-grub")
-        .invoke(ErrorKind::MigrationFailed)
-        .await?;
-    boot_mnt.unmount().await?;
-    proc_mnt.unmount().await?;
-    sys_mnt.unmount().await?;
-    dev_mnt.unmount().await?;
+    if !*IS_RASPBERRY_PI {
+        let dev_mnt =
+            MountGuard::mount(&Bind::new("/dev"), "/media/embassy/next/dev", ReadWrite).await?;
+        let sys_mnt =
+            MountGuard::mount(&Bind::new("/sys"), "/media/embassy/next/sys", ReadWrite).await?;
+        let proc_mnt =
+            MountGuard::mount(&Bind::new("/proc"), "/media/embassy/next/proc", ReadWrite).await?;
+        let boot_mnt =
+            MountGuard::mount(&Bind::new("/boot"), "/media/embassy/next/boot", ReadWrite).await?;
+        Command::new("chroot")
+            .arg("/media/embassy/next")
+            .arg("update-grub")
+            .invoke(ErrorKind::MigrationFailed)
+            .await?;
+        boot_mnt.unmount().await?;
+        proc_mnt.unmount().await?;
+        sys_mnt.unmount().await?;
+        dev_mnt.unmount().await?;
+    }
     Ok(())
 }
 

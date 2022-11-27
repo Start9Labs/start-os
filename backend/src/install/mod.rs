@@ -1331,7 +1331,6 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             .restore(
                 ctx,
                 &mut tx,
-                &mut sql_tx,
                 pkg_id,
                 version,
                 &manifest.interfaces,
