@@ -126,3 +126,14 @@ impl TryFrom<Uri> for ResourceFqdn {
         Self::from_str(&value.to_string())
     }
 }
+
+pub fn is_upgrade_req(req: &Request<Body>) -> bool {
+    req.headers()
+        .get("connection")
+        .and_then(|c| c.to_str().ok())
+        .map(|c| {
+            c.split(",")
+                .any(|c| c.trim().eq_ignore_ascii_case("upgrade"))
+        })
+        .unwrap_or(false)
+}
