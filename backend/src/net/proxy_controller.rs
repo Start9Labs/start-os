@@ -97,7 +97,7 @@ impl ProxyController {
             Ok(uri) => *req.uri_mut() = uri,
             Err(e) => error!("Error rewriting uri: {}", e),
         }
-        let addr = dbg!(req.uri().to_string());
+        let addr = req.uri().to_string();
 
         if is_upgrade_req(&req) {
             let upgraded_req = hyper::upgrade::on(&mut req);
