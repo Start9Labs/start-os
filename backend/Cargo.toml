@@ -80,7 +80,7 @@ embassy_container_init = { path = "../libs/embassy_container_init" }
 hex = "0.4.3"
 hmac = "0.12.1"
 http = "0.2.8"
-hyper = "0.14.20"
+hyper = { version = "0.14.20", features = ["full"] }
 hyper-ws-listener = "0.2.0"
 imbl = "2.0.0"
 indexmap = { version = "1.9.1", features = ["serde"] }
