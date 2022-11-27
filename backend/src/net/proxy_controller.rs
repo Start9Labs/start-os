@@ -14,7 +14,7 @@ use openssl::x509::X509;
 use tokio::sync::Mutex;
 use tracing::{error, instrument};
 
-use crate::net::net_utils::ResourceFqdn;
+use crate::net::net_utils::{is_upgrade_req, ResourceFqdn};
 use crate::net::ssl::SslManager;
 use crate::net::vhost_controller::VHOSTController;
 use crate::net::{HttpHandler, InterfaceMetadata, PackageNetInfo};
@@ -90,6 +90,7 @@ impl ProxyController {
         addr: SocketAddr,
     ) -> Result<Response<Body>, HyperError> {
         let mut uri = std::mem::take(req.uri_mut()).into_parts();
+
         uri.scheme = Some(Scheme::HTTP);
         uri.authority = Authority::from_str(&addr.to_string()).ok();
         match Uri::from_parts(uri) {
@@ -97,16 +98,8 @@ impl ProxyController {
             Err(e) => error!("Error rewriting uri: {}", e),
         }
         let addr = dbg!(req.uri().to_string());
-        if req
-            .headers()
-            .get("connection")
-            .and_then(|c| c.to_str().ok())
-            .map(|c| {
-                c.split(",")
-                    .any(|c| c.trim().eq_ignore_ascii_case("upgrade"))
-            })
-            .unwrap_or(false)
-        {
+
+        if is_upgrade_req(&req) {
             let upgraded_req = hyper::upgrade::on(&mut req);
             let mut res = client.request(req).await?;
             let upgraded_res = hyper::upgrade::on(&mut res);
@@ -115,6 +108,7 @@ impl ProxyController {
                     let mut req = upgraded_req.await?;
                     let mut res = upgraded_res.await?;
                     tokio::io::copy_bidirectional(&mut req, &mut res).await?;
+
                     Ok::<_, color_eyre::eyre::Report>(())
                 }
                 .await
