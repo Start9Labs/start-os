@@ -120,6 +120,9 @@ jobs:
       run: |
         tar -mxvf frontend.tar frontend/config.json
         tar -mxvf frontend.tar frontend/dist
+        tar -mxvf frontend.tar GIT_HASH.txt
+        tar -mxvf frontend.tar ENVIRONMENT.txt
+        tar -mxvf frontend.tar VERSION.txt
 
     - name: Cache raspiOS
       id: cache-raspios
