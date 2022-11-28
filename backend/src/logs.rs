@@ -86,9 +86,10 @@ async fn ws_handler<
             .with_kind(ErrorKind::Network)?;
     }
 
+    let mut ws_closed = false;
     while let Some(entry) = tokio::select! {
         a = logs.try_next() => Some(a?),
-        a = stream.try_next() => { a.with_kind(crate::ErrorKind::Network)?; None }
+        a = stream.try_next() => { a.with_kind(crate::ErrorKind::Network)?; ws_closed = true; None }
     } {
         if let Some(entry) = entry {
             let (_, log_entry) = entry.log_entry()?;
@@ -101,13 +102,15 @@ async fn ws_handler<
         }
     }
 
-    stream
-        .close(Some(CloseFrame {
-            code: CloseCode::Normal,
-            reason: "Log Stream Finished".into(),
-        }))
-        .await
-        .with_kind(ErrorKind::Network)?;
+    if !ws_closed {
+        stream
+            .close(Some(CloseFrame {
+                code: CloseCode::Normal,
+                reason: "Log Stream Finished".into(),
+            }))
+            .await
+            .with_kind(ErrorKind::Network)?;
+    }
 
     Ok(())
 }
