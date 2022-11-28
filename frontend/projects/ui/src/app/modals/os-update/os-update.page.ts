@@ -3,8 +3,6 @@ import { LoadingController, ModalController } from '@ionic/angular'
 import { ApiService } from '../../services/api/embassy-api.service'
 import { ErrorToastService } from '@start9labs/shared'
 import { EOSService } from 'src/app/services/eos.service'
-import { PatchDB } from 'patch-db-client'
-import { DataModel } from 'src/app/services/patch-db/data-model'
 
 @Component({
   selector: 'os-update',
@@ -21,7 +19,6 @@ export class OSUpdatePage {
     private readonly errToast: ErrorToastService,
     private readonly embassyApi: ApiService,
     private readonly eosService: EOSService,
-    private readonly patch: PatchDB<DataModel>,
   ) {}
 
   ngOnInit() {

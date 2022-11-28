@@ -244,15 +244,15 @@ export module RR {
 
   // marketplace
 
-  export type ServerInfo = {
+  export type EnvInfo = {
     'server-id': string
     'eos-version': string
   }
-  export type GetMarketplaceInfoReq = ServerInfo
+  export type GetMarketplaceInfoReq = EnvInfo
   export type GetMarketplaceInfoRes = StoreInfo
 
-  export type GetMarketplaceEOSReq = ServerInfo
-  export type GetMarketplaceEOSRes = MarketplaceEOS
+  export type GetMarketplaceEosReq = EnvInfo
+  export type GetMarketplaceEosRes = MarketplaceEOS
 
   export type GetMarketplacePackagesReq = {
     ids?: { id: string; version: string }[]

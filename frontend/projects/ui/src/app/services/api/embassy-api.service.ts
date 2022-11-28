@@ -103,11 +103,10 @@ export abstract class ApiService {
     path: string,
     params: {},
     url: string,
+    arch?: string,
   ): Promise<T>
 
-  abstract getEos(
-    params: RR.GetMarketplaceEOSReq,
-  ): Promise<RR.GetMarketplaceEOSRes>
+  abstract getEos(): Promise<RR.GetMarketplaceEosRes>
 
   // password
   // abstract updatePassword (params: RR.UpdatePasswordReq): Promise<RR.UpdatePasswordRes>

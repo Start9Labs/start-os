@@ -19,7 +19,7 @@ export module Mock {
     'update-progress': null,
     updated: true,
   }
-  export const MarketplaceEos: RR.GetMarketplaceEOSRes = {
+  export const MarketplaceEos: RR.GetMarketplaceEosRes = {
     version: '0.3.3',
     headline: 'Our biggest release ever.',
     'release-notes': {
