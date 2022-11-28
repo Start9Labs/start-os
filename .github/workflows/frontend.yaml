@@ -38,7 +38,7 @@ jobs:
       run: make frontends
 
     - name: 'Tar files to preserve file permissions'
-      run: tar -cvf frontend.tar ENVIRONMENT.txt GIT_HASH.txt frontend/dist frontend/config.json
+      run: tar -cvf frontend.tar ENVIRONMENT.txt GIT_HASH.txt VERSION.txt frontend/dist frontend/config.json
 
     - uses: actions/upload-artifact@v3
       with:
