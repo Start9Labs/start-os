@@ -6,6 +6,7 @@ on:
 
 env:
   NODEJS_VERSION: '16'
+  ENVIRONMENT: "dev"
 
 jobs:
   dpkg:
