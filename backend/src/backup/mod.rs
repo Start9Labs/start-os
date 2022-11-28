@@ -4,11 +4,10 @@ use std::path::{Path, PathBuf};
 use chrono::{DateTime, Utc};
 use color_eyre::eyre::eyre;
 use helpers::AtomicFile;
-use patch_db::{DbHandle, HasModel, LockType};
+use patch_db::{DbHandle, HasModel};
 use reqwest::Url;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
-use sqlx::{Executor, Postgres};
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use tracing::instrument;
@@ -184,20 +183,16 @@ impl BackupActions {
         })
     }
 
-    #[instrument(skip(ctx, db, secrets))]
-    pub async fn restore<Ex, Db: DbHandle>(
+    #[instrument(skip(ctx, db))]
+    pub async fn restore<Db: DbHandle>(
         &self,
         ctx: &RpcContext,
         db: &mut Db,
-        secrets: &mut Ex,
         pkg_id: &PackageId,
         pkg_version: &Version,
         interfaces: &Interfaces,
         volumes: &Volumes,
-    ) -> Result<(), Error>
-    where
-        for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
-    {
+    ) -> Result<(), Error> {
         let mut volumes = volumes.clone();
         volumes.insert(VolumeId::Backup, Volume::Backup { readonly: true });
         self.restore
@@ -222,27 +217,6 @@ impl BackupActions {
                 )
             })?,
         )?;
-        for (iface, key) in metadata.tor_keys {
-            let key_vec = base32::decode(base32::Alphabet::RFC4648 { padding: true }, &key)
-                .ok_or_else(|| {
-                    Error::new(
-                        eyre!("invalid base32 string"),
-                        crate::ErrorKind::Deserialization,
-                    )
-                })?;
-            sqlx::query!(
-                "INSERT INTO tor (package, interface, key) VALUES ($1, $2, $3) ON CONFLICT (package, interface) DO UPDATE SET key = $3",
-                **pkg_id,
-                *iface,
-                key_vec,
-            )
-            .execute(&mut *secrets)
-            .await?;
-        }
-        crate::db::DatabaseModel::new()
-            .package_data()
-            .lock(db, LockType::Write)
-            .await?;
         let pde = crate::db::DatabaseModel::new()
             .package_data()
             .idx_model(pkg_id)
@@ -250,10 +224,6 @@ impl BackupActions {
             .await?
             .installed()
             .expect(db)
-            .await?;
-        pde.clone()
-            .interface_addresses()
-            .put(db, &interfaces.install(&mut *secrets, pkg_id).await?)
             .await?;
         pde.marketplace_url()
             .put(db, &metadata.marketplace_url)
