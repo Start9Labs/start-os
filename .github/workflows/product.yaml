@@ -11,6 +11,9 @@ on:
     - master
     - next
 
+env:
+  ENVIRONMENT: "dev"
+
 jobs:
   compat:
     uses: ./.github/workflows/reusable-workflow.yaml

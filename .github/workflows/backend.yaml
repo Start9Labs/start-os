@@ -6,6 +6,7 @@ on:
 
 env:
   RUST_VERSION: "1.62.1"
+  ENVIRONMENT: "dev"
 
 jobs:
   build_libs:

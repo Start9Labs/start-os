@@ -12,6 +12,9 @@ on:
     - master
     - next
 
+env:
+  ENVIRONMENT: "dev"
+
 jobs:
   dpkg:
     uses: ./.github/workflows/debian.yaml
