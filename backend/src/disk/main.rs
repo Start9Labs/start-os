@@ -37,7 +37,7 @@ where
 #[instrument(skip(disks))]
 pub async fn create_pool<I, P>(
     disks: &I,
-    pvscan: &BTreeMap<PathBuf, Option<String>>,
+    _pvscan: &BTreeMap<PathBuf, Option<String>>,
 ) -> Result<String, Error>
 where
     for<'a> &'a I: IntoIterator<Item = &'a P>,
