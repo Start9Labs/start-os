@@ -37,22 +37,35 @@ pub fn disk() -> Result<(), Error> {
 
 #[command(display(display_none))]
 pub async fn list() -> Result<Vec<DiskInfo>, Error> {
-    let skip = Path::new(
-        &String::from_utf8(
-            Command::new("grub-probe-default")
-                .arg("-t")
-                .arg("disk")
-                .arg("/cdrom")
-                .invoke(crate::ErrorKind::Grub)
-                .await?,
-        )?
-        .trim(),
-    )
-    .to_owned();
+    let skip = match async {
+        Ok::<_, Error>(
+            Path::new(
+                &String::from_utf8(
+                    Command::new("grub-probe-default")
+                        .arg("-t")
+                        .arg("disk")
+                        .arg("/cdrom")
+                        .invoke(crate::ErrorKind::Grub)
+                        .await?,
+                )?
+                .trim(),
+            )
+            .to_owned(),
+        )
+    }
+    .await
+    {
+        Ok(a) => Some(a),
+        Err(e) => {
+            tracing::error!("Could not determine live usb device: {}", e);
+            tracing::debug!("{:?}", e);
+            None
+        }
+    };
     Ok(crate::disk::util::list(&Default::default())
         .await?
         .into_iter()
-        .filter(|i| &*i.logicalname != skip)
+        .filter(|i| Some(&*i.logicalname) != skip.as_deref())
         .collect())
 }
 
