@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use bollard::image::ListImagesOptions;
+use bollard::image::{ListImagesOptions, RemoveImageOptions};
 use patch_db::{DbHandle, LockReceipt, LockTargetId, LockType, PatchDbHandle, Verifier};
 use sqlx::{Executor, Postgres};
 use tracing::instrument;
@@ -132,7 +132,16 @@ pub async fn cleanup(ctx: &RpcContext, id: &PackageId, version: &Version) -> Res
                 })
                 .map(|tag| async {
                     let tag = tag; // move into future
-                    ctx.docker.remove_image(&tag, None, None).await
+                    ctx.docker
+                        .remove_image(
+                            &tag,
+                            Some(RemoveImageOptions {
+                                force: true,
+                                noprune: false,
+                            }),
+                            None,
+                        )
+                        .await
                 }),
         )
         .await,
