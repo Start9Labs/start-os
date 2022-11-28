@@ -1,4 +1,6 @@
-ARCH = $(shell uname -m)
+RASPI_TARGETS := embassyos-raspi.img embassyos-raspi.tar.gz gzip lite-upgrade.img
+ARCH := $(shell if echo $(RASPI_TARGETS) | grep -qw "$(MAKECMDGOALS)"; then echo aarch64; else uname -m; fi)
+OS_ARCH := $(shell if echo $(RASPI_TARGETS) | grep -qw "$(MAKECMDGOALS)"; then echo raspberrypi; else uname -m; fi)
 ENVIRONMENT_FILE = $(shell ./check-environment.sh)
 GIT_HASH_FILE = $(shell ./check-git-hash.sh)
 VERSION_FILE = $(shell ./check-version.sh)
