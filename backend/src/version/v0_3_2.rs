@@ -47,11 +47,7 @@ impl VersionT for Version {
         crate::hostname::ensure_hostname_is_set(db, &receipts).await?;
         receipts.id.set(db, generate_id()).await?;
 
-        let mut ui = crate::db::DatabaseModel::new()
-            .ui()
-            .get(db, false)
-            .await?
-            .clone();
+        let mut ui = crate::db::DatabaseModel::new().ui().get(db).await?.clone();
         ui.merge_with(&DEFAULT_UI);
         crate::db::DatabaseModel::new().ui().put(db, &ui).await?;
 

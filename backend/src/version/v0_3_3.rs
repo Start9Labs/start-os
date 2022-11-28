@@ -80,7 +80,7 @@ impl VersionT for Version {
 
         for package_id in crate::db::DatabaseModel::new()
             .package_data()
-            .keys(db, false)
+            .keys(db)
             .await?
             .iter()
         {
@@ -126,7 +126,7 @@ impl VersionT for Version {
         ui["auto-check-updates"] = Value::Bool(true);
         ui["pkg-order"] = json!(crate::db::DatabaseModel::new()
             .package_data()
-            .keys(db, false)
+            .keys(db)
             .await?
             .iter()
             .map(|x| x.to_string())

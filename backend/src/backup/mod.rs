@@ -137,7 +137,7 @@ impl BackupActions {
             .expect(db)
             .await?
             .marketplace_url()
-            .get(db, true)
+            .get(db)
             .await?
             .into_owned();
         let tmp_path = Path::new(BACKUP_DIR)
@@ -237,7 +237,7 @@ impl BackupActions {
             .installed()
             .expect(db)
             .await?
-            .get(db, true)
+            .get(db)
             .await?;
 
         let receipts = crate::config::ConfigReceipts::new(db).await?;

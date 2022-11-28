@@ -27,7 +27,7 @@ pub async fn fetch_properties(ctx: RpcContext, id: PackageId) -> Result<Value, E
         .idx_model(&id)
         .and_then(|p| p.installed())
         .map(|m| m.manifest())
-        .get(&mut db, true)
+        .get(&mut db)
         .await?
         .to_owned()
         .ok_or_else(|| Error::new(eyre!("{} is not installed", id), ErrorKind::NotFound))?;

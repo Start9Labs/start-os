@@ -154,7 +154,7 @@ pub async fn backup_all(
     .await?;
     let all_packages = crate::db::DatabaseModel::new()
         .package_data()
-        .get(&mut db, false)
+        .get(&mut db)
         .await?
         .0
         .keys()
@@ -297,7 +297,7 @@ async fn perform_backup<Db: DbHandle>(
 
     for package_id in crate::db::DatabaseModel::new()
         .package_data()
-        .keys(&mut db, false)
+        .keys(&mut db)
         .await?
         .into_iter()
         .filter(|id| package_ids.contains(id))
@@ -317,7 +317,7 @@ async fn perform_backup<Db: DbHandle>(
         let main_status_model = installed_model.clone().status().main();
 
         main_status_model.lock(&mut tx, LockType::Write).await?;
-        let (started, health) = match main_status_model.get(&mut tx, true).await?.into_owned() {
+        let (started, health) = match main_status_model.get(&mut tx).await?.into_owned() {
             MainStatus::Starting { .. } => (Some(Utc::now()), Default::default()),
             MainStatus::Running { started, health } => (Some(started), health.clone()),
             MainStatus::Stopped | MainStatus::Stopping | MainStatus::Restarting => {
@@ -346,11 +346,7 @@ async fn perform_backup<Db: DbHandle>(
             .await?;
         tx.save().await?; // drop locks
 
-        let manifest = installed_model
-            .clone()
-            .manifest()
-            .get(&mut db, false)
-            .await?;
+        let manifest = installed_model.clone().manifest().get(&mut db).await?;
 
         ctx.managers
             .get(&(manifest.id.clone(), manifest.version.clone()))
@@ -362,6 +358,11 @@ async fn perform_backup<Db: DbHandle>(
             .await;
 
         let mut tx = db.begin().await?;
+        let lock_package = crate::db::DatabaseModel::new()
+            .package_data()
+            .idx(&package_id)
+            .lock(&mut tx, LockType::Write)
+            .await;
 
         installed_model.lock(&mut tx, LockType::Write).await?;
 
@@ -445,7 +446,7 @@ async fn perform_backup<Db: DbHandle>(
                 root_ca_cert,
                 ui: crate::db::DatabaseModel::new()
                     .ui()
-                    .get(&mut db, true)
+                    .get(&mut db)
                     .await?
                     .into_owned(),
             })?,
