@@ -53,7 +53,7 @@ impl ManagerMap {
         let mut res = BTreeMap::new();
         for package in crate::db::DatabaseModel::new()
             .package_data()
-            .keys(db, true)
+            .keys(db)
             .await?
         {
             let man: Manifest = if let Some(manifest) = crate::db::DatabaseModel::new()
@@ -61,7 +61,7 @@ impl ManagerMap {
                 .idx_model(&package)
                 .and_then(|pkg| pkg.installed())
                 .map(|m| m.manifest())
-                .get(db, true)
+                .get(db)
                 .await?
                 .to_owned()
             {

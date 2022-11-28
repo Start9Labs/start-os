@@ -139,7 +139,7 @@ pub async fn action(
         .await
         .with_kind(crate::ErrorKind::NotFound)?
         .manifest()
-        .get(&mut db, true)
+        .get(&mut db)
         .await?
         .to_owned();
 
