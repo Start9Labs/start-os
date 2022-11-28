@@ -169,17 +169,19 @@ export class MarketplaceService implements AbstractMarketplaceService {
   }
 
   fetchInfo$(url: string): Observable<StoreInfo> {
-    return this.patch
-      .watch$('server-info', 'id')
-      .pipe(
-        switchMap(id =>
-          this.api.marketplaceProxy<RR.GetMarketplaceInfoRes>(
-            '/package/v0/info',
-            { 'server-d': id },
-            url,
-          ),
-        ),
-      )
+    return this.patch.watch$('server-info').pipe(
+      switchMap(serverInfo => {
+        const qp: RR.GetMarketplaceInfoReq = {
+          'server-id': serverInfo.id,
+          'eos-version': serverInfo.version,
+        }
+        return this.api.marketplaceProxy<RR.GetMarketplaceInfoRes>(
+          '/package/v0/info',
+          qp,
+          url,
+        )
+      }),
+    )
   }
 
   private fetchStore$(url: string): Observable<StoreData | null> {

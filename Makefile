@@ -1,4 +1,6 @@
-ARCH = $(shell uname -m)
+RASPI_TARGETS := embassyos-raspi.img embassyos-raspi.tar.gz gzip lite-upgrade.img
+ARCH := $(shell if echo $(RASPI_TARGETS) | grep -qw "$(MAKECMDGOALS)"; then echo aarch64; else uname -m; fi)
+OS_ARCH := $(shell if echo $(RASPI_TARGETS) | grep -qw "$(MAKECMDGOALS)"; then echo raspberrypi; else uname -m; fi)
 ENVIRONMENT_FILE = $(shell ./check-environment.sh)
 GIT_HASH_FILE = $(shell ./check-git-hash.sh)
 VERSION_FILE = $(shell ./check-version.sh)
@@ -145,6 +147,9 @@ frontend/dist/install-wizard: $(FRONTEND_INSTALL_WIZARD_SRC) $(FRONTEND_SHARED_S
 
 frontend/config.json: $(GIT_HASH_FILE) frontend/config-sample.json
 	jq '.useMocks = false' frontend/config-sample.json > frontend/config.json
+	jq '.packageArch = "$(ARCH)"' frontend/config.json > frontend/config.json.tmp
+	jq '.osArch = "$(OS_ARCH)"' frontend/config.json.tmp > frontend/config.json
+	rm frontend/config.json.tmp
 	npm --prefix frontend run-script build-config
 
 frontend/patchdb-ui-seed.json: frontend/package.json

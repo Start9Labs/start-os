@@ -19,6 +19,7 @@ import { AuthService } from '../auth.service'
 import { DOCUMENT } from '@angular/common'
 import { DataModel } from '../patch-db/data-model'
 import { PatchDB, pathFromArray, Update } from 'patch-db-client'
+import { getServerInfo } from 'src/app/util/get-server-info'
 
 @Injectable()
 export class LiveApiService extends ApiService {
@@ -177,8 +178,14 @@ export class LiveApiService extends ApiService {
 
   // marketplace URLs
 
-  async marketplaceProxy<T>(path: string, qp: {}, baseUrl: string): Promise<T> {
-    Object.assign(qp, { arch: this.config.targetArch })
+  async marketplaceProxy<T>(
+    path: string,
+    qp: Record<string, string>,
+    baseUrl: string,
+    arch: string = this.config.packageArch,
+  ): Promise<T> {
+    // Object.assign(qp, { arch })
+    qp['arch'] = arch
     const fullUrl = `${baseUrl}${path}?${new URLSearchParams(qp).toString()}`
     return this.rpcRequest({
       method: 'marketplace.get',
@@ -186,13 +193,18 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async getEos(
-    params: RR.GetMarketplaceEOSReq,
-  ): Promise<RR.GetMarketplaceEOSRes> {
+  async getEos(): Promise<RR.GetMarketplaceEosRes> {
+    const { id, version } = await getServerInfo(this.patch)
+    const qp: RR.GetMarketplaceEosReq = {
+      'server-id': id,
+      'eos-version': version,
+    }
+
     return this.marketplaceProxy(
       '/eos/v0/latest',
-      params,
+      qp,
       this.config.marketplace.start9,
+      this.config.osArch,
     )
   }
 

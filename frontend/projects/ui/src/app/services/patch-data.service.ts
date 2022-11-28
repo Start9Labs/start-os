@@ -44,7 +44,7 @@ export class PatchDataService extends Observable<DataModel> {
   }
 
   private checkForUpdates(): void {
-    this.eosService.getEOS()
+    this.eosService.loadEos()
     this.marketplaceService.getMarketplace$().pipe(take(1)).subscribe()
   }
 

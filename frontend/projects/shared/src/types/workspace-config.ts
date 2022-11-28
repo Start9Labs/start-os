@@ -1,5 +1,6 @@
 export type WorkspaceConfig = {
-  targetArch: 'aarch64' | 'x86_64'
+  packageArch: 'aarch64' | 'x86_64'
+  osArch: 'aarch64' | 'x86_64' | 'raspberrypi'
   gitHash: string
   useMocks: boolean
   // each key corresponds to a project and values adjust settings for that project, eg: ui, install-wizard, setup-wizard, diagnostic-ui

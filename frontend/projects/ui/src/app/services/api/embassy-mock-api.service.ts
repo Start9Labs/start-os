@@ -294,7 +294,12 @@ export class MockApiService extends ApiService {
 
   // marketplace URLs
 
-  async marketplaceProxy(path: string, params: {}, url: string): Promise<any> {
+  async marketplaceProxy(
+    path: string,
+    params: Record<string, string>,
+    url: string,
+    arch = '',
+  ): Promise<any> {
     await pauseFor(2000)
 
     if (path === '/package/v0/info') {
@@ -320,9 +325,7 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async getEos(
-    params: RR.GetMarketplaceEOSReq,
-  ): Promise<RR.GetMarketplaceEOSRes> {
+  async getEos(): Promise<RR.GetMarketplaceEosRes> {
     await pauseFor(2000)
     return Mock.MarketplaceEos
   }
