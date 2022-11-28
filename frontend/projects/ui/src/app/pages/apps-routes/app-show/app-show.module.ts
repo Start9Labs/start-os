@@ -8,6 +8,7 @@ import { StatusComponentModule } from 'src/app/components/status/status.componen
 import { AppConfigPageModule } from 'src/app/modals/app-config/app-config.module'
 import { LaunchablePipeModule } from 'src/app/pipes/launchable/launchable.module'
 import { UiPipeModule } from 'src/app/pipes/ui/ui.module'
+import { AppShowHeaderComponent } from './components/app-show-header/app-show-header.component'
 import { AppShowProgressComponent } from './components/app-show-progress/app-show-progress.component'
 import { AppShowStatusComponent } from './components/app-show-status/app-show-status.component'
 import { AppShowDependenciesComponent } from './components/app-show-dependencies/app-show-dependencies.component'
@@ -37,6 +38,7 @@ const routes: Routes = [
     ToButtonsPipe,
     ToDependenciesPipe,
     ToStatusPipe,
+    AppShowHeaderComponent,
     AppShowProgressComponent,
     AppShowStatusComponent,
     AppShowDependenciesComponent,
