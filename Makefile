@@ -145,7 +145,7 @@ frontend/dist/install-wizard: $(FRONTEND_INSTALL_WIZARD_SRC) $(FRONTEND_SHARED_S
 
 frontend/config.json: $(GIT_HASH_FILE) frontend/config-sample.json
 	jq '.useMocks = false' frontend/config-sample.json > frontend/config.json
-	jq '.targetArch = $(ARCH)' frontend/config.json > frontend/config.json.tmp
+	jq '.targetArch = "$(ARCH)"' frontend/config.json > frontend/config.json.tmp
 	mv frontend/config.json.tmp frontend/config.json
 	npm --prefix frontend run-script build-config
 
