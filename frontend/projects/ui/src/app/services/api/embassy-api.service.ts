@@ -101,7 +101,7 @@ export abstract class ApiService {
 
   abstract marketplaceProxy<T>(
     path: string,
-    params: {},
+    params: Record<string, unknown>,
     url: string,
     arch?: string,
   ): Promise<T>

@@ -296,7 +296,7 @@ export class MockApiService extends ApiService {
 
   async marketplaceProxy(
     path: string,
-    params: {},
+    params: Record<string, string>,
     url: string,
     arch = '',
   ): Promise<any> {

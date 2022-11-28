@@ -180,11 +180,12 @@ export class LiveApiService extends ApiService {
 
   async marketplaceProxy<T>(
     path: string,
-    qp: {},
+    qp: Record<string, string>,
     baseUrl: string,
     arch: string = this.config.packageArch,
   ): Promise<T> {
-    Object.assign(qp, { arch })
+    // Object.assign(qp, { arch })
+    qp['arch'] = arch
     const fullUrl = `${baseUrl}${path}?${new URLSearchParams(qp).toString()}`
     return this.rpcRequest({
       method: 'marketplace.get',
