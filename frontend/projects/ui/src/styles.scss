@@ -157,8 +157,17 @@ img {
 
 ion-back-button {
   margin-left: 16px;
+  height: 36px;
+  width: 36px;
+  --min-height: 0;
+  --min-width: 0;
+  min-width: 0;
+  --icon-font-size: 36px;
   &::part(native) {
-    border: 1px solid white;
+    border: 1px solid gray;
+  }
+  &::part(icon) {
+    min-width: 20px;
   }
 }
 
