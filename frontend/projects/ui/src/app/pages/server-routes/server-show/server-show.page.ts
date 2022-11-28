@@ -308,11 +308,11 @@ export class ServerShowPage {
     await loader.present()
 
     try {
-      const updateAvailable = await this.eosService.getEOS()
+      await this.eosService.loadEos()
 
       await loader.dismiss()
 
-      if (updateAvailable) {
+      if (this.eosService.updateAvailable$.value) {
         this.updateEos()
       } else {
         this.presentAlertLatest()

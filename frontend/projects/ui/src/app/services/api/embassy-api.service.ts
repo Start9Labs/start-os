@@ -101,13 +101,12 @@ export abstract class ApiService {
 
   abstract marketplaceProxy<T>(
     path: string,
-    params: {},
+    params: Record<string, unknown>,
     url: string,
+    arch?: string,
   ): Promise<T>
 
-  abstract getEos(
-    params: RR.GetMarketplaceEOSReq,
-  ): Promise<RR.GetMarketplaceEOSRes>
+  abstract getEos(): Promise<RR.GetMarketplaceEosRes>
 
   // password
   // abstract updatePassword (params: RR.UpdatePasswordReq): Promise<RR.UpdatePasswordRes>
