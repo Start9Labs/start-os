@@ -164,7 +164,7 @@ patch-db/client/dist: $(PATCH_DB_CLIENT_SRC) patch-db/client/node_modules
 	npm --prefix frontend run build:deps
 
 # used by github actions
-backend-$(ARCH).tar: $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(EMBASSY_BINS)
+backend-$(ARCH).tar: $(EMBASSY_BINS)
 	tar -cvf $@ $^
 
 # this is a convenience step to build all frontends - it is not referenced elsewhere in this file
