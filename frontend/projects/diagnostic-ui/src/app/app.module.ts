@@ -1,7 +1,8 @@
 import { NgModule } from '@angular/core'
-import { BrowserModule } from '@angular/platform-browser'
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
 import { RouteReuseStrategy } from '@angular/router'
 import { IonicModule, IonicRouteStrategy } from '@ionic/angular'
+import { TuiRootModule } from '@taiga-ui/core'
 import { AppComponent } from './app.component'
 import { AppRoutingModule } from './app-routing.module'
 import { HttpClientModule } from '@angular/common/http'
@@ -19,11 +20,12 @@ const {
   declarations: [AppComponent],
   imports: [
     HttpClientModule,
-    BrowserModule,
+    BrowserAnimationsModule,
     IonicModule.forRoot({
       mode: 'md',
     }),
     AppRoutingModule,
+    TuiRootModule,
   ],
   providers: [
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
