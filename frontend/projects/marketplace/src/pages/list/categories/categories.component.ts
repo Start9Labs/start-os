@@ -22,9 +22,6 @@ export class CategoriesComponent {
   @Input()
   category = ''
 
-  @Input()
-  disableCategories = false
-
   @Output()
   readonly categoryChange = new EventEmitter<string>()
 

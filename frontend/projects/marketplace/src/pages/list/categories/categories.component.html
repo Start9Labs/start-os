@@ -2,7 +2,7 @@
   *ngFor="let cat of categories"
   fill="clear"
   class="category"
-  [class.category_selected]="cat === category && !disableCategories"
+  [class.category_selected]="cat === category"
   (click)="switchCategory(cat)"
 >
   {{ cat }}

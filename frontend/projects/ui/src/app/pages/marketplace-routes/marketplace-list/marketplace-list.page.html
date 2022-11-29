@@ -38,8 +38,7 @@
           <ng-container *ngIf="store$ | async as store; else loading">
             <marketplace-categories
               [categories]="store.categories"
-              [category]="category"
-              [disableCategories]="!!query"
+              [category]="query ? '' : category"
               (categoryChange)="onCategoryChange($event)"
             ></marketplace-categories>
 
@@ -48,22 +47,30 @@
             <ion-grid
               *ngIf="store.packages | filterPackages: query:category as filtered"
             >
-              <ion-row *ngIf="localPkgs$ | async as localPkgs">
-                <ion-col
-                  *ngFor="let pkg of filtered"
-                  sizeXs="12"
-                  sizeSm="12"
-                  sizeMd="6"
-                >
-                  <marketplace-item [pkg]="pkg">
-                    <marketplace-status
-                      class="status"
-                      [version]="pkg.manifest.version"
-                      [localPkg]="localPkgs[pkg.manifest.id]"
-                    ></marketplace-status>
-                  </marketplace-item>
-                </ion-col>
-              </ion-row>
+              <ng-container *ngIf="filtered.length; else empty">
+                <ion-row *ngIf="localPkgs$ | async as localPkgs">
+                  <ion-col
+                    *ngFor="let pkg of filtered"
+                    sizeXs="12"
+                    sizeSm="12"
+                    sizeMd="6"
+                  >
+                    <marketplace-item [pkg]="pkg">
+                      <marketplace-status
+                        class="status"
+                        [version]="pkg.manifest.version"
+                        [localPkg]="localPkgs[pkg.manifest.id]"
+                      ></marketplace-status>
+                    </marketplace-item>
+                  </ion-col>
+                </ion-row>
+              </ng-container>
+
+              <ng-template #empty>
+                <div class="ion-padding">
+                  <h2>No results</h2>
+                </div>
+              </ng-template>
             </ion-grid>
           </ng-container>
 

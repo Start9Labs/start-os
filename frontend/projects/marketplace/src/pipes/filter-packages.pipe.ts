@@ -1,5 +1,4 @@
 import { NgModule, Pipe, PipeTransform } from '@angular/core'
-import { Emver } from '@start9labs/shared'
 import { MarketplacePkg } from '../types'
 import Fuse from 'fuse.js'
 
@@ -7,8 +6,6 @@ import Fuse from 'fuse.js'
   name: 'filterPackages',
 })
 export class FilterPackagesPipe implements PipeTransform {
-  constructor(private readonly emver: Emver) {}
-
   transform(
     packages: MarketplacePkg[],
     query: string,
@@ -19,29 +16,51 @@ export class FilterPackagesPipe implements PipeTransform {
       let options: Fuse.IFuseOptions<MarketplacePkg> = {
         includeScore: true,
         includeMatches: true,
-        ignoreLocation: true,
-        useExtendedSearch: true,
-        keys: [
-          {
-            name: 'manifest.title',
-            weight: 1,
-          },
-          {
-            name: 'manifest.id',
-            weight: 0.5,
-          },
-          {
-            name: 'manifest.description.short',
-            weight: 0.4,
-          },
-          {
-            name: 'manifest.description.long',
-            weight: 0.1,
-          },
-        ],
       }
 
-      query = `'${query}`
+      if (query.length < 4) {
+        options = {
+          ...options,
+          threshold: 0.2,
+          location: 0,
+          distance: 16,
+          keys: [
+            {
+              name: 'manifest.title',
+              weight: 1,
+            },
+            {
+              name: 'manifest.id',
+              weight: 0.5,
+            },
+          ],
+        }
+      } else {
+        options = {
+          ...options,
+          ignoreLocation: true,
+          useExtendedSearch: true,
+          keys: [
+            {
+              name: 'manifest.title',
+              weight: 1,
+            },
+            {
+              name: 'manifest.id',
+              weight: 0.5,
+            },
+            {
+              name: 'manifest.description.short',
+              weight: 0.4,
+            },
+            {
+              name: 'manifest.description.long',
+              weight: 0.1,
+            },
+          ],
+        }
+        query = `'${query}`
+      }
 
       const fuse = new Fuse(packages, options)
       return fuse.search(query).map(p => p.item)
