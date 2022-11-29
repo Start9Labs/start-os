@@ -8,21 +8,6 @@ use crate::{COMMUNITY_MARKETPLACE, DEFAULT_MARKETPLACE};
 
 const V0_3_3: emver::Version = emver::Version::new(0, 3, 3, 0);
 
-lazy_static::lazy_static! {
-    static ref COMMUNITY_PACKAGES: Vec<&'static str> = vec![
-        "robosats",
-        "syncthing",
-        "balanceofsatoshis",
-        "lightning-jet",
-        "mastodon",
-        "sphinx-relay",
-        "agora",
-        "lndg",
-        "synapse",
-        "thunderhub",
-    ];
-}
-
 #[derive(Clone, Debug)]
 pub struct Version;
 
@@ -68,7 +53,6 @@ impl VersionT for Version {
         }
 
         ui["marketplace"]["known-hosts"]["https://registry.start9.com/"] = json!({});
-        ui["marketplace"]["known-hosts"]["https://community-registry.start9.com/"] = json!({});
 
         if let Some(Value::Object(ref mut obj)) = ui.get_mut("marketplace") {
             obj.remove("selected-id");
@@ -77,28 +61,6 @@ impl VersionT for Version {
             ui["marketplace"]["selected-url"] = json!(MarketPlaceUrls::Default.url());
         }
         ui.save(db).await?;
-
-        for package_id in crate::db::DatabaseModel::new()
-            .package_data()
-            .keys(db)
-            .await?
-            .iter()
-        {
-            let id: &str = &**package_id;
-            if COMMUNITY_PACKAGES.iter().find(|x| x == &&id).is_none() {
-                continue;
-            }
-            let mut package = crate::db::DatabaseModel::new()
-                .package_data()
-                .idx_model(package_id)
-                .and_then(|x| x.installed())
-                .get_mut(db)
-                .await?;
-            if let Some(ref mut package) = *package {
-                package.marketplace_url = Some(MarketPlaceUrls::Community.url().parse().unwrap());
-            }
-            package.save(db).await?;
-        }
 
         Ok(())
     }
