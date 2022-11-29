@@ -134,8 +134,10 @@ jobs:
     
     - name: Build image
       run: |
-        touch all
-        make V=1 embassyos-raspi.img --debug
+        touch -d "1970-01-01T00:00:00Z" ENVIRONMENT.txt GIT_HASH.txt VERSION.txt
+        ENVIRONMENT=dev make V=1 embassyos-raspi.img --debug
+      env:
+        ENVIRONMENT: "dev"
       
     - uses: actions/upload-artifact@v3
       with:
