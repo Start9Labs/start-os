@@ -43,7 +43,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
         const { start9, community } = this.config.marketplace
         let arr = [
           toStoreIdentity(start9, hosts[start9]),
-          toStoreIdentity(community, hosts[community]),
+          // toStoreIdentity(community, hosts[community]),
         ]
 
         return arr.concat(
