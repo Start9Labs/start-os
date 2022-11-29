@@ -32,7 +32,7 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
         let ctx = InstallContext::init(cfg_path).await?;
 
         let embassy_ip_fqdn: ResourceFqdn = ResourceFqdn::IpAddr;
-        let embassy_fqdn: ResourceFqdn = "pureos.local".parse()?;
+        let embassy_fqdn: ResourceFqdn = "embassy.local".parse()?;
 
         let localhost_fqdn = ResourceFqdn::LocalHost;
 
