@@ -28,6 +28,7 @@ export class AttachPage {
   ) {}
 
   async ngOnInit() {
+    this.stateService.setupType = 'attach'
     await this.getDrives()
   }
 

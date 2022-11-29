@@ -1,5 +1,5 @@
 <ion-content>
-  <ion-grid>
+  <ion-grid *ngIf="!loading">
     <ion-row class="ion-align-items-center">
       <ion-col class="ion-text-center">
         <div style="padding-bottom: 32px">
@@ -9,7 +9,7 @@
             style="max-width: 220px"
           />
         </div>
-        <ion-card *ngIf="!loading" color="dark">
+        <ion-card color="dark">
           <ion-card-header>
             <ion-button
               *ngIf="swiper?.activeIndex === 1"

@@ -29,7 +29,7 @@ type Encrypted = {
 
 export type StatusRes = {
   'bytes-transferred': number
-  'total-bytes': number
+  'total-bytes': number | null
   complete: boolean
 } | null
 
