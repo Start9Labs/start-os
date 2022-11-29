@@ -25,7 +25,7 @@ sudo umount $TMPDIR
 sudo mount `partition_for ${OUTPUT_DEVICE} 2` $TMPDIR
 
 sudo mkdir $TMPDIR/media/embassy/
-sudo make V=1 install ARCH=aarch64 OS_ARCH=raspberrypi DESTDIR=$TMPDIR --debug
+sudo ENVIRONMENT=$ENVIRONMENT make V=1 install ARCH=aarch64 OS_ARCH=raspberrypi DESTDIR=$TMPDIR --debug
 sudo sed -i 's/raspberrypi/embassy/g' $TMPDIR/etc/hostname
 sudo sed -i 's/raspberrypi/embassy/g' $TMPDIR/etc/hosts
 sudo cp cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast $TMPDIR/usr/local/bin

@@ -120,9 +120,9 @@ jobs:
       run: |
         tar -mxvf frontend.tar frontend/config.json
         tar -mxvf frontend.tar frontend/dist
-        tar -mxvf frontend.tar GIT_HASH.txt
-        tar -mxvf frontend.tar ENVIRONMENT.txt
-        tar -mxvf frontend.tar VERSION.txt
+        tar -xvf frontend.tar GIT_HASH.txt
+        tar -xvf frontend.tar ENVIRONMENT.txt
+        tar -xvf frontend.tar VERSION.txt
         rm frontend.tar
 
     - name: Cache raspiOS
@@ -134,7 +134,6 @@ jobs:
     
     - name: Build image
       run: |
-        touch -d "1970-01-01T00:00:00Z" ENVIRONMENT.txt GIT_HASH.txt VERSION.txt
         make V=1 embassyos-raspi.img --debug
       
     - uses: actions/upload-artifact@v3

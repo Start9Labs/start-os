@@ -116,12 +116,6 @@ raspios.img:
 	unzip 2022-01-28-raspios-bullseye-arm64-lite.zip
 	mv 2022-01-28-raspios-bullseye-arm64-lite.img raspios.img
 
-product_key.txt:
-	$(shell which echo) -n "X" > product_key.txt
-	cat /dev/urandom | base32 | head -c11 | tr '[:upper:]' '[:lower:]' >> product_key.txt
-	if [ "$(KEY)" != "" ]; then $(shell which echo) -n "$(KEY)" > product_key.txt; fi
-	echo >> product_key.txt
-
 snapshots: libs/snapshot_creator/Cargo.toml
 	cd libs/  && ./build-v8-snapshot.sh
 	cd libs/  && ./build-arm-v8-snapshot.sh
