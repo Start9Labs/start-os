@@ -29,14 +29,14 @@ export class MarketplaceSettingsPage {
     this.marketplaceService.getSelectedHost$(),
   ]).pipe(
     map(([stores, selected]) => {
-      const hmmm = stores.map(s => ({
+      const toSlice = stores.map(s => ({
         ...s,
         selected: s.url === selected.url,
       }))
       // 0 and 1 are prod and community
-      const standard = hmmm.slice(0, 2)
+      const standard = toSlice.slice(0, 1)
       // 2 and beyond are alts
-      const alt = hmmm.slice(2)
+      const alt = toSlice.slice(1)
 
       return { standard, alt }
     }),
