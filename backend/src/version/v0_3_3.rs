@@ -4,7 +4,7 @@ use serde_json::{json, Value};
 
 use super::v0_3_0::V0_3_0_COMPAT;
 use super::*;
-use crate::{COMMUNITY_MARKETPLACE, DEFAULT_MARKETPLACE};
+use crate::DEFAULT_MARKETPLACE;
 
 const V0_3_3: emver::Version = emver::Version::new(0, 3, 3, 0);
 
@@ -104,14 +104,12 @@ impl VersionT for Version {
 #[derive(Debug, Clone, Copy)]
 pub enum MarketPlaceUrls {
     Default,
-    Community,
 }
 
 impl MarketPlaceUrls {
     pub fn url(&self) -> String {
         let url_string = match self {
             MarketPlaceUrls::Default => DEFAULT_MARKETPLACE,
-            MarketPlaceUrls::Community => COMMUNITY_MARKETPLACE,
         };
         format!("{url_string}/")
     }
@@ -121,7 +119,7 @@ impl MarketPlaceUrls {
 fn test_that_ui_includes_url() {
     let ui: Value =
         serde_json::from_str(include_str!("../../../frontend/patchdb-ui-seed.json")).unwrap();
-    for market_place in [MarketPlaceUrls::Default, MarketPlaceUrls::Community] {
+    for market_place in [MarketPlaceUrls::Default] {
         let url = market_place.url();
         assert!(
             !ui["marketplace"]["known-hosts"][&url].is_null(),
