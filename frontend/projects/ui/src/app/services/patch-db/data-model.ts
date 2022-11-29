@@ -26,7 +26,7 @@ export interface UIMarketplaceData {
   'selected-url': string
   'known-hosts': {
     'https://registry.start9.com/': UIStore
-    'https://community-registry.start9.com/': UIStore
+    // 'https://community-registry.start9.com/': UIStore
     [url: string]: UIStore
   }
 }

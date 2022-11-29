@@ -4,8 +4,7 @@
   "marketplace": {
     "selected-url": "https://registry.start9.com/",
     "known-hosts": {
-      "https://registry.start9.com/": {},
-      "https://community-registry.start9.com/": {}
+      "https://registry.start9.com/": {}
     }
   },
   "dev": {},
