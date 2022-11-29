@@ -358,11 +358,11 @@ async fn perform_backup<Db: DbHandle>(
             .await;
 
         let mut tx = db.begin().await?;
-        let lock_package = crate::db::DatabaseModel::new()
+        crate::db::DatabaseModel::new()
             .package_data()
             .idx(&package_id)
             .lock(&mut tx, LockType::Write)
-            .await;
+            .await?;
 
         installed_model.lock(&mut tx, LockType::Write).await?;
 

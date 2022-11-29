@@ -179,7 +179,7 @@ impl ProgressInfo {
         }
 
         SetupStatus {
-            total_bytes,
+            total_bytes: Some(total_bytes),
             bytes_transferred,
             complete: false,
         }
