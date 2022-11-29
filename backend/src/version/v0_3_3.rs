@@ -68,7 +68,6 @@ impl VersionT for Version {
         }
 
         ui["marketplace"]["known-hosts"]["https://registry.start9.com/"] = json!({});
-        ui["marketplace"]["known-hosts"]["https://community-registry.start9.com/"] = json!({});
 
         if let Some(Value::Object(ref mut obj)) = ui.get_mut("marketplace") {
             obj.remove("selected-id");
@@ -94,9 +93,6 @@ impl VersionT for Version {
                 .and_then(|x| x.installed())
                 .get_mut(db)
                 .await?;
-            if let Some(ref mut package) = *package {
-                package.marketplace_url = Some(MarketPlaceUrls::Community.url().parse().unwrap());
-            }
             package.save(db).await?;
         }
 
