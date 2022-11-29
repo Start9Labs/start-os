@@ -84,7 +84,7 @@ impl Rsync {
             }
             Some(a) => a,
         };
-        let (send, recv) = watch::channel(0.0);
+        let (send, mut recv) = watch::channel(0.0);
         let stderr = tokio::spawn(async move {
             let mut res = String::new();
             cmd_stderr.read_to_string(&mut res).await?;
@@ -116,6 +116,7 @@ impl Rsync {
             Ok(())
         })
         .into();
+        recv.borrow_and_update();
         Ok(Rsync {
             command,
             _progress_task: progress_task,
