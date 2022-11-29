@@ -22,6 +22,7 @@ export class TransferPage {
   ) {}
 
   async ngOnInit() {
+    this.stateService.setupType = 'transfer'
     await this.getDrives()
   }
 

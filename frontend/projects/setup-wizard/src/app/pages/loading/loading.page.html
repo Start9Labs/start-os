@@ -2,12 +2,15 @@
   <ion-grid>
     <ion-row class="ion-align-items-center">
       <ion-col class="ion-text-center">
-        <ion-card color="dark">
+        <ion-card
+          *ngIf="{ decimal: progress$ | async } as progress"
+          color="dark"
+        >
           <ion-card-header>
             <ion-card-title>Initializing Embassy</ion-card-title>
             <div class="center-wrapper">
-              <ion-card-subtitle *ngIf="stateService.dataProgress">
-                Progress: {{ (stateService.dataProgress * 100).toFixed(0)}}%
+              <ion-card-subtitle *ngIf="progress.decimal as decimal">
+                Progress: {{ (decimal * 100).toFixed(0)}}%
               </ion-card-subtitle>
             </div>
           </ion-card-header>
@@ -21,10 +24,10 @@
                 padding-bottom: 20px;
                 margin-bottom: 40px;
               "
-              [type]="stateService.dataProgress ? 'determinate' : 'indeterminate'"
-              [value]="stateService.dataProgress"
+              [type]="progress.decimal ? 'determinate' : 'indeterminate'"
+              [value]="progress.decimal || 0"
             ></ion-progress-bar>
-            <p>Setting up your Embassy. This can take a while.</p>
+            <p>{{ progress.decimal | toMessage }}</p>
           </ion-card-content>
         </ion-card>
       </ion-col>

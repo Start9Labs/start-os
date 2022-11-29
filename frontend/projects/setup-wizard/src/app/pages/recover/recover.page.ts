@@ -25,6 +25,7 @@ export class RecoverPage {
   ) {}
 
   async ngOnInit() {
+    this.stateService.setupType = 'restore'
     await this.getDrives()
   }
 

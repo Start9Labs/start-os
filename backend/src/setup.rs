@@ -114,7 +114,7 @@ pub async fn attach(
     }
     *status = Some(Ok(SetupStatus {
         bytes_transferred: 0,
-        total_bytes: 0,
+        total_bytes: None,
         complete: false,
     }));
     drop(status);
@@ -165,7 +165,7 @@ pub async fn attach(
             }));
             *ctx.setup_status.write().await = Some(Ok(SetupStatus {
                 bytes_transferred: 0,
-                total_bytes: 0,
+                total_bytes: None,
                 complete: true,
             }));
             Ok(())
@@ -182,7 +182,7 @@ pub async fn attach(
 #[serde(rename_all = "kebab-case")]
 pub struct SetupStatus {
     pub bytes_transferred: u64,
-    pub total_bytes: u64,
+    pub total_bytes: Option<u64>,
     pub complete: bool,
 }
 
@@ -277,7 +277,7 @@ pub async fn execute(
     }
     *status = Some(Ok(SetupStatus {
         bytes_transferred: 0,
-        total_bytes: 0,
+        total_bytes: None,
         complete: false,
     }));
     drop(status);
@@ -306,7 +306,7 @@ pub async fn execute(
                 ));
                 *ctx.setup_status.write().await = Some(Ok(SetupStatus {
                     bytes_transferred: 0,
-                    total_bytes: 0,
+                    total_bytes: None,
                     complete: true,
                 }));
             }
@@ -440,10 +440,9 @@ async fn migrate(
     old_guid: &str,
     embassy_password: String,
 ) -> Result<(Arc<String>, Hostname, OnionAddressV3, X509), Error> {
-    
     *ctx.setup_status.write().await = Some(Ok(SetupStatus {
         bytes_transferred: 0,
-        total_bytes: 110,
+        total_bytes: None,
         complete: false,
     }));
 
@@ -465,15 +464,6 @@ async fn migrate(
             exclude: Vec::new(),
         },
     )?;
-    while let Some(progress) = main_transfer.progress.next().await {
-        *ctx.setup_status.write().await = Some(Ok(SetupStatus {
-            bytes_transferred: (progress * 10.0) as u64,
-            total_bytes: 110,
-            complete: false,
-        }));
-    }
-    main_transfer.wait().await?;
-
     let mut package_data_transfer = Rsync::new(
         "/media/embassy/migrate/package-data/",
         "/embassy-data/package-data/",
@@ -484,14 +474,45 @@ async fn migrate(
             exclude: vec!["tmp".to_owned()],
         },
     )?;
-    while let Some(progress) = package_data_transfer.progress.next().await {
-        *ctx.setup_status.write().await = Some(Ok(SetupStatus {
-            bytes_transferred: 10 + (progress * 100.0) as u64,
-            total_bytes: 110,
-            complete: false,
-        }));
+
+    let mut main_prog = 0.0;
+    let mut main_complete = false;
+    let mut pkg_prog = 0.0;
+    let mut pkg_complete = false;
+    loop {
+        tokio::select! {
+            p = main_transfer.progress.next() => {
+                if let Some(p) = p {
+                    main_prog = p;
+                } else {
+                    main_prog = 1.0;
+                    main_complete = true;
+                }
+            }
+            p = package_data_transfer.progress.next() => {
+                if let Some(p) = p {
+                    pkg_prog = p;
+                } else {
+                    pkg_prog = 1.0;
+                    pkg_complete = true;
+                }
+            }
+        }
+        if main_prog > 0.0 && pkg_prog > 0.0 {
+            *ctx.setup_status.write().await = Some(Ok(SetupStatus {
+                bytes_transferred: ((main_prog * 50.0) + (pkg_prog * 950.0)) as u64,
+                total_bytes: Some(1000),
+                complete: false,
+            }));
+        }
+        if main_complete && pkg_complete {
+            break;
+        }
     }
+
+    main_transfer.wait().await?;
     package_data_transfer.wait().await?;
+
     let (hostname, tor_addr, root_ca) = setup_init(&ctx, Some(embassy_password)).await?;
 
     crate::disk::main::export(&old_guid, "/media/embassy/migrate").await?;

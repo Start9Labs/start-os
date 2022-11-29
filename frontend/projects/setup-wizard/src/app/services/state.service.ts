@@ -7,16 +7,18 @@ import { pauseFor, ErrorToastService } from '@start9labs/shared'
   providedIn: 'root',
 })
 export class StateService {
+  setupType?: 'fresh' | 'restore' | 'attach' | 'transfer'
+
   recoverySource?: RecoverySource
   recoveryPassword?: string
 
   dataTransferProgress?: {
     bytesTransferred: number
-    totalBytes: number
+    totalBytes: number | null
     complete: boolean
   }
-  dataProgress = 0
-  dataCompletionSubject = new BehaviorSubject(false)
+  dataProgress$ = new BehaviorSubject<number>(0)
+  dataCompletionSubject$ = new BehaviorSubject(false)
 
   constructor(
     private readonly api: ApiService,
@@ -27,7 +29,7 @@ export class StateService {
     await pauseFor(500)
 
     if (this.dataTransferProgress?.complete) {
-      this.dataCompletionSubject.next(true)
+      this.dataCompletionSubject$.next(true)
       return
     }
 
@@ -41,9 +43,10 @@ export class StateService {
         complete: progress.complete,
       }
       if (this.dataTransferProgress.totalBytes) {
-        this.dataProgress =
+        this.dataProgress$.next(
           this.dataTransferProgress.bytesTransferred /
-          this.dataTransferProgress.totalBytes
+            this.dataTransferProgress.totalBytes,
+        )
       }
     } catch (e: any) {
       this.errorToastService.present({

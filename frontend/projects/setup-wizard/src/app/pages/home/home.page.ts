@@ -3,6 +3,7 @@ import { IonicSlides } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/api.service'
 import SwiperCore, { Swiper } from 'swiper'
 import { ErrorToastService } from '@start9labs/shared'
+import { StateService } from 'src/app/services/state.service'
 
 SwiperCore.use([IonicSlides])
 
@@ -19,9 +20,11 @@ export class HomePage {
   constructor(
     private readonly api: ApiService,
     private readonly errToastService: ErrorToastService,
+    private readonly stateService: StateService,
   ) {}
 
   async ionViewDidEnter() {
+    this.stateService.setupType = 'fresh'
     if (this.swiper) {
       this.swiper.allowTouchMove = false
     }

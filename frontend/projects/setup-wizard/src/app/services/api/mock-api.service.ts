@@ -31,7 +31,7 @@ export class MockApiService extends ApiService {
 
     return {
       'bytes-transferred': restoreOrMigrate ? progress : 0,
-      'total-bytes': restoreOrMigrate ? total : 0,
+      'total-bytes': restoreOrMigrate ? total : null,
       complete: progress === total,
     }
   }
