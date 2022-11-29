@@ -38,8 +38,7 @@
           <ng-container *ngIf="store$ | async as store; else loading">
             <marketplace-categories
               [categories]="store.categories"
-              [category]="category"
-              [disableCategories]="!!query"
+              [category]="query ? '' : category"
               (categoryChange)="onCategoryChange($event)"
             ></marketplace-categories>
 
@@ -48,6 +47,10 @@
             <ion-grid
               *ngIf="store.packages | filterPackages: query:category as filtered"
             >
+              <div *ngIf="query && !filtered.length" class="ion-padding">
+                <h2>No results for search query</h2>
+              </div>
+
               <ion-row *ngIf="localPkgs$ | async as localPkgs">
                 <ion-col
                   *ngFor="let pkg of filtered"
@@ -64,6 +67,10 @@
                   </marketplace-item>
                 </ion-col>
               </ion-row>
+
+              <ng-template #empty>
+                <h2></h2>
+              </ng-template>
             </ion-grid>
           </ng-container>
 
