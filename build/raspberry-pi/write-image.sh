@@ -25,7 +25,6 @@ sudo umount $TMPDIR
 sudo mount `partition_for ${OUTPUT_DEVICE} 2` $TMPDIR
 
 sudo mkdir $TMPDIR/media/embassy/
-cat ENVIRONMENT.txt
 sudo make V=1 install ARCH=aarch64 OS_ARCH=raspberrypi DESTDIR=$TMPDIR --debug
 sudo sed -i 's/raspberrypi/embassy/g' $TMPDIR/etc/hostname
 sudo sed -i 's/raspberrypi/embassy/g' $TMPDIR/etc/hosts
