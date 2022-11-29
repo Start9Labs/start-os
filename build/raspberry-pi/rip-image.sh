@@ -17,39 +17,13 @@ if [[ "$ROOT_PARTITION" =~ ^/dev/loop ]] || [[ "$BOOT_PARTITION" =~ ^/dev/loop ]
 	fi
 fi
 
-mkdir -p $TMPDIR/source
-mkdir -p $TMPDIR/target
+sudo mount $ROOT_PARTITION $TMPDIR/
+sudo mount $BOOT_PARTITION $TMPDIR/current/boot/
+sudo sed -i 's/PARTUUID=[a-f0-9]+/PARTUUID=cb15ae4d/g' $TMPDIR/current/etc/fstab
+sudo sed -i 's/PARTUUID=[a-f0-9]+/PARTUUID=cb15ae4d/g' $TMPDIR/current/boot/cmdline.txt
+sudo mksquashfs $TMPDIR/current/ eos.raspberrypi.squashfs
 
-rm -f update.img
-truncate -s 5000000000 update.img
-mkfs.ext4 update.img
-e2label update.img rootfs
-sudo mount update.img $TMPDIR/target/
-
-sudo mount $ROOT_PARTITION $TMPDIR/source/
-sudo mount $BOOT_PARTITION $TMPDIR/source/current/boot/
-sudo rsync -acvAXH --info=progress2 $TMPDIR/source/current/ $TMPDIR/target/
-
-sudo sed -i 's/PARTUUID=[a-f0-9]+/PARTUUID=cb15ae4d/g' $TMPDIR/target/etc/fstab
-sudo sed -i 's/PARTUUID=[a-f0-9]+/PARTUUID=cb15ae4d/g' $TMPDIR/target/boot/cmdline.txt
-
-sudo umount $TMPDIR/source/current/boot/
-sudo umount $TMPDIR/source/
-sudo umount $TMPDIR/target
+sudo umount $TMPDIR/current/boot/
+sudo umount $TMPDIR/
 
 rm -rf $TMPDIR
-
-sudo e2fsck -f -y update.img
-sudo resize2fs -M update.img
-BLOCK_INFO=$(sudo dumpe2fs update.img)
-BLOCK_COUNT=$(echo "$BLOCK_INFO" | grep "Block count:" | sed 's/Block count:\s\+//g')
-BLOCK_SIZE=$(echo "$BLOCK_INFO" | grep "Block size:" | sed 's/Block size:\s\+//g')
-FS_SIZE=$[$BLOCK_COUNT*$BLOCK_SIZE]
-truncate -s $FS_SIZE update.img
-
-echo "Compressing..."
-if which pv > /dev/null; then
-	cat update.img | pv -s $FS_SIZE | gzip > update.img.gz
-else
-	cat update.img | gzip > update.img.gz
-fi

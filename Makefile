@@ -66,7 +66,7 @@ embassyos-raspi.img: all raspios.img cargo-deps/aarch64-unknown-linux-gnu/releas
 	! test -f embassyos-raspi.img || rm embassyos-raspi.img
 	./build/raspberry-pi/make-image.sh
 
-lite-upgrade.img: raspios.img cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast $(BUILD_SRC) update.img
+lite-upgrade.img: raspios.img cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast $(BUILD_SRC) eos.raspberrypi.squashfs
 	! test -f lite-upgrade.img || rm lite-upgrade.img
 	./build/raspberry-pi/make-upgrade-image.sh
 
