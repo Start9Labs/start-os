@@ -64,11 +64,16 @@ export class EmbassyPage {
               )?.logicalname,
             )
         } else if (this.stateService.setupType === 'transfer') {
-          return !d.partitions
-            .map(p => p.guid)
-            .includes(
-              (this.stateService.recoverySource as DiskMigrateSource).guid,
-            )
+          const guid = (this.stateService.recoverySource as DiskMigrateSource)
+            .guid
+          return (
+            d.guid !== guid &&
+            !d.partitions
+              .map(p => p.guid)
+              .includes(
+                (this.stateService.recoverySource as DiskMigrateSource).guid,
+              )
+          )
         }
       })
     } catch (e: any) {
