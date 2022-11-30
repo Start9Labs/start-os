@@ -23,3 +23,5 @@ secrets.db
 /*.deb
 /target
 /*.squashfs
+/debian
+/DEBIAN
