@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use color_eyre::eyre::eyre;
+use futures::StreamExt;
 use models::{Error, ErrorKind};
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
 use tokio::process::{Child, Command};
@@ -39,7 +40,7 @@ pub struct Rsync {
     pub progress: WatchStream<f64>,
 }
 impl Rsync {
-    pub fn new(
+    pub async fn new(
         src: impl AsRef<Path>,
         dst: impl AsRef<Path>,
         options: RsyncOptions,
@@ -85,7 +86,7 @@ impl Rsync {
             }
             Some(a) => a,
         };
-        let (send, mut recv) = watch::channel(0.0);
+        let (send, recv) = watch::channel(0.0);
         let stderr = tokio::spawn(async move {
             let mut res = String::new();
             cmd_stderr.read_to_string(&mut res).await?;
@@ -114,12 +115,13 @@ impl Rsync {
             Ok(())
         })
         .into();
-        recv.borrow_and_update();
+        let mut progress = WatchStream::new(recv);
+        progress.next().await;
         Ok(Rsync {
             command,
             _progress_task: progress_task,
             stderr,
-            progress: WatchStream::new(recv),
+            progress,
         })
     }
     pub async fn wait(mut self) -> Result<(), Error> {
@@ -192,6 +194,7 @@ async fn test_rsync() {
         "/tmp/test_rsync/b/",
         Default::default(),
     )
+    .await
     .unwrap();
     while let Some(progress) = rsync.progress.next().await {
         if progress <= 0.05 {

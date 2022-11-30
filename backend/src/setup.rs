@@ -463,7 +463,8 @@ async fn migrate(
             ignore_existing: false,
             exclude: Vec::new(),
         },
-    )?;
+    )
+    .await?;
     let mut package_data_transfer = Rsync::new(
         "/media/embassy/migrate/package-data/",
         "/embassy-data/package-data/",
@@ -473,7 +474,8 @@ async fn migrate(
             ignore_existing: false,
             exclude: vec!["tmp".to_owned()],
         },
-    )?;
+    )
+    .await?;
 
     let mut main_prog = 0.0;
     let mut main_complete = false;

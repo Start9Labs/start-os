@@ -200,7 +200,8 @@ async fn do_update(ctx: RpcContext, eos_url: EosUrl) -> Result<(), Error> {
         eos_url.rsync_path()?,
         "/media/embassy/next",
         Default::default(),
-    )?;
+    )
+    .await?;
     while let Some(progress) = rsync.progress.next().await {
         crate::db::DatabaseModel::new()
             .server_info()
@@ -305,7 +306,8 @@ async fn sync_boot() -> Result<(), Error> {
             ignore_existing: true,
             exclude: Vec::new(),
         },
-    )?
+    )
+    .await?
     .wait()
     .await?;
     if !*IS_RASPBERRY_PI {
