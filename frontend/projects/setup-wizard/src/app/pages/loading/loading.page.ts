@@ -54,7 +54,7 @@ export class ToMessagePipe implements PipeTransform {
         } else if (progress < 1) {
           return 'Transferring data'
         } else {
-          return 'Finalizing transfer'
+          return 'Finalizing data transfer'
         }
       default:
         return ''
