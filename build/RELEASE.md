@@ -1,6 +1,6 @@
 # Release Process
 
-## embassyos_0.3.x-1_amd64.deb
+## `embassyos_0.3.x-1_amd64.deb`
 
 - Description: debian package for x86_64 - intended to be installed on pureos
 - Destination: GitHub Release Tag
@@ -10,7 +10,7 @@
   - Run `make TAG=master` from that folder
 - Artifact: `./embassyos_0.3.x-1_amd64.deb`
 
-## eos-<version>-<git hash>-<date>_amd64.iso
+## `eos-<version>-<git hash>-<date>_amd64.iso`
 
 - Description: live usb image for x86_64
 - Destination: GitHub Release Tag
@@ -22,7 +22,7 @@
   - Run `./run-local-build.sh byzantium` from that folder
 - Artifact: `./results/eos-<version>-<git hash>-<date>_amd64.iso`
 
-## eos.x86_64.squashfs
+## `eos.x86_64.squashfs`
 
 - Description: compressed embassyOS x86_64 filesystem image
 - Destination: GitHub Release Tag, Registry @
@@ -33,7 +33,7 @@
   - `./extract-squashfs.sh results/eos-<version>-<git hash>-<date>_amd64.iso`
 - Artifact: `./results/eos.x86_64.squashfs`
 
-## eos.raspberrypi.squashfs
+## `eos.raspberrypi.squashfs`
 
 - Description: compressed embassyOS raspberrypi filesystem image
 - Destination: GitHub Release Tag, Registry @
@@ -50,7 +50,7 @@
   - `./build/raspberry-pi/rip-image.sh`
 - Artifact: `./eos.raspberrypi.squashfs`
 
-## lite-upgrade.img
+## `lite-upgrade.img`
 
 - Description: update image for users coming from 0.3.2.1 and before
 - Destination: Registry @ `resources/eos/<version>/eos.img`
@@ -60,7 +60,7 @@
   - `make lite-upgrade.img`
 - Artifact `./lite-upgrade.img`
 
-## eos-<version>-<git hash>-<date>_raspberrypi.tar.gz
+## `eos-<version>-<git hash>-<date>_raspberrypi.tar.gz`
 
 - Description: pre-initialized raspberrypi image
 - Destination: GitHub Release Tag (as tar.gz)
