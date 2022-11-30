@@ -707,8 +707,9 @@ mod fns {
             );
         }
 
-        let running_rsync =
-            Rsync::new(src, dst, options).map_err(|e| anyhow::anyhow!("{:?}", e.source))?;
+        let running_rsync = Rsync::new(src, dst, options)
+            .await
+            .map_err(|e| anyhow::anyhow!("{:?}", e.source))?;
         let insert_id = {
             let mut rsyncs = rsyncs.lock().await;
             let next = rsyncs.0 + 1;
