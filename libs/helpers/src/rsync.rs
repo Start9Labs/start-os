@@ -101,11 +101,13 @@ impl Rsync {
             .lines();
             while let Some(line) = lines.next_line().await? {
                 if let Some(percentage) = parse_percentage(&line) {
-                    if let Err(err) = send.send(percentage / 100.0) {
-                        return Err(Error::new(
-                            eyre!("rsync progress send error: {}", err),
-                            ErrorKind::Filesystem,
-                        ));
+                    if percentage > 0.0 {
+                        if let Err(err) = send.send(percentage / 100.0) {
+                            return Err(Error::new(
+                                eyre!("rsync progress send error: {}", err),
+                                ErrorKind::Filesystem,
+                            ));
+                        }
                     }
                 }
             }
