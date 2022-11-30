@@ -9,6 +9,7 @@ import {
   ApiService,
   BackupRecoverySource,
   DiskRecoverySource,
+  DiskMigrateSource,
 } from 'src/app/services/api/api.service'
 import { DiskInfo, ErrorToastService, GuidPipe } from '@start9labs/shared'
 import { StateService } from 'src/app/services/state.service'
@@ -52,17 +53,24 @@ export class EmbassyPage {
     this.loading = true
     try {
       const disks = await this.apiService.getDrives()
-      this.storageDrives = disks.filter(
-        d =>
-          !d.partitions
+      this.storageDrives = disks.filter(d => {
+        if (this.stateService.setupType === 'restore') {
+          return !d.partitions
             .map(p => p.logicalname)
             .includes(
               (
                 (this.stateService.recoverySource as BackupRecoverySource)
                   ?.target as DiskRecoverySource
               )?.logicalname,
-            ),
-      )
+            )
+        } else if (this.stateService.setupType === 'transfer') {
+          const guid = (this.stateService.recoverySource as DiskMigrateSource)
+            .guid
+          return (
+            d.guid !== guid && !d.partitions.map(p => p.guid).includes(guid)
+          )
+        }
+      })
     } catch (e: any) {
       this.errorToastService.present(e)
     } finally {

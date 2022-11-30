@@ -24,7 +24,7 @@
                 padding-bottom: 20px;
                 margin-bottom: 40px;
               "
-              [type]="progress.decimal ? 'determinate' : 'indeterminate'"
+              [type]="progress.decimal && progress.decimal < 1 ? 'determinate' : 'indeterminate'"
               [value]="progress.decimal || 0"
             ></ion-progress-bar>
             <p>{{ progress.decimal | toMessage }}</p>

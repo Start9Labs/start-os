@@ -1,6 +1,7 @@
 import { Component } from '@angular/core'
 import { NavController } from '@ionic/angular'
 import { StateService } from 'src/app/services/state.service'
+import { Pipe, PipeTransform } from '@angular/core'
 
 @Component({
   selector: 'app-loading',
@@ -28,8 +29,6 @@ export class LoadingPage {
   }
 }
 
-import { Pipe, PipeTransform } from '@angular/core'
-
 @Pipe({
   name: 'toMessage',
 })
@@ -42,12 +41,20 @@ export class ToMessagePipe implements PipeTransform {
       case 'attach':
         return 'Setting up your Embassy'
       case 'restore':
-        return 'Restoring data. This can take a while.'
+        if (!progress) {
+          return 'Initializing'
+        } else if (progress < 1) {
+          return 'Restoring data. This can take a while'
+        } else {
+          return 'Finalizing data restore'
+        }
       case 'transfer':
         if (!progress) {
           return 'Preparing data. Depending on how much data you have, this could take up to 1 hour'
-        } else {
+        } else if (progress < 1) {
           return 'Transferring data'
+        } else {
+          return 'Finalizing data transfer'
         }
       default:
         return ''

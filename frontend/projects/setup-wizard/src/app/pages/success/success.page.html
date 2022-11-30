@@ -8,16 +8,23 @@
           <ion-card>
             <ion-row class="ion-align-items-center">
               <ion-col size-xs="12" class="ion-text-center">
-                <div class="inline">
+                <div class="inline" style="margin-bottom: 3rem">
                   <ion-icon
                     name="checkmark-circle-outline"
                     color="success"
                   ></ion-icon>
                   <h1>Setup Complete!</h1>
                 </div>
-                <h3 class="ion-padding-top">
-                  You will be redirected momentarily.
-                </h3>
+                <div class="card-container">
+                  <ion-card id="exit" (click)="exitKiosk()">
+                    <div class="container">
+                      <div class="inline">
+                        <p>Continue to login</p>
+                        <ion-icon name="log-in-outline"></ion-icon>
+                      </div>
+                    </div>
+                  </ion-card>
+                </div>
               </ion-col>
             </ion-row>
           </ion-card>
