@@ -8,11 +8,10 @@ import {
   Output,
   ViewChild,
 } from '@angular/core'
-import { IonContent, ToastController } from '@ionic/angular'
 import {
-  copyToClipboard,
   DownloadHTMLService,
   ErrorToastService,
+  pauseFor,
 } from '@start9labs/shared'
 import { ApiService } from 'src/app/services/api/api.service'
 import { StateService } from 'src/app/services/state.service'
@@ -24,8 +23,6 @@ import { StateService } from 'src/app/services/state.service'
   providers: [DownloadHTMLService],
 })
 export class SuccessPage {
-  @ViewChild(IonContent)
-  private content?: IonContent
   @ViewChild('canvas', { static: true })
   private canvas: ElementRef<HTMLCanvasElement> = {} as ElementRef<HTMLCanvasElement>
   private ctx: CanvasRenderingContext2D = {} as CanvasRenderingContext2D
@@ -35,7 +32,6 @@ export class SuccessPage {
   torAddress = ''
   lanAddress = ''
   cert = ''
-  isOnBottom = true
 
   tileSize = 16
   // a higher fade factor will make the characters fade quicker
@@ -46,16 +42,15 @@ export class SuccessPage {
 
   constructor(
     @Inject(DOCUMENT) private readonly document: Document,
-    private readonly toastCtrl: ToastController,
     private readonly errCtrl: ErrorToastService,
     private readonly stateService: StateService,
-    private api: ApiService,
+    private readonly api: ApiService,
     private readonly downloadHtml: DownloadHTMLService,
-    private ngZone: NgZone,
+    private readonly ngZone: NgZone,
   ) {}
 
-  get recoverySource() {
-    return this.stateService.recoverySource
+  get setupType() {
+    return this.stateService.setupType
   }
 
   get isKiosk() {
@@ -66,43 +61,17 @@ export class SuccessPage {
     this.ngZone.runOutsideAngular(() => this.initMatrix())
     try {
       const ret = await this.api.complete()
-      if (!this.isKiosk) {
-        setTimeout(() => this.checkBottom(), 42)
-
+      if (this.isKiosk) {
+        await pauseFor(4000)
+      } else {
         this.torAddress = ret['tor-address']
         this.lanAddress = ret['lan-address']
         this.cert = ret['root-ca']
-
-        this.document
-          .getElementById('install-cert')
-          ?.setAttribute(
-            'href',
-            'data:application/x-x509-ca-cert;base64,' +
-              encodeURIComponent(this.cert),
-          )
       }
       await this.api.exit()
     } catch (e: any) {
       await this.errCtrl.present(e)
     }
-  }
-
-  async copy(address: string): Promise<void> {
-    const success = await copyToClipboard(address)
-    const message = success
-      ? 'Copied to clipboard!'
-      : 'Failed to copy to clipboard.'
-
-    const toast = await this.toastCtrl.create({
-      header: message,
-      position: 'bottom',
-      duration: 1000,
-    })
-    await toast.present()
-  }
-
-  installCert() {
-    this.document.getElementById('install-cert')?.click()
   }
 
   download() {
@@ -125,14 +94,7 @@ export class SuccessPage {
     })
   }
 
-  checkBottom() {
-    const bottomDiv = document.getElementById('bottom-div')
-    this.isOnBottom =
-      !!bottomDiv &&
-      bottomDiv.getBoundingClientRect().top - 192 < window.innerHeight
-  }
-
-  initMatrix() {
+  private initMatrix() {
     this.ctx = this.canvas.nativeElement.getContext('2d')!
     this.canvas.nativeElement.width = window.innerWidth
     this.canvas.nativeElement.height = window.innerHeight
@@ -140,7 +102,7 @@ export class SuccessPage {
     this.tick()
   }
 
-  setupMatrixGrid() {
+  private setupMatrixGrid() {
     this.maxStackHeight = Math.ceil(this.ctx.canvas.height / this.tileSize)
     // divide the canvas into columns
     for (let i = 0; i < this.ctx.canvas.width / this.tileSize; ++i) {

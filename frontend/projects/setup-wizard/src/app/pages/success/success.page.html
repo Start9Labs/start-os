@@ -35,15 +35,11 @@
                     ></ion-icon>
                     <h1>Setup Complete!</h1>
                   </div>
-                  <h3
-                    *ngIf="recoverySource && recoverySource.type === 'backup'"
-                  >
+                  <h3 *ngIf="setupType === 'restore'">
                     You can now safely unplug your backup drive
                   </h3>
-                  <h3
-                    *ngIf="recoverySource && recoverySource.type === 'migrate'"
-                  >
-                    You can now safely unplug your old drive
+                  <h3 *ngIf="setupType === 'transfer'">
+                    You can now safely unplug your old Embassy drive
                   </h3>
                 </div>
                 <div class="card-container">
@@ -82,8 +78,7 @@
                 </div>
               </ion-col>
             </ion-row>
-            <!-- cert elem -->
-            <a hidden id="install-cert" download="embassy.crt"></a>
+
             <!-- download elem -->
             <div hidden id="downloadable">
               <div
