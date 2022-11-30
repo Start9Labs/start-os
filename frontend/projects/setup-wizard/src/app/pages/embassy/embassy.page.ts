@@ -67,12 +67,7 @@ export class EmbassyPage {
           const guid = (this.stateService.recoverySource as DiskMigrateSource)
             .guid
           return (
-            d.guid !== guid &&
-            !d.partitions
-              .map(p => p.guid)
-              .includes(
-                (this.stateService.recoverySource as DiskMigrateSource).guid,
-              )
+            d.guid !== guid && !d.partitions.map(p => p.guid).includes(guid)
           )
         }
       })
