@@ -19,8 +19,9 @@ fi
 
 sudo mount $ROOT_PARTITION $TMPDIR/
 sudo mount $BOOT_PARTITION $TMPDIR/current/boot/
-sudo sed -i 's/PARTUUID=[a-f0-9]+/PARTUUID=cb15ae4d/g' $TMPDIR/current/etc/fstab
-sudo sed -i 's/PARTUUID=[a-f0-9]+/PARTUUID=cb15ae4d/g' $TMPDIR/current/boot/cmdline.txt
+sudo sed -i 's/PARTUUID=[a-f0-9]\+/PARTUUID=cb15ae4d/g' $TMPDIR/current/etc/fstab
+sudo sed -i 's/PARTUUID=[a-f0-9]\+/PARTUUID=cb15ae4d/g' $TMPDIR/current/boot/cmdline.txt
+rm -f eos.raspberrypi.squashfs
 sudo mksquashfs $TMPDIR/current/ eos.raspberrypi.squashfs
 
 sudo umount $TMPDIR/current/boot/
