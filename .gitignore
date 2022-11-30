@@ -22,3 +22,4 @@ secrets.db
 /embassyos-*.tar.gz
 /*.deb
 /target
+/*.squashfs
