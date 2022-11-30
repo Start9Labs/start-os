@@ -60,6 +60,7 @@ impl Rsync {
         let mut command = cmd
             .arg("-acAXH")
             .arg("--info=progress2")
+            .arg("--no-inc-recursive")
             .arg(src.as_ref())
             .arg(dst.as_ref())
             .kill_on_drop(true)
@@ -99,17 +100,12 @@ impl Rsync {
             })
             .lines();
             while let Some(line) = lines.next_line().await? {
-                if line.contains(" to-chk=0/") {
-                    if let Some(percentage) = line
-                        .split_ascii_whitespace()
-                        .find_map(|col| col.strip_suffix("%"))
-                    {
-                        if let Err(err) = send.send(percentage.parse::<f64>()? / 100.0) {
-                            return Err(Error::new(
-                                eyre!("rsync progress send error: {}", err),
-                                ErrorKind::Filesystem,
-                            ));
-                        }
+                if let Some(percentage) = parse_percentage(&line) {
+                    if let Err(err) = send.send(percentage / 100.0) {
+                        return Err(Error::new(
+                            eyre!("rsync progress send error: {}", err),
+                            ErrorKind::Filesystem,
+                        ));
                     }
                 }
             }
@@ -149,4 +145,63 @@ impl Rsync {
         }
         Ok(())
     }
+}
+
+fn parse_percentage(line: &str) -> Option<f64> {
+    if let Some(percentage) = line
+        .split_ascii_whitespace()
+        .find_map(|col| col.strip_suffix("%"))
+    {
+        return percentage.parse().ok();
+    }
+    None
+}
+
+#[test]
+fn test_parse() {
+    let input = "          1.07G 57%   95.20MB/s    0:00:10 (xfr#1, to-chk=0/2)";
+    assert_eq!(Some(57.0), parse_percentage(input));
+}
+
+#[tokio::test]
+async fn test_rsync() {
+    use futures::StreamExt;
+    use tokio::fs;
+    let mut seen_zero = false;
+    let mut seen_in_between = false;
+    let mut seen_hundred = false;
+    fs::remove_dir_all("/tmp/test_rsync")
+        .await
+        .unwrap_or_default();
+    fs::create_dir_all("/tmp/test_rsync/a").await.unwrap();
+    fs::create_dir_all("/tmp/test_rsync/b").await.unwrap();
+    for i in 0..100 {
+        tokio::io::copy(
+            &mut fs::File::open("/dev/urandom").await.unwrap().take(100_000),
+            &mut fs::File::create(format!("/tmp/test_rsync/a/sample.{i}.bin"))
+                .await
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    }
+    let mut rsync = Rsync::new(
+        "/tmp/test_rsync/a/",
+        "/tmp/test_rsync/b/",
+        Default::default(),
+    )
+    .unwrap();
+    while let Some(progress) = rsync.progress.next().await {
+        if progress <= 0.05 {
+            seen_zero = true;
+        } else if progress > 0.05 && progress < 1.0 {
+            seen_in_between = true
+        } else {
+            seen_hundred = true;
+        }
+    }
+    rsync.wait().await.unwrap();
+    assert!(seen_zero, "seen zero");
+    assert!(seen_in_between, "seen in between 0 and 100");
+    assert!(seen_hundred, "seen 100");
 }
