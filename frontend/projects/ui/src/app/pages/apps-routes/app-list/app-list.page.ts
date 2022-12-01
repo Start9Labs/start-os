@@ -19,7 +19,11 @@ export class AppListPage {
       return !length || prev.length !== length
     }),
     map(([_, pkgs]) =>
-      pkgs.sort((a, b) => (b.manifest.title > a.manifest.title ? -1 : 1)),
+      pkgs.sort((a, b) =>
+        b.manifest.title.toLowerCase() > a.manifest.title.toLowerCase()
+          ? -1
+          : 1,
+      ),
     ),
   )
 

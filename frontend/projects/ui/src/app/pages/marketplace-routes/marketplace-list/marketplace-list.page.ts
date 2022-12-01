@@ -23,7 +23,6 @@ export class MarketplaceListPage {
     map(({ info, packages }) => {
       const categories = new Set<string>()
       if (info.categories.includes('featured')) categories.add('featured')
-      categories.add('updates')
       info.categories.forEach(c => categories.add(c))
       categories.add('all')
 

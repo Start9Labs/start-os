@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms'
 import { SuccessPage } from './success.page'
 import { PasswordPageModule } from '../../modals/password/password.module'
 import { SuccessPageRoutingModule } from './success-routing.module'
+import { DownloadDocComponent } from './download-doc/download-doc.component'
 
 @NgModule({
   imports: [
@@ -14,7 +15,7 @@ import { SuccessPageRoutingModule } from './success-routing.module'
     PasswordPageModule,
     SuccessPageRoutingModule,
   ],
-  declarations: [SuccessPage],
+  declarations: [SuccessPage, DownloadDocComponent],
   exports: [SuccessPage],
 })
 export class SuccessPageModule {}

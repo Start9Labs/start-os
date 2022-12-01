@@ -8,11 +8,7 @@ import {
   Output,
   ViewChild,
 } from '@angular/core'
-import {
-  DownloadHTMLService,
-  ErrorToastService,
-  pauseFor,
-} from '@start9labs/shared'
+import { DownloadHTMLService, ErrorToastService } from '@start9labs/shared'
 import { ApiService } from 'src/app/services/api/api.service'
 import { StateService } from 'src/app/services/state.service'
 
@@ -61,14 +57,13 @@ export class SuccessPage {
     this.ngZone.runOutsideAngular(() => this.initMatrix())
     try {
       const ret = await this.api.complete()
-      if (this.isKiosk) {
-        await pauseFor(4000)
-      } else {
+      if (!this.isKiosk) {
         this.torAddress = ret['tor-address']
         this.lanAddress = ret['lan-address']
         this.cert = ret['root-ca']
+
+        await this.api.exit()
       }
-      await this.api.exit()
     } catch (e: any) {
       await this.errCtrl.present(e)
     }
@@ -92,6 +87,10 @@ export class SuccessPage {
     this.downloadHtml.download('embassy-info.html', html).then(_ => {
       this.disableLogin = false
     })
+  }
+
+  exitKiosk() {
+    this.api.exit()
   }
 
   private initMatrix() {
@@ -118,7 +117,7 @@ export class SuccessPage {
     }
   }
 
-  draw() {
+  private draw() {
     // draw a semi transparent black rectangle on top of the scene to slowly fade older characters
     this.ctx.fillStyle = 'rgba( 0 , 0 , 0 , ' + this.fadeFactor + ' )'
     this.ctx.fillRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height)
@@ -143,7 +142,7 @@ export class SuccessPage {
     }
   }
 
-  tick() {
+  private tick() {
     this.draw()
     setTimeout(this.tick.bind(this), 50)
   }
