@@ -53,24 +53,28 @@ export class EmbassyPage {
     this.loading = true
     try {
       const disks = await this.apiService.getDrives()
-      this.storageDrives = disks.filter(d => {
-        if (this.stateService.setupType === 'restore') {
-          return !d.partitions
-            .map(p => p.logicalname)
-            .includes(
-              (
-                (this.stateService.recoverySource as BackupRecoverySource)
-                  ?.target as DiskRecoverySource
-              )?.logicalname,
+      if (this.stateService.setupType === 'fresh') {
+        this.storageDrives = disks
+      } else {
+        this.storageDrives = disks.filter(d => {
+          if (this.stateService.setupType === 'restore') {
+            return !d.partitions
+              .map(p => p.logicalname)
+              .includes(
+                (
+                  (this.stateService.recoverySource as BackupRecoverySource)
+                    ?.target as DiskRecoverySource
+                )?.logicalname,
+              )
+          } else if (this.stateService.setupType === 'transfer') {
+            const guid = (this.stateService.recoverySource as DiskMigrateSource)
+              .guid
+            return (
+              d.guid !== guid && !d.partitions.map(p => p.guid).includes(guid)
             )
-        } else if (this.stateService.setupType === 'transfer') {
-          const guid = (this.stateService.recoverySource as DiskMigrateSource)
-            .guid
-          return (
-            d.guid !== guid && !d.partitions.map(p => p.guid).includes(guid)
-          )
-        }
-      })
+          }
+        })
+      }
     } catch (e: any) {
       this.errorToastService.present(e)
     } finally {
