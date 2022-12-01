@@ -68,9 +68,9 @@ export class EmbassyPage {
               ),
         )
       } else if (this.stateService.setupType === 'transfer') {
+        const guid = (this.stateService.recoverySource as DiskMigrateSource)
+          .guid
         this.storageDrives = disks.filter(d => {
-          const guid = (this.stateService.recoverySource as DiskMigrateSource)
-            .guid
           return (
             d.guid !== guid && !d.partitions.map(p => p.guid).includes(guid)
           )
