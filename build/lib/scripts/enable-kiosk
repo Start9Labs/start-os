@@ -57,9 +57,15 @@ EOT
 while ! curl "http://localhost" > /dev/null; do
     sleep 1
 done
-while ! cat /sys/class/drm/*/status | grep -qw connected > /dev/null; do
-    sleep 1
+while ! cat /sys/class/drm/*/status | grep -qw connected; do
+    sleep 30
 done
+(
+    while cat /sys/class/drm/*/status | grep -qw connected > /dev/null; do
+        sleep 30
+    done
+    killall firefox-esr
+) &
 matchbox-window-manager -use_titlebar no &
 firefox-esr http://localhost --profile $PROFILE
 rm -rf $PROFILE
