@@ -38,6 +38,8 @@ truncate -s $TARGET_SIZE $TARGET_NAME
     echo 2048
     echo 526335
     echo 1050623
+    echo t
+    echo c
     echo n
     echo p
     echo 2
