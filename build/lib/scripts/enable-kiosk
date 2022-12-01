@@ -57,12 +57,12 @@ EOT
 while ! curl "http://localhost" > /dev/null; do
     sleep 1
 done
-while ! cat /sys/class/drm/*/status | grep -qw connected; do
-    sleep 30
+while ! /usr/lib/embassy/scripts/check-monitor; do
+    sleep 15
 done
 (
-    while cat /sys/class/drm/*/status | grep -qw connected > /dev/null; do
-        sleep 30
+    while /usr/lib/embassy/scripts/check-monitor; do
+        sleep 15
     done
     killall firefox-esr
 ) &
