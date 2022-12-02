@@ -65,7 +65,7 @@ export class SuccessPage {
         await pauseFor(4000)
       } else {
         this.torAddress = ret['tor-address']
-        this.lanAddress = ret['lan-address']
+        this.lanAddress = ret['lan-address'].replace('https', 'http')
         this.cert = ret['root-ca']
       }
       await this.api.exit()

@@ -19,7 +19,6 @@ export class MarketplaceListPage {
   readonly back = !!this.route.snapshot.queryParamMap.get('back')
 
   readonly store$ = this.marketplaceService.getSelectedStore$().pipe(
-    filter(Boolean),
     map(({ info, packages }) => {
       const categories = new Set<string>()
       if (info.categories.includes('featured')) categories.add('featured')
