@@ -58,7 +58,7 @@ export class MarketplaceListPage {
           // alt marketplace
           color = 'warning'
           description =
-            'This is a Custom Registry. Start9 cannot verify the integrity or functionality of services from this registry, and they may cause harm to your system. Install at your own risk.'
+            'This is a Custom Registry. Start9 cannot verify the integrity or functionality of services from this registry, and they may cause harm to your system. <b>Install at your own risk</b>.'
       }
 
       return {
