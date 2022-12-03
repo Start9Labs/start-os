@@ -1095,6 +1095,16 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
     let interface_addresses = manifest.interfaces.install(&mut sql_tx, pkg_id).await?;
     tracing::info!("Install {}@{}: Installed interfaces", pkg_id, version);
 
+    tracing::info!("Install {}@{}: Creating manager", pkg_id, version);
+    ctx.managers
+        .add(
+            ctx.clone(),
+            manifest.clone(),
+            manifest.interfaces.tor_keys(&mut sql_tx, pkg_id).await?,
+        )
+        .await?;
+    tracing::info!("Install {}@{}: Created manager", pkg_id, version);
+
     let static_files = StaticFiles::local(pkg_id, version, manifest.assets.icon_type());
     let current_dependencies: CurrentDependencies = CurrentDependencies(
         manifest
@@ -1369,8 +1379,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         reconfigure_dependents_with_live_pointers(ctx, &mut tx, &receipts.config, installed)
             .await?;
     }
-
-    tracing::info!("Install {}@{}: Creating manager", pkg_id, version);
+    tracing::info!("Dup Install {}@{}: Creating manager", pkg_id, version);
     ctx.managers
         .add(
             ctx.clone(),
@@ -1378,7 +1387,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             manifest.interfaces.tor_keys(&mut sql_tx, pkg_id).await?,
         )
         .await?;
-    tracing::info!("Install {}@{}: Created manager", pkg_id, version);
+    tracing::info!("Dup Install {}@{}: Created manager", pkg_id, version);
 
     sql_tx.commit().await?;
     tx.commit().await?;
