@@ -121,13 +121,14 @@ impl StopReceipts {
 }
 
 #[instrument(skip(db))]
-async fn stop_common<Db: DbHandle>(
+pub async fn stop_common<Db: DbHandle>(
     db: &mut Db,
     id: &PackageId,
     breakages: &mut BTreeMap<PackageId, TaggedDependencyError>,
-) -> Result<(), Error> {
+) -> Result<MainStatus, Error> {
     let mut tx = db.begin().await?;
     let receipts = StopReceipts::new(&mut tx, id).await?;
+    let last_status = receipts.status.get(&mut tx).await?;
     receipts.status.set(&mut tx, MainStatus::Stopping).await?;
 
     tx.save().await?;
@@ -140,7 +141,7 @@ async fn stop_common<Db: DbHandle>(
     )
     .await?;
 
-    Ok(())
+    Ok(last_status)
 }
 
 #[command(
@@ -170,15 +171,15 @@ pub async fn stop_dry(
 }
 
 #[instrument(skip(ctx))]
-pub async fn stop_impl(ctx: RpcContext, id: PackageId) -> Result<(), Error> {
+pub async fn stop_impl(ctx: RpcContext, id: PackageId) -> Result<MainStatus, Error> {
     let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
 
-    stop_common(&mut tx, &id, &mut BTreeMap::new()).await?;
+    let last_statuts = stop_common(&mut tx, &id, &mut BTreeMap::new()).await?;
 
     tx.commit().await?;
 
-    Ok(())
+    Ok(last_statuts)
 }
 
 #[command(display(display_none), metadata(sync_db = true))]

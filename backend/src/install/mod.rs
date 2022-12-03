@@ -710,8 +710,10 @@ pub async fn download_install_s9pk(
 ) -> Result<(), Error> {
     let pkg_id = &temp_manifest.id;
     let version = &temp_manifest.version;
+    let mut previous_state: Option<MainStatus> = None;
 
     if let Err(e) = async {
+        previous_state = Some(crate::control::stop_impl(ctx.clone(), pkg_id.clone()).await?);
         let mut db_handle = ctx.db.handle();
         let mut tx = db_handle.begin().await?;
         let receipts = DownloadInstallReceipts::new(&mut tx, &pkg_id).await?;
@@ -813,6 +815,10 @@ pub async fn download_install_s9pk(
     }
     .await
     {
+        if previous_state.map(|x| x.running()).unwrap_or(false) {
+            crate::control::start(ctx.clone(), pkg_id.clone()).await?;
+        }
+
         let mut handle = ctx.db.handle();
         let mut tx = handle.begin().await?;
         let receipts = cleanup::CleanupFailedReceipts::new(&mut tx).await?;
@@ -825,6 +831,9 @@ pub async fn download_install_s9pk(
         }
         Err(e)
     } else {
+        if previous_state.map(|x| x.running()).unwrap_or(false) {
+            crate::control::start(ctx.clone(), pkg_id.clone()).await?;
+        }
         Ok(())
     }
 }
