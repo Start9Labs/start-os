@@ -36,28 +36,16 @@ export class ToMessagePipe implements PipeTransform {
   constructor(private readonly stateService: StateService) {}
 
   transform(progress: number | null): string {
-    switch (this.stateService.setupType) {
-      case 'fresh':
-      case 'attach':
-        return 'Setting up your Embassy'
-      case 'restore':
-        if (!progress) {
-          return 'Initializing'
-        } else if (progress < 1) {
-          return 'Restoring data. This can take a while'
-        } else {
-          return 'Finalizing data restore'
-        }
-      case 'transfer':
-        if (!progress) {
-          return 'Preparing data. Depending on how much data you have, this could take up to 1 hour'
-        } else if (progress < 1) {
-          return 'Transferring data'
-        } else {
-          return 'Finalizing data transfer'
-        }
-      default:
-        return ''
+    if (['fresh', 'attach'].includes(this.stateService.setupType || '')) {
+      return 'Setting up your Embassy'
+    }
+
+    if (!progress) {
+      return 'Preparing data. This can take a while'
+    } else if (progress < 1) {
+      return 'Copying data'
+    } else {
+      return 'Finalizing'
     }
   }
 }

@@ -92,13 +92,13 @@ export class MarketplaceService implements AbstractMarketplaceService {
     shareReplay(1),
   )
 
-  private readonly selectedStore$: Observable<StoreData | null> =
+  private readonly selectedStore$: Observable<StoreData> =
     this.selectedHost$.pipe(
       switchMap(({ url }) =>
         this.marketplace$.pipe(
-          filter(m => !!m[url]),
-          take(1),
           map(m => m[url]),
+          filter(Boolean),
+          take(1),
         ),
       ),
     )
@@ -123,7 +123,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
     return this.marketplace$
   }
 
-  getSelectedStore$(): Observable<StoreData | null> {
+  getSelectedStore$(): Observable<StoreData> {
     return this.selectedStore$
   }
 
@@ -131,18 +131,24 @@ export class MarketplaceService implements AbstractMarketplaceService {
     id: string,
     version: string,
     optionalUrl?: string,
-  ): Observable<MarketplacePkg | undefined> {
+  ): Observable<MarketplacePkg> {
     return this.patch.watch$('ui', 'marketplace').pipe(
-      switchMap(marketplace => {
-        const url = optionalUrl || marketplace['selected-url']
+      switchMap(uiMarketplace => {
+        const url = optionalUrl || uiMarketplace['selected-url']
 
-        if (version !== '*' || !marketplace['known-hosts'][url]) {
+        if (version !== '*' || !uiMarketplace['known-hosts'][url]) {
           return this.fetchPackage$(id, version, url)
         }
 
-        return this.selectedStore$.pipe(
+        return this.marketplace$.pipe(
+          map(m => m[url]),
           filter(Boolean),
-          map(s => s.packages.find(p => p.manifest.id === id)),
+          take(1),
+          map(
+            store =>
+              store.packages.find(p => p.manifest.id === id) ||
+              ({} as MarketplacePkg),
+          ),
         )
       }),
     )
@@ -179,6 +185,37 @@ export class MarketplaceService implements AbstractMarketplaceService {
           '/package/v0/info',
           qp,
           url,
+        )
+      }),
+    )
+  }
+
+  fetchReleaseNotes$(
+    id: string,
+    url?: string,
+  ): Observable<Record<string, string>> {
+    return this.selectedHost$.pipe(
+      switchMap(m => {
+        return from(
+          this.api.marketplaceProxy<Record<string, string>>(
+            `/package/v0/release-notes/${id}`,
+            {},
+            url || m.url,
+          ),
+        )
+      }),
+    )
+  }
+
+  fetchStatic$(id: string, type: string, url?: string): Observable<string> {
+    return this.selectedHost$.pipe(
+      switchMap(m => {
+        return from(
+          this.api.marketplaceProxy<string>(
+            `/package/v0/${type}/${id}`,
+            {},
+            url || m.url,
+          ),
         )
       }),
     )
@@ -221,44 +258,13 @@ export class MarketplaceService implements AbstractMarketplaceService {
     )
   }
 
-  fetchPackage$(
+  private fetchPackage$(
     id: string,
     version: string,
     url: string,
-  ): Observable<MarketplacePkg | undefined> {
+  ): Observable<MarketplacePkg> {
     return this.fetchPackages$(url, { ids: [{ id, version }] }).pipe(
-      map(pkgs => pkgs[0]),
-    )
-  }
-
-  fetchReleaseNotes$(
-    id: string,
-    url?: string,
-  ): Observable<Record<string, string>> {
-    return this.selectedHost$.pipe(
-      switchMap(m => {
-        return from(
-          this.api.marketplaceProxy<Record<string, string>>(
-            `/package/v0/release-notes/${id}`,
-            {},
-            url || m.url,
-          ),
-        )
-      }),
-    )
-  }
-
-  fetchStatic$(id: string, type: string, url?: string): Observable<string> {
-    return this.selectedHost$.pipe(
-      switchMap(m => {
-        return from(
-          this.api.marketplaceProxy<string>(
-            `/package/v0/${type}/${id}`,
-            {},
-            url || m.url,
-          ),
-        )
-      }),
+      map(pkgs => pkgs[0] || {}),
     )
   }
 

@@ -15,7 +15,7 @@
     <ion-item [color]="details.color">
       <ion-icon slot="start" name="information-circle-outline"></ion-icon>
       <ion-label>
-        <h2 style="font-weight: 600">{{ details.description }}</h2>
+        <h2 style="font-weight: 600" [innerHTML]="details.description"></h2>
       </ion-label>
     </ion-item>
 

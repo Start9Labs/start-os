@@ -14,7 +14,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MarketplaceShowPage {
-  private readonly pkgId = getPkgId(this.route)
+  readonly pkgId = getPkgId(this.route)
   readonly url = this.route.snapshot.queryParamMap.get('url') || undefined
 
   readonly loadVersion$ = new BehaviorSubject<string>('*')
