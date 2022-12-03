@@ -8,13 +8,13 @@ export abstract class AbstractMarketplaceService {
 
   abstract getMarketplace$(): Observable<Marketplace>
 
-  abstract getSelectedStore$(): Observable<StoreData | null>
+  abstract getSelectedStore$(): Observable<StoreData>
 
   abstract getPackage$(
     id: string,
     version: string,
     url?: string,
-  ): Observable<MarketplacePkg | undefined>
+  ): Observable<MarketplacePkg> // could be {} so need to check in show page
 
   abstract fetchReleaseNotes$(
     id: string,

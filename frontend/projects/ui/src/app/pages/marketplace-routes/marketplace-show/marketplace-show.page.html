@@ -2,7 +2,16 @@
 
 <ion-content class="ion-padding">
   <ng-container *ngIf="pkg$ | async as pkg else loading">
-    <ng-container *ngIf="!(pkg | empty)">
+    <ng-container *ngIf="pkg | empty; else show">
+      <ng-container *ngIf="loadVersion$ | async as version">
+        <h2>
+          {{ pkgId }} version {{ version === '*' ? 'latest' : version }} not
+          found in this registry
+        </h2>
+      </ng-container>
+    </ng-container>
+
+    <ng-template #show>
       <marketplace-package [pkg]="pkg"></marketplace-package>
       <marketplace-show-controls
         [url]="url"
@@ -24,7 +33,7 @@
         [pkg]="pkg"
         (version)="loadVersion$.next($event)"
       ></marketplace-additional>
-    </ng-container>
+    </ng-template>
   </ng-container>
 
   <ng-template #loading>

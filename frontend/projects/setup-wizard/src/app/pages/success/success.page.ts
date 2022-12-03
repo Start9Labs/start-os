@@ -59,7 +59,7 @@ export class SuccessPage {
       const ret = await this.api.complete()
       if (!this.isKiosk) {
         this.torAddress = ret['tor-address']
-        this.lanAddress = ret['lan-address']
+        this.lanAddress = ret['lan-address'].replace('https', 'http')
         this.cert = ret['root-ca']
 
         await this.api.exit()

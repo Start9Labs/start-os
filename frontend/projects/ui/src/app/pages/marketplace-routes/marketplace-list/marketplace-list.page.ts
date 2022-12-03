@@ -19,7 +19,6 @@ export class MarketplaceListPage {
   readonly back = !!this.route.snapshot.queryParamMap.get('back')
 
   readonly store$ = this.marketplaceService.getSelectedStore$().pipe(
-    filter(Boolean),
     map(({ info, packages }) => {
       const categories = new Set<string>()
       if (info.categories.includes('featured')) categories.add('featured')
@@ -57,7 +56,7 @@ export class MarketplaceListPage {
           // alt marketplace
           color = 'warning'
           description =
-            'This is a Custom Registry. Start9 cannot verify the integrity or functionality of services from this registry, and they may cause harm to your system. Install at your own risk.'
+            'This is a Custom Registry. Start9 cannot verify the integrity or functionality of services from this registry, and they may cause harm to your system. <b>Install at your own risk</b>.'
       }
 
       return {
