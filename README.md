@@ -3,9 +3,9 @@
 [![build](https://github.com/Start9Labs/embassy-os/actions/workflows/product.yaml/badge.svg)](https://github.com/Start9Labs/embassy-os/actions/workflows/product.yaml)
 [![community](https://img.shields.io/badge/community-matrix-yellow)](https://matrix.to/#/#community:matrix.start9labs.com)
 [![community](https://img.shields.io/badge/community-telegram-informational)](https://t.me/start9_labs)
-[![support](https://img.shields.io/badge/support-docs-important)](https://docs.start9labs.com)
+[![support](https://img.shields.io/badge/support-docs-important)](https://docs.start9.com)
 [![developer](https://img.shields.io/badge/developer-matrix-blueviolet)](https://matrix.to/#/#community-dev:matrix.start9labs.com)
-[![website](https://img.shields.io/website?down_color=lightgrey&down_message=offline&up_color=green&up_message=online&url=https%3A%2F%2Fstart9labs.com)](https://start9labs.com)
+[![website](https://img.shields.io/website?down_color=lightgrey&down_message=offline&up_color=green&up_message=online&url=https%3A%2F%2Fstart9.com)](https://start9.com)
 
 [![mastodon](https://img.shields.io/mastodon/follow/000000001?domain=https%3A%2F%2Fmastodon.start9labs.com&label=Follow&style=social)](http://mastodon.start9labs.com)
 [![twitter](https://img.shields.io/twitter/follow/start9labs?label=Follow)](https://twitter.com/start9labs)
