@@ -87,7 +87,15 @@ impl ManagerMap {
         manifest: Manifest,
         tor_keys: BTreeMap<InterfaceId, TorSecretKeyV3>,
     ) -> Result<(), Error> {
-        let keys = self.0.read().await.keys().cloned().collect::<Vec<_>>();
+        let package_id = manifest.id.clone();
+        let keys = self
+            .0
+            .read()
+            .await
+            .keys()
+            .filter(|x| x.0 == package_id)
+            .cloned()
+            .collect::<Vec<_>>();
         let mut lock = self.0.write().await;
         for id in keys {
             if let Some(man) = lock.remove(&id) {
@@ -96,7 +104,7 @@ impl ManagerMap {
                 }
             }
         }
-        let id = (manifest.id.clone(), manifest.version.clone());
+        let id = (package_id, manifest.version.clone());
 
         lock.insert(
             id,
