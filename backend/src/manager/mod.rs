@@ -185,6 +185,8 @@ pub enum OnStop {
     Exit,
 }
 
+const KILLED: &str = "Killed";
+
 #[instrument(skip(state))]
 async fn run_main(
     state: &Arc<ManagerSharedState>,
@@ -216,7 +218,7 @@ async fn run_main(
     let res = tokio::select! {
         a = runtime => a.map_err(|_| Error::new(eyre!("Manager runtime panicked!"), crate::ErrorKind::Docker)).and_then(|a| a),
         _ = health => Err(Error::new(eyre!("Health check daemon exited!"), crate::ErrorKind::Unknown)),
-        _ = state.killer.notified() => Ok(Err((137, "Killed".to_string())))
+        _ = state.killer.notified() => Ok(Err((137, KILLED.to_string())))
     };
     if let Some(ip) = ip {
         remove_network_for_main(&*state.seed, ip).await?;
@@ -438,6 +440,9 @@ async fn manager_thread_loop(mut recv: Receiver<OnStop>, thread_shared: &Arc<Man
                     }
                 }
                 tracing::error!("service crashed: {}: {}", e.0, e.1);
+                if &e.1 == KILLED && e.0 == 137 {
+                    break;
+                }
                 tokio::time::sleep(Duration::from_secs(15)).await;
             }
             Err(e) => {
