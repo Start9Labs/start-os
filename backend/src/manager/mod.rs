@@ -87,13 +87,17 @@ impl ManagerMap {
         manifest: Manifest,
         tor_keys: BTreeMap<InterfaceId, TorSecretKeyV3>,
     ) -> Result<(), Error> {
+        let keys = self.0.read().await.keys().cloned().collect::<Vec<_>>();
         let mut lock = self.0.write().await;
-        let id = (manifest.id.clone(), manifest.version.clone());
-        if let Some(man) = lock.remove(&id) {
-            if !man.thread.is_empty().await {
-                man.exit().await?;
+        for id in keys {
+            if let Some(man) = lock.remove(&id) {
+                if !man.thread.is_empty().await {
+                    man.exit().await?;
+                }
             }
         }
+        let id = (manifest.id.clone(), manifest.version.clone());
+
         lock.insert(
             id,
             Arc::new(Manager::create(ctx, manifest, tor_keys).await?),
@@ -220,6 +224,7 @@ async fn run_main(
         _ = health => Err(Error::new(eyre!("Health check daemon exited!"), crate::ErrorKind::Unknown)),
         _ = state.killer.notified() => Ok(Err((137, KILLED.to_string())))
     };
+
     if let Some(ip) = ip {
         remove_network_for_main(&*state.seed, ip).await?;
     }
@@ -440,9 +445,6 @@ async fn manager_thread_loop(mut recv: Receiver<OnStop>, thread_shared: &Arc<Man
                     }
                 }
                 tracing::error!("service crashed: {}: {}", e.0, e.1);
-                if &e.1 == KILLED && e.0 == 137 {
-                    break;
-                }
                 tokio::time::sleep(Duration::from_secs(15)).await;
             }
             Err(e) => {
