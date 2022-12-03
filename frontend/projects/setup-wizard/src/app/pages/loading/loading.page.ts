@@ -1,6 +1,7 @@
 import { Component } from '@angular/core'
 import { NavController } from '@ionic/angular'
 import { StateService } from 'src/app/services/state.service'
+import { Pipe, PipeTransform } from '@angular/core'
 
 @Component({
   selector: 'app-loading',
@@ -27,8 +28,6 @@ export class LoadingPage {
     )
   }
 }
-
-import { Pipe, PipeTransform } from '@angular/core'
 
 @Pipe({
   name: 'toMessage',

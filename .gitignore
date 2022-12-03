@@ -20,6 +20,9 @@ secrets.db
 /GIT_HASH.txt
 /VERSION.txt
 /embassyos-*.tar.gz
+/eos-*.tar.gz
 /*.deb
 /target
 /*.squashfs
+/debian
+/DEBIAN

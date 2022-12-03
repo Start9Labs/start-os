@@ -57,6 +57,15 @@ EOT
 while ! curl "http://localhost" > /dev/null; do
     sleep 1
 done
+while ! /usr/lib/embassy/scripts/check-monitor; do
+    sleep 15
+done
+(
+    while /usr/lib/embassy/scripts/check-monitor; do
+        sleep 15
+    done
+    killall firefox-esr
+) &
 matchbox-window-manager -use_titlebar no &
 firefox-esr http://localhost --profile $PROFILE
 rm -rf $PROFILE

@@ -106,6 +106,20 @@ ion-card {
     align-items: center;
   }
 
+  #exit {
+    background: var(--color-accent);
+    height: 100%;
+
+    .container p {
+      font-size: 1.4rem !important;
+      font-weight: bold;
+    }
+
+    ion-icon {
+      font-size: 1.7rem;
+    }
+  }
+
   #launch {
     background: var(--alt-blue);
     height: 100%;
