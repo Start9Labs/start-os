@@ -713,7 +713,9 @@ pub async fn download_install_s9pk(
     let mut previous_state: Option<MainStatus> = None;
 
     if let Err(e) = async {
-        previous_state = Some(crate::control::stop_impl(ctx.clone(), pkg_id.clone()).await?);
+        previous_state = crate::control::stop_impl(ctx.clone(), pkg_id.clone())
+            .await
+            .ok();
         let mut db_handle = ctx.db.handle();
         let mut tx = db_handle.begin().await?;
         let receipts = DownloadInstallReceipts::new(&mut tx, &pkg_id).await?;
