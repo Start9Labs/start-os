@@ -18,7 +18,7 @@ use crate::context::RpcContext;
 use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::cifs::Cifs;
-use crate::disk::mount::filesystem::{FileSystem, MountType, ReadOnly};
+use crate::disk::mount::filesystem::{FileSystem, MountType, ReadWrite};
 use crate::disk::mount::guard::TmpMountGuard;
 use crate::disk::util::PartitionInfo;
 use crate::s9pk::manifest::PackageId;
@@ -234,7 +234,7 @@ pub async fn info(
             &target_id
                 .load(&mut ctx.secret_store.acquire().await?)
                 .await?,
-            ReadOnly,
+            ReadWrite,
         )
         .await?,
         &password,
