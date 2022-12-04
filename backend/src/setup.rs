@@ -24,7 +24,7 @@ use crate::context::SetupContext;
 use crate::disk::fsck::RepairStrategy;
 use crate::disk::main::DEFAULT_PASSWORD;
 use crate::disk::mount::filesystem::cifs::Cifs;
-use crate::disk::mount::filesystem::ReadOnly;
+use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::TmpMountGuard;
 use crate::disk::util::{pvscan, recovery_info, DiskInfo, EmbassyOsRecoveryInfo};
 use crate::disk::REPAIR_DISK_PATH;
@@ -223,7 +223,7 @@ pub async fn verify_cifs(
             username,
             password,
         },
-        ReadOnly,
+        ReadWrite,
     )
     .await?;
     let embassy_os = recovery_info(&guard).await?;
@@ -422,7 +422,7 @@ async fn recover(
     recovery_source: BackupTargetFS,
     recovery_password: Option<String>,
 ) -> Result<(Arc<String>, Hostname, OnionAddressV3, X509), Error> {
-    let recovery_source = TmpMountGuard::mount(&recovery_source, ReadOnly).await?;
+    let recovery_source = TmpMountGuard::mount(&recovery_source, ReadWrite).await?;
     recover_full_embassy(
         ctx.clone(),
         guid.clone(),

@@ -22,7 +22,7 @@ use crate::backup::BackupMetadata;
 use crate::context::{RpcContext, SetupContext};
 use crate::db::model::{PackageDataEntry, StaticFiles};
 use crate::disk::mount::backup::{BackupMountGuard, PackageBackupMountGuard};
-use crate::disk::mount::filesystem::ReadOnly;
+use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::TmpMountGuard;
 use crate::hostname::{get_hostname, Hostname};
 use crate::install::progress::InstallProgress;
@@ -57,7 +57,7 @@ pub async fn restore_packages_rpc(
         .load(&mut ctx.secret_store.acquire().await?)
         .await?;
     let backup_guard =
-        BackupMountGuard::mount(TmpMountGuard::mount(&fs, ReadOnly).await?, &password).await?;
+        BackupMountGuard::mount(TmpMountGuard::mount(&fs, ReadWrite).await?, &password).await?;
 
     let (backup_guard, tasks, _) = restore_packages(&ctx, &mut db, backup_guard, ids).await?;
 
