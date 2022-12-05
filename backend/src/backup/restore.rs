@@ -19,12 +19,14 @@ use tracing::instrument;
 use super::target::BackupTargetId;
 use crate::backup::backup_bulk::OsBackup;
 use crate::backup::BackupMetadata;
+use crate::context::rpc::RpcContextConfig;
 use crate::context::{RpcContext, SetupContext};
 use crate::db::model::{PackageDataEntry, StaticFiles};
 use crate::disk::mount::backup::{BackupMountGuard, PackageBackupMountGuard};
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::TmpMountGuard;
 use crate::hostname::{get_hostname, Hostname};
+use crate::init::init;
 use crate::install::progress::InstallProgress;
 use crate::install::{download_install_s9pk, PKG_PUBLIC_DIR};
 use crate::net::ssl::SslManager;
@@ -233,6 +235,10 @@ pub async fn recover_full_embassy(
     )
     .await?;
     secret_store.close().await;
+
+    let cfg = RpcContextConfig::load(ctx.config_path.clone()).await?;
+
+    init(&cfg).await?;
 
     let rpc_ctx = RpcContext::init(ctx.config_path.clone(), disk_guid.clone()).await?;
     let mut db = rpc_ctx.db.handle();
