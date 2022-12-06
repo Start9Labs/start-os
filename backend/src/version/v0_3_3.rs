@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use emver::VersionRange;
+use regex::Regex;
 use serde_json::{json, Value};
 
 use super::v0_3_0::V0_3_0_COMPAT;
@@ -47,7 +48,7 @@ impl VersionT for Version {
         if let Value::Object(known_hosts) = known_hosts {
             for (_id, value) in known_hosts {
                 if let Value::String(url) = &value["url"] {
-                    ui["marketplace"]["known-hosts"][url] = json!({});
+                    ui["marketplace"]["known-hosts"][ensure_trailing_slashes(url)] = json!({});
                 }
             }
         }
@@ -99,6 +100,32 @@ impl VersionT for Version {
         ui.save(db).await?;
         Ok(())
     }
+}
+
+fn ensure_trailing_slashes(url: &str) -> String {
+    lazy_static::lazy_static! {
+        static ref REG: Regex = Regex::new(r".*/$").unwrap();
+    }
+    if REG.is_match(url) {
+        return url.to_string();
+    }
+    format!("{url}/")
+}
+
+#[test]
+fn test_ensure_trailing_slashed() {
+    assert_eq!(
+        &ensure_trailing_slashes("http://start9.com"),
+        "http://start9.com/"
+    );
+    assert_eq!(
+        &ensure_trailing_slashes("http://start9.com/"),
+        "http://start9.com/"
+    );
+    assert_eq!(
+        &ensure_trailing_slashes("http://start9.com/a"),
+        "http://start9.com/a/"
+    );
 }
 
 #[derive(Debug, Clone, Copy)]
