@@ -19,7 +19,6 @@ serde_json = "1"
 helpers = { path = "../helpers" }
 imbl = "2"
 nix = "0.25"
-procfs = "0.14"
 tokio = { version = "1", features = ["full"] }
 tokio-stream = { version = "0.1.11" }
 tracing = "0.1"
@@ -27,6 +26,9 @@ tracing-error = "0.2"
 tracing-futures = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 yajrc = { version = "*", git = "https://github.com/dr-bonez/yajrc.git", branch = "develop" }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+procfs = "0.14"
 
 [profile.test]
 opt-level = 3
