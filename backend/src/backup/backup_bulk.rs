@@ -361,7 +361,6 @@ async fn perform_backup<Db: DbHandle>(
         crate::db::DatabaseModel::new()
             .package_data()
             .idx(&package_id)
-            .lock(&mut tx, LockType::Write)
             .await?;
 
         installed_model.lock(&mut tx, LockType::Write).await?;
