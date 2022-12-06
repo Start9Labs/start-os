@@ -1,12 +1,12 @@
-use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
+use std::{collections::BTreeMap, pin::Pin};
 
 use clap::ArgMatches;
 use color_eyre::eyre::eyre;
-use futures::{future::BoxFuture, stream};
+use futures::{future::BoxFuture, stream, Future};
 use futures::{FutureExt, StreamExt};
 use openssl::x509::X509;
 use patch_db::{DbHandle, PatchDbHandle};
@@ -67,9 +67,9 @@ pub async fn restore_packages_rpc(
         stream::iter(tasks.into_iter().map(|x| (x, ctx.clone())))
             .for_each_concurrent(5, |(res, ctx)| async move {
                 let mut db = ctx.db.handle();
-                match res.await.with_kind(crate::ErrorKind::Unknown) {
-                    Ok((Ok(_), _)) => (),
-                    Ok((Err(err), package_id)) => {
+                match res.await {
+                    (Ok(_), _) => (),
+                    (Err(err), package_id) => {
                         if let Err(err) = ctx
                             .notification_manager
                             .notify(
@@ -88,26 +88,6 @@ pub async fn restore_packages_rpc(
                         };
                         tracing::error!("Error restoring package {}: {}", package_id, err);
                         tracing::debug!("{:?}", err);
-                    }
-                    Err(e) => {
-                        if let Err(err) = ctx
-                            .notification_manager
-                            .notify(
-                                &mut db,
-                                None,
-                                NotificationLevel::Error,
-                                "Restoration Failure".to_string(),
-                                format!("Error during restoration: {}", e),
-                                (),
-                                None,
-                            )
-                            .await
-                        {
-                            tracing::error!("Failed to notify: {}", err);
-                            tracing::debug!("{:?}", err);
-                        }
-                        tracing::error!("Error restoring packages: {}", e);
-                        tracing::debug!("{:?}", e);
                     }
                 }
             })
@@ -265,9 +245,9 @@ pub async fn recover_full_embassy(
             stream::iter(tasks.into_iter().map(|x| (x,  task_consumer_rpc_ctx.clone())))
                 .for_each_concurrent(5, |(res, ctx)| async move {
                     let mut db = ctx.db.handle();
-                    match res.await.with_kind(crate::ErrorKind::Unknown) {
-                        Ok((Ok(_), _)) => (),
-                        Ok((Err(err), package_id)) => {
+                    match res.await {
+                        (Ok(_), _) => (),
+                        (Err(err), package_id) => {
                             if let Err(err) = ctx.notification_manager.notify(
                                 &mut db,
                                 Some(package_id.clone()),
@@ -279,20 +259,6 @@ pub async fn recover_full_embassy(
                             tracing::error!("Error restoring package {}: {}", package_id, err);
                             tracing::debug!("{:?}", err);
                         },
-                        Err(e) => {
-                            if let Err(err) = ctx.notification_manager.notify(
-                                &mut db,
-                                None,
-                                NotificationLevel::Error,
-                                "Restoration Failure".to_string(), format!("Error during restoration: {}", e), (), None).await {
-
-                                tracing::error!("Failed to notify: {}", err);
-                                tracing::debug!("{:?}", err);
-                            }
-                            tracing::error!("Error restoring packages: {}", e);
-                            tracing::debug!("{:?}", e);
-                        },
-
                     }
                 }).await;
 
@@ -321,7 +287,7 @@ async fn restore_packages(
 ) -> Result<
     (
         BackupMountGuard<TmpMountGuard>,
-        Vec<JoinHandle<(Result<(), Error>, PackageId)>>,
+        Vec<BoxFuture<'static, (Result<(), Error>, PackageId)>>,
         ProgressInfo,
     ),
     Error,
@@ -340,7 +306,7 @@ async fn restore_packages(
             .insert(id.clone(), dir_size(backup_dir(&id)).await?);
         progress_info.target_volume_size.insert(id.clone(), 0);
         let package_id = id.clone();
-        tasks.push(tokio::spawn(
+        tasks.push(
             async move {
                 if let Err(e) = task.await {
                     tracing::error!("Error restoring package {}: {}", id, e);
@@ -350,8 +316,9 @@ async fn restore_packages(
                     Ok(())
                 }
             }
-            .map(|x| (x, package_id)),
-        ));
+            .map(|x| (x, package_id))
+            .boxed(),
+        );
     }
 
     Ok((backup_guard, tasks, progress_info))
