@@ -10,6 +10,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PatchDB } from 'patch-db-client'
 import { AppRecoverOption } from './to-options.pipe'
 import { DataModel } from 'src/app/services/patch-db/data-model'
+import { take } from 'rxjs'
 
 @Component({
   selector: 'app-recover-select',
@@ -22,7 +23,7 @@ export class AppRecoverSelectPage {
   @Input() password!: string
   @Input() oldPassword?: string
 
-  readonly packageData$ = this.patch.watch$('package-data')
+  readonly packageData$ = this.patch.watch$('package-data').pipe(take(1))
 
   hasSelection = false
   error: string | IonicSafeString = ''
