@@ -42,7 +42,7 @@ path = "src/bin/avahi-alias.rs"
 
 [features]
 avahi = ["avahi-sys"]
-default = ["avahi", "js_engine", "procfs"]
+default = ["avahi", "js_engine"]
 dev = []
 unstable = ["patch-db/unstable"]
 
