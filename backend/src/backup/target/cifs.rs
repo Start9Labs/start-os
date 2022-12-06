@@ -4,7 +4,7 @@ use color_eyre::eyre::eyre;
 use futures::TryStreamExt;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
-use sqlx::{Executor, Postgres};
+use sqlx::{Executor, Pool, Postgres};
 
 use super::{BackupTarget, BackupTargetId};
 use crate::context::RpcContext;
@@ -170,41 +170,36 @@ where
     })
 }
 
-pub async fn list<Ex>(secrets: &mut Ex) -> Result<Vec<(i32, CifsBackupTarget)>, Error>
-where
-    for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
-{
-    let mut records =
-        sqlx::query!("SELECT id, hostname, path, username, password FROM cifs_shares")
-            .fetch_many(secrets);
+pub async fn list(db: Pool<Postgres>) -> Result<Vec<(i32, CifsBackupTarget)>, Error> {
+    let records = sqlx::query!("SELECT id, hostname, path, username, password FROM cifs_shares")
+        .fetch_all(&mut db.acquire().await?)
+        .await?;
 
     let mut cifs = Vec::new();
-    while let Some(query_result) = records.try_next().await? {
-        if let Some(record) = query_result.right() {
-            let mount_info = Cifs {
-                hostname: record.hostname,
-                path: PathBuf::from(record.path),
-                username: record.username,
-                password: record.password,
-            };
-            let embassy_os = async {
-                let guard = TmpMountGuard::mount(&mount_info, ReadOnly).await?;
-                let embassy_os = recovery_info(&guard).await?;
-                guard.unmount().await?;
-                Ok::<_, Error>(embassy_os)
-            }
-            .await;
-            cifs.push((
-                record.id,
-                CifsBackupTarget {
-                    hostname: mount_info.hostname,
-                    path: mount_info.path,
-                    username: mount_info.username,
-                    mountable: embassy_os.is_ok(),
-                    embassy_os: embassy_os.ok().and_then(|a| a),
-                },
-            ));
+    for record in records {
+        let mount_info = Cifs {
+            hostname: record.hostname,
+            path: PathBuf::from(record.path),
+            username: record.username,
+            password: record.password,
+        };
+        let embassy_os = async {
+            let guard = TmpMountGuard::mount(&mount_info, ReadOnly).await?;
+            let embassy_os = recovery_info(&guard).await?;
+            guard.unmount().await?;
+            Ok::<_, Error>(embassy_os)
         }
+        .await;
+        cifs.push((
+            record.id,
+            CifsBackupTarget {
+                hostname: mount_info.hostname,
+                path: mount_info.path,
+                username: mount_info.username,
+                mountable: embassy_os.is_ok(),
+                embassy_os: embassy_os.ok().and_then(|a| a),
+            },
+        ));
     }
 
     Ok(cifs)

@@ -340,16 +340,12 @@ impl UninstallReceipts {
         }
     }
 }
-#[instrument(skip(ctx, secrets, db))]
-pub async fn uninstall<Ex>(
+#[instrument(skip(ctx, db))]
+pub async fn uninstall(
     ctx: &RpcContext,
     db: &mut PatchDbHandle,
-    secrets: &mut Ex,
     id: &PackageId,
-) -> Result<(), Error>
-where
-    for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
-{
+) -> Result<(), Error> {
     let mut tx = db.begin().await?;
     crate::db::DatabaseModel::new()
         .package_data()
@@ -399,7 +395,7 @@ where
 
     tracing::debug!("Cleaning up {:?} at {:?}", volumes, dependents_paths);
     cleanup_folder(volumes, Arc::new(dependents_paths)).await;
-    remove_tor_keys(secrets, &entry.manifest.id).await?;
+    remove_tor_keys(&mut ctx.secret_store.acquire().await?, &entry.manifest.id).await?;
     tx.commit().await?;
     Ok(())
 }

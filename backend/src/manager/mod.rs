@@ -12,7 +12,7 @@ use embassy_container_init::{ProcessGroupId, SignalGroupParams};
 use helpers::RpcClient;
 use nix::sys::signal::Signal;
 use patch_db::DbHandle;
-use sqlx::{Executor, Postgres};
+use sqlx::{Executor, PgPool};
 use tokio::sync::watch::error::RecvError;
 use tokio::sync::watch::{channel, Receiver, Sender};
 use tokio::sync::{oneshot, Notify, RwLock};
@@ -40,16 +40,13 @@ pub const HEALTH_CHECK_GRACE_PERIOD_SECONDS: u64 = 5;
 #[derive(Default)]
 pub struct ManagerMap(RwLock<BTreeMap<(PackageId, Version), Arc<Manager>>>);
 impl ManagerMap {
-    #[instrument(skip(self, ctx, db, secrets))]
-    pub async fn init<Db: DbHandle, Ex>(
+    #[instrument(skip(self, ctx, db, secret_db))]
+    pub async fn init<Db: DbHandle>(
         &self,
         ctx: &RpcContext,
         db: &mut Db,
-        secrets: &mut Ex,
-    ) -> Result<(), Error>
-    where
-        for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
-    {
+        secret_db: PgPool,
+    ) -> Result<(), Error> {
         let mut res = BTreeMap::new();
         for package in crate::db::DatabaseModel::new()
             .package_data()
@@ -70,7 +67,10 @@ impl ManagerMap {
                 continue;
             };
 
-            let tor_keys = man.interfaces.tor_keys(secrets, &package).await?;
+            let tor_keys = man
+                .interfaces
+                .tor_keys(&mut secret_db.acquire().await?, &package)
+                .await?;
             res.insert(
                 (package, man.version.clone()),
                 Arc::new(Manager::create(ctx.clone(), man, tor_keys).await?),

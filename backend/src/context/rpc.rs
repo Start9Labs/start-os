@@ -289,11 +289,7 @@ impl RpcContext {
         res.cleanup().await?;
         tracing::info!("Cleaned up transient states");
         res.managers
-            .init(
-                &res,
-                &mut res.db.handle(),
-                &mut res.secret_store.acquire().await?,
-            )
+            .init(&res, &mut res.db.handle(), res.secret_store.clone())
             .await?;
         tracing::info!("Initialized Package Managers");
         Ok(res)
@@ -322,13 +318,7 @@ impl RpcContext {
                             .await?;
                     }
                     PackageDataEntry::Removing { .. } => {
-                        uninstall(
-                            self,
-                            &mut db,
-                            &mut self.secret_store.acquire().await?,
-                            &package_id,
-                        )
-                        .await?;
+                        uninstall(self, &mut db, &package_id).await?;
                     }
                     PackageDataEntry::Installed {
                         installed,

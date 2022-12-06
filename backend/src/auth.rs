@@ -159,8 +159,7 @@ pub async fn login(
     metadata: Value,
 ) -> Result<(), Error> {
     let password = password.unwrap_or_default().decrypt(&ctx)?;
-    let mut handle = ctx.secret_store.acquire().await?;
-    check_password_against_db(&mut handle, &password).await?;
+    check_password_against_db(&mut ctx.secret_store.acquire().await?, &password).await?;
 
     let hash_token = HashSessionToken::new();
     let user_agent = req.headers.get("user-agent").and_then(|h| h.to_str().ok());
@@ -172,7 +171,7 @@ pub async fn login(
         user_agent,
         metadata,
     )
-    .execute(&mut handle)
+    .execute(&mut ctx.secret_store.acquire().await?)
     .await?;
     res.headers.insert(
         "set-cookie",
@@ -403,14 +402,19 @@ pub async fn reset_password(
     let old_password = old_password.unwrap_or_default().decrypt(&ctx)?;
     let new_password = new_password.unwrap_or_default().decrypt(&ctx)?;
 
-    let mut secrets = ctx.secret_store.acquire().await?;
-    check_password_against_db(&mut secrets, &old_password).await?;
+    check_password_against_db(&mut ctx.secret_store.acquire().await?, &old_password).await?;
 
     let mut db = ctx.db.handle();
 
     let set_password_receipt = SetPasswordReceipt::new(&mut db).await?;
 
-    set_password(&mut db, &set_password_receipt, &mut secrets, &new_password).await?;
+    set_password(
+        &mut db,
+        &set_password_receipt,
+        &mut ctx.secret_store.acquire().await?,
+        &new_password,
+    )
+    .await?;
 
     Ok(())
 }

@@ -138,10 +138,9 @@ pub fn target() -> Result<(), Error> {
 pub async fn list(
     #[context] ctx: RpcContext,
 ) -> Result<BTreeMap<BackupTargetId, BackupTarget>, Error> {
-    let mut sql_handle = ctx.secret_store.acquire().await?;
     let (disks_res, cifs) = tokio::try_join!(
         crate::disk::util::list(&ctx.os_partitions),
-        cifs::list(&mut sql_handle),
+        cifs::list(ctx.secret_store.clone()),
     )?;
     Ok(disks_res
         .into_iter()

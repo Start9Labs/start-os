@@ -635,17 +635,7 @@ pub async fn uninstall_impl(ctx: RpcContext, id: PackageId) -> Result<(), Error>
     drop(handle);
 
     tokio::spawn(async move {
-        if let Err(e) = async {
-            cleanup::uninstall(
-                &ctx,
-                &mut ctx.db.handle(),
-                &mut ctx.secret_store.acquire().await?,
-                &id,
-            )
-            .await
-        }
-        .await
-        {
+        if let Err(e) = async { cleanup::uninstall(&ctx, &mut ctx.db.handle(), &id).await }.await {
             let err_str = format!("Uninstall of {} Failed: {}", id, e);
             tracing::error!("{}", err_str);
             tracing::debug!("{:?}", e);

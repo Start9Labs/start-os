@@ -37,14 +37,13 @@ impl HasLoggedOutSessions {
         ctx: &RpcContext,
     ) -> Result<Self, Error> {
         let mut open_authed_websockets = ctx.open_authed_websockets.lock().await;
-        let mut sqlx_conn = ctx.secret_store.acquire().await?;
         for session in logged_out_sessions {
             let session = session.as_logout_session_id();
             sqlx::query!(
                 "UPDATE session SET logged_out = CURRENT_TIMESTAMP WHERE id = $1",
                 session
             )
-            .execute(&mut sqlx_conn)
+            .execute(&mut ctx.secret_store.acquire().await?)
             .await?;
             for socket in open_authed_websockets.remove(&session).unwrap_or_default() {
                 let _ = socket.send(());
