@@ -65,7 +65,7 @@ pub async fn restore_packages_rpc(
 
     tokio::spawn(async move {
         for res in tasks {
-            match res.with_kind(crate::ErrorKind::Unknown) {
+            match res.await.with_kind(crate::ErrorKind::Unknown) {
                 Ok((Ok(_), _)) => (),
                 Ok((Err(err), package_id)) => {
                     if let Err(err) = ctx
@@ -256,14 +256,14 @@ pub async fn recover_full_embassy(
         .collect();
     let (backup_guard, tasks, progress_info) =
         restore_packages(&rpc_ctx, &mut db, backup_guard, ids).await?;
-
+    let task_consumer_rpc_ctx = rpc_ctx.clone();
     tokio::select! {
         _ = async move {
             for res in tasks {
-                match res.with_kind(crate::ErrorKind::Unknown) {
+                match res.await.with_kind(crate::ErrorKind::Unknown) {
                     Ok((Ok(_), _)) => (),
                     Ok((Err(err), package_id)) => {
-                        if let Err(err) = rpc_ctx.notification_manager.notify(
+                        if let Err(err) = task_consumer_rpc_ctx.notification_manager.notify(
                             &mut db,
                             Some(package_id.clone()),
                             NotificationLevel::Error,
@@ -275,7 +275,7 @@ pub async fn recover_full_embassy(
                         tracing::debug!("{:?}", err);
                     },
                     Err(e) => {
-                        if let Err(err) = rpc_ctx.notification_manager.notify(
+                        if let Err(err) = task_consumer_rpc_ctx.notification_manager.notify(
                             &mut db,
                             None,
                             NotificationLevel::Error,
