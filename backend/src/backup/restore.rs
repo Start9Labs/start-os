@@ -6,8 +6,8 @@ use std::time::Duration;
 
 use clap::ArgMatches;
 use color_eyre::eyre::eyre;
-use futures::future::BoxFuture;
-use futures::FutureExt;
+use futures::{future::BoxFuture, stream};
+use futures::{FutureExt, StreamExt};
 use openssl::x509::X509;
 use patch_db::{DbHandle, PatchDbHandle};
 use rpc_toolkit::command;
@@ -64,51 +64,54 @@ pub async fn restore_packages_rpc(
     let (backup_guard, tasks, _) = restore_packages(&ctx, &mut db, backup_guard, ids).await?;
 
     tokio::spawn(async move {
-        for res in tasks {
-            match res.await.with_kind(crate::ErrorKind::Unknown) {
-                Ok((Ok(_), _)) => (),
-                Ok((Err(err), package_id)) => {
-                    if let Err(err) = ctx
-                        .notification_manager
-                        .notify(
-                            &mut db,
-                            Some(package_id.clone()),
-                            NotificationLevel::Error,
-                            "Restoration Failure".to_string(),
-                            format!("Error restoring package {}: {}", package_id, err),
-                            (),
-                            None,
-                        )
-                        .await
-                    {
-                        tracing::error!("Failed to notify: {}", err);
-                        tracing::debug!("{:?}", err);
-                    };
-                    tracing::error!("Error restoring package {}: {}", package_id, err);
-                    tracing::debug!("{:?}", err);
-                }
-                Err(e) => {
-                    if let Err(err) = ctx
-                        .notification_manager
-                        .notify(
-                            &mut db,
-                            None,
-                            NotificationLevel::Error,
-                            "Restoration Failure".to_string(),
-                            format!("Error during restoration: {}", e),
-                            (),
-                            None,
-                        )
-                        .await
-                    {
-                        tracing::error!("Failed to notify: {}", err);
+        stream::iter(tasks.into_iter().map(|x| (x, ctx.clone())))
+            .for_each_concurrent(5, |(res, ctx)| async move {
+                let mut db = ctx.db.handle();
+                match res.await.with_kind(crate::ErrorKind::Unknown) {
+                    Ok((Ok(_), _)) => (),
+                    Ok((Err(err), package_id)) => {
+                        if let Err(err) = ctx
+                            .notification_manager
+                            .notify(
+                                &mut db,
+                                Some(package_id.clone()),
+                                NotificationLevel::Error,
+                                "Restoration Failure".to_string(),
+                                format!("Error restoring package {}: {}", package_id, err),
+                                (),
+                                None,
+                            )
+                            .await
+                        {
+                            tracing::error!("Failed to notify: {}", err);
+                            tracing::debug!("{:?}", err);
+                        };
+                        tracing::error!("Error restoring package {}: {}", package_id, err);
                         tracing::debug!("{:?}", err);
                     }
-                    tracing::error!("Error restoring packages: {}", e);
-                    tracing::debug!("{:?}", e);
+                    Err(e) => {
+                        if let Err(err) = ctx
+                            .notification_manager
+                            .notify(
+                                &mut db,
+                                None,
+                                NotificationLevel::Error,
+                                "Restoration Failure".to_string(),
+                                format!("Error during restoration: {}", e),
+                                (),
+                                None,
+                            )
+                            .await
+                        {
+                            tracing::error!("Failed to notify: {}", err);
+                            tracing::debug!("{:?}", err);
+                        }
+                        tracing::error!("Error restoring packages: {}", e);
+                        tracing::debug!("{:?}", e);
+                    }
                 }
-            }
-        }
+            })
+            .await;
         if let Err(e) = backup_guard.unmount().await {
             tracing::error!("Error unmounting backup drive: {}", e);
             tracing::debug!("{:?}", e);
@@ -259,37 +262,39 @@ pub async fn recover_full_embassy(
     let task_consumer_rpc_ctx = rpc_ctx.clone();
     tokio::select! {
         _ = async move {
-            for res in tasks {
-                match res.await.with_kind(crate::ErrorKind::Unknown) {
-                    Ok((Ok(_), _)) => (),
-                    Ok((Err(err), package_id)) => {
-                        if let Err(err) = task_consumer_rpc_ctx.notification_manager.notify(
-                            &mut db,
-                            Some(package_id.clone()),
-                            NotificationLevel::Error,
-                            "Restoration Failure".to_string(), format!("Error restoring package {}: {}", package_id,err), (), None).await{
-                            tracing::error!("Failed to notify: {}", err);
+            stream::iter(tasks.into_iter().map(|x| (x,  task_consumer_rpc_ctx.clone())))
+                .for_each_concurrent(5, |(res, ctx)| async move {
+                    let mut db = ctx.db.handle();
+                    match res.await.with_kind(crate::ErrorKind::Unknown) {
+                        Ok((Ok(_), _)) => (),
+                        Ok((Err(err), package_id)) => {
+                            if let Err(err) = ctx.notification_manager.notify(
+                                &mut db,
+                                Some(package_id.clone()),
+                                NotificationLevel::Error,
+                                "Restoration Failure".to_string(), format!("Error restoring package {}: {}", package_id,err), (), None).await{
+                                tracing::error!("Failed to notify: {}", err);
+                                tracing::debug!("{:?}", err);
+                                };
+                            tracing::error!("Error restoring package {}: {}", package_id, err);
                             tracing::debug!("{:?}", err);
-                            };
-                        tracing::error!("Error restoring package {}: {}", package_id, err);
-                        tracing::debug!("{:?}", err);
-                    },
-                    Err(e) => {
-                        if let Err(err) = task_consumer_rpc_ctx.notification_manager.notify(
-                            &mut db,
-                            None,
-                            NotificationLevel::Error,
-                            "Restoration Failure".to_string(), format!("Error during restoration: {}", e), (), None).await {
+                        },
+                        Err(e) => {
+                            if let Err(err) = ctx.notification_manager.notify(
+                                &mut db,
+                                None,
+                                NotificationLevel::Error,
+                                "Restoration Failure".to_string(), format!("Error during restoration: {}", e), (), None).await {
 
-                            tracing::error!("Failed to notify: {}", err);
-                            tracing::debug!("{:?}", err);
-                        }
-                        tracing::error!("Error restoring packages: {}", e);
-                        tracing::debug!("{:?}", e);
-                    },
+                                tracing::error!("Failed to notify: {}", err);
+                                tracing::debug!("{:?}", err);
+                            }
+                            tracing::error!("Error restoring packages: {}", e);
+                            tracing::debug!("{:?}", e);
+                        },
 
-                }
-            }
+                    }
+                }).await;
 
         } => {
 
