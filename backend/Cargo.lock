@@ -1234,7 +1234,6 @@ dependencies = [
  "pin-project",
  "pkcs8",
  "prettytable-rs",
- "procfs",
  "proptest",
  "proptest-derive",
  "rand 0.7.3",

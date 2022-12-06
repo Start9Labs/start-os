@@ -107,7 +107,6 @@ pbkdf2 = "0.11.0"
 pin-project = "1.0.11"
 pkcs8 = { version = "0.9.0", features = ["std"] }
 prettytable-rs = "0.9.0"
-procfs = { version = "0.14.1", optional = true }
 proptest = "1.0.0"
 proptest-derive = "0.3.0"
 rand = { version = "0.8.5", features = ["std"] }
