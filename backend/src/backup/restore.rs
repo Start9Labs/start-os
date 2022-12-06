@@ -64,8 +64,7 @@ pub async fn restore_packages_rpc(
     let (backup_guard, tasks, _) = restore_packages(&ctx, &mut db, backup_guard, ids).await?;
 
     tokio::spawn(async move {
-        let res = futures::future::join_all(tasks).await;
-        for res in res {
+        for res in tasks {
             match res.with_kind(crate::ErrorKind::Unknown) {
                 Ok((Ok(_), _)) => (),
                 Ok((Err(err), package_id)) => {
@@ -259,8 +258,8 @@ pub async fn recover_full_embassy(
         restore_packages(&rpc_ctx, &mut db, backup_guard, ids).await?;
 
     tokio::select! {
-        res = futures::future::join_all(tasks) => {
-            for res in res {
+        _ = async move {
+            for res in tasks {
                 match res.with_kind(crate::ErrorKind::Unknown) {
                     Ok((Ok(_), _)) => (),
                     Ok((Err(err), package_id)) => {
@@ -291,6 +290,9 @@ pub async fn recover_full_embassy(
 
                 }
             }
+
+        } => {
+
         },
         _ = approximate_progress_loop(&ctx, &rpc_ctx, progress_info) => unreachable!(concat!(module_path!(), "::approximate_progress_loop should not terminate")),
     }
