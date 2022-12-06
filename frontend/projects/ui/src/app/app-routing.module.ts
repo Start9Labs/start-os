@@ -64,6 +64,13 @@ const routes: Routes = [
       ),
   },
   {
+    path: 'widgets',
+    canActivate: [AuthGuard],
+    canActivateChild: [AuthGuard],
+    loadChildren: () =>
+      import('./pages/widgets/widgets.module').then(m => m.WidgetsPageModule),
+  },
+  {
     path: 'developer',
     canActivate: [AuthGuard],
     canActivateChild: [AuthGuard],
@@ -80,7 +87,6 @@ const routes: Routes = [
       scrollPositionRestoration: 'enabled',
       preloadingStrategy: PreloadAllModules,
       initialNavigation: 'disabled',
-      useHash: true,
     }),
   ],
   exports: [RouterModule],

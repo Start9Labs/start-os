@@ -1,4 +1,8 @@
-import { TuiRootModule } from '@taiga-ui/core'
+import {
+  TuiModeModule,
+  TuiRootModule,
+  TuiThemeNightModule,
+} from '@taiga-ui/core'
 import { HttpClientModule } from '@angular/common/http'
 import { NgModule } from '@angular/core'
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
@@ -43,6 +47,8 @@ import { ConnectionBarComponentModule } from './components/connection-bar/connec
     ToastContainerModule,
     ConnectionBarComponentModule,
     TuiRootModule,
+    TuiModeModule,
+    TuiThemeNightModule,
   ],
   providers: APP_PROVIDERS,
   bootstrap: [AppComponent],
