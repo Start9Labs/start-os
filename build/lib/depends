@@ -4,6 +4,7 @@ avahi-utils
 iotop
 bmon
 lvm2
+htop
 cryptsetup
 exfat-utils
 sqlite3
