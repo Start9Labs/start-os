@@ -194,7 +194,7 @@ export function marketplaceSame(
   local: Record<string, PackageDataEntry>,
   url: string,
 ): boolean {
-  const localUrl = local[id]?.installed?.['marketplace-url'] || ''
+  const localUrl = local[id]?.installed?.['marketplace-url']
   return sameUrl(localUrl, url)
 }
 
