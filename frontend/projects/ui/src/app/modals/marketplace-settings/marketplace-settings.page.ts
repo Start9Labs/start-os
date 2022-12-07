@@ -6,7 +6,7 @@ import {
   ModalController,
 } from '@ionic/angular'
 import { ActionSheetButton } from '@ionic/core'
-import { ErrorToastService } from '@start9labs/shared'
+import { ErrorToastService, sameUrl } from '@start9labs/shared'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ValueSpecObject } from 'src/app/pkg-config/config-types'
@@ -31,7 +31,7 @@ export class MarketplaceSettingsPage {
     map(([stores, selected]) => {
       const toSlice = stores.map(s => ({
         ...s,
-        selected: s.url === selected.url,
+        selected: sameUrl(s.url, selected.url),
       }))
       // 0 and 1 are prod and community
       const standard = toSlice.slice(0, 1)

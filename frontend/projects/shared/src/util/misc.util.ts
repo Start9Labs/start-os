@@ -41,6 +41,10 @@ export function removeTrailingSlash(word: string): string {
   return word.replace(/\/+$/, '')
 }
 
+export function sameUrl(u1: string, u2: string): boolean {
+  return new URL(u1).toString() === new URL(u2).toString()
+}
+
 export function isValidHttpUrl(string: string): boolean {
   try {
     const _ = new URL(string)

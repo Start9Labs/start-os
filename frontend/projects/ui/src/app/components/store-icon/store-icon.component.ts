@@ -6,6 +6,7 @@ import {
   PipeTransform,
 } from '@angular/core'
 import { ConfigService } from 'src/app/services/config.service'
+import { sameUrl } from '@start9labs/shared'
 
 @Component({
   selector: 'store-icon',
@@ -26,9 +27,9 @@ export class GetIconPipe implements PipeTransform {
   transform(url: string): string | null {
     const { start9, community } = this.config.marketplace
 
-    if (url === start9) {
+    if (sameUrl(url, start9)) {
       return 'assets/img/icon.png'
-    } else if (url === community) {
+    } else if (sameUrl(url, community)) {
       return 'assets/img/community-store.png'
     }
     return null
