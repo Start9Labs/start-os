@@ -57,11 +57,11 @@ export function isValidHttpUrl(url: string): boolean {
   }
 }
 
-export function getUrlHostname(url: string): string {
-  return new URL(url).hostname
+export function getUrlHostname(text: string): string {
+  return new URL(text).hostname
 }
 
-export function toUrl(text: string | null | undefined): string | null {
+export function toUrl(text: string | null | undefined): string {
   try {
     const url = new URL(text as string)
     return url.toString()
