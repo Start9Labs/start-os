@@ -6,11 +6,27 @@
         [disabled]="!(authService.isVerified$ | async)"
         (ionSplitPaneVisible)="splitPaneVisible($event)"
       >
-        <ion-menu contentId="main-content" type="overlay">
+        <ion-menu
+          contentId="main-content"
+          type="overlay"
+          side="start"
+          class="left-menu"
+        >
           <ion-content color="light" scrollY="false">
             <app-menu *ngIf="authService.isVerified$ | async"></app-menu>
           </ion-content>
         </ion-menu>
+
+        <ion-menu
+          contentId="main-content"
+          type="overlay"
+          side="end"
+          class="right-menu"
+        >
+          <div class="divider"></div>
+          <widgets class="ion-page"></widgets>
+        </ion-menu>
+
         <ion-router-outlet
           id="main-content"
           class="container"

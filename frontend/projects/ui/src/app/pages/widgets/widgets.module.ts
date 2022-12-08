@@ -25,5 +25,6 @@ const routes: Routes = [
     RouterModule.forChild(routes),
   ],
   declarations: [WidgetsPage],
+  exports: [WidgetsPage],
 })
 export class WidgetsPageModule {}

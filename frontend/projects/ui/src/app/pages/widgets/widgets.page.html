@@ -1,10 +1,5 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-title>Widgets</ion-title>
-  </ion-toolbar>
-</ion-header>
-
-<ion-content>
+<ion-content color="light">
+  <h1 class="ion-text-center">Widgets</h1>
   <tui-tiles class="wrapper" [(order)]="order">
     <tui-tile
       *ngFor="let item of items; let index = index"

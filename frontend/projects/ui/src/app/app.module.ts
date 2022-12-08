@@ -23,6 +23,7 @@ import { APP_PROVIDERS } from './app.providers'
 import { PatchDbModule } from './services/patch-db/patch-db.module'
 import { ToastContainerModule } from './components/toast-container/toast-container.module'
 import { ConnectionBarComponentModule } from './components/connection-bar/connection-bar.component.module'
+import { WidgetsPageModule } from './pages/widgets/widgets.module'
 
 @NgModule({
   declarations: [AppComponent],
@@ -49,6 +50,7 @@ import { ConnectionBarComponentModule } from './components/connection-bar/connec
     TuiRootModule,
     TuiModeModule,
     TuiThemeNightModule,
+    WidgetsPageModule,
   ],
   providers: APP_PROVIDERS,
   bootstrap: [AppComponent],

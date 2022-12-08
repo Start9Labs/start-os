@@ -7,7 +7,7 @@ tui-root {
   height: 100%;
 }
 
-ion-split-pane {
+.left-menu {
   --side-max-width: 280px;
 }
 
@@ -17,4 +17,26 @@ ion-split-pane {
   &_offline {
     filter: saturate(0.75) contrast(0.85);
   }
+}
+
+.right-menu {
+  --side-min-width: 300px;
+  --side-max-width: 700px;
+  --side-width: 400px;
+}
+
+.divider {
+  height: 100%;
+  width: 1px;
+  
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  
+  background: #e2e2e2;
+  
+  z-index: 10;
+    
+  cursor: col-resize;
 }
