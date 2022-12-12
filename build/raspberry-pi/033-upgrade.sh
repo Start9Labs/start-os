@@ -2,6 +2,13 @@
 
 set -e
 
+(
+    while true; do
+        beep -r 2 -l 80 -d 20
+        sleep 60
+    done
+) &
+
 if grep 'cb15ae4d-03' /boot/cmdline.txt; then
     echo Transfer files across
     mkdir -p /media/origin

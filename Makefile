@@ -62,11 +62,11 @@ format:
 sdk:
 	cd backend/ && ./install-sdk.sh
 
-embassyos-raspi.img: all raspios.img cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast
+embassyos-raspi.img: all raspios.img cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep
 	! test -f embassyos-raspi.img || rm embassyos-raspi.img
 	./build/raspberry-pi/make-image.sh
 
-lite-upgrade.img: raspios.img cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast $(BUILD_SRC) eos.raspberrypi.squashfs
+lite-upgrade.img: raspios.img cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep $(BUILD_SRC) eos.raspberrypi.squashfs
 	! test -f lite-upgrade.img || rm lite-upgrade.img
 	./build/raspberry-pi/make-upgrade-image.sh
 
@@ -176,3 +176,6 @@ backend: $(EMBASSY_BINS)
 
 cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast:
 	./build-cargo-dep.sh nc-broadcast
+
+cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep:
+	./build-cargo-dep.sh pi-beep
