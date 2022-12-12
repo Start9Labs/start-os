@@ -15,10 +15,11 @@ if grep 'cb15ae4d-03' /boot/cmdline.txt; then
     mkdir -p /media/dest
     mount -r /dev/mmcblk0p3 /media/origin
     mount -w /dev/mmcblk0p4 /media/dest
-    rsync -acAXH --delete /media/origin /media/dest
+    rm -f /media/dest/*
+    rsync -acvAXUH --info=progress2 --delete /media/origin/ /media/dest/
     umount /media/origin
     umount /media/dest
-    rm -r /media/orgin
+    rm -r /media/origin
     rm -r /media/dest
 
     echo Setting up boot to use other partition
