@@ -3,9 +3,18 @@
 set -e
 
 if grep 'cb15ae4d-03' /boot/cmdline.txt; then
-    BLOCK_COUNT=$(tune2fs -l /dev/mmcblk0p3 | grep "^Block count:" | awk '{print $3}')
-    BLOCK_SIZE=$(tune2fs -l /dev/mmcblk0p3 | grep "^Block size:" | awk '{print $3}')
-    cat /dev/mmcblk0p3 | head -c $[$BLOCK_COUNT * $BLOCK_SIZE] > /dev/mmcblk0p4
+    echo Transfer files across
+    mkdir -p /media/origin
+    mkdir -p /media/dest
+    mount -r /dev/mmcblk0p3 /media/origin
+    mount -w /dev/mmcblk0p4 /media/dest
+    rsync -acAXH --delete /media/origin /media/dest
+    umount /media/origin
+    umount /media/dest
+    rm -r /media/orgin
+    rm -r /media/dest
+
+    echo Setting up boot to use other partition
     sed -i 's/PARTUUID=cb15ae4d-03/PARTUUID=cb15ae4d-04/g' /boot/cmdline.txt
     sync
     reboot
