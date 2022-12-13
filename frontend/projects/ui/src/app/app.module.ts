@@ -8,7 +8,11 @@ import { NgModule } from '@angular/core'
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
 import { IonicModule } from '@ionic/angular'
 import { MonacoEditorModule } from '@materia-ui/ngx-monaco-editor'
-import { MarkdownModule, SharedPipesModule } from '@start9labs/shared'
+import {
+  MarkdownModule,
+  ResizerModule,
+  SharedPipesModule,
+} from '@start9labs/shared'
 
 import { AppComponent } from './app.component'
 import { AppRoutingModule } from './app-routing.module'
@@ -51,6 +55,7 @@ import { WidgetsPageModule } from './pages/widgets/widgets.module'
     TuiModeModule,
     TuiThemeNightModule,
     WidgetsPageModule,
+    ResizerModule,
   ],
   providers: APP_PROVIDERS,
   bootstrap: [AppComponent],

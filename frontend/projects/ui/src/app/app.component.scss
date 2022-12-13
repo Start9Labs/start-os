@@ -21,22 +21,26 @@ tui-root {
 
 .right-menu {
   --side-min-width: 300px;
-  --side-max-width: 700px;
+  --side-max-width: 800px;
   --side-width: 400px;
 }
 
 .divider {
   height: 100%;
-  width: 1px;
-  
+  width: 10px;
+
   position: absolute;
   left: 0;
   top: 0;
   bottom: 0;
-  
+
   background: #e2e2e2;
-  
+
   z-index: 10;
-    
-  cursor: col-resize;
+  opacity: 0.2;
+  transition: opacity 0.3s;
+
+  &:hover {
+    opacity: 0.4;
+  }
 }

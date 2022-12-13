@@ -1,37 +1,41 @@
-<ion-content color="light">
+<ion-content *tuiLet="isMobile$ | async as isMobile" color="light">
   <h1 class="ion-text-center">Widgets</h1>
-  <tui-tiles class="wrapper" [(order)]="order">
+  <!-- TODO: Fix resize lag in Taiga UI -->
+  <tui-tiles class="wrapper" [debounce]="500" [(order)]="order">
     <tui-tile
       *ngFor="let item of items; let index = index"
-      tuiTileHandle
       class="item"
-      [width]="item.w"
-      [height]="item.h"
+      [width]="isMobile ? 1 : item.w"
+      [height]="getHeight(!!isMobile, index)"
       [style.order]="order.get(index)"
-      [style.--mobile-height]="item.content === 'network' ? 3 : null"
     >
-      <div class="content" [class.rick]="item.content === 'rick'">
+      <div class="content">
         <ng-container [ngSwitch]="item.content">
           <ng-container *ngSwitchCase="'health'">
-            <h2 class="title">Health summary</h2>
-            1 service needs attention
-            <tui-ring-chart class="ring" [value]="[1, 5, 6]">
-              6/12
-            </tui-ring-chart>
+            <iframe
+              class="iframe"
+              src="https://angular-izrx5j.stackblitz.io"
+              title="Health widget"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowfullscreen
+            ></iframe>
+            <ion-icon name="move" tuiTileHandle class="handle"></ion-icon>
           </ng-container>
           <ng-container *ngSwitchCase="'backup'">
             <h2 class="title">Backup status</h2>
             Last backup was 1 day ago
             <ion-icon name="archive-outline" class="icon"></ion-icon>
+            <ion-icon name="move" tuiTileHandle class="handle"></ion-icon>
           </ng-container>
           <ng-container *ngSwitchCase="'achievements'">
             <h2 class="title">Achievements</h2>
             Unlock new levels in your self-hosting journey
             <ion-icon name="trophy-outline" class="icon"></ion-icon>
+            <ion-icon name="move" tuiTileHandle class="handle"></ion-icon>
           </ng-container>
           <ng-container *ngSwitchCase="'rick'">
             <iframe
-              class="rick"
+              class="iframe"
               src="https://www.youtube.com/embed/dQw4w9WgXcQ"
               title="YouTube video player"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -40,32 +44,17 @@
             <ion-icon name="move" tuiTileHandle class="handle"></ion-icon>
           </ng-container>
           <ng-container *ngSwitchCase="'network'">
-            <h2 class="title">Network</h2>
-            <div class="network">
-              <label tuiProgressLabel>
-                <h3 class="label">Tor health</h3>
-                90%
-                <tui-progress-circle
-                  class="progress"
-                  size="xl"
-                  [max]="100"
-                  [value]="90"
-                ></tui-progress-circle>
-              </label>
-              <tui-arc-chart
-                size="m"
-                minLabel=""
-                maxLabel=""
-                [value]="[250]"
-                [max]="300"
-              >
-                <h3 class="label">Speed</h3>
-                250mbps
-              </tui-arc-chart>
-            </div>
+            <iframe
+              class="iframe"
+              src="https://angular-pmru5y.stackblitz.io"
+              title="Network widget"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowfullscreen
+            ></iframe>
+            <ion-icon name="move" tuiTileHandle class="handle"></ion-icon>
           </ng-container>
           <ng-container *ngSwitchCase="'stats'">
-            <div class="stats">
+            <div class="stats" [class.stats_mobile]="isMobile">
               <div class="stat">
                 <ion-icon class="stat-icon" name="server-outline"></ion-icon>
                 <div>
@@ -104,6 +93,7 @@
                 </div>
               </div>
             </div>
+            <ion-icon name="move" tuiTileHandle class="handle"></ion-icon>
           </ng-container>
         </ng-container>
       </div>

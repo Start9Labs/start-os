@@ -19,8 +19,9 @@ export * from './components/toast/toast.component'
 export * from './components/toast/toast.module'
 export * from './components/toast/toast-button.directive'
 
-export * from './directives/element/element.directive'
-export * from './directives/element/element.module'
+export * from './directives/resizer/resizeable.directive'
+export * from './directives/resizer/resizer.directive'
+export * from './directives/resizer/resizer.module'
 export * from './directives/safe-links/safe-links.directive'
 export * from './directives/safe-links/safe-links.module'
 

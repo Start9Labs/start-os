@@ -22,8 +22,9 @@
           type="overlay"
           side="end"
           class="right-menu"
+          resizeable
         >
-          <div class="divider"></div>
+          <div class="divider" [resizer]="[-1, 0]"></div>
           <widgets class="ion-page"></widgets>
         </ion-menu>
 

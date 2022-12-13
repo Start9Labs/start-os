@@ -37,30 +37,30 @@ export class AppComponent implements OnDestroy {
   ngAfterViewInit() {
     // You could also read the value of `--side-width`
     // using `getComputedStyle` in an `onStart` callback
-    let workingWidth = 400
-    let startingWidth = 400
-
-    const onMove = (ev: any) => {
-      requestAnimationFrame(() => {
-        workingWidth = startingWidth - ev.deltaX
-        rightMenu.style.setProperty('--side-width', `${workingWidth}px`)
-      })
-    }
-
-    const onEnd = () => {
-      startingWidth = workingWidth
-    }
-
-    const rightMenu = document.querySelector('.right')! as any
-    const divider = document.querySelector('.divider')!
-    const gesture = createGesture({
-      gestureName: 'resize-menu',
-      el: divider,
-      onEnd,
-      onMove,
-    })
-
-    gesture.enable(true)
+    // let workingWidth = 400
+    // let startingWidth = 400
+    //
+    // const onMove = (ev: any) => {
+    //   requestAnimationFrame(() => {
+    //     workingWidth = startingWidth - ev.deltaX
+    //     rightMenu.style.setProperty('--side-width', `${workingWidth}px`)
+    //   })
+    // }
+    //
+    // const onEnd = () => {
+    //   startingWidth = workingWidth
+    // }
+    //
+    // const rightMenu = document.querySelector('.right')! as any
+    // const divider = document.querySelector('.divider')!
+    // const gesture = createGesture({
+    //   gestureName: 'resize-menu',
+    //   el: divider,
+    //   onEnd,
+    //   onMove,
+    // })
+    //
+    // gesture.enable(true)
   }
 
   splitPaneVisible({ detail }: any) {
