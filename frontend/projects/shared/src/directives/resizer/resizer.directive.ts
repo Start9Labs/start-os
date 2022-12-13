@@ -8,7 +8,6 @@ import {
 } from '@angular/core'
 
 import { ResizeableDirective } from './resizeable.directive'
-import { tuiPx } from '@taiga-ui/cdk'
 
 @Directive({
   selector: '[resizer]',
@@ -62,8 +61,8 @@ export class ResizerDirective {
 
     const { style } = this.resizeable.nativeElement
 
-    style.width = tuiPx(this.width + this.resizer[0] * (x - this.x))
-    style.height = tuiPx(this.height + this.resizer[1] * (y - this.y))
+    style.width = `${this.width + this.resizer[0] * (x - this.x)}px`
+    style.height = `${this.height + this.resizer[1] * (y - this.y)}px`
   }
 
   @HostListener('document:pointerup.silent')

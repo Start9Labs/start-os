@@ -6,8 +6,7 @@
     "@angular/core": ">=13.2.0",
     "@angular/router": ">=13.2.0",
     "@ionic/angular": ">=6.0.0",
-    "@start9labs/emver": "^0.1.5",
-    "@taiga-ui/cdk": ">=3.0.0"
+    "@start9labs/emver": "^0.1.5"
   },
   "exports": {
     "./assets/": "./assets/"
