@@ -11,11 +11,14 @@ set -e
 
 if grep 'cb15ae4d-03' /boot/cmdline.txt; then
     echo Transfer files across
+    e2fsck -f -y /dev/mmcblk0p4
+    while ! resize2fs /dev/mmcblk0p4; do
+        e2fsck -f -y /dev/mmcblk0p4
+    done
     mkdir -p /media/origin
     mkdir -p /media/dest
     mount -r /dev/mmcblk0p3 /media/origin
     mount -w /dev/mmcblk0p4 /media/dest
-    rm -rf /media/dest/*
     rsync -acvAXUH --info=progress2 --delete --force /media/origin/ /media/dest/
     umount /media/origin
     umount /media/dest
