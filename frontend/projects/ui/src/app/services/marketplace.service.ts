@@ -33,6 +33,7 @@ import {
   tap,
 } from 'rxjs/operators'
 import { ConfigService } from './config.service'
+import { sameUrl } from '@start9labs/shared'
 
 @Injectable()
 export class MarketplaceService implements AbstractMarketplaceService {
@@ -68,7 +69,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
     startWith<StoreIdentity[]>([]),
     pairwise(),
     mergeMap(([prev, curr]) =>
-      curr.filter(c => !prev.find(p => c.url === p.url)),
+      curr.filter(c => !prev.find(p => sameUrl(c.url, p.url))),
     ),
     mergeMap(({ url, name }) =>
       this.fetchStore$(url).pipe(

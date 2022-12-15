@@ -14,7 +14,7 @@ import {
   MarketplacePkg,
   StoreIdentity,
 } from '@start9labs/marketplace'
-import { Emver, isEmptyObject } from '@start9labs/shared'
+import { Emver, isEmptyObject, sameUrl } from '@start9labs/shared'
 import { Pipe, PipeTransform } from '@angular/core'
 import { combineLatest, Observable } from 'rxjs'
 import { PrimaryRendering } from '../../services/pkg-status-rendering.service'
@@ -194,7 +194,8 @@ export function marketplaceSame(
   local: Record<string, PackageDataEntry>,
   url: string,
 ): boolean {
-  return local[id]?.installed?.['marketplace-url'] === url
+  const localUrl = local[id]?.installed?.['marketplace-url']
+  return sameUrl(localUrl, url)
 }
 
 export function versionLower(

@@ -10,14 +10,6 @@ export function pauseFor(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-export function capitalizeFirstLetter(string: string): string {
-  return string.charAt(0).toUpperCase() + string.slice(1)
-}
-
-export function exists<T>(t: T | undefined): t is T {
-  return t !== undefined
-}
-
 export function debounce(delay: number = 300): MethodDecorator {
   return function (
     target: any,
@@ -37,13 +29,16 @@ export function debounce(delay: number = 300): MethodDecorator {
   }
 }
 
-export function removeTrailingSlash(word: string): string {
-  return word.replace(/\/+$/, '')
+export function sameUrl(
+  u1: string | null | undefined,
+  u2: string | null | undefined,
+): boolean {
+  return toUrl(u1) === toUrl(u2)
 }
 
-export function isValidHttpUrl(string: string): boolean {
+export function isValidHttpUrl(url: string): boolean {
   try {
-    const _ = new URL(string)
+    const _ = new URL(url)
     return true
   } catch (_) {
     return false
@@ -52,4 +47,13 @@ export function isValidHttpUrl(string: string): boolean {
 
 export function getUrlHostname(url: string): string {
   return new URL(url).hostname
+}
+
+export function toUrl(text: string | null | undefined): string {
+  try {
+    const url = new URL(text as string)
+    return url.toString()
+  } catch {
+    return ''
+  }
 }

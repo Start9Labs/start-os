@@ -9,7 +9,12 @@ import {
   AbstractMarketplaceService,
   MarketplacePkg,
 } from '@start9labs/marketplace'
-import { Emver, ErrorToastService, isEmptyObject } from '@start9labs/shared'
+import {
+  Emver,
+  ErrorToastService,
+  isEmptyObject,
+  sameUrl,
+} from '@start9labs/shared'
 import {
   DataModel,
   PackageDataEntry,
@@ -71,7 +76,7 @@ export class MarketplaceShowControlsComponent {
     } else {
       const originalUrl = this.localPkg.installed?.['marketplace-url']
 
-      if (url !== originalUrl) {
+      if (!sameUrl(url, originalUrl)) {
         const proceed = await this.presentAlertDifferentMarketplace(
           url,
           originalUrl,

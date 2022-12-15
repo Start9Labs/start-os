@@ -6,7 +6,12 @@ import {
   ModalController,
 } from '@ionic/angular'
 import { ActionSheetButton } from '@ionic/core'
-import { ErrorToastService } from '@start9labs/shared'
+import {
+  ErrorToastService,
+  isValidHttpUrl,
+  sameUrl,
+  toUrl,
+} from '@start9labs/shared'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ValueSpecObject } from 'src/app/pkg-config/config-types'
@@ -31,7 +36,7 @@ export class MarketplaceSettingsPage {
     map(([stores, selected]) => {
       const toSlice = stores.map(s => ({
         ...s,
-        selected: s.url === selected.url,
+        selected: sameUrl(s.url, selected.url),
       }))
       // 0 and 1 are prod and community
       const standard = toSlice.slice(0, 1)
@@ -69,13 +74,13 @@ export class MarketplaceSettingsPage {
           {
             text: 'Save for Later',
             handler: (value: { url: string }) => {
-              this.saveOnly(new URL(value.url))
+              this.saveOnly(value.url)
             },
           },
           {
             text: 'Save and Connect',
             handler: (value: { url: string }) => {
-              this.saveAndConnect(new URL(value.url))
+              this.saveAndConnect(value.url)
             },
             isSubmit: true,
           },
@@ -160,10 +165,11 @@ export class MarketplaceSettingsPage {
     }
   }
 
-  private async saveOnly(url: URL): Promise<void> {
+  private async saveOnly(rawUrl: string): Promise<void> {
     const loader = await this.loadingCtrl.create()
 
     try {
+      const url = new URL(rawUrl).toString()
       await this.validateAndSave(url, loader)
     } catch (e: any) {
       this.errToast.present(e)
@@ -172,12 +178,13 @@ export class MarketplaceSettingsPage {
     }
   }
 
-  private async saveAndConnect(url: URL): Promise<void> {
+  private async saveAndConnect(rawUrl: string): Promise<void> {
     const loader = await this.loadingCtrl.create()
 
     try {
+      const url = new URL(rawUrl).toString()
       await this.validateAndSave(url, loader)
-      await this.connect(url.toString(), loader)
+      await this.connect(url, loader)
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
@@ -186,15 +193,14 @@ export class MarketplaceSettingsPage {
   }
 
   private async validateAndSave(
-    urlObj: URL,
+    url: string,
     loader: HTMLIonLoadingElement,
   ): Promise<void> {
-    const url = urlObj.toString()
     // Error on duplicates
     const hosts = await firstValueFrom(
       this.patch.watch$('ui', 'marketplace', 'known-hosts'),
     )
-    const currentUrls = Object.keys(hosts)
+    const currentUrls = Object.keys(hosts).map(toUrl)
     if (currentUrls.includes(url)) throw new Error('marketplace already added')
 
     // Validate
@@ -225,7 +231,7 @@ export class MarketplaceSettingsPage {
     )
 
     const filtered: { [url: string]: UIStore } = Object.keys(hosts)
-      .filter(key => key !== url)
+      .filter(key => !sameUrl(key, url))
       .reduce((prev, curr) => {
         const name = hosts[curr]
         return {
