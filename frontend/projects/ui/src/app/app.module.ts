@@ -11,6 +11,7 @@ import { MonacoEditorModule } from '@materia-ui/ngx-monaco-editor'
 import {
   MarkdownModule,
   ResizerModule,
+  ResponsiveColModule,
   SharedPipesModule,
 } from '@start9labs/shared'
 
@@ -56,6 +57,7 @@ import { WidgetsPageModule } from './pages/widgets/widgets.module'
     TuiThemeNightModule,
     WidgetsPageModule,
     ResizerModule,
+    ResponsiveColModule,
   ],
   providers: APP_PROVIDERS,
   bootstrap: [AppComponent],

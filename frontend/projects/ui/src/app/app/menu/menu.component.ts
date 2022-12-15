@@ -6,10 +6,8 @@ import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { SplitPaneTracker } from 'src/app/services/split-pane.service'
-import { Emver, WorkspaceConfig } from '@start9labs/shared'
+import { Emver } from '@start9labs/shared'
 import { marketplaceSame, versionLower } from '../../pages/updates/updates.page'
-
-const { useMocks } = require('../../../../../../config.json') as WorkspaceConfig
 
 @Component({
   selector: 'app-menu',
@@ -83,13 +81,5 @@ export class MenuComponent {
     private readonly marketplaceService: MarketplaceService,
     private readonly splitPane: SplitPaneTracker,
     private readonly emver: Emver,
-  ) {
-    if (useMocks) {
-      this.pages.splice(1, 0, {
-        title: 'Widgets',
-        url: '/widgets',
-        icon: 'settings-outline',
-      })
-    }
-  }
+  ) {}
 }

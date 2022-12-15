@@ -18,6 +18,7 @@
         </ion-menu>
 
         <ion-menu
+          *ngIf="useMocks"
           contentId="main-content"
           type="overlay"
           side="end"
@@ -29,6 +30,7 @@
         </ion-menu>
 
         <ion-router-outlet
+          responsiveColViewport
           id="main-content"
           class="container"
           [class.container_offline]="

@@ -13,13 +13,13 @@ import { PatchDB } from 'patch-db-client'
 import { skip, takeUntil } from 'rxjs/operators'
 import { MappedBackupTarget } from 'src/app/types/mapped-backup-target'
 import * as argon2 from '@start9labs/argon2'
+import { TuiDestroyService } from '@taiga-ui/cdk'
 import {
   CifsBackupTarget,
   DiskBackupTarget,
 } from 'src/app/services/api/api.types'
 import { BackupSelectPage } from 'src/app/modals/backup-select/backup-select.page'
 import { EOSService } from 'src/app/services/eos.service'
-import { DestroyService } from '@start9labs/shared'
 import { getServerInfo } from 'src/app/util/get-server-info'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 
@@ -27,7 +27,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
   selector: 'server-backup',
   templateUrl: './server-backup.page.html',
   styleUrls: ['./server-backup.page.scss'],
-  providers: [DestroyService],
+  providers: [TuiDestroyService],
 })
 export class ServerBackupPage {
   serviceIds: string[] = []
@@ -39,7 +39,7 @@ export class ServerBackupPage {
     private readonly modalCtrl: ModalController,
     private readonly embassyApi: ApiService,
     private readonly navCtrl: NavController,
-    private readonly destroy$: DestroyService,
+    private readonly destroy$: TuiDestroyService,
     private readonly eosService: EOSService,
     private readonly patch: PatchDB<DataModel>,
   ) {}

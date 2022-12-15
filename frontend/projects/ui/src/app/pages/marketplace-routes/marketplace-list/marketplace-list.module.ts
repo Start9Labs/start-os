@@ -3,7 +3,11 @@ import { CommonModule } from '@angular/common'
 import { FormsModule } from '@angular/forms'
 import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
-import { SharedPipesModule, EmverPipesModule } from '@start9labs/shared'
+import {
+  SharedPipesModule,
+  EmverPipesModule,
+  ResponsiveColModule,
+} from '@start9labs/shared'
 import {
   FilterPackagesPipeModule,
   CategoriesModule,
@@ -41,6 +45,7 @@ const routes: Routes = [
     SkeletonModule,
     MarketplaceSettingsPageModule,
     StoreIconComponentModule,
+    ResponsiveColModule,
   ],
   declarations: [MarketplaceListPage],
   exports: [MarketplaceListPage],

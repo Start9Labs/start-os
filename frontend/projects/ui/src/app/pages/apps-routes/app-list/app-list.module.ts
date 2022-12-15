@@ -15,6 +15,7 @@ import { AppListIconComponent } from './app-list-icon/app-list-icon.component'
 import { AppListPkgComponent } from './app-list-pkg/app-list-pkg.component'
 import { PackageInfoPipe } from './package-info.pipe'
 import { WidgetListComponentModule } from 'src/app/components/widget-list/widget-list.component.module'
+import { ResponsiveColModule } from '../../../../../../shared/src/directives/responsive-col/responsive-col.module'
 
 const routes: Routes = [
   {
@@ -35,6 +36,7 @@ const routes: Routes = [
     RouterModule.forChild(routes),
     BadgeMenuComponentModule,
     WidgetListComponentModule,
+    ResponsiveColModule,
   ],
   declarations: [
     AppListPage,

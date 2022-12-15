@@ -7,6 +7,9 @@ import { PatchMonitorService } from './services/patch-monitor.service'
 import { ConnectionService } from './services/connection.service'
 import { Title } from '@angular/platform-browser'
 import { ServerNameService } from './services/server-name.service'
+import { WorkspaceConfig } from '@start9labs/shared'
+
+const { useMocks } = require('../../../../config.json') as WorkspaceConfig
 
 @Component({
   selector: 'app-root',
@@ -16,6 +19,7 @@ import { ServerNameService } from './services/server-name.service'
 export class AppComponent implements OnDestroy {
   readonly subscription = merge(this.patchData, this.patchMonitor).subscribe()
   readonly sidebarOpen$ = this.splitPane.sidebarOpen$
+  readonly useMocks = useMocks
 
   constructor(
     private readonly titleService: Title,

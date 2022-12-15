@@ -21,7 +21,7 @@ tui-root {
 
 .right-menu {
   --side-min-width: 300px;
-  --side-max-width: 800px;
+  --side-max-width: min(calc(100vw - 700px), 800px);
   --side-width: 400px;
 }
 

@@ -16,11 +16,11 @@ import {
   PackageMainStatus,
 } from 'src/app/services/patch-db/data-model'
 import {
-  DestroyService,
   ErrorToastService,
   getPkgId,
   copyToClipboard,
 } from '@start9labs/shared'
+import { TuiDestroyService } from '@taiga-ui/cdk'
 import { getValueByPointer } from 'fast-json-patch'
 import { map, takeUntil } from 'rxjs/operators'
 
@@ -28,7 +28,7 @@ import { map, takeUntil } from 'rxjs/operators'
   selector: 'app-properties',
   templateUrl: './app-properties.page.html',
   styleUrls: ['./app-properties.page.scss'],
-  providers: [DestroyService],
+  providers: [TuiDestroyService],
 })
 export class AppPropertiesPage {
   loading = true
@@ -56,7 +56,7 @@ export class AppPropertiesPage {
     private readonly modalCtrl: ModalController,
     private readonly navCtrl: NavController,
     private readonly patch: PatchDB<DataModel>,
-    private readonly destroy$: DestroyService,
+    private readonly destroy$: TuiDestroyService,
   ) {}
 
   ionViewDidEnter() {
