@@ -2,10 +2,30 @@
 
 set -e
 
+(
+    while true; do
+        beep -r 2 -l 80 -d 20
+        sleep 60
+    done
+) &
+
 if grep 'cb15ae4d-03' /boot/cmdline.txt; then
-    BLOCK_COUNT=$(tune2fs -l /dev/mmcblk0p3 | grep "^Block count:" | awk '{print $3}')
-    BLOCK_SIZE=$(tune2fs -l /dev/mmcblk0p3 | grep "^Block size:" | awk '{print $3}')
-    cat /dev/mmcblk0p3 | head -c $[$BLOCK_COUNT * $BLOCK_SIZE] > /dev/mmcblk0p4
+    echo Transfer files across
+    e2fsck -f -y /dev/mmcblk0p4
+    while ! resize2fs /dev/mmcblk0p4; do
+        e2fsck -f -y /dev/mmcblk0p4
+    done
+    mkdir -p /media/origin
+    mkdir -p /media/dest
+    mount -r /dev/mmcblk0p3 /media/origin
+    mount -w /dev/mmcblk0p4 /media/dest
+    rsync -acvAXUH --info=progress2 --delete --force /media/origin/ /media/dest/
+    umount /media/origin
+    umount /media/dest
+    rm -rf /media/origin
+    rm -rf /media/dest
+
+    echo Setting up boot to use other partition
     sed -i 's/PARTUUID=cb15ae4d-03/PARTUUID=cb15ae4d-04/g' /boot/cmdline.txt
     sync
     reboot

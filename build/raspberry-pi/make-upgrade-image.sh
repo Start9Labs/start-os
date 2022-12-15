@@ -26,9 +26,11 @@ sudo mount $TARGET_NAME $TMPDIR/
 
 sudo mkdir -p $TMPDIR/update
 sudo unsquashfs -f -d $TMPDIR/update eos.raspberrypi.squashfs
+sudo cp ./cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep $TMPDIR/usr/local/bin/beep
 sudo cp ./build/raspberry-pi/033-upgrade.sh $TMPDIR/usr/local/bin/033-upgrade.sh
 sudo cp ./build/raspberry-pi/033-upgrade.service $TMPDIR/etc/systemd/system/033-upgrade.service
 sudo ln -s /etc/systemd/system/033-upgrade.service $TMPDIR/etc/systemd/system/multi-user.target.wants/033-upgrade.service
+sudo cp ./cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast $TMPDIR/usr/local/bin
 sudo cp ./build/raspberry-pi/nc-broadcast.service $TMPDIR/etc/systemd/system/nc-broadcast.service
 sudo ln -s /etc/systemd/system/nc-broadcast.service $TMPDIR/etc/systemd/system/multi-user.target.wants/nc-broadcast.service
 
