@@ -156,6 +156,8 @@ export class MarketplaceService implements AbstractMarketplaceService {
   }
 
   // UI only
+  readonly updateErrors: Record<string, string> = {}
+  readonly updateQueue: Record<string, boolean> = {}
 
   getRequestErrors$(): Observable<string[]> {
     return this.requestErrors$

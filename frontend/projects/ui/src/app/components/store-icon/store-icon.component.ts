@@ -16,6 +16,7 @@ import { sameUrl } from '@start9labs/shared'
 })
 export class StoreIconComponent {
   @Input() url: string = ''
+  @Input() size?: string
 }
 
 @Pipe({

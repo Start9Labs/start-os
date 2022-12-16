@@ -50,11 +50,7 @@
       [button]="!a.selected"
       (click)="a.selected ? '' : presentAction(a, true)"
     >
-      <store-icon
-        slot="start"
-        [url]="a.url"
-        style="font-size: 36px"
-      ></store-icon>
+      <store-icon slot="start" [url]="a.url" size="36px"></store-icon>
       <ion-label>
         <h2>{{ a.name }}</h2>
         <p>{{ a.url }}</p>

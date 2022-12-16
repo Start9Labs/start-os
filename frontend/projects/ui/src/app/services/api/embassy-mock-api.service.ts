@@ -587,7 +587,8 @@ export class MockApiService extends ApiService {
         path: `/package-data/${params.id}`,
         value: {
           ...Mock.LocalPkgs[params.id],
-          state: PackageState.Installing,
+          // state: PackageState.Installing,
+          state: PackageState.Updating,
           'install-progress': { ...PROGRESS },
         },
       },

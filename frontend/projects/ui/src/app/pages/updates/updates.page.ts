@@ -17,7 +17,6 @@ import {
 import { Emver, isEmptyObject, sameUrl } from '@start9labs/shared'
 import { Pipe, PipeTransform } from '@angular/core'
 import { combineLatest, Observable } from 'rxjs'
-import { PrimaryRendering } from '../../services/pkg-status-rendering.service'
 import {
   AlertController,
   LoadingController,
@@ -40,9 +39,6 @@ interface UpdatesData {
   styleUrls: ['updates.page.scss'],
 })
 export class UpdatesPage {
-  queued: Record<string, boolean> = {}
-  errors: Record<string, string> = {}
-
   readonly data$: Observable<UpdatesData> = combineLatest({
     hosts: this.marketplaceService.getKnownHosts$(),
     marketplace: this.marketplaceService.getMarketplace$(),
@@ -51,11 +47,10 @@ export class UpdatesPage {
   })
 
   readonly PackageState = PackageState
-  readonly rendering = PrimaryRendering[PackageState.Installing]
 
   constructor(
     @Inject(AbstractMarketplaceService)
-    private readonly marketplaceService: MarketplaceService,
+    readonly marketplaceService: MarketplaceService,
     private readonly api: ApiService,
     private readonly patch: PatchDB<DataModel>,
     private readonly navCtrl: NavController,
@@ -79,8 +74,8 @@ export class UpdatesPage {
   ): Promise<void> {
     const { id, version } = manifest
 
-    delete this.errors[id]
-    this.queued[id] = true
+    delete this.marketplaceService.updateErrors[id]
+    this.marketplaceService.updateQueue[id] = true
 
     if (hasCurrentDeps(local)) {
       this.dryUpdate(manifest, url)
@@ -114,12 +109,12 @@ export class UpdatesPage {
         if (proceed) {
           this.update(id, version, url)
         } else {
-          delete this.queued[id]
+          delete this.marketplaceService.updateQueue[id]
         }
       }
     } catch (e: any) {
-      delete this.queued[id]
-      this.errors[id] = e.message
+      delete this.marketplaceService.updateQueue[id]
+      this.marketplaceService.updateErrors[id] = e.message
     }
   }
 
@@ -162,11 +157,13 @@ export class UpdatesPage {
     })
   }
 
-  private update(id: string, version: string, url: string) {
-    this.marketplaceService.installPackage(id, version, url).catch(e => {
-      delete this.queued[id]
-      this.errors[id] = e.message
-    })
+  private async update(id: string, version: string, url: string) {
+    try {
+      await this.marketplaceService.installPackage(id, version, url)
+    } catch (e: any) {
+      delete this.marketplaceService.updateQueue[id]
+      this.marketplaceService.updateErrors[id] = e.message
+    }
   }
 }
 
@@ -204,7 +201,7 @@ export function versionLower(
   emver: Emver,
 ): boolean {
   return (
-    local[id].state === PackageState.Installing ||
+    local[id].state === PackageState.Updating ||
     emver.compare(version, local[id].installed?.manifest.version || '') === 1
   )
 }
