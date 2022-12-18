@@ -5,6 +5,7 @@ import {
   encodeBase64,
   HttpService,
   isRpcError,
+  Log,
   RpcError,
   RPCOptions,
 } from '@start9labs/shared'
@@ -18,6 +19,8 @@ import {
   CompleteRes,
 } from './api.service'
 import * as jose from 'node-jose'
+import { webSocket } from 'rxjs/webSocket'
+import { Observable } from 'rxjs'
 
 @Injectable({
   providedIn: 'root',
@@ -85,6 +88,14 @@ export class LiveApiService extends ApiService {
       method: 'setup.execute',
       params: setupInfo,
     })
+  }
+
+  async followLogs(): Promise<string> {
+    return this.rpcRequest({ method: 'setup.logs.follow', params: {} })
+  }
+
+  openLogsWebsocket$(guid: string): Observable<Log> {
+    return webSocket(`http://embassy.local/ws/${guid}`)
   }
 
   async complete() {
