@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { encodeBase64, pauseFor } from '@start9labs/shared'
+import { encodeBase64, Log, pauseFor } from '@start9labs/shared'
 import {
   ApiService,
   CifsRecoverySource,
@@ -8,6 +8,7 @@ import {
   CompleteRes,
 } from './api.service'
 import * as jose from 'node-jose'
+import { interval, map, Observable } from 'rxjs'
 
 let tries: number
 
@@ -144,6 +145,20 @@ export class MockApiService extends ApiService {
 
   async execute(setupInfo: ExecuteReq) {
     await pauseFor(1000)
+  }
+
+  async followLogs(): Promise<string> {
+    await pauseFor(1000)
+    return 'fake-guid'
+  }
+
+  openLogsWebsocket$(guid: string): Observable<Log> {
+    return interval(500).pipe(
+      map(() => ({
+        timestamp: new Date().toISOString(),
+        message: 'fake log entry',
+      })),
+    )
   }
 
   async complete(): Promise<CompleteRes> {
