@@ -1,14 +1,24 @@
-import { Component, ElementRef } from '@angular/core'
+import { Component, ElementRef, Inject, Optional } from '@angular/core'
 import { TuiDestroyService, TuiResizeService } from '@taiga-ui/cdk'
-import { distinctUntilChanged, map } from 'rxjs/operators'
+import { TuiDialogContext, TuiDialogService } from '@taiga-ui/core'
+import {
+  PolymorpheusComponent,
+  POLYMORPHEUS_CONTEXT,
+} from '@tinkoff/ng-polymorpheus'
+import { distinctUntilChanged, map, startWith } from 'rxjs'
 
 @Component({
   selector: 'widgets',
   templateUrl: 'widgets.page.html',
   styleUrls: ['widgets.page.scss'],
   providers: [TuiDestroyService, TuiResizeService],
+  host: {
+    '[class.dialog]': 'context',
+  },
 })
 export class WidgetsPage {
+  edit = false
+
   order = new Map<number, number>()
 
   items = [
@@ -21,14 +31,34 @@ export class WidgetsPage {
   ]
 
   readonly isMobile$ = this.resize$.pipe(
+    startWith(null),
     map(() => this.elementRef.nativeElement.clientWidth < 600),
     distinctUntilChanged(),
   )
 
   constructor(
+    @Optional()
+    @Inject(POLYMORPHEUS_CONTEXT)
+    readonly context: TuiDialogContext | null,
     private readonly elementRef: ElementRef<HTMLElement>,
     private readonly resize$: TuiResizeService,
+    private readonly dialog: TuiDialogService,
   ) {}
+
+  toggle() {
+    this.edit = !this.edit
+  }
+
+  add() {
+    this.dialog
+      .open('Here be widgets list and search', { label: 'Add widget' })
+      .subscribe()
+  }
+
+  onRemove(index: number) {
+    this.items.splice(index, 1)
+    this.order.delete(index)
+  }
 
   getHeight(isMobile: boolean, index: number): number {
     if (isMobile && this.items[index].content === 'network') {
@@ -38,3 +68,5 @@ export class WidgetsPage {
     return isMobile ? 2 : this.items[index].h
   }
 }
+
+export const WIDGETS_COMPONENT = new PolymorpheusComponent(WidgetsPage)

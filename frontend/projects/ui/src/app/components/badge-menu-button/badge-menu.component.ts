@@ -2,6 +2,8 @@ import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { SplitPaneTracker } from 'src/app/services/split-pane.service'
 import { PatchDB } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
+import { TuiDialogService } from '@taiga-ui/core'
+import { WIDGETS_COMPONENT } from '../../pages/widgets/widgets.page'
 
 @Component({
   selector: 'badge-menu-button',
@@ -16,5 +18,10 @@ export class BadgeMenuComponent {
   constructor(
     private readonly splitPane: SplitPaneTracker,
     private readonly patch: PatchDB<DataModel>,
+    private readonly dialog: TuiDialogService,
   ) {}
+
+  onWidgets() {
+    this.dialog.open(WIDGETS_COMPONENT, { closeable: false }).subscribe()
+  }
 }

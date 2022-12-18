@@ -1,4 +1,5 @@
 import {
+  TuiDialogModule,
   TuiModeModule,
   TuiRootModule,
   TuiThemeNightModule,
@@ -53,6 +54,7 @@ import { WidgetsPageModule } from './pages/widgets/widgets.module'
     ToastContainerModule,
     ConnectionBarComponentModule,
     TuiRootModule,
+    TuiDialogModule,
     TuiModeModule,
     TuiThemeNightModule,
     WidgetsPageModule,
