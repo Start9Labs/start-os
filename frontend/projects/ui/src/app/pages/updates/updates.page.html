@@ -48,10 +48,10 @@
                       {{ pkg.manifest.title }}
                     </h1>
                     <h2 class="inline">
-                      <span>{{ local.manifest.version }}</span>
+                      <span>{{ local.manifest.version | displayEmver }}</span>
                       &nbsp;<ion-icon name="arrow-forward"></ion-icon>&nbsp;
                       <ion-text color="success">
-                        {{ pkg.manifest.version }}
+                        {{ pkg.manifest.version | displayEmver }}
                       </ion-text>
                     </h2>
                     <p
