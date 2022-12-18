@@ -134,14 +134,14 @@
         <ion-label>
           <b>
             {{ spec.name }}
-            <ion-text *ngIf="entry.value.dirty" color="warning">
-              (Edited)</ion-text
-            >
             <ion-text
               *ngIf="original?.[entry.key] === undefined"
               color="success"
             >
               (New)</ion-text
+            >
+            <ion-text *ngIf="entry.value.dirty" color="warning">
+              (Edited)</ion-text
             >
           </b>
         </ion-label>
