@@ -1,6 +1,16 @@
 import { Component, Input, ViewChild } from '@angular/core'
 import { IonContent, LoadingController } from '@ionic/angular'
-import { bufferTime, takeUntil, tap } from 'rxjs'
+import {
+  bufferTime,
+  catchError,
+  filter,
+  finalize,
+  from,
+  Observable,
+  switchMap,
+  takeUntil,
+  tap,
+} from 'rxjs'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 import {
   LogsRes,
@@ -13,6 +23,7 @@ import {
 } from '@start9labs/shared'
 import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { ConnectionService } from 'src/app/services/connection.service'
 
 var Convert = require('ansi-to-html')
 var convert = new Convert({
@@ -40,15 +51,20 @@ export class LogsComponent {
   @Input() fetchLogs!: (params: ServerLogsReq) => Promise<LogsRes>
   @Input() context!: string
   @Input() defaultBack!: string
-  @Input() title!: string
+  @Input() pageTitle!: string
 
   loading = true
-  needInfinite = false
+  infiniteStatus: 0 | 1 | 2 = 0
   startCursor?: string
   isOnBottom = true
   autoScroll = true
-  websocketFail = false
+  websocketStatus:
+    | 'connecting'
+    | 'connected'
+    | 'reconnecting'
+    | 'disconnected' = 'connecting'
   limit = 400
+  count = 0
 
   constructor(
     private readonly errToast: ErrorToastService,
@@ -56,50 +72,20 @@ export class LogsComponent {
     private readonly api: ApiService,
     private readonly loadingCtrl: LoadingController,
     private readonly downloadHtml: DownloadHTMLService,
+    private readonly connectionService: ConnectionService,
   ) {}
 
   async ngOnInit() {
-    try {
-      const { 'start-cursor': startCursor, guid } = await this.followLogs({
-        limit: this.limit,
-      })
-
-      this.startCursor = startCursor
-
-      const config: WebSocketSubjectConfig<Log> = {
-        url: `/rpc/${guid}`,
-        openObserver: {
-          next: () => {
-            this.websocketFail = false
-          },
-        },
-      }
-
-      let totalLogs = 0
-
-      this.api
-        .openLogsWebsocket$(config)
-        .pipe(
-          tap(_ => {
-            totalLogs++
-            if (totalLogs === this.limit) this.needInfinite = true
-          }),
-          bufferTime(500),
-          tap(msgs => {
-            this.loading = false
-            this.processRes({ entries: msgs })
-          }),
-          takeUntil(this.destroy$),
-        )
-        .subscribe({
-          error: () => {
-            this.websocketFail = true
-            if (this.isOnBottom) this.scrollToBottom()
-          },
-        })
-    } catch (e: any) {
-      this.errToast.present(e)
-    }
+    from(this.followLogs({ limit: this.limit }))
+      .pipe(
+        switchMap(({ 'start-cursor': startCursor, guid }) => {
+          this.startCursor = startCursor
+          return this.connect$(guid)
+        }),
+        takeUntil(this.destroy$),
+        finalize(() => console.log('CLOSING')),
+      )
+      .subscribe()
   }
 
   async doInfinite(e: any): Promise<void> {
@@ -119,7 +105,7 @@ export class LogsComponent {
   }
 
   handleScroll(e: any) {
-    if (e.detail.deltaY < 0) this.autoScroll = false
+    if (e.detail.deltaY < -50) this.autoScroll = false
   }
 
   handleScrollEnd() {
@@ -130,7 +116,7 @@ export class LogsComponent {
   }
 
   scrollToBottom() {
-    this.content?.scrollToBottom(250)
+    this.content?.scrollToBottom(200)
   }
 
   async download() {
@@ -160,6 +146,65 @@ export class LogsComponent {
     }
   }
 
+  private reconnect$(): Observable<Log[]> {
+    return from(this.followLogs({})).pipe(
+      tap(_ => this.recordConnectionChange()),
+      switchMap(({ guid }) => this.connect$(guid, true)),
+    )
+  }
+
+  private connect$(guid: string, reconnect = false) {
+    const config: WebSocketSubjectConfig<Log> = {
+      url: `/rpc/${guid}`,
+      openObserver: {
+        next: () => {
+          this.websocketStatus = 'connected'
+        },
+      },
+    }
+
+    return this.api.openLogsWebsocket$(config).pipe(
+      tap(_ => this.count++),
+      bufferTime(1000),
+      tap(msgs => {
+        this.loading = false
+        this.processRes({ entries: msgs })
+        if (this.infiniteStatus === 0 && this.count >= this.limit)
+          this.infiniteStatus = 1
+      }),
+      catchError(() => {
+        this.recordConnectionChange(false)
+        return this.connectionService.connected$.pipe(
+          tap(
+            connected =>
+              (this.websocketStatus = connected
+                ? 'reconnecting'
+                : 'disconnected'),
+          ),
+          filter(Boolean),
+          switchMap(() => this.reconnect$()),
+        )
+      }),
+    )
+  }
+
+  private recordConnectionChange(success = true) {
+    const container = document.getElementById('container')
+    const elem = document.getElementById('template')?.cloneNode()
+    if (!(elem instanceof HTMLElement)) return
+    elem.innerHTML = `<div style="padding: ${
+      success ? '36px 0' : '36px 0 0 0'
+    }; color: ${success ? '#2fdf75' : '#ff4961'}; text-align: center;">${
+      success ? 'Reconnected' : 'Disconnected'
+    } at ${toLocalIsoString(new Date())}</div>`
+    container?.append(elem)
+    if (this.isOnBottom) {
+      setTimeout(() => {
+        this.scrollToBottom()
+      }, 25)
+    }
+  }
+
   private processRes(res: LogsRes) {
     const { entries, 'start-cursor': startCursor } = res
 
@@ -180,7 +225,7 @@ export class LogsComponent {
       container?.prepend(newLogs)
       const afterContainerHeight = container?.scrollHeight || 0
 
-      // scroll down
+      // maintain scroll height
       setTimeout(() => {
         this.content?.scrollToPoint(
           0,
@@ -189,12 +234,11 @@ export class LogsComponent {
       }, 25)
 
       if (entries.length < this.limit) {
-        this.needInfinite = false
+        this.infiniteStatus = 2
       }
     } else {
       container?.append(newLogs)
       if (this.autoScroll) {
-        // scroll to bottom
         setTimeout(() => {
           this.scrollToBottom()
         }, 25)
