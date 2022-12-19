@@ -24,6 +24,7 @@ import {
 } from 'src/app/modals/generic-input/generic-input.component'
 import { ConfigService } from 'src/app/services/config.service'
 import { DOCUMENT } from '@angular/common'
+import { getServerInfo } from 'src/app/util/get-server-info'
 
 @Component({
   selector: 'server-show',
@@ -208,8 +209,9 @@ export class ServerShowPage {
     await alert.present()
   }
 
-  launchHttps() {
-    window.open(this.document.location.href.replace('http', 'https'))
+  async launchHttps() {
+    const { 'lan-address': lanAddress } = await getServerInfo(this.patch)
+    window.open(lanAddress)
   }
 
   addClick(title: string) {

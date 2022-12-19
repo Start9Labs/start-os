@@ -1,13 +1,16 @@
-.service-avatar {
-  position: absolute;
-  top: 6px;
-  cursor: pointer;
+.item-container {
+  padding-bottom: 24px;
+  border-bottom: 1px solid #373737;
 }
 
-ion-label {
-  margin-left: 64px;
+.notes {
+  margin-left: 20px;
 }
 
-.name:only-child {
-  display: none;
+.header {
+  margin-bottom: 20px;
+  h1 {
+    font-weight: bold;
+    margin: 0 12px 0 0;
+  }
 }

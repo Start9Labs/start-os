@@ -34,7 +34,7 @@ export class SuccessPage {
   fadeFactor = 0.07
   columns: any[] = []
   maxStackHeight: any
-  disableLogin = true
+  disableLogin = this.stateService.setupType === 'fresh'
 
   constructor(
     @Inject(DOCUMENT) private readonly document: Document,

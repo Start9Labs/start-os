@@ -15,6 +15,7 @@ import { ActivatedRoute } from '@angular/router'
 import { getPkgId } from '@start9labs/shared'
 import { DOCUMENT } from '@angular/common'
 import { ConfigService } from 'src/app/services/config.service'
+import { getServerInfo } from 'src/app/util/get-server-info'
 
 const STATES = [
   PackageState.Installing,
@@ -63,7 +64,8 @@ export class AppShowPage {
     return STATES.includes(state)
   }
 
-  launchHttps() {
-    window.open(this.document.location.href.replace('http', 'https'))
+  async launchHttps() {
+    const { 'lan-address': lanAddress } = await getServerInfo(this.patch)
+    window.open(lanAddress)
   }
 }

@@ -4,7 +4,12 @@ import { IonicModule } from '@ionic/angular'
 import { RouterModule, Routes } from '@angular/router'
 import { FilterUpdatesPipe, UpdatesPage } from './updates.page'
 import { BadgeMenuComponentModule } from 'src/app/components/badge-menu-button/badge-menu.component.module'
-import { MarkdownPipeModule, SharedPipesModule } from '@start9labs/shared'
+import {
+  EmverDisplayPipe,
+  EmverPipesModule,
+  MarkdownPipeModule,
+  SharedPipesModule,
+} from '@start9labs/shared'
 import { SkeletonListComponentModule } from 'src/app/components/skeleton-list/skeleton-list.component.module'
 import { RoundProgressModule } from 'angular-svg-round-progressbar'
 import { InstallProgressPipeModule } from 'src/app/pipes/install-progress/install-progress.module'
@@ -29,6 +34,7 @@ const routes: Routes = [
     RoundProgressModule,
     InstallProgressPipeModule,
     StoreIconComponentModule,
+    EmverPipesModule,
   ],
   declarations: [UpdatesPage, FilterUpdatesPipe],
 })
