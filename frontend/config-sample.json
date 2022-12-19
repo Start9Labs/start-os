@@ -1,7 +1,7 @@
 {
   "useMocks": true,
   "packageArch": "aarch64",
-  "osArch": "rasberrypi",
+  "osArch": "raspberrypi",
   "ui": {
     "api": {
       "url": "rpc",
