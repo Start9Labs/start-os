@@ -2,6 +2,8 @@ use nix::unistd::Pid;
 use serde::{Deserialize, Serialize, Serializer};
 use yajrc::RpcMethod;
 
+pub const PORT: u16 = 48624;
+
 /// Know what the process is called
 #[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ProcessId(pub u32);
@@ -170,23 +172,30 @@ impl RpcMethod for SignalGroup {
     }
 }
 
-#[test]
-fn example_echo_line() {
-    let input = r#"{"id":0,"jsonrpc":"2.0","method":"command","params":{"command":"echo","args":["world I am here"]}}"#;
-    let new_input = JsonRpc::<Input>::maybe_parse(input);
-    assert!(new_input.is_some());
-    assert_eq!(input, &serde_json::to_string(&new_input.unwrap()).unwrap());
-}
+/// Cheating and using https://github.com/BartMassey/unix-stream/blob/master/src/pong.rs
+#[tokio::test]
+async fn test_socket() {
+    use std::io::{BufRead, BufReader, Write};
+    use std::os::unix::net::UnixListener;
+    let path = "/tmp/test.sock";
+    std::fs::remove_file(path).unwrap_or_else(|e| match e.kind() {
+        std::io::ErrorKind::NotFound => (),
+        _ => panic!("{}", e),
+    });
 
-#[test]
-fn example_input_line() {
-    let output = JsonRpc::new(RpcId::UInt(0), Output::Line("world I am here".to_string()));
-    let output_str = output.maybe_serialize();
-    assert!(output_str.is_some());
-    let output_str = output_str.unwrap();
-    assert_eq!(
-        &output_str,
-        r#"{"id":0,"jsonrpc":"2.0","method":"line","params":"world I am here"}"#
-    );
-    assert_eq!(output, serde_json::from_str(&output_str).unwrap());
+    // Create a new socket. Each time a client connects,
+    // interact with it.
+    let listener = UnixListener::bind(path).unwrap();
+    for stream in listener.incoming() {
+        // Create a line reader for this stream.
+        let mut stream = stream.unwrap();
+        let reader = stream.try_clone().unwrap();
+        let reader = BufReader::new(reader);
+
+        // Process lines from the client.
+        for response in reader.lines() {
+            let response = response.unwrap();
+            println!("message: {response}");
+        }
+    }
 }

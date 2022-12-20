@@ -1,19 +1,28 @@
 use std::collections::BTreeMap;
+use std::net::SocketAddr;
 use std::ops::DerefMut;
 use std::os::unix::process::ExitStatusExt;
 use std::process::Stdio;
 use std::sync::Arc;
 
+use axum::{
+    extract::{self, State},
+    http::StatusCode,
+    response::{IntoResponse, Response},
+    routing::{ self, put, post},
+    Router,
+    handler::{Layered}
+};
 use embassy_container_init::{
     OutputParams, OutputStrategy, ProcessGroupId, ProcessId, ReadLineStderrParams,
-    ReadLineStdoutParams, RunCommandParams, SendSignalParams, SignalGroupParams,
+    ReadLineStdoutParams, RunCommandParams, SendSignalParams, SignalGroupParams, PORT,
 };
 use futures::StreamExt;
 use helpers::NonDetachingJoinHandle;
 use nix::errno::Errno;
 use nix::sys::signal::Signal;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde_json::{json, Value};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, ChildStderr, ChildStdout, Command};
 use tokio::select;
@@ -212,29 +221,27 @@ impl Handler {
         }
         .lock_owned()
         .await;
-        if let Some(child) = child.take() {
-            let output = child.wait_with_output().await?;
-            if output.status.success() {
-                Ok(String::from_utf8(output.stdout).map_err(|_| yajrc::PARSE_ERROR)?)
-            } else {
-                Err(RpcError {
-                    code: output
-                        .status
-                        .code()
-                        .or_else(|| output.status.signal().map(|s| 128 + s))
-                        .unwrap_or(0),
-                    message: "Command failed".into(),
-                    data: Some(json!(String::from_utf8(if output.stderr.is_empty() {
-                        output.stdout
-                    } else {
-                        output.stderr
-                    })
-                    .map_err(|_| yajrc::PARSE_ERROR)?)),
+        let Some(child) = child.take() else {
+           return  Err(not_found());
+        };
+        let output = child.wait_with_output().await?;
+        if !output.status.success() {
+            return Err(RpcError {
+                code: output
+                    .status
+                    .code()
+                    .or_else(|| output.status.signal().map(|s| 128 + s))
+                    .unwrap_or(0),
+                message: "Command failed".into(),
+                data: Some(json!(String::from_utf8(if output.stderr.is_empty() {
+                    output.stdout
+                } else {
+                    output.stderr
                 })
-            }
-        } else {
-            Err(not_found())
+                .map_err(|_| yajrc::PARSE_ERROR)?)),
+            });
         }
+        return Ok(String::from_utf8(output.stdout).map_err(|_| yajrc::PARSE_ERROR)?);
     }
 
     async fn signal(&self, pid: ProcessId, signal: u32) -> Result<(), RpcError> {
@@ -305,7 +312,6 @@ impl Handler {
         kill_all.await
     }
 }
-
 #[tokio::main]
 async fn main() {
     use tokio::signal::unix::{signal, SignalKind};
@@ -329,46 +335,11 @@ async fn main() {
     color_eyre::install().unwrap();
 
     let handler = Handler::new();
-    let mut lines = BufReader::new(tokio::io::stdin()).lines();
-    let handler_thread = async {
-        while let Some(line) = lines.next_line().await? {
-            let local_hdlr = handler.clone();
-            tokio::spawn(async move {
-                if let Err(e) = async {
-                    eprintln!("{}", line);
-                    let req = serde_json::from_str::<IncomingRpc>(&line)?;
-                    match local_hdlr.handle(req.input).await {
-                        Ok(output) => {
-                            println!(
-                                "{}",
-                                json!({ "id": req.id, "jsonrpc": "2.0", "result": output })
-                            )
-                        }
-                        Err(e) => {
-                            println!("{}", json!({ "id": req.id, "jsonrpc": "2.0", "error": e }))
-                        }
-                    }
-                    Ok::<_, serde_json::Error>(())
-                }
-                .await
-                {
-                    tracing::error!("Error parsing RPC request: {}", e);
-                    tracing::debug!("{:?}", e);
-                }
-            });
-        }
-        Ok::<_, std::io::Error>(())
-    };
+    let handler_thread = main_server(handler.clone());
 
     select! {
         res = handler_thread => {
-            match res {
-                Ok(()) => tracing::debug!("Done with inputs/outputs"),
-                Err(e) => {
-                    tracing::error!("Error reading RPC input: {}", e);
-                    tracing::debug!("{:?}", e);
-                }
-            }
+            tracing::debug!("Server is done?")
         },
         _ = sigint.recv() => {
             tracing::debug!("SIGINT");
@@ -385,4 +356,28 @@ async fn main() {
     }
     handler.graceful_exit().await;
     ::std::process::exit(0)
+}
+
+async fn main_server(handler: Handler) {
+    let app = Router::new()
+        .route("/", post(main_route))
+        .with_state(handler);
+
+    let addr = SocketAddr::from(([0, 0, 0, 0], PORT));
+    println!("listening on {}", addr);
+    axum::Server::bind(&addr)
+        .serve(app.into_make_service())
+        .await
+        .unwrap();
+}
+
+async fn main_route(
+    State(handler): axum::extract::State<Handler>,
+    extract::Json(payload): axum::extract::Json<IncomingRpc>,
+) -> impl IntoResponse {
+    let id = payload.id;
+    axum::Json(match handler.handle(payload.input).await {
+        Ok(output) => json!({ "id": id, "jsonrpc": "2.0", "result": output }),
+        Err(err) => json!({ "id": id, "jsonrpc": "2.0", "error": err }),
+    })
 }

@@ -14,6 +14,7 @@ use futures::TryStreamExt;
 use helpers::{NonDetachingJoinHandle, RpcClient};
 use nix::sys::signal;
 use nix::unistd::Pid;
+use reqwest::Url;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -94,14 +95,12 @@ impl DockerContainer {
         let mut handle = cmd.spawn().with_kind(crate::ErrorKind::Docker)?;
 
         let client =
-            if let (Some(stdin), Some(stdout)) = (handle.stdin.take(), handle.stdout.take()) {
-                RpcClient::new(stdin, stdout)
-            } else {
-                return Err(Error::new(
-                    eyre!("No stdin/stdout handle for container init"),
-                    crate::ErrorKind::Incoherent,
-                ));
-            };
+                RpcClient::new(format!("http://{container_name}:{port}",  port =embassy_container_init::PORT).parse::<Url>().map_err(|_| {
+                    Error::new(
+                        eyre!("Couldn't create the correct url for rpc client"),
+                        crate::ErrorKind::Docker,
+                    )
+                })?);
 
         let running_output = NonDetachingJoinHandle::from(tokio::spawn(async move {
             if let Err(err) = handle
