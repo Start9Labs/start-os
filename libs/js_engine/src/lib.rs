@@ -242,7 +242,7 @@ impl JsExecutionEnvironment {
         procedure_name: ProcedureName,
         input: Option<I>,
         variable_args: Vec<serde_json::Value>,
-    ) -> Result<Option<O>, (JsError, String)> {
+    ) -> Result<O, (JsError, String)> {
         let input = match serde_json::to_value(input) {
             Ok(a) => a,
             Err(err) => {
@@ -256,7 +256,7 @@ impl JsExecutionEnvironment {
         };
         let safer_handle = spawn_local(|| self.execute(procedure_name, input, variable_args)).await;
         let output = safer_handle.await.unwrap()?;
-        match serde_json::from_value::<Option<O>>(output.clone()) {
+        match serde_json::from_value(output.clone()) {
             Ok(x) => Ok(x),
             Err(err) => {
                 tracing::error!("{}", err);
