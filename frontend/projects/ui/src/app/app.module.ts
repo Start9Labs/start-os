@@ -11,7 +11,6 @@ import { IonicModule } from '@ionic/angular'
 import { MonacoEditorModule } from '@materia-ui/ngx-monaco-editor'
 import {
   MarkdownModule,
-  ResizerModule,
   ResponsiveColModule,
   SharedPipesModule,
 } from '@start9labs/shared'
@@ -30,6 +29,7 @@ import { PatchDbModule } from './services/patch-db/patch-db.module'
 import { ToastContainerModule } from './components/toast-container/toast-container.module'
 import { ConnectionBarComponentModule } from './components/connection-bar/connection-bar.component.module'
 import { WidgetsPageModule } from './pages/widgets/widgets.module'
+import { TuiResizerModule } from '@taiga-ui/cdk'
 
 @NgModule({
   declarations: [AppComponent],
@@ -57,8 +57,8 @@ import { WidgetsPageModule } from './pages/widgets/widgets.module'
     TuiDialogModule,
     TuiModeModule,
     TuiThemeNightModule,
+    TuiResizerModule,
     WidgetsPageModule,
-    ResizerModule,
     ResponsiveColModule,
   ],
   providers: APP_PROVIDERS,

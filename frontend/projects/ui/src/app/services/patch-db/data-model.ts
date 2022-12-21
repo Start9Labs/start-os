@@ -20,6 +20,18 @@ export interface UIData {
     }
   }
   'ack-instructions': Record<string, boolean>
+  widgets: readonly Widget[]
+}
+
+export interface Widget {
+  id: string
+  name: string
+  meta: {
+    width: number
+    height: number
+    mobileWidth: number
+    mobileHeight: number
+  }
 }
 
 export interface UIMarketplaceData {

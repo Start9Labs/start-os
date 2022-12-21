@@ -6,6 +6,7 @@ import { TuiLetModule } from '@taiga-ui/cdk'
 import { TuiTilesModule } from '@taiga-ui/kit'
 
 import { WidgetsPage } from './widgets.page'
+import { AddWidgetModule } from './built-in/add/add.module'
 
 const routes: Routes = [
   {
@@ -20,6 +21,7 @@ const routes: Routes = [
     IonicModule,
     TuiTilesModule,
     TuiLetModule,
+    AddWidgetModule,
     RouterModule.forChild(routes),
   ],
   declarations: [WidgetsPage],

@@ -26,12 +26,12 @@
     *ngFor="let item of items; let index = index"
     class="item"
     [class.item_edit]="edit"
-    [width]="isMobile ? 1 : item.w"
-    [height]="getHeight(!!isMobile, index)"
+    [width]="isMobile ? item.meta.mobileWidth : item.meta.width"
+    [height]="isMobile ? item.meta.mobileHeight : item.meta.height"
     [style.order]="order.get(index)"
   >
     <div class="content">
-      <ng-container [ngSwitch]="item.content">
+      <ng-container [ngSwitch]="item.id">
         <ng-container *ngSwitchCase="'health'">
           <iframe
             class="iframe"
@@ -41,17 +41,12 @@
             allowfullscreen
           ></iframe>
         </ng-container>
-        <ng-container *ngSwitchCase="'backup'">
+        <ng-container *ngSwitchCase="'uptime'">
           <h2 class="title">Backup status</h2>
           Last backup was 1 day ago
           <ion-icon name="archive-outline" class="icon"></ion-icon>
         </ng-container>
-        <ng-container *ngSwitchCase="'achievements'">
-          <h2 class="title">Achievements</h2>
-          Unlock new levels in your self-hosting journey
-          <ion-icon name="trophy-outline" class="icon"></ion-icon>
-        </ng-container>
-        <ng-container *ngSwitchCase="'rick'">
+        <ng-container *ngSwitchCase="'favorites'">
           <iframe
             class="iframe"
             src="https://www.youtube.com/embed/dQw4w9WgXcQ"
@@ -69,7 +64,7 @@
             allowfullscreen
           ></iframe>
         </ng-container>
-        <ng-container *ngSwitchCase="'stats'">
+        <ng-container *ngSwitchCase="'metrics'">
           <div class="stats" [class.stats_mobile]="isMobile">
             <div class="stat">
               <ion-icon class="stat-icon" name="server-outline"></ion-icon>
@@ -110,7 +105,7 @@
     <ion-icon
       name="trash-outline"
       class="remove"
-      (click)="onRemove(index)"
+      (click)="remove(index)"
     ></ion-icon>
   </tui-tile>
 </tui-tiles>

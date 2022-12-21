@@ -8,11 +8,15 @@ import {
   PackageState,
 } from 'src/app/services/patch-db/data-model'
 import { Mock } from './api.fixures'
+import { BUILT_IN_WIDGETS } from '../../pages/widgets/built-in/widgets'
 
 export const mockPatchData: DataModel = {
   ui: {
     name: `Matt's Embassy`,
     'ack-welcome': '1.0.0',
+    widgets: BUILT_IN_WIDGETS.filter(
+      ({ id }) => id === 'favorites' || id === 'network' || id === 'metrics',
+    ),
     marketplace: {
       'selected-url': 'https://registry.start9.com/',
       'known-hosts': {

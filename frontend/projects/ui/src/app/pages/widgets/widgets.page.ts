@@ -5,7 +5,17 @@ import {
   PolymorpheusComponent,
   POLYMORPHEUS_CONTEXT,
 } from '@tinkoff/ng-polymorpheus'
-import { distinctUntilChanged, map, startWith } from 'rxjs'
+import {
+  distinctUntilChanged,
+  filter,
+  map,
+  pairwise,
+  startWith,
+  takeUntil,
+} from 'rxjs'
+import { PatchDB } from 'patch-db-client'
+import { DataModel, Widget } from '../../services/patch-db/data-model'
+import { ADD_WIDGET } from './built-in/add/add.component'
 
 @Component({
   selector: 'widgets',
@@ -21,14 +31,7 @@ export class WidgetsPage {
 
   order = new Map<number, number>()
 
-  items = [
-    { w: 2, h: 2, content: 'health' },
-    { w: 2, h: 2, content: 'backup' },
-    { w: 2, h: 2, content: 'achievements' },
-    { w: 3, h: 2, content: 'rick' },
-    { w: 3, h: 2, content: 'network' },
-    { w: 6, h: 1, content: 'stats' },
-  ]
+  items: readonly Widget[] = []
 
   readonly isMobile$ = this.resize$.pipe(
     startWith(null),
@@ -43,29 +46,46 @@ export class WidgetsPage {
     private readonly elementRef: ElementRef<HTMLElement>,
     private readonly resize$: TuiResizeService,
     private readonly dialog: TuiDialogService,
-  ) {}
+    private readonly patchDb: PatchDB<DataModel>,
+    private readonly destroy$: TuiDestroyService,
+  ) {
+    this.patchDb
+      .watch$('ui', 'widgets')
+      .pipe(
+        startWith([]),
+        pairwise(),
+        filter(([prev, { length }]) => prev.length !== length),
+        takeUntil(this.destroy$),
+      )
+      .subscribe(([, items]) => {
+        this.items = items
+        this.order = new Map(items.map((_, index) => [index, index]))
+      })
+  }
 
   toggle() {
     this.edit = !this.edit
   }
 
   add() {
-    this.dialog
-      .open('Here be widgets list and search', { label: 'Add widget' })
-      .subscribe()
+    this.dialog.open(ADD_WIDGET, { label: 'Add widget' }).subscribe(widget => {
+      this.addWidget(widget)
+    })
   }
 
-  onRemove(index: number) {
-    this.items.splice(index, 1)
+  remove(index: number) {
+    this.removeWidget(index)
+  }
+
+  // TODO: waiting for the backend
+  private removeWidget(index: number) {
+    this.items = this.items.filter((_, i) => i !== index)
     this.order.delete(index)
   }
 
-  getHeight(isMobile: boolean, index: number): number {
-    if (isMobile && this.items[index].content === 'network') {
-      return 3
-    }
-
-    return isMobile ? 2 : this.items[index].h
+  // TODO: waiting for the backend
+  private addWidget(widget: Widget) {
+    this.items = this.items.concat(widget)
   }
 }
 
