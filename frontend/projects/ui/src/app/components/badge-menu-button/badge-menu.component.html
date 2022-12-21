@@ -1,4 +1,4 @@
-<ion-button class="widgets" color="dark" (click)="onWidgets()">
+<ion-button *ngIf="useMocks" class="widgets" color="dark" (click)="onWidgets()">
   <ion-icon name="grid-outline"></ion-icon>
 </ion-button>
 <div class="wrapper">

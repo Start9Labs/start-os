@@ -3,7 +3,10 @@ import { SplitPaneTracker } from 'src/app/services/split-pane.service'
 import { PatchDB } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TuiDialogService } from '@taiga-ui/core'
+import { WorkspaceConfig } from '@start9labs/shared'
 import { WIDGETS_COMPONENT } from '../../pages/widgets/widgets.page'
+
+const { useMocks } = require('../../../../../../config.json') as WorkspaceConfig
 
 @Component({
   selector: 'badge-menu-button',
@@ -14,6 +17,7 @@ import { WIDGETS_COMPONENT } from '../../pages/widgets/widgets.page'
 export class BadgeMenuComponent {
   unreadCount$ = this.patch.watch$('server-info', 'unread-notification-count')
   sidebarOpen$ = this.splitPane.sidebarOpen$
+  useMocks = useMocks
 
   constructor(
     private readonly splitPane: SplitPaneTracker,
