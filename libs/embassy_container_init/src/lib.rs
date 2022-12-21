@@ -171,31 +171,3 @@ impl RpcMethod for SignalGroup {
         "signal-group"
     }
 }
-
-/// Cheating and using https://github.com/BartMassey/unix-stream/blob/master/src/pong.rs
-#[tokio::test]
-async fn test_socket() {
-    use std::io::{BufRead, BufReader, Write};
-    use std::os::unix::net::UnixListener;
-    let path = "/tmp/test.sock";
-    std::fs::remove_file(path).unwrap_or_else(|e| match e.kind() {
-        std::io::ErrorKind::NotFound => (),
-        _ => panic!("{}", e),
-    });
-
-    // Create a new socket. Each time a client connects,
-    // interact with it.
-    let listener = UnixListener::bind(path).unwrap();
-    for stream in listener.incoming() {
-        // Create a line reader for this stream.
-        let mut stream = stream.unwrap();
-        let reader = stream.try_clone().unwrap();
-        let reader = BufReader::new(reader);
-
-        // Process lines from the client.
-        for response in reader.lines() {
-            let response = response.unwrap();
-            println!("message: {response}");
-        }
-    }
-}
