@@ -5,6 +5,7 @@ import { InputSpec } from 'start-sdk/lib/config/configTypes'
 import {
   DataModel,
   DependencyError,
+  SMTP,
 } from 'src/app/services/patch-db/data-model'
 import { EmbassyOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
 
@@ -125,11 +126,9 @@ export module RR {
   // email
 
   export type ConfigureEmailReq = {
-    smtp?: SMTP
-    notifications?: {
-      os?: boolean
-      services?: boolean
-    }
+    enabled: boolean
+    address: string
+    smtp: SMTP
   } // email.configure
   export type ConfigureEmailRes = null
 
@@ -325,15 +324,6 @@ export module RR {
 
   export type GetReleaseNotesReq = { id: string }
   export type GetReleaseNotesRes = { [version: string]: string }
-}
-
-export interface SMTP {
-  host: string
-  port: number
-  from: string
-  username: string
-  password: string
-  tls: boolean
 }
 
 export interface MarketplaceEOS {

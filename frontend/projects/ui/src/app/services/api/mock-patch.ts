@@ -71,10 +71,15 @@ export const mockPatchData: DataModel = {
     'ca-fingerprint': 'SHA-256: 63 2B 11 99 44 40 17 DF 37 FC C3 DF 0F 3D 15',
     'system-start-time': new Date(new Date().valueOf() - 360042).toUTCString(),
     email: {
+      enabled: true,
       address: 'support@start9.com',
-      notifications: {
-        os: true,
-        services: false,
+      smtp: {
+        host: '',
+        port: 587,
+        from: '',
+        login: '',
+        password: '',
+        tls: true,
       },
     },
   },

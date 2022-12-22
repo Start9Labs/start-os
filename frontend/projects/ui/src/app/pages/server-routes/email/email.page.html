@@ -1,9 +1,9 @@
 <ion-header>
   <ion-toolbar>
     <ion-buttons slot="start">
-      <ion-back-button defaultHref="embassy"></ion-back-button>
+      <ion-back-button defaultHref="system"></ion-back-button>
     </ion-buttons>
-    <ion-title>Email Settings</ion-title>
+    <ion-title>Email Notifications</ion-title>
   </ion-toolbar>
 </ion-header>
 
@@ -13,53 +13,26 @@
     <ion-item>
       <ion-label>
         <h2>
-          Use an external SMTP server to send emails. This can be useful for two
-          purposes:
-          <ol>
-            <li>
-              Your Embassy can send you an email when you have a new
-              notification.
-            </li>
-            <li>
-              Installed services can send emails for a variety of purposes, such
-              as forgot password flows, invitations, alerts, etc.
-            </li>
-          </ol>
+          Configure an external SMTP server so that your Embassy can notify you
+          of important events.
         </h2>
       </ion-label>
     </ion-item>
-
-    <ng-container *ngIf="server$ | async as server">
-      <ion-item-divider>Embassy Settings</ion-item-divider>
-      <ion-item
-        button
-        (click)="serverConfig.presentAlert('email-notifications-os', server.email.notifications.os)"
-      >
-        <ion-label>
-          <h2>Receive OS Notificaitons</h2>
-          <p>{{ server.email.notifications.os ? 'Enabled' : 'Disabled' }}</p>
-        </ion-label>
-      </ion-item>
-
-      <ion-item button (click)="presentModalEmail()">
-        <ion-label>
-          <h2>Configure SMTP</h2>
-          <p>{{ server.email ? 'Configured' : 'None' }}</p>
-        </ion-label>
-      </ion-item>
-
-      <ion-item-divider>Services Settings</ion-item-divider>
-      <ion-item
-        button
-        (click)="serverConfig.presentAlert('email-notifications-services', server.email.notifications.services)"
-      >
-        <ion-label>
-          <h2>Permit Usage By Services</h2>
-          <p>
-            {{ server.email.notifications.services ? 'Enabled' : 'Disabled' }}
-          </p>
-        </ion-label>
-      </ion-item>
-    </ng-container>
+    <ion-item-divider>Settings</ion-item-divider>
   </ion-item-group>
+
+  <div *ngIf="email$ | async as email" class="ion-padding">
+    <form-object
+      [objectSpec]="configSpec"
+      [formGroup]="configForm!"
+      [current]="configForm!.value"
+      [original]="email"
+    ></form-object>
+  </div>
+
+  <div class="ion-text-right ion-padding">
+    <ion-button> Send Test Email </ion-button>
+    &nbsp;
+    <ion-button> Save </ion-button>
+  </div>
 </ion-content>
