@@ -104,11 +104,18 @@ export interface ServerStatusInfo {
 }
 
 export interface EmailSettings {
+  enabled: boolean
   address: string | null
-  notifications: {
-    os: boolean
-    services: boolean
-  }
+  smtp: SMTP
+}
+
+export interface SMTP {
+  host: string
+  port: number
+  from: string
+  login: string
+  password: string
+  tls: boolean
 }
 
 export interface PackageDataEntry {

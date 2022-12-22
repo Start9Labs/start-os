@@ -1,20 +1,12 @@
 import { Component } from '@angular/core'
-import {
-  AlertController,
-  LoadingController,
-  ModalController,
-} from '@ionic/angular'
+import { AlertController, LoadingController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ErrorToastService } from '@start9labs/shared'
-import { ServerConfigService } from 'src/app/services/server-config.service'
 import { PatchDB } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import {
-  GenericFormOptions,
-  GenericFormPage,
-} from 'src/app/modals/generic-form/generic-form.page'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
-import { RR, SMTP } from 'src/app/services/api/api.types'
+import { UntypedFormGroup } from '@angular/forms'
+import { FormService } from 'src/app/services/form.service'
 
 @Component({
   selector: 'email',
@@ -22,51 +14,56 @@ import { RR, SMTP } from 'src/app/services/api/api.types'
   styleUrls: ['./email.page.scss'],
 })
 export class EmailPage {
-  readonly ui$ = this.patch.watch$('ui')
-  readonly server$ = this.patch.watch$('server-info')
+  readonly email$ = this.patch.watch$('server-info', 'email')
+
+  configForm?: UntypedFormGroup
+
+  readonly configSpec: ConfigSpec = {
+    enabled: {
+      type: 'boolean',
+      name: 'Enable Email Notifications',
+      description:
+        'Whether or not to receive email notifications from your Embassy',
+      default: false,
+    },
+    address: {
+      type: 'string',
+      name: 'Receive Address',
+      description: 'The address you want to receive email notifications',
+      placeholder: 'e.g. you@protonmail.com',
+      nullable: false,
+      masked: false,
+      copyable: true,
+    },
+    smtp: {
+      type: 'object',
+      name: 'SMTP Settings',
+      description: 'Settings and credentials for your chosen SMTP server',
+      spec: smtpSpec,
+    },
+  }
 
   constructor(
     private readonly loadingCtrl: LoadingController,
-    private readonly modalCtrl: ModalController,
     private readonly alertCtrl: AlertController,
     private readonly patch: PatchDB<DataModel>,
     private readonly api: ApiService,
     private readonly errToast: ErrorToastService,
-    readonly serverConfig: ServerConfigService,
+    private readonly formService: FormService,
   ) {}
 
-  async presentModalEmail(): Promise<void> {
-    const options: GenericFormOptions = {
-      title: 'Configure SMTP',
-      spec: smtpSpec,
-      buttons: [
-        {
-          text: 'Save',
-          handler: async creds => {
-            return this.saveConfig(creds)
-          },
-          isSubmit: true,
-        },
-      ],
-    }
-
-    const modal = await this.modalCtrl.create({
-      componentProps: options,
-      presentingElement: await this.modalCtrl.getTop(),
-      component: GenericFormPage,
-    })
-
-    await modal.present()
+  ngOnInit() {
+    this.configForm = this.formService.createForm(this.configSpec!)
   }
 
-  private async saveConfig(smtp: SMTP): Promise<boolean> {
+  async saveConfig(): Promise<boolean> {
     const loader = await this.loadingCtrl.create({
       message: `Saving...`,
     })
     await loader.present()
 
     try {
-      await this.api.configureEmail({ smtp })
+      await this.api.configureEmail(this.configForm!.value)
       return true
     } catch (e: any) {
       this.errToast.present(e)
@@ -93,9 +90,9 @@ export class EmailPage {
 }
 
 const smtpSpec: ConfigSpec = {
-  'smtp-server': {
+  host: {
     type: 'string',
-    name: 'SMTP Server',
+    name: 'Host',
     description: 'Hostname of the SMTP server',
     placeholder: 'e.g. smtp.mailgun.org',
     nullable: false,
