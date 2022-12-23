@@ -39,6 +39,7 @@ export const mockPatchData: DataModel = {
     'last-backup': new Date(new Date().valueOf() - 604800001).toISOString(),
     'lan-address': 'https://embassy-abcdefgh.local',
     'tor-address': 'http://myveryownspecialtoraddress.onion',
+    'ip-address': '10.0.0.1',
     'last-wifi-region': null,
     'unread-notification-count': 4,
     // password is asdfasdf
@@ -51,6 +52,8 @@ export const mockPatchData: DataModel = {
       'update-progress': null,
     },
     hostname: 'random-words',
+    pubkey: 'npub1sg6plzptd64u62a878hep2kev88swjh3tw00gjsfl8f237lmu63q0uf63m',
+    'system-start-time': new Date(new Date().valueOf() - 360042).toUTCString(),
   },
   'package-data': {
     bitcoind: {

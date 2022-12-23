@@ -52,12 +52,15 @@ export interface ServerInfo {
   'last-backup': string | null
   'lan-address': Url
   'tor-address': Url
+  'ip-address': string
   'last-wifi-region': string | null
   'unread-notification-count': number
   'status-info': ServerStatusInfo
   'eos-version-compat': string
   'password-hash': string
   hostname: string
+  pubkey: string
+  'system-start-time': string
 }
 
 export interface ServerStatusInfo {
