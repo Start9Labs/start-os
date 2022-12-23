@@ -519,6 +519,7 @@ async fn spawn_persistent_container(
                 } else {
                     break;
                 }
+                tokio::time::sleep(Duration::from_millis(200)).await;
             }
         })
         .into(),

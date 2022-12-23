@@ -2,6 +2,7 @@
 name = "embassy_container_init"
 version = "0.1.0"
 edition = "2021"
+rust = "1.66"
 
 [features]
 dev = []
@@ -20,7 +21,7 @@ helpers = { path = "../helpers" }
 imbl = "2"
 nix = "0.25"
 tokio = { version = "1", features = ["full"] }
-tokio-stream = { version = "0.1.11" }
+tokio-stream = { version = "0.1", features = ["io-util", "sync", "net"] }
 tracing = "0.1"
 tracing-error = "0.2"
 tracing-futures = "0.2"

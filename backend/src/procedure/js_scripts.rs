@@ -96,7 +96,7 @@ impl JsProcedure {
             )
             .await?
             .run_action(name, input, self.args.clone());
-            let output: ErrorValue = match timeout {
+            let output: Option<ErrorValue> = match timeout {
                 Some(timeout_duration) => tokio::time::timeout(timeout_duration, running_action)
                     .await
                     .map_err(|_| (JsError::Timeout, "Timed out. Retrying soon...".to_owned()))??,
@@ -134,7 +134,7 @@ impl JsProcedure {
             .await?
             .read_only_effects()
             .run_action(name, input, self.args.clone());
-            let output: ErrorValue = match timeout {
+            let output: Option<ErrorValue> = match timeout {
                 Some(timeout_duration) => tokio::time::timeout(timeout_duration, running_action)
                     .await
                     .map_err(|_| (JsError::Timeout, "Timed out. Retrying soon...".to_owned()))??,
@@ -149,8 +149,9 @@ impl JsProcedure {
 }
 
 fn unwrap_known_error<O: DeserializeOwned>(
-    error_value: ErrorValue,
+    error_value: Option<ErrorValue>,
 ) -> Result<O, (JsError, String)> {
+    let error_value = error_value.unwrap_or_else(|| ErrorValue::Result(serde_json::Value::Null));
     match error_value {
         ErrorValue::Error(error) => Err((JsError::Javascript, error)),
         ErrorValue::ErrorCode((code, message)) => Err((JsError::Code(code), message)),

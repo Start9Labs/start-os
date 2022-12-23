@@ -137,7 +137,7 @@ stderrlog = "0.5.3"
 tar = "0.4.38"
 thiserror = "1.0.31"
 tokio = { version = "1.21.2", features = ["full"] }
-tokio-stream = { version = "0.1.9", features = ["io-util", "sync"] }
+tokio-stream = { version = "0.1.11", features = ["io-util", "sync", "net"] }
 tokio-tar = { git = "https://github.com/dr-bonez/tokio-tar.git" }
 tokio-tungstenite = { version = "0.17.1", features = ["native-tls"] }
 tokio-rustls = "0.23.4"

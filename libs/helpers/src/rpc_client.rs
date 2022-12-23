@@ -17,29 +17,23 @@ type ResponseMap = BTreeMap<Id, oneshot::Sender<Result<Value, RpcError>>>;
 pub struct RpcClient {
     id: AtomicUsize,
     _handler: NonDetachingJoinHandle<()>,
-    writable: Weak<Mutex<(DynWrite, ResponseMap)>>,
+    writable: Weak<Mutex<(tokio::sync::mpsc::UnboundedSender<String>, ResponseMap)>>,
 }
 impl RpcClient {
-    pub fn new<
-        W: AsyncWrite + Unpin + Send + Sync + 'static,
-        R: AsyncRead + Unpin + Send + Sync + 'static,
-    >(
-        writer: W,
-        reader: R,
+    pub fn new(
+        writer: tokio::sync::mpsc::UnboundedSender<String>,
+        mut reader: tokio::sync::mpsc::UnboundedReceiver<String>,
     ) -> Self {
-        let writer: DynWrite = Box::new(writer);
         let writable = Arc::new(Mutex::new((writer, ResponseMap::new())));
         let weak_writable = Arc::downgrade(&writable);
         RpcClient {
             id: AtomicUsize::new(0),
             _handler: tokio::spawn(async move {
-                let mut lines = BufReader::new(reader).lines();
-                while let Some(line) = lines.next_line().await.transpose() {
+                while let Some(line) = reader.recv().await {
                     let mut w = writable.lock().await;
-                    match line.map_err(Error::from).and_then(|l| {
-                        serde_json::from_str::<RpcResponse>(&l)
-                            .with_kind(ErrorKind::Deserialization)
-                    }) {
+                    match serde_json::from_str::<RpcResponse>(&line)
+                        .with_kind(ErrorKind::Deserialization)
+                    {
                         Ok(l) => {
                             if let Some(id) = l.id {
                                 if let Some(res) = w.1.remove(&id) {
@@ -88,15 +82,11 @@ impl RpcClient {
                     .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
                     .into(),
             );
-            w.0.write_all(
-                (serde_json::to_string(&RpcRequest {
-                    id: Some(id.clone()),
-                    method,
-                    params,
-                })? + "\n")
-                    .as_bytes(),
-            )
-            .await
+            w.0.send(serde_json::to_string(&RpcRequest {
+                id: Some(id.clone()),
+                method,
+                params,
+            })?)
             .map_err(|e| {
                 let mut err = yajrc::INTERNAL_ERROR.clone();
                 err.data = Some(json!(e.to_string()));
