@@ -224,6 +224,13 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     if tokio::fs::metadata(&log_dir).await.is_err() {
         tokio::fs::create_dir_all(&log_dir).await?;
     }
+    let current_machine_id = tokio::fs::read_to_string("/etc/machine-id").await?;
+    let mut machine_ids = tokio::fs::read_dir(&log_dir).await?;
+    while let Some(machine_id) = machine_ids.next_entry().await? {
+        if machine_id.file_name().to_string_lossy().trim() != current_machine_id.trim() {
+            tokio::fs::remove_dir_all(machine_id.path()).await?;
+        }
+    }
     crate::disk::mount::util::bind(&log_dir, "/var/log/journal", false).await?;
     Command::new("systemctl")
         .arg("restart")
