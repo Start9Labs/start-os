@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use color_eyre::eyre::eyre;
 use embassy_container_init::{ProcessGroupId, SignalGroup, SignalGroupParams};
-use helpers::RpcClient;
+use helpers::UnixRpcClient;
 pub use js_engine::JsError;
 use js_engine::{JsExecutionEnvironment, PathForVolumeId};
 use models::{ErrorKind, VolumeId};
@@ -68,7 +68,7 @@ impl JsProcedure {
         input: Option<I>,
         timeout: Option<Duration>,
         gid: ProcessGroupId,
-        rpc_client: Option<Arc<RpcClient>>,
+        rpc_client: Option<Arc<UnixRpcClient>>,
     ) -> Result<Result<O, (i32, String)>, Error> {
         let cleaner_client = rpc_client.clone();
         let cleaner = GeneralGuard::new(move || {

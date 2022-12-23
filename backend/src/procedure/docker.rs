@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::ffi::{OsStr, OsString};
 use std::net::Ipv4Addr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use async_stream::stream;
@@ -11,17 +11,13 @@ use color_eyre::eyre::eyre;
 use color_eyre::Report;
 use futures::future::Either as EitherFuture;
 use futures::TryStreamExt;
-use helpers::{NonDetachingJoinHandle, RpcClient};
+use helpers::{NonDetachingJoinHandle, UnixRpcClient};
 use nix::sys::signal;
 use nix::unistd::Pid;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tokio::{
-    io::{AsyncBufRead, AsyncBufReadExt, BufReader},
-    net::{UnixListener, UnixStream},
-    sync::mpsc,
-};
+use tokio::io::{AsyncBufRead, AsyncBufReadExt, BufReader};
 use tracing::instrument;
 
 use super::ProcedureName;
@@ -70,93 +66,7 @@ pub struct DockerContainer {
     #[serde(default)]
     pub system: bool,
 }
-struct SocketsSet {
-    folder: String,
-    writer: String,
-    reader: String,
-    // writer_socket: Option<UnixStream>,
-    reader_listener: Option<mpsc::UnboundedReceiver<String>>,
-}
-impl SocketsSet {
-    async fn new(pkg_id: &PackageId) -> Result<SocketsSet, Error> {
-        let folder = format!("/tmp/{pkg_id}");
-        let folder_path = ::std::path::Path::new(&folder);
 
-        if folder_path.exists() {
-            tokio::fs::remove_dir_all(folder_path).await?;
-        }
-        tokio::fs::create_dir_all(folder_path).await?;
-        let writer = format!("{folder}/in.sock");
-        let reader = format!("{folder}/out.sock");
-
-        let (send, receiver) = mpsc::unbounded_channel();
-        let reader_clone = reader.clone();
-        tokio::spawn(async move {
-            let listener = UnixListener::bind(&reader_clone).unwrap();
-            loop {
-                let (stream, _) = match listener.accept().await {
-                    Err(e) => {
-                        tracing::error!("Could not accept socket");
-                        tracing::debug!("{:?}", e);
-                        break;
-                    }
-                    Ok(a) => a,
-                };
-                let reader = BufReader::new(stream);
-
-                let mut lines = reader.lines();
-                while let Ok(Some(line)) = lines.next_line().await {
-                    if let Err(_err) = send.send(line) {
-                        break;
-                    }
-                }
-            }
-        });
-
-        Ok(SocketsSet {
-            writer,
-            reader,
-            folder,
-            reader_listener: Some(receiver),
-        })
-    }
-
-    async fn get_sender(&self) -> Result<mpsc::UnboundedSender<String>, Error> {
-        let mut i = 0;
-        let socket = loop {
-            match UnixStream::connect("/sockets/out.sock").await {
-                Ok(x) => break x,
-                Err(_) => (),
-            }
-            i += 1;
-            if i > 100 {
-                return Err(Error::new(
-                    color_eyre::eyre::eyre!("Couldn't connect to socket"),
-                    crate::ErrorKind::Unknown,
-                ));
-            }
-            tokio::time::sleep(Duration::from_millis(100 * i)).await;
-        };
-        let (sender, mut receiver) = mpsc::unbounded_channel::<String>();
-        tokio::spawn(async move {
-            while let Some(output) = receiver.recv().await {
-                socket.writable().await?;
-                while let Err(e) = socket.try_write(output.as_bytes()) {
-                    if e.kind() == ::std::io::ErrorKind::WouldBlock {
-                        continue;
-                    }
-                    return Err(e.into());
-                }
-            }
-            Ok::<_, std::io::Error>(())
-        });
-        Ok(sender)
-    }
-
-    pub fn folder(&self) -> &str {
-        self.folder.as_ref()
-    }
-}
 impl DockerContainer {
     /// We created a new exec runner, where we are going to be passing the commands for it to run.
     /// Idea is that we are going to send it command and get the inputs be filtered back from the manager.
@@ -169,11 +79,15 @@ impl DockerContainer {
         pkg_id: &PackageId,
         pkg_version: &Version,
         volumes: &Volumes,
-    ) -> Result<(LongRunning, RpcClient), Error> {
+    ) -> Result<(LongRunning, UnixRpcClient), Error> {
         let container_name = DockerProcedure::container_name(pkg_id, None);
 
-        let mut socket_paths = SocketsSet::new(pkg_id).await?;
-        let server_reader = socket_paths.reader_listener.take();
+        let socket_path =
+            Path::new("/tmp/embassy/containers").join(format!("{pkg_id}_{pkg_version}"));
+        if tokio::fs::metadata(&socket_path).await.is_ok() {
+            tokio::fs::remove_dir_all(&socket_path).await?;
+        }
+        tokio::fs::create_dir_all(&socket_path).await?;
 
         let mut cmd = LongRunning::setup_long_running_docker_cmd(
             self,
@@ -182,23 +96,14 @@ impl DockerContainer {
             volumes,
             pkg_id,
             pkg_version,
-            &socket_paths,
+            &socket_path,
         )
         .await?;
 
         let mut handle = cmd.spawn().with_kind(crate::ErrorKind::Docker)?;
 
-        let writer = socket_paths.get_sender().await?;
-
         //TODO BLUJ need to use the sockets
-        let client = if let Some(reader) = server_reader {
-            RpcClient::new(writer, reader)
-        } else {
-            return Err(Error::new(
-                eyre!("No stdin/stdout handle for container init"),
-                crate::ErrorKind::Incoherent,
-            ));
-        };
+        let client = UnixRpcClient::new(socket_path.join("rpc.sock"));
 
         let running_output = NonDetachingJoinHandle::from(tokio::spawn(async move {
             if let Err(err) = handle
@@ -868,7 +773,7 @@ impl LongRunning {
         volumes: &Volumes,
         pkg_id: &PackageId,
         pkg_version: &Version,
-        socket_paths: &SocketsSet,
+        socket_path: &Path,
     ) -> Result<tokio::process::Command, Error> {
         const INIT_EXEC: &str = "/start9/embassy_container_init";
         const BIND_LOCATION: &str = "/usr/lib/embassy/container";
@@ -901,7 +806,7 @@ impl LongRunning {
             .arg("--mount")
             .arg(format!(
                 "type=bind,src={input},dst=/sockets/",
-                input = socket_paths.folder()
+                input = socket_path.display()
             ))
             .arg("--name")
             .arg(&container_name)

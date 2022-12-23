@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::path::PathBuf;
 use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, Weak};
 
@@ -6,6 +7,7 @@ use models::{Error, ErrorKind, ResultExt};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader};
+use tokio::net::UnixStream;
 use tokio::sync::{oneshot, Mutex};
 use yajrc::{Id, RpcError, RpcMethod, RpcRequest, RpcResponse};
 
@@ -17,23 +19,29 @@ type ResponseMap = BTreeMap<Id, oneshot::Sender<Result<Value, RpcError>>>;
 pub struct RpcClient {
     id: AtomicUsize,
     _handler: NonDetachingJoinHandle<()>,
-    writable: Weak<Mutex<(tokio::sync::mpsc::UnboundedSender<String>, ResponseMap)>>,
+    writable: Weak<Mutex<(DynWrite, ResponseMap)>>,
 }
 impl RpcClient {
-    pub fn new(
-        writer: tokio::sync::mpsc::UnboundedSender<String>,
-        mut reader: tokio::sync::mpsc::UnboundedReceiver<String>,
+    pub fn new<
+        W: AsyncWrite + Unpin + Send + Sync + 'static,
+        R: AsyncRead + Unpin + Send + Sync + 'static,
+    >(
+        writer: W,
+        reader: R,
     ) -> Self {
+        let writer: DynWrite = Box::new(writer);
         let writable = Arc::new(Mutex::new((writer, ResponseMap::new())));
         let weak_writable = Arc::downgrade(&writable);
         RpcClient {
             id: AtomicUsize::new(0),
             _handler: tokio::spawn(async move {
-                while let Some(line) = reader.recv().await {
+                let mut lines = BufReader::new(reader).lines();
+                while let Some(line) = lines.next_line().await.transpose() {
                     let mut w = writable.lock().await;
-                    match serde_json::from_str::<RpcResponse>(&line)
-                        .with_kind(ErrorKind::Deserialization)
-                    {
+                    match line.map_err(Error::from).and_then(|l| {
+                        serde_json::from_str::<RpcResponse>(&l)
+                            .with_kind(ErrorKind::Deserialization)
+                    }) {
                         Ok(l) => {
                             if let Some(id) = l.id {
                                 if let Some(res) = w.1.remove(&id) {
@@ -82,11 +90,15 @@ impl RpcClient {
                     .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
                     .into(),
             );
-            w.0.send(serde_json::to_string(&RpcRequest {
-                id: Some(id.clone()),
-                method,
-                params,
-            })?)
+            w.0.write_all(
+                (serde_json::to_string(&RpcRequest {
+                    id: Some(id.clone()),
+                    method,
+                    params,
+                })? + "\n")
+                    .as_bytes(),
+            )
+            .await
             .map_err(|e| {
                 let mut err = yajrc::INTERNAL_ERROR.clone();
                 err.data = Some(json!(e.to_string()));
@@ -102,5 +114,40 @@ impl RpcClient {
         let mut err = yajrc::INTERNAL_ERROR.clone();
         err.data = Some(json!("RpcClient thread has terminated"));
         Err(err)
+    }
+}
+
+pub struct UnixRpcClient {
+    path: PathBuf,
+    client: Mutex<Option<RpcClient>>,
+}
+impl UnixRpcClient {
+    pub fn new(path: PathBuf) -> Self {
+        Self {
+            path,
+            client: Mutex::new(None),
+        }
+    }
+
+    pub async fn request<T: RpcMethod>(
+        &self,
+        method: T,
+        params: T::Params,
+    ) -> Result<T::Response, RpcError>
+    where
+        T: Serialize,
+        T::Params: Serialize,
+        T::Response: for<'de> Deserialize<'de>,
+    {
+        let mut client = self.client.lock().await;
+        if client.is_none() {
+            let (r, w) = UnixStream::connect(&self.path).await?.into_split();
+            *client = Some(RpcClient::new(w, r));
+        }
+        if let Some(client) = client.take() {
+            client.request(method, params).await
+        } else {
+            unreachable!()
+        }
     }
 }

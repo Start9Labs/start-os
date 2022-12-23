@@ -1,11 +1,9 @@
-use std::io::BufRead;
+use std::collections::BTreeMap;
 use std::ops::DerefMut;
 use std::os::unix::process::ExitStatusExt;
 use std::process::Stdio;
 use std::sync::Arc;
-use std::{collections::BTreeMap, time::Duration};
 
-use color_eyre::Report;
 use embassy_container_init::{
     OutputParams, OutputStrategy, ProcessGroupId, ProcessId, ReadLineStderrParams,
     ReadLineStdoutParams, RunCommandParams, SendSignalParams, SignalGroupParams,
@@ -16,17 +14,10 @@ use nix::errno::Errno;
 use nix::sys::signal::Signal;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::process::{Child, ChildStderr, ChildStdout, Command};
 use tokio::select;
 use tokio::sync::{watch, Mutex};
-use tokio::{
-    io::{AsyncBufReadExt, BufReader},
-    net::UnixStream,
-};
-use tokio::{
-    net::UnixListener,
-    process::{Child, ChildStderr, ChildStdout, Command},
-};
-use tokio_stream::wrappers::UnixListenerStream;
 use yajrc::{Id, RpcError};
 
 /// Outputs embedded in the JSONRpc output of the executable.
@@ -337,74 +328,57 @@ async fn main() {
         .init();
     color_eyre::install().unwrap();
 
-    Command::new("chown")
-        .arg("/sockets/out.sock")
-        .output()
-        .await
-        .unwrap();
-
     let handler = Handler::new();
-    let mut socket = UnixListener::bind("/sockets/in.sock").unwrap();
-    let socket_out = Arc::new({
-        {
-            let mut i = 0;
-            loop {
-                match UnixStream::connect("/sockets/out.sock").await {
-                    Ok(x) => break x,
-                    Err(_) => (),
-                }
-                i += 1;
-                if i > 100 {
-                    panic!("Couldn't connect to socket");
-                }
-                tokio::time::sleep(Duration::from_millis(100 * i)).await;
-            }
-        }
-    });
     let handler_thread = async {
+        let listener = tokio::net::UnixListener::bind("/sockets/rpc.sock")?;
         loop {
-            let (stream, _) = socket.accept().await?;
-            let reader = BufReader::new(stream);
-
-            let mut lines = reader.lines();
-
-            while let Ok(Some(line)) = lines.next_line().await {
-                let local_hdlr = handler.clone();
-                let mut socket_out = socket_out.clone();
-                tokio::spawn(async move {
-                    if let Err(e) = async {
-                        tracing::trace!("{}", line.to_string());
-                        socket_out.writable().await?;
-                        let req = serde_json::from_str::<IncomingRpc>(&line)?;
-                        let output = match local_hdlr.handle(req.input).await {
-                            Ok(output) => {
-                                format!(
-                                    "{}",
+            let (stream, _) = listener.accept().await?;
+            let (r, w) = stream.into_split();
+            let mut lines = BufReader::new(r).lines();
+            let handler = handler.clone();
+            tokio::spawn(async move {
+                let w = Arc::new(Mutex::new(w));
+                while let Some(line) = lines.next_line().await? {
+                    let handler = handler.clone();
+                    let w = w.clone();
+                    tokio::spawn(async move {
+                        if let Err(e) = async {
+                            let req = serde_json::from_str::<IncomingRpc>(&line)?;
+                            match handler.handle(req.input).await {
+                                Ok(output) => {
+                                    w.lock().await.write_all(
                                     json!({ "id": req.id, "jsonrpc": "2.0", "result": output })
+                                        .to_string()
+                                        .as_bytes(),
                                 )
+                                .await
+                                .unwrap();
+                                }
+                                Err(e) => w
+                                    .lock()
+                                    .await
+                                    .write_all(
+                                        json!({ "id": req.id, "jsonrpc": "2.0", "error": e })
+                                            .to_string()
+                                            .as_bytes(),
+                                    )
+                                    .await
+                                    .unwrap(),
                             }
-                            Err(e) => {
-                                format!("{}", json!({ "id": req.id, "jsonrpc": "2.0", "error": e }))
-                            }
-                        };
-                        while let Err(e) = socket_out.try_write(output.as_bytes()) {
-                            if e.kind() == ::std::io::ErrorKind::WouldBlock {
-                                continue;
-                            }
-                            return Err(e.into());
+                            Ok::<_, serde_json::Error>(())
                         }
-                        // socket_out.flush();
-                        Ok::<_, Report>(())
-                    }
-                    .await
-                    {
-                        tracing::error!("Error parsing RPC request: {}", e);
-                        tracing::debug!("{:?}", e);
-                    }
-                });
-            }
+                        .await
+                        {
+                            tracing::error!("Error parsing RPC request: {}", e);
+                            tracing::debug!("{:?}", e);
+                        }
+                    });
+                }
+                Ok::<_, std::io::Error>(())
+            });
         }
-        Ok::<_, Report>(())
+        #[allow(unreachable_code)]
+        Ok::<_, std::io::Error>(())
     };
 
     select! {
