@@ -330,7 +330,7 @@ async fn main() {
 
     let handler = Handler::new();
     let handler_thread = async {
-        let listener = tokio::net::UnixListener::bind("/sockets/rpc.sock")?;
+        let listener = tokio::net::UnixListener::bind("/start9/sockets/rpc.sock")?;
         loop {
             let (stream, _) = listener.accept().await?;
             let (r, w) = stream.into_split();

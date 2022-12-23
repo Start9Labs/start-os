@@ -775,8 +775,8 @@ impl LongRunning {
         pkg_version: &Version,
         socket_path: &Path,
     ) -> Result<tokio::process::Command, Error> {
-        const INIT_EXEC: &str = "/start9/embassy_container_init";
-        const BIND_LOCATION: &str = "/usr/lib/embassy/container";
+        const INIT_EXEC: &str = "/start9/bin/embassy_container_init";
+        const BIND_LOCATION: &str = "/usr/lib/embassy/container/";
         tracing::trace!("setup_long_running_docker_cmd");
 
         LongRunning::cleanup_previous_container(ctx, container_name).await?;
@@ -802,10 +802,12 @@ impl LongRunning {
             .arg("--network=start9")
             .arg(format!("--add-host=embassy:{}", Ipv4Addr::from(HOST_IP)))
             .arg("--mount")
-            .arg(format!("type=bind,src={BIND_LOCATION},dst=/start9"))
+            .arg(format!(
+                "type=bind,src={BIND_LOCATION},dst=/start9/bin/,readonly"
+            ))
             .arg("--mount")
             .arg(format!(
-                "type=bind,src={input},dst=/sockets/",
+                "type=bind,src={input},dst=/start9/sockets/",
                 input = socket_path.display()
             ))
             .arg("--name")

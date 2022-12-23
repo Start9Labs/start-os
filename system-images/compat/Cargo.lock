@@ -99,6 +99,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-channel"
+version = "1.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf46fee83e5ccffc220104713af3292ff9bc7c64c7de289f66dae8e38d826833"
+dependencies = [
+ "concurrent-queue",
+ "event-listener",
+ "futures-core",
+]
+
+[[package]]
 name = "async-stream"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -526,6 +537,15 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml 0.8.26",
+]
+
+[[package]]
+name = "concurrent-queue"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bd7bef69dc86e3c610e4e7aed41035e2a7ed12e72dd7530f61327a6579a4390b"
+dependencies = [
+ "crossbeam-utils",
 ]
 
 [[package]]
@@ -1510,6 +1530,7 @@ version = "0.1.0"
 dependencies = [
  "color-eyre",
  "futures",
+ "lazy_async_pool",
  "models",
  "pin-project",
  "serde",
@@ -1926,6 +1947,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bcf796c978e9b4d983414f4caedc9273aa33ee214c5b887bd55fde84c85d2dc4"
 dependencies = [
  "regex",
+]
+
+[[package]]
+name = "lazy_async_pool"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "06cf485d4867e0714e35c1652e736bcf892d28fceecca01036764575db64ba84"
+dependencies = [
+ "async-channel",
+ "futures",
 ]
 
 [[package]]
