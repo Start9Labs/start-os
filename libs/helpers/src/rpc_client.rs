@@ -37,7 +37,9 @@ impl RpcClient {
             _handler: tokio::spawn(async move {
                 let mut lines = BufReader::new(reader).lines();
                 while let Some(line) = lines.next_line().await.transpose() {
+                    tracing::error!("BLUJ Line is {line:?}"); // never called
                     let mut w = writable.lock().await;
+
                     match line.map_err(Error::from).and_then(|l| {
                         serde_json::from_str::<RpcResponse>(&l)
                             .with_kind(ErrorKind::Deserialization)
@@ -119,7 +121,7 @@ impl RpcClient {
 
 pub struct UnixRpcClient {
     path: PathBuf,
-    client: Mutex<Option<RpcClient>>,
+    client: Mutex<Option<Arc<RpcClient>>>,
 }
 impl UnixRpcClient {
     pub fn new(path: PathBuf) -> Self {
@@ -139,15 +141,20 @@ impl UnixRpcClient {
         T::Params: Serialize,
         T::Response: for<'de> Deserialize<'de>,
     {
-        let mut client = self.client.lock().await;
-        if client.is_none() {
-            let (r, w) = UnixStream::connect(&self.path).await?.into_split();
-            *client = Some(RpcClient::new(w, r));
-        }
-        if let Some(client) = client.take() {
-            client.request(method, params).await
-        } else {
-            unreachable!()
-        }
+        let mut client_lock = self.client.lock().await;
+        tracing::error!("BLUJ Doing a unix request");
+        let client = match client_lock.clone() {
+            Some(a) => a,
+            None => {
+                tracing::error!("BLUJ new client");
+                let (r, w) = UnixStream::connect(&self.path).await?.into_split();
+                let client = Arc::new(RpcClient::new(w, r));
+                *client_lock = Some(client.clone());
+                client
+            }
+        };
+        drop(client_lock);
+        tracing::error!("BLUJ existing client");
+        client.request(method, params).await
     }
 }

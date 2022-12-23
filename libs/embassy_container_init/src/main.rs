@@ -339,6 +339,7 @@ async fn main() {
             tokio::spawn(async move {
                 let w = Arc::new(Mutex::new(w));
                 while let Some(line) = lines.next_line().await? {
+                    tracing::error!("BLUJ Line is {line}");
                     let handler = handler.clone();
                     let w = w.clone();
                     tokio::spawn(async move {
@@ -347,8 +348,7 @@ async fn main() {
                             match handler.handle(req.input).await {
                                 Ok(output) => {
                                     w.lock().await.write_all(
-                                    json!({ "id": req.id, "jsonrpc": "2.0", "result": output })
-                                        .to_string()
+                                    dbg!(format!("{}\n", json!({ "id": req.id, "jsonrpc": "2.0", "result": output })))
                                         .as_bytes(),
                                 )
                                 .await
@@ -358,8 +358,7 @@ async fn main() {
                                     .lock()
                                     .await
                                     .write_all(
-                                        json!({ "id": req.id, "jsonrpc": "2.0", "error": e })
-                                            .to_string()
+                                        dbg!(format!("{}\n", json!({ "id": req.id, "jsonrpc": "2.0", "error": e })))
                                             .as_bytes(),
                                     )
                                     .await
