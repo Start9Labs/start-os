@@ -339,7 +339,6 @@ async fn main() {
             tokio::spawn(async move {
                 let w = Arc::new(Mutex::new(w));
                 while let Some(line) = lines.next_line().await? {
-                    tracing::error!("BLUJ Line is {line}");
                     let handler = handler.clone();
                     let w = w.clone();
                     tokio::spawn(async move {
@@ -347,22 +346,26 @@ async fn main() {
                             let req = serde_json::from_str::<IncomingRpc>(&line)?;
                             match handler.handle(req.input).await {
                                 Ok(output) => {
-                                    w.lock().await.write_all(
-                                    dbg!(format!("{}\n", json!({ "id": req.id, "jsonrpc": "2.0", "result": output })))
-                                        .as_bytes(),
-                                )
-                                .await
-                                .unwrap();
+                                    if let Err(err) = w.lock().await.write_all(
+                                        format!("{}\n", json!({ "id": req.id, "jsonrpc": "2.0", "result": output }))
+                                            .as_bytes(),
+                                    )
+                                    .await {
+                                        tracing::error!("Error sending to {id:?}", id = req.id);
+                                    }
                                 }
-                                Err(e) => w
+                                Err(e) => 
+                                if let Err(err) = w
                                     .lock()
                                     .await
                                     .write_all(
-                                        dbg!(format!("{}\n", json!({ "id": req.id, "jsonrpc": "2.0", "error": e })))
+                                        format!("{}\n", json!({ "id": req.id, "jsonrpc": "2.0", "error": e }))
                                             .as_bytes(),
                                     )
-                                    .await
-                                    .unwrap(),
+                                    .await {
+
+                                        tracing::error!("Handle + Error sending to {id:?}", id = req.id);
+                                    },
                             }
                             Ok::<_, serde_json::Error>(())
                         }

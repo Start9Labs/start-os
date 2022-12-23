@@ -77,6 +77,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-channel"
+version = "1.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf46fee83e5ccffc220104713af3292ff9bc7c64c7de289f66dae8e38d826833"
+dependencies = [
+ "concurrent-queue",
+ "event-listener",
+ "futures-core",
+]
+
+[[package]]
 name = "async-stream"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -385,6 +396,15 @@ dependencies = [
  "owo-colors",
  "tracing-core",
  "tracing-error 0.2.0",
+]
+
+[[package]]
+name = "concurrent-queue"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bd7bef69dc86e3c610e4e7aed41035e2a7ed12e72dd7530f61327a6579a4390b"
+dependencies = [
+ "crossbeam-utils",
 ]
 
 [[package]]
@@ -1189,6 +1209,7 @@ version = "0.1.0"
 dependencies = [
  "color-eyre",
  "futures",
+ "lazy_async_pool",
  "models",
  "pin-project",
  "serde",
@@ -1557,6 +1578,16 @@ name = "keccak"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f9b7d56ba4a8344d6be9729995e6b06f928af29998cdf79fe390cbf6b1fee838"
+
+[[package]]
+name = "lazy_async_pool"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "06cf485d4867e0714e35c1652e736bcf892d28fceecca01036764575db64ba84"
+dependencies = [
+ "async-channel",
+ "futures",
+]
 
 [[package]]
 name = "lazy_static"
