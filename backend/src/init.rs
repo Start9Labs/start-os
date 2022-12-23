@@ -12,7 +12,7 @@ use tokio::process::Command;
 use crate::context::rpc::RpcContextConfig;
 use crate::db::model::ServerStatus;
 use crate::install::PKG_ARCHIVE_DIR;
-use crate::sound::CIRCLE_OF_5THS_SHORT;
+use crate::sound::{BEP, CIRCLE_OF_5THS_SHORT};
 use crate::util::Invoke;
 use crate::Error;
 
@@ -212,8 +212,9 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     let song = if should_rebuild {
         Some(NonDetachingJoinHandle::from(tokio::spawn(async {
             loop {
-                CIRCLE_OF_5THS_SHORT.play().await.unwrap();
-                tokio::time::sleep(Duration::from_secs(10)).await;
+                BEP.play().await.unwrap();
+                BEP.play().await.unwrap();
+                tokio::time::sleep(Duration::from_secs(60)).await;
             }
         })))
     } else {
