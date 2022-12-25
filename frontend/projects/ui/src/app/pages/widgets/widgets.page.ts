@@ -1,4 +1,4 @@
-import { Component, ElementRef, Inject, Optional } from '@angular/core'
+import { Component, ElementRef, Inject, Optional, Type } from '@angular/core'
 import { TuiDestroyService, TuiResizeService } from '@taiga-ui/cdk'
 import { TuiDialogContext, TuiDialogService } from '@taiga-ui/core'
 import {
@@ -16,6 +16,11 @@ import {
 import { PatchDB } from 'patch-db-client'
 import { DataModel, Widget } from '../../services/patch-db/data-model'
 import { ADD_WIDGET } from './built-in/add/add.component'
+import { FavoritesComponent } from './built-in/favorites/favorites.component'
+import { HealthComponent } from './built-in/health/health.component'
+import { NetworkComponent } from './built-in/network/network.component'
+import { MetricsComponent } from './built-in/metrics/metrics.component'
+import { UptimeComponent } from './built-in/uptime/uptime.component'
 
 @Component({
   selector: 'widgets',
@@ -38,6 +43,14 @@ export class WidgetsPage {
     map(() => this.elementRef.nativeElement.clientWidth < 600),
     distinctUntilChanged(),
   )
+
+  readonly components: Record<string, Type<any>> = {
+    health: HealthComponent,
+    favorites: FavoritesComponent,
+    metrics: MetricsComponent,
+    network: NetworkComponent,
+    uptime: UptimeComponent,
+  }
 
   constructor(
     @Optional()
