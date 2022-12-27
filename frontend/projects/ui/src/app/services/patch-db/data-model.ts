@@ -60,6 +60,7 @@ export interface ServerInfo {
   'password-hash': string
   hostname: string
   pubkey: string
+  'ca-fingerprint': string
   'system-start-time': string
 }
 
