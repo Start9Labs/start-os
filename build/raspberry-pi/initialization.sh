@@ -25,6 +25,9 @@ sed -i "s/http:/https:/g" /etc/apt/sources.list /etc/apt/sources.list.d/*.list
 
 . /usr/lib/embassy/scripts/add-apt-sources
 
+apt-mark hold raspberrypi-bootloader
+apt-mark hold raspberrypi-kernel
+
 KERN=$(dpkg -s raspberrypi-kernel | grep Version | awk '{print $2}')
 apt-get update
 apt-get upgrade -y
