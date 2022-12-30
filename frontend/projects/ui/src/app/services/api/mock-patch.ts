@@ -14,9 +14,17 @@ export const mockPatchData: DataModel = {
   ui: {
     name: `Matt's Embassy`,
     'ack-welcome': '1.0.0',
-    widgets: BUILT_IN_WIDGETS.filter(
-      ({ id }) => id === 'favorites' || id === 'network' || id === 'metrics',
-    ),
+    widgets: {
+      open: true,
+      width: 400,
+      widgets: BUILT_IN_WIDGETS.filter(
+        ({ id }) =>
+          id === 'favorites' ||
+          id === 'health' ||
+          id === 'network' ||
+          id === 'metrics',
+      ),
+    },
     marketplace: {
       'selected-url': 'https://registry.start9.com/',
       'known-hosts': {

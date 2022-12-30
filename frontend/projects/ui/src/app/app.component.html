@@ -18,14 +18,19 @@
         </ion-menu>
 
         <ion-menu
-          *ngIf="useMocks"
+          *ngIf="open$ | async"
           contentId="main-content"
           type="overlay"
           side="end"
           class="right-menu"
           tuiResizeable
+          [style.--side-width.px]="width$ | async"
         >
-          <div class="divider" [tuiResizer]="[-1, 0]"></div>
+          <div
+            class="divider"
+            [tuiResizer]="[-1, 0]"
+            (tuiSizeChange)="onResize($event)"
+          ></div>
           <widgets></widgets>
         </ion-menu>
 

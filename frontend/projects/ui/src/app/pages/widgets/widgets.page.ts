@@ -1,5 +1,13 @@
-import { Component, ElementRef, Inject, Optional, Type } from '@angular/core'
-import { TuiDestroyService, TuiResizeService } from '@taiga-ui/cdk'
+import {
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  Component,
+  ElementRef,
+  Inject,
+  Optional,
+  Type,
+} from '@angular/core'
+import { TuiDestroyService, TuiResizeService, tuiWatch } from '@taiga-ui/cdk'
 import { TuiDialogContext, TuiDialogService } from '@taiga-ui/core'
 import {
   PolymorpheusComponent,
@@ -27,6 +35,7 @@ import { UptimeComponent } from './built-in/uptime/uptime.component'
   templateUrl: 'widgets.page.html',
   styleUrls: ['widgets.page.scss'],
   providers: [TuiDestroyService, TuiResizeService],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     '[class.dialog]': 'context',
   },
@@ -61,19 +70,26 @@ export class WidgetsPage {
     private readonly dialog: TuiDialogService,
     private readonly patchDb: PatchDB<DataModel>,
     private readonly destroy$: TuiDestroyService,
+    private readonly cdr: ChangeDetectorRef,
   ) {
     this.patchDb
-      .watch$('ui', 'widgets')
+      .watch$('ui', 'widgets', 'widgets')
       .pipe(
         startWith([]),
         pairwise(),
         filter(([prev, { length }]) => prev.length !== length),
+        tuiWatch(this.cdr),
         takeUntil(this.destroy$),
       )
       .subscribe(([, items]) => {
         this.items = items
         this.order = new Map(items.map((_, index) => [index, index]))
       })
+  }
+
+  close() {
+    this.context?.$implicit?.complete()
+    // TODO: close sidebar
   }
 
   toggle() {

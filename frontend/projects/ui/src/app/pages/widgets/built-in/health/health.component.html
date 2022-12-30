@@ -1,1 +1,11 @@
-Service health overview
+<h2 class="widget-title">Service health overview</h2>
+<tui-pie-chart
+  *ngIf="data$ | async as data"
+  class="pie-chart"
+  [tuiHintContent]="hint"
+  [value]="data"
+>
+  <ng-template #hint let-index>
+    {{ labels[index] }}: {{ data[index] }}
+  </ng-template>
+</tui-pie-chart>

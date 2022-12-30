@@ -6,12 +6,7 @@
   <ion-button fill="clear" color="primary" (click)="add()">
     <ion-icon name="duplicate-outline"></ion-icon>
   </ion-button>
-  <ion-button
-    fill="clear"
-    color="primary"
-    class="close"
-    (click)="context?.$implicit?.complete()"
-  >
+  <ion-button fill="clear" color="primary" class="close" (click)="close()">
     <ion-icon name="close-outline"></ion-icon>
   </ion-button>
 </h1>
@@ -34,7 +29,12 @@
     <div class="content">
       <ng-container *ngComponentOutlet="components[item.id]"></ng-container>
     </div>
-    <ion-icon name="move" tuiTileHandle class="handle"></ion-icon>
+    <div tuiTileHandle class="handle"></div>
+    <ion-icon
+      *ngIf="item.id === 'favorites'"
+      name="settings-outline"
+      class="settings"
+    ></ion-icon>
     <ion-icon
       name="trash-outline"
       class="remove"
