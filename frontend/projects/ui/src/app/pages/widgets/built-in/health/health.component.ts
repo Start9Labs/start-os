@@ -4,8 +4,8 @@ import { map } from 'rxjs/operators'
 import {
   PackageDataEntry,
   PackageMainStatus,
-  PackageState,
 } from 'src/app/services/patch-db/data-model'
+import { getPackageInfo } from '../../../../util/get-package-info'
 
 @Component({
   selector: 'widget-health',
@@ -18,17 +18,18 @@ export class HealthComponent {
     .watch$('package-data')
     .pipe(
       map(data => {
-        const pkgs: PackageDataEntry[] = Object.values(data)
+        const pkgs = Object.values<PackageDataEntry>(data).map(getPackageInfo)
+        const transitioning = pkgs.filter(
+          ({ transitioning }) => transitioning,
+        ).length
+        const error = pkgs.filter(({ error }) => error).length
+        const healthy = pkgs.length - transitioning - error
 
-        return [
-          pkgs.filter(pkg => getStatus(pkg) === PackageMainStatus.Starting),
-          pkgs.filter(pkg => getStatus(pkg) === PackageMainStatus.Stopped),
-          pkgs.filter(pkg => getStatus(pkg) === PackageMainStatus.Running),
-        ].map(({ length }) => length)
+        return [transitioning, error, healthy]
       }),
     )
 
-  readonly labels = ['Starting', 'Stopped', 'Running']
+  readonly labels = ['Transitioning', 'Error', 'Healthy']
 }
 
 function getStatus({
