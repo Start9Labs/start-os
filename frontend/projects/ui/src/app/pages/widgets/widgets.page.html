@@ -19,7 +19,7 @@
   [(order)]="order"
 >
   <tui-tile
-    *ngFor="let item of items; let index = index"
+    *ngFor="let item of items; let index = index; trackBy: trackBy"
     class="item"
     [class.item_edit]="edit"
     [width]="isMobile ? item.meta.mobileWidth : item.meta.width"

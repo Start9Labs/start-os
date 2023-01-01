@@ -9,6 +9,8 @@ import { ConnectionService } from './services/connection.service'
 import { Title } from '@angular/platform-browser'
 import { ServerNameService } from './services/server-name.service'
 import { DataModel } from './services/patch-db/data-model'
+import { tuiDebounce } from '@taiga-ui/cdk'
+import { ApiService } from './services/api/embassy-api.service'
 
 @Component({
   selector: 'app-root',
@@ -18,15 +20,16 @@ import { DataModel } from './services/patch-db/data-model'
 export class AppComponent implements OnDestroy {
   readonly subscription = merge(this.patchData, this.patchMonitor).subscribe()
   readonly sidebarOpen$ = this.splitPane.sidebarOpen$
-  readonly open$ = this.patchDb.watch$('ui', 'widgets', 'open')
-  readonly width$ = this.patchDb.watch$('ui', 'widgets', 'width')
+  readonly open$ = this.patch.watch$('ui', 'widgets', 'open')
+  readonly width$ = this.patch.watch$('ui', 'widgets', 'width')
 
   constructor(
     private readonly titleService: Title,
+    private readonly patch: PatchDB<DataModel>,
     private readonly patchData: PatchDataService,
     private readonly patchMonitor: PatchMonitorService,
     private readonly splitPane: SplitPaneTracker,
-    private readonly patchDb: PatchDB<DataModel>,
+    private readonly api: ApiService,
     private readonly serverNameService: ServerNameService,
     readonly authService: AuthService,
     readonly connection: ConnectionService,
@@ -42,8 +45,9 @@ export class AppComponent implements OnDestroy {
     this.splitPane.sidebarOpen$.next(detail.visible)
   }
 
+  @tuiDebounce(1000)
   onResize([x]: readonly [number, number]) {
-    // TODO: save size to patch-db with debounce
+    this.api.setDbValue(['widgets', 'width'], x)
   }
 
   ngOnDestroy() {

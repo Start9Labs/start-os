@@ -13,16 +13,10 @@ import {
   PolymorpheusComponent,
   POLYMORPHEUS_CONTEXT,
 } from '@tinkoff/ng-polymorpheus'
-import {
-  distinctUntilChanged,
-  filter,
-  map,
-  pairwise,
-  startWith,
-  takeUntil,
-} from 'rxjs'
+import { distinctUntilChanged, map, startWith, takeUntil } from 'rxjs'
 import { PatchDB } from 'patch-db-client'
 import { DataModel, Widget } from '../../services/patch-db/data-model'
+import { ApiService } from '../../services/api/embassy-api.service'
 import { ADD_WIDGET } from './built-in/add/add.component'
 import { FavoritesComponent } from './built-in/favorites/favorites.component'
 import { HealthComponent } from './built-in/health/health.component'
@@ -68,31 +62,37 @@ export class WidgetsPage {
     private readonly elementRef: ElementRef<HTMLElement>,
     private readonly resize$: TuiResizeService,
     private readonly dialog: TuiDialogService,
-    private readonly patchDb: PatchDB<DataModel>,
+    private readonly patch: PatchDB<DataModel>,
     private readonly destroy$: TuiDestroyService,
     private readonly cdr: ChangeDetectorRef,
+    private readonly api: ApiService,
   ) {
-    this.patchDb
+    this.patch
       .watch$('ui', 'widgets', 'widgets')
-      .pipe(
-        startWith([]),
-        pairwise(),
-        filter(([prev, { length }]) => prev.length !== length),
-        tuiWatch(this.cdr),
-        takeUntil(this.destroy$),
-      )
-      .subscribe(([, items]) => {
+      .pipe(tuiWatch(this.cdr), takeUntil(this.destroy$))
+      .subscribe(items => {
         this.items = items
         this.order = new Map(items.map((_, index) => [index, index]))
       })
   }
 
+  trackBy(_: number, { id }: Widget) {
+    return id
+  }
+
   close() {
-    this.context?.$implicit?.complete()
-    // TODO: close sidebar
+    if (this.context) {
+      this.context.$implicit.complete()
+    } else {
+      this.api.setDbValue(['widgets', 'open'], false)
+    }
   }
 
   toggle() {
+    if (this.edit) {
+      this.api.setDbValue(['widgets', 'widgets'], this.getReordered())
+    }
+
     this.edit = !this.edit
   }
 
@@ -106,15 +106,28 @@ export class WidgetsPage {
     this.removeWidget(index)
   }
 
-  // TODO: waiting for the backend
   private removeWidget(index: number) {
-    this.items = this.items.filter((_, i) => i !== index)
-    this.order.delete(index)
+    this.api.setDbValue(
+      ['widgets', 'widgets'],
+      this.getReordered().filter((_, i) => i !== this.order.get(index)),
+    )
   }
 
-  // TODO: waiting for the backend
   private addWidget(widget: Widget) {
-    this.items = this.items.concat(widget)
+    this.api.setDbValue(
+      ['widgets', 'widgets'],
+      this.getReordered().concat(widget),
+    )
+  }
+
+  private getReordered(): Widget[] {
+    const items: Widget[] = []
+
+    Array.from(this.order.entries()).forEach(([index, order]) => {
+      items[order] = this.items[index]
+    })
+
+    return items
   }
 }
 

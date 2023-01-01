@@ -1,4 +1,12 @@
-<ion-button *ngIf="useMocks" class="widgets" color="dark" (click)="onWidgets()">
+<ion-button class="widgets" color="dark" (click)="onWidgets()">
+  <ion-icon name="grid-outline"></ion-icon>
+</ion-button>
+<ion-button
+  *ngIf="!(open$ | async)"
+  class="sidebar"
+  color="dark"
+  (click)="onSidebar()"
+>
   <ion-icon name="grid-outline"></ion-icon>
 </ion-button>
 <div class="wrapper">

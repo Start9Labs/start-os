@@ -1,11 +1,11 @@
 import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
-import { TuiFilterPipeModule } from '@taiga-ui/cdk'
+import { TuiFilterPipeModule, TuiForModule } from '@taiga-ui/cdk'
 
 import { AddWidgetComponent } from './add.component'
 
 @NgModule({
-  imports: [CommonModule, TuiFilterPipeModule],
+  imports: [CommonModule, TuiFilterPipeModule, TuiForModule],
   declarations: [AddWidgetComponent],
   exports: [AddWidgetComponent],
 })
