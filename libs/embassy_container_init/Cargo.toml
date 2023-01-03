@@ -13,6 +13,7 @@ unstable = []
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
 async-stream = "0.3"
+# cgroups-rs = "0.2"
 color-eyre = "0.6"
 futures = "0.3"
 serde = { version = "1", features = ["derive", "rc"] }

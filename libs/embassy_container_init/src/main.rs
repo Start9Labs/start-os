@@ -68,14 +68,22 @@ struct InheritOutput {
     stderr: watch::Receiver<String>,
 }
 
+struct HandlerMut {
+    processes: BTreeMap<ProcessId, ChildInfo>,
+    // groups: BTreeMap<ProcessGroupId, Cgroup>,
+}
+
 #[derive(Clone)]
 struct Handler {
-    children: Arc<Mutex<BTreeMap<ProcessId, ChildInfo>>>,
+    children: Arc<Mutex<HandlerMut>>,
 }
 impl Handler {
     fn new() -> Self {
         Handler {
-            children: Arc::new(Mutex::new(BTreeMap::new())),
+            children: Arc::new(Mutex::new(HandlerMut {
+                processes: BTreeMap::new(),
+                // groups: BTreeMap::new(),
+            })),
         }
     }
     async fn handle(&self, req: Input) -> Result<Output, RpcError> {
@@ -184,7 +192,7 @@ impl Handler {
             }
             OutputStrategy::Collect => None,
         };
-        self.children.lock().await.insert(
+        self.children.lock().await.processes.insert(
             pid,
             ChildInfo {
                 gid,
@@ -204,7 +212,7 @@ impl Handler {
         let mut child = {
             self.children
                 .lock()
-                .await
+                .await.processes
                 .get(&pid)
                 .ok_or_else(not_found)?
                 .child
@@ -249,7 +257,7 @@ impl Handler {
         if signal == 9 {
             self.children
                 .lock()
-                .await
+                .await.processes
                 .remove(&pid)
                 .ok_or_else(not_found)?;
         }
@@ -260,12 +268,12 @@ impl Handler {
         let mut to_kill = Vec::new();
         {
             let mut children_ref = self.children.lock().await;
-            let children = std::mem::take(children_ref.deref_mut());
+            let children = std::mem::take(&mut children_ref.deref_mut().processes);
             for (pid, child_info) in children {
                 if child_info.gid == Some(gid) {
                     to_kill.push(pid);
                 } else {
-                    children_ref.insert(pid, child_info);
+                    children_ref.processes.insert(pid, child_info);
                 }
             }
         }
@@ -294,7 +302,7 @@ impl Handler {
 
     async fn graceful_exit(self) {
         let kill_all = futures::stream::iter(
-            std::mem::take(self.children.lock().await.deref_mut()).into_iter(),
+            std::mem::take(&mut self.children.lock().await.deref_mut().processes).into_iter(),
         )
         .for_each_concurrent(None, |(pid, child)| async move {
             let _ = Self::killall(pid, Signal::SIGTERM);
