@@ -346,12 +346,13 @@ async fn main() {
             let handler = handler.clone();
             tokio::spawn(async move {
                 let w = Arc::new(Mutex::new(w));
-                while let Some(line) = lines.next_line().await? {
+                while let Some(line) = lines.next_line().await.transpose() {
+                    
                     let handler = handler.clone();
                     let w = w.clone();
                     tokio::spawn(async move {
                         if let Err(e) = async {
-                            let req = serde_json::from_str::<IncomingRpc>(&line)?;
+                            let req = serde_json::from_str::<IncomingRpc>(&line?)?;
                             match handler.handle(req.input).await {
                                 Ok(output) => {
                                     if let Err(err) = w.lock().await.write_all(
@@ -375,7 +376,7 @@ async fn main() {
                                         tracing::error!("Handle + Error sending to {id:?}", id = req.id);
                                     },
                             }
-                            Ok::<_, serde_json::Error>(())
+                            Ok::<_, color_eyre::Report>(())
                         }
                         .await
                         {

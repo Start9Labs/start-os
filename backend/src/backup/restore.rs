@@ -1,18 +1,17 @@
+use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
-use std::{collections::BTreeMap, pin::Pin};
 
 use clap::ArgMatches;
 use color_eyre::eyre::eyre;
-use futures::{future::BoxFuture, stream, Future};
+use futures::{future::BoxFuture, stream};
 use futures::{FutureExt, StreamExt};
 use openssl::x509::X509;
 use patch_db::{DbHandle, PatchDbHandle};
 use rpc_toolkit::command;
 use tokio::fs::File;
-use tokio::task::JoinHandle;
 use torut::onion::OnionAddressV3;
 use tracing::instrument;
 

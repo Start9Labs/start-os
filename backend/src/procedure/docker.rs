@@ -17,7 +17,10 @@ use nix::unistd::Pid;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tokio::io::{AsyncBufRead, AsyncBufReadExt, BufReader};
+use tokio::{
+    io::{AsyncBufRead, AsyncBufReadExt, BufReader},
+    time::timeout,
+};
 use tracing::instrument;
 
 use super::ProcedureName;
@@ -102,7 +105,6 @@ impl DockerContainer {
 
         let mut handle = cmd.spawn().with_kind(crate::ErrorKind::Docker)?;
 
-        //TODO BLUJ need to use the sockets
         let client = UnixRpcClient::new(socket_path.join("rpc.sock"));
 
         let running_output = NonDetachingJoinHandle::from(tokio::spawn(async move {
@@ -115,6 +117,19 @@ impl DockerContainer {
                 tracing::debug!("{:?}", err);
             }
         }));
+
+        {
+            let socket = socket_path.join("rpc.sock");
+            if let Err(_err) = timeout(Duration::from_secs(1), async move {
+                while tokio::fs::metadata(&socket).await.is_err() {
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                }
+            })
+            .await
+            {
+                tracing::error!("Timed out waiting for init to create socket");
+            }
+        }
 
         Ok((LongRunning { running_output }, client))
     }
