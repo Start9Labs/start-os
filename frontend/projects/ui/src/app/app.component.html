@@ -22,7 +22,7 @@
           type="overlay"
           side="end"
           class="right-menu"
-          [class.right-menu_hidden]="!(open$ | async)"
+          [class.right-menu_hidden]="!(widgets$ | async)"
           tuiResizeable
           [style.--side-width.px]="width$ | async"
         >
@@ -31,7 +31,7 @@
             [tuiResizer]="[-1, 0]"
             (tuiSizeChange)="onResize($event)"
           ></div>
-          <widgets *ngIf="open$ | async"></widgets>
+          <widgets *ngIf="widgets$ | async"></widgets>
         </ion-menu>
 
         <ion-router-outlet

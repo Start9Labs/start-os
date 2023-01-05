@@ -11,6 +11,7 @@ import { ServerNameService } from './services/server-name.service'
 import { DataModel } from './services/patch-db/data-model'
 import { tuiDebounce } from '@taiga-ui/cdk'
 import { ApiService } from './services/api/embassy-api.service'
+import { WidgetsService } from './pages/widgets/built-in/widgets.service'
 
 @Component({
   selector: 'app-root',
@@ -20,7 +21,6 @@ import { ApiService } from './services/api/embassy-api.service'
 export class AppComponent implements OnDestroy {
   readonly subscription = merge(this.patchData, this.patchMonitor).subscribe()
   readonly sidebarOpen$ = this.splitPane.sidebarOpen$
-  readonly open$ = this.patch.watch$('ui', 'widgets', 'open')
   readonly width$ = this.patch.watch$('ui', 'widgets', 'width')
 
   constructor(
@@ -33,6 +33,7 @@ export class AppComponent implements OnDestroy {
     private readonly serverNameService: ServerNameService,
     readonly authService: AuthService,
     readonly connection: ConnectionService,
+    readonly widgets$: WidgetsService,
   ) {}
 
   ngOnInit() {

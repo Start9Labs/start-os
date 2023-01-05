@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common'
 import { IonicModule } from '@ionic/angular'
 import { RouterModule, Routes } from '@angular/router'
 import { TuiLetModule } from '@taiga-ui/cdk'
+import { TuiLoaderModule } from '@taiga-ui/core'
 import { TuiTilesModule } from '@taiga-ui/kit'
 
 import { WidgetsPage } from './widgets.page'
@@ -33,6 +34,7 @@ const routes: Routes = [
     NetworkModule,
     UptimeModule,
     RouterModule.forChild(routes),
+    TuiLoaderModule,
   ],
   declarations: [WidgetsPage],
   exports: [WidgetsPage],

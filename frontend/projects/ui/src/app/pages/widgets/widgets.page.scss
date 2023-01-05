@@ -2,8 +2,13 @@
   overflow: auto;
 }
 
-.edit {
-  margin-left: auto;
+.title {
+  margin-right: auto;
+}
+
+.loader {
+  width: 24px;
+  color: var(--ion-color-primary);
 }
 
 .heading {
@@ -68,7 +73,8 @@
 }
 
 .remove,
-.settings {
+.settings,
+.pending {
   position: absolute;
   right: 24px;
   top: 50%;
@@ -76,6 +82,7 @@
   height: 24px;
   transform: translateY(-50%);
   padding: 10px;
+  box-sizing: content-box;
   border-radius: 100%;
   background: rgba(0, 0, 0, 0.5);
   pointer-events: none;

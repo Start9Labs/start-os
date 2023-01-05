@@ -4,7 +4,7 @@ import { PatchDB } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TuiDialogService } from '@taiga-ui/core'
 import { WIDGETS_COMPONENT } from '../../pages/widgets/widgets.page'
-import { ApiService } from '../../services/api/embassy-api.service'
+import { WidgetsService } from '../../pages/widgets/built-in/widgets.service'
 
 @Component({
   selector: 'badge-menu-button',
@@ -13,7 +13,6 @@ import { ApiService } from '../../services/api/embassy-api.service'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BadgeMenuComponent {
-  readonly open$ = this.patch.watch$('ui', 'widgets', 'open')
   readonly unreadCount$ = this.patch.watch$(
     'server-info',
     'unread-notification-count',
@@ -21,14 +20,14 @@ export class BadgeMenuComponent {
   readonly sidebarOpen$ = this.splitPane.sidebarOpen$
 
   constructor(
-    private readonly api: ApiService,
     private readonly splitPane: SplitPaneTracker,
     private readonly patch: PatchDB<DataModel>,
     private readonly dialog: TuiDialogService,
+    readonly widgets$: WidgetsService,
   ) {}
 
   onSidebar() {
-    this.api.setDbValue(['widgets', 'open'], true)
+    this.widgets$.toggle(true)
   }
 
   onWidgets() {

@@ -23,6 +23,8 @@ import { HealthComponent } from './built-in/health/health.component'
 import { NetworkComponent } from './built-in/network/network.component'
 import { MetricsComponent } from './built-in/metrics/metrics.component'
 import { UptimeComponent } from './built-in/uptime/uptime.component'
+import { WidgetsService } from './built-in/widgets.service'
+import { take } from 'rxjs/operators'
 
 @Component({
   selector: 'widgets',
@@ -40,6 +42,8 @@ export class WidgetsPage {
   order = new Map<number, number>()
 
   items: readonly Widget[] = []
+
+  pending = true
 
   readonly isMobile$ = this.resize$.pipe(
     startWith(null),
@@ -66,13 +70,14 @@ export class WidgetsPage {
     private readonly destroy$: TuiDestroyService,
     private readonly cdr: ChangeDetectorRef,
     private readonly api: ApiService,
+    private readonly service: WidgetsService,
   ) {
     this.patch
       .watch$('ui', 'widgets', 'widgets')
-      .pipe(tuiWatch(this.cdr), takeUntil(this.destroy$))
+      .pipe(take(1))
       .subscribe(items => {
-        this.items = items
-        this.order = new Map(items.map((_, index) => [index, index]))
+        this.updateItems(items)
+        this.pending = false
       })
   }
 
@@ -84,13 +89,13 @@ export class WidgetsPage {
     if (this.context) {
       this.context.$implicit.complete()
     } else {
-      this.api.setDbValue(['widgets', 'open'], false)
+      this.service.toggle(false)
     }
   }
 
   toggle() {
     if (this.edit) {
-      this.api.setDbValue(['widgets', 'widgets'], this.getReordered())
+      this.updateItems(this.getReordered())
     }
 
     this.edit = !this.edit
@@ -107,17 +112,13 @@ export class WidgetsPage {
   }
 
   private removeWidget(index: number) {
-    this.api.setDbValue(
-      ['widgets', 'widgets'],
+    this.updateItems(
       this.getReordered().filter((_, i) => i !== this.order.get(index)),
     )
   }
 
   private addWidget(widget: Widget) {
-    this.api.setDbValue(
-      ['widgets', 'widgets'],
-      this.getReordered().concat(widget),
-    )
+    this.updateItems(this.getReordered().concat(widget))
   }
 
   private getReordered(): Widget[] {
@@ -128,6 +129,26 @@ export class WidgetsPage {
     })
 
     return items
+  }
+
+  private updateItems(items: readonly Widget[]) {
+    const previous = this.items
+
+    if (!this.pending) {
+      this.pending = true
+      this.api
+        .setDbValue(['widgets', 'widgets'], items)
+        .catch(() => {
+          this.updateItems(previous)
+        })
+        .finally(() => {
+          this.pending = false
+          this.cdr.markForCheck()
+        })
+    }
+
+    this.items = items
+    this.order = new Map(items.map((_, index) => [index, index]))
   }
 }
 

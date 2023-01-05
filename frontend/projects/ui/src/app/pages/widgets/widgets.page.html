@@ -1,11 +1,21 @@
 <h1 class="heading">
-  Widgets
-  <ion-button class="edit" fill="clear" color="primary" (click)="toggle()">
-    <ion-icon [name]="edit ? 'checkmark-outline' : 'pencil-outline'"></ion-icon>
-  </ion-button>
-  <ion-button fill="clear" color="primary" (click)="add()">
-    <ion-icon name="duplicate-outline"></ion-icon>
-  </ion-button>
+  <span class="title">Widgets</span>
+  <tui-loader
+    *ngIf="pending else buttons"
+    [inheritColor]="true"
+    size="s"
+    class="loader"
+  ></tui-loader>
+  <ng-template #buttons>
+    <ion-button fill="clear" color="primary" (click)="toggle()">
+      <ion-icon
+        [name]="edit ? 'checkmark-outline' : 'pencil-outline'"
+      ></ion-icon>
+    </ion-button>
+    <ion-button fill="clear" color="primary" (click)="add()">
+      <ion-icon name="duplicate-outline"></ion-icon>
+    </ion-button>
+  </ng-template>
   <ion-button fill="clear" color="primary" class="close" (click)="close()">
     <ion-icon name="close-outline"></ion-icon>
   </ion-button>
@@ -36,9 +46,13 @@
       class="settings"
     ></ion-icon>
     <ion-icon
+      *ngIf="!pending else loader"
       name="trash-outline"
       class="remove"
       (click)="remove(index)"
     ></ion-icon>
+    <ng-template #loader>
+      <tui-loader [inheritColor]="true" class="pending"></tui-loader>
+    </ng-template>
   </tui-tile>
 </tui-tiles>

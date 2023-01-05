@@ -2,7 +2,7 @@
   <ion-icon name="grid-outline"></ion-icon>
 </ion-button>
 <ion-button
-  *ngIf="!(open$ | async)"
+  *ngIf="!(widgets$ | async)"
   class="sidebar"
   color="dark"
   (click)="onSidebar()"
