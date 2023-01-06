@@ -1,5 +1,6 @@
 use std::fmt;
 
+use chrono::Utc;
 use color_eyre::eyre::eyre;
 use futures::FutureExt;
 use rpc_toolkit::command;
@@ -21,6 +22,11 @@ use crate::util::serde::{display_serializable, IoFormat};
 use crate::{Error, ErrorKind, ResultExt};
 
 pub const SYSTEMD_UNIT: &'static str = "embassyd";
+
+#[command]
+pub async fn time() -> Result<String, Error> {
+    Ok(Utc::now().to_rfc3339())
+}
 
 #[command(
     custom_cli(cli_logs(async, context(CliContext))),
