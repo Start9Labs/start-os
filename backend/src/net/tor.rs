@@ -1,14 +1,11 @@
 use std::collections::BTreeMap;
 use std::net::{Ipv4Addr, SocketAddr};
-use std::time::Duration;
 
 use clap::ArgMatches;
 use color_eyre::eyre::eyre;
 use futures::future::BoxFuture;
 use futures::FutureExt;
-use reqwest::Client;
 use rpc_toolkit::command;
-use serde_json::json;
 use sqlx::{Executor, Postgres};
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
@@ -107,10 +104,6 @@ impl TorController {
         interfaces: I,
     ) -> Result<(), Error> {
         self.0.lock().await.remove(pkg_id, interfaces).await
-    }
-
-    pub async fn replace(&self) -> Result<bool, Error> {
-        self.0.lock().await.replace().await
     }
 
     pub async fn embassyd_tor_key(&self) -> TorSecretKeyV3 {
@@ -266,80 +259,6 @@ impl TorControllerInner {
         Ok(())
     }
 
-    #[instrument(skip(self))]
-    async fn replace(&mut self) -> Result<bool, Error> {
-        let connection = self.connection.take();
-        let uptime = if let Some(mut c) = connection {
-            // this should be unreachable because the only time when this should be none is for the duration of tor's
-            // restart lower down in this method, which is held behind a Mutex
-            let uptime = c.get_info("uptime").await?.parse::<u64>()?;
-            // we never want to restart the tor daemon if it hasn't been up for at least a half hour
-            if uptime < 1800 {
-                self.connection = Some(c); // put it back
-                return Ok(false);
-            }
-            // when connection closes below, tor daemon is restarted
-            c.take_ownership().await?;
-            // this should close the connection
-            drop(c);
-            Some(uptime)
-        } else {
-            None
-        };
-
-        // attempt to reconnect to the control socket, not clear how long this should take
-        let mut new_connection: AuthenticatedConnection;
-        loop {
-            match TcpStream::connect(self.control_addr).await {
-                Ok(stream) => {
-                    let mut new_conn = torut::control::UnauthenticatedConn::new(stream);
-                    let auth = new_conn
-                        .load_protocol_info()
-                        .await?
-                        .make_auth_data()?
-                        .ok_or_else(|| eyre!("Cookie Auth Not Available"))
-                        .with_kind(crate::ErrorKind::Tor)?;
-                    new_conn.authenticate(&auth).await?;
-                    new_connection = new_conn.into_authenticated().await;
-                    let uptime_new = new_connection.get_info("uptime").await?.parse::<u64>()?;
-                    // if the new uptime exceeds the one we got at the beginning, it's the same tor daemon, do not proceed
-                    match uptime {
-                        Some(uptime) if uptime_new > uptime => (),
-                        _ => {
-                            new_connection.set_async_event_handler(Some(event_handler));
-                            break;
-                        }
-                    }
-                }
-                Err(e) => {
-                    tracing::info!("Failed to reconnect to tor control socket: {}", e);
-                    tracing::info!("Trying again in one second");
-                }
-            }
-            tokio::time::sleep(Duration::from_secs(1)).await;
-        }
-        // replace the connection object here on the new copy of the tor daemon
-        self.connection.replace(new_connection);
-
-        // swap empty map for owned old service map
-        let old_services = std::mem::take(&mut self.services);
-
-        // re add all of the services on the new control socket
-        for ((package_id, interface_id), (tor_key, tor_cfg, ipv4)) in old_services {
-            self.add(
-                &package_id,
-                ipv4,
-                std::iter::once((interface_id, tor_cfg, tor_key)),
-            )
-            .await?;
-        }
-
-        // add embassyd hidden service again
-        self.add_embassyd_onion().await?;
-
-        Ok(true)
-    }
-
     fn embassyd_onion(&self) -> OnionAddressV3 {
         self.embassyd_tor_key.public().get_onion_address()
     }
@@ -356,54 +275,6 @@ impl TorControllerInner {
             .filter(|l| !l.is_empty())
             .map(|l| l.parse().with_kind(ErrorKind::Tor))
             .collect()
-    }
-}
-
-pub async fn tor_health_check(client: &Client, tor_controller: &TorController) {
-    tracing::debug!("Attempting to self-check tor address");
-    let onion_addr = tor_controller.embassyd_onion().await;
-    let result = client
-        .post(format!("http://{}/rpc/v1", onion_addr))
-        .body(
-            json!({
-                "jsonrpc": "2.0",
-                "method": "echo",
-                "params": { "message": "Follow the orange rabbit" },
-            })
-            .to_string()
-            .into_bytes(),
-        )
-        .send()
-        .await;
-    if let Err(e) = result {
-        let mut num_attempt = 1;
-        tracing::error!("Unable to reach self over tor, we will retry now...");
-        tracing::error!("The first TOR error: {}", e);
-
-        loop {
-            tracing::debug!("TOR Reconnecting retry number: {num_attempt}");
-
-            match tor_controller.replace().await {
-                Ok(restarted) => {
-                    if restarted {
-                        tracing::error!("Tor has been recently restarted, refusing to restart again right now...");
-                    }
-                    break;
-                }
-                Err(e) => {
-                    tracing::error!("TOR retry error: {}", e);
-                    tracing::error!("Unable to restart tor on attempt {num_attempt}...Retrying");
-
-                    num_attempt += 1;
-                    continue;
-                }
-            }
-        }
-    } else {
-        tracing::debug!(
-            "Successfully verified main tor address liveness at {}",
-            onion_addr
-        )
     }
 }
 
