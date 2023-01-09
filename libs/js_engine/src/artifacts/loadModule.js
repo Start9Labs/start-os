@@ -117,11 +117,11 @@ const createDir = (
 const removeDir = (
   { volumeId = requireParam("volumeId"), path = requireParam("path") } = requireParam("options"),
 ) => Deno.core.opAsync("remove_dir", volumeId, path);
-const trace = (whatToTrace = requireParam('whatToTrace')) => Deno.core.opSync("log_trace", whatToTrace);
-const warn = (whatToTrace = requireParam('whatToTrace')) => Deno.core.opSync("log_warn", whatToTrace);
-const error = (whatToTrace = requireParam('whatToTrace')) => Deno.core.opSync("log_error", whatToTrace);
-const debug = (whatToTrace = requireParam('whatToTrace')) => Deno.core.opSync("log_debug", whatToTrace);
-const info = (whatToTrace = requireParam('whatToTrace')) => Deno.core.opSync("log_info", whatToTrace);
+const trace = (whatToTrace = requireParam('whatToTrace')) => Deno.core.opAsync("log_trace", whatToTrace);
+const warn = (whatToTrace = requireParam('whatToTrace')) => Deno.core.opAsync("log_warn", whatToTrace);
+const error = (whatToTrace = requireParam('whatToTrace')) => Deno.core.opAsync("log_error", whatToTrace);
+const debug = (whatToTrace = requireParam('whatToTrace')) => Deno.core.opAsync("log_debug", whatToTrace);
+const info = (whatToTrace = requireParam('whatToTrace')) => Deno.core.opAsync("log_info", whatToTrace);
 const fetch = async (url = requireParam ('url'), options = null) => {
   const { body, ...response } = await Deno.core.opAsync("fetch", url, options);
   const textValue = Promise.resolve(body);
