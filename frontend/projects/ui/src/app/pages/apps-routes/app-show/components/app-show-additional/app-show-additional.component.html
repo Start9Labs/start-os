@@ -36,6 +36,19 @@
           </ion-label>
           <ion-icon slot="end" name="chevron-forward"></ion-icon>
         </ion-item>
+        <ion-item
+          [href]="manifest['marketing-site']"
+          [disabled]="!manifest['marketing-site']"
+          target="_blank"
+          rel="noreferrer"
+          detail="false"
+        >
+          <ion-label>
+            <h2>Marketing Site</h2>
+            <p>{{ manifest['marketing-site'] || 'Not provided' }}</p>
+          </ion-label>
+          <ion-icon slot="end" name="open-outline"></ion-icon>
+        </ion-item>
       </ion-item-group>
     </ion-col>
     <ion-col sizeXs="12" sizeMd="6">
@@ -74,6 +87,19 @@
           <ion-label>
             <h2>Support Site</h2>
             <p>{{ manifest['support-site'] || 'Not provided' }}</p>
+          </ion-label>
+          <ion-icon slot="end" name="open-outline"></ion-icon>
+        </ion-item>
+        <ion-item
+          [href]="manifest['donation-url']"
+          [disabled]="!manifest['donation-url']"
+          target="_blank"
+          rel="noreferrer"
+          detail="false"
+        >
+          <ion-label>
+            <h2>Donation Link</h2>
+            <p>{{ manifest['donation-url'] || 'Not provided' }}</p>
           </ion-label>
           <ion-icon slot="end" name="open-outline"></ion-icon>
         </ion-item>

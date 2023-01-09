@@ -44,6 +44,7 @@ export interface MarketplaceManifest<T = unknown> {
     short: string
     long: string
   }
+  replaces?: string[]
   'release-notes': string
   license: string // type of license
   'wrapper-repo': Url

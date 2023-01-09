@@ -47,6 +47,7 @@ export module Mock {
       short: 'A Bitcoin full node by Bitcoin Core.',
       long: 'Bitcoin is a decentralized consensus protocol and settlement network.',
     },
+    replaces: ['banks', 'governments'],
     'release-notes': 'Taproot, Schnorr, and more.',
     assets: {
       icon: 'icon.png',
