@@ -39,7 +39,16 @@ export const mockPatchData: DataModel = {
     'last-backup': new Date(new Date().valueOf() - 604800001).toISOString(),
     'lan-address': 'https://embassy-abcdefgh.local',
     'tor-address': 'http://myveryownspecialtoraddress.onion',
-    'ip-address': '10.0.0.1',
+    'ip-addresses': {
+      eth0: {
+        ipv4: '10.0.0.1',
+        ipv6: null,
+      },
+      wlan0: {
+        ipv4: '10.0.90.12',
+        ipv6: 'FE80:CD00:0000:0CDE:1257:0000:211E:729CD',
+      },
+    },
     'last-wifi-region': null,
     'unread-notification-count': 4,
     // password is asdfasdf
