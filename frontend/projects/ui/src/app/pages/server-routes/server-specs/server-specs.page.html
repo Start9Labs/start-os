@@ -45,7 +45,7 @@
         <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
       </ion-button>
     </ion-item>
-    <ng-container *ngFor="let ip of server['ip-addresses'] | keyvalue">
+    <ng-container *ngFor="let ip of server['ip-info'] | keyvalue">
       <ng-container *ngFor="let entry of ip.value | keyvalue">
         <ion-item *ngIf="entry.value as address">
           <ion-label>

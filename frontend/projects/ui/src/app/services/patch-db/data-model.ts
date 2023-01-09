@@ -52,7 +52,7 @@ export interface ServerInfo {
   'last-backup': string | null
   'lan-address': Url
   'tor-address': Url
-  'ip-addresses': IpAddrs
+  'ip-info': IpInfo
   'last-wifi-region': string | null
   'unread-notification-count': number
   'status-info': ServerStatusInfo
@@ -64,7 +64,7 @@ export interface ServerInfo {
   'system-start-time': string
 }
 
-export interface IpAddrs {
+export interface IpInfo {
   [iface: string]: {
     ipv4: string | null
     ipv6: string | null

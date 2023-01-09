@@ -39,7 +39,7 @@ export const mockPatchData: DataModel = {
     'last-backup': new Date(new Date().valueOf() - 604800001).toISOString(),
     'lan-address': 'https://embassy-abcdefgh.local',
     'tor-address': 'http://myveryownspecialtoraddress.onion',
-    'ip-addresses': {
+    'ip-info': {
       eth0: {
         ipv4: '10.0.0.1',
         ipv6: null,
