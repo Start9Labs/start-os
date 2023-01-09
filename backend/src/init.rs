@@ -12,7 +12,7 @@ use tokio::process::Command;
 use crate::context::rpc::RpcContextConfig;
 use crate::db::model::ServerStatus;
 use crate::install::PKG_ARCHIVE_DIR;
-use crate::sound::CIRCLE_OF_5THS_SHORT;
+use crate::sound::{BEP, CIRCLE_OF_5THS_SHORT};
 use crate::util::Invoke;
 use crate::Error;
 
@@ -212,8 +212,9 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     let song = if should_rebuild {
         Some(NonDetachingJoinHandle::from(tokio::spawn(async {
             loop {
-                CIRCLE_OF_5THS_SHORT.play().await.unwrap();
-                tokio::time::sleep(Duration::from_secs(10)).await;
+                BEP.play().await.unwrap();
+                BEP.play().await.unwrap();
+                tokio::time::sleep(Duration::from_secs(60)).await;
             }
         })))
     } else {
@@ -223,6 +224,13 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     let log_dir = cfg.datadir().join("main/logs");
     if tokio::fs::metadata(&log_dir).await.is_err() {
         tokio::fs::create_dir_all(&log_dir).await?;
+    }
+    let current_machine_id = tokio::fs::read_to_string("/etc/machine-id").await?;
+    let mut machine_ids = tokio::fs::read_dir(&log_dir).await?;
+    while let Some(machine_id) = machine_ids.next_entry().await? {
+        if machine_id.file_name().to_string_lossy().trim() != current_machine_id.trim() {
+            tokio::fs::remove_dir_all(machine_id.path()).await?;
+        }
     }
     crate::disk::mount::util::bind(&log_dir, "/var/log/journal", false).await?;
     Command::new("systemctl")

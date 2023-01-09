@@ -194,7 +194,9 @@ jobs:
       if: ${{ matrix.target == 'x86_64' }}
 
     - name: Install nextest
-      uses: taiki-e/install-action@nextest
+      uses: taiki-e/install-action@v2
+      with:
+        tool: nextest@0.9.47
       if: ${{ matrix.target == 'x86_64' }}
 
     - name: Download archive
@@ -203,7 +205,7 @@ jobs:
         name: nextest-archive-${{ matrix.target }}
 
     - name: Download nextest (aarch64)
-      run: wget -O nextest-aarch64.tar.gz https://get.nexte.st/latest/linux-arm
+      run: wget -O nextest-aarch64.tar.gz https://get.nexte.st/0.9.47/linux-arm
       if: ${{ matrix.target == 'aarch64' }}
 
     - name: Run tests
