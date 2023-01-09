@@ -1,17 +1,22 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
+use std::fs::Permissions;
+use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::process::Stdio;
 use std::time::Duration;
 
 use color_eyre::eyre::eyre;
 use helpers::NonDetachingJoinHandle;
+use models::ResultExt;
 use patch_db::{DbHandle, LockReceipt, LockType};
+use rand::random;
 use sqlx::{Pool, Postgres};
 use tokio::process::Command;
 
 use crate::context::rpc::RpcContextConfig;
-use crate::db::model::ServerStatus;
+use crate::db::model::{IpInfo, ServerStatus};
 use crate::install::PKG_ARCHIVE_DIR;
+use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
 use crate::sound::BEP;
 use crate::util::Invoke;
 use crate::Error;
@@ -37,6 +42,7 @@ pub struct InitReceipts {
     pub version_range: LockReceipt<emver::VersionRange, ()>,
     pub last_wifi_region: LockReceipt<Option<isocountry::CountryCode>, ()>,
     pub status_info: LockReceipt<ServerStatus, ()>,
+    pub ip_info: LockReceipt<BTreeMap<String, IpInfo>, ()>,
 }
 impl InitReceipts {
     pub async fn new(db: &mut impl DbHandle) -> Result<Self, Error> {
@@ -57,6 +63,11 @@ impl InitReceipts {
             .last_wifi_region()
             .make_locker(LockType::Write)
             .add_to_keys(&mut locks);
+        let ip_info = crate::db::DatabaseModel::new()
+            .server_info()
+            .ip_info()
+            .make_locker(LockType::Write)
+            .add_to_keys(&mut locks);
         let status_info = crate::db::DatabaseModel::new()
             .server_info()
             .status_info()
@@ -68,6 +79,7 @@ impl InitReceipts {
         Ok(Self {
             server_version: server_version.verify(&skeleton_key)?,
             version_range: version_range.verify(&skeleton_key)?,
+            ip_info: ip_info.verify(&skeleton_key)?,
             status_info: status_info.verify(&skeleton_key)?,
             last_wifi_region: last_wifi_region.verify(&skeleton_key)?,
         })
@@ -196,6 +208,24 @@ pub struct InitResult {
 }
 
 pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
+    tokio::fs::create_dir_all("/run/embassy")
+        .await
+        .with_ctx(|_| (crate::ErrorKind::Filesystem, "mkdir -p /run/embassy"))?;
+    if tokio::fs::metadata(LOCAL_AUTH_COOKIE_PATH).await.is_err() {
+        tokio::fs::write(
+            LOCAL_AUTH_COOKIE_PATH,
+            base64::encode(random::<[u8; 32]>()).as_bytes(),
+        )
+        .await
+        .with_ctx(|_| {
+            (
+                crate::ErrorKind::Filesystem,
+                format!("write {}", LOCAL_AUTH_COOKIE_PATH),
+            )
+        })?;
+        tokio::fs::set_permissions(LOCAL_AUTH_COOKIE_PATH, Permissions::from_mode(046)).await?;
+    }
+
     let secret_store = cfg.secret_store().await?;
     tracing::info!("Opened Postgres");
 
@@ -334,6 +364,10 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         .await?;
     tracing::info!("Enabled Docker QEMU Emulation");
 
+    receipts
+        .ip_info
+        .set(&mut handle, crate::net::dhcp::init_ips().await?)
+        .await?;
     receipts
         .status_info
         .set(

@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::net::{Ipv4Addr, Ipv6Addr};
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
@@ -15,11 +16,13 @@ use crate::config::spec::{PackagePointerSpec, SystemPointerSpec};
 use crate::hostname::{generate_hostname, generate_id};
 use crate::install::progress::InstallProgress;
 use crate::net::interface::InterfaceId;
+use crate::net::net_utils::{get_iface_ipv4_addr, get_iface_ipv6_addr};
 use crate::s9pk::manifest::{Manifest, ManifestModel, PackageId};
 use crate::status::health_check::HealthCheckId;
 use crate::status::Status;
 use crate::util::Version;
 use crate::version::{Current, VersionT};
+use crate::Error;
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
@@ -48,6 +51,7 @@ impl Database {
                 tor_address: format!("http://{}", tor_key.public().get_onion_address())
                     .parse()
                     .unwrap(),
+                ip_info: BTreeMap::new(),
                 status_info: ServerStatus {
                     backup_progress: None,
                     updated: false,
@@ -90,12 +94,29 @@ pub struct ServerInfo {
     pub lan_address: Url,
     pub tor_address: Url,
     #[model]
+    pub ip_info: BTreeMap<String, IpInfo>,
+    #[model]
     #[serde(default)]
     pub status_info: ServerStatus,
     pub wifi: WifiInfo,
     pub unread_notification_count: u64,
     pub connection_addresses: ConnectionAddresses,
     pub password_hash: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, HasModel)]
+#[serde(rename_all = "kebab-case")]
+pub struct IpInfo {
+    ipv4: Option<Ipv4Addr>,
+    ipv6: Option<Ipv6Addr>,
+}
+impl IpInfo {
+    pub async fn for_interface(iface: &str) -> Result<Self, Error> {
+        Ok(Self {
+            ipv4: get_iface_ipv4_addr(iface).await?,
+            ipv6: get_iface_ipv6_addr(iface).await?,
+        })
+    }
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel)]

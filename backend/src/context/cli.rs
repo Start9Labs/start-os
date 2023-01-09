@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use clap::ArgMatches;
 use color_eyre::eyre::eyre;
+use cookie::Cookie;
 use cookie_store::CookieStore;
 use josekit::jwk::Jwk;
 use reqwest::Proxy;
@@ -16,6 +17,7 @@ use rpc_toolkit::Context;
 use serde::Deserialize;
 use tracing::instrument;
 
+use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
 use crate::util::config::{load_config_from_paths, local_config_path};
 use crate::ResultExt;
 
@@ -83,7 +85,7 @@ impl CliContext {
         } else if let Some(host) = base.host {
             host
         } else {
-            format!("http://localhost").parse()?
+            "http://localhost".parse()?
         };
         let proxy = if let Some(proxy) = matches.value_of("proxy") {
             Some(proxy.parse()?)
@@ -100,9 +102,15 @@ impl CliContext {
                 .join(".cookies.json")
         });
         let cookie_store = Arc::new(CookieStoreMutex::new(if cookie_path.exists() {
-            CookieStore::load_json(BufReader::new(File::open(&cookie_path)?))
+            let mut store = CookieStore::load_json(BufReader::new(File::open(&cookie_path)?))
                 .map_err(|e| eyre!("{}", e))
-                .with_kind(crate::ErrorKind::Deserialization)?
+                .with_kind(crate::ErrorKind::Deserialization)?;
+            if let Ok(local) = std::fs::read_to_string(LOCAL_AUTH_COOKIE_PATH) {
+                store
+                    .insert_raw(&Cookie::new("local", local), &"http://localhost".parse()?)
+                    .with_kind(crate::ErrorKind::Network)?;
+            }
+            store
         } else {
             CookieStore::default()
         }));

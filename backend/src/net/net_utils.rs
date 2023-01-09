@@ -1,12 +1,114 @@
 use std::fmt;
-use std::net::IpAddr;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::path::Path;
 use std::str::FromStr;
 
+use async_stream::try_stream;
 use color_eyre::eyre::eyre;
+use futures::stream::BoxStream;
+use futures::{StreamExt, TryStreamExt};
 use http::{Request, Uri};
 use hyper::Body;
+use tokio::process::Command;
 
+use crate::util::Invoke;
 use crate::Error;
+
+fn parse_iface_ip(output: &str) -> Result<Option<&str>, Error> {
+    let output = output.trim();
+    if output.is_empty() {
+        return Ok(None);
+    }
+    if let Some(ip) = output
+        .split_ascii_whitespace()
+        .nth(4)
+        .and_then(|range| range.split("/").next())
+    {
+        Ok(Some(ip))
+    } else {
+        Err(Error::new(
+            eyre!("malformed output from `ip`"),
+            crate::ErrorKind::Network,
+        ))
+    }
+}
+
+pub async fn get_iface_ipv4_addr(iface: &str) -> Result<Option<Ipv4Addr>, Error> {
+    Ok(parse_iface_ip(&String::from_utf8(
+        Command::new("ip")
+            .arg("-4")
+            .arg("-o")
+            .arg("addr")
+            .arg("show")
+            .arg(iface)
+            .invoke(crate::ErrorKind::Network)
+            .await?,
+    )?)?
+    .map(|s| s.parse())
+    .transpose()?)
+}
+
+pub async fn get_iface_ipv6_addr(iface: &str) -> Result<Option<Ipv6Addr>, Error> {
+    Ok(parse_iface_ip(&String::from_utf8(
+        Command::new("ip")
+            .arg("-6")
+            .arg("-o")
+            .arg("addr")
+            .arg("show")
+            .arg(iface)
+            .invoke(crate::ErrorKind::Network)
+            .await?,
+    )?)?
+    .map(|s| s.parse())
+    .transpose()?)
+}
+
+pub async fn iface_is_physical(iface: &str) -> bool {
+    tokio::fs::metadata(Path::new("/sys/class/net").join(iface).join("device"))
+        .await
+        .is_ok()
+}
+
+pub async fn iface_is_wireless(iface: &str) -> bool {
+    tokio::fs::metadata(Path::new("/sys/class/net").join(iface).join("wireless"))
+        .await
+        .is_ok()
+}
+
+pub fn list_interfaces() -> BoxStream<'static, Result<String, Error>> {
+    try_stream! {
+        let mut ifaces = tokio::fs::read_dir("/sys/class/net").await?;
+        while let Some(iface) = ifaces.next_entry().await? {
+            if let Some(iface) = iface.file_name().into_string().ok() {
+                yield iface;
+            }
+        }
+    }
+    .boxed()
+}
+
+pub async fn find_wifi_iface() -> Result<Option<String>, Error> {
+    let mut ifaces = list_interfaces();
+    while let Some(iface) = ifaces.try_next().await? {
+        if iface_is_wireless(&iface).await {
+            return Ok(Some(iface));
+        }
+    }
+    Ok(None)
+}
+
+pub async fn find_eth_iface() -> Result<String, Error> {
+    let mut ifaces = list_interfaces();
+    while let Some(iface) = ifaces.try_next().await? {
+        if iface_is_physical(&iface).await && !iface_is_wireless(&iface).await {
+            return Ok(iface);
+        }
+    }
+    Err(Error::new(
+        eyre!("Could not detect ethernet interface"),
+        crate::ErrorKind::Network,
+    ))
+}
 
 pub fn host_addr_fqdn(req: &Request<Body>) -> Result<ResourceFqdn, Error> {
     let host = req.headers().get(http::header::HOST);
