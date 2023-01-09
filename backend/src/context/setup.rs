@@ -17,7 +17,6 @@ use tracing::instrument;
 use crate::db::model::Database;
 use crate::disk::OsPartitionInfo;
 use crate::init::{init_postgres, pgloader};
-use crate::net::tor::os_key;
 use crate::setup::{password_hash, SetupStatus};
 use crate::util::config::load_config_from_paths;
 use crate::{Error, ResultExt};
@@ -120,8 +119,9 @@ impl SetupContext {
             db.put(
                 &<JsonPointer>::default(),
                 &Database::init(
-                    &os_key(&mut secret_store.acquire().await?).await?,
+                    &crate::net::tor::os_key(&mut secret_store.acquire().await?).await?,
                     password_hash(&mut secret_store.acquire().await?).await?,
+                    &crate::ssh::os_key(&mut secret_store.acquire().await?).await?,
                 ),
             )
             .await?;

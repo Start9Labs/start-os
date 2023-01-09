@@ -10,6 +10,8 @@ use patch_db::{HasModel, Map, MapModel, OptionModel};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use ssh_key::private::Ed25519PrivateKey;
+use ssh_key::public::Ed25519PublicKey;
 use torut::onion::TorSecretKeyV3;
 
 use crate::config::spec::{PackagePointerSpec, SystemPointerSpec};
@@ -34,7 +36,11 @@ pub struct Database {
     pub ui: Value,
 }
 impl Database {
-    pub fn init(tor_key: &TorSecretKeyV3, password_hash: String) -> Self {
+    pub fn init(
+        tor_key: &TorSecretKeyV3,
+        password_hash: String,
+        ssh_key: &Ed25519PrivateKey,
+    ) -> Self {
         let id = generate_id();
         let my_hostname = generate_hostname();
         let lan_address = my_hostname.lan_address().parse().unwrap();
@@ -68,6 +74,9 @@ impl Database {
                     clearnet: Vec::new(),
                 },
                 password_hash,
+                pubkey: ssh_key::PublicKey::from(Ed25519PublicKey::from(ssh_key))
+                    .to_openssh()
+                    .unwrap(),
             },
             package_data: AllPackageData::default(),
             ui: serde_json::from_str(include_str!("../../../frontend/patchdb-ui-seed.json"))
@@ -102,6 +111,7 @@ pub struct ServerInfo {
     pub unread_notification_count: u64,
     pub connection_addresses: ConnectionAddresses,
     pub password_hash: String,
+    pub pubkey: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]

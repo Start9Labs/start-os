@@ -134,6 +134,7 @@ sqlx = { version = "0.6.0", features = [
   "runtime-tokio-rustls",
   "postgres",
 ] }
+ssh-key = { version = "0.5.1", features = ["ed25519"] }
 stderrlog = "0.5.3"
 tar = "0.4.38"
 thiserror = "1.0.31"

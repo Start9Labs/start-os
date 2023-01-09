@@ -28,7 +28,6 @@ use crate::install::cleanup::{cleanup_failed, uninstall, CleanupFailedReceipts};
 use crate::manager::ManagerMap;
 use crate::middleware::auth::HashSessionToken;
 use crate::net::net_controller::NetController;
-use crate::net::tor::os_key;
 use crate::net::wifi::WpaCli;
 use crate::notifications::NotificationManager;
 use crate::setup::password_hash;
@@ -85,8 +84,9 @@ impl RpcContextConfig {
             db.put(
                 &<JsonPointer>::default(),
                 &Database::init(
-                    &os_key(&mut secret_store.acquire().await?).await?,
+                    &crate::net::tor::os_key(&mut secret_store.acquire().await?).await?,
                     password_hash(&mut secret_store.acquire().await?).await?,
+                    &crate::ssh::os_key(&mut secret_store.acquire().await?).await?,
                 ),
             )
             .await?;

@@ -7,10 +7,12 @@ use helpers::{Rsync, RsyncOptions};
 use josekit::jwk::Jwk;
 use openssl::x509::X509;
 use patch_db::DbHandle;
+use rand::random;
 use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
 use serde::{Deserialize, Serialize};
 use sqlx::{Connection, Executor, Postgres};
+use ssh_key::private::Ed25519PrivateKey;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use torut::onion::{OnionAddressV3, TorSecretKeyV3};
@@ -390,13 +392,16 @@ async fn fresh_setup(
     )
     .with_kind(crate::ErrorKind::PasswordHashGeneration)?;
     let tor_key = TorSecretKeyV3::generate();
-    let key_vec = tor_key.as_bytes().to_vec();
+    let tor_key_bytes = tor_key.as_bytes().to_vec();
+    let ssh_key = Ed25519PrivateKey::from_bytes(&random());
+    let ssh_key_bytes = ssh_key.to_bytes().to_vec();
     let sqlite_pool = ctx.secret_store().await?;
     sqlx::query!(
-        "INSERT INTO account (id, password, tor_key) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET password = $2, tor_key = $3",
+        "INSERT INTO account (id, password, tor_key, ssh_key) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO UPDATE SET password = $2, tor_key = $3, ssh_key = $4",
         0,
         password,
-        key_vec,
+        tor_key_bytes,
+        ssh_key_bytes,
     )
     .execute(&mut sqlite_pool.acquire().await?)
     .await?;
