@@ -5,6 +5,9 @@ use std::sync::Arc;
 use chrono::{DateTime, Utc};
 use emver::VersionRange;
 use isocountry::CountryCode;
+use itertools::Itertools;
+use openssl::hash::MessageDigest;
+use openssl::x509::X509;
 use patch_db::json_ptr::JsonPointer;
 use patch_db::{HasModel, Map, MapModel, OptionModel};
 use reqwest::Url;
@@ -40,6 +43,7 @@ impl Database {
         tor_key: &TorSecretKeyV3,
         password_hash: String,
         ssh_key: &Ed25519PrivateKey,
+        cert: &X509,
     ) -> Self {
         let id = generate_id();
         let my_hostname = generate_hostname();
@@ -77,6 +81,13 @@ impl Database {
                 pubkey: ssh_key::PublicKey::from(Ed25519PublicKey::from(ssh_key))
                     .to_openssh()
                     .unwrap(),
+                ca_fingerprint: cert
+                    .digest(MessageDigest::sha256())
+                    .unwrap()
+                    .iter()
+                    .map(|x| format!("{x:X}"))
+                    .join(":"),
+                system_start_time: Utc::now().to_rfc3339(),
             },
             package_data: AllPackageData::default(),
             ui: serde_json::from_str(include_str!("../../../frontend/patchdb-ui-seed.json"))
@@ -112,6 +123,8 @@ pub struct ServerInfo {
     pub connection_addresses: ConnectionAddresses,
     pub password_hash: String,
     pub pubkey: String,
+    pub ca_fingerprint: String,
+    pub system_start_time: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]

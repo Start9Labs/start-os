@@ -18,6 +18,7 @@ use crate::db::model::{IpInfo, ServerStatus};
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
 use crate::sound::BEP;
+use crate::system::time;
 use crate::util::Invoke;
 use crate::Error;
 
@@ -43,6 +44,7 @@ pub struct InitReceipts {
     pub last_wifi_region: LockReceipt<Option<isocountry::CountryCode>, ()>,
     pub status_info: LockReceipt<ServerStatus, ()>,
     pub ip_info: LockReceipt<BTreeMap<String, IpInfo>, ()>,
+    pub system_start_time: LockReceipt<String, ()>,
 }
 impl InitReceipts {
     pub async fn new(db: &mut impl DbHandle) -> Result<Self, Error> {
@@ -74,6 +76,11 @@ impl InitReceipts {
             .into_model()
             .make_locker(LockType::Write)
             .add_to_keys(&mut locks);
+        let system_start_time = crate::db::DatabaseModel::new()
+            .server_info()
+            .system_start_time()
+            .make_locker(LockType::Write)
+            .add_to_keys(&mut locks);
 
         let skeleton_key = db.lock_all(locks).await?;
         Ok(Self {
@@ -82,6 +89,7 @@ impl InitReceipts {
             ip_info: ip_info.verify(&skeleton_key)?,
             status_info: status_info.verify(&skeleton_key)?,
             last_wifi_region: last_wifi_region.verify(&skeleton_key)?,
+            system_start_time: system_start_time.verify(&skeleton_key)?,
         })
     }
 }
@@ -379,20 +387,10 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
             },
         )
         .await?;
-
-    let mut warn_time_not_synced = true;
-    for _ in 0..60 {
-        if check_time_is_synchronized().await? {
-            warn_time_not_synced = false;
-            break;
-        }
-        tokio::time::sleep(Duration::from_secs(1)).await;
-    }
-    if warn_time_not_synced {
-        tracing::warn!("Timed out waiting for system time to synchronize");
-    } else {
-        tracing::info!("Syncronized system clock");
-    }
+    receipts
+        .system_start_time
+        .set(&mut handle, time().await?)
+        .await?;
 
     crate::version::init(&mut handle, &receipts).await?;
 

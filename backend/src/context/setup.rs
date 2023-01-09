@@ -17,6 +17,7 @@ use tracing::instrument;
 use crate::db::model::Database;
 use crate::disk::OsPartitionInfo;
 use crate::init::{init_postgres, pgloader};
+use crate::net::ssl::SslManager;
 use crate::setup::{password_hash, SetupStatus};
 use crate::util::config::load_config_from_paths;
 use crate::{Error, ResultExt};
@@ -122,6 +123,11 @@ impl SetupContext {
                     &crate::net::tor::os_key(&mut secret_store.acquire().await?).await?,
                     password_hash(&mut secret_store.acquire().await?).await?,
                     &crate::ssh::os_key(&mut secret_store.acquire().await?).await?,
+                    &SslManager::init(secret_store.clone(), &mut db.handle())
+                        .await?
+                        .export_root_ca()
+                        .await?
+                        .1,
                 ),
             )
             .await?;
