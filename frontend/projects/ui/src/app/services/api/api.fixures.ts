@@ -1725,7 +1725,7 @@ export module Mock {
     ],
     'union-list': undefined,
     'random-enum': 'option2',
-    'favorite-number': null,
+    'favorite-number': 0,
     rpcsettings: {
       laws: {
         law1: 'The first law Amended',

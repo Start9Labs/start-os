@@ -523,7 +523,9 @@ export function convertValuesRecursive(
     if (!control) return
 
     if (valueSpec.type === 'number') {
-      control.setValue(control.value ? Number(control.value) : null)
+      control.setValue(
+        control.value || control.value === 0 ? Number(control.value) : null,
+      )
     } else if (valueSpec.type === 'string') {
       if (!control.value) control.setValue(null)
     } else if (valueSpec.type === 'object') {
