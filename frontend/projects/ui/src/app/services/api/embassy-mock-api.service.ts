@@ -17,7 +17,7 @@ import {
   PackageState,
   ServerStatus,
 } from 'src/app/services/patch-db/data-model'
-import { CifsBackupTarget, RR } from './api.types'
+import { CifsBackupTarget, Metrics, RR } from './api.types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { Mock } from './api.fixures'
 import markdown from 'raw-loader!../../../../../shared/assets/markdown/md-sample.md'
@@ -178,6 +178,19 @@ export class MockApiService extends ApiService {
     )
   }
 
+  openMetricsWebsocket$(
+    config: WebSocketSubjectConfig<Metrics>,
+  ): Observable<Metrics> {
+    return interval(2000).pipe(
+      map((_, index) => {
+        // mock fire open observer
+        if (index === 0) config.openObserver?.next(new Event(''))
+        if (index === 4) throw new Error('HAHAHA')
+        return Mock.getMetrics()
+      }),
+    )
+  }
+
   async getSystemTime(
     params: RR.GetSystemTimeReq,
   ): Promise<RR.GetSystemTimeRes> {
@@ -244,14 +257,10 @@ export class MockApiService extends ApiService {
     params: RR.GetServerMetricsReq,
   ): Promise<RR.GetServerMetricsRes> {
     await pauseFor(2000)
-    return Mock.getServerMetrics()
-  }
-
-  async getPkgMetrics(
-    params: RR.GetServerMetricsReq,
-  ): Promise<RR.GetPackageMetricsRes> {
-    await pauseFor(2000)
-    return Mock.getAppMetrics()
+    return {
+      guid: 'iqudh37um-i38u3-34-a51b-jkhd783ein',
+      metrics: Mock.getMetrics(),
+    }
   }
 
   async updateServer(url?: string): Promise<RR.UpdateServerRes> {

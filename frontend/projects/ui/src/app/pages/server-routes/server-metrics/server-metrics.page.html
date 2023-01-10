@@ -4,58 +4,121 @@
       <ion-back-button defaultHref="system"></ion-back-button>
     </ion-buttons>
     <ion-title>Monitor</ion-title>
-    <ion-title slot="end"
-      ><ion-spinner name="dots" class="fader"></ion-spinner
-    ></ion-title>
   </ion-toolbar>
 </ion-header>
 
 <ion-content class="ion-padding with-widgets">
-  <skeleton-list *ngIf="loading" [groups]="2"></skeleton-list>
+  <ion-item-group *ngIf="serverData$ | async as serverData; else loading">
+    <p *ngIf="websocketFail" class="loading-dots ion-text-center">
+      <ion-text color="warning">Websocket Failed. Reconnecting</ion-text>
+    </p>
 
-  <div id="metricSection">
-    <ng-container *ngIf="!loading">
-      <ion-item-group>
-        <ion-item-divider>Time</ion-item-divider>
-        <ion-item>
-          <ion-label>System Time</ion-label>
-          <ion-note slot="end" class="metric-note">
-            <ion-text style="color: white"
-              >{{ systemTime$ | async | date:'MMMM d, y, h:mm a z':'UTC'
-              }}</ion-text
-            >
-          </ion-note>
-        </ion-item>
-        <ion-item>
-          <ion-label>System Uptime</ion-label>
-          <ion-note
-            *ngIf="systemUptime$ | async as uptime"
-            slot="end"
-            class="metric-note"
-          >
-            <ion-text style="color: white">
-              <b>{{ uptime.days }}</b> Days, <b>{{ uptime.hours }}</b> Hours,
-              <b>{{ uptime.minutes }}</b> Minutes
-            </ion-text>
-          </ion-note>
-        </ion-item>
-      </ion-item-group>
-
-      <ion-item-group
-        *ngFor="let metricGroup of metrics | keyvalue : asIsOrder"
-      >
-        <ion-item-divider>{{ metricGroup.key }}</ion-item-divider>
-        <ion-item
-          *ngFor="let metric of metricGroup.value | keyvalue : asIsOrder"
-        >
-          <ion-label>{{ metric.key }}</ion-label>
-          <ion-note *ngIf="metric.value" slot="end" class="metric-note">
-            <ion-text style="color: white"
-              >{{ metric.value.value }} {{ metric.value.unit }}</ion-text
-            >
-          </ion-note>
-        </ion-item>
-      </ion-item-group>
+    <ng-container *ngIf="serverData[0] as timeInfo">
+      <ion-item-divider>System Time</ion-item-divider>
+      <ion-item>
+        <ion-label>Current Time (UTC)</ion-label>
+        <h6 slot="end">
+          {{ timeInfo.systemCurrentTime | date : 'MMMM d, y, h:mm:ss a' : 'UTC'
+          }}
+        </h6>
+      </ion-item>
+      <ion-item>
+        <ion-label>Start Time (UTC)</ion-label>
+        <h6 slot="end">
+          {{ timeInfo.systemStartTime | date : 'MMMM d, y, h:mm:ss a' : 'UTC' }}
+        </h6>
+      </ion-item>
+      <ion-item>
+        <ion-label>Uptime</ion-label>
+        <h6 *ngIf="timeInfo.systemUptime as uptime" slot="end">
+          <b>{{ uptime.days }}</b> Days, <b>{{ uptime.hours }}</b> Hours,
+          <b>{{ uptime.minutes }}</b> Minutes,
+          <b>{{ uptime.seconds }}</b> Seconds
+        </h6>
+      </ion-item>
     </ng-container>
-  </div>
+
+    <ng-container *ngIf="serverData[1] as metrics">
+      <!-- General -->
+      <ion-item-divider>General</ion-item-divider>
+      <ion-item>
+        <ion-label>Temperature</ion-label>
+        <h6 slot="end">{{ metrics.general.temperature }} °C</h6>
+      </ion-item>
+      <!-- Memory -->
+      <ion-item-divider>Memory</ion-item-divider>
+      <ion-item>
+        <ion-label>Percentage Used</ion-label>
+        <h6 slot="end">{{ metrics.memory['percentage-used'] }} %</h6>
+      </ion-item>
+      <ion-item>
+        <ion-label>Total</ion-label>
+        <h6 slot="end">{{ metrics.memory.total }} MiB</h6>
+      </ion-item>
+      <ion-item>
+        <ion-label>Available</ion-label>
+        <h6 slot="end">{{ metrics.memory.available }} MiB</h6>
+      </ion-item>
+      <ion-item>
+        <ion-label>Used</ion-label>
+        <h6 slot="end">{{ metrics.memory.used }} MiB</h6>
+      </ion-item>
+      <ion-item>
+        <ion-label>Swap Total</ion-label>
+        <h6 slot="end">{{ metrics.memory['swap-total'] }} MiB</h6>
+      </ion-item>
+      <ion-item>
+        <ion-label>Swap Free</ion-label>
+        <h6 slot="end">{{ metrics.memory['swap-free'] }} MiB</h6>
+      </ion-item>
+      <ion-item>
+        <ion-label>Swap Used</ion-label>
+        <h6 slot="end">{{ metrics.memory['swap-used'] }} MiB</h6>
+      </ion-item>
+      <!-- CPU -->
+      <ion-item-divider>CPU</ion-item-divider>
+      <ion-item>
+        <ion-label>User Space</ion-label>
+        <h6 slot="end">{{ metrics.cpu['user-space'] }} %</h6>
+      </ion-item>
+      <ion-item>
+        <ion-label>Kernel Space</ion-label>
+        <h6 slot="end">{{ metrics.cpu['kernel-space'] }} %</h6>
+      </ion-item>
+      <ion-item>
+        <ion-label>I/O Wait</ion-label>
+        <h6 slot="end">{{ metrics.cpu['io-wait'] }} %</h6>
+      </ion-item>
+      <ion-item>
+        <ion-label>Idle</ion-label>
+        <h6 slot="end">{{ metrics.cpu.idle }} %</h6>
+      </ion-item>
+      <ion-item>
+        <ion-label>Usage</ion-label>
+        <h6 slot="end">{{ metrics.cpu.usage }} %</h6>
+      </ion-item>
+      <!-- Disk -->
+      <ion-item-divider>Disk</ion-item-divider>
+      <ion-item>
+        <ion-label>Size</ion-label>
+        <h6 slot="end">{{ metrics.disk.size }} GB</h6>
+      </ion-item>
+      <ion-item>
+        <ion-label>Used</ion-label>
+        <h6 slot="end">{{ metrics.disk.used }} GB</h6>
+      </ion-item>
+      <ion-item>
+        <ion-label>Percentage Used</ion-label>
+        <h6 slot="end">{{ metrics.disk['percentage-used'] }} %</h6>
+      </ion-item>
+      <ion-item>
+        <ion-label>Available</ion-label>
+        <h6 slot="end">{{ metrics.disk.available }} GB</h6>
+      </ion-item>
+    </ng-container>
+  </ion-item-group>
+
+  <ng-template #loading>
+    <skeleton-list [groups]="3"></skeleton-list>
+  </ng-template>
 </ion-content>
