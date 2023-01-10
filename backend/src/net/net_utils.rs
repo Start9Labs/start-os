@@ -21,7 +21,7 @@ fn parse_iface_ip(output: &str) -> Result<Option<&str>, Error> {
     }
     if let Some(ip) = output
         .split_ascii_whitespace()
-        .nth(4)
+        .nth(3)
         .and_then(|range| range.split("/").next())
     {
         Ok(Some(ip))
