@@ -8,12 +8,12 @@ import { ApiService } from 'src/app/services/api/api.service'
   styleUrls: ['home.page.scss'],
 })
 export class HomePage {
-  error: {
+  error?: {
     code: number
     problem: string
     solution: string
     details?: string
-  } = {} as any
+  }
   solutions: string[] = []
   restarted = false
 
@@ -118,7 +118,80 @@ export class HomePage {
     }
   }
 
-  async repairDrive(): Promise<void> {
+  async presentAlertSystemRebuild() {
+    const alert = await this.alertCtrl.create({
+      header: 'Warning',
+      message:
+        '<p>This action will tear down all service containers and rebuild them from scratch. No data will be deleted.</p><p>A system rebuild can be useful if your system gets into a bad state, and it should only be performed if you are experiencing general performance or reliability issues.</p><p>It may take up to an hour to complete. During this time, you will lose all connectivity to your Embassy.</p>',
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel',
+        },
+        {
+          text: 'Rebuild',
+          handler: () => {
+            try {
+              this.systemRebuild()
+            } catch (e) {
+              console.error(e)
+            }
+          },
+        },
+      ],
+      cssClass: 'alert-warning-message',
+    })
+    await alert.present()
+  }
+
+  async presentAlertRepairDisk() {
+    const alert = await this.alertCtrl.create({
+      header: 'Warning',
+      message:
+        '<p>This action should only be executed if directed by a Start9 support specialist.</p><p>If anything happens to the device during the reboot, such as losing power or unplugging the drive, the filesystem <i>will</i> be in an unrecoverable state. Please proceed with caution.</p>',
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel',
+        },
+        {
+          text: 'Repair',
+          handler: () => {
+            try {
+              this.repairDisk()
+            } catch (e) {
+              console.error(e)
+            }
+          },
+        },
+      ],
+      cssClass: 'alert-error-message',
+    })
+    await alert.present()
+  }
+
+  refreshPage(): void {
+    window.location.reload()
+  }
+
+  private async systemRebuild(): Promise<void> {
+    const loader = await this.loadingCtrl.create({
+      cssClass: 'loader',
+    })
+    await loader.present()
+
+    try {
+      await this.api.systemRebuild()
+      await this.api.restart()
+      this.restarted = true
+    } catch (e) {
+      console.error(e)
+    } finally {
+      loader.dismiss()
+    }
+  }
+
+  private async repairDisk(): Promise<void> {
     const loader = await this.loadingCtrl.create({
       cssClass: 'loader',
     })
@@ -133,37 +206,5 @@ export class HomePage {
     } finally {
       loader.dismiss()
     }
-  }
-
-  async presentAlertRepairDisk() {
-    const alert = await this.alertCtrl.create({
-      header: 'Warning',
-      message:
-        'This action will attempt to preform a disk repair operation and system reboot. No data will be deleted. This action should only be executed if directed by a Start9 support specialist. We recommend backing up your device before preforming this action. If anything happens to the device during the reboot, such as losing power, a power surge, unplugging the drive, or unplugging the Embassy, the filesystem *will* be in an unrecoverable state. Please proceed with caution.',
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
-        },
-        {
-          text: 'Repair',
-          handler: () => {
-            try {
-              this.api.repairDisk().then(_ => {
-                this.restart()
-              })
-            } catch (e) {
-              console.error(e)
-            }
-          },
-        },
-      ],
-      cssClass: 'alert-warning-message',
-    })
-    await alert.present()
-  }
-
-  refreshPage(): void {
-    window.location.reload()
   }
 }

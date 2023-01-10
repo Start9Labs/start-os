@@ -7,54 +7,62 @@
       >
         embassyOS - Diagnostic Mode
       </h1>
-      <h2
-        style="
-          padding-bottom: 16px;
-          font-size: calc(1vw + 14px);
-          font-weight: bold;
-        "
-      >
-        embassyOS launch error:
-      </h2>
-      <div class="code-block">
-        <code>
-          <ion-text color="warning">{{ error.problem }}</ion-text>
-          <span *ngIf="error.details">
-            <br />
-            <br />
-            <ion-text color="warning">{{ error.details }}</ion-text>
-          </span>
-        </code>
-      </div>
-      <ion-button routerLink="logs"> View Logs </ion-button>
-      <h2
-        style="
-          padding: 32px 0 16px 0;
-          font-size: calc(1vw + 12px);
-          font-weight: bold;
-        "
-      >
-        Possible solution:
-      </h2>
-      <div class="code-block">
-        <code><ion-text color="success">{{ error.solution }}</ion-text></code>
-      </div>
-      <ion-button (click)="restart()"> Restart Embassy </ion-button>
-      <div
-        *ngIf="error.code === 15 || error.code === 25"
-        class="ion-padding-top"
-      >
-        <ion-button *ngIf="error.code === 15" (click)="forgetDrive()">
+
+      <ng-container *ngIf="error">
+        <h2
+          style="
+            padding-bottom: 16px;
+            font-size: calc(1vw + 14px);
+            font-weight: bold;
+          "
+        >
+          embassyOS launch error:
+        </h2>
+        <div class="code-block">
+          <code>
+            <ion-text color="warning">{{ error.problem }}</ion-text>
+            <span *ngIf="error.details">
+              <br />
+              <br />
+              <ion-text color="warning">{{ error.details }}</ion-text>
+            </span>
+          </code>
+        </div>
+        <ion-button routerLink="logs"> View Logs </ion-button>
+        <h2
+          style="
+            padding: 32px 0 16px 0;
+            font-size: calc(1vw + 12px);
+            font-weight: bold;
+          "
+        >
+          Possible solutions:
+        </h2>
+        <div class="code-block">
+          <code><ion-text color="success">{{ error.solution }}</ion-text></code>
+        </div>
+        <ion-button (click)="restart()"> Restart Embassy </ion-button>
+        <ion-button
+          class="ion-padding-start"
+          *ngIf="error.code === 15 || error.code === 25"
+          (click)="forgetDrive()"
+        >
           {{ error.code === 15 ? 'Setup Current Drive' : 'Enter Recovery Mode'
           }}
         </ion-button>
-      </div>
-      <div
-        *ngIf="error.code === 2 || error.code === 48"
-        class="ion-padding-top"
-      >
-        <ion-button (click)="repairDrive()"> {{ 'Repair Drive' }} </ion-button>
-      </div>
+
+        <div class="ion-padding-top">
+          <ion-button (click)="presentAlertSystemRebuild()" color="warning"
+            >System Rebuild</ion-button
+          >
+        </div>
+
+        <div class="ion-padding-top">
+          <ion-button (click)="presentAlertRepairDisk()" color="danger"
+            >Repair Drive</ion-button
+          >
+        </div>
+      </ng-container>
     </ng-container>
 
     <ng-template #refresh>

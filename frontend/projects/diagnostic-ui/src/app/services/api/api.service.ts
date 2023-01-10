@@ -5,6 +5,7 @@ export abstract class ApiService {
   abstract restart(): Promise<void>
   abstract forgetDrive(): Promise<void>
   abstract repairDisk(): Promise<void>
+  abstract systemRebuild(): Promise<void>
   abstract getLogs(params: ServerLogsReq): Promise<LogsRes>
 }
 

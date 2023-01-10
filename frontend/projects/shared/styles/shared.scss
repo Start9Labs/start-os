@@ -139,3 +139,21 @@ ion-modal {
     content: '...';
   }
 }
+
+.alert-error-message {
+  .alert-title {
+    color: var(--ion-color-danger);
+  }
+}
+
+.alert-warning-message {
+  .alert-title {
+    color: var(--ion-color-warning);
+  }
+}
+
+.alert-success-message {
+  .alert-title {
+    color: var(--ion-color-success);
+  }
+}

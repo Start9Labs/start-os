@@ -26,6 +26,10 @@ export class MockApiService implements ApiService {
     await pauseFor(1000)
   }
 
+  async systemRebuild(): Promise<void> {
+    await pauseFor(1000)
+  }
+
   async getLogs(params: ServerLogsReq): Promise<LogsRes> {
     await pauseFor(1000)
     let entries: Log[]
