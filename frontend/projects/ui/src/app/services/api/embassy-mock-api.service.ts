@@ -171,6 +171,7 @@ export class MockApiService extends ApiService {
       map((_, index) => {
         // mock fire open observer
         if (index === 0) config.openObserver?.next(new Event(''))
+        if (index === 100) throw new Error('HAAHHA')
         return Mock.ServerLogs[0]
       }),
     )
