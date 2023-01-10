@@ -1,6 +1,5 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::Duration;
 
 use color_eyre::eyre::eyre;
 use embassy::context::{DiagnosticContext, RpcContext};
@@ -10,14 +9,11 @@ use embassy::net::mdns::MdnsController;
 use embassy::net::net_controller::NetController;
 use embassy::net::net_utils::ResourceFqdn;
 use embassy::net::static_server::diag_ui_file_router;
-use embassy::net::tor::tor_health_check;
 use embassy::shutdown::Shutdown;
 use embassy::system::launch_metrics_task;
-use embassy::util::daemon;
 use embassy::util::logger::EmbassyLogger;
 use embassy::{Error, ErrorKind, ResultExt};
 use futures::{FutureExt, TryFutureExt};
-use reqwest::{Client, Proxy};
 use tokio::signal::unix::signal;
 use tracing::instrument;
 
@@ -80,44 +76,17 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
             .await
         });
 
-        let tor_health_ctx = rpc_ctx.clone();
-        let tor_client = Client::builder()
-            .proxy(
-                Proxy::http(format!(
-                    "socks5h://{}:{}",
-                    rpc_ctx.tor_socks.ip(),
-                    rpc_ctx.tor_socks.port()
-                ))
-                .with_kind(crate::ErrorKind::Network)?,
-            )
-            .build()
-            .with_kind(crate::ErrorKind::Network)?;
-        let tor_health_daemon = daemon(
-            move || {
-                let ctx = tor_health_ctx.clone();
-                let client = tor_client.clone();
-                async move { tor_health_check(&client, &ctx.net_controller.tor).await }
-            },
-            Duration::from_secs(300),
-            rpc_ctx.shutdown.subscribe(),
-        );
-
         embassy::sound::CHIME.play().await?;
 
-        futures::try_join!(
-            metrics_task
-                .map_err(|e| Error::new(
+        metrics_task
+            .map_err(|e| {
+                Error::new(
                     eyre!("{}", e).wrap_err("Metrics daemon panicked!"),
-                    ErrorKind::Unknown
-                ))
-                .map_ok(|_| tracing::debug!("Metrics daemon Shutdown")),
-            tor_health_daemon
-                .map_err(|e| Error::new(
-                    e.wrap_err("Tor Health daemon panicked!"),
-                    ErrorKind::Unknown
-                ))
-                .map_ok(|_| tracing::debug!("Tor Health daemon Shutdown")),
-        )?;
+                    ErrorKind::Unknown,
+                )
+            })
+            .map_ok(|_| tracing::debug!("Metrics daemon Shutdown"))
+            .await?;
 
         let mut shutdown = shutdown_recv
             .recv()
