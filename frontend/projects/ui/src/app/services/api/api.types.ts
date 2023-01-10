@@ -47,7 +47,10 @@ export module RR {
   }
 
   export type GetServerMetricsReq = {} // server.metrics
-  export type GetServerMetricsRes = Metrics
+  export type GetServerMetricsRes = {
+    guid: string
+    metrics: Metrics
+  }
 
   export type UpdateServerReq = { 'marketplace-url': string } // server.update
   export type UpdateServerRes = 'updating' | 'no-updates'
@@ -222,9 +225,6 @@ export module RR {
   export type FollowPackageLogsReq = FollowServerLogsReq & { id: string } // package.logs.follow
   export type FollowPackageLogsRes = FollowServerLogsRes
 
-  export type GetPackageMetricsReq = { id: string } // package.metrics
-  export type GetPackageMetricsRes = Metric
-
   export type InstallPackageReq = {
     id: string
     'version-spec'?: string
@@ -339,18 +339,30 @@ export interface ActionResponse {
 }
 
 export interface Metrics {
-  [key: string]: {
-    [key: string]: {
-      value: string | number | null
-      unit?: string
-    }
+  general: {
+    temperature: string
   }
-}
-
-export interface Metric {
-  [key: string]: {
-    value: string | number | null
-    unit?: string
+  memory: {
+    'percentage-used': string
+    total: string
+    available: string
+    used: string
+    'swap-total': string
+    'swap-free': string
+    'swap-used': string
+  }
+  cpu: {
+    'user-space': string
+    'kernel-space': string
+    'io-wait': string
+    idle: string
+    usage: string
+  }
+  disk: {
+    size: string
+    used: string
+    available: string
+    'percentage-used': string
   }
 }
 
