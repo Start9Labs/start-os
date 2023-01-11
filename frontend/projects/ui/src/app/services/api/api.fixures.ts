@@ -704,10 +704,12 @@ export module Mock {
           bitcoind: {
             title: 'Bitcoin Core',
             icon: BTC_ICON,
+            'is-local': false,
           },
           'btc-rpc-proxy': {
             title: 'Bitcoin Proxy',
             icon: PROXY_ICON,
+            'is-local': true,
           },
         },
         'published-at': new Date().toISOString(),
@@ -727,10 +729,12 @@ export module Mock {
           bitcoind: {
             title: 'Bitcoin Core',
             icon: BTC_ICON,
+            'is-local': false,
           },
           'btc-rpc-proxy': {
             title: 'Bitcoin Proxy',
             icon: PROXY_ICON,
+            'is-local': true,
           },
         },
         'published-at': new Date().toISOString(),
@@ -746,10 +750,12 @@ export module Mock {
           bitcoind: {
             title: 'Bitcoin Core',
             icon: BTC_ICON,
+            'is-local': false,
           },
           'btc-rpc-proxy': {
             title: 'Bitcoin Proxy',
             icon: PROXY_ICON,
+            'is-local': true,
           },
         },
         'published-at': new Date(new Date().valueOf() + 10).toISOString(),
@@ -767,6 +773,7 @@ export module Mock {
           bitcoind: {
             title: 'Bitcoin Core',
             icon: BTC_ICON,
+            'is-local': true,
           },
         },
         'published-at': new Date().toISOString(),

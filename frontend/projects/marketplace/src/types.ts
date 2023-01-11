@@ -30,6 +30,7 @@ export interface MarketplacePkg {
     [id: string]: {
       title: string
       icon: Url
+      'is-local': boolean
     }
   }
   'published-at': string
