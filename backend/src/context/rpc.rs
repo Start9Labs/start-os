@@ -25,7 +25,7 @@ use crate::disk::OsPartitionInfo;
 use crate::hostname::HostNameReceipt;
 use crate::init::{init_postgres, pgloader};
 use crate::install::cleanup::{cleanup_failed, uninstall, CleanupFailedReceipts};
-use crate::manager::ManagerMap;
+use crate::manager::manager_map::ManagerMap;
 use crate::middleware::auth::HashSessionToken;
 use crate::net::net_controller::NetController;
 use crate::net::tor::os_key;
