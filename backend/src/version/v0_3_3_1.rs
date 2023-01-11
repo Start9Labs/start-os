@@ -7,6 +7,20 @@ use super::*;
 
 const V0_3_3_1: emver::Version = emver::Version::new(0, 3, 3, 1);
 
+const COMMUNITY_URL: &str = "https://community-registry.start9.com/";
+const COMMUNITY_SERVICES: &[&str] = &[
+    "ipfs",
+    "agora",
+    "lightning-jet",
+    "balanceofsatoshis",
+    "mastodon",
+    "lndg",
+    "robosats",
+    "thunderhub",
+    "syncthing",
+    "sphinx-relay",
+];
+
 #[derive(Clone, Debug)]
 pub struct Version;
 
@@ -23,16 +37,35 @@ impl VersionT for Version {
         &*V0_3_0_COMPAT
     }
     async fn up<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error> {
+        let parsed_url = Some(COMMUNITY_URL.parse().unwrap());
         let mut ui = crate::db::DatabaseModel::new().ui().get_mut(db).await?;
-        ui["marketplace"]["known-hosts"]["https://community-registry.start9.com/"] = json!({});
-        ui.save(db).await?;
-
+        ui["marketplace"]["known-hosts"][COMMUNITY_URL] = json!({});
+        for package_id in crate::db::DatabaseModel::new()
+            .package_data()
+            .keys(db)
+            .await?
+        {
+            if !COMMUNITY_SERVICES.contains(&&*package_id.to_string()) {
+                continue;
+            }
+            crate::db::DatabaseModel::new()
+                .package_data()
+                .idx_model(&package_id)
+                .expect(db)
+                .await?
+                .installed()
+                .expect(db)
+                .await?
+                .marketplace_url()
+                .put(db, &parsed_url)
+                .await?;
+        }
         Ok(())
     }
     async fn down<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error> {
         let mut ui = crate::db::DatabaseModel::new().ui().get_mut(db).await?;
 
-        ui["marketplace"]["known-hosts"]["https://community-registry.start9.com/"].take();
+        ui["marketplace"]["known-hosts"][COMMUNITY_URL].take();
         ui.save(db).await?;
         Ok(())
     }
