@@ -212,7 +212,6 @@ export class MarketplaceService implements AbstractMarketplaceService {
   }
 
   fetchStatic$(id: string, type: string, url?: string): Observable<string> {
-    console.log('URL', url)
     return this.selectedHost$.pipe(
       switchMap(m => {
         return from(
