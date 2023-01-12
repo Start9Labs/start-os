@@ -12,7 +12,7 @@ use tokio::process::Command;
 use crate::context::rpc::RpcContextConfig;
 use crate::db::model::ServerStatus;
 use crate::install::PKG_ARCHIVE_DIR;
-use crate::sound::{BEP, CIRCLE_OF_5THS_SHORT};
+use crate::sound::BEP;
 use crate::util::Invoke;
 use crate::Error;
 
@@ -197,14 +197,29 @@ pub struct InitResult {
 
 pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     let secret_store = cfg.secret_store().await?;
+    tracing::info!("Opened Postgres");
+
+    crate::ssh::sync_keys_from_db(&secret_store, "/home/start9/.ssh/authorized_keys").await?;
+    tracing::info!("Synced SSH Keys");
+
     let db = cfg.db(&secret_store).await?;
+    tracing::info!("Opened PatchDB");
     let mut handle = db.handle();
     crate::db::DatabaseModel::new()
         .server_info()
         .lock(&mut handle, LockType::Write)
         .await?;
-
     let receipts = InitReceipts::new(&mut handle).await?;
+
+    if let Some(wifi_interface) = &cfg.wifi_interface {
+        crate::net::wifi::synchronize_wpa_supplicant_conf(
+            &cfg.datadir().join("main"),
+            wifi_interface,
+            &receipts.last_wifi_region.get(&mut handle).await?,
+        )
+        .await?;
+        tracing::info!("Synchronized WiFi");
+    }
 
     let should_rebuild = tokio::fs::metadata(SYSTEM_REBUILD_PATH).await.is_ok()
         || &*receipts.server_version.get(&mut handle).await? < &emver::Version::new(0, 3, 3, 1);
@@ -239,6 +254,7 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         .invoke(crate::ErrorKind::Journald)
         .await?;
     tracing::info!("Mounted Logs");
+
     let tmp_dir = cfg.datadir().join("package-data/tmp");
     if tokio::fs::metadata(&tmp_dir).await.is_err() {
         tokio::fs::create_dir_all(&tmp_dir).await?;
@@ -318,18 +334,6 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         .await?;
     tracing::info!("Enabled Docker QEMU Emulation");
 
-    crate::ssh::sync_keys_from_db(&secret_store, "/home/start9/.ssh/authorized_keys").await?;
-    tracing::info!("Synced SSH Keys");
-
-    if let Some(wifi_interface) = &cfg.wifi_interface {
-        crate::net::wifi::synchronize_wpa_supplicant_conf(
-            &cfg.datadir().join("main"),
-            wifi_interface,
-            &receipts.last_wifi_region.get(&mut handle).await?,
-        )
-        .await?;
-        tracing::info!("Synchronized WiFi");
-    }
     receipts
         .status_info
         .set(
