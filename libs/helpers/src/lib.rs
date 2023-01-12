@@ -14,7 +14,7 @@ mod rpc_client;
 mod rsync;
 mod script_dir;
 pub use byte_replacement_reader::*;
-pub use rpc_client::RpcClient;
+pub use rpc_client::{RpcClient, UnixRpcClient};
 pub use rsync::*;
 pub use script_dir::*;
 

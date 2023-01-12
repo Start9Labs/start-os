@@ -9,7 +9,7 @@ use std::time::Duration;
 use bollard::container::{KillContainerOptions, StopContainerOptions};
 use color_eyre::eyre::eyre;
 use embassy_container_init::{ProcessGroupId, SignalGroupParams};
-use helpers::RpcClient;
+use helpers::UnixRpcClient;
 use nix::sys::signal::Signal;
 use patch_db::DbHandle;
 use sqlx::{Executor, Postgres};
@@ -359,7 +359,7 @@ impl Manager {
         gid
     }
 
-    pub fn rpc_client(&self) -> Option<Arc<RpcClient>> {
+    pub fn rpc_client(&self) -> Option<Arc<UnixRpcClient>> {
         self.shared
             .persistent_container
             .as_ref()
@@ -449,7 +449,7 @@ async fn manager_thread_loop(mut recv: Receiver<OnStop>, thread_shared: &Arc<Man
 
 pub struct PersistentContainer {
     _running_docker: NonDetachingJoinHandle<()>,
-    rpc_client: Receiver<Arc<RpcClient>>,
+    rpc_client: Receiver<Arc<UnixRpcClient>>,
 }
 
 impl PersistentContainer {
@@ -471,12 +471,12 @@ impl PersistentContainer {
 async fn spawn_persistent_container(
     seed: Arc<ManagerSeed>,
     container: DockerContainer,
-) -> Result<(NonDetachingJoinHandle<()>, Receiver<Arc<RpcClient>>), Error> {
+) -> Result<(NonDetachingJoinHandle<()>, Receiver<Arc<UnixRpcClient>>), Error> {
     let (send_inserter, inserter) = oneshot::channel();
     Ok((
         tokio::task::spawn(async move {
-            let mut inserter_send: Option<Sender<Arc<RpcClient>>> = None;
-            let mut send_inserter: Option<oneshot::Sender<Receiver<Arc<RpcClient>>>> = Some(send_inserter);
+            let mut inserter_send: Option<Sender<Arc<UnixRpcClient>>> = None;
+            let mut send_inserter: Option<oneshot::Sender<Receiver<Arc<UnixRpcClient>>>> = Some(send_inserter);
             loop {
                 if let Err(e) = async {
                     let interfaces = main_interfaces(&*seed)?;
@@ -518,6 +518,7 @@ async fn spawn_persistent_container(
                 } else {
                     break;
                 }
+                tokio::time::sleep(Duration::from_millis(200)).await;
             }
         })
         .into(),
@@ -528,7 +529,7 @@ async fn spawn_persistent_container(
 async fn long_running_docker(
     seed: &ManagerSeed,
     container: &DockerContainer,
-) -> Result<(LongRunning, RpcClient), Error> {
+) -> Result<(LongRunning, UnixRpcClient), Error> {
     container
         .long_running_execute(
             &seed.ctx,
