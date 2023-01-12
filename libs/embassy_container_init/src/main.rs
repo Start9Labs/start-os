@@ -14,7 +14,7 @@ use nix::errno::Errno;
 use nix::sys::signal::Signal;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStderr, ChildStdout, Command};
 use tokio::select;
 use tokio::sync::{watch, Mutex};
@@ -68,14 +68,22 @@ struct InheritOutput {
     stderr: watch::Receiver<String>,
 }
 
+struct HandlerMut {
+    processes: BTreeMap<ProcessId, ChildInfo>,
+    // groups: BTreeMap<ProcessGroupId, Cgroup>,
+}
+
 #[derive(Clone)]
 struct Handler {
-    children: Arc<Mutex<BTreeMap<ProcessId, ChildInfo>>>,
+    children: Arc<Mutex<HandlerMut>>,
 }
 impl Handler {
     fn new() -> Self {
         Handler {
-            children: Arc::new(Mutex::new(BTreeMap::new())),
+            children: Arc::new(Mutex::new(HandlerMut {
+                processes: BTreeMap::new(),
+                // groups: BTreeMap::new(),
+            })),
         }
     }
     async fn handle(&self, req: Input) -> Result<Output, RpcError> {
@@ -184,7 +192,7 @@ impl Handler {
             }
             OutputStrategy::Collect => None,
         };
-        self.children.lock().await.insert(
+        self.children.lock().await.processes.insert(
             pid,
             ChildInfo {
                 gid,
@@ -204,7 +212,7 @@ impl Handler {
         let mut child = {
             self.children
                 .lock()
-                .await
+                .await.processes
                 .get(&pid)
                 .ok_or_else(not_found)?
                 .child
@@ -249,7 +257,7 @@ impl Handler {
         if signal == 9 {
             self.children
                 .lock()
-                .await
+                .await.processes
                 .remove(&pid)
                 .ok_or_else(not_found)?;
         }
@@ -260,12 +268,12 @@ impl Handler {
         let mut to_kill = Vec::new();
         {
             let mut children_ref = self.children.lock().await;
-            let children = std::mem::take(children_ref.deref_mut());
+            let children = std::mem::take(&mut children_ref.deref_mut().processes);
             for (pid, child_info) in children {
                 if child_info.gid == Some(gid) {
                     to_kill.push(pid);
                 } else {
-                    children_ref.insert(pid, child_info);
+                    children_ref.processes.insert(pid, child_info);
                 }
             }
         }
@@ -294,7 +302,7 @@ impl Handler {
 
     async fn graceful_exit(self) {
         let kill_all = futures::stream::iter(
-            std::mem::take(self.children.lock().await.deref_mut()).into_iter(),
+            std::mem::take(&mut self.children.lock().await.deref_mut().processes).into_iter(),
         )
         .for_each_concurrent(None, |(pid, child)| async move {
             let _ = Self::killall(pid, Signal::SIGTERM);
@@ -329,34 +337,58 @@ async fn main() {
     color_eyre::install().unwrap();
 
     let handler = Handler::new();
-    let mut lines = BufReader::new(tokio::io::stdin()).lines();
     let handler_thread = async {
-        while let Some(line) = lines.next_line().await? {
-            let local_hdlr = handler.clone();
+        let listener = tokio::net::UnixListener::bind("/start9/sockets/rpc.sock")?;
+        loop {
+            let (stream, _) = listener.accept().await?;
+            let (r, w) = stream.into_split();
+            let mut lines = BufReader::new(r).lines();
+            let handler = handler.clone();
             tokio::spawn(async move {
-                if let Err(e) = async {
-                    eprintln!("{}", line);
-                    let req = serde_json::from_str::<IncomingRpc>(&line)?;
-                    match local_hdlr.handle(req.input).await {
-                        Ok(output) => {
-                            println!(
-                                "{}",
-                                json!({ "id": req.id, "jsonrpc": "2.0", "result": output })
-                            )
+                let w = Arc::new(Mutex::new(w));
+                while let Some(line) = lines.next_line().await.transpose() {
+                    
+                    let handler = handler.clone();
+                    let w = w.clone();
+                    tokio::spawn(async move {
+                        if let Err(e) = async {
+                            let req = serde_json::from_str::<IncomingRpc>(&line?)?;
+                            match handler.handle(req.input).await {
+                                Ok(output) => {
+                                    if let Err(err) = w.lock().await.write_all(
+                                        format!("{}\n", json!({ "id": req.id, "jsonrpc": "2.0", "result": output }))
+                                            .as_bytes(),
+                                    )
+                                    .await {
+                                        tracing::error!("Error sending to {id:?}", id = req.id);
+                                    }
+                                }
+                                Err(e) => 
+                                if let Err(err) = w
+                                    .lock()
+                                    .await
+                                    .write_all(
+                                        format!("{}\n", json!({ "id": req.id, "jsonrpc": "2.0", "error": e }))
+                                            .as_bytes(),
+                                    )
+                                    .await {
+
+                                        tracing::error!("Handle + Error sending to {id:?}", id = req.id);
+                                    },
+                            }
+                            Ok::<_, color_eyre::Report>(())
                         }
-                        Err(e) => {
-                            println!("{}", json!({ "id": req.id, "jsonrpc": "2.0", "error": e }))
+                        .await
+                        {
+                            tracing::error!("Error parsing RPC request: {}", e);
+                            tracing::debug!("{:?}", e);
                         }
-                    }
-                    Ok::<_, serde_json::Error>(())
+                    });
                 }
-                .await
-                {
-                    tracing::error!("Error parsing RPC request: {}", e);
-                    tracing::debug!("{:?}", e);
-                }
+                Ok::<_, std::io::Error>(())
             });
         }
+        #[allow(unreachable_code)]
         Ok::<_, std::io::Error>(())
     };
 

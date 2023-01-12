@@ -11,7 +11,7 @@ use deno_core::{
     ModuleSpecifier, ModuleType, OpDecl, RuntimeOptions, Snapshot,
 };
 use embassy_container_init::ProcessGroupId;
-use helpers::{script_dir, spawn_local, RpcClient, Rsync};
+use helpers::{script_dir, spawn_local, Rsync, UnixRpcClient};
 use models::{PackageId, ProcedureName, Version, VolumeId};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -95,7 +95,7 @@ struct JsContext {
     input: Value,
     variable_args: Vec<serde_json::Value>,
     container_process_gid: ProcessGroupId,
-    container_rpc_client: Option<Arc<RpcClient>>,
+    container_rpc_client: Option<Arc<UnixRpcClient>>,
     rsyncs: Arc<Mutex<(usize, BTreeMap<usize, Rsync>)>>,
 }
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -184,7 +184,7 @@ pub struct JsExecutionEnvironment {
     version: Version,
     volumes: Arc<dyn PathForVolumeId>,
     container_process_gid: ProcessGroupId,
-    container_rpc_client: Option<Arc<RpcClient>>,
+    container_rpc_client: Option<Arc<UnixRpcClient>>,
 }
 
 impl JsExecutionEnvironment {
@@ -194,7 +194,7 @@ impl JsExecutionEnvironment {
         version: &Version,
         volumes: Box<dyn PathForVolumeId>,
         container_process_gid: ProcessGroupId,
-        container_rpc_client: Option<Arc<RpcClient>>,
+        container_rpc_client: Option<Arc<UnixRpcClient>>,
     ) -> Result<JsExecutionEnvironment, (JsError, String)> {
         let data_dir = data_directory.as_ref();
         let base_directory = data_dir;
