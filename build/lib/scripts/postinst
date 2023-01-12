@@ -70,7 +70,12 @@ sed -i '/\(^\|#\)SystemMaxUse=/c\SystemMaxUse=1G' /etc/systemd/journald.conf
 sed -i '/\(^\|#\)ForwardToSyslog=/c\ForwardToSyslog=no' /etc/systemd/journald.conf
 mkdir -p /etc/docker
 ln -sf /usr/lib/embassy/docker-engine.slice /etc/systemd/system/docker-engine.slice
-echo '{ "cgroup-parent": "docker-engine.slice" }' > /etc/docker/daemon.json
+cat > /etc/docker/daemon.json << EOF
+{
+    "storage-driver": "overlay2",
+    "cgroup-parent": "docker-engine.slice"
+}
+EOF
 mkdir -p /etc/nginx/ssl
 
 # fix to suppress docker warning, fixed in 21.xx release of docker cli: https://github.com/docker/cli/pull/2934
