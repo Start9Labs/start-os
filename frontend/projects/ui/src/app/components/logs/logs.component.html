@@ -3,7 +3,7 @@
     <ion-buttons slot="start">
       <ion-back-button [defaultHref]="defaultBack"></ion-back-button>
     </ion-buttons>
-    <ion-title>{{ title }}</ion-title>
+    <ion-title>{{ pageTitle }}</ion-title>
   </ion-toolbar>
 </ion-header>
 
@@ -15,7 +15,7 @@
 >
   <ion-infinite-scroll
     id="scroller"
-    [disabled]="!needInfinite"
+    [disabled]="infiniteStatus !== 1"
     position="top"
     threshold="1000"
     (ionInfinite)="doInfinite($event)"
@@ -33,10 +33,18 @@
 
   <ng-container *ngIf="!loading">
     <div id="bottom-div"></div>
-    <div *ngIf="websocketFail" class="ion-text-center ion-padding">
-      <ion-text color="warning"> Websocket failed.... </ion-text>
-    </div>
-
+    <p
+      *ngIf="websocketStatus === 'reconnecting'"
+      class="ion-text-center loading-dots"
+    >
+      <ion-text color="success">Reconnecting</ion-text>
+    </p>
+    <p
+      *ngIf="websocketStatus === 'disconnected'"
+      class="ion-text-center loading-dots"
+    >
+      <ion-text color="warning">Waiting for network connectivity</ion-text>
+    </p>
     <div
       [ngStyle]="{
         position: 'fixed',

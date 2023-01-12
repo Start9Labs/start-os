@@ -327,7 +327,6 @@ impl Manager {
             }) => (), // Already stopped
             a => a?,
         };
-
         self.shared.killer.notify_waiters();
 
         if let Some(thread) = self.thread.take().await {
@@ -645,9 +644,23 @@ async fn get_running_ip(
         if let Poll::Ready(res) = futures::poll!(&mut runtime) {
             match res {
                 Ok(Ok(response)) => return GetRunningIp::EarlyExit(response),
-                Err(_) | Ok(Err(_)) => {
+                Err(e) => {
                     return GetRunningIp::Error(Error::new(
-                        eyre!("Manager runtime panicked!"),
+                        match e.try_into_panic() {
+                            Ok(e) => {
+                                eyre!(
+                                    "Manager runtime panicked: {}",
+                                    e.downcast_ref::<&'static str>().unwrap_or(&"UNKNOWN")
+                                )
+                            }
+                            _ => eyre!("Manager runtime cancelled!"),
+                        },
+                        crate::ErrorKind::Docker,
+                    ))
+                }
+                Ok(Err(e)) => {
+                    return GetRunningIp::Error(Error::new(
+                        eyre!("Manager runtime returned error: {}", e),
                         crate::ErrorKind::Docker,
                     ))
                 }
@@ -773,12 +786,11 @@ async fn stop(shared: &ManagerSharedState) -> Result<(), Error> {
     shared
         .commit_health_check_results
         .store(false, Ordering::SeqCst);
-    shared.on_stop.send(OnStop::Sleep).map_err(|_| {
-        Error::new(
-            eyre!("Manager has already been shutdown"),
-            crate::ErrorKind::Docker,
-        )
-    })?;
+    shared.on_stop.send_modify(|status| {
+        if matches!(*status, OnStop::Restart) {
+            *status = OnStop::Sleep;
+        }
+    });
     if *shared.status.1.borrow() == Status::Paused {
         resume(shared).await?;
     }
@@ -795,12 +807,11 @@ async fn stop(shared: &ManagerSharedState) -> Result<(), Error> {
 
 #[instrument(skip(shared))]
 async fn start(shared: &ManagerSharedState) -> Result<(), Error> {
-    shared.on_stop.send(OnStop::Restart).map_err(|_| {
-        Error::new(
-            eyre!("Manager has already been shutdown"),
-            crate::ErrorKind::Docker,
-        )
-    })?;
+    shared.on_stop.send_modify(|status| {
+        if matches!(*status, OnStop::Sleep) {
+            *status = OnStop::Restart;
+        }
+    });
     let _ = shared.status.0.send_modify(|x| {
         if *x != Status::Running {
             *x = Status::Starting

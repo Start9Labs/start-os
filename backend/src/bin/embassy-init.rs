@@ -19,7 +19,7 @@ use embassy::shutdown::Shutdown;
 use embassy::sound::CHIME;
 use embassy::util::logger::EmbassyLogger;
 use embassy::util::Invoke;
-use embassy::{Error, ErrorKind, ResultExt};
+use embassy::{Error, ErrorKind, ResultExt, IS_RASPBERRY_PI};
 use tokio::process::Command;
 use tracing::instrument;
 
@@ -162,7 +162,7 @@ async fn run_script_if_exists<P: AsRef<Path>>(path: P) {
 
 #[instrument]
 async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error> {
-    if tokio::fs::metadata(STANDBY_MODE_PATH).await.is_ok() {
+    if *IS_RASPBERRY_PI && tokio::fs::metadata(STANDBY_MODE_PATH).await.is_ok() {
         tokio::fs::remove_file(STANDBY_MODE_PATH).await?;
         Command::new("sync").invoke(ErrorKind::Filesystem).await?;
         embassy::sound::SHUTDOWN.play().await?;

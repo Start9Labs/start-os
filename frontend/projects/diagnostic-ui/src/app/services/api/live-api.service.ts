@@ -12,35 +12,42 @@ import { LogsRes, ServerLogsReq } from '@start9labs/shared'
 export class LiveApiService implements ApiService {
   constructor(private readonly http: HttpService) {}
 
-  getError(): Promise<GetErrorRes> {
+  async getError(): Promise<GetErrorRes> {
     return this.rpcRequest<GetErrorRes>({
       method: 'diagnostic.error',
       params: {},
     })
   }
 
-  restart(): Promise<void> {
+  async restart(): Promise<void> {
     return this.rpcRequest<void>({
       method: 'diagnostic.restart',
       params: {},
     })
   }
 
-  forgetDrive(): Promise<void> {
+  async forgetDrive(): Promise<void> {
     return this.rpcRequest<void>({
       method: 'diagnostic.disk.forget',
       params: {},
     })
   }
 
-  repairDisk(): Promise<void> {
+  async repairDisk(): Promise<void> {
     return this.rpcRequest<void>({
       method: 'diagnostic.disk.repair',
       params: {},
     })
   }
 
-  getLogs(params: ServerLogsReq): Promise<LogsRes> {
+  async systemRebuild(): Promise<void> {
+    return this.rpcRequest<void>({
+      method: 'diagnostic.rebuild',
+      params: {},
+    })
+  }
+
+  async getLogs(params: ServerLogsReq): Promise<LogsRes> {
     return this.rpcRequest<LogsRes>({
       method: 'diagnostic.logs',
       params,

@@ -9,7 +9,7 @@ use crate::disk::main::export;
 use crate::init::{STANDBY_MODE_PATH, SYSTEM_REBUILD_PATH};
 use crate::sound::SHUTDOWN;
 use crate::util::{display_none, Invoke};
-use crate::{Error, ErrorKind};
+use crate::{Error, ErrorKind, IS_RASPBERRY_PI};
 
 #[derive(Debug, Clone)]
 pub struct Shutdown {
@@ -68,10 +68,20 @@ impl Shutdown {
             }
         });
         drop(rt);
-        if !self.restart {
-            std::fs::write(STANDBY_MODE_PATH, "").unwrap();
+        if *IS_RASPBERRY_PI {
+            if !self.restart {
+                std::fs::write(STANDBY_MODE_PATH, "").unwrap();
+            }
+            Command::new("reboot").spawn().unwrap().wait().unwrap();
+        } else {
+            Command::new("shutdown")
+                .arg("-h")
+                .arg("now")
+                .spawn()
+                .unwrap()
+                .wait()
+                .unwrap();
         }
-        Command::new("reboot").spawn().unwrap().wait().unwrap();
     }
 }
 

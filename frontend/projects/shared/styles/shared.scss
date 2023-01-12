@@ -121,3 +121,39 @@ ion-modal {
 .color-primary-shade {
   color: var(--ion-color-primary-shade)
 }
+
+@keyframes ellipsis-dot {
+  25% {
+    content: '';
+  }
+
+  50% {
+    content: '.';
+  }
+
+  75% {
+    content: '..';
+  }
+
+  100% {
+    content: '...';
+  }
+}
+
+.alert-error-message {
+  .alert-title {
+    color: var(--ion-color-danger);
+  }
+}
+
+.alert-warning-message {
+  .alert-title {
+    color: var(--ion-color-warning);
+  }
+}
+
+.alert-success-message {
+  .alert-title {
+    color: var(--ion-color-success);
+  }
+}
