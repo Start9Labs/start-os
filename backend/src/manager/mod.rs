@@ -37,6 +37,54 @@ mod sync;
 
 pub const HEALTH_CHECK_COOLDOWN_SECONDS: u64 = 15;
 pub const HEALTH_CHECK_GRACE_PERIOD_SECONDS: u64 = 5;
+
+enum StartStop {
+    Start,
+    Stop
+}
+struct ManagerState {
+    desired: StartStop,
+    actual: StartStop,
+    Job: StateJob
+}
+enum StateJob {
+    None,
+    Starting {Thread, },
+    Stopping,
+    Configuring,
+    BackingUp,
+    Restarting,
+}
+
+enum ManagerStateMine {
+    Stable (StartStop),
+    Starting{Thread}
+    Stopping{Thread},
+    Configuring{StartStop}
+    BackingUp{previous: StartStop},
+    Restarting(StartStop)
+}
+
+// States
+// Desired/ actual
+// - running
+// - stopped
+// Jobs
+// -none
+// -starting
+// -stopping
+// -configuring
+// -backing-up
+// -restarting
+//
+// Actions:
+// - start
+// - stop
+// - restart
+// - kill
+// - pause
+// - configure
+
 pub struct Manager {
     shared: Arc<ManagerSharedState>,
     thread: Container<NonDetachingJoinHandle<()>>,
