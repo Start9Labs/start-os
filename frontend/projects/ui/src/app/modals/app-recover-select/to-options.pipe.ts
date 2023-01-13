@@ -28,13 +28,17 @@ export class ToOptionsPipe implements PipeTransform {
   ): Observable<AppRecoverOption[]> {
     return packageData$.pipe(
       map(packageData =>
-        Object.keys(packageBackups).map(id => ({
-          ...packageBackups[id],
-          id,
-          installed: !!packageData[id],
-          checked: false,
-          'newer-eos': this.compare(packageBackups[id]['os-version']),
-        })),
+        Object.keys(packageBackups)
+          .map(id => ({
+            ...packageBackups[id],
+            id,
+            installed: !!packageData[id],
+            checked: false,
+            'newer-eos': this.compare(packageBackups[id]['os-version']),
+          }))
+          .sort((a, b) =>
+            b.title.toLowerCase() > a.title.toLowerCase() ? -1 : 1,
+          ),
       ),
     )
   }
