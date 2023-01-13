@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use embassy_container_init::{
     OutputParams, OutputStrategy, ProcessGroupId, ProcessId, ReadLineStderrParams,
-    ReadLineStdoutParams, RunCommandParams, SendSignalParams, SignalGroupParams,
+    ReadLineStdoutParams, RunCommandParams, SendSignalParams, SignalGroupParams, LogParams,
 };
 use futures::StreamExt;
 use helpers::NonDetachingJoinHandle;
@@ -28,6 +28,7 @@ enum Output {
     ReadLineStdout(String),
     ReadLineStderr(String),
     Output(String),
+    Log,
     Signal,
     SignalGroup,
 }
@@ -37,6 +38,8 @@ enum Output {
 enum Input {
     /// Run a new command, with the args
     Command(RunCommandParams),
+    /// Want to log locall on the service rather than the eos
+    Log(LogParams),
     // /// Get a line of stdout from the command
     // ReadLineStdout(ReadLineStdoutParams),
     // /// Get a line of stderr from the command
@@ -100,6 +103,10 @@ impl Handler {
             // Input::ReadLineStderr(ReadLineStderrParams { pid }) => {
             //     Output::ReadLineStderr(self.read_line_stderr(pid).await?)
             // }
+            Input::Log(LogParams { gid, level }) => {
+                level.trace();
+                Output::Log
+            }
             Input::Output(OutputParams { pid }) => Output::Output(self.output(pid).await?),
             Input::Signal(SendSignalParams { pid, signal }) => {
                 self.signal(pid, signal).await?;

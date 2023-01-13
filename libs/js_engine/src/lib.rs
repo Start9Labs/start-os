@@ -854,8 +854,21 @@ mod fns {
     }
 
     #[op]
-    fn log_trace(state: &mut OpState, input: String) -> Result<(), AnyError> {
-        let ctx = state.borrow::<JsContext>();
+    async fn log_trace(state: Rc<RefCell<OpState>>, input: String) -> Result<(), AnyError> {
+        let state = state.borrow();
+        let ctx = state.borrow::<JsContext>().clone();
+        if let Some(rpc_client) = ctx.container_rpc_client {
+            return rpc_client
+                .request(
+                    embassy_container_init::Log,
+                    embassy_container_init::LogParams {
+                        gid: Some(ctx.container_process_gid),
+                        level: embassy_container_init::LogLevel::Trace(input),
+                    },
+                )
+                .await
+                .map_err(|e| anyhow!("{}: {:?}", e.message, e.data));
+        }
         tracing::trace!(
             package_id = tracing::field::display(&ctx.package_id),
             run_function = tracing::field::display(&ctx.run_function),
@@ -865,8 +878,21 @@ mod fns {
         Ok(())
     }
     #[op]
-    fn log_warn(state: &mut OpState, input: String) -> Result<(), AnyError> {
-        let ctx = state.borrow::<JsContext>();
+    async fn log_warn(state: Rc<RefCell<OpState>>, input: String) -> Result<(), AnyError> {
+        let state = state.borrow();
+        let ctx = state.borrow::<JsContext>().clone();
+        if let Some(rpc_client) = ctx.container_rpc_client {
+            return rpc_client
+                .request(
+                    embassy_container_init::Log,
+                    embassy_container_init::LogParams {
+                        gid: Some(ctx.container_process_gid),
+                        level: embassy_container_init::LogLevel::Warn(input),
+                    },
+                )
+                .await
+                .map_err(|e| anyhow!("{}: {:?}", e.message, e.data));
+        }
         tracing::warn!(
             package_id = tracing::field::display(&ctx.package_id),
             run_function = tracing::field::display(&ctx.run_function),
@@ -876,8 +902,21 @@ mod fns {
         Ok(())
     }
     #[op]
-    fn log_error(state: &mut OpState, input: String) -> Result<(), AnyError> {
-        let ctx = state.borrow::<JsContext>();
+    async fn log_error(state: Rc<RefCell<OpState>>, input: String) -> Result<(), AnyError> {
+        let state = state.borrow();
+        let ctx = state.borrow::<JsContext>().clone();
+        if let Some(rpc_client) = ctx.container_rpc_client {
+            return rpc_client
+                .request(
+                    embassy_container_init::Log,
+                    embassy_container_init::LogParams {
+                        gid: Some(ctx.container_process_gid),
+                        level: embassy_container_init::LogLevel::Error(input),
+                    },
+                )
+                .await
+                .map_err(|e| anyhow!("{}: {:?}", e.message, e.data));
+        }
         tracing::error!(
             package_id = tracing::field::display(&ctx.package_id),
             run_function = tracing::field::display(&ctx.run_function),
@@ -887,8 +926,21 @@ mod fns {
         Ok(())
     }
     #[op]
-    fn log_debug(state: &mut OpState, input: String) -> Result<(), AnyError> {
-        let ctx = state.borrow::<JsContext>();
+    async fn log_debug(state: Rc<RefCell<OpState>>, input: String) -> Result<(), AnyError> {
+        let state = state.borrow();
+        let ctx = state.borrow::<JsContext>().clone();
+        if let Some(rpc_client) = ctx.container_rpc_client {
+            return rpc_client
+                .request(
+                    embassy_container_init::Log,
+                    embassy_container_init::LogParams {
+                        gid: Some(ctx.container_process_gid),
+                        level: embassy_container_init::LogLevel::Debug(input),
+                    },
+                )
+                .await
+                .map_err(|e| anyhow!("{}: {:?}", e.message, e.data));
+        }
         tracing::debug!(
             package_id = tracing::field::display(&ctx.package_id),
             run_function = tracing::field::display(&ctx.run_function),
@@ -898,8 +950,21 @@ mod fns {
         Ok(())
     }
     #[op]
-    fn log_info(state: &mut OpState, input: String) -> Result<(), AnyError> {
-        let ctx = state.borrow::<JsContext>();
+    async fn log_info(state: Rc<RefCell<OpState>>, input: String) -> Result<(), AnyError> {
+        let state = state.borrow();
+        let ctx = state.borrow::<JsContext>().clone();
+        if let Some(rpc_client) = ctx.container_rpc_client {
+            return rpc_client
+                .request(
+                    embassy_container_init::Log,
+                    embassy_container_init::LogParams {
+                        gid: Some(ctx.container_process_gid),
+                        level: embassy_container_init::LogLevel::Info(input),
+                    },
+                )
+                .await
+                .map_err(|e| anyhow!("{}: {:?}", e.message, e.data));
+        }
         tracing::info!(
             package_id = tracing::field::display(&ctx.package_id),
             run_function = tracing::field::display(&ctx.run_function),
