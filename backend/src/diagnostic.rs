@@ -45,7 +45,6 @@ pub fn restart(#[context] ctx: DiagnosticContext) -> Result<(), Error> {
         .send(Some(Shutdown {
             datadir: ctx.datadir.clone(),
             disk_guid: ctx.disk_guid.clone(),
-            db_handle: None,
             restart: true,
         }))
         .expect("receiver dropped");
