@@ -8,6 +8,7 @@ use super::*;
 const V0_3_3_1: emver::Version = emver::Version::new(0, 3, 3, 1);
 
 const COMMUNITY_URL: &str = "https://community-registry.start9.com/";
+const MAIN_REGISTRY: &str = "https://registry.start9.com/";
 const COMMUNITY_SERVICES: &[&str] = &[
     "ipfs",
     "agora",
@@ -64,6 +65,27 @@ impl VersionT for Version {
     }
     async fn down<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error> {
         let mut ui = crate::db::DatabaseModel::new().ui().get_mut(db).await?;
+        let parsed_url = Some(MAIN_REGISTRY.parse().unwrap());
+        for package_id in crate::db::DatabaseModel::new()
+            .package_data()
+            .keys(db)
+            .await?
+        {
+            if !COMMUNITY_SERVICES.contains(&&*package_id.to_string()) {
+                continue;
+            }
+            crate::db::DatabaseModel::new()
+                .package_data()
+                .idx_model(&package_id)
+                .expect(db)
+                .await?
+                .installed()
+                .expect(db)
+                .await?
+                .marketplace_url()
+                .put(db, &parsed_url)
+                .await?;
+        }
 
         ui["marketplace"]["known-hosts"][COMMUNITY_URL].take();
         ui.save(db).await?;
