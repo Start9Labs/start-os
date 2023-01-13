@@ -88,16 +88,12 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
             .map_ok(|_| tracing::debug!("Metrics daemon Shutdown"))
             .await?;
 
-        let mut shutdown = shutdown_recv
+        let shutdown = shutdown_recv
             .recv()
             .await
             .with_kind(crate::ErrorKind::Unknown)?;
 
         sig_handler.abort();
-
-        if let Some(shutdown) = &mut shutdown {
-            drop(shutdown.db_handle.take());
-        }
 
         (rpc_ctx, shutdown)
     };
