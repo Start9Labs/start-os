@@ -4,12 +4,12 @@ use color_eyre::eyre::eyre;
 use emver::VersionRange;
 use futures::{Future, FutureExt};
 use indexmap::IndexMap;
+use models::ImageId;
 use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::context::RpcContext;
-use crate::id::ImageId;
 use crate::procedure::docker::DockerContainers;
 use crate::procedure::{PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::PackageId;

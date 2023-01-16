@@ -13,6 +13,7 @@ use rand::random;
 use sqlx::{Pool, Postgres};
 use tokio::process::Command;
 
+use crate::account::AccountInfo;
 use crate::context::rpc::RpcContextConfig;
 use crate::db::model::{IpInfo, ServerStatus};
 use crate::install::PKG_ARCHIVE_DIR;
@@ -240,7 +241,7 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     crate::ssh::sync_keys_from_db(&secret_store, "/home/start9/.ssh/authorized_keys").await?;
     tracing::info!("Synced SSH Keys");
 
-    let db = cfg.db(&secret_store).await?;
+    let db = cfg.db(&AccountInfo::load(&secret_store).await?).await?;
     tracing::info!("Opened PatchDB");
     let mut handle = db.handle();
     crate::db::DatabaseModel::new()

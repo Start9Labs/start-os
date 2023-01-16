@@ -5,21 +5,15 @@ use chrono::Utc;
 use clap::ArgMatches;
 use color_eyre::eyre::eyre;
 use helpers::AtomicFile;
-use openssl::pkey::{PKey, Private};
-use openssl::x509::X509;
 use patch_db::{DbHandle, LockType, PatchDbHandle};
-use rand::random;
 use rpc_toolkit::command;
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use ssh_key::private::Ed25519PrivateKey;
 use tokio::io::AsyncWriteExt;
-use torut::onion::TorSecretKeyV3;
 use tracing::instrument;
 
 use super::target::BackupTargetId;
 use super::PackageBackupReport;
 use crate::auth::check_password_against_db;
+use crate::backup::os::OsBackup;
 use crate::backup::{BackupReport, ServerBackupReport};
 use crate::context::RpcContext;
 use crate::db::model::BackupProgress;
@@ -33,109 +27,6 @@ use crate::util::display_none;
 use crate::util::serde::IoFormat;
 use crate::version::VersionT;
 use crate::{Error, ErrorKind, ResultExt};
-
-#[derive(Debug)]
-pub struct OsBackup {
-    pub tor_key: TorSecretKeyV3,
-    pub ssh_key: Ed25519PrivateKey,
-    pub root_ca_key: PKey<Private>,
-    pub root_ca_cert: X509,
-    pub ui: Value,
-}
-impl<'de> Deserialize<'de> for OsBackup {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        #[derive(Deserialize)]
-        #[serde(rename = "kebab-case")]
-        struct OsBackupDe {
-            tor_key: String,
-            ssh_key: Option<String>,
-            root_ca_key: String,
-            root_ca_cert: String,
-            ui: Value,
-        }
-        fn vec_from_base32<E: serde::de::Error>(base32: &str, len: usize) -> Result<Vec<u8>, E> {
-            let key_vec = base32::decode(base32::Alphabet::RFC4648 { padding: true }, base32)
-                .ok_or_else(|| {
-                    serde::de::Error::invalid_value(
-                        serde::de::Unexpected::Str(base32),
-                        &"an RFC4648 encoded string",
-                    )
-                })?;
-            if key_vec.len() != 64 {
-                return Err(serde::de::Error::invalid_value(
-                    serde::de::Unexpected::Str(base32),
-                    &"a 64 byte value encoded as an RFC4648 string",
-                ));
-            }
-            Ok(key_vec)
-        }
-        let int = OsBackupDe::deserialize(deserializer)?;
-        let tor_key = {
-            let mut key_slice = [0; 64];
-            key_slice.clone_from_slice(&vec_from_base32(&int.tor_key, 64)?);
-            TorSecretKeyV3::from(key_slice)
-        };
-        let ssh_key = int
-            .ssh_key
-            .as_ref()
-            .map(|ssh_key| {
-                let mut key_slice = [0; 32];
-                key_slice.clone_from_slice(&vec_from_base32(ssh_key, 32)?);
-                Ok(Ed25519PrivateKey::from_bytes(&key_slice))
-            })
-            .transpose()?
-            .unwrap_or_else(|| Ed25519PrivateKey::from_bytes(&random()));
-        let root_ca_key = PKey::<Private>::private_key_from_pem(int.root_ca_key.as_bytes())
-            .map_err(serde::de::Error::custom)?;
-        let root_ca_cert =
-            X509::from_pem(int.root_ca_cert.as_bytes()).map_err(serde::de::Error::custom)?;
-        Ok(OsBackup {
-            tor_key,
-            ssh_key,
-            root_ca_key,
-            root_ca_cert,
-            ui: int.ui,
-        })
-    }
-}
-impl Serialize for OsBackup {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        #[derive(Serialize)]
-        #[serde(rename = "kebab-case")]
-        struct OsBackupSer<'a> {
-            tor_key: String,
-            root_ca_key: String,
-            root_ca_cert: String,
-            ui: &'a Value,
-        }
-        OsBackupSer {
-            tor_key: base32::encode(
-                base32::Alphabet::RFC4648 { padding: true },
-                &self.tor_key.as_bytes(),
-            ),
-            root_ca_key: String::from_utf8(
-                self.root_ca_key
-                    .private_key_to_pem_pkcs8()
-                    .map_err(serde::ser::Error::custom)?,
-            )
-            .map_err(serde::ser::Error::custom)?,
-            root_ca_cert: String::from_utf8(
-                self.root_ca_cert
-                    .to_pem()
-                    .map_err(serde::ser::Error::custom)?,
-            )
-            .map_err(serde::ser::Error::custom)?,
-            ui: &self.ui,
-        }
-        .serialize(serializer)
-    }
-}
 
 fn parse_comma_separated(arg: &str, _: &ArgMatches) -> Result<BTreeSet<PackageId>, Error> {
     arg.split(',')
@@ -317,7 +208,6 @@ async fn perform_backup<Db: DbHandle>(
     package_ids: &BTreeSet<PackageId>,
 ) -> Result<BTreeMap<PackageId, PackageBackupReport>, Error> {
     let mut backup_report = BTreeMap::new();
-
     for package_id in crate::db::DatabaseModel::new()
         .package_data()
         .keys(&mut db)
@@ -445,11 +335,12 @@ async fn perform_backup<Db: DbHandle>(
         tx.save().await?;
     }
 
-    crate::db::DatabaseModel::new()
-        .lock(&mut db, LockType::Write)
-        .await?;
+    let ui = crate::db::DatabaseModel::new()
+        .ui()
+        .get(&mut db)
+        .await?
+        .into_owned();
 
-    let (root_ca_key, root_ca_cert) = ctx.net_controller.ssl.export_root_ca().await?;
     let mut os_backup_file = AtomicFile::new(
         backup_guard.as_ref().join("os-backup.cbor"),
         None::<PathBuf>,
@@ -457,19 +348,10 @@ async fn perform_backup<Db: DbHandle>(
     .await
     .with_kind(ErrorKind::Filesystem)?;
     os_backup_file
-        .write_all(
-            &IoFormat::Cbor.to_vec(&OsBackup {
-                tor_key: ctx.net_controller.tor.embassyd_tor_key().await,
-                ssh_key: crate::ssh::os_key(&mut ctx.secret_store.acquire().await?).await?,
-                root_ca_key,
-                root_ca_cert,
-                ui: crate::db::DatabaseModel::new()
-                    .ui()
-                    .get(&mut db)
-                    .await?
-                    .into_owned(),
-            })?,
-        )
+        .write_all(&IoFormat::Cbor.to_vec(&OsBackup {
+            account: ctx.account.read().await.clone(),
+            ui,
+        })?)
         .await?;
     os_backup_file
         .save()

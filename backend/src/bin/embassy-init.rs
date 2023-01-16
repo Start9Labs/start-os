@@ -8,13 +8,7 @@ use embassy::disk::fsck::RepairStrategy;
 use embassy::disk::main::DEFAULT_PASSWORD;
 use embassy::disk::REPAIR_DISK_PATH;
 use embassy::init::STANDBY_MODE_PATH;
-use embassy::net::embassy_service_http_server::EmbassyServiceHTTPServer;
-#[cfg(feature = "avahi")]
-use embassy::net::mdns::MdnsController;
-use embassy::net::net_utils::ResourceFqdn;
-use embassy::net::static_server::{
-    diag_ui_file_router, install_ui_file_router, setup_ui_file_router,
-};
+use embassy::net::web_server::WebServer;
 use embassy::shutdown::Shutdown;
 use embassy::sound::CHIME;
 use embassy::util::logger::EmbassyLogger;
@@ -26,30 +20,9 @@ use tracing::instrument;
 #[instrument]
 async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
     if tokio::fs::metadata("/cdrom").await.is_ok() {
-        #[cfg(feature = "avahi")]
-        let _mdns = MdnsController::init().await?;
-
         let ctx = InstallContext::init(cfg_path).await?;
 
-        let embassy_ip_fqdn: ResourceFqdn = ResourceFqdn::IpAddr;
-        let embassy_fqdn: ResourceFqdn = "embassy.local".parse()?;
-
-        let localhost_fqdn = ResourceFqdn::LocalHost;
-
-        let install_ui_handler = install_ui_file_router(ctx.clone()).await?;
-
-        let mut install_http_server =
-            EmbassyServiceHTTPServer::new([0, 0, 0, 0].into(), 80, None).await?;
-        install_http_server
-            .add_svc_handler_mapping(embassy_ip_fqdn, install_ui_handler.clone())
-            .await?;
-        install_http_server
-            .add_svc_handler_mapping(embassy_fqdn, install_ui_handler.clone())
-            .await?;
-
-        install_http_server
-            .add_svc_handler_mapping(localhost_fqdn, install_ui_handler.clone())
-            .await?;
+        let server = WebServer::install(([0, 0, 0, 0], 80).into(), ctx.clone()).await?;
 
         tokio::time::sleep(Duration::from_secs(1)).await; // let the record state that I hate this
         CHIME.play().await?;
@@ -59,7 +32,9 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
             .recv()
             .await
             .expect("context dropped");
-        install_http_server.shutdown.send(()).unwrap();
+
+        server.shutdown().await;
+
         Command::new("reboot")
             .invoke(embassy::ErrorKind::Unknown)
             .await?;
@@ -67,29 +42,9 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
         .await
         .is_err()
     {
-        #[cfg(feature = "avahi")]
-        let _mdns = MdnsController::init().await?;
-
         let ctx = SetupContext::init(cfg_path).await?;
 
-        let embassy_ip_fqdn: ResourceFqdn = ResourceFqdn::IpAddr;
-        let embassy_fqdn: ResourceFqdn = "embassy.local".parse()?;
-        let localhost_fqdn = ResourceFqdn::LocalHost;
-
-        let setup_ui_handler = setup_ui_file_router(ctx.clone()).await?;
-
-        let mut setup_http_server =
-            EmbassyServiceHTTPServer::new([0, 0, 0, 0].into(), 80, None).await?;
-        setup_http_server
-            .add_svc_handler_mapping(embassy_ip_fqdn, setup_ui_handler.clone())
-            .await?;
-        setup_http_server
-            .add_svc_handler_mapping(embassy_fqdn, setup_ui_handler.clone())
-            .await?;
-
-        setup_http_server
-            .add_svc_handler_mapping(localhost_fqdn, setup_ui_handler.clone())
-            .await?;
+        let server = WebServer::setup(([0, 0, 0, 0], 80).into(), ctx.clone()).await?;
 
         tokio::time::sleep(Duration::from_secs(1)).await; // let the record state that I hate this
         CHIME.play().await?;
@@ -98,7 +53,9 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
             .recv()
             .await
             .expect("context dropped");
-        setup_http_server.shutdown.send(()).unwrap();
+
+        server.shutdown().await;
+
         tokio::task::yield_now().await;
         if let Err(e) = Command::new("killall")
             .arg("firefox-esr")
@@ -178,8 +135,6 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
             tracing::error!("{}", e.source);
             tracing::debug!("{}", e.source);
             embassy::sound::BEETHOVEN.play().await?;
-            #[cfg(feature = "avahi")]
-            let _mdns = MdnsController::init().await?;
 
             let ctx = DiagnosticContext::init(
                 cfg_path,
@@ -200,28 +155,12 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
             )
             .await?;
 
-            let embassy_ip_fqdn: ResourceFqdn = ResourceFqdn::IpAddr;
-            let embassy_fqdn: ResourceFqdn = "embassy.local".parse()?;
-
-            let localhost_fqdn = ResourceFqdn::LocalHost;
-
-            let diag_ui_handler = diag_ui_file_router(ctx.clone()).await?;
-
-            let mut diag_http_server =
-                EmbassyServiceHTTPServer::new([0, 0, 0, 0].into(), 80, None).await?;
-            diag_http_server
-                .add_svc_handler_mapping(embassy_ip_fqdn, diag_ui_handler.clone())
-                .await?;
-            diag_http_server
-                .add_svc_handler_mapping(embassy_fqdn, diag_ui_handler.clone())
-                .await?;
-
-            diag_http_server
-                .add_svc_handler_mapping(localhost_fqdn, diag_ui_handler.clone())
-                .await?;
+            let server = WebServer::diagnostic(([0, 0, 0, 0], 80).into(), ctx.clone()).await?;
 
             let shutdown = ctx.shutdown.subscribe().recv().await.unwrap();
-            diag_http_server.shutdown.send(()).unwrap();
+
+            server.shutdown().await;
+
             Ok(shutdown)
         }
         .await

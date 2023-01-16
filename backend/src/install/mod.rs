@@ -45,7 +45,7 @@ use crate::s9pk::reader::S9pkReader;
 use crate::status::{MainStatus, Status};
 use crate::util::io::{copy_and_shutdown, response_to_reader};
 use crate::util::serde::{display_serializable, Port};
-use crate::util::{display_none, AsyncFileExt, Version};
+use crate::util::{assure_send, display_none, AsyncFileExt, Version};
 use crate::version::{Current, VersionT};
 use crate::volume::{asset_dir, script_dir};
 use crate::{Error, ErrorKind, ResultExt};
@@ -1116,13 +1116,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
     tracing::info!("Install {}@{}: Installed interfaces", pkg_id, version);
 
     tracing::info!("Install {}@{}: Creating manager", pkg_id, version);
-    ctx.managers
-        .add(
-            ctx.clone(),
-            manifest.clone(),
-            manifest.interfaces.tor_keys(&mut sql_tx, pkg_id).await?,
-        )
-        .await?;
+    ctx.managers.add(ctx.clone(), manifest.clone()).await?;
     tracing::info!("Install {}@{}: Created manager", pkg_id, version);
 
     let static_files = StaticFiles::local(pkg_id, version, manifest.assets.icon_type());
