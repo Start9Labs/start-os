@@ -35,7 +35,7 @@ impl Version {
     #[cfg(test)]
     fn as_sem_ver(&self) -> emver::Version {
         match self {
-            Version::LT0_3_4_3(LTWrapper(_, x)) => x.semver(),
+            Version::LT0_3_4_3(LTWrapper(_, x)) => x.clone(),
             Version::V0_3_4_3(Wrapper(x)) => x.semver(),
             Version::V0_4_0(Wrapper(x)) => x.semver(),
             Version::Other(x) => x.clone(),
@@ -187,7 +187,7 @@ where
         let v = crate::util::Version::deserialize(deserializer)?;
         let version = T::new();
         if *v == version.semver() {
-            Ok(Wrapper(version))
+            Ok(Self(version))
         } else {
             Err(serde::de::Error::custom("Mismatched Version"))
         }
@@ -247,9 +247,22 @@ mod tests {
 
     fn versions() -> impl Strategy<Value = Version> {
         prop_oneof![
-            Just(Version::V0_3_4_3(Wrapper(v0_3_4_3::Version::new()))),
-            em_version().prop_map(Version::Other),
-        ]
+        <<<<<<< HEAD
+                    Just(Version::V0_3_4_3(Wrapper(v0_3_4_3::Version::new()))),
+        =======
+                    em_version().prop_map(|v| if v < v0_3_4_1::Version::new().semver() {
+                        Version::LT0_3_4_1(LTWrapper(v0_3_4_1::Version::new(), v))
+                    } else {
+                        Version::LT0_3_4_1(LTWrapper(
+                            v0_3_4_1::Version::new(),
+                            emver::Version::new(0, 3, 0, 0),
+                        ))
+                    }),
+                    Just(Version::V0_3_4_1(Wrapper(v0_3_4_1::Version::new()))),
+                    Just(Version::V0_3_4_2(Wrapper(v0_3_4_2::Version::new()))),
+        >>>>>>> e83250f1 (integration/refactors)
+                    em_version().prop_map(Version::Other),
+                ]
     }
 
     proptest! {
