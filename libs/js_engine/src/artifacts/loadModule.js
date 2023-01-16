@@ -299,7 +299,6 @@ const effects = {
   runCommand,
   runDaemon,
   runRsync,
-  chmod,
   signalGroup,
   sleep,
   start,
