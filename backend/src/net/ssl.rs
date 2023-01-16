@@ -20,6 +20,7 @@ use crate::account::AccountInfo;
 use crate::hostname::Hostname;
 use crate::net::dhcp::ips;
 use crate::net::keys::{Key, KeyInfo};
+use crate::s9pk::manifest::PackageId;
 use crate::{Error, ErrorKind, ResultExt};
 
 static CERTIFICATE_VERSION: i32 = 2; // X509 version 3 is actually encoded as '2' in the cert because fuck you.
