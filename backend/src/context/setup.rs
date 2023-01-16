@@ -16,8 +16,9 @@ use tracing::instrument;
 
 use crate::db::model::Database;
 use crate::disk::OsPartitionInfo;
+use crate::hostname::generate_hostname;
 use crate::init::{init_postgres, pgloader};
-use crate::net::ssl::SslManager;
+use crate::net::ssl::root_certificate;
 use crate::setup::{password_hash, SetupStatus};
 use crate::util::config::load_config_from_paths;
 use crate::{Error, ResultExt};
@@ -117,17 +118,17 @@ impl SetupContext {
             .await
             .with_ctx(|_| (crate::ErrorKind::Filesystem, db_path.display().to_string()))?;
         if !db.exists(&<JsonPointer>::default()).await {
+            let hostname = generate_hostname();
+            let mut secrets = secret_store.acquire().await?;
+            let cert = root_certificate(&mut secrets, &hostname).await?.1;
             db.put(
                 &<JsonPointer>::default(),
                 &Database::init(
-                    &crate::net::tor::os_key(&mut secret_store.acquire().await?).await?,
-                    password_hash(&mut secret_store.acquire().await?).await?,
-                    &crate::ssh::os_key(&mut secret_store.acquire().await?).await?,
-                    &SslManager::init(secret_store.clone(), &mut db.handle())
-                        .await?
-                        .export_root_ca()
-                        .await?
-                        .1,
+                    &crate::net::tor::os_key(&mut secrets).await?,
+                    password_hash(&mut secrets).await?,
+                    &crate::ssh::os_key(&mut secrets).await?,
+                    hostname,
+                    &cert,
                 ),
             )
             .await?;

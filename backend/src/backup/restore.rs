@@ -11,6 +11,7 @@ use futures::{FutureExt, StreamExt};
 use openssl::x509::X509;
 use patch_db::{DbHandle, PatchDbHandle};
 use rpc_toolkit::command;
+use sqlx::Acquire;
 use tokio::fs::File;
 use torut::onion::OnionAddressV3;
 use tracing::instrument;
@@ -201,6 +202,8 @@ pub async fn recover_full_embassy(
     let tor_key_bytes = os_backup.tor_key.as_bytes().to_vec();
     let ssh_key_bytes = os_backup.ssh_key.to_bytes().to_vec();
     let secret_store = ctx.secret_store().await?;
+    let mut secrets = secret_store.acquire().await?;
+    let mut secrets_tx = secrets.begin().await?;
     sqlx::query!(
         "INSERT INTO account (id, password, tor_key, ssh_key) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO UPDATE SET password = $2, tor_key = $3, ssh_key = $4",
         0,
@@ -208,15 +211,16 @@ pub async fn recover_full_embassy(
         tor_key_bytes,
         ssh_key_bytes,
     )
-    .execute(&mut secret_store.acquire().await?)
+    .execute(&mut secrets_tx)
     .await?;
 
     SslManager::import_root_ca(
-        secret_store.clone(),
+        &mut secrets_tx,
         os_backup.root_ca_key,
         os_backup.root_ca_cert.clone(),
     )
     .await?;
+    secrets_tx.commit().await?;
     secret_store.close().await;
 
     let cfg = RpcContextConfig::load(ctx.config_path.clone()).await?;

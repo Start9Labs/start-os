@@ -18,7 +18,7 @@ use ssh_key::public::Ed25519PublicKey;
 use torut::onion::TorSecretKeyV3;
 
 use crate::config::spec::{PackagePointerSpec, SystemPointerSpec};
-use crate::hostname::{generate_hostname, generate_id};
+use crate::hostname::{generate_id, Hostname};
 use crate::install::progress::InstallProgress;
 use crate::net::interface::InterfaceId;
 use crate::net::net_utils::{get_iface_ipv4_addr, get_iface_ipv6_addr};
@@ -43,17 +43,17 @@ impl Database {
         tor_key: &TorSecretKeyV3,
         password_hash: String,
         ssh_key: &Ed25519PrivateKey,
+        hostname: Hostname,
         cert: &X509,
     ) -> Self {
         let id = generate_id();
-        let my_hostname = generate_hostname();
-        let lan_address = my_hostname.lan_address().parse().unwrap();
+        let lan_address = hostname.lan_address().parse().unwrap();
         // TODO
         Database {
             server_info: ServerInfo {
                 id,
                 version: Current::new().semver().into(),
-                hostname: Some(my_hostname.0),
+                hostname: Some(hostname.0),
                 last_backup: None,
                 last_wifi_region: None,
                 eos_version_compat: Current::new().compat().clone(),

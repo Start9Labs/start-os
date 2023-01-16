@@ -22,13 +22,13 @@ use tracing::instrument;
 use crate::core::rpc_continuations::{RequestGuid, RestHandler, RpcContinuation};
 use crate::db::model::{Database, InstalledPackageDataEntry, PackageDataEntry};
 use crate::disk::OsPartitionInfo;
-use crate::hostname::HostNameReceipt;
+use crate::hostname::{generate_hostname, HostNameReceipt};
 use crate::init::{init_postgres, pgloader};
 use crate::install::cleanup::{cleanup_failed, uninstall, CleanupFailedReceipts};
 use crate::manager::ManagerMap;
 use crate::middleware::auth::HashSessionToken;
 use crate::net::net_controller::NetController;
-use crate::net::ssl::SslManager;
+use crate::net::ssl::{root_certificate, SslManager};
 use crate::net::wifi::WpaCli;
 use crate::notifications::NotificationManager;
 use crate::setup::password_hash;
@@ -82,17 +82,17 @@ impl RpcContextConfig {
             .await
             .with_ctx(|_| (crate::ErrorKind::Filesystem, db_path.display().to_string()))?;
         if !db.exists(&<JsonPointer>::default()).await {
+            let hostname = generate_hostname();
+            let mut secrets = secret_store.acquire().await?;
+            let cert = root_certificate(&mut secrets, &hostname).await?.1;
             db.put(
                 &<JsonPointer>::default(),
                 &Database::init(
-                    &crate::net::tor::os_key(&mut secret_store.acquire().await?).await?,
-                    password_hash(&mut secret_store.acquire().await?).await?,
-                    &crate::ssh::os_key(&mut secret_store.acquire().await?).await?,
-                    &SslManager::init(secret_store.clone(), &mut db.handle())
-                        .await?
-                        .export_root_ca()
-                        .await?
-                        .1,
+                    &crate::net::tor::os_key(&mut secrets).await?,
+                    password_hash(&mut secrets).await?,
+                    &crate::ssh::os_key(&mut secrets).await?,
+                    hostname,
+                    &cert,
                 ),
             )
             .await?;
@@ -237,18 +237,18 @@ impl RpcContext {
         let mut docker = Docker::connect_with_unix_defaults()?;
         docker.set_timeout(Duration::from_secs(600));
         tracing::info!("Connected to Docker");
+        let mut secrets = secret_store.acquire().await?;
         let net_controller = NetController::init(
             ([0, 0, 0, 0], 80).into(),
-            crate::net::tor::os_key(&mut secret_store.acquire().await?).await?,
+            crate::net::tor::os_key(&mut secrets).await?,
             base.tor_control
                 .unwrap_or(SocketAddr::from(([127, 0, 0, 1], 9051))),
             base.dns_bind
                 .as_ref()
                 .map(|v| v.as_slice())
                 .unwrap_or(&[SocketAddr::from(([127, 0, 0, 1], 53))]),
-            secret_store.clone(),
+            &mut secrets,
             &mut db.handle(),
-            None,
         )
         .await?;
         tracing::info!("Initialized Net Controller");

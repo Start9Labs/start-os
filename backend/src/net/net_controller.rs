@@ -3,10 +3,8 @@ use std::path::PathBuf;
 use std::str::FromStr;
 
 use models::InterfaceId;
-use openssl::pkey::{PKey, Private};
-use openssl::x509::X509;
 use patch_db::DbHandle;
-use sqlx::PgPool;
+use sqlx::{Executor, Postgres};
 use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 use tracing::instrument;
 
@@ -36,26 +34,26 @@ pub struct NetController {
 }
 
 impl NetController {
-    #[instrument(skip(db, db_handle))]
-    pub async fn init<Db: DbHandle>(
+    #[instrument(skip(secrets, db_handle))]
+    pub async fn init<Ex, Db>(
         embassyd_addr: SocketAddr,
         embassyd_tor_key: TorSecretKeyV3,
         tor_control: SocketAddr,
         dns_bind: &[SocketAddr],
-        db: PgPool,
+        secrets: &mut Ex,
         db_handle: &mut Db,
-        import_root_ca: Option<(PKey<Private>, X509)>,
-    ) -> Result<Self, Error> {
+    ) -> Result<Self, Error>
+    where
+        for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
+        Db: DbHandle,
+    {
         let receipts = HostNameReceipt::new(db_handle).await?;
         let embassy_host_name = get_hostname(db_handle, &receipts).await?;
         let embassy_name = embassy_host_name.local_domain_name();
 
         let fqdn_name = ResourceFqdn::from_str(&embassy_name)?;
 
-        let ssl = match import_root_ca {
-            None => SslManager::init(db.clone(), db_handle).await,
-            Some(a) => SslManager::import_root_ca(db.clone(), a.0, a.1).await,
-        }?;
+        let ssl = SslManager::init(secrets, db_handle).await?;
         Ok(Self {
             tor: TorController::init(embassyd_addr, embassyd_tor_key, tor_control).await?,
             #[cfg(feature = "avahi")]
@@ -92,7 +90,11 @@ impl NetController {
             let root_cert = rpc_ctx
                 .net_controller
                 .ssl
-                .certificate_for(&root, &eos_pkg_id)
+                .certificate_for(
+                    &mut rpc_ctx.secret_store.acquire().await?,
+                    &root,
+                    &eos_pkg_id,
+                )
                 .await?;
 
             rpc_ctx
@@ -158,14 +160,16 @@ impl NetController {
     }
 
     #[instrument(skip(self, interfaces, _generated_certificate))]
-    pub async fn add<'a, I>(
+    pub async fn add<'a, Ex, I>(
         &self,
+        secrets: &mut Ex,
         pkg_id: &PackageId,
         ip: Ipv4Addr,
         interfaces: I,
         _generated_certificate: GeneratedCertificateMountPoint,
     ) -> Result<(), Error>
     where
+        for<'b> &'b mut Ex: Executor<'b, Database = Postgres>,
         I: IntoIterator<Item = (InterfaceId, &'a Interface, TorSecretKeyV3)> + Clone,
         for<'b> &'b I: IntoIterator<Item = &'b (InterfaceId, &'a Interface, TorSecretKeyV3)>,
     {
@@ -213,7 +217,7 @@ impl NetController {
                             })
                         });
                 self.proxy
-                    .add_docker_service(pkg_id.clone(), ip, interfaces)
+                    .add_docker_service(secrets, pkg_id.clone(), ip, interfaces)
             },
             self.dns.add(pkg_id, ip),
         );
@@ -247,12 +251,14 @@ impl NetController {
         Ok(())
     }
 
-    pub async fn generate_certificate_mountpoint<'a, I>(
+    pub async fn generate_certificate_mountpoint<'a, Ex, I>(
         &self,
+        secrets: &mut Ex,
         pkg_id: &PackageId,
         interfaces: &I,
     ) -> Result<GeneratedCertificateMountPoint, Error>
     where
+        for<'b> &'b mut Ex: Executor<'b, Database = Postgres>,
         I: IntoIterator<Item = (InterfaceId, &'a Interface, TorSecretKeyV3)> + Clone,
         for<'b> &'b I: IntoIterator<Item = &'b (InterfaceId, &'a Interface, TorSecretKeyV3)>,
     {
@@ -263,16 +269,12 @@ impl NetController {
             let dns_base = OnionAddressV3::from(&key.public()).get_address_without_dot_onion();
             let ssl_path_key = package_path.join(format!("{}.key.pem", id));
             let ssl_path_cert = package_path.join(format!("{}.cert.pem", id));
-            let (key, chain) = self.ssl.certificate_for(&dns_base, pkg_id).await?;
+            let (key, chain) = self.ssl.certificate_for(secrets, &dns_base, pkg_id).await?;
             tokio::try_join!(
                 crate::net::ssl::export_key(&key, &ssl_path_key),
                 crate::net::ssl::export_cert(&chain, &ssl_path_cert)
             )?;
         }
         Ok(GeneratedCertificateMountPoint(()))
-    }
-
-    pub async fn export_root_ca(&self) -> Result<(PKey<Private>, X509), Error> {
-        self.ssl.export_root_ca().await
     }
 }

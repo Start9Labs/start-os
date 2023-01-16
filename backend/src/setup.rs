@@ -33,7 +33,7 @@ use crate::disk::REPAIR_DISK_PATH;
 use crate::hostname::{get_hostname, HostNameReceipt, Hostname};
 use crate::init::{init, InitResult};
 use crate::middleware::encrypt::EncryptedWire;
-use crate::net::ssl::SslManager;
+use crate::net::ssl::{load_root_certificate, root_certificate};
 use crate::{Error, ErrorKind, ResultExt};
 
 #[instrument(skip(secrets))]
@@ -94,10 +94,9 @@ async fn setup_init(
     let hostname_receipts = HostNameReceipt::new(&mut db_handle).await?;
     let hostname = get_hostname(&mut db_handle, &hostname_receipts).await?;
 
-    let (_, root_ca) = SslManager::init(secret_store, &mut db_handle)
+    let (_, root_ca) = load_root_certificate(&mut secrets_handle)
         .await?
-        .export_root_ca()
-        .await?;
+        .ok_or_else(|| Error::new(eyre!("Root CA not initialized"), crate::ErrorKind::NotFound))?;
     Ok((hostname, tor_key.public().get_onion_address(), root_ca))
 }
 
@@ -411,10 +410,8 @@ async fn fresh_setup(
     let mut handle = db.handle();
     let receipts = crate::hostname::HostNameReceipt::new(&mut handle).await?;
     let hostname = get_hostname(&mut handle, &receipts).await?;
-    let (_, root_ca) = SslManager::init(secret_store.clone(), &mut handle)
-        .await?
-        .export_root_ca()
-        .await?;
+    let mut secrets = secret_store.acquire().await?;
+    let (_, root_ca) = root_certificate(&mut secrets, &hostname).await?;
     secret_store.close().await;
     Ok((hostname, tor_key.public().get_onion_address(), root_ca))
 }

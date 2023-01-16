@@ -11,6 +11,7 @@ use hyper::{Body, Error as HyperError};
 use models::{InterfaceId, PackageId};
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
+use sqlx::{Executor, Postgres};
 use tokio::sync::Mutex;
 use tracing::{error, instrument};
 
@@ -37,16 +38,21 @@ impl ProxyController {
         })
     }
 
-    pub async fn add_docker_service<I: IntoIterator<Item = (InterfaceId, InterfaceMetadata)>>(
+    pub async fn add_docker_service<Ex, I>(
         &self,
+        secrets: &mut Ex,
         package: PackageId,
         ipv4: Ipv4Addr,
         interfaces: I,
-    ) -> Result<(), Error> {
+    ) -> Result<(), Error>
+    where
+        for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
+        I: IntoIterator<Item = (InterfaceId, InterfaceMetadata)>,
+    {
         self.inner
             .lock()
             .await
-            .add_docker_service(package, ipv4, interfaces)
+            .add_docker_service(secrets, package, ipv4, interfaces)
             .await
     }
 
@@ -167,11 +173,15 @@ impl ProxyControllerInner {
         Ok(())
     }
 
-    async fn add_package_certificate_to_resolver(
+    async fn add_package_certificate_to_resolver<Ex>(
         &mut self,
+        secrets: &mut Ex,
         resource_fqdn: ResourceFqdn,
         pkg_id: PackageId,
-    ) -> Result<(), Error> {
+    ) -> Result<(), Error>
+    where
+        for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
+    {
         let package_cert = match resource_fqdn.clone() {
             ResourceFqdn::IpAddr => {
                 return Err(Error::new(
@@ -183,7 +193,11 @@ impl ProxyControllerInner {
                 full_uri: _,
                 root,
                 tld: _,
-            } => self.ssl_manager.certificate_for(&root, &pkg_id).await?,
+            } => {
+                self.ssl_manager
+                    .certificate_for(secrets, &root, &pkg_id)
+                    .await?
+            }
             ResourceFqdn::LocalHost => {
                 return Err(Error::new(
                     eyre!("ssl not supported for localhost"),
@@ -218,13 +232,18 @@ impl ProxyControllerInner {
             .await
     }
 
-    #[instrument(skip(self, interfaces))]
-    pub async fn add_docker_service<I: IntoIterator<Item = (InterfaceId, InterfaceMetadata)>>(
+    #[instrument(skip(self, secrets, interfaces))]
+    pub async fn add_docker_service<Ex, I>(
         &mut self,
+        secrets: &mut Ex,
         package: PackageId,
         docker_ipv4: Ipv4Addr,
         interfaces: I,
-    ) -> Result<(), Error> {
+    ) -> Result<(), Error>
+    where
+        for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
+        I: IntoIterator<Item = (InterfaceId, InterfaceMetadata)>,
+    {
         let mut interface_map = interfaces
             .into_iter()
             .filter(|(_, meta)| {
@@ -242,8 +261,12 @@ impl ProxyControllerInner {
                 self.docker_iface_lookups
                     .insert((package.clone(), id.clone()), full_fqdn.clone());
 
-                self.add_package_certificate_to_resolver(full_fqdn.clone(), package.clone())
-                    .await?;
+                self.add_package_certificate_to_resolver(
+                    secrets,
+                    full_fqdn.clone(),
+                    package.clone(),
+                )
+                .await?;
 
                 let svc_handler =
                     Self::create_docker_handle((docker_ipv4, lan_port_config.internal).into())

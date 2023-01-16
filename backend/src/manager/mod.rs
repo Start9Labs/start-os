@@ -601,7 +601,13 @@ async fn add_network_for_main(
 ) -> Result<(), Error> {
     seed.ctx
         .net_controller
-        .add(&seed.manifest.id, ip, interfaces, generated_certificate)
+        .add(
+            &mut seed.ctx.secret_store.acquire().await?,
+            &seed.manifest.id,
+            ip,
+            interfaces,
+            generated_certificate,
+        )
         .await?;
     Ok(())
 }
@@ -726,7 +732,11 @@ async fn generate_certificate(
 ) -> Result<GeneratedCertificateMountPoint, Error> {
     seed.ctx
         .net_controller
-        .generate_certificate_mountpoint(&seed.manifest.id, interfaces)
+        .generate_certificate_mountpoint(
+            &mut seed.ctx.secret_store.acquire().await?,
+            &seed.manifest.id,
+            interfaces,
+        )
         .await
 }
 
