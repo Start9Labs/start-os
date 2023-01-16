@@ -832,11 +832,9 @@ mod fns {
             bail!("Volume {} is readonly", volume_id);
         }
         let new_file = volume_path.join(path_in);
-        let parent_new_file = new_file
-            .parent()
-            .ok_or_else(|| anyhow!("Expecting that file is not root"))?;
+
         // With the volume check
-        if !is_subset(&volume_path, &parent_new_file).await? {
+        if !is_subset(&volume_path, &new_file).await? {
             bail!(
                 "Path '{}' has broken away from parent '{}'",
                 new_file.to_string_lossy(),
