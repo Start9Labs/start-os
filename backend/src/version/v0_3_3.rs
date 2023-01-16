@@ -1,20 +1,29 @@
 use async_trait::async_trait;
 use emver::VersionRange;
+use lazy_static::lazy_static;
 use regex::Regex;
 use serde_json::{json, Value};
 
-use super::v0_3_0::V0_3_0_COMPAT;
 use super::*;
 use crate::DEFAULT_MARKETPLACE;
 
 const V0_3_3: emver::Version = emver::Version::new(0, 3, 3, 0);
+lazy_static! {
+    pub static ref V0_3_0_COMPAT: VersionRange = VersionRange::Conj(
+        Box::new(VersionRange::Anchor(
+            emver::GTE,
+            emver::Version::new(0, 3, 0, 0),
+        )),
+        Box::new(VersionRange::Anchor(emver::LTE, Current::new().semver())),
+    );
+}
 
 #[derive(Clone, Debug)]
 pub struct Version;
 
 #[async_trait]
 impl VersionT for Version {
-    type Previous = v0_3_2_1::Version;
+    type Previous = v0_3_3::Version;
     fn new() -> Self {
         Version
     }

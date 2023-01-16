@@ -1,13 +1,11 @@
 use std::collections::BTreeMap;
 use std::net::Ipv4Addr;
+use std::sync::{Arc, Weak};
 
 use color_eyre::eyre::eyre;
 use tokio::process::{Child, Command};
 use tokio::sync::Mutex;
-use torut::onion::TorSecretKeyV3;
 
-use super::interface::InterfaceId;
-use crate::s9pk::manifest::PackageId;
 use crate::util::Invoke;
 use crate::{Error, ResultExt};
 
@@ -39,25 +37,17 @@ impl MdnsController {
             MdnsControllerInner::init().await?,
         )))
     }
-    pub async fn add<'a, I: IntoIterator<Item = (InterfaceId, TorSecretKeyV3)>>(
-        &self,
-        pkg_id: &PackageId,
-        interfaces: I,
-    ) -> Result<(), Error> {
-        self.0.lock().await.add(pkg_id, interfaces).await
+    pub async fn add(&self, alias: String) -> Result<Arc<()>, Error> {
+        self.0.lock().await.add(alias).await
     }
-    pub async fn remove<I: IntoIterator<Item = InterfaceId>>(
-        &self,
-        pkg_id: &PackageId,
-        interfaces: I,
-    ) -> Result<(), Error> {
-        self.0.lock().await.remove(pkg_id, interfaces).await
+    pub async fn gc(&self, alias: String) -> Result<(), Error> {
+        self.0.lock().await.gc(alias).await
     }
 }
 
 pub struct MdnsControllerInner {
     alias_cmd: Option<Child>,
-    services: BTreeMap<(PackageId, InterfaceId), TorSecretKeyV3>,
+    services: BTreeMap<String, Weak<()>>,
 }
 
 impl MdnsControllerInner {
@@ -76,35 +66,30 @@ impl MdnsControllerInner {
         self.alias_cmd = Some(
             Command::new("avahi-alias")
                 .kill_on_drop(true)
-                .args(self.services.iter().map(|(_, key)| {
-                    key.public()
-                        .get_onion_address()
-                        .get_address_without_dot_onion()
-                }))
+                .args(
+                    self.services
+                        .iter()
+                        .filter(|(_, rc)| rc.strong_count() > 0)
+                        .map(|(s, _)| s),
+                )
                 .spawn()?,
         );
         Ok(())
     }
-    async fn add<'a, I: IntoIterator<Item = (InterfaceId, TorSecretKeyV3)>>(
-        &mut self,
-        pkg_id: &PackageId,
-        interfaces: I,
-    ) -> Result<(), Error> {
-        self.services.extend(
-            interfaces
-                .into_iter()
-                .map(|(interface_id, key)| ((pkg_id.clone(), interface_id), key)),
-        );
+    async fn add(&mut self, alias: String) -> Result<Arc<()>, Error> {
+        let rc = if let Some(rc) = Weak::upgrade(&self.services.remove(&alias).unwrap_or_default())
+        {
+            rc
+        } else {
+            Arc::new(())
+        };
+        self.services.insert(alias, Arc::downgrade(&rc));
         self.sync().await?;
-        Ok(())
+        Ok(rc)
     }
-    async fn remove<I: IntoIterator<Item = InterfaceId>>(
-        &mut self,
-        pkg_id: &PackageId,
-        interfaces: I,
-    ) -> Result<(), Error> {
-        for interface_id in interfaces {
-            self.services.remove(&(pkg_id.clone(), interface_id));
+    async fn gc(&mut self, alias: String) -> Result<(), Error> {
+        if let Some(rc) = Weak::upgrade(&self.services.remove(&alias).unwrap_or_default()) {
+            self.services.insert(alias, Arc::downgrade(&rc));
         }
         self.sync().await?;
         Ok(())

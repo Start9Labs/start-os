@@ -153,6 +153,7 @@ trust-dns-server = "0.22.0"
 typed-builder = "0.10.0"
 url = { version = "2.2.2", features = ["serde"] }
 uuid = { version = "1.1.2", features = ["v4"] }
+zeroize = "1.5.7"
 
 [profile.test]
 opt-level = 3

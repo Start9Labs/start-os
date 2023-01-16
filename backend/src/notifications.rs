@@ -254,7 +254,7 @@ impl NotificationManager {
             .unread_notification_count()
             .get_mut(db)
             .await?;
-        let sql_package_id = package_id.map::<String, _>(|p| p.into());
+        let sql_package_id = package_id.as_ref().map(|p| &**p);
         let sql_code = T::CODE;
         let sql_level = format!("{}", level);
         let sql_data =

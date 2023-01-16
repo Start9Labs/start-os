@@ -185,7 +185,7 @@ impl Volume {
             } else {
                 path.as_ref()
             }),
-            Volume::Certificate { interface_id: _ } => NetController::ssl_directory_for(pkg_id),
+            Volume::Certificate { interface_id: _ } => todo!(),
             Volume::Backup { .. } => backup_dir(pkg_id),
         }
     }

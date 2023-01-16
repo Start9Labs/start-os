@@ -1,9 +1,10 @@
 use std::borrow::Borrow;
 use std::collections::BTreeMap;
 use std::net::{Ipv4Addr, SocketAddr};
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use std::time::Duration;
 
+use color_eyre::eyre::eyre;
 use futures::TryFutureExt;
 use helpers::NonDetachingJoinHandle;
 use models::PackageId;
@@ -18,34 +19,48 @@ use trust_dns_server::server::{Request, RequestHandler, ResponseHandler, Respons
 use trust_dns_server::ServerFuture;
 
 use crate::util::Invoke;
-use crate::{Error, ErrorKind, ResultExt, HOST_IP};
+use crate::{Error, ErrorKind, ResultExt};
 
 pub struct DnsController {
-    services: Arc<RwLock<BTreeMap<PackageId, Vec<Ipv4Addr>>>>,
+    services: Weak<RwLock<BTreeMap<Option<PackageId>, BTreeMap<Ipv4Addr, Weak<()>>>>>,
     #[allow(dead_code)]
     dns_server: NonDetachingJoinHandle<Result<(), Error>>,
 }
 
 struct Resolver {
-    services: Arc<RwLock<BTreeMap<PackageId, Vec<Ipv4Addr>>>>,
+    services: Arc<RwLock<BTreeMap<Option<PackageId>, BTreeMap<Ipv4Addr, Weak<()>>>>>,
 }
 impl Resolver {
     async fn resolve(&self, name: &Name) -> Option<Vec<Ipv4Addr>> {
         match name.iter().next_back() {
             Some(b"embassy") => {
                 if let Some(pkg) = name.iter().rev().skip(1).next() {
-                    if let Some(ip) = self
-                        .services
-                        .read()
-                        .await
-                        .get(std::str::from_utf8(pkg).unwrap_or_default())
-                    {
-                        Some(ip.iter().copied().collect())
+                    if let Some(ip) = self.services.read().await.get(&Some(
+                        std::str::from_utf8(pkg)
+                            .unwrap_or_default()
+                            .parse()
+                            .unwrap_or_default(),
+                    )) {
+                        Some(
+                            ip.iter()
+                                .filter(|(_, rc)| rc.strong_count() > 0)
+                                .map(|(ip, _)| *ip)
+                                .collect(),
+                        )
                     } else {
                         None
                     }
                 } else {
-                    Some(vec![HOST_IP.into()])
+                    if let Some(ip) = self.services.read().await.get(&None) {
+                        Some(
+                            ip.iter()
+                                .filter(|(_, rc)| rc.strong_count() > 0)
+                                .map(|(ip, _)| *ip)
+                                .collect(),
+                        )
+                    } else {
+                        None
+                    }
                 }
             }
             _ => None,
@@ -162,26 +177,47 @@ impl DnsController {
         .into();
 
         Ok(Self {
-            services,
+            services: Arc::downgrade(&services),
             dns_server,
         })
     }
 
-    pub async fn add(&self, pkg_id: &PackageId, ip: Ipv4Addr) {
-        let mut writable = self.services.write().await;
-        let mut ips = writable.remove(pkg_id).unwrap_or_default();
-        ips.push(ip);
-        writable.insert(pkg_id.clone(), ips);
+    pub async fn add(&self, pkg_id: Option<PackageId>, ip: Ipv4Addr) -> Result<Arc<()>, Error> {
+        if let Some(services) = Weak::upgrade(&self.services) {
+            let mut writable = services.write().await;
+            let mut ips = writable.remove(&pkg_id).unwrap_or_default();
+            let rc = if let Some(rc) = Weak::upgrade(&ips.remove(&ip).unwrap_or_default()) {
+                rc
+            } else {
+                Arc::new(())
+            };
+            ips.insert(ip, Arc::downgrade(&rc));
+            writable.insert(pkg_id, ips);
+            Ok(rc)
+        } else {
+            Err(Error::new(
+                eyre!("DNS Server Thread has exited"),
+                crate::ErrorKind::Network,
+            ))
+        }
     }
 
-    pub async fn remove(&self, pkg_id: &PackageId, ip: Ipv4Addr) {
-        let mut writable = self.services.write().await;
-        let mut ips = writable.remove(pkg_id).unwrap_or_default();
-        if let Some((idx, _)) = ips.iter().copied().enumerate().find(|(_, x)| *x == ip) {
-            ips.swap_remove(idx);
-        }
-        if !ips.is_empty() {
-            writable.insert(pkg_id.clone(), ips);
+    pub async fn gc(&self, pkg_id: Option<PackageId>, ip: Ipv4Addr) -> Result<(), Error> {
+        if let Some(services) = Weak::upgrade(&self.services) {
+            let mut writable = services.write().await;
+            let mut ips = writable.remove(&pkg_id).unwrap_or_default();
+            if let Some(rc) = Weak::upgrade(&ips.remove(&ip).unwrap_or_default()) {
+                ips.insert(ip, Arc::downgrade(&rc));
+            }
+            if !ips.is_empty() {
+                writable.insert(pkg_id, ips);
+            }
+            Ok(())
+        } else {
+            Err(Error::new(
+                eyre!("DNS Server Thread has exited"),
+                crate::ErrorKind::Network,
+            ))
         }
     }
 }

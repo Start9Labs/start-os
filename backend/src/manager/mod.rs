@@ -16,12 +16,10 @@ use sqlx::{Executor, Postgres};
 use tokio::sync::watch::error::RecvError;
 use tokio::sync::watch::{channel, Receiver, Sender};
 use tokio::sync::{oneshot, Notify, RwLock};
-use torut::onion::TorSecretKeyV3;
 use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::manager::sync::synchronizer;
-use crate::net::interface::InterfaceId;
 use crate::net::GeneratedCertificateMountPoint;
 use crate::procedure::docker::{DockerContainer, DockerProcedure, LongRunning};
 #[cfg(feature = "js_engine")]
@@ -70,10 +68,9 @@ impl ManagerMap {
                 continue;
             };
 
-            let tor_keys = man.interfaces.tor_keys(secrets, &package).await?;
             res.insert(
                 (package, man.version.clone()),
-                Arc::new(Manager::create(ctx.clone(), man, tor_keys).await?),
+                Arc::new(Manager::create(ctx.clone(), man).await?),
             );
         }
         *self.0.write().await = res;
@@ -81,12 +78,7 @@ impl ManagerMap {
     }
 
     #[instrument(skip(self, ctx))]
-    pub async fn add(
-        &self,
-        ctx: RpcContext,
-        manifest: Manifest,
-        tor_keys: BTreeMap<InterfaceId, TorSecretKeyV3>,
-    ) -> Result<(), Error> {
+    pub async fn add(&self, ctx: RpcContext, manifest: Manifest) -> Result<(), Error> {
         let mut lock = self.0.write().await;
         let id = (manifest.id.clone(), manifest.version.clone());
         if let Some(man) = lock.remove(&id) {
@@ -94,10 +86,7 @@ impl ManagerMap {
                 man.exit().await?;
             }
         }
-        lock.insert(
-            id,
-            Arc::new(Manager::create(ctx, manifest, tor_keys).await?),
-        );
+        lock.insert(id, Arc::new(Manager::create(ctx, manifest).await?));
         Ok(())
     }
 
@@ -162,7 +151,6 @@ struct ManagerSeed {
     ctx: RpcContext,
     manifest: Manifest,
     container_name: String,
-    tor_keys: BTreeMap<InterfaceId, TorSecretKeyV3>,
 }
 
 pub struct ManagerSharedState {
@@ -190,8 +178,7 @@ async fn run_main(
     state: &Arc<ManagerSharedState>,
 ) -> Result<Result<NoOutput, (i32, String)>, Error> {
     let rt_state = state.clone();
-    let interfaces = main_interfaces(&*state.seed)?;
-    let generated_certificate = generate_certificate(&*state.seed, &interfaces).await?;
+    let generated_certificate = generate_certificate(&*state.seed).await?;
 
     let mut runtime = NonDetachingJoinHandle::from(tokio::spawn(start_up_image(
         rt_state,
@@ -207,7 +194,7 @@ async fn run_main(
     };
 
     if let Some(ip) = ip {
-        add_network_for_main(&*state.seed, ip, interfaces, generated_certificate).await?;
+        add_network_for_main(&*state.seed, ip, generated_certificate).await?;
     }
 
     set_commit_health_true(state);
@@ -248,17 +235,12 @@ async fn start_up_image(
 
 impl Manager {
     #[instrument(skip(ctx))]
-    async fn create(
-        ctx: RpcContext,
-        manifest: Manifest,
-        tor_keys: BTreeMap<InterfaceId, TorSecretKeyV3>,
-    ) -> Result<Self, Error> {
+    async fn create(ctx: RpcContext, manifest: Manifest) -> Result<Self, Error> {
         let (on_stop, recv) = channel(OnStop::Sleep);
         let seed = Arc::new(ManagerSeed {
             ctx,
             container_name: DockerProcedure::container_name(&manifest.id, None),
             manifest,
-            tor_keys,
         });
         let persistent_container = PersistentContainer::init(&seed).await?;
         let shared = Arc::new(ManagerSharedState {
@@ -479,8 +461,7 @@ async fn spawn_persistent_container(
             let mut send_inserter: Option<oneshot::Sender<Receiver<Arc<UnixRpcClient>>>> = Some(send_inserter);
             loop {
                 if let Err(e) = async {
-                    let interfaces = main_interfaces(&*seed)?;
-                    let generated_certificate = generate_certificate(&*seed, &interfaces).await?;
+                    let generated_certificate = generate_certificate(&*seed).await?;
                     let (mut runtime, inserter) =
                         long_running_docker(&seed, &container).await?;
 
@@ -493,7 +474,7 @@ async fn spawn_persistent_container(
                             return Ok(());
                         }
                     };
-                    add_network_for_main(&*seed, ip, interfaces, generated_certificate).await?;
+                    add_network_for_main(&*seed, ip, generated_certificate).await?;
 
                     if let Some(inserter_send) = inserter_send.as_mut() {
                         let _ = inserter_send.send(Arc::new(inserter));
@@ -541,14 +522,14 @@ async fn long_running_docker(
 }
 
 async fn remove_network_for_main(seed: &ManagerSeed, ip: std::net::Ipv4Addr) -> Result<(), Error> {
-    seed.ctx
-        .net_controller
-        .remove(
-            &seed.manifest.id,
-            ip,
-            seed.manifest.interfaces.0.keys().cloned(),
-        )
-        .await?;
+    // seed.ctx
+    //     .net_controller
+    //     .remove(
+    //         &seed.manifest.id,
+    //         ip,
+    //         seed.manifest.interfaces.0.keys().cloned(),
+    //     )
+    //     .await?;
     Ok(())
 }
 
@@ -592,18 +573,19 @@ fn set_commit_health_true(state: &Arc<ManagerSharedState>) {
 async fn add_network_for_main(
     seed: &ManagerSeed,
     ip: std::net::Ipv4Addr,
-    interfaces: Vec<(
-        InterfaceId,
-        &crate::net::interface::Interface,
-        TorSecretKeyV3,
-    )>,
     generated_certificate: GeneratedCertificateMountPoint,
 ) -> Result<(), Error> {
-    seed.ctx
-        .net_controller
-        .add(&seed.manifest.id, ip, interfaces, generated_certificate)
-        .await?;
-    Ok(())
+    // seed.ctx
+    //     .net_controller
+    //     .add(
+    //         &mut seed.ctx.secret_store.acquire().await?,
+    //         &seed.manifest.id,
+    //         ip,
+    //         interfaces,
+    //         generated_certificate,
+    //     )
+    //     .await?;
+    todo!()
 }
 
 enum GetRunningIp {
@@ -716,47 +698,16 @@ async fn container_inspect(
         .await
 }
 
-async fn generate_certificate(
-    seed: &ManagerSeed,
-    interfaces: &Vec<(
-        InterfaceId,
-        &crate::net::interface::Interface,
-        TorSecretKeyV3,
-    )>,
-) -> Result<GeneratedCertificateMountPoint, Error> {
-    seed.ctx
-        .net_controller
-        .generate_certificate_mountpoint(&seed.manifest.id, interfaces)
-        .await
-}
-
-fn main_interfaces(
-    seed: &ManagerSeed,
-) -> Result<
-    Vec<(
-        InterfaceId,
-        &crate::net::interface::Interface,
-        TorSecretKeyV3,
-    )>,
-    Error,
-> {
-    seed.manifest
-        .interfaces
-        .0
-        .iter()
-        .map(|(id, info)| {
-            Ok((
-                id.clone(),
-                info,
-                seed.tor_keys
-                    .get(id)
-                    .ok_or_else(|| {
-                        Error::new(eyre!("interface {} missing key", id), crate::ErrorKind::Tor)
-                    })?
-                    .clone(),
-            ))
-        })
-        .collect::<Result<Vec<_>, Error>>()
+async fn generate_certificate(seed: &ManagerSeed) -> Result<GeneratedCertificateMountPoint, Error> {
+    // seed.ctx
+    //     .net_controller
+    //     .generate_certificate_mountpoint(
+    //         &mut seed.ctx.secret_store.acquire().await?,
+    //         &seed.manifest.id,
+    //         interfaces,
+    //     )
+    //     .await
+    todo!()
 }
 
 async fn wait_for_status(shared: &ManagerSharedState, status: Status) {

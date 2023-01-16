@@ -25,6 +25,7 @@ use super::{Config, MatchError, NoMatchWithPath, TimeoutError, TypeOf};
 use crate::config::ConfigurationError;
 use crate::context::RpcContext;
 use crate::net::interface::InterfaceId;
+use crate::net::keys::Key;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::Error;
 
@@ -2059,22 +2060,19 @@ impl TorKeyPointer {
                 ValueSpecPointer::Package(PackagePointerSpec::TorKey(self.clone())),
             ));
         }
-        let x = sqlx::query!(
-            "SELECT key FROM tor WHERE package = $1 AND interface = $2",
-            *self.package_id,
-            *self.interface
+        let key = Key::for_interface(
+            &mut secrets
+                .acquire()
+                .await
+                .map_err(|e| ConfigurationError::SystemError(e.into()))?,
+            Some((self.package_id.clone(), self.interface.clone())),
         )
-        .fetch_optional(secrets)
         .await
-        .map_err(|e| ConfigurationError::SystemError(e.into()))?;
-        if let Some(x) = x {
-            Ok(Value::String(base32::encode(
-                base32::Alphabet::RFC4648 { padding: false },
-                &x.key,
-            )))
-        } else {
-            Ok(Value::Null)
-        }
+        .map_err(ConfigurationError::SystemError)?;
+        Ok(Value::String(base32::encode(
+            base32::Alphabet::RFC4648 { padding: false },
+            &key.tor_key().as_bytes(),
+        )))
     }
 }
 impl fmt::Display for TorKeyPointer {

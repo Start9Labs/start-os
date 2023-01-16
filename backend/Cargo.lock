@@ -1360,6 +1360,7 @@ dependencies = [
  "typed-builder",
  "url",
  "uuid",
+ "zeroize",
 ]
 
 [[package]]
@@ -2169,6 +2170,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "internment"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2a798d7677f07d6f1e77be484ea8626ddb1566194de399f1206306820c406371"
+dependencies = [
+ "ahash",
+ "dashmap",
+ "hashbrown",
+ "once_cell",
+ "parking_lot 0.12.1",
+ "serde",
+]
+
+[[package]]
 name = "io-lifetimes"
 version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2628,10 +2643,13 @@ dependencies = [
  "color-eyre",
  "ed25519-dalek",
  "emver",
+ "internment",
+ "lazy_static",
  "mbrman",
  "openssl",
  "patch-db",
  "rand 0.8.5",
+ "regex",
  "rpc-toolkit",
  "serde",
  "serde_json",
@@ -3556,9 +3574,9 @@ dependencies = [
 
 [[package]]
 name = "regex"
-version = "1.7.0"
+version = "1.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e076559ef8e241f2ae3479e36f97bd5741c0330689e217ad51ce2c76808b868a"
+checksum = "48aaa5748ba571fb95cd2c85c09f629215d3a6ece942baa100950af03a34f733"
 dependencies = [
  "aho-corasick",
  "memchr",
