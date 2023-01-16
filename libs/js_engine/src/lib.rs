@@ -293,7 +293,6 @@ impl JsExecutionEnvironment {
             fns::chmod::decl(),
             fns::bind_local::decl(),
             fns::bind_onion::decl(),
-            fns::chown::decl(),
             fns::fetch::decl(),
             fns::read_file::decl(),
             fns::metadata::decl(),
