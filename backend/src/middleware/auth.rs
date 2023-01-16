@@ -23,6 +23,9 @@ use tokio::sync::Mutex;
 
 use crate::context::RpcContext;
 use crate::{Error, ResultExt};
+
+pub const LOCAL_AUTH_COOKIE_PATH: &str = "/run/embassy/rpc.authcookie";
+
 pub trait AsLogoutSessionId {
     fn as_logout_session_id(self) -> String;
 }
@@ -63,7 +66,29 @@ impl HasValidSession {
         request_parts: &RequestParts,
         ctx: &RpcContext,
     ) -> Result<Self, Error> {
-        Self::from_session(&HashSessionToken::from_request_parts(request_parts)?, ctx).await
+        if let Some(cookie_header) = request_parts.headers.get(COOKIE) {
+            let cookies = Cookie::parse(
+                cookie_header
+                    .to_str()
+                    .with_kind(crate::ErrorKind::Authorization)?,
+            )
+            .with_kind(crate::ErrorKind::Authorization)?;
+            if let Some(cookie) = cookies.iter().find(|c| c.get_name() == "local") {
+                if let Ok(s) = Self::from_local(cookie).await {
+                    return Ok(s);
+                }
+            }
+            if let Some(cookie) = cookies.iter().find(|c| c.get_name() == "session") {
+                if let Ok(s) = Self::from_session(&HashSessionToken::from_cookie(cookie), ctx).await
+                {
+                    return Ok(s);
+                }
+            }
+        }
+        Err(Error::new(
+            eyre!("UNAUTHORIZED"),
+            crate::ErrorKind::Authorization,
+        ))
     }
 
     pub async fn from_session(session: &HashSessionToken, ctx: &RpcContext) -> Result<Self, Error> {
@@ -78,6 +103,18 @@ impl HasValidSession {
             ));
         }
         Ok(Self(()))
+    }
+
+    pub async fn from_local(local: &Cookie<'_>) -> Result<Self, Error> {
+        let token = tokio::fs::read_to_string("/run/embassy/rpc.authcookie").await?;
+        if local.get_value() == &*token {
+            Ok(Self(()))
+        } else {
+            Err(Error::new(
+                eyre!("UNAUTHORIZED"),
+                crate::ErrorKind::Authorization,
+            ))
+        }
     }
 }
 

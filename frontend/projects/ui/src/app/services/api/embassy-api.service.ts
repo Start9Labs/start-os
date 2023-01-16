@@ -57,6 +57,10 @@ export abstract class ApiService {
     config: WebSocketSubjectConfig<Log>,
   ): Observable<Log>
 
+  abstract getSystemTime(
+    params: RR.GetSystemTimeReq,
+  ): Promise<RR.GetSystemTimeRes>
+
   abstract getServerLogs(
     params: RR.GetServerLogsReq,
   ): Promise<RR.GetServerLogsRes>

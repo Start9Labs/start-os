@@ -198,13 +198,15 @@ pub async fn recover_full_embassy(
         &argon2::Config::default(),
     )
     .with_kind(crate::ErrorKind::PasswordHashGeneration)?;
-    let key_vec = os_backup.tor_key.as_bytes().to_vec();
+    let tor_key_bytes = os_backup.tor_key.as_bytes().to_vec();
+    let ssh_key_bytes = os_backup.ssh_key.to_bytes().to_vec();
     let secret_store = ctx.secret_store().await?;
     sqlx::query!(
-        "INSERT INTO account (id, password, tor_key) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET password = $2, tor_key = $3",
+        "INSERT INTO account (id, password, tor_key, ssh_key) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO UPDATE SET password = $2, tor_key = $3, ssh_key = $4",
         0,
         password,
-        key_vec,
+        tor_key_bytes,
+        ssh_key_bytes,
     )
     .execute(&mut secret_store.acquire().await?)
     .await?;

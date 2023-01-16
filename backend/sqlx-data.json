@@ -102,6 +102,21 @@
     },
     "query": "SELECT hostname, path, username, password FROM cifs_shares WHERE id = $1"
   },
+  "2f615764532e975c964f1d0e063a02110d781644b0eaae1ff85a7d6ed903bfe5": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Int4",
+          "Text",
+          "Bytea",
+          "Bytea"
+        ]
+      }
+    },
+    "query": "INSERT INTO account (id, password, tor_key, ssh_key) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO UPDATE SET password = $2, tor_key = $3, ssh_key = $4"
+  },
   "3502e58f2ab48fb4566d21c920c096f81acfa3ff0d02f970626a4dcd67bac71d": {
     "describe": {
       "columns": [
@@ -255,6 +270,24 @@
       }
     },
     "query": "SELECT setval('certificates_id_seq', GREATEST(MAX(id) + 1, nextval('certificates_id_seq') - 1)) FROM certificates"
+  },
+  "5c0ea94081695dba827e525ecc0c555757b43ea513c2c93f9c7f7f8c174d36bf": {
+    "describe": {
+      "columns": [
+        {
+          "name": "ssh_key",
+          "ordinal": 0,
+          "type_info": "Bytea"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": []
+      }
+    },
+    "query": "SELECT ssh_key FROM account"
   },
   "629be61c3c341c131ddbbff0293a83dbc6afd07cae69d246987f62cf0cc35c2a": {
     "describe": {
@@ -535,33 +568,6 @@
       }
     },
     "query": "DELETE FROM cifs_shares WHERE id = $1"
-  },
-  "a645d636be810a4ba61dcadf22e90de6e9baf3614aa9e97f053ff480cb3118a2": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Left": [
-          "Text",
-          "Bytea"
-        ]
-      }
-    },
-    "query": "INSERT INTO tor (package, interface, key) VALUES ($1, 'main', $2) ON CONFLICT (package, interface) DO UPDATE SET key = $2"
-  },
-  "a6645d91f76b3d5fac2191ea3bec5dab7d7d124715fde02e6a816fa5dbc7acf2": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Left": [
-          "Int4",
-          "Text",
-          "Bytea"
-        ]
-      }
-    },
-    "query": "INSERT INTO account (id, password, tor_key) VALUES ($1, $2, $3) ON CONFLICT (id) DO UPDATE SET password = $2, tor_key = $3"
   },
   "a6b0c8909a3a5d6d9156aebfb359424e6b5a1d1402e028219e21726f1ebd282e": {
     "describe": {

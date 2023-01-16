@@ -15,6 +15,32 @@
 
   <div id="metricSection">
     <ng-container *ngIf="!loading">
+      <ion-item-group>
+        <ion-item-divider>Time</ion-item-divider>
+        <ion-item>
+          <ion-label>System Time</ion-label>
+          <ion-note slot="end" class="metric-note">
+            <ion-text style="color: white"
+              >{{ systemTime$ | async | date:'MMMM d, y, h:mm a z':'UTC'
+              }}</ion-text
+            >
+          </ion-note>
+        </ion-item>
+        <ion-item>
+          <ion-label>System Uptime</ion-label>
+          <ion-note
+            *ngIf="systemUptime$ | async as uptime"
+            slot="end"
+            class="metric-note"
+          >
+            <ion-text style="color: white">
+              <b>{{ uptime.days }}</b> Days, <b>{{ uptime.hours }}</b> Hours,
+              <b>{{ uptime.minutes }}</b> Minutes
+            </ion-text>
+          </ion-note>
+        </ion-item>
+      </ion-item-group>
+
       <ion-item-group
         *ngFor="let metricGroup of metrics | keyvalue : asIsOrder"
       >

@@ -102,6 +102,10 @@ update-locale  LANGUAGE
 rm "/etc/locale.gen"
 dpkg-reconfigure --frontend noninteractive locales
 
+groupadd embassy
+
+ln -s /usr/lib/embassy/scripts/dhclient-exit-hook /etc/dhcp/dhclient-exit-hooks.d/embassy
+
 rm -f /etc/motd
 ln -sf /usr/lib/embassy/motd /etc/update-motd.d/00-embassy
 chmod -x /etc/update-motd.d/*

@@ -35,6 +35,9 @@ export module RR {
   export type EchoReq = { message: string } // server.echo
   export type EchoRes = string
 
+  export type GetSystemTimeReq = {} // server.time
+  export type GetSystemTimeRes = string
+
   export type GetServerLogsReq = ServerLogsReq // server.logs & server.kernel-logs
   export type GetServerLogsRes = LogsRes
 

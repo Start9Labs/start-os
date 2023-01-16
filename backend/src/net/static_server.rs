@@ -16,7 +16,10 @@ use crate::context::{DiagnosticContext, InstallContext, RpcContext, SetupContext
 use crate::core::rpc_continuations::RequestGuid;
 use crate::db::subscribe;
 use crate::install::PKG_PUBLIC_DIR;
-use crate::middleware::auth::HasValidSession;
+use crate::middleware::auth::{auth as auth_middleware, HasValidSession};
+use crate::middleware::cors::cors;
+use crate::middleware::db::db as db_middleware;
+use crate::middleware::diagnostic::diagnostic as diagnostic_middleware;
 use crate::net::HttpHandler;
 use crate::{diagnostic_api, install_api, main_api, setup_api, Error, ErrorKind, ResultExt};
 
@@ -48,8 +51,14 @@ pub async fn setup_ui_file_router(ctx: SetupContext) -> Result<HttpHandler, Erro
         async move {
             let res = match req.uri().path() {
                 path if path.starts_with("/rpc/") => {
-                    let rpc_handler =
-                        rpc_handler!({command: setup_api, context: ctx, status: status_fn});
+                    let rpc_handler = rpc_handler!({
+                        command: setup_api,
+                        context: ctx,
+                        status: status_fn,
+                        middleware: [
+                            cors,
+                        ]
+                    });
 
                     rpc_handler(req)
                         .await
@@ -76,8 +85,15 @@ pub async fn diag_ui_file_router(ctx: DiagnosticContext) -> Result<HttpHandler, 
         async move {
             let res = match req.uri().path() {
                 path if path.starts_with("/rpc/") => {
-                    let rpc_handler =
-                        rpc_handler!({command: diagnostic_api, context: ctx, status: status_fn});
+                    let rpc_handler = rpc_handler!({
+                        command: diagnostic_api,
+                        context: ctx,
+                        status: status_fn,
+                        middleware: [
+                            cors,
+                            diagnostic_middleware,
+                        ]
+                    });
 
                     rpc_handler(req)
                         .await
@@ -104,8 +120,14 @@ pub async fn install_ui_file_router(ctx: InstallContext) -> Result<HttpHandler, 
         async move {
             let res = match req.uri().path() {
                 path if path.starts_with("/rpc/") => {
-                    let rpc_handler =
-                        rpc_handler!({command: install_api, context: ctx, status: status_fn});
+                    let rpc_handler = rpc_handler!({
+                        command: install_api,
+                        context: ctx,
+                        status: status_fn,
+                        middleware: [
+                            cors,
+                        ]
+                    });
 
                     rpc_handler(req)
                         .await
@@ -132,8 +154,18 @@ pub async fn main_ui_server_router(ctx: RpcContext) -> Result<HttpHandler, Error
         async move {
             let res = match req.uri().path() {
                 path if path.starts_with("/rpc/") => {
-                    let rpc_handler =
-                        rpc_handler!({command: main_api, context: ctx, status: status_fn});
+                    let auth_middleware = auth_middleware(ctx.clone());
+                    let db_middleware = db_middleware(ctx.clone());
+                    let rpc_handler = rpc_handler!({
+                        command: main_api,
+                        context: ctx,
+                        status: status_fn,
+                        middleware: [
+                            cors,
+                            auth_middleware,
+                            db_middleware,
+                        ]
+                    });
 
                     rpc_handler(req)
                         .await
