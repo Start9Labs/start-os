@@ -12,6 +12,7 @@ use sqlx::Acquire;
 use crate::{
     config::hook::ConfigHook,
     manager::{start_stop::StartStop, Manager},
+    net::keys::Key,
 };
 
 use super::try_get_running_ip;
