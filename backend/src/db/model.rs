@@ -1,25 +1,33 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::net::{Ipv4Addr, Ipv6Addr};
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use emver::VersionRange;
 use isocountry::CountryCode;
+use itertools::Itertools;
+use openssl::hash::MessageDigest;
+use openssl::x509::X509;
 use patch_db::json_ptr::JsonPointer;
 use patch_db::{HasModel, Map, MapModel, OptionModel};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use ssh_key::private::Ed25519PrivateKey;
+use ssh_key::public::Ed25519PublicKey;
 use torut::onion::TorSecretKeyV3;
 
 use crate::config::spec::{PackagePointerSpec, SystemPointerSpec};
 use crate::hostname::{generate_hostname, generate_id};
 use crate::install::progress::InstallProgress;
 use crate::net::interface::InterfaceId;
+use crate::net::net_utils::{get_iface_ipv4_addr, get_iface_ipv6_addr};
 use crate::s9pk::manifest::{Manifest, ManifestModel, PackageId};
 use crate::status::health_check::HealthCheckId;
 use crate::status::Status;
 use crate::util::Version;
 use crate::version::{Current, VersionT};
+use crate::Error;
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
@@ -31,7 +39,12 @@ pub struct Database {
     pub ui: Value,
 }
 impl Database {
-    pub fn init(tor_key: &TorSecretKeyV3, password_hash: String) -> Self {
+    pub fn init(
+        tor_key: &TorSecretKeyV3,
+        password_hash: String,
+        ssh_key: &Ed25519PrivateKey,
+        cert: &X509,
+    ) -> Self {
         let id = generate_id();
         let my_hostname = generate_hostname();
         let lan_address = my_hostname.lan_address().parse().unwrap();
@@ -48,6 +61,7 @@ impl Database {
                 tor_address: format!("http://{}", tor_key.public().get_onion_address())
                     .parse()
                     .unwrap(),
+                ip_info: BTreeMap::new(),
                 status_info: ServerStatus {
                     backup_progress: None,
                     updated: false,
@@ -64,6 +78,16 @@ impl Database {
                     clearnet: Vec::new(),
                 },
                 password_hash,
+                pubkey: ssh_key::PublicKey::from(Ed25519PublicKey::from(ssh_key))
+                    .to_openssh()
+                    .unwrap(),
+                ca_fingerprint: cert
+                    .digest(MessageDigest::sha256())
+                    .unwrap()
+                    .iter()
+                    .map(|x| format!("{x:X}"))
+                    .join(":"),
+                system_start_time: Utc::now().to_rfc3339(),
             },
             package_data: AllPackageData::default(),
             ui: serde_json::from_str(include_str!("../../../frontend/patchdb-ui-seed.json"))
@@ -90,12 +114,32 @@ pub struct ServerInfo {
     pub lan_address: Url,
     pub tor_address: Url,
     #[model]
+    pub ip_info: BTreeMap<String, IpInfo>,
+    #[model]
     #[serde(default)]
     pub status_info: ServerStatus,
     pub wifi: WifiInfo,
     pub unread_notification_count: u64,
     pub connection_addresses: ConnectionAddresses,
     pub password_hash: String,
+    pub pubkey: String,
+    pub ca_fingerprint: String,
+    pub system_start_time: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, HasModel)]
+#[serde(rename_all = "kebab-case")]
+pub struct IpInfo {
+    ipv4: Option<Ipv4Addr>,
+    ipv6: Option<Ipv6Addr>,
+}
+impl IpInfo {
+    pub async fn for_interface(iface: &str) -> Result<Self, Error> {
+        Ok(Self {
+            ipv4: get_iface_ipv4_addr(iface).await?,
+            ipv6: get_iface_ipv6_addr(iface).await?,
+        })
+    }
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel)]

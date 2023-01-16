@@ -177,6 +177,13 @@ export class MockApiService extends ApiService {
     )
   }
 
+  async getSystemTime(
+    params: RR.GetSystemTimeReq,
+  ): Promise<RR.GetSystemTimeRes> {
+    await pauseFor(2000)
+    return new Date().toUTCString()
+  }
+
   async getServerLogs(
     params: RR.GetServerLogsReq,
   ): Promise<RR.GetServerLogsRes> {

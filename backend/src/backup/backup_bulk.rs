@@ -8,9 +8,11 @@ use helpers::AtomicFile;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
 use patch_db::{DbHandle, LockType, PatchDbHandle};
+use rand::random;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use ssh_key::private::Ed25519PrivateKey;
 use tokio::io::AsyncWriteExt;
 use torut::onion::TorSecretKeyV3;
 use tracing::instrument;
@@ -35,6 +37,7 @@ use crate::{Error, ErrorKind, ResultExt};
 #[derive(Debug)]
 pub struct OsBackup {
     pub tor_key: TorSecretKeyV3,
+    pub ssh_key: Ed25519PrivateKey,
     pub root_ca_key: PKey<Private>,
     pub root_ca_cert: X509,
     pub ui: Value,
@@ -48,32 +51,52 @@ impl<'de> Deserialize<'de> for OsBackup {
         #[serde(rename = "kebab-case")]
         struct OsBackupDe {
             tor_key: String,
+            ssh_key: Option<String>,
             root_ca_key: String,
             root_ca_cert: String,
             ui: Value,
         }
-        let int = OsBackupDe::deserialize(deserializer)?;
-        let key_vec = base32::decode(base32::Alphabet::RFC4648 { padding: true }, &int.tor_key)
-            .ok_or_else(|| {
-                serde::de::Error::invalid_value(
-                    serde::de::Unexpected::Str(&int.tor_key),
-                    &"an RFC4648 encoded string",
-                )
-            })?;
-        if key_vec.len() != 64 {
-            return Err(serde::de::Error::invalid_value(
-                serde::de::Unexpected::Str(&int.tor_key),
-                &"a 64 byte value encoded as an RFC4648 string",
-            ));
+        fn vec_from_base32<E: serde::de::Error>(base32: &str, len: usize) -> Result<Vec<u8>, E> {
+            let key_vec = base32::decode(base32::Alphabet::RFC4648 { padding: true }, base32)
+                .ok_or_else(|| {
+                    serde::de::Error::invalid_value(
+                        serde::de::Unexpected::Str(base32),
+                        &"an RFC4648 encoded string",
+                    )
+                })?;
+            if key_vec.len() != 64 {
+                return Err(serde::de::Error::invalid_value(
+                    serde::de::Unexpected::Str(base32),
+                    &"a 64 byte value encoded as an RFC4648 string",
+                ));
+            }
+            Ok(key_vec)
         }
-        let mut key_slice = [0; 64];
-        key_slice.clone_from_slice(&key_vec);
+        let int = OsBackupDe::deserialize(deserializer)?;
+        let tor_key = {
+            let mut key_slice = [0; 64];
+            key_slice.clone_from_slice(&vec_from_base32(&int.tor_key, 64)?);
+            TorSecretKeyV3::from(key_slice)
+        };
+        let ssh_key = int
+            .ssh_key
+            .as_ref()
+            .map(|ssh_key| {
+                let mut key_slice = [0; 32];
+                key_slice.clone_from_slice(&vec_from_base32(ssh_key, 32)?);
+                Ok(Ed25519PrivateKey::from_bytes(&key_slice))
+            })
+            .transpose()?
+            .unwrap_or_else(|| Ed25519PrivateKey::from_bytes(&random()));
+        let root_ca_key = PKey::<Private>::private_key_from_pem(int.root_ca_key.as_bytes())
+            .map_err(serde::de::Error::custom)?;
+        let root_ca_cert =
+            X509::from_pem(int.root_ca_cert.as_bytes()).map_err(serde::de::Error::custom)?;
         Ok(OsBackup {
-            tor_key: TorSecretKeyV3::from(key_slice),
-            root_ca_key: PKey::<Private>::private_key_from_pem(int.root_ca_key.as_bytes())
-                .map_err(serde::de::Error::custom)?,
-            root_ca_cert: X509::from_pem(int.root_ca_cert.as_bytes())
-                .map_err(serde::de::Error::custom)?,
+            tor_key,
+            ssh_key,
+            root_ca_key,
+            root_ca_cert,
             ui: int.ui,
         })
     }
@@ -437,6 +460,7 @@ async fn perform_backup<Db: DbHandle>(
         .write_all(
             &IoFormat::Cbor.to_vec(&OsBackup {
                 tor_key: ctx.net_controller.tor.embassyd_tor_key().await,
+                ssh_key: crate::ssh::os_key(&mut ctx.secret_store.acquire().await?).await?,
                 root_ca_key,
                 root_ca_cert,
                 ui: crate::db::DatabaseModel::new()
