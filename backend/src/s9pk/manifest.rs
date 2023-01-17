@@ -78,7 +78,7 @@ pub struct Manifest {
     pub containers: Option<DockerContainers>,
 
     #[serde(default)]
-    pub replaces: Option<Vec<String>>,
+    pub replaces: Vec<String>,
 }
 
 impl Manifest {

@@ -244,24 +244,13 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
             ));
         }
 
-        if man
-            .replaces
-            .as_ref()
-            .map(|x| x.len() >= MAX_REPLACES)
-            .unwrap_or(false)
-        {
+        if man.replaces.len() >= MAX_REPLACES {
             return Err(Error::new(
                 eyre!("Cannot have more than {MAX_REPLACES} replaces"),
                 crate::ErrorKind::ValidateS9pk,
             ));
         }
-        if let Some(too_big) = man
-            .replaces
-            .as_ref()
-            .iter()
-            .flat_map(|x| x.iter())
-            .find(|x| x.len() >= MAX_REPLACES)
-        {
+        if let Some(too_big) = man.replaces.iter().find(|x| x.len() >= MAX_REPLACES) {
             return Err(Error::new(
                 eyre!("We have found a replaces of ({too_big}) that exceeds the max length of {MAX_TITLE_LEN} "),
                 crate::ErrorKind::ValidateS9pk,
