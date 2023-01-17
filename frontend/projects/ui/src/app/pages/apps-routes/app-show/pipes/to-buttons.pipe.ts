@@ -1,7 +1,6 @@
-import { Inject, Pipe, PipeTransform } from '@angular/core'
+import { Pipe, PipeTransform } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { DOCUMENT } from '@angular/common'
-import { AlertController, ModalController, NavController } from '@ionic/angular'
+import { ModalController, NavController } from '@ionic/angular'
 import { MarkdownComponent } from '@start9labs/shared'
 import {
   DataModel,
@@ -26,8 +25,6 @@ export interface Button {
 })
 export class ToButtonsPipe implements PipeTransform {
   constructor(
-    @Inject(DOCUMENT) private readonly document: Document,
-    private readonly alertCtrl: AlertController,
     private readonly route: ActivatedRoute,
     private readonly navCtrl: NavController,
     private readonly modalCtrl: ModalController,
@@ -97,13 +94,6 @@ export class ToButtonsPipe implements PipeTransform {
       },
       // view in marketplace
       this.viewInMarketplaceButton(pkg),
-      // donate
-      {
-        action: () => this.donate(pkg),
-        title: 'Donate',
-        description: `Support ${pkgTitle}`,
-        icon: 'logo-bitcoin',
-      },
     ]
   }
 
@@ -147,18 +137,5 @@ export class ToButtonsPipe implements PipeTransform {
     }
 
     return button
-  }
-
-  private async donate({ manifest }: PackageDataEntry): Promise<void> {
-    const url = manifest['donation-url']
-    if (url) {
-      this.document.defaultView?.open(url, '_blank', 'noreferrer')
-    } else {
-      const alert = await this.alertCtrl.create({
-        header: 'Not Accepting Donations',
-        message: `The developers of ${manifest.title} have not provided a donation URL. Please contact them directly if you insist on giving them money.`,
-      })
-      await alert.present()
-    }
   }
 }
