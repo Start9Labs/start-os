@@ -11,7 +11,6 @@ use openssl::nid::Nid;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::{X509Builder, X509Extension, X509NameBuilder, X509};
 use openssl::*;
-use patch_db::DbHandle;
 use sqlx::{Executor, Postgres};
 use tokio::process::Command;
 use tokio::sync::Mutex;
@@ -205,15 +204,12 @@ lazy_static::lazy_static! {
 }
 
 impl SslManager {
-    #[instrument(skip(secrets, handle))]
-    pub async fn init<Ex, Db>(secrets: &mut Ex, handle: &mut Db) -> Result<Self, Error>
+    #[instrument(skip(secrets))]
+    pub async fn init<Ex>(secrets: &mut Ex, hostname: &Hostname) -> Result<Self, Error>
     where
         for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
-        Db: DbHandle,
     {
-        let receipts = crate::hostname::HostNameReceipt::new(handle).await?;
-        let hostname = crate::hostname::get_hostname(handle, &receipts).await?;
-        let (root_key, root_cert) = root_certificate(&mut *secrets, &hostname).await?;
+        let (root_key, root_cert) = root_certificate(&mut *secrets, hostname).await?;
         // generate static file for download, this will gte blown up on embassy restart so it's good to write it on
         // every ssl manager init
         tokio::fs::create_dir_all(

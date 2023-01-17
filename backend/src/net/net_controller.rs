@@ -53,7 +53,7 @@ impl NetController {
 
         let fqdn_name = ResourceFqdn::from_str(&embassy_name)?;
 
-        let ssl = SslManager::init(secrets, db_handle).await?;
+        let ssl = SslManager::init(secrets, &embassy_host_name).await?;
         Ok(Self {
             tor: TorController::init(embassyd_addr, embassyd_tor_key, tor_control).await?,
             #[cfg(feature = "avahi")]
