@@ -24,6 +24,9 @@ use crate::s9pk::docker::DockerReader;
 use crate::util::Version;
 use crate::{Error, ResultExt};
 
+const MAX_REPLACES: usize = 10;
+const MAX_TITLE_LEN: usize = 30;
+
 #[pin_project::pin_project]
 #[derive(Debug)]
 pub struct ReadHandle<'a, R = File> {
@@ -230,6 +233,35 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
             &man.volumes,
             &validated_image_ids,
         )?;
+
+        #[cfg(feature = "js_engine")]
+        if man.containers.is_some()
+            || matches!(man.main, crate::procedure::PackageProcedure::Script(_))
+        {
+            return Err(Error::new(
+                eyre!("Right now we don't support the containers and the long running main"),
+                crate::ErrorKind::ValidateS9pk,
+            ));
+        }
+
+        if man.replaces.len() >= MAX_REPLACES {
+            return Err(Error::new(
+                eyre!("Cannot have more than {MAX_REPLACES} replaces"),
+                crate::ErrorKind::ValidateS9pk,
+            ));
+        }
+        if let Some(too_big) = man.replaces.iter().find(|x| x.len() >= MAX_REPLACES) {
+            return Err(Error::new(
+                eyre!("We have found a replaces of ({too_big}) that exceeds the max length of {MAX_TITLE_LEN} "),
+                crate::ErrorKind::ValidateS9pk,
+            ));
+        }
+        if man.title.len() >= MAX_TITLE_LEN {
+            return Err(Error::new(
+                eyre!("Cannot have more than a length of {MAX_TITLE_LEN} for title"),
+                crate::ErrorKind::ValidateS9pk,
+            ));
+        }
 
         if man.containers.is_some()
             && matches!(man.main, crate::procedure::PackageProcedure::Docker(_))
