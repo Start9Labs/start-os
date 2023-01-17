@@ -889,6 +889,28 @@ export const action = {
     };
   },
   /**
+   * Created this test because of issue
+   * https://github.com/Start9Labs/embassy-os/issues/2121
+   * That the empty in the create dies
+   * @param {*} effects 
+   * @param {*} _input 
+   * @returns 
+   */
+  async "test-zero-dir"(effects, _input) {
+    await effects.createDir({
+      volumeId: "main",
+      path: "./",
+    });
+    return {
+      result: {
+        copyable: false,
+        message: "Done",
+        version: "0",
+        qr: false,
+      },
+    };
+  },
+  /**
    * Found case where we could escape with the new deeper dir fix.
    * @param {*} effects 
    * @param {*} _input 
