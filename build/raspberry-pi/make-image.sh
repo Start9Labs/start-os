@@ -24,7 +24,7 @@ truncate -s $TARGET_SIZE $TARGET_NAME
     echo 532480
     echo
     echo w
-) | fdisk $TARGET_NAME
+) | sudo fdisk $TARGET_NAME
 export OUTPUT_DEVICE=$(sudo losetup --show -fP $TARGET_NAME)
 sudo e2fsck -f -y `partition_for ${OUTPUT_DEVICE} 2`
 sudo resize2fs `partition_for ${OUTPUT_DEVICE} 2`
