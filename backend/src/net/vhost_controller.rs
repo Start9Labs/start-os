@@ -2,80 +2,77 @@ use std::collections::BTreeMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use tokio_rustls::rustls::ServerConfig;
+use helpers::NonDetachingJoinHandle;
+use models::ResultExt;
+use sqlx::PgPool;
+use tokio::net::TcpListener;
+use tokio::sync::RwLock;
+use tokio_rustls::rustls::server::Acceptor;
+use tokio_rustls::{LazyConfigAcceptor, TlsAcceptor};
 
-use crate::net::cert_resolver::EmbassyCertResolver;
-use crate::net::embassy_service_http_server::EmbassyServiceHTTPServer;
 use crate::net::net_utils::ResourceFqdn;
-use crate::net::HttpHandler;
+use crate::net::ssl::SslManager;
 use crate::Error;
 
-pub struct VHOSTController {
-    pub service_servers: BTreeMap<u16, EmbassyServiceHTTPServer>,
-    pub cert_resolver: EmbassyCertResolver,
-    embassyd_addr: SocketAddr,
+// not allowed: <=1024, >=32768, 5355, 5432, 9050, 6010, 9051, 5353
+
+pub struct VHostController {
+    servers: BTreeMap<u16, VHostServer>,
 }
 
-impl VHOSTController {
-    pub fn init(embassyd_addr: SocketAddr) -> Self {
-        Self {
-            embassyd_addr,
-            service_servers: BTreeMap::new(),
-            cert_resolver: EmbassyCertResolver::new(),
-        }
-    }
+struct VHostServer {
+    mapping: Arc<RwLock<BTreeMap<ResourceFqdn, (SocketAddr, bool)>>>,
+    _thread: NonDetachingJoinHandle<()>,
+}
+impl VHostServer {
+    async fn new(pool: PgPool, port: u16) -> Result<Self, Error> {
+        // check if port allowed
+        // let ssl = SslManager::init(pool, handle)
+        let mut listener = TcpListener::bind(SocketAddr::new([0, 0, 0, 0].into(), port))
+            .await
+            .with_kind(crate::ErrorKind::Network)?;
+        Ok(Self {
+            mapping: Default::default(),
+            _thread: tokio::spawn(async move {
+                loop {
+                    match listener.accept().await {
+                        Ok((stream, _)) => {
+                            tokio::spawn(async move {
+                                if let Err(e) = async {
+                                    let mid = LazyConfigAcceptor::new(Acceptor::default(), stream)
+                                        .await?;
+                                    let target = mid
+                                        .client_hello()
+                                        .server_name()
+                                        .map(|s| s.parse())
+                                        .transpose()?
+                                        .unwrap_or(ResourceFqdn::IpAddr);
 
-    pub fn build_ssl_svr_cfg(&self) -> Result<Arc<ServerConfig>, Error> {
-        let ssl_cfg = ServerConfig::builder()
-            .with_safe_default_cipher_suites()
-            .with_safe_default_kx_groups()
-            .with_safe_default_protocol_versions()
-            .unwrap()
-            .with_no_client_auth()
-            .with_cert_resolver(Arc::new(self.cert_resolver.clone()));
-
-        Ok(Arc::new(ssl_cfg))
-    }
-
-    pub async fn add_server_or_handle(
-        &mut self,
-        external_svc_port: u16,
-        fqdn: ResourceFqdn,
-        svc_handler: HttpHandler,
-        is_ssl: bool,
-    ) -> Result<(), Error> {
-        if let Some(server) = self.service_servers.get_mut(&external_svc_port) {
-            server.add_svc_handler_mapping(fqdn, svc_handler).await?;
-        } else {
-            self.add_server(is_ssl, external_svc_port, fqdn, svc_handler)
-                .await?;
-        }
-
-        Ok(())
-    }
-
-    async fn add_server(
-        &mut self,
-        is_ssl: bool,
-        external_svc_port: u16,
-        fqdn: ResourceFqdn,
-        svc_handler: HttpHandler,
-    ) -> Result<(), Error> {
-        let ssl_cfg = if is_ssl {
-            Some(self.build_ssl_svr_cfg()?)
-        } else {
-            None
-        };
-
-        let mut new_service_server =
-            EmbassyServiceHTTPServer::new(self.embassyd_addr.ip(), external_svc_port, ssl_cfg)
-                .await?;
-        new_service_server
-            .add_svc_handler_mapping(fqdn.clone(), svc_handler)
-            .await?;
-        self.service_servers
-            .insert(external_svc_port, new_service_server);
-
-        Ok(())
+                                    Ok(())
+                                }
+                                .await
+                                {
+                                    tracing::error!("Error in VHostController on port {port}: {e}");
+                                    tracing::debug!("{e:?}")
+                                }
+                            });
+                        }
+                        Err(e) => {
+                            tracing::error!("Error in VHostController on port {port}: {e}");
+                            tracing::debug!("{e:?}");
+                        }
+                    }
+                    if let Err(e) = async {
+                        let (stream, _) = listener.accept().await?;
+                    }
+                    .await
+                    {
+                        tracing::error!("Error in VHostController on port {port}: {e}");
+                        tracing::debug!("{e:?}")
+                    }
+                }
+            })
+            .into(),
+        })
     }
 }
