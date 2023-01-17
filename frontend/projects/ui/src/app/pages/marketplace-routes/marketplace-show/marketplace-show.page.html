@@ -3,12 +3,20 @@
 <ion-content class="ion-padding">
   <ng-container *ngIf="pkg$ | async as pkg else loading">
     <ng-container *ngIf="pkg | empty; else show">
-      <ng-container *ngIf="loadVersion$ | async as version">
+      <div
+        *ngIf="loadVersion$ | async as version"
+        class="ion-text-center"
+        style="padding-top: 64px"
+      >
+        <ion-icon
+          name="close-circle-outline"
+          style="font-size: 48px"
+        ></ion-icon>
         <h2>
-          {{ pkgId }} version {{ version === '*' ? 'latest' : version }} not
-          found in this registry
+          {{ pkgId }} @{{ version === '*' ? 'latest' : version }} not found in
+          this registry
         </h2>
-      </ng-container>
+      </div>
     </ng-container>
 
     <ng-template #show>

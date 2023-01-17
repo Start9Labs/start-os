@@ -18,6 +18,7 @@ const ICONS = [
   'chevron-up',
   'chevron-forward',
   'close',
+  'close-circle-outline',
   'cloud-outline',
   'cloud-done',
   'cloud-done-outline',

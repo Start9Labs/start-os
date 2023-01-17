@@ -27,12 +27,15 @@ export interface MarketplacePkg {
   categories: string[]
   versions: string[]
   'dependency-metadata': {
-    [id: string]: {
-      title: string
-      icon: Url
-    }
+    [id: string]: DependencyMetadata
   }
   'published-at': string
+}
+
+export interface DependencyMetadata {
+  title: string
+  icon: Url
+  hidden: boolean
 }
 
 export interface MarketplaceManifest<T = unknown> {
