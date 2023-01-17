@@ -234,8 +234,6 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
             &validated_image_ids,
         )?;
 
-<<<<<<< Updated upstream
-=======
         #[cfg(feature = "js_engine")]
         if man.containers.is_some()
             || matches!(man.main, crate::procedure::PackageProcedure::Script(_))
@@ -245,13 +243,27 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
                 crate::ErrorKind::ValidateS9pk,
             ));
         }
+
         if man
             .replaces
+            .as_ref()
             .map(|x| x.len() >= MAX_REPLACES)
             .unwrap_or(false)
         {
             return Err(Error::new(
                 eyre!("Cannot have more than {MAX_REPLACES} replaces"),
+                crate::ErrorKind::ValidateS9pk,
+            ));
+        }
+        if let Some(too_big) = man
+            .replaces
+            .as_ref()
+            .iter()
+            .flat_map(|x| x.iter())
+            .find(|x| x.len() >= MAX_REPLACES)
+        {
+            return Err(Error::new(
+                eyre!("We have found a replaces of ({too_big}) that exceeds the max length of {MAX_TITLE_LEN} "),
                 crate::ErrorKind::ValidateS9pk,
             ));
         }
@@ -262,7 +274,6 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
             ));
         }
 
->>>>>>> Stashed changes
         if man.containers.is_some()
             && matches!(man.main, crate::procedure::PackageProcedure::Docker(_))
         {
