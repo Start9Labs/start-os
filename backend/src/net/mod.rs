@@ -12,6 +12,7 @@ use crate::util::serde::Port;
 use crate::Error;
 
 pub mod cert_resolver;
+pub mod dhcp;
 pub mod dns;
 pub mod embassy_service_http_server;
 pub mod interface;
@@ -28,7 +29,7 @@ pub mod wifi;
 
 const PACKAGE_CERT_PATH: &str = "/var/lib/embassy/ssl";
 
-#[command(subcommands(tor::tor))]
+#[command(subcommands(tor::tor, dhcp::dhcp))]
 pub fn net() -> Result<(), Error> {
     Ok(())
 }

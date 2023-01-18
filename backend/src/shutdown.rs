@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use patch_db::{LockType, PatchDbHandle};
 use rpc_toolkit::command;
 
 use crate::context::RpcContext;
@@ -16,7 +15,6 @@ pub struct Shutdown {
     pub datadir: PathBuf,
     pub disk_guid: Option<Arc<String>>,
     pub restart: bool,
-    pub db_handle: Option<Arc<PatchDbHandle>>,
 }
 impl Shutdown {
     /// BLOCKING
@@ -87,16 +85,11 @@ impl Shutdown {
 
 #[command(display(display_none))]
 pub async fn shutdown(#[context] ctx: RpcContext) -> Result<(), Error> {
-    let mut db = ctx.db.handle();
-    crate::db::DatabaseModel::new()
-        .lock(&mut db, LockType::Write)
-        .await?;
     ctx.shutdown
         .send(Some(Shutdown {
             datadir: ctx.datadir.clone(),
             disk_guid: Some(ctx.disk_guid.clone()),
             restart: false,
-            db_handle: Some(Arc::new(db)),
         }))
         .map_err(|_| ())
         .expect("receiver dropped");
@@ -105,16 +98,11 @@ pub async fn shutdown(#[context] ctx: RpcContext) -> Result<(), Error> {
 
 #[command(display(display_none))]
 pub async fn restart(#[context] ctx: RpcContext) -> Result<(), Error> {
-    let mut db = ctx.db.handle();
-    crate::db::DatabaseModel::new()
-        .lock(&mut db, LockType::Write)
-        .await?;
     ctx.shutdown
         .send(Some(Shutdown {
             datadir: ctx.datadir.clone(),
             disk_guid: Some(ctx.disk_guid.clone()),
             restart: true,
-            db_handle: Some(Arc::new(db)),
         }))
         .map_err(|_| ())
         .expect("receiver dropped");

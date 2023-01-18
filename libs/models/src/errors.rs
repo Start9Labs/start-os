@@ -261,6 +261,11 @@ impl From<InvalidUri> for Error {
         Error::new(eyre!("{}", e), ErrorKind::ParseUrl)
     }
 }
+impl From<ssh_key::Error> for Error {
+    fn from(e: ssh_key::Error) -> Self {
+        Error::new(e, ErrorKind::OpenSsh)
+    }
+}
 
 impl From<Error> for RpcError {
     fn from(e: Error) -> Self {

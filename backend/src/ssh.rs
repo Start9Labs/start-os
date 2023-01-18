@@ -4,7 +4,8 @@ use chrono::Utc;
 use clap::ArgMatches;
 use color_eyre::eyre::eyre;
 use rpc_toolkit::command;
-use sqlx::{Pool, Postgres};
+use sqlx::{Executor, Pool, Postgres};
+use ssh_key::private::Ed25519PrivateKey;
 use tracing::instrument;
 
 use crate::context::RpcContext;
@@ -13,6 +14,25 @@ use crate::util::serde::{display_serializable, IoFormat};
 use crate::{Error, ErrorKind};
 
 static SSH_AUTHORIZED_KEYS_FILE: &str = "/home/start9/.ssh/authorized_keys";
+
+#[instrument(skip(secrets))]
+pub async fn os_key<Ex>(secrets: &mut Ex) -> Result<Ed25519PrivateKey, Error>
+where
+    for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
+{
+    let key = sqlx::query!("SELECT ssh_key FROM account")
+        .fetch_one(secrets)
+        .await?
+        .ssh_key;
+
+    let mut buf = [0; 32];
+    buf.clone_from_slice(
+        key.get(0..64).ok_or_else(|| {
+            Error::new(eyre!("Invalid Ssh Key Length"), crate::ErrorKind::Database)
+        })?,
+    );
+    Ok(Ed25519PrivateKey::from_bytes(&buf))
+}
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct PubKey(

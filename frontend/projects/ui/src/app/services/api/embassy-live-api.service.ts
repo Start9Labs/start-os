@@ -117,6 +117,12 @@ export class LiveApiService extends ApiService {
     return this.openWebsocket(config)
   }
 
+  async getSystemTime(
+    params: RR.GetSystemTimeReq,
+  ): Promise<RR.GetSystemTimeRes> {
+    return this.rpcRequest({ method: 'server.time', params })
+  }
+
   async getServerLogs(
     params: RR.GetServerLogsReq,
   ): Promise<RR.GetServerLogsRes> {

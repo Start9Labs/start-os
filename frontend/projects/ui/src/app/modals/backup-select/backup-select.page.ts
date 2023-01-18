@@ -3,6 +3,7 @@ import { ModalController } from '@ionic/angular'
 import { map, take } from 'rxjs/operators'
 import { DataModel, PackageState } from 'src/app/services/patch-db/data-model'
 import { PatchDB } from 'patch-db-client'
+import { firstValueFrom } from 'rxjs'
 
 @Component({
   selector: 'backup-select',
@@ -25,25 +26,27 @@ export class BackupSelectPage {
     private readonly patch: PatchDB<DataModel>,
   ) {}
 
-  ngOnInit() {
-    this.patch
-      .watch$('package-data')
-      .pipe(
+  async ngOnInit() {
+    this.pkgs = await firstValueFrom(
+      this.patch.watch$('package-data').pipe(
         map(pkgs => {
-          return Object.values(pkgs).map(pkg => {
-            const { id, title } = pkg.manifest
-            return {
-              id,
-              title,
-              icon: pkg['static-files'].icon,
-              disabled: pkg.state !== PackageState.Installed,
-              checked: pkg.state === PackageState.Installed,
-            }
-          })
+          return Object.values(pkgs)
+            .map(pkg => {
+              const { id, title } = pkg.manifest
+              return {
+                id,
+                title,
+                icon: pkg['static-files'].icon,
+                disabled: pkg.state !== PackageState.Installed,
+                checked: pkg.state === PackageState.Installed,
+              }
+            })
+            .sort((a, b) =>
+              b.title.toLowerCase() > a.title.toLowerCase() ? -1 : 1,
+            )
         }),
-        take(1),
-      )
-      .subscribe(pkgs => (this.pkgs = pkgs))
+      ),
+    )
   }
 
   dismiss(success = false) {

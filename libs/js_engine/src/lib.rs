@@ -11,7 +11,7 @@ use deno_core::{
     ModuleSpecifier, ModuleType, OpDecl, RuntimeOptions, Snapshot,
 };
 use embassy_container_init::ProcessGroupId;
-use helpers::{script_dir, spawn_local, RpcClient, Rsync};
+use helpers::{script_dir, spawn_local, Rsync, UnixRpcClient};
 use models::{PackageId, ProcedureName, Version, VolumeId};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -95,7 +95,7 @@ struct JsContext {
     input: Value,
     variable_args: Vec<serde_json::Value>,
     container_process_gid: ProcessGroupId,
-    container_rpc_client: Option<Arc<RpcClient>>,
+    container_rpc_client: Option<Arc<UnixRpcClient>>,
     rsyncs: Arc<Mutex<(usize, BTreeMap<usize, Rsync>)>>,
 }
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -184,7 +184,7 @@ pub struct JsExecutionEnvironment {
     version: Version,
     volumes: Arc<dyn PathForVolumeId>,
     container_process_gid: ProcessGroupId,
-    container_rpc_client: Option<Arc<RpcClient>>,
+    container_rpc_client: Option<Arc<UnixRpcClient>>,
 }
 
 impl JsExecutionEnvironment {
@@ -194,7 +194,7 @@ impl JsExecutionEnvironment {
         version: &Version,
         volumes: Box<dyn PathForVolumeId>,
         container_process_gid: ProcessGroupId,
-        container_rpc_client: Option<Arc<RpcClient>>,
+        container_rpc_client: Option<Arc<UnixRpcClient>>,
     ) -> Result<JsExecutionEnvironment, (JsError, String)> {
         let data_dir = data_directory.as_ref();
         let base_directory = data_dir;
@@ -832,11 +832,9 @@ mod fns {
             bail!("Volume {} is readonly", volume_id);
         }
         let new_file = volume_path.join(path_in);
-        let parent_new_file = new_file
-            .parent()
-            .ok_or_else(|| anyhow!("Expecting that file is not root"))?;
+
         // With the volume check
-        if !is_subset(&volume_path, &parent_new_file).await? {
+        if !is_subset(&volume_path, &new_file).await? {
             bail!(
                 "Path '{}' has broken away from parent '{}'",
                 new_file.to_string_lossy(),
@@ -854,8 +852,21 @@ mod fns {
     }
 
     #[op]
-    fn log_trace(state: &mut OpState, input: String) -> Result<(), AnyError> {
-        let ctx = state.borrow::<JsContext>();
+    async fn log_trace(state: Rc<RefCell<OpState>>, input: String) -> Result<(), AnyError> {
+        let state = state.borrow();
+        let ctx = state.borrow::<JsContext>().clone();
+        if let Some(rpc_client) = ctx.container_rpc_client {
+            return rpc_client
+                .request(
+                    embassy_container_init::Log,
+                    embassy_container_init::LogParams {
+                        gid: Some(ctx.container_process_gid),
+                        level: embassy_container_init::LogLevel::Trace(input),
+                    },
+                )
+                .await
+                .map_err(|e| anyhow!("{}: {:?}", e.message, e.data));
+        }
         tracing::trace!(
             package_id = tracing::field::display(&ctx.package_id),
             run_function = tracing::field::display(&ctx.run_function),
@@ -865,8 +876,21 @@ mod fns {
         Ok(())
     }
     #[op]
-    fn log_warn(state: &mut OpState, input: String) -> Result<(), AnyError> {
-        let ctx = state.borrow::<JsContext>();
+    async fn log_warn(state: Rc<RefCell<OpState>>, input: String) -> Result<(), AnyError> {
+        let state = state.borrow();
+        let ctx = state.borrow::<JsContext>().clone();
+        if let Some(rpc_client) = ctx.container_rpc_client {
+            return rpc_client
+                .request(
+                    embassy_container_init::Log,
+                    embassy_container_init::LogParams {
+                        gid: Some(ctx.container_process_gid),
+                        level: embassy_container_init::LogLevel::Warn(input),
+                    },
+                )
+                .await
+                .map_err(|e| anyhow!("{}: {:?}", e.message, e.data));
+        }
         tracing::warn!(
             package_id = tracing::field::display(&ctx.package_id),
             run_function = tracing::field::display(&ctx.run_function),
@@ -876,8 +900,21 @@ mod fns {
         Ok(())
     }
     #[op]
-    fn log_error(state: &mut OpState, input: String) -> Result<(), AnyError> {
-        let ctx = state.borrow::<JsContext>();
+    async fn log_error(state: Rc<RefCell<OpState>>, input: String) -> Result<(), AnyError> {
+        let state = state.borrow();
+        let ctx = state.borrow::<JsContext>().clone();
+        if let Some(rpc_client) = ctx.container_rpc_client {
+            return rpc_client
+                .request(
+                    embassy_container_init::Log,
+                    embassy_container_init::LogParams {
+                        gid: Some(ctx.container_process_gid),
+                        level: embassy_container_init::LogLevel::Error(input),
+                    },
+                )
+                .await
+                .map_err(|e| anyhow!("{}: {:?}", e.message, e.data));
+        }
         tracing::error!(
             package_id = tracing::field::display(&ctx.package_id),
             run_function = tracing::field::display(&ctx.run_function),
@@ -887,8 +924,21 @@ mod fns {
         Ok(())
     }
     #[op]
-    fn log_debug(state: &mut OpState, input: String) -> Result<(), AnyError> {
-        let ctx = state.borrow::<JsContext>();
+    async fn log_debug(state: Rc<RefCell<OpState>>, input: String) -> Result<(), AnyError> {
+        let state = state.borrow();
+        let ctx = state.borrow::<JsContext>().clone();
+        if let Some(rpc_client) = ctx.container_rpc_client {
+            return rpc_client
+                .request(
+                    embassy_container_init::Log,
+                    embassy_container_init::LogParams {
+                        gid: Some(ctx.container_process_gid),
+                        level: embassy_container_init::LogLevel::Debug(input),
+                    },
+                )
+                .await
+                .map_err(|e| anyhow!("{}: {:?}", e.message, e.data));
+        }
         tracing::debug!(
             package_id = tracing::field::display(&ctx.package_id),
             run_function = tracing::field::display(&ctx.run_function),
@@ -898,8 +948,21 @@ mod fns {
         Ok(())
     }
     #[op]
-    fn log_info(state: &mut OpState, input: String) -> Result<(), AnyError> {
-        let ctx = state.borrow::<JsContext>();
+    async fn log_info(state: Rc<RefCell<OpState>>, input: String) -> Result<(), AnyError> {
+        let state = state.borrow();
+        let ctx = state.borrow::<JsContext>().clone();
+        if let Some(rpc_client) = ctx.container_rpc_client {
+            return rpc_client
+                .request(
+                    embassy_container_init::Log,
+                    embassy_container_init::LogParams {
+                        gid: Some(ctx.container_process_gid),
+                        level: embassy_container_init::LogLevel::Info(input),
+                    },
+                )
+                .await
+                .map_err(|e| anyhow!("{}: {:?}", e.message, e.data));
+        }
         tracing::info!(
             package_id = tracing::field::display(&ctx.package_id),
             run_function = tracing::field::display(&ctx.run_function),

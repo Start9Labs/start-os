@@ -14,6 +14,7 @@ use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::{MountGuard, TmpMountGuard};
 use crate::disk::util::DiskInfo;
 use crate::disk::OsPartitionInfo;
+use crate::net::net_utils::{find_eth_iface, find_wifi_iface};
 use crate::util::serde::IoFormat;
 use crate::util::{display_none, Invoke};
 
@@ -67,43 +68,6 @@ pub async fn list() -> Result<Vec<DiskInfo>, Error> {
         .into_iter()
         .filter(|i| Some(&*i.logicalname) != skip.as_deref())
         .collect())
-}
-
-pub async fn find_wifi_iface() -> Result<Option<String>, Error> {
-    let mut ifaces = tokio::fs::read_dir("/sys/class/net").await?;
-    while let Some(iface) = ifaces.next_entry().await? {
-        if tokio::fs::metadata(iface.path().join("wireless"))
-            .await
-            .is_ok()
-        {
-            if let Some(iface) = iface.file_name().into_string().ok() {
-                return Ok(Some(iface));
-            }
-        }
-    }
-
-    Ok(None)
-}
-
-pub async fn find_eth_iface() -> Result<String, Error> {
-    let mut ifaces = tokio::fs::read_dir("/sys/class/net").await?;
-    while let Some(iface) = ifaces.next_entry().await? {
-        if tokio::fs::metadata(iface.path().join("wireless"))
-            .await
-            .is_err()
-            && tokio::fs::metadata(iface.path().join("device"))
-                .await
-                .is_ok()
-        {
-            if let Some(iface) = iface.file_name().into_string().ok() {
-                return Ok(iface);
-            }
-        }
-    }
-    Err(Error::new(
-        eyre!("Could not detect ethernet interface"),
-        crate::ErrorKind::Network,
-    ))
 }
 
 pub fn partition_for(disk: impl AsRef<Path>, idx: usize) -> PathBuf {

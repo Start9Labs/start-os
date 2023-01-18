@@ -1,3 +1,24 @@
+<div
+  *ngIf="pkg.manifest['marketing-site'] as url"
+  style="padding: 4px 0 10px 14px"
+>
+  <ion-button [href]="url" target="_blank" rel="noreferrer" color="tertiary">
+    View marketing website
+    <ion-icon slot="end" name="open-outline"></ion-icon>
+  </ion-button>
+</div>
+
+<ng-container *ngIf="pkg.manifest.replaces as replaces">
+  <div *ngIf="replaces.length" class="ion-padding-bottom">
+    <ion-item-divider>Intended to replace</ion-item-divider>
+    <ul>
+      <li *ngFor="let app of replaces">
+        {{ app }}
+      </li>
+    </ul>
+  </div>
+</ng-container>
+
 <ion-item-divider>Additional Info</ion-item-divider>
 <ion-grid *ngIf="pkg.manifest as manifest">
   <ion-row>
@@ -86,19 +107,6 @@
           <ion-label>
             <h2>Support Site</h2>
             <p>{{ manifest['support-site'] || 'Not provided' }}</p>
-          </ion-label>
-          <ion-icon slot="end" name="open-outline"></ion-icon>
-        </ion-item>
-        <ion-item
-          [href]="manifest['marketing-site']"
-          [disabled]="!manifest['marketing-site']"
-          target="_blank"
-          rel="noreferrer"
-          detail="false"
-        >
-          <ion-label>
-            <h2>Marketing Site</h2>
-            <p>{{ manifest['marketing-site'] || 'Not provided' }}</p>
           </ion-label>
           <ion-icon slot="end" name="open-outline"></ion-icon>
         </ion-item>

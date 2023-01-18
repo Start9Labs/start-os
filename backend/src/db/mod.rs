@@ -132,7 +132,7 @@ pub async fn subscribe(ctx: RpcContext, req: Request<Body>) -> Result<Response<B
     let (parts, body) = req.into_parts();
     let session = match async {
         let token = HashSessionToken::from_request_parts(&parts)?;
-        let session = HasValidSession::from_session(&token, &ctx).await?;
+        let session = HasValidSession::from_request_parts(&parts, &ctx).await?;
         Ok::<_, Error>((session, token))
     }
     .await

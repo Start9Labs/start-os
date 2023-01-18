@@ -1,5 +1,5 @@
 use std::borrow::Borrow;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 use std::time::Duration;
@@ -20,13 +20,13 @@ use crate::util::Invoke;
 use crate::{Error, ErrorKind, ResultExt, HOST_IP};
 
 pub struct DnsController {
-    services: Arc<RwLock<BTreeMap<PackageId, BTreeSet<Ipv4Addr>>>>,
+    services: Arc<RwLock<BTreeMap<PackageId, Vec<Ipv4Addr>>>>,
     #[allow(dead_code)]
     dns_server: NonDetachingJoinHandle<Result<(), Error>>,
 }
 
 struct Resolver {
-    services: Arc<RwLock<BTreeMap<PackageId, BTreeSet<Ipv4Addr>>>>,
+    services: Arc<RwLock<BTreeMap<PackageId, Vec<Ipv4Addr>>>>,
 }
 impl Resolver {
     async fn resolve(&self, name: &Name) -> Option<Vec<Ipv4Addr>> {
@@ -150,14 +150,16 @@ impl DnsController {
     pub async fn add(&self, pkg_id: &PackageId, ip: Ipv4Addr) {
         let mut writable = self.services.write().await;
         let mut ips = writable.remove(pkg_id).unwrap_or_default();
-        ips.insert(ip);
+        ips.push(ip);
         writable.insert(pkg_id.clone(), ips);
     }
 
     pub async fn remove(&self, pkg_id: &PackageId, ip: Ipv4Addr) {
         let mut writable = self.services.write().await;
         let mut ips = writable.remove(pkg_id).unwrap_or_default();
-        ips.remove(&ip);
+        if let Some((idx, _)) = ips.iter().copied().enumerate().find(|(_, x)| *x == ip) {
+            ips.swap_remove(idx);
+        }
         if !ips.is_empty() {
             writable.insert(pkg_id.clone(), ips);
         }

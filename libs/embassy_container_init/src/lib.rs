@@ -56,6 +56,49 @@ impl RpcMethod for RunCommand {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum LogLevel {
+    Trace(String),
+    Warn(String),
+    Error(String),
+    Info(String),
+    Debug(String),
+}
+impl LogLevel {
+    pub fn trace(&self) {
+        match self {
+            LogLevel::Trace(x) => tracing::trace!("{}", x),
+            LogLevel::Warn(x) => tracing::warn!("{}", x),
+            LogLevel::Error(x) => tracing::error!("{}", x),
+            LogLevel::Info(x) => tracing::info!("{}", x),
+            LogLevel::Debug(x) => tracing::debug!("{}", x),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Log;
+impl Serialize for Log {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        Serialize::serialize(Self.as_str(), serializer)
+    }
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LogParams {
+    pub gid: Option<ProcessGroupId>,
+    pub level: LogLevel,
+}
+impl RpcMethod for Log {
+    type Params = LogParams;
+    type Response = ();
+    fn as_str<'a>(&'a self) -> &'a str {
+        "log"
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct ReadLineStdout;
 impl Serialize for ReadLineStdout {

@@ -519,6 +519,19 @@ export class ServerShowPage {
         detail: true,
         disabled$: of(false),
       },
+      {
+        title: 'Donate to Start9',
+        description: `Support embassyOS development`,
+        icon: 'logo-bitcoin',
+        action: () =>
+          this.document.defaultView?.open(
+            'https://donate.start9.com',
+            '_blank',
+            'noreferrer',
+          ),
+        detail: true,
+        disabled$: of(false),
+      },
     ],
     Power: [
       {

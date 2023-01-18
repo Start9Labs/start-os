@@ -26,7 +26,7 @@ export interface UIMarketplaceData {
   'selected-url': string
   'known-hosts': {
     'https://registry.start9.com/': UIStore
-    // 'https://community-registry.start9.com/': UIStore
+    'https://community-registry.start9.com/': UIStore
     [url: string]: UIStore
   }
 }
@@ -52,12 +52,23 @@ export interface ServerInfo {
   'last-backup': string | null
   'lan-address': Url
   'tor-address': Url
+  'ip-info': IpInfo
   'last-wifi-region': string | null
   'unread-notification-count': number
   'status-info': ServerStatusInfo
   'eos-version-compat': string
   'password-hash': string
   hostname: string
+  pubkey: string
+  'ca-fingerprint': string
+  'system-start-time': string
+}
+
+export interface IpInfo {
+  [iface: string]: {
+    ipv4: string | null
+    ipv6: string | null
+  }
 }
 
 export interface ServerStatusInfo {

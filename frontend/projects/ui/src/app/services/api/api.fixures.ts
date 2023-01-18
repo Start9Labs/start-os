@@ -10,7 +10,7 @@ import {
 import { Metric, RR, NotificationLevel, ServerNotifications } from './api.types'
 
 import { BTC_ICON, LND_ICON, PROXY_ICON } from './api-icons'
-import { MarketplacePkg } from '@start9labs/marketplace'
+import { DependencyMetadata, MarketplacePkg } from '@start9labs/marketplace'
 import { Log } from '@start9labs/shared'
 
 export module Mock {
@@ -47,6 +47,7 @@ export module Mock {
       short: 'A Bitcoin full node by Bitcoin Core.',
       long: 'Bitcoin is a decentralized consensus protocol and settlement network.',
     },
+    replaces: ['banks', 'governments'],
     'release-notes': 'Taproot, Schnorr, and more.',
     assets: {
       icon: 'icon.png',
@@ -626,6 +627,18 @@ export module Mock {
     },
   }
 
+  export const BitcoinDep: DependencyMetadata = {
+    title: 'Bitcoin Core',
+    icon: BTC_ICON,
+    hidden: true,
+  }
+
+  export const ProxyDep: DependencyMetadata = {
+    title: 'Bitcoin Proxy',
+    icon: PROXY_ICON,
+    hidden: false,
+  }
+
   export const MarketplacePkgs: {
     [id: string]: {
       [version: string]: MarketplacePkg
@@ -701,14 +714,8 @@ export module Mock {
         categories: ['bitcoin', 'lightning', 'cryptocurrency'],
         versions: ['0.11.0', '0.11.1'],
         'dependency-metadata': {
-          bitcoind: {
-            title: 'Bitcoin Core',
-            icon: BTC_ICON,
-          },
-          'btc-rpc-proxy': {
-            title: 'Bitcoin Proxy',
-            icon: PROXY_ICON,
-          },
+          bitcoind: BitcoinDep,
+          'btc-rpc-proxy': ProxyDep,
         },
         'published-at': new Date().toISOString(),
       },
@@ -724,14 +731,8 @@ export module Mock {
         categories: ['bitcoin', 'lightning', 'cryptocurrency'],
         versions: ['0.11.0', '0.11.1'],
         'dependency-metadata': {
-          bitcoind: {
-            title: 'Bitcoin Core',
-            icon: BTC_ICON,
-          },
-          'btc-rpc-proxy': {
-            title: 'Bitcoin Proxy',
-            icon: PROXY_ICON,
-          },
+          bitcoind: BitcoinDep,
+          'btc-rpc-proxy': ProxyDep,
         },
         'published-at': new Date().toISOString(),
       },
@@ -743,14 +744,8 @@ export module Mock {
         categories: ['bitcoin', 'lightning', 'cryptocurrency'],
         versions: ['0.11.0', '0.11.1'],
         'dependency-metadata': {
-          bitcoind: {
-            title: 'Bitcoin Core',
-            icon: BTC_ICON,
-          },
-          'btc-rpc-proxy': {
-            title: 'Bitcoin Proxy',
-            icon: PROXY_ICON,
-          },
+          bitcoind: BitcoinDep,
+          'btc-rpc-proxy': ProxyDep,
         },
         'published-at': new Date(new Date().valueOf() + 10).toISOString(),
       },
@@ -764,10 +759,7 @@ export module Mock {
         categories: ['bitcoin'],
         versions: ['0.2.2'],
         'dependency-metadata': {
-          bitcoind: {
-            title: 'Bitcoin Core',
-            icon: BTC_ICON,
-          },
+          bitcoind: BitcoinDep,
         },
         'published-at': new Date().toISOString(),
       },

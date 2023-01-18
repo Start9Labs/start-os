@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use color_eyre::eyre::eyre;
 use embassy_container_init::{ProcessGroupId, SignalGroup, SignalGroupParams};
-use helpers::RpcClient;
+use helpers::UnixRpcClient;
 pub use js_engine::JsError;
 use js_engine::{JsExecutionEnvironment, PathForVolumeId};
 use models::{ErrorKind, VolumeId};
@@ -68,7 +68,7 @@ impl JsProcedure {
         input: Option<I>,
         timeout: Option<Duration>,
         gid: ProcessGroupId,
-        rpc_client: Option<Arc<RpcClient>>,
+        rpc_client: Option<Arc<UnixRpcClient>>,
     ) -> Result<Result<O, (i32, String)>, Error> {
         let cleaner_client = rpc_client.clone();
         let cleaner = GeneralGuard::new(move || {
@@ -96,7 +96,7 @@ impl JsProcedure {
             )
             .await?
             .run_action(name, input, self.args.clone());
-            let output: ErrorValue = match timeout {
+            let output: Option<ErrorValue> = match timeout {
                 Some(timeout_duration) => tokio::time::timeout(timeout_duration, running_action)
                     .await
                     .map_err(|_| (JsError::Timeout, "Timed out. Retrying soon...".to_owned()))??,
@@ -134,7 +134,7 @@ impl JsProcedure {
             .await?
             .read_only_effects()
             .run_action(name, input, self.args.clone());
-            let output: ErrorValue = match timeout {
+            let output: Option<ErrorValue> = match timeout {
                 Some(timeout_duration) => tokio::time::timeout(timeout_duration, running_action)
                     .await
                     .map_err(|_| (JsError::Timeout, "Timed out. Retrying soon...".to_owned()))??,
@@ -149,8 +149,9 @@ impl JsProcedure {
 }
 
 fn unwrap_known_error<O: DeserializeOwned>(
-    error_value: ErrorValue,
+    error_value: Option<ErrorValue>,
 ) -> Result<O, (JsError, String)> {
+    let error_value = error_value.unwrap_or_else(|| ErrorValue::Result(serde_json::Value::Null));
     match error_value {
         ErrorValue::Error(error) => Err((JsError::Javascript, error)),
         ErrorValue::ErrorCode((code, message)) => Err((JsError::Code(code), message)),
@@ -519,6 +520,51 @@ async fn js_action_test_deep_dir_escape() {
     let package_id = "test-package".parse().unwrap();
     let package_version: Version = "0.3.0.3".parse().unwrap();
     let name = ProcedureName::Action("test-deep-dir-escape".parse().unwrap());
+    let volumes: Volumes = serde_json::from_value(serde_json::json!({
+        "main": {
+            "type": "data"
+        },
+        "compat": {
+            "type": "assets"
+        },
+        "filebrowser" :{
+            "package-id": "filebrowser",
+            "path": "data",
+            "readonly": true,
+            "type": "pointer",
+            "volume-id": "main",
+        }
+    }))
+    .unwrap();
+    let input: Option<serde_json::Value> = None;
+    let timeout = Some(Duration::from_secs(10));
+    js_action
+        .execute::<serde_json::Value, serde_json::Value>(
+            &path,
+            &package_id,
+            &package_version,
+            name,
+            &volumes,
+            input,
+            timeout,
+            ProcessGroupId(0),
+            None,
+        )
+        .await
+        .unwrap()
+        .unwrap();
+}
+#[tokio::test]
+async fn js_action_test_zero_dir() {
+    let js_action = JsProcedure { args: vec![] };
+    let path: PathBuf = "test/js_action_execute/"
+        .parse::<PathBuf>()
+        .unwrap()
+        .canonicalize()
+        .unwrap();
+    let package_id = "test-package".parse().unwrap();
+    let package_version: Version = "0.3.0.3".parse().unwrap();
+    let name = ProcedureName::Action("test-zero-dir".parse().unwrap());
     let volumes: Volumes = serde_json::from_value(serde_json::json!({
         "main": {
             "type": "data"

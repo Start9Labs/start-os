@@ -18,6 +18,7 @@ import {
 } from '@start9labs/shared'
 import { MarketplacePkg } from '../../../types'
 import { AbstractMarketplaceService } from '../../../services/marketplace.service'
+import { ActivatedRoute } from '@angular/router'
 
 @Component({
   selector: 'marketplace-additional',
@@ -31,12 +32,15 @@ export class AdditionalComponent {
   @Output()
   version = new EventEmitter<string>()
 
+  readonly url = this.route.snapshot.queryParamMap.get('url') || undefined
+
   constructor(
     private readonly alertCtrl: AlertController,
     private readonly modalCtrl: ModalController,
     private readonly emver: Emver,
     private readonly marketplaceService: AbstractMarketplaceService,
     private readonly toastCtrl: ToastController,
+    private readonly route: ActivatedRoute,
   ) {}
 
   async copy(address: string): Promise<void> {
@@ -84,6 +88,7 @@ export class AdditionalComponent {
     const content = this.marketplaceService.fetchStatic$(
       this.pkg.manifest.id,
       title,
+      this.url,
     )
 
     const modal = await this.modalCtrl.create({

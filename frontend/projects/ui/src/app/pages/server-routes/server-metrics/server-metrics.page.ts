@@ -1,6 +1,7 @@
 import { Component } from '@angular/core'
 import { Metrics } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { TimeService } from 'src/app/services/time-service'
 import { pauseFor, ErrorToastService } from '@start9labs/shared'
 
 @Component({
@@ -13,9 +14,13 @@ export class ServerMetricsPage {
   going = false
   metrics: Metrics = {}
 
+  readonly systemTime$ = this.timeService.systemTime$
+  readonly systemUptime$ = this.timeService.systemUptime$
+
   constructor(
     private readonly errToast: ErrorToastService,
     private readonly embassyApi: ApiService,
+    private readonly timeService: TimeService,
   ) {}
 
   async ngOnInit() {

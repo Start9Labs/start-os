@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::ffi::{OsStr, OsString};
 use std::net::Ipv4Addr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use async_stream::stream;
@@ -11,13 +11,16 @@ use color_eyre::eyre::eyre;
 use color_eyre::Report;
 use futures::future::Either as EitherFuture;
 use futures::TryStreamExt;
-use helpers::{NonDetachingJoinHandle, RpcClient};
+use helpers::{NonDetachingJoinHandle, UnixRpcClient};
 use nix::sys::signal;
 use nix::unistd::Pid;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tokio::io::{AsyncBufRead, AsyncBufReadExt, BufReader};
+use tokio::{
+    io::{AsyncBufRead, AsyncBufReadExt, BufReader},
+    time::timeout,
+};
 use tracing::instrument;
 
 use super::ProcedureName;
@@ -66,6 +69,7 @@ pub struct DockerContainer {
     #[serde(default)]
     pub system: bool,
 }
+
 impl DockerContainer {
     /// We created a new exec runner, where we are going to be passing the commands for it to run.
     /// Idea is that we are going to send it command and get the inputs be filtered back from the manager.
@@ -78,8 +82,15 @@ impl DockerContainer {
         pkg_id: &PackageId,
         pkg_version: &Version,
         volumes: &Volumes,
-    ) -> Result<(LongRunning, RpcClient), Error> {
+    ) -> Result<(LongRunning, UnixRpcClient), Error> {
         let container_name = DockerProcedure::container_name(pkg_id, None);
+
+        let socket_path =
+            Path::new("/tmp/embassy/containers").join(format!("{pkg_id}_{pkg_version}"));
+        if tokio::fs::metadata(&socket_path).await.is_ok() {
+            tokio::fs::remove_dir_all(&socket_path).await?;
+        }
+        tokio::fs::create_dir_all(&socket_path).await?;
 
         let mut cmd = LongRunning::setup_long_running_docker_cmd(
             self,
@@ -88,20 +99,13 @@ impl DockerContainer {
             volumes,
             pkg_id,
             pkg_version,
+            &socket_path,
         )
         .await?;
 
         let mut handle = cmd.spawn().with_kind(crate::ErrorKind::Docker)?;
 
-        let client =
-            if let (Some(stdin), Some(stdout)) = (handle.stdin.take(), handle.stdout.take()) {
-                RpcClient::new(stdin, stdout)
-            } else {
-                return Err(Error::new(
-                    eyre!("No stdin/stdout handle for container init"),
-                    crate::ErrorKind::Incoherent,
-                ));
-            };
+        let client = UnixRpcClient::new(socket_path.join("rpc.sock"));
 
         let running_output = NonDetachingJoinHandle::from(tokio::spawn(async move {
             if let Err(err) = handle
@@ -113,6 +117,19 @@ impl DockerContainer {
                 tracing::debug!("{:?}", err);
             }
         }));
+
+        {
+            let socket = socket_path.join("rpc.sock");
+            if let Err(_err) = timeout(Duration::from_secs(1), async move {
+                while tokio::fs::metadata(&socket).await.is_err() {
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                }
+            })
+            .await
+            {
+                tracing::error!("Timed out waiting for init to create socket");
+            }
+        }
 
         Ok((LongRunning { running_output }, client))
     }
@@ -771,9 +788,10 @@ impl LongRunning {
         volumes: &Volumes,
         pkg_id: &PackageId,
         pkg_version: &Version,
+        socket_path: &Path,
     ) -> Result<tokio::process::Command, Error> {
-        const INIT_EXEC: &str = "/start9/embassy_container_init";
-        const BIND_LOCATION: &str = "/usr/lib/embassy/container";
+        const INIT_EXEC: &str = "/start9/bin/embassy_container_init";
+        const BIND_LOCATION: &str = "/usr/lib/embassy/container/";
         tracing::trace!("setup_long_running_docker_cmd");
 
         LongRunning::cleanup_previous_container(ctx, container_name).await?;
@@ -799,7 +817,14 @@ impl LongRunning {
             .arg("--network=start9")
             .arg(format!("--add-host=embassy:{}", Ipv4Addr::from(HOST_IP)))
             .arg("--mount")
-            .arg(format!("type=bind,src={BIND_LOCATION},dst=/start9"))
+            .arg(format!(
+                "type=bind,src={BIND_LOCATION},dst=/start9/bin/,readonly"
+            ))
+            .arg("--mount")
+            .arg(format!(
+                "type=bind,src={input},dst=/start9/sockets/",
+                input = socket_path.display()
+            ))
             .arg("--name")
             .arg(&container_name)
             .arg(format!("--hostname={}", &container_name))

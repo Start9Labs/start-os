@@ -1,0 +1,1 @@
+embassy-cli net dhcp update $interface
