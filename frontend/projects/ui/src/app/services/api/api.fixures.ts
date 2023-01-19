@@ -298,7 +298,6 @@ export module Mock {
             warning: 'Careful changing this',
             tag: {
               id: 'type',
-              name: 'Type',
               'variant-names': {
                 internal: 'Internal',
                 external: 'External',
@@ -1247,9 +1246,9 @@ export module Mock {
       default: ['summer'],
       range: '[0, 2]',
       spec: {
+        name: 'Preference',
         tag: {
           id: 'preference',
-          name: 'Preferences',
           'variant-names': {
             summer: 'Summer',
             winter: 'Winter',
@@ -1432,7 +1431,6 @@ export module Mock {
       warning: 'Careful changing this',
       tag: {
         id: 'type',
-        name: 'Type',
         'variant-names': {
           internal: 'Internal',
           external: 'External',

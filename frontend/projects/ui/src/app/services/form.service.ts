@@ -45,10 +45,7 @@ export class FormService {
     selection: string,
     current?: { [key: string]: any } | null,
   ): UntypedFormGroup {
-    const { variants, tag } = spec
-    const { name, description, warning } = isFullUnion(spec)
-      ? spec
-      : { ...spec.tag, warning: undefined }
+    const { variants, tag, name, description, warning } = spec
 
     const enumSpec: ValueSpecEnum = {
       type: 'enum',
@@ -205,12 +202,6 @@ function listValidators(spec: ValueSpecList): ValidatorFn[] {
   }
 
   return validators
-}
-
-function isFullUnion(
-  spec: ValueSpecUnion | ListValueSpecUnion,
-): spec is ValueSpecUnion {
-  return !!(spec as ValueSpecUnion).name
 }
 
 export function numberInRange(stringRange: string): ValidatorFn {

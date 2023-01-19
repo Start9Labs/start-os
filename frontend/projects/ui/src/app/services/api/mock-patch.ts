@@ -352,7 +352,6 @@ export const mockPatchData: DataModel = {
                 warning: 'Careful changing this',
                 tag: {
                   id: 'type',
-                  name: 'Type',
                   'variant-names': {
                     internal: 'Internal',
                     external: 'External',

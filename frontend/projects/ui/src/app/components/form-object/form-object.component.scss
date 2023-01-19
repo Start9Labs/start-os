@@ -31,16 +31,10 @@ ion-item-divider {
   padding: 0 0 16px 24px;
 }
 
-.validation-error {
-  opacity: 1;
-}
-
 .error-message {
-  p {
-    margin-bottom: 4px;
-    font-size: small;
-    color: var(--ion-color-danger);
-  }
+  margin-top: 2px;
+  font-size: small;
+  color: var(--ion-color-danger);
 }
 
 .indent {

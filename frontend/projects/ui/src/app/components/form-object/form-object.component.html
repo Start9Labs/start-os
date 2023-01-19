@@ -1,57 +1,10 @@
 <ion-item-group [formGroup]="formGroup">
   <div *ngFor="let entry of formGroup.controls | keyvalue: asIsOrder">
-    <!-- union enum -->
-    <ng-container *ngIf="unionSpec && entry.key === unionSpec.tag.id">
-      <ion-item>
-        <ion-button
-          *ngIf="unionSpec.tag.description"
-          class="slot-start"
-          fill="clear"
-          size="small"
-          (click)="
-            presentUnionTagDescription(
-              $event,
-              unionSpec.tag.name,
-              unionSpec.tag.description
-            )
-          "
-        >
-          <ion-icon name="help-circle-outline"></ion-icon>
-        </ion-button>
-        <ion-label>
-          <ion-text color="dark">
-            <b>{{ unionSpec.tag.name }}</b>
-          </ion-text>
-        </ion-label>
-        <!-- class enter-click disables the enter click on the modal behind the select -->
-        <ion-select
-          [interfaceOptions]="{
-            message: getWarningText(unionSpec.warning),
-            cssClass: 'enter-click'
-          }"
-          slot="end"
-          placeholder="Select"
-          [formControlName]="unionSpec.tag.id"
-          [selectedText]="unionSpec.tag['variant-names'][entry.value.value]"
-          (ionChange)="updateUnion($event)"
-        >
-          <ion-select-option
-            *ngFor="let option of Object.keys(unionSpec.variants)"
-            [value]="option"
-          >
-            {{ unionSpec.tag['variant-names'][option] }}
-          </ion-select-option>
-        </ion-select>
-      </ion-item>
-    </ng-container>
-    <div *ngIf="objectSpec[entry.key] as spec" [class.indent]="unionSpec">
+    <div *ngIf="objectSpec[entry.key] as spec">
       <!-- string or number -->
       <ng-container *ngIf="spec.type === 'string' || spec.type === 'number'">
         <!-- label -->
-        <h4
-          class="input-label"
-          [class.validation-error]="formGroup.get(entry.key)?.errors"
-        >
+        <h4 class="input-label">
           <form-label
             [data]="{
               spec: spec,
@@ -60,7 +13,7 @@
             }"
           ></form-label>
         </h4>
-        <ion-item color="dark" class="ion-margin-bottom">
+        <ion-item color="dark">
           <ion-textarea
             *ngIf="spec.type === 'string' && spec.textarea; else notTextArea"
             [placeholder]="spec.placeholder || 'Enter ' + spec.name"
@@ -107,12 +60,11 @@
             >{{ spec.units }}</ion-note
           >
         </ion-item>
-        <form-error
-          *ngIf="formGroup.get(entry.key)?.errors"
-          [control]="$any(formGroup.get(entry.key))"
-          [spec]="spec"
-        >
-        </form-error>
+        <p class="error-message">
+          <span *ngIf="(formGroup | getControl: entry.key).errors as errors">
+            {{ errors | getError: $any(spec)['pattern-description'] }}
+          </span>
+        </p>
       </ng-container>
       <!-- boolean or enum -->
       <ion-item
@@ -157,7 +109,7 @@
         <ion-select
           *ngIf="spec.type === 'enum' && formGroup.get(entry.key) as control"
           [interfaceOptions]="{
-            message: getWarningText(spec.warning),
+            message: spec.warning | toWarningText,
             cssClass: 'enter-click'
           }"
           slot="end"
@@ -173,14 +125,13 @@
           </ion-select-option>
         </ion-select>
       </ion-item>
-      <!-- object or union -->
-      <ng-container *ngIf="spec.type === 'object' || spec.type === 'union'">
+      <!-- object -->
+      <ng-container *ngIf="spec.type === 'object'">
         <!-- label -->
         <ion-item-divider
           (click)="toggleExpandObject(entry.key)"
           style="cursor: pointer"
           [class.error-border]="entry.value.invalid"
-          [class.validation-error]="entry.value.invalid"
         >
           <form-label
             [data]="{
@@ -198,45 +149,40 @@
               transform: objectDisplay[entry.key].expanded
                 ? 'rotate(0deg)'
                 : 'rotate(180deg)',
-              transition: 'transform 0.25s ease-out'
+              transition: 'transform 0.42s ease-out'
             }"
           ></ion-icon>
         </ion-item-divider>
         <!-- body -->
         <div
-          [id]="getElementId(entry.key)"
+          [id]="objectId | toElementId: entry.key"
           [ngStyle]="{
             'max-height': objectDisplay[entry.key].height,
             overflow: 'hidden',
             'transition-property': 'max-height',
-            'transition-duration': '.25s'
+            'transition-duration': '.42s'
           }"
         >
           <div class="nested-wrapper">
             <form-object
-              *ngIf="spec.type === 'object'"
               [objectSpec]="spec.spec"
               [formGroup]="$any(entry.value)"
               [current]="current?.[entry.key]"
               [original]="original?.[entry.key]"
-              (onExpand)="resize(entry.key)"
-              (hasNewOptions)="setHasNew(entry.key)"
-            ></form-object>
-            <form-object
-              *ngIf="spec.type === 'union'"
-              [objectSpec]="
-                spec.variants[$any(entry.value).controls[spec.tag.id].value]
-              "
-              [formGroup]="$any(entry.value)"
-              [current]="current?.[entry.key]"
-              [original]="original?.[entry.key][spec.tag.id] === current?.[entry.key][spec.tag.id] ? original?.[entry.key] : undefined"
-              [unionSpec]="spec"
-              (onExpand)="resize(entry.key)"
+              (onResize)="resize(entry.key)"
               (hasNewOptions)="setHasNew(entry.key)"
             ></form-object>
           </div>
         </div>
       </ng-container>
+      <!-- union -->
+      <form-union
+        *ngIf="spec.type === 'union'"
+        [spec]="spec"
+        [formGroup]="$any(entry.value)"
+        [current]="current?.[entry.key]"
+        [original]="original?.[entry.key]"
+      ></form-union>
       <!-- list (not enum) -->
       <ng-container *ngIf="spec.type === 'list' && spec.subtype !== 'enum'">
         <ng-container
@@ -244,10 +190,7 @@
           [formArrayName]="entry.key"
         >
           <!-- label -->
-          <ion-item-divider
-            [class.error-border]="entry.value.invalid"
-            [class.validation-error]="entry.value.invalid"
-          >
+          <ion-item-divider [class.error-border]="entry.value.invalid">
             <form-label
               [data]="{
                 spec: spec,
@@ -266,12 +209,11 @@
               Add
             </ion-button>
           </ion-item-divider>
-          <form-error
-            *ngIf="formGroup.get(entry.key)?.errors"
-            [control]="$any(formGroup.get(entry.key))"
-            [spec]="spec"
-          >
-          </form-error>
+          <p class="error-message" style="margin-bottom: 8px">
+            <span *ngIf="(formGroup | getControl: entry.key).errors as errors">
+              {{ errors | getError }}
+            </span>
+          </p>
           <!-- body -->
           <div class="nested-wrapper">
             <div
@@ -279,13 +221,12 @@
                 let abstractControl of $any(formArr).controls;
                 let i = index
               "
-              class="ion-padding-top"
             >
-              <!-- nested -->
+              <!-- object or union -->
               <ng-container
                 *ngIf="spec.subtype === 'object' || spec.subtype === 'union'"
               >
-                <!-- nested label -->
+                <!-- object/union label -->
                 <ion-item
                   button
                   (click)="toggleExpandListObject(entry.key, i)"
@@ -310,41 +251,43 @@
                       transform: objectListDisplay[entry.key][i].expanded
                         ? 'rotate(0deg)'
                         : 'rotate(180deg)',
-                      transition: 'transform 0.25s ease-out'
+                      transition: 'transform 0.42s ease-out'
                     }"
                   ></ion-icon>
                 </ion-item>
-                <!-- nested body -->
+                <!-- object/union body -->
                 <div
                   style="padding-left: 24px"
-                  [id]="getElementId(entry.key, i)"
+                  [id]="objectId | toElementId: entry.key:i"
                   [ngStyle]="{
                     'max-height': objectListDisplay[entry.key][i].height,
                     overflow: 'hidden',
                     'transition-property': 'max-height',
-                    'transition-duration': '.25s'
+                    'transition-duration': '.42s'
                   }"
                 >
                   <form-object
-                    [objectSpec]="
-                      spec.subtype === 'union'
-                        ? $any(spec.spec).variants[
-                            abstractControl.controls[$any(spec.spec).tag.id]
-                              .value
-                          ]
-                        : $any(spec.spec).spec
-                    "
+                    *ngIf="spec.subtype === 'object'"
+                    [objectSpec]="$any(spec.spec).spec"
                     [formGroup]="abstractControl"
                     [current]="current?.[entry.key]?.[i]"
                     [original]="original?.[entry.key]?.[i]"
-                    [unionSpec]="
-                      spec.subtype === 'union' ? $any(spec.spec) : undefined
-                    "
                     (onInputChange)="
                       updateLabel(entry.key, i, $any(spec.spec)['display-as'])
                     "
-                    (onExpand)="resize(entry.key, i)"
+                    (onResize)="resize(entry.key, i)"
                   ></form-object>
+                  <form-union
+                    *ngIf="spec.subtype === 'union'"
+                    [spec]="$any(spec.spec)"
+                    [formGroup]="abstractControl"
+                    [current]="current?.[entry.key]?.[i]"
+                    [original]="original?.[entry.key]?.[i]"
+                    (onInputChange)="
+                      updateLabel(entry.key, i, $any(spec.spec)['display-as'])
+                    "
+                    (onResize)="resize(entry.key, i)"
+                  ></form-union>
                   <div style="text-align: right; padding-top: 12px">
                     <ion-button
                       fill="clear"
@@ -358,9 +301,9 @@
                 </div>
               </ng-container>
               <!-- string or number -->
-              <ion-item-group
-                [id]="getElementId(entry.key, i)"
+              <div
                 *ngIf="spec.subtype === 'string' || spec.subtype === 'number'"
+                [id]="objectId | toElementId: entry.key:i"
               >
                 <ion-item color="dark">
                   <ion-input
@@ -382,13 +325,16 @@
                     <ion-icon slot="icon-only" name="close"></ion-icon>
                   </ion-button>
                 </ion-item>
-                <form-error
-                  *ngIf="abstractControl.errors"
-                  [control]="abstractControl"
-                  [spec]="$any(spec.spec)"
-                >
-                </form-error>
-              </ion-item-group>
+                <p class="error-message">
+                  <span
+                    *ngIf="
+                      (formGroup | getControl: entry.key:i).errors as errors
+                    "
+                  >
+                    {{ errors | getError: $any(spec)['pattern-description'] }}
+                  </span>
+                </p>
+              </div>
             </div>
           </div>
         </ng-container>
@@ -402,7 +348,6 @@
           <!-- label -->
           <p class="input-label">
             <form-label
-              [class.validation-error]="entry.value.invalid"
               [data]="{
                 spec: spec,
                 new: original?.[entry.key] === undefined,
@@ -418,18 +363,17 @@
             (click)="presentModalEnumList(entry.key, $any(spec), formArr.value)"
           >
             <ion-label style="white-space: nowrap !important">
-              <h2>{{ getEnumListDisplay(formArr.value, $any(spec.spec)) }}</h2>
+              <h2>{{ formArr.value | toEnumListDisplay: $any(spec.spec) }}</h2>
             </ion-label>
             <ion-button slot="end" fill="clear" color="light">
               <ion-icon slot="icon-only" name="chevron-down"></ion-icon>
             </ion-button>
           </ion-item>
-          <form-error
-            *ngIf="formGroup.get(entry.key)?.errors"
-            [control]="$any(formGroup.get(entry.key))"
-            [spec]="spec"
-          >
-          </form-error>
+          <p class="error-message">
+            <span *ngIf="(formGroup | getControl: entry.key).errors as errors">
+              {{ errors | getError }}
+            </span>
+          </p>
         </ng-container>
       </ng-container>
     </div>

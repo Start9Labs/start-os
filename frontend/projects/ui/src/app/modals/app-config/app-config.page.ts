@@ -101,7 +101,6 @@ export class AppConfigPage {
         this.configSpec,
         newConfig || this.original,
       )
-      this.configForm.markAllAsTouched()
 
       if (patch) {
         this.diff = this.getDiff(patch)
