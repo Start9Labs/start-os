@@ -3,6 +3,7 @@ use std::path::Path;
 
 use color_eyre::eyre::eyre;
 use futures::FutureExt;
+use models::InterfaceId;
 use openssl::asn1::{Asn1Integer, Asn1Time};
 use openssl::bn::{BigNum, MsbOption};
 use openssl::ec::{EcGroup, EcKey};
@@ -11,7 +12,7 @@ use openssl::nid::Nid;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::{X509Builder, X509Extension, X509NameBuilder, X509};
 use openssl::*;
-use sqlx::{Executor, Postgres};
+use sqlx::{Executor, PgExecutor, Postgres};
 use tokio::process::Command;
 use tokio::sync::Mutex;
 use tracing::instrument;
@@ -99,12 +100,9 @@ where
     let _n = sqlx::query!("INSERT INTO certificates (id, priv_key_pem, certificate_pem, lookup_string, created_at, updated_at) VALUES (1, $1, $2, NULL, now(), now())", key_str, cert_str).execute(secrets).await?;
     Ok(())
 }
-async fn load_intermediate_certificate<Ex>(
-    secrets: &mut Ex,
-) -> Result<Option<(PKey<Private>, X509)>, Error>
-where
-    for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
-{
+pub async fn load_intermediate_certificate(
+    secrets: impl PgExecutor<'_>,
+) -> Result<Option<(PKey<Private>, X509)>, Error> {
     let m_row =
         sqlx::query!("SELECT priv_key_pem, certificate_pem FROM certificates WHERE id = 1;")
             .fetch_optional(secrets)
@@ -151,24 +149,33 @@ where
 }
 async fn load_certificate<Ex>(
     secrets: &mut Ex,
-    lookup_string: &str,
+    interface: Option<(&PackageId, &InterfaceId)>,
 ) -> Result<Option<(PKey<Private>, X509)>, Error>
 where
     for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
 {
-    let m_row = sqlx::query!(
-        "SELECT priv_key_pem, certificate_pem FROM certificates WHERE lookup_string = $1",
-        lookup_string
-    )
-    .fetch_optional(secrets)
-    .await?;
-    match m_row {
-        None => Ok(None),
-        Some(row) => {
-            let priv_key = PKey::private_key_from_pem(&row.priv_key_pem.into_bytes())?;
-            let certificate = X509::from_pem(&row.certificate_pem.into_bytes())?;
-            Ok(Some((priv_key, certificate)))
-        }
+    if let Some((key, cert)) = if let Some((pkg_id, iface)) = interface {
+        sqlx::query!(
+            "SELECT key, cert_pem FROM network_keys WHERE package = $1 AND interface = $2",
+            **pkg_id,
+            **iface,
+        )
+        .fetch_optional(secrets)
+        .await?
+        .map(|r| (r.key, r.cert_pem))
+    } else {
+        sqlx::query!(
+            "SELECT key, cert_pem FROM network_keys WHERE package IS NULL AND interface IS NULL"
+        )
+        .fetch_optional(secrets)
+        .await?
+        .map(|r| (r.key, r.cert_pem))
+    } {
+        let priv_key = todo!("from key");
+        let certificate = X509::from_pem(&cert.into_bytes())?;
+        Ok(Some((priv_key, certificate)))
+    } else {
+        Ok(None)
     }
 }
 #[instrument(skip(secrets))]
@@ -281,13 +288,13 @@ impl SslManager {
     pub async fn certificate_for<Ex>(
         &self,
         secrets: &mut Ex,
-        dns_base: &str,
-        package_id: &PackageId,
+        interface: Option<(&PackageId, &InterfaceId)>,
     ) -> Result<(PKey<Private>, Vec<X509>), Error>
     where
         for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
     {
-        let (key, cert) = match load_certificate(&mut *secrets, dns_base).await? {
+        let (dns_base, package_id) = todo!();
+        let (key, cert) = match load_certificate(&mut *secrets, interface).await? {
             None => {
                 let key = generate_key()?;
                 let cert = make_leaf_cert(
@@ -464,9 +471,9 @@ fn make_int_cert(
 }
 
 #[instrument]
-fn make_leaf_cert(
+pub fn make_leaf_cert(
     signer: (&PKey<Private>, &X509),
-    applicant: (&PKey<Private>, &str, &PackageId),
+    applicant: (&PKey<Private>, &str, Option<&PackageId>),
 ) -> Result<X509, Error> {
     let mut builder = X509Builder::new()?;
     builder.set_version(CERTIFICATE_VERSION)?;
@@ -514,13 +521,17 @@ fn make_leaf_cert(
         "critical,digitalSignature,keyEncipherment",
     )?;
 
+    let applicant_dot_embassy = applicant
+        .2
+        .map(|id| format!("{id}.embassy"))
+        .unwrap_or_else(|| "embassy".to_owned());
     let subject_alt_name = X509Extension::new_nid(
         Some(&cfg),
         Some(&ctx),
         Nid::SUBJECT_ALT_NAME,
         &format!(
-            "DNS:{}.local,DNS:*.{}.local,DNS:{}.onion,DNS:*.{}.onion,DNS:{}.embassy,DNS:*.{}.embassy",
-            &applicant.1, &applicant.1, &applicant.1, &applicant.1, &applicant.2, &applicant.2,
+            "DNS:{applicant_pubkey}.local,DNS:*.{applicant_pubkey}.local,DNS:{applicant_pubkey}.onion,DNS:*.{applicant_pubkey}.onion,DNS:{applicant_dot_embassy},DNS:*.{applicant_dot_embassy}",
+            applicant_pubkey = &applicant.1,
         ),
     )?;
     builder.append_extension(subject_key_identifier)?;

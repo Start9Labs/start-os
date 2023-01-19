@@ -16,11 +16,11 @@ pub mod dhcp;
 pub mod dns;
 pub mod embassy_service_http_server;
 pub mod interface;
+pub mod keys;
 #[cfg(feature = "avahi")]
 pub mod mdns;
 pub mod net_controller;
 pub mod net_utils;
-pub mod proxy_controller;
 pub mod ssl;
 pub mod static_server;
 pub mod tor;

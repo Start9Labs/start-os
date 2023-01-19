@@ -14,6 +14,33 @@
     },
     "query": "UPDATE certificates SET priv_key_pem = $1, certificate_pem = $2, updated_at = now() WHERE lookup_string = $3"
   },
+  "0a3b05c0b9ef4f9cfcba5cc22015967b44a5dcce27f15739f29eb087b8e7c76b": {
+    "describe": {
+      "columns": [
+        {
+          "name": "key",
+          "ordinal": 0,
+          "type_info": "Bytea"
+        },
+        {
+          "name": "cert_pem",
+          "ordinal": 1,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Text",
+          "Text"
+        ]
+      }
+    },
+    "query": "SELECT key, cert_pem FROM network_keys WHERE package = $1 AND interface = $2"
+  },
   "165daa7d6a60cb42122373b2c5ac7d39399bcc99992f0002ee7bfef50a8daceb": {
     "describe": {
       "columns": [],
@@ -167,31 +194,35 @@
     },
     "query": "SELECT * FROM ssh_keys WHERE fingerprint = $1"
   },
-  "46815a4ac2c43e1dfbab3c0017ed09d5c833062e523205db4245a5218b2562b8": {
+  "44c4cc5ed663e7573904d82e4ffe9c4313cfa9b3d54ea652eccbea5239689e83": {
     "describe": {
       "columns": [
         {
-          "name": "priv_key_pem",
+          "name": "root_ca_cert_pem",
           "ordinal": 0,
           "type_info": "Text"
         },
         {
-          "name": "certificate_pem",
+          "name": "int_ca_cert_pem",
           "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "int_ca_key_pem",
+          "ordinal": 2,
           "type_info": "Text"
         }
       ],
       "nullable": [
         false,
+        false,
         false
       ],
       "parameters": {
-        "Left": [
-          "Text"
-        ]
+        "Left": []
       }
     },
-    "query": "SELECT priv_key_pem, certificate_pem FROM certificates WHERE lookup_string = $1"
+    "query": "SELECT root_ca_cert_pem, int_ca_cert_pem, int_ca_key_pem FROM account WHERE id = 0"
   },
   "4691e3a2ce80b59009ac17124f54f925f61dc5ea371903e62cdffa5d7b67ca96": {
     "describe": {
@@ -241,6 +272,45 @@
     },
     "query": "SELECT * FROM session WHERE logged_out IS NULL OR logged_out > CURRENT_TIMESTAMP"
   },
+  "4a2d2ca1c4d92d1370377ec9326a479a1cc98179a5df6f98c3d5368db12b856b": {
+    "describe": {
+      "columns": [
+        {
+          "name": "key",
+          "ordinal": 0,
+          "type_info": "Bytea"
+        },
+        {
+          "name": "cert_pem",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "root_ca_cert_pem",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "int_ca_cert_pem",
+          "ordinal": 3,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Text",
+          "Text"
+        ]
+      }
+    },
+    "query": "SELECT network_keys.key, network_keys.cert_pem, account.root_ca_cert_pem, account.int_ca_cert_pem FROM network_keys CROSS JOIN account WHERE package = $1 AND interface = $2"
+  },
   "4bcfbefb1eb3181343871a1cd7fc3afb81c2be5c681cfa8b4be0ce70610e9c3a": {
     "describe": {
       "columns": [],
@@ -270,6 +340,21 @@
       }
     },
     "query": "SELECT setval('certificates_id_seq', GREATEST(MAX(id) + 1, nextval('certificates_id_seq') - 1)) FROM certificates"
+  },
+  "5afddf9a775c27c2ee400927871a276d7b4c7c19e1b716f70393b613c1391502": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Text",
+          "Text",
+          "Bytea",
+          "Text"
+        ]
+      }
+    },
+    "query": "INSERT INTO network_keys (package, interface, key, cert_pem) VALUES ($1, $2, $3, $4) ON CONFLICT (package, interface) DO UPDATE SET key = EXCLUDED.key, cert_pem = EXCLUDED.cert_pem"
   },
   "5c0ea94081695dba827e525ecc0c555757b43ea513c2c93f9c7f7f8c174d36bf": {
     "describe": {
@@ -598,6 +683,30 @@
       }
     },
     "query": "SELECT fingerprint, openssh_pubkey, created_at FROM ssh_keys"
+  },
+  "b0b10729eb253e92e28cc8ae15379465b470d06863c8d24d9dd4025d46f158e5": {
+    "describe": {
+      "columns": [
+        {
+          "name": "key",
+          "ordinal": 0,
+          "type_info": "Bytea"
+        },
+        {
+          "name": "cert_pem",
+          "ordinal": 1,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": []
+      }
+    },
+    "query": "SELECT key, cert_pem FROM network_keys WHERE package IS NULL AND interface IS NULL"
   },
   "b1147beaaabbed89f2ab8c1e13ec4393a9a8fde2833cf096af766a979d94dee6": {
     "describe": {

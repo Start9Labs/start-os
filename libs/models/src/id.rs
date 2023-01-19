@@ -1,5 +1,6 @@
 use std::borrow::Borrow;
 
+use regex::Regex;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::id_unchecked::IdUnchecked;
@@ -7,15 +8,15 @@ use crate::invalid_id::InvalidId;
 
 pub const SYSTEM_ID: Id<&'static str> = Id("x_system");
 
+lazy_static::lazy_static! {
+    static ref ID_REGEX: Regex = Regex::new("^[a-z]+(-[a-z]+)*$").unwrap();
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct Id<S: AsRef<str> = String>(S);
 impl<S: AsRef<str>> Id<S> {
     pub fn try_from(value: S) -> Result<Self, InvalidId> {
-        if value
-            .as_ref()
-            .chars()
-            .all(|c| c.is_ascii_lowercase() || c == '-')
-        {
+        if ID_REGEX.is_match(value.as_ref()) {
             Ok(Id(value))
         } else {
             Err(InvalidId)

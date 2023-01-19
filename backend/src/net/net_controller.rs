@@ -15,7 +15,6 @@ use crate::net::interface::{Interface, TorConfig};
 #[cfg(feature = "avahi")]
 use crate::net::mdns::MdnsController;
 use crate::net::net_utils::ResourceFqdn;
-use crate::net::proxy_controller::ProxyController;
 use crate::net::ssl::SslManager;
 use crate::net::tor::TorController;
 use crate::net::{
@@ -28,7 +27,6 @@ pub struct NetController {
     pub tor: TorController,
     #[cfg(feature = "avahi")]
     pub mdns: MdnsController,
-    pub proxy: ProxyController,
     pub ssl: SslManager,
     pub dns: DnsController,
 }
@@ -58,7 +56,6 @@ impl NetController {
             tor: TorController::init(embassyd_addr, embassyd_tor_key, tor_control).await?,
             #[cfg(feature = "avahi")]
             mdns: MdnsController::init().await?,
-            proxy: ProxyController::init(embassyd_addr, fqdn_name, ssl.clone()).await?,
             ssl,
             dns: DnsController::init(dns_bind).await?,
         })
@@ -72,43 +69,35 @@ impl NetController {
     }
 
     async fn setup_embassy_https_ui_handle(rpc_ctx: RpcContext) -> Result<(), Error> {
-        let host_name = rpc_ctx.net_controller.proxy.get_hostname().await;
+        // let host_name = rpc_ctx.net_controller.proxy.get_hostname().await;
 
-        let host_name_fqdn: ResourceFqdn = host_name.parse()?;
+        // let host_name_fqdn: ResourceFqdn = host_name.parse()?;
 
-        let handler: HttpHandler =
-            crate::net::static_server::main_ui_server_router(rpc_ctx.clone()).await?;
+        // let handler: HttpHandler =
+        //     crate::net::static_server::main_ui_server_router(rpc_ctx.clone()).await?;
 
-        let eos_pkg_id: PackageId = "embassy".parse().unwrap();
+        // let eos_pkg_id: PackageId = "embassy".parse().unwrap();
 
-        if let ResourceFqdn::Uri {
-            full_uri: _,
-            root,
-            tld: _,
-        } = host_name_fqdn.clone()
-        {
-            let root_cert = rpc_ctx
-                .net_controller
-                .ssl
-                .certificate_for(
-                    &mut rpc_ctx.secret_store.acquire().await?,
-                    &root,
-                    &eos_pkg_id,
-                )
-                .await?;
+        // if let ResourceFqdn::Uri {
+        //     full_uri: _,
+        //     root,
+        //     tld: _,
+        // } = host_name_fqdn.clone()
+        // {
+        //     let root_cert = todo!();
 
-            rpc_ctx
-                .net_controller
-                .proxy
-                .add_certificate_to_resolver(host_name_fqdn.clone(), root_cert.clone())
-                .await?;
+        //     rpc_ctx
+        //         .net_controller
+        //         .proxy
+        //         .add_certificate_to_resolver(host_name_fqdn.clone(), root_cert.clone())
+        //         .await?;
 
-            rpc_ctx
-                .net_controller
-                .proxy
-                .add_handle(443, host_name_fqdn.clone(), handler.clone(), true)
-                .await?;
-        };
+        //     rpc_ctx
+        //         .net_controller
+        //         .proxy
+        //         .add_handle(443, host_name_fqdn.clone(), handler.clone(), true)
+        //         .await?;
+        // };
 
         // serving ip https is not yet supported
 
@@ -116,41 +105,41 @@ impl NetController {
     }
 
     async fn setup_embassy_http_ui_handle(rpc_ctx: RpcContext) -> Result<(), Error> {
-        let host_name = rpc_ctx.net_controller.proxy.get_hostname().await;
+        // let host_name = rpc_ctx.net_controller.proxy.get_hostname().await;
 
-        let embassy_tor_addr = get_embassyd_tor_addr(rpc_ctx.clone()).await?;
-        let embassy_tor_fqdn: ResourceFqdn = embassy_tor_addr.parse()?;
-        let host_name_fqdn: ResourceFqdn = host_name.parse()?;
-        let ip_fqdn: ResourceFqdn = ResourceFqdn::IpAddr;
+        // let embassy_tor_addr = get_embassyd_tor_addr(rpc_ctx.clone()).await?;
+        // let embassy_tor_fqdn: ResourceFqdn = embassy_tor_addr.parse()?;
+        // let host_name_fqdn: ResourceFqdn = host_name.parse()?;
+        // let ip_fqdn: ResourceFqdn = ResourceFqdn::IpAddr;
 
-        let localhost_fqdn = ResourceFqdn::LocalHost;
+        // let localhost_fqdn = ResourceFqdn::LocalHost;
 
-        let handler: HttpHandler =
-            crate::net::static_server::main_ui_server_router(rpc_ctx.clone()).await?;
+        // let handler: HttpHandler =
+        //     crate::net::static_server::main_ui_server_router(rpc_ctx.clone()).await?;
 
-        rpc_ctx
-            .net_controller
-            .proxy
-            .add_handle(80, embassy_tor_fqdn.clone(), handler.clone(), false)
-            .await?;
+        // rpc_ctx
+        //     .net_controller
+        //     .proxy
+        //     .add_handle(80, embassy_tor_fqdn.clone(), handler.clone(), false)
+        //     .await?;
 
-        rpc_ctx
-            .net_controller
-            .proxy
-            .add_handle(80, host_name_fqdn.clone(), handler.clone(), false)
-            .await?;
+        // rpc_ctx
+        //     .net_controller
+        //     .proxy
+        //     .add_handle(80, host_name_fqdn.clone(), handler.clone(), false)
+        //     .await?;
 
-        rpc_ctx
-            .net_controller
-            .proxy
-            .add_handle(80, ip_fqdn.clone(), handler.clone(), false)
-            .await?;
+        // rpc_ctx
+        //     .net_controller
+        //     .proxy
+        //     .add_handle(80, ip_fqdn.clone(), handler.clone(), false)
+        //     .await?;
 
-        rpc_ctx
-            .net_controller
-            .proxy
-            .add_handle(80, localhost_fqdn.clone(), handler.clone(), false)
-            .await?;
+        // rpc_ctx
+        //     .net_controller
+        //     .proxy
+        //     .add_handle(80, localhost_fqdn.clone(), handler.clone(), false)
+        //     .await?;
 
         Ok(())
     }
@@ -181,7 +170,7 @@ impl NetController {
                 Some(cfg) => Some((i.0, cfg, i.2)),
             })
             .collect::<Vec<(InterfaceId, TorConfig, TorSecretKeyV3)>>();
-        let (tor_res, _, proxy_res, _) = tokio::join!(
+        let (tor_res, _, _) = tokio::join!(
             self.tor.add(pkg_id, ip, interfaces_tor),
             {
                 #[cfg(feature = "avahi")]
@@ -197,32 +186,32 @@ impl NetController {
                 let mdns_fut = futures::future::ready(());
                 mdns_fut
             },
-            {
-                let interfaces =
-                    interfaces
-                        .clone()
-                        .into_iter()
-                        .filter_map(|(id, interface, tor_key)| {
-                            interface.lan_config.as_ref().map(|cfg| {
-                                (
-                                    id,
-                                    InterfaceMetadata {
-                                        fqdn: OnionAddressV3::from(&tor_key.public())
-                                            .get_address_without_dot_onion()
-                                            + ".local",
-                                        lan_config: cfg.clone(),
-                                        protocols: interface.protocols.clone(),
-                                    },
-                                )
-                            })
-                        });
-                self.proxy
-                    .add_docker_service(secrets, pkg_id.clone(), ip, interfaces)
-            },
+            // {
+            //     let interfaces =
+            //         interfaces
+            //             .clone()
+            //             .into_iter()
+            //             .filter_map(|(id, interface, tor_key)| {
+            //                 interface.lan_config.as_ref().map(|cfg| {
+            //                     (
+            //                         id,
+            //                         InterfaceMetadata {
+            //                             fqdn: OnionAddressV3::from(&tor_key.public())
+            //                                 .get_address_without_dot_onion()
+            //                                 + ".local",
+            //                             lan_config: cfg.clone(),
+            //                             protocols: interface.protocols.clone(),
+            //                         },
+            //                     )
+            //                 })
+            //             });
+            //     self.proxy
+            //         .add_docker_service(secrets, pkg_id.clone(), ip, interfaces)
+            // },
             self.dns.add(pkg_id, ip),
         );
         tor_res?;
-        proxy_res?;
+        // proxy_res?;
 
         Ok(())
     }
@@ -234,7 +223,7 @@ impl NetController {
         ip: Ipv4Addr,
         interfaces: I,
     ) -> Result<(), Error> {
-        let (tor_res, _, proxy_res, _) = tokio::join!(
+        let (tor_res, _, _) = tokio::join!(
             self.tor.remove(pkg_id, interfaces.clone()),
             {
                 #[cfg(feature = "avahi")]
@@ -243,11 +232,11 @@ impl NetController {
                 let mdns_fut = futures::future::ready(());
                 mdns_fut
             },
-            self.proxy.remove_docker_service(pkg_id),
+            // self.proxy.remove_docker_service(pkg_id),
             self.dns.remove(pkg_id, ip),
         );
         tor_res?;
-        proxy_res?;
+        // proxy_res?;
         Ok(())
     }
 
@@ -269,7 +258,7 @@ impl NetController {
             let dns_base = OnionAddressV3::from(&key.public()).get_address_without_dot_onion();
             let ssl_path_key = package_path.join(format!("{}.key.pem", id));
             let ssl_path_cert = package_path.join(format!("{}.cert.pem", id));
-            let (key, chain) = self.ssl.certificate_for(secrets, &dns_base, pkg_id).await?;
+            let (key, chain) = todo!();
             tokio::try_join!(
                 crate::net::ssl::export_key(&key, &ssl_path_key),
                 crate::net::ssl::export_cert(&chain, &ssl_path_cert)

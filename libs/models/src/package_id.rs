@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize, Serializer};
 use crate::{Id, InvalidId, SYSTEM_ID};
 
 pub const SYSTEM_PACKAGE_ID: PackageId<&'static str> = PackageId(SYSTEM_ID);
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PackageId<S: AsRef<str> = String>(Id<S>);
 impl<'a> PackageId<&'a str> {
     pub fn owned(&self) -> PackageId {
