@@ -3,8 +3,8 @@
   <ion-item-divider [class.error-border]="formGroup.invalid">
     <form-label
       [data]="{
-        name: spec.name,
-        description: spec.description,
+        name: spec.tag.name,
+        description: spec.tag.description,
         new: isNew,
         newOptions: hasNewOptions,
         edited: formGroup.dirty
@@ -13,7 +13,7 @@
     <!-- class enter-click disables the enter click on the modal behind the select -->
     <ion-select
       [interfaceOptions]="{
-        message: spec.warning | toWarningText,
+        message: spec.tag.warning | toWarningText,
         cssClass: 'enter-click'
       }"
       slot="end"

@@ -291,17 +291,17 @@ export module Mock {
             },
           },
           bitcoinNode: {
-            name: 'Bitcoin Node Settings',
             type: 'union',
-            description: 'The node settings',
             default: 'internal',
-            warning: 'Careful changing this',
             tag: {
               id: 'type',
               'variant-names': {
                 internal: 'Internal',
                 external: 'External',
               },
+              name: 'Bitcoin Node Settings',
+              description: 'The node settings',
+              warning: 'Careful changing this',
             },
             variants: {
               internal: {
@@ -1246,7 +1246,6 @@ export module Mock {
       default: ['summer'],
       range: '[0, 2]',
       spec: {
-        name: 'Preference',
         tag: {
           id: 'preference',
           'variant-names': {
@@ -1254,6 +1253,7 @@ export module Mock {
             winter: 'Winter',
             other: 'Other',
           },
+          name: 'Preference',
         },
         // this default is used to make a union selection when a new list element is first created
         default: 'summer',
@@ -1424,17 +1424,17 @@ export module Mock {
       },
     },
     'bitcoin-node': {
-      name: 'Bitcoin Node Settings',
       type: 'union',
-      description: 'Options<ul><li>Item 1</li><li>Item 2</li></ul>',
       default: 'internal',
-      warning: 'Careful changing this',
       tag: {
         id: 'type',
         'variant-names': {
           internal: 'Internal',
           external: 'External',
         },
+        name: 'Bitcoin Node Settings',
+        description: 'Options<ul><li>Item 1</li><li>Item 2</li></ul>',
+        warning: 'Careful changing this',
       },
       variants: {
         internal: {

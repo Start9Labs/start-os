@@ -108,7 +108,10 @@ export class FormObjectComponent {
     }, 420) // 420 to match transition-duration defined in html, for smooth recursive resize
   }
 
-  addListItemWrapper(key: string, spec: ValueSpec) {
+  addListItemWrapper<T extends ValueSpec>(
+    key: string,
+    spec: T extends ValueSpecUnion ? never : T,
+  ) {
     this.presentAlertChangeWarning(key, spec, () => this.addListItem(key))
   }
 
@@ -177,9 +180,9 @@ export class FormObjectComponent {
     await modal.present()
   }
 
-  async presentAlertChangeWarning(
+  async presentAlertChangeWarning<T extends ValueSpec>(
     key: string,
-    spec: ValueSpec,
+    spec: T extends ValueSpecUnion ? never : T,
     okFn?: Function,
     cancelFn?: Function,
   ) {
@@ -348,7 +351,7 @@ export class FormUnionComponent {
   @Output() onResize = new EventEmitter<void>()
 
   get unionValue() {
-    console.error(this.formGroup.get(this.spec.tag.id))
+    console.error('HERE-1')
     return this.formGroup.get(this.spec.tag.id)?.value
   }
   get objectHeight() {

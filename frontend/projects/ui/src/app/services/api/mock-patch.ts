@@ -345,17 +345,17 @@ export const mockPatchData: DataModel = {
                 },
               },
               bitcoinNode: {
-                name: 'Bitcoin Node Settings',
                 type: 'union',
-                description: 'The node settings',
                 default: 'internal',
-                warning: 'Careful changing this',
                 tag: {
                   id: 'type',
                   'variant-names': {
                     internal: 'Internal',
                     external: 'External',
                   },
+                  name: 'Bitcoin Node Settings',
+                  description: 'The node settings',
+                  warning: 'Careful changing this',
                 },
                 variants: {
                   internal: {
