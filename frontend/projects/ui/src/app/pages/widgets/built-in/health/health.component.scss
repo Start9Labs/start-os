@@ -1,7 +1,15 @@
 :host {
-  --tui-chart-0: var(--tui-warning-fill);
-  --tui-chart-1: var(--tui-error-fill);
-  --tui-chart-2: var(--tui-success-fill);
+  /* index order must match labels array */
+  --tui-chart-0: var(--ion-color-danger-tint); // error
+  --tui-chart-1: var(--ion-color-success-tint); // healthy
+  --tui-chart-2: var(--ion-color-warning-tint); // needs attention
+  --tui-chart-3: var(--ion-color-step-600); // stopped
+  --tui-chart-4: var(--ion-color-primary-tint); // transitioning
+
+}
+:host ::ng-deep svg {
+  width: 85%;
+  display: inline-block;
 }
 
 .widget-title {
@@ -10,6 +18,6 @@
   font-weight: bold;
 }
 
-.pie-chart {
-  margin: 1rem auto;
+.ring-chart {
+  margin: 0.6rem auto;
 }
