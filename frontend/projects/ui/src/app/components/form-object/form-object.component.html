@@ -7,9 +7,11 @@
         <h4 class="input-label">
           <form-label
             [data]="{
-              spec: spec,
+              name: spec.name,
+              description: spec.description,
               new: original?.[entry.key] === undefined,
-              edited: entry.value.dirty
+              edited: entry.value.dirty,
+              required: !spec.nullable
             }"
           ></form-label>
         </h4>
@@ -68,13 +70,13 @@
       </ng-container>
       <!-- boolean or enum -->
       <ion-item
-        *ngIf="['boolean', 'enum'] | includes: spec.type"
+        *ngIf="spec.type === 'boolean' || spec.type === 'enum'"
         style="--padding-start: 0"
       >
         <ion-button
           *ngIf="spec.description"
           fill="clear"
-          (click)="presentAlertDescription($event, spec)"
+          (click)="presentAlertBoolEnumDescription($event, spec)"
           style="--padding-start: 0"
         >
           <ion-icon
@@ -135,10 +137,11 @@
         >
           <form-label
             [data]="{
-              spec: spec,
+              name: spec.name,
+              description: spec.description,
               new: original?.[entry.key] === undefined,
-              newOptions: objectDisplay[entry.key].hasNewOptions,
-              edited: entry.value.dirty
+              edited: entry.value.dirty,
+              newOptions: objectDisplay[entry.key].hasNewOptions
             }"
           ></form-label>
           <ion-icon
@@ -193,9 +196,11 @@
           <ion-item-divider [class.error-border]="entry.value.invalid">
             <form-label
               [data]="{
-                spec: spec,
+                name: spec.name,
+                description: spec.description,
                 new: original?.[entry.key] === undefined,
-                edited: entry.value.dirty
+                edited: entry.value.dirty,
+                required: !!(spec.range | toRange).min
               }"
             ></form-label>
             <ion-button
@@ -234,11 +239,9 @@
                 >
                   <form-label
                     [data]="{
-                      spec: $any({
-                        name:
-                          objectListDisplay[entry.key][i].displayAs ||
-                          'Entry ' + (i + 1)
-                      }),
+                      name:
+                        objectListDisplay[entry.key][i].displayAs ||
+                        'Entry ' + (i + 1),
                       new: false,
                       edited: abstractControl.dirty
                     }"
@@ -349,7 +352,8 @@
           <p class="input-label">
             <form-label
               [data]="{
-                spec: spec,
+                name: spec.name,
+                description: spec.description,
                 new: original?.[entry.key] === undefined,
                 edited: entry.value.dirty
               }"

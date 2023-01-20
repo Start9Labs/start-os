@@ -11,6 +11,7 @@ import {
   ToElementIdPipe,
   GetControlPipe,
   ToEnumListDisplayPipe,
+  ToRangePipe,
 } from './form-object.pipes'
 import { IonicModule } from '@ionic/angular'
 import { FormsModule, ReactiveFormsModule } from '@angular/forms'
@@ -27,6 +28,7 @@ import { EnumListPageModule } from 'src/app/modals/enum-list/enum-list.module'
     ToEnumListDisplayPipe,
     ToElementIdPipe,
     GetControlPipe,
+    ToRangePipe,
   ],
   imports: [
     CommonModule,

@@ -7,6 +7,7 @@ import {
 } from '@angular/forms'
 import { IonicSafeString } from '@ionic/angular'
 import { ListValueSpecOf } from 'src/app/pkg-config/config-types'
+import { Range } from 'src/app/pkg-config/config-utilities'
 import { getElementId } from './form-object.component'
 
 @Pipe({
@@ -53,6 +54,15 @@ export class ToWarningTextPipe implements PipeTransform {
     return text
       ? new IonicSafeString(`<ion-text color="warning">${text}</ion-text>`)
       : ''
+  }
+}
+
+@Pipe({
+  name: 'toRange',
+})
+export class ToRangePipe implements PipeTransform {
+  transform(range: string): Range {
+    return Range.from(range)
   }
 }
 

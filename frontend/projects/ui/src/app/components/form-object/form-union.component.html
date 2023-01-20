@@ -3,7 +3,8 @@
   <ion-item-divider [class.error-border]="formGroup.invalid">
     <form-label
       [data]="{
-        spec: spec,
+        name: spec.name,
+        description: spec.description,
         new: isNew,
         newOptions: hasNewOptions,
         edited: formGroup.dirty

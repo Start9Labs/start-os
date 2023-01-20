@@ -13,12 +13,12 @@ import {
   ListValueSpecOf,
   ValueSpec,
   ValueSpecBoolean,
+  ValueSpecEnum,
   ValueSpecList,
   ValueSpecListOf,
   ValueSpecUnion,
 } from 'src/app/pkg-config/config-types'
 import { FormService } from 'src/app/services/form.service'
-import { Range } from 'src/app/pkg-config/config-utilities'
 import { EnumListPage } from 'src/app/modals/enum-list/enum-list.page'
 import { pauseFor } from '@start9labs/shared'
 import { v4 } from 'uuid'
@@ -32,7 +32,6 @@ interface Config {
   selector: 'form-object',
   templateUrl: './form-object.component.html',
   styleUrls: ['./form-object.component.scss'],
-  // changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FormObjectComponent {
   @Input() objectSpec!: ConfigSpec
@@ -236,7 +235,10 @@ export class FormObjectComponent {
     await alert.present()
   }
 
-  async presentAlertDescription(event: Event, spec: ValueSpec) {
+  async presentAlertBoolEnumDescription(
+    event: Event,
+    spec: ValueSpecBoolean | ValueSpecEnum,
+  ) {
     event.stopPropagation()
     const { name, description } = spec
 
@@ -408,11 +410,12 @@ export class FormUnionComponent {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FormLabelComponent {
-  Range = Range
   @Input() data!: {
-    spec: ValueSpec
-    edited: boolean
+    name: string
     new: boolean
+    edited: boolean
+    description?: string
+    required?: boolean
     newOptions?: boolean
   }
 
@@ -420,7 +423,7 @@ export class FormLabelComponent {
 
   async presentAlertDescription(event: Event) {
     event.stopPropagation()
-    const { name, description } = this.data.spec
+    const { name, description } = this.data
 
     const alert = await this.alertCtrl.create({
       header: name,
