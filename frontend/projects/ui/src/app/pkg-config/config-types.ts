@@ -155,7 +155,6 @@ export interface ListValueSpecUnion {
   'display-as'?: string // this may be a handlebars template which can conditionally (on tag.id) make use of each union's entries, or if left blank will display as tag.id
   'unique-by': UniqueBy
   default: string // this should be the variantName which one prefers a user to start with by default when creating a new union instance in a list
-  warning?: string
 }
 
 export interface UnionTagSpec {
