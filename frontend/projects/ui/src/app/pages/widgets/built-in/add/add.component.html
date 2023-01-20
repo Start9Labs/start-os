@@ -4,7 +4,7 @@
     class="tui-island tui-island_size_l"
     (click)="context.completeWith(widget)"
   >
-    <span class="tui-island__title">{{ widget.name }}</span>
+    <span class="tui-island__title">{{ widget.meta.name }}</span>
   </button>
   <ng-template #empty>No additional widgets found</ng-template>
 </div>

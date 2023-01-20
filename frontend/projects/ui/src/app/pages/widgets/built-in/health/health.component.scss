@@ -5,11 +5,6 @@
   --tui-chart-2: var(--ion-color-warning-tint); // needs attention
   --tui-chart-3: var(--ion-color-step-600); // stopped
   --tui-chart-4: var(--ion-color-primary-tint); // transitioning
-
-}
-:host ::ng-deep svg {
-  width: 85%;
-  display: inline-block;
 }
 
 .widget-title {
@@ -19,5 +14,6 @@
 }
 
 .ring-chart {
+  transform: scale(0.85);
   margin: 0.6rem auto;
 }

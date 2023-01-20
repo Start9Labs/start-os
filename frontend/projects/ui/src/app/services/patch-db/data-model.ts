@@ -29,13 +29,15 @@ export interface UIData {
 
 export interface Widget {
   id: string
-  name: string
   meta: {
+    name: string
     width: number
     height: number
     mobileWidth: number
     mobileHeight: number
   }
+  url?: string
+  settings?: string
 }
 
 export interface UIMarketplaceData {
