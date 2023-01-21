@@ -1,0 +1,11 @@
+<h2 class="widget-title">Service health overview</h2>
+<tui-ring-chart
+  *ngIf="data$ | async as data"
+  class="ring-chart"
+  [tuiHintContent]="hint"
+  [value]="data"
+>
+  <ng-template #hint let-index>
+    {{ labels[index] }}: {{ data[index] }}
+  </ng-template>
+</tui-ring-chart>

@@ -16,14 +16,15 @@ import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import * as yaml from 'js-yaml'
 import { v4 } from 'uuid'
 import { DataModel, DevData } from 'src/app/services/patch-db/data-model'
-import { DestroyService, ErrorToastService } from '@start9labs/shared'
+import { ErrorToastService } from '@start9labs/shared'
+import { TuiDestroyService } from '@taiga-ui/cdk'
 import { takeUntil } from 'rxjs/operators'
 
 @Component({
   selector: 'developer-list',
   templateUrl: 'developer-list.page.html',
   styleUrls: ['developer-list.page.scss'],
-  providers: [DestroyService],
+  providers: [TuiDestroyService],
 })
 export class DeveloperListPage {
   devData: DevData = {}
@@ -34,7 +35,7 @@ export class DeveloperListPage {
     private readonly loadingCtrl: LoadingController,
     private readonly errToast: ErrorToastService,
     private readonly alertCtrl: AlertController,
-    private readonly destroy$: DestroyService,
+    private readonly destroy$: TuiDestroyService,
     private readonly patch: PatchDB<DataModel>,
     private readonly actionCtrl: ActionSheetController,
   ) {}

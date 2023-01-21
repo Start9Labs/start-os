@@ -1,6 +1,25 @@
+:host {
+  display: flex;
+  align-items: center;
+  padding-right: 8px;
+}
+
+.sidebar {
+  display: none;
+}
+
+@media screen and (min-width: 992px) {
+  .widgets {
+    display: none;
+  }
+
+  .sidebar {
+    display: inline-block;
+  }
+}
+
 .wrapper {
   position: relative;
-  margin-right: 1vh;
 }
 
 .md-badge {

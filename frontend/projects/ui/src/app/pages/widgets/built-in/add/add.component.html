@@ -1,0 +1,10 @@
+<div *ngIf="installed$ | async as installed" class="wrapper">
+  <button
+    *ngFor="let widget of widgets | tuiFilter: filter:installed; empty: empty"
+    class="tui-island tui-island_size_l"
+    (click)="context.completeWith(widget)"
+  >
+    <span class="tui-island__title">{{ widget.meta.name }}</span>
+  </button>
+  <ng-template #empty>No additional widgets found</ng-template>
+</div>
