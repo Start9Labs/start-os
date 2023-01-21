@@ -1,33 +1,61 @@
-<ion-app appEnter>
-  <ion-content>
-    <ion-split-pane
-      contentId="main-content"
-      [disabled]="!(authService.isVerified$ | async)"
-      (ionSplitPaneVisible)="splitPaneVisible($event)"
-    >
-      <ion-menu contentId="main-content" type="overlay">
-        <ion-content color="light" scrollY="false">
-          <app-menu *ngIf="authService.isVerified$ | async"></app-menu>
-        </ion-content>
-      </ion-menu>
-      <ion-router-outlet
-        id="main-content"
-        class="container"
-        [class.container_offline]="
-          (authService.isVerified$ | async) && !(connection.connected$ | async)
-        "
-      ></ion-router-outlet>
-    </ion-split-pane>
+<tui-root tuiMode="onDark">
+  <ion-app appEnter>
+    <ion-content>
+      <ion-split-pane
+        contentId="main-content"
+        [disabled]="!(authService.isVerified$ | async)"
+        (ionSplitPaneVisible)="splitPaneVisible($event)"
+      >
+        <ion-menu
+          contentId="main-content"
+          type="overlay"
+          side="start"
+          class="left-menu"
+        >
+          <ion-content color="light" scrollY="false">
+            <app-menu *ngIf="authService.isVerified$ | async"></app-menu>
+          </ion-content>
+        </ion-menu>
 
-    <section appPreloader></section>
-  </ion-content>
-  <ion-footer>
-    <footer appFooter></footer>
-  </ion-footer>
-  <ion-footer
-    *ngIf="(authService.isVerified$ | async) && !(sidebarOpen$ | async)"
-  >
-    <connection-bar></connection-bar>
-  </ion-footer>
-  <toast-container></toast-container>
-</ion-app>
+        <ion-menu
+          contentId="main-content"
+          type="overlay"
+          side="end"
+          class="right-menu"
+          [class.right-menu_hidden]="!(widgets$ | async)"
+          tuiResizeable
+          [style.--side-width.px]="width$ | async"
+        >
+          <div
+            class="divider"
+            [tuiResizer]="[-1, 0]"
+            (tuiSizeChange)="onResize($event)"
+          ></div>
+          <widgets *ngIf="widgets$ | async"></widgets>
+        </ion-menu>
+
+        <ion-router-outlet
+          responsiveColViewport
+          id="main-content"
+          class="container"
+          [class.container_offline]="
+            (authService.isVerified$ | async) &&
+            !(connection.connected$ | async)
+          "
+        ></ion-router-outlet>
+      </ion-split-pane>
+
+      <section appPreloader></section>
+    </ion-content>
+    <ion-footer>
+      <footer appFooter></footer>
+    </ion-footer>
+    <ion-footer
+      *ngIf="(authService.isVerified$ | async) && !(sidebarOpen$ | async)"
+    >
+      <connection-bar></connection-bar>
+    </ion-footer>
+    <toast-container></toast-container>
+  </ion-app>
+</tui-root>
+<tui-theme-night></tui-theme-night>

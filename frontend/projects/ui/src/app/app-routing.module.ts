@@ -80,7 +80,6 @@ const routes: Routes = [
       scrollPositionRestoration: 'enabled',
       preloadingStrategy: PreloadAllModules,
       initialNavigation: 'disabled',
-      useHash: true,
     }),
   ],
   exports: [RouterModule],

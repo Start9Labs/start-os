@@ -15,12 +15,12 @@ import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 import {
   LogsRes,
   ServerLogsReq,
-  DestroyService,
   ErrorToastService,
   toLocalIsoString,
   Log,
   DownloadHTMLService,
 } from '@start9labs/shared'
+import { TuiDestroyService } from '@taiga-ui/cdk'
 import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConnectionService } from 'src/app/services/connection.service'
@@ -39,7 +39,7 @@ var convert = new Convert({
   selector: 'logs',
   templateUrl: './logs.component.html',
   styleUrls: ['./logs.component.scss'],
-  providers: [DestroyService, DownloadHTMLService],
+  providers: [TuiDestroyService, DownloadHTMLService],
 })
 export class LogsComponent {
   @ViewChild(IonContent)
@@ -68,7 +68,7 @@ export class LogsComponent {
 
   constructor(
     private readonly errToast: ErrorToastService,
-    private readonly destroy$: DestroyService,
+    private readonly destroy$: TuiDestroyService,
     private readonly api: ApiService,
     private readonly loadingCtrl: LoadingController,
     private readonly downloadHtml: DownloadHTMLService,

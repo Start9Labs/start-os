@@ -1,8 +1,13 @@
 :host {
   display: block;
+  height: 100%;
 }
 
-ion-split-pane {
+tui-root {
+  height: 100%;
+}
+
+.left-menu {
   --side-max-width: 280px;
 }
 
@@ -11,5 +16,35 @@ ion-split-pane {
 
   &_offline {
     filter: saturate(0.75) contrast(0.85);
+  }
+}
+
+.right-menu {
+  --side-min-width: 300px;
+  --side-max-width: min(calc(100vw - 700px), 800px);
+
+  // For some reason *ngIf is broken upon first login
+  &_hidden {
+    display: none;
+  }
+}
+
+.divider {
+  height: 100%;
+  width: 10px;
+
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+
+  background: #e2e2e2;
+
+  z-index: 10;
+  opacity: 0.2;
+  transition: opacity 0.3s;
+
+  &:hover {
+    opacity: 0.4;
   }
 }
