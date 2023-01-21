@@ -1,9 +1,19 @@
+import {
+  TuiDialogModule,
+  TuiModeModule,
+  TuiRootModule,
+  TuiThemeNightModule,
+} from '@taiga-ui/core'
 import { HttpClientModule } from '@angular/common/http'
 import { NgModule } from '@angular/core'
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
 import { IonicModule } from '@ionic/angular'
 import { MonacoEditorModule } from '@materia-ui/ngx-monaco-editor'
-import { MarkdownModule, SharedPipesModule } from '@start9labs/shared'
+import {
+  MarkdownModule,
+  ResponsiveColModule,
+  SharedPipesModule,
+} from '@start9labs/shared'
 
 import { AppComponent } from './app.component'
 import { AppRoutingModule } from './app-routing.module'
@@ -18,6 +28,8 @@ import { APP_PROVIDERS } from './app.providers'
 import { PatchDbModule } from './services/patch-db/patch-db.module'
 import { ToastContainerModule } from './components/toast-container/toast-container.module'
 import { ConnectionBarComponentModule } from './components/connection-bar/connection-bar.component.module'
+import { WidgetsPageModule } from './pages/widgets/widgets.module'
+import { TuiResizerModule } from '@taiga-ui/cdk'
 
 @NgModule({
   declarations: [AppComponent],
@@ -41,6 +53,13 @@ import { ConnectionBarComponentModule } from './components/connection-bar/connec
     PatchDbModule,
     ToastContainerModule,
     ConnectionBarComponentModule,
+    TuiRootModule,
+    TuiDialogModule,
+    TuiModeModule,
+    TuiThemeNightModule,
+    TuiResizerModule,
+    WidgetsPageModule,
+    ResponsiveColModule,
   ],
   providers: APP_PROVIDERS,
   bootstrap: [AppComponent],
