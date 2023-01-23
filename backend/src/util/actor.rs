@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use color_eyre::{eyre::eyre, Report};
 use futures::future::BoxFuture;
 use helpers::NonDetachingJoinHandle;
@@ -8,8 +10,9 @@ pub const ACTOR_MAX_BUFFER: usize = 1024;
 type MessageHandler<State> = Box<dyn (FnOnce(State) -> BoxFuture<'static, State>) + Send>;
 type MessageHandlerSender<State> = mpsc::Sender<MessageHandler<State>>;
 
+#[derive(Clone)]
 pub struct Actor<State: 'static + Send> {
-    thread: NonDetachingJoinHandle<()>,
+    thread: Arc<NonDetachingJoinHandle<()>>,
     sender: MessageHandlerSender<State>,
 }
 
@@ -19,7 +22,7 @@ where
 {
     pub fn new(initial_state: State) -> Self {
         let (sender, receiver) = mpsc::channel::<MessageHandler<State>>(ACTOR_MAX_BUFFER);
-        let thread = Self::create_thread(receiver, initial_state);
+        let thread = Arc::new(Self::create_thread(receiver, initial_state));
 
         Self { sender, thread }
     }

@@ -9,18 +9,20 @@ use std::time::Duration;
 use bollard::container::{KillContainerOptions, StopContainerOptions};
 use color_eyre::eyre::eyre;
 use embassy_container_init::{ProcessGroupId, SignalGroupParams};
+use futures::{future::BoxFuture, FutureExt};
 use helpers::UnixRpcClient;
+use models::{ErrorKind, ResultExt};
 use nix::sys::signal::Signal;
 use patch_db::DbHandle;
 use sqlx::Executor;
+use tokio::spawn;
 use tokio::sync::watch::error::RecvError;
 use tokio::sync::watch::{channel, Receiver, Sender};
-use tokio::sync::{oneshot, Notify};
+use tokio::sync::{mpsc, oneshot, Notify};
+use tokio::task::JoinHandle;
 use torut::onion::TorSecretKeyV3;
 use tracing::instrument;
 
-use crate::context::RpcContext;
-use crate::manager::sync::synchronizer;
 use crate::net::interface::InterfaceId;
 use crate::net::GeneratedCertificateMountPoint;
 use crate::procedure::docker::{DockerContainer, DockerProcedure, LongRunning};
@@ -30,39 +32,586 @@ use crate::procedure::{NoOutput, PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::Manifest;
 use crate::util::{ApplyRef, Container, NonDetachingJoinHandle};
 use crate::Error;
+use crate::{context::RpcContext, util::actor::Actor};
+use crate::{manager::sync::synchronizer, status::MainStatus};
 
 pub mod health;
 pub mod manager_map;
 mod sync;
 
+type ManagerActor = Arc<Actor<ManagerState>>;
+type ManagerRunDocker = Result<Result<NoOutput, (i32, String)>, Error>;
+type ManagerPersistantContainer = Option<Arc<PersistentContainer>>;
+struct RunMain {
+    handle: NonDetachingJoinHandle<()>,
+    callback_done: mpsc::UnboundedSender<oneshot::Sender<()>>,
+    response: BoxFuture<'static, Option<ManagerRunDocker>>,
+}
+impl RunMain {
+    fn main(handle: impl Future<Output = ManagerRunDocker>) -> Self {
+        let (callback_done, receiver) = mpsc::unbounded_channel::<oneshot::Sender<()>>();
+        let (response_sender, response) = oneshot::channel();
+        let handle = tokio::spawn(async move {
+            let res = handle.await;
+            if let Ok(res) = res {
+                while let Some(sender) = receiver.recv().await {
+                    sender.send(());
+                }
+                response_sender.send(Some(res));
+            } else {
+                response_sender.send(None);
+            }
+        })
+        .into();
+        let response = (async move { response.await.ok().flatten() }).boxed::<'static>();
+        RunMain {
+            handle,
+            callback_done,
+            response,
+        }
+    }
+    fn is_done(&self) -> BoxFuture<'static, ()> {
+        let (sender, receiver) = oneshot::channel();
+        if let Err(err) = self.callback_done.send(sender) {
+            tracing::error!("Sending a callback done");
+            tracing::debug!("{err:?}");
+            return futures::future::ready(()).boxed();
+        }
+        (async move {
+            receiver.await;
+        })
+        .boxed()
+    }
+    async fn into_response(self) -> Option<ManagerRunDocker> {
+        self.response.await
+    }
+}
+
+pub const SOFT_KILL: u8 = 9;
 pub const HEALTH_CHECK_COOLDOWN_SECONDS: u64 = 15;
 pub const HEALTH_CHECK_GRACE_PERIOD_SECONDS: u64 = 5;
 
-enum StartStop {
-    Start,
-    Stop
-}
-struct ManagerState {
-    desired: StartStop,
-    actual: StartStop,
-    Job: StateJob
-}
-enum StateJob {
-    None,
-    Starting {Thread, },
-    Stopping,
-    Configuring,
-    BackingUp,
-    Restarting,
+struct ManagerSeed {
+    ctx: RpcContext,
+    manifest: Manifest,
+    container_name: String,
+    tor_keys: BTreeMap<InterfaceId, TorSecretKeyV3>,
 }
 
-enum ManagerStateMine {
-    Stable (StartStop),
-    Starting{Thread}
-    Stopping{Thread},
-    Configuring{StartStop}
-    BackingUp{previous: StartStop},
-    Restarting(StartStop)
+impl ManagerSeed {
+    async fn stop_container(&self) -> Result<(), Error> {
+        match self
+            .ctx
+            .docker
+            .stop_container(
+                &self.container_name,
+                Some(StopContainerOptions {
+                    t: sigterm_timeout(&self.manifest)
+                        .map(|d| d.as_secs())
+                        .unwrap_or(30) as i64,
+                }),
+            )
+            .await
+        {
+            Err(bollard::errors::Error::DockerResponseServerError {
+                status_code: 404, // NOT FOUND
+                ..
+            })
+            | Err(bollard::errors::Error::DockerResponseServerError {
+                status_code: 409, // CONFLICT
+                ..
+            })
+            | Err(bollard::errors::Error::DockerResponseServerError {
+                status_code: 304, // NOT MODIFIED
+                ..
+            }) => (), // Already stopped
+            a => a?,
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+enum StartStop {
+    Start,
+    Stop,
+}
+
+enum ManagerRunning {}
+
+// TODO BLUJ Need to have a signal to soft kill -9 running docker RUNNING, starting.
+enum ManagerStates {
+    Stopped,
+    Running {
+        run_main: RunMain,
+    },
+    Starting {
+        run_main: RunMain,
+        transition: JoinHandle<()>,
+    },
+    Stopping {
+        run_main: RunMain,
+        transition: JoinHandle<()>,
+    },
+    Configuring {
+        start_stop: StartStop,
+        transition: JoinHandle<()>,
+    },
+    ConfiguringStopping {
+        start_stop: StartStop,
+        run_main: RunMain,
+        transition: JoinHandle<()>,
+    },
+    BackingUp {
+        start_stop: StartStop,
+        transition: JoinHandle<()>,
+    },
+    BackingUpStopping {
+        start_stop: StartStop,
+        run_main: RunMain,
+        transition: JoinHandle<()>,
+    },
+    RestartingStopping {
+        start_stop: StartStop,
+        run_main: RunMain,
+        transition: JoinHandle<()>,
+    },
+}
+
+impl ManagerStates {
+    fn take(&mut self) -> Self {
+        let mut other = ManagerStates::Stopped;
+        std::mem::swap(self, &mut other);
+        other
+    }
+
+    fn into_components(self) -> (Option<RunMain>, Option<JoinHandle<()>>) {
+        match self {
+            ManagerStates::Stopped => (None, None),
+            ManagerStates::Running { run_main } => (Some(run_main), None),
+            ManagerStates::Starting {
+                run_main,
+                transition,
+            } => (Some(run_main), Some(transition)),
+            ManagerStates::Stopping {
+                run_main,
+                transition,
+            } => (Some(run_main), Some(transition)),
+            ManagerStates::Configuring {
+                start_stop,
+                transition,
+            } => (None, Some(transition)),
+            ManagerStates::ConfiguringStopping {
+                start_stop,
+                run_main,
+                transition,
+            } => (Some(run_main), Some(transition)),
+            ManagerStates::BackingUp {
+                start_stop,
+                transition,
+            } => (None, Some(transition)),
+            ManagerStates::BackingUpStopping {
+                start_stop,
+                run_main,
+                transition,
+            } => (Some(run_main), Some(transition)),
+            ManagerStates::RestartingStopping {
+                start_stop,
+                run_main,
+                transition,
+            } => (Some(run_main), Some(transition)),
+        }
+    }
+}
+struct ManagerState {
+    seed: Arc<ManagerSeed>,
+    state: ManagerStates,
+}
+
+#[derive(Clone)]
+struct Manager {
+    actor: ManagerActor,
+    persistent_container: ManagerPersistantContainer,
+}
+
+impl Manager {
+    #[instrument(skip(ctx))]
+    pub async fn new(
+        ctx: RpcContext,
+        manifest: Manifest,
+        tor_keys: BTreeMap<InterfaceId, TorSecretKeyV3>,
+    ) -> Result<Self, Error> {
+        let mut seed = Arc::new(ManagerSeed {
+            ctx,
+            container_name: DockerProcedure::container_name(&manifest.id, None),
+            manifest,
+            tor_keys,
+        });
+
+        let persistent_container = PersistentContainer::init(&seed).await?;
+        /// TODO BLUJ Deal With starting
+        let state = ManagerStates::Stopped;
+        Ok(Self {
+            actor: Arc::new(Actor::new(ManagerState { seed, state })),
+            persistent_container,
+        })
+    }
+    pub async fn start(&self) -> Result<(), Error> {
+        let manager = self.clone();
+        let persistant_container = self.persistent_container.clone();
+        self.actor
+            .async_event(|state| {
+                async move {
+                    /// TODO BLUJ Refactor
+                    match &state.state {
+                        ManagerStates::Stopped => (),
+                        ManagerStates::Running { .. }
+                        | ManagerStates::Starting { .. }
+                        | ManagerStates::RestartingStopping { .. } => return Ok::<_, Error>(()),
+                        // TODO BLUJ This is special, deal with
+                        ManagerStates::Stopping { .. }
+                        | ManagerStates::Configuring { .. }
+                        | ManagerStates::BackingUp { .. }
+                        | ManagerStates::BackingUpStopping { .. }
+                        | ManagerStates::ConfiguringStopping { .. } => (),
+                    }
+                    let seed = state.seed.clone();
+                    let (started, run_main) = run_main(seed, persistant_container);
+                    let transition = tokio::spawn(async move {
+                        if let Some(IsStarted) = started.await {
+                            manager.staring_done();
+                        } else {
+                            manager.restart();
+                        }
+                    });
+
+                    state.state = ManagerStates::Starting {
+                        run_main,
+                        transition,
+                    };
+                    Ok(())
+                }
+                .boxed()
+            })
+            .await
+            .with_kind(ErrorKind::Unknown)??;
+        Ok(())
+    }
+    pub async fn stop(&self) -> Result<(), Error> {
+        let manager = self.clone();
+        self.actor
+            .async_event(
+                |state| -> std::pin::Pin<Box<dyn Future<Output = Result<(), Error>> + Send>> {
+                    async move {
+                        // Will be needing the running main?
+                        let run_main = match state.state.take() {
+                            ManagerStates::Stopped => {
+                                state.state = ManagerStates::Stopped;
+                                return Ok::<_, Error>(());
+                            }
+                            ManagerStates::Configuring {
+                                start_stop,
+                                transition,
+                            }
+                            | ManagerStates::BackingUp {
+                                start_stop,
+                                transition,
+                            } => {
+                                transition.abort();
+                                return Ok(());
+                            }
+                            stopping @ ManagerStates::Stopping { .. } => {
+                                state.state = stopping;
+                                return Ok(());
+                            }
+                            ManagerStates::Running { run_main } => {
+                                state.seed.stop_container().await?;
+                                run_main
+                            }
+                            ManagerStates::Starting {
+                                run_main,
+                                transition,
+                            } => {
+                                transition.abort();
+                                state.seed.stop_container().await?;
+                                run_main
+                            }
+                            ManagerStates::BackingUpStopping {
+                                start_stop,
+                                transition,
+                                run_main,
+                            }
+                            | ManagerStates::ConfiguringStopping {
+                                start_stop,
+                                run_main,
+                                transition,
+                            }
+                            | ManagerStates::RestartingStopping {
+                                start_stop,
+                                transition,
+                                run_main,
+                            } => {
+                                transition.abort();
+                                run_main
+                            }
+                        };
+                        let seed = state.seed.clone();
+                        let is_done = run_main.is_done();
+                        let transition = tokio::spawn(async move {
+                            if let Err(_) = tokio::time::timeout(
+                                Duration::from_secs(
+                                    sigterm_timeout(&seed.manifest)
+                                        .map(|d| d.as_secs())
+                                        .unwrap_or(30),
+                                ),
+                                is_done,
+                            )
+                            .await
+                            {
+                                tracing::warn!(
+                                    "Timed out waiting for docker to stop our main thread"
+                                );
+                                // Ok(Err(e)) => {
+                                //     tracing::error!(
+                                //         "Docker join error {container_name}",
+                                //         container_name = seed.container_name
+                                //     );
+                                //     tracing::debug!("{e:?}");
+                                // }
+                                // Ok(Ok(Err(e))) => {
+                                //     tracing::error!(
+                                //         "Docker container {container_name} run time error",
+                                //         container_name = seed.container_name
+                                //     );
+                                //     tracing::debug!("{e:?}");
+                                // }
+                                // Ok(Ok(Ok(_))) => (),
+                            }
+                            manager.stopping_done().await;
+                        });
+                        state.state = ManagerStates::Stopping {
+                            transition,
+                            run_main,
+                        };
+                        Ok(())
+                    }
+                    .boxed()
+                },
+            )
+            .await
+            .with_kind(ErrorKind::Unknown)??;
+        Ok(())
+    }
+    pub async fn restart(&self) -> Result<(), Error> {
+        let manager = self.clone();
+        self.actor
+            .async_event(|state| {
+                async move {
+                    // Will be needing the running main?
+                    let run_main = match state.state.take() {
+                        restarting @ ManagerStates::RestartingStopping { .. } => {
+                            state.state = restarting;
+                            return Ok(());
+                        }
+                        ManagerStates::Stopped => {
+                            tokio::spawn({
+                                async move {
+                                    manager.start().await;
+                                }
+                            });
+                            return Ok::<_, Error>(());
+                        }
+                        ManagerStates::BackingUp {
+                            start_stop,
+                            transition,
+                        }
+                        | ManagerStates::Configuring {
+                            start_stop,
+                            transition,
+                        } => {
+                            transition.abort();
+                            tokio::spawn({
+                                async move {
+                                    manager.start().await;
+                                }
+                            });
+                            return Ok::<_, Error>(());
+                        }
+                        ManagerStates::Stopping {
+                            transition,
+                            run_main,
+                        }
+                        | ManagerStates::ConfiguringStopping {
+                            start_stop: _,
+                            run_main,
+                            transition,
+                        }
+                        | ManagerStates::BackingUpStopping {
+                            start_stop: _,
+                            run_main,
+                            transition,
+                        } => {
+                            transition.abort();
+                            run_main
+                        }
+                        ManagerStates::Running { run_main } => {
+                            state.seed.stop_container().await?;
+                            run_main
+                        }
+                        ManagerStates::Starting {
+                            run_main,
+                            transition,
+                        } => {
+                            transition.abort();
+                            state.seed.stop_container().await?;
+                            run_main
+                        }
+                    };
+                    let seed = state.seed.clone();
+                    let is_done = run_main.is_done();
+                    let transition = tokio::spawn(async move {
+                        if let Err(err) = tokio::time::timeout(
+                            Duration::from_secs(
+                                sigterm_timeout(&seed.manifest)
+                                    .map(|d| d.as_secs())
+                                    .unwrap_or(30),
+                            ),
+                            is_done,
+                        )
+                        .await
+                        {
+                            tracing::warn!("Timed out waiting for docker to stop our main thread");
+                        }
+                        manager.restarting_done().await;
+                    });
+                    state.state = ManagerStates::RestartingStopping {
+                        start_stop: StartStop::Start,
+                        transition,
+                        run_main,
+                    };
+                    Ok(())
+                }
+                .boxed()
+            })
+            .await
+            .with_kind(ErrorKind::Unknown)??;
+        Ok(())
+    }
+    pub async fn configure(&self) -> Result<(), Error> {
+        todo!()
+    }
+    pub async fn backup(&self) -> Result<(), Error> {
+        todo!()
+    }
+    pub async fn kill(self) -> Result<(), Error> {
+        self.actor
+            .async_event(|state| {
+                async move {
+                    let (run_main, transition) = state.state.take().into_components();
+                    if let Some(transition) = transition {
+                        transition.abort();
+                    }
+                    if let Some(run_main) = run_main {
+                        state.seed.stop_container().await?;
+                        if let Some(a) = run_main.into_response().await {
+                            a?;
+                        }
+                    }
+                    Ok::<(), Error>(())
+                }
+                .boxed()
+            })
+            .await
+            .with_kind(ErrorKind::Unknown)??;
+
+        // Stop
+        // Wait for stop
+        todo!()
+    }
+
+    async fn staring_done(&self) -> Result<(), Error> {
+        todo!()
+    }
+    async fn stopping_done(&self) -> Result<(), Error> {
+        todo!()
+    }
+    async fn restarting_done(&self) -> Result<(), Error> {
+        todo!()
+    }
+}
+
+struct IsRunning;
+fn run_main(
+    seed: Arc<ManagerSeed>,
+    persistant_container: ManagerPersistantContainer,
+) -> (BoxFuture<'static, Option<IsRunning>>, RunMain) {
+    let (send, recv) = oneshot::channel();
+    (
+        recv.map(|x| x.ok()).boxed(),
+        RunMain::new(async move {
+            let interfaces = main_interfaces(&seed)?;
+            let generated_certificate = generate_certificate(&*seed, &interfaces).await?;
+
+            let mut runtime = NonDetachingJoinHandle::from(tokio::spawn(start_up_image(
+                seed.clone(),
+                generated_certificate,
+            )));
+            let ip = match persistant_container.is_some() {
+                false => Some(match get_running_ip(&seed, &mut runtime).await {
+                    GetRunningIp::Ip(x) => x,
+                    GetRunningIp::Error(e) => return Err(e),
+                    GetRunningIp::EarlyExit(x) => return Ok(x),
+                }),
+                true => None,
+            };
+            if let Some(ip) = ip {
+                add_network_for_main(&seed, ip, interfaces, generated_certificate).await?;
+            }
+
+            send.send(IsRunning);
+            let health = main_health_check_daemon(seed.clone());
+            let res = tokio::select! {
+                a = runtime => a.map_err(|_| Error::new(eyre!("Manager runtime panicked!"), crate::ErrorKind::Docker)).and_then(|a| a),
+                _ = health => Err(Error::new(eyre!("Health check daemon exited!"), crate::ErrorKind::Unknown)),
+            };
+            if let Some(ip) = ip {
+                remove_network_for_main(&*seed, ip).await?;
+            }
+            res
+        }),
+    )
+}
+async fn set_status(seed: &ManagerSeed, status: &MainStatus) -> Result<(), Error> {
+    let mut db = seed.ctx.db.handle();
+    crate::db::DatabaseModel::new()
+        .package_data()
+        .idx_model(&seed.manifest.id)
+        .expect(&mut db)
+        .await?
+        .installed()
+        .expect(&mut db)
+        .await?
+        .status()
+        .main()
+        .put(&mut db, status)
+        .await?;
+    Ok(())
+}
+async fn get_status(seed: &ManagerSeed) -> Result<MainStatus, Error> {
+    let mut db = seed.ctx.db.handle();
+    Ok(crate::db::DatabaseModel::new()
+        .package_data()
+        .idx_model(&seed.manifest.id)
+        .expect(&mut db)
+        .await?
+        .installed()
+        .expect(&mut db)
+        .await?
+        .status()
+        .main()
+        .get(&mut db)
+        .await?
+        .clone())
 }
 
 // States
@@ -85,11 +634,6 @@ enum ManagerStateMine {
 // - pause
 // - configure
 
-pub struct Manager {
-    shared: Arc<ManagerSharedState>,
-    thread: Container<NonDetachingJoinHandle<()>>,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Status {
     Starting,
@@ -97,13 +641,6 @@ pub enum Status {
     Stopped,
     Paused,
     Shutdown,
-}
-
-struct ManagerSeed {
-    ctx: RpcContext,
-    manifest: Manifest,
-    container_name: String,
-    tor_keys: BTreeMap<InterfaceId, TorSecretKeyV3>,
 }
 
 pub struct ManagerSharedState {
@@ -126,61 +663,20 @@ pub enum OnStop {
     Exit,
 }
 
-#[instrument(skip(state))]
-async fn run_main(
-    state: &Arc<ManagerSharedState>,
-) -> Result<Result<NoOutput, (i32, String)>, Error> {
-    let rt_state = state.clone();
-    let interfaces = main_interfaces(&*state.seed)?;
-    let generated_certificate = generate_certificate(&*state.seed, &interfaces).await?;
-
-    let mut runtime = NonDetachingJoinHandle::from(tokio::spawn(start_up_image(
-        rt_state,
-        generated_certificate,
-    )));
-    let ip = match state.persistent_container.is_some() {
-        false => Some(match get_running_ip(state, &mut runtime).await {
-            GetRunningIp::Ip(x) => x,
-            GetRunningIp::Error(e) => return Err(e),
-            GetRunningIp::EarlyExit(x) => return Ok(x),
-        }),
-        true => None,
-    };
-
-    if let Some(ip) = ip {
-        add_network_for_main(&*state.seed, ip, interfaces, generated_certificate).await?;
-    }
-
-    set_commit_health_true(state);
-    let health = main_health_check_daemon(state.clone());
-    fetch_starting_to_running(state);
-    let res = tokio::select! {
-        a = runtime => a.map_err(|_| Error::new(eyre!("Manager runtime panicked!"), crate::ErrorKind::Docker)).and_then(|a| a),
-        _ = health => Err(Error::new(eyre!("Health check daemon exited!"), crate::ErrorKind::Unknown)),
-        _ = state.killer.notified() => Ok(Err((137, "Killed".to_string())))
-    };
-    if let Some(ip) = ip {
-        remove_network_for_main(&*state.seed, ip).await?;
-    }
-    res
-}
-
 /// We want to start up the manifest, but in this case we want to know that we have generated the certificates.
 /// Note for _generated_certificate: Needed to know that before we start the state we have generated the certificate
 async fn start_up_image(
-    rt_state: Arc<ManagerSharedState>,
+    seed: Arc<ManagerSeed>,
     _generated_certificate: GeneratedCertificateMountPoint,
 ) -> Result<Result<NoOutput, (i32, String)>, Error> {
-    rt_state
-        .seed
-        .manifest
+    seed.manifest
         .main
         .execute::<(), NoOutput>(
-            &rt_state.seed.ctx,
-            &rt_state.seed.manifest.id,
-            &rt_state.seed.manifest.version,
+            &seed.ctx,
+            &seed.manifest.id,
+            &seed.manifest.version,
             ProcedureName::Main,
-            &rt_state.seed.manifest.volumes,
+            &seed.manifest.volumes,
             None,
             None,
         )
@@ -395,21 +891,21 @@ pub struct PersistentContainer {
 
 impl PersistentContainer {
     #[instrument(skip(seed))]
-    async fn init(seed: &Arc<ManagerSeed>) -> Result<Option<Self>, Error> {
+    async fn init(seed: &Arc<ManagerSeed>) -> Result<ManagerPersistantContainer, Error> {
         Ok(if let Some(containers) = &seed.manifest.containers {
             let (running_docker, rpc_client) =
                 spawn_persistent_container(seed.clone(), containers.main.clone()).await?;
-            Some(Self {
+            Some(Arc::new(Self {
                 _running_docker: running_docker,
                 rpc_client,
-            })
+            }))
         } else {
             None
         })
     }
 }
 
-async fn spawn_persistent_container(
+fn spawn_persistent_container(
     seed: Arc<ManagerSeed>,
     container: DockerContainer,
 ) -> Result<(NonDetachingJoinHandle<()>, Receiver<Arc<UnixRpcClient>>), Error> {
@@ -501,18 +997,11 @@ fn fetch_starting_to_running(state: &Arc<ManagerSharedState>) {
     });
 }
 
-async fn main_health_check_daemon(state: Arc<ManagerSharedState>) {
+async fn main_health_check_daemon(seed: Arc<ManagerSeed>) {
     tokio::time::sleep(Duration::from_secs(HEALTH_CHECK_GRACE_PERIOD_SECONDS)).await;
     loop {
-        let mut db = state.seed.ctx.db.handle();
-        if let Err(e) = health::check(
-            &state.seed.ctx,
-            &mut db,
-            &state.seed.manifest.id,
-            &state.commit_health_check_results,
-        )
-        .await
-        {
+        let mut db = seed.ctx.db.handle();
+        if let Err(e) = health::check(&seed.ctx, &mut db, &seed.manifest.id).await {
             tracing::error!(
                 "Failed to run health check for {}: {}",
                 &state.seed.manifest.id,
@@ -555,12 +1044,9 @@ enum GetRunningIp {
 
 type RuntimeOfCommand = NonDetachingJoinHandle<Result<Result<NoOutput, (i32, String)>, Error>>;
 
-async fn get_running_ip(
-    state: &Arc<ManagerSharedState>,
-    mut runtime: &mut RuntimeOfCommand,
-) -> GetRunningIp {
+async fn get_running_ip(seed: &ManagerSeed, mut runtime: &mut RuntimeOfCommand) -> GetRunningIp {
     loop {
-        match container_inspect(&*state.seed).await {
+        match container_inspect(seed).await {
             Ok(res) => {
                 match res
                     .network_settings
@@ -813,7 +1299,7 @@ async fn send_signal(shared: &ManagerSharedState, signal: &Signal) -> Result<(),
                     gid: shared.main_gid.1.apply_ref(|g| *g.borrow()),
                     signal: *signal as u32,
                 }),
-                None, // TODO
+                None, // TODO BLUJ
                 ProcessGroupId(
                     shared
                         .next_gid
