@@ -80,8 +80,8 @@
         </ion-label>
       </ion-item>
 
-      <!-- no config -->
-      <ion-item *ngIf="!configForm">
+      <!-- no options -->
+      <ion-item *ngIf="!hasOptions">
         <ion-label>
           <p>
             No config options for {{ pkg.manifest.title }} {{
@@ -111,7 +111,11 @@
 <ion-footer>
   <ion-toolbar>
     <ng-container *ngIf="!loading && !loadingError">
-      <ion-buttons *ngIf="configForm" slot="start" class="ion-padding-start">
+      <ion-buttons
+        *ngIf="configForm && hasOptions"
+        slot="start"
+        class="ion-padding-start"
+      >
         <ion-button fill="clear" (click)="resetDefaults()">
           <ion-icon slot="start" name="refresh"></ion-icon>
           Reset Defaults
