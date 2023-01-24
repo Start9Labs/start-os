@@ -33,30 +33,31 @@ export class MarketplaceListPage {
 
   readonly details$ = this.marketplaceService.getSelectedHost$().pipe(
     map(({ url, name }) => {
-      const { start9, community, beta } = this.config.marketplace
+      const { start9, community } = this.config.marketplace
       let color: string
       let description: string
-      switch (url) {
-        case start9:
-          color = 'success'
-          description =
-            'Services from this registry are packaged and maintained by the Start9 team. If you experience an issue or have a questions related to a service from this registry, one of our dedicated support staff will be happy to assist you.'
-          break
-        case community:
-          color = 'tertiary'
-          description =
-            'Services from this registry are packaged and maintained by members of the Start9 community. <b>Install at your own risk</b>. If you experience an issue or have a question related to a service in this marketplace, please reach out to the package developer for assistance.'
-          break
-        case beta:
-          color = 'primary'
-          description =
-            'Services from this registry are undergoing active testing and may contain bugs. <b>Install at your own risk</b>. If you discover a bug or have a suggestion for improvement, please report it to the Start9 team in our community testing channel on Matrix.'
-          break
-        default:
-          // alt marketplace
-          color = 'warning'
-          description =
-            'This is a Custom Registry. Start9 cannot verify the integrity or functionality of services from this registry, and they may cause harm to your system. <b>Install at your own risk</b>.'
+
+      if (url === start9) {
+        color = 'success'
+        description =
+          'Services from this registry are packaged and maintained by the Start9 team. If you experience an issue or have a questions related to a service from this registry, one of our dedicated support staff will be happy to assist you.'
+      } else if (url === community) {
+        color = 'tertiary'
+        description =
+          'Services from this registry are packaged and maintained by members of the Start9 community. <b>Install at your own risk</b>. If you experience an issue or have a question related to a service in this marketplace, please reach out to the package developer for assistance.'
+      } else if (url.includes('beta')) {
+        color = 'warning'
+        description =
+          'Services from this registry are undergoing <b>beta</b> testing and may contain bugs. <b>Install at your own risk</b>.'
+      } else if (url.includes('alpha')) {
+        color = 'danger'
+        description =
+          'Services from this registry are undergoing <b>alpha</b> testing. They are expected to contain bugs and could damage your system. <b>Install at your own risk</b>.'
+      } else {
+        // alt marketplace
+        color = 'warning'
+        description =
+          'This is a Custom Registry. Start9 cannot verify the integrity or functionality of services from this registry, and they could damage your system. <b>Install at your own risk</b>.'
       }
 
       return {
