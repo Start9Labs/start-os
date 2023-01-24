@@ -15,7 +15,7 @@ import {
 } from './form-object.pipes'
 import { IonicModule } from '@ionic/angular'
 import { FormsModule, ReactiveFormsModule } from '@angular/forms'
-import { SharedPipesModule } from '@start9labs/shared'
+import { ElasticContainerModule, SharedPipesModule } from '@start9labs/shared'
 import { EnumListPageModule } from 'src/app/modals/enum-list/enum-list.module'
 
 @NgModule({
@@ -37,6 +37,7 @@ import { EnumListPageModule } from 'src/app/modals/enum-list/enum-list.module'
     ReactiveFormsModule,
     SharedPipesModule,
     EnumListPageModule,
+    ElasticContainerModule,
   ],
   exports: [FormObjectComponent, FormLabelComponent],
 })
