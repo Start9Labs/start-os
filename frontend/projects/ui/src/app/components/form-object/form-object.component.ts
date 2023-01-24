@@ -351,7 +351,6 @@ export class FormUnionComponent {
   @Output() onResize = new EventEmitter<void>()
 
   get unionValue() {
-    console.error('HERE-1')
     return this.formGroup.get(this.spec.tag.id)?.value
   }
 

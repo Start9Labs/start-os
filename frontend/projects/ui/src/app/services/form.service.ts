@@ -478,7 +478,6 @@ function uniqueByMessage(
   if (uniqueBy === null) {
     return ''
   } else if (typeof uniqueBy === 'string') {
-    console.error('HERE-2')
     return configSpec[uniqueBy]
       ? (configSpec[uniqueBy] as ValueSpecObject).name
       : uniqueBy
