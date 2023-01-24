@@ -39,9 +39,9 @@ export class MarketplaceSettingsPage {
         selected: sameUrl(s.url, selected.url),
       }))
       // 0 and 1 are prod and community
-      const standard = toSlice.slice(0, 1)
+      const standard = toSlice.slice(0, 2)
       // 2 and beyond are alts
-      const alt = toSlice.slice(1)
+      const alt = toSlice.slice(2)
 
       return { standard, alt }
     }),
