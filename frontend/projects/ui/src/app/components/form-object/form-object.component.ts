@@ -105,7 +105,7 @@ export class FormObjectComponent {
         this.objectDisplay[key].height = this.getScrollHeight(key)
       }
       this.onResize.emit()
-    }, 420) // 420 to match transition-duration defined in html, for smooth recursive resize
+    }, 250) // 250 to match transition-duration defined in html, for smooth recursive resize
   }
 
   addListItemWrapper<T extends ValueSpec>(
