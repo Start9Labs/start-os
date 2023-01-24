@@ -17,11 +17,12 @@ use patch_db::DbHandle;
 use sqlx::Executor;
 use tokio::spawn;
 use tokio::sync::watch::error::RecvError;
-use tokio::sync::watch::{channel, Receiver, Sender};
-use tokio::sync::{mpsc, oneshot, Notify};
+use tokio::sync::watch::{self, channel, Receiver, Sender};
+use tokio::sync::{mpsc, oneshot, Mutex, Notify};
 use tokio::task::JoinHandle;
 use torut::onion::TorSecretKeyV3;
 use tracing::instrument;
+use trust_dns_server::proto::rr::rdata::a;
 
 use crate::net::interface::InterfaceId;
 use crate::net::GeneratedCertificateMountPoint;
@@ -227,10 +228,29 @@ struct ManagerState {
     seed: Arc<ManagerSeed>,
     state: ManagerStates,
 }
+enum TransitionState {
+    // Starting(JoinHandle<()>),
+    // Stopping(JoinHandle<()>)
+    Restarting(JoinHandle<()>),
+    Configuring(JoinHandle<()>),
+    None,
+}
+impl TransitionState {
+    fn join_handle(self) -> Option<JoinHandle<()>> {
+        Some(match self {
+            TransitionState::Restarting(a) => a,
+            TransitionState::Configuring(a) => a,
+            TransitionState::None => return None,
+        })
+    }
+}
 
 #[derive(Clone)]
 struct Manager {
-    actor: ManagerActor,
+    seed: Arc<ManagerSeed>,
+    current_state: Arc<watch::Sender<StartStop>>,
+    desired_state: Arc<watch::Sender<StartStop>>,
+    transition: Mutex<TransitionState>,
     persistent_container: ManagerPersistantContainer,
 }
 
