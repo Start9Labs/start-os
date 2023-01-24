@@ -4,8 +4,7 @@ import {
   MUTATION_OBSERVER_INIT,
   MutationObserverService,
 } from '@ng-web-apis/mutation-observer'
-import { distinctUntilChanged, merge } from 'rxjs'
-import { map } from 'rxjs/operators'
+import { distinctUntilChanged, map, merge } from 'rxjs'
 
 @Directive({
   selector: '[elasticContainer]',
