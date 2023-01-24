@@ -12,8 +12,6 @@ export type WorkspaceConfig = {
     marketplace: {
       start9: 'https://registry.start9.com/'
       community: 'https://community-registry.start9.com/'
-      beta: 'https://beta-registry.start9.com/'
-      alpha: 'https://alpha-registry-x.start9.com/'
     }
     mocks: {
       maskAs: 'tor' | 'lan'
