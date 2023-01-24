@@ -1,0 +1,43 @@
+<div [formGroup]="formGroup">
+  <!-- union enum -->
+  <ion-item-divider [class.error-border]="formGroup.invalid">
+    <form-label
+      [data]="{
+        name: spec.tag.name,
+        description: spec.tag.description,
+        new: isNew,
+        newOptions: hasNewOptions,
+        edited: formGroup.dirty
+      }"
+    ></form-label>
+    <!-- class enter-click disables the enter click on the modal behind the select -->
+    <ion-select
+      [interfaceOptions]="{
+        message: spec.tag.warning | toWarningText,
+        cssClass: 'enter-click'
+      }"
+      slot="end"
+      placeholder="Select"
+      [formControlName]="spec.tag.id"
+      [selectedText]="spec.tag['variant-names'][unionValue]"
+      (ionChange)="updateUnion($event)"
+    >
+      <ion-select-option
+        *ngFor="let option of spec.variants | keyvalue"
+        [value]="option.key"
+      >
+        {{ spec.tag['variant-names'][option.key] }}
+      </ion-select-option>
+    </ion-select>
+  </ion-item-divider>
+
+  <elastic-container [id]="objectId | toElementId: 'union'" class="indent">
+    <form-object
+      [objectSpec]="spec.variants[unionValue]"
+      [formGroup]="formGroup"
+      [current]="current"
+      [original]="original"
+      (onResize)="resize()"
+    ></form-object>
+  </elastic-container>
+</div>

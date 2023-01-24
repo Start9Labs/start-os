@@ -53,6 +53,8 @@ export class AppConfigPage {
   saving = false
   loadingError: string | IonicSafeString = ''
 
+  hasOptions = false
+
   constructor(
     private readonly embassyApi: ApiService,
     private readonly errToast: ErrorToastService,
@@ -101,7 +103,10 @@ export class AppConfigPage {
         this.configSpec,
         newConfig || this.original,
       )
-      this.configForm.markAllAsTouched()
+
+      this.hasOptions = !!Object.values(this.configSpec).find(
+        valSpec => valSpec.type !== 'pointer',
+      )
 
       if (patch) {
         this.diff = this.getDiff(patch)
