@@ -31,16 +31,7 @@
     </ion-select>
   </ion-item-divider>
 
-  <div
-    [id]="objectId | toElementId: 'union'"
-    [ngStyle]="{
-      'max-height': objectHeight,
-      overflow: 'hidden',
-      'transition-property': 'max-height',
-      'transition-duration': '.25s'
-    }"
-    class="indent"
-  >
+  <elastic-container [id]="objectId | toElementId: 'union'" class="indent">
     <form-object
       [objectSpec]="spec.variants[unionValue]"
       [formGroup]="formGroup"
@@ -48,5 +39,5 @@
       [original]="original"
       (onResize)="resize()"
     ></form-object>
-  </div>
+  </elastic-container>
 </div>

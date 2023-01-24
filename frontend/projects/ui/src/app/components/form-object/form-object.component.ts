@@ -354,15 +354,11 @@ export class FormUnionComponent {
     console.error('HERE-1')
     return this.formGroup.get(this.spec.tag.id)?.value
   }
-  get objectHeight() {
-    const element = this.document.getElementById(
-      getElementId(this.objectId, 'union'),
-    )
-    return `${element?.scrollHeight}px`
-  }
+
   get isNew() {
     return !this.original
   }
+
   get hasNewOptions() {
     const tagId = this.spec.tag.id
     return (
