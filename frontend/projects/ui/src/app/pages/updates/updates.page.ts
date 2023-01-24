@@ -16,7 +16,7 @@ import {
 } from '@start9labs/marketplace'
 import { Emver, isEmptyObject, sameUrl } from '@start9labs/shared'
 import { Pipe, PipeTransform } from '@angular/core'
-import { combineLatest, Observable } from 'rxjs'
+import { combineLatest, map, Observable } from 'rxjs'
 import {
   AlertController,
   LoadingController,
@@ -25,6 +25,8 @@ import {
 import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { getAllPackages } from 'src/app/util/get-package-data'
 import { Breakages } from 'src/app/services/api/api.types'
+import { ClientStorageService } from 'src/app/services/client-storage.service'
+import { ConfigService } from 'src/app/services/config.service'
 
 interface UpdatesData {
   hosts: StoreIdentity[]
@@ -39,8 +41,21 @@ interface UpdatesData {
   styleUrls: ['updates.page.scss'],
 })
 export class UpdatesPage {
+  readonly hosts$ = combineLatest([
+    this.clientStorageService.showDevTools$,
+    this.marketplaceService.getKnownHosts$(),
+  ]).pipe(
+    map(([devMode, knownHosts]) => {
+      if (devMode) return knownHosts
+      return knownHosts.filter(h => {
+        const { alpha, beta } = this.config.marketplace
+        return ![alpha, beta].includes(h.url as any)
+      })
+    }),
+  )
+
   readonly data$: Observable<UpdatesData> = combineLatest({
-    hosts: this.marketplaceService.getKnownHosts$(),
+    hosts: this.hosts$,
     marketplace: this.marketplaceService.getMarketplace$(),
     localPkgs: this.patch.watch$('package-data'),
     errors: this.marketplaceService.getRequestErrors$(),
@@ -56,6 +71,8 @@ export class UpdatesPage {
     private readonly navCtrl: NavController,
     private readonly loadingCtrl: LoadingController,
     private readonly alertCtrl: AlertController,
+    private readonly clientStorageService: ClientStorageService,
+    private readonly config: ConfigService,
   ) {}
 
   viewInMarketplace(pkg: PackageDataEntry) {
