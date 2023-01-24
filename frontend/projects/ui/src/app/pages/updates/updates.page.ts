@@ -47,10 +47,9 @@ export class UpdatesPage {
   ]).pipe(
     map(([devMode, knownHosts]) => {
       if (devMode) return knownHosts
-      return knownHosts.filter(h => {
-        const { alpha, beta } = this.config.marketplace
-        return ![alpha, beta].includes(h.url as any)
-      })
+      return knownHosts.filter(
+        ({ url }) => url.includes('alpha') || url.includes('beta'),
+      )
     }),
   )
 
