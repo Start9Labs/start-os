@@ -1,30 +1,28 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core'
 import {
-  AbstractFormGroupDirective,
-  FormArray,
-  UntypedFormArray,
-  UntypedFormGroup,
-} from '@angular/forms'
-import {
-  AlertButton,
-  AlertController,
-  IonicSafeString,
-  ModalController,
-} from '@ionic/angular'
+  Component,
+  Input,
+  Output,
+  EventEmitter,
+  ChangeDetectionStrategy,
+  Inject,
+} from '@angular/core'
+import { FormArray, UntypedFormArray, UntypedFormGroup } from '@angular/forms'
+import { AlertButton, AlertController, ModalController } from '@ionic/angular'
 import {
   ConfigSpec,
   ListValueSpecOf,
   ValueSpec,
   ValueSpecBoolean,
+  ValueSpecEnum,
   ValueSpecList,
   ValueSpecListOf,
   ValueSpecUnion,
 } from 'src/app/pkg-config/config-types'
 import { FormService } from 'src/app/services/form.service'
-import { Range } from 'src/app/pkg-config/config-utilities'
 import { EnumListPage } from 'src/app/modals/enum-list/enum-list.page'
 import { pauseFor } from '@start9labs/shared'
 import { v4 } from 'uuid'
+import { DOCUMENT } from '@angular/common'
 const Mustache = require('mustache')
 
 interface Config {
@@ -38,11 +36,10 @@ interface Config {
 export class FormObjectComponent {
   @Input() objectSpec!: ConfigSpec
   @Input() formGroup!: UntypedFormGroup
-  @Input() unionSpec?: ValueSpecUnion
   @Input() current?: Config
   @Input() original?: Config
   @Output() onInputChange = new EventEmitter<void>()
-  @Output() onExpand = new EventEmitter<void>()
+  @Output() onResize = new EventEmitter<void>()
   @Output() hasNewOptions = new EventEmitter<void>()
   warningAck: { [key: string]: boolean } = {}
   unmasked: { [key: string]: boolean } = {}
@@ -52,14 +49,13 @@ export class FormObjectComponent {
   objectListDisplay: {
     [key: string]: { expanded: boolean; height: string; displayAs: string }[]
   } = {}
-  private objectId = v4()
-
-  Object = Object
+  objectId = v4()
 
   constructor(
     private readonly alertCtrl: AlertController,
     private readonly modalCtrl: ModalController,
     private readonly formService: FormService,
+    @Inject(DOCUMENT) private readonly document: Document,
   ) {}
 
   ngOnInit() {
@@ -80,7 +76,7 @@ export class FormObjectComponent {
               : '',
           }
         })
-      } else if (['object', 'union'].includes(spec.type)) {
+      } else if (spec.type === 'object') {
         this.objectDisplay[key] = {
           expanded: false,
           height: '0px',
@@ -101,64 +97,30 @@ export class FormObjectComponent {
     }, 10)
   }
 
-  getEnumListDisplay(arr: string[], spec: ListValueSpecOf<'enum'>): string {
-    return arr.map((v: string) => spec['value-names'][v]).join(', ')
-  }
-
-  updateUnion(e: any): void {
-    const id = this.unionSpec?.tag.id
-
-    Object.keys(this.formGroup.controls).forEach(control => {
-      if (control === id) return
-      this.formGroup.removeControl(control)
-    })
-
-    const unionGroup = this.formService.getUnionObject(
-      this.unionSpec as ValueSpecUnion,
-      e.detail.value,
-    )
-
-    Object.keys(unionGroup.controls).forEach(control => {
-      if (control === id) return
-      this.formGroup.addControl(control, unionGroup.controls[control])
-    })
-
-    Object.entries(this.unionSpec?.variants[e.detail.value] || {}).forEach(
-      ([key, value]) => {
-        if (['object', 'union'].includes(value.type)) {
-          this.objectDisplay[key] = {
-            expanded: false,
-            height: '0px',
-            hasNewOptions: false,
-          }
-        }
-      },
-    )
-
-    this.onExpand.emit()
-  }
-
   resize(key: string, i?: number): void {
     setTimeout(() => {
       if (i !== undefined) {
-        this.objectListDisplay[key][i].height = this.getDocSize(key, i)
+        this.objectListDisplay[key][i].height = this.getScrollHeight(key, i)
       } else {
-        this.objectDisplay[key].height = this.getDocSize(key)
+        this.objectDisplay[key].height = this.getScrollHeight(key)
       }
-      this.onExpand.emit()
-    }, 250) // 250 to match transition-duration, defined in html
+      this.onResize.emit()
+    }, 250) // 250 to match transition-duration defined in html, for smooth recursive resize
   }
 
-  addListItemWrapper(key: string, spec: ValueSpec) {
+  addListItemWrapper<T extends ValueSpec>(
+    key: string,
+    spec: T extends ValueSpecUnion ? never : T,
+  ) {
     this.presentAlertChangeWarning(key, spec, () => this.addListItem(key))
   }
 
   toggleExpandObject(key: string) {
     this.objectDisplay[key].expanded = !this.objectDisplay[key].expanded
     this.objectDisplay[key].height = this.objectDisplay[key].expanded
-      ? this.getDocSize(key)
+      ? this.getScrollHeight(key)
       : '0px'
-    this.onExpand.emit()
+    this.onResize.emit()
   }
 
   toggleExpandListObject(key: string, i: number) {
@@ -166,20 +128,14 @@ export class FormObjectComponent {
       !this.objectListDisplay[key][i].expanded
     this.objectListDisplay[key][i].height = this.objectListDisplay[key][i]
       .expanded
-      ? this.getDocSize(key, i)
+      ? this.getScrollHeight(key, i)
       : '0px'
-    this.onExpand.emit()
+    this.onResize.emit()
   }
 
   updateLabel(key: string, i: number, displayAs: string) {
     this.objectListDisplay[key][i].displayAs = displayAs
       ? Mustache.render(displayAs, this.formGroup.get(key)?.value[i])
-      : ''
-  }
-
-  getWarningText(text: string = ''): IonicSafeString | string {
-    return text
-      ? new IonicSafeString(`<ion-text color="warning">${text}</ion-text>`)
       : ''
   }
 
@@ -224,9 +180,9 @@ export class FormObjectComponent {
     await modal.present()
   }
 
-  async presentAlertChangeWarning(
+  async presentAlertChangeWarning<T extends ValueSpec>(
     key: string,
-    spec: ValueSpec,
+    spec: T extends ValueSpecUnion ? never : T,
     okFn?: Function,
     cancelFn?: Function,
   ) {
@@ -282,7 +238,10 @@ export class FormObjectComponent {
     await alert.present()
   }
 
-  async presentAlertDescription(event: Event, spec: ValueSpec) {
+  async presentAlertBoolEnumDescription(
+    event: Event,
+    spec: ValueSpecBoolean | ValueSpecEnum,
+  ) {
     event.stopPropagation()
     const { name, description } = spec
 
@@ -318,15 +277,18 @@ export class FormObjectComponent {
       })
     }
 
-    this.onExpand.emit()
-
-    pauseFor(400).then(() => {
-      const element = document.getElementById(this.getElementId(key, index))
+    setTimeout(() => {
+      const element = this.document.getElementById(
+        getElementId(this.objectId, key, index),
+      )
       element?.parentElement?.scrollIntoView({ behavior: 'smooth' })
-    })
+
+      if (['object', 'union'].includes(listSpec.subtype)) {
+        pauseFor(250).then(() => this.toggleExpandListObject(key, index))
+      }
+    }, 100)
 
     arr.markAsDirty()
-    newItem.markAllAsTouched()
   }
 
   private deleteListItem(key: string, index: number, markDirty = true): void {
@@ -360,29 +322,13 @@ export class FormObjectComponent {
     })
 
     arr.markAsDirty()
-    arr.markAllAsTouched()
   }
 
-  private getDocSize(key: string, index = 0): string {
-    const element = document.getElementById(this.getElementId(key, index))
+  private getScrollHeight(key: string, index = 0): string {
+    const element = this.document.getElementById(
+      getElementId(this.objectId, key, index),
+    )
     return `${element?.scrollHeight}px`
-  }
-
-  getElementId(key: string, index = 0): string {
-    return `${key}-${index}-${this.objectId}`
-  }
-
-  async presentUnionTagDescription(
-    event: Event,
-    name: string,
-    description: string,
-  ) {
-    event.stopPropagation()
-    const alert = await this.alertCtrl.create({
-      header: name,
-      message: description,
-    })
-    await alert.present()
   }
 
   asIsOrder() {
@@ -390,27 +336,92 @@ export class FormObjectComponent {
   }
 }
 
-interface HeaderData {
-  spec: ValueSpec
-  edited: boolean
-  new: boolean
-  newOptions?: boolean
+@Component({
+  selector: 'form-union',
+  templateUrl: './form-union.component.html',
+  styleUrls: ['./form-object.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+export class FormUnionComponent {
+  @Input() formGroup!: UntypedFormGroup
+  @Input() spec!: ValueSpecUnion
+  @Input() current?: Config
+  @Input() original?: Config
+
+  @Output() onResize = new EventEmitter<void>()
+
+  get unionValue() {
+    return this.formGroup.get(this.spec.tag.id)?.value
+  }
+
+  get isNew() {
+    return !this.original
+  }
+
+  get hasNewOptions() {
+    const tagId = this.spec.tag.id
+    return (
+      this.original?.[tagId] === this.current?.[tagId] &&
+      !!Object.keys(this.current || {}).find(
+        key => this.original![key] === undefined,
+      )
+    )
+  }
+
+  objectId = v4()
+
+  constructor(
+    private readonly formService: FormService,
+    @Inject(DOCUMENT) private readonly document: Document,
+  ) {}
+
+  updateUnion(e: any): void {
+    const tagId = this.spec.tag.id
+
+    Object.keys(this.formGroup.controls).forEach(control => {
+      if (control === tagId) return
+      this.formGroup.removeControl(control)
+    })
+
+    const unionGroup = this.formService.getUnionObject(
+      this.spec as ValueSpecUnion,
+      e.detail.value,
+    )
+
+    Object.keys(unionGroup.controls).forEach(control => {
+      if (control === tagId) return
+      this.formGroup.addControl(control, unionGroup.controls[control])
+    })
+  }
+
+  resize(): void {
+    setTimeout(() => {
+      this.onResize.emit()
+    }, 250) // 250 to match transition-duration, defined in html
+  }
 }
 
 @Component({
   selector: 'form-label',
   templateUrl: './form-label.component.html',
   styleUrls: ['./form-object.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FormLabelComponent {
-  Range = Range
-  @Input() data!: HeaderData
+  @Input() data!: {
+    name: string
+    new: boolean
+    edited: boolean
+    description?: string
+    required?: boolean
+    newOptions?: boolean
+  }
 
   constructor(private readonly alertCtrl: AlertController) {}
 
   async presentAlertDescription(event: Event) {
     event.stopPropagation()
-    const { name, description } = this.data.spec
+    const { name, description } = this.data
 
     const alert = await this.alertCtrl.create({
       header: name,
@@ -426,12 +437,6 @@ export class FormLabelComponent {
   }
 }
 
-@Component({
-  selector: 'form-error',
-  templateUrl: './form-error.component.html',
-  styleUrls: ['./form-object.component.scss'],
-})
-export class FormErrorComponent {
-  @Input() control!: AbstractFormGroupDirective
-  @Input() spec!: ValueSpec
+export function getElementId(objectId: string, key: string, index = 0): string {
+  return `${key}-${index}-${objectId}`
 }

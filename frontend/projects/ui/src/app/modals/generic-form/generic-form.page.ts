@@ -48,7 +48,6 @@ export class GenericFormPage {
     convertValuesRecursive(this.spec, this.formGroup)
 
     if (this.formGroup.invalid) {
-      this.formGroup.markAllAsTouched()
       document
         .getElementsByClassName('validation-error')[0]
         ?.scrollIntoView({ behavior: 'smooth' })

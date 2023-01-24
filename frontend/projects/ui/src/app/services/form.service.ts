@@ -46,9 +46,7 @@ export class FormService {
     current?: { [key: string]: any } | null,
   ): UntypedFormGroup {
     const { variants, tag } = spec
-    const { name, description, warning } = isFullUnion(spec)
-      ? spec
-      : { ...spec.tag, warning: undefined }
+    const { name, description, warning, 'variant-names': variantNames } = tag
 
     const enumSpec: ValueSpecEnum = {
       type: 'enum',
@@ -57,7 +55,7 @@ export class FormService {
       warning,
       default: selection,
       values: Object.keys(variants),
-      'value-names': tag['variant-names'],
+      'value-names': variantNames,
     }
     return this.getFormGroup(
       { [spec.tag.id]: enumSpec, ...spec.variants[selection] },
@@ -205,12 +203,6 @@ function listValidators(spec: ValueSpecList): ValidatorFn[] {
   }
 
   return validators
-}
-
-function isFullUnion(
-  spec: ValueSpecUnion | ListValueSpecUnion,
-): spec is ValueSpecUnion {
-  return !!(spec as ValueSpecUnion).name
 }
 
 export function numberInRange(stringRange: string): ValidatorFn {
@@ -461,15 +453,18 @@ function uniqueByMessageWrapper(
 ) {
   let configSpec: ConfigSpec
   if (isUnion(spec)) {
-    const variantKey = obj[spec.tag.id]
-    configSpec = spec.variants[variantKey]
+    const tagId = spec.tag.id
+    configSpec = {
+      [tagId]: { name: spec.tag.name } as ValueSpec,
+      ...spec.variants[obj[tagId]],
+    }
   } else {
     configSpec = spec.spec
   }
 
   const message = uniqueByMessage(uniqueBy, configSpec)
   if (message) {
-    return ' Must be unique by: ' + message + '.'
+    return ' Must be unique by: ' + message
   }
 }
 
@@ -483,7 +478,9 @@ function uniqueByMessage(
   if (uniqueBy === null) {
     return ''
   } else if (typeof uniqueBy === 'string') {
-    return configSpec[uniqueBy] ? configSpec[uniqueBy].name : uniqueBy
+    return configSpec[uniqueBy]
+      ? (configSpec[uniqueBy] as ValueSpecObject).name
+      : uniqueBy
   } else if ('any' in uniqueBy) {
     joinFunc = ' OR '
     for (let subSpec of uniqueBy.any) {

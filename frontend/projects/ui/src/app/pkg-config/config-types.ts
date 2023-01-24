@@ -53,7 +53,7 @@ export interface ValueSpecBoolean extends WithStandalone {
   default: boolean
 }
 
-export interface ValueSpecUnion extends WithStandalone {
+export interface ValueSpecUnion {
   type: 'union'
   tag: UnionTagSpec
   variants: { [key: string]: ConfigSpec }
@@ -159,12 +159,13 @@ export interface ListValueSpecUnion {
 
 export interface UnionTagSpec {
   id: string // The name of the field containing one of the union variants
-  name: string
-  description?: string
   'variant-names': {
     // the name of each variant
     [variant: string]: string
   }
+  name: string
+  description?: string
+  warning?: string
 }
 
 export type DefaultString = string | { charset: string; len: number }
