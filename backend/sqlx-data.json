@@ -1,70 +1,5 @@
 {
   "db": "PostgreSQL",
-  "094882d4d46d52e814f9aaf5fae172a5dd745b06cbde347f47b18e6498167269": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Left": [
-          "Text",
-          "Text",
-          "Text"
-        ]
-      }
-    },
-    "query": "UPDATE certificates SET priv_key_pem = $1, certificate_pem = $2, updated_at = now() WHERE lookup_string = $3"
-  },
-  "0a3b05c0b9ef4f9cfcba5cc22015967b44a5dcce27f15739f29eb087b8e7c76b": {
-    "describe": {
-      "columns": [
-        {
-          "name": "key",
-          "ordinal": 0,
-          "type_info": "Bytea"
-        },
-        {
-          "name": "cert_pem",
-          "ordinal": 1,
-          "type_info": "Text"
-        }
-      ],
-      "nullable": [
-        false,
-        false
-      ],
-      "parameters": {
-        "Left": [
-          "Text",
-          "Text"
-        ]
-      }
-    },
-    "query": "SELECT key, cert_pem FROM network_keys WHERE package = $1 AND interface = $2"
-  },
-  "165daa7d6a60cb42122373b2c5ac7d39399bcc99992f0002ee7bfef50a8daceb": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Left": []
-      }
-    },
-    "query": "DELETE FROM certificates WHERE id = 0 OR id = 1;"
-  },
-  "1f7936d27d63f01118ecd6f824e8a79607ed2b6e6def23f3e2487466dd2ddfe1": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Left": [
-          "Text",
-          "Text",
-          "Text"
-        ]
-      }
-    },
-    "query": "INSERT INTO certificates (priv_key_pem, certificate_pem, lookup_string, created_at, updated_at) VALUES ($1, $2, $3, now(), now())"
-  },
   "21471490cdc3adb206274cc68e1ea745ffa5da4479478c1fd2158a45324b1930": {
     "describe": {
       "columns": [],
@@ -90,6 +25,28 @@
       }
     },
     "query": "INSERT INTO tor (package, interface, key) VALUES ($1, $2, $3) ON CONFLICT (package, interface) DO UPDATE SET key = $3"
+  },
+  "23960ddd29c0c4b6714ffe14c7ffd8e496ecf524173ab00246412c3f4ab901c0": {
+    "describe": {
+      "columns": [
+        {
+          "name": "key",
+          "ordinal": 0,
+          "type_info": "Bytea"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Text",
+          "Text",
+          "Bytea"
+        ]
+      }
+    },
+    "query": "INSERT INTO network_keys (package, interface, key) VALUES ($1, $2, $3) ON CONFLICT (package, interface) DO NOTHING RETURNING key"
   },
   "28ea34bbde836e0618c5fc9bb7c36e463c20c841a7d6a0eb15be0f24f4a928ec": {
     "describe": {
@@ -144,24 +101,6 @@
     },
     "query": "INSERT INTO account (id, password, tor_key, ssh_key) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO UPDATE SET password = $2, tor_key = $3, ssh_key = $4"
   },
-  "3502e58f2ab48fb4566d21c920c096f81acfa3ff0d02f970626a4dcd67bac71d": {
-    "describe": {
-      "columns": [
-        {
-          "name": "tor_key",
-          "ordinal": 0,
-          "type_info": "Bytea"
-        }
-      ],
-      "nullable": [
-        false
-      ],
-      "parameters": {
-        "Left": []
-      }
-    },
-    "query": "SELECT tor_key FROM account"
-  },
   "4099028a5c0de578255bf54a67cef6cb0f1e9a4e158260700f1639dd4b438997": {
     "describe": {
       "columns": [
@@ -193,36 +132,6 @@
       }
     },
     "query": "SELECT * FROM ssh_keys WHERE fingerprint = $1"
-  },
-  "44c4cc5ed663e7573904d82e4ffe9c4313cfa9b3d54ea652eccbea5239689e83": {
-    "describe": {
-      "columns": [
-        {
-          "name": "root_ca_cert_pem",
-          "ordinal": 0,
-          "type_info": "Text"
-        },
-        {
-          "name": "int_ca_cert_pem",
-          "ordinal": 1,
-          "type_info": "Text"
-        },
-        {
-          "name": "int_ca_key_pem",
-          "ordinal": 2,
-          "type_info": "Text"
-        }
-      ],
-      "nullable": [
-        false,
-        false,
-        false
-      ],
-      "parameters": {
-        "Left": []
-      }
-    },
-    "query": "SELECT root_ca_cert_pem, int_ca_cert_pem, int_ca_key_pem FROM account WHERE id = 0"
   },
   "4691e3a2ce80b59009ac17124f54f925f61dc5ea371903e62cdffa5d7b67ca96": {
     "describe": {
@@ -272,45 +181,6 @@
     },
     "query": "SELECT * FROM session WHERE logged_out IS NULL OR logged_out > CURRENT_TIMESTAMP"
   },
-  "4a2d2ca1c4d92d1370377ec9326a479a1cc98179a5df6f98c3d5368db12b856b": {
-    "describe": {
-      "columns": [
-        {
-          "name": "key",
-          "ordinal": 0,
-          "type_info": "Bytea"
-        },
-        {
-          "name": "cert_pem",
-          "ordinal": 1,
-          "type_info": "Text"
-        },
-        {
-          "name": "root_ca_cert_pem",
-          "ordinal": 2,
-          "type_info": "Text"
-        },
-        {
-          "name": "int_ca_cert_pem",
-          "ordinal": 3,
-          "type_info": "Text"
-        }
-      ],
-      "nullable": [
-        false,
-        false,
-        false,
-        false
-      ],
-      "parameters": {
-        "Left": [
-          "Text",
-          "Text"
-        ]
-      }
-    },
-    "query": "SELECT network_keys.key, network_keys.cert_pem, account.root_ca_cert_pem, account.int_ca_cert_pem FROM network_keys CROSS JOIN account WHERE package = $1 AND interface = $2"
-  },
   "4bcfbefb1eb3181343871a1cd7fc3afb81c2be5c681cfa8b4be0ce70610e9c3a": {
     "describe": {
       "columns": [],
@@ -322,39 +192,6 @@
       }
     },
     "query": "UPDATE session SET logged_out = CURRENT_TIMESTAMP WHERE id = $1"
-  },
-  "548448e8ed8bcdf9efdc813d65af2cc55064685293b936f0f09e07f91a328eb9": {
-    "describe": {
-      "columns": [
-        {
-          "name": "setval",
-          "ordinal": 0,
-          "type_info": "Int8"
-        }
-      ],
-      "nullable": [
-        null
-      ],
-      "parameters": {
-        "Left": []
-      }
-    },
-    "query": "SELECT setval('certificates_id_seq', GREATEST(MAX(id) + 1, nextval('certificates_id_seq') - 1)) FROM certificates"
-  },
-  "5afddf9a775c27c2ee400927871a276d7b4c7c19e1b716f70393b613c1391502": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Left": [
-          "Text",
-          "Text",
-          "Bytea",
-          "Text"
-        ]
-      }
-    },
-    "query": "INSERT INTO network_keys (package, interface, key, cert_pem) VALUES ($1, $2, $3, $4) ON CONFLICT (package, interface) DO UPDATE SET key = EXCLUDED.key, cert_pem = EXCLUDED.cert_pem"
   },
   "5c0ea94081695dba827e525ecc0c555757b43ea513c2c93f9c7f7f8c174d36bf": {
     "describe": {
@@ -412,30 +249,6 @@
       }
     },
     "query": "SELECT key FROM tor WHERE package = $1 AND interface = $2"
-  },
-  "6c96d76bffcc5f03290d8d8544a58521345ed2a843a509b17bbcd6257bb81821": {
-    "describe": {
-      "columns": [
-        {
-          "name": "priv_key_pem",
-          "ordinal": 0,
-          "type_info": "Text"
-        },
-        {
-          "name": "certificate_pem",
-          "ordinal": 1,
-          "type_info": "Text"
-        }
-      ],
-      "nullable": [
-        false,
-        false
-      ],
-      "parameters": {
-        "Left": []
-      }
-    },
-    "query": "SELECT priv_key_pem, certificate_pem FROM certificates WHERE id = 1;"
   },
   "6d35ccf780fb2bb62586dd1d3df9c1550a41ee580dad3f49d35cb843ebef10ca": {
     "describe": {
@@ -684,30 +497,6 @@
     },
     "query": "SELECT fingerprint, openssh_pubkey, created_at FROM ssh_keys"
   },
-  "b0b10729eb253e92e28cc8ae15379465b470d06863c8d24d9dd4025d46f158e5": {
-    "describe": {
-      "columns": [
-        {
-          "name": "key",
-          "ordinal": 0,
-          "type_info": "Bytea"
-        },
-        {
-          "name": "cert_pem",
-          "ordinal": 1,
-          "type_info": "Text"
-        }
-      ],
-      "nullable": [
-        false,
-        false
-      ],
-      "parameters": {
-        "Left": []
-      }
-    },
-    "query": "SELECT key, cert_pem FROM network_keys WHERE package IS NULL AND interface IS NULL"
-  },
   "b1147beaaabbed89f2ab8c1e13ec4393a9a8fde2833cf096af766a979d94dee6": {
     "describe": {
       "columns": [],
@@ -723,19 +512,6 @@
       }
     },
     "query": "UPDATE cifs_shares SET hostname = $1, path = $2, username = $3, password = $4 WHERE id = $5"
-  },
-  "cec8112be0ebc02ef7e651631be09efe26d1677b5b8aa95ceb3a92aff1afdbcc": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Left": [
-          "Text",
-          "Text"
-        ]
-      }
-    },
-    "query": "INSERT INTO certificates (id, priv_key_pem, certificate_pem, lookup_string, created_at, updated_at) VALUES (1, $1, $2, NULL, now(), now())"
   },
   "d5117054072476377f3c4f040ea429d4c9b2cf534e76f35c80a2bf60e8599cca": {
     "describe": {
@@ -772,19 +548,6 @@
     },
     "query": "INSERT INTO notifications (package_id, code, level, title, message, data) VALUES ($1, $2, $3, $4, $5, $6)"
   },
-  "df4428ccb891bd791824bcd7990550cc9651e1cfaab1db33833ff7959d113b2c": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Left": [
-          "Text",
-          "Text"
-        ]
-      }
-    },
-    "query": "INSERT INTO certificates (id, priv_key_pem, certificate_pem, lookup_string, created_at, updated_at) VALUES (0, $1, $2, NULL, now(), now())"
-  },
   "e185203cf84e43b801dfb23b4159e34aeaef1154dcd3d6811ab504915497ccf7": {
     "describe": {
       "columns": [],
@@ -808,6 +571,24 @@
       }
     },
     "query": "UPDATE account SET password = $1"
+  },
+  "e545696735f202f9d13cf22a561f3ff3f9aed7f90027a9ba97634bcb47d772f0": {
+    "describe": {
+      "columns": [
+        {
+          "name": "tor_key",
+          "ordinal": 0,
+          "type_info": "Bytea"
+        }
+      ],
+      "nullable": [
+        true
+      ],
+      "parameters": {
+        "Left": []
+      }
+    },
+    "query": "SELECT tor_key FROM account WHERE id = 0"
   },
   "e5843c5b0e7819b29aa1abf2266799bd4f82e761837b526a0972c3d4439a264d": {
     "describe": {
@@ -884,30 +665,6 @@
     },
     "query": "INSERT INTO cifs_shares (hostname, path, username, password) VALUES ($1, $2, $3, $4) RETURNING id"
   },
-  "ed848affa5bf92997cd441e3a50b3616b6724df3884bd9d199b3225e0bea8a54": {
-    "describe": {
-      "columns": [
-        {
-          "name": "priv_key_pem",
-          "ordinal": 0,
-          "type_info": "Text"
-        },
-        {
-          "name": "certificate_pem",
-          "ordinal": 1,
-          "type_info": "Text"
-        }
-      ],
-      "nullable": [
-        false,
-        false
-      ],
-      "parameters": {
-        "Left": []
-      }
-    },
-    "query": "SELECT priv_key_pem, certificate_pem FROM certificates WHERE id = 0;"
-  },
   "f6d1c5ef0f9d9577bea8382318967b9deb46da75788c7fe6082b43821c22d556": {
     "describe": {
       "columns": [],
@@ -921,5 +678,23 @@
       }
     },
     "query": "INSERT INTO ssh_keys (fingerprint, openssh_pubkey, created_at) VALUES ($1, $2, $3)"
+  },
+  "f7d2dae84613bcef330f7403352cc96547f3f6dbec11bf2eadfaf53ad8ab51b5": {
+    "describe": {
+      "columns": [
+        {
+          "name": "network_key",
+          "ordinal": 0,
+          "type_info": "Bytea"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": []
+      }
+    },
+    "query": "SELECT network_key FROM account WHERE id = 0"
   }
 }

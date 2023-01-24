@@ -29,7 +29,6 @@ use crate::hostname::{get_hostname, Hostname};
 use crate::init::init;
 use crate::install::progress::InstallProgress;
 use crate::install::{download_install_s9pk, PKG_PUBLIC_DIR};
-use crate::net::ssl::SslManager;
 use crate::notifications::NotificationLevel;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::s9pk::reader::S9pkReader;
@@ -204,22 +203,17 @@ pub async fn recover_full_embassy(
     let secret_store = ctx.secret_store().await?;
     let mut secrets = secret_store.acquire().await?;
     let mut secrets_tx = secrets.begin().await?;
-    sqlx::query!(
-        "INSERT INTO account (id, password, tor_key, ssh_key) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO UPDATE SET password = $2, tor_key = $3, ssh_key = $4",
-        0,
-        password,
-        tor_key_bytes,
-        ssh_key_bytes,
-    )
-    .execute(&mut secrets_tx)
-    .await?;
+    // sqlx::query!(
+    //     "INSERT INTO account (id, password, tor_key, ssh_key) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO UPDATE SET password = $2, tor_key = $3, ssh_key = $4",
+    //     0,
+    //     password,
+    //     tor_key_bytes,
+    //     ssh_key_bytes,
+    // )
+    // .execute(&mut secrets_tx)
+    // .await?;
+    todo!("Import account info");
 
-    SslManager::import_root_ca(
-        &mut secrets_tx,
-        os_backup.root_ca_key,
-        os_backup.root_ca_cert.clone(),
-    )
-    .await?;
     secrets_tx.commit().await?;
     secret_store.close().await;
 

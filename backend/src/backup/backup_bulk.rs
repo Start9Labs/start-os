@@ -26,7 +26,6 @@ use crate::db::model::BackupProgress;
 use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::TmpMountGuard;
-use crate::net::ssl::load_root_certificate;
 use crate::notifications::NotificationLevel;
 use crate::s9pk::manifest::PackageId;
 use crate::status::MainStatus;
@@ -450,9 +449,7 @@ async fn perform_backup<Db: DbHandle>(
         .lock(&mut db, LockType::Write)
         .await?;
 
-    let (root_ca_key, root_ca_cert) = load_root_certificate(&mut ctx.secret_store.acquire().await?)
-        .await?
-        .ok_or_else(|| Error::new(eyre!("Root CA not initialized"), crate::ErrorKind::NotFound))?;
+    let (root_ca_key, root_ca_cert) = todo!();
     let mut os_backup_file = AtomicFile::new(
         backup_guard.as_ref().join("os-backup.cbor"),
         None::<PathBuf>,
@@ -462,7 +459,7 @@ async fn perform_backup<Db: DbHandle>(
     os_backup_file
         .write_all(
             &IoFormat::Cbor.to_vec(&OsBackup {
-                tor_key: ctx.net_controller.tor.embassyd_tor_key().await,
+                tor_key: todo!(),
                 ssh_key: crate::ssh::os_key(&mut ctx.secret_store.acquire().await?).await?,
                 root_ca_key,
                 root_ca_cert,

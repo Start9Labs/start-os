@@ -541,14 +541,14 @@ async fn long_running_docker(
 }
 
 async fn remove_network_for_main(seed: &ManagerSeed, ip: std::net::Ipv4Addr) -> Result<(), Error> {
-    seed.ctx
-        .net_controller
-        .remove(
-            &seed.manifest.id,
-            ip,
-            seed.manifest.interfaces.0.keys().cloned(),
-        )
-        .await?;
+    // seed.ctx
+    //     .net_controller
+    //     .remove(
+    //         &seed.manifest.id,
+    //         ip,
+    //         seed.manifest.interfaces.0.keys().cloned(),
+    //     )
+    //     .await?;
     Ok(())
 }
 
@@ -599,16 +599,16 @@ async fn add_network_for_main(
     )>,
     generated_certificate: GeneratedCertificateMountPoint,
 ) -> Result<(), Error> {
-    seed.ctx
-        .net_controller
-        .add(
-            &mut seed.ctx.secret_store.acquire().await?,
-            &seed.manifest.id,
-            ip,
-            interfaces,
-            generated_certificate,
-        )
-        .await?;
+    // seed.ctx
+    //     .net_controller
+    //     .add(
+    //         &mut seed.ctx.secret_store.acquire().await?,
+    //         &seed.manifest.id,
+    //         ip,
+    //         interfaces,
+    //         generated_certificate,
+    //     )
+    //     .await?;
     Ok(())
 }
 
@@ -730,14 +730,15 @@ async fn generate_certificate(
         TorSecretKeyV3,
     )>,
 ) -> Result<GeneratedCertificateMountPoint, Error> {
-    seed.ctx
-        .net_controller
-        .generate_certificate_mountpoint(
-            &mut seed.ctx.secret_store.acquire().await?,
-            &seed.manifest.id,
-            interfaces,
-        )
-        .await
+    // seed.ctx
+    //     .net_controller
+    //     .generate_certificate_mountpoint(
+    //         &mut seed.ctx.secret_store.acquire().await?,
+    //         &seed.manifest.id,
+    //         interfaces,
+    //     )
+    //     .await
+    todo!()
 }
 
 fn main_interfaces(

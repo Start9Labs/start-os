@@ -1,111 +1,144 @@
 use std::collections::BTreeMap;
-use std::net::SocketAddr;
-use std::sync::Arc;
+use std::net::{IpAddr, SocketAddr};
+use std::sync::{Arc, Weak};
 
+use color_eyre::eyre::eyre;
 use helpers::NonDetachingJoinHandle;
-use models::{InterfaceId, PackageId, ResultExt};
-use sqlx::PgPool;
+use models::ResultExt;
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::{oneshot, RwLock};
+use tokio::sync::{Mutex, RwLock};
 use tokio_rustls::rustls::server::Acceptor;
-use tokio_rustls::rustls::ServerConfig;
-use tokio_rustls::LazyConfigAcceptor;
+use tokio_rustls::rustls::{RootCertStore, ServerConfig};
+use tokio_rustls::{LazyConfigAcceptor, TlsConnector};
 
-use crate::net::keys::KeyInfo;
-use crate::net::net_utils::ResourceFqdn;
+use crate::net::keys::Key;
+use crate::net::ssl::SslManager;
 use crate::Error;
 
 // not allowed: <=1024, >=32768, 5355, 5432, 9050, 6010, 9051, 5353
 
 pub struct VHostController {
-    servers: RwLock<BTreeMap<u16, VHostServer>>,
+    ssl: Arc<SslManager>,
+    servers: Mutex<BTreeMap<u16, VHostServer>>,
 }
 impl VHostController {
-    pub fn new() -> Self {
+    pub fn new(ssl: Arc<SslManager>) -> Self {
         Self {
-            servers: RwLock::new(BTreeMap::new()),
+            ssl,
+            servers: Mutex::new(BTreeMap::new()),
         }
     }
     pub async fn add(
         &self,
-        hostname: &ResourceFqdn,
-        port: u16,
-        target: TargetInfo,
-    ) -> Result<(), Error> {
-        let mut writable = self.servers.write().await;
-        let server = if let Some(server) = writable.remove(&port) {
+        key: Key,
+        hostname: Option<String>,
+        external: u16,
+        target: SocketAddr,
+        connect_ssl: bool,
+    ) -> Result<Arc<()>, Error> {
+        let mut writable = self.servers.lock().await;
+        let server = if let Some(server) = writable.remove(&external) {
             server
         } else {
-            VHostServer::new(port).await?
+            VHostServer::new(external, self.ssl.clone()).await?
         };
-        server.add(hostname, target).await;
-        writable.insert(port, server);
+        let rc = server
+            .add(
+                hostname,
+                TargetInfo {
+                    addr: target,
+                    connect_ssl,
+                    key,
+                },
+            )
+            .await;
+        writable.insert(external, server);
+        Ok(rc?)
+    }
+    pub async fn gc(&self, hostname: Option<String>, external: u16) -> Result<(), Error> {
+        let mut writable = self.servers.lock().await;
+        if let Some(server) = writable.remove(&external) {
+            server.gc(hostname).await?;
+            if !server.is_empty().await? {
+                writable.insert(external, server);
+            }
+        }
         Ok(())
     }
-    pub async fn remove(hostname: &ResourceFqdn, port: u16, target: &TargetInfo) {}
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct TargetInfo {
-    pub addr: SocketAddr,
-    pub serves_ssl: bool,
-    pub interface: Option<(PackageId, InterfaceId)>,
-    pub key_info: KeyInfo,
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct TargetInfo {
+    addr: SocketAddr,
+    connect_ssl: bool,
+    key: Key,
 }
 
 struct VHostServer {
-    mapping: Arc<RwLock<BTreeMap<ResourceFqdn, Vec<TargetInfo>>>>,
+    mapping: Weak<RwLock<BTreeMap<Option<String>, BTreeMap<TargetInfo, Weak<()>>>>>,
     _thread: NonDetachingJoinHandle<()>,
 }
 impl VHostServer {
-    async fn new(port: u16) -> Result<Self, Error> {
+    async fn new(port: u16, ssl: Arc<SslManager>) -> Result<Self, Error> {
         // check if port allowed
-        let mut listener = TcpListener::bind(SocketAddr::new([0, 0, 0, 0].into(), port))
+        let listener = TcpListener::bind(SocketAddr::new([0, 0, 0, 0].into(), port))
             .await
             .with_kind(crate::ErrorKind::Network)?;
         let mapping = Arc::new(RwLock::new(BTreeMap::new()));
         Ok(Self {
-            mapping: mapping.clone(),
+            mapping: Arc::downgrade(&mapping),
             _thread: tokio::spawn(async move {
                 loop {
                     match listener.accept().await {
                         Ok((stream, _)) => {
                             let mapping = mapping.clone();
+                            let ssl = ssl.clone();
                             tokio::spawn(async move {
                                 if let Err(e) = async {
                                     let mid = LazyConfigAcceptor::new(Acceptor::default(), stream)
                                         .await?;
-                                    let target_name = mid
-                                        .client_hello()
-                                        .server_name()
-                                        .map(|s| s.parse())
-                                        .transpose()?
-                                        .unwrap_or(ResourceFqdn::IpAddr);
-                                    if let Some(target) = mapping
-                                        .read()
-                                        .await
-                                        .get(&target_name)
-                                        .and_then(|t| t.get(0))
-                                        .cloned()
-                                    {
+                                    let target_name =
+                                        mid.client_hello().server_name().map(|s| s.to_owned());
+                                    let target = {
+                                        let mapping = mapping.read().await;
+                                        mapping
+                                            .get(&target_name)
+                                            .into_iter()
+                                            .flatten()
+                                            .find(|(_, rc)| rc.strong_count() > 0)
+                                            .or_else(|| {
+                                                if target_name
+                                                    .map(|s| s.parse::<IpAddr>().is_ok())
+                                                    .unwrap_or(true)
+                                                {
+                                                    mapping
+                                                        .get(&None)
+                                                        .into_iter()
+                                                        .flatten()
+                                                        .find(|(_, rc)| rc.strong_count() > 0)
+                                                } else {
+                                                    None
+                                                }
+                                            })
+                                            .map(|(target, _)| target.clone())
+                                    };
+                                    if let Some(target) = target {
                                         let mut tcp_stream =
                                             TcpStream::connect(target.addr).await?;
+                                        let key = ssl.with_cert(target.key).await?;
                                         let mut tls_stream = mid
                                             .into_stream(Arc::new(
                                                 ServerConfig::builder()
-                                                    .with_safe_default_cipher_suites()
-                                                    .with_safe_default_kx_groups()
-                                                    .with_safe_default_protocol_versions()
-                                                    .with_kind(crate::ErrorKind::OpenSsl)?
+                                                    .with_safe_defaults()
                                                     .with_no_client_auth()
                                                     .with_single_cert(
-                                                        target.key_info.fullchain().into_iter().map(|c| {
+                                                        key.fullchain().into_iter().map(|c| {
                                                             Ok(tokio_rustls::rustls::Certificate(
                                                                 c.to_der()?,
                                                             ))
                                                         }).collect::<Result<_, Error>>()?,
                                                         tokio_rustls::rustls::PrivateKey(
-                                                            target.key_info
+                                                            key
                                                                 .key()
                                                                 .openssl_key()
                                                                 .private_key_to_der()?,
@@ -114,11 +147,42 @@ impl VHostServer {
                                                     .with_kind(crate::ErrorKind::OpenSsl)?,
                                             ))
                                             .await?;
-                                        tokio::io::copy_bidirectional(
-                                            &mut tls_stream,
-                                            &mut tcp_stream,
-                                        )
-                                        .await?;
+                                        if target.connect_ssl {
+                                            tokio::io::copy_bidirectional(
+                                                &mut tls_stream,
+                                                &mut TlsConnector::from(Arc::new(
+                                                    tokio_rustls::rustls::ClientConfig::builder()
+                                                        .with_safe_defaults()
+                                                        .with_root_certificates({
+                                                            let mut store = RootCertStore::empty();
+                                                            store.add(
+                                                                &tokio_rustls::rustls::Certificate(
+                                                                    key.root_ca().to_der()?,
+                                                                ),
+                                                            );
+                                                            store
+                                                        })
+                                                        .with_no_client_auth(),
+                                                ))
+                                                .connect(
+                                                    key.key()
+                                                        .internal_address()
+                                                        .as_str()
+                                                        .try_into()
+                                                        .with_kind(crate::ErrorKind::OpenSsl)?,
+                                                    tcp_stream,
+                                                )
+                                                .await
+                                                .with_kind(crate::ErrorKind::OpenSsl)?,
+                                            )
+                                            .await?;
+                                        } else {
+                                            tokio::io::copy_bidirectional(
+                                                &mut tls_stream,
+                                                &mut tcp_stream,
+                                            )
+                                            .await?;
+                                        }
                                     } else {
                                         // 503
                                     }
@@ -141,23 +205,52 @@ impl VHostServer {
             .into(),
         })
     }
-    async fn add(&self, hostname: &ResourceFqdn, target: TargetInfo) {
-        let mut writable = self.mapping.write().await;
-        let mut targets = writable.remove(hostname).unwrap_or_default();
-        targets.push(target);
-        writable.insert(hostname.clone(), targets);
-    }
-    async fn remove(&self, hostname: &ResourceFqdn, target: &TargetInfo) {
-        let mut writable = self.mapping.write().await;
-        let mut targets = writable.remove(hostname).unwrap_or_default();
-        if let Some((idx, _)) = targets.iter().enumerate().find(|(_, x)| *x == target) {
-            targets.swap_remove(idx);
+    async fn add(&self, hostname: Option<String>, target: TargetInfo) -> Result<Arc<()>, Error> {
+        if let Some(mapping) = Weak::upgrade(&self.mapping) {
+            let mut writable = mapping.write().await;
+            let mut targets = writable.remove(&hostname).unwrap_or_default();
+            let rc = if let Some(rc) = Weak::upgrade(&targets.remove(&target).unwrap_or_default()) {
+                rc
+            } else {
+                Arc::new(())
+            };
+            targets.insert(target, Arc::downgrade(&rc));
+            writable.insert(hostname, targets);
+            Ok(rc)
+        } else {
+            Err(Error::new(
+                eyre!("VHost Service Thread has exited"),
+                crate::ErrorKind::Network,
+            ))
         }
-        if !targets.is_empty() {
-            writable.insert(hostname.clone(), targets);
+    }
+    async fn gc(&self, hostname: Option<String>) -> Result<(), Error> {
+        if let Some(mapping) = Weak::upgrade(&self.mapping) {
+            let mut writable = mapping.write().await;
+            let mut targets = writable.remove(&hostname).unwrap_or_default();
+            targets = targets
+                .into_iter()
+                .filter(|(_, rc)| rc.strong_count() > 0)
+                .collect();
+            if !targets.is_empty() {
+                writable.insert(hostname, targets);
+            }
+            Ok(())
+        } else {
+            Err(Error::new(
+                eyre!("VHost Service Thread has exited"),
+                crate::ErrorKind::Network,
+            ))
         }
     }
-    async fn is_empty(&self) -> bool {
-        self.mapping.read().await.is_empty()
+    async fn is_empty(&self) -> Result<bool, Error> {
+        if let Some(mapping) = Weak::upgrade(&self.mapping) {
+            Ok(mapping.read().await.is_empty())
+        } else {
+            Err(Error::new(
+                eyre!("VHost Service Thread has exited"),
+                crate::ErrorKind::Network,
+            ))
+        }
     }
 }

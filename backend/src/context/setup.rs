@@ -18,7 +18,6 @@ use crate::db::model::Database;
 use crate::disk::OsPartitionInfo;
 use crate::hostname::generate_hostname;
 use crate::init::{init_postgres, pgloader};
-use crate::net::ssl::root_certificate;
 use crate::setup::{password_hash, SetupStatus};
 use crate::util::config::load_config_from_paths;
 use crate::{Error, ResultExt};
@@ -120,11 +119,11 @@ impl SetupContext {
         if !db.exists(&<JsonPointer>::default()).await {
             let hostname = generate_hostname();
             let mut secrets = secret_store.acquire().await?;
-            let cert = root_certificate(&mut secrets, &hostname).await?.1;
+            let cert = todo!();
             db.put(
                 &<JsonPointer>::default(),
                 &Database::init(
-                    &crate::net::tor::os_key(&mut secrets).await?,
+                    todo!(),
                     password_hash(&mut secrets).await?,
                     &crate::ssh::os_key(&mut secrets).await?,
                     hostname,

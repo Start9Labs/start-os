@@ -154,7 +154,7 @@ impl fmt::Display for ResourceFqdn {
                 write!(f, "{}", full_uri)
             }
             ResourceFqdn::LocalHost => write!(f, "localhost"),
-            ResourceFqdn::IpAddr => write!(f, "ip-address"),
+            ResourceFqdn::IpAddr => write!(f, "0.0.0.0"),
         }
     }
 }

@@ -1,10 +1,8 @@
 use patch_db::DbHandle;
 use rand::{thread_rng, Rng};
-use sqlx::Connection;
 use tokio::process::Command;
 use tracing::instrument;
 
-use crate::context::RpcContext;
 use crate::util::Invoke;
 use crate::{Error, ErrorKind};
 #[derive(Clone, serde::Deserialize, serde::Serialize, Debug)]
@@ -43,16 +41,6 @@ pub async fn get_current_ip(eth: String) -> Result<String, Error> {
         .await?;
     let out_string = String::from_utf8(out)?;
     Ok(out_string.trim().to_owned())
-}
-
-pub async fn get_embassyd_tor_addr(rpc_ctx: RpcContext) -> Result<String, Error> {
-    let mut secrets_handle = rpc_ctx.secret_store.acquire().await?;
-
-    let mut secrets_tx = secrets_handle.begin().await?;
-
-    let tor_key = crate::net::tor::os_key(&mut secrets_tx).await?;
-
-    Ok(tor_key.public().get_onion_address().to_string())
 }
 
 pub fn generate_hostname() -> Hostname {

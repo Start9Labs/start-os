@@ -28,7 +28,7 @@ use crate::install::cleanup::{cleanup_failed, uninstall, CleanupFailedReceipts};
 use crate::manager::ManagerMap;
 use crate::middleware::auth::HashSessionToken;
 use crate::net::net_controller::NetController;
-use crate::net::ssl::{root_certificate, SslManager};
+use crate::net::ssl::SslManager;
 use crate::net::wifi::WpaCli;
 use crate::notifications::NotificationManager;
 use crate::setup::password_hash;
@@ -84,11 +84,11 @@ impl RpcContextConfig {
         if !db.exists(&<JsonPointer>::default()).await {
             let hostname = generate_hostname();
             let mut secrets = secret_store.acquire().await?;
-            let cert = root_certificate(&mut secrets, &hostname).await?.1;
+            let cert = todo!();
             db.put(
                 &<JsonPointer>::default(),
                 &Database::init(
-                    &crate::net::tor::os_key(&mut secrets).await?,
+                    todo!(),
                     password_hash(&mut secrets).await?,
                     &crate::ssh::os_key(&mut secrets).await?,
                     hostname,
@@ -239,16 +239,19 @@ impl RpcContext {
         tracing::info!("Connected to Docker");
         let mut secrets = secret_store.acquire().await?;
         let net_controller = NetController::init(
-            ([0, 0, 0, 0], 80).into(),
-            crate::net::tor::os_key(&mut secrets).await?,
+            // ([0, 0, 0, 0], 80).into(),
+            // crate::net::tor::os_key(&mut secrets).await?,
             base.tor_control
                 .unwrap_or(SocketAddr::from(([127, 0, 0, 1], 9051))),
             base.dns_bind
                 .as_ref()
                 .map(|v| v.as_slice())
                 .unwrap_or(&[SocketAddr::from(([127, 0, 0, 1], 53))]),
-            &mut secrets,
-            &mut db.handle(),
+            // &mut secrets,
+            // &mut db.handle(),
+            todo!(),
+            todo!(),
+            todo!(),
         )
         .await?;
         tracing::info!("Initialized Net Controller");
