@@ -17,3 +17,9 @@
   transform: scale(0.85);
   margin: 0.6rem auto;
 }
+
+.outer-container {
+  display: grid;
+  justify-content: center;
+  align-content: center;
+}
