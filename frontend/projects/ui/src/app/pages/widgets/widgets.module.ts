@@ -10,6 +10,7 @@ import { WidgetsPage } from './widgets.page'
 import { AddWidgetModule } from './built-in/add/add.module'
 import { FavoritesModule } from './built-in/favorites/favorites.module'
 import { HealthModule } from './built-in/health/health.module'
+import { BackupsModule } from './built-in/backups/backups.module'
 import { MetricsModule } from './built-in/metrics/metrics.module'
 import { NetworkModule } from './built-in/network/network.module'
 import { UptimeModule } from './built-in/uptime/uptime.module'
@@ -30,6 +31,7 @@ const routes: Routes = [
     AddWidgetModule,
     FavoritesModule,
     HealthModule,
+    BackupsModule,
     MetricsModule,
     NetworkModule,
     UptimeModule,

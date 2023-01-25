@@ -18,6 +18,7 @@ import { ApiService } from '../../services/api/embassy-api.service'
 import { ADD_WIDGET } from './built-in/add/add.component'
 import { FavoritesComponent } from './built-in/favorites/favorites.component'
 import { HealthComponent } from './built-in/health/health.component'
+import { BackupsComponent } from './built-in/backups/backups.component'
 import { NetworkComponent } from './built-in/network/network.component'
 import { MetricsComponent } from './built-in/metrics/metrics.component'
 import { UptimeComponent } from './built-in/uptime/uptime.component'
@@ -45,8 +46,9 @@ export class WidgetsPage {
   pending = true
 
   readonly components: Record<string, Type<any>> = {
-    health: HealthComponent,
+    backups: BackupsComponent,
     favorites: FavoritesComponent,
+    health: HealthComponent,
     metrics: MetricsComponent,
     network: NetworkComponent,
     uptime: UptimeComponent,
