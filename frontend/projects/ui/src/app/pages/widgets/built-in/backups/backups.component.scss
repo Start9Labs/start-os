@@ -22,41 +22,42 @@
   align-items: center;
   text-align: center;
   flex-wrap: wrap;
-  gap: 1rem;
+
+  :host-context(.wrapper_medium) & {
+    gap: 0.3rem;
+  }
 }
 
 .backup-detail {
   font-size: 15px;
-  
+
   p {
     margin: 0;
   }
 
-  &_days {
-    color: #3a7be0;
-    font-weight: bold;
-  }
-
-  &_active {
+  &_highlight {
     color: #3a7be0;
     font-weight: bold;
   }
 }
 
 .server-vector {
+  display: flex;
+  justify-content: center;
+  align-items: center;
   position: relative;
-  width: 6rem;
-  height: 6rem;
+  width: 8rem;
+  height: 8rem;
 
   :host-context(.wrapper_medium) & {
-    width: 42%;
-    height: auto;
+    width: 6rem;
+    height: 6rem;
   }
 
   &_icon {
     color: var(--fill-color);
-    height: 100%;
-    width: 100%;
+    height: 75%;
+    width: 75%;
   }
 
   &_detail {
@@ -68,4 +69,6 @@
 
 img {
   border-radius: 0;
+  width: 100%;
+  height: auto;
 }

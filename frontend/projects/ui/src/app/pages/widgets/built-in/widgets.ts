@@ -55,7 +55,7 @@ export const BUILT_IN_WIDGETS: readonly Widget[] = [
     id: 'backups',
     meta: {
       name: 'Backups',
-      width: 2,
+      width: 3,
       height: 2,
       mobileWidth: 2,
       mobileHeight: 2,
