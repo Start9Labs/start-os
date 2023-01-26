@@ -24,12 +24,12 @@ import { getServerInfo } from 'src/app/util/get-server-info'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 
 @Component({
-  selector: 'server-backup',
-  templateUrl: './server-backup.page.html',
-  styleUrls: ['./server-backup.page.scss'],
+  selector: 'backup-create',
+  templateUrl: './backup-create.page.html',
+  styleUrls: ['./backup-create.page.scss'],
   providers: [TuiDestroyService],
 })
-export class ServerBackupPage {
+export class BackupCreatePage {
   serviceIds: string[] = []
 
   readonly backingUp$ = this.eosService.backingUp$

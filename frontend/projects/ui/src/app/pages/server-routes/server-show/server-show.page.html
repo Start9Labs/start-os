@@ -52,8 +52,8 @@
           <h2>{{ button.title }}</h2>
           <p *ngIf="button.description">{{ button.description }}</p>
 
-          <!-- "Create Backup" button only -->
-          <p *ngIf="button.title === 'Create Backup'">
+          <!-- "Backups" button only -->
+          <p *ngIf="button.title === 'Backups'">
             <ng-container *ngIf="server['status-info'] as statusInfo">
               <ion-text
                 [color]="server['last-backup'] | backupColor"

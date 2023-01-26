@@ -10,10 +10,10 @@ const routes: Routes = [
       ),
   },
   {
-    path: 'backup',
+    path: 'backups',
     loadChildren: () =>
-      import('./server-backup/server-backup.module').then(
-        m => m.ServerBackupPageModule,
+      import('./backup-routes/backup-routing.module').then(
+        m => m.BackupRoutingModule,
       ),
   },
   {
@@ -39,13 +39,6 @@ const routes: Routes = [
     loadChildren: () =>
       import('./server-metrics/server-metrics.module').then(
         m => m.ServerMetricsPageModule,
-      ),
-  },
-  {
-    path: 'restore',
-    loadChildren: () =>
-      import('./restore/restore.component.module').then(
-        m => m.RestorePageModule,
       ),
   },
   {

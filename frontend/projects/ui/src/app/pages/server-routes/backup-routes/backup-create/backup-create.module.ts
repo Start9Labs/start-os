@@ -1,10 +1,10 @@
 import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { IonicModule } from '@ionic/angular'
-import { ServerBackupPage } from './server-backup.page'
+import { BackupCreatePage } from './backup-create.page'
 import { BackingUpComponent } from './backing-up/backing-up.component'
 import { RouterModule, Routes } from '@angular/router'
-import { BackupDrivesComponentModule } from 'src/app/components/backup-drives/backup-drives.component.module'
+import { BackupDrivesComponentModule } from 'src/app/pages/server-routes/backup-routes/backup-drives/backup-drives.component.module'
 import { SharedPipesModule } from '@start9labs/shared'
 import { BackupSelectPageModule } from 'src/app/modals/backup-select/backup-select.module'
 import { PkgMainStatusPipe } from './backing-up/backing-up.component'
@@ -12,7 +12,7 @@ import { PkgMainStatusPipe } from './backing-up/backing-up.component'
 const routes: Routes = [
   {
     path: '',
-    component: ServerBackupPage,
+    component: BackupCreatePage,
   },
 ]
 
@@ -25,6 +25,6 @@ const routes: Routes = [
     BackupDrivesComponentModule,
     BackupSelectPageModule,
   ],
-  declarations: [ServerBackupPage, BackingUpComponent, PkgMainStatusPipe],
+  declarations: [BackupCreatePage, BackingUpComponent, PkgMainStatusPipe],
 })
-export class ServerBackupPageModule {}
+export class BackupCreatePageModule {}

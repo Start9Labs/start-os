@@ -19,11 +19,11 @@ import { AppRecoverSelectPage } from 'src/app/modals/app-recover-select/app-reco
 import * as argon2 from '@start9labs/argon2'
 
 @Component({
-  selector: 'restore',
-  templateUrl: './restore.component.html',
-  styleUrls: ['./restore.component.scss'],
+  selector: 'backup-restore',
+  templateUrl: './backup-restore.page.html',
+  styleUrls: ['./backup-restore.page.scss'],
 })
-export class RestorePage {
+export class BackupRestorePage {
   constructor(
     private readonly modalCtrl: ModalController,
     private readonly navCtrl: NavController,
