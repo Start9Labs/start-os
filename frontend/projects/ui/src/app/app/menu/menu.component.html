@@ -1,5 +1,10 @@
 <a class="logo ion-padding" routerLink="/home">
-  <img alt="Start9" src="assets/img/logo.png" />
+  <img
+    alt="Start9"
+    src="assets/img/{{
+      (themeSwitcher | async) === 'Dark' ? 'logo' : 'logo_dark'
+    }}.png"
+  />
 </a>
 <ion-item-group class="menu">
   <ion-menu-toggle *ngFor="let page of pages" auto-hide="false">
@@ -45,7 +50,6 @@
     </ion-item>
   </ion-menu-toggle>
 </ion-item-group>
-
 <img
   appSnek
   class="snek"

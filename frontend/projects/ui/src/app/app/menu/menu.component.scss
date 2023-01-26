@@ -20,7 +20,7 @@
   color: var(--ion-color-dark-shade);
 
   &_selected {
-    color: #fff;
+    color: var(--ion-color-dark);
     font-weight: bold;
   }
 }

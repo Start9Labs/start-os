@@ -8,6 +8,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 import { SplitPaneTracker } from 'src/app/services/split-pane.service'
 import { Emver } from '@start9labs/shared'
 import { ConnectionService } from 'src/app/services/connection.service'
+import { ThemeSwitcherService } from 'src/app/services/theme-switcher.service'
 
 @Component({
   selector: 'app-menu',
@@ -90,5 +91,6 @@ export class MenuComponent {
     private readonly splitPane: SplitPaneTracker,
     private readonly emver: Emver,
     private readonly connectionService: ConnectionService,
+    readonly themeSwitcher: ThemeSwitcherService,
   ) {}
 }

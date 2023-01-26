@@ -11,6 +11,7 @@ import {
   ClientStorageService,
   WidgetDrawer,
 } from './services/client-storage.service'
+import { ThemeSwitcherService } from './services/theme-switcher.service'
 
 @Component({
   selector: 'app-root',
@@ -31,6 +32,7 @@ export class AppComponent implements OnDestroy {
     readonly authService: AuthService,
     readonly connection: ConnectionService,
     readonly clientStorageService: ClientStorageService,
+    readonly themeSwitcher: ThemeSwitcherService,
   ) {}
 
   ngOnInit() {
