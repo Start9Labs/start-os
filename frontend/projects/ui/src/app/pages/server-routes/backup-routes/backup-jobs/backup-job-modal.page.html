@@ -1,0 +1,55 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Create New Job</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="dismiss()">
+        <ion-icon slot="icon-only" name="close"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <ion-item-group>
+    <h4 class="input-label">Backup Target</h4>
+    <ion-item button (click)="presentModalTarget()">
+      <ion-label>
+        <h2>{{ job.target?.type || 'Select target' }}</h2>
+      </ion-label>
+    </ion-item>
+
+    <h4 class="input-label">Packages</h4>
+    <ion-item button (click)="presentModalPackages()">
+      <ion-label>
+        <h2>{{ job['package-ids'].length + ' packages selected' }}</h2>
+      </ion-label>
+    </ion-item>
+
+    <h4 class="input-label">Schedule</h4>
+    <ion-item>
+      <ion-input placeholder="* * * * *" [(ngModel)]="job.cron"></ion-input>
+    </ion-item>
+
+    <p *ngIf="job.cron | toHumanCron as human" class="ion-padding-start">
+      <ion-text [color]="human.color"> {{ human.message }} </ion-text>
+    </p>
+  </ion-item-group>
+</ion-content>
+
+<ion-footer>
+  <ion-toolbar>
+    <ion-buttons slot="end" class="ion-padding-end">
+      <ion-button
+        *ngIf="job.target && job.cron"
+        fill="solid"
+        color="primary"
+        [disabled]="saving"
+        (click)="save()"
+        class="enter-click btn-128"
+        [class.no-click]="saving"
+      >
+        Save
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-footer>
