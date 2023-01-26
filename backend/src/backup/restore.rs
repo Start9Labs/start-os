@@ -25,7 +25,7 @@ use crate::db::model::{PackageDataEntry, StaticFiles};
 use crate::disk::mount::backup::{BackupMountGuard, PackageBackupMountGuard};
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::TmpMountGuard;
-use crate::hostname::{get_hostname, Hostname};
+use crate::hostname::Hostname;
 use crate::init::init;
 use crate::install::progress::InstallProgress;
 use crate::install::{download_install_s9pk, PKG_PUBLIC_DIR};
@@ -199,7 +199,6 @@ pub async fn recover_full_embassy(
     )
     .with_kind(crate::ErrorKind::PasswordHashGeneration)?;
     let tor_key_bytes = os_backup.tor_key.as_bytes().to_vec();
-    let ssh_key_bytes = os_backup.ssh_key.to_bytes().to_vec();
     let secret_store = ctx.secret_store().await?;
     let mut secrets = secret_store.acquire().await?;
     let mut secrets_tx = secrets.begin().await?;
@@ -224,8 +223,9 @@ pub async fn recover_full_embassy(
     let rpc_ctx = RpcContext::init(ctx.config_path.clone(), disk_guid.clone()).await?;
     let mut db = rpc_ctx.db.handle();
 
-    let receipts = crate::hostname::HostNameReceipt::new(&mut db).await?;
-    let hostname = get_hostname(&mut db, &receipts).await?;
+    // let receipts = crate::hostname::HostNameReceipt::new(&mut db).await?;
+    // let hostname = get_hostname(&mut db, &receipts).await?
+    let hostname = todo!();
 
     drop(db);
     let mut db = rpc_ctx.db.handle();

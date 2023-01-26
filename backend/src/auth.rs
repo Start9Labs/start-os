@@ -364,31 +364,6 @@ impl SetPasswordReceipt {
     }
 }
 
-pub async fn set_password<Db: DbHandle, Ex>(
-    db: &mut Db,
-    receipt: &SetPasswordReceipt,
-    secrets: &mut Ex,
-    password: &str,
-) -> Result<(), Error>
-where
-    for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
-{
-    let password = argon2::hash_encoded(
-        password.as_bytes(),
-        &rand::random::<[u8; 16]>()[..],
-        &argon2::Config::default(),
-    )
-    .with_kind(crate::ErrorKind::PasswordHashGeneration)?;
-
-    sqlx::query!("UPDATE account SET password = $1", password,)
-        .execute(secrets)
-        .await?;
-
-    receipt.0.set(db, password).await?;
-
-    Ok(())
-}
-
 #[command(
     rename = "reset-password",
     custom_cli(cli_reset_password(async, context(CliContext))),
@@ -403,14 +378,22 @@ pub async fn reset_password(
     let old_password = old_password.unwrap_or_default().decrypt(&ctx)?;
     let new_password = new_password.unwrap_or_default().decrypt(&ctx)?;
 
-    let mut secrets = ctx.secret_store.acquire().await?;
-    check_password_against_db(&mut secrets, &old_password).await?;
-
-    let mut db = ctx.db.handle();
-
-    let set_password_receipt = SetPasswordReceipt::new(&mut db).await?;
-
-    set_password(&mut db, &set_password_receipt, &mut secrets, &new_password).await?;
+    let mut account = ctx.account.write().await;
+    if !argon2::verify_encoded(&account.password, old_password.as_bytes())
+        .with_kind(crate::ErrorKind::IncorrectPassword)?
+    {
+        return Err(Error::new(
+            eyre!("Incorrect Password"),
+            crate::ErrorKind::IncorrectPassword,
+        ));
+    }
+    account.set_password(&new_password)?;
+    account.save(&ctx.secret_store).await?;
+    crate::db::DatabaseModel::new()
+        .server_info()
+        .password_hash()
+        .put(&mut ctx.db.handle(), &account.password)
+        .await?;
 
     Ok(())
 }

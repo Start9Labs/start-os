@@ -14,6 +14,7 @@ use openssl::*;
 use tokio::sync::{Mutex, RwLock};
 use tracing::instrument;
 
+use crate::account::AccountInfo;
 use crate::hostname::Hostname;
 use crate::net::keys::{Key, KeyInfo};
 use crate::s9pk::manifest::PackageId;
@@ -30,6 +31,14 @@ pub struct SslManager {
     cert_cache: RwLock<BTreeMap<Key, X509>>,
 }
 impl SslManager {
+    pub fn new(account: &AccountInfo) -> Self {
+        Self {
+            root_cert: account.root_ca_cert.clone(),
+            int_key: account.int_ca_key.clone(),
+            int_cert: account.int_ca_cert.clone(),
+            cert_cache: RwLock::new(BTreeMap::new()),
+        }
+    }
     pub async fn with_cert(&self, key: Key) -> Result<KeyInfo, Error> {
         if let Some(cert) = self.cert_cache.read().await.get(&key) {
             if cert
@@ -96,7 +105,7 @@ fn rand_serial() -> Result<Asn1Integer, Error> {
     Ok(asn1)
 }
 #[instrument]
-fn generate_key() -> Result<PKey<Private>, Error> {
+pub fn generate_key() -> Result<PKey<Private>, Error> {
     let new_key = EcKey::generate(EC_GROUP.as_ref())?;
     let key = PKey::from_ec_key(new_key)?;
     Ok(key)

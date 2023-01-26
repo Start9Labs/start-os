@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::BTreeMap;
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
@@ -10,7 +10,7 @@ use bollard::Docker;
 use helpers::to_tmp_path;
 use josekit::jwk::Jwk;
 use patch_db::json_ptr::JsonPointer;
-use patch_db::{DbHandle, LockReceipt, LockType, PatchDb, Revision};
+use patch_db::{DbHandle, LockReceipt, LockType, PatchDb};
 use reqwest::Url;
 use rpc_toolkit::Context;
 use serde::Deserialize;
@@ -19,10 +19,10 @@ use sqlx::PgPool;
 use tokio::sync::{broadcast, oneshot, Mutex, RwLock};
 use tracing::instrument;
 
+use crate::account::AccountInfo;
 use crate::core::rpc_continuations::{RequestGuid, RestHandler, RpcContinuation};
 use crate::db::model::{Database, InstalledPackageDataEntry, PackageDataEntry};
 use crate::disk::OsPartitionInfo;
-use crate::hostname::{generate_hostname, HostNameReceipt};
 use crate::init::{init_postgres, pgloader};
 use crate::install::cleanup::{cleanup_failed, uninstall, CleanupFailedReceipts};
 use crate::manager::ManagerMap;
@@ -31,7 +31,6 @@ use crate::net::net_controller::NetController;
 use crate::net::ssl::SslManager;
 use crate::net::wifi::WpaCli;
 use crate::notifications::NotificationManager;
-use crate::setup::password_hash;
 use crate::shutdown::Shutdown;
 use crate::status::{MainStatus, Status};
 use crate::util::config::load_config_from_paths;
@@ -76,26 +75,14 @@ impl RpcContextConfig {
             .as_deref()
             .unwrap_or_else(|| Path::new("/embassy-data"))
     }
-    pub async fn db(&self, secret_store: &PgPool) -> Result<PatchDb, Error> {
+    pub async fn db(&self, account: &AccountInfo) -> Result<PatchDb, Error> {
         let db_path = self.datadir().join("main").join("embassy.db");
         let db = PatchDb::open(&db_path)
             .await
             .with_ctx(|_| (crate::ErrorKind::Filesystem, db_path.display().to_string()))?;
         if !db.exists(&<JsonPointer>::default()).await {
-            let hostname = generate_hostname();
-            let mut secrets = secret_store.acquire().await?;
-            let cert = todo!();
-            db.put(
-                &<JsonPointer>::default(),
-                &Database::init(
-                    todo!(),
-                    password_hash(&mut secrets).await?,
-                    &crate::ssh::os_key(&mut secrets).await?,
-                    hostname,
-                    &cert,
-                ),
-            )
-            .await?;
+            db.put(&<JsonPointer>::default(), &Database::init(account))
+                .await?;
         }
         Ok(db)
     }
@@ -131,11 +118,10 @@ pub struct RpcContextSeed {
     pub disk_guid: Arc<String>,
     pub db: PatchDb,
     pub secret_store: PgPool,
+    pub account: RwLock<AccountInfo>,
     pub docker: Docker,
-    pub net_controller: NetController,
+    pub net_controller: Arc<NetController>,
     pub managers: ManagerMap,
-    pub revision_cache_size: usize,
-    pub revision_cache: RwLock<VecDeque<Arc<Revision>>>,
     pub metrics_cache: RwLock<Option<crate::system::Metrics>>,
     pub shutdown: broadcast::Sender<Option<Shutdown>>,
     pub tor_socks: SocketAddr,
@@ -184,37 +170,6 @@ impl RpcCleanReceipts {
     }
 }
 
-pub struct RpcSetHostNameReceipts {
-    pub hostname_receipts: HostNameReceipt,
-    #[allow(dead_code)]
-    server_info: LockReceipt<crate::db::model::ServerInfo, ()>,
-}
-
-impl RpcSetHostNameReceipts {
-    pub async fn new(db: &'_ mut impl DbHandle) -> Result<Self, Error> {
-        let mut locks = Vec::new();
-
-        let setup = Self::setup(&mut locks);
-        Ok(setup(&db.lock_all(locks).await?)?)
-    }
-
-    pub fn setup(
-        locks: &mut Vec<patch_db::LockTargetId>,
-    ) -> impl FnOnce(&patch_db::Verifier) -> Result<Self, Error> {
-        let hostname_receipts = HostNameReceipt::setup(locks);
-        let server_info = crate::db::DatabaseModel::new()
-            .server_info()
-            .make_locker(LockType::Read)
-            .add_to_keys(locks);
-        move |skeleton_key| {
-            Ok(Self {
-                hostname_receipts: hostname_receipts(skeleton_key)?,
-                server_info: server_info.verify(skeleton_key)?,
-            })
-        }
-    }
-}
-
 #[derive(Clone)]
 pub struct RpcContext(Arc<RpcContextSeed>);
 impl RpcContext {
@@ -232,28 +187,26 @@ impl RpcContext {
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
         let secret_store = base.secret_store().await?;
         tracing::info!("Opened Pg DB");
-        let db = base.db(&secret_store).await?;
+        let account = AccountInfo::load(&secret_store).await?;
+        let db = base.db(&account).await?;
         tracing::info!("Opened PatchDB");
         let mut docker = Docker::connect_with_unix_defaults()?;
         docker.set_timeout(Duration::from_secs(600));
         tracing::info!("Connected to Docker");
-        let mut secrets = secret_store.acquire().await?;
-        let net_controller = NetController::init(
-            // ([0, 0, 0, 0], 80).into(),
-            // crate::net::tor::os_key(&mut secrets).await?,
-            base.tor_control
-                .unwrap_or(SocketAddr::from(([127, 0, 0, 1], 9051))),
-            base.dns_bind
-                .as_ref()
-                .map(|v| v.as_slice())
-                .unwrap_or(&[SocketAddr::from(([127, 0, 0, 1], 53))]),
-            // &mut secrets,
-            // &mut db.handle(),
-            todo!(),
-            todo!(),
-            todo!(),
-        )
-        .await?;
+        let net_controller = Arc::new(
+            NetController::init(
+                base.tor_control
+                    .unwrap_or(SocketAddr::from(([127, 0, 0, 1], 9051))),
+                base.dns_bind
+                    .as_ref()
+                    .map(|v| v.as_slice())
+                    .unwrap_or(&[SocketAddr::from(([127, 0, 0, 1], 53))]),
+                SslManager::new(&account),
+                &account.hostname,
+                &account.key,
+            )
+            .await?,
+        );
         tracing::info!("Initialized Net Controller");
         let managers = ManagerMap::default();
         let metrics_cache = RwLock::new(None);
@@ -268,11 +221,10 @@ impl RpcContext {
             disk_guid,
             db,
             secret_store,
+            account: RwLock::new(account),
             docker,
             net_controller,
             managers,
-            revision_cache_size: base.revision_cache_size.unwrap_or(512),
-            revision_cache: RwLock::new(VecDeque::new()),
             metrics_cache,
             shutdown,
             tor_socks: tor_proxy,

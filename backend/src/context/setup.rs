@@ -14,11 +14,11 @@ use tokio::sync::broadcast::Sender;
 use tokio::sync::RwLock;
 use tracing::instrument;
 
+use crate::account::AccountInfo;
 use crate::db::model::Database;
 use crate::disk::OsPartitionInfo;
-use crate::hostname::generate_hostname;
 use crate::init::{init_postgres, pgloader};
-use crate::setup::{password_hash, SetupStatus};
+use crate::setup::SetupStatus;
 use crate::util::config::load_config_from_paths;
 use crate::{Error, ResultExt};
 
@@ -111,26 +111,14 @@ impl SetupContext {
         })))
     }
     #[instrument(skip(self))]
-    pub async fn db(&self, secret_store: &PgPool) -> Result<PatchDb, Error> {
+    pub async fn db(&self, account: &AccountInfo) -> Result<PatchDb, Error> {
         let db_path = self.datadir.join("main").join("embassy.db");
         let db = PatchDb::open(&db_path)
             .await
             .with_ctx(|_| (crate::ErrorKind::Filesystem, db_path.display().to_string()))?;
         if !db.exists(&<JsonPointer>::default()).await {
-            let hostname = generate_hostname();
-            let mut secrets = secret_store.acquire().await?;
-            let cert = todo!();
-            db.put(
-                &<JsonPointer>::default(),
-                &Database::init(
-                    todo!(),
-                    password_hash(&mut secrets).await?,
-                    &crate::ssh::os_key(&mut secrets).await?,
-                    hostname,
-                    &cert,
-                ),
-            )
-            .await?;
+            db.put(&<JsonPointer>::default(), &Database::init(account))
+                .await?;
         }
         Ok(db)
     }

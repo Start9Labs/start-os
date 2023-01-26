@@ -4,7 +4,9 @@ use models::{InterfaceId, PackageId};
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
 use sqlx::PgExecutor;
+use ssh_key::private::Ed25519PrivateKey;
 use torut::onion::{OnionAddressV3, TorSecretKeyV3};
+use zeroize::Zeroize;
 
 use crate::Error;
 
@@ -49,6 +51,9 @@ impl Key {
     pub fn interface(&self) -> Option<(PackageId, InterfaceId)> {
         self.interface.clone()
     }
+    pub fn as_bytes(&self) -> &[u8; 32] {
+        &self.base
+    }
     pub fn internal_address(&self) -> String {
         self.interface
             .as_ref()
@@ -76,12 +81,26 @@ impl Key {
     pub fn openssl_key(&self) -> PKey<Private> {
         PKey::private_key_from_raw_bytes(&self.base, openssl::pkey::Id::ED25519).unwrap()
     }
-    pub fn from_bytes(interface: Option<(PackageId, InterfaceId)>, bytes: [u8; 32]) -> Self {
+    pub fn ssh_key(&self) -> Ed25519PrivateKey {
+        Ed25519PrivateKey::from_bytes(&self.base)
+    }
+    pub(crate) fn from_pair(
+        interface: Option<(PackageId, InterfaceId)>,
+        bytes: [u8; 32],
+        tor_key: [u8; 64],
+    ) -> Self {
         Self {
             interface,
-            tor_key: ExpandedSecretKey::from(&SecretKey::from_bytes(&bytes).unwrap()).to_bytes(),
+            tor_key,
             base: bytes,
         }
+    }
+    pub fn from_bytes(interface: Option<(PackageId, InterfaceId)>, bytes: [u8; 32]) -> Self {
+        Self::from_pair(
+            interface,
+            bytes,
+            ExpandedSecretKey::from(&SecretKey::from_bytes(&bytes).unwrap()).to_bytes(),
+        )
     }
     pub fn new(interface: Option<(PackageId, InterfaceId)>) -> Self {
         Self::from_bytes(interface, rand::random())
@@ -139,6 +158,12 @@ impl Key {
             res.tor_key = tor_key.to_bytes();
         }
         Ok(res)
+    }
+}
+impl Drop for Key {
+    fn drop(&mut self) {
+        self.base.zeroize();
+        self.tor_key.zeroize();
     }
 }
 

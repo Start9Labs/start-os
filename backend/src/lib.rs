@@ -15,6 +15,7 @@ lazy_static::lazy_static! {
     };
 }
 
+pub mod account;
 pub mod action;
 pub mod auth;
 pub mod backup;

@@ -86,21 +86,6 @@
     },
     "query": "SELECT hostname, path, username, password FROM cifs_shares WHERE id = $1"
   },
-  "2f615764532e975c964f1d0e063a02110d781644b0eaae1ff85a7d6ed903bfe5": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Left": [
-          "Int4",
-          "Text",
-          "Bytea",
-          "Bytea"
-        ]
-      }
-    },
-    "query": "INSERT INTO account (id, password, tor_key, ssh_key) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO UPDATE SET password = $2, tor_key = $3, ssh_key = $4"
-  },
   "4099028a5c0de578255bf54a67cef6cb0f1e9a4e158260700f1639dd4b438997": {
     "describe": {
       "columns": [
@@ -193,24 +178,6 @@
     },
     "query": "UPDATE session SET logged_out = CURRENT_TIMESTAMP WHERE id = $1"
   },
-  "5c0ea94081695dba827e525ecc0c555757b43ea513c2c93f9c7f7f8c174d36bf": {
-    "describe": {
-      "columns": [
-        {
-          "name": "ssh_key",
-          "ordinal": 0,
-          "type_info": "Bytea"
-        }
-      ],
-      "nullable": [
-        false
-      ],
-      "parameters": {
-        "Left": []
-      }
-    },
-    "query": "SELECT ssh_key FROM account"
-  },
   "629be61c3c341c131ddbbff0293a83dbc6afd07cae69d246987f62cf0cc35c2a": {
     "describe": {
       "columns": [
@@ -261,6 +228,25 @@
       }
     },
     "query": "UPDATE session SET last_active = CURRENT_TIMESTAMP WHERE id = $1 AND logged_out IS NULL OR logged_out > CURRENT_TIMESTAMP"
+  },
+  "7b25063fe6c9d38c772ccd80ebf509988f538b07e0cc8304376625108fb81614": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Text",
+          "Text",
+          "Text",
+          "Bytea",
+          "Text",
+          "Text",
+          "Text",
+          "Text"
+        ]
+      }
+    },
+    "query": "\n            INSERT INTO account (\n                id,\n                server_id,\n                hostname,\n                password,\n                network_key,\n                root_ca_key_pem,\n                root_ca_cert_pem,\n                int_ca_key_pem,\n                int_ca_cert_pem\n            ) VALUES (\n                0, $1, $2, $3, $4, $5, $6, $7, $8\n            ) ON CONFLICT (id) DO UPDATE SET\n                server_id = EXCLUDED.server_id,\n                hostname = EXCLUDED.hostname,\n                password = EXCLUDED.password,\n                network_key = EXCLUDED.network_key,\n                root_ca_key_pem = EXCLUDED.root_ca_key_pem,\n                root_ca_cert_pem = EXCLUDED.root_ca_cert_pem,\n                int_ca_key_pem = EXCLUDED.int_ca_key_pem,\n                int_ca_cert_pem = EXCLUDED.int_ca_cert_pem\n            "
   },
   "7b64f032d507e8ffe37c41f4c7ad514a66c421a11ab04c26d89a7aa8f6b67210": {
     "describe": {
@@ -560,18 +546,6 @@
     },
     "query": "DELETE FROM notifications WHERE id = $1"
   },
-  "e25e53c45c5a494a45cdb4d145de507df6f322ac6706e71b86895f1c64195f41": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Left": [
-          "Text"
-        ]
-      }
-    },
-    "query": "UPDATE account SET password = $1"
-  },
   "e545696735f202f9d13cf22a561f3ff3f9aed7f90027a9ba97634bcb47d772f0": {
     "describe": {
       "columns": [
@@ -696,5 +670,77 @@
       }
     },
     "query": "SELECT network_key FROM account WHERE id = 0"
+  },
+  "fe6e4f09f3028e5b6b6259e86cbad285680ce157aae9d7837ac020c8b2945e7f": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int4"
+        },
+        {
+          "name": "password",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "tor_key",
+          "ordinal": 2,
+          "type_info": "Bytea"
+        },
+        {
+          "name": "server_id",
+          "ordinal": 3,
+          "type_info": "Text"
+        },
+        {
+          "name": "hostname",
+          "ordinal": 4,
+          "type_info": "Text"
+        },
+        {
+          "name": "network_key",
+          "ordinal": 5,
+          "type_info": "Bytea"
+        },
+        {
+          "name": "int_ca_key_pem",
+          "ordinal": 6,
+          "type_info": "Text"
+        },
+        {
+          "name": "int_ca_cert_pem",
+          "ordinal": 7,
+          "type_info": "Text"
+        },
+        {
+          "name": "root_ca_key_pem",
+          "ordinal": 8,
+          "type_info": "Text"
+        },
+        {
+          "name": "root_ca_cert_pem",
+          "ordinal": 9,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        true,
+        true,
+        true,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": []
+      }
+    },
+    "query": "SELECT * FROM account WHERE id = 0"
   }
 }

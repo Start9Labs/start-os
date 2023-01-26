@@ -1,6 +1,12 @@
 -- Add migration script here
+CREATE EXTENSION pgcrypto;
+
 ALTER TABLE
     account
+ADD
+    COLUMN server_id TEXT,
+ADD
+    COLUMN hostname TEXT,
 ADD
     COLUMN network_key BYTEA CHECK (length(network_key) = 32),
 ADD
