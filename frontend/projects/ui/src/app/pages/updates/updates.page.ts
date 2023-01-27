@@ -48,7 +48,7 @@ export class UpdatesPage {
     map(([devMode, knownHosts]) => {
       if (devMode) return knownHosts
       return knownHosts.filter(
-        ({ url }) => url.includes('alpha') || url.includes('beta'),
+        ({ url }) => !url.includes('alpha') && !url.includes('beta'),
       )
     }),
   )
