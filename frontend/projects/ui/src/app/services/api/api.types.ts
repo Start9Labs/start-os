@@ -156,13 +156,7 @@ export module RR {
   export type GetBackupInfoReq = { 'target-id': string; password: string } // backup.target.info
   export type GetBackupInfoRes = BackupInfo
 
-  export type CreateBackupReq = {
-    // backup.create
-    'target-id': string
-    'package-ids': string[]
-    'old-password': string | null
-    password: string
-  }
+  export type CreateBackupReq = { 'target-id': string; 'package-ids': string[] } // backup.create
   export type CreateBackupRes = null
 
   // package
@@ -204,7 +198,6 @@ export module RR {
     // package.backup.restore
     ids: string[]
     'target-id': string
-    'old-password': string | null
     password: string
   }
   export type RestorePackagesRes = null

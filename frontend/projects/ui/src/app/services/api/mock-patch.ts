@@ -59,9 +59,6 @@ export const mockPatchData: DataModel = {
     'last-wifi-region': null,
     'wifi-enabled': false,
     'unread-notification-count': 4,
-    // password is asdfasdf
-    'password-hash':
-      '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
     'eos-version-compat': '>=0.3.0 <=0.3.0.1',
     'status-info': {
       'backup-progress': null,

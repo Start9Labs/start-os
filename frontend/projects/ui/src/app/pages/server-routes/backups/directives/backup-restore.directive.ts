@@ -1,4 +1,4 @@
-import { Component } from '@angular/core'
+import { Directive, HostListener } from '@angular/core'
 import {
   LoadingController,
   ModalController,
@@ -15,21 +15,42 @@ import {
   CifsBackupTarget,
   DiskBackupTarget,
 } from 'src/app/services/api/api.types'
-import { AppRecoverSelectPage } from 'src/app/modals/app-recover-select/app-recover-select.page'
+import { RecoverSelectPage } from 'src/app/pages/server-routes/backups/components/recover-select/recover-select.page'
 import * as argon2 from '@start9labs/argon2'
+import { BackupDrivesComponent } from '../components/backup-drives/backup-drives.component'
 
-@Component({
-  selector: 'backup-restore',
-  templateUrl: './backup-restore.page.html',
-  styleUrls: ['./backup-restore.page.scss'],
+@Directive({
+  selector: '[backupRestore]',
 })
-export class BackupRestorePage {
+export class BackupRestoreDirective {
   constructor(
     private readonly modalCtrl: ModalController,
     private readonly navCtrl: NavController,
     private readonly embassyApi: ApiService,
     private readonly loadingCtrl: LoadingController,
   ) {}
+
+  @HostListener('click') onClick() {
+    this.presentModalTarget()
+  }
+
+  async presentModalTarget() {
+    const modal = await this.modalCtrl.create({
+      presentingElement: await this.modalCtrl.getTop(),
+      component: BackupDrivesComponent,
+      componentProps: { type: 'restore' },
+    })
+
+    modal
+      .onDidDismiss<MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>>()
+      .then(res => {
+        if (res.data) {
+          this.presentModalPassword(res.data)
+        }
+      })
+
+    await modal.present()
+  }
 
   async presentModalPassword(
     target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>,
@@ -45,7 +66,7 @@ export class BackupRestorePage {
       submitFn: async (password: string) => {
         const passwordHash = target.entry['embassy-os']?.['password-hash'] || ''
         argon2.verify(passwordHash, password)
-        await this.restoreFromBackup(target, password)
+        return this.getBackupInfo(target.id, password)
       },
     }
 
@@ -56,45 +77,46 @@ export class BackupRestorePage {
       component: GenericInputComponent,
     })
 
+    modal.onDidDismiss().then(res => {
+      if (res.data) {
+        const { value, response } = res.data
+        this.presentModalSelect(target.id, response, value)
+      }
+    })
+
     await modal.present()
   }
 
-  private async restoreFromBackup(
-    target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>,
+  private async getBackupInfo(
+    targetId: string,
     password: string,
-    oldPassword?: string,
-  ): Promise<void> {
+  ): Promise<BackupInfo> {
     const loader = await this.loadingCtrl.create({
       message: 'Decrypting drive...',
     })
     await loader.present()
 
-    try {
-      const backupInfo = await this.embassyApi.getBackupInfo({
-        'target-id': target.id,
+    return this.embassyApi
+      .getBackupInfo({
+        'target-id': targetId,
         password,
       })
-      this.presentModalSelect(target.id, backupInfo, password, oldPassword)
-    } finally {
-      loader.dismiss()
-    }
+      .finally(() => loader.dismiss())
   }
 
   private async presentModalSelect(
-    id: string,
+    targetId: string,
     backupInfo: BackupInfo,
     password: string,
-    oldPassword?: string,
   ): Promise<void> {
     const modal = await this.modalCtrl.create({
       componentProps: {
-        id,
+        targetId,
         backupInfo,
         password,
-        oldPassword,
       },
       presentingElement: await this.modalCtrl.getTop(),
-      component: AppRecoverSelectPage,
+      component: RecoverSelectPage,
     })
 
     modal.onWillDismiss().then(res => {

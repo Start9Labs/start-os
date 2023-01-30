@@ -13,12 +13,12 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 import { take } from 'rxjs'
 
 @Component({
-  selector: 'app-recover-select',
-  templateUrl: './app-recover-select.page.html',
-  styleUrls: ['./app-recover-select.page.scss'],
+  selector: 'recover-select',
+  templateUrl: './recover-select.page.html',
+  styleUrls: ['./recover-select.page.scss'],
 })
-export class AppRecoverSelectPage {
-  @Input() id!: string
+export class RecoverSelectPage {
+  @Input() targetId!: string
   @Input() backupInfo!: BackupInfo
   @Input() password!: string
   @Input() oldPassword?: string
@@ -53,8 +53,7 @@ export class AppRecoverSelectPage {
     try {
       await this.embassyApi.restorePackages({
         ids,
-        'target-id': this.id,
-        'old-password': this.oldPassword || null,
+        'target-id': this.targetId,
         password: this.password,
       })
       this.modalCtrl.dismiss(undefined, 'success')

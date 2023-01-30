@@ -2,13 +2,12 @@ import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { IonicModule } from '@ionic/angular'
 import { FormsModule } from '@angular/forms'
-
-import { AppRecoverSelectPage } from './app-recover-select.page'
+import { RecoverSelectPage } from './recover-select.page'
 import { ToOptionsPipe } from './to-options.pipe'
 
 @NgModule({
-  declarations: [AppRecoverSelectPage, ToOptionsPipe],
+  declarations: [RecoverSelectPage, ToOptionsPipe],
   imports: [CommonModule, IonicModule, FormsModule],
-  exports: [AppRecoverSelectPage],
+  exports: [RecoverSelectPage],
 })
-export class AppRecoverSelectPageModule {}
+export class RecoverSelectPageModule {}

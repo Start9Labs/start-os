@@ -26,9 +26,6 @@ type BackupType = 'create' | 'restore'
 })
 export class BackupDrivesComponent {
   @Input() type!: BackupType
-  @Output() onSelect: EventEmitter<
-    MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>
-  > = new EventEmitter()
   loadingText = ''
 
   constructor(
@@ -83,7 +80,7 @@ export class BackupDrivesComponent {
       return
     }
 
-    this.onSelect.emit(target)
+    this.modalCtrl.dismiss(target)
   }
 
   async presentModalAddCifs(): Promise<void> {
@@ -253,7 +250,10 @@ export class BackupDrivesHeaderComponent {
   @Input() type!: BackupType
   @Output() onClose: EventEmitter<void> = new EventEmitter()
 
-  constructor(private readonly backupService: BackupService) {}
+  constructor(
+    private readonly modalCtrl: ModalController,
+    private readonly backupService: BackupService,
+  ) {}
 
   get loading() {
     return this.backupService.loading
@@ -261,6 +261,10 @@ export class BackupDrivesHeaderComponent {
 
   refresh() {
     this.backupService.getBackupTargets()
+  }
+
+  dismiss() {
+    this.modalCtrl.dismiss()
   }
 }
 

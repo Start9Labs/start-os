@@ -1,9 +1,11 @@
-import { Component } from '@angular/core'
+import { Component, Input } from '@angular/core'
 import { ModalController } from '@ionic/angular'
 import { map } from 'rxjs/operators'
 import { DataModel, PackageState } from 'src/app/services/patch-db/data-model'
 import { PatchDB } from 'patch-db-client'
 import { firstValueFrom } from 'rxjs'
+
+export interface BackupSelectOptions {}
 
 @Component({
   selector: 'backup-select',
@@ -11,6 +13,7 @@ import { firstValueFrom } from 'rxjs'
   styleUrls: ['./backup-select.page.scss'],
 })
 export class BackupSelectPage {
+  @Input() btnText!: string
   hasSelection = false
   selectAll = false
   pkgs: {
@@ -49,13 +52,13 @@ export class BackupSelectPage {
     )
   }
 
-  dismiss(success = false) {
-    if (success) {
-      const ids = this.pkgs.filter(p => p.checked).map(p => p.id)
-      this.modalCtrl.dismiss(ids)
-    } else {
-      this.modalCtrl.dismiss()
-    }
+  dismiss() {
+    this.modalCtrl.dismiss()
+  }
+
+  async execute() {
+    const pkgIds = this.pkgs.filter(p => p.checked).map(p => p.id)
+    this.modalCtrl.dismiss(pkgIds)
   }
 
   handleChange() {

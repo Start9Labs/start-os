@@ -74,7 +74,6 @@ export interface ServerInfo {
   'unread-notification-count': number
   'status-info': ServerStatusInfo
   'eos-version-compat': string
-  'password-hash': string
   hostname: string
   pubkey: string
   'ca-fingerprint': string

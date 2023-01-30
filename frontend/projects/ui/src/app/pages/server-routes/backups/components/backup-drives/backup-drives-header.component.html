@@ -1,15 +1,15 @@
 <ion-header>
   <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-back-button defaultHref="system/backups"></ion-back-button>
-    </ion-buttons>
-    <ion-title>{{
-      type === 'create' ? 'Create Backup' : 'Restore From Backup'
-    }}</ion-title>
+    <ion-title
+      >Select Backup {{ type === 'create' ? 'Target' : 'Source' }}</ion-title
+    >
     <ion-buttons slot="end">
       <ion-button [disabled]="loading" (click)="refresh()">
         Refresh
         <ion-icon slot="end" name="refresh"></ion-icon>
+      </ion-button>
+      <ion-button (click)="dismiss()">
+        <ion-icon slot="icon-only" name="close"></ion-icon>
       </ion-button>
     </ion-buttons>
   </ion-toolbar>

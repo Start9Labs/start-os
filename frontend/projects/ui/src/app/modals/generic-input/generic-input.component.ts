@@ -65,14 +65,14 @@ export class GenericInputComponent {
     this.maskedValue = this.mask.transform(this.value)
   }
 
-  async submit() {
+  async submit<T>() {
     const value = this.value.trim()
 
     if (!value && this.options.required) return
 
     try {
-      await this.options.submitFn(value)
-      this.modalCtrl.dismiss(undefined, 'success')
+      const response = await this.options.submitFn(value)
+      this.modalCtrl.dismiss({ response, value }, 'success')
     } catch (e: any) {
       this.error = getErrorMessage(e)
     }

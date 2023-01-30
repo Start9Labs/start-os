@@ -12,9 +12,7 @@ const routes: Routes = [
   {
     path: 'backups',
     loadChildren: () =>
-      import('./backup-routes/backup-routing.module').then(
-        m => m.BackupRoutingModule,
-      ),
+      import('./backups/backups.module').then(m => m.BackupsPageModule),
   },
   {
     path: 'lan',
