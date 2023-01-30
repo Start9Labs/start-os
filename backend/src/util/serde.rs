@@ -739,3 +739,57 @@ impl<'de, K: Deserialize<'de>, V: Deserialize<'de>> Deserialize<'de> for KeyVal<
         deserializer.deserialize_map(Visitor(PhantomData))
     }
 }
+
+pub struct Base32<T>(pub T);
+impl<'de, T: TryFrom<Vec<u8>>> Deserialize<'de> for Base32<T> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        base32::decode(base32::Alphabet::RFC4648 { padding: true }, &s)
+            .ok_or_else(|| {
+                serde::de::Error::invalid_value(
+                    serde::de::Unexpected::Str(&s),
+                    &"a valid base32 string",
+                )
+            })?
+            .try_into()
+            .map_err(|_| serde::de::Error::custom("invalid length"))
+            .map(Self)
+    }
+}
+impl<T: AsRef<[u8]>> Serialize for Base32<T> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&base32::encode(
+            base32::Alphabet::RFC4648 { padding: true },
+            self.0.as_ref(),
+        ))
+    }
+}
+
+pub struct Base64<T>(pub T);
+impl<'de, T: TryFrom<Vec<u8>>> Deserialize<'de> for Base64<T> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        base64::decode(&s)
+            .map_err(serde::de::Error::custom)?
+            .try_into()
+            .map_err(|_| serde::de::Error::custom("invalid length"))
+            .map(Self)
+    }
+}
+impl<T: AsRef<[u8]>> Serialize for Base64<T> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&base64::encode(self.0.as_ref()))
+    }
+}

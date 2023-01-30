@@ -229,25 +229,6 @@
     },
     "query": "UPDATE session SET last_active = CURRENT_TIMESTAMP WHERE id = $1 AND logged_out IS NULL OR logged_out > CURRENT_TIMESTAMP"
   },
-  "7b25063fe6c9d38c772ccd80ebf509988f538b07e0cc8304376625108fb81614": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Left": [
-          "Text",
-          "Text",
-          "Text",
-          "Bytea",
-          "Text",
-          "Text",
-          "Text",
-          "Text"
-        ]
-      }
-    },
-    "query": "\n            INSERT INTO account (\n                id,\n                server_id,\n                hostname,\n                password,\n                network_key,\n                root_ca_key_pem,\n                root_ca_cert_pem,\n                int_ca_key_pem,\n                int_ca_cert_pem\n            ) VALUES (\n                0, $1, $2, $3, $4, $5, $6, $7, $8\n            ) ON CONFLICT (id) DO UPDATE SET\n                server_id = EXCLUDED.server_id,\n                hostname = EXCLUDED.hostname,\n                password = EXCLUDED.password,\n                network_key = EXCLUDED.network_key,\n                root_ca_key_pem = EXCLUDED.root_ca_key_pem,\n                root_ca_cert_pem = EXCLUDED.root_ca_cert_pem,\n                int_ca_key_pem = EXCLUDED.int_ca_key_pem,\n                int_ca_cert_pem = EXCLUDED.int_ca_cert_pem\n            "
-  },
   "7b64f032d507e8ffe37c41f4c7ad514a66c421a11ab04c26d89a7aa8f6b67210": {
     "describe": {
       "columns": [
@@ -310,6 +291,23 @@
       }
     },
     "query": "SELECT id, package_id, created_at, code, level, title, message, data FROM notifications WHERE id < $1 ORDER BY id DESC LIMIT $2"
+  },
+  "7c7a3549c997eb75bf964ea65fbb98a73045adf618696cd838d79203ef5383fb": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Text",
+          "Text",
+          "Text",
+          "Bytea",
+          "Text",
+          "Text"
+        ]
+      }
+    },
+    "query": "\n            INSERT INTO account (\n                id,\n                server_id,\n                hostname,\n                password,\n                network_key,\n                root_ca_key_pem,\n                root_ca_cert_pem\n            ) VALUES (\n                0, $1, $2, $3, $4, $5, $6\n            ) ON CONFLICT (id) DO UPDATE SET\n                server_id = EXCLUDED.server_id,\n                hostname = EXCLUDED.hostname,\n                password = EXCLUDED.password,\n                network_key = EXCLUDED.network_key,\n                root_ca_key_pem = EXCLUDED.root_ca_key_pem,\n                root_ca_cert_pem = EXCLUDED.root_ca_cert_pem\n            "
   },
   "7e0649d839927e57fa03ee51a2c9f96a8bdb0fc97ee8a3c6df1069e1e2b98576": {
     "describe": {
@@ -578,32 +576,6 @@
     },
     "query": "INSERT INTO session (id, user_agent, metadata) VALUES ($1, $2, $3)"
   },
-  "e85749336fce4afaf16627bee8cfcb70be6f189ea7d1f05f9a26bead4be11839": {
-    "describe": {
-      "columns": [
-        {
-          "name": "interface",
-          "ordinal": 0,
-          "type_info": "Text"
-        },
-        {
-          "name": "key",
-          "ordinal": 1,
-          "type_info": "Bytea"
-        }
-      ],
-      "nullable": [
-        false,
-        false
-      ],
-      "parameters": {
-        "Left": [
-          "Text"
-        ]
-      }
-    },
-    "query": "SELECT interface, key FROM tor WHERE package = $1"
-  },
   "eb750adaa305bdbf3c5b70aaf59139c7b7569602adb58f2d6b3a94da4f167b0a": {
     "describe": {
       "columns": [],
@@ -705,23 +677,13 @@
           "type_info": "Bytea"
         },
         {
-          "name": "int_ca_key_pem",
+          "name": "root_ca_key_pem",
           "ordinal": 6,
           "type_info": "Text"
         },
         {
-          "name": "int_ca_cert_pem",
-          "ordinal": 7,
-          "type_info": "Text"
-        },
-        {
-          "name": "root_ca_key_pem",
-          "ordinal": 8,
-          "type_info": "Text"
-        },
-        {
           "name": "root_ca_cert_pem",
-          "ordinal": 9,
+          "ordinal": 7,
           "type_info": "Text"
         }
       ],
@@ -731,8 +693,6 @@
         true,
         true,
         true,
-        false,
-        false,
         false,
         false,
         false

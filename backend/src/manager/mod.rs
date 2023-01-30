@@ -28,7 +28,7 @@ use crate::procedure::docker::{DockerContainer, DockerProcedure, LongRunning};
 use crate::procedure::js_scripts::JsProcedure;
 use crate::procedure::{NoOutput, PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::{Manifest, PackageId};
-use crate::util::{ApplyRef, Container, NonDetachingJoinHandle, Version};
+use crate::util::{assure_send, ApplyRef, Container, NonDetachingJoinHandle, Version};
 use crate::Error;
 
 pub mod health;
@@ -70,10 +70,16 @@ impl ManagerMap {
                 continue;
             };
 
-            let tor_keys = man.interfaces.tor_keys(secrets, &package).await?;
             res.insert(
                 (package, man.version.clone()),
-                Arc::new(Manager::create(ctx.clone(), man, tor_keys).await?),
+                Arc::new(
+                    Manager::create(
+                        ctx.clone(),
+                        man,
+                        assure_send(async { todo!("remove this argument") }).await,
+                    )
+                    .await?,
+                ),
             );
         }
         *self.0.write().await = res;

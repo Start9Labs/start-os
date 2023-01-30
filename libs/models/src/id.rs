@@ -1,73 +1,79 @@
 use std::borrow::Borrow;
 
+use internment::ArcIntern;
 use regex::Regex;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::id_unchecked::IdUnchecked;
 use crate::invalid_id::InvalidId;
-
-pub const SYSTEM_ID: Id<&'static str> = Id("x_system");
 
 lazy_static::lazy_static! {
     static ref ID_REGEX: Regex = Regex::new("^[a-z]+(-[a-z]+)*$").unwrap();
+    pub static ref SYSTEM_ID: Id = Id(ArcIntern::from_ref("x_system"));
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
-pub struct Id<S: AsRef<str> = String>(S);
-impl<S: AsRef<str>> Id<S> {
-    pub fn try_from(value: S) -> Result<Self, InvalidId> {
-        if ID_REGEX.is_match(value.as_ref()) {
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+pub struct Id(ArcIntern<String>);
+impl TryFrom<ArcIntern<String>> for Id {
+    type Error = InvalidId;
+    fn try_from(value: ArcIntern<String>) -> Result<Self, Self::Error> {
+        if ID_REGEX.is_match(&*value) {
             Ok(Id(value))
         } else {
             Err(InvalidId)
         }
     }
 }
-impl<'a> Id<&'a str> {
-    pub fn owned(&self) -> Id {
-        Id(self.0.to_owned())
+impl TryFrom<String> for Id {
+    type Error = InvalidId;
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        if ID_REGEX.is_match(&value) {
+            Ok(Id(ArcIntern::new(value)))
+        } else {
+            Err(InvalidId)
+        }
     }
 }
-impl From<Id> for String {
-    fn from(value: Id) -> Self {
-        value.0
+impl TryFrom<&str> for Id {
+    type Error = InvalidId;
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        if ID_REGEX.is_match(&value) {
+            Ok(Id(ArcIntern::from_ref(value)))
+        } else {
+            Err(InvalidId)
+        }
     }
 }
-impl<S: AsRef<str>> std::ops::Deref for Id<S> {
-    type Target = S;
+impl std::ops::Deref for Id {
+    type Target = String;
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &*self.0
     }
 }
-impl<S: AsRef<str>> std::fmt::Display for Id<S> {
+impl std::fmt::Display for Id {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0.as_ref())
+        write!(f, "{}", &*self.0)
     }
 }
-impl<S: AsRef<str>> AsRef<str> for Id<S> {
+impl AsRef<str> for Id {
     fn as_ref(&self) -> &str {
-        self.0.as_ref()
+        &*self.0
     }
 }
-impl<S: AsRef<str>> Borrow<str> for Id<S> {
+impl Borrow<str> for Id {
     fn borrow(&self) -> &str {
         self.0.as_ref()
     }
 }
-impl<'de, S> Deserialize<'de> for Id<S>
-where
-    S: AsRef<str>,
-    IdUnchecked<S>: Deserialize<'de>,
-{
+impl<'de> Deserialize<'de> for Id {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        let unchecked: IdUnchecked<S> = Deserialize::deserialize(deserializer)?;
-        Id::try_from(unchecked.0).map_err(serde::de::Error::custom)
+        let unchecked: String = Deserialize::deserialize(deserializer)?;
+        Id::try_from(unchecked).map_err(serde::de::Error::custom)
     }
 }
-impl<S: AsRef<str>> Serialize for Id<S> {
+impl Serialize for Id {
     fn serialize<Ser>(&self, serializer: Ser) -> Result<Ser::Ok, Ser::Error>
     where
         Ser: Serializer,

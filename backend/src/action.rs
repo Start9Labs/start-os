@@ -4,13 +4,13 @@ use clap::ArgMatches;
 use color_eyre::eyre::eyre;
 use indexmap::IndexSet;
 pub use models::ActionId;
+use models::ImageId;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::config::{Config, ConfigSpec};
 use crate::context::RpcContext;
-use crate::id::ImageId;
 use crate::procedure::docker::DockerContainers;
 use crate::procedure::{PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::PackageId;

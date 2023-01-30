@@ -201,7 +201,7 @@ impl RpcContext {
                     .as_ref()
                     .map(|v| v.as_slice())
                     .unwrap_or(&[SocketAddr::from(([127, 0, 0, 1], 53))]),
-                SslManager::new(&account),
+                SslManager::new(&account)?,
                 &account.hostname,
                 &account.key,
             )

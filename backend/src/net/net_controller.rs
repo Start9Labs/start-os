@@ -5,7 +5,6 @@ use std::sync::{Arc, Weak};
 
 use color_eyre::eyre::eyre;
 use models::InterfaceId;
-use patch_db::DbHandle;
 use sqlx::PgExecutor;
 use tracing::instrument;
 
@@ -26,6 +25,7 @@ pub struct NetController {
     pub(super) mdns: MdnsController,
     pub(super) vhost: VHostController,
     pub(super) dns: DnsController,
+    pub(super) ssl: Arc<SslManager>,
     pub(super) os_bindings: Vec<Arc<()>>,
 }
 
@@ -38,12 +38,14 @@ impl NetController {
         hostname: &Hostname,
         os_key: &Key,
     ) -> Result<Self, Error> {
+        let ssl = Arc::new(ssl);
         let mut res = Self {
             tor: TorController::init(tor_control).await?,
             #[cfg(feature = "avahi")]
             mdns: MdnsController::init().await?,
-            vhost: VHostController::new(Arc::new(ssl)),
+            vhost: VHostController::new(ssl.clone()),
             dns: DnsController::init(dns_bind).await?,
+            ssl,
             os_bindings: Vec::new(),
         };
         res.add_os_bindings(hostname, os_key).await?;

@@ -6,7 +6,7 @@ use sqlx::PgExecutor;
 
 use crate::hostname::{generate_hostname, generate_id, Hostname};
 use crate::net::keys::Key;
-use crate::net::ssl::{generate_key, make_int_cert, make_root_cert};
+use crate::net::ssl::{generate_key, make_root_cert};
 use crate::Error;
 
 fn hash_password(password: &str) -> Result<String, Error> {
@@ -18,7 +18,7 @@ fn hash_password(password: &str) -> Result<String, Error> {
     .with_kind(crate::ErrorKind::PasswordHashGeneration)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AccountInfo {
     pub server_id: String,
     pub hostname: Hostname,
@@ -26,8 +26,6 @@ pub struct AccountInfo {
     pub key: Key,
     pub root_ca_key: PKey<Private>,
     pub root_ca_cert: X509,
-    pub int_ca_key: PKey<Private>,
-    pub int_ca_cert: X509,
 }
 impl AccountInfo {
     pub fn new(password: &str) -> Result<Self, Error> {
@@ -35,8 +33,6 @@ impl AccountInfo {
         let hostname = generate_hostname();
         let root_ca_key = generate_key()?;
         let root_ca_cert = make_root_cert(&root_ca_key, &hostname)?;
-        let int_ca_key = generate_key()?;
-        let int_ca_cert = make_int_cert((&root_ca_key, &root_ca_cert), &int_ca_key)?;
         Ok(Self {
             server_id,
             hostname,
@@ -44,8 +40,6 @@ impl AccountInfo {
             key: Key::new(None),
             root_ca_key,
             root_ca_cert,
-            int_ca_key,
-            int_ca_cert,
         })
     }
 
@@ -66,8 +60,6 @@ impl AccountInfo {
         let key = Key::from_pair(None, network_key.to_bytes(), tor_key.to_bytes());
         let root_ca_key = PKey::private_key_from_pem(r.root_ca_key_pem.as_bytes())?;
         let root_ca_cert = X509::from_pem(r.root_ca_cert_pem.as_bytes())?;
-        let int_ca_key = PKey::private_key_from_pem(r.int_ca_key_pem.as_bytes())?;
-        let int_ca_cert = X509::from_pem(r.int_ca_cert_pem.as_bytes())?;
 
         Ok(Self {
             server_id,
@@ -76,8 +68,6 @@ impl AccountInfo {
             key,
             root_ca_key,
             root_ca_cert,
-            int_ca_key,
-            int_ca_cert,
         })
     }
 
@@ -88,8 +78,6 @@ impl AccountInfo {
         let network_key = self.key.as_bytes();
         let root_ca_key = String::from_utf8(self.root_ca_key.private_key_to_pem_pkcs8()?)?;
         let root_ca_cert = String::from_utf8(self.root_ca_cert.to_pem()?)?;
-        let int_ca_key = String::from_utf8(self.int_ca_key.private_key_to_pem_pkcs8()?)?;
-        let int_ca_cert = String::from_utf8(self.int_ca_cert.to_pem()?)?;
 
         sqlx::query!(
             r#"
@@ -100,20 +88,16 @@ impl AccountInfo {
                 password,
                 network_key,
                 root_ca_key_pem,
-                root_ca_cert_pem,
-                int_ca_key_pem,
-                int_ca_cert_pem
+                root_ca_cert_pem
             ) VALUES (
-                0, $1, $2, $3, $4, $5, $6, $7, $8
+                0, $1, $2, $3, $4, $5, $6
             ) ON CONFLICT (id) DO UPDATE SET
                 server_id = EXCLUDED.server_id,
                 hostname = EXCLUDED.hostname,
                 password = EXCLUDED.password,
                 network_key = EXCLUDED.network_key,
                 root_ca_key_pem = EXCLUDED.root_ca_key_pem,
-                root_ca_cert_pem = EXCLUDED.root_ca_cert_pem,
-                int_ca_key_pem = EXCLUDED.int_ca_key_pem,
-                int_ca_cert_pem = EXCLUDED.int_ca_cert_pem
+                root_ca_cert_pem = EXCLUDED.root_ca_cert_pem
             "#,
             server_id,
             hostname,
@@ -121,8 +105,6 @@ impl AccountInfo {
             network_key,
             root_ca_key,
             root_ca_cert,
-            int_ca_key,
-            int_ca_cert
         )
         .execute(secrets)
         .await?;

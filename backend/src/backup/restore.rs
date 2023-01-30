@@ -17,7 +17,7 @@ use torut::onion::OnionAddressV3;
 use tracing::instrument;
 
 use super::target::BackupTargetId;
-use crate::backup::backup_bulk::OsBackup;
+use crate::backup::os::OsBackup;
 use crate::backup::BackupMetadata;
 use crate::context::rpc::RpcContextConfig;
 use crate::context::{RpcContext, SetupContext};
@@ -198,7 +198,7 @@ pub async fn recover_full_embassy(
         &argon2::Config::default(),
     )
     .with_kind(crate::ErrorKind::PasswordHashGeneration)?;
-    let tor_key_bytes = os_backup.tor_key.as_bytes().to_vec();
+    // let tor_key_bytes = os_backup.tor_key.as_bytes().to_vec();
     let secret_store = ctx.secret_store().await?;
     let mut secrets = secret_store.acquire().await?;
     let mut secrets_tx = secrets.begin().await?;
@@ -273,8 +273,8 @@ pub async fn recover_full_embassy(
     Ok((
         disk_guid,
         hostname,
-        os_backup.tor_key.public().get_onion_address(),
-        os_backup.root_ca_cert,
+        os_backup.account.key.tor_address(),
+        os_backup.account.root_ca_cert,
     ))
 }
 

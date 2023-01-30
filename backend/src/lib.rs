@@ -30,7 +30,6 @@ pub mod diagnostic;
 pub mod disk;
 pub mod error;
 pub mod hostname;
-pub mod id;
 pub mod init;
 pub mod inspect;
 pub mod install;

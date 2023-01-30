@@ -1,9 +1,6 @@
 use std::collections::BTreeMap;
 
-use color_eyre::eyre::eyre;
-use futures::TryStreamExt;
 use indexmap::IndexSet;
-use itertools::Either;
 pub use models::InterfaceId;
 use serde::{Deserialize, Deserializer, Serialize};
 use sqlx::{Executor, Postgres};
@@ -11,7 +8,6 @@ use torut::onion::TorSecretKeyV3;
 use tracing::instrument;
 
 use crate::db::model::{InterfaceAddressMap, InterfaceAddresses};
-use crate::id::Id;
 use crate::s9pk::manifest::PackageId;
 use crate::util::serde::Port;
 use crate::{Error, ResultExt};
@@ -80,36 +76,6 @@ impl Interfaces {
             interface_addresses.0.insert(id.clone(), addrs);
         }
         Ok(interface_addresses)
-    }
-
-    #[instrument(skip(secrets))]
-    pub async fn tor_keys<Ex>(
-        &self,
-        secrets: &mut Ex,
-        package_id: &PackageId,
-    ) -> Result<BTreeMap<InterfaceId, TorSecretKeyV3>, Error>
-    where
-        for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
-    {
-        Ok(sqlx::query!(
-            "SELECT interface, key FROM tor WHERE package = $1",
-            **package_id
-        )
-        .fetch_many(secrets)
-        .map_err(Error::from)
-        .try_filter_map(|qr| async move {
-            Ok(if let Either::Right(r) = qr {
-                let mut buf = [0; 64];
-                buf.clone_from_slice(r.key.get(0..64).ok_or_else(|| {
-                    Error::new(eyre!("Invalid Tor Key Length"), crate::ErrorKind::Database)
-                })?);
-                Some((InterfaceId::from(Id::try_from(r.interface)?), buf.into()))
-            } else {
-                None
-            })
-        })
-        .try_collect()
-        .await?)
     }
 }
 

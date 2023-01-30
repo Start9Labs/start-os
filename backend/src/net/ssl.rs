@@ -31,13 +31,15 @@ pub struct SslManager {
     cert_cache: RwLock<BTreeMap<Key, X509>>,
 }
 impl SslManager {
-    pub fn new(account: &AccountInfo) -> Self {
-        Self {
+    pub fn new(account: &AccountInfo) -> Result<Self, Error> {
+        let int_key = generate_key()?;
+        let int_cert = make_int_cert((&account.root_ca_key, &account.root_ca_cert), &int_key)?;
+        Ok(Self {
             root_cert: account.root_ca_cert.clone(),
-            int_key: account.int_ca_key.clone(),
-            int_cert: account.int_ca_cert.clone(),
+            int_key,
+            int_cert,
             cert_cache: RwLock::new(BTreeMap::new()),
-        }
+        })
     }
     pub async fn with_cert(&self, key: Key) -> Result<KeyInfo, Error> {
         if let Some(cert) = self.cert_cache.read().await.get(&key) {

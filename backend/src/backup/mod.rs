@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use chrono::{DateTime, Utc};
 use color_eyre::eyre::eyre;
 use helpers::AtomicFile;
+use models::ImageId;
 use patch_db::{DbHandle, HasModel};
 use reqwest::Url;
 use rpc_toolkit::command;
@@ -15,19 +16,19 @@ use tracing::instrument;
 use self::target::PackageBackupInfo;
 use crate::context::RpcContext;
 use crate::dependencies::reconfigure_dependents_with_live_pointers;
-use crate::id::ImageId;
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::net::interface::{InterfaceId, Interfaces};
 use crate::procedure::docker::DockerContainers;
 use crate::procedure::{NoOutput, PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::PackageId;
 use crate::util::serde::IoFormat;
-use crate::util::Version;
+use crate::util::{assure_send, Version};
 use crate::version::{Current, VersionT};
 use crate::volume::{backup_dir, Volume, VolumeId, Volumes, BACKUP_DIR};
 use crate::{Error, ErrorKind, ResultExt};
 
 pub mod backup_bulk;
+pub mod os;
 pub mod restore;
 pub mod target;
 
@@ -117,17 +118,6 @@ impl BackupActions {
             .await?
             .map_err(|e| eyre!("{}", e.1))
             .with_kind(crate::ErrorKind::Backup)?;
-        let tor_keys = interfaces
-            .tor_keys(&mut ctx.secret_store.acquire().await?, pkg_id)
-            .await?
-            .into_iter()
-            .map(|(id, key)| {
-                (
-                    id,
-                    base32::encode(base32::Alphabet::RFC4648 { padding: true }, &key.as_bytes()),
-                )
-            })
-            .collect();
         let marketplace_url = crate::db::DatabaseModel::new()
             .package_data()
             .idx_model(pkg_id)
@@ -170,7 +160,7 @@ impl BackupActions {
         outfile
             .write_all(&IoFormat::Cbor.to_vec(&BackupMetadata {
                 timestamp,
-                tor_keys,
+                tor_keys: assure_send(async { todo!("actual keys") }.await),
                 marketplace_url,
             })?)
             .await?;
