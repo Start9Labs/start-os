@@ -281,6 +281,7 @@ impl JsExecutionEnvironment {
             fns::remove_file::decl(),
             fns::create_dir::decl(),
             fns::remove_dir::decl(),
+            fns::read_dir::decl(),
             fns::current_function::decl(),
             fns::log_trace::decl(),
             fns::log_warn::decl(),
@@ -843,6 +844,52 @@ mod fns {
         }
         tokio::fs::create_dir_all(new_file).await?;
         Ok(())
+    }
+    #[op]
+    async fn read_dir(
+        state: Rc<RefCell<OpState>>,
+        volume_id: VolumeId,
+        path_in: PathBuf,
+    ) -> Result<Vec<String>, AnyError> {
+        let (volumes, volume_path) = {
+            let state = state.borrow();
+            let ctx: &JsContext = state.borrow();
+            let volume_path = ctx
+                .volumes
+                .path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id)
+                .ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?;
+            (ctx.volumes.clone(), volume_path)
+        };
+        if volumes.readonly(&volume_id) {
+            bail!("Volume {} is readonly", volume_id);
+        }
+        let new_file = volume_path.join(path_in);
+
+        // With the volume check
+        if !is_subset(&volume_path, &new_file).await? {
+            bail!(
+                "Path '{}' has broken away from parent '{}'",
+                new_file.to_string_lossy(),
+                volume_path.to_string_lossy(),
+            );
+        }
+        let mut reader = tokio::fs::read_dir(&new_file).await?;
+        let mut paths: Vec<String> = Vec::new();
+        let origin_path = format!("{}/", new_file.to_str().unwrap_or_default());
+        let remove_new_file = |other_path: String| other_path.replacen(&origin_path, "", 1);
+        let has_origin_path = |other_path: &String| other_path.starts_with(&origin_path);
+        while let Some(entry) = reader.next_entry().await? {
+            entry
+                .path()
+                .to_str()
+                .into_iter()
+                .map(ToString::to_string)
+                .filter(&has_origin_path)
+                .map(&remove_new_file)
+                .for_each(|x| paths.push(x));
+        }
+        paths.sort();
+        Ok(paths)
     }
 
     #[op]
