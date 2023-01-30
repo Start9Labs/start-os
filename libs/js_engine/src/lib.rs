@@ -851,18 +851,15 @@ mod fns {
         volume_id: VolumeId,
         path_in: PathBuf,
     ) -> Result<Vec<String>, AnyError> {
-        let (volumes, volume_path) = {
+        let volume_path = {
             let state = state.borrow();
             let ctx: &JsContext = state.borrow();
             let volume_path = ctx
                 .volumes
                 .path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id)
                 .ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?;
-            (ctx.volumes.clone(), volume_path)
+            volume_path
         };
-        if volumes.readonly(&volume_id) {
-            bail!("Volume {} is readonly", volume_id);
-        }
         let new_file = volume_path.join(path_in);
 
         // With the volume check
