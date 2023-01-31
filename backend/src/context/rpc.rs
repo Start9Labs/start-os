@@ -19,6 +19,7 @@ use sqlx::PgPool;
 use tokio::sync::{broadcast, oneshot, Mutex, RwLock};
 use tracing::instrument;
 
+use super::setup::CURRENT_SECRET;
 use crate::account::AccountInfo;
 use crate::core::rpc_continuations::{RequestGuid, RestHandler, RpcContinuation};
 use crate::db::model::{Database, InstalledPackageDataEntry, PackageDataEntry};
@@ -35,8 +36,6 @@ use crate::shutdown::Shutdown;
 use crate::status::{MainStatus, Status};
 use crate::util::config::load_config_from_paths;
 use crate::{Error, ErrorKind, ResultExt};
-
-use super::setup::CURRENT_SECRET;
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]

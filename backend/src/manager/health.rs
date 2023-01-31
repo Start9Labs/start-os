@@ -95,7 +95,6 @@ pub async fn check<Db: DbHandle>(
     ctx: &RpcContext,
     db: &mut Db,
     id: &PackageId,
-    should_commit: &AtomicBool,
 ) -> Result<(), Error> {
     let mut tx = db.begin().await?;
     let (manifest, started) = {
@@ -126,9 +125,6 @@ pub async fn check<Db: DbHandle>(
         return Ok(());
     };
 
-    if !should_commit.load(Ordering::SeqCst) {
-        return Ok(());
-    }
     let current_dependents = {
         let mut checkpoint = tx.begin().await?;
         let receipts = HealthCheckStatusReceipt::new(&mut checkpoint, id).await?;
