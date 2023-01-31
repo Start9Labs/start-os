@@ -762,7 +762,7 @@ pub fn configure_rec<'a, Db: DbHandle>(
                     ));
                 }
                 Some(m) => {
-                    m.signal(&signal).await?;
+                    async move { m.signal(signal).await }.await?;
                 }
             }
         }
