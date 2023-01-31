@@ -25,7 +25,7 @@ use tokio_stream::wrappers::ReadDirStream;
 use tracing::instrument;
 
 use self::cleanup::{cleanup_failed, remove_from_current_dependents_lists};
-use crate::config::ConfigReceipts;
+use crate::config::{ConfigReceipts, ConfigureContext};
 use crate::context::{CliContext, RpcContext};
 use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::db::model::{
@@ -1285,18 +1285,17 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             false
         };
         if configured && manifest.config.is_some() {
-            crate::config::configure(
-                ctx,
-                &mut tx,
-                pkg_id,
-                None,
-                &None,
-                false,
-                &mut BTreeMap::new(),
-                &mut BTreeMap::new(),
-                &receipts.config,
-            )
-            .await?;
+            let breakages = BTreeMap::new();
+            let overrides = Default::default();
+
+            let configure_context = ConfigureContext {
+                breakages,
+                timeout: None,
+                config: None,
+                dry_run: false,
+                overrides,
+            };
+            crate::config::configure(&ctx, pkg_id, configure_context).await?;
         } else {
             remove_from_current_dependents_lists(
                 &mut tx,
