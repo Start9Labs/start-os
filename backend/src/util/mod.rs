@@ -273,6 +273,29 @@ impl<F: FnOnce() -> T, T> Drop for GeneralGuard<F, T> {
     }
 }
 
+pub struct GeneralBoxedGuard(Option<Box<dyn FnOnce() -> ()>>);
+impl GeneralBoxedGuard {
+    pub fn new(f: impl FnOnce() -> ()) -> Self {
+        GeneralBoxedGuard(Some(f.boxed()))
+    }
+
+    pub fn drop(mut self) -> () {
+        self.0.take().unwrap()()
+    }
+
+    pub fn drop_without_action(mut self) {
+        self.0 = None;
+    }
+}
+
+impl Drop for GeneralBoxedGuard {
+    fn drop(&mut self) {
+        if let Some(destroy) = self.0.take() {
+            destroy();
+        }
+    }
+}
+
 pub struct FileLock(OwnedMutexGuard<()>, Option<FdLock<File>>);
 impl Drop for FileLock {
     fn drop(&mut self) {
