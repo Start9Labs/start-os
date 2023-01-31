@@ -80,8 +80,7 @@ pub async fn start(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Result<(
         .get(&(id, version))
         .await
         .ok_or_else(|| Error::new(eyre!("Manager not found"), crate::ErrorKind::InvalidRequest))?
-        .synchronize()
-        .await;
+        .start();
 
     Ok(())
 }

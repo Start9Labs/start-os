@@ -18,10 +18,8 @@ use nix::unistd::Pid;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tokio::{
-    io::{AsyncBufRead, AsyncBufReadExt, BufReader},
-    time::timeout,
-};
+use tokio::io::{AsyncBufRead, AsyncBufReadExt, BufReader};
+use tokio::time::timeout;
 use tracing::instrument;
 
 use super::ProcedureName;

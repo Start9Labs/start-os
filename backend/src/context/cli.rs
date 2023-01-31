@@ -17,11 +17,10 @@ use rpc_toolkit::Context;
 use serde::Deserialize;
 use tracing::instrument;
 
+use super::setup::CURRENT_SECRET;
 use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
 use crate::util::config::{load_config_from_paths, local_config_path};
 use crate::ResultExt;
-
-use super::setup::CURRENT_SECRET;
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
