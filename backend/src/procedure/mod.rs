@@ -96,9 +96,9 @@ impl PackageProcedure {
                     }
                     Some(man) => (
                         if matches!(name, ProcedureName::Main) {
-                            man.new_main_gid()
+                            man.gid.new_main_gid()
                         } else {
-                            man.new_gid()
+                            man.gid.new_gid()
                         },
                         man.rpc_client(),
                     ),
