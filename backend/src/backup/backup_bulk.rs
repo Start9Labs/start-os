@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use chrono::Utc;
 use clap::ArgMatches;
@@ -7,8 +8,7 @@ use color_eyre::eyre::eyre;
 use helpers::AtomicFile;
 use patch_db::{DbHandle, LockType, PatchDbHandle};
 use rpc_toolkit::command;
-use tokio::io::AsyncWriteExt;
-use tokio::process::Command;
+use tokio::{io::AsyncWriteExt, sync::Mutex};
 use tracing::instrument;
 
 use super::target::BackupTargetId;
@@ -21,9 +21,9 @@ use crate::db::model::BackupProgress;
 use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::TmpMountGuard;
+use crate::manager::BackupReturn;
 use crate::notifications::NotificationLevel;
 use crate::s9pk::manifest::PackageId;
-use crate::status::MainStatus;
 use crate::util::io::dir_copy;
 use crate::util::serde::IoFormat;
 use crate::util::{display_none, Invoke};
@@ -206,10 +206,12 @@ async fn assure_backing_up(
 async fn perform_backup<Db: DbHandle>(
     ctx: &RpcContext,
     mut db: Db,
-    mut backup_guard: BackupMountGuard<TmpMountGuard>,
+    backup_guard: BackupMountGuard<TmpMountGuard>,
     package_ids: &BTreeSet<PackageId>,
 ) -> Result<BTreeMap<PackageId, PackageBackupReport>, Error> {
     let mut backup_report = BTreeMap::new();
+    let backup_guard = Arc::new(Mutex::new(backup_guard));
+
     for package_id in crate::db::DatabaseModel::new()
         .package_data()
         .keys(&mut db)
@@ -231,92 +233,54 @@ async fn perform_backup<Db: DbHandle>(
         };
         let main_status_model = installed_model.clone().status().main();
 
-        main_status_model.lock(&mut tx, LockType::Write).await?;
-        let (started, health) = match main_status_model.get(&mut tx).await?.into_owned() {
-            MainStatus::Starting { .. } => (Some(Utc::now()), Default::default()),
-            MainStatus::Running { started, health } => (Some(started), health.clone()),
-            MainStatus::Stopped | MainStatus::Stopping | MainStatus::Restarting => {
-                (None, Default::default())
-            }
-            MainStatus::BackingUp { .. } => {
-                backup_report.insert(
-                    package_id,
-                    PackageBackupReport {
-                        error: Some(
-                            "Can't do backup because service is in a backing up state".to_owned(),
-                        ),
-                    },
-                );
-                continue;
-            }
-        };
-        main_status_model
-            .put(
-                &mut tx,
-                &MainStatus::BackingUp {
-                    started,
-                    health: health.clone(),
-                },
-            )
-            .await?;
-        tx.save().await?; // drop locks
+        let manifest = installed_model.clone().manifest().get(&mut tx).await?;
 
-        let manifest = installed_model.clone().manifest().get(&mut db).await?;
-
-        ctx.managers
+        let (response, report) = match ctx
+            .managers
             .get(&(manifest.id.clone(), manifest.version.clone()))
             .await
             .ok_or_else(|| {
                 Error::new(eyre!("Manager not found"), crate::ErrorKind::InvalidRequest)
             })?
-            .synchronize()
-            .await;
-
-        let mut tx = db.begin().await?;
-
-        installed_model.lock(&mut tx, LockType::Write).await?;
-
-        let guard = backup_guard.mount_package_backup(&package_id).await?;
-        let res = manifest
-            .backup
-            .create(
-                ctx,
-                &mut tx,
-                &package_id,
-                &manifest.title,
-                &manifest.version,
-                &manifest.interfaces,
-                &manifest.volumes,
-            )
-            .await;
-        guard.unmount().await?;
+            .backup(backup_guard.clone())
+            .await
+        {
+            BackupReturn::Ran { report, res } => (res, report),
+            BackupReturn::AlreadyRunning(report) => {
+                backup_report.insert(package_id, report);
+                continue;
+            }
+            BackupReturn::Error(error) => {
+                tracing::warn!("Backup thread error");
+                tracing::debug!("{error:?}");
+                backup_report.insert(
+                    package_id,
+                    PackageBackupReport {
+                        error: Some("Backup thread error".to_owned()),
+                    },
+                );
+                continue;
+            }
+        };
         backup_report.insert(
             package_id.clone(),
             PackageBackupReport {
-                error: res.as_ref().err().map(|e| e.to_string()),
+                error: response.as_ref().err().map(|e| e.to_string()),
             },
         );
 
-        if let Ok(pkg_meta) = res {
+        if let Ok(pkg_meta) = response {
             installed_model
                 .last_backup()
                 .put(&mut tx, &Some(pkg_meta.timestamp))
                 .await?;
             backup_guard
+                .lock()
+                .await
                 .metadata
                 .package_backups
                 .insert(package_id.clone(), pkg_meta);
         }
-
-        main_status_model
-            .put(
-                &mut tx,
-                &match started {
-                    Some(started) => MainStatus::Running { started, health },
-                    None => MainStatus::Stopped,
-                },
-            )
-            .await?;
 
         let mut backup_progress = crate::db::DatabaseModel::new()
             .server_info()
@@ -344,7 +308,7 @@ async fn perform_backup<Db: DbHandle>(
         .into_owned();
 
     let mut os_backup_file = AtomicFile::new(
-        backup_guard.as_ref().join("os-backup.cbor"),
+        backup_guard.lock().await.as_ref().join("os-backup.cbor"),
         None::<PathBuf>,
     )
     .await
@@ -374,6 +338,14 @@ async fn perform_backup<Db: DbHandle>(
     }
 
     let timestamp = Some(Utc::now());
+    let mut backup_guard = Arc::try_unwrap(backup_guard)
+        .map_err(|_err| {
+            Error::new(
+                eyre!("Backup guard could not ensure that the others where dropped"),
+                ErrorKind::Unknown,
+            )
+        })?
+        .into_inner();
 
     backup_guard.unencrypted_metadata.version = crate::version::Current::new().semver().into();
     backup_guard.unencrypted_metadata.full = true;
