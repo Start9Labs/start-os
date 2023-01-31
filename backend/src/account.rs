@@ -76,6 +76,7 @@ impl AccountInfo {
         let hostname = self.hostname.0.as_str();
         let password = self.password.as_str();
         let network_key = self.key.as_bytes();
+        let network_key = network_key.as_slice();
         let root_ca_key = String::from_utf8(self.root_ca_key.private_key_to_pem_pkcs8()?)?;
         let root_ca_cert = String::from_utf8(self.root_ca_cert.to_pem()?)?;
 

@@ -1,18 +1,6 @@
 {
   "db": "PostgreSQL",
-  "21471490cdc3adb206274cc68e1ea745ffa5da4479478c1fd2158a45324b1930": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Left": [
-          "Text"
-        ]
-      }
-    },
-    "query": "DELETE FROM ssh_keys WHERE fingerprint = $1"
-  },
-  "22613628ff50341fdc35366e194fdcd850118824763cfe0dfff68dadc72167e9": {
+  "1ce5254f27de971fd87f5ab66d300f2b22433c86617a0dbf796bf2170186dd2e": {
     "describe": {
       "columns": [],
       "nullable": [],
@@ -24,7 +12,19 @@
         ]
       }
     },
-    "query": "INSERT INTO tor (package, interface, key) VALUES ($1, $2, $3) ON CONFLICT (package, interface) DO UPDATE SET key = $3"
+    "query": "INSERT INTO network_keys (package, interface, key) VALUES ($1, $2, $3) ON CONFLICT (package, interface) DO NOTHING"
+  },
+  "21471490cdc3adb206274cc68e1ea745ffa5da4479478c1fd2158a45324b1930": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Text"
+        ]
+      }
+    },
+    "query": "DELETE FROM ssh_keys WHERE fingerprint = $1"
   },
   "23960ddd29c0c4b6714ffe14c7ffd8e496ecf524173ab00246412c3f4ab901c0": {
     "describe": {
@@ -575,6 +575,44 @@
       }
     },
     "query": "INSERT INTO session (id, user_agent, metadata) VALUES ($1, $2, $3)"
+  },
+  "e95322a8e2ae3b93f1e974b24c0b81803f1e9ec9e8ebbf15cafddfc1c5a028ed": {
+    "describe": {
+      "columns": [
+        {
+          "name": "package",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "interface",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "key",
+          "ordinal": 2,
+          "type_info": "Bytea"
+        },
+        {
+          "name": "tor_key?",
+          "ordinal": 3,
+          "type_info": "Bytea"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Text"
+        ]
+      }
+    },
+    "query": "\n                SELECT\n                    network_keys.package,\n                    network_keys.interface,\n                    network_keys.key,\n                    tor.key AS \"tor_key?\"\n                FROM\n                    network_keys\n                LEFT JOIN\n                    tor\n                ON\n                    network_keys.package = tor.package\n                AND\n                    network_keys.interface = tor.interface\n                WHERE\n                    network_keys.package = $1\n            "
   },
   "eb750adaa305bdbf3c5b70aaf59139c7b7569602adb58f2d6b3a94da4f167b0a": {
     "describe": {

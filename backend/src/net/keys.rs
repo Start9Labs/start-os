@@ -1,6 +1,6 @@
 use color_eyre::eyre::eyre;
 use ed25519_dalek::{ExpandedSecretKey, SecretKey};
-use models::{InterfaceId, PackageId};
+use models::{Id, InterfaceId, PackageId};
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
 use sqlx::PgExecutor;
@@ -51,8 +51,8 @@ impl Key {
     pub fn interface(&self) -> Option<(PackageId, InterfaceId)> {
         self.interface.clone()
     }
-    pub fn as_bytes(&self) -> &[u8; 32] {
-        &self.base
+    pub fn as_bytes(&self) -> [u8; 32] {
+        self.base
     }
     pub fn internal_address(&self) -> String {
         self.interface
@@ -112,6 +112,60 @@ impl Key {
             int,
             root,
         }
+    }
+    pub async fn for_package(
+        secrets: impl PgExecutor<'_>,
+        package: &PackageId,
+    ) -> Result<Vec<Self>, Error> {
+        sqlx::query!(
+            r#"
+                SELECT
+                    network_keys.package,
+                    network_keys.interface,
+                    network_keys.key,
+                    tor.key AS "tor_key?"
+                FROM
+                    network_keys
+                LEFT JOIN
+                    tor
+                ON
+                    network_keys.package = tor.package
+                AND
+                    network_keys.interface = tor.interface
+                WHERE
+                    network_keys.package = $1
+            "#,
+            **package
+        )
+        .fetch_all(secrets)
+        .await?
+        .into_iter()
+        .map(|row| {
+            let interface = Some((
+                package.clone(),
+                InterfaceId::from(Id::try_from(row.interface)?),
+            ));
+            let bytes = row.key.try_into().map_err(|e: Vec<u8>| {
+                Error::new(
+                    eyre!("Invalid length for network key {} expected 32", e.len()),
+                    crate::ErrorKind::Database,
+                )
+            })?;
+            Ok(match row.tor_key {
+                Some(tor_key) => Key::from_pair(
+                    interface,
+                    bytes,
+                    tor_key.try_into().map_err(|e: Vec<u8>| {
+                        Error::new(
+                            eyre!("Invalid length for tor key {} expected 64", e.len()),
+                            crate::ErrorKind::Database,
+                        )
+                    })?,
+                ),
+                None => Key::from_bytes(interface, bytes),
+            })
+        })
+        .collect()
     }
     pub async fn for_interface<Ex>(
         secrets: &mut Ex,

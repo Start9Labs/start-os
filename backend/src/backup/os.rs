@@ -112,7 +112,7 @@ impl OsBackupV1 {
         Ok(Self {
             server_id: backup.account.server_id.clone(),
             hostname: backup.account.hostname.0.clone(),
-            net_key: Base64(backup.account.key.as_bytes().clone()),
+            net_key: Base64(backup.account.key.as_bytes()),
             root_ca_key: String::from_utf8(backup.account.root_ca_key.private_key_to_pem_pkcs8()?)?,
             root_ca_cert: String::from_utf8(backup.account.root_ca_cert.to_pem()?)?,
             ui: backup.ui.clone(),

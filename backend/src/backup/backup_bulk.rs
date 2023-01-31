@@ -23,8 +23,8 @@ use crate::disk::mount::guard::TmpMountGuard;
 use crate::notifications::NotificationLevel;
 use crate::s9pk::manifest::PackageId;
 use crate::status::MainStatus;
+use crate::util::display_none;
 use crate::util::serde::IoFormat;
-use crate::util::{assure_send, display_none};
 use crate::version::VersionT;
 use crate::{Error, ErrorKind, ResultExt};
 
