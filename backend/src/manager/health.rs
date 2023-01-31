@@ -96,7 +96,6 @@ pub async fn check<Db: DbHandle>(
     ctx: &RpcContext,
     db: &mut Db,
     id: &PackageId,
-    should_commit: &AtomicBool,
 ) -> Result<(), Error> {
     let mut tx = db.begin().await?;
     let (manifest, started) = {
@@ -127,27 +126,6 @@ pub async fn check<Db: DbHandle>(
     } else {
         return Ok(());
     };
-
-    if !should_commit.load(Ordering::SeqCst) {
-        return Ok(());
-    }
-
-    if !health_results
-        .iter()
-        .any(|(_, res)| matches!(res, HealthCheckResult::Failure { .. }))
-    {
-        tracing::debug!("All health checks succeeded for {}", id);
-    } else {
-        tracing::debug!(
-            "Some health checks failed for {}: {}",
-            id,
-            health_results
-                .iter()
-                .filter(|(_, res)| matches!(res, HealthCheckResult::Failure { .. }))
-                .map(|(id, _)| &*id)
-                .join(", ")
-        );
-    }
 
     let current_dependents = {
         let mut checkpoint = tx.begin().await?;
