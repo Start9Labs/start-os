@@ -6,8 +6,8 @@ use std::time::Duration;
 
 use clap::ArgMatches;
 use color_eyre::eyre::eyre;
-use futures::{future::BoxFuture, stream};
-use futures::{FutureExt, StreamExt};
+use futures::future::BoxFuture;
+use futures::{stream, FutureExt, StreamExt};
 use openssl::x509::X509;
 use patch_db::{DbHandle, PatchDbHandle};
 use rpc_toolkit::command;
