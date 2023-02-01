@@ -193,6 +193,18 @@ const diskUsage = async ({
   return { used, total }
 }
 
+const callbackMapping = {}
+const registerCallback = (fn) => {
+  const uuid = generateUuid(); // TODO
+  callbackMapping[uuid] = fn;
+  return uuid
+}
+const runCallback = (uuid, data) => callbackMapping[uuid](data)
+
+const getServiceConfig = async (serviceId, configPath, onChange) => {
+  await Deno.core.opAsync("get_service_config", serviceId, configPath, registerCallback(onChange))
+}
+
 const currentFunction = Deno.core.opSync("current_function");
 const input = Deno.core.opSync("get_input");
 const variable_args = Deno.core.opSync("get_variable_args");
@@ -223,6 +235,7 @@ const effects = {
   runRsync,
   readDir,
   diskUsage,
+  getServiceConfig,
 };
 
 const defaults = {

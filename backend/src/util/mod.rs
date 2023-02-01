@@ -280,8 +280,8 @@ impl<F: FnOnce() -> T, T> Drop for GeneralGuard<F, T> {
 
 pub struct GeneralBoxedGuard(Option<Box<dyn FnOnce() -> ()>>);
 impl GeneralBoxedGuard {
-    pub fn new(f: impl FnOnce() -> ()) -> Self {
-        GeneralBoxedGuard(Some(f.boxed()))
+    pub fn new(f: impl FnOnce() -> () + 'static) -> Self {
+        GeneralBoxedGuard(Some(Box::new(f)))
     }
 
     pub fn drop(mut self) -> () {
