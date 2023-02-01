@@ -2,7 +2,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use color_eyre::eyre::eyre;
-use embassy_container_init::ProcessGroupId;
 use helpers::UnixRpcClient;
 use tokio::sync::oneshot;
 use tokio::sync::watch::{self, Receiver};
@@ -11,7 +10,7 @@ use tracing::instrument;
 use super::manager_seed::ManagerSeed;
 use super::{
     add_network_for_main, generate_certificate, get_long_running_ip, long_running_docker,
-    main_interfaces, remove_network_for_main, GetRunningIp,
+    remove_network_for_main, GetRunningIp,
 };
 use crate::procedure::docker::DockerContainer;
 use crate::util::NonDetachingJoinHandle;
@@ -53,8 +52,7 @@ pub async fn spawn_persistent_container(
             let mut send_inserter: Option<oneshot::Sender<Receiver<Arc<UnixRpcClient>>>> = Some(send_inserter);
             loop {
                 if let Err(e) = async {
-                    let interfaces = main_interfaces(&*seed)?;
-                    let generated_certificate = generate_certificate(&*seed, &interfaces).await?;
+                    let generated_certificate = generate_certificate(&*seed).await?;
                     let (mut runtime, inserter) =
                         long_running_docker(&seed, &container).await?;
 
@@ -67,7 +65,7 @@ pub async fn spawn_persistent_container(
                             return Ok(());
                         }
                     };
-                    add_network_for_main(&*seed, ip, interfaces, generated_certificate).await?;
+                    add_network_for_main(&*seed, ip, generated_certificate).await?;
 
                     if let Some(inserter_send) = inserter_send.as_mut() {
                         let _ = inserter_send.send(Arc::new(inserter));
