@@ -1,11 +1,6 @@
-use std::collections::BTreeMap;
-
 use bollard::container::StopContainerOptions;
-use torut::onion::TorSecretKeyV3;
 
-use super::sigterm_timeout;
 use crate::context::RpcContext;
-use crate::net::interface::InterfaceId;
 use crate::s9pk::manifest::Manifest;
 use crate::Error;
 
@@ -13,7 +8,6 @@ pub struct ManagerSeed {
     pub ctx: RpcContext,
     pub manifest: Manifest,
     pub container_name: String,
-    pub tor_keys: BTreeMap<InterfaceId, TorSecretKeyV3>,
 }
 
 impl ManagerSeed {
@@ -24,7 +18,11 @@ impl ManagerSeed {
             .stop_container(
                 &self.container_name,
                 Some(StopContainerOptions {
-                    t: sigterm_timeout(&self.manifest)
+                    t: self
+                        .manifest
+                        .containers
+                        .as_ref()
+                        .and_then(|c| c.main.sigterm_timeout)
                         .map(|d| d.as_secs())
                         .unwrap_or(30) as i64,
                 }),
