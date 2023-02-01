@@ -17,11 +17,20 @@ tui-root {
   &_offline {
     filter: saturate(0.75) contrast(0.85);
   }
+
+  @media screen and (max-width: 991.499px) {
+    --widgets-width: 0px;
+  }
 }
 
 .right-menu {
-  --side-min-width: 300px;
-  --side-max-width: min(calc(100vw - 700px), 800px);
+  --side-max-width: 600px;
+
+  position: fixed;
+  z-index: 1000;
+  right: 0;
+  left: auto;
+  top: 74px;
 
   // For some reason *ngIf is broken upon first login
   &_hidden {
@@ -47,7 +56,7 @@ tui-root {
 
   &:before,
   &:after {
-    content: "";
+    content: '';
     position: absolute;
     top: 50%;
     margin-top: -78px;
@@ -55,11 +64,11 @@ tui-root {
     width: 60px;
     height: 50px;
     border-bottom-left-radius: 14px;
-    box-shadow: -10px 0 0 -1px #e2e2e2;
+    box-shadow: -14px 0 0 -1px #e2e2e2;
   }
 
   &:after {
-    margin-top: 29px;
+    margin-top: 28px;
     border-radius: 0;
     border-top-left-radius: 14px;
   }
@@ -84,7 +93,7 @@ tui-root {
 
   &:before,
   &:after {
-    content: "";
+    content: '';
     position: absolute;
     top: 50%;
     left: 3px;
@@ -96,7 +105,7 @@ tui-root {
   }
 
   &:before {
-    margin-top: -6px;
+    margin-top: -5px;
     transform: rotate(45deg);
   }
 

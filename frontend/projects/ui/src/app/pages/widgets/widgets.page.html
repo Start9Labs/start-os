@@ -1,5 +1,4 @@
 <h1 class="heading">
-  <span class="title">Widgets</span>
   <tui-loader
     *ngIf="pending else buttons"
     [inheritColor]="true"
@@ -7,18 +6,17 @@
     class="loader"
   ></tui-loader>
   <ng-template #buttons>
-    <ion-button fill="clear" color="primary" (click)="toggle()">
+    <ion-button fill="clear" color="primary" class="button" (click)="toggle()">
       <ion-icon
         [name]="edit ? 'checkmark-outline' : 'pencil-outline'"
       ></ion-icon>
+      {{ edit ? 'Save' : 'Edit'}}
     </ion-button>
-    <ion-button fill="clear" color="primary" (click)="add()">
+    <ion-button fill="clear" color="primary" class="button" (click)="add()">
       <ion-icon name="duplicate-outline"></ion-icon>
+      Add
     </ion-button>
   </ng-template>
-  <ion-button fill="clear" color="primary" class="close" (click)="close()">
-    <ion-icon name="close-outline"></ion-icon>
-  </ion-button>
 </h1>
 <!-- TODO: Fix resize lag in Taiga UI -->
 <tui-tiles

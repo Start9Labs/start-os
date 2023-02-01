@@ -1,4 +1,7 @@
-<tui-root tuiMode="onDark">
+<tui-root
+  tuiMode="onDark"
+  [style.--widgets-width.px]="(widgets$ | async) ? width : 0"
+>
   <ion-app appEnter>
     <ion-content>
       <ion-split-pane
@@ -22,7 +25,11 @@
           contentId="main-content"
           type="overlay"
           side="end"
-          class="right-menu"
+          class="right-menu container"
+          [class.container_offline]="
+            (authService.isVerified$ | async) &&
+            !(connection.connected$ | async)
+          "
           [class.right-menu_hidden]="!(widgets$ | async)"
           [style.--side-width.px]="width"
         >
@@ -39,14 +46,21 @@
         </ion-menu>
 
         <ion-router-outlet
-          responsiveColViewport
+          [responsiveColViewport]="viewport"
           id="main-content"
           class="container"
           [class.container_offline]="
             (authService.isVerified$ | async) &&
             !(connection.connected$ | async)
           "
-        ></ion-router-outlet>
+        >
+          <ion-content
+            #viewport="viewport"
+            responsiveColViewport
+            class="ion-padding"
+            style="pointer-events: none; opacity: 0"
+          ></ion-content>
+        </ion-router-outlet>
       </ion-split-pane>
 
       <section appPreloader></section>

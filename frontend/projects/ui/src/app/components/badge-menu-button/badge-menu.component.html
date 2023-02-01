@@ -3,10 +3,10 @@
     <ion-icon name="grid-outline"></ion-icon>
   </ion-button>
   <ion-button
-    *ngIf="!(widgets$ | async)"
+    *tuiLet="widgets$ | async as open"
     class="sidebar"
     color="dark"
-    (click)="onSidebar()"
+    (click)="onSidebar(!!open)"
   >
     <ion-icon name="grid-outline"></ion-icon>
   </ion-button>

@@ -23,7 +23,6 @@ import { HealthComponent } from './built-in/health/health.component'
 import { NetworkComponent } from './built-in/network/network.component'
 import { MetricsComponent } from './built-in/metrics/metrics.component'
 import { UptimeComponent } from './built-in/uptime/uptime.component'
-import { WidgetsService } from './built-in/widgets.service'
 import { take } from 'rxjs/operators'
 
 @Component({
@@ -70,7 +69,6 @@ export class WidgetsPage {
     private readonly destroy$: TuiDestroyService,
     private readonly cdr: ChangeDetectorRef,
     private readonly api: ApiService,
-    private readonly service: WidgetsService,
   ) {
     this.patch
       .watch$('ui', 'widgets', 'widgets')
@@ -83,14 +81,6 @@ export class WidgetsPage {
 
   trackBy(_: number, { id }: Widget) {
     return id
-  }
-
-  close() {
-    if (this.context) {
-      this.context.$implicit.complete()
-    } else {
-      this.service.toggle(false)
-    }
   }
 
   toggle() {

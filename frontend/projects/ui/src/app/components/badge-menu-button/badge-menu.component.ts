@@ -32,11 +32,11 @@ export class BadgeMenuComponent {
     readonly widgets$: WidgetsService,
   ) {}
 
-  onSidebar() {
-    this.widgets$.toggle(true)
+  onSidebar(open: boolean) {
+    this.widgets$.toggle(!open)
   }
 
   onWidgets() {
-    this.dialog.open(WIDGETS_COMPONENT, { closeable: false }).subscribe()
+    this.dialog.open(WIDGETS_COMPONENT, { label: 'Widgets' }).subscribe()
   }
 }
