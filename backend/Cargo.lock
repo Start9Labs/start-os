@@ -182,9 +182,9 @@ dependencies = [
 
 [[package]]
 name = "async-trait"
-version = "0.1.58"
+version = "0.1.64"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e805d94e6b5001b651426cf4cd446b1ab5f319d27bab5c644f61de0a804360c"
+checksum = "1cd7fce9ba8c3c042128ce72d8b2ddbf3a05747efb67ea0313c635e10bda47a2"
 dependencies = [
  "proc-macro2 1.0.51",
  "quote 1.0.23",
@@ -1986,6 +1986,7 @@ dependencies = [
 name = "helpers"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "color-eyre",
  "futures",
  "lazy_async_pool",
@@ -2439,6 +2440,7 @@ dependencies = [
  "embassy_container_init",
  "helpers",
  "models",
+ "pin-project",
  "reqwest",
  "serde",
  "serde_json",
