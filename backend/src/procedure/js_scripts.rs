@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use color_eyre::eyre::eyre;
 use embassy_container_init::{ProcessGroupId, SignalGroup, SignalGroupParams};
-use helpers::UnixRpcClient;
+use helpers::{Callback, OsApi, UnixRpcClient};
 pub use js_engine::JsError;
 use js_engine::{JsExecutionEnvironment, PathForVolumeId};
 use models::{ErrorKind, VolumeId};
@@ -18,6 +18,18 @@ use crate::s9pk::manifest::PackageId;
 use crate::util::{GeneralGuard, Version};
 use crate::volume::Volumes;
 use crate::Error;
+
+#[async_trait::async_trait]
+impl OsApi for RpcContext {
+    async fn get_service_config(
+        &self,
+        id: PackageId,
+        path: &str,
+        callback: Callback,
+    ) -> Result<serde_json::Value, Error> {
+        todo!()
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "kebab-case")]
@@ -69,6 +81,7 @@ impl JsProcedure {
         timeout: Option<Duration>,
         gid: ProcessGroupId,
         rpc_client: Option<Arc<UnixRpcClient>>,
+        os: Arc<dyn OsApi>,
     ) -> Result<Result<O, (i32, String)>, Error> {
         let cleaner_client = rpc_client.clone();
         let cleaner = GeneralGuard::new(move || {
@@ -87,6 +100,7 @@ impl JsProcedure {
         });
         let res = async move {
             let running_action = JsExecutionEnvironment::load_from_package(
+                os,
                 directory,
                 pkg_id,
                 pkg_version,
@@ -124,6 +138,7 @@ impl JsProcedure {
     ) -> Result<Result<O, (i32, String)>, Error> {
         Ok(async move {
             let running_action = JsExecutionEnvironment::load_from_package(
+                Arc::new(ctx.clone()),
                 &ctx.datadir,
                 pkg_id,
                 pkg_version,
@@ -212,6 +227,7 @@ async fn js_action_execute() {
             timeout,
             ProcessGroupId(0),
             None,
+            None,
         )
         .await
         .unwrap()
@@ -269,6 +285,7 @@ async fn js_action_execute_error() {
             timeout,
             ProcessGroupId(0),
             None,
+            None,
         )
         .await
         .unwrap();
@@ -314,6 +331,7 @@ async fn js_action_fetch() {
             input,
             timeout,
             ProcessGroupId(0),
+            None,
             None,
         )
         .await
@@ -362,6 +380,7 @@ async fn js_test_slow() {
                 input,
                 timeout,
                 ProcessGroupId(0),
+                None,
                 None,
             ) => { a.unwrap().unwrap(); },
         _ = tokio::time::sleep(Duration::from_secs(1)) => ()
@@ -412,6 +431,7 @@ async fn js_action_var_arg() {
             timeout,
             ProcessGroupId(0),
             None,
+            None,
         )
         .await
         .unwrap()
@@ -457,6 +477,7 @@ async fn js_action_test_rename() {
             input,
             timeout,
             ProcessGroupId(0),
+            None,
             None,
         )
         .await
@@ -504,6 +525,7 @@ async fn js_action_test_deep_dir() {
             timeout,
             ProcessGroupId(0),
             None,
+            None,
         )
         .await
         .unwrap()
@@ -549,6 +571,7 @@ async fn js_action_test_deep_dir_escape() {
             timeout,
             ProcessGroupId(0),
             None,
+            None,
         )
         .await
         .unwrap()
@@ -593,6 +616,7 @@ async fn js_action_test_zero_dir() {
             input,
             timeout,
             ProcessGroupId(0),
+            None,
             None,
         )
         .await
@@ -684,6 +708,7 @@ async fn js_rsync() {
             input,
             timeout,
             ProcessGroupId(0),
+            None,
             None,
         )
         .await
