@@ -28,7 +28,7 @@ impl StartReceipts {
         let mut locks = Vec::new();
 
         let setup = Self::setup(&mut locks, id);
-        Ok(setup(&db.lock_all(locks).await?)?)
+        setup(&db.lock_all(locks).await?)
     }
 
     pub fn setup(
@@ -95,7 +95,7 @@ impl StopReceipts {
         let mut locks = Vec::new();
 
         let setup = Self::setup(&mut locks, id);
-        Ok(setup(&db.lock_all(locks).await?)?)
+        setup(&db.lock_all(locks).await?)
     }
 
     pub fn setup(
