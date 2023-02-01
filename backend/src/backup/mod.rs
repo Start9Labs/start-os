@@ -47,7 +47,7 @@ pub struct ServerBackupReport {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PackageBackupReport {
-    error: Option<String>,
+    pub error: Option<String>,
 }
 
 #[command(subcommands(backup_bulk::backup_all, target::target))]

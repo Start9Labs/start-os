@@ -1,4 +1,5 @@
 use std::collections::BTreeSet;
+use std::sync::Arc;
 use std::time::Duration;
 
 use color_eyre::eyre::eyre;
@@ -83,26 +84,24 @@ impl PackageProcedure {
             }
             #[cfg(feature = "js_engine")]
             PackageProcedure::Script(procedure) => {
-                let (gid, rpc_client) = match ctx
+                let man = ctx
                     .managers
                     .get(&(pkg_id.clone(), pkg_version.clone()))
                     .await
-                {
-                    None => {
-                        return Err(Error::new(
+                    .ok_or_else(|| {
+                        Error::new(
                             eyre!("No manager found for {}", pkg_id),
                             ErrorKind::NotFound,
-                        ))
-                    }
-                    Some(man) => (
-                        if matches!(name, ProcedureName::Main) {
-                            man.gid.new_main_gid()
-                        } else {
-                            man.gid.new_gid()
-                        },
-                        man.rpc_client(),
-                    ),
-                };
+                        )
+                    })?;
+                let gid;
+                let rpc_client = man.rpc_client();
+                let os = Arc::new(ctx.clone());
+                if matches!(name, ProcedureName::Main) {
+                    gid = man.gid.new_main_gid();
+                } else {
+                    gid = man.gid.new_gid();
+                }
 
                 procedure
                     .execute(
@@ -115,6 +114,7 @@ impl PackageProcedure {
                         timeout,
                         gid,
                         rpc_client,
+                        os,
                     )
                     .await
             }

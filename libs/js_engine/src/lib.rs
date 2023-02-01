@@ -1,7 +1,9 @@
 use std::collections::BTreeMap;
+use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Arc;
+use std::task::Poll;
 use std::time::SystemTime;
 
 use deno_core::anyhow::{anyhow, bail};
@@ -11,12 +13,12 @@ use deno_core::{
     ModuleSpecifier, ModuleType, OpDecl, RuntimeOptions, Snapshot,
 };
 use embassy_container_init::ProcessGroupId;
-use helpers::{script_dir, spawn_local, Rsync, UnixRpcClient};
+use helpers::{script_dir, spawn_local, OsApi, Rsync, UnixRpcClient};
 use models::{PackageId, ProcedureName, Version, VolumeId};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::io::AsyncReadExt;
-use tokio::sync::Mutex;
+use tokio::sync::{mpsc, Mutex};
 
 pub trait PathForVolumeId: Send + Sync {
     fn path_for(
@@ -87,6 +89,7 @@ const SNAPSHOT_BYTES: &[u8] = include_bytes!("./artifacts/ARM_JS_SNAPSHOT.bin");
 #[derive(Clone)]
 struct JsContext {
     sandboxed: bool,
+    os: Arc<dyn OsApi>,
     datadir: PathBuf,
     run_function: String,
     version: Version,
@@ -97,6 +100,7 @@ struct JsContext {
     container_process_gid: ProcessGroupId,
     container_rpc_client: Option<Arc<UnixRpcClient>>,
     rsyncs: Arc<Mutex<(usize, BTreeMap<usize, Rsync>)>>,
+    callback_sender: mpsc::UnboundedSender<(String, Value)>,
 }
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -178,6 +182,7 @@ impl ModuleLoader for ModsLoader {
 
 pub struct JsExecutionEnvironment {
     sandboxed: bool,
+    os: Arc<dyn OsApi>,
     base_directory: PathBuf,
     module_loader: ModsLoader,
     package_id: PackageId,
@@ -189,13 +194,14 @@ pub struct JsExecutionEnvironment {
 
 impl JsExecutionEnvironment {
     pub async fn load_from_package(
+        os: Arc<dyn OsApi>,
         data_directory: impl AsRef<std::path::Path>,
         package_id: &PackageId,
         version: &Version,
         volumes: Box<dyn PathForVolumeId>,
         container_process_gid: ProcessGroupId,
         container_rpc_client: Option<Arc<UnixRpcClient>>,
-    ) -> Result<JsExecutionEnvironment, (JsError, String)> {
+    ) -> Result<Self, (JsError, String)> {
         let data_dir = data_directory.as_ref();
         let base_directory = data_dir;
         let js_code = JsCode({
@@ -222,6 +228,7 @@ impl JsExecutionEnvironment {
             buffer
         });
         Ok(JsExecutionEnvironment {
+            os,
             base_directory: base_directory.to_owned(),
             module_loader: ModsLoader { code: js_code },
             package_id: package_id.clone(),
@@ -300,6 +307,7 @@ impl JsExecutionEnvironment {
             fns::rsync::decl(),
             fns::rsync_wait::decl(),
             fns::rsync_progress::decl(),
+            fns::get_service_config::decl(),
         ]
     }
 
@@ -312,7 +320,9 @@ impl JsExecutionEnvironment {
         let base_directory = self.base_directory.clone();
         let answer_state = AnswerState::default();
         let ext_answer_state = answer_state.clone();
+        let (callback_sender, callback_receiver) = mpsc::unbounded_channel();
         let js_ctx = JsContext {
+            os: self.os,
             datadir: base_directory,
             run_function: procedure_name
                 .js_function_name()
@@ -331,6 +341,7 @@ impl JsExecutionEnvironment {
             variable_args,
             container_process_gid: self.container_process_gid,
             container_rpc_client: self.container_rpc_client.clone(),
+            callback_sender,
             rsyncs: Default::default(),
         };
         let ext = Extension::builder()
@@ -349,16 +360,14 @@ impl JsExecutionEnvironment {
             startup_snapshot: Some(Snapshot::Static(SNAPSHOT_BYTES)),
             ..Default::default()
         };
-        let runtime = Arc::new(Mutex::new(JsRuntime::new(runtime_options)));
+        let mut runtime = JsRuntime::new(runtime_options);
 
         let future = async move {
             let mod_id = runtime
-                .lock()
-                .await
                 .load_main_module(&"file:///loadModule.js".parse().unwrap(), None)
                 .await?;
-            let evaluated = runtime.lock().await.mod_evaluate(mod_id);
-            let res = runtime.lock().await.run_event_loop(false).await;
+            let evaluated = runtime.mod_evaluate(mod_id);
+            let res = run_event_loop(&mut runtime, callback_receiver).await;
             res?;
             evaluated.await??;
             Ok::<_, AnyError>(())
@@ -372,6 +381,41 @@ impl JsExecutionEnvironment {
         let answer = answer_state.0.lock().clone();
         Ok(answer)
     }
+}
+
+#[pin_project::pin_project]
+struct RuntimeEventLoop<'a> {
+    runtime: &'a mut JsRuntime,
+    callback: mpsc::UnboundedReceiver<(String, Value)>,
+}
+impl<'a> Future for RuntimeEventLoop<'a> {
+    type Output = Result<(), AnyError>;
+    fn poll(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Self::Output> {
+        let this = self.project();
+        if let Poll::Ready(Some((uuid, value))) = this.callback.poll_recv(cx) {
+            match this
+                .runtime
+                .execute_script("callback", &format!("runCallback({uuid}, {value})"))
+            {
+                Ok(_) => (),
+                Err(e) => return Poll::Ready(Err(e)),
+            }
+        }
+        this.runtime.poll_event_loop(cx, false)
+    }
+}
+async fn run_event_loop(
+    runtime: &mut JsRuntime,
+    callback_receiver: mpsc::UnboundedReceiver<(String, Value)>,
+) -> Result<(), AnyError> {
+    RuntimeEventLoop {
+        runtime,
+        callback: callback_receiver,
+    }
+    .await
 }
 
 /// Note: Make sure that we have the assumption that all these methods are callable at any time, and all call restrictions should be in rust
@@ -391,8 +435,8 @@ mod fns {
         OutputParams, OutputStrategy, ProcessGroupId, ProcessId, RunCommand, RunCommandParams,
         SendSignal, SendSignalParams, SignalGroup, SignalGroupParams,
     };
-    use helpers::{to_tmp_path, AtomicFile, Rsync, RsyncOptions};
-    use models::VolumeId;
+    use helpers::{to_tmp_path, AtomicFile, Rsync, RsyncOptions, RuntimeDropped};
+    use models::{PackageId, VolumeId};
     use serde::{Deserialize, Serialize};
     use serde_json::{json, Value};
     use tokio::io::AsyncWriteExt;
@@ -1181,6 +1225,36 @@ mod fns {
         tokio::time::sleep(Duration::from_millis(time_ms)).await;
 
         Ok(())
+    }
+
+    #[op]
+    async fn get_service_config(
+        state: Rc<RefCell<OpState>>,
+        service_id: PackageId,
+        path: String,
+        callback: String,
+    ) -> Result<ResultType, AnyError> {
+        let state = state.borrow();
+        let ctx = state.borrow::<JsContext>();
+        let sender = ctx.callback_sender.clone();
+        Ok(
+            match ctx
+                .os
+                .get_service_config(
+                    service_id,
+                    &path,
+                    Box::new(move |value| {
+                        sender
+                            .send((callback.clone(), value))
+                            .map_err(|_| RuntimeDropped)
+                    }),
+                )
+                .await
+            {
+                Ok(a) => ResultType::Result(a),
+                Err(e) => ResultType::ErrorCode(e.kind as i32, e.source.to_string()),
+            },
+        )
     }
 
     /// We need to make sure that during the file accessing, we don't reach beyond our scope of control

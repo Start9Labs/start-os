@@ -22,7 +22,6 @@ use tokio::sync::{
     watch::{self, Receiver, Sender},
     Mutex,
 };
-use torut::onion::TorSecretKeyV3;
 use tracing::instrument;
 use transition_state::TransitionState;
 
@@ -40,10 +39,9 @@ use crate::dependencies::{
 use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::guard::TmpMountGuard;
 use crate::install::cleanup::remove_from_current_dependents_lists;
-use crate::net::interface::InterfaceId;
 use crate::net::GeneratedCertificateMountPoint;
 use crate::procedure::docker::{DockerContainer, DockerProcedure, LongRunning};
-use crate::procedure::{NoOutput, PackageProcedure, ProcedureName};
+use crate::procedure::{NoOutput, ProcedureName};
 use crate::s9pk::manifest::Manifest;
 use crate::status::MainStatus;
 use crate::util::NonDetachingJoinHandle;
@@ -92,7 +90,7 @@ impl Default for Gid {
 }
 impl Gid {
     pub fn new_gid(&self) -> ProcessGroupId {
-        let previous;
+        let mut previous = 0;
         self.next_gid.send_modify(|x| {
             previous = *x;
             *x = previous + 1;
@@ -108,7 +106,7 @@ impl Gid {
 }
 
 #[derive(Clone)]
-struct Manager {
+pub struct Manager {
     seed: Arc<ManagerSeed>,
 
     manage_container: Arc<manager_container::ManageContainer>,
@@ -118,16 +116,11 @@ struct Manager {
     pub gid: Arc<Gid>,
 }
 impl Manager {
-    pub async fn new(
-        ctx: RpcContext,
-        manifest: Manifest,
-        tor_keys: BTreeMap<InterfaceId, TorSecretKeyV3>,
-    ) -> Result<Self, Error> {
+    pub async fn new(ctx: RpcContext, manifest: Manifest) -> Result<Self, Error> {
         let seed = Arc::new(ManagerSeed {
             ctx,
             container_name: DockerProcedure::container_name(&manifest.id, None),
             manifest,
-            tor_keys,
         });
 
         let persistent_container = Arc::new(PersistentContainer::init(&seed).await?);
@@ -221,7 +214,9 @@ impl Manager {
     }
 
     pub fn rpc_client(&self) -> Option<Arc<UnixRpcClient>> {
-        self.persistent_container.clone().map(|x| x.rpc_client())
+        (&*self.persistent_container)
+            .as_ref()
+            .map(|x| x.rpc_client())
     }
 
     fn _transition_abort(&self) {
@@ -701,8 +696,7 @@ async fn run_main(
     persistent_container: ManagerPersistentContainer,
     started: Arc<impl Fn()>,
 ) -> RunMainResult {
-    let interfaces = main_interfaces(&seed)?;
-    let generated_certificate = generate_certificate(&seed, &interfaces).await?;
+    let generated_certificate = generate_certificate(&seed).await?;
 
     let mut runtime = NonDetachingJoinHandle::from(tokio::spawn(start_up_image(
         seed.clone(),
@@ -752,35 +746,6 @@ async fn start_up_image(
         .await
 }
 
-fn main_interfaces(
-    seed: &ManagerSeed,
-) -> Result<
-    Vec<(
-        InterfaceId,
-        &crate::net::interface::Interface,
-        TorSecretKeyV3,
-    )>,
-    Error,
-> {
-    seed.manifest
-        .interfaces
-        .0
-        .iter()
-        .map(|(id, info)| {
-            Ok((
-                id.clone(),
-                info,
-                seed.tor_keys
-                    .get(id)
-                    .ok_or_else(|| {
-                        Error::new(eyre!("interface {} missing key", id), crate::ErrorKind::Tor)
-                    })?
-                    .clone(),
-            ))
-        })
-        .collect::<Result<Vec<_>, Error>>()
-}
-
 async fn long_running_docker(
     seed: &ManagerSeed,
     container: &DockerContainer,
@@ -795,19 +760,8 @@ async fn long_running_docker(
         .await
 }
 
-async fn generate_certificate(
-    seed: &ManagerSeed,
-    interfaces: &Vec<(
-        InterfaceId,
-        &crate::net::interface::Interface,
-        TorSecretKeyV3,
-    )>,
-) -> Result<GeneratedCertificateMountPoint, Error> {
+async fn generate_certificate(seed: &ManagerSeed) -> Result<GeneratedCertificateMountPoint, Error> {
     todo!()
-    // seed.ctx
-    //     .net_controller
-    //     .generate_certificate_mountpoint(&seed.manifest.id, interfaces)
-    //     .await
 }
 enum GetRunningIp {
     Ip(Ipv4Addr),
@@ -989,6 +943,7 @@ async fn send_signal(
                 None, // TODO
                 next_gid,
                 Some(rpc_client),
+                Arc::new(seed.ctx.clone()),
             )
             .await?
         {
