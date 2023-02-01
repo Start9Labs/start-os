@@ -326,9 +326,9 @@ fn configure(
     mut configure_context: ConfigureContext,
 ) -> BoxFuture<'static, Result<BTreeMap<PackageId, TaggedDependencyError>, Error>> {
     async move {
-        let db = ctx.db.handle();
-        let tx = db.begin().await?;
-        let db = &mut tx;
+        let mut db = ctx.db.handle();
+        let mut tx = db.begin().await?;
+        let mut db = &mut tx;
 
         let receipts = ConfigReceipts::new(db).await?;
         let id = &id;
