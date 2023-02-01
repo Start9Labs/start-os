@@ -18,19 +18,23 @@
         </ion-menu>
 
         <ion-menu
+          *ngIf="enableWidgets"
           contentId="main-content"
           type="overlay"
           side="end"
           class="right-menu"
           [class.right-menu_hidden]="!(widgets$ | async)"
-          tuiResizeable
-          [style.--side-width.px]="width$ | async"
+          [style.--side-width.px]="width"
         >
-          <div
-            class="divider"
-            [tuiResizer]="[-1, 0]"
-            (tuiSizeChange)="onResize($event)"
-          ></div>
+          <div class="divider">
+            <button
+              class="widgets-button"
+              [class.widgets-button_collapse]="width === 600"
+              (click)="onResize()"
+            >
+              Toggle
+            </button>
+          </div>
           <widgets *ngIf="widgets$ | async"></widgets>
         </ion-menu>
 

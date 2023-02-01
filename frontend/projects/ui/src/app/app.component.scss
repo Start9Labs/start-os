@@ -32,6 +32,7 @@ tui-root {
 .divider {
   height: 100%;
   width: 10px;
+  pointer-events: none;
 
   position: absolute;
   left: 0;
@@ -44,7 +45,66 @@ tui-root {
   opacity: 0.2;
   transition: opacity 0.3s;
 
+  &:before,
+  &:after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    margin-top: -78px;
+    left: 10px;
+    width: 60px;
+    height: 50px;
+    border-bottom-left-radius: 14px;
+    box-shadow: -10px 0 0 -1px #e2e2e2;
+  }
+
+  &:after {
+    margin-top: 29px;
+    border-radius: 0;
+    border-top-left-radius: 14px;
+  }
+
   &:hover {
     opacity: 0.4;
+  }
+}
+
+.widgets-button {
+  position: absolute;
+  top: 50%;
+  font-size: 0;
+  left: 100%;
+  width: 16px;
+  height: 60px;
+  margin-top: -30px;
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;
+  background: inherit;
+  pointer-events: auto;
+
+  &:before,
+  &:after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 3px;
+    width: 2px;
+    height: 8px;
+    background: black;
+    transform: rotate(-45deg);
+    border-radius: 2px;
+  }
+
+  &:before {
+    margin-top: -6px;
+    transform: rotate(45deg);
+  }
+
+  &_collapse:before {
+    transform: rotate(-45deg);
+  }
+
+  &_collapse:after {
+    transform: rotate(45deg);
   }
 }

@@ -1,14 +1,16 @@
-<ion-button class="widgets" color="dark" (click)="onWidgets()">
-  <ion-icon name="grid-outline"></ion-icon>
-</ion-button>
-<ion-button
-  *ngIf="!(widgets$ | async)"
-  class="sidebar"
-  color="dark"
-  (click)="onSidebar()"
->
-  <ion-icon name="grid-outline"></ion-icon>
-</ion-button>
+<ng-container *ngIf="enableWidgets">
+  <ion-button class="widgets" color="dark" (click)="onWidgets()">
+    <ion-icon name="grid-outline"></ion-icon>
+  </ion-button>
+  <ion-button
+    *ngIf="!(widgets$ | async)"
+    class="sidebar"
+    color="dark"
+    (click)="onSidebar()"
+  >
+    <ion-icon name="grid-outline"></ion-icon>
+  </ion-button>
+</ng-container>
 <div class="wrapper">
   <ion-badge
     *ngIf="!(sidebarOpen$ | async) && (unreadCount$ | async) as unreadCount"

@@ -5,6 +5,10 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TuiDialogService } from '@taiga-ui/core'
 import { WIDGETS_COMPONENT } from '../../pages/widgets/widgets.page'
 import { WidgetsService } from '../../pages/widgets/built-in/widgets.service'
+import { WorkspaceConfig } from '@start9labs/shared'
+
+const { enableWidgets } =
+  require('../../../../../../config.json') as WorkspaceConfig
 
 @Component({
   selector: 'badge-menu-button',
@@ -18,6 +22,8 @@ export class BadgeMenuComponent {
     'unread-notification-count',
   )
   readonly sidebarOpen$ = this.splitPane.sidebarOpen$
+
+  readonly enableWidgets = enableWidgets
 
   constructor(
     private readonly splitPane: SplitPaneTracker,
