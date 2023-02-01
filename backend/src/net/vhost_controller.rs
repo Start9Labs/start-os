@@ -159,7 +159,7 @@ impl VHostServer {
                                                                 &tokio_rustls::rustls::Certificate(
                                                                     key.root_ca().to_der()?,
                                                                 ),
-                                                            );
+                                                            ).with_kind(crate::ErrorKind::OpenSsl)?;
                                                             store
                                                         })
                                                         .with_no_client_auth(),

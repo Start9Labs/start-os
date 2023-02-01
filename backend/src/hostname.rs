@@ -64,11 +64,8 @@ pub async fn set_hostname(hostname: &Hostname) -> Result<(), Error> {
     Ok(())
 }
 
-#[instrument(skip(handle))]
-pub async fn sync_hostname<Db: DbHandle>(
-    handle: &mut Db,
-    account: &AccountInfo,
-) -> Result<(), Error> {
+#[instrument]
+pub async fn sync_hostname(account: &AccountInfo) -> Result<(), Error> {
     set_hostname(&account.hostname).await?;
     Command::new("systemctl")
         .arg("restart")

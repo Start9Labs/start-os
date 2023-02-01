@@ -1116,13 +1116,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
     tracing::info!("Install {}@{}: Installed interfaces", pkg_id, version);
 
     tracing::info!("Install {}@{}: Creating manager", pkg_id, version);
-    ctx.managers
-        .add(
-            ctx.clone(),
-            manifest.clone(),
-            assure_send(async { todo!("remove this argument") }).await,
-        )
-        .await?;
+    ctx.managers.add(ctx.clone(), manifest.clone()).await?;
     tracing::info!("Install {}@{}: Created manager", pkg_id, version);
 
     let static_files = StaticFiles::local(pkg_id, version, manifest.assets.icon_type());

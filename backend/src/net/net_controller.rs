@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::fmt::Debug;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::{Arc, Weak};
 
@@ -191,12 +190,6 @@ impl NetController {
         self.mdns.gc(key.base_address()).await?;
         self.vhost.gc(Some(key.local_address()), external).await
     }
-}
-
-#[derive(Clone, Copy, Debug)]
-struct PortMapping {
-    external: u16,
-    internal: u16,
 }
 
 pub struct NetService {
