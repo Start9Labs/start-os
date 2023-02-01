@@ -1,6 +1,5 @@
 use bollard::container::StopContainerOptions;
 
-use super::sigterm_timeout;
 use crate::context::RpcContext;
 use crate::s9pk::manifest::Manifest;
 use crate::Error;
@@ -19,7 +18,11 @@ impl ManagerSeed {
             .stop_container(
                 &self.container_name,
                 Some(StopContainerOptions {
-                    t: sigterm_timeout(&self.manifest)
+                    t: self
+                        .manifest
+                        .containers
+                        .as_ref()
+                        .and_then(|c| c.main.sigterm_timeout)
                         .map(|d| d.as_secs())
                         .unwrap_or(30) as i64,
                 }),
