@@ -1,7 +1,7 @@
 use crate::status::MainStatus;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum StartStop {
+pub enum StartStop {
     Start,
     Stop,
 }

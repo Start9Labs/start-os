@@ -5,12 +5,10 @@ use color_eyre::eyre::eyre;
 use patch_db::DbHandle;
 use sqlx::{Executor, Postgres};
 use tokio::sync::RwLock;
-use torut::onion::TorSecretKeyV3;
 use tracing::instrument;
 
 use super::Manager;
 use crate::context::RpcContext;
-use crate::net::interface::InterfaceId;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::util::Version;
 use crate::Error;
@@ -48,10 +46,9 @@ impl ManagerMap {
                 continue;
             };
 
-            let tor_keys = man.interfaces.tor_keys(secrets, &package).await?;
             res.insert(
                 (package, man.version.clone()),
-                Arc::new(Manager::new(ctx.clone(), man, tor_keys).await?),
+                Arc::new(Manager::new(ctx.clone(), man).await?),
             );
         }
         *self.0.write().await = res;
@@ -59,18 +56,13 @@ impl ManagerMap {
     }
 
     #[instrument(skip_all)]
-    pub async fn add(
-        &self,
-        ctx: RpcContext,
-        manifest: Manifest,
-        tor_keys: BTreeMap<InterfaceId, TorSecretKeyV3>,
-    ) -> Result<(), Error> {
+    pub async fn add(&self, ctx: RpcContext, manifest: Manifest) -> Result<(), Error> {
         let mut lock = self.0.write().await;
         let id = (manifest.id.clone(), manifest.version.clone());
         if let Some(man) = lock.remove(&id) {
             man.exit().await;
         }
-        lock.insert(id, Arc::new(Manager::new(ctx, manifest, tor_keys).await?));
+        lock.insert(id, Arc::new(Manager::new(ctx, manifest).await?));
         Ok(())
     }
 
