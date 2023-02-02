@@ -49,6 +49,7 @@ use crate::volume::Volume;
 use crate::Error;
 
 pub mod health;
+mod js_api;
 mod manager_container;
 mod manager_map;
 pub mod manager_seed;
@@ -205,8 +206,8 @@ impl Manager {
     pub async fn signal(&self, signal: Signal) -> Result<(), Error> {
         let rpc_client = self.rpc_client();
         let seed = self.seed.clone();
-        let git = self.gid.clone();
-        send_signal(rpc_client, seed, git, signal).await
+        let gid = self.gid.clone();
+        send_signal(self, gid, signal).await
     }
 
     pub fn rpc_client(&self) -> Option<Arc<UnixRpcClient>> {
@@ -884,28 +885,23 @@ async fn get_running_ip(seed: &ManagerSeed, mut runtime: &mut RuntimeOfCommand) 
     }
 }
 
-async fn send_signal(
-    rpc_client: Option<Arc<UnixRpcClient>>,
-    seed: Arc<ManagerSeed>,
-    gid: Arc<Gid>,
-    signal: Signal,
-) -> Result<(), Error> {
+async fn send_signal(manager: &Manager, gid: Arc<Gid>, signal: Signal) -> Result<(), Error> {
     // stop health checks from committing their results
     // shared
     //     .commit_health_check_results
     //     .store(false, Ordering::SeqCst);
 
-    if let Some(rpc_client) = rpc_client {
+    if let Some(rpc_client) = manager.rpc_client() {
         let main_gid = *gid.main_gid.borrow();
         let next_gid = gid.new_gid();
         #[cfg(feature = "js_engine")]
         if let Err(e) = crate::procedure::js_scripts::JsProcedure::default()
             .execute::<_, NoOutput>(
-                &seed.ctx.datadir,
-                &seed.manifest.id,
-                &seed.manifest.version,
+                &manager.seed.ctx.datadir,
+                &manager.seed.manifest.id,
+                &manager.seed.manifest.version,
                 ProcedureName::Signal,
-                &seed.manifest.volumes,
+                &manager.seed.manifest.volumes,
                 Some(embassy_container_init::SignalGroupParams {
                     gid: main_gid,
                     signal: signal as u32,
@@ -913,7 +909,7 @@ async fn send_signal(
                 None, // TODO
                 next_gid,
                 Some(rpc_client),
-                Arc::new(seed.ctx.clone()),
+                Arc::new(manager.clone()),
             )
             .await?
         {
@@ -922,10 +918,12 @@ async fn send_signal(
         }
     } else {
         // send signal to container
-        seed.ctx
+        manager
+            .seed
+            .ctx
             .docker
             .kill_container(
-                &seed.container_name,
+                &manager.seed.container_name,
                 Some(bollard::container::KillContainerOptions {
                     signal: signal.to_string(),
                 }),
