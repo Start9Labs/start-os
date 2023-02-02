@@ -1,5 +1,4 @@
 use std::collections::BTreeSet;
-use std::sync::Arc;
 use std::time::Duration;
 
 use color_eyre::eyre::eyre;
@@ -96,7 +95,6 @@ impl PackageProcedure {
                     })?;
                 let gid;
                 let rpc_client = man.rpc_client();
-                let os = Arc::new(ctx.clone());
                 if matches!(name, ProcedureName::Main) {
                     gid = man.gid.new_main_gid();
                 } else {
@@ -114,7 +112,7 @@ impl PackageProcedure {
                         timeout,
                         gid,
                         rpc_client,
-                        os,
+                        man,
                     )
                     .await
             }
