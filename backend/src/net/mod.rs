@@ -22,17 +22,12 @@ pub mod vhost_controller;
 pub mod web_server;
 pub mod wifi;
 
-const PACKAGE_CERT_PATH: &str = "/var/lib/embassy/ssl";
+pub const PACKAGE_CERT_PATH: &str = "/var/lib/embassy/ssl";
 
 #[command(subcommands(tor::tor, dhcp::dhcp))]
 pub fn net() -> Result<(), Error> {
     Ok(())
 }
-
-/// Indicates that the net controller has created the
-/// SSL keys
-#[derive(Clone, Copy)]
-pub struct GeneratedCertificateMountPoint(());
 
 pub type HttpHandler = Arc<
     dyn Fn(Request<Body>) -> BoxFuture<'static, Result<Response<Body>, HyperError>> + Send + Sync,
