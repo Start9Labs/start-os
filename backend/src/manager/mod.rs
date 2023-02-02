@@ -14,6 +14,7 @@ use nix::sys::signal::Signal;
 use patch_db::DbHandle;
 use persistent_container::PersistentContainer;
 use rand::SeedableRng;
+use sqlx::Connection;
 use start_stop::StartStop;
 use tokio::sync::oneshot;
 use tokio::sync::{
@@ -37,12 +38,13 @@ use crate::dependencies::{
 use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::guard::TmpMountGuard;
 use crate::install::cleanup::remove_from_current_dependents_lists;
-use crate::net::GeneratedCertificateMountPoint;
+use crate::net::net_controller::NetService;
 use crate::procedure::docker::{DockerContainer, DockerProcedure, LongRunning};
 use crate::procedure::{NoOutput, ProcedureName};
 use crate::s9pk::manifest::Manifest;
 use crate::status::MainStatus;
 use crate::util::NonDetachingJoinHandle;
+use crate::volume::Volume;
 use crate::Error;
 
 pub mod health;
@@ -665,12 +667,7 @@ async fn run_main(
     persistent_container: ManagerPersistentContainer,
     started: Arc<impl Fn()>,
 ) -> RunMainResult {
-    let generated_certificate = generate_certificate(&seed).await?;
-
-    let mut runtime = NonDetachingJoinHandle::from(tokio::spawn(start_up_image(
-        seed.clone(),
-        generated_certificate,
-    )));
+    let mut runtime = NonDetachingJoinHandle::from(tokio::spawn(start_up_image(seed.clone())));
     let ip = match persistent_container.is_some() {
         false => Some(match get_running_ip(&seed, &mut runtime).await {
             GetRunningIp::Ip(x) => x,
@@ -680,27 +677,26 @@ async fn run_main(
         true => None,
     };
 
-    if let Some(ip) = ip {
-        add_network_for_main(&seed, ip, generated_certificate).await?;
-    }
+    let svc = if let Some(ip) = ip {
+        Some(add_network_for_main(&seed, ip).await?)
+    } else {
+        None
+    };
     started();
     let health = main_health_check_daemon(seed.clone());
     let res = tokio::select! {
         a = runtime => a.map_err(|_| Error::new(eyre!("Manager runtime panicked!"), crate::ErrorKind::Docker)).and_then(|a| a),
         _ = health => Err(Error::new(eyre!("Health check daemon exited!"), crate::ErrorKind::Unknown))
     };
-    if let Some(ip) = ip {
-        remove_network_for_main(&seed, ip).await?;
+    if let Some(svc) = svc {
+        remove_network_for_main(svc).await?;
     }
     res
 }
 
 /// We want to start up the manifest, but in this case we want to know that we have generated the certificates.
 /// Note for _generated_certificate: Needed to know that before we start the state we have generated the certificate
-async fn start_up_image(
-    seed: Arc<ManagerSeed>,
-    _generated_certificate: GeneratedCertificateMountPoint,
-) -> Result<Result<NoOutput, (i32, String)>, Error> {
+async fn start_up_image(seed: Arc<ManagerSeed>) -> Result<Result<NoOutput, (i32, String)>, Error> {
     seed.manifest
         .main
         .execute::<(), NoOutput>(
@@ -729,9 +725,6 @@ async fn long_running_docker(
         .await
 }
 
-async fn generate_certificate(seed: &ManagerSeed) -> Result<GeneratedCertificateMountPoint, Error> {
-    todo!()
-}
 enum GetRunningIp {
     Ip(Ipv4Addr),
     Error(Error),
@@ -788,23 +781,36 @@ async fn container_inspect(
 async fn add_network_for_main(
     seed: &ManagerSeed,
     ip: std::net::Ipv4Addr,
-    generated_certificate: GeneratedCertificateMountPoint,
-) -> Result<(), Error> {
-    // seed.ctx
-    //     .net_controller
-    //     .add(
-    //         &mut seed.ctx.secret_store.acquire().await?,
-    //         &seed.manifest.id,
-    //         ip,
-    //         interfaces,
-    //         generated_certificate,
-    //     )
-    //     .await?;
-    todo!()
+) -> Result<NetService, Error> {
+    let mut svc = seed
+        .ctx
+        .net_controller
+        .create_service(seed.manifest.id.clone(), ip)
+        .await?;
+    // DEPRECATED
+    let mut secrets = seed.ctx.secret_store.acquire().await?;
+    let mut tx = secrets.begin().await?;
+    for (id, interface) in &seed.manifest.interfaces.0 {
+        for (external, internal) in interface.lan_config.iter().flatten() {
+            svc.add_lan(&mut tx, id.clone(), external.0, internal.internal, false)
+                .await?;
+        }
+        for (external, internal) in interface.tor_config.iter().flat_map(|t| &t.port_mapping) {
+            svc.add_tor(&mut tx, id.clone(), external.0, internal.0)
+                .await?;
+        }
+    }
+    for volume in seed.manifest.volumes.values() {
+        if let Volume::Certificate { interface_id } = volume {
+            svc.export_cert(&mut tx, interface_id).await?;
+        }
+    }
+    tx.commit().await?;
+    Ok(svc)
 }
 
-async fn remove_network_for_main(seed: &ManagerSeed, ip: std::net::Ipv4Addr) -> Result<(), Error> {
-    todo!()
+async fn remove_network_for_main(svc: NetService) -> Result<(), Error> {
+    svc.remove_all().await
 }
 
 async fn main_health_check_daemon(seed: Arc<ManagerSeed>) {

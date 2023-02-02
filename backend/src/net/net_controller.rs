@@ -7,15 +7,17 @@ use models::InterfaceId;
 use sqlx::PgExecutor;
 use tracing::instrument;
 
+use crate::error::ErrorCollection;
 use crate::hostname::Hostname;
 use crate::net::dns::DnsController;
 use crate::net::keys::Key;
 #[cfg(feature = "avahi")]
 use crate::net::mdns::MdnsController;
-use crate::net::ssl::SslManager;
+use crate::net::ssl::{export_cert, SslManager};
 use crate::net::tor::TorController;
 use crate::net::vhost_controller::VHostController;
 use crate::s9pk::manifest::PackageId;
+use crate::volume::cert_dir;
 use crate::{Error, HOST_IP};
 
 pub struct NetController {
@@ -137,7 +139,7 @@ impl NetController {
         Ok(NetService {
             id: package,
             ip,
-            dns: Some(dns),
+            dns,
             controller: Arc::downgrade(self),
             tor: BTreeMap::new(),
             lan: BTreeMap::new(),
@@ -195,12 +197,20 @@ impl NetController {
 pub struct NetService {
     id: PackageId,
     ip: Ipv4Addr,
-    dns: Option<Arc<()>>,
+    dns: Arc<()>,
     controller: Weak<NetController>,
-    tor: BTreeMap<(InterfaceId, u16), Vec<Arc<()>>>,
-    lan: BTreeMap<(InterfaceId, u16), Vec<Arc<()>>>,
+    tor: BTreeMap<(InterfaceId, u16), (Key, Vec<Arc<()>>)>,
+    lan: BTreeMap<(InterfaceId, u16), (Key, Vec<Arc<()>>)>,
 }
 impl NetService {
+    fn net_controller(&self) -> Result<Arc<NetController>, Error> {
+        Weak::upgrade(&self.controller).ok_or_else(|| {
+            Error::new(
+                eyre!("NetController is shutdown"),
+                crate::ErrorKind::Network,
+            )
+        })
+    }
     pub async fn add_tor<Ex>(
         &mut self,
         secrets: &mut Ex,
@@ -212,46 +222,26 @@ impl NetService {
         for<'a> &'a mut Ex: PgExecutor<'a>,
     {
         let key = Key::for_interface(secrets, Some((self.id.clone(), id.clone()))).await?;
-        if let Some(ctrl) = Weak::upgrade(&self.controller) {
-            let tor_idx = (id, external);
-            let mut tor = self.tor.remove(&tor_idx).unwrap_or_default();
-            tor.append(
-                &mut ctrl
-                    .add_tor(&key, external, SocketAddr::new(self.ip.into(), internal))
-                    .await?,
-            );
-            self.tor.insert(tor_idx, tor);
-            Ok(())
-        } else {
-            Err(Error::new(
-                eyre!("NetController is shutdown"),
-                crate::ErrorKind::Network,
-            ))
-        }
+        let ctrl = self.net_controller()?;
+        let tor_idx = (id, external);
+        let mut tor = self
+            .tor
+            .remove(&tor_idx)
+            .unwrap_or_else(|| (key.clone(), Vec::new()));
+        tor.1.append(
+            &mut ctrl
+                .add_tor(&key, external, SocketAddr::new(self.ip.into(), internal))
+                .await?,
+        );
+        self.tor.insert(tor_idx, tor);
+        Ok(())
     }
-    pub async fn remove_tor<Ex>(
-        &mut self,
-        secrets: &mut Ex,
-        id: InterfaceId,
-        external: u16,
-    ) -> Result<(), Error>
-    where
-        for<'a> &'a mut Ex: PgExecutor<'a>,
-    {
-        let key = Key::for_interface(secrets, Some((self.id.clone(), id.clone()))).await?;
-        if let Some(ctrl) = Weak::upgrade(&self.controller) {
-            ctrl.remove_tor(
-                &key,
-                external,
-                self.tor.remove(&(id, external)).unwrap_or_default(),
-            )
-            .await
-        } else {
-            Err(Error::new(
-                eyre!("NetController is shutdown"),
-                crate::ErrorKind::Network,
-            ))
+    pub async fn remove_tor(&mut self, id: InterfaceId, external: u16) -> Result<(), Error> {
+        let ctrl = self.net_controller()?;
+        if let Some((key, rcs)) = self.tor.remove(&(id, external)) {
+            ctrl.remove_tor(&key, external, rcs).await?;
         }
+        Ok(())
     }
     pub async fn add_lan<Ex>(
         &mut self,
@@ -265,21 +255,54 @@ impl NetService {
         for<'a> &'a mut Ex: PgExecutor<'a>,
     {
         let key = Key::for_interface(secrets, Some((self.id.clone(), id.clone()))).await?;
+        let ctrl = self.net_controller()?;
+        let lan_idx = (id, external);
+        let mut lan = self
+            .lan
+            .remove(&lan_idx)
+            .unwrap_or_else(|| (key.clone(), Vec::new()));
+        lan.1.append(
+            &mut ctrl
+                .add_lan(
+                    key,
+                    external,
+                    SocketAddr::new(self.ip.into(), internal),
+                    connect_ssl,
+                )
+                .await?,
+        );
+        self.lan.insert(lan_idx, lan);
+        Ok(())
+    }
+    pub async fn remove_lan(&mut self, id: InterfaceId, external: u16) -> Result<(), Error> {
+        let ctrl = self.net_controller()?;
+        if let Some((key, rcs)) = self.lan.remove(&(id, external)) {
+            ctrl.remove_lan(&key, external, rcs).await?;
+        }
+        Ok(())
+    }
+    pub async fn export_cert<Ex>(&self, secrets: &mut Ex, id: &InterfaceId) -> Result<(), Error>
+    where
+        for<'a> &'a mut Ex: PgExecutor<'a>,
+    {
+        let key = Key::for_interface(secrets, Some((self.id.clone(), id.clone()))).await?;
+        let ctrl = self.net_controller()?;
+        let cert = ctrl.ssl.with_cert(key).await?;
+        export_cert(&cert.fullchain(), &cert_dir(&self.id, id)).await?;
+        Ok(())
+    }
+    pub async fn remove_all(mut self) -> Result<(), Error> {
+        let mut errors = ErrorCollection::new();
         if let Some(ctrl) = Weak::upgrade(&self.controller) {
-            let lan_idx = (id, external);
-            let mut lan = self.lan.remove(&lan_idx).unwrap_or_default();
-            lan.append(
-                &mut ctrl
-                    .add_lan(
-                        key,
-                        external,
-                        SocketAddr::new(self.ip.into(), internal),
-                        connect_ssl,
-                    )
-                    .await?,
-            );
-            self.lan.insert(lan_idx, lan);
-            Ok(())
+            for ((_, external), (key, rcs)) in std::mem::take(&mut self.lan) {
+                errors.handle(ctrl.remove_lan(&key, external, rcs).await);
+            }
+            for ((_, external), (key, rcs)) in std::mem::take(&mut self.tor) {
+                errors.handle(ctrl.remove_tor(&key, external, rcs).await);
+            }
+            std::mem::take(&mut self.dns);
+            errors.handle(ctrl.dns.gc(Some(self.id.clone()), self.ip).await);
+            errors.into_result()
         } else {
             Err(Error::new(
                 eyre!("NetController is shutdown"),
@@ -287,28 +310,21 @@ impl NetService {
             ))
         }
     }
-    pub async fn remove_lan<Ex>(
-        &mut self,
-        secrets: &mut Ex,
-        id: InterfaceId,
-        external: u16,
-    ) -> Result<(), Error>
-    where
-        for<'a> &'a mut Ex: PgExecutor<'a>,
-    {
-        let key = Key::for_interface(secrets, Some((self.id.clone(), id.clone()))).await?;
-        if let Some(ctrl) = Weak::upgrade(&self.controller) {
-            ctrl.remove_lan(
-                &key,
-                external,
-                self.lan.remove(&(id, external)).unwrap_or_default(),
-            )
-            .await
-        } else {
-            Err(Error::new(
-                eyre!("NetController is shutdown"),
-                crate::ErrorKind::Network,
-            ))
-        }
+}
+
+impl Drop for NetService {
+    fn drop(&mut self) {
+        let svc = std::mem::replace(
+            self,
+            NetService {
+                id: Default::default(),
+                ip: [0, 0, 0, 0].into(),
+                dns: Default::default(),
+                controller: Default::default(),
+                tor: Default::default(),
+                lan: Default::default(),
+            },
+        );
+        tokio::spawn(async move { svc.remove_all().await.unwrap() });
     }
 }

@@ -87,7 +87,7 @@ pub async fn export_key(key: &PKey<Private>, target: &Path) -> Result<(), Error>
         .await?;
     Ok(())
 }
-pub async fn export_cert(chain: &Vec<X509>, target: &Path) -> Result<(), Error> {
+pub async fn export_cert(chain: &[&X509], target: &Path) -> Result<(), Error> {
     tokio::fs::write(
         target,
         chain
