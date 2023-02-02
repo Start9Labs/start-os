@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use color_eyre::eyre::eyre;
 use embassy_container_init::{ProcessGroupId, SignalGroup, SignalGroupParams};
-use helpers::{Callback, OsApi, UnixRpcClient};
+use helpers::{OsApi, UnixRpcClient};
 pub use js_engine::JsError;
 use js_engine::{JsExecutionEnvironment, PathForVolumeId};
 use models::{ErrorKind, VolumeId};
@@ -18,18 +18,6 @@ use crate::s9pk::manifest::PackageId;
 use crate::util::{GeneralGuard, Version};
 use crate::volume::Volumes;
 use crate::Error;
-
-#[async_trait::async_trait]
-impl OsApi for RpcContext {
-    async fn get_service_config(
-        &self,
-        id: PackageId,
-        path: &str,
-        callback: Callback,
-    ) -> Result<serde_json::Value, Error> {
-        todo!()
-    }
-}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "kebab-case")]
@@ -56,6 +44,12 @@ impl PathForVolumeId for Volumes {
         self.get(volume_id).map(|x| x.readonly()).unwrap_or(false)
     }
 }
+
+struct SandboxOsApi {
+    _ctx: RpcContext,
+}
+#[async_trait::async_trait]
+impl OsApi for SandboxOsApi {}
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -138,7 +132,7 @@ impl JsProcedure {
     ) -> Result<Result<O, (i32, String)>, Error> {
         Ok(async move {
             let running_action = JsExecutionEnvironment::load_from_package(
-                Arc::new(ctx.clone()),
+                Arc::new(SandboxOsApi { _ctx: ctx.clone() }),
                 &ctx.datadir,
                 pkg_id,
                 pkg_version,
