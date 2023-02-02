@@ -1,15 +1,14 @@
 <ion-header>
   <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-back-button defaultHref="system"></ion-back-button>
-    </ion-buttons>
     <ion-title>Backups</ion-title>
+    <ion-buttons slot="end">
+      <badge-menu-button></badge-menu-button>
+    </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
 <ion-content class="ion-padding">
   <ion-item-group>
-    <ion-item-divider>Create or Restore</ion-item-divider>
     <ion-item button backupCreate>
       <ion-icon slot="start" name="duplicate-outline"></ion-icon>
       <ion-label>
@@ -24,6 +23,19 @@
         <p>Restore one or more services from backup</p>
       </ion-label>
     </ion-item>
-    <!-- <backup-jobs></backup-jobs> -->
+    <ion-item button routerLink="jobs">
+      <ion-icon slot="start" name="construct-outline"></ion-icon>
+      <ion-label>
+        <h2>Backup Jobs</h2>
+        <p>Create, edit, and delete scheduled backups</p>
+      </ion-label>
+    </ion-item>
+    <ion-item button routerLink="targets">
+      <ion-icon slot="start" name="cloud-upload-outline"></ion-icon>
+      <ion-label>
+        <h2>Backup Targets</h2>
+        <p>Create, edit, and delete backup targets</p>
+      </ion-label>
+    </ion-item>
   </ion-item-group>
 </ion-content>

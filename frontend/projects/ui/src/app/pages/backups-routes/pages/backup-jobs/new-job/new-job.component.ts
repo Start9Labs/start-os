@@ -1,13 +1,10 @@
 import { Component, Input } from '@angular/core'
-import {
-  CifsBackupTarget,
-  DiskBackupTarget,
-} from 'src/app/services/api/api.types'
+import { BackupTarget } from 'src/app/services/api/api.types'
 import { ModalController } from '@ionic/angular'
-import { BackupSelectPage } from 'src/app/pages/server-routes/backups/components/backup-select/backup-select.page'
-import { BackupDrivesComponent } from '../backup-drives/backup-drives.component'
+import { BackupSelectPage } from 'src/app/pages/backups-routes/modals/backup-select/backup-select.page'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { MappedBackupTarget } from 'src/app/types/mapped-backup-target'
+import { TargetSelectPage } from '../../../modals/target-select/target-select.page'
+import { WithId } from '../../backup-targets/backup-targets.page'
 
 export interface NewJobProps {
   count: number
@@ -42,16 +39,14 @@ export class NewJobComponent {
   async presentModalTarget() {
     const modal = await this.modalCtrl.create({
       presentingElement: await this.modalCtrl.getTop(),
-      component: BackupDrivesComponent,
+      component: TargetSelectPage,
     })
 
-    modal
-      .onWillDismiss<MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>>()
-      .then(res => {
-        if (res.data) {
-          this.job.target = res.data
-        }
-      })
+    modal.onWillDismiss<WithId<BackupTarget>>().then(res => {
+      if (res.data) {
+        this.job.target = res.data
+      }
+    })
 
     await modal.present()
   }
@@ -81,7 +76,7 @@ export class NewJobComponent {
 
 export class BackupJob {
   name = ''
-  target?: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>
+  target?: WithId<BackupTarget>
   cron = '0 2 * * *' // '* * * * * *' https://cloud.google.com/scheduler/docs/configuring/cron-job-schedules
   'package-ids' = []
   now = false

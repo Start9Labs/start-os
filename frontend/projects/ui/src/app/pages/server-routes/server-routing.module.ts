@@ -10,11 +10,6 @@ const routes: Routes = [
       ),
   },
   {
-    path: 'backups',
-    loadChildren: () =>
-      import('./backups/backups.module').then(m => m.BackupsPageModule),
-  },
-  {
     path: 'lan',
     loadChildren: () => import('./lan/lan.module').then(m => m.LANPageModule),
   },

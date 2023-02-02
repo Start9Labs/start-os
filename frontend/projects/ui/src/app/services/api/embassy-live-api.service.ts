@@ -296,7 +296,7 @@ export class LiveApiService extends ApiService {
   async addBackupTarget(
     params: RR.AddBackupTargetReq,
   ): Promise<RR.AddBackupTargetRes> {
-    params.path = params.path.replace('/\\/g', '/')
+    if (params['path']) params['path'] = params['path'].replace('/\\/g', '/')
     return this.rpcRequest({ method: 'backup.target.cifs.add', params })
   }
 

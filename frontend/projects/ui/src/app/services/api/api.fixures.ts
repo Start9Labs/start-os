@@ -618,6 +618,7 @@ export module Mock {
       used: 100000000000,
       model: null,
       vendor: 'SSK',
+      mountable: true,
       'embassy-os': {
         version: '0.3.0',
         full: true,

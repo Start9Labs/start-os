@@ -9,15 +9,15 @@ import {
   GenericInputComponent,
   GenericInputOptions,
 } from 'src/app/modals/generic-input/generic-input.component'
-import { MappedBackupTarget } from 'src/app/types/mapped-backup-target'
 import {
   BackupInfo,
   CifsBackupTarget,
   DiskBackupTarget,
 } from 'src/app/services/api/api.types'
-import { RecoverSelectPage } from 'src/app/pages/server-routes/backups/components/recover-select/recover-select.page'
+import { RecoverSelectPage } from 'src/app/pages/backups-routes/modals/recover-select/recover-select.page'
 import * as argon2 from '@start9labs/argon2'
-import { BackupDrivesComponent } from '../components/backup-drives/backup-drives.component'
+import { TargetSelectPage } from '../modals/target-select/target-select.page'
+import { WithId } from '../pages/backup-targets/backup-targets.page'
 
 @Directive({
   selector: '[backupRestore]',
@@ -37,12 +37,12 @@ export class BackupRestoreDirective {
   async presentModalTarget() {
     const modal = await this.modalCtrl.create({
       presentingElement: await this.modalCtrl.getTop(),
-      component: BackupDrivesComponent,
+      component: TargetSelectPage,
       componentProps: { type: 'restore' },
     })
 
     modal
-      .onDidDismiss<MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>>()
+      .onDidDismiss<WithId<CifsBackupTarget | DiskBackupTarget>>()
       .then(res => {
         if (res.data) {
           this.presentModalPassword(res.data)
@@ -53,7 +53,7 @@ export class BackupRestoreDirective {
   }
 
   async presentModalPassword(
-    target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>,
+    target: WithId<CifsBackupTarget | DiskBackupTarget>,
   ): Promise<void> {
     const options: GenericInputOptions = {
       title: 'Password Required',
@@ -64,7 +64,7 @@ export class BackupRestoreDirective {
       useMask: true,
       buttonText: 'Next',
       submitFn: async (password: string) => {
-        const passwordHash = target.entry['embassy-os']?.['password-hash'] || ''
+        const passwordHash = target['embassy-os']?.['password-hash'] || ''
         argon2.verify(passwordHash, password)
         return this.getBackupInfo(target.id, password)
       },

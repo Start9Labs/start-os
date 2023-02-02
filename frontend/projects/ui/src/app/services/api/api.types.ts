@@ -138,13 +138,7 @@ export module RR {
   export type GetBackupTargetsReq = {} // backup.target.list
   export type GetBackupTargetsRes = { [id: string]: BackupTarget }
 
-  export type AddBackupTargetReq = {
-    // backup.target.cifs.add
-    hostname: string
-    path: string
-    username: string
-    password: string | null
-  }
+  export type AddBackupTargetReq = { [param: string]: any } // backup.target.add
   export type AddBackupTargetRes = { [id: string]: CifsBackupTarget }
 
   export type UpdateBackupTargetReq = AddBackupTargetReq & { id: string } // backup.target.cifs.update
@@ -330,7 +324,8 @@ export type PlatformType =
   | 'desktop'
   | 'hybrid'
 
-export type BackupTarget = DiskBackupTarget | CifsBackupTarget
+export type RemoteBackupTarget = CifsBackupTarget | CloudBackupTarget
+export type BackupTarget = RemoteBackupTarget | DiskBackupTarget
 
 export interface DiskBackupTarget {
   type: 'disk'
@@ -340,6 +335,7 @@ export interface DiskBackupTarget {
   label: string | null
   capacity: number
   used: number | null
+  mountable: boolean
   'embassy-os': EmbassyOSDiskInfo | null
 }
 
@@ -352,7 +348,18 @@ export interface CifsBackupTarget {
   'embassy-os': EmbassyOSDiskInfo | null
 }
 
-export type RecoverySource = DiskRecoverySource | CifsRecoverySource
+export interface CloudBackupTarget {
+  type: 'cloud'
+  provider: 'dropbox' | 'google-drive'
+  path: string
+  mountable: boolean
+  'embassy-os': EmbassyOSDiskInfo | null
+}
+
+export type RecoverySource =
+  | DiskRecoverySource
+  | CifsRecoverySource
+  | CloudRecoverySource
 
 export interface DiskRecoverySource {
   type: 'disk'
@@ -365,6 +372,11 @@ export interface CifsRecoverySource {
   path: string
   username: string
   password: string
+}
+
+export interface CloudRecoverySource {
+  type: 'cloud'
+  logicalname: string // partition logicalname
 }
 
 export interface BackupInfo {

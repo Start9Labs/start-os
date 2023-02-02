@@ -1,13 +1,13 @@
 import { Directive, HostListener } from '@angular/core'
 import { LoadingController, ModalController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { BackupSelectPage } from 'src/app/pages/server-routes/backups/components/backup-select/backup-select.page'
-import { BackupDrivesComponent } from '../components/backup-drives/backup-drives.component'
-import { MappedBackupTarget } from 'src/app/types/mapped-backup-target'
+import { BackupSelectPage } from 'src/app/pages/backups-routes/modals/backup-select/backup-select.page'
+import { TargetSelectPage } from '../modals/target-select/target-select.page'
 import {
   CifsBackupTarget,
   DiskBackupTarget,
 } from 'src/app/services/api/api.types'
+import { WithId } from '../pages/backup-targets/backup-targets.page'
 
 @Directive({
   selector: '[backupCreate]',
@@ -28,12 +28,12 @@ export class BackupCreateDirective {
   async presentModalTarget() {
     const modal = await this.modalCtrl.create({
       presentingElement: await this.modalCtrl.getTop(),
-      component: BackupDrivesComponent,
+      component: TargetSelectPage,
       componentProps: { type: 'create' },
     })
 
     modal
-      .onDidDismiss<MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>>()
+      .onDidDismiss<WithId<CifsBackupTarget | DiskBackupTarget>>()
       .then(res => {
         if (res.data) {
           this.presentModalSelect(res.data.id)

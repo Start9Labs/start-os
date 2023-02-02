@@ -1,15 +1,16 @@
-import { Component } from '@angular/core'
+import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { ModalController } from '@ionic/angular'
 import {
   BackupJob,
   NewJobComponent,
   NewJobProps,
-} from '../new-job/new-job.component'
+} from './new-job/new-job.component'
 
 @Component({
   selector: 'backup-jobs',
-  templateUrl: './jobs.component.html',
-  styleUrls: ['./jobs.component.scss'],
+  templateUrl: './backup-jobs.page.html',
+  styleUrls: ['./backup-jobs.page.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BackupJobsComponent {
   readonly docsUrl =

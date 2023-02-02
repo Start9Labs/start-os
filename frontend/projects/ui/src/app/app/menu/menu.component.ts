@@ -47,6 +47,11 @@ export class MenuComponent {
       icon: 'globe-outline',
     },
     {
+      title: 'Backups',
+      url: '/backups',
+      icon: 'save-outline',
+    },
+    {
       title: 'Notifications',
       url: '/notifications',
       icon: 'notifications-outline',
