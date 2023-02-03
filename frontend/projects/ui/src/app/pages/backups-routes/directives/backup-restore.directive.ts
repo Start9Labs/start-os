@@ -11,6 +11,7 @@ import {
 } from 'src/app/modals/generic-input/generic-input.component'
 import {
   BackupInfo,
+  BackupTarget,
   CifsBackupTarget,
   DiskBackupTarget,
 } from 'src/app/services/api/api.types'
@@ -41,20 +42,16 @@ export class BackupRestoreDirective {
       componentProps: { type: 'restore' },
     })
 
-    modal
-      .onDidDismiss<WithId<CifsBackupTarget | DiskBackupTarget>>()
-      .then(res => {
-        if (res.data) {
-          this.presentModalPassword(res.data)
-        }
-      })
+    modal.onDidDismiss<WithId<BackupTarget>>().then(res => {
+      if (res.data) {
+        this.presentModalPassword(res.data)
+      }
+    })
 
     await modal.present()
   }
 
-  async presentModalPassword(
-    target: WithId<CifsBackupTarget | DiskBackupTarget>,
-  ): Promise<void> {
+  async presentModalPassword(target: WithId<BackupTarget>): Promise<void> {
     const options: GenericInputOptions = {
       title: 'Password Required',
       message:

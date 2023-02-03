@@ -1,45 +1,76 @@
-import { Component, Input } from '@angular/core'
-import { ModalController } from '@ionic/angular'
-import { Subject } from 'rxjs'
-import { BackupTarget } from 'src/app/services/api/api.types'
+import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import { ModalController, NavController } from '@ionic/angular'
+import { BehaviorSubject, Subject } from 'rxjs'
+import { BackupTarget, DiskBackupTarget } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import {
   BackupType,
   WithId,
 } from '../../pages/backup-targets/backup-targets.page'
-import { TargetService } from '../../services/target-service'
 
 @Component({
   selector: 'target-select',
   templateUrl: './target-select.page.html',
   styleUrls: ['./target-select.page.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TargetSelectPage {
   @Input() type!: BackupType
+  @Input() isOneOff = true
 
-  readonly targets$ = new Subject<WithId<BackupTarget>[]>()
+  targets: {
+    'unsaved-physical': WithId<DiskBackupTarget>[]
+    saved: WithId<BackupTarget>[]
+  } = {
+    'unsaved-physical': [],
+    saved: [],
+  }
+
+  loading$ = new BehaviorSubject(true)
+  error$ = new Subject<string>()
 
   constructor(
     private readonly modalCtrl: ModalController,
+    private readonly navCtrl: NavController,
     private readonly api: ApiService,
-    private readonly targetService: TargetService,
   ) {}
 
-  ngOnInit() {
-    this.getBackupTargets()
+  async ngOnInit() {
+    await this.getTargets()
   }
 
   dismiss() {
     this.modalCtrl.dismiss()
   }
 
-  select(targetId: string): void {
-    this.modalCtrl.dismiss(targetId)
+  select(target: BackupTarget): void {
+    this.modalCtrl.dismiss(target)
   }
 
-  private async getBackupTargets(): Promise<WithId<BackupTarget>[]> {
-    const targets = await this.api.getBackupTargets({})
-    return Object.keys(targets).map(id => ({ id, ...targets[id] }))
+  goToTargets() {
+    this.modalCtrl
+      .dismiss()
+      .then(() => this.navCtrl.navigateForward(`/backups/targets`))
+  }
+
+  async refresh() {
+    this.loading$.next(true)
+    this.error$.next('')
+    await this.getTargets()
+  }
+
+  private async getTargets(): Promise<void> {
+    try {
+      const targets = await this.api.getBackupTargets({})
+      this.targets = {
+        'unsaved-physical': [],
+        saved: Object.keys(targets).map(id => ({ id, ...targets[id] })),
+      }
+    } catch (e: any) {
+      this.error$.next(e.message)
+    } finally {
+      this.loading$.next(false)
+    }
   }
 }
 
@@ -50,5 +81,5 @@ export class TargetSelectPage {
 })
 export class TargetStatusComponent {
   @Input() type!: BackupType
-  @Input() hasValidBackup!: boolean
+  @Input() target!: BackupTarget
 }

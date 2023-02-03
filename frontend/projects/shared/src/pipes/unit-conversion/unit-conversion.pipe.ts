@@ -6,12 +6,7 @@ import { Pipe, PipeTransform } from '@angular/core'
 })
 export class ConvertBytesPipe implements PipeTransform {
   transform(bytes: number): string {
-    if (bytes === 0) return '0 Bytes'
-
-    const k = 1024
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+    return convertBytes(bytes)
   }
 }
 
@@ -25,6 +20,15 @@ export class DurationToSecondsPipe implements PipeTransform {
       duration.match(/^([0-9]*(\.[0-9]+)?)(ns|µs|ms|s|m|d)$/) || []
     return Number(num) * unitsToSeconds[unit]
   }
+}
+
+export function convertBytes(bytes: number) {
+  if (bytes === 0) return '0 Bytes'
+
+  const k = 1024
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
 }
 
 const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']

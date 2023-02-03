@@ -592,16 +592,13 @@ export module Mock {
         'wrapped-key': '',
       },
     },
-    // 'ftcvewdnkemfksdm': {
-    //   type: 'disk',
-    //   logicalname: 'sdba1',
-    //   label: 'Matt Stuff',
-    //   capacity: 1000000000000,
-    //   used: 0,
-    //   model: 'Evo SATA 2.5',
-    //   vendor: 'Samsung',
-    //   'embassy-os': null,
-    // },
+    ftcvewdnkemfksdm: {
+      type: 'cloud',
+      provider: 'dropbox',
+      path: '/Home/backups',
+      mountable: true,
+      'embassy-os': null,
+    },
     csgashbdjkasnd: {
       type: 'cifs',
       hostname: 'smb://192.169.10.0',

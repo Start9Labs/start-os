@@ -12,39 +12,65 @@
 </ion-header>
 
 <ion-content>
-  <ion-item-group *ngIf="targets$ | async as targets; else loading">
-    <ion-item
-      button
-      *ngFor="let target of targets; let i = index"
-      (click)="select(target.id)"
-    >
-      <ng-container *ngIf="target | getDisplayInfo as displayInfo">
-        <ion-icon
-          slot="start"
-          [name]="displayInfo.icon"
-          size="large"
-        ></ion-icon>
-        <ion-label>
-          <h1>{{ displayInfo.heading }}</h1>
-          <ng-container *ngIf="target.mountable">
-            <target-status
-              [type]="type"
-              [hasValidBackup]="target | hasValidBackup"
-            ></target-status>
-          </ng-container>
-          <h2 *ngIf="!target.mountable" class="inline">
-            <ion-icon name="cellular-outline" color="danger"></ion-icon>
-            Unable to connect
-          </h2>
-          <p>Hostname: {{ displayInfo.subheading1 }}</p>
-          <p>Path: {{ displayInfo.subheading2 }}</p>
-        </ion-label>
-      </ng-container>
-    </ion-item>
-  </ion-item-group>
-
   <!-- loading -->
-  <ng-template #loading>
-    <ion-spinner></ion-spinner>
+  <text-spinner
+    *ngIf="loading$ | async; else loaded"
+    [text]="type === 'create' ? 'Loading Backup Targets' : 'Loading Recovery Sources'"
+  ></text-spinner>
+
+  <!-- loaded -->
+  <ng-template #loaded>
+    <!-- error -->
+    <p *ngIf="error$ | async as error; else noError">
+      <ion-text color="danger">{{ error }}</ion-text>
+    </p>
+
+    <!-- no error -->
+    <ng-template #noError>
+      <ion-item-group>
+        <div
+          *ngIf="!targets.saved.length && !targets['unsaved-physical'].length; else hasTargets"
+          class="ion-text-center ion-padding-top"
+        >
+          <h2 class="ion-padding-bottom">No saved targets</h2>
+          <ion-button (click)="goToTargets()"> Go to Targets </ion-button>
+        </div>
+
+        <ng-template #hasTargets>
+          <ng-container *ngIf="targets['unsaved-physical'].length">
+            <ion-item-divider>Unknown Physical Drives</ion-item-divider>
+            <ion-item
+              *ngFor="let drive of targets['unsaved-physical']"
+            ></ion-item>
+          </ng-container>
+
+          <ion-item-divider>Saved Targets</ion-item-divider>
+          <ion-item
+            button
+            *ngFor="let target of targets.saved"
+            (click)="select(target)"
+            [disabled]="
+              (isOneOff && !target.mountable) ||
+              (type === 'restore' && !target['embassy-os'])
+            "
+          >
+            <ng-container *ngIf="target | getDisplayInfo as displayInfo">
+              <ion-icon
+                slot="start"
+                [name]="displayInfo.icon"
+                size="large"
+              ></ion-icon>
+              <ion-label>
+                <h1 style="font-size: x-large">{{ displayInfo.heading }}</h1>
+                <target-status [type]="type" [target]="target"></target-status>
+                <p>Type: {{ displayInfo.type | titlecase }}</p>
+                <p>{{ displayInfo.subheading1 }}</p>
+                <p>{{ displayInfo.subheading2 }}</p>
+              </ion-label>
+            </ng-container>
+          </ion-item>
+        </ng-template>
+      </ion-item-group>
+    </ng-template>
   </ng-template>
 </ion-content>

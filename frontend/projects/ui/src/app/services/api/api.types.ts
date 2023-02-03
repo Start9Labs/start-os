@@ -138,8 +138,8 @@ export module RR {
   export type GetBackupTargetsReq = {} // backup.target.list
   export type GetBackupTargetsRes = { [id: string]: BackupTarget }
 
-  export type AddBackupTargetReq = { [param: string]: any } // backup.target.add
-  export type AddBackupTargetRes = { [id: string]: CifsBackupTarget }
+  export type AddBackupTargetReq = { [param: string]: any } // backup.target.cifs.add
+  export type AddBackupTargetRes = { [id: string]: BackupTarget }
 
   export type UpdateBackupTargetReq = AddBackupTargetReq & { id: string } // backup.target.cifs.update
   export type UpdateBackupTargetRes = AddBackupTargetRes
@@ -327,7 +327,13 @@ export type PlatformType =
 export type RemoteBackupTarget = CifsBackupTarget | CloudBackupTarget
 export type BackupTarget = RemoteBackupTarget | DiskBackupTarget
 
-export interface DiskBackupTarget {
+export interface BaseBackupTarget {
+  type: 'disk' | 'cifs' | 'cloud'
+  mountable: boolean
+  'embassy-os': EmbassyOSDiskInfo | null
+}
+
+export interface DiskBackupTarget extends BaseBackupTarget {
   type: 'disk'
   vendor: string | null
   model: string | null
@@ -335,48 +341,19 @@ export interface DiskBackupTarget {
   label: string | null
   capacity: number
   used: number | null
-  mountable: boolean
-  'embassy-os': EmbassyOSDiskInfo | null
 }
 
-export interface CifsBackupTarget {
+export interface CifsBackupTarget extends BaseBackupTarget {
   type: 'cifs'
   hostname: string
   path: string
   username: string
-  mountable: boolean
-  'embassy-os': EmbassyOSDiskInfo | null
 }
 
-export interface CloudBackupTarget {
+export interface CloudBackupTarget extends BaseBackupTarget {
   type: 'cloud'
   provider: 'dropbox' | 'google-drive'
   path: string
-  mountable: boolean
-  'embassy-os': EmbassyOSDiskInfo | null
-}
-
-export type RecoverySource =
-  | DiskRecoverySource
-  | CifsRecoverySource
-  | CloudRecoverySource
-
-export interface DiskRecoverySource {
-  type: 'disk'
-  logicalname: string // partition logicalname
-}
-
-export interface CifsRecoverySource {
-  type: 'cifs'
-  hostname: string
-  path: string
-  username: string
-  password: string
-}
-
-export interface CloudRecoverySource {
-  type: 'cloud'
-  logicalname: string // partition logicalname
 }
 
 export interface BackupInfo {

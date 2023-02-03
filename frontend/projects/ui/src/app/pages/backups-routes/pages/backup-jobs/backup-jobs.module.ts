@@ -6,6 +6,7 @@ import { BackupJobsComponent } from './backup-jobs.page'
 import { NewJobComponent } from './new-job/new-job.component'
 import { ToHumanCronPipe } from './pipes'
 import { FormsModule } from '@angular/forms'
+import { TargetSelectPageModule } from '../../modals/target-select/target-select.module'
 
 const routes: Routes = [
   {
@@ -20,6 +21,7 @@ const routes: Routes = [
     IonicModule,
     RouterModule.forChild(routes),
     FormsModule,
+    TargetSelectPageModule,
   ],
   declarations: [BackupJobsComponent, ToHumanCronPipe, NewJobComponent],
 })

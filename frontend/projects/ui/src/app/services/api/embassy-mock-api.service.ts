@@ -444,11 +444,18 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
     const { hostname, path, username } = params
     return {
-      latfgvwdbhjsndmk: {
-        type: 'cifs',
-        hostname,
-        path: path.replace(/\\/g, '/'),
-        username,
+      // latfgvwdbhjsndmk: {
+      //   type: 'cifs',
+      //   hostname,
+      //   path: path.replace(/\\/g, '/'),
+      //   username,
+      //   mountable: true,
+      //   'embassy-os': null,
+      // },
+      alksdhewbfjwamd: {
+        type: 'cloud',
+        provider: 'dropbox',
+        path: '/',
         mountable: true,
         'embassy-os': null,
       },

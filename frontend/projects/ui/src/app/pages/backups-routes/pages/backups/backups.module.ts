@@ -12,7 +12,7 @@ import {
 import { BackupSelectPageModule } from '../../modals/backup-select/backup-select.module'
 import { RecoverSelectPageModule } from '../../modals/recover-select/recover-select.module'
 import { BadgeMenuComponentModule } from 'src/app/components/badge-menu-button/badge-menu.component.module'
-import { TargetSelectPageModule } from '../../modals/target-select/target-select.module'
+import { InsecureWarningComponentModule } from 'src/app/components/insecure-warning/insecure-warning.module'
 
 const routes: Routes = [
   {
@@ -29,6 +29,7 @@ const routes: Routes = [
     BackupSelectPageModule,
     RecoverSelectPageModule,
     BadgeMenuComponentModule,
+    InsecureWarningComponentModule,
   ],
   declarations: [
     BackupsPage,

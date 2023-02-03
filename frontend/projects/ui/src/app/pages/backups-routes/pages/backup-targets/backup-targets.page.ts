@@ -1,6 +1,7 @@
 import { Component } from '@angular/core'
 import {
   BackupTarget,
+  DiskBackupTarget,
   RemoteBackupTarget,
   RR,
 } from 'src/app/services/api/api.types'
@@ -8,14 +9,13 @@ import { LoadingController, ModalController } from '@ionic/angular'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ErrorToastService } from '@start9labs/shared'
-import { Subject } from 'rxjs'
 import {
   CifsSpec,
   DropboxSpec,
   GoogleDriveSpec,
   RemoteBackupTargetSpec,
-  TargetService,
-} from '../../services/target-service'
+} from '../../types/target-types'
+import { BehaviorSubject, Subject } from 'rxjs'
 
 export type BackupType = 'create' | 'restore'
 export type WithId<T> = T & { id: string }
@@ -26,24 +26,49 @@ export type WithId<T> = T & { id: string }
   styleUrls: ['./backup-targets.page.scss'],
 })
 export class BackupTargetsPage {
-  readonly targets$ = new Subject<WithId<BackupTarget>[]>()
+  readonly docsUrl =
+    'https://docs.start9.com/latest/user-manual/backups/backup-targets'
+  targets: {
+    'unsaved-physical': WithId<DiskBackupTarget>[]
+    saved: WithId<BackupTarget>[]
+  } = {
+    'unsaved-physical': [],
+    saved: [],
+  }
+
+  loading$ = new BehaviorSubject(true)
+  error$ = new Subject<string>()
 
   constructor(
     private readonly loadingCtrl: LoadingController,
     private readonly modalCtrl: ModalController,
     private readonly api: ApiService,
     private readonly errToast: ErrorToastService,
-    private readonly targetService: TargetService,
   ) {}
 
-  async ngOnInit() {
-    const targets = await this.getBackupTargets()
-    this.targets$.next(targets)
+  ngOnInit() {
+    this.getTargets()
   }
 
-  private async getBackupTargets(): Promise<WithId<BackupTarget>[]> {
-    const targets = await this.api.getBackupTargets({})
-    return Object.keys(targets).map(id => ({ id, ...targets[id] }))
+  async presentModalAddRemoteTarget(): Promise<void> {
+    const modal = await this.modalCtrl.create({
+      component: GenericFormPage,
+      componentProps: {
+        title: 'New Remote Target',
+        spec: RemoteBackupTargetSpec,
+        buttons: [
+          {
+            text: 'Connect and Save',
+            handler: (value: RR.AddBackupTargetReq) => {
+              return this.saveTarget(value)
+            },
+            isSubmit: true,
+          },
+        ],
+      },
+    })
+
+    await modal.present()
   }
 
   async presentModalEditRemoteTarget(
@@ -78,7 +103,7 @@ export class BackupTargetsPage {
           {
             text: 'Save',
             handler: (value: RR.AddBackupTargetReq) => {
-              return this.targetService.saveTarget({ id: target.id, ...value })
+              return this.saveTarget({ id: target.id, ...value })
             },
             isSubmit: true,
           },
@@ -99,6 +124,40 @@ export class BackupTargetsPage {
       await this.api.removeBackupTarget({ id })
     } catch (e: any) {
       this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
+  }
+
+  async refresh() {
+    this.loading$.next(true)
+    this.error$.next('')
+    await this.getTargets()
+  }
+
+  private async getTargets(): Promise<void> {
+    try {
+      const targets = await this.api.getBackupTargets({})
+      this.targets = {
+        'unsaved-physical': [],
+        saved: Object.keys(targets).map(id => ({ id, ...targets[id] })),
+      }
+    } catch (e: any) {
+      this.error$.next(e.message)
+    } finally {
+      this.loading$.next(false)
+    }
+  }
+
+  private async saveTarget(value: RR.AddBackupTargetReq): Promise<any> {
+    const loader = await this.loadingCtrl.create({
+      message: 'Saving target...',
+    })
+    await loader.present()
+
+    try {
+      const res = await this.api.addBackupTarget(value)
+      return res
     } finally {
       loader.dismiss()
     }
