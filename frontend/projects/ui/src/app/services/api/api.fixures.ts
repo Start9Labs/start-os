@@ -627,6 +627,23 @@ export module Mock {
     },
   }
 
+  export const BackupJobs: RR.GetBackupJobsRes = [
+    {
+      id: 'lalalalalala-babababababa',
+      name: 'My Backup Job',
+      target: BackupTargets[0],
+      cron: '0 3 * * *',
+      'package-ids': ['bitcoind', 'lnd'],
+    },
+    {
+      id: 'hahahahaha-mwmwmwmwmwmw',
+      name: 'Another Backup Job',
+      target: BackupTargets[1],
+      cron: '0 * * * *',
+      'package-ids': ['lnd'],
+    },
+  ]
+
   export const BackupInfo: RR.GetBackupInfoRes = {
     version: '0.3.0',
     timestamp: new Date().toISOString(),

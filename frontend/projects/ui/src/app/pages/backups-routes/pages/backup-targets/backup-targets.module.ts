@@ -3,7 +3,7 @@ import { RouterModule, Routes } from '@angular/router'
 import { CommonModule } from '@angular/common'
 import { IonicModule } from '@ionic/angular'
 import { BackupTargetsPage } from './backup-targets.page'
-import { TextSpinnerComponentModule } from '@start9labs/shared'
+import { SkeletonListComponentModule } from 'src/app/components/skeleton-list/skeleton-list.component.module'
 
 const routes: Routes = [
   {
@@ -18,7 +18,7 @@ const routes: Routes = [
     CommonModule,
     IonicModule,
     RouterModule.forChild(routes),
-    TextSpinnerComponentModule,
+    SkeletonListComponentModule,
   ],
 })
 export class BackupTargetsPageModule {}

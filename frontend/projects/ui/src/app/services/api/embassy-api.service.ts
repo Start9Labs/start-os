@@ -176,6 +176,22 @@ export abstract class ApiService {
     params: RR.RemoveBackupTargetReq,
   ): Promise<RR.RemoveBackupTargetRes>
 
+  abstract getBackupJobs(
+    params: RR.GetBackupJobsReq,
+  ): Promise<RR.GetBackupJobsRes>
+
+  abstract createBackupJob(
+    params: RR.CreateBackupJobReq,
+  ): Promise<RR.CreateBackupJobRes>
+
+  abstract updateBackupJob(
+    params: RR.UpdateBackupJobReq,
+  ): Promise<RR.UpdateBackupJobRes>
+
+  abstract deleteBackupJob(
+    params: RR.DeleteBackupJobReq,
+  ): Promise<RR.DeleteBackupJobRes>
+
   abstract getBackupInfo(
     params: RR.GetBackupInfoReq,
   ): Promise<RR.GetBackupInfoRes>

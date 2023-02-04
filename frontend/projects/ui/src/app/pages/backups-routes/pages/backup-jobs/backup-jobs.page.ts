@@ -1,42 +1,87 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { Component } from '@angular/core'
 import { ModalController } from '@ionic/angular'
-import {
-  BackupJob,
-  NewJobComponent,
-  NewJobProps,
-} from './new-job/new-job.component'
+import { BehaviorSubject, Subject } from 'rxjs'
+import { BackupJob, RR } from 'src/app/services/api/api.types'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { EditJobPage } from './edit-job/edit-job.page'
+import { NewJobPage } from './new-job/new-job.page'
 
 @Component({
   selector: 'backup-jobs',
   templateUrl: './backup-jobs.page.html',
   styleUrls: ['./backup-jobs.page.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class BackupJobsComponent {
+export class BackupJobsPage {
   readonly docsUrl =
     'https://docs.start9.com/latest/user-manual/backups/backup-jobs'
+
   jobs: BackupJob[] = []
 
-  constructor(private readonly modalCtrl: ModalController) {}
+  loading$ = new BehaviorSubject(true)
+  error$ = new Subject<string>()
 
-  async presentModalCreate(job?: BackupJob) {
-    const componentProps: NewJobProps = {
-      count: this.jobs.length,
-    }
-    if (job) componentProps.job = job
+  constructor(
+    private readonly modalCtrl: ModalController,
+    private readonly api: ApiService,
+  ) {}
 
+  ngOnInit() {
+    this.getJobs()
+  }
+
+  async presentModalCreate() {
     const modal = await this.modalCtrl.create({
       presentingElement: await this.modalCtrl.getTop(),
-      component: NewJobComponent,
-      componentProps,
+      component: NewJobPage,
+      componentProps: {
+        count: this.jobs.length,
+      },
     })
 
     modal.onWillDismiss().then(res => {
       if (res.data) {
-        this.jobs.unshift(res.data)
+        this.jobs.push(res.data)
       }
     })
 
     await modal.present()
+  }
+
+  async presentModalUpdate(job: BackupJob) {
+    const modal = await this.modalCtrl.create({
+      presentingElement: await this.modalCtrl.getTop(),
+      component: EditJobPage,
+      componentProps: {
+        job,
+      },
+    })
+
+    modal.onWillDismiss().then((res: { data?: BackupJob }) => {
+      if (res.data) {
+        const { name, target, cron } = res.data
+        job.name = name
+        job.target = target
+        job.cron = cron
+        job['package-ids'] = res.data['package-ids']
+      }
+    })
+
+    await modal.present()
+  }
+
+  async refresh() {
+    this.loading$.next(true)
+    this.error$.next('')
+    await this.getJobs()
+  }
+
+  private async getJobs(): Promise<void> {
+    try {
+      this.jobs = await this.api.getBackupJobs({})
+    } catch (e: any) {
+      this.error$.next(e.message)
+    } finally {
+      this.loading$.next(false)
+    }
   }
 }

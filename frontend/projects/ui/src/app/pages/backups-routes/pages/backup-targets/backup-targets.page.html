@@ -23,10 +23,11 @@
   </ion-item>
 
   <!-- loading -->
-  <text-spinner
+  <skeleton-list
     *ngIf="loading$ | async; else loaded"
-    text="Loading Targets"
-  ></text-spinner>
+    [groups]="2"
+    [rows]="2"
+  ></skeleton-list>
 
   <!-- loaded -->
   <ng-template #loaded>

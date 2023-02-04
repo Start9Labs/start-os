@@ -138,17 +138,37 @@ export module RR {
   export type GetBackupTargetsReq = {} // backup.target.list
   export type GetBackupTargetsRes = { [id: string]: BackupTarget }
 
-  export type AddBackupTargetReq = { [param: string]: any } // backup.target.cifs.add
+  export type AddBackupTargetReq = { [param: string]: any } // backup.target.add
   export type AddBackupTargetRes = { [id: string]: BackupTarget }
 
-  export type UpdateBackupTargetReq = AddBackupTargetReq & { id: string } // backup.target.cifs.update
+  export type UpdateBackupTargetReq = AddBackupTargetReq & { id: string } // backup.target.update
   export type UpdateBackupTargetRes = AddBackupTargetRes
 
-  export type RemoveBackupTargetReq = { id: string } // backup.target.cifs.remove
+  export type RemoveBackupTargetReq = { id: string } // backup.target.remove
   export type RemoveBackupTargetRes = null
 
   export type GetBackupInfoReq = { 'target-id': string; password: string } // backup.target.info
   export type GetBackupInfoRes = BackupInfo
+
+  export type GetBackupJobsReq = {} // backup.job.list
+  export type GetBackupJobsRes = BackupJob[]
+
+  export type CreateBackupJobReq = {
+    name: string
+    'target-id': string
+    cron: string
+    'package-ids': string[]
+    now: boolean
+  } // backup.job.create
+  export type CreateBackupJobRes = BackupJob
+
+  export type UpdateBackupJobReq = Omit<CreateBackupJobReq, 'now'> & {
+    id: string
+  } // backup.job.update
+  export type UpdateBackupJobRes = CreateBackupJobRes
+
+  export type DeleteBackupJobReq = { id: string } // backup.job.delete
+  export type DeleteBackupJobRes = null
 
   export type CreateBackupReq = { 'target-id': string; 'package-ids': string[] } // backup.create
   export type CreateBackupRes = null
@@ -354,6 +374,14 @@ export interface CloudBackupTarget extends BaseBackupTarget {
   type: 'cloud'
   provider: 'dropbox' | 'google-drive'
   path: string
+}
+
+export interface BackupJob {
+  id: string
+  name: string
+  target: BackupTarget
+  cron: string // '* * * * * *' https://cloud.google.com/scheduler/docs/configuring/cron-job-schedules
+  'package-ids': string[]
 }
 
 export interface BackupInfo {

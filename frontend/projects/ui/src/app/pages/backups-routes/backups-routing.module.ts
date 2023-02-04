@@ -11,7 +11,7 @@ const routes: Routes = [
     path: 'jobs',
     loadChildren: () =>
       import('./pages/backup-jobs/backup-jobs.module').then(
-        m => m.BackupJobsComponentModule,
+        m => m.BackupJobsPageModule,
       ),
   },
   {

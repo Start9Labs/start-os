@@ -484,6 +484,43 @@ export class MockApiService extends ApiService {
     return null
   }
 
+  async getBackupJobs(
+    params: RR.GetBackupJobsReq,
+  ): Promise<RR.GetBackupJobsRes> {
+    await pauseFor(2000)
+    return Mock.BackupJobs
+  }
+
+  async createBackupJob(
+    params: RR.CreateBackupJobReq,
+  ): Promise<RR.CreateBackupJobRes> {
+    await pauseFor(2000)
+    return {
+      id: 'hjdfbjsahdbn',
+      name: params.name,
+      target: Mock.BackupTargets[0],
+      cron: params.cron,
+      'package-ids': params['package-ids'],
+    }
+  }
+
+  async updateBackupJob(
+    params: RR.UpdateBackupJobReq,
+  ): Promise<RR.UpdateBackupJobRes> {
+    await pauseFor(2000)
+    return {
+      ...Mock.BackupJobs[0],
+      ...params,
+    }
+  }
+
+  async deleteBackupJob(
+    params: RR.DeleteBackupJobReq,
+  ): Promise<RR.DeleteBackupJobRes> {
+    await pauseFor(2000)
+    return null
+  }
+
   async getBackupInfo(
     params: RR.GetBackupInfoReq,
   ): Promise<RR.GetBackupInfoRes> {

@@ -15,7 +15,7 @@
   <!-- loading -->
   <text-spinner
     *ngIf="loading$ | async; else loaded"
-    [text]="type === 'create' ? 'Loading Backup Targets' : 'Loading Recovery Sources'"
+    [text]="type === 'create' ? 'Loading Backup Targets' : 'Loading Backup Sources'"
   ></text-spinner>
 
   <!-- loaded -->

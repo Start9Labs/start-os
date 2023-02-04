@@ -297,19 +297,43 @@ export class LiveApiService extends ApiService {
     params: RR.AddBackupTargetReq,
   ): Promise<RR.AddBackupTargetRes> {
     if (params['path']) params['path'] = params['path'].replace('/\\/g', '/')
-    return this.rpcRequest({ method: 'backup.target.cifs.add', params })
+    return this.rpcRequest({ method: 'backup.target.add', params })
   }
 
   async updateBackupTarget(
     params: RR.UpdateBackupTargetReq,
   ): Promise<RR.UpdateBackupTargetRes> {
-    return this.rpcRequest({ method: 'backup.target.cifs.update', params })
+    return this.rpcRequest({ method: 'backup.target.update', params })
   }
 
   async removeBackupTarget(
     params: RR.RemoveBackupTargetReq,
   ): Promise<RR.RemoveBackupTargetRes> {
-    return this.rpcRequest({ method: 'backup.target.cifs.remove', params })
+    return this.rpcRequest({ method: 'backup.target.remove', params })
+  }
+
+  async getBackupJobs(
+    params: RR.GetBackupJobsReq,
+  ): Promise<RR.GetBackupJobsRes> {
+    return this.rpcRequest({ method: 'backup.job.list', params })
+  }
+
+  async createBackupJob(
+    params: RR.CreateBackupJobReq,
+  ): Promise<RR.CreateBackupJobRes> {
+    return this.rpcRequest({ method: 'backup.job.create', params })
+  }
+
+  async updateBackupJob(
+    params: RR.UpdateBackupJobReq,
+  ): Promise<RR.UpdateBackupJobRes> {
+    return this.rpcRequest({ method: 'backup.job.update', params })
+  }
+
+  async deleteBackupJob(
+    params: RR.DeleteBackupJobReq,
+  ): Promise<RR.DeleteBackupJobRes> {
+    return this.rpcRequest({ method: 'backup.job.delete', params })
   }
 
   async getBackupInfo(
