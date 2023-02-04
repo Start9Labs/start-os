@@ -14,7 +14,7 @@ import {
   MarketplacePkg,
   StoreIdentity,
 } from '@start9labs/marketplace'
-import { Emver, isEmptyObject, sameUrl } from '@start9labs/shared'
+import { Emver, isEmptyObject, sameDomain } from '@start9labs/shared'
 import { Pipe, PipeTransform } from '@angular/core'
 import { combineLatest, map, Observable } from 'rxjs'
 import {
@@ -26,7 +26,6 @@ import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { getAllPackages } from 'src/app/util/get-package-data'
 import { Breakages } from 'src/app/services/api/api.types'
 import { ClientStorageService } from 'src/app/services/client-storage.service'
-import { ConfigService } from 'src/app/services/config.service'
 
 interface UpdatesData {
   hosts: StoreIdentity[]
@@ -71,7 +70,6 @@ export class UpdatesPage {
     private readonly loadingCtrl: LoadingController,
     private readonly alertCtrl: AlertController,
     private readonly clientStorageService: ClientStorageService,
-    private readonly config: ConfigService,
   ) {}
 
   viewInMarketplace(pkg: PackageDataEntry) {
@@ -192,23 +190,16 @@ export class FilterUpdatesPipe implements PipeTransform {
   transform(
     pkgs: MarketplacePkg[],
     local: Record<string, PackageDataEntry> = {},
-    url: string,
+    remoteUri: string,
   ): MarketplacePkg[] {
-    return pkgs.filter(
-      ({ manifest }) =>
-        marketplaceSame(manifest, local, url) &&
-        versionLower(manifest, local, this.emver),
-    )
+    return pkgs.filter(({ manifest }) => {
+      const localUri = local[manifest.id]?.installed?.['marketplace-url']
+      return (
+        sameDomain(localUri, remoteUri) &&
+        versionLower(manifest, local, this.emver)
+      )
+    })
   }
-}
-
-export function marketplaceSame(
-  { id }: MarketplaceManifest,
-  local: Record<string, PackageDataEntry>,
-  url: string,
-): boolean {
-  const localUrl = local[id]?.installed?.['marketplace-url']
-  return sameUrl(localUrl, url)
 }
 
 export function versionLower(
