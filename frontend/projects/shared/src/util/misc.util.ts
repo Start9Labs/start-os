@@ -36,10 +36,6 @@ export function sameUrl(
   return toUrl(u1) === toUrl(u2)
 }
 
-export function getDomain(hostname: string) {
-  return hostname.split('.').slice(-2).join('.')
-}
-
 export function isValidHttpUrl(url: string): boolean {
   try {
     const _ = new URL(url)
@@ -47,10 +43,6 @@ export function isValidHttpUrl(url: string): boolean {
   } catch (_) {
     return false
   }
-}
-
-export function getUrlHostname(url: string): string {
-  return new URL(url).hostname
 }
 
 export function toUrl(text: string | null | undefined): string {
