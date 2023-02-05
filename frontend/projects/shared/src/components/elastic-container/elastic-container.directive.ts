@@ -29,7 +29,7 @@ export class ElasticContainerDirective {
     inject(ResizeObserverService),
     inject(MutationObserverService),
   ).pipe(
-    map(() => this.elementRef.nativeElement.clientHeight),
+    map(() => this.elementRef.nativeElement.clientHeight - 1), // Compensate for padding
     distinctUntilChanged(),
   )
 }
