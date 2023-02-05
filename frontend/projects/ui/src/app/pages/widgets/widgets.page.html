@@ -20,9 +20,8 @@
 </h1>
 <!-- TODO: Fix resize lag in Taiga UI -->
 <tui-tiles
-  *tuiLet="isMobile$ | async as isMobile"
   class="wrapper"
-  [class.wrapper_mobile]="isMobile"
+  [class.wrapper_wide]="wide"
   [debounce]="500"
   [(order)]="order"
 >
@@ -30,8 +29,8 @@
     *ngFor="let item of items; let index = index; trackBy: trackBy"
     class="item"
     [class.item_edit]="edit"
-    [width]="isMobile ? item.meta.mobileWidth : item.meta.width"
-    [height]="isMobile ? item.meta.mobileHeight : item.meta.height"
+    [width]="wide ? item.meta.width : item.meta.mobileWidth"
+    [height]="wide ? item.meta.height : item.meta.mobileHeight"
     [style.order]="order.get(index)"
   >
     <div class="content">

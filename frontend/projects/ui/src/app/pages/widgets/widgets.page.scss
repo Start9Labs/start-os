@@ -40,6 +40,10 @@
   grid-auto-columns: 1fr;
   margin: 40px;
 
+  &_wide {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
   :host.dialog & {
     margin: 40px 0;
   }

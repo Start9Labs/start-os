@@ -42,7 +42,7 @@
               Toggle
             </button>
           </div>
-          <widgets *ngIf="widgets$ | async"></widgets>
+          <widgets *ngIf="widgets$ | async" [wide]="width === 600"></widgets>
         </ion-menu>
 
         <ion-router-outlet
