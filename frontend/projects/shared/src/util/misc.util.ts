@@ -36,19 +36,6 @@ export function sameUrl(
   return toUrl(u1) === toUrl(u2)
 }
 
-export function sameDomain(
-  u1: string | null | undefined,
-  u2: string | null | undefined,
-) {
-  const hostname1 = getUrlHostname(toUrl(u1))
-  const hostname2 = getUrlHostname(toUrl(u2))
-
-  const domain1 = getDomain(hostname1)
-  const domain2 = getDomain(hostname2)
-
-  return domain1 === domain2
-}
-
 export function getDomain(hostname: string) {
   return hostname.split('.').slice(-2).join('.')
 }
