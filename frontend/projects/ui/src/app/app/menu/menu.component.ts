@@ -1,14 +1,12 @@
 import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
 import { EOSService } from '../../services/eos.service'
 import { PatchDB } from 'patch-db-client'
-import { combineLatest, map, Observable, of, startWith } from 'rxjs'
+import { combineLatest, first, map, Observable } from 'rxjs'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { SplitPaneTracker } from 'src/app/services/split-pane.service'
-import { Emver, sameDomain } from '@start9labs/shared'
-import { versionLower } from '../../pages/updates/updates.page'
-import { ClientStorageService } from 'src/app/services/client-storage.service'
+import { Emver } from '@start9labs/shared'
 
 @Component({
   selector: 'app-menu',
@@ -55,30 +53,25 @@ export class MenuComponent {
   readonly showEOSUpdate$ = this.eosService.showUpdate$
 
   readonly updateCount$: Observable<number> = combineLatest([
-    this.clientStorageService.showDevTools$,
-    this.marketplaceService.getMarketplace$(),
-    this.patch.watch$('package-data'),
+    this.marketplaceService.getMarketplace$(true),
+    this.patch.watch$('package-data').pipe(first()),
   ]).pipe(
-    map(([devMode, marketplace, local]) =>
-      Object.entries(marketplace).reduce((length, [url, store]) => {
-        // If not dev mode, exclude alpha and beta
-        if (!devMode && (url.includes('alpha') || url.includes('beta'))) {
-          return length
-        }
-        // otherwise
-        return (
-          length +
-          (store?.packages.filter(({ manifest }) => {
-            const localUri = local[manifest.id]?.installed?.['marketplace-url']
-            return (
-              sameDomain(localUri, url) &&
-              versionLower(manifest, local, this.emver)
-            )
-          }).length || 0)
-        )
-      }, 0),
+    map(([marketplace, local]) =>
+      Object.entries(marketplace).reduce((list, [_, store]) => {
+        store?.packages.forEach(({ manifest: { id, version } }) => {
+          if (!local[id]) return
+          if (
+            this.emver.compare(
+              version,
+              local[id].installed?.manifest.version || '',
+            ) === 1
+          )
+            list.add(id)
+        })
+        return list
+      }, new Set<string>()),
     ),
-    startWith(0),
+    map(list => list.size),
   )
 
   readonly sidebarOpen$ = this.splitPane.sidebarOpen$
@@ -90,6 +83,5 @@ export class MenuComponent {
     private readonly marketplaceService: MarketplaceService,
     private readonly splitPane: SplitPaneTracker,
     private readonly emver: Emver,
-    private readonly clientStorageService: ClientStorageService,
   ) {}
 }

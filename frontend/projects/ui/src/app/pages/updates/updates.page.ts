@@ -14,9 +14,9 @@ import {
   MarketplacePkg,
   StoreIdentity,
 } from '@start9labs/marketplace'
-import { Emver, isEmptyObject, sameDomain } from '@start9labs/shared'
+import { Emver, isEmptyObject } from '@start9labs/shared'
 import { Pipe, PipeTransform } from '@angular/core'
-import { combineLatest, map, Observable } from 'rxjs'
+import { combineLatest, Observable } from 'rxjs'
 import {
   AlertController,
   LoadingController,
@@ -25,7 +25,6 @@ import {
 import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { getAllPackages } from 'src/app/util/get-package-data'
 import { Breakages } from 'src/app/services/api/api.types'
-import { ClientStorageService } from 'src/app/services/client-storage.service'
 
 interface UpdatesData {
   hosts: StoreIdentity[]
@@ -40,20 +39,8 @@ interface UpdatesData {
   styleUrls: ['updates.page.scss'],
 })
 export class UpdatesPage {
-  readonly hosts$ = combineLatest([
-    this.clientStorageService.showDevTools$,
-    this.marketplaceService.getKnownHosts$(),
-  ]).pipe(
-    map(([devMode, knownHosts]) => {
-      if (devMode) return knownHosts
-      return knownHosts.filter(
-        ({ url }) => !url.includes('alpha') && !url.includes('beta'),
-      )
-    }),
-  )
-
   readonly data$: Observable<UpdatesData> = combineLatest({
-    hosts: this.hosts$,
+    hosts: this.marketplaceService.getKnownHosts$(true),
     marketplace: this.marketplaceService.getMarketplace$(),
     localPkgs: this.patch.watch$('package-data'),
     errors: this.marketplaceService.getRequestErrors$(),
@@ -69,7 +56,6 @@ export class UpdatesPage {
     private readonly navCtrl: NavController,
     private readonly loadingCtrl: LoadingController,
     private readonly alertCtrl: AlertController,
-    private readonly clientStorageService: ClientStorageService,
   ) {}
 
   viewInMarketplace(pkg: PackageDataEntry) {
@@ -189,26 +175,21 @@ export class FilterUpdatesPipe implements PipeTransform {
 
   transform(
     pkgs: MarketplacePkg[],
-    local: Record<string, PackageDataEntry> = {},
-    remoteUri: string,
+    local: Record<string, PackageDataEntry>,
   ): MarketplacePkg[] {
     return pkgs.filter(({ manifest }) => {
-      const localUri = local[manifest.id]?.installed?.['marketplace-url']
+      const { id, version } = manifest
+      const localPkg = local[id]
+
+      if (!localPkg) return false
+
       return (
-        sameDomain(localUri, remoteUri) &&
-        versionLower(manifest, local, this.emver)
+        local[id]?.state === PackageState.Updating ||
+        this.emver.compare(
+          version,
+          local[id].installed?.manifest.version || '',
+        ) === 1
       )
     })
   }
-}
-
-export function versionLower(
-  { version, id }: MarketplaceManifest,
-  local: Record<string, PackageDataEntry>,
-  emver: Emver,
-): boolean {
-  return (
-    local[id].state === PackageState.Updating ||
-    emver.compare(version, local[id].installed?.manifest.version || '') === 1
-  )
 }

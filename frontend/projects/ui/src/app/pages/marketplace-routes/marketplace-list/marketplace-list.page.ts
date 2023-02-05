@@ -3,7 +3,7 @@ import { ActivatedRoute } from '@angular/router'
 import { ModalController } from '@ionic/angular'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { PatchDB } from 'patch-db-client'
-import { filter, map } from 'rxjs'
+import { map } from 'rxjs'
 import { MarketplaceSettingsPage } from 'src/app/modals/marketplace-settings/marketplace-settings.page'
 import { ConfigService } from 'src/app/services/config.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
@@ -84,9 +84,6 @@ export class MarketplaceListPage {
   async presentModalMarketplaceSettings() {
     const modal = await this.modalCtrl.create({
       component: MarketplaceSettingsPage,
-    })
-    modal.onDidDismiss().then(res => {
-      console.log(res)
     })
     await modal.present()
   }
