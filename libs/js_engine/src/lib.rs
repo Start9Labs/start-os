@@ -109,8 +109,15 @@ enum ResultType {
     ErrorCode(i32, String),
     Result(serde_json::Value),
 }
-#[derive(Clone, Default)]
-struct AnswerState(std::sync::Arc<deno_core::parking_lot::Mutex<Value>>);
+#[derive(Clone)]
+struct AnswerState(mpsc::Sender<Value>);
+
+impl AnswerState {
+    fn new() -> (Self, mpsc::Receiver<Value>) {
+        let (send, recv) = mpsc::channel(1);
+        (Self(send), recv)
+    }
+}
 
 #[derive(Clone, Debug)]
 struct ModsLoader {
@@ -282,6 +289,9 @@ impl JsExecutionEnvironment {
         vec![
             fns::chown::decl(),
             fns::chmod::decl(),
+            fns::bind_local::decl(),
+            fns::bind_onion::decl(),
+            fns::chown::decl(),
             fns::fetch::decl(),
             fns::read_file::decl(),
             fns::metadata::decl(),
@@ -306,6 +316,7 @@ impl JsExecutionEnvironment {
             fns::wait_command::decl(),
             fns::sleep::decl(),
             fns::send_signal::decl(),
+            fns::set_permissions::decl(),
             fns::signal_group::decl(),
             fns::rsync::decl(),
             fns::rsync_wait::decl(),
@@ -321,7 +332,7 @@ impl JsExecutionEnvironment {
         variable_args: Vec<serde_json::Value>,
     ) -> Result<Value, (JsError, String)> {
         let base_directory = self.base_directory.clone();
-        let answer_state = AnswerState::default();
+        let (answer_state, mut receive_answer) = AnswerState::new();
         let ext_answer_state = answer_state.clone();
         let (callback_sender, callback_receiver) = mpsc::unbounded_channel();
         let js_ctx = JsContext {
@@ -376,12 +387,18 @@ impl JsExecutionEnvironment {
             Ok::<_, AnyError>(())
         };
 
-        future.await.map_err(|e| {
-            tracing::debug!("{:?}", e);
-            (JsError::Javascript, format!("{}", e))
-        })?;
+        let answer = tokio::select! {
+            Some(x) = receive_answer.recv() => x,
+            _ = future => {
+                if let Some(x) = receive_answer.recv().await {
+                    x
+                }
+                else {
+                    serde_json::json!({"error": "JS Engine Shutdown"})
+                }
+            },
 
-        let answer = answer_state.0.lock().clone();
+        };
         Ok(answer)
     }
 }
@@ -399,10 +416,10 @@ impl<'a> Future for RuntimeEventLoop<'a> {
     ) -> std::task::Poll<Self::Output> {
         let this = self.project();
         if let Poll::Ready(Some((uuid, value))) = this.callback.poll_recv(cx) {
-            match this
-                .runtime
-                .execute_script("callback", &format!("runCallback({uuid}, {value})"))
-            {
+            match this.runtime.execute_script(
+                "callback",
+                &format!("globalThis.runCallback(\"{uuid}\", {value})"),
+            ) {
                 Ok(_) => (),
                 Err(e) => return Poll::Ready(Err(e)),
             }
@@ -440,7 +457,10 @@ mod fns {
         OutputParams, OutputStrategy, ProcessGroupId, ProcessId, RunCommand, RunCommandParams,
         SendSignal, SendSignalParams, SignalGroup, SignalGroupParams,
     };
-    use helpers::{to_tmp_path, AtomicFile, Rsync, RsyncOptions, RuntimeDropped};
+    use helpers::{
+        to_tmp_path, AddressSchemaLocal, AddressSchemaOnion, AtomicFile, Rsync, RsyncOptions,
+        RuntimeDropped,
+    };
     use itertools::Itertools;
     use models::{PackageId, VolumeId};
     use serde::{Deserialize, Serialize};
@@ -751,7 +771,7 @@ mod fns {
                 volume_path.to_string_lossy(),
             );
         }
-        if let Err(_) = tokio::fs::metadata(&src).await {
+        if tokio::fs::metadata(&src).await.is_err() {
             bail!("Source at {} does not exists", src.to_string_lossy());
         }
 
@@ -811,6 +831,39 @@ mod fns {
         let progress = running_rsync.progress.next().await.unwrap_or_default();
         rsyncs.lock().await.1.insert(id, running_rsync);
         Ok(progress)
+    }
+    #[op]
+    async fn set_permissions(
+        state: Rc<RefCell<OpState>>,
+        volume_id: VolumeId,
+        path_in: PathBuf,
+        readonly: bool,
+    ) -> Result<(), AnyError> {
+        let (volumes, volume_path) = {
+            let state = state.borrow();
+            let ctx: &JsContext = state.borrow();
+            let volume_path = ctx
+                .volumes
+                .path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id)
+                .ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?;
+            (ctx.volumes.clone(), volume_path)
+        };
+        if volumes.readonly(&volume_id) {
+            bail!("Volume {} is readonly", volume_id);
+        }
+        let new_file = volume_path.join(path_in);
+        // With the volume check
+        if !is_subset(&volume_path, &new_file).await? {
+            bail!(
+                "Path '{}' has broken away from parent '{}'",
+                new_file.to_string_lossy(),
+                volume_path.to_string_lossy(),
+            );
+        }
+        let mut perms = tokio::fs::metadata(&new_file).await?.permissions();
+        perms.set_readonly(readonly);
+        tokio::fs::set_permissions(new_file, perms).await?;
+        Ok(())
     }
     #[op]
     async fn remove_file(
@@ -1039,8 +1092,10 @@ mod fns {
 
     #[op]
     async fn log_trace(state: Rc<RefCell<OpState>>, input: String) -> Result<(), AnyError> {
-        let state = state.borrow();
-        let ctx = state.borrow::<JsContext>().clone();
+        let ctx = {
+            let state = state.borrow();
+            state.borrow::<JsContext>().clone()
+        };
         if let Some(rpc_client) = ctx.container_rpc_client {
             return rpc_client
                 .request(
@@ -1063,8 +1118,10 @@ mod fns {
     }
     #[op]
     async fn log_warn(state: Rc<RefCell<OpState>>, input: String) -> Result<(), AnyError> {
-        let state = state.borrow();
-        let ctx = state.borrow::<JsContext>().clone();
+        let ctx = {
+            let state = state.borrow();
+            state.borrow::<JsContext>().clone()
+        };
         if let Some(rpc_client) = ctx.container_rpc_client {
             return rpc_client
                 .request(
@@ -1087,8 +1144,10 @@ mod fns {
     }
     #[op]
     async fn log_error(state: Rc<RefCell<OpState>>, input: String) -> Result<(), AnyError> {
-        let state = state.borrow();
-        let ctx = state.borrow::<JsContext>().clone();
+        let ctx = {
+            let state = state.borrow();
+            state.borrow::<JsContext>().clone()
+        };
         if let Some(rpc_client) = ctx.container_rpc_client {
             return rpc_client
                 .request(
@@ -1111,8 +1170,10 @@ mod fns {
     }
     #[op]
     async fn log_debug(state: Rc<RefCell<OpState>>, input: String) -> Result<(), AnyError> {
-        let state = state.borrow();
-        let ctx = state.borrow::<JsContext>().clone();
+        let ctx = {
+            let state = state.borrow();
+            state.borrow::<JsContext>().clone()
+        };
         if let Some(rpc_client) = ctx.container_rpc_client {
             return rpc_client
                 .request(
@@ -1135,8 +1196,10 @@ mod fns {
     }
     #[op]
     async fn log_info(state: Rc<RefCell<OpState>>, input: String) -> Result<(), AnyError> {
-        let state = state.borrow();
-        let ctx = state.borrow::<JsContext>().clone();
+        let ctx = {
+            let state = state.borrow();
+            state.borrow::<JsContext>().clone()
+        };
         if let Some(rpc_client) = ctx.container_rpc_client {
             return rpc_client
                 .request(
@@ -1169,9 +1232,16 @@ mod fns {
         Ok(ctx.variable_args.clone())
     }
     #[op]
-    fn set_value(state: &mut OpState, value: Value) -> Result<(), AnyError> {
-        let mut answer = state.borrow::<AnswerState>().0.lock();
-        *answer = value;
+    async fn set_value(state: Rc<RefCell<OpState>>, value: Value) -> Result<(), AnyError> {
+        let sender = {
+            let state = state.borrow();
+            let answer_state = state.borrow::<AnswerState>().0.clone();
+            answer_state
+        };
+        sender
+            .send(value)
+            .await
+            .map_err(|_e| anyhow!("Could not set a value"))?;
         Ok(())
     }
     #[op]
@@ -1424,28 +1494,54 @@ mod fns {
         service_id: PackageId,
         path: String,
         callback: String,
-    ) -> Result<ResultType, AnyError> {
-        let state = state.borrow();
-        let ctx = state.borrow::<JsContext>();
-        let sender = ctx.callback_sender.clone();
-        Ok(
-            match ctx
-                .os
-                .get_service_config(
-                    service_id,
-                    &path,
-                    Box::new(move |value| {
-                        sender
-                            .send((callback.clone(), value))
-                            .map_err(|_| RuntimeDropped)
-                    }),
-                )
-                .await
-            {
-                Ok(a) => ResultType::Result(a),
-                Err(e) => ResultType::ErrorCode(e.kind as i32, e.source.to_string()),
-            },
+    ) -> Result<Value, AnyError> {
+        let (sender, os) = {
+            let state = state.borrow();
+            let ctx = state.borrow::<JsContext>();
+            (ctx.callback_sender.clone(), ctx.os.clone())
+        };
+        os.get_service_config(
+            service_id,
+            &path,
+            Box::new(move |value| {
+                sender
+                    .send((callback.clone(), value))
+                    .map_err(|_| RuntimeDropped)
+            }),
         )
+        .await
+        .map_err(|e| anyhow!("Couldn't get service config: {e:?}"))
+    }
+
+    #[op]
+    async fn bind_onion(
+        state: Rc<RefCell<OpState>>,
+        internal_port: u16,
+        address_schema: AddressSchemaOnion,
+    ) -> Result<helpers::Address, AnyError> {
+        let os = {
+            let state = state.borrow();
+            let ctx = state.borrow::<JsContext>();
+            ctx.os.clone()
+        };
+        os.bind_onion(internal_port, address_schema)
+            .await
+            .map_err(|e| anyhow!("{e:?}"))
+    }
+    #[op]
+    async fn bind_local(
+        state: Rc<RefCell<OpState>>,
+        internal_port: u16,
+        address_schema: AddressSchemaLocal,
+    ) -> Result<helpers::Address, AnyError> {
+        let os = {
+            let state = state.borrow();
+            let ctx = state.borrow::<JsContext>();
+            ctx.os.clone()
+        };
+        os.bind_local(internal_port, address_schema)
+            .await
+            .map_err(|e| anyhow!("{e:?}"))
     }
 
     /// We need to make sure that during the file accessing, we don't reach beyond our scope of control
