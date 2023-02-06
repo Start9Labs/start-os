@@ -1234,29 +1234,23 @@ mod fns {
         service_id: PackageId,
         path: String,
         callback: String,
-    ) -> Result<ResultType, AnyError> {
+    ) -> Result<Value, AnyError> {
         let (sender, os) = {
             let state = state.borrow();
             let ctx = state.borrow::<JsContext>();
             (ctx.callback_sender.clone(), ctx.os.clone())
         };
-        Ok(
-            match os
-                .get_service_config(
-                    service_id,
-                    &path,
-                    Box::new(move |value| {
-                        sender
-                            .send((callback.clone(), value))
-                            .map_err(|_| RuntimeDropped)
-                    }),
-                )
-                .await
-            {
-                Ok(a) => ResultType::Result(a),
-                Err(e) => ResultType::ErrorCode(e.kind as i32, e.source.to_string()),
-            },
+        os.get_service_config(
+            service_id,
+            &path,
+            Box::new(move |value| {
+                sender
+                    .send((callback.clone(), value))
+                    .map_err(|_| RuntimeDropped)
+            }),
         )
+        .await
+        .map_err(|e| anyhow!("Couldn't get service config: {e:?}"))
     }
 
     #[op]
