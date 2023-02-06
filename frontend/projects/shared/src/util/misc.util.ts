@@ -45,10 +45,6 @@ export function isValidHttpUrl(url: string): boolean {
   }
 }
 
-export function getUrlHostname(url: string): string {
-  return new URL(url).hostname
-}
-
 export function toUrl(text: string | null | undefined): string {
   try {
     const url = new URL(text as string)

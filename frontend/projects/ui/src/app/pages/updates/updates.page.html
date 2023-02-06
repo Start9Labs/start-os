@@ -26,7 +26,7 @@
           *ngIf="data.marketplace[host.url]?.packages as packages else loading"
         >
           <ng-container
-            *ngIf="packages | filterUpdates : data.localPkgs : host.url as updates"
+            *ngIf="packages | filterUpdates : data.localPkgs as updates"
           >
             <div *ngFor="let pkg of updates" class="item-container">
               <ion-item lines="none">
