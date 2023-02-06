@@ -1,3 +1,4 @@
+use color_eyre::{eyre::eyre, Report};
 use helpers::{AddressSchema, Callback, OsApi};
 use models::{InterfaceId, PackageId};
 use sqlx::Acquire;
@@ -12,15 +13,17 @@ impl OsApi for Manager {
         id: PackageId,
         path: &str,
         callback: Callback,
-    ) -> Result<serde_json::Value, Error> {
+    ) -> Result<serde_json::Value, Report> {
         todo!()
     }
     async fn bind(
         &self,
         internal_port: u16,
         address_schema: AddressSchema,
-    ) -> Result<helpers::Address, Error> {
-        let ip = todo!("IP");
+    ) -> Result<helpers::Address, Report> {
+        let ip = try_get_running_ip(&self.seed)
+            .await?
+            .ok_or_else(|| eyre!("No ip available"));
         let mut svc = self
             .seed
             .ctx

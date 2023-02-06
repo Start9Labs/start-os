@@ -1,4 +1,5 @@
 use color_eyre::eyre::eyre;
+use color_eyre::Report;
 use models::PackageId;
 use models::{Error, InterfaceId};
 use serde_json::Value;
@@ -52,41 +53,41 @@ pub trait OsApi: Send + Sync + 'static {
         id: PackageId,
         path: &str,
         callback: Callback,
-    ) -> Result<Value, Error>;
+    ) -> Result<Value, Report>;
 
     async fn bind(
         &self,
         internal_port: u16,
         address_schema: AddressSchema,
-    ) -> Result<Address, Error> {
+    ) -> Result<Address, Report> {
         todo!()
     }
 
-    async fn un_bind(&self, address: Address) -> Result<(), Error> {
+    async fn un_bind(&self, address: Address) -> Result<(), Report> {
         todo!()
     }
-    async fn list_address(&self) -> Result<Vec<Address>, Error> {
+    async fn list_address(&self) -> Result<Vec<Address>, Report> {
         todo!()
     }
-    async fn list_domains(&self) -> Result<Vec<Domain>, Error> {
+    async fn list_domains(&self) -> Result<Vec<Domain>, Report> {
         todo!()
     }
-    async fn alloc_onion(&self, id: String) -> Result<Name, Error> {
+    async fn alloc_onion(&self, id: String) -> Result<Name, Report> {
         todo!()
     }
-    async fn dealloc_onion(&self, id: String) -> Result<(), Error> {
+    async fn dealloc_onion(&self, id: String) -> Result<(), Report> {
         todo!()
     }
-    async fn alloc_local(&self, id: String) -> Result<Name, Error> {
+    async fn alloc_local(&self, id: String) -> Result<Name, Report> {
         todo!()
     }
-    async fn dealloc_local(&self, id: String) -> Result<(), Error> {
+    async fn dealloc_local(&self, id: String) -> Result<(), Report> {
         todo!()
     }
-    async fn alloc_forward(&self, id: String) -> Result<u16, Error> {
+    async fn alloc_forward(&self, id: String) -> Result<u16, Report> {
         todo!()
     }
-    async fn dealloc_forward(&self, id: String) -> Result<(), Error> {
+    async fn dealloc_forward(&self, id: String) -> Result<(), Report> {
         todo!()
     }
 }

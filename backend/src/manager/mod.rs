@@ -832,6 +832,18 @@ async fn main_health_check_daemon(seed: Arc<ManagerSeed>) {
 
 type RuntimeOfCommand = NonDetachingJoinHandle<Result<Result<NoOutput, (i32, String)>, Error>>;
 
+async fn try_get_running_ip(seed: &ManagerSeed) -> Result<Option<Ipv4Addr>, Error> {
+    container_inspect(seed)
+        .await
+        .map(|x| x.network_settings)
+        .and_then(|ns| ns.networks)
+        .and_then(|mut n| n.remove("start9"))
+        .and_then(|es| es.ip_address)
+        .filter(|ip| !ip.is_empty())
+        .map(|ip| ip.parse())
+        .transpose()
+}
+
 async fn get_running_ip(seed: &ManagerSeed, mut runtime: &mut RuntimeOfCommand) -> GetRunningIp {
     loop {
         match container_inspect(seed).await {

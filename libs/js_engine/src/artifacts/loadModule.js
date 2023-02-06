@@ -71,13 +71,40 @@ const runCommand = async (
   let pid = id.then((x) => x.processId);
   return Deno.core.opAsync("wait_command", await pid);
 };
-const bind = async (
+const bindLocal = async (
   {
     internalPort = requireParam("internalPort"),
-    addressSchema = requireParam("addressSchema"),
+    name = requireParam("name"),
+    externalPort = requireParam("externalPort"),
   } = requireParam("options"),
 ) => {
-  return Deno.core.opAsync("bind", internalPort, addressSchema);
+  return Deno.core.opAsync("bind", internalPort, {local: { name, externalPort}});
+};
+const bindTor = async (
+  {
+    internalPort = requireParam("internalPort"),
+    name = requireParam("name"),
+    externalPort = requireParam("externalPort"),
+  } = requireParam("options"),
+) => {
+  return Deno.core.opAsync("bind", internalPort, {onion: { name, externalPort}});
+};
+const bindForwardPort = async (
+  {
+    internalPort = requireParam("internalPort"),
+    externalPort = requireParam("externalPort"),
+  } = requireParam("options"),
+) => {
+  return Deno.core.opAsync("bind", internalPort, {forwardPort: { externalPort}});
+};
+const bindClearnet = async (
+  {
+    internalPort = requireParam("internalPort"),
+    name = requireParam("name"),
+    externalPort = requireParam("externalPort"),
+  } = requireParam("options"),
+) => {
+  return Deno.core.opAsync("bind", internalPort, {clearnet: { name, externalPort}});
 };
 const signalGroup = async (
   { gid = requireParam("gid"), signal = requireParam("signal") } = requireParam(
@@ -250,7 +277,10 @@ const effects = {
   runRsync,
   readDir,
   getServiceConfig,
-  bind,
+  bindLocal,
+  bindTor,
+  bindForwardPort,
+  bindClearnet,
 };
 
 const defaults = {
@@ -269,3 +299,4 @@ const runFunction = jsonPointerValue(mainModule, currentFunction) ||
   const answer = await runFunction(effects, input, ...variable_args);
   setState(answer);
 })();
+
