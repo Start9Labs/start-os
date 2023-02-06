@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use color_eyre::eyre::eyre;
+use color_eyre::Report;
 use embassy_container_init::{ProcessGroupId, SignalGroup, SignalGroupParams};
 use helpers::{Callback, OsApi, UnixRpcClient};
 pub use js_engine::JsError;
@@ -56,7 +57,7 @@ impl OsApi for SandboxOsApi {
         id: PackageId,
         path: &str,
         callback: Callback,
-    ) -> Result<serde_json::Value, Error> {
+    ) -> Result<serde_json::Value, Report> {
         todo!()
     }
 }
