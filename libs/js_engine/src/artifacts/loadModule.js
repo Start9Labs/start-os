@@ -241,7 +241,7 @@ const getServiceConfig = async (
     onChange = requireParam("onChange"),
   } = requireParam("options"),
 ) => {
-  await Deno.core.opAsync(
+  return await Deno.core.opAsync(
     "get_service_config",
     serviceId,
     configPath,
