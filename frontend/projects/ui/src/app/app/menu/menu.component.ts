@@ -1,13 +1,13 @@
 import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
 import { EOSService } from '../../services/eos.service'
 import { PatchDB } from 'patch-db-client'
-import { combineLatest, map, Observable, of, startWith } from 'rxjs'
+import { combineLatest, filter, first, map, Observable, switchMap } from 'rxjs'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { SplitPaneTracker } from 'src/app/services/split-pane.service'
 import { Emver } from '@start9labs/shared'
-import { marketplaceSame, versionLower } from '../../pages/updates/updates.page'
+import { ConnectionService } from 'src/app/services/connection.service'
 
 @Component({
   selector: 'app-menu',
@@ -53,23 +53,31 @@ export class MenuComponent {
 
   readonly showEOSUpdate$ = this.eosService.showUpdate$
 
+  private readonly local$ = this.connectionService.connected$.pipe(
+    filter(Boolean),
+    switchMap(() => this.patch.watch$('package-data')),
+    first(),
+  )
+
   readonly updateCount$: Observable<number> = combineLatest([
-    this.marketplaceService.getMarketplace$(),
-    this.patch.watch$('package-data'),
+    this.marketplaceService.getMarketplace$(true),
+    this.local$,
   ]).pipe(
     map(([marketplace, local]) =>
-      Object.entries(marketplace).reduce(
-        (length, [url, store]) =>
-          length +
-          (store?.packages.filter(
-            ({ manifest }) =>
-              marketplaceSame(manifest, local, url) &&
-              versionLower(manifest, local, this.emver),
-          ).length || 0),
-        0,
-      ),
+      Object.entries(marketplace).reduce((list, [_, store]) => {
+        store?.packages.forEach(({ manifest: { id, version } }) => {
+          if (
+            this.emver.compare(
+              version,
+              local[id]?.installed?.manifest.version || '',
+            ) === 1
+          )
+            list.add(id)
+        })
+        return list
+      }, new Set<string>()),
     ),
-    startWith(0),
+    map(list => list.size),
   )
 
   readonly sidebarOpen$ = this.splitPane.sidebarOpen$
@@ -81,5 +89,6 @@ export class MenuComponent {
     private readonly marketplaceService: MarketplaceService,
     private readonly splitPane: SplitPaneTracker,
     private readonly emver: Emver,
+    private readonly connectionService: ConnectionService,
   ) {}
 }

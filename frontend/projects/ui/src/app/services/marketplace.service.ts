@@ -34,6 +34,7 @@ import {
 } from 'rxjs/operators'
 import { ConfigService } from './config.service'
 import { sameUrl } from '@start9labs/shared'
+import { ClientStorageService } from './client-storage.service'
 
 @Injectable()
 export class MarketplaceService implements AbstractMarketplaceService {
@@ -53,6 +54,20 @@ export class MarketplaceService implements AbstractMarketplaceService {
             .map(([url, store]) => toStoreIdentity(url, store)),
         )
       }),
+    )
+
+  private readonly filteredKnownHosts$: Observable<StoreIdentity[]> =
+    combineLatest([
+      this.clientStorageService.showDevTools$,
+      this.knownHosts$,
+    ]).pipe(
+      map(([devMode, knownHosts]) =>
+        devMode
+          ? knownHosts
+          : knownHosts.filter(
+              ({ url }) => !url.includes('alpha') && !url.includes('beta'),
+            ),
+      ),
     )
 
   private readonly selectedHost$: Observable<StoreIdentity> = this.patch
@@ -93,6 +108,24 @@ export class MarketplaceService implements AbstractMarketplaceService {
     shareReplay(1),
   )
 
+  private readonly filteredMarketplace$ = combineLatest([
+    this.clientStorageService.showDevTools$,
+    this.marketplace$,
+  ]).pipe(
+    map(([devMode, marketplace]) =>
+      Object.entries(marketplace).reduce(
+        (filtered, [url, store]) =>
+          !devMode && (url.includes('alpha') || url.includes('beta'))
+            ? filtered
+            : {
+                [url]: store,
+                ...filtered,
+              },
+        {} as Marketplace,
+      ),
+    ),
+  )
+
   private readonly selectedStore$: Observable<StoreData> =
     this.selectedHost$.pipe(
       switchMap(({ url }) =>
@@ -110,18 +143,21 @@ export class MarketplaceService implements AbstractMarketplaceService {
     private readonly api: ApiService,
     private readonly patch: PatchDB<DataModel>,
     private readonly config: ConfigService,
+    private readonly clientStorageService: ClientStorageService,
   ) {}
 
-  getKnownHosts$(): Observable<StoreIdentity[]> {
-    return this.knownHosts$
+  getKnownHosts$(filtered = false): Observable<StoreIdentity[]> {
+    // option to filter out hosts containing 'alpha' or 'beta' substrings in registryURL
+    return filtered ? this.filteredKnownHosts$ : this.knownHosts$
   }
 
   getSelectedHost$(): Observable<StoreIdentity> {
     return this.selectedHost$
   }
 
-  getMarketplace$(): Observable<Marketplace> {
-    return this.marketplace$
+  getMarketplace$(filtered = false): Observable<Marketplace> {
+    // option to filter out hosts containing 'alpha' or 'beta' substrings in registryURL
+    return filtered ? this.filteredMarketplace$ : this.marketplace$
   }
 
   getSelectedStore$(): Observable<StoreData> {
