@@ -35,42 +35,59 @@ const writeFile = (
 ) => Deno.core.opAsync("write_file", volumeId, path, toWrite);
 
 const readFile = (
-  { volumeId = requireParam("volumeId"), path = requireParam("path") } = requireParam("options"),
+  { volumeId = requireParam("volumeId"), path = requireParam("path") } =
+    requireParam("options"),
 ) => Deno.core.opAsync("read_file", volumeId, path);
-
-
 
 const runDaemon = (
   { command = requireParam("command"), args = [] } = requireParam("options"),
 ) => {
   let id = Deno.core.opAsync("start_command", command, args, "inherit", null);
-  let processId = id.then(x => x.processId)
+  let processId = id.then((x) => x.processId);
   let waitPromise = null;
   return {
     processId,
     async wait() {
-      waitPromise = waitPromise || Deno.core.opAsync("wait_command", await processId)
-      return waitPromise
+      waitPromise = waitPromise ||
+        Deno.core.opAsync("wait_command", await processId);
+      return waitPromise;
     },
     async term(signal = 15) {
-      return Deno.core.opAsync("send_signal", await processId, 15)
-    }
-  }
+      return Deno.core.opAsync("send_signal", await processId, 15);
+    },
+  };
 };
 const runCommand = async (
-  { command = requireParam("command"), args = [], timeoutMillis = 30000 } = requireParam("options"),
+  { command = requireParam("command"), args = [], timeoutMillis = 30000 } =
+    requireParam("options"),
 ) => {
-  let id = Deno.core.opAsync("start_command", command, args, "collect", timeoutMillis);
-  let pid = id.then(x => x.processId)
-  return Deno.core.opAsync("wait_command", await pid)
+  let id = Deno.core.opAsync(
+    "start_command",
+    command,
+    args,
+    "collect",
+    timeoutMillis,
+  );
+  let pid = id.then((x) => x.processId);
+  return Deno.core.opAsync("wait_command", await pid);
+};
+const bind = async (
+  {
+    internalPort = requireParam("internalPort"),
+    addressSchema = requireParam("addressSchema"),
+  } = requireParam("options"),
+) => {
+  return Deno.core.opAsync("bind", internalPort, addressSchema);
 };
 const signalGroup = async (
-  { gid = requireParam("gid"), signal = requireParam("signal") } = requireParam("gid and signal")
+  { gid = requireParam("gid"), signal = requireParam("signal") } = requireParam(
+    "gid and signal",
+  ),
 ) => {
   return Deno.core.opAsync("signal_group", gid, signal);
 };
-const sleep = (timeMs = requireParam("timeMs"),
-) => Deno.core.opAsync("sleep", timeMs);
+const sleep = (timeMs = requireParam("timeMs")) =>
+  Deno.core.opAsync("sleep", timeMs);
 
 const rename = (
   {
@@ -81,7 +98,8 @@ const rename = (
   } = requireParam("options"),
 ) => Deno.core.opAsync("rename", srcVolume, srcPath, dstVolume, dstPath);
 const metadata = async (
-  { volumeId = requireParam("volumeId"), path = requireParam("path") } = requireParam("options"),
+  { volumeId = requireParam("volumeId"), path = requireParam("path") } =
+    requireParam("options"),
 ) => {
   const data = await Deno.core.opAsync("metadata", volumeId, path);
   return {
@@ -92,7 +110,8 @@ const metadata = async (
   };
 };
 const removeFile = (
-  { volumeId = requireParam("volumeId"), path = requireParam("path") } = requireParam("options"),
+  { volumeId = requireParam("volumeId"), path = requireParam("path") } =
+    requireParam("options"),
 ) => Deno.core.opAsync("remove_file", volumeId, path);
 const isSandboxed = () => Deno.core.opSync("is_sandboxed");
 
@@ -109,24 +128,32 @@ const writeJsonFile = (
     toWrite: JSON.stringify(toWrite),
   });
 const readJsonFile = async (
-  { volumeId = requireParam("volumeId"), path = requireParam("path") } = requireParam("options"),
+  { volumeId = requireParam("volumeId"), path = requireParam("path") } =
+    requireParam("options"),
 ) => JSON.parse(await readFile({ volumeId, path }));
 const createDir = (
-  { volumeId = requireParam("volumeId"), path = requireParam("path") } = requireParam("options"),
+  { volumeId = requireParam("volumeId"), path = requireParam("path") } =
+    requireParam("options"),
 ) => Deno.core.opAsync("create_dir", volumeId, path);
 
 const readDir = (
   { volumeId = requireParam("volumeId"), path = requireParam("path") } = requireParam("options"),
 ) => Deno.core.opAsync("read_dir", volumeId, path);
 const removeDir = (
-  { volumeId = requireParam("volumeId"), path = requireParam("path") } = requireParam("options"),
+  { volumeId = requireParam("volumeId"), path = requireParam("path") } =
+    requireParam("options"),
 ) => Deno.core.opAsync("remove_dir", volumeId, path);
-const trace = (whatToTrace = requireParam('whatToTrace')) => Deno.core.opAsync("log_trace", whatToTrace);
-const warn = (whatToTrace = requireParam('whatToTrace')) => Deno.core.opAsync("log_warn", whatToTrace);
-const error = (whatToTrace = requireParam('whatToTrace')) => Deno.core.opAsync("log_error", whatToTrace);
-const debug = (whatToTrace = requireParam('whatToTrace')) => Deno.core.opAsync("log_debug", whatToTrace);
-const info = (whatToTrace = requireParam('whatToTrace')) => Deno.core.opAsync("log_info", whatToTrace);
-const fetch = async (url = requireParam ('url'), options = null) => {
+const trace = (whatToTrace = requireParam("whatToTrace")) =>
+  Deno.core.opAsync("log_trace", whatToTrace);
+const warn = (whatToTrace = requireParam("whatToTrace")) =>
+  Deno.core.opAsync("log_warn", whatToTrace);
+const error = (whatToTrace = requireParam("whatToTrace")) =>
+  Deno.core.opAsync("log_error", whatToTrace);
+const debug = (whatToTrace = requireParam("whatToTrace")) =>
+  Deno.core.opAsync("log_debug", whatToTrace);
+const info = (whatToTrace = requireParam("whatToTrace")) =>
+  Deno.core.opAsync("log_info", whatToTrace);
+const fetch = async (url = requireParam("url"), options = null) => {
   const { body, ...response } = await Deno.core.opAsync("fetch", url, options);
   const textValue = Promise.resolve(body);
   return {
@@ -141,41 +168,59 @@ const fetch = async (url = requireParam ('url'), options = null) => {
 };
 
 const runRsync = (
-  { 
+  {
     srcVolume = requireParam("srcVolume"),
     dstVolume = requireParam("dstVolume"),
     srcPath = requireParam("srcPath"),
     dstPath = requireParam("dstPath"),
     options = requireParam("options"),
- } = requireParam("options"),
+  } = requireParam("options"),
 ) => {
-  let id = Deno.core.opAsync("rsync", srcVolume, srcPath, dstVolume, dstPath, options);
+  let id = Deno.core.opAsync(
+    "rsync",
+    srcVolume,
+    srcPath,
+    dstVolume,
+    dstPath,
+    options,
+  );
   let waitPromise = null;
   return {
     async id() {
-      return id
+      return id;
     },
     async wait() {
-      waitPromise = waitPromise || Deno.core.opAsync("rsync_wait", await id)
-      return waitPromise
+      waitPromise = waitPromise || Deno.core.opAsync("rsync_wait", await id);
+      return waitPromise;
     },
     async progress() {
-      return Deno.core.opAsync("rsync_progress", await id)
-    }
-  }
+      return Deno.core.opAsync("rsync_progress", await id);
+    },
+  };
 };
 
-const callbackMapping = {}
+const callbackMapping = {};
 const registerCallback = (fn) => {
   const uuid = generateUuid(); // TODO
   callbackMapping[uuid] = fn;
-  return uuid
-}
-const runCallback = (uuid, data) => callbackMapping[uuid](data)
+  return uuid;
+};
+const runCallback = (uuid, data) => callbackMapping[uuid](data);
 
-const getServiceConfig = async (serviceId, configPath, onChange) => {
-  await Deno.core.opAsync("get_service_config", serviceId, configPath, registerCallback(onChange))
-}
+const getServiceConfig = async (
+  {
+    serviceId = requireParam("serviceId"),
+    configPath = requireParam("configPath"),
+    onChange = requireParam("onChange"),
+  } = requireParam("options"),
+) => {
+  await Deno.core.opAsync(
+    "get_service_config",
+    serviceId,
+    configPath,
+    registerCallback(onChange),
+  );
+};
 
 const currentFunction = Deno.core.opSync("current_function");
 const input = Deno.core.opSync("get_input");
@@ -204,16 +249,18 @@ const effects = {
   signalGroup,
   runRsync,
   readDir,
-  getServiceConfig
+  getServiceConfig,
+  bind,
 };
 
 const defaults = {
   "handleSignal": (effects, { gid, signal }) => {
-    return effects.signalGroup({ gid, signal })
-  }
-}
+    return effects.signalGroup({ gid, signal });
+  },
+};
 
-const runFunction = jsonPointerValue(mainModule, currentFunction) || jsonPointerValue(defaults, currentFunction);
+const runFunction = jsonPointerValue(mainModule, currentFunction) ||
+  jsonPointerValue(defaults, currentFunction);
 (async () => {
   if (typeof runFunction !== "function") {
     error(`Expecting ${currentFunction} to be a function`);
