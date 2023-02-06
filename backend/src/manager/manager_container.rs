@@ -251,7 +251,10 @@ async fn run_main_log_result(result: RunMainResult, seed: Arc<manager_seed::Mana
     }
 }
 
-pub(super) async fn get_status(db: &mut PatchDbHandle, manifest: &Manifest) -> Result<MainStatus, Error> {
+pub(super) async fn get_status(
+    db: &mut PatchDbHandle,
+    manifest: &Manifest,
+) -> Result<MainStatus, Error> {
     Ok(crate::db::DatabaseModel::new()
         .package_data()
         .idx_model(&manifest.id)
@@ -283,7 +286,6 @@ async fn set_status(
         .status()
         .main()
         .put(db, main_status)
-        .await?
-        .clone();
+        .await?;
     Ok(())
 }

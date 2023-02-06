@@ -730,7 +730,7 @@ export async function setConfig(effects) {
 
 const assert = (condition, message) => {
   if (!condition) {
-    throw new Error(message);
+    throw ({error: message});
   }
 };
 const ackermann = (m, n) => {
@@ -1038,6 +1038,93 @@ export const action = {
         .catch(() => {});
     }
   },
+  /**
+   * Testing callbacks?
+   * @param {*} effects 
+   * @param {*} _input 
+   * @returns 
+   */
+  async "test-callback"(effects, _input) {
+    await Promise.race([
+     new Promise(done => effects.getServiceConfig({serviceId: 'something', configPath: "string", onChange: done})),
+    new Promise (async () => {
+        await effects.sleep(100)
+        throw new Error("Currently in sleeping")
+      }
+    )])
+
+    return {
+      result: {
+        copyable: false,
+        message: "Done",
+        version: "0",
+        qr: false,
+      },
+    };
+  },
+
+  /**
+   * We wanted to change the permissions and the ownership during the 
+   * backing up, there where cases where the ownership is weird and
+   * broke for non root users.
+   * Note: Test for the chmod is broken and turned off because it only works when ran by root
+   * @param {*} effects 
+   * @param {*} _input 
+   * @returns 
+   */
+  async "test-permission-chown"(effects, _input) {
+    await effects
+      .removeDir({
+        volumeId: "main",
+        path: "pem-chown",
+      })
+      .catch(() => {});
+    await effects.createDir({
+      volumeId: "main",
+      path: "pem-chown/deep/123",
+    });
+    await effects.writeFile({
+      volumeId: "main",
+      path: "pem-chown/deep/123/test.txt",
+      toWrite: "Hello World",
+    });
+
+    const firstMetaData = await effects.metadata({
+      volumeId: 'main',
+      path: 'pem-chown/deep/123/test.txt', 
+    })
+    assert(firstMetaData.readonly === false, `The readonly (${firstMetaData.readonly}) is wrong`);
+    const previousUid = firstMetaData.uid;
+    const expected = 1234
+
+    await effects.setPermissions({
+      volumeId: 'main',
+      path: 'pem-chown/deep/123/test.txt',      
+      readonly: true
+    })
+    const chownError = await effects.chown({
+      volumeId: 'main',
+      path: 'pem-chown/deep',      
+      uid: expected
+    }).then(() => true, () => false)
+    let metaData = await effects.metadata({
+      volumeId: 'main',
+      path: 'pem-chown/deep/123/test.txt', 
+    })
+    assert(metaData.readonly === true, `The readonly (${metaData.readonly}) is wrong`);
+    if (chownError) {
+      assert(metaData.uid === expected, `The uuid (${metaData.uid}) is wrong, should be more than ${previousUid}`);
+    }
+
+    return {
+      result: {
+        copyable: false,
+        message: "Done",
+        version: "0",
+        qr: false,
+      },
+    };
+  },
 
   async "test-disk-usage"(effects, _input) {
     const usage = await effects.diskUsage()
@@ -1045,3 +1132,4 @@ export const action = {
   }
 
 };
+
