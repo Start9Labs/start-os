@@ -64,6 +64,9 @@ impl Rsync {
         for exclude in options.exclude {
             cmd.arg(format!("--exclude={}", exclude));
         }
+        if options.no_permissions {
+            cmd.arg("--no-perms");
+        }
         let mut command = cmd
             .arg("-acAXH")
             .arg("--info=progress2")

@@ -3,8 +3,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use color_eyre::eyre::eyre;
+use color_eyre::Report;
 use embassy_container_init::{ProcessGroupId, SignalGroup, SignalGroupParams};
-use helpers::{OsApi, UnixRpcClient};
+use helpers::{Address, AddressSchemaLocal, AddressSchemaOnion, Callback, OsApi, UnixRpcClient};
 pub use js_engine::JsError;
 use js_engine::{JsExecutionEnvironment, PathForVolumeId};
 use models::{ErrorKind, VolumeId};
@@ -49,7 +50,33 @@ struct SandboxOsApi {
     _ctx: RpcContext,
 }
 #[async_trait::async_trait]
-impl OsApi for SandboxOsApi {}
+impl OsApi for SandboxOsApi {
+    #[allow(unused_variables)]
+    async fn get_service_config(
+        &self,
+        id: PackageId,
+        path: &str,
+        callback: Callback,
+    ) -> Result<serde_json::Value, Report> {
+        todo!()
+    }
+    #[allow(unused_variables)]
+    async fn bind_local(
+        &self,
+        internal_port: u16,
+        address_schema: AddressSchemaLocal,
+    ) -> Result<Address, Report> {
+        todo!()
+    }
+    #[allow(unused_variables)]
+    async fn bind_onion(
+        &self,
+        internal_port: u16,
+        address_schema: AddressSchemaOnion,
+    ) -> Result<Address, Report> {
+        todo!()
+    }
+}
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -181,190 +208,189 @@ fn unwrap_known_error<O: DeserializeOwned>(
     }
 }
 
-#[tokio::test]
-async fn js_action_execute() {
-    let js_action = JsProcedure { args: vec![] };
-    let path: PathBuf = "test/js_action_execute/"
-        .parse::<PathBuf>()
-        .unwrap()
-        .canonicalize()
-        .unwrap();
-    let package_id = "test-package".parse().unwrap();
-    let package_version: Version = "0.3.0.3".parse().unwrap();
-    let name = ProcedureName::GetConfig;
-    let volumes: Volumes = serde_json::from_value(serde_json::json!({
-        "main": {
-            "type": "data"
-        },
-        "compat": {
-            "type": "assets"
-        },
-        "filebrowser" :{
-            "package-id": "filebrowser",
-            "path": "data",
-            "readonly": true,
-            "type": "pointer",
-            "volume-id": "main",
-        }
-    }))
-    .unwrap();
-    let input: Option<serde_json::Value> = Some(serde_json::json!({"test":123}));
-    let timeout = Some(Duration::from_secs(10));
-    let _output: crate::config::action::ConfigRes = js_action
-        .execute(
-            &path,
-            &package_id,
-            &package_version,
-            name,
-            &volumes,
-            input,
-            timeout,
-            ProcessGroupId(0),
-            None,
-            None,
-        )
-        .await
-        .unwrap()
-        .unwrap();
-    assert_eq!(
-        &std::fs::read_to_string(
-            "test/js_action_execute/package-data/volumes/test-package/data/main/test.log"
-        )
-        .unwrap(),
-        "This is a test"
-    );
-    std::fs::remove_file(
-        "test/js_action_execute/package-data/volumes/test-package/data/main/test.log",
-    )
-    .unwrap();
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use helpers::{Address, AddressSchemaLocal, AddressSchemaOnion, Callback, OsApi};
+    use serde_json::{json, Value};
+    use tokio::sync::watch;
 
-#[tokio::test]
-async fn js_action_execute_error() {
-    let js_action = JsProcedure { args: vec![] };
-    let path: PathBuf = "test/js_action_execute/"
-        .parse::<PathBuf>()
-        .unwrap()
-        .canonicalize()
-        .unwrap();
-    let package_id = "test-package".parse().unwrap();
-    let package_version: Version = "0.3.0.3".parse().unwrap();
-    let name = ProcedureName::SetConfig;
-    let volumes: Volumes = serde_json::from_value(serde_json::json!({
-        "main": {
-            "type": "data"
-        },
-        "compat": {
-            "type": "assets"
-        },
-        "filebrowser" :{
-            "package-id": "filebrowser",
-            "path": "data",
-            "readonly": true,
-            "type": "pointer",
-            "volume-id": "main",
+    struct OsApiMock {
+        config_callbacks: watch::Sender<Vec<Callback>>,
+    }
+    impl Default for OsApiMock {
+        fn default() -> Self {
+            Self {
+                config_callbacks: watch::channel(Vec::new()).0,
+            }
         }
-    }))
-    .unwrap();
-    let input: Option<serde_json::Value> = None;
-    let timeout = Some(Duration::from_secs(10));
-    let output: Result<serde_json::Value, _> = js_action
-        .execute(
-            &path,
-            &package_id,
-            &package_version,
-            name,
-            &volumes,
-            input,
-            timeout,
-            ProcessGroupId(0),
-            None,
-            None,
-        )
-        .await
-        .unwrap();
-    assert_eq!("Err((2, \"Not setup\"))", &format!("{:?}", output));
-}
+    }
 
-#[tokio::test]
-async fn js_action_fetch() {
-    let js_action = JsProcedure { args: vec![] };
-    let path: PathBuf = "test/js_action_execute/"
-        .parse::<PathBuf>()
-        .unwrap()
-        .canonicalize()
-        .unwrap();
-    let package_id = "test-package".parse().unwrap();
-    let package_version: Version = "0.3.0.3".parse().unwrap();
-    let name = ProcedureName::Action("fetch".parse().unwrap());
-    let volumes: Volumes = serde_json::from_value(serde_json::json!({
-        "main": {
-            "type": "data"
-        },
-        "compat": {
-            "type": "assets"
-        },
-        "filebrowser" :{
-            "package-id": "filebrowser",
-            "path": "data",
-            "readonly": true,
-            "type": "pointer",
-            "volume-id": "main",
+    #[async_trait::async_trait]
+    impl OsApi for OsApiMock {
+        #[allow(unused_variables)]
+        async fn get_service_config(
+            &self,
+            id: PackageId,
+            path: &str,
+            callback: Callback,
+        ) -> Result<serde_json::Value, Report> {
+            println!("Adding callback");
+            self.config_callbacks.send_modify(|x| x.push(callback));
+            Ok(Value::Null)
         }
-    }))
-    .unwrap();
-    let input: Option<serde_json::Value> = None;
-    let timeout = Some(Duration::from_secs(10));
-    js_action
-        .execute::<serde_json::Value, serde_json::Value>(
-            &path,
-            &package_id,
-            &package_version,
-            name,
-            &volumes,
-            input,
-            timeout,
-            ProcessGroupId(0),
-            None,
-            None,
+        #[allow(unused_variables)]
+        async fn bind_local(
+            &self,
+            internal_port: u16,
+            address_schema: AddressSchemaLocal,
+        ) -> Result<Address, Report> {
+            todo!()
+        }
+        #[allow(unused_variables)]
+        async fn bind_onion(
+            &self,
+            internal_port: u16,
+            address_schema: AddressSchemaOnion,
+        ) -> Result<Address, Report> {
+            todo!()
+        }
+    }
+    #[tokio::test]
+    async fn js_action_execute() {
+        let js_action = JsProcedure { args: vec![] };
+        let path: PathBuf = "test/js_action_execute/"
+            .parse::<PathBuf>()
+            .unwrap()
+            .canonicalize()
+            .unwrap();
+        let package_id = "test-package".parse().unwrap();
+        let package_version: Version = "0.3.0.3".parse().unwrap();
+        let name = ProcedureName::GetConfig;
+        let volumes: Volumes = serde_json::from_value(json!({
+            "main": {
+                "type": "data"
+            },
+            "compat": {
+                "type": "assets"
+            },
+            "filebrowser" :{
+                "package-id": "filebrowser",
+                "path": "data",
+                "readonly": true,
+                "type": "pointer",
+                "volume-id": "main",
+            }
+        }))
+        .unwrap();
+        let input: Option<serde_json::Value> = Some(json!({"test":123}));
+        let timeout = Some(Duration::from_secs(10));
+        let _output: crate::config::action::ConfigRes = js_action
+            .execute(
+                &path,
+                &package_id,
+                &package_version,
+                name,
+                &volumes,
+                input,
+                timeout,
+                ProcessGroupId(0),
+                None,
+                Arc::new(OsApiMock::default()),
+            )
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            &std::fs::read_to_string(
+                "test/js_action_execute/package-data/volumes/test-package/data/main/test.log"
+            )
+            .unwrap(),
+            "This is a test"
+        );
+        std::fs::remove_file(
+            "test/js_action_execute/package-data/volumes/test-package/data/main/test.log",
         )
-        .await
-        .unwrap()
         .unwrap();
-}
+    }
 
-#[tokio::test]
-async fn js_test_slow() {
-    let js_action = JsProcedure { args: vec![] };
-    let path: PathBuf = "test/js_action_execute/"
-        .parse::<PathBuf>()
-        .unwrap()
-        .canonicalize()
+    #[tokio::test]
+    async fn js_action_execute_error() {
+        let js_action = JsProcedure { args: vec![] };
+        let path: PathBuf = "test/js_action_execute/"
+            .parse::<PathBuf>()
+            .unwrap()
+            .canonicalize()
+            .unwrap();
+        let package_id = "test-package".parse().unwrap();
+        let package_version: Version = "0.3.0.3".parse().unwrap();
+        let name = ProcedureName::SetConfig;
+        let volumes: Volumes = serde_json::from_value(json!({
+            "main": {
+                "type": "data"
+            },
+            "compat": {
+                "type": "assets"
+            },
+            "filebrowser" :{
+                "package-id": "filebrowser",
+                "path": "data",
+                "readonly": true,
+                "type": "pointer",
+                "volume-id": "main",
+            }
+        }))
         .unwrap();
-    let package_id = "test-package".parse().unwrap();
-    let package_version: Version = "0.3.0.3".parse().unwrap();
-    let name = ProcedureName::Action("slow".parse().unwrap());
-    let volumes: Volumes = serde_json::from_value(serde_json::json!({
-        "main": {
-            "type": "data"
-        },
-        "compat": {
-            "type": "assets"
-        },
-        "filebrowser" :{
-            "package-id": "filebrowser",
-            "path": "data",
-            "readonly": true,
-            "type": "pointer",
-            "volume-id": "main",
-        }
-    }))
-    .unwrap();
-    let input: Option<serde_json::Value> = None;
-    let timeout = Some(Duration::from_secs(10));
-    tracing::debug!("testing start");
-    tokio::select! {
-        a = js_action
+        let input: Option<serde_json::Value> = None;
+        let timeout = Some(Duration::from_secs(10));
+        let output: Result<serde_json::Value, _> = js_action
+            .execute(
+                &path,
+                &package_id,
+                &package_version,
+                name,
+                &volumes,
+                input,
+                timeout,
+                ProcessGroupId(0),
+                None,
+                Arc::new(OsApiMock::default()),
+            )
+            .await
+            .unwrap();
+        assert_eq!("Err((2, \"Not setup\"))", &format!("{:?}", output));
+    }
+
+    #[tokio::test]
+    async fn js_action_fetch() {
+        let js_action = JsProcedure { args: vec![] };
+        let path: PathBuf = "test/js_action_execute/"
+            .parse::<PathBuf>()
+            .unwrap()
+            .canonicalize()
+            .unwrap();
+        let package_id = "test-package".parse().unwrap();
+        let package_version: Version = "0.3.0.3".parse().unwrap();
+        let name = ProcedureName::Action("fetch".parse().unwrap());
+        let volumes: Volumes = serde_json::from_value(json!({
+            "main": {
+                "type": "data"
+            },
+            "compat": {
+                "type": "assets"
+            },
+            "filebrowser" :{
+                "package-id": "filebrowser",
+                "path": "data",
+                "readonly": true,
+                "type": "pointer",
+                "volume-id": "main",
+            }
+        }))
+        .unwrap();
+        let input: Option<serde_json::Value> = None;
+        let timeout = Some(Duration::from_secs(10));
+        js_action
             .execute::<serde_json::Value, serde_json::Value>(
                 &path,
                 &package_id,
@@ -375,117 +401,138 @@ async fn js_test_slow() {
                 timeout,
                 ProcessGroupId(0),
                 None,
-                None,
-            ) => { a.unwrap().unwrap(); },
-        _ = tokio::time::sleep(Duration::from_secs(1)) => ()
+                Arc::new(OsApiMock::default()),
+            )
+            .await
+            .unwrap()
+            .unwrap();
     }
-    tracing::debug!("testing end should");
-    tokio::time::sleep(Duration::from_secs(2)).await;
-    tracing::debug!("Done");
-}
-#[tokio::test]
-async fn js_action_var_arg() {
-    let js_action = JsProcedure {
-        args: vec![42.into()],
-    };
-    let path: PathBuf = "test/js_action_execute/"
-        .parse::<PathBuf>()
-        .unwrap()
-        .canonicalize()
-        .unwrap();
-    let package_id = "test-package".parse().unwrap();
-    let package_version: Version = "0.3.0.3".parse().unwrap();
-    let name = ProcedureName::Action("js-action-var-arg".parse().unwrap());
-    let volumes: Volumes = serde_json::from_value(serde_json::json!({
-        "main": {
-            "type": "data"
-        },
-        "compat": {
-            "type": "assets"
-        },
-        "filebrowser" :{
-            "package-id": "filebrowser",
-            "path": "data",
-            "readonly": true,
-            "type": "pointer",
-            "volume-id": "main",
-        }
-    }))
-    .unwrap();
-    let input: Option<serde_json::Value> = None;
-    let timeout = Some(Duration::from_secs(10));
-    js_action
-        .execute::<serde_json::Value, serde_json::Value>(
-            &path,
-            &package_id,
-            &package_version,
-            name,
-            &volumes,
-            input,
-            timeout,
-            ProcessGroupId(0),
-            None,
-            None,
-        )
-        .await
-        .unwrap()
-        .unwrap();
-}
 
-#[tokio::test]
-async fn js_action_test_rename() {
-    let js_action = JsProcedure { args: vec![] };
-    let path: PathBuf = "test/js_action_execute/"
-        .parse::<PathBuf>()
-        .unwrap()
-        .canonicalize()
+    #[tokio::test]
+    async fn js_test_slow() {
+        let js_action = JsProcedure { args: vec![] };
+        let path: PathBuf = "test/js_action_execute/"
+            .parse::<PathBuf>()
+            .unwrap()
+            .canonicalize()
+            .unwrap();
+        let package_id = "test-package".parse().unwrap();
+        let package_version: Version = "0.3.0.3".parse().unwrap();
+        let name = ProcedureName::Action("slow".parse().unwrap());
+        let volumes: Volumes = serde_json::from_value(json!({
+            "main": {
+                "type": "data"
+            },
+            "compat": {
+                "type": "assets"
+            },
+            "filebrowser" :{
+                "package-id": "filebrowser",
+                "path": "data",
+                "readonly": true,
+                "type": "pointer",
+                "volume-id": "main",
+            }
+        }))
         .unwrap();
-    let package_id = "test-package".parse().unwrap();
-    let package_version: Version = "0.3.0.3".parse().unwrap();
-    let name = ProcedureName::Action("test-rename".parse().unwrap());
-    let volumes: Volumes = serde_json::from_value(serde_json::json!({
-        "main": {
-            "type": "data"
-        },
-        "compat": {
-            "type": "assets"
-        },
-        "filebrowser" :{
-            "package-id": "filebrowser",
-            "path": "data",
-            "readonly": true,
-            "type": "pointer",
-            "volume-id": "main",
+        let input: Option<serde_json::Value> = None;
+        let timeout = Some(Duration::from_secs(10));
+        tracing::debug!("testing start");
+        tokio::select! {
+            a = js_action
+                .execute::<serde_json::Value, serde_json::Value>(
+                    &path,
+                    &package_id,
+                    &package_version,
+                    name,
+                    &volumes,
+                    input,
+                    timeout,
+                    ProcessGroupId(0),
+                    None,
+                    Arc::new(OsApiMock::default())
+                ) => { a.unwrap().unwrap(); },
+            _ = tokio::time::sleep(Duration::from_secs(1)) => ()
         }
-    }))
-    .unwrap();
-    let input: Option<serde_json::Value> = None;
-    let timeout = Some(Duration::from_secs(10));
-    js_action
-        .execute::<serde_json::Value, serde_json::Value>(
-            &path,
-            &package_id,
-            &package_version,
-            name,
-            &volumes,
-            input,
-            timeout,
-            ProcessGroupId(0),
-            None,
-            None,
-        )
-        .await
-        .unwrap()
+        tracing::debug!("testing end should");
+        tokio::time::sleep(Duration::from_secs(2)).await;
+        tracing::debug!("Done");
+    }
+    #[tokio::test]
+    async fn js_action_var_arg() {
+        let js_action = JsProcedure {
+            args: vec![42.into()],
+        };
+        let path: PathBuf = "test/js_action_execute/"
+            .parse::<PathBuf>()
+            .unwrap()
+            .canonicalize()
+            .unwrap();
+        let package_id = "test-package".parse().unwrap();
+        let package_version: Version = "0.3.0.3".parse().unwrap();
+        let name = ProcedureName::Action("js-action-var-arg".parse().unwrap());
+        let volumes: Volumes = serde_json::from_value(json!({
+            "main": {
+                "type": "data"
+            },
+            "compat": {
+                "type": "assets"
+            },
+            "filebrowser" :{
+                "package-id": "filebrowser",
+                "path": "data",
+                "readonly": true,
+                "type": "pointer",
+                "volume-id": "main",
+            }
+        }))
         .unwrap();
-}
+        let input: Option<serde_json::Value> = None;
+        let timeout = Some(Duration::from_secs(10));
+        js_action
+            .execute::<serde_json::Value, serde_json::Value>(
+                &path,
+                &package_id,
+                &package_version,
+                name,
+                &volumes,
+                input,
+                timeout,
+                ProcessGroupId(0),
+                None,
+                Arc::new(OsApiMock::default()),
+            )
+            .await
+            .unwrap()
+            .unwrap();
+    }
 
-#[tokio::test]
-async fn js_action_test_deep_dir() {
-    let js_action = JsProcedure { args: vec![] };
-    let path: PathBuf = "test/js_action_execute/"
-        .parse::<PathBuf>()
-        .unwrap()
-        .canonicalize()
+    #[tokio::test]
+    async fn js_action_test_rename() {
+        let js_action = JsProcedure { args: vec![] };
+        let path: PathBuf = "test/js_action_execute/"
+            .parse::<PathBuf>()
+            .unwrap()
+            .canonicalize()
+            .unwrap();
+        let package_id = "test-package".parse().unwrap();
+        let package_version: Version = "0.3.0.3".parse().unwrap();
+        let name = ProcedureName::Action("test-rename".parse().unwrap());
+        let volumes: Volumes = serde_json::from_value(json!({
+            "main": {
+                "type": "data"
+            },
+            "compat": {
+                "type": "assets"
+            },
+            "filebrowser" :{
+                "package-id": "filebrowser",
+                "path": "data",
+                "readonly": true,
+                "type": "pointer",
+                "volume-id": "main",
+            }
+        }))
         .unwrap();
     let package_id = "test-package".parse().unwrap();
     let package_version: Version = "0.3.0.3".parse().unwrap();
@@ -663,49 +710,299 @@ async fn js_action_test_read_dir() {
         .unwrap();
 }
 
-#[tokio::test]
-async fn js_rsync() {
-    let js_action = JsProcedure { args: vec![] };
-    let path: PathBuf = "test/js_action_execute/"
-        .parse::<PathBuf>()
-        .unwrap()
-        .canonicalize()
+    #[tokio::test]
+    async fn js_action_test_deep_dir() {
+        let js_action = JsProcedure { args: vec![] };
+        let path: PathBuf = "test/js_action_execute/"
+            .parse::<PathBuf>()
+            .unwrap()
+            .canonicalize()
+            .unwrap();
+        let package_id = "test-package".parse().unwrap();
+        let package_version: Version = "0.3.0.3".parse().unwrap();
+        let name = ProcedureName::Action("test-deep-dir".parse().unwrap());
+        let volumes: Volumes = serde_json::from_value(json!({
+            "main": {
+                "type": "data"
+            },
+            "compat": {
+                "type": "assets"
+            },
+            "filebrowser" :{
+                "package-id": "filebrowser",
+                "path": "data",
+                "readonly": true,
+                "type": "pointer",
+                "volume-id": "main",
+            }
+        }))
         .unwrap();
-    let package_id = "test-package".parse().unwrap();
-    let package_version: Version = "0.3.0.3".parse().unwrap();
-    let name = ProcedureName::Action("test-rsync".parse().unwrap());
-    let volumes: Volumes = serde_json::from_value(serde_json::json!({
-        "main": {
-            "type": "data"
-        },
-        "compat": {
-            "type": "assets"
-        },
-        "filebrowser" :{
-            "package-id": "filebrowser",
-            "path": "data",
-            "readonly": true,
-            "type": "pointer",
-            "volume-id": "main",
-        }
-    }))
-    .unwrap();
-    let input: Option<serde_json::Value> = None;
-    let timeout = Some(Duration::from_secs(10));
-    js_action
-        .execute::<serde_json::Value, serde_json::Value>(
-            &path,
-            &package_id,
-            &package_version,
-            name,
-            &volumes,
-            input,
-            timeout,
-            ProcessGroupId(0),
-            None,
-            None,
-        )
-        .await
-        .unwrap()
+        let input: Option<serde_json::Value> = None;
+        let timeout = Some(Duration::from_secs(10));
+        js_action
+            .execute::<serde_json::Value, serde_json::Value>(
+                &path,
+                &package_id,
+                &package_version,
+                name,
+                &volumes,
+                input,
+                timeout,
+                ProcessGroupId(0),
+                None,
+                Arc::new(OsApiMock::default()),
+            )
+            .await
+            .unwrap()
+            .unwrap();
+    }
+    #[tokio::test]
+    async fn js_action_test_deep_dir_escape() {
+        let js_action = JsProcedure { args: vec![] };
+        let path: PathBuf = "test/js_action_execute/"
+            .parse::<PathBuf>()
+            .unwrap()
+            .canonicalize()
+            .unwrap();
+        let package_id = "test-package".parse().unwrap();
+        let package_version: Version = "0.3.0.3".parse().unwrap();
+        let name = ProcedureName::Action("test-deep-dir-escape".parse().unwrap());
+        let volumes: Volumes = serde_json::from_value(json!({
+            "main": {
+                "type": "data"
+            },
+            "compat": {
+                "type": "assets"
+            },
+            "filebrowser" :{
+                "package-id": "filebrowser",
+                "path": "data",
+                "readonly": true,
+                "type": "pointer",
+                "volume-id": "main",
+            }
+        }))
         .unwrap();
+        let input: Option<serde_json::Value> = None;
+        let timeout = Some(Duration::from_secs(10));
+        js_action
+            .execute::<serde_json::Value, serde_json::Value>(
+                &path,
+                &package_id,
+                &package_version,
+                name,
+                &volumes,
+                input,
+                timeout,
+                ProcessGroupId(0),
+                None,
+                Arc::new(OsApiMock::default()),
+            )
+            .await
+            .unwrap()
+            .unwrap();
+    }
+    #[tokio::test]
+    async fn js_permissions_and_own() {
+        let js_action = JsProcedure { args: vec![] };
+        let path: PathBuf = "test/js_action_execute/"
+            .parse::<PathBuf>()
+            .unwrap()
+            .canonicalize()
+            .unwrap();
+        let package_id = "test-package".parse().unwrap();
+        let package_version: Version = "0.3.0.3".parse().unwrap();
+        let name = ProcedureName::Action("test-permission-chown".parse().unwrap());
+        let volumes: Volumes = serde_json::from_value(json!({
+            "main": {
+                "type": "data"
+            },
+            "compat": {
+                "type": "assets"
+            },
+            "filebrowser" :{
+                "package-id": "filebrowser",
+                "path": "data",
+                "readonly": true,
+                "type": "pointer",
+                "volume-id": "main",
+            }
+        }))
+        .unwrap();
+        let input: Option<serde_json::Value> = None;
+        let timeout = Some(Duration::from_secs(10));
+        js_action
+            .execute::<serde_json::Value, serde_json::Value>(
+                &path,
+                &package_id,
+                &package_version,
+                name,
+                &volumes,
+                input,
+                timeout,
+                ProcessGroupId(0),
+                None,
+                Arc::new(OsApiMock::default()),
+            )
+            .await
+            .unwrap()
+            .unwrap();
+    }
+    #[tokio::test]
+    async fn js_action_test_zero_dir() {
+        let js_action = JsProcedure { args: vec![] };
+        let path: PathBuf = "test/js_action_execute/"
+            .parse::<PathBuf>()
+            .unwrap()
+            .canonicalize()
+            .unwrap();
+        let package_id = "test-package".parse().unwrap();
+        let package_version: Version = "0.3.0.3".parse().unwrap();
+        let name = ProcedureName::Action("test-zero-dir".parse().unwrap());
+        let volumes: Volumes = serde_json::from_value(json!({
+            "main": {
+                "type": "data"
+            },
+            "compat": {
+                "type": "assets"
+            },
+            "filebrowser" :{
+                "package-id": "filebrowser",
+                "path": "data",
+                "readonly": true,
+                "type": "pointer",
+                "volume-id": "main",
+            }
+        }))
+        .unwrap();
+        let input: Option<serde_json::Value> = None;
+        let timeout = Some(Duration::from_secs(10));
+        js_action
+            .execute::<serde_json::Value, serde_json::Value>(
+                &path,
+                &package_id,
+                &package_version,
+                name,
+                &volumes,
+                input,
+                timeout,
+                ProcessGroupId(0),
+                None,
+                Arc::new(OsApiMock::default()),
+            )
+            .await
+            .unwrap()
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn js_rsync() {
+        let js_action = JsProcedure { args: vec![] };
+        let path: PathBuf = "test/js_action_execute/"
+            .parse::<PathBuf>()
+            .unwrap()
+            .canonicalize()
+            .unwrap();
+        let package_id = "test-package".parse().unwrap();
+        let package_version: Version = "0.3.0.3".parse().unwrap();
+        let name = ProcedureName::Action("test-rsync".parse().unwrap());
+        let volumes: Volumes = serde_json::from_value(json!({
+            "main": {
+                "type": "data"
+            },
+            "compat": {
+                "type": "assets"
+            },
+            "filebrowser" :{
+                "package-id": "filebrowser",
+                "path": "data",
+                "readonly": true,
+                "type": "pointer",
+                "volume-id": "main",
+            }
+        }))
+        .unwrap();
+        let input: Option<serde_json::Value> = None;
+        let timeout = Some(Duration::from_secs(10));
+        js_action
+            .execute::<serde_json::Value, serde_json::Value>(
+                &path,
+                &package_id,
+                &package_version,
+                name,
+                &volumes,
+                input,
+                timeout,
+                ProcessGroupId(0),
+                None,
+                Arc::new(OsApiMock::default()),
+            )
+            .await
+            .unwrap()
+            .unwrap();
+    }
+    #[tokio::test]
+    async fn test_callback() {
+        let api = Arc::new(OsApiMock::default());
+        let action_api = api.clone();
+        let spawned = tokio::spawn(async move {
+            let mut watching = api.config_callbacks.subscribe();
+            loop {
+                if watching.borrow().is_empty() {
+                    watching.changed().await.unwrap();
+                    continue;
+                }
+                api.config_callbacks.send_modify(|x| {
+                    x[0](json!("This is something across the wire!"))
+                        .map_err(|e| format!("Failed call"))
+                        .unwrap();
+                });
+                break;
+            }
+        });
+        let js_action = JsProcedure { args: vec![] };
+        let path: PathBuf = "test/js_action_execute/"
+            .parse::<PathBuf>()
+            .unwrap()
+            .canonicalize()
+            .unwrap();
+        let package_id = "test-package".parse().unwrap();
+        let package_version: Version = "0.3.0.3".parse().unwrap();
+        let name = ProcedureName::Action("test-callback".parse().unwrap());
+        let volumes: Volumes = serde_json::from_value(json!({
+            "main": {
+                "type": "data"
+            },
+            "compat": {
+                "type": "assets"
+            },
+            "filebrowser" :{
+                "package-id": "filebrowser",
+                "path": "data",
+                "readonly": true,
+                "type": "pointer",
+                "volume-id": "main",
+            }
+        }))
+        .unwrap();
+        let input: Option<serde_json::Value> = None;
+        let timeout = Some(Duration::from_secs(10));
+        js_action
+            .execute::<serde_json::Value, serde_json::Value>(
+                &path,
+                &package_id,
+                &package_version,
+                name,
+                &volumes,
+                input,
+                timeout,
+                ProcessGroupId(0),
+                None,
+                action_api,
+            )
+            .await
+            .unwrap()
+            .unwrap();
+        spawned.await.unwrap();
+    }
 }
