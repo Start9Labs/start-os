@@ -308,6 +308,7 @@ impl JsExecutionEnvironment {
             fns::rsync_wait::decl(),
             fns::rsync_progress::decl(),
             fns::get_service_config::decl(),
+            fns::bind::decl(),
         ]
     }
 
@@ -435,7 +436,7 @@ mod fns {
         OutputParams, OutputStrategy, ProcessGroupId, ProcessId, RunCommand, RunCommandParams,
         SendSignal, SendSignalParams, SignalGroup, SignalGroupParams,
     };
-    use helpers::{to_tmp_path, AtomicFile, Rsync, RsyncOptions, RuntimeDropped};
+    use helpers::{to_tmp_path, AddressSchema, AtomicFile, Rsync, RsyncOptions, RuntimeDropped};
     use models::{PackageId, VolumeId};
     use serde::{Deserialize, Serialize};
     use serde_json::{json, Value};
@@ -1234,12 +1235,13 @@ mod fns {
         path: String,
         callback: String,
     ) -> Result<ResultType, AnyError> {
-        let state = state.borrow();
-        let ctx = state.borrow::<JsContext>();
-        let sender = ctx.callback_sender.clone();
+        let (sender, os) = {
+            let state = state.borrow();
+            let ctx = state.borrow::<JsContext>();
+            (ctx.callback_sender.clone(), ctx.os.clone())
+        };
         Ok(
-            match ctx
-                .os
+            match os
                 .get_service_config(
                     service_id,
                     &path,
@@ -1255,6 +1257,22 @@ mod fns {
                 Err(e) => ResultType::ErrorCode(e.kind as i32, e.source.to_string()),
             },
         )
+    }
+
+    #[op]
+    async fn bind(
+        state: Rc<RefCell<OpState>>,
+        internal_port: u16,
+        address_schema: AddressSchema,
+    ) -> Result<helpers::Address, AnyError> {
+        let os = {
+            let state = state.borrow();
+            let ctx = state.borrow::<JsContext>();
+            ctx.os.clone()
+        };
+        os.bind(internal_port, address_schema)
+            .await
+            .map_err(|e| anyhow!("{e:?}"))
     }
 
     /// We need to make sure that during the file accessing, we don't reach beyond our scope of control
