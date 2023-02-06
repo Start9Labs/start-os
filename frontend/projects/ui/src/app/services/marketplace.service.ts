@@ -56,18 +56,18 @@ export class MarketplaceService implements AbstractMarketplaceService {
       }),
     )
 
-  private readonly filteredKnownHosts: Observable<StoreIdentity[]> =
+  private readonly filteredKnownHosts$: Observable<StoreIdentity[]> =
     combineLatest([
       this.clientStorageService.showDevTools$,
       this.knownHosts$,
     ]).pipe(
-      map(([devMode, knownHosts]) => {
-        if (devMode) return knownHosts
-
-        return knownHosts.filter(
-          ({ url }) => !url.includes('alpha') && !url.includes('beta'),
-        )
-      }),
+      map(([devMode, knownHosts]) =>
+        devMode
+          ? knownHosts
+          : knownHosts.filter(
+              ({ url }) => !url.includes('alpha') && !url.includes('beta'),
+            ),
+      ),
     )
 
   private readonly selectedHost$: Observable<StoreIdentity> = this.patch
@@ -113,15 +113,16 @@ export class MarketplaceService implements AbstractMarketplaceService {
     this.marketplace$,
   ]).pipe(
     map(([devMode, marketplace]) =>
-      Object.entries(marketplace).reduce((filtered, [url, store]) => {
-        if (!devMode && (url.includes('alpha') || url.includes('beta'))) {
-          return filtered
-        }
-        return {
-          [url]: store,
-          ...filtered,
-        }
-      }, {} as Marketplace),
+      Object.entries(marketplace).reduce(
+        (filtered, [url, store]) =>
+          !devMode && (url.includes('alpha') || url.includes('beta'))
+            ? filtered
+            : {
+                [url]: store,
+                ...filtered,
+              },
+        {} as Marketplace,
+      ),
     ),
   )
 
@@ -146,7 +147,8 @@ export class MarketplaceService implements AbstractMarketplaceService {
   ) {}
 
   getKnownHosts$(filtered = false): Observable<StoreIdentity[]> {
-    return filtered ? this.filteredKnownHosts : this.knownHosts$
+    // option to filter out hosts containing 'alpha' or 'beta' substrings in registryURL
+    return filtered ? this.filteredKnownHosts$ : this.knownHosts$
   }
 
   getSelectedHost$(): Observable<StoreIdentity> {
@@ -154,6 +156,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
   }
 
   getMarketplace$(filtered = false): Observable<Marketplace> {
+    // option to filter out hosts containing 'alpha' or 'beta' substrings in registryURL
     return filtered ? this.filteredMarketplace$ : this.marketplace$
   }
 

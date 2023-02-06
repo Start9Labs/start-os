@@ -175,19 +175,16 @@ export class FilterUpdatesPipe implements PipeTransform {
 
   transform(
     pkgs: MarketplacePkg[],
-    local: Record<string, PackageDataEntry>,
+    local: Record<string, PackageDataEntry | undefined>,
   ): MarketplacePkg[] {
     return pkgs.filter(({ manifest }) => {
-      const { id, version } = manifest
-      const localPkg = local[id]
-
-      if (!localPkg) return false
+      const localPkg = local[manifest.id]
 
       return (
-        local[id]?.state === PackageState.Updating ||
+        localPkg?.state === PackageState.Updating ||
         this.emver.compare(
-          version,
-          local[id].installed?.manifest.version || '',
+          manifest.version,
+          localPkg?.installed?.manifest.version || '',
         ) === 1
       )
     })
