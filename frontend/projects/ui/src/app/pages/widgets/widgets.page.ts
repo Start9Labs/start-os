@@ -4,16 +4,15 @@ import {
   Component,
   ElementRef,
   Inject,
+  Input,
   Optional,
   Type,
 } from '@angular/core'
-import { TuiDestroyService, TuiResizeService, tuiWatch } from '@taiga-ui/cdk'
 import { TuiDialogContext, TuiDialogService } from '@taiga-ui/core'
 import {
   PolymorpheusComponent,
   POLYMORPHEUS_CONTEXT,
 } from '@tinkoff/ng-polymorpheus'
-import { distinctUntilChanged, map, startWith, takeUntil } from 'rxjs'
 import { PatchDB } from 'patch-db-client'
 import { DataModel, Widget } from '../../services/patch-db/data-model'
 import { ApiService } from '../../services/api/embassy-api.service'
@@ -23,20 +22,21 @@ import { HealthComponent } from './built-in/health/health.component'
 import { NetworkComponent } from './built-in/network/network.component'
 import { MetricsComponent } from './built-in/metrics/metrics.component'
 import { UptimeComponent } from './built-in/uptime/uptime.component'
-import { WidgetsService } from './built-in/widgets.service'
 import { take } from 'rxjs/operators'
 
 @Component({
   selector: 'widgets',
   templateUrl: 'widgets.page.html',
   styleUrls: ['widgets.page.scss'],
-  providers: [TuiDestroyService, TuiResizeService],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     '[class.dialog]': 'context',
   },
 })
 export class WidgetsPage {
+  @Input()
+  wide = false
+
   edit = false
 
   order = new Map<number, number>()
@@ -44,12 +44,6 @@ export class WidgetsPage {
   items: readonly Widget[] = []
 
   pending = true
-
-  readonly isMobile$ = this.resize$.pipe(
-    startWith(null),
-    map(() => this.elementRef.nativeElement.clientWidth < 600),
-    distinctUntilChanged(),
-  )
 
   readonly components: Record<string, Type<any>> = {
     health: HealthComponent,
@@ -64,13 +58,10 @@ export class WidgetsPage {
     @Inject(POLYMORPHEUS_CONTEXT)
     readonly context: TuiDialogContext | null,
     private readonly elementRef: ElementRef<HTMLElement>,
-    private readonly resize$: TuiResizeService,
     private readonly dialog: TuiDialogService,
     private readonly patch: PatchDB<DataModel>,
-    private readonly destroy$: TuiDestroyService,
     private readonly cdr: ChangeDetectorRef,
     private readonly api: ApiService,
-    private readonly service: WidgetsService,
   ) {
     this.patch
       .watch$('ui', 'widgets', 'widgets')
@@ -83,14 +74,6 @@ export class WidgetsPage {
 
   trackBy(_: number, { id }: Widget) {
     return id
-  }
-
-  close() {
-    if (this.context) {
-      this.context.$implicit.complete()
-    } else {
-      this.service.toggle(false)
-    }
   }
 
   toggle() {

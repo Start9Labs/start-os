@@ -29,7 +29,6 @@ import { PatchDbModule } from './services/patch-db/patch-db.module'
 import { ToastContainerModule } from './components/toast-container/toast-container.module'
 import { ConnectionBarComponentModule } from './components/connection-bar/connection-bar.component.module'
 import { WidgetsPageModule } from './pages/widgets/widgets.module'
-import { TuiResizerModule } from '@taiga-ui/cdk'
 
 @NgModule({
   declarations: [AppComponent],
@@ -57,7 +56,6 @@ import { TuiResizerModule } from '@taiga-ui/cdk'
     TuiDialogModule,
     TuiModeModule,
     TuiThemeNightModule,
-    TuiResizerModule,
     WidgetsPageModule,
     ResponsiveColModule,
   ],

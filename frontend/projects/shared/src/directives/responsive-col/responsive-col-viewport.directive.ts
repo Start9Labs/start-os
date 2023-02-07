@@ -3,6 +3,7 @@ import {
   ElementRef,
   Inject,
   InjectionToken,
+  Input,
   NgZone,
 } from '@angular/core'
 import { ResizeObserverService } from '@ng-web-apis/resize-observer'
@@ -39,9 +40,13 @@ export const BREAKPOINTS = new InjectionToken<readonly [number, Step][]>(
 
 @Directive({
   selector: '[responsiveColViewport]',
+  exportAs: 'viewport',
   providers: [ResizeObserverService],
 })
 export class ResponsiveColViewportDirective extends Observable<Step> {
+  @Input()
+  responsiveColViewport: Observable<Step> | '' = ''
+
   private readonly stream$ = this.resize$.pipe(
     map(() => this.elementRef.nativeElement.clientWidth),
     map(width => this.breakpoints.find(([step]) => width >= step)?.[1] || 'xs'),
@@ -56,6 +61,8 @@ export class ResponsiveColViewportDirective extends Observable<Step> {
     private readonly elementRef: ElementRef<HTMLElement>,
     private readonly zone: NgZone,
   ) {
-    super(subscriber => this.stream$.subscribe(subscriber))
+    super(subscriber =>
+      (this.responsiveColViewport || this.stream$).subscribe(subscriber),
+    )
   }
 }
