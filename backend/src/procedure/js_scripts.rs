@@ -206,7 +206,7 @@ mod tests {
             id: PackageId,
             path: &str,
             callback: Callback,
-        ) -> Result<serde_json::Value, Error> {
+        ) -> Result<serde_json::Value, Report> {
             todo!()
         }
     }

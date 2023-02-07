@@ -37,7 +37,7 @@ pub enum AddressSchema {
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct Address;
+pub struct Address(pub String);
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Domain;
