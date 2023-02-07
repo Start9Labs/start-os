@@ -579,7 +579,7 @@ export module Mock {
   export const BackupTargets: RR.GetBackupTargetsRes = {
     hsbdjhasbasda: {
       type: 'cifs',
-      name: 'Embassy Backups Embassy Backups',
+      name: 'Embassy Backups',
       hostname: 'smb://192.169.10.0',
       path: '/Desktop/embassy-backups',
       username: 'TestUser',
@@ -636,14 +636,14 @@ export module Mock {
     {
       id: 'lalalalalala-babababababa',
       name: 'My Backup Job',
-      target: BackupTargets[0],
+      target: BackupTargets['hsbdjhasbasda'],
       cron: '0 3 * * *',
       'package-ids': ['bitcoind', 'lnd'],
     },
     {
       id: 'hahahahaha-mwmwmwmwmwmw',
       name: 'Another Backup Job',
-      target: BackupTargets[1],
+      target: BackupTargets['ftcvewdnkemfksdm'],
       cron: '0 * * * *',
       'package-ids': ['lnd'],
     },

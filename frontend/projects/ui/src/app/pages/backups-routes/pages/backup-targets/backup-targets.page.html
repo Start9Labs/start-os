@@ -7,64 +7,67 @@
   </ion-toolbar>
 </ion-header>
 
-<ion-content class="ion-padding">
-  <ion-item>
-    <ion-label>
-      <h2>
-        Backup targets are physical or virtual locations for storing encrypted
-        backups. They can be physical drives plugged into your server, shared
-        folders on your Local Area Network (LAN), or third party clouds such as
-        Dropbox or Google Drive.
-        <a [href]="docsUrl" target="_blank" rel="noreferrer"
-          >View instructions</a
-        >
-      </h2>
-    </ion-label>
-  </ion-item>
+<ion-content class="ion-padding-top">
+  <ion-item-group>
+    <ion-item>
+      <ion-label>
+        <h2>
+          Backup targets are physical or virtual locations for storing encrypted
+          backups. They can be physical drives plugged into your server, shared
+          folders on your Local Area Network (LAN), or third party clouds such
+          as Dropbox or Google Drive.
+          <a [href]="docsUrl" target="_blank" rel="noreferrer"
+            >View instructions</a
+          >
+        </h2>
+      </ion-label>
+    </ion-item>
 
-  <!-- loading -->
-  <skeleton-list
-    *ngIf="loading$ | async; else loaded"
-    [groups]="2"
-    [rows]="2"
-  ></skeleton-list>
+    <ion-item-divider>
+      Saved Targets
+      <ion-button class="ion-padding-start" strong (click)="presentModalAdd()">
+        <ion-icon slot="start" name="add"></ion-icon>
+        Add Target
+      </ion-button>
+      <ion-button class="ion-padding-start" strong (click)="refresh()">
+        <ion-icon slot="start" name="refresh"></ion-icon>
+        Refresh
+      </ion-button>
+    </ion-item-divider>
 
-  <!-- loaded -->
-  <ng-template #loaded>
-    <!-- error -->
-    <p *ngIf="error$ | async as error; else noError">
-      <ion-text color="danger">{{ error }}</ion-text>
-    </p>
-
-    <!-- no error -->
-    <ng-template #noError>
-      <ion-item-group>
-        <ng-container *ngIf="targets['unsaved-physical'].length">
-          <ion-item-divider>Unknown Physical Drives</ion-item-divider>
-          <ion-item
-            *ngFor="let drive of targets['unsaved-physical']"
-          ></ion-item>
+    <div class="grid-fixed">
+      <ion-grid class="ion-padding" style="min-width: 840px">
+        <ion-row class="grid-headings">
+          <ion-col size="3">Name</ion-col>
+          <ion-col>Type</ion-col>
+          <ion-col>Available</ion-col>
+          <ion-col size="4">Path</ion-col>
+          <ion-col size="2"></ion-col>
+        </ion-row>
+        <!-- loading -->
+        <ng-container *ngIf="loading$ | async; else loaded">
+          <ion-row
+            *ngFor="let row of ['', '']"
+            class="ion-align-items-center row-border"
+          >
+            <ion-col>
+              <p>
+                <ion-skeleton-text animated></ion-skeleton-text>
+              </p>
+            </ion-col>
+          </ion-row>
         </ng-container>
-
-        <ion-item-divider>
-          Saved Targets
-          <ion-button slot="end" strong (click)="presentModalAddRemoteTarget()">
-            Add Target
-            <ion-icon name="add"></ion-icon>
-          </ion-button>
-        </ion-item-divider>
-        <div class="fixed-grid">
-          <ion-grid class="ion-padding" style="min-width: 840px">
-            <ion-row class="headings">
-              <ion-col size="3">Name</ion-col>
-              <ion-col>Type</ion-col>
-              <ion-col>Available</ion-col>
-              <ion-col size="4">Path</ion-col>
-              <ion-col size="2"></ion-col>
-            </ion-row>
+        <!-- loaded -->
+        <ng-template #loaded>
+          <!-- error -->
+          <p *ngIf="error$ | async as error; else noError">
+            <ion-text color="danger">{{ error }}</ion-text>
+          </p>
+          <!-- no error -->
+          <ng-template #noError>
             <ion-row
-              *ngFor="let target of targets.saved"
-              class="ion-align-items-center row-border"
+              *ngFor="let target of targets.saved; let i = index"
+              class="ion-align-items-center grid-row-border"
             >
               <ion-col size="3">{{ target.name }}</ion-col>
               <ion-col class="inline">
@@ -94,18 +97,21 @@
               <ion-col size="4">{{ target.path }}</ion-col>
               <ion-col size="2">
                 <ion-buttons style="float: right">
-                  <ion-button color="primary" size="small">
+                  <ion-button size="small" (click)="presentModalUpdate(target)">
                     <ion-icon name="pencil"></ion-icon>
                   </ion-button>
-                  <ion-button color="danger" size="small">
+                  <ion-button
+                    size="small"
+                    (click)="presentAlertDelete(target.id, i)"
+                  >
                     <ion-icon name="trash"></ion-icon>
                   </ion-button>
                 </ion-buttons>
               </ion-col>
             </ion-row>
-          </ion-grid>
-        </div>
-      </ion-item-group>
-    </ng-template>
-  </ng-template>
+          </ng-template>
+        </ng-template>
+      </ion-grid>
+    </div>
+  </ion-item-group>
 </ion-content>

@@ -2,10 +2,13 @@ import { Component } from '@angular/core'
 import {
   BackupTarget,
   DiskBackupTarget,
-  RemoteBackupTarget,
   RR,
 } from 'src/app/services/api/api.types'
-import { LoadingController, ModalController } from '@ionic/angular'
+import {
+  AlertController,
+  LoadingController,
+  ModalController,
+} from '@ionic/angular'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ErrorToastService } from '@start9labs/shared'
@@ -40,17 +43,18 @@ export class BackupTargetsPage {
   error$ = new Subject<string>()
 
   constructor(
-    private readonly loadingCtrl: LoadingController,
     private readonly modalCtrl: ModalController,
-    private readonly api: ApiService,
+    private readonly alertCtrl: AlertController,
+    private readonly loadingCtrl: LoadingController,
     private readonly errToast: ErrorToastService,
+    private readonly api: ApiService,
   ) {}
 
   ngOnInit() {
     this.getTargets()
   }
 
-  async presentModalAddRemoteTarget(): Promise<void> {
+  async presentModalAdd(): Promise<void> {
     const modal = await this.modalCtrl.create({
       component: GenericFormPage,
       componentProps: {
@@ -71,26 +75,15 @@ export class BackupTargetsPage {
     await modal.present()
   }
 
-  async presentModalEditRemoteTarget(
-    target: WithId<RemoteBackupTarget>,
-  ): Promise<void> {
+  async presentModalUpdate(target: WithId<BackupTarget>): Promise<void> {
     let spec: typeof RemoteBackupTargetSpec = {}
-    let initialValue: any = null
 
     switch (target.type) {
       case 'cifs':
         spec = CifsSpec
-        initialValue = {
-          hostname: target.hostname,
-          path: target.path,
-          username: target.username,
-        }
         break
       case 'cloud':
         spec = target.provider === 'dropbox' ? DropboxSpec : GoogleDriveSpec
-        initialValue = {
-          path: target.path,
-        }
         break
     }
 
@@ -108,13 +101,34 @@ export class BackupTargetsPage {
             isSubmit: true,
           },
         ],
-        initialValue,
+        initialValue: target,
       },
     })
     await modal.present()
   }
 
-  async deleteTarget(id: string, index: number): Promise<void> {
+  async presentAlertDelete(id: string, index: number) {
+    const alert = await this.alertCtrl.create({
+      header: 'Confirm',
+      message: 'Forget backup target? This actions cannot be undone.',
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel',
+        },
+        {
+          text: 'Delete',
+          handler: () => {
+            this.delete(id, index)
+          },
+          cssClass: 'enter-click',
+        },
+      ],
+    })
+    await alert.present()
+  }
+
+  async delete(id: string, index: number): Promise<void> {
     const loader = await this.loadingCtrl.create({
       message: 'Removing...',
     })

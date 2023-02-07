@@ -1,4 +1,3 @@
-.hide {
-  max-height: 0px !important;
-  transition: max-height .5s ease-out;
+ion-checkbox {
+  --border-color: var(--ion-color-dark);
 }

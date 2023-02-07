@@ -1,8 +1,13 @@
 import { Component } from '@angular/core'
-import { ModalController } from '@ionic/angular'
+import {
+  AlertController,
+  LoadingController,
+  ModalController,
+} from '@ionic/angular'
 import { BehaviorSubject, Subject } from 'rxjs'
 import { BackupJob } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { ErrorToastService } from '@start9labs/shared'
 import { EditJobPage } from './edit-job/edit-job.page'
 import { NewJobPage } from './new-job/new-job.page'
 
@@ -22,6 +27,9 @@ export class BackupJobsPage {
 
   constructor(
     private readonly modalCtrl: ModalController,
+    private readonly alertCtrl: AlertController,
+    private readonly loadingCtrl: LoadingController,
+    private readonly errToast: ErrorToastService,
     private readonly api: ApiService,
   ) {}
 
@@ -73,5 +81,41 @@ export class BackupJobsPage {
     })
 
     await modal.present()
+  }
+
+  async presentAlertDelete(id: string, index: number) {
+    const alert = await this.alertCtrl.create({
+      header: 'Confirm',
+      message: 'Delete backup job? This action cannot be undone.',
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel',
+        },
+        {
+          text: 'Delete',
+          handler: () => {
+            this.delete(id, index)
+          },
+          cssClass: 'enter-click',
+        },
+      ],
+    })
+    await alert.present()
+  }
+
+  private async delete(id: string, index: number): Promise<void> {
+    const loader = await this.loadingCtrl.create({
+      message: 'Deleting...',
+    })
+    await loader.present()
+
+    try {
+      await this.api.removeBackupTarget({ id })
+    } catch (e: any) {
+      this.errToast.present(e)
+    } finally {
+      loader.dismiss()
+    }
   }
 }

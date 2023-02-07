@@ -11,6 +11,7 @@ import {
   GenericInputComponent,
   GenericInputOptions,
 } from 'src/app/modals/generic-input/generic-input.component'
+import { BehaviorSubject, Subject } from 'rxjs'
 
 @Component({
   selector: 'ssh-keys',
@@ -18,9 +19,12 @@ import {
   styleUrls: ['ssh-keys.page.scss'],
 })
 export class SSHKeysPage {
-  loading = true
-  sshKeys: SSHKey[] = []
   readonly docsUrl = 'https://docs.start9.com/latest/user-manual/ssh'
+
+  sshKeys: SSHKey[] = []
+
+  loading$ = new BehaviorSubject(true)
+  error$ = new Subject<string>()
 
   constructor(
     private readonly loadingCtrl: LoadingController,
@@ -38,9 +42,9 @@ export class SSHKeysPage {
     try {
       this.sshKeys = await this.embassyApi.getSshKeys({})
     } catch (e: any) {
-      this.errToast.present(e)
+      this.error$.next(e.message)
     } finally {
-      this.loading = false
+      this.loading$.next(false)
     }
   }
 
@@ -77,8 +81,8 @@ export class SSHKeysPage {
 
   async presentAlertDelete(i: number) {
     const alert = await this.alertCtrl.create({
-      header: 'Caution',
-      message: `Are you sure you want to delete this key?`,
+      header: 'Confirm',
+      message: 'Delete key? This action cannot be undone.',
       buttons: [
         {
           text: 'Cancel',

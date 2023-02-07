@@ -1,8 +1,9 @@
 import { Component } from '@angular/core'
-import { AlertController, LoadingController } from '@ionic/angular'
+import { CheckboxCustomEvent, LoadingController } from '@ionic/angular'
 import { ErrorToastService } from '@start9labs/shared'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PlatformType, Session } from 'src/app/services/api/api.types'
+import { BehaviorSubject } from 'rxjs'
 
 @Component({
   selector: 'sessions',
@@ -10,20 +11,22 @@ import { PlatformType, Session } from 'src/app/services/api/api.types'
   styleUrls: ['sessions.page.scss'],
 })
 export class SessionsPage {
-  loading = true
   currentSession?: Session
   otherSessions: SessionWithId[] = []
+
+  selected: Set<string> = new Set()
+
+  loading$ = new BehaviorSubject(true)
 
   constructor(
     private readonly loadingCtrl: LoadingController,
     private readonly errToast: ErrorToastService,
-    private readonly alertCtrl: AlertController,
-    private readonly embassyApi: ApiService,
+    private readonly api: ApiService,
   ) {}
 
   async ngOnInit() {
     try {
-      const sessionInfo = await this.embassyApi.getSessions({})
+      const sessionInfo = await this.api.getSessions({})
       this.currentSession = sessionInfo.sessions[sessionInfo.current]
       delete sessionInfo.sessions[sessionInfo.current]
       this.otherSessions = Object.entries(sessionInfo.sessions)
@@ -42,39 +45,29 @@ export class SessionsPage {
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
-      this.loading = false
+      this.loading$.next(false)
     }
   }
 
-  async presentAlertKillAll() {
-    const alert = await this.alertCtrl.create({
-      header: 'Confirm',
-      message: `Terminate <b>all</b> other web sessions?<br /><br />Note: you will <b>not</b> be logged out of your current session on this device.`,
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
-        },
-        {
-          text: 'Terminate all',
-          handler: () => {
-            this.kill(this.otherSessions.map(s => s.id))
-          },
-          cssClass: 'enter-click',
-        },
-      ],
-    })
-    await alert.present()
+  async toggleChecked(id: string, e: CheckboxCustomEvent) {
+    if (e.detail.checked) {
+      this.selected.add(id)
+    } else {
+      this.selected.delete(id)
+    }
   }
 
-  async kill(ids: string[]): Promise<void> {
+  async kill(): Promise<void> {
+    const ids = Array.from(this.selected)
+
     const loader = await this.loadingCtrl.create({
       message: `Terminating session${ids.length > 1 ? 's' : ''}...`,
     })
     await loader.present()
 
     try {
-      await this.embassyApi.killSessions({ ids })
+      await this.api.killSessions({ ids })
+      this.selected.clear()
       this.otherSessions = this.otherSessions.filter(s => !ids.includes(s.id))
     } catch (e: any) {
       this.errToast.present(e)
@@ -109,10 +102,6 @@ export class SessionsPage {
     } else {
       return 'Unknown Device'
     }
-  }
-
-  asIsOrder(a: any, b: any) {
-    return 0
   }
 }
 

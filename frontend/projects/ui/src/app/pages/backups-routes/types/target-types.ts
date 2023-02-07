@@ -1,6 +1,15 @@
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 
 export const DropboxSpec: ConfigSpec = {
+  name: {
+    type: 'string',
+    name: 'Name',
+    description: 'A friendly name for this Dropbox target',
+    placeholder: `Dropbox 1`,
+    nullable: false,
+    masked: false,
+    copyable: false,
+  },
   token: {
     type: 'string',
     name: 'Access Token',
@@ -10,9 +19,27 @@ export const DropboxSpec: ConfigSpec = {
     masked: true,
     copyable: false,
   },
+  path: {
+    type: 'string',
+    name: 'Path',
+    description: 'The fully qualified path to the backup directory',
+    placeholder: 'e.g. /Desktop/my-folder',
+    nullable: false,
+    masked: false,
+    copyable: false,
+  },
 }
 
 export const GoogleDriveSpec: ConfigSpec = {
+  name: {
+    type: 'string',
+    name: 'Name',
+    description: 'A friendly name for this Google Drive target',
+    placeholder: `Google Drive 1`,
+    nullable: false,
+    masked: false,
+    copyable: false,
+  },
   key: {
     type: 'file',
     name: 'Private Key File',
@@ -22,9 +49,27 @@ export const GoogleDriveSpec: ConfigSpec = {
     validation: () => true,
     nullable: false,
   },
+  path: {
+    type: 'string',
+    name: 'Path',
+    description: 'The fully qualified path to the backup directory',
+    placeholder: 'e.g. /Desktop/my-folder',
+    nullable: false,
+    masked: false,
+    copyable: false,
+  },
 }
 
 export const CifsSpec: ConfigSpec = {
+  name: {
+    type: 'string',
+    name: 'Name',
+    description: 'A friendly name for this Network Folder',
+    placeholder: `Network Folder 1`,
+    nullable: false,
+    masked: false,
+    copyable: false,
+  },
   hostname: {
     type: 'string',
     name: 'Hostname',
