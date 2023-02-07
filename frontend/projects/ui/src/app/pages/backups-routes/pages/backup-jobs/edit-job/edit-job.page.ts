@@ -1,5 +1,5 @@
 import { Component, Input } from '@angular/core'
-import { BackupJob, BackupTarget, RR } from 'src/app/services/api/api.types'
+import { BackupJob } from 'src/app/services/api/api.types'
 import { LoadingController, ModalController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ErrorToastService } from '@start9labs/shared'
@@ -13,7 +13,7 @@ import { BackupJobBuilder } from '../job-options/job-options.component'
 export class EditJobPage {
   @Input() existingJob!: BackupJob
 
-  job = new BackupJobBuilder(this.existingJob)
+  job = {} as BackupJobBuilder
 
   saving = false
 
@@ -23,6 +23,10 @@ export class EditJobPage {
     private readonly api: ApiService,
     private readonly errToast: ErrorToastService,
   ) {}
+
+  ngOnInit() {
+    this.job = new BackupJobBuilder(this.existingJob)
+  }
 
   async dismiss() {
     this.modalCtrl.dismiss()

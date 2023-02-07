@@ -1,7 +1,7 @@
 import { Component } from '@angular/core'
 import { ModalController } from '@ionic/angular'
 import { BehaviorSubject, Subject } from 'rxjs'
-import { BackupJob, RR } from 'src/app/services/api/api.types'
+import { BackupJob } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { EditJobPage } from './edit-job/edit-job.page'
 import { NewJobPage } from './new-job/new-job.page'
@@ -25,8 +25,14 @@ export class BackupJobsPage {
     private readonly api: ApiService,
   ) {}
 
-  ngOnInit() {
-    this.getJobs()
+  async ngOnInit() {
+    try {
+      this.jobs = await this.api.getBackupJobs({})
+    } catch (e: any) {
+      this.error$.next(e.message)
+    } finally {
+      this.loading$.next(false)
+    }
   }
 
   async presentModalCreate() {
@@ -34,7 +40,7 @@ export class BackupJobsPage {
       presentingElement: await this.modalCtrl.getTop(),
       component: NewJobPage,
       componentProps: {
-        count: this.jobs.length,
+        count: this.jobs.length + 1,
       },
     })
 
@@ -52,7 +58,7 @@ export class BackupJobsPage {
       presentingElement: await this.modalCtrl.getTop(),
       component: EditJobPage,
       componentProps: {
-        job,
+        existingJob: job,
       },
     })
 
@@ -67,21 +73,5 @@ export class BackupJobsPage {
     })
 
     await modal.present()
-  }
-
-  async refresh() {
-    this.loading$.next(true)
-    this.error$.next('')
-    await this.getJobs()
-  }
-
-  private async getJobs(): Promise<void> {
-    try {
-      this.jobs = await this.api.getBackupJobs({})
-    } catch (e: any) {
-      this.error$.next(e.message)
-    } finally {
-      this.loading$.next(false)
-    }
   }
 }

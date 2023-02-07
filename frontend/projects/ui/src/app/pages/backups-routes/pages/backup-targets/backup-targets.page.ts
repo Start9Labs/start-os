@@ -163,5 +163,3 @@ export class BackupTargetsPage {
     }
   }
 }
-
-export class BackupTargetModel implements RR.AddBackupTargetReq {}

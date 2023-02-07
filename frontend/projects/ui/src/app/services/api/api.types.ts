@@ -349,7 +349,9 @@ export type BackupTarget = RemoteBackupTarget | DiskBackupTarget
 
 export interface BaseBackupTarget {
   type: 'disk' | 'cifs' | 'cloud'
+  name: string
   mountable: boolean
+  path: string
   'embassy-os': EmbassyOSDiskInfo | null
 }
 
@@ -366,14 +368,12 @@ export interface DiskBackupTarget extends BaseBackupTarget {
 export interface CifsBackupTarget extends BaseBackupTarget {
   type: 'cifs'
   hostname: string
-  path: string
   username: string
 }
 
 export interface CloudBackupTarget extends BaseBackupTarget {
   type: 'cloud'
   provider: 'dropbox' | 'google-drive'
-  path: string
 }
 
 export interface BackupJob {

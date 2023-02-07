@@ -15,7 +15,7 @@ export class NewJobPage {
   readonly docsUrl =
     'https://docs.start9.com/latest/user-manual/backups/backup-jobs'
 
-  job = new BackupJobBuilder()
+  job = {} as BackupJobBuilder
 
   saving = false
 
@@ -25,6 +25,10 @@ export class NewJobPage {
     private readonly api: ApiService,
     private readonly errToast: ErrorToastService,
   ) {}
+
+  ngOnInit() {
+    this.job = new BackupJobBuilder({ name: `Backup Job ${this.count}` })
+  }
 
   async dismiss() {
     this.modalCtrl.dismiss()
