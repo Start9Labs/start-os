@@ -1,5 +1,5 @@
 import { Component, OnDestroy } from '@angular/core'
-import { merge } from 'rxjs'
+import { merge, take } from 'rxjs'
 import { PatchDB } from 'patch-db-client'
 import { AuthService } from './services/auth.service'
 import { SplitPaneTracker } from './services/split-pane.service'
@@ -9,9 +9,11 @@ import { ConnectionService } from './services/connection.service'
 import { Title } from '@angular/platform-browser'
 import { ServerNameService } from './services/server-name.service'
 import { DataModel } from './services/patch-db/data-model'
-import { tuiDebounce } from '@taiga-ui/cdk'
 import { ApiService } from './services/api/embassy-api.service'
 import { WidgetsService } from './pages/widgets/built-in/widgets.service'
+import { WorkspaceConfig } from '@start9labs/shared'
+
+const { enableWidgets } = require('../../../../config.json') as WorkspaceConfig
 
 @Component({
   selector: 'app-root',
@@ -21,7 +23,9 @@ import { WidgetsService } from './pages/widgets/built-in/widgets.service'
 export class AppComponent implements OnDestroy {
   readonly subscription = merge(this.patchData, this.patchMonitor).subscribe()
   readonly sidebarOpen$ = this.splitPane.sidebarOpen$
-  readonly width$ = this.patch.watch$('ui', 'widgets', 'width')
+  readonly enableWidgets = enableWidgets
+
+  width = 400
 
   constructor(
     private readonly titleService: Title,
@@ -34,7 +38,14 @@ export class AppComponent implements OnDestroy {
     readonly authService: AuthService,
     readonly connection: ConnectionService,
     readonly widgets$: WidgetsService,
-  ) {}
+  ) {
+    this.patch
+      .watch$('ui', 'widgets', 'width')
+      .pipe(take(1))
+      .subscribe(width => {
+        this.width = width
+      })
+  }
 
   ngOnInit() {
     this.serverNameService.name$.subscribe(({ current }) =>
@@ -46,9 +57,9 @@ export class AppComponent implements OnDestroy {
     this.splitPane.sidebarOpen$.next(detail.visible)
   }
 
-  @tuiDebounce(1000)
-  onResize([x]: readonly [number, number]) {
-    this.api.setDbValue(['widgets', 'width'], x)
+  onResize() {
+    this.width = this.width === 400 ? 600 : 400
+    this.api.setDbValue(['widgets', 'width'], this.width)
   }
 
   ngOnDestroy() {

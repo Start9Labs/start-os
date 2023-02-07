@@ -5,7 +5,7 @@ export const BUILT_IN_WIDGETS: readonly Widget[] = [
     id: 'favorites',
     meta: {
       name: 'Favorites',
-      width: 3,
+      width: 2,
       height: 2,
       mobileWidth: 2,
       mobileHeight: 2,
@@ -25,7 +25,7 @@ export const BUILT_IN_WIDGETS: readonly Widget[] = [
     id: 'metrics',
     meta: {
       name: 'Server metrics',
-      width: 6,
+      width: 4,
       height: 1,
       mobileWidth: 2,
       mobileHeight: 2,
@@ -35,7 +35,7 @@ export const BUILT_IN_WIDGETS: readonly Widget[] = [
     id: 'network',
     meta: {
       name: 'Network',
-      width: 3,
+      width: 4,
       height: 2,
       mobileWidth: 2,
       mobileHeight: 3,
