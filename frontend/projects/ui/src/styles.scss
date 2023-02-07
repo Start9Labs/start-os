@@ -341,6 +341,10 @@ h2 {
   -ms-overflow-style: none;
   /* Firefox */
   scrollbar-width: none;
+
+  ion-grid {
+    min-width: 840px;
+  }
 }
 
 // TODO: Refactor so header is outside router-outlet

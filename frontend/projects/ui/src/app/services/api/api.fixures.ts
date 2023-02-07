@@ -501,11 +501,18 @@ export module Mock {
   export const Sessions: RR.GetSessionsRes = {
     current: 'b7b1a9cef4284f00af9e9dda6e676177',
     sessions: {
-      '9513226517c54ddd8107d6d7b9d8aed7': {
+      c54ddd8107d6d7b9d8aed7: {
         'last-active': '2021-07-14T20:49:17.774Z',
         'user-agent': 'AppleWebKit/{WebKit Rev} (KHTML, like Gecko)',
         metadata: {
           platforms: ['iphone', 'mobileweb', 'mobile', 'ios'],
+        },
+      },
+      klndsfjhbwsajkdnaksj: {
+        'last-active': '2019-07-14T20:49:17.774Z',
+        'user-agent': 'AppleWebKit/{WebKit Rev} (KHTML, like Gecko)',
+        metadata: {
+          platforms: ['cli'],
         },
       },
       b7b1a9cef4284f00af9e9dda6e676177: {

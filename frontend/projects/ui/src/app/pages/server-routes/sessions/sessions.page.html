@@ -38,12 +38,11 @@
               <p>{{ currentSession['user-agent'] }}</p>
             </ion-col>
             <ion-col size="3" class="inline">
-              <p>
-                <ion-icon
-                  size="small"
-                  [name]="getPlatformIcon(currentSession.metadata.platforms)"
-                ></ion-icon>
-                &nbsp; {{ getPlatformName(currentSession.metadata.platforms) }}
+              <p
+                *ngIf="currentSession.metadata.platforms | platformInfo as info"
+              >
+                <ion-icon size="small" [name]="info.icon"></ion-icon>
+                &nbsp; {{ info.name }}
               </p>
             </ion-col>
             <ion-col size="3">
@@ -70,9 +69,16 @@
     </ion-item-divider>
 
     <div class="grid-fixed">
-      <ion-grid class="ion-padding" style="min-width: 840px">
+      <ion-grid class="ion-padding">
         <ion-row class="grid-headings">
-          <ion-col size="6">User Agent</ion-col>
+          <ion-col size="6" class="inline">
+            <ion-checkbox
+              style="margin-right: 12px"
+              [checked]="selected.size"
+              (ionChange)="toggleAll($any($event))"
+            ></ion-checkbox>
+            User Agent
+          </ion-col>
           <ion-col size="3">Platform</ion-col>
           <ion-col size="3">Last Active</ion-col>
         </ion-row>
@@ -98,17 +104,15 @@
             <ion-col size="6" class="inline">
               <ion-checkbox
                 style="margin-right: 12px"
+                [checked]="selected.has(session.id)"
                 (ionChange)="toggleChecked(session.id, $any($event))"
               ></ion-checkbox>
               <p>{{ session['user-agent'] }}</p>
             </ion-col>
             <ion-col size="3" class="inline">
-              <p>
-                <ion-icon
-                  size="small"
-                  [name]="getPlatformIcon(session.metadata.platforms)"
-                ></ion-icon>
-                &nbsp; {{ getPlatformName(session.metadata.platforms) }}
+              <p *ngIf="session.metadata.platforms | platformInfo as info">
+                <ion-icon size="small" [name]="info.icon"></ion-icon>
+                &nbsp; {{ info.name }}
               </p>
             </ion-col>
             <ion-col size="3">

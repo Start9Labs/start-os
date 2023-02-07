@@ -1,4 +1,5 @@
 import { Component } from '@angular/core'
+import { Pipe, PipeTransform } from '@angular/core'
 import { CheckboxCustomEvent, LoadingController } from '@ionic/angular'
 import { ErrorToastService } from '@start9labs/shared'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -57,6 +58,14 @@ export class SessionsPage {
     }
   }
 
+  async toggleAll(e: CheckboxCustomEvent) {
+    if (e.detail.checked) {
+      this.otherSessions.forEach(s => this.selected.add(s.id))
+    } else {
+      this.selected.clear()
+    }
+  }
+
   async kill(): Promise<void> {
     const ids = Array.from(this.selected)
 
@@ -75,36 +84,40 @@ export class SessionsPage {
       loader.dismiss()
     }
   }
-
-  getPlatformIcon(platforms: PlatformType[]): string {
-    if (platforms.includes('cli')) {
-      return 'terminal-outline'
-    } else if (platforms.includes('desktop')) {
-      return 'desktop-outline'
-    } else {
-      return 'phone-portrait-outline'
-    }
-  }
-
-  getPlatformName(platforms: PlatformType[]): string {
-    if (platforms.includes('cli')) {
-      return 'CLI'
-    } else if (platforms.includes('desktop')) {
-      return 'Desktop/Laptop'
-    } else if (platforms.includes('android')) {
-      return 'Android Device'
-    } else if (platforms.includes('iphone')) {
-      return 'iPhone'
-    } else if (platforms.includes('ipad')) {
-      return 'iPad'
-    } else if (platforms.includes('ios')) {
-      return 'iOS Device'
-    } else {
-      return 'Unknown Device'
-    }
-  }
 }
 
 interface SessionWithId extends Session {
   id: string
+}
+
+@Pipe({
+  name: 'platformInfo',
+})
+export class PlatformInfoPipe implements PipeTransform {
+  transform(platforms: PlatformType[]): { name: string; icon: string } {
+    const info = {
+      name: '',
+      icon: 'phone-portrait-outline',
+    }
+
+    if (platforms.includes('cli')) {
+      info.name = 'CLI'
+      info.icon = 'terminal-outline'
+    } else if (platforms.includes('desktop')) {
+      info.name = 'Desktop/Laptop'
+      info.icon = 'desktop-outline'
+    } else if (platforms.includes('android')) {
+      info.name = 'Android Device'
+    } else if (platforms.includes('iphone')) {
+      info.name = 'iPhone'
+    } else if (platforms.includes('ipad')) {
+      info.name = 'iPad'
+    } else if (platforms.includes('ios')) {
+      info.name = 'iOS Device'
+    } else {
+      info.name = 'Unknown Device'
+    }
+
+    return info
+  }
 }
