@@ -11,7 +11,7 @@ import {
   GenericInputComponent,
   GenericInputOptions,
 } from 'src/app/modals/generic-input/generic-input.component'
-import { BehaviorSubject, Subject } from 'rxjs'
+import { BehaviorSubject } from 'rxjs'
 
 @Component({
   selector: 'ssh-keys',
@@ -20,11 +20,8 @@ import { BehaviorSubject, Subject } from 'rxjs'
 })
 export class SSHKeysPage {
   readonly docsUrl = 'https://docs.start9.com/latest/user-manual/ssh'
-
   sshKeys: SSHKey[] = []
-
   loading$ = new BehaviorSubject(true)
-  error$ = new Subject<string>()
 
   constructor(
     private readonly loadingCtrl: LoadingController,
@@ -42,7 +39,7 @@ export class SSHKeysPage {
     try {
       this.sshKeys = await this.embassyApi.getSshKeys({})
     } catch (e: any) {
-      this.error$.next(e.message)
+      this.errToast.present(e)
     } finally {
       this.loading$.next(false)
     }

@@ -48,12 +48,10 @@
         <ng-container *ngIf="loading$ | async; else loaded">
           <ion-row
             *ngFor="let row of ['', '']"
-            class="ion-align-items-center row-border"
+            class="ion-align-items-center grid-row-border"
           >
             <ion-col>
-              <p>
-                <ion-skeleton-text animated></ion-skeleton-text>
-              </p>
+              <ion-skeleton-text animated></ion-skeleton-text>
             </ion-col>
           </ion-row>
         </ng-container>

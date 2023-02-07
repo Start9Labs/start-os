@@ -11,35 +11,108 @@
   <insecure-warning *ngIf="!secure"></insecure-warning>
 
   <ion-item-group>
+    <ion-item-divider>Options</ion-item-divider>
+
     <ion-item button backupCreate>
-      <ion-icon slot="start" name="duplicate-outline"></ion-icon>
+      <ion-icon slot="start" name="add"></ion-icon>
       <ion-label>
         <h2>Create Backup</h2>
-        <p>Back up your Embassy and service data</p>
+        <p>Create a one-time backup</p>
       </ion-label>
     </ion-item>
     <ion-item button backupRestore>
       <ion-icon slot="start" name="color-wand-outline"></ion-icon>
       <ion-label>
         <h2>Restore From Backup</h2>
-        <p>Restore one or more services from backup</p>
+        <p>Restore services from backup</p>
       </ion-label>
     </ion-item>
     <ion-item button routerLink="jobs">
-      <ion-icon slot="start" name="construct-outline"></ion-icon>
+      <ion-icon slot="start" name="hammer-outline"></ion-icon>
       <ion-label>
         <h2>Backup Jobs</h2>
-        <p>Create, edit, and delete scheduled backups</p>
+        <p>Manage backup jobs</p>
       </ion-label>
     </ion-item>
     <ion-item button routerLink="targets">
-      <ion-icon slot="start" name="cloud-upload-outline"></ion-icon>
+      <ion-icon slot="start" name="server-outline"></ion-icon>
       <ion-label>
         <h2>Backup Targets</h2>
-        <p>Create, edit, and delete backup targets</p>
+        <p>Manage backup targets</p>
+      </ion-label>
+    </ion-item>
+    <ion-item button routerLink="history">
+      <ion-icon slot="start" name="archive-outline"></ion-icon>
+      <ion-label>
+        <h2>View History</h2>
+        <p>View your entire backup history</p>
       </ion-label>
     </ion-item>
 
     <ion-item-divider>Active and Upcoming</ion-item-divider>
+    <div class="grid-fixed">
+      <ion-grid class="ion-padding">
+        <ion-row class="grid-headings">
+          <ion-col size="2.5">Job Name</ion-col>
+          <ion-col size="2.5">Next Run</ion-col>
+          <ion-col size="2.5">Target</ion-col>
+          <ion-col size="2.5">Packages</ion-col>
+        </ion-row>
+        <!-- loaded -->
+        <ng-container *ngIf="upcoming$ | async as upcoming; else loading;">
+          <ng-container *ngIf="current$ | async as current">
+            <ion-row
+              *ngFor="let upcoming of upcoming"
+              class="ion-align-items-center grid-row-border"
+            >
+              <ion-col size="2.5">{{ upcoming.name }}</ion-col>
+              <ion-col size="2.5">
+                <ion-text
+                  *ngIf="current.id === upcoming.id; else notRunning"
+                  color="success"
+                >
+                  Running
+                </ion-text>
+                <ng-template #notRunning>
+                  {{ upcoming.next | date : 'MMM d, y, h:mm a' }}
+                </ng-template>
+              </ion-col>
+              <ion-col size="2.5" class="inline">
+                <ion-icon
+                  *ngIf="upcoming.target.type === 'disk'"
+                  name="save-outline"
+                  size="small"
+                ></ion-icon>
+                <ion-icon
+                  *ngIf="upcoming.target.type === 'cifs'"
+                  name="folder-open-outline"
+                  size="small"
+                ></ion-icon>
+                <ion-icon
+                  *ngIf="upcoming.target.type === 'cloud'"
+                  name="cloud-outline"
+                  size="small"
+                ></ion-icon>
+                &nbsp; {{ upcoming.target.name }}
+              </ion-col>
+              <ion-col size="2.5"
+                >{{ upcoming['package-ids'].length }} Packages</ion-col
+              >
+            </ion-row>
+          </ng-container>
+        </ng-container>
+        <!-- loading -->
+        <ng-template #loading>
+          <ion-row
+            *ngFor="let row of ['', '']"
+            class="ion-align-items-center grid-row-border"
+          >
+            <ion-col>
+              <ion-skeleton-text animated></ion-skeleton-text>
+            </ion-col>
+          </ion-row>
+        </ng-template>
+      </ion-grid>
+    </div>
   </ion-item-group>
 </ion-content>

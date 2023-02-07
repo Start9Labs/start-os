@@ -14,9 +14,7 @@ import { BehaviorSubject } from 'rxjs'
 export class SessionsPage {
   currentSession?: Session
   otherSessions: SessionWithId[] = []
-
   selected: Set<string> = new Set()
-
   loading$ = new BehaviorSubject(true)
 
   constructor(

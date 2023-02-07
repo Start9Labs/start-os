@@ -22,10 +22,9 @@ export class BackingUpComponent {
   readonly backupProgress$ = this.patch.watch$(
     'server-info',
     'status-info',
+    'current-backup',
     'backup-progress',
   )
-
-  PackageMainStatus = PackageMainStatus
 
   constructor(private readonly patch: PatchDB<DataModel>) {}
 }

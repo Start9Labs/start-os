@@ -1,0 +1,69 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/backups"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Backup History</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding-top">
+  <!-- <ion-item-group>
+    <div class="grid-fixed">
+      <ion-grid class="ion-padding">
+        <ion-row class="grid-headings">
+          <ion-col size="3">Name</ion-col>
+          <ion-col>Type</ion-col>
+          <ion-col>Available</ion-col>
+          <ion-col size="4">Path</ion-col>
+          <ion-col size="2"></ion-col>
+        </ion-row>
+
+        <ion-row
+          *ngFor="let run of runs$"
+          class="ion-align-items-center grid-row-border"
+        >
+          <ion-col size="3">{{ target.name }}</ion-col>
+          <ion-col class="inline">
+            <ion-icon
+              *ngIf="target.type === 'disk'"
+              name="save-outline"
+              size="small"
+            ></ion-icon>
+            <ion-icon
+              *ngIf="target.type === 'cifs'"
+              name="folder-open-outline"
+              size="small"
+            ></ion-icon>
+            <ion-icon
+              *ngIf="target.type === 'cloud'"
+              name="cloud-outline"
+              size="small"
+            ></ion-icon>
+            &nbsp; {{ target.type | titlecase }}
+          </ion-col>
+          <ion-col>
+            <ion-icon
+              [name]="target.mountable ? 'checkmark' : 'close'"
+              [color]="target.mountable ? 'success' : 'danger'"
+            ></ion-icon>
+          </ion-col>
+          <ion-col size="4">{{ target.path }}</ion-col>
+          <ion-col size="2">
+            <ion-buttons style="float: right">
+              <ion-button size="small" (click)="presentModalUpdate(target)">
+                <ion-icon name="pencil"></ion-icon>
+              </ion-button>
+              <ion-button
+                size="small"
+                (click)="presentAlertDelete(target.id, i)"
+              >
+                <ion-icon name="trash"></ion-icon>
+              </ion-button>
+            </ion-buttons>
+          </ion-col>
+        </ion-row>
+      </ion-grid>
+    </div>
+  </ion-item-group> -->
+</ion-content>

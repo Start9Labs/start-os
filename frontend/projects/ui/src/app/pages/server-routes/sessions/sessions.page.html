@@ -20,11 +20,9 @@
         </ion-row>
         <!-- loading -->
         <ng-container *ngIf="loading$ | async; else loaded">
-          <ion-row class="ion-align-items-center row-border">
+          <ion-row class="ion-align-items-center grid-row-border">
             <ion-col>
-              <p>
-                <ion-skeleton-text animated></ion-skeleton-text>
-              </p>
+              <ion-skeleton-text animated></ion-skeleton-text>
             </ion-col>
           </ion-row>
         </ng-container>
@@ -34,19 +32,17 @@
             *ngIf="currentSession"
             class="ion-align-items-center grid-row-border"
           >
-            <ion-col size="6">
-              <p>{{ currentSession['user-agent'] }}</p>
-            </ion-col>
+            <ion-col size="6"> {{ currentSession['user-agent'] }} </ion-col>
             <ion-col size="3" class="inline">
-              <p
+              <span
                 *ngIf="currentSession.metadata.platforms | platformInfo as info"
               >
                 <ion-icon size="small" [name]="info.icon"></ion-icon>
                 &nbsp; {{ info.name }}
-              </p>
+              </span>
             </ion-col>
             <ion-col size="3">
-              <p>{{ currentSession['last-active']| date: 'medium' }}</p>
+              {{ currentSession['last-active']| date: 'medium' }}
             </ion-col>
           </ion-row>
         </ng-template>
@@ -86,12 +82,10 @@
         <ng-container *ngIf="loading$ | async; else loaded2">
           <ion-row
             *ngFor="let row of ['', '']"
-            class="ion-align-items-center row-border"
+            class="ion-align-items-center grid-row-border"
           >
             <ion-col>
-              <p>
-                <ion-skeleton-text animated></ion-skeleton-text>
-              </p>
+              <ion-skeleton-text animated></ion-skeleton-text>
             </ion-col>
           </ion-row>
         </ng-container>
@@ -107,16 +101,16 @@
                 [checked]="selected.has(session.id)"
                 (ionChange)="toggleChecked(session.id, $any($event))"
               ></ion-checkbox>
-              <p>{{ session['user-agent'] }}</p>
+              {{ session['user-agent'] }}
             </ion-col>
             <ion-col size="3" class="inline">
-              <p *ngIf="session.metadata.platforms | platformInfo as info">
+              <span *ngIf="session.metadata.platforms | platformInfo as info">
                 <ion-icon size="small" [name]="info.icon"></ion-icon>
                 &nbsp; {{ info.name }}
-              </p>
+              </span>
             </ion-col>
             <ion-col size="3">
-              <p>{{ session['last-active']| date: 'medium' }}</p>
+              {{ session['last-active']| date: 'medium' }}
             </ion-col>
           </ion-row>
           <p *ngIf="!otherSessions.length">

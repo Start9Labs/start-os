@@ -17,7 +17,7 @@ import { unionSelectKey } from 'start-sdk/lib/config/configTypes'
 
 export module Mock {
   export const ServerUpdated: ServerStatusInfo = {
-    'backup-progress': null,
+    'current-backup': null,
     'update-progress': null,
     updated: true,
     'shutting-down': false,

@@ -21,6 +21,13 @@ const routes: Routes = [
         m => m.BackupTargetsPageModule,
       ),
   },
+  {
+    path: 'history',
+    loadChildren: () =>
+      import('./pages/backup-history/backup-history.module').then(
+        m => m.BackupHistoryPageModule,
+      ),
+  },
 ]
 
 @NgModule({

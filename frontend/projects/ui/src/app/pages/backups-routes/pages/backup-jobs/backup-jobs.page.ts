@@ -4,7 +4,7 @@ import {
   LoadingController,
   ModalController,
 } from '@ionic/angular'
-import { BehaviorSubject, Subject } from 'rxjs'
+import { BehaviorSubject } from 'rxjs'
 import { BackupJob } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ErrorToastService } from '@start9labs/shared'
@@ -23,7 +23,6 @@ export class BackupJobsPage {
   jobs: BackupJob[] = []
 
   loading$ = new BehaviorSubject(true)
-  error$ = new Subject<string>()
 
   constructor(
     private readonly modalCtrl: ModalController,
@@ -37,7 +36,7 @@ export class BackupJobsPage {
     try {
       this.jobs = await this.api.getBackupJobs({})
     } catch (e: any) {
-      this.error$.next(e.message)
+      this.errToast.present(e)
     } finally {
       this.loading$.next(false)
     }

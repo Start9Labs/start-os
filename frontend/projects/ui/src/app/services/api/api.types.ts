@@ -376,6 +376,15 @@ export interface CloudBackupTarget extends BaseBackupTarget {
   provider: 'dropbox' | 'google-drive'
 }
 
+export interface BackupRun {
+  id: string
+  'started-at': string
+  'completed-at': string
+  'package-ids': string[]
+  job: BackupJob | null
+  report: BackupReport | null
+}
+
 export interface BackupJob {
   id: string
   name: string

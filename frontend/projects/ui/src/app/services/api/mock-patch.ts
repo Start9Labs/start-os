@@ -61,7 +61,7 @@ export const mockPatchData: DataModel = {
     'unread-notification-count': 4,
     'eos-version-compat': '>=0.3.0 <=0.3.0.1',
     'status-info': {
-      'backup-progress': null,
+      'current-backup': null,
       updated: false,
       'update-progress': null,
       'shutting-down': false,

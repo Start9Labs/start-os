@@ -35,10 +35,7 @@
                 >
                   <!-- active -->
                   <ion-note
-                    *ngIf="
-                      pkgStatus === PackageMainStatus.BackingUp;
-                      else queued
-                    "
+                    *ngIf="pkgStatus === 'backing-up'; else queued"
                     class="inline"
                     slot="end"
                   >
