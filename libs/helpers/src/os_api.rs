@@ -14,25 +14,17 @@ fn method_not_available() -> Error {
         models::ErrorKind::InvalidRequest,
     )
 }
-
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-pub enum AddressSchema {
-    Onion {
-        name: InterfaceId,
-        external_port: u16,
-    },
-    Local {
-        name: InterfaceId,
-        external_port: u16,
-    },
-    ForwardPort {
-        external_port: u16,
-    },
-    Clearnet {
-        name: InterfaceId,
-        external_port: u16,
-    },
+pub struct AddressSchemaOnion {
+    pub id: InterfaceId,
+    pub external_port: u16,
+}
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct AddressSchemaLocal {
+    pub id: InterfaceId,
+    pub external_port: u16,
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
@@ -55,15 +47,21 @@ pub trait OsApi: Send + Sync + 'static {
         callback: Callback,
     ) -> Result<Value, Report>;
 
-    async fn bind(
+    async fn bind_local(
         &self,
         internal_port: u16,
-        address_schema: AddressSchema,
-    ) -> Result<Address, Report> {
+        address_schema: AddressSchemaLocal,
+    ) -> Result<Address, Report>;
+    async fn bind_onion(
+        &self,
+        internal_port: u16,
+        address_schema: AddressSchemaOnion,
+    ) -> Result<Address, Report>;
+
+    async fn unbind_local(&self, id: InterfaceId, external: u16) -> Result<(), Report> {
         todo!()
     }
-
-    async fn un_bind(&self, address: Address) -> Result<(), Report> {
+    async fn unbind_onion(&self, id: InterfaceId, external: u16) -> Result<(), Report> {
         todo!()
     }
     async fn list_address(&self) -> Result<Vec<Address>, Report> {

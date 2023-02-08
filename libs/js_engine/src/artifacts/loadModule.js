@@ -49,8 +49,10 @@ const writeFile = (
 ) => Deno.core.opAsync("write_file", volumeId, path, toWrite);
 
 const readFile = (
-  { volumeId = requireParam("volumeId"), path = requireParam("path") } =
-    requireParam("options"),
+  {
+    volumeId = requireParam("volumeId"),
+    path = requireParam("path"),
+  } = requireParam("options"),
 ) => Deno.core.opAsync("read_file", volumeId, path);
 
 const runDaemon = (
@@ -72,8 +74,11 @@ const runDaemon = (
   };
 };
 const runCommand = async (
-  { command = requireParam("command"), args = [], timeoutMillis = 30000 } =
-    requireParam("options"),
+  {
+    command = requireParam("command"),
+    args = [],
+    timeoutMillis = 30000,
+  } = requireParam("options"),
 ) => {
   let id = Deno.core.opAsync(
     "start_command",
@@ -92,9 +97,7 @@ const bindLocal = async (
     externalPort = requireParam("externalPort"),
   } = requireParam("options"),
 ) => {
-  return Deno.core.opAsync("bind", internalPort, {
-    local: { name, externalPort },
-  });
+  return Deno.core.opAsync("bind_local", internalPort, { name, externalPort });
 };
 const bindTor = async (
   {
@@ -103,31 +106,9 @@ const bindTor = async (
     externalPort = requireParam("externalPort"),
   } = requireParam("options"),
 ) => {
-  return Deno.core.opAsync("bind", internalPort, {
-    onion: { name, externalPort },
-  });
+  return Deno.core.opAsync("bind_onion", internalPort, { name, externalPort });
 };
-const bindForwardPort = async (
-  {
-    internalPort = requireParam("internalPort"),
-    externalPort = requireParam("externalPort"),
-  } = requireParam("options"),
-) => {
-  return Deno.core.opAsync("bind", internalPort, {
-    forwardPort: { externalPort },
-  });
-};
-const bindClearnet = async (
-  {
-    internalPort = requireParam("internalPort"),
-    name = requireParam("name"),
-    externalPort = requireParam("externalPort"),
-  } = requireParam("options"),
-) => {
-  return Deno.core.opAsync("bind", internalPort, {
-    clearnet: { name, externalPort },
-  });
-};
+
 const signalGroup = async (
   { gid = requireParam("gid"), signal = requireParam("signal") } = requireParam(
     "gid and signal",
@@ -147,8 +128,10 @@ const rename = (
   } = requireParam("options"),
 ) => Deno.core.opAsync("rename", srcVolume, srcPath, dstVolume, dstPath);
 const metadata = async (
-  { volumeId = requireParam("volumeId"), path = requireParam("path") } =
-    requireParam("options"),
+  {
+    volumeId = requireParam("volumeId"),
+    path = requireParam("path"),
+  } = requireParam("options"),
 ) => {
   const data = await Deno.core.opAsync("metadata", volumeId, path);
   return {
@@ -159,8 +142,10 @@ const metadata = async (
   };
 };
 const removeFile = (
-  { volumeId = requireParam("volumeId"), path = requireParam("path") } =
-    requireParam("options"),
+  {
+    volumeId = requireParam("volumeId"),
+    path = requireParam("path"),
+  } = requireParam("options"),
 ) => Deno.core.opAsync("remove_file", volumeId, path);
 const isSandboxed = () => Deno.core.opSync("is_sandboxed");
 
@@ -177,20 +162,26 @@ const writeJsonFile = (
     toWrite: JSON.stringify(toWrite),
   });
 const readJsonFile = async (
-  { volumeId = requireParam("volumeId"), path = requireParam("path") } =
-    requireParam("options"),
+  {
+    volumeId = requireParam("volumeId"),
+    path = requireParam("path"),
+  } = requireParam("options"),
 ) => JSON.parse(await readFile({ volumeId, path }));
 const createDir = (
-  { volumeId = requireParam("volumeId"), path = requireParam("path") } =
-    requireParam("options"),
+  {
+    volumeId = requireParam("volumeId"),
+    path = requireParam("path"),
+  } = requireParam("options"),
 ) => Deno.core.opAsync("create_dir", volumeId, path);
 
 const readDir = (
   { volumeId = requireParam("volumeId"), path = requireParam("path") } = requireParam("options"),
 ) => Deno.core.opAsync("read_dir", volumeId, path);
 const removeDir = (
-  { volumeId = requireParam("volumeId"), path = requireParam("path") } =
-    requireParam("options"),
+  {
+    volumeId = requireParam("volumeId"),
+    path = requireParam("path"),
+  } = requireParam("options"),
 ) => Deno.core.opAsync("remove_dir", volumeId, path);
 const trace = (whatToTrace = requireParam("whatToTrace")) =>
   Deno.core.opAsync("log_trace", whatToTrace);
@@ -274,12 +265,7 @@ const chown = async (
     uid = requireParam("uid"),
   } = requireParam("options"),
 ) => {
-  return await Deno.core.opAsync(
-    "chown",
-    volumeId,
-    path,
-    uid
-  );
+  return await Deno.core.opAsync("chown", volumeId, path, uid);
 };
 
 const setPermissions = async (
@@ -289,12 +275,7 @@ const setPermissions = async (
     readonly = requireParam("readonly"),
   } = requireParam("options"),
 ) => {
-  return await Deno.core.opAsync(
-    "set_permissions",
-    volumeId,
-    path,
-    readonly
-  );
+  return await Deno.core.opAsync("set_permissions", volumeId, path, readonly);
 };
 
 const currentFunction = Deno.core.opSync("current_function");
@@ -302,8 +283,6 @@ const input = Deno.core.opSync("get_input");
 const variable_args = Deno.core.opSync("get_variable_args");
 const setState = (x) => Deno.core.opAsync("set_value", x);
 const effects = {
-  bindClearnet,
-  bindForwardPort,
   bindLocal,
   bindTor,
   chown,
@@ -334,17 +313,16 @@ const effects = {
 };
 
 const defaults = {
-  "handleSignal": (effects, { gid, signal }) => {
+  handleSignal: (effects, { gid, signal }) => {
     return effects.signalGroup({ gid, signal });
   },
 };
 
 function safeToString(fn, orValue = "") {
   try {
-    return fn()
-  }
-  catch(e) {
-    return orValue
+    return fn();
+  } catch (e) {
+    return orValue;
   }
 }
 
@@ -356,10 +334,17 @@ const runFunction = jsonPointerValue(mainModule, currentFunction) ||
       error(`Expecting ${currentFunction} to be a function`);
       throw new Error(`Expecting ${currentFunction} to be a function`);
     }
-  })().then(() => runFunction(effects, input, ...variable_args)).catch((e) => {
-    if ("error" in e) return e;
-    if ("error-code" in e) return e;
-    return { error: safeToString(() => e.toString(), "Error Not able to be stringified") };
-  });
+  })()
+    .then(() => runFunction(effects, input, ...variable_args))
+    .catch((e) => {
+      if ("error" in e) return e;
+      if ("error-code" in e) return e;
+      return {
+        error: safeToString(
+          () => e.toString(),
+          "Error Not able to be stringified",
+        ),
+      };
+    });
   await setState(answer);
 })();
