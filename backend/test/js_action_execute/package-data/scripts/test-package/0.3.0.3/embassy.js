@@ -1038,5 +1038,29 @@ export const action = {
         .catch(() => {});
     }
   },
+  /**
+   * Testing callbacks?
+   * @param {*} effects 
+   * @param {*} _input 
+   * @returns 
+   */
+  async "test-callback"(effects, _input) {
+    await Promise.race([
+     new Promise(done => effects.getServiceConfig({serviceId: 'something', configPath: "string", onChange: done})),
+    new Promise (async () => {
+        await effects.sleep(100)
+        throw new Error("Currently in sleeping")
+      }
+    )])
+
+    return {
+      result: {
+        copyable: false,
+        message: "Done",
+        version: "0",
+        qr: false,
+      },
+    };
+  },
 
 };

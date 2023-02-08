@@ -196,8 +196,19 @@ fn unwrap_known_error<O: DeserializeOwned>(
 mod tests {
     use super::*;
     use helpers::{Callback, OsApi};
+    use serde_json::{json, Value};
+    use tokio::sync::watch;
 
-    struct OsApiMock;
+    struct OsApiMock {
+        config_callbacks: watch::Sender<Vec<Callback>>,
+    }
+    impl Default for OsApiMock {
+        fn default() -> Self {
+            Self {
+                config_callbacks: watch::channel(Vec::new()).0,
+            }
+        }
+    }
 
     #[async_trait::async_trait]
     impl OsApi for OsApiMock {
@@ -207,7 +218,9 @@ mod tests {
             path: &str,
             callback: Callback,
         ) -> Result<serde_json::Value, Report> {
-            todo!()
+            println!("Adding callback");
+            self.config_callbacks.send_modify(|x| x.push(callback));
+            Ok(Value::Null)
         }
     }
     #[tokio::test]
@@ -221,7 +234,7 @@ mod tests {
         let package_id = "test-package".parse().unwrap();
         let package_version: Version = "0.3.0.3".parse().unwrap();
         let name = ProcedureName::GetConfig;
-        let volumes: Volumes = serde_json::from_value(serde_json::json!({
+        let volumes: Volumes = serde_json::from_value(json!({
             "main": {
                 "type": "data"
             },
@@ -237,7 +250,7 @@ mod tests {
             }
         }))
         .unwrap();
-        let input: Option<serde_json::Value> = Some(serde_json::json!({"test":123}));
+        let input: Option<serde_json::Value> = Some(json!({"test":123}));
         let timeout = Some(Duration::from_secs(10));
         let _output: crate::config::action::ConfigRes = js_action
             .execute(
@@ -250,7 +263,7 @@ mod tests {
                 timeout,
                 ProcessGroupId(0),
                 None,
-                Arc::new(OsApiMock),
+                Arc::new(OsApiMock::default()),
             )
             .await
             .unwrap()
@@ -279,7 +292,7 @@ mod tests {
         let package_id = "test-package".parse().unwrap();
         let package_version: Version = "0.3.0.3".parse().unwrap();
         let name = ProcedureName::SetConfig;
-        let volumes: Volumes = serde_json::from_value(serde_json::json!({
+        let volumes: Volumes = serde_json::from_value(json!({
             "main": {
                 "type": "data"
             },
@@ -308,7 +321,7 @@ mod tests {
                 timeout,
                 ProcessGroupId(0),
                 None,
-                Arc::new(OsApiMock),
+                Arc::new(OsApiMock::default()),
             )
             .await
             .unwrap();
@@ -326,7 +339,7 @@ mod tests {
         let package_id = "test-package".parse().unwrap();
         let package_version: Version = "0.3.0.3".parse().unwrap();
         let name = ProcedureName::Action("fetch".parse().unwrap());
-        let volumes: Volumes = serde_json::from_value(serde_json::json!({
+        let volumes: Volumes = serde_json::from_value(json!({
             "main": {
                 "type": "data"
             },
@@ -355,7 +368,7 @@ mod tests {
                 timeout,
                 ProcessGroupId(0),
                 None,
-                Arc::new(OsApiMock),
+                Arc::new(OsApiMock::default()),
             )
             .await
             .unwrap()
@@ -373,7 +386,7 @@ mod tests {
         let package_id = "test-package".parse().unwrap();
         let package_version: Version = "0.3.0.3".parse().unwrap();
         let name = ProcedureName::Action("slow".parse().unwrap());
-        let volumes: Volumes = serde_json::from_value(serde_json::json!({
+        let volumes: Volumes = serde_json::from_value(json!({
             "main": {
                 "type": "data"
             },
@@ -404,7 +417,7 @@ mod tests {
                     timeout,
                     ProcessGroupId(0),
                     None,
-                    Arc::new(OsApiMock)
+                    Arc::new(OsApiMock::default())
                 ) => { a.unwrap().unwrap(); },
             _ = tokio::time::sleep(Duration::from_secs(1)) => ()
         }
@@ -425,7 +438,7 @@ mod tests {
         let package_id = "test-package".parse().unwrap();
         let package_version: Version = "0.3.0.3".parse().unwrap();
         let name = ProcedureName::Action("js-action-var-arg".parse().unwrap());
-        let volumes: Volumes = serde_json::from_value(serde_json::json!({
+        let volumes: Volumes = serde_json::from_value(json!({
             "main": {
                 "type": "data"
             },
@@ -454,7 +467,7 @@ mod tests {
                 timeout,
                 ProcessGroupId(0),
                 None,
-                Arc::new(OsApiMock),
+                Arc::new(OsApiMock::default()),
             )
             .await
             .unwrap()
@@ -472,7 +485,7 @@ mod tests {
         let package_id = "test-package".parse().unwrap();
         let package_version: Version = "0.3.0.3".parse().unwrap();
         let name = ProcedureName::Action("test-rename".parse().unwrap());
-        let volumes: Volumes = serde_json::from_value(serde_json::json!({
+        let volumes: Volumes = serde_json::from_value(json!({
             "main": {
                 "type": "data"
             },
@@ -675,7 +688,7 @@ async fn js_action_test_read_dir() {
         let package_id = "test-package".parse().unwrap();
         let package_version: Version = "0.3.0.3".parse().unwrap();
         let name = ProcedureName::Action("test-deep-dir".parse().unwrap());
-        let volumes: Volumes = serde_json::from_value(serde_json::json!({
+        let volumes: Volumes = serde_json::from_value(json!({
             "main": {
                 "type": "data"
             },
@@ -704,7 +717,7 @@ async fn js_action_test_read_dir() {
                 timeout,
                 ProcessGroupId(0),
                 None,
-                Arc::new(OsApiMock),
+                Arc::new(OsApiMock::default()),
             )
             .await
             .unwrap()
@@ -721,7 +734,7 @@ async fn js_action_test_read_dir() {
         let package_id = "test-package".parse().unwrap();
         let package_version: Version = "0.3.0.3".parse().unwrap();
         let name = ProcedureName::Action("test-deep-dir-escape".parse().unwrap());
-        let volumes: Volumes = serde_json::from_value(serde_json::json!({
+        let volumes: Volumes = serde_json::from_value(json!({
             "main": {
                 "type": "data"
             },
@@ -750,7 +763,7 @@ async fn js_action_test_read_dir() {
                 timeout,
                 ProcessGroupId(0),
                 None,
-                Arc::new(OsApiMock),
+                Arc::new(OsApiMock::default()),
             )
             .await
             .unwrap()
@@ -767,7 +780,7 @@ async fn js_action_test_read_dir() {
         let package_id = "test-package".parse().unwrap();
         let package_version: Version = "0.3.0.3".parse().unwrap();
         let name = ProcedureName::Action("test-zero-dir".parse().unwrap());
-        let volumes: Volumes = serde_json::from_value(serde_json::json!({
+        let volumes: Volumes = serde_json::from_value(json!({
             "main": {
                 "type": "data"
             },
@@ -796,7 +809,7 @@ async fn js_action_test_read_dir() {
                 timeout,
                 ProcessGroupId(0),
                 None,
-                Arc::new(OsApiMock),
+                Arc::new(OsApiMock::default()),
             )
             .await
             .unwrap()
@@ -814,7 +827,7 @@ async fn js_action_test_read_dir() {
         let package_id = "test-package".parse().unwrap();
         let package_version: Version = "0.3.0.3".parse().unwrap();
         let name = ProcedureName::Action("test-rsync".parse().unwrap());
-        let volumes: Volumes = serde_json::from_value(serde_json::json!({
+        let volumes: Volumes = serde_json::from_value(json!({
             "main": {
                 "type": "data"
             },
@@ -843,10 +856,74 @@ async fn js_action_test_read_dir() {
                 timeout,
                 ProcessGroupId(0),
                 None,
-                Arc::new(OsApiMock),
+                Arc::new(OsApiMock::default()),
             )
             .await
             .unwrap()
             .unwrap();
+    }
+    #[tokio::test]
+    async fn test_callback() {
+        let api = Arc::new(OsApiMock::default());
+        let action_api = api.clone();
+        let spawned = tokio::spawn(async move {
+            let mut watching = api.config_callbacks.subscribe();
+            loop {
+                if watching.borrow().is_empty() {
+                    watching.changed().await.unwrap();
+                    continue;
+                }
+                api.config_callbacks.send_modify(|x| {
+                    x[0](json!("This is something across the wire!"))
+                        .map_err(|e| format!("Failed call"))
+                        .unwrap();
+                });
+                break;
+            }
+        });
+        let js_action = JsProcedure { args: vec![] };
+        let path: PathBuf = "test/js_action_execute/"
+            .parse::<PathBuf>()
+            .unwrap()
+            .canonicalize()
+            .unwrap();
+        let package_id = "test-package".parse().unwrap();
+        let package_version: Version = "0.3.0.3".parse().unwrap();
+        let name = ProcedureName::Action("test-callback".parse().unwrap());
+        let volumes: Volumes = serde_json::from_value(json!({
+            "main": {
+                "type": "data"
+            },
+            "compat": {
+                "type": "assets"
+            },
+            "filebrowser" :{
+                "package-id": "filebrowser",
+                "path": "data",
+                "readonly": true,
+                "type": "pointer",
+                "volume-id": "main",
+            }
+        }))
+        .unwrap();
+        let input: Option<serde_json::Value> = None;
+        let timeout = Some(Duration::from_secs(10));
+        js_action
+            .execute::<serde_json::Value, serde_json::Value>(
+                &path,
+                &package_id,
+                &package_version,
+                name,
+                &volumes,
+                input,
+                timeout,
+                ProcessGroupId(0),
+                None,
+                action_api,
+            )
+            .await
+            .unwrap()
+            .unwrap();
+        spawned.await.unwrap();
     }
 }

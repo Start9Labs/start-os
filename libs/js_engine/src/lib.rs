@@ -109,8 +109,15 @@ enum ResultType {
     ErrorCode(i32, String),
     Result(serde_json::Value),
 }
-#[derive(Clone, Default)]
-struct AnswerState(std::sync::Arc<deno_core::parking_lot::Mutex<Value>>);
+#[derive(Clone)]
+struct AnswerState(mpsc::Sender<Value>);
+
+impl AnswerState {
+    fn new() -> (Self, mpsc::Receiver<Value>) {
+        let (send, recv) = mpsc::channel(1);
+        (Self(send), recv)
+    }
+}
 
 #[derive(Clone, Debug)]
 struct ModsLoader {
@@ -280,6 +287,7 @@ impl JsExecutionEnvironment {
     }
     fn declarations() -> Vec<OpDecl> {
         vec![
+            fns::bind::decl(),
             fns::fetch::decl(),
             fns::read_file::decl(),
             fns::metadata::decl(),
@@ -308,7 +316,6 @@ impl JsExecutionEnvironment {
             fns::rsync_wait::decl(),
             fns::rsync_progress::decl(),
             fns::get_service_config::decl(),
-            fns::bind::decl(),
         ]
     }
 
@@ -319,7 +326,7 @@ impl JsExecutionEnvironment {
         variable_args: Vec<serde_json::Value>,
     ) -> Result<Value, (JsError, String)> {
         let base_directory = self.base_directory.clone();
-        let answer_state = AnswerState::default();
+        let (answer_state, mut receive_answer) = AnswerState::new();
         let ext_answer_state = answer_state.clone();
         let (callback_sender, callback_receiver) = mpsc::unbounded_channel();
         let js_ctx = JsContext {
@@ -374,12 +381,18 @@ impl JsExecutionEnvironment {
             Ok::<_, AnyError>(())
         };
 
-        future.await.map_err(|e| {
-            tracing::debug!("{:?}", e);
-            (JsError::Javascript, format!("{}", e))
-        })?;
+        let answer = tokio::select! {
+            Some(x) = receive_answer.recv() => x,
+            _ = future => {
+                if let Some(x) = receive_answer.recv().await {
+                    x
+                }
+                else {
+                    serde_json::json!({"error": "JS Engine Shutdown"})
+                }
+            },
 
-        let answer = answer_state.0.lock().clone();
+        };
         Ok(answer)
     }
 }
@@ -397,10 +410,10 @@ impl<'a> Future for RuntimeEventLoop<'a> {
     ) -> std::task::Poll<Self::Output> {
         let this = self.project();
         if let Poll::Ready(Some((uuid, value))) = this.callback.poll_recv(cx) {
-            match this
-                .runtime
-                .execute_script("callback", &format!("runCallback({uuid}, {value})"))
-            {
+            match this.runtime.execute_script(
+                "callback",
+                &format!("globalThis.runCallback(\"{uuid}\", {value})"),
+            ) {
                 Ok(_) => (),
                 Err(e) => return Poll::Ready(Err(e)),
             }
@@ -739,7 +752,7 @@ mod fns {
                 volume_path.to_string_lossy(),
             );
         }
-        if let Err(_) = tokio::fs::metadata(&src).await {
+        if tokio::fs::metadata(&src).await.is_err() {
             bail!("Source at {} does not exists", src.to_string_lossy());
         }
 
@@ -942,8 +955,10 @@ mod fns {
 
     #[op]
     async fn log_trace(state: Rc<RefCell<OpState>>, input: String) -> Result<(), AnyError> {
-        let state = state.borrow();
-        let ctx = state.borrow::<JsContext>().clone();
+        let ctx = {
+            let state = state.borrow();
+            state.borrow::<JsContext>().clone()
+        };
         if let Some(rpc_client) = ctx.container_rpc_client {
             return rpc_client
                 .request(
@@ -966,8 +981,10 @@ mod fns {
     }
     #[op]
     async fn log_warn(state: Rc<RefCell<OpState>>, input: String) -> Result<(), AnyError> {
-        let state = state.borrow();
-        let ctx = state.borrow::<JsContext>().clone();
+        let ctx = {
+            let state = state.borrow();
+            state.borrow::<JsContext>().clone()
+        };
         if let Some(rpc_client) = ctx.container_rpc_client {
             return rpc_client
                 .request(
@@ -990,8 +1007,10 @@ mod fns {
     }
     #[op]
     async fn log_error(state: Rc<RefCell<OpState>>, input: String) -> Result<(), AnyError> {
-        let state = state.borrow();
-        let ctx = state.borrow::<JsContext>().clone();
+        let ctx = {
+            let state = state.borrow();
+            state.borrow::<JsContext>().clone()
+        };
         if let Some(rpc_client) = ctx.container_rpc_client {
             return rpc_client
                 .request(
@@ -1014,8 +1033,10 @@ mod fns {
     }
     #[op]
     async fn log_debug(state: Rc<RefCell<OpState>>, input: String) -> Result<(), AnyError> {
-        let state = state.borrow();
-        let ctx = state.borrow::<JsContext>().clone();
+        let ctx = {
+            let state = state.borrow();
+            state.borrow::<JsContext>().clone()
+        };
         if let Some(rpc_client) = ctx.container_rpc_client {
             return rpc_client
                 .request(
@@ -1038,8 +1059,10 @@ mod fns {
     }
     #[op]
     async fn log_info(state: Rc<RefCell<OpState>>, input: String) -> Result<(), AnyError> {
-        let state = state.borrow();
-        let ctx = state.borrow::<JsContext>().clone();
+        let ctx = {
+            let state = state.borrow();
+            state.borrow::<JsContext>().clone()
+        };
         if let Some(rpc_client) = ctx.container_rpc_client {
             return rpc_client
                 .request(
@@ -1072,9 +1095,16 @@ mod fns {
         Ok(ctx.variable_args.clone())
     }
     #[op]
-    fn set_value(state: &mut OpState, value: Value) -> Result<(), AnyError> {
-        let mut answer = state.borrow::<AnswerState>().0.lock();
-        *answer = value;
+    async fn set_value(state: Rc<RefCell<OpState>>, value: Value) -> Result<(), AnyError> {
+        let sender = {
+            let state = state.borrow();
+            let answer_state = state.borrow::<AnswerState>().0.clone();
+            answer_state
+        };
+        sender
+            .send(value)
+            .await
+            .map_err(|_e| anyhow!("Could not set a value"))?;
         Ok(())
     }
     #[op]
