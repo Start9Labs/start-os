@@ -27,11 +27,11 @@ export class ResponsiveColDirective implements OnInit {
     private readonly col: IonCol,
   ) {
     viewport$?.pipe(takeUntil(destroy$)).subscribe(size => {
-      this.col.sizeLg = this.size[size]
-      this.col.sizeMd = this.size[size]
-      this.col.sizeSm = this.size[size]
-      this.col.sizeXl = this.size[size]
-      this.col.sizeXs = this.size[size]
+      this.col.sizeLg = this.size[size] || this.size.lg
+      this.col.sizeMd = this.size[size] || this.size.md
+      this.col.sizeSm = this.size[size] || this.size.sm
+      this.col.sizeXl = this.size[size] || this.size.xl
+      this.col.sizeXs = this.size[size] || this.size.xs
     })
   }
 
