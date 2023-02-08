@@ -770,6 +770,52 @@ async fn js_action_test_read_dir() {
             .unwrap();
     }
     #[tokio::test]
+    async fn js_permissions_and_own() {
+        let js_action = JsProcedure { args: vec![] };
+        let path: PathBuf = "test/js_action_execute/"
+            .parse::<PathBuf>()
+            .unwrap()
+            .canonicalize()
+            .unwrap();
+        let package_id = "test-package".parse().unwrap();
+        let package_version: Version = "0.3.0.3".parse().unwrap();
+        let name = ProcedureName::Action("test-permission-chown".parse().unwrap());
+        let volumes: Volumes = serde_json::from_value(json!({
+            "main": {
+                "type": "data"
+            },
+            "compat": {
+                "type": "assets"
+            },
+            "filebrowser" :{
+                "package-id": "filebrowser",
+                "path": "data",
+                "readonly": true,
+                "type": "pointer",
+                "volume-id": "main",
+            }
+        }))
+        .unwrap();
+        let input: Option<serde_json::Value> = None;
+        let timeout = Some(Duration::from_secs(10));
+        js_action
+            .execute::<serde_json::Value, serde_json::Value>(
+                &path,
+                &package_id,
+                &package_version,
+                name,
+                &volumes,
+                input,
+                timeout,
+                ProcessGroupId(0),
+                None,
+                Arc::new(OsApiMock::default()),
+            )
+            .await
+            .unwrap()
+            .unwrap();
+    }
+    #[tokio::test]
     async fn js_action_test_zero_dir() {
         let js_action = JsProcedure { args: vec![] };
         let path: PathBuf = "test/js_action_execute/"

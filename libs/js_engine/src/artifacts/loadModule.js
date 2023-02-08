@@ -267,38 +267,70 @@ const getServiceConfig = async (
   );
 };
 
+const chown = async (
+  {
+    volumeId = requireParam("volumeId"),
+    path = requireParam("path"),
+    uid = requireParam("uid"),
+  } = requireParam("options"),
+) => {
+  return await Deno.core.opAsync(
+    "chown",
+    volumeId,
+    path,
+    uid
+  );
+};
+
+const setPermissions = async (
+  {
+    volumeId = requireParam("volumeId"),
+    path = requireParam("path"),
+    readonly = requireParam("readonly"),
+  } = requireParam("options"),
+) => {
+  return await Deno.core.opAsync(
+    "set_permissions",
+    volumeId,
+    path,
+    readonly
+  );
+};
+
 const currentFunction = Deno.core.opSync("current_function");
 const input = Deno.core.opSync("get_input");
 const variable_args = Deno.core.opSync("get_variable_args");
 const setState = (x) => Deno.core.opAsync("set_value", x);
 const effects = {
-  writeFile,
-  readFile,
-  writeJsonFile,
-  readJsonFile,
-  error,
-  warn,
-  debug,
-  trace,
-  info,
-  isSandboxed,
-  fetch,
-  removeFile,
-  createDir,
-  removeDir,
-  metadata,
-  rename,
-  runCommand,
-  sleep,
-  runDaemon,
-  signalGroup,
-  runRsync,
-  readDir,
-  getServiceConfig,
+  bindClearnet,
+  bindForwardPort,
   bindLocal,
   bindTor,
-  bindForwardPort,
-  bindClearnet,
+  chown,
+  createDir,
+  debug,
+  error,
+  fetch,
+  getServiceConfig,
+  info,
+  isSandboxed,
+  metadata,
+  readDir,
+  readFile,
+  readJsonFile,
+  removeDir,
+  removeFile,
+  rename,
+  runCommand,
+  runDaemon,
+  runRsync,
+  setPermissions,
+  signalGroup,
+  sleep,
+  trace,
+  warn,
+  writeFile,
+  writeJsonFile,
 };
 
 const defaults = {
@@ -326,7 +358,8 @@ const runFunction = jsonPointerValue(mainModule, currentFunction) ||
     }
   })().then(() => runFunction(effects, input, ...variable_args)).catch((e) => {
     if ("error" in e) return e;
-    return { error: safeToString(e, "Error Not able to be stringified") };
+    if ("error-code" in e) return e;
+    return { error: safeToString(() => e.toString(), "Error Not able to be stringified") };
   });
   await setState(answer);
 })();
