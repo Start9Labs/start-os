@@ -5,7 +5,7 @@ use std::time::Duration;
 use color_eyre::eyre::eyre;
 use color_eyre::Report;
 use embassy_container_init::{ProcessGroupId, SignalGroup, SignalGroupParams};
-use helpers::{Callback, OsApi, UnixRpcClient};
+use helpers::{Address, AddressSchemaLocal, AddressSchemaOnion, Callback, OsApi, UnixRpcClient};
 pub use js_engine::JsError;
 use js_engine::{JsExecutionEnvironment, PathForVolumeId};
 use models::{ErrorKind, VolumeId};
@@ -58,6 +58,22 @@ impl OsApi for SandboxOsApi {
         path: &str,
         callback: Callback,
     ) -> Result<serde_json::Value, Report> {
+        todo!()
+    }
+    #[allow(unused_variables)]
+    async fn bind_local(
+        &self,
+        internal_port: u16,
+        address_schema: AddressSchemaLocal,
+    ) -> Result<Address, Report> {
+        todo!()
+    }
+    #[allow(unused_variables)]
+    async fn bind_onion(
+        &self,
+        internal_port: u16,
+        address_schema: AddressSchemaOnion,
+    ) -> Result<Address, Report> {
         todo!()
     }
 }
@@ -195,7 +211,7 @@ fn unwrap_known_error<O: DeserializeOwned>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use helpers::{Callback, OsApi};
+    use helpers::{Address, AddressSchemaLocal, AddressSchemaOnion, Callback, OsApi};
     use serde_json::{json, Value};
     use tokio::sync::watch;
 
@@ -212,6 +228,7 @@ mod tests {
 
     #[async_trait::async_trait]
     impl OsApi for OsApiMock {
+        #[allow(unused_variables)]
         async fn get_service_config(
             &self,
             id: PackageId,
@@ -221,6 +238,22 @@ mod tests {
             println!("Adding callback");
             self.config_callbacks.send_modify(|x| x.push(callback));
             Ok(Value::Null)
+        }
+        #[allow(unused_variables)]
+        async fn bind_local(
+            &self,
+            internal_port: u16,
+            address_schema: AddressSchemaLocal,
+        ) -> Result<Address, Report> {
+            todo!()
+        }
+        #[allow(unused_variables)]
+        async fn bind_onion(
+            &self,
+            internal_port: u16,
+            address_schema: AddressSchemaOnion,
+        ) -> Result<Address, Report> {
+            todo!()
         }
     }
     #[tokio::test]

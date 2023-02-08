@@ -287,7 +287,8 @@ impl JsExecutionEnvironment {
     }
     fn declarations() -> Vec<OpDecl> {
         vec![
-            fns::bind::decl(),
+            fns::bind_local::decl(),
+            fns::bind_onion::decl(),
             fns::chown::decl(),
             fns::fetch::decl(),
             fns::read_file::decl(),
@@ -439,7 +440,6 @@ mod fns {
     use std::cell::RefCell;
     use std::collections::BTreeMap;
     use std::convert::TryFrom;
-    use std::fs::Permissions;
     use std::os::unix::fs::MetadataExt;
     use std::path::{Path, PathBuf};
     use std::rc::Rc;
@@ -452,7 +452,10 @@ mod fns {
         OutputParams, OutputStrategy, ProcessGroupId, ProcessId, RunCommand, RunCommandParams,
         SendSignal, SendSignalParams, SignalGroup, SignalGroupParams,
     };
-    use helpers::{to_tmp_path, AddressSchema, AtomicFile, Rsync, RsyncOptions, RuntimeDropped};
+    use helpers::{
+        to_tmp_path, AddressSchemaLocal, AddressSchemaOnion, AtomicFile, Rsync, RsyncOptions,
+        RuntimeDropped,
+    };
     use models::{PackageId, VolumeId};
     use serde::{Deserialize, Serialize};
     use serde_json::{json, Value};
@@ -1359,17 +1362,32 @@ mod fns {
     }
 
     #[op]
-    async fn bind(
+    async fn bind_onion(
         state: Rc<RefCell<OpState>>,
         internal_port: u16,
-        address_schema: AddressSchema,
+        address_schema: AddressSchemaOnion,
     ) -> Result<helpers::Address, AnyError> {
         let os = {
             let state = state.borrow();
             let ctx = state.borrow::<JsContext>();
             ctx.os.clone()
         };
-        os.bind(internal_port, address_schema)
+        os.bind_onion(internal_port, address_schema)
+            .await
+            .map_err(|e| anyhow!("{e:?}"))
+    }
+    #[op]
+    async fn bind_local(
+        state: Rc<RefCell<OpState>>,
+        internal_port: u16,
+        address_schema: AddressSchemaLocal,
+    ) -> Result<helpers::Address, AnyError> {
+        let os = {
+            let state = state.borrow();
+            let ctx = state.borrow::<JsContext>();
+            ctx.os.clone()
+        };
+        os.bind_local(internal_port, address_schema)
             .await
             .map_err(|e| anyhow!("{e:?}"))
     }
