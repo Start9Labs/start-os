@@ -1,9 +1,23 @@
 import Deno from "/deno_global.js";
 import * as mainModule from "/embassy.js";
 
+// throw new Error("I'm going crasy")
+
 function requireParam(param) {
   throw new Error(`Missing required parameter ${param}`);
 }
+
+const callbackName = (() => {
+  let count = 0;
+  return () => `callback${count++}${Math.floor(Math.random() * 100000)}`;
+})();
+
+const callbackMapping = {};
+const registerCallback = (fn) => {
+  const uuid = callbackName(); // TODO
+  callbackMapping[uuid] = fn;
+  return uuid;
+};
 
 /**
  * This is using the simplified json pointer spec, using no escapes and arrays
@@ -78,7 +92,9 @@ const bindLocal = async (
     externalPort = requireParam("externalPort"),
   } = requireParam("options"),
 ) => {
-  return Deno.core.opAsync("bind", internalPort, {local: { name, externalPort}});
+  return Deno.core.opAsync("bind", internalPort, {
+    local: { name, externalPort },
+  });
 };
 const bindTor = async (
   {
@@ -87,7 +103,9 @@ const bindTor = async (
     externalPort = requireParam("externalPort"),
   } = requireParam("options"),
 ) => {
-  return Deno.core.opAsync("bind", internalPort, {onion: { name, externalPort}});
+  return Deno.core.opAsync("bind", internalPort, {
+    onion: { name, externalPort },
+  });
 };
 const bindForwardPort = async (
   {
@@ -95,7 +113,9 @@ const bindForwardPort = async (
     externalPort = requireParam("externalPort"),
   } = requireParam("options"),
 ) => {
-  return Deno.core.opAsync("bind", internalPort, {forwardPort: { externalPort}});
+  return Deno.core.opAsync("bind", internalPort, {
+    forwardPort: { externalPort },
+  });
 };
 const bindClearnet = async (
   {
@@ -104,7 +124,9 @@ const bindClearnet = async (
     externalPort = requireParam("externalPort"),
   } = requireParam("options"),
 ) => {
-  return Deno.core.opAsync("bind", internalPort, {clearnet: { name, externalPort}});
+  return Deno.core.opAsync("bind", internalPort, {
+    clearnet: { name, externalPort },
+  });
 };
 const signalGroup = async (
   { gid = requireParam("gid"), signal = requireParam("signal") } = requireParam(
@@ -226,13 +248,9 @@ const runRsync = (
   };
 };
 
-const callbackMapping = {};
-const registerCallback = (fn) => {
-  const uuid = generateUuid(); // TODO
-  callbackMapping[uuid] = fn;
-  return uuid;
-};
-const runCallback = (uuid, data) => callbackMapping[uuid](data);
+globalThis.runCallback = (uuid, data) => callbackMapping[uuid](data);
+// window.runCallback = runCallback;
+// Deno.runCallback = runCallback;
 
 const getServiceConfig = async (
   {
@@ -252,7 +270,7 @@ const getServiceConfig = async (
 const currentFunction = Deno.core.opSync("current_function");
 const input = Deno.core.opSync("get_input");
 const variable_args = Deno.core.opSync("get_variable_args");
-const setState = (x) => Deno.core.opSync("set_value", x);
+const setState = (x) => Deno.core.opAsync("set_value", x);
 const effects = {
   writeFile,
   readFile,
@@ -289,14 +307,26 @@ const defaults = {
   },
 };
 
+function safeToString(fn, orValue = "") {
+  try {
+    return fn()
+  }
+  catch(e) {
+    return orValue
+  }
+}
+
 const runFunction = jsonPointerValue(mainModule, currentFunction) ||
   jsonPointerValue(defaults, currentFunction);
 (async () => {
-  if (typeof runFunction !== "function") {
-    error(`Expecting ${currentFunction} to be a function`);
-    throw new Error(`Expecting ${currentFunction} to be a function`);
-  }
-  const answer = await runFunction(effects, input, ...variable_args);
-  setState(answer);
+  const answer = await (async () => {
+    if (typeof runFunction !== "function") {
+      error(`Expecting ${currentFunction} to be a function`);
+      throw new Error(`Expecting ${currentFunction} to be a function`);
+    }
+  })().then(() => runFunction(effects, input, ...variable_args)).catch((e) => {
+    if ("error" in e) return e;
+    return { error: safeToString(e, "Error Not able to be stringified") };
+  });
+  await setState(answer);
 })();
-
