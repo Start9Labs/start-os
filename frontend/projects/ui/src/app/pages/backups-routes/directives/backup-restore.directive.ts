@@ -9,16 +9,10 @@ import {
   GenericInputComponent,
   GenericInputOptions,
 } from 'src/app/modals/generic-input/generic-input.component'
-import {
-  BackupInfo,
-  BackupTarget,
-  CifsBackupTarget,
-  DiskBackupTarget,
-} from 'src/app/services/api/api.types'
+import { BackupInfo, BackupTarget } from 'src/app/services/api/api.types'
 import { RecoverSelectPage } from 'src/app/pages/backups-routes/modals/recover-select/recover-select.page'
 import * as argon2 from '@start9labs/argon2'
 import { TargetSelectPage } from '../modals/target-select/target-select.page'
-import { WithId } from '../pages/backup-targets/backup-targets.page'
 
 @Directive({
   selector: '[backupRestore]',
@@ -42,7 +36,7 @@ export class BackupRestoreDirective {
       componentProps: { type: 'restore' },
     })
 
-    modal.onDidDismiss<WithId<BackupTarget>>().then(res => {
+    modal.onDidDismiss<BackupTarget>().then(res => {
       if (res.data) {
         this.presentModalPassword(res.data)
       }
@@ -51,7 +45,7 @@ export class BackupRestoreDirective {
     await modal.present()
   }
 
-  async presentModalPassword(target: WithId<BackupTarget>): Promise<void> {
+  async presentModalPassword(target: BackupTarget): Promise<void> {
     const options: GenericInputOptions = {
       title: 'Password Required',
       message:

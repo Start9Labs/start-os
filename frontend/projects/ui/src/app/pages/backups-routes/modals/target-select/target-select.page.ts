@@ -3,10 +3,7 @@ import { ModalController, NavController } from '@ionic/angular'
 import { BehaviorSubject, Subject } from 'rxjs'
 import { BackupTarget, DiskBackupTarget } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import {
-  BackupType,
-  WithId,
-} from '../../pages/backup-targets/backup-targets.page'
+import { BackupType } from '../../pages/backup-targets/backup-targets.page'
 
 @Component({
   selector: 'target-select',
@@ -19,8 +16,8 @@ export class TargetSelectPage {
   @Input() isOneOff = true
 
   targets: {
-    'unsaved-physical': WithId<DiskBackupTarget>[]
-    saved: WithId<BackupTarget>[]
+    'unsaved-physical': DiskBackupTarget[]
+    saved: BackupTarget[]
   } = {
     'unsaved-physical': [],
     saved: [],
@@ -64,7 +61,7 @@ export class TargetSelectPage {
       const targets = await this.api.getBackupTargets({})
       this.targets = {
         'unsaved-physical': [],
-        saved: Object.keys(targets).map(id => ({ id, ...targets[id] })),
+        saved: targets,
       }
     } catch (e: any) {
       this.error$.next(e.message)

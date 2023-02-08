@@ -10,7 +10,7 @@ import {
   RPCOptions,
 } from '@start9labs/shared'
 import { ApiService } from './embassy-api.service'
-import { RR } from './api.types'
+import { BackupTargetType, RR } from './api.types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { ConfigService } from '../config.service'
 import { webSocket, WebSocketSubjectConfig } from 'rxjs/webSocket'
@@ -294,16 +294,18 @@ export class LiveApiService extends ApiService {
   }
 
   async addBackupTarget(
-    params: RR.AddBackupTargetReq,
+    type: BackupTargetType,
+    params: RR.AddCifsBackupTargetReq | RR.AddCloudBackupTargetReq,
   ): Promise<RR.AddBackupTargetRes> {
-    if (params['path']) params['path'] = params['path'].replace('/\\/g', '/')
-    return this.rpcRequest({ method: 'backup.target.add', params })
+    params.path = params.path.replace('/\\/g', '/')
+    return this.rpcRequest({ method: `backup.target.${type}.add`, params })
   }
 
   async updateBackupTarget(
-    params: RR.UpdateBackupTargetReq,
+    type: BackupTargetType,
+    params: RR.UpdateCifsBackupTargetReq | RR.UpdateCloudBackupTargetReq,
   ): Promise<RR.UpdateBackupTargetRes> {
-    return this.rpcRequest({ method: 'backup.target.update', params })
+    return this.rpcRequest({ method: `backup.target.${type}.update`, params })
   }
 
   async removeBackupTarget(
@@ -334,6 +336,12 @@ export class LiveApiService extends ApiService {
     params: RR.DeleteBackupJobReq,
   ): Promise<RR.DeleteBackupJobRes> {
     return this.rpcRequest({ method: 'backup.job.delete', params })
+  }
+
+  async getBackupRuns(
+    params: RR.GetBackupRunsReq,
+  ): Promise<RR.GetBackupRunsRes> {
+    return this.rpcRequest({ method: 'backup.runs.list', params })
   }
 
   async getBackupInfo(

@@ -7,7 +7,6 @@ import {
   CifsBackupTarget,
   DiskBackupTarget,
 } from 'src/app/services/api/api.types'
-import { WithId } from '../pages/backup-targets/backup-targets.page'
 
 @Directive({
   selector: '[backupCreate]',
@@ -32,13 +31,11 @@ export class BackupCreateDirective {
       componentProps: { type: 'create' },
     })
 
-    modal
-      .onDidDismiss<WithId<CifsBackupTarget | DiskBackupTarget>>()
-      .then(res => {
-        if (res.data) {
-          this.presentModalSelect(res.data.id)
-        }
-      })
+    modal.onDidDismiss<CifsBackupTarget | DiskBackupTarget>().then(res => {
+      if (res.data) {
+        this.presentModalSelect(res.data.id)
+      }
+    })
 
     await modal.present()
   }

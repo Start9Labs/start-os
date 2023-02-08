@@ -583,8 +583,9 @@ export module Mock {
     ],
   }
 
-  export const BackupTargets: RR.GetBackupTargetsRes = {
-    hsbdjhasbasda: {
+  export const BackupTargets: RR.GetBackupTargetsRes = [
+    {
+      id: 'hsbdjhasbasda',
       type: 'cifs',
       name: 'Embassy Backups',
       hostname: 'smb://192.169.10.0',
@@ -600,7 +601,8 @@ export module Mock {
         'wrapped-key': '',
       },
     },
-    ftcvewdnkemfksdm: {
+    {
+      id: 'ftcvewdnkemfksdm',
       type: 'cloud',
       name: 'Dropbox 1',
       provider: 'dropbox',
@@ -608,7 +610,8 @@ export module Mock {
       mountable: true,
       'embassy-os': null,
     },
-    csgashbdjkasnd: {
+    {
+      id: 'csgashbdjkasnd',
       type: 'cifs',
       name: 'Network Folder 2',
       hostname: 'smb://192.169.10.0',
@@ -617,7 +620,8 @@ export module Mock {
       mountable: true,
       'embassy-os': null,
     },
-    powjefhjbnwhdva: {
+    {
+      id: 'powjefhjbnwhdva',
       type: 'disk',
       name: 'Physical Drive 1',
       logicalname: 'sdba1',
@@ -637,22 +641,42 @@ export module Mock {
         'wrapped-key': '',
       },
     },
-  }
+  ]
 
   export const BackupJobs: RR.GetBackupJobsRes = [
     {
       id: 'lalalalalala-babababababa',
       name: 'My Backup Job',
-      target: BackupTargets['hsbdjhasbasda'],
+      target: BackupTargets[0],
       cron: '0 3 * * *',
       'package-ids': ['bitcoind', 'lnd'],
     },
     {
       id: 'hahahahaha-mwmwmwmwmwmw',
       name: 'Another Backup Job',
-      target: BackupTargets['ftcvewdnkemfksdm'],
+      target: BackupTargets[1],
       cron: '0 * * * *',
       'package-ids': ['lnd'],
+    },
+  ]
+
+  export const BackupRuns: RR.GetBackupRunsRes = [
+    {
+      id: 'kladhbfweubdsk',
+      'started-at': new Date().toISOString(),
+      'completed-at': new Date(new Date().valueOf() + 10000).toISOString(),
+      'package-ids': ['bitcoind', 'lnd'],
+      job: BackupJobs[0],
+      report: {
+        server: {
+          attempted: true,
+          error: null,
+        },
+        packages: {
+          bitcoind: { error: null },
+          lnd: { error: null },
+        },
+      },
     },
   ]
 

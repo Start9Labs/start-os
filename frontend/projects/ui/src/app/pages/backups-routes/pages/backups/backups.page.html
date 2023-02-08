@@ -50,6 +50,7 @@
     </ion-item>
 
     <ion-item-divider>Active and Upcoming</ion-item-divider>
+
     <div class="grid-fixed">
       <ion-grid class="ion-padding">
         <ion-row class="grid-headings">
@@ -99,6 +100,10 @@
                 >{{ upcoming['package-ids'].length }} Packages</ion-col
               >
             </ion-row>
+
+            <p *ngIf="!upcoming.length">
+              You have no active or upcoming backup jobs.
+            </p>
           </ng-container>
         </ng-container>
         <!-- loading -->

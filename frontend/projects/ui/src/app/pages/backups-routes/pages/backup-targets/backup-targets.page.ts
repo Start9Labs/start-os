@@ -1,6 +1,7 @@
 import { Component } from '@angular/core'
 import {
   BackupTarget,
+  BackupTargetType,
   DiskBackupTarget,
   RR,
 } from 'src/app/services/api/api.types'
@@ -21,7 +22,6 @@ import {
 import { BehaviorSubject, Subject } from 'rxjs'
 
 export type BackupType = 'create' | 'restore'
-export type WithId<T> = T & { id: string }
 
 @Component({
   selector: 'backup-targets',
@@ -32,8 +32,8 @@ export class BackupTargetsPage {
   readonly docsUrl =
     'https://docs.start9.com/latest/user-manual/backups/backup-targets'
   targets: {
-    'unsaved-physical': WithId<DiskBackupTarget>[]
-    saved: WithId<BackupTarget>[]
+    'unsaved-physical': DiskBackupTarget[]
+    saved: BackupTarget[]
   } = {
     'unsaved-physical': [],
     saved: [],
@@ -62,9 +62,13 @@ export class BackupTargetsPage {
         spec: RemoteBackupTargetSpec,
         buttons: [
           {
-            text: 'Connect and Save',
-            handler: (value: RR.AddBackupTargetReq) => {
-              return this.saveTarget(value)
+            text: 'Save',
+            handler: (
+              value:
+                | (RR.AddCifsBackupTargetReq & { type: BackupTargetType })
+                | (RR.AddCloudBackupTargetReq & { type: BackupTargetType }),
+            ) => {
+              return this.saveTarget(value.type, value)
             },
             isSubmit: true,
           },
@@ -75,7 +79,7 @@ export class BackupTargetsPage {
     await modal.present()
   }
 
-  async presentModalUpdate(target: WithId<BackupTarget>): Promise<void> {
+  async presentModalUpdate(target: BackupTarget): Promise<void> {
     let spec: typeof RemoteBackupTargetSpec = {}
 
     switch (target.type) {
@@ -95,8 +99,12 @@ export class BackupTargetsPage {
         buttons: [
           {
             text: 'Save',
-            handler: (value: RR.AddBackupTargetReq) => {
-              return this.saveTarget({ id: target.id, ...value })
+            handler: (
+              value:
+                | RR.UpdateCifsBackupTargetReq
+                | RR.UpdateCloudBackupTargetReq,
+            ) => {
+              return this.saveTarget(target.type, value)
             },
             isSubmit: true,
           },
@@ -154,7 +162,7 @@ export class BackupTargetsPage {
       const targets = await this.api.getBackupTargets({})
       this.targets = {
         'unsaved-physical': [],
-        saved: Object.keys(targets).map(id => ({ id, ...targets[id] })),
+        saved: targets,
       }
     } catch (e: any) {
       this.error$.next(e.message)
@@ -163,14 +171,17 @@ export class BackupTargetsPage {
     }
   }
 
-  private async saveTarget(value: RR.AddBackupTargetReq): Promise<any> {
+  private async saveTarget(
+    type: BackupTargetType,
+    value: RR.AddCifsBackupTargetReq | RR.AddCloudBackupTargetReq,
+  ): Promise<any> {
     const loader = await this.loadingCtrl.create({
       message: 'Saving target...',
     })
     await loader.present()
 
     try {
-      const res = await this.api.addBackupTarget(value)
+      const res = await this.api.addBackupTarget(type, value)
       return res
     } finally {
       loader.dismiss()

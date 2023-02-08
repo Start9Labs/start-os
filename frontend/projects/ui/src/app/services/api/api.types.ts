@@ -136,19 +136,33 @@ export module RR {
   // backup
 
   export type GetBackupTargetsReq = {} // backup.target.list
-  export type GetBackupTargetsRes = { [id: string]: BackupTarget }
+  export type GetBackupTargetsRes = BackupTarget[]
 
-  export type AddBackupTargetReq = { [param: string]: any } // backup.target.add
-  export type AddBackupTargetRes = { [id: string]: BackupTarget }
+  export type AddCifsBackupTargetReq = {
+    name: string
+    path: string
+    hostname: string
+    username: string
+    password?: string
+  } // backup.target.cifs.add
+  export type AddCloudBackupTargetReq = {
+    name: string
+    path: string
+    provider: CloudProvider
+    [params: string]: any
+  } // backup.target.cloud.add
+  export type AddBackupTargetRes = BackupTarget
 
-  export type UpdateBackupTargetReq = AddBackupTargetReq & { id: string } // backup.target.update
+  export type UpdateCifsBackupTargetReq = AddCifsBackupTargetReq & {
+    id: string
+  } // backup.target.update
+  export type UpdateCloudBackupTargetReq = AddCloudBackupTargetReq & {
+    id: string
+  } // backup.target.update
   export type UpdateBackupTargetRes = AddBackupTargetRes
 
   export type RemoveBackupTargetReq = { id: string } // backup.target.remove
   export type RemoveBackupTargetRes = null
-
-  export type GetBackupInfoReq = { 'target-id': string; password: string } // backup.target.info
-  export type GetBackupInfoRes = BackupInfo
 
   export type GetBackupJobsReq = {} // backup.job.list
   export type GetBackupJobsRes = BackupJob[]
@@ -169,6 +183,12 @@ export module RR {
 
   export type DeleteBackupJobReq = { id: string } // backup.job.delete
   export type DeleteBackupJobRes = null
+
+  export type GetBackupRunsReq = {} // backup.runs
+  export type GetBackupRunsRes = BackupRun[]
+
+  export type GetBackupInfoReq = { 'target-id': string; password: string } // backup.target.info
+  export type GetBackupInfoRes = BackupInfo
 
   export type CreateBackupReq = { 'target-id': string; 'package-ids': string[] } // backup.create
   export type CreateBackupRes = null
@@ -347,8 +367,11 @@ export type PlatformType =
 export type RemoteBackupTarget = CifsBackupTarget | CloudBackupTarget
 export type BackupTarget = RemoteBackupTarget | DiskBackupTarget
 
+export type BackupTargetType = 'disk' | 'cifs' | 'cloud'
+
 export interface BaseBackupTarget {
-  type: 'disk' | 'cifs' | 'cloud'
+  id: string
+  type: BackupTargetType
   name: string
   mountable: boolean
   path: string
@@ -382,7 +405,7 @@ export interface BackupRun {
   'completed-at': string
   'package-ids': string[]
   job: BackupJob | null
-  report: BackupReport | null
+  report: BackupReport
 }
 
 export interface BackupJob {
@@ -481,3 +504,5 @@ declare global {
 export type Encrypted = {
   encrypted: string
 }
+
+export type CloudProvider = 'dropbox' | 'google-drive'
