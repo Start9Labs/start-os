@@ -288,6 +288,7 @@ impl JsExecutionEnvironment {
     fn declarations() -> Vec<OpDecl> {
         vec![
             fns::bind::decl(),
+            fns::chown::decl(),
             fns::fetch::decl(),
             fns::read_file::decl(),
             fns::metadata::decl(),
@@ -311,6 +312,7 @@ impl JsExecutionEnvironment {
             fns::wait_command::decl(),
             fns::sleep::decl(),
             fns::send_signal::decl(),
+            fns::set_permissions::decl(),
             fns::signal_group::decl(),
             fns::rsync::decl(),
             fns::rsync_wait::decl(),
@@ -437,6 +439,7 @@ mod fns {
     use std::cell::RefCell;
     use std::collections::BTreeMap;
     use std::convert::TryFrom;
+    use std::fs::Permissions;
     use std::os::unix::fs::MetadataExt;
     use std::path::{Path, PathBuf};
     use std::rc::Rc;
@@ -811,6 +814,78 @@ mod fns {
         let progress = running_rsync.progress.next().await.unwrap_or_default();
         rsyncs.lock().await.1.insert(id, running_rsync);
         Ok(progress)
+    }
+    #[op]
+    async fn chown(
+        state: Rc<RefCell<OpState>>,
+        volume_id: VolumeId,
+        path_in: PathBuf,
+        ownership: u32,
+    ) -> Result<(), AnyError> {
+        let (volumes, volume_path) = {
+            let state = state.borrow();
+            let ctx: &JsContext = state.borrow();
+            let volume_path = ctx
+                .volumes
+                .path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id)
+                .ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?;
+            (ctx.volumes.clone(), volume_path)
+        };
+        if volumes.readonly(&volume_id) {
+            bail!("Volume {} is readonly", volume_id);
+        }
+        let new_file = volume_path.join(path_in);
+        // With the volume check
+        if !is_subset(&volume_path, &new_file).await? {
+            bail!(
+                "Path '{}' has broken away from parent '{}'",
+                new_file.to_string_lossy(),
+                volume_path.to_string_lossy(),
+            );
+        }
+        let output = tokio::process::Command::new("chown")
+            .arg("--recursive")
+            .arg(format!("{ownership}"))
+            .arg(new_file.as_os_str())
+            .output()
+            .await?;
+        if !output.status.success() {
+            return Err(anyhow!("Chown Error"));
+        }
+        Ok(())
+    }
+    #[op]
+    async fn set_permissions(
+        state: Rc<RefCell<OpState>>,
+        volume_id: VolumeId,
+        path_in: PathBuf,
+        readonly: bool,
+    ) -> Result<(), AnyError> {
+        let (volumes, volume_path) = {
+            let state = state.borrow();
+            let ctx: &JsContext = state.borrow();
+            let volume_path = ctx
+                .volumes
+                .path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id)
+                .ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?;
+            (ctx.volumes.clone(), volume_path)
+        };
+        if volumes.readonly(&volume_id) {
+            bail!("Volume {} is readonly", volume_id);
+        }
+        let new_file = volume_path.join(path_in);
+        // With the volume check
+        if !is_subset(&volume_path, &new_file).await? {
+            bail!(
+                "Path '{}' has broken away from parent '{}'",
+                new_file.to_string_lossy(),
+                volume_path.to_string_lossy(),
+            );
+        }
+        let mut perms = tokio::fs::metadata(&new_file).await?.permissions();
+        perms.set_readonly(readonly);
+        tokio::fs::set_permissions(new_file, perms).await?;
+        Ok(())
     }
     #[op]
     async fn remove_file(
