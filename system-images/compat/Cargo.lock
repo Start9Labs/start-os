@@ -132,9 +132,9 @@ dependencies = [
 
 [[package]]
 name = "async-trait"
-version = "0.1.61"
+version = "0.1.64"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "705339e0e4a9690e2908d2b3d049d85682cf19fbd5782494498fbf7003a6a282"
+checksum = "1cd7fce9ba8c3c042128ce72d8b2ddbf3a05747efb67ea0313c635e10bda47a2"
 dependencies = [
  "proc-macro2 1.0.50",
  "quote 1.0.23",
@@ -1187,6 +1187,7 @@ dependencies = [
  "typed-builder",
  "url",
  "uuid",
+ "zeroize",
 ]
 
 [[package]]
@@ -1673,6 +1674,7 @@ dependencies = [
 name = "helpers"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "color-eyre",
  "futures",
  "lazy_async_pool",
@@ -1956,6 +1958,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a5bbe824c507c5da5956355e86a746d82e0e1464f65d862cc5e71da70e94b2c"
 dependencies = [
  "cfg-if",
+]
+
+[[package]]
+name = "internment"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2a798d7677f07d6f1e77be484ea8626ddb1566194de399f1206306820c406371"
+dependencies = [
+ "ahash",
+ "dashmap",
+ "hashbrown",
+ "once_cell",
+ "parking_lot 0.12.1",
+ "serde",
 ]
 
 [[package]]
@@ -2306,10 +2322,13 @@ dependencies = [
  "color-eyre",
  "ed25519-dalek",
  "emver",
+ "internment",
+ "lazy_static",
  "mbrman",
  "openssl",
  "patch-db",
  "rand 0.8.5",
+ "regex",
  "rpc-toolkit",
  "serde",
  "serde_json",

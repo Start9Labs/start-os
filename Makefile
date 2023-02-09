@@ -19,13 +19,15 @@ FRONTEND_DIAGNOSTIC_UI_SRC := $(shell find frontend/projects/diagnostic-ui)
 FRONTEND_INSTALL_WIZARD_SRC := $(shell find frontend/projects/install-wizard)
 PATCH_DB_CLIENT_SRC := $(shell find patch-db/client -not -path patch-db/client/dist)
 GZIP_BIN := $(shell which pigz || which gzip)
-$(shell sudo true)
 
 .DELETE_ON_ERROR:
 
-.PHONY: all gzip install clean format sdk snapshots frontends ui backend
+.PHONY: all gzip install clean format sdk snapshots frontends ui backend sudo
 
 all: $(EMBASSY_SRC) $(EMBASSY_BINS) system-images/compat/docker-images/aarch64.tar system-images/utils/docker-images/$(ARCH).tar system-images/binfmt/docker-images/$(ARCH).tar $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE)
+
+sudo:
+	sudo true
 
 gzip: embassyos-raspi.tar.gz
 
@@ -62,15 +64,15 @@ format:
 sdk:
 	cd backend/ && ./install-sdk.sh
 
-embassyos-raspi.img: all raspios.img cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep
+embassyos-raspi.img: all raspios.img cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep | sudo
 	! test -f embassyos-raspi.img || rm embassyos-raspi.img
 	./build/raspberry-pi/make-image.sh
 
-lite-upgrade.img: raspios.img cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep $(BUILD_SRC) eos.raspberrypi.squashfs
+lite-upgrade.img: raspios.img cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep $(BUILD_SRC) eos.raspberrypi.squashfs | sudo
 	! test -f lite-upgrade.img || rm lite-upgrade.img
 	./build/raspberry-pi/make-upgrade-image.sh
 
-eos_raspberrypi.img: raspios.img $(BUILD_SRC) eos.raspberrypi.squashfs $(VERSION_FILE) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE)
+eos_raspberrypi.img: raspios.img $(BUILD_SRC) eos.raspberrypi.squashfs $(VERSION_FILE) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) | sudo
 	! test -f eos_raspberrypi.img || rm eos_raspberrypi.img
 	./build/raspberry-pi/make-initialized-image.sh
 
@@ -106,13 +108,13 @@ install: all
 	cp -r frontend/dist/ui $(DESTDIR)/var/www/html/main
 	cp index.html $(DESTDIR)/var/www/html/
 
-system-images/compat/docker-images/aarch64.tar: $(COMPAT_SRC)
+system-images/compat/docker-images/aarch64.tar: $(COMPAT_SRC) | sudo
 	cd system-images/compat && make
 
-system-images/utils/docker-images/aarch64.tar system-images/utils/docker-images/x86_64.tar: $(UTILS_SRC)
+system-images/utils/docker-images/aarch64.tar system-images/utils/docker-images/x86_64.tar: $(UTILS_SRC) | sudo
 	cd system-images/utils && make
 
-system-images/binfmt/docker-images/aarch64.tar system-images/binfmt/docker-images/x86_64.tar: $(BINFMT_SRC)
+system-images/binfmt/docker-images/aarch64.tar system-images/binfmt/docker-images/x86_64.tar: $(BINFMT_SRC) | sudo
 	cd system-images/binfmt && make
 
 raspios.img:
@@ -124,7 +126,7 @@ snapshots: libs/snapshot_creator/Cargo.toml
 	cd libs/  && ./build-v8-snapshot.sh
 	cd libs/  && ./build-arm-v8-snapshot.sh
 
-$(EMBASSY_BINS): $(BACKEND_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) frontend/patchdb-ui-seed.json
+$(EMBASSY_BINS): $(BACKEND_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) frontend/patchdb-ui-seed.json | sudo
 	cd backend && ARCH=$(ARCH) ./build-prod.sh
 	touch $(EMBASSY_BINS)
 
@@ -174,8 +176,8 @@ ui: frontend/dist/ui
 # used by github actions
 backend: $(EMBASSY_BINS)
 
-cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast:
+cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast: | sudo
 	./build-cargo-dep.sh nc-broadcast
 
-cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep:
+cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep: | sudo
 	./build-cargo-dep.sh pi-beep
