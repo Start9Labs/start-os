@@ -8,7 +8,7 @@ use embassy_container_init::{ProcessGroupId, SignalGroup, SignalGroupParams};
 use helpers::{Address, AddressSchemaLocal, AddressSchemaOnion, Callback, OsApi, UnixRpcClient};
 pub use js_engine::JsError;
 use js_engine::{JsExecutionEnvironment, PathForVolumeId};
-use models::{ErrorKind, VolumeId};
+use models::{ErrorKind, InterfaceId, VolumeId};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -56,9 +56,9 @@ impl OsApi for SandboxOsApi {
         &self,
         id: PackageId,
         path: &str,
-        callback: Callback,
-    ) -> Result<serde_json::Value, Report> {
-        todo!()
+        callback: Option<Callback>,
+    ) -> Result<Vec<serde_json::Value>, Report> {
+        Err(eyre!("Operation not permitted"))
     }
     #[allow(unused_variables)]
     async fn bind_local(
@@ -66,7 +66,7 @@ impl OsApi for SandboxOsApi {
         internal_port: u16,
         address_schema: AddressSchemaLocal,
     ) -> Result<Address, Report> {
-        todo!()
+        Err(eyre!("Operation not permitted"))
     }
     #[allow(unused_variables)]
     async fn bind_onion(
@@ -74,7 +74,27 @@ impl OsApi for SandboxOsApi {
         internal_port: u16,
         address_schema: AddressSchemaOnion,
     ) -> Result<Address, Report> {
-        todo!()
+        Err(eyre!("Operation not permitted"))
+    }
+    #[allow(unused_variables)]
+    async fn unbind_local(&self, id: InterfaceId, external: u16) -> Result<(), Report> {
+        Err(eyre!("Operation not permitted"))
+    }
+    #[allow(unused_variables)]
+    async fn unbind_onion(&self, id: InterfaceId, external: u16) -> Result<(), Report> {
+        Err(eyre!("Operation not permitted"))
+    }
+    fn set_started(&self) -> Result<(), Report> {
+        Err(eyre!("Operation not permitted"))
+    }
+    async fn restart(&self) -> Result<(), Report> {
+        Err(eyre!("Operation not permitted"))
+    }
+    async fn start(&self) -> Result<(), Report> {
+        Err(eyre!("Operation not permitted"))
+    }
+    async fn stop(&self) -> Result<(), Report> {
+        Err(eyre!("Operation not permitted"))
     }
 }
 
