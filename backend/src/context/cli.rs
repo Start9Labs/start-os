@@ -80,7 +80,7 @@ impl CliContext {
                 .chain(std::iter::once(Path::new(crate::util::config::CONFIG_PATH))),
         )?;
         let mut url = if let Some(host) = matches.value_of("host") {
-            host.parse()?
+      Url::parse      host.parse()?
         } else if let Some(host) = base.host {
             host
         } else {
