@@ -1,16 +1,14 @@
-use tokio::task::JoinHandle;
+use helpers::NonDetachingJoinHandle;
 
 pub(crate) enum TransitionState {
-    // Starting(JoinHandle<()>),
-    // Stopping(JoinHandle<()>)
-    BackingUp(JoinHandle<()>),
-    Restarting(JoinHandle<()>),
-    Configuring(JoinHandle<()>),
+    BackingUp(NonDetachingJoinHandle<()>),
+    Restarting(NonDetachingJoinHandle<()>),
+    Configuring(NonDetachingJoinHandle<()>),
     None,
 }
 
 impl TransitionState {
-    pub(crate) fn join_handle(&self) -> Option<&JoinHandle<()>> {
+    pub(crate) fn join_handle(&self) -> Option<&NonDetachingJoinHandle<()>> {
         Some(match self {
             TransitionState::BackingUp(a) => a,
             TransitionState::Restarting(a) => a,
