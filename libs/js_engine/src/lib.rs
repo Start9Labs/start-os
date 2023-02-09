@@ -100,8 +100,9 @@ struct JsContext {
     container_process_gid: ProcessGroupId,
     container_rpc_client: Option<Arc<UnixRpcClient>>,
     rsyncs: Arc<Mutex<(usize, BTreeMap<usize, Rsync>)>>,
-    callback_sender: mpsc::UnboundedSender<(String, Value)>,
+    callback_sender: mpsc::UnboundedSender<(Arc<String>, Vec<Value>)>,
 }
+
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "kebab-case")]
 enum ResultType {
@@ -381,7 +382,11 @@ impl JsExecutionEnvironment {
                 .load_main_module(&"file:///loadModule.js".parse().unwrap(), None)
                 .await?;
             let evaluated = runtime.mod_evaluate(mod_id);
-            let res = run_event_loop(&mut runtime, callback_receiver).await;
+            let res = RuntimeEventLoop {
+                runtime: &mut runtime,
+                callback_receiver,
+            }
+            .await;
             res?;
             evaluated.await??;
             Ok::<_, AnyError>(())
@@ -406,7 +411,7 @@ impl JsExecutionEnvironment {
 #[pin_project::pin_project]
 struct RuntimeEventLoop<'a> {
     runtime: &'a mut JsRuntime,
-    callback: mpsc::UnboundedReceiver<(String, Value)>,
+    callback_receiver: mpsc::UnboundedReceiver<(Arc<String>, Vec<Value>)>,
 }
 impl<'a> Future for RuntimeEventLoop<'a> {
     type Output = Result<(), AnyError>;
@@ -415,10 +420,10 @@ impl<'a> Future for RuntimeEventLoop<'a> {
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Self::Output> {
         let this = self.project();
-        if let Poll::Ready(Some((uuid, value))) = this.callback.poll_recv(cx) {
+        if let Poll::Ready(Some((uuid, args))) = this.callback_receiver.poll_recv(cx) {
             match this.runtime.execute_script(
                 "callback",
-                &format!("globalThis.runCallback(\"{uuid}\", {value})"),
+                &format!("globalThis.runCallback(\"{uuid}\", {})", Value::Array(args)),
             ) {
                 Ok(_) => (),
                 Err(e) => return Poll::Ready(Err(e)),
@@ -426,16 +431,6 @@ impl<'a> Future for RuntimeEventLoop<'a> {
         }
         this.runtime.poll_event_loop(cx, false)
     }
-}
-async fn run_event_loop(
-    runtime: &mut JsRuntime,
-    callback_receiver: mpsc::UnboundedReceiver<(String, Value)>,
-) -> Result<(), AnyError> {
-    RuntimeEventLoop {
-        runtime,
-        callback: callback_receiver,
-    }
-    .await
 }
 
 /// Note: Make sure that we have the assumption that all these methods are callable at any time, and all call restrictions should be in rust
@@ -458,8 +453,8 @@ mod fns {
         SendSignal, SendSignalParams, SignalGroup, SignalGroupParams,
     };
     use helpers::{
-        to_tmp_path, AddressSchemaLocal, AddressSchemaOnion, AtomicFile, Rsync, RsyncOptions,
-        RuntimeDropped,
+        to_tmp_path, AddressSchemaLocal, AddressSchemaOnion, AtomicFile, Callback, Rsync,
+        RsyncOptions,
     };
     use itertools::Itertools;
     use models::{PackageId, VolumeId};
@@ -1493,8 +1488,8 @@ mod fns {
         state: Rc<RefCell<OpState>>,
         service_id: PackageId,
         path: String,
-        callback: String,
-    ) -> Result<Value, AnyError> {
+        callback: Option<String>,
+    ) -> Result<Vec<Value>, AnyError> {
         let (sender, os) = {
             let state = state.borrow();
             let ctx = state.borrow::<JsContext>();
@@ -1503,11 +1498,7 @@ mod fns {
         os.get_service_config(
             service_id,
             &path,
-            Box::new(move |value| {
-                sender
-                    .send((callback.clone(), value))
-                    .map_err(|_| RuntimeDropped)
-            }),
+            callback.map(|id| Callback::new(id, sender)),
         )
         .await
         .map_err(|e| anyhow!("Couldn't get service config: {e:?}"))
@@ -1542,6 +1533,75 @@ mod fns {
         os.bind_local(internal_port, address_schema)
             .await
             .map_err(|e| anyhow!("{e:?}"))
+    }
+
+    #[op]
+    fn set_started(state: &mut OpState) -> Result<(), AnyError> {
+        let os = {
+            let ctx = state.borrow::<JsContext>();
+            ctx.os.clone()
+        };
+        os.set_started().map_err(|e| anyhow!("{e:?}"))
+    }
+
+    #[op]
+    async fn restart(state: Rc<RefCell<OpState>>) -> Result<(), AnyError> {
+        let sandboxed = {
+            let state = state.borrow();
+            let ctx: &JsContext = state.borrow();
+            ctx.sandboxed
+        };
+
+        if sandboxed {
+            bail!("Will not run restart in sandboxed mode");
+        }
+
+        let os = {
+            let state = state.borrow();
+            let ctx = state.borrow::<JsContext>();
+            ctx.os.clone()
+        };
+        os.restart().await.map_err(|e| anyhow!("{e:?}"))
+    }
+
+    #[op]
+    async fn start(state: Rc<RefCell<OpState>>) -> Result<(), AnyError> {
+        let sandboxed = {
+            let state = state.borrow();
+            let ctx: &JsContext = state.borrow();
+            ctx.sandboxed
+        };
+
+        if sandboxed {
+            bail!("Will not run start in sandboxed mode");
+        }
+
+        let os = {
+            let state = state.borrow();
+            let ctx = state.borrow::<JsContext>();
+            ctx.os.clone()
+        };
+        os.start().await.map_err(|e| anyhow!("{e:?}"))
+    }
+
+    #[op]
+    async fn stop(state: Rc<RefCell<OpState>>) -> Result<(), AnyError> {
+        let sandboxed = {
+            let state = state.borrow();
+            let ctx: &JsContext = state.borrow();
+            ctx.sandboxed
+        };
+
+        if sandboxed {
+            bail!("Will not run stop in sandboxed mode");
+        }
+
+        let os = {
+            let state = state.borrow();
+            let ctx = state.borrow::<JsContext>();
+            ctx.os.clone()
+        };
+        os.stop().await.map_err(|e| anyhow!("{e:?}"))
     }
 
     /// We need to make sure that during the file accessing, we don't reach beyond our scope of control

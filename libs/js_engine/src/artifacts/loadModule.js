@@ -267,9 +267,7 @@ const diskUsage = async ({
   return { used, total }
 }
 
-globalThis.runCallback = (uuid, data) => callbackMapping[uuid](data);
-// window.runCallback = runCallback;
-// Deno.runCallback = runCallback;
+globalThis.runCallback = (uuid, args) => callbackMapping[uuid](...args);
 
 const getServiceConfig = async (
   {
