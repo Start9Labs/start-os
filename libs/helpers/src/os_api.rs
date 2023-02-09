@@ -1,19 +1,35 @@
+use std::sync::Arc;
+
 use color_eyre::eyre::eyre;
 use color_eyre::Report;
+use models::InterfaceId;
 use models::PackageId;
-use models::{Error, InterfaceId};
 use serde_json::Value;
+use tokio::sync::mpsc;
 
 pub struct RuntimeDropped;
 
-pub type Callback = Box<dyn Fn(Value) -> Result<(), RuntimeDropped> + Send + Sync + 'static>; // bool indicating if
-
-fn method_not_available() -> Error {
-    Error::new(
-        eyre!("method not available"),
-        models::ErrorKind::InvalidRequest,
-    )
+pub struct Callback {
+    id: Arc<String>,
+    sender: mpsc::UnboundedSender<(Arc<String>, Vec<Value>)>,
 }
+impl Callback {
+    pub fn new(id: String, sender: mpsc::UnboundedSender<(Arc<String>, Vec<Value>)>) -> Self {
+        Self {
+            id: Arc::new(id),
+            sender,
+        }
+    }
+    pub fn is_listening(&self) -> bool {
+        self.sender.is_closed()
+    }
+    pub fn call(&self, args: Vec<Value>) -> Result<(), RuntimeDropped> {
+        self.sender
+            .send((self.id.clone(), args))
+            .map_err(|_| RuntimeDropped)
+    }
+}
+
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct AddressSchemaOnion {
@@ -44,8 +60,8 @@ pub trait OsApi: Send + Sync + 'static {
         &self,
         id: PackageId,
         path: &str,
-        callback: Callback,
-    ) -> Result<Value, Report>;
+        callback: Option<Callback>,
+    ) -> Result<Vec<Value>, Report>;
 
     async fn bind_local(
         &self,
@@ -58,34 +74,10 @@ pub trait OsApi: Send + Sync + 'static {
         address_schema: AddressSchemaOnion,
     ) -> Result<Address, Report>;
 
-    async fn unbind_local(&self, id: InterfaceId, external: u16) -> Result<(), Report> {
-        todo!()
-    }
-    async fn unbind_onion(&self, id: InterfaceId, external: u16) -> Result<(), Report> {
-        todo!()
-    }
-    async fn list_address(&self) -> Result<Vec<Address>, Report> {
-        todo!()
-    }
-    async fn list_domains(&self) -> Result<Vec<Domain>, Report> {
-        todo!()
-    }
-    async fn alloc_onion(&self, id: String) -> Result<Name, Report> {
-        todo!()
-    }
-    async fn dealloc_onion(&self, id: String) -> Result<(), Report> {
-        todo!()
-    }
-    async fn alloc_local(&self, id: String) -> Result<Name, Report> {
-        todo!()
-    }
-    async fn dealloc_local(&self, id: String) -> Result<(), Report> {
-        todo!()
-    }
-    async fn alloc_forward(&self, id: String) -> Result<u16, Report> {
-        todo!()
-    }
-    async fn dealloc_forward(&self, id: String) -> Result<(), Report> {
-        todo!()
-    }
+    async fn unbind_local(&self, id: InterfaceId, external: u16) -> Result<(), Report>;
+    async fn unbind_onion(&self, id: InterfaceId, external: u16) -> Result<(), Report>;
+    fn set_started(&self) -> Result<(), Report>;
+    async fn restart(&self) -> Result<(), Report>;
+    async fn start(&self) -> Result<(), Report>;
+    async fn stop(&self) -> Result<(), Report>;
 }
