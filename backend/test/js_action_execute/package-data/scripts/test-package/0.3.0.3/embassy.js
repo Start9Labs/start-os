@@ -10,7 +10,7 @@ export async function getConfig(effects) {
       volumeId: "main",
     });
     throw new Error(
-      "Expecting that the ../test.log should not be a valid path since we are breaking out of the parent"
+      "Expecting that the ../test.log should not be a valid path since we are breaking out of the parent",
     );
   } catch (e) {}
   try {
@@ -20,7 +20,7 @@ export async function getConfig(effects) {
       volumeId: "main",
     });
     throw new Error(
-      "Expecting that using a symlink to break out of parent still fails for writing"
+      "Expecting that using a symlink to break out of parent still fails for writing",
     );
   } catch (e) {}
   try {
@@ -29,7 +29,7 @@ export async function getConfig(effects) {
       volumeId: "main",
     });
     throw new Error(
-      "Expecting that using a symlink to break out of parent still fails for writing dir"
+      "Expecting that using a symlink to break out of parent still fails for writing dir",
     );
   } catch (e) {}
   try {
@@ -38,7 +38,7 @@ export async function getConfig(effects) {
       volumeId: "main",
     });
     throw new Error(
-      "Expecting that using a symlink to break out of parent still fails for reading"
+      "Expecting that using a symlink to break out of parent still fails for reading",
     );
   } catch (e) {}
 
@@ -81,7 +81,7 @@ export async function getConfig(effects) {
     `Read results are ${await effects.readFile({
       path: "./test.log",
       volumeId: "main",
-    })}`
+    })}`,
   );
   // Testing loging
   effects.trace("trace");
@@ -730,48 +730,47 @@ export async function setConfig(effects) {
 
 const assert = (condition, message) => {
   if (!condition) {
-    throw ({error: message});
+    throw ({ error: message });
   }
 };
 const ackermann = (m, n) => {
   if (m === 0) {
-     return n+1
+    return n + 1;
   }
   if (n === 0) {
-     return ackermann((m - 1), 1); 
+    return ackermann(m - 1, 1);
   }
   if (m !== 0 && n !== 0) {
-     return ackermann((m-1), ackermann(m, (n-1)))
+    return ackermann(m - 1, ackermann(m, n - 1));
   }
-}
+};
 
 export const action = {
   async slow(effects, _input) {
-    while(true) {
+    while (true) {
       effects.error("A");
-      await ackermann(3,10);
+      await ackermann(3, 10);
       // await effects.sleep(100);
-
     }
   },
 
   async fetch(effects, _input) {
     const example = await effects.fetch(
-      "https://postman-echo.com/get?foo1=bar1&foo2=bar2"
+      "https://postman-echo.com/get?foo1=bar1&foo2=bar2",
     );
     assert(
       Number(example.headers["content-length"]) > 0 &&
         Number(example.headers["content-length"]) <= 1000000,
-      "Should have content length"
+      "Should have content length",
     );
     assert(
       example.text() instanceof Promise,
-      "example.text() should be a promise"
+      "example.text() should be a promise",
     );
     assert(example.body === undefined, "example.body should not be defined");
     assert(
       JSON.parse(await example.text()).args.foo1 === "bar1",
-      "Body should be parsed"
+      "Body should be parsed",
     );
     const message = `This worked @ ${new Date().toISOString()}`;
     const secondResponse = await effects.fetch(
@@ -782,11 +781,11 @@ export const action = {
         headers: {
           test: "1234",
         },
-      }
+      },
     );
     assert(
       (await secondResponse.json()).json.message === message,
-      "Body should be parsed from response"
+      "Body should be parsed from response",
     );
     return {
       result: {
@@ -844,7 +843,6 @@ export const action = {
       failed = true;
     }
     assert(failed, "Should not be able to remove file that doesn't exist");
-    
 
     return {
       result: {
@@ -857,12 +855,12 @@ export const action = {
   },
   /**
    * Created this test because of issue
-   * https://github.com/Start9Labs/embassy-os/issues/1737 
+   * https://github.com/Start9Labs/embassy-os/issues/1737
    * which that we couldn't create a dir that was deeply nested, and the parents where
    * not created yet. Found this out during the migrations, where the parent would die.
-   * @param {*} effects 
-   * @param {*} _input 
-   * @returns 
+   * @param {*} effects
+   * @param {*} _input
+   * @returns
    */
   async "test-deep-dir"(effects, _input) {
     await effects
@@ -935,9 +933,9 @@ export const action = {
    * Created this test because of issue
    * https://github.com/Start9Labs/embassy-os/issues/2121
    * That the empty in the create dies
-   * @param {*} effects 
-   * @param {*} _input 
-   * @returns 
+   * @param {*} effects
+   * @param {*} _input
+   * @returns
    */
   async "test-zero-dir"(effects, _input) {
     await effects.createDir({
@@ -955,9 +953,9 @@ export const action = {
   },
   /**
    * Found case where we could escape with the new deeper dir fix.
-   * @param {*} effects 
-   * @param {*} _input 
-   * @returns 
+   * @param {*} effects
+   * @param {*} _input
+   * @returns
    */
   async "test-deep-dir-escape"(effects, _input) {
     await effects
@@ -969,7 +967,9 @@ export const action = {
     await effects.createDir({
       volumeId: "main",
       path: "test-deep-dir/../../test",
-    }).then(_ => {throw new Error("Should not be able to create sub")}, _ => {});
+    }).then((_) => {
+      throw new Error("Should not be able to create sub");
+    }, (_) => {});
 
     return {
       result: {
@@ -981,12 +981,11 @@ export const action = {
     };
   },
 
-
   /**
    * Want to test that rsync works
-   * @param {*} effects 
-   * @param {*} _input 
-   * @returns 
+   * @param {*} effects
+   * @param {*} _input
+   * @returns
    */
   async "test-rsync"(effects, _input) {
     try {
@@ -1005,17 +1004,22 @@ export const action = {
           delete: true,
           force: true,
           ignoreExisting: false,
-        }
+        },
       });
       assert(await runningRsync.id() >= 1, "Expect that we have an id");
-      const progress = await runningRsync.progress()
-      assert(progress >= 0 && progress <= 1, `Expect progress to be 0 <= progress(${progress}) <= 1`);
+      const progress = await runningRsync.progress();
+      assert(
+        progress >= 0 && progress <= 1,
+        `Expect progress to be 0 <= progress(${progress}) <= 1`,
+      );
       await runningRsync.wait();
-      assert((await effects.readFile({
-        volumeId: "main",
-        path: "test-rsync-out/testing-rsync/someFile.txt",
-      })).length > 0, 'Asserting that we read in the file "test_rsync/test-package/0.3.0.3/embassy.js"');
-
+      assert(
+        (await effects.readFile({
+          volumeId: "main",
+          path: "test-rsync-out/testing-rsync/someFile.txt",
+        })).length > 0,
+        'Asserting that we read in the file "test_rsync/test-package/0.3.0.3/embassy.js"',
+      );
 
       return {
         result: {
@@ -1025,11 +1029,9 @@ export const action = {
           qr: false,
         },
       };
-    }
-    catch (e) {
+    } catch (e) {
       throw e;
-    }
-    finally {
+    } finally {
       await effects
         .removeDir({
           volumeId: "main",
@@ -1040,18 +1042,24 @@ export const action = {
   },
   /**
    * Testing callbacks?
-   * @param {*} effects 
-   * @param {*} _input 
-   * @returns 
+   * @param {*} effects
+   * @param {*} _input
+   * @returns
    */
   async "test-callback"(effects, _input) {
     await Promise.race([
-     new Promise(done => effects.getServiceConfig({serviceId: 'something', configPath: "string", onChange: done})),
-    new Promise (async () => {
-        await effects.sleep(100)
-        throw new Error("Currently in sleeping")
-      }
-    )])
+      new Promise((done) =>
+        effects.getServiceConfig({
+          serviceId: "something",
+          configPath: "string",
+          onChange: done,
+        })
+      ),
+      new Promise(async () => {
+        await effects.sleep(100);
+        throw new Error("Currently in sleeping");
+      }),
+    ]);
 
     return {
       result: {
@@ -1064,13 +1072,13 @@ export const action = {
   },
 
   /**
-   * We wanted to change the permissions and the ownership during the 
+   * We wanted to change the permissions and the ownership during the
    * backing up, there where cases where the ownership is weird and
    * broke for non root users.
    * Note: Test for the chmod is broken and turned off because it only works when ran by root
-   * @param {*} effects 
-   * @param {*} _input 
-   * @returns 
+   * @param {*} effects
+   * @param {*} _input
+   * @returns
    */
   async "test-permission-chown"(effects, _input) {
     await effects
@@ -1090,30 +1098,39 @@ export const action = {
     });
 
     const firstMetaData = await effects.metadata({
-      volumeId: 'main',
-      path: 'pem-chown/deep/123/test.txt', 
-    })
-    assert(firstMetaData.readonly === false, `The readonly (${firstMetaData.readonly}) is wrong`);
+      volumeId: "main",
+      path: "pem-chown/deep/123/test.txt",
+    });
+    assert(
+      firstMetaData.readonly === false,
+      `The readonly (${firstMetaData.readonly}) is wrong`,
+    );
     const previousUid = firstMetaData.uid;
-    const expected = 1234
+    const expected = 1234;
 
-    await effects.setPermissions({
-      volumeId: 'main',
-      path: 'pem-chown/deep/123/test.txt',      
-      readonly: true
-    })
+    await effects.chmod({
+      volumeId: "main",
+      path: "pem-chown/deep/123/test.txt",
+      mode: 0o444,
+    });
     const chownError = await effects.chown({
-      volumeId: 'main',
-      path: 'pem-chown/deep',      
-      uid: expected
-    }).then(() => true, () => false)
+      volumeId: "main",
+      path: "pem-chown/deep",
+      uid: expected,
+    }).then(() => true, () => false);
     let metaData = await effects.metadata({
-      volumeId: 'main',
-      path: 'pem-chown/deep/123/test.txt', 
-    })
-    assert(metaData.readonly === true, `The readonly (${metaData.readonly}) is wrong`);
+      volumeId: "main",
+      path: "pem-chown/deep/123/test.txt",
+    });
     if (chownError) {
-      assert(metaData.uid === expected, `The uuid (${metaData.uid}) is wrong, should be more than ${previousUid}`);
+      assert(
+        metaData.mode === 0o444,
+        `The mode (${metaData.mode}) is wrong compared to ${0o444}}`,
+      );
+      assert(
+        metaData.uid === expected,
+        `The uuid (${metaData.uid}) is wrong, should be more than ${previousUid}`,
+      );
     }
 
     return {
@@ -1125,6 +1142,4 @@ export const action = {
       },
     };
   },
-
 };
-
