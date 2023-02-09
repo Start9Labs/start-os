@@ -73,9 +73,9 @@ impl ManageContainer {
     }
 
     pub async fn wait_for_desired(&self, new_state: StartStop) {
-        let current_state = self.current_state();
+        let mut current_state = self.current_state();
         self.to_desired(new_state);
-        while current_state.borrow() != new_state {
+        while *current_state.borrow() != new_state {
             current_state.changed().await.unwrap_or_default();
         }
     }
