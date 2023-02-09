@@ -9,6 +9,7 @@ use std::time::Duration;
 use bollard::Docker;
 use helpers::to_tmp_path;
 use josekit::jwk::Jwk;
+use models::PackageId;
 use patch_db::json_ptr::JsonPointer;
 use patch_db::{DbHandle, LockReceipt, LockType, PatchDb};
 use reqwest::Url;
@@ -21,6 +22,7 @@ use tracing::instrument;
 
 use super::setup::CURRENT_SECRET;
 use crate::account::AccountInfo;
+use crate::config::hook::ConfigHook;
 use crate::core::rpc_continuations::{RequestGuid, RestHandler, RpcContinuation};
 use crate::db::model::{CurrentDependents, Database, InstalledPackageDataEntry, PackageDataEntry};
 use crate::disk::OsPartitionInfo;
@@ -120,6 +122,7 @@ pub struct RpcContextSeed {
     pub rpc_stream_continuations: Mutex<BTreeMap<RequestGuid, RpcContinuation>>,
     pub wifi_manager: Option<Arc<RwLock<WpaCli>>>,
     pub current_secret: Arc<Jwk>,
+    pub config_hooks: Mutex<BTreeMap<PackageId, Vec<ConfigHook>>>,
 }
 
 pub struct RpcCleanReceipts {
@@ -235,6 +238,7 @@ impl RpcContext {
                     )
                 })?,
             ),
+            config_hooks: Mutex::new(BTreeMap::new()),
         });
 
         let res = Self(seed);

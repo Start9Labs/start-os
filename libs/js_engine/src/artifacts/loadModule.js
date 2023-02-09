@@ -259,17 +259,7 @@ const runRsync = (
   };
 };
 
-const diskUsage = async ({
-  volumeId = requireParam("volumeId"),
-  path = requireParam("path"),
-} = { volumeId: null, path: null }) => {
-  const [used, total] = await Deno.core.opAsync("disk_usage", volumeId, path);
-  return { used, total }
-}
-
-globalThis.runCallback = (uuid, data) => callbackMapping[uuid](data);
-// window.runCallback = runCallback;
-// Deno.runCallback = runCallback;
+globalThis.runCallback = (uuid, args) => callbackMapping[uuid](...args);
 
 const getServiceConfig = async (
   {
