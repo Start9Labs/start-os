@@ -420,6 +420,9 @@ fn configure(
                 .set(ctx, id, &version, &dependencies, &volumes, &config)
                 .await?;
 
+            ctx.call_config_hooks(id.clone(), &serde_json::Value::Object(config.clone()))
+                .await;
+
             // track dependencies with no pointers
             for (package_id, health_checks) in res.depends_on.into_iter() {
                 if let Some(current_dependency) = current_dependencies.0.get_mut(&package_id) {
