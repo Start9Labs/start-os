@@ -8,12 +8,14 @@ use p256::elliptic_curve::pkcs8::EncodePrivateKey;
 use sqlx::PgExecutor;
 use ssh_key::private::Ed25519PrivateKey;
 use torut::onion::{OnionAddressV3, TorSecretKeyV3};
+use tracing::instrument;
 use zeroize::Zeroize;
 
 use crate::net::ssl::CertPair;
 use crate::Error;
 
 // TODO: delete once we may change tor addresses
+#[instrument(skip(secrets))]
 async fn compat(
     secrets: impl PgExecutor<'_>,
     interface: &Option<(PackageId, InterfaceId)>,
@@ -182,6 +184,7 @@ impl Key {
         })
         .collect()
     }
+    #[instrument(skip(secrets))]
     pub async fn for_interface<Ex>(
         secrets: &mut Ex,
         interface: Option<(PackageId, InterfaceId)>,
