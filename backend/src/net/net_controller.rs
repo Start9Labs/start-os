@@ -214,6 +214,7 @@ pub struct NetService {
     lan: BTreeMap<(InterfaceId, u16), (Key, Vec<Arc<()>>)>,
 }
 impl NetService {
+    #[instrument(skip(self))]
     fn net_controller(&self) -> Result<Arc<NetController>, Error> {
         Weak::upgrade(&self.controller).ok_or_else(|| {
             Error::new(
@@ -222,6 +223,7 @@ impl NetService {
             )
         })
     }
+    #[instrument(skip(self, secrets))]
     pub async fn add_tor<Ex>(
         &mut self,
         secrets: &mut Ex,
