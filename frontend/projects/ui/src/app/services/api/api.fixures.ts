@@ -583,78 +583,90 @@ export module Mock {
     ],
   }
 
-  export const BackupTargets: RR.GetBackupTargetsRes = [
-    {
-      id: 'hsbdjhasbasda',
-      type: 'cifs',
-      name: 'Embassy Backups',
-      hostname: 'smb://192.169.10.0',
-      path: '/Desktop/embassy-backups',
-      username: 'TestUser',
-      mountable: false,
-      'embassy-os': {
-        version: '0.3.0',
-        full: true,
-        'password-hash':
+  export const BackupTargets: RR.GetBackupTargetsRes = {
+    'unknown-disks': [
+      {
+        logicalname: 'sbc4',
+        label: 'My Backup Drive',
+        capacity: 2000000000000,
+        used: 100000000000,
+        model: 'T7',
+        vendor: 'Samsung',
+      },
+    ],
+    saved: [
+      {
+        id: 'hsbdjhasbasda',
+        type: 'cifs',
+        name: 'Embassy Backups',
+        hostname: 'smb://192.169.10.0',
+        path: '/Desktop/embassy-backups',
+        username: 'TestUser',
+        mountable: false,
+        'embassy-os': {
+          version: '0.3.0',
+          full: true,
+          'password-hash':
+            // password is asdfasdf
+            '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+          'wrapped-key': '',
+        },
+      },
+      {
+        id: 'ftcvewdnkemfksdm',
+        type: 'cloud',
+        name: 'Dropbox 1',
+        provider: 'dropbox',
+        path: '/Home/backups',
+        mountable: true,
+        'embassy-os': null,
+      },
+      {
+        id: 'csgashbdjkasnd',
+        type: 'cifs',
+        name: 'Network Folder 2',
+        hostname: 'smb://192.169.10.0',
+        path: '/Desktop/embassy-backups-2',
+        username: 'TestUser',
+        mountable: true,
+        'embassy-os': null,
+      },
+      {
+        id: 'powjefhjbnwhdva',
+        type: 'disk',
+        name: 'Physical Drive 1',
+        logicalname: 'sdba1',
+        label: 'Another Drive',
+        capacity: 2000000000000,
+        used: 100000000000,
+        model: null,
+        vendor: 'SSK',
+        mountable: true,
+        path: '/HomeFolder/Documents',
+        'embassy-os': {
+          version: '0.3.0',
+          full: true,
           // password is asdfasdf
-          '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-        'wrapped-key': '',
+          'password-hash':
+            '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+          'wrapped-key': '',
+        },
       },
-    },
-    {
-      id: 'ftcvewdnkemfksdm',
-      type: 'cloud',
-      name: 'Dropbox 1',
-      provider: 'dropbox',
-      path: '/Home/backups',
-      mountable: true,
-      'embassy-os': null,
-    },
-    {
-      id: 'csgashbdjkasnd',
-      type: 'cifs',
-      name: 'Network Folder 2',
-      hostname: 'smb://192.169.10.0',
-      path: '/Desktop/embassy-backups-2',
-      username: 'TestUser',
-      mountable: true,
-      'embassy-os': null,
-    },
-    {
-      id: 'powjefhjbnwhdva',
-      type: 'disk',
-      name: 'Physical Drive 1',
-      logicalname: 'sdba1',
-      label: 'Another Drive',
-      capacity: 2000000000000,
-      used: 100000000000,
-      model: null,
-      vendor: 'SSK',
-      mountable: true,
-      path: '/HomeFolder/Documents',
-      'embassy-os': {
-        version: '0.3.0',
-        full: true,
-        // password is asdfasdf
-        'password-hash':
-          '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-        'wrapped-key': '',
-      },
-    },
-  ]
+    ],
+  }
 
   export const BackupJobs: RR.GetBackupJobsRes = [
     {
       id: 'lalalalalala-babababababa',
       name: 'My Backup Job',
-      target: BackupTargets[0],
+      target: BackupTargets.saved[0],
       cron: '0 3 * * *',
       'package-ids': ['bitcoind', 'lnd'],
     },
     {
       id: 'hahahahaha-mwmwmwmwmwmw',
       name: 'Another Backup Job',
-      target: BackupTargets[1],
+      target: BackupTargets.saved[1],
       cron: '0 * * * *',
       'package-ids': ['lnd'],
     },

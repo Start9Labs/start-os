@@ -103,7 +103,7 @@ export class BackupJobsPage {
     await alert.present()
   }
 
-  private async delete(id: string, index: number): Promise<void> {
+  private async delete(id: string, i: number): Promise<void> {
     const loader = await this.loadingCtrl.create({
       message: 'Deleting...',
     })
@@ -111,6 +111,7 @@ export class BackupJobsPage {
 
     try {
       await this.api.removeBackupTarget({ id })
+      this.jobs.splice(i, 1)
     } catch (e: any) {
       this.errToast.present(e)
     } finally {

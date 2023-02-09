@@ -166,12 +166,18 @@ export abstract class ApiService {
 
   abstract addBackupTarget(
     type: BackupTargetType,
-    params: RR.AddCifsBackupTargetReq | RR.AddCloudBackupTargetReq,
+    params:
+      | RR.AddCifsBackupTargetReq
+      | RR.AddCloudBackupTargetReq
+      | RR.AddDiskBackupTargetReq,
   ): Promise<RR.AddBackupTargetRes>
 
   abstract updateBackupTarget(
     type: BackupTargetType,
-    params: RR.UpdateCifsBackupTargetReq | RR.UpdateCloudBackupTargetReq,
+    params:
+      | RR.UpdateCifsBackupTargetReq
+      | RR.UpdateCloudBackupTargetReq
+      | RR.UpdateDiskBackupTargetReq,
   ): Promise<RR.UpdateBackupTargetRes>
 
   abstract removeBackupTarget(

@@ -24,6 +24,7 @@ ion-alert {
 }
 
 ion-modal {
+  --backdrop-opacity: 0.7;
   &::part(content) {
     border-radius: 6px;
     border: 2px solid rgba(255, 255, 255, 0.03);
@@ -152,4 +153,10 @@ ion-modal {
   .alert-title {
     color: var(--ion-color-success);
   }
+}
+
+a {
+  cursor: pointer;
+  color: aqua;
+  text-decoration: none;
 }

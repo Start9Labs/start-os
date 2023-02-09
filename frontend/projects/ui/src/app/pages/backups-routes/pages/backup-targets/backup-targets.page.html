@@ -23,15 +23,77 @@
       </ion-label>
     </ion-item>
 
+    <!-- unknown disks -->
     <ion-item-divider>
-      Saved Targets
-      <ion-button class="ion-padding-start" strong (click)="presentModalAdd()">
-        <ion-icon slot="start" name="add"></ion-icon>
-        Add Target
-      </ion-button>
+      Unknown Physical Drives
       <ion-button class="ion-padding-start" strong (click)="refresh()">
         <ion-icon slot="start" name="refresh"></ion-icon>
         Refresh
+      </ion-button>
+    </ion-item-divider>
+
+    <div class="grid-fixed">
+      <ion-grid class="ion-padding">
+        <ion-row class="grid-headings">
+          <ion-col size="3">Make/Model</ion-col>
+          <ion-col size="3">Label</ion-col>
+          <ion-col size="2">Capacity</ion-col>
+          <ion-col size="2">Used</ion-col>
+          <ion-col size="2"></ion-col>
+        </ion-row>
+        <!-- loading -->
+        <ng-container *ngIf="loading$ | async; else loaded">
+          <ion-row class="ion-align-items-center grid-row-border">
+            <ion-col>
+              <ion-skeleton-text animated></ion-skeleton-text>
+            </ion-col>
+          </ion-row>
+        </ng-container>
+        <!-- loaded -->
+        <ng-template #loaded>
+          <ion-row
+            *ngFor="let disk of targets['unknown-disks']; let i = index"
+            class="ion-align-items-center grid-row-border"
+          >
+            <ion-col size="3"
+              >{{ disk.vendor || 'unknown make' }}, {{ disk.model || 'unknown
+              model' }}</ion-col
+            >
+            <ion-col size="3">{{ disk.label }}</ion-col>
+            <ion-col size="2">{{ disk.capacity | convertBytes }}</ion-col>
+            <ion-col size="2"
+              >{{ disk.used ? (disk.used | convertBytes) : 'unknown' }}</ion-col
+            >
+            <ion-col size="2">
+              <ion-button
+                size="small"
+                style="float: right"
+                (click)="presentModalAddPhysical(disk, i)"
+              >
+                <ion-icon name="add" slot="start"></ion-icon>
+                Add
+              </ion-button>
+            </ion-col>
+          </ion-row>
+
+          <p *ngIf="!targets['unknown-disks'].length">
+            To add a new physical backup target, connect the drive and click
+            refresh.
+          </p>
+        </ng-template>
+      </ion-grid>
+    </div>
+
+    <!-- saved targets -->
+    <ion-item-divider>
+      Saved Targets
+      <ion-button
+        class="ion-padding-start"
+        strong
+        (click)="presentModalAddRemote()"
+      >
+        <ion-icon slot="start" name="add"></ion-icon>
+        Add Target
       </ion-button>
     </ion-item-divider>
 
@@ -45,7 +107,7 @@
           <ion-col size="2"></ion-col>
         </ion-row>
         <!-- loading -->
-        <ng-container *ngIf="loading$ | async; else loaded">
+        <ng-container *ngIf="loading$ | async; else loaded2">
           <ion-row
             *ngFor="let row of ['', '']"
             class="ion-align-items-center grid-row-border"
@@ -56,58 +118,53 @@
           </ion-row>
         </ng-container>
         <!-- loaded -->
-        <ng-template #loaded>
-          <!-- error -->
-          <p *ngIf="error$ | async as error; else noError">
-            <ion-text color="danger">{{ error }}</ion-text>
-          </p>
-          <!-- no error -->
-          <ng-template #noError>
-            <ion-row
-              *ngFor="let target of targets.saved; let i = index"
-              class="ion-align-items-center grid-row-border"
-            >
-              <ion-col size="3">{{ target.name }}</ion-col>
-              <ion-col class="inline">
-                <ion-icon
-                  *ngIf="target.type === 'disk'"
-                  name="save-outline"
+        <ng-template #loaded2>
+          <ion-row
+            *ngFor="let target of targets.saved; let i = index"
+            class="ion-align-items-center grid-row-border"
+          >
+            <ion-col size="3">{{ target.name }}</ion-col>
+            <ion-col class="inline">
+              <ion-icon
+                *ngIf="target.type === 'disk'"
+                name="save-outline"
+                size="small"
+              ></ion-icon>
+              <ion-icon
+                *ngIf="target.type === 'cifs'"
+                name="folder-open-outline"
+                size="small"
+              ></ion-icon>
+              <ion-icon
+                *ngIf="target.type === 'cloud'"
+                name="cloud-outline"
+                size="small"
+              ></ion-icon>
+              &nbsp; {{ target.type | titlecase }}
+            </ion-col>
+            <ion-col>
+              <ion-icon
+                [name]="target.mountable ? 'checkmark' : 'close'"
+                [color]="target.mountable ? 'success' : 'danger'"
+              ></ion-icon>
+            </ion-col>
+            <ion-col size="4">{{ target.path }}</ion-col>
+            <ion-col size="2">
+              <ion-buttons style="float: right">
+                <ion-button size="small" (click)="presentModalUpdate(target)">
+                  <ion-icon name="pencil"></ion-icon>
+                </ion-button>
+                <ion-button
                   size="small"
-                ></ion-icon>
-                <ion-icon
-                  *ngIf="target.type === 'cifs'"
-                  name="folder-open-outline"
-                  size="small"
-                ></ion-icon>
-                <ion-icon
-                  *ngIf="target.type === 'cloud'"
-                  name="cloud-outline"
-                  size="small"
-                ></ion-icon>
-                &nbsp; {{ target.type | titlecase }}
-              </ion-col>
-              <ion-col>
-                <ion-icon
-                  [name]="target.mountable ? 'checkmark' : 'close'"
-                  [color]="target.mountable ? 'success' : 'danger'"
-                ></ion-icon>
-              </ion-col>
-              <ion-col size="4">{{ target.path }}</ion-col>
-              <ion-col size="2">
-                <ion-buttons style="float: right">
-                  <ion-button size="small" (click)="presentModalUpdate(target)">
-                    <ion-icon name="pencil"></ion-icon>
-                  </ion-button>
-                  <ion-button
-                    size="small"
-                    (click)="presentAlertDelete(target.id, i)"
-                  >
-                    <ion-icon name="trash"></ion-icon>
-                  </ion-button>
-                </ion-buttons>
-              </ion-col>
-            </ion-row>
-          </ng-template>
+                  (click)="presentAlertDelete(target.id, i)"
+                >
+                  <ion-icon name="trash"></ion-icon>
+                </ion-button>
+              </ion-buttons>
+            </ion-col>
+          </ion-row>
+
+          <p *ngIf="!targets.saved.length">No saved backup targets.</p>
         </ng-template>
       </ion-grid>
     </div>

@@ -4,6 +4,7 @@ import {
   BackupTargetType,
   DiskBackupTarget,
   RR,
+  UnknownDisk,
 } from 'src/app/services/api/api.types'
 import {
   AlertController,
@@ -17,9 +18,10 @@ import {
   CifsSpec,
   DropboxSpec,
   GoogleDriveSpec,
+  DiskBackupTargetSpec,
   RemoteBackupTargetSpec,
 } from '../../types/target-types'
-import { BehaviorSubject, Subject } from 'rxjs'
+import { BehaviorSubject } from 'rxjs'
 
 export type BackupType = 'create' | 'restore'
 
@@ -31,16 +33,12 @@ export type BackupType = 'create' | 'restore'
 export class BackupTargetsPage {
   readonly docsUrl =
     'https://docs.start9.com/latest/user-manual/backups/backup-targets'
-  targets: {
-    'unsaved-physical': DiskBackupTarget[]
-    saved: BackupTarget[]
-  } = {
-    'unsaved-physical': [],
+  targets: RR.GetBackupTargetsRes = {
+    'unknown-disks': [],
     saved: [],
   }
 
   loading$ = new BehaviorSubject(true)
-  error$ = new Subject<string>()
 
   constructor(
     private readonly modalCtrl: ModalController,
@@ -54,7 +52,39 @@ export class BackupTargetsPage {
     this.getTargets()
   }
 
-  async presentModalAdd(): Promise<void> {
+  async presentModalAddPhysical(
+    disk: UnknownDisk,
+    index: number,
+  ): Promise<void> {
+    const modal = await this.modalCtrl.create({
+      component: GenericFormPage,
+      componentProps: {
+        title: 'New Physical Target',
+        spec: DiskBackupTargetSpec,
+        initialValue: {
+          name: disk.label || disk.logicalname,
+        },
+        buttons: [
+          {
+            text: 'Save',
+            handler: (value: Omit<RR.AddDiskBackupTargetReq, 'logicalname'>) =>
+              this.add('disk', {
+                logicalname: disk.logicalname,
+                ...value,
+              }).then(disk => {
+                this.targets['unknown-disks'].splice(index, 1)
+                this.targets.saved.push(disk)
+              }),
+            isSubmit: true,
+          },
+        ],
+      },
+    })
+
+    await modal.present()
+  }
+
+  async presentModalAddRemote(): Promise<void> {
     const modal = await this.modalCtrl.create({
       component: GenericFormPage,
       componentProps: {
@@ -68,7 +98,7 @@ export class BackupTargetsPage {
                 | (RR.AddCifsBackupTargetReq & { type: BackupTargetType })
                 | (RR.AddCloudBackupTargetReq & { type: BackupTargetType }),
             ) => {
-              return this.saveTarget(value.type, value)
+              return this.add(value.type, value)
             },
             isSubmit: true,
           },
@@ -89,6 +119,9 @@ export class BackupTargetsPage {
       case 'cloud':
         spec = target.provider === 'dropbox' ? DropboxSpec : GoogleDriveSpec
         break
+      case 'disk':
+        spec = DiskBackupTargetSpec
+        break
     }
 
     const modal = await this.modalCtrl.create({
@@ -96,20 +129,21 @@ export class BackupTargetsPage {
       componentProps: {
         title: 'Update Remote Target',
         spec,
+        initialValue: target,
         buttons: [
           {
             text: 'Save',
             handler: (
               value:
                 | RR.UpdateCifsBackupTargetReq
-                | RR.UpdateCloudBackupTargetReq,
+                | RR.UpdateCloudBackupTargetReq
+                | RR.UpdateDiskBackupTargetReq,
             ) => {
-              return this.saveTarget(target.type, value)
+              return this.update(target.type, value)
             },
             isSubmit: true,
           },
         ],
-        initialValue: target,
       },
     })
     await modal.present()
@@ -144,6 +178,7 @@ export class BackupTargetsPage {
 
     try {
       await this.api.removeBackupTarget({ id })
+      this.targets.saved.splice(index, 1)
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
@@ -153,28 +188,26 @@ export class BackupTargetsPage {
 
   async refresh() {
     this.loading$.next(true)
-    this.error$.next('')
     await this.getTargets()
   }
 
   private async getTargets(): Promise<void> {
     try {
-      const targets = await this.api.getBackupTargets({})
-      this.targets = {
-        'unsaved-physical': [],
-        saved: targets,
-      }
+      this.targets = await this.api.getBackupTargets({})
     } catch (e: any) {
-      this.error$.next(e.message)
+      this.errToast.present(e)
     } finally {
       this.loading$.next(false)
     }
   }
 
-  private async saveTarget(
+  private async add(
     type: BackupTargetType,
-    value: RR.AddCifsBackupTargetReq | RR.AddCloudBackupTargetReq,
-  ): Promise<any> {
+    value:
+      | RR.AddCifsBackupTargetReq
+      | RR.AddCloudBackupTargetReq
+      | RR.AddDiskBackupTargetReq,
+  ): Promise<BackupTarget> {
     const loader = await this.loadingCtrl.create({
       message: 'Saving target...',
     })
@@ -182,6 +215,26 @@ export class BackupTargetsPage {
 
     try {
       const res = await this.api.addBackupTarget(type, value)
+      return res
+    } finally {
+      loader.dismiss()
+    }
+  }
+
+  private async update(
+    type: BackupTargetType,
+    value:
+      | RR.UpdateCifsBackupTargetReq
+      | RR.UpdateCloudBackupTargetReq
+      | RR.UpdateDiskBackupTargetReq,
+  ): Promise<BackupTarget> {
+    const loader = await this.loadingCtrl.create({
+      message: 'Saving target...',
+    })
+    await loader.present()
+
+    try {
+      const res = await this.api.updateBackupTarget(type, value)
       return res
     } finally {
       loader.dismiss()

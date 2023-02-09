@@ -1,8 +1,9 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { ModalController, NavController } from '@ionic/angular'
-import { BehaviorSubject, Subject } from 'rxjs'
-import { BackupTarget, DiskBackupTarget } from 'src/app/services/api/api.types'
+import { BehaviorSubject } from 'rxjs'
+import { BackupTarget } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { ErrorToastService } from '@start9labs/shared'
 import { BackupType } from '../../pages/backup-targets/backup-targets.page'
 
 @Component({
@@ -15,21 +16,15 @@ export class TargetSelectPage {
   @Input() type!: BackupType
   @Input() isOneOff = true
 
-  targets: {
-    'unsaved-physical': DiskBackupTarget[]
-    saved: BackupTarget[]
-  } = {
-    'unsaved-physical': [],
-    saved: [],
-  }
+  targets: BackupTarget[] = []
 
   loading$ = new BehaviorSubject(true)
-  error$ = new Subject<string>()
 
   constructor(
     private readonly modalCtrl: ModalController,
     private readonly navCtrl: NavController,
     private readonly api: ApiService,
+    private readonly errToast: ErrorToastService,
   ) {}
 
   async ngOnInit() {
@@ -52,19 +47,14 @@ export class TargetSelectPage {
 
   async refresh() {
     this.loading$.next(true)
-    this.error$.next('')
     await this.getTargets()
   }
 
   private async getTargets(): Promise<void> {
     try {
-      const targets = await this.api.getBackupTargets({})
-      this.targets = {
-        'unsaved-physical': [],
-        saved: targets,
-      }
+      this.targets = (await this.api.getBackupTargets({})).saved
     } catch (e: any) {
-      this.error$.next(e.message)
+      this.errToast.present(e)
     } finally {
       this.loading$.next(false)
     }

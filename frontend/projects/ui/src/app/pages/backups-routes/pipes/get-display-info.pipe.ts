@@ -1,40 +1,36 @@
 import { Pipe, PipeTransform } from '@angular/core'
 import { BackupTarget, CloudBackupTarget } from 'src/app/services/api/api.types'
-import { convertBytes } from '@start9labs/shared'
 
 @Pipe({
   name: 'getDisplayInfo',
 })
 export class GetDisplayInfoPipe implements PipeTransform {
-  transform(target: BackupTarget): DisplayInfo | undefined {
+  transform(target: BackupTarget): DisplayInfo {
+    const toReturn: DisplayInfo = {
+      name: target.name,
+      path: `Path: ${target.path}`,
+      description: '',
+      icon: '',
+    }
+
     switch (target.type) {
       case 'cifs':
-        return {
-          type: 'Network Folder',
-          icon: 'folder-open-outline',
-          heading: target.path.split('/').pop()!,
-          subheading1: `Hostname: ${target.hostname}`,
-          subheading2: `Path: ${target.path}`,
-        }
+        toReturn.description = `Network Folder: ${target.hostname}`
+        toReturn.icon = 'folder-open-outline'
+        break
       case 'disk':
-        return {
-          type: 'Physical Drive',
-          icon: 'save-outline',
-          heading: target.label || target.logicalname || 'No Label',
-          subheading1: `${target.vendor || 'Unknown Vendor'}, ${
-            target.model || 'Unknown Model'
-          }`,
-          subheading2: `Capacity: ${convertBytes(target.capacity)}`,
-        }
+        toReturn.description = `Physical Drive: ${
+          target.vendor || 'Unknown Vendor'
+        }, ${target.model || 'Unknown Model'}`
+        toReturn.icon = 'save-outline'
+        break
       case 'cloud':
-        return {
-          type: 'Remote Cloud',
-          icon: 'cloud-outline',
-          heading: getProviderName(target),
-          subheading1: `Path: ${target.path}`,
-          subheading2: '',
-        }
+        toReturn.description = `Provider: ${target.provider}`
+        toReturn.icon = 'cloud-outline'
+        break
     }
+
+    return toReturn
   }
 }
 
@@ -48,9 +44,8 @@ function getProviderName(target: CloudBackupTarget) {
 }
 
 interface DisplayInfo {
-  type: 'Network Folder' | 'Physical Drive' | 'Remote Cloud'
-  icon: 'folder-open-outline' | 'save-outline' | 'cloud-outline'
-  heading: string
-  subheading1: string
-  subheading2: string
+  name: string
+  path: string
+  description: string
+  icon: string
 }

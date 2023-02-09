@@ -5,7 +5,7 @@ export const DropboxSpec: ConfigSpec = {
     type: 'string',
     name: 'Name',
     description: 'A friendly name for this Dropbox target',
-    placeholder: `Dropbox 1`,
+    placeholder: 'My Dropbox',
     nullable: false,
     masked: false,
     copyable: false,
@@ -14,7 +14,6 @@ export const DropboxSpec: ConfigSpec = {
     type: 'string',
     name: 'Access Token',
     description: 'The secret access token for your custom Dropbox app',
-    placeholder: `paste access token`,
     nullable: false,
     masked: true,
     copyable: false,
@@ -35,7 +34,7 @@ export const GoogleDriveSpec: ConfigSpec = {
     type: 'string',
     name: 'Name',
     description: 'A friendly name for this Google Drive target',
-    placeholder: `Google Drive 1`,
+    placeholder: 'My Google Drive',
     nullable: false,
     masked: false,
     copyable: false,
@@ -65,7 +64,7 @@ export const CifsSpec: ConfigSpec = {
     type: 'string',
     name: 'Name',
     description: 'A friendly name for this Network Folder',
-    placeholder: `Network Folder 1`,
+    placeholder: 'My Network Folder',
     nullable: false,
     masked: false,
     copyable: false,
@@ -113,19 +112,40 @@ export const RemoteBackupTargetSpec: ConfigSpec = {
   type: {
     type: 'union',
     variants: {
-      cifs: CifsSpec,
       dropbox: DropboxSpec,
       'google-drive': GoogleDriveSpec,
+      cifs: CifsSpec,
     },
     tag: {
       id: 'type',
       name: 'Target Type',
       'variant-names': {
-        cifs: 'Network Folder',
         dropbox: 'Dropbox',
         'google-drive': 'Google Drive',
+        cifs: 'Network Folder',
       },
     },
     default: 'dropbox',
+  },
+}
+
+export const DiskBackupTargetSpec: ConfigSpec = {
+  name: {
+    type: 'string',
+    name: 'Name',
+    description: 'A friendly name for this physical target',
+    placeholder: 'My Physical Target',
+    nullable: false,
+    masked: false,
+    copyable: false,
+  },
+  path: {
+    type: 'string',
+    name: 'Path',
+    description: 'The fully qualified path to the backup directory',
+    placeholder: 'e.g. /Backups/my-folder',
+    nullable: false,
+    masked: false,
+    copyable: false,
   },
 }

@@ -136,7 +136,10 @@ export module RR {
   // backup
 
   export type GetBackupTargetsReq = {} // backup.target.list
-  export type GetBackupTargetsRes = BackupTarget[]
+  export type GetBackupTargetsRes = {
+    'unknown-disks': UnknownDisk[]
+    saved: BackupTarget[]
+  }
 
   export type AddCifsBackupTargetReq = {
     name: string
@@ -151,14 +154,25 @@ export module RR {
     provider: CloudProvider
     [params: string]: any
   } // backup.target.cloud.add
+  export type AddDiskBackupTargetReq = {
+    logicalname: string
+    name: string
+    path: string
+  } // backup.target.disk.add
   export type AddBackupTargetRes = BackupTarget
 
   export type UpdateCifsBackupTargetReq = AddCifsBackupTargetReq & {
     id: string
-  } // backup.target.update
+  } // backup.target.cifs.update
   export type UpdateCloudBackupTargetReq = AddCloudBackupTargetReq & {
     id: string
-  } // backup.target.update
+  } // backup.target.cloud.update
+  export type UpdateDiskBackupTargetReq = Omit<
+    AddDiskBackupTargetReq,
+    'logicalname'
+  > & {
+    id: string
+  } // backup.target.disk.update
   export type UpdateBackupTargetRes = AddBackupTargetRes
 
   export type RemoveBackupTargetReq = { id: string } // backup.target.remove
@@ -369,6 +383,15 @@ export type BackupTarget = RemoteBackupTarget | DiskBackupTarget
 
 export type BackupTargetType = 'disk' | 'cifs' | 'cloud'
 
+export interface UnknownDisk {
+  logicalname: string
+  vendor: string | null
+  model: string | null
+  label: string | null
+  capacity: number
+  used: number | null
+}
+
 export interface BaseBackupTarget {
   id: string
   type: BackupTargetType
@@ -378,14 +401,8 @@ export interface BaseBackupTarget {
   'embassy-os': EmbassyOSDiskInfo | null
 }
 
-export interface DiskBackupTarget extends BaseBackupTarget {
+export interface DiskBackupTarget extends UnknownDisk, BaseBackupTarget {
   type: 'disk'
-  vendor: string | null
-  model: string | null
-  logicalname: string | null
-  label: string | null
-  capacity: number
-  used: number | null
 }
 
 export interface CifsBackupTarget extends BaseBackupTarget {

@@ -76,7 +76,7 @@ export class SSHKeysPage {
     }
   }
 
-  async presentAlertDelete(i: number) {
+  async presentAlertDelete(key: SSHKey, i: number) {
     const alert = await this.alertCtrl.create({
       header: 'Confirm',
       message: 'Delete key? This action cannot be undone.',
@@ -88,7 +88,7 @@ export class SSHKeysPage {
         {
           text: 'Delete',
           handler: () => {
-            this.delete(i)
+            this.delete(key, i)
           },
           cssClass: 'enter-click',
         },
@@ -97,15 +97,14 @@ export class SSHKeysPage {
     await alert.present()
   }
 
-  async delete(i: number): Promise<void> {
+  async delete(key: SSHKey, i: number): Promise<void> {
     const loader = await this.loadingCtrl.create({
       message: 'Deleting...',
     })
     await loader.present()
 
     try {
-      const entry = this.sshKeys[i]
-      await this.embassyApi.deleteSshKey({ fingerprint: entry.fingerprint })
+      await this.embassyApi.deleteSshKey({ fingerprint: key.fingerprint })
       this.sshKeys.splice(i, 1)
     } catch (e: any) {
       this.errToast.present(e)
