@@ -58,34 +58,10 @@ pub trait OsApi: Send + Sync + 'static {
         address_schema: AddressSchemaOnion,
     ) -> Result<Address, Report>;
 
-    async fn unbind_local(&self, id: InterfaceId, external: u16) -> Result<(), Report> {
-        todo!()
-    }
-    async fn unbind_onion(&self, id: InterfaceId, external: u16) -> Result<(), Report> {
-        todo!()
-    }
-    async fn list_address(&self) -> Result<Vec<Address>, Report> {
-        todo!()
-    }
-    async fn list_domains(&self) -> Result<Vec<Domain>, Report> {
-        todo!()
-    }
-    async fn alloc_onion(&self, id: String) -> Result<Name, Report> {
-        todo!()
-    }
-    async fn dealloc_onion(&self, id: String) -> Result<(), Report> {
-        todo!()
-    }
-    async fn alloc_local(&self, id: String) -> Result<Name, Report> {
-        todo!()
-    }
-    async fn dealloc_local(&self, id: String) -> Result<(), Report> {
-        todo!()
-    }
-    async fn alloc_forward(&self, id: String) -> Result<u16, Report> {
-        todo!()
-    }
-    async fn dealloc_forward(&self, id: String) -> Result<(), Report> {
-        todo!()
-    }
+    async fn unbind_local(&self, id: InterfaceId, external: u16) -> Result<(), Report>;
+    async fn unbind_onion(&self, id: InterfaceId, external: u16) -> Result<(), Report>;
+    fn set_started(&self);
+    async fn restart(&self);
+    async fn start(&self);
+    async fn stop(&self);
 }

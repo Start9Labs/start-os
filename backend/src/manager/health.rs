@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 use patch_db::{DbHandle, LockReceipt, LockType};
 use tracing::instrument;

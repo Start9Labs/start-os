@@ -313,12 +313,16 @@ impl JsExecutionEnvironment {
             fns::wait_command::decl(),
             fns::sleep::decl(),
             fns::send_signal::decl(),
-            fns::set_permissions::decl(),
+            fns::chmod::decl(),
             fns::signal_group::decl(),
             fns::rsync::decl(),
             fns::rsync_wait::decl(),
             fns::rsync_progress::decl(),
             fns::get_service_config::decl(),
+            fns::set_started::decl(),
+            fns::restart::decl(),
+            fns::start::decl(),
+            fns::stop::decl(),
         ]
     }
 
@@ -440,7 +444,9 @@ mod fns {
     use std::cell::RefCell;
     use std::collections::BTreeMap;
     use std::convert::TryFrom;
+    use std::fs::Permissions;
     use std::os::unix::fs::MetadataExt;
+    use std::os::unix::prelude::PermissionsExt;
     use std::path::{Path, PathBuf};
     use std::rc::Rc;
     use std::time::Duration;
@@ -620,6 +626,16 @@ mod fns {
         path_in: PathBuf,
         write: String,
     ) -> Result<(), AnyError> {
+        let sandboxed = {
+            let state = state.borrow();
+            let ctx: &JsContext = state.borrow();
+            ctx.sandboxed
+        };
+
+        if sandboxed {
+            bail!("Will not run writeFile in sandboxed mode");
+        }
+
         let (volumes, volume_path) = {
             let state = state.borrow();
             let ctx: &JsContext = state.borrow();
@@ -672,6 +688,16 @@ mod fns {
         dst_volume: VolumeId,
         dst_path: PathBuf,
     ) -> Result<(), AnyError> {
+        let sandboxed = {
+            let state = state.borrow();
+            let ctx: &JsContext = state.borrow();
+            ctx.sandboxed
+        };
+
+        if sandboxed {
+            bail!("Will not run rename in sandboxed mode");
+        }
+
         let (volumes, volume_path, volume_path_out) = {
             let state = state.borrow();
             let ctx: &JsContext = state.borrow();
@@ -727,6 +753,16 @@ mod fns {
         dst_path: PathBuf,
         options: RsyncOptions,
     ) -> Result<usize, AnyError> {
+        let sandboxed = {
+            let state = state.borrow();
+            let ctx: &JsContext = state.borrow();
+            ctx.sandboxed
+        };
+
+        if sandboxed {
+            bail!("Will not run rsync in sandboxed mode");
+        }
+
         let (volumes, volume_path, volume_path_out, rsyncs) = {
             let state = state.borrow();
             let ctx: &JsContext = state.borrow();
@@ -825,6 +861,16 @@ mod fns {
         path_in: PathBuf,
         ownership: u32,
     ) -> Result<(), AnyError> {
+        let sandboxed = {
+            let state = state.borrow();
+            let ctx: &JsContext = state.borrow();
+            ctx.sandboxed
+        };
+
+        if sandboxed {
+            bail!("Will not run chown in sandboxed mode");
+        }
+
         let (volumes, volume_path) = {
             let state = state.borrow();
             let ctx: &JsContext = state.borrow();
@@ -858,12 +904,22 @@ mod fns {
         Ok(())
     }
     #[op]
-    async fn set_permissions(
+    async fn chmod(
         state: Rc<RefCell<OpState>>,
         volume_id: VolumeId,
         path_in: PathBuf,
-        readonly: bool,
+        mode: u32,
     ) -> Result<(), AnyError> {
+        let sandboxed = {
+            let state = state.borrow();
+            let ctx: &JsContext = state.borrow();
+            ctx.sandboxed
+        };
+
+        if sandboxed {
+            bail!("Will not run chmod in sandboxed mode");
+        }
+
         let (volumes, volume_path) = {
             let state = state.borrow();
             let ctx: &JsContext = state.borrow();
@@ -885,9 +941,7 @@ mod fns {
                 volume_path.to_string_lossy(),
             );
         }
-        let mut perms = tokio::fs::metadata(&new_file).await?.permissions();
-        perms.set_readonly(readonly);
-        tokio::fs::set_permissions(new_file, perms).await?;
+        tokio::fs::set_permissions(new_file, Permissions::from_mode(mode)).await?;
         Ok(())
     }
     #[op]
@@ -896,6 +950,16 @@ mod fns {
         volume_id: VolumeId,
         path_in: PathBuf,
     ) -> Result<(), AnyError> {
+        let sandboxed = {
+            let state = state.borrow();
+            let ctx: &JsContext = state.borrow();
+            ctx.sandboxed
+        };
+
+        if sandboxed {
+            bail!("Will not run removeFile in sandboxed mode");
+        }
+
         let (volumes, volume_path) = {
             let state = state.borrow();
             let ctx: &JsContext = state.borrow();
@@ -926,6 +990,16 @@ mod fns {
         volume_id: VolumeId,
         path_in: PathBuf,
     ) -> Result<(), AnyError> {
+        let sandboxed = {
+            let state = state.borrow();
+            let ctx: &JsContext = state.borrow();
+            ctx.sandboxed
+        };
+
+        if sandboxed {
+            bail!("Will not run removeDir in sandboxed mode");
+        }
+
         let (volumes, volume_path) = {
             let state = state.borrow();
             let ctx: &JsContext = state.borrow();
@@ -956,6 +1030,16 @@ mod fns {
         volume_id: VolumeId,
         path_in: PathBuf,
     ) -> Result<(), AnyError> {
+        let sandboxed = {
+            let state = state.borrow();
+            let ctx: &JsContext = state.borrow();
+            ctx.sandboxed
+        };
+
+        if sandboxed {
+            bail!("Will not run createDir in sandboxed mode");
+        }
+
         let (volumes, volume_path) = {
             let state = state.borrow();
             let ctx: &JsContext = state.borrow();
@@ -1197,6 +1281,16 @@ mod fns {
         pid: u32,
         signal: u32,
     ) -> Result<(), AnyError> {
+        let sandboxed = {
+            let state = state.borrow();
+            let ctx: &JsContext = state.borrow();
+            ctx.sandboxed
+        };
+
+        if sandboxed {
+            bail!("Will not run sendSignal in sandboxed mode");
+        }
+
         if let Some(rpc_client) = {
             let state = state.borrow();
             let ctx = state.borrow::<JsContext>();
@@ -1225,6 +1319,16 @@ mod fns {
         gid: u32,
         signal: u32,
     ) -> Result<(), AnyError> {
+        let sandboxed = {
+            let state = state.borrow();
+            let ctx: &JsContext = state.borrow();
+            ctx.sandboxed
+        };
+
+        if sandboxed {
+            bail!("Will not run signalGroup in sandboxed mode");
+        }
+
         if let Some(rpc_client) = {
             let state = state.borrow();
             let ctx = state.borrow::<JsContext>();
@@ -1261,6 +1365,16 @@ mod fns {
         output: OutputStrategy,
         timeout: Option<u64>,
     ) -> Result<StartCommand, AnyError> {
+        let sandboxed = {
+            let state = state.borrow();
+            let ctx: &JsContext = state.borrow();
+            ctx.sandboxed
+        };
+
+        if sandboxed {
+            bail!("Will not run command in sandboxed mode");
+        }
+
         if let (gid, Some(rpc_client)) = {
             let state = state.borrow();
             let ctx = state.borrow::<JsContext>();
@@ -1367,6 +1481,16 @@ mod fns {
         internal_port: u16,
         address_schema: AddressSchemaOnion,
     ) -> Result<helpers::Address, AnyError> {
+        let sandboxed = {
+            let state = state.borrow();
+            let ctx: &JsContext = state.borrow();
+            ctx.sandboxed
+        };
+
+        if sandboxed {
+            bail!("Will not run bindOnion in sandboxed mode");
+        }
+
         let os = {
             let state = state.borrow();
             let ctx = state.borrow::<JsContext>();
@@ -1382,6 +1506,16 @@ mod fns {
         internal_port: u16,
         address_schema: AddressSchemaLocal,
     ) -> Result<helpers::Address, AnyError> {
+        let sandboxed = {
+            let state = state.borrow();
+            let ctx: &JsContext = state.borrow();
+            ctx.sandboxed
+        };
+
+        if sandboxed {
+            bail!("Will not run bindLocal in sandboxed mode");
+        }
+
         let os = {
             let state = state.borrow();
             let ctx = state.borrow::<JsContext>();
@@ -1390,6 +1524,81 @@ mod fns {
         os.bind_local(internal_port, address_schema)
             .await
             .map_err(|e| anyhow!("{e:?}"))
+    }
+
+    #[op]
+    fn set_started(state: &mut OpState) {
+        let os = {
+            let ctx = state.borrow::<JsContext>();
+            ctx.os.clone()
+        };
+        os.set_started()
+    }
+
+    #[op]
+    async fn restart(state: Rc<RefCell<OpState>>) -> Result<(), AnyError> {
+        let sandboxed = {
+            let state = state.borrow();
+            let ctx: &JsContext = state.borrow();
+            ctx.sandboxed
+        };
+
+        if sandboxed {
+            bail!("Will not run restart in sandboxed mode");
+        }
+
+        let os = {
+            let state = state.borrow();
+            let ctx = state.borrow::<JsContext>();
+            ctx.os.clone()
+        };
+        os.restart().await;
+
+        Ok(())
+    }
+
+    #[op]
+    async fn start(state: Rc<RefCell<OpState>>) -> Result<(), AnyError> {
+        let sandboxed = {
+            let state = state.borrow();
+            let ctx: &JsContext = state.borrow();
+            ctx.sandboxed
+        };
+
+        if sandboxed {
+            bail!("Will not run start in sandboxed mode");
+        }
+
+        let os = {
+            let state = state.borrow();
+            let ctx = state.borrow::<JsContext>();
+            ctx.os.clone()
+        };
+        os.start().await;
+
+        Ok(())
+    }
+
+    #[op]
+    async fn stop(state: Rc<RefCell<OpState>>) -> Result<(), AnyError> {
+        let sandboxed = {
+            let state = state.borrow();
+            let ctx: &JsContext = state.borrow();
+            ctx.sandboxed
+        };
+
+        if sandboxed {
+            bail!("Will not run stop in sandboxed mode");
+        }
+
+        let os = {
+            let state = state.borrow();
+            let ctx = state.borrow::<JsContext>();
+            ctx.os.clone()
+        };
+        os.stop().await;
+
+        Ok(())
     }
 
     /// We need to make sure that during the file accessing, we don't reach beyond our scope of control

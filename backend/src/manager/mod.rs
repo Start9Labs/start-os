@@ -7,7 +7,7 @@ use std::time::Duration;
 use color_eyre::{eyre::eyre, Report};
 use embassy_container_init::ProcessGroupId;
 use futures::future::BoxFuture;
-use futures::{FutureExt, TryFutureExt};
+use futures::{Future, FutureExt, TryFutureExt};
 use helpers::UnixRpcClient;
 use models::{ErrorKind, PackageId};
 use nix::sys::signal::Signal;
@@ -167,19 +167,22 @@ impl Manager {
         self._transition_replace({
             let manage_container = self.manage_container.clone();
 
-            TransitionState::Configuring(tokio::spawn(async move {
-                let desired_state = manage_container.desired_state();
-                let state_reverter = DesiredStateReverter::new(manage_container.clone());
-                let mut current_state = manage_container.current_state();
-                manage_container.to_desired(StartStop::Stop);
-                while current_state.borrow().is_start() {
-                    current_state.changed().await.unwrap();
-                }
+            TransitionState::Configuring(
+                tokio::spawn(async move {
+                    let desired_state = manage_container.desired_state();
+                    let state_reverter = DesiredStateReverter::new(manage_container.clone());
+                    let mut current_state = manage_container.current_state();
+                    manage_container.to_desired(StartStop::Stop);
+                    while current_state.borrow().is_start() {
+                        current_state.changed().await.unwrap();
+                    }
 
-                transition_state.await;
+                    transition_state.await;
 
-                state_reverter.revert().await;
-            }))
+                    state_reverter.revert().await;
+                })
+                .into(),
+            )
         });
         done.await
     }
@@ -229,69 +232,78 @@ impl Manager {
             .send_replace(Arc::new(transition_state))
             .abort();
     }
+
+    pub(super) fn perform_restart(&self) -> impl Future<Output = ()> + 'static {
+        let manage_container = self.manage_container.clone();
+        async move {
+            let _ = manage_container.set_override(Some(MainStatus::Restarting));
+            manage_container.wait_for_desired(StartStop::Stop).await;
+            manage_container.wait_for_desired(StartStop::Start).await;
+        }
+    }
     fn _transition_restart(&self) -> TransitionState {
         let transition = self.transition.clone();
+        let restart = self.perform_restart();
+        TransitionState::Restarting(
+            tokio::spawn(async move {
+                restart.await;
+                transition.send_replace(Default::default());
+            })
+            .into(),
+        )
+    }
+    fn perform_backup(
+        &self,
+        backup_guard: BackupGuard,
+    ) -> impl Future<Output = Result<Result<PackageBackupInfo, Error>, Error>> + 'static {
         let manage_container = self.manage_container.clone();
-        TransitionState::Restarting(tokio::spawn(async move {
+        let seed = self.seed.clone();
+        async move {
+            let state_reverter = DesiredStateReverter::new(manage_container.clone());
             let mut current_state = manage_container.current_state();
-            let _ = manage_container.set_override(Some(MainStatus::Restarting));
-            manage_container.to_desired(StartStop::Stop);
-            while current_state.borrow().is_start() {
-                current_state.changed().await.unwrap();
-            }
-            manage_container.to_desired(StartStop::Start);
-            while current_state.borrow().is_stop() {
-                current_state.changed().await.unwrap();
-            }
-            transition.send_replace(Default::default());
-        }))
+            let mut tx = seed.ctx.db.handle();
+            let _ = manage_container.set_override(Some(
+                get_status(&mut tx, &seed.manifest).await?.backing_up(),
+            ));
+            manage_container.wait_for_desired(StartStop::Stop).await;
+
+            let backup_guard = backup_guard.lock().await;
+            let guard = backup_guard.mount_package_backup(&seed.manifest.id).await?;
+
+            let res = seed
+                .manifest
+                .backup
+                .create(
+                    &seed.ctx,
+                    &mut tx,
+                    &seed.manifest.id,
+                    &seed.manifest.title,
+                    &seed.manifest.version,
+                    &seed.manifest.interfaces,
+                    &seed.manifest.volumes,
+                )
+                .await;
+            guard.unmount().await?;
+            drop(backup_guard);
+
+            let return_value = res;
+            state_reverter.revert().await;
+            Ok::<_, Error>(return_value)
+        }
     }
     fn _transition_backup(
         &self,
         backup_guard: BackupGuard,
     ) -> (TransitionState, BoxFuture<BackupReturn>) {
-        let manage_container = self.manage_container.clone();
-        let seed = self.seed.clone();
         let (send, done) = oneshot::channel();
         (
-            TransitionState::BackingUp(tokio::spawn(
-                async move {
-                    let state_reverter = DesiredStateReverter::new(manage_container.clone());
-                    let mut current_state = manage_container.current_state();
-                    let mut tx = seed.ctx.db.handle();
-                    let _ = manage_container.set_override(Some(
-                        get_status(&mut tx, &seed.manifest).await?.backing_up(),
-                    ));
-                    manage_container.to_desired(StartStop::Stop);
-                    while current_state.borrow().is_start() {
-                        current_state.changed().await.unwrap();
-                    }
-
-                    let backup_guard = backup_guard.lock().await;
-                    let guard = backup_guard.mount_package_backup(&seed.manifest.id).await?;
-
-                    let res = seed
-                        .manifest
-                        .backup
-                        .create(
-                            &seed.ctx,
-                            &mut tx,
-                            &seed.manifest.id,
-                            &seed.manifest.title,
-                            &seed.manifest.version,
-                            &seed.manifest.interfaces,
-                            &seed.manifest.volumes,
-                        )
-                        .await;
-                    guard.unmount().await?;
-                    drop(backup_guard);
-
-                    let return_value = res;
-                    state_reverter.revert().await;
-                    Ok::<_, Error>(return_value)
-                }
-                .then(finnish_up_backup_task(self.transition.clone(), send)), //
-            )),
+            TransitionState::BackingUp(
+                tokio::spawn(
+                    self.perform_backup(backup_guard)
+                        .then(finnish_up_backup_task(self.transition.clone(), send)),
+                )
+                .into(),
+            ),
             done.map_err(|err| Error::new(eyre!("Oneshot error: {err:?}"), ErrorKind::Unknown))
                 .map(flatten_backup_error)
                 .boxed(),
@@ -679,11 +691,13 @@ async fn run_main(
     };
 
     let svc = if let Some(ip) = ip {
-        Some(add_network_for_main(&seed, ip).await?)
+        let net = add_network_for_main(&seed, ip).await?;
+        started();
+        Some(net)
     } else {
         None
     };
-    started();
+
     let health = main_health_check_daemon(seed.clone());
     let res = tokio::select! {
         a = runtime => a.map_err(|_| Error::new(eyre!("Manager runtime panicked!"), crate::ErrorKind::Docker)).and_then(|a| a),
