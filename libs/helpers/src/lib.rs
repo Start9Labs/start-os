@@ -1,4 +1,5 @@
 use std::future::Future;
+use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -91,6 +92,17 @@ impl<T> Future for NonDetachingJoinHandle<T> {
     ) -> std::task::Poll<Self::Output> {
         let this = self.project();
         this.0.poll(cx)
+    }
+}
+impl<T> Deref for NonDetachingJoinHandle<T> {
+    type Target = JoinHandle<T>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl<T> DerefMut for NonDetachingJoinHandle<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 

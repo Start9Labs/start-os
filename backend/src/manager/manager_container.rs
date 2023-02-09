@@ -1,12 +1,15 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use futures::FutureExt;
 use patch_db::PatchDbHandle;
 use tokio::sync::watch;
 use tokio::sync::watch::Sender;
+use tracing::instrument;
 
 use super::start_stop::StartStop;
 use super::{manager_seed, run_main, ManagerPersistentContainer, RunMainResult};
+use crate::procedure::NoOutput;
 use crate::s9pk::manifest::Manifest;
 use crate::status::MainStatus;
 use crate::util::{GeneralBoxedGuard, NonDetachingJoinHandle};
@@ -15,10 +18,10 @@ use crate::Error;
 pub type ManageContainerOverride = Arc<watch::Sender<Option<MainStatus>>>;
 
 pub struct ManageContainer {
-    current_state: Arc<watch::Sender<StartStop>>,
-    desired_state: Arc<watch::Sender<StartStop>>,
-    service: NonDetachingJoinHandle<()>,
-    save_state: NonDetachingJoinHandle<()>,
+    pub(super) current_state: Arc<watch::Sender<StartStop>>,
+    pub(super) desired_state: Arc<watch::Sender<StartStop>>,
+    _service: NonDetachingJoinHandle<()>,
+    _save_state: NonDetachingJoinHandle<()>,
     override_main_status: ManageContainerOverride,
 }
 
@@ -30,7 +33,7 @@ impl ManageContainer {
         let mut db = seed.ctx.db.handle();
         let current_state = Arc::new(watch::channel(StartStop::Stop).0);
         let desired_state = Arc::new(
-            watch::channel::<StartStop>(get_status(&mut db, &seed.manifest).await?.into()).0,
+            watch::channel::<StartStop>(get_status(&mut db, &seed.manifest).await.into()).0,
         );
         let override_main_status: ManageContainerOverride = Arc::new(watch::channel(None).0);
         let service = tokio::spawn(create_service_manager(
@@ -50,17 +53,19 @@ impl ManageContainer {
         Ok(ManageContainer {
             current_state,
             desired_state,
-            service,
+            _service: service,
             override_main_status,
-            save_state,
+            _save_state: save_state,
         })
     }
 
     pub fn set_override(&self, override_status: Option<MainStatus>) -> GeneralBoxedGuard {
-        self.override_main_status.send(override_status);
+        self.override_main_status
+            .send(override_status)
+            .unwrap_or_default();
         let override_main_status = self.override_main_status.clone();
         let guard = GeneralBoxedGuard::new(move || {
-            override_main_status.send(None);
+            override_main_status.send(None).unwrap_or_default();
         });
         guard
     }
@@ -70,9 +75,9 @@ impl ManageContainer {
     }
 
     pub async fn wait_for_desired(&self, new_state: StartStop) {
-        let mut current_state = self.current_state();
+        let current_state = self.current_state();
         self.to_desired(new_state);
-        while *current_state.borrow() != new_state {
+        while current_state.borrow() != new_state {
             current_state.changed().await.unwrap_or_default();
         }
     }
@@ -99,14 +104,14 @@ async fn create_service_manager(
         let current: StartStop = current_state.borrow().clone();
         let desired: StartStop = desired_state_receiver.borrow().clone();
         match (current, desired) {
-            (StartStop::Start, StartStop::Start) => continue,
+            (StartStop::Start, StartStop::Start) => (),
             (StartStop::Start, StartStop::Stop) => {
                 if let Err(err) = seed.stop_container().await {
                     tracing::error!("Could not stop container");
                     tracing::debug!("{:?}", err)
                 };
                 running_service = None;
-                current_state.send(StartStop::Stop);
+                current_state.send(StartStop::Stop).unwrap_or_default();
             }
             (StartStop::Stop, StartStop::Start) => starting_service(
                 current_state.clone(),
@@ -115,8 +120,9 @@ async fn create_service_manager(
                 persistent_container.clone(),
                 &mut running_service,
             ),
-            (StartStop::Stop, StartStop::Stop) => continue,
+            (StartStop::Stop, StartStop::Stop) => (),
         }
+
         if let Err(_) = desired_state_receiver.changed().await {
             tracing::error!("Desired state error");
             break;
@@ -188,7 +194,7 @@ fn starting_service(
     let set_running = {
         let current_state = current_state.clone();
         Arc::new(move || {
-            current_state.send(StartStop::Start);
+            current_state.send(StartStop::Start).unwrap_or_default();
         })
     };
     let set_stopped = {
@@ -203,8 +209,8 @@ fn starting_service(
                 set_running.clone(),
             )
             .await;
-            run_main_log_result(result, seed.clone());
-            set_stopped();
+            set_stopped().unwrap_or_default();
+            run_main_log_result(result, seed.clone()).await;
         }
     };
     *running_service = Some(tokio::spawn(running_main_loop).into());
@@ -217,24 +223,23 @@ async fn run_main_log_result(result: RunMainResult, seed: Arc<manager_seed::Mana
             #[cfg(feature = "unstable")]
             {
                 use crate::notifications::NotificationLevel;
-                use crate::status::MainStatus;
                 let mut db = seed.ctx.db.handle();
                 let started = crate::db::DatabaseModel::new()
                     .package_data()
-                    .idx_model(&thread_shared.seed.manifest.id)
+                    .idx_model(&seed.manifest.id)
                     .and_then(|pde| pde.installed())
                     .map::<_, MainStatus>(|i| i.status().main())
-                    .get(db, false)
+                    .get(&mut db)
                     .await;
                 match started.as_deref() {
                     Ok(Some(MainStatus::Running { .. })) => {
-                        let res = thread_shared.seed.ctx.notification_manager
+                        let res = seed.ctx.notification_manager
                             .notify(
-                                db,
-                                Some(thread_shared.seed.manifest.id.clone()),
+                                &mut db,
+                                Some(seed.manifest.id.clone()),
                                 NotificationLevel::Warning,
                                 String::from("Service Crashed"),
-                                format!("The service {} has crashed with the following exit code: {}\nDetails: {}", thread_shared.seed.manifest.id.clone(), e.0, e.1),
+                                format!("The service {} has crashed with the following exit code: {}\nDetails: {}", seed.manifest.id.clone(), e.0, e.1),
                                 (),
                                 Some(3600) // 1 hour
                             )
@@ -249,6 +254,11 @@ async fn run_main_log_result(result: RunMainResult, seed: Arc<manager_seed::Mana
                     }
                 }
             }
+            tracing::error!(
+                "The service {} has crashed with the following exit code: {}",
+                seed.manifest.id.clone(),
+                e.0
+            );
 
             tokio::time::sleep(Duration::from_secs(15)).await;
         }
@@ -259,41 +269,56 @@ async fn run_main_log_result(result: RunMainResult, seed: Arc<manager_seed::Mana
     }
 }
 
-pub(super) async fn get_status(
-    db: &mut PatchDbHandle,
-    manifest: &Manifest,
-) -> Result<MainStatus, Error> {
-    Ok(crate::db::DatabaseModel::new()
-        .package_data()
-        .idx_model(&manifest.id)
-        .expect(db)
-        .await?
-        .installed()
-        .expect(db)
-        .await?
-        .status()
-        .main()
-        .get(db)
-        .await?
-        .clone())
+#[instrument(skip(db, manifest))]
+pub(super) async fn get_status(db: &mut PatchDbHandle, manifest: &Manifest) -> MainStatus {
+    async move {
+        Ok::<_, Error>(
+            crate::db::DatabaseModel::new()
+                .package_data()
+                .idx_model(&manifest.id)
+                .expect(db)
+                .await?
+                .installed()
+                .expect(db)
+                .await?
+                .status()
+                .main()
+                .get(db)
+                .await?
+                .clone(),
+        )
+    }
+    .map(|x| x.unwrap_or_else(|e| MainStatus::Stopped))
+    .await
 }
 
+#[instrument(skip(db, manifest))]
 async fn set_status(
     db: &mut PatchDbHandle,
     manifest: &Manifest,
     main_status: &MainStatus,
 ) -> Result<(), Error> {
-    crate::db::DatabaseModel::new()
+    if crate::db::DatabaseModel::new()
         .package_data()
         .idx_model(&manifest.id)
         .expect(db)
         .await?
         .installed()
-        .expect(db)
+        .exists(db)
         .await?
-        .status()
-        .main()
-        .put(db, main_status)
-        .await?;
+    {
+        crate::db::DatabaseModel::new()
+            .package_data()
+            .idx_model(&manifest.id)
+            .expect(db)
+            .await?
+            .installed()
+            .expect(db)
+            .await?
+            .status()
+            .main()
+            .put(db, main_status)
+            .await?;
+    }
     Ok(())
 }
