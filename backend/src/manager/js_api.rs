@@ -147,7 +147,6 @@ impl OsApi for Manager {
             .create_service(self.seed.manifest.id.clone(), ip)
             .await
             .map_err(|e| eyre!("Could not get to net controller: {e:?}"))?;
-        let mut secrets = self.seed.ctx.secret_store.acquire().await?;
 
         svc.remove_lan(id, external)
             .await
@@ -165,7 +164,6 @@ impl OsApi for Manager {
             .create_service(self.seed.manifest.id.clone(), ip)
             .await
             .map_err(|e| eyre!("Could not get to net controller: {e:?}"))?;
-        let mut secrets = self.seed.ctx.secret_store.acquire().await?;
 
         svc.remove_tor(id, external)
             .await
@@ -173,30 +171,26 @@ impl OsApi for Manager {
         Ok(())
     }
 
-    fn set_started(&self) -> Result<(), Report> {
+    fn set_started(&self) {
         self.manage_container
             .current_state
             .send(StartStop::Start)
-            .unwrap_or_default();
-        Ok(())
+            .unwrap_or_default()
     }
 
-    async fn restart(&self) -> Result<(), Report> {
-        self.perform_restart().await;
-        Ok(())
+    async fn restart(&self) {
+        self.perform_restart().await
     }
 
-    async fn start(&self) -> Result<(), Report> {
+    async fn start(&self) {
         self.manage_container
             .wait_for_desired(StartStop::Start)
-            .await;
-        Ok(())
+            .await
     }
 
-    async fn stop(&self) -> Result<(), Report> {
+    async fn stop(&self) {
         self.manage_container
             .wait_for_desired(StartStop::Stop)
-            .await;
-        Ok(())
+            .await
     }
 }
