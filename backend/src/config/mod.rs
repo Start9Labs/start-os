@@ -1,29 +1,24 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::time::Duration;
 
 use color_eyre::eyre::eyre;
-use futures::future::{BoxFuture, FutureExt};
 use indexmap::IndexSet;
 use itertools::Itertools;
 use models::ErrorKind;
-use patch_db::{
-    DbHandle, LockReceipt, LockTarget, LockTargetId, LockType, PatchDbHandle, Transaction, Verifier,
-};
-use rand::SeedableRng;
+use patch_db::{DbHandle, LockReceipt, LockTarget, LockTargetId, LockType, Verifier};
 use regex::Regex;
 use rpc_toolkit::command;
 use serde_json::Value;
 use tracing::instrument;
 
 use crate::context::RpcContext;
-use crate::db::model::{CurrentDependencies, CurrentDependencyInfo, CurrentDependents};
+use crate::db::model::{CurrentDependencies, CurrentDependents};
 use crate::dependencies::{
-    add_dependent_to_current_dependents_lists, break_transitive, heal_all_dependents_transitive,
-    BreakTransitiveReceipts, BreakageRes, Dependencies, DependencyConfig, DependencyError,
-    DependencyErrors, DependencyReceipt, TaggedDependencyError, TryHealReceipts,
+    BreakTransitiveReceipts, BreakageRes, Dependencies, DependencyConfig, DependencyErrors,
+    DependencyReceipt, TaggedDependencyError, TryHealReceipts,
 };
-use crate::install::cleanup::{remove_from_current_dependents_lists, UpdateDependencyReceipts};
+use crate::install::cleanup::UpdateDependencyReceipts;
 use crate::procedure::docker::DockerContainers;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::util::display_none;
@@ -31,6 +26,7 @@ use crate::util::serde::{display_serializable, parse_stdin_deserializable, IoFor
 use crate::Error;
 
 pub mod action;
+pub mod hook;
 pub mod spec;
 pub mod util;
 
@@ -38,7 +34,7 @@ pub use spec::{ConfigSpec, Defaultable};
 use util::NumRange;
 
 use self::action::{ConfigActions, ConfigRes};
-use self::spec::{ConfigPointerReceipts, PackagePointerSpec, ValueSpecPointer};
+use self::spec::{ConfigPointerReceipts, ValueSpecPointer};
 
 pub type Config = serde_json::Map<String, Value>;
 pub trait TypeOf {
