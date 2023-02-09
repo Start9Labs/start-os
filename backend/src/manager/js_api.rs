@@ -7,15 +7,19 @@ use models::{InterfaceId, PackageId};
 use serde_json::Value;
 use sqlx::Acquire;
 
-use crate::{manager::Manager, net::keys::Key};
+use crate::{
+    manager::{start_stop::StartStop, Manager},
+    net::keys::Key,
+};
 
 use super::try_get_running_ip;
+
+const NULL_VALUE: &Value = &Value::Null;
 
 struct ConfigMapping(serde_json::Map<String, Value>);
 impl ConfigMapping {
     fn with_path(&self, config_path: &ConfigPath) -> &Value {
-        let null_value = Value::Null;
-        let mut value: &Value = self.0.get(&config_path.paths[0]).unwrap_or(&null_value);
+        let mut value: &Value = self.0.get(&config_path.paths[0]).unwrap_or(&NULL_VALUE);
         for path in config_path.paths.iter().skip(1) {
             value = &value[&path];
         }
@@ -146,7 +150,6 @@ impl OsApi for Manager {
             .create_service(self.seed.manifest.id.clone(), ip)
             .await
             .map_err(|e| eyre!("Could not get to net controller: {e:?}"))?;
-        let mut secrets = self.seed.ctx.secret_store.acquire().await?;
 
         svc.remove_lan(id, external)
             .await
@@ -164,11 +167,33 @@ impl OsApi for Manager {
             .create_service(self.seed.manifest.id.clone(), ip)
             .await
             .map_err(|e| eyre!("Could not get to net controller: {e:?}"))?;
-        let mut secrets = self.seed.ctx.secret_store.acquire().await?;
 
         svc.remove_tor(id, external)
             .await
             .map_err(|e| eyre!("Could not add to tor: {e:?}"))?;
         Ok(())
+    }
+
+    fn set_started(&self) {
+        self.manage_container
+            .current_state
+            .send(StartStop::Start)
+            .unwrap_or_default()
+    }
+
+    async fn restart(&self) {
+        self.perform_restart().await
+    }
+
+    async fn start(&self) {
+        self.manage_container
+            .wait_for_desired(StartStop::Start)
+            .await
+    }
+
+    async fn stop(&self) {
+        self.manage_container
+            .wait_for_desired(StartStop::Stop)
+            .await
     }
 }

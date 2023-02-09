@@ -240,8 +240,6 @@ const runRsync = (
 };
 
 globalThis.runCallback = (uuid, data) => callbackMapping[uuid](data);
-// window.runCallback = runCallback;
-// Deno.runCallback = runCallback;
 
 const getServiceConfig = async (
   {
@@ -268,15 +266,20 @@ const chown = async (
   return await Deno.core.opAsync("chown", volumeId, path, uid);
 };
 
-const setPermissions = async (
+const chmod = async (
   {
     volumeId = requireParam("volumeId"),
     path = requireParam("path"),
-    readonly = requireParam("readonly"),
+    mode = requireParam("mode"),
   } = requireParam("options"),
 ) => {
-  return await Deno.core.opAsync("set_permissions", volumeId, path, readonly);
+  return await Deno.core.opAsync("chmod", volumeId, path, mode);
 };
+
+const started = Deno.core.opSync("set_started");
+const restart = Deno.core.opAsync("restart");
+const start = Deno.core.opAsync("start");
+const stop = Deno.core.opAsync("stop");
 
 const currentFunction = Deno.core.opSync("current_function");
 const input = Deno.core.opSync("get_input");
@@ -303,13 +306,19 @@ const effects = {
   runCommand,
   runDaemon,
   runRsync,
-  setPermissions,
+  chmod,
   signalGroup,
   sleep,
   trace,
   warn,
   writeFile,
   writeJsonFile,
+  restart,
+  start,
+  stop,
+};
+const fnSpecificArgs = {
+  "main": { started },
 };
 
 const defaults = {
@@ -326,25 +335,41 @@ function safeToString(fn, orValue = "") {
   }
 }
 
+const apiVersion = mainModule.version || 0;
 const runFunction = jsonPointerValue(mainModule, currentFunction) ||
   jsonPointerValue(defaults, currentFunction);
-(async () => {
-  const answer = await (async () => {
-    if (typeof runFunction !== "function") {
-      error(`Expecting ${currentFunction} to be a function`);
-      throw new Error(`Expecting ${currentFunction} to be a function`);
-    }
-  })()
-    .then(() => runFunction(effects, input, ...variable_args))
-    .catch((e) => {
-      if ("error" in e) return e;
-      if ("error-code" in e) return e;
-      return {
-        error: safeToString(
-          () => e.toString(),
-          "Error Not able to be stringified",
-        ),
-      };
-    });
-  await setState(answer);
-})();
+const extraArgs = jsonPointerValue(fnSpecificArgs, currentFunction) ||
+  {}(async () => {
+    const answer = await (async () => {
+      if (typeof runFunction !== "function") {
+        error(`Expecting ${currentFunction} to be a function`);
+        throw new Error(`Expecting ${currentFunction} to be a function`);
+      }
+    })()
+      .then(() => {
+        switch (apiVersion) {
+          case 0:
+            return runFunction(effects, input, ...variable_args);
+          case 1:
+            return runFunction({
+              effects,
+              input,
+              args: variable_args,
+              ...extraArgs,
+            });
+          default:
+            return { "error": `Unknown API version ${apiVersion}` };
+        }
+      })
+      .catch((e) => {
+        if ("error" in e) return e;
+        if ("error-code" in e) return e;
+        return {
+          error: safeToString(
+            () => e.toString(),
+            "Error Not able to be stringified",
+          ),
+        };
+      });
+    await setState(answer);
+  })();
