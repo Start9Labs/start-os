@@ -3,11 +3,14 @@ use color_eyre::{
     Report,
 };
 use helpers::{AddressSchemaLocal, AddressSchemaOnion, Callback, OsApi};
+use itertools::Itertools;
+use jsonpath_lib::Compiled;
 use models::{InterfaceId, PackageId};
 use serde_json::Value;
 use sqlx::Acquire;
 
 use crate::{
+    config::hook::ConfigHook,
     manager::{start_stop::StartStop, Manager},
     net::keys::Key,
 };
@@ -16,39 +19,14 @@ use super::try_get_running_ip;
 
 const NULL_VALUE: &Value = &Value::Null;
 
-struct ConfigMapping(serde_json::Map<String, Value>);
-impl ConfigMapping {
-    fn with_path(&self, config_path: &ConfigPath) -> &Value {
-        let mut value: &Value = self.0.get(&config_path.paths[0]).unwrap_or(&NULL_VALUE);
-        for path in config_path.paths.iter().skip(1) {
-            value = &value[&path];
-        }
-        value
-    }
-}
-struct ConfigPath {
-    paths: Vec<String>,
-}
-impl ConfigPath {
-    fn parse(value: &str) -> Self {
-        let paths = value
-            .split("/")
-            .into_iter()
-            .filter(|x| !x.is_empty())
-            .map(|x| x.to_string())
-            .collect();
-        Self { paths }
-    }
-}
-
 #[async_trait::async_trait]
 impl OsApi for Manager {
     async fn get_service_config(
         &self,
         id: PackageId,
         path: &str,
-        callback: Callback,
-    ) -> Result<serde_json::Value, Report> {
+        callback: Option<Callback>,
+    ) -> Result<Vec<serde_json::Value>, Report> {
         let found = match self
             .seed
             .manifest
@@ -65,15 +43,34 @@ impl OsApi for Manager {
             .await
             .map(|x| x.config)
         {
-            Ok(Some(a)) => ConfigMapping(a),
+            Ok(Some(a)) => a,
             Ok(None) => bail!("No current config for the service"),
             Err(err) => bail!("Could not fetch the config. {err}"),
         };
 
-        let path = ConfigPath::parse(path);
+        let path = Compiled::compile(path).map_err(|e| eyre!("{e}"))?;
 
-        let filtered_value = config.with_path(&path);
-        Ok(filtered_value.clone())
+        let filtered_values = path
+            .select(&Value::Object(config))?
+            .into_iter()
+            .cloned()
+            .collect_vec();
+
+        if let Some(callback) = callback {
+            self.seed
+                .ctx
+                .add_config_hook(
+                    id,
+                    ConfigHook {
+                        path,
+                        prev: filtered_values.clone(),
+                        callback,
+                    },
+                )
+                .await;
+        }
+
+        Ok(filtered_values)
     }
     // Get tor key - base 32
 
@@ -174,26 +171,30 @@ impl OsApi for Manager {
         Ok(())
     }
 
-    fn set_started(&self) {
+    fn set_started(&self) -> Result<(), Report> {
         self.manage_container
             .current_state
             .send(StartStop::Start)
-            .unwrap_or_default()
+            .unwrap_or_default();
+        Ok(())
     }
 
-    async fn restart(&self) {
-        self.perform_restart().await
+    async fn restart(&self) -> Result<(), Report> {
+        self.perform_restart().await;
+        Ok(())
     }
 
-    async fn start(&self) {
+    async fn start(&self) -> Result<(), Report> {
         self.manage_container
             .wait_for_desired(StartStop::Start)
-            .await
+            .await;
+        Ok(())
     }
 
-    async fn stop(&self) {
+    async fn stop(&self) -> Result<(), Report> {
         self.manage_container
             .wait_for_desired(StartStop::Stop)
-            .await
+            .await;
+        Ok(())
     }
 }
