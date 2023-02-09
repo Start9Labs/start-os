@@ -76,7 +76,7 @@ eos_raspberrypi-uninit.img: $(ALL_TARGETS) raspios.img cargo-deps/aarch64-unknow
 	! test -f eos_raspberrypi-uninit.img || rm eos_raspberrypi-uninit.img
 	./build/raspberry-pi/make-image.sh
 
-lite-upgrade.img: raspios.img cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep $(BUILD_SRC) eos.raspberrypi.squashfs
+lite-upgrade.img: raspios.img cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep $(BUILD_SRC) eos.raspberrypi.squashfs | sudo
 	! test -f lite-upgrade.img || rm lite-upgrade.img
 	./build/raspberry-pi/make-upgrade-image.sh
 
@@ -138,13 +138,13 @@ emulate-reflash:
 	$(MAKE) install REMOTE=$(REMOTE) DESTDIR=/media/embassy/next OS_ARCH=$(OS_ARCH)
 	ssh $(REMOTE) "sudo touch /media/embassy/config/upgrade && sudo rm -f /media/embassy/config/disk.guid && sudo sync && sudo reboot"
 
-system-images/compat/docker-images/aarch64.tar system-images/compat/docker-images/x86_64.tar: $(COMPAT_SRC)
+system-images/compat/docker-images/aarch64.tar system-images/compat/docker-images/x86_64.tar: $(COMPAT_SRC) | sudo
 	cd system-images/compat && make
 
-system-images/utils/docker-images/aarch64.tar system-images/utils/docker-images/x86_64.tar: $(UTILS_SRC)
+system-images/utils/docker-images/aarch64.tar system-images/utils/docker-images/x86_64.tar: $(UTILS_SRC) | sudo
 	cd system-images/utils && make
 
-system-images/binfmt/docker-images/aarch64.tar system-images/binfmt/docker-images/x86_64.tar: $(BINFMT_SRC)
+system-images/binfmt/docker-images/aarch64.tar system-images/binfmt/docker-images/x86_64.tar: $(BINFMT_SRC) | sudo
 	cd system-images/binfmt && make
 
 raspios.img:
@@ -156,7 +156,7 @@ snapshots: libs/snapshot_creator/Cargo.toml
 	cd libs/  && ./build-v8-snapshot.sh
 	cd libs/  && ./build-arm-v8-snapshot.sh
 
-$(EMBASSY_BINS): $(BACKEND_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) frontend/patchdb-ui-seed.json
+$(EMBASSY_BINS): $(BACKEND_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) frontend/patchdb-ui-seed.json | sudo
 	cd backend && ARCH=$(ARCH) ./build-prod.sh
 	touch $(EMBASSY_BINS)
 
@@ -206,8 +206,8 @@ ui: frontend/dist/ui
 # used by github actions
 backend: $(EMBASSY_BINS)
 
-cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast:
+cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast: | sudo
 	./build-cargo-dep.sh nc-broadcast
 
-cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep:
+cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep: | sudo
 	./build-cargo-dep.sh pi-beep
