@@ -66,7 +66,15 @@ impl ManageContainer {
     }
 
     pub fn to_desired(&self, new_state: StartStop) {
-        self.desired_state.send(new_state);
+        self.desired_state.send(new_state).unwrap_or_default();
+    }
+
+    pub async fn wait_for_desired(&self, new_state: StartStop) {
+        let mut current_state = self.current_state();
+        self.to_desired(new_state);
+        while *current_state.borrow() != new_state {
+            current_state.changed().await.unwrap_or_default();
+        }
     }
 
     pub fn current_state(&self) -> watch::Receiver<StartStop> {
