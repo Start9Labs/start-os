@@ -9,7 +9,7 @@ import { JobOptionsComponent } from './job-options/job-options.component'
 import { ToHumanCronPipe } from './pipes'
 import { FormsModule } from '@angular/forms'
 import { TargetSelectPageModule } from '../../modals/target-select/target-select.module'
-import { SkeletonListComponentModule } from 'src/app/components/skeleton-list/skeleton-list.component.module'
+import { TargetPipesModule } from '../../pipes/target-pipes.module'
 
 const routes: Routes = [
   {
@@ -25,7 +25,7 @@ const routes: Routes = [
     RouterModule.forChild(routes),
     FormsModule,
     TargetSelectPageModule,
-    SkeletonListComponentModule,
+    TargetPipesModule,
   ],
   declarations: [
     BackupJobsPage,

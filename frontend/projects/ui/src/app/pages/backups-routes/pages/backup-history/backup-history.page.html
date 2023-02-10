@@ -16,7 +16,7 @@
           <ion-col size="2">Duration</ion-col>
           <ion-col size="1.5">Result</ion-col>
           <ion-col size="2.5">Job</ion-col>
-          <ion-col size="2.5">Packages</ion-col>
+          <ion-col size="2.5">Target</ion-col>
           <ion-col size="1"></ion-col>
         </ion-row>
 
@@ -32,18 +32,23 @@
             Minutes</ion-col
           >
           <ion-col size="1.5">
-            <ion-text *ngIf="run.report | hasError; else noError" color="danger"
-              >Error</ion-text
-            >
+            <ion-icon
+              *ngIf="run.report | hasError; else noError"
+              name="close"
+              color="danger"
+            ></ion-icon>
             <ng-template #noError>
-              <ion-text color="success">Success</ion-text>
+              <ion-icon name="checkmark" color="success"></ion-icon>
             </ng-template>
+            <a (click)="presentModalReport(run)"> Report </a>
           </ion-col>
-          <ion-col size="2.5">{{ run.job?.name || 'No job' }}</ion-col>
-          <ion-col size="2.5">
-            <a (click)="presentModalReport(run)">
-              {{ run['package-ids'].length }} Packages
-            </a>
+          <ion-col size="2.5">{{ run.job.name || 'No job' }}</ion-col>
+          <ion-col size="2.5" class="inline">
+            <ion-icon
+              [name]="(run.job.target | getDisplayInfo).icon"
+              size="small"
+            ></ion-icon>
+            &nbsp; {{ run.job.target.name }}
           </ion-col>
           <ion-col size="1">
             <ion-buttons style="float: right">

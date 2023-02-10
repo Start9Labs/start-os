@@ -421,7 +421,7 @@ export interface BackupRun {
   'started-at': string
   'completed-at': string
   'package-ids': string[]
-  job: BackupJob | null
+  job: BackupJob
   report: BackupReport
 }
 

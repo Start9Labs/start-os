@@ -13,6 +13,7 @@ import { BackupSelectPageModule } from '../../modals/backup-select/backup-select
 import { RecoverSelectPageModule } from '../../modals/recover-select/recover-select.module'
 import { BadgeMenuComponentModule } from 'src/app/components/badge-menu-button/badge-menu.component.module'
 import { InsecureWarningComponentModule } from 'src/app/components/insecure-warning/insecure-warning.module'
+import { TargetPipesModule } from '../../pipes/target-pipes.module'
 
 const routes: Routes = [
   {
@@ -30,6 +31,7 @@ const routes: Routes = [
     RecoverSelectPageModule,
     BadgeMenuComponentModule,
     InsecureWarningComponentModule,
+    TargetPipesModule,
   ],
   declarations: [
     BackupsPage,

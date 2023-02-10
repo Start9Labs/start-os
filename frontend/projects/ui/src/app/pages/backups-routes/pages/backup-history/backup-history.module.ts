@@ -7,6 +7,7 @@ import {
   DurationPipe,
   HasErrorPipe,
 } from './backup-history.page'
+import { TargetPipesModule } from '../../pipes/target-pipes.module'
 
 const routes: Routes = [
   {
@@ -17,6 +18,11 @@ const routes: Routes = [
 
 @NgModule({
   declarations: [BackupHistoryPage, DurationPipe, HasErrorPipe],
-  imports: [CommonModule, IonicModule, RouterModule.forChild(routes)],
+  imports: [
+    CommonModule,
+    IonicModule,
+    RouterModule.forChild(routes),
+    TargetPipesModule,
+  ],
 })
 export class BackupHistoryPageModule {}

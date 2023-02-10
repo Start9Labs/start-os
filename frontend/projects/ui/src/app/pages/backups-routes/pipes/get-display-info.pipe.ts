@@ -1,5 +1,5 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import { BackupTarget, CloudBackupTarget } from 'src/app/services/api/api.types'
+import { BackupTarget } from 'src/app/services/api/api.types'
 
 @Pipe({
   name: 'getDisplayInfo',
@@ -31,15 +31,6 @@ export class GetDisplayInfoPipe implements PipeTransform {
     }
 
     return toReturn
-  }
-}
-
-function getProviderName(target: CloudBackupTarget) {
-  switch (target.provider) {
-    case 'dropbox':
-      return 'Dropbox'
-    case 'google-drive':
-      return 'Google Drive'
   }
 }
 
