@@ -58,7 +58,7 @@ impl SslManager {
         let cert = make_leaf_cert(
             (&self.int_key, &self.int_cert),
             (
-                &key.openssl_key(),
+                &key.openssl_key_nistp256(),
                 &key.tor_key()
                     .public()
                     .get_onion_address()

@@ -140,7 +140,7 @@ impl VHostServer {
                                                         tokio_rustls::rustls::PrivateKey(
                                                             key
                                                                 .key()
-                                                                .openssl_key()
+                                                                .openssl_key_nistp256()
                                                                 .private_key_to_der()?,
                                                         ),
                                                     )
