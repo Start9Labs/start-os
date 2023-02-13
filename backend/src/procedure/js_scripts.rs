@@ -253,11 +253,13 @@ mod tests {
             &self,
             id: PackageId,
             path: &str,
-            callback: Callback,
-        ) -> Result<serde_json::Value, Report> {
-            println!("Adding callback");
-            self.config_callbacks.send_modify(|x| x.push(callback));
-            Ok(Value::Null)
+            callback: Option<Callback>,
+        ) -> Result<Vec<serde_json::Value>, Report> {
+            if let Some(callback) = callback {
+                println!("Adding callback");
+                self.config_callbacks.send_modify(|x| x.push(callback));
+            }
+            Ok(vec![Value::Null])
         }
         #[allow(unused_variables)]
         async fn bind_local(
@@ -265,7 +267,7 @@ mod tests {
             internal_port: u16,
             address_schema: AddressSchemaLocal,
         ) -> Result<Address, Report> {
-            todo!()
+            unimplemented!()
         }
         #[allow(unused_variables)]
         async fn bind_onion(
@@ -273,7 +275,27 @@ mod tests {
             internal_port: u16,
             address_schema: AddressSchemaOnion,
         ) -> Result<Address, Report> {
-            todo!()
+            unimplemented!()
+        }
+        #[allow(unused_variables)]
+        async fn unbind_local(&self, id: InterfaceId, external: u16) -> Result<(), Report> {
+            unimplemented!()
+        }
+        #[allow(unused_variables)]
+        async fn unbind_onion(&self, id: InterfaceId, external: u16) -> Result<(), Report> {
+            unimplemented!()
+        }
+        fn set_started(&self) -> Result<(), Report> {
+            unimplemented!()
+        }
+        async fn restart(&self) -> Result<(), Report> {
+            unimplemented!()
+        }
+        async fn start(&self) -> Result<(), Report> {
+            unimplemented!()
+        }
+        async fn stop(&self) -> Result<(), Report> {
+            unimplemented!()
         }
     }
     #[tokio::test]
@@ -973,7 +995,7 @@ async fn js_action_test_read_dir() {
                     continue;
                 }
                 api.config_callbacks.send_modify(|x| {
-                    x[0](json!("This is something across the wire!"))
+                    x[0].call(vec![json!("This is something across the wire!")])
                         .map_err(|e| format!("Failed call"))
                         .unwrap();
                 });

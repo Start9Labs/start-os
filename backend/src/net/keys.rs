@@ -1,8 +1,11 @@
 use color_eyre::eyre::eyre;
 use ed25519_dalek::{ExpandedSecretKey, SecretKey};
 use models::{Id, InterfaceId, PackageId};
+use openssl::ec::EcKey;
 use openssl::pkey::{PKey, Private};
+use openssl::sha::Sha256;
 use openssl::x509::X509;
+use p256::elliptic_curve::pkcs8::EncodePrivateKey;
 use sqlx::PgExecutor;
 use ssh_key::private::Ed25519PrivateKey;
 use torut::onion::{OnionAddressV3, TorSecretKeyV3};
@@ -78,8 +81,20 @@ impl Key {
     pub fn local_address(&self) -> String {
         self.base_address() + ".local"
     }
-    pub fn openssl_key(&self) -> PKey<Private> {
+    pub fn openssl_key_ed25519(&self) -> PKey<Private> {
         PKey::private_key_from_raw_bytes(&self.base, openssl::pkey::Id::ED25519).unwrap()
+    }
+    pub fn openssl_key_nistp256(&self) -> PKey<Private> {
+        let mut buf = self.base;
+        loop {
+            if let Ok(k) = p256::SecretKey::from_be_bytes(&buf) {
+                return PKey::private_key_from_pkcs8(&*k.to_pkcs8_der().unwrap().as_bytes())
+                    .unwrap();
+            }
+            let mut sha = Sha256::new();
+            sha.update(&buf);
+            buf = sha.finish();
+        }
     }
     pub fn ssh_key(&self) -> Ed25519PrivateKey {
         Ed25519PrivateKey::from_bytes(&self.base)
@@ -250,5 +265,5 @@ impl KeyInfo {
 pub fn test_keygen() {
     let key = Key::new(None);
     key.tor_key();
-    key.openssl_key();
+    key.openssl_key_nistp256();
 }
