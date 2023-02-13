@@ -23,12 +23,76 @@ use crate::{Error, ErrorKind, ResultExt};
 static CERTIFICATE_VERSION: i32 = 2; // X509 version 3 is actually encoded as '2' in the cert because fuck you.
 pub const ROOT_CA_STATIC_PATH: &str = "/var/lib/embassy/ssl/root-ca.crt";
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct CertPair {
+    pub ed25519: X509,
+    pub nistp256: X509,
+}
+impl CertPair {
+    fn updated(
+        mut pair: Option<&Self>,
+        signer: (&PKey<Private>, &X509),
+        applicant: &Key,
+    ) -> Result<(Self, bool), Error> {
+        let mut updated = false;
+        let filter = |cert: &X509| {
+            if cert
+                .not_after()
+                .compare(Asn1Time::days_from_now(30)?.as_ref())?
+                == Ordering::Greater
+            {
+                Ok::<_, Error>(Some(cert))
+            } else {
+                Ok(None)
+            }
+        };
+        let gen_key = |osk| {
+            updated = true;
+            make_leaf_cert(
+                signer,
+                (
+                    osk,
+                    &applicant
+                        .tor_key()
+                        .public()
+                        .get_onion_address()
+                        .get_address_without_dot_onion(),
+                    applicant.interface().map(|i| i.0).as_ref(),
+                ),
+            )
+        };
+        let ed25519 = pair
+            .map(|c| &c.ed25519)
+            .map(&filter)
+            .transpose()?
+            .flatten()
+            .cloned();
+        let nistp256 = pair
+            .map(|c| &c.nistp256)
+            .map(&filter)
+            .transpose()?
+            .flatten()
+            .cloned();
+        Ok((
+            Self {
+                ed25519: ed25519
+                    .map(Ok)
+                    .unwrap_or_else(|| gen_key(&applicant.openssl_key_ed25519()))?,
+                nistp256: nistp256
+                    .map(Ok)
+                    .unwrap_or_else(|| gen_key(&applicant.openssl_key_nistp256()))?,
+            },
+            updated,
+        ))
+    }
+}
+
 #[derive(Debug)]
 pub struct SslManager {
     root_cert: X509,
     int_key: PKey<Private>,
     int_cert: X509,
-    cert_cache: RwLock<BTreeMap<Key, X509>>,
+    cert_cache: RwLock<BTreeMap<Key, CertPair>>,
 }
 impl SslManager {
     pub fn new(account: &AccountInfo) -> Result<Self, Error> {
@@ -42,36 +106,19 @@ impl SslManager {
         })
     }
     pub async fn with_cert(&self, key: Key) -> Result<KeyInfo, Error> {
-        if let Some(cert) = self.cert_cache.read().await.get(&key) {
-            if cert
-                .not_after()
-                .compare(Asn1Time::days_from_now(30)?.as_ref())?
-                == Ordering::Greater
-            {
-                return Ok(key.with_cert(
-                    cert.clone(),
-                    self.int_cert.clone(),
-                    self.root_cert.clone(),
-                ));
-            }
-        }
-        let cert = make_leaf_cert(
+        let (pair, updated) = CertPair::updated(
+            self.cert_cache.read().await.get(&key),
             (&self.int_key, &self.int_cert),
-            (
-                &key.openssl_key_nistp256(),
-                &key.tor_key()
-                    .public()
-                    .get_onion_address()
-                    .get_address_without_dot_onion(),
-                key.interface().map(|i| i.0).as_ref(),
-            ),
+            &key,
         )?;
-        self.cert_cache
-            .write()
-            .await
-            .insert(key.clone(), cert.clone());
+        if updated {
+            self.cert_cache
+                .write()
+                .await
+                .insert(key.clone(), pair.clone());
+        }
 
-        Ok(key.with_cert(cert, self.int_cert.clone(), self.root_cert.clone()))
+        Ok(key.with_certs(pair, self.int_cert.clone(), self.root_cert.clone()))
     }
 }
 
