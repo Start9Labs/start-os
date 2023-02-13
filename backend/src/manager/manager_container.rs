@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use futures::FutureExt;
 use patch_db::PatchDbHandle;
 use tokio::sync::watch;
 use tokio::sync::watch::Sender;
@@ -31,7 +32,7 @@ impl ManageContainer {
         let mut db = seed.ctx.db.handle();
         let current_state = Arc::new(watch::channel(StartStop::Stop).0);
         let desired_state = Arc::new(
-            watch::channel::<StartStop>(get_status(&mut db, &seed.manifest).await?.into()).0,
+            watch::channel::<StartStop>(get_status(&mut db, &seed.manifest).await.into()).0,
         );
         let override_main_status: ManageContainerOverride = Arc::new(watch::channel(None).0);
         let service = tokio::spawn(create_service_manager(
@@ -266,23 +267,26 @@ async fn run_main_log_result(result: RunMainResult, seed: Arc<manager_seed::Mana
     }
 }
 
-pub(super) async fn get_status(
-    db: &mut PatchDbHandle,
-    manifest: &Manifest,
-) -> Result<MainStatus, Error> {
-    Ok(crate::db::DatabaseModel::new()
-        .package_data()
-        .idx_model(&manifest.id)
-        .expect(db)
-        .await?
-        .installed()
-        .expect(db)
-        .await?
-        .status()
-        .main()
-        .get(db)
-        .await?
-        .clone())
+pub(super) async fn get_status(db: &mut PatchDbHandle, manifest: &Manifest) -> MainStatus {
+    async move {
+        Ok::<_, Error>(
+            crate::db::DatabaseModel::new()
+                .package_data()
+                .idx_model(&manifest.id)
+                .expect(db)
+                .await?
+                .installed()
+                .expect(db)
+                .await?
+                .status()
+                .main()
+                .get(db)
+                .await?
+                .clone(),
+        )
+    }
+    .map(|x| x.unwrap_or(MainStatus::Stopped))
+    .await
 }
 
 async fn set_status(
