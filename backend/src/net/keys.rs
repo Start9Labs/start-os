@@ -11,6 +11,7 @@ use ssh_key::private::Ed25519PrivateKey;
 use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 use zeroize::Zeroize;
 
+use crate::net::ssl::CertPair;
 use crate::Error;
 
 // TODO: delete once we may change tor addresses
@@ -120,10 +121,10 @@ impl Key {
     pub fn new(interface: Option<(PackageId, InterfaceId)>) -> Self {
         Self::from_bytes(interface, rand::random())
     }
-    pub(super) fn with_cert(self, cert: X509, int: X509, root: X509) -> KeyInfo {
+    pub(super) fn with_certs(self, certs: CertPair, int: X509, root: X509) -> KeyInfo {
         KeyInfo {
             key: self,
-            cert,
+            certs,
             int,
             root,
         }
@@ -239,7 +240,7 @@ impl Drop for Key {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct KeyInfo {
     key: Key,
-    cert: X509,
+    certs: CertPair,
     int: X509,
     root: X509,
 }
@@ -247,8 +248,8 @@ impl KeyInfo {
     pub fn key(&self) -> &Key {
         &self.key
     }
-    pub fn cert(&self) -> &X509 {
-        &self.cert
+    pub fn certs(&self) -> &CertPair {
+        &self.certs
     }
     pub fn int_ca(&self) -> &X509 {
         &self.int
@@ -256,8 +257,11 @@ impl KeyInfo {
     pub fn root_ca(&self) -> &X509 {
         &self.root
     }
-    pub fn fullchain(&self) -> Vec<&X509> {
-        vec![&self.cert, &self.int, &self.root]
+    pub fn fullchain_ed25519(&self) -> Vec<&X509> {
+        vec![&self.certs.ed25519, &self.int, &self.root]
+    }
+    pub fn fullchain_nistp256(&self) -> Vec<&X509> {
+        vec![&self.certs.nistp256, &self.int, &self.root]
     }
 }
 

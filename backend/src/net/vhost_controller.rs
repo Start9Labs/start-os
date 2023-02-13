@@ -126,25 +126,48 @@ impl VHostServer {
                                         let mut tcp_stream =
                                             TcpStream::connect(target.addr).await?;
                                         let key = ssl.with_cert(target.key).await?;
-                                        let mut tls_stream = mid
-                                            .into_stream(Arc::new(
-                                                ServerConfig::builder()
-                                                    .with_safe_defaults()
-                                                    .with_no_client_auth()
-                                                    .with_single_cert(
-                                                        key.fullchain().into_iter().map(|c| {
+                                        let cfg = ServerConfig::builder()
+                                            .with_safe_defaults()
+                                            .with_no_client_auth();
+                                        let cfg =
+                                            if mid.client_hello().signature_schemes().contains(
+                                                &tokio_rustls::rustls::SignatureScheme::ED25519,
+                                            ) {
+                                                cfg.with_single_cert(
+                                                    key.fullchain_ed25519()
+                                                        .into_iter()
+                                                        .map(|c| {
                                                             Ok(tokio_rustls::rustls::Certificate(
                                                                 c.to_der()?,
                                                             ))
-                                                        }).collect::<Result<_, Error>>()?,
-                                                        tokio_rustls::rustls::PrivateKey(
-                                                            key
-                                                                .key()
-                                                                .openssl_key_nistp256()
-                                                                .private_key_to_der()?,
-                                                        ),
-                                                    )
-                                                    .with_kind(crate::ErrorKind::OpenSsl)?,
+                                                        })
+                                                        .collect::<Result<_, Error>>()?,
+                                                    tokio_rustls::rustls::PrivateKey(
+                                                        key.key()
+                                                            .openssl_key_ed25519()
+                                                            .private_key_to_der()?,
+                                                    ),
+                                                )
+                                            } else {
+                                                cfg.with_single_cert(
+                                                    key.fullchain_nistp256()
+                                                        .into_iter()
+                                                        .map(|c| {
+                                                            Ok(tokio_rustls::rustls::Certificate(
+                                                                c.to_der()?,
+                                                            ))
+                                                        })
+                                                        .collect::<Result<_, Error>>()?,
+                                                    tokio_rustls::rustls::PrivateKey(
+                                                        key.key()
+                                                            .openssl_key_nistp256()
+                                                            .private_key_to_der()?,
+                                                    ),
+                                                )
+                                            };
+                                        let mut tls_stream = mid
+                                            .into_stream(Arc::new(
+                                                cfg.with_kind(crate::ErrorKind::OpenSsl)?,
                                             ))
                                             .await?;
                                         if target.connect_ssl {
