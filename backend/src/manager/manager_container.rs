@@ -5,6 +5,7 @@ use futures::FutureExt;
 use patch_db::PatchDbHandle;
 use tokio::sync::watch;
 use tokio::sync::watch::Sender;
+use tracing::instrument;
 
 use super::start_stop::StartStop;
 use super::{manager_seed, run_main, ManagerPersistentContainer, RunMainResult};
@@ -267,6 +268,7 @@ async fn run_main_log_result(result: RunMainResult, seed: Arc<manager_seed::Mana
     }
 }
 
+#[instrument(skip(db, manifest))]
 pub(super) async fn get_status(db: &mut PatchDbHandle, manifest: &Manifest) -> MainStatus {
     async move {
         Ok::<_, Error>(
@@ -289,22 +291,33 @@ pub(super) async fn get_status(db: &mut PatchDbHandle, manifest: &Manifest) -> M
     .await
 }
 
+#[instrument(skip(db, manifest))]
 async fn set_status(
     db: &mut PatchDbHandle,
     manifest: &Manifest,
     main_status: &MainStatus,
 ) -> Result<(), Error> {
-    crate::db::DatabaseModel::new()
+    if crate::db::DatabaseModel::new()
         .package_data()
         .idx_model(&manifest.id)
         .expect(db)
         .await?
         .installed()
-        .expect(db)
+        .exists(db)
         .await?
-        .status()
-        .main()
-        .put(db, main_status)
-        .await?;
+    {
+        crate::db::DatabaseModel::new()
+            .package_data()
+            .idx_model(&manifest.id)
+            .expect(db)
+            .await?
+            .installed()
+            .expect(db)
+            .await?
+            .status()
+            .main()
+            .put(db, main_status)
+            .await?;
+    }
     Ok(())
 }
