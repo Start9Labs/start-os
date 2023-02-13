@@ -262,9 +262,8 @@ impl Manager {
             let state_reverter = DesiredStateReverter::new(manage_container.clone());
             let mut current_state = manage_container.current_state();
             let mut tx = seed.ctx.db.handle();
-            let _ = manage_container.set_override(Some(
-                get_status(&mut tx, &seed.manifest).await?.backing_up(),
-            ));
+            let _ = manage_container
+                .set_override(Some(get_status(&mut tx, &seed.manifest).await.backing_up()));
             manage_container.wait_for_desired(StartStop::Stop).await;
 
             let backup_guard = backup_guard.lock().await;
