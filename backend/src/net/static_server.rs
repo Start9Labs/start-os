@@ -1,5 +1,5 @@
 use std::fs::Metadata;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 use std::time::UNIX_EPOCH;
 
@@ -11,6 +11,8 @@ use futures::FutureExt;
 use http::header::ACCEPT_ENCODING;
 use http::response::Builder;
 use hyper::{Body, Method, Request, Response, StatusCode};
+use openssl::hash::MessageDigest;
+use openssl::x509::X509;
 use rpc_toolkit::rpc_handler;
 use tokio::fs::File;
 use tokio::io::BufReader;
@@ -296,14 +298,10 @@ async fn main_embassy_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response
                         .await
                     } else if let Ok(rest) = sub_path.strip_prefix("eos") {
                         match rest.to_str() {
-                            Some("local.crt") => {
-                                file_send(crate::net::ssl::ROOT_CA_STATIC_PATH, &accept_encoding)
-                                    .await
-                            }
+                            Some("local.crt") => cert_send(&ctx.account.read().await.root_ca_cert),
                             None => Ok(bad_request()),
                             _ => Ok(not_found()),
                         }
-                    } else {
                         Ok(not_found())
                     }
                 }
@@ -312,13 +310,7 @@ async fn main_embassy_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response
         }
         (&Method::GET, Some(("eos", "local.crt"))) => {
             match HasValidSession::from_request_parts(&request_parts, &ctx).await {
-                Ok(_) => {
-                    file_send(
-                        PathBuf::from(crate::net::ssl::ROOT_CA_STATIC_PATH),
-                        &accept_encoding,
-                    )
-                    .await
-                }
+                Ok(_) => cert_send(&ctx.account.read().await.root_ca_cert),
                 Err(e) => un_authorized(e, "eos/local.crt"),
             }
         }
@@ -381,6 +373,24 @@ fn bad_request() -> Response<Body> {
         .status(StatusCode::BAD_REQUEST)
         .body(Body::empty())
         .unwrap()
+}
+
+fn cert_send(cert: &X509) -> Result<Response<Body>, Error> {
+    let pem = cert.to_pem()?;
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(
+            http::header::ETAG,
+            base32::encode(
+                base32::Alphabet::RFC4648 { padding: false },
+                &*cert.digest(MessageDigest::sha256())?,
+            )
+            .to_lowercase(),
+        )
+        .header(http::header::CONTENT_TYPE, "application/x-pem-file")
+        .header(http::header::CONTENT_LENGTH, pem.len())
+        .body(Body::from(pem))
+        .with_kind(ErrorKind::Network)
 }
 
 async fn file_send(
@@ -446,7 +456,7 @@ fn with_e_tag(path: &Path, metadata: &Metadata, builder: Builder) -> Result<Buil
     );
     let res = hasher.finalize();
     Ok(builder.header(
-        "ETag",
+        http::header::ETAG,
         base32::encode(base32::Alphabet::RFC4648 { padding: false }, res.as_slice()).to_lowercase(),
     ))
 }
@@ -476,7 +486,7 @@ fn with_content_type(path: &Path, builder: Builder) -> Builder {
         },
         None => "text/plain",
     };
-    builder.header("Content-Type", content_type)
+    builder.header(http::header::CONTENT_TYPE, content_type)
 }
 
 fn with_content_length(metadata: &Metadata, builder: Builder) -> Builder {

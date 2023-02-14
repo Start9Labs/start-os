@@ -4,6 +4,8 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use emver::VersionRange;
+use ipnet::{Ipv4Net, Ipv6Net};
+use iprange::IpRange;
 use isocountry::CountryCode;
 use itertools::Itertools;
 use openssl::hash::MessageDigest;
@@ -121,14 +123,20 @@ pub struct ServerInfo {
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
 pub struct IpInfo {
-    ipv4: Option<Ipv4Addr>,
-    ipv6: Option<Ipv6Addr>,
+    pub ipv4_range: Option<Ipv4Net>,
+    pub ipv4: Option<Ipv4Addr>,
+    pub ipv6_range: Option<Ipv6Net>,
+    pub ipv6: Option<Ipv6Addr>,
 }
 impl IpInfo {
     pub async fn for_interface(iface: &str) -> Result<Self, Error> {
+        let (ipv4, ipv4_range) = get_iface_ipv4_addr(iface).await?.unzip();
+        let (ipv6, ipv6_range) = get_iface_ipv6_addr(iface).await?.unzip();
         Ok(Self {
-            ipv4: get_iface_ipv4_addr(iface).await?,
-            ipv6: get_iface_ipv6_addr(iface).await?,
+            ipv4_range,
+            ipv4,
+            ipv6_range,
+            ipv6,
         })
     }
 }

@@ -90,6 +90,8 @@ hyper = { version = "0.14.20", features = ["full"] }
 hyper-ws-listener = "0.2.0"
 imbl = "2.0.0"
 indexmap = { version = "1.9.1", features = ["serde"] }
+ipnet = { version = "2.7.1", features = ["serde"] }
+iprange = { version = "0.6.7", features = ["serde"] }
 isocountry = "0.3.2"
 itertools = "0.10.3"
 josekit = "0.8.1"
