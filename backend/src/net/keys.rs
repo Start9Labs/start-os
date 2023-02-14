@@ -185,7 +185,7 @@ impl Key {
         .collect()
     }
     #[instrument(skip(secrets))]
-    pub async fn cd<Ex>(
+    pub async fn for_interface<Ex>(
         secrets: &mut Ex,
         interface: Option<(PackageId, InterfaceId)>,
     ) -> Result<Self, Error>
