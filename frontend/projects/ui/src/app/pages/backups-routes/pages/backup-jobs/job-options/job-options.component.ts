@@ -10,7 +10,7 @@ import { TargetSelectPage } from '../../../modals/target-select/target-select.pa
   styleUrls: ['./job-options.component.scss'],
 })
 export class JobOptionsComponent {
-  @Input() job!: Omit<BackupJob, 'id'>
+  @Input() job!: BackupJobBuilder
 
   constructor(private readonly modalCtrl: ModalController) {}
 
@@ -36,6 +36,7 @@ export class JobOptionsComponent {
       component: BackupSelectPage,
       componentProps: {
         btnText: 'Done',
+        selectedIds: this.job['package-ids'],
       },
     })
 
@@ -69,7 +70,7 @@ export class BackupJobBuilder {
 
     return {
       name,
-      'target-id': (target as any).id, // @TODO fix
+      'target-id': target.id,
       cron,
       'package-ids': this['package-ids'],
       now,
@@ -82,7 +83,7 @@ export class BackupJobBuilder {
     return {
       id,
       name,
-      'target-id': (target as any).id, // @TODO fix
+      'target-id': target.id,
       cron,
       'package-ids': this['package-ids'],
     }

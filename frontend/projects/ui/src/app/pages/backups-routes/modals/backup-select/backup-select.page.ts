@@ -5,8 +5,6 @@ import { DataModel, PackageState } from 'src/app/services/patch-db/data-model'
 import { PatchDB } from 'patch-db-client'
 import { firstValueFrom } from 'rxjs'
 
-export interface BackupSelectOptions {}
-
 @Component({
   selector: 'backup-select',
   templateUrl: './backup-select.page.html',
@@ -14,6 +12,8 @@ export interface BackupSelectOptions {}
 })
 export class BackupSelectPage {
   @Input() btnText!: string
+  @Input() selectedIds: string[] = []
+
   hasSelection = false
   selectAll = false
   pkgs: {
@@ -41,7 +41,7 @@ export class BackupSelectPage {
                 title,
                 icon: pkg.icon,
                 disabled: pkg.state !== PackageState.Installed,
-                checked: pkg.state === PackageState.Installed,
+                checked: this.selectedIds.includes(id),
               }
             })
             .sort((a, b) =>
@@ -56,7 +56,7 @@ export class BackupSelectPage {
     this.modalCtrl.dismiss()
   }
 
-  async execute() {
+  async done() {
     const pkgIds = this.pkgs.filter(p => p.checked).map(p => p.id)
     this.modalCtrl.dismiss(pkgIds)
   }
