@@ -26,28 +26,6 @@
     },
     "query": "DELETE FROM ssh_keys WHERE fingerprint = $1"
   },
-  "23960ddd29c0c4b6714ffe14c7ffd8e496ecf524173ab00246412c3f4ab901c0": {
-    "describe": {
-      "columns": [
-        {
-          "name": "key",
-          "ordinal": 0,
-          "type_info": "Bytea"
-        }
-      ],
-      "nullable": [
-        false
-      ],
-      "parameters": {
-        "Left": [
-          "Text",
-          "Text",
-          "Bytea"
-        ]
-      }
-    },
-    "query": "INSERT INTO network_keys (package, interface, key) VALUES ($1, $2, $3) ON CONFLICT (package, interface) DO NOTHING RETURNING key"
-  },
   "28ea34bbde836e0618c5fc9bb7c36e463c20c841a7d6a0eb15be0f24f4a928ec": {
     "describe": {
       "columns": [
@@ -228,6 +206,28 @@
       }
     },
     "query": "UPDATE session SET last_active = CURRENT_TIMESTAMP WHERE id = $1 AND logged_out IS NULL OR logged_out > CURRENT_TIMESTAMP"
+  },
+  "770c1017734720453dc87b58c385b987c5af5807151ff71a59000014586752e0": {
+    "describe": {
+      "columns": [
+        {
+          "name": "key",
+          "ordinal": 0,
+          "type_info": "Bytea"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Text",
+          "Text",
+          "Bytea"
+        ]
+      }
+    },
+    "query": "INSERT INTO network_keys (package, interface, key) VALUES ($1, $2, $3) ON CONFLICT (package, interface) DO UPDATE SET package = EXCLUDED.package RETURNING key"
   },
   "7b64f032d507e8ffe37c41f4c7ad514a66c421a11ab04c26d89a7aa8f6b67210": {
     "describe": {

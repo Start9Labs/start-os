@@ -194,7 +194,7 @@ impl Key {
         let actual = if let Some((pkg, iface)) = &interface {
             let k = tentative.as_slice();
             let actual = sqlx::query!(
-                "INSERT INTO network_keys (package, interface, key) VALUES ($1, $2, $3) ON CONFLICT (package, interface) DO NOTHING RETURNING key",
+                "INSERT INTO network_keys (package, interface, key) VALUES ($1, $2, $3) ON CONFLICT (package, interface) DO UPDATE SET package = EXCLUDED.package RETURNING key",
                 **pkg,
                 **iface,
                 k,
