@@ -8,17 +8,20 @@ use p256::elliptic_curve::pkcs8::EncodePrivateKey;
 use sqlx::PgExecutor;
 use ssh_key::private::Ed25519PrivateKey;
 use torut::onion::{OnionAddressV3, TorSecretKeyV3};
+use tracing::instrument;
 use zeroize::Zeroize;
 
 use crate::net::ssl::CertPair;
 use crate::Error;
 
 // TODO: delete once we may change tor addresses
+#[instrument(skip(secrets))]
 async fn compat(
     secrets: impl PgExecutor<'_>,
     interface: &Option<(PackageId, InterfaceId)>,
 ) -> Result<Option<ExpandedSecretKey>, Error> {
     if let Some((package, interface)) = interface {
+        tracing::error!("BLUJ F 1");
         if let Some(r) = sqlx::query!(
             "SELECT key FROM tor WHERE package = $1 AND interface = $2",
             **package,
@@ -27,18 +30,23 @@ async fn compat(
         .fetch_optional(secrets)
         .await?
         {
+            tracing::error!("BLUJ F 2");
             Ok(Some(ExpandedSecretKey::from_bytes(&r.key)?))
         } else {
+            tracing::error!("BLUJ F 3");
             Ok(None)
         }
     } else {
+        tracing::error!("BLUJ F 4");
         if let Some(key) = sqlx::query!("SELECT tor_key FROM account WHERE id = 0")
             .fetch_one(secrets)
             .await?
             .tor_key
         {
+            tracing::error!("BLUJ F 5");
             Ok(Some(ExpandedSecretKey::from_bytes(&key)?))
         } else {
+            tracing::error!("BLUJ F 6");
             Ok(None)
         }
     }
@@ -182,6 +190,7 @@ impl Key {
         })
         .collect()
     }
+    #[instrument(skip(secrets))]
     pub async fn for_interface<Ex>(
         secrets: &mut Ex,
         interface: Option<(PackageId, InterfaceId)>,
@@ -191,6 +200,7 @@ impl Key {
     {
         let tentative = rand::random::<[u8; 32]>();
         let actual = if let Some((pkg, iface)) = &interface {
+            tracing::error!("BLUJ E A");
             let k = tentative.as_slice();
             let actual = sqlx::query!(
                 "INSERT INTO network_keys (package, interface, key) VALUES ($1, $2, $3) ON CONFLICT (package, interface) DO NOTHING RETURNING key",
@@ -207,22 +217,27 @@ impl Key {
                     crate::ErrorKind::Database,
                 )
             })?);
+            tracing::error!("BLUJ E B");
             bytes
         } else {
+            tracing::error!("BLUJ E C");
             let actual = sqlx::query!("SELECT network_key FROM account WHERE id = 0")
                 .fetch_one(&mut *secrets)
                 .await?
                 .network_key;
             let mut bytes = tentative;
+            tracing::error!("BLUJ E D");
             bytes.clone_from_slice(actual.get(0..32).ok_or_else(|| {
                 Error::new(
                     eyre!("Invalid key size returned from DB"),
                     crate::ErrorKind::Database,
                 )
             })?);
+            tracing::error!("BLUJ E E");
             bytes
         };
         let mut res = Self::from_bytes(interface, actual);
+        tracing::error!("BLUJ E F");
         if let Some(tor_key) = compat(secrets, &res.interface).await? {
             res.tor_key = tor_key.to_bytes();
         }
