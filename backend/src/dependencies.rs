@@ -1040,7 +1040,7 @@ pub fn heal_transitive<'a, Db: DbHandle>(
 
 pub async fn reconfigure_dependents_with_live_pointers(
     ctx: &RpcContext,
-    mut tx: impl DbHandle,
+    tx: impl DbHandle,
     receipts: &ConfigReceipts,
     pde: &InstalledPackageDataEntry,
 ) -> Result<(), Error> {

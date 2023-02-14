@@ -1,8 +1,6 @@
 import Deno from "/deno_global.js";
 import * as mainModule from "/embassy.js";
 
-// throw new Error("I'm going crasy")
-
 function requireParam(param) {
   throw new Error(`Missing required parameter ${param}`);
 }
