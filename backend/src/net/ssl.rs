@@ -41,17 +41,17 @@ impl CertPair {
                 .compare(Asn1Time::days_from_now(30)?.as_ref())?
                 == Ordering::Greater
             {
-                Ok::<_, Error>(Some(cert))
+                Ok::<_, Error>(Some(cert.clone()))
             } else {
                 Ok(None)
             }
         };
-        let gen_key = |osk| {
+        let mut gen_key = |osk| {
             updated = true;
             make_leaf_cert(
                 signer,
                 (
-                    osk,
+                    &osk,
                     &applicant
                         .tor_key()
                         .public()
@@ -66,21 +66,21 @@ impl CertPair {
             .map(&filter)
             .transpose()?
             .flatten()
-            .cloned();
+            .clone();
         let nistp256 = pair
             .map(|c| &c.nistp256)
             .map(&filter)
             .transpose()?
             .flatten()
-            .cloned();
+            .clone();
         Ok((
             Self {
                 ed25519: ed25519
                     .map(Ok)
-                    .unwrap_or_else(|| gen_key(&applicant.openssl_key_ed25519()))?,
+                    .unwrap_or_else(|| gen_key(applicant.openssl_key_ed25519()))?,
                 nistp256: nistp256
                     .map(Ok)
-                    .unwrap_or_else(|| gen_key(&applicant.openssl_key_nistp256()))?,
+                    .unwrap_or_else(|| gen_key(applicant.openssl_key_nistp256()))?,
             },
             updated,
         ))

@@ -288,7 +288,7 @@ impl NetService {
         let key = Key::for_interface(secrets, Some((self.id.clone(), id.clone()))).await?;
         let ctrl = self.net_controller()?;
         let cert = ctrl.ssl.with_cert(key).await?;
-        export_cert(&cert.fullchain(), &cert_dir(&self.id, id)).await?;
+        export_cert(&cert.fullchain_ed25519(), &cert_dir(&self.id, id)).await?;
         Ok(())
     }
     pub async fn remove_all(mut self) -> Result<(), Error> {

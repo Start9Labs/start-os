@@ -260,7 +260,6 @@ impl Manager {
         let seed = self.seed.clone();
         async move {
             let state_reverter = DesiredStateReverter::new(manage_container.clone());
-            let mut current_state = manage_container.current_state();
             let mut tx = seed.ctx.db.handle();
             let _ = manage_container
                 .set_override(Some(get_status(&mut tx, &seed.manifest).await.backing_up()));
@@ -786,6 +785,7 @@ async fn get_long_running_ip(seed: &ManagerSeed, runtime: &mut LongRunning) -> G
     }
 }
 
+#[instrument(skip(seed))]
 async fn container_inspect(
     seed: &ManagerSeed,
 ) -> Result<bollard::models::ContainerInspectResponse, bollard::errors::Error> {
@@ -860,6 +860,7 @@ async fn try_get_running_ip(seed: &ManagerSeed) -> Result<Option<Ipv4Addr>, Repo
         .transpose()?)
 }
 
+#[instrument(skip(seed, runtime))]
 async fn get_running_ip(seed: &ManagerSeed, mut runtime: &mut RuntimeOfCommand) -> GetRunningIp {
     loop {
         match container_inspect(seed).await {
