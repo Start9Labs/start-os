@@ -800,37 +800,29 @@ async fn add_network_for_main(
     seed: &ManagerSeed,
     ip: std::net::Ipv4Addr,
 ) -> Result<NetService, Error> {
-    tracing::error!("BLUJ a");
     let mut svc = seed
         .ctx
         .net_controller
         .create_service(seed.manifest.id.clone(), ip)
         .await?;
     // DEPRECATED
-    tracing::error!("BLUJ b");
     let mut secrets = seed.ctx.secret_store.acquire().await?;
     let mut tx = secrets.begin().await?;
-    tracing::error!("BLUJ c");
     for (id, interface) in &seed.manifest.interfaces.0 {
-        tracing::error!("BLUJ d {id:?} {interface:?}");
         for (external, internal) in interface.lan_config.iter().flatten() {
-            tracing::error!("BLUJ d1 {external:?} {internal:?}");
             svc.add_lan(&mut tx, id.clone(), external.0, internal.internal, false)
                 .await?;
         }
         for (external, internal) in interface.tor_config.iter().flat_map(|t| &t.port_mapping) {
-            tracing::error!("BLUJ d2 {external:?} {internal:?}");
             svc.add_tor(&mut tx, id.clone(), external.0, internal.0)
                 .await?;
         }
     }
-    tracing::error!("BLUJ e");
     for volume in seed.manifest.volumes.values() {
         if let Volume::Certificate { interface_id } = volume {
             svc.export_cert(&mut tx, interface_id, ip.into()).await?;
         }
     }
-    tracing::error!("BLUJ f");
     tx.commit().await?;
     Ok(svc)
 }
