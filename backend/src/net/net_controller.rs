@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::net::{Ipv4Addr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::{Arc, Weak};
 
 use color_eyre::eyre::eyre;
@@ -86,13 +86,24 @@ impl NetController {
                 )
                 .await?,
         );
+        self.os_bindings.push(
+            self.vhost
+                .add(
+                    key.clone(),
+                    Some(hostname.no_dot_host_name()),
+                    443,
+                    ([127, 0, 0, 1], 80).into(),
+                    false,
+                )
+                .await?,
+        );
 
         // LAN mDNS
         self.os_bindings.push(
             self.vhost
                 .add(
                     key.clone(),
-                    Some(hostname.0.clone()),
+                    Some(hostname.local_domain_name()),
                     443,
                     ([127, 0, 0, 1], 80).into(),
                     false,
@@ -283,14 +294,19 @@ impl NetService {
         }
         Ok(())
     }
-    pub async fn export_cert<Ex>(&self, secrets: &mut Ex, id: &InterfaceId) -> Result<(), Error>
+    pub async fn export_cert<Ex>(
+        &self,
+        secrets: &mut Ex,
+        id: &InterfaceId,
+        ip: IpAddr,
+    ) -> Result<(), Error>
     where
         for<'a> &'a mut Ex: PgExecutor<'a>,
     {
         let key = Key::for_interface(secrets, Some((self.id.clone(), id.clone()))).await?;
         let ctrl = self.net_controller()?;
-        let cert = ctrl.ssl.with_cert(key).await?;
-        export_cert(&cert.fullchain_ed25519(), &cert_dir(&self.id, id)).await?;
+        let cert = ctrl.ssl.with_certs(key, ip).await?;
+        export_cert(&cert.fullchain_nistp256(), &cert_dir(&self.id, id)).await?; // TODO: can upgrade to ed25519?
         Ok(())
     }
     pub async fn remove_all(mut self) -> Result<(), Error> {

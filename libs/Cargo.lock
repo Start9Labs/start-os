@@ -1940,6 +1940,7 @@ dependencies = [
  "ed25519-dalek",
  "emver",
  "internment",
+ "ipnet",
  "lazy_static",
  "mbrman",
  "openssl",

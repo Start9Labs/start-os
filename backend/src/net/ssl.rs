@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::path::Path;
 
 use futures::FutureExt;
@@ -16,12 +17,12 @@ use tracing::instrument;
 
 use crate::account::AccountInfo;
 use crate::hostname::Hostname;
+use crate::net::dhcp::ips;
 use crate::net::keys::{Key, KeyInfo};
 use crate::s9pk::manifest::PackageId;
 use crate::{Error, ErrorKind, ResultExt};
 
 static CERTIFICATE_VERSION: i32 = 2; // X509 version 3 is actually encoded as '2' in the cert because fuck you.
-pub const ROOT_CA_STATIC_PATH: &str = "/var/lib/embassy/ssl/root-ca.crt";
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct CertPair {
@@ -30,57 +31,47 @@ pub struct CertPair {
 }
 impl CertPair {
     fn updated(
-        mut pair: Option<&Self>,
+        pair: Option<&Self>,
+        hostname: &Hostname,
         signer: (&PKey<Private>, &X509),
         applicant: &Key,
+        ip: BTreeSet<IpAddr>,
     ) -> Result<(Self, bool), Error> {
         let mut updated = false;
-        let filter = |cert: &X509| {
-            if cert
-                .not_after()
-                .compare(Asn1Time::days_from_now(30)?.as_ref())?
-                == Ordering::Greater
-            {
-                Ok::<_, Error>(Some(cert.clone()))
-            } else {
-                Ok(None)
+        let mut updated_cert = |cert: Option<&X509>, osk: PKey<Private>| -> Result<X509, Error> {
+            let mut ips = BTreeSet::new();
+            if let Some(cert) = cert {
+                ips.extend(
+                    cert.subject_alt_names()
+                        .iter()
+                        .flatten()
+                        .filter_map(|a| a.ipaddress())
+                        .filter_map(|a| match a.len() {
+                            4 => Some::<IpAddr>(<[u8; 4]>::try_from(a).unwrap().into()),
+                            16 => Some::<IpAddr>(<[u8; 16]>::try_from(a).unwrap().into()),
+                            _ => None,
+                        }),
+                );
+                if cert
+                    .not_after()
+                    .compare(Asn1Time::days_from_now(30)?.as_ref())?
+                    == Ordering::Greater
+                    && ips.is_superset(&ip)
+                {
+                    return Ok(cert.clone());
+                }
             }
-        };
-        let mut gen_key = |osk| {
+            ips.extend(ip.iter().copied());
             updated = true;
-            make_leaf_cert(
-                signer,
-                (
-                    &osk,
-                    &applicant
-                        .tor_key()
-                        .public()
-                        .get_onion_address()
-                        .get_address_without_dot_onion(),
-                    applicant.interface().map(|i| i.0).as_ref(),
-                ),
-            )
+            make_leaf_cert(signer, (&osk, &SANInfo::new(&applicant, hostname, ips)))
         };
-        let ed25519 = pair
-            .map(|c| &c.ed25519)
-            .map(&filter)
-            .transpose()?
-            .flatten()
-            .clone();
-        let nistp256 = pair
-            .map(|c| &c.nistp256)
-            .map(&filter)
-            .transpose()?
-            .flatten()
-            .clone();
         Ok((
             Self {
-                ed25519: ed25519
-                    .map(Ok)
-                    .unwrap_or_else(|| gen_key(applicant.openssl_key_ed25519()))?,
-                nistp256: nistp256
-                    .map(Ok)
-                    .unwrap_or_else(|| gen_key(applicant.openssl_key_nistp256()))?,
+                ed25519: updated_cert(pair.map(|c| &c.ed25519), applicant.openssl_key_ed25519())?,
+                nistp256: updated_cert(
+                    pair.map(|c| &c.nistp256),
+                    applicant.openssl_key_nistp256(),
+                )?,
             },
             updated,
         ))
@@ -89,6 +80,7 @@ impl CertPair {
 
 #[derive(Debug)]
 pub struct SslManager {
+    hostname: Hostname,
     root_cert: X509,
     int_key: PKey<Private>,
     int_cert: X509,
@@ -99,17 +91,22 @@ impl SslManager {
         let int_key = generate_key()?;
         let int_cert = make_int_cert((&account.root_ca_key, &account.root_ca_cert), &int_key)?;
         Ok(Self {
+            hostname: account.hostname.clone(),
             root_cert: account.root_ca_cert.clone(),
             int_key,
             int_cert,
             cert_cache: RwLock::new(BTreeMap::new()),
         })
     }
-    pub async fn with_cert(&self, key: Key) -> Result<KeyInfo, Error> {
+    pub async fn with_certs(&self, key: Key, ip: IpAddr) -> Result<KeyInfo, Error> {
+        let mut ips = ips().await?;
+        ips.insert(ip);
         let (pair, updated) = CertPair::updated(
             self.cert_cache.read().await.get(&key),
+            &self.hostname,
             (&self.int_key, &self.int_cert),
             &key,
+            ips,
         )?;
         if updated {
             self.cert_cache
@@ -273,10 +270,52 @@ pub fn make_int_cert(
     Ok(cert)
 }
 
+#[derive(Debug)]
+pub struct SANInfo {
+    pub dns: BTreeSet<String>,
+    pub ips: BTreeSet<IpAddr>,
+}
+impl SANInfo {
+    pub fn new(key: &Key, hostname: &Hostname, ips: BTreeSet<IpAddr>) -> Self {
+        let mut dns = BTreeSet::new();
+        if let Some((id, _)) = key.interface() {
+            dns.insert(format!("{id}.embassy"));
+            dns.insert(key.local_address().to_string());
+        } else {
+            dns.insert("embassy".to_owned());
+            dns.insert(hostname.local_domain_name());
+            dns.insert(hostname.no_dot_host_name());
+            dns.insert("localhost".to_owned());
+        }
+        dns.insert(key.tor_address().to_string());
+        Self { dns, ips }
+    }
+}
+impl std::fmt::Display for SANInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut written = false;
+        for dns in &self.dns {
+            if written {
+                write!(f, ",")?;
+            }
+            written = true;
+            write!(f, "DNS:{dns},DNS:*.{dns}")?;
+        }
+        for ip in &self.ips {
+            if written {
+                write!(f, ",")?;
+            }
+            written = true;
+            write!(f, "IP:{ip}")?;
+        }
+        Ok(())
+    }
+}
+
 #[instrument]
 pub fn make_leaf_cert(
     signer: (&PKey<Private>, &X509),
-    applicant: (&PKey<Private>, &str, Option<&PackageId>),
+    applicant: (&PKey<Private>, &SANInfo),
 ) -> Result<X509, Error> {
     let mut builder = X509Builder::new()?;
     builder.set_version(CERTIFICATE_VERSION)?;
@@ -292,7 +331,15 @@ pub fn make_leaf_cert(
     builder.set_serial_number(&*rand_serial()?)?;
 
     let mut subject_name_builder = X509NameBuilder::new()?;
-    subject_name_builder.append_entry_by_text("CN", &format!("{}.local", &applicant.1))?;
+    subject_name_builder.append_entry_by_text(
+        "CN",
+        applicant
+            .1
+            .dns
+            .first()
+            .map(String::as_str)
+            .unwrap_or("localhost"),
+    )?;
     subject_name_builder.append_entry_by_text("O", "Start9")?;
     subject_name_builder.append_entry_by_text("OU", "Embassy")?;
     let subject_name = subject_name_builder.build();
@@ -324,19 +371,9 @@ pub fn make_leaf_cert(
         "critical,digitalSignature,keyEncipherment",
     )?;
 
-    let applicant_dot_embassy = applicant
-        .2
-        .map(|id| format!("{id}.embassy"))
-        .unwrap_or_else(|| "embassy".to_owned());
-    let subject_alt_name = X509Extension::new_nid(
-        Some(&cfg),
-        Some(&ctx),
-        Nid::SUBJECT_ALT_NAME,
-        &format!(
-            "DNS:{applicant_pubkey}.local,DNS:*.{applicant_pubkey}.local,DNS:{applicant_pubkey}.onion,DNS:*.{applicant_pubkey}.onion,DNS:{applicant_dot_embassy},DNS:*.{applicant_dot_embassy}",
-            applicant_pubkey = &applicant.1,
-        ),
-    )?;
+    let san_string = applicant.1.to_string();
+    let subject_alt_name =
+        X509Extension::new_nid(Some(&cfg), Some(&ctx), Nid::SUBJECT_ALT_NAME, &san_string)?;
     builder.append_extension(subject_key_identifier)?;
     builder.append_extension(authority_key_identifier)?;
     builder.append_extension(subject_alt_name)?;

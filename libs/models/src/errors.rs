@@ -246,6 +246,11 @@ impl From<std::net::AddrParseError> for Error {
         Error::new(e, ErrorKind::ParseNetAddress)
     }
 }
+impl From<ipnet::AddrParseError> for Error {
+    fn from(e: ipnet::AddrParseError) -> Self {
+        Error::new(e, ErrorKind::ParseNetAddress)
+    }
+}
 impl From<openssl::error::ErrorStack> for Error {
     fn from(e: openssl::error::ErrorStack) -> Self {
         Error::new(eyre!("{}", e), ErrorKind::OpenSsl)
