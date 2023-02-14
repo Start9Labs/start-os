@@ -274,10 +274,10 @@ const chmod = async (
   return await Deno.core.opAsync("chmod", volumeId, path, mode);
 };
 
-const started = Deno.core.opSync("set_started");
-const restart = Deno.core.opAsync("restart");
-const start = Deno.core.opAsync("start");
-const stop = Deno.core.opAsync("stop");
+const started = () => Deno.core.opSync("set_started");
+const restart = () => Deno.core.opAsync("restart");
+const start = () => Deno.core.opAsync("start");
+const stop =() =>  Deno.core.opAsync("stop");
 
 const currentFunction = Deno.core.opSync("current_function");
 const input = Deno.core.opSync("get_input");
