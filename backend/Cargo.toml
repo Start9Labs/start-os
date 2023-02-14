@@ -115,7 +115,7 @@ p256 = { version = "0.12.0", features = ["pem"] }
 pbkdf2 = "0.11.0"
 pin-project = "1.0.11"
 pkcs8 = { version = "0.9.0", features = ["std"] }
-prettytable-rs = "0.9.0"
+prettytable-rs = "0.10.0"
 proptest = "1.0.0"
 proptest-derive = "0.3.0"
 rand = { version = "0.8.5", features = ["std"] }
