@@ -8,6 +8,8 @@ use digest::Digest;
 use futures::FutureExt;
 use http::response::Builder;
 use hyper::{Body, Method, Request, Response, StatusCode};
+use openssl::hash::MessageDigest;
+use openssl::x509::X509;
 use rpc_toolkit::rpc_handler;
 use tokio::fs::File;
 use tokio_util::codec::{BytesCodec, FramedRead};
@@ -294,7 +296,7 @@ async fn main_embassy_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response
                             } else if let Ok(rest) = sub_path.strip_prefix("eos") {
                                 match rest.to_str() {
                                     Some("local.crt") => {
-                                        file_send(crate::net::ssl::ROOT_CA_STATIC_PATH).await
+                                        cert_send(&ctx.account.read().await.root_ca_cert)
                                     }
                                     None => Ok(bad_request()),
                                     _ => Ok(not_found()),
@@ -304,7 +306,7 @@ async fn main_embassy_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response
                             }
                         }
                         (Method::GET, Some(("eos", "local.crt"))) => {
-                            file_send(PathBuf::from(crate::net::ssl::ROOT_CA_STATIC_PATH)).await
+                            cert_send(&ctx.account.read().await.root_ca_cert)
                         }
 
                         (Method::GET, None) => {
@@ -397,6 +399,24 @@ fn bad_request() -> Response<Body> {
         .unwrap()
 }
 
+fn cert_send(cert: &X509) -> Result<Response<Body>, Error> {
+    let pem = cert.to_pem()?;
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(
+            http::header::ETAG,
+            base32::encode(
+                base32::Alphabet::RFC4648 { padding: false },
+                &*cert.digest(MessageDigest::sha256())?,
+            )
+            .to_lowercase(),
+        )
+        .header(http::header::CONTENT_TYPE, "application/x-pem-file")
+        .header(http::header::CONTENT_LENGTH, pem.len())
+        .body(Body::from(pem))
+        .with_kind(ErrorKind::Network)
+}
+
 async fn file_send(path: impl AsRef<Path>) -> Result<Response<Body>, Error> {
     // Serve a file by asynchronously reading it by chunks using tokio-util crate.
 
@@ -451,7 +471,7 @@ fn with_e_tag(path: &Path, metadata: &Metadata, builder: Builder) -> Result<Buil
     );
     let res = hasher.finalize();
     Ok(builder.header(
-        "ETag",
+        http::header::ETAG,
         base32::encode(base32::Alphabet::RFC4648 { padding: false }, res.as_slice()).to_lowercase(),
     ))
 }
@@ -481,7 +501,7 @@ fn with_content_type(path: &Path, builder: Builder) -> Builder {
         },
         None => "text/plain",
     };
-    builder.header("Content-Type", content_type)
+    builder.header(http::header::CONTENT_TYPE, content_type)
 }
 
 fn with_content_length(metadata: &Metadata, builder: Builder) -> Builder {

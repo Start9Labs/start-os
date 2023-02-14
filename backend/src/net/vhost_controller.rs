@@ -125,7 +125,8 @@ impl VHostServer {
                                     if let Some(target) = target {
                                         let mut tcp_stream =
                                             TcpStream::connect(target.addr).await?;
-                                        let key = ssl.with_cert(target.key).await?;
+                                        let key =
+                                            ssl.with_certs(target.key, target.addr.ip()).await?;
                                         let cfg = ServerConfig::builder()
                                             .with_safe_defaults()
                                             .with_no_client_auth();

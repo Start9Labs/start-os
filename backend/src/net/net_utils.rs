@@ -9,6 +9,7 @@ use futures::stream::BoxStream;
 use futures::{StreamExt, TryStreamExt};
 use http::{Request, Uri};
 use hyper::Body;
+use ipnet::{Ipv4Net, Ipv6Net};
 use tokio::process::Command;
 
 use crate::util::Invoke;
@@ -19,11 +20,7 @@ fn parse_iface_ip(output: &str) -> Result<Option<&str>, Error> {
     if output.is_empty() {
         return Ok(None);
     }
-    if let Some(ip) = output
-        .split_ascii_whitespace()
-        .nth(3)
-        .and_then(|range| range.split("/").next())
-    {
+    if let Some(ip) = output.split_ascii_whitespace().nth(3) {
         Ok(Some(ip))
     } else {
         Err(Error::new(
@@ -33,7 +30,7 @@ fn parse_iface_ip(output: &str) -> Result<Option<&str>, Error> {
     }
 }
 
-pub async fn get_iface_ipv4_addr(iface: &str) -> Result<Option<Ipv4Addr>, Error> {
+pub async fn get_iface_ipv4_addr(iface: &str) -> Result<Option<(Ipv4Addr, Ipv4Net)>, Error> {
     Ok(parse_iface_ip(&String::from_utf8(
         Command::new("ip")
             .arg("-4")
@@ -44,11 +41,11 @@ pub async fn get_iface_ipv4_addr(iface: &str) -> Result<Option<Ipv4Addr>, Error>
             .invoke(crate::ErrorKind::Network)
             .await?,
     )?)?
-    .map(|s| s.parse())
+    .map(|s| Ok::<_, Error>((s.split("/").next().unwrap().parse()?, s.parse()?)))
     .transpose()?)
 }
 
-pub async fn get_iface_ipv6_addr(iface: &str) -> Result<Option<Ipv6Addr>, Error> {
+pub async fn get_iface_ipv6_addr(iface: &str) -> Result<Option<(Ipv6Addr, Ipv6Net)>, Error> {
     Ok(parse_iface_ip(&String::from_utf8(
         Command::new("ip")
             .arg("-6")
@@ -59,7 +56,7 @@ pub async fn get_iface_ipv6_addr(iface: &str) -> Result<Option<Ipv6Addr>, Error>
             .invoke(crate::ErrorKind::Network)
             .await?,
     )?)?
-    .map(|s| s.parse())
+    .map(|s| Ok::<_, Error>((s.split("/").next().unwrap().parse()?, s.parse()?)))
     .transpose()?)
 }
 

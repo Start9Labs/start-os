@@ -241,7 +241,8 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     crate::ssh::sync_keys_from_db(&secret_store, "/home/start9/.ssh/authorized_keys").await?;
     tracing::info!("Synced SSH Keys");
 
-    let db = cfg.db(&AccountInfo::load(&secret_store).await?).await?;
+    let account = AccountInfo::load(&secret_store).await?;
+    let db = cfg.db(&account).await?;
     tracing::info!("Opened PatchDB");
     let mut handle = db.handle();
     crate::db::DatabaseModel::new()
@@ -249,6 +250,16 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         .lock(&mut handle, LockType::Write)
         .await?;
     let receipts = InitReceipts::new(&mut handle).await?;
+
+    // write to ca cert store
+    tokio::fs::write(
+        "/usr/local/share/ca-certificates/embassy-root-ca.crt",
+        account.root_ca_cert.to_pem()?,
+    )
+    .await?;
+    Command::new("update-ca-certificates")
+        .invoke(crate::ErrorKind::OpenSsl)
+        .await?;
 
     if let Some(wifi_interface) = &cfg.wifi_interface {
         crate::net::wifi::synchronize_wpa_supplicant_conf(
