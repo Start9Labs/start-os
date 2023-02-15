@@ -104,7 +104,7 @@ async fn create_service_manager(
         let current: StartStop = current_state.borrow().clone();
         let desired: StartStop = desired_state_receiver.borrow().clone();
         match (current, desired) {
-            (StartStop::Start, StartStop::Start) => continue,
+            (StartStop::Start, StartStop::Start) => (),
             (StartStop::Start, StartStop::Stop) => {
                 if let Err(err) = seed.stop_container().await {
                     tracing::error!("Could not stop container");
@@ -120,8 +120,9 @@ async fn create_service_manager(
                 persistent_container.clone(),
                 &mut running_service,
             ),
-            (StartStop::Stop, StartStop::Stop) => continue,
+            (StartStop::Stop, StartStop::Stop) => (),
         }
+
         if let Err(_) = desired_state_receiver.changed().await {
             tracing::error!("Desired state error");
             break;
@@ -287,7 +288,7 @@ pub(super) async fn get_status(db: &mut PatchDbHandle, manifest: &Manifest) -> M
                 .clone(),
         )
     }
-    .map(|x| x.unwrap_or(MainStatus::Stopped))
+    .map(|x| x.unwrap_or_else(|e| MainStatus::Stopped))
     .await
 }
 

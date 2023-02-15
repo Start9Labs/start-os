@@ -173,10 +173,28 @@ pub async fn stop_dry(
 pub async fn stop_impl(ctx: RpcContext, id: PackageId) -> Result<MainStatus, Error> {
     let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
+    let version = crate::db::DatabaseModel::new()
+        .package_data()
+        .idx_model(&id)
+        .expect(&mut tx)
+        .await?
+        .installed()
+        .expect(&mut tx)
+        .await?
+        .manifest()
+        .version()
+        .get(&mut tx)
+        .await?
+        .clone();
 
     let last_statuts = stop_common(&mut tx, &id, &mut BTreeMap::new()).await?;
 
     tx.commit().await?;
+    ctx.managers
+        .get(&(id, version))
+        .await
+        .ok_or_else(|| Error::new(eyre!("Manager not found"), crate::ErrorKind::InvalidRequest))?
+        .stop();
 
     Ok(last_statuts)
 }
@@ -185,6 +203,19 @@ pub async fn stop_impl(ctx: RpcContext, id: PackageId) -> Result<MainStatus, Err
 pub async fn restart(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Result<(), Error> {
     let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
+    let version = crate::db::DatabaseModel::new()
+        .package_data()
+        .idx_model(&id)
+        .expect(&mut tx)
+        .await?
+        .installed()
+        .expect(&mut tx)
+        .await?
+        .manifest()
+        .version()
+        .get(&mut tx)
+        .await?
+        .clone();
 
     let mut status = crate::db::DatabaseModel::new()
         .package_data()
@@ -202,6 +233,13 @@ pub async fn restart(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Result
     *status = Some(MainStatus::Restarting);
     status.save(&mut tx).await?;
     tx.commit().await?;
+
+    ctx.managers
+        .get(&(id, version))
+        .await
+        .ok_or_else(|| Error::new(eyre!("Manager not found"), crate::ErrorKind::InvalidRequest))?
+        .restart()
+        .await;
 
     Ok(())
 }
