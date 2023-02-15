@@ -47,10 +47,8 @@ const writeFile = (
 ) => Deno.core.opAsync("write_file", volumeId, path, toWrite);
 
 const readFile = (
-  {
-    volumeId = requireParam("volumeId"),
-    path = requireParam("path"),
-  } = requireParam("options"),
+  { volumeId = requireParam("volumeId"), path = requireParam("path") } =
+    requireParam("options"),
 ) => Deno.core.opAsync("read_file", volumeId, path);
 
 const runDaemon = (
@@ -72,11 +70,8 @@ const runDaemon = (
   };
 };
 const runCommand = async (
-  {
-    command = requireParam("command"),
-    args = [],
-    timeoutMillis = 30000,
-  } = requireParam("options"),
+  { command = requireParam("command"), args = [], timeoutMillis = 30000 } =
+    requireParam("options"),
 ) => {
   let id = Deno.core.opAsync(
     "start_command",
@@ -126,10 +121,8 @@ const rename = (
   } = requireParam("options"),
 ) => Deno.core.opAsync("rename", srcVolume, srcPath, dstVolume, dstPath);
 const metadata = async (
-  {
-    volumeId = requireParam("volumeId"),
-    path = requireParam("path"),
-  } = requireParam("options"),
+  { volumeId = requireParam("volumeId"), path = requireParam("path") } =
+    requireParam("options"),
 ) => {
   const data = await Deno.core.opAsync("metadata", volumeId, path);
   return {
@@ -140,10 +133,8 @@ const metadata = async (
   };
 };
 const removeFile = (
-  {
-    volumeId = requireParam("volumeId"),
-    path = requireParam("path"),
-  } = requireParam("options"),
+  { volumeId = requireParam("volumeId"), path = requireParam("path") } =
+    requireParam("options"),
 ) => Deno.core.opAsync("remove_file", volumeId, path);
 const isSandboxed = () => Deno.core.opSync("is_sandboxed");
 
@@ -160,26 +151,20 @@ const writeJsonFile = (
     toWrite: JSON.stringify(toWrite),
   });
 const readJsonFile = async (
-  {
-    volumeId = requireParam("volumeId"),
-    path = requireParam("path"),
-  } = requireParam("options"),
+  { volumeId = requireParam("volumeId"), path = requireParam("path") } =
+    requireParam("options"),
 ) => JSON.parse(await readFile({ volumeId, path }));
 const createDir = (
-  {
-    volumeId = requireParam("volumeId"),
-    path = requireParam("path"),
-  } = requireParam("options"),
+  { volumeId = requireParam("volumeId"), path = requireParam("path") } =
+    requireParam("options"),
 ) => Deno.core.opAsync("create_dir", volumeId, path);
 
 const readDir = (
   { volumeId = requireParam("volumeId"), path = requireParam("path") } = requireParam("options"),
 ) => Deno.core.opAsync("read_dir", volumeId, path);
 const removeDir = (
-  {
-    volumeId = requireParam("volumeId"),
-    path = requireParam("path"),
-  } = requireParam("options"),
+  { volumeId = requireParam("volumeId"), path = requireParam("path") } =
+    requireParam("options"),
 ) => Deno.core.opAsync("remove_dir", volumeId, path);
 const trace = (whatToTrace = requireParam("whatToTrace")) =>
   Deno.core.opAsync("log_trace", whatToTrace);
@@ -259,7 +244,9 @@ const chown = async (
     volumeId = requireParam("volumeId"),
     path = requireParam("path"),
     uid = requireParam("uid"),
-  } = requireParam("options"),
+  } = requireParam(
+    "options",
+  ),
 ) => {
   return await Deno.core.opAsync("chown", volumeId, path, uid);
 };
@@ -269,7 +256,9 @@ const chmod = async (
     volumeId = requireParam("volumeId"),
     path = requireParam("path"),
     mode = requireParam("mode"),
-  } = requireParam("options"),
+  } = requireParam(
+    "options",
+  ),
 ) => {
   return await Deno.core.opAsync("chmod", volumeId, path, mode);
 };
@@ -277,7 +266,7 @@ const chmod = async (
 const started = () => Deno.core.opSync("set_started");
 const restart = () => Deno.core.opAsync("restart");
 const start = () => Deno.core.opAsync("start");
-const stop =() =>  Deno.core.opAsync("stop");
+const stop = () => Deno.core.opAsync("stop");
 
 const currentFunction = Deno.core.opSync("current_function");
 const input = Deno.core.opSync("get_input");
@@ -316,7 +305,7 @@ const effects = {
   stop,
 };
 const fnSpecificArgs = {
-  "main": { started },
+  main: { started },
 };
 
 const defaults = {
@@ -333,41 +322,41 @@ function safeToString(fn, orValue = "") {
   }
 }
 
-const apiVersion = mainModule.version || 0;
+const apiVersion = mainModule?.version || defaults?.version || 0;
 const runFunction = jsonPointerValue(mainModule, currentFunction) ||
   jsonPointerValue(defaults, currentFunction);
-const extraArgs = jsonPointerValue(fnSpecificArgs, currentFunction) ||
-  {}(async () => {
-    const answer = await (async () => {
-      if (typeof runFunction !== "function") {
-        error(`Expecting ${currentFunction} to be a function`);
-        throw new Error(`Expecting ${currentFunction} to be a function`);
+const extraArgs = jsonPointerValue(fnSpecificArgs, currentFunction) || {};
+(async () => {
+  const answer = await (async () => {
+    if (typeof runFunction !== "function") {
+      error(`Expecting ${currentFunction} to be a function`);
+      throw new Error(`Expecting ${currentFunction} to be a function`);
+    }
+  })()
+    .then(() => {
+      switch (apiVersion) {
+        case 0:
+          return runFunction(effects, input, ...variable_args);
+        case 1:
+          return runFunction({
+            effects,
+            input,
+            args: variable_args,
+            ...extraArgs,
+          });
+        default:
+          return { error: `Unknown API version ${apiVersion}` };
       }
-    })()
-      .then(() => {
-        switch (apiVersion) {
-          case 0:
-            return runFunction(effects, input, ...variable_args);
-          case 1:
-            return runFunction({
-              effects,
-              input,
-              args: variable_args,
-              ...extraArgs,
-            });
-          default:
-            return { "error": `Unknown API version ${apiVersion}` };
-        }
-      })
-      .catch((e) => {
-        if ("error" in e) return e;
-        if ("error-code" in e) return e;
-        return {
-          error: safeToString(
-            () => e.toString(),
-            "Error Not able to be stringified",
-          ),
-        };
-      });
-    await setState(answer);
-  })();
+    })
+    .catch((e) => {
+      if ("error" in e) return e;
+      if ("error-code" in e) return e;
+      return {
+        error: safeToString(
+          () => e.toString(),
+          "Error Not able to be stringified",
+        ),
+      };
+    });
+  await setState(answer);
+})();
