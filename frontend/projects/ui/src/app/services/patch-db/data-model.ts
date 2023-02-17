@@ -127,7 +127,6 @@ export interface InstalledPackageDataEntry {
   manifest: Manifest
   'last-backup': string | null
   'system-pointers': any[]
-  'current-dependents': { [id: string]: CurrentDependencyInfo }
   'current-dependencies': { [id: string]: CurrentDependencyInfo }
   'dependency-info': {
     [id: string]: {

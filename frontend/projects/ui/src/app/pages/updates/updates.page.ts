@@ -77,7 +77,7 @@ export class UpdatesPage {
     delete this.marketplaceService.updateErrors[id]
     this.marketplaceService.updateQueue[id] = true
 
-    if (hasCurrentDeps(local)) {
+    if (await hasCurrentDeps(this.patch, local.manifest.id)) {
       this.dryUpdate(manifest, url)
     } else {
       this.update(id, version, url)
