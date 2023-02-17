@@ -9,13 +9,13 @@ import {
 } from 'src/app/services/patch-db/data-model'
 
 export interface PackageStatus {
-  primary: PrimaryStatus | PackageState
+  primary: PrimaryStatus | PackageState | PackageMainStatus
   dependency: DependencyStatus | null
   health: HealthStatus | null
 }
 
 export function renderPkgStatus(pkg: PackageDataEntry): PackageStatus {
-  let primary: PrimaryStatus | PackageState
+  let primary: PrimaryStatus | PackageState | PackageMainStatus
   let dependency: DependencyStatus | null = null
   let health: HealthStatus | null = null
 
@@ -30,13 +30,11 @@ export function renderPkgStatus(pkg: PackageDataEntry): PackageStatus {
   return { primary, dependency, health }
 }
 
-function getPrimaryStatus(status: Status): PrimaryStatus {
+function getPrimaryStatus(status: Status): PrimaryStatus | PackageMainStatus {
   if (!status.configured) {
     return PrimaryStatus.NeedsConfig
-  } else if ((status.main as MainStatusStarting).restarting) {
-    return PrimaryStatus.Restarting
   } else {
-    return status.main.status as any as PrimaryStatus
+    return status.main.status
   }
 }
 
