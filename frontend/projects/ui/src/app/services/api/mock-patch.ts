@@ -368,15 +368,6 @@ export const mockPatchData: DataModel = {
                 },
                 variants: {
                   internal: {
-                    'lan-address': {
-                      name: 'LAN Address',
-                      type: 'pointer',
-                      subtype: 'package',
-                      target: 'lan-address',
-                      'package-id': 'bitcoind',
-                      description: 'the lan address',
-                      interface: '',
-                    },
                     'friendly-name': {
                       name: 'Friendly Name',
                       type: 'string',
@@ -451,13 +442,6 @@ export const mockPatchData: DataModel = {
           p2p: {
             'tor-address': 'bitcoind-p2p-address.onion',
             'lan-address': 'bitcoind-p2p-address.local',
-          },
-        },
-        'system-pointers': [],
-        'current-dependents': {
-          lnd: {
-            pointers: [],
-            'health-checks': [],
           },
         },
         'current-dependencies': {},
@@ -653,15 +637,11 @@ export const mockPatchData: DataModel = {
             'lan-address': 'lnd-grpc-address.local',
           },
         },
-        'system-pointers': [],
-        'current-dependents': {},
         'current-dependencies': {
           bitcoind: {
-            pointers: [],
             'health-checks': [],
           },
           'btc-rpc-proxy': {
-            pointers: [],
             'health-checks': [],
           },
         },
