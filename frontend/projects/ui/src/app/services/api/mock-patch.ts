@@ -126,24 +126,6 @@ export const mockPatchData: DataModel = {
           'shm-size': '',
           'sigterm-timeout': '.49m',
         },
-        'health-checks': {
-          'chain-state': {
-            name: 'Chain State',
-          },
-          'ephemeral-health-check': {
-            name: 'Ephemeral Health Check',
-          },
-          'p2p-interface': {
-            name: 'P2P Interface',
-            'success-message': 'the health check ran succesfully',
-          },
-          'rpc-interface': {
-            name: 'RPC Interface',
-          },
-          'unnecessary-health-check': {
-            name: 'Unneccessary Health Check',
-          },
-        } as any,
         config: {
           get: {},
           set: {},
@@ -410,20 +392,26 @@ export const mockPatchData: DataModel = {
             started: '2021-06-14T20:49:17.774Z',
             health: {
               'ephemeral-health-check': {
+                name: 'Ephemeral Health Check',
                 result: HealthResult.Starting,
               },
               'chain-state': {
+                name: 'Chain State',
                 result: HealthResult.Loading,
                 message: 'Bitcoin is syncing from genesis',
               },
               'p2p-interface': {
+                name: 'P2P Interface',
                 result: HealthResult.Success,
+                message: 'the health check ran successfully',
               },
               'rpc-interface': {
+                name: 'RPC Interface',
                 result: HealthResult.Failure,
                 error: 'RPC interface unreachable.',
               },
               'unnecessary-health-check': {
+                name: 'Totally Unnecessary',
                 result: HealthResult.Disabled,
               },
             },
@@ -500,7 +488,6 @@ export const mockPatchData: DataModel = {
           'shm-size': '',
           'sigterm-timeout': '0.5s',
         },
-        'health-checks': {},
         config: {
           get: null,
           set: null,
@@ -610,7 +597,7 @@ export const mockPatchData: DataModel = {
         },
       },
       installed: {
-        manifest: {} as Manifest,
+        manifest: Mock.MockManifestLnd,
         'last-backup': null,
         status: {
           configured: true,

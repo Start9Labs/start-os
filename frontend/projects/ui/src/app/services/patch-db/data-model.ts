@@ -154,10 +154,6 @@ export interface Manifest extends MarketplaceManifest<DependencyConfig | null> {
     scripts: string // path to scripts folder
   }
   main: ActionImpl
-  'health-checks': Record<
-    string,
-    ActionImpl & { name: string; 'success-message': string | null }
-  >
   config: ConfigActions | null
   volumes: Record<string, Volume>
   'min-os-version': string
@@ -321,12 +317,13 @@ export enum PackageMainStatus {
   Restarting = 'restarting',
 }
 
-export type HealthCheckResult =
+export type HealthCheckResult = { name: string } & (
   | HealthCheckResultStarting
   | HealthCheckResultLoading
   | HealthCheckResultDisabled
   | HealthCheckResultSuccess
   | HealthCheckResultFailure
+)
 
 export enum HealthResult {
   Starting = 'starting',
@@ -346,6 +343,7 @@ export interface HealthCheckResultDisabled {
 
 export interface HealthCheckResultSuccess {
   result: HealthResult.Success
+  message: string
 }
 
 export interface HealthCheckResultLoading {
