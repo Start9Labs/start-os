@@ -87,7 +87,6 @@ export module Mock {
       'shm-size': '',
       'sigterm-timeout': '1ms',
     },
-    'health-checks': {},
     config: {
       get: null,
       set: null,
@@ -382,7 +381,6 @@ export module Mock {
       'shm-size': '',
       'sigterm-timeout': '10000µs',
     },
-    'health-checks': {},
     config: {
       get: null,
       set: null,
@@ -535,7 +533,6 @@ export module Mock {
       'shm-size': '',
       'sigterm-timeout': '1m',
     },
-    'health-checks': {},
     config: { get: {} as any, set: {} as any },
     volumes: {},
     'min-os-version': '0.2.12',
