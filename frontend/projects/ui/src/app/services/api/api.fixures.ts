@@ -1772,12 +1772,6 @@ export module Mock {
         },
       },
       'system-pointers': [],
-      'current-dependents': {
-        lnd: {
-          pointers: [],
-          'health-checks': [],
-        },
-      },
       'current-dependencies': {},
       'dependency-info': {},
       'marketplace-url': 'https://registry.start9.com/',
@@ -1811,12 +1805,6 @@ export module Mock {
         },
       },
       'system-pointers': [],
-      'current-dependents': {
-        lnd: {
-          pointers: [],
-          'health-checks': [],
-        },
-      },
       'current-dependencies': {
         bitcoind: {
           pointers: [],
@@ -1868,7 +1856,6 @@ export module Mock {
         },
       },
       'system-pointers': [],
-      'current-dependents': {},
       'current-dependencies': {
         bitcoind: {
           pointers: [],

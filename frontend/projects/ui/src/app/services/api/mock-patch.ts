@@ -454,12 +454,6 @@ export const mockPatchData: DataModel = {
           },
         },
         'system-pointers': [],
-        'current-dependents': {
-          lnd: {
-            pointers: [],
-            'health-checks': [],
-          },
-        },
         'current-dependencies': {},
         'dependency-info': {},
         'marketplace-url': 'https://registry.start9.com/',
@@ -651,7 +645,6 @@ export const mockPatchData: DataModel = {
           },
         },
         'system-pointers': [],
-        'current-dependents': {},
         'current-dependencies': {
           bitcoind: {
             pointers: [],
