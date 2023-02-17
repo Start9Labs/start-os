@@ -1,6 +1,6 @@
 RASPI_TARGETS := eos_raspberrypi-uninit.img eos_raspberrypi-uninit.tar.gz
-OS_ARCH := $(shell if echo $(RASPI_TARGETS) | grep -qw "$(MAKECMDGOALS)"; then echo raspberrypi; else echo uname -m; fi)
-ARCH := $(shell if [ $(OS_ARCH) == raspberrypi ]; then echo aarch64; else echo $(OS_ARCH); fi)
+OS_ARCH := $(shell if echo $(RASPI_TARGETS) | grep -qw "$(MAKECMDGOALS)"; then echo raspberrypi; else uname -m; fi)
+ARCH := $(shell if [ "$(OS_ARCH)" = "raspberrypi" ]; then echo aarch64; else echo $(OS_ARCH); fi)
 ENVIRONMENT_FILE = $(shell ./check-environment.sh)
 GIT_HASH_FILE = $(shell ./check-git-hash.sh)
 VERSION_FILE = $(shell ./check-version.sh)
