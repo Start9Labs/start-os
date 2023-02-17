@@ -9,40 +9,17 @@ use sqlx::PgPool;
 use crate::init::InitReceipts;
 use crate::Error;
 
-mod v0_3_0;
-mod v0_3_0_1;
-mod v0_3_0_2;
-mod v0_3_0_3;
-mod v0_3_1;
-mod v0_3_1_1;
-mod v0_3_1_2;
-mod v0_3_2;
-mod v0_3_2_1;
-mod v0_3_3;
-mod v0_3_4;
-mod v0_3_4_1;
-mod v0_3_4_2;
 mod v0_3_4_3;
+mod v0_4_0;
 
-pub type Current = v0_3_4_3::Version;
+pub type Current = v0_4_0::Version;
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 #[serde(untagged)]
 enum Version {
-    V0_3_0(Wrapper<v0_3_0::Version>),
-    V0_3_0_1(Wrapper<v0_3_0_1::Version>),
-    V0_3_0_2(Wrapper<v0_3_0_2::Version>),
-    V0_3_0_3(Wrapper<v0_3_0_3::Version>),
-    V0_3_1(Wrapper<v0_3_1::Version>),
-    V0_3_1_1(Wrapper<v0_3_1_1::Version>),
-    V0_3_1_2(Wrapper<v0_3_1_2::Version>),
-    V0_3_2(Wrapper<v0_3_2::Version>),
-    V0_3_2_1(Wrapper<v0_3_2_1::Version>),
-    V0_3_3(Wrapper<v0_3_3::Version>),
-    V0_3_4(Wrapper<v0_3_4::Version>),
-    V0_3_4_1(Wrapper<v0_3_4_1::Version>),
-    V0_3_4_2(Wrapper<v0_3_4_2::Version>),
+    LT0_3_4_3(LTWrapper<v0_3_4_3::Version>),
     V0_3_4_3(Wrapper<v0_3_4_3::Version>),
+    V0_4_0(Wrapper<v0_4_0::Version>),
     Other(emver::Version),
 }
 
@@ -58,20 +35,9 @@ impl Version {
     #[cfg(test)]
     fn as_sem_ver(&self) -> emver::Version {
         match self {
-            Version::V0_3_0(Wrapper(x)) => x.semver(),
-            Version::V0_3_0_1(Wrapper(x)) => x.semver(),
-            Version::V0_3_0_2(Wrapper(x)) => x.semver(),
-            Version::V0_3_0_3(Wrapper(x)) => x.semver(),
-            Version::V0_3_1(Wrapper(x)) => x.semver(),
-            Version::V0_3_1_1(Wrapper(x)) => x.semver(),
-            Version::V0_3_1_2(Wrapper(x)) => x.semver(),
-            Version::V0_3_2(Wrapper(x)) => x.semver(),
-            Version::V0_3_2_1(Wrapper(x)) => x.semver(),
-            Version::V0_3_3(Wrapper(x)) => x.semver(),
-            Version::V0_3_4(Wrapper(x)) => x.semver(),
-            Version::V0_3_4_1(Wrapper(x)) => x.semver(),
-            Version::V0_3_4_2(Wrapper(x)) => x.semver(),
+            Version::LT0_3_4_3(LTWrapper(x)) => x.semver(),
             Version::V0_3_4_3(Wrapper(x)) => x.semver(),
+            Version::V0_4_0(Wrapper(x)) => x.semver(),
             Version::Other(x) => x.clone(),
         }
     }
@@ -177,6 +143,32 @@ where
         Ok(())
     }
 }
+
+#[derive(Debug, Clone)]
+struct LTWrapper<T>(T, emver::Version);
+impl<T> serde::Serialize for LTWrapper<T>
+where
+    T: VersionT,
+{
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        self.0.semver().serialize(serializer)
+    }
+}
+impl<'de, T> serde::Deserialize<'de> for LTWrapper<T>
+where
+    T: VersionT,
+{
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let v = crate::util::Version::deserialize(deserializer)?;
+        let version = T::new();
+        if *v < version.semver() {
+            Ok(Self(version, v.into_version()))
+        } else {
+            Err(serde::de::Error::custom("Mismatched Version"))
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 struct Wrapper<T>(T);
 impl<T> serde::Serialize for Wrapper<T>
@@ -209,59 +201,17 @@ pub async fn init<Db: DbHandle>(
 ) -> Result<(), Error> {
     let version = Version::from_util_version(receipts.server_version.get(db).await?);
     match version {
-        Version::V0_3_0(v) => {
-            v.0.migrate_to(&Current::new(), db, secrets, receipts)
-                .await?
-        }
-        Version::V0_3_0_1(v) => {
-            v.0.migrate_to(&Current::new(), db, secrets, receipts)
-                .await?
-        }
-        Version::V0_3_0_2(v) => {
-            v.0.migrate_to(&Current::new(), db, secrets, receipts)
-                .await?
-        }
-        Version::V0_3_0_3(v) => {
-            v.0.migrate_to(&Current::new(), db, secrets, receipts)
-                .await?
-        }
-        Version::V0_3_1(v) => {
-            v.0.migrate_to(&Current::new(), db, secrets, receipts)
-                .await?
-        }
-        Version::V0_3_1_1(v) => {
-            v.0.migrate_to(&Current::new(), db, secrets, receipts)
-                .await?
-        }
-        Version::V0_3_1_2(v) => {
-            v.0.migrate_to(&Current::new(), db, secrets, receipts)
-                .await?
-        }
-        Version::V0_3_2(v) => {
-            v.0.migrate_to(&Current::new(), db, secrets, receipts)
-                .await?
-        }
-        Version::V0_3_2_1(v) => {
-            v.0.migrate_to(&Current::new(), db, secrets, receipts)
-                .await?
-        }
-        Version::V0_3_3(v) => {
-            v.0.migrate_to(&Current::new(), db, secrets, receipts)
-                .await?
-        }
-        Version::V0_3_4(v) => {
-            v.0.migrate_to(&Current::new(), db, secrets, receipts)
-                .await?
-        }
-        Version::V0_3_4_1(v) => {
-            v.0.migrate_to(&Current::new(), db, secrets, receipts)
-                .await?
-        }
-        Version::V0_3_4_2(v) => {
-            v.0.migrate_to(&Current::new(), db, secrets, receipts)
-                .await?
+        Version::LT0_3_4_3(_) => {
+            return Err(Error::new(
+                eyre!("Cannot migrate from pre-0.3.4. Please update to v0.3.4 first."),
+                crate::ErrorKind::MigrationFailed,
+            ));
         }
         Version::V0_3_4_3(v) => {
+            v.0.migrate_to(&Current::new(), db, secrets, receipts)
+                .await?
+        }
+        Version::V0_4_0(v) => {
             v.0.migrate_to(&Current::new(), db, secrets, receipts)
                 .await?
         }
@@ -297,19 +247,6 @@ mod tests {
 
     fn versions() -> impl Strategy<Value = Version> {
         prop_oneof![
-            Just(Version::V0_3_0(Wrapper(v0_3_0::Version::new()))),
-            Just(Version::V0_3_0_1(Wrapper(v0_3_0_1::Version::new()))),
-            Just(Version::V0_3_0_2(Wrapper(v0_3_0_2::Version::new()))),
-            Just(Version::V0_3_0_3(Wrapper(v0_3_0_3::Version::new()))),
-            Just(Version::V0_3_1(Wrapper(v0_3_1::Version::new()))),
-            Just(Version::V0_3_1_1(Wrapper(v0_3_1_1::Version::new()))),
-            Just(Version::V0_3_1_2(Wrapper(v0_3_1_2::Version::new()))),
-            Just(Version::V0_3_2(Wrapper(v0_3_2::Version::new()))),
-            Just(Version::V0_3_2_1(Wrapper(v0_3_2_1::Version::new()))),
-            Just(Version::V0_3_3(Wrapper(v0_3_3::Version::new()))),
-            Just(Version::V0_3_4(Wrapper(v0_3_4::Version::new()))),
-            Just(Version::V0_3_4_1(Wrapper(v0_3_4_1::Version::new()))),
-            Just(Version::V0_3_4_2(Wrapper(v0_3_4_2::Version::new()))),
             Just(Version::V0_3_4_3(Wrapper(v0_3_4_3::Version::new()))),
             em_version().prop_map(Version::Other),
         ]

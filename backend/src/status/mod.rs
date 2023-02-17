@@ -26,9 +26,7 @@ pub enum MainStatus {
     Stopped,
     Restarting,
     Stopping,
-    Starting {
-        restarting: bool,
-    },
+    Starting,
     Running {
         started: DateTime<Utc>,
         health: BTreeMap<HealthCheckId, HealthCheckResult>,

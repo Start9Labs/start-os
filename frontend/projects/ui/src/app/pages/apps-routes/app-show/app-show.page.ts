@@ -31,7 +31,7 @@ const STATES = [
 export class AppShowPage {
   readonly secure = this.config.isSecure()
 
-  private readonly pkgId = getPkgId(this.route)
+  readonly pkgId = getPkgId(this.route)
 
   readonly pkg$ = this.patch.watch$('package-data', this.pkgId).pipe(
     tap(pkg => {
