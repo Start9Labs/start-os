@@ -114,6 +114,10 @@ const readJsonFile = async (
 const createDir = (
   { volumeId = requireParam("volumeId"), path = requireParam("path") } = requireParam("options"),
 ) => Deno.core.opAsync("create_dir", volumeId, path);
+
+const readDir = (
+  { volumeId = requireParam("volumeId"), path = requireParam("path") } = requireParam("options"),
+) => Deno.core.opAsync("read_dir", volumeId, path);
 const removeDir = (
   { volumeId = requireParam("volumeId"), path = requireParam("path") } = requireParam("options"),
 ) => Deno.core.opAsync("remove_dir", volumeId, path);
@@ -186,7 +190,8 @@ const effects = {
   sleep,
   runDaemon,
   signalGroup,
-  runRsync
+  runRsync,
+  readDir
 };
 
 const defaults = {

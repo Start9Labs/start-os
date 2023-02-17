@@ -888,6 +888,49 @@ export const action = {
       },
     };
   },
+
+  /**
+   * Test is for the feature of listing what's in a dir
+   * @param {*} effects 
+   * @param {*} _input 
+   * @returns 
+   */
+  async "test-read-dir"(effects, _input) {
+    await effects
+      .removeDir({
+        volumeId: "main",
+        path: "test-read-dir",
+      })
+      .catch(() => {});
+    await effects.createDir({
+      volumeId: "main",
+      path: "test-read-dir/deep/123",
+    });
+    await effects.writeFile({
+      path: "./test-read-dir/broken.log",
+      toWrite: "This is a test",
+      volumeId: "main",
+    })
+    let readDir = JSON.stringify(await effects.readDir({
+      volumeId: "main",
+      path: "test-read-dir",
+    }))
+    const expected = '["broken.log","deep"]'
+    assert(readDir === expected, `Failed to match the input (${readDir}) === (${expected}) of readDir`)
+
+    await effects.removeDir({
+      volumeId: "main",
+      path: "test-read-dir",
+    });
+    return {
+      result: {
+        copyable: false,
+        message: "Done",
+        version: "0",
+        qr: false,
+      },
+    };
+  },
   /**
    * Created this test because of issue
    * https://github.com/Start9Labs/embassy-os/issues/2121
