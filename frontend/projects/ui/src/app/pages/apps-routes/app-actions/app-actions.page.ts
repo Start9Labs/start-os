@@ -120,13 +120,13 @@ export class AppActionsPage {
   }
 
   async tryUninstall(pkg: PackageDataEntry): Promise<void> {
-    const { title, alerts } = pkg.manifest
+    const { title, alerts, id } = pkg.manifest
 
     let message =
       alerts.uninstall ||
       `Uninstalling ${title} will permanently delete its data`
 
-    if (hasCurrentDeps(pkg)) {
+    if (await hasCurrentDeps(this.patch, id)) {
       message = `${message}. Services that depend on ${title} will no longer work properly and may crash`
     }
 

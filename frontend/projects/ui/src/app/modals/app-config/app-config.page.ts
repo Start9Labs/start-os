@@ -145,7 +145,7 @@ export class AppConfigPage {
 
     this.saving = true
 
-    if (hasCurrentDeps(this.pkg)) {
+    if (await hasCurrentDeps(this.patch, this.pkgId)) {
       this.dryConfigure()
     } else {
       this.configure()
