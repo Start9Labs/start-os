@@ -4,21 +4,22 @@ use async_trait::async_trait;
 use color_eyre::eyre::eyre;
 use patch_db::DbHandle;
 use rpc_toolkit::command;
+use sqlx::PgPool;
 
 use crate::init::InitReceipts;
 use crate::Error;
 
-mod v0_3_3;
 mod v0_3_4;
+mod v0_4_0;
 
-pub type Current = v0_3_4::Version;
+pub type Current = v0_4_0::Version;
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 #[serde(untagged)]
 enum Version {
-    LT0_3_3(LTWrapper<v0_3_3::Version>),
-    V0_3_3(Wrapper<v0_3_3::Version>),
+    LT0_3_4(LTWrapper<v0_3_4::Version>),
     V0_3_4(Wrapper<v0_3_4::Version>),
+    V0_4_0(Wrapper<v0_4_0::Version>),
     Other(emver::Version),
 }
 
@@ -51,8 +52,8 @@ where
     fn new() -> Self;
     fn semver(&self) -> emver::Version;
     fn compat(&self) -> &'static emver::VersionRange;
-    async fn up<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error>;
-    async fn down<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error>;
+    async fn up<Db: DbHandle>(&self, db: &mut Db, secrets: &PgPool) -> Result<(), Error>;
+    async fn down<Db: DbHandle>(&self, db: &mut Db, secrets: &PgPool) -> Result<(), Error>;
     async fn commit<Db: DbHandle>(
         &self,
         db: &mut Db,
@@ -73,11 +74,19 @@ where
         &self,
         version: &V,
         db: &mut Db,
+        secrets: &PgPool,
         receipts: &InitReceipts,
     ) -> Result<(), Error> {
         match self.semver().cmp(&version.semver()) {
-            Ordering::Greater => self.rollback_to_unchecked(version, db, receipts).await,
-            Ordering::Less => version.migrate_from_unchecked(self, db, receipts).await,
+            Ordering::Greater => {
+                self.rollback_to_unchecked(version, db, secrets, receipts)
+                    .await
+            }
+            Ordering::Less => {
+                version
+                    .migrate_from_unchecked(self, db, secrets, receipts)
+                    .await
+            }
             Ordering::Equal => Ok(()),
         }
     }
@@ -85,12 +94,13 @@ where
         &self,
         version: &V,
         db: &mut Db,
+        secrets: &PgPool,
         receipts: &InitReceipts,
     ) -> Result<(), Error> {
         let previous = Self::Previous::new();
         if version.semver() < previous.semver() {
             previous
-                .migrate_from_unchecked(version, db, receipts)
+                .migrate_from_unchecked(version, db, secrets, receipts)
                 .await?;
         } else if version.semver() > previous.semver() {
             return Err(Error::new(
@@ -102,7 +112,7 @@ where
             ));
         }
         tracing::info!("{} -> {}", previous.semver(), self.semver(),);
-        self.up(db).await?;
+        self.up(db, secrets).await?;
         self.commit(db, receipts).await?;
         Ok(())
     }
@@ -110,15 +120,16 @@ where
         &self,
         version: &V,
         db: &mut Db,
+        secrets: &PgPool,
         receipts: &InitReceipts,
     ) -> Result<(), Error> {
         let previous = Self::Previous::new();
         tracing::info!("{} -> {}", self.semver(), previous.semver(),);
-        self.down(db).await?;
+        self.down(db, secrets).await?;
         previous.commit(db, receipts).await?;
         if version.semver() < previous.semver() {
             previous
-                .rollback_to_unchecked(version, db, receipts)
+                .rollback_to_unchecked(version, db, secrets, receipts)
                 .await?;
         } else if version.semver() > previous.semver() {
             return Err(Error::new(
@@ -185,18 +196,25 @@ where
 
 pub async fn init<Db: DbHandle>(
     db: &mut Db,
+    secrets: &PgPool,
     receipts: &crate::init::InitReceipts,
 ) -> Result<(), Error> {
     let version = Version::from_util_version(receipts.server_version.get(db).await?);
     match version {
-        Version::LT0_3_3(_) => {
+        Version::LT0_3_4(_) => {
             return Err(Error::new(
-                eyre!("Cannot migrate from pre-0.3.3. Please update to v0.3.3 first."),
+                eyre!("Cannot migrate from pre-0.3.4. Please update to v0.3.4 first."),
                 crate::ErrorKind::MigrationFailed,
             ));
         }
-        Version::V0_3_3(v) => v.0.migrate_to(&Current::new(), db, receipts).await?,
-        Version::V0_3_4(v) => v.0.migrate_to(&Current::new(), db, receipts).await?,
+        Version::V0_3_4(v) => {
+            v.0.migrate_to(&Current::new(), db, secrets, receipts)
+                .await?
+        }
+        Version::V0_4_0(v) => {
+            v.0.migrate_to(&Current::new(), db, secrets, receipts)
+                .await?
+        }
         Version::Other(_) => {
             return Err(Error::new(
                 eyre!("Cannot downgrade"),

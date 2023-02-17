@@ -404,7 +404,7 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         .set(&mut handle, time().await?)
         .await?;
 
-    crate::version::init(&mut handle, &receipts).await?;
+    crate::version::init(&mut handle, &secret_store, &receipts).await?;
 
     if should_rebuild {
         match tokio::fs::remove_file(SYSTEM_REBUILD_PATH).await {

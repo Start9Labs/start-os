@@ -1,11 +1,20 @@
 use async_trait::async_trait;
 use emver::VersionRange;
+use lazy_static::lazy_static;
 use serde_json::{json, Value};
 
-use super::v0_3_3::V0_3_0_COMPAT;
 use super::*;
 
 const V0_3_4: emver::Version = emver::Version::new(0, 3, 4, 0);
+lazy_static! {
+    pub static ref V0_3_0_COMPAT: VersionRange = VersionRange::Conj(
+        Box::new(VersionRange::Anchor(
+            emver::GTE,
+            emver::Version::new(0, 3, 0, 0)
+        )),
+        Box::new(VersionRange::Anchor(emver::LTE, Current::new().semver())),
+    );
+}
 
 const COMMUNITY_URL: &str = "https://community-registry.start9.com/";
 const MAIN_REGISTRY: &str = "https://registry.start9.com/";
@@ -27,7 +36,7 @@ pub struct Version;
 
 #[async_trait]
 impl VersionT for Version {
-    type Previous = v0_3_3::Version;
+    type Previous = Self;
     fn new() -> Self {
         Version
     }
@@ -37,7 +46,7 @@ impl VersionT for Version {
     fn compat(&self) -> &'static VersionRange {
         &*V0_3_0_COMPAT
     }
-    async fn up<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error> {
+    async fn up<Db: DbHandle>(&self, db: &mut Db, secrets: &PgPool) -> Result<(), Error> {
         let parsed_url = Some(COMMUNITY_URL.parse().unwrap());
         let mut ui = crate::db::DatabaseModel::new().ui().get_mut(db).await?;
         ui["marketplace"]["known-hosts"][COMMUNITY_URL] = json!({});
@@ -66,7 +75,7 @@ impl VersionT for Version {
         ui.save(db).await?;
         Ok(())
     }
-    async fn down<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error> {
+    async fn down<Db: DbHandle>(&self, db: &mut Db, secrets: &PgPool) -> Result<(), Error> {
         let mut ui = crate::db::DatabaseModel::new().ui().get_mut(db).await?;
         let parsed_url = Some(MAIN_REGISTRY.parse().unwrap());
         for package_id in crate::db::DatabaseModel::new()
