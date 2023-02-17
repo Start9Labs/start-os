@@ -30,7 +30,7 @@
               <!-- ** health checks ** -->
               <app-show-health-checks
                 *ngIf="isRunning(status)"
-                [pkg]="pkg"
+                [pkgId]="pkgId"
               ></app-show-health-checks>
               <!-- ** dependencies ** -->
               <app-show-dependencies
