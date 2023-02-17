@@ -37,7 +37,7 @@ impl VersionT for Version {
     fn compat(&self) -> &'static VersionRange {
         &*V0_3_0_COMPAT
     }
-    async fn up<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error> {
+    async fn up<Db: DbHandle>(&self, db: &mut Db, secrets: &PgPool) -> Result<(), Error> {
         let parsed_url = Some(COMMUNITY_URL.parse().unwrap());
         let mut ui = crate::db::DatabaseModel::new().ui().get_mut(db).await?;
         ui["marketplace"]["known-hosts"][COMMUNITY_URL] = json!({});
@@ -65,7 +65,7 @@ impl VersionT for Version {
         ui["widgets"] = json!([]);
         Ok(())
     }
-    async fn down<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error> {
+    async fn down<Db: DbHandle>(&self, db: &mut Db, secrets: &PgPool) -> Result<(), Error> {
         let mut ui = crate::db::DatabaseModel::new().ui().get_mut(db).await?;
         let parsed_url = Some(MAIN_REGISTRY.parse().unwrap());
         for package_id in crate::db::DatabaseModel::new()

@@ -14,7 +14,7 @@ keywords = [
 name = "embassy-os"
 readme = "README.md"
 repository = "https://github.com/Start9Labs/embassy-os"
-version = "0.3.3"
+version = "0.3.4"
 
 [lib]
 name = "embassy"
