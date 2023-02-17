@@ -647,11 +647,9 @@ export const mockPatchData: DataModel = {
         'system-pointers': [],
         'current-dependencies': {
           bitcoind: {
-            pointers: [],
             'health-checks': [],
           },
           'btc-rpc-proxy': {
-            pointers: [],
             'health-checks': [],
           },
         },
