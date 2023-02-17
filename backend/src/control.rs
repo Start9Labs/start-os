@@ -217,21 +217,6 @@ pub async fn restart(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Result
         .await?
         .clone();
 
-    let mut status = crate::db::DatabaseModel::new()
-        .package_data()
-        .idx_model(&id)
-        .and_then(|pde| pde.installed())
-        .map(|i| i.status().main())
-        .get_mut(&mut tx)
-        .await?;
-    if !matches!(&*status, Some(MainStatus::Running { .. })) {
-        return Err(Error::new(
-            eyre!("{} is not running", id),
-            crate::ErrorKind::InvalidRequest,
-        ));
-    }
-    *status = Some(MainStatus::Restarting);
-    status.save(&mut tx).await?;
     tx.commit().await?;
 
     ctx.managers
