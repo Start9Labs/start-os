@@ -308,15 +308,6 @@ export module Mock {
             },
             variants: {
               internal: {
-                'lan-address': {
-                  name: 'LAN Address',
-                  type: 'pointer',
-                  subtype: 'package',
-                  target: 'lan-address',
-                  description: 'the lan address',
-                  interface: 'tor-address',
-                  'package-id': '12341234',
-                },
                 'friendly-name': {
                   name: 'Friendly Name',
                   type: 'string',
@@ -1547,17 +1538,7 @@ export module Mock {
         warning: 'Careful changing this',
       },
       variants: {
-        internal: {
-          'lan-address': {
-            name: 'LAN Address',
-            type: 'pointer',
-            subtype: 'package',
-            target: 'lan-address',
-            'package-id': 'bitcoind',
-            description: 'the lan address',
-            interface: 'asdf',
-          },
-        },
+        internal: {},
         external: {
           'emergency-contact': {
             name: 'Emergency Contact',
@@ -1903,13 +1884,6 @@ export module Mock {
           'lan-address': 'bitcoind-p2p-address.local',
         },
       },
-      'system-pointers': [],
-      'current-dependents': {
-        lnd: {
-          pointers: [],
-          'health-checks': [],
-        },
-      },
       'current-dependencies': {},
       'dependency-info': {},
       'marketplace-url': 'https://registry.start9.com/',
@@ -1942,16 +1916,8 @@ export module Mock {
           'lan-address': 'bitcoinproxy-rpc-address.local',
         },
       },
-      'system-pointers': [],
-      'current-dependents': {
-        lnd: {
-          pointers: [],
-          'health-checks': [],
-        },
-      },
       'current-dependencies': {
         bitcoind: {
-          pointers: [],
           'health-checks': [],
         },
       },
@@ -1999,15 +1965,11 @@ export module Mock {
           'lan-address': 'lnd-grpc-address.local',
         },
       },
-      'system-pointers': [],
-      'current-dependents': {},
       'current-dependencies': {
         bitcoind: {
-          pointers: [],
           'health-checks': [],
         },
         'btc-rpc-proxy': {
-          pointers: [],
           'health-checks': [],
         },
       },
