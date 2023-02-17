@@ -126,8 +126,6 @@ export interface InstalledPackageDataEntry {
   status: Status
   manifest: Manifest
   'last-backup': string | null
-  'system-pointers': any[]
-  'current-dependents': { [id: string]: CurrentDependencyInfo }
   'current-dependencies': { [id: string]: CurrentDependencyInfo }
   'dependency-info': {
     [id: string]: {
@@ -143,7 +141,6 @@ export interface InstalledPackageDataEntry {
 }
 
 export interface CurrentDependencyInfo {
-  pointers: any[]
   'health-checks': string[] // array of health check IDs
 }
 
