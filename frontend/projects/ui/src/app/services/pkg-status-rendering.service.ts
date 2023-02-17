@@ -1,5 +1,6 @@
 import { isEmptyObject } from '@start9labs/shared'
 import {
+  InstalledPackageDataEntry,
   MainStatusStarting,
   PackageDataEntry,
   PackageMainStatus,
@@ -8,42 +9,39 @@ import {
 } from 'src/app/services/patch-db/data-model'
 
 export interface PackageStatus {
-  primary: PrimaryStatus
+  primary: PrimaryStatus | PackageState | PackageMainStatus
   dependency: DependencyStatus | null
   health: HealthStatus | null
 }
 
 export function renderPkgStatus(pkg: PackageDataEntry): PackageStatus {
-  let primary: PrimaryStatus
+  let primary: PrimaryStatus | PackageState | PackageMainStatus
   let dependency: DependencyStatus | null = null
   let health: HealthStatus | null = null
-  const hasHealthChecks = !isEmptyObject(pkg.manifest['health-checks'])
 
   if (pkg.state === PackageState.Installed && pkg.installed) {
     primary = getPrimaryStatus(pkg.installed.status)
-    dependency = getDependencyStatus(pkg)
-    health = getHealthStatus(pkg.installed.status, hasHealthChecks)
+    dependency = getDependencyStatus(pkg.installed)
+    health = getHealthStatus(pkg.installed.status)
   } else {
-    primary = pkg.state as string as PrimaryStatus
+    primary = pkg.state
   }
 
   return { primary, dependency, health }
 }
 
-function getPrimaryStatus(status: Status): PrimaryStatus {
+function getPrimaryStatus(status: Status): PrimaryStatus | PackageMainStatus {
   if (!status.configured) {
     return PrimaryStatus.NeedsConfig
-  } else if ((status.main as MainStatusStarting).restarting) {
-    return PrimaryStatus.Restarting
   } else {
-    return status.main.status as any as PrimaryStatus
+    return status.main.status
   }
 }
 
-function getDependencyStatus(pkg: PackageDataEntry): DependencyStatus | null {
-  const installed = pkg.installed
-  if (!installed || isEmptyObject(installed['current-dependencies']))
-    return null
+function getDependencyStatus(
+  installed: InstalledPackageDataEntry,
+): DependencyStatus | null {
+  if (isEmptyObject(installed['current-dependencies'])) return null
 
   const depErrors = installed.status['dependency-errors']
   const depIds = Object.keys(depErrors).filter(key => !!depErrors[key])
@@ -51,11 +49,8 @@ function getDependencyStatus(pkg: PackageDataEntry): DependencyStatus | null {
   return depIds.length ? DependencyStatus.Warning : DependencyStatus.Satisfied
 }
 
-function getHealthStatus(
-  status: Status,
-  hasHealthChecks: boolean,
-): HealthStatus | null {
-  if (status.main.status !== PackageMainStatus.Running || !status.main.health) {
+function getHealthStatus(status: Status): HealthStatus | null {
+  if (status.main.status !== PackageMainStatus.Running) {
     return null
   }
 
@@ -63,10 +58,6 @@ function getHealthStatus(
 
   if (values.some(h => h.result === 'failure')) {
     return HealthStatus.Failure
-  }
-
-  if (!values.length && hasHealthChecks) {
-    return HealthStatus.Waiting
   }
 
   if (values.some(h => h.result === 'loading')) {

@@ -67,10 +67,7 @@ pub async fn start(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Result<(
     let mut tx = db.begin().await?;
     let receipts = StartReceipts::new(&mut tx, &id).await?;
     let version = receipts.version.get(&mut tx).await?;
-    receipts
-        .status
-        .set(&mut tx, MainStatus::Starting { restarting: false })
-        .await?;
+    receipts.status.set(&mut tx, MainStatus::Starting).await?;
     heal_all_dependents_transitive(&ctx, &mut tx, &id, &receipts.dependency_receipt).await?;
 
     tx.commit().await?;
