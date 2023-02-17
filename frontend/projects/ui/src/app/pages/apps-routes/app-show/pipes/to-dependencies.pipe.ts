@@ -2,8 +2,8 @@ import { Pipe, PipeTransform } from '@angular/core'
 import { NavigationExtras } from '@angular/router'
 import { NavController } from '@ionic/angular'
 import {
-  DependencyError,
   DependencyErrorType,
+  InstalledPackageDataEntry,
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
 import { DependentInfo } from 'src/app/types/dependent-info'
@@ -31,24 +31,21 @@ export class ToDependenciesPipe implements PipeTransform {
   transform(pkg: PackageDataEntry): DependencyInfo[] {
     if (!pkg.installed) return []
 
-    return Object.keys(pkg.installed?.['current-dependencies'])
+    return Object.keys(pkg.installed['current-dependencies'])
       .filter(id => !!pkg.manifest.dependencies[id])
-      .map(id =>
-        this.setDepValues(pkg, id, pkg.installed!.status['dependency-errors']),
-      )
+      .map(id => this.setDepValues(pkg.installed!, id))
   }
 
   private setDepValues(
-    pkg: PackageDataEntry,
+    pkg: InstalledPackageDataEntry,
     id: string,
-    errors: { [id: string]: DependencyError | null },
   ): DependencyInfo {
     let errorText = ''
     let actionText = 'View'
     let action: () => any = () =>
       this.navCtrl.navigateForward(`/services/${id}`)
 
-    const error = errors[id]
+    const error = pkg.status['dependency-errors'][id]
 
     if (error) {
       // health checks failed
@@ -84,7 +81,7 @@ export class ToDependenciesPipe implements PipeTransform {
       errorText = `${errorText}. ${pkg.manifest.title} will not work as expected.`
     }
 
-    const depInfo = pkg.installed?.['dependency-info'][id]
+    const depInfo = pkg['dependency-info'][id]
 
     return {
       id,
@@ -98,7 +95,7 @@ export class ToDependenciesPipe implements PipeTransform {
   }
 
   async fixDep(
-    pkg: PackageDataEntry,
+    pkg: InstalledPackageDataEntry,
     action: 'install' | 'update' | 'configure',
     id: string,
   ): Promise<void> {
@@ -112,7 +109,7 @@ export class ToDependenciesPipe implements PipeTransform {
   }
 
   private async installDep(
-    pkg: PackageDataEntry,
+    pkg: InstalledPackageDataEntry,
     depId: string,
   ): Promise<void> {
     const version = pkg.manifest.dependencies[depId].version
@@ -133,7 +130,7 @@ export class ToDependenciesPipe implements PipeTransform {
   }
 
   private async configureDep(
-    pkg: PackageDataEntry,
+    pkg: InstalledPackageDataEntry,
     dependencyId: string,
   ): Promise<void> {
     const dependentInfo: DependentInfo = {
