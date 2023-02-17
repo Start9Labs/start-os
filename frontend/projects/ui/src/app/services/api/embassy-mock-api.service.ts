@@ -689,7 +689,18 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
 
     setTimeout(async () => {
-      const patch2 = [
+      if (params.id !== 'bitcoind') {
+        const patch2 = [
+          {
+            op: PatchOp.REPLACE,
+            path: path + '/health',
+            value: {},
+          },
+        ]
+        this.mockRevision(patch2)
+      }
+
+      const patch3 = [
         {
           op: PatchOp.REPLACE,
           path: path + '/status',
@@ -701,52 +712,7 @@ export class MockApiService extends ApiService {
           value: new Date().toISOString(),
         },
       ]
-      this.mockRevision(patch2)
-
-      const patch3 = [
-        {
-          op: PatchOp.REPLACE,
-          path: path + '/health',
-          value: {
-            'ephemeral-health-check': {
-              result: 'starting',
-            },
-            'unnecessary-health-check': {
-              result: 'disabled',
-            },
-          },
-        },
-      ]
       this.mockRevision(patch3)
-
-      await pauseFor(2000)
-
-      const patch4 = [
-        {
-          op: PatchOp.REPLACE,
-          path: path + '/health',
-          value: {
-            'ephemeral-health-check': {
-              result: 'starting',
-            },
-            'unnecessary-health-check': {
-              result: 'disabled',
-            },
-            'chain-state': {
-              result: 'loading',
-              message: 'Bitcoin is syncing from genesis',
-            },
-            'p2p-interface': {
-              result: 'success',
-            },
-            'rpc-interface': {
-              result: 'failure',
-              error: 'RPC interface unreachable.',
-            },
-          },
-        },
-      ]
-      this.mockRevision(patch4)
     }, 2000)
 
     const originalPatch = [
@@ -857,11 +823,6 @@ export class MockApiService extends ApiService {
         op: PatchOp.REPLACE,
         path: path + '/status',
         value: PackageMainStatus.Stopping,
-      },
-      {
-        op: PatchOp.REPLACE,
-        path: path + '/health',
-        value: {},
       },
     ]
 

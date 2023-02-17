@@ -126,24 +126,6 @@ export const mockPatchData: DataModel = {
           'shm-size': '',
           'sigterm-timeout': '.49m',
         },
-        'health-checks': {
-          'chain-state': {
-            name: 'Chain State',
-          },
-          'ephemeral-health-check': {
-            name: 'Ephemeral Health Check',
-          },
-          'p2p-interface': {
-            name: 'P2P Interface',
-            'success-message': 'the health check ran succesfully',
-          },
-          'rpc-interface': {
-            name: 'RPC Interface',
-          },
-          'unnecessary-health-check': {
-            name: 'Unneccessary Health Check',
-          },
-        } as any,
         config: {
           get: {},
           set: {},
@@ -242,9 +224,12 @@ export const mockPatchData: DataModel = {
                   'Your reason for re-syncing. Why are you doing this?',
                 nullable: false,
                 masked: false,
-                copyable: false,
                 pattern: '^[a-zA-Z]+$',
                 'pattern-description': 'Must contain only letters.',
+                placeholder: null,
+                textarea: false,
+                warning: null,
+                default: null,
               },
               name: {
                 type: 'string',
@@ -252,14 +237,19 @@ export const mockPatchData: DataModel = {
                 description: 'Tell the class your name.',
                 nullable: true,
                 masked: false,
-                copyable: false,
                 warning: 'You may loose all your money by providing your name.',
+                placeholder: null,
+                pattern: null,
+                'pattern-description': null,
+                textarea: false,
+                default: null,
               },
               notifications: {
                 name: 'Notification Preferences',
                 type: 'list',
                 subtype: 'enum',
                 description: 'how you want to be notified',
+                warning: null,
                 range: '[1,3]',
                 default: ['email'],
                 spec: {
@@ -281,6 +271,9 @@ export const mockPatchData: DataModel = {
                 default: 100,
                 range: '[0, 9999]',
                 integral: true,
+                units: null,
+                placeholder: null,
+                warning: null,
               },
               'top-speed': {
                 type: 'number',
@@ -290,6 +283,9 @@ export const mockPatchData: DataModel = {
                 range: '[-1000, 1000]',
                 integral: false,
                 units: 'm/s',
+                placeholder: null,
+                warning: null,
+                default: null,
               },
               testnet: {
                 name: 'Testnet',
@@ -317,22 +313,33 @@ export const mockPatchData: DataModel = {
                 name: 'Emergency Contact',
                 type: 'object',
                 description: 'The person to contact in case of emergency.',
+                warning: null,
                 spec: {
                   name: {
                     type: 'string',
                     name: 'Name',
+                    description: null,
                     nullable: false,
                     masked: false,
-                    copyable: false,
                     pattern: '^[a-zA-Z]+$',
                     'pattern-description': 'Must contain only letters.',
+                    placeholder: null,
+                    textarea: false,
+                    warning: null,
+                    default: null,
                   },
                   email: {
                     type: 'string',
                     name: 'Email',
+                    description: null,
                     nullable: false,
                     masked: false,
-                    copyable: true,
+                    placeholder: null,
+                    pattern: null,
+                    'pattern-description': null,
+                    textarea: false,
+                    warning: null,
+                    default: null,
                   },
                 },
               },
@@ -350,7 +357,7 @@ export const mockPatchData: DataModel = {
                   pattern: '^[0-9]{1,3}([,.][0-9]{1,3})?$',
                   'pattern-description': 'Must be a valid IP address',
                   masked: false,
-                  copyable: false,
+                  placeholder: null,
                 },
               },
               bitcoinNode: {
@@ -374,7 +381,12 @@ export const mockPatchData: DataModel = {
                       description: 'the lan address',
                       nullable: true,
                       masked: false,
-                      copyable: false,
+                      placeholder: null,
+                      pattern: null,
+                      'pattern-description': null,
+                      textarea: false,
+                      warning: null,
+                      default: null,
                     },
                   },
                   external: {
@@ -387,7 +399,9 @@ export const mockPatchData: DataModel = {
                       pattern: '.*',
                       'pattern-description': 'anything',
                       masked: false,
-                      copyable: true,
+                      placeholder: null,
+                      textarea: false,
+                      warning: null,
                     },
                   },
                 },
@@ -410,20 +424,26 @@ export const mockPatchData: DataModel = {
             started: '2021-06-14T20:49:17.774Z',
             health: {
               'ephemeral-health-check': {
+                name: 'Ephemeral Health Check',
                 result: HealthResult.Starting,
               },
               'chain-state': {
+                name: 'Chain State',
                 result: HealthResult.Loading,
                 message: 'Bitcoin is syncing from genesis',
               },
               'p2p-interface': {
+                name: 'P2P Interface',
                 result: HealthResult.Success,
+                message: 'the health check ran successfully',
               },
               'rpc-interface': {
+                name: 'RPC Interface',
                 result: HealthResult.Failure,
                 error: 'RPC interface unreachable.',
               },
               'unnecessary-health-check': {
+                name: 'Totally Unnecessary',
                 result: HealthResult.Disabled,
               },
             },
@@ -460,7 +480,7 @@ export const mockPatchData: DataModel = {
       manifest: {
         id: 'lnd',
         title: 'Lightning Network Daemon',
-        version: '0.11.0',
+        version: '0.11.1',
         description: {
           short: 'A bolt spec compliant client.',
           long: 'More info about LND. More info about LND. More info about LND.',
@@ -500,7 +520,6 @@ export const mockPatchData: DataModel = {
           'shm-size': '',
           'sigterm-timeout': '0.5s',
         },
-        'health-checks': {},
         config: {
           get: null,
           set: null,

@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import { PatchDB } from 'patch-db-client'
+import { map } from 'rxjs'
 import { ConnectionService } from 'src/app/services/connection.service'
-import {
-  HealthResult,
-  PackageDataEntry,
-} from 'src/app/services/patch-db/data-model'
+import { DataModel, HealthResult } from 'src/app/services/patch-db/data-model'
+import { isEmptyObject } from '@start9labs/shared'
 
 @Component({
   selector: 'app-show-health-checks',
@@ -12,14 +12,26 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppShowHealthChecksComponent {
-  @Input()
-  pkg!: PackageDataEntry
-
-  HealthResult = HealthResult
+  @Input() pkgId!: string
 
   readonly connected$ = this.connectionService.connected$
 
-  constructor(private readonly connectionService: ConnectionService) {}
+  get healthChecks$() {
+    return this.patch
+      .watch$('package-data', this.pkgId, 'installed', 'status', 'main')
+      .pipe(
+        map(main => {
+          if (main.status !== 'running' || isEmptyObject(main.health))
+            return null
+          return Object.values(main.health)
+        }),
+      )
+  }
+
+  constructor(
+    private readonly connectionService: ConnectionService,
+    private readonly patch: PatchDB<DataModel>,
+  ) {}
 
   isLoading(result: HealthResult): boolean {
     return result === HealthResult.Starting || result === HealthResult.Loading
