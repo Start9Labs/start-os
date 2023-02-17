@@ -16,7 +16,6 @@ use serde_json::Value;
 use ssh_key::public::Ed25519PublicKey;
 
 use crate::account::AccountInfo;
-use crate::config::spec::{PackagePointerSpec, SystemPointerSpec};
 use crate::install::progress::InstallProgress;
 use crate::net::forward::LanPortForwards;
 use crate::net::interface::InterfaceId;
@@ -320,11 +319,7 @@ pub struct InstalledPackageDataEntry {
     pub manifest: Manifest,
     pub last_backup: Option<DateTime<Utc>>,
     #[model]
-    pub system_pointers: Vec<SystemPointerSpec>,
-    #[model]
     pub dependency_info: BTreeMap<PackageId, StaticDependencyInfo>,
-    #[model]
-    pub current_dependents: CurrentDependents,
     #[model]
     pub current_dependencies: CurrentDependencies,
     #[model]
@@ -389,7 +384,6 @@ pub struct StaticDependencyInfo {
 #[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
 pub struct CurrentDependencyInfo {
-    pub pointers: Vec<PackagePointerSpec>,
     pub health_checks: BTreeSet<HealthCheckId>,
 }
 

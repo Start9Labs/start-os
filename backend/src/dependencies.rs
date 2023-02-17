@@ -15,8 +15,7 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::config::action::{ConfigActions, ConfigRes};
-use crate::config::spec::PackagePointerSpec;
-use crate::config::{not_found, Config, ConfigReceipts, ConfigSpec, ConfigureContext};
+use crate::config::{not_found, Config, ConfigReceipts, ConfigureContext};
 use crate::context::RpcContext;
 use crate::db::model::{CurrentDependencies, CurrentDependents, InstalledPackageDataEntry};
 use crate::procedure::docker::DockerContainers;
@@ -687,7 +686,6 @@ pub async fn configure_impl(
 pub struct ConfigDryRes {
     pub old_config: Config,
     pub new_config: Config,
-    pub spec: ConfigSpec,
 }
 
 #[command(rename = "dry", display(display_serializable))]
@@ -779,7 +777,6 @@ pub async fn configure_logic(
     Ok(ConfigDryRes {
         old_config,
         new_config,
-        spec,
     })
 }
 #[instrument(skip(db, current_dependencies, current_dependent_receipt))]
@@ -1036,39 +1033,6 @@ pub fn heal_transitive<'a, Db: DbHandle>(
         Ok(())
     }
     .boxed()
-}
-
-pub async fn reconfigure_dependents_with_live_pointers(
-    ctx: &RpcContext,
-    tx: impl DbHandle,
-    receipts: &ConfigReceipts,
-    pde: &InstalledPackageDataEntry,
-) -> Result<(), Error> {
-    let dependents = &pde.current_dependents;
-    let me = &pde.manifest.id;
-    for (dependent_id, dependency_info) in &dependents.0 {
-        if dependency_info.pointers.iter().any(|ptr| match ptr {
-            // dependency id matches the package being uninstalled
-            PackagePointerSpec::TorAddress(ptr) => &ptr.package_id == me && dependent_id != me,
-            PackagePointerSpec::LanAddress(ptr) => &ptr.package_id == me && dependent_id != me,
-            // we never need to retarget these
-            PackagePointerSpec::TorKey(_) => false,
-            PackagePointerSpec::Config(_) => false,
-        }) {
-            let breakages = BTreeMap::new();
-            let overrides = Default::default();
-
-            let configure_context = ConfigureContext {
-                breakages,
-                timeout: None,
-                config: None,
-                dry_run: false,
-                overrides,
-            };
-            crate::config::configure(&ctx, dependent_id, configure_context).await?;
-        }
-    }
-    Ok(())
 }
 
 #[derive(Clone)]

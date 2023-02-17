@@ -1,13 +1,9 @@
 use std::collections::BTreeMap;
-use std::path::PathBuf;
 use std::time::Duration;
 
 use color_eyre::eyre::eyre;
-use indexmap::IndexSet;
-use itertools::Itertools;
 use models::ErrorKind;
 use patch_db::{DbHandle, LockReceipt, LockTarget, LockTargetId, LockType, Verifier};
-use regex::Regex;
 use rpc_toolkit::command;
 use serde_json::Value;
 use tracing::instrument;
@@ -27,14 +23,9 @@ use crate::Error;
 
 pub mod action;
 pub mod hook;
-pub mod spec;
 pub mod util;
 
-pub use spec::{ConfigSpec, Defaultable};
-use util::NumRange;
-
 use self::action::{ConfigActions, ConfigRes};
-use self::spec::{ConfigPointerReceipts, ValueSpecPointer};
 
 pub type Config = serde_json::Map<String, Value>;
 pub trait TypeOf {
@@ -51,111 +42,6 @@ impl TypeOf for Value {
             Value::String(_) => "string",
         }
     }
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum ConfigurationError {
-    #[error("Timeout Error")]
-    TimeoutError(#[from] TimeoutError),
-    #[error("No Match: {0}")]
-    NoMatch(#[from] NoMatchWithPath),
-    #[error("System Error: {0}")]
-    SystemError(Error),
-    #[error("Permission Denied: {0}")]
-    PermissionDenied(ValueSpecPointer),
-}
-impl From<ConfigurationError> for Error {
-    fn from(err: ConfigurationError) -> Self {
-        let kind = match &err {
-            ConfigurationError::SystemError(e) => e.kind,
-            _ => crate::ErrorKind::ConfigGen,
-        };
-        crate::Error::new(err, kind)
-    }
-}
-
-#[derive(Clone, Copy, Debug, thiserror::Error)]
-#[error("Timeout Error")]
-pub struct TimeoutError;
-
-#[derive(Clone, Debug, thiserror::Error)]
-pub struct NoMatchWithPath {
-    pub path: Vec<String>,
-    pub error: MatchError,
-}
-impl NoMatchWithPath {
-    pub fn new(error: MatchError) -> Self {
-        NoMatchWithPath {
-            path: Vec::new(),
-            error,
-        }
-    }
-    pub fn prepend(mut self, seg: String) -> Self {
-        self.path.push(seg);
-        self
-    }
-}
-impl std::fmt::Display for NoMatchWithPath {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}: {}", self.path.iter().rev().join("."), self.error)
-    }
-}
-impl From<NoMatchWithPath> for Error {
-    fn from(e: NoMatchWithPath) -> Self {
-        ConfigurationError::from(e).into()
-    }
-}
-
-#[derive(Clone, Debug, thiserror::Error)]
-pub enum MatchError {
-    #[error("String {0:?} Does Not Match Pattern {1}")]
-    Pattern(String, Regex),
-    #[error("String {0:?} Is Not In Enum {1:?}")]
-    Enum(String, IndexSet<String>),
-    #[error("Field Is Not Nullable")]
-    NotNullable,
-    #[error("Length Mismatch: expected {0}, actual: {1}")]
-    LengthMismatch(NumRange<usize>, usize),
-    #[error("Invalid Type: expected {0}, actual: {1}")]
-    InvalidType(&'static str, &'static str),
-    #[error("Number Out Of Range: expected {0}, actual: {1}")]
-    OutOfRange(NumRange<f64>, f64),
-    #[error("Number Is Not Integral: {0}")]
-    NonIntegral(f64),
-    #[error("Variant {0:?} Is Not In Union {1:?}")]
-    Union(String, IndexSet<String>),
-    #[error("Variant Is Missing Tag {0:?}")]
-    MissingTag(String),
-    #[error("Property {0:?} Of Variant {1:?} Conflicts With Union Tag")]
-    PropertyMatchesUnionTag(String, String),
-    #[error("Name of Property {0:?} Conflicts With Map Tag Name")]
-    PropertyNameMatchesMapTag(String),
-    #[error("Pointer Is Invalid: {0}")]
-    InvalidPointer(spec::ValueSpecPointer),
-    #[error("Object Key Is Invalid: {0}")]
-    InvalidKey(String),
-    #[error("Value In List Is Not Unique")]
-    ListUniquenessViolation,
-}
-
-#[command(rename = "config-spec", cli_only, blocking, display(display_none))]
-pub fn verify_spec(#[arg] path: PathBuf) -> Result<(), Error> {
-    let mut file = std::fs::File::open(&path)?;
-    let format = match path.extension().and_then(|s| s.to_str()) {
-        Some("yaml") | Some("yml") => IoFormat::Yaml,
-        Some("json") => IoFormat::Json,
-        Some("toml") => IoFormat::Toml,
-        Some("cbor") => IoFormat::Cbor,
-        _ => {
-            return Err(Error::new(
-                eyre!("Unknown file format. Expected one of yaml, json, toml, cbor."),
-                crate::ErrorKind::Deserialization,
-            ));
-        }
-    };
-    let _: ConfigSpec = format.from_reader(&mut file)?;
-
-    Ok(())
 }
 
 #[command(subcommands(get, set))]
@@ -259,7 +145,6 @@ pub fn set(
 /// is the keys that we need to insert on getting/setting because we have included wild cards into the paths.
 pub struct ConfigReceipts {
     pub dependency_receipt: DependencyReceipt,
-    pub config_receipts: ConfigPointerReceipts,
     pub update_dependency_receipts: UpdateDependencyReceipts,
     pub try_heal_receipts: TryHealReceipts,
     pub break_transitive_receipts: BreakTransitiveReceipts,
@@ -269,7 +154,6 @@ pub struct ConfigReceipts {
     pub volumes: LockReceipt<crate::volume::Volumes, String>,
     pub version: LockReceipt<crate::util::Version, String>,
     pub manifest: LockReceipt<Manifest, String>,
-    pub system_pointers: LockReceipt<Vec<spec::SystemPointerSpec>, String>,
     pub current_dependents: LockReceipt<CurrentDependents, String>,
     pub current_dependencies: LockReceipt<CurrentDependencies, String>,
     pub dependency_errors: LockReceipt<DependencyErrors, String>,
@@ -287,7 +171,6 @@ impl ConfigReceipts {
 
     pub fn setup(locks: &mut Vec<LockTargetId>) -> impl FnOnce(&Verifier) -> Result<Self, Error> {
         let dependency_receipt = DependencyReceipt::setup(locks);
-        let config_receipts = ConfigPointerReceipts::setup(locks);
         let update_dependency_receipts = UpdateDependencyReceipts::setup(locks);
         let break_transitive_receipts = BreakTransitiveReceipts::setup(locks);
         let try_heal_receipts = TryHealReceipts::setup(locks);
@@ -390,7 +273,6 @@ impl ConfigReceipts {
         move |skeleton_key| {
             Ok(Self {
                 dependency_receipt: dependency_receipt(skeleton_key)?,
-                config_receipts: config_receipts(skeleton_key)?,
                 try_heal_receipts: try_heal_receipts(skeleton_key)?,
                 break_transitive_receipts: break_transitive_receipts(skeleton_key)?,
                 update_dependency_receipts: update_dependency_receipts(skeleton_key)?,
@@ -400,7 +282,6 @@ impl ConfigReceipts {
                 volumes: volumes.verify(skeleton_key)?,
                 version: version.verify(skeleton_key)?,
                 manifest: manifest.verify(skeleton_key)?,
-                system_pointers: system_pointers.verify(skeleton_key)?,
                 current_dependents: current_dependents.verify(skeleton_key)?,
                 current_dependencies: current_dependencies.verify(skeleton_key)?,
                 dependency_errors: dependency_errors.verify(skeleton_key)?,

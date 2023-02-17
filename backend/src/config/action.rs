@@ -5,9 +5,10 @@ use models::ImageId;
 use nix::sys::signal::Signal;
 use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use tracing::instrument;
 
-use super::{Config, ConfigSpec};
+use super::Config;
 use crate::context::RpcContext;
 use crate::dependencies::Dependencies;
 use crate::procedure::docker::DockerContainers;
@@ -18,11 +19,9 @@ use crate::util::Version;
 use crate::volume::Volumes;
 use crate::{Error, ResultExt};
 
-#[derive(Debug, Deserialize, Serialize, HasModel)]
-#[serde(rename_all = "kebab-case")]
 pub struct ConfigRes {
     pub config: Option<Config>,
-    pub spec: ConfigSpec,
+    pub spec: Value,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]

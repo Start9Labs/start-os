@@ -27,7 +27,6 @@ use transition_state::TransitionState;
 use crate::backup::target::PackageBackupInfo;
 use crate::backup::PackageBackupReport;
 use crate::config::action::ConfigRes;
-use crate::config::spec::ValueSpecPointer;
 use crate::config::{not_found, ConfigReceipts, ConfigureContext};
 use crate::context::RpcContext;
 use crate::db::model::{CurrentDependencies, CurrentDependencyInfo};
@@ -324,7 +323,7 @@ impl Manager {
     }
 }
 
-#[instrument(skip(ctx, configure_context))]
+// #[instrument(skip(ctx, configure_context))]
 fn configure(
     ctx: RpcContext,
     id: PackageId,
@@ -370,63 +369,7 @@ fn configure(
                 )?
             };
 
-        let manifest = receipts.manifest.get(db, id).await?.ok_or_else(not_found)?;
-
-        spec.validate(&manifest)?;
-        spec.matches(&config)?; // check that new config matches spec
-        spec.update(
-            ctx,
-            db,
-            &manifest,
-            overrides,
-            &mut config,
-            &receipts.config_receipts,
-        )
-        .await?; // dereference pointers in the new config
-
-        // create backreferences to pointers
-        let mut sys = receipts
-            .system_pointers
-            .get(db, id)
-            .await?
-            .ok_or_else(not_found)?;
-        sys.truncate(0);
-        let mut current_dependencies: CurrentDependencies = CurrentDependencies(
-            dependencies
-                .0
-                .iter()
-                .filter_map(|(id, info)| {
-                    if info.requirement.required() {
-                        Some((id.clone(), CurrentDependencyInfo::default()))
-                    } else {
-                        None
-                    }
-                })
-                .collect(),
-        );
-        for ptr in spec.pointers(&config)? {
-            match ptr {
-                ValueSpecPointer::Package(pkg_ptr) => {
-                    if let Some(current_dependency) =
-                        current_dependencies.0.get_mut(pkg_ptr.package_id())
-                    {
-                        current_dependency.pointers.push(pkg_ptr);
-                    } else {
-                        current_dependencies.0.insert(
-                            pkg_ptr.package_id().to_owned(),
-                            CurrentDependencyInfo {
-                                pointers: vec![pkg_ptr],
-                                health_checks: BTreeSet::new(),
-                            },
-                        );
-                    }
-                }
-                ValueSpecPointer::System(s) => sys.push(s),
-            }
-        }
-        receipts.system_pointers.set(db, sys, id).await?;
-
-        let signal = if !configure_context.dry_run {
+        if !configure_context.dry_run {
             // run config action
             let res = action
                 .set(ctx, id, &version, &dependencies, &volumes, &config)
@@ -435,149 +378,9 @@ fn configure(
             ctx.call_config_hooks(id.clone(), &serde_json::Value::Object(config.clone()))
                 .await;
 
-            // track dependencies with no pointers
-            for (package_id, health_checks) in res.depends_on.into_iter() {
-                if let Some(current_dependency) = current_dependencies.0.get_mut(&package_id) {
-                    current_dependency.health_checks.extend(health_checks);
-                } else {
-                    current_dependencies.0.insert(
-                        package_id,
-                        CurrentDependencyInfo {
-                            pointers: Vec::new(),
-                            health_checks,
-                        },
-                    );
-                }
-            }
-
-            // track dependency health checks
-            current_dependencies = current_dependencies.map(|x| {
-                x.into_iter()
-                    .filter(|(dep_id, _)| {
-                        if dep_id != id && !manifest.dependencies.0.contains_key(dep_id) {
-                            tracing::warn!("Illegal dependency specified: {}", dep_id);
-                            false
-                        } else {
-                            true
-                        }
-                    })
-                    .collect()
-            });
             res.signal
-        } else {
-            None
-        };
-
-        // update dependencies
-        let prev_current_dependencies = receipts
-            .current_dependencies
-            .get(db, id)
-            .await?
-            .unwrap_or_default();
-        remove_from_current_dependents_lists(
-            db,
-            id,
-            &prev_current_dependencies,
-            &receipts.current_dependents,
-        )
-        .await?; // remove previous
-        add_dependent_to_current_dependents_lists(
-            db,
-            id,
-            &current_dependencies,
-            &receipts.current_dependents,
-        )
-        .await?; // add new
-        current_dependencies.0.remove(id);
-        receipts
-            .current_dependencies
-            .set(db, current_dependencies.clone(), id)
-            .await?;
-
-        let errs = receipts
-            .dependency_errors
-            .get(db, &id)
-            .await?
-            .ok_or_else(not_found)?;
-        tracing::warn!("Dependency Errors: {:?}", errs);
-        let errs = DependencyErrors::init(
-            ctx,
-            db,
-            &manifest,
-            &current_dependencies,
-            &receipts.dependency_receipt.try_heal,
-        )
-        .await?;
-        receipts.dependency_errors.set(db, errs, id).await?;
-
-        // cache current config for dependents
-        configure_context
-            .overrides
-            .insert(id.clone(), config.clone());
-
-        // handle dependents
-        let dependents = receipts
-            .current_dependents
-            .get(db, id)
-            .await?
-            .ok_or_else(not_found)?;
-        for (dependent, _dep_info) in dependents.0.iter().filter(|(dep_id, _)| dep_id != &id) {
-            let dependent_container = receipts.docker_containers.get(db, dependent).await?;
-            let dependent_container = &dependent_container;
-            // check if config passes dependent check
-            if let Some(cfg) = receipts
-                .manifest_dependencies_config
-                .get(db, (dependent, id))
-                .await?
-            {
-                let manifest = receipts
-                    .manifest
-                    .get(db, dependent)
-                    .await?
-                    .ok_or_else(not_found)?;
-                if let Err(error) = cfg
-                    .check(
-                        ctx,
-                        dependent_container,
-                        dependent,
-                        &manifest.version,
-                        &manifest.volumes,
-                        id,
-                        &config,
-                    )
-                    .await?
-                {
-                    let dep_err = DependencyError::ConfigUnsatisfied { error };
-                    break_transitive(
-                        db,
-                        dependent,
-                        id,
-                        dep_err,
-                        &mut configure_context.breakages,
-                        &receipts.break_transitive_receipts,
-                    )
-                    .await?;
-                }
-
-                heal_all_dependents_transitive(ctx, db, id, &receipts.dependency_receipt).await?;
-            }
         }
 
-        if let Some(signal) = signal {
-            match ctx.managers.get(&(id.clone(), version.clone())).await {
-                None => {
-                    // in theory this should never happen, which indicates this function should be moved behind the
-                    // Manager interface
-                    return Err(Error::new(
-                        eyre!("Manager Not Found for package being configured"),
-                        crate::ErrorKind::Incoherent,
-                    ));
-                }
-                Some(m) => {
-                    async move { m.signal(signal).await }.await?;
-                }
-            }
-        }
         receipts.configured.set(db, true, &id).await?;
 
         if configure_context.dry_run {
