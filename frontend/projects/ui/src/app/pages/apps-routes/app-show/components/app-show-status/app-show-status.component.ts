@@ -6,6 +6,7 @@ import {
   PrimaryStatus,
 } from 'src/app/services/pkg-status-rendering.service'
 import {
+  DataModel,
   InterfaceDef,
   PackageDataEntry,
   PackageState,
@@ -18,6 +19,7 @@ import { ModalService } from 'src/app/services/modal.service'
 import { DependencyInfo } from '../../pipes/to-dependencies.pipe'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { ConnectionService } from 'src/app/services/connection.service'
+import { PatchDB } from 'patch-db-client'
 
 @Component({
   selector: 'app-show-status',
@@ -47,7 +49,12 @@ export class AppShowStatusComponent {
     private readonly launcherService: UiLauncherService,
     private readonly modalService: ModalService,
     private readonly connectionService: ConnectionService,
+    private readonly patch: PatchDB<DataModel>,
   ) {}
+
+  private get id(): string {
+    return this.pkg.manifest.id
+  }
 
   get interfaces(): Record<string, InterfaceDef> {
     return this.pkg.manifest.interfaces || {}
@@ -99,10 +106,10 @@ export class AppShowStatusComponent {
   }
 
   async tryStop(): Promise<void> {
-    const { title, alerts } = this.pkg.manifest
+    const { title, alerts, id } = this.pkg.manifest
 
     let message = alerts.stop || ''
-    if (hasCurrentDeps(this.pkg)) {
+    if (await hasCurrentDeps(this.patch, id)) {
       const depMessage = `Services that depend on ${title} will no longer work properly and may crash`
       message = message ? `${message}.\n\n${depMessage}` : depMessage
     }
@@ -134,10 +141,12 @@ export class AppShowStatusComponent {
   }
 
   async tryRestart(): Promise<void> {
-    if (hasCurrentDeps(this.pkg)) {
+    const { id, title } = this.pkg.manifest
+
+    if (await hasCurrentDeps(this.patch, id)) {
       const alert = await this.alertCtrl.create({
         header: 'Warning',
-        message: `Services that depend on ${this.pkg.manifest.title} may temporarily experiences issues`,
+        message: `Services that depend on ${title} may temporarily experiences issues`,
         buttons: [
           {
             text: 'Cancel',
@@ -158,10 +167,6 @@ export class AppShowStatusComponent {
     } else {
       this.restart()
     }
-  }
-
-  private get id(): string {
-    return this.pkg.manifest.id
   }
 
   private async start(): Promise<void> {
