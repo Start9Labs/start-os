@@ -142,7 +142,6 @@ export interface InstalledPackageDataEntry {
 }
 
 export interface CurrentDependencyInfo {
-  pointers: any[]
   'health-checks': string[] // array of health check IDs
 }
 

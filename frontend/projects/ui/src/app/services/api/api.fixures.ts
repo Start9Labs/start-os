@@ -1807,7 +1807,6 @@ export module Mock {
       'system-pointers': [],
       'current-dependencies': {
         bitcoind: {
-          pointers: [],
           'health-checks': [],
         },
       },
@@ -1858,11 +1857,9 @@ export module Mock {
       'system-pointers': [],
       'current-dependencies': {
         bitcoind: {
-          pointers: [],
           'health-checks': [],
         },
         'btc-rpc-proxy': {
-          pointers: [],
           'health-checks': [],
         },
       },
