@@ -1,13 +1,3 @@
-<div
-  *ngIf="pkg.manifest['marketing-site'] as url"
-  style="padding: 4px 0 10px 14px"
->
-  <ion-button [href]="url" target="_blank" rel="noreferrer" color="tertiary">
-    View marketing website
-    <ion-icon slot="end" name="open-outline"></ion-icon>
-  </ion-button>
-</div>
-
 <ng-container *ngIf="pkg.manifest.replaces as replaces">
   <div *ngIf="replaces.length" class="ion-padding-bottom">
     <ion-item-divider>Intended to replace</ion-item-divider>
