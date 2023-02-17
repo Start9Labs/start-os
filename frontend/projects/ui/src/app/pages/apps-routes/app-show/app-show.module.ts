@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common'
 import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
 import { AppShowPage } from './app-show.page'
-import { EmverPipesModule, ResponsiveColModule } from '@start9labs/shared'
+import { EmverPipesModule, ResponsiveColModule, SharedPipesModule } from '@start9labs/shared'
 import { StatusComponentModule } from 'src/app/components/status/status.component.module'
 import { AppConfigPageModule } from 'src/app/modals/app-config/app-config.module'
 import { LaunchablePipeModule } from 'src/app/pipes/launchable/launchable.module'
@@ -16,7 +16,6 @@ import { AppShowMenuComponent } from './components/app-show-menu/app-show-menu.c
 import { AppShowHealthChecksComponent } from './components/app-show-health-checks/app-show-health-checks.component'
 import { AppShowAdditionalComponent } from './components/app-show-additional/app-show-additional.component'
 import { HealthColorPipe } from './pipes/health-color.pipe'
-import { ToHealthChecksPipe } from './pipes/to-health-checks.pipe'
 import { ToButtonsPipe } from './pipes/to-buttons.pipe'
 import { ToDependenciesPipe } from './pipes/to-dependencies.pipe'
 import { ToStatusPipe } from './pipes/to-status.pipe'
@@ -34,7 +33,6 @@ const routes: Routes = [
     AppShowPage,
     HealthColorPipe,
     ProgressDataPipe,
-    ToHealthChecksPipe,
     ToButtonsPipe,
     ToDependenciesPipe,
     ToStatusPipe,
@@ -56,6 +54,7 @@ const routes: Routes = [
     LaunchablePipeModule,
     UiPipeModule,
     ResponsiveColModule,
+    SharedPipesModule,
   ],
 })
 export class AppShowPageModule {}
