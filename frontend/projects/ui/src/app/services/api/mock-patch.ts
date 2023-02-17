@@ -368,15 +368,6 @@ export const mockPatchData: DataModel = {
                 },
                 variants: {
                   internal: {
-                    'lan-address': {
-                      name: 'LAN Address',
-                      type: 'pointer',
-                      subtype: 'package',
-                      target: 'lan-address',
-                      'package-id': 'bitcoind',
-                      description: 'the lan address',
-                      interface: '',
-                    },
                     'friendly-name': {
                       name: 'Friendly Name',
                       type: 'string',
@@ -453,7 +444,6 @@ export const mockPatchData: DataModel = {
             'lan-address': 'bitcoind-p2p-address.local',
           },
         },
-        'system-pointers': [],
         'current-dependencies': {},
         'dependency-info': {},
         'marketplace-url': 'https://registry.start9.com/',
@@ -644,7 +634,6 @@ export const mockPatchData: DataModel = {
             'lan-address': 'lnd-grpc-address.local',
           },
         },
-        'system-pointers': [],
         'current-dependencies': {
           bitcoind: {
             'health-checks': [],
