@@ -38,6 +38,7 @@ swc_visit_macros = "=0.3.1"
 sha2 = "0.10.2"
 models = { path = "../models" }
 helpers = { path = "../helpers" }
+imbl-value = { git = "https://github.com/Start9Labs/imbl-value.git" }
 serde = { version = "1.0", features = ["derive", "rc"] }
 serde_json = "1.0"
 tokio = { version = "1", features = ["full"] }

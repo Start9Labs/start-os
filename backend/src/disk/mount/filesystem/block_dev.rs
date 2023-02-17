@@ -8,8 +8,8 @@ use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 
 use super::{FileSystem, MountType, ReadOnly};
+use crate::prelude::*;
 use crate::util::Invoke;
-use crate::{Error, ResultExt};
 
 pub async fn mount(
     logicalname: impl AsRef<Path>,
@@ -22,7 +22,7 @@ pub async fn mount(
     if mount_type == ReadOnly {
         cmd.arg("-o").arg("ro");
     }
-    cmd.invoke(crate::ErrorKind::Filesystem).await?;
+    cmd.invoke(ErrorKind::Filesystem).await?;
     Ok(())
 }
 
@@ -55,7 +55,7 @@ impl<LogicalName: AsRef<Path> + Send + Sync> FileSystem for BlockDev<LogicalName
                 .await
                 .with_ctx(|_| {
                     (
-                        crate::ErrorKind::Filesystem,
+                        ErrorKind::Filesystem,
                         self.logicalname.as_ref().display().to_string(),
                     )
                 })?

@@ -2,9 +2,9 @@ use helpers::Callback;
 use itertools::Itertools;
 use jsonpath_lib::Compiled;
 use models::PackageId;
-use serde_json::Value;
 
 use crate::context::RpcContext;
+use crate::prelude::*;
 
 pub struct ConfigHook {
     pub path: Compiled,
@@ -38,7 +38,7 @@ impl RpcContext {
                 .collect_vec();
             if new != hook.prev {
                 hook.callback
-                    .call(vec![Value::Array(new.clone())])
+                    .call(imbl::vector![Value::Array(new.clone())])
                     .unwrap_or_default();
                 hook.prev = new;
             }

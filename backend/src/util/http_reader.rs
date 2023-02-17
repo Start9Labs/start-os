@@ -14,7 +14,7 @@ use pin_project::pin_project;
 use reqwest::{Client, Url};
 use tokio::io::{AsyncRead, AsyncSeek};
 
-use crate::{Error, ResultExt};
+use crate::prelude::*;
 
 #[pin_project]
 pub struct HttpReader {
@@ -81,14 +81,14 @@ impl HttpReader {
         let http_client = Client::builder()
             // .proxy(reqwest::Proxy::all("socks5h://127.0.0.1:9050").unwrap())
             .build()
-            .with_kind(crate::ErrorKind::TLSInit)?;
+            .with_kind(ErrorKind::TLSInit)?;
 
         // Make a head request so that we can get the file size and check for http range support.
         let head_request = http_client
             .head(http_url.clone())
             .send()
             .await
-            .with_kind(crate::ErrorKind::InvalidRequest)?;
+            .with_kind(ErrorKind::InvalidRequest)?;
 
         let accept_ranges = head_request.headers().get(ACCEPT_RANGES);
 
@@ -98,7 +98,7 @@ impl HttpReader {
 
                 let value = range_type
                     .to_str()
-                    .map_err(|err| Error::new(err, crate::ErrorKind::Utf8))?;
+                    .map_err(|err| Error::new(err, ErrorKind::Utf8))?;
 
                 match value {
                     "bytes" => Some(RangeUnit::Bytes),
@@ -108,7 +108,7 @@ impl HttpReader {
                                 "{} HTTP range downloading not supported with this unit {value}",
                                 http_url
                             ),
-                            crate::ErrorKind::MissingHeader,
+                            ErrorKind::MissingHeader,
                         ));
                     }
                 }
@@ -121,7 +121,7 @@ impl HttpReader {
                         "{} HTTP range downloading not supported with this url",
                         http_url
                     ),
-                    crate::ErrorKind::MissingHeader,
+                    ErrorKind::MissingHeader,
                 ))
             }
         };
@@ -131,12 +131,12 @@ impl HttpReader {
         let total_bytes = match total_bytes_option {
             Some(bytes) => bytes
                 .to_str()
-                .map_err(|err| Error::new(err, crate::ErrorKind::Utf8))?
+                .map_err(|err| Error::new(err, ErrorKind::Utf8))?
                 .parse::<usize>()?,
             None => {
                 return Err(Error::new(
                     eyre!("No content length headers for {}", http_url),
-                    crate::ErrorKind::MissingHeader,
+                    ErrorKind::MissingHeader,
                 ))
             }
         };
@@ -176,9 +176,9 @@ impl HttpReader {
             .header(RANGE, data_range)
             .send()
             .await
-            .with_kind(crate::ErrorKind::Network)?
+            .with_kind(ErrorKind::Network)?
             .error_for_status()
-            .with_kind(crate::ErrorKind::Network)?;
+            .with_kind(ErrorKind::Network)?;
 
         Ok(Box::pin(data_resp.bytes_stream()))
     }

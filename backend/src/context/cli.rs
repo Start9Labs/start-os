@@ -19,8 +19,8 @@ use tracing::instrument;
 
 use super::setup::CURRENT_SECRET;
 use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
+use crate::prelude::*;
 use crate::util::config::{load_config_from_paths, local_config_path};
-use crate::ResultExt;
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -69,7 +69,7 @@ pub struct CliContext(Arc<CliContextSeed>);
 impl CliContext {
     /// BLOCKING
     #[instrument(skip_all)]
-    pub fn init(matches: &ArgMatches) -> Result<Self, crate::Error> {
+    pub fn init(matches: &ArgMatches) -> Result<Self, Error> {
         let local_config_path = local_config_path();
         let base: CliContextConfig = load_config_from_paths(
             matches
@@ -101,18 +101,14 @@ impl CliContext {
                 .unwrap_or(Path::new("/"))
                 .join(".cookies.json")
         });
-        let cookie_store = Arc::new(CookieStoreMutex::new({
-            let mut store = if cookie_path.exists() {
-                CookieStore::load_json(BufReader::new(File::open(&cookie_path)?))
-                    .map_err(|e| eyre!("{}", e))
-                    .with_kind(crate::ErrorKind::Deserialization)?
-            } else {
-                CookieStore::default()
-            };
+        let cookie_store = Arc::new(CookieStoreMutex::new(if cookie_path.exists() {
+            let mut store = CookieStore::load_json(BufReader::new(File::open(&cookie_path)?))
+                .map_err(|e| eyre!("{}", e))
+                .with_kind(ErrorKind::Deserialization)?;
             if let Ok(local) = std::fs::read_to_string(LOCAL_AUTH_COOKIE_PATH) {
                 store
                     .insert_raw(&Cookie::new("local", local), &"http://localhost".parse()?)
-                    .with_kind(crate::ErrorKind::Network)?;
+                    .with_kind(ErrorKind::Network)?;
             }
             store
         }));
@@ -122,7 +118,7 @@ impl CliContext {
             rpc_url: {
                 url.path_segments_mut()
                     .map_err(|_| eyre!("Url cannot be base"))
-                    .with_kind(crate::ErrorKind::ParseUrl)?
+                    .with_kind(ErrorKind::ParseUrl)?
                     .push("rpc")
                     .push("v1");
                 url
@@ -130,8 +126,7 @@ impl CliContext {
             client: {
                 let mut builder = Client::builder().cookie_provider(cookie_store.clone());
                 if let Some(proxy) = proxy {
-                    builder =
-                        builder.proxy(Proxy::all(proxy).with_kind(crate::ErrorKind::ParseUrl)?)
+                    builder = builder.proxy(Proxy::all(proxy).with_kind(ErrorKind::ParseUrl)?)
                 }
                 builder.build().expect("cannot fail")
             },

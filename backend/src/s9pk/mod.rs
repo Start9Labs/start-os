@@ -10,6 +10,7 @@ use tokio::io::AsyncRead;
 use tracing::instrument;
 
 use crate::context::SdkContext;
+use crate::prelude::*;
 use crate::s9pk::builder::S9pkPacker;
 use crate::s9pk::docker::DockerMultiArch;
 use crate::s9pk::git_hash::GitHash;
@@ -18,8 +19,7 @@ use crate::s9pk::reader::S9pkReader;
 use crate::util::display_none;
 use crate::util::io::BufferedWriteReader;
 use crate::util::serde::IoFormat;
-use crate::volume::Volume;
-use crate::{Error, ErrorKind, ResultExt};
+use crate::volume::{Volume, VolumeAssets};
 
 pub mod builder;
 pub mod docker;
@@ -53,14 +53,11 @@ pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> R
             .from_async_reader(File::open(path.join("manifest.json")).await?)
             .await?
     } else {
-        return Err(Error::new(
-            eyre!("manifest not found"),
-            crate::ErrorKind::Pack,
-        ));
+        return Err(Error::new(eyre!("manifest not found"), ErrorKind::Pack));
     };
 
     let manifest: Manifest = serde_json::from_value::<Manifest>(manifest_value.clone())
-        .with_kind(crate::ErrorKind::Deserialization)?
+        .with_kind(ErrorKind::Deserialization)?
         .with_git_hash(GitHash::from_path(&path).await?);
     let extra_keys =
         enumerate_extra_keys(&serde_json::to_value(&manifest).unwrap(), &manifest_value);
@@ -73,23 +70,23 @@ pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> R
     S9pkPacker::builder()
         .manifest(&manifest)
         .writer(&mut outfile)
-        .license(
-            File::open(path.join(manifest.assets.license_path()))
-                .await
-                .with_ctx(|_| {
-                    (
-                        crate::ErrorKind::Filesystem,
-                        manifest.assets.license_path().display().to_string(),
-                    )
-                })?,
-        )
         .icon(
             File::open(path.join(manifest.assets.icon_path()))
                 .await
                 .with_ctx(|_| {
                     (
-                        crate::ErrorKind::Filesystem,
+                        ErrorKind::Filesystem,
                         manifest.assets.icon_path().display().to_string(),
+                    )
+                })?,
+        )
+        .license(
+            File::open(path.join(manifest.assets.license_path()))
+                .await
+                .with_ctx(|_| {
+                    (
+                        ErrorKind::Filesystem,
+                        manifest.assets.license_path().display().to_string(),
                     )
                 })?,
         )
@@ -98,7 +95,7 @@ pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> R
                 .await
                 .with_ctx(|_| {
                     (
-                        crate::ErrorKind::Filesystem,
+                        ErrorKind::Filesystem,
                         manifest.assets.instructions_path().display().to_string(),
                     )
                 })?,
@@ -142,7 +139,7 @@ pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> R
                     .await
                     .with_ctx(|_| {
                         (
-                            crate::ErrorKind::Filesystem,
+                            ErrorKind::Filesystem,
                             manifest.assets.docker_images_path().display().to_string(),
                         )
                     })?)
@@ -153,7 +150,7 @@ pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> R
             let asset_volumes = manifest
             .volumes
             .iter()
-            .filter(|(_, v)| matches!(v, &&Volume::Assets {})).map(|(id, _)| id.clone()).collect::<Vec<_>>();
+            .filter(|(_, v)| matches!(v, &&Volume::Assets(VolumeAssets {}))).map(|(id, _)| id.clone()).collect::<Vec<_>>();
             let assets_path = manifest.assets.assets_path().to_owned();
             let path = path.clone();
 
@@ -173,7 +170,7 @@ pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> R
         })
         .scripts({
             let script_path = path.join(manifest.assets.scripts_path()).join("embassy.js");
-            let needs_script = manifest.package_procedures().any(|a| a.is_script());
+            let needs_script = todo!();
             let has_script = script_path.exists();
             match (needs_script, has_script) {
                 (true, true) => Some(File::open(script_path).await?),
@@ -198,7 +195,7 @@ pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> R
 #[command(rename = "s9pk", cli_only, display(display_none))]
 pub async fn verify(#[arg] path: PathBuf) -> Result<(), Error> {
     let mut s9pk = S9pkReader::open(path, true).await?;
-    s9pk.validate().await?;
+    s9pk.validate(None).await?;
 
     Ok(())
 }

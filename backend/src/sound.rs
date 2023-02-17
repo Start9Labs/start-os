@@ -6,8 +6,8 @@ use proptest_derive::Arbitrary;
 use tokio::process::Command;
 use tracing::instrument;
 
+use crate::prelude::*;
 use crate::util::{FileLock, Invoke};
-use crate::{Error, ErrorKind};
 
 lazy_static::lazy_static! {
     static ref SEMITONE_K: f64 = 2f64.powf(1f64 / 12f64);

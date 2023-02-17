@@ -7,7 +7,7 @@ use gpt::GptConfig;
 use crate::disk::util::DiskInfo;
 use crate::disk::OsPartitionInfo;
 use crate::os_install::partition_for;
-use crate::Error;
+use crate::prelude::*;
 
 pub async fn partition(disk: &DiskInfo, overwrite: bool) -> Result<OsPartitionInfo, Error> {
     let efi = {
@@ -106,7 +106,7 @@ pub async fn partition(disk: &DiskInfo, overwrite: bool) -> Result<OsPartitionIn
                         .ok_or_else(|| {
                             Error::new(
                                 eyre!("No free space left on device"),
-                                crate::ErrorKind::BlockDevice,
+                                ErrorKind::BlockDevice,
                             )
                         })?,
                     gpt::partition_types::LINUX_LVM,

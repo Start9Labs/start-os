@@ -9,8 +9,9 @@ use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt};
 use tokio_tar::{Archive, Entry};
 
+use crate::prelude::*;
 use crate::util::io::from_cbor_async_reader;
-use crate::{Error, ErrorKind, ARCH};
+use crate::ARCH;
 
 #[derive(Default, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]

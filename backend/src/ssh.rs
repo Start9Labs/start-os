@@ -4,13 +4,13 @@ use chrono::Utc;
 use clap::ArgMatches;
 use color_eyre::eyre::eyre;
 use rpc_toolkit::command;
-use sqlx::{Executor, Pool, Postgres};
+use sqlx::{Pool, Postgres};
 use tracing::instrument;
 
 use crate::context::RpcContext;
+use crate::prelude::*;
 use crate::util::display_none;
 use crate::util::serde::{display_serializable, IoFormat};
-use crate::{Error, ErrorKind};
 
 static SSH_AUTHORIZED_KEYS_FILE: &str = "/home/start9/.ssh/authorized_keys";
 
@@ -44,7 +44,7 @@ impl std::str::FromStr for PubKey {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         s.parse().map(|pk| PubKey(pk)).map_err(|e| Error {
             source: e.into(),
-            kind: crate::ErrorKind::ParseSshKey,
+            kind: ErrorKind::ParseSshKey,
             revision: None,
         })
     }
@@ -104,7 +104,7 @@ pub async fn delete(#[context] ctx: RpcContext, #[arg] fingerprint: String) -> R
     if n == 0 {
         Err(Error {
             source: color_eyre::eyre::eyre!("SSH Key Not Found"),
-            kind: crate::error::ErrorKind::NotFound,
+            kind: ErrorKind::NotFound,
             revision: None,
         })
     } else {
@@ -184,12 +184,9 @@ pub async fn sync_keys_from_db<P: AsRef<Path>>(
         .into_iter()
         .map(|k| format!("{}\n", k.openssh_pubkey))
         .collect();
-    let ssh_dir = dest.parent().ok_or_else(|| {
-        Error::new(
-            eyre!("SSH Key File cannot be \"/\""),
-            crate::ErrorKind::Filesystem,
-        )
-    })?;
+    let ssh_dir = dest
+        .parent()
+        .ok_or_else(|| Error::new(eyre!("SSH Key File cannot be \"/\""), ErrorKind::Filesystem))?;
     if tokio::fs::metadata(ssh_dir).await.is_err() {
         tokio::fs::create_dir_all(ssh_dir).await?;
     }

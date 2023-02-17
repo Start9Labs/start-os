@@ -8,9 +8,9 @@ use serde::Deserialize;
 use tokio::sync::broadcast::Sender;
 use tracing::instrument;
 
+use crate::prelude::*;
 use crate::shutdown::Shutdown;
 use crate::util::config::load_config_from_paths;
-use crate::Error;
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]

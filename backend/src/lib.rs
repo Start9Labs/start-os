@@ -18,6 +18,7 @@ pub mod action;
 pub mod auth;
 pub mod backup;
 pub mod config;
+pub mod container;
 pub mod context;
 pub mod control;
 pub mod core;
@@ -26,6 +27,7 @@ pub mod dependencies;
 pub mod developer;
 pub mod diagnostic;
 pub mod disk;
+pub mod docker;
 pub mod error;
 pub mod hostname;
 pub mod init;
@@ -39,9 +41,11 @@ pub mod migration;
 pub mod net;
 pub mod notifications;
 pub mod os_install;
-pub mod procedure;
+pub mod prelude;
 pub mod properties;
 pub mod s9pk;
+#[cfg(feature = "js_engine")]
+pub mod script;
 pub mod setup;
 pub mod shutdown;
 pub mod sound;
@@ -53,8 +57,6 @@ pub mod util;
 pub mod version;
 pub mod volume;
 
-pub use config::Config;
-pub use error::{Error, ErrorKind, ResultExt};
 use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
 

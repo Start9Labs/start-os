@@ -13,6 +13,7 @@ use http::header::CONTENT_ENCODING;
 use http::request::Parts as RequestParts;
 use http::response::Builder;
 use hyper::{Body, Method, Request, Response, StatusCode};
+use models::mime;
 use openssl::hash::MessageDigest;
 use openssl::x509::X509;
 use rpc_toolkit::rpc_handler;
@@ -29,7 +30,8 @@ use crate::middleware::cors::cors;
 use crate::middleware::db::db as db_middleware;
 use crate::middleware::diagnostic::diagnostic as diagnostic_middleware;
 use crate::net::HttpHandler;
-use crate::{diagnostic_api, install_api, main_api, setup_api, Error, ErrorKind, ResultExt};
+use crate::prelude::*;
+use crate::{diagnostic_api, install_api, main_api, setup_api};
 
 static NOT_FOUND: &[u8] = b"Not Found";
 static METHOD_NOT_ALLOWED: &[u8] = b"Method Not Allowed";
@@ -71,7 +73,7 @@ pub async fn setup_ui_file_router(ctx: SetupContext) -> Result<HttpHandler, Erro
 
                     rpc_handler(req)
                         .await
-                        .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::Network))
+                        .map_err(|err| Error::new(eyre!("{}", err), ErrorKind::Network))
                 }
                 _ => alt_ui(req, ui_mode).await,
             };
@@ -106,7 +108,7 @@ pub async fn diag_ui_file_router(ctx: DiagnosticContext) -> Result<HttpHandler, 
 
                     rpc_handler(req)
                         .await
-                        .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::Network))
+                        .map_err(|err| Error::new(eyre!("{}", err), ErrorKind::Network))
                 }
                 _ => alt_ui(req, ui_mode).await,
             };
@@ -140,7 +142,7 @@ pub async fn install_ui_file_router(ctx: InstallContext) -> Result<HttpHandler, 
 
                     rpc_handler(req)
                         .await
-                        .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::Network))
+                        .map_err(|err| Error::new(eyre!("{}", err), ErrorKind::Network))
                 }
                 _ => alt_ui(req, ui_mode).await,
             };
@@ -178,7 +180,7 @@ pub async fn main_ui_server_router(ctx: RpcContext) -> Result<HttpHandler, Error
 
                     rpc_handler(req)
                         .await
-                        .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::Network))
+                        .map_err(|err| Error::new(eyre!("{}", err), ErrorKind::Network))
                 }
                 "/ws/db" => subscribe(ctx, req).await,
                 path if path.starts_with("/ws/rpc/") => {
@@ -494,30 +496,11 @@ fn e_tag(path: &Path, metadata: &Metadata) -> Result<String, Error> {
 
 ///https://en.wikipedia.org/wiki/Media_type
 fn with_content_type(path: &Path, builder: Builder) -> Builder {
-    let content_type = match path.extension() {
-        Some(os_str) => match os_str.to_str() {
-            Some("apng") => "image/apng",
-            Some("avif") => "image/avif",
-            Some("flif") => "image/flif",
-            Some("gif") => "image/gif",
-            Some("jpg") | Some("jpeg") | Some("jfif") | Some("pjpeg") | Some("pjp") => "image/jpeg",
-            Some("jxl") => "image/jxl",
-            Some("png") => "image/png",
-            Some("svg") => "image/svg+xml",
-            Some("webp") => "image/webp",
-            Some("mng") | Some("x-mng") => "image/x-mng",
-            Some("css") => "text/css",
-            Some("csv") => "text/csv",
-            Some("html") => "text/html",
-            Some("php") => "text/php",
-            Some("plain") | Some("md") | Some("txt") => "text/plain",
-            Some("xml") => "text/xml",
-            Some("js") => "text/javascript",
-            Some("wasm") => "application/wasm",
-            None | Some(_) => "text/plain",
-        },
-        None => "text/plain",
-    };
+    let content_type = path
+        .extension()
+        .and_then(|s| s.to_str())
+        .and_then(mime)
+        .unwrap_or("text/plain");
     builder.header(http::header::CONTENT_TYPE, content_type)
 }
 

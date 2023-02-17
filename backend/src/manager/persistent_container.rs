@@ -12,27 +12,24 @@ use super::{
     add_network_for_main, get_long_running_ip, long_running_docker, remove_network_for_main,
     GetRunningIp,
 };
-use crate::procedure::docker::DockerContainer;
+use crate::container::DockerContainer;
+use crate::prelude::*;
 use crate::util::NonDetachingJoinHandle;
-use crate::Error;
 
+// ManagerSeed
 pub struct PersistentContainer {
-    _running_docker: NonDetachingJoinHandle<()>,
+    _running_docker: NonDetachingJoinHandle<()>, // ManagerSeed
     pub rpc_client: Receiver<Arc<UnixRpcClient>>,
 }
 
 impl PersistentContainer {
     #[instrument(skip_all)]
-    pub async fn init(seed: &Arc<ManagerSeed>) -> Result<Option<Self>, Error> {
-        Ok(if let Some(containers) = &seed.manifest.containers {
-            let (running_docker, rpc_client) =
-                spawn_persistent_container(seed.clone(), containers.main.clone()).await?;
-            Some(Self {
-                _running_docker: running_docker,
-                rpc_client,
-            })
-        } else {
-            None
+    pub async fn init(seed: &Arc<ManagerSeed>) -> Result<Self, Error> {
+        let (running_docker, rpc_client) =
+            spawn_persistent_container(seed.clone(), seed.manifest.containers.main.clone()).await?;
+        Ok(Self {
+            _running_docker: running_docker,
+            rpc_client,
         })
     }
 
@@ -78,7 +75,7 @@ pub async fn spawn_persistent_container(
                     }
 
                     let res = tokio::select! {
-                        a = runtime.running_output => a.map_err(|_| Error::new(eyre!("Manager runtime panicked!"), crate::ErrorKind::Docker)).map(|_| ()),
+                        a = runtime.running_output => a.map_err(|_| Error::new(eyre!("Manager runtime panicked!"), ErrorKind::Docker)).map(|_| ()),
                     };
 
                     remove_network_for_main(svc).await?;
@@ -94,6 +91,6 @@ pub async fn spawn_persistent_container(
             }
         })
         .into(),
-        inserter.await.map_err(|_| Error::new(eyre!("Container handle dropped before inserter sent"), crate::ErrorKind::Unknown))?,
+        inserter.await.map_err(|_| Error::new(eyre!("Container handle dropped before inserter sent"), ErrorKind::Unknown))?,
     ))
 }

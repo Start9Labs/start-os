@@ -14,8 +14,8 @@ use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 use tracing::instrument;
 
 use crate::context::RpcContext;
+use crate::prelude::*;
 use crate::util::serde::{display_serializable, IoFormat};
-use crate::{Error, ErrorKind, ResultExt as _};
 
 #[test]
 fn random_key() {
@@ -184,7 +184,7 @@ impl TorControllerInner {
             .await?
             .make_auth_data()?
             .ok_or_else(|| eyre!("Cookie Auth Not Available"))
-            .with_kind(crate::ErrorKind::Tor)?;
+            .with_kind(ErrorKind::Tor)?;
         conn.authenticate(&auth).await?;
         let mut connection: AuthenticatedConnection = conn.into_authenticated().await;
         connection.set_async_event_handler(Some(event_handler));
@@ -223,7 +223,7 @@ async fn test() {
         .make_auth_data()
         .unwrap()
         .ok_or_else(|| eyre!("Cookie Auth Not Available"))
-        .with_kind(crate::ErrorKind::Tor)
+        .with_kind(ErrorKind::Tor)
         .unwrap();
     conn.authenticate(&auth).await.unwrap();
     let mut connection: AuthenticatedConn<

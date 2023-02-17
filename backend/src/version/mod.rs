@@ -2,14 +2,12 @@ use std::cmp::Ordering;
 
 use async_trait::async_trait;
 use color_eyre::eyre::eyre;
-use patch_db::DbHandle;
 use rpc_toolkit::command;
 use sqlx::PgPool;
 
-use crate::init::InitReceipts;
-use crate::Error;
+use crate::prelude::*;
 
-mod v0_3_4_1;
+mod v0_3_4_2;
 mod v0_4_0;
 
 pub type Current = v0_4_0::Version;
@@ -17,8 +15,8 @@ pub type Current = v0_4_0::Version;
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 #[serde(untagged)]
 enum Version {
-    LT0_3_4_1(LTWrapper<v0_3_4_1::Version>),
-    V0_3_4_1(Wrapper<v0_3_4_1::Version>),
+    LT0_3_4_2(LTWrapper<v0_3_4_2::Version>),
+    V0_3_4_2(Wrapper<v0_3_4_2::Version>),
     V0_4_0(Wrapper<v0_4_0::Version>),
     Other(emver::Version),
 }
@@ -35,11 +33,9 @@ impl Version {
     #[cfg(test)]
     fn as_sem_ver(&self) -> emver::Version {
         match self {
-            Version::LT0_3_3(LTWrapper(_, x)) => x.clone(),
-            Version::V0_3_3(Wrapper(x)) => x.semver(),
-            Version::V0_3_4(Wrapper(x)) => x.semver(),
-            Version::V0_3_4_1(Wrapper(x)) => x.semver(),
+            Version::LT0_3_4_2(LTWrapper(_, x)) => x.clone(),
             Version::V0_3_4_2(Wrapper(x)) => x.semver(),
+            Version::V0_4_0(Wrapper(x)) => x.semver(),
             Version::Other(x) => x.clone(),
         }
     }
@@ -54,55 +50,44 @@ where
     fn new() -> Self;
     fn semver(&self) -> emver::Version;
     fn compat(&self) -> &'static emver::VersionRange;
-    async fn up<Db: DbHandle>(&self, db: &mut Db, secrets: &PgPool) -> Result<(), Error>;
-    async fn down<Db: DbHandle>(&self, db: &mut Db, secrets: &PgPool) -> Result<(), Error>;
-    async fn commit<Db: DbHandle>(
-        &self,
-        db: &mut Db,
-        receipts: &InitReceipts,
-    ) -> Result<(), Error> {
-        receipts
-            .version_range
-            .set(db, self.compat().clone())
-            .await?;
-        receipts
-            .server_version
-            .set(db, self.semver().into())
-            .await?;
+    async fn up(&self, secrets: &PgPool, db: &PatchDb) -> Result<(), Error>;
+    async fn down(&self, secrets: &PgPool, db: &PatchDb) -> Result<(), Error>;
+    async fn commit(&self, db: &PatchDb) -> Result<(), Error> {
+        db.mutate(|db| {
+            db.server_info()
+                .eos_version_compat()
+                .ser(self.compat().clone())?;
+            db.server_info()
+                .server_version()
+                .ser(self.semver().into())?;
+            Ok(())
+        })
+        .await?;
 
         Ok(())
     }
-    async fn migrate_to<V: VersionT, Db: DbHandle>(
+    async fn migrate_to<V: VersionT>(
         &self,
         version: &V,
-        db: &mut Db,
         secrets: &PgPool,
-        receipts: &InitReceipts,
+        db: &PatchDb,
     ) -> Result<(), Error> {
         match self.semver().cmp(&version.semver()) {
-            Ordering::Greater => {
-                self.rollback_to_unchecked(version, db, secrets, receipts)
-                    .await
-            }
-            Ordering::Less => {
-                version
-                    .migrate_from_unchecked(self, db, secrets, receipts)
-                    .await
-            }
+            Ordering::Greater => self.rollback_to_unchecked(version, secrets, db).await,
+            Ordering::Less => version.migrate_from_unchecked(self, secrets, db).await,
             Ordering::Equal => Ok(()),
         }
     }
-    async fn migrate_from_unchecked<V: VersionT, Db: DbHandle>(
+    async fn migrate_from_unchecked<V: VersionT>(
         &self,
         version: &V,
-        db: &mut Db,
         secrets: &PgPool,
-        receipts: &InitReceipts,
+        db: &PatchDb,
     ) -> Result<(), Error> {
         let previous = Self::Previous::new();
         if version.semver() < previous.semver() {
             previous
-                .migrate_from_unchecked(version, db, secrets, receipts)
+                .migrate_from_unchecked(version, secrets, db)
                 .await?;
         } else if version.semver() > previous.semver() {
             return Err(Error::new(
@@ -110,36 +95,33 @@ where
                     "NO PATH FROM {}, THIS IS LIKELY A MISTAKE IN THE VERSION DEFINITION",
                     version.semver()
                 ),
-                crate::ErrorKind::MigrationFailed,
+                ErrorKind::MigrationFailed,
             ));
         }
         tracing::info!("{} -> {}", previous.semver(), self.semver(),);
-        self.up(db, secrets).await?;
-        self.commit(db, receipts).await?;
+        self.up(secrets, db).await?;
+        self.commit(db).await?;
         Ok(())
     }
-    async fn rollback_to_unchecked<V: VersionT, Db: DbHandle>(
+    async fn rollback_to_unchecked<V: VersionT>(
         &self,
         version: &V,
-        db: &mut Db,
         secrets: &PgPool,
-        receipts: &InitReceipts,
+        db: &PatchDb,
     ) -> Result<(), Error> {
         let previous = Self::Previous::new();
         tracing::info!("{} -> {}", self.semver(), previous.semver(),);
-        self.down(db, secrets).await?;
-        previous.commit(db, receipts).await?;
+        self.down(secrets, db).await?;
+        previous.commit(db).await?;
         if version.semver() < previous.semver() {
-            previous
-                .rollback_to_unchecked(version, db, secrets, receipts)
-                .await?;
+            previous.rollback_to_unchecked(version, secrets, db).await?;
         } else if version.semver() > previous.semver() {
             return Err(Error::new(
                 eyre!(
                     "NO PATH TO {}, THIS IS LIKELY A MISTAKE IN THE VERSION DEFINITION",
                     version.semver()
                 ),
-                crate::ErrorKind::MigrationFailed,
+                ErrorKind::MigrationFailed,
             ));
         }
         Ok(())
@@ -196,31 +178,21 @@ where
     }
 }
 
-pub async fn init<Db: DbHandle>(
-    db: &mut Db,
-    secrets: &PgPool,
-    receipts: &crate::init::InitReceipts,
-) -> Result<(), Error> {
-    let version = Version::from_util_version(receipts.server_version.get(db).await?);
+pub async fn init(secrets: &PgPool, db: &PatchDb) -> Result<(), Error> {
+    let version = Version::from_util_version(db.peek().await?.server_info().version().de()?);
     match version {
         Version::LT0_3_4_1(_) => {
             return Err(Error::new(
                 eyre!("Cannot migrate from pre-0.3.4. Please update to v0.3.4 first."),
-                crate::ErrorKind::MigrationFailed,
+                ErrorKind::MigrationFailed,
             ));
         }
-        Version::V0_3_4_1(v) => {
-            v.0.migrate_to(&Current::new(), db, secrets, receipts)
-                .await?
-        }
-        Version::V0_4_0(v) => {
-            v.0.migrate_to(&Current::new(), db, secrets, receipts)
-                .await?
-        }
+        Version::V0_3_4(v) => v.0.migrate_to(&Current::new(), secrets, db).await?,
+        Version::V0_4_0(v) => v.0.migrate_to(&Current::new(), secrets, db).await?,
         Version::Other(_) => {
             return Err(Error::new(
                 eyre!("Cannot downgrade"),
-                crate::ErrorKind::InvalidRequest,
+                ErrorKind::InvalidRequest,
             ))
         }
     }
@@ -253,12 +225,12 @@ mod tests {
                 Version::LT0_3_4_1(LTWrapper(v0_3_4_1::Version::new(), v))
             } else {
                 Version::LT0_3_4_1(LTWrapper(
-                    v0_3_4_1::Version::new(),
+                    v0_3_4::Version::new(),
                     emver::Version::new(0, 3, 0, 0),
                 ))
             }),
-            Just(Version::V0_3_4_1(Wrapper(v0_3_4_1::Version::new()))),
             Just(Version::V0_3_4_2(Wrapper(v0_3_4_2::Version::new()))),
+            Just(Version::V0_4_0(Wrapper(v0_4_0::Version::new()))),
             em_version().prop_map(Version::Other),
         ]
     }

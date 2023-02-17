@@ -1,5 +1,6 @@
 pub mod model;
 pub mod package;
+pub mod prelude;
 
 use std::future::Future;
 use std::sync::Arc;
@@ -21,11 +22,10 @@ use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::WebSocketStream;
 use tracing::instrument;
 
-pub use self::model::DatabaseModel;
 use crate::context::RpcContext;
 use crate::middleware::auth::{HasValidSession, HashSessionToken};
+use crate::prelude::*;
 use crate::util::serde::{display_serializable, IoFormat};
-use crate::{Error, ResultExt};
 
 #[instrument(skip_all)]
 async fn ws_handler<
@@ -38,8 +38,8 @@ async fn ws_handler<
     let (dump, sub) = ctx.db.dump_and_sub().await?;
     let mut stream = ws_fut
         .await
-        .with_kind(crate::ErrorKind::Network)?
-        .with_kind(crate::ErrorKind::Unknown)?;
+        .with_kind(ErrorKind::Network)?
+        .with_kind(ErrorKind::Unknown)?;
 
     if let Some((session, token)) = session {
         let kill = subscribe_to_session_kill(&ctx, token).await;
@@ -53,7 +53,7 @@ async fn ws_handler<
                 reason: "UNAUTHORIZED".into(),
             }))
             .await
-            .with_kind(crate::ErrorKind::Network)?;
+            .with_kind(ErrorKind::Network)?;
     }
 
     Ok(())
@@ -90,18 +90,18 @@ async fn deal_with_messages(
                         reason: "UNAUTHORIZED".into(),
                     }))
                     .await
-                    .with_kind(crate::ErrorKind::Network)?;
+                    .with_kind(ErrorKind::Network)?;
                 return Ok(())
             }
             new_rev = sub.recv().fuse() => {
                 let rev = new_rev.expect("UNREACHABLE: patch-db is dropped");
                 stream
-                    .send(Message::Text(serde_json::to_string(&rev).with_kind(crate::ErrorKind::Serialization)?))
+                    .send(Message::Text(serde_json::to_string(&rev).with_kind(ErrorKind::Serialization)?))
                     .await
-                    .with_kind(crate::ErrorKind::Network)?;
+                    .with_kind(ErrorKind::Network)?;
             }
             message = stream.next().fuse() => {
-                let message = message.transpose().with_kind(crate::ErrorKind::Network)?;
+                let message = message.transpose().with_kind(ErrorKind::Network)?;
                 match message {
                     None => {
                         tracing::info!("Closing WebSocket: Stream Finished");
@@ -121,10 +121,10 @@ async fn send_dump(
 ) -> Result<(), Error> {
     stream
         .send(Message::Text(
-            serde_json::to_string(&dump).with_kind(crate::ErrorKind::Serialization)?,
+            serde_json::to_string(&dump).with_kind(ErrorKind::Serialization)?,
         ))
         .await
-        .with_kind(crate::ErrorKind::Network)?;
+        .with_kind(ErrorKind::Network)?;
     Ok(())
 }
 
@@ -139,7 +139,7 @@ pub async fn subscribe(ctx: RpcContext, req: Request<Body>) -> Result<Response<B
     {
         Ok(a) => Some(a),
         Err(e) => {
-            if e.kind != crate::ErrorKind::Authorization {
+            if e.kind != ErrorKind::Authorization {
                 tracing::error!("Error Authenticating Websocket: {}", e);
                 tracing::debug!("{:?}", e);
             }
@@ -147,7 +147,7 @@ pub async fn subscribe(ctx: RpcContext, req: Request<Body>) -> Result<Response<B
         }
     };
     let req = Request::from_parts(parts, body);
-    let (res, ws_fut) = hyper_ws_listener::create_ws(req).with_kind(crate::ErrorKind::Network)?;
+    let (res, ws_fut) = hyper_ws_listener::create_ws(req).with_kind(ErrorKind::Network)?;
     if let Some(ws_fut) = ws_fut {
         tokio::task::spawn(async move {
             match ws_handler(ctx, session, ws_fut).await {
@@ -216,7 +216,7 @@ pub async fn ui(
 ) -> Result<(), Error> {
     let ptr = "/ui"
         .parse::<JsonPointer>()
-        .with_kind(crate::ErrorKind::Database)?
+        .with_kind(ErrorKind::Database)?
         + &pointer;
     ctx.db.put(&ptr, &value).await?;
     Ok(())

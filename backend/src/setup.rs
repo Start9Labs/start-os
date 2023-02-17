@@ -6,7 +6,6 @@ use futures::StreamExt;
 use helpers::{Rsync, RsyncOptions};
 use josekit::jwk::Jwk;
 use openssl::x509::X509;
-use patch_db::DbHandle;
 use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
 use serde::{Deserialize, Serialize};
@@ -32,7 +31,7 @@ use crate::disk::REPAIR_DISK_PATH;
 use crate::hostname::Hostname;
 use crate::init::{init, InitResult};
 use crate::middleware::encrypt::EncryptedWire;
-use crate::{Error, ErrorKind, ResultExt};
+use crate::prelude::*;
 
 #[command(subcommands(status, disk, attach, execute, cifs, complete, get_pubkey, exit))]
 pub fn setup() -> Result<(), Error> {
@@ -65,11 +64,11 @@ async fn setup_init(
     if let Some(password) = password {
         account.set_password(&password)?;
         account.save(&mut secrets_tx).await?;
-        crate::db::DatabaseModel::new()
-            .server_info()
-            .password_hash()
-            .put(&mut db_tx, &account.password)
-            .await?;
+        // crate::db::DatabaseModel::new()
+        //     .server_info()
+        //     .password_hash()
+        //     .put(_tx, &account.password)
+        //     .await?;
     }
 
     db_tx.commit().await?;
@@ -109,7 +108,7 @@ pub async fn attach(
                     None => {
                         return Err(Error::new(
                             color_eyre::eyre::eyre!("Couldn't decode password"),
-                            crate::ErrorKind::Unknown,
+                            ErrorKind::Unknown,
                         ));
                     }
                 },
@@ -211,7 +210,7 @@ pub async fn verify_cifs(
     .await?;
     let embassy_os = recovery_info(&guard).await?;
     guard.unmount().await?;
-    embassy_os.ok_or_else(|| Error::new(eyre!("No Backup Found"), crate::ErrorKind::NotFound))
+    embassy_os.ok_or_else(|| Error::new(eyre!("No Backup Found"), ErrorKind::NotFound))
 }
 
 #[derive(Debug, Deserialize)]
@@ -235,7 +234,7 @@ pub async fn execute(
         None => {
             return Err(Error::new(
                 color_eyre::eyre::eyre!("Couldn't decode embassy-password"),
-                crate::ErrorKind::Unknown,
+                ErrorKind::Unknown,
             ))
         }
     };
@@ -245,7 +244,7 @@ pub async fn execute(
             None => {
                 return Err(Error::new(
                     color_eyre::eyre::eyre!("Couldn't decode recovery-password"),
-                    crate::ErrorKind::Unknown,
+                    ErrorKind::Unknown,
                 ))
             }
         },
@@ -311,7 +310,7 @@ pub async fn complete(#[context] ctx: SetupContext) -> Result<SetupResult, Error
     } else {
         return Err(Error::new(
             eyre!("setup.execute has not completed successfully"),
-            crate::ErrorKind::InvalidRequest,
+            ErrorKind::InvalidRequest,
         ));
     };
     let mut guid_file = File::create("/media/embassy/config/disk.guid").await?;

@@ -9,8 +9,8 @@ use tracing::instrument;
 
 use super::filesystem::{FileSystem, MountType, ReadOnly, ReadWrite};
 use super::util::unmount;
+use crate::prelude::*;
 use crate::util::Invoke;
-use crate::Error;
 
 pub const TMP_MOUNTPOINT: &'static str = "/media/embassy/tmp";
 
@@ -47,7 +47,7 @@ impl MountGuard {
                 }
                 .with_ctx(|_| {
                     (
-                        crate::ErrorKind::Filesystem,
+                        ErrorKind::Filesystem,
                         format!("rm {}", self.mountpoint.display()),
                     )
                 })?;
@@ -110,7 +110,7 @@ impl TmpMountGuard {
                     .arg("-o")
                     .arg("remount,rw")
                     .arg(&mountpoint)
-                    .invoke(crate::ErrorKind::Filesystem)
+                    .invoke(ErrorKind::Filesystem)
                     .await?;
                 *prev_mt = ReadWrite;
             }

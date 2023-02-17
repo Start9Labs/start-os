@@ -1,12 +1,13 @@
+use openssl::pkey::PKey;
+use openssl::x509::X509;
+use patch_db::Value;
+use serde::{Deserialize, Serialize};
+
 use crate::account::AccountInfo;
 use crate::hostname::{generate_hostname, generate_id, Hostname};
 use crate::net::keys::Key;
+use crate::prelude::*;
 use crate::util::serde::Base64;
-use crate::Error;
-use openssl::pkey::PKey;
-use openssl::x509::X509;
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 pub struct OsBackup {
     pub account: AccountInfo,
@@ -19,11 +20,11 @@ impl<'de> Deserialize<'de> for OsBackup {
     {
         let tagged = OsBackupSerDe::deserialize(deserializer)?;
         match tagged.version {
-            0 => serde_json::from_value::<OsBackupV0>(tagged.rest)
+            0 => patch_db::value::from_value::<OsBackupV0>(tagged.rest)
                 .map_err(serde::de::Error::custom)?
                 .project()
                 .map_err(serde::de::Error::custom),
-            1 => serde_json::from_value::<OsBackupV1>(tagged.rest)
+            1 => patch_db::value::from_value::<OsBackupV1>(tagged.rest)
                 .map_err(serde::de::Error::custom)?
                 .project()
                 .map_err(serde::de::Error::custom),
@@ -40,7 +41,7 @@ impl Serialize for OsBackup {
     {
         OsBackupSerDe {
             version: 1,
-            rest: serde_json::to_value(
+            rest: patch_db::value::to_value(
                 &OsBackupV1::unproject(self).map_err(serde::ser::Error::custom)?,
             )
             .map_err(serde::ser::Error::custom)?,

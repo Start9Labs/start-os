@@ -22,7 +22,7 @@ use sha2::Sha256;
 use tokio::sync::Mutex;
 
 use crate::context::RpcContext;
-use crate::{Error, ResultExt};
+use crate::prelude::*;
 
 pub const LOCAL_AUTH_COOKIE_PATH: &str = "/run/embassy/rpc.authcookie";
 
@@ -67,12 +67,9 @@ impl HasValidSession {
         ctx: &RpcContext,
     ) -> Result<Self, Error> {
         if let Some(cookie_header) = request_parts.headers.get(COOKIE) {
-            let cookies = Cookie::parse(
-                cookie_header
-                    .to_str()
-                    .with_kind(crate::ErrorKind::Authorization)?,
-            )
-            .with_kind(crate::ErrorKind::Authorization)?;
+            let cookies =
+                Cookie::parse(cookie_header.to_str().with_kind(ErrorKind::Authorization)?)
+                    .with_kind(ErrorKind::Authorization)?;
             if let Some(cookie) = cookies.iter().find(|c| c.get_name() == "local") {
                 if let Ok(s) = Self::from_local(cookie).await {
                     return Ok(s);
@@ -85,10 +82,7 @@ impl HasValidSession {
                 }
             }
         }
-        Err(Error::new(
-            eyre!("UNAUTHORIZED"),
-            crate::ErrorKind::Authorization,
-        ))
+        Err(Error::new(eyre!("UNAUTHORIZED"), ErrorKind::Authorization))
     }
 
     pub async fn from_session(session: &HashSessionToken, ctx: &RpcContext) -> Result<Self, Error> {
@@ -97,10 +91,7 @@ impl HasValidSession {
             .execute(&mut ctx.secret_store.acquire().await?)
             .await?;
         if session.rows_affected() == 0 {
-            return Err(Error::new(
-                eyre!("UNAUTHORIZED"),
-                crate::ErrorKind::Authorization,
-            ));
+            return Err(Error::new(eyre!("UNAUTHORIZED"), ErrorKind::Authorization));
         }
         Ok(Self(()))
     }
@@ -110,10 +101,7 @@ impl HasValidSession {
         if local.get_value() == &*token {
             Ok(Self(()))
         } else {
-            Err(Error::new(
-                eyre!("UNAUTHORIZED"),
-                crate::ErrorKind::Authorization,
-            ))
+            Err(Error::new(eyre!("UNAUTHORIZED"), ErrorKind::Authorization))
         }
     }
 }
@@ -143,20 +131,14 @@ impl HashSessionToken {
 
     pub fn from_request_parts(request_parts: &RequestParts) -> Result<Self, Error> {
         if let Some(cookie_header) = request_parts.headers.get(COOKIE) {
-            let cookies = Cookie::parse(
-                cookie_header
-                    .to_str()
-                    .with_kind(crate::ErrorKind::Authorization)?,
-            )
-            .with_kind(crate::ErrorKind::Authorization)?;
+            let cookies =
+                Cookie::parse(cookie_header.to_str().with_kind(ErrorKind::Authorization)?)
+                    .with_kind(ErrorKind::Authorization)?;
             if let Some(session) = cookies.iter().find(|c| c.get_name() == "session") {
                 return Ok(Self::from_cookie(session));
             }
         }
-        Err(Error::new(
-            eyre!("UNAUTHORIZED"),
-            crate::ErrorKind::Authorization,
-        ))
+        Err(Error::new(eyre!("UNAUTHORIZED"), ErrorKind::Authorization))
     }
 
     pub fn header_value(&self) -> Result<http::HeaderValue, Error> {
@@ -164,7 +146,7 @@ impl HashSessionToken {
             "session={}; Path=/; SameSite=Lax; Expires=Fri, 31 Dec 9999 23:59:59 GMT;",
             self.token
         ))
-        .with_kind(crate::ErrorKind::Unknown)
+        .with_kind(ErrorKind::Unknown)
     }
 
     pub fn hashed(&self) -> &str {
@@ -248,7 +230,7 @@ pub fn auth<M: Metadata>(ctx: RpcContext) -> DynMiddleware<M> {
                                                 eyre!(
                                                 "Please limit login attempts to 3 per 20 seconds."
                                             ),
-                                                crate::ErrorKind::RateLimited,
+                                                ErrorKind::RateLimited,
                                             )
                                             .into()),
                                             |_| StatusCode::OK,

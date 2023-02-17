@@ -5,8 +5,8 @@ use std::process::Stdio;
 use std::sync::Arc;
 
 use embassy_container_init::{
-    OutputParams, OutputStrategy, ProcessGroupId, ProcessId, ReadLineStderrParams,
-    ReadLineStdoutParams, RunCommandParams, SendSignalParams, SignalGroupParams, LogParams,
+    LogParams, OutputParams, OutputStrategy, ProcessGroupId, ProcessId, ReadLineStderrParams,
+    ReadLineStdoutParams, RunCommandParams, SendSignalParams, SignalGroupParams,
 };
 use futures::StreamExt;
 use helpers::NonDetachingJoinHandle;
@@ -219,7 +219,8 @@ impl Handler {
         let mut child = {
             self.children
                 .lock()
-                .await.processes
+                .await
+                .processes
                 .get(&pid)
                 .ok_or_else(not_found)?
                 .child
@@ -264,7 +265,8 @@ impl Handler {
         if signal == 9 {
             self.children
                 .lock()
-                .await.processes
+                .await
+                .processes
                 .remove(&pid)
                 .ok_or_else(not_found)?;
         }
@@ -354,7 +356,6 @@ async fn main() {
             tokio::spawn(async move {
                 let w = Arc::new(Mutex::new(w));
                 while let Some(line) = lines.next_line().await.transpose() {
-                    
                     let handler = handler.clone();
                     let w = w.clone();
                     tokio::spawn(async move {

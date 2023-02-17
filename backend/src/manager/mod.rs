@@ -1,53 +1,52 @@
-use std::collections::{BTreeMap, BTreeSet};
 use std::net::Ipv4Addr;
 use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    sync::Weak,
+};
 
-use color_eyre::{eyre::eyre, Report};
+use color_eyre::eyre::eyre;
+use color_eyre::Report;
 use embassy_container_init::ProcessGroupId;
 use futures::future::BoxFuture;
 use futures::{Future, FutureExt, TryFutureExt};
 use helpers::UnixRpcClient;
-use models::{ErrorKind, PackageId};
+use models::{ErrorKind, PackageId, ProcedureName, VolumeId};
 use nix::sys::signal::Signal;
-use patch_db::DbHandle;
 use persistent_container::PersistentContainer;
 use rand::SeedableRng;
+use reqwest::Url;
+use serde::{de::DeserializeOwned, Serialize};
 use sqlx::Connection;
 use start_stop::StartStop;
-use tokio::sync::oneshot;
-use tokio::sync::{
-    watch::{self, Sender},
-    Mutex,
-};
+use tokio::sync::watch::{self, Sender};
+use tokio::sync::{oneshot, Mutex};
 use tracing::instrument;
 use transition_state::TransitionState;
 
-use crate::backup::target::PackageBackupInfo;
-use crate::backup::PackageBackupReport;
 use crate::config::action::ConfigRes;
-use crate::config::spec::ValueSpecPointer;
-use crate::config::{not_found, ConfigReceipts, ConfigureContext};
+use crate::config::ConfigureContext;
+use crate::container::{DockerContainer, LongRunning};
 use crate::context::RpcContext;
 use crate::db::model::{CurrentDependencies, CurrentDependencyInfo};
 use crate::dependencies::{
-    add_dependent_to_current_dependents_lists, break_transitive, heal_all_dependents_transitive,
-    DependencyError, DependencyErrors, TaggedDependencyError,
+    break_transitive, heal_all_dependents_transitive, DependencyError, DependencyErrors,
+    TaggedDependencyError,
 };
 use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::guard::TmpMountGuard;
-use crate::install::cleanup::remove_from_current_dependents_lists;
 use crate::net::net_controller::NetService;
-use crate::procedure::docker::{DockerContainer, DockerProcedure, LongRunning};
-use crate::procedure::{NoOutput, ProcedureName};
+use crate::prelude::*;
 use crate::s9pk::manifest::Manifest;
+use crate::script::NoOutput;
 use crate::status::MainStatus;
 use crate::util::NonDetachingJoinHandle;
 use crate::volume::Volume;
-use crate::Error;
+use crate::{backup::target::PackageBackupInfo, script::JsProcedure};
+use crate::{backup::PackageBackupReport, volume::VolumeBackup};
 
-pub mod health;
 mod js_api;
 mod manager_container;
 mod manager_map;
@@ -64,7 +63,6 @@ use self::manager_seed::ManagerSeed;
 pub const HEALTH_CHECK_COOLDOWN_SECONDS: u64 = 15;
 pub const HEALTH_CHECK_GRACE_PERIOD_SECONDS: u64 = 5;
 
-type ManagerPersistentContainer = Arc<Option<PersistentContainer>>;
 type BackupGuard = Arc<Mutex<BackupMountGuard<TmpMountGuard>>>;
 pub enum BackupReturn {
     Error(Error),
@@ -76,25 +74,22 @@ pub enum BackupReturn {
 }
 
 pub struct Gid {
-    next_gid: (watch::Sender<u32>, watch::Receiver<u32>),
-    main_gid: (
-        watch::Sender<ProcessGroupId>,
-        watch::Receiver<ProcessGroupId>,
-    ),
+    next_gid: watch::Sender<u32>,
+    main_gid: watch::Sender<ProcessGroupId>,
 }
 
 impl Default for Gid {
     fn default() -> Self {
         Self {
-            next_gid: watch::channel(1),
-            main_gid: watch::channel(ProcessGroupId(1)),
+            next_gid: watch::channel(1).0,
+            main_gid: watch::channel(ProcessGroupId(1)).0,
         }
     }
 }
 impl Gid {
     pub fn new_gid(&self) -> ProcessGroupId {
         let mut previous = 0;
-        self.next_gid.0.send_modify(|x| {
+        self.next_gid.send_modify(|x| {
             previous = *x;
             *x = previous + 1;
         });
@@ -103,27 +98,31 @@ impl Gid {
 
     pub fn new_main_gid(&self) -> ProcessGroupId {
         let gid = self.new_gid();
-        self.main_gid.0.send(gid).unwrap_or_default();
+        self.main_gid.send_modify(|x| *x = gid);
         gid
     }
 }
 
-#[derive(Clone)]
 pub struct Manager {
-    seed: Arc<ManagerSeed>,
+    pub seed: Arc<ManagerSeed>,
 
-    manage_container: Arc<manager_container::ManageContainer>,
-    transition: Arc<watch::Sender<Arc<TransitionState>>>,
-    persistent_container: ManagerPersistentContainer,
+    persistent_container: Arc<PersistentContainer>, // ManagerSeed
+    manage_container: Arc<ManageContainer>,         // ManagerSeed + ManagerPersistentContainer
+    transition: Arc<watch::Sender<Arc<TransitionState>>>, // ManageContainer
 
-    pub gid: Arc<Gid>,
+    pub gid: Gid,
 }
 impl Manager {
-    pub async fn new(ctx: RpcContext, manifest: Manifest) -> Result<Self, Error> {
+    pub async fn new(
+        ctx: RpcContext,
+        manifest: Manifest,
+        marketplace_url: Option<Url>,
+    ) -> Result<Self, Error> {
         let seed = Arc::new(ManagerSeed {
             ctx,
-            container_name: DockerProcedure::container_name(&manifest.id, None),
+            container_name: DockerContainer::container_name(&manifest.id, None),
             manifest,
+            marketplace_url,
         });
 
         let persistent_container = Arc::new(PersistentContainer::init(&seed).await?);
@@ -150,14 +149,15 @@ impl Manager {
         self._transition_abort();
         self.manage_container.to_desired(StartStop::Stop);
     }
-    pub async fn restart(&self) {
-        if self._is_transition_restart() {
+    pub async fn restart(self: Arc<Self>) {
+        if self.clone()._is_transition_restart() {
             return;
         }
-        self._transition_replace(self._transition_restart());
+        let transition_state = self.clone()._transition_restart();
+        self._transition_replace(transition_state);
     }
     pub async fn configure(
-        &self,
+        self: Arc<Self>,
         configure_context: ConfigureContext,
     ) -> Result<BTreeMap<PackageId, TaggedDependencyError>, Error> {
         if self._is_transition_configure() {
@@ -167,7 +167,7 @@ impl Manager {
         let id = self.seed.manifest.id.clone();
 
         let (transition_state, done) = configure(context, id, configure_context).remote_handle();
-        self._transition_replace({
+        self.clone()._transition_replace({
             let manage_container = self.manage_container.clone();
 
             TransitionState::Configuring(
@@ -189,13 +189,13 @@ impl Manager {
         });
         done.await
     }
-    pub async fn backup(&self, backup_guard: BackupGuard) -> BackupReturn {
+    pub async fn backup(self: Arc<Self>, backup_guard: BackupGuard) -> BackupReturn {
         if self._is_transition_backup() {
             return BackupReturn::AlreadyRunning(PackageBackupReport {
                 error: Some("Can't do backup because service is in a backing up state".to_owned()),
             });
         }
-        let (transition_state, done) = self._transition_backup(backup_guard);
+        let (transition_state, done) = self.clone()._transition_backup(backup_guard);
         self._transition_replace(transition_state);
         done.await
     }
@@ -208,17 +208,63 @@ impl Manager {
         }
     }
 
-    pub async fn signal(&self, signal: Signal) -> Result<(), Error> {
-        let rpc_client = self.rpc_client();
-        let seed = self.seed.clone();
-        let gid = self.gid.clone();
-        send_signal(self, gid, signal).await
+    pub fn rpc_client(&self) -> Arc<UnixRpcClient> {
+        self.persistent_container.rpc_client()
     }
 
-    pub fn rpc_client(&self) -> Option<Arc<UnixRpcClient>> {
-        (*self.persistent_container)
-            .as_ref()
-            .map(|x| x.rpc_client())
+    pub async fn run_procedure<I: Serialize, O: DeserializeOwned>(
+        self: Arc<Self>,
+        name: ProcedureName,
+        input: Option<I>,
+        timeout: Option<Duration>,
+    ) -> Result<O, Error> {
+        let seed = self.seed.clone();
+        let gid = if matches!(name, ProcedureName::Main) {
+            self.gid.new_main_gid()
+        } else {
+            self.gid.new_gid()
+        };
+        let volumes = match name {
+            ProcedureName::RestoreBackup => {
+                let mut volumes = seed.manifest.volumes.clone();
+                volumes.insert(
+                    VolumeId::Backup,
+                    Volume::Backup(VolumeBackup { readonly: true }),
+                );
+                volumes
+            }
+            ProcedureName::CreateBackup => {
+                let mut volumes = seed.manifest.volumes.to_readonly();
+                volumes.insert(
+                    VolumeId::Backup,
+                    Volume::Backup(VolumeBackup { readonly: false }),
+                );
+                volumes
+            }
+            ProcedureName::Main
+            | ProcedureName::GetConfig
+            | ProcedureName::SetConfig
+            | ProcedureName::Properties
+            | ProcedureName::Init
+            | ProcedureName::Uninit
+            | ProcedureName::Check(_)
+            | ProcedureName::AutoConfig(_)
+            | ProcedureName::Action(_) => seed.manifest.volumes.clone(),
+        };
+        JsProcedure
+            .execute(
+                &seed.ctx.datadir,
+                &seed.manifest.id,
+                &seed.manifest.version,
+                name,
+                &volumes,
+                input,
+                timeout,
+                gid,
+                Some(self.rpc_client()),
+                self,
+            )
+            .await
     }
 
     fn _transition_abort(&self) {
@@ -230,7 +276,7 @@ impl Manager {
             transition.abort();
         }
     }
-    fn _transition_replace(&self, transition_state: TransitionState) {
+    fn _transition_replace(self: Arc<Self>, transition_state: TransitionState) {
         self.transition
             .send_replace(Arc::new(transition_state))
             .abort();
@@ -245,45 +291,35 @@ impl Manager {
         }
     }
     fn _transition_restart(&self) -> TransitionState {
-        let transition = self.transition.clone();
+        let transition = Arc::downgrade(&self.transition);
         let restart = self.perform_restart();
         TransitionState::Restarting(
             tokio::spawn(async move {
                 restart.await;
-                transition.send_replace(Default::default());
+                if let Some(transition) = Weak::upgrade(&transition) {
+                    transition.send_replace(Default::default());
+                }
             })
             .into(),
         )
     }
     fn perform_backup(
-        &self,
+        self: Arc<Self>,
         backup_guard: BackupGuard,
     ) -> impl Future<Output = Result<Result<PackageBackupInfo, Error>, Error>> + 'static {
         let manage_container = self.manage_container.clone();
         let seed = self.seed.clone();
         async move {
             let state_reverter = DesiredStateReverter::new(manage_container.clone());
-            let mut tx = seed.ctx.db.handle();
-            let _ = manage_container
-                .set_override(Some(get_status(&mut tx, &seed.manifest).await.backing_up()));
+            let _ = manage_container.set_override(Some(
+                get_status(&seed.ctx.db.peek().await.unwrap(), &seed.manifest.id)?.backing_up(),
+            ));
             manage_container.wait_for_desired(StartStop::Stop).await;
 
             let backup_guard = backup_guard.lock().await;
             let guard = backup_guard.mount_package_backup(&seed.manifest.id).await?;
 
-            let res = seed
-                .manifest
-                .backup
-                .create(
-                    &seed.ctx,
-                    &mut tx,
-                    &seed.manifest.id,
-                    &seed.manifest.title,
-                    &seed.manifest.version,
-                    &seed.manifest.interfaces,
-                    &seed.manifest.volumes,
-                )
-                .await;
+            let res = crate::backup::create(self).await;
             guard.unmount().await?;
             drop(backup_guard);
 
@@ -293,9 +329,9 @@ impl Manager {
         }
     }
     fn _transition_backup(
-        &self,
+        self: Arc<Self>,
         backup_guard: BackupGuard,
-    ) -> (TransitionState, BoxFuture<BackupReturn>) {
+    ) -> (TransitionState, BoxFuture<'static, BackupReturn>) {
         let (send, done) = oneshot::channel();
         (
             TransitionState::BackingUp(
@@ -324,40 +360,40 @@ impl Manager {
     }
 }
 
-#[instrument(skip_all)]
+// #[instrument(skip_all)]
 fn configure(
     ctx: RpcContext,
     id: PackageId,
     mut configure_context: ConfigureContext,
 ) -> BoxFuture<'static, Result<BTreeMap<PackageId, TaggedDependencyError>, Error>> {
     async move {
-        let mut db = ctx.db.handle();
-        let mut tx = db.begin().await?;
-        let db = &mut tx;
-
-        let receipts = ConfigReceipts::new(db).await?;
         let id = &id;
         let ctx = &ctx;
+        let db = ctx.db.peek().await?;
         let overrides = &mut configure_context.overrides;
-        // fetch data from db
-        let action = receipts
-            .config_actions
-            .get(db, id)
-            .await?
-            .ok_or_else(not_found)?;
-        let dependencies = receipts
-            .dependencies
-            .get(db, id)
-            .await?
-            .ok_or_else(not_found)?;
-        let volumes = receipts.volumes.get(db, id).await?.ok_or_else(not_found)?;
-        let version = receipts.version.get(db, id).await?.ok_or_else(not_found)?;
+        let package = db
+            .clone()
+            .into_package_data()
+            .into_idx(id)
+            .or_not_found(id)?;
+        let manifest = package.into_manifest();
+        let Some(manager) = ctx.managers.get(id).await else {
+            return Err(Error::new(
+                eyre!("No manager found for package {id:?}"),
+                ErrorKind::Unknown,
+            ));
+        };
+
+        // // fetch data from db
+        // let dependencies = todo!("BLUJ Dependencies");
 
         // get current config and current spec
         let ConfigRes {
-            config: old_config,
+            input: old_input,
             spec,
-        } = action.get(ctx, id, &version, &volumes).await?;
+        } = manager
+            .run_procedure(ProcedureName::GetConfig, None, None)
+            .await?;
 
         // determine new config to use
         let mut config =
@@ -370,63 +406,7 @@ fn configure(
                 )?
             };
 
-        let manifest = receipts.manifest.get(db, id).await?.ok_or_else(not_found)?;
-
-        spec.validate(&manifest)?;
-        spec.matches(&config)?; // check that new config matches spec
-        spec.update(
-            ctx,
-            db,
-            &manifest,
-            overrides,
-            &mut config,
-            &receipts.config_receipts,
-        )
-        .await?; // dereference pointers in the new config
-
-        // create backreferences to pointers
-        let mut sys = receipts
-            .system_pointers
-            .get(db, id)
-            .await?
-            .ok_or_else(not_found)?;
-        sys.truncate(0);
-        let mut current_dependencies: CurrentDependencies = CurrentDependencies(
-            dependencies
-                .0
-                .iter()
-                .filter_map(|(id, info)| {
-                    if info.requirement.required() {
-                        Some((id.clone(), CurrentDependencyInfo::default()))
-                    } else {
-                        None
-                    }
-                })
-                .collect(),
-        );
-        for ptr in spec.pointers(&config)? {
-            match ptr {
-                ValueSpecPointer::Package(pkg_ptr) => {
-                    if let Some(current_dependency) =
-                        current_dependencies.0.get_mut(pkg_ptr.package_id())
-                    {
-                        current_dependency.pointers.push(pkg_ptr);
-                    } else {
-                        current_dependencies.0.insert(
-                            pkg_ptr.package_id().to_owned(),
-                            CurrentDependencyInfo {
-                                pointers: vec![pkg_ptr],
-                                health_checks: BTreeSet::new(),
-                            },
-                        );
-                    }
-                }
-                ValueSpecPointer::System(s) => sys.push(s),
-            }
-        }
-        receipts.system_pointers.set(db, sys, id).await?;
-
-        let signal = if !configure_context.dry_run {
+        if !configure_context.dry_run {
             // run config action
             let res = action
                 .set(ctx, id, &version, &dependencies, &volumes, &config)
@@ -435,156 +415,28 @@ fn configure(
             ctx.call_config_hooks(id.clone(), &serde_json::Value::Object(config.clone()))
                 .await;
 
-            // track dependencies with no pointers
-            for (package_id, health_checks) in res.depends_on.into_iter() {
-                if let Some(current_dependency) = current_dependencies.0.get_mut(&package_id) {
-                    current_dependency.health_checks.extend(health_checks);
-                } else {
-                    current_dependencies.0.insert(
-                        package_id,
-                        CurrentDependencyInfo {
-                            pointers: Vec::new(),
-                            health_checks,
-                        },
-                    );
-                }
-            }
+            res.signal;
 
-            // track dependency health checks
-            current_dependencies = current_dependencies.map(|x| {
-                x.into_iter()
-                    .filter(|(dep_id, _)| {
-                        if dep_id != id && !manifest.dependencies.0.contains_key(dep_id) {
-                            tracing::warn!("Illegal dependency specified: {}", dep_id);
-                            false
-                        } else {
-                            true
-                        }
-                    })
-                    .collect()
-            });
-            res.signal
-        } else {
-            None
-        };
-
-        // update dependencies
-        let prev_current_dependencies = receipts
-            .current_dependencies
-            .get(db, id)
-            .await?
-            .unwrap_or_default();
-        remove_from_current_dependents_lists(
-            db,
-            id,
-            &prev_current_dependencies,
-            &receipts.current_dependents,
-        )
-        .await?; // remove previous
-        add_dependent_to_current_dependents_lists(
-            db,
-            id,
-            &current_dependencies,
-            &receipts.current_dependents,
-        )
-        .await?; // add new
-        current_dependencies.0.remove(id);
-        receipts
-            .current_dependencies
-            .set(db, current_dependencies.clone(), id)
-            .await?;
-
-        let errs = receipts
-            .dependency_errors
-            .get(db, &id)
-            .await?
-            .ok_or_else(not_found)?;
-        tracing::warn!("Dependency Errors: {:?}", errs);
-        let errs = DependencyErrors::init(
-            ctx,
-            db,
-            &manifest,
-            &current_dependencies,
-            &receipts.dependency_receipt.try_heal,
-        )
-        .await?;
-        receipts.dependency_errors.set(db, errs, id).await?;
-
-        // cache current config for dependents
-        configure_context
-            .overrides
-            .insert(id.clone(), config.clone());
-
-        // handle dependents
-        let dependents = receipts
-            .current_dependents
-            .get(db, id)
-            .await?
-            .ok_or_else(not_found)?;
-        for (dependent, _dep_info) in dependents.0.iter().filter(|(dep_id, _)| dep_id != &id) {
-            let dependent_container = receipts.docker_containers.get(db, dependent).await?;
-            let dependent_container = &dependent_container;
-            // check if config passes dependent check
-            if let Some(cfg) = receipts
-                .manifest_dependencies_config
-                .get(db, (dependent, id))
-                .await?
-            {
-                let manifest = receipts
-                    .manifest
-                    .get(db, dependent)
-                    .await?
-                    .ok_or_else(not_found)?;
-                if let Err(error) = cfg
-                    .check(
-                        ctx,
-                        dependent_container,
-                        dependent,
-                        &manifest.version,
-                        &manifest.volumes,
-                        id,
-                        &config,
-                    )
-                    .await?
-                {
-                    let dep_err = DependencyError::ConfigUnsatisfied { error };
-                    break_transitive(
-                        db,
-                        dependent,
-                        id,
-                        dep_err,
-                        &mut configure_context.breakages,
-                        &receipts.break_transitive_receipts,
-                    )
-                    .await?;
-                }
-
-                heal_all_dependents_transitive(ctx, db, id, &receipts.dependency_receipt).await?;
-            }
+            ctx.db
+                .mutate(|db| {
+                    db.as_package_data_mut()
+                        .as_idx_mut(&id)
+                        .or_not_found(&id)?
+                        .expect_as_installed_mut()?
+                        .as_installed_mut()
+                        .as_status_mut()
+                        .as_configured_mut()
+                        .ser(&true)?;
+                    Ok(())
+                })
+                .await?;
         }
-
-        if let Some(signal) = signal {
-            match ctx.managers.get(&(id.clone(), version.clone())).await {
-                None => {
-                    // in theory this should never happen, which indicates this function should be moved behind the
-                    // Manager interface
-                    return Err(Error::new(
-                        eyre!("Manager Not Found for package being configured"),
-                        crate::ErrorKind::Incoherent,
-                    ));
-                }
-                Some(m) => {
-                    async move { m.signal(signal).await }.await?;
-                }
-            }
-        }
-        receipts.configured.set(db, true, &id).await?;
-
-        if configure_context.dry_run {
-            tx.abort().await?;
-        } else {
-            tx.commit().await?;
-        }
+        // BLUJ TODO
+        // if configure_context.dry_run {
+        //     tx.abort().await?;
+        // } else {
+        //     tx.commit().await?;
+        // }
 
         Ok(configure_context.breakages)
     }
@@ -676,309 +528,4 @@ pub enum OnStop {
     Exit,
 }
 
-type RunMainResult = Result<Result<NoOutput, (i32, String)>, Error>;
-
-#[instrument(skip_all)]
-async fn run_main(
-    seed: Arc<ManagerSeed>,
-    persistent_container: ManagerPersistentContainer,
-    started: Arc<impl Fn()>,
-) -> RunMainResult {
-    let mut runtime = NonDetachingJoinHandle::from(tokio::spawn(start_up_image(seed.clone())));
-    let ip = match persistent_container.is_some() {
-        false => Some(match get_running_ip(&seed, &mut runtime).await {
-            GetRunningIp::Ip(x) => x,
-            GetRunningIp::Error(e) => return Err(e),
-            GetRunningIp::EarlyExit(x) => return Ok(x),
-        }),
-        true => None,
-    };
-
-    let svc = if let Some(ip) = ip {
-        let net = add_network_for_main(&seed, ip).await?;
-        started();
-        Some(net)
-    } else {
-        None
-    };
-
-    let health = main_health_check_daemon(seed.clone());
-    let res = tokio::select! {
-        a = runtime => a.map_err(|_| Error::new(eyre!("Manager runtime panicked!"), crate::ErrorKind::Docker)).and_then(|a| a),
-        _ = health => Err(Error::new(eyre!("Health check daemon exited!"), crate::ErrorKind::Unknown))
-    };
-    if let Some(svc) = svc {
-        remove_network_for_main(svc).await?;
-    }
-    res
-}
-
-/// We want to start up the manifest, but in this case we want to know that we have generated the certificates.
-/// Note for _generated_certificate: Needed to know that before we start the state we have generated the certificate
-async fn start_up_image(seed: Arc<ManagerSeed>) -> Result<Result<NoOutput, (i32, String)>, Error> {
-    seed.manifest
-        .main
-        .execute::<(), NoOutput>(
-            &seed.ctx,
-            &seed.manifest.id,
-            &seed.manifest.version,
-            ProcedureName::Main,
-            &seed.manifest.volumes,
-            None,
-            None,
-        )
-        .await
-}
-
-async fn long_running_docker(
-    seed: &ManagerSeed,
-    container: &DockerContainer,
-) -> Result<(LongRunning, UnixRpcClient), Error> {
-    container
-        .long_running_execute(
-            &seed.ctx,
-            &seed.manifest.id,
-            &seed.manifest.version,
-            &seed.manifest.volumes,
-        )
-        .await
-}
-
-enum GetRunningIp {
-    Ip(Ipv4Addr),
-    Error(Error),
-    EarlyExit(Result<NoOutput, (i32, String)>),
-}
-
-async fn get_long_running_ip(seed: &ManagerSeed, runtime: &mut LongRunning) -> GetRunningIp {
-    loop {
-        match container_inspect(seed).await {
-            Ok(res) => {
-                match res
-                    .network_settings
-                    .and_then(|ns| ns.networks)
-                    .and_then(|mut n| n.remove("start9"))
-                    .and_then(|es| es.ip_address)
-                    .filter(|ip| !ip.is_empty())
-                    .map(|ip| ip.parse())
-                    .transpose()
-                {
-                    Ok(Some(ip_addr)) => return GetRunningIp::Ip(ip_addr),
-                    Ok(None) => (),
-                    Err(e) => return GetRunningIp::Error(e.into()),
-                }
-            }
-            Err(bollard::errors::Error::DockerResponseServerError {
-                status_code: 404, // NOT FOUND
-                ..
-            }) => (),
-            Err(e) => return GetRunningIp::Error(e.into()),
-        }
-        if let Poll::Ready(res) = futures::poll!(&mut runtime.running_output) {
-            match res {
-                Ok(_) => return GetRunningIp::EarlyExit(Ok(NoOutput)),
-                Err(_e) => {
-                    return GetRunningIp::Error(Error::new(
-                        eyre!("Manager runtime panicked!"),
-                        crate::ErrorKind::Docker,
-                    ))
-                }
-            }
-        }
-    }
-}
-
-#[instrument(skip(seed))]
-async fn container_inspect(
-    seed: &ManagerSeed,
-) -> Result<bollard::models::ContainerInspectResponse, bollard::errors::Error> {
-    seed.ctx
-        .docker
-        .inspect_container(&seed.container_name, None)
-        .await
-}
-
-#[instrument(skip(seed))]
-async fn add_network_for_main(
-    seed: &ManagerSeed,
-    ip: std::net::Ipv4Addr,
-) -> Result<NetService, Error> {
-    let mut svc = seed
-        .ctx
-        .net_controller
-        .create_service(seed.manifest.id.clone(), ip)
-        .await?;
-    // DEPRECATED
-    let mut secrets = seed.ctx.secret_store.acquire().await?;
-    let mut tx = secrets.begin().await?;
-    for (id, interface) in &seed.manifest.interfaces.0 {
-        for (external, internal) in interface.lan_config.iter().flatten() {
-            svc.add_lan(&mut tx, id.clone(), external.0, internal.internal, false)
-                .await?;
-        }
-        for (external, internal) in interface.tor_config.iter().flat_map(|t| &t.port_mapping) {
-            svc.add_tor(&mut tx, id.clone(), external.0, internal.0)
-                .await?;
-        }
-    }
-    for volume in seed.manifest.volumes.values() {
-        if let Volume::Certificate { interface_id } = volume {
-            svc.export_cert(&mut tx, interface_id, ip.into()).await?;
-        }
-    }
-    tx.commit().await?;
-    Ok(svc)
-}
-
-#[instrument(skip(svc))]
-async fn remove_network_for_main(svc: NetService) -> Result<(), Error> {
-    svc.remove_all().await
-}
-
-async fn main_health_check_daemon(seed: Arc<ManagerSeed>) {
-    tokio::time::sleep(Duration::from_secs(HEALTH_CHECK_GRACE_PERIOD_SECONDS)).await;
-    loop {
-        let mut db = seed.ctx.db.handle();
-        if let Err(e) = health::check(&seed.ctx, &mut db, &seed.manifest.id).await {
-            tracing::error!(
-                "Failed to run health check for {}: {}",
-                &seed.manifest.id,
-                e
-            );
-            tracing::debug!("{:?}", e);
-        }
-        tokio::time::sleep(Duration::from_secs(HEALTH_CHECK_COOLDOWN_SECONDS)).await;
-    }
-}
-
-type RuntimeOfCommand = NonDetachingJoinHandle<Result<Result<NoOutput, (i32, String)>, Error>>;
-
-async fn try_get_running_ip(seed: &ManagerSeed) -> Result<Option<Ipv4Addr>, Report> {
-    Ok(container_inspect(seed)
-        .await
-        .map(|x| x.network_settings)?
-        .and_then(|ns| ns.networks)
-        .and_then(|mut n| n.remove("start9"))
-        .and_then(|es| es.ip_address)
-        .filter(|ip| !ip.is_empty())
-        .map(|ip| ip.parse())
-        .transpose()?)
-}
-
-#[instrument(skip(seed, runtime))]
-async fn get_running_ip(seed: &ManagerSeed, mut runtime: &mut RuntimeOfCommand) -> GetRunningIp {
-    loop {
-        match container_inspect(seed).await {
-            Ok(res) => {
-                match res
-                    .network_settings
-                    .and_then(|ns| ns.networks)
-                    .and_then(|mut n| n.remove("start9"))
-                    .and_then(|es| es.ip_address)
-                    .filter(|ip| !ip.is_empty())
-                    .map(|ip| ip.parse())
-                    .transpose()
-                {
-                    Ok(Some(ip_addr)) => return GetRunningIp::Ip(ip_addr),
-                    Ok(None) => (),
-                    Err(e) => return GetRunningIp::Error(e.into()),
-                }
-            }
-            Err(bollard::errors::Error::DockerResponseServerError {
-                status_code: 404, // NOT FOUND
-                ..
-            }) => (),
-            Err(e) => return GetRunningIp::Error(e.into()),
-        }
-        if let Poll::Ready(res) = futures::poll!(&mut runtime) {
-            match res {
-                Ok(Ok(response)) => return GetRunningIp::EarlyExit(response),
-                Err(e) => {
-                    return GetRunningIp::Error(Error::new(
-                        match e.try_into_panic() {
-                            Ok(e) => {
-                                eyre!(
-                                    "Manager runtime panicked: {}",
-                                    e.downcast_ref::<&'static str>().unwrap_or(&"UNKNOWN")
-                                )
-                            }
-                            _ => eyre!("Manager runtime cancelled!"),
-                        },
-                        crate::ErrorKind::Docker,
-                    ))
-                }
-                Ok(Err(e)) => {
-                    return GetRunningIp::Error(Error::new(
-                        eyre!("Manager runtime returned error: {}", e),
-                        crate::ErrorKind::Docker,
-                    ))
-                }
-            }
-        }
-    }
-}
-
-async fn send_signal(manager: &Manager, gid: Arc<Gid>, signal: Signal) -> Result<(), Error> {
-    // stop health checks from committing their results
-    // shared
-    //     .commit_health_check_results
-    //     .store(false, Ordering::SeqCst);
-
-    if let Some(rpc_client) = manager.rpc_client() {
-        let main_gid = *gid.main_gid.0.borrow();
-        let next_gid = gid.new_gid();
-        #[cfg(feature = "js_engine")]
-        if let Err(e) = crate::procedure::js_scripts::JsProcedure::default()
-            .execute::<_, NoOutput>(
-                &manager.seed.ctx.datadir,
-                &manager.seed.manifest.id,
-                &manager.seed.manifest.version,
-                ProcedureName::Signal,
-                &manager.seed.manifest.volumes,
-                Some(embassy_container_init::SignalGroupParams {
-                    gid: main_gid,
-                    signal: signal as u32,
-                }),
-                None, // TODO
-                next_gid,
-                Some(rpc_client),
-                Arc::new(manager.clone()),
-            )
-            .await?
-        {
-            tracing::error!("Failed to send js signal: {}", e.1);
-            tracing::debug!("{:?}", e);
-        }
-    } else {
-        // send signal to container
-        manager
-            .seed
-            .ctx
-            .docker
-            .kill_container(
-                &manager.seed.container_name,
-                Some(bollard::container::KillContainerOptions {
-                    signal: signal.to_string(),
-                }),
-            )
-            .await
-            .or_else(|e| {
-                if matches!(
-                    e,
-                    bollard::errors::Error::DockerResponseServerError {
-                        status_code: 409, // CONFLICT
-                        ..
-                    } | bollard::errors::Error::DockerResponseServerError {
-                        status_code: 404, // NOT FOUND
-                        ..
-                    }
-                ) {
-                    Ok(())
-                } else {
-                    Err(e)
-                }
-            })?;
-    }
-
-    Ok(())
-}
+type RunMainResult = Result<(), Error>;

@@ -9,7 +9,7 @@ use sha2::Sha256;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use super::{FileSystem, MountType};
-use crate::{Error, ResultExt};
+use crate::prelude::*;
 
 pub async fn mount_ecryptfs<P0: AsRef<Path>, P1: AsRef<Path>>(
     src: P0,
@@ -37,7 +37,7 @@ pub async fn mount_ecryptfs<P0: AsRef<Path>, P1: AsRef<Path>>(
     let mut err = String::new();
     stderr.read_to_string(&mut err).await?;
     if !ecryptfs.wait().await?.success() {
-        Err(Error::new(eyre!("{}", err), crate::ErrorKind::Filesystem))
+        Err(Error::new(eyre!("{}", err), ErrorKind::Filesystem))
     } else {
         Ok(())
     }
@@ -73,7 +73,7 @@ impl<EncryptedDir: AsRef<Path> + Send + Sync, Key: AsRef<str> + Send + Sync> Fil
                 .await
                 .with_ctx(|_| {
                     (
-                        crate::ErrorKind::Filesystem,
+                        ErrorKind::Filesystem,
                         self.encrypted_dir.as_ref().display().to_string(),
                     )
                 })?

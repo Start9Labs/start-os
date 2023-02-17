@@ -10,7 +10,7 @@ use rand::RngCore;
 use tokio::task::JoinError;
 use tokio_tungstenite::WebSocketStream;
 
-use crate::{Error, ResultExt};
+use crate::prelude::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
 pub struct RequestGuid<T: AsRef<str> = String>(Arc<T>);
@@ -50,9 +50,8 @@ impl<T: AsRef<str>> std::fmt::Display for RequestGuid<T> {
     }
 }
 
-pub type RestHandler = Box<
-    dyn FnOnce(Request<Body>) -> BoxFuture<'static, Result<Response<Body>, crate::Error>> + Send,
->;
+pub type RestHandler =
+    Box<dyn FnOnce(Request<Body>) -> BoxFuture<'static, Result<Response<Body>, Error>> + Send>;
 
 pub type WebSocketHandler = Box<
     dyn FnOnce(
@@ -89,7 +88,7 @@ impl RpcContinuation {
                                 let (parts, body) = req.into_parts();
                                 let req = Request::from_parts(parts, body);
                                 let (res, ws_fut) = hyper_ws_listener::create_ws(req)
-                                    .with_kind(crate::ErrorKind::Network)?;
+                                    .with_kind(ErrorKind::Network)?;
                                 if let Some(ws_fut) = ws_fut {
                                     tokio::task::spawn(async move {
                                         match handler(ws_fut.boxed()).await {

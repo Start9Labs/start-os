@@ -10,7 +10,7 @@ use tokio::io::{
     duplex, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf, WriteHalf,
 };
 
-use crate::ResultExt;
+use crate::prelude::*;
 
 pub trait AsyncReadSeek: AsyncRead + AsyncSeek {}
 impl<T: AsyncRead + AsyncSeek> AsyncReadSeek for T {}
@@ -105,7 +105,7 @@ where
     }
 }
 
-pub async fn from_yaml_async_reader<T, R>(mut reader: R) -> Result<T, crate::Error>
+pub async fn from_yaml_async_reader<T, R>(mut reader: R) -> Result<T, Error>
 where
     T: for<'de> serde::Deserialize<'de>,
     R: AsyncRead + Unpin,
@@ -114,23 +114,23 @@ where
     reader.read_to_end(&mut buffer).await?;
     serde_yaml::from_slice(&buffer)
         .map_err(color_eyre::eyre::Error::from)
-        .with_kind(crate::ErrorKind::Deserialization)
+        .with_kind(ErrorKind::Deserialization)
 }
 
-pub async fn to_yaml_async_writer<T, W>(mut writer: W, value: &T) -> Result<(), crate::Error>
+pub async fn to_yaml_async_writer<T, W>(mut writer: W, value: &T) -> Result<(), Error>
 where
     T: serde::Serialize,
     W: AsyncWrite + Unpin,
 {
     let mut buffer = serde_yaml::to_string(value)
-        .with_kind(crate::ErrorKind::Serialization)?
+        .with_kind(ErrorKind::Serialization)?
         .into_bytes();
     buffer.extend_from_slice(b"\n");
     writer.write_all(&buffer).await?;
     Ok(())
 }
 
-pub async fn from_toml_async_reader<T, R>(mut reader: R) -> Result<T, crate::Error>
+pub async fn from_toml_async_reader<T, R>(mut reader: R) -> Result<T, Error>
 where
     T: for<'de> serde::Deserialize<'de>,
     R: AsyncRead + Unpin,
@@ -139,21 +139,21 @@ where
     reader.read_to_end(&mut buffer).await?;
     serde_toml::from_slice(&buffer)
         .map_err(color_eyre::eyre::Error::from)
-        .with_kind(crate::ErrorKind::Deserialization)
+        .with_kind(ErrorKind::Deserialization)
 }
 
-pub async fn to_toml_async_writer<T, W>(mut writer: W, value: &T) -> Result<(), crate::Error>
+pub async fn to_toml_async_writer<T, W>(mut writer: W, value: &T) -> Result<(), Error>
 where
     T: serde::Serialize,
     W: AsyncWrite + Unpin,
 {
-    let mut buffer = serde_toml::to_vec(value).with_kind(crate::ErrorKind::Serialization)?;
+    let mut buffer = serde_toml::to_vec(value).with_kind(ErrorKind::Serialization)?;
     buffer.extend_from_slice(b"\n");
     writer.write_all(&buffer).await?;
     Ok(())
 }
 
-pub async fn from_cbor_async_reader<T, R>(mut reader: R) -> Result<T, crate::Error>
+pub async fn from_cbor_async_reader<T, R>(mut reader: R) -> Result<T, Error>
 where
     T: for<'de> serde::Deserialize<'de>,
     R: AsyncRead + Unpin,
@@ -162,21 +162,21 @@ where
     reader.read_to_end(&mut buffer).await?;
     serde_cbor::de::from_reader(buffer.as_slice())
         .map_err(color_eyre::eyre::Error::from)
-        .with_kind(crate::ErrorKind::Deserialization)
+        .with_kind(ErrorKind::Deserialization)
 }
-pub async fn to_cbor_async_writer<T, W>(mut writer: W, value: &T) -> Result<(), crate::Error>
+pub async fn to_cbor_async_writer<T, W>(mut writer: W, value: &T) -> Result<(), Error>
 where
     T: serde::Serialize,
     W: AsyncWrite + Unpin,
 {
     let mut buffer = Vec::new();
-    serde_cbor::ser::into_writer(value, &mut buffer).with_kind(crate::ErrorKind::Serialization)?;
+    serde_cbor::ser::into_writer(value, &mut buffer).with_kind(ErrorKind::Serialization)?;
     buffer.extend_from_slice(b"\n");
     writer.write_all(&buffer).await?;
     Ok(())
 }
 
-pub async fn from_json_async_reader<T, R>(mut reader: R) -> Result<T, crate::Error>
+pub async fn from_json_async_reader<T, R>(mut reader: R) -> Result<T, Error>
 where
     T: for<'de> serde::Deserialize<'de>,
     R: AsyncRead + Unpin,
@@ -185,26 +185,25 @@ where
     reader.read_to_end(&mut buffer).await?;
     serde_json::from_slice(&buffer)
         .map_err(color_eyre::eyre::Error::from)
-        .with_kind(crate::ErrorKind::Deserialization)
+        .with_kind(ErrorKind::Deserialization)
 }
 
-pub async fn to_json_async_writer<T, W>(mut writer: W, value: &T) -> Result<(), crate::Error>
+pub async fn to_json_async_writer<T, W>(mut writer: W, value: &T) -> Result<(), Error>
 where
     T: serde::Serialize,
     W: AsyncWrite + Unpin,
 {
-    let buffer = serde_json::to_string(value).with_kind(crate::ErrorKind::Serialization)?;
+    let buffer = serde_json::to_string(value).with_kind(ErrorKind::Serialization)?;
     writer.write_all(&buffer.as_bytes()).await?;
     Ok(())
 }
 
-pub async fn to_json_pretty_async_writer<T, W>(mut writer: W, value: &T) -> Result<(), crate::Error>
+pub async fn to_json_pretty_async_writer<T, W>(mut writer: W, value: &T) -> Result<(), Error>
 where
     T: serde::Serialize,
     W: AsyncWrite + Unpin,
 {
-    let mut buffer =
-        serde_json::to_string_pretty(value).with_kind(crate::ErrorKind::Serialization)?;
+    let mut buffer = serde_json::to_string_pretty(value).with_kind(ErrorKind::Serialization)?;
     buffer.push_str("\n");
     writer.write_all(&buffer.as_bytes()).await?;
     Ok(())

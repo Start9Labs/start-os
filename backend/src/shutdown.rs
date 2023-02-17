@@ -6,6 +6,7 @@ use rpc_toolkit::command;
 use crate::context::RpcContext;
 use crate::disk::main::export;
 use crate::init::{STANDBY_MODE_PATH, SYSTEM_REBUILD_PATH};
+use crate::prelude::*;
 use crate::sound::SHUTDOWN;
 use crate::util::{display_none, Invoke};
 use crate::{Error, ErrorKind, OS_ARCH};
@@ -37,7 +38,7 @@ impl Shutdown {
             if let Err(e) = Command::new("systemctl")
                 .arg("stop")
                 .arg("systemd-journald")
-                .invoke(crate::ErrorKind::Journald)
+                .invoke(ErrorKind::Journald)
                 .await
             {
                 tracing::error!("Error Stopping Journald: {}", e);
@@ -46,7 +47,7 @@ impl Shutdown {
             if let Err(e) = Command::new("systemctl")
                 .arg("stop")
                 .arg("docker")
-                .invoke(crate::ErrorKind::Docker)
+                .invoke(ErrorKind::Docker)
                 .await
             {
                 tracing::error!("Error Stopping Docker: {}", e);

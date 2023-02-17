@@ -7,7 +7,7 @@ use sqlx::PgExecutor;
 use crate::hostname::{generate_hostname, generate_id, Hostname};
 use crate::net::keys::Key;
 use crate::net::ssl::{generate_key, make_root_cert};
-use crate::Error;
+use crate::prelude::*;
 
 fn hash_password(password: &str) -> Result<String, Error> {
     argon2::hash_encoded(
@@ -15,7 +15,7 @@ fn hash_password(password: &str) -> Result<String, Error> {
         &rand::random::<[u8; 16]>()[..],
         &argon2::Config::default(),
     )
-    .with_kind(crate::ErrorKind::PasswordHashGeneration)
+    .with_kind(ErrorKind::PasswordHashGeneration)
 }
 
 #[derive(Debug, Clone)]

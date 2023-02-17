@@ -7,8 +7,8 @@ use tokio::process::{Child, Command};
 use tokio::sync::Mutex;
 use tracing::instrument;
 
+use crate::prelude::*;
 use crate::util::Invoke;
-use crate::{Error, ResultExt};
 
 pub async fn resolve_mdns(hostname: &str) -> Result<Ipv4Addr, Error> {
     Ok(String::from_utf8(
@@ -16,14 +16,14 @@ pub async fn resolve_mdns(hostname: &str) -> Result<Ipv4Addr, Error> {
             .kill_on_drop(true)
             .arg("-4")
             .arg(hostname)
-            .invoke(crate::ErrorKind::Network)
+            .invoke(ErrorKind::Network)
             .await?,
     )?
     .split_once("\t")
     .ok_or_else(|| {
         Error::new(
             eyre!("Failed to resolve hostname: {}", hostname),
-            crate::ErrorKind::Network,
+            ErrorKind::Network,
         )
     })?
     .1
@@ -64,7 +64,7 @@ impl MdnsControllerInner {
     #[instrument(skip_all)]
     async fn sync(&mut self) -> Result<(), Error> {
         if let Some(mut cmd) = self.alias_cmd.take() {
-            cmd.kill().await.with_kind(crate::ErrorKind::Network)?;
+            cmd.kill().await.with_kind(ErrorKind::Network)?;
         }
         self.alias_cmd = Some(
             Command::new("avahi-alias")

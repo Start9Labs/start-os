@@ -1,4 +1,5 @@
 use std::collections::BTreeSet;
+use std::fs::Metadata;
 use std::io::SeekFrom;
 use std::ops::Range;
 use std::path::Path;
@@ -10,7 +11,7 @@ use color_eyre::eyre::eyre;
 use digest_old::Output;
 use ed25519_dalek::PublicKey;
 use futures::TryStreamExt;
-use models::ImageId;
+use models::{mime, DataUrl, ImageId};
 use sha2_old::{Digest, Sha512};
 use tokio::fs::File;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, ReadBuf};
@@ -20,9 +21,9 @@ use super::header::{FileSection, Header, TableOfContents};
 use super::manifest::{Manifest, PackageId};
 use super::SIG_CONTEXT;
 use crate::install::progress::InstallProgressTracker;
+use crate::prelude::*;
 use crate::s9pk::docker::DockerReader;
 use crate::util::Version;
-use crate::{Error, ResultExt};
 
 const MAX_REPLACES: usize = 10;
 const MAX_TITLE_LEN: usize = 30;
@@ -99,7 +100,7 @@ impl ImageTag {
                     "Contains image for incorrect package: id {}",
                     self.package_id,
                 ),
-                crate::ErrorKind::ValidateS9pk,
+                ErrorKind::ValidateS9pk,
             ));
         }
         if version != &self.version {
@@ -109,7 +110,7 @@ impl ImageTag {
                     version,
                     self.version,
                 ),
-                crate::ErrorKind::ValidateS9pk,
+                ErrorKind::ValidateS9pk,
             ));
         }
         Ok(())
@@ -121,20 +122,14 @@ impl FromStr for ImageTag {
         let rest = s.strip_prefix("start9/").ok_or_else(|| {
             Error::new(
                 eyre!("Invalid image tag prefix: expected start9/"),
-                crate::ErrorKind::ValidateS9pk,
+                ErrorKind::ValidateS9pk,
             )
         })?;
         let (package, rest) = rest.split_once("/").ok_or_else(|| {
-            Error::new(
-                eyre!("Image tag missing image id"),
-                crate::ErrorKind::ValidateS9pk,
-            )
+            Error::new(eyre!("Image tag missing image id"), ErrorKind::ValidateS9pk)
         })?;
         let (image, version) = rest.split_once(":").ok_or_else(|| {
-            Error::new(
-                eyre!("Image tag missing version"),
-                crate::ErrorKind::ValidateS9pk,
-            )
+            Error::new(eyre!("Image tag missing version"), ErrorKind::ValidateS9pk)
         })?;
         Ok(ImageTag {
             package_id: package.parse()?,
@@ -157,122 +152,65 @@ impl S9pkReader {
         let p = path.as_ref();
         let rdr = File::open(p)
             .await
-            .with_ctx(|_| (crate::error::ErrorKind::Filesystem, p.display().to_string()))?;
+            .with_ctx(|_| (ErrorKind::Filesystem, p.display().to_string()))?;
 
         Self::from_reader(rdr, check_sig).await
+    }
+    pub async fn metadata(&self) -> Result<Metadata, Error> {
+        Ok(self.rdr.metadata().await?)
     }
 }
 impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<InstallProgressTracker<R>> {
     pub fn validated(&mut self) {
         self.rdr.validated()
     }
+    pub fn unpacked(&mut self) {
+        self.rdr.unpacked()
+    }
 }
 impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
     #[instrument(skip_all)]
-    pub async fn validate(&mut self) -> Result<(), Error> {
-        if self.toc.icon.length > 102_400 {
+    pub async fn validate(&mut self, expected_manifest: Option<&Manifest>) -> Result<(), Error> {
+        if self.toc.icon.length > DataUrl::MAX_SIZE {
             // 100 KiB
             return Err(Error::new(
                 eyre!("icon must be less than 100KiB"),
-                crate::ErrorKind::ValidateS9pk,
+                ErrorKind::ValidateS9pk,
             ));
         }
         let image_tags = self.image_tags().await?;
         let man = self.manifest().await?;
+        if expected_manifest.map(|m| m != &man).unwrap_or(false) {
+            return Err(Error::new(
+                eyre!("manifest does not match expected"),
+                ErrorKind::ValidateS9pk,
+            ));
+        }
         let containers = &man.containers;
         let validated_image_ids = image_tags
             .into_iter()
             .map(|i| i.validate(&man.id, &man.version).map(|_| i.image_id))
             .collect::<Result<BTreeSet<ImageId>, _>>()?;
         man.description.validate()?;
-        man.actions
-            .0
-            .iter()
-            .map(|(_, action)| {
-                action.validate(
-                    containers,
-                    &man.eos_version,
-                    &man.volumes,
-                    &validated_image_ids,
-                )
-            })
-            .collect::<Result<(), Error>>()?;
-        man.backup.validate(
-            containers,
-            &man.eos_version,
-            &man.volumes,
-            &validated_image_ids,
-        )?;
-        if let Some(cfg) = &man.config {
-            cfg.validate(
-                containers,
-                &man.eos_version,
-                &man.volumes,
-                &validated_image_ids,
-            )?;
-        }
-        man.health_checks.validate(
-            containers,
-            &man.eos_version,
-            &man.volumes,
-            &validated_image_ids,
-        )?;
-        man.interfaces.validate()?;
-        man.main
-            .validate(
-                containers,
-                &man.eos_version,
-                &man.volumes,
-                &validated_image_ids,
-                false,
-            )
-            .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Main"))?;
-        man.migrations.validate(
-            containers,
-            &man.eos_version,
-            &man.volumes,
-            &validated_image_ids,
-        )?;
 
         if man.replaces.len() >= MAX_REPLACES {
             return Err(Error::new(
                 eyre!("Cannot have more than {MAX_REPLACES} replaces"),
-                crate::ErrorKind::ValidateS9pk,
+                ErrorKind::ValidateS9pk,
             ));
         }
         if let Some(too_big) = man.replaces.iter().find(|x| x.len() >= MAX_REPLACES) {
             return Err(Error::new(
                 eyre!("We have found a replaces of ({too_big}) that exceeds the max length of {MAX_TITLE_LEN} "),
-                crate::ErrorKind::ValidateS9pk,
+                ErrorKind::ValidateS9pk,
             ));
         }
         if man.title.len() >= MAX_TITLE_LEN {
             return Err(Error::new(
                 eyre!("Cannot have more than a length of {MAX_TITLE_LEN} for title"),
-                crate::ErrorKind::ValidateS9pk,
+                ErrorKind::ValidateS9pk,
             ));
         }
-
-        if man.containers.is_some()
-            && matches!(man.main, crate::procedure::PackageProcedure::Docker(_))
-        {
-            return Err(Error::new(
-                eyre!("Cannot have a main docker and a main in containers"),
-                crate::ErrorKind::ValidateS9pk,
-            ));
-        }
-        if let Some(props) = &man.properties {
-            props
-                .validate(
-                    containers,
-                    &man.eos_version,
-                    &man.volumes,
-                    &validated_image_ids,
-                    true,
-                )
-                .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Properties"))?;
-        }
-        man.volumes.validate(&man.interfaces)?;
 
         Ok(())
     }
@@ -292,7 +230,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
                 tags: Vec<String>,
             }
             let man_entries = serde_json::from_slice::<Vec<ManEntry>>(&buf)
-                .with_ctx(|_| (crate::ErrorKind::Deserialization, "manifest.json"))?;
+                .with_ctx(|_| (ErrorKind::Deserialization, "manifest.json"))?;
             return man_entries
                 .iter()
                 .flat_map(|e| &e.tags)
@@ -301,7 +239,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
         }
         Err(Error::new(
             eyre!("image.tar missing manifest.json"),
-            crate::ErrorKind::ParseS9pk,
+            ErrorKind::ParseS9pk,
         ))
     }
     #[instrument(skip_all)]
@@ -384,7 +322,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
     pub async fn manifest(&mut self) -> Result<Manifest, Error> {
         let slice = self.manifest_raw().await?.to_vec().await?;
         serde_cbor::de::from_reader(slice.as_slice())
-            .with_ctx(|_| (crate::ErrorKind::ParseS9pk, "Deserializing Manifest (CBOR)"))
+            .with_ctx(|_| (ErrorKind::ParseS9pk, "Deserializing Manifest (CBOR)"))
     }
 
     pub async fn license<'a>(&'a mut self) -> Result<ReadHandle<'a, R>, Error> {
@@ -395,8 +333,14 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
         Ok(self.read_handle(self.toc.instructions).await?)
     }
 
-    pub async fn icon<'a>(&'a mut self) -> Result<ReadHandle<'a, R>, Error> {
-        Ok(self.read_handle(self.toc.icon).await?)
+    pub async fn icon(&mut self, manifest: &Manifest) -> Result<DataUrl, Error> {
+        let size = self.toc.icon.length;
+        DataUrl::from_reader(
+            mime(manifest.assets.icon_type()).unwrap_or(DataUrl::DEFAULT_MIME),
+            self.read_handle(self.toc.icon).await?,
+            Some(size),
+        )
+        .await
     }
 
     pub async fn docker_images<'a>(&'a mut self) -> Result<DockerReader<ReadHandle<'a, R>>, Error> {

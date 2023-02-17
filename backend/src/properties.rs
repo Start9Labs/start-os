@@ -5,9 +5,8 @@ use serde_json::Value;
 use tracing::instrument;
 
 use crate::context::RpcContext;
-use crate::procedure::ProcedureName;
+use crate::prelude::*;
 use crate::s9pk::manifest::{Manifest, PackageId};
-use crate::{Error, ErrorKind};
 
 pub fn display_properties(response: Value, _: &ArgMatches) {
     println!("{}", response);
@@ -22,15 +21,15 @@ pub async fn properties(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Res
 pub async fn fetch_properties(ctx: RpcContext, id: PackageId) -> Result<Value, Error> {
     let mut db = ctx.db.handle();
 
-    let manifest: Manifest = crate::db::DatabaseModel::new()
-        .package_data()
-        .idx_model(&id)
-        .and_then(|p| p.installed())
-        .map(|m| m.manifest())
-        .get(&mut db)
-        .await?
-        .to_owned()
-        .ok_or_else(|| Error::new(eyre!("{} is not installed", id), ErrorKind::NotFound))?;
+    let manifest: Manifest = todo!(); /*crate::db::DatabaseModel::new()
+                                      .package_data()
+                                      .idx_model(&id)
+                                      .and_then(|p| p.installed())
+                                      .map(|m| m.manifest())
+                                      .get()
+                                      .await?
+                                      .to_owned()
+                                      .ok_or_else(|| Error::new(eyre!("{} is not installed", id), ErrorKind::NotFound))?;*/
     if let Some(props) = manifest.properties {
         props
             .execute::<(), Value>(

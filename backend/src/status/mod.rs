@@ -1,25 +1,25 @@
 use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
-use patch_db::{HasModel, Model};
+use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
 
 use self::health_check::HealthCheckId;
 use crate::dependencies::DependencyErrors;
+use crate::prelude::*;
 use crate::status::health_check::HealthCheckResult;
 
 pub mod health_check;
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
 pub struct Status {
     pub configured: bool,
-    #[model]
     pub main: MainStatus,
-    #[model]
     pub dependency_errors: DependencyErrors,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, HasModel)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "status")]
 #[serde(rename_all = "kebab-case")]
 pub enum MainStatus {
@@ -32,22 +32,19 @@ pub enum MainStatus {
         health: BTreeMap<HealthCheckId, HealthCheckResult>,
     },
     BackingUp {
-        started: Option<DateTime<Utc>>,
-        health: BTreeMap<HealthCheckId, HealthCheckResult>,
+        was_running: bool,
     },
 }
 impl MainStatus {
     pub fn running(&self) -> bool {
         match self {
-            MainStatus::Starting { .. }
+            MainStatus::Starting
             | MainStatus::Running { .. }
-            | MainStatus::BackingUp {
-                started: Some(_), ..
-            } => true,
+            | MainStatus::BackingUp { was_running: true } => true,
             MainStatus::Stopped
             | MainStatus::Stopping
             | MainStatus::Restarting
-            | MainStatus::BackingUp { started: None, .. } => false,
+            | MainStatus::BackingUp { was_running: false } => false,
         }
     }
     pub fn stop(&mut self) {
@@ -55,37 +52,16 @@ impl MainStatus {
             MainStatus::Starting { .. } | MainStatus::Running { .. } => {
                 *self = MainStatus::Stopping;
             }
-            MainStatus::BackingUp { started, .. } => {
-                *started = None;
+            MainStatus::BackingUp { was_running } => {
+                *was_running = false;
             }
             MainStatus::Stopped | MainStatus::Stopping | MainStatus::Restarting => (),
         }
     }
-    pub fn started(&self) -> Option<DateTime<Utc>> {
-        match self {
-            MainStatus::Running { started, .. } => Some(*started),
-            MainStatus::BackingUp { started, .. } => *started,
-            MainStatus::Stopped => None,
-            MainStatus::Restarting => None,
-            MainStatus::Stopping => None,
-            MainStatus::Starting { .. } => None,
-        }
-    }
 
     pub fn backing_up(&self) -> Self {
-        let (started, health) = match self {
-            MainStatus::Starting { .. } => (Some(Utc::now()), Default::default()),
-            MainStatus::Running { started, health } => (Some(started.clone()), health.clone()),
-            MainStatus::Stopped | MainStatus::Stopping | MainStatus::Restarting => {
-                (None, Default::default())
-            }
-            MainStatus::BackingUp { .. } => return self.clone(),
-        };
-        MainStatus::BackingUp { started, health }
-    }
-}
-impl MainStatusModel {
-    pub fn started(self) -> Model<Option<DateTime<Utc>>> {
-        self.0.child("started")
+        MainStatus::BackingUp {
+            was_running: self.running(),
+        }
     }
 }

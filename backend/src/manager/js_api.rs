@@ -1,21 +1,16 @@
-use color_eyre::{
-    eyre::{bail, eyre},
-    Report,
-};
+use color_eyre::eyre::{bail, eyre};
+use color_eyre::Report;
 use helpers::{AddressSchemaLocal, AddressSchemaOnion, Callback, OsApi};
 use itertools::Itertools;
 use jsonpath_lib::Compiled;
 use models::{InterfaceId, PackageId};
-use serde_json::Value;
 use sqlx::Acquire;
 
-use crate::{
-    config::hook::ConfigHook,
-    manager::{start_stop::StartStop, Manager},
-    net::keys::Key,
-};
-
 use super::try_get_running_ip;
+use crate::config::hook::ConfigHook;
+use crate::manager::start_stop::StartStop;
+use crate::manager::Manager;
+use crate::prelude::*;
 
 const NULL_VALUE: &Value = &Value::Null;
 
@@ -23,10 +18,10 @@ const NULL_VALUE: &Value = &Value::Null;
 impl OsApi for Manager {
     async fn get_service_config(
         &self,
-        id: PackageId,
-        path: &str,
+        id: Option<PackageId>,
+        path: Option<&str>,
         callback: Option<Callback>,
-    ) -> Result<Vec<serde_json::Value>, Report> {
+    ) -> Result<Vec<Value>, Report> {
         let found = match self
             .seed
             .manifest
@@ -41,7 +36,7 @@ impl OsApi for Manager {
 
         let config = match crate::config::get(self.seed.ctx.clone(), id.clone(), None)
             .await
-            .map(|x| x.config)
+            .map(|x| x.input)
         {
             Ok(Some(a)) => a,
             Ok(None) => bail!("No current config for the service"),

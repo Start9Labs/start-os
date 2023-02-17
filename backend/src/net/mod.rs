@@ -4,12 +4,11 @@ use futures::future::BoxFuture;
 use hyper::{Body, Error as HyperError, Request, Response};
 use rpc_toolkit::command;
 
-use crate::Error;
+use crate::prelude::*;
 
 pub mod dhcp;
 pub mod dns;
 pub mod forward;
-pub mod interface;
 pub mod keys;
 #[cfg(feature = "avahi")]
 pub mod mdns;

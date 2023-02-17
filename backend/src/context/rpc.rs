@@ -6,12 +6,11 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use bollard::Docker;
+use futures::FutureExt;
 use helpers::to_tmp_path;
 use josekit::jwk::Jwk;
 use models::PackageId;
 use patch_db::json_ptr::JsonPointer;
-use patch_db::{DbHandle, LockReceipt, LockType, PatchDb};
 use reqwest::Url;
 use rpc_toolkit::Context;
 use serde::Deserialize;
@@ -24,20 +23,20 @@ use super::setup::CURRENT_SECRET;
 use crate::account::AccountInfo;
 use crate::config::hook::ConfigHook;
 use crate::core::rpc_continuations::{RequestGuid, RestHandler, RpcContinuation};
-use crate::db::model::{Database, InstalledPackageDataEntry, PackageDataEntry};
+use crate::db::model::{Database, PackageDataEntryMatchModelRef};
 use crate::disk::OsPartitionInfo;
 use crate::init::{init_postgres, pgloader};
-use crate::install::cleanup::{cleanup_failed, uninstall, CleanupFailedReceipts};
+use crate::install::cleanup::{cleanup_failed, uninstall};
 use crate::manager::ManagerMap;
 use crate::middleware::auth::HashSessionToken;
 use crate::net::net_controller::NetController;
 use crate::net::ssl::SslManager;
 use crate::net::wifi::WpaCli;
 use crate::notifications::NotificationManager;
+use crate::prelude::*;
 use crate::shutdown::Shutdown;
-use crate::status::{MainStatus, Status};
+use crate::status::MainStatus;
 use crate::util::config::load_config_from_paths;
-use crate::{Error, ErrorKind, ResultExt};
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -80,7 +79,7 @@ impl RpcContextConfig {
         let db_path = self.datadir().join("main").join("embassy.db");
         let db = PatchDb::open(&db_path)
             .await
-            .with_ctx(|_| (crate::ErrorKind::Filesystem, db_path.display().to_string()))?;
+            .with_ctx(|_| (ErrorKind::Filesystem, db_path.display().to_string()))?;
         if !db.exists(&<JsonPointer>::default()).await {
             db.put(&<JsonPointer>::default(), &Database::init(account))
                 .await?;
@@ -96,7 +95,7 @@ impl RpcContextConfig {
         sqlx::migrate!()
             .run(&secret_store)
             .await
-            .with_kind(crate::ErrorKind::Database)?;
+            .with_kind(ErrorKind::Database)?;
         let old_db_path = self.datadir().join("main/secrets.db");
         if tokio::fs::metadata(&old_db_path).await.is_ok() {
             pgloader(
@@ -120,7 +119,6 @@ pub struct RpcContextSeed {
     pub db: PatchDb,
     pub secret_store: PgPool,
     pub account: RwLock<AccountInfo>,
-    pub docker: Docker,
     pub net_controller: Arc<NetController>,
     pub managers: ManagerMap,
     pub metrics_cache: RwLock<Option<crate::system::Metrics>>,
@@ -132,44 +130,6 @@ pub struct RpcContextSeed {
     pub wifi_manager: Option<Arc<RwLock<WpaCli>>>,
     pub current_secret: Arc<Jwk>,
     pub config_hooks: Mutex<BTreeMap<PackageId, Vec<ConfigHook>>>,
-}
-
-pub struct RpcCleanReceipts {
-    cleanup_receipts: CleanupFailedReceipts,
-    packages: LockReceipt<crate::db::model::AllPackageData, ()>,
-    package: LockReceipt<crate::db::model::PackageDataEntry, String>,
-}
-
-impl RpcCleanReceipts {
-    pub async fn new<'a>(db: &'a mut impl DbHandle) -> Result<Self, Error> {
-        let mut locks = Vec::new();
-
-        let setup = Self::setup(&mut locks);
-        Ok(setup(&db.lock_all(locks).await?)?)
-    }
-
-    pub fn setup(
-        locks: &mut Vec<patch_db::LockTargetId>,
-    ) -> impl FnOnce(&patch_db::Verifier) -> Result<Self, Error> {
-        let cleanup_receipts = CleanupFailedReceipts::setup(locks);
-
-        let packages = crate::db::DatabaseModel::new()
-            .package_data()
-            .make_locker(LockType::Write)
-            .add_to_keys(locks);
-        let package = crate::db::DatabaseModel::new()
-            .package_data()
-            .star()
-            .make_locker(LockType::Write)
-            .add_to_keys(locks);
-        move |skeleton_key| {
-            Ok(Self {
-                cleanup_receipts: cleanup_receipts(skeleton_key)?,
-                packages: packages.verify(skeleton_key)?,
-                package: package.verify(skeleton_key)?,
-            })
-        }
-    }
 }
 
 #[derive(Clone)]
@@ -192,9 +152,6 @@ impl RpcContext {
         let account = AccountInfo::load(&secret_store).await?;
         let db = base.db(&account).await?;
         tracing::info!("Opened PatchDB");
-        let mut docker = Docker::connect_with_unix_defaults()?;
-        docker.set_timeout(Duration::from_secs(600));
-        tracing::info!("Connected to Docker");
         let net_controller = Arc::new(
             NetController::init(
                 base.tor_control
@@ -224,7 +181,6 @@ impl RpcContext {
             db,
             secret_store,
             account: RwLock::new(account),
-            docker,
             net_controller,
             managers,
             metrics_cache,
@@ -242,7 +198,7 @@ impl RpcContext {
                     tracing::error!("Couldn't generate ec key");
                     Error::new(
                         color_eyre::eyre::eyre!("Couldn't generate ec key"),
-                        crate::ErrorKind::Unknown,
+                        ErrorKind::Unknown,
                     )
                 })?,
             ),
@@ -252,13 +208,7 @@ impl RpcContext {
         let res = Self(seed);
         res.cleanup().await?;
         tracing::info!("Cleaned up transient states");
-        res.managers
-            .init(
-                &res,
-                &mut res.db.handle(),
-                &mut res.secret_store.acquire().await?,
-            )
-            .await?;
+        res.managers.init(&res).await?;
         tracing::info!("Initialized Package Managers");
         Ok(res)
     }
@@ -275,77 +225,56 @@ impl RpcContext {
 
     #[instrument(skip_all)]
     pub async fn cleanup(&self) -> Result<(), Error> {
-        let mut db = self.db.handle();
-        let receipts = RpcCleanReceipts::new(&mut db).await?;
-        for (package_id, package) in receipts.packages.get(&mut db).await?.0 {
-            if let Err(e) = async {
-                match package {
-                    PackageDataEntry::Installing { .. }
-                    | PackageDataEntry::Restoring { .. }
-                    | PackageDataEntry::Updating { .. } => {
-                        cleanup_failed(self, &mut db, &package_id, &receipts.cleanup_receipts)
-                            .await?;
-                    }
-                    PackageDataEntry::Removing { .. } => {
-                        uninstall(
-                            self,
-                            &mut db,
-                            &mut self.secret_store.acquire().await?,
-                            &package_id,
-                        )
-                        .await?;
-                    }
-                    PackageDataEntry::Installed {
-                        installed,
-                        static_files,
-                        manifest,
-                    } => {
-                        for (volume_id, volume_info) in &*manifest.volumes {
-                            let tmp_path = to_tmp_path(volume_info.path_for(
-                                &self.datadir,
-                                &package_id,
-                                &manifest.version,
-                                &volume_id,
-                            ))
-                            .with_kind(ErrorKind::Filesystem)?;
-                            if tokio::fs::metadata(&tmp_path).await.is_ok() {
-                                tokio::fs::remove_dir_all(&tmp_path).await?;
-                            }
-                        }
-                        let status = installed.status;
-                        let main = match status.main {
-                            MainStatus::BackingUp { started, .. } => {
-                                if let Some(_) = started {
-                                    MainStatus::Starting
-                                } else {
-                                    MainStatus::Stopped
-                                }
-                            }
-                            MainStatus::Running { .. } => MainStatus::Starting,
-                            a => a.clone(),
-                        };
-                        let new_package = PackageDataEntry::Installed {
-                            installed: InstalledPackageDataEntry {
-                                status: Status { main, ..status },
-                                ..installed
-                            },
-                            static_files,
-                            manifest,
-                        };
-                        receipts
-                            .package
-                            .set(&mut db, new_package, &package_id)
-                            .await?;
-                    }
+        let peek = self.db.peek().await?;
+        for (package_id, package) in peek.as_package_data().as_entries()?.into_iter() {
+            let action = match package.as_match() {
+                PackageDataEntryMatchModelRef::Installing(_)
+                | PackageDataEntryMatchModelRef::Restoring(_)
+                | PackageDataEntryMatchModelRef::Updating(_) => {
+                    cleanup_failed(self, &package_id).await
                 }
-                Ok::<_, Error>(())
-            }
-            .await
-            {
+                PackageDataEntryMatchModelRef::Removing(_) => uninstall(self, &package_id).await,
+                PackageDataEntryMatchModelRef::Installed(m) => {
+                    let version = m.as_manifest().as_version().clone().de()?;
+                    for (volume_id, volume_info) in &*m.as_manifest().as_volumes().clone().de()? {
+                        let tmp_path = to_tmp_path(volume_info.path_for(
+                            &self.datadir,
+                            &package_id,
+                            &version,
+                            &volume_id,
+                        ))
+                        .with_kind(ErrorKind::Filesystem)?;
+                        if tokio::fs::metadata(&tmp_path).await.is_ok() {
+                            tokio::fs::remove_dir_all(&tmp_path).await?;
+                        }
+                    }
+                    Ok(())
+                }
+                _ => continue,
+            };
+            if let Err(e) = action {
                 tracing::error!("Failed to clean up package {}: {}", package_id, e);
                 tracing::debug!("{:?}", e);
             }
         }
+        self.db
+            .mutate(|v| {
+                for (_, pde) in v.as_package_data_mut().as_entries_mut()? {
+                    let status = pde
+                        .expect_as_installed_mut()?
+                        .as_installed_mut()
+                        .as_status_mut()
+                        .as_main_mut();
+                    let running = status.clone().de()?.running();
+                    status.ser(&if running {
+                        MainStatus::Starting
+                    } else {
+                        MainStatus::Stopped
+                    })?;
+                }
+                Ok(())
+            })
+            .await?;
         Ok(())
     }
 

@@ -1,5 +1,5 @@
 use color_eyre::eyre::eyre;
-pub use models::{Error, ErrorKind, ResultExt};
+pub use models::{Error, ErrorKind, OptionExt, ResultExt};
 
 #[derive(Debug, Default)]
 pub struct ErrorCollection(Vec<Error>);
@@ -54,7 +54,7 @@ impl std::fmt::Display for ErrorCollection {
 macro_rules! ensure_code {
     ($x:expr, $c:expr, $fmt:expr $(, $arg:expr)*) => {
         if !($x) {
-            return Err(crate::Error::new(color_eyre::eyre::eyre!($fmt, $($arg, )*), $c));
+            return Err(crate::error::Error::new(color_eyre::eyre::eyre!($fmt, $($arg, )*), $c));
         }
     };
 }

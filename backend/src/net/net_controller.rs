@@ -1,26 +1,24 @@
 use std::collections::BTreeMap;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::{Arc, Weak};
 
 use color_eyre::eyre::eyre;
 use models::InterfaceId;
-use patch_db::{DbHandle, LockType, PatchDb};
 use sqlx::PgExecutor;
 use tracing::instrument;
 
-use crate::error::ErrorCollection;
 use crate::hostname::Hostname;
 use crate::net::dns::DnsController;
 use crate::net::forward::LpfController;
 use crate::net::keys::Key;
 #[cfg(feature = "avahi")]
 use crate::net::mdns::MdnsController;
-use crate::net::ssl::{export_cert, export_key, SslManager};
+use crate::net::ssl::SslManager;
 use crate::net::tor::TorController;
 use crate::net::vhost::VHostController;
+use crate::prelude::*;
 use crate::s9pk::manifest::PackageId;
-use crate::volume::cert_dir;
-use crate::{Error, HOST_IP};
+use crate::HOST_IP;
 
 pub struct NetController {
     pub(super) tor: TorController,
@@ -229,16 +227,12 @@ pub struct NetService {
     lpf: BTreeMap<u16, (u16, Vec<Arc<()>>)>,
 }
 impl NetService {
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     fn net_controller(&self) -> Result<Arc<NetController>, Error> {
-        Weak::upgrade(&self.controller).ok_or_else(|| {
-            Error::new(
-                eyre!("NetController is shutdown"),
-                crate::ErrorKind::Network,
-            )
-        })
+        Weak::upgrade(&self.controller)
+            .ok_or_else(|| Error::new(eyre!("NetController is shutdown"), ErrorKind::Network))
     }
-    #[instrument(skip(self, secrets))]
+    #[instrument(skip_all)]
     pub async fn add_tor<Ex>(
         &mut self,
         secrets: &mut Ex,
@@ -312,18 +306,17 @@ impl NetService {
     }
     pub async fn add_lpf(&mut self, db: &PatchDb, internal: u16) -> Result<u16, Error> {
         let ctrl = self.net_controller()?;
-        let mut db = db.handle();
-        let lpf_model = crate::db::DatabaseModel::new().lan_port_forwards();
-        lpf_model.lock(&mut db, LockType::Write).await?; // TODO: replace all this with an RMW
-        let mut lpf = lpf_model.get_mut(&mut db).await?;
-        let external = lpf.alloc(self.id.clone(), internal).ok_or_else(|| {
-            Error::new(
-                eyre!("No ephemeral ports available"),
-                crate::ErrorKind::Network,
-            )
-        })?;
-        lpf.save(&mut db).await?;
-        drop(db);
+        let external = db
+            .mutate(|mut v| {
+                let mut lpf_ref = v.lan_port_forwards();
+                let mut lpf = lpf_ref.get()?;
+                let external = lpf.alloc(self.id.clone(), internal).ok_or_else(|| {
+                    Error::new(eyre!("No ephemeral ports available"), ErrorKind::Network)
+                })?;
+                lpf_ref.set(&lpf)?;
+                Ok(external)
+            })
+            .await?;
         let rc = ctrl.add_lpf(external, (self.ip, internal).into()).await?;
         let (_, mut lpfs) = self.lpf.remove(&internal).unwrap_or_default();
         lpfs.push(rc);
@@ -337,32 +330,6 @@ impl NetService {
             ctrl.remove_lpf(external, rcs).await?;
         }
 
-        Ok(())
-    }
-    pub async fn export_cert<Ex>(
-        &self,
-        secrets: &mut Ex,
-        id: &InterfaceId,
-        ip: IpAddr,
-    ) -> Result<(), Error>
-    where
-        for<'a> &'a mut Ex: PgExecutor<'a>,
-    {
-        let key = Key::for_interface(secrets, Some((self.id.clone(), id.clone()))).await?;
-        let ctrl = self.net_controller()?;
-        let cert = ctrl.ssl.with_certs(key, ip).await?;
-        let cert_dir = cert_dir(&self.id, id);
-        tokio::fs::create_dir_all(&cert_dir).await?;
-        export_key(
-            &cert.key().openssl_key_nistp256(),
-            &cert_dir.join(format!("{id}.key.pem")),
-        )
-        .await?;
-        export_cert(
-            &cert.fullchain_nistp256(),
-            &cert_dir.join(format!("{id}.cert.pem")),
-        )
-        .await?; // TODO: can upgrade to ed25519?
         Ok(())
     }
     pub async fn remove_all(mut self) -> Result<(), Error> {
@@ -382,10 +349,7 @@ impl NetService {
             self.ip = Ipv4Addr::new(0, 0, 0, 0);
             errors.into_result()
         } else {
-            Err(Error::new(
-                eyre!("NetController is shutdown"),
-                crate::ErrorKind::Network,
-            ))
+            Ok(())
         }
     }
 }

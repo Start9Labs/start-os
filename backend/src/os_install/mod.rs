@@ -15,6 +15,7 @@ use crate::disk::mount::guard::{MountGuard, TmpMountGuard};
 use crate::disk::util::{DiskInfo, PartitionTable};
 use crate::disk::OsPartitionInfo;
 use crate::net::utils::{find_eth_iface, find_wifi_iface};
+use crate::prelude::*;
 use crate::util::serde::IoFormat;
 use crate::util::{display_none, Invoke};
 use crate::ARCH;
@@ -115,7 +116,7 @@ pub async fn execute(
         .ok_or_else(|| {
             Error::new(
                 eyre!("Unknown disk {}", logicalname.display()),
-                crate::ErrorKind::DiskManagement,
+                ErrorKind::DiskManagement,
             )
         })?;
     let eth_iface = find_eth_iface().await?;
@@ -128,33 +129,33 @@ pub async fn execute(
     if let Some(efi) = &part_info.efi {
         Command::new("mkfs.vfat")
             .arg(efi)
-            .invoke(crate::ErrorKind::DiskManagement)
+            .invoke(ErrorKind::DiskManagement)
             .await?;
         Command::new("fatlabel")
             .arg(efi)
             .arg("efi")
-            .invoke(crate::ErrorKind::DiskManagement)
+            .invoke(ErrorKind::DiskManagement)
             .await?;
     }
 
     Command::new("mkfs.vfat")
         .arg(&part_info.boot)
-        .invoke(crate::ErrorKind::DiskManagement)
+        .invoke(ErrorKind::DiskManagement)
         .await?;
     Command::new("fatlabel")
         .arg(&part_info.boot)
         .arg("boot")
-        .invoke(crate::ErrorKind::DiskManagement)
+        .invoke(ErrorKind::DiskManagement)
         .await?;
 
     Command::new("mkfs.ext4")
         .arg(&part_info.root)
-        .invoke(crate::ErrorKind::DiskManagement)
+        .invoke(ErrorKind::DiskManagement)
         .await?;
     Command::new("e2label")
         .arg(&part_info.root)
         .arg("rootfs")
-        .invoke(crate::ErrorKind::DiskManagement)
+        .invoke(ErrorKind::DiskManagement)
         .await?;
 
     let rootfs = TmpMountGuard::mount(&BlockDev::new(&part_info.root), ReadWrite).await?;
@@ -214,14 +215,14 @@ pub async fn execute(
     Command::new("chroot")
         .arg(&current)
         .arg("systemd-machine-id-setup")
-        .invoke(crate::ErrorKind::Systemd)
+        .invoke(ErrorKind::Systemd)
         .await?;
 
     Command::new("chroot")
         .arg(&current)
         .arg("ssh-keygen")
         .arg("-A")
-        .invoke(crate::ErrorKind::OpenSsh)
+        .invoke(ErrorKind::OpenSsh)
         .await?;
 
     let dev = MountGuard::mount(&Bind::new("/dev"), current.join("dev"), ReadWrite).await?;
@@ -253,7 +254,7 @@ pub async fn execute(
     }
     install
         .arg(&disk.logicalname)
-        .invoke(crate::ErrorKind::Grub)
+        .invoke(ErrorKind::Grub)
         .await?;
 
     Command::new("chroot")
@@ -279,9 +280,7 @@ pub async fn execute(
 
 #[command(display(display_none))]
 pub async fn reboot(#[context] ctx: InstallContext) -> Result<(), Error> {
-    Command::new("sync")
-        .invoke(crate::ErrorKind::Filesystem)
-        .await?;
+    Command::new("sync").invoke(ErrorKind::Filesystem).await?;
     ctx.shutdown.send(()).unwrap();
     Ok(())
 }

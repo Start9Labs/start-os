@@ -3,7 +3,7 @@ use reqwest::{StatusCode, Url};
 use rpc_toolkit::command;
 use serde_json::Value;
 
-use crate::{Error, ResultExt};
+use crate::prelude::*;
 
 #[command(subcommands(get))]
 pub fn marketplace() -> Result<(), Error> {
@@ -12,9 +12,7 @@ pub fn marketplace() -> Result<(), Error> {
 
 #[command]
 pub async fn get(#[arg] url: Url) -> Result<Value, Error> {
-    let mut response = reqwest::get(url)
-        .await
-        .with_kind(crate::ErrorKind::Network)?;
+    let mut response = reqwest::get(url).await.with_kind(ErrorKind::Network)?;
     let status = response.status();
     if status.is_success() {
         match response
@@ -25,40 +23,31 @@ pub async fn get(#[arg] url: Url) -> Result<Value, Error> {
             .and_then(|h| h.split(";").next())
             .map(|h| h.trim())
         {
-            Some("application/json") => response
-                .json()
-                .await
-                .with_kind(crate::ErrorKind::Deserialization),
+            Some("application/json") => response.json().await.with_kind(ErrorKind::Deserialization),
             Some("text/plain") => Ok(Value::String(
-                response
-                    .text()
-                    .await
-                    .with_kind(crate::ErrorKind::Registry)?,
+                response.text().await.with_kind(ErrorKind::Registry)?,
             )),
             Some(ctype) => Ok(Value::String(format!(
                 "data:{};base64,{}",
                 ctype,
                 base64::encode_config(
-                    &response
-                        .bytes()
-                        .await
-                        .with_kind(crate::ErrorKind::Registry)?,
+                    &response.bytes().await.with_kind(ErrorKind::Registry)?,
                     base64::URL_SAFE
                 )
             ))),
             _ => Err(Error::new(
                 eyre!("missing Content-Type"),
-                crate::ErrorKind::Registry,
+                ErrorKind::Registry,
             )),
         }
     } else {
-        let message = response.text().await.with_kind(crate::ErrorKind::Network)?;
+        let message = response.text().await.with_kind(ErrorKind::Network)?;
         Err(Error::new(
             eyre!("{}", message),
             match status {
-                StatusCode::BAD_REQUEST => crate::ErrorKind::InvalidRequest,
-                StatusCode::NOT_FOUND => crate::ErrorKind::NotFound,
-                _ => crate::ErrorKind::Registry,
+                StatusCode::BAD_REQUEST => ErrorKind::InvalidRequest,
+                StatusCode::NOT_FOUND => ErrorKind::NotFound,
+                _ => ErrorKind::Registry,
             },
         ))
     }

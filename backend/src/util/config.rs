@@ -4,8 +4,9 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 use serde_json::Value;
 
+use crate::config::Config;
+use crate::prelude::*;
 use crate::util::serde::IoFormat;
-use crate::{Config, Error, ResultExt};
 
 pub const DEVICE_CONFIG_PATH: &str = "/media/embassy/config/config.yaml";
 pub const CONFIG_PATH: &str = "/etc/embassy/config.yaml";
@@ -37,7 +38,7 @@ pub fn load_config_from_paths<'a, T: for<'de> Deserialize<'de>>(
             config = merge_configs(config, new);
         }
     }
-    serde_json::from_value(Value::Object(config)).with_kind(crate::ErrorKind::Deserialization)
+    serde_json::from_value(Value::Object(config)).with_kind(ErrorKind::Deserialization)
 }
 
 pub fn merge_configs(mut first: Config, second: Config) -> Config {

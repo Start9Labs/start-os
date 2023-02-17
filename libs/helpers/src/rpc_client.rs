@@ -109,7 +109,7 @@ impl RpcClient {
                 .await
                 .map_err(|e| {
                     let mut err = yajrc::INTERNAL_ERROR.clone();
-                    err.data = Some(json!(e.to_string()));
+                    err.data = Some(serde_json::json!(e.to_string()));
                     err
                 })?;
             match recv.await {

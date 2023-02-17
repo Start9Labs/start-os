@@ -1,13 +1,11 @@
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 
 use clap::ArgMatches;
 use color_eyre::eyre::{eyre, Result};
 use emver::Version;
 use helpers::{Rsync, RsyncOptions};
 use lazy_static::lazy_static;
-use patch_db::{DbHandle, LockType, Revision};
 use reqwest::Url;
 use rpc_toolkit::command;
 use tokio::process::Command;
@@ -20,6 +18,7 @@ use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::MountGuard;
 use crate::notifications::NotificationLevel;
+use crate::prelude::*;
 use crate::sound::{
     CIRCLE_OF_5THS_SHORT, UPDATE_FAILED_1, UPDATE_FAILED_2, UPDATE_FAILED_3, UPDATE_FAILED_4,
 };
@@ -93,70 +92,64 @@ async fn maybe_do_update(
     .await
     .with_kind(ErrorKind::Network)?
     .version;
-    crate::db::DatabaseModel::new()
-        .server_info()
-        .lock(&mut db, LockType::Write)
-        .await?;
-    let current_version = crate::db::DatabaseModel::new()
-        .server_info()
-        .version()
-        .get_mut(&mut db)
-        .await?;
-    if &latest_version < &current_version {
-        return Ok(None);
-    }
-    let mut tx = db.begin().await?;
-    let mut status = crate::db::DatabaseModel::new()
-        .server_info()
-        .status_info()
-        .get_mut(&mut tx)
-        .await?;
-    if status.update_progress.is_some() {
-        return Err(Error::new(
-            eyre!("Server is already updating!"),
-            crate::ErrorKind::InvalidRequest,
-        ));
-    }
-    if status.updated {
+    if !ctx
+        .db
+        .apply_fn(|mut v| {
+            let current_version = v.server_info().version().get()?;
+            if &latest_version < &current_version {
+                return Ok(false);
+            }
+            let mut status = v.server_info().status_info();
+            if status.update_progress().check().is_some() {
+                return Err(Error::new(
+                    eyre!("Server is already updating!"),
+                    ErrorKind::InvalidRequest,
+                ));
+            }
+            if status.updated().get()? {
+                return Ok(false);
+            }
+
+            status.update_progress().set(&Some(UpdateProgress {
+                size: None,
+                downloaded: 0,
+            }))?;
+
+            Ok(true)
+        })
+        .await?
+    {
         return Ok(None);
     }
 
     let eos_url = EosUrl {
         base: marketplace_url,
-        version: latest_version,
+        version: latest_version.clone(),
     };
-
-    status.update_progress = Some(UpdateProgress {
-        size: None,
-        downloaded: 0,
-    });
-    status.save(&mut tx).await?;
-    let rev = tx.commit().await?;
 
     tokio::spawn(async move {
         let res = do_update(ctx.clone(), eos_url).await;
-        let mut db = ctx.db.handle();
-        let mut status = crate::db::DatabaseModel::new()
-            .server_info()
-            .status_info()
-            .get_mut(&mut db)
+        let updated = res.is_ok();
+        ctx.db
+            .mutate(|mut v| {
+                let mut status = v.server_info().status_info();
+                status.update_progress().ser(&None);
+                status.updated().ser(&updated);
+                Ok(())
+            })
             .await
-            .expect("could not access status");
-        status.update_progress = None;
+            .unwrap();
         match res {
             Ok(()) => {
-                status.updated = true;
-                status.save(&mut db).await.expect("could not save status");
                 CIRCLE_OF_5THS_SHORT
                     .play()
                     .await
                     .expect("could not play sound");
             }
             Err(e) => {
-                status.save(&mut db).await.expect("could not save status");
                 ctx.notification_manager
                     .notify(
-                        &mut db,
+                        &ctx.db,
                         None,
                         NotificationLevel::Error,
                         "embassyOS Update Failed".to_owned(),
@@ -186,7 +179,7 @@ async fn maybe_do_update(
             }
         }
     });
-    Ok(rev)
+    Ok(Some(latest_version))
 }
 
 #[instrument(skip_all)]
@@ -198,18 +191,18 @@ async fn do_update(ctx: RpcContext, eos_url: EosUrl) -> Result<(), Error> {
     )
     .await?;
     while let Some(progress) = rsync.progress.next().await {
-        crate::db::DatabaseModel::new()
-            .server_info()
-            .status_info()
-            .update_progress()
-            .put(
-                &mut ctx.db.handle(),
-                &UpdateProgress {
-                    size: Some(100),
-                    downloaded: (100.0 * progress) as u64,
-                },
-            )
-            .await?;
+        // crate::db::DatabaseModel::new()
+        //     .server_info()
+        //     .status_info()
+        //     .update_progress()
+        //     .put(
+        //         &mut ctx.db.handle(),
+        //         &UpdateProgress {
+        //             size: Some(100),
+        //             downloaded: (100.0 * progress) as u64,
+        //         },
+        //     )
+        //     .await?;
     }
     rsync.wait().await?;
 

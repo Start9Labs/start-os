@@ -21,10 +21,10 @@ use crate::disk::mount::filesystem::cifs::Cifs;
 use crate::disk::mount::filesystem::{FileSystem, MountType, ReadWrite};
 use crate::disk::mount::guard::TmpMountGuard;
 use crate::disk::util::PartitionInfo;
+use crate::prelude::*;
 use crate::s9pk::manifest::PackageId;
 use crate::util::serde::{deserialize_from_str, display_serializable, serialize_display};
 use crate::util::Version;
-use crate::Error;
 
 pub mod cifs;
 
@@ -78,7 +78,7 @@ impl std::str::FromStr for BackupTargetId {
             Some(("cifs", id)) => Ok(BackupTargetId::Cifs { id: id.parse()? }),
             _ => Err(Error::new(
                 eyre!("Invalid Backup Target ID"),
-                crate::ErrorKind::InvalidBackupTargetId,
+                ErrorKind::InvalidBackupTargetId,
             )),
         }
     }
@@ -212,7 +212,7 @@ fn display_backup_info(info: BackupInfo, matches: &ArgMatches) {
     ]);
     for (id, info) in info.package_backups {
         let row = row![
-            id.as_str(),
+            &*id,
             info.version.as_str(),
             info.os_version.as_str(),
             &info.timestamp.to_string(),

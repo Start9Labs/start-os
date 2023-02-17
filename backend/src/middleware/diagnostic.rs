@@ -5,7 +5,7 @@ use rpc_toolkit::rpc_server_helpers::{noop4, DynMiddlewareStage2, DynMiddlewareS
 use rpc_toolkit::yajrc::RpcMethod;
 use rpc_toolkit::Metadata;
 
-use crate::Error;
+use crate::prelude::*;
 
 pub async fn diagnostic<M: Metadata>(
     _req: &mut Request<Body>,
@@ -23,7 +23,7 @@ pub async fn diagnostic<M: Metadata>(
                                     "{} is not available on the Diagnostic API",
                                     method
                                 ),
-                                crate::ErrorKind::DiagnosticMode,
+                                ErrorKind::DiagnosticMode,
                             )
                             .into();
                         }

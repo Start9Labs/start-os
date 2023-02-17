@@ -63,7 +63,6 @@ base64 = "0.13.0"
 base64ct = "1.5.1"
 basic-cookies = "0.1.4"
 bimap = { version = "0.6.2", features = ["serde"] }
-bollard = "0.13.0"
 bytes = "1"
 chrono = { version = "0.4.19", features = ["serde"] }
 clap = "3.2.8"
@@ -94,7 +93,7 @@ id-pool = { version = "0.2.2", features = [
   "u16",
   "serde",
 ], default-features = false }
-imbl = "2.0.0"
+imbl = { version = "2.0.0", features = ["serde"] }
 indexmap = { version = "1.9.1", features = ["serde"] }
 ipnet = { version = "2.7.1", features = ["serde"] }
 iprange = { version = "0.6.7", features = ["serde"] }
@@ -102,7 +101,7 @@ isocountry = "0.3.2"
 itertools = "0.10.3"
 josekit = "0.8.1"
 js_engine = { path = '../libs/js_engine', optional = true }
-jsonpath_lib = "0.3.0"
+jsonpath_lib = { git = "https://github.com/Start9Labs/jsonpath.git" }
 lazy_static = "1.4.0"
 libc = "0.2.126"
 log = "0.4.17"

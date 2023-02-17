@@ -1,46 +1,38 @@
 use std::path::{Path, PathBuf};
 
 use color_eyre::eyre::eyre;
-pub use models::{PackageId, SYSTEM_PACKAGE_ID};
+pub use models::PackageId;
 use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
 use super::git_hash::GitHash;
-use crate::action::Actions;
-use crate::backup::BackupActions;
-use crate::config::action::ConfigActions;
+use crate::container::DockerContainers;
 use crate::dependencies::Dependencies;
-use crate::migration::Migrations;
-use crate::net::interface::Interfaces;
-use crate::procedure::docker::DockerContainers;
-use crate::procedure::PackageProcedure;
-use crate::status::health_check::HealthChecks;
+use crate::prelude::*;
 use crate::util::Version;
 use crate::version::{Current, VersionT};
 use crate::volume::Volumes;
-use crate::Error;
 
 fn current_version() -> Version {
     Current::new().semver().into()
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
+#[derive(Clone, Debug, Deserialize, Serialize, HasModel, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
+// #[macro_debug]
 pub struct Manifest {
     #[serde(default = "current_version")]
-    pub eos_version: Version,
+    pub os_version: Version,
     pub id: PackageId,
     #[serde(default)]
     pub git_hash: Option<GitHash>,
     pub title: String,
-    #[model]
     pub version: Version,
     pub description: Description,
     #[serde(default)]
     pub assets: Assets,
-    #[serde(default)]
-    pub build: Option<Vec<String>>,
     pub release_notes: String,
     pub license: String, // type of license
     pub wrapper_repo: Url,
@@ -50,66 +42,22 @@ pub struct Manifest {
     pub donation_url: Option<Url>,
     #[serde(default)]
     pub alerts: Alerts,
-    #[model]
-    pub main: PackageProcedure,
-    pub health_checks: HealthChecks,
-    #[model]
-    pub config: Option<ConfigActions>,
-    #[model]
-    pub properties: Option<PackageProcedure>,
-    #[model]
     pub volumes: Volumes,
-    // #[serde(default)]
-    pub interfaces: Interfaces,
-    // #[serde(default)]
-    #[model]
-    pub backup: BackupActions,
     #[serde(default)]
-    #[model]
-    pub migrations: Migrations,
-    #[serde(default)]
-    pub actions: Actions,
-    // #[serde(default)]
-    // pub permissions: Permissions,
-    #[serde(default)]
-    #[model]
     pub dependencies: Dependencies,
-    #[model]
-    pub containers: Option<DockerContainers>,
-
+    pub containers: DockerContainers,
     #[serde(default)]
     pub replaces: Vec<String>,
 }
 
 impl Manifest {
-    pub fn package_procedures(&self) -> impl Iterator<Item = &PackageProcedure> {
-        use std::iter::once;
-        let main = once(&self.main);
-        let cfg_get = self.config.as_ref().map(|a| &a.get).into_iter();
-        let cfg_set = self.config.as_ref().map(|a| &a.set).into_iter();
-        let props = self.properties.iter();
-        let backups = vec![&self.backup.create, &self.backup.restore].into_iter();
-        let migrations = self
-            .migrations
-            .to
-            .values()
-            .chain(self.migrations.from.values());
-        let actions = self.actions.0.values().map(|a| &a.implementation);
-        main.chain(cfg_get)
-            .chain(cfg_set)
-            .chain(props)
-            .chain(backups)
-            .chain(migrations)
-            .chain(actions)
-    }
-
     pub fn with_git_hash(mut self, git_hash: GitHash) -> Self {
         self.git_hash = Some(git_hash);
         self
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub struct Assets {
     #[serde(default)]
@@ -171,7 +119,7 @@ impl Assets {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct Description {
     pub short: String,
     pub long: String,
@@ -181,20 +129,20 @@ impl Description {
         if self.short.chars().skip(160).next().is_some() {
             return Err(Error::new(
                 eyre!("Short description must be 160 characters or less."),
-                crate::ErrorKind::ValidateS9pk,
+                ErrorKind::ValidateS9pk,
             ));
         }
         if self.long.chars().skip(5000).next().is_some() {
             return Err(Error::new(
                 eyre!("Long description must be 5000 characters or less."),
-                crate::ErrorKind::ValidateS9pk,
+                ErrorKind::ValidateS9pk,
             ));
         }
         Ok(())
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub struct Alerts {
     pub install: Option<String>,

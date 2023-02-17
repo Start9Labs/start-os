@@ -10,7 +10,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 
 use super::IntoDoubleEndedIterator;
-use crate::{Error, ResultExt};
+use crate::prelude::*;
 
 pub fn deserialize_from_str<
     'de,
@@ -289,8 +289,7 @@ impl std::fmt::Display for IoFormat {
 impl std::str::FromStr for IoFormat {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        serde_json::from_value(Value::String(s.to_owned()))
-            .with_kind(crate::ErrorKind::Deserialization)
+        serde_json::from_value(Value::String(s.to_owned())).with_kind(ErrorKind::Deserialization)
     }
 }
 impl IoFormat {
@@ -301,60 +300,60 @@ impl IoFormat {
     ) -> Result<(), Error> {
         match self {
             IoFormat::Json => {
-                serde_json::to_writer(writer, value).with_kind(crate::ErrorKind::Serialization)
+                serde_json::to_writer(writer, value).with_kind(ErrorKind::Serialization)
             }
-            IoFormat::JsonPretty => serde_json::to_writer_pretty(writer, value)
-                .with_kind(crate::ErrorKind::Serialization),
+            IoFormat::JsonPretty => {
+                serde_json::to_writer_pretty(writer, value).with_kind(ErrorKind::Serialization)
+            }
             IoFormat::Yaml => {
-                serde_yaml::to_writer(writer, value).with_kind(crate::ErrorKind::Serialization)
+                serde_yaml::to_writer(writer, value).with_kind(ErrorKind::Serialization)
             }
-            IoFormat::Cbor => serde_cbor::ser::into_writer(value, writer)
-                .with_kind(crate::ErrorKind::Serialization),
+            IoFormat::Cbor => {
+                serde_cbor::ser::into_writer(value, writer).with_kind(ErrorKind::Serialization)
+            }
             IoFormat::Toml => writer
                 .write_all(
                     &serde_toml::to_vec(
-                        &serde_toml::Value::try_from(value)
-                            .with_kind(crate::ErrorKind::Serialization)?,
+                        &serde_toml::Value::try_from(value).with_kind(ErrorKind::Serialization)?,
                     )
-                    .with_kind(crate::ErrorKind::Serialization)?,
+                    .with_kind(ErrorKind::Serialization)?,
                 )
-                .with_kind(crate::ErrorKind::Serialization),
+                .with_kind(ErrorKind::Serialization),
             IoFormat::TomlPretty => writer
                 .write_all(
                     serde_toml::to_string_pretty(
-                        &serde_toml::Value::try_from(value)
-                            .with_kind(crate::ErrorKind::Serialization)?,
+                        &serde_toml::Value::try_from(value).with_kind(ErrorKind::Serialization)?,
                     )
-                    .with_kind(crate::ErrorKind::Serialization)?
+                    .with_kind(ErrorKind::Serialization)?
                     .as_bytes(),
                 )
-                .with_kind(crate::ErrorKind::Serialization),
+                .with_kind(ErrorKind::Serialization),
         }
     }
     pub fn to_vec<T: Serialize>(&self, value: &T) -> Result<Vec<u8>, Error> {
         match self {
-            IoFormat::Json => serde_json::to_vec(value).with_kind(crate::ErrorKind::Serialization),
+            IoFormat::Json => serde_json::to_vec(value).with_kind(ErrorKind::Serialization),
             IoFormat::JsonPretty => {
-                serde_json::to_vec_pretty(value).with_kind(crate::ErrorKind::Serialization)
+                serde_json::to_vec_pretty(value).with_kind(ErrorKind::Serialization)
             }
             IoFormat::Yaml => serde_yaml::to_string(value)
-                .with_kind(crate::ErrorKind::Serialization)
+                .with_kind(ErrorKind::Serialization)
                 .map(|s| s.into_bytes()),
             IoFormat::Cbor => {
                 let mut res = Vec::new();
                 serde_cbor::ser::into_writer(value, &mut res)
-                    .with_kind(crate::ErrorKind::Serialization)?;
+                    .with_kind(ErrorKind::Serialization)?;
                 Ok(res)
             }
             IoFormat::Toml => serde_toml::to_vec(
-                &serde_toml::Value::try_from(value).with_kind(crate::ErrorKind::Serialization)?,
+                &serde_toml::Value::try_from(value).with_kind(ErrorKind::Serialization)?,
             )
-            .with_kind(crate::ErrorKind::Serialization),
+            .with_kind(ErrorKind::Serialization),
             IoFormat::TomlPretty => serde_toml::to_string_pretty(
-                &serde_toml::Value::try_from(value).with_kind(crate::ErrorKind::Serialization)?,
+                &serde_toml::Value::try_from(value).with_kind(ErrorKind::Serialization)?,
             )
             .map(|s| s.into_bytes())
-            .with_kind(crate::ErrorKind::Serialization),
+            .with_kind(ErrorKind::Serialization),
         }
     }
     /// BLOCKING
@@ -364,20 +363,18 @@ impl IoFormat {
     ) -> Result<T, Error> {
         match self {
             IoFormat::Json | IoFormat::JsonPretty => {
-                serde_json::from_reader(reader).with_kind(crate::ErrorKind::Deserialization)
+                serde_json::from_reader(reader).with_kind(ErrorKind::Deserialization)
             }
-            IoFormat::Yaml => {
-                serde_yaml::from_reader(reader).with_kind(crate::ErrorKind::Deserialization)
-            }
+            IoFormat::Yaml => serde_yaml::from_reader(reader).with_kind(ErrorKind::Deserialization),
             IoFormat::Cbor => {
-                serde_cbor::de::from_reader(reader).with_kind(crate::ErrorKind::Deserialization)
+                serde_cbor::de::from_reader(reader).with_kind(ErrorKind::Deserialization)
             }
             IoFormat::Toml | IoFormat::TomlPretty => {
                 let mut s = String::new();
                 reader
                     .read_to_string(&mut s)
-                    .with_kind(crate::ErrorKind::Deserialization)?;
-                serde_toml::from_str(&s).with_kind(crate::ErrorKind::Deserialization)
+                    .with_kind(ErrorKind::Deserialization)?;
+                serde_toml::from_str(&s).with_kind(ErrorKind::Deserialization)
             }
         }
     }
@@ -399,16 +396,14 @@ impl IoFormat {
     pub fn from_slice<T: for<'de> Deserialize<'de>>(&self, slice: &[u8]) -> Result<T, Error> {
         match self {
             IoFormat::Json | IoFormat::JsonPretty => {
-                serde_json::from_slice(slice).with_kind(crate::ErrorKind::Deserialization)
+                serde_json::from_slice(slice).with_kind(ErrorKind::Deserialization)
             }
-            IoFormat::Yaml => {
-                serde_yaml::from_slice(slice).with_kind(crate::ErrorKind::Deserialization)
-            }
+            IoFormat::Yaml => serde_yaml::from_slice(slice).with_kind(ErrorKind::Deserialization),
             IoFormat::Cbor => {
-                serde_cbor::de::from_reader(slice).with_kind(crate::ErrorKind::Deserialization)
+                serde_cbor::de::from_reader(slice).with_kind(ErrorKind::Deserialization)
             }
             IoFormat::Toml | IoFormat::TomlPretty => {
-                serde_toml::from_slice(slice).with_kind(crate::ErrorKind::Deserialization)
+                serde_toml::from_slice(slice).with_kind(ErrorKind::Deserialization)
             }
         }
     }
@@ -443,7 +438,7 @@ pub fn parse_stdin_deserializable<T: for<'de> Deserialize<'de>>(
     format.from_reader(stdin)
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Duration(std::time::Duration);
 impl Deref for Duration {
     type Target = std::time::Duration;
@@ -462,7 +457,7 @@ impl std::str::FromStr for Duration {
         let units_idx = s.find(|c: char| c.is_alphabetic()).ok_or_else(|| {
             Error::new(
                 eyre!("Must specify units for duration"),
-                crate::ErrorKind::Deserialization,
+                ErrorKind::Deserialization,
             )
         })?;
         let (num, units) = s.split_at(units_idx);
@@ -501,7 +496,7 @@ impl std::str::FromStr for Duration {
             _ => {
                 return Err(Error::new(
                     eyre!("Invalid units for duration"),
-                    crate::ErrorKind::Deserialization,
+                    ErrorKind::Deserialization,
                 ))
             }
         }))
@@ -595,26 +590,6 @@ pub fn deserialize_number_permissive<
         }
     }
     deserializer.deserialize_str(Visitor(std::marker::PhantomData))
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Port(pub u16);
-impl<'de> Deserialize<'de> for Port {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        //TODO: if number, be permissive
-        deserialize_number_permissive(deserializer).map(Port)
-    }
-}
-impl Serialize for Port {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serialize_display(&self.0, serializer)
-    }
 }
 
 #[derive(Debug, Clone)]

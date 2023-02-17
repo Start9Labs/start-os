@@ -11,6 +11,7 @@ const callbackName = (() => {
 
 const callbackMapping = {};
 const registerCallback = (fn) => {
+  if (!fn) return null;
   const uuid = callbackName(); // TODO
   callbackMapping[uuid] = fn;
   return uuid;
@@ -46,8 +47,10 @@ const writeFile = (
 ) => Deno.core.opAsync("write_file", volumeId, path, toWrite);
 
 const readFile = (
-  { volumeId = requireParam("volumeId"), path = requireParam("path") } =
-    requireParam("options"),
+  {
+    volumeId = requireParam("volumeId"),
+    path = requireParam("path"),
+  } = requireParam("options"),
 ) => Deno.core.opAsync("read_file", volumeId, path);
 
 const runDaemon = (
@@ -59,8 +62,8 @@ const runDaemon = (
   return {
     processId,
     async wait() {
-      waitPromise = waitPromise ||
-        Deno.core.opAsync("wait_command", await processId);
+      waitPromise =
+        waitPromise || Deno.core.opAsync("wait_command", await processId);
       return waitPromise;
     },
     async term(signal = 15) {
@@ -69,8 +72,11 @@ const runDaemon = (
   };
 };
 const runCommand = async (
-  { command = requireParam("command"), args = [], timeoutMillis = 30000 } =
-    requireParam("options"),
+  {
+    command = requireParam("command"),
+    args = [],
+    timeoutMillis = 30000,
+  } = requireParam("options"),
 ) => {
   let id = Deno.core.opAsync(
     "start_command",
@@ -126,8 +132,10 @@ const rename = (
   } = requireParam("options"),
 ) => Deno.core.opAsync("rename", srcVolume, srcPath, dstVolume, dstPath);
 const metadata = async (
-  { volumeId = requireParam("volumeId"), path = requireParam("path") } =
-    requireParam("options"),
+  {
+    volumeId = requireParam("volumeId"),
+    path = requireParam("path"),
+  } = requireParam("options"),
 ) => {
   const data = await Deno.core.opAsync("metadata", volumeId, path);
   return {
@@ -138,8 +146,10 @@ const metadata = async (
   };
 };
 const removeFile = (
-  { volumeId = requireParam("volumeId"), path = requireParam("path") } =
-    requireParam("options"),
+  {
+    volumeId = requireParam("volumeId"),
+    path = requireParam("path"),
+  } = requireParam("options"),
 ) => Deno.core.opAsync("remove_file", volumeId, path);
 const isSandboxed = () => Deno.core.opSync("is_sandboxed");
 
@@ -176,21 +186,29 @@ const chmod = async (
   return await Deno.core.opAsync("chmod", volumeId, path, mode);
 };
 const readJsonFile = async (
-  { volumeId = requireParam("volumeId"), path = requireParam("path") } =
-    requireParam("options"),
+  {
+    volumeId = requireParam("volumeId"),
+    path = requireParam("path"),
+  } = requireParam("options"),
 ) => JSON.parse(await readFile({ volumeId, path }));
 const createDir = (
-  { volumeId = requireParam("volumeId"), path = requireParam("path") } =
-    requireParam("options"),
+  {
+    volumeId = requireParam("volumeId"),
+    path = requireParam("path"),
+  } = requireParam("options"),
 ) => Deno.core.opAsync("create_dir", volumeId, path);
 
 const readDir = (
-  { volumeId = requireParam("volumeId"), path = requireParam("path") } =
-    requireParam("options"),
+  {
+    volumeId = requireParam("volumeId"),
+    path = requireParam("path"),
+  } = requireParam("options"),
 ) => Deno.core.opAsync("read_dir", volumeId, path);
 const removeDir = (
-  { volumeId = requireParam("volumeId"), path = requireParam("path") } =
-    requireParam("options"),
+  {
+    volumeId = requireParam("volumeId"),
+    path = requireParam("path"),
+  } = requireParam("options"),
 ) => Deno.core.opAsync("remove_dir", volumeId, path);
 const trace = (whatToTrace = requireParam("whatToTrace")) =>
   Deno.core.opAsync("log_trace", whatToTrace);
@@ -250,12 +268,56 @@ const runRsync = (
 
 globalThis.runCallback = (uuid, args) => callbackMapping[uuid](...args);
 
+const setTimeouts = [];
+globalThis.setTimeout = (callback, timeout) => {
+  let index = 0;
+  new Promise(async (resolve, reject) => {
+    index = setTimeouts.push(reject);
+    sleep(timeout).then(resolve);
+  }).then(
+    () => callback(),
+    () => null,
+  );
+  return index - 1;
+};
+globalThis.clearTimeout = (timeout) => {
+  if (timeout == null) return;
+  const found = setTimeouts[timeout];
+  if (found == null) return;
+  found();
+  delete setTimeouts[timeout];
+};
+
+const setIntervals = [];
+globalThis.setInterval = (callback, delay, ...args) => {
+  let done = false;
+  const index = setIntervals.push(() => {
+    done = true;
+  });
+  new Promise(async (resolve, reject) => {
+    index = setIntervals.push(reject);
+    while (true) {
+      await sleep(delay);
+      if (done) return;
+      callback(...args);
+    }
+  });
+  return index - 1;
+};
+globalThis.clearInterval = (timeout) => {
+  if (timeout == null) return;
+  const found = clearIntervals[timeout];
+  if (found == null) return;
+  found();
+  delete clearIntervals[timeout];
+};
+
 const getServiceConfig = async (
   {
-    serviceId = requireParam("serviceId"),
-    configPath = requireParam("configPath"),
-    onChange = requireParam("onChange"),
-  } = requireParam("options"),
+    serviceId,
+    configPath ,
+    onChange = restart,
+  },
 ) => {
   return await Deno.core.opAsync(
     "get_service_config",
@@ -274,6 +336,78 @@ const currentFunction = Deno.core.opSync("current_function");
 const input = Deno.core.opSync("get_input");
 const variable_args = Deno.core.opSync("get_variable_args");
 const setState = (x) => Deno.core.opAsync("set_value", x);
+const exists = (x) =>
+  metadata(x).then(
+    () => true,
+    () => false,
+  );
+
+const getServiceLocalAddress = (
+  {
+    packageId = requireParam("packageId"),
+    interfaceName = requireParam("interfaceName"),
+  } = requireParam("options"),
+) => Deno.core.opAsync("get_service_local_address", packageId, interfaceName);
+
+const getServiceTorAddress = (
+  {
+    packageId = requireParam("packageId"),
+    interfaceName = requireParam("interfaceName"),
+  } = requireParam("options"),
+) => Deno.core.opAsync("get_service_tor_address", packageId, interfaceName);
+
+const getServicePortForward = (
+  {
+    packageId = requireParam("packageId"),
+    interfacePort = requireParam("interfacePort"),
+  } = requireParam("options"),
+) => Deno.core.opAsync("get_service_port_forward", packageId, interfacePort);
+const exportAddress = (
+  {
+    name = requireParam("name"),
+    description = requireParam("description"),
+    address = requireParam("address"),
+    id = requireParam("id"),
+    ui = false,
+  } = requireParam("options"),
+) => Deno.core.opAsync("export_address", name, description, address, id, ui);
+const removeAddress = (
+  {
+    id = requireParam("id"),
+  } = requireParam("options"),
+) => Deno.core.opAsync("remove_address", id);
+
+
+const exportAction = (
+  {
+    name = requireParam("name"),
+    description = requireParam("description"),
+    id = requireParam("id"),
+    input,
+    group
+  } = requireParam("options"),
+) => Deno.core.opAsync("export_action", name, description, id, input, group);
+
+const removeAction = (
+  {
+    id = requireParam("id"),
+  } = requireParam("options"),
+) => Deno.core.opAsync("remove_action", id);
+const setConfigured = (
+  configured = requireParam("configured"),
+) => Deno.core.opAsync("set_configured", configured);
+const getConfigured = (
+  configured = requireParam("configured"),
+) => Deno.core.opAsync("get_configured", configured);
+
+const getSslCertificate = async (id = requireParam("id"), algorithm= "ecdsa") =>{
+  return Deno.core.opAsync("get_ssl_certificate", id, algorithm);// PEM encoded fullchain (ecdsa)
+}
+const getSslKey = async (id = requireParam("id"), algorithm = "ecdsa") => {
+  return  Deno.core.opAsync("get_ssl_key", id, algorithm);// PEM encoded ssl key (ecdsa)
+}
+
+
 const effects = {
   bindLocal,
   bindTor,
@@ -282,32 +416,45 @@ const effects = {
   createDir,
   debug,
   error,
+  exists,
+  exportAddress,
+  exportAction,
   fetch,
+  getConfigured,
   getServiceConfig,
+  getServiceLocalAddress,
+  getServicePortForward,
+  getServiceTorAddress,
+  getSslCertificate,
+  getSslKey,
   info,
   isSandboxed,
   metadata,
   readDir,
   readFile,
   readJsonFile,
+  removeAction,
+  removeAddress,
   removeDir,
   removeFile,
   rename,
   restart,
+  restart,
   runCommand,
   runDaemon,
   runRsync,
+  setConfigured,
   signalGroup,
   sleep,
   start,
+  start,
+  started,
+  stop,
   stop,
   trace,
   warn,
   writeFile,
   writeJsonFile,
-  restart,
-  start,
-  stop,
 };
 const fnSpecificArgs = {
   main: { started },
@@ -318,17 +465,9 @@ const defaults = {
     return effects.signalGroup({ gid, signal });
   },
 };
-
-function safeToString(fn, orValue = "") {
-  try {
-    return fn();
-  } catch (e) {
-    return orValue;
-  }
-}
-
 const apiVersion = mainModule?.version || defaults?.version || 0;
-const runFunction = jsonPointerValue(mainModule, currentFunction) ||
+const runFunction =
+  jsonPointerValue(mainModule, currentFunction) ||
   jsonPointerValue(defaults, currentFunction);
 const extraArgs = jsonPointerValue(fnSpecificArgs, currentFunction) || {};
 (async () => {
@@ -340,28 +479,20 @@ const extraArgs = jsonPointerValue(fnSpecificArgs, currentFunction) || {};
   })()
     .then(() => {
       switch (apiVersion) {
-        case 0:
-          return runFunction(effects, input, ...variable_args);
         case 1:
           return runFunction({
             effects,
             input,
-            args: variable_args,
             ...extraArgs,
           });
         default:
-          return { error: `Unknown API version ${apiVersion}` };
+          throw `Unknown API version ${apiVersion}`;
       }
     })
-    .catch((e) => {
-      if ("error" in e) return e;
-      if ("error-code" in e) return e;
-      return {
-        error: safeToString(
-          () => e.toString(),
-          "Error Not able to be stringified",
-        ),
-      };
-    });
+    .then(result => ({result}), error => {
+      const stack = 'stack' in error ? error.stack : undefined
+      const message = 'message' in error ? error.message : error.toString();
+      return {error: {message, stack}};
+    } )
   await setState(answer);
 })();
