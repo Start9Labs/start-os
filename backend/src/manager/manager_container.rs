@@ -161,12 +161,7 @@ async fn save_state(
                 set_status(&mut db, &seed.manifest, &MainStatus::Stopping).await
             }
             (None, StartStop::Stop, StartStop::Start) => {
-                set_status(
-                    &mut db,
-                    &seed.manifest,
-                    &MainStatus::Starting { restarting: false },
-                )
-                .await
+                set_status(&mut db, &seed.manifest, &MainStatus::Starting).await
             }
             (None, StartStop::Stop, StartStop::Stop) => {
                 set_status(&mut db, &seed.manifest, &MainStatus::Stopped).await
