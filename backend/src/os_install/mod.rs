@@ -9,6 +9,7 @@ use tokio::process::Command;
 use crate::context::InstallContext;
 use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
+use crate::disk::mount::filesystem::efivarfs::EfiVarFs;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::{MountGuard, TmpMountGuard};
 use crate::disk::util::{DiskInfo, PartitionTable};
@@ -16,6 +17,7 @@ use crate::disk::OsPartitionInfo;
 use crate::net::net_utils::{find_eth_iface, find_wifi_iface};
 use crate::util::serde::IoFormat;
 use crate::util::{display_none, Invoke};
+use crate::ARCH;
 
 mod gpt;
 mod mbr;
@@ -176,7 +178,6 @@ pub async fn execute(
     .await?;
 
     let efi = if let Some(efi) = &part_info.efi {
-        tokio::fs::create_dir(current.join("boot/efi")).await?;
         Some(MountGuard::mount(&BlockDev::new(efi), current.join("boot/efi"), ReadWrite).await?)
     } else {
         None
@@ -230,8 +231,20 @@ pub async fn execute(
         .await?;
 
     let dev = MountGuard::mount(&Bind::new("/dev"), current.join("dev"), ReadWrite).await?;
-    let sys = MountGuard::mount(&Bind::new("/sys"), current.join("sys"), ReadWrite).await?;
     let proc = MountGuard::mount(&Bind::new("/proc"), current.join("proc"), ReadWrite).await?;
+    let sys = MountGuard::mount(&Bind::new("/sys"), current.join("sys"), ReadWrite).await?;
+    let efivarfs = if let Some(efi) = &part_info.efi {
+        Some(
+            MountGuard::mount(
+                &EfiVarFs,
+                current.join("sys/firmware/efi/efivars"),
+                ReadWrite,
+            )
+            .await?,
+        )
+    } else {
+        None
+    };
 
     Command::new("chroot")
         .arg(&current)
@@ -242,19 +255,28 @@ pub async fn execute(
     install.arg(&current).arg("grub-install");
     if part_info.efi.is_none() {
         install.arg("--target=i386-pc");
+    } else {
+        match *ARCH {
+            "x86_64" => install.arg("--target=x86_64-efi"),
+            "aarch64" => install.arg("--target=arm64-efi"),
+            _ => &mut install,
+        };
     }
     install
         .arg(&disk.logicalname)
         .invoke(crate::ErrorKind::Grub)
         .await?;
 
-    dev.unmount().await?;
-    sys.unmount().await?;
-    proc.unmount().await?;
-    if let Some(efi) = efi {
-        efi.unmount().await?;
+    dev.unmount(false).await?;
+    if let Some(efivarfs) = efivarfs {
+        efivarfs.unmount(false).await?;
     }
-    boot.unmount().await?;
+    sys.unmount(false).await?;
+    proc.unmount(false).await?;
+    if let Some(efi) = efi {
+        efi.unmount(false).await?;
+    }
+    boot.unmount(false).await?;
     rootfs.unmount().await?;
 
     Ok(())

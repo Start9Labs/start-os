@@ -9,16 +9,19 @@ use crate::Error;
 
 pub async fn partition(disk: &DiskInfo, overwrite: bool) -> Result<OsPartitionInfo, Error> {
     {
-        let sectors = (disk.capacity / 512) as u32;
         let disk = disk.clone();
         tokio::task::spawn_blocking(move || {
-            let device = Box::new(
+            let mut device = Box::new(
                 std::fs::File::options()
                     .read(true)
                     .write(true)
                     .open(&disk.logicalname)?,
             );
             let (mut gpt, guid_part) = if overwrite {
+                let mbr = gpt::mbr::ProtectiveMBR::with_lb_size(
+                    u32::try_from((disk.capacity / 512) - 1).unwrap_or(0xFF_FF_FF_FF),
+                );
+                mbr.overwrite_lba0(&mut device)?;
                 (
                     GptConfig::new()
                         .writable(true)

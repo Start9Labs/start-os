@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Weak};
 
 use lazy_static::lazy_static;
+use models::ResultExt;
 use tokio::sync::Mutex;
 use tracing::instrument;
 
@@ -36,9 +37,21 @@ impl MountGuard {
             mounted: true,
         })
     }
-    pub async fn unmount(mut self) -> Result<(), Error> {
+    pub async fn unmount(mut self, delete_mountpoint: bool) -> Result<(), Error> {
         if self.mounted {
             unmount(&self.mountpoint).await?;
+            if delete_mountpoint {
+                match tokio::fs::remove_dir(&self.mountpoint).await {
+                    Err(e) if e.raw_os_error() == Some(39) => Ok(()), // directory not empty
+                    a => a,
+                }
+                .with_ctx(|_| {
+                    (
+                        crate::ErrorKind::Filesystem,
+                        format!("rm {}", self.mountpoint.display()),
+                    )
+                })?;
+            }
             self.mounted = false;
         }
         Ok(())
@@ -60,7 +73,7 @@ impl Drop for MountGuard {
 #[async_trait::async_trait]
 impl GenericMountGuard for MountGuard {
     async fn unmount(mut self) -> Result<(), Error> {
-        MountGuard::unmount(self).await
+        MountGuard::unmount(self, false).await
     }
 }
 
@@ -111,7 +124,7 @@ impl TmpMountGuard {
     }
     pub async fn unmount(self) -> Result<(), Error> {
         if let Ok(guard) = Arc::try_unwrap(self.guard) {
-            guard.unmount().await?;
+            guard.unmount(true).await?;
         }
         Ok(())
     }
