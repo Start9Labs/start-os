@@ -1,0 +1,3 @@
+{boot}  /boot       vfat    umask=0077  0   2
+{efi}   /boot/efi   vfat    umask=0077  0   1
+{root}  /           ext4    defaults    0   1
