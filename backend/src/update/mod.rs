@@ -325,10 +325,10 @@ async fn sync_boot() -> Result<(), Error> {
             .arg("update-grub")
             .invoke(ErrorKind::MigrationFailed)
             .await?;
-        boot_mnt.unmount().await?;
-        proc_mnt.unmount().await?;
-        sys_mnt.unmount().await?;
-        dev_mnt.unmount().await?;
+        boot_mnt.unmount(false).await?;
+        proc_mnt.unmount(false).await?;
+        sys_mnt.unmount(false).await?;
+        dev_mnt.unmount(false).await?;
     }
     Ok(())
 }
