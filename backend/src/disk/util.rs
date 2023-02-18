@@ -23,10 +23,18 @@ use crate::util::serde::IoFormat;
 use crate::util::{Invoke, Version};
 use crate::{Error, ResultExt as _};
 
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum PartitionTable {
+    Mbr,
+    Gpt,
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct DiskInfo {
     pub logicalname: PathBuf,
+    pub partition_table: Option<PartitionTable>,
     pub vendor: Option<String>,
     pub model: Option<String>,
     pub partitions: Vec<PartitionInfo>,
@@ -59,6 +67,24 @@ const SYS_BLOCK_PATH: &'static str = "/sys/block";
 
 lazy_static::lazy_static! {
     static ref PARTITION_REGEX: Regex = Regex::new("-part[0-9]+$").unwrap();
+}
+
+#[instrument(skip(path))]
+pub async fn get_partition_table<P: AsRef<Path>>(path: P) -> Result<Option<PartitionTable>, Error> {
+    Ok(String::from_utf8(
+        Command::new("fdisk")
+            .arg("-l")
+            .arg(path.as_ref())
+            .invoke(crate::ErrorKind::BlockDevice)
+            .await?,
+    )?
+    .lines()
+    .find_map(|l| l.strip_prefix("Disklabel type:"))
+    .and_then(|t| match t.trim() {
+        "dos" => Some(PartitionTable::Mbr),
+        "gpt" => Some(PartitionTable::Gpt),
+        _ => None,
+    }))
 }
 
 #[instrument(skip(path))]
@@ -328,6 +354,16 @@ pub async fn list(os: &OsPartitionInfo) -> Result<Vec<DiskInfo>, Error> {
 }
 
 async fn disk_info(disk: PathBuf) -> DiskInfo {
+    let partition_table = get_partition_table(&disk)
+        .await
+        .map_err(|e| {
+            tracing::warn!(
+                "Could not get partition table of {}: {}",
+                disk.display(),
+                e.source
+            )
+        })
+        .unwrap_or_default();
     let vendor = get_vendor(&disk)
         .await
         .map_err(|e| tracing::warn!("Could not get vendor of {}: {}", disk.display(), e.source))
@@ -342,6 +378,7 @@ async fn disk_info(disk: PathBuf) -> DiskInfo {
         .unwrap_or_default();
     DiskInfo {
         logicalname: disk,
+        partition_table,
         vendor,
         model,
         partitions: Vec::new(),
