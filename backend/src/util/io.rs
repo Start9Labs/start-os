@@ -1,4 +1,5 @@
 use std::future::Future;
+use std::io::Cursor;
 use std::path::Path;
 use std::task::Poll;
 
@@ -293,5 +294,113 @@ impl AsyncRead for BufferedWriteReader {
             }
             _ => res,
         }
+    }
+}
+
+pub trait CursorExt {
+    fn pure_read(&mut self, buf: &mut ReadBuf<'_>);
+}
+
+impl<T: AsRef<[u8]>> CursorExt for Cursor<T> {
+    fn pure_read(&mut self, buf: &mut ReadBuf<'_>) {
+        let end = self.position() as usize
+            + std::cmp::max(
+                buf.remaining(),
+                self.get_ref().as_ref().len() - self.position() as usize,
+            );
+        buf.put_slice(&self.get_ref().as_ref()[self.position() as usize..end]);
+        self.set_position(end as u64);
+    }
+}
+
+#[pin_project::pin_project]
+pub struct BackTrackingReader<T> {
+    #[pin]
+    reader: T,
+    buffer: Cursor<Vec<u8>>,
+    buffering: bool,
+}
+impl<T> BackTrackingReader<T> {
+    pub fn new(reader: T) -> Self {
+        Self {
+            reader,
+            buffer: Cursor::new(Vec::new()),
+            buffering: false,
+        }
+    }
+    pub fn start_buffering(&mut self) {
+        self.buffer.set_position(0);
+        self.buffer.get_mut().truncate(0);
+        self.buffering = true;
+    }
+    pub fn stop_buffering(&mut self) {
+        self.buffer.set_position(0);
+        self.buffer.get_mut().truncate(0);
+        self.buffering = false;
+    }
+    pub fn rewind(&mut self) {
+        self.buffering = false;
+    }
+    pub fn unwrap(self) -> T {
+        self.reader
+    }
+}
+
+impl<T: AsyncRead> AsyncRead for BackTrackingReader<T> {
+    fn poll_read(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        let this = self.project();
+        if *this.buffering {
+            let filled = buf.filled().len();
+            let res = this.reader.poll_read(cx, buf);
+            this.buffer
+                .get_mut()
+                .extend_from_slice(&buf.filled()[filled..]);
+            res
+        } else {
+            if (this.buffer.position() as usize) < this.buffer.get_ref().len() {
+                this.buffer.pure_read(buf);
+            }
+            if buf.remaining() > 0 {
+                this.reader.poll_read(cx, buf)
+            } else {
+                Poll::Ready(Ok(()))
+            }
+        }
+    }
+}
+
+impl<T: AsyncWrite> AsyncWrite for BackTrackingReader<T> {
+    fn is_write_vectored(&self) -> bool {
+        self.reader.is_write_vectored()
+    }
+    fn poll_flush(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(), std::io::Error>> {
+        self.project().reader.poll_flush(cx)
+    }
+    fn poll_shutdown(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(), std::io::Error>> {
+        self.project().reader.poll_shutdown(cx)
+    }
+    fn poll_write(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &[u8],
+    ) -> Poll<Result<usize, std::io::Error>> {
+        self.project().reader.poll_write(cx, buf)
+    }
+    fn poll_write_vectored(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        bufs: &[std::io::IoSlice<'_>],
+    ) -> Poll<Result<usize, std::io::Error>> {
+        self.project().reader.poll_write_vectored(cx, bufs)
     }
 }
