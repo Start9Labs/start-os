@@ -6,7 +6,6 @@ use rpc_toolkit::command;
 
 use crate::Error;
 
-pub mod cert_resolver;
 pub mod dhcp;
 pub mod dns;
 pub mod interface;
@@ -14,11 +13,11 @@ pub mod keys;
 #[cfg(feature = "avahi")]
 pub mod mdns;
 pub mod net_controller;
-pub mod net_utils;
 pub mod ssl;
 pub mod static_server;
 pub mod tor;
-pub mod vhost_controller;
+pub mod utils;
+pub mod vhost;
 pub mod web_server;
 pub mod wifi;
 

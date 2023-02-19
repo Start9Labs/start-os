@@ -19,7 +19,7 @@ use crate::account::AccountInfo;
 use crate::config::spec::{PackagePointerSpec, SystemPointerSpec};
 use crate::install::progress::InstallProgress;
 use crate::net::interface::InterfaceId;
-use crate::net::net_utils::{get_iface_ipv4_addr, get_iface_ipv6_addr};
+use crate::net::utils::{get_iface_ipv4_addr, get_iface_ipv6_addr};
 use crate::s9pk::manifest::{Manifest, ManifestModel, PackageId};
 use crate::status::health_check::HealthCheckId;
 use crate::status::Status;
