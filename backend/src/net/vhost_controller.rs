@@ -1,9 +1,13 @@
 use std::collections::BTreeMap;
+use std::convert::Infallible;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::{Arc, Weak};
 
 use color_eyre::eyre::eyre;
 use helpers::NonDetachingJoinHandle;
+use http::Response;
+use hyper::service::{make_service_fn, service_fn};
+use hyper::Body;
 use models::ResultExt;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{Mutex, RwLock};
@@ -12,7 +16,9 @@ use tokio_rustls::rustls::{RootCertStore, ServerConfig};
 use tokio_rustls::{LazyConfigAcceptor, TlsConnector};
 
 use crate::net::keys::Key;
+use crate::net::net_utils::SingleAccept;
 use crate::net::ssl::SslManager;
+use crate::util::io::BackTrackingReader;
 use crate::Error;
 
 // not allowed: <=1024, >=32768, 5355, 5432, 9050, 6010, 9051, 5353
@@ -91,12 +97,47 @@ impl VHostServer {
                 loop {
                     match listener.accept().await {
                         Ok((stream, _)) => {
+                            let mut stream = BackTrackingReader::new(stream);
+                            stream.start_buffering();
                             let mapping = mapping.clone();
                             let ssl = ssl.clone();
                             tokio::spawn(async move {
                                 if let Err(e) = async {
-                                    let mid = LazyConfigAcceptor::new(Acceptor::default(), stream)
-                                        .await?;
+                                    let mid = match LazyConfigAcceptor::new(
+                                        Acceptor::default(),
+                                        &mut stream,
+                                    )
+                                    .await
+                                    {
+                                        Ok(a) => a,
+                                        Err(e) => {
+                                            stream.rewind();
+                                            return hyper::server::Server::builder(
+                                                SingleAccept::new(stream),
+                                            )
+                                            .serve(make_service_fn(|_| async {
+                                                Ok::<_, Infallible>(service_fn(|req| async move {
+                                                    Response::builder()
+                                                        .status(
+                                                            http::StatusCode::TEMPORARY_REDIRECT,
+                                                        )
+                                                        .header(
+                                                            http::header::LOCATION,
+                                                            req.headers()
+                                                                .get(http::header::HOST)
+                                                                .and_then(|host| host.to_str().ok())
+                                                                .map(|host| {
+                                                                    format!("https://{host}")
+                                                                })
+                                                                .unwrap_or_default(),
+                                                        )
+                                                        .body(Body::default())
+                                                }))
+                                            }))
+                                            .await
+                                            .with_kind(crate::ErrorKind::Network);
+                                        }
+                                    };
                                     let target_name =
                                         mid.client_hello().server_name().map(|s| s.to_owned());
                                     let target = {
@@ -171,6 +212,7 @@ impl VHostServer {
                                                 cfg.with_kind(crate::ErrorKind::OpenSsl)?,
                                             ))
                                             .await?;
+                                        tls_stream.get_mut().0.stop_buffering();
                                         if target.connect_ssl {
                                             tokio::io::copy_bidirectional(
                                                 &mut tls_stream,
