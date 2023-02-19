@@ -7,7 +7,7 @@
   </ion-toolbar>
 </ion-header>
 
-<ion-content class="ion-padding">
+<ion-content class="ion-padding with-widgets">
   <!-- loaded -->
   <ng-container *ngIf="pkgs$ | async as pkgs; else loading">
     <ng-container *ngIf="!pkgs.length; else list">

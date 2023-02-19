@@ -301,6 +301,6 @@ h2 {
 }
 
 // TODO: Refactor so header is outside router-outlet
-ion-content.ion-padding {
+ion-content.with-widgets {
   width: calc(100% - var(--widgets-width));
 }
