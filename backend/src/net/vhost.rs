@@ -16,8 +16,8 @@ use tokio_rustls::rustls::{RootCertStore, ServerConfig};
 use tokio_rustls::{LazyConfigAcceptor, TlsConnector};
 
 use crate::net::keys::Key;
-use crate::net::net_utils::SingleAccept;
 use crate::net::ssl::SslManager;
+use crate::net::utils::SingleAccept;
 use crate::util::io::BackTrackingReader;
 use crate::Error;
 

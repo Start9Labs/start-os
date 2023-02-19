@@ -7,7 +7,7 @@ use tokio::sync::RwLock;
 
 use crate::context::RpcContext;
 use crate::db::model::IpInfo;
-use crate::net::net_utils::{iface_is_physical, list_interfaces};
+use crate::net::utils::{iface_is_physical, list_interfaces};
 use crate::util::display_none;
 use crate::Error;
 
