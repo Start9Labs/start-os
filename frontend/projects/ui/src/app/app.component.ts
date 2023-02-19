@@ -1,4 +1,4 @@
-import { Component, OnDestroy } from '@angular/core'
+import { Component, inject, OnDestroy } from '@angular/core'
 import { merge } from 'rxjs'
 import { AuthService } from './services/auth.service'
 import { SplitPaneTracker } from './services/split-pane.service'
@@ -12,6 +12,7 @@ import {
   WidgetDrawer,
 } from './services/client-storage.service'
 import { ThemeSwitcherService } from './services/theme-switcher.service'
+import { THEME } from '@start9labs/shared'
 
 @Component({
   selector: 'app-root',
@@ -22,6 +23,7 @@ export class AppComponent implements OnDestroy {
   readonly subscription = merge(this.patchData, this.patchMonitor).subscribe()
   readonly sidebarOpen$ = this.splitPane.sidebarOpen$
   readonly widgetDrawer$ = this.clientStorageService.widgetDrawer$
+  readonly theme$ = inject(THEME)
 
   constructor(
     private readonly titleService: Title,

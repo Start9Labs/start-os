@@ -19,7 +19,10 @@
     <form (ngSubmit)="submit()">
       <div style="margin: 0 0 24px 16px">
         <p class="input-label">{{ options.label }}</p>
-        <ion-item lines="none" color="dark">
+        <ion-item
+          lines="none"
+          [color]="(theme$ | async) === 'Light' ? 'light' : 'dark'"
+        >
           <ion-input
             #mainInput
             type="text"

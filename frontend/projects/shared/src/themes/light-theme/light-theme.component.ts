@@ -6,10 +6,10 @@ import {
 import { AbstractTuiThemeSwitcher } from '@taiga-ui/cdk'
 
 @Component({
-  selector: 'night-theme',
+  selector: 'light-theme',
   template: '',
-  styleUrls: ['./night-theme.component.scss'],
+  styleUrls: ['./light-theme.component.scss'],
   encapsulation: ViewEncapsulation.None,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class NightThemeComponent extends AbstractTuiThemeSwitcher {}
+export class LightThemeComponent extends AbstractTuiThemeSwitcher {}

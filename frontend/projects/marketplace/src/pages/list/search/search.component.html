@@ -3,7 +3,7 @@
     <ion-col responsiveCol class="column" sizeSm="8" sizeLg="6">
       <ion-toolbar color="transparent" class="ion-text-left">
         <ion-searchbar
-          color="dark"
+          [color]="(theme$ | async) === 'Light' ? 'light' : 'dark'"
           debounce="250"
           [ngModel]="query"
           (ngModelChange)="onModelChange($event)"

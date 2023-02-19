@@ -1,6 +1,6 @@
-import { Component, Input, ViewChild } from '@angular/core'
+import { Component, inject, Input, ViewChild } from '@angular/core'
 import { ModalController, IonicSafeString, IonInput } from '@ionic/angular'
-import { getErrorMessage } from '@start9labs/shared'
+import { getErrorMessage, THEME } from '@start9labs/shared'
 import { MaskPipe } from 'src/app/pipes/mask/mask.pipe'
 
 @Component({
@@ -20,6 +20,8 @@ export class GenericInputComponent {
   maskedValue?: string
 
   error: string | IonicSafeString = ''
+
+  readonly theme$ = inject(THEME)
 
   constructor(
     private readonly modalCtrl: ModalController,

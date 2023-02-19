@@ -2,13 +2,14 @@ import { APP_INITIALIZER, Provider } from '@angular/core'
 import { UntypedFormBuilder } from '@angular/forms'
 import { Router, RouteReuseStrategy } from '@angular/router'
 import { IonicRouteStrategy, IonNav } from '@ionic/angular'
-import { RELATIVE_URL, WorkspaceConfig } from '@start9labs/shared'
+import { RELATIVE_URL, THEME, WorkspaceConfig } from '@start9labs/shared'
 import { ApiService } from './services/api/embassy-api.service'
 import { MockApiService } from './services/api/embassy-mock-api.service'
 import { LiveApiService } from './services/api/embassy-live-api.service'
 import { AuthService } from './services/auth.service'
 import { ClientStorageService } from './services/client-storage.service'
 import { FilterPackagesPipe } from '../../../marketplace/src/pipes/filter-packages.pipe'
+import { ThemeSwitcherService } from './services/theme-switcher.service'
 
 const {
   useMocks,
@@ -36,6 +37,10 @@ export const APP_PROVIDERS: Provider[] = [
   {
     provide: RELATIVE_URL,
     useValue: `/${api.url}/${api.version}`,
+  },
+  {
+    provide: THEME,
+    useExisting: ThemeSwitcherService,
   },
 ]
 

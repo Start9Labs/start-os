@@ -2,7 +2,7 @@
   <img
     alt="Start9"
     src="assets/img/{{
-      (themeSwitcher | async) === 'Dark' ? 'logo' : 'logo_dark'
+      (theme$ | async) === 'Dark' ? 'logo' : 'logo_dark'
     }}.png"
   />
 </a>
