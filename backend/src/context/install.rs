@@ -7,7 +7,7 @@ use serde::Deserialize;
 use tokio::sync::broadcast::Sender;
 use tracing::instrument;
 
-use crate::net::net_utils::find_eth_iface;
+use crate::net::utils::find_eth_iface;
 use crate::util::config::load_config_from_paths;
 use crate::Error;
 

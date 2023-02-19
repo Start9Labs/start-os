@@ -27,7 +27,12 @@ pub struct OsPartitionInfo {
 }
 impl OsPartitionInfo {
     pub fn contains(&self, logicalname: impl AsRef<Path>) -> bool {
-        &*self.boot == logicalname.as_ref() || &*self.root == logicalname.as_ref()
+        self.efi
+            .as_ref()
+            .map(|p| p == logicalname.as_ref())
+            .unwrap_or(false)
+            || &*self.boot == logicalname.as_ref()
+            || &*self.root == logicalname.as_ref()
     }
 }
 
