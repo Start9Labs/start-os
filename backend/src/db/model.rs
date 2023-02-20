@@ -18,6 +18,7 @@ use ssh_key::public::Ed25519PublicKey;
 use crate::account::AccountInfo;
 use crate::config::spec::{PackagePointerSpec, SystemPointerSpec};
 use crate::install::progress::InstallProgress;
+use crate::net::forward::LanPortForwards;
 use crate::net::interface::InterfaceId;
 use crate::net::utils::{get_iface_ipv4_addr, get_iface_ipv6_addr};
 use crate::s9pk::manifest::{Manifest, ManifestModel, PackageId};
@@ -34,6 +35,7 @@ pub struct Database {
     pub server_info: ServerInfo,
     #[model]
     pub package_data: AllPackageData,
+    pub lan_port_forwards: LanPortForwards,
     pub ui: Value,
 }
 impl Database {
@@ -83,6 +85,7 @@ impl Database {
                 zram: false,
             },
             package_data: AllPackageData::default(),
+            lan_port_forwards: LanPortForwards::new(),
             ui: serde_json::from_str(include_str!("../../../frontend/patchdb-ui-seed.json"))
                 .unwrap(),
         }

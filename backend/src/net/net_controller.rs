@@ -4,12 +4,14 @@ use std::sync::{Arc, Weak};
 
 use color_eyre::eyre::eyre;
 use models::InterfaceId;
+use patch_db::{DbHandle, LockType, PatchDb};
 use sqlx::PgExecutor;
 use tracing::instrument;
 
 use crate::error::ErrorCollection;
 use crate::hostname::Hostname;
 use crate::net::dns::DnsController;
+use crate::net::forward::LpfController;
 use crate::net::keys::Key;
 #[cfg(feature = "avahi")]
 use crate::net::mdns::MdnsController;
@@ -26,6 +28,7 @@ pub struct NetController {
     pub(super) mdns: MdnsController,
     pub(super) vhost: VHostController,
     pub(super) dns: DnsController,
+    pub(super) lpf: LpfController,
     pub(super) ssl: Arc<SslManager>,
     pub(super) os_bindings: Vec<Arc<()>>,
 }
@@ -47,6 +50,7 @@ impl NetController {
             mdns: MdnsController::init().await?,
             vhost: VHostController::new(ssl.clone()),
             dns: DnsController::init(dns_bind).await?,
+            lpf: LpfController::new(),
             ssl,
             os_bindings: Vec::new(),
         };
@@ -155,6 +159,7 @@ impl NetController {
             controller: Arc::downgrade(self),
             tor: BTreeMap::new(),
             lan: BTreeMap::new(),
+            lpf: BTreeMap::new(),
         })
     }
 
@@ -204,6 +209,15 @@ impl NetController {
         self.mdns.gc(key.base_address()).await?;
         self.vhost.gc(Some(key.local_address()), external).await
     }
+
+    async fn add_lpf(&self, external: u16, target: SocketAddr) -> Result<Arc<()>, Error> {
+        self.lpf.add(external, target).await
+    }
+
+    async fn remove_lpf(&self, external: u16, rcs: Vec<Arc<()>>) -> Result<(), Error> {
+        drop(rcs);
+        self.lpf.gc(external).await
+    }
 }
 
 pub struct NetService {
@@ -213,6 +227,7 @@ pub struct NetService {
     controller: Weak<NetController>,
     tor: BTreeMap<(InterfaceId, u16), (Key, Vec<Arc<()>>)>,
     lan: BTreeMap<(InterfaceId, u16), (Key, Vec<Arc<()>>)>,
+    lpf: BTreeMap<u16, (u16, Vec<Arc<()>>)>,
 }
 impl NetService {
     #[instrument(skip(self))]
@@ -231,7 +246,7 @@ impl NetService {
         id: InterfaceId,
         external: u16,
         internal: u16,
-    ) -> Result<(), Error>
+    ) -> Result<String, Error>
     where
         for<'a> &'a mut Ex: PgExecutor<'a>,
     {
@@ -248,7 +263,7 @@ impl NetService {
                 .await?,
         );
         self.tor.insert(tor_idx, tor);
-        Ok(())
+        Ok(key.tor_address().to_string())
     }
     pub async fn remove_tor(&mut self, id: InterfaceId, external: u16) -> Result<(), Error> {
         let ctrl = self.net_controller()?;
@@ -264,11 +279,12 @@ impl NetService {
         external: u16,
         internal: u16,
         connect_ssl: bool,
-    ) -> Result<(), Error>
+    ) -> Result<String, Error>
     where
         for<'a> &'a mut Ex: PgExecutor<'a>,
     {
         let key = Key::for_interface(secrets, Some((self.id.clone(), id.clone()))).await?;
+        let addr = key.local_address();
         let ctrl = self.net_controller()?;
         let lan_idx = (id, external);
         let mut lan = self
@@ -286,13 +302,42 @@ impl NetService {
                 .await?,
         );
         self.lan.insert(lan_idx, lan);
-        Ok(())
+        Ok(addr)
     }
     pub async fn remove_lan(&mut self, id: InterfaceId, external: u16) -> Result<(), Error> {
         let ctrl = self.net_controller()?;
         if let Some((key, rcs)) = self.lan.remove(&(id, external)) {
             ctrl.remove_lan(&key, external, rcs).await?;
         }
+        Ok(())
+    }
+    pub async fn add_lpf(&mut self, db: &PatchDb, internal: u16) -> Result<u16, Error> {
+        let ctrl = self.net_controller()?;
+        let mut db = db.handle();
+        let lpf_model = crate::db::DatabaseModel::new().lan_port_forwards();
+        lpf_model.lock(&mut db, LockType::Write).await?; // TODO: replace all this with an RMW
+        let mut lpf = lpf_model.get_mut(&mut db).await?;
+        let external = lpf.alloc(self.id.clone(), internal).ok_or_else(|| {
+            Error::new(
+                eyre!("No ephemeral ports available"),
+                crate::ErrorKind::Network,
+            )
+        })?;
+        lpf.save(&mut db).await?;
+        drop(db);
+        let rc = ctrl.add_lpf(external, (self.ip, internal).into()).await?;
+        let (_, mut lpfs) = self.lpf.remove(&internal).unwrap_or_default();
+        lpfs.push(rc);
+        self.lpf.insert(internal, (external, lpfs));
+
+        Ok(external)
+    }
+    pub async fn remove_lpf(&mut self, db: &PatchDb, internal: u16) -> Result<(), Error> {
+        let ctrl = self.net_controller()?;
+        if let Some((external, rcs)) = self.lpf.remove(&internal) {
+            ctrl.remove_lpf(external, rcs).await?;
+        }
+
         Ok(())
     }
     pub async fn export_cert<Ex>(
@@ -330,6 +375,9 @@ impl NetService {
             for ((_, external), (key, rcs)) in std::mem::take(&mut self.tor) {
                 errors.handle(ctrl.remove_tor(&key, external, rcs).await);
             }
+            for (_, (external, rcs)) in std::mem::take(&mut self.lpf) {
+                errors.handle(ctrl.remove_lpf(external, rcs).await);
+            }
             std::mem::take(&mut self.dns);
             errors.handle(ctrl.dns.gc(Some(self.id.clone()), self.ip).await);
             self.ip = Ipv4Addr::new(0, 0, 0, 0);
@@ -356,6 +404,7 @@ impl Drop for NetService {
                     controller: Default::default(),
                     tor: Default::default(),
                     lan: Default::default(),
+                    lpf: Default::default(),
                 },
             );
             tokio::spawn(async move { svc.remove_all().await.unwrap() });
