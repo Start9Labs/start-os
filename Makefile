@@ -116,21 +116,23 @@ install: $(ALL_TARGETS)
 	$(call cp,index.html,$(DESTDIR)/var/www/html/index.html)
 
 update-overlay:
-	@echo "!!! THIS WILL ONLY REFLASH YOUR DEVICE IN MEMORY !!!"
-	@echo "ALL CHANGES WILL BE REVERTED IF YOU RESTART THE DEVICE"
-	test -z "$(REMOTE)" && >&2 echo "Must specify REMOTE" && false || true
+	@echo "\033[33m!!! THIS WILL ONLY REFLASH YOUR DEVICE IN MEMORY !!!\033[0m"
+	@echo "\033[33mALL CHANGES WILL BE REVERTED IF YOU RESTART THE DEVICE\033[0m"
+	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
+	@if [ "`ssh $(REMOTE) 'cat /usr/lib/embassy/VERSION.txt'`" != "`cat ./VERSION.txt`" ]; then >&2 echo "Embassy requires migrations: update-overlay is unavailable." && false; fi
+	@if ssh $(REMOTE) "pidof embassy-init"; then >&2 echo "Embassy in INIT: update-overlay is unavailable." && false; fi
 	ssh $(REMOTE) "sudo systemctl stop embassyd"
 	$(MAKE) install REMOTE=$(REMOTE) OS_ARCH=$(OS_ARCH)
 	ssh $(REMOTE) "sudo systemctl start embassyd"
 
 update:
-	test -z "$(REMOTE)" && >&2 echo "Must specify REMOTE" && false || true
+	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
 	ssh $(REMOTE) "sudo rsync -a --delete --force --info=progress2 /media/embassy/embassyfs/current/ /media/embassy/next/"
 	$(MAKE) install REMOTE=$(REMOTE) DESTDIR=/media/embassy/next OS_ARCH=$(OS_ARCH)
 	ssh $(REMOTE) "sudo touch /media/embassy/config/upgrade && sudo sync && sudo reboot"
 
 reflash:
-	test -z "$(REMOTE)" && >&2 echo "Must specify REMOTE" && false || true
+	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
 	ssh $(REMOTE) "sudo rsync -a --delete --force --info=progress2 /media/embassy/embassyfs/current/ /media/embassy/next/"
 	$(MAKE) install REMOTE=$(REMOTE) DESTDIR=/media/embassy/next OS_ARCH=$(OS_ARCH)
 	ssh $(REMOTE) "sudo touch /media/embassy/config/upgrade && sudo rm -f /media/embassy/config/disk.guid && sudo sync && sudo reboot"
