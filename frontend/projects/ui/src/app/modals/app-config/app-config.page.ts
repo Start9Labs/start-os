@@ -104,9 +104,7 @@ export class AppConfigPage {
         newConfig || this.original,
       )
 
-      this.hasOptions = !!Object.values(this.configSpec).find(
-        valSpec => valSpec.type !== 'pointer',
-      )
+      this.hasOptions = false
 
       if (patch) {
         this.diff = this.getDiff(patch)
