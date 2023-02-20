@@ -6,8 +6,8 @@ import {
   ValidationErrors,
 } from '@angular/forms'
 import { IonicSafeString } from '@ionic/angular'
-import { ListValueSpecOf } from 'src/app/pkg-config/config-types'
-import { Range } from 'src/app/pkg-config/config-utilities'
+import { ListValueSpecOf } from 'start-sdk/types/config-types'
+import { Range } from 'src/app/util/config-utilities'
 import { getElementId } from './form-object.component'
 
 @Pipe({
@@ -50,7 +50,7 @@ export class ToEnumListDisplayPipe implements PipeTransform {
   name: 'toWarningText',
 })
 export class ToWarningTextPipe implements PipeTransform {
-  transform(text?: string): IonicSafeString | string {
+  transform(text: string | null): IonicSafeString | string {
     return text
       ? new IonicSafeString(`<ion-text color="warning">${text}</ion-text>`)
       : ''
