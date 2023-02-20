@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::io::AsyncReadExt;
 use tokio::sync::{mpsc, Mutex};
+use tracing::instrument;
 
 pub trait PathForVolumeId: Send + Sync {
     fn path_for(
@@ -329,6 +330,7 @@ impl JsExecutionEnvironment {
         ]
     }
 
+    #[instrument(skip(self))]
     async fn execute(
         self,
         procedure_name: ProcedureName,
@@ -370,7 +372,6 @@ impl JsExecutionEnvironment {
                 Ok(())
             })
             .build();
-
         let loader = std::rc::Rc::new(self.module_loader.clone());
         let runtime_options = RuntimeOptions {
             module_loader: Some(loader),
@@ -394,7 +395,6 @@ impl JsExecutionEnvironment {
             evaluated.await??;
             Ok::<_, AnyError>(())
         };
-
         let answer = tokio::select! {
             Some(x) = receive_answer.recv() => x,
             _ = future => {

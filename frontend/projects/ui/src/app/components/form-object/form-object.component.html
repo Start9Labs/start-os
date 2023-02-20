@@ -22,8 +22,7 @@
             [formControlName]="entry.key"
             (ionFocus)="presentAlertChangeWarning(entry.key, spec)"
             (ionChange)="handleInputChange()"
-          >
-          </ion-textarea>
+          ></ion-textarea>
           <ng-template #notTextArea>
             <ion-input
               type="text"
@@ -38,8 +37,7 @@
               [formControlName]="entry.key"
               (ionFocus)="presentAlertChangeWarning(entry.key, spec)"
               (ionChange)="handleInputChange()"
-            >
-            </ion-input>
+            ></ion-input>
           </ng-template>
           <ion-button
             *ngIf="spec.type === 'string' && spec.masked"
@@ -59,8 +57,9 @@
             slot="end"
             color="light"
             style="font-size: medium"
-            >{{ spec.units }}</ion-note
           >
+            {{ spec.units }}
+          </ion-note>
         </ion-item>
         <p class="error-message">
           <span *ngIf="(formGroup | getControl: entry.key).errors as errors">
@@ -92,11 +91,11 @@
               *ngIf="original?.[entry.key] === undefined"
               color="success"
             >
-              (New)</ion-text
-            >
+              (New)
+            </ion-text>
             <ion-text *ngIf="entry.value.dirty" color="warning">
-              (Edited)</ion-text
-            >
+              (Edited)
+            </ion-text>
           </b>
         </ion-label>
         <!-- boolean -->
@@ -242,6 +241,7 @@
                       name:
                         objectListDisplay[entry.key][i].displayAs ||
                         'Entry ' + (i + 1),
+                      description: null,
                       new: false,
                       edited: abstractControl.dirty
                     }"
@@ -318,8 +318,7 @@
                       $any(spec.spec).placeholder || 'Enter ' + spec.name
                     "
                     [formControlName]="i"
-                  >
-                  </ion-input>
+                  ></ion-input>
                   <ion-button
                     strong
                     fill="clear"
