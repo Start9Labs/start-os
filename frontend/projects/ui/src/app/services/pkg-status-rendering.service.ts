@@ -1,7 +1,6 @@
 import { isEmptyObject } from '@start9labs/shared'
 import {
   InstalledPackageDataEntry,
-  MainStatusStarting,
   PackageDataEntry,
   PackageMainStatus,
   PackageState,
