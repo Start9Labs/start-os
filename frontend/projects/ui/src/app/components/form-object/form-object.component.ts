@@ -19,7 +19,7 @@ import {
   ValueSpecList,
   ValueSpecListOf,
   ValueSpecUnion,
-} from 'src/app/pkg-config/config-types'
+} from 'start-sdk/types/config-types'
 import { FormService } from 'src/app/services/form.service'
 import { EnumListPage } from 'src/app/modals/enum-list/enum-list.page'
 import { THEME, pauseFor } from '@start9labs/shared'
@@ -249,7 +249,7 @@ export class FormObjectComponent {
 
     const alert = await this.alertCtrl.create({
       header: name,
-      message: description,
+      message: description || '',
       buttons: [
         {
           text: 'OK',
@@ -395,7 +395,7 @@ export class FormLabelComponent {
     name: string
     new: boolean
     edited: boolean
-    description?: string
+    description: string | null
     required?: boolean
     newOptions?: boolean
   }
@@ -408,7 +408,7 @@ export class FormLabelComponent {
 
     const alert = await this.alertCtrl.create({
       header: name,
-      message: description,
+      message: description || '',
       buttons: [
         {
           text: 'OK',

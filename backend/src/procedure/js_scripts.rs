@@ -236,7 +236,7 @@ mod tests {
     use tokio::sync::watch;
 
     struct OsApiMock {
-        config_callbacks: watch::Sender<Vec<Callback>>,
+        config_callbacks: (watch::Sender<Vec<Callback>>, watch::Sender<Vec<Callback>>),
     }
     impl Default for OsApiMock {
         fn default() -> Self {

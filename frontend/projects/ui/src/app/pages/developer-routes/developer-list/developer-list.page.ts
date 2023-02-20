@@ -12,7 +12,7 @@ import {
 } from 'src/app/modals/generic-input/generic-input.component'
 import { PatchDB } from 'patch-db-client'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ConfigSpec } from 'src/app/pkg-config/config-types'
+import { ConfigSpec } from 'start-sdk/types/config-types'
 import * as yaml from 'js-yaml'
 import { v4 } from 'uuid'
 import { DataModel, DevData } from 'src/app/services/patch-db/data-model'
@@ -223,12 +223,14 @@ const SAMPLE_CONFIG: ConfigSpec = {
     name: 'Example String Input',
     nullable: false,
     masked: false,
-    copyable: false,
     // optional
     description: 'Example description for required string input.',
     placeholder: 'Enter string value',
     pattern: '^[a-zA-Z0-9! _]+$',
     'pattern-description': 'Must be alphanumeric (may contain underscore).',
+    default: null,
+    textarea: false,
+    warning: null,
   },
   'sample-number': {
     type: 'number',
@@ -241,6 +243,7 @@ const SAMPLE_CONFIG: ConfigSpec = {
     units: 'ms',
     description: 'Example description for optional number input.',
     placeholder: 'Enter number value',
+    default: null,
   },
   'sample-boolean': {
     type: 'boolean',
@@ -248,6 +251,7 @@ const SAMPLE_CONFIG: ConfigSpec = {
     // optional
     description: 'Example description for boolean toggle',
     default: true,
+    warning: null,
   },
   'sample-enum': {
     type: 'enum',

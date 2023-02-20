@@ -1,7 +1,7 @@
 import { Dump, Revision } from 'patch-db-client'
 import { MarketplacePkg, StoreInfo } from '@start9labs/marketplace'
 import { PackagePropertiesVersioned } from 'src/app/util/properties.util'
-import { ConfigSpec } from 'src/app/pkg-config/config-types'
+import { ConfigSpec } from 'start-sdk/types/config-types'
 import {
   DataModel,
   DependencyError,
@@ -253,6 +253,7 @@ export module RR {
   export type SideloadPackageReq = {
     manifest: Manifest
     icon: string // base64
+    size: number // bytes
   }
   export type SideloadPacakgeRes = string //guid
 
