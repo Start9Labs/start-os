@@ -6,15 +6,10 @@ import {
   ModalController,
 } from '@ionic/angular'
 import { ActionSheetButton } from '@ionic/core'
-import {
-  ErrorToastService,
-  isValidHttpUrl,
-  sameUrl,
-  toUrl,
-} from '@start9labs/shared'
+import { ErrorToastService, sameUrl, toUrl } from '@start9labs/shared'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ValueSpecObject } from 'src/app/pkg-config/config-types'
+import { ValueSpecObject } from 'start-sdk/types/config-types'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
 import { PatchDB } from 'patch-db-client'
 import { DataModel, UIStore } from 'src/app/services/patch-db/data-model'
@@ -257,6 +252,8 @@ function getMarketplaceValueSpec(): ValueSpecObject {
   return {
     type: 'object',
     name: 'Add Custom Registry',
+    description: null,
+    warning: null,
     spec: {
       url: {
         type: 'string',
@@ -264,10 +261,12 @@ function getMarketplaceValueSpec(): ValueSpecObject {
         description: 'A fully-qualified URL of the custom registry',
         nullable: false,
         masked: false,
-        copyable: false,
         pattern: `https?:\/\/[a-zA-Z0-9][a-zA-Z0-9-\.]+[a-zA-Z0-9]\.[^\s]{2,}`,
         'pattern-description': 'Must be a valid URL',
         placeholder: 'e.g. https://example.org',
+        default: null,
+        textarea: false,
+        warning: null,
       },
     },
   }

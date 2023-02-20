@@ -1,4 +1,4 @@
-import { ValueSpec, DefaultString } from './config-types'
+import { ValueSpec, DefaultString } from 'start-sdk/types/config-types'
 
 export class Range {
   min?: number

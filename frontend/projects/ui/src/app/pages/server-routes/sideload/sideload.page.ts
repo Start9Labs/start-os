@@ -94,6 +94,7 @@ export class SideloadPage {
       const guid = await this.api.sideloadPackage({
         manifest: this.toUpload.manifest!,
         icon: this.toUpload.icon!,
+        size: this.toUpload.file!.size,
       })
       const buffer = await blobToBuffer(this.toUpload.file!)
       this.api.uploadPackage(guid, buffer).catch(e => console.error(e))

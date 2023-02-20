@@ -1,4 +1,8 @@
-import { PackageDataEntry } from '../services/patch-db/data-model'
+import {
+  PackageDataEntry,
+  PackageMainStatus,
+  PackageState,
+} from '../services/patch-db/data-model'
 import {
   DependencyStatus,
   HealthStatus,
@@ -35,7 +39,7 @@ export function getPackageInfo(entry: PackageDataEntry): PkgInfo {
 export interface PkgInfo {
   entry: PackageDataEntry
   primaryRendering: StatusRendering
-  primaryStatus: PrimaryStatus
+  primaryStatus: PrimaryStatus | PackageState | PackageMainStatus
   installProgress: ProgressData | null
   error: boolean
   warning: boolean

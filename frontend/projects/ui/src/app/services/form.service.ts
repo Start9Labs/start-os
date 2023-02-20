@@ -23,8 +23,8 @@ import {
   ValueSpecObject,
   ValueSpecString,
   ValueSpecUnion,
-} from 'src/app/pkg-config/config-types'
-import { getDefaultString, Range } from '../pkg-config/config-utilities'
+} from 'start-sdk/types/config-types'
+import { getDefaultString, Range } from '../util/config-utilities'
 const Mustache = require('mustache')
 
 @Injectable({
@@ -360,7 +360,7 @@ function listObjEquals(
   val1: any,
   val2: any,
 ): boolean {
-  if (uniqueBy === null) {
+  if (!uniqueBy) {
     return false
   } else if (typeof uniqueBy === 'string') {
     return itemEquals(spec.spec[uniqueBy], val1[uniqueBy], val2[uniqueBy])
@@ -388,7 +388,7 @@ function objEquals(
   val1: any,
   val2: any,
 ): boolean {
-  if (uniqueBy === null) {
+  if (!uniqueBy) {
     return false
   } else if (typeof uniqueBy === 'string') {
     // TODO: fix types
@@ -419,7 +419,7 @@ function unionEquals(
 ): boolean {
   const tagId = spec.tag.id
   const variant = spec.variants[val1[tagId]]
-  if (uniqueBy === null) {
+  if (!uniqueBy) {
     return false
   } else if (typeof uniqueBy === 'string') {
     if (uniqueBy === tagId) {
@@ -474,7 +474,7 @@ function uniqueByMessage(
 ): string {
   let joinFunc
   const subSpecs: string[] = []
-  if (uniqueBy === null) {
+  if (!uniqueBy) {
     return ''
   } else if (typeof uniqueBy === 'string') {
     return configSpec[uniqueBy]
