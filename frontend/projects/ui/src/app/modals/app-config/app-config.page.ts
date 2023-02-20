@@ -13,7 +13,7 @@ import {
   isObject,
 } from '@start9labs/shared'
 import { DependentInfo } from 'src/app/types/dependent-info'
-import { ConfigSpec } from 'src/app/pkg-config/config-types'
+import { ConfigSpec } from 'start-sdk/types/config-types'
 import {
   DataModel,
   PackageDataEntry,
@@ -100,13 +100,11 @@ export class AppConfigPage {
       }
 
       this.configForm = this.formService.createForm(
-        this.configSpec,
+        this.configSpec!,
         newConfig || this.original,
       )
 
-      this.hasOptions = !!Object.values(this.configSpec).find(
-        valSpec => valSpec.type !== 'pointer',
-      )
+      this.hasOptions = false
 
       if (patch) {
         this.diff = this.getDiff(patch)

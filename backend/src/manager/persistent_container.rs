@@ -9,8 +9,8 @@ use tracing::instrument;
 
 use super::manager_seed::ManagerSeed;
 use super::{
-    add_network_for_main, generate_certificate, get_long_running_ip, long_running_docker,
-    remove_network_for_main, GetRunningIp,
+    add_network_for_main, get_long_running_ip, long_running_docker, remove_network_for_main,
+    GetRunningIp,
 };
 use crate::procedure::docker::DockerContainer;
 use crate::util::NonDetachingJoinHandle;
@@ -56,7 +56,8 @@ pub async fn spawn_persistent_container(
                     let (mut runtime, inserter) =
                         long_running_docker(&seed, &container).await?;
 
-                    let ip = match get_long_running_ip(&*seed, &mut runtime).await {
+
+                    let ip = match get_long_running_ip(&seed, &mut runtime).await {
                         GetRunningIp::Ip(x) => x,
                         GetRunningIp::Error(e) => return Err(e),
                         GetRunningIp::EarlyExit(e) => {
@@ -65,7 +66,7 @@ pub async fn spawn_persistent_container(
                             return Ok(());
                         }
                     };
-                    add_network_for_main(&*seed, ip, generated_certificate).await?;
+                    let svc = add_network_for_main(&seed, ip).await?;
 
                     if let Some(inserter_send) = inserter_send.as_mut() {
                         let _ = inserter_send.send(Arc::new(inserter));
@@ -81,7 +82,7 @@ pub async fn spawn_persistent_container(
                         a = runtime.running_output => a.map_err(|_| Error::new(eyre!("Manager runtime panicked!"), crate::ErrorKind::Docker)).map(|_| ()),
                     };
 
-                    remove_network_for_main(&*seed, ip).await?;
+                    remove_network_for_main(svc).await?;
 
                     res
                 }.await {
