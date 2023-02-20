@@ -95,16 +95,13 @@ impl OsApi for Manager {
         let mut secrets = self.seed.ctx.secret_store.acquire().await?;
         let mut tx = secrets.begin().await?;
 
-        svc.add_lan(&mut tx, id.clone(), external_port, internal_port, false)
+        let addr = svc
+            .add_lan(&mut tx, id.clone(), external_port, internal_port, false)
             .await
             .map_err(|e| eyre!("Could not add to local: {e:?}"))?;
-        let key = Key::for_interface(&mut tx, Some((self.seed.manifest.id.clone(), id)))
-            .await
-            .map_err(|e| eyre!("Could not get network name: {e:?}"))?
-            .local_address();
 
         tx.commit().await?;
-        Ok(helpers::Address(key))
+        Ok(helpers::Address(addr))
     }
     async fn bind_onion(
         &self,
@@ -125,16 +122,13 @@ impl OsApi for Manager {
         let mut secrets = self.seed.ctx.secret_store.acquire().await?;
         let mut tx = secrets.begin().await?;
 
-        svc.add_tor(&mut tx, id.clone(), external_port, internal_port)
+        let addr = svc
+            .add_tor(&mut tx, id.clone(), external_port, internal_port)
             .await
             .map_err(|e| eyre!("Could not add to tor: {e:?}"))?;
-        let key = Key::for_interface(&mut tx, Some((self.seed.manifest.id.clone(), id)))
-            .await
-            .map_err(|e| eyre!("Could not get network name: {e:?}"))?
-            .tor_address()
-            .to_string();
+
         tx.commit().await?;
-        Ok(helpers::Address(key))
+        Ok(helpers::Address(addr))
     }
     async fn unbind_local(&self, id: InterfaceId, external: u16) -> Result<(), Report> {
         let ip = try_get_running_ip(&self.seed)
