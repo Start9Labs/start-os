@@ -1,6 +1,8 @@
 use async_trait::async_trait;
 use emver::VersionRange;
 use lazy_static::lazy_static;
+use openssl::hash::MessageDigest;
+use ssh_key::public::Ed25519PublicKey;
 
 use crate::account::AccountInfo;
 use crate::hostname::{sync_hostname, Hostname};
@@ -32,6 +34,29 @@ impl VersionT for Version {
     }
     async fn up<Db: DbHandle>(&self, db: &mut Db, secrets: &PgPool) -> Result<(), Error> {
         let mut account = AccountInfo::load(secrets).await?;
+        crate::db::DatabaseModel::new()
+            .server_info()
+            .pubkey()
+            .put(
+                db,
+                &ssh_key::PublicKey::from(Ed25519PublicKey::from(&account.key.ssh_key()))
+                    .to_openssh()?,
+            )
+            .await?;
+        crate::db::DatabaseModel::new()
+            .server_info()
+            .ca_fingerprint()
+            .put(
+                db,
+                &account
+                    .root_ca_cert
+                    .digest(MessageDigest::sha256())
+                    .unwrap()
+                    .iter()
+                    .map(|x| format!("{x:X}"))
+                    .join(":"),
+            )
+            .await?;
         let server_info = crate::db::DatabaseModel::new()
             .server_info()
             .get(db)

@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use emver::VersionRange;
+use itertools::Itertools;
 use lazy_static::lazy_static;
 use serde_json::{json, Value};
 
@@ -46,6 +47,7 @@ impl VersionT for Version {
     fn compat(&self) -> &'static VersionRange {
         &*V0_3_0_COMPAT
     }
+    // added pubkey, ca_fingerprint
     async fn up<Db: DbHandle>(&self, db: &mut Db, secrets: &PgPool) -> Result<(), Error> {
         let parsed_url = Some(COMMUNITY_URL.parse().unwrap());
         let mut ui = crate::db::DatabaseModel::new().ui().get_mut(db).await?;
@@ -53,32 +55,6 @@ impl VersionT for Version {
         for package_id in crate::db::DatabaseModel::new()
             .package_data()
             .keys(db)
-            .await?
-        {
-            if !COMMUNITY_SERVICES.contains(&&*package_id.to_string()) {
-                continue;
-            }
-            crate::db::DatabaseModel::new()
-                .package_data()
-                .idx_model(&package_id)
-                .expect(db)
-                .await?
-                .installed()
-                .expect(db)
-                .await?
-                .marketplace_url()
-                .put(db, &parsed_url)
-                .await?;
-        }
-        ui["theme"] = json!("Dark".to_string());
-        ui["widgets"] = json!([]);
-        ui.save(db).await?;
-        Ok(())
-    }
-    async fn down<Db: DbHandle>(&self, db: &mut Db, secrets: &PgPool) -> Result<(), Error> {
-        let mut ui = crate::db::DatabaseModel::new().ui().get_mut(db).await?;
-        let parsed_url = Some(MAIN_REGISTRY.parse().unwrap());
-        for package_id in crate::db::DatabaseModel::new()
             .package_data()
             .keys(db)
             .await?
