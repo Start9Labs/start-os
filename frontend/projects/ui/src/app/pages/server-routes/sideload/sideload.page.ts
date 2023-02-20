@@ -94,6 +94,7 @@ export class SideloadPage {
       const guid = await this.api.sideloadPackage({
         manifest: this.toUpload.manifest!,
         icon: this.toUpload.icon!,
+        size: this.toUpload.file!.size,
       })
       this.api
         .uploadPackage(guid, this.toUpload.file!)
