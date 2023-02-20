@@ -9,7 +9,7 @@ import {
 import { AlertInput } from '@ionic/core'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActionSheetButton } from '@ionic/core'
-import { ValueSpecObject } from 'src/app/pkg-config/config-types'
+import { ValueSpecObject } from 'start-sdk/types/config-types'
 import { RR } from 'src/app/services/api/api.types'
 import { pauseFor, ErrorToastService } from '@start9labs/shared'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
@@ -345,23 +345,33 @@ function getWifiValueSpec(
     name: 'WiFi Credentials',
     description:
       'Enter the network SSID and password. You can connect now or save the network for later.',
+    warning: null,
     spec: {
       ssid: {
         type: 'string',
         name: 'Network SSID',
+        description: null,
+        placeholder: null,
+        pattern: null,
+        'pattern-description': null,
         nullable: false,
         masked: false,
-        copyable: false,
-        default: ssid,
+        default: ssid || null,
+        textarea: false,
+        warning: null,
       },
       password: {
         type: 'string',
         name: 'Password',
+        description: null,
+        placeholder: null,
         nullable: !needsPW,
         masked: true,
-        copyable: false,
         pattern: '^.{8,}$',
         'pattern-description': 'Must be longer than 8 characters',
+        default: null,
+        textarea: false,
+        warning: null,
       },
     },
   }
