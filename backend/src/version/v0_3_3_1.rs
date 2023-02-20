@@ -41,6 +41,7 @@ impl VersionT for Version {
         let parsed_url = Some(COMMUNITY_URL.parse().unwrap());
         let mut ui = crate::db::DatabaseModel::new().ui().get_mut(db).await?;
         ui["marketplace"]["known-hosts"][COMMUNITY_URL] = json!({});
+        ui.save(db).await?;
         for package_id in crate::db::DatabaseModel::new()
             .package_data()
             .keys(db)
