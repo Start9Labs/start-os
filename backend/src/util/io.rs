@@ -304,7 +304,7 @@ pub trait CursorExt {
 impl<T: AsRef<[u8]>> CursorExt for Cursor<T> {
     fn pure_read(&mut self, buf: &mut ReadBuf<'_>) {
         let end = self.position() as usize
-            + std::cmp::max(
+            + std::cmp::min(
                 buf.remaining(),
                 self.get_ref().as_ref().len() - self.position() as usize,
             );
@@ -314,6 +314,7 @@ impl<T: AsRef<[u8]>> CursorExt for Cursor<T> {
 }
 
 #[pin_project::pin_project]
+#[derive(Debug)]
 pub struct BackTrackingReader<T> {
     #[pin]
     reader: T,
@@ -361,11 +362,22 @@ impl<T: AsyncRead> AsyncRead for BackTrackingReader<T> {
                 .extend_from_slice(&buf.filled()[filled..]);
             res
         } else {
+            let mut ready = false;
             if (this.buffer.position() as usize) < this.buffer.get_ref().len() {
                 this.buffer.pure_read(buf);
+                ready = true;
             }
             if buf.remaining() > 0 {
-                this.reader.poll_read(cx, buf)
+                match this.reader.poll_read(cx, buf) {
+                    Poll::Pending => {
+                        if ready {
+                            Poll::Ready(Ok(()))
+                        } else {
+                            Poll::Pending
+                        }
+                    }
+                    a => a,
+                }
             } else {
                 Poll::Ready(Ok(()))
             }

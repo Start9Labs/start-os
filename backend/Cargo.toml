@@ -57,6 +57,7 @@ base32 = "0.4.0"
 base64 = "0.13.0"
 base64ct = "1.5.1"
 basic-cookies = "0.1.4"
+bimap = { version = "0.6.2", features = ["serde"] }
 bollard = "0.13.0"
 bytes = "1"
 chrono = { version = "0.4.19", features = ["serde"] }
@@ -84,6 +85,10 @@ hmac = "0.12.1"
 http = "0.2.8"
 hyper = { version = "0.14.20", features = ["full"] }
 hyper-ws-listener = "0.2.0"
+id-pool = { version = "0.2.2", features = [
+  "u16",
+  "serde",
+], default-features = false }
 imbl = "2.0.0"
 indexmap = { version = "1.9.1", features = ["serde"] }
 ipnet = { version = "2.7.1", features = ["serde"] }
