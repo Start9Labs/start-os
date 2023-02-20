@@ -115,6 +115,20 @@ install: $(ALL_TARGETS)
 	$(call cp,frontend/dist/ui,$(DESTDIR)/var/www/html/main)
 	$(call cp,index.html,$(DESTDIR)/var/www/html/index.html)
 
+update-overlay:
+	@echo "!!! THIS WILL ONLY REFLASH YOUR DEVICE IN MEMORY !!!"
+	@echo "ALL CHANGES WILL BE REVERTED IF YOU RESTART THE DEVICE"
+	test -z "$(REMOTE)" && >&2 echo "Must specify REMOTE" && false || true
+	ssh $(REMOTE) "sudo systemctl stop embassyd"
+	$(MAKE) install REMOTE=$(REMOTE) OS_ARCH=$(OS_ARCH)
+	ssh $(REMOTE) "sudo systemctl start embassyd"
+
+update:
+	test -z "$(REMOTE)" && >&2 echo "Must specify REMOTE" && false || true
+	ssh $(REMOTE) "sudo rsync -a --delete --force --info=progress2 /media/embassy/embassyfs/current/ /media/embassy/next/"
+	$(MAKE) install REMOTE=$(REMOTE) DESTDIR=/media/embassy/next OS_ARCH=$(OS_ARCH)
+	ssh $(REMOTE) "sudo touch /media/embassy/config/upgrade && sudo sync && sudo reboot"
+
 reflash:
 	test -z "$(REMOTE)" && >&2 echo "Must specify REMOTE" && false || true
 	ssh $(REMOTE) "sudo rsync -a --delete --force --info=progress2 /media/embassy/embassyfs/current/ /media/embassy/next/"
