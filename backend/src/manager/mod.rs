@@ -77,22 +77,25 @@ pub enum BackupReturn {
 }
 
 pub struct Gid {
-    next_gid: watch::Sender<u32>,
-    main_gid: watch::Sender<ProcessGroupId>,
+    next_gid: (watch::Sender<u32>, watch::Receiver<u32>),
+    main_gid: (
+        watch::Sender<ProcessGroupId>,
+        watch::Receiver<ProcessGroupId>,
+    ),
 }
 
 impl Default for Gid {
     fn default() -> Self {
         Self {
-            next_gid: watch::channel(1).0,
-            main_gid: watch::channel(ProcessGroupId(1)).0,
+            next_gid: watch::channel(1),
+            main_gid: watch::channel(ProcessGroupId(1)),
         }
     }
 }
 impl Gid {
     pub fn new_gid(&self) -> ProcessGroupId {
         let mut previous = 0;
-        self.next_gid.send_modify(|x| {
+        self.next_gid.0.send_modify(|x| {
             previous = *x;
             *x = previous + 1;
         });
@@ -101,7 +104,7 @@ impl Gid {
 
     pub fn new_main_gid(&self) -> ProcessGroupId {
         let gid = self.new_gid();
-        self.main_gid.send(gid).unwrap();
+        self.main_gid.0.send(gid).unwrap_or_default();
         gid
     }
 }
@@ -923,7 +926,7 @@ async fn send_signal(manager: &Manager, gid: Arc<Gid>, signal: Signal) -> Result
     //     .store(false, Ordering::SeqCst);
 
     if let Some(rpc_client) = manager.rpc_client() {
-        let main_gid = *gid.main_gid.borrow();
+        let main_gid = *gid.main_gid.0.borrow();
         let next_gid = gid.new_gid();
         #[cfg(feature = "js_engine")]
         if let Err(e) = crate::procedure::js_scripts::JsProcedure::default()

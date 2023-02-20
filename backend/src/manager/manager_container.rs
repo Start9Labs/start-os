@@ -101,16 +101,28 @@ async fn create_service_manager(
     let mut running_service: Option<NonDetachingJoinHandle<()>> = None;
     let seed = seed.clone();
     loop {
-        let current: StartStop = current_state.borrow().clone();
-        let desired: StartStop = desired_state_receiver.borrow().clone();
+        let current: StartStop = *current_state.borrow();
+        let desired: StartStop = *desired_state_receiver.borrow();
         match (current, desired) {
             (StartStop::Start, StartStop::Start) => (),
             (StartStop::Start, StartStop::Stop) => {
-                if let Err(err) = seed.stop_container().await {
-                    tracing::error!("Could not stop container");
-                    tracing::debug!("{:?}", err)
-                };
-                running_service = None;
+                if persistent_container.is_none() {
+                    if let Err(err) = seed.stop_container().await {
+                        tracing::error!("Could not stop container");
+                        tracing::debug!("{:?}", err)
+                    }
+                    running_service = None;
+                } else if let Some(current_service) = running_service.take() {
+                    tokio::select! {
+                        _ = current_service => (),
+                        _ = tokio::time::sleep(Duration::from_secs_f64(seed.manifest
+                            .containers
+                            .as_ref()
+                            .and_then(|c| c.main.sigterm_timeout).map(|x| x.as_secs_f64()).unwrap_or_default())) => {
+                            tracing::error!("Could not stop service");
+                        }
+                    }
+                }
                 current_state.send(StartStop::Stop).unwrap_or_default();
             }
             (StartStop::Stop, StartStop::Start) => starting_service(
@@ -123,7 +135,7 @@ async fn create_service_manager(
             (StartStop::Stop, StartStop::Stop) => (),
         }
 
-        if let Err(_) = desired_state_receiver.changed().await {
+        if desired_state_receiver.changed().await.is_err() {
             tracing::error!("Desired state error");
             break;
         }
@@ -192,10 +204,7 @@ fn starting_service(
             current_state.send(StartStop::Start).unwrap_or_default();
         })
     };
-    let set_stopped = {
-        let current_state = current_state.clone();
-        move || current_state.send(StartStop::Stop)
-    };
+    let set_stopped = { move || current_state.send(StartStop::Stop) };
     let running_main_loop = async move {
         while desired_state.borrow().is_start() {
             let result = run_main(
