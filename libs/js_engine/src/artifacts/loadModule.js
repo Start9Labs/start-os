@@ -1,6 +1,5 @@
 import Deno from "/deno_global.js";
 import * as mainModule from "/embassy.js";
-
 function requireParam(param) {
   throw new Error(`Missing required parameter ${param}`);
 }
@@ -296,6 +295,8 @@ const effects = {
   chmod,
   signalGroup,
   sleep,
+  start, 
+  stop,
   trace,
   warn,
   writeFile,

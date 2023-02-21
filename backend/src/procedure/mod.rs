@@ -93,13 +93,12 @@ impl PackageProcedure {
                             ErrorKind::NotFound,
                         )
                     })?;
-                let gid;
                 let rpc_client = man.rpc_client();
-                if matches!(name, ProcedureName::Main) {
-                    gid = man.gid.new_main_gid();
+                let gid = if matches!(name, ProcedureName::Main) {
+                    man.gid.new_main_gid()
                 } else {
-                    gid = man.gid.new_gid();
-                }
+                    man.gid.new_gid()
+                };
 
                 procedure
                     .execute(

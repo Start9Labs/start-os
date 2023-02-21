@@ -100,7 +100,7 @@ impl Gid {
 
     pub fn new_main_gid(&self) -> ProcessGroupId {
         let gid = self.new_gid();
-        self.main_gid.send(gid).unwrap();
+        self.main_gid.send(gid).unwrap_or_default();
         gid
     }
 }
