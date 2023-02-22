@@ -22,12 +22,12 @@ This is the most convenient option. Simply [buy an Embassy](https://start9.com) 
 
 ### :construction_worker: Build your own Embassy
 While not as convenient as buying an Embassy, this option is easier than you might imagine, and there are 4 reasons why you might prefer it:
-1. You already have a Raspberry Pi and would like to re-purpose it.
+1. You already have your own hardware.
 1. You want to save on shipping costs.
 1. You prefer not to divulge your physical address.
 1. You just like building things.
 
-To pursue this option, follow this [guide](https://start9.com/latest/diy).
+To pursue this option, follow one of our [DIY guides](https://start9.com/latest/diy).
 
 ### :hammer_and_wrench: Build embassyOS from Source
 
@@ -35,7 +35,7 @@ embassyOS can be built from source, for personal use, for free.
 A detailed guide for doing so can be found [here](https://github.com/Start9Labs/embassy-os/blob/master/build/README.md).
 
 ## :heart: Contributing
-There are multiple ways to contribute: work directly on embassyOS, package a service for the marketplace, or help with documentation and guides. To learn more about contributing, see [here](https://github.com/Start9Labs/embassy-os/blob/master/CONTRIBUTING.md).
+There are multiple ways to contribute: work directly on embassyOS, package a service for the marketplace, or help with documentation and guides. To learn more about contributing, see [here](https://docs.start9.com/latest/contribute/) or [here](https://github.com/Start9Labs/embassy-os/blob/master/CONTRIBUTING.md).
 
 ## UI Screenshots
 <p align="center">
