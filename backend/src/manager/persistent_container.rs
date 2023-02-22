@@ -55,7 +55,8 @@ pub async fn spawn_persistent_container(
                     let (mut runtime, inserter) =
                         long_running_docker(&seed, &container).await?;
 
-                    let ip = match get_long_running_ip(&*seed, &mut runtime).await {
+
+                    let ip = match get_long_running_ip(&seed, &mut runtime).await {
                         GetRunningIp::Ip(x) => x,
                         GetRunningIp::Error(e) => return Err(e),
                         GetRunningIp::EarlyExit(e) => {
@@ -64,7 +65,7 @@ pub async fn spawn_persistent_container(
                             return Ok(());
                         }
                     };
-                    let svc = add_network_for_main(&*seed, ip).await?;
+                    let svc = add_network_for_main(&seed, ip).await?;
 
                     if let Some(inserter_send) = inserter_send.as_mut() {
                         let _ = inserter_send.send(Arc::new(inserter));
