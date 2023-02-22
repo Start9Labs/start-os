@@ -19,10 +19,7 @@ export class ThemeSwitcherService extends BehaviorSubject<string> {
 
     this.patch
       .watch$('ui', 'theme')
-      .pipe(
-        take(1),
-        filter(theme => !!theme && theme !== this.value),
-      )
+      .pipe(take(1), filter(Boolean))
       .subscribe(theme => {
         this.next(theme)
       })

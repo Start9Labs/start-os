@@ -12,6 +12,15 @@
   padding: 30px 0;
 }
 
+.link {
+  --border-radius: 0;
+
+  :host-context(body[data-theme='Light']) &_selected {
+    --ion-color-base: #333;
+    --ion-color-contrast: #fff;
+  }
+}
+
 .icon {
   margin-left: 10px;
 }

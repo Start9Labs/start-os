@@ -1,4 +1,4 @@
-<ion-item [routerLink]="['/marketplace', pkg.manifest.id]">
+<ion-item class="service-card" [routerLink]="['/marketplace', pkg.manifest.id]">
   <ion-thumbnail slot="start">
     <img alt="" [src]="'data:image/png;base64,' + pkg.icon | trustUrl" />
   </ion-thumbnail>

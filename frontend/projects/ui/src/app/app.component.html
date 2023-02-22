@@ -16,7 +16,7 @@
           side="start"
           class="left-menu"
         >
-          <ion-content color="light" scrollY="false">
+          <ion-content color="light" scrollY="false" class="menu">
             <app-menu *ngIf="authService.isVerified$ | async"></app-menu>
           </ion-content>
         </ion-menu>

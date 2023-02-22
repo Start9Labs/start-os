@@ -306,6 +306,21 @@ ion-footer.with-widgets {
   width: calc(100% - var(--widgets-width));
 }
 
+body[data-theme='Light'] {
+  .service-card {
+    --background: #f4f4f5;
+    --inner-border-width: 0;
+  }
+
+  ion-header {
+    box-shadow: 0 1px #e0e0e0;
+
+    &::after {
+      display: none;
+    }
+  }
+}
+
 ul {
   padding-left: 40px;
   list-style-type: disc;
