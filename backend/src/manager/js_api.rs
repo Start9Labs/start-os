@@ -1,7 +1,5 @@
-use color_eyre::{
-    eyre::{bail, eyre},
-    Report,
-};
+use color_eyre::eyre::{bail, eyre};
+use color_eyre::Report;
 use helpers::{AddressSchemaLocal, AddressSchemaOnion, Callback, OsApi};
 use itertools::Itertools;
 use jsonpath_lib::Compiled;
@@ -9,13 +7,10 @@ use models::{InterfaceId, PackageId};
 use serde_json::Value;
 use sqlx::Acquire;
 
-use crate::{
-    config::hook::ConfigHook,
-    manager::{start_stop::StartStop, Manager},
-    net::keys::Key,
-};
-
 use super::try_get_running_ip;
+use crate::config::hook::ConfigHook;
+use crate::manager::start_stop::StartStop;
+use crate::manager::Manager;
 
 const NULL_VALUE: &Value = &Value::Null;
 

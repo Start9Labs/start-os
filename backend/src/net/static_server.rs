@@ -23,7 +23,8 @@ use crate::middleware::cors::cors;
 use crate::middleware::db::db as db_middleware;
 use crate::middleware::diagnostic::diagnostic as diagnostic_middleware;
 use crate::net::HttpHandler;
-use crate::{diagnostic_api, install_api, main_api, setup_api, Error, ErrorKind, ResultExt};
+use crate::prelude::*;
+use crate::{diagnostic_api, install_api, main_api, setup_api};
 
 static NOT_FOUND: &[u8] = b"Not Found";
 static NOT_AUTHORIZED: &[u8] = b"Not Authorized";

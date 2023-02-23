@@ -6,9 +6,10 @@ use rpc_toolkit::command;
 use crate::context::RpcContext;
 use crate::disk::main::export;
 use crate::init::{STANDBY_MODE_PATH, SYSTEM_REBUILD_PATH};
+use crate::prelude::*;
 use crate::sound::SHUTDOWN;
 use crate::util::{display_none, Invoke};
-use crate::{Error, ErrorKind, IS_RASPBERRY_PI};
+use crate::IS_RASPBERRY_PI;
 
 #[derive(Debug, Clone)]
 pub struct Shutdown {

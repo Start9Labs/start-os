@@ -29,13 +29,8 @@ pub async fn list(
     #[arg] limit: Option<u32>,
 ) -> Result<Vec<Notification>, Error> {
     let limit = limit.unwrap_or(40);
-    let mut handle = ctx.db.handle();
     match before {
         None => {
-            let model = todo!(); /*crate::db::DatabaseModel::new()
-                                 .server_info()
-                                 .unread_notification_count();*/
-            // model.lock(&mut handle, LockType::Write).await?;
             let records = sqlx::query!(
                 "SELECT id, package_id, created_at, code, level, title, message, data FROM notifications ORDER BY id DESC LIMIT $1",
                 limit as i64
@@ -69,8 +64,12 @@ pub async fn list(
                     })
                 })
                 .collect::<Result<Vec<Notification>, Error>>()?;
-            // set notification count to zero
-            model.put(&mut handle, &0).await?;
+            ctx.db.apply_fn(|mut v| {
+                v.server_info().unread_notification_count().apply_fn(|c| {
+                    *c = 0;
+                    Ok(())
+                })
+            });
             Ok(notifs)
         }
         Some(before) => {
@@ -240,26 +239,26 @@ impl NotificationManager {
         {
             return Ok(());
         }
-        let mut count = todo!(); /* crate::db::DatabaseModel::new()
-                                 .server_info()
-                                 .unread_notification_count()
-                                 .get_mut(db)
-                                 .await?;*/
         let sql_package_id = package_id.as_ref().map(|p| &**p);
         let sql_code = T::CODE;
         let sql_level = format!("{}", level);
         let sql_data = serde_json::to_string(&subtype).with_kind(ErrorKind::Serialization)?;
         sqlx::query!(
-        "INSERT INTO notifications (package_id, code, level, title, message, data) VALUES ($1, $2, $3, $4, $5, $6)",
-        sql_package_id,
-        sql_code as i32,
-        sql_level,
-        title,
-        message,
-        sql_data
-    ).execute(&self.sqlite).await?;
-        *count += 1;
-        count.save(db).await?;
+            "INSERT INTO notifications (package_id, code, level, title, message, data) VALUES ($1, $2, $3, $4, $5, $6)",
+            sql_package_id,
+            sql_code as i32,
+            sql_level,
+            title,
+            message,
+            sql_data
+        ).execute(&self.sqlite).await?;
+        db.apply_fn(|mut v| {
+            v.server_info().unread_notification_count().apply_fn(|c| {
+                *c += 1;
+                Ok(())
+            })
+        })
+        .await?;
         Ok(())
     }
     async fn should_notify(

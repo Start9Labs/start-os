@@ -16,10 +16,10 @@ use crate::net::mdns::MdnsController;
 use crate::net::ssl::{export_cert, SslManager};
 use crate::net::tor::TorController;
 use crate::net::vhost::VHostController;
+use crate::prelude::*;
 use crate::s9pk::manifest::PackageId;
 use crate::volume::cert_dir;
-use crate::{Error, HOST_IP};
-use Error::ErrorCollection;
+use crate::HOST_IP;
 
 pub struct NetController {
     pub(super) tor: TorController,
@@ -307,15 +307,17 @@ impl NetService {
     }
     pub async fn add_lpf(&mut self, db: &PatchDb, internal: u16) -> Result<u16, Error> {
         let ctrl = self.net_controller()?;
-        let mut db = db.handle();
-        let lpf_model = todo!(); //crate::db::DatabaseModel::new().lan_port_forwards();
-                                 // lpf_model.lock(LockType::Write).await?; // TODO: replace all this with an RMW
-        let mut lpf = lpf_model.get_mut().await?;
-        let external = lpf
-            .alloc(self.id.clone(), internal)
-            .ok_or_else(|| Error::new(eyre!("No ephemeral ports available"), ErrorKind::Network))?;
-        lpf.save().await?;
-        drop(db);
+        let external = db
+            .apply_fn(|mut v| {
+                let mut lpf_ref = v.lan_port_forwards();
+                let mut lpf = lpf_ref.get()?;
+                let external = lpf.alloc(self.id.clone(), internal).ok_or_else(|| {
+                    Error::new(eyre!("No ephemeral ports available"), ErrorKind::Network)
+                })?;
+                lpf_ref.set(&lpf)?;
+                Ok(external)
+            })
+            .await?;
         let rc = ctrl.add_lpf(external, (self.ip, internal).into()).await?;
         let (_, mut lpfs) = self.lpf.remove(&internal).unwrap_or_default();
         lpfs.push(rc);
@@ -361,6 +363,8 @@ impl NetService {
             std::mem::take(&mut self.dns);
             errors.handle(ctrl.dns.gc(Some(self.id.clone()), self.ip).await);
             errors.into_result()
+        } else {
+            Ok(())
         }
     }
 }

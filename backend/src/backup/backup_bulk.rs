@@ -1,16 +1,15 @@
+use std::collections::{BTreeMap, BTreeSet};
 use std::panic::UnwindSafe;
 use std::path::PathBuf;
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    sync::Arc,
-};
+use std::sync::Arc;
 
 use chrono::Utc;
 use clap::ArgMatches;
 use color_eyre::eyre::eyre;
 use helpers::AtomicFile;
 use rpc_toolkit::command;
-use tokio::{io::AsyncWriteExt, sync::Mutex};
+use tokio::io::AsyncWriteExt;
+use tokio::sync::Mutex;
 use tracing::instrument;
 
 use super::target::BackupTargetId;
@@ -141,7 +140,8 @@ pub async fn backup_all(
         }
         ctx.db
             .apply_fn(|v| v.server_info().status_info().backup_progress().set(&None))
-            .await
+            .await?;
+        backup_res
     });
     Ok(())
 }

@@ -11,12 +11,11 @@ use crate::context::RpcContext;
 use crate::db::model::{
     AllPackageData, CurrentDependencies, InstalledPackageDataEntry, PackageDataEntry,
 };
-use crate::dependencies::{DependencyErrors, TryHealReceipts};
+use crate::dependencies::DependencyErrors;
 use crate::prelude::*;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::util::{Apply, Version};
 use crate::volume::{asset_dir, script_dir};
-use Error::ErrorCollection;
 
 #[instrument(skip(ctx, deps, receipts))]
 pub async fn update_dependency_errors_of_dependents<'a>(
@@ -127,12 +126,9 @@ pub async fn cleanup(ctx: &RpcContext, id: &PackageId, version: &Version) -> Res
     errors.into_result()
 }
 
-#[instrument(skip(ctx, receipts))]
-pub async fn cleanup_failed(
-    ctx: &RpcContext,
-    id: &PackageId,
-    receipts: (), // &CleanupFailedReceipts,
-) -> Result<(), Error> {
+#[instrument(skip(ctx))]
+pub async fn cleanup_failed(ctx: &RpcContext, id: &PackageId) -> Result<(), Error> {
+    let receipts = todo!();
     let pde = receipts
         .package_data_entry
         .get(id)

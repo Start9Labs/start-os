@@ -1,4 +1,5 @@
 use bollard::container::StopContainerOptions;
+use reqwest::Url;
 
 use crate::context::RpcContext;
 use crate::prelude::*;

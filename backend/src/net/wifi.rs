@@ -83,7 +83,7 @@ pub async fn add(
         Ok(())
     }
     if let Err(err) = add_procedure(
-        &mut ctx.db.handle(),
+        &ctx.db,
         wifi_manager.clone(),
         &Ssid(ssid.clone()),
         &Psk(password.clone()),
@@ -120,7 +120,7 @@ pub async fn connect(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<
         let current = wpa_supplicant.get_current_network().await?;
         drop(wpa_supplicant);
         let mut wpa_supplicant = wifi_manager.write().await;
-        let connected = wpa_supplicant.select_network(ssid).await?;
+        let connected = wpa_supplicant.select_network(db, ssid).await?;
         if connected {
             tracing::info!("Successfully connected to WiFi: '{}'", ssid.0);
         } else {
@@ -130,20 +130,14 @@ pub async fn connect(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<
                     tracing::info!("No WiFi to revert to!");
                 }
                 Some(current) => {
-                    wpa_supplicant.select_network(&current).await?;
+                    wpa_supplicant.select_network(db, &current).await?;
                 }
             }
         }
         Ok(())
     }
 
-    if let Err(err) = connect_procedure(
-        &mut ctx.db.handle(),
-        wifi_manager.clone(),
-        &Ssid(ssid.clone()),
-    )
-    .await
-    {
+    if let Err(err) = connect_procedure(&ctx.db, wifi_manager.clone(), &Ssid(ssid.clone())).await {
         tracing::error!("Failed to connect to WiFi network '{}': {}", &ssid, err);
         return Err(Error::new(
             color_eyre::eyre::eyre!("Can't connect to {}", ssid),
@@ -175,9 +169,7 @@ pub async fn delete(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<(
         return Err(Error::new(color_eyre::eyre::eyre!("Forbidden: Deleting this Network would make your Embassy Unreachable. Either connect to ethernet or connect to a different WiFi network to remedy this."), ErrorKind::Wifi));
     }
 
-    wpa_supplicant
-        .remove_network(&mut ctx.db.handle(), &ssid)
-        .await?;
+    wpa_supplicant.remove_network(&ctx.db, &ssid).await?;
     Ok(())
 }
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -396,7 +388,7 @@ pub async fn set_country(
     }
     wpa_supplicant.remove_all_connections().await?;
 
-    wpa_supplicant.save_config(&mut ctx.db.handle()).await?;
+    wpa_supplicant.save_config(&ctx.db).await?;
 
     Ok(())
 }

@@ -22,8 +22,13 @@ impl From<MainStatus> for StartStop {
             MainStatus::Stopping => StartStop::Stop,
             MainStatus::Starting => StartStop::Start,
             MainStatus::Running { started, health } => StartStop::Start,
-            MainStatus::BackingUp { started, health } if started.is_some() => StartStop::Start,
-            MainStatus::BackingUp { started, health } => StartStop::Stop,
+            MainStatus::BackingUp { running } => {
+                if running {
+                    StartStop::Start
+                } else {
+                    StartStop::Stop
+                }
+            }
         }
     }
 }

@@ -54,7 +54,7 @@ impl std::fmt::Display for ErrorCollection {
 macro_rules! ensure_code {
     ($x:expr, $c:expr, $fmt:expr $(, $arg:expr)*) => {
         if !($x) {
-            return Err(Error::Error::new(color_eyre::eyre::eyre!($fmt, $($arg, )*), $c));
+            return Err(crate::error::Error::new(color_eyre::eyre::eyre!($fmt, $($arg, )*), $c));
         }
     };
 }

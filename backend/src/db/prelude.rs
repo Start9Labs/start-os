@@ -1,11 +1,11 @@
-use color_eyre::eyre::eyre;
 use std::panic::UnwindSafe;
+
+use color_eyre::eyre::eyre;
+use patch_db::HasModel;
+pub use patch_db::PatchDb;
 
 use crate::db::model::DatabaseModel;
 use crate::prelude::*;
-
-use patch_db::HasModel;
-pub use patch_db::PatchDb;
 
 #[async_trait::async_trait]
 pub trait PatchDbExt {
@@ -31,6 +31,15 @@ pub trait ModelExt<'a>: patch_db::Model<'a> {
     }
     fn set(&'a mut self, value: &<Self as patch_db::Model<'a>>::T) -> Result<(), Error> {
         patch_db::Model::set(self, value).with_kind(ErrorKind::Serialization)
+    }
+    fn apply_fn<F: FnOnce(&mut <Self as patch_db::Model<'a>>::T) -> Result<T, Error>, T>(
+        &'a mut self,
+        f: F,
+    ) -> Result<T, Error> {
+        let mut value = <Self as ModelExt<'a>>::get(self)?;
+        let res = f(&mut value)?;
+        <Self as ModelExt<'a>>::set(self, &value)?;
+        Ok(res)
     }
 }
 impl<'a, T: patch_db::Model<'a>> ModelExt<'a> for T {}

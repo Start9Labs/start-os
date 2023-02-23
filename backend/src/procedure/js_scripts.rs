@@ -230,10 +230,11 @@ fn unwrap_known_error<O: DeserializeOwned>(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use helpers::{Address, AddressSchemaLocal, AddressSchemaOnion, Callback, OsApi};
     use serde_json::{json, Value};
     use tokio::sync::watch;
+
+    use super::*;
 
     struct OsApiMock {
         config_callbacks: (watch::Sender<Vec<Callback>>, watch::Sender<Vec<Callback>>),

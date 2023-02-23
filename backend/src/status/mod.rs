@@ -31,22 +31,22 @@ pub enum MainStatus {
         started: DateTime<Utc>,
         health: BTreeMap<HealthCheckId, HealthCheckResult>,
     },
-    BackingUp,
+    BackingUp {
+        running: bool,
+    },
 }
 impl MainStatus {
-    // pub fn running(&self) -> bool {
-    //     match self {
-    //         MainStatus::Starting { .. }
-    //         | MainStatus::Running { .. }
-    //         | MainStatus::BackingUp {
-    //             started: Some(_), ..
-    //         } => true,
-    //         MainStatus::Stopped
-    //         | MainStatus::Stopping
-    //         | MainStatus::Restarting
-    //         | MainStatus::BackingUp { started: None, .. } => false,
-    //     }
-    // }
+    pub fn running(&self) -> bool {
+        match self {
+            MainStatus::Starting { .. }
+            | MainStatus::Running { .. }
+            | MainStatus::BackingUp { running: true } => true,
+            MainStatus::Stopped
+            | MainStatus::Stopping
+            | MainStatus::Restarting
+            | MainStatus::BackingUp { running: false } => false,
+        }
+    }
     pub fn stop(&mut self) {
         match self {
             MainStatus::Starting { .. } | MainStatus::Running { .. } => {
@@ -58,26 +58,10 @@ impl MainStatus {
             MainStatus::Stopped | MainStatus::Stopping | MainStatus::Restarting => (),
         }
     }
-    pub fn started(&self) -> Option<DateTime<Utc>> {
-        match self {
-            MainStatus::Running { started, .. } => Some(*started),
-            MainStatus::BackingUp { started, .. } => *started,
-            MainStatus::Stopped => None,
-            MainStatus::Restarting => None,
-            MainStatus::Stopping => None,
-            MainStatus::Starting { .. } => None,
-        }
-    }
 
     pub fn backing_up(&self) -> Self {
-        let (started, health) = match self {
-            MainStatus::Starting { .. } => (Some(Utc::now()), Default::default()),
-            MainStatus::Running { started, health } => (Some(started.clone()), health.clone()),
-            MainStatus::Stopped | MainStatus::Stopping | MainStatus::Restarting => {
-                (None, Default::default())
-            }
-            MainStatus::BackingUp => return self.clone(),
-        };
-        MainStatus::BackingUp
+        MainStatus::BackingUp {
+            running: self.running(),
+        }
     }
 }

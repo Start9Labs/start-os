@@ -4,8 +4,6 @@ use itertools::Itertools;
 use lazy_static::lazy_static;
 use serde_json::{json, Value};
 
-use super::*;
-
 const V0_3_4: emver::Version = emver::Version::new(0, 3, 4, 0);
 lazy_static! {
     pub static ref V0_3_0_COMPAT: VersionRange = VersionRange::Conj(

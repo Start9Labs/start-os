@@ -54,14 +54,14 @@ pub async fn get(
     let (action, volumes, version) = ctx
         .db
         .apply_fn(|mut v| {
-            let man = v
+            let mut man = v
                 .package_data()
                 .idx(&id)
                 .or_not_found(&id)?
                 .as_installed()?
                 .manifest();
             Ok((
-                man.config().get().get()?,
+                man.config().check().or_not_found("config")?.get()?,
                 man.volumes().get()?,
                 man.version().get()?,
             ))

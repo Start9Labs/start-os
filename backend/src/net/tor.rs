@@ -14,8 +14,8 @@ use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 use tracing::instrument;
 
 use crate::context::RpcContext;
+use crate::prelude::*;
 use crate::util::serde::{display_serializable, IoFormat};
-use crate::{Error, ErrorKind, ResultExt as _};
 
 #[test]
 fn random_key() {

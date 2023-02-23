@@ -2,7 +2,6 @@ use std::collections::BTreeSet;
 
 use crate::prelude::*;
 use crate::s9pk::manifest::{Manifest, PackageId};
-use crate::ResultExt;
 
 pub async fn get_packages(db: &PatchDb) -> Result<BTreeSet<PackageId>, Error> {
     db.apply_fn(|mut v| {

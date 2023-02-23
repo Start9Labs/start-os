@@ -2,8 +2,7 @@ use std::sync::Arc;
 
 use color_eyre::eyre::eyre;
 use color_eyre::Report;
-use models::InterfaceId;
-use models::PackageId;
+use models::{InterfaceId, PackageId};
 use serde_json::Value;
 use tokio::sync::mpsc;
 

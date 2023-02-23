@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 
 use clap::ArgMatches;
 use color_eyre::eyre::{eyre, Result};
@@ -19,13 +18,14 @@ use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::MountGuard;
 use crate::notifications::NotificationLevel;
+use crate::prelude::*;
 use crate::sound::{
     CIRCLE_OF_5THS_SHORT, UPDATE_FAILED_1, UPDATE_FAILED_2, UPDATE_FAILED_3, UPDATE_FAILED_4,
 };
 use crate::update::latest_information::LatestInformation;
 use crate::util::Invoke;
 use crate::version::{Current, VersionT};
-use crate::{Error, ErrorKind, ResultExt, IS_RASPBERRY_PI};
+use crate::IS_RASPBERRY_PI;
 
 mod latest_information;
 
@@ -75,8 +75,7 @@ fn display_update_result(status: UpdateResult, _: &ArgMatches) {
 }
 
 #[instrument(skip(ctx))]
-async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<(), Error> {
-    let mut db = ctx.db.handle();
+async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<Option<Version>, Error> {
     let arch = if *IS_RASPBERRY_PI {
         "raspberrypi"
     } else {
@@ -94,70 +93,64 @@ async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<(), Er
     .await
     .with_kind(ErrorKind::Network)?
     .version;
-    // crate::db::DatabaseModel::new()
-    //     .server_info()
-    //     .lock(LockType::Write)
-    //     .await?;
-    let current_version = todo!(); /*crate::db::DatabaseModel::new()
-                                   .server_info()
-                                   .version()
-                                   .get_mut()
-                                   .await?;*/
-    if &latest_version < &current_version {
-        return Ok(None);
-    }
-    let mut tx = db.begin().await?;
-    let mut status = todo!(); /*crate::db::DatabaseModel::new()
-                              .server_info()
-                              .status_info()
-                              .get_mut(&mut tx)
-                              .await?;*/
-    if status.update_progress.is_some() {
-        return Err(Error::new(
-            eyre!("Server is already updating!"),
-            ErrorKind::InvalidRequest,
-        ));
-    }
-    if status.updated {
+    if !ctx
+        .db
+        .apply_fn(|mut v| {
+            let current_version = v.server_info().version().get()?;
+            if &latest_version < &current_version {
+                return Ok(false);
+            }
+            let mut status = v.server_info().status_info();
+            if status.update_progress().check().is_some() {
+                return Err(Error::new(
+                    eyre!("Server is already updating!"),
+                    ErrorKind::InvalidRequest,
+                ));
+            }
+            if status.updated().get()? {
+                return Ok(false);
+            }
+
+            status.update_progress().set(&Some(UpdateProgress {
+                size: None,
+                downloaded: 0,
+            }))?;
+
+            Ok(true)
+        })
+        .await?
+    {
         return Ok(None);
     }
 
     let eos_url = EosUrl {
         base: marketplace_url,
-        version: latest_version,
+        version: latest_version.clone(),
     };
-
-    status.update_progress = Some(UpdateProgress {
-        size: None,
-        downloaded: 0,
-    });
-    status.save(&mut tx).await?;
-    let rev = tx.commit().await?;
 
     tokio::spawn(async move {
         let res = do_update(ctx.clone(), eos_url).await;
-        let db = &ctx.db;
-        let mut status = todo!(); /*crate::db::DatabaseModel::new()
-                                  .server_info()
-                                  .status_info()
-                                  .get_mut()
-                                  .await
-                                  .expect("could not access status");*/
-        status.update_progress = None;
+        let updated = res.is_ok();
+        ctx.db
+            .apply_fn(|mut v| {
+                let mut status = v.server_info().status_info();
+                status.update_progress().set(&None);
+                status.updated().set(&updated);
+                Ok(())
+            })
+            .await
+            .unwrap();
         match res {
             Ok(()) => {
-                status.updated = true;
-                status.save().await.expect("could not save status");
                 CIRCLE_OF_5THS_SHORT
                     .play()
                     .await
                     .expect("could not play sound");
             }
             Err(e) => {
-                status.save().await.expect("could not save status");
                 ctx.notification_manager
                     .notify(
-                        db,
+                        &ctx.db,
                         None,
                         NotificationLevel::Error,
                         "embassyOS Update Failed".to_owned(),
@@ -187,7 +180,7 @@ async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<(), Er
             }
         }
     });
-    Ok(rev)
+    Ok(Some(latest_version))
 }
 
 #[instrument(skip(ctx, eos_url))]

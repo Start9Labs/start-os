@@ -7,6 +7,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bollard::Docker;
+use futures::FutureExt;
 use helpers::to_tmp_path;
 use josekit::jwk::Jwk;
 use models::PackageId;
@@ -23,7 +24,7 @@ use super::setup::CURRENT_SECRET;
 use crate::account::AccountInfo;
 use crate::config::hook::ConfigHook;
 use crate::core::rpc_continuations::{RequestGuid, RestHandler, RpcContinuation};
-use crate::db::model::{Database, InstalledPackageDataEntry, PackageDataEntry};
+use crate::db::model::{Database, PackageDataEntryModel};
 use crate::disk::OsPartitionInfo;
 use crate::init::{init_postgres, pgloader};
 use crate::install::cleanup::{cleanup_failed, uninstall};
@@ -35,7 +36,7 @@ use crate::net::wifi::WpaCli;
 use crate::notifications::NotificationManager;
 use crate::prelude::*;
 use crate::shutdown::Shutdown;
-use crate::status::{MainStatus, Status};
+use crate::status::MainStatus;
 use crate::util::config::load_config_from_paths;
 
 #[derive(Debug, Default, Deserialize)]
@@ -229,68 +230,81 @@ impl RpcContext {
 
     #[instrument(skip(self))]
     pub async fn cleanup(&self) -> Result<(), Error> {
-        let mut db = self.db.handle();
-        let receipts = todo!(); //RpcCleanReceipts::new().await?;
-        for (package_id, package) in receipts.packages.get().await?.0 {
-            if let Err(e) = async {
-                match package {
-                    PackageDataEntry::Installing { .. }
-                    | PackageDataEntry::Restoring { .. }
-                    | PackageDataEntry::Updating { .. } => {
-                        cleanup_failed(self, &package_id, &receipts.cleanup_receipts).await?;
-                    }
-                    PackageDataEntry::Removing { .. } => {
-                        uninstall(self, &mut self.secret_store.acquire().await?, &package_id)
-                            .await?;
-                    }
-                    PackageDataEntry::Installed {
-                        installed,
-                        static_files,
-                        manifest,
-                    } => {
-                        for (volume_id, volume_info) in &*manifest.volumes {
-                            let tmp_path = to_tmp_path(volume_info.path_for(
-                                &self.datadir,
-                                &package_id,
-                                &manifest.version,
-                                &volume_id,
-                            ))
-                            .with_kind(ErrorKind::Filesystem)?;
-                            if tokio::fs::metadata(&tmp_path).await.is_ok() {
-                                tokio::fs::remove_dir_all(&tmp_path).await?;
+        for (package_id, action) in self
+            .db
+            .apply_fn(|mut v| {
+                Ok(v.package_data()
+                    .entries()
+                    .with_kind(ErrorKind::Deserialization)?
+                    .into_iter()
+                    .filter_map(|(package_id, package)| match package {
+                        PackageDataEntryModel::Installing(_)
+                        | PackageDataEntryModel::Restoring(_)
+                        | PackageDataEntryModel::Updating(_) => Some((
+                            package_id.clone(),
+                            cleanup_failed(self, &package_id).boxed(),
+                        )),
+                        PackageDataEntryModel::Removing(_) => Some((
+                            package_id.clone(),
+                            async {
+                                uninstall(
+                                    self,
+                                    &mut self.secret_store.acquire().await?,
+                                    &package_id,
+                                )
+                                .await
                             }
-                        }
-                        let status = installed.status;
-                        let main = match status.main {
-                            MainStatus::BackingUp { started, .. } => {
-                                if let Some(_) = started {
-                                    MainStatus::Starting
-                                } else {
-                                    MainStatus::Stopped
+                            .boxed(),
+                        )),
+                        PackageDataEntryModel::Installed(m) => Some((
+                            package_id.clone(),
+                            async {
+                                let version = m.manifest().version().get()?;
+                                for (volume_id, volume_info) in &*m.manifest().volumes().get()? {
+                                    let tmp_path = to_tmp_path(volume_info.path_for(
+                                        &self.datadir,
+                                        &package_id,
+                                        &version,
+                                        &volume_id,
+                                    ))
+                                    .with_kind(ErrorKind::Filesystem)?;
+                                    if tokio::fs::metadata(&tmp_path).await.is_ok() {
+                                        tokio::fs::remove_dir_all(&tmp_path).await?;
+                                    }
                                 }
+                                Ok(())
                             }
-                            MainStatus::Running { .. } => MainStatus::Starting,
-                            a => a.clone(),
-                        };
-                        let new_package = PackageDataEntry::Installed {
-                            installed: InstalledPackageDataEntry {
-                                status: Status { main, ..status },
-                                ..installed
-                            },
-                            static_files,
-                            manifest,
-                        };
-                        receipts.package.set(new_package, &package_id).await?;
-                    }
-                }
-                Ok::<_, Error>(())
-            }
-            .await
-            {
+                            .boxed(),
+                        )),
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>())
+            })
+            .await?
+        {
+            if let Err(e) = action.await {
                 tracing::error!("Failed to clean up package {}: {}", package_id, e);
                 tracing::debug!("{:?}", e);
             }
         }
+        self.db
+            .apply_fn(|mut v| {
+                for (_, pde) in v
+                    .package_data()
+                    .entries()
+                    .with_kind(ErrorKind::Deserialization)?
+                {
+                    let status_ref = pde.as_installed()?.installed().status().main();
+                    let running = status_ref.get()?.running();
+                    status_ref.set(&if running {
+                        MainStatus::Starting
+                    } else {
+                        MainStatus::Stopped
+                    })?;
+                }
+                Ok(())
+            })
+            .await;
         Ok(())
     }
 

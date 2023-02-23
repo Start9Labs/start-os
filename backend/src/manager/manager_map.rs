@@ -3,34 +3,35 @@ use std::sync::Arc;
 
 use color_eyre::eyre::eyre;
 use models::ErrorKind;
-use sqlx::{Executor, Postgres};
+use reqwest::Url;
 use tokio::sync::RwLock;
 use tracing::instrument;
 
 use super::Manager;
 use crate::context::RpcContext;
-use crate::db::model::DatabaseModel;
 use crate::prelude::*;
 use crate::s9pk::manifest::{Manifest, PackageId};
-use crate::util::Version;
 
 #[derive(Default)]
 pub struct ManagerMap(RwLock<BTreeMap<PackageId, Arc<Manager>>>);
 impl ManagerMap {
     #[instrument(skip(self, ctx))]
-    pub async fn init<Ex>(&self, ctx: &RpcContext) -> Result<(), Error> {
+    pub async fn init(&self, ctx: &RpcContext) -> Result<(), Error> {
         let mut res = BTreeMap::new();
         for (id, manifest, marketplace_url) in ctx
             .db
-            .apply_fn(|v| {
-                DatabaseModel::new(v)
-                    .package_data()
+            .apply_fn(|mut v| {
+                v.package_data()
                     .entries()
                     .with_kind(ErrorKind::Deserialization)?
                     .into_iter()
-                    .map(|(id, mut value)| {
-                        let installed = value.as_installed()?;
-                        Ok((id, value.manifest().get()?, value.marketplace_url().get()))
+                    .map(|(id, value)| {
+                        let mut installed = value.as_installed()?.installed();
+                        Ok((
+                            id,
+                            installed.manifest().get()?,
+                            installed.marketplace_url().get()?,
+                        ))
                     })
                     .collect::<Result<Vec<_>, Error>>()
             })

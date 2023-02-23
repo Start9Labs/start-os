@@ -151,7 +151,7 @@ impl S9pkReader {
         let p = path.as_ref();
         let rdr = File::open(p)
             .await
-            .with_ctx(|_| (Error::ErrorKind::Filesystem, p.display().to_string()))?;
+            .with_ctx(|_| (ErrorKind::Filesystem, p.display().to_string()))?;
 
         Self::from_reader(rdr, check_sig).await
     }

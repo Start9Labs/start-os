@@ -15,7 +15,6 @@ use serde::{Deserialize, Serialize};
 use ssh_key::public::Ed25519PublicKey;
 
 use crate::account::AccountInfo;
-
 use crate::install::progress::InstallProgress;
 use crate::net::forward::LanPortForwards;
 use crate::net::interface::InterfaceId;
@@ -307,9 +306,7 @@ impl<'a> package_data_entry_model::Model<'a> {
             Self::Installed(mut a) => a.manifest(),
         }
     }
-    pub fn as_installed(
-        &'a mut self,
-    ) -> Result<package_data_entry_model::InstalledModel<'a>, Error> {
+    pub fn as_installed(self) -> Result<package_data_entry_model::InstalledModel<'a>, Error> {
         if let Self::Installed(a) = self {
             Ok(a)
         } else {

@@ -4,7 +4,8 @@ use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
 
-use color_eyre::{eyre::eyre, Report};
+use color_eyre::eyre::eyre;
+use color_eyre::Report;
 use embassy_container_init::ProcessGroupId;
 use futures::future::BoxFuture;
 use futures::{Future, FutureExt, TryFutureExt};
@@ -13,13 +14,11 @@ use models::{ErrorKind, PackageId};
 use nix::sys::signal::Signal;
 use persistent_container::PersistentContainer;
 use rand::SeedableRng;
+use reqwest::Url;
 use sqlx::Connection;
 use start_stop::StartStop;
-use tokio::sync::oneshot;
-use tokio::sync::{
-    watch::{self, Sender},
-    Mutex,
-};
+use tokio::sync::watch::{self, Sender};
+use tokio::sync::{oneshot, Mutex};
 use tracing::instrument;
 use transition_state::TransitionState;
 

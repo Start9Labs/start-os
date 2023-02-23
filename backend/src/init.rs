@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::fs::Permissions;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
@@ -14,7 +14,7 @@ use tokio::process::Command;
 
 use crate::account::AccountInfo;
 use crate::context::rpc::RpcContextConfig;
-use crate::db::model::{IpInfo, ServerStatus};
+use crate::db::model::ServerStatus;
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
 use crate::prelude::*;
@@ -187,12 +187,6 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     let account = AccountInfo::load(&secret_store).await?;
     let db = cfg.db(&account).await?;
     tracing::info!("Opened PatchDB");
-    let mut handle = db.handle();
-    // crate::db::DatabaseModel::new()
-    //     .server_info()
-    //     .lock(&mut handle, LockType::Write)
-    //     .await?;
-    let receipts = todo!(); // InitReceipts::new(&mut handle).await?;
 
     // write to ca cert store
     tokio::fs::write(
@@ -204,18 +198,27 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         .invoke(ErrorKind::OpenSsl)
         .await?;
 
+    let (version, last_wifi_region) = db
+        .apply_fn(|mut v| {
+            Ok((
+                v.server_info().version().get()?,
+                v.server_info().last_wifi_region().get()?,
+            ))
+        })
+        .await?;
+
     if let Some(wifi_interface) = &cfg.wifi_interface {
         crate::net::wifi::synchronize_wpa_supplicant_conf(
             &cfg.datadir().join("main"),
             wifi_interface,
-            &receipts.last_wifi_region.get(&mut handle).await?,
+            &last_wifi_region,
         )
         .await?;
         tracing::info!("Synchronized WiFi");
     }
 
     let should_rebuild = tokio::fs::metadata(SYSTEM_REBUILD_PATH).await.is_ok()
-        || &*receipts.server_version.get(&mut handle).await? < &emver::Version::new(0, 3, 3, 1);
+        || &*version < &emver::Version::new(0, 3, 3, 1);
 
     let song = if should_rebuild {
         Some(NonDetachingJoinHandle::from(tokio::spawn(async {
@@ -327,27 +330,22 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         .await?;
     tracing::info!("Enabled Docker QEMU Emulation");
 
-    receipts
-        .ip_info
-        .set(&mut handle, crate::net::dhcp::init_ips().await?)
-        .await?;
-    receipts
-        .status_info
-        .set(
-            &mut handle,
-            ServerStatus {
-                updated: false,
-                update_progress: None,
-                backup_progress: None,
-            },
-        )
-        .await?;
-    receipts
-        .system_start_time
-        .set(&mut handle, time().await?)
-        .await?;
+    let ip_info = crate::net::dhcp::init_ips().await?;
+    let time = time().await?;
+    db.apply_fn(|mut v| {
+        let mut server_info = v.server_info();
+        server_info.ip_info().set(&ip_info)?;
+        server_info.status_info().set(&ServerStatus {
+            updated: false,
+            update_progress: None,
+            backup_progress: None,
+        })?;
+        server_info.system_start_time().set(&time)?;
+        Ok(())
+    })
+    .await?;
 
-    crate::version::init(&secret_store, &receipts).await?;
+    crate::version::init(&secret_store, &db).await?;
 
     if should_rebuild {
         match tokio::fs::remove_file(SYSTEM_REBUILD_PATH).await {

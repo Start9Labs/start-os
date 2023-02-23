@@ -30,7 +30,6 @@ use crate::procedure::docker::DockerProcedure;
 use crate::s9pk::manifest::PackageId;
 use crate::util::display_none;
 use crate::util::serde::Reversible;
-use Error::ResultExt;
 
 #[pin_project::pin_project]
 struct LogStream {
