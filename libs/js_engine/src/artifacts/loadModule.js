@@ -89,7 +89,10 @@ const bindLocal = async (
     externalPort = requireParam("externalPort"),
   } = requireParam("options"),
 ) => {
-  return Deno.core.opAsync("bind_local", internalPort, { name, externalPort });
+  return Deno.core.opAsync("bind_local", internalPort, {
+    id: name,
+    externalPort,
+  });
 };
 const bindTor = async (
   {
@@ -98,7 +101,10 @@ const bindTor = async (
     externalPort = requireParam("externalPort"),
   } = requireParam("options"),
 ) => {
-  return Deno.core.opAsync("bind_onion", internalPort, { name, externalPort });
+  return Deno.core.opAsync("bind_onion", internalPort, {
+    id: name,
+    externalPort,
+  });
 };
 
 const signalGroup = async (
@@ -159,7 +165,8 @@ const createDir = (
 ) => Deno.core.opAsync("create_dir", volumeId, path);
 
 const readDir = (
-  { volumeId = requireParam("volumeId"), path = requireParam("path") } = requireParam("options"),
+  { volumeId = requireParam("volumeId"), path = requireParam("path") } =
+    requireParam("options"),
 ) => Deno.core.opAsync("read_dir", volumeId, path);
 const removeDir = (
   { volumeId = requireParam("volumeId"), path = requireParam("path") } =
@@ -289,13 +296,14 @@ const effects = {
   removeDir,
   removeFile,
   rename,
+  restart,
   runCommand,
   runDaemon,
   runRsync,
   chmod,
   signalGroup,
   sleep,
-  start, 
+  start,
   stop,
   trace,
   warn,
