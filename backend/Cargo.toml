@@ -130,7 +130,7 @@ rust-argon2 = "1.0.0"
 scopeguard = "1.1" # because avahi-sys fucks your shit up
 serde = { version = "1.0.139", features = ["derive", "rc"] }
 serde_cbor = { package = "ciborium", version = "0.2.0" }
-serde_json = "1.0.82"
+serde_json = "1.0.93"
 serde_toml = { package = "toml", version = "0.5.9" }
 serde_with = { version = "2.0.1", features = ["macros", "json"] }
 serde_yaml = "0.9.11"
