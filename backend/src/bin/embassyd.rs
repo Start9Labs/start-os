@@ -78,10 +78,7 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
             .map_ok(|_| tracing::debug!("Metrics daemon Shutdown"))
             .await?;
 
-        let shutdown = shutdown_recv
-            .recv()
-            .await
-            .with_kind(crate::ErrorKind::Unknown)?;
+        let shutdown = shutdown_recv.recv().await.with_kind(ErrorKind::Unknown)?;
 
         sig_handler.abort();
 
@@ -144,8 +141,7 @@ fn main() {
 
                         let mut shutdown = ctx.shutdown.subscribe();
 
-                        let shutdown =
-                            shutdown.recv().await.with_kind(crate::ErrorKind::Unknown)?;
+                        let shutdown = shutdown.recv().await.with_kind(ErrorKind::Unknown)?;
 
                         server.shutdown().await;
 

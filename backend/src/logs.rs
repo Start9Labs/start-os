@@ -25,12 +25,12 @@ use tracing::instrument;
 
 use crate::context::{CliContext, RpcContext};
 use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
-use crate::error::ResultExt;
+use crate::prelude::*;
 use crate::procedure::docker::DockerProcedure;
 use crate::s9pk::manifest::PackageId;
 use crate::util::display_none;
 use crate::util::serde::Reversible;
-use crate::{Error, ErrorKind};
+use Error::ResultExt;
 
 #[pin_project::pin_project]
 struct LogStream {
@@ -74,8 +74,8 @@ async fn ws_handler<
 ) -> Result<(), Error> {
     let mut stream = ws_fut
         .await
-        .with_kind(crate::ErrorKind::Network)?
-        .with_kind(crate::ErrorKind::Unknown)?;
+        .with_kind(ErrorKind::Network)?
+        .with_kind(ErrorKind::Unknown)?;
 
     if let Some(first_entry) = first_entry {
         stream
@@ -89,7 +89,7 @@ async fn ws_handler<
     let mut ws_closed = false;
     while let Some(entry) = tokio::select! {
         a = logs.try_next() => Some(a?),
-        a = stream.try_next() => { a.with_kind(crate::ErrorKind::Network)?; ws_closed = true; None }
+        a = stream.try_next() => { a.with_kind(ErrorKind::Network)?; ws_closed = true; None }
     } {
         if let Some(entry) = entry {
             let (_, log_entry) = entry.log_entry()?;
@@ -236,13 +236,13 @@ pub async fn cli_logs(
         if cursor.is_some() {
             return Err(RpcError::from(Error::new(
                 eyre!("The argument '--cursor <cursor>' cannot be used with '--follow'"),
-                crate::ErrorKind::InvalidRequest,
+                ErrorKind::InvalidRequest,
             )));
         }
         if before {
             return Err(RpcError::from(Error::new(
                 eyre!("The argument '--before' cannot be used with '--follow'"),
-                crate::ErrorKind::InvalidRequest,
+                ErrorKind::InvalidRequest,
             )));
         }
         cli_logs_generic_follow(ctx, "package.logs.follow", Some(id), limit).await
@@ -318,7 +318,7 @@ pub async fn cli_logs_generic_follow(
         _ => {
             return Err(Error::new(
                 eyre!("Cannot parse scheme from base URL"),
-                crate::ErrorKind::ParseUrl,
+                ErrorKind::ParseUrl,
             )
             .into())
         }
@@ -326,7 +326,7 @@ pub async fn cli_logs_generic_follow(
     base_url.set_scheme(ws_scheme).or_else(|_| {
         Err(Error::new(
             eyre!("Cannot set URL scheme"),
-            crate::ErrorKind::ParseUrl,
+            ErrorKind::ParseUrl,
         ))
     })?;
     let (mut stream, _) =
@@ -389,17 +389,16 @@ async fn journalctl(
         child
             .stdout
             .take()
-            .ok_or_else(|| Error::new(eyre!("No stdout available"), crate::ErrorKind::Journald))?,
+            .ok_or_else(|| Error::new(eyre!("No stdout available"), ErrorKind::Journald))?,
     );
 
     let journalctl_entries = LinesStream::new(out.lines());
 
     let deserialized_entries = journalctl_entries
-        .map_err(|e| Error::new(e, crate::ErrorKind::Journald))
+        .map_err(|e| Error::new(e, ErrorKind::Journald))
         .and_then(|s| {
             futures::future::ready(
-                serde_json::from_str::<JournalctlEntry>(&s)
-                    .with_kind(crate::ErrorKind::Deserialization),
+                serde_json::from_str::<JournalctlEntry>(&s).with_kind(ErrorKind::Deserialization),
             )
         });
 
@@ -524,7 +523,7 @@ pub async fn follow_logs(
 //         child
 //             .stdout
 //             .take()
-//             .ok_or_else(|| Error::new(eyre!("No stdout available"), crate::ErrorKind::Journald))
+//             .ok_or_else(|| Error::new(eyre!("No stdout available"), ErrorKind::Journald))
 //             .unwrap(),
 //     );
 

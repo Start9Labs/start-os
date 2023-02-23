@@ -5,7 +5,7 @@ use digest::generic_array::GenericArray;
 use digest::OutputSizeUser;
 use sha2::Sha256;
 
-use crate::Error;
+use crate::prelude::*;
 
 pub mod bind;
 pub mod block_dev;

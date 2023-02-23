@@ -7,7 +7,7 @@ use futures::FutureExt;
 use tokio::process::Command;
 use tracing::instrument;
 
-use crate::Error;
+use crate::prelude::*;
 
 #[derive(Debug, Clone, Copy)]
 #[must_use]
@@ -88,7 +88,7 @@ async fn e2fsck_runner(
     let code = e2fsck_out.status.code().ok_or_else(|| {
         Error::new(
             eyre!("e2fsck: process terminated by signal"),
-            crate::ErrorKind::DiskManagement,
+            ErrorKind::DiskManagement,
         )
     })?;
     if code & 4 != 0 {
@@ -114,7 +114,7 @@ async fn e2fsck_runner(
     } else {
         Err(Error::new(
             eyre!("e2fsck: {}", e2fsck_stderr),
-            crate::ErrorKind::DiskManagement,
+            ErrorKind::DiskManagement,
         ))
     }
 }

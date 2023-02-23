@@ -13,11 +13,11 @@ use crate::backup::target::BackupInfo;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::util::EmbassyOsRecoveryInfo;
 use crate::middleware::encrypt::{decrypt_slice, encrypt_slice};
+use crate::prelude::*;
 use crate::s9pk::manifest::PackageId;
 use crate::util::serde::IoFormat;
 use crate::util::FileLock;
 use crate::volume::BACKUP_DIR;
-use crate::{Error, ErrorKind, ResultExt};
 
 pub struct BackupMountGuard<G: GenericMountGuard> {
     backup_disk_mount_guard: Option<G>,
@@ -50,7 +50,7 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
                         .await
                         .with_ctx(|_| {
                             (
-                                crate::ErrorKind::Filesystem,
+                                ErrorKind::Filesystem,
                                 unencrypted_metadata_path.display().to_string(),
                             )
                         })?,
@@ -65,10 +65,7 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
             let wrapped_key =
                 base32::decode(base32::Alphabet::RFC4648 { padding: true }, wrapped_key)
                     .ok_or_else(|| {
-                        Error::new(
-                            eyre!("failed to decode wrapped key"),
-                            crate::ErrorKind::Backup,
-                        )
+                        Error::new(eyre!("failed to decode wrapped key"), ErrorKind::Backup)
                     })?;
             check_password(hash, password)?;
             String::from_utf8(decrypt_slice(wrapped_key, password))?
@@ -86,7 +83,7 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
                     &rand::random::<[u8; 16]>()[..],
                     &argon2::Config::default(),
                 )
-                .with_kind(crate::ErrorKind::PasswordHashGeneration)?,
+                .with_kind(ErrorKind::PasswordHashGeneration)?,
             );
         }
         if unencrypted_metadata.wrapped_key.is_none() {
@@ -98,24 +95,20 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
 
         let crypt_path = backup_disk_path.join("EmbassyBackups/crypt");
         if tokio::fs::metadata(&crypt_path).await.is_err() {
-            tokio::fs::create_dir_all(&crypt_path).await.with_ctx(|_| {
-                (
-                    crate::ErrorKind::Filesystem,
-                    crypt_path.display().to_string(),
-                )
-            })?;
+            tokio::fs::create_dir_all(&crypt_path)
+                .await
+                .with_ctx(|_| (ErrorKind::Filesystem, crypt_path.display().to_string()))?;
         }
         let encrypted_guard =
             TmpMountGuard::mount(&EcryptFS::new(&crypt_path, &enc_key), ReadWrite).await?;
 
         let metadata_path = encrypted_guard.as_ref().join("metadata.cbor");
         let metadata: BackupInfo = if tokio::fs::metadata(&metadata_path).await.is_ok() {
-            IoFormat::Cbor.from_slice(&tokio::fs::read(&metadata_path).await.with_ctx(|_| {
-                (
-                    crate::ErrorKind::Filesystem,
-                    metadata_path.display().to_string(),
-                )
-            })?)?
+            IoFormat::Cbor.from_slice(
+                &tokio::fs::read(&metadata_path)
+                    .await
+                    .with_ctx(|_| (ErrorKind::Filesystem, metadata_path.display().to_string()))?,
+            )?
         } else {
             Default::default()
         };
@@ -136,7 +129,7 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
                 &rand::random::<[u8; 16]>()[..],
                 &argon2::Config::default(),
             )
-            .with_kind(crate::ErrorKind::PasswordHashGeneration)?,
+            .with_kind(ErrorKind::PasswordHashGeneration)?,
         );
         self.unencrypted_metadata.wrapped_key = Some(base32::encode(
             base32::Alphabet::RFC4648 { padding: false },

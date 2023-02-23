@@ -12,9 +12,9 @@ use super::{
     add_network_for_main, get_long_running_ip, long_running_docker, remove_network_for_main,
     GetRunningIp,
 };
+use crate::prelude::*;
 use crate::procedure::docker::DockerContainer;
 use crate::util::NonDetachingJoinHandle;
-use crate::Error;
 
 pub struct PersistentContainer {
     _running_docker: NonDetachingJoinHandle<()>,
@@ -78,7 +78,7 @@ pub async fn spawn_persistent_container(
                     }
 
                     let res = tokio::select! {
-                        a = runtime.running_output => a.map_err(|_| Error::new(eyre!("Manager runtime panicked!"), crate::ErrorKind::Docker)).map(|_| ()),
+                        a = runtime.running_output => a.map_err(|_| Error::new(eyre!("Manager runtime panicked!"), ErrorKind::Docker)).map(|_| ()),
                     };
 
                     remove_network_for_main(svc).await?;
@@ -94,6 +94,6 @@ pub async fn spawn_persistent_container(
             }
         })
         .into(),
-        inserter.await.map_err(|_| Error::new(eyre!("Container handle dropped before inserter sent"), crate::ErrorKind::Unknown))?,
+        inserter.await.map_err(|_| Error::new(eyre!("Container handle dropped before inserter sent"), ErrorKind::Unknown))?,
     ))
 }

@@ -18,8 +18,8 @@ use trust_dns_server::proto::rr::rdata::a;
 use trust_dns_server::server::{Request, RequestHandler, ResponseHandler, ResponseInfo};
 use trust_dns_server::ServerFuture;
 
+use crate::prelude::*;
 use crate::util::Invoke;
-use crate::{Error, ErrorKind, ResultExt};
 
 pub struct DnsController {
     services: Weak<RwLock<BTreeMap<Option<PackageId>, BTreeMap<Ipv4Addr, Weak<()>>>>>,
@@ -197,7 +197,7 @@ impl DnsController {
         } else {
             Err(Error::new(
                 eyre!("DNS Server Thread has exited"),
-                crate::ErrorKind::Network,
+                ErrorKind::Network,
             ))
         }
     }
@@ -216,7 +216,7 @@ impl DnsController {
         } else {
             Err(Error::new(
                 eyre!("DNS Server Thread has exited"),
-                crate::ErrorKind::Network,
+                ErrorKind::Network,
             ))
         }
     }

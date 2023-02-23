@@ -2,53 +2,43 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use color_eyre::eyre::eyre;
-use patch_db::DbHandle;
+use models::ErrorKind;
 use sqlx::{Executor, Postgres};
 use tokio::sync::RwLock;
 use tracing::instrument;
 
 use super::Manager;
 use crate::context::RpcContext;
+use crate::db::model::DatabaseModel;
+use crate::prelude::*;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::util::Version;
-use crate::Error;
 
 #[derive(Default)]
-pub struct ManagerMap(RwLock<BTreeMap<(PackageId, Version), Arc<Manager>>>);
+pub struct ManagerMap(RwLock<BTreeMap<PackageId, Arc<Manager>>>);
 impl ManagerMap {
-    #[instrument(skip(self, ctx, db, secrets))]
-    pub async fn init<Db: DbHandle, Ex>(
-        &self,
-        ctx: &RpcContext,
-        db: &mut Db,
-        secrets: &mut Ex,
-    ) -> Result<(), Error>
-    where
-        for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
-    {
+    #[instrument(skip(self, ctx))]
+    pub async fn init<Ex>(&self, ctx: &RpcContext) -> Result<(), Error> {
         let mut res = BTreeMap::new();
-        for package in crate::db::DatabaseModel::new()
-            .package_data()
-            .keys(db)
+        for (id, manifest, marketplace_url) in ctx
+            .db
+            .apply_fn(|v| {
+                DatabaseModel::new(v)
+                    .package_data()
+                    .entries()
+                    .with_kind(ErrorKind::Deserialization)?
+                    .into_iter()
+                    .map(|(id, mut value)| {
+                        let installed = value.as_installed()?;
+                        Ok((id, value.manifest().get()?, value.marketplace_url().get()))
+                    })
+                    .collect::<Result<Vec<_>, Error>>()
+            })
             .await?
         {
-            let man: Manifest = if let Some(manifest) = crate::db::DatabaseModel::new()
-                .package_data()
-                .idx_model(&package)
-                .and_then(|pkg| pkg.installed())
-                .map(|m| m.manifest())
-                .get(db)
-                .await?
-                .to_owned()
-            {
-                manifest
-            } else {
-                continue;
-            };
-
             res.insert(
-                (package, man.version.clone()),
-                Arc::new(Manager::new(ctx.clone(), man).await?),
+                id,
+                Arc::new(Manager::new(ctx.clone(), manifest, marketplace_url).await?),
             );
         }
         *self.0.write().await = res;
@@ -56,36 +46,40 @@ impl ManagerMap {
     }
 
     #[instrument(skip(self, ctx))]
-    pub async fn add(&self, ctx: RpcContext, manifest: Manifest) -> Result<(), Error> {
+    pub async fn add(
+        &self,
+        ctx: RpcContext,
+        manifest: Manifest,
+        marketplace_url: Option<Url>,
+    ) -> Result<(), Error> {
         let mut lock = self.0.write().await;
-        let id = (manifest.id.clone(), manifest.version.clone());
-        if let Some(man) = lock.remove(&id) {
+        if let Some(man) = lock.remove(&manifest.id) {
             man.exit().await;
         }
-        lock.insert(id, Arc::new(Manager::new(ctx, manifest).await?));
+        lock.insert(
+            manifest.id.clone(),
+            Arc::new(Manager::new(ctx, manifest, marketplace_url).await?),
+        );
         Ok(())
     }
 
     #[instrument(skip(self))]
-    pub async fn remove(&self, id: &(PackageId, Version)) {
-        if let Some(man) = self.0.write().await.remove(id) {
-            man.exit().await;
-        }
+    pub async fn remove(&self, id: &PackageId) -> Option<Arc<Manager>> {
+        self.0.write().await.remove(id)
     }
 
     #[instrument(skip(self))]
     pub async fn empty(&self) -> Result<(), Error> {
         let res =
             futures::future::join_all(std::mem::take(&mut *self.0.write().await).into_iter().map(
-                |((id, version), man)| async move {
-                    tracing::debug!("Manager for {}@{} shutting down", id, version);
+                |(id, man)| async move {
+                    tracing::debug!("Manager for {id} shutting down");
                     man.exit().await;
-                    tracing::debug!("Manager for {}@{} is shutdown", id, version);
+                    tracing::debug!("Manager for {id} is shutdown");
                     if let Err(e) = Arc::try_unwrap(man) {
                         tracing::trace!(
-                            "Manager for {}@{} still has {} other open references",
+                            "Manager for {} still has {} other open references",
                             id,
-                            version,
                             Arc::strong_count(&e) - 1
                         );
                     }
@@ -101,7 +95,7 @@ impl ManagerMap {
     }
 
     #[instrument(skip(self))]
-    pub async fn get(&self, id: &(PackageId, Version)) -> Option<Arc<Manager>> {
+    pub async fn get(&self, id: &PackageId) -> Option<Arc<Manager>> {
         self.0.read().await.get(id).cloned()
     }
 }

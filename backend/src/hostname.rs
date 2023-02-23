@@ -1,11 +1,10 @@
-use patch_db::DbHandle;
 use rand::{thread_rng, Rng};
 use tokio::process::Command;
 use tracing::instrument;
 
 use crate::account::AccountInfo;
+use crate::prelude::*;
 use crate::util::Invoke;
-use crate::{Error, ErrorKind};
 #[derive(Clone, serde::Deserialize, serde::Serialize, Debug)]
 pub struct Hostname(pub String);
 
@@ -70,7 +69,7 @@ pub async fn sync_hostname(account: &AccountInfo) -> Result<(), Error> {
     Command::new("systemctl")
         .arg("restart")
         .arg("avahi-daemon")
-        .invoke(crate::ErrorKind::Network)
+        .invoke(ErrorKind::Network)
         .await?;
     Ok(())
 }

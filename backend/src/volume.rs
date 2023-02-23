@@ -11,9 +11,9 @@ use tracing::instrument;
 use crate::context::RpcContext;
 use crate::net::interface::{InterfaceId, Interfaces};
 use crate::net::PACKAGE_CERT_PATH;
+use crate::prelude::*;
 use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
-use crate::{Error, ResultExt};
 
 pub const PKG_VOLUME_DIR: &str = "package-data/volumes";
 pub const BACKUP_DIR: &str = "/media/embassy/backups";
@@ -26,7 +26,7 @@ impl Volumes {
         for (id, volume) in &self.0 {
             volume
                 .validate(interfaces)
-                .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, format!("Volume {}", id)))?;
+                .with_ctx(|_| (ErrorKind::ValidateS9pk, format!("Volume {}", id)))?;
         }
         Ok(())
     }
@@ -79,16 +79,15 @@ impl DerefMut for Volumes {
         &mut self.0
     }
 }
-impl Map for Volumes {
+impl<'a> Map<'a> for Volumes {
     type Key = VolumeId;
     type Value = Volume;
     fn get(&self, key: &Self::Key) -> Option<&Self::Value> {
         self.0.get(key)
     }
 }
-pub type VolumesModel = MapModel<Volumes>;
-impl HasModel for Volumes {
-    type Model = MapModel<Self>;
+impl<'a> HasModel<'a> for Volumes {
+    type Model = MapModel<'a, Self>;
 }
 
 pub fn data_dir<P: AsRef<Path>>(datadir: P, pkg_id: &PackageId, volume_id: &VolumeId) -> PathBuf {

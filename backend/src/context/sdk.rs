@@ -7,8 +7,8 @@ use rpc_toolkit::Context;
 use serde::Deserialize;
 use tracing::instrument;
 
+use crate::prelude::*;
 use crate::util::config::{load_config_from_paths, local_config_path};
-use crate::{Error, ResultExt};
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -26,7 +26,7 @@ pub struct SdkContext(Arc<SdkContextSeed>);
 impl SdkContext {
     /// BLOCKING
     #[instrument(skip(matches))]
-    pub fn init(matches: &ArgMatches) -> Result<Self, crate::Error> {
+    pub fn init(matches: &ArgMatches) -> Result<Self, Error> {
         let local_config_path = local_config_path();
         let base: SdkContextConfig = load_config_from_paths(
             matches
@@ -52,12 +52,12 @@ impl SdkContext {
     #[instrument]
     pub fn developer_key(&self) -> Result<ed25519_dalek::Keypair, Error> {
         if !self.developer_key_path.exists() {
-            return Err(Error::new(eyre!("Developer Key does not exist! Please run `embassy-sdk init` before running this command."), crate::ErrorKind::Uninitialized));
+            return Err(Error::new(eyre!("Developer Key does not exist! Please run `embassy-sdk init` before running this command."), ErrorKind::Uninitialized));
         }
         let pair = <ed25519::KeypairBytes as ed25519::pkcs8::DecodePrivateKey>::from_pkcs8_pem(
             &std::fs::read_to_string(&self.developer_key_path)?,
         )
-        .with_kind(crate::ErrorKind::Pem)?;
+        .with_kind(ErrorKind::Pem)?;
         let secret = ed25519_dalek::SecretKey::from_bytes(&pair.secret_key[..])?;
         let public = if let Some(public) = pair.public_key {
             ed25519_dalek::PublicKey::from_bytes(&public[..])?

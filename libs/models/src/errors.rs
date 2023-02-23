@@ -384,6 +384,18 @@ where
     }
 }
 
+pub trait OptionExt<T>
+where
+    Self: Sized,
+{
+    fn or_not_found(self, message: impl std::fmt::Display) -> Result<T, Error>;
+}
+impl<T> OptionExt<T> for Option<T> {
+    fn or_not_found(self, message: impl std::fmt::Display) -> Result<T, Error> {
+        self.ok_or_else(|| Error::new(eyre!("{}", message), ErrorKind::NotFound))
+    }
+}
+
 #[macro_export]
 macro_rules! ensure_code {
     ($x:expr, $c:expr, $fmt:expr $(, $arg:expr)*) => {

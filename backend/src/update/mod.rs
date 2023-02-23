@@ -7,7 +7,6 @@ use color_eyre::eyre::{eyre, Result};
 use emver::Version;
 use helpers::{Rsync, RsyncOptions};
 use lazy_static::lazy_static;
-use patch_db::{DbHandle, LockType, Revision};
 use reqwest::Url;
 use rpc_toolkit::command;
 use tokio::process::Command;
@@ -76,10 +75,7 @@ fn display_update_result(status: UpdateResult, _: &ArgMatches) {
 }
 
 #[instrument(skip(ctx))]
-async fn maybe_do_update(
-    ctx: RpcContext,
-    marketplace_url: Url,
-) -> Result<Option<Arc<Revision>>, Error> {
+async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<(), Error> {
     let mut db = ctx.db.handle();
     let arch = if *IS_RASPBERRY_PI {
         "raspberrypi"
@@ -98,28 +94,28 @@ async fn maybe_do_update(
     .await
     .with_kind(ErrorKind::Network)?
     .version;
-    crate::db::DatabaseModel::new()
-        .server_info()
-        .lock(&mut db, LockType::Write)
-        .await?;
-    let current_version = crate::db::DatabaseModel::new()
-        .server_info()
-        .version()
-        .get_mut(&mut db)
-        .await?;
+    // crate::db::DatabaseModel::new()
+    //     .server_info()
+    //     .lock(LockType::Write)
+    //     .await?;
+    let current_version = todo!(); /*crate::db::DatabaseModel::new()
+                                   .server_info()
+                                   .version()
+                                   .get_mut()
+                                   .await?;*/
     if &latest_version < &current_version {
         return Ok(None);
     }
     let mut tx = db.begin().await?;
-    let mut status = crate::db::DatabaseModel::new()
-        .server_info()
-        .status_info()
-        .get_mut(&mut tx)
-        .await?;
+    let mut status = todo!(); /*crate::db::DatabaseModel::new()
+                              .server_info()
+                              .status_info()
+                              .get_mut(&mut tx)
+                              .await?;*/
     if status.update_progress.is_some() {
         return Err(Error::new(
             eyre!("Server is already updating!"),
-            crate::ErrorKind::InvalidRequest,
+            ErrorKind::InvalidRequest,
         ));
     }
     if status.updated {
@@ -140,28 +136,28 @@ async fn maybe_do_update(
 
     tokio::spawn(async move {
         let res = do_update(ctx.clone(), eos_url).await;
-        let mut db = ctx.db.handle();
-        let mut status = crate::db::DatabaseModel::new()
-            .server_info()
-            .status_info()
-            .get_mut(&mut db)
-            .await
-            .expect("could not access status");
+        let db = &ctx.db;
+        let mut status = todo!(); /*crate::db::DatabaseModel::new()
+                                  .server_info()
+                                  .status_info()
+                                  .get_mut()
+                                  .await
+                                  .expect("could not access status");*/
         status.update_progress = None;
         match res {
             Ok(()) => {
                 status.updated = true;
-                status.save(&mut db).await.expect("could not save status");
+                status.save().await.expect("could not save status");
                 CIRCLE_OF_5THS_SHORT
                     .play()
                     .await
                     .expect("could not play sound");
             }
             Err(e) => {
-                status.save(&mut db).await.expect("could not save status");
+                status.save().await.expect("could not save status");
                 ctx.notification_manager
                     .notify(
-                        &mut db,
+                        db,
                         None,
                         NotificationLevel::Error,
                         "embassyOS Update Failed".to_owned(),
@@ -203,18 +199,18 @@ async fn do_update(ctx: RpcContext, eos_url: EosUrl) -> Result<(), Error> {
     )
     .await?;
     while let Some(progress) = rsync.progress.next().await {
-        crate::db::DatabaseModel::new()
-            .server_info()
-            .status_info()
-            .update_progress()
-            .put(
-                &mut ctx.db.handle(),
-                &UpdateProgress {
-                    size: Some(100),
-                    downloaded: (100.0 * progress) as u64,
-                },
-            )
-            .await?;
+        // crate::db::DatabaseModel::new()
+        //     .server_info()
+        //     .status_info()
+        //     .update_progress()
+        //     .put(
+        //         &mut ctx.db.handle(),
+        //         &UpdateProgress {
+        //             size: Some(100),
+        //             downloaded: (100.0 * progress) as u64,
+        //         },
+        //     )
+        //     .await?;
     }
     rsync.wait().await?;
 

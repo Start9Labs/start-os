@@ -16,10 +16,10 @@ use crate::logs::{
     cli_logs_generic_follow, cli_logs_generic_nofollow, fetch_logs, follow_logs, LogFollowResponse,
     LogResponse, LogSource,
 };
+use crate::prelude::*;
 use crate::shutdown::Shutdown;
 use crate::util::display_none;
 use crate::util::serde::{display_serializable, IoFormat};
-use crate::{Error, ErrorKind, ResultExt};
 
 pub const SYSTEMD_UNIT: &'static str = "embassyd";
 
@@ -49,13 +49,13 @@ pub async fn cli_logs(
         if cursor.is_some() {
             return Err(RpcError::from(Error::new(
                 eyre!("The argument '--cursor <cursor>' cannot be used with '--follow'"),
-                crate::ErrorKind::InvalidRequest,
+                ErrorKind::InvalidRequest,
             )));
         }
         if before {
             return Err(RpcError::from(Error::new(
                 eyre!("The argument '--before' cannot be used with '--follow'"),
-                crate::ErrorKind::InvalidRequest,
+                ErrorKind::InvalidRequest,
             )));
         }
         cli_logs_generic_follow(ctx, "server.logs.follow", None, limit).await
@@ -100,13 +100,13 @@ pub async fn cli_kernel_logs(
         if cursor.is_some() {
             return Err(RpcError::from(Error::new(
                 eyre!("The argument '--cursor <cursor>' cannot be used with '--follow'"),
-                crate::ErrorKind::InvalidRequest,
+                ErrorKind::InvalidRequest,
             )));
         }
         if before {
             return Err(RpcError::from(Error::new(
                 eyre!("The argument '--before' cannot be used with '--follow'"),
-                crate::ErrorKind::InvalidRequest,
+                ErrorKind::InvalidRequest,
             )));
         }
         cli_logs_generic_follow(ctx, "server.kernel-logs.follow", None, limit).await
@@ -515,7 +515,7 @@ async fn get_temp() -> Result<Celsius, Error> {
     let temp_file = "/sys/class/thermal/thermal_zone0/temp";
     let milli = tokio::fs::read_to_string(temp_file)
         .await
-        .with_ctx(|_| (crate::ErrorKind::Filesystem, temp_file))?
+        .with_ctx(|_| (ErrorKind::Filesystem, temp_file))?
         .trim()
         .parse::<f64>()?;
     Ok(Celsius(milli / 1000.0))

@@ -13,13 +13,13 @@ use crate::config::action::ConfigActions;
 use crate::dependencies::Dependencies;
 use crate::migration::Migrations;
 use crate::net::interface::Interfaces;
+use crate::prelude::*;
 use crate::procedure::docker::DockerContainers;
 use crate::procedure::PackageProcedure;
 use crate::status::health_check::HealthChecks;
 use crate::util::Version;
 use crate::version::{Current, VersionT};
 use crate::volume::Volumes;
-use crate::Error;
 
 fn current_version() -> Version {
     Current::new().semver().into()
@@ -27,6 +27,7 @@ fn current_version() -> Version {
 
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
+// #[macro_debug]
 pub struct Manifest {
     #[serde(default = "current_version")]
     pub eos_version: Version,
@@ -34,13 +35,10 @@ pub struct Manifest {
     #[serde(default)]
     pub git_hash: Option<GitHash>,
     pub title: String,
-    #[model]
     pub version: Version,
     pub description: Description,
     #[serde(default)]
     pub assets: Assets,
-    #[serde(default)]
-    pub build: Option<Vec<String>>,
     pub release_notes: String,
     pub license: String, // type of license
     pub wrapper_repo: Url,
@@ -53,9 +51,9 @@ pub struct Manifest {
     #[model]
     pub main: PackageProcedure,
     pub health_checks: HealthChecks,
-    #[model]
+    // #[model]
     pub config: Option<ConfigActions>,
-    #[model]
+    // #[model]
     pub properties: Option<PackageProcedure>,
     #[model]
     pub volumes: Volumes,
@@ -74,7 +72,7 @@ pub struct Manifest {
     #[serde(default)]
     #[model]
     pub dependencies: Dependencies,
-    #[model]
+    // #[model]
     pub containers: Option<DockerContainers>,
 
     #[serde(default)]
@@ -181,13 +179,13 @@ impl Description {
         if self.short.chars().skip(160).next().is_some() {
             return Err(Error::new(
                 eyre!("Short description must be 160 characters or less."),
-                crate::ErrorKind::ValidateS9pk,
+                ErrorKind::ValidateS9pk,
             ));
         }
         if self.long.chars().skip(5000).next().is_some() {
             return Err(Error::new(
                 eyre!("Long description must be 5000 characters or less."),
-                crate::ErrorKind::ValidateS9pk,
+                ErrorKind::ValidateS9pk,
             ));
         }
         Ok(())

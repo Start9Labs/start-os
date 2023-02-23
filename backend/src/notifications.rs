@@ -4,7 +4,6 @@ use std::str::FromStr;
 
 use chrono::{DateTime, Utc};
 use color_eyre::eyre::eyre;
-use patch_db::{DbHandle, LockType};
 use rpc_toolkit::command;
 use sqlx::PgPool;
 use tokio::sync::Mutex;
@@ -12,10 +11,10 @@ use tracing::instrument;
 
 use crate::backup::BackupReport;
 use crate::context::RpcContext;
+use crate::prelude::*;
 use crate::s9pk::manifest::PackageId;
 use crate::util::display_none;
 use crate::util::serde::display_serializable;
-use crate::{Error, ErrorKind, ResultExt};
 
 #[command(subcommands(list, delete, delete_before, create))]
 pub async fn notification() -> Result<(), Error> {
@@ -33,10 +32,10 @@ pub async fn list(
     let mut handle = ctx.db.handle();
     match before {
         None => {
-            let model = crate::db::DatabaseModel::new()
-                .server_info()
-                .unread_notification_count();
-            model.lock(&mut handle, LockType::Write).await?;
+            let model = todo!(); /*crate::db::DatabaseModel::new()
+                                 .server_info()
+                                 .unread_notification_count();*/
+            // model.lock(&mut handle, LockType::Write).await?;
             let records = sqlx::query!(
                 "SELECT id, package_id, created_at, code, level, title, message, data FROM notifications ORDER BY id DESC LIMIT $1",
                 limit as i64
@@ -139,15 +138,7 @@ pub async fn create(
     #[arg] message: String,
 ) -> Result<(), Error> {
     ctx.notification_manager
-        .notify(
-            &mut ctx.db.handle(),
-            package,
-            level,
-            title,
-            message,
-            (),
-            None,
-        )
+        .notify(&ctx.db, package, level, title, message, (), None)
         .await
 }
 
@@ -170,7 +161,7 @@ impl fmt::Display for NotificationLevel {
     }
 }
 pub struct InvalidNotificationLevel(String);
-impl From<InvalidNotificationLevel> for crate::Error {
+impl From<InvalidNotificationLevel> for Error {
     fn from(val: InvalidNotificationLevel) -> Self {
         Error::new(
             eyre!("Invalid Notification Level: {}", val.0),
@@ -233,9 +224,9 @@ impl NotificationManager {
         }
     }
     #[instrument(skip(self, db))]
-    pub async fn notify<Db: DbHandle, T: NotificationType>(
+    pub async fn notify<T: NotificationType>(
         &self,
-        db: &mut Db,
+        db: &PatchDb,
         package_id: Option<PackageId>,
         level: NotificationLevel,
         title: String,
@@ -249,16 +240,15 @@ impl NotificationManager {
         {
             return Ok(());
         }
-        let mut count = crate::db::DatabaseModel::new()
-            .server_info()
-            .unread_notification_count()
-            .get_mut(db)
-            .await?;
+        let mut count = todo!(); /* crate::db::DatabaseModel::new()
+                                 .server_info()
+                                 .unread_notification_count()
+                                 .get_mut(db)
+                                 .await?;*/
         let sql_package_id = package_id.as_ref().map(|p| &**p);
         let sql_code = T::CODE;
         let sql_level = format!("{}", level);
-        let sql_data =
-            serde_json::to_string(&subtype).with_kind(crate::ErrorKind::Serialization)?;
+        let sql_data = serde_json::to_string(&subtype).with_kind(ErrorKind::Serialization)?;
         sqlx::query!(
         "INSERT INTO notifications (package_id, code, level, title, message, data) VALUES ($1, $2, $3, $4, $5, $6)",
         sql_package_id,

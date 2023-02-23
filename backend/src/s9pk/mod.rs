@@ -10,6 +10,7 @@ use tokio::io::AsyncRead;
 use tracing::instrument;
 
 use crate::context::SdkContext;
+use crate::prelude::*;
 use crate::s9pk::builder::S9pkPacker;
 use crate::s9pk::docker::DockerMultiArch;
 use crate::s9pk::git_hash::GitHash;
@@ -19,7 +20,6 @@ use crate::util::display_none;
 use crate::util::io::BufferedWriteReader;
 use crate::util::serde::IoFormat;
 use crate::volume::Volume;
-use crate::{Error, ErrorKind, ResultExt};
 
 pub mod builder;
 pub mod docker;
@@ -53,14 +53,11 @@ pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> R
             .from_async_reader(File::open(path.join("manifest.json")).await?)
             .await?
     } else {
-        return Err(Error::new(
-            eyre!("manifest not found"),
-            crate::ErrorKind::Pack,
-        ));
+        return Err(Error::new(eyre!("manifest not found"), ErrorKind::Pack));
     };
 
     let manifest: Manifest = serde_json::from_value::<Manifest>(manifest_value.clone())
-        .with_kind(crate::ErrorKind::Deserialization)?
+        .with_kind(ErrorKind::Deserialization)?
         .with_git_hash(GitHash::from_path(&path).await?);
     let extra_keys =
         enumerate_extra_keys(&serde_json::to_value(&manifest).unwrap(), &manifest_value);
@@ -78,7 +75,7 @@ pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> R
                 .await
                 .with_ctx(|_| {
                     (
-                        crate::ErrorKind::Filesystem,
+                        ErrorKind::Filesystem,
                         manifest.assets.license_path().display().to_string(),
                     )
                 })?,
@@ -88,7 +85,7 @@ pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> R
                 .await
                 .with_ctx(|_| {
                     (
-                        crate::ErrorKind::Filesystem,
+                        ErrorKind::Filesystem,
                         manifest.assets.icon_path().display().to_string(),
                     )
                 })?,
@@ -98,7 +95,7 @@ pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> R
                 .await
                 .with_ctx(|_| {
                     (
-                        crate::ErrorKind::Filesystem,
+                        ErrorKind::Filesystem,
                         manifest.assets.instructions_path().display().to_string(),
                     )
                 })?,
@@ -142,7 +139,7 @@ pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> R
                     .await
                     .with_ctx(|_| {
                         (
-                            crate::ErrorKind::Filesystem,
+                            ErrorKind::Filesystem,
                             manifest.assets.docker_images_path().display().to_string(),
                         )
                     })?)

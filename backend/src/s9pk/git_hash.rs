@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::Error;
+use crate::prelude::*;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct GitHash(String);
@@ -15,7 +15,7 @@ impl GitHash {
         if !hash.status.success() {
             return Err(Error::new(
                 color_eyre::eyre::eyre!("Could not get hash: {}", String::from_utf8(hash.stderr)?),
-                crate::ErrorKind::Filesystem,
+                ErrorKind::Filesystem,
             ));
         }
         Ok(GitHash(String::from_utf8(hash.stdout)?))

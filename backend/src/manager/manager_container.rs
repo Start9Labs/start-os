@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use futures::FutureExt;
-use patch_db::PatchDbHandle;
+use patch_db::{PatchDb, Model};
 use tokio::sync::watch;
 use tokio::sync::watch::Sender;
 use tracing::instrument;
@@ -13,7 +13,7 @@ use crate::procedure::NoOutput;
 use crate::s9pk::manifest::Manifest;
 use crate::status::MainStatus;
 use crate::util::{GeneralBoxedGuard, NonDetachingJoinHandle};
-use crate::Error;
+use crate::prelude::*;
 
 pub type ManageContainerOverride = Arc<watch::Sender<Option<MainStatus>>>;
 
@@ -30,10 +30,10 @@ impl ManageContainer {
         seed: Arc<manager_seed::ManagerSeed>,
         persistent_container: ManagerPersistentContainer,
     ) -> Result<Self, Error> {
-        let mut db = seed.ctx.db.handle();
+        let mut db = &seed.ctx.db;
         let current_state = Arc::new(watch::channel(StartStop::Stop).0);
         let desired_state = Arc::new(
-            watch::channel::<StartStop>(get_status(&mut db, &seed.manifest).await.into()).0,
+            watch::channel::<StartStop>(get_status(db, &seed.manifest).await.into()).0,
         );
         let override_main_status: ManageContainerOverride = Arc::new(watch::channel(None).0);
         let service = tokio::spawn(create_service_manager(
@@ -155,12 +155,12 @@ async fn save_state(
         let current: StartStop = current_state_receiver.borrow().clone();
         let desired: StartStop = desired_state_receiver.borrow().clone();
         let override_status = override_main_status_receiver.borrow().clone();
-        let mut db = seed.ctx.db.handle();
+        let mut db = &seed.ctx.db;
         let res = match (override_status, current, desired) {
-            (Some(status), _, _) => set_status(&mut db, &seed.manifest, &status).await,
+            (Some(status), _, _) => set_status( db, &seed.manifest, &status).await,
             (None, StartStop::Start, StartStop::Start) => {
                 set_status(
-                    &mut db,
+                    db,
                     &seed.manifest,
                     &MainStatus::Running {
                         started: chrono::Utc::now(),
@@ -170,13 +170,13 @@ async fn save_state(
                 .await
             }
             (None, StartStop::Start, StartStop::Stop) => {
-                set_status(&mut db, &seed.manifest, &MainStatus::Stopping).await
+                set_status( db,&seed.manifest, &MainStatus::Stopping).await
             }
             (None, StartStop::Stop, StartStop::Start) => {
-                set_status(&mut db, &seed.manifest, &MainStatus::Starting).await
+                set_status( db, &seed.manifest, &MainStatus::Starting).await
             }
             (None, StartStop::Stop, StartStop::Stop) => {
-                set_status(&mut db, &seed.manifest, &MainStatus::Stopped).await
+                set_status( db, &seed.manifest, &MainStatus::Stopped).await
             }
         };
         if let Err(err) = res {
@@ -233,13 +233,13 @@ async fn run_main_log_result(result: RunMainResult, seed: Arc<manager_seed::Mana
                     .idx_model(&seed.manifest.id)
                     .and_then(|pde| pde.installed())
                     .map::<_, MainStatus>(|i| i.status().main())
-                    .get(&mut db)
+                    .get()
                     .await;
                 match started.as_deref() {
                     Ok(Some(MainStatus::Running { .. })) => {
                         let res = seed.ctx.notification_manager
                             .notify(
-                                &mut db,
+                                
                                 Some(seed.manifest.id.clone()),
                                 NotificationLevel::Warning,
                                 String::from("Service Crashed"),
@@ -274,55 +274,57 @@ async fn run_main_log_result(result: RunMainResult, seed: Arc<manager_seed::Mana
 }
 
 #[instrument(skip(db, manifest))]
-pub(super) async fn get_status(db: &mut PatchDbHandle, manifest: &Manifest) -> MainStatus {
-    async move {
-        Ok::<_, Error>(
-            crate::db::DatabaseModel::new()
-                .package_data()
-                .idx_model(&manifest.id)
-                .expect(db)
-                .await?
-                .installed()
-                .expect(db)
-                .await?
-                .status()
-                .main()
-                .get(db)
-                .await?
-                .clone(),
-        )
-    }
-    .map(|x| x.unwrap_or_else(|e| MainStatus::Stopped))
-    .await
+pub(super) async fn get_status(db: &PatchDb, manifest: &Manifest) -> MainStatus {
+    // async move {
+    //     Ok::<_, Error>(
+    //         crate::db::DatabaseModel::new()
+    //             .package_data()
+    //             .idx_model(&manifest.id)
+    //             .expect(db)
+    //             .await?
+    //             .installed()
+    //             .expect(db)
+    //             .await?
+    //             .status()
+    //             .main()
+    //             .get(db)
+    //             .await?
+    //             .clone(),
+    //     )
+    // }
+    // .map(|x| x.unwrap_or_else(|e| MainStatus::Stopped))
+    // .await
+    todo!()
 }
 
 #[instrument(skip(db, manifest))]
 async fn set_status(
-    db: &mut PatchDbHandle,
+    db: &PatchDb,
     manifest: &Manifest,
     main_status: &MainStatus,
 ) -> Result<(), Error> {
-    if crate::db::DatabaseModel::new()
-        .package_data()
-        .idx_model(&manifest.id)
-        .expect(db)
-        .await?
-        .installed()
-        .exists(db)
-        .await?
-    {
-        crate::db::DatabaseModel::new()
-            .package_data()
-            .idx_model(&manifest.id)
-            .expect(db)
-            .await?
-            .installed()
-            .expect(db)
-            .await?
-            .status()
-            .main()
-            .put(db, main_status)
-            .await?;
-    }
-    Ok(())
+    // if crate::db::DatabaseModel::new()
+    //     .package_data()
+    //     .idx_model(&manifest.id)
+    //     .expect(db)
+    //     .await?
+    //     .installed()
+    //     .exists(db)
+    //     .await?
+    // {
+    //     crate::db::DatabaseModel::new()
+    //         .package_data()
+    //         .idx_model(&manifest.id)
+    //         .expect(db)
+    //         .await?
+    //         .installed()
+    //         .expect(db)
+    //         .await?
+    //         .status()
+    //         .main()
+    //         .put(db, main_status)
+    //         .await?;
+    // }
+    // Ok(())
+    todo!()
 }

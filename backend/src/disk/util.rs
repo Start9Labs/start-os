@@ -19,9 +19,9 @@ use super::mount::filesystem::block_dev::BlockDev;
 use super::mount::filesystem::ReadOnly;
 use super::mount::guard::TmpMountGuard;
 use crate::disk::OsPartitionInfo;
+use crate::prelude::*;
 use crate::util::serde::IoFormat;
 use crate::util::{Invoke, Version};
-use crate::{Error, ResultExt as _};
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -75,7 +75,7 @@ pub async fn get_partition_table<P: AsRef<Path>>(path: P) -> Result<Option<Parti
         Command::new("fdisk")
             .arg("-l")
             .arg(path.as_ref())
-            .invoke(crate::ErrorKind::BlockDevice)
+            .invoke(ErrorKind::BlockDevice)
             .await?,
     )?
     .lines()
@@ -94,7 +94,7 @@ pub async fn get_vendor<P: AsRef<Path>>(path: P) -> Result<Option<String>, Error
             .join(path.as_ref().strip_prefix("/dev").map_err(|_| {
                 Error::new(
                     eyre!("not a canonical block device"),
-                    crate::ErrorKind::BlockDevice,
+                    ErrorKind::BlockDevice,
                 )
             })?)
             .join("device")
@@ -117,7 +117,7 @@ pub async fn get_model<P: AsRef<Path>>(path: P) -> Result<Option<String>, Error>
             .join(path.as_ref().strip_prefix("/dev").map_err(|_| {
                 Error::new(
                     eyre!("not a canonical block device"),
-                    crate::ErrorKind::BlockDevice,
+                    ErrorKind::BlockDevice,
                 )
             })?)
             .join("device")
@@ -135,7 +135,7 @@ pub async fn get_capacity<P: AsRef<Path>>(path: P) -> Result<u64, Error> {
         Command::new("blockdev")
             .arg("--getsize64")
             .arg(path.as_ref())
-            .invoke(crate::ErrorKind::BlockDevice)
+            .invoke(ErrorKind::BlockDevice)
             .await?,
     )?
     .trim()
@@ -149,7 +149,7 @@ pub async fn get_label<P: AsRef<Path>>(path: P) -> Result<Option<String>, Error>
             .arg("-no")
             .arg("label")
             .arg(path.as_ref())
-            .invoke(crate::ErrorKind::BlockDevice)
+            .invoke(ErrorKind::BlockDevice)
             .await?,
     )?
     .trim()
@@ -164,7 +164,7 @@ pub async fn get_used<P: AsRef<Path>>(path: P) -> Result<u64, Error> {
             .arg("--output=used")
             .arg("--block-size=1")
             .arg(path.as_ref())
-            .invoke(crate::ErrorKind::Filesystem)
+            .invoke(ErrorKind::Filesystem)
             .await?,
     )?
     .lines()
@@ -182,7 +182,7 @@ pub async fn get_available<P: AsRef<Path>>(path: P) -> Result<u64, Error> {
             .arg("--output=avail")
             .arg("--block-size=1")
             .arg(path.as_ref())
-            .invoke(crate::ErrorKind::Filesystem)
+            .invoke(ErrorKind::Filesystem)
             .await?,
     )?
     .lines()
@@ -199,7 +199,7 @@ pub async fn get_percentage<P: AsRef<Path>>(path: P) -> Result<u64, Error> {
         Command::new("df")
             .arg("--output=pcent")
             .arg(path.as_ref())
-            .invoke(crate::ErrorKind::Filesystem)
+            .invoke(ErrorKind::Filesystem)
             .await?,
     )?
     .lines()
@@ -215,7 +215,7 @@ pub async fn get_percentage<P: AsRef<Path>>(path: P) -> Result<u64, Error> {
 #[instrument]
 pub async fn pvscan() -> Result<BTreeMap<PathBuf, Option<String>>, Error> {
     let pvscan_out = Command::new("pvscan")
-        .invoke(crate::ErrorKind::DiskManagement)
+        .invoke(ErrorKind::DiskManagement)
         .await?;
     let pvscan_out_str = std::str::from_utf8(&pvscan_out)?;
     Ok(parse_pvscan_output(pvscan_out_str))
@@ -237,7 +237,7 @@ pub async fn recovery_info(
                     .await
                     .with_ctx(|_| {
                         (
-                            crate::ErrorKind::Filesystem,
+                            ErrorKind::Filesystem,
                             backup_unencrypted_metadata_path.display().to_string(),
                         )
                     })?,
@@ -258,12 +258,12 @@ pub async fn list(os: &OsPartitionInfo) -> Result<Vec<DiskInfo>, Error> {
     let disks = tokio_stream::wrappers::ReadDirStream::new(
         tokio::fs::read_dir(DISK_PATH)
             .await
-            .with_ctx(|_| (crate::ErrorKind::Filesystem, DISK_PATH))?,
+            .with_ctx(|_| (ErrorKind::Filesystem, DISK_PATH))?,
     )
     .map_err(|e| {
         Error::new(
             eyre::Error::from(e).wrap_err(DISK_PATH),
-            crate::ErrorKind::Filesystem,
+            ErrorKind::Filesystem,
         )
     })
     .try_fold(
@@ -279,20 +279,14 @@ pub async fn list(os: &OsPartitionInfo) -> Result<Vec<DiskInfo>, Error> {
                     (disk_path, None)
                 };
                 let disk_path = Path::new(DISK_PATH).join(disk_path);
-                let disk = tokio::fs::canonicalize(&disk_path).await.with_ctx(|_| {
-                    (
-                        crate::ErrorKind::Filesystem,
-                        disk_path.display().to_string(),
-                    )
-                })?;
+                let disk = tokio::fs::canonicalize(&disk_path)
+                    .await
+                    .with_ctx(|_| (ErrorKind::Filesystem, disk_path.display().to_string()))?;
                 let part = if let Some(part_path) = part_path {
                     let part_path = Path::new(DISK_PATH).join(part_path);
-                    let part = tokio::fs::canonicalize(&part_path).await.with_ctx(|_| {
-                        (
-                            crate::ErrorKind::Filesystem,
-                            part_path.display().to_string(),
-                        )
-                    })?;
+                    let part = tokio::fs::canonicalize(&part_path)
+                        .await
+                        .with_ctx(|_| (ErrorKind::Filesystem, part_path.display().to_string()))?;
                     Some(part)
                 } else {
                     None

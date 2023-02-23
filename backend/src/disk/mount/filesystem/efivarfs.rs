@@ -7,8 +7,8 @@ use digest::{Digest, OutputSizeUser};
 use sha2::Sha256;
 
 use super::{FileSystem, MountType, ReadOnly};
+use crate::prelude::*;
 use crate::util::Invoke;
-use crate::{Error, ResultExt};
 
 pub struct EfiVarFs;
 #[async_trait]
@@ -27,7 +27,7 @@ impl FileSystem for EfiVarFs {
         if mount_type == ReadOnly {
             cmd.arg("-o").arg("ro");
         }
-        cmd.invoke(crate::ErrorKind::Filesystem).await?;
+        cmd.invoke(ErrorKind::Filesystem).await?;
         Ok(())
     }
     async fn source_hash(

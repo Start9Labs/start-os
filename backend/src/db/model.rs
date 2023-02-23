@@ -3,29 +3,29 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
+use color_eyre::eyre::eyre;
 use emver::VersionRange;
 use ipnet::{Ipv4Net, Ipv6Net};
 use isocountry::CountryCode;
 use itertools::Itertools;
 use openssl::hash::MessageDigest;
-use patch_db::json_ptr::JsonPointer;
-use patch_db::{HasModel, Map, MapModel, OptionModel};
+use patch_db::{HasModel, Map, MapModel, Value};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use ssh_key::public::Ed25519PublicKey;
 
 use crate::account::AccountInfo;
+
 use crate::install::progress::InstallProgress;
 use crate::net::forward::LanPortForwards;
 use crate::net::interface::InterfaceId;
 use crate::net::utils::{get_iface_ipv4_addr, get_iface_ipv6_addr};
-use crate::s9pk::manifest::{Manifest, ManifestModel, PackageId};
+use crate::prelude::*;
+use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::status::health_check::HealthCheckId;
 use crate::status::Status;
 use crate::util::Version;
 use crate::version::{Current, VersionT};
-use crate::Error;
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
@@ -89,11 +89,8 @@ impl Database {
         }
     }
 }
-impl DatabaseModel {
-    pub fn new() -> Self {
-        Self::from(JsonPointer::default())
-    }
-}
+
+pub type DatabaseModel<'a> = <Database as HasModel<'a>>::Model;
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
@@ -107,7 +104,7 @@ pub struct ServerInfo {
     pub eos_version_compat: VersionRange,
     pub lan_address: Url,
     pub tor_address: Url,
-    #[model]
+    // #[model]
     pub ip_info: BTreeMap<String, IpInfo>,
     #[model]
     #[serde(default)]
@@ -150,10 +147,10 @@ pub struct BackupProgress {
 #[derive(Debug, Default, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
 pub struct ServerStatus {
-    #[model]
+    // #[model]
     pub backup_progress: Option<BTreeMap<PackageId, BackupProgress>>,
     pub updated: bool,
-    #[model]
+    // #[model]
     pub update_progress: Option<UpdateProgress>,
 }
 
@@ -189,15 +186,15 @@ pub struct ConnectionAddresses {
 
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct AllPackageData(pub BTreeMap<PackageId, PackageDataEntry>);
-impl Map for AllPackageData {
+impl<'a> Map<'a> for AllPackageData {
     type Key = PackageId;
     type Value = PackageDataEntry;
     fn get(&self, key: &Self::Key) -> Option<&Self::Value> {
         self.0.get(key)
     }
 }
-impl HasModel for AllPackageData {
-    type Model = MapModel<Self>;
+impl<'a> HasModel<'a> for AllPackageData {
+    type Model = MapModel<'a, Self>;
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -224,32 +221,40 @@ pub enum PackageDataEntry {
     #[serde(rename_all = "kebab-case")]
     Installing {
         static_files: StaticFiles,
+        #[model]
         manifest: Manifest,
         install_progress: Arc<InstallProgress>,
     },
     #[serde(rename_all = "kebab-case")]
     Updating {
         static_files: StaticFiles,
+        #[model]
         manifest: Manifest,
+        #[model]
         installed: InstalledPackageDataEntry,
         install_progress: Arc<InstallProgress>,
     },
     #[serde(rename_all = "kebab-case")]
     Restoring {
         static_files: StaticFiles,
+        #[model]
         manifest: Manifest,
         install_progress: Arc<InstallProgress>,
     },
     #[serde(rename_all = "kebab-case")]
     Removing {
         static_files: StaticFiles,
+        #[model]
         manifest: Manifest,
+        #[model]
         removing: InstalledPackageDataEntry,
     },
     #[serde(rename_all = "kebab-case")]
     Installed {
         static_files: StaticFiles,
+        #[model]
         manifest: Manifest,
+        #[model]
         installed: InstalledPackageDataEntry,
     },
 }
@@ -291,18 +296,28 @@ impl PackageDataEntry {
         }
     }
 }
-impl PackageDataEntryModel {
-    pub fn installed(self) -> OptionModel<InstalledPackageDataEntry> {
-        self.0.child("installed").into()
+pub type PackageDataEntryModel<'a> = package_data_entry_model::Model<'a>;
+impl<'a> package_data_entry_model::Model<'a> {
+    pub fn manifest(&mut self) -> <Manifest as HasModel<'a>>::Model {
+        match self {
+            Self::Installing(mut a) => a.manifest(),
+            Self::Updating(mut a) => a.manifest(),
+            Self::Restoring(mut a) => a.manifest(),
+            Self::Removing(mut a) => a.manifest(),
+            Self::Installed(mut a) => a.manifest(),
+        }
     }
-    pub fn removing(self) -> OptionModel<InstalledPackageDataEntry> {
-        self.0.child("removing").into()
-    }
-    pub fn install_progress(self) -> OptionModel<InstallProgress> {
-        self.0.child("install-progress").into()
-    }
-    pub fn manifest(self) -> ManifestModel {
-        self.0.child("manifest").into()
+    pub fn as_installed(
+        &'a mut self,
+    ) -> Result<package_data_entry_model::InstalledModel<'a>, Error> {
+        if let Self::Installed(a) = self {
+            Ok(a)
+        } else {
+            Err(Error::new(
+                eyre!("package is not in installed state"),
+                ErrorKind::InvalidRequest,
+            ))
+        }
     }
 }
 
@@ -318,36 +333,12 @@ pub struct InstalledPackageDataEntry {
     #[model]
     pub manifest: Manifest,
     pub last_backup: Option<DateTime<Utc>>,
-    #[model]
+    // #[model]
     pub dependency_info: BTreeMap<PackageId, StaticDependencyInfo>,
     #[model]
     pub current_dependencies: CurrentDependencies,
     #[model]
     pub interface_addresses: InterfaceAddressMap,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct CurrentDependents(pub BTreeMap<PackageId, CurrentDependencyInfo>);
-impl CurrentDependents {
-    pub fn map(
-        mut self,
-        transform: impl Fn(
-            BTreeMap<PackageId, CurrentDependencyInfo>,
-        ) -> BTreeMap<PackageId, CurrentDependencyInfo>,
-    ) -> Self {
-        self.0 = transform(self.0);
-        self
-    }
-}
-impl Map for CurrentDependents {
-    type Key = PackageId;
-    type Value = CurrentDependencyInfo;
-    fn get(&self, key: &Self::Key) -> Option<&Self::Value> {
-        self.0.get(key)
-    }
-}
-impl HasModel for CurrentDependents {
-    type Model = MapModel<Self>;
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
@@ -363,15 +354,15 @@ impl CurrentDependencies {
         self
     }
 }
-impl Map for CurrentDependencies {
+impl<'a> Map<'a> for CurrentDependencies {
     type Key = PackageId;
     type Value = CurrentDependencyInfo;
     fn get(&self, key: &Self::Key) -> Option<&Self::Value> {
         self.0.get(key)
     }
 }
-impl HasModel for CurrentDependencies {
-    type Model = MapModel<Self>;
+impl<'a> HasModel<'a> for CurrentDependencies {
+    type Model = MapModel<'a, Self>;
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel)]
@@ -389,23 +380,23 @@ pub struct CurrentDependencyInfo {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct InterfaceAddressMap(pub BTreeMap<InterfaceId, InterfaceAddresses>);
-impl Map for InterfaceAddressMap {
+impl<'a> Map<'a> for InterfaceAddressMap {
     type Key = InterfaceId;
     type Value = InterfaceAddresses;
     fn get(&self, key: &Self::Key) -> Option<&Self::Value> {
         self.0.get(key)
     }
 }
-impl HasModel for InterfaceAddressMap {
-    type Model = MapModel<Self>;
+impl<'a> HasModel<'a> for InterfaceAddressMap {
+    type Model = MapModel<'a, Self>;
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
 pub struct InterfaceAddresses {
-    #[model]
+    // #[model]
     pub tor_address: Option<String>,
-    #[model]
+    // #[model]
     pub lan_address: Option<String>,
 }
 

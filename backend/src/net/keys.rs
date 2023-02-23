@@ -12,7 +12,7 @@ use tracing::instrument;
 use zeroize::Zeroize;
 
 use crate::net::ssl::CertPair;
-use crate::Error;
+use crate::prelude::*;
 
 // TODO: delete once we may change tor addresses
 #[instrument(skip(secrets))]
@@ -165,7 +165,7 @@ impl Key {
             let bytes = row.key.try_into().map_err(|e: Vec<u8>| {
                 Error::new(
                     eyre!("Invalid length for network key {} expected 32", e.len()),
-                    crate::ErrorKind::Database,
+                    ErrorKind::Database,
                 )
             })?;
             Ok(match row.tor_key {
@@ -175,7 +175,7 @@ impl Key {
                     tor_key.try_into().map_err(|e: Vec<u8>| {
                         Error::new(
                             eyre!("Invalid length for tor key {} expected 64", e.len()),
-                            crate::ErrorKind::Database,
+                            ErrorKind::Database,
                         )
                     })?,
                 ),
@@ -207,7 +207,7 @@ impl Key {
             bytes.clone_from_slice(actual.get(0..32).ok_or_else(|| {
                 Error::new(
                     eyre!("Invalid key size returned from DB"),
-                    crate::ErrorKind::Database,
+                    ErrorKind::Database,
                 )
             })?);
             bytes
@@ -220,7 +220,7 @@ impl Key {
             bytes.clone_from_slice(actual.get(0..32).ok_or_else(|| {
                 Error::new(
                     eyre!("Invalid key size returned from DB"),
-                    crate::ErrorKind::Database,
+                    ErrorKind::Database,
                 )
             })?);
             bytes

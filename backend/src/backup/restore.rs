@@ -5,11 +5,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use clap::ArgMatches;
-use color_eyre::eyre::eyre;
 use futures::future::BoxFuture;
 use futures::{stream, FutureExt, StreamExt};
 use openssl::x509::X509;
-use patch_db::{DbHandle, PatchDbHandle};
 use rpc_toolkit::command;
 use sqlx::Connection;
 use tokio::fs::File;
@@ -21,7 +19,6 @@ use crate::backup::os::OsBackup;
 use crate::backup::BackupMetadata;
 use crate::context::rpc::RpcContextConfig;
 use crate::context::{RpcContext, SetupContext};
-use crate::db::model::{PackageDataEntry, StaticFiles};
 use crate::disk::mount::backup::{BackupMountGuard, PackageBackupMountGuard};
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::TmpMountGuard;
@@ -30,6 +27,7 @@ use crate::init::init;
 use crate::install::progress::InstallProgress;
 use crate::install::{download_install_s9pk, PKG_PUBLIC_DIR};
 use crate::notifications::NotificationLevel;
+use crate::prelude::*;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::s9pk::reader::S9pkReader;
 use crate::setup::SetupStatus;
@@ -37,7 +35,6 @@ use crate::util::display_none;
 use crate::util::io::dir_size;
 use crate::util::serde::IoFormat;
 use crate::volume::{backup_dir, BACKUP_DIR, PKG_VOLUME_DIR};
-use crate::{Error, ResultExt};
 
 fn parse_comma_separated(arg: &str, _: &ArgMatches) -> Result<Vec<PackageId>, Error> {
     arg.split(',')
@@ -53,26 +50,24 @@ pub async fn restore_packages_rpc(
     #[arg(rename = "target-id")] target_id: BackupTargetId,
     #[arg] password: String,
 ) -> Result<(), Error> {
-    let mut db = ctx.db.handle();
     let fs = target_id
         .load(&mut ctx.secret_store.acquire().await?)
         .await?;
     let backup_guard =
         BackupMountGuard::mount(TmpMountGuard::mount(&fs, ReadWrite).await?, &password).await?;
 
-    let (backup_guard, tasks, _) = restore_packages(&ctx, &mut db, backup_guard, ids).await?;
+    let (backup_guard, tasks, _) = restore_packages(&ctx, backup_guard, ids).await?;
 
     tokio::spawn(async move {
         stream::iter(tasks.into_iter().map(|x| (x, ctx.clone())))
             .for_each_concurrent(5, |(res, ctx)| async move {
-                let mut db = ctx.db.handle();
                 match res.await {
                     (Ok(_), _) => (),
                     (Err(err), package_id) => {
                         if let Err(err) = ctx
                             .notification_manager
                             .notify(
-                                &mut db,
+                                &ctx.db,
                                 Some(package_id.clone()),
                                 NotificationLevel::Error,
                                 "Restoration Failure".to_string(),
@@ -184,20 +179,18 @@ pub async fn recover_full_embassy(
     .await?;
 
     let os_backup_path = backup_guard.as_ref().join("os-backup.cbor");
-    let mut os_backup: OsBackup =
-        IoFormat::Cbor.from_slice(&tokio::fs::read(&os_backup_path).await.with_ctx(|_| {
-            (
-                crate::ErrorKind::Filesystem,
-                os_backup_path.display().to_string(),
-            )
-        })?)?;
+    let mut os_backup: OsBackup = IoFormat::Cbor.from_slice(
+        &tokio::fs::read(&os_backup_path)
+            .await
+            .with_ctx(|_| (ErrorKind::Filesystem, os_backup_path.display().to_string()))?,
+    )?;
 
     os_backup.account.password = argon2::hash_encoded(
         embassy_password.as_bytes(),
         &rand::random::<[u8; 16]>()[..],
         &argon2::Config::default(),
     )
-    .with_kind(crate::ErrorKind::PasswordHashGeneration)?;
+    .with_kind(ErrorKind::PasswordHashGeneration)?;
 
     let secret_store = ctx.secret_store().await?;
 
@@ -211,8 +204,6 @@ pub async fn recover_full_embassy(
 
     let rpc_ctx = RpcContext::init(ctx.config_path.clone(), disk_guid.clone()).await?;
 
-    let mut db = rpc_ctx.db.handle();
-
     let ids = backup_guard
         .metadata
         .package_backups
@@ -220,18 +211,17 @@ pub async fn recover_full_embassy(
         .cloned()
         .collect();
     let (backup_guard, tasks, progress_info) =
-        restore_packages(&rpc_ctx, &mut db, backup_guard, ids).await?;
+        restore_packages(&rpc_ctx, backup_guard, ids).await?;
     let task_consumer_rpc_ctx = rpc_ctx.clone();
     tokio::select! {
         _ = async move {
             stream::iter(tasks.into_iter().map(|x| (x,  task_consumer_rpc_ctx.clone())))
                 .for_each_concurrent(5, |(res, ctx)| async move {
-                    let mut db = ctx.db.handle();
                     match res.await {
                         (Ok(_), _) => (),
                         (Err(err), package_id) => {
                             if let Err(err) = ctx.notification_manager.notify(
-                                &mut db,
+                                &ctx.db,
                                 Some(package_id.clone()),
                                 NotificationLevel::Error,
                                 "Restoration Failure".to_string(), format!("Error restoring package {}: {}", package_id,err), (), None).await{
@@ -263,7 +253,6 @@ pub async fn recover_full_embassy(
 
 async fn restore_packages(
     ctx: &RpcContext,
-    db: &mut PatchDbHandle,
     backup_guard: BackupMountGuard<TmpMountGuard>,
     ids: Vec<PackageId>,
 ) -> Result<
@@ -274,7 +263,7 @@ async fn restore_packages(
     ),
     Error,
 > {
-    let guards = assure_restoring(ctx, db, ids, &backup_guard).await?;
+    let guards = assure_restoring(ctx, ids, &backup_guard).await?;
 
     let mut progress_info = ProgressInfo::default();
 
@@ -306,31 +295,15 @@ async fn restore_packages(
     Ok((backup_guard, tasks, progress_info))
 }
 
-#[instrument(skip(ctx, db, backup_guard))]
+#[instrument(skip(ctx, backup_guard))]
 async fn assure_restoring(
     ctx: &RpcContext,
-    db: &mut PatchDbHandle,
     ids: Vec<PackageId>,
     backup_guard: &BackupMountGuard<TmpMountGuard>,
 ) -> Result<Vec<(Manifest, PackageBackupMountGuard)>, Error> {
-    let mut tx = db.begin().await?;
-
     let mut guards = Vec::with_capacity(ids.len());
 
     for id in ids {
-        let mut model = crate::db::DatabaseModel::new()
-            .package_data()
-            .idx_model(&id)
-            .get_mut(&mut tx)
-            .await?;
-
-        if !model.is_none() {
-            return Err(Error::new(
-                eyre!("Can't restore over existing package: {}", id),
-                crate::ErrorKind::InvalidRequest,
-            ));
-        }
-
         let guard = backup_guard.mount_package_backup(&id).await?;
         let s9pk_path = Path::new(BACKUP_DIR).join(&id).join(format!("{}.s9pk", id));
         let mut rdr = S9pkReader::open(&s9pk_path, false).await?;
@@ -338,6 +311,13 @@ async fn assure_restoring(
         let manifest = rdr.manifest().await?;
         let version = manifest.version.clone();
         let progress = InstallProgress::new(Some(tokio::fs::metadata(&s9pk_path).await?.len()));
+
+        // ctx.db.apply_fn(|mut v| v.package_data().idx()) * model =
+        //     Some(PackageDataEntry::Restoring {
+        //         install_progress: progress.clone(),
+        //         static_files: StaticFiles::local(&id, &version, manifest.assets.icon_type()),
+        //         manifest: manifest.clone(),
+        //     });
 
         let public_dir_path = ctx
             .datadir
@@ -362,17 +342,9 @@ async fn assure_restoring(
         tokio::io::copy(&mut rdr.icon().await?, &mut dst).await?;
         dst.sync_all().await?;
 
-        *model = Some(PackageDataEntry::Restoring {
-            install_progress: progress.clone(),
-            static_files: StaticFiles::local(&id, &version, manifest.assets.icon_type()),
-            manifest: manifest.clone(),
-        });
-        model.save(&mut tx).await?;
-
         guards.push((manifest, guard));
     }
 
-    tx.commit().await?;
     Ok(guards)
 }
 
@@ -388,13 +360,11 @@ async fn restore_package<'a>(
         .join(format!("{}.s9pk", id));
 
     let metadata_path = Path::new(BACKUP_DIR).join(&id).join("metadata.cbor");
-    let metadata: BackupMetadata =
-        IoFormat::Cbor.from_slice(&tokio::fs::read(&metadata_path).await.with_ctx(|_| {
-            (
-                crate::ErrorKind::Filesystem,
-                metadata_path.display().to_string(),
-            )
-        })?)?;
+    let metadata: BackupMetadata = IoFormat::Cbor.from_slice(
+        &tokio::fs::read(&metadata_path)
+            .await
+            .with_ctx(|_| (ErrorKind::Filesystem, metadata_path.display().to_string()))?,
+    )?;
 
     let mut secrets = ctx.secret_store.acquire().await?;
     let mut secrets_tx = secrets.begin().await?;
@@ -424,26 +394,19 @@ async fn restore_package<'a>(
 
     let len = tokio::fs::metadata(&s9pk_path)
         .await
-        .with_ctx(|_| {
-            (
-                crate::ErrorKind::Filesystem,
-                s9pk_path.display().to_string(),
-            )
-        })?
+        .with_ctx(|_| (ErrorKind::Filesystem, s9pk_path.display().to_string()))?
         .len();
-    let file = File::open(&s9pk_path).await.with_ctx(|_| {
-        (
-            crate::ErrorKind::Filesystem,
-            s9pk_path.display().to_string(),
-        )
-    })?;
+    let file = File::open(&s9pk_path)
+        .await
+        .with_ctx(|_| (ErrorKind::Filesystem, s9pk_path.display().to_string()))?;
 
     let progress = InstallProgress::new(Some(len));
+    let marketplace_url = metadata.marketplace_url;
 
     Ok((
         progress.clone(),
         async move {
-            download_install_s9pk(&ctx, &manifest, None, progress, file).await?;
+            download_install_s9pk(&ctx, &manifest, marketplace_url, progress, file).await?;
 
             guard.unmount().await?;
 

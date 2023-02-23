@@ -9,8 +9,8 @@ use futures::{StreamExt, TryStreamExt};
 use ipnet::{Ipv4Net, Ipv6Net};
 use tokio::process::Command;
 
+use crate::prelude::*;
 use crate::util::Invoke;
-use crate::Error;
 
 fn parse_iface_ip(output: &str) -> Result<Option<&str>, Error> {
     let output = output.trim();
@@ -22,7 +22,7 @@ fn parse_iface_ip(output: &str) -> Result<Option<&str>, Error> {
     } else {
         Err(Error::new(
             eyre!("malformed output from `ip`"),
-            crate::ErrorKind::Network,
+            ErrorKind::Network,
         ))
     }
 }
@@ -35,7 +35,7 @@ pub async fn get_iface_ipv4_addr(iface: &str) -> Result<Option<(Ipv4Addr, Ipv4Ne
             .arg("addr")
             .arg("show")
             .arg(iface)
-            .invoke(crate::ErrorKind::Network)
+            .invoke(ErrorKind::Network)
             .await?,
     )?)?
     .map(|s| Ok::<_, Error>((s.split("/").next().unwrap().parse()?, s.parse()?)))
@@ -50,7 +50,7 @@ pub async fn get_iface_ipv6_addr(iface: &str) -> Result<Option<(Ipv6Addr, Ipv6Ne
             .arg("addr")
             .arg("show")
             .arg(iface)
-            .invoke(crate::ErrorKind::Network)
+            .invoke(ErrorKind::Network)
             .await?,
     )?)?
     .map(|s| Ok::<_, Error>((s.split("/").next().unwrap().parse()?, s.parse()?)))
@@ -100,7 +100,7 @@ pub async fn find_eth_iface() -> Result<String, Error> {
     }
     Err(Error::new(
         eyre!("Could not detect ethernet interface"),
-        crate::ErrorKind::Network,
+        ErrorKind::Network,
     ))
 }
 

@@ -14,7 +14,6 @@ use futures::{FutureExt, StreamExt, TryStreamExt};
 use http::header::CONTENT_LENGTH;
 use http::{Request, Response, StatusCode};
 use hyper::Body;
-use patch_db::{DbHandle, LockType};
 use reqwest::Url;
 use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
@@ -25,21 +24,21 @@ use tokio_stream::wrappers::ReadDirStream;
 use tracing::instrument;
 
 use self::cleanup::{cleanup_failed, remove_from_current_dependents_lists};
-use crate::config::{ConfigReceipts, ConfigureContext};
+use crate::config::ConfigureContext;
 use crate::context::{CliContext, RpcContext};
 use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::db::model::{
-    CurrentDependencies, CurrentDependencyInfo, CurrentDependents, InstalledPackageDataEntry,
-    PackageDataEntry, StaticDependencyInfo, StaticFiles,
+    CurrentDependencies, CurrentDependencyInfo, InstalledPackageDataEntry, PackageDataEntry,
+    StaticDependencyInfo, StaticFiles,
 };
 use crate::dependencies::{
-    add_dependent_to_current_dependents_lists, break_all_dependents_transitive,
-    reconfigure_dependents_with_live_pointers, BreakTransitiveReceipts, BreakageRes,
-    DependencyError, DependencyErrors,
+    break_all_dependents_transitive, BreakTransitiveReceipts, BreakageRes, DependencyError,
+    DependencyErrors,
 };
 use crate::install::cleanup::{cleanup, update_dependency_errors_of_dependents};
 use crate::install::progress::{InstallProgress, InstallProgressTracker};
 use crate::notifications::NotificationLevel;
+use crate::prelude::*;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::s9pk::reader::S9pkReader;
 use crate::status::{MainStatus, Status};
@@ -48,7 +47,6 @@ use crate::util::serde::{display_serializable, Port};
 use crate::util::{display_none, AsyncFileExt, Version};
 use crate::version::{Current, VersionT};
 use crate::volume::{asset_dir, script_dir};
-use crate::{Error, ErrorKind, ResultExt};
 
 pub mod cleanup;
 pub mod progress;
@@ -61,10 +59,10 @@ pub const PKG_WASM_DIR: &str = "package-data/wasm";
 #[command(display(display_serializable))]
 pub async fn list(#[context] ctx: RpcContext) -> Result<Vec<(PackageId, Version)>, Error> {
     let mut hdl = ctx.db.handle();
-    let package_data = crate::db::DatabaseModel::new()
-        .package_data()
-        .get(&mut hdl)
-        .await?;
+    let package_data = todo!(); /* crate::db::DatabaseModel::new()
+                                .package_data()
+                                .get(&mut hdl)
+                                .await?;*/
 
     Ok(package_data
         .0
@@ -97,7 +95,7 @@ impl std::str::FromStr for MinMax {
             "max" => Ok(MinMax::Max),
             _ => Err(Error::new(
                 eyre!("Must be one of \"min\", \"max\"."),
-                crate::ErrorKind::ParseVersion,
+                ErrorKind::ParseVersion,
             )),
         }
     }
@@ -145,12 +143,12 @@ pub async fn install(
         &*crate::ARCH,
     ))
     .await
-    .with_kind(crate::ErrorKind::Registry)?
+    .with_kind(ErrorKind::Registry)?
     .error_for_status()
-    .with_kind(crate::ErrorKind::Registry)?
+    .with_kind(ErrorKind::Registry)?
     .json()
     .await
-    .with_kind(crate::ErrorKind::Registry)?;
+    .with_kind(ErrorKind::Registry)?;
     let s9pk = reqwest::get(format!(
         "{}/package/v0/{}.s9pk?spec=={}&version-priority={}&eos-version-compat={}&arch={}",
         marketplace_url,
@@ -161,9 +159,9 @@ pub async fn install(
         &*crate::ARCH,
     ))
     .await
-    .with_kind(crate::ErrorKind::Registry)?
+    .with_kind(ErrorKind::Registry)?
     .error_for_status()
-    .with_kind(crate::ErrorKind::Registry)?;
+    .with_kind(ErrorKind::Registry)?;
 
     if man.id.as_str() != id || !man.version.satisfies(&version) {
         return Err(Error::new(
@@ -253,11 +251,11 @@ pub async fn install(
     let static_files = StaticFiles::local(&man.id, &man.version, icon_type);
     let mut db_handle = ctx.db.handle();
     let mut tx = db_handle.begin().await?;
-    let mut pde = crate::db::DatabaseModel::new()
-        .package_data()
-        .idx_model(&man.id)
-        .get_mut(&mut tx)
-        .await?;
+    let mut pde = todo!(); /* crate::db::DatabaseModel::new()
+                           .package_data()
+                           .idx_model(&man.id)
+                           .get_mut(&mut tx)
+                           .await?;*/
     match pde.take() {
         Some(PackageDataEntry::Installed {
             installed,
@@ -281,7 +279,7 @@ pub async fn install(
         _ => {
             return Err(Error::new(
                 eyre!("Cannot install over a package in a transient state"),
-                crate::ErrorKind::InvalidRequest,
+                ErrorKind::InvalidRequest,
             ))
         }
     }
@@ -306,7 +304,7 @@ pub async fn install(
             if let Err(e) = ctx
                 .notification_manager
                 .notify(
-                    &mut db_handle,
+                    &ctx.db,
                     Some(man.id),
                     NotificationLevel::Error,
                     String::from("Install Failed"),
@@ -386,11 +384,11 @@ pub async fn sideload(
             let mut hdl = new_ctx.db.handle();
             let mut tx = hdl.begin().await?;
 
-            let mut pde = crate::db::DatabaseModel::new()
-                .package_data()
-                .idx_model(&manifest.id)
-                .get_mut(&mut tx)
-                .await?;
+            let mut pde = todo!(); /* crate::db::DatabaseModel::new()
+                                   .package_data()
+                                   .idx_model(&manifest.id)
+                                   .get_mut(&mut tx)
+                                   .await?;*/
             match pde.take() {
                 Some(PackageDataEntry::Installed {
                     installed,
@@ -418,7 +416,7 @@ pub async fn sideload(
                 _ => {
                     return Err(Error::new(
                         eyre!("Cannot install over a package in a transient state"),
-                        crate::ErrorKind::InvalidRequest,
+                        ErrorKind::InvalidRequest,
                     ))
                 }
             }
@@ -452,7 +450,7 @@ pub async fn sideload(
                 if let Err(e) = new_ctx
                     .notification_manager
                     .notify(
-                        &mut hdl,
+                        &ctx.db,
                         Some(manifest.id),
                         NotificationLevel::Error,
                         String::from("Install Failed"),
@@ -537,7 +535,7 @@ async fn cli_install(
                 serde_json::json!({ "id": pkg, "marketplace-url": marketplace_url, "version-spec": v, "version-priority": version_priority })
             }
             (Some(_), Some(_)) => {
-                return Err(crate::Error::new(
+                return Err(Error::new(
                     eyre!("Invalid package id {}", target),
                     ErrorKind::InvalidRequest,
                 )
@@ -601,17 +599,17 @@ pub async fn uninstall_dry(
 pub async fn uninstall_impl(ctx: RpcContext, id: PackageId) -> Result<(), Error> {
     let mut handle = ctx.db.handle();
     let mut tx = handle.begin().await?;
-    crate::db::DatabaseModel::new()
-        .package_data()
-        .idx_model(&id)
-        .lock(&mut tx, LockType::Write)
-        .await?;
+    // crate::db::DatabaseModel::new()
+    //     .package_data()
+    //     .idx_model(&id)
+    //     .lock(&mut tx, LockType::Write)
+    //     .await?;
 
-    let mut pde = crate::db::DatabaseModel::new()
-        .package_data()
-        .idx_model(&id)
-        .get_mut(&mut tx)
-        .await?;
+    let mut pde = todo!(); /*crate::db::DatabaseModel::new()
+                           .package_data()
+                           .idx_model(&id)
+                           .get_mut(&mut tx)
+                           .await?;*/
     let (manifest, static_files, installed) = match pde.take() {
         Some(PackageDataEntry::Installed {
             manifest,
@@ -621,7 +619,7 @@ pub async fn uninstall_impl(ctx: RpcContext, id: PackageId) -> Result<(), Error>
         _ => {
             return Err(Error::new(
                 eyre!("Package is not installed."),
-                crate::ErrorKind::NotFound,
+                ErrorKind::NotFound,
             ));
         }
     };
@@ -635,16 +633,9 @@ pub async fn uninstall_impl(ctx: RpcContext, id: PackageId) -> Result<(), Error>
     drop(handle);
 
     tokio::spawn(async move {
-        if let Err(e) = async {
-            cleanup::uninstall(
-                &ctx,
-                &mut ctx.db.handle(),
-                &mut ctx.secret_store.acquire().await?,
-                &id,
-            )
-            .await
-        }
-        .await
+        if let Err(e) =
+            async { cleanup::uninstall(&ctx, &mut ctx.secret_store.acquire().await?, &id).await }
+                .await
         {
             let err_str = format!("Uninstall of {} Failed: {}", id, e);
             tracing::error!("{}", err_str);
@@ -652,7 +643,7 @@ pub async fn uninstall_impl(ctx: RpcContext, id: PackageId) -> Result<(), Error>
             if let Err(e) = ctx
                 .notification_manager
                 .notify(
-                    &mut ctx.db.handle(), // allocating separate handle here because the lifetime of the previous one is the expression
+                    &ctx.db,
                     Some(id),
                     NotificationLevel::Error,
                     String::from("Uninstall Failed"),
@@ -671,35 +662,6 @@ pub async fn uninstall_impl(ctx: RpcContext, id: PackageId) -> Result<(), Error>
     Ok(())
 }
 
-pub struct DownloadInstallReceipts {
-    package_receipts: crate::db::package::PackageReceipts,
-    manifest_receipts: crate::db::package::ManifestReceipts,
-}
-
-impl DownloadInstallReceipts {
-    pub async fn new<'a>(db: &'a mut impl DbHandle, id: &PackageId) -> Result<Self, Error> {
-        let mut locks = Vec::new();
-
-        let setup = Self::setup(&mut locks, id);
-        Ok(setup(&db.lock_all(locks).await?)?)
-    }
-
-    pub fn setup(
-        locks: &mut Vec<patch_db::LockTargetId>,
-        id: &PackageId,
-    ) -> impl FnOnce(&patch_db::Verifier) -> Result<Self, Error> {
-        let package_receipts = crate::db::package::PackageReceipts::setup(locks);
-        let manifest_receipts = crate::db::package::ManifestReceipts::setup(locks, id);
-
-        move |skeleton_key| {
-            Ok(Self {
-                package_receipts: package_receipts(skeleton_key)?,
-                manifest_receipts: manifest_receipts(skeleton_key)?,
-            })
-        }
-    }
-}
-
 #[instrument(skip(ctx, temp_manifest, s9pk))]
 pub async fn download_install_s9pk(
     ctx: &RpcContext,
@@ -713,13 +675,14 @@ pub async fn download_install_s9pk(
     let mut previous_state: Option<MainStatus> = None;
 
     if let Err(e) = async {
-        if crate::db::DatabaseModel::new()
-            .package_data()
-            .idx_model(&pkg_id)
-            .and_then(|x| x.installed())
-            .exists(&mut ctx.db.handle())
-            .await
-            .unwrap_or(false)
+        if todo!()
+        /* crate::db::DatabaseModel::new()
+        .package_data()
+        .idx_model(&pkg_id)
+        .and_then(|x| x.installed())
+        .exists(&mut ctx.db.handle())
+        .await
+        .unwrap_or(false) */
         {
             previous_state = crate::control::stop_impl(ctx.clone(), pkg_id.clone())
                 .await
@@ -727,13 +690,10 @@ pub async fn download_install_s9pk(
         }
         let mut db_handle = ctx.db.handle();
         let mut tx = db_handle.begin().await?;
-        let receipts = DownloadInstallReceipts::new(&mut tx, &pkg_id).await?;
         // Build set of existing manifests
         let mut manifests = Vec::new();
-        for pkg in crate::db::package::get_packages(&mut tx, &receipts.package_receipts).await? {
-            if let Some(m) =
-                crate::db::package::get_manifest(&mut tx, &pkg, &receipts.manifest_receipts).await?
-            {
+        for pkg in crate::db::package::get_packages(&ctx.db).await? {
+            if let Some(m) = crate::db::package::get_manifest(&ctx.db, &pkg).await? {
                 manifests.push(m);
             }
         }
@@ -767,7 +727,6 @@ pub async fn download_install_s9pk(
                 }
             }
         }
-        drop(receipts);
         tx.save().await?;
         drop(db_handle);
 
@@ -780,9 +739,9 @@ pub async fn download_install_s9pk(
         let pkg_archive =
             pkg_archive_dir.join(AsRef::<Path>::as_ref(pkg_id).with_extension("s9pk"));
 
-        let pkg_data_entry = crate::db::DatabaseModel::new()
-            .package_data()
-            .idx_model(pkg_id);
+        let pkg_data_entry = todo!(); /* crate::db::DatabaseModel::new()
+                                      .package_data()
+                                      .idx_model(pkg_id);*/
 
         let progress_model = pkg_data_entry.and_then(|pde| pde.install_progress());
 
@@ -832,9 +791,9 @@ pub async fn download_install_s9pk(
 
         let mut handle = ctx.db.handle();
         let mut tx = handle.begin().await?;
-        let receipts = cleanup::CleanupFailedReceipts::new(&mut tx).await?;
+        let receipts = todo!(); //cleanup::CleanupFailedReceipts::new(&mut tx).await?;
 
-        if let Err(e) = cleanup_failed(&ctx, &mut tx, pkg_id, &receipts).await {
+        if let Err(e) = cleanup_failed(&ctx, pkg_id, &receipts).await {
             tracing::error!("Failed to clean up {}@{}: {}", pkg_id, version, e);
             tracing::debug!("{:?}", e);
         } else {
@@ -846,30 +805,6 @@ pub async fn download_install_s9pk(
             crate::control::start(ctx.clone(), pkg_id.clone()).await?;
         }
         Ok(())
-    }
-}
-
-pub struct InstallS9Receipts {
-    config: ConfigReceipts,
-}
-
-impl InstallS9Receipts {
-    pub async fn new<'a>(db: &'a mut impl DbHandle) -> Result<Self, Error> {
-        let mut locks = Vec::new();
-
-        let setup = Self::setup(&mut locks);
-        Ok(setup(&db.lock_all(locks).await?)?)
-    }
-
-    pub fn setup(
-        locks: &mut Vec<patch_db::LockTargetId>,
-    ) -> impl FnOnce(&patch_db::Verifier) -> Result<Self, Error> {
-        let config = ConfigReceipts::setup(locks);
-        move |skeleton_key| {
-            Ok(Self {
-                config: config(skeleton_key)?,
-            })
-        }
     }
 }
 
@@ -886,9 +821,9 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
     rdr.validated();
     let developer_key = rdr.developer_key().clone();
     rdr.reset().await?;
-    let model = crate::db::DatabaseModel::new()
-        .package_data()
-        .idx_model(pkg_id);
+    let model = todo!(); /* crate::db::DatabaseModel::new()
+                         .package_data()
+                         .idx_model(pkg_id); */
     let progress_model = model.clone().and_then(|m| m.install_progress());
 
     tracing::info!("Install {}@{}: Unpacking Manifest", pkg_id, version);
@@ -900,13 +835,14 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
     tracing::info!("Install {}@{}: Fetching Dependency Info", pkg_id, version);
     let mut dependency_info = BTreeMap::new();
     for (dep, info) in &manifest.dependencies.0 {
-        let manifest: Option<Manifest> = if let Some(local_man) = crate::db::DatabaseModel::new()
-            .package_data()
-            .idx_model(dep)
-            .map::<_, Manifest>(|pde| pde.manifest())
-            .get(&mut ctx.db.handle())
-            .await?
-            .into_owned()
+        let manifest: Option<Manifest> = if let Some(local_man) = todo!()
+        /* crate::db::DatabaseModel::new()
+        .package_data()
+        .idx_model(dep)
+        .map::<_, Manifest>(|pde| pde.manifest())
+        .get(&mut ctx.db.handle())
+        .await?
+        .into_owned()*/
         {
             Some(local_man)
         } else if let Some(marketplace_url) = &marketplace_url {
@@ -919,18 +855,14 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
                 &*crate::ARCH,
             ))
             .await
-            .with_kind(crate::ErrorKind::Registry)?
+            .with_kind(ErrorKind::Registry)?
             .error_for_status()
             {
-                Ok(a) => Ok(Some(
-                    a.json()
-                        .await
-                        .with_kind(crate::ErrorKind::Deserialization)?,
-                )),
+                Ok(a) => Ok(Some(a.json().await.with_kind(ErrorKind::Deserialization)?)),
                 Err(e) if e.status() == Some(StatusCode::BAD_REQUEST) => Ok(None),
                 Err(e) => Err(e),
             }
-            .with_kind(crate::ErrorKind::Registry)?
+            .with_kind(ErrorKind::Registry)?
         } else {
             None
         };
@@ -954,7 +886,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
                         &*crate::ARCH,
                     ))
                     .await
-                    .with_kind(crate::ErrorKind::Registry)?;
+                    .with_kind(ErrorKind::Registry)?;
                     let mut dst = File::create(&icon_path).await?;
                     tokio::io::copy(&mut response_to_reader(icon), &mut dst).await?;
                     dst.sync_all().await?;
@@ -1046,7 +978,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             let load_in = load.stdin.take().ok_or_else(|| {
                 Error::new(
                     eyre!("Could not write to stdin of docker load"),
-                    crate::ErrorKind::Docker,
+                    ErrorKind::Docker,
                 )
             })?;
             let mut docker_rdr = rdr.docker_images().await?;
@@ -1059,7 +991,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
                         String::from_utf8(res.stderr)
                             .unwrap_or_else(|e| format!("Could not parse stderr: {}", e))
                     ),
-                    crate::ErrorKind::Docker,
+                    ErrorKind::Docker,
                 ))
             } else {
                 Ok(())
@@ -1102,10 +1034,6 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
     let mut handle = ctx.db.handle();
     let mut tx = handle.begin().await?;
     let mut sql_tx = ctx.secret_store.begin().await?;
-    crate::db::DatabaseModel::new()
-        .package_data()
-        .lock(&mut tx, LockType::Write)
-        .await?;
 
     tracing::info!("Install {}@{}: Creating volumes", pkg_id, version);
     manifest.volumes.install(ctx, pkg_id, version).await?;
@@ -1116,7 +1044,9 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
     tracing::info!("Install {}@{}: Installed interfaces", pkg_id, version);
 
     tracing::info!("Install {}@{}: Creating manager", pkg_id, version);
-    ctx.managers.add(ctx.clone(), manifest.clone()).await?;
+    ctx.managers
+        .add(ctx.clone(), manifest.clone(), marketplace_url)
+        .await?;
     tracing::info!("Install {}@{}: Created manager", pkg_id, version);
 
     let static_files = StaticFiles::local(pkg_id, version, manifest.assets.icon_type());
@@ -1134,53 +1064,6 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             })
             .collect(),
     );
-    let current_dependents = {
-        let mut deps = BTreeMap::new();
-        for package in crate::db::DatabaseModel::new()
-            .package_data()
-            .keys(&mut tx)
-            .await?
-        {
-            // update dependency_info on dependents
-            if let Some(dep_info_model) = crate::db::DatabaseModel::new()
-                .package_data()
-                .idx_model(&package)
-                .expect(&mut tx)
-                .await?
-                .installed()
-                .and_then(|i| i.dependency_info().idx_model(pkg_id))
-                .check(&mut tx)
-                .await?
-            {
-                let mut dep_info = dep_info_model.get_mut(&mut tx).await?;
-                *dep_info = StaticDependencyInfo {
-                    icon: format!(
-                        "/public/package-data/{}/{}/icon.{}",
-                        manifest.id,
-                        manifest.version,
-                        manifest.assets.icon_type()
-                    ),
-                    manifest: Some(manifest.clone()),
-                };
-            }
-
-            // search required dependencies
-            if let Some(dep) = crate::db::DatabaseModel::new()
-                .package_data()
-                .idx_model(&package)
-                .expect(&mut tx)
-                .await?
-                .installed()
-                .and_then(|i| i.current_dependencies().idx_model(pkg_id))
-                .get(&mut tx)
-                .await?
-                .to_owned()
-            {
-                deps.insert(package, dep);
-            }
-        }
-        CurrentDependents(deps)
-    };
     let mut pde = model
         .clone()
         .expect(&mut tx)
@@ -1207,9 +1090,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             } => Some(*time),
             _ => None,
         },
-        system_pointers: Vec::new(),
         dependency_info,
-        current_dependents: current_dependents.clone(),
         current_dependencies: current_dependencies.clone(),
         interface_addresses,
     };
@@ -1223,8 +1104,8 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         },
     );
     pde.save(&mut tx).await?;
-    let receipts = InstallS9Receipts::new(&mut tx).await?;
-    // UpdateDependencyReceipts
+    let receipts = todo!(); // InstallS9Receipts::new(&mut tx).await?;
+                            // UpdateDependencyReceipts
     let mut dep_errs = model
         .expect(&mut tx)
         .await?
@@ -1237,7 +1118,6 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         .await?;
     *dep_errs = DependencyErrors::init(
         ctx,
-        &mut tx,
         &manifest,
         &current_dependencies,
         &receipts.config.try_heal_receipts,
@@ -1298,45 +1178,32 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             crate::config::configure(&ctx, pkg_id, configure_context).await?;
         } else {
             remove_from_current_dependents_lists(
-                &mut tx,
                 pkg_id,
                 &prev.current_dependencies,
                 &receipts.config.current_dependents,
             )
             .await?; // remove previous
-            add_dependent_to_current_dependents_lists(
-                &mut tx,
-                pkg_id,
-                &current_dependencies,
-                &receipts.config.current_dependents,
-            )
-            .await?; // add new
         }
         if configured || manifest.config.is_none() {
-            let mut main_status = crate::db::DatabaseModel::new()
-                .package_data()
-                .idx_model(pkg_id)
-                .expect(&mut tx)
-                .await?
-                .installed()
-                .expect(&mut tx)
-                .await?
-                .status()
-                .main()
-                .get_mut(&mut tx)
-                .await?;
+            let mut main_status = todo!(); /*crate::db::DatabaseModel::new()
+                                           .package_data()
+                                           .idx_model(pkg_id)
+                                           .expect(&mut tx)
+                                           .await?
+                                           .installed()
+                                           .expect(&mut tx)
+                                           .await?
+                                           .status()
+                                           .main()
+                                           .get_mut(&mut tx)
+                                           .await?;*/
             *main_status = prev.status.main;
             main_status.save(&mut tx).await?;
         }
         update_dependency_errors_of_dependents(
             ctx,
-            &mut tx,
             pkg_id,
-            &CurrentDependents({
-                let mut current_dependents = current_dependents.0.clone();
-                current_dependents.append(&mut prev.current_dependents.0.clone());
-                current_dependents
-            }),
+            &todo!(),
             &receipts.config.update_dependency_receipts,
         )
         .await?;
@@ -1348,49 +1215,27 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             .backup
             .restore(
                 ctx,
-                &mut tx,
                 pkg_id,
                 version,
                 &manifest.interfaces,
                 &manifest.volumes,
             )
             .await?;
-        add_dependent_to_current_dependents_lists(
-            &mut tx,
-            pkg_id,
-            &current_dependencies,
-            &receipts.config.current_dependents,
-        )
-        .await?;
         update_dependency_errors_of_dependents(
             ctx,
-            &mut tx,
             pkg_id,
-            &current_dependents,
+            &todo!(),
             &receipts.config.update_dependency_receipts,
         )
         .await?;
     } else {
-        add_dependent_to_current_dependents_lists(
-            &mut tx,
-            pkg_id,
-            &current_dependencies,
-            &receipts.config.current_dependents,
-        )
-        .await?;
         update_dependency_errors_of_dependents(
             ctx,
-            &mut tx,
             pkg_id,
-            &current_dependents,
+            &todo!(),
             &receipts.config.update_dependency_receipts,
         )
         .await?;
-    }
-
-    if let Some(installed) = pde.installed() {
-        reconfigure_dependents_with_live_pointers(ctx, &mut tx, &receipts.config, installed)
-            .await?;
     }
 
     sql_tx.commit().await?;
@@ -1409,9 +1254,7 @@ pub fn load_images<'a, P: AsRef<Path> + 'a + Send + Sync>(
         let docker_dir = datadir.as_ref();
         if tokio::fs::metadata(&docker_dir).await.is_ok() {
             ReadDirStream::new(tokio::fs::read_dir(&docker_dir).await?)
-                .map(|r| {
-                    r.with_ctx(|_| (crate::ErrorKind::Filesystem, format!("{:?}", &docker_dir)))
-                })
+                .map(|r| r.with_ctx(|_| (ErrorKind::Filesystem, format!("{:?}", &docker_dir))))
                 .try_for_each(|entry| async move {
                     let m = entry.metadata().await?;
                     if m.is_file() {
@@ -1426,7 +1269,7 @@ pub fn load_images<'a, P: AsRef<Path> + 'a + Send + Sync>(
                             let load_in = load.stdin.take().ok_or_else(|| {
                                 Error::new(
                                     eyre!("Could not write to stdin of docker load"),
-                                    crate::ErrorKind::Docker,
+                                    ErrorKind::Docker,
                                 )
                             })?;
                             match ext {
@@ -1457,7 +1300,7 @@ pub fn load_images<'a, P: AsRef<Path> + 'a + Send + Sync>(
                                             e
                                         ))
                                     ),
-                                    crate::ErrorKind::Docker,
+                                    ErrorKind::Docker,
                                 ))
                             } else {
                                 Ok(())

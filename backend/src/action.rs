@@ -5,19 +5,21 @@ use color_eyre::eyre::eyre;
 use indexmap::IndexSet;
 pub use models::ActionId;
 use models::ImageId;
+use patch_db::Value;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use crate::config::{Config, ConfigSpec};
+use crate::config::Config;
 use crate::context::RpcContext;
+use crate::prelude::*;
 use crate::procedure::docker::DockerContainers;
 use crate::procedure::{PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::PackageId;
 use crate::util::serde::{display_serializable, parse_stdin_deserializable, IoFormat};
 use crate::util::Version;
 use crate::volume::Volumes;
-use crate::{Error, ResultExt};
+
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Actions(pub BTreeMap<ActionId, Action>);
 
@@ -53,7 +55,7 @@ pub struct Action {
     pub implementation: PackageProcedure,
     pub allowed_statuses: IndexSet<DockerStatus>,
     #[serde(default)]
-    pub input_spec: ConfigSpec,
+    pub input_spec: Value,
 }
 impl Action {
     #[instrument]
@@ -66,12 +68,7 @@ impl Action {
     ) -> Result<(), Error> {
         self.implementation
             .validate(container, eos_version, volumes, image_ids, true)
-            .with_ctx(|_| {
-                (
-                    crate::ErrorKind::ValidateS9pk,
-                    format!("Action {}", self.name),
-                )
-            })
+            .with_ctx(|_| (ErrorKind::ValidateS9pk, format!("Action {}", self.name)))
     }
 
     #[instrument(skip(ctx))]
@@ -87,7 +84,7 @@ impl Action {
         if let Some(ref input) = input {
             self.input_spec
                 .matches(&input)
-                .with_kind(crate::ErrorKind::ConfigSpecViolation)?;
+                .with_kind(ErrorKind::ConfigSpecViolation)?;
         }
         self.implementation
             .execute(
@@ -100,7 +97,7 @@ impl Action {
                 None,
             )
             .await?
-            .map_err(|e| Error::new(eyre!("{}", e.1), crate::ErrorKind::Action))
+            .map_err(|e| Error::new(eyre!("{}", e.1), ErrorKind::Action))
     }
 }
 
@@ -131,17 +128,17 @@ pub async fn action(
     format: Option<IoFormat>,
 ) -> Result<ActionResult, Error> {
     let mut db = ctx.db.handle();
-    let manifest = crate::db::DatabaseModel::new()
-        .package_data()
-        .idx_model(&pkg_id)
-        .and_then(|p| p.installed())
-        .expect(&mut db)
-        .await
-        .with_kind(crate::ErrorKind::NotFound)?
-        .manifest()
-        .get(&mut db)
-        .await?
-        .to_owned();
+    let manifest = todo!(); /* crate::db::DatabaseModel::new()
+                            .package_data()
+                            .idx_model(&pkg_id)
+                            .and_then(|p| p.installed())
+                            .expect()
+                            .await
+                            .with_kind(ErrorKind::NotFound)?
+                            .manifest()
+                            .get()
+                            .await?
+                            .to_owned();*/
 
     if let Some(action) = manifest.actions.0.get(&action_id) {
         action
@@ -157,7 +154,7 @@ pub async fn action(
     } else {
         Err(Error::new(
             eyre!("Action not found in manifest"),
-            crate::ErrorKind::NotFound,
+            ErrorKind::NotFound,
         ))
     }
 }

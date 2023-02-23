@@ -8,8 +8,8 @@ use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 
 use super::{FileSystem, MountType};
+use crate::prelude::*;
 use crate::util::Invoke;
-use crate::Error;
 
 pub async fn mount_httpdirfs(url: &Url, mountpoint: impl AsRef<Path>) -> Result<(), Error> {
     tokio::fs::create_dir_all(mountpoint.as_ref()).await?;
@@ -18,7 +18,7 @@ pub async fn mount_httpdirfs(url: &Url, mountpoint: impl AsRef<Path>) -> Result<
         .arg("--single-file-mode")
         .arg(url.as_str())
         .arg(mountpoint.as_ref());
-    cmd.invoke(crate::ErrorKind::Filesystem).await?;
+    cmd.invoke(ErrorKind::Filesystem).await?;
     Ok(())
 }
 

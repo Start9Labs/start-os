@@ -11,7 +11,7 @@ use rpc_toolkit::yajrc::RpcMethod;
 use rpc_toolkit::Metadata;
 
 use crate::context::RpcContext;
-use crate::{Error, ResultExt};
+use crate::prelude::*;
 
 pub fn db<M: Metadata>(ctx: RpcContext) -> DynMiddleware<M> {
     Box::new(
@@ -35,18 +35,18 @@ pub fn db<M: Metadata>(ctx: RpcContext) -> DynMiddleware<M> {
                                             .ok_or_else(|| {
                                                 Error::new(
                                                     eyre!("Missing X-Patch-Sequence"),
-                                                    crate::ErrorKind::InvalidRequest,
+                                                    ErrorKind::InvalidRequest,
                                                 )
                                             })?
                                             .to_str()
-                                            .with_kind(crate::ErrorKind::InvalidRequest)?
+                                            .with_kind(ErrorKind::InvalidRequest)?
                                             .parse()?;
                                         let res = ctx.db.sync(seq).await?;
                                         let json = match res {
                                             Ok(revs) => serde_json::to_vec(&revs),
                                             Err(dump) => serde_json::to_vec(&[dump]),
                                         }
-                                        .with_kind(crate::ErrorKind::Serialization)?;
+                                        .with_kind(ErrorKind::Serialization)?;
                                         Ok::<_, Error>(base64::encode_config(
                                             &json,
                                             base64::URL_SAFE,

@@ -20,9 +20,9 @@ use super::header::{FileSection, Header, TableOfContents};
 use super::manifest::{Manifest, PackageId};
 use super::SIG_CONTEXT;
 use crate::install::progress::InstallProgressTracker;
+use crate::prelude::*;
 use crate::s9pk::docker::DockerReader;
 use crate::util::Version;
-use crate::{Error, ResultExt};
 
 const MAX_REPLACES: usize = 10;
 const MAX_TITLE_LEN: usize = 30;
@@ -99,7 +99,7 @@ impl ImageTag {
                     "Contains image for incorrect package: id {}",
                     self.package_id,
                 ),
-                crate::ErrorKind::ValidateS9pk,
+                ErrorKind::ValidateS9pk,
             ));
         }
         if version != &self.version {
@@ -109,7 +109,7 @@ impl ImageTag {
                     version,
                     self.version,
                 ),
-                crate::ErrorKind::ValidateS9pk,
+                ErrorKind::ValidateS9pk,
             ));
         }
         Ok(())
@@ -121,20 +121,14 @@ impl FromStr for ImageTag {
         let rest = s.strip_prefix("start9/").ok_or_else(|| {
             Error::new(
                 eyre!("Invalid image tag prefix: expected start9/"),
-                crate::ErrorKind::ValidateS9pk,
+                ErrorKind::ValidateS9pk,
             )
         })?;
         let (package, rest) = rest.split_once("/").ok_or_else(|| {
-            Error::new(
-                eyre!("Image tag missing image id"),
-                crate::ErrorKind::ValidateS9pk,
-            )
+            Error::new(eyre!("Image tag missing image id"), ErrorKind::ValidateS9pk)
         })?;
         let (image, version) = rest.split_once(":").ok_or_else(|| {
-            Error::new(
-                eyre!("Image tag missing version"),
-                crate::ErrorKind::ValidateS9pk,
-            )
+            Error::new(eyre!("Image tag missing version"), ErrorKind::ValidateS9pk)
         })?;
         Ok(ImageTag {
             package_id: package.parse()?,
@@ -157,7 +151,7 @@ impl S9pkReader {
         let p = path.as_ref();
         let rdr = File::open(p)
             .await
-            .with_ctx(|_| (crate::error::ErrorKind::Filesystem, p.display().to_string()))?;
+            .with_ctx(|_| (Error::ErrorKind::Filesystem, p.display().to_string()))?;
 
         Self::from_reader(rdr, check_sig).await
     }
@@ -174,7 +168,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
             // 100 KiB
             return Err(Error::new(
                 eyre!("icon must be less than 100KiB"),
-                crate::ErrorKind::ValidateS9pk,
+                ErrorKind::ValidateS9pk,
             ));
         }
         let image_tags = self.image_tags().await?;
@@ -226,7 +220,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
                 &validated_image_ids,
                 false,
             )
-            .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Main"))?;
+            .with_ctx(|_| (ErrorKind::ValidateS9pk, "Main"))?;
         man.migrations.validate(
             containers,
             &man.eos_version,
@@ -237,19 +231,19 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
         if man.replaces.len() >= MAX_REPLACES {
             return Err(Error::new(
                 eyre!("Cannot have more than {MAX_REPLACES} replaces"),
-                crate::ErrorKind::ValidateS9pk,
+                ErrorKind::ValidateS9pk,
             ));
         }
         if let Some(too_big) = man.replaces.iter().find(|x| x.len() >= MAX_REPLACES) {
             return Err(Error::new(
                 eyre!("We have found a replaces of ({too_big}) that exceeds the max length of {MAX_TITLE_LEN} "),
-                crate::ErrorKind::ValidateS9pk,
+                ErrorKind::ValidateS9pk,
             ));
         }
         if man.title.len() >= MAX_TITLE_LEN {
             return Err(Error::new(
                 eyre!("Cannot have more than a length of {MAX_TITLE_LEN} for title"),
-                crate::ErrorKind::ValidateS9pk,
+                ErrorKind::ValidateS9pk,
             ));
         }
 
@@ -258,7 +252,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
         {
             return Err(Error::new(
                 eyre!("Cannot have a main docker and a main in containers"),
-                crate::ErrorKind::ValidateS9pk,
+                ErrorKind::ValidateS9pk,
             ));
         }
         if let Some(props) = &man.properties {
@@ -270,7 +264,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
                     &validated_image_ids,
                     true,
                 )
-                .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Properties"))?;
+                .with_ctx(|_| (ErrorKind::ValidateS9pk, "Properties"))?;
         }
         man.volumes.validate(&man.interfaces)?;
 
@@ -292,7 +286,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
                 tags: Vec<String>,
             }
             let man_entries = serde_json::from_slice::<Vec<ManEntry>>(&buf)
-                .with_ctx(|_| (crate::ErrorKind::Deserialization, "manifest.json"))?;
+                .with_ctx(|_| (ErrorKind::Deserialization, "manifest.json"))?;
             return man_entries
                 .iter()
                 .flat_map(|e| &e.tags)
@@ -301,7 +295,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
         }
         Err(Error::new(
             eyre!("image.tar missing manifest.json"),
-            crate::ErrorKind::ParseS9pk,
+            ErrorKind::ParseS9pk,
         ))
     }
     #[instrument(skip(rdr))]
@@ -384,7 +378,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
     pub async fn manifest(&mut self) -> Result<Manifest, Error> {
         let slice = self.manifest_raw().await?.to_vec().await?;
         serde_cbor::de::from_reader(slice.as_slice())
-            .with_ctx(|_| (crate::ErrorKind::ParseS9pk, "Deserializing Manifest (CBOR)"))
+            .with_ctx(|_| (ErrorKind::ParseS9pk, "Deserializing Manifest (CBOR)"))
     }
 
     pub async fn license<'a>(&'a mut self) -> Result<ReadHandle<'a, R>, Error> {

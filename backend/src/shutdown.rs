@@ -31,7 +31,7 @@ impl Shutdown {
             if let Err(e) = Command::new("systemctl")
                 .arg("stop")
                 .arg("systemd-journald")
-                .invoke(crate::ErrorKind::Journald)
+                .invoke(ErrorKind::Journald)
                 .await
             {
                 tracing::error!("Error Stopping Journald: {}", e);
@@ -40,7 +40,7 @@ impl Shutdown {
             if let Err(e) = Command::new("systemctl")
                 .arg("stop")
                 .arg("docker")
-                .invoke(crate::ErrorKind::Docker)
+                .invoke(ErrorKind::Docker)
                 .await
             {
                 tracing::error!("Error Stopping Docker: {}", e);

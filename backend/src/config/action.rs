@@ -11,14 +11,15 @@ use tracing::instrument;
 use super::Config;
 use crate::context::RpcContext;
 use crate::dependencies::Dependencies;
+use crate::prelude::*;
 use crate::procedure::docker::DockerContainers;
 use crate::procedure::{PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::PackageId;
 use crate::status::health_check::HealthCheckId;
 use crate::util::Version;
 use crate::volume::Volumes;
-use crate::{Error, ResultExt};
 
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ConfigRes {
     pub config: Option<Config>,
     pub spec: Value,
@@ -40,10 +41,10 @@ impl ConfigActions {
     ) -> Result<(), Error> {
         self.get
             .validate(container, eos_version, volumes, image_ids, true)
-            .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Config Get"))?;
+            .with_ctx(|_| (ErrorKind::ValidateS9pk, "Config Get"))?;
         self.set
             .validate(container, eos_version, volumes, image_ids, true)
-            .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Config Set"))?;
+            .with_ctx(|_| (ErrorKind::ValidateS9pk, "Config Set"))?;
         Ok(())
     }
     #[instrument(skip(ctx))]
@@ -65,9 +66,7 @@ impl ConfigActions {
                 None,
             )
             .await
-            .and_then(|res| {
-                res.map_err(|e| Error::new(eyre!("{}", e.1), crate::ErrorKind::ConfigGen))
-            })
+            .and_then(|res| res.map_err(|e| Error::new(eyre!("{}", e.1), ErrorKind::ConfigGen)))
     }
 
     #[instrument(skip(ctx))]
@@ -93,9 +92,7 @@ impl ConfigActions {
             )
             .await
             .and_then(|res| {
-                res.map_err(|e| {
-                    Error::new(eyre!("{}", e.1), crate::ErrorKind::ConfigRulesViolation)
-                })
+                res.map_err(|e| Error::new(eyre!("{}", e.1), ErrorKind::ConfigRulesViolation))
             })?;
         Ok(SetResult {
             signal: res.signal,

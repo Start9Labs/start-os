@@ -11,7 +11,6 @@ use helpers::to_tmp_path;
 use josekit::jwk::Jwk;
 use models::PackageId;
 use patch_db::json_ptr::JsonPointer;
-use patch_db::{DbHandle, LockReceipt, LockType, PatchDb};
 use reqwest::Url;
 use rpc_toolkit::Context;
 use serde::Deserialize;
@@ -27,17 +26,17 @@ use crate::core::rpc_continuations::{RequestGuid, RestHandler, RpcContinuation};
 use crate::db::model::{Database, InstalledPackageDataEntry, PackageDataEntry};
 use crate::disk::OsPartitionInfo;
 use crate::init::{init_postgres, pgloader};
-use crate::install::cleanup::{cleanup_failed, uninstall, CleanupFailedReceipts};
+use crate::install::cleanup::{cleanup_failed, uninstall};
 use crate::manager::ManagerMap;
 use crate::middleware::auth::HashSessionToken;
 use crate::net::net_controller::NetController;
 use crate::net::ssl::SslManager;
 use crate::net::wifi::WpaCli;
 use crate::notifications::NotificationManager;
+use crate::prelude::*;
 use crate::shutdown::Shutdown;
 use crate::status::{MainStatus, Status};
 use crate::util::config::load_config_from_paths;
-use crate::{Error, ErrorKind, ResultExt};
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -80,7 +79,7 @@ impl RpcContextConfig {
         let db_path = self.datadir().join("main").join("embassy.db");
         let db = PatchDb::open(&db_path)
             .await
-            .with_ctx(|_| (crate::ErrorKind::Filesystem, db_path.display().to_string()))?;
+            .with_ctx(|_| (ErrorKind::Filesystem, db_path.display().to_string()))?;
         if !db.exists(&<JsonPointer>::default()).await {
             db.put(&<JsonPointer>::default(), &Database::init(account))
                 .await?;
@@ -96,7 +95,7 @@ impl RpcContextConfig {
         sqlx::migrate!()
             .run(&secret_store)
             .await
-            .with_kind(crate::ErrorKind::Database)?;
+            .with_kind(ErrorKind::Database)?;
         let old_db_path = self.datadir().join("main/secrets.db");
         if tokio::fs::metadata(&old_db_path).await.is_ok() {
             pgloader(
@@ -132,44 +131,6 @@ pub struct RpcContextSeed {
     pub wifi_manager: Option<Arc<RwLock<WpaCli>>>,
     pub current_secret: Arc<Jwk>,
     pub config_hooks: Mutex<BTreeMap<PackageId, Vec<ConfigHook>>>,
-}
-
-pub struct RpcCleanReceipts {
-    cleanup_receipts: CleanupFailedReceipts,
-    packages: LockReceipt<crate::db::model::AllPackageData, ()>,
-    package: LockReceipt<crate::db::model::PackageDataEntry, String>,
-}
-
-impl RpcCleanReceipts {
-    pub async fn new<'a>(db: &'a mut impl DbHandle) -> Result<Self, Error> {
-        let mut locks = Vec::new();
-
-        let setup = Self::setup(&mut locks);
-        Ok(setup(&db.lock_all(locks).await?)?)
-    }
-
-    pub fn setup(
-        locks: &mut Vec<patch_db::LockTargetId>,
-    ) -> impl FnOnce(&patch_db::Verifier) -> Result<Self, Error> {
-        let cleanup_receipts = CleanupFailedReceipts::setup(locks);
-
-        let packages = crate::db::DatabaseModel::new()
-            .package_data()
-            .make_locker(LockType::Write)
-            .add_to_keys(locks);
-        let package = crate::db::DatabaseModel::new()
-            .package_data()
-            .star()
-            .make_locker(LockType::Write)
-            .add_to_keys(locks);
-        move |skeleton_key| {
-            Ok(Self {
-                cleanup_receipts: cleanup_receipts(skeleton_key)?,
-                packages: packages.verify(skeleton_key)?,
-                package: package.verify(skeleton_key)?,
-            })
-        }
-    }
 }
 
 #[derive(Clone)]
@@ -242,7 +203,7 @@ impl RpcContext {
                     tracing::error!("Couldn't generate ec key");
                     Error::new(
                         color_eyre::eyre::eyre!("Couldn't generate ec key"),
-                        crate::ErrorKind::Unknown,
+                        ErrorKind::Unknown,
                     )
                 })?,
             ),
@@ -252,13 +213,7 @@ impl RpcContext {
         let res = Self(seed);
         res.cleanup().await?;
         tracing::info!("Cleaned up transient states");
-        res.managers
-            .init(
-                &res,
-                &mut res.db.handle(),
-                &mut res.secret_store.acquire().await?,
-            )
-            .await?;
+        res.managers.init(&res).await?;
         tracing::info!("Initialized Package Managers");
         Ok(res)
     }
@@ -275,24 +230,18 @@ impl RpcContext {
     #[instrument(skip(self))]
     pub async fn cleanup(&self) -> Result<(), Error> {
         let mut db = self.db.handle();
-        let receipts = RpcCleanReceipts::new(&mut db).await?;
-        for (package_id, package) in receipts.packages.get(&mut db).await?.0 {
+        let receipts = todo!(); //RpcCleanReceipts::new().await?;
+        for (package_id, package) in receipts.packages.get().await?.0 {
             if let Err(e) = async {
                 match package {
                     PackageDataEntry::Installing { .. }
                     | PackageDataEntry::Restoring { .. }
                     | PackageDataEntry::Updating { .. } => {
-                        cleanup_failed(self, &mut db, &package_id, &receipts.cleanup_receipts)
-                            .await?;
+                        cleanup_failed(self, &package_id, &receipts.cleanup_receipts).await?;
                     }
                     PackageDataEntry::Removing { .. } => {
-                        uninstall(
-                            self,
-                            &mut db,
-                            &mut self.secret_store.acquire().await?,
-                            &package_id,
-                        )
-                        .await?;
+                        uninstall(self, &mut self.secret_store.acquire().await?, &package_id)
+                            .await?;
                     }
                     PackageDataEntry::Installed {
                         installed,
@@ -331,10 +280,7 @@ impl RpcContext {
                             static_files,
                             manifest,
                         };
-                        receipts
-                            .package
-                            .set(&mut db, new_package, &package_id)
-                            .await?;
+                        receipts.package.set(new_package, &package_id).await?;
                     }
                 }
                 Ok::<_, Error>(())

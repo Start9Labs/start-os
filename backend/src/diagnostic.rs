@@ -8,9 +8,9 @@ use crate::context::DiagnosticContext;
 use crate::disk::repair;
 use crate::init::SYSTEM_REBUILD_PATH;
 use crate::logs::{fetch_logs, LogResponse, LogSource};
+use crate::prelude::*;
 use crate::shutdown::Shutdown;
 use crate::util::display_none;
-use crate::Error;
 
 pub const SYSTEMD_UNIT: &'static str = "embassy-init";
 

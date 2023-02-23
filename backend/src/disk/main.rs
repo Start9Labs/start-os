@@ -10,8 +10,8 @@ use super::util::pvscan;
 use crate::disk::mount::filesystem::block_dev::mount;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::util::unmount;
+use crate::prelude::*;
 use crate::util::Invoke;
-use crate::{Error, ErrorKind, ResultExt};
 
 pub const PASSWORD_PATH: &'static str = "/etc/embassy/password";
 pub const DEFAULT_PASSWORD: &'static str = "password";
@@ -45,21 +45,21 @@ where
 {
     Command::new("dmsetup")
         .arg("remove_all") // TODO: find a higher finesse way to do this for portability reasons
-        .invoke(crate::ErrorKind::DiskManagement)
+        .invoke(ErrorKind::DiskManagement)
         .await?;
     for disk in disks {
         if pvscan.contains_key(disk.as_ref()) {
             Command::new("pvremove")
                 .arg("-yff")
                 .arg(disk.as_ref())
-                .invoke(crate::ErrorKind::DiskManagement)
+                .invoke(ErrorKind::DiskManagement)
                 .await?;
         }
         tokio::fs::write(disk.as_ref(), &[0; 2048]).await?; // wipe partition table
         Command::new("pvcreate")
             .arg("-yff")
             .arg(disk.as_ref())
-            .invoke(crate::ErrorKind::DiskManagement)
+            .invoke(ErrorKind::DiskManagement)
             .await?;
     }
     let guid = format!(
@@ -74,7 +74,7 @@ where
     for disk in disks {
         cmd.arg(disk.as_ref());
     }
-    cmd.invoke(crate::ErrorKind::DiskManagement).await?;
+    cmd.invoke(ErrorKind::DiskManagement).await?;
     Ok(guid)
 }
 
@@ -94,7 +94,7 @@ pub async fn create_fs<P: AsRef<Path>>(
 ) -> Result<(), Error> {
     tokio::fs::write(PASSWORD_PATH, password)
         .await
-        .with_ctx(|_| (crate::ErrorKind::Filesystem, PASSWORD_PATH))?;
+        .with_ctx(|_| (ErrorKind::Filesystem, PASSWORD_PATH))?;
     let mut cmd = Command::new("lvcreate");
     match size {
         FsSize::Gigabytes(a) => cmd.arg("-L").arg(format!("{}G", a)),
@@ -104,7 +104,7 @@ pub async fn create_fs<P: AsRef<Path>>(
         .arg("-n")
         .arg(name)
         .arg(guid)
-        .invoke(crate::ErrorKind::DiskManagement)
+        .invoke(ErrorKind::DiskManagement)
         .await?;
     Command::new("cryptsetup")
         .arg("-q")
@@ -112,7 +112,7 @@ pub async fn create_fs<P: AsRef<Path>>(
         .arg(format!("--key-file={}", PASSWORD_PATH))
         .arg(format!("--keyfile-size={}", password.len()))
         .arg(Path::new("/dev").join(guid).join(name))
-        .invoke(crate::ErrorKind::DiskManagement)
+        .invoke(ErrorKind::DiskManagement)
         .await?;
     Command::new("cryptsetup")
         .arg("-q")
@@ -121,11 +121,11 @@ pub async fn create_fs<P: AsRef<Path>>(
         .arg(format!("--keyfile-size={}", password.len()))
         .arg(Path::new("/dev").join(guid).join(name))
         .arg(format!("{}_{}", guid, name))
-        .invoke(crate::ErrorKind::DiskManagement)
+        .invoke(ErrorKind::DiskManagement)
         .await?;
     Command::new("mkfs.ext4")
         .arg(Path::new("/dev/mapper").join(format!("{}_{}", guid, name)))
-        .invoke(crate::ErrorKind::DiskManagement)
+        .invoke(ErrorKind::DiskManagement)
         .await?;
     mount(
         Path::new("/dev/mapper").join(format!("{}_{}", guid, name)),
@@ -135,7 +135,7 @@ pub async fn create_fs<P: AsRef<Path>>(
     .await?;
     tokio::fs::remove_file(PASSWORD_PATH)
         .await
-        .with_ctx(|_| (crate::ErrorKind::Filesystem, PASSWORD_PATH))?;
+        .with_ctx(|_| (ErrorKind::Filesystem, PASSWORD_PATH))?;
     Ok(())
 }
 
@@ -164,7 +164,7 @@ pub async fn unmount_fs<P: AsRef<Path>>(guid: &str, datadir: P, name: &str) -> R
         .arg("-q")
         .arg("luksClose")
         .arg(format!("{}_{}", guid, name))
-        .invoke(crate::ErrorKind::DiskManagement)
+        .invoke(ErrorKind::DiskManagement)
         .await?;
 
     Ok(())
@@ -176,7 +176,7 @@ pub async fn unmount_all_fs<P: AsRef<Path>>(guid: &str, datadir: P) -> Result<()
     unmount_fs(guid, &datadir, "package-data").await?;
     Command::new("dmsetup")
         .arg("remove_all") // TODO: find a higher finesse way to do this for portability reasons
-        .invoke(crate::ErrorKind::DiskManagement)
+        .invoke(ErrorKind::DiskManagement)
         .await?;
     Ok(())
 }
@@ -188,11 +188,11 @@ pub async fn export<P: AsRef<Path>>(guid: &str, datadir: P) -> Result<(), Error>
     Command::new("vgchange")
         .arg("-an")
         .arg(guid)
-        .invoke(crate::ErrorKind::DiskManagement)
+        .invoke(ErrorKind::DiskManagement)
         .await?;
     Command::new("vgexport")
         .arg(guid)
-        .invoke(crate::ErrorKind::DiskManagement)
+        .invoke(ErrorKind::DiskManagement)
         .await?;
     Ok(())
 }
@@ -214,7 +214,7 @@ pub async fn import<P: AsRef<Path>>(
     {
         return Err(Error::new(
             eyre!("Embassy disk not found."),
-            crate::ErrorKind::DiskNotAvailable,
+            ErrorKind::DiskNotAvailable,
         ));
     }
     if !scan
@@ -224,16 +224,16 @@ pub async fn import<P: AsRef<Path>>(
     {
         return Err(Error::new(
             eyre!("An Embassy disk was found, but it is not the correct disk for this device."),
-            crate::ErrorKind::IncorrectDisk,
+            ErrorKind::IncorrectDisk,
         ));
     }
     Command::new("dmsetup")
         .arg("remove_all") // TODO: find a higher finesse way to do this for portability reasons
-        .invoke(crate::ErrorKind::DiskManagement)
+        .invoke(ErrorKind::DiskManagement)
         .await?;
     match Command::new("vgimport")
         .arg(guid)
-        .invoke(crate::ErrorKind::DiskManagement)
+        .invoke(ErrorKind::DiskManagement)
         .await
     {
         Ok(_) => Ok(()),
@@ -249,7 +249,7 @@ pub async fn import<P: AsRef<Path>>(
     Command::new("vgchange")
         .arg("-ay")
         .arg(guid)
-        .invoke(crate::ErrorKind::DiskManagement)
+        .invoke(ErrorKind::DiskManagement)
         .await?;
     mount_all_fs(guid, datadir, repair, password).await
 }
@@ -264,7 +264,7 @@ pub async fn mount_fs<P: AsRef<Path>>(
 ) -> Result<RequiresReboot, Error> {
     tokio::fs::write(PASSWORD_PATH, password)
         .await
-        .with_ctx(|_| (crate::ErrorKind::Filesystem, PASSWORD_PATH))?;
+        .with_ctx(|_| (ErrorKind::Filesystem, PASSWORD_PATH))?;
     Command::new("cryptsetup")
         .arg("-q")
         .arg("luksOpen")
@@ -272,7 +272,7 @@ pub async fn mount_fs<P: AsRef<Path>>(
         .arg(format!("--keyfile-size={}", password.len()))
         .arg(Path::new("/dev").join(guid).join(name))
         .arg(format!("{}_{}", guid, name))
-        .invoke(crate::ErrorKind::DiskManagement)
+        .invoke(ErrorKind::DiskManagement)
         .await?;
     let mapper_path = Path::new("/dev/mapper").join(format!("{}_{}", guid, name));
     let reboot = repair.e2fsck(&mapper_path).await?;
@@ -280,7 +280,7 @@ pub async fn mount_fs<P: AsRef<Path>>(
 
     tokio::fs::remove_file(PASSWORD_PATH)
         .await
-        .with_ctx(|_| (crate::ErrorKind::Filesystem, PASSWORD_PATH))?;
+        .with_ctx(|_| (ErrorKind::Filesystem, PASSWORD_PATH))?;
 
     Ok(reboot)
 }

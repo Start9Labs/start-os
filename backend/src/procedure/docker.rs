@@ -101,7 +101,7 @@ impl DockerContainer {
         )
         .await?;
 
-        let mut handle = cmd.spawn().with_kind(crate::ErrorKind::Docker)?;
+        let mut handle = cmd.spawn().with_kind(ErrorKind::Docker)?;
 
         let client = UnixRpcClient::new(socket_path.join("rpc.sock"));
 
@@ -270,7 +270,7 @@ impl DockerProcedure {
                 .collect::<Vec<&str>>()
                 .join(" ")
         );
-        let mut handle = cmd.spawn().with_kind(crate::ErrorKind::Docker)?;
+        let mut handle = cmd.spawn().with_kind(ErrorKind::Docker)?;
         let id = handle.id();
         let timeout_fut = if let Some(timeout) = timeout {
             EitherFuture::Right(async move {
@@ -283,10 +283,7 @@ impl DockerProcedure {
         };
         if let (Some(input), Some(mut stdin)) = (&input_buf, handle.stdin.take()) {
             use tokio::io::AsyncWriteExt;
-            stdin
-                .write_all(input)
-                .await
-                .with_kind(crate::ErrorKind::Docker)?;
+            stdin.write_all(input).await.with_kind(ErrorKind::Docker)?;
             stdin.flush().await?;
             stdin.shutdown().await?;
             drop(stdin);
@@ -302,7 +299,7 @@ impl DockerProcedure {
                 .stdout
                 .take()
                 .ok_or_else(|| eyre!("Can't takeout stdout in execute"))
-                .with_kind(crate::ErrorKind::Docker)?,
+                .with_kind(ErrorKind::Docker)?,
         );
         let output = NonDetachingJoinHandle::from(tokio::spawn(async move {
             match async {
@@ -345,7 +342,7 @@ impl DockerProcedure {
                 .stderr
                 .take()
                 .ok_or_else(|| eyre!("Can't takeout std err"))
-                .with_kind(crate::ErrorKind::Docker)?,
+                .with_kind(ErrorKind::Docker)?,
         );
 
         let err_output = NonDetachingJoinHandle::from(tokio::spawn(async move {
@@ -355,7 +352,7 @@ impl DockerProcedure {
         }));
 
         let res = tokio::select! {
-            res = handle.wait() => Race::Done(res.with_kind(crate::ErrorKind::Docker)?),
+            res = handle.wait() => Race::Done(res.with_kind(ErrorKind::Docker)?),
             res = timeout_fut => {
                 res?;
                 Race::TimedOut
@@ -366,7 +363,7 @@ impl DockerProcedure {
             Race::TimedOut => {
                 if let Some(id) = id {
                     signal::kill(Pid::from_raw(id as i32), signal::SIGKILL)
-                        .with_kind(crate::ErrorKind::Docker)?;
+                        .with_kind(ErrorKind::Docker)?;
                 }
                 return Ok(Err((143, "Timed out. Retrying soon...".to_owned())));
             }
@@ -376,16 +373,16 @@ impl DockerProcedure {
                 Ok(serde_json::from_value(
                     output
                         .await
-                        .with_kind(crate::ErrorKind::Unknown)?
+                        .with_kind(ErrorKind::Unknown)?
                         .map(|(v, _)| v)
                         .map_err(|(e, _)| tracing::warn!("{}", e))
                         .unwrap_or_default(),
                 )
-                .with_kind(crate::ErrorKind::Deserialization)?)
+                .with_kind(ErrorKind::Deserialization)?)
             } else {
                 Err((
                     exit_status.code().unwrap_or_default(),
-                    err_output.await.with_kind(crate::ErrorKind::Unknown)??,
+                    err_output.await.with_kind(ErrorKind::Unknown)??,
                 ))
             },
         )
@@ -425,7 +422,7 @@ impl DockerProcedure {
                 .collect::<Vec<&str>>()
                 .join(" ")
         );
-        let mut handle = cmd.spawn().with_kind(crate::ErrorKind::Docker)?;
+        let mut handle = cmd.spawn().with_kind(ErrorKind::Docker)?;
         let id = handle.id();
         let timeout_fut = if let Some(timeout) = timeout {
             EitherFuture::Right(async move {
@@ -438,10 +435,7 @@ impl DockerProcedure {
         };
         if let (Some(input), Some(mut stdin)) = (&input_buf, handle.stdin.take()) {
             use tokio::io::AsyncWriteExt;
-            stdin
-                .write_all(input)
-                .await
-                .with_kind(crate::ErrorKind::Docker)?;
+            stdin.write_all(input).await.with_kind(ErrorKind::Docker)?;
             stdin.flush().await?;
             stdin.shutdown().await?;
             drop(stdin);
@@ -457,7 +451,7 @@ impl DockerProcedure {
                 .stdout
                 .take()
                 .ok_or_else(|| eyre!("Can't takeout stdout in inject"))
-                .with_kind(crate::ErrorKind::Docker)?,
+                .with_kind(ErrorKind::Docker)?,
         );
         let output = NonDetachingJoinHandle::from(tokio::spawn(async move {
             match async {
@@ -500,7 +494,7 @@ impl DockerProcedure {
                 .stderr
                 .take()
                 .ok_or_else(|| eyre!("Can't takeout std err"))
-                .with_kind(crate::ErrorKind::Docker)?,
+                .with_kind(ErrorKind::Docker)?,
         );
 
         let err_output = NonDetachingJoinHandle::from(tokio::spawn(async move {
@@ -510,7 +504,7 @@ impl DockerProcedure {
         }));
 
         let res = tokio::select! {
-            res = handle.wait() => Race::Done(res.with_kind(crate::ErrorKind::Docker)?),
+            res = handle.wait() => Race::Done(res.with_kind(ErrorKind::Docker)?),
             res = timeout_fut => {
                 res?;
                 Race::TimedOut
@@ -521,7 +515,7 @@ impl DockerProcedure {
             Race::TimedOut => {
                 if let Some(id) = id {
                     signal::kill(Pid::from_raw(id as i32), signal::SIGKILL)
-                        .with_kind(crate::ErrorKind::Docker)?;
+                        .with_kind(ErrorKind::Docker)?;
                 }
                 return Ok(Err((143, "Timed out. Retrying soon...".to_owned())));
             }
@@ -531,16 +525,16 @@ impl DockerProcedure {
                 Ok(serde_json::from_value(
                     output
                         .await
-                        .with_kind(crate::ErrorKind::Unknown)?
+                        .with_kind(ErrorKind::Unknown)?
                         .map(|(v, _)| v)
                         .map_err(|(e, _)| tracing::warn!("{}", e))
                         .unwrap_or_default(),
                 )
-                .with_kind(crate::ErrorKind::Deserialization)?)
+                .with_kind(ErrorKind::Deserialization)?)
             } else {
                 Err((
                     exit_status.code().unwrap_or_default(),
-                    err_output.await.with_kind(crate::ErrorKind::Unknown)??,
+                    err_output.await.with_kind(ErrorKind::Unknown)??,
                 ))
             },
         )
@@ -570,13 +564,10 @@ impl DockerProcedure {
         };
         cmd.stdout(std::process::Stdio::piped());
         cmd.stderr(std::process::Stdio::piped());
-        let mut handle = cmd.spawn().with_kind(crate::ErrorKind::Docker)?;
+        let mut handle = cmd.spawn().with_kind(ErrorKind::Docker)?;
         if let (Some(input), Some(stdin)) = (&input_buf, &mut handle.stdin) {
             use tokio::io::AsyncWriteExt;
-            stdin
-                .write_all(input)
-                .await
-                .with_kind(crate::ErrorKind::Docker)?;
+            stdin.write_all(input).await.with_kind(ErrorKind::Docker)?;
         }
 
         let err_output = BufReader::new(
@@ -584,7 +575,7 @@ impl DockerProcedure {
                 .stderr
                 .take()
                 .ok_or_else(|| eyre!("Can't takeout std err"))
-                .with_kind(crate::ErrorKind::Docker)?,
+                .with_kind(ErrorKind::Docker)?,
         );
         let err_output = NonDetachingJoinHandle::from(tokio::spawn(async move {
             let lines = buf_reader_to_lines(err_output, 1000).await?;
@@ -598,7 +589,7 @@ impl DockerProcedure {
                 .stdout
                 .take()
                 .ok_or_else(|| eyre!("Can't takeout stdout in sandboxed"))
-                .with_kind(crate::ErrorKind::Docker)?,
+                .with_kind(ErrorKind::Docker)?,
         );
         let output = NonDetachingJoinHandle::from(tokio::spawn(async move {
             match async {
@@ -637,22 +628,22 @@ impl DockerProcedure {
             }
         }));
 
-        let exit_status = handle.wait().await.with_kind(crate::ErrorKind::Docker)?;
+        let exit_status = handle.wait().await.with_kind(ErrorKind::Docker)?;
         Ok(
             if exit_status.success() || exit_status.code() == Some(143) {
                 Ok(serde_json::from_value(
                     output
                         .await
-                        .with_kind(crate::ErrorKind::Unknown)?
+                        .with_kind(ErrorKind::Unknown)?
                         .map(|(v, _)| v)
                         .map_err(|(e, _)| tracing::warn!("{}", e))
                         .unwrap_or_default(),
                 )
-                .with_kind(crate::ErrorKind::Deserialization)?)
+                .with_kind(ErrorKind::Deserialization)?)
             } else {
                 Err((
                     exit_status.code().unwrap_or_default(),
-                    err_output.await.with_kind(crate::ErrorKind::Unknown)??,
+                    err_output.await.with_kind(ErrorKind::Unknown)??,
                 ))
             },
         )
@@ -908,7 +899,7 @@ async fn buf_reader_to_lines(
             },
         )
         .await
-        .with_kind(crate::ErrorKind::Unknown)?;
+        .with_kind(ErrorKind::Unknown)?;
     let output: Vec<String> = output.value.into_iter().collect();
     Ok(output)
 }

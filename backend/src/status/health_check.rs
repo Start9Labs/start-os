@@ -7,13 +7,13 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::context::RpcContext;
+use crate::prelude::*;
 use crate::procedure::docker::DockerContainers;
 use crate::procedure::{NoOutput, PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::PackageId;
 use crate::util::serde::Duration;
 use crate::util::Version;
 use crate::volume::Volumes;
-use crate::{Error, ResultExt};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct HealthChecks(pub BTreeMap<HealthCheckId, HealthCheck>);
@@ -32,7 +32,7 @@ impl HealthChecks {
                 .validate(container, eos_version, &volumes, image_ids, false)
                 .with_ctx(|_| {
                     (
-                        crate::ErrorKind::ValidateS9pk,
+                        ErrorKind::ValidateS9pk,
                         format!("Health Check {}", check.name),
                     )
                 })?;

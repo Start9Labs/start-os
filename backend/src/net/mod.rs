@@ -4,7 +4,7 @@ use futures::future::BoxFuture;
 use hyper::{Body, Error as HyperError, Request, Response};
 use rpc_toolkit::command;
 
-use crate::Error;
+use crate::prelude::*;
 
 pub mod dhcp;
 pub mod dns;

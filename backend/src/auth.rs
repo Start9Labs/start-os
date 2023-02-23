@@ -5,7 +5,6 @@ use chrono::{DateTime, Utc};
 use clap::ArgMatches;
 use color_eyre::eyre::eyre;
 use josekit::jwk::Jwk;
-use patch_db::{DbHandle, LockReceipt};
 use rpc_toolkit::command;
 use rpc_toolkit::command_helpers::prelude::{RequestParts, ResponseParts};
 use rpc_toolkit::yajrc::RpcError;
@@ -17,9 +16,10 @@ use tracing::instrument;
 use crate::context::{CliContext, RpcContext};
 use crate::middleware::auth::{AsLogoutSessionId, HasLoggedOutSessions, HashSessionToken};
 use crate::middleware::encrypt::EncryptedWire;
+use crate::prelude::*;
 use crate::util::display_none;
 use crate::util::serde::{display_serializable, IoFormat};
-use crate::{ensure_code, Error, ResultExt};
+
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum PasswordType {
@@ -33,7 +33,7 @@ impl PasswordType {
             PasswordType::EncryptedWire(x) => x.decrypt(current_secret).ok_or_else(|| {
                 Error::new(
                     color_eyre::eyre::eyre!("Couldn't decode password"),
-                    crate::ErrorKind::Unknown,
+                    ErrorKind::Unknown,
                 )
             }),
         }
@@ -117,12 +117,9 @@ async fn cli_login(
 pub fn check_password(hash: &str, password: &str) -> Result<(), Error> {
     ensure_code!(
         argon2::verify_encoded(&hash, password.as_bytes()).map_err(|_| {
-            Error::new(
-                eyre!("Password Incorrect"),
-                crate::ErrorKind::IncorrectPassword,
-            )
+            Error::new(eyre!("Password Incorrect"), ErrorKind::IncorrectPassword)
         })?,
-        crate::ErrorKind::IncorrectPassword,
+        ErrorKind::IncorrectPassword,
         "Password Incorrect"
     );
     Ok(())
@@ -164,7 +161,7 @@ pub async fn login(
 
     let hash_token = HashSessionToken::new();
     let user_agent = req.headers.get("user-agent").and_then(|h| h.to_str().ok());
-    let metadata = serde_json::to_string(&metadata).with_kind(crate::ErrorKind::Database)?;
+    let metadata = serde_json::to_string(&metadata).with_kind(ErrorKind::Database)?;
     let hash_token_hashed = hash_token.hashed();
     sqlx::query!(
         "INSERT INTO session (id, user_agent, metadata) VALUES ($1, $2, $3)",
@@ -273,8 +270,7 @@ pub async fn list(
                     logged_in: DateTime::from_utc(row.logged_in, Utc),
                     last_active: DateTime::from_utc(row.last_active, Utc),
                     user_agent: row.user_agent,
-                    metadata: serde_json::from_str(&row.metadata)
-                        .with_kind(crate::ErrorKind::Database)?,
+                    metadata: serde_json::from_str(&row.metadata).with_kind(ErrorKind::Database)?,
                 },
             ))
         })
@@ -324,7 +320,7 @@ async fn cli_reset_password(
         if new_password != rpassword::prompt_password("Confirm: ")? {
             return Err(Error::new(
                 eyre!("Passwords do not match"),
-                crate::ErrorKind::IncorrectPassword,
+                ErrorKind::IncorrectPassword,
             )
             .into());
         }
@@ -343,27 +339,6 @@ async fn cli_reset_password(
     Ok(())
 }
 
-pub struct SetPasswordReceipt(LockReceipt<String, ()>);
-impl SetPasswordReceipt {
-    pub async fn new<Db: DbHandle>(db: &mut Db) -> Result<Self, Error> {
-        let mut locks = Vec::new();
-
-        let setup = Self::setup(&mut locks);
-        Ok(setup(&db.lock_all(locks).await?)?)
-    }
-
-    pub fn setup(
-        locks: &mut Vec<patch_db::LockTargetId>,
-    ) -> impl FnOnce(&patch_db::Verifier) -> Result<Self, Error> {
-        let password_hash = crate::db::DatabaseModel::new()
-            .server_info()
-            .password_hash()
-            .make_locker(patch_db::LockType::Write)
-            .add_to_keys(locks);
-        move |skeleton_key| Ok(Self(password_hash.verify(skeleton_key)?))
-    }
-}
-
 #[command(
     rename = "reset-password",
     custom_cli(cli_reset_password(async, context(CliContext))),
@@ -380,20 +355,20 @@ pub async fn reset_password(
 
     let mut account = ctx.account.write().await;
     if !argon2::verify_encoded(&account.password, old_password.as_bytes())
-        .with_kind(crate::ErrorKind::IncorrectPassword)?
+        .with_kind(ErrorKind::IncorrectPassword)?
     {
         return Err(Error::new(
             eyre!("Incorrect Password"),
-            crate::ErrorKind::IncorrectPassword,
+            ErrorKind::IncorrectPassword,
         ));
     }
     account.set_password(&new_password)?;
     account.save(&ctx.secret_store).await?;
-    crate::db::DatabaseModel::new()
-        .server_info()
-        .password_hash()
-        .put(&mut ctx.db.handle(), &account.password)
-        .await?;
+    // crate::db::DatabaseModel::new()
+    //     .server_info()
+    //     .password_hash()
+    //     .put(&mut ctx.db.handle(), &account.password)
+    //     .await?;
 
     Ok(())
 }

@@ -8,7 +8,6 @@ use std::time::Duration;
 use color_eyre::eyre::eyre;
 use helpers::NonDetachingJoinHandle;
 use models::ResultExt;
-use patch_db::{DbHandle, LockReceipt, LockType};
 use rand::random;
 use sqlx::{Pool, Postgres};
 use tokio::process::Command;
@@ -18,10 +17,10 @@ use crate::context::rpc::RpcContextConfig;
 use crate::db::model::{IpInfo, ServerStatus};
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
+use crate::prelude::*;
 use crate::sound::BEP;
 use crate::system::time;
 use crate::util::Invoke;
-use crate::Error;
 
 pub const SYSTEM_REBUILD_PATH: &str = "/media/embassy/config/system-rebuild";
 pub const STANDBY_MODE_PATH: &str = "/media/embassy/config/standby";
@@ -32,67 +31,11 @@ pub async fn check_time_is_synchronized() -> Result<bool, Error> {
             .arg("show")
             .arg("-p")
             .arg("NTPSynchronized")
-            .invoke(crate::ErrorKind::Unknown)
+            .invoke(ErrorKind::Unknown)
             .await?,
     )?
     .trim()
         == "NTPSynchronized=yes")
-}
-
-pub struct InitReceipts {
-    pub server_version: LockReceipt<crate::util::Version, ()>,
-    pub version_range: LockReceipt<emver::VersionRange, ()>,
-    pub last_wifi_region: LockReceipt<Option<isocountry::CountryCode>, ()>,
-    pub status_info: LockReceipt<ServerStatus, ()>,
-    pub ip_info: LockReceipt<BTreeMap<String, IpInfo>, ()>,
-    pub system_start_time: LockReceipt<String, ()>,
-}
-impl InitReceipts {
-    pub async fn new(db: &mut impl DbHandle) -> Result<Self, Error> {
-        let mut locks = Vec::new();
-
-        let server_version = crate::db::DatabaseModel::new()
-            .server_info()
-            .version()
-            .make_locker(LockType::Write)
-            .add_to_keys(&mut locks);
-        let version_range = crate::db::DatabaseModel::new()
-            .server_info()
-            .eos_version_compat()
-            .make_locker(LockType::Write)
-            .add_to_keys(&mut locks);
-        let last_wifi_region = crate::db::DatabaseModel::new()
-            .server_info()
-            .last_wifi_region()
-            .make_locker(LockType::Write)
-            .add_to_keys(&mut locks);
-        let ip_info = crate::db::DatabaseModel::new()
-            .server_info()
-            .ip_info()
-            .make_locker(LockType::Write)
-            .add_to_keys(&mut locks);
-        let status_info = crate::db::DatabaseModel::new()
-            .server_info()
-            .status_info()
-            .into_model()
-            .make_locker(LockType::Write)
-            .add_to_keys(&mut locks);
-        let system_start_time = crate::db::DatabaseModel::new()
-            .server_info()
-            .system_start_time()
-            .make_locker(LockType::Write)
-            .add_to_keys(&mut locks);
-
-        let skeleton_key = db.lock_all(locks).await?;
-        Ok(Self {
-            server_version: server_version.verify(&skeleton_key)?,
-            version_range: version_range.verify(&skeleton_key)?,
-            ip_info: ip_info.verify(&skeleton_key)?,
-            status_info: status_info.verify(&skeleton_key)?,
-            last_wifi_region: last_wifi_region.verify(&skeleton_key)?,
-            system_start_time: system_start_time.verify(&skeleton_key)?,
-        })
-    }
 }
 
 pub async fn pgloader(
@@ -142,7 +85,7 @@ pub async fn pgloader(
     }) {
         return Err(Error::new(
             eyre!("pgloader error: {}", err),
-            crate::ErrorKind::Database,
+            ErrorKind::Database,
         ));
     }
     tokio::fs::rename(
@@ -173,7 +116,7 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
             .arg("-ra")
             .arg("/var/lib/postgresql")
             .arg(&db_dir)
-            .invoke(crate::ErrorKind::Filesystem)
+            .invoke(ErrorKind::Filesystem)
             .await?;
     }
     if !is_mountpoint().await? {
@@ -183,12 +126,12 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
         .arg("-R")
         .arg("postgres")
         .arg("/var/lib/postgresql")
-        .invoke(crate::ErrorKind::Database)
+        .invoke(ErrorKind::Database)
         .await?;
     Command::new("systemctl")
         .arg("start")
         .arg("postgresql")
-        .invoke(crate::ErrorKind::Database)
+        .invoke(ErrorKind::Database)
         .await?;
     if !exists {
         Command::new("sudo")
@@ -196,7 +139,7 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
             .arg("postgres")
             .arg("createuser")
             .arg("root")
-            .invoke(crate::ErrorKind::Database)
+            .invoke(ErrorKind::Database)
             .await?;
         Command::new("sudo")
             .arg("-u")
@@ -205,7 +148,7 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
             .arg("secrets")
             .arg("-O")
             .arg("root")
-            .invoke(crate::ErrorKind::Database)
+            .invoke(ErrorKind::Database)
             .await?;
     }
     Ok(())
@@ -219,7 +162,7 @@ pub struct InitResult {
 pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     tokio::fs::create_dir_all("/run/embassy")
         .await
-        .with_ctx(|_| (crate::ErrorKind::Filesystem, "mkdir -p /run/embassy"))?;
+        .with_ctx(|_| (ErrorKind::Filesystem, "mkdir -p /run/embassy"))?;
     if tokio::fs::metadata(LOCAL_AUTH_COOKIE_PATH).await.is_err() {
         tokio::fs::write(
             LOCAL_AUTH_COOKIE_PATH,
@@ -228,7 +171,7 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         .await
         .with_ctx(|_| {
             (
-                crate::ErrorKind::Filesystem,
+                ErrorKind::Filesystem,
                 format!("write {}", LOCAL_AUTH_COOKIE_PATH),
             )
         })?;
@@ -245,11 +188,11 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     let db = cfg.db(&account).await?;
     tracing::info!("Opened PatchDB");
     let mut handle = db.handle();
-    crate::db::DatabaseModel::new()
-        .server_info()
-        .lock(&mut handle, LockType::Write)
-        .await?;
-    let receipts = InitReceipts::new(&mut handle).await?;
+    // crate::db::DatabaseModel::new()
+    //     .server_info()
+    //     .lock(&mut handle, LockType::Write)
+    //     .await?;
+    let receipts = todo!(); // InitReceipts::new(&mut handle).await?;
 
     // write to ca cert store
     tokio::fs::write(
@@ -258,7 +201,7 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     )
     .await?;
     Command::new("update-ca-certificates")
-        .invoke(crate::ErrorKind::OpenSsl)
+        .invoke(ErrorKind::OpenSsl)
         .await?;
 
     if let Some(wifi_interface) = &cfg.wifi_interface {
@@ -301,7 +244,7 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     Command::new("systemctl")
         .arg("restart")
         .arg("systemd-journald")
-        .invoke(crate::ErrorKind::Journald)
+        .invoke(ErrorKind::Journald)
         .await?;
     tracing::info!("Mounted Logs");
 
@@ -319,24 +262,24 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
             .arg("-ra")
             .arg("/var/lib/docker")
             .arg(&tmp_docker)
-            .invoke(crate::ErrorKind::Filesystem)
+            .invoke(ErrorKind::Filesystem)
             .await?;
     }
     Command::new("systemctl")
         .arg("stop")
         .arg("docker")
-        .invoke(crate::ErrorKind::Docker)
+        .invoke(ErrorKind::Docker)
         .await?;
     crate::disk::mount::util::bind(&tmp_docker, "/var/lib/docker", false).await?;
     Command::new("systemctl")
         .arg("reset-failed")
         .arg("docker")
-        .invoke(crate::ErrorKind::Docker)
+        .invoke(ErrorKind::Docker)
         .await?;
     Command::new("systemctl")
         .arg("start")
         .arg("docker")
-        .invoke(crate::ErrorKind::Docker)
+        .invoke(ErrorKind::Docker)
         .await?;
     tracing::info!("Mounted Docker Data");
 
@@ -380,7 +323,7 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         .arg("start9/x_system/binfmt")
         .arg("--install")
         .arg("all")
-        .invoke(crate::ErrorKind::Docker)
+        .invoke(ErrorKind::Docker)
         .await?;
     tracing::info!("Enabled Docker QEMU Emulation");
 
@@ -404,7 +347,7 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         .set(&mut handle, time().await?)
         .await?;
 
-    crate::version::init(&mut handle, &secret_store, &receipts).await?;
+    crate::version::init(&secret_store, &receipts).await?;
 
     if should_rebuild {
         match tokio::fs::remove_file(SYSTEM_REBUILD_PATH).await {

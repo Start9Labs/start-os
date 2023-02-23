@@ -13,7 +13,7 @@ use crate::net::static_server::{
     diag_ui_file_router, install_ui_file_router, main_ui_server_router, setup_ui_file_router,
 };
 use crate::net::HttpHandler;
-use crate::Error;
+use crate::prelude::*;
 
 pub struct WebServer {
     shutdown: oneshot::Sender<()>,

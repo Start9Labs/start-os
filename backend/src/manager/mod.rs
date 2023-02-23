@@ -11,7 +11,6 @@ use futures::{Future, FutureExt, TryFutureExt};
 use helpers::UnixRpcClient;
 use models::{ErrorKind, PackageId};
 use nix::sys::signal::Signal;
-use patch_db::DbHandle;
 use persistent_container::PersistentContainer;
 use rand::SeedableRng;
 use sqlx::Connection;
@@ -27,24 +26,24 @@ use transition_state::TransitionState;
 use crate::backup::target::PackageBackupInfo;
 use crate::backup::PackageBackupReport;
 use crate::config::action::ConfigRes;
-use crate::config::{not_found, ConfigReceipts, ConfigureContext};
+use crate::config::{not_found, ConfigureContext};
 use crate::context::RpcContext;
 use crate::db::model::{CurrentDependencies, CurrentDependencyInfo};
 use crate::dependencies::{
-    add_dependent_to_current_dependents_lists, break_transitive, heal_all_dependents_transitive,
-    DependencyError, DependencyErrors, TaggedDependencyError,
+    break_transitive, heal_all_dependents_transitive, DependencyError, DependencyErrors,
+    TaggedDependencyError,
 };
 use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::guard::TmpMountGuard;
 use crate::install::cleanup::remove_from_current_dependents_lists;
 use crate::net::net_controller::NetService;
+use crate::prelude::*;
 use crate::procedure::docker::{DockerContainer, DockerProcedure, LongRunning};
 use crate::procedure::{NoOutput, ProcedureName};
 use crate::s9pk::manifest::Manifest;
 use crate::status::MainStatus;
 use crate::util::NonDetachingJoinHandle;
 use crate::volume::Volume;
-use crate::Error;
 
 pub mod health;
 mod js_api;
@@ -118,11 +117,16 @@ pub struct Manager {
     pub gid: Arc<Gid>,
 }
 impl Manager {
-    pub async fn new(ctx: RpcContext, manifest: Manifest) -> Result<Self, Error> {
+    pub async fn new(
+        ctx: RpcContext,
+        manifest: Manifest,
+        marketplace_url: Option<Url>,
+    ) -> Result<Self, Error> {
         let seed = Arc::new(ManagerSeed {
             ctx,
             container_name: DockerProcedure::container_name(&manifest.id, None),
             manifest,
+            marketplace_url,
         });
 
         let persistent_container = Arc::new(PersistentContainer::init(&seed).await?);
@@ -262,9 +266,9 @@ impl Manager {
         let seed = self.seed.clone();
         async move {
             let state_reverter = DesiredStateReverter::new(manage_container.clone());
-            let mut tx = seed.ctx.db.handle();
-            let _ = manage_container
-                .set_override(Some(get_status(&mut tx, &seed.manifest).await.backing_up()));
+            let _ = manage_container.set_override(Some(
+                get_status(&seed.ctx.db, &seed.manifest).await.backing_up(),
+            ));
             manage_container.wait_for_desired(StartStop::Stop).await;
 
             let backup_guard = backup_guard.lock().await;
@@ -275,12 +279,12 @@ impl Manager {
                 .backup
                 .create(
                     &seed.ctx,
-                    &mut tx,
                     &seed.manifest.id,
                     &seed.manifest.title,
                     &seed.manifest.version,
                     &seed.manifest.interfaces,
                     &seed.manifest.volumes,
+                    seed.marketplace_url.clone(),
                 )
                 .await;
             guard.unmount().await?;
@@ -334,7 +338,7 @@ fn configure(
         let mut tx = db.begin().await?;
         let db = &mut tx;
 
-        let receipts = ConfigReceipts::new(db).await?;
+        let receipts = todo!(); //ConfigReceipts::new(db).await?;
         let id = &id;
         let ctx = &ctx;
         let overrides = &mut configure_context.overrides;
@@ -507,8 +511,8 @@ async fn run_main(
 
     let health = main_health_check_daemon(seed.clone());
     let res = tokio::select! {
-        a = runtime => a.map_err(|_| Error::new(eyre!("Manager runtime panicked!"), crate::ErrorKind::Docker)).and_then(|a| a),
-        _ = health => Err(Error::new(eyre!("Health check daemon exited!"), crate::ErrorKind::Unknown))
+        a = runtime => a.map_err(|_| Error::new(eyre!("Manager runtime panicked!"), ErrorKind::Docker)).and_then(|a| a),
+        _ = health => Err(Error::new(eyre!("Health check daemon exited!"), ErrorKind::Unknown))
     };
     if let Some(svc) = svc {
         remove_network_for_main(svc).await?;
@@ -583,7 +587,7 @@ async fn get_long_running_ip(seed: &ManagerSeed, runtime: &mut LongRunning) -> G
                 Err(_e) => {
                     return GetRunningIp::Error(Error::new(
                         eyre!("Manager runtime panicked!"),
-                        crate::ErrorKind::Docker,
+                        ErrorKind::Docker,
                     ))
                 }
             }
@@ -642,7 +646,7 @@ async fn main_health_check_daemon(seed: Arc<ManagerSeed>) {
     tokio::time::sleep(Duration::from_secs(HEALTH_CHECK_GRACE_PERIOD_SECONDS)).await;
     loop {
         let mut db = seed.ctx.db.handle();
-        if let Err(e) = health::check(&seed.ctx, &mut db, &seed.manifest.id).await {
+        if let Err(e) = health::check(&seed.ctx, &seed.manifest.id).await {
             tracing::error!(
                 "Failed to run health check for {}: {}",
                 &seed.manifest.id,
@@ -707,13 +711,13 @@ async fn get_running_ip(seed: &ManagerSeed, mut runtime: &mut RuntimeOfCommand) 
                             }
                             _ => eyre!("Manager runtime cancelled!"),
                         },
-                        crate::ErrorKind::Docker,
+                        ErrorKind::Docker,
                     ))
                 }
                 Ok(Err(e)) => {
                     return GetRunningIp::Error(Error::new(
                         eyre!("Manager runtime returned error: {}", e),
-                        crate::ErrorKind::Docker,
+                        ErrorKind::Docker,
                     ))
                 }
             }

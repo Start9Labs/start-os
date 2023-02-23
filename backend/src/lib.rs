@@ -41,6 +41,7 @@ pub mod migration;
 pub mod net;
 pub mod notifications;
 pub mod os_install;
+pub mod prelude;
 pub mod procedure;
 pub mod properties;
 pub mod s9pk;
@@ -55,8 +56,6 @@ pub mod util;
 pub mod version;
 pub mod volume;
 
-pub use config::Config;
-pub use error::{Error, ErrorKind, ResultExt};
 use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
 

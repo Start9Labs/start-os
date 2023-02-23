@@ -6,9 +6,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::context::RpcContext;
 use crate::disk::util::DiskInfo;
+use crate::prelude::*;
 use crate::util::display_none;
 use crate::util::serde::{display_serializable, IoFormat};
-use crate::Error;
 
 pub mod fsck;
 pub mod main;

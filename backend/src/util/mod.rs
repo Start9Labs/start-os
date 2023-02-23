@@ -46,11 +46,11 @@ impl std::error::Error for Never {}
 
 #[async_trait::async_trait]
 pub trait Invoke {
-    async fn invoke(&mut self, error_kind: crate::ErrorKind) -> Result<Vec<u8>, Error>;
+    async fn invoke(&mut self, error_kind: ErrorKind) -> Result<Vec<u8>, Error>;
 }
 #[async_trait::async_trait]
 impl Invoke for tokio::process::Command {
-    async fn invoke(&mut self, error_kind: crate::ErrorKind) -> Result<Vec<u8>, Error> {
+    async fn invoke(&mut self, error_kind: ErrorKind) -> Result<Vec<u8>, Error> {
         self.stdout(Stdio::piped());
         self.stderr(Stdio::piped());
         let res = self.output().await?;
@@ -323,32 +323,31 @@ impl FileLock {
         let tex_guard = if blocking {
             tex.lock_owned().await
         } else {
-            tex.try_lock_owned()
-                .with_kind(crate::ErrorKind::Filesystem)?
+            tex.try_lock_owned().with_kind(ErrorKind::Filesystem)?
         };
         let parent = path.parent().unwrap_or(Path::new("/"));
         if tokio::fs::metadata(parent).await.is_err() {
             tokio::fs::create_dir_all(parent)
                 .await
-                .with_ctx(|_| (crate::ErrorKind::Filesystem, parent.display().to_string()))?;
+                .with_ctx(|_| (ErrorKind::Filesystem, parent.display().to_string()))?;
         }
         let f = File::create(&path)
             .await
-            .with_ctx(|_| (crate::ErrorKind::Filesystem, path.display().to_string()))?;
+            .with_ctx(|_| (ErrorKind::Filesystem, path.display().to_string()))?;
         let file_guard = tokio::task::spawn_blocking(move || {
             fd_lock_rs::FdLock::lock(f, fd_lock_rs::LockType::Exclusive, blocking)
         })
         .await
-        .with_kind(crate::ErrorKind::Unknown)?
-        .with_kind(crate::ErrorKind::Filesystem)?;
+        .with_kind(ErrorKind::Unknown)?
+        .with_kind(ErrorKind::Filesystem)?;
         Ok(FileLock(tex_guard, Some(file_guard)))
     }
     pub async fn unlock(mut self) -> Result<(), Error> {
         if let Some(fd_lock) = self.1.take() {
             tokio::task::spawn_blocking(|| fd_lock.unlock(true).map_err(|(_, e)| e))
                 .await
-                .with_kind(crate::ErrorKind::Unknown)?
-                .with_kind(crate::ErrorKind::Filesystem)?;
+                .with_kind(ErrorKind::Unknown)?
+                .with_kind(ErrorKind::Filesystem)?;
         }
         Ok(())
     }

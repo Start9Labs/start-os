@@ -1,13 +1,14 @@
 use bollard::container::StopContainerOptions;
 
 use crate::context::RpcContext;
+use crate::prelude::*;
 use crate::s9pk::manifest::Manifest;
-use crate::Error;
 
 pub struct ManagerSeed {
     pub ctx: RpcContext,
     pub manifest: Manifest,
     pub container_name: String,
+    pub marketplace_url: Option<Url>,
 }
 
 impl ManagerSeed {

@@ -5,7 +5,7 @@ use chrono::{DateTime, Utc};
 use color_eyre::eyre::eyre;
 use helpers::AtomicFile;
 use models::ImageId;
-use patch_db::{DbHandle, HasModel};
+use patch_db::HasModel;
 use reqwest::Url;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
@@ -15,10 +15,10 @@ use tracing::instrument;
 
 use self::target::PackageBackupInfo;
 use crate::context::RpcContext;
-use crate::dependencies::reconfigure_dependents_with_live_pointers;
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::net::interface::{InterfaceId, Interfaces};
 use crate::net::keys::Key;
+use crate::prelude::*;
 use crate::procedure::docker::DockerContainers;
 use crate::procedure::{NoOutput, PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::PackageId;
@@ -26,7 +26,6 @@ use crate::util::serde::{Base32, Base64, IoFormat};
 use crate::util::Version;
 use crate::version::{Current, VersionT};
 use crate::volume::{backup_dir, Volume, VolumeId, Volumes, BACKUP_DIR};
-use crate::{Error, ErrorKind, ResultExt};
 
 pub mod backup_bulk;
 pub mod os;
@@ -85,23 +84,23 @@ impl BackupActions {
     ) -> Result<(), Error> {
         self.create
             .validate(container, eos_version, volumes, image_ids, false)
-            .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Backup Create"))?;
+            .with_ctx(|_| (ErrorKind::ValidateS9pk, "Backup Create"))?;
         self.restore
             .validate(container, eos_version, volumes, image_ids, false)
-            .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Backup Restore"))?;
+            .with_ctx(|_| (ErrorKind::ValidateS9pk, "Backup Restore"))?;
         Ok(())
     }
 
-    #[instrument(skip(ctx, db))]
-    pub async fn create<Db: DbHandle>(
+    #[instrument(skip(ctx))]
+    pub async fn create(
         &self,
         ctx: &RpcContext,
-        db: &mut Db,
         pkg_id: &PackageId,
         pkg_title: &str,
         pkg_version: &Version,
         interfaces: &Interfaces,
         volumes: &Volumes,
+        marketplace_url: Option<Url>,
     ) -> Result<PackageBackupInfo, Error> {
         let mut volumes = volumes.to_readonly();
         volumes.insert(VolumeId::Backup, Volume::Backup { readonly: false });
@@ -121,7 +120,7 @@ impl BackupActions {
             )
             .await?
             .map_err(|e| eyre!("{}", e.1))
-            .with_kind(crate::ErrorKind::Backup)?;
+            .with_kind(ErrorKind::Backup)?;
         let (network_keys, tor_keys) = Key::for_package(&ctx.secret_store, pkg_id)
             .await?
             .into_iter()
@@ -133,18 +132,6 @@ impl BackupActions {
                 ))
             })
             .unzip();
-        let marketplace_url = crate::db::DatabaseModel::new()
-            .package_data()
-            .idx_model(pkg_id)
-            .expect(db)
-            .await?
-            .installed()
-            .expect(db)
-            .await?
-            .marketplace_url()
-            .get(db)
-            .await?
-            .into_owned();
         let tmp_path = Path::new(BACKUP_DIR)
             .join(pkg_id)
             .join(format!("{}.s9pk", pkg_id));
@@ -162,7 +149,7 @@ impl BackupActions {
             .await
             .with_ctx(|_| {
                 (
-                    crate::ErrorKind::Filesystem,
+                    ErrorKind::Filesystem,
                     format!("cp {} -> {}", s9pk_path.display(), tmp_path.display()),
                 )
             })?;
@@ -189,11 +176,10 @@ impl BackupActions {
         })
     }
 
-    #[instrument(skip(ctx, db))]
-    pub async fn restore<Db: DbHandle>(
+    #[instrument(skip(ctx))]
+    pub async fn restore(
         &self,
         ctx: &RpcContext,
-        db: &mut Db,
         pkg_id: &PackageId,
         pkg_version: &Version,
         interfaces: &Interfaces,
@@ -213,41 +199,7 @@ impl BackupActions {
             )
             .await?
             .map_err(|e| eyre!("{}", e.1))
-            .with_kind(crate::ErrorKind::Restore)?;
-        let metadata_path = Path::new(BACKUP_DIR).join(pkg_id).join("metadata.cbor");
-        let metadata: BackupMetadata = IoFormat::Cbor.from_slice(
-            &tokio::fs::read(&metadata_path).await.with_ctx(|_| {
-                (
-                    crate::ErrorKind::Filesystem,
-                    metadata_path.display().to_string(),
-                )
-            })?,
-        )?;
-        let pde = crate::db::DatabaseModel::new()
-            .package_data()
-            .idx_model(pkg_id)
-            .expect(db)
-            .await?
-            .installed()
-            .expect(db)
-            .await?;
-        pde.marketplace_url()
-            .put(db, &metadata.marketplace_url)
-            .await?;
-
-        let entry = crate::db::DatabaseModel::new()
-            .package_data()
-            .idx_model(pkg_id)
-            .expect(db)
-            .await?
-            .installed()
-            .expect(db)
-            .await?
-            .get(db)
-            .await?;
-
-        let receipts = crate::config::ConfigReceipts::new(db).await?;
-        reconfigure_dependents_with_live_pointers(ctx, db, &receipts, &entry).await?;
+            .with_kind(ErrorKind::Restore)?;
 
         Ok(())
     }

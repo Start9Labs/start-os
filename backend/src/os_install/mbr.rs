@@ -4,7 +4,7 @@ use mbrman::{MBRPartitionEntry, CHS, MBR};
 use crate::disk::util::DiskInfo;
 use crate::disk::OsPartitionInfo;
 use crate::os_install::partition_for;
-use crate::Error;
+use crate::prelude::*;
 
 pub async fn partition(disk: &DiskInfo, overwrite: bool) -> Result<OsPartitionInfo, Error> {
     {
@@ -37,7 +37,7 @@ pub async fn partition(disk: &DiskInfo, overwrite: bool) -> Result<OsPartitionIn
                         if part_info.guid.is_some() {
                             return Err(Error::new(
                                 eyre!("Not enough space before embassy data"),
-                                crate::ErrorKind::InvalidRequest,
+                                ErrorKind::InvalidRequest,
                             ));
                         }
                         *entry = MBRPartitionEntry::empty();

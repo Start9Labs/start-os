@@ -4,7 +4,7 @@ use color_eyre::eyre::eyre;
 use ed25519_dalek::{PublicKey, Signature};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 
-use crate::Error;
+use crate::prelude::*;
 
 pub const MAGIC: [u8; 2] = [59, 59];
 pub const VERSION: u8 = 1;
@@ -38,7 +38,7 @@ impl Header {
         if magic != MAGIC {
             return Err(Error::new(
                 eyre!("Incorrect Magic: {:?}", magic),
-                crate::ErrorKind::ParseS9pk,
+                ErrorKind::ParseS9pk,
             ));
         }
         let mut version = [0];
@@ -46,13 +46,13 @@ impl Header {
         if version[0] != VERSION {
             return Err(Error::new(
                 eyre!("Unknown Version: {}", version[0]),
-                crate::ErrorKind::ParseS9pk,
+                ErrorKind::ParseS9pk,
             ));
         }
         let mut pubkey_bytes = [0; 32];
         reader.read_exact(&mut pubkey_bytes).await?;
         let pubkey = PublicKey::from_bytes(&pubkey_bytes)
-            .map_err(|e| Error::new(e, crate::ErrorKind::ParseS9pk))?;
+            .map_err(|e| Error::new(e, ErrorKind::ParseS9pk))?;
         let mut sig_bytes = [0; 64];
         reader.read_exact(&mut sig_bytes).await?;
         let signature = Signature::from_bytes(&sig_bytes).expect("Invalid ed25519 signature");

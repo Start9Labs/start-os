@@ -64,7 +64,7 @@ pub async fn setup_ui_file_router(ctx: SetupContext) -> Result<HttpHandler, Erro
 
                     rpc_handler(req)
                         .await
-                        .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::Network))
+                        .map_err(|err| Error::new(eyre!("{}", err), ErrorKind::Network))
                 }
                 _ => alt_ui(req, ui_mode).await,
             };
@@ -99,7 +99,7 @@ pub async fn diag_ui_file_router(ctx: DiagnosticContext) -> Result<HttpHandler, 
 
                     rpc_handler(req)
                         .await
-                        .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::Network))
+                        .map_err(|err| Error::new(eyre!("{}", err), ErrorKind::Network))
                 }
                 _ => alt_ui(req, ui_mode).await,
             };
@@ -133,7 +133,7 @@ pub async fn install_ui_file_router(ctx: InstallContext) -> Result<HttpHandler, 
 
                     rpc_handler(req)
                         .await
-                        .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::Network))
+                        .map_err(|err| Error::new(eyre!("{}", err), ErrorKind::Network))
                 }
                 _ => alt_ui(req, ui_mode).await,
             };
@@ -171,7 +171,7 @@ pub async fn main_ui_server_router(ctx: RpcContext) -> Result<HttpHandler, Error
 
                     rpc_handler(req)
                         .await
-                        .map_err(|err| Error::new(eyre!("{}", err), crate::ErrorKind::Network))
+                        .map_err(|err| Error::new(eyre!("{}", err), ErrorKind::Network))
                 }
                 "/ws/db" => subscribe(ctx, req).await,
                 path if path.starts_with("/ws/rpc/") => {

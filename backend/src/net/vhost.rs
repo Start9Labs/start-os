@@ -19,8 +19,8 @@ use tokio_rustls::{LazyConfigAcceptor, TlsConnector};
 use crate::net::keys::Key;
 use crate::net::ssl::SslManager;
 use crate::net::utils::SingleAccept;
+use crate::prelude::*;
 use crate::util::io::BackTrackingReader;
-use crate::Error;
 
 // not allowed: <=1024, >=32768, 5355, 5432, 9050, 6010, 9051, 5353
 
@@ -90,7 +90,7 @@ impl VHostServer {
         // check if port allowed
         let listener = TcpListener::bind(SocketAddr::new([0, 0, 0, 0].into(), port))
             .await
-            .with_kind(crate::ErrorKind::Network)?;
+            .with_kind(ErrorKind::Network)?;
         let mapping = Arc::new(RwLock::new(BTreeMap::new()));
         Ok(Self {
             mapping: Arc::downgrade(&mapping),
@@ -142,7 +142,7 @@ impl VHostServer {
                                                 }))
                                             }))
                                             .await
-                                            .with_kind(crate::ErrorKind::Network);
+                                            .with_kind(ErrorKind::Network);
                                         }
                                     };
                                     let target_name =
@@ -216,7 +216,7 @@ impl VHostServer {
                                             };
                                         let mut tls_stream = mid
                                             .into_stream(Arc::new(
-                                                cfg.with_kind(crate::ErrorKind::OpenSsl)?,
+                                                cfg.with_kind(ErrorKind::OpenSsl)?,
                                             ))
                                             .await?;
                                         tls_stream.get_mut().0.stop_buffering();
@@ -232,7 +232,7 @@ impl VHostServer {
                                                                 &tokio_rustls::rustls::Certificate(
                                                                     key.root_ca().to_der()?,
                                                                 ),
-                                                            ).with_kind(crate::ErrorKind::OpenSsl)?;
+                                                            ).with_kind(ErrorKind::OpenSsl)?;
                                                             store
                                                         })
                                                         .with_no_client_auth(),
@@ -242,11 +242,11 @@ impl VHostServer {
                                                         .internal_address()
                                                         .as_str()
                                                         .try_into()
-                                                        .with_kind(crate::ErrorKind::OpenSsl)?,
+                                                        .with_kind(ErrorKind::OpenSsl)?,
                                                     tcp_stream,
                                                 )
                                                 .await
-                                                .with_kind(crate::ErrorKind::OpenSsl)?,
+                                                .with_kind(ErrorKind::OpenSsl)?,
                                             )
                                             .await?;
                                         } else {
@@ -293,7 +293,7 @@ impl VHostServer {
         } else {
             Err(Error::new(
                 eyre!("VHost Service Thread has exited"),
-                crate::ErrorKind::Network,
+                ErrorKind::Network,
             ))
         }
     }
@@ -312,7 +312,7 @@ impl VHostServer {
         } else {
             Err(Error::new(
                 eyre!("VHost Service Thread has exited"),
-                crate::ErrorKind::Network,
+                ErrorKind::Network,
             ))
         }
     }
@@ -322,7 +322,7 @@ impl VHostServer {
         } else {
             Err(Error::new(
                 eyre!("VHost Service Thread has exited"),
-                crate::ErrorKind::Network,
+                ErrorKind::Network,
             ))
         }
     }

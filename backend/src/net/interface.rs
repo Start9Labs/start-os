@@ -8,9 +8,9 @@ use torut::onion::TorSecretKeyV3;
 use tracing::instrument;
 
 use crate::db::model::{InterfaceAddressMap, InterfaceAddresses};
+use crate::prelude::*;
 use crate::s9pk::manifest::PackageId;
 use crate::util::serde::Port;
-use crate::{Error, ResultExt};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -21,7 +21,7 @@ impl Interfaces {
         for (_, interface) in &self.0 {
             interface.validate().with_ctx(|_| {
                 (
-                    crate::ErrorKind::ValidateS9pk,
+                    ErrorKind::ValidateS9pk,
                     format!("Interface {}", interface.name),
                 )
             })?;

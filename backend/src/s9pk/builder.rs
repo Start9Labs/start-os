@@ -6,9 +6,9 @@ use typed_builder::TypedBuilder;
 use super::header::{FileSection, Header};
 use super::manifest::Manifest;
 use super::SIG_CONTEXT;
+use crate::prelude::*;
 use crate::util::io::to_cbor_async_writer;
 use crate::util::HashWriter;
-use crate::{Error, ResultExt};
 
 #[derive(TypedBuilder)]
 pub struct S9pkPacker<
@@ -49,12 +49,10 @@ impl<
             tracing::warn!("Appending to non-empty file.");
         }
         let mut header = Header::placeholder();
-        header.serialize(&mut self.writer).await.with_ctx(|_| {
-            (
-                crate::ErrorKind::Serialization,
-                "Writing Placeholder Header",
-            )
-        })?;
+        header
+            .serialize(&mut self.writer)
+            .await
+            .with_ctx(|_| (ErrorKind::Serialization, "Writing Placeholder Header"))?;
         let mut position = self.writer.stream_position().await?;
 
         let mut writer = HashWriter::new(Sha512::new(), &mut self.writer);
@@ -69,7 +67,7 @@ impl<
         // license
         tokio::io::copy(&mut self.license, &mut writer)
             .await
-            .with_ctx(|_| (crate::ErrorKind::Filesystem, "Copying License"))?;
+            .with_ctx(|_| (ErrorKind::Filesystem, "Copying License"))?;
         let new_pos = writer.inner_mut().stream_position().await?;
         header.table_of_contents.license = FileSection {
             position,
@@ -79,7 +77,7 @@ impl<
         // instructions
         tokio::io::copy(&mut self.instructions, &mut writer)
             .await
-            .with_ctx(|_| (crate::ErrorKind::Filesystem, "Copying Instructions"))?;
+            .with_ctx(|_| (ErrorKind::Filesystem, "Copying Instructions"))?;
         let new_pos = writer.inner_mut().stream_position().await?;
         header.table_of_contents.instructions = FileSection {
             position,
@@ -89,7 +87,7 @@ impl<
         // icon
         tokio::io::copy(&mut self.icon, &mut writer)
             .await
-            .with_ctx(|_| (crate::ErrorKind::Filesystem, "Copying Icon"))?;
+            .with_ctx(|_| (ErrorKind::Filesystem, "Copying Icon"))?;
         let new_pos = writer.inner_mut().stream_position().await?;
         header.table_of_contents.icon = FileSection {
             position,
@@ -99,7 +97,7 @@ impl<
         // docker_images
         tokio::io::copy(&mut self.docker_images, &mut writer)
             .await
-            .with_ctx(|_| (crate::ErrorKind::Filesystem, "Copying Docker Images"))?;
+            .with_ctx(|_| (ErrorKind::Filesystem, "Copying Docker Images"))?;
         let new_pos = writer.inner_mut().stream_position().await?;
         header.table_of_contents.docker_images = FileSection {
             position,
@@ -109,7 +107,7 @@ impl<
         // assets
         tokio::io::copy(&mut self.assets, &mut writer)
             .await
-            .with_ctx(|_| (crate::ErrorKind::Filesystem, "Copying Assets"))?;
+            .with_ctx(|_| (ErrorKind::Filesystem, "Copying Assets"))?;
         let new_pos = writer.inner_mut().stream_position().await?;
         header.table_of_contents.assets = FileSection {
             position,
@@ -120,7 +118,7 @@ impl<
         if let Some(mut scripts) = self.scripts {
             tokio::io::copy(&mut scripts, &mut writer)
                 .await
-                .with_ctx(|_| (crate::ErrorKind::Filesystem, "Copying Scripts"))?;
+                .with_ctx(|_| (ErrorKind::Filesystem, "Copying Scripts"))?;
             let new_pos = writer.inner_mut().stream_position().await?;
             header.table_of_contents.scripts = Some(FileSection {
                 position,
@@ -137,7 +135,7 @@ impl<
         header
             .serialize(&mut self.writer)
             .await
-            .with_ctx(|_| (crate::ErrorKind::Serialization, "Writing Header"))?;
+            .with_ctx(|_| (ErrorKind::Serialization, "Writing Header"))?;
         self.writer.seek(SeekFrom::Start(position)).await?;
 
         Ok(())

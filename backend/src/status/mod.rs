@@ -31,25 +31,22 @@ pub enum MainStatus {
         started: DateTime<Utc>,
         health: BTreeMap<HealthCheckId, HealthCheckResult>,
     },
-    BackingUp {
-        started: Option<DateTime<Utc>>,
-        health: BTreeMap<HealthCheckId, HealthCheckResult>,
-    },
+    BackingUp,
 }
 impl MainStatus {
-    pub fn running(&self) -> bool {
-        match self {
-            MainStatus::Starting { .. }
-            | MainStatus::Running { .. }
-            | MainStatus::BackingUp {
-                started: Some(_), ..
-            } => true,
-            MainStatus::Stopped
-            | MainStatus::Stopping
-            | MainStatus::Restarting
-            | MainStatus::BackingUp { started: None, .. } => false,
-        }
-    }
+    // pub fn running(&self) -> bool {
+    //     match self {
+    //         MainStatus::Starting { .. }
+    //         | MainStatus::Running { .. }
+    //         | MainStatus::BackingUp {
+    //             started: Some(_), ..
+    //         } => true,
+    //         MainStatus::Stopped
+    //         | MainStatus::Stopping
+    //         | MainStatus::Restarting
+    //         | MainStatus::BackingUp { started: None, .. } => false,
+    //     }
+    // }
     pub fn stop(&mut self) {
         match self {
             MainStatus::Starting { .. } | MainStatus::Running { .. } => {
@@ -79,13 +76,8 @@ impl MainStatus {
             MainStatus::Stopped | MainStatus::Stopping | MainStatus::Restarting => {
                 (None, Default::default())
             }
-            MainStatus::BackingUp { .. } => return self.clone(),
+            MainStatus::BackingUp => return self.clone(),
         };
-        MainStatus::BackingUp { started, health }
-    }
-}
-impl MainStatusModel {
-    pub fn started(self) -> Model<Option<DateTime<Utc>>> {
-        self.0.child("started")
+        MainStatus::BackingUp
     }
 }

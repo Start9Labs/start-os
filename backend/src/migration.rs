@@ -10,12 +10,12 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::context::RpcContext;
+use crate::prelude::*;
 use crate::procedure::docker::DockerContainers;
 use crate::procedure::{PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
 use crate::volume::Volumes;
-use crate::{Error, ResultExt};
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
@@ -37,7 +37,7 @@ impl Migrations {
                 .validate(container, eos_version, volumes, image_ids, true)
                 .with_ctx(|_| {
                     (
-                        crate::ErrorKind::ValidateS9pk,
+                        ErrorKind::ValidateS9pk,
                         format!("Migration from {}", version),
                     )
                 })?;
@@ -45,12 +45,7 @@ impl Migrations {
         for (version, migration) in &self.to {
             migration
                 .validate(container, eos_version, volumes, image_ids, true)
-                .with_ctx(|_| {
-                    (
-                        crate::ErrorKind::ValidateS9pk,
-                        format!("Migration to {}", version),
-                    )
-                })?;
+                .with_ctx(|_| (ErrorKind::ValidateS9pk, format!("Migration to {}", version)))?;
         }
         Ok(())
     }
@@ -83,9 +78,7 @@ impl Migrations {
                     )
                     .map(|r| {
                         r.and_then(|r| {
-                            r.map_err(|e| {
-                                Error::new(eyre!("{}", e.1), crate::ErrorKind::MigrationFailed)
-                            })
+                            r.map_err(|e| Error::new(eyre!("{}", e.1), ErrorKind::MigrationFailed))
                         })
                     })
                     .await
@@ -118,9 +111,7 @@ impl Migrations {
                     )
                     .map(|r| {
                         r.and_then(|r| {
-                            r.map_err(|e| {
-                                Error::new(eyre!("{}", e.1), crate::ErrorKind::MigrationFailed)
-                            })
+                            r.map_err(|e| Error::new(eyre!("{}", e.1), ErrorKind::MigrationFailed))
                         })
                     })
                     .await

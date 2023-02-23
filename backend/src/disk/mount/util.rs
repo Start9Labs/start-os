@@ -2,8 +2,8 @@ use std::path::Path;
 
 use tracing::instrument;
 
+use crate::prelude::*;
 use crate::util::Invoke;
-use crate::{Error, ResultExt};
 
 #[instrument(skip(src, dst))]
 pub async fn bind<P0: AsRef<Path>, P1: AsRef<Path>>(
@@ -35,7 +35,7 @@ pub async fn bind<P0: AsRef<Path>, P1: AsRef<Path>>(
     mount_cmd
         .arg(src.as_ref())
         .arg(dst.as_ref())
-        .invoke(crate::ErrorKind::Filesystem)
+        .invoke(ErrorKind::Filesystem)
         .await?;
     Ok(())
 }
@@ -46,7 +46,7 @@ pub async fn unmount<P: AsRef<Path>>(mountpoint: P) -> Result<(), Error> {
     tokio::process::Command::new("umount")
         .arg("-l")
         .arg(mountpoint.as_ref())
-        .invoke(crate::ErrorKind::Filesystem)
+        .invoke(ErrorKind::Filesystem)
         .await?;
     Ok(())
 }

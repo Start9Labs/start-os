@@ -18,9 +18,9 @@ use crate::account::AccountInfo;
 use crate::db::model::Database;
 use crate::disk::OsPartitionInfo;
 use crate::init::{init_postgres, pgloader};
+use crate::prelude::*;
 use crate::setup::SetupStatus;
 use crate::util::config::load_config_from_paths;
-use crate::{Error, ResultExt};
 
 lazy_static::lazy_static! {
     pub static ref CURRENT_SECRET: Jwk = Jwk::generate_ec_key(josekit::jwk::alg::ec::EcCurve::P256).unwrap_or_else(|e| {
@@ -115,7 +115,7 @@ impl SetupContext {
         let db_path = self.datadir.join("main").join("embassy.db");
         let db = PatchDb::open(&db_path)
             .await
-            .with_ctx(|_| (crate::ErrorKind::Filesystem, db_path.display().to_string()))?;
+            .with_ctx(|_| (ErrorKind::Filesystem, db_path.display().to_string()))?;
         if !db.exists(&<JsonPointer>::default()).await {
             db.put(&<JsonPointer>::default(), &Database::init(account))
                 .await?;
@@ -131,7 +131,7 @@ impl SetupContext {
         sqlx::migrate!()
             .run(&secret_store)
             .await
-            .with_kind(crate::ErrorKind::Database)?;
+            .with_kind(ErrorKind::Database)?;
         let old_db_path = self.datadir.join("main/secrets.db");
         if tokio::fs::metadata(&old_db_path).await.is_ok() {
             pgloader(

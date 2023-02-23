@@ -8,7 +8,7 @@ use sha2::Sha256;
 
 use super::{FileSystem, MountType, ReadOnly};
 use crate::disk::mount::util::bind;
-use crate::{Error, ResultExt};
+use crate::prelude::*;
 
 pub struct Bind<SrcDir: AsRef<Path>> {
     src_dir: SrcDir,
@@ -42,7 +42,7 @@ impl<SrcDir: AsRef<Path> + Send + Sync> FileSystem for Bind<SrcDir> {
                 .await
                 .with_ctx(|_| {
                     (
-                        crate::ErrorKind::Filesystem,
+                        ErrorKind::Filesystem,
                         self.src_dir.as_ref().display().to_string(),
                     )
                 })?

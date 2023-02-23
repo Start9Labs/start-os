@@ -8,8 +8,8 @@ use rpc_toolkit::command;
 use tracing::instrument;
 
 use crate::context::SdkContext;
+use crate::prelude::*;
 use crate::util::display_none;
-use crate::{Error, ResultExt};
 
 #[command(cli_only, blocking, display(display_none))]
 #[instrument(skip(ctx))]
@@ -18,7 +18,7 @@ pub fn init(#[context] ctx: SdkContext) -> Result<(), Error> {
         let parent = ctx.developer_key_path.parent().unwrap_or(Path::new("/"));
         if !parent.exists() {
             std::fs::create_dir_all(parent)
-                .with_ctx(|_| (crate::ErrorKind::Filesystem, parent.display().to_string()))?;
+                .with_ctx(|_| (ErrorKind::Filesystem, parent.display().to_string()))?;
         }
         tracing::info!("Generating new developer key...");
         let keypair = Keypair::generate(&mut rand_old::thread_rng());
@@ -31,7 +31,7 @@ pub fn init(#[context] ctx: SdkContext) -> Result<(), Error> {
         dev_key_file.write_all(
             keypair_bytes
                 .to_pkcs8_pem(base64ct::LineEnding::default())
-                .with_kind(crate::ErrorKind::Pem)?
+                .with_kind(ErrorKind::Pem)?
                 .as_bytes(),
         )?;
         dev_key_file.sync_all()?;
@@ -39,7 +39,7 @@ pub fn init(#[context] ctx: SdkContext) -> Result<(), Error> {
     Ok(())
 }
 
-#[command(subcommands(crate::s9pk::verify, crate::config::verify_spec))]
+#[command(subcommands(crate::s9pk::verify))]
 pub fn verify() -> Result<(), Error> {
     Ok(())
 }

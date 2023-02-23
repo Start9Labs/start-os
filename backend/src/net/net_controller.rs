@@ -4,11 +4,9 @@ use std::sync::{Arc, Weak};
 
 use color_eyre::eyre::eyre;
 use models::InterfaceId;
-use patch_db::{DbHandle, LockType, PatchDb};
 use sqlx::PgExecutor;
 use tracing::instrument;
 
-use crate::error::ErrorCollection;
 use crate::hostname::Hostname;
 use crate::net::dns::DnsController;
 use crate::net::forward::LpfController;
@@ -21,6 +19,7 @@ use crate::net::vhost::VHostController;
 use crate::s9pk::manifest::PackageId;
 use crate::volume::cert_dir;
 use crate::{Error, HOST_IP};
+use Error::ErrorCollection;
 
 pub struct NetController {
     pub(super) tor: TorController,
@@ -231,12 +230,8 @@ pub struct NetService {
 impl NetService {
     #[instrument(skip(self))]
     fn net_controller(&self) -> Result<Arc<NetController>, Error> {
-        Weak::upgrade(&self.controller).ok_or_else(|| {
-            Error::new(
-                eyre!("NetController is shutdown"),
-                crate::ErrorKind::Network,
-            )
-        })
+        Weak::upgrade(&self.controller)
+            .ok_or_else(|| Error::new(eyre!("NetController is shutdown"), ErrorKind::Network))
     }
     #[instrument(skip(self, secrets))]
     pub async fn add_tor<Ex>(
@@ -313,16 +308,13 @@ impl NetService {
     pub async fn add_lpf(&mut self, db: &PatchDb, internal: u16) -> Result<u16, Error> {
         let ctrl = self.net_controller()?;
         let mut db = db.handle();
-        let lpf_model = crate::db::DatabaseModel::new().lan_port_forwards();
-        lpf_model.lock(&mut db, LockType::Write).await?; // TODO: replace all this with an RMW
-        let mut lpf = lpf_model.get_mut(&mut db).await?;
-        let external = lpf.alloc(self.id.clone(), internal).ok_or_else(|| {
-            Error::new(
-                eyre!("No ephemeral ports available"),
-                crate::ErrorKind::Network,
-            )
-        })?;
-        lpf.save(&mut db).await?;
+        let lpf_model = todo!(); //crate::db::DatabaseModel::new().lan_port_forwards();
+                                 // lpf_model.lock(LockType::Write).await?; // TODO: replace all this with an RMW
+        let mut lpf = lpf_model.get_mut().await?;
+        let external = lpf
+            .alloc(self.id.clone(), internal)
+            .ok_or_else(|| Error::new(eyre!("No ephemeral ports available"), ErrorKind::Network))?;
+        lpf.save().await?;
         drop(db);
         let rc = ctrl.add_lpf(external, (self.ip, internal).into()).await?;
         let (_, mut lpfs) = self.lpf.remove(&internal).unwrap_or_default();
@@ -369,11 +361,6 @@ impl NetService {
             std::mem::take(&mut self.dns);
             errors.handle(ctrl.dns.gc(Some(self.id.clone()), self.ip).await);
             errors.into_result()
-        } else {
-            Err(Error::new(
-                eyre!("NetController is shutdown"),
-                crate::ErrorKind::Network,
-            ))
         }
     }
 }

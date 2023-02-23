@@ -8,8 +8,8 @@ use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tokio::sync::Mutex;
 
+use crate::prelude::*;
 use crate::util::Invoke;
-use crate::Error;
 
 pub const START9_BRIDGE_IFACE: &str = "br-start9";
 
@@ -135,7 +135,7 @@ async fn forward(iface: &str, port: u16, addr: SocketAddr) -> Result<(), Error> 
         .arg(addr.port().to_string())
         .arg("-j")
         .arg("ACCEPT")
-        .invoke(crate::ErrorKind::Network)
+        .invoke(ErrorKind::Network)
         .await?;
     Command::new("iptables")
         .arg("-t")
@@ -150,7 +150,7 @@ async fn forward(iface: &str, port: u16, addr: SocketAddr) -> Result<(), Error> 
         .arg("DNAT")
         .arg("--to")
         .arg(addr.to_string())
-        .invoke(crate::ErrorKind::Network)
+        .invoke(ErrorKind::Network)
         .await?;
     Ok(())
 }
@@ -171,7 +171,7 @@ async fn unforward(iface: &str, port: u16, addr: SocketAddr) -> Result<(), Error
         .arg(addr.port().to_string())
         .arg("-j")
         .arg("ACCEPT")
-        .invoke(crate::ErrorKind::Network)
+        .invoke(ErrorKind::Network)
         .await?;
     Command::new("iptables")
         .arg("-t")
@@ -186,7 +186,7 @@ async fn unforward(iface: &str, port: u16, addr: SocketAddr) -> Result<(), Error
         .arg("DNAT")
         .arg("--to")
         .arg(addr.to_string())
-        .invoke(crate::ErrorKind::Network)
+        .invoke(ErrorKind::Network)
         .await?;
     Ok(())
 }

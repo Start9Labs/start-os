@@ -12,8 +12,8 @@ use tracing::instrument;
 
 use super::{FileSystem, MountType, ReadOnly};
 use crate::disk::mount::guard::TmpMountGuard;
+use crate::prelude::*;
 use crate::util::Invoke;
-use crate::Error;
 
 async fn resolve_hostname(hostname: &str) -> Result<IpAddr, Error> {
     #[cfg(feature = "avahi")]
@@ -23,7 +23,7 @@ async fn resolve_hostname(hostname: &str) -> Result<IpAddr, Error> {
     Ok(String::from_utf8(
         Command::new("nmblookup")
             .arg(hostname)
-            .invoke(crate::ErrorKind::Network)
+            .invoke(ErrorKind::Network)
             .await?,
     )?
     .split(" ")
@@ -57,7 +57,7 @@ pub async fn mount_cifs(
     } else {
         cmd.arg("-o").arg("noserverino");
     }
-    cmd.invoke(crate::ErrorKind::Filesystem).await?;
+    cmd.invoke(ErrorKind::Filesystem).await?;
     Ok(())
 }
 

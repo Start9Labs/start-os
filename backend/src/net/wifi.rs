@@ -6,7 +6,6 @@ use std::time::Duration;
 use clap::ArgMatches;
 use isocountry::CountryCode;
 use lazy_static::lazy_static;
-use patch_db::DbHandle;
 use regex::Regex;
 use rpc_toolkit::command;
 use tokio::process::Command;
@@ -14,9 +13,9 @@ use tokio::sync::RwLock;
 use tracing::instrument;
 
 use crate::context::RpcContext;
+use crate::prelude::*;
 use crate::util::serde::{display_serializable, IoFormat};
 use crate::util::{display_none, Invoke};
-use crate::{Error, ErrorKind};
 
 type WifiManager = Arc<RwLock<WpaCli>>;
 
@@ -69,7 +68,7 @@ pub async fn add(
         ));
     }
     async fn add_procedure(
-        db: impl DbHandle,
+        db: &PatchDb,
         wifi_manager: WifiManager,
         ssid: &Ssid,
         password: &Psk,
@@ -113,7 +112,7 @@ pub async fn connect(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<
         ));
     }
     async fn connect_procedure(
-        mut db: impl DbHandle,
+        db: &PatchDb,
         wifi_manager: WifiManager,
         ssid: &Ssid,
     ) -> Result<(), Error> {
@@ -121,7 +120,7 @@ pub async fn connect(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<
         let current = wpa_supplicant.get_current_network().await?;
         drop(wpa_supplicant);
         let mut wpa_supplicant = wifi_manager.write().await;
-        let connected = wpa_supplicant.select_network(&mut db, ssid).await?;
+        let connected = wpa_supplicant.select_network(ssid).await?;
         if connected {
             tracing::info!("Successfully connected to WiFi: '{}'", ssid.0);
         } else {
@@ -131,7 +130,7 @@ pub async fn connect(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<
                     tracing::info!("No WiFi to revert to!");
                 }
                 Some(current) => {
-                    wpa_supplicant.select_network(&mut db, &current).await?;
+                    wpa_supplicant.select_network(&current).await?;
                 }
             }
         }
@@ -387,7 +386,7 @@ pub async fn set_country(
     if !interface_connected(&ctx.ethernet_interface).await? {
         return Err(Error::new(
             color_eyre::eyre::eyre!("Won't change country without hardwire connection"),
-            crate::ErrorKind::Wifi,
+            ErrorKind::Wifi,
         ));
     }
     let mut wpa_supplicant = wifi_manager.write().await;
@@ -645,12 +644,12 @@ impl WpaCli {
 
         Ok(())
     }
-    pub async fn save_config(&mut self, mut db: impl DbHandle) -> Result<(), Error> {
-        crate::db::DatabaseModel::new()
-            .server_info()
-            .last_wifi_region()
-            .put(&mut db, &Some(self.get_country_low().await?))
-            .await?;
+    pub async fn save_config(&mut self, db: &PatchDb) -> Result<(), Error> {
+        // crate::db::DatabaseModel::new()
+        //     .server_info()
+        //     .last_wifi_region()
+        //     .put(&Some(self.get_country_low().await?))
+        //     .await?;
         Ok(())
     }
     async fn check_active_network(&self, ssid: &Ssid) -> Result<Option<NetworkId>, Error> {
@@ -682,7 +681,7 @@ impl WpaCli {
             .collect())
     }
     #[instrument(skip(db))]
-    pub async fn select_network(&mut self, db: impl DbHandle, ssid: &Ssid) -> Result<bool, Error> {
+    pub async fn select_network(&mut self, db: &PatchDb, ssid: &Ssid) -> Result<bool, Error> {
         let m_id = self.check_active_network(ssid).await?;
         match m_id {
             None => Err(Error::new(
@@ -734,7 +733,7 @@ impl WpaCli {
         }
     }
     #[instrument(skip(db))]
-    pub async fn remove_network(&mut self, db: impl DbHandle, ssid: &Ssid) -> Result<bool, Error> {
+    pub async fn remove_network(&mut self, db: &PatchDb, ssid: &Ssid) -> Result<bool, Error> {
         let found_networks = self.find_networks(ssid).await?;
         if found_networks.is_empty() {
             return Ok(true);
@@ -748,7 +747,7 @@ impl WpaCli {
     #[instrument(skip(psk, db))]
     pub async fn set_add_network(
         &mut self,
-        db: impl DbHandle,
+        db: &PatchDb,
         ssid: &Ssid,
         psk: &Psk,
         priority: isize,
@@ -760,7 +759,7 @@ impl WpaCli {
     #[instrument(skip(psk, db))]
     pub async fn add_network(
         &mut self,
-        db: impl DbHandle,
+        db: &PatchDb,
         ssid: &Ssid,
         psk: &Psk,
         priority: isize,
