@@ -6,13 +6,14 @@ import { PatchDataService } from './services/patch-data.service'
 import { PatchMonitorService } from './services/patch-monitor.service'
 import { ConnectionService } from './services/connection.service'
 import { Title } from '@angular/platform-browser'
-import { ServerNameService } from './services/server-name.service'
 import {
   ClientStorageService,
   WidgetDrawer,
 } from './services/client-storage.service'
 import { ThemeSwitcherService } from './services/theme-switcher.service'
 import { THEME } from '@start9labs/shared'
+import { PatchDB } from 'patch-db-client'
+import { DataModel } from './services/patch-db/data-model'
 
 @Component({
   selector: 'app-root',
@@ -30,7 +31,7 @@ export class AppComponent implements OnDestroy {
     private readonly patchData: PatchDataService,
     private readonly patchMonitor: PatchMonitorService,
     private readonly splitPane: SplitPaneTracker,
-    private readonly serverNameService: ServerNameService,
+    private readonly patch: PatchDB<DataModel>,
     readonly authService: AuthService,
     readonly connection: ConnectionService,
     readonly clientStorageService: ClientStorageService,
@@ -38,9 +39,9 @@ export class AppComponent implements OnDestroy {
   ) {}
 
   ngOnInit() {
-    this.serverNameService.name$.subscribe(({ current }) =>
-      this.titleService.setTitle(current),
-    )
+    this.patch
+      .watch$('ui', 'name')
+      .subscribe(name => this.titleService.setTitle(name || 'embassyOS'))
   }
 
   splitPaneVisible({ detail }: any) {
