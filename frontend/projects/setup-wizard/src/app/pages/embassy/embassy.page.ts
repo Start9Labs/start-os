@@ -154,9 +154,7 @@ export class EmbassyPage {
       await this.stateService.setupEmbassy(logicalname, password)
       await this.navCtrl.navigateForward(`/loading`)
     } catch (e: any) {
-      this.errorToastService.present({
-        message: `${e.message}\n\nRestart Embassy to try again.`,
-      })
+      this.errorToastService.present(e)
       console.error(e)
     } finally {
       loader.dismiss()

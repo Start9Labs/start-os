@@ -49,9 +49,7 @@ export class StateService {
         )
       }
     } catch (e: any) {
-      this.errorToastService.present({
-        message: `${e.message}\n\nRestart Embassy to try again.`,
-      })
+      this.errorToastService.present(e)
     }
     setTimeout(() => this.pollDataTransferProgress(), 0) // prevent call stack from growing
   }
