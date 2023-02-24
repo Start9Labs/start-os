@@ -1530,7 +1530,7 @@ dependencies = [
 [[package]]
 name = "imbl-value"
 version = "0.1.0"
-source = "git+https://github.com/Start9Labs/imbl-value.git#42519cb00b39736e9aca0efda9aae6a9f92c4e9c"
+source = "git+https://github.com/Start9Labs/imbl-value.git#d0e92a82a160719567d99b24fb1137fa049da695"
 dependencies = [
  "imbl",
  "serde",
@@ -3788,9 +3788,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "1.0.108"
+version = "1.0.109"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d56e159d99e6c2b93995d171050271edb50ecc5288fbc7cc17de8fdce4e58c14"
+checksum = "72b64191b275b66ffe2469e8af2c1cfe3bafa67b529ead792a6d0160888b4237"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4536,9 +4536,9 @@ dependencies = [
 
 [[package]]
 name = "yasi"
-version = "0.1.2"
+version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "98c896395b93b351cd7f381209ecc1422d11b8cab261cd03e47f4355e6a5dd24"
+checksum = "7f355ab62ebe30b758c1f4ab096a306722c4b7dbfb9d8c07d18c70d71a945588"
 dependencies = [
  "ahash 0.8.3",
  "hashbrown 0.13.2",

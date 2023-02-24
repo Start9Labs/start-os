@@ -1,12 +1,12 @@
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::panic::UnwindSafe;
-use std::sync::Arc;
 
 use imbl::OrdSet;
+use patch_db::value::InternedString;
 pub use patch_db::{HasModel, PatchDb, Value};
 use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::db::model::{DatabaseModel, DatabaseModelMut};
 use crate::prelude::*;
@@ -163,7 +163,10 @@ where
             Value::Object(o) => o
                 .keys()
                 .cloned()
-                .map(|k| from_value(Value::String(k)))
+                .map(|k| {
+                    T::Key::deserialize(patch_db::value::de::InternedStringDeserializer::from(k))
+                        .with_kind(ErrorKind::Deserialization)
+                })
                 .collect(),
             v => Err(Error::new(
                 eyre!("expected object found {v}"),
@@ -196,7 +199,7 @@ where
         let v = to_value(value)?;
         match &mut self.value {
             Value::Object(o) => {
-                o.insert(Arc::new(key.as_ref().to_owned()), v);
+                o.insert(InternedString::intern(key.as_ref()), v);
                 Ok(())
             }
             _ => Err(Error::new(
@@ -244,7 +247,10 @@ where
             Value::Object(o) => o
                 .keys()
                 .cloned()
-                .map(|k| from_value(Value::String(k)))
+                .map(|k| {
+                    T::Key::deserialize(patch_db::value::de::InternedStringDeserializer::from(k))
+                        .with_kind(ErrorKind::Deserialization)
+                })
                 .collect(),
             v => Err(Error::new(
                 eyre!("expected object found {v}"),
@@ -277,7 +283,7 @@ where
         let v = to_value(value)?;
         match self.value {
             Value::Object(o) => {
-                o.insert(Arc::new(key.as_ref().to_owned()), v);
+                o.insert(InternedString::intern(key.as_ref()), v);
                 Ok(())
             }
             _ => Err(Error::new(
