@@ -230,73 +230,44 @@ impl RpcContext {
 
     #[instrument(skip(self))]
     pub async fn cleanup(&self) -> Result<(), Error> {
-        for (package_id, action) in self
-            .db
-            .apply_fn(|mut v| {
-                Ok(v.package_data()
-                    .entries()
-                    .with_kind(ErrorKind::Deserialization)?
-                    .into_iter()
-                    .filter_map(|(package_id, package)| match package {
-                        PackageDataEntryModel::Installing(_)
-                        | PackageDataEntryModel::Restoring(_)
-                        | PackageDataEntryModel::Updating(_) => Some((
-                            package_id.clone(),
-                            cleanup_failed(self, &package_id).boxed(),
-                        )),
-                        PackageDataEntryModel::Removing(_) => Some((
-                            package_id.clone(),
-                            async {
-                                uninstall(
-                                    self,
-                                    &mut self.secret_store.acquire().await?,
-                                    &package_id,
-                                )
-                                .await
-                            }
-                            .boxed(),
-                        )),
-                        PackageDataEntryModel::Installed(m) => Some((
-                            package_id.clone(),
-                            async {
-                                let version = m.manifest().version().get()?;
-                                for (volume_id, volume_info) in &*m.manifest().volumes().get()? {
-                                    let tmp_path = to_tmp_path(volume_info.path_for(
-                                        &self.datadir,
-                                        &package_id,
-                                        &version,
-                                        &volume_id,
-                                    ))
-                                    .with_kind(ErrorKind::Filesystem)?;
-                                    if tokio::fs::metadata(&tmp_path).await.is_ok() {
-                                        tokio::fs::remove_dir_all(&tmp_path).await?;
-                                    }
-                                }
-                                Ok(())
-                            }
-                            .boxed(),
-                        )),
-                        _ => None,
-                    })
-                    .collect::<Vec<_>>())
-            })
-            .await?
-        {
-            if let Err(e) = action.await {
+        let peek = self.db.peek().await?;
+        for (package_id, package) in peek.package_data().entries()?.into_iter() {
+            let action = match package {
+                PackageDataEntryModel::Installing(_)
+                | PackageDataEntryModel::Restoring(_)
+                | PackageDataEntryModel::Updating(_) => cleanup_failed(self, &package_id).await,
+                PackageDataEntryModel::Removing(_) => {
+                    uninstall(self, &mut self.secret_store.acquire().await?, &package_id).await
+                }
+                PackageDataEntryModel::Installed(m) => {
+                    let version = m.manifest().version().de()?;
+                    for (volume_id, volume_info) in &*m.manifest().volumes().de()? {
+                        let tmp_path = to_tmp_path(volume_info.path_for(
+                            &self.datadir,
+                            &package_id,
+                            &version,
+                            &volume_id,
+                        ))
+                        .with_kind(ErrorKind::Filesystem)?;
+                        if tokio::fs::metadata(&tmp_path).await.is_ok() {
+                            tokio::fs::remove_dir_all(&tmp_path).await?;
+                        }
+                    }
+                    Ok(())
+                }
+                _ => continue,
+            };
+            if let Err(e) = action {
                 tracing::error!("Failed to clean up package {}: {}", package_id, e);
                 tracing::debug!("{:?}", e);
             }
         }
         self.db
-            .apply_fn(|mut v| {
-                for (_, pde) in v
-                    .package_data()
-                    .entries()
-                    .with_kind(ErrorKind::Deserialization)?
-                {
+            .mutate(|mut v| {
+                for (_, pde) in v.package_data().entries()? {
                     let status_ref = pde.as_installed()?.installed().status().main();
-                    let running = status_ref.get()?.running();
-                    status_ref.set(&if running {
+                    let running = status_ref.de()?.running();
+                    status_ref.ser(&if running {
                         MainStatus::Starting
                     } else {
                         MainStatus::Stopped
@@ -304,7 +275,7 @@ impl RpcContext {
                 }
                 Ok(())
             })
-            .await;
+            .await?;
         Ok(())
     }
 
