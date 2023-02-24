@@ -1433,9 +1433,9 @@ dependencies = [
 
 [[package]]
 name = "ena"
-version = "0.14.0"
+version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7402b94a93c24e742487327a7cd839dc9d36fec9de9fb25b09f2dae459f36c3"
+checksum = "b2e5d13ca2353ab7d0230988629def93914a8c4015f621f9b13ed2955614731d"
 dependencies = [
  "log",
 ]
@@ -2196,7 +2196,7 @@ dependencies = [
 [[package]]
 name = "imbl-value"
 version = "0.1.0"
-source = "git+https://github.com/Start9Labs/imbl-value.git#69da73b5c0e4fb23045ad814886ddbae5716fe1c"
+source = "git+https://github.com/Start9Labs/imbl-value.git#f0f9e80de3d7b2a28e3c86526d240b99002dfa38"
 dependencies = [
  "imbl",
  "serde",
@@ -2288,9 +2288,9 @@ dependencies = [
 
 [[package]]
 name = "is-terminal"
-version = "0.4.3"
+version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22e18b0a45d56fe973d6db23972bf5bc46f988a4a2385deac9cc29572f09daef"
+checksum = "21b6b32576413a8e69b90e952e4a026476040d81017b80445deda5f2d3921857"
 dependencies = [
  "hermit-abi 0.3.1",
  "io-lifetimes",

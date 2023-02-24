@@ -65,7 +65,7 @@ pub async fn check(ctx: &RpcContext, id: &PackageId) -> Result<(), Error> {
     };
 
     tracing::debug!("Checking health of {}", id);
-    let receipts = crate::dependencies::BreakTransitiveReceipts::new(&mut tx).await?;
+    let receipts = todo!(); // crate::dependencies::BreakTransitiveReceipts::new(&mut tx).await?;
     tracing::debug!("Got receipts {}", id);
 
     for (dependent, info) in (current_dependents).0.iter() {

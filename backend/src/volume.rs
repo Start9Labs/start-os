@@ -4,7 +4,6 @@ use std::path::{Path, PathBuf};
 
 pub use helpers::script_dir;
 pub use models::VolumeId;
-use patch_db::{HasModel, Map, MapModel};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
@@ -79,15 +78,12 @@ impl DerefMut for Volumes {
         &mut self.0
     }
 }
-impl<'a> Map<'a> for Volumes {
+impl Map for Volumes {
     type Key = VolumeId;
     type Value = Volume;
-    fn get(&self, key: &Self::Key) -> Option<&Self::Value> {
-        self.0.get(key)
-    }
 }
-impl<'a> HasModel<'a> for Volumes {
-    type Model = MapModel<'a, Self>;
+impl HasModel for Volumes {
+    type Model = MapModel<Self>;
 }
 
 pub fn data_dir<P: AsRef<Path>>(datadir: P, pkg_id: &PackageId, volume_id: &VolumeId) -> PathBuf {

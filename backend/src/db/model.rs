@@ -9,7 +9,7 @@ use ipnet::{Ipv4Net, Ipv6Net};
 use isocountry::CountryCode;
 use itertools::Itertools;
 use openssl::hash::MessageDigest;
-use patch_db::{HasModel, Map, MapModel, Value};
+use patch_db::{HasModel, Value};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use ssh_key::public::Ed25519PublicKey;
@@ -28,6 +28,7 @@ use crate::version::{Current, VersionT};
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
+// #[macro_debug]
 pub struct Database {
     #[model]
     pub server_info: ServerInfo,
@@ -89,7 +90,8 @@ impl Database {
     }
 }
 
-pub type DatabaseModel<'a> = <Database as HasModel<'a>>::Model;
+pub type DatabaseModel = <Database as HasModel>::Model;
+pub type DatabaseModelMut<'a> = <<Database as HasModel>::Model as ModelExt>::Mut<'a>;
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
@@ -185,15 +187,12 @@ pub struct ConnectionAddresses {
 
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct AllPackageData(pub BTreeMap<PackageId, PackageDataEntry>);
-impl<'a> Map<'a> for AllPackageData {
+impl Map for AllPackageData {
     type Key = PackageId;
     type Value = PackageDataEntry;
-    fn get(&self, key: &Self::Key) -> Option<&Self::Value> {
-        self.0.get(key)
-    }
 }
-impl<'a> HasModel<'a> for AllPackageData {
-    type Model = MapModel<'a, Self>;
+impl HasModel for AllPackageData {
+    type Model = MapModel<Self>;
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -295,18 +294,42 @@ impl PackageDataEntry {
         }
     }
 }
-pub type PackageDataEntryModel<'a> = package_data_entry_model::Model<'a>;
-impl<'a> package_data_entry_model::Model<'a> {
-    pub fn manifest(&mut self) -> <Manifest as HasModel<'a>>::Model {
+pub type PackageDataEntryModel = package_data_entry_model::Model;
+impl package_data_entry_model::Model {
+    pub fn manifest(&self) -> <Manifest as HasModel>::Model {
+        match self {
+            Self::Installing(a) => a.manifest(),
+            Self::Updating(a) => a.manifest(),
+            Self::Restoring(a) => a.manifest(),
+            Self::Removing(a) => a.manifest(),
+            Self::Installed(a) => a.manifest(),
+            Self::Error(a) => <<Manifest as HasModel>::Model as patch_db::Model>::new(a.clone()),
+        }
+    }
+    pub fn as_installed(self) -> Result<package_data_entry_model::InstalledModel, Error> {
+        if let Self::Installed(a) = self {
+            Ok(a)
+        } else {
+            Err(Error::new(
+                eyre!("package is not in installed state"),
+                ErrorKind::InvalidRequest,
+            ))
+        }
+    }
+}
+pub type PackageDataEntryModelMut<'a> = package_data_entry_model::ModelMut<'a>;
+impl<'a> package_data_entry_model::ModelMut<'a> {
+    pub fn manifest(&mut self) -> <<Manifest as HasModel>::Model as patch_db::Model>::Mut<'a> {
         match self {
             Self::Installing(mut a) => a.manifest(),
             Self::Updating(mut a) => a.manifest(),
             Self::Restoring(mut a) => a.manifest(),
             Self::Removing(mut a) => a.manifest(),
             Self::Installed(mut a) => a.manifest(),
+            Self::Error(mut a) => <<<Manifest as HasModel>::Model as patch_db::Model>::Mut::<'a> as patch_db::ModelMut>::new(a),
         }
     }
-    pub fn as_installed(self) -> Result<package_data_entry_model::InstalledModel<'a>, Error> {
+    pub fn as_installed(self) -> Result<package_data_entry_model::InstalledModelMut<'a>, Error> {
         if let Self::Installed(a) = self {
             Ok(a)
         } else {
@@ -351,15 +374,12 @@ impl CurrentDependencies {
         self
     }
 }
-impl<'a> Map<'a> for CurrentDependencies {
+impl Map for CurrentDependencies {
     type Key = PackageId;
     type Value = CurrentDependencyInfo;
-    fn get(&self, key: &Self::Key) -> Option<&Self::Value> {
-        self.0.get(key)
-    }
 }
-impl<'a> HasModel<'a> for CurrentDependencies {
-    type Model = MapModel<'a, Self>;
+impl HasModel for CurrentDependencies {
+    type Model = MapModel<Self>;
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel)]
@@ -377,15 +397,12 @@ pub struct CurrentDependencyInfo {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct InterfaceAddressMap(pub BTreeMap<InterfaceId, InterfaceAddresses>);
-impl<'a> Map<'a> for InterfaceAddressMap {
+impl Map for InterfaceAddressMap {
     type Key = InterfaceId;
     type Value = InterfaceAddresses;
-    fn get(&self, key: &Self::Key) -> Option<&Self::Value> {
-        self.0.get(key)
-    }
 }
-impl<'a> HasModel<'a> for InterfaceAddressMap {
-    type Model = MapModel<'a, Self>;
+impl HasModel for InterfaceAddressMap {
+    type Model = MapModel<Self>;
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]

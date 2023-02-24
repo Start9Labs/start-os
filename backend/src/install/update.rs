@@ -5,9 +5,7 @@ use tracing::instrument;
 
 use crate::config::not_found;
 use crate::context::RpcContext;
-use crate::dependencies::{
-    break_transitive, BreakTransitiveReceipts, BreakageRes, DependencyError,
-};
+use crate::dependencies::{break_transitive, BreakageRes, DependencyError};
 use crate::prelude::*;
 use crate::s9pk::manifest::PackageId;
 use crate::util::serde::display_serializable;

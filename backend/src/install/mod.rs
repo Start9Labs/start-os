@@ -32,8 +32,7 @@ use crate::db::model::{
     StaticDependencyInfo, StaticFiles,
 };
 use crate::dependencies::{
-    break_all_dependents_transitive, BreakTransitiveReceipts, BreakageRes, DependencyError,
-    DependencyErrors,
+    break_all_dependents_transitive, BreakageRes, DependencyError, DependencyErrors,
 };
 use crate::install::cleanup::{cleanup, update_dependency_errors_of_dependents};
 use crate::install::progress::{InstallProgress, InstallProgressTracker};
@@ -580,7 +579,7 @@ pub async fn uninstall_dry(
     let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
     let mut breakages = BTreeMap::new();
-    let receipts = BreakTransitiveReceipts::new(&mut tx).await?;
+    let receipts = todo!(); // BreakTransitiveReceipts::new(&mut tx).await?;
     break_all_dependents_transitive(
         &mut tx,
         &id,
@@ -793,7 +792,7 @@ pub async fn download_install_s9pk(
         let mut tx = handle.begin().await?;
         let receipts = todo!(); //cleanup::CleanupFailedReceipts::new(&mut tx).await?;
 
-        if let Err(e) = cleanup_failed(&ctx, pkg_id, &receipts).await {
+        if let Err(e) = cleanup_failed(&ctx, pkg_id).await {
             tracing::error!("Failed to clean up {}@{}: {}", pkg_id, version, e);
             tracing::debug!("{:?}", e);
         } else {

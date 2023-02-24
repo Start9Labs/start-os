@@ -6,7 +6,6 @@ use color_eyre::eyre::eyre;
 use emver::VersionRange;
 use futures::future::BoxFuture;
 use futures::FutureExt;
-use patch_db::{HasModel, Map, MapModel, Model, PatchDb};
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -225,11 +224,7 @@ impl DependencyError {
                         .await?
                         .ok_or_else(not_found)?;
                     match status.main {
-                        MainStatus::BackingUp {
-                            started: Some(_),
-                            health,
-                        }
-                        | MainStatus::Running { health, .. } => {
+                        MainStatus::Running { health, .. } => {
                             let mut failures = BTreeMap::new();
                             for (check, res) in health {
                                 if !matches!(res, HealthCheckResult::Success)
@@ -260,7 +255,9 @@ impl DependencyError {
                                     .await?
                             }
                         }
-                        MainStatus::Starting { .. } | MainStatus::Restarting => {
+                        MainStatus::Starting { .. }
+                        | MainStatus::Restarting
+                        | MainStatus::BackingUp { running: true } => {
                             DependencyError::Transitive
                                 .try_heal(ctx, id, dependency, dependency_config, info, receipts)
                                 .await?
@@ -334,15 +331,12 @@ pub struct BreakageRes(pub BTreeMap<PackageId, TaggedDependencyError>);
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Dependencies(pub BTreeMap<PackageId, DepInfo>);
-impl<'a> Map<'a> for Dependencies {
+impl Map for Dependencies {
     type Key = PackageId;
     type Value = DepInfo;
-    fn get(&self, key: &Self::Key) -> Option<&Self::Value> {
-        self.0.get(key)
-    }
 }
-impl<'a> HasModel<'a> for Dependencies {
-    type Model = MapModel<'a, Self>;
+impl HasModel for Dependencies {
+    type Model = MapModel<Self>;
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -582,15 +576,12 @@ pub async fn configure_logic(
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct DependencyErrors(pub BTreeMap<PackageId, DependencyError>);
-impl<'a> Map<'a> for DependencyErrors {
+impl Map for DependencyErrors {
     type Key = PackageId;
     type Value = DependencyError;
-    fn get(&self, key: &Self::Key) -> Option<&Self::Value> {
-        self.0.get(key)
-    }
 }
-impl<'a> HasModel<'a> for DependencyErrors {
-    type Model = MapModel<'a, Self>;
+impl HasModel for DependencyErrors {
+    type Model = MapModel<Self>;
 }
 impl DependencyErrors {
     pub async fn init(
