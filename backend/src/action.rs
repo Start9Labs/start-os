@@ -5,7 +5,6 @@ use color_eyre::eyre::eyre;
 use indexmap::IndexSet;
 pub use models::ActionId;
 use models::ImageId;
-use patch_db::Value;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -81,11 +80,6 @@ impl Action {
         volumes: &Volumes,
         input: Option<Config>,
     ) -> Result<ActionResult, Error> {
-        if let Some(ref input) = input {
-            self.input_spec
-                .matches(&input)
-                .with_kind(ErrorKind::ConfigSpecViolation)?;
-        }
         self.implementation
             .execute(
                 ctx,

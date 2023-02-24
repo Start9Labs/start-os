@@ -370,7 +370,6 @@ impl DepInfo {
         dependency_id: &PackageId,
         dependency_config: Option<Config>, // fetch if none
         dependent_id: &PackageId,
-        receipts: (), // &TryHealReceipts,
     ) -> Result<Result<(), DependencyError>, Error> {
         Ok(
             if let Some(err) = DependencyError::NotInstalled
@@ -588,7 +587,6 @@ impl DependencyErrors {
         ctx: &RpcContext,
         manifest: &Manifest,
         current_dependencies: &CurrentDependencies,
-        receipts: (), // &TryHealReceipts,
     ) -> Result<DependencyErrors, Error> {
         let mut res = BTreeMap::new();
         for (dependency_id, info) in current_dependencies.0.keys().filter_map(|dependency_id| {
@@ -599,7 +597,7 @@ impl DependencyErrors {
                 .map(|info| (dependency_id, info))
         }) {
             if let Err(e) = info
-                .satisfied(ctx, dependency_id, None, &manifest.id, receipts)
+                .satisfied(ctx, dependency_id, None, &manifest.id)
                 .await?
             {
                 res.insert(dependency_id.clone(), e);
@@ -627,17 +625,20 @@ pub async fn break_all_dependents_transitive<'a>(
     id: &'a PackageId,
     error: DependencyError,
     breakages: &'a mut BTreeMap<PackageId, TaggedDependencyError>,
-    receipts: (), // &'a BreakTransitiveReceipts,
 ) -> Result<(), Error> {
-    for dependent in receipts
-        .current_dependents
-        .get(db, id)
-        .await?
-        .iter()
-        .flat_map(|x| x.0.keys())
-        .filter(|dependent| id != *dependent)
-    {
-        break_transitive(dependent, id, error.clone(), breakages, receipts).await?;
+    let peeked = db.peek().await?;
+    let Some(package) = peeked.package_data().idx(id) else {
+        return Err(Error::new(eyre!("Could not find package"), ErrorKind::NotFound));
+    };
+    for dependent in todo!(
+        r#"package
+    .as_installed()?
+    .current_dependents()
+    .iter()
+    .flat_map(|x| x.0.keys())
+    .filter(|dependent| id != *dependent)"#
+    ) {
+        break_transitive(dependent, id, error.clone(), breakages, todo!()).await?;
     }
     Ok(())
 }

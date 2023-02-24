@@ -23,7 +23,7 @@ impl From<Id> for PackageId {
     }
 }
 impl std::ops::Deref for PackageId {
-    type Target = String;
+    type Target = str;
     fn deref(&self) -> &Self::Target {
         &*self.0
     }

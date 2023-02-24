@@ -7,6 +7,7 @@ use chrono::Utc;
 use clap::ArgMatches;
 use color_eyre::eyre::eyre;
 use helpers::AtomicFile;
+use imbl::OrdSet;
 use rpc_toolkit::command;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::Mutex;
@@ -50,7 +51,7 @@ pub async fn backup_all(
         long = "package-ids",
         parse(parse_comma_separated)
     )]
-    package_ids: Option<BTreeSet<PackageId>>,
+    package_ids: Option<OrdSet<PackageId>>,
     #[arg] password: crate::auth::PasswordType,
 ) -> Result<(), Error> {
     let old_password_decrypted = old_password
@@ -184,7 +185,7 @@ async fn assure_backing_up(
 async fn perform_backup(
     ctx: &RpcContext,
     backup_guard: BackupMountGuard<TmpMountGuard>,
-    package_ids: &BTreeSet<PackageId>,
+    package_ids: &OrdSet<PackageId>,
 ) -> Result<BTreeMap<PackageId, PackageBackupReport>, Error> {
     let mut backup_report = BTreeMap::new();
     let backup_guard = Arc::new(Mutex::new(backup_guard));

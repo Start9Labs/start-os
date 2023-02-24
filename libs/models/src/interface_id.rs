@@ -17,7 +17,7 @@ impl std::fmt::Display for InterfaceId {
     }
 }
 impl std::ops::Deref for InterfaceId {
-    type Target = String;
+    type Target = str;
     fn deref(&self) -> &Self::Target {
         &*self.0
     }

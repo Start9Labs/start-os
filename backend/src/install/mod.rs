@@ -1103,8 +1103,6 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         },
     );
     pde.save(&mut tx).await?;
-    let receipts = todo!(); // InstallS9Receipts::new(&mut tx).await?;
-                            // UpdateDependencyReceipts
     let mut dep_errs = model
         .expect(&mut tx)
         .await?
@@ -1176,12 +1174,8 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             };
             crate::config::configure(&ctx, pkg_id, configure_context).await?;
         } else {
-            remove_from_current_dependents_lists(
-                pkg_id,
-                &prev.current_dependencies,
-                &receipts.config.current_dependents,
-            )
-            .await?; // remove previous
+            remove_from_current_dependents_lists(pkg_id, &prev.current_dependencies, &db).await?;
+            // remove previous
         }
         if configured || manifest.config.is_none() {
             let mut main_status = todo!(); /*crate::db::DatabaseModel::new()
@@ -1199,13 +1193,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             *main_status = prev.status.main;
             main_status.save(&mut tx).await?;
         }
-        update_dependency_errors_of_dependents(
-            ctx,
-            pkg_id,
-            &todo!(),
-            &receipts.config.update_dependency_receipts,
-        )
-        .await?;
+        update_dependency_errors_of_dependents(ctx, pkg_id, &todo!()).await?;
         if &prev.manifest.version != version {
             cleanup(ctx, &prev.manifest.id, &prev.manifest.version).await?;
         }
@@ -1220,21 +1208,9 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
                 &manifest.volumes,
             )
             .await?;
-        update_dependency_errors_of_dependents(
-            ctx,
-            pkg_id,
-            &todo!(),
-            &receipts.config.update_dependency_receipts,
-        )
-        .await?;
+        update_dependency_errors_of_dependents(ctx, pkg_id, &todo!()).await?;
     } else {
-        update_dependency_errors_of_dependents(
-            ctx,
-            pkg_id,
-            &todo!(),
-            &receipts.config.update_dependency_receipts,
-        )
-        .await?;
+        update_dependency_errors_of_dependents(ctx, pkg_id, &todo!()).await?;
     }
 
     sql_tx.commit().await?;

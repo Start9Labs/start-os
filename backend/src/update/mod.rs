@@ -132,10 +132,10 @@ async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<Option
         let res = do_update(ctx.clone(), eos_url).await;
         let updated = res.is_ok();
         ctx.db
-            .apply_fn(|mut v| {
+            .mutate(|mut v| {
                 let mut status = v.server_info().status_info();
-                status.update_progress().set(&None);
-                status.updated().set(&updated);
+                status.update_progress().ser(&None);
+                status.updated().ser(&updated);
                 Ok(())
             })
             .await

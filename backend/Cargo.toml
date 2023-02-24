@@ -89,7 +89,7 @@ id-pool = { version = "0.2.2", features = [
   "u16",
   "serde",
 ], default-features = false }
-imbl = "2.0.0"
+imbl = { version = "2.0.0", features = ["serde"] }
 indexmap = { version = "1.9.1", features = ["serde"] }
 ipnet = { version = "2.7.1", features = ["serde"] }
 iprange = { version = "0.6.7", features = ["serde"] }

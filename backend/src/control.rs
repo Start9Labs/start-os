@@ -21,7 +21,6 @@ pub async fn start(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Result<(
     let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
     let receipts = todo!(); // StartReceipts::new(&mut tx, &id).await?;
-    let version = receipts.version.get(&mut tx).await?;
     receipts.status.set(&mut tx, MainStatus::Starting).await?;
     heal_all_dependents_transitive(&ctx, &id, &receipts.dependency_receipt).await?;
 
@@ -29,36 +28,12 @@ pub async fn start(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Result<(
     drop(receipts);
 
     ctx.managers
-        .get(&(id, version))
+        .get(&id)
         .await
         .ok_or_else(|| Error::new(eyre!("Manager not found"), ErrorKind::InvalidRequest))?
         .start();
 
     Ok(())
-}
-
-#[instrument(skip(db))]
-pub async fn stop_common(
-    db: &PatchDb,
-    id: &PackageId,
-    breakages: &mut BTreeMap<PackageId, TaggedDependencyError>,
-) -> Result<MainStatus, Error> {
-    let mut tx = db.begin().await?;
-    let receipts = todo!(); // StopReceipts::new(&mut tx, id).await?;
-    let last_status = receipts.status.get(&mut tx).await?;
-    receipts.status.set(&mut tx, MainStatus::Stopping).await?;
-
-    tx.save().await?;
-    break_all_dependents_transitive(
-        db,
-        id,
-        DependencyError::NotRunning,
-        breakages,
-        &receipts.breaks,
-    )
-    .await?;
-
-    Ok(last_status)
 }
 
 #[command(
@@ -76,69 +51,36 @@ pub async fn stop_dry(
     #[context] ctx: RpcContext,
     #[parent_data] id: PackageId,
 ) -> Result<BreakageRes, Error> {
-    let mut db = ctx.db.handle();
-    let mut tx = db.begin().await?;
-
     let mut breakages = BTreeMap::new();
-    stop_common(&mut tx, &id, &mut breakages).await?;
 
-    tx.abort().await?;
-
+    todo!(
+        r#"break_all_dependents_transitive(
+        db,
+        id,
+        DependencyError::NotRunning,
+        breakages,
+    )
+    .await?;"#
+    );
     Ok(BreakageRes(breakages))
 }
 
 #[instrument(skip(ctx))]
-pub async fn stop_impl(ctx: RpcContext, id: PackageId) -> Result<MainStatus, Error> {
-    let mut db = ctx.db.handle();
-    let mut tx = db.begin().await?;
-    let version = todo!(); /* crate::db::DatabaseModel::new()
-                           .package_data()
-                           .idx_model(&id)
-                           .expect(&mut tx)
-                           .await?
-                           .installed()
-                           .expect(&mut tx)
-                           .await?
-                           .manifest()
-                           .version()
-                           .get(&mut tx)
-                           .await?
-                           .clone();*/
-
-    let last_statuts = stop_common(&mut tx, &id, &mut BTreeMap::new()).await?;
-
-    tx.commit().await?;
+pub async fn stop_impl(ctx: RpcContext, id: PackageId) -> Result<(), Error> {
+    let mut breakages = BTreeMap::new();
     ctx.managers
-        .get(&(id, version))
+        .get(&id)
         .await
         .ok_or_else(|| Error::new(eyre!("Manager not found"), ErrorKind::InvalidRequest))?
         .stop();
 
-    Ok(last_statuts)
+    Ok(())
 }
 
 #[command(display(display_none), metadata(sync_db = true))]
 pub async fn restart(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Result<(), Error> {
-    let mut db = ctx.db.handle();
-    let mut tx = db.begin().await?;
-    let version = todo!(); /* crate::db::DatabaseModel::new()
-                           .package_data()
-                           .idx_model(&id)
-                           .expect(&mut tx)
-                           .await?
-                           .installed()
-                           .expect(&mut tx)
-                           .await?
-                           .manifest()
-                           .version()
-                           .get(&mut tx)
-                           .await?
-                           .clone();*/
-
-    tx.commit().await?;
-
     ctx.managers
-        .get(&(id, version))
+        .get(&id)
         .await
         .ok_or_else(|| Error::new(eyre!("Manager not found"), ErrorKind::InvalidRequest))?
         .restart()

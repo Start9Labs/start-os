@@ -97,7 +97,7 @@ where
             ));
         }
         tracing::info!("{} -> {}", previous.semver(), self.semver(),);
-        self.up(db, secrets).await?;
+        self.up(secrets, db).await?;
         self.commit(db).await?;
         Ok(())
     }
@@ -109,7 +109,7 @@ where
     ) -> Result<(), Error> {
         let previous = Self::Previous::new();
         tracing::info!("{} -> {}", self.semver(), previous.semver(),);
-        self.down(db, secrets).await?;
+        self.down(secrets, db).await?;
         previous.commit(db).await?;
         if version.semver() < previous.semver() {
             previous.rollback_to_unchecked(version, secrets, db).await?;

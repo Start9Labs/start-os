@@ -21,8 +21,7 @@ use crate::volume::{asset_dir, script_dir};
 pub async fn update_dependency_errors_of_dependents<'a>(
     ctx: &RpcContext,
     id: &PackageId,
-    deps: (),     // &CurrentDependents,
-    receipts: (), // &UpdateDependencyReceipts,
+    deps: (), // &CurrentDependents,
 ) -> Result<(), Error> {
     for dep in deps.0.keys() {
         if let Some(man) = receipts.manifest.get(dep).await? {
@@ -191,9 +190,9 @@ pub async fn cleanup_failed(ctx: &RpcContext, id: &PackageId) -> Result<(), Erro
 
 #[instrument(skip(current_dependencies, current_dependent_receipt))]
 pub async fn remove_from_current_dependents_lists<'a>(
+    db: &PatchDb,
     id: &'a PackageId,
     current_dependencies: &'a CurrentDependencies,
-    current_dependent_receipt: (), // &LockReceipt<CurrentDependents, String>,
 ) -> Result<(), Error> {
     for dep in current_dependencies.0.keys().chain(std::iter::once(id)) {
         if let Some(mut current_dependents) = current_dependent_receipt.get(dep).await? {
