@@ -325,7 +325,7 @@ pub struct TaggedDependencyError {
     pub error: DependencyError,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "kebab-case")]
 pub struct BreakageRes(pub BTreeMap<PackageId, TaggedDependencyError>);
 

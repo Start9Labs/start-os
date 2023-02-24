@@ -4,29 +4,19 @@ use color_eyre::eyre::eyre;
 use rpc_toolkit::command;
 use tracing::instrument;
 
-use crate::context::RpcContext;
 use crate::dependencies::{
-    break_all_dependents_transitive, heal_all_dependents_transitive, BreakageRes, DependencyError,
-    TaggedDependencyError,
+    heal_all_dependents_transitive, BreakageRes, DependencyError, TaggedDependencyError,
 };
 use crate::prelude::*;
 use crate::s9pk::manifest::PackageId;
 use crate::status::MainStatus;
 use crate::util::display_none;
 use crate::util::serde::display_serializable;
+use crate::{context::RpcContext, db::model::Database};
 
 #[command(display(display_none), metadata(sync_db = true))]
 #[instrument(skip(ctx))]
 pub async fn start(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Result<(), Error> {
-    let mut db = ctx.db.handle();
-    let mut tx = db.begin().await?;
-    let receipts = todo!(); // StartReceipts::new(&mut tx, &id).await?;
-    receipts.status.set(&mut tx, MainStatus::Starting).await?;
-    heal_all_dependents_transitive(&ctx, &id, &receipts.dependency_receipt).await?;
-
-    tx.commit().await?;
-    drop(receipts);
-
     ctx.managers
         .get(&id)
         .await
@@ -51,18 +41,45 @@ pub async fn stop_dry(
     #[context] ctx: RpcContext,
     #[parent_data] id: PackageId,
 ) -> Result<BreakageRes, Error> {
-    let mut breakages = BTreeMap::new();
+    let db = ctx.db.peek().await?;
 
-    todo!(
-        r#"break_all_dependents_transitive(
-        db,
-        id,
-        DependencyError::NotRunning,
-        breakages,
-    )
-    .await?;"#
-    );
-    Ok(BreakageRes(breakages))
+    let error = TaggedDependencyError {
+        dependency: id.clone(),
+        error: DependencyError::NotRunning,
+    };
+    Ok(BreakageRes::default().not_running_dependencies(&db, &id, error))
+}
+trait NotRunningDependencies {
+    fn not_running_dependencies(
+        self,
+        db: &<Database as HasModel>::Model,
+        id: &PackageId,
+        error: TaggedDependencyError,
+    ) -> Result<Self, Error>;
+}
+impl NotRunningDependencies for BreakageRes {
+    fn not_running_dependencies(
+        self,
+        db: &<Database as HasModel>::Model,
+        id: &PackageId,
+        error: TaggedDependencyError,
+    ) -> Result<Self, Error> {
+        let mut not_running = self;
+        let dependencies = db
+            .package_data()
+            .idx(id)
+            .or_not_found(id)?
+            .manifest()
+            .dependencies()
+            .keys()?;
+        for dep in dependencies {
+            if not_running.0.insert(dep.clone(), error.clone()).is_none() {
+                not_running = not_running.not_running_dependencies(db, &dep, error.clone())?;
+            }
+        }
+
+        Ok(not_running)
+    }
 }
 
 #[instrument(skip(ctx))]
