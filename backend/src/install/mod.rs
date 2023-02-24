@@ -576,22 +576,13 @@ pub async fn uninstall_dry(
     #[context] ctx: RpcContext,
     #[parent_data] id: PackageId,
 ) -> Result<BreakageRes, Error> {
-    let mut db = ctx.db.handle();
-    let mut tx = db.begin().await?;
-    let mut breakages = BTreeMap::new();
-    let receipts = todo!(); // BreakTransitiveReceipts::new(&mut tx).await?;
-    break_all_dependents_transitive(
-        &mut tx,
-        &id,
-        DependencyError::NotInstalled,
-        &mut breakages,
-        &receipts,
-    )
-    .await?;
+    let db = ctx.db.peek().await?;
 
-    tx.abort().await?;
-
-    Ok(BreakageRes(breakages))
+    let error = TaggedDependencyError {
+        dependency: id.clone(),
+        error: DependencyError::NotInstalled,
+    };
+    Ok(BreakageRes::default().add_breakage(&db, &id, error))
 }
 
 #[instrument(skip(ctx))]
@@ -807,7 +798,7 @@ pub async fn download_install_s9pk(
     }
 }
 
-#[instrument(skip(ctx, rdr))]
+// #[instrument(skip(ctx, rdr))]
 pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
     ctx: &RpcContext,
     pkg_id: &PackageId,
@@ -1113,13 +1104,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         .dependency_errors()
         .get_mut(&mut tx)
         .await?;
-    *dep_errs = DependencyErrors::init(
-        ctx,
-        &manifest,
-        &current_dependencies,
-        &receipts.config.try_heal_receipts,
-    )
-    .await?;
+    *dep_errs = DependencyErrors::init(ctx, &manifest, &current_dependencies).await?;
     dep_errs.save(&mut tx).await?;
 
     if let PackageDataEntry::Updating {

@@ -47,39 +47,7 @@ pub async fn stop_dry(
         dependency: id.clone(),
         error: DependencyError::NotRunning,
     };
-    Ok(BreakageRes::default().not_running_dependencies(&db, &id, error))
-}
-trait NotRunningDependencies {
-    fn not_running_dependencies(
-        self,
-        db: &<Database as HasModel>::Model,
-        id: &PackageId,
-        error: TaggedDependencyError,
-    ) -> Result<Self, Error>;
-}
-impl NotRunningDependencies for BreakageRes {
-    fn not_running_dependencies(
-        self,
-        db: &<Database as HasModel>::Model,
-        id: &PackageId,
-        error: TaggedDependencyError,
-    ) -> Result<Self, Error> {
-        let mut not_running = self;
-        let dependencies = db
-            .package_data()
-            .idx(id)
-            .or_not_found(id)?
-            .manifest()
-            .dependencies()
-            .keys()?;
-        for dep in dependencies {
-            if not_running.0.insert(dep.clone(), error.clone()).is_none() {
-                not_running = not_running.not_running_dependencies(db, &dep, error.clone())?;
-            }
-        }
-
-        Ok(not_running)
-    }
+    Ok(BreakageRes::default().add_breakage(&db, &id, error))
 }
 
 #[instrument(skip(ctx))]

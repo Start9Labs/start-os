@@ -329,6 +329,31 @@ pub struct TaggedDependencyError {
 #[serde(rename_all = "kebab-case")]
 pub struct BreakageRes(pub BTreeMap<PackageId, TaggedDependencyError>);
 
+impl BreakageRes {
+    pub fn add_breakage(
+        self,
+        db: &<crate::db::model::Database as HasModel>::Model,
+        id: &PackageId,
+        error: TaggedDependencyError,
+    ) -> Result<Self, Error> {
+        let mut not_running = self;
+        let dependencies = db
+            .package_data()
+            .idx(id)
+            .or_not_found(id)?
+            .manifest()
+            .dependencies()
+            .keys()?;
+        for dep in dependencies {
+            if not_running.0.insert(dep.clone(), error.clone()).is_none() {
+                not_running = not_running.add_breakage(db, &dep, error.clone())?;
+            }
+        }
+
+        Ok(not_running)
+    }
+}
+
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Dependencies(pub BTreeMap<PackageId, DepInfo>);
 impl Map for Dependencies {
@@ -619,147 +644,146 @@ impl std::fmt::Display for DependencyErrors {
         write!(f, " }}")
     }
 }
+// TODO Remove
+// pub async fn break_all_dependents_transitive<'a>(
+//     db: &PatchDb,
+//     id: &'a PackageId,
+//     error: DependencyError,
+//     breakages: &'a mut BTreeMap<PackageId, TaggedDependencyError>,
+// ) -> Result<(), Error> {
+//     let peeked = db.peek().await?;
+//     let Some(package) = peeked.package_data().idx(id) else {
+//         return Err(Error::new(eyre!("Could not find package"), ErrorKind::NotFound));
+//     };
+//     for dependent in todo!(
+//         r#"package
+//     .as_installed()?
+//     .current_dependents()
+//     .iter()
+//     .flat_map(|x| x.0.keys())
+//     .filter(|dependent| id != *dependent)"#
+//     ) {
+//         break_transitive(dependent, id, error.clone(), breakages).await?;
+//     }
+//     Ok(())
+// }
 
-pub async fn break_all_dependents_transitive<'a>(
-    db: &PatchDb,
-    id: &'a PackageId,
-    error: DependencyError,
-    breakages: &'a mut BTreeMap<PackageId, TaggedDependencyError>,
-) -> Result<(), Error> {
-    let peeked = db.peek().await?;
-    let Some(package) = peeked.package_data().idx(id) else {
-        return Err(Error::new(eyre!("Could not find package"), ErrorKind::NotFound));
-    };
-    for dependent in todo!(
-        r#"package
-    .as_installed()?
-    .current_dependents()
-    .iter()
-    .flat_map(|x| x.0.keys())
-    .filter(|dependent| id != *dependent)"#
-    ) {
-        break_transitive(dependent, id, error.clone(), breakages, todo!()).await?;
-    }
-    Ok(())
-}
+// #[instrument(skip(receipts))]
+// pub fn break_transitive<'a>(
+//     id: &'a PackageId,
+//     dependency: &'a PackageId,
+//     error: DependencyError,
+//     breakages: &'a mut BTreeMap<PackageId, TaggedDependencyError>,
+// ) -> BoxFuture<'a, Result<(), Error>> {
+//     let db = todo!();
+//     async move {
+//         let mut tx = todo!(); // db.begin().await?;
+//         let mut dependency_errors = receipts
+//             .dependency_errors
+//             .get(&mut tx, id)
+//             .await?
+//             .ok_or_else(not_found)?;
 
-#[instrument(skip(receipts))]
-pub fn break_transitive<'a>(
-    id: &'a PackageId,
-    dependency: &'a PackageId,
-    error: DependencyError,
-    breakages: &'a mut BTreeMap<PackageId, TaggedDependencyError>,
-    receipts: (), // &'a BreakTransitiveReceipts,
-) -> BoxFuture<'a, Result<(), Error>> {
-    let db = todo!();
-    async move {
-        let mut tx = todo!(); // db.begin().await?;
-        let mut dependency_errors = receipts
-            .dependency_errors
-            .get(&mut tx, id)
-            .await?
-            .ok_or_else(not_found)?;
+//         let old = dependency_errors.0.remove(dependency);
+//         let newly_broken = if let Some(e) = &old {
+//             error.cmp_priority(&e) == Ordering::Greater
+//         } else {
+//             true
+//         };
+//         dependency_errors.0.insert(
+//             dependency.clone(),
+//             if let Some(old) = old {
+//                 old.merge_with(error.clone())
+//             } else {
+//                 error.clone()
+//             },
+//         );
+//         if newly_broken {
+//             breakages.insert(
+//                 id.clone(),
+//                 TaggedDependencyError {
+//                     dependency: dependency.clone(),
+//                     error: error.clone(),
+//                 },
+//             );
+//             receipts
+//                 .dependency_errors
+//                 .set(&mut tx, dependency_errors, id)
+//                 .await?;
 
-        let old = dependency_errors.0.remove(dependency);
-        let newly_broken = if let Some(e) = &old {
-            error.cmp_priority(&e) == Ordering::Greater
-        } else {
-            true
-        };
-        dependency_errors.0.insert(
-            dependency.clone(),
-            if let Some(old) = old {
-                old.merge_with(error.clone())
-            } else {
-                error.clone()
-            },
-        );
-        if newly_broken {
-            breakages.insert(
-                id.clone(),
-                TaggedDependencyError {
-                    dependency: dependency.clone(),
-                    error: error.clone(),
-                },
-            );
-            receipts
-                .dependency_errors
-                .set(&mut tx, dependency_errors, id)
-                .await?;
+//             tx.save().await?;
+//             break_all_dependents_transitive(
+//                 db,
+//                 id,
+//                 DependencyError::Transitive,
+//                 breakages,
+//                 receipts,
+//             )
+//             .await?;
+//         } else {
+//             receipts
+//                 .dependency_errors
+//                 .set(&mut tx, dependency_errors, id)
+//                 .await?;
 
-            tx.save().await?;
-            break_all_dependents_transitive(
-                db,
-                id,
-                DependencyError::Transitive,
-                breakages,
-                receipts,
-            )
-            .await?;
-        } else {
-            receipts
-                .dependency_errors
-                .set(&mut tx, dependency_errors, id)
-                .await?;
+//             tx.save().await?;
+//         }
 
-            tx.save().await?;
-        }
+//         Ok(())
+//     }
+//     .boxed()
+// }
 
-        Ok(())
-    }
-    .boxed()
-}
+// #[instrument(skip(ctx, locks))]
+// pub async fn heal_all_dependents_transitive<'a>(
+//     ctx: &'a RpcContext,
+//     id: &'a PackageId,
+//     locks: (), // &'a DependencyReceipt,
+// ) -> Result<(), Error> {
+//     let db = todo!();
+//     let dependents = locks
+//         .current_dependents
+//         .get(db, id)
+//         .await?
+//         .ok_or_else(not_found)?;
+//     for dependent in dependents.0.keys().filter(|dependent| id != *dependent) {
+//         heal_transitive(ctx, dependent, id, locks).await?;
+//     }
+//     Ok(())
+// }
 
-#[instrument(skip(ctx, locks))]
-pub async fn heal_all_dependents_transitive<'a>(
-    ctx: &'a RpcContext,
-    id: &'a PackageId,
-    locks: (), // &'a DependencyReceipt,
-) -> Result<(), Error> {
-    let db = todo!();
-    let dependents = locks
-        .current_dependents
-        .get(db, id)
-        .await?
-        .ok_or_else(not_found)?;
-    for dependent in dependents.0.keys().filter(|dependent| id != *dependent) {
-        heal_transitive(ctx, dependent, id, locks).await?;
-    }
-    Ok(())
-}
+// #[instrument(skip(ctx, receipts))]
+// pub fn heal_transitive<'a>(
+//     ctx: &'a RpcContext,
+//     id: &'a PackageId,
+//     dependency: &'a PackageId,
+//     receipts: (), // &'a DependencyReceipt,
+// ) -> BoxFuture<'a, Result<(), Error>> {
+//     let db = todo!();
+//     async move {
+//         let mut status = receipts.status.get(id).await?.ok_or_else(not_found)?;
 
-#[instrument(skip(ctx, receipts))]
-pub fn heal_transitive<'a>(
-    ctx: &'a RpcContext,
-    id: &'a PackageId,
-    dependency: &'a PackageId,
-    receipts: (), // &'a DependencyReceipt,
-) -> BoxFuture<'a, Result<(), Error>> {
-    let db = todo!();
-    async move {
-        let mut status = receipts.status.get(id).await?.ok_or_else(not_found)?;
+//         let old = status.dependency_errors.0.remove(dependency);
 
-        let old = status.dependency_errors.0.remove(dependency);
+//         if let Some(old) = old {
+//             let info = receipts
+//                 .dependency
+//                 .get(db, (id, dependency))
+//                 .await?
+//                 .ok_or_else(not_found)?;
+//             if let Some(new) = old
+//                 .try_heal(ctx, id, dependency, None, &info, &receipts.try_heal)
+//                 .await?
+//             {
+//                 status.dependency_errors.0.insert(dependency.clone(), new);
+//                 receipts.status.set(db, status, id).await?;
+//             } else {
+//                 receipts.status.set(db, status, id).await?;
+//                 heal_all_dependents_transitive(ctx, id, receipts).await?;
+//             }
+//         }
 
-        if let Some(old) = old {
-            let info = receipts
-                .dependency
-                .get(db, (id, dependency))
-                .await?
-                .ok_or_else(not_found)?;
-            if let Some(new) = old
-                .try_heal(ctx, id, dependency, None, &info, &receipts.try_heal)
-                .await?
-            {
-                status.dependency_errors.0.insert(dependency.clone(), new);
-                receipts.status.set(db, status, id).await?;
-            } else {
-                receipts.status.set(db, status, id).await?;
-                heal_all_dependents_transitive(ctx, id, receipts).await?;
-            }
-        }
-
-        Ok(())
-    }
-    .boxed()
-}
+//         Ok(())
+//     }
+//     .boxed()
+// }
