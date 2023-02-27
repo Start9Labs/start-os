@@ -17,9 +17,11 @@
     "build:install-wiz": "ng run install-wizard:build",
     "build:setup": "ng run setup-wizard:build",
     "build:ui": "ng run ui:build",
+    "build:ui:stats": "ng run ui:build --stats-json",
     "build:all": "npm run build:deps && npm run build:dui && npm run build:setup && npm run build:ui && npm run build:install-wiz",
     "build:shared": "ng build shared",
     "build:marketplace": "npm run build:shared && ng build marketplace",
+    "analyze:ui": "webpack-bundle-analyzer dist/ui/stats.json",
     "publish:shared": "npm run build:shared && npm publish ./dist/shared --access public",
     "publish:marketplace": "npm run build:marketplace && npm publish ./dist/marketplace --access public",
     "start:dui": "npm run-script build-config && ionic serve --project diagnostic-ui --host 0.0.0.0",
@@ -39,10 +41,10 @@
     "@angular/platform-browser-dynamic": "^14.1.0",
     "@angular/router": "^14.1.0",
     "@ionic/angular": "^6.1.15",
+    "@materia-ui/ngx-monaco-editor": "^6.0.0",
     "@ng-web-apis/common": "^2.0.0",
     "@ng-web-apis/mutation-observer": "^2.0.0",
     "@ng-web-apis/resize-observer": "^2.0.0",
-    "@materia-ui/ngx-monaco-editor": "^6.0.0",
     "@start9labs/argon2": "^0.1.0",
     "@start9labs/emver": "^0.1.5",
     "@taiga-ui/addon-charts": "^3.14.0",
@@ -99,7 +101,8 @@
     "raw-loader": "^4.0.2",
     "ts-node": "^10.7.0",
     "tslint": "^6.1.3",
-    "typescript": "^4.6.3"
+    "typescript": "^4.6.3",
+    "webpack-bundle-analyzer": "^4.8.0"
   },
   "husky": {
     "hooks": {
