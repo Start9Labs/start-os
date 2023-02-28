@@ -140,7 +140,7 @@ pub async fn backup_all(
             }
         }
         ctx.db
-            .apply_fn(|v| v.server_info().status_info().backup_progress().set(&None))
+            .mutate(|v| v.server_info().status_info().backup_progress().ser(&None))
             .await?;
         backup_res
     });
@@ -152,10 +152,10 @@ async fn assure_backing_up(
     db: &PatchDb,
     packages: impl IntoIterator<Item = &PackageId> + UnwindSafe + Send,
 ) -> Result<(), Error> {
-    db.apply_fn(|mut v| {
+    db.mutate(|v| {
         let mut backing_up = v.server_info().status_info().backup_progress();
         if backing_up
-            .get()?
+            .de()?
             .iter()
             .flat_map(|x| x.values())
             .fold(false, |acc, x| {
@@ -170,7 +170,7 @@ async fn assure_backing_up(
                 ErrorKind::InvalidRequest,
             ));
         }
-        backing_up.set(&Some(
+        backing_up.ser(&Some(
             packages
                 .into_iter()
                 .map(|x| (x.clone(), BackupProgress { complete: false }))

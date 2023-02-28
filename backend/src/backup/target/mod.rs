@@ -212,7 +212,7 @@ fn display_backup_info(info: BackupInfo, matches: &ArgMatches) {
     ]);
     for (id, info) in info.package_backups {
         let row = row![
-            id.as_str(),
+            &*id,
             info.version.as_str(),
             info.os_version.as_str(),
             &info.timestamp.to_string(),

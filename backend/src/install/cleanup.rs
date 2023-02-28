@@ -9,7 +9,7 @@ use tracing::instrument;
 use super::PKG_ARCHIVE_DIR;
 use crate::context::RpcContext;
 use crate::db::model::{
-    AllPackageData, CurrentDependencies, InstalledPackageDataEntry, PackageDataEntry,
+    AllPackageData, CurrentDependencies, InstalledPackageInfo, PackageDataEntry,
 };
 use crate::dependencies::DependencyErrors;
 use crate::prelude::*;
@@ -139,7 +139,7 @@ pub async fn cleanup_failed(ctx: &RpcContext, id: &PackageId) -> Result<(), Erro
         PackageDataEntry::Updating {
             manifest,
             installed:
-                InstalledPackageDataEntry {
+                InstalledPackageInfo {
                     manifest: installed_manifest,
                     ..
                 },

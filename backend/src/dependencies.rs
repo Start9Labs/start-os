@@ -13,7 +13,7 @@ use tracing::instrument;
 use crate::config::action::{ConfigActions, ConfigRes};
 use crate::config::{not_found, Config, ConfigureContext};
 use crate::context::RpcContext;
-use crate::db::model::{CurrentDependencies, InstalledPackageDataEntry};
+use crate::db::model::{CurrentDependencies, InstalledPackageInfo};
 use crate::prelude::*;
 use crate::procedure::docker::DockerContainers;
 use crate::procedure::{NoOutput, PackageProcedure, ProcedureName};

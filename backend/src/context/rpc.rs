@@ -24,7 +24,7 @@ use super::setup::CURRENT_SECRET;
 use crate::account::AccountInfo;
 use crate::config::hook::ConfigHook;
 use crate::core::rpc_continuations::{RequestGuid, RestHandler, RpcContinuation};
-use crate::db::model::{Database, PackageDataEntryModel};
+use crate::db::model::{Database, PackageDataEntryMatchModel};
 use crate::disk::OsPartitionInfo;
 use crate::init::{init_postgres, pgloader};
 use crate::install::cleanup::{cleanup_failed, uninstall};
@@ -232,14 +232,16 @@ impl RpcContext {
     pub async fn cleanup(&self) -> Result<(), Error> {
         let peek = self.db.peek().await?;
         for (package_id, package) in peek.package_data().entries()?.into_iter() {
-            let action = match package {
-                PackageDataEntryModel::Installing(_)
-                | PackageDataEntryModel::Restoring(_)
-                | PackageDataEntryModel::Updating(_) => cleanup_failed(self, &package_id).await,
-                PackageDataEntryModel::Removing(_) => {
+            let action = match package.matchable() {
+                PackageDataEntryMatchModel::Installing(_)
+                | PackageDataEntryMatchModel::Restoring(_)
+                | PackageDataEntryMatchModel::Updating(_) => {
+                    cleanup_failed(self, &package_id).await
+                }
+                PackageDataEntryMatchModel::Removing(_) => {
                     uninstall(self, &mut self.secret_store.acquire().await?, &package_id).await
                 }
-                PackageDataEntryModel::Installed(m) => {
+                PackageDataEntryMatchModel::Installed(m) => {
                     let version = m.manifest().version().de()?;
                     for (volume_id, volume_info) in &*m.manifest().volumes().de()? {
                         let tmp_path = to_tmp_path(volume_info.path_for(

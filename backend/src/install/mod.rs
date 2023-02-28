@@ -28,7 +28,7 @@ use crate::config::ConfigureContext;
 use crate::context::{CliContext, RpcContext};
 use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::db::model::{
-    CurrentDependencies, CurrentDependencyInfo, InstalledPackageDataEntry, PackageDataEntry,
+    CurrentDependencies, CurrentDependencyInfo, InstalledPackageInfo, PackageDataEntry,
     StaticDependencyInfo, StaticFiles,
 };
 use crate::dependencies::{
@@ -1060,7 +1060,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         .await?
         .get_mut(&mut tx)
         .await?;
-    let installed = InstalledPackageDataEntry {
+    let installed = InstalledPackageInfo {
         status: Status {
             configured: manifest.config.is_none(),
             main: MainStatus::Stopped,
@@ -1072,7 +1072,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         last_backup: match &*pde {
             PackageDataEntry::Updating {
                 installed:
-                    InstalledPackageDataEntry {
+                    InstalledPackageInfo {
                         last_backup: Some(time),
                         ..
                     },

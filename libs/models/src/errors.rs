@@ -271,6 +271,18 @@ impl From<ssh_key::Error> for Error {
         Error::new(e, ErrorKind::OpenSsh)
     }
 }
+impl From<patch_db::value::Error> for Error {
+    fn from(value: patch_db::value::Error) -> Self {
+        match value.kind {
+            patch_db::value::ErrorKind::Serialization => {
+                Error::new(value.source, ErrorKind::Serialization)
+            }
+            patch_db::value::ErrorKind::Deserialization => {
+                Error::new(value.source, ErrorKind::Deserialization)
+            }
+        }
+    }
+}
 
 impl From<Error> for RpcError {
     fn from(e: Error) -> Self {
