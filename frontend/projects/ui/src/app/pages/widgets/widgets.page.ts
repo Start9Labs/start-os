@@ -2,7 +2,6 @@ import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
-  ElementRef,
   Inject,
   Input,
   Optional,
@@ -57,14 +56,13 @@ export class WidgetsPage {
     @Optional()
     @Inject(POLYMORPHEUS_CONTEXT)
     readonly context: TuiDialogContext | null,
-    private readonly elementRef: ElementRef<HTMLElement>,
     private readonly dialog: TuiDialogService,
     private readonly patch: PatchDB<DataModel>,
     private readonly cdr: ChangeDetectorRef,
     private readonly api: ApiService,
   ) {
     this.patch
-      .watch$('ui', 'widgets', 'widgets')
+      .watch$('ui', 'widgets')
       .pipe(take(1))
       .subscribe(items => {
         this.updateItems(items)
@@ -120,7 +118,7 @@ export class WidgetsPage {
     if (!this.pending) {
       this.pending = true
       this.api
-        .setDbValue(['widgets', 'widgets'], items)
+        .setDbValue(['widgets'], items)
         .catch(() => {
           this.updateItems(previous)
         })

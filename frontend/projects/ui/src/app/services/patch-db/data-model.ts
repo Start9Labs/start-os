@@ -20,11 +20,7 @@ export interface UIData {
     }
   }
   'ack-instructions': Record<string, boolean>
-  widgets: {
-    open: boolean
-    width: number
-    widgets: readonly Widget[]
-  }
+  widgets: readonly Widget[]
 }
 
 export interface Widget {

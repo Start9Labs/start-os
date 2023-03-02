@@ -4,8 +4,11 @@ import { PatchDB } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TuiDialogService } from '@taiga-ui/core'
 import { WIDGETS_COMPONENT } from '../../pages/widgets/widgets.page'
-import { WidgetsService } from '../../pages/widgets/built-in/widgets.service'
 import { WorkspaceConfig } from '@start9labs/shared'
+import {
+  ClientStorageService,
+  WidgetDrawer,
+} from 'src/app/services/client-storage.service'
 
 const { enableWidgets } =
   require('../../../../../../config.json') as WorkspaceConfig
@@ -22,6 +25,7 @@ export class BadgeMenuComponent {
     'unread-notification-count',
   )
   readonly sidebarOpen$ = this.splitPane.sidebarOpen$
+  readonly widgetDrawer$ = this.clientStorageService.widgetDrawer$
 
   readonly enableWidgets = enableWidgets
 
@@ -29,11 +33,14 @@ export class BadgeMenuComponent {
     private readonly splitPane: SplitPaneTracker,
     private readonly patch: PatchDB<DataModel>,
     private readonly dialog: TuiDialogService,
-    readonly widgets$: WidgetsService,
+    private readonly clientStorageService: ClientStorageService,
   ) {}
 
-  onSidebar(open: boolean) {
-    this.widgets$.toggle(!open)
+  onSidebar(drawer: WidgetDrawer) {
+    this.clientStorageService.updateWidgetDrawer({
+      ...drawer,
+      open: !drawer.open,
+    })
   }
 
   onWidgets() {

@@ -17,7 +17,7 @@ import { BUILT_IN_WIDGETS } from '../widgets'
 export class AddWidgetComponent {
   readonly context = inject<TuiDialogContext<Widget>>(POLYMORPHEUS_CONTEXT)
 
-  readonly installed$ = inject(PatchDB).watch$('ui', 'widgets', 'widgets')
+  readonly installed$ = inject(PatchDB).watch$('ui', 'widgets')
 
   readonly widgets = BUILT_IN_WIDGETS
 

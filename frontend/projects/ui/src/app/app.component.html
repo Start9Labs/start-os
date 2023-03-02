@@ -1,6 +1,7 @@
 <tui-root
+  *ngIf="widgetDrawer$ | async as drawer"
   tuiMode="onDark"
-  [style.--widgets-width.px]="(widgets$ | async) ? width : 0"
+  [style.--widgets-width.px]="drawer.open ? drawer.width : 0"
 >
   <ion-app appEnter>
     <ion-content>
@@ -21,7 +22,6 @@
         </ion-menu>
 
         <ion-menu
-          *ngIf="enableWidgets"
           contentId="main-content"
           type="overlay"
           side="end"
@@ -30,19 +30,17 @@
             (authService.isVerified$ | async) &&
             !(connection.connected$ | async)
           "
-          [class.right-menu_hidden]="!(widgets$ | async)"
-          [style.--side-width.px]="width"
+          [class.right-menu_hidden]="!drawer.open"
+          [style.--side-width.px]="drawer.width"
         >
           <div class="divider">
             <button
               class="widgets-button"
-              [class.widgets-button_collapse]="width === 600"
-              (click)="onResize()"
-            >
-              Toggle
-            </button>
+              [class.widgets-button_collapse]="drawer.width === 600"
+              (click)="onResize(drawer)"
+            ></button>
           </div>
-          <widgets *ngIf="widgets$ | async" [wide]="width === 600"></widgets>
+          <widgets *ngIf="drawer.open" [wide]="drawer.width === 600"></widgets>
         </ion-menu>
 
         <ion-router-outlet
