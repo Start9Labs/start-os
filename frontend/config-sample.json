@@ -1,6 +1,6 @@
 {
   "useMocks": true,
-  "enableWidgets": true,
+  "enableWidgets": false,
   "packageArch": "aarch64",
   "osArch": "raspberrypi",
   "ui": {
