@@ -97,9 +97,7 @@ export class BackupTargetsPage {
               value:
                 | (RR.AddCifsBackupTargetReq & { type: BackupTargetType })
                 | (RR.AddCloudBackupTargetReq & { type: BackupTargetType }),
-            ) => {
-              return this.add(value.type, value)
-            },
+            ) => this.add(value.type, value),
             isSubmit: true,
           },
         ],
@@ -138,9 +136,7 @@ export class BackupTargetsPage {
                 | RR.UpdateCifsBackupTargetReq
                 | RR.UpdateCloudBackupTargetReq
                 | RR.UpdateDiskBackupTargetReq,
-            ) => {
-              return this.update(target.type, value)
-            },
+            ) => this.update(target.type, value),
             isSubmit: true,
           },
         ],
@@ -189,6 +185,17 @@ export class BackupTargetsPage {
   async refresh() {
     this.loading$.next(true)
     await this.getTargets()
+  }
+
+  getIcon(type: BackupTargetType) {
+    switch (type) {
+      case 'disk':
+        return 'save-outline'
+      case 'cifs':
+        return 'folder-open-outline'
+      case 'cloud':
+        return 'cloud-outline'
+    }
   }
 
   private async getTargets(): Promise<void> {

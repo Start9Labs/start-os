@@ -10,7 +10,9 @@ import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
 export class InsecureWarningComponent {
   constructor(@Inject(DOCUMENT) private readonly document: Document) {}
 
-  async launchHttps() {
-    window.open(this.document.location.href.replace('http', 'https'))
+  launchHttps() {
+    this.document.defaultView?.open(
+      this.document.location.href.replace('http', 'https'),
+    )
   }
 }

@@ -46,11 +46,11 @@ export class TargetSelectPage {
   }
 
   async refresh() {
-    this.loading$.next(true)
     await this.getTargets()
   }
 
   private async getTargets(): Promise<void> {
+    this.loading$.next(true)
     try {
       this.targets = (await this.api.getBackupTargets({})).saved
     } catch (e: any) {

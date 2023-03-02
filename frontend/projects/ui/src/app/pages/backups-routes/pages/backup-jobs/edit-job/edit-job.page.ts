@@ -33,10 +33,10 @@ export class EditJobPage {
   }
 
   async save() {
+    this.saving = true
     const loader = await this.loadingCtrl.create({
       message: 'Saving Job',
     })
-
     await loader.present()
 
     try {
@@ -48,6 +48,7 @@ export class EditJobPage {
       this.errToast.present(e)
     } finally {
       loader.dismiss()
+      this.saving = false
     }
   }
 }

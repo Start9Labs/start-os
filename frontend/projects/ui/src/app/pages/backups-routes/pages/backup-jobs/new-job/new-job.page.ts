@@ -39,6 +39,7 @@ export class NewJobPage {
       message: 'Saving Job',
     })
     await loader.present()
+    this.saving = true
 
     try {
       const job = await this.api.createBackupJob(this.job.buildCreate())
@@ -47,6 +48,7 @@ export class NewJobPage {
       this.errToast.present(e)
     } finally {
       loader.dismiss()
+      this.saving = false
     }
   }
 }

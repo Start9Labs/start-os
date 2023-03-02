@@ -42,13 +42,14 @@
           <ion-col size="2"></ion-col>
         </ion-row>
         <!-- loading -->
-        <ng-container *ngIf="loading$ | async; else loaded">
-          <ion-row class="ion-align-items-center grid-row-border">
-            <ion-col>
-              <ion-skeleton-text animated></ion-skeleton-text>
-            </ion-col>
-          </ion-row>
-        </ng-container>
+        <ion-row
+          *ngIf="loading$ | async; else loaded"
+          class="ion-align-items-center grid-row-border"
+        >
+          <ion-col>
+            <ion-skeleton-text animated></ion-skeleton-text>
+          </ion-col>
+        </ion-row>
         <!-- loaded -->
         <ng-template #loaded>
           <ion-row
@@ -125,21 +126,7 @@
           >
             <ion-col size="3">{{ target.name }}</ion-col>
             <ion-col class="inline">
-              <ion-icon
-                *ngIf="target.type === 'disk'"
-                name="save-outline"
-                size="small"
-              ></ion-icon>
-              <ion-icon
-                *ngIf="target.type === 'cifs'"
-                name="folder-open-outline"
-                size="small"
-              ></ion-icon>
-              <ion-icon
-                *ngIf="target.type === 'cloud'"
-                name="cloud-outline"
-                size="small"
-              ></ion-icon>
+              <ion-icon [name]="getIcon(target.type)" size="small"> </ion-icon>
               &nbsp; {{ target.type | titlecase }}
             </ion-col>
             <ion-col>

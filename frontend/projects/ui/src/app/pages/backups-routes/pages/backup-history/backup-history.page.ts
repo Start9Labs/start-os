@@ -8,7 +8,7 @@ import {
 } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ErrorToastService } from '@start9labs/shared'
-import { Subject } from 'rxjs'
+import { catchError, defer, Subject } from 'rxjs'
 import { BackupReportPage } from 'src/app/modals/backup-report/backup-report.page'
 
 @Component({
@@ -17,7 +17,9 @@ import { BackupReportPage } from 'src/app/modals/backup-report/backup-report.pag
   styleUrls: ['./backup-history.page.scss'],
 })
 export class BackupHistoryPage {
-  readonly runs$ = new Subject<BackupRun[]>()
+  readonly runs$ = defer(() => this.api.getBackupRuns({})).pipe(
+    catchError(e => this.errToast.present(e)),
+  )
 
   constructor(
     private readonly modalCtrl: ModalController,
@@ -26,10 +28,6 @@ export class BackupHistoryPage {
     private readonly errToast: ErrorToastService,
     private readonly api: ApiService,
   ) {}
-
-  ngOnInit() {
-    this.getRuns()
-  }
 
   async presentAlertDelete(id: string, index: number) {
     const alert = await this.alertCtrl.create({
@@ -75,15 +73,6 @@ export class BackupHistoryPage {
       this.errToast.present(e)
     } finally {
       loader.dismiss()
-    }
-  }
-
-  private async getRuns(): Promise<void> {
-    try {
-      const runs = await this.api.getBackupRuns({})
-      this.runs$.next(runs)
-    } catch (e: any) {
-      this.errToast.present(e)
     }
   }
 }
