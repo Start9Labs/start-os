@@ -305,3 +305,8 @@ ion-content.with-widgets,
 ion-footer.with-widgets {
   width: calc(100% - var(--widgets-width));
 }
+
+ul {
+  padding-left: 40px;
+  list-style-type: disc !important;
+}
