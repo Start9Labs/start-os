@@ -20,44 +20,60 @@
           <ion-col size="1"></ion-col>
         </ion-row>
 
-        <ion-row
-          *ngFor="let run of runs$ | async; let i = index"
-          class="ion-align-items-center grid-row-border"
-        >
-          <ion-col size="2.5"
-            >{{ run['started-at'] | date : 'medium' }}</ion-col
+        <ng-container *ngIf="runs$ | async as runs; else loading">
+          <ion-row
+            *ngFor="let run of runs; let i = index"
+            class="ion-align-items-center grid-row-border"
           >
-          <ion-col size="2"
-            >{{ run['started-at']| duration : run['completed-at'] }}
-            Minutes</ion-col
+            <ion-col size="2.5"
+              >{{ run['started-at'] | date : 'medium' }}</ion-col
+            >
+            <ion-col size="2"
+              >{{ run['started-at']| duration : run['completed-at'] }}
+              Minutes</ion-col
+            >
+            <ion-col size="1.5">
+              <ion-icon
+                *ngIf="run.report | hasError; else noError"
+                name="close"
+                color="danger"
+              ></ion-icon>
+              <ng-template #noError>
+                <ion-icon name="checkmark" color="success"></ion-icon>
+              </ng-template>
+              <a (click)="presentModalReport(run)"> Report </a>
+            </ion-col>
+            <ion-col size="2.5">{{ run.job.name || 'No job' }}</ion-col>
+            <ion-col size="2.5" class="inline">
+              <ion-icon
+                [name]="(run.job.target | getDisplayInfo).icon"
+                size="small"
+              ></ion-icon>
+              &nbsp; {{ run.job.target.name }}
+            </ion-col>
+            <ion-col size="1">
+              <ion-buttons style="float: right">
+                <ion-button
+                  size="small"
+                  (click)="presentAlertDelete(run.id, i)"
+                >
+                  <ion-icon name="trash"></ion-icon>
+                </ion-button>
+              </ion-buttons>
+            </ion-col>
+          </ion-row>
+        </ng-container>
+        <!-- loading -->
+        <ng-template #loading>
+          <ion-row
+            *ngFor="let row of ['', '', '']"
+            class="ion-align-items-center grid-row-border"
           >
-          <ion-col size="1.5">
-            <ion-icon
-              *ngIf="run.report | hasError; else noError"
-              name="close"
-              color="danger"
-            ></ion-icon>
-            <ng-template #noError>
-              <ion-icon name="checkmark" color="success"></ion-icon>
-            </ng-template>
-            <a (click)="presentModalReport(run)"> Report </a>
-          </ion-col>
-          <ion-col size="2.5">{{ run.job.name || 'No job' }}</ion-col>
-          <ion-col size="2.5" class="inline">
-            <ion-icon
-              [name]="(run.job.target | getDisplayInfo).icon"
-              size="small"
-            ></ion-icon>
-            &nbsp; {{ run.job.target.name }}
-          </ion-col>
-          <ion-col size="1">
-            <ion-buttons style="float: right">
-              <ion-button size="small" (click)="presentAlertDelete(run.id, i)">
-                <ion-icon name="trash"></ion-icon>
-              </ion-button>
-            </ion-buttons>
-          </ion-col>
-        </ion-row>
+            <ion-col>
+              <ion-skeleton-text animated></ion-skeleton-text>
+            </ion-col>
+          </ion-row>
+        </ng-template>
       </ion-grid>
     </div>
   </ion-item-group>

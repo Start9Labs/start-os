@@ -8,7 +8,7 @@ import {
 } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ErrorToastService } from '@start9labs/shared'
-import { catchError, defer, Subject } from 'rxjs'
+import { catchError, defer } from 'rxjs'
 import { BackupReportPage } from 'src/app/modals/backup-report/backup-report.page'
 
 @Component({
@@ -18,7 +18,10 @@ import { BackupReportPage } from 'src/app/modals/backup-report/backup-report.pag
 })
 export class BackupHistoryPage {
   readonly runs$ = defer(() => this.api.getBackupRuns({})).pipe(
-    catchError(e => this.errToast.present(e)),
+    catchError(e => {
+      this.errToast.present(e)
+      return []
+    }),
   )
 
   constructor(
