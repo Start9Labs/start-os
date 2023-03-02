@@ -10,7 +10,7 @@
   </ion-toolbar>
 </ion-header>
 
-<ion-content class="ion-padding">
+<ion-content class="ion-padding with-widgets">
   <skeleton-list *ngIf="loading"></skeleton-list>
   <ion-item-group *ngIf="!loading">
     <ion-item *ngFor="let metric of metrics | keyvalue : asIsOrder">

@@ -1,7 +1,7 @@
 <ion-item-divider>Additional Info</ion-item-divider>
 <ion-grid *ngIf="pkg.manifest as manifest">
   <ion-row>
-    <ion-col sizeXs="12" sizeMd="6">
+    <ion-col responsiveCol sizeXs="12" sizeMd="6">
       <ion-item-group>
         <ion-item>
           <ion-label>
@@ -51,7 +51,7 @@
         </ion-item>
       </ion-item-group>
     </ion-col>
-    <ion-col sizeXs="12" sizeMd="6">
+    <ion-col responsiveCol sizeXs="12" sizeMd="6">
       <ion-item-group>
         <ion-item
           [href]="manifest['upstream-repo']"

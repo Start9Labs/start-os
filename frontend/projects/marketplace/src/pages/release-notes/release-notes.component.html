@@ -1,4 +1,4 @@
-<ion-content>
+<ion-content class="with-widgets">
   <ng-container *ngIf="notes$ | async as notes; else loading">
     <div *ngFor="let note of notes | keyvalue: asIsOrder">
       <ion-button
@@ -11,7 +11,7 @@
         <p class="version">{{ note.key | displayEmver }}</p>
       </ion-button>
       <ion-card
-        elementRef
+        tuiElement
         #element="elementRef"
         class="panel"
         color="light"

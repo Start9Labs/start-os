@@ -3,6 +3,7 @@ import {
   DependencyStatus,
   HealthStatus,
   PrimaryRendering,
+  PrimaryStatus,
   renderPkgStatus,
   StatusRendering,
 } from '../services/pkg-status-rendering.service'
@@ -17,10 +18,12 @@ export function getPackageInfo(entry: PackageDataEntry): PkgInfo {
   return {
     entry,
     primaryRendering,
+    primaryStatus: statuses.primary,
     installProgress: packageLoadingProgress(entry['install-progress']),
     error:
       statuses.health === HealthStatus.Failure ||
       statuses.dependency === DependencyStatus.Warning,
+    warning: statuses.primary === PrimaryStatus.NeedsConfig,
     transitioning:
       primaryRendering.showDots ||
       statuses.health === HealthStatus.Waiting ||
@@ -32,8 +35,10 @@ export function getPackageInfo(entry: PackageDataEntry): PkgInfo {
 export interface PkgInfo {
   entry: PackageDataEntry
   primaryRendering: StatusRendering
+  primaryStatus: PrimaryStatus
   installProgress: ProgressData | null
   error: boolean
+  warning: boolean
   transitioning: boolean
   sub?: Subscription | null
 }

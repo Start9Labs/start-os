@@ -7,7 +7,7 @@
   </ion-toolbar>
 </ion-header>
 
-<ion-content class="ion-padding">
+<ion-content class="ion-padding with-widgets">
   <ion-item-group *ngIf="data$ | async as data">
     <ng-container *ngFor="let host of data.hosts">
       <ion-item-divider class="header">

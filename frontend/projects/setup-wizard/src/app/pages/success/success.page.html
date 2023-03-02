@@ -7,7 +7,7 @@
         <ng-container *ngIf="isKiosk; else notKiosk">
           <ion-card>
             <ion-row class="ion-align-items-center">
-              <ion-col size-xs="12" class="ion-text-center">
+              <ion-col responsiveCol sizeXs="12" class="ion-text-center">
                 <div class="inline" style="margin-bottom: 3rem">
                   <ion-icon
                     name="checkmark-circle-outline"
@@ -33,7 +33,7 @@
         <ng-template #notKiosk>
           <ion-card>
             <ion-row class="ion-align-items-center">
-              <ion-col size-xs="12" class="ion-text-center">
+              <ion-col responsiveCol sizeXs="12" class="ion-text-center">
                 <div style="margin-bottom: 4rem">
                   <div class="inline">
                     <ion-icon
