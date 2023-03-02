@@ -1,0 +1,55 @@
+<h1 class="heading">
+  <tui-loader
+    *ngIf="pending else buttons"
+    [inheritColor]="true"
+    size="s"
+    class="loader"
+  ></tui-loader>
+  <ng-template #buttons>
+    <ion-button fill="clear" color="primary" class="button" (click)="toggle()">
+      <ion-icon
+        [name]="edit ? 'checkmark-outline' : 'pencil-outline'"
+      ></ion-icon>
+      {{ edit ? 'Save' : 'Edit'}}
+    </ion-button>
+    <ion-button fill="clear" color="primary" class="button" (click)="add()">
+      <ion-icon name="duplicate-outline"></ion-icon>
+      Add
+    </ion-button>
+  </ng-template>
+</h1>
+<!-- TODO: Fix resize lag in Taiga UI -->
+<tui-tiles
+  class="wrapper"
+  [class.wrapper_wide]="wide"
+  [debounce]="500"
+  [(order)]="order"
+>
+  <tui-tile
+    *ngFor="let item of items; let index = index; trackBy: trackBy"
+    class="item"
+    [class.item_edit]="edit"
+    [width]="wide ? item.meta.width : item.meta.mobileWidth"
+    [height]="wide ? item.meta.height : item.meta.mobileHeight"
+    [style.order]="order.get(index)"
+  >
+    <div class="content">
+      <ng-container *ngComponentOutlet="components[item.id]"></ng-container>
+    </div>
+    <div tuiTileHandle class="handle"></div>
+    <ion-icon
+      *ngIf="item.id === 'favorites'"
+      name="settings-outline"
+      class="settings"
+    ></ion-icon>
+    <ion-icon
+      *ngIf="!pending else loader"
+      name="trash-outline"
+      class="remove"
+      (click)="remove(index)"
+    ></ion-icon>
+    <ng-template #loader>
+      <tui-loader [inheritColor]="true" class="pending"></tui-loader>
+    </ng-template>
+  </tui-tile>
+</tui-tiles>

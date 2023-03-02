@@ -5,8 +5,8 @@ import {
   EmverPipesModule,
   MarkdownPipeModule,
   TextSpinnerComponentModule,
-  ElementModule,
 } from '@start9labs/shared'
+import { TuiElementModule } from '@taiga-ui/cdk'
 
 import { ReleaseNotesComponent } from './release-notes.component'
 
@@ -17,7 +17,7 @@ import { ReleaseNotesComponent } from './release-notes.component'
     TextSpinnerComponentModule,
     EmverPipesModule,
     MarkdownPipeModule,
-    ElementModule,
+    TuiElementModule,
   ],
   declarations: [ReleaseNotesComponent],
   exports: [ReleaseNotesComponent],

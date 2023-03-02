@@ -11,7 +11,7 @@
   [scrollEvents]="true"
   (ionScroll)="handleScroll($event)"
   (ionScrollEnd)="handleScrollEnd()"
-  class="ion-padding"
+  class="ion-padding with-widgets"
 >
   <ion-infinite-scroll
     id="scroller"
@@ -73,7 +73,7 @@
   </ng-container>
 </ion-content>
 
-<ion-footer>
+<ion-footer class="with-widgets">
   <ion-toolbar>
     <div class="inline ion-padding-start">
       <ion-checkbox [(ngModel)]="autoScroll" color="dark"></ion-checkbox>

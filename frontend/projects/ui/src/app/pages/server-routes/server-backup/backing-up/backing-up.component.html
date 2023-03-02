@@ -7,7 +7,7 @@
   </ion-toolbar>
 </ion-header>
 
-<ion-content class="ion-padding">
+<ion-content class="ion-padding with-widgets">
   <ion-grid *ngIf="pkgs$ | async as pkgs">
     <ion-row *ngIf="backupProgress$ | async as backupProgress">
       <ion-col>

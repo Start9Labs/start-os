@@ -7,7 +7,7 @@
   </ion-toolbar>
 </ion-header>
 
-<ion-content class="ion-padding-top">
+<ion-content class="ion-padding-top with-widgets">
   <ion-item-group>
     <!-- iff ui -->
     <ng-container *ngIf="ui">
@@ -18,7 +18,7 @@
     <!-- other interface -->
     <ng-container *ngIf="other.length">
       <ion-item-divider>Machine Interfaces</ion-item-divider>
-      <div *ngFor="let interface of other" style="margin-bottom: 30px;">
+      <div *ngFor="let interface of other" style="margin-bottom: 30px">
         <app-interfaces-item [interface]="interface"></app-interfaces-item>
       </div>
     </ng-container>

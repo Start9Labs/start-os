@@ -70,7 +70,7 @@ $subheader-height: 48px;
 }
 
 .subheader-padding {
-  --padding-top: #{$subheader-height}+10px;
+  --padding-top: #{$subheader-height}+ 10px;
 }
 
 .subheader {
@@ -188,6 +188,7 @@ ion-icon {
 }
 
 ion-toolbar {
+  line-height: 1.1;
   --min-height: 72px;
   --background: var(--ion-color-light);
 }
@@ -297,4 +298,15 @@ h2 {
 
 .fader {
   animation: flickerAnimation 4s infinite;
+}
+
+// TODO: Refactor so header is outside router-outlet
+ion-content.with-widgets,
+ion-footer.with-widgets {
+  width: calc(100% - var(--widgets-width));
+}
+
+ul {
+  padding-left: 40px;
+  list-style-type: disc;
 }

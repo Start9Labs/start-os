@@ -1,0 +1,34 @@
+.stats {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  flex-wrap: wrap;
+  height: 100%;
+  text-align: center;
+
+  &_mobile .stat {
+    width: 50%;
+  }
+}
+
+.stat {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  :host-context(.wrapper_mobile) & {
+    width: 50%;
+  }
+}
+
+.stat-icon {
+  font-size: 32px;
+  margin: 12px;
+}
+
+.description {
+  color: #3a7be0;
+  text-transform: uppercase;
+  font-weight: bold;
+  font-size: 12px;
+}

@@ -1,7 +1,8 @@
 import { NgModule } from '@angular/core'
-import { BrowserModule } from '@angular/platform-browser'
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
 import { RouteReuseStrategy } from '@angular/router'
 import { HttpClientModule } from '@angular/common/http'
+import { TuiRootModule } from '@taiga-ui/core'
 import { ApiService } from './services/api/api.service'
 import { MockApiService } from './services/api/mock-api.service'
 import { LiveApiService } from './services/api/live-api.service'
@@ -27,7 +28,7 @@ const {
 @NgModule({
   declarations: [AppComponent],
   imports: [
-    BrowserModule,
+    BrowserAnimationsModule,
     IonicModule.forRoot({
       mode: 'md',
       navAnimation: iosTransitionAnimation,
@@ -39,6 +40,7 @@ const {
     LoadingPageModule,
     RecoverPageModule,
     TransferPageModule,
+    TuiRootModule,
   ],
   providers: [
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },

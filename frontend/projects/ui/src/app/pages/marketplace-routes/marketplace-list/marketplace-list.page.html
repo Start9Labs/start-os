@@ -10,7 +10,7 @@
   </ion-toolbar>
 </ion-header>
 
-<ion-content class="ion-padding">
+<ion-content class="ion-padding with-widgets">
   <ng-container *ngIf="details$ | async as details">
     <ion-item [color]="details.color">
       <ion-icon slot="start" name="information-circle-outline"></ion-icon>
@@ -21,7 +21,7 @@
 
     <ion-grid>
       <ion-row>
-        <ion-col size="12">
+        <ion-col>
           <div class="heading">
             <store-icon
               class="icon"
@@ -38,7 +38,7 @@
         </ion-col>
       </ion-row>
       <ion-row class="ion-align-items-center">
-        <ion-col size="12">
+        <ion-col>
           <ng-container *ngIf="store$ | async as store; else loading">
             <marketplace-categories
               [categories]="store.categories"
@@ -55,6 +55,7 @@
                 <ion-row *ngIf="localPkgs$ | async as localPkgs">
                   <ion-col
                     *ngFor="let pkg of filtered"
+                    responsiveCol
                     sizeXs="12"
                     sizeSm="12"
                     sizeMd="6"
