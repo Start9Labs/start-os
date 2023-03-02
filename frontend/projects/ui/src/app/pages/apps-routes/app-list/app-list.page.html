@@ -7,7 +7,7 @@
   </ion-toolbar>
 </ion-header>
 
-<ion-content class="ion-padding">
+<ion-content class="ion-padding with-widgets">
   <!-- loaded -->
   <ng-container *ngIf="pkgs$ | async as pkgs; else loading">
     <ng-container *ngIf="!pkgs.length; else list">
@@ -24,7 +24,7 @@
             *ngFor="let pkg of pkgs"
             responsiveCol
             sizeSm="12"
-            sizeLg="6"
+            sizeMd="6"
           >
             <app-list-pkg
               *ngIf="pkg | packageInfo | async as info"

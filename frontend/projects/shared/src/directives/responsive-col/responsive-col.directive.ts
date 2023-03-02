@@ -7,6 +7,8 @@ import {
 import { IonCol } from '@ionic/angular'
 import { takeUntil } from 'rxjs'
 
+const SIZE: readonly Step[] = ['xl', 'lg', 'md', 'sm', 'xs']
+
 @Directive({
   selector: 'ion-col[responsiveCol]',
   providers: [TuiDestroyService],
@@ -27,11 +29,13 @@ export class ResponsiveColDirective implements OnInit {
     private readonly col: IonCol,
   ) {
     viewport$?.pipe(takeUntil(destroy$)).subscribe(size => {
-      this.col.sizeLg = this.size[size] || this.size.lg
-      this.col.sizeMd = this.size[size] || this.size.md
-      this.col.sizeSm = this.size[size] || this.size.sm
-      this.col.sizeXl = this.size[size] || this.size.xl
-      this.col.sizeXs = this.size[size] || this.size.xs
+      const max = this.size[size] || this.findMax(size)
+
+      this.col.sizeLg = max
+      this.col.sizeMd = max
+      this.col.sizeSm = max
+      this.col.sizeXl = max
+      this.col.sizeXs = max
     })
   }
 
@@ -41,5 +45,12 @@ export class ResponsiveColDirective implements OnInit {
     this.size.sm = this.col.sizeSm
     this.size.xl = this.col.sizeXl
     this.size.xs = this.col.sizeXs
+  }
+
+  private findMax(current: Step): string | undefined {
+    const start = SIZE.indexOf(current) - 1
+    const max = SIZE.find((size, i) => i > start && this.size[size]) || current
+
+    return this.size[max]
   }
 }
