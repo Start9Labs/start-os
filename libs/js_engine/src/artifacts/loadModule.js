@@ -264,16 +264,17 @@ globalThis.clearTimeout = (timeout) => {
   const found = setTimeouts[timeout];
   if (found == null) return;
   found();
+  delete setTimeouts[timeout]
 };
 
 const setIntervals = [];
 globalThis.setInterval = (callback, delay, ...args) => {
   let done = false;
-  const index = setInterval.push(() => {
+  const index = setIntervals.push(() => {
     done = true;
   });
   new Promise(async (resolve, reject) => {
-    index = setInterval.push(reject);
+    index = setIntervals.push(reject);
     while (true) {
       await sleep(delay);
       if (done) return;
@@ -287,6 +288,7 @@ globalThis.clearInterval = (timeout) => {
   const found = clearIntervals[timeout];
   if (found == null) return;
   found();
+  delete clearIntervals[timeout];
 };
 
 const getServiceConfig = async (
