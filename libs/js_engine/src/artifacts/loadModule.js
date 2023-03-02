@@ -260,6 +260,7 @@ globalThis.setTimeout = (callback, timeout) => {
   return index - 1;
 };
 globalThis.clearTimeout = (timeout) => {
+  if (timeout == null) return;
   const found = setTimeouts[timeout];
   if (found == null) return;
   found();
@@ -282,6 +283,7 @@ globalThis.setInterval = (callback, delay, ...args) => {
   return index - 1;
 };
 globalThis.clearInterval = (timeout) => {
+  if (timeout == null) return;
   const found = clearIntervals[timeout];
   if (found == null) return;
   found();
@@ -298,6 +300,20 @@ const getServiceConfig = async (
     "get_service_config",
     serviceId,
     configPath,
+    registerCallback(onChange),
+  );
+};
+const getServiceAddress = async (
+  {
+    serviceId = requireParam("serviceId"),
+    name = requireParam("name"),
+    onChange = requireParam("onChange"),
+  } = requireParam("options"),
+) => {
+  return await Deno.core.opAsync(
+    "get_service_address",
+    serviceId,
+    name,
     registerCallback(onChange),
   );
 };
@@ -339,6 +355,7 @@ const effects = {
   debug,
   error,
   fetch,
+  getServiceAddress,
   getServiceConfig,
   info,
   isSandboxed,
