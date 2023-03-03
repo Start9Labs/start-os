@@ -14,5 +14,7 @@
       "high-score": 0
     }
   },
-  "ack-instructions": {}
+  "ack-instructions": {},
+  "theme": "Dark",
+  "widgets": []
 }
