@@ -14,6 +14,7 @@ export const mockPatchData: DataModel = {
   ui: {
     name: `Matt's Embassy`,
     'ack-welcome': '1.0.0',
+    theme: 'Dark',
     widgets: BUILT_IN_WIDGETS.filter(
       ({ id }) =>
         id === 'favorites' ||

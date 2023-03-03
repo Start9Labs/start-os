@@ -11,6 +11,12 @@ tui-root {
   --side-max-width: 280px;
 }
 
+.menu {
+  :host-context(body[data-theme='Light']) & {
+    --ion-color-base: #F4F4F5 !important;
+  }
+}
+
 .container {
   transition: filter 0.3s;
 

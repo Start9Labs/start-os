@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use emver::VersionRange;
-use serde_json::json;
+use serde_json::{json, Value};
 
 use super::v0_3_0::V0_3_0_COMPAT;
 use super::*;
@@ -61,6 +61,8 @@ impl VersionT for Version {
                 .put(db, &parsed_url)
                 .await?;
         }
+        ui["theme"] = json!("Dark".to_string());
+        ui["widgets"] = json!([]);
         Ok(())
     }
     async fn down<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error> {
@@ -85,6 +87,11 @@ impl VersionT for Version {
                 .marketplace_url()
                 .put(db, &parsed_url)
                 .await?;
+        }
+
+        if let Value::Object(ref mut obj) = *ui {
+            obj.remove("theme");
+            obj.remove("widgets");
         }
 
         ui["marketplace"]["known-hosts"][COMMUNITY_URL].take();

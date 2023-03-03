@@ -46,6 +46,11 @@ export * from './services/emver.service'
 export * from './services/error-toast.service'
 export * from './services/http.service'
 
+export * from './themes/dark-theme/dark-theme.component'
+export * from './themes/dark-theme/dark-theme.module'
+export * from './themes/light-theme/light-theme.component'
+export * from './themes/light-theme/light-theme.module'
+
 export * from './types/api'
 export * from './types/http.types'
 export * from './types/rpc.types'
@@ -53,6 +58,7 @@ export * from './types/url'
 export * from './types/workspace-config'
 
 export * from './tokens/relative-url'
+export * from './tokens/theme'
 
 export * from './util/base-64'
 export * from './util/copy-to-clipboard'

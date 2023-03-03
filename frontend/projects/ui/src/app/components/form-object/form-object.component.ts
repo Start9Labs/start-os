@@ -5,6 +5,7 @@ import {
   EventEmitter,
   ChangeDetectionStrategy,
   Inject,
+  inject,
 } from '@angular/core'
 import { FormArray, UntypedFormArray, UntypedFormGroup } from '@angular/forms'
 import { AlertButton, AlertController, ModalController } from '@ionic/angular'
@@ -20,9 +21,10 @@ import {
 } from 'src/app/pkg-config/config-types'
 import { FormService } from 'src/app/services/form.service'
 import { EnumListPage } from 'src/app/modals/enum-list/enum-list.page'
-import { pauseFor } from '@start9labs/shared'
+import { THEME, pauseFor } from '@start9labs/shared'
 import { v4 } from 'uuid'
 import { DOCUMENT } from '@angular/common'
+
 const Mustache = require('mustache')
 
 interface Config {
@@ -50,6 +52,8 @@ export class FormObjectComponent {
     [key: string]: { expanded: boolean; height: string; displayAs: string }[]
   } = {}
   objectId = v4()
+
+  readonly theme$ = inject(THEME)
 
   constructor(
     private readonly alertCtrl: AlertController,

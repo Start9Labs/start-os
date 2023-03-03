@@ -3,10 +3,8 @@
     <ion-buttons slot="start">
       <ion-back-button defaultHref="services"></ion-back-button>
     </ion-buttons>
-    <ion-item lines="none" color="light">
-      <ion-thumbnail slot="start">
-        <img [src]="pkg['static-files'].icon" alt="" />
-      </ion-thumbnail>
+    <div class="header">
+      <img class="logo" [src]="pkg['static-files'].icon" alt="" />
       <ion-label>
         <h1
           class="montserrat"
@@ -16,6 +14,6 @@
         </h1>
         <h2>{{ pkg.manifest.version | displayEmver }}</h2>
       </ion-label>
-    </ion-item>
+    </div>
   </ion-toolbar>
 </ion-header>
