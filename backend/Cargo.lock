@@ -2669,6 +2669,7 @@ dependencies = [
  "patch-db",
  "rand 0.8.5",
  "regex",
+ "reqwest",
  "rpc-toolkit",
  "serde",
  "serde_json",

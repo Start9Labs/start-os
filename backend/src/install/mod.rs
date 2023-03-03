@@ -54,6 +54,13 @@ pub const PKG_ARCHIVE_DIR: &str = "package-data/archive";
 pub const PKG_PUBLIC_DIR: &str = "package-data/public";
 pub const PKG_WASM_DIR: &str = "package-data/wasm";
 
+pub fn default_icon() -> DataUrl {
+    DataUrl::from_const(
+        "image/png",
+        include_bytes!("../../../frontend/projects/shared/assets/img/package-icon.png"),
+    )
+}
+
 fn display_packages(arg: Vec<(PackageId, Version, String)>, matches: &ArgMatches) {
     use prettytable::*;
 
@@ -246,7 +253,6 @@ pub async fn install(
         .join(man.version.as_str());
     tokio::fs::create_dir_all(&public_dir_path).await?;
 
-    let icon_type = man.assets.icon_type();
     let (license_res, instructions_res, icon_res) = tokio::join!(
         async {
             tokio::io::copy(
@@ -287,23 +293,19 @@ pub async fn install(
             Ok::<_, color_eyre::eyre::Report>(())
         },
         async {
-            tokio::io::copy(
-                &mut response_to_reader(
-                    reqwest::get(format!(
-                        "{}/package/v0/icon/{}?spec=={}&eos-version-compat={}&arch={}",
-                        marketplace_url,
-                        id,
-                        man.version,
-                        Current::new().compat(),
-                        &*crate::ARCH,
-                    ))
-                    .await?
-                    .error_for_status()?,
-                ),
-                &mut File::create(public_dir_path.join(format!("icon.{}", icon_type))).await?,
+            DataUrl::from_response(
+                reqwest::get(format!(
+                    "{}/package/v0/icon/{}?spec=={}&eos-version-compat={}&arch={}",
+                    marketplace_url,
+                    id,
+                    man.version,
+                    Current::new().compat(),
+                    &*crate::ARCH,
+                ))
+                .await?
+                .error_for_status()?,
             )
-            .await?;
-            Ok::<_, color_eyre::eyre::Report>(())
+            .await
         },
     );
     if let Err(e) = license_res {
@@ -312,11 +314,15 @@ pub async fn install(
     if let Err(e) = instructions_res {
         tracing::warn!("Failed to pre-download instructions: {}", e);
     }
-    if let Err(e) = icon_res {
-        tracing::warn!("Failed to pre-download icon: {}", e);
-    }
+    let icon = match icon_res {
+        Ok(a) => a,
+        Err(e) => {
+            tracing::warn!("Failed to pre-download icon: {}", e);
+            default_icon()
+        }
+    };
 
-    let static_files = StaticFiles::local(&man.id, &man.version, icon_type);
+    let static_files = StaticFiles::local(&man.id, &man.version, icon);
     let size = s9pk.content_length();
     ctx.db
         .mutate(|db| set_installing(db, &man, &static_files, size))
@@ -367,37 +373,23 @@ pub async fn sideload(
 ) -> Result<RequestGuid, Error> {
     let new_ctx = ctx.clone();
     let guid = RequestGuid::new();
+    let static_files = StaticFiles::local(
+        &manifest.id,
+        &manifest.version,
+        icon.unwrap_or_else(default_icon),
+    );
 
     ctx.db
-        .mutate(|db| set_installing(db, &manifest, todo!(), size))
+        .mutate(|db| set_installing(db, &manifest, &static_files, size))
         .await?;
 
-    let handler = Box::new(|req: Request<Body>| {
+    let handler = Box::new(move |req: Request<Body>| {
         async move {
-            let size = match req.headers().get(CONTENT_LENGTH).map(|a| a.to_str()) {
-                None => None,
-                Some(Err(_)) => {
-                    return Response::builder()
-                        .status(StatusCode::BAD_REQUEST)
-                        .body(Body::from("Invalid Content Length"))
-                        .with_kind(ErrorKind::Network)
-                }
-                Some(Ok(a)) => match a.parse::<u64>() {
-                    Err(_) => {
-                        return Response::builder()
-                            .status(StatusCode::BAD_REQUEST)
-                            .body(Body::from("Invalid Content Length"))
-                            .with_kind(ErrorKind::Network)
-                    }
-                    Ok(a) => Some(a),
-                },
-            };
-
             if let Err(e) = download_install_s9pk(
                 &new_ctx,
                 &manifest,
                 None,
-                progress,
+                size,
                 tokio_util::io::StreamReader::new(req.into_body().map_err(|e| {
                     std::io::Error::new(
                         match &e {
@@ -420,7 +412,7 @@ pub async fn sideload(
                 if let Err(e) = new_ctx
                     .notification_manager
                     .notify(
-                        &ctx.db,
+                        &new_ctx.db,
                         Some(manifest.id),
                         NotificationLevel::Error,
                         String::from("Install Failed"),

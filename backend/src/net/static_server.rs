@@ -8,6 +8,7 @@ use digest::Digest;
 use futures::FutureExt;
 use http::response::Builder;
 use hyper::{Body, Method, Request, Response, StatusCode};
+use models::mime;
 use openssl::hash::MessageDigest;
 use openssl::x509::X509;
 use rpc_toolkit::rpc_handler;
@@ -478,30 +479,11 @@ fn with_e_tag(path: &Path, metadata: &Metadata, builder: Builder) -> Result<Buil
 }
 ///https://en.wikipedia.org/wiki/Media_type
 fn with_content_type(path: &Path, builder: Builder) -> Builder {
-    let content_type = match path.extension() {
-        Some(os_str) => match os_str.to_str() {
-            Some("apng") => "image/apng",
-            Some("avif") => "image/avif",
-            Some("flif") => "image/flif",
-            Some("gif") => "image/gif",
-            Some("jpg") | Some("jpeg") | Some("jfif") | Some("pjpeg") | Some("pjp") => "image/jpeg",
-            Some("jxl") => "image/jxl",
-            Some("png") => "image/png",
-            Some("svg") => "image/svg+xml",
-            Some("webp") => "image/webp",
-            Some("mng") | Some("x-mng") => "image/x-mng",
-            Some("css") => "text/css",
-            Some("csv") => "text/csv",
-            Some("html") => "text/html",
-            Some("php") => "text/php",
-            Some("plain") | Some("md") | Some("txt") => "text/plain",
-            Some("xml") => "text/xml",
-            Some("js") => "text/javascript",
-            Some("wasm") => "application/wasm",
-            None | Some(_) => "text/plain",
-        },
-        None => "text/plain",
-    };
+    let content_type = path
+        .extension()
+        .and_then(|s| s.to_str())
+        .and_then(mime)
+        .unwrap_or("text/plain");
     builder.header(http::header::CONTENT_TYPE, content_type)
 }
 

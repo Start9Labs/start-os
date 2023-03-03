@@ -1,10 +1,20 @@
+use std::borrow::Cow;
+use std::path::Path;
+
 use base64::Engine;
+use color_eyre::eyre::eyre;
+use reqwest::header::CONTENT_TYPE;
 use serde::{Deserialize, Serialize};
+use tokio::io::AsyncReadExt;
 use yasi::InternedString;
+
+use crate::{mime, Error, ResultExt};
+
+pub const DEFAULT_MIME: &'static str = "application/octet-stream";
 
 pub struct DataUrl {
     mime: InternedString,
-    data: Vec<u8>,
+    data: Cow<'static, [u8]>,
 }
 impl DataUrl {
     // data:{mime};base64,{data}
@@ -22,6 +32,60 @@ impl DataUrl {
 
     pub fn data_url_len(&self) -> usize {
         self.data_url_len_without_mime() + self.mime.len()
+    }
+
+    pub async fn from_path(path: impl AsRef<Path>) -> Result<Self, Error> {
+        let path = path.as_ref();
+        let mut f = tokio::fs::File::open(path).await?;
+        let m = f.metadata().await?;
+        if m.len() > 100 * 1024 {
+            return Err(Error::new(
+                eyre!("Data URLs must be smaller than 100KiB"),
+                crate::ErrorKind::Filesystem,
+            ));
+        }
+        let mut buf = Vec::with_capacity(m.len() as usize);
+        f.read_to_end(&mut buf).await?;
+        let mime = path
+            .extension()
+            .and_then(|s| s.to_str())
+            .and_then(mime)
+            .unwrap_or(DEFAULT_MIME);
+        Ok(Self {
+            mime: InternedString::intern(mime),
+            data: Cow::Owned(buf),
+        })
+    }
+
+    pub fn from_const(mime: &str, data: &'static [u8]) -> Self {
+        Self {
+            mime: InternedString::intern(mime),
+            data: Cow::Borrowed(data),
+        }
+    }
+
+    pub async fn from_response(res: reqwest::Response) -> Result<Self, Error> {
+        let mime = InternedString::intern(
+            res.headers()
+                .get(CONTENT_TYPE)
+                .and_then(|h| h.to_str().ok())
+                .unwrap_or(DEFAULT_MIME),
+        );
+        let data = res
+            .bytes()
+            .await
+            .with_kind(crate::ErrorKind::Network)?
+            .to_vec();
+        Ok(Self {
+            mime,
+            data: Cow::Owned(data),
+        })
+    }
+}
+
+impl std::fmt::Debug for DataUrl {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.to_string())
     }
 }
 
@@ -45,9 +109,11 @@ impl<'de> Deserialize<'de> for DataUrl {
                     .and_then(|(mime, data)| {
                         Some(DataUrl {
                             mime: InternedString::intern(mime),
-                            data: base64::engine::general_purpose::URL_SAFE
-                                .decode(data)
-                                .ok()?,
+                            data: Cow::Owned(
+                                base64::engine::general_purpose::URL_SAFE
+                                    .decode(data)
+                                    .ok()?,
+                            ),
                         })
                     })
                     .ok_or_else(|| {

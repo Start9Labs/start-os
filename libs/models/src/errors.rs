@@ -231,11 +231,6 @@ impl From<ed25519_dalek::SignatureError> for Error {
         Error::new(e, ErrorKind::InvalidSignature)
     }
 }
-impl From<torut::control::ConnError> for Error {
-    fn from(e: torut::control::ConnError) -> Self {
-        Error::new(eyre!("{:?}", e), ErrorKind::Tor)
-    }
-}
 impl From<std::net::AddrParseError> for Error {
     fn from(e: std::net::AddrParseError) -> Self {
         Error::new(e, ErrorKind::ParseNetAddress)
@@ -264,6 +259,11 @@ impl From<InvalidUri> for Error {
 impl From<ssh_key::Error> for Error {
     fn from(e: ssh_key::Error) -> Self {
         Error::new(e, ErrorKind::OpenSsh)
+    }
+}
+impl From<reqwest::Error> for Error {
+    fn from(e: reqwest::Error) -> Self {
+        Error::new(e, ErrorKind::Network)
     }
 }
 impl From<patch_db::value::Error> for Error {

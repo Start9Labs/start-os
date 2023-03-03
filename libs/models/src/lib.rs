@@ -21,6 +21,7 @@ pub use id::*;
 pub use image_id::*;
 pub use interface_id::*;
 pub use invalid_id::*;
+pub use mime::*;
 pub use package_id::*;
 pub use procedure_name::*;
 pub use version::*;

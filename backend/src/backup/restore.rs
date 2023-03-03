@@ -11,6 +11,7 @@ use openssl::x509::X509;
 use rpc_toolkit::command;
 use sqlx::Connection;
 use tokio::fs::File;
+use tokio::sync::watch;
 use torut::onion::OnionAddressV3;
 use tracing::instrument;
 
@@ -128,7 +129,7 @@ async fn approximate_progress_loop(
 
 #[derive(Debug, Default)]
 struct ProgressInfo {
-    package_installs: BTreeMap<PackageId, Arc<InstallProgress>>,
+    package_installs: BTreeMap<PackageId, watch::Receiver<InstallProgress>>,
     src_volume_size: BTreeMap<PackageId, u64>,
     target_volume_size: BTreeMap<PackageId, u64>,
 }
