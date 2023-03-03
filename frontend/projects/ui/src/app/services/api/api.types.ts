@@ -242,6 +242,7 @@ export module RR {
   export type SideloadPackageReq = {
     manifest: Manifest
     icon: string // base64
+    size: number // bytes
   }
   export type SideloadPacakgeRes = string //guid
 
