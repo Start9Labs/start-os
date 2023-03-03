@@ -4,20 +4,24 @@ import { RR, Encrypted } from './api.types'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { Log } from '@start9labs/shared'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
-import * as jose from 'node-jose'
+import type { JWK } from 'node-jose'
 
 export abstract class ApiService {
+  protected readonly jose = import('node-jose')
+
   readonly patchStream$ = new BehaviorSubject<Update<DataModel>[]>([])
-  pubkey?: jose.JWK.Key
+  pubkey?: JWK.Key
 
   async encrypt(toEncrypt: string): Promise<Encrypted> {
-    if (!this.pubkey) throw new Error('No pubkey found!')
-    const encrypted = await jose.JWE.createEncrypt(this.pubkey!)
-      .update(toEncrypt)
-      .final()
-    return {
-      encrypted,
-    }
+    const { pubkey } = this
+
+    if (!pubkey) throw new Error('No pubkey found!')
+
+    const encrypted = await this.jose.then(jose =>
+      jose.JWE.createEncrypt(pubkey).update(toEncrypt).final(),
+    )
+
+    return { encrypted }
   }
 
   // http
