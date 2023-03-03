@@ -1,6 +1,6 @@
 <ion-header>
   <ion-toolbar>
-    <ion-title> System </ion-title>
+    <ion-title>System</ion-title>
     <ion-buttons slot="end">
       <badge-menu-button></badge-menu-button>
     </ion-buttons>
@@ -37,25 +37,6 @@
           <h2>{{ button.title }}</h2>
           <p *ngIf="button.description">{{ button.description }}</p>
 
-          <!-- "Backups" button only -->
-          <p *ngIf="button.title === 'Backups'">
-            <ng-container *ngIf="server['status-info'] as statusInfo">
-              <ion-text
-                [color]="server['last-backup'] | backupColor"
-                *ngIf="!statusInfo['backup-progress'] && !statusInfo['update-progress']"
-              >
-                Last Backup: {{ server['last-backup'] ? (server['last-backup'] |
-                date: 'medium') : 'never' }}
-              </ion-text>
-              <span *ngIf="!!statusInfo['backup-progress']" class="inline">
-                <ion-spinner
-                  color="success"
-                  style="height: 12px; width: 12px; margin-right: 6px"
-                ></ion-spinner>
-                <ion-text color="success">Backing up</ion-text>
-              </span>
-            </ng-container>
-          </p>
           <!-- "Software Update" button only -->
           <p *ngIf="button.title === 'Software Update'">
             <ion-text
