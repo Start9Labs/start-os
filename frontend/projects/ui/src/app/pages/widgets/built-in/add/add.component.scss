@@ -4,6 +4,13 @@
   gap: 12px;
 }
 
-.tui-island {
+.button {
+  background: transparent;
   text-align: left;
+  font-size: 18px;
+  font-weight: bold;
+  border: none;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: inset 0 0 0 1px var(--tui-base-03);
 }

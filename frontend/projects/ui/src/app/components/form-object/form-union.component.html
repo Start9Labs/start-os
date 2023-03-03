@@ -31,7 +31,7 @@
     </ion-select>
   </ion-item-divider>
 
-  <elastic-container [id]="objectId | toElementId: 'union'" class="indent">
+  <tui-elastic-container [id]="objectId | toElementId: 'union'" class="indent">
     <form-object
       [objectSpec]="spec.variants[unionValue]"
       [formGroup]="formGroup"
@@ -39,5 +39,5 @@
       [original]="original"
       (onResize)="resize()"
     ></form-object>
-  </elastic-container>
+  </tui-elastic-container>
 </div>
