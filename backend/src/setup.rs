@@ -18,6 +18,7 @@ use tokio::io::AsyncWriteExt;
 use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 use tracing::instrument;
 
+use crate::auth::PasswordType;
 use crate::backup::restore::recover_full_embassy;
 use crate::backup::target::BackupTargetFS;
 use crate::context::rpc::RpcContextConfig;
@@ -32,7 +33,6 @@ use crate::disk::util::{pvscan, recovery_info, DiskInfo, EmbassyOsRecoveryInfo};
 use crate::disk::REPAIR_DISK_PATH;
 use crate::hostname::{get_hostname, HostNameReceipt, Hostname};
 use crate::init::{init, InitResult};
-use crate::middleware::encrypt::EncryptedWire;
 use crate::net::ssl::SslManager;
 use crate::{Error, ErrorKind, ResultExt};
 
@@ -105,7 +105,7 @@ async fn setup_init(
 pub async fn attach(
     #[context] ctx: SetupContext,
     #[arg] guid: Arc<String>,
-    #[arg(rename = "embassy-password")] password: Option<EncryptedWire>,
+    #[arg(rename = "embassy-password")] password: Option<PasswordType>,
 ) -> Result<(), Error> {
     let mut status = ctx.setup_status.write().await;
     if status.is_some() {
@@ -123,15 +123,7 @@ pub async fn attach(
     tokio::task::spawn(async move {
         if let Err(e) = async {
             let password: Option<String> = match password {
-                Some(a) => match a.decrypt(&*ctx) {
-                    a @ Some(_) => a,
-                    None => {
-                        return Err(Error::new(
-                            color_eyre::eyre::eyre!("Couldn't decode password"),
-                            crate::ErrorKind::Unknown,
-                        ));
-                    }
-                },
+                Some(a) => Some(a.decrypt(&*ctx)?),
                 None => None,
             };
             let requires_reboot = crate::disk::main::import(
@@ -215,9 +207,9 @@ pub async fn verify_cifs(
     #[arg] hostname: String,
     #[arg] path: PathBuf,
     #[arg] username: String,
-    #[arg] password: Option<EncryptedWire>,
+    #[arg] password: Option<PasswordType>,
 ) -> Result<EmbassyOsRecoveryInfo, Error> {
-    let password: Option<String> = password.map(|x| x.decrypt(&*ctx)).flatten();
+    let password: Option<String> = password.map(|x| x.decrypt(&*ctx).ok()).flatten();
     let guard = TmpMountGuard::mount(
         &Cifs {
             hostname,
@@ -245,11 +237,11 @@ pub enum RecoverySource {
 pub async fn execute(
     #[context] ctx: SetupContext,
     #[arg(rename = "embassy-logicalname")] embassy_logicalname: PathBuf,
-    #[arg(rename = "embassy-password")] embassy_password: EncryptedWire,
+    #[arg(rename = "embassy-password")] embassy_password: PasswordType,
     #[arg(rename = "recovery-source")] recovery_source: Option<RecoverySource>,
-    #[arg(rename = "recovery-password")] recovery_password: Option<EncryptedWire>,
+    #[arg(rename = "recovery-password")] recovery_password: Option<PasswordType>,
 ) -> Result<(), Error> {
-    let embassy_password = match embassy_password.decrypt(&*ctx) {
+    let embassy_password = match embassy_password.decrypt(&*ctx).ok() {
         Some(a) => a,
         None => {
             return Err(Error::new(
@@ -259,7 +251,7 @@ pub async fn execute(
         }
     };
     let recovery_password: Option<String> = match recovery_password {
-        Some(a) => match a.decrypt(&*ctx) {
+        Some(a) => match a.decrypt(&*ctx).ok() {
             Some(a) => Some(a),
             None => {
                 return Err(Error::new(
