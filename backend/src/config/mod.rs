@@ -51,24 +51,29 @@ pub async fn get(
     #[arg(long = "format")]
     format: Option<IoFormat>,
 ) -> Result<ConfigRes, Error> {
-    let (action, volumes, version) = ctx
+    let manifest = ctx
         .db
-        .apply_fn(|mut v| {
-            let mut man = v
-                .package_data()
-                .idx(&id)
-                .or_not_found(&id)?
-                .as_installed()?
-                .manifest();
-            Ok((
-                man.config().check().or_not_found("config")?.get()?,
-                man.volumes().get()?,
-                man.version().get()?,
-            ))
-        })
-        .await?;
+        .peek()
+        .await?
+        .into_package_data()
+        .into_idx(&id)
+        .or_not_found(&id)?
+        .expect_into_installed()?
+        .into_manifest();
 
-    action.get(&ctx, &id, &version, &volumes).await
+    manifest
+        .as_config()
+        .transpose_ref()
+        .or_not_found("no config")?
+        .clone()
+        .de()?
+        .get(
+            &ctx,
+            &id,
+            &manifest.as_version().clone().de()?,
+            &manifest.as_volumes().clone().de()?,
+        )
+        .await
 }
 
 #[command(
@@ -165,7 +170,7 @@ pub fn not_found() -> Error {
 #[tokio::test]
 async fn ensure_creation_of_config_paths_makes_sense() {
     let mut fake = patch_db::test_utils::NoOpDb();
-    let config_locks = ConfigReceipts::new(&mut fake).await.unwrap();
+    let config_locks = todo!("BLUJ"); //ConfigReceipts::new(&mut fake).await.unwrap();
     assert_eq!(
         &format!("{}", config_locks.configured.lock.glob),
         "/package-data/*/installed/status/configured"

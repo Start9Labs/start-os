@@ -372,8 +372,8 @@ async fn restore_package<'a>(
         let k = key.0.as_slice();
         sqlx::query!(
             "INSERT INTO network_keys (package, interface, key) VALUES ($1, $2, $3) ON CONFLICT (package, interface) DO NOTHING",
-            *id,
-            *iface,
+            id,
+            iface,
             k,
         )
         .execute(&mut secrets_tx).await?;
@@ -383,8 +383,8 @@ async fn restore_package<'a>(
         let k = key.0.as_slice();
         sqlx::query!(
             "INSERT INTO tor (package, interface, key) VALUES ($1, $2, $3) ON CONFLICT (package, interface) DO NOTHING",
-            *id,
-            *iface,
+            id,
+            iface,
             k,
         )
         .execute(&mut secrets_tx).await?;

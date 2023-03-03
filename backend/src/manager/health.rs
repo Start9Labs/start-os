@@ -42,7 +42,7 @@ pub async fn check(ctx: &RpcContext, id: &PackageId) -> Result<(), Error> {
 
     let current_dependents = {
         let mut checkpoint = tx.begin().await?;
-        let receipts = todo!(); // HealthCheckStatusReceipt::new(&mut checkpoint, id).await?;
+        let receipts = todo!("BLUJ"); // HealthCheckStatusReceipt::new(&mut checkpoint, id).await?;
 
         let status = receipts.status.get(&mut checkpoint).await?;
 
@@ -65,8 +65,7 @@ pub async fn check(ctx: &RpcContext, id: &PackageId) -> Result<(), Error> {
     };
 
     tracing::debug!("Checking health of {}", id);
-    let receipts = todo!(); // crate::dependencies::BreakTransitiveReceipts::new(&mut tx).await?;
-    tracing::debug!("Got receipts {}", id);
+    let receipts = todo!("BLUJ"); // crate::dependencies::BreakTransitiveReceipts::new(&mut tx).await?;
 
     for (dependent, info) in (current_dependents).0.iter() {
         let failures: BTreeMap<HealthCheckId, HealthCheckResult> = health_results
@@ -82,11 +81,10 @@ pub async fn check(ctx: &RpcContext, id: &PackageId) -> Result<(), Error> {
                 id,
                 DependencyError::HealthChecksFailed { failures },
                 &mut BTreeMap::new(),
-                &receipts,
             )
             .await?;
         } else {
-            heal_transitive(ctx, &dependent, id, &receipts.dependency_receipt).await?;
+            heal_transitive(ctx, &dependent, id).await?;
         }
     }
 

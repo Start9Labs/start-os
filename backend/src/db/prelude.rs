@@ -1,5 +1,7 @@
+use std::marker::PhantomData;
 use std::panic::UnwindSafe;
 
+use patch_db::value::InternedString;
 pub use patch_db::{HasModel, PatchDb, Value};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -36,7 +38,7 @@ pub trait PatchDbExt {
 #[async_trait::async_trait]
 impl PatchDbExt for PatchDb {
     async fn peek(&self) -> Result<DatabaseModel, Error> {
-        Ok(DatabaseModel::new(self.dump().await?.value))
+        Ok(DatabaseModel::from(self.dump().await?.value))
     }
     async fn mutate<U: UnwindSafe + Send>(
         &self,
@@ -44,7 +46,7 @@ impl PatchDbExt for PatchDb {
     ) -> Result<U, Error> {
         Ok(self
             .apply_function(|v| {
-                let mut model = DatabaseModel::new(&mut v);
+                let mut model = <&mut DatabaseModel>::from(&mut v);
                 let res = f(&mut model)?;
                 Ok::<_, Error>((v, res))
             })
@@ -55,45 +57,282 @@ impl PatchDbExt for PatchDb {
         &self,
         f: impl FnOnce(DatabaseModel) -> Result<DatabaseModel, Error> + UnwindSafe + Send,
     ) -> Result<DatabaseModel, Error> {
-        Ok(DatabaseModel::new(
-            self.apply_function(|v| f(DatabaseModel::new(v)).map(|a| (a.into_inner(), ())))
+        Ok(DatabaseModel::from(
+            self.apply_function(|v| f(DatabaseModel::from(v)).map(|a| (a.into(), ())))
                 .await?
                 .0,
         ))
     }
 }
 
-pub trait ModelExt {
-    type T;
-    fn de(&self) -> Result<Self::T, Error>;
-    fn ser(&mut self, value: &Self::T) -> Result<(), Error>;
-    fn mutate<U>(&mut self, f: impl FnOnce(&mut Self::T) -> Result<U, Error>) -> Result<U, Error>;
-    fn map_mutate(
-        &mut self,
-        f: impl FnOnce(Self::T) -> Result<Self::T, Error>,
-    ) -> Result<Self::T, Error>;
+/// &mut Model<T> <=> &mut Value
+#[repr(transparent)]
+#[derive(Debug)]
+pub struct Model<T> {
+    value: Value,
+    phantom: PhantomData<T>,
 }
-impl<T> ModelExt for patch_db::Model<T> {
-    type T = T;
-    fn de(&self) -> Result<Self::T, Error> {
-        <Self as patch_db::ModelExt>::get(self).with_kind(ErrorKind::Deserialization)
+impl<T: DeserializeOwned> Model<T> {
+    pub fn de(self) -> Result<T, Error> {
+        from_value(self.value)
     }
-    fn ser(&mut self, value: &Self::T) -> Result<(), Error> {
-        <Self as patch_db::ModelExt>::set(self, value).with_kind(ErrorKind::Serialization)
+}
+impl<T: Serialize> Model<T> {
+    pub fn new(value: &T) -> Result<Self, Error> {
+        Ok(Self::from(to_value(value)?))
     }
-    fn mutate<U>(&mut self, f: impl FnOnce(&mut Self::T) -> Result<U, Error>) -> Result<U, Error> {
-        let mut v = self.de()?;
-        let res = f(&mut v)?;
-        self.ser(&v)?;
-        Ok(res)
+    pub fn ser(&mut self, value: &T) -> Result<(), Error> {
+        self.value = to_value(value)?;
+        Ok(())
     }
-    fn map_mutate(
-        &mut self,
-        f: impl FnOnce(Self::T) -> Result<Self::T, Error>,
-    ) -> Result<Self::T, Error> {
-        let v = self.de()?;
-        let v = f(v)?;
-        self.ser(&v)?;
-        Ok(v)
+}
+impl<T> Clone for Model<T> {
+    fn clone(&self) -> Self {
+        Self {
+            value: self.value.clone(),
+            phantom: PhantomData,
+        }
+    }
+}
+impl<T> From<Value> for Model<T> {
+    fn from(value: Value) -> Self {
+        Self {
+            value,
+            phantom: PhantomData,
+        }
+    }
+}
+impl<T> From<Model<T>> for Value {
+    fn from(value: Model<T>) -> Self {
+        value.value
+    }
+}
+impl<'a, T> From<&'a Value> for &'a Model<T> {
+    fn from(value: &'a Value) -> Self {
+        unsafe { std::mem::transmute(value) }
+    }
+}
+impl<'a, T> From<&'a Model<T>> for &'a Value {
+    fn from(value: &'a Model<T>) -> Self {
+        unsafe { std::mem::transmute(value) }
+    }
+}
+impl<'a, T> From<&'a mut Value> for &mut Model<T> {
+    fn from(value: &'a mut Value) -> Self {
+        unsafe { std::mem::transmute(value) }
+    }
+}
+impl<'a, T> From<&'a mut Model<T>> for &mut Value {
+    fn from(value: &'a mut Model<T>) -> Self {
+        unsafe { std::mem::transmute(value) }
+    }
+}
+impl<T> patch_db::Model<T> for Model<T> {
+    type Model<U> = Model<U>;
+}
+
+impl<T> Model<Option<T>> {
+    pub fn transpose(self) -> Option<Model<T>> {
+        use patch_db::ModelExt;
+        if self.value.is_null() {
+            None
+        } else {
+            Some(self.transmute(|a| a))
+        }
+    }
+    pub fn transpose_ref(&self) -> Option<&Model<T>> {
+        use patch_db::ModelExt;
+        if self.value.is_null() {
+            None
+        } else {
+            Some(self.transmute_ref(|a| a))
+        }
+    }
+    pub fn transpose_mut(&mut self) -> Option<&mut Model<T>> {
+        use patch_db::ModelExt;
+        if self.value.is_null() {
+            None
+        } else {
+            Some(self.transmute_mut(|a| a))
+        }
+    }
+}
+
+pub trait Map: DeserializeOwned + Serialize {
+    type Key;
+    type Value;
+}
+
+impl<T: Map> Model<T>
+where
+    T::Key: AsRef<str>,
+    T::Value: Serialize,
+{
+    pub fn insert(&mut self, key: &T::Key, value: &T::Value) -> Result<(), Error> {
+        use serde::ser::Error;
+        let v = patch_db::value::to_value(value)?;
+        match &mut self.value {
+            Value::Object(o) => {
+                o.insert(InternedString::intern(key.as_ref()), v);
+                Ok(())
+            }
+            v => Err(patch_db::value::Error {
+                source: patch_db::value::ErrorSource::custom(format!("expected object found {v}")),
+                kind: patch_db::value::ErrorKind::Serialization,
+            }
+            .into()),
+        }
+    }
+}
+
+impl<T: Map> Model<T>
+where
+    T::Key: DeserializeOwned + Ord + Clone,
+{
+    pub fn keys(&self) -> Result<Vec<T::Key>, Error> {
+        use serde::de::Error;
+        use serde::Deserialize;
+        match &self.value {
+            Value::Object(o) => o
+                .keys()
+                .cloned()
+                .map(|k| {
+                    T::Key::deserialize(patch_db::value::de::InternedStringDeserializer::from(k))
+                        .map_err(|e| {
+                            patch_db::value::Error {
+                                kind: patch_db::value::ErrorKind::Deserialization,
+                                source: e,
+                            }
+                            .into()
+                        })
+                })
+                .collect(),
+            v => Err(patch_db::value::Error {
+                source: patch_db::value::ErrorSource::custom(format!("expected object found {v}")),
+                kind: patch_db::value::ErrorKind::Deserialization,
+            }
+            .into()),
+        }
+    }
+    pub fn into_entries(self) -> Result<Vec<(T::Key, Model<T::Value>)>, Error> {
+        use patch_db::ModelExt;
+        use serde::de::Error;
+        use serde::Deserialize;
+        match self.value {
+            Value::Object(o) => o
+                .into_iter()
+                .map(|(k, v)| {
+                    Ok((
+                        T::Key::deserialize(patch_db::value::de::InternedStringDeserializer::from(
+                            k,
+                        ))
+                        .with_kind(ErrorKind::Deserialization)?,
+                        Model::from_value(v),
+                    ))
+                })
+                .collect(),
+            v => Err(patch_db::value::Error {
+                source: patch_db::value::ErrorSource::custom(format!("expected object found {v}")),
+                kind: patch_db::value::ErrorKind::Deserialization,
+            }
+            .into()),
+        }
+    }
+    pub fn as_entries(&self) -> Result<Vec<(T::Key, &Model<T::Value>)>, Error> {
+        use patch_db::ModelExt;
+        use serde::de::Error;
+        use serde::Deserialize;
+        match &self.value {
+            Value::Object(o) => o
+                .iter()
+                .map(|(k, v)| {
+                    Ok((
+                        T::Key::deserialize(patch_db::value::de::InternedStringDeserializer::from(
+                            k.clone(),
+                        ))
+                        .with_kind(ErrorKind::Deserialization)?,
+                        Model::value_as(v),
+                    ))
+                })
+                .collect(),
+            v => Err(patch_db::value::Error {
+                source: patch_db::value::ErrorSource::custom(format!("expected object found {v}")),
+                kind: patch_db::value::ErrorKind::Deserialization,
+            }
+            .into()),
+        }
+    }
+    pub fn as_entries_mut(&mut self) -> Result<Vec<(T::Key, &mut Model<T::Value>)>, Error> {
+        use patch_db::ModelExt;
+        use serde::de::Error;
+        use serde::Deserialize;
+        match &self.value {
+            Value::Object(o) => o
+                .iter_mut()
+                .map(|(k, v)| {
+                    Ok((
+                        T::Key::deserialize(patch_db::value::de::InternedStringDeserializer::from(
+                            k.clone(),
+                        ))
+                        .with_kind(ErrorKind::Deserialization)?,
+                        Model::value_as_mut(v),
+                    ))
+                })
+                .collect(),
+            v => Err(patch_db::value::Error {
+                source: patch_db::value::ErrorSource::custom(format!("expected object found {v}")),
+                kind: patch_db::value::ErrorKind::Deserialization,
+            }
+            .into()),
+        }
+    }
+}
+impl<T: Map> Model<T>
+where
+    T::Key: AsRef<str>,
+{
+    pub fn into_idx(self, key: &T::Key) -> Option<Model<T::Value>> {
+        use patch_db::ModelExt;
+        match &self.value {
+            Value::Object(o) if o.contains_key(key.as_ref()) => Some(self.transmute(|v| {
+                use patch_db::value::index::Index;
+                key.as_ref().index_into_owned(v).unwrap()
+            })),
+            _ => None,
+        }
+    }
+    pub fn as_idx<'a>(&'a self, key: &T::Key) -> Option<&'a Model<T::Value>> {
+        use patch_db::ModelExt;
+        match &self.value {
+            Value::Object(o) if o.contains_key(key.as_ref()) => Some(self.transmute_ref(|v| {
+                use patch_db::value::index::Index;
+                key.as_ref().index_into(v).unwrap()
+            })),
+            _ => None,
+        }
+    }
+    pub fn as_idx_mut<'a>(&'a mut self, key: &T::Key) -> Option<&'a mut Model<T::Value>> {
+        use patch_db::ModelExt;
+        match &mut self.value {
+            Value::Object(o) if o.contains_key(key.as_ref()) => Some(self.transmute_mut(|v| {
+                use patch_db::value::index::Index;
+                key.as_ref().index_or_insert(v)
+            })),
+            _ => None,
+        }
+    }
+    pub fn remove(&mut self, key: &T::Key) -> Result<Option<Model<T::Value>>, Error> {
+        use serde::ser::Error;
+        match &mut self.value {
+            Value::Object(o) => {
+                let v = o.remove(key.as_ref());
+                Ok(v.map(patch_db::ModelExt::from_value))
+            }
+            v => Err(patch_db::value::Error {
+                source: patch_db::value::ErrorSource::custom(format!("expected object found {v}")),
+                kind: patch_db::value::ErrorKind::Serialization,
+            }
+            .into()),
+        }
     }
 }

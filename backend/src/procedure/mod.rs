@@ -25,6 +25,7 @@ pub use models::ProcedureName;
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
 #[serde(tag = "type")]
+#[model = "Model<Self>"]
 pub enum PackageProcedure {
     Docker(DockerProcedure),
 

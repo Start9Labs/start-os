@@ -26,6 +26,7 @@ pub struct ConfigRes {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
+#[model = "Model<Self>"]
 pub struct ConfigActions {
     pub get: PackageProcedure,
     pub set: PackageProcedure,

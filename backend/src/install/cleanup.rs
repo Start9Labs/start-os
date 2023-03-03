@@ -1,76 +1,26 @@
-use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
 
-use bollard::image::{ListImagesOptions, RemoveImageOptions};
+use futures::FutureExt;
 use sqlx::{Executor, Postgres};
 use tracing::instrument;
 
 use super::PKG_ARCHIVE_DIR;
 use crate::context::RpcContext;
 use crate::db::model::{
-    AllPackageData, CurrentDependencies, InstalledPackageInfo, PackageDataEntry,
+    PackageDataEntry, PackageDataEntryInstalled, PackageDataEntryMatchModel,
+    PackageDataEntryMatchModelMut, PackageDataEntryMatchModelRef,
 };
-use crate::dependencies::DependencyErrors;
+use crate::dependencies::DependencyError;
 use crate::prelude::*;
-use crate::s9pk::manifest::{Manifest, PackageId};
+use crate::s9pk::manifest::PackageId;
 use crate::util::{Apply, Version};
 use crate::volume::{asset_dir, script_dir};
-
-#[instrument(skip(ctx, deps, receipts))]
-pub async fn update_dependency_errors_of_dependents<'a>(
-    ctx: &RpcContext,
-    id: &PackageId,
-    deps: (), // &CurrentDependents,
-) -> Result<(), Error> {
-    for dep in deps.0.keys() {
-        if let Some(man) = receipts.manifest.get(dep).await? {
-            if let Err(e) = if let Some(info) = man.dependencies.0.get(id) {
-                info.satisfied(ctx, id, None, dep, &receipts.try_heal)
-                    .await?
-            } else {
-                Ok(())
-            } {
-                let mut errs = receipts
-                    .dependency_errors
-                    .get(dep)
-                    .await?
-                    .ok_or_else(todo!())?;
-                errs.0.insert(id.clone(), e);
-                receipts.dependency_errors.set(errs, dep).await?
-            } else {
-                let mut errs = receipts
-                    .dependency_errors
-                    .get(dep)
-                    .await?
-                    .ok_or_else(todo!())?;
-                errs.0.remove(id);
-                receipts.dependency_errors.set(errs, dep).await?
-            }
-        }
-    }
-    Ok(())
-}
 
 #[instrument(skip(ctx))]
 pub async fn cleanup(ctx: &RpcContext, id: &PackageId, version: &Version) -> Result<(), Error> {
     let mut errors = ErrorCollection::new();
-    ctx.managers.remove(&(id.clone(), version.clone())).await;
-    // docker images start9/$APP_ID/*:$VERSION -q | xargs docker rmi
-    let images = ctx
-        .docker
-        .list_images(Some(ListImagesOptions {
-            all: false,
-            filters: {
-                let mut f = HashMap::new();
-                f.insert(
-                    "reference".to_owned(),
-                    vec![format!("start9/{}/*:{}", id, version)],
-                );
-                f
-            },
-            digests: false,
-        }))
+    ctx.managers.remove(id).await;
+    let images = crate::docker::images_for(id, version)
         .await
         .apply(|res| errors.handle(res));
     errors.extend(
@@ -78,27 +28,11 @@ pub async fn cleanup(ctx: &RpcContext, id: &PackageId, version: &Version) -> Res
             images
                 .into_iter()
                 .flatten()
-                .flat_map(|image| image.repo_tags)
-                .filter(|tag| {
-                    tag.starts_with(&format!("start9/{}/", id))
-                        && tag.ends_with(&format!(":{}", version))
-                })
-                .map(|tag| async {
-                    let tag = tag; // move into future
-                    ctx.docker
-                        .remove_image(
-                            &tag,
-                            Some(RemoveImageOptions {
-                                force: true,
-                                noprune: false,
-                            }),
-                            None,
-                        )
-                        .await
-                }),
+                .map(|sha| async move { crate::docker::remove_image(&sha).await }),
         )
         .await,
     );
+    errors.handle(crate::docker::prune_images().await);
     let pkg_archive_dir = ctx
         .datadir
         .join(PKG_ARCHIVE_DIR)
@@ -127,26 +61,16 @@ pub async fn cleanup(ctx: &RpcContext, id: &PackageId, version: &Version) -> Res
 
 #[instrument(skip(ctx))]
 pub async fn cleanup_failed(ctx: &RpcContext, id: &PackageId) -> Result<(), Error> {
-    let receipts = todo!();
-    let pde = receipts
-        .package_data_entry
-        .get(id)
-        .await?
-        .ok_or_else(todo!())?;
-    if let Some(manifest) = match &pde {
-        PackageDataEntry::Installing { manifest, .. }
-        | PackageDataEntry::Restoring { manifest, .. } => Some(manifest),
-        PackageDataEntry::Updating {
-            manifest,
-            installed:
-                InstalledPackageInfo {
-                    manifest: installed_manifest,
-                    ..
-                },
-            ..
-        } => {
-            if &manifest.version != &installed_manifest.version {
-                Some(manifest)
+    let db = ctx.db.peek().await?;
+    let pde = db.as_package_data().as_idx(id).or_not_found(id)?;
+    if let Some(version) = match pde.as_match() {
+        PackageDataEntryMatchModelRef::Installing(m) => Some(m.as_manifest().as_version()),
+        PackageDataEntryMatchModelRef::Restoring(m) => Some(m.as_manifest().as_version()),
+        PackageDataEntryMatchModelRef::Updating(m) => {
+            if &m.as_new_manifest().as_version().clone().de()?
+                != &m.as_manifest().as_version().clone().de()?
+            {
+                Some(m.as_new_manifest().as_version())
             } else {
                 None
             }
@@ -156,158 +80,129 @@ pub async fn cleanup_failed(ctx: &RpcContext, id: &PackageId) -> Result<(), Erro
             None
         }
     } {
-        cleanup(ctx, id, &manifest.version).await?;
+        cleanup(ctx, id, &version.clone().de()?).await?;
     }
 
-    match pde {
-        PackageDataEntry::Installing { .. } | PackageDataEntry::Restoring { .. } => {
-            let mut entries = receipts.package_entries.get().await?;
-            entries.0.remove(id);
-            receipts.package_entries.set(entries).await?;
-        }
-        PackageDataEntry::Updating {
-            installed,
-            static_files,
-            ..
-        } => {
-            receipts
-                .package_data_entry
-                .set(
-                    PackageDataEntry::Installed {
-                        manifest: installed.manifest.clone(),
-                        installed,
-                        static_files,
-                    },
-                    id,
-                )
-                .await?;
-        }
-        _ => (),
-    }
+    ctx.db
+        .mutate(|v| {
+            let package_data = v.as_package_data_mut();
+            let pde = package_data.as_idx_mut(id).or_not_found(id)?;
+            match pde.as_match() {
+                PackageDataEntryMatchModelRef::Installing(_)
+                | PackageDataEntryMatchModelRef::Restoring(_) => {
+                    package_data.remove(id);
+                }
+                PackageDataEntryMatchModelRef::Updating(m) => {
+                    *pde = Model::<PackageDataEntry>::from_match(
+                        PackageDataEntryMatchModel::Installed(
+                            Model::<PackageDataEntryInstalled>::from_parts(
+                                m.as_static_files().clone(),
+                                m.as_manifest().clone(),
+                                m.as_installed().clone(),
+                            ),
+                        ),
+                    )
+                }
+                _ => (),
+            }
+            Ok(())
+        })
+        .await?;
 
     Ok(())
 }
 
-#[instrument(skip(current_dependencies, current_dependent_receipt))]
-pub async fn remove_from_current_dependents_lists<'a>(
-    db: &PatchDb,
-    id: &'a PackageId,
-    current_dependencies: &'a CurrentDependencies,
-) -> Result<(), Error> {
-    for dep in current_dependencies.0.keys().chain(std::iter::once(id)) {
-        if let Some(mut current_dependents) = current_dependent_receipt.get(dep).await? {
-            if current_dependents.0.remove(id).is_some() {
-                current_dependent_receipt
-                    .set(current_dependents, dep)
-                    .await?;
+#[instrument(skip(ctx))]
+pub async fn uninstall(ctx: &RpcContext, id: &PackageId) -> Result<(), Error> {
+    let db = ctx.db.peek().await?.clone();
+    let PackageDataEntryMatchModelRef::Removing(removing) = db.as_package_data().as_idx(id).or_not_found(id)?.as_match() else {
+        return Err(Error::new(eyre!("{id} is not in removing state"), ErrorKind::InvalidRequest));
+    };
+    cleanup(ctx, id, &removing.as_manifest().as_version().clone().de()?).await?;
+
+    let mut dependents_paths = Vec::new();
+    for (dep, info) in db.as_package_data().as_entries()? {
+        for (_, v) in info.as_manifest()?.as_volumes().clone().de()?.iter() {
+            match v {
+                crate::volume::Volume::Pointer(p) if &p.package_id == id => {
+                    dependents_paths.push(p.path(&ctx.datadir));
+                }
+                _ => (),
             }
         }
     }
-    Ok(())
-}
 
-#[instrument(skip(ctx, secrets))]
-pub async fn uninstall<Ex>(ctx: &RpcContext, secrets: &mut Ex, id: &PackageId) -> Result<(), Error>
-where
-    for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
-{
-    let mut tx = todo!(); // db.begin().await?;
-                          // crate::db::DatabaseModel::new()
-                          //     .package_data()
-                          //     .idx_model(&id)
-                          //     .lock(&mut tx, LockType::Write)
-                          //     .await?;
-    let receipts = todo!(); // UninstallReceipts::new(&mut tx, id).await?;
-    let entry = receipts.removing.get(&mut tx).await?;
-    cleanup(ctx, &entry.manifest.id, &entry.manifest.version).await?;
+    // todo!("update_dependency_errors_of_dependents");
+    let volumes = ctx.datadir.join(crate::volume::PKG_VOLUME_DIR).join(id);
 
-    let packages = {
-        let mut packages = receipts.packages.get(&mut tx).await?;
-        packages.0.remove(id);
-        packages
-    };
-    let dependents_paths: Vec<PathBuf> = entry
-        .current_dependents
-        .0
-        .keys()
-        .flat_map(|x| packages.0.get(x))
-        .flat_map(|x| x.manifest_borrow().volumes.values())
-        .flat_map(|x| x.pointer_path(&ctx.datadir))
-        .collect();
-    receipts.packages.set(&mut tx, packages).await?;
+    tracing::debug!("Cleaning up {:?} except {:?}", volumes, dependents_paths);
+    remove_except(volumes, &dependents_paths).await;
+    remove_tor_keys(&mut ctx.secret_store.acquire().await?, id).await?;
 
-    remove_from_current_dependents_lists(
-        &entry.manifest.id,
-        &entry.current_dependencies,
-        todo!(), // &receipts.current_dependents,
-    )
-    .await?;
-    update_dependency_errors_of_dependents(
-        ctx,
-        &entry.manifest.id,
-        &entry.current_dependents,
-        todo!(), // &receipts.update_depenency_receipts,
-    )
-    .await?;
-    let volumes = ctx
-        .datadir
-        .join(crate::volume::PKG_VOLUME_DIR)
-        .join(&entry.manifest.id);
-
-    tracing::debug!("Cleaning up {:?} at {:?}", volumes, dependents_paths);
-    cleanup_folder(volumes, Arc::new(dependents_paths)).await;
-    remove_tor_keys(secrets, &entry.manifest.id).await?;
-    tx.commit().await?;
+    ctx.db
+        .mutate(|v| {
+            let package_data = v.as_package_data_mut();
+            package_data.remove(id);
+            for (_, pde) in package_data.as_entries_mut()? {
+                let installed = match pde.as_match_mut() {
+                    PackageDataEntryMatchModelMut::Installed(m) => m.as_installed_mut(),
+                    PackageDataEntryMatchModelMut::Updating(m) => m.as_installed_mut(),
+                    _ => continue,
+                };
+                if installed.as_current_dependencies().keys()?.contains(id) {
+                    installed
+                        .as_status_mut()
+                        .as_dependency_errors_mut()
+                        .insert(id, &DependencyError::NotInstalled);
+                }
+            }
+            Ok(())
+        })
+        .await?;
     Ok(())
 }
 
 #[instrument(skip(secrets))]
-pub async fn remove_tor_keys<Ex>(secrets: &mut Ex, id: &PackageId) -> Result<(), Error>
+async fn remove_tor_keys<Ex>(secrets: &mut Ex, id: &PackageId) -> Result<(), Error>
 where
     for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
 {
-    let id_str = id.as_str();
-    sqlx::query!("DELETE FROM tor WHERE package = $1", id_str)
+    sqlx::query!("DELETE FROM tor WHERE package = $1", id)
         .execute(secrets)
         .await?;
     Ok(())
 }
 
 /// Needed to remove, without removing the folders that are mounted in the other docker containers
-pub fn cleanup_folder(
+fn remove_except<'a>(
     path: PathBuf,
-    dependents_volumes: Arc<Vec<PathBuf>>,
-) -> futures::future::BoxFuture<'static, ()> {
-    Box::pin(async move {
+    except: &'a [PathBuf],
+) -> futures::future::BoxFuture<'a, Result<(), Error>> {
+    async move {
         let meta_data = match tokio::fs::metadata(&path).await {
             Ok(a) => a,
             Err(_e) => {
-                return;
+                return Ok(());
             }
         };
         if !meta_data.is_dir() {
-            tracing::error!("is_not dir, remove {:?}", path);
-            let _ = tokio::fs::remove_file(&path).await;
-            return;
+            tracing::info!("{:?} is not dir: removing", path);
+            tokio::fs::remove_file(&path).await?;
+            return Ok(());
         }
-        if !dependents_volumes
-            .iter()
-            .any(|v| v.starts_with(&path) || v == &path)
-        {
-            tracing::error!("No parents, remove {:?}", path);
-            let _ = tokio::fs::remove_dir_all(&path).await;
-            return;
+        if !except.iter().any(|v| v.starts_with(&path)) {
+            tracing::info!("{:?} has no pointers: removing", path);
+            tokio::fs::remove_dir_all(&path).await?;
+            return Ok(());
         }
-        let mut read_dir = match tokio::fs::read_dir(&path).await {
-            Ok(a) => a,
-            Err(_e) => {
-                return;
-            }
-        };
-        tracing::error!("Parents, recurse {:?}", path);
+        let mut read_dir = tokio::fs::read_dir(&path).await?;
+        tracing::info!("{:?} contains pointers: traversing", path);
+        let mut errors = ErrorCollection::new();
         while let Some(entry) = read_dir.next_entry().await.ok().flatten() {
             let entry_path = entry.path();
-            cleanup_folder(entry_path, dependents_volumes.clone()).await;
+            errors.handle(remove_except(entry_path, except).await);
         }
-    })
+        errors.into_result()
+    }
+    .boxed()
 }

@@ -30,6 +30,23 @@ pub mod io;
 pub mod logger;
 pub mod serde;
 
+#[cold]
+pub fn cold() {}
+
+pub fn likely(condition: bool) -> bool {
+    if !condition {
+        cold()
+    }
+    condition
+}
+
+pub fn unlikely(condition: bool) -> bool {
+    if condition {
+        cold()
+    }
+    condition
+}
+
 #[derive(Clone, Copy, Debug)]
 pub enum Never {}
 impl Never {}

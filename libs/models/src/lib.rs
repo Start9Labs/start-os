@@ -1,16 +1,20 @@
 mod action_id;
+mod data_url;
 mod errors;
 mod health_check_id;
 mod id;
 mod image_id;
 mod interface_id;
 mod invalid_id;
+mod mime;
 mod package_id;
 mod procedure_name;
 mod version;
 mod volume_id;
 
 pub use action_id::*;
+pub use data_url::*;
+pub use data_url::*;
 pub use errors::*;
 pub use health_check_id::*;
 pub use id::*;

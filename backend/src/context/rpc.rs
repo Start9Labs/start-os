@@ -6,7 +6,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use bollard::Docker;
 use futures::FutureExt;
 use helpers::to_tmp_path;
 use josekit::jwk::Jwk;
@@ -24,7 +23,7 @@ use super::setup::CURRENT_SECRET;
 use crate::account::AccountInfo;
 use crate::config::hook::ConfigHook;
 use crate::core::rpc_continuations::{RequestGuid, RestHandler, RpcContinuation};
-use crate::db::model::{Database, PackageDataEntryMatchModel};
+use crate::db::model::{Database, PackageDataEntryMatchModelRef};
 use crate::disk::OsPartitionInfo;
 use crate::init::{init_postgres, pgloader};
 use crate::install::cleanup::{cleanup_failed, uninstall};
@@ -120,7 +119,6 @@ pub struct RpcContextSeed {
     pub db: PatchDb,
     pub secret_store: PgPool,
     pub account: RwLock<AccountInfo>,
-    pub docker: Docker,
     pub net_controller: Arc<NetController>,
     pub managers: ManagerMap,
     pub metrics_cache: RwLock<Option<crate::system::Metrics>>,
@@ -154,9 +152,6 @@ impl RpcContext {
         let account = AccountInfo::load(&secret_store).await?;
         let db = base.db(&account).await?;
         tracing::info!("Opened PatchDB");
-        let mut docker = Docker::connect_with_unix_defaults()?;
-        docker.set_timeout(Duration::from_secs(600));
-        tracing::info!("Connected to Docker");
         let net_controller = Arc::new(
             NetController::init(
                 base.tor_control
@@ -186,7 +181,6 @@ impl RpcContext {
             db,
             secret_store,
             account: RwLock::new(account),
-            docker,
             net_controller,
             managers,
             metrics_cache,
@@ -231,19 +225,17 @@ impl RpcContext {
     #[instrument(skip(self))]
     pub async fn cleanup(&self) -> Result<(), Error> {
         let peek = self.db.peek().await?;
-        for (package_id, package) in peek.package_data().entries()?.into_iter() {
-            let action = match package.matchable() {
-                PackageDataEntryMatchModel::Installing(_)
-                | PackageDataEntryMatchModel::Restoring(_)
-                | PackageDataEntryMatchModel::Updating(_) => {
+        for (package_id, package) in peek.as_package_data().as_entries()?.into_iter() {
+            let action = match package.as_match() {
+                PackageDataEntryMatchModelRef::Installing(_)
+                | PackageDataEntryMatchModelRef::Restoring(_)
+                | PackageDataEntryMatchModelRef::Updating(_) => {
                     cleanup_failed(self, &package_id).await
                 }
-                PackageDataEntryMatchModel::Removing(_) => {
-                    uninstall(self, &mut self.secret_store.acquire().await?, &package_id).await
-                }
-                PackageDataEntryMatchModel::Installed(m) => {
-                    let version = m.manifest().version().de()?;
-                    for (volume_id, volume_info) in &*m.manifest().volumes().de()? {
+                PackageDataEntryMatchModelRef::Removing(_) => uninstall(self, &package_id).await,
+                PackageDataEntryMatchModelRef::Installed(m) => {
+                    let version = m.as_manifest().as_version().clone().de()?;
+                    for (volume_id, volume_info) in &*m.as_manifest().as_volumes().clone().de()? {
                         let tmp_path = to_tmp_path(volume_info.path_for(
                             &self.datadir,
                             &package_id,
@@ -265,11 +257,15 @@ impl RpcContext {
             }
         }
         self.db
-            .mutate(|mut v| {
-                for (_, pde) in v.package_data().entries()? {
-                    let status_ref = pde.as_installed()?.installed().status().main();
-                    let running = status_ref.de()?.running();
-                    status_ref.ser(&if running {
+            .mutate(|v| {
+                for (_, pde) in v.as_package_data_mut().as_entries_mut()? {
+                    let status = pde
+                        .expect_as_installed_mut()?
+                        .as_installed_mut()
+                        .as_status_mut()
+                        .as_main_mut();
+                    let running = status.clone().de()?.running();
+                    status.ser(&if running {
                         MainStatus::Starting
                     } else {
                         MainStatus::Stopped

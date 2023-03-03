@@ -1,131 +1,75 @@
-use std::future::Future;
 use std::io::SeekFrom;
 use std::pin::Pin;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::Arc;
 use std::task::{Context, Poll};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
-use patch_db::{HasModel, Model, PatchDb};
+use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};
+use tokio::sync::watch;
 
 use crate::prelude::*;
+use crate::util::unlikely;
 
-#[derive(Debug, Deserialize, Serialize, HasModel, Default)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, HasModel, Default)]
 #[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
 pub struct InstallProgress {
     pub size: Option<u64>,
-    pub downloaded: AtomicU64,
-    pub download_complete: AtomicBool,
-    pub validated: AtomicU64,
-    pub validation_complete: AtomicBool,
-    pub unpacked: AtomicU64,
-    pub unpack_complete: AtomicBool,
+    pub downloaded: u64,
+    pub download_complete: bool,
+    pub validated: u64,
+    pub validation_complete: bool,
+    pub unpacked: u64,
+    pub unpack_complete: bool,
 }
 impl InstallProgress {
-    pub fn new(size: Option<u64>) -> Arc<Self> {
-        Arc::new(InstallProgress {
+    pub fn new(size: Option<u64>) -> Self {
+        InstallProgress {
             size,
-            downloaded: AtomicU64::new(0),
-            download_complete: AtomicBool::new(false),
-            validated: AtomicU64::new(0),
-            validation_complete: AtomicBool::new(false),
-            unpacked: AtomicU64::new(0),
-            unpack_complete: AtomicBool::new(false),
-        })
-    }
-    pub fn download_complete(&self) {
-        self.download_complete.store(true, Ordering::SeqCst)
-    }
-    pub async fn track_download(
-        self: Arc<Self>,
-        model: (), // OptionModel<InstallProgress>,
-    ) -> Result<(), Error> {
-        while !self.download_complete.load(Ordering::SeqCst) {
-            let mut tx = todo!(); // db.begin().await?;
-            model.put(&mut tx, &self).await?;
-            tx.save().await?;
-            tokio::time::sleep(Duration::from_secs(1)).await;
+            downloaded: 0,
+            download_complete: false,
+            validated: 0,
+            validation_complete: false,
+            unpacked: 0,
+            unpack_complete: false,
         }
-        let mut tx = todo!(); // db.begin().await?;
-        model.put(&mut tx, &self).await?;
-        tx.save().await?;
-        Ok(())
-    }
-    pub async fn track_download_during<
-        F: FnOnce() -> Fut,
-        Fut: Future<Output = Result<T, Error>>,
-        T,
-    >(
-        self: &Arc<Self>,
-        model: (), // OptionModel<InstallProgress>,
-        db: &PatchDb,
-        f: F,
-    ) -> Result<T, Error> {
-        let local_db = db.handle();
-        let tracker = tokio::spawn(self.clone().track_download(model.clone()));
-        let res = f().await;
-        self.download_complete.store(true, Ordering::SeqCst);
-        tracker.await.unwrap()?;
-        res
-    }
-    pub async fn track_read(
-        self: Arc<Self>,
-        model: (), // OptionModel<InstallProgress>,
-        complete: Arc<AtomicBool>,
-    ) -> Result<(), Error> {
-        while !complete.load(Ordering::SeqCst) {
-            let mut tx = todo!(); // db.begin().await?;
-            model.put(&mut tx, &self).await?;
-            tx.save().await?;
-            tokio::time::sleep(Duration::from_secs(1)).await;
-        }
-        let mut tx = todo!(); // db.begin().await?;
-        model.put(&mut tx, &self).await?;
-        tx.save().await?;
-        Ok(())
-    }
-    pub async fn track_read_during<
-        F: FnOnce() -> Fut,
-        Fut: Future<Output = Result<T, Error>>,
-        T,
-    >(
-        self: &Arc<Self>,
-        model: (), // OptionModel<InstallProgress>,
-        db: &PatchDb,
-        f: F,
-    ) -> Result<T, Error> {
-        let complete = Arc::new(AtomicBool::new(false));
-        let tracker = tokio::spawn(self.clone().track_read(model.clone(), complete.clone()));
-        let res = f().await;
-        complete.store(true, Ordering::SeqCst);
-        tracker.await.unwrap()?;
-        res
     }
 }
 
 #[pin_project::pin_project]
-#[derive(Debug)]
 pub struct InstallProgressTracker<RW> {
     #[pin]
     inner: RW,
-    validating: bool,
-    progress: Arc<InstallProgress>,
+    interval: Duration,
+    last_update: Instant,
+    buffered: u64,
+    progress: watch::Sender<InstallProgress>,
 }
 impl<RW> InstallProgressTracker<RW> {
-    pub fn new(inner: RW, progress: Arc<InstallProgress>) -> Self {
+    pub fn new(inner: RW, interval: Duration, size: Option<u64>) -> Self {
         InstallProgressTracker {
             inner,
-            validating: true,
-            progress,
+            interval,
+            last_update: Instant::now(),
+            buffered: 0,
+            progress: watch::channel(InstallProgress::new(size)).0,
         }
     }
+    pub fn subscribe(&self) -> watch::Receiver<InstallProgress> {
+        self.progress.subscribe()
+    }
+    pub fn downloaded(&mut self) {
+        self.progress.send_modify(|a| {
+            a.downloaded += std::mem::take(&mut self.buffered);
+            a.download_complete = true
+        })
+    }
     pub fn validated(&mut self) {
-        self.progress
-            .validation_complete
-            .store(true, Ordering::SeqCst);
-        self.validating = false;
+        self.progress.send_modify(|a| {
+            a.validated += std::mem::take(&mut self.buffered);
+            a.validation_complete = true
+        })
     }
 }
 impl<W: AsyncWrite> AsyncWrite for InstallProgressTracker<W> {
@@ -137,9 +81,12 @@ impl<W: AsyncWrite> AsyncWrite for InstallProgressTracker<W> {
         let this = self.project();
         match this.inner.poll_write(cx, buf) {
             Poll::Ready(Ok(n)) => {
-                this.progress
-                    .downloaded
-                    .fetch_add(n as u64, Ordering::SeqCst);
+                *this.buffered += n as u64;
+                if unlikely(this.last_update.elapsed() > *this.interval) {
+                    let buffered = std::mem::take(this.buffered);
+                    this.progress.send_modify(|a| a.downloaded += buffered);
+                    *this.last_update = Instant::now();
+                }
                 Poll::Ready(Ok(n))
             }
             a => a,
@@ -164,9 +111,12 @@ impl<W: AsyncWrite> AsyncWrite for InstallProgressTracker<W> {
         let this = self.project();
         match this.inner.poll_write_vectored(cx, bufs) {
             Poll::Ready(Ok(n)) => {
-                this.progress
-                    .downloaded
-                    .fetch_add(n as u64, Ordering::SeqCst);
+                *this.buffered += n as u64;
+                if unlikely(this.last_update.elapsed() > *this.interval) {
+                    let buffered = std::mem::take(this.buffered);
+                    this.progress.send_modify(|a| a.downloaded += buffered);
+                    *this.last_update = Instant::now();
+                }
                 Poll::Ready(Ok(n))
             }
             a => a,
@@ -183,12 +133,18 @@ impl<R: AsyncRead> AsyncRead for InstallProgressTracker<R> {
         let prev = buf.filled().len() as u64;
         match this.inner.poll_read(cx, buf) {
             Poll::Ready(Ok(())) => {
-                if *this.validating {
-                    &this.progress.validated
-                } else {
-                    &this.progress.unpacked
+                *this.buffered += buf.filled().len() as u64 - prev;
+                if unlikely(this.last_update.elapsed() > *this.interval) {
+                    let buffered = std::mem::take(this.buffered);
+                    this.progress.send_modify(|a| {
+                        if a.validation_complete {
+                            a.unpacked += buffered
+                        } else {
+                            a.validated += buffered
+                        }
+                    });
+                    *this.last_update = Instant::now();
                 }
-                .fetch_add(buf.filled().len() as u64 - prev, Ordering::SeqCst);
 
                 Poll::Ready(Ok(()))
             }
@@ -205,12 +161,14 @@ impl<R: AsyncSeek> AsyncSeek for InstallProgressTracker<R> {
         let this = self.project();
         match this.inner.poll_complete(cx) {
             Poll::Ready(Ok(n)) => {
-                if *this.validating {
-                    &this.progress.validated
-                } else {
-                    &this.progress.unpacked
-                }
-                .store(n, Ordering::SeqCst);
+                this.progress.send_modify(|a| {
+                    if a.validation_complete {
+                        a.unpacked = n
+                    } else {
+                        a.validated = n
+                    }
+                });
+                *this.last_update = Instant::now();
                 Poll::Ready(Ok(n))
             }
             a => a,

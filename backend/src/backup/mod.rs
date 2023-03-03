@@ -25,7 +25,7 @@ use crate::s9pk::manifest::PackageId;
 use crate::util::serde::{Base32, Base64, IoFormat};
 use crate::util::Version;
 use crate::version::{Current, VersionT};
-use crate::volume::{backup_dir, Volume, VolumeId, Volumes, BACKUP_DIR};
+use crate::volume::{backup_dir, Volume, VolumeBackup, VolumeId, Volumes, BACKUP_DIR};
 
 pub mod backup_bulk;
 pub mod os;
@@ -70,6 +70,7 @@ struct BackupMetadata {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
+#[model = "Model<Self>"]
 pub struct BackupActions {
     pub create: PackageProcedure,
     pub restore: PackageProcedure,
@@ -103,7 +104,10 @@ impl BackupActions {
         marketplace_url: Option<Url>,
     ) -> Result<PackageBackupInfo, Error> {
         let mut volumes = volumes.to_readonly();
-        volumes.insert(VolumeId::Backup, Volume::Backup { readonly: false });
+        volumes.insert(
+            VolumeId::Backup,
+            Volume::Backup(VolumeBackup { readonly: false }),
+        );
         let backup_dir = backup_dir(pkg_id);
         if tokio::fs::metadata(&backup_dir).await.is_err() {
             tokio::fs::create_dir_all(&backup_dir).await?
@@ -186,7 +190,10 @@ impl BackupActions {
         volumes: &Volumes,
     ) -> Result<(), Error> {
         let mut volumes = volumes.clone();
-        volumes.insert(VolumeId::Backup, Volume::Backup { readonly: true });
+        volumes.insert(
+            VolumeId::Backup,
+            Volume::Backup(VolumeBackup { readonly: true }),
+        );
         self.restore
             .execute::<(), NoOutput>(
                 ctx,

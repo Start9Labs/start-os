@@ -26,7 +26,7 @@ pub async fn dry(
     let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
     let mut breakages = BTreeMap::new();
-    let receipts = todo!(); // UpdateReceipts::new(&mut tx).await?;
+    let receipts = todo!("BLUJ"); // UpdateReceipts::new(&mut tx).await?;
 
     for dependent in receipts
         .current_dependents
@@ -49,7 +49,6 @@ pub async fn dry(
                         received: version.clone(),
                     },
                     &mut breakages,
-                    &receipts.break_receipts,
                 )
                 .await?;
             }

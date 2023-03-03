@@ -19,6 +19,7 @@ use crate::volume::Volumes;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
 pub struct Migrations {
     pub from: IndexMap<VersionRange, PackageProcedure>,
     pub to: IndexMap<VersionRange, PackageProcedure>,
@@ -124,6 +125,7 @@ impl Migrations {
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
 pub struct MigrationRes {
     pub configured: bool,
 }

@@ -78,13 +78,13 @@ impl DerefMut for Volumes {
         &mut self.0
     }
 }
-impl Map for Volumes {
-    type Key = VolumeId;
-    type Value = Volume;
-}
-impl HasModel for Volumes {
-    type Model = MapModel<Self>;
-}
+// impl Map for Volumes {
+//     type Key = VolumeId;
+//     type Value = Volume;
+// }
+// impl HasModel for Volumes {
+//     type Model = MapModel<Self>;
+// }
 
 pub fn data_dir<P: AsRef<Path>>(datadir: P, pkg_id: &PackageId, volume_id: &VolumeId) -> PathBuf {
     datadir
@@ -113,34 +113,69 @@ pub fn cert_dir(pkg_id: &PackageId, interface_id: &InterfaceId) -> PathBuf {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
+#[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
+pub struct VolumeData {
+    #[serde(skip)]
+    pub readonly: bool,
+}
+#[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
+#[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
+pub struct VolumeAssets {}
+
+#[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
+#[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
+pub struct VolumePointer {
+    pub package_id: PackageId,
+    pub volume_id: VolumeId,
+    pub path: PathBuf,
+    pub readonly: bool,
+}
+impl VolumePointer {
+    pub fn path(&self, datadir: impl AsRef<Path>) -> PathBuf {
+        data_dir(datadir.as_ref(), &self.package_id, &self.volume_id).join(
+            if self.path.is_absolute() {
+                self.path.strip_prefix("/").unwrap()
+            } else {
+                self.path.as_ref()
+            },
+        )
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
+#[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
+pub struct VolumeCertificate {
+    pub interface_id: InterfaceId,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
+#[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
+pub struct VolumeBackup {
+    pub readonly: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
 #[serde(tag = "type")]
 #[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
 pub enum Volume {
-    #[serde(rename_all = "kebab-case")]
-    Data {
-        #[serde(skip)]
-        readonly: bool,
-    },
-    #[serde(rename_all = "kebab-case")]
-    Assets {},
-    #[serde(rename_all = "kebab-case")]
-    Pointer {
-        package_id: PackageId,
-        volume_id: VolumeId,
-        path: PathBuf,
-        readonly: bool,
-    },
-    #[serde(rename_all = "kebab-case")]
-    Certificate { interface_id: InterfaceId },
-    #[serde(rename_all = "kebab-case")]
+    Data(VolumeData),
+    Assets(VolumeAssets),
+    Pointer(VolumePointer),
+    Certificate(VolumeCertificate),
     #[serde(skip)]
-    Backup { readonly: bool },
+    Backup(VolumeBackup),
 }
 impl Volume {
     #[instrument]
     pub fn validate(&self, interfaces: &Interfaces) -> Result<(), color_eyre::eyre::Report> {
         match self {
-            Volume::Certificate { interface_id } => {
+            Volume::Certificate(VolumeCertificate { interface_id }) => {
                 if !interfaces.0.contains_key(interface_id) {
                     color_eyre::eyre::bail!("unknown interface: {}", interface_id);
                 }
@@ -172,54 +207,25 @@ impl Volume {
         volume_id: &VolumeId,
     ) -> PathBuf {
         match self {
-            Volume::Data { .. } => data_dir(&data_dir_path, pkg_id, volume_id),
-            Volume::Assets {} => asset_dir(&data_dir_path, pkg_id, version).join(volume_id),
-            Volume::Pointer {
-                package_id,
-                volume_id,
-                path,
-                ..
-            } => data_dir(&data_dir_path, package_id, volume_id).join(if path.is_absolute() {
-                path.strip_prefix("/").unwrap()
-            } else {
-                path.as_ref()
-            }),
-            Volume::Certificate { interface_id } => cert_dir(pkg_id, &interface_id),
-            Volume::Backup { .. } => backup_dir(pkg_id),
-        }
-    }
-
-    pub fn pointer_path(&self, data_dir_path: impl AsRef<Path>) -> Option<PathBuf> {
-        if let Volume::Pointer {
-            path,
-            package_id,
-            volume_id,
-            ..
-        } = self
-        {
-            Some(
-                data_dir(data_dir_path.as_ref(), package_id, volume_id).join(
-                    if path.is_absolute() {
-                        path.strip_prefix("/").unwrap()
-                    } else {
-                        path.as_ref()
-                    },
-                ),
-            )
-        } else {
-            None
+            Volume::Data(_) => data_dir(data_dir_path, pkg_id, volume_id),
+            Volume::Assets(_) => asset_dir(data_dir_path, pkg_id, version).join(volume_id),
+            Volume::Pointer(p) => p.path(data_dir_path),
+            Volume::Certificate(VolumeCertificate { interface_id }) => {
+                cert_dir(pkg_id, &interface_id)
+            }
+            Volume::Backup(_) => backup_dir(pkg_id),
         }
     }
 
     pub fn set_readonly(&mut self) {
         match self {
-            Volume::Data { readonly } => {
+            Volume::Data(VolumeData { readonly }) => {
                 *readonly = true;
             }
-            Volume::Pointer { readonly, .. } => {
+            Volume::Pointer(VolumePointer { readonly, .. }) => {
                 *readonly = true;
             }
-            Volume::Backup { readonly } => {
+            Volume::Backup(VolumeBackup { readonly }) => {
                 *readonly = true;
             }
             _ => (),
@@ -227,11 +233,11 @@ impl Volume {
     }
     pub fn readonly(&self) -> bool {
         match self {
-            Volume::Data { readonly } => *readonly,
-            Volume::Assets {} => true,
-            Volume::Pointer { readonly, .. } => *readonly,
-            Volume::Certificate { .. } => true,
-            Volume::Backup { readonly } => *readonly,
+            Volume::Data(VolumeData { readonly }) => *readonly,
+            Volume::Assets(VolumeAssets {}) => true,
+            Volume::Pointer(VolumePointer { readonly, .. }) => *readonly,
+            Volume::Certificate(VolumeCertificate { .. }) => true,
+            Volume::Backup(VolumeBackup { readonly }) => *readonly,
         }
     }
 }

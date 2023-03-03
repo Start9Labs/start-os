@@ -46,6 +46,7 @@ lazy_static::lazy_static! {
 
 #[derive(Clone, Debug, Deserialize, Serialize, patch_db::HasModel)]
 #[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
 pub struct DockerContainers {
     pub main: DockerContainer,
     // #[serde(default)]
@@ -57,6 +58,7 @@ pub struct DockerContainers {
 /// part of this struct by choice. Used for the times that we are creating our own entry points
 #[derive(Clone, Debug, Deserialize, Serialize, patch_db::HasModel)]
 #[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
 pub struct DockerContainer {
     pub image: ImageId,
     #[serde(default)]

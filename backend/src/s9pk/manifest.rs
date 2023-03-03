@@ -27,6 +27,7 @@ fn current_version() -> Version {
 
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
 // #[macro_debug]
 pub struct Manifest {
     #[serde(default = "current_version")]

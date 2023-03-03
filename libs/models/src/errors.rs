@@ -231,11 +231,6 @@ impl From<ed25519_dalek::SignatureError> for Error {
         Error::new(e, ErrorKind::InvalidSignature)
     }
 }
-impl From<bollard::errors::Error> for Error {
-    fn from(e: bollard::errors::Error) -> Self {
-        Error::new(e, ErrorKind::Docker)
-    }
-}
 impl From<torut::control::ConnError> for Error {
     fn from(e: torut::control::ConnError) -> Self {
         Error::new(eyre!("{:?}", e), ErrorKind::Tor)

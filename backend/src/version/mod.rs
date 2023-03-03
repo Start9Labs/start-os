@@ -53,14 +53,16 @@ where
     async fn up(&self, secrets: &PgPool, db: &PatchDb) -> Result<(), Error>;
     async fn down(&self, secrets: &PgPool, db: &PatchDb) -> Result<(), Error>;
     async fn commit(&self, db: &PatchDb) -> Result<(), Error> {
-        // receipts
-        //     .version_range
-        //     .set(db, self.compat().clone())
-        //     .await?;
-        // receipts
-        //     .server_version
-        //     .set(db, self.semver().into())
-        //     .await?;
+        db.mutate(|db| {
+            db.server_info()
+                .eos_version_compat()
+                .ser(self.compat().clone())?;
+            db.server_info()
+                .server_version()
+                .ser(self.semver().into())?;
+            Ok(())
+        })
+        .await?;
 
         Ok(())
     }
@@ -177,7 +179,7 @@ where
 }
 
 pub async fn init(secrets: &PgPool, db: &PatchDb) -> Result<(), Error> {
-    let version = Version::from_util_version(todo!("receipts.server_version.get(db).await?"));
+    let version = Version::from_util_version(db.peek().await?.server_info().version().de()?);
     match version {
         Version::LT0_3_4(_) => {
             return Err(Error::new(

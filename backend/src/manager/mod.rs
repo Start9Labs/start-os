@@ -42,7 +42,7 @@ use crate::procedure::{NoOutput, ProcedureName};
 use crate::s9pk::manifest::Manifest;
 use crate::status::MainStatus;
 use crate::util::NonDetachingJoinHandle;
-use crate::volume::Volume;
+use crate::volume::{Volume, VolumeCertificate};
 
 pub mod health;
 mod js_api;
@@ -333,27 +333,17 @@ fn configure(
     mut configure_context: ConfigureContext,
 ) -> BoxFuture<'static, Result<BTreeMap<PackageId, TaggedDependencyError>, Error>> {
     async move {
-        let mut db = ctx.db.handle();
-        let mut tx = db.begin().await?;
-        let db = &mut tx;
-
-        let receipts = todo!(); //ConfigReceipts::new(db).await?;
         let id = &id;
         let ctx = &ctx;
+        let db = ctx.db.peek().await?;
         let overrides = &mut configure_context.overrides;
+        let package = db.package_data().idx(id).expect()?;
+        let manifest = package.into_manifest()?;
         // fetch data from db
-        let action = receipts
-            .config_actions
-            .get(db, id)
-            .await?
-            .ok_or_else(not_found)?;
-        let dependencies = receipts
-            .dependencies
-            .get(db, id)
-            .await?
-            .ok_or_else(not_found)?;
-        let volumes = receipts.volumes.get(db, id).await?.ok_or_else(not_found)?;
-        let version = receipts.version.get(db, id).await?.ok_or_else(not_found)?;
+        let action = manifest.config().de()?;
+        let dependencies = todo!("BLUJ Dependencies");
+        let volumes = manifest.volumes().de()?;
+        let version = manifest.version().de()?;
 
         // get current config and current spec
         let ConfigRes {
@@ -381,16 +371,26 @@ fn configure(
             ctx.call_config_hooks(id.clone(), &serde_json::Value::Object(config.clone()))
                 .await;
 
-            res.signal
-        }
+            res.signal;
 
-        receipts.configured.set(db, true, &id).await?;
-
-        if configure_context.dry_run {
-            tx.abort().await?;
-        } else {
-            tx.commit().await?;
+            ctx.db
+                .mutate(|db| {
+                    db.package_data()
+                        .idx(&id)
+                        .installed()
+                        .status()
+                        .configured()
+                        .ser(true)?;
+                    Ok(())
+                })
+                .await?;
         }
+        // BLUJ TODO
+        // if configure_context.dry_run {
+        //     tx.abort().await?;
+        // } else {
+        //     tx.commit().await?;
+        // }
 
         Ok(configure_context.breakages)
     }
@@ -628,7 +628,7 @@ async fn add_network_for_main(
         }
     }
     for volume in seed.manifest.volumes.values() {
-        if let Volume::Certificate { interface_id } = volume {
+        if let Volume::Certificate(VolumeCertificate { interface_id }) = volume {
             svc.export_cert(&mut tx, interface_id, ip.into()).await?;
         }
     }

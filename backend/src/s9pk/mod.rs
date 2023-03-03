@@ -19,7 +19,7 @@ use crate::s9pk::reader::S9pkReader;
 use crate::util::display_none;
 use crate::util::io::BufferedWriteReader;
 use crate::util::serde::IoFormat;
-use crate::volume::Volume;
+use crate::volume::{Volume, VolumeAssets};
 
 pub mod builder;
 pub mod docker;
@@ -150,7 +150,7 @@ pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> R
             let asset_volumes = manifest
             .volumes
             .iter()
-            .filter(|(_, v)| matches!(v, &&Volume::Assets {})).map(|(id, _)| id.clone()).collect::<Vec<_>>();
+            .filter(|(_, v)| matches!(v, &&Volume::Assets(VolumeAssets))).map(|(id, _)| id.clone()).collect::<Vec<_>>();
             let assets_path = manifest.assets.assets_path().to_owned();
             let path = path.clone();
 

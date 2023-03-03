@@ -28,6 +28,7 @@ pub mod dependencies;
 pub mod developer;
 pub mod diagnostic;
 pub mod disk;
+pub mod docker;
 pub mod error;
 pub mod hostname;
 pub mod init;

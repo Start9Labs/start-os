@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::panic::UnwindSafe;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -32,9 +32,9 @@ use crate::util::display_none;
 use crate::util::serde::IoFormat;
 use crate::version::VersionT;
 
-fn parse_comma_separated(arg: &str, _: &ArgMatches) -> Result<BTreeSet<PackageId>, Error> {
+fn parse_comma_separated(arg: &str, _: &ArgMatches) -> Result<OrdSet<PackageId>, Error> {
     arg.split(',')
-        .map(|s| s.trim().parse().map_err(Error::from))
+        .map(|s| s.trim().parse::<PackageId>().map_err(Error::from))
         .collect()
 }
 
@@ -69,8 +69,11 @@ pub async fn backup_all(
         &old_password_decrypted,
     )
     .await?;
-    let all_packages = get_packages(&ctx.db).await?;
-    let package_ids = package_ids.unwrap_or(all_packages);
+    let package_ids = if let Some(ids) = package_ids {
+        ids
+    } else {
+        get_packages(&ctx.db).await?.into_iter().collect()
+    };
     if old_password.is_some() {
         backup_guard.change_password(&password)?;
     }
@@ -140,7 +143,12 @@ pub async fn backup_all(
             }
         }
         ctx.db
-            .mutate(|v| v.server_info().status_info().backup_progress().ser(&None))
+            .mutate(|v| {
+                v.as_server_info_mut()
+                    .as_status_info_mut()
+                    .as_backup_progress_mut()
+                    .ser(&None)
+            })
             .await?;
         backup_res
     });
@@ -153,8 +161,12 @@ async fn assure_backing_up(
     packages: impl IntoIterator<Item = &PackageId> + UnwindSafe + Send,
 ) -> Result<(), Error> {
     db.mutate(|v| {
-        let mut backing_up = v.server_info().status_info().backup_progress();
+        let backing_up = v
+            .as_server_info_mut()
+            .as_status_info_mut()
+            .as_backup_progress_mut();
         if backing_up
+            .clone()
             .de()?
             .iter()
             .flat_map(|x| x.values())
@@ -235,7 +247,7 @@ async fn perform_backup(
         todo!("Manager backup fn should handle updating progress, since it needs to happen atomically with updating the status");
     }
 
-    let ui = ctx.db.apply_fn(|mut v| Ok(v.ui().clone())).await?;
+    let ui = ctx.db.peek().await?.into_ui().de()?;
 
     let mut os_backup_file = AtomicFile::new(
         backup_guard.lock().await.as_ref().join("os-backup.cbor"),
@@ -272,7 +284,7 @@ async fn perform_backup(
     backup_guard.save_and_unmount().await?;
 
     ctx.db
-        .apply_fn(|mut v| v.server_info().last_backup().set(&timestamp))
+        .mutate(|v| v.as_server_info_mut().as_last_backup_mut().ser(&timestamp))
         .await?;
     Ok(backup_report)
 }
