@@ -1,0 +1,23 @@
+<ion-item button [detail]="true" (click)="open = true">
+  <ion-icon slot="start" name="brush-outline"></ion-icon>
+  <ion-label>
+    <h2>Theme</h2>
+    <p>{{ value }}</p>
+  </ion-label>
+</ion-item>
+
+<ng-template
+  [(tuiDialog)]="open"
+  [tuiDialogOptions]="{
+    label: 'Select theme',
+    size: 's'
+  }"
+>
+  <tui-radio-list
+    style="margin-top: 16px"
+    size="l"
+    [ngModel]="value"
+    [items]="themes"
+    (ngModelChange)="onChange($event)"
+  ></tui-radio-list>
+</ng-template>

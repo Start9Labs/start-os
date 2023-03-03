@@ -4,11 +4,7 @@
   [color]="connection.color"
 >
   <div class="inline" slot="start">
-    <ion-icon
-      [name]="connection.icon"
-      class="icon"
-      [color]="connection.iconColor"
-    ></ion-icon>
+    <ion-icon [name]="connection.icon" class="icon"></ion-icon>
     <p style="margin: 8px 0; font-weight: 600">{{ connection.message }}</p>
     <ion-spinner
       *ngIf="connection.dots"

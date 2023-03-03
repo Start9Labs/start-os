@@ -8,6 +8,7 @@ import { TextSpinnerComponentModule } from '@start9labs/shared'
 import { BadgeMenuComponentModule } from 'src/app/components/badge-menu-button/badge-menu.component.module'
 import { OSUpdatePageModule } from 'src/app/modals/os-update/os-update.page.module'
 import { BackupColorPipeModule } from 'src/app/pipes/backup-color/backup-color.module'
+import { ThemeSwitcherModule } from '../theme-switcher/theme-switcher.module'
 
 const routes: Routes = [
   {
@@ -26,6 +27,7 @@ const routes: Routes = [
     BadgeMenuComponentModule,
     OSUpdatePageModule,
     BackupColorPipeModule,
+    ThemeSwitcherModule,
   ],
   declarations: [ServerShowPage],
 })

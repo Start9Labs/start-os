@@ -15,7 +15,7 @@
             }"
           ></form-label>
         </h4>
-        <ion-item color="dark">
+        <ion-item [color]="(theme$ | async) === 'Light' ? 'light' : 'dark'">
           <ion-textarea
             *ngIf="spec.type === 'string' && spec.textarea; else notTextArea"
             [placeholder]="spec.placeholder || 'Enter ' + spec.name"
@@ -308,7 +308,9 @@
                 *ngIf="spec.subtype === 'string' || spec.subtype === 'number'"
                 [id]="objectId | toElementId: entry.key:i"
               >
-                <ion-item color="dark">
+                <ion-item
+                  [color]="(theme$ | async) === 'Light' ? 'light' : 'dark'"
+                >
                   <ion-input
                     type="text"
                     [inputmode]="spec.subtype === 'number' ? 'tel' : 'text'"

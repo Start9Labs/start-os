@@ -11,8 +11,10 @@ import { IonicModule } from '@ionic/angular'
 import { MonacoEditorModule } from '@materia-ui/ngx-monaco-editor'
 import {
   MarkdownModule,
+  DarkThemeModule,
   ResponsiveColModule,
   SharedPipesModule,
+  LightThemeModule,
 } from '@start9labs/shared'
 
 import { AppComponent } from './app.component'
@@ -58,6 +60,8 @@ import { WidgetsPageModule } from './pages/widgets/widgets.module'
     TuiThemeNightModule,
     WidgetsPageModule,
     ResponsiveColModule,
+    DarkThemeModule,
+    LightThemeModule,
   ],
   providers: APP_PROVIDERS,
   bootstrap: [AppComponent],

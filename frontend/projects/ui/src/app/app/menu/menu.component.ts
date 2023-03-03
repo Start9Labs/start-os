@@ -1,4 +1,9 @@
-import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  Inject,
+} from '@angular/core'
 import { EOSService } from '../../services/eos.service'
 import { PatchDB } from 'patch-db-client'
 import { combineLatest, filter, first, map, Observable, switchMap } from 'rxjs'
@@ -6,7 +11,7 @@ import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { SplitPaneTracker } from 'src/app/services/split-pane.service'
-import { Emver } from '@start9labs/shared'
+import { Emver, THEME } from '@start9labs/shared'
 import { ConnectionService } from 'src/app/services/connection.service'
 
 @Component({
@@ -81,6 +86,8 @@ export class MenuComponent {
   )
 
   readonly sidebarOpen$ = this.splitPane.sidebarOpen$
+
+  readonly theme$ = inject(THEME)
 
   constructor(
     private readonly patch: PatchDB<DataModel>,

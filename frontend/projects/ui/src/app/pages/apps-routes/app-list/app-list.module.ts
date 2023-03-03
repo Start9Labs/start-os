@@ -7,6 +7,7 @@ import {
   EmverPipesModule,
   ResponsiveColModule,
   TextSpinnerComponentModule,
+  TickerModule,
 } from '@start9labs/shared'
 import { BadgeMenuComponentModule } from 'src/app/components/badge-menu-button/badge-menu.component.module'
 import { StatusComponentModule } from 'src/app/components/status/status.component.module'
@@ -37,6 +38,7 @@ const routes: Routes = [
     BadgeMenuComponentModule,
     WidgetListComponentModule,
     ResponsiveColModule,
+    TickerModule,
   ],
   declarations: [
     AppListPage,

@@ -15,7 +15,6 @@ export class ConnectionBarComponent {
     message: string
     color: string
     icon: string
-    iconColor: string
     dots: boolean
   }> = combineLatest([
     this.connectionService.networkConnected$,
@@ -27,7 +26,6 @@ export class ConnectionBarComponent {
           message: 'No Internet',
           color: 'danger',
           icon: 'cloud-offline-outline',
-          iconColor: 'dark',
           dots: false,
         }
       if (!websocket)
@@ -35,7 +33,6 @@ export class ConnectionBarComponent {
           message: 'Connecting',
           color: 'warning',
           icon: 'cloud-offline-outline',
-          iconColor: 'light',
           dots: true,
         }
 
@@ -43,7 +40,6 @@ export class ConnectionBarComponent {
         message: 'Connected',
         color: 'success',
         icon: 'cloud-done',
-        iconColor: 'light',
         dots: false,
       }
     }),

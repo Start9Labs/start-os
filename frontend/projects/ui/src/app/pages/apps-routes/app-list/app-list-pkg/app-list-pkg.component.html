@@ -2,6 +2,7 @@
   button
   *ngIf="pkg.entry.manifest as manifest"
   detail="false"
+  class="service-card"
   [routerLink]="['/services', manifest.id]"
 >
   <app-list-icon slot="start" [pkg]="pkg"></app-list-icon>
@@ -9,7 +10,7 @@
     <img alt="" [src]="pkg.entry['static-files'].icon" />
   </ion-thumbnail>
   <ion-label>
-    <h2>{{ manifest.title }}</h2>
+    <h2 ticker>{{ manifest.title }}</h2>
     <p>{{ manifest.version | displayEmver }}</p>
     <status
       [rendering]="pkg.primaryRendering"

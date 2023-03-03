@@ -1,6 +1,6 @@
 <tui-root
   *ngIf="widgetDrawer$ | async as drawer"
-  tuiMode="onDark"
+  [tuiMode]="(theme$ | async) === 'Dark' ? 'onDark' : null"
   [style.--widgets-width.px]="drawer.open ? drawer.width : 0"
 >
   <ion-app appEnter>
@@ -16,7 +16,7 @@
           side="start"
           class="left-menu"
         >
-          <ion-content color="light" scrollY="false">
+          <ion-content color="light" scrollY="false" class="menu">
             <app-menu *ngIf="authService.isVerified$ | async"></app-menu>
           </ion-content>
         </ion-menu>
@@ -74,4 +74,13 @@
     <toast-container></toast-container>
   </ion-app>
 </tui-root>
-<tui-theme-night></tui-theme-night>
+<ng-container
+  *ngIf="authService.isVerified$ | async"
+  [ngSwitch]="theme$ | async"
+>
+  <ng-container *ngSwitchCase="'Dark'">
+    <tui-theme-night></tui-theme-night>
+    <dark-theme></dark-theme>
+  </ng-container>
+  <light-theme *ngSwitchCase="'Light'"></light-theme>
+</ng-container>
