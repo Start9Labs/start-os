@@ -1,5 +1,14 @@
+.content {
+  --background: #222428;
+}
+
+.card {
+  background: #414141;
+}
+
 .title {
   margin: 24px 0 16px;
+  color: #e0e0e0;
   text-transform: uppercase;
 }
 
@@ -33,6 +42,8 @@ ion-item {
   --border-style: solid;
   --border-color: var(--ion-color-light);
   --border-radius: 4px 0 0 4px;
+  box-shadow: 0 3px 1px -2px rgba(0, 0, 0, 0.2), 0 2px 2px 0 rgba(0, 0, 0, 0.14),
+    0 1px 5px 0 rgba(0, 0, 0, 0.12);
 
   ion-button {
     --border-radius: 4px;
@@ -41,7 +52,7 @@ ion-item {
 
 ion-card {
   background: var(--ion-color-step-200);
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 4px 4px rgba(0, 0, 0, 0.25);
   border-radius: 44px;
   min-height: 16rem;
 }
@@ -64,5 +75,5 @@ ion-card {
 }
 
 .item-interactive {
-  --highlight-background: var(--ion-color-tertiary) !important;
+  --highlight-background: #5260ff !important;
 }
