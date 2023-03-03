@@ -38,7 +38,6 @@ import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 import { AuthService } from '../auth.service'
 import { ConnectionService } from '../connection.service'
 import { StoreInfo } from '@start9labs/marketplace'
-import * as jose from 'node-jose'
 
 const PROGRESS: InstallProgress = {
   size: 120,
@@ -122,12 +121,14 @@ export class MockApiService extends ApiService {
     // this.pubkey = await keystore.generate('EC', 'P-256')
 
     // generated from backend
-    this.pubkey = await jose.JWK.asKey({
-      kty: 'EC',
-      crv: 'P-256',
-      x: 'yHTDYSfjU809fkSv9MmN4wuojf5c3cnD7ZDN13n-jz4',
-      y: '8Mpkn744A5KDag0DmX2YivB63srjbugYZzWc3JOpQXI',
-    })
+    this.pubkey = await this.jose.then(jose =>
+      jose.JWK.asKey({
+        kty: 'EC',
+        crv: 'P-256',
+        x: 'yHTDYSfjU809fkSv9MmN4wuojf5c3cnD7ZDN13n-jz4',
+        y: '8Mpkn744A5KDag0DmX2YivB63srjbugYZzWc3JOpQXI',
+      }),
+    )
   }
 
   async login(params: RR.LoginReq): Promise<RR.loginRes> {
