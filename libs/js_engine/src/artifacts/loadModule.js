@@ -397,6 +397,15 @@ const setConfigured = (
 const getConfigured = (
   configured = requireParam("configured"),
 ) => Deno.core.opAsync("get_configured", configured);
+
+const getSslCertificate = async (id = requireParam("id"), algorithm= "ecdsa") =>{
+  return Deno.core.opAsync("get_ssl_certificate", id, algorithm);// PEM encoded fullchain (ecdsa)
+}
+const getSslKey = (id = requireParam("id"), algorithm = "ecdsa") => {
+  return  Deno.core.opAsync("get_ssl_key", id, algorithm);// PEM encoded ssl key (ecdsa)
+}
+
+
 const effects = {
   bindLocal,
   bindTor,
@@ -414,6 +423,8 @@ const effects = {
   getServiceLocalAddress,
   getServicePortForward,
   getServiceTorAddress,
+  getSslCertificate,
+  getSslKey,
   info,
   isSandboxed,
   metadata,
@@ -452,15 +463,6 @@ const defaults = {
     return effects.signalGroup({ gid, signal });
   },
 };
-
-function safeToString(fn, orValue = "") {
-  try {
-    return fn();
-  } catch (e) {
-    return orValue;
-  }
-}
-
 const apiVersion = mainModule?.version || defaults?.version || 0;
 const runFunction =
   jsonPointerValue(mainModule, currentFunction) ||

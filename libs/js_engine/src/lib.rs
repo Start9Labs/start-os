@@ -21,6 +21,12 @@ use tokio::io::AsyncReadExt;
 use tokio::sync::{mpsc, Mutex};
 use tracing::instrument;
 
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Algorithm {
+    Ecdsa,
+    Ed25519,
+}
 pub trait PathForVolumeId: Send + Sync {
     fn path_for(
         &self,
@@ -463,7 +469,7 @@ mod fns {
     use tokio::io::AsyncWriteExt;
 
     use super::{AnswerState, JsContext};
-    use crate::{system_time_as_unix_ms, MetadataJs, ResultType};
+    use crate::{system_time_as_unix_ms, Algorithm, MetadataJs, ResultType};
 
     #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Default)]
     struct FetchOptions {
@@ -1647,6 +1653,22 @@ mod fns {
     }
     #[op]
     async fn set_configured(state: Rc<RefCell<OpState>>, configured: bool) -> Result<(), AnyError> {
+        todo!()
+    }
+    #[op]
+    async fn get_ssl_certifcate(
+        state: Rc<RefCell<OpState>>,
+        ist: String,
+        algorithm: Algorithm,
+    ) -> Result<(String, String, String), AnyError> {
+        todo!()
+    }
+    #[op]
+    async fn get_ssl_key(
+        state: Rc<RefCell<OpState>>,
+        id: String,
+        algorithm: Algorithm,
+    ) -> Result<String, AnyError> {
         todo!()
     }
 
