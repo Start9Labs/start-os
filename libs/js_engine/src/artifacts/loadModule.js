@@ -401,7 +401,7 @@ const getConfigured = (
 const getSslCertificate = async (id = requireParam("id"), algorithm= "ecdsa") =>{
   return Deno.core.opAsync("get_ssl_certificate", id, algorithm);// PEM encoded fullchain (ecdsa)
 }
-const getSslKey = (id = requireParam("id"), algorithm = "ecdsa") => {
+const getSslKey = async (id = requireParam("id"), algorithm = "ecdsa") => {
   return  Deno.core.opAsync("get_ssl_key", id, algorithm);// PEM encoded ssl key (ecdsa)
 }
 

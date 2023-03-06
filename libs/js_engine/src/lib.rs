@@ -1639,6 +1639,7 @@ mod fns {
         description: String,
         id: String,
         input: Value,
+        group: Option<String>,
     ) -> Result<(), AnyError> {
         todo!()
     }
