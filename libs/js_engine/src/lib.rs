@@ -1585,6 +1585,61 @@ mod fns {
         };
         os.stop().await.map_err(|e| anyhow!("{e:?}"))
     }
+    #[op]
+    async fn get_service_local_address(
+        state: Rc<RefCell<OpState>>,
+        package_id: PackageId,
+        interface_name: String,
+    ) -> Result<(), AnyError> {
+        todo!()
+    }
+    #[op]
+    async fn get_service_tor_address(
+        state: Rc<RefCell<OpState>>,
+        package_id: PackageId,
+        interface_name: String,
+    ) -> Result<(), AnyError> {
+        todo!()
+    }
+    #[op]
+    async fn get_service_port_forward(
+        state: Rc<RefCell<OpState>>,
+        package_id: PackageId,
+        interface_name: String,
+    ) -> Result<(), AnyError> {
+        todo!()
+    }
+
+    #[op]
+    async fn export_address(
+        state: Rc<RefCell<OpState>>,
+        name: String,
+        description: String,
+        address: String,
+        id: String,
+        ui: bool,
+    ) -> Result<(), AnyError> {
+        todo!()
+    }
+    #[op]
+    async fn remove_address(state: Rc<RefCell<OpState>>, id: String) -> Result<(), AnyError> {
+        todo!()
+    }
+
+    #[op]
+    async fn export_action(
+        state: Rc<RefCell<OpState>>,
+        name: String,
+        description: String,
+        id: String,
+        input: Value,
+    ) -> Result<(), AnyError> {
+        todo!()
+    }
+    #[op]
+    async fn remove_action(state: Rc<RefCell<OpState>>, id: String) -> Result<(), AnyError> {
+        todo!()
+    }
 
     /// We need to make sure that during the file accessing, we don't reach beyond our scope of control
     async fn is_subset(

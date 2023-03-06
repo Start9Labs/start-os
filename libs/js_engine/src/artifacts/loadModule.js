@@ -264,7 +264,7 @@ globalThis.clearTimeout = (timeout) => {
   const found = setTimeouts[timeout];
   if (found == null) return;
   found();
-  delete setTimeouts[timeout]
+  delete setTimeouts[timeout];
 };
 
 const setIntervals = [];
@@ -349,42 +349,105 @@ const currentFunction = Deno.core.opSync("current_function");
 const input = Deno.core.opSync("get_input");
 const variable_args = Deno.core.opSync("get_variable_args");
 const setState = (x) => Deno.core.opAsync("set_value", x);
+const exists = (x) =>
+  metadata(x).then(
+    () => true,
+    () => false,
+  );
+
+const getServiceLocalAddress = (
+  {
+    packageId = requireParam("packageId"),
+    interfaceName = requireParam("interfaceName"),
+  } = requireParam("options"),
+) => Deno.core.opAsync("get_service_local_address", packageId, interfaceName);
+
+const getServiceTorAddress = (
+  {
+    packageId = requireParam("packageId"),
+    interfaceName = requireParam("interfaceName"),
+  } = requireParam("options"),
+) => Deno.core.opAsync("get_service_tor_address", packageId, interfaceName);
+
+const getServicePortForward = (
+  {
+    packageId = requireParam("packageId"),
+    interfacePort = requireParam("interfacePort"),
+  } = requireParam("options"),
+) => Deno.core.opAsync("get_service_port_forward", packageId, interfacePort);
+const exportAddress = (
+  {
+    name = requireParam("name"),
+    description = requireParam("description"),
+    address = requireParam("address"),
+    id = requireParam("id"),
+    ui = false,
+  } = requireParam("options"),
+) => Deno.core.opAsync("export_address", name, description, address, id, ui);
+const removeAddress = (
+  {
+    id = requireParam("id"),
+  } = requireParam("options"),
+) => Deno.core.opAsync("remove_address", id);
+
+
+const exportAction = (
+  {
+    name = requireParam("name"),
+    description = requireParam("description"),
+    id = requireParam("id"),
+    input = null,
+  } = requireParam("options"),
+) => Deno.core.opAsync("export_action", name, description, id, input);
+
+const removeAction = (
+  {
+    id = requireParam("id"),
+  } = requireParam("options"),
+) => Deno.core.opAsync("remove_action", id);
 const effects = {
   bindLocal,
   bindTor,
+  chmod,
   chown,
   createDir,
   debug,
   error,
+  exists,
+  exportAddress,
+  exportAction,
   fetch,
-  getServiceAddress,
   getServiceConfig,
+  getServiceLocalAddress,
+  getServicePortForward,
+  getServiceTorAddress,
   info,
   isSandboxed,
   metadata,
   readDir,
   readFile,
   readJsonFile,
+  removeAction,
+  removeAddress,
   removeDir,
   removeFile,
   rename,
   restart,
+  restart,
   runCommand,
   runDaemon,
   runRsync,
-  chmod,
   signalGroup,
   sleep,
   start,
+  start,
   started,
+  stop,
   stop,
   trace,
   warn,
   writeFile,
   writeJsonFile,
-  restart,
-  start,
-  stop,
 };
 const fnSpecificArgs = {
   main: { started },
