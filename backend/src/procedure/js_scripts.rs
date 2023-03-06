@@ -54,8 +54,8 @@ impl OsApi for SandboxOsApi {
     #[allow(unused_variables)]
     async fn get_service_config(
         &self,
-        id: PackageId,
-        path: &str,
+        id: Option<PackageId>,
+        path: Option<&str>,
         callback: Option<Callback>,
     ) -> Result<Vec<serde_json::Value>, Report> {
         Err(eyre!("Operation not permitted"))
@@ -252,8 +252,8 @@ mod tests {
         #[allow(unused_variables)]
         async fn get_service_config(
             &self,
-            id: PackageId,
-            path: &str,
+            id: Option<PackageId>,
+            path: Option<&str>,
             callback: Option<Callback>,
         ) -> Result<Vec<serde_json::Value>, Report> {
             if let Some(callback) = callback {
@@ -747,7 +747,7 @@ mod tests {
                 timeout,
                 ProcessGroupId(0),
                 None,
-                None,
+                Arc::new(OsApiMock::default()),
             )
             .await
             .unwrap()

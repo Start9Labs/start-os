@@ -1448,8 +1448,8 @@ mod fns {
     #[op]
     async fn get_service_config(
         state: Rc<RefCell<OpState>>,
-        service_id: PackageId,
-        path: String,
+        service_id: Option<PackageId>,
+        path: Option<String>,
         callback: Option<String>,
     ) -> Result<Vec<Value>, AnyError> {
         let (sender, os) = {
@@ -1459,7 +1459,7 @@ mod fns {
         };
         os.get_service_config(
             service_id,
-            &path,
+            path.as_deref(),
             callback.map(|id| Callback::new(id, sender)),
         )
         .await

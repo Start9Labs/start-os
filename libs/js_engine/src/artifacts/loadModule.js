@@ -11,6 +11,7 @@ const callbackName = (() => {
 
 const callbackMapping = {};
 const registerCallback = (fn) => {
+  if (!fn) return null;
   const uuid = callbackName(); // TODO
   callbackMapping[uuid] = fn;
   return uuid;
@@ -293,10 +294,10 @@ globalThis.clearInterval = (timeout) => {
 
 const getServiceConfig = async (
   {
-    serviceId = requireParam("serviceId"),
-    configPath = requireParam("configPath"),
-    onChange = requireParam("onChange"),
-  } = requireParam("options"),
+    serviceId,
+    configPath ,
+    onChange = restart,
+  },
 ) => {
   return await Deno.core.opAsync(
     "get_service_config",
@@ -305,21 +306,6 @@ const getServiceConfig = async (
     registerCallback(onChange),
   );
 };
-const getServiceAddress = async (
-  {
-    serviceId = requireParam("serviceId"),
-    name = requireParam("name"),
-    onChange = requireParam("onChange"),
-  } = requireParam("options"),
-) => {
-  return await Deno.core.opAsync(
-    "get_service_address",
-    serviceId,
-    name,
-    registerCallback(onChange),
-  );
-};
-
 const chown = async (
   {
     volumeId = requireParam("volumeId"),
@@ -496,18 +482,13 @@ const extraArgs = jsonPointerValue(fnSpecificArgs, currentFunction) || {};
             ...extraArgs,
           });
         default:
-          return { error: `Unknown API version ${apiVersion}` };
+          throw `Unknown API version ${apiVersion}`;
       }
     })
-    .catch((e) => {
-      if ("error" in e) return e;
-      if ("error-code" in e) return e;
-      return {
-        error: safeToString(
-          () => e.toString(),
-          "Error Not able to be stringified",
-        ),
-      };
-    });
+    .then(result => ({result}), error => {
+      const stack = 'stack' in error ? error.stack : undefined
+      const message = 'message' in error ? error.message : error.toString();
+      return {error: {message, stack}};
+    } )
   await setState(answer);
 })();

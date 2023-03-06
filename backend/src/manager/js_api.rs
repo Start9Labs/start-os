@@ -18,8 +18,8 @@ const NULL_VALUE: &Value = &Value::Null;
 impl OsApi for Manager {
     async fn get_service_config(
         &self,
-        id: PackageId,
-        path: &str,
+        id: Option<PackageId>,
+        path: Option<&str>,
         callback: Option<Callback>,
     ) -> Result<Vec<serde_json::Value>, Report> {
         let found = match self

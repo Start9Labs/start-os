@@ -57,8 +57,8 @@ pub struct Name;
 pub trait OsApi: Send + Sync + 'static {
     async fn get_service_config(
         &self,
-        id: PackageId,
-        path: &str,
+        id: Option<PackageId>,
+        path: Option<&str>,
         callback: Option<Callback>,
     ) -> Result<Vec<Value>, Report>;
 
