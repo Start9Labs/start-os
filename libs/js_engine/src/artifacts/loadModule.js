@@ -405,6 +405,12 @@ const removeAction = (
     id = requireParam("id"),
   } = requireParam("options"),
 ) => Deno.core.opAsync("remove_action", id);
+const setConfigured = (
+  configured = requireParam("configured"),
+) => Deno.core.opAsync("set_configured", configured);
+const getConfigured = (
+  configured = requireParam("configured"),
+) => Deno.core.opAsync("get_configured", configured);
 const effects = {
   bindLocal,
   bindTor,
@@ -417,6 +423,7 @@ const effects = {
   exportAddress,
   exportAction,
   fetch,
+  getConfigured,
   getServiceConfig,
   getServiceLocalAddress,
   getServicePortForward,
@@ -437,6 +444,7 @@ const effects = {
   runCommand,
   runDaemon,
   runRsync,
+  setConfigured,
   signalGroup,
   sleep,
   start,
@@ -481,13 +489,10 @@ const extraArgs = jsonPointerValue(fnSpecificArgs, currentFunction) || {};
   })()
     .then(() => {
       switch (apiVersion) {
-        case 0:
-          return runFunction(effects, input, ...variable_args);
         case 1:
           return runFunction({
             effects,
             input,
-            args: variable_args,
             ...extraArgs,
           });
         default:

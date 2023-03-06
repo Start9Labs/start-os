@@ -1641,6 +1641,15 @@ mod fns {
         todo!()
     }
 
+    #[op]
+    async fn get_configured(state: Rc<RefCell<OpState>>) -> Result<bool, AnyError> {
+        todo!()
+    }
+    #[op]
+    async fn set_configured(state: Rc<RefCell<OpState>>, configured: bool) -> Result<(), AnyError> {
+        todo!()
+    }
+
     /// We need to make sure that during the file accessing, we don't reach beyond our scope of control
     async fn is_subset(
         parent: impl AsRef<Path>,
