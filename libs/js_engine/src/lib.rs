@@ -1637,8 +1637,9 @@ mod fns {
         state: Rc<RefCell<OpState>>,
         name: String,
         description: String,
+        address: String,
         id: String,
-        input: Value,
+        ui: bool,
         group: Option<String>,
     ) -> Result<(), AnyError> {
         todo!()

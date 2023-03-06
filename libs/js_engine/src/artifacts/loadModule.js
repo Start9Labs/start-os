@@ -381,10 +381,12 @@ const exportAction = (
   {
     name = requireParam("name"),
     description = requireParam("description"),
+    address = requireParam("address"),
     id = requireParam("id"),
-    input = null,
+    ui = false,
+    group
   } = requireParam("options"),
-) => Deno.core.opAsync("export_action", name, description, id, input);
+) => Deno.core.opAsync("export_action", name, description,address, id, ui, group);
 
 const removeAction = (
   {
