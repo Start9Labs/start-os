@@ -98,15 +98,19 @@ export class ToButtonsPipe implements PipeTransform {
   }
 
   private async presentModalInstructions(pkg: PackageDataEntry) {
+    const { id, version } = pkg.manifest
+
     this.apiService
-      .setDbValue<boolean>(['ack-instructions', pkg.manifest.id], true)
+      .setDbValue<boolean>(['ack-instructions', id], true)
       .catch(e => console.error('Failed to mark instructions as seen', e))
 
     const modal = await this.modalCtrl.create({
       componentProps: {
         title: 'Instructions',
         content: from(
-          this.apiService.getStatic(pkg['static-files']['instructions']),
+          this.apiService.getStatic(
+            `/public/package-data/${id}/${version}/INSTRUCTIONS.md`,
+          ),
         ),
       },
       component: MarkdownComponent,

@@ -1,10 +1,10 @@
 import { Component } from '@angular/core'
 import { isPlatform, LoadingController, NavController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { Manifest } from 'src/app/services/patch-db/data-model'
+import { Manifest, MarketplacePkg } from '@start9labs/marketplace'
 import { ConfigService } from 'src/app/services/config.service'
-import cbor from 'cbor'
 import { ErrorToastService } from '@start9labs/shared'
+import cbor from 'cbor'
 
 interface Positions {
   [key: string]: [bigint, bigint] // [position, length]
@@ -20,20 +20,12 @@ const VERSION = new Uint8Array([1])
 })
 export class SideloadPage {
   isMobile = isPlatform(window, 'ios') || isPlatform(window, 'android')
-  toUpload: {
-    manifest: Manifest | null
-    icon: string | null
-    file: File | null
-  } = {
-    manifest: null,
-    icon: null,
-    file: null,
+  pkgData?: {
+    pkg: MarketplacePkg
+    file: File
   }
   onTor = this.config.isTor()
-  uploadState?: {
-    invalid: boolean
-    message: string
-  }
+  invalid = false
 
   constructor(
     private readonly loadingCtrl: LoadingController,
@@ -53,63 +45,60 @@ export class SideloadPage {
     this.setFile(files)
   }
 
-  async setFile(files?: File[]) {
-    if (!files || !files.length) return
-    const file = files[0]
-    if (!file) return
-    this.toUpload.file = file
-    this.uploadState = await this.validateS9pk(file)
-  }
-
-  async validateS9pk(file: File) {
-    const magic = new Uint8Array(await blobToBuffer(file.slice(0, 2)))
-    const version = new Uint8Array(await blobToBuffer(file.slice(2, 3)))
-    if (compare(magic, MAGIC) && compare(version, VERSION)) {
-      await this.parseS9pk(file)
-      return {
-        invalid: false,
-        message: 'A valid package file has been detected!',
-      }
-    } else {
-      return {
-        invalid: true,
-        message: 'Invalid package file',
-      }
-    }
-  }
-
-  clearToUpload() {
-    this.toUpload.file = null
-    this.toUpload.manifest = null
-    this.toUpload.icon = null
+  clear() {
+    this.pkgData = undefined
+    this.invalid = false
   }
 
   async handleUpload() {
+    if (!this.pkgData) return
     const loader = await this.loadingCtrl.create({
       message: 'Uploading package',
       cssClass: 'loader',
     })
     await loader.present()
+
+    const { pkg, file } = this.pkgData
+
     try {
       const guid = await this.api.sideloadPackage({
-        manifest: this.toUpload.manifest!,
-        icon: this.toUpload.icon!,
-        size: this.toUpload.file!.size,
+        manifest: pkg.manifest,
+        icon: pkg.icon,
+        size: file.size,
       })
-      this.api
-        .uploadPackage(guid, this.toUpload.file!)
-        .catch(e => console.error(e))
+      this.api.uploadPackage(guid, file!).catch(e => console.error(e))
 
       this.navCtrl.navigateRoot('/services')
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
       loader.dismiss()
-      this.clearToUpload()
+      this.clear()
     }
   }
 
-  async parseS9pk(file: File) {
+  private async setFile(files?: File[]) {
+    if (!files || !files.length) return
+    const file = files[0]
+    if (!file) return
+
+    await this.validateS9pk(file)
+  }
+
+  private async validateS9pk(file: File) {
+    const magic = new Uint8Array(await blobToBuffer(file.slice(0, 2)))
+    const version = new Uint8Array(await blobToBuffer(file.slice(2, 3)))
+    if (compare(magic, MAGIC) && compare(version, VERSION)) {
+      this.pkgData = {
+        pkg: await this.parseS9pk(file),
+        file,
+      }
+    } else {
+      this.invalid = true
+    }
+  }
+
+  private async parseS9pk(file: File): Promise<MarketplacePkg> {
     const positions: Positions = {}
     // magic=2bytes, version=1bytes, pubkey=32bytes, signature=64bytes, toc_length=4bytes = 103byte is starting point
     let start = 103
@@ -119,30 +108,51 @@ export class SideloadPage {
     ).getUint32(0, false)
     await getPositions(start, end, file, positions, tocLength as any)
 
-    await this.getManifest(positions, file)
-    await this.getIcon(positions, file)
+    const manifest = await this.getAsset(positions, file, 'manifest')
+    const [icon] = await Promise.all([
+      this.getIcon(positions, file, manifest),
+      // this.getAsset(positions, file, 'license'),
+      // this.getAsset(positions, file, 'instructions'),
+    ])
+
+    return {
+      manifest,
+      icon,
+      license: '',
+      instructions: '',
+      categories: [],
+      versions: [],
+      'dependency-metadata': {},
+      'published-at': '',
+    }
   }
 
-  async getManifest(positions: Positions, file: Blob) {
+  private async getAsset(
+    positions: Positions,
+    file: Blob,
+    asset: 'manifest' | 'license' | 'instructions',
+  ): Promise<any> {
     const data = await blobToBuffer(
       file.slice(
-        Number(positions['manifest'][0]),
-        Number(positions['manifest'][0]) + Number(positions['manifest'][1]),
+        Number(positions[asset][0]),
+        Number(positions[asset][0]) + Number(positions[asset][1]),
       ),
     )
-    this.toUpload.manifest = await cbor.decode(data, true)
+    return cbor.decode(data, true)
   }
 
-  async getIcon(positions: Positions, file: Blob) {
-    const contentType = `image/${this.toUpload.manifest?.assets.icon
-      .split('.')
-      .pop()}`
+  private async getIcon(
+    positions: Positions,
+    file: Blob,
+    manifest: Manifest,
+  ): Promise<string> {
+    const contentType = `image/${manifest.assets.icon.split('.').pop()}`
     const data = file.slice(
       Number(positions['icon'][0]),
       Number(positions['icon'][0]) + Number(positions['icon'][1]),
       contentType,
     )
-    this.toUpload.icon = await blobToDataURL(data)
+    return blobToDataURL(data)
   }
 }
 
