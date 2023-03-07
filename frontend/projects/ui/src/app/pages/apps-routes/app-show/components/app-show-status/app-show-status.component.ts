@@ -6,11 +6,11 @@ import {
   PrimaryStatus,
 } from 'src/app/services/pkg-status-rendering.service'
 import {
+  AddressInfo,
   DataModel,
-  InterfaceDef,
+  InstalledPackageInfo,
   PackageDataEntry,
   PackageState,
-  Status,
 } from 'src/app/services/patch-db/data-model'
 import { ErrorToastService } from '@start9labs/shared'
 import { AlertController, LoadingController } from '@ionic/angular'
@@ -56,12 +56,12 @@ export class AppShowStatusComponent {
     return this.pkg.manifest.id
   }
 
-  get interfaces(): Record<string, InterfaceDef> {
-    return this.pkg.manifest.interfaces || {}
+  get addressInfo(): Record<string, AddressInfo> {
+    return this.pkg.installed!['address-info']
   }
 
-  get pkgStatus(): Status | null {
-    return this.pkg.installed?.status || null
+  get isConfigured(): boolean {
+    return this.pkg.installed!.status.configured
   }
 
   get isInstalled(): boolean {
@@ -76,8 +76,8 @@ export class AppShowStatusComponent {
     return this.status.primary === PrimaryStatus.Stopped
   }
 
-  launchUi(): void {
-    this.launcherService.launch(this.pkg)
+  launchUi(addressInfo: InstalledPackageInfo['address-info']): void {
+    this.launcherService.launch(addressInfo)
   }
 
   async presentModalConfig(): Promise<void> {
