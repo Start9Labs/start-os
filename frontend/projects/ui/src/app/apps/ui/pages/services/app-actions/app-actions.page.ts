@@ -6,27 +6,30 @@ import {
   PipeTransform,
 } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { AlertController, ModalController, NavController } from '@ionic/angular'
+import { NavController } from '@ionic/angular'
+import {
+  isEmptyObject,
+  getPkgId,
+  WithId,
+  ErrorService,
+  LoadingService,
+} from '@start9labs/shared'
+import { TuiDialogService } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
+import { filter, switchMap, timer } from 'rxjs'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 import {
   Action,
   DataModel,
   PackageDataEntry,
   PackageState,
 } from 'src/app/services/patch-db/data-model'
-import {
-  isEmptyObject,
-  getPkgId,
-  WithId,
-  ErrorService,
-} from '@start9labs/shared'
 import { ActionSuccessPage } from './action-success/action-success.page'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
-import { filter } from 'rxjs'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { FormPage } from 'src/app/apps/ui/modals/form/form.page'
-import { LoadingService } from 'src/app/common/loading/loading.service'
+import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
+import { TUI_PROMPT } from '@taiga-ui/kit'
 
 @Component({
   selector: 'app-actions',
@@ -43,8 +46,7 @@ export class AppActionsPage {
   constructor(
     private readonly route: ActivatedRoute,
     private readonly embassyApi: ApiService,
-    private readonly modalCtrl: ModalController,
-    private readonly alertCtrl: AlertController,
+    private readonly dialogs: TuiDialogService,
     private readonly errorService: ErrorService,
     private readonly loader: LoadingService,
     private readonly navCtrl: NavController,
@@ -54,13 +56,12 @@ export class AppActionsPage {
 
   async handleAction(action: WithId<Action>) {
     if (action.disabled) {
-      const alert = await this.alertCtrl.create({
-        header: 'Forbidden',
-        message: action.disabled,
-        buttons: ['OK'],
-        cssClass: 'alert-error-message enter-click',
-      })
-      await alert.present()
+      this.dialogs
+        .open(action.disabled, {
+          label: 'Forbidden',
+          size: 's',
+        })
+        .subscribe()
     } else {
       if (action['input-spec'] && !isEmptyObject(action['input-spec'])) {
         this.formDialog.open(FormPage, {
@@ -77,24 +78,20 @@ export class AppActionsPage {
           },
         })
       } else {
-        const alert = await this.alertCtrl.create({
-          header: 'Confirm',
-          message: `Are you sure you want to execute action "${action.name}"? ${
-            action.warning || ''
-          }`,
-          buttons: [
-            {
-              text: 'Cancel',
-              role: 'cancel',
+        this.dialogs
+          .open(TUI_PROMPT, {
+            label: 'Confirm',
+            size: 's',
+            data: {
+              content: `Are you sure you want to execute action "${
+                action.name
+              }"? ${action.warning || ''}`,
+              yes: 'Execute',
+              no: 'Cancel',
             },
-            {
-              text: 'Execute',
-              handler: async () => this.executeAction(action.id),
-              cssClass: 'enter-click',
-            },
-          ],
-        })
-        await alert.present()
+          })
+          .pipe(filter(Boolean))
+          .subscribe(() => this.executeAction(action.id))
       }
     }
   }
@@ -102,34 +99,26 @@ export class AppActionsPage {
   async tryUninstall(pkg: PackageDataEntry): Promise<void> {
     const { title, alerts, id } = pkg.manifest
 
-    let message =
+    let content =
       alerts.uninstall ||
       `Uninstalling ${title} will permanently delete its data`
 
     if (await hasCurrentDeps(this.patch, id)) {
-      message = `${message}. Services that depend on ${title} will no longer work properly and may crash`
+      content = `${content}. Services that depend on ${title} will no longer work properly and may crash`
     }
 
-    const alert = await this.alertCtrl.create({
-      header: 'Warning',
-      message,
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
+    this.dialogs
+      .open(TUI_PROMPT, {
+        label: 'Warning',
+        size: 's',
+        data: {
+          content,
+          yes: 'Uninstall',
+          no: 'Cancel',
         },
-        {
-          text: 'Uninstall',
-          handler: () => {
-            this.uninstall()
-          },
-          cssClass: 'enter-click',
-        },
-      ],
-      cssClass: 'alert-warning-message',
-    })
-
-    await alert.present()
+      })
+      .pipe(filter(Boolean))
+      .subscribe(() => this.uninstall())
   }
 
   private async uninstall() {
@@ -155,20 +144,23 @@ export class AppActionsPage {
     const loader = this.loader.open('Executing action...').subscribe()
 
     try {
-      const res = await this.embassyApi.executePackageAction({
+      const data = await this.embassyApi.executePackageAction({
         id: this.pkgId,
         'action-id': actionId,
         input,
       })
 
-      const successModal = await this.modalCtrl.create({
-        component: ActionSuccessPage,
-        componentProps: {
-          actionRes: res,
-        },
-      })
+      timer(500)
+        .pipe(
+          switchMap(() =>
+            this.dialogs.open(new PolymorpheusComponent(ActionSuccessPage), {
+              label: 'Execution Complete',
+              data,
+            }),
+          ),
+        )
+        .subscribe()
 
-      setTimeout(() => successModal.present(), 500)
       return true
     } catch (e: any) {
       this.errorService.handleError(e)

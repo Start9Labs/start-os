@@ -1,19 +1,22 @@
 import { Component } from '@angular/core'
+import { NavController } from '@ionic/angular'
 import {
-  AlertController,
-  LoadingController,
-  ModalController,
-  NavController,
-} from '@ionic/angular'
+  DiskInfo,
+  ErrorService,
+  GuidPipe,
+  LoadingService,
+} from '@start9labs/shared'
+import { TuiDialogService } from '@taiga-ui/core'
 import {
   ApiService,
   BackupRecoverySource,
   DiskRecoverySource,
   DiskMigrateSource,
 } from 'src/app/services/api/api.service'
-import { DiskInfo, ErrorToastService, GuidPipe } from '@start9labs/shared'
 import { StateService } from 'src/app/services/state.service'
-import { PasswordPage } from '../../modals/password/password.page'
+import { PASSWORD, PasswordPage } from '../../modals/password/password.page'
+import { TUI_PROMPT } from '@taiga-ui/kit'
+import { filter, of, switchMap } from 'rxjs'
 
 @Component({
   selector: 'app-embassy',
@@ -28,11 +31,10 @@ export class EmbassyPage {
   constructor(
     private readonly apiService: ApiService,
     private readonly navCtrl: NavController,
-    private readonly modalController: ModalController,
-    private readonly alertCtrl: AlertController,
+    private readonly dialogs: TuiDialogService,
     private readonly stateService: StateService,
-    private readonly loadingCtrl: LoadingController,
-    private readonly errorToastService: ErrorToastService,
+    private readonly loader: LoadingService,
+    private readonly errorService: ErrorService,
     private readonly guidPipe: GuidPipe,
   ) {}
 
@@ -77,87 +79,71 @@ export class EmbassyPage {
         })
       }
     } catch (e: any) {
-      this.errorToastService.present(e)
+      this.errorService.handleError(e)
     } finally {
       this.loading = false
     }
   }
 
-  async chooseDrive(drive: DiskInfo) {
-    if (
-      this.guidPipe.transform(drive) ||
-      !!drive.partitions.find(p => p.used)
-    ) {
-      const alert = await this.alertCtrl.create({
-        header: 'Warning',
-        subHeader: 'Drive contains data!',
-        message: 'All data stored on this drive will be permanently deleted.',
-        buttons: [
-          {
-            role: 'cancel',
-            text: 'Cancel',
-          },
-          {
-            text: 'Continue',
-            handler: () => {
-              // for backup recoveries
-              if (this.stateService.recoveryPassword) {
-                this.setupEmbassy(
-                  drive.logicalname,
-                  this.stateService.recoveryPassword,
-                )
-              } else {
-                // for migrations and fresh setups
-                this.presentModalPassword(drive.logicalname)
-              }
-            },
-          },
-        ],
+  chooseDrive(drive: DiskInfo) {
+    of(!this.guidPipe.transform(drive) && !drive.partitions.some(p => p.used))
+      .pipe(
+        switchMap(unused =>
+          unused
+            ? of(true)
+            : this.dialogs.open(TUI_PROMPT, {
+                label: 'Warning',
+                size: 's',
+                data: {
+                  content:
+                    '<strong>Drive contains data!</strong><p>All data stored on this drive will be permanently deleted.</p>',
+                  yes: 'Continue',
+                  no: 'Cancel',
+                },
+              }),
+        ),
+      )
+      .pipe(filter(Boolean))
+      .subscribe(() => {
+        // for backup recoveries
+        if (this.stateService.recoveryPassword) {
+          this.setupEmbassy(
+            drive.logicalname,
+            this.stateService.recoveryPassword,
+          )
+        } else {
+          // for migrations and fresh setups
+          this.presentModalPassword(drive.logicalname)
+        }
       })
-      await alert.present()
-    } else {
-      // for backup recoveries
-      if (this.stateService.recoveryPassword) {
-        this.setupEmbassy(drive.logicalname, this.stateService.recoveryPassword)
-      } else {
-        // for migrations and fresh setups
-        this.presentModalPassword(drive.logicalname)
-      }
-    }
   }
 
-  private async presentModalPassword(logicalname: string): Promise<void> {
-    const modal = await this.modalController.create({
-      component: PasswordPage,
-      componentProps: {
-        storageDrive: true,
-      },
-    })
-    modal.onDidDismiss().then(async ret => {
-      if (!ret.data || !ret.data.password) return
-      this.setupEmbassy(logicalname, ret.data.password)
-    })
-    await modal.present()
+  private presentModalPassword(logicalname: string) {
+    this.dialogs
+      .open<string>(PASSWORD, {
+        label: 'Set Password',
+        size: 's',
+        data: { storageDrive: true },
+      })
+      .subscribe(password => {
+        this.setupEmbassy(logicalname, password)
+      })
   }
 
   private async setupEmbassy(
     logicalname: string,
     password: string,
   ): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Connecting to drive...',
-      cssClass: 'loader',
-    })
-    await loader.present()
+    const loader = this.loader.open('Connecting to drive...').subscribe()
 
     try {
       await this.stateService.setupEmbassy(logicalname, password)
       await this.navCtrl.navigateForward(`/loading`)
     } catch (e: any) {
-      this.errorToastService.present(e)
+      this.errorService.handleError(e)
       console.error(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 }

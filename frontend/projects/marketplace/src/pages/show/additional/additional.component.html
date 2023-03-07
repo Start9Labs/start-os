@@ -18,7 +18,7 @@
           *ngIf="manifest['git-hash'] as gitHash; else noHash"
           button
           detail="false"
-          (click)="copy(gitHash)"
+          (click)="copyService.copy(gitHash)"
         >
           <ion-label>
             <h2>Git Hash</h2>
@@ -34,14 +34,39 @@
             </ion-label>
           </ion-item>
         </ng-template>
-        <ion-item button detail="false" (click)="presentAlertVersions()">
+        <ion-item button detail="false" (click)="presentAlertVersions(version)">
           <ion-label>
             <h2>Other Versions</h2>
             <p>Click to view other versions</p>
           </ion-label>
           <ion-icon slot="end" name="chevron-forward"></ion-icon>
+          <ng-template #version let-data="data" let-completeWith="completeWith">
+            <tui-radio-list
+              class="radio"
+              size="l"
+              [items]="data.items"
+              [itemContent]="displayEmver | tuiStringifyContent"
+              [(ngModel)]="data.value"
+            ></tui-radio-list>
+            <footer class="buttons">
+              <button
+                tuiButton
+                appearance="secondary"
+                (click)="completeWith(null)"
+              >
+                Cancel
+              </button>
+              <button
+                tuiButton
+                appearance="secondary"
+                (click)="completeWith(data.value)"
+              >
+                Ok
+              </button>
+            </footer>
+          </ng-template>
         </ion-item>
-        <ion-item button detail="false" (click)="presentModalMd('license')">
+        <ion-item button detail="false" (click)="presentModalMd('License')">
           <ion-label>
             <h2>License</h2>
             <p>{{ manifest.license }}</p>
@@ -51,7 +76,7 @@
         <ion-item
           button
           detail="false"
-          (click)="presentModalMd('instructions')"
+          (click)="presentModalMd('Instructions')"
         >
           <ion-label>
             <h2>Instructions</h2>

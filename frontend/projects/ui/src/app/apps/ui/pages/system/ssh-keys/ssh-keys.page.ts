@@ -1,17 +1,11 @@
 import { Component } from '@angular/core'
-import {
-  AlertController,
-  LoadingController,
-  ModalController,
-} from '@ionic/angular'
-import { ErrorToastService } from '@start9labs/shared'
-import { BehaviorSubject } from 'rxjs'
+import { ErrorService, LoadingService } from '@start9labs/shared'
+import { TuiDialogService } from '@taiga-ui/core'
+import { BehaviorSubject, filter, take } from 'rxjs'
 import { SSHKey } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import {
-  GenericInputComponent,
-  GenericInputOptions,
-} from 'src/app/apps/ui/modals/generic-input/generic-input.component'
+import { PROMPT } from 'src/app/apps/ui/modals/prompt/prompt.component'
+import { TUI_PROMPT } from '@taiga-ui/kit'
 
 @Component({
   selector: 'ssh-keys',
@@ -24,10 +18,9 @@ export class SSHKeysPage {
   loading$ = new BehaviorSubject(true)
 
   constructor(
-    private readonly loadingCtrl: LoadingController,
-    private readonly modalCtrl: ModalController,
-    private readonly errToast: ErrorToastService,
-    private readonly alertCtrl: AlertController,
+    private readonly loader: LoadingService,
+    private readonly dialogs: TuiDialogService,
+    private readonly errorService: ErrorService,
     private readonly embassyApi: ApiService,
   ) {}
 
@@ -39,77 +32,61 @@ export class SSHKeysPage {
     try {
       this.sshKeys = await this.embassyApi.getSshKeys({})
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
       this.loading$.next(false)
     }
   }
 
   async presentModalAdd() {
-    const options: GenericInputOptions = {
-      title: 'SSH Key',
-      message:
-        'Enter the SSH public key you would like to authorize for root access to your Embassy.',
-      label: '',
-      submitFn: (pk: string) => this.add(pk),
-    }
-
-    const modal = await this.modalCtrl.create({
-      component: GenericInputComponent,
-      componentProps: { options },
-      cssClass: 'alertlike-modal',
-    })
-    await modal.present()
+    this.dialogs
+      .open<string>(PROMPT, {
+        label: 'SSH Key',
+        data: {
+          message:
+            'Enter the SSH public key you would like to authorize for root access to your Embassy.',
+        },
+      })
+      .pipe(take(1))
+      .subscribe(pk => this.add(pk))
   }
 
-  async add(pubkey: string): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Saving...',
-    })
-    await loader.present()
+  presentAlertDelete(key: SSHKey, i: number) {
+    this.dialogs
+      .open(TUI_PROMPT, {
+        label: 'Confirm',
+        size: 's',
+        data: {
+          content: 'Delete key? This action cannot be undone.',
+          yes: 'Delete',
+          no: 'Cancel',
+        },
+      })
+      .pipe(filter(Boolean))
+      .subscribe(() => this.delete(key, i))
+  }
+
+  private async add(pubkey: string): Promise<void> {
+    const loader = this.loader.open('Saving...').subscribe()
 
     try {
       const key = await this.embassyApi.addSshKey({ key: pubkey })
       this.sshKeys.push(key)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
-  async presentAlertDelete(key: SSHKey, i: number) {
-    const alert = await this.alertCtrl.create({
-      header: 'Confirm',
-      message: 'Delete key? This action cannot be undone.',
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
-        },
-        {
-          text: 'Delete',
-          handler: () => {
-            this.delete(key, i)
-          },
-          cssClass: 'enter-click',
-        },
-      ],
-    })
-    await alert.present()
-  }
-
-  async delete(key: SSHKey, i: number): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Deleting...',
-    })
-    await loader.present()
+  private async delete(key: SSHKey, i: number): Promise<void> {
+    const loader = this.loader.open('Deleting...').subscribe()
 
     try {
       await this.embassyApi.deleteSshKey({ fingerprint: key.fingerprint })
       this.sshKeys.splice(i, 1)
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 }

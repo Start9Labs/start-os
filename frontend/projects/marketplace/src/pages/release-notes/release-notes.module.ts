@@ -4,9 +4,11 @@ import { IonicModule } from '@ionic/angular'
 import {
   EmverPipesModule,
   MarkdownPipeModule,
+  SafeLinksModule,
   TextSpinnerComponentModule,
 } from '@start9labs/shared'
 import { TuiElementModule } from '@taiga-ui/cdk'
+import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
 
 import { ReleaseNotesComponent } from './release-notes.component'
 
@@ -18,6 +20,8 @@ import { ReleaseNotesComponent } from './release-notes.component'
     EmverPipesModule,
     MarkdownPipeModule,
     TuiElementModule,
+    NgDompurifyModule,
+    SafeLinksModule,
   ],
   declarations: [ReleaseNotesComponent],
   exports: [ReleaseNotesComponent],

@@ -160,3 +160,10 @@ a {
   color: aqua;
   text-decoration: none;
 }
+
+.modal-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  margin-top: 24px;
+}

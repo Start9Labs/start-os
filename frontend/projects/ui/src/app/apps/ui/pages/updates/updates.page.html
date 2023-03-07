@@ -11,7 +11,11 @@
   <ion-item-group *ngIf="data$ | async as data">
     <div *ngFor="let host of data.hosts">
       <ion-item-divider class="inline">
-        <store-icon [url]="host.url" size="26px"></store-icon>
+        <store-icon
+          [url]="host.url"
+          [marketplace]="config.marketplace"
+          size="26px"
+        ></store-icon>
         &nbsp;
         <span style="padding-left: 8px; letter-spacing: 0.7px; font-size: 20px">
           {{ host.name }}
@@ -87,7 +91,8 @@
                   <div class="notes">
                     <h5>What's new</h5>
                     <p
-                      [innerHTML]="pkg.manifest['release-notes'] | markdown"
+                      safeLinks
+                      [innerHTML]="pkg.manifest['release-notes'] | markdown | dompurify"
                     ></p>
                   </div>
                   <ion-button

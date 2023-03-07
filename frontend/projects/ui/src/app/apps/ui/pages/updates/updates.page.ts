@@ -8,20 +8,19 @@ import {
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import {
   AbstractMarketplaceService,
-  Marketplace,
   Manifest,
+  Marketplace,
   StoreIdentity,
 } from '@start9labs/marketplace'
-import { isEmptyObject } from '@start9labs/shared'
-import { combineLatest, Observable } from 'rxjs'
-import {
-  AlertController,
-  LoadingController,
-  NavController,
-} from '@ionic/angular'
+import { isEmptyObject, LoadingService } from '@start9labs/shared'
+import { TuiDialogService } from '@taiga-ui/core'
+import { combineLatest, filter, Observable } from 'rxjs'
+import { NavController } from '@ionic/angular'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { getAllPackages } from 'src/app/util/get-package-data'
 import { Breakages } from 'src/app/services/api/api.types'
+import { ConfigService } from 'src/app/services/config.service'
+import { TUI_PROMPT } from '@taiga-ui/kit'
 
 interface UpdatesData {
   hosts: StoreIdentity[]
@@ -49,8 +48,9 @@ export class UpdatesPage {
     private readonly api: ApiService,
     private readonly patch: PatchDB<DataModel>,
     private readonly navCtrl: NavController,
-    private readonly loadingCtrl: LoadingController,
-    private readonly alertCtrl: AlertController,
+    private readonly loader: LoadingService,
+    private readonly dialogs: TuiDialogService,
+    readonly config: ConfigService,
   ) {}
 
   viewInMarketplace(event: Event, url: string, id: string) {
@@ -82,11 +82,9 @@ export class UpdatesPage {
   }
 
   private async dryUpdate(manifest: Manifest, url: string) {
-    const loader = await this.loadingCtrl.create({
-      message: 'Checking dependent services...',
-    })
-    await loader.present()
-
+    const loader = this.loader
+      .open('Checking dependent services...')
+      .subscribe()
     const { id, version } = manifest
 
     try {
@@ -94,7 +92,7 @@ export class UpdatesPage {
         id,
         version: `${version}`,
       })
-      await loader.dismiss()
+      loader.unsubscribe()
 
       if (isEmptyObject(breakages)) {
         this.update(id, version, url)
@@ -112,6 +110,7 @@ export class UpdatesPage {
     } catch (e: any) {
       delete this.marketplaceService.updateQueue[id]
       this.marketplaceService.updateErrors[id] = e.message
+      loader.unsubscribe()
     }
   }
 
@@ -119,38 +118,26 @@ export class UpdatesPage {
     title: string,
     breakages: Breakages,
   ): Promise<boolean> {
-    let message: string = `As a result of updating ${title}, the following services will no longer work properly and may crash:<ul>`
+    let content: string = `As a result of updating ${title}, the following services will no longer work properly and may crash:<ul>`
     const localPkgs = await getAllPackages(this.patch)
     const bullets = Object.keys(breakages).map(id => {
       const title = localPkgs[id].manifest.title
       return `<li><b>${title}</b></li>`
     })
-    message = `${message}${bullets.join('')}</ul>`
+    content = `${content}${bullets.join('')}</ul>`
 
     return new Promise(async resolve => {
-      const alert = await this.alertCtrl.create({
-        header: 'Warning',
-        message,
-        buttons: [
-          {
-            text: 'Cancel',
-            role: 'cancel',
-            handler: () => {
-              resolve(false)
-            },
+      this.dialogs
+        .open<boolean>(TUI_PROMPT, {
+          label: 'Warning',
+          size: 's',
+          data: {
+            content,
+            yes: 'Continue',
+            no: 'Cancel',
           },
-          {
-            text: 'Continue',
-            handler: () => {
-              resolve(true)
-            },
-            cssClass: 'enter-click',
-          },
-        ],
-        cssClass: 'alert-warning-message',
-      })
-
-      await alert.present()
+        })
+        .subscribe(response => resolve(response))
     })
   }
 

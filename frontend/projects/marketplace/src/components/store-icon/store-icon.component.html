@@ -1,0 +1,9 @@
+<img
+  *ngIf="icon; else noIcon"
+  [style.max-width]="size || '100%'"
+  [src]="icon"
+  alt="Service Icon"
+/>
+<ng-template #noIcon>
+  <ion-icon name="storefront-outline" [style.font-size]="size"></ion-icon>
+</ng-template>

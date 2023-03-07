@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core'
-import { LoadingController, ModalController } from '@ionic/angular'
-import { ErrorToastService } from '@start9labs/shared'
+import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
+import { ErrorService, LoadingService } from '@start9labs/shared'
+import { POLYMORPHEUS_CONTEXT } from '@tinkoff/ng-polymorpheus'
+import { TuiDialogContext } from '@taiga-ui/core'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { EOSService } from 'src/app/services/eos.service'
 
@@ -14,9 +15,9 @@ export class OSUpdatePage {
   versions: { version: string; notes: string }[] = []
 
   constructor(
-    private readonly modalCtrl: ModalController,
-    private readonly loadingCtrl: LoadingController,
-    private readonly errToast: ErrorToastService,
+    @Inject(POLYMORPHEUS_CONTEXT) private readonly context: TuiDialogContext,
+    private readonly loader: LoadingService,
+    private readonly errorService: ErrorService,
     private readonly embassyApi: ApiService,
     private readonly eosService: EOSService,
   ) {}
@@ -27,35 +28,22 @@ export class OSUpdatePage {
     this.versions = Object.keys(releaseNotes)
       .sort()
       .reverse()
-      .map(version => {
-        return {
-          version,
-          notes: releaseNotes[version],
-        }
-      })
-  }
-
-  dismiss() {
-    this.modalCtrl.dismiss()
+      .map(version => ({
+        version,
+        notes: releaseNotes[version],
+      }))
   }
 
   async updateEOS() {
-    const loader = await this.loadingCtrl.create({
-      message: 'Beginning update...',
-    })
-    await loader.present()
+    const loader = this.loader.open('Beginning update...').subscribe()
 
     try {
       await this.embassyApi.updateServer()
-      this.dismiss()
+      this.context.$implicit.complete()
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
-  }
-
-  asIsOrder() {
-    return 0
   }
 }

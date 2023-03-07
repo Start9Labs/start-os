@@ -99,6 +99,10 @@ export abstract class ApiService {
 
   abstract updateServer(url?: string): Promise<RR.UpdateServerRes>
 
+  abstract setServerClearnetAddress(
+    params: RR.SetServerClearnetAddressReq,
+  ): Promise<RR.SetServerClearnetAddressRes>
+
   abstract restartServer(
     params: RR.RestartServerReq,
   ): Promise<RR.RestartServerRes>
@@ -145,6 +149,26 @@ export abstract class ApiService {
     params: RR.DeleteAllNotificationsReq,
   ): Promise<RR.DeleteAllNotificationsRes>
 
+  // domains
+
+  abstract claimStart9MeDomain(
+    params: RR.ClaimStart9MeReq,
+  ): Promise<RR.ClaimStart9MeRes>
+
+  abstract deleteStart9MeDomain(
+    params: RR.DeleteStart9MeReq,
+  ): Promise<RR.DeleteStart9MeRes>
+
+  abstract addDomain(params: RR.AddDomainReq): Promise<RR.AddDomainRes>
+
+  abstract deleteDomain(params: RR.DeleteDomainReq): Promise<RR.DeleteDomainRes>
+
+  // port forwards
+
+  abstract overridePortForward(
+    params: RR.OverridePortReq,
+  ): Promise<RR.OverridePortRes>
+
   // wifi
 
   abstract enableWifi(params: RR.EnableWifiReq): Promise<RR.EnableWifiRes>
@@ -158,7 +182,7 @@ export abstract class ApiService {
 
   abstract connectWifi(params: RR.ConnectWifiReq): Promise<RR.ConnectWifiRes>
 
-  abstract deleteWifi(params: RR.DeleteWifiReq): Promise<RR.ConnectWifiRes>
+  abstract deleteWifi(params: RR.DeleteWifiReq): Promise<RR.DeleteWifiRes>
 
   // email
 

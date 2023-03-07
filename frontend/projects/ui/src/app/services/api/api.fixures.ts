@@ -1354,7 +1354,7 @@ export module Mock {
       'dependency-info': {
         bitcoind: {
           title: 'Bitcoin Core',
-          icon: 'assets/img/service-icons/bitcoind.svg',
+          icon: 'assets/img/service-icons/bitcoind.png',
         },
       },
       'marketplace-url': 'https://registry.start9.com/',
@@ -1416,7 +1416,7 @@ export module Mock {
       'dependency-info': {
         bitcoind: {
           title: 'Bitcoin Core',
-          icon: 'assets/img/service-icons/bitcoind.svg',
+          icon: 'assets/img/service-icons/bitcoind.png',
         },
         'btc-rpc-proxy': {
           title: 'Bitcoin Proxy',

@@ -307,6 +307,20 @@ export class MockApiService extends ApiService {
     return this.withRevision(patch, 'updating')
   }
 
+  async setServerClearnetAddress(
+    params: RR.SetServerClearnetAddressReq,
+  ): Promise<RR.SetServerClearnetAddressRes> {
+    await pauseFor(2000)
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/ui/domainInfo',
+        value: params.domainInfo,
+      },
+    ]
+    return this.withRevision(patch, null)
+  }
+
   async restartServer(
     params: RR.RestartServerReq,
   ): Promise<RR.RestartServerRes> {
@@ -424,6 +438,88 @@ export class MockApiService extends ApiService {
     return null
   }
 
+  // domains
+
+  async claimStart9MeDomain(
+    params: RR.ClaimStart9MeReq,
+  ): Promise<RR.ClaimStart9MeRes> {
+    await pauseFor(2000)
+
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/network/start9MeSubdomain',
+        value: {
+          value: 'xyz',
+          createdAt: new Date(),
+        },
+      },
+    ]
+    return this.withRevision(patch, null)
+  }
+
+  async deleteStart9MeDomain(
+    params: RR.DeleteStart9MeReq,
+  ): Promise<RR.DeleteStart9MeRes> {
+    await pauseFor(2000)
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/network/start9MeSubdomain',
+        value: null,
+      },
+    ]
+    return this.withRevision(patch, null)
+  }
+
+  async addDomain(params: RR.AddDomainReq): Promise<RR.AddDomainRes> {
+    await pauseFor(2000)
+
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/network/domains',
+        value: [
+          {
+            value: params.domain,
+            provider: params.provider,
+            createdAt: new Date(),
+          },
+        ],
+      },
+    ]
+    return this.withRevision(patch, null)
+  }
+
+  async deleteDomain(params: RR.DeleteDomainReq): Promise<RR.DeleteDomainRes> {
+    await pauseFor(2000)
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/network/domains',
+        value: [],
+      },
+    ]
+    return this.withRevision(patch, null)
+  }
+
+  // port forwards
+
+  async overridePortForward(
+    params: RR.OverridePortReq,
+  ): Promise<RR.OverridePortRes> {
+    await pauseFor(2000)
+
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/network/wanConfig/forwards/0/override',
+        value: params.port,
+      },
+    ]
+    return this.withRevision(patch, null)
+  }
+
   // wifi
 
   async enableWifi(params: RR.EnableWifiReq): Promise<RR.EnableWifiRes> {
@@ -431,7 +527,7 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: '/server-info/wifi-enabled',
+        path: '/server-info/network/wifi/enabled',
         value: params.enable,
       },
     ]
@@ -472,7 +568,7 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: '/server-info/email',
+        path: '/server-info/smtp',
         value: params,
       },
     ]

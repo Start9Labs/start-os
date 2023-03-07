@@ -1,0 +1,47 @@
+<form>
+  <tui-input [ngModelOptions]="{ standalone: true }" [(ngModel)]="job.name">
+    Job Name
+    <input tuiTextfield placeholder="My Backup Job" />
+  </tui-input>
+
+  <button
+    tuiWrapper
+    appearance="secondary"
+    type="button"
+    class="button"
+    (click)="presentModalTarget()"
+  >
+    Target
+    <span class="value">{{ job.target.type || 'Select target' }}</span>
+  </button>
+
+  <button
+    tuiWrapper
+    appearance="secondary"
+    type="button"
+    class="button"
+    (click)="presentModalPackages()"
+  >
+    Packages
+    <span class="value">{{ job['package-ids'].length + ' selected' }}</span>
+  </button>
+
+  <tui-input [ngModelOptions]="{ standalone: true }" [(ngModel)]="job.cron">
+    Schedule
+    <input tuiTextfield placeholder="* * * * *" />
+  </tui-input>
+
+  <p *ngIf="job.cron | toHumanCron as human" [style.color]="human.color">
+    {{ human.message }}
+  </p>
+
+  <div *ngIf="!job.job.id" class="toggle">
+    Also Execute Now
+    <tui-toggle
+      size="l"
+      [ngModelOptions]="{ standalone: true }"
+      [(ngModel)]="job.now"
+    ></tui-toggle>
+  </div>
+  <button tuiButton class="submit" (click)="save()">Save Job</button>
+</form>

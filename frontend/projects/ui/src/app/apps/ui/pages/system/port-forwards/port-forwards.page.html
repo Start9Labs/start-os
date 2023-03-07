@@ -1,0 +1,153 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="system"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Port Forwards</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="with-widgets">
+  <div *ngIf="server$ | async as server" class="cap-width">
+    <!-- local -->
+    <ion-item-group>
+      <ion-item>
+        <ion-label *ngIf="server.network.wanConfig.upnp else upnp">
+          <h1 class="ion-padding-bottom">
+            <ion-text color="warning">UPnP Disabled</ion-text>
+          </h1>
+          <h2>
+            Below are a list of ports that must be
+            <i>manually</i>
+            forwarded in your router in order to enable clearnet access.
+            <br />
+            <br />
+            Alternatively, you can enable UPnP in your router for automatic
+            configuration.
+            <a
+              href="https://docs.start9.com/latest/user-manual/port-forwards/manual"
+              target="_blank"
+              rel="noreferrer"
+            >
+              View instructions
+            </a>
+          </h2>
+        </ion-label>
+        <ng-template #upnp>
+          <ion-label>
+            <h1 class="ion-padding-bottom">
+              <ion-text color="success">UPnP Enabled!</ion-text>
+            </h1>
+            <h2>
+              The ports below have been
+              <i>automatically</i>
+              forwarded in your router.
+              <br />
+              <br />
+              If you are running multiple servers, you may want to override
+              specific ports to suite your needs.
+              <a
+                href="https://docs.start9.com/latest/user-manual/port-forwards/upnp#override"
+                target="_blank"
+                rel="noreferrer"
+              >
+                View instructions
+              </a>
+            </h2>
+          </ion-label>
+        </ng-template>
+      </ion-item>
+      <ion-grid *ngIf="server.ui.ipInfo | primaryIp as ip">
+        <ion-row>
+          <ion-col size="1"></ion-col>
+          <ion-col size="5">
+            <ion-item-divider>Port</ion-item-divider>
+          </ion-col>
+          <ion-col size="6">
+            <ion-item-divider>Target</ion-item-divider>
+          </ion-col>
+        </ion-row>
+        <ion-row
+          *ngFor="let pf of server.network.wanConfig.forwards"
+          class="ion-align-items-center"
+        >
+          <ion-col size="1" class="ion-text-center">
+            <!-- @TODO implement hover tooltips state for success/error icons -->
+            <ion-icon
+              *ngIf="pf.error; else noError"
+              class="larger-icon"
+              name="close"
+              color="danger"
+            ></ion-icon>
+            <ng-template #noError>
+              <ion-icon
+                name="checkmark"
+                class="larger-icon"
+                color="success"
+              ></ion-icon>
+            </ng-template>
+          </ion-col>
+          <ion-col size="5">
+            <ion-item>
+              <ion-input
+                *ngIf="!editing[pf.target]"
+                readonly
+                [placeholder]="pf.assigned"
+                [value]="pf.override || pf.assigned"
+              ></ion-input>
+              <ion-input
+                *ngIf="editing[pf.target]"
+                [placeholder]="pf.assigned"
+                [value]="pf.override || pf.assigned"
+                [(ngModel)]="overrides[pf.target]"
+              ></ion-input>
+              <ion-buttons
+                *ngIf="editing[pf.target] else editBtn"
+                slot="end"
+                style="margin-left: 0"
+              >
+                <ion-button (click)="editPort(pf)">
+                  <ion-icon name="close" size="small"></ion-icon>
+                </ion-button>
+                <ion-button (click)="saveOverride(pf)">
+                  <ion-icon name="checkmark" size="small"></ion-icon>
+                </ion-button>
+              </ion-buttons>
+              <ng-template #editBtn>
+                <ion-button
+                  slot="end"
+                  fill="clear"
+                  style="margin-left: 2px"
+                  (click)="editPort(pf)"
+                >
+                  <ion-icon
+                    slot="icon-only"
+                    name="pencil"
+                    size="small"
+                  ></ion-icon>
+                </ion-button>
+              </ng-template>
+            </ion-item>
+          </ion-col>
+          <ion-col size="6">
+            <ion-item>
+              <ion-label>
+                <h2>{{ ip }}:{{ pf.target }}</h2>
+              </ion-label>
+              <ion-button
+                fill="clear"
+                (click)="copyService.copy(ip + ':' + pf.target)"
+              >
+                <ion-icon
+                  slot="icon-only"
+                  size="small"
+                  name="copy-outline"
+                ></ion-icon>
+              </ion-button>
+            </ion-item>
+          </ion-col>
+        </ion-row>
+      </ion-grid>
+    </ion-item-group>
+  </div>
+</ion-content>

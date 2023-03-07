@@ -14,9 +14,9 @@ import {
   ItemModule,
   SearchModule,
   SkeletonModule,
+  StoreIconComponentModule,
 } from '@start9labs/marketplace'
 import { BadgeMenuComponentModule } from 'src/app/common/badge-menu-button/badge-menu.component.module'
-import { StoreIconComponentModule } from 'src/app/common/store-icon/store-icon.component.module'
 import { MarketplaceStatusModule } from '../marketplace-status/marketplace-status.module'
 import { MarketplaceListPage } from './marketplace-list.page'
 import { MarketplaceSettingsPageModule } from './marketplace-settings/marketplace-settings.module'

@@ -1,11 +1,12 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { ModalController, ToastController } from '@ionic/angular'
-import { getPkgId, copyToClipboard } from '@start9labs/shared'
+import { getPkgId, CopyService } from '@start9labs/shared'
 import { AddressInfo, DataModel } from 'src/app/services/patch-db/data-model'
 import { PatchDB } from 'patch-db-client'
 import { map } from 'rxjs'
 import { QRComponent } from './qr.component'
+import { TuiDialogService } from '@taiga-ui/core'
+import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 
 @Component({
   selector: 'app-interfaces',
@@ -39,38 +40,20 @@ export class AppInterfacesItemComponent {
   addressInfo!: AddressInfo
 
   constructor(
-    private readonly toastCtrl: ToastController,
-    private readonly modalCtrl: ModalController,
+    private readonly dialogs: TuiDialogService,
+    readonly copyService: CopyService,
   ) {}
 
   launch(url: string): void {
     window.open(url, '_blank', 'noreferrer')
   }
 
-  async showQR(text: string): Promise<void> {
-    const modal = await this.modalCtrl.create({
-      component: QRComponent,
-      componentProps: {
-        text,
-      },
-      cssClass: 'qr-modal',
-    })
-    await modal.present()
-  }
-
-  async copy(address: string): Promise<void> {
-    let message = ''
-    await copyToClipboard(address || '').then(success => {
-      message = success
-        ? 'Copied to clipboard!'
-        : 'Failed to copy to clipboard.'
-    })
-
-    const toast = await this.toastCtrl.create({
-      header: message,
-      position: 'bottom',
-      duration: 1000,
-    })
-    await toast.present()
+  showQR(data: string) {
+    this.dialogs
+      .open(new PolymorpheusComponent(QRComponent), {
+        size: 'auto',
+        data,
+      })
+      .subscribe()
   }
 }

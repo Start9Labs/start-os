@@ -6,6 +6,7 @@ import { UnitConversionPipesModule } from '@start9labs/shared'
 import { SkeletonListComponentModule } from 'src/app/common/skeleton-list/skeleton-list.component.module'
 import { FormPageModule } from 'src/app/apps/ui/modals/form/form.module'
 import { BackupTargetsPage } from './backup-targets.page'
+import { TuiNotificationModule } from '@taiga-ui/core'
 
 const routes: Routes = [
   {
@@ -23,6 +24,7 @@ const routes: Routes = [
     UnitConversionPipesModule,
     FormPageModule,
     RouterModule.forChild(routes),
+    TuiNotificationModule,
   ],
 })
 export class BackupTargetsPageModule {}

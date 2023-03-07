@@ -1,13 +1,10 @@
 import { Component } from '@angular/core'
-import {
-  LoadingController,
-  ModalController,
-  NavController,
-} from '@ionic/angular'
+import { NavController } from '@ionic/angular'
+import { DiskInfo, ErrorService, LoadingService } from '@start9labs/shared'
+import { TuiDialogService } from '@taiga-ui/core'
 import { ApiService } from 'src/app/services/api/api.service'
-import { DiskInfo, ErrorToastService } from '@start9labs/shared'
 import { StateService } from 'src/app/services/state.service'
-import { PasswordPage } from 'src/app/modals/password/password.page'
+import { PASSWORD, PasswordPage } from 'src/app/modals/password/password.page'
 
 @Component({
   selector: 'app-attach',
@@ -21,10 +18,10 @@ export class AttachPage {
   constructor(
     private readonly apiService: ApiService,
     private readonly navCtrl: NavController,
-    private readonly errToastService: ErrorToastService,
+    private readonly errorService: ErrorService,
     private readonly stateService: StateService,
-    private readonly modalCtrl: ModalController,
-    private readonly loadingCtrl: LoadingController,
+    private readonly dialogs: TuiDialogService,
+    private readonly loader: LoadingService,
   ) {}
 
   async ngOnInit() {
@@ -41,38 +38,34 @@ export class AttachPage {
     try {
       this.drives = await this.apiService.getDrives()
     } catch (e: any) {
-      this.errToastService.present(e)
+      this.errorService.handleError(e)
     } finally {
       this.loading = false
     }
   }
 
-  async select(guid: string) {
-    const modal = await this.modalCtrl.create({
-      component: PasswordPage,
-      componentProps: { storageDrive: true },
-    })
-    modal.onDidDismiss().then(res => {
-      if (res.data && res.data.password) {
-        this.attachDrive(guid, res.data.password)
-      }
-    })
-    await modal.present()
+  select(guid: string) {
+    this.dialogs
+      .open<string>(PASSWORD, {
+        label: 'Set Password',
+        size: 's',
+        data: { storageDrive: true },
+      })
+      .subscribe(password => {
+        this.attachDrive(guid, password)
+      })
   }
 
   private async attachDrive(guid: string, password: string) {
-    const loader = await this.loadingCtrl.create({
-      message: 'Connecting to drive...',
-      cssClass: 'loader',
-    })
-    await loader.present()
+    const loader = this.loader.open('Connecting to drive...').subscribe()
+
     try {
       await this.stateService.importDrive(guid, password)
       await this.navCtrl.navigateForward(`/loading`)
     } catch (e: any) {
-      this.errToastService.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 }

@@ -1,0 +1,26 @@
+ion-item-divider {
+	padding-bottom: 8px;
+	padding-left: 0px;
+}
+
+ion-item-group {
+	background-color: #1e2024;
+	border: 1px solid #717171;
+	border-radius: 6px;
+}
+
+ion-item {
+	--inner-padding-end: 0;
+}
+
+ion-buttons {
+	margin-left: 0;
+	margin-right: 8px;
+	ion-button::part(native) {
+		padding: 0 2px;
+	}
+}
+
+.larger-icon {
+	font-size: 20px;
+}

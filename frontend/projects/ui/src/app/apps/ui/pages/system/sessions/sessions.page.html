@@ -18,16 +18,10 @@
           <ion-col size="3">Platform</ion-col>
           <ion-col size="3">Last Active</ion-col>
         </ion-row>
-        <!-- loading -->
-        <ng-container *ngIf="loading$ | async; else loaded">
-          <ion-row class="ion-align-items-center grid-row-border">
-            <ion-col>
-              <ion-skeleton-text animated></ion-skeleton-text>
-            </ion-col>
-          </ion-row>
-        </ng-container>
         <!-- loaded -->
-        <ng-template #loaded>
+        <ng-container
+          *ngIf="currentSession$ | async as currentSession else loading"
+        >
           <ion-row
             *ngIf="currentSession"
             class="ion-align-items-center grid-row-border"
@@ -45,80 +39,90 @@
               {{ currentSession['last-active']| date: 'medium' }}
             </ion-col>
           </ion-row>
+        </ng-container>
+        <!-- loading -->
+        <ng-template #loading>
+          <ion-row class="ion-align-items-center grid-row-border">
+            <ion-col>
+              <ion-skeleton-text animated></ion-skeleton-text>
+            </ion-col>
+          </ion-row>
         </ng-template>
       </ion-grid>
     </div>
 
     <!-- other sessions -->
-    <ion-item-divider>
-      Other Sessions
-      <ion-button
-        class="ion-padding-start"
-        color="danger"
-        strong
-        size="small"
-        (click)="kill()"
-        [disabled]="empty"
-      >
-        Terminate Selected
-      </ion-button>
-    </ion-item-divider>
+    <ng-container *tuiLet="otherSessions$ | async as otherSessions">
+      <ion-item-divider>
+        Other Sessions
+        <ion-button
+          class="ion-padding-start"
+          color="danger"
+          strong
+          size="small"
+          (click)="kill(otherSessions || [])"
+          [disabled]="empty"
+        >
+          Terminate Selected
+        </ion-button>
+      </ion-item-divider>
 
-    <div class="grid-fixed">
-      <ion-grid class="ion-padding">
-        <ion-row class="grid-headings">
-          <ion-col size="6" class="inline">
-            <div class="checkbox" (click)="toggleAll()">
-              <ion-icon
-                [name]="empty ? 'square-outline' : count === otherSessions.length ? 'checkbox-outline' : 'remove-circle-outline'"
-              ></ion-icon>
-            </div>
-            User Agent
-          </ion-col>
-          <ion-col size="3">Platform</ion-col>
-          <ion-col size="3">Last Active</ion-col>
-        </ion-row>
-        <!-- loading -->
-        <ng-container *ngIf="loading$ | async; else loaded2">
-          <ion-row
-            *ngFor="let row of ['', '']"
-            class="ion-align-items-center grid-row-border"
-          >
-            <ion-col>
-              <ion-skeleton-text animated></ion-skeleton-text>
-            </ion-col>
-          </ion-row>
-        </ng-container>
-        <!-- loaded -->
-        <ng-template #loaded2>
-          <ion-row
-            *ngFor="let session of otherSessions; let i = index"
-            class="ion-align-items-center grid-row-border"
-            [class.highlighted]="selected[session.id]"
-          >
+      <div class="grid-fixed">
+        <ion-grid class="ion-padding">
+          <ion-row class="grid-headings">
             <ion-col size="6" class="inline">
-              <div class="checkbox" (click)="toggleChecked(session.id)">
+              <div class="checkbox" (click)="toggleAll(otherSessions || [])">
                 <ion-icon
-                  [name]="selected[session.id] ? 'checkbox-outline' : 'square-outline'"
+                  [name]="empty ? 'square-outline' : count === otherSessions?.length ? 'checkbox-outline' : 'remove-circle-outline'"
                 ></ion-icon>
               </div>
-              {{ session['user-agent'] }}
+              User Agent
             </ion-col>
-            <ion-col size="3" class="inline">
-              <span *ngIf="session.metadata.platforms | platformInfo as info">
-                <ion-icon size="small" [name]="info.icon"></ion-icon>
-                &nbsp; {{ info.name }}
-              </span>
-            </ion-col>
-            <ion-col size="3">
-              {{ session['last-active']| date: 'medium' }}
-            </ion-col>
+            <ion-col size="3">Platform</ion-col>
+            <ion-col size="3">Last Active</ion-col>
           </ion-row>
-          <p *ngIf="!otherSessions.length">
-            You are not logged in anywhere else
-          </p>
-        </ng-template>
-      </ion-grid>
-    </div>
+          <!-- loaded -->
+          <ng-container *ngIf="otherSessions; else loading2">
+            <ion-row
+              *ngFor="let session of otherSessions; let i = index"
+              class="ion-align-items-center grid-row-border"
+              [class.highlighted]="selected[session.id]"
+            >
+              <ion-col size="6" class="inline">
+                <div class="checkbox" (click)="toggleChecked(session.id)">
+                  <ion-icon
+                    [name]="selected[session.id] ? 'checkbox-outline' : 'square-outline'"
+                  ></ion-icon>
+                </div>
+                {{ session['user-agent'] }}
+              </ion-col>
+              <ion-col size="3" class="inline">
+                <span *ngIf="session.metadata.platforms | platformInfo as info">
+                  <ion-icon size="small" [name]="info.icon"></ion-icon>
+                  &nbsp; {{ info.name }}
+                </span>
+              </ion-col>
+              <ion-col size="3">
+                {{ session['last-active']| date: 'medium' }}
+              </ion-col>
+            </ion-row>
+            <p *ngIf="!otherSessions.length">
+              You are not logged in anywhere else
+            </p>
+          </ng-container>
+          <!-- loading -->
+          <ng-template #loading2>
+            <ion-row
+              *ngFor="let row of ['', '']"
+              class="ion-align-items-center grid-row-border"
+            >
+              <ion-col>
+                <ion-skeleton-text animated></ion-skeleton-text>
+              </ion-col>
+            </ion-row>
+          </ng-template>
+        </ion-grid>
+      </div>
+    </ng-container>
   </ion-item-group>
 </ion-content>

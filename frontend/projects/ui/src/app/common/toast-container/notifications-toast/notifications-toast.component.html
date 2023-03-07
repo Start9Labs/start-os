@@ -1,17 +1,8 @@
-<toast
-  *ngIf="visible$ | async as message"
-  header="StartOS"
-  [duration]="4000"
-  (dismiss)="onDismiss()"
+<ng-template
+  [tuiAlert]="!!(visible$ | async)"
+  [tuiAlertOptions]="{ label: 'StartOS' }"
+  (tuiAlertChange)="onDismiss()"
 >
   New notifications
-  <button toastButton icon="close" side="start" (click)="onDismiss()"></button>
-  <a
-    toastButton
-    side="end"
-    routerLink="/notifications"
-    [queryParams]="{ toast: true }"
-  >
-    View
-  </a>
-</toast>
+  <a routerLink="/notifications" [queryParams]="{ toast: true }">View</a>
+</ng-template>

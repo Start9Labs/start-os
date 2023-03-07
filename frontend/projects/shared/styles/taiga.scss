@@ -1,0 +1,49 @@
+@import '@taiga-ui/core/styles/taiga-ui-local';
+
+/* stylelint-disable order/order */
+[tuiWrapper][data-appearance='secondary-warning'] {
+  background: var(--tui-warning-bg);
+  color: var(--tui-warning-fill);
+
+  &[data-mode='onDark'] {
+    background: var(--tui-warning-bg-night);
+    color: var(--tui-warning-fill-night);
+
+    @include wrapper-hover {
+      background: var(--tui-warning-bg-night-hover);
+    }
+
+    @include wrapper-active {
+      background: var(--tui-warning-bg-night-hover);
+    }
+  }
+
+  @include wrapper-hover {
+    background: var(--tui-warning-bg-hover);
+  }
+
+  @include wrapper-active {
+    background: var(--tui-warning-bg-hover);
+  }
+}
+
+tui-dialog {
+  transform: translate3d(0, 0, 0);
+}
+
+tui-opt-group[data-label^='⚠️']:before {
+  color: var(--tui-warning-fill);
+}
+
+tui-hint[data-appearance='onDark'] {
+  background: white !important;
+  color: #222 !important;
+}
+
+[tuiLink] {
+  color: var(--tui-link) !important;
+
+  &:hover {
+    color: var(--tui-link-hover) !important;
+  }
+}

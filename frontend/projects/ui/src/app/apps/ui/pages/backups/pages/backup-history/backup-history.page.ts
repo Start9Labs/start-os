@@ -1,11 +1,12 @@
 import { Component } from '@angular/core'
 import { Pipe, PipeTransform } from '@angular/core'
+import { ErrorService, LoadingService } from '@start9labs/shared'
+import { TuiDialogService } from '@taiga-ui/core'
 import { BackupReport, BackupRun } from 'src/app/services/api/api.types'
-import { LoadingController, ModalController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ErrorToastService } from '@start9labs/shared'
 import { BehaviorSubject } from 'rxjs'
-import { BackupReportPage } from 'src/app/apps/ui/modals/backup-report/backup-report.page'
+import { BackupReportComponent } from '../../../../modals/backup-report/backup-report.component'
+import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 
 @Component({
   selector: 'backup-history',
@@ -18,9 +19,9 @@ export class BackupHistoryPage {
   loading$ = new BehaviorSubject(true)
 
   constructor(
-    private readonly modalCtrl: ModalController,
-    private readonly loadingCtrl: LoadingController,
-    private readonly errToast: ErrorToastService,
+    private readonly dialogs: TuiDialogService,
+    private readonly loader: LoadingService,
+    private readonly errorService: ErrorService,
     private readonly api: ApiService,
   ) {}
 
@@ -28,7 +29,7 @@ export class BackupHistoryPage {
     try {
       this.runs = await this.api.getBackupRuns({})
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
       this.loading$.next(false)
     }
@@ -42,15 +43,16 @@ export class BackupHistoryPage {
     return Object.keys(this.selected).length
   }
 
-  async presentModalReport(run: BackupRun) {
-    const modal = await this.modalCtrl.create({
-      component: BackupReportPage,
-      componentProps: {
-        report: run.report,
-        timestamp: run['completed-at'],
-      },
-    })
-    await modal.present()
+  presentModalReport(run: BackupRun) {
+    this.dialogs
+      .open(new PolymorpheusComponent(BackupReportComponent), {
+        label: 'Backup Report',
+        data: {
+          report: run.report,
+          timestamp: run['completed-at'],
+        },
+      })
+      .subscribe()
   }
 
   async toggleChecked(id: string) {
@@ -71,20 +73,16 @@ export class BackupHistoryPage {
 
   async deleteSelected(): Promise<void> {
     const ids = Object.keys(this.selected)
-
-    const loader = await this.loadingCtrl.create({
-      message: 'Deleting...',
-    })
-    await loader.present()
+    const loader = this.loader.open('Deleting...').subscribe()
 
     try {
       await this.api.deleteBackupRuns({ ids })
       this.selected = {}
       this.runs = this.runs.filter(r => !ids.includes(r.id))
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 }

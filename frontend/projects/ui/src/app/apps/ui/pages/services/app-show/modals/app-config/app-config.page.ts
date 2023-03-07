@@ -1,16 +1,15 @@
 import { Component, Inject } from '@angular/core'
 import { endWith, firstValueFrom, Subscription } from 'rxjs'
-import { tuiIsString } from '@taiga-ui/cdk'
-import {
-  TuiAlertService,
-  TuiDialogContext,
-  TuiDialogService,
-  TuiNotification,
-} from '@taiga-ui/core'
+import { TuiDialogContext, TuiDialogService } from '@taiga-ui/core'
 import { TUI_PROMPT, TuiPromptData } from '@taiga-ui/kit'
 import { POLYMORPHEUS_CONTEXT } from '@tinkoff/ng-polymorpheus'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { getErrorMessage, isEmptyObject } from '@start9labs/shared'
+import {
+  ErrorService,
+  getErrorMessage,
+  isEmptyObject,
+  LoadingService,
+} from '@start9labs/shared'
 import { InputSpec } from '@start9labs/start-sdk/lib/config/configTypes'
 import {
   DataModel,
@@ -22,7 +21,6 @@ import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { getAllPackages, getPackage } from 'src/app/util/get-package-data'
 import { Breakages } from 'src/app/services/api/api.types'
 import { InvalidService } from 'src/app/common/form/invalid.service'
-import { LoadingService } from 'src/app/common/loading/loading.service'
 import { DependentInfo } from 'src/app/types/dependent-info'
 import { ActionButton } from 'src/app/apps/ui/modals/form/form.page'
 
@@ -63,7 +61,7 @@ export class AppConfigPage {
     @Inject(POLYMORPHEUS_CONTEXT)
     private readonly context: TuiDialogContext<void, PackageConfigData>,
     private readonly dialogs: TuiDialogService,
-    private readonly alerts: TuiAlertService,
+    private readonly errorService: ErrorService,
     private readonly loader: LoadingService,
     private readonly embassyApi: ApiService,
     private readonly patchDb: PatchDB<DataModel>,
@@ -99,9 +97,7 @@ export class AppConfigPage {
         this.spec = spec
       }
     } catch (e: any) {
-      const message = getErrorMessage(e)
-
-      this.loadingError = tuiIsString(message) ? message : message.value
+      this.loadingError = getErrorMessage(e)
     } finally {
       this.loadingText = ''
     }
@@ -119,7 +115,7 @@ export class AppConfigPage {
         await this.configure(config, loader)
       }
     } catch (e: any) {
-      this.showError(e)
+      this.errorService.handleError(e)
     } finally {
       loader.unsubscribe()
     }
@@ -185,17 +181,5 @@ export class AppConfigPage {
     return firstValueFrom(
       this.dialogs.open<boolean>(TUI_PROMPT, { data }).pipe(endWith(false)),
     )
-  }
-
-  private showError(e: any) {
-    const message = getErrorMessage(e)
-
-    this.alerts
-      .open(tuiIsString(message) ? message : message.value, {
-        status: TuiNotification.Error,
-        autoClose: false,
-        label: 'Error',
-      })
-      .subscribe()
   }
 }

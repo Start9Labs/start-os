@@ -3,6 +3,7 @@ import { Url } from '@start9labs/shared'
 import { Manifest } from '@start9labs/marketplace'
 import { BackupJob } from '../api/api.types'
 import { customSmtp } from '@start9labs/start-sdk/lib/config/configConstants'
+import { DomainSpec } from 'src/app/apps/ui/pages/system/domains/domain.const'
 
 export interface DataModel {
   'server-info': ServerInfo
@@ -54,16 +55,12 @@ export interface ServerInfo {
   id: string
   version: string
   country: string
+  ui: StartOsUiInfo
+  network: NetworkInfo
   'last-backup': string | null
-  'lan-address': Url
-  'tor-address': Url
-  'ip-info': IpInfo
-  'last-wifi-region': string | null
-  'wifi-enabled': boolean
   'unread-notification-count': number
   'status-info': ServerStatusInfo
   'eos-version-compat': string
-  hostname: string
   pubkey: string
   'ca-fingerprint': string
   'system-start-time': string
@@ -71,8 +68,49 @@ export interface ServerInfo {
   smtp: typeof customSmtp.validator._TYPE
 }
 
+export type StartOsUiInfo = {
+  ipInfo: IpInfo
+  lanHostname: string
+  torHostname: string
+  domainInfo: DomainInfo | null
+}
+
+export type NetworkInfo = {
+  wifi: WiFiInfo
+  start9MeSubdomain: Omit<Domain, 'provider'> | null
+  domains: Domain[]
+  wanConfig: {
+    upnp: boolean
+    forwards: PortForward[]
+  }
+}
+
+export type DomainInfo = {
+  domain: string
+  subdomain: string | null
+}
+
+export type PortForward = {
+  assigned: number
+  override: number | null
+  target: number
+  error: string | null
+}
+
+export type WiFiInfo = {
+  enabled: boolean
+  lastRegion: string | null
+}
+
+export type Domain = {
+  value: string
+  provider: DomainSpec['provider']
+  createdAt: string
+}
+
 export interface IpInfo {
   [iface: string]: {
+    wireless: boolean
     ipv4: string | null
     ipv6: string | null
   }

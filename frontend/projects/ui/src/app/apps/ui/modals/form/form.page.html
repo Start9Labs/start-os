@@ -7,14 +7,26 @@
   <form-group [spec]="spec"></form-group>
   <footer tuiMode="onDark">
     <ng-content></ng-content>
-    <button
-      *ngFor="let button of buttons; let last = last"
-      tuiButton
-      [appearance]="last ? 'primary' : 'flat'"
-      [type]="last ? 'submit' : 'button'"
-      (click)="onClick(button.handler)"
-    >
-      {{ button.text }}
-    </button>
+    <ng-container *ngFor="let button of buttons; let last = last">
+      <button
+        *ngIf="button.handler else link"
+        tuiButton
+        [appearance]="last ? 'primary' : 'flat'"
+        [type]="last ? 'submit' : 'button'"
+        (click)="onClick(button.handler)"
+      >
+        {{ button.text }}
+      </button>
+      <ng-template #link>
+        <a
+          tuiButton
+          appearance="flat"
+          [routerLink]="button.link"
+          (click)="close()"
+        >
+          {{ button.text }}
+        </a>
+      </ng-template>
+    </ng-container>
   </footer>
 </form>

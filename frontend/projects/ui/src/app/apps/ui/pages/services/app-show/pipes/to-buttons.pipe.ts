@@ -1,7 +1,8 @@
 import { Pipe, PipeTransform } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { ModalController, NavController } from '@ionic/angular'
+import { NavController } from '@ionic/angular'
 import { MarkdownComponent } from '@start9labs/shared'
+import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 import {
   DataModel,
   PackageDataEntry,
@@ -14,6 +15,7 @@ import {
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { from, map, Observable } from 'rxjs'
 import { PatchDB } from 'patch-db-client'
+import { TuiDialogService } from '@taiga-ui/core'
 
 export interface Button {
   title: string
@@ -31,7 +33,7 @@ export class ToButtonsPipe implements PipeTransform {
   constructor(
     private readonly route: ActivatedRoute,
     private readonly navCtrl: NavController,
-    private readonly modalCtrl: ModalController,
+    private readonly dialogs: TuiDialogService,
     private readonly formDialog: FormDialogService,
     private readonly apiService: ApiService,
     private readonly patch: PatchDB<DataModel>,
@@ -110,19 +112,19 @@ export class ToButtonsPipe implements PipeTransform {
       .setDbValue<boolean>(['ack-instructions', id], true)
       .catch(e => console.error('Failed to mark instructions as seen', e))
 
-    const modal = await this.modalCtrl.create({
-      componentProps: {
-        title: 'Instructions',
-        content: from(
-          this.apiService.getStatic(
-            `/public/package-data/${id}/${version}/INSTRUCTIONS.md`,
+    this.dialogs
+      .open(new PolymorpheusComponent(MarkdownComponent), {
+        label: 'Instructions',
+        size: 'l',
+        data: {
+          content: from(
+            this.apiService.getStatic(
+              `/public/package-data/${id}/${version}/INSTRUCTIONS.md`,
+            ),
           ),
-        ),
-      },
-      component: MarkdownComponent,
-    })
-
-    await modal.present()
+        },
+      })
+      .subscribe()
   }
 
   private viewInMarketplaceButton(pkg: PackageDataEntry): Button {

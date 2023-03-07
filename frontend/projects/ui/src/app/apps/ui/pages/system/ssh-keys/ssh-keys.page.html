@@ -8,20 +8,15 @@
 </ion-header>
 
 <ion-content class="ion-padding-top with-widgets">
-  <ion-item-group>
-    <!-- always -->
-    <ion-item>
-      <ion-label>
-        <h2>
-          Adding SSH keys to StartOS is useful for command line access, as well
-          as for debugging purposes.
-          <a [href]="docsUrl" target="_blank" rel="noreferrer">
-            View instructions
-          </a>
-        </h2>
-      </ion-label>
-    </ion-item>
+  <div class="ion-padding-start ion-padding-end">
+    <tui-notification>
+      Adding domains to StartOS enables you to access your server and service
+      interfaces over clearnet.
+      <a [href]="docsUrl" target="_blank" rel="noreferrer">View instructions</a>
+    </tui-notification>
+  </div>
 
+  <ion-item-group>
     <ion-item-divider>
       Saved Keys
       <ion-button
@@ -31,7 +26,7 @@
         (click)="presentModalAdd()"
       >
         <ion-icon slot="start" name="add"></ion-icon>
-        Add New Key
+        Add Key
       </ion-button>
     </ion-item-divider>
 

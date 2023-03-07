@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
 import { UntypedFormGroup } from '@angular/forms'
-import { ErrorService } from '@start9labs/shared'
+import { ErrorService, LoadingService } from '@start9labs/shared'
 import { InputSpec } from '@start9labs/start-sdk/lib/config/configTypes'
 import { customSmtp } from '@start9labs/start-sdk/lib/config/configConstants'
 import { TuiDialogService } from '@taiga-ui/core'
@@ -9,7 +9,6 @@ import { switchMap } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { FormService } from 'src/app/services/form.service'
-import { LoadingService } from 'src/app/common/loading/loading.service'
 import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
 
 @Component({

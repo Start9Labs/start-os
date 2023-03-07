@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
-import { Observable, Subject, merge } from 'rxjs'
+import { Observable, Subject, merge, debounceTime } from 'rxjs'
 
 import { RefreshAlertService } from './refresh-alert.service'
 
@@ -11,7 +11,7 @@ import { RefreshAlertService } from './refresh-alert.service'
 export class RefreshAlertComponent {
   private readonly dismiss$ = new Subject<boolean>()
 
-  readonly show$ = merge(this.dismiss$, this.refresh$)
+  readonly show$ = merge(this.dismiss$, this.refresh$).pipe(debounceTime(0))
 
   constructor(
     @Inject(RefreshAlertService) private readonly refresh$: Observable<boolean>,

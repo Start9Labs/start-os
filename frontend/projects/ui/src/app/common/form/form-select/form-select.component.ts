@@ -21,7 +21,7 @@ export class FormSelectComponent extends Control<ValueSpecSelect, string> {
   }
 
   get selected(): string | null {
-    return this.value && this.spec.values[this.value]
+    return (this.value && this.spec.values[this.value]) || null
   }
 
   set selected(value: string | null) {

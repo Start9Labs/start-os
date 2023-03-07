@@ -4,9 +4,11 @@ import { InputSpec } from '@start9labs/start-sdk/lib/config/configTypes'
 import {
   DataModel,
   DependencyError,
+  DomainInfo,
 } from 'src/app/services/patch-db/data-model'
 import { StartOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
 import { customSmtp } from '@start9labs/start-sdk/lib/config/configConstants'
+import { DomainSpec } from 'src/app/apps/ui/pages/system/domains/domain.const'
 
 export module RR {
   // DB
@@ -54,6 +56,9 @@ export module RR {
 
   export type UpdateServerReq = { 'marketplace-url': string } // server.update
   export type UpdateServerRes = 'updating' | 'no-updates'
+
+  export type SetServerClearnetAddressReq = { domainInfo: DomainInfo | null } // server.set-clearnet
+  export type SetServerClearnetAddressRes = null
 
   export type RestartServerReq = {} // server.restart
   export type RestartServerRes = null
@@ -104,6 +109,25 @@ export module RR {
 
   export type DeleteAllNotificationsReq = { before: number } // notification.delete-before
   export type DeleteAllNotificationsRes = null
+
+  // domains
+
+  export type ClaimStart9MeReq = {} // net.domain.me.claim
+  export type ClaimStart9MeRes = null
+
+  export type DeleteStart9MeReq = {} // net.domain.me.delete
+  export type DeleteStart9MeRes = null
+
+  export type AddDomainReq = DomainSpec // net.domain.add
+  export type AddDomainRes = null
+
+  export type DeleteDomainReq = { hostname: string } // net.domain.delete
+  export type DeleteDomainRes = null
+
+  // port forwards
+
+  export type OverridePortReq = { target: number; port: number } // net.port-forwards.override
+  export type OverridePortRes = null
 
   // wifi
 

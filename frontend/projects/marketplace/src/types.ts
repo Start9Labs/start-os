@@ -48,7 +48,7 @@ export interface Manifest {
     long: string
   }
   assets: {
-    icon: string // ie. icon.png
+    icon: Url // filename
   }
   replaces?: string[]
   'release-notes': string

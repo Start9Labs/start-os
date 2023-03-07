@@ -1,12 +1,22 @@
 import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
-import { IonicModule } from '@ionic/angular'
+import { MarkdownPipeModule, SafeLinksModule } from '@start9labs/shared'
+import { TuiButtonModule, TuiScrollbarModule } from '@taiga-ui/core'
+import { TuiAutoFocusModule } from '@taiga-ui/cdk'
+import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
 import { OSUpdatePage } from './os-update.page'
-import { MarkdownPipeModule } from '@start9labs/shared'
 
 @NgModule({
   declarations: [OSUpdatePage],
-  imports: [CommonModule, IonicModule, MarkdownPipeModule],
+  imports: [
+    CommonModule,
+    MarkdownPipeModule,
+    TuiButtonModule,
+    TuiAutoFocusModule,
+    TuiScrollbarModule,
+    SafeLinksModule,
+    NgDompurifyModule,
+  ],
   exports: [OSUpdatePage],
 })
 export class OSUpdatePageModule {}

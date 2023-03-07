@@ -4,7 +4,10 @@
 </ion-item-divider>
 <ion-item lines="none" color="transparent">
   <ion-label>
-    <div [innerHTML]="pkg.manifest['release-notes'] | markdown"></div>
+    <div
+      safeLinks
+      [innerHTML]="pkg.manifest['release-notes'] | markdown | dompurify"
+    ></div>
   </ion-label>
 </ion-item>
 <ion-button routerLink="notes" fill="clear" strong>

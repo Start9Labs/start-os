@@ -1,8 +1,11 @@
 import { Component } from '@angular/core'
-import { AlertController, IonicSlides, LoadingController } from '@ionic/angular'
+import { IonicSlides } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/api.service'
 import SwiperCore, { Swiper } from 'swiper'
-import { DiskInfo } from '@start9labs/shared'
+import { DiskInfo, LoadingService } from '@start9labs/shared'
+import { TuiDialogService } from '@taiga-ui/core'
+import { TUI_PROMPT } from '@taiga-ui/kit'
+import { filter } from 'rxjs'
 
 SwiperCore.use([IonicSlides])
 
@@ -18,9 +21,9 @@ export class HomePage {
   error = ''
 
   constructor(
-    private readonly loadingCtrl: LoadingController,
+    private readonly loader: LoadingService,
     private readonly api: ApiService,
-    private readonly alertCtrl: AlertController,
+    private readonly dialogs: TuiDialogService,
   ) {}
 
   async ngOnInit() {
@@ -55,10 +58,7 @@ export class HomePage {
   }
 
   private async install(overwrite: boolean) {
-    const loader = await this.loadingCtrl.create({
-      message: 'Installing StartOS...',
-    })
-    await loader.present()
+    const loader = this.loader.open('Installing StartOS...').subscribe()
 
     try {
       await this.api.install({
@@ -69,56 +69,52 @@ export class HomePage {
     } catch (e: any) {
       this.error = e.message
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
-  private async presentAlertDanger() {
+  private presentAlertDanger() {
     const { vendor, model } = this.selectedDisk!
 
-    const alert = await this.alertCtrl.create({
-      header: 'Warning',
-      message: `This action will COMPLETELY erase the disk ${
-        vendor || 'Unknown Vendor'
-      } - ${model || 'Unknown Model'} and install StartOS in its place`,
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
+    this.dialogs
+      .open(TUI_PROMPT, {
+        label: 'Warning',
+        size: 's',
+        data: {
+          content: `This action will COMPLETELY erase the disk ${
+            vendor || 'Unknown Vendor'
+          } - ${model || 'Unknown Model'} and install StartOS in its place`,
+          yes: 'Continue',
+          no: 'Cancel',
         },
-        {
-          text: 'Continue',
-          handler: () => {
-            this.install(true)
-          },
-        },
-      ],
-      cssClass: 'alert-danger-message',
-    })
-    await alert.present()
+      })
+      .pipe(filter(Boolean))
+      .subscribe(() => {
+        this.install(true)
+      })
   }
 
   private async presentAlertReboot() {
-    const alert = await this.alertCtrl.create({
-      header: 'Install Success',
-      message:
+    this.dialogs
+      .open(
         'Remove the USB stick and reboot your device to begin using your new Start9 server',
-      buttons: [
         {
-          text: 'Reboot',
-          handler: () => {
-            this.reboot()
-          },
+          label: 'Install Success',
+          closeable: false,
+          dismissible: false,
+          size: 's',
+          data: { button: 'Reboot' },
         },
-      ],
-      cssClass: 'alert-success-message',
-    })
-    await alert.present()
+      )
+      .subscribe({
+        complete: () => {
+          this.reboot()
+        },
+      })
   }
 
   private async reboot() {
-    const loader = await this.loadingCtrl.create()
-    await loader.present()
+    const loader = this.loader.open('').subscribe()
 
     try {
       await this.api.reboot()
@@ -126,16 +122,16 @@ export class HomePage {
     } catch (e: any) {
       this.error = e.message
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
-  private async presentAlertComplete() {
-    const alert = await this.alertCtrl.create({
-      header: 'Rebooting',
-      message: 'Please wait for StartOS to restart, then refresh this page',
-      buttons: ['OK'],
-    })
-    await alert.present()
+  private presentAlertComplete() {
+    this.dialogs
+      .open('Please wait for StartOS to restart, then refresh this page', {
+        label: 'Rebooting',
+        size: 's',
+      })
+      .subscribe()
   }
 }
