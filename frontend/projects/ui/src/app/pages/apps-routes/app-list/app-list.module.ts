@@ -11,7 +11,6 @@ import {
 } from '@start9labs/shared'
 import { BadgeMenuComponentModule } from 'src/app/components/badge-menu-button/badge-menu.component.module'
 import { StatusComponentModule } from 'src/app/components/status/status.component.module'
-import { LaunchablePipeModule } from 'src/app/pipes/launchable/launchable.module'
 import { UiPipeModule } from 'src/app/pipes/ui/ui.module'
 import { AppListIconComponent } from './app-list-icon/app-list-icon.component'
 import { AppListPkgComponent } from './app-list-pkg/app-list-pkg.component'
@@ -31,7 +30,6 @@ const routes: Routes = [
     StatusComponentModule,
     EmverPipesModule,
     TextSpinnerComponentModule,
-    LaunchablePipeModule,
     UiPipeModule,
     IonicModule,
     RouterModule.forChild(routes),

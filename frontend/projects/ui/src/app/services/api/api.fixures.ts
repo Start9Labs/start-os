@@ -1,7 +1,5 @@
 import {
   DependencyErrorType,
-  DockerIoFormat,
-  Manifest,
   PackageDataEntry,
   PackageMainStatus,
   PackageState,
@@ -9,7 +7,11 @@ import {
 } from 'src/app/services/patch-db/data-model'
 import { Metric, RR, NotificationLevel, ServerNotifications } from './api.types'
 import { BTC_ICON, LND_ICON, PROXY_ICON } from './api-icons'
-import { DependencyMetadata, MarketplacePkg } from '@start9labs/marketplace'
+import {
+  DependencyMetadata,
+  MarketplacePkg,
+  Manifest,
+} from '@start9labs/marketplace'
 import { Log } from '@start9labs/shared'
 
 export module Mock {
@@ -17,6 +19,7 @@ export module Mock {
     'backup-progress': null,
     'update-progress': null,
     updated: true,
+    'shutting-down': false,
   }
   export const MarketplaceEos: RR.GetMarketplaceEosRes = {
     version: '0.3.4.2',
@@ -49,16 +52,11 @@ export module Mock {
       short: 'A Bitcoin full node by Bitcoin Core.',
       long: 'Bitcoin is a decentralized consensus protocol and settlement network.',
     },
-    replaces: ['banks', 'governments'],
-    'release-notes': 'Taproot, Schnorr, and more.',
     assets: {
       icon: 'icon.png',
-      license: 'LICENSE.md',
-      instructions: 'INSTRUCTIONS.md',
-      docker_images: 'image.tar',
-      assets: './assets',
-      scripts: './scripts',
     },
+    replaces: ['banks', 'governments'],
+    'release-notes': 'Taproot, Schnorr, and more.',
     license: 'MIT',
     'wrapper-repo': 'https://github.com/start9labs/bitcoind-wrapper',
     'upstream-repo': 'https://github.com/bitcoin/bitcoin',
@@ -73,299 +71,8 @@ export module Mock {
       start: 'Starting Bitcoin is good for your health.',
       stop: null,
     },
-    main: {
-      type: 'docker',
-      image: '',
-      system: true,
-      entrypoint: '',
-      args: [],
-      mounts: {},
-      'io-format': DockerIoFormat.Yaml,
-      inject: false,
-      'shm-size': '',
-      'sigterm-timeout': '1ms',
-    },
-    config: {
-      get: null,
-      set: null,
-    },
-    volumes: {},
-    'min-os-version': '0.2.12',
-    interfaces: {
-      ui: {
-        name: 'Node Visualizer',
-        description:
-          'Web application for viewing information about your node and the Bitcoin network.',
-        ui: true,
-        'tor-config': {
-          'port-mapping': {},
-        },
-        'lan-config': {},
-        protocols: [],
-      },
-      rpc: {
-        name: 'RPC',
-        description: 'Used by wallets to interact with your Bitcoin Core node.',
-        ui: false,
-        'tor-config': {
-          'port-mapping': {},
-        },
-        'lan-config': {},
-        protocols: [],
-      },
-      p2p: {
-        name: 'P2P',
-        description:
-          'Used by other Bitcoin nodes to communicate and interact with your node.',
-        ui: false,
-        'tor-config': {
-          'port-mapping': {},
-        },
-        'lan-config': {},
-        protocols: [],
-      },
-    },
-    backup: {
-      create: {
-        type: 'docker',
-        image: '',
-        system: true,
-        entrypoint: '',
-        args: [],
-        mounts: {},
-        'io-format': DockerIoFormat.Yaml,
-        inject: false,
-        'shm-size': '',
-        'sigterm-timeout': null,
-      },
-      restore: {
-        type: 'docker',
-        image: '',
-        system: true,
-        entrypoint: '',
-        args: [],
-        mounts: {},
-        'io-format': DockerIoFormat.Yaml,
-        inject: false,
-        'shm-size': '',
-        'sigterm-timeout': null,
-      },
-    },
-    migrations: null,
-    actions: {
-      resync: {
-        name: 'Resync Blockchain',
-        description: 'Use this to resync the Bitcoin blockchain from genesis',
-        warning: 'This will take a couple of days.',
-        'allowed-statuses': [
-          PackageMainStatus.Running,
-          PackageMainStatus.Stopped,
-        ],
-        implementation: {
-          type: 'docker',
-          image: '',
-          system: true,
-          entrypoint: '',
-          args: [],
-          mounts: {},
-          'io-format': DockerIoFormat.Yaml,
-          inject: false,
-          'shm-size': '',
-          'sigterm-timeout': null,
-        },
-        'input-spec': {
-          reason: {
-            type: 'string',
-            name: 'Re-sync Reason',
-            description: 'Your reason for re-syncing. Why are you doing this?',
-            placeholder: null,
-            nullable: false,
-            masked: false,
-            pattern: '^[a-zA-Z]+$',
-            'pattern-description': 'Must contain only letters.',
-            textarea: false,
-            warning: null,
-            default: null,
-          },
-          name: {
-            type: 'string',
-            name: 'Your Name',
-            description: 'Tell the class your name.',
-            nullable: true,
-            masked: false,
-            warning: 'You may loose all your money by providing your name.',
-            placeholder: null,
-            pattern: null,
-            'pattern-description': null,
-            textarea: false,
-            default: null,
-          },
-          notifications: {
-            name: 'Notification Preferences',
-            type: 'list',
-            subtype: 'enum',
-            description: 'how you want to be notified',
-            warning: null,
-            range: '[1,3]',
-            default: ['email'],
-            spec: {
-              'value-names': {
-                email: 'Email',
-                text: 'Text',
-                call: 'Call',
-                push: 'Push',
-                webhook: 'Webhook',
-              },
-              values: ['email', 'text', 'call', 'push', 'webhook'],
-            },
-          },
-          'days-ago': {
-            type: 'number',
-            name: 'Days Ago',
-            description: 'Number of days to re-sync.',
-            nullable: false,
-            default: 100,
-            range: '[0, 9999]',
-            integral: true,
-            units: null,
-            placeholder: null,
-            warning: null,
-          },
-          'top-speed': {
-            type: 'number',
-            name: 'Top Speed',
-            description: 'The fastest you can possibly run.',
-            nullable: false,
-            range: '[-1000, 1000]',
-            integral: false,
-            units: 'm/s',
-            placeholder: null,
-            warning: null,
-            default: null,
-          },
-          testnet: {
-            name: 'Testnet',
-            type: 'boolean',
-            description:
-              '<ul><li>determines whether your node is running on testnet or mainnet</li></ul><script src="fake"></script>',
-            warning: 'Chain will have to resync!',
-            default: false,
-          },
-          randomEnum: {
-            name: 'Random Enum',
-            type: 'enum',
-            'value-names': {
-              null: 'Null',
-              good: 'Good',
-              bad: 'Bad',
-              ugly: 'Ugly',
-            },
-            default: 'null',
-            description: 'This is not even real.',
-            warning: 'Be careful changing this!',
-            values: ['null', 'good', 'bad', 'ugly'],
-          },
-          'emergency-contact': {
-            name: 'Emergency Contact',
-            type: 'object',
-            description: 'The person to contact in case of emergency.',
-            warning: null,
-            spec: {
-              name: {
-                type: 'string',
-                name: 'Name',
-                description: null,
-                nullable: false,
-                masked: false,
-                pattern: '^[a-zA-Z]+$',
-                'pattern-description': 'Must contain only letters.',
-                placeholder: null,
-                textarea: false,
-                warning: null,
-                default: null,
-              },
-              email: {
-                type: 'string',
-                name: 'Email',
-                description: null,
-                nullable: false,
-                masked: false,
-                placeholder: null,
-                pattern: null,
-                'pattern-description': null,
-                textarea: false,
-                warning: null,
-                default: null,
-              },
-            },
-          },
-          ips: {
-            name: 'Whitelist IPs',
-            type: 'list',
-            subtype: 'string',
-            description:
-              'external ip addresses that are authorized to access your Bitcoin node',
-            warning:
-              'Any IP you allow here will have RPC access to your Bitcoin node.',
-            range: '[1,10]',
-            default: ['192.168.1.1'],
-            spec: {
-              placeholder: null,
-              pattern: '^[0-9]{1,3}([,.][0-9]{1,3})?$',
-              'pattern-description': 'Must be a valid IP address',
-              masked: false,
-            },
-          },
-          bitcoinNode: {
-            type: 'union',
-            default: 'internal',
-            tag: {
-              id: 'type',
-              'variant-names': {
-                internal: 'Internal',
-                external: 'External',
-              },
-              name: 'Bitcoin Node Settings',
-              description: 'The node settings',
-              warning: 'Careful changing this',
-            },
-            variants: {
-              internal: {
-                'friendly-name': {
-                  name: 'Friendly Name',
-                  type: 'string',
-                  description: 'the lan address',
-                  nullable: true,
-                  masked: false,
-                  placeholder: null,
-                  pattern: null,
-                  'pattern-description': null,
-                  textarea: false,
-                  warning: null,
-                  default: null,
-                },
-              },
-              external: {
-                'public-domain': {
-                  name: 'Public Domain',
-                  type: 'string',
-                  description: 'the public address of the node',
-                  nullable: false,
-                  default: 'bitcoinnode.com',
-                  pattern: '.*',
-                  'pattern-description': 'anything',
-                  masked: false,
-                  placeholder: null,
-                  textarea: false,
-                  warning: null,
-                },
-              },
-            },
-          },
-        },
-      },
-    },
     dependencies: {},
+    'os-version': '0.4.0',
   }
 
   export const MockManifestLnd: Manifest = {
@@ -376,15 +83,10 @@ export module Mock {
       short: 'A bolt spec compliant client.',
       long: 'More info about LND. More info about LND. More info about LND.',
     },
-    'release-notes': 'Dual funded channels!',
     assets: {
       icon: 'icon.png',
-      license: 'LICENSE.md',
-      instructions: 'INSTRUCTIONS.md',
-      docker_images: 'image.tar',
-      assets: './assets',
-      scripts: './scripts',
     },
+    'release-notes': 'Dual funded channels!',
     license: 'MIT',
     'wrapper-repo': 'https://github.com/start9labs/lnd-wrapper',
     'upstream-repo': 'https://github.com/lightningnetwork/lnd',
@@ -399,104 +101,6 @@ export module Mock {
       start: 'Starting LND is good for your health.',
       stop: null,
     },
-    main: {
-      type: 'docker',
-      image: '',
-      system: true,
-      entrypoint: '',
-      args: [],
-      mounts: {},
-      'io-format': DockerIoFormat.Yaml,
-      inject: false,
-      'shm-size': '',
-      'sigterm-timeout': '10000µs',
-    },
-    config: {
-      get: null,
-      set: null,
-    },
-    volumes: {},
-    'min-os-version': '0.2.12',
-    interfaces: {
-      rpc: {
-        name: 'RPC interface',
-        description: 'Good for connecting to your node at a distance.',
-        ui: true,
-        'tor-config': {
-          'port-mapping': {},
-        },
-        'lan-config': {
-          '44': {
-            ssl: true,
-            mapping: 33,
-          },
-        },
-        protocols: [],
-      },
-      grpc: {
-        name: 'GRPC',
-        description: 'Certain wallet use grpc.',
-        ui: false,
-        'tor-config': {
-          'port-mapping': {},
-        },
-        'lan-config': {
-          '66': {
-            ssl: true,
-            mapping: 55,
-          },
-        },
-        protocols: [],
-      },
-    },
-    backup: {
-      create: {
-        type: 'docker',
-        image: '',
-        system: true,
-        entrypoint: '',
-        args: [],
-        mounts: {},
-        'io-format': DockerIoFormat.Yaml,
-        inject: false,
-        'shm-size': '',
-        'sigterm-timeout': null,
-      },
-      restore: {
-        type: 'docker',
-        image: '',
-        system: true,
-        entrypoint: '',
-        args: [],
-        mounts: {},
-        'io-format': DockerIoFormat.Yaml,
-        inject: false,
-        'shm-size': '',
-        'sigterm-timeout': null,
-      },
-    },
-    migrations: null,
-    actions: {
-      resync: {
-        name: 'Resync Network Graph',
-        description: 'Your node will resync its network graph.',
-        warning: 'This will take a couple hours.',
-        'allowed-statuses': [PackageMainStatus.Running],
-        implementation: {
-          type: 'docker',
-          image: '',
-          system: true,
-          entrypoint: '',
-          args: [],
-          mounts: {},
-          'io-format': DockerIoFormat.Yaml,
-          inject: false,
-          'shm-size': '',
-          'sigterm-timeout': null,
-        },
-        'input-spec': null,
-      },
-    },
     dependencies: {
       bitcoind: {
         version: '=0.21.0',
@@ -505,7 +109,6 @@ export module Mock {
           type: 'opt-out',
           how: 'You can use an external node from your server if you prefer.',
         },
-        config: null,
       },
       'btc-rpc-proxy': {
         version: '>=0.2.2',
@@ -515,9 +118,9 @@ export module Mock {
           type: 'opt-in',
           how: `To use Proxy's user management system, go to LND config and select Bitcoin Proxy under Bitcoin config.`,
         },
-        config: null,
       },
     },
+    'os-version': '0.4.0',
   }
 
   export const MockManifestBitcoinProxy: Manifest = {
@@ -529,15 +132,10 @@ export module Mock {
       short: 'A super charger for your Bitcoin node.',
       long: 'More info about Bitcoin Proxy. More info about Bitcoin Proxy. More info about Bitcoin Proxy.',
     },
-    'release-notes': 'Even better support for Bitcoin and wallets!',
     assets: {
       icon: 'icon.png',
-      license: 'LICENSE.md',
-      instructions: 'INSTRUCTIONS.md',
-      docker_images: 'image.tar',
-      assets: './assets',
-      scripts: './scripts',
     },
+    'release-notes': 'Even better support for Bitcoin and wallets!',
     license: 'MIT',
     'wrapper-repo': 'https://github.com/start9labs/btc-rpc-proxy-wrapper',
     'upstream-repo': 'https://github.com/Kixunil/btc-rpc-proxy',
@@ -551,66 +149,6 @@ export module Mock {
       start: null,
       stop: null,
     },
-    main: {
-      type: 'docker',
-      image: '',
-      system: true,
-      entrypoint: '',
-      args: [''],
-      mounts: {},
-      'io-format': DockerIoFormat.Yaml,
-      inject: false,
-      'shm-size': '',
-      'sigterm-timeout': '1m',
-    },
-    config: { get: {} as any, set: {} as any },
-    volumes: {},
-    'min-os-version': '0.2.12',
-    interfaces: {
-      rpc: {
-        name: 'RPC interface',
-        description: 'Good for connecting to your node at a distance.',
-        ui: false,
-        'tor-config': {
-          'port-mapping': {},
-        },
-        'lan-config': {
-          44: {
-            ssl: true,
-            mapping: 33,
-          },
-        },
-        protocols: [],
-      },
-    },
-    backup: {
-      create: {
-        type: 'docker',
-        image: '',
-        system: true,
-        entrypoint: '',
-        args: [''],
-        mounts: {},
-        'io-format': DockerIoFormat.Yaml,
-        inject: false,
-        'shm-size': '',
-        'sigterm-timeout': null,
-      },
-      restore: {
-        type: 'docker',
-        image: '',
-        system: true,
-        entrypoint: '',
-        args: [''],
-        mounts: {},
-        'io-format': DockerIoFormat.Yaml,
-        inject: false,
-        'shm-size': '',
-        'sigterm-timeout': null,
-      },
-    },
-    migrations: null,
-    actions: {},
     dependencies: {
       bitcoind: {
         version: '>=0.20.0',
@@ -618,34 +156,9 @@ export module Mock {
         requirement: {
           type: 'required',
         },
-        config: {
-          check: {
-            type: 'docker',
-            image: 'alpine',
-            system: true,
-            entrypoint: 'true',
-            args: [],
-            mounts: {},
-            'io-format': DockerIoFormat.Cbor,
-            inject: false,
-            'shm-size': '10m',
-            'sigterm-timeout': null,
-          },
-          'auto-configure': {
-            type: 'docker',
-            image: 'alpine',
-            system: true,
-            entrypoint: 'cat',
-            args: [],
-            mounts: {},
-            'io-format': DockerIoFormat.Cbor,
-            inject: false,
-            'shm-size': '10m',
-            'sigterm-timeout': null,
-          },
-        },
       },
     },
+    'os-version': '0.4.0',
   }
 
   export const BitcoinDep: DependencyMetadata = {
@@ -1992,14 +1505,9 @@ export module Mock {
 
   export const bitcoind: PackageDataEntry = {
     state: PackageState.Installed,
-    'static-files': {
-      license: '/public/package-data/bitcoind/0.20.0/LICENSE.md',
-      icon: '/assets/img/service-icons/bitcoind.svg',
-      instructions: '/public/package-data/bitcoind/0.20.0/INSTRUCTIONS.md',
-    },
     manifest: MockManifestBitcoind,
+    icon: '/assets/img/service-icons/bitcoind.png',
     installed: {
-      manifest: MockManifestBitcoind,
       'last-backup': null,
       status: {
         configured: true,
@@ -2010,35 +1518,62 @@ export module Mock {
         },
         'dependency-errors': {},
       },
-      'interface-addresses': {
-        ui: {
-          'tor-address': 'bitcoind-ui-address.onion',
-          'lan-address': 'bitcoind-ui-address.local',
-        },
+      'address-info': {
         rpc: {
-          'tor-address': 'bitcoind-rpc-address.onion',
-          'lan-address': 'bitcoind-rpc-address.local',
+          name: 'Bitcoin RPC',
+          description: `Bitcoin's RPC interface`,
+          addresses: [
+            'http://bitcoind-rpc-address.onion',
+            'https://bitcoind-rpc-address.local',
+            'https://192.168.1.1:8332',
+          ],
+          ui: true,
         },
         p2p: {
-          'tor-address': 'bitcoind-p2p-address.onion',
-          'lan-address': 'bitcoind-p2p-address.local',
+          name: 'Bitcoin P2P',
+          description: `Bitcoin's P2P interface`,
+          addresses: [
+            'bitcoin://bitcoind-rpc-address.onion',
+            'bitcoin://192.168.1.1:8333',
+          ],
+          ui: true,
         },
       },
       'current-dependencies': {},
       'dependency-info': {},
       'marketplace-url': 'https://registry.start9.com/',
       'developer-key': 'developer-key',
+      'has-config': true,
     },
-    'install-progress': undefined,
+    actions: {
+      resync: {
+        name: 'Resync Blockchain',
+        description: 'Use this to resync the Bitcoin blockchain from genesis',
+        warning: 'This will take a couple of days.',
+        disabled: null,
+        group: null,
+        'input-spec': {
+          reason: {
+            type: 'string',
+            name: 'Re-sync Reason',
+            description: 'Your reason for re-syncing. Why are you doing this?',
+            placeholder: null,
+            nullable: false,
+            masked: false,
+            pattern: '^[a-zA-Z]+$',
+            'pattern-description': 'Must contain only letters.',
+            textarea: false,
+            warning: null,
+            default: null,
+          },
+        },
+      },
+    },
   }
 
   export const bitcoinProxy: PackageDataEntry = {
     state: PackageState.Installed,
-    'static-files': {
-      license: '/public/package-data/btc-rpc-proxy/0.20.0/LICENSE.md',
-      icon: '/assets/img/service-icons/btc-rpc-proxy.png',
-      instructions: '/public/package-data/btc-rpc-proxy/0.20.0/INSTRUCTIONS.md',
-    },
+    icon: '/assets/img/service-icons/btc-rpc-proxy.png',
     manifest: MockManifestBitcoinProxy,
     installed: {
       'last-backup': null,
@@ -2049,11 +1584,15 @@ export module Mock {
         },
         'dependency-errors': {},
       },
-      manifest: MockManifestBitcoinProxy,
-      'interface-addresses': {
+      'address-info': {
         rpc: {
-          'tor-address': 'bitcoinproxy-rpc-address.onion',
-          'lan-address': 'bitcoinproxy-rpc-address.local',
+          name: 'Proxy RPC addresses',
+          description: `Use these addresses to access Proxy's RPC interface`,
+          addresses: [
+            'http://bitcoinproxy-rpc-address.onion',
+            'https://bitcoinproxy-rpc-address.local',
+          ],
+          ui: false,
         },
       },
       'current-dependencies': {
@@ -2063,23 +1602,20 @@ export module Mock {
       },
       'dependency-info': {
         bitcoind: {
-          manifest: Mock.MockManifestBitcoind,
+          title: 'Bitcoin Core',
           icon: 'assets/img/service-icons/bitcoind.svg',
         },
       },
       'marketplace-url': 'https://registry.start9.com/',
       'developer-key': 'developer-key',
+      'has-config': true,
     },
-    'install-progress': undefined,
+    actions: {},
   }
 
   export const lnd: PackageDataEntry = {
     state: PackageState.Installed,
-    'static-files': {
-      license: '/public/package-data/lnd/0.11.0/LICENSE.md',
-      icon: '/assets/img/service-icons/lnd.png',
-      instructions: '/public/package-data/lnd/0.11.0/INSTRUCTIONS.md',
-    },
+    icon: '/assets/img/service-icons/lnd.png',
     manifest: MockManifestLnd,
     installed: {
       'last-backup': null,
@@ -2094,15 +1630,26 @@ export module Mock {
           },
         },
       },
-      manifest: MockManifestLnd,
-      'interface-addresses': {
-        rpc: {
-          'tor-address': 'lnd-rpc-address.onion',
-          'lan-address': 'lnd-rpc-address.local',
+      'address-info': {
+        ui: {
+          name: 'Web UI',
+          description: 'The browser web interface for LND',
+          addresses: [
+            'http://lnd-ui-address.onion',
+            'https://lnd-ui-address.local',
+            'https://192.168.1.1:3449',
+          ],
+          ui: true,
         },
         grpc: {
-          'tor-address': 'lnd-grpc-address.onion',
-          'lan-address': 'lnd-grpc-address.local',
+          name: 'gRPC',
+          description: 'For connecting to LND gRPC interface',
+          addresses: [
+            'http://lnd-grpc-address.onion',
+            'https://lnd-grpc-address.local',
+            'https://192.168.1.1:3449',
+          ],
+          ui: true,
         },
       },
       'current-dependencies': {
@@ -2115,23 +1662,24 @@ export module Mock {
       },
       'dependency-info': {
         bitcoind: {
-          manifest: Mock.MockManifestBitcoind,
+          title: 'Bitcoin Core',
           icon: 'assets/img/service-icons/bitcoind.svg',
         },
         'btc-rpc-proxy': {
-          manifest: Mock.MockManifestBitcoinProxy,
+          title: 'Bitcoin Proxy',
           icon: 'assets/img/service-icons/btc-rpc-proxy.png',
         },
       },
       'marketplace-url': 'https://registry.start9.com/',
       'developer-key': 'developer-key',
+      'has-config': true,
     },
-    'install-progress': undefined,
+    actions: {},
   }
 
   export const LocalPkgs: { [key: string]: PackageDataEntry } = {
-    bitcoind: bitcoind,
+    bitcoind,
     'btc-rpc-proxy': bitcoinProxy,
-    lnd: lnd,
+    lnd,
   }
 }
