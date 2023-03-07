@@ -180,7 +180,7 @@ export function getBasicInfoSpec(devData: DevProjectData): ConfigSpec {
     },
     'marketing-site': {
       type: 'string',
-      name: 'Marketing Site',
+      name: 'Website',
       description: 'URL to the marketing site / channel for the project',
       placeholder: 'e.g. start9.com',
       pattern: null,

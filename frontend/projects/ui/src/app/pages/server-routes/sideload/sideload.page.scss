@@ -2,11 +2,6 @@
   vertical-align: initial;
 }
 
-.area {
-  flex-direction: column;
-  justify-content: center;
-}
-
 .drop-area {
   display: flex;
   background-color: rgba(24, 24, 24, 0.5);
@@ -18,7 +13,7 @@
   border-color: var(--ion-color-dark);
   color: var(--ion-color-dark);
   border-radius: 5px;
-  margin: 60px;
+  margin: 20px;
   padding: 30px;
   min-height: 600px;
 
@@ -45,47 +40,5 @@
 
   ion-input {
     color: var(--ion-color-dark);
-  }
-}
-
-.box {
-  display: flex;
-  justify-content: space-evenly
-}
-
-.card {
-  background: radial-gradient(var(--ion-color-step-100), transparent);
-  min-width: 200px;
-  max-width: 200px;
-  height: auto;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  margin: 20px 20px 40px 20px;
-  border-style: solid;
-  border-color: var(--ion-color-step-100);
-  border-radius: 7px;
-  padding: 4px 8px 8px 8px;
-
-  .row {
-    width: auto;
-
-    &_end {
-      align-self: end;
-
-      ion-button {
-        width: 80%;
-      }
-    }
-  }
-
-  img {
-    width: 60px;
-    text-align: center;
-  }
-
-  h2,
-  p {
-    text-align: center;
   }
 }

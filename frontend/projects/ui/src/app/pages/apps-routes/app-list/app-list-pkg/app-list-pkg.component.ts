@@ -1,5 +1,8 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { PackageMainStatus } from 'src/app/services/patch-db/data-model'
+import {
+  InstalledPackageInfo,
+  PackageMainStatus,
+} from 'src/app/services/patch-db/data-model'
 import { PkgInfo } from 'src/app/util/get-package-info'
 import { UiLauncherService } from 'src/app/services/ui-launcher.service'
 
@@ -20,9 +23,9 @@ export class AppListPkgComponent {
     )
   }
 
-  launchUi(e: Event): void {
+  launchUi(e: Event, addressInfo: InstalledPackageInfo['address-info']): void {
     e.stopPropagation()
     e.preventDefault()
-    this.launcherService.launch(this.pkg.entry)
+    this.launcherService.launch(addressInfo)
   }
 }

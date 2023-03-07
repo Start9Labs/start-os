@@ -3,11 +3,11 @@ import { NavigationExtras } from '@angular/router'
 import { NavController } from '@ionic/angular'
 import {
   DependencyErrorType,
-  InstalledPackageDataEntry,
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
 import { DependentInfo } from 'src/app/types/dependent-info'
 import { ModalService } from 'src/app/services/modal.service'
+import { Manifest } from '@start9labs/marketplace'
 
 export interface DependencyInfo {
   id: string
@@ -32,40 +32,32 @@ export class ToDependenciesPipe implements PipeTransform {
     if (!pkg.installed) return []
 
     return Object.keys(pkg.installed['current-dependencies'])
-      .filter(id => !!pkg.manifest.dependencies[id])
-      .map(id => this.setDepValues(pkg.installed!, id))
+      .filter(depId => !!pkg.manifest.dependencies[depId])
+      .map(depId => this.setDepValues(pkg, depId))
   }
 
-  private setDepValues(
-    pkg: InstalledPackageDataEntry,
-    id: string,
-  ): DependencyInfo {
+  private setDepValues(pkg: PackageDataEntry, depId: string): DependencyInfo {
     let errorText = ''
     let actionText = 'View'
     let action: () => any = () =>
-      this.navCtrl.navigateForward(`/services/${id}`)
+      this.navCtrl.navigateForward(`/services/${depId}`)
 
-    const error = pkg.status['dependency-errors'][id]
+    const error = pkg.installed!.status['dependency-errors'][depId]
 
     if (error) {
       // health checks failed
-      if (
-        [
-          DependencyErrorType.InterfaceHealthChecksFailed,
-          DependencyErrorType.HealthChecksFailed,
-        ].includes(error.type)
-      ) {
+      if (error.type === DependencyErrorType.HealthChecksFailed) {
         errorText = 'Health check failed'
         // not installed
       } else if (error.type === DependencyErrorType.NotInstalled) {
         errorText = 'Not installed'
         actionText = 'Install'
-        action = () => this.fixDep(pkg, 'install', id)
+        action = () => this.fixDep(pkg, 'install', depId)
         // incorrect version
       } else if (error.type === DependencyErrorType.IncorrectVersion) {
         errorText = 'Incorrect version'
         actionText = 'Update'
-        action = () => this.fixDep(pkg, 'update', id)
+        action = () => this.fixDep(pkg, 'update', depId)
         // not running
       } else if (error.type === DependencyErrorType.NotRunning) {
         errorText = 'Not running'
@@ -74,19 +66,19 @@ export class ToDependenciesPipe implements PipeTransform {
       } else if (error.type === DependencyErrorType.ConfigUnsatisfied) {
         errorText = 'Config not satisfied'
         actionText = 'Auto config'
-        action = () => this.fixDep(pkg, 'configure', id)
+        action = () => this.fixDep(pkg, 'configure', depId)
       } else if (error.type === DependencyErrorType.Transitive) {
         errorText = 'Dependency has a dependency issue'
       }
       errorText = `${errorText}. ${pkg.manifest.title} will not work as expected.`
     }
 
-    const depInfo = pkg['dependency-info'][id]
+    const depInfo = pkg.installed!['dependency-info'][depId]
 
     return {
-      id,
-      version: pkg.manifest.dependencies[id].version,
-      title: depInfo?.manifest?.title || id,
+      id: depId,
+      version: pkg.manifest.dependencies[depId].version,
+      title: depInfo?.title || depId,
       icon: depInfo?.icon || '',
       errorText,
       actionText,
@@ -95,28 +87,25 @@ export class ToDependenciesPipe implements PipeTransform {
   }
 
   async fixDep(
-    pkg: InstalledPackageDataEntry,
+    pkg: PackageDataEntry,
     action: 'install' | 'update' | 'configure',
-    id: string,
+    depId: string,
   ): Promise<void> {
     switch (action) {
       case 'install':
       case 'update':
-        return this.installDep(pkg, id)
+        return this.installDep(pkg.manifest, depId)
       case 'configure':
-        return this.configureDep(pkg, id)
+        return this.configureDep(pkg.manifest, depId)
     }
   }
 
-  private async installDep(
-    pkg: InstalledPackageDataEntry,
-    depId: string,
-  ): Promise<void> {
-    const version = pkg.manifest.dependencies[depId].version
+  private async installDep(manifest: Manifest, depId: string): Promise<void> {
+    const version = manifest.dependencies[depId].version
 
     const dependentInfo: DependentInfo = {
-      id: pkg.manifest.id,
-      title: pkg.manifest.title,
+      id: manifest.id,
+      title: manifest.title,
       version,
     }
     const navigationExtras: NavigationExtras = {
@@ -130,12 +119,12 @@ export class ToDependenciesPipe implements PipeTransform {
   }
 
   private async configureDep(
-    pkg: InstalledPackageDataEntry,
+    manifest: Manifest,
     dependencyId: string,
   ): Promise<void> {
     const dependentInfo: DependentInfo = {
-      id: pkg.manifest.id,
-      title: pkg.manifest.title,
+      id: manifest.id,
+      title: manifest.title,
     }
 
     await this.modalService.presentModalConfig({

@@ -3,10 +3,13 @@ import { CommonModule } from '@angular/common'
 import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
 import { AppShowPage } from './app-show.page'
-import { EmverPipesModule, ResponsiveColModule, SharedPipesModule } from '@start9labs/shared'
+import {
+  EmverPipesModule,
+  ResponsiveColModule,
+  SharedPipesModule,
+} from '@start9labs/shared'
 import { StatusComponentModule } from 'src/app/components/status/status.component.module'
 import { AppConfigPageModule } from 'src/app/modals/app-config/app-config.module'
-import { LaunchablePipeModule } from 'src/app/pipes/launchable/launchable.module'
 import { UiPipeModule } from 'src/app/pipes/ui/ui.module'
 import { AppShowHeaderComponent } from './components/app-show-header/app-show-header.component'
 import { AppShowProgressComponent } from './components/app-show-progress/app-show-progress.component'
@@ -51,7 +54,6 @@ const routes: Routes = [
     RouterModule.forChild(routes),
     AppConfigPageModule,
     EmverPipesModule,
-    LaunchablePipeModule,
     UiPipeModule,
     ResponsiveColModule,
     SharedPipesModule,

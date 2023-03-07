@@ -1,6 +1,6 @@
 import { ConfigSpec } from 'start-sdk/types/config-types'
 import { Url } from '@start9labs/shared'
-import { MarketplaceManifest } from '@start9labs/marketplace'
+import { Manifest } from '@start9labs/marketplace'
 import { BasicInfo } from 'src/app/pages/developer-routes/developer-menu/form-info'
 
 export interface DataModel {
@@ -11,7 +11,7 @@ export interface DataModel {
 
 export interface UIData {
   name: string | null
-  'ack-welcome': string // eOS emver
+  'ack-welcome': string // emver
   marketplace: UIMarketplaceData
   dev: DevData
   gaming: {
@@ -94,25 +94,59 @@ export interface ServerStatusInfo {
   }
   updated: boolean
   'update-progress': { size: number | null; downloaded: number } | null
-}
-
-export enum ServerStatus {
-  Running = 'running',
-  Updated = 'updated',
-  BackingUp = 'backing-up',
+  'shutting-down': boolean
 }
 
 export interface PackageDataEntry {
   state: PackageState
-  'static-files': {
-    license: Url
-    instructions: Url
-    icon: Url
-  }
   manifest: Manifest
-  installed?: InstalledPackageDataEntry // exists when: installed, updating
-  'install-progress'?: InstallProgress // exists when: installing, updating
+  icon: string
+  installed?: InstalledPackageInfo // when: installed
+  actions?: Record<string, Action> // when: installed
+  'install-progress'?: InstallProgress // when: installing, updating, restoring
 }
+
+// export type PackageDataEntry =
+//   | PackageDataEntryInstalled
+//   | PackageDataEntryNeedsUpdate
+//   | PackageDataEntryRemoving
+//   | PackageDataEntryRestoring
+//   | PackageDataEntryUpdating
+//   | PackageDataEntryInstalling
+
+// export type PackageDataEntryBase = {
+//   manifest: Manifest
+//   icon: Url
+// }
+
+// export interface PackageDataEntryInstalled extends PackageDataEntryBase {
+//   state: PackageState.Installed
+//   installed: InstalledPackageInfo
+//   actions: Record<string, Action>
+// }
+
+// export interface PackageDataEntryNeedsUpdate extends PackageDataEntryBase {
+//   state: PackageState.NeedsUpdate
+// }
+
+// export interface PackageDataEntryRemoving extends PackageDataEntryBase {
+//   state: PackageState.Removing
+// }
+
+// export interface PackageDataEntryRestoring extends PackageDataEntryBase {
+//   state: PackageState.Restoring
+//   'install-progress': InstallProgress
+// }
+
+// export interface PackageDataEntryUpdating extends PackageDataEntryBase {
+//   state: PackageState.Updating
+//   'install-progress': InstallProgress
+// }
+
+// export interface PackageDataEntryInstalling extends PackageDataEntryBase {
+//   state: PackageState.Installing
+//   'install-progress': InstallProgress
+// }
 
 export enum PackageState {
   Installing = 'installing',
@@ -120,150 +154,38 @@ export enum PackageState {
   Updating = 'updating',
   Removing = 'removing',
   Restoring = 'restoring',
+  NeedsUpdate = 'needs-update',
 }
 
-export interface InstalledPackageDataEntry {
+export interface InstalledPackageInfo {
   status: Status
-  manifest: Manifest
   'last-backup': string | null
-  'current-dependencies': { [id: string]: CurrentDependencyInfo }
-  'dependency-info': {
-    [id: string]: {
-      manifest: Manifest
-      icon: Url
-    }
-  }
-  'interface-addresses': {
-    [id: string]: { 'tor-address': string; 'lan-address': string }
-  }
+  'current-dependencies': Record<string, CurrentDependencyInfo>
+  'dependency-info': Record<string, { title: string; icon: Url }>
+  'address-info': Record<string, AddressInfo>
   'marketplace-url': string | null
   'developer-key': string
+  'has-config': boolean
 }
 
 export interface CurrentDependencyInfo {
   'health-checks': string[] // array of health check IDs
 }
 
-export interface Manifest extends MarketplaceManifest<DependencyConfig | null> {
-  assets: {
-    license: string // filename
-    instructions: string // filename
-    icon: string // filename
-    docker_images: string // filename
-    assets: string // path to assets folder
-    scripts: string // path to scripts folder
-  }
-  main: ActionImpl
-  config: ConfigActions | null
-  volumes: Record<string, Volume>
-  'min-os-version': string
-  interfaces: Record<string, InterfaceDef>
-  backup: BackupActions
-  migrations: Migrations | null
-  actions: Record<string, Action>
-}
-
-export interface DependencyConfig {
-  check: ActionImpl
-  'auto-configure': ActionImpl
-}
-
-export interface ActionImpl {
-  type: 'docker'
-  image: string
-  system: boolean
-  entrypoint: string
-  args: string[]
-  mounts: { [id: string]: string }
-  'io-format': DockerIoFormat | null
-  inject: boolean
-  'shm-size': string
-  'sigterm-timeout': string | null
-}
-
-export enum DockerIoFormat {
-  Json = 'json',
-  Yaml = 'yaml',
-  Cbor = 'cbor',
-  Toml = 'toml',
-}
-
-export interface ConfigActions {
-  get: ActionImpl | null
-  set: ActionImpl | null
-}
-
-export type Volume = VolumeData
-
-export interface VolumeData {
-  type: VolumeType.Data
-  readonly: boolean
-}
-
-export interface VolumeAssets {
-  type: VolumeType.Assets
-}
-
-export interface VolumePointer {
-  type: VolumeType.Pointer
-  'package-id': string
-  'volume-id': string
-  path: string
-  readonly: boolean
-}
-
-export interface VolumeCertificate {
-  type: VolumeType.Certificate
-  'interface-id': string
-}
-
-export interface VolumeBackup {
-  type: VolumeType.Backup
-  readonly: boolean
-}
-
-export enum VolumeType {
-  Data = 'data',
-  Assets = 'assets',
-  Pointer = 'pointer',
-  Certificate = 'certificate',
-  Backup = 'backup',
-}
-
-export interface InterfaceDef {
+export interface AddressInfo {
   name: string
   description: string
-  'tor-config': TorConfig | null
-  'lan-config': LanConfig | null
+  addresses: Url[]
   ui: boolean
-  protocols: string[]
-}
-
-export interface TorConfig {
-  'port-mapping': { [port: number]: number }
-}
-
-export type LanConfig = {
-  [port: number]: { ssl: boolean; mapping: number }
-}
-
-export interface BackupActions {
-  create: ActionImpl
-  restore: ActionImpl
-}
-
-export interface Migrations {
-  from: { [versionRange: string]: ActionImpl }
-  to: { [versionRange: string]: ActionImpl }
 }
 
 export interface Action {
   name: string
   description: string
   warning: string | null
-  implementation: ActionImpl
-  'allowed-statuses': (PackageMainStatus.Stopped | PackageMainStatus.Running)[]
+  disabled: string | null
   'input-spec': ConfigSpec | null
+  group: string | null
 }
 
 export interface Status {
@@ -279,6 +201,7 @@ export type MainStatus =
   | MainStatusRunning
   | MainStatusBackingUp
   | MainStatusRestarting
+  | MainStatusConfiguring
 
 export interface MainStatusStopped {
   status: PackageMainStatus.Stopped
@@ -300,11 +223,14 @@ export interface MainStatusRunning {
 
 export interface MainStatusBackingUp {
   status: PackageMainStatus.BackingUp
-  started: string | null // UTC date string
 }
 
 export interface MainStatusRestarting {
   status: PackageMainStatus.Restarting
+}
+
+export interface MainStatusConfiguring {
+  status: PackageMainStatus.Configuring
 }
 
 export enum PackageMainStatus {
@@ -314,6 +240,7 @@ export enum PackageMainStatus {
   Stopped = 'stopped',
   BackingUp = 'backing-up',
   Restarting = 'restarting',
+  Configuring = 'configuring',
 }
 
 export type HealthCheckResult = { name: string } & (
@@ -338,6 +265,7 @@ export interface HealthCheckResultStarting {
 
 export interface HealthCheckResultDisabled {
   result: HealthResult.Disabled
+  reason: string
 }
 
 export interface HealthCheckResultSuccess {
@@ -369,7 +297,6 @@ export enum DependencyErrorType {
   IncorrectVersion = 'incorrect-version',
   ConfigUnsatisfied = 'config-unsatisfied',
   HealthChecksFailed = 'health-checks-failed',
-  InterfaceHealthChecksFailed = 'interface-health-checks-failed',
   Transitive = 'transitive',
 }
 
