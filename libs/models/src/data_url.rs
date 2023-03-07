@@ -5,18 +5,19 @@ use base64::Engine;
 use color_eyre::eyre::eyre;
 use reqwest::header::CONTENT_TYPE;
 use serde::{Deserialize, Serialize};
-use tokio::io::AsyncReadExt;
+use tokio::io::{AsyncRead, AsyncReadExt};
 use yasi::InternedString;
 
 use crate::{mime, Error, ResultExt};
-
-pub const DEFAULT_MIME: &'static str = "application/octet-stream";
 
 pub struct DataUrl {
     mime: InternedString,
     data: Cow<'static, [u8]>,
 }
 impl DataUrl {
+    pub const DEFAULT_MIME: &'static str = "application/octet-stream";
+    pub const MAX_SIZE: u64 = 100 * 1024;
+
     // data:{mime};base64,{data}
     pub fn to_string(&self) -> String {
         use std::fmt::Write;
@@ -34,27 +35,47 @@ impl DataUrl {
         self.data_url_len_without_mime() + self.mime.len()
     }
 
-    pub async fn from_path(path: impl AsRef<Path>) -> Result<Self, Error> {
-        let path = path.as_ref();
-        let mut f = tokio::fs::File::open(path).await?;
-        let m = f.metadata().await?;
-        if m.len() > 100 * 1024 {
-            return Err(Error::new(
-                eyre!("Data URLs must be smaller than 100KiB"),
-                crate::ErrorKind::Filesystem,
-            ));
-        }
-        let mut buf = Vec::with_capacity(m.len() as usize);
-        f.read_to_end(&mut buf).await?;
-        let mime = path
-            .extension()
-            .and_then(|s| s.to_str())
-            .and_then(mime)
-            .unwrap_or(DEFAULT_MIME);
+    pub async fn from_reader(
+        mime: &str,
+        rdr: impl AsyncRead + Unpin,
+        size_est: Option<u64>,
+    ) -> Result<Self, Error> {
+        let check_size = |s| {
+            if s > Self::MAX_SIZE {
+                Err(Error::new(
+                    eyre!("Data URLs must be smaller than 100KiB"),
+                    crate::ErrorKind::Filesystem,
+                ))
+            } else {
+                Ok(s)
+            }
+        };
+        let mut buf = size_est
+            .map(check_size)
+            .transpose()?
+            .map(|s| Vec::with_capacity(s as usize))
+            .unwrap_or_default();
+        rdr.take(Self::MAX_SIZE as u64 + 1)
+            .read_to_end(&mut buf)
+            .await?;
+        check_size(buf.len() as u64)?;
+
         Ok(Self {
             mime: InternedString::intern(mime),
             data: Cow::Owned(buf),
         })
+    }
+
+    pub async fn from_path(path: impl AsRef<Path>) -> Result<Self, Error> {
+        let path = path.as_ref();
+        let f = tokio::fs::File::open(path).await?;
+        let m = f.metadata().await?;
+        let mime = path
+            .extension()
+            .and_then(|s| s.to_str())
+            .and_then(mime)
+            .unwrap_or(Self::DEFAULT_MIME);
+        Self::from_reader(mime, f, Some(m.len())).await
     }
 
     pub fn from_const(mime: &str, data: &'static [u8]) -> Self {
@@ -69,7 +90,7 @@ impl DataUrl {
             res.headers()
                 .get(CONTENT_TYPE)
                 .and_then(|h| h.to_str().ok())
-                .unwrap_or(DEFAULT_MIME),
+                .unwrap_or(Self::DEFAULT_MIME),
         );
         let data = res
             .bytes()

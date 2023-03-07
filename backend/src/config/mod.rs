@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use color_eyre::eyre::eyre;
 use models::ErrorKind;
+use patch_db::value::InOMap;
 use rpc_toolkit::command;
 use serde_json::Value;
 use tracing::instrument;
@@ -20,7 +21,7 @@ pub mod util;
 
 use self::action::ConfigRes;
 
-pub type Config = serde_json::Map<String, Value>;
+pub type Input = InOMap<String, Value>;
 pub trait TypeOf {
     fn type_of(&self) -> &'static str;
 }
@@ -158,11 +159,6 @@ pub async fn configure(
         })?
         .configure(configure_context)
         .await
-}
-
-#[instrument]
-pub fn not_found() -> Error {
-    Error::new(eyre!("Could not find"), ErrorKind::Incoherent)
 }
 
 /// We want to have a double check that the paths are what we expect them to be.

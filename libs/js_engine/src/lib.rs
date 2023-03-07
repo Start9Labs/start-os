@@ -14,9 +14,10 @@ use deno_core::{
 };
 use embassy_container_init::ProcessGroupId;
 use helpers::{script_dir, spawn_local, OsApi, Rsync, UnixRpcClient};
+use imbl_value::imbl::Vector;
+use imbl_value::{json, Value};
 use models::{PackageId, ProcedureName, Version, VolumeId};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use tokio::io::AsyncReadExt;
 use tokio::sync::{mpsc, Mutex};
 use tracing::instrument;
@@ -49,25 +50,8 @@ pub enum JsError {
     BoundryLayerSerDe,
     Tokio,
     FileSystem,
-    Code(i32),
     Timeout,
     NotValidProcedureName,
-}
-
-impl JsError {
-    pub fn as_code_num(&self) -> i32 {
-        match self {
-            JsError::Unknown => 1,
-            JsError::Javascript => 2,
-            JsError::Engine => 3,
-            JsError::BoundryLayerSerDe => 4,
-            JsError::Tokio => 5,
-            JsError::FileSystem => 6,
-            JsError::NotValidProcedureName => 7,
-            JsError::Code(code) => *code,
-            JsError::Timeout => 143,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -103,19 +87,20 @@ struct JsContext {
     package_id: PackageId,
     volumes: Arc<dyn PathForVolumeId>,
     input: Value,
-    variable_args: Vec<serde_json::Value>,
     container_process_gid: ProcessGroupId,
     container_rpc_client: Option<Arc<UnixRpcClient>>,
     rsyncs: Arc<Mutex<(usize, BTreeMap<usize, Rsync>)>>,
-    callback_sender: mpsc::UnboundedSender<(Arc<String>, Vec<Value>)>,
+    callback_sender: mpsc::UnboundedSender<(Arc<String>, Vector<Value>)>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "kebab-case")]
 enum ResultType {
-    Error(String),
-    ErrorCode(i32, String),
-    Result(serde_json::Value),
+    Error {
+        message: Arc<String>,
+        stack: Option<Arc<String>>,
+    },
+    Result(Value),
 }
 #[derive(Clone)]
 struct AnswerState(mpsc::Sender<Value>);
@@ -263,9 +248,8 @@ impl JsExecutionEnvironment {
         self,
         procedure_name: ProcedureName,
         input: Option<I>,
-        variable_args: Vec<serde_json::Value>,
     ) -> Result<O, (JsError, String)> {
-        let input = match serde_json::to_value(input) {
+        let input = match imbl_value::to_value(&input) {
             Ok(a) => a,
             Err(err) => {
                 tracing::error!("{}", err);
@@ -276,9 +260,9 @@ impl JsExecutionEnvironment {
                 ));
             }
         };
-        let safer_handle = spawn_local(|| self.execute(procedure_name, input, variable_args)).await;
+        let safer_handle = spawn_local(|| self.execute(procedure_name, input)).await;
         let output = safer_handle.await.unwrap()?;
-        match serde_json::from_value(output.clone()) {
+        match imbl_value::from_value(output.clone()) {
             Ok(x) => Ok(x),
             Err(err) => {
                 tracing::error!("{}", err);
@@ -314,7 +298,6 @@ impl JsExecutionEnvironment {
             fns::log_debug::decl(),
             fns::log_info::decl(),
             fns::get_input::decl(),
-            fns::get_variable_args::decl(),
             fns::set_value::decl(),
             fns::is_sandboxed::decl(),
             fns::start_command::decl(),
@@ -339,7 +322,6 @@ impl JsExecutionEnvironment {
         self,
         procedure_name: ProcedureName,
         input: Value,
-        variable_args: Vec<serde_json::Value>,
     ) -> Result<Value, (JsError, String)> {
         let base_directory = self.base_directory.clone();
         let (answer_state, mut receive_answer) = AnswerState::new();
@@ -362,7 +344,6 @@ impl JsExecutionEnvironment {
             version: self.version.clone(),
             sandboxed: self.sandboxed,
             input,
-            variable_args,
             container_process_gid: self.container_process_gid,
             container_rpc_client: self.container_rpc_client.clone(),
             callback_sender,
@@ -406,7 +387,7 @@ impl JsExecutionEnvironment {
                     x
                 }
                 else {
-                    serde_json::json!({"error": "JS Engine Shutdown"})
+                    json!({"error": "JS Engine Shutdown"})
                 }
             },
 
@@ -418,7 +399,7 @@ impl JsExecutionEnvironment {
 #[pin_project::pin_project]
 struct RuntimeEventLoop<'a> {
     runtime: &'a mut JsRuntime,
-    callback_receiver: mpsc::UnboundedReceiver<(Arc<String>, Vec<Value>)>,
+    callback_receiver: mpsc::UnboundedReceiver<(Arc<String>, Vector<Value>)>,
 }
 impl<'a> Future for RuntimeEventLoop<'a> {
     type Output = Result<(), AnyError>;
@@ -463,13 +444,13 @@ mod fns {
         to_tmp_path, AddressSchemaLocal, AddressSchemaOnion, AtomicFile, Callback, Rsync,
         RsyncOptions,
     };
+    use imbl_value::Value;
     use models::{PackageId, VolumeId};
     use serde::{Deserialize, Serialize};
-    use serde_json::{json, Value};
     use tokio::io::AsyncWriteExt;
 
     use super::{AnswerState, JsContext};
-    use crate::{system_time_as_unix_ms, Algorithm, MetadataJs, ResultType};
+    use crate::{system_time_as_unix_ms, Algorithm, MetadataJs};
 
     #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Default)]
     struct FetchOptions {
@@ -1253,11 +1234,6 @@ mod fns {
         Ok(ctx.input.clone())
     }
     #[op]
-    fn get_variable_args(state: &mut OpState) -> Result<Vec<Value>, AnyError> {
-        let ctx = state.borrow::<JsContext>();
-        Ok(ctx.variable_args.clone())
-    }
-    #[op]
     async fn set_value(state: Rc<RefCell<OpState>>, value: Value) -> Result<(), AnyError> {
         let sender = {
             let state = state.borrow();
@@ -1415,30 +1391,16 @@ mod fns {
     }
 
     #[op]
-    async fn wait_command(
-        state: Rc<RefCell<OpState>>,
-        pid: ProcessId,
-    ) -> Result<ResultType, AnyError> {
+    async fn wait_command(state: Rc<RefCell<OpState>>, pid: ProcessId) -> Result<String, AnyError> {
         if let Some(rpc_client) = {
             let state = state.borrow();
             let ctx = state.borrow::<JsContext>();
             ctx.container_rpc_client.clone()
         } {
-            Ok(
-                match rpc_client
-                    .request(embassy_container_init::Output, OutputParams { pid })
-                    .await
-                {
-                    Ok(a) => ResultType::Result(json!(a)),
-                    Err(e) => ResultType::ErrorCode(
-                        e.code,
-                        match e.data {
-                            Some(Value::String(s)) => s,
-                            e => format!("{:?}", e),
-                        },
-                    ),
-                },
-            )
+            rpc_client
+                .request(embassy_container_init::Output, OutputParams { pid })
+                .await
+                .map_err(|e| anyhow!("{}: {:?}", e.message, e.data))
         } else {
             Err(anyhow!("No RpcClient for command operations"))
         }

@@ -8,7 +8,7 @@ use super::PKG_ARCHIVE_DIR;
 use crate::context::RpcContext;
 use crate::db::model::{
     PackageDataEntry, PackageDataEntryInstalled, PackageDataEntryMatchModel,
-    PackageDataEntryMatchModelMut, PackageDataEntryMatchModelRef,
+    PackageDataEntryMatchModelMut, PackageDataEntryMatchModelRef, PackageDataEntryNeedsUpdate,
 };
 use crate::dependencies::DependencyError;
 use crate::prelude::*;
@@ -68,7 +68,7 @@ pub async fn cleanup_failed(ctx: &RpcContext, id: &PackageId) -> Result<(), Erro
         PackageDataEntryMatchModelRef::Restoring(m) => Some(m.as_manifest().as_version()),
         PackageDataEntryMatchModelRef::Updating(m) => {
             if &m.as_new_manifest().as_version().clone().de()?
-                != &m.as_manifest().as_version().clone().de()?
+                != &m.as_old_manifest().as_version().clone().de()?
             {
                 Some(m.as_new_manifest().as_version())
             } else {
@@ -83,6 +83,8 @@ pub async fn cleanup_failed(ctx: &RpcContext, id: &PackageId) -> Result<(), Erro
         cleanup(ctx, id, &version.clone().de()?).await?;
     }
 
+    todo!("restore manager if necessary");
+
     ctx.db
         .mutate(|v| {
             let package_data = v.as_package_data_mut();
@@ -94,13 +96,22 @@ pub async fn cleanup_failed(ctx: &RpcContext, id: &PackageId) -> Result<(), Erro
                 }
                 PackageDataEntryMatchModelRef::Updating(m) => {
                     *pde = Model::<PackageDataEntry>::from_match(
-                        PackageDataEntryMatchModel::Installed(
-                            Model::<PackageDataEntryInstalled>::from_parts(
+                        if let Some(rollback) = m.as_rollback_to().transpose_ref() {
+                            PackageDataEntryMatchModel::Installed(
+                                Model::<PackageDataEntryInstalled>::from_parts(
+                                    m.as_static_files().clone(),
+                                    m.as_old_manifest().clone(),
+                                    rollback.clone(),
+                                ),
+                            )
+                        } else {
+                            PackageDataEntryMatchModel::NeedsUpdate(Model::<
+                                PackageDataEntryNeedsUpdate,
+                            >::from_parts(
                                 m.as_static_files().clone(),
-                                m.as_manifest().clone(),
-                                m.as_installed().clone(),
-                            ),
-                        ),
+                                m.as_old_manifest().clone(),
+                            ))
+                        },
                     )
                 }
                 _ => (),
@@ -146,7 +157,6 @@ pub async fn uninstall(ctx: &RpcContext, id: &PackageId) -> Result<(), Error> {
             for (_, pde) in package_data.as_entries_mut()? {
                 let installed = match pde.as_match_mut() {
                     PackageDataEntryMatchModelMut::Installed(m) => m.as_installed_mut(),
-                    PackageDataEntryMatchModelMut::Updating(m) => m.as_installed_mut(),
                     _ => continue,
                 };
                 if installed.as_current_dependencies().keys()?.contains(id) {

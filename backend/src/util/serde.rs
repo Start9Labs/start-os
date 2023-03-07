@@ -438,7 +438,7 @@ pub fn parse_stdin_deserializable<T: for<'de> Deserialize<'de>>(
     format.from_reader(stdin)
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Duration(std::time::Duration);
 impl Deref for Duration {
     type Target = std::time::Duration;
@@ -590,26 +590,6 @@ pub fn deserialize_number_permissive<
         }
     }
     deserializer.deserialize_str(Visitor(std::marker::PhantomData))
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Port(pub u16);
-impl<'de> Deserialize<'de> for Port {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        //TODO: if number, be permissive
-        deserialize_number_permissive(deserializer).map(Port)
-    }
-}
-impl Serialize for Port {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serialize_display(&self.0, serializer)
-    }
 }
 
 #[derive(Debug, Clone)]

@@ -156,6 +156,13 @@ impl<T> Model<Option<T>> {
             Some(self.transmute_mut(|a| a))
         }
     }
+    pub fn from_option(opt: Option<Model<T>>) -> Self {
+        use patch_db::ModelExt;
+        match opt {
+            Some(a) => a.transmute(|a| a),
+            None => Self::from_value(Value::Null),
+        }
+    }
 }
 
 pub trait Map: DeserializeOwned + Serialize {
@@ -171,6 +178,22 @@ where
     pub fn insert(&mut self, key: &T::Key, value: &T::Value) -> Result<(), Error> {
         use serde::ser::Error;
         let v = patch_db::value::to_value(value)?;
+        match &mut self.value {
+            Value::Object(o) => {
+                o.insert(InternedString::intern(key.as_ref()), v);
+                Ok(())
+            }
+            v => Err(patch_db::value::Error {
+                source: patch_db::value::ErrorSource::custom(format!("expected object found {v}")),
+                kind: patch_db::value::ErrorKind::Serialization,
+            }
+            .into()),
+        }
+    }
+    pub fn insert_model(&mut self, key: &T::Key, value: Model<T::Value>) -> Result<(), Error> {
+        use patch_db::ModelExt;
+        use serde::ser::Error;
+        let v = value.into_value();
         match &mut self.value {
             Value::Object(o) => {
                 o.insert(InternedString::intern(key.as_ref()), v);

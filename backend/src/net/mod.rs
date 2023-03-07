@@ -9,7 +9,6 @@ use crate::prelude::*;
 pub mod dhcp;
 pub mod dns;
 pub mod forward;
-pub mod interface;
 pub mod keys;
 #[cfg(feature = "avahi")]
 pub mod mdns;

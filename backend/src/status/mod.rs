@@ -52,8 +52,8 @@ impl MainStatus {
             MainStatus::Starting { .. } | MainStatus::Running { .. } => {
                 *self = MainStatus::Stopping;
             }
-            MainStatus::BackingUp { started, .. } => {
-                *started = None;
+            MainStatus::BackingUp { was_running } => {
+                *was_running = false;
             }
             MainStatus::Stopped | MainStatus::Stopping | MainStatus::Restarting => (),
         }

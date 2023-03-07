@@ -19,7 +19,7 @@ use crate::util::serde::{display_serializable, parse_stdin_deserializable, IoFor
 use crate::util::Version;
 use crate::volume::Volumes;
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
 pub struct Actions(pub BTreeMap<ActionId, Action>);
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -44,7 +44,7 @@ pub enum DockerStatus {
     Stopped,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub struct Action {
     pub name: String,

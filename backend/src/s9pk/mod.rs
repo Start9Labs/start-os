@@ -70,16 +70,6 @@ pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> R
     S9pkPacker::builder()
         .manifest(&manifest)
         .writer(&mut outfile)
-        .license(
-            File::open(path.join(manifest.assets.license_path()))
-                .await
-                .with_ctx(|_| {
-                    (
-                        ErrorKind::Filesystem,
-                        manifest.assets.license_path().display().to_string(),
-                    )
-                })?,
-        )
         .icon(
             File::open(path.join(manifest.assets.icon_path()))
                 .await
@@ -87,6 +77,16 @@ pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> R
                     (
                         ErrorKind::Filesystem,
                         manifest.assets.icon_path().display().to_string(),
+                    )
+                })?,
+        )
+        .license(
+            File::open(path.join(manifest.assets.license_path()))
+                .await
+                .with_ctx(|_| {
+                    (
+                        ErrorKind::Filesystem,
+                        manifest.assets.license_path().display().to_string(),
                     )
                 })?,
         )
@@ -150,7 +150,7 @@ pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> R
             let asset_volumes = manifest
             .volumes
             .iter()
-            .filter(|(_, v)| matches!(v, &&Volume::Assets(VolumeAssets))).map(|(id, _)| id.clone()).collect::<Vec<_>>();
+            .filter(|(_, v)| matches!(v, &&Volume::Assets(VolumeAssets {}))).map(|(id, _)| id.clone()).collect::<Vec<_>>();
             let assets_path = manifest.assets.assets_path().to_owned();
             let path = path.clone();
 
@@ -170,7 +170,7 @@ pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> R
         })
         .scripts({
             let script_path = path.join(manifest.assets.scripts_path()).join("embassy.js");
-            let needs_script = manifest.package_procedures().any(|a| a.is_script());
+            let needs_script = todo!();
             let has_script = script_path.exists();
             match (needs_script, has_script) {
                 (true, true) => Some(File::open(script_path).await?),
@@ -195,7 +195,7 @@ pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> R
 #[command(rename = "s9pk", cli_only, display(display_none))]
 pub async fn verify(#[arg] path: PathBuf) -> Result<(), Error> {
     let mut s9pk = S9pkReader::open(path, true).await?;
-    s9pk.validate().await?;
+    s9pk.validate(None).await?;
 
     Ok(())
 }

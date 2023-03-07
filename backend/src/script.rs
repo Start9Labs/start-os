@@ -6,27 +6,47 @@ use color_eyre::eyre::eyre;
 use color_eyre::Report;
 use embassy_container_init::{ProcessGroupId, SignalGroup, SignalGroupParams};
 use helpers::{Address, AddressSchemaLocal, AddressSchemaOnion, Callback, OsApi, UnixRpcClient};
-pub use js_engine::JsError;
+pub use js_engine::JsError as JsEngineError;
 use js_engine::{JsExecutionEnvironment, PathForVolumeId};
-use models::{ErrorKind, InterfaceId, VolumeId};
+use models::{ErrorKind, InterfaceId, ProcedureName, VolumeId};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use super::ProcedureName;
 use crate::context::RpcContext;
 use crate::prelude::*;
 use crate::s9pk::manifest::PackageId;
 use crate::util::{GeneralGuard, Version};
 use crate::volume::Volumes;
 
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "kebab-case")]
+struct JsError {
+    message: String,
+    stack: Option<String>,
+}
+impl std::fmt::Display for JsError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.message.fmt(f)
+    }
+}
+impl std::fmt::Debug for JsError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.message)?;
+        if let Some(stack) = &self.stack {
+            write!(f, "\n{}", stack)?;
+        }
+        Ok(())
+    }
+}
+impl std::error::Error for JsError {}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "kebab-case")]
 
 enum ErrorValue {
-    Error(String),
-    ErrorCode((i32, String)),
-    Result(serde_json::Value),
+    Error(JsError),
+    Result(Value),
 }
 
 impl PathForVolumeId for Volumes {
@@ -98,12 +118,9 @@ impl OsApi for SandboxOsApi {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
-pub struct JsProcedure {
-    #[serde(default)]
-    args: Vec<serde_json::Value>,
-}
+pub struct JsProcedure;
 
 impl JsProcedure {
     pub fn validate(&self, _volumes: &Volumes) -> Result<(), color_eyre::eyre::Report> {
@@ -123,7 +140,7 @@ impl JsProcedure {
         gid: ProcessGroupId,
         rpc_client: Option<Arc<UnixRpcClient>>,
         os: Arc<dyn OsApi>,
-    ) -> Result<Result<O, (i32, String)>, Error> {
+    ) -> Result<O, Error> {
         let cleaner_client = rpc_client.clone();
         let cleaner = GeneralGuard::new(move || {
             tokio::spawn(async move {
@@ -150,20 +167,24 @@ impl JsProcedure {
                 rpc_client,
             )
             .await?
-            .run_action(name, input, self.args.clone());
+            .run_action(name, input);
             let output: Option<ErrorValue> = match timeout {
                 Some(timeout_duration) => tokio::time::timeout(timeout_duration, running_action)
                     .await
-                    .map_err(|_| (JsError::Timeout, "Timed out. Retrying soon...".to_owned()))??,
+                    .map_err(|_| {
+                        (
+                            JsEngineError::Timeout,
+                            "Timed out. Retrying soon...".to_owned(),
+                        )
+                    })??,
                 None => running_action.await?,
             };
-            let output: O = unwrap_known_error(output)?;
             Ok(output)
         }
         .await
-        .map_err(|(error, message)| (error.as_code_num(), message));
+        .map_err(|(kind, message)| Error::new(eyre!("{kind:?}: {message}"), ErrorKind::Javascript));
         cleaner.drop().await.unwrap()?;
-        Ok(res)
+        unwrap_known_error(res?)
     }
 
     #[instrument(skip(ctx, input))]
@@ -176,8 +197,8 @@ impl JsProcedure {
         input: Option<I>,
         timeout: Option<Duration>,
         name: ProcedureName,
-    ) -> Result<Result<O, (i32, String)>, Error> {
-        Ok(async move {
+    ) -> Result<O, Error> {
+        let res = async move {
             let running_action = JsExecutionEnvironment::load_from_package(
                 Arc::new(SandboxOsApi { _ctx: ctx.clone() }),
                 &ctx.datadir,
@@ -189,42 +210,58 @@ impl JsProcedure {
             )
             .await?
             .read_only_effects()
-            .run_action(name, input, self.args.clone());
+            .run_action(name, input);
             let output: Option<ErrorValue> = match timeout {
                 Some(timeout_duration) => tokio::time::timeout(timeout_duration, running_action)
                     .await
-                    .map_err(|_| (JsError::Timeout, "Timed out. Retrying soon...".to_owned()))??,
+                    .map_err(|_| {
+                        (
+                            JsEngineError::Timeout,
+                            "Timed out. Retrying soon...".to_owned(),
+                        )
+                    })??,
                 None => running_action.await?,
             };
-            let output: O = unwrap_known_error(output)?;
             Ok(output)
         }
         .await
-        .map_err(|(error, message)| (error.as_code_num(), message)))
+        .map_err(|(kind, message)| Error::new(eyre!("{kind:?}: {message}"), ErrorKind::Javascript));
+        unwrap_known_error(res?)
     }
 }
 
-fn unwrap_known_error<O: DeserializeOwned>(
-    error_value: Option<ErrorValue>,
-) -> Result<O, (JsError, String)> {
-    let error_value = error_value.unwrap_or_else(|| ErrorValue::Result(serde_json::Value::Null));
+fn unwrap_known_error<O: DeserializeOwned>(error_value: Option<ErrorValue>) -> Result<O, Error> {
+    let error_value = error_value.unwrap_or_else(|| ErrorValue::Result(Value::Null));
     match error_value {
-        ErrorValue::Error(error) => Err((JsError::Javascript, error)),
-        ErrorValue::ErrorCode((code, message)) => Err((JsError::Code(code), message)),
-        ErrorValue::Result(ref value) => match serde_json::from_value(value.clone()) {
+        ErrorValue::Error(error) => Err(error).with_kind(ErrorKind::Javascript),
+        ErrorValue::Result(ref value) => match from_value(value.clone()) {
             Ok(a) => Ok(a),
             Err(err) => {
                 tracing::error!("{}", err);
                 tracing::debug!("{:?}", err);
                 Err((
-                    JsError::BoundryLayerSerDe,
+                    JsEngineError::BoundryLayerSerDe,
                     format!(
                         "Couldn't convert output = {:#?} to the correct type",
                         serde_json::to_string_pretty(&error_value).unwrap_or_default()
                     ),
                 ))
+                .map_err(|(kind, message)| {
+                    Error::new(eyre!("{kind:?}: {message}"), ErrorKind::Javascript)
+                })
             }
         },
+    }
+}
+
+#[derive(Debug)]
+pub struct NoOutput;
+impl<'de> Deserialize<'de> for NoOutput {
+    fn deserialize<D>(_: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        Ok(NoOutput)
     }
 }
 
@@ -301,7 +338,7 @@ mod tests {
     }
     #[tokio::test]
     async fn js_action_execute() {
-        let js_action = JsProcedure { args: vec![] };
+        let js_action = JsProcedure;
         let path: PathBuf = "test/js_action_execute/"
             .parse::<PathBuf>()
             .unwrap()
@@ -359,7 +396,7 @@ mod tests {
 
     #[tokio::test]
     async fn js_action_execute_error() {
-        let js_action = JsProcedure { args: vec![] };
+        let js_action = JsProcedure;
         let path: PathBuf = "test/js_action_execute/"
             .parse::<PathBuf>()
             .unwrap()
@@ -406,7 +443,7 @@ mod tests {
 
     #[tokio::test]
     async fn js_action_fetch() {
-        let js_action = JsProcedure { args: vec![] };
+        let js_action = JsProcedure;
         let path: PathBuf = "test/js_action_execute/"
             .parse::<PathBuf>()
             .unwrap()
@@ -453,7 +490,7 @@ mod tests {
 
     #[tokio::test]
     async fn js_test_slow() {
-        let js_action = JsProcedure { args: vec![] };
+        let js_action = JsProcedure;
         let path: PathBuf = "test/js_action_execute/"
             .parse::<PathBuf>()
             .unwrap()
@@ -501,58 +538,10 @@ mod tests {
         tokio::time::sleep(Duration::from_secs(2)).await;
         tracing::debug!("Done");
     }
-    #[tokio::test]
-    async fn js_action_var_arg() {
-        let js_action = JsProcedure {
-            args: vec![42.into()],
-        };
-        let path: PathBuf = "test/js_action_execute/"
-            .parse::<PathBuf>()
-            .unwrap()
-            .canonicalize()
-            .unwrap();
-        let package_id = "test-package".parse().unwrap();
-        let package_version: Version = "0.3.0.3".parse().unwrap();
-        let name = ProcedureName::Action("js-action-var-arg".parse().unwrap());
-        let volumes: Volumes = serde_json::from_value(json!({
-            "main": {
-                "type": "data"
-            },
-            "compat": {
-                "type": "assets"
-            },
-            "filebrowser" :{
-                "package-id": "filebrowser",
-                "path": "data",
-                "readonly": true,
-                "type": "pointer",
-                "volume-id": "main",
-            }
-        }))
-        .unwrap();
-        let input: Option<serde_json::Value> = None;
-        let timeout = Some(Duration::from_secs(10));
-        js_action
-            .execute::<serde_json::Value, serde_json::Value>(
-                &path,
-                &package_id,
-                &package_version,
-                name,
-                &volumes,
-                input,
-                timeout,
-                ProcessGroupId(0),
-                None,
-                Arc::new(OsApiMock::default()),
-            )
-            .await
-            .unwrap()
-            .unwrap();
-    }
 
     #[tokio::test]
     async fn js_action_test_rename() {
-        let js_action = JsProcedure { args: vec![] };
+        let js_action = JsProcedure;
         let path: PathBuf = "test/js_action_execute/"
             .parse::<PathBuf>()
             .unwrap()
@@ -617,7 +606,7 @@ mod tests {
     }
     #[tokio::test]
     async fn js_action_test_deep_dir_escape() {
-        let js_action = JsProcedure { args: vec![] };
+        let js_action = JsProcedure;
         let path: PathBuf = "test/js_action_execute/"
             .parse::<PathBuf>()
             .unwrap()
@@ -663,7 +652,7 @@ mod tests {
     }
     #[tokio::test]
     async fn js_action_test_zero_dir() {
-        let js_action = JsProcedure { args: vec![] };
+        let js_action = JsProcedure;
         let path: PathBuf = "test/js_action_execute/"
             .parse::<PathBuf>()
             .unwrap()
@@ -709,7 +698,7 @@ mod tests {
     }
     #[tokio::test]
     async fn js_action_test_read_dir() {
-        let js_action = JsProcedure { args: vec![] };
+        let js_action = JsProcedure;
         let path: PathBuf = "test/js_action_execute/"
             .parse::<PathBuf>()
             .unwrap()
@@ -756,7 +745,7 @@ mod tests {
 
     #[tokio::test]
     async fn js_action_test_deep_dir() {
-        let js_action = JsProcedure { args: vec![] };
+        let js_action = JsProcedure;
         let path: PathBuf = "test/js_action_execute/"
             .parse::<PathBuf>()
             .unwrap()
@@ -802,7 +791,7 @@ mod tests {
     }
     #[tokio::test]
     async fn js_action_test_deep_dir_escape() {
-        let js_action = JsProcedure { args: vec![] };
+        let js_action = JsProcedure;
         let path: PathBuf = "test/js_action_execute/"
             .parse::<PathBuf>()
             .unwrap()
@@ -848,7 +837,7 @@ mod tests {
     }
     #[tokio::test]
     async fn js_permissions_and_own() {
-        let js_action = JsProcedure { args: vec![] };
+        let js_action = JsProcedure;
         let path: PathBuf = "test/js_action_execute/"
             .parse::<PathBuf>()
             .unwrap()
@@ -894,7 +883,7 @@ mod tests {
     }
     #[tokio::test]
     async fn js_action_test_zero_dir() {
-        let js_action = JsProcedure { args: vec![] };
+        let js_action = JsProcedure;
         let path: PathBuf = "test/js_action_execute/"
             .parse::<PathBuf>()
             .unwrap()
@@ -941,7 +930,7 @@ mod tests {
 
     #[tokio::test]
     async fn js_rsync() {
-        let js_action = JsProcedure { args: vec![] };
+        let js_action = JsProcedure;
         let path: PathBuf = "test/js_action_execute/"
             .parse::<PathBuf>()
             .unwrap()
@@ -1004,7 +993,7 @@ mod tests {
                 break;
             }
         });
-        let js_action = JsProcedure { args: vec![] };
+        let js_action = JsProcedure;
         let path: PathBuf = "test/js_action_execute/"
             .parse::<PathBuf>()
             .unwrap()

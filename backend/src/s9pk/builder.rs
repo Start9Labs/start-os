@@ -14,18 +14,18 @@ use crate::util::HashWriter;
 pub struct S9pkPacker<
     'a,
     W: AsyncWriteExt + AsyncSeekExt,
+    RIcon: AsyncReadExt + Unpin,
     RLicense: AsyncReadExt + Unpin,
     RInstructions: AsyncReadExt + Unpin,
-    RIcon: AsyncReadExt + Unpin,
     RDockerImages: AsyncReadExt + Unpin,
     RAssets: AsyncReadExt + Unpin,
     RScripts: AsyncReadExt + Unpin,
 > {
     writer: W,
     manifest: &'a Manifest,
+    icon: RIcon,
     license: RLicense,
     instructions: RInstructions,
-    icon: RIcon,
     docker_images: RDockerImages,
     assets: RAssets,
     scripts: Option<RScripts>,
@@ -33,9 +33,9 @@ pub struct S9pkPacker<
 impl<
         'a,
         W: AsyncWriteExt + AsyncSeekExt + Unpin,
+        RIcon: AsyncReadExt + Unpin,
         RLicense: AsyncReadExt + Unpin,
         RInstructions: AsyncReadExt + Unpin,
-        RIcon: AsyncReadExt + Unpin,
         RDockerImages: AsyncReadExt + Unpin,
         RAssets: AsyncReadExt + Unpin,
         RScripts: AsyncReadExt + Unpin,
@@ -64,6 +64,16 @@ impl<
             length: new_pos - position,
         };
         position = new_pos;
+        // icon
+        tokio::io::copy(&mut self.icon, &mut writer)
+            .await
+            .with_ctx(|_| (ErrorKind::Filesystem, "Copying Icon"))?;
+        let new_pos = writer.inner_mut().stream_position().await?;
+        header.table_of_contents.icon = FileSection {
+            position,
+            length: new_pos - position,
+        };
+        position = new_pos;
         // license
         tokio::io::copy(&mut self.license, &mut writer)
             .await
@@ -80,16 +90,6 @@ impl<
             .with_ctx(|_| (ErrorKind::Filesystem, "Copying Instructions"))?;
         let new_pos = writer.inner_mut().stream_position().await?;
         header.table_of_contents.instructions = FileSection {
-            position,
-            length: new_pos - position,
-        };
-        position = new_pos;
-        // icon
-        tokio::io::copy(&mut self.icon, &mut writer)
-            .await
-            .with_ctx(|_| (ErrorKind::Filesystem, "Copying Icon"))?;
-        let new_pos = writer.inner_mut().stream_position().await?;
-        header.table_of_contents.icon = FileSection {
             position,
             length: new_pos - position,
         };

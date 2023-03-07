@@ -236,6 +236,11 @@ impl From<std::net::AddrParseError> for Error {
         Error::new(e, ErrorKind::ParseNetAddress)
     }
 }
+impl From<torut::control::ConnError> for Error {
+    fn from(e: torut::control::ConnError) -> Self {
+        Error::new(e, ErrorKind::Tor)
+    }
+}
 impl From<ipnet::AddrParseError> for Error {
     fn from(e: ipnet::AddrParseError) -> Self {
         Error::new(e, ErrorKind::ParseNetAddress)

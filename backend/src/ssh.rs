@@ -4,7 +4,7 @@ use chrono::Utc;
 use clap::ArgMatches;
 use color_eyre::eyre::eyre;
 use rpc_toolkit::command;
-use sqlx::{Executor, Pool, Postgres};
+use sqlx::{Pool, Postgres};
 use tracing::instrument;
 
 use crate::context::RpcContext;
@@ -104,7 +104,7 @@ pub async fn delete(#[context] ctx: RpcContext, #[arg] fingerprint: String) -> R
     if n == 0 {
         Err(Error {
             source: color_eyre::eyre::eyre!("SSH Key Not Found"),
-            kind: Error::ErrorKind::NotFound,
+            kind: ErrorKind::NotFound,
             revision: None,
         })
     } else {

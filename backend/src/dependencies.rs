@@ -18,8 +18,7 @@ use crate::db::model::{
     AllPackageData, CurrentDependencies, CurrentDependencyInfo, InstalledPackageInfo, PackageDataEntryMatchModel, DatabaseModel
 };
 use crate::prelude::*;
-use crate::procedure::docker::DockerContainers;
-use crate::procedure::{NoOutput, PackageProcedure, ProcedureName};
+use crate::container::DockerContainers;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::status::health_check::{HealthCheckId, HealthCheckResult};
 use crate::status::{MainStatus, Status};
@@ -356,14 +355,14 @@ impl BreakageRes {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
 pub struct Dependencies(pub BTreeMap<PackageId, DepInfo>);
 impl Map for Dependencies {
     type Key = PackageId;
     type Value = DepInfo;
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 #[serde(tag = "type")]
 pub enum DependencyRequirement {
@@ -377,7 +376,7 @@ impl DependencyRequirement {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
+#[derive(Clone, Debug, Deserialize, Serialize, HasModel, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 #[model = "Model<Self>"]
 pub struct DepInfo {

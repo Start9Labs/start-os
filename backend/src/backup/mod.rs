@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use chrono::{DateTime, Utc};
 use color_eyre::eyre::eyre;
 use helpers::AtomicFile;
-use models::ImageId;
+use models::{ImageId, InterfaceId, ProcedureName};
 use patch_db::HasModel;
 use reqwest::Url;
 use rpc_toolkit::command;
@@ -14,14 +14,13 @@ use tokio::io::AsyncWriteExt;
 use tracing::instrument;
 
 use self::target::PackageBackupInfo;
+use crate::container::DockerContainers;
 use crate::context::RpcContext;
 use crate::install::PKG_ARCHIVE_DIR;
-use crate::net::interface::{InterfaceId, Interfaces};
 use crate::net::keys::Key;
 use crate::prelude::*;
-use crate::procedure::docker::DockerContainers;
-use crate::procedure::{NoOutput, PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::PackageId;
+use crate::script::{JsProcedure, NoOutput};
 use crate::util::serde::{Base32, Base64, IoFormat};
 use crate::util::Version;
 use crate::version::{Current, VersionT};
@@ -69,145 +68,117 @@ struct BackupMetadata {
     pub marketplace_url: Option<Url>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
-#[model = "Model<Self>"]
-pub struct BackupActions {
-    pub create: PackageProcedure,
-    pub restore: PackageProcedure,
-}
-impl BackupActions {
-    pub fn validate(
-        &self,
-        container: &Option<DockerContainers>,
-        eos_version: &Version,
-        volumes: &Volumes,
-        image_ids: &BTreeSet<ImageId>,
-    ) -> Result<(), Error> {
-        self.create
-            .validate(container, eos_version, volumes, image_ids, false)
-            .with_ctx(|_| (ErrorKind::ValidateS9pk, "Backup Create"))?;
-        self.restore
-            .validate(container, eos_version, volumes, image_ids, false)
-            .with_ctx(|_| (ErrorKind::ValidateS9pk, "Backup Restore"))?;
-        Ok(())
+#[instrument(skip(ctx))]
+pub async fn create(
+    ctx: &RpcContext,
+    pkg_id: &PackageId,
+    pkg_title: &str,
+    pkg_version: &Version,
+    volumes: &Volumes,
+    marketplace_url: Option<Url>,
+) -> Result<PackageBackupInfo, Error> {
+    let mut volumes = volumes.to_readonly();
+    volumes.insert(
+        VolumeId::Backup,
+        Volume::Backup(VolumeBackup { readonly: false }),
+    );
+    let backup_dir = backup_dir(pkg_id);
+    if tokio::fs::metadata(&backup_dir).await.is_err() {
+        tokio::fs::create_dir_all(&backup_dir).await?
     }
-
-    #[instrument(skip(ctx))]
-    pub async fn create(
-        &self,
-        ctx: &RpcContext,
-        pkg_id: &PackageId,
-        pkg_title: &str,
-        pkg_version: &Version,
-        interfaces: &Interfaces,
-        volumes: &Volumes,
-        marketplace_url: Option<Url>,
-    ) -> Result<PackageBackupInfo, Error> {
-        let mut volumes = volumes.to_readonly();
-        volumes.insert(
-            VolumeId::Backup,
-            Volume::Backup(VolumeBackup { readonly: false }),
-        );
-        let backup_dir = backup_dir(pkg_id);
-        if tokio::fs::metadata(&backup_dir).await.is_err() {
-            tokio::fs::create_dir_all(&backup_dir).await?
-        }
-        self.create
-            .execute::<(), NoOutput>(
-                ctx,
-                pkg_id,
-                pkg_version,
-                ProcedureName::CreateBackup,
-                &volumes,
-                None,
-                None,
-            )
-            .await?
-            .map_err(|e| eyre!("{}", e.1))
-            .with_kind(ErrorKind::Backup)?;
-        let (network_keys, tor_keys) = Key::for_package(&ctx.secret_store, pkg_id)
-            .await?
-            .into_iter()
-            .filter_map(|k| {
-                let interface = k.interface().map(|(_, i)| i)?;
-                Some((
-                    (interface.clone(), Base64(k.as_bytes())),
-                    (interface, Base32(k.tor_key().as_bytes())),
-                ))
-            })
-            .unzip();
-        let tmp_path = Path::new(BACKUP_DIR)
-            .join(pkg_id)
-            .join(format!("{}.s9pk", pkg_id));
-        let s9pk_path = ctx
-            .datadir
-            .join(PKG_ARCHIVE_DIR)
-            .join(pkg_id)
-            .join(pkg_version.as_str())
-            .join(format!("{}.s9pk", pkg_id));
-        let mut infile = File::open(&s9pk_path).await?;
-        let mut outfile = AtomicFile::new(&tmp_path, None::<PathBuf>)
-            .await
-            .with_kind(ErrorKind::Filesystem)?;
-        tokio::io::copy(&mut infile, &mut *outfile)
-            .await
-            .with_ctx(|_| {
-                (
-                    ErrorKind::Filesystem,
-                    format!("cp {} -> {}", s9pk_path.display(), tmp_path.display()),
-                )
-            })?;
-        outfile.save().await.with_kind(ErrorKind::Filesystem)?;
-        let timestamp = Utc::now();
-        let metadata_path = Path::new(BACKUP_DIR).join(pkg_id).join("metadata.cbor");
-        let mut outfile = AtomicFile::new(&metadata_path, None::<PathBuf>)
-            .await
-            .with_kind(ErrorKind::Filesystem)?;
-        outfile
-            .write_all(&IoFormat::Cbor.to_vec(&BackupMetadata {
-                timestamp,
-                network_keys,
-                tor_keys,
-                marketplace_url,
-            })?)
-            .await?;
-        outfile.save().await.with_kind(ErrorKind::Filesystem)?;
-        Ok(PackageBackupInfo {
-            os_version: Current::new().semver().into(),
-            title: pkg_title.to_owned(),
-            version: pkg_version.clone(),
-            timestamp,
+    JsProcedure
+        .execute::<(), NoOutput>(
+            ctx,
+            pkg_id,
+            pkg_version,
+            ProcedureName::CreateBackup,
+            &volumes,
+            None,
+            None,
+        )
+        .await?
+        .map_err(|e| eyre!("{}", e.1))
+        .with_kind(ErrorKind::Backup)?;
+    let (network_keys, tor_keys) = Key::for_package(&ctx.secret_store, pkg_id)
+        .await?
+        .into_iter()
+        .filter_map(|k| {
+            let interface = k.interface().map(|(_, i)| i)?;
+            Some((
+                (interface.clone(), Base64(k.as_bytes())),
+                (interface, Base32(k.tor_key().as_bytes())),
+            ))
         })
-    }
-
-    #[instrument(skip(ctx))]
-    pub async fn restore(
-        &self,
-        ctx: &RpcContext,
-        pkg_id: &PackageId,
-        pkg_version: &Version,
-        interfaces: &Interfaces,
-        volumes: &Volumes,
-    ) -> Result<(), Error> {
-        let mut volumes = volumes.clone();
-        volumes.insert(
-            VolumeId::Backup,
-            Volume::Backup(VolumeBackup { readonly: true }),
-        );
-        self.restore
-            .execute::<(), NoOutput>(
-                ctx,
-                pkg_id,
-                pkg_version,
-                ProcedureName::RestoreBackup,
-                &volumes,
-                None,
-                None,
+        .unzip();
+    let tmp_path = Path::new(BACKUP_DIR)
+        .join(pkg_id)
+        .join(format!("{}.s9pk", pkg_id));
+    let s9pk_path = ctx
+        .datadir
+        .join(PKG_ARCHIVE_DIR)
+        .join(pkg_id)
+        .join(pkg_version.as_str())
+        .join(format!("{}.s9pk", pkg_id));
+    let mut infile = File::open(&s9pk_path).await?;
+    let mut outfile = AtomicFile::new(&tmp_path, None::<PathBuf>)
+        .await
+        .with_kind(ErrorKind::Filesystem)?;
+    tokio::io::copy(&mut infile, &mut *outfile)
+        .await
+        .with_ctx(|_| {
+            (
+                ErrorKind::Filesystem,
+                format!("cp {} -> {}", s9pk_path.display(), tmp_path.display()),
             )
-            .await?
-            .map_err(|e| eyre!("{}", e.1))
-            .with_kind(ErrorKind::Restore)?;
+        })?;
+    outfile.save().await.with_kind(ErrorKind::Filesystem)?;
+    let timestamp = Utc::now();
+    let metadata_path = Path::new(BACKUP_DIR).join(pkg_id).join("metadata.cbor");
+    let mut outfile = AtomicFile::new(&metadata_path, None::<PathBuf>)
+        .await
+        .with_kind(ErrorKind::Filesystem)?;
+    outfile
+        .write_all(&IoFormat::Cbor.to_vec(&BackupMetadata {
+            timestamp,
+            network_keys,
+            tor_keys,
+            marketplace_url,
+        })?)
+        .await?;
+    outfile.save().await.with_kind(ErrorKind::Filesystem)?;
+    Ok(PackageBackupInfo {
+        os_version: Current::new().semver().into(),
+        title: pkg_title.to_owned(),
+        version: pkg_version.clone(),
+        timestamp,
+    })
+}
 
-        Ok(())
-    }
+#[instrument(skip(ctx))]
+pub async fn restore(
+    ctx: &RpcContext,
+    pkg_id: &PackageId,
+    pkg_version: &Version,
+    volumes: &Volumes,
+) -> Result<(), Error> {
+    let mut volumes = volumes.clone();
+    volumes.insert(
+        VolumeId::Backup,
+        Volume::Backup(VolumeBackup { readonly: true }),
+    );
+    self.restore
+        .execute::<(), NoOutput>(
+            ctx,
+            pkg_id,
+            pkg_version,
+            ProcedureName::RestoreBackup,
+            &volumes,
+            None,
+            None,
+        )
+        .await?
+        .map_err(|e| eyre!("{}", e.1))
+        .with_kind(ErrorKind::Restore)?;
+
+    Ok(())
 }

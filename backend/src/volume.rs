@@ -5,10 +5,8 @@ use std::path::{Path, PathBuf};
 pub use helpers::script_dir;
 pub use models::VolumeId;
 use serde::{Deserialize, Serialize};
-use tracing::instrument;
 
-use crate::context::RpcContext;
-use crate::net::interface::{InterfaceId, Interfaces};
+use crate::net::interface::InterfaceId;
 use crate::net::PACKAGE_CERT_PATH;
 use crate::prelude::*;
 use crate::s9pk::manifest::PackageId;
@@ -17,32 +15,9 @@ use crate::util::Version;
 pub const PKG_VOLUME_DIR: &str = "package-data/volumes";
 pub const BACKUP_DIR: &str = "/media/embassy/backups";
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
 pub struct Volumes(BTreeMap<VolumeId, Volume>);
 impl Volumes {
-    #[instrument]
-    pub fn validate(&self, interfaces: &Interfaces) -> Result<(), Error> {
-        for (id, volume) in &self.0 {
-            volume
-                .validate(interfaces)
-                .with_ctx(|_| (ErrorKind::ValidateS9pk, format!("Volume {}", id)))?;
-        }
-        Ok(())
-    }
-    #[instrument(skip(ctx))]
-    pub async fn install(
-        &self,
-        ctx: &RpcContext,
-        pkg_id: &PackageId,
-        version: &Version,
-    ) -> Result<(), Error> {
-        for (volume_id, volume) in &self.0 {
-            volume
-                .install(&ctx.datadir, pkg_id, version, volume_id)
-                .await?; // TODO: concurrent?
-        }
-        Ok(())
-    }
     pub fn get_path_for(
         &self,
         path: &PathBuf,
@@ -112,19 +87,19 @@ pub fn cert_dir(pkg_id: &PackageId, interface_id: &InterfaceId) -> PathBuf {
     Path::new(PACKAGE_CERT_PATH).join(pkg_id).join(interface_id)
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
+#[derive(Clone, Debug, Deserialize, Serialize, HasModel, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 #[model = "Model<Self>"]
 pub struct VolumeData {
     #[serde(skip)]
     pub readonly: bool,
 }
-#[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
+#[derive(Clone, Debug, Deserialize, Serialize, HasModel, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 #[model = "Model<Self>"]
 pub struct VolumeAssets {}
 
-#[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
+#[derive(Clone, Debug, Deserialize, Serialize, HasModel, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 #[model = "Model<Self>"]
 pub struct VolumePointer {
@@ -145,21 +120,14 @@ impl VolumePointer {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
-#[serde(rename_all = "kebab-case")]
-#[model = "Model<Self>"]
-pub struct VolumeCertificate {
-    pub interface_id: InterfaceId,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
+#[derive(Clone, Debug, Deserialize, Serialize, HasModel, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 #[model = "Model<Self>"]
 pub struct VolumeBackup {
     pub readonly: bool,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
+#[derive(Clone, Debug, Deserialize, Serialize, HasModel, PartialEq, Eq)]
 #[serde(tag = "type")]
 #[serde(rename_all = "kebab-case")]
 #[model = "Model<Self>"]
@@ -167,38 +135,10 @@ pub enum Volume {
     Data(VolumeData),
     Assets(VolumeAssets),
     Pointer(VolumePointer),
-    Certificate(VolumeCertificate),
     #[serde(skip)]
     Backup(VolumeBackup),
 }
 impl Volume {
-    #[instrument]
-    pub fn validate(&self, interfaces: &Interfaces) -> Result<(), color_eyre::eyre::Report> {
-        match self {
-            Volume::Certificate(VolumeCertificate { interface_id }) => {
-                if !interfaces.0.contains_key(interface_id) {
-                    color_eyre::eyre::bail!("unknown interface: {}", interface_id);
-                }
-            }
-            _ => (),
-        }
-        Ok(())
-    }
-    pub async fn install(
-        &self,
-        path: &PathBuf,
-        pkg_id: &PackageId,
-        version: &Version,
-        volume_id: &VolumeId,
-    ) -> Result<(), Error> {
-        match self {
-            Volume::Data { .. } => {
-                tokio::fs::create_dir_all(self.path_for(path, pkg_id, version, volume_id)).await?;
-            }
-            _ => (),
-        }
-        Ok(())
-    }
     pub fn path_for(
         &self,
         data_dir_path: impl AsRef<Path>,
@@ -210,9 +150,6 @@ impl Volume {
             Volume::Data(_) => data_dir(data_dir_path, pkg_id, volume_id),
             Volume::Assets(_) => asset_dir(data_dir_path, pkg_id, version).join(volume_id),
             Volume::Pointer(p) => p.path(data_dir_path),
-            Volume::Certificate(VolumeCertificate { interface_id }) => {
-                cert_dir(pkg_id, &interface_id)
-            }
             Volume::Backup(_) => backup_dir(pkg_id),
         }
     }
@@ -236,7 +173,6 @@ impl Volume {
             Volume::Data(VolumeData { readonly }) => *readonly,
             Volume::Assets(VolumeAssets {}) => true,
             Volume::Pointer(VolumePointer { readonly, .. }) => *readonly,
-            Volume::Certificate(VolumeCertificate { .. }) => true,
             Volume::Backup(VolumeBackup { readonly }) => *readonly,
         }
     }

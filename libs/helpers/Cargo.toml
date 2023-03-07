@@ -9,6 +9,7 @@ edition = "2021"
 async-trait = "0.1.64"
 color-eyre = "0.6.2"
 futures = "0.3.21"
+imbl-value = { git = "https://github.com/Start9Labs/imbl-value.git" }
 lazy_async_pool = "0.3.3"
 models = { path = "../models" }
 pin-project = "1.0.11"

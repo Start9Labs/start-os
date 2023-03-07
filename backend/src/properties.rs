@@ -6,7 +6,6 @@ use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::prelude::*;
-use crate::procedure::ProcedureName;
 use crate::s9pk::manifest::{Manifest, PackageId};
 
 pub fn display_properties(response: Value, _: &ArgMatches) {

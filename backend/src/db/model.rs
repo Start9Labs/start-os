@@ -1,13 +1,13 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::net::{Ipv4Addr, Ipv6Addr};
-use std::sync::Arc;
+use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Utc};
 use emver::VersionRange;
 use ipnet::{Ipv4Net, Ipv6Net};
 use isocountry::CountryCode;
 use itertools::Itertools;
-use models::DataUrl;
+use models::{DataUrl, InterfaceId};
 use openssl::hash::MessageDigest;
 use patch_db::{HasModel, Value};
 use reqwest::Url;
@@ -15,9 +15,9 @@ use serde::{Deserialize, Serialize};
 use ssh_key::public::Ed25519PublicKey;
 
 use crate::account::AccountInfo;
+use crate::action::Actions;
 use crate::install::progress::InstallProgress;
 use crate::net::forward::LanPortForwards;
-use crate::net::interface::InterfaceId;
 use crate::net::utils::{get_iface_ipv4_addr, get_iface_ipv6_addr};
 use crate::prelude::*;
 use crate::s9pk::manifest::{Manifest, PackageId};
@@ -57,11 +57,7 @@ impl Database {
                     backup_progress: None,
                     updated: false,
                     update_progress: None,
-                },
-                wifi: WifiInfo {
-                    ssids: Vec::new(),
-                    connected: None,
-                    selected: None,
+                    shutting_down: false,
                 },
                 unread_notification_count: 0,
                 connection_addresses: ConnectionAddresses {
@@ -107,7 +103,6 @@ pub struct ServerInfo {
     pub ip_info: BTreeMap<String, IpInfo>,
     #[serde(default)]
     pub status_info: ServerStatus,
-    pub wifi: WifiInfo,
     pub unread_notification_count: u64,
     pub connection_addresses: ConnectionAddresses,
     pub password_hash: String,
@@ -151,6 +146,7 @@ pub struct ServerStatus {
     pub backup_progress: Option<BTreeMap<PackageId, BackupProgress>>,
     pub updated: bool,
     pub update_progress: Option<UpdateProgress>,
+    pub shutting_down: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
@@ -159,14 +155,6 @@ pub struct ServerStatus {
 pub struct UpdateProgress {
     pub size: Option<u64>,
     pub downloaded: u64,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct WifiInfo {
-    pub ssids: Vec<String>,
-    pub selected: Option<String>,
-    pub connected: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -191,28 +179,11 @@ impl Map for AllPackageData {
     type Value = PackageDataEntry;
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct StaticFiles {
-    license: String,
-    instructions: String,
-    icon: DataUrl,
-}
-impl StaticFiles {
-    pub fn local(id: &PackageId, version: &Version, icon: DataUrl) -> Self {
-        StaticFiles {
-            license: format!("/public/package-data/{}/{}/LICENSE.md", id, version),
-            instructions: format!("/public/package-data/{}/{}/INSTRUCTIONS.md", id, version),
-            icon,
-        }
-    }
-}
-
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
 #[model = "Model<Self>"]
 pub struct PackageDataEntryInstalling {
-    pub static_files: StaticFiles,
+    pub icon: DataUrl,
     pub manifest: Manifest,
     pub install_progress: InstallProgress,
 }
@@ -221,10 +192,10 @@ pub struct PackageDataEntryInstalling {
 #[serde(rename_all = "kebab-case")]
 #[model = "Model<Self>"]
 pub struct PackageDataEntryUpdating {
-    pub static_files: StaticFiles,
+    pub icon: DataUrl,
     pub manifest: Manifest,
-    pub new_manifest: Manifest,
-    pub installed: InstalledPackageInfo,
+    pub old_manifest: Manifest,
+    pub rollback_to: Option<InstalledPackageInfo>,
     pub install_progress: InstallProgress,
 }
 
@@ -232,25 +203,32 @@ pub struct PackageDataEntryUpdating {
 #[serde(rename_all = "kebab-case")]
 #[model = "Model<Self>"]
 pub struct PackageDataEntryRestoring {
-    pub static_files: StaticFiles,
+    pub icon: DataUrl,
     pub manifest: Manifest,
-    pub install_progress: Arc<InstallProgress>,
+    pub install_progress: InstallProgress,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
 #[model = "Model<Self>"]
 pub struct PackageDataEntryRemoving {
-    pub static_files: StaticFiles,
+    pub icon: DataUrl,
     pub manifest: Manifest,
-    pub removing: InstalledPackageInfo,
+}
+
+#[derive(Debug, Deserialize, Serialize, HasModel)]
+#[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
+pub struct PackageDataEntryNeedsUpdate {
+    pub icon: DataUrl,
+    pub manifest: Manifest,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
 #[model = "Model<Self>"]
 pub struct PackageDataEntryInstalled {
-    pub static_files: StaticFiles,
+    pub icon: DataUrl,
     pub manifest: Manifest,
     pub installed: InstalledPackageInfo,
 }
@@ -265,58 +243,10 @@ pub enum PackageDataEntry {
     Updating(PackageDataEntryUpdating),
     Restoring(PackageDataEntryRestoring),
     Removing(PackageDataEntryRemoving),
+    NeedsUpdate(PackageDataEntryNeedsUpdate),
     Installed(PackageDataEntryInstalled),
 }
-impl PackageDataEntry {
-    pub fn as_installed(&self) -> Option<&InstalledPackageInfo> {
-        match self {
-            Self::Installing { .. } | Self::Restoring { .. } | Self::Removing { .. } => None,
-            Self::Updating(PackageDataEntryUpdating { installed, .. })
-            | Self::Installed(PackageDataEntryInstalled { installed, .. }) => Some(installed),
-        }
-    }
-    // pub fn as_installed_mut(&mut self) -> Option<&mut InstalledPackageInfo> {
-    //     match self {
-    //         Self::Installing { .. } | Self::Restoring { .. } | Self::Removing { .. } => None,
-    //         Self::Updating { installed, .. } | Self::Installed { installed, .. } => Some(installed),
-    //     }
-    // }
-    // pub fn into_installed(self) -> Option<InstalledPackageInfo> {
-    //     match self {
-    //         Self::Installing { .. } | Self::Restoring { .. } | Self::Removing { .. } => None,
-    //         Self::Updating { installed, .. } | Self::Installed { installed, .. } => Some(installed),
-    //     }
-    // }
-    // pub fn into_manifest(self) -> Manifest {
-    //     match self {
-    //         PackageDataEntry::Installing { manifest, .. } => manifest,
-    //         PackageDataEntry::Updating { manifest, .. } => manifest,
-    //         PackageDataEntry::Restoring { manifest, .. } => manifest,
-    //         PackageDataEntry::Removing { manifest, .. } => manifest,
-    //         PackageDataEntry::Installed { manifest, .. } => manifest,
-    //     }
-    // }
-    // pub fn as_manifest(&self) -> &Manifest {
-    //     match self {
-    //         PackageDataEntry::Installing { manifest, .. } => manifest,
-    //         PackageDataEntry::Updating { manifest, .. } => manifest,
-    //         PackageDataEntry::Restoring { manifest, .. } => manifest,
-    //         PackageDataEntry::Removing { manifest, .. } => manifest,
-    //         PackageDataEntry::Installed { manifest, .. } => manifest,
-    //     }
-    // }
-}
 impl Model<PackageDataEntry> {
-    pub fn into_manifest(self) -> Model<Manifest> {
-        match self.into_match() {
-            PackageDataEntryMatchModel::Installing(a) => a.into_manifest(),
-            PackageDataEntryMatchModel::Updating(a) => a.into_manifest(),
-            PackageDataEntryMatchModel::Restoring(a) => a.into_manifest(),
-            PackageDataEntryMatchModel::Removing(a) => a.into_manifest(),
-            PackageDataEntryMatchModel::Installed(a) => a.into_manifest(),
-            PackageDataEntryMatchModel::Error(_) => Model::from(Value::Null),
-        }
-    }
     pub fn expect_into_installed(self) -> Result<Model<PackageDataEntryInstalled>, Error> {
         if let PackageDataEntryMatchModel::Installed(a) = self.into_match() {
             Ok(a)
@@ -325,19 +255,6 @@ impl Model<PackageDataEntry> {
                 eyre!("package is not in installed state"),
                 ErrorKind::InvalidRequest,
             ))
-        }
-    }
-    pub fn as_manifest(&self) -> Result<&Model<Manifest>, Error> {
-        match self.as_match_mut() {
-            PackageDataEntryMatchModelMut::Installing(mut a) => Ok(a.as_manifest_mut()),
-            PackageDataEntryMatchModelMut::Updating(mut a) => Ok(a.as_manifest_mut()),
-            PackageDataEntryMatchModelMut::Restoring(mut a) => Ok(a.as_manifest_mut()),
-            PackageDataEntryMatchModelMut::Removing(mut a) => Ok(a.as_manifest_mut()),
-            PackageDataEntryMatchModelMut::Installed(mut a) => Ok(a.as_manifest_mut()),
-            PackageDataEntryMatchModelMut::Error(mut a) => Err(Error::new(
-                eyre!("unknown variant of PackageDataEntry"),
-                ErrorKind::Deserialization,
-            )),
         }
     }
     pub fn expect_as_installed_mut(
@@ -350,6 +267,45 @@ impl Model<PackageDataEntry> {
                 eyre!("package is not in installed state"),
                 ErrorKind::InvalidRequest,
             ))
+        }
+    }
+    pub fn into_manifest(self) -> Model<Manifest> {
+        match self.into_match() {
+            PackageDataEntryMatchModel::Installing(a) => a.into_manifest(),
+            PackageDataEntryMatchModel::Updating(a) => a.into_old_manifest(),
+            PackageDataEntryMatchModel::Restoring(a) => a.into_manifest(),
+            PackageDataEntryMatchModel::Removing(a) => a.into_manifest(),
+            PackageDataEntryMatchModel::NeedsUpdate(a) => a.into_manifest(),
+            PackageDataEntryMatchModel::Installed(a) => a.into_manifest(),
+            PackageDataEntryMatchModel::Error(_) => Model::from(Value::Null),
+        }
+    }
+    pub fn as_manifest(&self) -> Result<&Model<Manifest>, Error> {
+        match self.as_match() {
+            PackageDataEntryMatchModelRef::Installing(a) => Ok(a.as_manifest()),
+            PackageDataEntryMatchModelRef::Updating(a) => Ok(a.as_old_manifest()),
+            PackageDataEntryMatchModelRef::Restoring(a) => Ok(a.as_manifest()),
+            PackageDataEntryMatchModelRef::Removing(a) => Ok(a.as_manifest()),
+            PackageDataEntryMatchModelRef::NeedsUpdate(a) => Ok(a.as_manifest()),
+            PackageDataEntryMatchModelRef::Installed(a) => Ok(a.as_manifest()),
+            PackageDataEntryMatchModelRef::Error(a) => Err(Error::new(
+                eyre!("unknown variant of PackageDataEntry"),
+                ErrorKind::Deserialization,
+            )),
+        }
+    }
+    pub fn as_icon(&self) -> Result<&Model<DataUrl>, Error> {
+        match self.as_match() {
+            PackageDataEntryMatchModelRef::Installing(a) => Ok(a.as_icon()),
+            PackageDataEntryMatchModelRef::Updating(a) => Ok(a.as_icon()),
+            PackageDataEntryMatchModelRef::Restoring(a) => Ok(a.as_icon()),
+            PackageDataEntryMatchModelRef::Removing(a) => Ok(a.as_icon()),
+            PackageDataEntryMatchModelRef::NeedsUpdate(a) => Ok(a.as_icon()),
+            PackageDataEntryMatchModelRef::Installed(a) => Ok(a.as_icon()),
+            PackageDataEntryMatchModelRef::Error(a) => Err(Error::new(
+                eyre!("unknown variant of PackageDataEntry"),
+                ErrorKind::Deserialization,
+            )),
         }
     }
 }
@@ -366,7 +322,8 @@ pub struct InstalledPackageInfo {
     pub last_backup: Option<DateTime<Utc>>,
     pub dependency_info: BTreeMap<PackageId, StaticDependencyInfo>,
     pub current_dependencies: CurrentDependencies,
-    pub interface_addresses: InterfaceAddressMap,
+    pub address_info: AddressInfoMap,
+    pub actions: Actions,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
@@ -387,12 +344,12 @@ impl Map for CurrentDependencies {
     type Value = CurrentDependencyInfo;
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel)]
+#[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
 #[model = "Model<Self>"]
 pub struct StaticDependencyInfo {
-    pub manifest: Option<Manifest>,
-    pub icon: String,
+    pub title: String,
+    pub icon: DataUrl,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel)]
@@ -403,25 +360,18 @@ pub struct CurrentDependencyInfo {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct InterfaceAddressMap(pub BTreeMap<InterfaceId, InterfaceAddresses>);
-// impl patch_db::Map for InterfaceAddressMap {
-//     type Key = InterfaceId;
-//     type Value = InterfaceAddresses;
-// }
-
-#[derive(Debug, Deserialize, Serialize, HasModel)]
-#[serde(rename_all = "kebab-case")]
-#[model = "Model<Self>"]
-pub struct InterfaceAddresses {
-    pub tor_address: Option<String>,
-    pub lan_address: Option<String>,
+pub struct AddressInfoMap(pub BTreeMap<AddressId, AddressInfo>);
+impl Map for InterfaceAddressMap {
+    type Key = AddressId;
+    type Value = AddressInfo;
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
 #[model = "Model<Self>"]
-pub struct RecoveredPackageInfo {
-    pub title: String,
-    pub icon: String,
-    pub version: Version,
+pub struct AddressInfo {
+    pub name: String,
+    pub description: String,
+    pub addresses: Vec<Url>,
+    pub ui: bool,
 }

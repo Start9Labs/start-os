@@ -2,7 +2,7 @@ use std::path::Path;
 
 use crate::prelude::*;
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct GitHash(String);
 
 impl GitHash {

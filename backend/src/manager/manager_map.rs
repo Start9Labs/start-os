@@ -1,8 +1,6 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use color_eyre::eyre::eyre;
-use models::ErrorKind;
 use reqwest::Url;
 use tokio::sync::RwLock;
 use tracing::instrument;
@@ -18,25 +16,23 @@ impl ManagerMap {
     #[instrument(skip(self, ctx))]
     pub async fn init(&self, ctx: &RpcContext) -> Result<(), Error> {
         let mut res = BTreeMap::new();
-        for (id, manifest, marketplace_url) in ctx
+        for item_res in ctx
             .db
-            .apply_fn(|mut v| {
-                v.package_data()
-                    .entries()
-                    .with_kind(ErrorKind::Deserialization)?
-                    .into_iter()
-                    .map(|(id, value)| {
-                        let mut installed = value.as_installed()?.installed();
-                        Ok((
-                            id,
-                            installed.manifest().get()?,
-                            installed.marketplace_url().get()?,
-                        ))
-                    })
-                    .collect::<Result<Vec<_>, Error>>()
-            })
+            .peek()
             .await?
+            .into_package_data()
+            .into_entries()?
+            .into_iter()
+            .map(|(id, value)| {
+                let installed = value.expect_into_installed()?;
+                Ok::<_, Error>((
+                    id,
+                    installed.as_manifest().clone().de()?,
+                    installed.as_installed().as_marketplace_url().clone().de()?,
+                ))
+            })
         {
+            let (id, manifest, marketplace_url) = item_res?;
             res.insert(
                 id,
                 Arc::new(Manager::new(ctx.clone(), manifest, marketplace_url).await?),

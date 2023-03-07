@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -6,27 +7,30 @@ use tokio::sync::watch::Sender;
 use tracing::instrument;
 
 use super::start_stop::StartStop;
-use super::{manager_seed, run_main, ManagerPersistentContainer, RunMainResult};
+use super::{manager_seed, run_main, RunMainResult};
+use crate::manager::manager_seed::ManagerSeed;
+use crate::manager::persistent_container::PersistentContainer;
 use crate::prelude::*;
-use crate::procedure::NoOutput;
 use crate::s9pk::manifest::Manifest;
+use crate::script::NoOutput;
 use crate::status::MainStatus;
 use crate::util::{GeneralBoxedGuard, NonDetachingJoinHandle};
 
 pub type ManageContainerOverride = Arc<watch::Sender<Option<MainStatus>>>;
 
+// ManagerSeed + PersistentContainer
 pub struct ManageContainer {
     pub(super) current_state: Arc<watch::Sender<StartStop>>,
     pub(super) desired_state: Arc<watch::Sender<StartStop>>,
-    _service: NonDetachingJoinHandle<()>,
-    _save_state: NonDetachingJoinHandle<()>,
+    _service: NonDetachingJoinHandle<()>, // CurrentState + DesiredState + ManagerSeed + PersistentContainer
+    _save_state: NonDetachingJoinHandle<()>, // CurrentState + DesiredState + ManagerSeed + ManageContainerOverride
     override_main_status: ManageContainerOverride,
 }
 
 impl ManageContainer {
     pub async fn new(
         seed: Arc<manager_seed::ManagerSeed>,
-        persistent_container: ManagerPersistentContainer,
+        persistent_container: Arc<PersistentContainer>,
     ) -> Result<Self, Error> {
         let db = &seed.ctx.db;
         let current_state = Arc::new(watch::channel(StartStop::Stop).0);
@@ -90,9 +94,9 @@ impl ManageContainer {
 
 async fn create_service_manager(
     desired_state: Arc<Sender<StartStop>>,
-    seed: Arc<manager_seed::ManagerSeed>,
+    seed: Arc<ManagerSeed>,
     current_state: Arc<Sender<StartStop>>,
-    persistent_container: Arc<Option<super::persistent_container::PersistentContainer>>,
+    persistent_container: Arc<PersistentContainer>,
 ) {
     let mut desired_state_receiver = desired_state.subscribe();
     let mut running_service: Option<NonDetachingJoinHandle<()>> = None;
@@ -103,19 +107,12 @@ async fn create_service_manager(
         match (current, desired) {
             (StartStop::Start, StartStop::Start) => (),
             (StartStop::Start, StartStop::Stop) => {
-                if persistent_container.is_none() {
-                    if let Err(err) = seed.stop_container().await {
-                        tracing::error!("Could not stop container");
-                        tracing::debug!("{:?}", err)
-                    }
-                    running_service = None;
-                } else if let Some(current_service) = running_service.take() {
+                if let Some(current_service) = running_service.take() {
                     tokio::select! {
                         _ = current_service => (),
                         _ = tokio::time::sleep(Duration::from_secs_f64(seed.manifest
                             .containers
-                            .as_ref()
-                            .and_then(|c| c.main.sigterm_timeout).map(|x| x.as_secs_f64()).unwrap_or_default())) => {
+                            .main.sigterm_timeout.as_ref().map(|x| x.as_secs_f64()).unwrap_or_default())) => {
                             tracing::error!("Could not stop service");
                         }
                     }
@@ -161,7 +158,7 @@ async fn save_state(
                     &seed.manifest,
                     &MainStatus::Running {
                         started: chrono::Utc::now(),
-                        health: Default::default(),
+                        health: BTreeMap::new(),
                     },
                 )
                 .await
@@ -192,7 +189,7 @@ fn starting_service(
     current_state: Arc<Sender<StartStop>>,
     desired_state: Arc<Sender<StartStop>>,
     seed: Arc<manager_seed::ManagerSeed>,
-    persistent_container: ManagerPersistentContainer,
+    persistent_container: Arc<PersistentContainer>,
     running_service: &mut Option<NonDetachingJoinHandle<()>>,
 ) {
     let set_running = {

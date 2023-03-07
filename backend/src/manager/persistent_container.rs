@@ -12,27 +12,24 @@ use super::{
     add_network_for_main, get_long_running_ip, long_running_docker, remove_network_for_main,
     GetRunningIp,
 };
+use crate::container::DockerContainer;
 use crate::prelude::*;
-use crate::procedure::docker::DockerContainer;
 use crate::util::NonDetachingJoinHandle;
 
+// ManagerSeed
 pub struct PersistentContainer {
-    _running_docker: NonDetachingJoinHandle<()>,
+    _running_docker: NonDetachingJoinHandle<()>, // ManagerSeed
     pub rpc_client: Receiver<Arc<UnixRpcClient>>,
 }
 
 impl PersistentContainer {
     #[instrument(skip(seed))]
-    pub async fn init(seed: &Arc<ManagerSeed>) -> Result<Option<Self>, Error> {
-        Ok(if let Some(containers) = &seed.manifest.containers {
-            let (running_docker, rpc_client) =
-                spawn_persistent_container(seed.clone(), containers.main.clone()).await?;
-            Some(Self {
-                _running_docker: running_docker,
-                rpc_client,
-            })
-        } else {
-            None
+    pub async fn init(seed: &Arc<ManagerSeed>) -> Result<Self, Error> {
+        let (running_docker, rpc_client) =
+            spawn_persistent_container(seed.clone(), seed.manifest.containers.main.clone()).await?;
+        Ok(Self {
+            _running_docker: running_docker,
+            rpc_client,
         })
     }
 

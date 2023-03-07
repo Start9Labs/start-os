@@ -10,7 +10,7 @@ use embassy_container_init::ProcessGroupId;
 use futures::future::BoxFuture;
 use futures::{Future, FutureExt, TryFutureExt};
 use helpers::UnixRpcClient;
-use models::{ErrorKind, PackageId};
+use models::{ErrorKind, PackageId, ProcedureName};
 use nix::sys::signal::Signal;
 use persistent_container::PersistentContainer;
 use rand::SeedableRng;
@@ -25,7 +25,8 @@ use transition_state::TransitionState;
 use crate::backup::target::PackageBackupInfo;
 use crate::backup::PackageBackupReport;
 use crate::config::action::ConfigRes;
-use crate::config::{not_found, ConfigureContext};
+use crate::config::ConfigureContext;
+use crate::container::{DockerContainer, LongRunning};
 use crate::context::RpcContext;
 use crate::db::model::{CurrentDependencies, CurrentDependencyInfo};
 use crate::dependencies::{
@@ -34,17 +35,14 @@ use crate::dependencies::{
 };
 use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::guard::TmpMountGuard;
-use crate::install::cleanup::remove_from_current_dependents_lists;
 use crate::net::net_controller::NetService;
 use crate::prelude::*;
-use crate::procedure::docker::{DockerContainer, DockerProcedure, LongRunning};
-use crate::procedure::{NoOutput, ProcedureName};
 use crate::s9pk::manifest::Manifest;
+use crate::script::NoOutput;
 use crate::status::MainStatus;
 use crate::util::NonDetachingJoinHandle;
-use crate::volume::{Volume, VolumeCertificate};
+use crate::volume::Volume;
 
-pub mod health;
 mod js_api;
 mod manager_container;
 mod manager_map;
@@ -61,7 +59,6 @@ use self::manager_seed::ManagerSeed;
 pub const HEALTH_CHECK_COOLDOWN_SECONDS: u64 = 15;
 pub const HEALTH_CHECK_GRACE_PERIOD_SECONDS: u64 = 5;
 
-type ManagerPersistentContainer = Arc<Option<PersistentContainer>>;
 type BackupGuard = Arc<Mutex<BackupMountGuard<TmpMountGuard>>>;
 pub enum BackupReturn {
     Error(Error),
@@ -73,25 +70,22 @@ pub enum BackupReturn {
 }
 
 pub struct Gid {
-    next_gid: (watch::Sender<u32>, watch::Receiver<u32>),
-    main_gid: (
-        watch::Sender<ProcessGroupId>,
-        watch::Receiver<ProcessGroupId>,
-    ),
+    next_gid: watch::Sender<u32>,
+    main_gid: watch::Sender<ProcessGroupId>,
 }
 
 impl Default for Gid {
     fn default() -> Self {
         Self {
-            next_gid: watch::channel(1),
-            main_gid: watch::channel(ProcessGroupId(1)),
+            next_gid: watch::channel(1).0,
+            main_gid: watch::channel(ProcessGroupId(1)).0,
         }
     }
 }
 impl Gid {
     pub fn new_gid(&self) -> ProcessGroupId {
         let mut previous = 0;
-        self.next_gid.0.send_modify(|x| {
+        self.next_gid.send_modify(|x| {
             previous = *x;
             *x = previous + 1;
         });
@@ -100,20 +94,19 @@ impl Gid {
 
     pub fn new_main_gid(&self) -> ProcessGroupId {
         let gid = self.new_gid();
-        self.main_gid.0.send(gid).unwrap_or_default();
+        self.main_gid.send_modify(|x| *x = gid);
         gid
     }
 }
 
-#[derive(Clone)]
 pub struct Manager {
     seed: Arc<ManagerSeed>,
 
-    manage_container: Arc<manager_container::ManageContainer>,
-    transition: Arc<watch::Sender<Arc<TransitionState>>>,
-    persistent_container: ManagerPersistentContainer,
+    persistent_container: Arc<PersistentContainer>, // ManagerSeed
+    manage_container: Arc<ManageContainer>,         // ManagerSeed + ManagerPersistentContainer
+    transition: watch::Sender<Arc<TransitionState>>, // ManageContainer
 
-    pub gid: Arc<Gid>,
+    pub gid: Gid,
 }
 impl Manager {
     pub async fn new(
@@ -123,7 +116,7 @@ impl Manager {
     ) -> Result<Self, Error> {
         let seed = Arc::new(ManagerSeed {
             ctx,
-            container_name: DockerProcedure::container_name(&manifest.id, None),
+            container_name: DockerContainer::container_name(&manifest.id, None),
             manifest,
             marketplace_url,
         });
@@ -134,7 +127,6 @@ impl Manager {
                 .await?,
         );
         let (transition, _) = watch::channel(Default::default());
-        let transition = Arc::new(transition);
         Ok(Self {
             seed,
             manage_container,
@@ -347,7 +339,7 @@ fn configure(
 
         // get current config and current spec
         let ConfigRes {
-            config: old_config,
+            input: old_input,
             spec,
         } = action.get(ctx, id, &version, &volumes).await?;
 
@@ -482,33 +474,12 @@ pub enum OnStop {
     Exit,
 }
 
-type RunMainResult = Result<Result<NoOutput, (i32, String)>, Error>;
+type RunMainResult = Result<(), Error>;
 
-#[instrument(skip(seed, persistent_container, started))]
-async fn run_main(
-    seed: Arc<ManagerSeed>,
-    persistent_container: ManagerPersistentContainer,
-    started: Arc<impl Fn()>,
-) -> RunMainResult {
+#[instrument(skip(seed, started))]
+async fn _run_main(seed: Arc<ManagerSeed>, started: Arc<impl Fn()>) -> RunMainResult {
     let mut runtime = NonDetachingJoinHandle::from(tokio::spawn(start_up_image(seed.clone())));
-    let ip = match persistent_container.is_some() {
-        false => Some(match get_running_ip(&seed, &mut runtime).await {
-            GetRunningIp::Ip(x) => x,
-            GetRunningIp::Error(e) => return Err(e),
-            GetRunningIp::EarlyExit(x) => return Ok(x),
-        }),
-        true => None,
-    };
 
-    let svc = if let Some(ip) = ip {
-        let net = add_network_for_main(&seed, ip).await?;
-        started();
-        Some(net)
-    } else {
-        None
-    };
-
-    let health = main_health_check_daemon(seed.clone());
     let res = tokio::select! {
         a = runtime => a.map_err(|_| Error::new(eyre!("Manager runtime panicked!"), ErrorKind::Docker)).and_then(|a| a),
         _ = health => Err(Error::new(eyre!("Health check daemon exited!"), ErrorKind::Unknown))
@@ -517,274 +488,4 @@ async fn run_main(
         remove_network_for_main(svc).await?;
     }
     res
-}
-
-/// We want to start up the manifest, but in this case we want to know that we have generated the certificates.
-/// Note for _generated_certificate: Needed to know that before we start the state we have generated the certificate
-async fn start_up_image(seed: Arc<ManagerSeed>) -> Result<Result<NoOutput, (i32, String)>, Error> {
-    seed.manifest
-        .main
-        .execute::<(), NoOutput>(
-            &seed.ctx,
-            &seed.manifest.id,
-            &seed.manifest.version,
-            ProcedureName::Main,
-            &seed.manifest.volumes,
-            None,
-            None,
-        )
-        .await
-}
-
-async fn long_running_docker(
-    seed: &ManagerSeed,
-    container: &DockerContainer,
-) -> Result<(LongRunning, UnixRpcClient), Error> {
-    container
-        .long_running_execute(
-            &seed.ctx,
-            &seed.manifest.id,
-            &seed.manifest.version,
-            &seed.manifest.volumes,
-        )
-        .await
-}
-
-enum GetRunningIp {
-    Ip(Ipv4Addr),
-    Error(Error),
-    EarlyExit(Result<NoOutput, (i32, String)>),
-}
-
-async fn get_long_running_ip(seed: &ManagerSeed, runtime: &mut LongRunning) -> GetRunningIp {
-    loop {
-        match container_inspect(seed).await {
-            Ok(res) => {
-                match res
-                    .network_settings
-                    .and_then(|ns| ns.networks)
-                    .and_then(|mut n| n.remove("start9"))
-                    .and_then(|es| es.ip_address)
-                    .filter(|ip| !ip.is_empty())
-                    .map(|ip| ip.parse())
-                    .transpose()
-                {
-                    Ok(Some(ip_addr)) => return GetRunningIp::Ip(ip_addr),
-                    Ok(None) => (),
-                    Err(e) => return GetRunningIp::Error(e.into()),
-                }
-            }
-            Err(bollard::errors::Error::DockerResponseServerError {
-                status_code: 404, // NOT FOUND
-                ..
-            }) => (),
-            Err(e) => return GetRunningIp::Error(e.into()),
-        }
-        if let Poll::Ready(res) = futures::poll!(&mut runtime.running_output) {
-            match res {
-                Ok(_) => return GetRunningIp::EarlyExit(Ok(NoOutput)),
-                Err(_e) => {
-                    return GetRunningIp::Error(Error::new(
-                        eyre!("Manager runtime panicked!"),
-                        ErrorKind::Docker,
-                    ))
-                }
-            }
-        }
-    }
-}
-
-#[instrument(skip(seed))]
-async fn container_inspect(
-    seed: &ManagerSeed,
-) -> Result<bollard::models::ContainerInspectResponse, bollard::errors::Error> {
-    seed.ctx
-        .docker
-        .inspect_container(&seed.container_name, None)
-        .await
-}
-
-#[instrument(skip(seed))]
-async fn add_network_for_main(
-    seed: &ManagerSeed,
-    ip: std::net::Ipv4Addr,
-) -> Result<NetService, Error> {
-    let mut svc = seed
-        .ctx
-        .net_controller
-        .create_service(seed.manifest.id.clone(), ip)
-        .await?;
-    // DEPRECATED
-    let mut secrets = seed.ctx.secret_store.acquire().await?;
-    let mut tx = secrets.begin().await?;
-    for (id, interface) in &seed.manifest.interfaces.0 {
-        for (external, internal) in interface.lan_config.iter().flatten() {
-            svc.add_lan(&mut tx, id.clone(), external.0, internal.internal, false)
-                .await?;
-        }
-        for (external, internal) in interface.tor_config.iter().flat_map(|t| &t.port_mapping) {
-            svc.add_tor(&mut tx, id.clone(), external.0, internal.0)
-                .await?;
-        }
-    }
-    for volume in seed.manifest.volumes.values() {
-        if let Volume::Certificate(VolumeCertificate { interface_id }) = volume {
-            svc.export_cert(&mut tx, interface_id, ip.into()).await?;
-        }
-    }
-    tx.commit().await?;
-    Ok(svc)
-}
-
-#[instrument(skip(svc))]
-async fn remove_network_for_main(svc: NetService) -> Result<(), Error> {
-    svc.remove_all().await
-}
-
-async fn main_health_check_daemon(seed: Arc<ManagerSeed>) {
-    tokio::time::sleep(Duration::from_secs(HEALTH_CHECK_GRACE_PERIOD_SECONDS)).await;
-    loop {
-        let mut db = seed.ctx.db.handle();
-        if let Err(e) = health::check(&seed.ctx, &seed.manifest.id).await {
-            tracing::error!(
-                "Failed to run health check for {}: {}",
-                &seed.manifest.id,
-                e
-            );
-            tracing::debug!("{:?}", e);
-        }
-        tokio::time::sleep(Duration::from_secs(HEALTH_CHECK_COOLDOWN_SECONDS)).await;
-    }
-}
-
-type RuntimeOfCommand = NonDetachingJoinHandle<Result<Result<NoOutput, (i32, String)>, Error>>;
-
-async fn try_get_running_ip(seed: &ManagerSeed) -> Result<Option<Ipv4Addr>, Report> {
-    Ok(container_inspect(seed)
-        .await
-        .map(|x| x.network_settings)?
-        .and_then(|ns| ns.networks)
-        .and_then(|mut n| n.remove("start9"))
-        .and_then(|es| es.ip_address)
-        .filter(|ip| !ip.is_empty())
-        .map(|ip| ip.parse())
-        .transpose()?)
-}
-
-#[instrument(skip(seed, runtime))]
-async fn get_running_ip(seed: &ManagerSeed, mut runtime: &mut RuntimeOfCommand) -> GetRunningIp {
-    loop {
-        match container_inspect(seed).await {
-            Ok(res) => {
-                match res
-                    .network_settings
-                    .and_then(|ns| ns.networks)
-                    .and_then(|mut n| n.remove("start9"))
-                    .and_then(|es| es.ip_address)
-                    .filter(|ip| !ip.is_empty())
-                    .map(|ip| ip.parse())
-                    .transpose()
-                {
-                    Ok(Some(ip_addr)) => return GetRunningIp::Ip(ip_addr),
-                    Ok(None) => (),
-                    Err(e) => return GetRunningIp::Error(e.into()),
-                }
-            }
-            Err(bollard::errors::Error::DockerResponseServerError {
-                status_code: 404, // NOT FOUND
-                ..
-            }) => (),
-            Err(e) => return GetRunningIp::Error(e.into()),
-        }
-        if let Poll::Ready(res) = futures::poll!(&mut runtime) {
-            match res {
-                Ok(Ok(response)) => return GetRunningIp::EarlyExit(response),
-                Err(e) => {
-                    return GetRunningIp::Error(Error::new(
-                        match e.try_into_panic() {
-                            Ok(e) => {
-                                eyre!(
-                                    "Manager runtime panicked: {}",
-                                    e.downcast_ref::<&'static str>().unwrap_or(&"UNKNOWN")
-                                )
-                            }
-                            _ => eyre!("Manager runtime cancelled!"),
-                        },
-                        ErrorKind::Docker,
-                    ))
-                }
-                Ok(Err(e)) => {
-                    return GetRunningIp::Error(Error::new(
-                        eyre!("Manager runtime returned error: {}", e),
-                        ErrorKind::Docker,
-                    ))
-                }
-            }
-        }
-    }
-}
-
-async fn send_signal(manager: &Manager, gid: Arc<Gid>, signal: Signal) -> Result<(), Error> {
-    // stop health checks from committing their results
-    // shared
-    //     .commit_health_check_results
-    //     .store(false, Ordering::SeqCst);
-
-    if let Some(rpc_client) = manager.rpc_client() {
-        let main_gid = *gid.main_gid.0.borrow();
-        let next_gid = gid.new_gid();
-        #[cfg(feature = "js_engine")]
-        if let Err(e) = crate::procedure::js_scripts::JsProcedure::default()
-            .execute::<_, NoOutput>(
-                &manager.seed.ctx.datadir,
-                &manager.seed.manifest.id,
-                &manager.seed.manifest.version,
-                ProcedureName::Signal,
-                &manager.seed.manifest.volumes,
-                Some(embassy_container_init::SignalGroupParams {
-                    gid: main_gid,
-                    signal: signal as u32,
-                }),
-                None, // TODO
-                next_gid,
-                Some(rpc_client),
-                Arc::new(manager.clone()),
-            )
-            .await?
-        {
-            tracing::error!("Failed to send js signal: {}", e.1);
-            tracing::debug!("{:?}", e);
-        }
-    } else {
-        // send signal to container
-        manager
-            .seed
-            .ctx
-            .docker
-            .kill_container(
-                &manager.seed.container_name,
-                Some(bollard::container::KillContainerOptions {
-                    signal: signal.to_string(),
-                }),
-            )
-            .await
-            .or_else(|e| {
-                if matches!(
-                    e,
-                    bollard::errors::Error::DockerResponseServerError {
-                        status_code: 409, // CONFLICT
-                        ..
-                    } | bollard::errors::Error::DockerResponseServerError {
-                        status_code: 404, // NOT FOUND
-                        ..
-                    }
-                ) {
-                    Ok(())
-                } else {
-                    Err(e)
-                }
-            })?;
-    }
-
-    Ok(())
 }

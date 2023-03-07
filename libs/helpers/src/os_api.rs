@@ -1,19 +1,19 @@
 use std::sync::Arc;
 
-use color_eyre::eyre::eyre;
 use color_eyre::Report;
+use imbl_value::imbl::Vector;
+use imbl_value::Value;
 use models::{InterfaceId, PackageId};
-use serde_json::Value;
 use tokio::sync::mpsc;
 
 pub struct RuntimeDropped;
 
 pub struct Callback {
     id: Arc<String>,
-    sender: mpsc::UnboundedSender<(Arc<String>, Vec<Value>)>,
+    sender: mpsc::UnboundedSender<(Arc<String>, Vector<Value>)>,
 }
 impl Callback {
-    pub fn new(id: String, sender: mpsc::UnboundedSender<(Arc<String>, Vec<Value>)>) -> Self {
+    pub fn new(id: String, sender: mpsc::UnboundedSender<(Arc<String>, Vector<Value>)>) -> Self {
         Self {
             id: Arc::new(id),
             sender,
@@ -22,7 +22,7 @@ impl Callback {
     pub fn is_listening(&self) -> bool {
         self.sender.is_closed()
     }
-    pub fn call(&self, args: Vec<Value>) -> Result<(), RuntimeDropped> {
+    pub fn call(&self, args: Vector<Value>) -> Result<(), RuntimeDropped> {
         self.sender
             .send((self.id.clone(), args))
             .map_err(|_| RuntimeDropped)

@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::{Arc, Weak};
 
 use color_eyre::eyre::eyre;
@@ -13,12 +13,11 @@ use crate::net::forward::LpfController;
 use crate::net::keys::Key;
 #[cfg(feature = "avahi")]
 use crate::net::mdns::MdnsController;
-use crate::net::ssl::{export_cert, SslManager};
+use crate::net::ssl::SslManager;
 use crate::net::tor::TorController;
 use crate::net::vhost::VHostController;
 use crate::prelude::*;
 use crate::s9pk::manifest::PackageId;
-use crate::volume::cert_dir;
 use crate::HOST_IP;
 
 pub struct NetController {
@@ -308,7 +307,7 @@ impl NetService {
     pub async fn add_lpf(&mut self, db: &PatchDb, internal: u16) -> Result<u16, Error> {
         let ctrl = self.net_controller()?;
         let external = db
-            .apply_fn(|mut v| {
+            .mutate(|mut v| {
                 let mut lpf_ref = v.lan_port_forwards();
                 let mut lpf = lpf_ref.get()?;
                 let external = lpf.alloc(self.id.clone(), internal).ok_or_else(|| {
@@ -331,21 +330,6 @@ impl NetService {
             ctrl.remove_lpf(external, rcs).await?;
         }
 
-        Ok(())
-    }
-    pub async fn export_cert<Ex>(
-        &self,
-        secrets: &mut Ex,
-        id: &InterfaceId,
-        ip: IpAddr,
-    ) -> Result<(), Error>
-    where
-        for<'a> &'a mut Ex: PgExecutor<'a>,
-    {
-        let key = Key::for_interface(secrets, Some((self.id.clone(), id.clone()))).await?;
-        let ctrl = self.net_controller()?;
-        let cert = ctrl.ssl.with_certs(key, ip).await?;
-        export_cert(&cert.fullchain_nistp256(), &cert_dir(&self.id, id)).await?; // TODO: can upgrade to ed25519?
         Ok(())
     }
     pub async fn remove_all(mut self) -> Result<(), Error> {

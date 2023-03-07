@@ -3,13 +3,44 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::{Duration, Instant};
 
+use futures::future::pending;
+use futures::Future;
+use models::PackageId;
 use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};
 use tokio::sync::watch;
 
+use crate::db::model::{DatabaseModel, PackageDataEntryMatchModelMut};
 use crate::prelude::*;
 use crate::util::unlikely;
+
+pub async fn update_during<T>(
+    db: &PatchDb,
+    id: &PackageId,
+    sub: &mut watch::Receiver<InstallProgress>,
+    fut: impl Future<Output = T>,
+) -> T {
+    let progress_updater = async {
+        loop {
+            let progress = *sub.borrow_and_update();
+            if let Err(e) = db.mutate(|db| progress.update(db, id)).await {
+                tracing::error!("Error updating progress info: {e}");
+                tracing::debug!("{e:?}");
+            }
+            if sub.changed().await.is_err() {
+                tracing::error!("progress updater dropped");
+                break;
+            };
+        }
+        pending().await
+    };
+
+    tokio::select!(
+        res = fut => res,
+        a = progress_updater => a,
+    )
+}
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, HasModel, Default)]
 #[serde(rename_all = "kebab-case")]
@@ -34,6 +65,25 @@ impl InstallProgress {
             unpacked: 0,
             unpack_complete: false,
         }
+    }
+    pub fn update(&self, db: &mut DatabaseModel, id: &PackageId) -> Result<(), Error> {
+        match db
+            .as_package_data_mut()
+            .as_idx_mut(id)
+            .or_not_found(id)?
+            .as_match_mut()
+        {
+            PackageDataEntryMatchModelMut::Installing(m) => m.as_install_progress_mut(),
+            PackageDataEntryMatchModelMut::Updating(m) => m.as_install_progress_mut(),
+            PackageDataEntryMatchModelMut::Restoring(m) => m.as_install_progress_mut(),
+            _ => {
+                return Err(Error::new(
+                    eyre!("Install not in progress"),
+                    ErrorKind::InvalidRequest,
+                ))
+            }
+        }
+        .ser(self)
     }
 }
 
@@ -69,6 +119,12 @@ impl<RW> InstallProgressTracker<RW> {
         self.progress.send_modify(|a| {
             a.validated += std::mem::take(&mut self.buffered);
             a.validation_complete = true
+        })
+    }
+    pub fn unpacked(&mut self) {
+        self.progress.send_modify(|a| {
+            a.unpacked += std::mem::take(&mut self.buffered);
+            a.unpack_complete = true
         })
     }
 }

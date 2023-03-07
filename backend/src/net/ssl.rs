@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::net::IpAddr;
 use std::path::Path;
 
 use futures::FutureExt;
@@ -20,7 +20,6 @@ use crate::hostname::Hostname;
 use crate::net::dhcp::ips;
 use crate::net::keys::{Key, KeyInfo};
 use crate::prelude::*;
-use crate::s9pk::manifest::PackageId;
 
 static CERTIFICATE_VERSION: i32 = 2; // X509 version 3 is actually encoded as '2' in the cert because fuck you.
 

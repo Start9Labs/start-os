@@ -79,9 +79,9 @@ pub struct TableOfContents {
 impl TableOfContents {
     pub async fn serialize<W: AsyncWriteExt + Unpin>(&self, mut writer: W) -> std::io::Result<()> {
         let len: u32 = ((1 + "manifest".len() + 16)
+            + (1 + "icon".len() + 16)
             + (1 + "license".len() + 16)
             + (1 + "instructions".len() + 16)
-            + (1 + "icon".len() + 16)
             + (1 + "docker_images".len() + 16)
             + (1 + "assets".len() + 16)
             + (1 + "scripts".len() + 16)) as u32;
@@ -89,11 +89,11 @@ impl TableOfContents {
         self.manifest
             .serialize_entry("manifest", &mut writer)
             .await?;
+        self.icon.serialize_entry("icon", &mut writer).await?;
         self.license.serialize_entry("license", &mut writer).await?;
         self.instructions
             .serialize_entry("instructions", &mut writer)
             .await?;
-        self.icon.serialize_entry("icon", &mut writer).await?;
         self.docker_images
             .serialize_entry("docker_images", &mut writer)
             .await?;
@@ -135,9 +135,9 @@ impl TableOfContents {
         }
         Ok(TableOfContents {
             manifest: from_table(&table, "manifest")?,
+            icon: from_table(&table, "icon")?,
             license: from_table(&table, "license")?,
             instructions: from_table(&table, "instructions")?,
-            icon: from_table(&table, "icon")?,
             docker_images: from_table(&table, "docker_images")?,
             assets: from_table(&table, "assets")?,
             scripts: table.get("scripts".as_bytes()).cloned(),
