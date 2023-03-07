@@ -23,7 +23,7 @@ export interface MarketplacePkg {
   icon: Url
   license: Url
   instructions: Url
-  manifest: MarketplaceManifest
+  manifest: Manifest
   categories: string[]
   versions: string[]
   'dependency-metadata': {
@@ -38,7 +38,7 @@ export interface DependencyMetadata {
   hidden: boolean
 }
 
-export interface MarketplaceManifest<T = unknown> {
+export interface Manifest {
   id: string
   title: string
   version: string
@@ -47,9 +47,12 @@ export interface MarketplaceManifest<T = unknown> {
     short: string
     long: string
   }
+  assets: {
+    icon: Url // filename
+  }
   replaces?: string[]
   'release-notes': string
-  license: string // type of license
+  license: string // name of license
   'wrapper-repo': Url
   'upstream-repo': Url
   'support-site': Url
@@ -62,10 +65,11 @@ export interface MarketplaceManifest<T = unknown> {
     start: string | null
     stop: string | null
   }
-  dependencies: Record<string, Dependency<T>>
+  dependencies: Record<string, Dependency>
+  'os-version': string
 }
 
-export interface Dependency<T> {
+export interface Dependency {
   version: string
   requirement:
     | {
@@ -80,5 +84,4 @@ export interface Dependency<T> {
         type: 'required'
       }
   description: string | null
-  config: T
 }
