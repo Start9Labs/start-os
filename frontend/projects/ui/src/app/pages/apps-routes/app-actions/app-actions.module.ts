@@ -2,7 +2,11 @@ import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
-import { AppActionsPage, AppActionsItemComponent } from './app-actions.page'
+import {
+  AppActionsPage,
+  AppActionsItemComponent,
+  GroupActionsPipe,
+} from './app-actions.page'
 import { QRComponentModule } from 'src/app/components/qr/qr.component.module'
 import { SharedPipesModule } from '@start9labs/shared'
 import { GenericFormPageModule } from 'src/app/modals/generic-form/generic-form.module'
@@ -25,6 +29,6 @@ const routes: Routes = [
     GenericFormPageModule,
     ActionSuccessPageModule,
   ],
-  declarations: [AppActionsPage, AppActionsItemComponent],
+  declarations: [AppActionsPage, AppActionsItemComponent, GroupActionsPipe],
 })
 export class AppActionsPageModule {}
