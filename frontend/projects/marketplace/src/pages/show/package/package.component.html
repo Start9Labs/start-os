@@ -3,8 +3,8 @@
   <div class="text">
     <h1 ticker class="title">{{ pkg.manifest.title }}</h1>
     <p class="version">{{ pkg.manifest.version | displayEmver }}</p>
-    <p class="published">
-      Released: {{ pkg['published-at'] | date: 'medium' }}
+    <p *ngIf="pkg['published-at'] as published" class="published">
+      Released: {{ published | date : 'medium' }}
     </p>
     <ng-content></ng-content>
   </div>

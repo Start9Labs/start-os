@@ -1,6 +1,6 @@
 import { isEmptyObject } from '@start9labs/shared'
 import {
-  InstalledPackageDataEntry,
+  InstalledPackageInfo,
   PackageDataEntry,
   PackageMainStatus,
   PackageState,
@@ -38,7 +38,7 @@ function getPrimaryStatus(status: Status): PrimaryStatus | PackageMainStatus {
 }
 
 function getDependencyStatus(
-  installed: InstalledPackageDataEntry,
+  installed: InstalledPackageInfo,
 ): DependencyStatus | null {
   if (isEmptyObject(installed['current-dependencies'])) return null
 

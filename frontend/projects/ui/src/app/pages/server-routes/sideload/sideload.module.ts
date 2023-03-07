@@ -5,6 +5,13 @@ import { SideloadPage } from './sideload.page'
 import { Routes, RouterModule } from '@angular/router'
 import { EmverPipesModule, SharedPipesModule } from '@start9labs/shared'
 import { DragNDropDirective } from './dnd.directive'
+import {
+  PackageModule,
+  AboutModule,
+  AdditionalModule,
+  DependenciesModule,
+} from '@start9labs/marketplace'
+import { MarketplaceShowComponentsModule } from '../../marketplace-routes/marketplace-show/components/marketplace-show-components.module'
 
 const routes: Routes = [
   {
@@ -20,6 +27,11 @@ const routes: Routes = [
     RouterModule.forChild(routes),
     SharedPipesModule,
     EmverPipesModule,
+    PackageModule,
+    AboutModule,
+    AdditionalModule,
+    DependenciesModule,
+    MarketplaceShowComponentsModule,
   ],
   declarations: [SideloadPage, DragNDropDirective],
 })
