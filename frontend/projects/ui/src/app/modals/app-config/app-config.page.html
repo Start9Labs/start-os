@@ -20,7 +20,7 @@
   <ng-template #notLoading>
     <ion-item *ngIf="loadingError; else noError">
       <ion-label>
-        <ion-text color="danger"> {{ loadingError }} </ion-text>
+        <ion-text color="danger">{{ loadingError }}</ion-text>
       </ion-label>
     </ion-item>
 
@@ -59,13 +59,14 @@
           <h2 style="display: flex; align-items: center">
             <img
               style="width: 18px; margin: 4px"
-              [src]="pkg['static-files'].icon"
+              [src]="pkg.icon"
               [alt]="pkg.manifest.title"
             />
             <ion-text
               style="margin: 5px; font-family: 'Montserrat'; font-size: 18px"
-              >{{ pkg.manifest.title }}</ion-text
             >
+              {{ pkg.manifest.title }}
+            </ion-text>
           </h2>
           <p>
             <ion-text color="dark">
@@ -81,7 +82,7 @@
       </ion-item>
 
       <!-- no options -->
-      <ion-item *ngIf="!hasOptions">
+      <ion-item *ngIf="!pkg.installed?.['has-config']">
         <ion-label>
           <p>
             No config options for {{ pkg.manifest.title }} {{
@@ -112,7 +113,7 @@
   <ion-toolbar>
     <ng-container *ngIf="!loading && !loadingError">
       <ion-buttons
-        *ngIf="configForm && hasOptions"
+        *ngIf="configForm && pkg.installed?.['has-config']"
         slot="start"
         class="ion-padding-start"
       >

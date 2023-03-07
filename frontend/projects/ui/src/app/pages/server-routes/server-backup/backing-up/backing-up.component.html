@@ -15,9 +15,9 @@
           <ng-container *ngFor="let pkg of pkgs | keyvalue">
             <ion-item *ngIf="backupProgress[pkg.key] as pkgProgress">
               <ion-avatar slot="start">
-                <img [src]="pkg.value['static-files'].icon" />
+                <img [src]="pkg.value.icon" />
               </ion-avatar>
-              <ion-label> {{ pkg.value.manifest.title }} </ion-label>
+              <ion-label>{{ pkg.value.manifest.title }}</ion-label>
               <!-- complete -->
               <ion-note
                 *ngIf="pkgProgress.complete; else incomplete"

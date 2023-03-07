@@ -2,10 +2,8 @@ import { DOCUMENT } from '@angular/common'
 import { Inject, Injectable } from '@angular/core'
 import { WorkspaceConfig } from '@start9labs/shared'
 import {
-  InterfaceDef,
-  PackageDataEntry,
+  InstalledPackageInfo,
   PackageMainStatus,
-  PackageState,
 } from 'src/app/services/patch-db/data-model'
 
 const {
@@ -52,56 +50,12 @@ export class ConfigService {
   isSecure(): boolean {
     return window.isSecureContext || this.isTor()
   }
-
-  isLaunchable(
-    state: PackageState,
-    status: PackageMainStatus,
-    interfaces: Record<string, InterfaceDef>,
-  ): boolean {
-    return (
-      state === PackageState.Installed &&
-      status === PackageMainStatus.Running &&
-      hasUi(interfaces)
-    )
-  }
-
-  launchableURL(pkg: PackageDataEntry): string {
-    if (this.isLan() && hasLanUi(pkg.manifest.interfaces)) {
-      return `https://${lanUiAddress(pkg)}`
-    } else {
-      return `http://${torUiAddress(pkg)}`
-    }
-  }
 }
 
-export function hasTorUi(interfaces: Record<string, InterfaceDef>): boolean {
-  const int = getUiInterfaceValue(interfaces)
-  return !!int?.['tor-config']
-}
-
-export function hasLanUi(interfaces: Record<string, InterfaceDef>): boolean {
-  const int = getUiInterfaceValue(interfaces)
-  return !!int?.['lan-config']
-}
-
-export function torUiAddress({
-  manifest,
-  installed,
-}: PackageDataEntry): string {
-  const key = getUiInterfaceKey(manifest.interfaces)
-  return installed ? installed['interface-addresses'][key]['tor-address'] : ''
-}
-
-export function lanUiAddress({
-  manifest,
-  installed,
-}: PackageDataEntry): string {
-  const key = getUiInterfaceKey(manifest.interfaces)
-  return installed ? installed['interface-addresses'][key]['lan-address'] : ''
-}
-
-export function hasUi(interfaces: Record<string, InterfaceDef>): boolean {
-  return hasTorUi(interfaces) || hasLanUi(interfaces)
+export function hasUi(
+  addressInfo: InstalledPackageInfo['address-info'],
+): boolean {
+  return !!Object.values(addressInfo).find(a => a.ui)
 }
 
 export function removeProtocol(str: string): string {
@@ -112,16 +66,4 @@ export function removeProtocol(str: string): string {
 
 export function removePort(str: string): string {
   return str.split(':')[0]
-}
-
-export function getUiInterfaceKey(
-  interfaces: Record<string, InterfaceDef>,
-): string {
-  return Object.keys(interfaces).find(key => interfaces[key].ui) || ''
-}
-
-export function getUiInterfaceValue(
-  interfaces: Record<string, InterfaceDef>,
-): InterfaceDef | null {
-  return Object.values(interfaces).find(i => i.ui) || null
 }

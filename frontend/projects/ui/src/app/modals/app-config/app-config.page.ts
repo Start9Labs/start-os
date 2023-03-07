@@ -17,6 +17,7 @@ import { InputSpec } from 'start-sdk/types/config-types'
 import {
   DataModel,
   PackageDataEntry,
+  PackageState,
 } from 'src/app/services/patch-db/data-model'
 import { PatchDB } from 'patch-db-client'
 import { UntypedFormGroup } from '@angular/forms'
@@ -36,10 +37,10 @@ import { Breakages } from 'src/app/services/api/api.types'
 })
 export class AppConfigPage {
   @Input() pkgId!: string
-
   @Input() dependentInfo?: DependentInfo
 
   pkg!: PackageDataEntry
+
   loadingText = ''
 
   configSpec?: InputSpec
@@ -52,8 +53,6 @@ export class AppConfigPage {
   hasNewOptions = false
   saving = false
   loadingError: string | IonicSafeString = ''
-
-  hasOptions = false
 
   constructor(
     private readonly embassyApi: ApiService,
@@ -68,10 +67,9 @@ export class AppConfigPage {
   async ngOnInit() {
     try {
       const pkg = await getPackage(this.patch, this.pkgId)
-      if (!pkg) return
-      this.pkg = pkg
+      if (!pkg?.installed?.['has-config']) return
 
-      if (!this.pkg.manifest.config) return
+      this.pkg = pkg
 
       let newConfig: object | undefined
       let patch: Operation[] | undefined
@@ -103,8 +101,6 @@ export class AppConfigPage {
         this.configSpec!,
         newConfig || this.original,
       )
-
-      this.hasOptions = false
 
       if (patch) {
         this.diff = this.getDiff(patch)
