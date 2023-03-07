@@ -9,7 +9,7 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
 import {
   AbstractMarketplaceService,
   Marketplace,
-  MarketplaceManifest,
+  Manifest,
   MarketplacePkg,
   StoreIdentity,
 } from '@start9labs/marketplace'
@@ -64,7 +64,7 @@ export class UpdatesPage {
   }
 
   async tryUpdate(
-    manifest: MarketplaceManifest,
+    manifest: Manifest,
     url: string,
     local: PackageDataEntry,
     e: Event,
@@ -83,7 +83,7 @@ export class UpdatesPage {
     }
   }
 
-  private async dryUpdate(manifest: MarketplaceManifest, url: string) {
+  private async dryUpdate(manifest: Manifest, url: string) {
     const loader = await this.loadingCtrl.create({
       message: 'Checking dependent services...',
     })
@@ -181,7 +181,7 @@ export class FilterUpdatesPipe implements PipeTransform {
       ({ manifest }) =>
         this.emver.compare(
           manifest.version,
-          local[manifest.id]?.installed?.manifest.version || '',
+          local[manifest.id]?.manifest.version || '', // @TODO this won't work, need old version
         ) === 1,
     )
   }

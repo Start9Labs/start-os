@@ -13,13 +13,13 @@
         <br />
         <br />
         <span
-          *ngIf="version | satisfiesEmver: dependentInfo.version"
+          *ngIf="version | satisfiesEmver : dependentInfo.version"
           class="text"
         >
           {{ title }} version {{ version | displayEmver }} is compatible.
         </span>
         <span
-          *ngIf="!(version | satisfiesEmver: dependentInfo.version)"
+          *ngIf="!(version | satisfiesEmver : dependentInfo.version)"
           class="text text_error"
         >
           {{ title }} version {{ version | displayEmver }} is NOT compatible.

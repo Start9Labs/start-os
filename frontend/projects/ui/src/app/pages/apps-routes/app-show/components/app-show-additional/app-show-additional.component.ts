@@ -35,10 +35,16 @@ export class AppShowAdditionalComponent {
   }
 
   async presentModalLicense() {
+    const { id, version } = this.pkg.manifest
+
     const modal = await this.modalCtrl.create({
       componentProps: {
         title: 'License',
-        content: from(this.api.getStatic(this.pkg['static-files']['license'])),
+        content: from(
+          this.api.getStatic(
+            `/public/package-data/${id}/${version}/LICENSE.md`,
+          ),
+        ),
       },
       component: MarkdownComponent,
     })

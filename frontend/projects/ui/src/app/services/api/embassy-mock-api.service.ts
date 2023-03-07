@@ -15,7 +15,6 @@ import {
   PackageDataEntry,
   PackageMainStatus,
   PackageState,
-  ServerStatus,
 } from 'src/app/services/patch-db/data-model'
 import { CifsBackupTarget, RR } from './api.types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
@@ -999,11 +998,11 @@ export class MockApiService extends ApiService {
     this.mockRevision(patch2)
 
     setTimeout(async () => {
-      const patch3: Operation<ServerStatus>[] = [
+      const patch3: Operation<boolean>[] = [
         {
           op: PatchOp.REPLACE,
-          path: '/server-info/status',
-          value: ServerStatus.Updated,
+          path: '/server-info/status-info/updated',
+          value: true,
         },
         {
           op: PatchOp.REMOVE,
@@ -1011,16 +1010,6 @@ export class MockApiService extends ApiService {
         },
       ]
       this.mockRevision(patch3)
-      // quickly revert server to "running" for continued testing
-      await pauseFor(100)
-      const patch4 = [
-        {
-          op: PatchOp.REPLACE,
-          path: '/server-info/status',
-          value: ServerStatus.Running,
-        },
-      ]
-      this.mockRevision(patch4)
       // set patch indicating update is complete
       await pauseFor(100)
       const patch6 = [
