@@ -53,3 +53,5 @@ export function toUrl(text: string | null | undefined): string {
     return ''
   }
 }
+
+export type WithId<T> = T & { id: string }

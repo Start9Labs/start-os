@@ -7,7 +7,7 @@
 >
   <app-list-icon slot="start" [pkg]="pkg"></app-list-icon>
   <ion-thumbnail slot="start">
-    <img alt="" [src]="pkg.entry['static-files'].icon" />
+    <img alt="" [src]="pkg.entry.icon" />
   </ion-thumbnail>
   <ion-label>
     <h2 ticker>{{ manifest.title }}</h2>
@@ -17,17 +17,18 @@
       [installProgress]="pkg.entry['install-progress']"
       weight="bold"
       size="small"
-      [sigtermTimeout]="manifest.main['sigterm-timeout']"
     ></status>
   </ion-label>
-  <ion-button
-    *ngIf="manifest.interfaces | hasUi"
-    slot="end"
-    fill="clear"
-    color="primary"
-    (click)="launchUi($event)"
-    [disabled]="!(pkg.entry.state | isLaunchable: status:manifest.interfaces)"
-  >
-    <ion-icon slot="icon-only" name="open-outline"></ion-icon>
-  </ion-button>
+  <ng-container *ngIf="pkg.entry.installed as installed">
+    <ion-button
+      *ngIf="installed['address-info'] | hasUi"
+      slot="end"
+      fill="clear"
+      color="primary"
+      (click)="launchUi($event, installed['address-info'])"
+      [disabled]="status !== 'running'"
+    >
+      <ion-icon slot="icon-only" name="open-outline"></ion-icon>
+    </ion-button>
+  </ng-container>
 </ion-item>

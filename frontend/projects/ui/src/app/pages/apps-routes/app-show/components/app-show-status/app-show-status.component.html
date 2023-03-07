@@ -6,7 +6,6 @@
       weight="600"
       [installProgress]="pkg['install-progress']"
       [rendering]="PR[status.primary]"
-      [sigtermTimeout]="pkg.manifest.main['sigterm-timeout']"
     ></status>
   </ion-label>
 </ion-item>
@@ -31,7 +30,7 @@
         </ng-container>
 
         <ion-button
-          *ngIf="isStopped && pkgStatus?.configured"
+          *ngIf="isStopped && isConfigured"
           class="action-button"
           color="success"
           (click)="tryStart()"
@@ -41,7 +40,7 @@
         </ion-button>
 
         <ion-button
-          *ngIf="!pkgStatus?.configured"
+          *ngIf="!isConfigured"
           class="action-button"
           color="warning"
           (click)="presentModalConfig()"
@@ -51,16 +50,14 @@
         </ion-button>
 
         <ion-button
-          *ngIf="pkgStatus && (interfaces | hasUi)"
+          *ngIf="addressInfo | hasUi"
           class="action-button"
           color="primary"
-          [disabled]="
-            !(pkg.state | isLaunchable: pkgStatus.main.status:interfaces)
-          "
-          (click)="launchUi()"
+          [disabled]="status.primary === 'running'"
+          (click)="launchUi(addressInfo)"
         >
           <ion-icon slot="start" name="open-outline"></ion-icon>
-          Launch UI
+          Open UI
         </ion-button>
       </ion-col>
     </ion-row>

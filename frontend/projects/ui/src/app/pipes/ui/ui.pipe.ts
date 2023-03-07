@@ -1,12 +1,12 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import { InterfaceDef } from '../../services/patch-db/data-model'
+import { InstalledPackageInfo } from 'src/app/services/patch-db/data-model'
 import { hasUi } from '../../services/config.service'
 
 @Pipe({
   name: 'hasUi',
 })
 export class UiPipe implements PipeTransform {
-  transform(interfaces: Record<string, InterfaceDef>): boolean {
-    return hasUi(interfaces)
+  transform(addressInfo: InstalledPackageInfo['address-info']): boolean {
+    return hasUi(addressInfo)
   }
 }

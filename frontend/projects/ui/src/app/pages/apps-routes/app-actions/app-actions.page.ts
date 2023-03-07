@@ -1,4 +1,10 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  Input,
+  Pipe,
+  PipeTransform,
+} from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import {
@@ -12,12 +18,18 @@ import {
   Action,
   DataModel,
   PackageDataEntry,
-  PackageMainStatus,
+  PackageState,
 } from 'src/app/services/patch-db/data-model'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
-import { isEmptyObject, ErrorToastService, getPkgId } from '@start9labs/shared'
+import {
+  isEmptyObject,
+  ErrorToastService,
+  getPkgId,
+  WithId,
+} from '@start9labs/shared'
 import { ActionSuccessPage } from 'src/app/modals/action-success/action-success.page'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
+import { filter } from 'rxjs'
 
 @Component({
   selector: 'app-actions',
@@ -27,7 +39,9 @@ import { hasCurrentDeps } from 'src/app/util/has-deps'
 })
 export class AppActionsPage {
   readonly pkgId = getPkgId(this.route)
-  readonly pkg$ = this.patch.watch$('package-data', this.pkgId)
+  readonly pkg$ = this.patch
+    .watch$('package-data', this.pkgId)
+    .pipe(filter(pkg => pkg.state === PackageState.Installed))
 
   constructor(
     private readonly route: ActivatedRoute,
@@ -40,28 +54,27 @@ export class AppActionsPage {
     private readonly patch: PatchDB<DataModel>,
   ) {}
 
-  async handleAction(
-    pkg: PackageDataEntry,
-    action: { key: string; value: Action },
-  ) {
-    const status = pkg.installed?.status
-    if (
-      status &&
-      (action.value['allowed-statuses'] as PackageMainStatus[]).includes(
-        status.main.status,
-      )
-    ) {
-      if (!isEmptyObject(action.value['input-spec'] || {})) {
+  async handleAction(action: WithId<Action>) {
+    if (action.disabled) {
+      const alert = await this.alertCtrl.create({
+        header: 'Forbidden',
+        message: action.disabled,
+        buttons: ['OK'],
+        cssClass: 'alert-error-message enter-click',
+      })
+      await alert.present()
+    } else {
+      if (!isEmptyObject(action['input-spec'] || {})) {
         const modal = await this.modalCtrl.create({
           component: GenericFormPage,
           componentProps: {
-            title: action.value.name,
-            spec: action.value['input-spec'],
+            title: action.name,
+            spec: action['input-spec'],
             buttons: [
               {
                 text: 'Execute',
                 handler: (value: any) => {
-                  return this.executeAction(action.key, value)
+                  return this.executeAction(action.id, value)
                 },
                 isSubmit: true,
               },
@@ -72,9 +85,9 @@ export class AppActionsPage {
       } else {
         const alert = await this.alertCtrl.create({
           header: 'Confirm',
-          message: `Are you sure you want to execute action "${
-            action.value.name
-          }"? ${action.value.warning || ''}`,
+          message: `Are you sure you want to execute action "${action.name}"? ${
+            action.warning || ''
+          }`,
           buttons: [
             {
               text: 'Cancel',
@@ -83,7 +96,7 @@ export class AppActionsPage {
             {
               text: 'Execute',
               handler: () => {
-                this.executeAction(action.key)
+                this.executeAction(action.id)
               },
               cssClass: 'enter-click',
             },
@@ -91,31 +104,6 @@ export class AppActionsPage {
         })
         await alert.present()
       }
-    } else {
-      const statuses = [...action.value['allowed-statuses']]
-      const last = statuses.pop()
-      let statusesStr = statuses.join(', ')
-      let error = ''
-      if (statuses.length) {
-        if (statuses.length > 1) {
-          // oxford comma
-          statusesStr += ','
-        }
-        statusesStr += ` or ${last}`
-      } else if (last) {
-        statusesStr = `${last}`
-      } else {
-        error = `There is no status for which this action may be run. This is a bug. Please file an issue with the service maintainer.`
-      }
-      const alert = await this.alertCtrl.create({
-        header: 'Forbidden',
-        message:
-          error ||
-          `Action "${action.value.name}" can only be executed when service is ${statusesStr}`,
-        buttons: ['OK'],
-        cssClass: 'alert-error-message enter-click',
-      })
-      await alert.present()
     }
   }
 
@@ -223,4 +211,32 @@ interface LocalAction {
 })
 export class AppActionsItemComponent {
   @Input() action!: LocalAction
+}
+
+@Pipe({
+  name: 'groupActions',
+})
+export class GroupActionsPipe implements PipeTransform {
+  transform(
+    actions: PackageDataEntry['actions'],
+  ): Array<Array<WithId<Action>>> | null {
+    if (!actions) return null
+    const noGroup = 'noGroup'
+    const grouped = Object.entries(actions).reduce<
+      Record<string, WithId<Action>[]>
+    >((groups, [id, action]) => {
+      const actionWithId = { id, ...action }
+      const groupKey = action.group || noGroup
+      if (!groups[groupKey]) {
+        groups[groupKey] = [actionWithId]
+      } else {
+        groups[groupKey].push(actionWithId)
+      }
+      return groups
+    }, {})
+
+    return Object.values(grouped).map(group =>
+      group.sort((a, b) => a.name.localeCompare(b.name)),
+    )
+  }
 }
