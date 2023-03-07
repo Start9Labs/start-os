@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
 import { ModalController } from '@ionic/angular'
-import { map, take } from 'rxjs/operators'
+import { map } from 'rxjs/operators'
 import { DataModel, PackageState } from 'src/app/services/patch-db/data-model'
 import { PatchDB } from 'patch-db-client'
 import { firstValueFrom } from 'rxjs'
@@ -36,7 +36,7 @@ export class BackupSelectPage {
               return {
                 id,
                 title,
-                icon: pkg['static-files'].icon,
+                icon: pkg.icon,
                 disabled: pkg.state !== PackageState.Installed,
                 checked: pkg.state === PackageState.Installed,
               }
