@@ -16,9 +16,7 @@ import {
 } from '@start9labs/marketplace'
 import { MarketplaceStatusModule } from '../marketplace-status/marketplace-status.module'
 import { MarketplaceShowPage } from './marketplace-show.page'
-import { MarketplaceShowHeaderComponent } from './marketplace-show-header/marketplace-show-header.component'
-import { MarketplaceShowDependentComponent } from './marketplace-show-dependent/marketplace-show-dependent.component'
-import { MarketplaceShowControlsComponent } from './marketplace-show-controls/marketplace-show-controls.component'
+import { MarketplaceShowComponentsModule } from './components/marketplace-show-components.module'
 
 const routes: Routes = [
   {
@@ -41,18 +39,8 @@ const routes: Routes = [
     AboutModule,
     DependenciesModule,
     AdditionalModule,
+    MarketplaceShowComponentsModule,
   ],
-  declarations: [
-    MarketplaceShowPage,
-    MarketplaceShowHeaderComponent,
-    MarketplaceShowControlsComponent,
-    MarketplaceShowDependentComponent,
-  ],
-  exports: [
-    MarketplaceShowPage,
-    MarketplaceShowHeaderComponent,
-    MarketplaceShowControlsComponent,
-    MarketplaceShowDependentComponent,
-  ],
+  declarations: [MarketplaceShowPage],
 })
 export class MarketplaceShowPageModule {}
