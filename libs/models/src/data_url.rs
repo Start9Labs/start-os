@@ -10,11 +10,11 @@ use yasi::InternedString;
 
 use crate::{mime, Error, ResultExt};
 
-pub struct DataUrl {
+pub struct DataUrl<'a> {
     mime: InternedString,
-    data: Cow<'static, [u8]>,
+    data: Cow<'a, [u8]>,
 }
-impl DataUrl {
+impl<'a> DataUrl<'a> {
     pub const DEFAULT_MIME: &'static str = "application/octet-stream";
     pub const MAX_SIZE: u64 = 100 * 1024;
 
@@ -35,6 +35,14 @@ impl DataUrl {
         self.data_url_len_without_mime() + self.mime.len()
     }
 
+    pub fn from_slice(mime: &str, data: &'a [u8]) -> Self {
+        Self {
+            mime: InternedString::intern(mime),
+            data: Cow::Borrowed(data),
+        }
+    }
+}
+impl DataUrl<'static> {
     pub async fn from_reader(
         mime: &str,
         rdr: impl AsyncRead + Unpin,
@@ -55,9 +63,7 @@ impl DataUrl {
             .transpose()?
             .map(|s| Vec::with_capacity(s as usize))
             .unwrap_or_default();
-        rdr.take(Self::MAX_SIZE as u64 + 1)
-            .read_to_end(&mut buf)
-            .await?;
+        rdr.take(Self::MAX_SIZE + 1).read_to_end(&mut buf).await?;
         check_size(buf.len() as u64)?;
 
         Ok(Self {
@@ -76,13 +82,6 @@ impl DataUrl {
             .and_then(mime)
             .unwrap_or(Self::DEFAULT_MIME);
         Self::from_reader(mime, f, Some(m.len())).await
-    }
-
-    pub fn from_const(mime: &str, data: &'static [u8]) -> Self {
-        Self {
-            mime: InternedString::intern(mime),
-            data: Cow::Borrowed(data),
-        }
     }
 
     pub async fn from_response(res: reqwest::Response) -> Result<Self, Error> {
@@ -104,20 +103,20 @@ impl DataUrl {
     }
 }
 
-impl std::fmt::Debug for DataUrl {
+impl<'a> std::fmt::Debug for DataUrl<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.to_string())
     }
 }
 
-impl<'de> Deserialize<'de> for DataUrl {
+impl<'de> Deserialize<'de> for DataUrl<'static> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
         struct Visitor;
         impl<'de> serde::de::Visitor<'de> for Visitor {
-            type Value = DataUrl;
+            type Value = DataUrl<'static>;
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
                 write!(formatter, "a valid base64 data url")
             }
@@ -146,7 +145,7 @@ impl<'de> Deserialize<'de> for DataUrl {
     }
 }
 
-impl Serialize for DataUrl {
+impl<'a> Serialize for DataUrl<'a> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -159,10 +158,10 @@ impl Serialize for DataUrl {
 fn doesnt_reallocate() {
     let random: [u8; 10] = rand::random();
     for i in 0..10 {
-        let icon = Icon {
-            format: InternedString::intern("png"),
-            data: random[..i].to_vec(),
+        let icon = DataUrl {
+            mime: InternedString::intern("png"),
+            data: Cow::Borrowed(&random[..i]),
         };
-        assert_eq!(dbg!(icon.data_url()).capacity(), icon.data_url_len());
+        assert_eq!(dbg!(icon.to_string()).capacity(), icon.data_url_len());
     }
 }

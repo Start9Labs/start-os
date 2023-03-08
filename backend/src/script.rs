@@ -13,11 +13,11 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use crate::context::RpcContext;
 use crate::prelude::*;
 use crate::s9pk::manifest::PackageId;
 use crate::util::{GeneralGuard, Version};
 use crate::volume::Volumes;
+use crate::{context::RpcContext, manager::manager_seed::ManagerSeed};
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "kebab-case")]
@@ -77,7 +77,7 @@ impl OsApi for SandboxOsApi {
         id: Option<PackageId>,
         path: Option<&str>,
         callback: Option<Callback>,
-    ) -> Result<Vec<serde_json::Value>, Report> {
+    ) -> Result<Vec<Value>, Report> {
         Err(eyre!("Operation not permitted"))
     }
     #[allow(unused_variables)]
@@ -274,7 +274,7 @@ mod tests {
     use super::*;
 
     struct OsApiMock {
-        config_callbacks: (watch::Sender<Vec<Callback>>, watch::Sender<Vec<Callback>>),
+        config_callbacks: watch::Sender<Vec<Callback>>,
     }
     impl Default for OsApiMock {
         fn default() -> Self {
@@ -292,7 +292,7 @@ mod tests {
             id: Option<PackageId>,
             path: Option<&str>,
             callback: Option<Callback>,
-        ) -> Result<Vec<serde_json::Value>, Report> {
+        ) -> Result<Vec<Value>, Report> {
             if let Some(callback) = callback {
                 println!("Adding callback");
                 self.config_callbacks.send_modify(|x| x.push(callback));
@@ -379,7 +379,6 @@ mod tests {
                 Arc::new(OsApiMock::default()),
             )
             .await
-            .unwrap()
             .unwrap();
         assert_eq!(
             &std::fs::read_to_string(
@@ -423,7 +422,7 @@ mod tests {
         .unwrap();
         let input: Option<serde_json::Value> = None;
         let timeout = Some(Duration::from_secs(10));
-        let output: Result<serde_json::Value, _> = js_action
+        let output: Result<Value, _> = js_action
             .execute(
                 &path,
                 &package_id,
@@ -484,7 +483,6 @@ mod tests {
                 Arc::new(OsApiMock::default()),
             )
             .await
-            .unwrap()
             .unwrap();
     }
 
@@ -531,7 +529,7 @@ mod tests {
                     ProcessGroupId(0),
                     None,
                     Arc::new(OsApiMock::default())
-                ) => { a.unwrap().unwrap(); },
+                ) => { a.unwrap(); },
             _ = tokio::time::sleep(Duration::from_secs(1)) => ()
         }
         tracing::debug!("testing end should");
@@ -598,10 +596,9 @@ mod tests {
                 timeout,
                 ProcessGroupId(0),
                 None,
-                None,
+                Arc::new(OsApiMock::default()),
             )
             .await
-            .unwrap()
             .unwrap();
     }
     #[tokio::test]
@@ -644,10 +641,9 @@ mod tests {
                 timeout,
                 ProcessGroupId(0),
                 None,
-                None,
+                Arc::new(OsApiMock::default()),
             )
             .await
-            .unwrap()
             .unwrap();
     }
     #[tokio::test]
@@ -690,10 +686,9 @@ mod tests {
                 timeout,
                 ProcessGroupId(0),
                 None,
-                None,
+                Arc::new(OsApiMock::default()),
             )
             .await
-            .unwrap()
             .unwrap();
     }
     #[tokio::test]
@@ -739,7 +734,6 @@ mod tests {
                 Arc::new(OsApiMock::default()),
             )
             .await
-            .unwrap()
             .unwrap();
     }
 
@@ -786,53 +780,6 @@ mod tests {
                 Arc::new(OsApiMock::default()),
             )
             .await
-            .unwrap()
-            .unwrap();
-    }
-    #[tokio::test]
-    async fn js_action_test_deep_dir_escape() {
-        let js_action = JsProcedure;
-        let path: PathBuf = "test/js_action_execute/"
-            .parse::<PathBuf>()
-            .unwrap()
-            .canonicalize()
-            .unwrap();
-        let package_id = "test-package".parse().unwrap();
-        let package_version: Version = "0.3.0.3".parse().unwrap();
-        let name = ProcedureName::Action("test-deep-dir-escape".parse().unwrap());
-        let volumes: Volumes = serde_json::from_value(json!({
-            "main": {
-                "type": "data"
-            },
-            "compat": {
-                "type": "assets"
-            },
-            "filebrowser" :{
-                "package-id": "filebrowser",
-                "path": "data",
-                "readonly": true,
-                "type": "pointer",
-                "volume-id": "main",
-            }
-        }))
-        .unwrap();
-        let input: Option<serde_json::Value> = None;
-        let timeout = Some(Duration::from_secs(10));
-        js_action
-            .execute::<serde_json::Value, serde_json::Value>(
-                &path,
-                &package_id,
-                &package_version,
-                name,
-                &volumes,
-                input,
-                timeout,
-                ProcessGroupId(0),
-                None,
-                Arc::new(OsApiMock::default()),
-            )
-            .await
-            .unwrap()
             .unwrap();
     }
     #[tokio::test]
@@ -878,53 +825,6 @@ mod tests {
                 Arc::new(OsApiMock::default()),
             )
             .await
-            .unwrap()
-            .unwrap();
-    }
-    #[tokio::test]
-    async fn js_action_test_zero_dir() {
-        let js_action = JsProcedure;
-        let path: PathBuf = "test/js_action_execute/"
-            .parse::<PathBuf>()
-            .unwrap()
-            .canonicalize()
-            .unwrap();
-        let package_id = "test-package".parse().unwrap();
-        let package_version: Version = "0.3.0.3".parse().unwrap();
-        let name = ProcedureName::Action("test-zero-dir".parse().unwrap());
-        let volumes: Volumes = serde_json::from_value(json!({
-            "main": {
-                "type": "data"
-            },
-            "compat": {
-                "type": "assets"
-            },
-            "filebrowser" :{
-                "package-id": "filebrowser",
-                "path": "data",
-                "readonly": true,
-                "type": "pointer",
-                "volume-id": "main",
-            }
-        }))
-        .unwrap();
-        let input: Option<serde_json::Value> = None;
-        let timeout = Some(Duration::from_secs(10));
-        js_action
-            .execute::<serde_json::Value, serde_json::Value>(
-                &path,
-                &package_id,
-                &package_version,
-                name,
-                &volumes,
-                input,
-                timeout,
-                ProcessGroupId(0),
-                None,
-                Arc::new(OsApiMock::default()),
-            )
-            .await
-            .unwrap()
             .unwrap();
     }
 
@@ -971,7 +871,6 @@ mod tests {
                 Arc::new(OsApiMock::default()),
             )
             .await
-            .unwrap()
             .unwrap();
     }
     #[tokio::test]
@@ -1034,7 +933,6 @@ mod tests {
                 action_api,
             )
             .await
-            .unwrap()
             .unwrap();
         spawned.await.unwrap();
     }

@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use color_eyre::eyre::eyre;
-pub use models::{PackageId, SYSTEM_PACKAGE_ID};
+pub use models::PackageId;
 use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -9,9 +9,7 @@ use url::Url;
 use super::git_hash::GitHash;
 use crate::container::DockerContainers;
 use crate::dependencies::Dependencies;
-use crate::net::interface::Interfaces;
 use crate::prelude::*;
-use crate::status::health_check::HealthChecks;
 use crate::util::Version;
 use crate::version::{Current, VersionT};
 use crate::volume::Volumes;

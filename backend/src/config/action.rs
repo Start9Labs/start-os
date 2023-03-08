@@ -23,59 +23,16 @@ pub struct ConfigRes {
     pub spec: Value,
 }
 
-#[instrument(skip(ctx))]
-pub async fn get(
-    &self,
-    ctx: &RpcContext,
-    pkg_id: &PackageId,
-    pkg_version: &Version,
-    volumes: &Volumes,
-) -> Result<ConfigRes, Error> {
-    self.get
-        .execute(
-            ctx,
-            pkg_id,
-            pkg_version,
-            ProcedureName::GetConfig,
-            volumes,
-            None::<()>,
-            None,
-        )
+#[instrument(skip(manager))]
+pub async fn get(manager: Arc<Manager>) -> Result<ConfigRes, Error> {
+    manager
+        .run_procedure(ProcedureName::GetConfig, None::<()>, None)
         .await
-        .and_then(|res| res.map_err(|e| Error::new(eyre!("{}", e.1), ErrorKind::ConfigGen)))
 }
 
-#[instrument(skip(ctx))]
-pub async fn set(
-    &self,
-    ctx: &RpcContext,
-    pkg_id: &PackageId,
-    pkg_version: &Version,
-    dependencies: &Dependencies,
-    volumes: &Volumes,
-    input: &Config,
-) -> Result<SetResult, Error> {
-    let res: SetResult = self
-        .set
-        .execute(
-            ctx,
-            pkg_id,
-            pkg_version,
-            ProcedureName::SetConfig,
-            volumes,
-            Some(input),
-            None,
-        )
+#[instrument(skip(manager))]
+pub async fn set(manager: Arc<Manager>, input: &Input) -> Result<Value, Error> {
+    manager
+        .run_procedure(ProcedureName::SetConfig, Some(input), None)
         .await
-        .and_then(|res| {
-            res.map_err(|e| Error::new(eyre!("{}", e.1), ErrorKind::ConfigRulesViolation))
-        })?;
-    Ok(SetResult {
-        signal: res.signal,
-        depends_on: res
-            .depends_on
-            .into_iter()
-            .filter(|(pkg, _)| dependencies.0.contains_key(pkg))
-            .collect(),
-    })
 }

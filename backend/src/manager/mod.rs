@@ -1,8 +1,11 @@
-use std::collections::{BTreeMap, BTreeSet};
 use std::net::Ipv4Addr;
 use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    sync::Weak,
+};
 
 use color_eyre::eyre::eyre;
 use color_eyre::Report;
@@ -10,11 +13,12 @@ use embassy_container_init::ProcessGroupId;
 use futures::future::BoxFuture;
 use futures::{Future, FutureExt, TryFutureExt};
 use helpers::UnixRpcClient;
-use models::{ErrorKind, PackageId, ProcedureName};
+use models::{ErrorKind, PackageId, ProcedureName, VolumeId};
 use nix::sys::signal::Signal;
 use persistent_container::PersistentContainer;
 use rand::SeedableRng;
 use reqwest::Url;
+use serde::{de::DeserializeOwned, Serialize};
 use sqlx::Connection;
 use start_stop::StartStop;
 use tokio::sync::watch::{self, Sender};
@@ -22,8 +26,6 @@ use tokio::sync::{oneshot, Mutex};
 use tracing::instrument;
 use transition_state::TransitionState;
 
-use crate::backup::target::PackageBackupInfo;
-use crate::backup::PackageBackupReport;
 use crate::config::action::ConfigRes;
 use crate::config::ConfigureContext;
 use crate::container::{DockerContainer, LongRunning};
@@ -42,6 +44,8 @@ use crate::script::NoOutput;
 use crate::status::MainStatus;
 use crate::util::NonDetachingJoinHandle;
 use crate::volume::Volume;
+use crate::{backup::target::PackageBackupInfo, script::JsProcedure};
+use crate::{backup::PackageBackupReport, volume::VolumeBackup};
 
 mod js_api;
 mod manager_container;
@@ -100,11 +104,11 @@ impl Gid {
 }
 
 pub struct Manager {
-    seed: Arc<ManagerSeed>,
+    pub seed: Arc<ManagerSeed>,
 
     persistent_container: Arc<PersistentContainer>, // ManagerSeed
     manage_container: Arc<ManageContainer>,         // ManagerSeed + ManagerPersistentContainer
-    transition: watch::Sender<Arc<TransitionState>>, // ManageContainer
+    transition: Arc<watch::Sender<Arc<TransitionState>>>, // ManageContainer
 
     pub gid: Gid,
 }
@@ -127,6 +131,7 @@ impl Manager {
                 .await?,
         );
         let (transition, _) = watch::channel(Default::default());
+        let transition = Arc::new(transition);
         Ok(Self {
             seed,
             manage_container,
@@ -144,14 +149,15 @@ impl Manager {
         self._transition_abort();
         self.manage_container.to_desired(StartStop::Stop);
     }
-    pub async fn restart(&self) {
-        if self._is_transition_restart() {
+    pub async fn restart(self: Arc<Self>) {
+        if self.clone()._is_transition_restart() {
             return;
         }
-        self._transition_replace(self._transition_restart());
+        let transition_state = self.clone()._transition_restart();
+        self._transition_replace(transition_state);
     }
     pub async fn configure(
-        &self,
+        self: Arc<Self>,
         configure_context: ConfigureContext,
     ) -> Result<BTreeMap<PackageId, TaggedDependencyError>, Error> {
         if self._is_transition_configure() {
@@ -161,7 +167,7 @@ impl Manager {
         let id = self.seed.manifest.id.clone();
 
         let (transition_state, done) = configure(context, id, configure_context).remote_handle();
-        self._transition_replace({
+        self.clone()._transition_replace({
             let manage_container = self.manage_container.clone();
 
             TransitionState::Configuring(
@@ -183,13 +189,13 @@ impl Manager {
         });
         done.await
     }
-    pub async fn backup(&self, backup_guard: BackupGuard) -> BackupReturn {
+    pub async fn backup(self: Arc<Self>, backup_guard: BackupGuard) -> BackupReturn {
         if self._is_transition_backup() {
             return BackupReturn::AlreadyRunning(PackageBackupReport {
                 error: Some("Can't do backup because service is in a backing up state".to_owned()),
             });
         }
-        let (transition_state, done) = self._transition_backup(backup_guard);
+        let (transition_state, done) = self.clone()._transition_backup(backup_guard);
         self._transition_replace(transition_state);
         done.await
     }
@@ -202,17 +208,63 @@ impl Manager {
         }
     }
 
-    pub async fn signal(&self, signal: Signal) -> Result<(), Error> {
-        let rpc_client = self.rpc_client();
-        let seed = self.seed.clone();
-        let gid = self.gid.clone();
-        send_signal(self, gid, signal).await
+    pub fn rpc_client(&self) -> Arc<UnixRpcClient> {
+        self.persistent_container.rpc_client()
     }
 
-    pub fn rpc_client(&self) -> Option<Arc<UnixRpcClient>> {
-        (*self.persistent_container)
-            .as_ref()
-            .map(|x| x.rpc_client())
+    pub async fn run_procedure<I: Serialize, O: DeserializeOwned>(
+        self: Arc<Self>,
+        name: ProcedureName,
+        input: Option<I>,
+        timeout: Option<Duration>,
+    ) -> Result<O, Error> {
+        let seed = self.seed.clone();
+        let gid = if matches!(name, ProcedureName::Main) {
+            self.gid.new_main_gid()
+        } else {
+            self.gid.new_gid()
+        };
+        let volumes = match name {
+            ProcedureName::RestoreBackup => {
+                let mut volumes = seed.manifest.volumes.clone();
+                volumes.insert(
+                    VolumeId::Backup,
+                    Volume::Backup(VolumeBackup { readonly: true }),
+                );
+                volumes
+            }
+            ProcedureName::CreateBackup => {
+                let mut volumes = seed.manifest.volumes.to_readonly();
+                volumes.insert(
+                    VolumeId::Backup,
+                    Volume::Backup(VolumeBackup { readonly: false }),
+                );
+                volumes
+            }
+            ProcedureName::Main
+            | ProcedureName::GetConfig
+            | ProcedureName::SetConfig
+            | ProcedureName::Properties
+            | ProcedureName::Init
+            | ProcedureName::Uninit
+            | ProcedureName::Check(_)
+            | ProcedureName::AutoConfig(_)
+            | ProcedureName::Action(_) => seed.manifest.volumes.clone(),
+        };
+        JsProcedure
+            .execute(
+                &seed.ctx.datadir,
+                &seed.manifest.id,
+                &seed.manifest.version,
+                name,
+                &volumes,
+                input,
+                timeout,
+                gid,
+                Some(self.rpc_client()),
+                self,
+            )
+            .await
     }
 
     fn _transition_abort(&self) {
@@ -224,7 +276,7 @@ impl Manager {
             transition.abort();
         }
     }
-    fn _transition_replace(&self, transition_state: TransitionState) {
+    fn _transition_replace(self: Arc<Self>, transition_state: TransitionState) {
         self.transition
             .send_replace(Arc::new(transition_state))
             .abort();
@@ -239,18 +291,20 @@ impl Manager {
         }
     }
     fn _transition_restart(&self) -> TransitionState {
-        let transition = self.transition.clone();
+        let transition = Arc::downgrade(&self.transition);
         let restart = self.perform_restart();
         TransitionState::Restarting(
             tokio::spawn(async move {
                 restart.await;
-                transition.send_replace(Default::default());
+                if let Some(transition) = Weak::upgrade(&transition) {
+                    transition.send_replace(Default::default());
+                }
             })
             .into(),
         )
     }
     fn perform_backup(
-        &self,
+        self: Arc<Self>,
         backup_guard: BackupGuard,
     ) -> impl Future<Output = Result<Result<PackageBackupInfo, Error>, Error>> + 'static {
         let manage_container = self.manage_container.clone();
@@ -258,26 +312,14 @@ impl Manager {
         async move {
             let state_reverter = DesiredStateReverter::new(manage_container.clone());
             let _ = manage_container.set_override(Some(
-                get_status(&seed.ctx.db, &seed.manifest).await.backing_up(),
+                get_status(&seed.ctx.db.peek().await.unwrap(), &seed.manifest.id)?.backing_up(),
             ));
             manage_container.wait_for_desired(StartStop::Stop).await;
 
             let backup_guard = backup_guard.lock().await;
             let guard = backup_guard.mount_package_backup(&seed.manifest.id).await?;
 
-            let res = seed
-                .manifest
-                .backup
-                .create(
-                    &seed.ctx,
-                    &seed.manifest.id,
-                    &seed.manifest.title,
-                    &seed.manifest.version,
-                    &seed.manifest.interfaces,
-                    &seed.manifest.volumes,
-                    seed.marketplace_url.clone(),
-                )
-                .await;
+            let res = crate::backup::create(self).await;
             guard.unmount().await?;
             drop(backup_guard);
 
@@ -287,9 +329,9 @@ impl Manager {
         }
     }
     fn _transition_backup(
-        &self,
+        self: Arc<Self>,
         backup_guard: BackupGuard,
-    ) -> (TransitionState, BoxFuture<BackupReturn>) {
+    ) -> (TransitionState, BoxFuture<'static, BackupReturn>) {
         let (send, done) = oneshot::channel();
         (
             TransitionState::BackingUp(
@@ -329,19 +371,29 @@ fn configure(
         let ctx = &ctx;
         let db = ctx.db.peek().await?;
         let overrides = &mut configure_context.overrides;
-        let package = db.package_data().idx(id).expect()?;
-        let manifest = package.into_manifest()?;
-        // fetch data from db
-        let action = manifest.config().de()?;
-        let dependencies = todo!("BLUJ Dependencies");
-        let volumes = manifest.volumes().de()?;
-        let version = manifest.version().de()?;
+        let package = db
+            .clone()
+            .into_package_data()
+            .into_idx(id)
+            .or_not_found(id)?;
+        let manifest = package.into_manifest();
+        let Some(manager) = ctx.managers.get(id).await else {
+            return Err(Error::new(
+                eyre!("No manager found for package {id:?}"),
+                ErrorKind::Unknown,
+            ));
+        };
+
+        // // fetch data from db
+        // let dependencies = todo!("BLUJ Dependencies");
 
         // get current config and current spec
         let ConfigRes {
             input: old_input,
             spec,
-        } = action.get(ctx, id, &version, &volumes).await?;
+        } = manager
+            .run_procedure(ProcedureName::GetConfig, None, None)
+            .await?;
 
         // determine new config to use
         let mut config =
@@ -367,12 +419,14 @@ fn configure(
 
             ctx.db
                 .mutate(|db| {
-                    db.package_data()
-                        .idx(&id)
-                        .installed()
-                        .status()
-                        .configured()
-                        .ser(true)?;
+                    db.as_package_data_mut()
+                        .as_idx_mut(&id)
+                        .or_not_found(&id)?
+                        .expect_as_installed_mut()?
+                        .as_installed_mut()
+                        .as_status_mut()
+                        .as_configured_mut()
+                        .ser(&true)?;
                     Ok(())
                 })
                 .await?;
@@ -475,17 +529,3 @@ pub enum OnStop {
 }
 
 type RunMainResult = Result<(), Error>;
-
-#[instrument(skip(seed, started))]
-async fn _run_main(seed: Arc<ManagerSeed>, started: Arc<impl Fn()>) -> RunMainResult {
-    let mut runtime = NonDetachingJoinHandle::from(tokio::spawn(start_up_image(seed.clone())));
-
-    let res = tokio::select! {
-        a = runtime => a.map_err(|_| Error::new(eyre!("Manager runtime panicked!"), ErrorKind::Docker)).and_then(|a| a),
-        _ = health => Err(Error::new(eyre!("Health check daemon exited!"), ErrorKind::Unknown))
-    };
-    if let Some(svc) = svc {
-        remove_network_for_main(svc).await?;
-    }
-    res
-}

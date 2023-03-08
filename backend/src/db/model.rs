@@ -1,13 +1,12 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::net::{Ipv4Addr, Ipv6Addr};
-use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Utc};
 use emver::VersionRange;
 use ipnet::{Ipv4Net, Ipv6Net};
 use isocountry::CountryCode;
 use itertools::Itertools;
-use models::{DataUrl, InterfaceId};
+use models::{AddressId, DataUrl, HealthCheckId};
 use openssl::hash::MessageDigest;
 use patch_db::{HasModel, Value};
 use reqwest::Url;
@@ -21,7 +20,6 @@ use crate::net::forward::LanPortForwards;
 use crate::net::utils::{get_iface_ipv4_addr, get_iface_ipv6_addr};
 use crate::prelude::*;
 use crate::s9pk::manifest::{Manifest, PackageId};
-use crate::status::health_check::HealthCheckId;
 use crate::status::Status;
 use crate::util::Version;
 use crate::version::{Current, VersionT};
@@ -257,6 +255,16 @@ impl Model<PackageDataEntry> {
             ))
         }
     }
+    pub fn expect_as_installed(&self) -> Result<&Model<PackageDataEntryInstalled>, Error> {
+        if let PackageDataEntryMatchModelRef::Installed(a) = self.as_match() {
+            Ok(a)
+        } else {
+            Err(Error::new(
+                eyre!("package is not in installed state"),
+                ErrorKind::InvalidRequest,
+            ))
+        }
+    }
     pub fn expect_as_installed_mut(
         &mut self,
     ) -> Result<&mut Model<PackageDataEntryInstalled>, Error> {
@@ -361,7 +369,7 @@ pub struct CurrentDependencyInfo {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct AddressInfoMap(pub BTreeMap<AddressId, AddressInfo>);
-impl Map for InterfaceAddressMap {
+impl Map for AddressInfoMap {
     type Key = AddressId;
     type Value = AddressInfo;
 }

@@ -2348,9 +2348,9 @@ dependencies = [
 [[package]]
 name = "jsonpath_lib"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eaa63191d68230cccb81c5aa23abd53ed64d83337cacbb25a7b8c7979523774f"
+source = "git+https://github.com/Start9Labs/jsonpath.git#1cacbd64afa2e1941a21fef06bad14317ba92f30"
 dependencies = [
+ "imbl-value",
  "log",
  "serde",
  "serde_json",
