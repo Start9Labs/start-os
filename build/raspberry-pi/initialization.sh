@@ -4,7 +4,7 @@ set -e
 # introduce start9 username and embassy as default password
 if ! awk -F: '{ print $1 }' /etc/passwd | grep start9
 then
-	usermod -l start9 -d /home/start9 -aG embassy -m pi
+	usermod -l start9 -d /home/start9 -m pi
 	groupmod --new-name start9 pi
 	echo start9:embassy | chpasswd
 fi
@@ -41,6 +41,8 @@ apt-get autoremove -y
 systemctl stop tor
 
 . /usr/lib/embassy/scripts/postinst
+
+usermod -aG embassy start9
 
 systemctl enable embassyd.service embassy-init.service
 
