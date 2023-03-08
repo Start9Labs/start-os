@@ -273,6 +273,8 @@ impl JsExecutionEnvironment {
     }
     fn declarations() -> Vec<OpDecl> {
         vec![
+            fns::chown::decl(),
+            fns::chmod::decl(),
             fns::fetch::decl(),
             fns::read_file::decl(),
             fns::metadata::decl(),
@@ -379,7 +381,9 @@ mod fns {
     use std::cell::RefCell;
     use std::collections::BTreeMap;
     use std::convert::TryFrom;
+    use std::fs::Permissions;
     use std::os::unix::fs::MetadataExt;
+    use std::os::unix::prelude::PermissionsExt;
     use std::path::{Path, PathBuf};
     use std::rc::Rc;
     use std::time::Duration;
@@ -1183,6 +1187,96 @@ mod fns {
         Ok(())
     }
 
+    #[op]
+    async fn chown(
+        state: Rc<RefCell<OpState>>,
+        volume_id: VolumeId,
+        path_in: PathBuf,
+        ownership: u32,
+    ) -> Result<(), AnyError> {
+        let sandboxed = {
+            let state = state.borrow();
+            let ctx: &JsContext = state.borrow();
+            ctx.sandboxed
+        };
+
+        if sandboxed {
+            bail!("Will not run chown in sandboxed mode");
+        }
+
+        let (volumes, volume_path) = {
+            let state = state.borrow();
+            let ctx: &JsContext = state.borrow();
+            let volume_path = ctx
+                .volumes
+                .path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id)
+                .ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?;
+            (ctx.volumes.clone(), volume_path)
+        };
+        if volumes.readonly(&volume_id) {
+            bail!("Volume {} is readonly", volume_id);
+        }
+        let new_file = volume_path.join(path_in);
+        // With the volume check
+        if !is_subset(&volume_path, &new_file).await? {
+            bail!(
+                "Path '{}' has broken away from parent '{}'",
+                new_file.to_string_lossy(),
+                volume_path.to_string_lossy(),
+            );
+        }
+        let output = tokio::process::Command::new("chown")
+            .arg("--recursive")
+            .arg(format!("{ownership}"))
+            .arg(new_file.as_os_str())
+            .output()
+            .await?;
+        if !output.status.success() {
+            return Err(anyhow!("Chown Error"));
+        }
+        Ok(())
+    }
+    #[op]
+    async fn chmod(
+        state: Rc<RefCell<OpState>>,
+        volume_id: VolumeId,
+        path_in: PathBuf,
+        mode: u32,
+    ) -> Result<(), AnyError> {
+        let sandboxed = {
+            let state = state.borrow();
+            let ctx: &JsContext = state.borrow();
+            ctx.sandboxed
+        };
+
+        if sandboxed {
+            bail!("Will not run chmod in sandboxed mode");
+        }
+
+        let (volumes, volume_path) = {
+            let state = state.borrow();
+            let ctx: &JsContext = state.borrow();
+            let volume_path = ctx
+                .volumes
+                .path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id)
+                .ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?;
+            (ctx.volumes.clone(), volume_path)
+        };
+        if volumes.readonly(&volume_id) {
+            bail!("Volume {} is readonly", volume_id);
+        }
+        let new_file = volume_path.join(path_in);
+        // With the volume check
+        if !is_subset(&volume_path, &new_file).await? {
+            bail!(
+                "Path '{}' has broken away from parent '{}'",
+                new_file.to_string_lossy(),
+                volume_path.to_string_lossy(),
+            );
+        }
+        tokio::fs::set_permissions(new_file, Permissions::from_mode(mode)).await?;
+        Ok(())
+    }
     /// We need to make sure that during the file accessing, we don't reach beyond our scope of control
     async fn is_subset(
         parent: impl AsRef<Path>,
