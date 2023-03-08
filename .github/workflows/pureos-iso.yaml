@@ -31,9 +31,9 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt update
-        wget http://ftp.us.debian.org/debian/pool/main/d/debspawn/debspawn_0.6.0-1.1_all.deb
-        sha256sum ./debspawn_0.6.0-1.1_all.deb | grep 6cdb444844825b82ef388378f2c508fd8886f79a49800d4547a353ea6772d493
-        sudo apt-get install -y ./debspawn_0.6.0-1.1_all.deb
+        wget http://ftp.us.debian.org/debian/pool/main/d/debspawn/debspawn_0.6.1-1.1_all.deb
+        sha256sum ./debspawn_0.6.1-1.1_all.deb | grep 6cdb444844825b82ef388378f2c508fd8886f79a49800d4547a353ea6772d493
+        sudo apt-get install -y ./debspawn_0.6.1-1.1_all.deb
         wget https://repo.pureos.net/pureos/pool/main/d/debootstrap/debootstrap_1.0.125pureos1_all.deb
         sudo apt-get install -y --allow-downgrades ./debootstrap_1.0.125pureos1_all.deb
         wget https://repo.pureos.net/pureos/pool/main/p/pureos-archive-keyring/pureos-archive-keyring_2021.11.0_all.deb
