@@ -3,14 +3,14 @@ use std::path::Path;
 
 use serde::{Deserialize, Deserializer, Serialize};
 
-use crate::{Id, IdUnchecked};
+use crate::Id;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum VolumeId<S: AsRef<str> = String> {
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum VolumeId {
     Backup,
-    Custom(Id<S>),
+    Custom(Id),
 }
-impl<S: AsRef<str>> std::fmt::Display for VolumeId<S> {
+impl std::fmt::Display for VolumeId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             VolumeId::Backup => write!(f, "BACKUP"),
@@ -18,7 +18,7 @@ impl<S: AsRef<str>> std::fmt::Display for VolumeId<S> {
         }
     }
 }
-impl<S: AsRef<str>> AsRef<str> for VolumeId<S> {
+impl AsRef<str> for VolumeId {
     fn as_ref(&self) -> &str {
         match self {
             VolumeId::Backup => "BACKUP",
@@ -26,33 +26,29 @@ impl<S: AsRef<str>> AsRef<str> for VolumeId<S> {
         }
     }
 }
-impl<S: AsRef<str>> Borrow<str> for VolumeId<S> {
+impl Borrow<str> for VolumeId {
     fn borrow(&self) -> &str {
         self.as_ref()
     }
 }
-impl<S: AsRef<str>> AsRef<Path> for VolumeId<S> {
+impl AsRef<Path> for VolumeId {
     fn as_ref(&self) -> &Path {
         AsRef::<str>::as_ref(self).as_ref()
     }
 }
-impl<'de, S> Deserialize<'de> for VolumeId<S>
-where
-    S: AsRef<str>,
-    IdUnchecked<S>: Deserialize<'de>,
-{
+impl<'de> Deserialize<'de> for VolumeId {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        let unchecked: IdUnchecked<S> = Deserialize::deserialize(deserializer)?;
-        Ok(match unchecked.0.as_ref() {
+        let unchecked: String = Deserialize::deserialize(deserializer)?;
+        Ok(match unchecked.as_ref() {
             "BACKUP" => VolumeId::Backup,
-            _ => VolumeId::Custom(Id::try_from(unchecked.0).map_err(serde::de::Error::custom)?),
+            _ => VolumeId::Custom(Id::try_from(unchecked).map_err(serde::de::Error::custom)?),
         })
     }
 }
-impl<S: AsRef<str>> Serialize for VolumeId<S> {
+impl Serialize for VolumeId {
     fn serialize<Ser>(&self, serializer: Ser) -> Result<Ser::Ok, Ser::Error>
     where
         Ser: serde::Serializer,

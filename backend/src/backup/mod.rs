@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use chrono::{DateTime, Utc};
 use color_eyre::eyre::eyre;
 use helpers::AtomicFile;
+use models::ImageId;
 use patch_db::{DbHandle, HasModel};
 use reqwest::Url;
 use rpc_toolkit::command;
@@ -15,19 +16,20 @@ use tracing::instrument;
 use self::target::PackageBackupInfo;
 use crate::context::RpcContext;
 use crate::dependencies::reconfigure_dependents_with_live_pointers;
-use crate::id::ImageId;
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::net::interface::{InterfaceId, Interfaces};
+use crate::net::keys::Key;
 use crate::procedure::docker::DockerContainers;
 use crate::procedure::{NoOutput, PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::PackageId;
-use crate::util::serde::IoFormat;
+use crate::util::serde::{Base32, Base64, IoFormat};
 use crate::util::Version;
 use crate::version::{Current, VersionT};
 use crate::volume::{backup_dir, Volume, VolumeId, Volumes, BACKUP_DIR};
 use crate::{Error, ErrorKind, ResultExt};
 
 pub mod backup_bulk;
+pub mod os;
 pub mod restore;
 pub mod target;
 
@@ -61,7 +63,10 @@ pub fn package_backup() -> Result<(), Error> {
 #[derive(Deserialize, Serialize)]
 struct BackupMetadata {
     pub timestamp: DateTime<Utc>,
-    pub tor_keys: BTreeMap<InterfaceId, String>,
+    #[serde(default)]
+    pub network_keys: BTreeMap<InterfaceId, Base64<[u8; 32]>>,
+    #[serde(default)]
+    pub tor_keys: BTreeMap<InterfaceId, Base32<[u8; 64]>>, // DEPRECATED
     pub marketplace_url: Option<Url>,
 }
 
@@ -117,17 +122,17 @@ impl BackupActions {
             .await?
             .map_err(|e| eyre!("{}", e.1))
             .with_kind(crate::ErrorKind::Backup)?;
-        let tor_keys = interfaces
-            .tor_keys(&mut ctx.secret_store.acquire().await?, pkg_id)
+        let (network_keys, tor_keys) = Key::for_package(&ctx.secret_store, pkg_id)
             .await?
             .into_iter()
-            .map(|(id, key)| {
-                (
-                    id,
-                    base32::encode(base32::Alphabet::RFC4648 { padding: true }, &key.as_bytes()),
-                )
+            .filter_map(|k| {
+                let interface = k.interface().map(|(_, i)| i)?;
+                Some((
+                    (interface.clone(), Base64(k.as_bytes())),
+                    (interface, Base32(k.tor_key().as_bytes())),
+                ))
             })
-            .collect();
+            .unzip();
         let marketplace_url = crate::db::DatabaseModel::new()
             .package_data()
             .idx_model(pkg_id)
@@ -170,6 +175,7 @@ impl BackupActions {
         outfile
             .write_all(&IoFormat::Cbor.to_vec(&BackupMetadata {
                 timestamp,
+                network_keys,
                 tor_keys,
                 marketplace_url,
             })?)

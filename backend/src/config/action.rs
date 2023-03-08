@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use color_eyre::eyre::eyre;
+use models::ImageId;
 use nix::sys::signal::Signal;
 use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
@@ -9,7 +10,6 @@ use tracing::instrument;
 use super::{Config, ConfigSpec};
 use crate::context::RpcContext;
 use crate::dependencies::Dependencies;
-use crate::id::ImageId;
 use crate::procedure::docker::DockerContainers;
 use crate::procedure::{PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::PackageId;

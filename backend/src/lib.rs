@@ -15,6 +15,7 @@ lazy_static::lazy_static! {
     };
 }
 
+pub mod account;
 pub mod action;
 pub mod auth;
 pub mod backup;
@@ -29,7 +30,6 @@ pub mod diagnostic;
 pub mod disk;
 pub mod error;
 pub mod hostname;
-pub mod id;
 pub mod init;
 pub mod inspect;
 pub mod install;

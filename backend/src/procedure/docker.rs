@@ -12,6 +12,7 @@ use color_eyre::Report;
 use futures::future::Either as EitherFuture;
 use futures::TryStreamExt;
 use helpers::{NonDetachingJoinHandle, UnixRpcClient};
+use models::{Id, ImageId};
 use nix::sys::signal;
 use nix::unistd::Pid;
 use serde::de::DeserializeOwned;
@@ -25,7 +26,6 @@ use tracing::instrument;
 
 use super::ProcedureName;
 use crate::context::RpcContext;
-use crate::id::{Id, ImageId};
 use crate::s9pk::manifest::{PackageId, SYSTEM_PACKAGE_ID};
 use crate::util::serde::{Duration as SerdeDuration, IoFormat};
 use crate::util::Version;
@@ -668,7 +668,7 @@ impl DockerProcedure {
         }
     }
 
-    pub fn uncontainer_name(name: &str) -> Option<(PackageId<&str>, Option<&str>)> {
+    pub fn uncontainer_name(name: &str) -> Option<(PackageId, Option<&str>)> {
         let (pre_tld, _) = name.split_once('.')?;
         if pre_tld.contains('_') {
             let (pkg, name) = name.split_once('_')?;
@@ -716,7 +716,7 @@ impl DockerProcedure {
         res.push(OsStr::new("--entrypoint").into());
         res.push(OsStr::new(&self.entrypoint).into());
         if self.system {
-            res.push(OsString::from(self.image.for_package(SYSTEM_PACKAGE_ID, None)).into());
+            res.push(OsString::from(self.image.for_package(&*SYSTEM_PACKAGE_ID, None)).into());
         } else {
             res.push(OsString::from(self.image.for_package(pkg_id, Some(pkg_version))).into());
         }
@@ -804,7 +804,7 @@ impl LongRunning {
                 .arg("'{{.Architecture}}'");
 
             if docker.system {
-                cmd.arg(docker.image.for_package(SYSTEM_PACKAGE_ID, None));
+                cmd.arg(docker.image.for_package(&*SYSTEM_PACKAGE_ID, None));
             } else {
                 cmd.arg(docker.image.for_package(pkg_id, Some(pkg_version)));
             }
@@ -856,7 +856,7 @@ impl LongRunning {
         }
         cmd.arg("--log-driver=journald");
         if docker.system {
-            cmd.arg(docker.image.for_package(SYSTEM_PACKAGE_ID, None));
+            cmd.arg(docker.image.for_package(&*SYSTEM_PACKAGE_ID, None));
         } else {
             cmd.arg(docker.image.for_package(pkg_id, Some(pkg_version)));
         }

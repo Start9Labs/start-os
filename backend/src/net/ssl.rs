@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
+use std::collections::BTreeMap;
 use std::path::Path;
 
-use color_eyre::eyre::eyre;
 use futures::FutureExt;
 use openssl::asn1::{Asn1Integer, Asn1Time};
 use openssl::bn::{BigNum, MsbOption};
@@ -11,147 +11,67 @@ use openssl::nid::Nid;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::{X509Builder, X509Extension, X509NameBuilder, X509};
 use openssl::*;
-use patch_db::DbHandle;
-use sqlx::PgPool;
-use tokio::process::Command;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, RwLock};
 use tracing::instrument;
 
+use crate::account::AccountInfo;
+use crate::hostname::Hostname;
+use crate::net::keys::{Key, KeyInfo};
 use crate::s9pk::manifest::PackageId;
-use crate::util::Invoke;
 use crate::{Error, ErrorKind, ResultExt};
 
 static CERTIFICATE_VERSION: i32 = 2; // X509 version 3 is actually encoded as '2' in the cert because fuck you.
 pub const ROOT_CA_STATIC_PATH: &str = "/var/lib/embassy/ssl/root-ca.crt";
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct SslManager {
-    store: SslStore,
     root_cert: X509,
     int_key: PKey<Private>,
     int_cert: X509,
+    cert_cache: RwLock<BTreeMap<Key, X509>>,
 }
+impl SslManager {
+    pub fn new(account: &AccountInfo) -> Result<Self, Error> {
+        let int_key = generate_key()?;
+        let int_cert = make_int_cert((&account.root_ca_key, &account.root_ca_cert), &int_key)?;
+        Ok(Self {
+            root_cert: account.root_ca_cert.clone(),
+            int_key,
+            int_cert,
+            cert_cache: RwLock::new(BTreeMap::new()),
+        })
+    }
+    pub async fn with_cert(&self, key: Key) -> Result<KeyInfo, Error> {
+        if let Some(cert) = self.cert_cache.read().await.get(&key) {
+            if cert
+                .not_after()
+                .compare(Asn1Time::days_from_now(30)?.as_ref())?
+                == Ordering::Greater
+            {
+                return Ok(key.with_cert(
+                    cert.clone(),
+                    self.int_cert.clone(),
+                    self.root_cert.clone(),
+                ));
+            }
+        }
+        let cert = make_leaf_cert(
+            (&self.int_key, &self.int_cert),
+            (
+                &key.openssl_key(),
+                &key.tor_key()
+                    .public()
+                    .get_onion_address()
+                    .get_address_without_dot_onion(),
+                key.interface().map(|i| i.0).as_ref(),
+            ),
+        )?;
+        self.cert_cache
+            .write()
+            .await
+            .insert(key.clone(), cert.clone());
 
-#[derive(Debug, Clone)]
-struct SslStore {
-    secret_store: PgPool,
-}
-impl SslStore {
-    fn new(db: PgPool) -> Result<Self, Error> {
-        Ok(SslStore { secret_store: db })
-    }
-    #[instrument(skip(self))]
-    async fn save_root_certificate(&self, key: &PKey<Private>, cert: &X509) -> Result<(), Error> {
-        let key_str = String::from_utf8(key.private_key_to_pem_pkcs8()?)?;
-        let cert_str = String::from_utf8(cert.to_pem()?)?;
-        let _n = sqlx::query!("INSERT INTO certificates (id, priv_key_pem, certificate_pem, lookup_string, created_at, updated_at) VALUES (0, $1, $2, NULL, now(), now())", key_str, cert_str).execute(&self.secret_store).await?;
-        Ok(())
-    }
-    #[instrument(skip(self))]
-    async fn load_root_certificate(&self) -> Result<Option<(PKey<Private>, X509)>, Error> {
-        let m_row =
-            sqlx::query!("SELECT priv_key_pem, certificate_pem FROM certificates WHERE id = 0;")
-                .fetch_optional(&self.secret_store)
-                .await?;
-        match m_row {
-            None => Ok(None),
-            Some(row) => {
-                let priv_key = PKey::private_key_from_pem(&row.priv_key_pem.into_bytes())?;
-                let certificate = X509::from_pem(&row.certificate_pem.into_bytes())?;
-                Ok(Some((priv_key, certificate)))
-            }
-        }
-    }
-    #[instrument(skip(self))]
-    async fn save_intermediate_certificate(
-        &self,
-        key: &PKey<Private>,
-        cert: &X509,
-    ) -> Result<(), Error> {
-        let key_str = String::from_utf8(key.private_key_to_pem_pkcs8()?)?;
-        let cert_str = String::from_utf8(cert.to_pem()?)?;
-        let _n = sqlx::query!("INSERT INTO certificates (id, priv_key_pem, certificate_pem, lookup_string, created_at, updated_at) VALUES (1, $1, $2, NULL, now(), now())", key_str, cert_str).execute(&self.secret_store).await?;
-        Ok(())
-    }
-    async fn load_intermediate_certificate(&self) -> Result<Option<(PKey<Private>, X509)>, Error> {
-        let m_row =
-            sqlx::query!("SELECT priv_key_pem, certificate_pem FROM certificates WHERE id = 1;")
-                .fetch_optional(&self.secret_store)
-                .await?;
-        match m_row {
-            None => Ok(None),
-            Some(row) => {
-                let priv_key = PKey::private_key_from_pem(&row.priv_key_pem.into_bytes())?;
-                let certificate = X509::from_pem(&row.certificate_pem.into_bytes())?;
-                Ok(Some((priv_key, certificate)))
-            }
-        }
-    }
-    #[instrument(skip(self))]
-    async fn import_root_certificate(
-        &self,
-        root_key: &PKey<Private>,
-        root_cert: &X509,
-    ) -> Result<(), Error> {
-        // remove records for both root and intermediate CA
-        sqlx::query!("DELETE FROM certificates WHERE id = 0 OR id = 1;")
-            .execute(&self.secret_store)
-            .await?;
-        self.save_root_certificate(root_key, root_cert).await?;
-        Ok(())
-    }
-    #[instrument(skip(self))]
-    async fn save_certificate(
-        &self,
-        key: &PKey<Private>,
-        cert: &X509,
-        lookup_string: &str,
-    ) -> Result<(), Error> {
-        let key_str = String::from_utf8(key.private_key_to_pem_pkcs8()?)?;
-        let cert_str = String::from_utf8(cert.to_pem()?)?;
-        let _n = sqlx::query!("INSERT INTO certificates (priv_key_pem, certificate_pem, lookup_string, created_at, updated_at) VALUES ($1, $2, $3, now(), now())", key_str, cert_str, lookup_string).execute(&self.secret_store).await?;
-        Ok(())
-    }
-    async fn load_certificate(
-        &self,
-        lookup_string: &str,
-    ) -> Result<Option<(PKey<Private>, X509)>, Error> {
-        let m_row = sqlx::query!(
-            "SELECT priv_key_pem, certificate_pem FROM certificates WHERE lookup_string = $1",
-            lookup_string
-        )
-        .fetch_optional(&self.secret_store)
-        .await?;
-        match m_row {
-            None => Ok(None),
-            Some(row) => {
-                let priv_key = PKey::private_key_from_pem(&row.priv_key_pem.into_bytes())?;
-                let certificate = X509::from_pem(&row.certificate_pem.into_bytes())?;
-                Ok(Some((priv_key, certificate)))
-            }
-        }
-    }
-    #[instrument(skip(self))]
-    async fn update_certificate(
-        &self,
-        key: &PKey<Private>,
-        cert: &X509,
-        lookup_string: &str,
-    ) -> Result<(), Error> {
-        let key_str = String::from_utf8(key.private_key_to_pem_pkcs8()?)?;
-        let cert_str = String::from_utf8(cert.to_pem()?)?;
-        let n = sqlx::query!("UPDATE certificates SET priv_key_pem = $1, certificate_pem = $2, updated_at = now() WHERE lookup_string = $3", key_str, cert_str, lookup_string)
-            .execute(&self.secret_store).await?;
-        if n.rows_affected() == 0 {
-            return Err(Error::new(
-                eyre!(
-                    "Attempted to update non-existent certificate: {}",
-                    lookup_string
-                ),
-                ErrorKind::OpenSsl,
-            ));
-        }
-        Ok(())
+        Ok(key.with_cert(cert, self.int_cert.clone(), self.root_cert.clone()))
     }
 }
 
@@ -159,143 +79,6 @@ const EC_CURVE_NAME: nid::Nid = nid::Nid::X9_62_PRIME256V1;
 lazy_static::lazy_static! {
     static ref EC_GROUP: EcGroup = EcGroup::from_curve_name(EC_CURVE_NAME).unwrap();
     static ref SSL_MUTEX: Mutex<()> = Mutex::new(()); // TODO: make thread safe
-}
-
-impl SslManager {
-    #[instrument(skip(db, handle))]
-    pub async fn init<Db: DbHandle>(db: PgPool, handle: &mut Db) -> Result<Self, Error> {
-        let store = SslStore::new(db)?;
-        let receipts = crate::hostname::HostNameReceipt::new(handle).await?;
-        let id = crate::hostname::get_id(handle, &receipts).await?;
-        let (root_key, root_cert) = match store.load_root_certificate().await? {
-            None => {
-                let root_key = generate_key()?;
-                let server_id = id;
-                let root_cert = make_root_cert(&root_key, &server_id)?;
-                store.save_root_certificate(&root_key, &root_cert).await?;
-                Ok::<_, Error>((root_key, root_cert))
-            }
-            Some((key, cert)) => Ok((key, cert)),
-        }?;
-        // generate static file for download, this will gte blown up on embassy restart so it's good to write it on
-        // every ssl manager init
-        tokio::fs::create_dir_all(
-            Path::new(ROOT_CA_STATIC_PATH)
-                .parent()
-                .unwrap_or(Path::new("/")),
-        )
-        .await?;
-        tokio::fs::write(ROOT_CA_STATIC_PATH, root_cert.to_pem()?).await?;
-
-        // write to ca cert store
-        tokio::fs::write(
-            "/usr/local/share/ca-certificates/embassy-root-ca.crt",
-            root_cert.to_pem()?,
-        )
-        .await?;
-        Command::new("update-ca-certificates")
-            .invoke(crate::ErrorKind::OpenSsl)
-            .await?;
-
-        let (int_key, int_cert) = match store.load_intermediate_certificate().await? {
-            None => {
-                let int_key = generate_key()?;
-                let int_cert = make_int_cert((&root_key, &root_cert), &int_key)?;
-                store
-                    .save_intermediate_certificate(&int_key, &int_cert)
-                    .await?;
-                Ok::<_, Error>((int_key, int_cert))
-            }
-            Some((key, cert)) => Ok((key, cert)),
-        }?;
-
-        sqlx::query!("SELECT setval('certificates_id_seq', GREATEST(MAX(id) + 1, nextval('certificates_id_seq') - 1)) FROM certificates")
-            .fetch_one(&store.secret_store).await?;
-
-        Ok(SslManager {
-            store,
-            root_cert,
-            int_key,
-            int_cert,
-        })
-    }
-
-    // TODO: currently the burden of proof is on the caller to ensure that all of the arguments to this function are
-    // consistent. The following properties are assumed and not verified:
-    // 1. `root_cert` is self-signed and contains the public key that matches the private key `root_key`
-    // 2. certificate is not past its expiration date
-    // Warning: If this function ever fails, you must either call it again or regenerate your certificates from scratch
-    // since it is possible for it to fail after successfully saving the root certificate but before successfully saving
-    // the intermediate certificate
-    #[instrument(skip(db))]
-    pub async fn import_root_ca(
-        db: PgPool,
-        root_key: PKey<Private>,
-        root_cert: X509,
-    ) -> Result<Self, Error> {
-        let store = SslStore::new(db)?;
-        store.import_root_certificate(&root_key, &root_cert).await?;
-        let int_key = generate_key()?;
-        let int_cert = make_int_cert((&root_key, &root_cert), &int_key)?;
-        store
-            .save_intermediate_certificate(&int_key, &int_cert)
-            .await?;
-        Ok(SslManager {
-            store,
-            root_cert,
-            int_key,
-            int_cert,
-        })
-    }
-
-    #[instrument(skip(self))]
-    pub async fn export_root_ca(&self) -> Result<(PKey<Private>, X509), Error> {
-        match self.store.load_root_certificate().await? {
-            None => Err(Error::new(
-                eyre!("Failed to export root certificate: root certificate has not been generated"),
-                ErrorKind::OpenSsl,
-            )),
-            Some(a) => Ok(a),
-        }
-    }
-
-    #[instrument(skip(self))]
-    pub async fn certificate_for(
-        &self,
-        dns_base: &str,
-        package_id: &PackageId,
-    ) -> Result<(PKey<Private>, Vec<X509>), Error> {
-        let (key, cert) = match self.store.load_certificate(dns_base).await? {
-            None => {
-                let key = generate_key()?;
-                let cert = make_leaf_cert(
-                    (&self.int_key, &self.int_cert),
-                    (&key, dns_base, package_id),
-                )?;
-                self.store.save_certificate(&key, &cert, dns_base).await?;
-                Ok::<_, Error>((key, cert))
-            }
-            Some((key, cert)) => {
-                let window_end = Asn1Time::days_from_now(30)?;
-                let expiration = cert.not_after();
-                if expiration.compare(&window_end)? == Ordering::Less {
-                    let key = generate_key()?;
-                    let cert = make_leaf_cert(
-                        (&self.int_key, &self.int_cert),
-                        (&key, dns_base, package_id),
-                    )?;
-                    self.store.update_certificate(&key, &cert, dns_base).await?;
-                    Ok((key, cert))
-                } else {
-                    Ok((key, cert))
-                }
-            }
-        }?;
-        Ok((
-            key,
-            vec![cert, self.int_cert.clone(), self.root_cert.clone()],
-        ))
-    }
 }
 
 pub async fn export_key(key: &PKey<Private>, target: &Path) -> Result<(), Error> {
@@ -315,6 +98,7 @@ pub async fn export_cert(chain: &Vec<X509>, target: &Path) -> Result<(), Error> 
     .await?;
     Ok(())
 }
+
 #[instrument]
 fn rand_serial() -> Result<Asn1Integer, Error> {
     let mut bn = BigNum::new()?;
@@ -323,13 +107,14 @@ fn rand_serial() -> Result<Asn1Integer, Error> {
     Ok(asn1)
 }
 #[instrument]
-fn generate_key() -> Result<PKey<Private>, Error> {
+pub fn generate_key() -> Result<PKey<Private>, Error> {
     let new_key = EcKey::generate(EC_GROUP.as_ref())?;
     let key = PKey::from_ec_key(new_key)?;
     Ok(key)
 }
+
 #[instrument]
-fn make_root_cert(root_key: &PKey<Private>, server_id: &str) -> Result<X509, Error> {
+pub fn make_root_cert(root_key: &PKey<Private>, hostname: &Hostname) -> Result<X509, Error> {
     let mut builder = X509Builder::new()?;
     builder.set_version(CERTIFICATE_VERSION)?;
 
@@ -342,8 +127,7 @@ fn make_root_cert(root_key: &PKey<Private>, server_id: &str) -> Result<X509, Err
     builder.set_serial_number(&*rand_serial()?)?;
 
     let mut subject_name_builder = X509NameBuilder::new()?;
-    subject_name_builder
-        .append_entry_by_text("CN", &format!("Embassy Local Root CA ({})", server_id))?;
+    subject_name_builder.append_entry_by_text("CN", &format!("{} Local Root CA", &*hostname.0))?;
     subject_name_builder.append_entry_by_text("O", "Start9")?;
     subject_name_builder.append_entry_by_text("OU", "Embassy")?;
     let subject_name = subject_name_builder.build();
@@ -381,7 +165,7 @@ fn make_root_cert(root_key: &PKey<Private>, server_id: &str) -> Result<X509, Err
     Ok(cert)
 }
 #[instrument]
-fn make_int_cert(
+pub fn make_int_cert(
     signer: (&PKey<Private>, &X509),
     applicant: &PKey<Private>,
 ) -> Result<X509, Error> {
@@ -443,9 +227,9 @@ fn make_int_cert(
 }
 
 #[instrument]
-fn make_leaf_cert(
+pub fn make_leaf_cert(
     signer: (&PKey<Private>, &X509),
-    applicant: (&PKey<Private>, &str, &PackageId),
+    applicant: (&PKey<Private>, &str, Option<&PackageId>),
 ) -> Result<X509, Error> {
     let mut builder = X509Builder::new()?;
     builder.set_version(CERTIFICATE_VERSION)?;
@@ -493,13 +277,17 @@ fn make_leaf_cert(
         "critical,digitalSignature,keyEncipherment",
     )?;
 
+    let applicant_dot_embassy = applicant
+        .2
+        .map(|id| format!("{id}.embassy"))
+        .unwrap_or_else(|| "embassy".to_owned());
     let subject_alt_name = X509Extension::new_nid(
         Some(&cfg),
         Some(&ctx),
         Nid::SUBJECT_ALT_NAME,
         &format!(
-            "DNS:{}.local,DNS:*.{}.local,DNS:{}.onion,DNS:*.{}.onion,DNS:{}.embassy,DNS:*.{}.embassy",
-            &applicant.1, &applicant.1, &applicant.1, &applicant.1, &applicant.2, &applicant.2,
+            "DNS:{applicant_pubkey}.local,DNS:*.{applicant_pubkey}.local,DNS:{applicant_pubkey}.onion,DNS:*.{applicant_pubkey}.onion,DNS:{applicant_dot_embassy},DNS:*.{applicant_dot_embassy}",
+            applicant_pubkey = &applicant.1,
         ),
     )?;
     builder.append_extension(subject_key_identifier)?;

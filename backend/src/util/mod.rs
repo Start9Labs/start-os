@@ -330,3 +330,7 @@ impl FileLock {
         Ok(())
     }
 }
+
+pub fn assure_send<T: Send>(x: T) -> T {
+    x
+}
