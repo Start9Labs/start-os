@@ -5,7 +5,7 @@ use serde_json::{json, Value};
 use super::v0_3_0::V0_3_0_COMPAT;
 use super::*;
 
-const V0_3_3_1: emver::Version = emver::Version::new(0, 3, 3, 1);
+const V0_3_4: emver::Version = emver::Version::new(0, 3, 4, 0);
 
 const COMMUNITY_URL: &str = "https://community-registry.start9.com/";
 const MAIN_REGISTRY: &str = "https://registry.start9.com/";
@@ -32,7 +32,7 @@ impl VersionT for Version {
         Version
     }
     fn semver(&self) -> emver::Version {
-        V0_3_3_1
+        V0_3_4
     }
     fn compat(&self) -> &'static VersionRange {
         &*V0_3_0_COMPAT
@@ -63,6 +63,7 @@ impl VersionT for Version {
         }
         ui["theme"] = json!("Dark".to_string());
         ui["widgets"] = json!([]);
+        ui.save(db).await?;
         Ok(())
     }
     async fn down<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error> {
