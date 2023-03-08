@@ -1,21 +1,25 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import {
-  InstalledPackageInfo,
-  PackageMainStatus,
-} from 'src/app/services/patch-db/data-model'
+  ChangeDetectionStrategy,
+  Component,
+  Input,
+  ViewChild,
+} from '@angular/core'
+import { PackageMainStatus } from 'src/app/services/patch-db/data-model'
 import { PkgInfo } from 'src/app/util/get-package-info'
-import { UiLauncherService } from 'src/app/services/ui-launcher.service'
 
 @Component({
   selector: 'app-list-pkg',
   templateUrl: 'app-list-pkg.component.html',
+  styleUrls: ['app-list-pkg.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppListPkgComponent {
+  @ViewChild('popover') popover!: HTMLIonPopoverElement
+
   @Input()
   pkg!: PkgInfo
 
-  constructor(private readonly launcherService: UiLauncherService) {}
+  isPopoverOpen = false
 
   get status(): PackageMainStatus {
     return (
@@ -23,9 +27,10 @@ export class AppListPkgComponent {
     )
   }
 
-  launchUi(e: Event, addressInfo: InstalledPackageInfo['address-info']): void {
+  openPopover(e: Event): void {
     e.stopPropagation()
     e.preventDefault()
-    this.launcherService.launch(addressInfo)
+    this.popover.event = e
+    this.isPopoverOpen = true
   }
 }

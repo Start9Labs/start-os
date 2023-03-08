@@ -6,8 +6,8 @@ import { SharedPipesModule } from '@start9labs/shared'
 import {
   AppInterfacesItemComponent,
   AppInterfacesPage,
-  AddressTypePipe,
 } from './app-interfaces.page'
+import { UiPipeModule } from 'src/app/pipes/ui/ui.module'
 
 const routes: Routes = [
   {
@@ -22,11 +22,8 @@ const routes: Routes = [
     IonicModule,
     RouterModule.forChild(routes),
     SharedPipesModule,
+    UiPipeModule,
   ],
-  declarations: [
-    AppInterfacesPage,
-    AppInterfacesItemComponent,
-    AddressTypePipe,
-  ],
+  declarations: [AppInterfacesPage, AppInterfacesItemComponent],
 })
 export class AppInterfacesPageModule {}
