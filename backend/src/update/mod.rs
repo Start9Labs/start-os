@@ -305,6 +305,7 @@ async fn sync_boot() -> Result<(), Error> {
             force: false,
             ignore_existing: true,
             exclude: Vec::new(),
+            no_permissions: false,
         },
     )
     .await?

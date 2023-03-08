@@ -467,6 +467,7 @@ async fn migrate(
             force: true,
             ignore_existing: false,
             exclude: Vec::new(),
+            no_permissions: false,
         },
     )
     .await?;
@@ -478,6 +479,7 @@ async fn migrate(
             force: true,
             ignore_existing: false,
             exclude: vec!["tmp".to_owned()],
+            no_permissions: false,
         },
     )
     .await?;
