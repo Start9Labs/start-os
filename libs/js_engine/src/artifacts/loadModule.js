@@ -108,6 +108,26 @@ const writeJsonFile = (
     path,
     toWrite: JSON.stringify(toWrite),
   });
+
+const chown = async (
+  {
+    volumeId = requireParam("volumeId"),
+    path = requireParam("path"),
+    uid = requireParam("uid"),
+  } = requireParam("options"),
+) => {
+  return await Deno.core.opAsync("chown", volumeId, path, uid);
+};
+
+const chmod = async (
+  {
+    volumeId = requireParam("volumeId"),
+    path = requireParam("path"),
+    mode = requireParam("mode"),
+  } = requireParam("options"),
+) => {
+  return await Deno.core.opAsync("chmod", volumeId, path, mode);
+};
 const readJsonFile = async (
   { volumeId = requireParam("volumeId"), path = requireParam("path") } = requireParam("options"),
 ) => JSON.parse(await readFile({ volumeId, path }));
@@ -170,6 +190,8 @@ const input = Deno.core.opSync("get_input");
 const variable_args = Deno.core.opSync("get_variable_args");
 const setState = (x) => Deno.core.opSync("set_value", x);
 const effects = {
+  chmod,
+  chown,
   writeFile,
   readFile,
   writeJsonFile,
