@@ -32,7 +32,7 @@ jobs:
       run: |
         sudo apt update
         wget http://ftp.us.debian.org/debian/pool/main/d/debspawn/debspawn_0.6.1-1_all.deb
-        sha256sum ./debspawn_0.6.1-1.1_all.deb | grep fb8a3f588438ff9ef51e713ec1d83306db893f0aa97447565e28bbba9c6e90c6
+        sha256sum ./debspawn_0.6.1-1_all.deb | grep fb8a3f588438ff9ef51e713ec1d83306db893f0aa97447565e28bbba9c6e90c6
         sudo apt-get install -y ./debspawn_0.6.1-1_all.deb
         wget https://repo.pureos.net/pureos/pool/main/d/debootstrap/debootstrap_1.0.125pureos1_all.deb
         sudo apt-get install -y --allow-downgrades ./debootstrap_1.0.125pureos1_all.deb
