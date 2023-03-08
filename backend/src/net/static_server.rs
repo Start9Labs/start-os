@@ -302,6 +302,7 @@ async fn main_embassy_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response
                             None => Ok(bad_request()),
                             _ => Ok(not_found()),
                         }
+                    } else {
                         Ok(not_found())
                     }
                 }

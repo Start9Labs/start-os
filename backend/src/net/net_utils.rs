@@ -116,8 +116,8 @@ impl<T> hyper::server::accept::Accept for SingleAccept<T> {
     type Error = Infallible;
     fn poll_accept(
         self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
+        _cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Option<Result<Self::Conn, Self::Error>>> {
-        std::task::Poll::Ready(self.project().0.map(Ok))
+        std::task::Poll::Ready(self.project().0.take().map(Ok))
     }
 }

@@ -6,7 +6,6 @@ use rpc_toolkit::command;
 
 use crate::Error;
 
-pub mod cert_resolver;
 pub mod dhcp;
 pub mod dns;
 pub mod interface;
