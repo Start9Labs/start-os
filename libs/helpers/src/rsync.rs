@@ -21,6 +21,8 @@ pub struct RsyncOptions {
     pub ignore_existing: bool,
     #[serde(default)]
     pub exclude: Vec<String>,
+    #[serde(default = "const_true")]
+    pub no_permissions: bool,
 }
 impl Default for RsyncOptions {
     fn default() -> Self {
@@ -29,6 +31,7 @@ impl Default for RsyncOptions {
             force: true,
             ignore_existing: false,
             exclude: Vec::new(),
+            no_permissions: false,
         }
     }
 }
@@ -54,6 +57,9 @@ impl Rsync {
         }
         if options.ignore_existing {
             cmd.arg("--ignore-existing");
+        }
+        if options.no_permissions {
+            cmd.arg("--no-perms");
         }
         for exclude in options.exclude {
             cmd.arg(format!("--exclude={}", exclude));
