@@ -44,7 +44,7 @@ export const mockPatchData: DataModel = {
   },
   'server-info': {
     id: 'abcdefgh',
-    version: '0.3.3',
+    version: '0.3.4',
     'last-backup': new Date(new Date().valueOf() - 604800001).toISOString(),
     'lan-address': 'https://embassy-abcdefgh.local',
     'tor-address': 'http://myveryownspecialtoraddress.onion',
