@@ -3,14 +3,18 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::UNIX_EPOCH;
 
+use async_compression::tokio::bufread::BrotliEncoder;
+use async_compression::tokio::bufread::GzipEncoder;
 use color_eyre::eyre::eyre;
 use digest::Digest;
 use futures::FutureExt;
+use http::header::ACCEPT_ENCODING;
 use http::response::Builder;
 use hyper::{Body, Method, Request, Response, StatusCode};
 use rpc_toolkit::rpc_handler;
 use tokio::fs::File;
-use tokio_util::codec::{BytesCodec, FramedRead};
+use tokio::io::BufReader;
+use tokio_util::io::ReaderStream;
 
 use crate::context::{DiagnosticContext, InstallContext, RpcContext, SetupContext};
 use crate::core::rpc_continuations::RequestGuid;
@@ -225,11 +229,20 @@ async fn alt_ui(req: Request<Body>, ui_mode: UiMode) -> Result<Response<Body>, E
     };
 
     let (request_parts, _body) = req.into_parts();
+    let accept_encoding = request_parts
+        .headers
+        .get_all(ACCEPT_ENCODING)
+        .into_iter()
+        .filter_map(|h| h.to_str().ok())
+        .flat_map(|s| s.split(","))
+        .filter_map(|s| s.split(";").next())
+        .map(|s| s.trim())
+        .collect::<Vec<_>>();
     match request_parts.uri.path() {
         "/" => {
             let full_path = PathBuf::from(selected_root_dir).join("index.html");
 
-            file_send(full_path).await
+            file_send(full_path, &accept_encoding).await
         }
         _ => {
             match (
@@ -249,12 +262,12 @@ async fn alt_ui(req: Request<Body>, ui_mode: UiMode) -> Result<Response<Body>, E
                         .unwrap_or(request_parts.uri.path());
 
                     let full_path = PathBuf::from(selected_root_dir).join(uri_path);
-                    file_send(full_path).await
+                    file_send(full_path, &accept_encoding).await
                 }
 
                 (Method::GET, Some((dir, file))) => {
                     let full_path = PathBuf::from(selected_root_dir).join(dir).join(file);
-                    file_send(full_path).await
+                    file_send(full_path, &accept_encoding).await
                 }
 
                 _ => Ok(not_found()),
@@ -267,11 +280,20 @@ async fn main_embassy_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response
     let selected_root_dir = MAIN_UI_WWW_DIR;
 
     let (request_parts, _body) = req.into_parts();
+    let accept_encoding = request_parts
+        .headers
+        .get_all(ACCEPT_ENCODING)
+        .into_iter()
+        .filter_map(|h| h.to_str().ok())
+        .flat_map(|s| s.split(","))
+        .filter_map(|s| s.split(";").next())
+        .map(|s| s.trim())
+        .collect::<Vec<_>>();
     match request_parts.uri.path() {
         "/" => {
             let full_path = PathBuf::from(selected_root_dir).join("index.html");
 
-            file_send(full_path).await
+            file_send(full_path, &accept_encoding).await
         }
         _ => {
             let valid_session = HasValidSession::from_request_parts(&request_parts, &ctx).await;
@@ -290,11 +312,19 @@ async fn main_embassy_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response
                         (Method::GET, Some(("public", path))) => {
                             let sub_path = Path::new(path);
                             if let Ok(rest) = sub_path.strip_prefix("package-data") {
-                                file_send(ctx.datadir.join(PKG_PUBLIC_DIR).join(rest)).await
+                                file_send(
+                                    ctx.datadir.join(PKG_PUBLIC_DIR).join(rest),
+                                    &accept_encoding,
+                                )
+                                .await
                             } else if let Ok(rest) = sub_path.strip_prefix("eos") {
                                 match rest.to_str() {
                                     Some("local.crt") => {
-                                        file_send(crate::net::ssl::ROOT_CA_STATIC_PATH).await
+                                        file_send(
+                                            crate::net::ssl::ROOT_CA_STATIC_PATH,
+                                            &accept_encoding,
+                                        )
+                                        .await
                                     }
                                     None => Ok(bad_request()),
                                     _ => Ok(not_found()),
@@ -304,7 +334,11 @@ async fn main_embassy_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response
                             }
                         }
                         (Method::GET, Some(("eos", "local.crt"))) => {
-                            file_send(PathBuf::from(crate::net::ssl::ROOT_CA_STATIC_PATH)).await
+                            file_send(
+                                PathBuf::from(crate::net::ssl::ROOT_CA_STATIC_PATH),
+                                &accept_encoding,
+                            )
+                            .await
                         }
 
                         (Method::GET, None) => {
@@ -315,12 +349,12 @@ async fn main_embassy_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response
                                 .unwrap_or(request_parts.uri.path());
 
                             let full_path = PathBuf::from(selected_root_dir).join(uri_path);
-                            file_send(full_path).await
+                            file_send(full_path, &accept_encoding).await
                         }
 
                         (Method::GET, Some((dir, file))) => {
                             let full_path = PathBuf::from(selected_root_dir).join(dir).join(file);
-                            file_send(full_path).await
+                            file_send(full_path, &accept_encoding).await
                         }
 
                         _ => Ok(not_found()),
@@ -350,12 +384,12 @@ async fn main_embassy_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response
                                 .unwrap_or(request_parts.uri.path());
 
                             let full_path = PathBuf::from(selected_root_dir).join(uri_path);
-                            file_send(full_path).await
+                            file_send(full_path, &accept_encoding).await
                         }
 
                         (Method::GET, Some((dir, file))) => {
                             let full_path = PathBuf::from(selected_root_dir).join(dir).join(file);
-                            file_send(full_path).await
+                            file_send(full_path, &accept_encoding).await
                         }
 
                         _ => Ok(not_found()),
@@ -397,7 +431,10 @@ fn bad_request() -> Response<Body> {
         .unwrap()
 }
 
-async fn file_send(path: impl AsRef<Path>) -> Result<Response<Body>, Error> {
+async fn file_send(
+    path: impl AsRef<Path>,
+    accept_encoding: &[&str],
+) -> Result<Response<Body>, Error> {
     // Serve a file by asynchronously reading it by chunks using tokio-util crate.
 
     let path = path.as_ref();
@@ -414,8 +451,13 @@ async fn file_send(path: impl AsRef<Path>) -> Result<Response<Body>, Error> {
         builder = with_e_tag(path, &metadata, builder)?;
         builder = with_content_type(path, builder);
         builder = with_content_length(&metadata, builder);
-        let stream = FramedRead::new(file, BytesCodec::new());
-        let body = Body::wrap_stream(stream);
+        let body = if accept_encoding.contains(&"br") {
+            Body::wrap_stream(ReaderStream::new(BrotliEncoder::new(BufReader::new(file))))
+        } else if accept_encoding.contains(&"gzip") {
+            Body::wrap_stream(ReaderStream::new(GzipEncoder::new(BufReader::new(file))))
+        } else {
+            Body::wrap_stream(ReaderStream::new(file))
+        };
         return builder.body(body).with_kind(ErrorKind::Network);
     }
     tracing::debug!("File not found: {:?}", path);
