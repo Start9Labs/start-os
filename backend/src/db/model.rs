@@ -5,7 +5,6 @@ use std::sync::Arc;
 use chrono::{DateTime, Utc};
 use emver::VersionRange;
 use ipnet::{Ipv4Net, Ipv6Net};
-use iprange::IpRange;
 use isocountry::CountryCode;
 use itertools::Itertools;
 use openssl::hash::MessageDigest;
@@ -45,7 +44,7 @@ impl Database {
             server_info: ServerInfo {
                 id: account.server_id.clone(),
                 version: Current::new().semver().into(),
-                hostname: Some(account.hostname.no_dot_host_name()),
+                hostname: account.hostname.no_dot_host_name(),
                 last_backup: None,
                 last_wifi_region: None,
                 eos_version_compat: Current::new().compat().clone(),
@@ -98,7 +97,7 @@ impl DatabaseModel {
 #[serde(rename_all = "kebab-case")]
 pub struct ServerInfo {
     pub id: String,
-    pub hostname: Option<String>,
+    pub hostname: String,
     pub version: Version,
     pub last_backup: Option<DateTime<Utc>>,
     /// Used in the wifi to determine the region to set the system to
