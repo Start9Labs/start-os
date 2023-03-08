@@ -8,9 +8,57 @@
 }
 
 .header {
-  margin-bottom: 20px;
+  padding: 1.5rem;
+  background: var(--ion-color-medium-tint);
+
+  &_items {
+    display: flex;
+    align-items: center;
+    flex-direction: row;
+  }
+
   h1 {
-    font-weight: bold;
-    margin: 0 12px 0 0;
+    font-size: 28px;
+    letter-spacing: 1px;
+    margin: 0 0 5px 0;
+  }
+
+  p {
+    font-size: 14px;
+    margin: 0;
+  }
+}
+
+img {
+  height: 85%;
+  width: 85%;
+}
+
+.align-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.pl-1 {
+  padding-left: 1rem;
+}
+
+p {
+  font-size: 1rem;
+  margin-top: 0;
+}
+
+ion-item {
+  --background-hover: none;
+}
+
+.accordian-padding {
+  padding: 0.5rem;
+}
+
+@media (max-width: 500px) {
+  .accordian-padding {
+    padding: 0.5rem 0 0.5rem 0;
   }
 }
