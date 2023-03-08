@@ -28,6 +28,7 @@ use crate::net::HttpHandler;
 use crate::{diagnostic_api, install_api, main_api, setup_api, Error, ErrorKind, ResultExt};
 
 static NOT_FOUND: &[u8] = b"Not Found";
+static METHOD_NOT_ALLOWED: &[u8] = b"Method Not Allowed";
 static NOT_AUTHORIZED: &[u8] = b"Not Authorized";
 
 pub const MAIN_UI_WWW_DIR: &str = "/var/www/html/main";
@@ -238,41 +239,26 @@ async fn alt_ui(req: Request<Body>, ui_mode: UiMode) -> Result<Response<Body>, E
         .filter_map(|s| s.split(";").next())
         .map(|s| s.trim())
         .collect::<Vec<_>>();
-    match request_parts.uri.path() {
-        "/" => {
-            let full_path = PathBuf::from(selected_root_dir).join("index.html");
+    match &request_parts.method {
+        &Method::GET => {
+            let uri_path = request_parts
+                .uri
+                .path()
+                .strip_prefix('/')
+                .unwrap_or(request_parts.uri.path());
 
-            file_send(full_path, &accept_encoding).await
+            let full_path = Path::new(selected_root_dir).join(uri_path);
+            file_send(
+                if tokio::fs::metadata(&full_path).await.is_ok() {
+                    full_path
+                } else {
+                    Path::new(selected_root_dir).join("index.html")
+                },
+                &accept_encoding,
+            )
+            .await
         }
-        _ => {
-            match (
-                request_parts.method,
-                request_parts
-                    .uri
-                    .path()
-                    .strip_prefix('/')
-                    .unwrap_or(request_parts.uri.path())
-                    .split_once('/'),
-            ) {
-                (Method::GET, None) => {
-                    let uri_path = request_parts
-                        .uri
-                        .path()
-                        .strip_prefix('/')
-                        .unwrap_or(request_parts.uri.path());
-
-                    let full_path = PathBuf::from(selected_root_dir).join(uri_path);
-                    file_send(full_path, &accept_encoding).await
-                }
-
-                (Method::GET, Some((dir, file))) => {
-                    let full_path = PathBuf::from(selected_root_dir).join(dir).join(file);
-                    file_send(full_path, &accept_encoding).await
-                }
-
-                _ => Ok(not_found()),
-            }
-        }
+        _ => Ok(method_not_allowed()),
     }
 }
 
@@ -289,114 +275,72 @@ async fn main_embassy_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response
         .filter_map(|s| s.split(";").next())
         .map(|s| s.trim())
         .collect::<Vec<_>>();
-    match request_parts.uri.path() {
-        "/" => {
-            let full_path = PathBuf::from(selected_root_dir).join("index.html");
-
-            file_send(full_path, &accept_encoding).await
-        }
-        _ => {
-            let valid_session = HasValidSession::from_request_parts(&request_parts, &ctx).await;
-
-            match valid_session {
-                Ok(_valid) => {
-                    match (
-                        request_parts.method,
-                        request_parts
-                            .uri
-                            .path()
-                            .strip_prefix('/')
-                            .unwrap_or(request_parts.uri.path())
-                            .split_once('/'),
-                    ) {
-                        (Method::GET, Some(("public", path))) => {
-                            let sub_path = Path::new(path);
-                            if let Ok(rest) = sub_path.strip_prefix("package-data") {
-                                file_send(
-                                    ctx.datadir.join(PKG_PUBLIC_DIR).join(rest),
-                                    &accept_encoding,
-                                )
-                                .await
-                            } else if let Ok(rest) = sub_path.strip_prefix("eos") {
-                                match rest.to_str() {
-                                    Some("local.crt") => {
-                                        file_send(
-                                            crate::net::ssl::ROOT_CA_STATIC_PATH,
-                                            &accept_encoding,
-                                        )
-                                        .await
-                                    }
-                                    None => Ok(bad_request()),
-                                    _ => Ok(not_found()),
-                                }
-                            } else {
-                                Ok(not_found())
+    match (
+        &request_parts.method,
+        request_parts
+            .uri
+            .path()
+            .strip_prefix('/')
+            .unwrap_or(request_parts.uri.path())
+            .split_once('/'),
+    ) {
+        (&Method::GET, Some(("public", path))) => {
+            match HasValidSession::from_request_parts(&request_parts, &ctx).await {
+                Ok(_) => {
+                    let sub_path = Path::new(path);
+                    if let Ok(rest) = sub_path.strip_prefix("package-data") {
+                        file_send(
+                            ctx.datadir.join(PKG_PUBLIC_DIR).join(rest),
+                            &accept_encoding,
+                        )
+                        .await
+                    } else if let Ok(rest) = sub_path.strip_prefix("eos") {
+                        match rest.to_str() {
+                            Some("local.crt") => {
+                                file_send(crate::net::ssl::ROOT_CA_STATIC_PATH, &accept_encoding)
+                                    .await
                             }
+                            None => Ok(bad_request()),
+                            _ => Ok(not_found()),
                         }
-                        (Method::GET, Some(("eos", "local.crt"))) => {
-                            file_send(
-                                PathBuf::from(crate::net::ssl::ROOT_CA_STATIC_PATH),
-                                &accept_encoding,
-                            )
-                            .await
-                        }
-
-                        (Method::GET, None) => {
-                            let uri_path = request_parts
-                                .uri
-                                .path()
-                                .strip_prefix('/')
-                                .unwrap_or(request_parts.uri.path());
-
-                            let full_path = PathBuf::from(selected_root_dir).join(uri_path);
-                            file_send(full_path, &accept_encoding).await
-                        }
-
-                        (Method::GET, Some((dir, file))) => {
-                            let full_path = PathBuf::from(selected_root_dir).join(dir).join(file);
-                            file_send(full_path, &accept_encoding).await
-                        }
-
-                        _ => Ok(not_found()),
+                    } else {
+                        Ok(not_found())
                     }
                 }
-                Err(err) => {
-                    match (
-                        request_parts.method,
-                        request_parts
-                            .uri
-                            .path()
-                            .strip_prefix('/')
-                            .unwrap_or(request_parts.uri.path())
-                            .split_once('/'),
-                    ) {
-                        (Method::GET, Some(("public", _path))) => {
-                            un_authorized(err, request_parts.uri.path())
-                        }
-                        (Method::GET, Some(("eos", "local.crt"))) => {
-                            un_authorized(err, request_parts.uri.path())
-                        }
-                        (Method::GET, None) => {
-                            let uri_path = request_parts
-                                .uri
-                                .path()
-                                .strip_prefix('/')
-                                .unwrap_or(request_parts.uri.path());
-
-                            let full_path = PathBuf::from(selected_root_dir).join(uri_path);
-                            file_send(full_path, &accept_encoding).await
-                        }
-
-                        (Method::GET, Some((dir, file))) => {
-                            let full_path = PathBuf::from(selected_root_dir).join(dir).join(file);
-                            file_send(full_path, &accept_encoding).await
-                        }
-
-                        _ => Ok(not_found()),
-                    }
-                }
+                Err(e) => un_authorized(e, &format!("public/{path}")),
             }
         }
+        (&Method::GET, Some(("eos", "local.crt"))) => {
+            match HasValidSession::from_request_parts(&request_parts, &ctx).await {
+                Ok(_) => {
+                    file_send(
+                        PathBuf::from(crate::net::ssl::ROOT_CA_STATIC_PATH),
+                        &accept_encoding,
+                    )
+                    .await
+                }
+                Err(e) => un_authorized(e, "eos/local.crt"),
+            }
+        }
+        (&Method::GET, _) => {
+            let uri_path = request_parts
+                .uri
+                .path()
+                .strip_prefix('/')
+                .unwrap_or(request_parts.uri.path());
+
+            let full_path = Path::new(selected_root_dir).join(uri_path);
+            file_send(
+                if tokio::fs::metadata(&full_path).await.is_ok() {
+                    full_path
+                } else {
+                    Path::new(selected_root_dir).join("index.html")
+                },
+                &accept_encoding,
+            )
+            .await
+        }
+        _ => Ok(method_not_allowed()),
     }
 }
 
@@ -414,6 +358,14 @@ fn not_found() -> Response<Body> {
     Response::builder()
         .status(StatusCode::NOT_FOUND)
         .body(NOT_FOUND.into())
+        .unwrap()
+}
+
+/// HTTP status code 405
+fn method_not_allowed() -> Response<Body> {
+    Response::builder()
+        .status(StatusCode::METHOD_NOT_ALLOWED)
+        .body(METHOD_NOT_ALLOWED.into())
         .unwrap()
 }
 
@@ -439,30 +391,31 @@ async fn file_send(
 
     let path = path.as_ref();
 
-    if let Ok(file) = File::open(path).await {
-        let metadata = file.metadata().await.with_kind(ErrorKind::Filesystem)?;
+    let file = File::open(path)
+        .await
+        .with_ctx(|_| (ErrorKind::Filesystem, path.display().to_string()))?;
+    let metadata = file
+        .metadata()
+        .await
+        .with_ctx(|_| (ErrorKind::Filesystem, path.display().to_string()))?;
 
-        match IsNonEmptyFile::new(&metadata, path) {
-            Some(a) => a,
-            None => return Ok(not_found()),
-        };
+    match IsNonEmptyFile::new(&metadata, path) {
+        Some(a) => a,
+        None => return Ok(not_found()),
+    };
 
-        let mut builder = Response::builder().status(StatusCode::OK);
-        builder = with_e_tag(path, &metadata, builder)?;
-        builder = with_content_type(path, builder);
-        builder = with_content_length(&metadata, builder);
-        let body = if accept_encoding.contains(&"br") {
-            Body::wrap_stream(ReaderStream::new(BrotliEncoder::new(BufReader::new(file))))
-        } else if accept_encoding.contains(&"gzip") {
-            Body::wrap_stream(ReaderStream::new(GzipEncoder::new(BufReader::new(file))))
-        } else {
-            Body::wrap_stream(ReaderStream::new(file))
-        };
-        return builder.body(body).with_kind(ErrorKind::Network);
-    }
-    tracing::debug!("File not found: {:?}", path);
-
-    Ok(not_found())
+    let mut builder = Response::builder().status(StatusCode::OK);
+    builder = with_e_tag(path, &metadata, builder)?;
+    builder = with_content_type(path, builder);
+    builder = with_content_length(&metadata, builder);
+    let body = if accept_encoding.contains(&"br") {
+        Body::wrap_stream(ReaderStream::new(BrotliEncoder::new(BufReader::new(file))))
+    } else if accept_encoding.contains(&"gzip") {
+        Body::wrap_stream(ReaderStream::new(GzipEncoder::new(BufReader::new(file))))
+    } else {
+        Body::wrap_stream(ReaderStream::new(file))
+    };
+    builder.body(body).with_kind(ErrorKind::Network)
 }
 
 struct IsNonEmptyFile(());
