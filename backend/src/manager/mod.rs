@@ -583,7 +583,7 @@ async fn add_network_for_main(
     }
     for volume in seed.manifest.volumes.values() {
         if let Volume::Certificate { interface_id } = volume {
-            svc.export_cert(&mut tx, interface_id).await?;
+            svc.export_cert(&mut tx, interface_id, ip.into()).await?;
         }
     }
     tx.commit().await?;

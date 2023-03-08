@@ -1,11 +1,12 @@
 use async_trait::async_trait;
 use emver::VersionRange;
+use itertools::Itertools;
 use openssl::hash::MessageDigest;
 use serde_json::{json, Value};
 use ssh_key::public::Ed25519PublicKey;
 
 use crate::account::AccountInfo;
-use crate::hostname::{sync_hostname, Hostname};
+use crate::hostname::{generate_hostname, sync_hostname, Hostname};
 
 use super::v0_3_0::V0_3_0_COMPAT;
 use super::*;
@@ -42,7 +43,7 @@ impl VersionT for Version {
     fn compat(&self) -> &'static VersionRange {
         &*V0_3_0_COMPAT
     }
-    async fn up<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error> {
+    async fn up<Db: DbHandle>(&self, db: &mut Db, secrets: &PgPool) -> Result<(), Error> {
         let mut account = AccountInfo::load(secrets).await?;
         crate::db::DatabaseModel::new()
             .server_info()
@@ -72,7 +73,10 @@ impl VersionT for Version {
             .get(db)
             .await?
             .into_owned();
-        account.hostname = Hostname(server_info.hostname);
+        account.hostname = server_info
+            .hostname
+            .map(Hostname)
+            .unwrap_or_else(generate_hostname);
         account.server_id = server_info.id;
         account.save(secrets).await?;
         sync_hostname(&account).await?;
@@ -105,7 +109,7 @@ impl VersionT for Version {
         ui.save(db).await?;
         Ok(())
     }
-    async fn down<Db: DbHandle>(&self, db: &mut Db) -> Result<(), Error> {
+    async fn down<Db: DbHandle>(&self, db: &mut Db, _secrets: &PgPool) -> Result<(), Error> {
         let mut ui = crate::db::DatabaseModel::new().ui().get_mut(db).await?;
         let parsed_url = Some(MAIN_REGISTRY.parse().unwrap());
         for package_id in crate::db::DatabaseModel::new()

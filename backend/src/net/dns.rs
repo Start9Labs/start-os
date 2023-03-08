@@ -14,7 +14,6 @@ use tokio::sync::RwLock;
 use trust_dns_server::authority::MessageResponseBuilder;
 use trust_dns_server::client::op::{Header, ResponseCode};
 use trust_dns_server::client::rr::{Name, Record, RecordType};
-use trust_dns_server::proto::rr::rdata::a;
 use trust_dns_server::server::{Request, RequestHandler, ResponseHandler, ResponseInfo};
 use trust_dns_server::ServerFuture;
 

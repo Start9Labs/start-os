@@ -1,7 +1,6 @@
 use color_eyre::eyre::eyre;
 use ed25519_dalek::{ExpandedSecretKey, SecretKey};
 use models::{Id, InterfaceId, PackageId};
-use openssl::ec::EcKey;
 use openssl::pkey::{PKey, Private};
 use openssl::sha::Sha256;
 use openssl::x509::X509;
