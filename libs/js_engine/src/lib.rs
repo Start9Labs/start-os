@@ -381,7 +381,9 @@ mod fns {
     use std::cell::RefCell;
     use std::collections::BTreeMap;
     use std::convert::TryFrom;
+    use std::fs::Permissions;
     use std::os::unix::fs::MetadataExt;
+    use std::os::unix::prelude::PermissionsExt;
     use std::path::{Path, PathBuf};
     use std::rc::Rc;
     use std::time::Duration;
