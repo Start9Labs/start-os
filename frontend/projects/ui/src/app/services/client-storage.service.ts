@@ -25,7 +25,6 @@ export class ClientStorageService {
   constructor(private readonly storage: StorageService) {}
 
   init() {
-    console.log('EMBAWD', enableWidgets)
     this.showDevTools$.next(!!this.storage.get(SHOW_DEV_TOOLS))
     this.showDiskRepair$.next(!!this.storage.get(SHOW_DISK_REPAIR))
     this.widgetDrawer$.next(
