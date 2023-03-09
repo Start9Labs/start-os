@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 
 env:
-  RUST_VERSION: "1.62.1"
+  RUST_VERSION: "1.67.1"
   ENVIRONMENT: "dev"
 
 jobs:

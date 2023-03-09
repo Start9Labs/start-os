@@ -4,21 +4,19 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use emver::VersionRange;
+use ipnet::{Ipv4Net, Ipv6Net};
 use isocountry::CountryCode;
 use itertools::Itertools;
 use openssl::hash::MessageDigest;
-use openssl::x509::X509;
 use patch_db::json_ptr::JsonPointer;
 use patch_db::{HasModel, Map, MapModel, OptionModel};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use ssh_key::private::Ed25519PrivateKey;
 use ssh_key::public::Ed25519PublicKey;
-use torut::onion::TorSecretKeyV3;
 
+use crate::account::AccountInfo;
 use crate::config::spec::{PackagePointerSpec, SystemPointerSpec};
-use crate::hostname::{generate_hostname, generate_id};
 use crate::install::progress::InstallProgress;
 use crate::net::interface::InterfaceId;
 use crate::net::net_utils::{get_iface_ipv4_addr, get_iface_ipv6_addr};
@@ -39,26 +37,19 @@ pub struct Database {
     pub ui: Value,
 }
 impl Database {
-    pub fn init(
-        tor_key: &TorSecretKeyV3,
-        password_hash: String,
-        ssh_key: &Ed25519PrivateKey,
-        cert: &X509,
-    ) -> Self {
-        let id = generate_id();
-        let my_hostname = generate_hostname();
-        let lan_address = my_hostname.lan_address().parse().unwrap();
+    pub fn init(account: &AccountInfo) -> Self {
+        let lan_address = account.hostname.lan_address().parse().unwrap();
         // TODO
         Database {
             server_info: ServerInfo {
-                id,
+                id: account.server_id.clone(),
                 version: Current::new().semver().into(),
-                hostname: Some(my_hostname.0),
+                hostname: Some(account.hostname.no_dot_host_name()),
                 last_backup: None,
                 last_wifi_region: None,
                 eos_version_compat: Current::new().compat().clone(),
                 lan_address,
-                tor_address: format!("http://{}", tor_key.public().get_onion_address())
+                tor_address: format!("http://{}", account.key.tor_address())
                     .parse()
                     .unwrap(),
                 ip_info: BTreeMap::new(),
@@ -77,11 +68,12 @@ impl Database {
                     tor: Vec::new(),
                     clearnet: Vec::new(),
                 },
-                password_hash,
-                pubkey: ssh_key::PublicKey::from(Ed25519PublicKey::from(ssh_key))
+                password_hash: account.password.clone(),
+                pubkey: ssh_key::PublicKey::from(Ed25519PublicKey::from(&account.key.ssh_key()))
                     .to_openssh()
                     .unwrap(),
-                ca_fingerprint: cert
+                ca_fingerprint: account
+                    .root_ca_cert
                     .digest(MessageDigest::sha256())
                     .unwrap()
                     .iter()
@@ -130,14 +122,20 @@ pub struct ServerInfo {
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
 pub struct IpInfo {
-    ipv4: Option<Ipv4Addr>,
-    ipv6: Option<Ipv6Addr>,
+    pub ipv4_range: Option<Ipv4Net>,
+    pub ipv4: Option<Ipv4Addr>,
+    pub ipv6_range: Option<Ipv6Net>,
+    pub ipv6: Option<Ipv6Addr>,
 }
 impl IpInfo {
     pub async fn for_interface(iface: &str) -> Result<Self, Error> {
+        let (ipv4, ipv4_range) = get_iface_ipv4_addr(iface).await?.unzip();
+        let (ipv6, ipv6_range) = get_iface_ipv6_addr(iface).await?.unzip();
         Ok(Self {
-            ipv4: get_iface_ipv4_addr(iface).await?,
-            ipv6: get_iface_ipv6_addr(iface).await?,
+            ipv4_range,
+            ipv4,
+            ipv6_range,
+            ipv6,
         })
     }
 }

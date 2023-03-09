@@ -1,5 +1,5 @@
 use std::fs::Metadata;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 use std::time::UNIX_EPOCH;
 
@@ -9,8 +9,11 @@ use color_eyre::eyre::eyre;
 use digest::Digest;
 use futures::FutureExt;
 use http::header::ACCEPT_ENCODING;
+use http::header::CONTENT_ENCODING;
 use http::response::Builder;
 use hyper::{Body, Method, Request, Response, StatusCode};
+use openssl::hash::MessageDigest;
+use openssl::x509::X509;
 use rpc_toolkit::rpc_handler;
 use tokio::fs::File;
 use tokio::io::BufReader;
@@ -249,7 +252,12 @@ async fn alt_ui(req: Request<Body>, ui_mode: UiMode) -> Result<Response<Body>, E
 
             let full_path = Path::new(selected_root_dir).join(uri_path);
             file_send(
-                if tokio::fs::metadata(&full_path).await.is_ok() {
+                if tokio::fs::metadata(&full_path)
+                    .await
+                    .ok()
+                    .map(|f| f.is_file())
+                    .unwrap_or(false)
+                {
                     full_path
                 } else {
                     Path::new(selected_root_dir).join("index.html")
@@ -296,10 +304,7 @@ async fn main_embassy_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response
                         .await
                     } else if let Ok(rest) = sub_path.strip_prefix("eos") {
                         match rest.to_str() {
-                            Some("local.crt") => {
-                                file_send(crate::net::ssl::ROOT_CA_STATIC_PATH, &accept_encoding)
-                                    .await
-                            }
+                            Some("local.crt") => cert_send(&ctx.account.read().await.root_ca_cert),
                             None => Ok(bad_request()),
                             _ => Ok(not_found()),
                         }
@@ -312,13 +317,7 @@ async fn main_embassy_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response
         }
         (&Method::GET, Some(("eos", "local.crt"))) => {
             match HasValidSession::from_request_parts(&request_parts, &ctx).await {
-                Ok(_) => {
-                    file_send(
-                        PathBuf::from(crate::net::ssl::ROOT_CA_STATIC_PATH),
-                        &accept_encoding,
-                    )
-                    .await
-                }
+                Ok(_) => cert_send(&ctx.account.read().await.root_ca_cert),
                 Err(e) => un_authorized(e, "eos/local.crt"),
             }
         }
@@ -331,7 +330,12 @@ async fn main_embassy_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response
 
             let full_path = Path::new(selected_root_dir).join(uri_path);
             file_send(
-                if tokio::fs::metadata(&full_path).await.is_ok() {
+                if tokio::fs::metadata(&full_path)
+                    .await
+                    .ok()
+                    .map(|f| f.is_file())
+                    .unwrap_or(false)
+                {
                     full_path
                 } else {
                     Path::new(selected_root_dir).join("index.html")
@@ -383,6 +387,24 @@ fn bad_request() -> Response<Body> {
         .unwrap()
 }
 
+fn cert_send(cert: &X509) -> Result<Response<Body>, Error> {
+    let pem = cert.to_pem()?;
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(
+            http::header::ETAG,
+            base32::encode(
+                base32::Alphabet::RFC4648 { padding: false },
+                &*cert.digest(MessageDigest::sha256())?,
+            )
+            .to_lowercase(),
+        )
+        .header(http::header::CONTENT_TYPE, "application/x-pem-file")
+        .header(http::header::CONTENT_LENGTH, pem.len())
+        .body(Body::from(pem))
+        .with_kind(ErrorKind::Network)
+}
+
 async fn file_send(
     path: impl AsRef<Path>,
     accept_encoding: &[&str],
@@ -407,12 +429,14 @@ async fn file_send(
     let mut builder = Response::builder().status(StatusCode::OK);
     builder = with_e_tag(path, &metadata, builder)?;
     builder = with_content_type(path, builder);
-    builder = with_content_length(&metadata, builder);
-    let body = if accept_encoding.contains(&"br") {
+    let body = if accept_encoding.contains(&"br") && metadata.len() > u16::MAX as u64 {
+        builder = builder.header(CONTENT_ENCODING, "br");
         Body::wrap_stream(ReaderStream::new(BrotliEncoder::new(BufReader::new(file))))
-    } else if accept_encoding.contains(&"gzip") {
+    } else if accept_encoding.contains(&"gzip") && metadata.len() > u16::MAX as u64 {
+        builder = builder.header(CONTENT_ENCODING, "gzip");
         Body::wrap_stream(ReaderStream::new(GzipEncoder::new(BufReader::new(file))))
     } else {
+        builder = with_content_length(&metadata, builder);
         Body::wrap_stream(ReaderStream::new(file))
     };
     builder.body(body).with_kind(ErrorKind::Network)
@@ -446,7 +470,7 @@ fn with_e_tag(path: &Path, metadata: &Metadata, builder: Builder) -> Result<Buil
     );
     let res = hasher.finalize();
     Ok(builder.header(
-        "ETag",
+        http::header::ETAG,
         base32::encode(base32::Alphabet::RFC4648 { padding: false }, res.as_slice()).to_lowercase(),
     ))
 }
@@ -476,7 +500,7 @@ fn with_content_type(path: &Path, builder: Builder) -> Builder {
         },
         None => "text/plain",
     };
-    builder.header("Content-Type", content_type)
+    builder.header(http::header::CONTENT_TYPE, content_type)
 }
 
 fn with_content_length(metadata: &Metadata, builder: Builder) -> Builder {

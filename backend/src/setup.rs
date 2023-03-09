@@ -7,17 +7,16 @@ use helpers::{Rsync, RsyncOptions};
 use josekit::jwk::Jwk;
 use openssl::x509::X509;
 use patch_db::DbHandle;
-use rand::random;
 use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
 use serde::{Deserialize, Serialize};
-use sqlx::{Connection, Executor, Postgres};
-use ssh_key::private::Ed25519PrivateKey;
+use sqlx::Connection;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
-use torut::onion::{OnionAddressV3, TorSecretKeyV3};
+use torut::onion::OnionAddressV3;
 use tracing::instrument;
 
+use crate::account::AccountInfo;
 use crate::backup::restore::recover_full_embassy;
 use crate::backup::target::BackupTargetFS;
 use crate::context::rpc::RpcContextConfig;
@@ -30,24 +29,10 @@ use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::TmpMountGuard;
 use crate::disk::util::{pvscan, recovery_info, DiskInfo, EmbassyOsRecoveryInfo};
 use crate::disk::REPAIR_DISK_PATH;
-use crate::hostname::{get_hostname, HostNameReceipt, Hostname};
+use crate::hostname::Hostname;
 use crate::init::{init, InitResult};
 use crate::middleware::encrypt::EncryptedWire;
-use crate::net::ssl::SslManager;
 use crate::{Error, ErrorKind, ResultExt};
-
-#[instrument(skip(secrets))]
-pub async fn password_hash<Ex>(secrets: &mut Ex) -> Result<String, Error>
-where
-    for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
-{
-    let password = sqlx::query!("SELECT password FROM account")
-        .fetch_one(secrets)
-        .await?
-        .password;
-
-    Ok(password)
-}
 
 #[command(subcommands(status, disk, attach, execute, cifs, complete, get_pubkey, exit))]
 pub fn setup() -> Result<(), Error> {
@@ -75,30 +60,26 @@ async fn setup_init(
     let mut secrets_tx = secrets_handle.begin().await?;
     let mut db_tx = db_handle.begin().await?;
 
-    if let Some(password) = password {
-        let set_password_receipt = crate::auth::SetPasswordReceipt::new(&mut db_tx).await?;
-        crate::auth::set_password(
-            &mut db_tx,
-            &set_password_receipt,
-            &mut secrets_tx,
-            &password,
-        )
-        .await?;
-    }
+    let mut account = AccountInfo::load(&mut secrets_tx).await?;
 
-    let tor_key = crate::net::tor::os_key(&mut secrets_tx).await?;
+    if let Some(password) = password {
+        account.set_password(&password)?;
+        account.save(&mut secrets_tx).await?;
+        crate::db::DatabaseModel::new()
+            .server_info()
+            .password_hash()
+            .put(&mut db_tx, &account.password)
+            .await?;
+    }
 
     db_tx.commit().await?;
     secrets_tx.commit().await?;
 
-    let hostname_receipts = HostNameReceipt::new(&mut db_handle).await?;
-    let hostname = get_hostname(&mut db_handle, &hostname_receipts).await?;
-
-    let (_, root_ca) = SslManager::init(secret_store, &mut db_handle)
-        .await?
-        .export_root_ca()
-        .await?;
-    Ok((hostname, tor_key.public().get_onion_address(), root_ca))
+    Ok((
+        account.hostname,
+        account.key.tor_address(),
+        account.root_ca_cert,
+    ))
 }
 
 #[command(rpc_only)]
@@ -385,38 +366,18 @@ async fn fresh_setup(
     ctx: &SetupContext,
     embassy_password: &str,
 ) -> Result<(Hostname, OnionAddressV3, X509), Error> {
-    let password = argon2::hash_encoded(
-        embassy_password.as_bytes(),
-        &rand::random::<[u8; 16]>()[..],
-        &argon2::Config::default(),
-    )
-    .with_kind(crate::ErrorKind::PasswordHashGeneration)?;
-    let tor_key = TorSecretKeyV3::generate();
-    let tor_key_bytes = tor_key.as_bytes().to_vec();
-    let ssh_key = Ed25519PrivateKey::from_bytes(&random());
-    let ssh_key_bytes = ssh_key.to_bytes().to_vec();
+    let account = AccountInfo::new(embassy_password)?;
     let sqlite_pool = ctx.secret_store().await?;
-    sqlx::query!(
-        "INSERT INTO account (id, password, tor_key, ssh_key) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO UPDATE SET password = $2, tor_key = $3, ssh_key = $4",
-        0,
-        password,
-        tor_key_bytes,
-        ssh_key_bytes,
-    )
-    .execute(&mut sqlite_pool.acquire().await?)
-    .await?;
+    account.save(&sqlite_pool).await?;
     sqlite_pool.close().await;
-    let InitResult { secret_store, db } =
+    let InitResult { secret_store, .. } =
         init(&RpcContextConfig::load(ctx.config_path.clone()).await?).await?;
-    let mut handle = db.handle();
-    let receipts = crate::hostname::HostNameReceipt::new(&mut handle).await?;
-    let hostname = get_hostname(&mut handle, &receipts).await?;
-    let (_, root_ca) = SslManager::init(secret_store.clone(), &mut handle)
-        .await?
-        .export_root_ca()
-        .await?;
     secret_store.close().await;
-    Ok((hostname, tor_key.public().get_onion_address(), root_ca))
+    Ok((
+        account.hostname.clone(),
+        account.key.tor_address(),
+        account.root_ca_cert.clone(),
+    ))
 }
 
 #[instrument(skip(ctx, embassy_password, recovery_password))]

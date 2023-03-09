@@ -1561,6 +1561,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "internment"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2a798d7677f07d6f1e77be484ea8626ddb1566194de399f1206306820c406371"
+dependencies = [
+ "ahash",
+ "dashmap",
+ "hashbrown",
+ "once_cell",
+ "parking_lot 0.12.1",
+ "serde",
+]
+
+[[package]]
 name = "io-lifetimes"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1923,10 +1937,14 @@ dependencies = [
  "color-eyre",
  "ed25519-dalek",
  "emver",
+ "internment",
+ "ipnet",
+ "lazy_static",
  "mbrman",
  "openssl",
  "patch-db",
  "rand 0.8.5",
+ "regex",
  "rpc-toolkit",
  "serde",
  "serde_json",

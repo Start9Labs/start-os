@@ -90,6 +90,8 @@ hyper = { version = "0.14.20", features = ["full"] }
 hyper-ws-listener = "0.2.0"
 imbl = "2.0.0"
 indexmap = { version = "1.9.1", features = ["serde"] }
+ipnet = { version = "2.7.1", features = ["serde"] }
+iprange = { version = "0.6.7", features = ["serde"] }
 isocountry = "0.3.2"
 itertools = "0.10.3"
 josekit = "0.8.1"
@@ -109,10 +111,11 @@ openssl = { version = "0.10.41", features = ["vendored"] }
 patch-db = { version = "*", path = "../patch-db/patch-db", features = [
   "trace",
 ] }
+p256 = { version = "0.12.0", features = ["pem"] }
 pbkdf2 = "0.11.0"
 pin-project = "1.0.11"
 pkcs8 = { version = "0.9.0", features = ["std"] }
-prettytable-rs = "0.9.0"
+prettytable-rs = "0.10.0"
 proptest = "1.0.0"
 proptest-derive = "0.3.0"
 rand = { version = "0.8.5", features = ["std"] }
@@ -158,6 +161,7 @@ trust-dns-server = "0.22.0"
 typed-builder = "0.10.0"
 url = { version = "2.2.2", features = ["serde"] }
 uuid = { version = "1.1.2", features = ["v4"] }
+zeroize = "1.5.7"
 
 [profile.test]
 opt-level = 3

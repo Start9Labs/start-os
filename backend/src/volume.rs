@@ -10,7 +10,7 @@ use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::net::interface::{InterfaceId, Interfaces};
-use crate::net::net_controller::NetController;
+use crate::net::PACKAGE_CERT_PATH;
 use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
 use crate::{Error, ResultExt};
@@ -113,6 +113,10 @@ pub fn backup_dir(pkg_id: &PackageId) -> PathBuf {
     Path::new(BACKUP_DIR).join(pkg_id).join("data")
 }
 
+pub fn cert_dir(pkg_id: &PackageId, interface_id: &InterfaceId) -> PathBuf {
+    Path::new(PACKAGE_CERT_PATH).join(pkg_id).join(interface_id)
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
 #[serde(tag = "type")]
 #[serde(rename_all = "kebab-case")]
@@ -185,7 +189,7 @@ impl Volume {
             } else {
                 path.as_ref()
             }),
-            Volume::Certificate { interface_id: _ } => NetController::ssl_directory_for(pkg_id),
+            Volume::Certificate { interface_id } => cert_dir(pkg_id, &interface_id),
             Volume::Backup { .. } => backup_dir(pkg_id),
         }
     }

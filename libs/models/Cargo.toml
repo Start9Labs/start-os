@@ -9,15 +9,19 @@ edition = "2021"
 bollard = "0.13.0"
 color-eyre = "0.6.1"
 ed25519-dalek = { version = "1.0.1", features = ["serde"] }
+lazy_static = "1.4"
 mbrman = "0.5.0"
 emver = { version = "0.1", git = "https://github.com/Start9Labs/emver-rs.git", features = [
   "serde",
 ] }
+internment = { version = "0.7.0", features = ["arc", "serde"] }
+ipnet = "2.7.1"
 openssl = { version = "0.10.41", features = ["vendored"] }
 patch-db = { version = "*", path = "../../patch-db/patch-db", features = [
   "trace",
 ] }
 rand = "0.8"
+regex = "1.7.1"
 rpc-toolkit = "0.2.1"
 serde = { version = "1.0", features = ["derive", "rc"] }
 serde_json = "1.0.82"

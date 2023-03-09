@@ -13,6 +13,7 @@ use rand::random;
 use sqlx::{Pool, Postgres};
 use tokio::process::Command;
 
+use crate::account::AccountInfo;
 use crate::context::rpc::RpcContextConfig;
 use crate::db::model::{IpInfo, ServerStatus};
 use crate::install::PKG_ARCHIVE_DIR;
@@ -240,7 +241,8 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     crate::ssh::sync_keys_from_db(&secret_store, "/home/start9/.ssh/authorized_keys").await?;
     tracing::info!("Synced SSH Keys");
 
-    let db = cfg.db(&secret_store).await?;
+    let account = AccountInfo::load(&secret_store).await?;
+    let db = cfg.db(&account).await?;
     tracing::info!("Opened PatchDB");
     let mut handle = db.handle();
     crate::db::DatabaseModel::new()
@@ -248,6 +250,16 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         .lock(&mut handle, LockType::Write)
         .await?;
     let receipts = InitReceipts::new(&mut handle).await?;
+
+    // write to ca cert store
+    tokio::fs::write(
+        "/usr/local/share/ca-certificates/embassy-root-ca.crt",
+        account.root_ca_cert.to_pem()?,
+    )
+    .await?;
+    Command::new("update-ca-certificates")
+        .invoke(crate::ErrorKind::OpenSsl)
+        .await?;
 
     if let Some(wifi_interface) = &cfg.wifi_interface {
         crate::net::wifi::synchronize_wpa_supplicant_conf(
@@ -392,7 +404,7 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         .set(&mut handle, time().await?)
         .await?;
 
-    crate::version::init(&mut handle, &receipts).await?;
+    crate::version::init(&mut handle, &secret_store, &receipts).await?;
 
     if should_rebuild {
         match tokio::fs::remove_file(SYSTEM_REBUILD_PATH).await {

@@ -3,12 +3,7 @@ use std::sync::Arc;
 
 use color_eyre::eyre::eyre;
 use embassy::context::{DiagnosticContext, RpcContext};
-use embassy::net::embassy_service_http_server::EmbassyServiceHTTPServer;
-#[cfg(feature = "avahi")]
-use embassy::net::mdns::MdnsController;
-use embassy::net::net_controller::NetController;
-use embassy::net::net_utils::ResourceFqdn;
-use embassy::net::static_server::diag_ui_file_router;
+use embassy::net::web_server::WebServer;
 use embassy::shutdown::Shutdown;
 use embassy::system::launch_metrics_task;
 use embassy::util::logger::EmbassyLogger;
@@ -19,7 +14,7 @@ use tracing::instrument;
 
 #[instrument]
 async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error> {
-    let (rpc_ctx, shutdown) = {
+    let (rpc_ctx, server, shutdown) = {
         let rpc_ctx = RpcContext::init(
             cfg_path,
             Arc::new(
@@ -30,7 +25,8 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
             ),
         )
         .await?;
-        NetController::setup_embassy_ui(rpc_ctx.clone()).await?;
+        embassy::hostname::sync_hostname(&*rpc_ctx.account.read().await).await?;
+        let server = WebServer::main(([0, 0, 0, 0], 80).into(), rpc_ctx.clone()).await?;
 
         let mut shutdown_recv = rpc_ctx.shutdown.subscribe();
 
@@ -62,12 +58,6 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
                 .expect("send shutdown signal");
         });
 
-        {
-            let mut db = rpc_ctx.db.handle();
-            let receipts = embassy::context::rpc::RpcSetHostNameReceipts::new(&mut db).await?;
-            embassy::hostname::sync_hostname(&mut db, &receipts.hostname_receipts).await?;
-        }
-
         let metrics_ctx = rpc_ctx.clone();
         let metrics_task = tokio::spawn(async move {
             launch_metrics_task(&metrics_ctx.metrics_cache, || {
@@ -95,8 +85,9 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
 
         sig_handler.abort();
 
-        (rpc_ctx, shutdown)
+        (rpc_ctx, server, shutdown)
     };
+    server.shutdown().await;
     rpc_ctx.shutdown().await?;
 
     Ok(shutdown)
@@ -125,12 +116,10 @@ fn main() {
             match inner_main(cfg_path.clone()).await {
                 Ok(a) => Ok(a),
                 Err(e) => {
-                    (|| async {
+                    async {
                         tracing::error!("{}", e.source);
                         tracing::debug!("{:?}", e.source);
                         embassy::sound::BEETHOVEN.play().await?;
-                        #[cfg(feature = "avahi")]
-                        let _mdns = MdnsController::init().await?;
                         let ctx = DiagnosticContext::init(
                             cfg_path,
                             if tokio::fs::metadata("/media/embassy/config/disk.guid")
@@ -150,24 +139,18 @@ fn main() {
                         )
                         .await?;
 
-                        let embassy_ip_fqdn: ResourceFqdn = ResourceFqdn::IpAddr;
-                        let embassy_fqdn: ResourceFqdn = "embassy.local".parse()?;
-
-                        let diag_ui_handler = diag_ui_file_router(ctx.clone()).await?;
-
-                        let mut diag_http_server =
-                            EmbassyServiceHTTPServer::new([0, 0, 0, 0].into(), 80, None).await?;
-                        diag_http_server
-                            .add_svc_handler_mapping(embassy_ip_fqdn, diag_ui_handler.clone())
-                            .await?;
-                        diag_http_server
-                            .add_svc_handler_mapping(embassy_fqdn, diag_ui_handler)
-                            .await?;
+                        let server =
+                            WebServer::diagnostic(([0, 0, 0, 0], 80).into(), ctx.clone()).await?;
 
                         let mut shutdown = ctx.shutdown.subscribe();
 
-                        shutdown.recv().await.with_kind(crate::ErrorKind::Unknown)
-                    })()
+                        let shutdown =
+                            shutdown.recv().await.with_kind(crate::ErrorKind::Unknown)?;
+
+                        server.shutdown().await;
+
+                        Ok::<_, Error>(shutdown)
+                    }
                     .await
                 }
             }

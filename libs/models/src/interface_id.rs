@@ -4,34 +4,30 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::Id;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Default)]
-pub struct InterfaceId<S: AsRef<str> = String>(Id<S>);
-impl<S: AsRef<str>> From<Id<S>> for InterfaceId<S> {
-    fn from(id: Id<S>) -> Self {
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+pub struct InterfaceId(Id);
+impl From<Id> for InterfaceId {
+    fn from(id: Id) -> Self {
         Self(id)
     }
 }
-impl<S: AsRef<str>> std::fmt::Display for InterfaceId<S> {
+impl std::fmt::Display for InterfaceId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", &self.0)
     }
 }
-impl<S: AsRef<str>> std::ops::Deref for InterfaceId<S> {
-    type Target = S;
+impl std::ops::Deref for InterfaceId {
+    type Target = String;
     fn deref(&self) -> &Self::Target {
         &*self.0
     }
 }
-impl<S: AsRef<str>> AsRef<str> for InterfaceId<S> {
+impl AsRef<str> for InterfaceId {
     fn as_ref(&self) -> &str {
         self.0.as_ref()
     }
 }
-impl<'de, S> Deserialize<'de> for InterfaceId<S>
-where
-    S: AsRef<str>,
-    Id<S>: Deserialize<'de>,
-{
+impl<'de> Deserialize<'de> for InterfaceId {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
@@ -39,7 +35,7 @@ where
         Ok(InterfaceId(Deserialize::deserialize(deserializer)?))
     }
 }
-impl<S: AsRef<str>> AsRef<Path> for InterfaceId<S> {
+impl AsRef<Path> for InterfaceId {
     fn as_ref(&self) -> &Path {
         self.0.as_ref().as_ref()
     }

@@ -11,12 +11,13 @@ use futures::{FutureExt, StreamExt};
 use openssl::x509::X509;
 use patch_db::{DbHandle, PatchDbHandle};
 use rpc_toolkit::command;
+use sqlx::Connection;
 use tokio::fs::File;
 use torut::onion::OnionAddressV3;
 use tracing::instrument;
 
 use super::target::BackupTargetId;
-use crate::backup::backup_bulk::OsBackup;
+use crate::backup::os::OsBackup;
 use crate::backup::BackupMetadata;
 use crate::context::rpc::RpcContextConfig;
 use crate::context::{RpcContext, SetupContext};
@@ -24,11 +25,10 @@ use crate::db::model::{PackageDataEntry, StaticFiles};
 use crate::disk::mount::backup::{BackupMountGuard, PackageBackupMountGuard};
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::TmpMountGuard;
-use crate::hostname::{get_hostname, Hostname};
+use crate::hostname::Hostname;
 use crate::init::init;
 use crate::install::progress::InstallProgress;
 use crate::install::{download_install_s9pk, PKG_PUBLIC_DIR};
-use crate::net::ssl::SslManager;
 use crate::notifications::NotificationLevel;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::s9pk::reader::S9pkReader;
@@ -184,7 +184,7 @@ pub async fn recover_full_embassy(
     .await?;
 
     let os_backup_path = backup_guard.as_ref().join("os-backup.cbor");
-    let os_backup: OsBackup =
+    let mut os_backup: OsBackup =
         IoFormat::Cbor.from_slice(&tokio::fs::read(&os_backup_path).await.with_ctx(|_| {
             (
                 crate::ErrorKind::Filesystem,
@@ -192,31 +192,17 @@ pub async fn recover_full_embassy(
             )
         })?)?;
 
-    let password = argon2::hash_encoded(
+    os_backup.account.password = argon2::hash_encoded(
         embassy_password.as_bytes(),
         &rand::random::<[u8; 16]>()[..],
         &argon2::Config::default(),
     )
     .with_kind(crate::ErrorKind::PasswordHashGeneration)?;
-    let tor_key_bytes = os_backup.tor_key.as_bytes().to_vec();
-    let ssh_key_bytes = os_backup.ssh_key.to_bytes().to_vec();
-    let secret_store = ctx.secret_store().await?;
-    sqlx::query!(
-        "INSERT INTO account (id, password, tor_key, ssh_key) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO UPDATE SET password = $2, tor_key = $3, ssh_key = $4",
-        0,
-        password,
-        tor_key_bytes,
-        ssh_key_bytes,
-    )
-    .execute(&mut secret_store.acquire().await?)
-    .await?;
 
-    SslManager::import_root_ca(
-        secret_store.clone(),
-        os_backup.root_ca_key,
-        os_backup.root_ca_cert.clone(),
-    )
-    .await?;
+    let secret_store = ctx.secret_store().await?;
+
+    os_backup.account.save(&secret_store).await?;
+
     secret_store.close().await;
 
     let cfg = RpcContextConfig::load(ctx.config_path.clone()).await?;
@@ -224,12 +210,7 @@ pub async fn recover_full_embassy(
     init(&cfg).await?;
 
     let rpc_ctx = RpcContext::init(ctx.config_path.clone(), disk_guid.clone()).await?;
-    let mut db = rpc_ctx.db.handle();
 
-    let receipts = crate::hostname::HostNameReceipt::new(&mut db).await?;
-    let hostname = get_hostname(&mut db, &receipts).await?;
-
-    drop(db);
     let mut db = rpc_ctx.db.handle();
 
     let ids = backup_guard
@@ -274,9 +255,9 @@ pub async fn recover_full_embassy(
 
     Ok((
         disk_guid,
-        hostname,
-        os_backup.tor_key.public().get_onion_address(),
-        os_backup.root_ca_cert,
+        os_backup.account.hostname,
+        os_backup.account.key.tor_address(),
+        os_backup.account.root_ca_cert,
     ))
 }
 
@@ -414,23 +395,32 @@ async fn restore_package<'a>(
                 metadata_path.display().to_string(),
             )
         })?)?;
-    for (iface, key) in metadata.tor_keys {
-        let key_vec = base32::decode(base32::Alphabet::RFC4648 { padding: true }, &key)
-            .ok_or_else(|| {
-                Error::new(
-                    eyre!("invalid base32 string"),
-                    crate::ErrorKind::Deserialization,
-                )
-            })?;
+
+    let mut secrets = ctx.secret_store.acquire().await?;
+    let mut secrets_tx = secrets.begin().await?;
+    for (iface, key) in metadata.network_keys {
+        let k = key.0.as_slice();
         sqlx::query!(
-                "INSERT INTO tor (package, interface, key) VALUES ($1, $2, $3) ON CONFLICT (package, interface) DO UPDATE SET key = $3",
-                *id,
-                *iface,
-                key_vec,
-            )
-            .execute(&ctx.secret_store)
-            .await?;
+            "INSERT INTO network_keys (package, interface, key) VALUES ($1, $2, $3) ON CONFLICT (package, interface) DO NOTHING",
+            *id,
+            *iface,
+            k,
+        )
+        .execute(&mut secrets_tx).await?;
     }
+    // DEPRECATED
+    for (iface, key) in metadata.tor_keys {
+        let k = key.0.as_slice();
+        sqlx::query!(
+            "INSERT INTO tor (package, interface, key) VALUES ($1, $2, $3) ON CONFLICT (package, interface) DO NOTHING",
+            *id,
+            *iface,
+            k,
+        )
+        .execute(&mut secrets_tx).await?;
+    }
+    secrets_tx.commit().await?;
+    drop(secrets);
 
     let len = tokio::fs::metadata(&s9pk_path)
         .await
