@@ -398,7 +398,11 @@ pub async fn reset_password(
     Ok(())
 }
 
-#[command(rename = "get-pubkey", display(display_none))]
+#[command(
+    rename = "get-pubkey",
+    display(display_none),
+    metadata(authenticated = false)
+)]
 #[instrument(skip(ctx))]
 pub async fn get_pubkey(#[context] ctx: RpcContext) -> Result<Jwk, RpcError> {
     let secret = ctx.as_ref().clone();

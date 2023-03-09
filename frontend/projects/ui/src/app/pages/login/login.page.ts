@@ -30,7 +30,7 @@ export class LoginPage {
       try {
         await this.api.getPubKey()
       } catch (e: any) {
-        this.error = e
+        this.error = e.message
       }
     }
   }

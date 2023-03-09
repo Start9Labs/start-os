@@ -269,24 +269,46 @@ pub fn make_int_cert(
     Ok(cert)
 }
 
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum MaybeWildcard {
+    WithWildcard(String),
+    WithoutWildcard(String),
+}
+impl MaybeWildcard {
+    pub fn as_str(&self) -> &str {
+        match self {
+            MaybeWildcard::WithWildcard(s) => s.as_str(),
+            MaybeWildcard::WithoutWildcard(s) => s.as_str(),
+        }
+    }
+}
+impl std::fmt::Display for MaybeWildcard {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MaybeWildcard::WithWildcard(dns) => write!(f, "DNS:{dns},DNS:*.{dns}"),
+            MaybeWildcard::WithoutWildcard(dns) => write!(f, "DNS:{dns}"),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct SANInfo {
-    pub dns: BTreeSet<String>,
+    pub dns: BTreeSet<MaybeWildcard>,
     pub ips: BTreeSet<IpAddr>,
 }
 impl SANInfo {
     pub fn new(key: &Key, hostname: &Hostname, ips: BTreeSet<IpAddr>) -> Self {
         let mut dns = BTreeSet::new();
         if let Some((id, _)) = key.interface() {
-            dns.insert(format!("{id}.embassy"));
-            dns.insert(key.local_address().to_string());
+            dns.insert(MaybeWildcard::WithWildcard(format!("{id}.embassy")));
+            dns.insert(MaybeWildcard::WithWildcard(key.local_address().to_string()));
         } else {
-            dns.insert("embassy".to_owned());
-            dns.insert(hostname.local_domain_name());
-            dns.insert(hostname.no_dot_host_name());
-            dns.insert("localhost".to_owned());
+            dns.insert(MaybeWildcard::WithoutWildcard("embassy".to_owned()));
+            dns.insert(MaybeWildcard::WithWildcard(hostname.local_domain_name()));
+            dns.insert(MaybeWildcard::WithoutWildcard(hostname.no_dot_host_name()));
+            dns.insert(MaybeWildcard::WithoutWildcard("localhost".to_owned()));
         }
-        dns.insert(key.tor_address().to_string());
+        dns.insert(MaybeWildcard::WithWildcard(key.tor_address().to_string()));
         Self { dns, ips }
     }
 }
@@ -336,7 +358,7 @@ pub fn make_leaf_cert(
             .1
             .dns
             .first()
-            .map(String::as_str)
+            .map(MaybeWildcard::as_str)
             .unwrap_or("localhost"),
     )?;
     subject_name_builder.append_entry_by_text("O", "Start9")?;
