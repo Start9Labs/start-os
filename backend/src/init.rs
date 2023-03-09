@@ -232,7 +232,12 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
                 format!("write {}", LOCAL_AUTH_COOKIE_PATH),
             )
         })?;
-        tokio::fs::set_permissions(LOCAL_AUTH_COOKIE_PATH, Permissions::from_mode(046)).await?;
+        tokio::fs::set_permissions(LOCAL_AUTH_COOKIE_PATH, Permissions::from_mode(0o046)).await?;
+        Command::new("chown")
+            .arg("root:embassy")
+            .arg(LOCAL_AUTH_COOKIE_PATH)
+            .invoke(crate::ErrorKind::Filesystem)
+            .await?;
     }
 
     let secret_store = cfg.secret_store().await?;
