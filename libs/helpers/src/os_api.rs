@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use color_eyre::eyre::eyre;
 use color_eyre::Report;
 use models::InterfaceId;
 use models::PackageId;
