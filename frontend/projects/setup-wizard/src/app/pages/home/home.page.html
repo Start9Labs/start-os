@@ -66,22 +66,6 @@
 
               <!-- SLIDE 2 -->
               <ng-template swiperSlide>
-                <!-- restore from backup -->
-                <ion-item
-                  button
-                  lines="none"
-                  detail="false"
-                  routerLink="/recover"
-                >
-                  <ion-icon slot="start" name="save-outline"></ion-icon>
-                  <ion-label>
-                    <h2>
-                      <ion-text color="warning">Restore From Backup</ion-text>
-                    </h2>
-                    <p>Restore an Embassy from an encrypted backup</p>
-                  </ion-label>
-                </ion-item>
-
                 <!-- attach -->
                 <ion-item
                   button
@@ -92,10 +76,12 @@
                   <ion-icon slot="start" name="cube-outline"></ion-icon>
                   <ion-label>
                     <h2>
-                      <ion-text color="primary">Use Existing Drive</ion-text>
+                      <ion-text color="success">Use Existing Drive</ion-text>
                     </h2>
                     <p>
-                      Use an existing, valid Embassy data drive (not a backup)
+                      Attach an existing embassyOS data drive (
+                      <b>not</b>
+                      a backup)
                     </p>
                   </ion-label>
                 </ion-item>
@@ -110,13 +96,31 @@
                   <ion-icon slot="start" name="share-outline"></ion-icon>
                   <ion-label>
                     <h2>
-                      <ion-text color="success">Transfer</ion-text>
+                      <ion-text color="primary">Transfer</ion-text>
                     </h2>
                     <p>
-                      Transfer data from an existing, valid Embassy data drive
-                      (not a backup) to a new drive<br />(e.g. in order to
-                      transfer data to another device)
+                      Transfer data from an existing embassyOS data drive (not a
+                      backup) to a new, preferred drive
+                      <br />
                     </p>
+                  </ion-label>
+                </ion-item>
+
+                <!-- restore from backup -->
+                <ion-item
+                  button
+                  lines="none"
+                  detail="false"
+                  routerLink="/recover"
+                >
+                  <ion-icon slot="start" name="save-outline"></ion-icon>
+                  <ion-label>
+                    <h2>
+                      <ion-text color="warning">
+                        Restore From Backup (Disaster Recovery)
+                      </ion-text>
+                    </h2>
+                    <p>Restore embassyOS data from an encrypted backup</p>
                   </ion-label>
                 </ion-item>
               </ng-template>
