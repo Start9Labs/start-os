@@ -12,7 +12,6 @@ use sqlx::Acquire;
 use crate::{
     config::hook::ConfigHook,
     manager::{start_stop::StartStop, Manager},
-    net::keys::Key,
 };
 
 use super::try_get_running_ip;
@@ -165,26 +164,29 @@ impl OsApi for Manager {
         Ok(())
     }
 
-    fn set_started(&self) {
+    fn set_started(&self) -> Result<(), Report> {
         self.manage_container
             .current_state
-            .send(StartStop::Start)
-            .unwrap_or_default()
+            .send_modify(|x| *x = StartStop::Start);
+        Ok(())
     }
 
-    async fn restart(&self) {
-        self.perform_restart().await
+    async fn restart(&self) -> Result<(), Report> {
+        self.perform_restart().await;
+        Ok(())
     }
 
-    async fn start(&self) {
+    async fn start(&self) -> Result<(), Report> {
         self.manage_container
             .wait_for_desired(StartStop::Start)
-            .await
+            .await;
+        Ok(())
     }
 
-    async fn stop(&self) {
+    async fn stop(&self) -> Result<(), Report> {
         self.manage_container
             .wait_for_desired(StartStop::Stop)
-            .await
+            .await;
+        Ok(())
     }
 }
