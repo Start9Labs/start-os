@@ -14,7 +14,6 @@ use nix::sys::signal::Signal;
 use patch_db::DbHandle;
 use persistent_container::PersistentContainer;
 use rand::SeedableRng;
-use serde_json::Value;
 use sqlx::Connection;
 use start_stop::StartStop;
 use tokio::sync::oneshot;

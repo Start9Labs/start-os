@@ -20,7 +20,7 @@ impl From<MainStatus> for StartStop {
             MainStatus::Stopped => StartStop::Stop,
             MainStatus::Restarting => StartStop::Start,
             MainStatus::Stopping => StartStop::Stop,
-            MainStatus::Starting { restarting } => StartStop::Start,
+            MainStatus::Starting => StartStop::Start,
             MainStatus::Running { started, health } => StartStop::Start,
             MainStatus::BackingUp { started, health } if started.is_some() => StartStop::Start,
             MainStatus::BackingUp { started, health } => StartStop::Stop,
