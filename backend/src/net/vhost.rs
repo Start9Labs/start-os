@@ -1,11 +1,12 @@
 use std::collections::BTreeMap;
 use std::convert::Infallible;
 use std::net::{IpAddr, SocketAddr};
+use std::str::FromStr;
 use std::sync::{Arc, Weak};
 
 use color_eyre::eyre::eyre;
 use helpers::NonDetachingJoinHandle;
-use http::Response;
+use http::{Response, Uri};
 use hyper::service::{make_service_fn, service_fn};
 use hyper::Body;
 use models::ResultExt;
@@ -110,26 +111,32 @@ impl VHostServer {
                                     .await
                                     {
                                         Ok(a) => a,
-                                        Err(e) => {
+                                        Err(_) => {
                                             stream.rewind();
                                             return hyper::server::Server::builder(
                                                 SingleAccept::new(stream),
                                             )
                                             .serve(make_service_fn(|_| async {
                                                 Ok::<_, Infallible>(service_fn(|req| async move {
+                                                    let host = req
+                                                        .headers()
+                                                        .get(http::header::HOST)
+                                                        .and_then(|host| host.to_str().ok());
+                                                    let uri = Uri::from_parts({
+                                                        let mut parts =
+                                                            req.uri().to_owned().into_parts();
+                                                        parts.authority = host
+                                                            .map(FromStr::from_str)
+                                                            .transpose()?;
+                                                        parts
+                                                    })?;
                                                     Response::builder()
                                                         .status(
                                                             http::StatusCode::TEMPORARY_REDIRECT,
                                                         )
                                                         .header(
                                                             http::header::LOCATION,
-                                                            req.headers()
-                                                                .get(http::header::HOST)
-                                                                .and_then(|host| host.to_str().ok())
-                                                                .map(|host| {
-                                                                    format!("https://{host}")
-                                                                })
-                                                                .unwrap_or_default(),
+                                                            uri.to_string(),
                                                         )
                                                         .body(Body::default())
                                                 }))
