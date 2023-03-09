@@ -70,3 +70,7 @@
   - `make eos_raspberrypi.img`
   - `tar --format=posix -cS -f- eos-<version>-<git hash>-<date>_raspberrypi.img | gzip > eos-<version>-<git hash>-<date>_raspberrypi.tar.gz`
 - Artifact `./eos-<version>-<git hash>-<date>_raspberrypi.tar.gz`
+
+## `embassy-sdk`
+
+- Build and deploy to all registries

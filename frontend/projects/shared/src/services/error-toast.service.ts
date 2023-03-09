@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core'
 import { IonicSafeString, ToastController } from '@ionic/angular'
+import { HttpError } from '../classes/http-error'
 
 @Injectable({
   providedIn: 'root',
@@ -9,7 +10,7 @@ export class ErrorToastService {
 
   constructor(private readonly toastCtrl: ToastController) {}
 
-  async present(e: { message: string }, link?: string): Promise<void> {
+  async present(e: HttpError | string, link?: string): Promise<void> {
     console.error(e)
 
     if (this.toast) return
@@ -42,12 +43,21 @@ export class ErrorToastService {
 }
 
 export function getErrorMessage(
-  { message }: { message: string },
+  e: HttpError | string,
   link?: string,
 ): string | IonicSafeString {
-  if (!message) {
-    message = 'Unknown Error.'
+  let message = ''
+
+  if (typeof e === 'string') {
+    message = e
+  } else if (e.code === 0) {
+    message =
+      'Request Error. Your browser blocked the request. This is usually caused by a corrupt browser cache or an overly aggressive ad blocker. Please clear your browser cache and/or adjust your ad blocker and try again'
+  } else if (!e.message) {
+    message = 'Unknown Error'
     link = 'https://docs.start9.com/latest/support/faq'
+  } else {
+    message = e.message
   }
 
   if (link) {

@@ -9,7 +9,6 @@ import {
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActivatedRoute } from '@angular/router'
 import { PatchDB } from 'patch-db-client'
-import { ServerNameService } from 'src/app/services/server-name.service'
 import { combineLatest, firstValueFrom, map, Observable, of } from 'rxjs'
 import { ErrorToastService } from '@start9labs/shared'
 import { EOSService } from 'src/app/services/eos.service'
@@ -52,7 +51,6 @@ export class ServerShowPage {
     private readonly patch: PatchDB<DataModel>,
     private readonly eosService: EOSService,
     private readonly ClientStorageService: ClientStorageService,
-    private readonly serverNameService: ServerNameService,
     private readonly authService: AuthService,
     private readonly toastCtrl: ToastController,
     private readonly config: ConfigService,
@@ -60,19 +58,18 @@ export class ServerShowPage {
   ) {}
 
   async presentModalName(): Promise<void> {
-    const name = await firstValueFrom(this.serverNameService.name$)
+    const chosenName = await firstValueFrom(this.patch.watch$('ui', 'name'))
 
     const options: GenericInputOptions = {
       title: 'Set Device Name',
       message: 'This will be displayed in your browser tab',
       label: 'Device Name',
       useMask: false,
-      placeholder: name.default,
+      placeholder: 'embassyOS',
       nullable: true,
-      initialValue: name.current,
+      initialValue: chosenName,
       buttonText: 'Save',
-      submitFn: (value: string) =>
-        this.setDbValue('name', value || name.default),
+      submitFn: (name: string) => this.setName(name || null),
     }
 
     const modal = await this.modalCtrl.create({
@@ -227,14 +224,14 @@ export class ServerShowPage {
     }
   }
 
-  private async setDbValue(key: string, value: string): Promise<void> {
+  private async setName(value: string | null): Promise<void> {
     const loader = await this.loadingCtrl.create({
       message: 'Saving...',
     })
     await loader.present()
 
     try {
-      await this.embassyApi.setDbValue<string>([key], value)
+      await this.embassyApi.setDbValue<string | null>(['name'], value)
     } finally {
       loader.dismiss()
     }
@@ -393,8 +390,8 @@ export class ServerShowPage {
         disabled$: this.eosService.updatingOrBackingUp$,
       },
       {
-        title: 'Set Device Name',
-        description: 'Give your device a name for easy identification',
+        title: 'Browser Tab Title',
+        description: `Customize the display name of your browser tab. This does not affect your server's LAN address.`,
         icon: 'pricetag-outline',
         action: () => this.presentModalName(),
         detail: false,
@@ -429,7 +426,7 @@ export class ServerShowPage {
         disabled$: of(false),
       },
       {
-        title: 'Sideload Service',
+        title: 'Sideload a Service',
         description: `Manually install a service`,
         icon: 'push-outline',
         action: () =>
