@@ -73,7 +73,7 @@ sdk:
 	cd backend/ && ./install-sdk.sh
 
 eos_raspberrypi-uninit.img: $(ALL_TARGETS) raspios.img cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep | sudo
-	! test -f embassyos-raspi.img || rm embassyos-raspi.img
+	! test -f eos_raspberrypi-uninit.img || rm eos_raspberrypi-uninit.img
 	./build/raspberry-pi/make-image.sh
 
 lite-upgrade.img: raspios.img cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep $(BUILD_SRC) eos.raspberrypi.squashfs
