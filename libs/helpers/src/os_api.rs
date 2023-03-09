@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use color_eyre::eyre::eyre;
 use color_eyre::Report;
 use models::InterfaceId;
 use models::PackageId;
@@ -76,8 +75,8 @@ pub trait OsApi: Send + Sync + 'static {
 
     async fn unbind_local(&self, id: InterfaceId, external: u16) -> Result<(), Report>;
     async fn unbind_onion(&self, id: InterfaceId, external: u16) -> Result<(), Report>;
-    fn set_started(&self);
-    async fn restart(&self);
-    async fn start(&self);
-    async fn stop(&self);
+    fn set_started(&self) -> Result<(), Report>;
+    async fn restart(&self) -> Result<(), Report>;
+    async fn start(&self) -> Result<(), Report>;
+    async fn stop(&self) -> Result<(), Report>;
 }
