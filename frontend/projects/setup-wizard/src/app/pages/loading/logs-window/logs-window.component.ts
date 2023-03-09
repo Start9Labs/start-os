@@ -1,8 +1,9 @@
 import { Component, ViewChild } from '@angular/core'
 import { IonContent } from '@ionic/angular'
-import { from, map, switchMap, takeUntil, tap } from 'rxjs'
+import { from, map, switchMap, takeUntil } from 'rxjs'
 import { ApiService } from 'src/app/services/api/api.service'
-import { DestroyService, Log, toLocalIsoString } from '@start9labs/shared'
+import { Log, toLocalIsoString } from '@start9labs/shared'
+import { TuiDestroyService } from '@taiga-ui/cdk'
 
 var Convert = require('ansi-to-html')
 var convert = new Convert({
@@ -13,7 +14,7 @@ var convert = new Convert({
   selector: 'logs-window',
   templateUrl: 'logs-window.component.html',
   styleUrls: ['logs-window.component.scss'],
-  providers: [DestroyService],
+  providers: [TuiDestroyService],
 })
 export class LogsWindowComponent {
   @ViewChild(IonContent)
@@ -23,7 +24,7 @@ export class LogsWindowComponent {
 
   constructor(
     private readonly api: ApiService,
-    private readonly destroy$: DestroyService,
+    private readonly destroy$: TuiDestroyService,
   ) {}
 
   ngOnInit() {
