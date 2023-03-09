@@ -9,6 +9,7 @@ use color_eyre::eyre::eyre;
 use digest::Digest;
 use futures::FutureExt;
 use http::header::ACCEPT_ENCODING;
+use http::header::CONTENT_ENCODING;
 use http::response::Builder;
 use hyper::{Body, Method, Request, Response, StatusCode};
 use openssl::hash::MessageDigest;
@@ -251,7 +252,12 @@ async fn alt_ui(req: Request<Body>, ui_mode: UiMode) -> Result<Response<Body>, E
 
             let full_path = Path::new(selected_root_dir).join(uri_path);
             file_send(
-                if tokio::fs::metadata(&full_path).await.is_ok() {
+                if tokio::fs::metadata(&full_path)
+                    .await
+                    .ok()
+                    .map(|f| f.is_file())
+                    .unwrap_or(false)
+                {
                     full_path
                 } else {
                     Path::new(selected_root_dir).join("index.html")
@@ -324,7 +330,12 @@ async fn main_embassy_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response
 
             let full_path = Path::new(selected_root_dir).join(uri_path);
             file_send(
-                if tokio::fs::metadata(&full_path).await.is_ok() {
+                if tokio::fs::metadata(&full_path)
+                    .await
+                    .ok()
+                    .map(|f| f.is_file())
+                    .unwrap_or(false)
+                {
                     full_path
                 } else {
                     Path::new(selected_root_dir).join("index.html")
@@ -418,12 +429,14 @@ async fn file_send(
     let mut builder = Response::builder().status(StatusCode::OK);
     builder = with_e_tag(path, &metadata, builder)?;
     builder = with_content_type(path, builder);
-    builder = with_content_length(&metadata, builder);
-    let body = if accept_encoding.contains(&"br") {
+    let body = if accept_encoding.contains(&"br") && metadata.len() > u16::MAX as u64 {
+        builder = builder.header(CONTENT_ENCODING, "br");
         Body::wrap_stream(ReaderStream::new(BrotliEncoder::new(BufReader::new(file))))
-    } else if accept_encoding.contains(&"gzip") {
+    } else if accept_encoding.contains(&"gzip") && metadata.len() > u16::MAX as u64 {
+        builder = builder.header(CONTENT_ENCODING, "gzip");
         Body::wrap_stream(ReaderStream::new(GzipEncoder::new(BufReader::new(file))))
     } else {
+        builder = with_content_length(&metadata, builder);
         Body::wrap_stream(ReaderStream::new(file))
     };
     builder.body(body).with_kind(ErrorKind::Network)
