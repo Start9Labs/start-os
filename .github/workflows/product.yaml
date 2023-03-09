@@ -134,9 +134,9 @@ jobs:
     
     - name: Build image
       run: |
-        make V=1 embassyos-raspi.img --debug
+        make V=1 eos_raspberrypi-uninit.img --debug
       
     - uses: actions/upload-artifact@v3
       with:
         name: image
-        path: embassyos-raspi.img
+        path: eos_raspberrypi-uninit.img

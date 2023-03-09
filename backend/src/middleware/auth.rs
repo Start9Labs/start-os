@@ -106,7 +106,7 @@ impl HasValidSession {
     }
 
     pub async fn from_local(local: &Cookie<'_>) -> Result<Self, Error> {
-        let token = tokio::fs::read_to_string("/run/embassy/rpc.authcookie").await?;
+        let token = tokio::fs::read_to_string(LOCAL_AUTH_COOKIE_PATH).await?;
         if local.get_value() == &*token {
             Ok(Self(()))
         } else {

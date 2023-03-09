@@ -15,7 +15,7 @@ use crate::net::keys::Key;
 use crate::net::mdns::MdnsController;
 use crate::net::ssl::{export_cert, SslManager};
 use crate::net::tor::TorController;
-use crate::net::vhost_controller::VHostController;
+use crate::net::vhost::VHostController;
 use crate::s9pk::manifest::PackageId;
 use crate::volume::cert_dir;
 use crate::{Error, HOST_IP};

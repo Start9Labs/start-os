@@ -1,6 +1,6 @@
-RASPI_TARGETS := embassyos-raspi.img embassyos-raspi.tar.gz gzip lite-upgrade.img
-ARCH := $(shell if echo $(RASPI_TARGETS) | grep -qw "$(MAKECMDGOALS)"; then echo aarch64; else uname -m; fi)
+RASPI_TARGETS := eos_raspberrypi-uninit.img eos_raspberrypi-uninit.tar.gz
 OS_ARCH := $(shell if echo $(RASPI_TARGETS) | grep -qw "$(MAKECMDGOALS)"; then echo raspberrypi; else uname -m; fi)
+ARCH := $(shell if [ "$(OS_ARCH)" = "raspberrypi" ]; then echo aarch64; else echo $(OS_ARCH); fi)
 ENVIRONMENT_FILE = $(shell ./check-environment.sh)
 GIT_HASH_FILE = $(shell ./check-git-hash.sh)
 VERSION_FILE = $(shell ./check-version.sh)
@@ -19,18 +19,28 @@ FRONTEND_DIAGNOSTIC_UI_SRC := $(shell find frontend/projects/diagnostic-ui)
 FRONTEND_INSTALL_WIZARD_SRC := $(shell find frontend/projects/install-wizard)
 PATCH_DB_CLIENT_SRC := $(shell find patch-db/client -not -path patch-db/client/dist)
 GZIP_BIN := $(shell which pigz || which gzip)
-$(shell sudo true)
+ALL_TARGETS := $(EMBASSY_BINS) system-images/compat/docker-images/aarch64.tar system-images/utils/docker-images/$(ARCH).tar system-images/binfmt/docker-images/$(ARCH).tar $(EMBASSY_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE)
+
+ifeq ($(REMOTE),)
+	mkdir = mkdir -p $1
+	rm = rm -rf $@
+	cp = cp -r $1 $2
+else
+	mkdir = ssh $(REMOTE) 'mkdir -p $1'
+	rm  = ssh $(REMOTE) 'rm -rf $@'
+define cp
+	tar --transform "s|^$1|x|" -czv -f- $1 | ssh $(REMOTE) "sudo tar --transform 's|^x|$2|' -xzv -f- -C /"
+endef
+endif
 
 .DELETE_ON_ERROR:
 
-.PHONY: all gzip install clean format sdk snapshots frontends ui backend
+.PHONY: all gzip install clean format sdk snapshots frontends ui backend reflash eos_raspberrypi.img sudo
 
-all: $(EMBASSY_SRC) $(EMBASSY_BINS) system-images/compat/docker-images/aarch64.tar system-images/utils/docker-images/$(ARCH).tar system-images/binfmt/docker-images/$(ARCH).tar $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE)
+all: $(ALL_TARGETS)
 
-gzip: embassyos-raspi.tar.gz
-
-embassyos-raspi.tar.gz: embassyos-raspi.img
-	tar --format=posix -cS -f- embassyos-raspi.img | $(GZIP_BIN) > embassyos-raspi.tar.gz
+sudo:
+	sudo true
 
 clean:
 	rm -f 2022-01-28-raspios-bullseye-arm64-lite.zip
@@ -62,7 +72,7 @@ format:
 sdk:
 	cd backend/ && ./install-sdk.sh
 
-embassyos-raspi.img: all raspios.img cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep
+eos_raspberrypi-uninit.img: $(ALL_TARGETS) raspios.img cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep | sudo
 	! test -f embassyos-raspi.img || rm embassyos-raspi.img
 	./build/raspberry-pi/make-image.sh
 
@@ -70,41 +80,63 @@ lite-upgrade.img: raspios.img cargo-deps/aarch64-unknown-linux-gnu/release/nc-br
 	! test -f lite-upgrade.img || rm lite-upgrade.img
 	./build/raspberry-pi/make-upgrade-image.sh
 
-eos_raspberrypi.img: raspios.img $(BUILD_SRC) eos.raspberrypi.squashfs $(VERSION_FILE) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE)
+eos_raspberrypi.img: raspios.img $(BUILD_SRC) eos.raspberrypi.squashfs $(VERSION_FILE) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) | sudo
 	! test -f eos_raspberrypi.img || rm eos_raspberrypi.img
 	./build/raspberry-pi/make-initialized-image.sh
 
 # For creating os images. DO NOT USE
-install: all
-	mkdir -p $(DESTDIR)/usr/bin
-	cp backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-init $(DESTDIR)/usr/bin/
-	cp backend/target/$(ARCH)-unknown-linux-gnu/release/embassyd $(DESTDIR)/usr/bin/
-	cp backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-cli $(DESTDIR)/usr/bin/
-	cp backend/target/$(ARCH)-unknown-linux-gnu/release/avahi-alias $(DESTDIR)/usr/bin/
+install: $(ALL_TARGETS)
+	$(call mkdir,$(DESTDIR)/usr/bin)
+	$(call cp,backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-init,$(DESTDIR)/usr/bin/embassy-init)
+	$(call cp,backend/target/$(ARCH)-unknown-linux-gnu/release/embassyd,$(DESTDIR)/usr/bin/embassyd)
+	$(call cp,backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-cli,$(DESTDIR)/usr/bin/embassy-cli)
+	$(call cp,backend/target/$(ARCH)-unknown-linux-gnu/release/avahi-alias,$(DESTDIR)/usr/bin/avahi-alias)
 	
-	mkdir -p $(DESTDIR)/usr/lib
-	rm -rf $(DESTDIR)/usr/lib/embassy
-	cp -r build/lib $(DESTDIR)/usr/lib/embassy
+	$(call mkdir,$(DESTDIR)/usr/lib)
+	$(call rm,$(DESTDIR)/usr/lib/embassy)
+	$(call cp,build/lib,$(DESTDIR)/usr/lib/embassy)
 
-	cp ENVIRONMENT.txt $(DESTDIR)/usr/lib/embassy/
-	cp GIT_HASH.txt $(DESTDIR)/usr/lib/embassy/
-	cp VERSION.txt $(DESTDIR)/usr/lib/embassy/
+	$(call cp,ENVIRONMENT.txt,$(DESTDIR)/usr/lib/embassy/ENVIRONMENT.txt)
+	$(call cp,GIT_HASH.txt,$(DESTDIR)/usr/lib/embassy/GIT_HASH.txt)
+	$(call cp,VERSION.txt,$(DESTDIR)/usr/lib/embassy/VERSION.txt)
 
-	mkdir -p $(DESTDIR)/usr/lib/embassy/container
-	cp libs/target/aarch64-unknown-linux-musl/release/embassy_container_init $(DESTDIR)/usr/lib/embassy/container/embassy_container_init.arm64
-	cp libs/target/x86_64-unknown-linux-musl/release/embassy_container_init $(DESTDIR)/usr/lib/embassy/container/embassy_container_init.amd64
+	$(call mkdir,$(DESTDIR)/usr/lib/embassy/container)
+	$(call cp,libs/target/aarch64-unknown-linux-musl/release/embassy_container_init,$(DESTDIR)/usr/lib/embassy/container/embassy_container_init.arm64)
+	$(call cp,libs/target/x86_64-unknown-linux-musl/release/embassy_container_init,$(DESTDIR)/usr/lib/embassy/container/embassy_container_init.amd64)
 
-	mkdir -p $(DESTDIR)/usr/lib/embassy/system-images
-	cp system-images/compat/docker-images/aarch64.tar $(DESTDIR)/usr/lib/embassy/system-images/compat.tar
-	cp system-images/utils/docker-images/$(ARCH).tar $(DESTDIR)/usr/lib/embassy/system-images/utils.tar
-	cp system-images/binfmt/docker-images/$(ARCH).tar $(DESTDIR)/usr/lib/embassy/system-images/binfmt.tar
+	$(call mkdir,$(DESTDIR)/usr/lib/embassy/system-images)
+	$(call cp,system-images/compat/docker-images/aarch64.tar,$(DESTDIR)/usr/lib/embassy/system-images/compat.tar)
+	$(call cp,system-images/utils/docker-images/$(ARCH).tar,$(DESTDIR)/usr/lib/embassy/system-images/utils.tar)
+	$(call cp,system-images/binfmt/docker-images/$(ARCH).tar,$(DESTDIR)/usr/lib/embassy/system-images/binfmt.tar)
 
-	mkdir -p $(DESTDIR)/var/www/html
-	cp -r frontend/dist/diagnostic-ui $(DESTDIR)/var/www/html/diagnostic
-	cp -r frontend/dist/setup-wizard $(DESTDIR)/var/www/html/setup
-	cp -r frontend/dist/install-wizard $(DESTDIR)/var/www/html/install
-	cp -r frontend/dist/ui $(DESTDIR)/var/www/html/main
-	cp index.html $(DESTDIR)/var/www/html/
+	$(call mkdir,$(DESTDIR)/var/www/html)
+	$(call cp,frontend/dist/diagnostic-ui,$(DESTDIR)/var/www/html/diagnostic)
+	$(call cp,frontend/dist/setup-wizard,$(DESTDIR)/var/www/html/setup)
+	$(call cp,frontend/dist/install-wizard,$(DESTDIR)/var/www/html/install)
+	$(call cp,frontend/dist/ui,$(DESTDIR)/var/www/html/main)
+	$(call cp,index.html,$(DESTDIR)/var/www/html/index.html)
+
+update-overlay:
+	@echo "\033[33m!!! THIS WILL ONLY REFLASH YOUR DEVICE IN MEMORY !!!\033[0m"
+	@echo "\033[33mALL CHANGES WILL BE REVERTED IF YOU RESTART THE DEVICE\033[0m"
+	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
+	@if [ "`ssh $(REMOTE) 'cat /usr/lib/embassy/VERSION.txt'`" != "`cat ./VERSION.txt`" ]; then >&2 echo "Embassy requires migrations: update-overlay is unavailable." && false; fi
+	@if ssh $(REMOTE) "pidof embassy-init"; then >&2 echo "Embassy in INIT: update-overlay is unavailable." && false; fi
+	ssh $(REMOTE) "sudo systemctl stop embassyd"
+	$(MAKE) install REMOTE=$(REMOTE) OS_ARCH=$(OS_ARCH)
+	ssh $(REMOTE) "sudo systemctl start embassyd"
+
+update:
+	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
+	ssh $(REMOTE) "sudo rsync -a --delete --force --info=progress2 /media/embassy/embassyfs/current/ /media/embassy/next/"
+	$(MAKE) install REMOTE=$(REMOTE) DESTDIR=/media/embassy/next OS_ARCH=$(OS_ARCH)
+	ssh $(REMOTE) "sudo touch /media/embassy/config/upgrade && sudo sync && sudo reboot"
+
+emulate-reflash:
+	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
+	ssh $(REMOTE) "sudo rsync -a --delete --force --info=progress2 /media/embassy/embassyfs/current/ /media/embassy/next/"
+	$(MAKE) install REMOTE=$(REMOTE) DESTDIR=/media/embassy/next OS_ARCH=$(OS_ARCH)
+	ssh $(REMOTE) "sudo touch /media/embassy/config/upgrade && sudo rm -f /media/embassy/config/disk.guid && sudo sync && sudo reboot"
 
 system-images/compat/docker-images/aarch64.tar: $(COMPAT_SRC)
 	cd system-images/compat && make

@@ -81,6 +81,7 @@ emver = { version = "0.1.7", git = "https://github.com/Start9Labs/emver-rs.git",
 fd-lock-rs = "0.1.4"
 futures = "0.3.21"
 git-version = "0.3.5"
+gpt = "3.0.0"
 helpers = { path = "../libs/helpers" }
 embassy_container_init = { path = "../libs/embassy_container_init" }
 hex = "0.4.3"

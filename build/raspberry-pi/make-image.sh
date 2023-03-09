@@ -10,7 +10,7 @@ function partition_for () {
     fi
 }
 
-TARGET_NAME=embassyos-raspi.img
+TARGET_NAME=embassyos-raspi-uninit.img
 TARGET_SIZE=2400000000
 
 cp raspios.img $TARGET_NAME

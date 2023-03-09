@@ -11,6 +11,7 @@ pub mod bind;
 pub mod block_dev;
 pub mod cifs;
 pub mod ecryptfs;
+pub mod efivarfs;
 pub mod httpdirfs;
 pub mod label;
 
