@@ -132,7 +132,7 @@ update:
 	$(MAKE) install REMOTE=$(REMOTE) DESTDIR=/media/embassy/next OS_ARCH=$(OS_ARCH)
 	ssh $(REMOTE) "sudo touch /media/embassy/config/upgrade && sudo sync && sudo reboot"
 
-reflash:
+emulate-reflash:
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
 	ssh $(REMOTE) "sudo rsync -a --delete --force --info=progress2 /media/embassy/embassyfs/current/ /media/embassy/next/"
 	$(MAKE) install REMOTE=$(REMOTE) DESTDIR=/media/embassy/next OS_ARCH=$(OS_ARCH)
