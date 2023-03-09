@@ -476,7 +476,7 @@ export const mockPatchData: DataModel = {
       manifest: {
         id: 'lnd',
         title: 'Lightning Network Daemon',
-        version: '0.11.1',
+        version: '0.11.0',
         description: {
           short: 'A bolt spec compliant client.',
           long: 'More info about LND. More info about LND. More info about LND.',
@@ -626,7 +626,10 @@ export const mockPatchData: DataModel = {
         },
       },
       installed: {
-        manifest: {} as Manifest,
+        manifest: {
+          ...Mock.MockManifestLnd,
+          version: '0.11.0',
+        },
         'last-backup': null,
         status: {
           configured: true,

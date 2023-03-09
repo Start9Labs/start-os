@@ -725,7 +725,7 @@ export module Mock {
         manifest: {
           ...Mock.MockManifestLnd,
           version: '0.11.1',
-          'release-notes': 'release notes for LND 0.11.0',
+          'release-notes': 'release notes for LND 0.11.1',
         },
         categories: ['bitcoin', 'lightning', 'cryptocurrency'],
         versions: ['0.11.0', '0.11.1'],
@@ -1838,9 +1838,9 @@ export module Mock {
   export const lnd: PackageDataEntry = {
     state: PackageState.Installed,
     'static-files': {
-      license: '/public/package-data/lnd/0.20.0/LICENSE.md',
+      license: '/public/package-data/lnd/0.11.0/LICENSE.md',
       icon: '/assets/img/service-icons/lnd.png',
-      instructions: '/public/package-data/lnd/0.20.0/INSTRUCTIONS.md',
+      instructions: '/public/package-data/lnd/0.11.0/INSTRUCTIONS.md',
     },
     manifest: MockManifestLnd,
     installed: {
