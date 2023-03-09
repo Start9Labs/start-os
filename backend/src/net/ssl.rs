@@ -320,7 +320,7 @@ impl std::fmt::Display for SANInfo {
                 write!(f, ",")?;
             }
             written = true;
-            write!(f, "DNS:{dns},DNS:*.{dns}")?;
+            write!(f, "{dns}")?;
         }
         for ip in &self.ips {
             if written {
