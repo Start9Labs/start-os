@@ -35,7 +35,7 @@ impl Version {
     #[cfg(test)]
     fn as_sem_ver(&self) -> emver::Version {
         match self {
-            Version::LT0_3_4_3(LTWrapper(x)) => x.semver(),
+            Version::LT0_3_4_3(LTWrapper(_, x)) => x.semver(),
             Version::V0_3_4_3(Wrapper(x)) => x.semver(),
             Version::V0_4_0(Wrapper(x)) => x.semver(),
             Version::Other(x) => x.clone(),
