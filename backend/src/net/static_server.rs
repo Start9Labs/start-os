@@ -429,7 +429,7 @@ async fn file_send(
     let mut builder = Response::builder().status(StatusCode::OK);
     builder = with_e_tag(path, &metadata, builder)?;
     builder = with_content_type(path, builder);
-    let body = if accept_encoding.contains(&"br") && metadata.len() > u16::MAX as u64 {
+    let body = if false && accept_encoding.contains(&"br") && metadata.len() > u16::MAX as u64 {
         builder = builder.header(CONTENT_ENCODING, "br");
         Body::wrap_stream(ReaderStream::new(BrotliEncoder::new(BufReader::new(file))))
     } else if accept_encoding.contains(&"gzip") && metadata.len() > u16::MAX as u64 {
