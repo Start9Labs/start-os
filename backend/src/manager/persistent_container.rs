@@ -52,7 +52,6 @@ pub async fn spawn_persistent_container(
             let mut send_inserter: Option<oneshot::Sender<Receiver<Arc<UnixRpcClient>>>> = Some(send_inserter);
             loop {
                 if let Err(e) = async {
-                    let generated_certificate = generate_certificate(&*seed).await?;
                     let (mut runtime, inserter) =
                         long_running_docker(&seed, &container).await?;
 
