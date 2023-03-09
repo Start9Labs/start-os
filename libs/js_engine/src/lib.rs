@@ -1559,7 +1559,7 @@ mod fns {
             callback.map(|id| Callback::new(id, sender)),
         )
         .await
-        .map_err(|e| anyhow!("Couldn't get service config: {e:?}"))
+        .map_err(|e| anyhow!("Couldn't get service config: {e}"))
     }
 
     #[op]
@@ -1585,7 +1585,7 @@ mod fns {
         };
         os.bind_onion(internal_port, address_schema)
             .await
-            .map_err(|e| anyhow!("{e:?}"))
+            .map_err(|e| anyhow!("{e}"))
     }
     #[op]
     async fn bind_local(
@@ -1610,16 +1610,16 @@ mod fns {
         };
         os.bind_local(internal_port, address_schema)
             .await
-            .map_err(|e| anyhow!("{e:?}"))
+            .map_err(|e| anyhow!("{e}"))
     }
 
     #[op]
-    fn set_started(state: &mut OpState) {
+    fn set_started(state: &mut OpState) -> Result<(), AnyError> {
         let os = {
             let ctx = state.borrow::<JsContext>();
             ctx.os.clone()
         };
-        os.set_started()
+        os.set_started().map_err(|e| anyhow!("{e}"))
     }
 
     #[op]
@@ -1639,7 +1639,7 @@ mod fns {
             let ctx = state.borrow::<JsContext>();
             ctx.os.clone()
         };
-        os.restart().await;
+        os.restart().await.map_err(|e| anyhow!("{e}"))?;
 
         Ok(())
     }
@@ -1661,7 +1661,7 @@ mod fns {
             let ctx = state.borrow::<JsContext>();
             ctx.os.clone()
         };
-        os.start().await;
+        os.start().await.map_err(|e| anyhow!("{e}"))?;
 
         Ok(())
     }
@@ -1683,7 +1683,7 @@ mod fns {
             let ctx = state.borrow::<JsContext>();
             ctx.os.clone()
         };
-        os.stop().await;
+        os.stop().await.map_err(|e| anyhow!("{e}"))?;
 
         Ok(())
     }

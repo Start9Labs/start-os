@@ -236,7 +236,7 @@ mod tests {
     use tokio::sync::watch;
 
     struct OsApiMock {
-        config_callbacks: (watch::Sender<Vec<Callback>>, watch::Sender<Vec<Callback>>),
+        config_callbacks: watch::Sender<Vec<Callback>>,
     }
     impl Default for OsApiMock {
         fn default() -> Self {
@@ -974,7 +974,7 @@ mod tests {
                     continue;
                 }
                 api.config_callbacks.send_modify(|x| {
-                    x[0](json!("This is something across the wire!"))
+                    x[0].call(vec![json!("This is something across the wire!")])
                         .map_err(|e| format!("Failed call"))
                         .unwrap();
                 });
