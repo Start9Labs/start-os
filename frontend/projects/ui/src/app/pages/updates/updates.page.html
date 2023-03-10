@@ -13,7 +13,7 @@
       <div class="header">
         <div class="header_items">
           <store-icon [url]="host.url" size="48px"></store-icon>
-          <div class="pl-1">
+          <div class="header_title pl-1">
             <h1>{{ host.name }}</h1>
             <p>{{ host.url }}</p>
           </div>
@@ -40,7 +40,7 @@
                         <ion-item slot="header">
                           <ion-col class="accordian-padding">
                             <ion-row
-                              (click)="viewInMarketplace(local)"
+                              (click)="viewInMarketplace($event, local)"
                               style="cursor: pointer"
                             >
                               <ion-thumbnail class="align-center">
@@ -49,8 +49,8 @@
                                 />
                               </ion-thumbnail>
                               <ion-label class="pl-1">
-                                <h1>{{ pkg.manifest.title }}</h1>
-                                <h2 class="inline">
+                                <h2>{{ pkg.manifest.title }}</h2>
+                                <h3 class="inline">
                                   <span>
                                     {{ local.manifest.version | displayEmver }}
                                   </span>
@@ -60,7 +60,7 @@
                                   <ion-text color="success">
                                     {{ pkg.manifest.version | displayEmver }}
                                   </ion-text>
-                                </h2>
+                                </h3>
                                 <p
                                   *ngIf="marketplaceService.updateErrors[pkg.manifest.id] as error"
                                 >
@@ -76,8 +76,8 @@
                               *ngIf="local.state === PackageState.Updating else notUpdating"
                               [current]="local['install-progress'] | installProgress"
                               [max]="100"
-                              [radius]="15"
-                              [stroke]="4"
+                              [radius]="13"
+                              [stroke]="3"
                               [rounded]="true"
                               color="var(--ion-color-primary)"
                             ></round-progress>
@@ -103,6 +103,7 @@
                         </ion-item>
                         <div class="ion-padding" slot="content">
                           <div class="notes">
+                            <h4>What's new</h4>
                             <p
                               [innerHTML]="pkg.manifest['release-notes'] | markdown"
                             ></p>
