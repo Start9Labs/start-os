@@ -1,22 +1,16 @@
 <!-- release notes -->
 <ion-item-divider>
   New in {{ pkg.manifest.version | displayEmver }}
-  <ion-button
-    routerLink="notes"
-    class="all-notes"
-    fill="clear"
-    color="dark"
-    strong
-  >
-    Past Release Notes
-    <ion-icon slot="end" name="arrow-forward"></ion-icon>
-  </ion-button>
 </ion-item-divider>
 <ion-item lines="none" color="transparent">
   <ion-label>
     <div [innerHTML]="pkg.manifest['release-notes'] | markdown"></div>
   </ion-label>
 </ion-item>
+<ion-button routerLink="notes" fill="clear" strong>
+  Past Release Notes
+  <ion-icon slot="end" name="arrow-forward"></ion-icon>
+</ion-button>
 <!-- description -->
 <ion-item-divider>Description</ion-item-divider>
 <ion-item lines="none" color="transparent">
@@ -29,7 +23,7 @@
   style="padding: 4px 0 10px 14px"
 >
   <ion-button [href]="url" target="_blank" rel="noreferrer" color="tertiary">
-    View marketing website
+    View website
     <ion-icon slot="end" name="open-outline"></ion-icon>
   </ion-button>
 </div>

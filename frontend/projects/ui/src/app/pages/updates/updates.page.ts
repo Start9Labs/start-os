@@ -58,7 +58,8 @@ export class UpdatesPage {
     private readonly alertCtrl: AlertController,
   ) {}
 
-  viewInMarketplace(pkg: PackageDataEntry) {
+  viewInMarketplace(event: Event, pkg: PackageDataEntry) {
+    event.stopPropagation()
     const url = pkg.installed?.['marketplace-url']
     const queryParams = url ? { url } : {}
 

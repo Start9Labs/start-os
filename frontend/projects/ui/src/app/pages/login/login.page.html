@@ -12,7 +12,7 @@
           <ion-card-content class="ion-margin">
             <form class="form" (submit)="submit()">
               <ion-item-group>
-                <ion-item color="light">
+                <ion-item color="dark">
                   <ion-icon
                     slot="start"
                     name="key-outline"
@@ -25,7 +25,7 @@
                     [(ngModel)]="password"
                     (ionChange)="error = ''"
                   ></ion-input>
-                  <ion-button fill="clear" color="dark" (click)="toggleMask()">
+                  <ion-button fill="clear" color="light" (click)="toggleMask()">
                     <ion-icon
                       slot="icon-only"
                       size="small"

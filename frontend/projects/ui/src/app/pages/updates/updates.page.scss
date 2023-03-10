@@ -5,6 +5,11 @@
 
 .notes {
   margin-left: 20px;
+
+  h4 {
+    font-size: 1rem;
+    font-weight: 600;
+  }
 }
 
 .header {
@@ -18,8 +23,6 @@
   }
 
   h1 {
-    font-size: 28px;
-    letter-spacing: 1px;
     margin: 0 0 5px 0;
   }
 
@@ -51,6 +54,16 @@ p {
 
 ion-item {
   --background-hover: none;
+}
+
+ion-label {
+  h2 {
+    font-size: 1.2rem;
+  }
+
+  h3 {
+    font-size: 1rem;
+  }
 }
 
 .accordian-padding {

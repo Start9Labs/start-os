@@ -43,8 +43,6 @@
               }
             ],
             "styles": [
-              "node_modules/@taiga-ui/core/styles/taiga-ui-theme.less",
-              "node_modules/@taiga-ui/core/styles/taiga-ui-fonts.less",
               "projects/shared/styles/variables.scss",
               "projects/shared/styles/global.scss",
               "projects/shared/styles/shared.scss",
