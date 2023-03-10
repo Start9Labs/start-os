@@ -13,7 +13,7 @@ use crate::net::dns::DnsController;
 use crate::net::keys::Key;
 #[cfg(feature = "avahi")]
 use crate::net::mdns::MdnsController;
-use crate::net::ssl::{export_cert, SslManager};
+use crate::net::ssl::{export_cert, export_key, SslManager};
 use crate::net::tor::TorController;
 use crate::net::vhost::VHostController;
 use crate::s9pk::manifest::PackageId;
@@ -304,7 +304,18 @@ impl NetService {
         let key = Key::for_interface(secrets, Some((self.id.clone(), id.clone()))).await?;
         let ctrl = self.net_controller()?;
         let cert = ctrl.ssl.with_certs(key, ip).await?;
-        export_cert(&cert.fullchain_nistp256(), &cert_dir(&self.id, id)).await?; // TODO: can upgrade to ed25519?
+        let cert_dir = cert_dir(&self.id, id);
+        tokio::fs::create_dir_all(&cert_dir).await?;
+        export_key(
+            &cert.key().openssl_key_nistp256(),
+            &cert_dir.join(format!("{id}.key.pem")),
+        )
+        .await?;
+        export_cert(
+            &cert.fullchain_nistp256(),
+            &cert_dir.join(format!("{id}.cert.pem")),
+        )
+        .await?; // TODO: can upgrade to ed25519?
         Ok(())
     }
     pub async fn remove_all(mut self) -> Result<(), Error> {
