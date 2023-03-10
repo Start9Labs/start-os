@@ -21,7 +21,7 @@ use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
 use crate::sound::BEP;
 use crate::system::time;
 use crate::util::Invoke;
-use crate::Error;
+use crate::{Error, ARCH};
 
 pub const SYSTEM_REBUILD_PATH: &str = "/media/embassy/config/system-rebuild";
 pub const STANDBY_MODE_PATH: &str = "/media/embassy/config/standby";
@@ -277,7 +277,10 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     }
 
     let should_rebuild = tokio::fs::metadata(SYSTEM_REBUILD_PATH).await.is_ok()
-        || &*receipts.server_version.get(&mut handle).await? < &emver::Version::new(0, 3, 2, 0);
+        || &*receipts.server_version.get(&mut handle).await? < &emver::Version::new(0, 3, 2, 0)
+        || (*ARCH == "x86_64"
+            && &*receipts.server_version.get(&mut handle).await?
+                < &emver::Version::new(0, 3, 4, 0));
 
     let song = if should_rebuild {
         Some(NonDetachingJoinHandle::from(tokio::spawn(async {

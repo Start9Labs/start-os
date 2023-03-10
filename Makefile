@@ -19,7 +19,7 @@ FRONTEND_DIAGNOSTIC_UI_SRC := $(shell find frontend/projects/diagnostic-ui)
 FRONTEND_INSTALL_WIZARD_SRC := $(shell find frontend/projects/install-wizard)
 PATCH_DB_CLIENT_SRC := $(shell find patch-db/client -not -path patch-db/client/dist)
 GZIP_BIN := $(shell which pigz || which gzip)
-ALL_TARGETS := $(EMBASSY_BINS) system-images/compat/docker-images/aarch64.tar system-images/utils/docker-images/$(ARCH).tar system-images/binfmt/docker-images/$(ARCH).tar $(EMBASSY_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE)
+ALL_TARGETS := $(EMBASSY_BINS) system-images/compat/docker-images/$(ARCH).tar system-images/utils/docker-images/$(ARCH).tar system-images/binfmt/docker-images/$(ARCH).tar $(EMBASSY_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE)
 
 ifeq ($(REMOTE),)
 	mkdir = mkdir -p $1
@@ -105,7 +105,7 @@ install: $(ALL_TARGETS)
 	$(call cp,libs/target/x86_64-unknown-linux-musl/release/embassy_container_init,$(DESTDIR)/usr/lib/embassy/container/embassy_container_init.amd64)
 
 	$(call mkdir,$(DESTDIR)/usr/lib/embassy/system-images)
-	$(call cp,system-images/compat/docker-images/aarch64.tar,$(DESTDIR)/usr/lib/embassy/system-images/compat.tar)
+	$(call cp,system-images/compat/docker-images/$(ARCH).tar,$(DESTDIR)/usr/lib/embassy/system-images/compat.tar)
 	$(call cp,system-images/utils/docker-images/$(ARCH).tar,$(DESTDIR)/usr/lib/embassy/system-images/utils.tar)
 	$(call cp,system-images/binfmt/docker-images/$(ARCH).tar,$(DESTDIR)/usr/lib/embassy/system-images/binfmt.tar)
 
@@ -138,7 +138,7 @@ emulate-reflash:
 	$(MAKE) install REMOTE=$(REMOTE) DESTDIR=/media/embassy/next OS_ARCH=$(OS_ARCH)
 	ssh $(REMOTE) "sudo touch /media/embassy/config/upgrade && sudo rm -f /media/embassy/config/disk.guid && sudo sync && sudo reboot"
 
-system-images/compat/docker-images/aarch64.tar: $(COMPAT_SRC)
+system-images/compat/docker-images/aarch64.tar system-images/compat/docker-images/x86_64.tar: $(COMPAT_SRC)
 	cd system-images/compat && make
 
 system-images/utils/docker-images/aarch64.tar system-images/utils/docker-images/x86_64.tar: $(UTILS_SRC)
