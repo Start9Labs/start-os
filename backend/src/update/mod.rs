@@ -198,7 +198,7 @@ async fn maybe_do_update(
 async fn do_update(ctx: RpcContext, eos_url: EosUrl) -> Result<(), Error> {
     let mut rsync = Rsync::new(
         eos_url.rsync_path()?,
-        "/media/embassy/next",
+        "/media/embassy/next/",
         Default::default(),
     )
     .await?;
@@ -303,7 +303,7 @@ async fn sync_boot() -> Result<(), Error> {
         RsyncOptions {
             delete: false,
             force: false,
-            ignore_existing: true,
+            ignore_existing: false,
             exclude: Vec::new(),
             no_permissions: false,
         },

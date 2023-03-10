@@ -27,6 +27,17 @@ sed -i "s/http:/https:/g" /etc/apt/sources.list /etc/apt/sources.list.d/*.list
 
 KERN=$(dpkg -s raspberrypi-kernel | grep Version | awk '{print $2}')
 apt-get update
+
+# TODO remove in 0.4.0
+if [ "$KERN" != "1:1.20221104-1" ]; then
+	wget https://archive.raspberrypi.org/debian/pool/main/r/raspberrypi-firmware/raspberrypi-kernel_1.20221104-1_arm64.deb
+	sha256sum raspberrypi-kernel_1.20221104-1_arm64.deb | grep 9de9fe61e17eab351b6d4c8ee42d836c16b066f3593a4a9626283df6df718e42
+	apt-get install -y --allow-change-held-packages --allow-downgrades ./raspberrypi-kernel_1.20221104-1_arm64.deb
+	rm ./raspberrypi-kernel_1.20221104-1_arm64.deb
+fi
+apt-mark hold raspberrypi-bootloader
+apt-mark hold raspberrypi-kernel
+
 apt-get upgrade -y
 if [ "$KERN" != "$(dpkg -s raspberrypi-kernel | grep Version | awk '{print $2}')" ]; then
 	echo "Kernel updated, restarting..."

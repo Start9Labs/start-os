@@ -45,8 +45,8 @@ sudo:
 clean:
 	rm -f 2022-01-28-raspios-bullseye-arm64-lite.zip
 	rm -f raspios.img
-	rm -f embassyos-raspi.img
-	rm -f embassyos-raspi.tar.gz
+	rm -f eos_raspberrypi-uninit.img
+	rm -f eos_raspberrypi-uninit.tar.gz
 	rm -f ubuntu.img
 	rm -f product_key.txt
 	rm -f system-images/**/*.tar
