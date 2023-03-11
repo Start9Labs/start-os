@@ -13,10 +13,12 @@ if tty -s; then
 	USE_TTY="-it"
 fi
 
-alias 'rust-musl-builder'='docker run $USE_TTY --rm -v "$HOME"/.cargo/registry:/root/.cargo/registry -v "$(pwd)":/home/rust/src start9/rust-musl-cross:aarch64-musl'
+alias 'rust-arm64-musl-builder'='docker run $USE_TTY --rm -v "$HOME"/.cargo/registry:/root/.cargo/registry -v "$(pwd)":/home/rust/src messense/rust-musl-cross:aarch64-musl'
+alias 'rust-x86_64-musl-builder'='docker run $USE_TTY --rm -v "$HOME"/.cargo/registry:/root/.cargo/registry -v "$(pwd)":/home/rust/src messense/rust-musl-cross:x86_64-musl'
 
 cd ../..
-rust-musl-builder sh -c "(git config --global --add safe.directory '*'; cd system-images/compat && cargo +beta build --release --target=aarch64-unknown-linux-musl --no-default-features)"
+rust-arm64-musl-builder sh -c "(git config --global --add safe.directory '*'; cd system-images/compat && cargo build --release --target=aarch64-unknown-linux-musl --no-default-features)"
+rust-x86_64-musl-builder sh -c "(git config --global --add safe.directory '*'; cd system-images/compat && cargo build --release --target=x86_64-unknown-linux-musl --no-default-features)"
 cd system-images/compat
 
 sudo chown -R $USER target
