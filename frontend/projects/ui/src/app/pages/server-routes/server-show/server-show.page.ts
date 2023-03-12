@@ -391,7 +391,7 @@ export class ServerShowPage {
       },
       {
         title: 'Browser Tab Title',
-        description: `Customize the display name of your browser tab.`,
+        description: `Customize the display name of your browser tab`,
         icon: 'pricetag-outline',
         action: () => this.setBrowserTab(),
         detail: false,
