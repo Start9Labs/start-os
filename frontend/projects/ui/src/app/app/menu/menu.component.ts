@@ -6,7 +6,15 @@ import {
 } from '@angular/core'
 import { EOSService } from '../../services/eos.service'
 import { PatchDB } from 'patch-db-client'
-import { combineLatest, filter, first, map, Observable, switchMap } from 'rxjs'
+import {
+  combineLatest,
+  filter,
+  first,
+  map,
+  Observable,
+  startWith,
+  switchMap,
+} from 'rxjs'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
@@ -60,8 +68,22 @@ export class MenuComponent {
 
   private readonly local$ = this.connectionService.connected$.pipe(
     filter(Boolean),
-    switchMap(() => this.patch.watch$('package-data')),
-    first(),
+    switchMap(() =>
+      this.patch.watch$('package-data').pipe(
+        first(),
+        switchMap(pkgs =>
+          this.patch.watch$('package-data').pipe(
+            filter(
+              pkgs =>
+                !!Object.values(pkgs).find(
+                  pkg => pkg['install-progress']?.['unpack-complete'],
+                ),
+            ),
+            startWith(pkgs),
+          ),
+        ),
+      ),
+    ),
   )
 
   readonly updateCount$: Observable<number> = combineLatest([

@@ -9,12 +9,12 @@
 
 <ion-content class="with-widgets">
   <ion-item-group *ngIf="data$ | async as data">
-    <ng-container *ngFor="let host of data.hosts">
+    <div *ngFor="let host of data.hosts">
       <div class="header">
         <div class="header_items">
-          <store-icon [url]="host.url" size="48px"></store-icon>
-          <div class="header_title pl-1">
-            <h1>{{ host.name }}</h1>
+          <store-icon [url]="host.url" size="39px"></store-icon>
+          <div class="header_title">
+            <h2>{{ host.name }}</h2>
             <p>{{ host.url }}</p>
           </div>
         </div>
@@ -30,92 +30,79 @@
         <ng-container
           *ngIf="packages | filterUpdates : data.localPkgs as updates"
         >
-          <ion-grid>
-            <div *ngFor="let pkg of updates">
-              <ng-container *ngIf="data.localPkgs[pkg.manifest.id] as local">
-                <ion-row>
-                  <ion-col>
-                    <ion-accordion-group class="accordian-padding">
-                      <ion-accordion class="item-container">
-                        <ion-item slot="header">
-                          <ion-col class="accordian-padding">
-                            <ion-row
-                              (click)="viewInMarketplace($event, local)"
-                              style="cursor: pointer"
-                            >
-                              <ion-thumbnail class="align-center">
-                                <img
-                                  [src]="'data:image/png;base64,' + pkg.icon | trustUrl"
-                                />
-                              </ion-thumbnail>
-                              <ion-label class="pl-1">
-                                <h2>{{ pkg.manifest.title }}</h2>
-                                <h3 class="inline">
-                                  <span>
-                                    {{ local.manifest.version | displayEmver }}
-                                  </span>
-                                  &nbsp;
-                                  <ion-icon name="arrow-forward"></ion-icon>
-                                  &nbsp;
-                                  <ion-text color="success">
-                                    {{ pkg.manifest.version | displayEmver }}
-                                  </ion-text>
-                                </h3>
-                                <p
-                                  *ngIf="marketplaceService.updateErrors[pkg.manifest.id] as error"
-                                >
-                                  <ion-text color="danger">
-                                    {{ error }}
-                                  </ion-text>
-                                </p>
-                              </ion-label>
-                            </ion-row>
-                          </ion-col>
-                          <div class="align-center">
-                            <round-progress
-                              *ngIf="local.state === PackageState.Updating else notUpdating"
-                              [current]="local['install-progress'] | installProgress"
-                              [max]="100"
-                              [radius]="13"
-                              [stroke]="3"
-                              [rounded]="true"
-                              color="var(--ion-color-primary)"
-                            ></round-progress>
-                            <ng-template #notUpdating>
-                              <ion-spinner
-                                *ngIf="marketplaceService.updateQueue[pkg.manifest.id] else updateBtn"
-                                color="dark"
-                              ></ion-spinner>
-                              <ng-template #updateBtn>
-                                <ion-button
-                                  (click)="tryUpdate(pkg.manifest, host.url, local)"
-                                  [color]="marketplaceService.updateErrors[pkg.manifest.id] ? 'danger' : 'tertiary'"
-                                  strong
-                                  size="default"
-                                >
-                                  {{
-                                  marketplaceService.updateErrors[pkg.manifest.id]
-                                  ? 'Retry' : 'Update' }}
-                                </ion-button>
-                              </ng-template>
-                            </ng-template>
-                          </div>
-                        </ion-item>
-                        <div class="ion-padding" slot="content">
-                          <div class="notes">
-                            <h4>What's new</h4>
-                            <p
-                              [innerHTML]="pkg.manifest['release-notes'] | markdown"
-                            ></p>
-                          </div>
-                        </div>
-                      </ion-accordion>
-                    </ion-accordion-group>
-                  </ion-col>
-                </ion-row>
-              </ng-container>
+          <ion-accordion-group multiple="true" class="ion-padding-start">
+            <div *ngFor="let pkg of updates" class="item-container">
+              <ion-accordion *ngIf="data.localPkgs[pkg.manifest.id] as local">
+                <ion-item lines="none" slot="header">
+                  <ion-thumbnail slot="start">
+                    <img
+                      [src]="'data:image/png;base64,' + pkg.icon | trustUrl"
+                    />
+                  </ion-thumbnail>
+                  <ion-label>
+                    <h1 style="line-height: 1.3">{{ pkg.manifest.title }}</h1>
+                    <h2 class="inline">
+                      <span>{{ local.manifest.version | displayEmver }}</span>
+                      &nbsp;
+                      <ion-icon name="arrow-forward"></ion-icon>
+                      &nbsp;
+                      <ion-text color="success">
+                        {{ pkg.manifest.version | displayEmver }}
+                      </ion-text>
+                    </h2>
+                    <p
+                      *ngIf="marketplaceService.updateErrors[pkg.manifest.id] as error"
+                    >
+                      <ion-text color="danger">{{ error }}</ion-text>
+                    </p>
+                  </ion-label>
+                  <div slot="end" style="margin-left: 4px">
+                    <round-progress
+                      *ngIf="local.state === 'updating' else notUpdating"
+                      [current]="local['install-progress'] | installProgress"
+                      [max]="100"
+                      [radius]="13"
+                      [stroke]="3"
+                      [rounded]="true"
+                      color="var(--ion-color-primary)"
+                    ></round-progress>
+                    <ng-template #notUpdating>
+                      <ion-spinner
+                        *ngIf="marketplaceService.updateQueue[pkg.manifest.id] else updateBtn"
+                        color="dark"
+                      ></ion-spinner>
+                      <ng-template #updateBtn>
+                        <ion-button
+                          (click)="tryUpdate(pkg.manifest, host.url, local, $event)"
+                          [color]="marketplaceService.updateErrors[pkg.manifest.id] ? 'danger' : 'tertiary'"
+                          strong
+                        >
+                          {{ marketplaceService.updateErrors[pkg.manifest.id] ?
+                          'Retry' : 'Update' }}
+                        </ion-button>
+                      </ng-template>
+                    </ng-template>
+                  </div>
+                </ion-item>
+                <div class="ion-padding" slot="content">
+                  <div class="notes">
+                    <h5>What's new</h5>
+                    <p
+                      [innerHTML]="pkg.manifest['release-notes'] | markdown"
+                    ></p>
+                  </div>
+                  <ion-button
+                    fill="clear"
+                    strong
+                    (click)="viewInMarketplace($event, local)"
+                  >
+                    View listing
+                    <ion-icon slot="end" name="open-outline"></ion-icon>
+                  </ion-button>
+                </div>
+              </ion-accordion>
             </div>
-          </ion-grid>
+          </ion-accordion-group>
           <ion-item
             *ngIf="!updates.length"
             class="ion-text-center ion-padding"
@@ -127,8 +114,10 @@
       </ng-container>
 
       <ng-template #loading>
-        <skeleton-list [showAvatar]="true" [rows]="2"></skeleton-list>
+        <div class="ion-padding">
+          <skeleton-list [showAvatar]="true" [rows]="2"></skeleton-list>
+        </div>
       </ng-template>
-    </ng-container>
+    </div>
   </ion-item-group>
 </ion-content>
