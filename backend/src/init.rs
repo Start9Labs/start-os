@@ -319,16 +319,8 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     }
     let tmp_docker = cfg.datadir().join("package-data/tmp/docker");
     let tmp_docker_exists = tokio::fs::metadata(&tmp_docker).await.is_ok();
-    if should_rebuild || !tmp_docker_exists {
-        if tmp_docker_exists {
-            tokio::fs::remove_dir_all(&tmp_docker).await?;
-        }
-        Command::new("cp")
-            .arg("-ra")
-            .arg("/var/lib/docker")
-            .arg(&tmp_docker)
-            .invoke(crate::ErrorKind::Filesystem)
-            .await?;
+    if should_rebuild && tmp_docker_exists {
+        tokio::fs::remove_dir_all(&tmp_docker).await?;
     }
     Command::new("systemctl")
         .arg("stop")
