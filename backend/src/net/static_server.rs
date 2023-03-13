@@ -10,6 +10,7 @@ use digest::Digest;
 use futures::FutureExt;
 use http::header::ACCEPT_ENCODING;
 use http::header::CONTENT_ENCODING;
+use http::request::Parts as RequestParts;
 use http::response::Builder;
 use hyper::{Body, Method, Request, Response, StatusCode};
 use openssl::hash::MessageDigest;
@@ -252,6 +253,7 @@ async fn alt_ui(req: Request<Body>, ui_mode: UiMode) -> Result<Response<Body>, E
 
             let full_path = Path::new(selected_root_dir).join(uri_path);
             file_send(
+                &request_parts,
                 if tokio::fs::metadata(&full_path)
                     .await
                     .ok()
@@ -298,6 +300,7 @@ async fn main_embassy_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response
                     let sub_path = Path::new(path);
                     if let Ok(rest) = sub_path.strip_prefix("package-data") {
                         file_send(
+                            &request_parts,
                             ctx.datadir.join(PKG_PUBLIC_DIR).join(rest),
                             &accept_encoding,
                         )
@@ -330,6 +333,7 @@ async fn main_embassy_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response
 
             let full_path = Path::new(selected_root_dir).join(uri_path);
             file_send(
+                &request_parts,
                 if tokio::fs::metadata(&full_path)
                     .await
                     .ok()
@@ -406,6 +410,7 @@ fn cert_send(cert: &X509) -> Result<Response<Body>, Error> {
 }
 
 async fn file_send(
+    req: &RequestParts,
     path: impl AsRef<Path>,
     accept_encoding: &[&str],
 ) -> Result<Response<Body>, Error> {
@@ -421,40 +426,52 @@ async fn file_send(
         .await
         .with_ctx(|_| (ErrorKind::Filesystem, path.display().to_string()))?;
 
-    match IsNonEmptyFile::new(&metadata, path) {
-        Some(a) => a,
-        None => return Ok(not_found()),
-    };
+    let e_tag = e_tag(path, &metadata)?;
 
-    let mut builder = Response::builder().status(StatusCode::OK);
-    builder = with_e_tag(path, &metadata, builder)?;
+    let mut builder = Response::builder();
     builder = with_content_type(path, builder);
-    let body = if false && accept_encoding.contains(&"br") && metadata.len() > u16::MAX as u64 {
-        builder = builder.header(CONTENT_ENCODING, "br");
-        Body::wrap_stream(ReaderStream::new(BrotliEncoder::new(BufReader::new(file))))
-    } else if accept_encoding.contains(&"gzip") && metadata.len() > u16::MAX as u64 {
-        builder = builder.header(CONTENT_ENCODING, "gzip");
-        Body::wrap_stream(ReaderStream::new(GzipEncoder::new(BufReader::new(file))))
-    } else {
-        builder = with_content_length(&metadata, builder);
-        Body::wrap_stream(ReaderStream::new(file))
-    };
-    builder.body(body).with_kind(ErrorKind::Network)
-}
+    builder = builder.header(http::header::ETAG, &e_tag);
+    builder = builder.header(
+        http::header::CACHE_CONTROL,
+        "public, max-age=21000000, immutable",
+    );
 
-struct IsNonEmptyFile(());
-impl IsNonEmptyFile {
-    fn new(metadata: &Metadata, path: &Path) -> Option<Self> {
-        let length = metadata.len();
-        if !metadata.is_file() || length == 0 {
-            tracing::debug!("File is empty: {:?}", path);
-            return None;
-        }
-        Some(Self(()))
+    if req
+        .headers
+        .get_all(http::header::CONNECTION)
+        .iter()
+        .flat_map(|s| s.to_str().ok())
+        .flat_map(|s| s.split(","))
+        .any(|s| s.trim() == "keep-alive")
+    {
+        builder = builder.header(http::header::CONNECTION, "keep-alive");
     }
+
+    if req
+        .headers
+        .get("if-none-match")
+        .and_then(|h| h.to_str().ok())
+        == Some(e_tag.as_str())
+    {
+        builder = builder.status(StatusCode::NOT_MODIFIED);
+        builder.body(Body::empty())
+    } else {
+        let body = if false && accept_encoding.contains(&"br") && metadata.len() > u16::MAX as u64 {
+            builder = builder.header(CONTENT_ENCODING, "br");
+            Body::wrap_stream(ReaderStream::new(BrotliEncoder::new(BufReader::new(file))))
+        } else if accept_encoding.contains(&"gzip") && metadata.len() > u16::MAX as u64 {
+            builder = builder.header(CONTENT_ENCODING, "gzip");
+            Body::wrap_stream(ReaderStream::new(GzipEncoder::new(BufReader::new(file))))
+        } else {
+            builder = with_content_length(&metadata, builder);
+            Body::wrap_stream(ReaderStream::new(file))
+        };
+        builder.body(body)
+    }
+    .with_kind(ErrorKind::Network)
 }
 
-fn with_e_tag(path: &Path, metadata: &Metadata, builder: Builder) -> Result<Builder, Error> {
+fn e_tag(path: &Path, metadata: &Metadata) -> Result<String, Error> {
     let modified = metadata.modified().with_kind(ErrorKind::Filesystem)?;
     let mut hasher = sha2::Sha256::new();
     hasher.update(format!("{:?}", path).as_bytes());
@@ -469,11 +486,12 @@ fn with_e_tag(path: &Path, metadata: &Metadata, builder: Builder) -> Result<Buil
         .as_bytes(),
     );
     let res = hasher.finalize();
-    Ok(builder.header(
-        http::header::ETAG,
-        base32::encode(base32::Alphabet::RFC4648 { padding: false }, res.as_slice()).to_lowercase(),
+    Ok(format!(
+        "\"{}\"",
+        base32::encode(base32::Alphabet::RFC4648 { padding: false }, res.as_slice()).to_lowercase()
     ))
 }
+
 ///https://en.wikipedia.org/wiki/Media_type
 fn with_content_type(path: &Path, builder: Builder) -> Builder {
     let content_type = match path.extension() {
