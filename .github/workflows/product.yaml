@@ -36,13 +36,6 @@ jobs:
       artifact_name: binfmt.tar
       artifact_path: system-images/binfmt/docker-images/aarch64.tar
 
-  nc-broadcast:
-    uses: ./.github/workflows/reusable-workflow.yaml
-    with:
-      build_command: make cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast
-      artifact_name: nc-broadcast.tar
-      artifact_path: cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast
-
   backend:
     uses: ./.github/workflows/backend.yaml
 
@@ -53,7 +46,7 @@ jobs:
     name: Build image
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    needs: [compat,utils,binfmt,nc-broadcast,backend,frontend]
+    needs: [compat,utils,binfmt,backend,frontend]
     steps:
     - uses: actions/checkout@v3
       with:
@@ -76,12 +69,6 @@ jobs:
       with:
         name: binfmt.tar
         path: system-images/binfmt/docker-images/
-
-    - name: Download nc-broadcast.tar artifact
-      uses: actions/download-artifact@v3
-      with:
-        name: nc-broadcast.tar
-        path: cargo-deps/aarch64-unknown-linux-gnu/release
 
     - name: Download js_snapshot artifact
       uses: actions/download-artifact@v3
