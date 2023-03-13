@@ -265,6 +265,7 @@ impl RpcContext {
         self.managers.empty().await?;
         self.secret_store.close().await;
         self.is_closed.store(true, Ordering::SeqCst);
+        tracing::info!("RPC Context is shutdown");
         // TODO: shutdown http servers
         Ok(())
     }
