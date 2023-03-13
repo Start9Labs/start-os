@@ -46,8 +46,6 @@ export class UpdatesPage {
     errors: this.marketplaceService.getRequestErrors$(),
   })
 
-  readonly PackageState = PackageState
-
   constructor(
     @Inject(AbstractMarketplaceService)
     readonly marketplaceService: MarketplaceService,
@@ -72,7 +70,10 @@ export class UpdatesPage {
     manifest: MarketplaceManifest,
     url: string,
     local: PackageDataEntry,
+    e: Event,
   ): Promise<void> {
+    e.stopPropagation()
+
     const { id, version } = manifest
 
     delete this.marketplaceService.updateErrors[id]

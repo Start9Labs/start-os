@@ -57,12 +57,12 @@ export class ServerShowPage {
     @Inject(DOCUMENT) private readonly document: Document,
   ) {}
 
-  async presentModalName(): Promise<void> {
+  async setBrowserTab(): Promise<void> {
     const chosenName = await firstValueFrom(this.patch.watch$('ui', 'name'))
 
     const options: GenericInputOptions = {
-      title: 'Set Device Name',
-      message: 'This will be displayed in your browser tab',
+      title: 'Browser Tab Title',
+      message: `This value will be displayed as the title of your browser tab.`,
       label: 'Device Name',
       useMask: false,
       placeholder: 'embassyOS',
@@ -391,9 +391,9 @@ export class ServerShowPage {
       },
       {
         title: 'Browser Tab Title',
-        description: `Customize the display name of your browser tab. This does not affect your server's LAN address.`,
+        description: `Customize the display name of your browser tab`,
         icon: 'pricetag-outline',
-        action: () => this.presentModalName(),
+        action: () => this.setBrowserTab(),
         detail: false,
         disabled$: of(false),
       },

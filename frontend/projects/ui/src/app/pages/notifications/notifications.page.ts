@@ -15,6 +15,7 @@ import { ErrorToastService } from '@start9labs/shared'
 import { BackupReportPage } from 'src/app/modals/backup-report/backup-report.page'
 import { PatchDB } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
+import { first } from 'rxjs'
 
 @Component({
   selector: 'notifications',
@@ -28,7 +29,7 @@ export class NotificationsPage {
   needInfinite = false
   fromToast = !!this.route.snapshot.queryParamMap.get('toast')
   readonly perPage = 40
-  readonly packageData$ = this.patch.watch$('package-data')
+  readonly packageData$ = this.patch.watch$('package-data').pipe(first())
 
   constructor(
     private readonly embassyApi: ApiService,
