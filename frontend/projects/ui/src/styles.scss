@@ -54,6 +54,20 @@
   src: url('/assets/fonts/Redacted/redacted.regular.ttf');
 }
 
+@font-face {
+  font-family: 'Courier New';
+  font-style: normal;
+  font-weight: normal;
+  src: url('/assets/fonts/Courier_New/CourierNew-Regular.ttf');
+}
+
+@font-face {
+  font-family: 'Courier New';
+  font-style: normal;
+  font-weight: bold;
+  src: url('/assets/fonts/Courier_New/CourierNew-Bold.ttf');
+}
+
 /** Ionic CSS Variables overrides **/
 :root {
   --ion-font-family: 'Open Sans';
