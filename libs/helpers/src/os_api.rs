@@ -7,6 +7,12 @@ use models::{InterfaceId, PackageId};
 use tokio::sync::mpsc;
 
 pub struct RuntimeDropped;
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Algorithm {
+    Ecdsa,
+    Ed25519,
+}
 
 pub struct Callback {
     id: Arc<String>,
@@ -79,4 +85,45 @@ pub trait OsApi: Send + Sync + 'static {
     async fn restart(&self) -> Result<(), Report>;
     async fn start(&self) -> Result<(), Report>;
     async fn stop(&self) -> Result<(), Report>;
+    async fn get_service_local_address(
+        &self,
+        pcakge_id: PackageId,
+        interface_name: &str,
+    ) -> Result<String, Report>;
+    async fn get_service_tor_address(
+        &self,
+        pcakge_id: PackageId,
+        interface_name: &str,
+    ) -> Result<String, Report>;
+    async fn get_service_port_forward(
+        &self,
+        pcakge_id: PackageId,
+        interface_name: &str,
+    ) -> Result<String, Report>;
+    async fn export_address(
+        &self,
+        name: String,
+        description: String,
+        address: String,
+        id: String,
+        ui: bool,
+    ) -> Result<String, Report>;
+    async fn remove_address(&self, id: String) -> Result<(), Report>;
+    async fn export_action(
+        &self,
+        name: String,
+        description: String,
+        id: String,
+        input: Value,
+        group: Option<String>,
+    ) -> Result<(), Report>;
+    async fn remove_action(&self, id: String) -> Result<(), Report>;
+    async fn get_configured(&self) -> Result<bool, Report>;
+    async fn set_configured(&self, configured: bool) -> Result<(), Report>;
+    async fn get_ssl_certificate(
+        &self,
+        id: String,
+        algorithm: Algorithm,
+    ) -> Result<(String, String, String), Report>;
+    async fn get_ssl_key(&self, id: String, algorithm: Algorithm) -> Result<String, Report>;
 }

@@ -22,12 +22,6 @@ use tokio::io::AsyncReadExt;
 use tokio::sync::{mpsc, Mutex};
 use tracing::instrument;
 
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum Algorithm {
-    Ecdsa,
-    Ed25519,
-}
 pub trait PathForVolumeId: Send + Sync {
     fn path_for(
         &self,
@@ -315,6 +309,17 @@ impl JsExecutionEnvironment {
             fns::restart::decl(),
             fns::start::decl(),
             fns::stop::decl(),
+            fns::get_service_local_address::decl(),
+            fns::get_service_tor_address::decl(),
+            fns::get_service_port_forward::decl(),
+            fns::export_address::decl(),
+            fns::remove_address::decl(),
+            fns::export_action::decl(),
+            fns::remove_action::decl(),
+            fns::get_configured::decl(),
+            fns::set_configured::decl(),
+            fns::get_ssl_certifcate::decl(),
+            fns::get_ssl_key::decl(),
         ]
     }
 
@@ -442,8 +447,8 @@ mod fns {
         SendSignal, SendSignalParams, SignalGroup, SignalGroupParams,
     };
     use helpers::{
-        to_tmp_path, AddressSchemaLocal, AddressSchemaOnion, AtomicFile, Callback, Rsync,
-        RsyncOptions,
+        to_tmp_path, AddressSchemaLocal, AddressSchemaOnion, Algorithm, AtomicFile, Callback,
+        Rsync, RsyncOptions,
     };
     use imbl_value::Value;
     use models::{PackageId, VolumeId};
@@ -451,7 +456,7 @@ mod fns {
     use tokio::io::AsyncWriteExt;
 
     use super::{AnswerState, JsContext};
-    use crate::{system_time_as_unix_ms, Algorithm, MetadataJs};
+    use crate::{system_time_as_unix_ms, MetadataJs};
 
     #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Default)]
     struct FetchOptions {
@@ -1057,11 +1062,9 @@ mod fns {
         let volume_path = {
             let state = state.borrow();
             let ctx: &JsContext = state.borrow();
-            let volume_path = ctx
-                .volumes
+            ctx.volumes
                 .path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id)
-                .ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?;
-            volume_path
+                .ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?
         };
         let new_file = volume_path.join(path_in);
 
@@ -1565,24 +1568,45 @@ mod fns {
         state: Rc<RefCell<OpState>>,
         package_id: PackageId,
         interface_name: String,
-    ) -> Result<(), AnyError> {
-        todo!()
+    ) -> Result<String, AnyError> {
+        let os = {
+            let state = state.borrow();
+            let ctx = state.borrow::<JsContext>();
+            ctx.os.clone()
+        };
+        os.get_service_local_address(package_id, &interface_name)
+            .await
+            .map_err(|e| anyhow!("{e}"))
     }
     #[op]
     async fn get_service_tor_address(
         state: Rc<RefCell<OpState>>,
         package_id: PackageId,
         interface_name: String,
-    ) -> Result<(), AnyError> {
-        todo!()
+    ) -> Result<String, AnyError> {
+        let os = {
+            let state = state.borrow();
+            let ctx = state.borrow::<JsContext>();
+            ctx.os.clone()
+        };
+        os.get_service_tor_address(package_id, &interface_name)
+            .await
+            .map_err(|e| anyhow!("{e}"))
     }
     #[op]
     async fn get_service_port_forward(
         state: Rc<RefCell<OpState>>,
         package_id: PackageId,
         interface_name: String,
-    ) -> Result<(), AnyError> {
-        todo!()
+    ) -> Result<String, AnyError> {
+        let os = {
+            let state = state.borrow();
+            let ctx = state.borrow::<JsContext>();
+            ctx.os.clone()
+        };
+        os.get_service_port_forward(package_id, &interface_name)
+            .await
+            .map_err(|e| anyhow!("{e}"))
     }
 
     #[op]
@@ -1593,12 +1617,24 @@ mod fns {
         address: String,
         id: String,
         ui: bool,
-    ) -> Result<(), AnyError> {
-        todo!()
+    ) -> Result<String, AnyError> {
+        let os = {
+            let state = state.borrow();
+            let ctx = state.borrow::<JsContext>();
+            ctx.os.clone()
+        };
+        os.export_address(name, description, address, id, ui)
+            .await
+            .map_err(|e| anyhow!("{e}"))
     }
     #[op]
     async fn remove_address(state: Rc<RefCell<OpState>>, id: String) -> Result<(), AnyError> {
-        todo!()
+        let os = {
+            let state = state.borrow();
+            let ctx = state.borrow::<JsContext>();
+            ctx.os.clone()
+        };
+        os.remove_address(id).await.map_err(|e| anyhow!("{e}"))
     }
 
     #[op]
@@ -1610,28 +1646,59 @@ mod fns {
         input: Value,
         group: Option<String>,
     ) -> Result<(), AnyError> {
-        todo!()
+        let os = {
+            let state = state.borrow();
+            let ctx = state.borrow::<JsContext>();
+            ctx.os.clone()
+        };
+        os.export_action(name, description, id, input, group)
+            .await
+            .map_err(|e| anyhow!("{e}"))
     }
     #[op]
     async fn remove_action(state: Rc<RefCell<OpState>>, id: String) -> Result<(), AnyError> {
-        todo!()
+        let os = {
+            let state = state.borrow();
+            let ctx = state.borrow::<JsContext>();
+            ctx.os.clone()
+        };
+        os.remove_action(id).await.map_err(|e| anyhow!("{e}"))
     }
 
     #[op]
     async fn get_configured(state: Rc<RefCell<OpState>>) -> Result<bool, AnyError> {
-        todo!()
+        let os = {
+            let state = state.borrow();
+            let ctx = state.borrow::<JsContext>();
+            ctx.os.clone()
+        };
+        os.get_configured().await.map_err(|e| anyhow!("{e}"))
     }
     #[op]
     async fn set_configured(state: Rc<RefCell<OpState>>, configured: bool) -> Result<(), AnyError> {
-        todo!()
+        let os = {
+            let state = state.borrow();
+            let ctx = state.borrow::<JsContext>();
+            ctx.os.clone()
+        };
+        os.set_configured(configured)
+            .await
+            .map_err(|e| anyhow!("{e}"))
     }
     #[op]
     async fn get_ssl_certifcate(
         state: Rc<RefCell<OpState>>,
-        ist: String,
+        id: String,
         algorithm: Algorithm,
     ) -> Result<(String, String, String), AnyError> {
-        todo!()
+        let os = {
+            let state = state.borrow();
+            let ctx = state.borrow::<JsContext>();
+            ctx.os.clone()
+        };
+        os.get_ssl_certificate(id, algorithm)
+            .await
+            .map_err(|e| anyhow!("{e}"))
     }
     #[op]
     async fn get_ssl_key(
@@ -1639,7 +1706,14 @@ mod fns {
         id: String,
         algorithm: Algorithm,
     ) -> Result<String, AnyError> {
-        todo!()
+        let os = {
+            let state = state.borrow();
+            let ctx = state.borrow::<JsContext>();
+            ctx.os.clone()
+        };
+        os.get_ssl_key(id, algorithm)
+            .await
+            .map_err(|e| anyhow!("{e}"))
     }
 
     /// We need to make sure that during the file accessing, we don't reach beyond our scope of control
