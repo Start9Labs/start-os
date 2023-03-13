@@ -90,6 +90,8 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
     server.shutdown().await;
     rpc_ctx.shutdown().await?;
 
+    tracing::info!("RPC Context is dropped");
+
     Ok(shutdown)
 }
 

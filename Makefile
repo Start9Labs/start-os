@@ -23,11 +23,11 @@ ALL_TARGETS := $(EMBASSY_BINS) system-images/compat/docker-images/$(ARCH).tar sy
 
 ifeq ($(REMOTE),)
 	mkdir = mkdir -p $1
-	rm = rm -rf $@
+	rm = rm -rf $1
 	cp = cp -r $1 $2
 else
 	mkdir = ssh $(REMOTE) 'mkdir -p $1'
-	rm  = ssh $(REMOTE) 'rm -rf $@'
+	rm  = ssh $(REMOTE) 'sudo rm -rf $1'
 define cp
 	tar --transform "s|^$1|x|" -czv -f- $1 | ssh $(REMOTE) "sudo tar --transform 's|^x|$2|' -xzv -f- -C /"
 endef

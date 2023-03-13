@@ -329,6 +329,7 @@ impl NetService {
             }
             std::mem::take(&mut self.dns);
             errors.handle(ctrl.dns.gc(Some(self.id.clone()), self.ip).await);
+            self.ip = Ipv4Addr::new(0, 0, 0, 0);
             errors.into_result()
         } else {
             Err(Error::new(
@@ -341,17 +342,20 @@ impl NetService {
 
 impl Drop for NetService {
     fn drop(&mut self) {
-        let svc = std::mem::replace(
-            self,
-            NetService {
-                id: Default::default(),
-                ip: [0, 0, 0, 0].into(),
-                dns: Default::default(),
-                controller: Default::default(),
-                tor: Default::default(),
-                lan: Default::default(),
-            },
-        );
-        tokio::spawn(async move { svc.remove_all().await.unwrap() });
+        if self.ip != Ipv4Addr::new(0, 0, 0, 0) {
+            tracing::debug!("Dropping NetService for {}", self.id);
+            let svc = std::mem::replace(
+                self,
+                NetService {
+                    id: Default::default(),
+                    ip: Ipv4Addr::new(0, 0, 0, 0),
+                    dns: Default::default(),
+                    controller: Default::default(),
+                    tor: Default::default(),
+                    lan: Default::default(),
+                },
+            );
+            tokio::spawn(async move { svc.remove_all().await.unwrap() });
+        }
     }
 }

@@ -21,6 +21,12 @@ impl Shutdown {
     pub fn execute(&self) {
         use std::process::Command;
 
+        if self.restart {
+            tracing::info!("Beginning server restart");
+        } else {
+            tracing::info!("Beginning server shutdown");
+        }
+
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
@@ -52,33 +58,32 @@ impl Shutdown {
                     tracing::debug!("{:?}", e);
                 }
             }
-            if self.restart {
+            if !*IS_RASPBERRY_PI || self.restart {
                 if let Err(e) = SHUTDOWN.play().await {
                     tracing::error!("Error Playing Shutdown Song: {}", e);
                     tracing::debug!("{:?}", e);
                 }
-            } else {
-                tokio::fs::write(STANDBY_MODE_PATH, "").await.unwrap();
-                Command::new("sync")
-                    .invoke(ErrorKind::Filesystem)
-                    .await
-                    .unwrap();
             }
         });
         drop(rt);
         if *IS_RASPBERRY_PI {
             if !self.restart {
                 std::fs::write(STANDBY_MODE_PATH, "").unwrap();
+                Command::new("sync").spawn().unwrap().wait().unwrap();
             }
             Command::new("reboot").spawn().unwrap().wait().unwrap();
         } else {
-            Command::new("shutdown")
-                .arg("-h")
-                .arg("now")
-                .spawn()
-                .unwrap()
-                .wait()
-                .unwrap();
+            if self.restart {
+                Command::new("reboot").spawn().unwrap().wait().unwrap();
+            } else {
+                Command::new("shutdown")
+                    .arg("-h")
+                    .arg("now")
+                    .spawn()
+                    .unwrap()
+                    .wait()
+                    .unwrap();
+            }
         }
     }
 }
