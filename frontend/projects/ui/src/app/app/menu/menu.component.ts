@@ -11,6 +11,7 @@ import {
   filter,
   map,
   Observable,
+  pairwise,
   startWith,
   switchMap,
   withLatestFrom,
@@ -71,12 +72,15 @@ export class MenuComponent {
     withLatestFrom(this.patch.watch$('package-data')),
     switchMap(([_, outer]) =>
       this.patch.watch$('package-data').pipe(
-        filter(
-          pkgs =>
-            !!Object.values(pkgs).find(
-              pkg => pkg['install-progress']?.['unpack-complete'],
-            ),
+        pairwise(),
+        filter(([prev, curr]) =>
+          Object.values(prev).some(
+            p =>
+              p['install-progress'] &&
+              !curr[p.manifest.id]?.['install-progress'],
+          ),
         ),
+        map(([_, curr]) => curr),
         startWith(outer),
       ),
     ),
