@@ -2,6 +2,7 @@ use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
 use std::net::IpAddr;
 use std::path::Path;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use futures::FutureExt;
 use openssl::asn1::{Asn1Integer, Asn1Time};
@@ -341,7 +342,14 @@ pub fn make_leaf_cert(
     let mut builder = X509Builder::new()?;
     builder.set_version(CERTIFICATE_VERSION)?;
 
-    let embargo = Asn1Time::days_from_now(0)?;
+    let embargo = Asn1Time::from_unix(
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .or_else(|_| UNIX_EPOCH.elapsed().map(|d| -(d.as_secs() as i64)))
+            .unwrap_or_default()
+            - 86400,
+    )?;
     builder.set_not_before(&embargo)?;
 
     // Google Apple and Mozilla reject certificate horizons longer than 397 days
