@@ -2,7 +2,7 @@
 Description=Embassy Init
 After=network-online.target
 Requires=network-online.target
-Wants=avahi-daemon.service tor.service
+Wants=avahi-daemon.service
 
 [Service]
 Type=oneshot

@@ -319,16 +319,8 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     }
     let tmp_docker = cfg.datadir().join("package-data/tmp/docker");
     let tmp_docker_exists = tokio::fs::metadata(&tmp_docker).await.is_ok();
-    if should_rebuild || !tmp_docker_exists {
-        if tmp_docker_exists {
-            tokio::fs::remove_dir_all(&tmp_docker).await?;
-        }
-        Command::new("cp")
-            .arg("-ra")
-            .arg("/var/lib/docker")
-            .arg(&tmp_docker)
-            .invoke(crate::ErrorKind::Filesystem)
-            .await?;
+    if should_rebuild && tmp_docker_exists {
+        tokio::fs::remove_dir_all(&tmp_docker).await?;
     }
     Command::new("systemctl")
         .arg("stop")
@@ -392,6 +384,26 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         .await?;
     tracing::info!("Enabled Docker QEMU Emulation");
 
+    let mut warn_time_not_synced = true;
+    for _ in 0..60 {
+        if check_time_is_synchronized().await? {
+            warn_time_not_synced = false;
+            break;
+        }
+        tokio::time::sleep(Duration::from_secs(1)).await;
+    }
+    if warn_time_not_synced {
+        tracing::warn!("Timed out waiting for system time to synchronize");
+    } else {
+        tracing::info!("Syncronized system clock");
+    }
+
+    Command::new("systemctl")
+        .arg("start")
+        .arg("tor")
+        .invoke(crate::ErrorKind::Tor)
+        .await?;
+
     receipts
         .ip_info
         .set(&mut handle, crate::net::dhcp::init_ips().await?)
@@ -407,6 +419,7 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
             },
         )
         .await?;
+
     receipts
         .system_start_time
         .set(&mut handle, time().await?)
