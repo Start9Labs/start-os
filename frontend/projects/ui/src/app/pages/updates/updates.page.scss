@@ -1,33 +1,6 @@
-.header {
-  padding: .7rem;
-  background: #2c2f33;
-
-  &_items {
-    display: flex;
-    align-items: center;
-    flex-direction: row;
-  }
-
-  &_title {
-    padding-left: 16px;
-    h2 {
-      font-weight: 600;
-      margin: 0;
-    }
-    p {
-      margin: 0;
-    }
-  }
-}
-
 .item-container {
   border-bottom: 1px solid #373737;
   padding: 12px 0;
-}
-
-img {
-  height: 85%;
-  width: 85%;
 }
 
 .notes {
@@ -36,6 +9,12 @@ img {
   h5 {
     font-weight: 600;
   }
+}
+
+ion-item-divider {
+  --padding-top: 8px;
+  --padding-bottom: 8px;
+  --background: var(--ion-color-medium-tint);
 }
 
 ion-item {

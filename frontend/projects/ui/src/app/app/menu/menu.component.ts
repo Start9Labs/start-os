@@ -9,11 +9,11 @@ import { PatchDB } from 'patch-db-client'
 import {
   combineLatest,
   filter,
-  first,
   map,
   Observable,
   startWith,
   switchMap,
+  withLatestFrom,
 } from 'rxjs'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
@@ -68,20 +68,16 @@ export class MenuComponent {
 
   private readonly local$ = this.connectionService.connected$.pipe(
     filter(Boolean),
-    switchMap(() =>
+    withLatestFrom(this.patch.watch$('package-data')),
+    switchMap(([_, outer]) =>
       this.patch.watch$('package-data').pipe(
-        first(),
-        switchMap(pkgs =>
-          this.patch.watch$('package-data').pipe(
-            filter(
-              pkgs =>
-                !!Object.values(pkgs).find(
-                  pkg => pkg['install-progress']?.['unpack-complete'],
-                ),
+        filter(
+          pkgs =>
+            !!Object.values(pkgs).find(
+              pkg => pkg['install-progress']?.['unpack-complete'],
             ),
-            startWith(pkgs),
-          ),
         ),
+        startWith(outer),
       ),
     ),
   )
