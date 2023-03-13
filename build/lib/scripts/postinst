@@ -46,7 +46,9 @@ $SYSTEMCTL enable systemd-resolved.service
 $SYSTEMCTL enable systemd-networkd-wait-online.service
 $SYSTEMCTL disable wpa_supplicant.service
 
+$SYSTEMCTL disable docker.service
 $SYSTEMCTL disable postgresql.service
+$SYSTEMCTL disable tor.service
 $SYSTEMCTL disable bluetooth.service
 $SYSTEMCTL disable hciuart.service
 $SYSTEMCTL disable triggerhappy.service
