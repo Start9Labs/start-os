@@ -77,3 +77,15 @@ ion-card {
 .item-interactive {
   --highlight-background: #5260ff !important;
 }
+
+
+@media (max-width: 500px) {
+  ion-button {
+    --border-radius: 4px;
+    margin-top: 0.7rem;
+  }
+
+  ion-item {
+    --border-radius: 4px;
+  }
+}
