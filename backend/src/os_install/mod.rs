@@ -129,6 +129,65 @@ pub async fn execute(
 
     overwrite |= disk.guid.is_none() && disk.partitions.iter().all(|p| p.guid.is_none());
 
+    if overwrite {
+        for (guid, pv) in disk
+            .guid
+            .iter()
+            .map(|guid| (guid, &disk.logicalname))
+            .chain(
+                disk.partitions
+                    .iter()
+                    .flat_map(|p| p.guid.as_ref().map(|guid| (guid, &p.logicalname))),
+            )
+        {
+            let device = Path::new("/dev").join(guid);
+            match tokio::fs::read_dir(&device).await {
+                Ok(mut dir) => {
+                    while let Ok(Some(lv)) = dir.next_entry().await {
+                        Command::new("cryptsetup")
+                            .arg("erase")
+                            .arg(lv.path())
+                            .invoke(crate::ErrorKind::DiskManagement)
+                            .await?;
+                        Command::new("wipefs")
+                            .arg("-a")
+                            .arg(lv.path())
+                            .invoke(crate::ErrorKind::DiskManagement)
+                            .await?;
+                        Command::new("lvremove")
+                            .arg(lv.path())
+                            .invoke(crate::ErrorKind::DiskManagement)
+                            .await?;
+                    }
+                    Command::new("vgremove")
+                        .arg(&device)
+                        .invoke(crate::ErrorKind::DiskManagement)
+                        .await?;
+                }
+                Err(e) => {
+                    tracing::debug!("device for {guid} is not available: {:?}", e);
+                }
+            }
+            Command::new("pvremove")
+                .arg(pv)
+                .invoke(crate::ErrorKind::DiskManagement)
+                .await?;
+            if pv
+                .file_name()
+                .and_then(|f| f.to_str())
+                .unwrap_or_default()
+                .starts_with("nvme")
+            {
+                Command::new("nvme")
+                    .arg("format")
+                    .arg("-s2")
+                    .arg(pv)
+                    .invoke(crate::ErrorKind::DiskManagement)
+                    .await?;
+            }
+        }
+    }
+
     let part_info = partition(&mut disk, overwrite).await?;
 
     if let Some(efi) = &part_info.efi {
@@ -233,7 +292,7 @@ pub async fn execute(
     let dev = MountGuard::mount(&Bind::new("/dev"), current.join("dev"), ReadWrite).await?;
     let proc = MountGuard::mount(&Bind::new("/proc"), current.join("proc"), ReadWrite).await?;
     let sys = MountGuard::mount(&Bind::new("/sys"), current.join("sys"), ReadWrite).await?;
-    let efivarfs = if let Some(efi) = &part_info.efi {
+    let efivarfs = if part_info.efi.is_some() {
         Some(
             MountGuard::mount(
                 &EfiVarFs,
