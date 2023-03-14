@@ -15,7 +15,6 @@ import {
   pairwise,
   startWith,
   switchMap,
-  tap,
 } from 'rxjs'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
