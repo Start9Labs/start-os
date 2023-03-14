@@ -4,7 +4,6 @@ import { PatchDB } from 'patch-db-client'
 import {
   DataModel,
   PackageDataEntry,
-  PackageState,
 } from 'src/app/services/patch-db/data-model'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import {
@@ -179,16 +178,12 @@ export class FilterUpdatesPipe implements PipeTransform {
     pkgs: MarketplacePkg[],
     local: Record<string, PackageDataEntry | undefined>,
   ): MarketplacePkg[] {
-    return pkgs.filter(({ manifest }) => {
-      const localPkg = local[manifest.id]
-
-      return (
-        localPkg?.state === PackageState.Updating ||
+    return pkgs.filter(
+      ({ manifest }) =>
         this.emver.compare(
           manifest.version,
-          localPkg?.installed?.manifest.version || '',
-        ) === 1
-      )
-    })
+          local[manifest.id]?.installed?.manifest.version || '',
+        ) === 1,
+    )
   }
 }
