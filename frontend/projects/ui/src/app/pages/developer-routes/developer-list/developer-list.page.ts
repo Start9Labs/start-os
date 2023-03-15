@@ -12,7 +12,7 @@ import {
 } from 'src/app/modals/generic-input/generic-input.component'
 import { PatchDB } from 'patch-db-client'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ConfigSpec } from 'start-sdk/types/config-types'
+import { InputSpec } from 'start-sdk/types/config-types'
 import * as yaml from 'js-yaml'
 import { v4 } from 'uuid'
 import { DataModel, DevData } from 'src/app/services/patch-db/data-model'
@@ -217,7 +217,7 @@ export class DeveloperListPage {
 
 const SAMPLE_INSTUCTIONS = `# Create Instructions using Markdown! :)`
 
-const SAMPLE_CONFIG: ConfigSpec = {
+const SAMPLE_CONFIG: InputSpec = {
   'sample-string': {
     type: 'string',
     name: 'Example String Input',
