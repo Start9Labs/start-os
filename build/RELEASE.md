@@ -30,7 +30,7 @@
 - Requires: `eos-<version>-<git hash>-<date>_amd64.iso`
 - Build steps:
   - From `https://github.com/Start9Labs/eos-image-recipes` at `master`
-  - `./extract-squashfs.sh results/eos-<version>-<git hash>-<date>_amd64.iso`
+  - `./extract-squashfs.sh results/eos-<version>-<git hash>-<date>_amd64.iso` (run on Linux)
 - Artifact: `./results/eos.x86_64.squashfs`
 
 ## `eos.raspberrypi.squashfs`
