@@ -55,13 +55,11 @@ export class UpdatesPage {
     private readonly alertCtrl: AlertController,
   ) {}
 
-  viewInMarketplace(event: Event, pkg: PackageDataEntry) {
+  viewInMarketplace(event: Event, url: string, id: string) {
     event.stopPropagation()
-    const url = pkg.installed?.['marketplace-url']
-    const queryParams = url ? { url } : {}
 
-    this.navCtrl.navigateForward([`marketplace/${pkg.manifest.id}`], {
-      queryParams,
+    this.navCtrl.navigateForward([`marketplace/${id}`], {
+      queryParams: { url },
     })
   }
 
