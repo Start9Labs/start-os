@@ -191,7 +191,7 @@ impl DependencyError {
             (DependencyError::Transitive, _) => DependencyError::Transitive,
         }
     }
-    #[instrument(skip(ctx, db, receipts))]
+    #[instrument(skip_all)]
     pub fn try_heal<'a, Db: DbHandle>(
         self,
         ctx: &'a RpcContext,
@@ -693,7 +693,7 @@ pub struct ConfigDryRes {
 }
 
 #[command(rename = "dry", display(display_serializable))]
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 pub async fn configure_dry(
     #[context] ctx: RpcContext,
     #[parent_data] (pkg_id, dependency_id): (PackageId, PackageId),
@@ -784,7 +784,7 @@ pub async fn configure_logic(
         spec,
     })
 }
-#[instrument(skip(db, current_dependencies, current_dependent_receipt))]
+#[instrument(skip_all)]
 pub async fn add_dependent_to_current_dependents_lists<'a, Db: DbHandle>(
     db: &mut Db,
     dependent_id: &PackageId,
@@ -919,7 +919,7 @@ impl BreakTransitiveReceipts {
     }
 }
 
-#[instrument(skip(db, receipts))]
+#[instrument(skip_all)]
 pub fn break_transitive<'a, Db: DbHandle>(
     db: &'a mut Db,
     id: &'a PackageId,
@@ -986,7 +986,7 @@ pub fn break_transitive<'a, Db: DbHandle>(
     .boxed()
 }
 
-#[instrument(skip(ctx, db, locks))]
+#[instrument(skip_all)]
 pub async fn heal_all_dependents_transitive<'a, Db: DbHandle>(
     ctx: &'a RpcContext,
     db: &'a mut Db,
@@ -1004,7 +1004,7 @@ pub async fn heal_all_dependents_transitive<'a, Db: DbHandle>(
     Ok(())
 }
 
-#[instrument(skip(ctx, db, receipts))]
+#[instrument(skip_all)]
 pub fn heal_transitive<'a, Db: DbHandle>(
     ctx: &'a RpcContext,
     db: &'a mut Db,

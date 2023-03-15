@@ -42,7 +42,7 @@ impl<
     > S9pkPacker<'a, W, RLicense, RInstructions, RIcon, RDockerImages, RAssets, RScripts>
 {
     /// BLOCKING
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     pub async fn pack(mut self, key: &ed25519_dalek::Keypair) -> Result<(), Error> {
         let header_pos = self.writer.stream_position().await?;
         if header_pos != 0 {

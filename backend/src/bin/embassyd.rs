@@ -12,7 +12,7 @@ use futures::{FutureExt, TryFutureExt};
 use tokio::signal::unix::signal;
 use tracing::instrument;
 
-#[instrument]
+#[instrument(skip_all)]
 async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error> {
     let (rpc_ctx, server, shutdown) = {
         let rpc_ctx = RpcContext::init(

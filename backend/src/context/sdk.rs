@@ -25,7 +25,7 @@ pub struct SdkContextSeed {
 pub struct SdkContext(Arc<SdkContextSeed>);
 impl SdkContext {
     /// BLOCKING
-    #[instrument(skip(matches))]
+    #[instrument(skip_all)]
     pub fn init(matches: &ArgMatches) -> Result<Self, crate::Error> {
         let local_config_path = local_config_path();
         let base: SdkContextConfig = load_config_from_paths(
@@ -49,7 +49,7 @@ impl SdkContext {
         })))
     }
     /// BLOCKING
-    #[instrument]
+    #[instrument(skip_all)]
     pub fn developer_key(&self) -> Result<ed25519_dalek::Keypair, Error> {
         if !self.developer_key_path.exists() {
             return Err(Error::new(eyre!("Developer Key does not exist! Please run `embassy-sdk init` before running this command."), crate::ErrorKind::Uninitialized));

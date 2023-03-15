@@ -91,7 +91,7 @@ pub struct ImageTag {
     pub version: Version,
 }
 impl ImageTag {
-    #[instrument]
+    #[instrument(skip_all)]
     pub fn validate(&self, id: &PackageId, version: &Version) -> Result<(), Error> {
         if id != &self.package_id {
             return Err(Error::new(
@@ -168,7 +168,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<InstallProgressT
     }
 }
 impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     pub async fn validate(&mut self) -> Result<(), Error> {
         if self.toc.icon.length > 102_400 {
             // 100 KiB
@@ -286,7 +286,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
 
         Ok(())
     }
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     pub async fn image_tags(&mut self) -> Result<Vec<ImageTag>, Error> {
         let mut tar = tokio_tar::Archive::new(self.docker_images().await?);
         let mut entries = tar.entries()?;
@@ -314,7 +314,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
             crate::ErrorKind::ParseS9pk,
         ))
     }
-    #[instrument(skip(rdr))]
+    #[instrument(skip_all)]
     pub async fn from_reader(mut rdr: R, check_sig: bool) -> Result<Self, Error> {
         let header = Header::deserialize(&mut rdr).await?;
 

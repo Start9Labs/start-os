@@ -47,7 +47,7 @@ pub async fn country() -> Result<(), Error> {
 }
 
 #[command(display(display_none))]
-#[instrument(skip(ctx, password))]
+#[instrument(skip_all)]
 pub async fn add(
     #[context] ctx: RpcContext,
     #[arg] ssid: String,
@@ -103,7 +103,7 @@ pub async fn add(
 }
 
 #[command(display(display_none))]
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 pub async fn connect(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<(), Error> {
     let wifi_manager = wifi_manager(&ctx)?;
     if !ssid.is_ascii() {
@@ -155,7 +155,7 @@ pub async fn connect(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<
 }
 
 #[command(display(display_none))]
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 pub async fn delete(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<(), Error> {
     let wifi_manager = wifi_manager(&ctx)?;
     if !ssid.is_ascii() {
@@ -293,7 +293,7 @@ fn display_wifi_list(info: Vec<WifiListOut>, matches: &ArgMatches) {
 }
 
 #[command(display(display_wifi_info))]
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 pub async fn get(
     #[context] ctx: RpcContext,
     #[allow(unused_variables)]
@@ -347,7 +347,7 @@ pub async fn get(
 }
 
 #[command(rename = "get", display(display_wifi_list))]
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 pub async fn get_available(
     #[context] ctx: RpcContext,
     #[allow(unused_variables)]
@@ -457,7 +457,7 @@ impl WpaCli {
         WpaCli { interface }
     }
 
-    #[instrument(skip(self, psk))]
+    #[instrument(skip_all)]
     pub async fn set_add_network_low(&mut self, ssid: &Ssid, psk: &Psk) -> Result<(), Error> {
         let _ = Command::new("nmcli")
             .arg("-a")
@@ -473,7 +473,7 @@ impl WpaCli {
             .await?;
         Ok(())
     }
-    #[instrument(skip(self, psk))]
+    #[instrument(skip_all)]
     pub async fn add_network_low(&mut self, ssid: &Ssid, psk: &Psk) -> Result<(), Error> {
         if self.find_networks(ssid).await?.is_empty() {
             Command::new("nmcli")
@@ -567,7 +567,7 @@ impl WpaCli {
             .await?;
         Ok(())
     }
-    #[instrument]
+    #[instrument(skip_all)]
     pub async fn list_networks_low(&self) -> Result<BTreeMap<NetworkId, WifiInfo>, Error> {
         let r = Command::new("nmcli")
             .arg("-t")
@@ -596,7 +596,7 @@ impl WpaCli {
             .collect::<BTreeMap<NetworkId, WifiInfo>>())
     }
 
-    #[instrument]
+    #[instrument(skip_all)]
     pub async fn list_wifi_low(&self) -> Result<WifiList, Error> {
         let r = Command::new("nmcli")
             .arg("-g")
@@ -681,7 +681,7 @@ impl WpaCli {
             })
             .collect())
     }
-    #[instrument(skip(db))]
+    #[instrument(skip_all)]
     pub async fn select_network(&mut self, db: impl DbHandle, ssid: &Ssid) -> Result<bool, Error> {
         let m_id = self.check_active_network(ssid).await?;
         match m_id {
@@ -717,7 +717,7 @@ impl WpaCli {
             }
         }
     }
-    #[instrument]
+    #[instrument(skip_all)]
     pub async fn get_current_network(&self) -> Result<Option<Ssid>, Error> {
         let r = Command::new("iwgetid")
             .arg(&self.interface)
@@ -733,7 +733,7 @@ impl WpaCli {
             Ok(Some(Ssid(network.to_owned())))
         }
     }
-    #[instrument(skip(db))]
+    #[instrument(skip_all)]
     pub async fn remove_network(&mut self, db: impl DbHandle, ssid: &Ssid) -> Result<bool, Error> {
         let found_networks = self.find_networks(ssid).await?;
         if found_networks.is_empty() {
@@ -745,7 +745,7 @@ impl WpaCli {
         self.save_config(db).await?;
         Ok(true)
     }
-    #[instrument(skip(psk, db))]
+    #[instrument(skip_all)]
     pub async fn set_add_network(
         &mut self,
         db: impl DbHandle,
@@ -757,7 +757,7 @@ impl WpaCli {
         self.save_config(db).await?;
         Ok(())
     }
-    #[instrument(skip(psk, db))]
+    #[instrument(skip_all)]
     pub async fn add_network(
         &mut self,
         db: impl DbHandle,
@@ -771,7 +771,7 @@ impl WpaCli {
     }
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub async fn interface_connected(interface: &str) -> Result<bool, Error> {
     let out = Command::new("ifconfig")
         .arg(interface)
@@ -792,7 +792,7 @@ pub fn country_code_parse(code: &str, _matches: &ArgMatches) -> Result<CountryCo
     })
 }
 
-#[instrument(skip(main_datadir))]
+#[instrument(skip_all)]
 pub async fn synchronize_wpa_supplicant_conf<P: AsRef<Path>>(
     main_datadir: P,
     wifi_iface: &str,

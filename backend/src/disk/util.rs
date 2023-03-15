@@ -69,7 +69,7 @@ lazy_static::lazy_static! {
     static ref PARTITION_REGEX: Regex = Regex::new("-part[0-9]+$").unwrap();
 }
 
-#[instrument(skip(path))]
+#[instrument(skip_all)]
 pub async fn get_partition_table<P: AsRef<Path>>(path: P) -> Result<Option<PartitionTable>, Error> {
     Ok(String::from_utf8(
         Command::new("fdisk")
@@ -87,7 +87,7 @@ pub async fn get_partition_table<P: AsRef<Path>>(path: P) -> Result<Option<Parti
     }))
 }
 
-#[instrument(skip(path))]
+#[instrument(skip_all)]
 pub async fn get_vendor<P: AsRef<Path>>(path: P) -> Result<Option<String>, Error> {
     let vendor = tokio::fs::read_to_string(
         Path::new(SYS_BLOCK_PATH)
@@ -110,7 +110,7 @@ pub async fn get_vendor<P: AsRef<Path>>(path: P) -> Result<Option<String>, Error
     })
 }
 
-#[instrument(skip(path))]
+#[instrument(skip_all)]
 pub async fn get_model<P: AsRef<Path>>(path: P) -> Result<Option<String>, Error> {
     let model = tokio::fs::read_to_string(
         Path::new(SYS_BLOCK_PATH)
@@ -129,7 +129,7 @@ pub async fn get_model<P: AsRef<Path>>(path: P) -> Result<Option<String>, Error>
     Ok(if model.is_empty() { None } else { Some(model) })
 }
 
-#[instrument(skip(path))]
+#[instrument(skip_all)]
 pub async fn get_capacity<P: AsRef<Path>>(path: P) -> Result<u64, Error> {
     Ok(String::from_utf8(
         Command::new("blockdev")
@@ -142,7 +142,7 @@ pub async fn get_capacity<P: AsRef<Path>>(path: P) -> Result<u64, Error> {
     .parse::<u64>()?)
 }
 
-#[instrument(skip(path))]
+#[instrument(skip_all)]
 pub async fn get_label<P: AsRef<Path>>(path: P) -> Result<Option<String>, Error> {
     let label = String::from_utf8(
         Command::new("lsblk")
@@ -157,7 +157,7 @@ pub async fn get_label<P: AsRef<Path>>(path: P) -> Result<Option<String>, Error>
     Ok(if label.is_empty() { None } else { Some(label) })
 }
 
-#[instrument(skip(path))]
+#[instrument(skip_all)]
 pub async fn get_used<P: AsRef<Path>>(path: P) -> Result<u64, Error> {
     Ok(String::from_utf8(
         Command::new("df")
@@ -175,7 +175,7 @@ pub async fn get_used<P: AsRef<Path>>(path: P) -> Result<u64, Error> {
     .parse::<u64>()?)
 }
 
-#[instrument(skip(path))]
+#[instrument(skip_all)]
 pub async fn get_available<P: AsRef<Path>>(path: P) -> Result<u64, Error> {
     Ok(String::from_utf8(
         Command::new("df")
@@ -193,7 +193,7 @@ pub async fn get_available<P: AsRef<Path>>(path: P) -> Result<u64, Error> {
     .parse::<u64>()?)
 }
 
-#[instrument(skip(path))]
+#[instrument(skip_all)]
 pub async fn get_percentage<P: AsRef<Path>>(path: P) -> Result<u64, Error> {
     Ok(String::from_utf8(
         Command::new("df")
@@ -212,7 +212,7 @@ pub async fn get_percentage<P: AsRef<Path>>(path: P) -> Result<u64, Error> {
     .parse::<u64>()?)
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub async fn pvscan() -> Result<BTreeMap<PathBuf, Option<String>>, Error> {
     let pvscan_out = Command::new("pvscan")
         .invoke(crate::ErrorKind::DiskManagement)
@@ -248,7 +248,7 @@ pub async fn recovery_info(
     Ok(None)
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub async fn list(os: &OsPartitionInfo) -> Result<Vec<DiskInfo>, Error> {
     struct DiskIndex {
         parts: IndexSet<PathBuf>,

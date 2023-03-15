@@ -18,7 +18,7 @@ pub struct DiagnosticContextConfig {
     pub datadir: Option<PathBuf>,
 }
 impl DiagnosticContextConfig {
-    #[instrument(skip(path))]
+    #[instrument(skip_all)]
     pub async fn load<P: AsRef<Path> + Send + 'static>(path: Option<P>) -> Result<Self, Error> {
         tokio::task::spawn_blocking(move || {
             load_config_from_paths(
@@ -52,7 +52,7 @@ pub struct DiagnosticContextSeed {
 #[derive(Clone)]
 pub struct DiagnosticContext(Arc<DiagnosticContextSeed>);
 impl DiagnosticContext {
-    #[instrument(skip(path))]
+    #[instrument(skip_all)]
     pub async fn init<P: AsRef<Path> + Send + 'static>(
         path: Option<P>,
         disk_guid: Option<Arc<String>>,

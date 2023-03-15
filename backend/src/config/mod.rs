@@ -214,7 +214,7 @@ impl ConfigGetReceipts {
 }
 
 #[command(display(display_serializable))]
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 pub async fn get(
     #[context] ctx: RpcContext,
     #[parent_data] id: PackageId,
@@ -240,7 +240,7 @@ pub async fn get(
     display(display_none),
     metadata(sync_db = true)
 )]
-#[instrument]
+#[instrument(skip_all)]
 pub fn set(
     #[parent_data] id: PackageId,
     #[allow(unused_variables)]
@@ -413,7 +413,7 @@ impl ConfigReceipts {
 }
 
 #[command(rename = "dry", display(display_serializable))]
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 pub async fn set_dry(
     #[context] ctx: RpcContext,
     #[parent_data] (id, config, timeout): (PackageId, Option<Config>, Option<Duration>),
@@ -440,7 +440,7 @@ pub async fn set_dry(
     Ok(BreakageRes(breakages))
 }
 
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 pub async fn set_impl(
     ctx: RpcContext,
     (id, config, timeout): (PackageId, Option<Config>, Option<Duration>),
@@ -465,7 +465,7 @@ pub async fn set_impl(
     Ok(())
 }
 
-#[instrument(skip(ctx, db, receipts))]
+#[instrument(skip_all)]
 pub async fn configure<'a, Db: DbHandle>(
     ctx: &RpcContext,
     db: &'a mut Db,
@@ -485,7 +485,7 @@ pub async fn configure<'a, Db: DbHandle>(
     Ok(())
 }
 
-#[instrument(skip(ctx, db, receipts))]
+#[instrument(skip_all)]
 pub fn configure_rec<'a, Db: DbHandle>(
     ctx: &'a RpcContext,
     db: &'a mut Db,
@@ -771,7 +771,7 @@ pub fn configure_rec<'a, Db: DbHandle>(
     }
     .boxed()
 }
-#[instrument]
+#[instrument(skip_all)]
 pub fn not_found() -> Error {
     Error::new(eyre!("Could not find"), crate::ErrorKind::Incoherent)
 }

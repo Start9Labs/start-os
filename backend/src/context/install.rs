@@ -15,7 +15,7 @@ use crate::Error;
 #[serde(rename_all = "kebab-case")]
 pub struct InstallContextConfig {}
 impl InstallContextConfig {
-    #[instrument(skip(path))]
+    #[instrument(skip_all)]
     pub async fn load<P: AsRef<Path> + Send + 'static>(path: Option<P>) -> Result<Self, Error> {
         tokio::task::spawn_blocking(move || {
             load_config_from_paths(
@@ -38,7 +38,7 @@ pub struct InstallContextSeed {
 #[derive(Clone)]
 pub struct InstallContext(Arc<InstallContextSeed>);
 impl InstallContext {
-    #[instrument(skip(path))]
+    #[instrument(skip_all)]
     pub async fn init<P: AsRef<Path> + Send + 'static>(path: Option<P>) -> Result<Self, Error> {
         let _cfg = InstallContextConfig::load(path.as_ref().map(|p| p.as_ref().to_owned())).await?;
         let (shutdown, _) = tokio::sync::broadcast::channel(1);

@@ -56,7 +56,7 @@ pub struct Action {
     pub input_spec: ConfigSpec,
 }
 impl Action {
-    #[instrument]
+    #[instrument(skip_all)]
     pub fn validate(
         &self,
         container: &Option<DockerContainers>,
@@ -74,7 +74,7 @@ impl Action {
             })
     }
 
-    #[instrument(skip(ctx))]
+    #[instrument(skip_all)]
     pub async fn execute(
         &self,
         ctx: &RpcContext,
@@ -120,7 +120,7 @@ fn display_action_result(action_result: ActionResult, matches: &ArgMatches) {
 }
 
 #[command(about = "Executes an action", display(display_action_result))]
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 pub async fn action(
     #[context] ctx: RpcContext,
     #[arg(rename = "id")] pkg_id: PackageId,

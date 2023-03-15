@@ -23,7 +23,7 @@ pub async fn notification() -> Result<(), Error> {
 }
 
 #[command(display(display_serializable))]
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 pub async fn list(
     #[context] ctx: RpcContext,
     #[arg] before: Option<i32>,
@@ -232,7 +232,7 @@ impl NotificationManager {
             cache: Mutex::new(HashMap::new()),
         }
     }
-    #[instrument(skip(self, db))]
+    #[instrument(skip_all)]
     pub async fn notify<Db: DbHandle, T: NotificationType>(
         &self,
         db: &mut Db,

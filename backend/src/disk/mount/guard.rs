@@ -95,7 +95,7 @@ pub struct TmpMountGuard {
 }
 impl TmpMountGuard {
     /// DRAGONS: if you try to mount something as ro and rw at the same time, the ro mount will be upgraded to rw.
-    #[instrument(skip(filesystem))]
+    #[instrument(skip_all)]
     pub async fn mount(filesystem: &impl FileSystem, mount_type: MountType) -> Result<Self, Error> {
         let mountpoint = tmp_mountpoint(filesystem).await?;
         let mut tmp_mounts = TMP_MOUNTS.lock().await;

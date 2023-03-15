@@ -223,7 +223,7 @@ fn display_backup_info(info: BackupInfo, matches: &ArgMatches) {
 }
 
 #[command(display(display_backup_info))]
-#[instrument(skip(ctx, password))]
+#[instrument(skip_all)]
 pub async fn info(
     #[context] ctx: RpcContext,
     #[arg(rename = "target-id")] target_id: BackupTargetId,

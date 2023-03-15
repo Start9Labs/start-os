@@ -68,7 +68,7 @@ const DEFAULT_PORT: u16 = 5959;
 pub struct CliContext(Arc<CliContextSeed>);
 impl CliContext {
     /// BLOCKING
-    #[instrument(skip(matches))]
+    #[instrument(skip_all)]
     pub fn init(matches: &ArgMatches) -> Result<Self, crate::Error> {
         let local_config_path = local_config_path();
         let base: CliContextConfig = load_config_from_paths(

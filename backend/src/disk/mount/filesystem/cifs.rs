@@ -33,7 +33,7 @@ async fn resolve_hostname(hostname: &str) -> Result<IpAddr, Error> {
     .parse()?)
 }
 
-#[instrument(skip(path, password, mountpoint))]
+#[instrument(skip_all)]
 pub async fn mount_cifs(
     hostname: &str,
     path: impl AsRef<Path>,

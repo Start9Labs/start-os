@@ -27,7 +27,7 @@ use crate::middleware::auth::{HasValidSession, HashSessionToken};
 use crate::util::serde::{display_serializable, IoFormat};
 use crate::{Error, ResultExt};
 
-#[instrument(skip(ctx, session, ws_fut))]
+#[instrument(skip_all)]
 async fn ws_handler<
     WSFut: Future<Output = Result<Result<WebSocketStream<Upgraded>, HyperError>, JoinError>>,
 >(
@@ -73,7 +73,7 @@ async fn subscribe_to_session_kill(
     recv
 }
 
-#[instrument(skip(_has_valid_authentication, kill, sub, stream))]
+#[instrument(skip_all)]
 async fn deal_with_messages(
     _has_valid_authentication: HasValidSession,
     mut kill: oneshot::Receiver<()>,
@@ -205,7 +205,7 @@ pub fn put() -> Result<(), RpcError> {
 }
 
 #[command(display(display_serializable))]
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 pub async fn ui(
     #[context] ctx: RpcContext,
     #[arg] pointer: JsonPointer,

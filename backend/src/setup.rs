@@ -303,7 +303,7 @@ pub async fn execute(
     Ok(())
 }
 
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 #[command(rpc_only)]
 pub async fn complete(#[context] ctx: SetupContext) -> Result<SetupResult, Error> {
     let (guid, setup_result) = if let Some((guid, setup_result)) = &*ctx.setup_result.read().await {
@@ -320,14 +320,14 @@ pub async fn complete(#[context] ctx: SetupContext) -> Result<SetupResult, Error
     Ok(setup_result)
 }
 
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 #[command(rpc_only)]
 pub async fn exit(#[context] ctx: SetupContext) -> Result<(), Error> {
     ctx.shutdown.send(()).expect("failed to shutdown");
     Ok(())
 }
 
-#[instrument(skip(ctx, embassy_password, recovery_password))]
+#[instrument(skip_all)]
 pub async fn execute_inner(
     ctx: SetupContext,
     embassy_logicalname: PathBuf,
@@ -380,7 +380,7 @@ async fn fresh_setup(
     ))
 }
 
-#[instrument(skip(ctx, embassy_password, recovery_password))]
+#[instrument(skip_all)]
 async fn recover(
     ctx: SetupContext,
     guid: Arc<String>,
@@ -399,7 +399,7 @@ async fn recover(
     .await
 }
 
-#[instrument(skip(ctx, embassy_password))]
+#[instrument(skip_all)]
 async fn migrate(
     ctx: SetupContext,
     guid: Arc<String>,

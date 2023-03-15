@@ -40,7 +40,7 @@ impl PackageProcedure {
             _ => false,
         }
     }
-    #[instrument]
+    #[instrument(skip_all)]
     pub fn validate(
         &self,
         container: &Option<DockerContainers>,
@@ -58,7 +58,7 @@ impl PackageProcedure {
         }
     }
 
-    #[instrument(skip(ctx, input))]
+    #[instrument(skip_all)]
     pub async fn execute<I: Serialize, O: DeserializeOwned + 'static>(
         &self,
         ctx: &RpcContext,
@@ -121,7 +121,7 @@ impl PackageProcedure {
         }
     }
 
-    #[instrument(skip(ctx, input))]
+    #[instrument(skip_all)]
     pub async fn sandboxed<I: Serialize, O: DeserializeOwned>(
         &self,
         container: &Option<DockerContainers>,

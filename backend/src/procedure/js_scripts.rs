@@ -57,7 +57,7 @@ impl JsProcedure {
         Ok(())
     }
 
-    #[instrument(skip(directory, input, rpc_client))]
+    #[instrument(skip_all)]
     pub async fn execute<I: Serialize, O: DeserializeOwned>(
         &self,
         directory: &PathBuf,
@@ -111,7 +111,7 @@ impl JsProcedure {
         Ok(res)
     }
 
-    #[instrument(skip(ctx, input))]
+    #[instrument(skip_all)]
     pub async fn sandboxed<I: Serialize, O: DeserializeOwned>(
         &self,
         ctx: &RpcContext,

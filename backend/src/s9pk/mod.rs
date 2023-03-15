@@ -31,7 +31,7 @@ pub mod reader;
 pub const SIG_CONTEXT: &'static [u8] = b"s9pk";
 
 #[command(cli_only, display(display_none))]
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> Result<(), Error> {
     use tokio::fs::File;
 

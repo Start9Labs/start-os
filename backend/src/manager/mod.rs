@@ -39,7 +39,7 @@ pub const HEALTH_CHECK_GRACE_PERIOD_SECONDS: u64 = 5;
 #[derive(Default)]
 pub struct ManagerMap(RwLock<BTreeMap<(PackageId, Version), Arc<Manager>>>);
 impl ManagerMap {
-    #[instrument(skip(self, ctx, db, secrets))]
+    #[instrument(skip_all)]
     pub async fn init<Db: DbHandle, Ex>(
         &self,
         ctx: &RpcContext,
@@ -78,7 +78,7 @@ impl ManagerMap {
         Ok(())
     }
 
-    #[instrument(skip(self, ctx))]
+    #[instrument(skip_all)]
     pub async fn add(&self, ctx: RpcContext, manifest: Manifest) -> Result<(), Error> {
         let mut lock = self.0.write().await;
         let id = (manifest.id.clone(), manifest.version.clone());
@@ -91,7 +91,7 @@ impl ManagerMap {
         Ok(())
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     pub async fn remove(&self, id: &(PackageId, Version)) {
         if let Some(man) = self.0.write().await.remove(id) {
             if let Err(e) = man.exit().await {
@@ -101,7 +101,7 @@ impl ManagerMap {
         }
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     pub async fn empty(&self) -> Result<(), Error> {
         let res =
             futures::future::join_all(std::mem::take(&mut *self.0.write().await).into_iter().map(
@@ -128,7 +128,7 @@ impl ManagerMap {
         })
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     pub async fn get(&self, id: &(PackageId, Version)) -> Option<Arc<Manager>> {
         self.0.read().await.get(id).cloned()
     }
@@ -174,7 +174,7 @@ pub enum OnStop {
     Exit,
 }
 
-#[instrument(skip(state))]
+#[instrument(skip_all)]
 async fn run_main(
     state: &Arc<ManagerSharedState>,
 ) -> Result<Result<NoOutput, (i32, String)>, Error> {
@@ -232,7 +232,7 @@ async fn start_up_image(
 }
 
 impl Manager {
-    #[instrument(skip(ctx))]
+    #[instrument(skip_all)]
     async fn create(ctx: RpcContext, manifest: Manifest) -> Result<Self, Error> {
         let (on_stop, recv) = channel(OnStop::Sleep);
         let seed = Arc::new(ManagerSeed {
@@ -271,7 +271,7 @@ impl Manager {
         send_signal(&self.shared, signal).await
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     async fn exit(&self) -> Result<(), Error> {
         self.shared
             .commit_health_check_results
@@ -433,7 +433,7 @@ pub struct PersistentContainer {
 }
 
 impl PersistentContainer {
-    #[instrument(skip(seed))]
+    #[instrument(skip_all)]
     async fn init(seed: &Arc<ManagerSeed>) -> Result<Option<Self>, Error> {
         Ok(if let Some(containers) = &seed.manifest.containers {
             let (running_docker, rpc_client) =
@@ -722,7 +722,7 @@ fn sigterm_timeout(manifest: &Manifest) -> Option<Duration> {
     }
 }
 
-#[instrument(skip(shared))]
+#[instrument(skip_all)]
 async fn stop(shared: &ManagerSharedState) -> Result<(), Error> {
     shared
         .commit_health_check_results
@@ -746,7 +746,7 @@ async fn stop(shared: &ManagerSharedState) -> Result<(), Error> {
     Ok(())
 }
 
-#[instrument(skip(shared))]
+#[instrument(skip_all)]
 async fn start(shared: &ManagerSharedState) -> Result<(), Error> {
     shared.on_stop.send_modify(|status| {
         if matches!(*status, OnStop::Sleep) {
@@ -761,7 +761,7 @@ async fn start(shared: &ManagerSharedState) -> Result<(), Error> {
     Ok(())
 }
 
-#[instrument(skip(shared))]
+#[instrument(skip_all)]
 async fn pause(shared: &ManagerSharedState) -> Result<(), Error> {
     if let Err(e) = shared
         .seed
@@ -778,7 +778,7 @@ async fn pause(shared: &ManagerSharedState) -> Result<(), Error> {
     Ok(())
 }
 
-#[instrument(skip(shared))]
+#[instrument(skip_all)]
 async fn resume(shared: &ManagerSharedState) -> Result<(), Error> {
     shared
         .seed

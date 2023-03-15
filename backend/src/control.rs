@@ -61,7 +61,7 @@ impl StartReceipts {
 }
 
 #[command(display(display_none), metadata(sync_db = true))]
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 pub async fn start(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Result<(), Error> {
     let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
@@ -120,7 +120,7 @@ impl StopReceipts {
     }
 }
 
-#[instrument(skip(db))]
+#[instrument(skip_all)]
 pub async fn stop_common<Db: DbHandle>(
     db: &mut Db,
     id: &PackageId,
@@ -154,7 +154,7 @@ pub fn stop(#[arg] id: PackageId) -> Result<PackageId, Error> {
 }
 
 #[command(rename = "dry", display(display_serializable))]
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 pub async fn stop_dry(
     #[context] ctx: RpcContext,
     #[parent_data] id: PackageId,
@@ -170,7 +170,7 @@ pub async fn stop_dry(
     Ok(BreakageRes(breakages))
 }
 
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 pub async fn stop_impl(ctx: RpcContext, id: PackageId) -> Result<MainStatus, Error> {
     let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;

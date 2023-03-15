@@ -64,7 +64,7 @@ impl Stream for LogStream {
     }
 }
 
-#[instrument(skip(logs, ws_fut))]
+#[instrument(skip_all)]
 async fn ws_handler<
     WSFut: Future<Output = Result<Result<WebSocketStream<Upgraded>, HyperError>, JoinError>>,
 >(
@@ -409,7 +409,7 @@ async fn journalctl(
     })
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub async fn fetch_logs(
     id: LogSource,
     limit: Option<usize>,
@@ -456,7 +456,7 @@ pub async fn fetch_logs(
     })
 }
 
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 pub async fn follow_logs(
     ctx: RpcContext,
     id: LogSource,

@@ -44,7 +44,7 @@ pub fn generate_id() -> String {
     id.to_string()
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub async fn get_current_hostname() -> Result<Hostname, Error> {
     let out = Command::new("hostname")
         .invoke(ErrorKind::ParseSysInfo)
@@ -53,7 +53,7 @@ pub async fn get_current_hostname() -> Result<Hostname, Error> {
     Ok(Hostname(out_string.trim().to_owned()))
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub async fn set_hostname(hostname: &Hostname) -> Result<(), Error> {
     let hostname: &String = &hostname.0;
     let _out = Command::new("hostnamectl")
@@ -64,7 +64,7 @@ pub async fn set_hostname(hostname: &Hostname) -> Result<(), Error> {
     Ok(())
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub async fn sync_hostname(account: &AccountInfo) -> Result<(), Error> {
     set_hostname(&account.hostname).await?;
     Command::new("systemctl")

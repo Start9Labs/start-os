@@ -24,7 +24,7 @@ pub struct Migrations {
     pub to: IndexMap<VersionRange, PackageProcedure>,
 }
 impl Migrations {
-    #[instrument]
+    #[instrument(skip_all)]
     pub fn validate(
         &self,
         container: &Option<DockerContainers>,
@@ -55,7 +55,7 @@ impl Migrations {
         Ok(())
     }
 
-    #[instrument(skip(ctx))]
+    #[instrument(skip_all)]
     pub fn from<'a>(
         &'a self,
         container: &'a Option<DockerContainers>,
@@ -95,7 +95,7 @@ impl Migrations {
         }
     }
 
-    #[instrument(skip(ctx))]
+    #[instrument(skip_all)]
     pub fn to<'a>(
         &'a self,
         ctx: &'a RpcContext,

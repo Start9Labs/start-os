@@ -143,21 +143,21 @@ pub async fn export_cert(chain: &[&X509], target: &Path) -> Result<(), Error> {
     Ok(())
 }
 
-#[instrument]
+#[instrument(skip_all)]
 fn rand_serial() -> Result<Asn1Integer, Error> {
     let mut bn = BigNum::new()?;
     bn.rand(64, MsbOption::MAYBE_ZERO, false)?;
     let asn1 = Asn1Integer::from_bn(&bn)?;
     Ok(asn1)
 }
-#[instrument]
+#[instrument(skip_all)]
 pub fn generate_key() -> Result<PKey<Private>, Error> {
     let new_key = EcKey::generate(EC_GROUP.as_ref())?;
     let key = PKey::from_ec_key(new_key)?;
     Ok(key)
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub fn make_root_cert(root_key: &PKey<Private>, hostname: &Hostname) -> Result<X509, Error> {
     let mut builder = X509Builder::new()?;
     builder.set_version(CERTIFICATE_VERSION)?;
@@ -208,7 +208,7 @@ pub fn make_root_cert(root_key: &PKey<Private>, hostname: &Hostname) -> Result<X
     let cert = builder.build();
     Ok(cert)
 }
-#[instrument]
+#[instrument(skip_all)]
 pub fn make_int_cert(
     signer: (&PKey<Private>, &X509),
     applicant: &PKey<Private>,
@@ -334,7 +334,7 @@ impl std::fmt::Display for SANInfo {
     }
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub fn make_leaf_cert(
     signer: (&PKey<Private>, &X509),
     applicant: (&PKey<Private>, &SANInfo),

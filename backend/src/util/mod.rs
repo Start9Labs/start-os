@@ -282,7 +282,7 @@ impl Drop for FileLock {
     }
 }
 impl FileLock {
-    #[instrument(skip(path))]
+    #[instrument(skip_all)]
     pub async fn new(path: impl AsRef<Path> + Send + Sync, blocking: bool) -> Result<Self, Error> {
         lazy_static! {
             static ref INTERNAL_LOCKS: Mutex<BTreeMap<PathBuf, Arc<Mutex<()>>>> =

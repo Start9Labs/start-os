@@ -18,7 +18,7 @@ pub async fn properties(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Res
     Ok(fetch_properties(ctx, id).await?)
 }
 
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 pub async fn fetch_properties(ctx: RpcContext, id: PackageId) -> Result<Value, Error> {
     let mut db = ctx.db.handle();
 

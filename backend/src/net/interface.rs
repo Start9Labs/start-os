@@ -16,7 +16,7 @@ use crate::{Error, ResultExt};
 #[serde(rename_all = "kebab-case")]
 pub struct Interfaces(pub BTreeMap<InterfaceId, Interface>); // TODO
 impl Interfaces {
-    #[instrument]
+    #[instrument(skip_all)]
     pub fn validate(&self) -> Result<(), Error> {
         for (_, interface) in &self.0 {
             interface.validate().with_ctx(|_| {
@@ -28,7 +28,7 @@ impl Interfaces {
         }
         Ok(())
     }
-    #[instrument(skip(secrets))]
+    #[instrument(skip_all)]
     pub async fn install<Ex>(
         &self,
         secrets: &mut Ex,
@@ -90,7 +90,7 @@ pub struct Interface {
     pub protocols: IndexSet<String>,
 }
 impl Interface {
-    #[instrument]
+    #[instrument(skip_all)]
     pub fn validate(&self) -> Result<(), color_eyre::eyre::Report> {
         if self.tor_config.is_some() && !self.protocols.contains("tcp") {
             color_eyre::eyre::bail!("must support tcp to set up a tor hidden service");

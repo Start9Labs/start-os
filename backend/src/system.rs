@@ -510,7 +510,7 @@ async fn launch_disk_task(
     }
 }
 
-#[instrument]
+#[instrument(skip_all)]
 async fn get_temp() -> Result<Celsius, Error> {
     let temp_file = "/sys/class/thermal/thermal_zone0/temp";
     let milli = tokio::fs::read_to_string(temp_file)
@@ -550,7 +550,7 @@ impl ProcStat {
     }
 }
 
-#[instrument]
+#[instrument(skip_all)]
 async fn get_proc_stat() -> Result<ProcStat, Error> {
     use tokio::io::AsyncBufReadExt;
     let mut cpu_line = String::new();
@@ -592,7 +592,7 @@ async fn get_proc_stat() -> Result<ProcStat, Error> {
     }
 }
 
-#[instrument]
+#[instrument(skip_all)]
 async fn get_cpu_info(last: &mut ProcStat) -> Result<MetricsCpu, Error> {
     let new = get_proc_stat().await?;
     let total_old = last.total();
@@ -619,7 +619,7 @@ pub struct MemInfo {
     swap_total: Option<u64>,
     swap_free: Option<u64>,
 }
-#[instrument]
+#[instrument(skip_all)]
 async fn get_mem_info() -> Result<MetricsMemory, Error> {
     let contents = tokio::fs::read_to_string("/proc/meminfo").await?;
     let mut mem_info = MemInfo {
@@ -693,7 +693,7 @@ async fn get_mem_info() -> Result<MetricsMemory, Error> {
     })
 }
 
-#[instrument]
+#[instrument(skip_all)]
 async fn get_disk_info() -> Result<MetricsDisk, Error> {
     let package_used_task = get_used("/embassy-data/package-data");
     let package_available_task = get_available("/embassy-data/package-data");

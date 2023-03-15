@@ -86,7 +86,7 @@ impl RpcContextConfig {
         }
         Ok(db)
     }
-    #[instrument]
+    #[instrument(skip_all)]
     pub async fn secret_store(&self) -> Result<PgPool, Error> {
         init_postgres(self.datadir()).await?;
         let secret_store =
@@ -173,7 +173,7 @@ impl RpcCleanReceipts {
 #[derive(Clone)]
 pub struct RpcContext(Arc<RpcContextSeed>);
 impl RpcContext {
-    #[instrument(skip(cfg_path))]
+    #[instrument(skip_all)]
     pub async fn init<P: AsRef<Path> + Send + 'static>(
         cfg_path: Option<P>,
         disk_guid: Arc<String>,
@@ -260,7 +260,7 @@ impl RpcContext {
         Ok(res)
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     pub async fn shutdown(self) -> Result<(), Error> {
         self.managers.empty().await?;
         self.secret_store.close().await;
@@ -270,7 +270,7 @@ impl RpcContext {
         Ok(())
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     pub async fn cleanup(&self) -> Result<(), Error> {
         let mut db = self.db.handle();
         let receipts = RpcCleanReceipts::new(&mut db).await?;
@@ -348,7 +348,7 @@ impl RpcContext {
         Ok(())
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     pub async fn clean_continuations(&self) {
         let mut continuations = self.rpc_stream_continuations.lock().await;
         let mut to_remove = Vec::new();
@@ -362,7 +362,7 @@ impl RpcContext {
         }
     }
 
-    #[instrument(skip(self, handler))]
+    #[instrument(skip_all)]
     pub async fn add_continuation(&self, guid: RequestGuid, handler: RpcContinuation) {
         self.clean_continuations().await;
         self.rpc_stream_continuations

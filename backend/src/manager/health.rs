@@ -90,7 +90,7 @@ impl HealthCheckStatusReceipt {
     }
 }
 
-#[instrument(skip(ctx, db))]
+#[instrument(skip_all)]
 pub async fn check<Db: DbHandle>(
     ctx: &RpcContext,
     db: &mut Db,

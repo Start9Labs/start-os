@@ -90,7 +90,7 @@ fn gen_pwd() {
     )
 }
 
-#[instrument(skip(ctx, password))]
+#[instrument(skip_all)]
 async fn cli_login(
     ctx: CliContext,
     password: Option<PasswordType>,
@@ -145,7 +145,7 @@ where
     display(display_none),
     metadata(authenticated = false)
 )]
-#[instrument(skip(ctx, password))]
+#[instrument(skip_all)]
 pub async fn login(
     #[context] ctx: RpcContext,
     #[request] req: &RequestParts,
@@ -183,7 +183,7 @@ pub async fn login(
 }
 
 #[command(display(display_none), metadata(authenticated = false))]
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 pub async fn logout(
     #[context] ctx: RpcContext,
     #[request] req: &RequestParts,
@@ -250,7 +250,7 @@ fn display_sessions(arg: SessionList, matches: &ArgMatches) {
 }
 
 #[command(display(display_sessions))]
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 pub async fn list(
     #[context] ctx: RpcContext,
     #[request] req: &RequestParts,
@@ -296,7 +296,7 @@ impl AsLogoutSessionId for KillSessionId {
 }
 
 #[command(display(display_none))]
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 pub async fn kill(
     #[context] ctx: RpcContext,
     #[arg(parse(parse_comma_separated))] ids: Vec<String>,
@@ -305,7 +305,7 @@ pub async fn kill(
     Ok(())
 }
 
-#[instrument(skip(ctx, old_password, new_password))]
+#[instrument(skip_all)]
 async fn cli_reset_password(
     ctx: CliContext,
     old_password: Option<PasswordType>,
@@ -369,7 +369,7 @@ impl SetPasswordReceipt {
     custom_cli(cli_reset_password(async, context(CliContext))),
     display(display_none)
 )]
-#[instrument(skip(ctx, old_password, new_password))]
+#[instrument(skip_all)]
 pub async fn reset_password(
     #[context] ctx: RpcContext,
     #[arg(rename = "old-password")] old_password: Option<PasswordType>,
@@ -403,7 +403,7 @@ pub async fn reset_password(
     display(display_none),
     metadata(authenticated = false)
 )]
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 pub async fn get_pubkey(#[context] ctx: RpcContext) -> Result<Jwk, RpcError> {
     let secret = ctx.as_ref().clone();
     let pub_key = secret.to_public_key()?;

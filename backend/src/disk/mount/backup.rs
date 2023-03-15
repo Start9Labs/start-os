@@ -35,7 +35,7 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
         }
     }
 
-    #[instrument(skip(password))]
+    #[instrument(skip_all)]
     pub async fn mount(backup_disk_mount_guard: G, password: &str) -> Result<Self, Error> {
         let backup_disk_path = backup_disk_mount_guard.as_ref();
         let unencrypted_metadata_path =
@@ -145,7 +145,7 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
         Ok(())
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     pub async fn mount_package_backup(
         &self,
         id: &PackageId,
@@ -159,7 +159,7 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
         })
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     pub async fn save(&self) -> Result<(), Error> {
         let metadata_path = self.as_ref().join("metadata.cbor");
         let backup_disk_path = self.backup_disk_path();
@@ -180,7 +180,7 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
         Ok(())
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     pub async fn unmount(mut self) -> Result<(), Error> {
         if let Some(guard) = self.encrypted_guard.take() {
             guard.unmount().await?;
@@ -191,7 +191,7 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
         Ok(())
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     pub async fn save_and_unmount(self) -> Result<(), Error> {
         self.save().await?;
         self.unmount().await?;

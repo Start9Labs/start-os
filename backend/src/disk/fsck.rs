@@ -35,7 +35,7 @@ impl RepairStrategy {
     }
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub async fn e2fsck_preen(
     logicalname: impl AsRef<Path> + std::fmt::Debug,
 ) -> Result<RequiresReboot, Error> {
@@ -59,7 +59,7 @@ fn backup_existing_undo_file<'a>(path: &'a Path) -> BoxFuture<'a, Result<(), Err
     .boxed()
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub async fn e2fsck_aggressive(
     logicalname: impl AsRef<Path> + std::fmt::Debug,
 ) -> Result<RequiresReboot, Error> {

@@ -21,7 +21,7 @@ pub const BACKUP_DIR: &str = "/media/embassy/backups";
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Volumes(BTreeMap<VolumeId, Volume>);
 impl Volumes {
-    #[instrument]
+    #[instrument(skip_all)]
     pub fn validate(&self, interfaces: &Interfaces) -> Result<(), Error> {
         for (id, volume) in &self.0 {
             volume
@@ -30,7 +30,7 @@ impl Volumes {
         }
         Ok(())
     }
-    #[instrument(skip(ctx))]
+    #[instrument(skip_all)]
     pub async fn install(
         &self,
         ctx: &RpcContext,
@@ -142,7 +142,7 @@ pub enum Volume {
     Backup { readonly: bool },
 }
 impl Volume {
-    #[instrument]
+    #[instrument(skip_all)]
     pub fn validate(&self, interfaces: &Interfaces) -> Result<(), color_eyre::eyre::Report> {
         match self {
             Volume::Certificate { interface_id } => {

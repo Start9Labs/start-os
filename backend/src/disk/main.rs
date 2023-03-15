@@ -17,7 +17,7 @@ pub const PASSWORD_PATH: &'static str = "/etc/embassy/password";
 pub const DEFAULT_PASSWORD: &'static str = "password";
 pub const MAIN_FS_SIZE: FsSize = FsSize::Gigabytes(8);
 
-#[instrument(skip(disks, datadir, password))]
+#[instrument(skip_all)]
 pub async fn create<I, P>(
     disks: &I,
     pvscan: &BTreeMap<PathBuf, Option<String>>,
@@ -34,7 +34,7 @@ where
     Ok(guid)
 }
 
-#[instrument(skip(disks))]
+#[instrument(skip_all)]
 pub async fn create_pool<I, P>(
     disks: &I,
     pvscan: &BTreeMap<PathBuf, Option<String>>,
@@ -84,7 +84,7 @@ pub enum FsSize {
     FreePercentage(usize),
 }
 
-#[instrument(skip(datadir, password))]
+#[instrument(skip_all)]
 pub async fn create_fs<P: AsRef<Path>>(
     guid: &str,
     datadir: P,
@@ -139,7 +139,7 @@ pub async fn create_fs<P: AsRef<Path>>(
     Ok(())
 }
 
-#[instrument(skip(datadir, password))]
+#[instrument(skip_all)]
 pub async fn create_all_fs<P: AsRef<Path>>(
     guid: &str,
     datadir: P,
@@ -157,7 +157,7 @@ pub async fn create_all_fs<P: AsRef<Path>>(
     Ok(())
 }
 
-#[instrument(skip(datadir))]
+#[instrument(skip_all)]
 pub async fn unmount_fs<P: AsRef<Path>>(guid: &str, datadir: P, name: &str) -> Result<(), Error> {
     unmount(datadir.as_ref().join(name)).await?;
     Command::new("cryptsetup")
@@ -170,7 +170,7 @@ pub async fn unmount_fs<P: AsRef<Path>>(guid: &str, datadir: P, name: &str) -> R
     Ok(())
 }
 
-#[instrument(skip(datadir))]
+#[instrument(skip_all)]
 pub async fn unmount_all_fs<P: AsRef<Path>>(guid: &str, datadir: P) -> Result<(), Error> {
     unmount_fs(guid, &datadir, "main").await?;
     unmount_fs(guid, &datadir, "package-data").await?;
@@ -181,7 +181,7 @@ pub async fn unmount_all_fs<P: AsRef<Path>>(guid: &str, datadir: P) -> Result<()
     Ok(())
 }
 
-#[instrument(skip(datadir))]
+#[instrument(skip_all)]
 pub async fn export<P: AsRef<Path>>(guid: &str, datadir: P) -> Result<(), Error> {
     Command::new("sync").invoke(ErrorKind::Filesystem).await?;
     unmount_all_fs(guid, datadir).await?;
@@ -197,7 +197,7 @@ pub async fn export<P: AsRef<Path>>(guid: &str, datadir: P) -> Result<(), Error>
     Ok(())
 }
 
-#[instrument(skip(datadir, password))]
+#[instrument(skip_all)]
 pub async fn import<P: AsRef<Path>>(
     guid: &str,
     datadir: P,
@@ -254,7 +254,7 @@ pub async fn import<P: AsRef<Path>>(
     mount_all_fs(guid, datadir, repair, password).await
 }
 
-#[instrument(skip(datadir, password))]
+#[instrument(skip_all)]
 pub async fn mount_fs<P: AsRef<Path>>(
     guid: &str,
     datadir: P,
@@ -285,7 +285,7 @@ pub async fn mount_fs<P: AsRef<Path>>(
     Ok(reboot)
 }
 
-#[instrument(skip(datadir, password))]
+#[instrument(skip_all)]
 pub async fn mount_all_fs<P: AsRef<Path>>(
     guid: &str,
     datadir: P,

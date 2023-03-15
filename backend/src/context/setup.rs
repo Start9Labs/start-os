@@ -47,7 +47,7 @@ pub struct SetupContextConfig {
     pub datadir: Option<PathBuf>,
 }
 impl SetupContextConfig {
-    #[instrument(skip(path))]
+    #[instrument(skip_all)]
     pub async fn load<P: AsRef<Path> + Send + 'static>(path: Option<P>) -> Result<Self, Error> {
         tokio::task::spawn_blocking(move || {
             load_config_from_paths(
@@ -92,7 +92,7 @@ impl AsRef<Jwk> for SetupContextSeed {
 #[derive(Clone)]
 pub struct SetupContext(Arc<SetupContextSeed>);
 impl SetupContext {
-    #[instrument(skip(path))]
+    #[instrument(skip_all)]
     pub async fn init<P: AsRef<Path> + Send + 'static>(path: Option<P>) -> Result<Self, Error> {
         let cfg = SetupContextConfig::load(path.as_ref().map(|p| p.as_ref().to_owned())).await?;
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
@@ -110,7 +110,7 @@ impl SetupContext {
             setup_result: RwLock::new(None),
         })))
     }
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     pub async fn db(&self, account: &AccountInfo) -> Result<PatchDb, Error> {
         let db_path = self.datadir.join("main").join("embassy.db");
         let db = PatchDb::open(&db_path)
@@ -122,7 +122,7 @@ impl SetupContext {
         }
         Ok(db)
     }
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     pub async fn secret_store(&self) -> Result<PgPool, Error> {
         init_postgres(&self.datadir).await?;
         let secret_store =

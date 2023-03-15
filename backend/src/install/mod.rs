@@ -116,7 +116,7 @@ impl std::fmt::Display for MinMax {
     display(display_none),
     metadata(sync_db = true)
 )]
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 pub async fn install(
     #[context] ctx: RpcContext,
     #[arg] id: String,
@@ -326,7 +326,7 @@ pub async fn install(
 }
 
 #[command(rpc_only, display(display_none))]
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 pub async fn sideload(
     #[context] ctx: RpcContext,
     #[arg] manifest: Manifest,
@@ -482,7 +482,7 @@ pub async fn sideload(
     Ok(guid)
 }
 
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 async fn cli_install(
     ctx: CliContext,
     target: String,
@@ -574,7 +574,7 @@ pub async fn uninstall(#[arg] id: PackageId) -> Result<PackageId, Error> {
 }
 
 #[command(rename = "dry", display(display_serializable))]
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 pub async fn uninstall_dry(
     #[context] ctx: RpcContext,
     #[parent_data] id: PackageId,
@@ -597,7 +597,7 @@ pub async fn uninstall_dry(
     Ok(BreakageRes(breakages))
 }
 
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 pub async fn uninstall_impl(ctx: RpcContext, id: PackageId) -> Result<(), Error> {
     let mut handle = ctx.db.handle();
     let mut tx = handle.begin().await?;
@@ -700,7 +700,7 @@ impl DownloadInstallReceipts {
     }
 }
 
-#[instrument(skip(ctx, temp_manifest, s9pk))]
+#[instrument(skip_all)]
 pub async fn download_install_s9pk(
     ctx: &RpcContext,
     temp_manifest: &Manifest,
@@ -873,7 +873,7 @@ impl InstallS9Receipts {
     }
 }
 
-#[instrument(skip(ctx, rdr))]
+#[instrument(skip_all)]
 pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
     ctx: &RpcContext,
     pkg_id: &PackageId,
@@ -1402,7 +1402,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
     Ok(())
 }
 
-#[instrument(skip(datadir))]
+#[instrument(skip_all)]
 pub fn load_images<'a, P: AsRef<Path> + 'a + Send + Sync>(
     datadir: P,
 ) -> BoxFuture<'a, Result<(), Error>> {

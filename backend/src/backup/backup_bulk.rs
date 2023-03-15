@@ -35,7 +35,7 @@ fn parse_comma_separated(arg: &str, _: &ArgMatches) -> Result<BTreeSet<PackageId
 }
 
 #[command(rename = "create", display(display_none))]
-#[instrument(skip(ctx, old_password, password))]
+#[instrument(skip_all)]
 pub async fn backup_all(
     #[context] ctx: RpcContext,
     #[arg(rename = "target-id")] target_id: BackupTargetId,
@@ -161,7 +161,7 @@ pub async fn backup_all(
     Ok(())
 }
 
-#[instrument(skip(db, packages))]
+#[instrument(skip_all)]
 async fn assure_backing_up(
     db: &mut PatchDbHandle,
     packages: impl IntoIterator<Item = &PackageId>,
@@ -200,7 +200,7 @@ async fn assure_backing_up(
     Ok(())
 }
 
-#[instrument(skip(ctx, db, backup_guard))]
+#[instrument(skip_all)]
 async fn perform_backup<Db: DbHandle>(
     ctx: &RpcContext,
     mut db: Db,

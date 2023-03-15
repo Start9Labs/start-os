@@ -93,7 +93,7 @@ pub struct TorControllerInner {
     services: BTreeMap<String, BTreeMap<u16, BTreeMap<SocketAddr, Weak<()>>>>,
 }
 impl TorControllerInner {
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     async fn add(
         &mut self,
         key: &TorSecretKeyV3,
@@ -135,7 +135,7 @@ impl TorControllerInner {
         Ok(rc)
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     async fn gc(&mut self, key: &TorSecretKeyV3, external: u16) -> Result<(), Error> {
         let onion_base = key
             .public()
@@ -174,7 +174,7 @@ impl TorControllerInner {
         Ok(())
     }
 
-    #[instrument]
+    #[instrument(skip_all)]
     async fn init(tor_control: SocketAddr) -> Result<Self, Error> {
         let mut conn = torut::control::UnauthenticatedConn::new(
             TcpStream::connect(tor_control).await?, // TODO
@@ -196,7 +196,7 @@ impl TorControllerInner {
         })
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     async fn list_services(&mut self) -> Result<Vec<OnionAddressV3>, Error> {
         self.connection
             .get_info("onions/current")

@@ -62,7 +62,7 @@ impl UpdateDependencyReceipts {
     }
 }
 
-#[instrument(skip(ctx, db, deps, receipts))]
+#[instrument(skip_all)]
 pub async fn update_dependency_errors_of_dependents<'a, Db: DbHandle>(
     ctx: &RpcContext,
     db: &mut Db,
@@ -99,7 +99,7 @@ pub async fn update_dependency_errors_of_dependents<'a, Db: DbHandle>(
     Ok(())
 }
 
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 pub async fn cleanup(ctx: &RpcContext, id: &PackageId, version: &Version) -> Result<(), Error> {
     let mut errors = ErrorCollection::new();
     ctx.managers.remove(&(id.clone(), version.clone())).await;
@@ -204,7 +204,7 @@ impl CleanupFailedReceipts {
     }
 }
 
-#[instrument(skip(ctx, db, receipts))]
+#[instrument(skip_all)]
 pub async fn cleanup_failed<Db: DbHandle>(
     ctx: &RpcContext,
     db: &mut Db,
@@ -272,7 +272,7 @@ pub async fn cleanup_failed<Db: DbHandle>(
     Ok(())
 }
 
-#[instrument(skip(db, current_dependencies, current_dependent_receipt))]
+#[instrument(skip_all)]
 pub async fn remove_from_current_dependents_lists<'a, Db: DbHandle>(
     db: &mut Db,
     id: &'a PackageId,
@@ -340,7 +340,7 @@ impl UninstallReceipts {
         }
     }
 }
-#[instrument(skip(ctx, secrets, db))]
+#[instrument(skip_all)]
 pub async fn uninstall<Ex>(
     ctx: &RpcContext,
     db: &mut PatchDbHandle,
@@ -404,7 +404,7 @@ where
     Ok(())
 }
 
-#[instrument(skip(secrets))]
+#[instrument(skip_all)]
 pub async fn remove_tor_keys<Ex>(secrets: &mut Ex, id: &PackageId) -> Result<(), Error>
 where
     for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,

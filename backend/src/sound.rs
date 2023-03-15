@@ -21,19 +21,19 @@ struct SoundInterface {
     guard: Option<FileLock>,
 }
 impl SoundInterface {
-    #[instrument]
+    #[instrument(skip_all)]
     pub async fn lease() -> Result<Self, Error> {
         let guard = FileLock::new(SOUND_LOCK_FILE, true).await?;
         Ok(SoundInterface { guard: Some(guard) })
     }
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     pub async fn close(mut self) -> Result<(), Error> {
         if let Some(lock) = self.guard.take() {
             lock.unlock().await?;
         }
         Ok(())
     }
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     pub async fn play_for_time_slice(
         &mut self,
         tempo_qpm: u16,
@@ -59,7 +59,7 @@ impl<'a, T> Song<T>
 where
     T: IntoIterator<Item = (Option<Note>, TimeSlice)> + Clone,
 {
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     pub async fn play(&self) -> Result<(), Error> {
         let mut sound = SoundInterface::lease().await?;
         for (note, slice) in self.note_sequence.clone() {

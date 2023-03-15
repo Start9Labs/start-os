@@ -31,7 +31,7 @@ pub struct ConfigActions {
     pub set: PackageProcedure,
 }
 impl ConfigActions {
-    #[instrument]
+    #[instrument(skip_all)]
     pub fn validate(
         &self,
         container: &Option<DockerContainers>,
@@ -47,7 +47,7 @@ impl ConfigActions {
             .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Config Set"))?;
         Ok(())
     }
-    #[instrument(skip(ctx))]
+    #[instrument(skip_all)]
     pub async fn get(
         &self,
         ctx: &RpcContext,
@@ -71,7 +71,7 @@ impl ConfigActions {
             })
     }
 
-    #[instrument(skip(ctx))]
+    #[instrument(skip_all)]
     pub async fn set(
         &self,
         ctx: &RpcContext,

@@ -75,7 +75,7 @@ impl DockerContainer {
     /// Idea is that we are going to send it command and get the inputs be filtered back from the manager.
     /// Then we could in theory run commands without the cost of running the docker exec which is known to have
     /// a dely of > 200ms which is not acceptable.
-    #[instrument(skip(ctx))]
+    #[instrument(skip_all)]
     pub async fn long_running_execute(
         &self,
         ctx: &RpcContext,
@@ -212,7 +212,7 @@ impl DockerProcedure {
         Ok(())
     }
 
-    #[instrument(skip(ctx, input))]
+    #[instrument(skip_all)]
     pub async fn execute<I: Serialize, O: DeserializeOwned>(
         &self,
         ctx: &RpcContext,
@@ -393,7 +393,7 @@ impl DockerProcedure {
         )
     }
 
-    #[instrument(skip(_ctx, input))]
+    #[instrument(skip_all)]
     pub async fn inject<I: Serialize, O: DeserializeOwned>(
         &self,
         _ctx: &RpcContext,
@@ -548,7 +548,7 @@ impl DockerProcedure {
         )
     }
 
-    #[instrument(skip(ctx, input))]
+    #[instrument(skip_all)]
     pub async fn sandboxed<I: Serialize, O: DeserializeOwned>(
         &self,
         ctx: &RpcContext,

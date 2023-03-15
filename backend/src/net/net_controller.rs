@@ -31,7 +31,7 @@ pub struct NetController {
 }
 
 impl NetController {
-    #[instrument]
+    #[instrument(skip_all)]
     pub async fn init(
         tor_control: SocketAddr,
         dns_bind: &[SocketAddr],
@@ -139,7 +139,7 @@ impl NetController {
         Ok(())
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     pub async fn create_service(
         self: &Arc<Self>,
         package: PackageId,

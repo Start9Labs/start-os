@@ -46,7 +46,7 @@ fn parse_comma_separated(arg: &str, _: &ArgMatches) -> Result<Vec<PackageId>, Er
 }
 
 #[command(rename = "restore", display(display_none))]
-#[instrument(skip(ctx, password))]
+#[instrument(skip_all)]
 pub async fn restore_packages_rpc(
     #[context] ctx: RpcContext,
     #[arg(parse(parse_comma_separated))] ids: Vec<PackageId>,
@@ -169,7 +169,7 @@ impl ProgressInfo {
     }
 }
 
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 pub async fn recover_full_embassy(
     ctx: SetupContext,
     disk_guid: Arc<String>,
@@ -306,7 +306,7 @@ async fn restore_packages(
     Ok((backup_guard, tasks, progress_info))
 }
 
-#[instrument(skip(ctx, db, backup_guard))]
+#[instrument(skip_all)]
 async fn assure_restoring(
     ctx: &RpcContext,
     db: &mut PatchDbHandle,
@@ -376,7 +376,7 @@ async fn assure_restoring(
     Ok(guards)
 }
 
-#[instrument(skip(ctx, guard))]
+#[instrument(skip_all)]
 async fn restore_package<'a>(
     ctx: RpcContext,
     manifest: Manifest,

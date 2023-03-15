@@ -95,7 +95,7 @@ mod legacy {
             id.to_string()
         }
 
-        #[instrument]
+        #[instrument(skip_all)]
         pub async fn get_current_hostname() -> Result<Hostname, Error> {
             let out = Command::new("hostname")
                 .invoke(ErrorKind::ParseSysInfo)
@@ -104,7 +104,7 @@ mod legacy {
             Ok(Hostname(out_string.trim().to_owned()))
         }
 
-        #[instrument]
+        #[instrument(skip_all)]
         pub async fn set_hostname(hostname: &Hostname) -> Result<(), Error> {
             let hostname: &String = &hostname.0;
             let _out = Command::new("hostnamectl")
@@ -115,7 +115,7 @@ mod legacy {
             Ok(())
         }
 
-        #[instrument(skip(handle))]
+        #[instrument(skip_all)]
         pub async fn get_id<Db: DbHandle>(handle: &mut Db) -> Result<String, Error> {
             let id = crate::db::DatabaseModel::new()
                 .server_info()
@@ -142,7 +142,7 @@ mod legacy {
             }
             return Ok(Hostname(format!("embassy-{}", id)));
         }
-        #[instrument(skip(handle))]
+        #[instrument(skip_all)]
         pub async fn sync_hostname<Db: DbHandle>(handle: &mut Db) -> Result<(), Error> {
             set_hostname(&get_hostname(handle).await?).await?;
             Command::new("systemctl")

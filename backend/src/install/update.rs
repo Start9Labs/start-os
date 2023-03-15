@@ -60,7 +60,7 @@ pub async fn update() -> Result<(), Error> {
     Ok(())
 }
 
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 #[command(display(display_serializable))]
 pub async fn dry(
     #[context] ctx: RpcContext,

@@ -17,7 +17,7 @@ use embassy::{Error, ErrorKind, ResultExt, IS_RASPBERRY_PI};
 use tokio::process::Command;
 use tracing::instrument;
 
-#[instrument]
+#[instrument(skip_all)]
 async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
     if tokio::fs::metadata("/cdrom").await.is_ok() {
         let ctx = InstallContext::init(cfg_path).await?;
@@ -117,7 +117,7 @@ async fn run_script_if_exists<P: AsRef<Path>>(path: P) {
     }
 }
 
-#[instrument]
+#[instrument(skip_all)]
 async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error> {
     if *IS_RASPBERRY_PI && tokio::fs::metadata(STANDBY_MODE_PATH).await.is_ok() {
         tokio::fs::remove_file(STANDBY_MODE_PATH).await?;

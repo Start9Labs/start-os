@@ -18,7 +18,7 @@ use crate::{Error, ResultExt};
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct HealthChecks(pub BTreeMap<HealthCheckId, HealthCheck>);
 impl HealthChecks {
-    #[instrument]
+    #[instrument(skip_all)]
     pub fn validate(
         &self,
         container: &Option<DockerContainers>,
@@ -71,7 +71,7 @@ pub struct HealthCheck {
     pub timeout: Option<Duration>,
 }
 impl HealthCheck {
-    #[instrument(skip(ctx))]
+    #[instrument(skip_all)]
     pub async fn check(
         &self,
         ctx: &RpcContext,

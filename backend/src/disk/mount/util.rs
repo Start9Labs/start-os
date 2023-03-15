@@ -5,7 +5,7 @@ use tracing::instrument;
 use crate::util::Invoke;
 use crate::{Error, ResultExt};
 
-#[instrument(skip(src, dst))]
+#[instrument(skip_all)]
 pub async fn bind<P0: AsRef<Path>, P1: AsRef<Path>>(
     src: P0,
     dst: P1,
@@ -40,7 +40,7 @@ pub async fn bind<P0: AsRef<Path>, P1: AsRef<Path>>(
     Ok(())
 }
 
-#[instrument(skip(mountpoint))]
+#[instrument(skip_all)]
 pub async fn unmount<P: AsRef<Path>>(mountpoint: P) -> Result<(), Error> {
     tracing::debug!("Unmounting {}.", mountpoint.as_ref().display());
     tokio::process::Command::new("umount")

@@ -41,7 +41,7 @@ lazy_static! {
     display(display_update_result),
     metadata(sync_db = true)
 )]
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 pub async fn update_system(
     #[context] ctx: RpcContext,
     #[arg(rename = "marketplace-url")] marketplace_url: Url,
@@ -75,7 +75,7 @@ fn display_update_result(status: UpdateResult, _: &ArgMatches) {
     }
 }
 
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 async fn maybe_do_update(
     ctx: RpcContext,
     marketplace_url: Url,
@@ -194,7 +194,7 @@ async fn maybe_do_update(
     Ok(rev)
 }
 
-#[instrument(skip(ctx, eos_url))]
+#[instrument(skip_all)]
 async fn do_update(ctx: RpcContext, eos_url: EosUrl) -> Result<(), Error> {
     let mut rsync = Rsync::new(
         eos_url.rsync_path()?,
@@ -333,7 +333,7 @@ async fn sync_boot() -> Result<(), Error> {
     Ok(())
 }
 
-#[instrument]
+#[instrument(skip_all)]
 async fn swap_boot_label() -> Result<(), Error> {
     tokio::fs::write("/media/embassy/config/upgrade", b"").await?;
     Ok(())

@@ -57,7 +57,7 @@ pub fn ssh() -> Result<(), Error> {
 }
 
 #[command(display(display_none))]
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 pub async fn add(#[context] ctx: RpcContext, #[arg] key: PubKey) -> Result<SshKeyResponse, Error> {
     let pool = &ctx.secret_store;
     // check fingerprint for duplicates
@@ -92,7 +92,7 @@ pub async fn add(#[context] ctx: RpcContext, #[arg] key: PubKey) -> Result<SshKe
     }
 }
 #[command(display(display_none))]
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 pub async fn delete(#[context] ctx: RpcContext, #[arg] fingerprint: String) -> Result<(), Error> {
     let pool = &ctx.secret_store;
     // check if fingerprint is in DB
@@ -142,7 +142,7 @@ fn display_all_ssh_keys(all: Vec<SshKeyResponse>, matches: &ArgMatches) {
 }
 
 #[command(display(display_all_ssh_keys))]
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 pub async fn list(
     #[context] ctx: RpcContext,
     #[allow(unused_variables)]
@@ -172,7 +172,7 @@ pub async fn list(
         .collect())
 }
 
-#[instrument(skip(pool, dest))]
+#[instrument(skip_all)]
 pub async fn sync_keys_from_db<P: AsRef<Path>>(
     pool: &Pool<Postgres>,
     dest: P,

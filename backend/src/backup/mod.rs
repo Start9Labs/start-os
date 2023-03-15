@@ -92,7 +92,7 @@ impl BackupActions {
         Ok(())
     }
 
-    #[instrument(skip(ctx, db))]
+    #[instrument(skip_all)]
     pub async fn create<Db: DbHandle>(
         &self,
         ctx: &RpcContext,
@@ -189,7 +189,7 @@ impl BackupActions {
         })
     }
 
-    #[instrument(skip(ctx, db))]
+    #[instrument(skip_all)]
     pub async fn restore<Db: DbHandle>(
         &self,
         ctx: &RpcContext,

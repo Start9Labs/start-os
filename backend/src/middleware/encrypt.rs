@@ -47,7 +47,7 @@ pub struct EncryptedWire {
     encrypted: serde_json::Value,
 }
 impl EncryptedWire {
-    #[instrument(skip(current_secret))]
+    #[instrument(skip_all)]
     pub fn decrypt(self, current_secret: impl AsRef<Jwk>) -> Option<String> {
         let current_secret = current_secret.as_ref();
 
