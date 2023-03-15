@@ -1187,7 +1187,7 @@ export module Mock {
     },
   } as any // @TODO why is this necessary?
 
-  export const ConfigSpec: RR.GetPackageConfigRes['spec'] = {
+  export const InputSpec: RR.GetPackageConfigRes['spec'] = {
     bitcoin: {
       type: 'object',
       name: 'Bitcoin Settings',
@@ -1323,7 +1323,7 @@ export module Mock {
         },
       ],
       // the outer spec here, at the list level, says that what's inside (the inner spec) pertains to its inner elements.
-      // it just so happens that ValueSpecObject's have the field { spec: ConfigSpec }
+      // it just so happens that ValueSpecObject's have the field { spec: InputSpec }
       // see 'union-list' below for a different example.
       spec: {
         'unique-by': 'last-name',
