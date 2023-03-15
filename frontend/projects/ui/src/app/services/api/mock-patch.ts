@@ -221,10 +221,6 @@ export const mockPatchData: DataModel = {
         'os-version': '0.4.0',
       },
       installed: {
-        manifest: {
-          ...Mock.MockManifestLnd,
-          version: '0.11.0',
-        },
         'last-backup': null,
         status: {
           configured: true,
