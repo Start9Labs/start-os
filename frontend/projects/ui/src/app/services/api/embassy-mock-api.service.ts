@@ -665,7 +665,7 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
     return {
       config: Mock.MockConfig,
-      spec: Mock.ConfigSpec,
+      spec: Mock.InputSpec,
     }
   }
 
@@ -900,7 +900,7 @@ export class MockApiService extends ApiService {
     return {
       'old-config': Mock.MockConfig,
       'new-config': Mock.MockDependencyConfig,
-      spec: Mock.ConfigSpec,
+      spec: Mock.InputSpec,
     }
   }
 

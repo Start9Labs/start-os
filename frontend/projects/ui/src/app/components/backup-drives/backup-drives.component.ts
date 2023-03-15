@@ -12,7 +12,7 @@ import {
   ModalController,
 } from '@ionic/angular'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
-import { ConfigSpec } from 'start-sdk/types/config-types'
+import { InputSpec } from 'start-sdk/types/config-types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ErrorToastService } from '@start9labs/shared'
 import { MappedBackupTarget } from 'src/app/types/mapped-backup-target'
@@ -274,7 +274,7 @@ export class BackupDrivesStatusComponent {
   @Input() hasValidBackup!: boolean
 }
 
-const CifsSpec: ConfigSpec = {
+const CifsSpec: InputSpec = {
   hostname: {
     type: 'string',
     name: 'Hostname',
