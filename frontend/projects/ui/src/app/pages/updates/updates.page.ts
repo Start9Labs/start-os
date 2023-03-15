@@ -159,6 +159,7 @@ export class UpdatesPage {
   private async update(id: string, version: string, url: string) {
     try {
       await this.marketplaceService.installPackage(id, version, url)
+      delete this.marketplaceService.updateQueue[id]
     } catch (e: any) {
       delete this.marketplaceService.updateQueue[id]
       this.marketplaceService.updateErrors[id] = e.message
