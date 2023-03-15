@@ -8,7 +8,7 @@ import {
   Validators,
 } from '@angular/forms'
 import {
-  ConfigSpec,
+  InputSpec,
   isValueSpecListOf,
   ListValueSpecNumber,
   ListValueSpecObject,
@@ -34,7 +34,7 @@ export class FormService {
   constructor(private readonly formBuilder: UntypedFormBuilder) {}
 
   createForm(
-    spec: ConfigSpec,
+    spec: InputSpec,
     current: { [key: string]: any } = {},
   ): UntypedFormGroup {
     return this.getFormGroup(spec, [], current)
@@ -80,7 +80,7 @@ export class FormService {
   }
 
   private getFormGroup(
-    config: ConfigSpec,
+    config: InputSpec,
     validators: ValidatorFn[] = [],
     current?: { [key: string]: any } | null,
   ): UntypedFormGroup {
@@ -450,7 +450,7 @@ function uniqueByMessageWrapper(
   spec: ListValueSpecObject | ListValueSpecUnion,
   obj: Record<string, string>,
 ) {
-  let configSpec: ConfigSpec
+  let configSpec: InputSpec
   if (isUnion(spec)) {
     const tagId = spec.tag.id
     configSpec = {
@@ -469,7 +469,7 @@ function uniqueByMessageWrapper(
 
 function uniqueByMessage(
   uniqueBy: UniqueBy,
-  configSpec: ConfigSpec,
+  configSpec: InputSpec,
   outermost = true,
 ): string {
   let joinFunc
@@ -510,7 +510,7 @@ function isUnion(spec: any): spec is ListValueSpecUnion {
 }
 
 export function convertValuesRecursive(
-  configSpec: ConfigSpec,
+  configSpec: InputSpec,
   group: UntypedFormGroup,
 ) {
   Object.entries(configSpec).forEach(([key, valueSpec]) => {

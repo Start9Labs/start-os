@@ -1,4 +1,4 @@
-import { ConfigSpec } from 'start-sdk/types/config-types'
+import { InputSpec } from 'start-sdk/types/config-types'
 import { DevProjectData } from 'src/app/services/patch-db/data-model'
 
 export type BasicInfo = {
@@ -17,7 +17,7 @@ export type BasicInfo = {
   }
 }
 
-export function getBasicInfoSpec(devData: DevProjectData): ConfigSpec {
+export function getBasicInfoSpec(devData: DevProjectData): InputSpec {
   const basicInfo = devData['basic-info']
   return {
     id: {

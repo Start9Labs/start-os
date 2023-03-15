@@ -1,4 +1,4 @@
-import { ConfigSpec } from 'start-sdk/types/config-types'
+import { InputSpec } from 'start-sdk/types/config-types'
 import { Url } from '@start9labs/shared'
 import { MarketplaceManifest } from '@start9labs/marketplace'
 import { BasicInfo } from 'src/app/pages/developer-routes/developer-menu/form-info'
@@ -264,7 +264,7 @@ export interface Action {
   warning: string | null
   implementation: ActionImpl
   'allowed-statuses': (PackageMainStatus.Stopped | PackageMainStatus.Running)[]
-  'input-spec': ConfigSpec | null
+  'input-spec': InputSpec | null
 }
 
 export interface Status {

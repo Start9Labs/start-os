@@ -5,7 +5,7 @@ import {
   convertValuesRecursive,
   FormService,
 } from 'src/app/services/form.service'
-import { ConfigSpec } from 'start-sdk/types/config-types'
+import { InputSpec } from 'start-sdk/types/config-types'
 
 export interface ActionButton {
   text: string
@@ -20,7 +20,7 @@ export interface ActionButton {
 })
 export class GenericFormPage {
   @Input() title!: string
-  @Input() spec!: ConfigSpec
+  @Input() spec!: InputSpec
   @Input() buttons!: ActionButton[]
   @Input() initialValue: object = {}
 
