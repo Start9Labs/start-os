@@ -40,7 +40,10 @@
                   <ion-label>
                     <h1 style="line-height: 1.3">{{ pkg.manifest.title }}</h1>
                     <h2 class="inline">
-                      <span>{{ local.manifest.version | displayEmver }}</span>
+                      <span>
+                        {{ local.installed?.manifest?.version || '' |
+                        displayEmver }}
+                      </span>
                       &nbsp;
                       <ion-icon name="arrow-forward"></ion-icon>
                       &nbsp;
@@ -92,7 +95,7 @@
                   <ion-button
                     fill="clear"
                     strong
-                    (click)="viewInMarketplace($event, local)"
+                    (click)="viewInMarketplace($event, host.url, pkg.manifest.id)"
                   >
                     View listing
                     <ion-icon slot="end" name="open-outline"></ion-icon>
