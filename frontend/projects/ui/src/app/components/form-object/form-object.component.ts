@@ -11,7 +11,7 @@ import {
 import { FormArray, UntypedFormArray, UntypedFormGroup } from '@angular/forms'
 import { AlertButton, AlertController, ModalController } from '@ionic/angular'
 import {
-  ConfigSpec,
+  InputSpec,
   ListValueSpecOf,
   ValueSpec,
   ValueSpecBoolean,
@@ -37,7 +37,7 @@ interface Config {
   styleUrls: ['./form-object.component.scss'],
 })
 export class FormObjectComponent {
-  @Input() objectSpec!: ConfigSpec
+  @Input() objectSpec!: InputSpec
   @Input() formGroup!: UntypedFormGroup
   @Input() current?: Config
   @Input() original?: Config
