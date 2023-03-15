@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 
 env:
-  NODEJS_VERSION: '16.11.0'
+  NODEJS_VERSION: '18.15.0'
   ENVIRONMENT: "dev"
 
 jobs:
