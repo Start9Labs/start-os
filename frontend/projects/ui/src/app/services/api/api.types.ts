@@ -1,7 +1,7 @@
 import { Dump, Revision } from 'patch-db-client'
 import { MarketplacePkg, StoreInfo } from '@start9labs/marketplace'
 import { PackagePropertiesVersioned } from 'src/app/util/properties.util'
-import { ConfigSpec } from 'start-sdk/types/config-types'
+import { InputSpec } from 'start-sdk/types/config-types'
 import {
   DataModel,
   DependencyError,
@@ -193,7 +193,7 @@ export module RR {
   export type DryUpdatePackageRes = Breakages
 
   export type GetPackageConfigReq = { id: string } // package.config.get
-  export type GetPackageConfigRes = { spec: ConfigSpec; config: object }
+  export type GetPackageConfigRes = { spec: InputSpec; config: object }
 
   export type DrySetPackageConfigReq = { id: string; config: object } // package.config.set.dry
   export type DrySetPackageConfigRes = Breakages
@@ -236,7 +236,7 @@ export module RR {
   export type DryConfigureDependencyRes = {
     'old-config': object
     'new-config': object
-    spec: ConfigSpec
+    spec: InputSpec
   }
 
   export type SideloadPackageReq = {

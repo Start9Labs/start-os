@@ -13,7 +13,7 @@ import {
   isObject,
 } from '@start9labs/shared'
 import { DependentInfo } from 'src/app/types/dependent-info'
-import { ConfigSpec } from 'start-sdk/types/config-types'
+import { InputSpec } from 'start-sdk/types/config-types'
 import {
   DataModel,
   PackageDataEntry,
@@ -42,7 +42,7 @@ export class AppConfigPage {
   pkg!: PackageDataEntry
   loadingText = ''
 
-  configSpec?: ConfigSpec
+  configSpec?: InputSpec
   configForm?: UntypedFormGroup
 
   original?: object // only if existing config
