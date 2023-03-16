@@ -32,3 +32,4 @@ rsync
 systemd-timesyncd
 magic-wormhole
 nyx
+bash-completion
