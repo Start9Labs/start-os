@@ -112,3 +112,7 @@ rm -f /etc/motd
 ln -sf /usr/lib/embassy/motd /etc/update-motd.d/00-embassy
 chmod -x /etc/update-motd.d/*
 chmod +x /etc/update-motd.d/00-embassy
+
+ls -sf /usr/lib/embassy/scripts/fake-apt /usr/local/bin/apt
+ls -sf /usr/lib/embassy/scripts/fake-apt /usr/local/bin/apt-get
+ls -sf /usr/lib/embassy/scripts/fake-apt /usr/local/bin/aptitude
