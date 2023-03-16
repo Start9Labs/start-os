@@ -6,6 +6,7 @@ import {
   ChangeDetectionStrategy,
   Inject,
   inject,
+  SimpleChanges,
 } from '@angular/core'
 import { FormArray, UntypedFormArray, UntypedFormGroup } from '@angular/forms'
 import { AlertButton, AlertController, ModalController } from '@ionic/angular'
@@ -63,6 +64,37 @@ export class FormObjectComponent {
   ) {}
 
   ngOnInit() {
+    this.setDisplays()
+
+    // setTimeout hack to avoid ExpressionChangedAfterItHasBeenCheckedError
+    setTimeout(() => {
+      if (this.original) {
+        Object.keys(this.current || {}).forEach(key => {
+          if ((this.original as Config)[key] === undefined) {
+            this.hasNewOptions.emit()
+          }
+        })
+      }
+    }, 10)
+  }
+
+  ngOnChanges(changes: SimpleChanges) {
+    const specChanges = changes['objectSpec']
+
+    if (!specChanges) return
+
+    if (
+      !specChanges.firstChange &&
+      Object.keys({
+        ...specChanges.previousValue,
+        ...specChanges.currentValue,
+      }).length !== Object.keys(specChanges.previousValue).length
+    ) {
+      this.setDisplays()
+    }
+  }
+
+  private setDisplays() {
     Object.keys(this.objectSpec).forEach(key => {
       const spec = this.objectSpec[key]
 
@@ -88,17 +120,6 @@ export class FormObjectComponent {
         }
       }
     })
-
-    // setTimeout hack to avoid ExpressionChangedAfterItHasBeenCheckedError
-    setTimeout(() => {
-      if (this.original) {
-        Object.keys(this.current || {}).forEach(key => {
-          if ((this.original as Config)[key] === undefined) {
-            this.hasNewOptions.emit()
-          }
-        })
-      }
-    }, 10)
   }
 
   resize(key: string, i?: number): void {
@@ -374,10 +395,7 @@ export class FormUnionComponent {
 
   objectId = v4()
 
-  constructor(
-    private readonly formService: FormService,
-    @Inject(DOCUMENT) private readonly document: Document,
-  ) {}
+  constructor(private readonly formService: FormService) {}
 
   updateUnion(e: any): void {
     const tagId = this.spec.tag.id
