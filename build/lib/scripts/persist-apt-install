@@ -1,10 +1,5 @@
 #!/bin/bash
 
-if ! [ "$(cat /proc/$PPID/cmdline | sed 's|\x0| |g')" != "/bin/bash /media/embassy/config/preinit.sh " ]; then
-    >&2 echo 'This is expected to be run as part of "preinit.sh"'
-    exit 1
-fi
-
 if [ -z "$1" ]; then
     >&2 echo "usage: $0 <PACKAGE_NAME>"
     exit 1
