@@ -11,10 +11,9 @@ cat > /etc/rsyncd.conf << RD
 uid = root
 gid = root
 use chroot = yes
-max connections = 4
+max connections = 50
 pid file = /var/run/rsyncd.pid
 exclude = lost+found/
-transfer logging = yes
 timeout = 900
 ignore nonreadable = yes
 dont compress   = *.gz *.tgz *.zip *.z *.Z *.rpm *.deb *.bz2
@@ -35,12 +34,13 @@ do
     echo "Making new dir $new_dir"
     mkdir -p $new_dir
 
-    if ! test -n "$(mount -l | grep $new_dir)"
-    then
-        echo "Mounting $filename to $new_dir"
-        mount $filename $new_dir
+    if test -n "$(mount -l | grep $new_dir)"; then
+        umount $new_dir
     fi
-   
+
+    echo "Mounting $filename to $new_dir"
+    mount $filename $new_dir
+       
 cat >> /etc/rsyncd.conf  << INSERTING
 [$version]
 path = $version_dir
