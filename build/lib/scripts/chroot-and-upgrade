@@ -26,6 +26,10 @@ rm /media/embassy/next/usr/local/bin/aptitude
 
 chroot /media/embassy/next $@
 
+ln -sf /usr/lib/embassy/scripts/fake-apt /media/embassy/next/usr/local/bin/apt
+ln -sf /usr/lib/embassy/scripts/fake-apt /media/embassy/next/usr/local/bin/apt-get
+ln -sf /usr/lib/embassy/scripts/fake-apt /media/embassy/next/usr/local/bin/aptitude
+
 umount /media/embassy/next/run
 umount /media/embassy/next/dev
 umount /media/embassy/next/sys
