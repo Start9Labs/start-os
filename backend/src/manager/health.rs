@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use itertools::Itertools;
 use patch_db::{DbHandle, LockReceipt, LockType};
 use tracing::instrument;
 
@@ -111,6 +112,7 @@ pub async fn check<Db: DbHandle>(
     };
 
     let health_results = if let Some(started) = started {
+        tracing::debug!("Checking health of {}", id);
         manifest
             .health_checks
             .check_all(
@@ -129,6 +131,24 @@ pub async fn check<Db: DbHandle>(
     if !should_commit.load(Ordering::SeqCst) {
         return Ok(());
     }
+
+    if !health_results
+        .iter()
+        .any(|(_, res)| matches!(res, HealthCheckResult::Failure { .. }))
+    {
+        tracing::debug!("All health checks succeeded for {}", id);
+    } else {
+        tracing::debug!(
+            "Some health checks failed for {}: {}",
+            id,
+            health_results
+                .iter()
+                .filter(|(_, res)| matches!(res, HealthCheckResult::Failure { .. }))
+                .map(|(id, _)| &*id)
+                .join(", ")
+        );
+    }
+
     let current_dependents = {
         let mut checkpoint = tx.begin().await?;
         let receipts = HealthCheckStatusReceipt::new(&mut checkpoint, id).await?;
@@ -153,9 +173,7 @@ pub async fn check<Db: DbHandle>(
         current_dependents
     };
 
-    tracing::debug!("Checking health of {}", id);
     let receipts = crate::dependencies::BreakTransitiveReceipts::new(&mut tx).await?;
-    tracing::debug!("Got receipts {}", id);
 
     for (dependent, info) in (current_dependents).0.iter() {
         let failures: BTreeMap<HealthCheckId, HealthCheckResult> = health_results
