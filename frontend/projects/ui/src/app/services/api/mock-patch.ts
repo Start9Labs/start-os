@@ -387,30 +387,6 @@ export const mockPatchData: DataModel = {
                     },
                   },
                   external: {
-                    'emergency-contact': {
-                      name: 'Emergency Contact',
-                      type: 'object',
-                      description:
-                        'The person to contact in case of emergency.',
-                      spec: {
-                        name: {
-                          type: 'string',
-                          name: 'Name',
-                          nullable: false,
-                          masked: false,
-                          copyable: false,
-                          pattern: '^[a-zA-Z]+$',
-                          'pattern-description': 'Must contain only letters.',
-                        },
-                        email: {
-                          type: 'string',
-                          name: 'Email',
-                          nullable: false,
-                          masked: false,
-                          copyable: true,
-                        },
-                      },
-                    },
                     'public-domain': {
                       name: 'Public Domain',
                       type: 'string',
