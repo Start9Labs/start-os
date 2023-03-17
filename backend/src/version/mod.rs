@@ -294,7 +294,7 @@ mod tests {
             Just(Version::V0_3_2_1(Wrapper(v0_3_2_1::Version::new()))),
             Just(Version::V0_3_3(Wrapper(v0_3_3::Version::new()))),
             Just(Version::V0_3_4(Wrapper(v0_3_4::Version::new()))),
-            Just(Version::V0_3_4(Wrapper(v0_3_4_1::Version::new()))),
+            Just(Version::V0_3_4_1(Wrapper(v0_3_4_1::Version::new()))),
             em_version().prop_map(Version::Other),
         ]
     }
