@@ -226,7 +226,6 @@ impl DockerProcedure {
         let name = name.docker_name();
         let name: Option<&str> = name.as_ref().map(|x| &**x);
         let mut cmd = tokio::process::Command::new("docker");
-        tracing::debug!("{:?} is run", name);
         let container_name = Self::container_name(pkg_id, name);
         cmd.arg("run")
             .arg("--rm")
@@ -408,7 +407,6 @@ impl DockerProcedure {
         let name: Option<&str> = name.as_deref();
         let mut cmd = tokio::process::Command::new("docker");
 
-        tracing::debug!("{:?} is exec", name);
         cmd.arg("exec");
 
         cmd.args(self.docker_args_inject(pkg_id).await?);
