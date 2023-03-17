@@ -6,6 +6,7 @@ import {
   ChangeDetectionStrategy,
   Inject,
   inject,
+  SimpleChanges,
 } from '@angular/core'
 import { FormArray, UntypedFormArray, UntypedFormGroup } from '@angular/forms'
 import { AlertButton, AlertController, ModalController } from '@ionic/angular'
@@ -41,15 +42,14 @@ export class FormObjectComponent {
   @Input() current?: Config
   @Input() original?: Config
   @Output() onInputChange = new EventEmitter<void>()
-  @Output() onResize = new EventEmitter<void>()
   @Output() hasNewOptions = new EventEmitter<void>()
   warningAck: { [key: string]: boolean } = {}
   unmasked: { [key: string]: boolean } = {}
   objectDisplay: {
-    [key: string]: { expanded: boolean; height: string; hasNewOptions: boolean }
+    [key: string]: { expanded: boolean; hasNewOptions: boolean }
   } = {}
   objectListDisplay: {
-    [key: string]: { expanded: boolean; height: string; displayAs: string }[]
+    [key: string]: { expanded: boolean; displayAs: string }[]
   } = {}
   objectId = v4()
 
@@ -63,6 +63,37 @@ export class FormObjectComponent {
   ) {}
 
   ngOnInit() {
+    this.setDisplays()
+
+    // setTimeout hack to avoid ExpressionChangedAfterItHasBeenCheckedError
+    setTimeout(() => {
+      if (
+        this.original &&
+        Object.keys(this.current || {}).some(
+          key => this.original![key] === undefined,
+        )
+      )
+        this.hasNewOptions.emit()
+    })
+  }
+
+  ngOnChanges(changes: SimpleChanges) {
+    const specChanges = changes['objectSpec']
+
+    if (!specChanges) return
+
+    if (
+      !specChanges.firstChange &&
+      Object.keys({
+        ...specChanges.previousValue,
+        ...specChanges.currentValue,
+      }).length !== Object.keys(specChanges.previousValue).length
+    ) {
+      this.setDisplays()
+    }
+  }
+
+  private setDisplays() {
     Object.keys(this.objectSpec).forEach(key => {
       const spec = this.objectSpec[key]
 
@@ -74,7 +105,6 @@ export class FormObjectComponent {
           ]
           this.objectListDisplay[key][index] = {
             expanded: false,
-            height: '0px',
             displayAs: displayAs
               ? (Mustache as any).render(displayAs, obj)
               : '',
@@ -83,33 +113,10 @@ export class FormObjectComponent {
       } else if (spec.type === 'object') {
         this.objectDisplay[key] = {
           expanded: false,
-          height: '0px',
           hasNewOptions: false,
         }
       }
     })
-
-    // setTimeout hack to avoid ExpressionChangedAfterItHasBeenCheckedError
-    setTimeout(() => {
-      if (this.original) {
-        Object.keys(this.current || {}).forEach(key => {
-          if ((this.original as Config)[key] === undefined) {
-            this.hasNewOptions.emit()
-          }
-        })
-      }
-    }, 10)
-  }
-
-  resize(key: string, i?: number): void {
-    setTimeout(() => {
-      if (i !== undefined) {
-        this.objectListDisplay[key][i].height = this.getScrollHeight(key, i)
-      } else {
-        this.objectDisplay[key].height = this.getScrollHeight(key)
-      }
-      this.onResize.emit()
-    }, 250) // 250 to match transition-duration defined in html, for smooth recursive resize
   }
 
   addListItemWrapper<T extends ValueSpec>(
@@ -121,20 +128,11 @@ export class FormObjectComponent {
 
   toggleExpandObject(key: string) {
     this.objectDisplay[key].expanded = !this.objectDisplay[key].expanded
-    this.objectDisplay[key].height = this.objectDisplay[key].expanded
-      ? this.getScrollHeight(key)
-      : '0px'
-    this.onResize.emit()
   }
 
   toggleExpandListObject(key: string, i: number) {
     this.objectListDisplay[key][i].expanded =
       !this.objectListDisplay[key][i].expanded
-    this.objectListDisplay[key][i].height = this.objectListDisplay[key][i]
-      .expanded
-      ? this.getScrollHeight(key, i)
-      : '0px'
-    this.onResize.emit()
   }
 
   updateLabel(key: string, i: number, displayAs: string) {
@@ -275,7 +273,6 @@ export class FormObjectComponent {
         'display-as'
       ]
       this.objectListDisplay[key].push({
-        height: '0px',
         expanded: false,
         displayAs: displayAs ? Mustache.render(displayAs, newItem.value) : '',
       })
@@ -296,8 +293,8 @@ export class FormObjectComponent {
   }
 
   private deleteListItem(key: string, index: number, markDirty = true): void {
-    if (this.objectListDisplay[key])
-      this.objectListDisplay[key][index].height = '0px'
+    // if (this.objectListDisplay[key])
+    //   this.objectListDisplay[key][index].height = '0px'
     const arr = this.formGroup.get(key) as UntypedFormArray
     if (markDirty) arr.markAsDirty()
     pauseFor(250).then(() => {
@@ -328,13 +325,6 @@ export class FormObjectComponent {
     arr.markAsDirty()
   }
 
-  private getScrollHeight(key: string, index = 0): string {
-    const element = this.document.getElementById(
-      getElementId(this.objectId, key, index),
-    )
-    return `${element?.scrollHeight}px`
-  }
-
   asIsOrder() {
     return 0
   }
@@ -351,8 +341,6 @@ export class FormUnionComponent {
   @Input() spec!: ValueSpecUnion
   @Input() current?: Config
   @Input() original?: Config
-
-  @Output() onResize = new EventEmitter<void>()
 
   get unionValue() {
     return this.formGroup.get(this.spec.tag.id)?.value
@@ -374,10 +362,7 @@ export class FormUnionComponent {
 
   objectId = v4()
 
-  constructor(
-    private readonly formService: FormService,
-    @Inject(DOCUMENT) private readonly document: Document,
-  ) {}
+  constructor(private readonly formService: FormService) {}
 
   updateUnion(e: any): void {
     const tagId = this.spec.tag.id
@@ -396,12 +381,6 @@ export class FormUnionComponent {
       if (control === tagId) return
       this.formGroup.addControl(control, unionGroup.controls[control])
     })
-  }
-
-  resize(): void {
-    setTimeout(() => {
-      this.onResize.emit()
-    }, 250) // 250 to match transition-duration, defined in html
   }
 }
 

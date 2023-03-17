@@ -1169,6 +1169,113 @@ export module Mock {
   } as any // @TODO why is this necessary?
 
   export const ConfigSpec: RR.GetPackageConfigRes['spec'] = {
+    bitcoin: {
+      type: 'object',
+      name: 'Bitcoin Settings',
+      description:
+        'RPC and P2P interface configuration options for Bitcoin Core',
+      spec: {
+        'bitcoind-p2p': {
+          type: 'union',
+          tag: {
+            id: 'type',
+            name: 'Bitcoin Core P2P',
+            description:
+              '<p>The Bitcoin Core node to connect to over the peer-to-peer (P2P) interface:</p><ul><li><strong>Bitcoin Core</strong>: The Bitcoin Core service installed on this device</li><li><strong>External Node</strong>: A Bitcoin node running on a different device</li></ul>',
+            'variant-names': {
+              internal: 'Bitcoin Core',
+              external: 'External Node',
+            },
+          },
+          default: 'internal',
+          variants: {
+            internal: {},
+            external: {
+              'p2p-host': {
+                type: 'string',
+                name: 'Public Address',
+                description: 'The public address of your Bitcoin Core server',
+                nullable: false,
+                masked: false,
+                copyable: false,
+              },
+              'p2p-port': {
+                type: 'number',
+                name: 'P2P Port',
+                description:
+                  'The port that your Bitcoin Core P2P server is bound to',
+                nullable: false,
+                range: '[0,65535]',
+                integral: true,
+                default: 8333,
+              },
+            },
+          },
+        },
+      },
+    },
+    advanced: {
+      name: 'Advanced',
+      type: 'object',
+      description: 'Advanced settings',
+      spec: {
+        rpcsettings: {
+          name: 'RPC Settings',
+          type: 'object',
+          description: 'rpc username and password',
+          warning:
+            'Adding RPC users gives them special permissions on your node.',
+          spec: {
+            rpcuser2: {
+              name: 'RPC Username',
+              type: 'string',
+              description: 'rpc username',
+              nullable: false,
+              default: 'defaultrpcusername',
+              pattern: '^[a-zA-Z]+$',
+              'pattern-description': 'must contain only letters.',
+              masked: false,
+              copyable: true,
+            },
+            rpcuser: {
+              name: 'RPC Username',
+              type: 'string',
+              description: 'rpc username',
+              nullable: false,
+              default: 'defaultrpcusername',
+              pattern: '^[a-zA-Z]+$',
+              'pattern-description': 'must contain only letters.',
+              masked: false,
+              copyable: true,
+            },
+            rpcpass: {
+              name: 'RPC User Password',
+              type: 'string',
+              description: 'rpc password',
+              nullable: false,
+              default: {
+                charset: 'a-z,A-Z,2-9',
+                len: 20,
+              },
+              masked: true,
+              copyable: true,
+            },
+            rpcpass2: {
+              name: 'RPC User Password',
+              type: 'string',
+              description: 'rpc password',
+              nullable: false,
+              default: {
+                charset: 'a-z,A-Z,2-9',
+                len: 20,
+              },
+              masked: true,
+              copyable: true,
+            },
+          },
+        },
+      },
+    },
     testnet: {
       name: 'Testnet',
       type: 'boolean',
@@ -1449,6 +1556,29 @@ export module Mock {
           },
         },
         external: {
+          'emergency-contact': {
+            name: 'Emergency Contact',
+            type: 'object',
+            description: 'The person to contact in case of emergency.',
+            spec: {
+              name: {
+                type: 'string',
+                name: 'Name',
+                nullable: false,
+                masked: false,
+                copyable: false,
+                pattern: '^[a-zA-Z]+$',
+                'pattern-description': 'Must contain only letters.',
+              },
+              email: {
+                type: 'string',
+                name: 'Email',
+                nullable: false,
+                masked: false,
+                copyable: true,
+              },
+            },
+          },
           'public-domain': {
             name: 'Public Domain',
             type: 'string',
@@ -1520,8 +1650,8 @@ export module Mock {
         copyable: false,
       },
     },
-    advanced: {
-      name: 'Advanced',
+    'more-advanced': {
+      name: 'More Advanced',
       type: 'object',
       description: 'Advanced settings',
       spec: {
@@ -1726,8 +1856,7 @@ export module Mock {
       rulemakers: [],
     },
     'bitcoin-node': {
-      type: 'external',
-      'public-domain': 'hello.com',
+      type: 'internal',
     },
     port: 20,
     rpcallowip: undefined,
