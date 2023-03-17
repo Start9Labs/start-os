@@ -1,0 +1,21 @@
+#!/bin/bash
+
+>&2 echo 'THIS IS NOT A STANDARD DEBIAN SYSTEM'
+>&2 echo 'USING apt COULD CAUSE IRREPARABLE DAMAGE TO YOUR EMBASSY'
+>&2 echo 'PLEASE TURN BACK NOW!!!'
+if [ "$1" == "upgrade" ] && [ "$(whoami)" == "root" ]; then
+    >&2 echo 'IF YOU THINK RUNNING "sudo apt upgrade" IS A REASONABLE THING TO DO ON THIS SYSTEM, YOU PROBABLY SHOULDN'"'"'T BE ON THE COMMAND LINE.'
+    >&2 echo 'YOU ARE BEING REMOVED FROM THIS SESSION FOR YOUR OWN SAFETY.'
+    pkill -9 -t $(tty | sed 's|^/dev/||g')
+fi
+>&2 echo
+>&2 echo 'If you are SURE you know what you are doing, and are willing to accept the DIRE CONSEQUENCES of doing so, you can run the following command to disable this protection:'
+>&2 echo '    sudo rm /usr/local/bin/apt'
+>&2 echo
+>&2 echo 'Otherwise, what you probably want to do is run:'
+>&2 echo '    sudo /usr/lib/embassy/scripts/chroot-and-upgrade'
+>&2 echo 'You can run apt in this context to add packages to your system.'
+>&2 echo 'When you are done with your changes, type "exit" and the device will reboot into a system with the changes applied.'
+>&2 echo 'This is still NOT RECOMMENDED if you don'"'"'t know what you are doing, but at least isn'"'"'t guaranteed to break things.'
+
+exit 1

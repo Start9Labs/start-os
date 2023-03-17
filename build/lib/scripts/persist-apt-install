@@ -1,0 +1,20 @@
+#!/bin/bash
+
+if [ -z "$1" ]; then
+    >&2 echo "usage: $0 <PACKAGE_NAME>"
+    exit 1
+fi
+
+TO_INSTALL=()
+while [ -n "$1" ]; do
+    if ! dpkg -s "$1"; then
+        TO_INSTALL+=("$1")
+    fi
+    shift
+done
+
+if [ ${#TO_INSTALL[@]} -ne 0 ]; then
+/usr/lib/embassy/scripts/chroot-and-upgrade << EOF
+apt-get update && apt-get install -y ${TO_INSTALL[@]}
+EOF
+fi

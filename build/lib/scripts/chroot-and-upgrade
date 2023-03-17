@@ -13,17 +13,28 @@ mkdir -p /media/embassy/next/run
 mkdir -p /media/embassy/next/dev
 mkdir -p /media/embassy/next/sys
 mkdir -p /media/embassy/next/proc
+mkdir -p /media/embassy/next/boot
 mount --bind /run /media/embassy/next/run
 mount --bind /dev /media/embassy/next/dev
 mount --bind /sys /media/embassy/next/sys
 mount --bind /proc /media/embassy/next/proc
+mount --bind /boot /media/embassy/next/boot
 
-chroot /media/embassy/next
+rm /media/embassy/next/usr/local/bin/apt
+rm /media/embassy/next/usr/local/bin/apt-get
+rm /media/embassy/next/usr/local/bin/aptitude
+
+chroot /media/embassy/next $@
+
+ln -sf /usr/lib/embassy/scripts/fake-apt /media/embassy/next/usr/local/bin/apt
+ln -sf /usr/lib/embassy/scripts/fake-apt /media/embassy/next/usr/local/bin/apt-get
+ln -sf /usr/lib/embassy/scripts/fake-apt /media/embassy/next/usr/local/bin/aptitude
 
 umount /media/embassy/next/run
 umount /media/embassy/next/dev
 umount /media/embassy/next/sys
 umount /media/embassy/next/proc
+umount /media/embassy/next/boot
 
 echo 'Upgrading...'
 
