@@ -21,13 +21,17 @@ export class ThemeSwitcherService extends BehaviorSubject<string> {
       .watch$('ui', 'theme')
       .pipe(take(1), filter(Boolean))
       .subscribe(theme => {
-        this.next(theme)
+        this.updateTheme(theme)
       })
   }
 
-  override next(currentTheme: string): void {
-    this.embassyApi.setDbValue(['theme'], currentTheme)
-    this.windowRef.document.body.setAttribute('data-theme', currentTheme)
-    super.next(currentTheme)
+  override next(theme: string): void {
+    this.embassyApi.setDbValue(['theme'], theme)
+    this.updateTheme(theme)
+  }
+
+  private updateTheme(theme: string): void {
+    this.windowRef.document.body.setAttribute('data-theme', theme)
+    super.next(theme)
   }
 }

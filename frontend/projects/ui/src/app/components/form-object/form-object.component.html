@@ -22,8 +22,7 @@
             [formControlName]="entry.key"
             (ionFocus)="presentAlertChangeWarning(entry.key, spec)"
             (ionChange)="handleInputChange()"
-          >
-          </ion-textarea>
+          ></ion-textarea>
           <ng-template #notTextArea>
             <ion-input
               type="text"
@@ -38,8 +37,7 @@
               [formControlName]="entry.key"
               (ionFocus)="presentAlertChangeWarning(entry.key, spec)"
               (ionChange)="handleInputChange()"
-            >
-            </ion-input>
+            ></ion-input>
           </ng-template>
           <ion-button
             *ngIf="spec.type === 'string' && spec.masked"
@@ -59,8 +57,9 @@
             slot="end"
             color="light"
             style="font-size: medium"
-            >{{ spec.units }}</ion-note
           >
+            {{ spec.units }}
+          </ion-note>
         </ion-item>
         <p class="error-message">
           <span *ngIf="(formGroup | getControl: entry.key).errors as errors">
@@ -92,11 +91,11 @@
               *ngIf="original?.[entry.key] === undefined"
               color="success"
             >
-              (New)</ion-text
-            >
+              (New)
+            </ion-text>
             <ion-text *ngIf="entry.value.dirty" color="warning">
-              (Edited)</ion-text
-            >
+              (Edited)
+            </ion-text>
           </b>
         </ion-label>
         <!-- boolean -->
@@ -157,14 +156,9 @@
           ></ion-icon>
         </ion-item-divider>
         <!-- body -->
-        <div
+        <tui-expand
+          [expanded]="objectDisplay[entry.key].expanded"
           [id]="objectId | toElementId: entry.key"
-          [ngStyle]="{
-            'max-height': objectDisplay[entry.key].height,
-            overflow: 'hidden',
-            'transition-property': 'max-height',
-            'transition-duration': '.42s'
-          }"
         >
           <div class="nested-wrapper">
             <form-object
@@ -172,11 +166,10 @@
               [formGroup]="$any(entry.value)"
               [current]="current?.[entry.key]"
               [original]="original?.[entry.key]"
-              (onResize)="resize(entry.key)"
               (hasNewOptions)="setHasNew(entry.key)"
             ></form-object>
           </div>
-        </div>
+        </tui-expand>
       </ng-container>
       <!-- union -->
       <form-union
@@ -259,15 +252,10 @@
                   ></ion-icon>
                 </ion-item>
                 <!-- object/union body -->
-                <div
+                <tui-expand
                   style="padding-left: 24px"
+                  [expanded]="objectListDisplay[entry.key][i].expanded"
                   [id]="objectId | toElementId: entry.key:i"
-                  [ngStyle]="{
-                    'max-height': objectListDisplay[entry.key][i].height,
-                    overflow: 'hidden',
-                    'transition-property': 'max-height',
-                    'transition-duration': '.42s'
-                  }"
                 >
                   <form-object
                     *ngIf="spec.subtype === 'object'"
@@ -278,7 +266,6 @@
                     (onInputChange)="
                       updateLabel(entry.key, i, $any(spec.spec)['display-as'])
                     "
-                    (onResize)="resize(entry.key, i)"
                   ></form-object>
                   <form-union
                     *ngIf="spec.subtype === 'union'"
@@ -289,7 +276,6 @@
                     (onInputChange)="
                       updateLabel(entry.key, i, $any(spec.spec)['display-as'])
                     "
-                    (onResize)="resize(entry.key, i)"
                   ></form-union>
                   <div style="text-align: right; padding-top: 12px">
                     <ion-button
@@ -301,7 +287,7 @@
                       Delete
                     </ion-button>
                   </div>
-                </div>
+                </tui-expand>
               </ng-container>
               <!-- string or number -->
               <div
@@ -318,8 +304,7 @@
                       $any(spec.spec).placeholder || 'Enter ' + spec.name
                     "
                     [formControlName]="i"
-                  >
-                  </ion-input>
+                  ></ion-input>
                   <ion-button
                     strong
                     fill="clear"

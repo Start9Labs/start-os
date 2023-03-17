@@ -18,6 +18,7 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms'
 import { SharedPipesModule } from '@start9labs/shared'
 import { TuiElasticContainerModule } from '@taiga-ui/kit'
 import { EnumListPageModule } from 'src/app/modals/enum-list/enum-list.module'
+import { TuiExpandModule } from '@taiga-ui/core'
 
 @NgModule({
   declarations: [
@@ -39,6 +40,7 @@ import { EnumListPageModule } from 'src/app/modals/enum-list/enum-list.module'
     SharedPipesModule,
     EnumListPageModule,
     TuiElasticContainerModule,
+    TuiExpandModule,
   ],
   exports: [FormObjectComponent, FormLabelComponent],
 })
