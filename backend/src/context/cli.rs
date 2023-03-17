@@ -54,7 +54,8 @@ impl Drop for CliContextSeed {
             true,
         )
         .unwrap();
-        let store = self.cookie_store.lock().unwrap();
+        let mut store = self.cookie_store.lock().unwrap();
+        store.remove("localhost", "", "local");
         store.save_json(&mut *writer).unwrap();
         writer.sync_all().unwrap();
         std::fs::rename(tmp, &self.cookie_path).unwrap();
@@ -101,19 +102,22 @@ impl CliContext {
                 .unwrap_or(Path::new("/"))
                 .join(".cookies.json")
         });
-        let cookie_store = Arc::new(CookieStoreMutex::new(if cookie_path.exists() {
-            let mut store = CookieStore::load_json(BufReader::new(File::open(&cookie_path)?))
-                .map_err(|e| eyre!("{}", e))
-                .with_kind(crate::ErrorKind::Deserialization)?;
+        let cookie_store = Arc::new(CookieStoreMutex::new({
+            let mut store = if cookie_path.exists() {
+                CookieStore::load_json(BufReader::new(File::open(&cookie_path)?))
+                    .map_err(|e| eyre!("{}", e))
+                    .with_kind(crate::ErrorKind::Deserialization)?
+            } else {
+                CookieStore::default()
+            };
             if let Ok(local) = std::fs::read_to_string(LOCAL_AUTH_COOKIE_PATH) {
                 store
                     .insert_raw(&Cookie::new("local", local), &"http://localhost".parse()?)
                     .with_kind(crate::ErrorKind::Network)?;
             }
             store
-        } else {
-            CookieStore::default()
         }));
+
         Ok(CliContext(Arc::new(CliContextSeed {
             base_url: url.clone(),
             rpc_url: {
