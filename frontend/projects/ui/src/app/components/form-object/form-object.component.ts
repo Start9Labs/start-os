@@ -68,14 +68,14 @@ export class FormObjectComponent {
 
     // setTimeout hack to avoid ExpressionChangedAfterItHasBeenCheckedError
     setTimeout(() => {
-      if (this.original) {
-        Object.keys(this.current || {}).forEach(key => {
-          if ((this.original as Config)[key] === undefined) {
-            this.hasNewOptions.emit()
-          }
-        })
-      }
-    }, 10)
+      if (
+        this.original &&
+        Object.keys(this.current || {}).some(
+          key => this.original![key] === undefined,
+        )
+      )
+        this.hasNewOptions.emit()
+    }, 0)
   }
 
   ngOnChanges(changes: SimpleChanges) {
