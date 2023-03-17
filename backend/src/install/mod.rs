@@ -1435,16 +1435,22 @@ pub fn load_images<'a, P: AsRef<Path> + 'a + Send + Sync>(
                                     copy_and_shutdown(&mut File::open(&path).await?, load_in)
                                         .await?
                                 }
-                                Some("s9pk") => {
-                                    copy_and_shutdown(
-                                        &mut S9pkReader::open(&path, false)
-                                            .await?
-                                            .docker_images()
-                                            .await?,
-                                        load_in,
-                                    )
-                                    .await?
+                                Some("s9pk") => match async {
+                                    let mut reader = S9pkReader::open(&path, true).await?;
+                                    copy_and_shutdown(&mut reader.docker_images().await?, load_in)
+                                        .await?;
+                                    Ok::<_, Error>(())
                                 }
+                                .await
+                                {
+                                    Ok(()) => (),
+                                    Err(e) => {
+                                        tracing::error!(
+                                            "Error loading docker images from s9pk: {e}"
+                                        );
+                                        tracing::debug!("{e:?}");
+                                    }
+                                },
                                 _ => unreachable!(),
                             };
 
