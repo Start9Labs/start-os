@@ -4,6 +4,7 @@ use helpers::{AddressSchemaLocal, AddressSchemaOnion, Callback, OsApi};
 use itertools::Itertools;
 use jsonpath_lib::Compiled;
 use models::{InterfaceId, PackageId};
+use reqwest::Url;
 use sqlx::Acquire;
 
 use super::try_get_running_ip;
@@ -184,5 +185,156 @@ impl OsApi for Manager {
             .wait_for_desired(StartStop::Stop)
             .await;
         Ok(())
+    }
+
+    async fn get_service_local_address(
+        &self,
+        package_id: PackageId,
+        interface_name: &str,
+    ) -> Result<String, Report> {
+        let db = self.seed.ctx.db.peek().await?;
+        let addresses = db
+            .as_package_data()
+            .as_idx(&package_id)
+            .or_not_found(&package_id)?
+            .expect_as_installed()?
+            .as_installed()
+            .as_address_info()
+            .as_idx(interface_name)
+            .or_not_found(interface_name)?
+            .as_addresses()
+            .de()?
+            .into_iter()
+            .find(|x| x.host_str().map(|x| x.ends_with(".local")).unwrap_or(false))
+            .ok_or_else(|| eyre!("No local address found"))?;
+        Ok(addresses.to_string())
+    }
+    async fn get_service_tor_address(
+        &self,
+        pcakge_id: PackageId,
+        interface_name: &str,
+    ) -> Result<String, Report> {
+        let db = self.seed.ctx.db.peek().await?;
+        let addresses = db
+            .as_package_data()
+            .as_idx(&package_id)
+            .or_not_found(&package_id)?
+            .expect_as_installed()?
+            .as_installed()
+            .as_address_info()
+            .as_idx(interface_name)
+            .or_not_found(interface_name)?
+            .as_addresses()
+            .de()?
+            .into_iter()
+            .find(|x| x.host_str().map(|x| x.ends_with(".onion")).unwrap_or(false))
+            .ok_or_else(|| eyre!("No local address found"))?;
+        Ok(addresses.to_string())
+    }
+    async fn get_service_port_forward(
+        &self,
+        pcakge_id: PackageId,
+        interface_name: &str,
+    ) -> Result<String, Report> {
+        todo!()
+    }
+    async fn export_address(
+        &self,
+        name: String,
+        description: String,
+        address: String,
+        id: String,
+        ui: bool,
+    ) -> Result<(), Report> {
+        let package_id = &self.seed.manifest.id;
+        self.seed
+            .ctx
+            .db
+            .mutate(|db| {
+                let mut address_info = db
+                    .as_package_data_mut()
+                    .as_idx_mut(package_id)
+                    .or_not_found(package_id)?
+                    .expect_as_installed_mut()?
+                    .as_installed_mut()
+                    .as_address_info_mut()
+                    .as_idx_mut(interface_name);
+                if address_info.is_some() {
+                    let mut addresses = address_info.as_mut().unwrap().as_addresses_mut();
+                    let mut new_addresses = addresses.de()?;
+                    new_addresses.push(Url::parse(&address)?);
+                    addresses.ser(&new_addresses)?;
+                } else {
+                    todo!("Need to insert a new address info");
+                }
+                Ok(())
+            })
+            .await?;
+        todo!("Need the address?");
+        Ok(())
+    }
+    async fn remove_address(&self, id: String) -> Result<(), Report> {
+        let package_id = &self.seed.manifest.id;
+        self.seed
+            .ctx
+            .db
+            .mutate(|db| {
+                db.as_package_data_mut()
+                    .as_idx_mut(package_id)
+                    .or_not_found(package_id)?
+                    .expect_as_installed_mut()?
+                    .as_installed_mut()
+                    .as_address_info_mut()
+                    .remove(&id)?;
+                Ok(())
+            })
+            .await?;
+
+        Ok(())
+    }
+    async fn export_action(
+        &self,
+        name: String,
+        description: String,
+        id: String,
+        input: Value,
+        group: Option<String>,
+    ) -> Result<(), Report> {
+        todo!()
+    }
+    async fn remove_action(&self, id: String) -> Result<(), Report> {
+        let package_id = &self.seed.manifest.id;
+        self.seed
+            .ctx
+            .db
+            .mutate(|db| {
+                db.as_package_data_mut()
+                    .as_idx_mut(package_id)
+                    .or_not_found(package_id)?
+                    .expect_as_installed_mut()?
+                    .as_installed_mut()
+                    .as_actions_mut()
+                    .remove(&id)?;
+                Ok(())
+            })
+            .await?;
+
+        Ok(())
+    }
+    async fn get_configured(&self) -> Result<bool, Report> {
+        todo!()
+    }
+    async fn set_configured(&self, configured: bool) -> Result<(), Report> {
+        todo!()
+    }
+    async fn get_ssl_certificate(
+        &self,
+        id: String,
+        algorithm: Algorithm,
+    ) -> Result<(String, String, String), Report> {
+        todo!()
+    }
+    async fn get_ssl_key(&self, id: String, algorithm: Algorithm) -> Result<String, Report> {
+        todo!()
     }
 }

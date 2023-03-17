@@ -1617,7 +1617,7 @@ mod fns {
         address: String,
         id: String,
         ui: bool,
-    ) -> Result<String, AnyError> {
+    ) -> Result<(), AnyError> {
         let os = {
             let state = state.borrow();
             let ctx = state.borrow::<JsContext>();

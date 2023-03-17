@@ -73,6 +73,9 @@ impl Rsync {
         if options.no_permissions {
             cmd.arg("--no-perms");
         }
+        if options.no_owner {
+            cmd.arg("--no-owner");
+        }
         let mut command = cmd
             .arg("-acAXH")
             .arg("--info=progress2")

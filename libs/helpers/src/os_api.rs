@@ -107,7 +107,7 @@ pub trait OsApi: Send + Sync + 'static {
         address: String,
         id: String,
         ui: bool,
-    ) -> Result<String, Report>;
+    ) -> Result<(), Report>;
     async fn remove_address(&self, id: String) -> Result<(), Report>;
     async fn export_action(
         &self,

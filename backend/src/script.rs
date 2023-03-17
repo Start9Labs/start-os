@@ -116,6 +116,69 @@ impl OsApi for SandboxOsApi {
     async fn stop(&self) -> Result<(), Report> {
         Err(eyre!("Operation not permitted"))
     }
+    async fn get_service_local_address(
+        &self,
+        pcakge_id: PackageId,
+        interface_name: &str,
+    ) -> Result<String, Report> {
+        todo!()
+    }
+    async fn get_service_tor_address(
+        &self,
+        pcakge_id: PackageId,
+        interface_name: &str,
+    ) -> Result<String, Report> {
+        todo!()
+    }
+    async fn get_service_port_forward(
+        &self,
+        pcakge_id: PackageId,
+        interface_name: &str,
+    ) -> Result<String, Report> {
+        todo!()
+    }
+    async fn export_address(
+        &self,
+        name: String,
+        description: String,
+        address: String,
+        id: String,
+        ui: bool,
+    ) -> Result<(), Report> {
+        todo!()
+    }
+    async fn remove_address(&self, id: String) -> Result<(), Report> {
+        todo!()
+    }
+    async fn export_action(
+        &self,
+        name: String,
+        description: String,
+        id: String,
+        input: Value,
+        group: Option<String>,
+    ) -> Result<(), Report> {
+        todo!()
+    }
+    async fn remove_action(&self, id: String) -> Result<(), Report> {
+        todo!()
+    }
+    async fn get_configured(&self) -> Result<bool, Report> {
+        todo!()
+    }
+    async fn set_configured(&self, configured: bool) -> Result<(), Report> {
+        todo!()
+    }
+    async fn get_ssl_certificate(
+        &self,
+        id: String,
+        algorithm: Algorithm,
+    ) -> Result<(String, String, String), Report> {
+        todo!()
+    }
+    async fn get_ssl_key(&self, id: String, algorithm: Algorithm) -> Result<String, Report> {
+        todo!()
+    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
@@ -333,6 +396,69 @@ mod tests {
             unimplemented!()
         }
         async fn stop(&self) -> Result<(), Report> {
+            unimplemented!()
+        }
+        async fn get_service_local_address(
+            &self,
+            pcakge_id: PackageId,
+            interface_name: &str,
+        ) -> Result<String, Report> {
+            unimplemented!()
+        }
+        async fn get_service_tor_address(
+            &self,
+            pcakge_id: PackageId,
+            interface_name: &str,
+        ) -> Result<String, Report> {
+            unimplemented!()
+        }
+        async fn get_service_port_forward(
+            &self,
+            pcakge_id: PackageId,
+            interface_name: &str,
+        ) -> Result<String, Report> {
+            unimplemented!()
+        }
+        async fn export_address(
+            &self,
+            name: String,
+            description: String,
+            address: String,
+            id: String,
+            ui: bool,
+        ) -> Result<(), Report> {
+            unimplemented!()
+        }
+        async fn remove_address(&self, id: String) -> Result<(), Report> {
+            unimplemented!()
+        }
+        async fn export_action(
+            &self,
+            name: String,
+            description: String,
+            id: String,
+            input: Value,
+            group: Option<String>,
+        ) -> Result<(), Report> {
+            unimplemented!()
+        }
+        async fn remove_action(&self, id: String) -> Result<(), Report> {
+            unimplemented!()
+        }
+        async fn get_configured(&self) -> Result<bool, Report> {
+            unimplemented!()
+        }
+        async fn set_configured(&self, configured: bool) -> Result<(), Report> {
+            unimplemented!()
+        }
+        async fn get_ssl_certificate(
+            &self,
+            id: String,
+            algorithm: Algorithm,
+        ) -> Result<(String, String, String), Report> {
+            unimplemented!()
+        }
+        async fn get_ssl_key(&self, id: String, algorithm: Algorithm) -> Result<String, Report> {
             unimplemented!()
         }
     }
