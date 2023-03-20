@@ -1614,7 +1614,7 @@ mod fns {
         state: Rc<RefCell<OpState>>,
         name: String,
         description: String,
-        address: String,
+        addresses: Vec<String>,
         id: String,
         ui: bool,
     ) -> Result<(), AnyError> {
@@ -1623,7 +1623,7 @@ mod fns {
             let ctx = state.borrow::<JsContext>();
             ctx.os.clone()
         };
-        os.export_address(name, description, address, id, ui)
+        os.export_address(name, description, addresses, id, ui)
             .await
             .map_err(|e| anyhow!("{e}"))
     }
@@ -1645,13 +1645,14 @@ mod fns {
         id: String,
         input: Value,
         group: Option<String>,
+        warning: Option<String>,
     ) -> Result<(), AnyError> {
         let os = {
             let state = state.borrow();
             let ctx = state.borrow::<JsContext>();
             ctx.os.clone()
         };
-        os.export_action(name, description, id, input, group)
+        os.export_action(name, description, id, input, group, warning)
             .await
             .map_err(|e| anyhow!("{e}"))
     }

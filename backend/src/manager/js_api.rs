@@ -8,10 +8,10 @@ use reqwest::Url;
 use sqlx::Acquire;
 
 use super::try_get_running_ip;
-use crate::config::hook::ConfigHook;
-use crate::manager::start_stop::StartStop;
 use crate::manager::Manager;
 use crate::prelude::*;
+use crate::{action::Action, manager::start_stop::StartStop};
+use crate::{config::hook::ConfigHook, db::model::AddressInfo};
 
 const NULL_VALUE: &Value = &Value::Null;
 
@@ -214,7 +214,7 @@ impl OsApi for Manager {
         &self,
         name: String,
         description: String,
-        address: String,
+        address: Vec<String>,
         id: String,
         ui: bool,
     ) -> Result<(), Report> {
@@ -229,21 +229,21 @@ impl OsApi for Manager {
                     .or_not_found(package_id)?
                     .expect_as_installed_mut()?
                     .as_installed_mut()
-                    .as_address_info_mut()
-                    .as_idx_mut(interface_name);
-                if address_info.is_some() {
-                    let mut addresses = address_info.as_mut().unwrap().as_addresses_mut();
-                    let mut new_addresses = addresses.de()?;
-                    new_addresses.push(Url::parse(&address)?);
-                    addresses.ser(&new_addresses)?;
-                } else {
-                    todo!("Need to insert a new address info");
-                }
+                    .as_address_info_mut();
+                address_info.remove(&id)?;
+                address_info.insert(
+                    &id,
+                    &AddressInfo {
+                        name,
+                        description,
+                        ui,
+                        addresses: address.iter().map(Url::parse).collect()?,
+                    },
+                )?;
+
                 Ok(())
             })
-            .await?;
-        todo!("Need the address?");
-        Ok(())
+            .await
     }
     async fn remove_address(&self, id: String) -> Result<(), Report> {
         let package_id = &self.seed.manifest.id;
@@ -260,9 +260,7 @@ impl OsApi for Manager {
                     .remove(&id)?;
                 Ok(())
             })
-            .await?;
-
-        Ok(())
+            .await
     }
     async fn export_action(
         &self,
@@ -271,8 +269,34 @@ impl OsApi for Manager {
         id: String,
         input: Value,
         group: Option<String>,
+        warning: Option<String>,
     ) -> Result<(), Report> {
-        todo!()
+        let package_id = &self.seed.manifest.id;
+        self.seed
+            .ctx
+            .db
+            .mutate(|db| {
+                let mut actions = db
+                    .as_package_data_mut()
+                    .as_idx_mut(package_id)
+                    .or_not_found(package_id)?
+                    .expect_as_installed_mut()?
+                    .as_installed_mut()
+                    .as_actions_mut();
+                actions.remove(&id)?;
+                actions.insert(
+                    &id,
+                    &Action {
+                        name,
+                        description,
+                        input_spec: input,
+                        group,
+                        warning,
+                    },
+                )?;
+                Ok(())
+            })
+            .await
     }
     async fn remove_action(&self, id: String) -> Result<(), Report> {
         let package_id = &self.seed.manifest.id;
@@ -289,9 +313,7 @@ impl OsApi for Manager {
                     .remove(&id)?;
                 Ok(())
             })
-            .await?;
-
-        Ok(())
+            .await
     }
     async fn get_configured(&self) -> Result<bool, Report> {
         todo!()

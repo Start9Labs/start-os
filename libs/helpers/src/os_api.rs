@@ -104,7 +104,7 @@ pub trait OsApi: Send + Sync + 'static {
         &self,
         name: String,
         description: String,
-        address: String,
+        address: Vec<String>,
         id: String,
         ui: bool,
     ) -> Result<(), Report>;
@@ -116,6 +116,7 @@ pub trait OsApi: Send + Sync + 'static {
         id: String,
         input: Value,
         group: Option<String>,
+        warning: Option<String>,
     ) -> Result<(), Report>;
     async fn remove_action(&self, id: String) -> Result<(), Report>;
     async fn get_configured(&self) -> Result<bool, Report>;

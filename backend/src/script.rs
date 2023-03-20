@@ -144,7 +144,7 @@ impl OsApi for SandboxOsApi {
         &self,
         name: String,
         description: String,
-        address: String,
+        addresses: Vec<String>,
         id: String,
         ui: bool,
     ) -> Result<(), Report> {
@@ -160,6 +160,7 @@ impl OsApi for SandboxOsApi {
         id: String,
         input: Value,
         group: Option<String>,
+        warning: Option<String>,
     ) -> Result<(), Report> {
         Err(eyre!("Operation not permitted"))
     }
@@ -429,7 +430,7 @@ mod tests {
             &self,
             name: String,
             description: String,
-            address: String,
+            addresses: Vec<String>,
             id: String,
             ui: bool,
         ) -> Result<(), Report> {
@@ -445,6 +446,7 @@ mod tests {
             id: String,
             input: Value,
             group: Option<String>,
+            warning: Option<String>,
         ) -> Result<(), Report> {
             unimplemented!()
         }

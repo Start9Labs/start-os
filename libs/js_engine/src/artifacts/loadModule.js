@@ -43,27 +43,20 @@ const writeFile = (
     path = requireParam("path"),
     volumeId = requireParam("volumeId"),
     toWrite = requireParam("toWrite"),
-  } = requireParam("options"),
+  } = requireParam("options")
 ) => Deno.core.opAsync("write_file", volumeId, path, toWrite);
 
-const readFile = (
-  {
-    volumeId = requireParam("volumeId"),
-    path = requireParam("path"),
-  } = requireParam("options"),
-) => Deno.core.opAsync("read_file", volumeId, path);
+const readFile = ({ volumeId = requireParam("volumeId"), path = requireParam("path") } = requireParam("options")) =>
+  Deno.core.opAsync("read_file", volumeId, path);
 
-const runDaemon = (
-  { command = requireParam("command"), args = [] } = requireParam("options"),
-) => {
+const runDaemon = ({ command = requireParam("command"), args = [] } = requireParam("options")) => {
   let id = Deno.core.opAsync("start_command", command, args, "inherit", null);
   let processId = id.then((x) => x.processId);
   let waitPromise = null;
   return {
     processId,
     async wait() {
-      waitPromise =
-        waitPromise || Deno.core.opAsync("wait_command", await processId);
+      waitPromise = waitPromise || Deno.core.opAsync("wait_command", await processId);
       return waitPromise;
     },
     async term(signal = 15) {
@@ -72,19 +65,9 @@ const runDaemon = (
   };
 };
 const runCommand = async (
-  {
-    command = requireParam("command"),
-    args = [],
-    timeoutMillis = 30000,
-  } = requireParam("options"),
+  { command = requireParam("command"), args = [], timeoutMillis = 30000 } = requireParam("options")
 ) => {
-  let id = Deno.core.opAsync(
-    "start_command",
-    command,
-    args,
-    "collect",
-    timeoutMillis,
-  );
+  let id = Deno.core.opAsync("start_command", command, args, "collect", timeoutMillis);
   let pid = id.then((x) => x.processId);
   return Deno.core.opAsync("wait_command", await pid);
 };
@@ -93,7 +76,7 @@ const bindLocal = async (
     internalPort = requireParam("internalPort"),
     name = requireParam("name"),
     externalPort = requireParam("externalPort"),
-  } = requireParam("options"),
+  } = requireParam("options")
 ) => {
   return Deno.core.opAsync("bind_local", internalPort, {
     id: name,
@@ -105,7 +88,7 @@ const bindTor = async (
     internalPort = requireParam("internalPort"),
     name = requireParam("name"),
     externalPort = requireParam("externalPort"),
-  } = requireParam("options"),
+  } = requireParam("options")
 ) => {
   return Deno.core.opAsync("bind_onion", internalPort, {
     id: name,
@@ -114,14 +97,11 @@ const bindTor = async (
 };
 
 const signalGroup = async (
-  { gid = requireParam("gid"), signal = requireParam("signal") } = requireParam(
-    "gid and signal",
-  ),
+  { gid = requireParam("gid"), signal = requireParam("signal") } = requireParam("gid and signal")
 ) => {
   return Deno.core.opAsync("signal_group", gid, signal);
 };
-const sleep = (timeMs = requireParam("timeMs")) =>
-  Deno.core.opAsync("sleep", timeMs);
+const sleep = (timeMs = requireParam("timeMs")) => Deno.core.opAsync("sleep", timeMs);
 
 const rename = (
   {
@@ -129,13 +109,10 @@ const rename = (
     dstVolume = requirePapram("dstVolume"),
     srcPath = requireParam("srcPath"),
     dstPath = requireParam("dstPath"),
-  } = requireParam("options"),
+  } = requireParam("options")
 ) => Deno.core.opAsync("rename", srcVolume, srcPath, dstVolume, dstPath);
 const metadata = async (
-  {
-    volumeId = requireParam("volumeId"),
-    path = requireParam("path"),
-  } = requireParam("options"),
+  { volumeId = requireParam("volumeId"), path = requireParam("path") } = requireParam("options")
 ) => {
   const data = await Deno.core.opAsync("metadata", volumeId, path);
   return {
@@ -145,12 +122,8 @@ const metadata = async (
     accessed: maybeDate(data.accessed),
   };
 };
-const removeFile = (
-  {
-    volumeId = requireParam("volumeId"),
-    path = requireParam("path"),
-  } = requireParam("options"),
-) => Deno.core.opAsync("remove_file", volumeId, path);
+const removeFile = ({ volumeId = requireParam("volumeId"), path = requireParam("path") } = requireParam("options")) =>
+  Deno.core.opAsync("remove_file", volumeId, path);
 const isSandboxed = () => Deno.core.opSync("is_sandboxed");
 
 const writeJsonFile = (
@@ -158,7 +131,7 @@ const writeJsonFile = (
     volumeId = requireParam("volumeId"),
     path = requireParam("path"),
     toWrite = requireParam("toWrite"),
-  } = requireParam("options"),
+  } = requireParam("options")
 ) =>
   writeFile({
     volumeId,
@@ -167,59 +140,35 @@ const writeJsonFile = (
   });
 
 const chown = async (
-  {
-    volumeId = requireParam("volumeId"),
-    path = requireParam("path"),
-    uid = requireParam("uid"),
-  } = requireParam("options"),
+  { volumeId = requireParam("volumeId"), path = requireParam("path"), uid = requireParam("uid") } = requireParam(
+    "options"
+  )
 ) => {
   return await Deno.core.opAsync("chown", volumeId, path, uid);
 };
 
 const chmod = async (
-  {
-    volumeId = requireParam("volumeId"),
-    path = requireParam("path"),
-    mode = requireParam("mode"),
-  } = requireParam("options"),
+  { volumeId = requireParam("volumeId"), path = requireParam("path"), mode = requireParam("mode") } = requireParam(
+    "options"
+  )
 ) => {
   return await Deno.core.opAsync("chmod", volumeId, path, mode);
 };
 const readJsonFile = async (
-  {
-    volumeId = requireParam("volumeId"),
-    path = requireParam("path"),
-  } = requireParam("options"),
+  { volumeId = requireParam("volumeId"), path = requireParam("path") } = requireParam("options")
 ) => JSON.parse(await readFile({ volumeId, path }));
-const createDir = (
-  {
-    volumeId = requireParam("volumeId"),
-    path = requireParam("path"),
-  } = requireParam("options"),
-) => Deno.core.opAsync("create_dir", volumeId, path);
+const createDir = ({ volumeId = requireParam("volumeId"), path = requireParam("path") } = requireParam("options")) =>
+  Deno.core.opAsync("create_dir", volumeId, path);
 
-const readDir = (
-  {
-    volumeId = requireParam("volumeId"),
-    path = requireParam("path"),
-  } = requireParam("options"),
-) => Deno.core.opAsync("read_dir", volumeId, path);
-const removeDir = (
-  {
-    volumeId = requireParam("volumeId"),
-    path = requireParam("path"),
-  } = requireParam("options"),
-) => Deno.core.opAsync("remove_dir", volumeId, path);
-const trace = (whatToTrace = requireParam("whatToTrace")) =>
-  Deno.core.opAsync("log_trace", whatToTrace);
-const warn = (whatToTrace = requireParam("whatToTrace")) =>
-  Deno.core.opAsync("log_warn", whatToTrace);
-const error = (whatToTrace = requireParam("whatToTrace")) =>
-  Deno.core.opAsync("log_error", whatToTrace);
-const debug = (whatToTrace = requireParam("whatToTrace")) =>
-  Deno.core.opAsync("log_debug", whatToTrace);
-const info = (whatToTrace = requireParam("whatToTrace")) =>
-  Deno.core.opAsync("log_info", whatToTrace);
+const readDir = ({ volumeId = requireParam("volumeId"), path = requireParam("path") } = requireParam("options")) =>
+  Deno.core.opAsync("read_dir", volumeId, path);
+const removeDir = ({ volumeId = requireParam("volumeId"), path = requireParam("path") } = requireParam("options")) =>
+  Deno.core.opAsync("remove_dir", volumeId, path);
+const trace = (whatToTrace = requireParam("whatToTrace")) => Deno.core.opAsync("log_trace", whatToTrace);
+const warn = (whatToTrace = requireParam("whatToTrace")) => Deno.core.opAsync("log_warn", whatToTrace);
+const error = (whatToTrace = requireParam("whatToTrace")) => Deno.core.opAsync("log_error", whatToTrace);
+const debug = (whatToTrace = requireParam("whatToTrace")) => Deno.core.opAsync("log_debug", whatToTrace);
+const info = (whatToTrace = requireParam("whatToTrace")) => Deno.core.opAsync("log_info", whatToTrace);
 const fetch = async (url = requireParam("url"), options = null) => {
   const { body, ...response } = await Deno.core.opAsync("fetch", url, options);
   const textValue = Promise.resolve(body);
@@ -241,16 +190,9 @@ const runRsync = (
     srcPath = requireParam("srcPath"),
     dstPath = requireParam("dstPath"),
     options = requireParam("options"),
-  } = requireParam("options"),
+  } = requireParam("options")
 ) => {
-  let id = Deno.core.opAsync(
-    "rsync",
-    srcVolume,
-    srcPath,
-    dstVolume,
-    dstPath,
-    options,
-  );
+  let id = Deno.core.opAsync("rsync", srcVolume, srcPath, dstVolume, dstPath, options);
   let waitPromise = null;
   return {
     async id() {
@@ -276,7 +218,7 @@ globalThis.setTimeout = (callback, timeout) => {
     sleep(timeout).then(resolve);
   }).then(
     () => callback(),
-    () => null,
+    () => null
   );
   return index - 1;
 };
@@ -312,19 +254,8 @@ globalThis.clearInterval = (timeout) => {
   delete clearIntervals[timeout];
 };
 
-const getServiceConfig = async (
-  {
-    serviceId,
-    configPath ,
-    onChange = restart,
-  },
-) => {
-  return await Deno.core.opAsync(
-    "get_service_config",
-    serviceId,
-    configPath,
-    registerCallback(onChange),
-  );
+const getServiceConfig = async ({ serviceId, configPath, onChange = restart }) => {
+  return await Deno.core.opAsync("get_service_config", serviceId, configPath, registerCallback(onChange));
 };
 
 const started = () => Deno.core.opSync("set_started");
@@ -339,28 +270,19 @@ const setState = (x) => Deno.core.opAsync("set_value", x);
 const exists = (x) =>
   metadata(x).then(
     () => true,
-    () => false,
+    () => false
   );
 
 const getServiceLocalAddress = (
-  {
-    packageId = requireParam("packageId"),
-    interfaceName = requireParam("interfaceName"),
-  } = requireParam("options"),
+  { packageId = requireParam("packageId"), interfaceName = requireParam("interfaceName") } = requireParam("options")
 ) => Deno.core.opAsync("get_service_local_address", packageId, interfaceName);
 
 const getServiceTorAddress = (
-  {
-    packageId = requireParam("packageId"),
-    interfaceName = requireParam("interfaceName"),
-  } = requireParam("options"),
+  { packageId = requireParam("packageId"), interfaceName = requireParam("interfaceName") } = requireParam("options")
 ) => Deno.core.opAsync("get_service_tor_address", packageId, interfaceName);
 
 const getServicePortForward = (
-  {
-    packageId = requireParam("packageId"),
-    interfacePort = requireParam("interfacePort"),
-  } = requireParam("options"),
+  { packageId = requireParam("packageId"), interfacePort = requireParam("interfacePort") } = requireParam("options")
 ) => Deno.core.opAsync("get_service_port_forward", packageId, interfacePort);
 const exportAddress = (
   {
@@ -369,44 +291,32 @@ const exportAddress = (
     address = requireParam("address"),
     id = requireParam("id"),
     ui = false,
-  } = requireParam("options"),
+  } = requireParam("options")
 ) => Deno.core.opAsync("export_address", name, description, address, id, ui);
-const removeAddress = (
-  {
-    id = requireParam("id"),
-  } = requireParam("options"),
-) => Deno.core.opAsync("remove_address", id);
-
+const removeAddress = ({ id = requireParam("id") } = requireParam("options")) =>
+  Deno.core.opAsync("remove_address", id);
 
 const exportAction = (
   {
     name = requireParam("name"),
     description = requireParam("description"),
     id = requireParam("id"),
-    input,
-    group
-  } = requireParam("options"),
-) => Deno.core.opAsync("export_action", name, description, id, input, group);
+    input = requirePapram("input"),
+    group = requireParam("group"),
+    warning = requireParam("warning"),
+  } = requireParam("options")
+) => Deno.core.opAsync("export_action", name, description, id, input, group, warning);
 
-const removeAction = (
-  {
-    id = requireParam("id"),
-  } = requireParam("options"),
-) => Deno.core.opAsync("remove_action", id);
-const setConfigured = (
-  configured = requireParam("configured"),
-) => Deno.core.opAsync("set_configured", configured);
-const getConfigured = (
-  configured = requireParam("configured"),
-) => Deno.core.opAsync("get_configured", configured);
+const removeAction = ({ id = requireParam("id") } = requireParam("options")) => Deno.core.opAsync("remove_action", id);
+const setConfigured = (configured = requireParam("configured")) => Deno.core.opAsync("set_configured", configured);
+const getConfigured = (configured = requireParam("configured")) => Deno.core.opAsync("get_configured", configured);
 
-const getSslCertificate = async (id = requireParam("id"), algorithm= "ecdsa") =>{
-  return Deno.core.opAsync("get_ssl_certificate", id, algorithm);// PEM encoded fullchain (ecdsa)
-}
+const getSslCertificate = async (id = requireParam("id"), algorithm = "ecdsa") => {
+  return Deno.core.opAsync("get_ssl_certificate", id, algorithm); // PEM encoded fullchain (ecdsa)
+};
 const getSslKey = async (id = requireParam("id"), algorithm = "ecdsa") => {
-  return  Deno.core.opAsync("get_ssl_key", id, algorithm);// PEM encoded ssl key (ecdsa)
-}
-
+  return Deno.core.opAsync("get_ssl_key", id, algorithm); // PEM encoded ssl key (ecdsa)
+};
 
 const effects = {
   bindLocal,
@@ -466,9 +376,7 @@ const defaults = {
   },
 };
 const apiVersion = mainModule?.version || defaults?.version || 0;
-const runFunction =
-  jsonPointerValue(mainModule, currentFunction) ||
-  jsonPointerValue(defaults, currentFunction);
+const runFunction = jsonPointerValue(mainModule, currentFunction) || jsonPointerValue(defaults, currentFunction);
 const extraArgs = jsonPointerValue(fnSpecificArgs, currentFunction) || {};
 (async () => {
   const answer = await (async () => {
@@ -489,10 +397,13 @@ const extraArgs = jsonPointerValue(fnSpecificArgs, currentFunction) || {};
           throw `Unknown API version ${apiVersion}`;
       }
     })
-    .then(result => ({result}), error => {
-      const stack = 'stack' in error ? error.stack : undefined
-      const message = 'message' in error ? error.message : error.toString();
-      return {error: {message, stack}};
-    } )
+    .then(
+      (result) => ({ result }),
+      (error) => {
+        const stack = "stack" in error ? error.stack : undefined;
+        const message = "message" in error ? error.message : error.toString();
+        return { error: { message, stack } };
+      }
+    );
   await setState(answer);
 })();

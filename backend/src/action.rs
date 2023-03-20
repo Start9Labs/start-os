@@ -51,10 +51,9 @@ pub struct Action {
     pub description: String,
     #[serde(default)]
     pub warning: Option<String>,
-    pub implementation: PackageProcedure,
-    pub allowed_statuses: IndexSet<DockerStatus>,
     #[serde(default)]
     pub input_spec: Value,
+    pub group: Option<String>,
 }
 impl Action {
     #[instrument(skip_all)]
