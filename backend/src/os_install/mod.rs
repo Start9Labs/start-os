@@ -192,6 +192,23 @@ pub async fn execute(
         .invoke(crate::ErrorKind::Filesystem)
         .await?;
 
+    if tokio::fs::metadata("/cdrom/config")
+        .await
+        .map(|m| m.is_dir())
+        .unwrap_or(false)
+    {
+        let mut dir = tokio::fs::read_dir("/cdrom/config").await?;
+        while let Some(file) = dir.next_entry().await? {
+            if file.metadata().await?.is_file() && file.file_name() != "upgrade" {
+                tokio::fs::copy(
+                    file.path(),
+                    rootfs.as_ref().join("config").join(file.file_name()),
+                )
+                .await?;
+            }
+        }
+    }
+
     tokio::fs::write(
         rootfs.as_ref().join("config/config.yaml"),
         IoFormat::Yaml.to_vec(&PostInstallConfig {
