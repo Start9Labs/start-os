@@ -2,18 +2,14 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use clap::ArgMatches;
 use color_eyre::eyre::eyre;
-use indexmap::IndexSet;
 pub use models::ActionId;
-use models::ImageId;
+use models::{ImageId, ProcedureName};
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use crate::config::Config;
 use crate::context::RpcContext;
 use crate::prelude::*;
-use crate::procedure::docker::DockerContainers;
-use crate::procedure::{PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::PackageId;
 use crate::util::serde::{display_serializable, parse_stdin_deserializable, IoFormat};
 use crate::util::Version;
@@ -59,14 +55,11 @@ impl Action {
     #[instrument(skip_all)]
     pub fn validate(
         &self,
-        container: &Option<DockerContainers>,
         eos_version: &Version,
         volumes: &Volumes,
         image_ids: &BTreeSet<ImageId>,
     ) -> Result<(), Error> {
-        self.implementation
-            .validate(container, eos_version, volumes, image_ids, true)
-            .with_ctx(|_| (ErrorKind::ValidateS9pk, format!("Action {}", self.name)))
+        Ok(())
     }
 
     #[instrument(skip_all)]
@@ -77,20 +70,17 @@ impl Action {
         pkg_version: &Version,
         action_id: &ActionId,
         volumes: &Volumes,
-        input: Option<Config>,
+        input: Option<Value>,
     ) -> Result<ActionResult, Error> {
-        self.implementation
-            .execute(
-                ctx,
-                pkg_id,
-                pkg_version,
-                ProcedureName::Action(action_id.clone()),
-                volumes,
-                input,
-                None,
-            )
-            .await?
-            .map_err(|e| Error::new(eyre!("{}", e.1), ErrorKind::Action))
+        let Some(manager) = ctx.managers.get(pkg_id).await else {
+            return Err(Error::new(
+                eyre!("No manager found"),
+                ErrorKind::Action,
+            ));
+        };
+        manager
+            .run_procedure(ProcedureName::Action(action_id.clone()), input, None)
+            .await
     }
 }
 
@@ -115,7 +105,7 @@ pub async fn action(
     #[context] ctx: RpcContext,
     #[arg(rename = "id")] pkg_id: PackageId,
     #[arg(rename = "action-id")] action_id: ActionId,
-    #[arg(stdin, parse(parse_stdin_deserializable))] input: Option<Config>,
+    #[arg(stdin, parse(parse_stdin_deserializable))] input: Option<Value>,
     #[allow(unused_variables)]
     #[arg(long = "format")]
     format: Option<IoFormat>,

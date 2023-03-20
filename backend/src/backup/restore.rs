@@ -340,7 +340,7 @@ async fn assure_restoring(
         let icon_path = Path::new("icon").with_extension(&manifest.assets.icon_type());
         let icon_path = public_dir_path.join(&icon_path);
         let mut dst = File::create(&icon_path).await?;
-        tokio::io::copy(&mut rdr.icon().await?, &mut dst).await?;
+        tokio::io::copy(&mut rdr.icon(&manifest).await?, &mut dst).await?;
         dst.sync_all().await?;
 
         guards.push((manifest, guard));
@@ -373,8 +373,8 @@ async fn restore_package<'a>(
         let k = key.0.as_slice();
         sqlx::query!(
             "INSERT INTO network_keys (package, interface, key) VALUES ($1, $2, $3) ON CONFLICT (package, interface) DO NOTHING",
-            id,
-            iface,
+            id.to_string(),
+            iface.to_string(),
             k,
         )
         .execute(&mut secrets_tx).await?;
@@ -384,8 +384,8 @@ async fn restore_package<'a>(
         let k = key.0.as_slice();
         sqlx::query!(
             "INSERT INTO tor (package, interface, key) VALUES ($1, $2, $3) ON CONFLICT (package, interface) DO NOTHING",
-            id,
-            iface,
+            id.to_string(),
+            iface.to_string(),
             k,
         )
         .execute(&mut secrets_tx).await?;
