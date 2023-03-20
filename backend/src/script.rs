@@ -67,7 +67,8 @@ impl PathForVolumeId for Volumes {
 }
 
 struct SandboxOsApi {
-    _ctx: RpcContext,
+    ctx: RpcContext,
+    package_id: PackageId,
 }
 #[async_trait::async_trait]
 impl OsApi for SandboxOsApi {
@@ -118,17 +119,19 @@ impl OsApi for SandboxOsApi {
     }
     async fn get_service_local_address(
         &self,
-        pcakge_id: PackageId,
+        package_id: PackageId,
         interface_name: &str,
     ) -> Result<String, Report> {
-        todo!()
+        let db = self.seed.ctx.db.peek().await?;
+        get_service_local_address(db, &package_id, interface_name)
     }
     async fn get_service_tor_address(
         &self,
         pcakge_id: PackageId,
         interface_name: &str,
     ) -> Result<String, Report> {
-        todo!()
+        let db = self.seed.ctx.db.peek().await?;
+        get_service_tor_address(db, &package_id, interface_name)
     }
     async fn get_service_port_forward(
         &self,
@@ -148,7 +151,7 @@ impl OsApi for SandboxOsApi {
         todo!()
     }
     async fn remove_address(&self, id: String) -> Result<(), Report> {
-        todo!()
+        Err(eyre!("Operation not permitted"))
     }
     async fn export_action(
         &self,
@@ -158,16 +161,16 @@ impl OsApi for SandboxOsApi {
         input: Value,
         group: Option<String>,
     ) -> Result<(), Report> {
-        todo!()
+        Err(eyre!("Operation not permitted"))
     }
     async fn remove_action(&self, id: String) -> Result<(), Report> {
-        todo!()
+        Err(eyre!("Operation not permitted"))
     }
     async fn get_configured(&self) -> Result<bool, Report> {
         todo!()
     }
     async fn set_configured(&self, configured: bool) -> Result<(), Report> {
-        todo!()
+        Err(eyre!("Operation not permitted"))
     }
     async fn get_ssl_certificate(
         &self,
@@ -263,7 +266,10 @@ impl JsProcedure {
     ) -> Result<O, Error> {
         let res = async move {
             let running_action = JsExecutionEnvironment::load_from_package(
-                Arc::new(SandboxOsApi { _ctx: ctx.clone() }),
+                Arc::new(SandboxOsApi {
+                    ctx: ctx.clone(),
+                    package_id: pkg_id.clone(),
+                }),
                 &ctx.datadir,
                 pkg_id,
                 pkg_version,

@@ -193,47 +193,19 @@ impl OsApi for Manager {
         interface_name: &str,
     ) -> Result<String, Report> {
         let db = self.seed.ctx.db.peek().await?;
-        let addresses = db
-            .as_package_data()
-            .as_idx(&package_id)
-            .or_not_found(&package_id)?
-            .expect_as_installed()?
-            .as_installed()
-            .as_address_info()
-            .as_idx(interface_name)
-            .or_not_found(interface_name)?
-            .as_addresses()
-            .de()?
-            .into_iter()
-            .find(|x| x.host_str().map(|x| x.ends_with(".local")).unwrap_or(false))
-            .ok_or_else(|| eyre!("No local address found"))?;
-        Ok(addresses.to_string())
+        get_service_local_address(db, &package_id, interface_name)
     }
     async fn get_service_tor_address(
         &self,
-        pcakge_id: PackageId,
+        package_id: PackageId,
         interface_name: &str,
     ) -> Result<String, Report> {
         let db = self.seed.ctx.db.peek().await?;
-        let addresses = db
-            .as_package_data()
-            .as_idx(&package_id)
-            .or_not_found(&package_id)?
-            .expect_as_installed()?
-            .as_installed()
-            .as_address_info()
-            .as_idx(interface_name)
-            .or_not_found(interface_name)?
-            .as_addresses()
-            .de()?
-            .into_iter()
-            .find(|x| x.host_str().map(|x| x.ends_with(".onion")).unwrap_or(false))
-            .ok_or_else(|| eyre!("No local address found"))?;
-        Ok(addresses.to_string())
+        get_service_tor_address(db, &package_id, interface_name)
     }
     async fn get_service_port_forward(
         &self,
-        pcakge_id: PackageId,
+        package_id: PackageId,
         interface_name: &str,
     ) -> Result<String, Report> {
         todo!()
@@ -337,4 +309,47 @@ impl OsApi for Manager {
     async fn get_ssl_key(&self, id: String, algorithm: Algorithm) -> Result<String, Report> {
         todo!()
     }
+}
+
+pub fn get_service_local_address(
+    db: Model<Database>,
+    package_id: &PackageId,
+    interface_name: &str,
+) -> Result<String, Report> {
+    let addresses = db
+        .as_package_data()
+        .as_idx(package_id)
+        .or_not_found(package_id)?
+        .expect_as_installed()?
+        .as_installed()
+        .as_address_info()
+        .as_idx(interface_name)
+        .or_not_found(interface_name)?
+        .as_addresses()
+        .de()?
+        .into_iter()
+        .find(|x| x.host_str().map(|x| x.ends_with(".local")).unwrap_or(false))
+        .ok_or_else(|| eyre!("No local address found"))?;
+    Ok(addresses.to_string())
+}
+pub fn get_service_tor_address(
+    db: Model<Database>,
+    package_id: &PackageId,
+    interface_name: &str,
+) -> Result<String, Report> {
+    let addresses = db
+        .as_package_data()
+        .as_idx(&package_id)
+        .or_not_found(&package_id)?
+        .expect_as_installed()?
+        .as_installed()
+        .as_address_info()
+        .as_idx(interface_name)
+        .or_not_found(interface_name)?
+        .as_addresses()
+        .de()?
+        .into_iter()
+        .find(|x| x.host_str().map(|x| x.ends_with(".onion")).unwrap_or(false))
+        .ok_or_else(|| eyre!("No local address found"))?;
+    Ok(addresses.to_string())
 }
