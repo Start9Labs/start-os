@@ -74,11 +74,10 @@ export class MenuComponent {
       this.patch.watch$('package-data').pipe(
         pairwise(),
         filter(([prev, curr]) =>
-          Object.values(prev).some(
-            p =>
-              p['install-progress'] &&
-              !curr[p.manifest.id]?.['install-progress'],
-          ),
+          Object.values(prev).some(p => {
+            const c = curr[p.manifest.id]
+            return !c || (p['install-progress'] && !c['install-progress'])
+          }),
         ),
         map(([_, curr]) => curr),
         startWith(outer),
