@@ -86,9 +86,13 @@ export class MockApiService extends ApiService {
     return markdown
   }
 
-  async uploadPackage(guid: string, body: ArrayBuffer): Promise<string> {
+  async uploadPackage(guid: string, body: Blob): Promise<void> {
     await pauseFor(2000)
-    return 'success'
+  }
+
+  async uploadFile(body: Blob): Promise<string> {
+    await pauseFor(2000)
+    return 'returnedhash'
   }
 
   // db

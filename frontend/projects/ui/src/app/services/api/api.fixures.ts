@@ -846,7 +846,7 @@ export module Mock {
       name: 'Needed File',
       type: 'file',
       description: 'A file we need',
-      placeholder: 'Testing placeholder',
+      placeholder: null, // @TODO delete
       warning: 'Testing warning',
       nullable: false,
       extensions: ['.png'],
