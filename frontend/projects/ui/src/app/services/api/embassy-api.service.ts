@@ -30,7 +30,9 @@ export abstract class ApiService {
   abstract getStatic(url: string): Promise<string>
 
   // for sideloading packages
-  abstract uploadPackage(guid: string, body: ArrayBuffer): Promise<string>
+  abstract uploadPackage(guid: string, body: Blob): Promise<void>
+
+  abstract uploadFile(body: Blob): Promise<string>
 
   // db
 

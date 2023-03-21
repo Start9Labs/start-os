@@ -44,11 +44,20 @@ export class LiveApiService extends ApiService {
   }
 
   // for sideloading packages
-  async uploadPackage(guid: string, body: ArrayBuffer): Promise<string> {
+  async uploadPackage(guid: string, body: Blob): Promise<void> {
     return this.httpRequest({
       method: Method.POST,
       body,
       url: `/rest/rpc/${guid}`,
+      responseType: 'text',
+    })
+  }
+
+  async uploadFile(body: Blob): Promise<string> {
+    return this.httpRequest({
+      method: Method.POST,
+      body,
+      url: `/rest/upload`,
       responseType: 'text',
     })
   }
