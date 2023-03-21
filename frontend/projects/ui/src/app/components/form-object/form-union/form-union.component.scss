@@ -1,0 +1,24 @@
+:host {
+  display: block;
+}
+
+ion-item-divider {
+  text-transform: unset;
+  border-bottom: 1px solid
+    var(
+      --ion-item-border-color,
+      var(--ion-border-color, var(--ion-color-step-150, rgba(0, 0, 0, 0.13)))
+    );
+
+  --padding-top: 18px;
+  --padding-start: 0;
+
+  &.error-border {
+    border-color: var(--ion-color-danger-shade);
+    --border-color: var(--ion-color-danger-shade);
+  }
+}
+
+.indent {
+  margin-left: 24px;
+}
