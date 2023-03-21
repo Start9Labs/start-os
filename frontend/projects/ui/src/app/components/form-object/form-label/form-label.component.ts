@@ -12,7 +12,7 @@ export class FormLabelComponent {
     name: string
     new: boolean
     edited: boolean
-    description?: string
+    description: string | null
     required?: boolean
     newOptions?: boolean
   }
@@ -22,7 +22,7 @@ export class FormLabelComponent {
   async presentAlertDescription() {
     const alert = await this.alertCtrl.create({
       header: this.data.name,
-      message: this.data.description,
+      message: this.data.description!,
       buttons: [
         {
           text: 'OK',
