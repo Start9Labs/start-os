@@ -1,10 +1,10 @@
 <ion-item-group [formGroup]="formGroup">
-  <div *ngFor="let entry of formGroup.controls | keyvalue: asIsOrder">
+  <div *ngFor="let entry of formGroup.controls | keyvalue : asIsOrder">
     <div *ngIf="objectSpec[entry.key] as spec">
       <!-- string or number -->
       <ng-container *ngIf="spec.type === 'string' || spec.type === 'number'">
         <!-- label -->
-        <h4 class="input-label">
+        <p class="input-label">
           <form-label
             [data]="{
               name: spec.name,
@@ -14,11 +14,11 @@
               required: !spec.nullable
             }"
           ></form-label>
-        </h4>
+        </p>
         <ion-item [color]="(theme$ | async) === 'Light' ? 'light' : 'dark'">
           <ion-textarea
             *ngIf="spec.type === 'string' && spec.textarea; else notTextArea"
-            [placeholder]="spec.placeholder || 'Enter ' + spec.name"
+            [placeholder]="spec.placeholder"
             [formControlName]="entry.key"
             (ionFocus)="presentAlertChangeWarning(entry.key, spec)"
             (ionChange)="handleInputChange()"
@@ -34,7 +34,7 @@
                 !unmasked[entry.key]
               "
               [inputmode]="spec.type === 'number' ? 'tel' : 'text'"
-              [placeholder]="spec.placeholder || 'Enter ' + spec.name"
+              [placeholder]="spec.placeholder"
               [formControlName]="entry.key"
               (ionFocus)="presentAlertChangeWarning(entry.key, spec)"
               (ionChange)="handleInputChange()"
@@ -63,20 +63,24 @@
           </ion-note>
         </ion-item>
         <p class="error-message">
-          <span *ngIf="(formGroup | getControl: entry.key).errors as errors">
-            {{ errors | getError: $any(spec)['pattern-description'] }}
+          <span *ngIf="(formGroup | getControl : entry.key).errors as errors">
+            {{ errors | getError : $any(spec)['pattern-description'] }}
           </span>
         </p>
       </ng-container>
-      <!-- boolean or enum -->
+      <!-- boolean, enum, or file -->
       <ion-item
-        *ngIf="spec.type === 'boolean' || spec.type === 'enum'"
+        *ngIf="
+          spec.type === 'boolean' ||
+          spec.type === 'enum' ||
+          spec.type === 'file'
+        "
         style="--padding-start: 0"
       >
         <ion-button
-          *ngIf="spec.description"
+          *ngIf="spec.description as desc"
           fill="clear"
-          (click)="presentAlertBoolEnumDescription($event, spec)"
+          (click.stop)="presentAlertDescription(spec.name, desc)"
           style="--padding-start: 0"
         >
           <ion-icon
@@ -126,6 +130,35 @@
             {{ spec['value-names'][option] }}
           </ion-select-option>
         </ion-select>
+
+        <div
+          *ngIf="spec.type === 'file' && formGroup.get(entry.key) as control"
+          slot="end"
+        >
+          <ion-button
+            *ngIf="!control.value; else hasFile"
+            strong
+            color="dark"
+            size="small"
+          >
+            <label for="upload-file">Browse...</label>
+            <input
+              type="file"
+              [accept]="spec.extensions.join(',')"
+              style="position: absolute; opacity: 0; height: 100%"
+              id="upload-file"
+              (change)="handleFileInput($event, control)"
+            />
+          </ion-button>
+          <ng-template #hasFile>
+            <div class="inline">
+              <p class="ion-padding-end">{{ control.value.name }}</p>
+              <div style="cursor: pointer" (click)="clearFile(control)">
+                <ion-icon name="close"></ion-icon>
+              </div>
+            </div>
+          </ng-template>
+        </div>
       </ion-item>
       <!-- object -->
       <ng-container *ngIf="spec.type === 'object'">
@@ -159,7 +192,7 @@
         <!-- body -->
         <tui-expand
           [expanded]="objectDisplay[entry.key].expanded"
-          [id]="objectId | toElementId: entry.key"
+          [id]="objectId | toElementId : entry.key"
         >
           <div class="nested-wrapper">
             <form-object
@@ -209,7 +242,7 @@
             </ion-button>
           </ion-item-divider>
           <p class="error-message" style="margin-bottom: 8px">
-            <span *ngIf="(formGroup | getControl: entry.key).errors as errors">
+            <span *ngIf="(formGroup | getControl : entry.key).errors as errors">
               {{ errors | getError }}
             </span>
           </p>
@@ -257,7 +290,7 @@
                 <tui-expand
                   style="padding-left: 24px"
                   [expanded]="objectListDisplay[entry.key][i].expanded"
-                  [id]="objectId | toElementId: entry.key:i"
+                  [id]="objectId | toElementId : entry.key : i"
                 >
                   <form-object
                     *ngIf="spec.subtype === 'object'"
@@ -294,7 +327,7 @@
               <!-- string or number -->
               <div
                 *ngIf="spec.subtype === 'string' || spec.subtype === 'number'"
-                [id]="objectId | toElementId: entry.key:i"
+                [id]="objectId | toElementId : entry.key : i"
               >
                 <ion-item
                   [color]="(theme$ | async) === 'Light' ? 'light' : 'dark'"
@@ -320,10 +353,10 @@
                 <p class="error-message">
                   <span
                     *ngIf="
-                      (formGroup | getControl: entry.key:i).errors as errors
+                      (formGroup | getControl : entry.key : i).errors as errors
                     "
                   >
-                    {{ errors | getError: $any(spec)['pattern-description'] }}
+                    {{ errors | getError : $any(spec)['pattern-description'] }}
                   </span>
                 </p>
               </div>
@@ -356,14 +389,14 @@
             (click)="presentModalEnumList(entry.key, $any(spec), formArr.value)"
           >
             <ion-label style="white-space: nowrap !important">
-              <h2>{{ formArr.value | toEnumListDisplay: $any(spec.spec) }}</h2>
+              <h2>{{ formArr.value | toEnumListDisplay : $any(spec.spec) }}</h2>
             </ion-label>
             <ion-button slot="end" fill="clear" color="light">
               <ion-icon slot="icon-only" name="chevron-down"></ion-icon>
             </ion-button>
           </ion-item>
           <p class="error-message">
-            <span *ngIf="(formGroup | getControl: entry.key).errors as errors">
+            <span *ngIf="(formGroup | getControl : entry.key).errors as errors">
               {{ errors | getError }}
             </span>
           </p>
