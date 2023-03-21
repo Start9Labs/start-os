@@ -18,6 +18,7 @@ import {
   UniqueBy,
   ValueSpec,
   ValueSpecEnum,
+  ValueSpecFile,
   ValueSpecList,
   ValueSpecNumber,
   ValueSpecObject,
@@ -102,31 +103,33 @@ export class FormService {
     let value: any
     switch (spec.type) {
       case 'string':
-        validators = stringValidators(spec)
         if (currentValue !== undefined) {
           value = currentValue
         } else {
           value = spec.default ? getDefaultString(spec.default) : null
         }
-        return this.formBuilder.control(value, validators)
+        return this.formBuilder.control(value, stringValidators(spec))
       case 'number':
-        validators = numberValidators(spec)
         if (currentValue !== undefined) {
           value = currentValue
         } else {
           value = spec.default || null
         }
-        return this.formBuilder.control(value, validators)
+        return this.formBuilder.control(value, numberValidators(spec))
       case 'object':
         return this.getFormGroup(spec.spec, [], currentValue)
       case 'list':
-        validators = listValidators(spec)
         const mapped = (
           Array.isArray(currentValue) ? currentValue : (spec.default as any[])
         ).map(entry => {
           return this.getListItem(spec, entry)
         })
-        return this.formBuilder.array(mapped, validators)
+        return this.formBuilder.array(mapped, listValidators(spec))
+      case 'file':
+        return this.formBuilder.control(
+          currentValue || null,
+          fileValidators(spec),
+        )
       case 'union':
         const currentSelection = currentValue?.[spec.tag.id]
         const isValid = !!spec.variants[currentSelection]
@@ -199,6 +202,16 @@ function listValidators(spec: ValueSpecList): ValidatorFn[] {
 
   if (!isValueSpecListOf(spec, 'enum')) {
     validators.push(listUnique(spec))
+  }
+
+  return validators
+}
+
+function fileValidators(spec: ValueSpecFile): ValidatorFn[] {
+  const validators: ValidatorFn[] = []
+
+  if (!spec.nullable) {
+    validators.push(Validators.required)
   }
 
   return validators
