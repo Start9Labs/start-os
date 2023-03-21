@@ -1449,6 +1449,7 @@ pub fn load_images<'a, P: AsRef<Path> + 'a + Send + Sync>(
                                             "Error loading docker images from s9pk: {e}"
                                         );
                                         tracing::debug!("{e:?}");
+                                        return Ok(());
                                     }
                                 },
                                 _ => unreachable!(),
