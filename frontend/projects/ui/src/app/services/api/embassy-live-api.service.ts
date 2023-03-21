@@ -31,7 +31,7 @@ export class LiveApiService extends ApiService {
     private readonly patch: PatchDB<DataModel>,
   ) {
     super()
-    ; (window as any).rpcClient = this
+    ;(window as any).rpcClient = this
   }
 
   // for getting static files: ex icons, instructions, licenses
@@ -44,11 +44,20 @@ export class LiveApiService extends ApiService {
   }
 
   // for sideloading packages
-  async uploadPackage(guid: string, body: Blob): Promise<string> {
+  async uploadPackage(guid: string, body: Blob): Promise<void> {
     return this.httpRequest({
       method: Method.POST,
       body,
       url: `/rest/rpc/${guid}`,
+      responseType: 'text',
+    })
+  }
+
+  async uploadFile(body: Blob): Promise<string> {
+    return this.httpRequest({
+      method: Method.POST,
+      body,
+      url: `/rest/upload`,
       responseType: 'text',
     })
   }
