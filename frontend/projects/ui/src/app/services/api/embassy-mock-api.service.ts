@@ -518,6 +518,13 @@ export class MockApiService extends ApiService {
     return Mock.BackupRuns
   }
 
+  async deleteBackupRuns(
+    params: RR.DeleteBackupRunsReq,
+  ): Promise<RR.DeleteBackupRunsRes> {
+    await pauseFor(2000)
+    return null
+  }
+
   async getBackupInfo(
     params: RR.GetBackupInfoReq,
   ): Promise<RR.GetBackupInfoRes> {

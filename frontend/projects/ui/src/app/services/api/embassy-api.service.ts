@@ -204,6 +204,10 @@ export abstract class ApiService {
     params: RR.GetBackupRunsReq,
   ): Promise<RR.GetBackupRunsRes>
 
+  abstract deleteBackupRuns(
+    params: RR.DeleteBackupRunsReq,
+  ): Promise<RR.DeleteBackupRunsRes>
+
   abstract getBackupInfo(
     params: RR.GetBackupInfoReq,
   ): Promise<RR.GetBackupInfoRes>

@@ -385,3 +385,8 @@ tui-hint[data-appearance='onDark'] {
     color: var(--tui-link-hover) !important;
   }
 }
+
+.checkbox {
+  cursor: pointer;
+  margin: 0 12px 6px 0;
+}

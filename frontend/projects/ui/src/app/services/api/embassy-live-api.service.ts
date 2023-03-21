@@ -344,6 +344,12 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'backup.runs.list', params })
   }
 
+  async deleteBackupRuns(
+    params: RR.DeleteBackupRunsReq,
+  ): Promise<RR.DeleteBackupRunsRes> {
+    return this.rpcRequest({ method: 'backup.runs.delete', params })
+  }
+
   async getBackupInfo(
     params: RR.GetBackupInfoReq,
   ): Promise<RR.GetBackupInfoRes> {

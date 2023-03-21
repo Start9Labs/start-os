@@ -1,14 +1,10 @@
 import { Component } from '@angular/core'
 import { Pipe, PipeTransform } from '@angular/core'
 import { BackupReport, BackupRun } from 'src/app/services/api/api.types'
-import {
-  AlertController,
-  LoadingController,
-  ModalController,
-} from '@ionic/angular'
+import { LoadingController, ModalController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ErrorToastService } from '@start9labs/shared'
-import { catchError, defer } from 'rxjs'
+import { BehaviorSubject } from 'rxjs'
 import { BackupReportPage } from 'src/app/modals/backup-report/backup-report.page'
 
 @Component({
@@ -17,40 +13,33 @@ import { BackupReportPage } from 'src/app/modals/backup-report/backup-report.pag
   styleUrls: ['./backup-history.page.scss'],
 })
 export class BackupHistoryPage {
-  readonly runs$ = defer(() => this.api.getBackupRuns({})).pipe(
-    catchError(e => {
-      this.errToast.present(e)
-      return []
-    }),
-  )
+  selected: Record<string, boolean> = {}
+  runs: BackupRun[] = []
+  loading$ = new BehaviorSubject(true)
 
   constructor(
     private readonly modalCtrl: ModalController,
-    private readonly alertCtrl: AlertController,
     private readonly loadingCtrl: LoadingController,
     private readonly errToast: ErrorToastService,
     private readonly api: ApiService,
   ) {}
 
-  async presentAlertDelete(id: string, index: number) {
-    const alert = await this.alertCtrl.create({
-      header: 'Confirm',
-      message: 'Delete backup record? This actions cannot be undone.',
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
-        },
-        {
-          text: 'Delete',
-          handler: () => {
-            this.delete(id, index)
-          },
-          cssClass: 'enter-click',
-        },
-      ],
-    })
-    await alert.present()
+  async ngOnInit() {
+    try {
+      this.runs = await this.api.getBackupRuns({})
+    } catch (e: any) {
+      this.errToast.present(e)
+    } finally {
+      this.loading$.next(false)
+    }
+  }
+
+  get empty() {
+    return this.count === 0
+  }
+
+  get count() {
+    return Object.keys(this.selected).length
   }
 
   async presentModalReport(run: BackupRun) {
@@ -64,14 +53,34 @@ export class BackupHistoryPage {
     await modal.present()
   }
 
-  async delete(id: string, index: number): Promise<void> {
+  async toggleChecked(id: string) {
+    if (this.selected[id]) {
+      delete this.selected[id]
+    } else {
+      this.selected[id] = true
+    }
+  }
+
+  async toggleAll(runs: BackupRun[]) {
+    if (this.empty) {
+      runs.forEach(r => (this.selected[r.id] = true))
+    } else {
+      this.selected = {}
+    }
+  }
+
+  async deleteSelected(): Promise<void> {
+    const ids = Object.keys(this.selected)
+
     const loader = await this.loadingCtrl.create({
-      message: 'Removing...',
+      message: 'Deleting...',
     })
     await loader.present()
 
     try {
-      await this.api.removeBackupTarget({ id })
+      await this.api.deleteBackupRuns({ ids })
+      this.selected = {}
+      this.runs = this.runs.filter(r => !ids.includes(r.id))
     } catch (e: any) {
       this.errToast.present(e)
     } finally {

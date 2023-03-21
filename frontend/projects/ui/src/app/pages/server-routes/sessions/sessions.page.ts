@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
 import { Pipe, PipeTransform } from '@angular/core'
-import { CheckboxCustomEvent, LoadingController } from '@ionic/angular'
+import { LoadingController } from '@ionic/angular'
 import { ErrorToastService } from '@start9labs/shared'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PlatformType, Session } from 'src/app/services/api/api.types'
@@ -14,7 +14,7 @@ import { BehaviorSubject } from 'rxjs'
 export class SessionsPage {
   currentSession?: Session
   otherSessions: SessionWithId[] = []
-  selected: Set<string> = new Set()
+  selected: Record<string, boolean> = {}
   loading$ = new BehaviorSubject(true)
 
   constructor(
@@ -22,6 +22,14 @@ export class SessionsPage {
     private readonly errToast: ErrorToastService,
     private readonly api: ApiService,
   ) {}
+
+  get empty() {
+    return this.count === 0
+  }
+
+  get count() {
+    return Object.keys(this.selected).length
+  }
 
   async ngOnInit() {
     try {
@@ -48,24 +56,24 @@ export class SessionsPage {
     }
   }
 
-  async toggleChecked(id: string, e: CheckboxCustomEvent) {
-    if (e.detail.checked) {
-      this.selected.add(id)
+  async toggleChecked(id: string) {
+    if (this.selected[id]) {
+      delete this.selected[id]
     } else {
-      this.selected.delete(id)
+      this.selected[id] = true
     }
   }
 
-  async toggleAll(e: CheckboxCustomEvent) {
-    if (e.detail.checked) {
-      this.otherSessions.forEach(s => this.selected.add(s.id))
+  async toggleAll() {
+    if (this.empty) {
+      this.otherSessions.forEach(s => (this.selected[s.id] = true))
     } else {
-      this.selected.clear()
+      this.selected = {}
     }
   }
 
   async kill(): Promise<void> {
-    const ids = Array.from(this.selected)
+    const ids = Object.keys(this.selected)
 
     const loader = await this.loadingCtrl.create({
       message: `Terminating session${ids.length > 1 ? 's' : ''}...`,
@@ -74,7 +82,7 @@ export class SessionsPage {
 
     try {
       await this.api.killSessions({ ids })
-      this.selected.clear()
+      this.selected = {}
       this.otherSessions = this.otherSessions.filter(s => !ids.includes(s.id))
     } catch (e: any) {
       this.errToast.present(e)

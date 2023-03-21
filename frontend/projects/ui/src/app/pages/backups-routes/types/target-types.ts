@@ -1,6 +1,6 @@
-import { ConfigSpec } from 'src/app/pkg-config/config-types'
+import { InputSpec } from 'start-sdk/types/config-types'
 
-export const DropboxSpec: ConfigSpec = {
+export const DropboxSpec: InputSpec = {
   name: {
     type: 'string',
     name: 'Name',
@@ -8,45 +8,63 @@ export const DropboxSpec: ConfigSpec = {
     placeholder: 'My Dropbox',
     nullable: false,
     masked: false,
-    copyable: false,
+    warning: null,
+    textarea: false,
+    pattern: null,
+    'pattern-description': null,
+    default: null,
   },
   token: {
     type: 'string',
     name: 'Access Token',
     description: 'The secret access token for your custom Dropbox app',
+    warning: null,
+    placeholder: null,
     nullable: false,
     masked: true,
-    copyable: false,
+    textarea: false,
+    pattern: null,
+    'pattern-description': null,
+    default: null,
   },
   path: {
     type: 'string',
     name: 'Path',
     description: 'The fully qualified path to the backup directory',
+    warning: null,
     placeholder: 'e.g. /Desktop/my-folder',
     nullable: false,
     masked: false,
-    copyable: false,
+    textarea: false,
+    pattern: null,
+    'pattern-description': null,
+    default: null,
   },
 }
 
-export const GoogleDriveSpec: ConfigSpec = {
+export const GoogleDriveSpec: InputSpec = {
   name: {
     type: 'string',
     name: 'Name',
     description: 'A friendly name for this Google Drive target',
+    warning: null,
     placeholder: 'My Google Drive',
     nullable: false,
     masked: false,
-    copyable: false,
+    textarea: false,
+    pattern: null,
+    'pattern-description': null,
+    default: null,
   },
   key: {
     type: 'file',
     name: 'Private Key File',
     description:
       'Your Google Drive service account private key file (.json file)',
+    warning: null,
     placeholder: `e.g. 'My Computer' OR 'my-computer.local'`,
-    validation: () => true,
     nullable: false,
+    extensions: ['json'],
   },
   path: {
     type: 'string',
@@ -55,31 +73,41 @@ export const GoogleDriveSpec: ConfigSpec = {
     placeholder: 'e.g. /Desktop/my-folder',
     nullable: false,
     masked: false,
-    copyable: false,
+    warning: null,
+    textarea: false,
+    pattern: null,
+    'pattern-description': null,
+    default: null,
   },
 }
 
-export const CifsSpec: ConfigSpec = {
+export const CifsSpec: InputSpec = {
   name: {
     type: 'string',
     name: 'Name',
     description: 'A friendly name for this Network Folder',
+    warning: null,
     placeholder: 'My Network Folder',
     nullable: false,
     masked: false,
-    copyable: false,
+    textarea: false,
+    pattern: null,
+    'pattern-description': null,
+    default: null,
   },
   hostname: {
     type: 'string',
     name: 'Hostname',
     description:
       'The hostname of your target device on the Local Area Network.',
+    warning: null,
+    textarea: false,
+    nullable: false,
+    masked: false,
     placeholder: `e.g. 'My Computer' OR 'my-computer.local'`,
     pattern: '^[a-zA-Z0-9._-]+( [a-zA-Z0-9]+)*$',
     'pattern-description': `Must be a valid hostname. e.g. 'My Computer' OR 'my-computer.local'`,
-    nullable: false,
-    masked: false,
-    copyable: false,
+    default: null,
   },
   path: {
     type: 'string',
@@ -88,7 +116,11 @@ export const CifsSpec: ConfigSpec = {
     placeholder: 'e.g. my-shared-folder or /Desktop/my-folder',
     nullable: false,
     masked: false,
-    copyable: false,
+    warning: null,
+    textarea: false,
+    pattern: null,
+    'pattern-description': null,
+    default: null,
   },
   username: {
     type: 'string',
@@ -96,7 +128,12 @@ export const CifsSpec: ConfigSpec = {
     description: `On Linux, this is the samba username you created when sharing the folder.\n\n On Mac and Windows, this is the username of the user who is sharing the folder.`,
     nullable: false,
     masked: false,
-    copyable: false,
+    warning: null,
+    placeholder: 'My Network Folder',
+    textarea: false,
+    pattern: null,
+    'pattern-description': null,
+    default: null,
   },
   password: {
     type: 'string',
@@ -104,11 +141,16 @@ export const CifsSpec: ConfigSpec = {
     description: `On Linux, this is the samba password you created when sharing the folder.\n\n On Mac and Windows, this is the password of the user who is sharing the folder.`,
     nullable: true,
     masked: true,
-    copyable: false,
+    warning: null,
+    placeholder: 'My Network Folder',
+    textarea: false,
+    pattern: null,
+    'pattern-description': null,
+    default: null,
   },
 }
 
-export const RemoteBackupTargetSpec: ConfigSpec = {
+export const RemoteBackupTargetSpec: InputSpec = {
   type: {
     type: 'union',
     variants: {
@@ -119,6 +161,8 @@ export const RemoteBackupTargetSpec: ConfigSpec = {
     tag: {
       id: 'type',
       name: 'Target Type',
+      description: null,
+      warning: null,
       'variant-names': {
         dropbox: 'Dropbox',
         'google-drive': 'Google Drive',
@@ -129,7 +173,7 @@ export const RemoteBackupTargetSpec: ConfigSpec = {
   },
 }
 
-export const DiskBackupTargetSpec: ConfigSpec = {
+export const DiskBackupTargetSpec: InputSpec = {
   name: {
     type: 'string',
     name: 'Name',
@@ -137,7 +181,11 @@ export const DiskBackupTargetSpec: ConfigSpec = {
     placeholder: 'My Physical Target',
     nullable: false,
     masked: false,
-    copyable: false,
+    warning: null,
+    textarea: false,
+    pattern: null,
+    'pattern-description': null,
+    default: null,
   },
   path: {
     type: 'string',
@@ -146,6 +194,10 @@ export const DiskBackupTargetSpec: ConfigSpec = {
     placeholder: 'e.g. /Backups/my-folder',
     nullable: false,
     masked: false,
-    copyable: false,
+    warning: null,
+    textarea: false,
+    pattern: null,
+    'pattern-description': null,
+    default: null,
   },
 }

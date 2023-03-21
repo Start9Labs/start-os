@@ -201,6 +201,9 @@ export module RR {
   export type GetBackupRunsReq = {} // backup.runs
   export type GetBackupRunsRes = BackupRun[]
 
+  export type DeleteBackupRunsReq = { ids: string[] } // backup.runs.delete
+  export type DeleteBackupRunsRes = null
+
   export type GetBackupInfoReq = { 'target-id': string; password: string } // backup.target.info
   export type GetBackupInfoRes = BackupInfo
 

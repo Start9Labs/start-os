@@ -32,7 +32,7 @@
             *ngIf="currentSession"
             class="ion-align-items-center grid-row-border"
           >
-            <ion-col size="6"> {{ currentSession['user-agent'] }} </ion-col>
+            <ion-col size="6">{{ currentSession['user-agent'] }}</ion-col>
             <ion-col size="3" class="inline">
               <span
                 *ngIf="currentSession.metadata.platforms | platformInfo as info"
@@ -56,9 +56,9 @@
         class="ion-padding-start"
         strong
         color="primary"
-        [fill]="!selected.size ? 'outline' : 'solid'"
+        [fill]="empty ? 'outline' : 'solid'"
         (click)="kill()"
-        [disabled]="!selected.size"
+        [disabled]="empty"
       >
         Terminate Selected
       </ion-button>
@@ -68,11 +68,11 @@
       <ion-grid class="ion-padding">
         <ion-row class="grid-headings">
           <ion-col size="6" class="inline">
-            <ion-checkbox
-              style="margin-right: 12px"
-              [checked]="selected.size"
-              (ionChange)="toggleAll($any($event))"
-            ></ion-checkbox>
+            <div class="checkbox" (click)="toggleAll()">
+              <ion-icon
+                [name]="empty ? 'square-outline' : count === otherSessions.length ? 'checkbox-outline' : 'remove-circle-outline'"
+              ></ion-icon>
+            </div>
             User Agent
           </ion-col>
           <ion-col size="3">Platform</ion-col>
@@ -96,11 +96,11 @@
             class="ion-align-items-center grid-row-border"
           >
             <ion-col size="6" class="inline">
-              <ion-checkbox
-                style="margin-right: 12px"
-                [checked]="selected.has(session.id)"
-                (ionChange)="toggleChecked(session.id, $any($event))"
-              ></ion-checkbox>
+              <div class="checkbox" (click)="toggleChecked(session.id)">
+                <ion-icon
+                  [name]="selected[session.id] ? 'checkbox-outline' : 'square-outline'"
+                ></ion-icon>
+              </div>
               {{ session['user-agent'] }}
             </ion-col>
             <ion-col size="3" class="inline">
