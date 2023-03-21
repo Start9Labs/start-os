@@ -1,0 +1,9 @@
+:host {
+  display: flex;
+  align-items: center;
+}
+
+.slot-start {
+  --padding-start: 0;
+  --padding-end: 7px;
+}
