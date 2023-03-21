@@ -1,10 +1,15 @@
-import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
-import {
-  FormObjectComponent,
-  FormUnionComponent,
-  FormLabelComponent,
-} from './form-object.component'
+import { NgModule } from '@angular/core'
+import { FormsModule, ReactiveFormsModule } from '@angular/forms'
+import { IonicModule } from '@ionic/angular'
+import { SharedPipesModule } from '@start9labs/shared'
+import { TuiElasticContainerModule } from '@taiga-ui/kit'
+import { TuiExpandModule } from '@taiga-ui/core'
+import { EnumListPageModule } from 'src/app/modals/enum-list/enum-list.module'
+
+import { FormLabelComponent } from './form-label/form-label.component'
+import { FormObjectComponent } from './form-object/form-object.component'
+import { FormUnionComponent } from './form-union/form-union.component'
 import {
   GetErrorPipe,
   ToWarningTextPipe,
@@ -13,12 +18,6 @@ import {
   ToEnumListDisplayPipe,
   ToRangePipe,
 } from './form-object.pipes'
-import { IonicModule } from '@ionic/angular'
-import { FormsModule, ReactiveFormsModule } from '@angular/forms'
-import { SharedPipesModule } from '@start9labs/shared'
-import { TuiElasticContainerModule } from '@taiga-ui/kit'
-import { EnumListPageModule } from 'src/app/modals/enum-list/enum-list.module'
-import { TuiExpandModule } from '@taiga-ui/core'
 
 @NgModule({
   declarations: [
@@ -44,4 +43,4 @@ import { TuiExpandModule } from '@taiga-ui/core'
   ],
   exports: [FormObjectComponent, FormLabelComponent],
 })
-export class FormObjectComponentModule {}
+export class FormObjectModule {}
