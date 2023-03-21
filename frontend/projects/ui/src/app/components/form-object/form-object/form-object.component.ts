@@ -3,7 +3,6 @@ import {
   Input,
   Output,
   EventEmitter,
-  ChangeDetectionStrategy,
   Inject,
   inject,
   SimpleChanges,
@@ -28,9 +27,6 @@ import { DOCUMENT } from '@angular/common'
 
 const Mustache = require('mustache')
 
-interface Config {
-  [key: string]: any
-}
 @Component({
   selector: 'form-object',
   templateUrl: './form-object.component.html',
@@ -39,8 +35,8 @@ interface Config {
 export class FormObjectComponent {
   @Input() objectSpec!: InputSpec
   @Input() formGroup!: UntypedFormGroup
-  @Input() current?: Config
-  @Input() original?: Config
+  @Input() current?: Record<string, any>
+  @Input() original?: Record<string, any>
   @Output() onInputChange = new EventEmitter<void>()
   @Output() hasNewOptions = new EventEmitter<void>()
   warningAck: { [key: string]: boolean } = {}
@@ -327,96 +323,6 @@ export class FormObjectComponent {
 
   asIsOrder() {
     return 0
-  }
-}
-
-@Component({
-  selector: 'form-union',
-  templateUrl: './form-union.component.html',
-  styleUrls: ['./form-object.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-})
-export class FormUnionComponent {
-  @Input() formGroup!: UntypedFormGroup
-  @Input() spec!: ValueSpecUnion
-  @Input() current?: Config
-  @Input() original?: Config
-
-  get unionValue() {
-    return this.formGroup.get(this.spec.tag.id)?.value
-  }
-
-  get isNew() {
-    return !this.original
-  }
-
-  get hasNewOptions() {
-    const tagId = this.spec.tag.id
-    return (
-      this.original?.[tagId] === this.current?.[tagId] &&
-      !!Object.keys(this.current || {}).find(
-        key => this.original![key] === undefined,
-      )
-    )
-  }
-
-  objectId = v4()
-
-  constructor(private readonly formService: FormService) {}
-
-  updateUnion(e: any): void {
-    const tagId = this.spec.tag.id
-
-    Object.keys(this.formGroup.controls).forEach(control => {
-      if (control === tagId) return
-      this.formGroup.removeControl(control)
-    })
-
-    const unionGroup = this.formService.getUnionObject(
-      this.spec as ValueSpecUnion,
-      e.detail.value,
-    )
-
-    Object.keys(unionGroup.controls).forEach(control => {
-      if (control === tagId) return
-      this.formGroup.addControl(control, unionGroup.controls[control])
-    })
-  }
-}
-
-@Component({
-  selector: 'form-label',
-  templateUrl: './form-label.component.html',
-  styleUrls: ['./form-object.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-})
-export class FormLabelComponent {
-  @Input() data!: {
-    name: string
-    new: boolean
-    edited: boolean
-    description: string | null
-    required?: boolean
-    newOptions?: boolean
-  }
-
-  constructor(private readonly alertCtrl: AlertController) {}
-
-  async presentAlertDescription(event: Event) {
-    event.stopPropagation()
-    const { name, description } = this.data
-
-    const alert = await this.alertCtrl.create({
-      header: name,
-      message: description || '',
-      buttons: [
-        {
-          text: 'OK',
-          cssClass: 'enter-click',
-        },
-      ],
-    })
-    await alert.present()
   }
 }
 
