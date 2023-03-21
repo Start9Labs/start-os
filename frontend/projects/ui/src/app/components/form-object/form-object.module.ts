@@ -6,7 +6,6 @@ import { SharedPipesModule } from '@start9labs/shared'
 import { TuiElasticContainerModule } from '@taiga-ui/kit'
 import { TuiExpandModule } from '@taiga-ui/core'
 import { EnumListPageModule } from 'src/app/modals/enum-list/enum-list.module'
-
 import { FormLabelComponent } from './form-label/form-label.component'
 import { FormObjectComponent } from './form-object/form-object.component'
 import { FormUnionComponent } from './form-union/form-union.component'
@@ -14,7 +13,6 @@ import {
   GetErrorPipe,
   ToWarningTextPipe,
   ToElementIdPipe,
-  GetControlPipe,
   ToEnumListDisplayPipe,
   ToRangePipe,
 } from './form-object.pipes'
@@ -28,7 +26,6 @@ import {
     GetErrorPipe,
     ToEnumListDisplayPipe,
     ToElementIdPipe,
-    GetControlPipe,
     ToRangePipe,
   ],
   imports: [
