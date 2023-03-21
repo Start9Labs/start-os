@@ -3,7 +3,6 @@ use std::collections::BTreeMap;
 use rpc_toolkit::command;
 use tracing::instrument;
 
-use crate::config::not_found;
 use crate::context::RpcContext;
 use crate::dependencies::{break_transitive, BreakageRes, DependencyError};
 use crate::prelude::*;
@@ -23,22 +22,21 @@ pub async fn dry(
     #[arg] id: PackageId,
     #[arg] version: Version,
 ) -> Result<BreakageRes, Error> {
-    let mut db = ctx.db.handle();
-    let mut tx = db.begin().await?;
+    let db = ctx.db.peek().await?;
     let mut breakages = BTreeMap::new();
-    let receipts = todo!("BLUJ"); // UpdateReceipts::new(&mut tx).await?;
+    let dependencies = db
+        .into_package_data()
+        .into_idx(&id)
+        .or_not_found(&id)?
+        .into_manifest()
+        .into_dependencies();
 
-    for dependent in receipts
-        .current_dependents
-        .get(&mut tx, &id)
-        .await?
-        .ok_or_else(not_found)?
-        .0
-        .keys()
+    for dependent in dependencies
+        .keys()?
         .into_iter()
         .filter(|dependent| &&id != dependent)
     {
-        if let Some(dep_info) = receipts.dependency.get(&mut tx, (&dependent, &id)).await? {
+        if let Some(dep_info) = dependencies.into_idx(&dependent).await? {
             let version_req = dep_info.version;
             if !version.satisfies(&version_req) {
                 break_transitive(
@@ -54,6 +52,5 @@ pub async fn dry(
             }
         }
     }
-    tx.abort().await?;
     Ok(BreakageRes(breakages))
 }

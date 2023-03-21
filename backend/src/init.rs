@@ -21,7 +21,7 @@ use crate::prelude::*;
 use crate::sound::BEP;
 use crate::system::time;
 use crate::util::Invoke;
-use crate::{Error, ARCH};
+use crate::ARCH;
 
 pub const SYSTEM_REBUILD_PATH: &str = "/media/embassy/config/system-rebuild";
 pub const STANDBY_MODE_PATH: &str = "/media/embassy/config/standby";
@@ -180,7 +180,7 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         Command::new("chown")
             .arg("root:embassy")
             .arg(LOCAL_AUTH_COOKIE_PATH)
-            .invoke(crate::ErrorKind::Filesystem)
+            .invoke(ErrorKind::Filesystem)
             .await?;
     }
 
@@ -231,9 +231,7 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
 
     let should_rebuild = tokio::fs::metadata(SYSTEM_REBUILD_PATH).await.is_ok()
         || &*version < &emver::Version::new(0, 3, 2, 0)
-        || (*ARCH == "x86_64"
-            && &*version
-                < &emver::Version::new(0, 3, 4, 0));
+        || (*ARCH == "x86_64" && &*version < &emver::Version::new(0, 3, 4, 0));
 
     let song = if should_rebuild {
         Some(NonDetachingJoinHandle::from(tokio::spawn(async {
@@ -354,7 +352,7 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     Command::new("systemctl")
         .arg("start")
         .arg("tor")
-        .invoke(crate::ErrorKind::Tor)
+        .invoke(ErrorKind::Tor)
         .await?;
 
     let ip_info = crate::net::dhcp::init_ips().await?;
@@ -366,6 +364,7 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
             updated: false,
             update_progress: None,
             backup_progress: None,
+            shutting_down: false,
         })?;
         server_info.system_start_time().set(&time)?;
         Ok(())
