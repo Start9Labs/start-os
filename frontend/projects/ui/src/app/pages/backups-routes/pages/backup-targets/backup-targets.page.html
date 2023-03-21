@@ -16,9 +16,9 @@
           backups. They can be physical drives plugged into your server, shared
           folders on your Local Area Network (LAN), or third party clouds such
           as Dropbox or Google Drive.
-          <a [href]="docsUrl" target="_blank" rel="noreferrer"
-            >View instructions</a
-          >
+          <a [href]="docsUrl" target="_blank" rel="noreferrer">
+            View instructions
+          </a>
         </h2>
       </ion-label>
     </ion-item>
@@ -26,7 +26,12 @@
     <!-- unknown disks -->
     <ion-item-divider>
       Unknown Physical Drives
-      <ion-button class="ion-padding-start" strong (click)="refresh()">
+      <ion-button
+        class="ion-padding-start"
+        strong
+        size="small"
+        (click)="refresh()"
+      >
         <ion-icon slot="start" name="refresh"></ion-icon>
         Refresh
       </ion-button>
@@ -56,23 +61,24 @@
             *ngFor="let disk of targets['unknown-disks']; let i = index"
             class="ion-align-items-center grid-row-border"
           >
-            <ion-col size="3"
-              >{{ disk.vendor || 'unknown make' }}, {{ disk.model || 'unknown
-              model' }}</ion-col
-            >
+            <ion-col size="3">
+              {{ disk.vendor || 'unknown make' }}, {{ disk.model || 'unknown
+              model' }}
+            </ion-col>
             <ion-col size="3">{{ disk.label }}</ion-col>
             <ion-col size="2">{{ disk.capacity | convertBytes }}</ion-col>
-            <ion-col size="2"
-              >{{ disk.used ? (disk.used | convertBytes) : 'unknown' }}</ion-col
-            >
+            <ion-col size="2">
+              {{ disk.used ? (disk.used | convertBytes) : 'unknown' }}
+            </ion-col>
             <ion-col size="2">
               <ion-button
+                strong
                 size="small"
                 style="float: right"
                 (click)="presentModalAddPhysical(disk, i)"
               >
                 <ion-icon name="add" slot="start"></ion-icon>
-                Add
+                Save
               </ion-button>
             </ion-col>
           </ion-row>
@@ -91,6 +97,7 @@
       <ion-button
         class="ion-padding-start"
         strong
+        size="small"
         (click)="presentModalAddRemote()"
       >
         <ion-icon slot="start" name="add"></ion-icon>
@@ -126,7 +133,7 @@
           >
             <ion-col size="3">{{ target.name }}</ion-col>
             <ion-col class="inline">
-              <ion-icon [name]="getIcon(target.type)" size="small"> </ion-icon>
+              <ion-icon [name]="getIcon(target.type)" size="small"></ion-icon>
               &nbsp; {{ target.type | titlecase }}
             </ion-col>
             <ion-col>

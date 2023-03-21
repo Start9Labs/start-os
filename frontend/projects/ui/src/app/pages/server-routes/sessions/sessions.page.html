@@ -54,9 +54,9 @@
       Other Sessions
       <ion-button
         class="ion-padding-start"
+        color="danger"
         strong
-        color="primary"
-        [fill]="empty ? 'outline' : 'solid'"
+        size="small"
         (click)="kill()"
         [disabled]="empty"
       >
@@ -94,6 +94,7 @@
           <ion-row
             *ngFor="let session of otherSessions; let i = index"
             class="ion-align-items-center grid-row-border"
+            [class.highlighted]="selected[session.id]"
           >
             <ion-col size="6" class="inline">
               <div class="checkbox" (click)="toggleChecked(session.id)">

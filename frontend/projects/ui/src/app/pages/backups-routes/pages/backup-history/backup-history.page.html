@@ -12,9 +12,9 @@
     Past Events
     <ion-button
       class="ion-padding-start"
+      color="danger"
       strong
-      color="primary"
-      [fill]="empty ? 'outline' : 'solid'"
+      size="small"
       (click)="deleteSelected()"
       [disabled]="empty"
     >
@@ -24,7 +24,7 @@
   <div class="grid-fixed">
     <ion-grid class="ion-padding">
       <ion-row class="grid-headings">
-        <ion-col size="3" class="inline">
+        <ion-col size="3.5" class="inline">
           <div class="checkbox" (click)="toggleAll(runs)">
             <ion-icon
               [name]="empty ? 'square-outline' : count === runs.length ? 'checkbox-outline' : 'remove-circle-outline'"
@@ -35,7 +35,7 @@
         <ion-col size="2">Duration</ion-col>
         <ion-col size="1.5">Result</ion-col>
         <ion-col size="2.5">Job</ion-col>
-        <ion-col size="3">Target</ion-col>
+        <ion-col size="2.5">Target</ion-col>
       </ion-row>
 
       <!-- loading -->
@@ -54,8 +54,9 @@
         <ion-row
           *ngFor="let run of runs"
           class="ion-align-items-center grid-row-border"
+          [class.highlighted]="selected[run.id]"
         >
-          <ion-col size="3" class="inline">
+          <ion-col size="3.5" class="inline">
             <div class="checkbox" (click)="toggleChecked(run.id)">
               <ion-icon
                 [name]="selected[run.id] ? 'checkbox-outline' : 'square-outline'"
@@ -78,7 +79,7 @@
             <a (click)="presentModalReport(run)">Report</a>
           </ion-col>
           <ion-col size="2.5">{{ run.job.name || 'No job' }}</ion-col>
-          <ion-col size="3" class="inline">
+          <ion-col size="2.5" class="inline">
             <ion-icon
               [name]="(run.job.target | getDisplayInfo).icon"
               size="small"

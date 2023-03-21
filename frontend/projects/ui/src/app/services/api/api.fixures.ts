@@ -690,6 +690,23 @@ export module Mock {
         },
       },
     },
+    {
+      id: 'kladhbfwhrfeubdsk',
+      'started-at': new Date().toISOString(),
+      'completed-at': new Date(new Date().valueOf() + 10000).toISOString(),
+      'package-ids': ['bitcoind', 'lnd'],
+      job: BackupJobs[0],
+      report: {
+        server: {
+          attempted: true,
+          error: null,
+        },
+        packages: {
+          bitcoind: { error: null },
+          lnd: { error: null },
+        },
+      },
+    },
   ]
 
   export const BackupInfo: RR.GetBackupInfoRes = {
