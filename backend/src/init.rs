@@ -147,7 +147,15 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
                 .success(),
         )
     };
-    let exists = tokio::fs::metadata(&db_dir).await.is_ok();
+    let mut exists = tokio::fs::metadata(&db_dir).await.is_ok();
+    if exists
+        && tokio::fs::metadata(&datadir.as_ref().join("main/secrets.db"))
+            .await
+            .is_ok()
+    {
+        tokio::fs::remove_dir_all(&db_dir).await?;
+        exists = false;
+    }
     if !exists {
         Command::new("cp")
             .arg("-ra")
