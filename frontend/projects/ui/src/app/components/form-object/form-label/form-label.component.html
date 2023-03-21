@@ -2,7 +2,7 @@
   *ngIf="data.description"
   class="slot-start"
   fill="clear"
-  (click)="presentAlertDescription($event)"
+  (click.stop)="presentAlertDescription()"
 >
   <ion-icon name="help-circle-outline" slot="icon-only" size="small"></ion-icon>
 </ion-button>
@@ -13,4 +13,4 @@
 <ion-text color="success" *ngIf="data.newOptions">&nbsp;(New Options)</ion-text>
 <ion-text color="warning" *ngIf="data.edited">&nbsp;(Edited)</ion-text>
 
-<span *ngIf="data.required"> &nbsp;* </span>
+<span *ngIf="data.required">&nbsp;*</span>

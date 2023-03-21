@@ -26,13 +26,14 @@
           <ng-template #notTextArea>
             <ion-input
               type="text"
-              [inputmode]="spec.type === 'number' ? 'tel' : 'text'"
-              [class.redacted]="
+              class="input"
+              [class.input_redacted]="
                 spec.type === 'string' &&
                 entry.value.value &&
                 spec.masked &&
                 !unmasked[entry.key]
               "
+              [inputmode]="spec.type === 'number' ? 'tel' : 'text'"
               [placeholder]="spec.placeholder || 'Enter ' + spec.name"
               [formControlName]="entry.key"
               (ionFocus)="presentAlertChangeWarning(entry.key, spec)"
@@ -130,9 +131,9 @@
       <ng-container *ngIf="spec.type === 'object'">
         <!-- label -->
         <ion-item-divider
-          (click)="toggleExpandObject(entry.key)"
           style="cursor: pointer"
           [class.error-border]="entry.value.invalid"
+          (click)="toggleExpandObject(entry.key)"
         >
           <form-label
             [data]="{
