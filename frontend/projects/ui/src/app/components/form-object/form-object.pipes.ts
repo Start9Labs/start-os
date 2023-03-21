@@ -8,7 +8,7 @@ import {
 import { IonicSafeString } from '@ionic/angular'
 import { ListValueSpecOf } from 'start-sdk/types/config-types'
 import { Range } from 'src/app/util/config-utilities'
-import { getElementId } from './form-object.component'
+import { getElementId } from './form-object/form-object.component'
 
 @Pipe({
   name: 'getError',
