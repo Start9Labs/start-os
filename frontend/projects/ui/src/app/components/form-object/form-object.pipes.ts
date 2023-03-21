@@ -74,19 +74,3 @@ export class ToElementIdPipe implements PipeTransform {
     return getElementId(objectId, key, index)
   }
 }
-
-@Pipe({
-  name: 'getControl',
-})
-export class GetControlPipe implements PipeTransform {
-  transform(
-    formGroup: FormGroup,
-    key: string,
-    index?: number,
-  ): AbstractControl {
-    const abstractControl = formGroup.get(key)!
-    if (index !== undefined)
-      return (abstractControl as UntypedFormArray).at(index)
-    return abstractControl
-  }
-}

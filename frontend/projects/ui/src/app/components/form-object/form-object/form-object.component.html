@@ -63,18 +63,14 @@
           </ion-note>
         </ion-item>
         <p class="error-message">
-          <span *ngIf="(formGroup | getControl : entry.key).errors as errors">
+          <span *ngIf="formGroup.get(entry.key)?.errors as errors">
             {{ errors | getError : $any(spec)['pattern-description'] }}
           </span>
         </p>
       </ng-container>
-      <!-- boolean, enum, or file -->
+      <!-- boolean or enum -->
       <ion-item
-        *ngIf="
-          spec.type === 'boolean' ||
-          spec.type === 'enum' ||
-          spec.type === 'file'
-        "
+        *ngIf="spec.type === 'boolean' || spec.type === 'enum'"
         style="--padding-start: 0"
       >
         <ion-button
@@ -130,36 +126,65 @@
             {{ spec['value-names'][option] }}
           </ion-select-option>
         </ion-select>
-
-        <div
-          *ngIf="spec.type === 'file' && formGroup.get(entry.key) as control"
-          slot="end"
-        >
+      </ion-item>
+      <!-- file -->
+      <ng-container
+        *ngIf="spec.type === 'file' && formGroup.get(entry.key) as control"
+      >
+        <ion-item style="--padding-start: 0">
           <ion-button
-            *ngIf="!control.value; else hasFile"
-            strong
-            color="dark"
-            size="small"
+            *ngIf="spec.description as desc"
+            fill="clear"
+            (click.stop)="presentAlertDescription(spec.name, desc)"
+            style="--padding-start: 0"
           >
-            <label for="upload-file">Browse...</label>
+            <ion-icon
+              name="help-circle-outline"
+              slot="icon-only"
+              size="small"
+            ></ion-icon>
+          </ion-button>
+          <ion-label>
+            <b>
+              {{ spec.name }}
+              <ion-text *ngIf="entry.value.dirty" color="warning">
+                (Edited)
+              </ion-text>
+            </b>
+          </ion-label>
+          <div slot="end">
+            <ion-button
+              *ngIf="!control.value; else hasFile"
+              strong
+              color="dark"
+              size="small"
+              (click)="uploadFile.click()"
+            >
+              Browse...
+            </ion-button>
             <input
               type="file"
               [accept]="spec.extensions.join(',')"
-              style="position: absolute; opacity: 0; height: 100%"
-              id="upload-file"
+              style="display: none"
+              #uploadFile
               (change)="handleFileInput($event, control)"
             />
-          </ion-button>
-          <ng-template #hasFile>
-            <div class="inline">
-              <p class="ion-padding-end">{{ control.value.name }}</p>
-              <div style="cursor: pointer" (click)="clearFile(control)">
-                <ion-icon name="close"></ion-icon>
+            <ng-template #hasFile>
+              <div class="inline">
+                <p class="ion-padding-end">{{ control.value.name }}</p>
+                <div style="cursor: pointer" (click)="clearFile(control)">
+                  <ion-icon name="close"></ion-icon>
+                </div>
               </div>
-            </div>
-          </ng-template>
-        </div>
-      </ion-item>
+            </ng-template>
+          </div>
+        </ion-item>
+        <p class="error-message">
+          <span *ngIf="control.errors as errors">
+            {{ errors | getError }}
+          </span>
+        </p>
+      </ng-container>
       <!-- object -->
       <ng-container *ngIf="spec.type === 'object'">
         <!-- label -->
@@ -242,7 +267,7 @@
             </ion-button>
           </ion-item-divider>
           <p class="error-message" style="margin-bottom: 8px">
-            <span *ngIf="(formGroup | getControl : entry.key).errors as errors">
+            <span *ngIf="formGroup.get(entry.key)?.errors as errors">
               {{ errors | getError }}
             </span>
           </p>
@@ -353,7 +378,7 @@
                 <p class="error-message">
                   <span
                     *ngIf="
-                      (formGroup | getControl : entry.key : i).errors as errors
+                      $any(formGroup.get(entry.key))?.at(i)?.errors as errors
                     "
                   >
                     {{ errors | getError : $any(spec)['pattern-description'] }}
@@ -396,7 +421,7 @@
             </ion-button>
           </ion-item>
           <p class="error-message">
-            <span *ngIf="(formGroup | getControl : entry.key).errors as errors">
+            <span *ngIf="formGroup.get(entry.key)?.errors as errors">
               {{ errors | getError }}
             </span>
           </p>

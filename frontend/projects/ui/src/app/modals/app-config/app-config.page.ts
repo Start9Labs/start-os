@@ -17,7 +17,6 @@ import { InputSpec } from 'start-sdk/types/config-types'
 import {
   DataModel,
   PackageDataEntry,
-  PackageState,
 } from 'src/app/services/patch-db/data-model'
 import { PatchDB } from 'patch-db-client'
 import { UntypedFormGroup } from '@angular/forms'
@@ -139,32 +138,64 @@ export class AppConfigPage {
 
     this.saving = true
 
+    const config = this.configForm!.value
+
+    const fileKeys = Object.keys(config).filter(
+      key => config[key] instanceof File,
+    )
+
+    let loader: HTMLIonLoadingElement | undefined
+    if (fileKeys.length) {
+      loader = await this.loadingCtrl.create({
+        message: `Uploading File${fileKeys.length > 1 ? 's' : ''}...`,
+      })
+      await loader.present()
+
+      try {
+        const hashes = await Promise.all(
+          fileKeys.map(key => this.embassyApi.uploadFile(config[key])),
+        )
+        fileKeys.forEach((key, i) => (config[key] = hashes[i]))
+      } catch (e: any) {
+        this.errToast.present(e)
+      } finally {
+        await loader.dismiss()
+        return
+      }
+    }
+
     if (await hasCurrentDeps(this.patch, this.pkgId)) {
-      this.dryConfigure()
+      this.dryConfigure(config, loader)
     } else {
-      this.configure()
+      this.configure(config, loader)
     }
   }
 
-  private async dryConfigure() {
-    const loader = await this.loadingCtrl.create({
-      message: 'Checking dependent services...',
-    })
-    await loader.present()
+  private async dryConfigure(
+    config: Record<string, any>,
+    loader?: HTMLIonLoadingElement,
+  ) {
+    const message = 'Checking dependent services...'
+    if (loader) {
+      loader.message = message
+    } else {
+      loader = await this.loadingCtrl.create({ message })
+      await loader.present()
+    }
 
     try {
       const breakages = await this.embassyApi.drySetPackageConfig({
         id: this.pkgId,
-        config: this.configForm!.value,
+        config,
       })
 
       if (isEmptyObject(breakages)) {
-        this.configure(loader)
+        this.configure(config, loader)
       } else {
         await loader.dismiss()
         const proceed = await this.presentAlertBreakages(breakages)
         if (proceed) {
-          this.configure()
+          this.configure(config)
         } else {
           this.saving = false
         }
@@ -176,7 +207,10 @@ export class AppConfigPage {
     }
   }
 
-  private async configure(loader?: HTMLIonLoadingElement) {
+  private async configure(
+    config: Record<string, any>,
+    loader?: HTMLIonLoadingElement,
+  ) {
     const message = 'Saving...'
     if (loader) {
       loader.message = message
@@ -188,7 +222,7 @@ export class AppConfigPage {
     try {
       await this.embassyApi.setPackageConfig({
         id: this.pkgId,
-        config: this.configForm!.value,
+        config,
       })
       this.modalCtrl.dismiss()
     } catch (e: any) {
