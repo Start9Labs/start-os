@@ -7,14 +7,18 @@ import {
   inject,
   SimpleChanges,
 } from '@angular/core'
-import { FormArray, UntypedFormArray, UntypedFormGroup } from '@angular/forms'
+import {
+  AbstractControl,
+  FormArray,
+  UntypedFormArray,
+  UntypedFormGroup,
+} from '@angular/forms'
 import { AlertButton, AlertController, ModalController } from '@ionic/angular'
 import {
   InputSpec,
   ListValueSpecOf,
   ValueSpec,
   ValueSpecBoolean,
-  ValueSpecEnum,
   ValueSpecList,
   ValueSpecListOf,
   ValueSpecUnion,
@@ -236,13 +240,15 @@ export class FormObjectComponent {
     await alert.present()
   }
 
-  async presentAlertBoolEnumDescription(
-    event: Event,
-    spec: ValueSpecBoolean | ValueSpecEnum,
-  ) {
-    event.stopPropagation()
-    const { name, description } = spec
+  handleFileInput(e: any, control: AbstractControl) {
+    control.patchValue(e.target.files[0])
+  }
 
+  clearFile(control: AbstractControl) {
+    control.patchValue(null)
+  }
+
+  async presentAlertDescription(name: string, description: string) {
     const alert = await this.alertCtrl.create({
       header: name,
       message: description || '',
