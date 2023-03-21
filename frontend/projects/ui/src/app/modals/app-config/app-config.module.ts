@@ -4,7 +4,7 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms'
 import { IonicModule } from '@ionic/angular'
 import { AppConfigPage } from './app-config.page'
 import { TextSpinnerComponentModule } from '@start9labs/shared'
-import { FormObjectComponentModule } from 'src/app/components/form-object/form-object.component.module'
+import { FormObjectModule } from 'src/app/components/form-object/form-object.module'
 
 @NgModule({
   declarations: [AppConfigPage],
@@ -13,7 +13,7 @@ import { FormObjectComponentModule } from 'src/app/components/form-object/form-o
     FormsModule,
     IonicModule,
     TextSpinnerComponentModule,
-    FormObjectComponentModule,
+    FormObjectModule,
     ReactiveFormsModule,
   ],
   exports: [AppConfigPage],
