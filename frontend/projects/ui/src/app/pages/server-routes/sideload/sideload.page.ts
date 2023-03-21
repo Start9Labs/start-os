@@ -66,8 +66,7 @@ export class SideloadPage {
         icon: pkg.icon,
         size: file.size,
       })
-      const buffer = await blobToBuffer(file)
-      this.api.uploadPackage(guid, buffer).catch(e => console.error(e))
+      this.api.uploadPackage(guid, file).catch(e => console.error(e))
 
       this.navCtrl.navigateRoot('/services')
     } catch (e: any) {
