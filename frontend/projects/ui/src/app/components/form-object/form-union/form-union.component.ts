@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { UntypedFormGroup } from '@angular/forms'
 import { v4 } from 'uuid'
 import { FormService } from 'src/app/services/form.service'
-import { ValueSpecUnion } from 'src/app/pkg-config/config-types'
+import { ValueSpecUnion } from 'start-sdk/types/config-types'
 
 @Component({
   selector: 'form-union',
