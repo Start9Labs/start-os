@@ -842,6 +842,15 @@ export module Mock {
       warning: 'Chain will have to resync!',
       default: true,
     },
+    document: {
+      name: 'Needed File',
+      type: 'file',
+      description: 'A file we need',
+      placeholder: 'Testing placeholder',
+      warning: 'Testing warning',
+      nullable: false,
+      extensions: ['.png'],
+    },
     'object-list': {
       name: 'Object List',
       type: 'list',
