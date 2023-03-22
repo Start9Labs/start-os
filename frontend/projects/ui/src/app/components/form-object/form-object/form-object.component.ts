@@ -62,13 +62,7 @@ export class FormObjectComponent {
 
     // setTimeout hack to avoid ExpressionChangedAfterItHasBeenCheckedError
     setTimeout(() => {
-      if (
-        this.original &&
-        Object.keys(this.current || {}).some(
-          key => this.original![key] === undefined,
-        )
-      )
-        this.hasNewOptions.emit()
+      // if (this.original && Object.values(this.objectSpec).some(spec => spec['is-new'])) this.hasNewOptions.emit()
     })
   }
 
@@ -144,7 +138,7 @@ export class FormObjectComponent {
     this.hasNewOptions.emit()
     setTimeout(() => {
       this.objectDisplay[key].hasNewOptions = true
-    }, 100)
+    })
   }
 
   handleBooleanChange(key: string, spec: ValueSpecBoolean) {
