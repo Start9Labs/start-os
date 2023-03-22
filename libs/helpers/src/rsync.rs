@@ -12,6 +12,17 @@ use crate::{const_true, ByteReplacementReader, NonDetachingJoinHandle};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub enum RsyncOptionsArchive {
+    Windows(),
+    Archive(),
+}
+impl Default for RsyncOptionsArchive {
+    fn default() -> Self {
+        RsyncOptionsArchive::Archive()
+    }
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RsyncOptions {
     #[serde(default = "const_true")]
     pub delete: bool,
@@ -25,6 +36,13 @@ pub struct RsyncOptions {
     pub no_permissions: bool,
     #[serde(default = "const_true")]
     pub no_owner: bool,
+
+    #[serde(default = "const_windows")]
+    pub archive: RsyncOptionsArchive,
+}
+
+pub fn const_windows() -> RsyncOptionsArchive {
+    RsyncOptionsArchive::Windows()
 }
 impl Default for RsyncOptions {
     fn default() -> Self {
@@ -35,6 +53,7 @@ impl Default for RsyncOptions {
             exclude: Vec::new(),
             no_permissions: false,
             no_owner: false,
+            archive: RsyncOptionsArchive::default(),
         }
     }
 }
@@ -52,6 +71,10 @@ impl Rsync {
         options: RsyncOptions,
     ) -> Result<Self, Error> {
         let mut cmd = Command::new("rsync");
+        match options.archive {
+            RsyncOptionsArchive::Windows() => cmd.arg("-rc"),
+            RsyncOptionsArchive::Archive() => cmd.arg("-acAXH"),
+        };
         if options.delete {
             cmd.arg("--delete");
         }
@@ -70,8 +93,8 @@ impl Rsync {
         for exclude in options.exclude {
             cmd.arg(format!("--exclude={}", exclude));
         }
+
         let mut command = cmd
-            .arg("-acAXH")
             .arg("--info=progress2")
             .arg("--no-inc-recursive")
             .arg(src.as_ref())

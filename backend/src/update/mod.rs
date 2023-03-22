@@ -5,7 +5,7 @@ use std::sync::Arc;
 use clap::ArgMatches;
 use color_eyre::eyre::{eyre, Result};
 use emver::Version;
-use helpers::{Rsync, RsyncOptions};
+use helpers::{Rsync, RsyncOptions, RsyncOptionsArchive};
 use lazy_static::lazy_static;
 use patch_db::{DbHandle, LockType, Revision};
 use reqwest::Url;
@@ -307,6 +307,7 @@ async fn sync_boot() -> Result<(), Error> {
             exclude: Vec::new(),
             no_permissions: false,
             no_owner: false,
+            archive: RsyncOptionsArchive::default(),
         },
     )
     .await?

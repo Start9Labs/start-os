@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use color_eyre::eyre::eyre;
 use futures::StreamExt;
-use helpers::{Rsync, RsyncOptions};
+use helpers::{Rsync, RsyncOptions, RsyncOptionsArchive};
 use josekit::jwk::Jwk;
 use openssl::x509::X509;
 use patch_db::DbHandle;
@@ -430,6 +430,7 @@ async fn migrate(
             exclude: Vec::new(),
             no_permissions: false,
             no_owner: false,
+            archive: RsyncOptionsArchive::default(),
         },
     )
     .await?;
@@ -443,6 +444,7 @@ async fn migrate(
             exclude: vec!["tmp".to_owned()],
             no_permissions: false,
             no_owner: false,
+            archive: RsyncOptionsArchive::default(),
         },
     )
     .await?;
