@@ -16,6 +16,9 @@ import {
   ToEnumListDisplayPipe,
   ToRangePipe,
 } from './form-object.pipes'
+import { FormFileComponent } from './form-object/controls/form-file/form-file.component'
+import { FormInputComponent } from './form-object/controls/form-input/form-input.component'
+import { FormWarningDirective } from './form-warning.directive'
 
 @NgModule({
   declarations: [
@@ -27,6 +30,9 @@ import {
     ToEnumListDisplayPipe,
     ToElementIdPipe,
     ToRangePipe,
+    FormWarningDirective,
+    FormFileComponent,
+    FormInputComponent,
   ],
   imports: [
     CommonModule,
