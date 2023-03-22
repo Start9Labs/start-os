@@ -1,0 +1,63 @@
+<form-label
+  class="label"
+  [data]="{
+    name: spec.name,
+    description: spec.description,
+    new: form.original?.[name] === undefined,
+    edited: control.dirty,
+    required: !spec.nullable
+  }"
+></form-label>
+<ion-item [color]="(theme$ | async) === 'Light' ? 'light' : 'dark'">
+  <ion-textarea
+    *ngIf="spec.type === 'string' && spec.textarea; else notTextArea"
+    formWarning
+    #warning="formWarning"
+    [placeholder]="spec.placeholder"
+    [formControl]="control"
+    (ionFocus)="warning.onChange(name, spec)"
+    (ionChange)="onInputChange.emit()"
+  ></ion-textarea>
+  <ng-template #notTextArea>
+    <ion-input
+      formWarning
+      #warning="formWarning"
+      type="text"
+      class="input"
+      [class.input_redacted]="
+        spec.type === 'string' && control.value && spec.masked && !unmasked
+      "
+      [inputmode]="spec.type === 'number' ? 'tel' : 'text'"
+      [placeholder]="spec.placeholder"
+      [formControl]="control"
+      (ionFocus)="warning.onChange(name, spec)"
+      (ionChange)="onInputChange.emit()"
+    ></ion-input>
+  </ng-template>
+  <ion-button
+    *ngIf="spec.type === 'string' && spec.masked"
+    slot="end"
+    fill="clear"
+    color="light"
+    (click)="unmasked = !unmasked"
+  >
+    <ion-icon
+      slot="icon-only"
+      size="small"
+      [name]="unmasked ? 'eye-off-outline' : 'eye-outline'"
+    ></ion-icon>
+  </ion-button>
+  <ion-note
+    *ngIf="spec.type === 'number' && spec.units"
+    slot="end"
+    color="light"
+    class="units"
+  >
+    {{ spec.units }}
+  </ion-note>
+</ion-item>
+<p class="error-message">
+  <span *ngIf="control.errors as errors">
+    {{ errors | getError : $any(spec)['pattern-description'] }}
+  </span>
+</p>
