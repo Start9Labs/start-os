@@ -4,9 +4,9 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ErrorToastService } from '@start9labs/shared'
 import { PatchDB } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import { UntypedFormGroup } from '@angular/forms'
 import { FormService } from 'src/app/services/form.service'
+import { InputSpec } from 'start-sdk/types/config-types'
 
 @Component({
   selector: 'email',
@@ -18,27 +18,33 @@ export class EmailPage {
 
   configForm?: UntypedFormGroup
 
-  readonly configSpec: ConfigSpec = {
+  readonly configSpec: InputSpec = {
     enabled: {
       type: 'boolean',
       name: 'Enable Email Notifications',
       description:
         'Whether or not to receive email notifications from your Embassy',
+      warning: null,
       default: false,
     },
     address: {
       type: 'string',
       name: 'Receive Address',
       description: 'The address you want to receive email notifications',
+      warning: null,
       placeholder: 'e.g. you@protonmail.com',
       nullable: false,
+      textarea: false,
       masked: false,
-      copyable: true,
+      pattern: null,
+      'pattern-description': null,
+      default: null,
     },
     smtp: {
       type: 'object',
       name: 'SMTP Settings',
       description: 'Settings and credentials for your chosen SMTP server',
+      warning: null,
       spec: smtpSpec,
     },
   }
@@ -89,7 +95,7 @@ export class EmailPage {
   }
 }
 
-const smtpSpec: ConfigSpec = {
+const smtpSpec: InputSpec = {
   host: {
     type: 'string',
     name: 'Host',
@@ -97,16 +103,23 @@ const smtpSpec: ConfigSpec = {
     placeholder: 'e.g. smtp.mailgun.org',
     nullable: false,
     masked: false,
-    copyable: false,
+    warning: null,
+    textarea: false,
+    pattern: null,
+    'pattern-description': null,
+    default: null,
   },
   port: {
     type: 'number',
     name: 'Port',
     description: 'Port of the SMTP server',
+    warning: null,
     placeholder: 'e.g. 587',
     nullable: false,
     range: '*',
+    units: null,
     integral: true,
+    default: null,
   },
   from: {
     type: 'string',
@@ -115,7 +128,11 @@ const smtpSpec: ConfigSpec = {
     placeholder: 'First  Last <email@example.com>',
     nullable: false,
     masked: false,
-    copyable: false,
+    warning: null,
+    textarea: false,
+    pattern: null,
+    'pattern-description': null,
+    default: null,
   },
   login: {
     type: 'string',
@@ -123,7 +140,12 @@ const smtpSpec: ConfigSpec = {
     description: 'Login username for SMTP server',
     nullable: false,
     masked: false,
-    copyable: false,
+    warning: null,
+    placeholder: 'e.g. you@protonmail.com',
+    textarea: false,
+    pattern: null,
+    'pattern-description': null,
+    default: null,
   },
   password: {
     type: 'string',
@@ -131,12 +153,18 @@ const smtpSpec: ConfigSpec = {
     description: 'Password username for SMTP server',
     nullable: false,
     masked: true,
-    copyable: false,
+    warning: null,
+    placeholder: 'e.g. you@protonmail.com',
+    textarea: false,
+    pattern: null,
+    'pattern-description': null,
+    default: null,
   },
   tls: {
     type: 'boolean',
     name: 'Enable TLS',
     description: 'Whether or not to enable TLS certificate security checks',
+    warning: null,
     default: true,
   },
 }
