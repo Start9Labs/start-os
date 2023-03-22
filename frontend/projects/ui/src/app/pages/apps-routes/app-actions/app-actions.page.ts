@@ -74,7 +74,8 @@ export class AppActionsPage {
           buttons: [
             {
               text: 'Execute',
-              handler: (value: any) => this.executeAction(action.id, value),
+              handler: async (value: any) =>
+                this.executeAction(action.id, value),
               isSubmit: true,
             },
           ],
@@ -97,9 +98,7 @@ export class AppActionsPage {
             },
             {
               text: 'Execute',
-              handler: () => {
-                this.executeAction(action.id)
-              },
+              handler: async () => this.executeAction(action.id),
               cssClass: 'enter-click',
             },
           ],
@@ -161,7 +160,10 @@ export class AppActionsPage {
     }
   }
 
-  private async executeAction(actionId: string, input?: object): Promise<void> {
+  private async executeAction(
+    actionId: string,
+    input?: object,
+  ): Promise<boolean> {
     const loader = await this.loadingCtrl.create({
       message: 'Executing action...',
     })
@@ -182,6 +184,9 @@ export class AppActionsPage {
       })
 
       setTimeout(() => successModal.present(), 500)
+      return true
+    } catch (e: any) {
+      return false
     } finally {
       loader.dismiss()
     }
