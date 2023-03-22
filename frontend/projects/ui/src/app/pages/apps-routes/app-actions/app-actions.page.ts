@@ -186,6 +186,7 @@ export class AppActionsPage {
       setTimeout(() => successModal.present(), 500)
       return true
     } catch (e: any) {
+      this.errToast.present(e)
       return false
     } finally {
       loader.dismiss()
