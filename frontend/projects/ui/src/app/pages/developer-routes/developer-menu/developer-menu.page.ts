@@ -1,7 +1,10 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { LoadingController, ModalController } from '@ionic/angular'
-import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
+import {
+  GenericFormPage,
+  GenericFormOptions,
+} from 'src/app/modals/generic-form/generic-form.page'
 import { BasicInfo, getBasicInfoSpec } from './form-info'
 import { PatchDB } from 'patch-db-client'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -29,26 +32,27 @@ export class DeveloperMenuPage {
   ) {}
 
   async openBasicInfoModal(data: DevProjectData) {
+    const options: GenericFormOptions = {
+      title: 'Basic Info',
+      spec: getBasicInfoSpec(data),
+      buttons: [
+        {
+          text: 'Save',
+          handler: async (basicInfo: BasicInfo) =>
+            this.saveBasicInfo(basicInfo),
+          isSubmit: true,
+        },
+      ],
+    }
+
     const modal = await this.modalCtrl.create({
       component: GenericFormPage,
-      componentProps: {
-        title: 'Basic Info',
-        spec: getBasicInfoSpec(data),
-        buttons: [
-          {
-            text: 'Save',
-            handler: (basicInfo: BasicInfo) => {
-              this.saveBasicInfo(basicInfo)
-            },
-            isSubmit: true,
-          },
-        ],
-      },
+      componentProps: options,
     })
     await modal.present()
   }
 
-  async saveBasicInfo(basicInfo: BasicInfo) {
+  async saveBasicInfo(basicInfo: BasicInfo): Promise<boolean> {
     const loader = await this.loadingCtrl.create({
       message: 'Saving...',
     })
@@ -59,8 +63,10 @@ export class DeveloperMenuPage {
         ['dev', this.projectId, 'basic-info'],
         basicInfo,
       )
+      return true
     } catch (e: any) {
       this.errToast.present(e)
+      return false
     } finally {
       loader.dismiss()
     }

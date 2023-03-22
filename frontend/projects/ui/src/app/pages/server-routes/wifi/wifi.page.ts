@@ -12,7 +12,10 @@ import { ActionSheetButton } from '@ionic/core'
 import { ValueSpecObject } from 'start-sdk/types/config-types'
 import { RR } from 'src/app/services/api/api.types'
 import { pauseFor, ErrorToastService } from '@start9labs/shared'
-import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
+import {
+  GenericFormPage,
+  GenericFormOptions,
+} from 'src/app/modals/generic-form/generic-form.page'
 import { ConfigService } from 'src/app/services/config.service'
 
 @Component({
@@ -98,9 +101,7 @@ export class WifiPage {
         },
         {
           text: 'Save',
-          handler: async (country: string) => {
-            this.setCountry(country)
-          },
+          handler: (country: string) => this.setCountry(country),
         },
       ],
       cssClass: 'enter-click select-warning',
@@ -110,27 +111,28 @@ export class WifiPage {
 
   async presentModalAdd(ssid?: string, needsPW: boolean = true) {
     const wifiSpec = getWifiValueSpec(ssid, needsPW)
+
+    const options: GenericFormOptions = {
+      title: wifiSpec.name,
+      spec: wifiSpec.spec,
+      buttons: [
+        {
+          text: 'Save for Later',
+          handler: async (value: { ssid: string; password: string }) =>
+            this.save(value.ssid, value.password),
+        },
+        {
+          text: 'Save and Connect',
+          handler: async (value: { ssid: string; password: string }) =>
+            this.saveAndConnect(value.ssid, value.password),
+          isSubmit: true,
+        },
+      ],
+    }
+
     const modal = await this.modalCtrl.create({
       component: GenericFormPage,
-      componentProps: {
-        title: wifiSpec.name,
-        spec: wifiSpec.spec,
-        buttons: [
-          {
-            text: 'Save for Later',
-            handler: async (value: { ssid: string; password: string }) => {
-              await this.save(value.ssid, value.password)
-            },
-          },
-          {
-            text: 'Save and Connect',
-            handler: async (value: { ssid: string; password: string }) => {
-              await this.saveAndConnect(value.ssid, value.password)
-            },
-            isSubmit: true,
-          },
-        ],
-      },
+      componentProps: options,
     })
 
     await modal.present()
@@ -292,7 +294,7 @@ export class WifiPage {
     }
   }
 
-  private async save(ssid: string, password: string): Promise<void> {
+  private async save(ssid: string, password: string): Promise<boolean> {
     const loader = await this.loadingCtrl.create({
       message: 'Saving...',
     })
@@ -306,14 +308,19 @@ export class WifiPage {
         connect: false,
       })
       await this.getWifi()
+      return true
     } catch (e: any) {
       this.errToast.present(e)
+      return false
     } finally {
       loader.dismiss()
     }
   }
 
-  private async saveAndConnect(ssid: string, password: string): Promise<void> {
+  private async saveAndConnect(
+    ssid: string,
+    password: string,
+  ): Promise<boolean> {
     const loader = await this.loadingCtrl.create({
       message: 'Connecting. This could take a while...',
     })
@@ -326,10 +333,11 @@ export class WifiPage {
         priority: 0,
         connect: true,
       })
-
       await this.confirmWifi(ssid, true)
+      return true
     } catch (e: any) {
       this.errToast.present(e)
+      return false
     } finally {
       loader.dismiss()
     }

@@ -92,5 +92,5 @@ export interface GenericInputOptions {
   placeholder?: string
   nullable?: boolean
   useMask?: boolean
-  initialValue?: string
+  initialValue?: string | null
 }
