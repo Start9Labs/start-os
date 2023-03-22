@@ -24,7 +24,6 @@
           [data]="{
             name: spec.name,
             description: spec.description,
-            new: original?.[entry.key] === undefined,
             edited: entry.value.dirty
           }"
         ></form-label>
@@ -68,7 +67,6 @@
             [data]="{
               name: spec.name,
               description: spec.description,
-              new: original?.[entry.key] === undefined,
               edited: entry.value.dirty,
               newOptions: objectDisplay[entry.key].hasNewOptions
             }"
@@ -121,7 +119,6 @@
               [data]="{
                 name: spec.name,
                 description: spec.description,
-                new: original?.[entry.key] === undefined,
                 edited: entry.value.dirty,
                 required: !!(spec.range | toRange).min
               }"
@@ -166,7 +163,6 @@
                         objectListDisplay[entry.key][i].displayAs ||
                         'Entry ' + (i + 1),
                       description: null,
-                      new: false,
                       edited: abstractControl.dirty
                     }"
                   ></form-label>
@@ -272,7 +268,6 @@
               [data]="{
                 name: spec.name,
                 description: spec.description,
-                new: original?.[entry.key] === undefined,
                 edited: entry.value.dirty
               }"
             ></form-label>

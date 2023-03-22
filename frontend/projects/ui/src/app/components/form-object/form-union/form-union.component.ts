@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { UntypedFormGroup } from '@angular/forms'
 import { v4 } from 'uuid'
 import { FormService } from 'src/app/services/form.service'
-import { ValueSpecUnion } from 'start-sdk/types/config-types'
+import { ValueSpecUnion, InputSpec } from 'start-sdk/types/config-types'
 
 @Component({
   selector: 'form-union',
@@ -16,22 +16,21 @@ export class FormUnionComponent {
   @Input() current?: Record<string, any>
   @Input() original?: Record<string, any>
 
-  get unionValue() {
+  get selectedVariant(): string {
     return this.formGroup.get(this.spec.tag.id)?.value
   }
 
-  get isNew() {
-    return !this.original
+  get variantName(): string {
+    return this.spec.tag['variant-names'][this.selectedVariant]
   }
 
-  get hasNewOptions() {
-    const tagId = this.spec.tag.id
-    return (
-      this.original?.[tagId] === this.current?.[tagId] &&
-      !!Object.keys(this.current || {}).find(
-        key => this.original![key] === undefined,
-      )
-    )
+  get variantSpec(): InputSpec {
+    return this.spec.variants[this.selectedVariant]
+  }
+
+  get hasNewOptions(): boolean {
+    // return Object.values(this.variantSpec).some(spec => spec['is-new'])
+    return false
   }
 
   objectId = v4()

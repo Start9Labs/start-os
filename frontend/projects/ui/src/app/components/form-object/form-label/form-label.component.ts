@@ -12,7 +12,6 @@ export class FormLabelComponent {
     name: string
     description: string | null
     edited?: boolean
-    new?: boolean
     required?: boolean
     newOptions?: boolean
   }
