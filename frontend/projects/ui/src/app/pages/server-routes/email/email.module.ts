@@ -4,7 +4,7 @@ import { IonicModule } from '@ionic/angular'
 import { EmailPage } from './email.page'
 import { Routes, RouterModule } from '@angular/router'
 import { FormsModule } from '@angular/forms'
-import { FormObjectComponentModule } from 'src/app/components/form-object/form-object.component.module'
+import { FormObjectModule } from 'src/app/components/form-object/form-object.module'
 
 const routes: Routes = [
   {
@@ -19,7 +19,7 @@ const routes: Routes = [
     IonicModule,
     RouterModule.forChild(routes),
     FormsModule,
-    FormObjectComponentModule,
+    FormObjectModule,
   ],
   declarations: [EmailPage],
 })
