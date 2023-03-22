@@ -7,12 +7,7 @@ import {
   inject,
   SimpleChanges,
 } from '@angular/core'
-import {
-  AbstractControl,
-  FormArray,
-  UntypedFormArray,
-  UntypedFormGroup,
-} from '@angular/forms'
+import { FormArray, UntypedFormArray, UntypedFormGroup } from '@angular/forms'
 import { AlertButton, AlertController, ModalController } from '@ionic/angular'
 import {
   InputSpec,
@@ -233,28 +228,6 @@ export class FormObjectComponent {
           handler: () => {
             this.deleteListItem(key, index)
           },
-          cssClass: 'enter-click',
-        },
-      ],
-    })
-    await alert.present()
-  }
-
-  handleFileInput(e: any, control: AbstractControl) {
-    control.patchValue(e.target.files[0])
-  }
-
-  clearFile(control: AbstractControl) {
-    control.patchValue(null)
-  }
-
-  async presentAlertDescription(name: string, description: string) {
-    const alert = await this.alertCtrl.create({
-      header: name,
-      message: description || '',
-      buttons: [
-        {
-          text: 'OK',
           cssClass: 'enter-click',
         },
       ],
