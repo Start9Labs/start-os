@@ -15,7 +15,10 @@ import { ErrorToastService, sameUrl, toUrl } from '@start9labs/shared'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ValueSpecObject } from 'start-sdk/types/config-types'
-import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
+import {
+  GenericFormPage,
+  GenericFormOptions,
+} from 'src/app/modals/generic-form/generic-form.page'
 import { PatchDB } from 'patch-db-client'
 import { DataModel, UIStore } from 'src/app/services/patch-db/data-model'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
@@ -65,27 +68,27 @@ export class MarketplaceSettingsPage {
 
   async presentModalAdd() {
     const { name, spec } = getMarketplaceValueSpec()
+
+    const options: GenericFormOptions = {
+      title: name,
+      spec,
+      buttons: [
+        {
+          text: 'Save for Later',
+          handler: async (value: { url: string }) => this.saveOnly(value.url),
+        },
+        {
+          text: 'Save and Connect',
+          handler: async (value: { url: string }) =>
+            this.saveAndConnect(value.url),
+          isSubmit: true,
+        },
+      ],
+    }
+
     const modal = await this.modalCtrl.create({
       component: GenericFormPage,
-      componentProps: {
-        title: name,
-        spec,
-        buttons: [
-          {
-            text: 'Save for Later',
-            handler: (value: { url: string }) => {
-              this.saveOnly(value.url)
-            },
-          },
-          {
-            text: 'Save and Connect',
-            handler: (value: { url: string }) => {
-              this.saveAndConnect(value.url)
-            },
-            isSubmit: true,
-          },
-        ],
-      },
+      componentProps: options,
       cssClass: 'alertlike-modal',
     })
 
@@ -166,28 +169,32 @@ export class MarketplaceSettingsPage {
     }
   }
 
-  private async saveOnly(rawUrl: string): Promise<void> {
+  private async saveOnly(rawUrl: string): Promise<boolean> {
     const loader = await this.loadingCtrl.create()
 
     try {
       const url = new URL(rawUrl).toString()
       await this.validateAndSave(url, loader)
+      return true
     } catch (e: any) {
       this.errToast.present(e)
+      return false
     } finally {
       loader.dismiss()
     }
   }
 
-  private async saveAndConnect(rawUrl: string): Promise<void> {
+  private async saveAndConnect(rawUrl: string): Promise<boolean> {
     const loader = await this.loadingCtrl.create()
 
     try {
       const url = new URL(rawUrl).toString()
       await this.validateAndSave(url, loader)
       await this.connect(url, loader)
+      return true
     } catch (e: any) {
       this.errToast.present(e)
+      return false
     } finally {
       loader.dismiss()
       this.dismiss()
