@@ -1,104 +1,33 @@
 <ion-item-group [formGroup]="formGroup">
   <div *ngFor="let entry of formGroup.controls | keyvalue : asIsOrder">
     <div *ngIf="objectSpec[entry.key] as spec">
+      <!-- file -->
+      <form-file
+        *ngIf="spec.type === 'file'"
+        [spec]="spec"
+        [control]="entry.value"
+      ></form-file>
       <!-- string or number -->
-      <ng-container *ngIf="spec.type === 'string' || spec.type === 'number'">
-        <!-- label -->
-        <p class="input-label">
-          <form-label
-            [data]="{
-              name: spec.name,
-              description: spec.description,
-              new: original?.[entry.key] === undefined,
-              edited: entry.value.dirty,
-              required: !spec.nullable
-            }"
-          ></form-label>
-        </p>
-        <ion-item [color]="(theme$ | async) === 'Light' ? 'light' : 'dark'">
-          <ion-textarea
-            *ngIf="spec.type === 'string' && spec.textarea; else notTextArea"
-            [placeholder]="spec.placeholder"
-            [formControlName]="entry.key"
-            (ionFocus)="presentAlertChangeWarning(entry.key, spec)"
-            (ionChange)="handleInputChange()"
-          ></ion-textarea>
-          <ng-template #notTextArea>
-            <ion-input
-              type="text"
-              class="input"
-              [class.input_redacted]="
-                spec.type === 'string' &&
-                entry.value.value &&
-                spec.masked &&
-                !unmasked[entry.key]
-              "
-              [inputmode]="spec.type === 'number' ? 'tel' : 'text'"
-              [placeholder]="spec.placeholder"
-              [formControlName]="entry.key"
-              (ionFocus)="presentAlertChangeWarning(entry.key, spec)"
-              (ionChange)="handleInputChange()"
-            ></ion-input>
-          </ng-template>
-          <ion-button
-            *ngIf="spec.type === 'string' && spec.masked"
-            slot="end"
-            fill="clear"
-            color="light"
-            (click)="unmasked[entry.key] = !unmasked[entry.key]"
-          >
-            <ion-icon
-              slot="icon-only"
-              [name]="unmasked[entry.key] ? 'eye-off-outline' : 'eye-outline'"
-              size="small"
-            ></ion-icon>
-          </ion-button>
-          <ion-note
-            *ngIf="spec.type === 'number' && spec.units"
-            slot="end"
-            color="light"
-            style="font-size: medium"
-          >
-            {{ spec.units }}
-          </ion-note>
-        </ion-item>
-        <p class="error-message">
-          <span *ngIf="formGroup.get(entry.key)?.errors as errors">
-            {{ errors | getError : $any(spec)['pattern-description'] }}
-          </span>
-        </p>
-      </ng-container>
+      <form-input
+        *ngIf="spec.type === 'string' || spec.type === 'number'"
+        [spec]="spec"
+        [name]="entry.key"
+        [control]="$any(entry.value)"
+        (onInputChange)="handleInputChange()"
+      ></form-input>
       <!-- boolean or enum -->
       <ion-item
         *ngIf="spec.type === 'boolean' || spec.type === 'enum'"
         style="--padding-start: 0"
       >
-        <ion-button
-          *ngIf="spec.description as desc"
-          fill="clear"
-          (click.stop)="presentAlertDescription(spec.name, desc)"
-          style="--padding-start: 0"
-        >
-          <ion-icon
-            name="help-circle-outline"
-            slot="icon-only"
-            size="small"
-          ></ion-icon>
-        </ion-button>
-        <ion-label>
-          <b>
-            {{ spec.name }}
-            <ion-text
-              *ngIf="original?.[entry.key] === undefined"
-              color="success"
-            >
-              (New)
-            </ion-text>
-            <ion-text *ngIf="entry.value.dirty" color="warning">
-              (Edited)
-            </ion-text>
-          </b>
-        </ion-label>
+        <form-label
+          [data]="{
+            name: spec.name,
+            description: spec.description,
+            new: original?.[entry.key] === undefined,
+            edited: entry.value.dirty
+          }"
+        ></form-label>
         <!-- boolean -->
         <ion-toggle
           *ngIf="spec.type === 'boolean'"
@@ -109,7 +38,7 @@
         <!-- enum -->
         <!-- class enter-click disables the enter click on the modal behind the select -->
         <ion-select
-          *ngIf="spec.type === 'enum' && formGroup.get(entry.key) as control"
+          *ngIf="spec.type === 'enum'"
           [interfaceOptions]="{
             message: spec.warning | toWarningText,
             cssClass: 'enter-click'
@@ -117,7 +46,7 @@
           slot="end"
           placeholder="Select"
           [formControlName]="entry.key"
-          [selectedText]="spec['value-names'][control.value]"
+          [selectedText]="spec['value-names'][entry.value.value]"
         >
           <ion-select-option
             *ngFor="let option of spec.values"
@@ -127,64 +56,6 @@
           </ion-select-option>
         </ion-select>
       </ion-item>
-      <!-- file -->
-      <ng-container
-        *ngIf="spec.type === 'file' && formGroup.get(entry.key) as control"
-      >
-        <ion-item style="--padding-start: 0">
-          <ion-button
-            *ngIf="spec.description as desc"
-            fill="clear"
-            (click.stop)="presentAlertDescription(spec.name, desc)"
-            style="--padding-start: 0"
-          >
-            <ion-icon
-              name="help-circle-outline"
-              slot="icon-only"
-              size="small"
-            ></ion-icon>
-          </ion-button>
-          <ion-label>
-            <b>
-              {{ spec.name }}
-              <ion-text *ngIf="entry.value.dirty" color="warning">
-                (Edited)
-              </ion-text>
-            </b>
-          </ion-label>
-          <div slot="end">
-            <ion-button
-              *ngIf="!control.value; else hasFile"
-              strong
-              color="dark"
-              size="small"
-              (click)="uploadFile.click()"
-            >
-              Browse...
-            </ion-button>
-            <input
-              type="file"
-              [accept]="spec.extensions.join(',')"
-              style="display: none"
-              #uploadFile
-              (change)="handleFileInput($event, control)"
-            />
-            <ng-template #hasFile>
-              <div class="inline">
-                <p class="ion-padding-end">{{ control.value.name }}</p>
-                <div style="cursor: pointer" (click)="clearFile(control)">
-                  <ion-icon name="close"></ion-icon>
-                </div>
-              </div>
-            </ng-template>
-          </div>
-        </ion-item>
-        <p class="error-message">
-          <span *ngIf="control.errors as errors">
-            {{ errors | getError }}
-          </span>
-        </p>
-      </ng-container>
       <!-- object -->
       <ng-container *ngIf="spec.type === 'object'">
         <!-- label -->
