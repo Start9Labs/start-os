@@ -15,16 +15,21 @@
         <h2>
           Adding SSH keys to your Embassy is useful for command line access, as
           well as for debugging purposes.
-          <a [href]="docsUrl" target="_blank" rel="noreferrer"
-            >View instructions</a
-          >
+          <a [href]="docsUrl" target="_blank" rel="noreferrer">
+            View instructions
+          </a>
         </h2>
       </ion-label>
     </ion-item>
 
     <ion-item-divider>
       Saved Keys
-      <ion-button class="ion-padding-start" strong (click)="presentModalAdd()">
+      <ion-button
+        class="ion-padding-start"
+        strong
+        size="small"
+        (click)="presentModalAdd()"
+      >
         <ion-icon slot="start" name="add"></ion-icon>
         Add New Key
       </ion-button>
@@ -57,9 +62,9 @@
             class="ion-align-items-center grid-row-border"
           >
             <ion-col size="2">{{ ssh.hostname }}</ion-col>
-            <ion-col size="2.5"
-              >{{ ssh['created-at'] | date: 'medium' }}</ion-col
-            >
+            <ion-col size="2.5">
+              {{ ssh['created-at'] | date: 'medium' }}
+            </ion-col>
             <ion-col size="2">{{ ssh.alg }}</ion-col>
             <ion-col size="4.5">{{ ssh.fingerprint }}</ion-col>
             <ion-col size="1">
