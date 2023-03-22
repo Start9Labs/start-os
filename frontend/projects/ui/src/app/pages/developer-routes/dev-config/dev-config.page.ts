@@ -7,7 +7,10 @@ import { filter, take } from 'rxjs/operators'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PatchDB } from 'patch-db-client'
 import { getProjectId } from 'src/app/util/get-project-id'
-import { GenericFormPage } from '../../../modals/generic-form/generic-form.page'
+import {
+  GenericFormPage,
+  GenericFormOptions,
+} from '../../../modals/generic-form/generic-form.page'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 
 @Component({
@@ -46,21 +49,21 @@ export class DevConfigPage {
       this.errToast.present(e)
     }
 
+    const options: GenericFormOptions = {
+      title: 'Config Sample',
+      spec: JSON.parse(JSON.stringify(doc, null, 2)),
+      buttons: [
+        {
+          text: 'OK',
+          handler: async () => true,
+          isSubmit: true,
+        },
+      ],
+    }
+
     const modal = await this.modalCtrl.create({
       component: GenericFormPage,
-      componentProps: {
-        title: 'Config Sample',
-        spec: JSON.parse(JSON.stringify(doc, null, 2)),
-        buttons: [
-          {
-            text: 'OK',
-            handler: () => {
-              return
-            },
-            isSubmit: true,
-          },
-        ],
-      },
+      componentProps: options,
     })
     await modal.present()
   }
