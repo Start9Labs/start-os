@@ -22,7 +22,7 @@ export class GenericFormPage {
   @Input() title!: string
   @Input() spec!: InputSpec
   @Input() buttons!: ActionButton[]
-  @Input() initialValue: object = {}
+  @Input() initialValue: Record<string, any> = {}
 
   submitBtn!: ActionButton
   formGroup!: UntypedFormGroup
@@ -34,10 +34,7 @@ export class GenericFormPage {
 
   ngOnInit() {
     this.formGroup = this.formService.createForm(this.spec, this.initialValue)
-    this.submitBtn = this.buttons.find(btn => btn.isSubmit) || {
-      text: '',
-      handler: () => Promise.resolve(true),
-    }
+    this.submitBtn = this.buttons.find(btn => btn.isSubmit)! // @TODO this really needs to be redesigned. No way to enforce this with types.
   }
 
   async dismiss(): Promise<void> {
@@ -56,6 +53,15 @@ export class GenericFormPage {
 
     // @TODO make this more like generic input component dismissal
     const success = await handler(this.formGroup.value)
-    if (success !== false) this.modalCtrl.dismiss()
+    if (success === true) this.modalCtrl.dismiss()
   }
+}
+
+export interface GenericFormOptions {
+  // required
+  title: string
+  spec: InputSpec
+  buttons: ActionButton[]
+  // optional
+  initialValue?: Record<string, any>
 }
