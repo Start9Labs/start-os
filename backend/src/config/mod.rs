@@ -89,8 +89,8 @@ pub fn set(
     #[arg(long = "format")]
     format: Option<IoFormat>,
     #[arg(long = "timeout")] timeout: Option<crate::util::serde::Duration>,
-    #[arg(stdin, parse(parse_stdin_deserializable))] config: Option<Config>,
-) -> Result<(PackageId, Option<Config>, Option<Duration>), Error> {
+    #[arg(stdin, parse(parse_stdin_deserializable))] config: Option<Value>,
+) -> Result<(PackageId, Option<Value>, Option<Duration>), Error> {
     Ok((id, config, timeout.map(|d| *d)))
 }
 
@@ -98,7 +98,7 @@ pub fn set(
 #[instrument(skip_all)]
 pub async fn set_dry(
     #[context] ctx: RpcContext,
-    #[parent_data] (id, config, timeout): (PackageId, Option<Config>, Option<Duration>),
+    #[parent_data] (id, config, timeout): (PackageId, Option<Value>, Option<Duration>),
 ) -> Result<BreakageRes, Error> {
     let breakages = BTreeMap::new();
     let overrides = Default::default();
@@ -118,15 +118,15 @@ pub async fn set_dry(
 pub struct ConfigureContext {
     pub breakages: BTreeMap<PackageId, TaggedDependencyError>,
     pub timeout: Option<Duration>,
-    pub config: Option<Config>,
-    pub overrides: BTreeMap<PackageId, Config>,
+    pub config: Option<Value>,
+    pub overrides: BTreeMap<PackageId, Value>,
     pub dry_run: bool,
 }
 
 #[instrument(skip_all)]
 pub async fn set_impl(
     ctx: RpcContext,
-    (id, config, timeout): (PackageId, Option<Config>, Option<Duration>),
+    (id, config, timeout): (PackageId, Option<Value>, Option<Duration>),
 ) -> Result<(), Error> {
     let breakages = BTreeMap::new();
     let overrides = Default::default();
@@ -165,7 +165,8 @@ pub async fn configure(
 /// Found that earlier the paths where not what we expected them to be.
 #[tokio::test]
 async fn ensure_creation_of_config_paths_makes_sense() {
-    let mut fake = patch_db::test_utils::NoOpDb();
+    todo!();
+    // let mut fake = patch_db::test_utils::NoOpDb();
     let config_locks = todo!("BLUJ"); //ConfigReceipts::new(&mut fake).await.unwrap();
     assert_eq!(
         &format!("{}", config_locks.configured.lock.glob),
