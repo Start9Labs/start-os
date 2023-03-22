@@ -3,10 +3,10 @@ use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 
 pub use helpers::script_dir;
+use models::InterfaceId;
 pub use models::VolumeId;
 use serde::{Deserialize, Serialize};
 
-use crate::net::interface::InterfaceId;
 use crate::net::PACKAGE_CERT_PATH;
 use crate::prelude::*;
 use crate::s9pk::manifest::PackageId;

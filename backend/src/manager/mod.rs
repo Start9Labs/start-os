@@ -47,7 +47,7 @@ use crate::volume::Volume;
 use crate::{backup::target::PackageBackupInfo, script::JsProcedure};
 use crate::{backup::PackageBackupReport, volume::VolumeBackup};
 
-mod js_api;
+pub mod js_api;
 mod manager_container;
 mod manager_map;
 pub mod manager_seed;

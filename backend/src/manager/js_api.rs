@@ -8,10 +8,10 @@ use reqwest::Url;
 use sqlx::Acquire;
 
 use super::try_get_running_ip;
-use crate::manager::Manager;
 use crate::prelude::*;
 use crate::{action::Action, manager::start_stop::StartStop};
 use crate::{config::hook::ConfigHook, db::model::AddressInfo};
+use crate::{db::model::Database, manager::Manager};
 
 const NULL_VALUE: &Value = &Value::Null;
 

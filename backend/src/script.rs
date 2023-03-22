@@ -5,7 +5,9 @@ use std::time::Duration;
 use color_eyre::eyre::eyre;
 use color_eyre::Report;
 use embassy_container_init::{ProcessGroupId, SignalGroup, SignalGroupParams};
-use helpers::{Address, AddressSchemaLocal, AddressSchemaOnion, Callback, OsApi, UnixRpcClient};
+use helpers::{
+    Address, AddressSchemaLocal, AddressSchemaOnion, Algorithm, Callback, OsApi, UnixRpcClient,
+};
 pub use js_engine::JsError as JsEngineError;
 use js_engine::{JsExecutionEnvironment, PathForVolumeId};
 use models::{ErrorKind, InterfaceId, ProcedureName, VolumeId};
@@ -13,11 +15,11 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
+use crate::context::RpcContext;
 use crate::prelude::*;
-use crate::s9pk::manifest::PackageId;
 use crate::util::{GeneralGuard, Version};
 use crate::volume::Volumes;
-use crate::{context::RpcContext, manager::manager_seed::ManagerSeed};
+use crate::{manager::js_api, s9pk::manifest::PackageId};
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "kebab-case")]
@@ -123,15 +125,15 @@ impl OsApi for SandboxOsApi {
         interface_name: &str,
     ) -> Result<String, Report> {
         let db = self.seed.ctx.db.peek().await?;
-        get_service_local_address(db, &package_id, interface_name)
+        js_api::get_service_local_address(db, &package_id, interface_name)
     }
     async fn get_service_tor_address(
         &self,
-        pcakge_id: PackageId,
+        package_id: PackageId,
         interface_name: &str,
     ) -> Result<String, Report> {
         let db = self.seed.ctx.db.peek().await?;
-        get_service_tor_address(db, &package_id, interface_name)
+        js_api::get_service_tor_address(db, &package_id, interface_name)
     }
     async fn get_service_port_forward(
         &self,
