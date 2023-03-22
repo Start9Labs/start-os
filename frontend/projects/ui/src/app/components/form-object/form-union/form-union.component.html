@@ -5,7 +5,6 @@
       [data]="{
         name: spec.tag.name,
         description: spec.tag.description,
-        new: isNew,
         newOptions: hasNewOptions,
         edited: formGroup.dirty
       }"
@@ -19,7 +18,7 @@
       slot="end"
       placeholder="Select"
       [formControlName]="spec.tag.id"
-      [selectedText]="spec.tag['variant-names'][unionValue]"
+      [selectedText]="variantName"
       (ionChange)="updateUnion($event)"
     >
       <ion-select-option
@@ -31,9 +30,9 @@
     </ion-select>
   </ion-item-divider>
 
-  <tui-elastic-container [id]="objectId | toElementId: 'union'" class="indent">
+  <tui-elastic-container [id]="objectId | toElementId : 'union'" class="indent">
     <form-object
-      [objectSpec]="spec.variants[unionValue]"
+      [objectSpec]="variantSpec"
       [formGroup]="formGroup"
       [current]="current"
       [original]="original"
