@@ -57,7 +57,25 @@ export class ServerShowPage {
     @Inject(DOCUMENT) private readonly document: Document,
   ) {}
 
-  async setBrowserTab(): Promise<void> {
+  async launchHttps() {
+    const { 'lan-address': lanAddress } = await getServerInfo(this.patch)
+    window.open(lanAddress)
+  }
+
+  addClick(title: string) {
+    switch (title) {
+      case 'Manage':
+        this.addManageClick()
+        break
+      case 'Power':
+        this.addPowerClick()
+        break
+      default:
+        return
+    }
+  }
+
+  private async setBrowserTab(): Promise<void> {
     const chosenName = await firstValueFrom(this.patch.watch$('ui', 'name'))
 
     const options: GenericInputOptions = {
@@ -82,14 +100,14 @@ export class ServerShowPage {
     await modal.present()
   }
 
-  async updateEos(): Promise<void> {
+  private async updateEos(): Promise<void> {
     const modal = await this.modalCtrl.create({
       component: OSUpdatePage,
     })
     modal.present()
   }
 
-  async presentAlertLogout() {
+  private async presentAlertLogout() {
     const alert = await this.alertCtrl.create({
       header: 'Confirm',
       message: 'Are you sure you want to log out?',
@@ -109,7 +127,7 @@ export class ServerShowPage {
     await alert.present()
   }
 
-  async presentAlertRestart() {
+  private async presentAlertRestart() {
     const alert = await this.alertCtrl.create({
       header: 'Restart',
       message:
@@ -131,7 +149,7 @@ export class ServerShowPage {
     await alert.present()
   }
 
-  async presentAlertShutdown() {
+  private async presentAlertShutdown() {
     const alert = await this.alertCtrl.create({
       header: 'Warning',
       message:
@@ -154,7 +172,7 @@ export class ServerShowPage {
     await alert.present()
   }
 
-  async presentAlertSystemRebuild() {
+  private async presentAlertSystemRebuild() {
     const localPkgs = await getAllPackages(this.patch)
     const minutes = Object.keys(localPkgs).length * 2
     const alert = await this.alertCtrl.create({
@@ -178,7 +196,7 @@ export class ServerShowPage {
     await alert.present()
   }
 
-  async presentAlertRepairDisk() {
+  private async presentAlertRepairDisk() {
     const alert = await this.alertCtrl.create({
       header: 'Warning',
       message: `<p>This action should only be executed if directed by a Start9 support specialist. We recommend backing up your device before preforming this action.</p><p>If anything happens to the device during the reboot, such as losing power or unplugging the drive, the filesystem <i>will</i> be in an unrecoverable state. Please proceed with caution.</p>`,
@@ -204,24 +222,6 @@ export class ServerShowPage {
       cssClass: 'alert-warning-message',
     })
     await alert.present()
-  }
-
-  async launchHttps() {
-    const { 'lan-address': lanAddress } = await getServerInfo(this.patch)
-    window.open(lanAddress)
-  }
-
-  addClick(title: string) {
-    switch (title) {
-      case 'Manage':
-        this.addManageClick()
-        break
-      case 'Power':
-        this.addPowerClick()
-        break
-      default:
-        return
-    }
   }
 
   private async setName(value: string | null): Promise<void> {

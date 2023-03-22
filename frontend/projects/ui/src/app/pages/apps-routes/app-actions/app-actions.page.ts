@@ -20,7 +20,10 @@ import {
   PackageDataEntry,
   PackageState,
 } from 'src/app/services/patch-db/data-model'
-import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
+import {
+  GenericFormPage,
+  GenericFormOptions,
+} from 'src/app/modals/generic-form/generic-form.page'
 import {
   isEmptyObject,
   ErrorToastService,
@@ -64,22 +67,21 @@ export class AppActionsPage {
       })
       await alert.present()
     } else {
-      if (!isEmptyObject(action['input-spec'] || {})) {
+      if (action['input-spec'] && !isEmptyObject(action['input-spec'])) {
+        const options: GenericFormOptions = {
+          title: action.name,
+          spec: action['input-spec'],
+          buttons: [
+            {
+              text: 'Execute',
+              handler: (value: any) => this.executeAction(action.id, value),
+              isSubmit: true,
+            },
+          ],
+        }
         const modal = await this.modalCtrl.create({
           component: GenericFormPage,
-          componentProps: {
-            title: action.name,
-            spec: action['input-spec'],
-            buttons: [
-              {
-                text: 'Execute',
-                handler: (value: any) => {
-                  return this.executeAction(action.id, value)
-                },
-                isSubmit: true,
-              },
-            ],
-          },
+          componentProps: options,
         })
         await modal.present()
       } else {
