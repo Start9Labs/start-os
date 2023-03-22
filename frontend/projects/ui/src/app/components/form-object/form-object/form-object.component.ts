@@ -61,9 +61,9 @@ export class FormObjectComponent {
     this.setDisplays()
 
     // setTimeout hack to avoid ExpressionChangedAfterItHasBeenCheckedError
-    setTimeout(() => {
-      // if (this.original && Object.values(this.objectSpec).some(spec => spec['is-new'])) this.hasNewOptions.emit()
-    })
+    // setTimeout(() => {
+    //   if (this.original && Object.values(this.objectSpec).some(spec => spec['is-new'])) this.hasNewOptions.emit()
+    // })
   }
 
   ngOnChanges(changes: SimpleChanges) {
