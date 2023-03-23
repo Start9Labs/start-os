@@ -2,7 +2,6 @@ import { Component, Input, inject, Output, EventEmitter } from '@angular/core'
 import { FormControl } from '@angular/forms'
 import { ValueSpecOf } from 'start-sdk/types/config-types'
 import { THEME } from '@start9labs/shared'
-import { FormObjectComponent } from '../../form-object.component'
 
 @Component({
   selector: 'form-input',
@@ -19,6 +18,4 @@ export class FormInputComponent {
   unmasked = false
 
   readonly theme$ = inject(THEME)
-
-  constructor(readonly form: FormObjectComponent) {}
 }
