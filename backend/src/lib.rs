@@ -37,7 +37,6 @@ pub mod logs;
 pub mod manager;
 pub mod marketplace;
 pub mod middleware;
-pub mod migration;
 pub mod net;
 pub mod notifications;
 pub mod os_install;

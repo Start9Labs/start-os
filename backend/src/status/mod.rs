@@ -1,15 +1,12 @@
 use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
+use models::HealthCheckId;
 use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
 
-use self::health_check::HealthCheckId;
 use crate::dependencies::DependencyErrors;
 use crate::prelude::*;
-use crate::status::health_check::HealthCheckResult;
-
-pub mod health_check;
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
 #[model = "Model<Self>"]
@@ -29,7 +26,7 @@ pub enum MainStatus {
     Starting,
     Running {
         started: DateTime<Utc>,
-        health: BTreeMap<HealthCheckId, HealthCheckResult>,
+        health: BTreeMap<HealthCheckId, String>,
     },
     BackingUp {
         was_running: bool,

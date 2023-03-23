@@ -1,5 +1,6 @@
 use clap::ArgMatches;
 use color_eyre::eyre::eyre;
+use models::ProcedureName;
 use rpc_toolkit::command;
 use serde_json::Value;
 use tracing::instrument;

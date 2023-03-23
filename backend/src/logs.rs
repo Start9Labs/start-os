@@ -26,7 +26,6 @@ use tracing::instrument;
 use crate::context::{CliContext, RpcContext};
 use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::prelude::*;
-use crate::procedure::docker::DockerProcedure;
 use crate::s9pk::manifest::PackageId;
 use crate::util::display_none;
 use crate::util::serde::Reversible;
@@ -365,10 +364,8 @@ async fn journalctl(
             cmd.arg(id);
         }
         LogSource::Container(id) => {
-            cmd.arg(format!(
-                "CONTAINER_NAME={}",
-                DockerProcedure::container_name(&id, None)
-            ));
+            cmd.arg(format!("CONTAINER_NAME={}", id));
+            todo!("DRBone Verity")
         }
     };
 
