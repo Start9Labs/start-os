@@ -14,11 +14,14 @@ import { getElementId } from './form-object/form-object.component'
   name: 'getError',
 })
 export class GetErrorPipe implements PipeTransform {
-  transform(errors: ValidationErrors, patternDesc?: string): string {
+  transform(
+    errors: ValidationErrors,
+    patternDesc: string = 'Invalid pattern',
+  ): string {
     if (errors['required']) {
       return 'Required'
     } else if (errors['pattern']) {
-      return patternDesc || 'Invalid pattern'
+      return patternDesc
     } else if (errors['notNumber']) {
       return 'Must be a number'
     } else if (errors['numberNotInteger']) {

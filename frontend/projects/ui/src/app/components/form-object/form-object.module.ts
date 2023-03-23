@@ -19,6 +19,9 @@ import {
 import { FormFileComponent } from './form-object/controls/form-file/form-file.component'
 import { FormInputComponent } from './form-object/controls/form-input/form-input.component'
 import { FormWarningDirective } from './form-warning.directive'
+import { FormSubformComponent } from './form-object/controls/form-subform/form-subform.component'
+import { FormEnumComponent } from './form-object/controls/form-enum/form-enum.component'
+import { FormValueComponent } from './form-object/controls/form-value/form-value.component'
 
 @NgModule({
   declarations: [
@@ -33,6 +36,9 @@ import { FormWarningDirective } from './form-warning.directive'
     FormWarningDirective,
     FormFileComponent,
     FormInputComponent,
+    FormSubformComponent,
+    FormEnumComponent,
+    FormValueComponent,
   ],
   imports: [
     CommonModule,
