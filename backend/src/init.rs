@@ -293,25 +293,16 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
 
     if should_rebuild || !tmp_docker_exists {
         tracing::info!("Creating Docker Network");
-        bollard::Docker::connect_with_unix_defaults()?
-            .create_network(bollard::network::CreateNetworkOptions {
-                name: "start9",
-                driver: "bridge",
-                ipam: bollard::models::Ipam {
-                    config: Some(vec![bollard::models::IpamConfig {
-                        subnet: Some("172.18.0.1/24".into()),
-                        ..Default::default()
-                    }]),
-                    ..Default::default()
-                },
-                options: {
-                    let mut m = HashMap::new();
-                    m.insert("com.docker.network.bridge.name", "br-start9");
-                    m
-                },
-                ..Default::default()
-            })
-            .await?;
+        let mut cmd = Command::new("docker");
+        cmd.arg("network")
+            .arg("create")
+            .arg("--driver=bridge")
+            .arg("--subnet")
+            .arg("10.1.1.0/24")
+            .arg("-o")
+            .arg("com.docker.network.bridge.name=br-start9")
+            .arg("start9");
+        todo!("DRBones Verify");
         tracing::info!("Created Docker Network");
 
         tracing::info!("Loading System Docker Images");
