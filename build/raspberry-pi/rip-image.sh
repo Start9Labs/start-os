@@ -21,6 +21,8 @@ sudo mount $ROOT_PARTITION $TMPDIR/
 sudo mount $BOOT_PARTITION $TMPDIR/current/boot/
 sudo sed -i 's/PARTUUID=[a-f0-9]\+/PARTUUID=cb15ae4d/g' $TMPDIR/current/etc/fstab
 sudo sed -i 's/PARTUUID=[a-f0-9]\+/PARTUUID=cb15ae4d/g' $TMPDIR/current/boot/cmdline.txt
+sudo cp build/raspberry-pi/init_resize.sh $TMPDIR/current/usr/lib/embassy/scripts/init_resize.sh
+sudo sed -i 's|$| init=/usr/lib/embassy/scripts/init_resize\.sh|' $TMPDIR/current/boot/cmdline.txt
 rm -f eos.raspberrypi.squashfs
 sudo mksquashfs $TMPDIR/current/ eos.raspberrypi.squashfs
 
