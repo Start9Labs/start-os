@@ -39,7 +39,6 @@ export class FormObjectComponent {
   @Output() onInputChange = new EventEmitter<void>()
   @Output() hasNewOptions = new EventEmitter<void>()
   warningAck: { [key: string]: boolean } = {}
-  unmasked: { [key: string]: boolean } = {}
   objectDisplay: {
     [key: string]: { expanded: boolean; hasNewOptions: boolean }
   } = {}
