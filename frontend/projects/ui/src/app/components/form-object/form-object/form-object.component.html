@@ -1,6 +1,6 @@
 <ion-item-group [formGroup]="formGroup">
-  <div *ngFor="let entry of formGroup.controls | keyvalue : asIsOrder">
-    <div *ngIf="objectSpec[entry.key] as spec">
+  <ng-container *ngFor="let entry of formGroup.controls | keyvalue : asIsOrder">
+    <ng-container *ngIf="objectSpec[entry.key] as spec">
       <!-- file -->
       <form-file
         *ngIf="spec.type === 'file'"
@@ -16,89 +16,28 @@
         (onInputChange)="handleInputChange()"
       ></form-input>
       <!-- boolean or enum -->
-      <ion-item
+      <form-value
         *ngIf="spec.type === 'boolean' || spec.type === 'enum'"
-        style="--padding-start: 0"
-      >
-        <form-label
-          [data]="{
-            name: spec.name,
-            description: spec.description,
-            edited: entry.value.dirty
-          }"
-        ></form-label>
-        <!-- boolean -->
-        <ion-toggle
-          *ngIf="spec.type === 'boolean'"
-          slot="end"
-          [formControlName]="entry.key"
-          (ionChange)="handleBooleanChange(entry.key, spec)"
-        ></ion-toggle>
-        <!-- enum -->
-        <!-- class enter-click disables the enter click on the modal behind the select -->
-        <ion-select
-          *ngIf="spec.type === 'enum'"
-          [interfaceOptions]="{
-            message: spec.warning | toWarningText,
-            cssClass: 'enter-click'
-          }"
-          slot="end"
-          placeholder="Select"
-          [formControlName]="entry.key"
-          [selectedText]="spec['value-names'][entry.value.value]"
-        >
-          <ion-select-option
-            *ngFor="let option of spec.values"
-            [value]="option"
-          >
-            {{ spec['value-names'][option] }}
-          </ion-select-option>
-        </ion-select>
-      </ion-item>
+        [spec]="spec"
+        [name]="entry.key"
+        [control]="$any(entry.value)"
+      ></form-value>
       <!-- object -->
-      <ng-container *ngIf="spec.type === 'object'">
-        <!-- label -->
-        <ion-item-divider
-          style="cursor: pointer"
-          [class.error-border]="entry.value.invalid"
-          (click)="toggleExpandObject(entry.key)"
-        >
-          <form-label
-            [data]="{
-              name: spec.name,
-              description: spec.description,
-              edited: entry.value.dirty,
-              newOptions: objectDisplay[entry.key].hasNewOptions
-            }"
-          ></form-label>
-          <ion-icon
-            slot="end"
-            name="chevron-up"
-            [color]="entry.value.invalid ? 'danger' : undefined"
-            [ngStyle]="{
-              transform: objectDisplay[entry.key].expanded
-                ? 'rotate(0deg)'
-                : 'rotate(180deg)',
-              transition: 'transform 0.42s ease-out'
-            }"
-          ></ion-icon>
-        </ion-item-divider>
-        <!-- body -->
-        <tui-expand
-          [expanded]="objectDisplay[entry.key].expanded"
-          [id]="objectId | toElementId : entry.key"
-        >
-          <div class="nested-wrapper">
-            <form-object
-              [objectSpec]="spec.spec"
-              [formGroup]="$any(entry.value)"
-              [current]="current?.[entry.key]"
-              [original]="original?.[entry.key]"
-              (hasNewOptions)="setHasNew(entry.key)"
-            ></form-object>
-          </div>
-        </tui-expand>
-      </ng-container>
+      <form-subform
+        *ngIf="spec.type === 'object'"
+        [spec]="spec"
+        [control]="entry.value"
+        [hasNewOptions]="objectDisplay[entry.key].hasNewOptions"
+      >
+        <form-object
+          class="nested-wrapper"
+          [objectSpec]="spec.spec"
+          [formGroup]="$any(entry.value)"
+          [current]="current?.[entry.key]"
+          [original]="original?.[entry.key]"
+          (hasNewOptions)="setHasNew(entry.key)"
+        ></form-object>
+      </form-subform>
       <!-- union -->
       <form-union
         *ngIf="spec.type === 'union'"
@@ -257,42 +196,12 @@
         </ng-container>
       </ng-container>
       <!-- list (enum) -->
-      <ng-container *ngIf="spec.type === 'list' && spec.subtype === 'enum'">
-        <ng-container
-          *ngIf="formGroup.get(entry.key) as formArr"
-          [formArrayName]="entry.key"
-        >
-          <!-- label -->
-          <p class="input-label">
-            <form-label
-              [data]="{
-                name: spec.name,
-                description: spec.description,
-                edited: entry.value.dirty
-              }"
-            ></form-label>
-          </p>
-          <!-- list -->
-          <ion-item
-            button
-            detail="false"
-            color="dark"
-            (click)="presentModalEnumList(entry.key, $any(spec), formArr.value)"
-          >
-            <ion-label style="white-space: nowrap !important">
-              <h2>{{ formArr.value | toEnumListDisplay : $any(spec.spec) }}</h2>
-            </ion-label>
-            <ion-button slot="end" fill="clear" color="light">
-              <ion-icon slot="icon-only" name="chevron-down"></ion-icon>
-            </ion-button>
-          </ion-item>
-          <p class="error-message">
-            <span *ngIf="formGroup.get(entry.key)?.errors as errors">
-              {{ errors | getError }}
-            </span>
-          </p>
-        </ng-container>
-      </ng-container>
-    </div>
-  </div>
+      <form-enum
+        *ngIf="spec.type === 'list' && spec.subtype === 'enum'"
+        [spec]="spec"
+        [control]="entry.value"
+        (edit)="presentModalEnumList(entry.key, $any(spec), entry.value.value)"
+      ></form-enum>
+    </ng-container>
+  </ng-container>
 </ion-item-group>
