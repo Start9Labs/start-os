@@ -1,0 +1,38 @@
+<ion-item
+  *ngIf="spec.type === 'boolean' || spec.type === 'enum'"
+  style="--padding-start: 0"
+>
+  <form-label
+    [data]="{
+      name: spec.name,
+      description: spec.description,
+      edited: control.dirty
+    }"
+  ></form-label>
+  <!-- boolean -->
+  <ion-toggle
+    *ngIf="spec.type === 'boolean'"
+    formWarning
+    #warning="formWarning"
+    slot="end"
+    [formControl]="control"
+    (ionChange)="warning.onChange(name, spec, undefined, cancel)"
+  ></ion-toggle>
+  <!-- enum -->
+  <!-- class enter-click disables the enter click on the modal behind the select -->
+  <ion-select
+    *ngIf="spec.type === 'enum'"
+    [interfaceOptions]="{
+      message: spec.warning | toWarningText,
+      cssClass: 'enter-click'
+    }"
+    slot="end"
+    placeholder="Select"
+    [formControl]="control"
+    [selectedText]="spec['value-names'][control.value]"
+  >
+    <ion-select-option *ngFor="let option of spec.values" [value]="option">
+      {{ spec['value-names'][option] }}
+    </ion-select-option>
+  </ion-select>
+</ion-item>
