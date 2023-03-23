@@ -1,0 +1,23 @@
+<ion-item-divider
+  [class.error-border]="control.invalid"
+  (click)="expanded = !expanded"
+>
+  <form-label
+    [data]="{
+      name: spec.name,
+      description: spec.description,
+      edited: control.dirty,
+      newOptions: hasNewOptions
+    }"
+  ></form-label>
+  <ion-icon
+    slot="end"
+    name="chevron-down"
+    class="icon"
+    [class.icon_rotated]="expanded"
+    [color]="control.invalid ? 'danger' : undefined"
+  ></ion-icon>
+</ion-item-divider>
+<tui-expand [expanded]="expanded">
+  <ng-content></ng-content>
+</tui-expand>
