@@ -12,6 +12,7 @@
     <!-- class enter-click disables the enter click on the modal behind the select -->
     <ion-select
       [interfaceOptions]="{
+        header: spec.tag.name,
         message: spec.tag.warning | toWarningText,
         cssClass: 'enter-click'
       }"
