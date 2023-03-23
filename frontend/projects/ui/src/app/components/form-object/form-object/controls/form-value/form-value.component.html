@@ -1,7 +1,4 @@
-<ion-item
-  *ngIf="spec.type === 'boolean' || spec.type === 'enum'"
-  style="--padding-start: 0"
->
+<ion-item style="--padding-start: 0">
   <form-label
     [data]="{
       name: spec.name,
@@ -23,6 +20,7 @@
   <ion-select
     *ngIf="spec.type === 'enum'"
     [interfaceOptions]="{
+      header: spec.name,
       message: spec.warning | toWarningText,
       cssClass: 'enter-click'
     }"
