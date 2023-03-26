@@ -13,12 +13,12 @@
     #warning="formWarning"
     slot="end"
     [formControl]="control"
-    (ionChange)="warning.onChange(name, spec, undefined, cancel)"
+    (ionChange)="warning.onChange(name, spec, undefined, cancelBool)"
   ></ion-toggle>
-  <!-- enum -->
-  <!-- class enter-click disables the enter click on the modal behind the select -->
+  <!-- select -->
+  <!-- adding class enter-click disables the enter click on the modal behind the select -->
   <ion-select
-    *ngIf="spec.type === 'enum'"
+    *ngIf="spec.type === 'select' || spec.type === 'multiselect'"
     [interfaceOptions]="{
       header: spec.name,
       message: spec.warning | toWarningText,
@@ -26,11 +26,21 @@
     }"
     slot="end"
     placeholder="Select"
+    [multiple]="spec.type === 'multiselect'"
     [formControl]="control"
-    [selectedText]="spec['value-names'][control.value]"
+    [selectedText]="
+      spec.type === 'multiselect' && control.value?.length > 1
+        ? '[' + control.value.length + ' selected]'
+        : spec['value-names'][control.value]
+    "
   >
     <ion-select-option *ngFor="let option of spec.values" [value]="option">
       {{ spec['value-names'][option] }}
     </ion-select-option>
   </ion-select>
 </ion-item>
+<p class="error-message">
+  <span *ngIf="control.errors as errors">
+    {{ errors | getError }}
+  </span>
+</p>
