@@ -15,13 +15,17 @@
         [control]="$any(entry.value)"
         (onInputChange)="handleInputChange()"
       ></form-input>
-      <!-- boolean or enum -->
-      <form-value
-        *ngIf="spec.type === 'boolean' || spec.type === 'enum'"
+      <!-- boolean, select or multiselect -->
+      <form-select
+        *ngIf="
+          spec.type === 'boolean' ||
+          spec.type === 'select' ||
+          spec.type === 'multiselect'
+        "
         [spec]="spec"
         [name]="entry.key"
         [control]="$any(entry.value)"
-      ></form-value>
+      ></form-select>
       <!-- object -->
       <form-subform
         *ngIf="spec.type === 'object'"
@@ -46,8 +50,8 @@
         [current]="current?.[entry.key]"
         [original]="original?.[entry.key]"
       ></form-union>
-      <!-- list (not enum) -->
-      <ng-container *ngIf="spec.type === 'list' && spec.subtype !== 'enum'">
+      <!-- list -->
+      <ng-container *ngIf="spec.type === 'list'">
         <ng-container
           *ngIf="formGroup.get(entry.key) as formArr"
           [formArrayName]="entry.key"
@@ -195,13 +199,6 @@
           </div>
         </ng-container>
       </ng-container>
-      <!-- list (enum) -->
-      <form-enum
-        *ngIf="spec.type === 'list' && spec.subtype === 'enum'"
-        [spec]="spec"
-        [control]="entry.value"
-        (edit)="presentModalEnumList(entry.key, $any(spec), entry.value.value)"
-      ></form-enum>
     </ng-container>
   </ng-container>
 </ion-item-group>

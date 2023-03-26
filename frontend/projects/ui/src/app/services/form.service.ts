@@ -17,7 +17,8 @@ import {
   ListValueSpecUnion,
   UniqueBy,
   ValueSpec,
-  ValueSpecEnum,
+  ValueSpecSelect,
+  ValueSpecMultiselect,
   ValueSpecFile,
   ValueSpecList,
   ValueSpecNumber,
@@ -49,8 +50,8 @@ export class FormService {
     const { variants, tag } = spec
     const { name, description, warning, 'variant-names': variantNames } = tag
 
-    const enumSpec: ValueSpecEnum = {
-      type: 'enum',
+    const enumSpec: ValueSpecSelect = {
+      type: 'select',
       name,
       description,
       warning,
@@ -71,8 +72,6 @@ export class FormService {
       return this.formBuilder.control(entry, listItemValidators)
     } else if (isValueSpecListOf(spec, 'number')) {
       return this.formBuilder.control(entry, listItemValidators)
-    } else if (isValueSpecListOf(spec, 'enum')) {
-      return this.formBuilder.control(entry)
     } else if (isValueSpecListOf(spec, 'object')) {
       return this.getFormGroup(spec.spec.spec, listItemValidators, entry)
     } else if (isValueSpecListOf(spec, 'union')) {
@@ -99,7 +98,6 @@ export class FormService {
     spec: ValueSpec,
     currentValue?: any,
   ): UntypedFormGroup | UntypedFormArray | UntypedFormControl {
-    let validators: ValidatorFn[]
     let value: any
     switch (spec.type) {
       case 'string':
@@ -140,9 +138,12 @@ export class FormService {
           isValid ? currentValue : undefined,
         )
       case 'boolean':
-      case 'enum':
+      case 'select':
         value = currentValue === undefined ? spec.default : currentValue
         return this.formBuilder.control(value)
+      case 'multiselect':
+        value = currentValue === undefined ? spec.default : currentValue
+        return this.formBuilder.control(value, multiselectValidators(spec))
       default:
         return this.formBuilder.control(null)
     }
@@ -193,17 +194,16 @@ function numberValidators(
   return validators
 }
 
+function multiselectValidators(spec: ValueSpecMultiselect): ValidatorFn[] {
+  const validators: ValidatorFn[] = []
+  validators.push(listInRange(spec.range))
+  return validators
+}
+
 function listValidators(spec: ValueSpecList): ValidatorFn[] {
   const validators: ValidatorFn[] = []
-
   validators.push(listInRange(spec.range))
-
   validators.push(listItemIssue())
-
-  if (!isValueSpecListOf(spec, 'enum')) {
-    validators.push(listUnique(spec))
-  }
-
   return validators
 }
 
@@ -314,7 +314,6 @@ function listItemEquals(spec: ValueSpecList, val1: any, val2: any): boolean {
   switch (spec.subtype) {
     case 'string':
     case 'number':
-    case 'enum':
       return val1 == val2
     case 'object':
       const obj: ListValueSpecObject = spec.spec as any
@@ -334,7 +333,7 @@ function itemEquals(spec: ValueSpec, val1: any, val2: any): boolean {
     case 'string':
     case 'number':
     case 'boolean':
-    case 'enum':
+    case 'select':
       return val1 == val2
     case 'object':
       // TODO: 'unique-by' does not exist on ValueSpecObject, fix types
