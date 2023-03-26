@@ -5,7 +5,6 @@ import { IonicModule } from '@ionic/angular'
 import { SharedPipesModule } from '@start9labs/shared'
 import { TuiElasticContainerModule } from '@taiga-ui/kit'
 import { TuiExpandModule } from '@taiga-ui/core'
-import { EnumListPageModule } from 'src/app/modals/enum-list/enum-list.module'
 import { FormLabelComponent } from './form-label/form-label.component'
 import { FormObjectComponent } from './form-object/form-object.component'
 import { FormUnionComponent } from './form-union/form-union.component'
@@ -13,15 +12,13 @@ import {
   GetErrorPipe,
   ToWarningTextPipe,
   ToElementIdPipe,
-  ToEnumListDisplayPipe,
   ToRangePipe,
 } from './form-object.pipes'
 import { FormFileComponent } from './form-object/controls/form-file/form-file.component'
 import { FormInputComponent } from './form-object/controls/form-input/form-input.component'
 import { FormWarningDirective } from './form-warning.directive'
 import { FormSubformComponent } from './form-object/controls/form-subform/form-subform.component'
-import { FormEnumComponent } from './form-object/controls/form-enum/form-enum.component'
-import { FormValueComponent } from './form-object/controls/form-value/form-value.component'
+import { FormSelectComponent } from './form-object/controls/form-select/form-select.component'
 
 @NgModule({
   declarations: [
@@ -30,15 +27,13 @@ import { FormValueComponent } from './form-object/controls/form-value/form-value
     FormLabelComponent,
     ToWarningTextPipe,
     GetErrorPipe,
-    ToEnumListDisplayPipe,
     ToElementIdPipe,
     ToRangePipe,
     FormWarningDirective,
     FormFileComponent,
     FormInputComponent,
     FormSubformComponent,
-    FormEnumComponent,
-    FormValueComponent,
+    FormSelectComponent,
   ],
   imports: [
     CommonModule,
@@ -46,7 +41,6 @@ import { FormValueComponent } from './form-object/controls/form-value/form-value
     FormsModule,
     ReactiveFormsModule,
     SharedPipesModule,
-    EnumListPageModule,
     TuiElasticContainerModule,
     TuiExpandModule,
   ],
