@@ -963,7 +963,7 @@ export module Mock {
             },
             'favorite-flower': {
               name: 'Favorite Flower',
-              type: 'enum',
+              type: 'select',
               description: 'Select your favorite flower',
               warning: null,
               'value-names': {
@@ -989,19 +989,34 @@ export module Mock {
         'unique-by': 'preference',
       },
     },
-    'random-enum': {
-      name: 'Random Enum',
-      type: 'enum',
+    'random-select': {
+      name: 'Random Select',
+      type: 'select',
       'value-names': {
-        null: 'Null',
-        option1: 'One 1',
-        option2: 'Two 2',
-        option3: 'Three 3',
+        hello: 'Hello',
+        goodbye: 'Goodbye',
+        sup: 'Sup',
       },
-      default: 'null',
+      default: 'sup',
       description: 'This is not even real.',
       warning: 'Be careful changing this!',
-      values: ['null', 'option1', 'option2', 'option3'],
+      values: ['hello', 'goodbye', 'sup'],
+    },
+    notifications: {
+      name: 'Notification Preferences',
+      type: 'multiselect',
+      description: 'how you want to be notified',
+      warning: null,
+      range: '(1,3]',
+      'value-names': {
+        email: 'EEEEmail',
+        text: 'Texxxt',
+        call: 'Ccccall',
+        push: 'PuuuusH',
+        webhook: 'WebHooookkeee',
+      },
+      values: ['email', 'text', 'call', 'push', 'webhook'],
+      default: ['email'],
     },
     'favorite-number': {
       name: 'Favorite Number',
@@ -1292,25 +1307,6 @@ export module Mock {
       description: 'Advanced settings',
       warning: null,
       spec: {
-        notifications: {
-          name: 'Notification Preferences',
-          type: 'list',
-          subtype: 'enum',
-          description: 'how you want to be notified',
-          warning: null,
-          range: '[1,3]',
-          default: ['email'],
-          spec: {
-            'value-names': {
-              email: 'EEEEmail',
-              text: 'Texxxt',
-              call: 'Ccccall',
-              push: 'PuuuusH',
-              webhook: 'WebHooookkeee',
-            },
-            values: ['email', 'text', 'call', 'push', 'webhook'],
-          },
-        },
         rpcsettings: {
           name: 'RPC Settings',
           type: 'object',
@@ -1525,7 +1521,7 @@ export module Mock {
       },
     ],
     'union-list': undefined,
-    'random-enum': 'option2',
+    'random-select': ['goodbye'],
     'favorite-number': 0,
     rpcsettings: {
       laws: {

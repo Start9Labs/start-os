@@ -1,4 +1,4 @@
-import { ValueSpec, DefaultString } from 'start-sdk/types/config-types'
+import { DefaultString } from 'start-sdk/types/config-types'
 
 export class Range {
   min?: number
@@ -31,95 +31,21 @@ export class Range {
     }
   }
 
-  hasMin(): this is Range & { min: number } {
+  private hasMin(): this is Range & { min: number } {
     return this.min !== undefined
   }
 
-  hasMax(): this is Range & { max: number } {
+  private hasMax(): this is Range & { max: number } {
     return this.max !== undefined
   }
 
-  minMessage(): string {
+  private minMessage(): string {
     return `greater than${this.minInclusive ? ' or equal to' : ''} ${this.min}`
   }
 
-  maxMessage(): string {
+  private maxMessage(): string {
     return `less than${this.maxInclusive ? ' or equal to' : ''} ${this.max}`
   }
-
-  description(): string {
-    let message = 'Value can be any number.'
-
-    if (this.hasMin() || this.hasMax()) {
-      message = 'Value must be'
-    }
-
-    if (this.hasMin() && this.hasMax()) {
-      message = `${message} ${this.minMessage()} AND ${this.maxMessage()}.`
-    } else if (this.hasMin() && !this.hasMax()) {
-      message = `${message} ${this.minMessage()}.`
-    } else if (!this.hasMin() && this.hasMax()) {
-      message = `${message} ${this.maxMessage()}.`
-    }
-
-    return message
-  }
-
-  integralMin(): number | undefined {
-    if (this.min) {
-      const ceil = Math.ceil(this.min)
-      if (this.minInclusive) {
-        return ceil
-      } else {
-        if (ceil === this.min) {
-          return ceil + 1
-        } else {
-          return ceil
-        }
-      }
-    }
-  }
-
-  integralMax(): number | undefined {
-    if (this.max) {
-      const floor = Math.floor(this.max)
-      if (this.maxInclusive) {
-        return floor
-      } else {
-        if (floor === this.max) {
-          return floor - 1
-        } else {
-          return floor
-        }
-      }
-    }
-  }
-}
-
-export function getDefaultDescription(spec: ValueSpec): string {
-  let toReturn: string | undefined
-  switch (spec.type) {
-    case 'string':
-      if (typeof spec.default === 'string') {
-        toReturn = spec.default
-      } else if (typeof spec.default === 'object') {
-        toReturn = 'random'
-      }
-      break
-    case 'number':
-      if (typeof spec.default === 'number') {
-        toReturn = String(spec.default)
-      }
-      break
-    case 'boolean':
-      toReturn = spec.default === true ? 'True' : 'False'
-      break
-    case 'enum':
-      toReturn = spec['value-names'][spec.default]
-      break
-  }
-
-  return toReturn || ''
 }
 
 export function getDefaultString(defaultSpec: DefaultString): string {
@@ -136,7 +62,7 @@ export function getDefaultString(defaultSpec: DefaultString): string {
 }
 
 // a,g,h,A-Z,,,,-
-export function getRandomCharInSet(charset: string): string {
+function getRandomCharInSet(charset: string): string {
   const set = stringToCharSet(charset)
   let charIdx = Math.floor(Math.random() * set.len)
   for (let range of set.ranges) {
