@@ -253,8 +253,8 @@ const SAMPLE_CONFIG: InputSpec = {
     default: true,
     warning: null,
   },
-  'sample-enum': {
-    type: 'enum',
+  'sample-select': {
+    type: 'multiselect',
     name: 'Example Enum Select',
     values: ['red', 'blue', 'green'],
     'value-names': {
@@ -263,8 +263,9 @@ const SAMPLE_CONFIG: InputSpec = {
       green: 'Green',
     },
     // optional
-    warning: 'Example warning to display when changing this enum value.',
-    description: 'Example description for enum select',
-    default: 'red',
+    warning: 'Example warning to display when changing this select value.',
+    description: 'Example description for select select',
+    range: '[0, 2)',
+    default: ['red'],
   },
 }
