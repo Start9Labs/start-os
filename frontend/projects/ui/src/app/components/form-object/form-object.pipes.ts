@@ -1,12 +1,6 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import {
-  AbstractControl,
-  FormGroup,
-  UntypedFormArray,
-  ValidationErrors,
-} from '@angular/forms'
+import { ValidationErrors } from '@angular/forms'
 import { IonicSafeString } from '@ionic/angular'
-import { ListValueSpecOf } from 'start-sdk/types/config-types'
 import { Range } from 'src/app/util/config-utilities'
 import { getElementId } from './form-object/form-object.component'
 
@@ -37,15 +31,6 @@ export class GetErrorPipe implements PipeTransform {
     } else {
       return 'Unknown error'
     }
-  }
-}
-
-@Pipe({
-  name: 'toEnumListDisplay',
-})
-export class ToEnumListDisplayPipe implements PipeTransform {
-  transform(arr: string[], spec: ListValueSpecOf<'enum'>): string {
-    return arr.map((v: string) => spec['value-names'][v]).join(', ')
   }
 }
 
