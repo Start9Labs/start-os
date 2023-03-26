@@ -7,7 +7,7 @@ import {
   inject,
   SimpleChanges,
 } from '@angular/core'
-import { FormArray, UntypedFormArray, UntypedFormGroup } from '@angular/forms'
+import { UntypedFormArray, UntypedFormGroup } from '@angular/forms'
 import { AlertButton, AlertController, ModalController } from '@ionic/angular'
 import {
   InputSpec,
@@ -15,11 +15,9 @@ import {
   ValueSpec,
   ValueSpecBoolean,
   ValueSpecList,
-  ValueSpecListOf,
   ValueSpecUnion,
 } from 'start-sdk/types/config-types'
 import { FormService } from 'src/app/services/form.service'
-import { EnumListPage } from 'src/app/modals/enum-list/enum-list.page'
 import { THEME, pauseFor } from '@start9labs/shared'
 import { v4 } from 'uuid'
 import { DOCUMENT } from '@angular/common'
@@ -148,28 +146,6 @@ export class FormObjectComponent {
     }
   }
 
-  async presentModalEnumList(
-    key: string,
-    spec: ValueSpecListOf<'enum'>,
-    current: string[],
-  ) {
-    const modal = await this.modalCtrl.create({
-      componentProps: {
-        key,
-        spec,
-        current,
-      },
-      component: EnumListPage,
-    })
-
-    modal.onWillDismiss<string[]>().then(({ data }) => {
-      if (!data) return
-      this.updateEnumList(key, current, data)
-    })
-
-    await modal.present()
-  }
-
   async presentAlertChangeWarning<T extends ValueSpec>(
     key: string,
     spec: T extends ValueSpecUnion ? never : T,
@@ -270,27 +246,6 @@ export class FormObjectComponent {
         this.objectListDisplay[key].splice(index, 1)
       arr.removeAt(index)
     })
-  }
-
-  private updateEnumList(key: string, current: string[], updated: string[]) {
-    const arr = this.formGroup.get(key) as FormArray
-
-    for (let i = current.length - 1; i >= 0; i--) {
-      if (!updated.includes(current[i])) {
-        arr.removeAt(i)
-      }
-    }
-
-    const listSpec = this.objectSpec[key] as ValueSpecList
-
-    updated.forEach(val => {
-      if (!current.includes(val)) {
-        const newItem = this.formService.getListItem(listSpec, val)!
-        arr.insert(arr.length, newItem)
-      }
-    })
-
-    arr.markAsDirty()
   }
 
   asIsOrder() {

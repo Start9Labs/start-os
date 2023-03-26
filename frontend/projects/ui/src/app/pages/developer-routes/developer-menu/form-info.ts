@@ -110,7 +110,7 @@ export function getBasicInfoSpec(devData: DevProjectData): InputSpec {
       warning: null,
     },
     license: {
-      type: 'enum',
+      type: 'select',
       name: 'License',
       warning: null,
       values: [
@@ -135,7 +135,7 @@ export function getBasicInfoSpec(devData: DevProjectData): InputSpec {
         'the-unlicense': 'The Unlicense',
         custom: 'Custom',
       },
-      description: 'Example description for enum select',
+      description: 'Example description for select',
       default: 'mit',
     },
     'wrapper-repo': {
