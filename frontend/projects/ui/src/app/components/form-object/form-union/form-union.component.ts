@@ -2,7 +2,11 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { UntypedFormGroup } from '@angular/forms'
 import { v4 } from 'uuid'
 import { FormService } from 'src/app/services/form.service'
-import { ValueSpecUnion, InputSpec } from 'start-sdk/types/config-types'
+import {
+  ValueSpecUnion,
+  InputSpec,
+  unionSelectKey,
+} from 'start-sdk/lib/config/config-types'
 
 @Component({
   selector: 'form-union',
@@ -11,21 +15,23 @@ import { ValueSpecUnion, InputSpec } from 'start-sdk/types/config-types'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FormUnionComponent {
+  readonly unionSelectKey = unionSelectKey
+
   @Input() formGroup!: UntypedFormGroup
   @Input() spec!: ValueSpecUnion
   @Input() current?: Record<string, any>
   @Input() original?: Record<string, any>
 
   get selectedVariant(): string {
-    return this.formGroup.get(this.spec.tag.id)?.value
+    return this.formGroup.get(unionSelectKey)?.value
   }
 
   get variantName(): string {
-    return this.spec.tag['variant-names'][this.selectedVariant]
+    return this.spec.variants[this.selectedVariant].name
   }
 
   get variantSpec(): InputSpec {
-    return this.spec.variants[this.selectedVariant]
+    return this.spec.variants[this.selectedVariant].spec
   }
 
   get hasNewOptions(): boolean {
@@ -38,10 +44,8 @@ export class FormUnionComponent {
   constructor(private readonly formService: FormService) {}
 
   updateUnion(e: any): void {
-    const tagId = this.spec.tag.id
-
     Object.keys(this.formGroup.controls).forEach(control => {
-      if (control === tagId) return
+      if (control === unionSelectKey) return
       this.formGroup.removeControl(control)
     })
 
@@ -51,7 +55,7 @@ export class FormUnionComponent {
     )
 
     Object.keys(unionGroup.controls).forEach(control => {
-      if (control === tagId) return
+      if (control === unionSelectKey) return
       this.formGroup.addControl(control, unionGroup.controls[control])
     })
   }

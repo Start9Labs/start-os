@@ -13,7 +13,7 @@ import {
   isObject,
 } from '@start9labs/shared'
 import { DependentInfo } from 'src/app/types/dependent-info'
-import { InputSpec } from 'start-sdk/types/config-types'
+import { InputSpec } from 'start-sdk/lib/config/config-types'
 import {
   DataModel,
   PackageDataEntry,
