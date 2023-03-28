@@ -12,7 +12,7 @@ import {
 } from 'src/app/modals/generic-input/generic-input.component'
 import { PatchDB } from 'patch-db-client'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { InputSpec } from 'start-sdk/types/config-types'
+import { InputSpec } from 'start-sdk/lib/config/config-types'
 import * as yaml from 'js-yaml'
 import { v4 } from 'uuid'
 import { DataModel, DevData } from 'src/app/services/patch-db/data-model'
@@ -227,7 +227,7 @@ const SAMPLE_CONFIG: InputSpec = {
     description: 'Example description for required string input.',
     placeholder: 'Enter string value',
     pattern: '^[a-zA-Z0-9! _]+$',
-    'pattern-description': 'Must be alphanumeric (may contain underscore).',
+    patternDescription: 'Must be alphanumeric (may contain underscore).',
     default: null,
     textarea: false,
     warning: null,
@@ -256,8 +256,7 @@ const SAMPLE_CONFIG: InputSpec = {
   'sample-select': {
     type: 'multiselect',
     name: 'Example Enum Select',
-    values: ['red', 'blue', 'green'],
-    'value-names': {
+    values: {
       red: 'Red',
       blue: 'Blue',
       green: 'Green',
