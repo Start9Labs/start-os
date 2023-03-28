@@ -12,7 +12,7 @@ import {
   ModalController,
 } from '@ionic/angular'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
-import { InputSpec } from 'start-sdk/types/config-types'
+import { InputSpec } from 'start-sdk/lib/config/config-types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ErrorToastService } from '@start9labs/shared'
 import { MappedBackupTarget } from 'src/app/types/mapped-backup-target'
@@ -282,7 +282,7 @@ const CifsSpec: InputSpec = {
       'The hostname of your target device on the Local Area Network.',
     placeholder: `e.g. 'My Computer' OR 'my-computer.local'`,
     pattern: '^[a-zA-Z0-9._-]+( [a-zA-Z0-9]+)*$',
-    'pattern-description': `Must be a valid hostname. e.g. 'My Computer' OR 'my-computer.local'`,
+    patternDescription: `Must be a valid hostname. e.g. 'My Computer' OR 'my-computer.local'`,
     nullable: false,
     masked: false,
     default: null,
@@ -295,7 +295,7 @@ const CifsSpec: InputSpec = {
     description: `On Windows, this is the fully qualified path to the shared folder, (e.g. /Desktop/my-folder).\n\n On Linux and Mac, this is the literal name of the shared folder (e.g. my-shared-folder).`,
     placeholder: 'e.g. my-shared-folder or /Desktop/my-folder',
     pattern: null,
-    'pattern-description': null,
+    patternDescription: null,
     nullable: false,
     masked: false,
     default: null,
@@ -308,7 +308,7 @@ const CifsSpec: InputSpec = {
     description: `On Linux, this is the samba username you created when sharing the folder.\n\n On Mac and Windows, this is the username of the user who is sharing the folder.`,
     placeholder: null,
     pattern: null,
-    'pattern-description': null,
+    patternDescription: null,
     nullable: false,
     masked: false,
     default: null,
@@ -321,7 +321,7 @@ const CifsSpec: InputSpec = {
     description: `On Linux, this is the samba password you created when sharing the folder.\n\n On Mac and Windows, this is the password of the user who is sharing the folder.`,
     placeholder: null,
     pattern: null,
-    'pattern-description': null,
+    patternDescription: null,
     nullable: true,
     masked: true,
     default: null,
