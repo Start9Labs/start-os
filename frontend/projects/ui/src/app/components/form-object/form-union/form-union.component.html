@@ -3,8 +3,8 @@
   <ion-item-divider [class.error-border]="formGroup.invalid">
     <form-label
       [data]="{
-        name: spec.tag.name,
-        description: spec.tag.description,
+        name: spec.name,
+        description: spec.description,
         newOptions: hasNewOptions,
         edited: formGroup.dirty
       }"
@@ -12,13 +12,13 @@
     <!-- class enter-click disables the enter click on the modal behind the select -->
     <ion-select
       [interfaceOptions]="{
-        header: spec.tag.name,
-        message: spec.tag.warning | toWarningText,
+        header: spec.name,
+        message: spec.warning | toWarningText,
         cssClass: 'enter-click'
       }"
       slot="end"
       placeholder="Select"
-      [formControlName]="spec.tag.id"
+      [formControlName]="unionSelectKey"
       [selectedText]="variantName"
       (ionChange)="updateUnion($event)"
     >
@@ -26,7 +26,7 @@
         *ngFor="let option of spec.variants | keyvalue"
         [value]="option.key"
       >
-        {{ spec.tag['variant-names'][option.key] }}
+        {{ spec.variants[option.key].name }}
       </ion-select-option>
     </ion-select>
   </ion-item-divider>
