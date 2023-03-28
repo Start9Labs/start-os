@@ -1,4 +1,4 @@
-import { DefaultString } from 'start-sdk/types/config-types'
+import { DefaultString } from 'start-sdk/lib/config/config-types'
 
 export class Range {
   min?: number
