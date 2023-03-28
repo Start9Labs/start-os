@@ -31,11 +31,14 @@
     [selectedText]="
       spec.type === 'multiselect' && control.value?.length > 1
         ? '[' + control.value.length + ' selected]'
-        : spec['value-names'][control.value]
+        : spec.values[control.value]
     "
   >
-    <ion-select-option *ngFor="let option of spec.values" [value]="option">
-      {{ spec['value-names'][option] }}
+    <ion-select-option
+      *ngFor="let option of spec.values | keyvalue"
+      [value]="option.key"
+    >
+      {{ option.value }}
     </ion-select-option>
   </ion-select>
 </ion-item>
