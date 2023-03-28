@@ -93,9 +93,6 @@ export module RR {
 
   // wifi
 
-  export type SetWifiCountryReq = { country: string }
-  export type SetWifiCountryRes = null
-
   export type GetWifiReq = {}
   export type GetWifiRes = {
     ssids: {

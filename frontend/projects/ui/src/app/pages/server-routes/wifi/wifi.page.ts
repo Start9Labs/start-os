@@ -4,14 +4,13 @@ import {
   AlertController,
   ToastController,
 } from '@ionic/angular'
-import { AlertInput } from '@ionic/core'
 import { TuiDialogOptions } from '@taiga-ui/core'
+import { ToggleChangeEventDetail } from '@ionic/core'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActionSheetButton } from '@ionic/core'
 import { ValueSpecObject } from 'start-sdk/lib/config/configTypes'
 import { RR } from 'src/app/services/api/api.types'
 import { pauseFor, ErrorToastService } from '@start9labs/shared'
-import { ConfigService } from 'src/app/services/config.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { FormContext, FormPage } from 'src/app/modals/form/form.page'
 import { LoadingService } from 'src/app/modals/loading/loading.service'
@@ -20,6 +19,9 @@ interface WiFiForm {
   ssid: string
   password: string
 }
+import { catchError, filter, from, Observable, Subject, switchMap, tap } from 'rxjs'
+import { PatchDB } from 'patch-db-client'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 
 @Component({
   selector: 'wifi',
@@ -27,11 +29,14 @@ interface WiFiForm {
   styleUrls: ['wifi.page.scss'],
 })
 export class WifiPage {
-  loading = true
-  wifi: RR.GetWifiRes = {} as any
-  countries = require('../../../util/countries.json') as {
-    [key: string]: string
-  }
+  readonly enabled$ = this.patch.watch$('server-info', 'wifi-enabled').pipe(
+    filter(Boolean),
+    tap(() => this.trigger$.next('')),
+  )
+  readonly trigger$ = new Subject<string>()
+  readonly wifi$ = this.trigger$.pipe(
+    switchMap(() => this.getWifi$()),
+  )
 
   constructor(
     private readonly api: ApiService,
@@ -41,75 +46,33 @@ export class WifiPage {
     private readonly formDialog: FormDialogService,
     private readonly errToast: ErrorToastService,
     private readonly actionCtrl: ActionSheetController,
-    private readonly config: ConfigService,
+    private readonly patch: PatchDB<DataModel>,
   ) {}
 
-  async ngOnInit() {
-    await this.getWifi()
-  }
+  async toggleWifi(e: ToggleChangeEventDetail) {
+    console.error(e)
+    const enabled = e.checked
+    const loader = await this.loadingCtrl.create({
+      message: enabled ? 'Enabling Wifi' : 'Disabling WiFi',
+    })
+    await loader.present()
 
-  async getWifi(timeout: number = 0): Promise<void> {
-    this.loading = true
     try {
-      this.wifi = await this.api.getWifi({}, timeout)
-      if (!this.wifi.country) {
-        await this.presentAlertCountry()
-      }
+      await this.api.enableWifi({ enabled })
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
-      this.loading = false
+      loader.dismiss()
     }
   }
 
-  async presentAlertCountry(): Promise<void> {
-    if (!this.config.isLan) {
-      const alert = await this.alertCtrl.create({
-        header: 'Cannot Complete Action',
-        message:
-          'You must be connected to your Embassy via LAN to change the country.',
-        buttons: [
-          {
-            text: 'OK',
-            role: 'cancel',
-          },
-        ],
-        cssClass: 'enter-click',
-      })
-      await alert.present()
-      return
-    }
-
-    const inputs: AlertInput[] = Object.entries(this.countries).map(
-      ([country, fullName]) => {
-        return {
-          name: fullName,
-          type: 'radio',
-          label: `${country} - ${fullName}`,
-          value: country,
-          checked: country === this.wifi.country,
-        }
-      },
+  getWifi$(): Observable<RR.GetWifiRes> {
+    return from(this.api.getWifi({}, 0)).pipe(
+      catchError((e: any) => {
+        this.errToast.present(e)
+        return []
+      }),
     )
-
-    const alert = await this.alertCtrl.create({
-      header: 'Select Country',
-      subHeader:
-        'Warning: Changing the country will delete all saved networks from the Embassy.',
-      inputs,
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
-        },
-        {
-          text: 'Save',
-          handler: (country: string) => this.setCountry(country),
-        },
-      ],
-      cssClass: 'enter-click select-warning',
-    })
-    await alert.present()
   }
 
   presentModalAdd(ssid?: string, needsPW: boolean = true) {
@@ -135,7 +98,7 @@ export class WifiPage {
     this.formDialog.open(FormPage, options)
   }
 
-  async presentAction(ssid: string) {
+  async presentAction(ssid: string, connectedSsid: string | null) {
     const buttons: ActionSheetButton[] = [
       {
         text: 'Forget',
@@ -147,7 +110,7 @@ export class WifiPage {
       },
     ]
 
-    if (ssid !== this.wifi.connected) {
+    if (ssid !== connectedSsid) {
       buttons.unshift({
         text: 'Connect',
         icon: 'wifi',
@@ -165,20 +128,6 @@ export class WifiPage {
     })
 
     await action.present()
-  }
-
-  private async setCountry(country: string): Promise<void> {
-    const loader = this.loader.open('Setting country...').subscribe()
-
-    try {
-      await this.api.setWifiCountry({ country })
-      await this.getWifi()
-      this.wifi.country = country
-    } catch (e: any) {
-      this.errToast.present(e)
-    } finally {
-      loader.unsubscribe()
-    }
   }
 
   private async confirmWifi(

@@ -385,13 +385,6 @@ export class MockApiService extends ApiService {
     return Mock.Wifi
   }
 
-  async setWifiCountry(
-    params: RR.SetWifiCountryReq,
-  ): Promise<RR.SetWifiCountryRes> {
-    await pauseFor(2000)
-    return null
-  }
-
   async addWifi(params: RR.AddWifiReq): Promise<RR.AddWifiRes> {
     await pauseFor(2000)
     return null

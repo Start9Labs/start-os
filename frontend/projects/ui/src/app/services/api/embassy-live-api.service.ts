@@ -255,12 +255,6 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'wifi.get', params, timeout })
   }
 
-  async setWifiCountry(
-    params: RR.SetWifiCountryReq,
-  ): Promise<RR.SetWifiCountryRes> {
-    return this.rpcRequest({ method: 'wifi.country.set', params })
-  }
-
   async addWifi(params: RR.AddWifiReq): Promise<RR.AddWifiRes> {
     return this.rpcRequest({ method: 'wifi.add', params })
   }
