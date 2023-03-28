@@ -1,6 +1,6 @@
 import { Component, Input, inject, Output, EventEmitter } from '@angular/core'
 import { FormControl } from '@angular/forms'
-import { ValueSpecOf } from 'start-sdk/types/config-types'
+import { ValueSpecOf } from 'start-sdk/lib/config/config-types'
 import { THEME } from '@start9labs/shared'
 
 @Component({

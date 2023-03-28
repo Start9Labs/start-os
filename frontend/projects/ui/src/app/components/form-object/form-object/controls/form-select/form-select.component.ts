@@ -1,6 +1,6 @@
 import { Component, Input } from '@angular/core'
 import { FormControl } from '@angular/forms'
-import { ValueSpecOf } from 'start-sdk/types/config-types'
+import { ValueSpecOf } from 'start-sdk/lib/config/config-types'
 
 @Component({
   selector: 'form-select',
