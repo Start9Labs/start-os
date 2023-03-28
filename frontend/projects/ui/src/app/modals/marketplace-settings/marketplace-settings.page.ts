@@ -9,7 +9,7 @@ import { ActionSheetButton } from '@ionic/core'
 import { ErrorToastService, sameUrl, toUrl } from '@start9labs/shared'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ValueSpecObject } from 'start-sdk/types/config-types'
+import { ValueSpecObject } from 'start-sdk/lib/config/config-types'
 import {
   GenericFormPage,
   GenericFormOptions,
@@ -269,7 +269,7 @@ function getMarketplaceValueSpec(): ValueSpecObject {
         nullable: false,
         masked: false,
         pattern: `https?:\/\/[a-zA-Z0-9][a-zA-Z0-9-\.]+[a-zA-Z0-9]\.[^\s]{2,}`,
-        'pattern-description': 'Must be a valid URL',
+        patternDescription: 'Must be a valid URL',
         placeholder: 'e.g. https://example.org',
         default: null,
         textarea: false,
