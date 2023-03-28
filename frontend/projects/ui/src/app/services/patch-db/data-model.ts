@@ -1,4 +1,4 @@
-import { InputSpec } from 'start-sdk/types/config-types'
+import { InputSpec } from 'start-sdk/lib/config/config-types'
 import { Url } from '@start9labs/shared'
 import { Manifest } from '@start9labs/marketplace'
 import { BasicInfo } from 'src/app/pages/developer-routes/developer-menu/form-info'

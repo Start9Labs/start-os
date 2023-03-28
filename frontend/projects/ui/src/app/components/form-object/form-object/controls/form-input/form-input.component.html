@@ -57,6 +57,6 @@
 </ion-item>
 <p class="error-message">
   <span *ngIf="control.errors as errors">
-    {{ errors | getError : $any(spec)['pattern-description'] }}
+    {{ errors | getError : $any(spec).patternDescription }}
   </span>
 </p>

@@ -8,7 +8,7 @@ import {
   SimpleChanges,
 } from '@angular/core'
 import { UntypedFormArray, UntypedFormGroup } from '@angular/forms'
-import { AlertButton, AlertController, ModalController } from '@ionic/angular'
+import { AlertButton, AlertController } from '@ionic/angular'
 import {
   InputSpec,
   ListValueSpecOf,
@@ -16,7 +16,7 @@ import {
   ValueSpecBoolean,
   ValueSpecList,
   ValueSpecUnion,
-} from 'start-sdk/types/config-types'
+} from 'start-sdk/lib/config/config-types'
 import { FormService } from 'src/app/services/form.service'
 import { THEME, pauseFor } from '@start9labs/shared'
 import { v4 } from 'uuid'
@@ -49,7 +49,6 @@ export class FormObjectComponent {
 
   constructor(
     private readonly alertCtrl: AlertController,
-    private readonly modalCtrl: ModalController,
     private readonly formService: FormService,
     @Inject(DOCUMENT) private readonly document: Document,
   ) {}
@@ -86,9 +85,7 @@ export class FormObjectComponent {
       if (spec.type === 'list' && ['object', 'union'].includes(spec.subtype)) {
         this.objectListDisplay[key] = []
         this.formGroup.get(key)?.value.forEach((obj: any, index: number) => {
-          const displayAs = (spec.spec as ListValueSpecOf<'object'>)[
-            'display-as'
-          ]
+          const displayAs = (spec.spec as ListValueSpecOf<'object'>).displayAs
           this.objectListDisplay[key][index] = {
             expanded: false,
             displayAs: displayAs
@@ -213,9 +210,7 @@ export class FormObjectComponent {
     arr.insert(index, newItem)
 
     if (['object', 'union'].includes(listSpec.subtype)) {
-      const displayAs = (listSpec.spec as ListValueSpecOf<'object'>)[
-        'display-as'
-      ]
+      const displayAs = (listSpec.spec as ListValueSpecOf<'object'>).displayAs
       this.objectListDisplay[key].push({
         expanded: false,
         displayAs: displayAs ? Mustache.render(displayAs, newItem.value) : '',

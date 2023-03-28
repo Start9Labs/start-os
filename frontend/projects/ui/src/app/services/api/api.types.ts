@@ -1,7 +1,7 @@
 import { Dump, Revision } from 'patch-db-client'
 import { MarketplacePkg, StoreInfo, Manifest } from '@start9labs/marketplace'
 import { PackagePropertiesVersioned } from 'src/app/util/properties.util'
-import { InputSpec } from 'start-sdk/types/config-types'
+import { InputSpec } from 'start-sdk/lib/config/config-types'
 import {
   DataModel,
   DependencyError,
