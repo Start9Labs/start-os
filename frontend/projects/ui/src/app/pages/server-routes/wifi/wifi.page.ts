@@ -9,7 +9,7 @@ import {
 import { AlertInput } from '@ionic/core'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActionSheetButton } from '@ionic/core'
-import { ValueSpecObject } from 'start-sdk/types/config-types'
+import { ValueSpecObject } from 'start-sdk/lib/config/config-types'
 import { RR } from 'src/app/services/api/api.types'
 import { pauseFor, ErrorToastService } from '@start9labs/shared'
 import {
@@ -361,7 +361,7 @@ function getWifiValueSpec(
         description: null,
         placeholder: null,
         pattern: null,
-        'pattern-description': null,
+        patternDescription: null,
         nullable: false,
         masked: false,
         default: ssid || null,
@@ -376,7 +376,7 @@ function getWifiValueSpec(
         nullable: !needsPW,
         masked: true,
         pattern: '^.{8,}$',
-        'pattern-description': 'Must be longer than 8 characters',
+        patternDescription: 'Must be longer than 8 characters',
         default: null,
         textarea: false,
         warning: null,

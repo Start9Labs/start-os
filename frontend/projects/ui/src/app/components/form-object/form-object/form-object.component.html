@@ -90,11 +90,9 @@
                 let i = index
               "
             >
-              <!-- object or union -->
-              <ng-container
-                *ngIf="spec.subtype === 'object' || spec.subtype === 'union'"
-              >
-                <!-- object/union label -->
+              <!-- object -->
+              <ng-container *ngIf="spec.subtype === 'object'">
+                <!-- object label -->
                 <ion-item
                   button
                   (click)="toggleExpandListObject(entry.key, i)"
@@ -137,16 +135,6 @@
                       updateLabel(entry.key, i, $any(spec.spec)['display-as'])
                     "
                   ></form-object>
-                  <form-union
-                    *ngIf="spec.subtype === 'union'"
-                    [spec]="$any(spec.spec)"
-                    [formGroup]="abstractControl"
-                    [current]="current?.[entry.key]?.[i]"
-                    [original]="original?.[entry.key]?.[i]"
-                    (onInputChange)="
-                      updateLabel(entry.key, i, $any(spec.spec)['display-as'])
-                    "
-                  ></form-union>
                   <div style="text-align: right; padding-top: 12px">
                     <ion-button
                       fill="clear"
@@ -191,7 +179,7 @@
                       $any(formGroup.get(entry.key))?.at(i)?.errors as errors
                     "
                   >
-                    {{ errors | getError : $any(spec)['pattern-description'] }}
+                    {{ errors | getError : $any(spec).patternDescription }}
                   </span>
                 </p>
               </div>
