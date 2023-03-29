@@ -53,7 +53,6 @@
     "@taiga-ui/core": "3.20.0",
     "@taiga-ui/icons": "3.20.0",
     "@taiga-ui/kit": "3.20.0",
-    "@taiga-ui/styles": "^3.14.0",
     "@tinkoff/ng-dompurify": "^4.0.0",
     "angular-svg-round-progressbar": "^9.0.0",
     "ansi-to-html": "^0.7.2",
