@@ -279,7 +279,6 @@ function getMarketplaceValueSpec(): ValueSpecObject {
         patternDescription: 'Must be a valid URL',
         placeholder: 'e.g. https://example.org',
         default: null,
-        textarea: false,
         warning: null,
       },
     },

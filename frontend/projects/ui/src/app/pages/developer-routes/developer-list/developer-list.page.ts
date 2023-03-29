@@ -229,7 +229,6 @@ const SAMPLE_CONFIG: InputSpec = {
     pattern: '^[a-zA-Z0-9! _]+$',
     patternDescription: 'Must be alphanumeric (may contain underscore).',
     default: null,
-    textarea: false,
     warning: null,
   },
   'sample-number': {
