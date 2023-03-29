@@ -25,6 +25,7 @@ import {
   ValueSpecString,
   ValueSpecUnion,
   unionSelectKey,
+  ValueSpecTextarea,
 } from 'start-sdk/lib/config/config-types'
 import { getDefaultString, Range } from '../util/config-utilities'
 const Mustache = require('mustache')
@@ -48,7 +49,7 @@ export class FormService {
   ): UntypedFormGroup {
     const { name, description, warning, variants, nullable } = spec
 
-    const enumSpec: ValueSpecSelect = {
+    const selectSpec: ValueSpecSelect = {
       type: 'select',
       name,
       description,
@@ -67,7 +68,7 @@ export class FormService {
     const selectedSpec = selection ? variants[selection].spec : {}
 
     return this.getFormGroup({
-      ['selectedVariant']: enumSpec,
+      [unionSelectKey]: selectSpec,
       ...selectedSpec,
     })
   }
@@ -111,6 +112,9 @@ export class FormService {
           value = spec.default ? getDefaultString(spec.default) : null
         }
         return this.formBuilder.control(value, stringValidators(spec))
+      case 'textarea':
+        value = currentValue || null
+        return this.formBuilder.control(value, textareaValidators(spec))
       case 'number':
         if (currentValue !== undefined) {
           value = currentValue
@@ -141,9 +145,11 @@ export class FormService {
           isValid ? currentSelection : spec.default,
         )
       case 'boolean':
-      case 'select':
         value = currentValue === undefined ? spec.default : currentValue
         return this.formBuilder.control(value)
+      case 'select':
+        value = currentValue === undefined ? spec.default : currentValue
+        return this.formBuilder.control(value, selectValidators(spec))
       case 'multiselect':
         value = currentValue === undefined ? spec.default : currentValue
         return this.formBuilder.control(value, multiselectValidators(spec))
@@ -177,6 +183,16 @@ function stringValidators(
   return validators
 }
 
+function textareaValidators(spec: ValueSpecTextarea): ValidatorFn[] {
+  const validators: ValidatorFn[] = []
+
+  if (!spec.nullable) {
+    validators.push(Validators.required)
+  }
+
+  return validators
+}
+
 function numberValidators(
   spec: ValueSpecNumber | ListValueSpecNumber,
 ): ValidatorFn[] {
@@ -193,6 +209,16 @@ function numberValidators(
   }
 
   validators.push(numberInRange(spec.range))
+
+  return validators
+}
+
+function selectValidators(spec: ValueSpecSelect): ValidatorFn[] {
+  const validators: ValidatorFn[] = []
+
+  if (!spec.nullable) {
+    validators.push(Validators.required)
+  }
 
   return validators
 }
@@ -327,6 +353,7 @@ function listItemEquals(spec: ValueSpecList, val1: any, val2: any): boolean {
 function itemEquals(spec: ValueSpec, val1: any, val2: any): boolean {
   switch (spec.type) {
     case 'string':
+    case 'textarea':
     case 'number':
     case 'boolean':
     case 'select':
@@ -513,7 +540,7 @@ export function convertValuesRecursive(
       control.setValue(
         control.value || control.value === 0 ? Number(control.value) : null,
       )
-    } else if (valueSpec.type === 'string') {
+    } else if (valueSpec.type === 'string' || valueSpec.type === 'textarea') {
       if (!control.value) control.setValue(null)
     } else if (valueSpec.type === 'object') {
       convertValuesRecursive(valueSpec.spec, group.get(key) as UntypedFormGroup)
