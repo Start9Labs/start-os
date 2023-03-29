@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { UntypedFormGroup } from '@angular/forms'
+import { AbstractControl, UntypedFormGroup } from '@angular/forms'
 import { v4 } from 'uuid'
 import { FormService } from 'src/app/services/form.service'
 import {
@@ -22,16 +22,20 @@ export class FormUnionComponent {
   @Input() current?: Record<string, any>
   @Input() original?: Record<string, any>
 
+  get unionControl(): AbstractControl | null {
+    return this.formGroup.get(unionSelectKey)
+  }
+
   get selectedVariant(): string {
-    return this.formGroup.get(unionSelectKey)?.value
+    return this.unionControl?.value || ''
   }
 
   get variantName(): string {
-    return this.spec.variants[this.selectedVariant].name
+    return this.spec.variants[this.selectedVariant]?.name || ''
   }
 
   get variantSpec(): InputSpec {
-    return this.spec.variants[this.selectedVariant].spec
+    return this.spec.variants[this.selectedVariant]?.spec || {}
   }
 
   get hasNewOptions(): boolean {
