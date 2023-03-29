@@ -1,36 +1,34 @@
-<div class="outer-container">
-  <div class="inner-container">
-    <h2 class="widget-title">Backup Status</h2>
-    <ng-container *ngIf="data$ | async as server">
-      <div class="server-vector">
-        <tui-svg
-          *ngIf="!server['status-info']['backup-progress']; else backingUp"
-          [src]="iconPath"
-          class="server-vector_icon"
-          style="--fill-color: var(--ion-color-{{ color }})"
-        ></tui-svg>
-        <ng-template #backingUp>
-          <img src="/assets/img/gifs/backing-up.gif" />
-        </ng-template>
-      </div>
-      <div
-        class="backup-detail"
-        *ngIf="
-          !server['status-info']['backup-progress'] &&
-          !server['status-info']['update-progress']
-        "
-      >
-        <p>
-          Last backup:
-          <span class="backup-detail_highlight">{{ backupDetail }}</span>
-        </p>
-      </div>
-      <span
-        *ngIf="!!server['status-info']['backup-progress']"
-        class="backup-detail_active loading-dots"
-      >
-        Backing up
-      </span>
-    </ng-container>
-  </div>
+<div class="inner-container">
+  <h2 class="widget-title">Backup Status</h2>
+  <ng-container *ngIf="data$ | async as server">
+    <div class="server-vector">
+      <tui-svg
+        *ngIf="!server['status-info']['backup-progress']; else backingUp"
+        [src]="iconPath"
+        class="server-vector_icon"
+        style="--fill-color: var(--ion-color-{{ color }})"
+      ></tui-svg>
+      <ng-template #backingUp>
+        <img src="/assets/img/gifs/backing-up.gif" />
+      </ng-template>
+    </div>
+    <div
+      class="backup-detail"
+      *ngIf="
+        !server['status-info']['backup-progress'] &&
+        !server['status-info']['update-progress']
+      "
+    >
+      <p>
+        Last backup:
+        <span class="backup-detail_highlight">{{ backupDetail }}</span>
+      </p>
+    </div>
+    <span
+      *ngIf="!!server['status-info']['backup-progress']"
+      class="backup-detail_active loading-dots"
+    >
+      Backing up
+    </span>
+  </ng-container>
 </div>
