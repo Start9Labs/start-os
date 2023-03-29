@@ -1,6 +1,6 @@
 {
-  "name": "StartOS UI",
-  "short_name": "start-os-ui",
+  "name": "StartOS",
+  "short_name": "StartOS",
   "theme_color": "#ff5b71",
   "background_color": "#1e1e1e",
   "display": "standalone",
@@ -8,8 +8,8 @@
   "start_url": "/",
   "icons": [
     {
-      "src": "projects/shared/assets/img/logo_solid.png",
-      "sizes": "48x48",
+      "src": "assets/img/logo_solid.png",
+      "sizes": "747x747",
       "type": "image/png",
       "purpose": "any"
     }
