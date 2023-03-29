@@ -10,7 +10,7 @@ import { THEME } from '@start9labs/shared'
 })
 export class FormInputComponent {
   @Input() name!: string
-  @Input() spec!: ValueSpecOf<'string' | 'number'>
+  @Input() spec!: ValueSpecOf<'string' | 'textarea' | 'number'>
   @Input() control!: FormControl
 
   @Output() onInputChange = new EventEmitter<void>()

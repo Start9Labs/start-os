@@ -9,7 +9,11 @@
       ></form-file>
       <!-- string or number -->
       <form-input
-        *ngIf="spec.type === 'string' || spec.type === 'number'"
+        *ngIf="
+          spec.type === 'string' ||
+          spec.type === 'textarea' ||
+          spec.type === 'number'
+        "
         [spec]="spec"
         [name]="entry.key"
         [control]="$any(entry.value)"
