@@ -5,7 +5,7 @@ import {
   TuiThemeNightModule,
 } from '@taiga-ui/core'
 import { HttpClientModule } from '@angular/common/http'
-import { NgModule, isDevMode } from '@angular/core'
+import { NgModule } from '@angular/core'
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
 import { IonicModule } from '@ionic/angular'
 import { MonacoEditorModule } from '@materia-ui/ngx-monaco-editor'
