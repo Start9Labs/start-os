@@ -50,11 +50,11 @@
               "projects/ui/src/styles.scss"
             ],
             "scripts": [],
-            "serviceWorker": true,
             "ngswConfigPath": "projects/ui/ngsw-config.json"
           },
           "configurations": {
             "production": {
+              "serviceWorker": true,
               "budgets": [
                 {
                   "type": "initial",

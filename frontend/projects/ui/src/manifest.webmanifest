@@ -1,6 +1,6 @@
 {
-  "name": "embassyOS UI",
-  "short_name": "eos-ui",
+  "name": "StartOS UI",
+  "short_name": "start-os-ui",
   "theme_color": "#ff5b71",
   "background_color": "#1e1e1e",
   "display": "standalone",
@@ -8,7 +8,7 @@
   "start_url": "/",
   "icons": [
     {
-      "src": "assets/icon/favicon.ico",
+      "src": "projects/shared/assets/img/logo_solid.png",
       "sizes": "48x48",
       "type": "image/png",
       "purpose": "any"
