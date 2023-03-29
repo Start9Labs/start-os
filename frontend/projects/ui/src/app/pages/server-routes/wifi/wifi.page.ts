@@ -365,7 +365,6 @@ function getWifiValueSpec(
         nullable: false,
         masked: false,
         default: ssid || null,
-        textarea: false,
         warning: null,
       },
       password: {
@@ -378,7 +377,6 @@ function getWifiValueSpec(
         pattern: '^.{8,}$',
         patternDescription: 'Must be longer than 8 characters',
         default: null,
-        textarea: false,
         warning: null,
       },
     },
