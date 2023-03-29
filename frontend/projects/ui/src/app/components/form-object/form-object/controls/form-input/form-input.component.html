@@ -9,7 +9,7 @@
 ></form-label>
 <ion-item [color]="(theme$ | async) === 'Light' ? 'light' : 'dark'">
   <ion-textarea
-    *ngIf="spec.type === 'string' && spec.textarea; else notTextArea"
+    *ngIf="spec.type === 'textarea'; else notTextArea"
     formWarning
     #warning="formWarning"
     [placeholder]="spec.placeholder"
