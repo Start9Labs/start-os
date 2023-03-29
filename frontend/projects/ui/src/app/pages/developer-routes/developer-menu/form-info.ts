@@ -30,7 +30,6 @@ export function getBasicInfoSpec(devData: DevProjectData): InputSpec {
       pattern: '^([a-z][a-z0-9]*)(-[a-z0-9]+)*$',
       patternDescription: 'Must be kebab case',
       default: basicInfo?.id || '',
-      textarea: false,
       warning: null,
     },
     title: {
@@ -43,7 +42,6 @@ export function getBasicInfoSpec(devData: DevProjectData): InputSpec {
       pattern: null,
       patternDescription: null,
       default: basicInfo ? basicInfo.title : devData.name,
-      textarea: false,
       warning: null,
     },
     'service-version-number': {
@@ -57,7 +55,6 @@ export function getBasicInfoSpec(devData: DevProjectData): InputSpec {
       pattern: '^([0-9]+).([0-9]+).([0-9]+).([0-9]+)$',
       patternDescription: 'Must be valid Emver version',
       default: basicInfo?.['service-version-number'] || '',
-      textarea: false,
       warning: null,
     },
     description: {
@@ -74,23 +71,17 @@ export function getBasicInfoSpec(devData: DevProjectData): InputSpec {
           placeholder: null,
           nullable: false,
           masked: false,
-          textarea: true,
           default: basicInfo?.description?.short || '',
           pattern: '^.{1,320}$',
           patternDescription: 'Must be shorter than 320 characters',
           warning: null,
         },
         long: {
-          type: 'string',
+          type: 'textarea',
           name: 'Long Description',
           description: `This description will display with additional details in the service's individual marketplace page`,
           placeholder: null,
           nullable: false,
-          masked: false,
-          textarea: true,
-          default: basicInfo?.description?.long || '',
-          pattern: '^.{1,5000}$',
-          patternDescription: 'Must be shorter than 5000 characters',
           warning: null,
         },
       },
@@ -105,7 +96,6 @@ export function getBasicInfoSpec(devData: DevProjectData): InputSpec {
       masked: false,
       pattern: null,
       patternDescription: null,
-      textarea: true,
       default: basicInfo?.['release-notes'] || '',
       warning: null,
     },
@@ -139,7 +129,6 @@ export function getBasicInfoSpec(devData: DevProjectData): InputSpec {
       nullable: false,
       masked: false,
       default: basicInfo?.['wrapper-repo'] || '',
-      textarea: false,
       warning: null,
     },
     'upstream-repo': {
@@ -152,7 +141,6 @@ export function getBasicInfoSpec(devData: DevProjectData): InputSpec {
       nullable: true,
       masked: false,
       default: basicInfo?.['upstream-repo'] || '',
-      textarea: false,
       warning: null,
     },
     'support-site': {
@@ -165,7 +153,6 @@ export function getBasicInfoSpec(devData: DevProjectData): InputSpec {
       nullable: true,
       masked: false,
       default: basicInfo?.['support-site'] || '',
-      textarea: false,
       warning: null,
     },
     'marketing-site': {
@@ -178,7 +165,6 @@ export function getBasicInfoSpec(devData: DevProjectData): InputSpec {
       nullable: true,
       masked: false,
       default: basicInfo?.['marketing-site'] || '',
-      textarea: false,
       warning: null,
     },
   }

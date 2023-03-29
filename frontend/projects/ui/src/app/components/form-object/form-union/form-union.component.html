@@ -30,6 +30,11 @@
       </ion-select-option>
     </ion-select>
   </ion-item-divider>
+  <p class="error-message">
+    <span *ngIf="unionControl?.errors as errors">
+      {{ errors | getError }}
+    </span>
+  </p>
 
   <tui-elastic-container [id]="objectId | toElementId : 'union'" class="indent">
     <form-object

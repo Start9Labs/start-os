@@ -286,7 +286,6 @@ const CifsSpec: InputSpec = {
     nullable: false,
     masked: false,
     default: null,
-    textarea: false,
     warning: null,
   },
   path: {
@@ -299,7 +298,6 @@ const CifsSpec: InputSpec = {
     nullable: false,
     masked: false,
     default: null,
-    textarea: false,
     warning: null,
   },
   username: {
@@ -312,7 +310,6 @@ const CifsSpec: InputSpec = {
     nullable: false,
     masked: false,
     default: null,
-    textarea: false,
     warning: null,
   },
   password: {
@@ -325,7 +322,6 @@ const CifsSpec: InputSpec = {
     nullable: true,
     masked: true,
     default: null,
-    textarea: false,
     warning: null,
   },
 }
