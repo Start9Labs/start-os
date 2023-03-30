@@ -64,7 +64,6 @@ export class WifiPage {
   constructor(
     private readonly api: ApiService,
     private readonly toastCtrl: ToastController,
-    private readonly alertCtrl: AlertController,
     private readonly loader: LoadingService,
     private readonly formDialog: FormDialogService,
     private readonly errToast: ErrorToastService,
@@ -75,27 +74,15 @@ export class WifiPage {
 
   async toggleWifi(e: ToggleCustomEvent) {
     const enable = e.detail.checked
-    const loader = await this.loadingCtrl.create({
-      message: enable ? 'Enabling Wifi' : 'Disabling WiFi',
-    })
-    await loader.present()
+    const loader = this.loader.open(enable ? 'Enabling Wifi' : 'Disabling WiFi').subscribe()
 
     try {
       await this.api.enableWifi({ enable })
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
-  }
-
-  getWifi$(): Observable<RR.GetWifiRes> {
-    return from(this.api.getWifi({}, 0)).pipe(
-      catchError((e: any) => {
-        this.errToast.present(e)
-        return []
-      }),
-    )
   }
 
   presentModalAdd(ssid?: string, needsPW: boolean = true) {
@@ -162,21 +149,24 @@ export class WifiPage {
     )
   }
 
-  private async presentAlertSuccess(ssid: string): Promise<void> {
-    const alert = await this.alertCtrl.create({
-      header: `Connected to "${ssid}"`,
-      message:
-        'Note. It may take several minutes to an hour for your Embassy to reconnect over Tor.',
+  private async presentToastSuccess(): Promise<void> {
+    const toast = await this.toastCtrl.create({
+      header: 'Connection successful!',
+      position: 'bottom',
+      duration: 4000,
       buttons: [
         {
-          text: 'Ok',
-          role: 'cancel',
-          cssClass: 'enter-click',
+          side: 'start',
+          icon: 'close',
+          handler: () => {
+            return true
+          },
         },
       ],
+      cssClass: 'success-toast',
     })
 
-    await alert.present()
+    await toast.present()
   }
 
   private async presentToastFail(): Promise<void> {
@@ -297,7 +287,7 @@ export class WifiPage {
         const end = new Date().valueOf()
         if (newWifi.connected === ssid) {
           this.localChanges$.next(newWifi)
-          this.presentAlertSuccess(ssid)
+          this.presentToastSuccess()
           break
         } else {
           attempts++

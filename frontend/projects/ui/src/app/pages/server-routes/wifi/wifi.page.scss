@@ -1,7 +1,32 @@
+.smaller {
+  padding: 32px;
+  max-width: 800px;
+}
+
+.min-padding {
+  padding-right: 2px;
+}
+
 .skeleton-parts {
   ion-button::part(native) {
     padding-inline-start: 0;
     padding-inline-end: 0;
   };
   padding-bottom: 6px;
+}
+
+ion-item-divider {
+  text-transform: unset;
+  padding-bottom: 12px;
+  padding-left: 0;
+}
+
+ion-item-group {
+  background-color: #1e2024;
+  border: 1px solid #717171;
+  border-radius: 6px;
+}
+
+ion-item {
+  --background: #1e2024;
 }

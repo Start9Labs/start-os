@@ -4,51 +4,45 @@
       <ion-back-button defaultHref="system"></ion-back-button>
     </ion-buttons>
     <ion-title>WiFi Settings</ion-title>
-    <ion-buttons slot="end">
-      <ion-button (click)="trigger$.next('')">
-        Refresh
-        <ion-icon slot="end" name="refresh"></ion-icon>
-      </ion-button>
-    </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
-<ion-content class="ion-padding-top with-widgets">
-  <ion-item-group>
-    <!-- always -->
-    <ion-item>
-      <ion-label>
-        <h2>
-          Adding WiFi credentials to your Embassy allows you to remove the
-          Ethernet cable and move the device anywhere you want. Embassy will
-          automatically connect to available networks.
-          <a
-            href="https://docs.start9.com/latest/user-manual/wifi"
-            target="_blank"
-            rel="noreferrer"
-          >
-            View instructions
-          </a>
-        </h2>
-      </ion-label>
-    </ion-item>
-
-    <ng-container *ngIf="{ enabled: enabled$ | async } as context">
+<ion-content class="with-widgets">
+  <div class="smaller" *ngIf="{ enabled: enabled$ | async } as context">
+    <ion-item-group>
       <ion-item>
-        <ion-label>Enable WiFi</ion-label>
+        <ion-label>
+          <h2>
+            Adding WiFi credentials to your Embassy allows you to remove the
+            Ethernet cable and move the device anywhere you want. Embassy will
+            automatically connect to available networks.
+            <a
+              href="https://docs.start9.com/latest/user-manual/wifi"
+              target="_blank"
+              rel="noreferrer"
+            >
+              View instructions
+            </a>
+          </h2>
+        </ion-label>
+      </ion-item>
+      <ion-item>
+        <ion-label>Wi-Fi</ion-label>
         <ion-toggle
           slot="end"
           [checked]="context.enabled"
           (ionChange)="toggleWifi($any($event))"
         ></ion-toggle>
       </ion-item>
+    </ion-item-group>
 
-      <ng-container *ngIf="context.enabled">
-        <ng-container *ngIf="wifi$ | async as wifi; else loading">
-          <!-- saved networks -->
-          <ion-item-divider *ngIf="!(wifi.ssids | empty)">
-            Saved Networks
-          </ion-item-divider>
+    <ng-container *ngIf="context.enabled">
+      <ng-container *ngIf="wifi$ | async as wifi; else loading">
+        <!-- known networks -->
+        <ion-item-divider *ngIf="!(wifi.ssids | empty)">
+          Known Networks
+        </ion-item-divider>
+        <ion-item-group>
           <ion-item
             button
             detail="false"
@@ -58,14 +52,14 @@
             <div
               *ngIf="ssid.key !== wifi.connected"
               slot="start"
-              style="padding-right: 32px"
+              class="min-padding"
             ></div>
             <ion-icon
               *ngIf="ssid.key === wifi.connected"
               slot="start"
-              size="large"
               name="checkmark"
               color="success"
+              style="margin-right: 10px"
             ></ion-icon>
             <ion-label>{{ ssid.key }}</ion-label>
             <img
@@ -93,8 +87,10 @@
               style="max-width: 32px"
             />
           </ion-item>
-          <!-- available networks -->
-          <ion-item-divider>Available Networks</ion-item-divider>
+        </ion-item-group>
+        <!-- available networks -->
+        <ion-item-divider>Available Networks</ion-item-divider>
+        <ion-item-group>
           <ng-container *ngFor="let avWifi of wifi['available-wifi']">
             <ion-item
               button
@@ -102,6 +98,7 @@
               (click)="presentModalAdd(wifi, avWifi.ssid, !!avWifi.security.length)"
               *ngIf="avWifi.ssid"
             >
+              <div slot="start" class="min-padding"></div>
               <ion-label>{{ avWifi.ssid }}</ion-label>
               <img
                 *ngIf="avWifi.strength < 5"
@@ -129,49 +126,34 @@
               />
             </ion-item>
           </ng-container>
-          <ion-item button detail="false" (click)="presentModalAdd(wifi)">
-            <ion-icon slot="start" name="add" color="dark"></ion-icon>
-            <ion-label>
-              <b>Join Another Network</b>
-            </ion-label>
-          </ion-item>
-        </ng-container>
-
-        <!-- loading  -->
-        <ng-template #loading>
-          <ion-item-divider>Saved Networks</ion-item-divider>
-          <ion-item *ngFor="let entry of ['', '']" class="skeleton-parts">
-            <ion-button slot="start" fill="clear">
-              <ion-skeleton-text
-                animated
-                style="width: 30px; height: 30px; border-radius: 0"
-              ></ion-skeleton-text>
-            </ion-button>
-            <ion-label>
-              <ion-skeleton-text
-                animated
-                style="width: 18%"
-              ></ion-skeleton-text>
-            </ion-label>
-          </ion-item>
-
-          <ion-item-divider>Available Networks</ion-item-divider>
-          <ion-item *ngFor="let entry of ['', '']" class="skeleton-parts">
-            <ion-button slot="start" fill="clear">
-              <ion-skeleton-text
-                animated
-                style="width: 30px; height: 30px; border-radius: 0"
-              ></ion-skeleton-text>
-            </ion-button>
-            <ion-label>
-              <ion-skeleton-text
-                animated
-                style="width: 18%"
-              ></ion-skeleton-text>
-            </ion-label>
-          </ion-item>
-        </ng-template>
+        </ion-item-group>
+        <div class="ion-text-end ion-padding-top">
+          <ion-button
+            (click)="presentModalAdd(wifi)"
+            size="small"
+            color="dark"
+            strong
+          >
+            Other...
+          </ion-button>
+        </div>
       </ng-container>
+
+      <!-- loading  -->
+      <ng-template #loading>
+        <ion-item-divider></ion-item-divider>
+        <ion-item *ngFor="let entry of ['', '', '']" class="skeleton-parts">
+          <ion-button slot="start" fill="clear">
+            <ion-skeleton-text
+              animated
+              style="width: 30px; height: 30px; border-radius: 0"
+            ></ion-skeleton-text>
+          </ion-button>
+          <ion-label>
+            <ion-skeleton-text animated style="width: 18%"></ion-skeleton-text>
+          </ion-label>
+        </ion-item>
+      </ng-template>
     </ng-container>
-  </ion-item-group>
+  </div>
 </ion-content>
