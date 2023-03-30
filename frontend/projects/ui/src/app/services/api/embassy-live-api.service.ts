@@ -248,6 +248,10 @@ export class LiveApiService extends ApiService {
 
   // wifi
 
+  async enableWifi(params: RR.EnableWifiReq): Promise<RR.EnableWifiRes> {
+    return this.rpcRequest({ method: 'wifi.enable', params })
+  }
+
   async getWifi(
     params: RR.GetWifiReq,
     timeout?: number,

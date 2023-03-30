@@ -113,6 +113,9 @@ export module RR {
   }
   export type AddWifiRes = null
 
+  export type EnableWifiReq = { enable: boolean } // wifi.enable
+  export type EnableWifiRes = null
+
   export type ConnectWifiReq = { ssid: string } // wifi.connect
   export type ConnectWifiRes = null
 

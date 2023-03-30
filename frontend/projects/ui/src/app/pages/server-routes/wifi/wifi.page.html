@@ -26,147 +26,152 @@
             href="https://docs.start9.com/latest/user-manual/wifi"
             target="_blank"
             rel="noreferrer"
-            >View instructions</a
           >
+            View instructions
+          </a>
         </h2>
       </ion-label>
     </ion-item>
 
-    <ion-item-divider></ion-item-divider>
-
     <ng-container *ngIf="{ enabled: enabled$ | async } as context">
       <ion-item>
-        <ion-label>
-          Enable WiFi
-        </ion-label>
-        <ion-toggle slot="end" [checked]="context.enabled" (ionChange)="toggleWifi($any($event))"></ion-toggle>
+        <ion-label>Enable WiFi</ion-label>
+        <ion-toggle
+          slot="end"
+          [checked]="context.enabled"
+          (ionChange)="toggleWifi($any($event))"
+        ></ion-toggle>
       </ion-item>
 
-      <ng-container *ngIf="context.enabled && wifi$ | async as wifi">
+      <ng-container *ngIf="context.enabled">
         <ng-container *ngIf="wifi$ | async as wifi; else loading">
           <!-- saved networks -->
-          <ng-container *ngIf="!loading && wifi.country">
-            <ion-item-divider *ngIf="!(wifi.ssids | empty)"
-              >Saved Networks</ion-item-divider
-            >
+          <ion-item-divider *ngIf="!(wifi.ssids | empty)">
+            Saved Networks
+          </ion-item-divider>
+          <ion-item
+            button
+            detail="false"
+            *ngFor="let ssid of wifi.ssids | keyvalue"
+            (click)="presentAction(ssid.key, wifi)"
+          >
+            <div
+              *ngIf="ssid.key !== wifi.connected"
+              slot="start"
+              style="padding-right: 32px"
+            ></div>
+            <ion-icon
+              *ngIf="ssid.key === wifi.connected"
+              slot="start"
+              size="large"
+              name="checkmark"
+              color="success"
+            ></ion-icon>
+            <ion-label>{{ ssid.key }}</ion-label>
+            <img
+              *ngIf="ssid.value >= 0 && ssid.value < 5"
+              slot="end"
+              src="assets/img/icons/wifi-0.png"
+              style="max-width: 32px"
+            />
+            <img
+              *ngIf="ssid.value >= 5 && ssid.value < 50"
+              slot="end"
+              src="assets/img/icons/wifi-1.png"
+              style="max-width: 32px"
+            />
+            <img
+              *ngIf="ssid.value >= 50 && ssid.value < 90"
+              slot="end"
+              src="assets/img/icons/wifi-2.png"
+              style="max-width: 32px"
+            />
+            <img
+              *ngIf="ssid.value >= 90"
+              slot="end"
+              src="assets/img/icons/wifi-3.png"
+              style="max-width: 32px"
+            />
+          </ion-item>
+          <!-- available networks -->
+          <ion-item-divider>Available Networks</ion-item-divider>
+          <ng-container *ngFor="let avWifi of wifi['available-wifi']">
             <ion-item
               button
               detail="false"
-              *ngFor="let ssid of wifi.ssids | keyvalue"
-              (click)="presentAction(ssid.key, wifi.connected)"
+              (click)="presentModalAdd(wifi, avWifi.ssid, !!avWifi.security.length)"
+              *ngIf="avWifi.ssid"
             >
-              <div
-                *ngIf="ssid.key !== wifi.connected"
-                slot="start"
-                style="padding-right: 32px"
-              ></div>
-              <ion-icon
-                *ngIf="ssid.key === wifi.connected"
-                slot="start"
-                size="large"
-                name="checkmark"
-                color="success"
-              ></ion-icon>
-              <ion-label>{{ ssid.key }}</ion-label>
+              <ion-label>{{ avWifi.ssid }}</ion-label>
               <img
-                *ngIf="ssid.value >= 0 && ssid.value < 5"
-                slot="end"
-                src="assets/img/icons/wifi-0.png"
-                style="max-width: 32px"
-              />
-              <img
-                *ngIf="ssid.value >= 5 && ssid.value < 50"
+                *ngIf="avWifi.strength < 5"
                 slot="end"
                 src="assets/img/icons/wifi-1.png"
                 style="max-width: 32px"
               />
               <img
-                *ngIf="ssid.value >= 50 && ssid.value < 90"
+                *ngIf="avWifi.strength >= 5 && avWifi.strength < 50"
+                slot="end"
+                src="assets/img/icons/wifi-1.png"
+                style="max-width: 32px"
+              />
+              <img
+                *ngIf="avWifi.strength >= 50 && avWifi.strength < 90"
                 slot="end"
                 src="assets/img/icons/wifi-2.png"
                 style="max-width: 32px"
               />
               <img
-                *ngIf="ssid.value >= 90"
+                *ngIf="avWifi.strength >= 90"
                 slot="end"
                 src="assets/img/icons/wifi-3.png"
                 style="max-width: 32px"
               />
             </ion-item>
-            <!-- available networks -->
-            <ion-item-divider>Available Networks</ion-item-divider>
-            <ng-container *ngFor="let avWifi of wifi['available-wifi']">
-              <ion-item
-                button
-                detail="false"
-                (click)="presentModalAdd(avWifi.ssid, !!avWifi.security.length)"
-                *ngIf="avWifi.ssid"
-              >
-                <ion-label>{{ avWifi.ssid }}</ion-label>
-                <img
-                  *ngIf="avWifi.strength < 5"
-                  slot="end"
-                  src="assets/img/icons/wifi-1.png"
-                  style="max-width: 32px"
-                />
-                <img
-                  *ngIf="avWifi.strength >= 5 && avWifi.strength < 50"
-                  slot="end"
-                  src="assets/img/icons/wifi-1.png"
-                  style="max-width: 32px"
-                />
-                <img
-                  *ngIf="avWifi.strength >= 50 && avWifi.strength < 90"
-                  slot="end"
-                  src="assets/img/icons/wifi-2.png"
-                  style="max-width: 32px"
-                />
-                <img
-                  *ngIf="avWifi.strength >= 90"
-                  slot="end"
-                  src="assets/img/icons/wifi-3.png"
-                  style="max-width: 32px"
-                />
-              </ion-item>
-            </ng-container>
-            <ion-item button detail="false" (click)="presentModalAdd()">
-              <ion-icon slot="start" name="add" color="dark"></ion-icon>
-              <ion-label>
-                <b>Join Another Network</b>
-              </ion-label>
-            </ion-item>
           </ng-container>
+          <ion-item button detail="false" (click)="presentModalAdd(wifi)">
+            <ion-icon slot="start" name="add" color="dark"></ion-icon>
+            <ion-label>
+              <b>Join Another Network</b>
+            </ion-label>
+          </ion-item>
         </ng-container>
+
+        <!-- loading  -->
+        <ng-template #loading>
+          <ion-item-divider>Saved Networks</ion-item-divider>
+          <ion-item *ngFor="let entry of ['', '']" class="skeleton-parts">
+            <ion-button slot="start" fill="clear">
+              <ion-skeleton-text
+                animated
+                style="width: 30px; height: 30px; border-radius: 0"
+              ></ion-skeleton-text>
+            </ion-button>
+            <ion-label>
+              <ion-skeleton-text
+                animated
+                style="width: 18%"
+              ></ion-skeleton-text>
+            </ion-label>
+          </ion-item>
+
+          <ion-item-divider>Available Networks</ion-item-divider>
+          <ion-item *ngFor="let entry of ['', '']" class="skeleton-parts">
+            <ion-button slot="start" fill="clear">
+              <ion-skeleton-text
+                animated
+                style="width: 30px; height: 30px; border-radius: 0"
+              ></ion-skeleton-text>
+            </ion-button>
+            <ion-label>
+              <ion-skeleton-text
+                animated
+                style="width: 18%"
+              ></ion-skeleton-text>
+            </ion-label>
+          </ion-item>
+        </ng-template>
       </ng-container>
-  
-      <!-- loading  -->
-      <ng-template #loading>
-        <ion-item-divider>Saved Networks</ion-item-divider>
-        <ion-item *ngFor="let entry of ['', '']" class="skeleton-parts">
-          <ion-button slot="start" fill="clear">
-            <ion-skeleton-text
-              animated
-              style="width: 30px; height: 30px; border-radius: 0"
-            ></ion-skeleton-text>
-          </ion-button>
-          <ion-label>
-            <ion-skeleton-text animated style="width: 18%"></ion-skeleton-text>
-          </ion-label>
-        </ion-item>
-  
-        <ion-item-divider>Available Networks</ion-item-divider>
-        <ion-item *ngFor="let entry of ['', '']" class="skeleton-parts">
-          <ion-button slot="start" fill="clear">
-            <ion-skeleton-text
-              animated
-              style="width: 30px; height: 30px; border-radius: 0"
-            ></ion-skeleton-text>
-          </ion-button>
-          <ion-label>
-            <ion-skeleton-text animated style="width: 18%"></ion-skeleton-text>
-          </ion-label>
-        </ion-item>
-      </ng-template>
     </ng-container>
   </ion-item-group>
 </ion-content>
