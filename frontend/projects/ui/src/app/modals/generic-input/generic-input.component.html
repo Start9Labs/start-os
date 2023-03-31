@@ -53,11 +53,11 @@
       </div>
 
       <div class="ion-text-right">
-        <ion-button fill="clear" (click)="cancel()"> Cancel </ion-button>
+        <ion-button fill="clear" (click)="cancel()">Cancel</ion-button>
         <ion-button
           fill="clear"
           type="submit"
-          [disabled]="!value && !options.nullable"
+          [disabled]="!value && !options.required"
         >
           {{ options.buttonText }}
         </ion-button>
