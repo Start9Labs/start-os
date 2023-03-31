@@ -6,10 +6,11 @@
   "display": "standalone",
   "scope": ".",
   "start_url": "/",
+  "id": "/",
   "icons": [
     {
       "src": "assets/img/logo_solid.png",
-      "sizes": "747x747",
+      "sizes": "256x256",
       "type": "image/png",
       "purpose": "any"
     }
