@@ -4,7 +4,7 @@
     name: spec.name,
     description: spec.description,
     edited: control.dirty,
-    required: !spec.nullable
+    required: spec.required
   }"
 ></form-label>
 <ion-item [color]="(theme$ | async) === 'Light' ? 'light' : 'dark'">
