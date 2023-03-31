@@ -657,6 +657,7 @@ export module Mock {
     data: {
       lndconnect: {
         type: 'string',
+        inputmode: 'text',
         description: 'This is some information about the thing.',
         copyable: true,
         qr: true,
@@ -670,6 +671,7 @@ export module Mock {
         value: {
           'Last Name': {
             type: 'string',
+            inputmode: 'text',
             description: 'The last name of the user',
             copyable: true,
             qr: true,
@@ -678,6 +680,7 @@ export module Mock {
           },
           Age: {
             type: 'string',
+            inputmode: 'text',
             description: 'The age of the user',
             copyable: false,
             qr: false,
@@ -686,6 +689,7 @@ export module Mock {
           },
           Password: {
             type: 'string',
+            inputmode: 'text',
             description: 'A secret password',
             copyable: true,
             qr: false,
@@ -696,6 +700,7 @@ export module Mock {
       },
       'Another Value': {
         type: 'string',
+        inputmode: 'text',
         description: 'Some more information about the service.',
         copyable: false,
         qr: true,
@@ -720,7 +725,7 @@ export module Mock {
             '<p>The Bitcoin Core node to connect to over the peer-to-peer (P2P) interface:</p><ul><li><strong>Bitcoin Core</strong>: The Bitcoin Core service installed on this device</li><li><strong>External Node</strong>: A Bitcoin node running on a different device</li></ul>',
           warning: null,
           default: null,
-          nullable: false,
+          required: true,
           variants: {
             internal: { name: 'Internal', spec: {} },
             external: {
@@ -728,9 +733,10 @@ export module Mock {
               spec: {
                 'p2p-host': {
                   type: 'string',
+                  inputmode: 'text',
                   name: 'Public Address',
                   description: 'The public address of your Bitcoin Core server',
-                  nullable: false,
+                  required: true,
                   masked: false,
                   placeholder: null,
                   pattern: null,
@@ -740,10 +746,11 @@ export module Mock {
                 },
                 'p2p-port': {
                   type: 'number',
+                  inputmode: 'numeric',
                   name: 'P2P Port',
                   description:
                     'The port that your Bitcoin Core P2P server is bound to',
-                  nullable: false,
+                  required: true,
                   range: '[0,65535]',
                   integral: true,
                   default: 8333,
@@ -773,10 +780,11 @@ export module Mock {
             rpcuser2: {
               name: 'RPC Username',
               type: 'string',
+              inputmode: 'text',
               description: 'rpc username',
               warning: null,
               placeholder: null,
-              nullable: false,
+              required: true,
               default: 'defaultrpcusername',
               pattern: '^[a-zA-Z]+$',
               patternDescription: 'must contain only letters.',
@@ -785,10 +793,11 @@ export module Mock {
             rpcuser: {
               name: 'RPC Username',
               type: 'string',
+              inputmode: 'text',
               description: 'rpc username',
               warning: null,
               placeholder: null,
-              nullable: false,
+              required: true,
               default: 'defaultrpcusername',
               pattern: '^[a-zA-Z]+$',
               patternDescription: 'must contain only letters.',
@@ -797,10 +806,11 @@ export module Mock {
             rpcpass: {
               name: 'RPC User Password',
               type: 'string',
+              inputmode: 'text',
               description: 'rpc password',
               placeholder: null,
               warning: null,
-              nullable: false,
+              required: true,
               default: {
                 charset: 'a-z,A-Z,2-9',
                 len: 20,
@@ -812,10 +822,11 @@ export module Mock {
             rpcpass2: {
               name: 'RPC User Password',
               type: 'string',
+              inputmode: 'text',
               description: 'rpc password',
               warning: null,
               placeholder: null,
-              nullable: false,
+              required: true,
               default: {
                 charset: 'a-z,A-Z,2-9',
                 len: 20,
@@ -834,7 +845,7 @@ export module Mock {
       description: 'Your personal bio',
       placeholder: 'Tell the world about yourself',
       warning: null,
-      nullable: true,
+      required: false,
     },
     testnet: {
       name: 'Testnet',
@@ -849,7 +860,7 @@ export module Mock {
       type: 'file',
       description: 'A file we need',
       warning: 'Testing warning',
-      nullable: false,
+      required: true,
       extensions: ['.png'],
     },
     'object-list': {
@@ -880,8 +891,9 @@ export module Mock {
           'first-name': {
             name: 'First Name',
             type: 'string',
+            inputmode: 'text',
             description: 'User first name',
-            nullable: true,
+            required: false,
             masked: false,
             placeholder: null,
             pattern: null,
@@ -892,8 +904,9 @@ export module Mock {
           'last-name': {
             name: 'Last Name',
             type: 'string',
+            inputmode: 'text',
             description: 'User first name',
-            nullable: true,
+            required: false,
             default: {
               charset: 'a-g,2-9',
               len: 12,
@@ -906,9 +919,10 @@ export module Mock {
           },
           age: {
             name: 'Age',
+            inputmode: 'numeric',
             type: 'number',
             description: 'The age of the user',
-            nullable: true,
+            required: false,
             integral: false,
             warning: 'User must be at least 18.',
             range: '[18,*)',
@@ -930,7 +944,7 @@ export module Mock {
       default: 'sup',
       description: 'This is not even real.',
       warning: 'Be careful changing this!',
-      nullable: false,
+      required: true,
     },
     notifications: {
       name: 'Notification Preferences',
@@ -949,13 +963,14 @@ export module Mock {
     },
     'favorite-number': {
       name: 'Favorite Number',
+      inputmode: 'decimal',
       type: 'number',
       integral: false,
       description: 'Your favorite number of all time',
       placeholder: null,
       warning:
         'Once you set this number, it can never be changed without severe consequences.',
-      nullable: true,
+      required: false,
       default: 7,
       range: '(-100,100]',
       units: 'BTC',
@@ -967,6 +982,7 @@ export module Mock {
       description: 'Numbers that you like but are not your top favorite.',
       warning: null,
       spec: {
+        inputmode: 'decimal',
         integral: false,
         range: '[-100,200)',
         units: null,
@@ -990,8 +1006,9 @@ export module Mock {
             law1: {
               name: 'First Law',
               type: 'string',
+              inputmode: 'text',
               description: 'the first law',
-              nullable: true,
+              required: false,
               masked: false,
               placeholder: null,
               pattern: null,
@@ -1002,8 +1019,9 @@ export module Mock {
             law2: {
               name: 'Second Law',
               type: 'string',
+              inputmode: 'text',
               description: 'the second law',
-              nullable: true,
+              required: false,
               masked: false,
               placeholder: null,
               pattern: null,
@@ -1028,8 +1046,9 @@ export module Mock {
               rulemakername: {
                 name: 'Rulemaker Name',
                 type: 'string',
+                inputmode: 'text',
                 description: 'the name of the rule maker',
-                nullable: false,
+                required: true,
                 default: {
                   charset: 'a-g,2-9',
                   len: 12,
@@ -1043,8 +1062,9 @@ export module Mock {
               rulemakerip: {
                 name: 'Rulemaker IP',
                 type: 'string',
+                inputmode: 'text',
                 description: 'the ip of the rule maker',
-                nullable: false,
+                required: true,
                 default: '192.168.1.0',
                 pattern:
                   '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$',
@@ -1059,8 +1079,9 @@ export module Mock {
         rpcuser: {
           name: 'RPC Username',
           type: 'string',
+          inputmode: 'text',
           description: 'rpc username',
-          nullable: false,
+          required: true,
           default: 'defaultrpcusername',
           pattern: '^[a-zA-Z]+$',
           patternDescription: 'must contain only letters.',
@@ -1071,8 +1092,9 @@ export module Mock {
         rpcpass: {
           name: 'RPC User Password',
           type: 'string',
+          inputmode: 'text',
           description: 'rpc password',
-          nullable: false,
+          required: true,
           default: {
             charset: 'a-z,A-Z,2-9',
             len: 20,
@@ -1091,7 +1113,7 @@ export module Mock {
       name: 'Bitcoin Node Settings',
       description: 'Options<ul><li>Item 1</li><li>Item 2</li></ul>',
       warning: 'Careful changing this',
-      nullable: false,
+      required: true,
       variants: {
         internal: { name: 'Internal', spec: {} },
         external: {
@@ -1105,9 +1127,10 @@ export module Mock {
               spec: {
                 name: {
                   type: 'string',
+                  inputmode: 'text',
                   name: 'Name',
                   description: null,
-                  nullable: false,
+                  required: true,
                   masked: false,
                   pattern: '^[a-zA-Z]+$',
                   patternDescription: 'Must contain only letters.',
@@ -1117,9 +1140,10 @@ export module Mock {
                 },
                 email: {
                   type: 'string',
+                  inputmode: 'text',
                   name: 'Email',
                   description: null,
-                  nullable: false,
+                  required: true,
                   masked: false,
                   placeholder: null,
                   pattern: null,
@@ -1132,8 +1156,9 @@ export module Mock {
             'public-domain': {
               name: 'Public Domain',
               type: 'string',
+              inputmode: 'text',
               description: 'the public address of the node',
-              nullable: false,
+              required: true,
               default: 'bitcoinnode.com',
               pattern: '.*',
               patternDescription: 'anything',
@@ -1144,8 +1169,9 @@ export module Mock {
             'private-domain': {
               name: 'Private Domain',
               type: 'string',
+              inputmode: 'text',
               description: 'the private address of the node',
-              nullable: false,
+              required: true,
               masked: true,
               placeholder: null,
               pattern: null,
@@ -1159,12 +1185,13 @@ export module Mock {
     },
     port: {
       name: 'Port',
+      inputmode: 'numeric',
       type: 'number',
       integral: true,
       description:
         'the default port for your Bitcoin node. default: 8333, testnet: 18333, regtest: 18444',
       warning: null,
-      nullable: false,
+      required: true,
       default: 8333,
       range: '(0, 9998]',
       units: null,
@@ -1173,9 +1200,10 @@ export module Mock {
     'favorite-slogan': {
       name: 'Favorite Slogan',
       type: 'string',
+      inputmode: 'text',
       description:
         'You most favorite slogan in the whole world, used for paying you.',
-      nullable: true,
+      required: false,
       masked: true,
       placeholder: null,
       pattern: null,
@@ -1194,6 +1222,7 @@ export module Mock {
       range: '[1,10]',
       default: ['192.168.1.1'],
       spec: {
+        inputmode: 'text',
         masked: false,
         placeholder: null,
         pattern:
@@ -1210,6 +1239,7 @@ export module Mock {
       range: '[0,*)',
       default: [],
       spec: {
+        inputmode: 'text',
         masked: false,
         placeholder: null,
         pattern: null,
@@ -1238,8 +1268,9 @@ export module Mock {
                 law1: {
                   name: 'First Law',
                   type: 'string',
+                  inputmode: 'text',
                   description: 'the first law',
-                  nullable: true,
+                  required: false,
                   masked: false,
                   placeholder: null,
                   pattern: null,
@@ -1250,8 +1281,9 @@ export module Mock {
                 law2: {
                   name: 'Second Law',
                   type: 'string',
+                  inputmode: 'text',
                   description: 'the second law',
-                  nullable: true,
+                  required: false,
                   masked: false,
                   placeholder: null,
                   pattern: null,
@@ -1262,8 +1294,9 @@ export module Mock {
                 law4: {
                   name: 'Fourth Law',
                   type: 'string',
+                  inputmode: 'text',
                   description: 'the fourth law',
-                  nullable: true,
+                  required: false,
                   masked: false,
                   placeholder: null,
                   pattern: null,
@@ -1286,8 +1319,9 @@ export module Mock {
                       lawname: {
                         name: 'Law Name',
                         type: 'string',
+                        inputmode: 'text',
                         description: 'the name of the law maker',
-                        nullable: false,
+                        required: true,
                         default: {
                           charset: 'a-g,2-9',
                           len: 12,
@@ -1301,8 +1335,9 @@ export module Mock {
                       lawagency: {
                         name: 'Law agency',
                         type: 'string',
+                        inputmode: 'text',
                         description: 'the ip of the law maker',
-                        nullable: false,
+                        required: true,
                         default: '192.168.1.0',
                         pattern:
                           '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$',
@@ -1318,8 +1353,9 @@ export module Mock {
                 law5: {
                   name: 'Fifth Law',
                   type: 'string',
+                  inputmode: 'text',
                   description: 'the fifth law',
-                  nullable: true,
+                  required: false,
                   masked: false,
                   placeholder: null,
                   pattern: null,
@@ -1344,8 +1380,9 @@ export module Mock {
                   rulemakername: {
                     name: 'Rulemaker Name',
                     type: 'string',
+                    inputmode: 'text',
                     description: 'the name of the rule maker',
-                    nullable: false,
+                    required: true,
                     default: {
                       charset: 'a-g,2-9',
                       len: 12,
@@ -1359,8 +1396,9 @@ export module Mock {
                   rulemakerip: {
                     name: 'Rulemaker IP',
                     type: 'string',
+                    inputmode: 'text',
                     description: 'the ip of the rule maker',
-                    nullable: false,
+                    required: true,
                     default: '192.168.1.0',
                     pattern:
                       '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$',
@@ -1375,8 +1413,9 @@ export module Mock {
             rpcuser: {
               name: 'RPC Username',
               type: 'string',
+              inputmode: 'text',
               description: 'rpc username',
-              nullable: false,
+              required: true,
               default: 'defaultrpcusername',
               pattern: '^[a-zA-Z]+$',
               patternDescription: 'must contain only letters.',
@@ -1387,8 +1426,9 @@ export module Mock {
             rpcpass: {
               name: 'RPC User Password',
               type: 'string',
+              inputmode: 'text',
               description: 'rpc password',
-              nullable: false,
+              required: true,
               default: {
                 charset: 'a-z,A-Z,2-9',
                 len: 20,
@@ -1498,10 +1538,11 @@ export module Mock {
         'input-spec': {
           reason: {
             type: 'string',
+            inputmode: 'text',
             name: 'Re-sync Reason',
             description: 'Your reason for re-syncing. Why are you doing this?',
             placeholder: null,
-            nullable: false,
+            required: true,
             masked: false,
             pattern: '^[a-zA-Z]+$',
             patternDescription: 'Must contain only letters.',
