@@ -1,30 +1,14 @@
 import { Component } from '@angular/core'
-import {
-  ActionSheetController,
-  AlertController,
-  ToastController,
-} from '@ionic/angular'
+import { ToastController } from '@ionic/angular'
 import { TuiDialogOptions } from '@taiga-ui/core'
-import { ToggleChangeEventDetail } from '@ionic/core'
 import { ToggleCustomEvent } from '@ionic/core'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ActionSheetButton } from '@ionic/core'
 import { ValueSpecObject } from 'start-sdk/lib/config/configTypes'
-import { RR } from 'src/app/services/api/api.types'
+import { AvailableWifi, RR } from 'src/app/services/api/api.types'
 import { pauseFor, ErrorToastService } from '@start9labs/shared'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { FormContext, FormPage } from 'src/app/modals/form/form.page'
 import { LoadingService } from 'src/app/modals/loading/loading.service'
-
-interface WiFiForm {
-  ssid: string
-  password: string
-}
-import { catchError, filter, from, Observable, Subject, switchMap, tap } from 'rxjs'
-import {
-  GenericFormPage,
-  GenericFormOptions,
-} from 'src/app/modals/generic-form/generic-form.page'
 import {
   BehaviorSubject,
   catchError,
@@ -40,6 +24,12 @@ import {
 import { PatchDB } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { ConnectionService } from 'src/app/services/connection.service'
+import { Pipe, PipeTransform } from '@angular/core'
+
+interface WiFiForm {
+  ssid: string
+  password: string
+}
 
 @Component({
   selector: 'wifi',
@@ -67,7 +57,6 @@ export class WifiPage {
     private readonly loader: LoadingService,
     private readonly formDialog: FormDialogService,
     private readonly errToast: ErrorToastService,
-    private readonly actionCtrl: ActionSheetController,
     private readonly patch: PatchDB<DataModel>,
     private readonly connectionService: ConnectionService,
   ) {}
@@ -85,16 +74,15 @@ export class WifiPage {
     }
   }
 
-  presentModalAdd(ssid?: string, needsPW: boolean = true) {
-    const { name, spec } = getWifiValueSpec(ssid, needsPW)
+  presentModalAdd(wifi: RR.GetWifiRes) {
     const options: Partial<TuiDialogOptions<FormContext<WiFiForm>>> = {
-      label: name,
+      label: 'WiFi Credentials',
       data: {
-        spec,
+        spec: wifiSpec.spec,
         buttons: [
           {
             text: 'Save for Later',
-            handler: async ({ ssid, password }) => this.save(ssid, password),
+            handler: async ({ ssid, password }) => this.save(ssid, password, wifi),
           },
           {
             text: 'Save and Connect',
@@ -106,38 +94,6 @@ export class WifiPage {
     }
 
     this.formDialog.open(FormPage, options)
-  }
-
-  async presentAction(ssid: string, wifi: RR.GetWifiRes) {
-    const buttons: ActionSheetButton[] = [
-      {
-        text: 'Forget',
-        icon: 'trash',
-        role: 'destructive',
-        handler: () => {
-          this.delete(ssid, wifi)
-        },
-      },
-    ]
-
-    if (ssid !== wifi.connected) {
-      buttons.unshift({
-        text: 'Connect',
-        icon: 'wifi',
-        handler: () => {
-          this.connect(ssid)
-        },
-      })
-    }
-
-    const action = await this.actionCtrl.create({
-      header: ssid,
-      subHeader: 'Manage network',
-      mode: 'ios',
-      buttons,
-    })
-
-    await action.present()
   }
 
   private getWifi$(): Observable<RR.GetWifiRes> {
@@ -248,7 +204,6 @@ export class WifiPage {
   private async saveAndConnect(
     ssid: string,
     password: string,
-    wifi: RR.GetWifiRes,
   ): Promise<boolean> {
     const loader = this.loader
       .open('Connecting. This could take a while...')
@@ -303,50 +258,62 @@ export class WifiPage {
   }
 }
 
-function getWifiValueSpec(
-  ssid?: string,
-  needsPW: boolean = true,
-): ValueSpecObject {
-  return {
-    type: 'object',
-    name: 'WiFi Credentials',
-    description:
-      'Enter the network SSID and password. You can connect now or save the network for later.',
-    warning: null,
-    spec: {
-      ssid: {
-        type: 'text',
-        name: 'Network SSID',
-        description: null,
-        inputmode: 'text',
-        placeholder: null,
-        patterns: [],
-        minLength: null,
-        maxLength: null,
-        required: true,
-        masked: false,
-        default: ssid || null,
-        warning: null,
-      },
-      password: {
-        type: 'text',
-        name: 'Password',
-        description: null,
-        inputmode: 'text',
-        placeholder: null,
-        required: needsPW,
-        masked: true,
-        minLength: null,
-        maxLength: null,
-        patterns: [
-          {
-            regex: '^.{8,}$',
-            description: 'Must be longer than 8 characters',
-          },
-        ],
-        default: null,
-        warning: null,
-      },
+const wifiSpec: ValueSpecObject = {
+  type: 'object',
+  name: 'WiFi Credentials',
+  description:
+    'Enter the network SSID and password. You can connect now or save the network for later.',
+  warning: null,
+  spec: {
+    ssid: {
+      type: 'text',
+      minLength: null,
+      maxLength: null,
+      patterns: [],
+      name: 'Network SSID',
+      description: null,
+      inputmode: 'text',
+      placeholder: null,
+      required: true,
+      masked: false,
+      default: null,
+      warning: null,
     },
+    password: {
+      type: 'text',
+      minLength: null,
+      maxLength: null,
+      patterns: [
+        {
+          regex: '^.{8,}$',
+          description: 'Must be longer than 8 characters',
+        }
+      ],
+      name: 'Password',
+      description: null,
+      inputmode: 'text',
+      placeholder: null,
+      required: true,
+      masked: true,
+      default: null,
+      warning: null,
+    },
+  },
+}
+
+@Pipe({
+  name: 'toWifiIcon',
+})
+export class ToWifiIconPipe implements PipeTransform {
+  transform(signal: number): string {
+    if (signal >= 0 && signal < 5) {
+      return 'assets/img/icons/wifi-0.png'
+    } else if (signal >= 5 && signal < 50) {
+      return 'assets/img/icons/wifi-1.png'
+    } else if (signal >= 50 && signal < 90) {
+      return 'assets/img/icons/wifi-2.png'
+    } else {
+      return 'assets/img/icons/wifi-3.png'
+    }
   }
 }

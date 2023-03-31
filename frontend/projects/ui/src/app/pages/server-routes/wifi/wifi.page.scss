@@ -3,8 +3,8 @@
   max-width: 800px;
 }
 
-.min-padding {
-  padding-right: 2px;
+.no-padding {
+  padding-right: 0;
 }
 
 .skeleton-parts {
@@ -12,7 +12,16 @@
     padding-inline-start: 0;
     padding-inline-end: 0;
   };
-  padding-bottom: 6px;
+}
+
+.connect-button {
+  font-size: 10px;
+  font-weight: bold;
+  margin-right: 12px;
+}
+
+.slot-end {
+  margin-left: 4px;
 }
 
 ion-item-divider {
