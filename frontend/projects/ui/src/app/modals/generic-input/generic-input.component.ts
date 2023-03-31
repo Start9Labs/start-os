@@ -31,8 +31,7 @@ export class GenericInputComponent {
   ngOnInit() {
     const defaultOptions: Partial<GenericInputOptions> = {
       buttonText: 'Submit',
-      placeholder: 'Enter value',
-      nullable: false,
+      required: true,
       useMask: false,
       initialValue: '',
     }
@@ -69,7 +68,7 @@ export class GenericInputComponent {
   async submit() {
     const value = this.value.trim()
 
-    if (!value && !this.options.nullable) return
+    if (!value && this.options.required) return
 
     try {
       await this.options.submitFn(value)
@@ -84,13 +83,13 @@ export interface GenericInputOptions {
   // required
   title: string
   message: string
-  label: string
   submitFn: (value: string) => Promise<any>
   // optional
+  label?: string
   warning?: string
   buttonText?: string
   placeholder?: string
-  nullable?: boolean
+  required?: boolean
   useMask?: boolean
   initialValue?: string | null
 }
