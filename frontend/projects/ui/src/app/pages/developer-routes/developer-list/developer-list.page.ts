@@ -57,7 +57,7 @@ export class DeveloperListPage {
       label: 'New project',
       useMask: false,
       placeholder: `Project ${projNumber}`,
-      nullable: true,
+      required: false,
       initialValue: `Project ${projNumber}`,
       buttonText: 'Save',
       submitFn: (value: string) => this.createProject(value),
@@ -112,7 +112,7 @@ export class DeveloperListPage {
       label: 'Name',
       useMask: false,
       placeholder: curName,
-      nullable: true,
+      required: false,
       initialValue: curName,
       buttonText: 'Save',
       submitFn: (value: string) => this.editName(id, value),
@@ -221,7 +221,8 @@ const SAMPLE_CONFIG: InputSpec = {
   'sample-string': {
     type: 'string',
     name: 'Example String Input',
-    nullable: false,
+    inputmode: 'text',
+    required: true,
     masked: false,
     // optional
     description: 'Example description for required string input.',
@@ -234,7 +235,8 @@ const SAMPLE_CONFIG: InputSpec = {
   'sample-number': {
     type: 'number',
     name: 'Example Number Input',
-    nullable: false,
+    inputmode: 'decimal',
+    required: true,
     range: '[5,1000000]',
     integral: true,
     // optional

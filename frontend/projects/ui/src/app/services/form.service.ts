@@ -47,7 +47,7 @@ export class FormService {
     spec: ValueSpecUnion,
     selection: string | null,
   ): UntypedFormGroup {
-    const { name, description, warning, variants, nullable } = spec
+    const { name, description, warning, variants, required } = spec
 
     const selectSpec: ValueSpecSelect = {
       type: 'select',
@@ -55,7 +55,7 @@ export class FormService {
       description,
       warning,
       default: selection,
-      nullable,
+      required,
       values: Object.keys(variants).reduce(
         (prev, curr) => ({
           ...prev,
@@ -172,7 +172,7 @@ function stringValidators(
 ): ValidatorFn[] {
   const validators: ValidatorFn[] = []
 
-  if (!(spec as ValueSpecString).nullable) {
+  if ((spec as ValueSpecString).required) {
     validators.push(Validators.required)
   }
 
@@ -186,7 +186,7 @@ function stringValidators(
 function textareaValidators(spec: ValueSpecTextarea): ValidatorFn[] {
   const validators: ValidatorFn[] = []
 
-  if (!spec.nullable) {
+  if (spec.required) {
     validators.push(Validators.required)
   }
 
@@ -200,7 +200,7 @@ function numberValidators(
 
   validators.push(isNumber())
 
-  if (!(spec as ValueSpecNumber).nullable) {
+  if ((spec as ValueSpecNumber).required) {
     validators.push(Validators.required)
   }
 
@@ -216,7 +216,7 @@ function numberValidators(
 function selectValidators(spec: ValueSpecSelect): ValidatorFn[] {
   const validators: ValidatorFn[] = []
 
-  if (!spec.nullable) {
+  if (spec.required) {
     validators.push(Validators.required)
   }
 
@@ -239,7 +239,7 @@ function listValidators(spec: ValueSpecList): ValidatorFn[] {
 function fileValidators(spec: ValueSpecFile): ValidatorFn[] {
   const validators: ValidatorFn[] = []
 
-  if (!spec.nullable) {
+  if (spec.required) {
     validators.push(Validators.required)
   }
 

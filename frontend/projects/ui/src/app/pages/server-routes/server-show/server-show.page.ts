@@ -84,7 +84,7 @@ export class ServerShowPage {
       label: 'Device Name',
       useMask: false,
       placeholder: 'StartOS',
-      nullable: true,
+      required: false,
       initialValue: chosenName,
       buttonText: 'Save',
       submitFn: (name: string) => this.setName(name || null),
