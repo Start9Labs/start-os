@@ -45,12 +45,11 @@ export class SSHKeysPage {
   }
 
   async presentModalAdd() {
-    const { name, description } = sshSpec
-
     const options: GenericInputOptions = {
-      title: name,
-      message: description,
-      label: name,
+      title: 'SSH Key',
+      message:
+        'Enter the SSH public key you would like to authorize for root access to your Embassy.',
+      label: '',
       submitFn: (pk: string) => this.add(pk),
     }
 
@@ -113,14 +112,4 @@ export class SSHKeysPage {
       loader.dismiss()
     }
   }
-}
-
-const sshSpec = {
-  type: 'string',
-  name: 'SSH Key',
-  description:
-    'Enter the SSH public key you would like to authorize for root access to your Embassy.',
-  nullable: false,
-  masked: false,
-  copyable: false,
 }
