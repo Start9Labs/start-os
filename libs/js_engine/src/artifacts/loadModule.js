@@ -71,6 +71,15 @@ const runCommand = async (
   let pid = id.then((x) => x.processId);
   return Deno.core.opAsync("wait_command", await pid);
 };
+const shell = async(
+  commandAggregate = requireParam("command"),
+  {
+    timeoutMillis = 30000
+  } = {}
+) => {
+  const [command, ...args] = commandAggregate.split(" ").map((x) => x.trim()).filter((x) => x.length > 0);
+  return runCommand({ command, args, timeoutMillis })
+}
 const bindLocal = async (
   {
     internalPort = requireParam("internalPort"),
@@ -354,6 +363,7 @@ const effects = {
   runDaemon,
   runRsync,
   setConfigured,
+  shell,
   signalGroup,
   sleep,
   start,
