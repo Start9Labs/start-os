@@ -235,7 +235,6 @@ const SAMPLE_CONFIG: InputSpec = {
   'sample-number': {
     type: 'number',
     name: 'Example Number Input',
-    inputmode: 'decimal',
     required: true,
     range: '[5,1000000]',
     integral: true,

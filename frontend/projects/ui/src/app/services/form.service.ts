@@ -337,13 +337,12 @@ export function listUnique(spec: ValueSpecList): ValidatorFn {
 
 function listItemEquals(spec: ValueSpecList, val1: any, val2: any): boolean {
   // TODO: fix types
-  switch (spec.subtype) {
+  switch (spec.spec.type) {
     case 'string':
     case 'number':
       return val1 == val2
     case 'object':
-      const obj: ListValueSpecObject = spec.spec as any
-
+      const obj = spec.spec
       return listObjEquals(obj.uniqueBy, obj, val1, val2)
     default:
       return false
@@ -553,15 +552,15 @@ export function convertValuesRecursive(
       const formArr = group.get(key) as UntypedFormArray
       const { controls } = formArr
 
-      if (valueSpec.subtype === 'number') {
+      if (valueSpec.spec.type === 'number') {
         controls.forEach(control => {
           control.setValue(control.value ? Number(control.value) : null)
         })
-      } else if (valueSpec.subtype === 'string') {
+      } else if (valueSpec.spec.type === 'string') {
         controls.forEach(control => {
           if (!control.value) control.setValue(null)
         })
-      } else if (valueSpec.subtype === 'object') {
+      } else if (valueSpec.spec.type === 'object') {
         controls.forEach(formGroup => {
           const objectSpec = valueSpec.spec as ListValueSpecObject
           convertValuesRecursive(objectSpec.spec, formGroup as UntypedFormGroup)
