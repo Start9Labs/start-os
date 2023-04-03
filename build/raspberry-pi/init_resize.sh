@@ -109,6 +109,8 @@ mount -t sysfs sys /sys
 mount -t tmpfs tmp /run
 mkdir -p /run/systemd
 
+beep
+
 mount /boot
 mount / -o remount,ro
 
