@@ -742,7 +742,6 @@ export module Mock {
                 },
                 'p2p-port': {
                   type: 'number',
-                  inputmode: 'numeric',
                   name: 'P2P Port',
                   description:
                     'The port that your Bitcoin Core P2P server is bound to',
@@ -862,7 +861,6 @@ export module Mock {
     'object-list': {
       name: 'Object List',
       type: 'list',
-      subtype: 'object',
       description: 'This is a list of objects, like users or something',
       warning: null,
       range: '[0,4]',
@@ -881,6 +879,7 @@ export module Mock {
       // the outer spec here, at the list level, says that what's inside (the inner spec) pertains to its inner elements.
       // it just so happens that ValueSpecObject's have the field { spec: InputSpec }
       spec: {
+        type: 'object',
         uniqueBy: 'last-name',
         displayAs: `I'm {{last-name}}, {{first-name}} {{last-name}}`,
         spec: {
@@ -915,7 +914,6 @@ export module Mock {
           },
           age: {
             name: 'Age',
-            inputmode: 'numeric',
             type: 'number',
             description: 'The age of the user',
             required: false,
@@ -959,7 +957,6 @@ export module Mock {
     },
     'favorite-number': {
       name: 'Favorite Number',
-      inputmode: 'decimal',
       type: 'number',
       integral: false,
       description: 'Your favorite number of all time',
@@ -974,11 +971,10 @@ export module Mock {
     'unlucky-numbers': {
       name: 'Unlucky Numbers',
       type: 'list',
-      subtype: 'number',
       description: 'Numbers that you like but are not your top favorite.',
       warning: null,
       spec: {
-        inputmode: 'decimal',
+        type: 'number',
         integral: false,
         range: '[-100,200)',
         units: null,
@@ -1030,12 +1026,12 @@ export module Mock {
         rulemakers: {
           name: 'Rule Makers',
           type: 'list',
-          subtype: 'object',
           description: 'the people who make the rules',
           warning: null,
           range: '[0,2]',
           default: [],
           spec: {
+            type: 'object',
             uniqueBy: null,
             displayAs: null,
             spec: {
@@ -1181,7 +1177,6 @@ export module Mock {
     },
     port: {
       name: 'Port',
-      inputmode: 'numeric',
       type: 'number',
       integral: true,
       description:
@@ -1210,7 +1205,6 @@ export module Mock {
     rpcallowip: {
       name: 'RPC Allowed IPs',
       type: 'list',
-      subtype: 'string',
       description:
         'external ip addresses that are authorized to access your Bitcoin node',
       warning:
@@ -1218,6 +1212,7 @@ export module Mock {
       range: '[1,10]',
       default: ['192.168.1.1'],
       spec: {
+        type: 'string',
         inputmode: 'text',
         masked: false,
         placeholder: null,
@@ -1229,12 +1224,12 @@ export module Mock {
     rpcauth: {
       name: 'RPC Auth',
       type: 'list',
-      subtype: 'string',
       description: 'api keys that are authorized to access your Bitcoin node.',
       warning: null,
       range: '[0,*)',
       default: [],
       spec: {
+        type: 'string',
         inputmode: 'text',
         masked: false,
         placeholder: null,
@@ -1303,12 +1298,12 @@ export module Mock {
                 law3: {
                   name: 'Third Law',
                   type: 'list',
-                  subtype: 'object',
                   description: 'the third law',
                   warning: null,
                   range: '[0,2]',
                   default: [],
                   spec: {
+                    type: 'object',
                     uniqueBy: null,
                     displayAs: null,
                     spec: {
@@ -1364,12 +1359,12 @@ export module Mock {
             rulemakers: {
               name: 'Rule Makers',
               type: 'list',
-              subtype: 'object',
               description: 'the people who make the rules',
               warning: null,
               range: '[0,2]',
               default: [],
               spec: {
+                type: 'object',
                 uniqueBy: null,
                 displayAs: null,
                 spec: {
