@@ -82,7 +82,7 @@ export class FormObjectComponent {
     Object.keys(this.objectSpec).forEach(key => {
       const spec = this.objectSpec[key]
 
-      if (spec.type === 'list' && ['object', 'union'].includes(spec.subtype)) {
+      if (spec.type === 'list' && spec.spec.type === 'object') {
         this.objectListDisplay[key] = []
         this.formGroup.get(key)?.value.forEach((obj: any, index: number) => {
           const displayAs = (spec.spec as ListValueSpecOf<'object'>).displayAs
@@ -209,8 +209,8 @@ export class FormObjectComponent {
     const index = arr.length
     arr.insert(index, newItem)
 
-    if (['object', 'union'].includes(listSpec.subtype)) {
-      const displayAs = (listSpec.spec as ListValueSpecOf<'object'>).displayAs
+    if (listSpec.spec.type === 'object') {
+      const displayAs = listSpec.spec.displayAs
       this.objectListDisplay[key].push({
         expanded: false,
         displayAs: displayAs ? Mustache.render(displayAs, newItem.value) : '',
@@ -223,7 +223,7 @@ export class FormObjectComponent {
       )
       element?.parentElement?.scrollIntoView({ behavior: 'smooth' })
 
-      if (['object', 'union'].includes(listSpec.subtype)) {
+      if (listSpec.spec.type === 'object') {
         pauseFor(250).then(() => this.toggleExpandListObject(key, index))
       }
     }, 100)

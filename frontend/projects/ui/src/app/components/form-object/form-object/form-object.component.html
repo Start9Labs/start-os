@@ -95,7 +95,7 @@
               "
             >
               <!-- object -->
-              <ng-container *ngIf="spec.subtype === 'object'">
+              <ng-container *ngIf="spec.spec.type === 'object'">
                 <!-- object label -->
                 <ion-item
                   button
@@ -130,7 +130,7 @@
                   [id]="objectId | toElementId : entry.key : i"
                 >
                   <form-object
-                    *ngIf="spec.subtype === 'object'"
+                    *ngIf="spec.spec.type === 'object'"
                     [objectSpec]="$any(spec.spec).spec"
                     [formGroup]="abstractControl"
                     [current]="current?.[entry.key]?.[i]"
@@ -153,7 +153,9 @@
               </ng-container>
               <!-- string or number -->
               <div
-                *ngIf="spec.subtype === 'string' || spec.subtype === 'number'"
+                *ngIf="
+                  spec.spec.type === 'string' || spec.spec.type === 'number'
+                "
                 [id]="objectId | toElementId : entry.key : i"
               >
                 <ion-item
@@ -161,7 +163,9 @@
                 >
                   <ion-input
                     type="text"
-                    [inputmode]="spec.subtype === 'number' ? 'tel' : 'text'"
+                    [inputmode]="
+                      spec.spec.type === 'string' ? spec.spec.inputmode : 'tel'
+                    "
                     [placeholder]="
                       $any(spec.spec).placeholder || 'Enter ' + spec.name
                     "
