@@ -26,7 +26,7 @@
       [class.input_redacted]="
         spec.type === 'string' && control.value && spec.masked && !unmasked
       "
-      [inputmode]="spec.type === 'number' ? 'tel' : 'text'"
+      [inputmode]="spec.type === 'string' ? spec.inputmode : 'tel'"
       [placeholder]="spec.placeholder"
       [formControl]="control"
       (ionFocus)="warning.onChange(name, spec)"
