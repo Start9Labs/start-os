@@ -1,0 +1,18 @@
+{
+  "name": "StartOS",
+  "short_name": "StartOS",
+  "theme_color": "#ff5b71",
+  "background_color": "#1e1e1e",
+  "display": "standalone",
+  "scope": ".",
+  "start_url": "/",
+  "id": "/",
+  "icons": [
+    {
+      "src": "assets/img/logo_solid.png",
+      "sizes": "256x256",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

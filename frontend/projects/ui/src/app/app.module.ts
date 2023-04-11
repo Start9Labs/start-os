@@ -31,6 +31,8 @@ import { PatchDbModule } from './services/patch-db/patch-db.module'
 import { ToastContainerModule } from './components/toast-container/toast-container.module'
 import { ConnectionBarComponentModule } from './components/connection-bar/connection-bar.component.module'
 import { WidgetsPageModule } from './pages/widgets/widgets.module'
+import { ServiceWorkerModule } from '@angular/service-worker'
+import { environment } from '../environments/environment'
 
 @NgModule({
   declarations: [AppComponent],
@@ -62,6 +64,12 @@ import { WidgetsPageModule } from './pages/widgets/widgets.module'
     ResponsiveColModule,
     DarkThemeModule,
     LightThemeModule,
+    ServiceWorkerModule.register('ngsw-worker.js', {
+      enabled: environment.useServiceWorker,
+      // Register the ServiceWorker as soon as the application is stable
+      // or after 30 seconds (whichever comes first).
+      registrationStrategy: 'registerWhenStable:30000',
+    }),
   ],
   providers: APP_PROVIDERS,
   bootstrap: [AppComponent],
