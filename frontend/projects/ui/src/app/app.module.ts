@@ -1,4 +1,5 @@
 import {
+  TuiAlertModule,
   TuiDialogModule,
   TuiModeModule,
   TuiRootModule,
@@ -31,6 +32,8 @@ import { PatchDbModule } from './services/patch-db/patch-db.module'
 import { ToastContainerModule } from './components/toast-container/toast-container.module'
 import { ConnectionBarComponentModule } from './components/connection-bar/connection-bar.component.module'
 import { WidgetsPageModule } from './pages/widgets/widgets.module'
+import { LoadingModule } from './modals/loading/loading.module'
+import { FormPageModule } from './modals/form/form.module'
 
 @NgModule({
   declarations: [AppComponent],
@@ -56,12 +59,15 @@ import { WidgetsPageModule } from './pages/widgets/widgets.module'
     ConnectionBarComponentModule,
     TuiRootModule,
     TuiDialogModule,
+    TuiAlertModule,
     TuiModeModule,
     TuiThemeNightModule,
     WidgetsPageModule,
     ResponsiveColModule,
     DarkThemeModule,
     LightThemeModule,
+    LoadingModule,
+    FormPageModule,
   ],
   providers: APP_PROVIDERS,
   bootstrap: [AppComponent],

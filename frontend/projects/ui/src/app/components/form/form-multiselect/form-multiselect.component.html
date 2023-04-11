@@ -1,0 +1,12 @@
+<tui-multi-select
+  [tuiHintContent]="spec.description ? hint : ''"
+  [editable]="false"
+  [(ngModel)]="selected"
+  (focusedChange)="onFocus($event)"
+>
+  {{ spec.name }}
+  <select tuiSelect multiple [items]="items"></select>
+</tui-multi-select>
+<ng-template #hint>
+  <div [innerHTML]="spec.description"></div>
+</ng-template>

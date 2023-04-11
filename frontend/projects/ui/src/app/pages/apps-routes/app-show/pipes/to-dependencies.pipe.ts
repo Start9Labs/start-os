@@ -6,7 +6,11 @@ import {
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
 import { DependentInfo } from 'src/app/types/dependent-info'
-import { ModalService } from 'src/app/services/modal.service'
+import { FormDialogService } from 'src/app/services/form-dialog.service'
+import {
+  AppConfigPage,
+  PackageConfigData,
+} from 'src/app/modals/app-config/app-config.page'
 import { Manifest } from '@start9labs/marketplace'
 
 export interface DependencyInfo {
@@ -25,7 +29,7 @@ export interface DependencyInfo {
 export class ToDependenciesPipe implements PipeTransform {
   constructor(
     private readonly navCtrl: NavController,
-    private readonly modalService: ModalService,
+    private readonly formDialog: FormDialogService,
   ) {}
 
   transform(pkg: PackageDataEntry): DependencyInfo[] {
@@ -96,7 +100,13 @@ export class ToDependenciesPipe implements PipeTransform {
       case 'update':
         return this.installDep(pkg.manifest, depId)
       case 'configure':
-        return this.configureDep(pkg.manifest, depId)
+        return this.formDialog.open<PackageConfigData>(AppConfigPage, {
+          label: 'Config',
+          data: {
+            pkgId: depId,
+            dependentInfo: pkg.manifest,
+          },
+        })
     }
   }
 
@@ -127,9 +137,12 @@ export class ToDependenciesPipe implements PipeTransform {
       title: manifest.title,
     }
 
-    await this.modalService.presentModalConfig({
-      pkgId: dependencyId,
-      dependentInfo,
+    return this.formDialog.open<PackageConfigData>(AppConfigPage, {
+      label: 'Config',
+      data: {
+        pkgId: dependencyId,
+        dependentInfo,
+      },
     })
   }
 }

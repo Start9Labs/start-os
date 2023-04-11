@@ -12,7 +12,7 @@ import {
 } from 'src/app/modals/generic-input/generic-input.component'
 import { PatchDB } from 'patch-db-client'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { InputSpec } from 'start-sdk/lib/config/config-types'
+import { InputSpec } from 'start-sdk/lib/config/configTypes'
 import * as yaml from 'js-yaml'
 import { v4 } from 'uuid'
 import { DataModel, DevData } from 'src/app/services/patch-db/data-model'

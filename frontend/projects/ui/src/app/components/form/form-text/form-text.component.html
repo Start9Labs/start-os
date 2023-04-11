@@ -1,0 +1,14 @@
+<tui-text-area
+  [tuiHintContent]="spec.description ? hint : ''"
+  [expandable]="true"
+  [rows]="6"
+  [(ngModel)]="value"
+  (focusedChange)="onFocus($event)"
+>
+  {{ spec.name }}
+  <span *ngIf="spec.required">*</span>
+  <textarea tuiTextfield [placeholder]="spec.placeholder || ''"></textarea>
+</tui-text-area>
+<ng-template #hint>
+  <div [innerHTML]="spec.description"></div>
+</ng-template>

@@ -1,0 +1,15 @@
+<form novalidate [formGroup]="form" (tuiValueChanges)="markAsDirty()">
+  <form-group [spec]="spec"></form-group>
+  <footer tuiMode="onDark">
+    <ng-content></ng-content>
+    <button
+      *ngFor="let button of buttons; let last = last"
+      tuiButton
+      [appearance]="last ? 'primary' : 'flat'"
+      [type]="last ? 'submit' : 'button'"
+      (click)="onClick(button.handler)"
+    >
+      {{ button.text }}
+    </button>
+  </footer>
+</form>

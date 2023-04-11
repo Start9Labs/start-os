@@ -1,0 +1,50 @@
+<div class="label">
+  {{ spec.name }}
+  <tui-tooltip *ngIf="spec.description" [content]="hint">
+    <ng-template #hint>
+      <div [innerHTML]="spec.description"></div>
+    </ng-template>
+  </tui-tooltip>
+  <button tuiLink type="button" class="add" (click)="add()">+ Add</button>
+</div>
+<tui-error [error]="order | tuiFieldError | async"></tui-error>
+
+<ng-container *ngFor="let item of array.control.controls; let index = index">
+  <form-object
+    *ngIf="spec.spec.type === 'object'; else control"
+    #component
+    class="object"
+    [class.object_open]="component.open"
+    [formGroup]="$any(item)"
+    [spec]="$any(spec.spec)"
+    [@tuiHeightCollapse]="animation"
+    [@tuiFadeIn]="animation"
+  >
+    {{ item.value | mustache : $any(spec.spec).displayAs }}
+    <ng-container *ngTemplateOutlet="remove"></ng-container>
+  </form-object>
+  <ng-template #control>
+    <form-control
+      class="control"
+      tuiTextfieldSize="m"
+      [tuiTextfieldLabelOutside]="true"
+      [tuiTextfieldIcon]="remove"
+      [formControl]="$any(item)"
+      [spec]="$any(spec.spec)"
+      [@tuiHeightCollapse]="animation"
+      [@tuiFadeIn]="animation"
+    ></form-control>
+  </ng-template>
+  <ng-template #remove>
+    <button
+      tuiIconButton
+      type="button"
+      class="remove"
+      icon="tuiIconTrash"
+      appearance="icon"
+      size="m"
+      title="Remove"
+      (click.stop)="removeAt(index)"
+    ></button>
+  </ng-template>
+</ng-container>

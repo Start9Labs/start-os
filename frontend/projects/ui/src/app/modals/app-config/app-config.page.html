@@ -1,149 +1,77 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-title>Config</ion-title>
-    <ion-buttons slot="end">
-      <ion-button (click)="dismiss()">
-        <ion-icon slot="icon-only" name="close"></ion-icon>
-      </ion-button>
-    </ion-buttons>
-  </ion-toolbar>
-</ion-header>
+<!-- loading -->
+<tui-loader
+  *ngIf="loading; else notLoading"
+  size="l"
+  [textContent]="loadingText"
+></tui-loader>
 
-<ion-content class="ion-padding">
-  <!-- loading -->
-  <text-spinner
-    *ngIf="loading; else notLoading"
-    [text]="loadingText"
-  ></text-spinner>
+<!-- not loading -->
+<ng-template #notLoading>
+  <tui-notification *ngIf="loadingError; else noError" status="error">
+    <div [innerHTML]="loadingError"></div>
+  </tui-notification>
 
-  <!-- not loading -->
-  <ng-template #notLoading>
-    <ion-item *ngIf="loadingError; else noError">
-      <ion-label>
-        <ion-text color="danger">{{ loadingError }}</ion-text>
-      </ion-label>
-    </ion-item>
+  <ng-template #noError>
+    <tui-notification
+      *ngIf="configForm && !configForm.dirty && !original && !pkg.installed?.status?.configured"
+      status="success"
+      class="notification"
+    >
+      {{ pkg.manifest.title }} has been automatically configured with
+      recommended defaults. Make whatever changes you want, then click "Save".
+    </tui-notification>
 
-    <ng-template #noError>
-      <ng-container *ngIf="configForm && !pkg.installed?.status?.configured">
-        <ng-container *ngIf="!original; else hasOriginal">
-          <h2
-            *ngIf="!configForm.dirty"
-            class="ion-padding-bottom header-details"
-          >
-            <ion-text color="success">
-              {{ pkg.manifest.title }} has been automatically configured with
-              recommended defaults. Make whatever changes you want, then click
-              "Save".
-            </ion-text>
-          </h2>
-        </ng-container>
-        <ng-template #hasOriginal>
-          <h2 *ngIf="hasNewOptions" class="ion-padding-bottom header-details">
-            <ion-text color="success">
-              New config options! To accept the default values, click "Save".
-              You may also customize these new options below.
-            </ion-text>
-          </h2>
-        </ng-template>
-      </ng-container>
+    <!-- auto-config -->
+    <tui-notification *ngIf="dependentInfo" class="notification">
+      <h3 class="title">{{ pkg.manifest.title }}</h3>
+      The following modifications have been made to {{ pkg.manifest.title }} to
+      satisfy {{ dependentInfo.title }}:
+      <ul>
+        <li *ngFor="let d of diff" [innerHTML]="d"></li>
+      </ul>
+      To accept these modifications, click "Save".
+    </tui-notification>
 
-      <!-- auto-config -->
-      <ion-item
-        lines="none"
-        *ngIf="dependentInfo"
-        class="rec-item"
-        style="margin-bottom: 48px"
-      >
-        <ion-label>
-          <h2 style="display: flex; align-items: center">
-            <img
-              style="width: 18px; margin: 4px"
-              [src]="pkg.icon"
-              [alt]="pkg.manifest.title"
-            />
-            <ion-text
-              style="margin: 5px; font-family: 'Montserrat'; font-size: 18px"
-            >
-              {{ pkg.manifest.title }}
-            </ion-text>
-          </h2>
-          <p>
-            <ion-text color="dark">
-              The following modifications have been made to {{
-              pkg.manifest.title }} to satisfy {{ dependentInfo.title }}:
-              <ul>
-                <li *ngFor="let d of diff" [innerHtml]="d"></li>
-              </ul>
-              To accept these modifications, click "Save".
-            </ion-text>
-          </p>
-        </ion-label>
-      </ion-item>
+    <!-- no options -->
+    <tui-notification
+      *ngIf="!pkg.installed?.['has-config']"
+      status="warning"
+      class="notification"
+    >
+      No config options for {{ pkg.manifest.title }} {{ pkg.manifest.version }}.
+    </tui-notification>
 
-      <!-- no options -->
-      <ion-item *ngIf="!pkg.installed?.['has-config']">
-        <ion-label>
-          <p>
-            No config options for {{ pkg.manifest.title }} {{
-            pkg.manifest.version }}.
-          </p>
-        </ion-label>
-      </ion-item>
-
-      <!-- has config -->
-      <form
-        *ngIf="configForm && configSpec"
-        [formGroup]="configForm"
-        novalidate
-      >
-        <form-object
-          [objectSpec]="configSpec"
-          [formGroup]="configForm"
-          [current]="configForm.value"
-          [original]="original"
-          (hasNewOptions)="hasNewOptions = true"
-        ></form-object>
-      </form>
-    </ng-template>
-  </ng-template>
-</ion-content>
-
-<ion-footer>
-  <ion-toolbar>
-    <ng-container *ngIf="!loading && !loadingError">
-      <ion-buttons
-        *ngIf="configForm && pkg.installed?.['has-config']"
-        slot="start"
-        class="ion-padding-start"
-      >
-        <ion-button fill="clear" (click)="resetDefaults()">
-          <ion-icon slot="start" name="refresh"></ion-icon>
-          Reset Defaults
-        </ion-button>
-      </ion-buttons>
-      <ion-buttons slot="end" class="ion-padding-end">
-        <ion-button
-          *ngIf="configForm"
-          fill="solid"
-          color="primary"
-          [disabled]="saving"
-          (click)="tryConfigure()"
-          class="enter-click btn-128"
-          [class.no-click]="saving"
+    <!-- has config -->
+    <form
+      *ngIf="configForm && configSpec"
+      novalidate
+      [formGroup]="configForm"
+      (tuiValueChanges)="markAsDirty()"
+    >
+      <form-group [spec]="configSpec"></form-group>
+      <footer tuiMode="onDark">
+        <button
+          *ngIf="configForm && pkg.installed?.['has-config']"
+          tuiButton
+          type="button"
+          appearance="flat"
+          (click)="resetDefaults()"
         >
+          Reset Defaults
+        </button>
+        <button *ngIf="configForm" tuiButton type="submit" (click)="save()">
           Save
-        </ion-button>
-        <ion-button
+        </button>
+        <button
           *ngIf="!configForm"
-          fill="solid"
-          color="dark"
-          (click)="dismiss()"
-          class="enter-click btn-128"
+          tuiButton
+          type="button"
+          appearance="secondary"
+          (click)="context.$implicit.complete()"
         >
           Close
-        </ion-button>
-      </ion-buttons>
-    </ng-container>
-  </ion-toolbar>
-</ion-footer>
+        </button>
+      </footer>
+    </form>
+  </ng-template>
+</ng-template>

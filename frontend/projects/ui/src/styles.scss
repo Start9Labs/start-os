@@ -1,4 +1,9 @@
 @font-face {
+  font-family: 'text-security-disc';
+  src: url('/assets/fonts/text-security-disc.woff2') format('woff2');
+}
+
+@font-face {
   font-family: 'Montserrat';
   font-style: normal;
   font-weight: normal;
@@ -338,4 +343,21 @@ body[data-theme='Light'] {
 ul {
   padding-left: 40px;
   list-style-type: disc;
+}
+
+tui-opt-group[data-label^='⚠️']:before {
+  color: var(--tui-warning-fill);
+}
+
+tui-hint[data-appearance='onDark'] {
+  background: white !important;
+  color: #222 !important;
+}
+
+[tuiLink] {
+  color: var(--tui-link) !important;
+
+  &:hover {
+    color: var(--tui-link-hover) !important;
+  }
 }

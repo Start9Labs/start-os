@@ -1,0 +1,17 @@
+<tui-select
+  [tuiHintContent]="spec.description ? hint : ''"
+  [tuiTextfieldCleaner]="!spec.required"
+  [(ngModel)]="selected"
+  (focusedChange)="onFocus($event)"
+>
+  {{ spec.name }}
+  <span *ngIf="spec.required">*</span>
+  <select
+    tuiSelect
+    [labels]="[spec.warning ? '⚠️ ' + spec.warning : '']"
+    [items]="[items]"
+  ></select>
+</tui-select>
+<ng-template #hint>
+  <div [innerHTML]="spec.description"></div>
+</ng-template>

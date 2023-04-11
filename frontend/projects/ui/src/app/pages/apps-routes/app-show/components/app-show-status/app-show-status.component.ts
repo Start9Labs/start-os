@@ -15,7 +15,11 @@ import {
 import { ErrorToastService } from '@start9labs/shared'
 import { AlertController, LoadingController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ModalService } from 'src/app/services/modal.service'
+import { FormDialogService } from 'src/app/services/form-dialog.service'
+import {
+  AppConfigPage,
+  PackageConfigData,
+} from 'src/app/modals/app-config/app-config.page'
 import { DependencyInfo } from '../../pipes/to-dependencies.pipe'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { ConnectionService } from 'src/app/services/connection.service'
@@ -47,7 +51,7 @@ export class AppShowStatusComponent {
     private readonly loadingCtrl: LoadingController,
     private readonly embassyApi: ApiService,
     private readonly launcherService: UiLauncherService,
-    private readonly modalService: ModalService,
+    private readonly formDialog: FormDialogService,
     private readonly connectionService: ConnectionService,
     private readonly patch: PatchDB<DataModel>,
   ) {}
@@ -80,9 +84,10 @@ export class AppShowStatusComponent {
     this.launcherService.launch(addressInfo)
   }
 
-  async presentModalConfig(): Promise<void> {
-    return this.modalService.presentModalConfig({
-      pkgId: this.id,
+  presentModalConfig(): void {
+    this.formDialog.open<PackageConfigData>(AppConfigPage, {
+      label: 'Config',
+      data: { pkgId: this.id },
     })
   }
 
