@@ -13,16 +13,18 @@ import { tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
 import { InvalidService } from '../../components/form/invalid.service'
 import { TuiDialogFormService } from '@taiga-ui/kit'
 import { FormGroup } from '@angular/forms'
+import { compare, Operation } from 'fast-json-patch'
 
 export interface ActionButton<T> {
   text: string
-  handler: (value: T) => Promise<boolean>
+  handler: (value: T) => Promise<boolean | void> | void
 }
 
 export interface FormContext<T> {
   spec: InputSpec
   buttons: ActionButton<T>[]
   value?: T
+  patch?: Operation[]
 }
 
 @Component({
@@ -43,12 +45,25 @@ export class FormPage<T extends Record<string, any>> implements OnInit {
 
   @Input() spec = this.context?.data.spec || {}
   @Input() buttons = this.context?.data.buttons || []
+  @Input() patch = this.context?.data.patch || []
   @Input() value?: T = this.context?.data.value
 
   form = new FormGroup({})
 
   ngOnInit() {
+    this.dialogFormService.markAsPristine()
     this.form = this.formService.createForm(this.spec, this.value)
+    this.process(this.patch)
+  }
+
+  onReset() {
+    const { value } = this.form
+
+    this.form = this.formService.createForm(this.spec)
+    this.spec = { ...this.spec }
+    this.process(compare(this.form.value, value))
+    tuiMarkControlAsTouchedAndValidate(this.form)
+    this.markAsDirty()
   }
 
   async onClick(handler: ActionButton<T>['handler']) {
@@ -62,5 +77,21 @@ export class FormPage<T extends Record<string, any>> implements OnInit {
 
   markAsDirty() {
     this.dialogFormService.markAsDirty()
+  }
+
+  private process(patch: Operation[]) {
+    patch.forEach(({ op, path }) => {
+      const control = this.form.get(path.substring(1).split('/'))
+
+      if (!control || !control.parent) return
+
+      if (op !== 'remove') {
+        control.markAsDirty()
+        control.markAsTouched()
+      }
+
+      control.parent.markAsDirty()
+      control.parent.markAsTouched()
+    })
   }
 }

@@ -6,7 +6,7 @@ import {
   Input,
 } from '@angular/core'
 import { FormArrayName } from '@angular/forms'
-import { TuiDestroyService } from '@taiga-ui/cdk'
+import { TUI_PARENT_STOP, TuiDestroyService } from '@taiga-ui/cdk'
 import {
   TUI_ANIMATION_OPTIONS,
   TuiDialogService,
@@ -18,30 +18,24 @@ import { filter, takeUntil } from 'rxjs'
 import { ValueSpecList } from 'start-sdk/lib/config/configTypes'
 import { FormService } from '../../../services/form.service'
 import { ERRORS } from '../form-group/form-group.component'
-import { transition, trigger } from '@angular/animations'
 
 @Component({
   selector: 'form-array',
   templateUrl: './form-array.component.html',
   styleUrls: ['./form-array.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  animations: [
-    tuiFadeIn,
-    tuiHeightCollapse,
-    trigger('parent', [transition(':enter', [])]),
-  ],
+  animations: [tuiFadeIn, tuiHeightCollapse, TUI_PARENT_STOP],
   providers: [TuiDestroyService],
 })
 export class FormArrayComponent {
   @Input()
   spec!: ValueSpecList
 
-  warned = false
-
-  @HostBinding('@parent')
+  @HostBinding('@tuiParentStop')
   readonly animation = { value: '', ...inject(TUI_ANIMATION_OPTIONS) }
   readonly order = ERRORS
   readonly array = inject(FormArrayName)
+
+  private warned = false
   private readonly formService = inject(FormService)
   private readonly dialogs = inject(TuiDialogService)
   private readonly destroy$ = inject(TuiDestroyService)

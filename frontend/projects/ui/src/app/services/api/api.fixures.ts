@@ -1201,7 +1201,6 @@ export module Mock {
         'the default port for your Bitcoin node. default: 8333, testnet: 18333, regtest: 18444',
       warning: null,
       required: true,
-      default: 8333,
       range: '(0, 9998]',
       units: null,
       placeholder: null,

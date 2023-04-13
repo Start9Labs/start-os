@@ -27,7 +27,7 @@ export const ERRORS = [
   viewProviders: [FORM_GROUP_PROVIDERS],
 })
 export class FormGroupComponent {
-  @Input() spec!: InputSpec
+  @Input() spec: InputSpec = {}
 
   asIsOrder() {
     return 0

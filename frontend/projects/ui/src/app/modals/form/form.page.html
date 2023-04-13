@@ -1,4 +1,9 @@
-<form novalidate [formGroup]="form" (tuiValueChanges)="markAsDirty()">
+<form
+  novalidate
+  (reset.capture.prevent.stop)="onReset()"
+  [formGroup]="form"
+  (tuiValueChanges)="markAsDirty()"
+>
   <form-group [spec]="spec"></form-group>
   <footer tuiMode="onDark">
     <ng-content></ng-content>

@@ -1,19 +1,16 @@
 <!-- loading -->
 <tui-loader
-  *ngIf="loading; else notLoading"
+  *ngIf="loadingText; else content"
   size="l"
   [textContent]="loadingText"
 ></tui-loader>
 
 <!-- not loading -->
-<ng-template #notLoading>
-  <tui-notification *ngIf="loadingError; else noError" status="error">
-    <div [innerHTML]="loadingError"></div>
-  </tui-notification>
-
-  <ng-template #noError>
+<ng-template #content>
+  <ng-container *ngIf="!loadingError && pkg else error">
+    <!-- TODO: When to show this? original always exits -->
     <tui-notification
-      *ngIf="configForm && !configForm.dirty && !original && !pkg.installed?.status?.configured"
+      *ngIf="form && !form.form.dirty && !original && !pkg.installed?.status?.configured"
       status="success"
       class="notification"
     >
@@ -22,15 +19,13 @@
     </tui-notification>
 
     <!-- auto-config -->
-    <tui-notification *ngIf="dependentInfo" class="notification">
-      <h3 class="title">{{ pkg.manifest.title }}</h3>
-      The following modifications have been made to {{ pkg.manifest.title }} to
-      satisfy {{ dependentInfo.title }}:
-      <ul>
-        <li *ngFor="let d of diff" [innerHTML]="d"></li>
-      </ul>
-      To accept these modifications, click "Save".
-    </tui-notification>
+    <app-config-dep
+      *ngIf="dependentInfo && value"
+      [package]="pkg.manifest.title"
+      [dep]="dependentInfo.title"
+      [original]="original"
+      [value]="value"
+    ></app-config-dep>
 
     <!-- no options -->
     <tui-notification
@@ -42,36 +37,21 @@
     </tui-notification>
 
     <!-- has config -->
-    <form
-      *ngIf="configForm && configSpec"
-      novalidate
-      [formGroup]="configForm"
-      (tuiValueChanges)="markAsDirty()"
+    <form-page
+      #form
+      tuiMode="onDark"
+      [spec]="spec"
+      [value]="value"
+      [buttons]="buttons"
+      [patch]="patch"
     >
-      <form-group [spec]="configSpec"></form-group>
-      <footer tuiMode="onDark">
-        <button
-          *ngIf="configForm && pkg.installed?.['has-config']"
-          tuiButton
-          type="button"
-          appearance="flat"
-          (click)="resetDefaults()"
-        >
-          Reset Defaults
-        </button>
-        <button *ngIf="configForm" tuiButton type="submit" (click)="save()">
-          Save
-        </button>
-        <button
-          *ngIf="!configForm"
-          tuiButton
-          type="button"
-          appearance="secondary"
-          (click)="context.$implicit.complete()"
-        >
-          Close
-        </button>
-      </footer>
-    </form>
+      <button tuiButton appearance="flat" type="reset">Reset Defaults</button>
+    </form-page>
+  </ng-container>
+
+  <ng-template #error>
+    <tui-notification status="error">
+      <div [innerHTML]="loadingError"></div>
+    </tui-notification>
   </ng-template>
 </ng-template>
