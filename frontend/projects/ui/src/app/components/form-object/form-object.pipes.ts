@@ -38,7 +38,7 @@ export class GetErrorPipe implements PipeTransform {
   name: 'toWarningText',
 })
 export class ToWarningTextPipe implements PipeTransform {
-  transform(text: string | null): IonicSafeString | string {
+  transform(text?: string | null): IonicSafeString | string {
     return text
       ? new IonicSafeString(`<ion-text color="warning">${text}</ion-text>`)
       : ''
@@ -49,7 +49,7 @@ export class ToWarningTextPipe implements PipeTransform {
   name: 'toRange',
 })
 export class ToRangePipe implements PipeTransform {
-  transform(range: string): Range {
+  transform(range?: string): Range {
     return Range.from(range)
   }
 }

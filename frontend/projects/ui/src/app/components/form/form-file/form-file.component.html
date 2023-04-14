@@ -1,0 +1,31 @@
+<tui-input-files
+  [pseudoInvalid]="true"
+  [(ngModel)]="value"
+  (focusedChange)="onFocus($event)"
+>
+  <input tuiInputFiles [accept]="spec.extensions.join(',')" />
+  <ng-template let-drop>
+    <div class="template" [class.template_hidden]="drop">
+      <div class="label">
+        {{ spec.name }}
+        <span *ngIf="spec.required">*</span>
+        <tui-tooltip
+          *ngIf="spec.description"
+          [content]="spec.description"
+        ></tui-tooltip>
+      </div>
+      <tui-tag
+        *ngIf="value; else label"
+        class="file"
+        size="l"
+        [value]="value.name"
+        [removable]="true"
+        (edited)="value = null"
+      ></tui-tag>
+      <ng-template #label>
+        <small>Click or drop file here</small>
+      </ng-template>
+    </div>
+    <div class="drop" [class.drop_hidden]="!drop">Drop file here</div>
+  </ng-template>
+</tui-input-files>

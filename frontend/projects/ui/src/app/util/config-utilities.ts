@@ -1,4 +1,4 @@
-import { DefaultString } from 'start-sdk/lib/config/config-types'
+import { DefaultString } from 'start-sdk/lib/config/configTypes'
 
 export class Range {
   min?: number
@@ -6,7 +6,7 @@ export class Range {
   minInclusive!: boolean
   maxInclusive!: boolean
 
-  static from(s: string): Range {
+  static from(s: string = '(*,*)'): Range {
     const r = new Range()
     r.minInclusive = s.startsWith('[')
     r.maxInclusive = s.endsWith(']')
