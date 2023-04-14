@@ -1,21 +1,27 @@
 import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
-import { FormsModule, ReactiveFormsModule } from '@angular/forms'
-import { IonicModule } from '@ionic/angular'
+import { ReactiveFormsModule } from '@angular/forms'
+import {
+  TuiButtonModule,
+  TuiLoaderModule,
+  TuiModeModule,
+  TuiNotificationModule,
+} from '@taiga-ui/core'
 import { AppConfigPage } from './app-config.page'
-import { TextSpinnerComponentModule } from '@start9labs/shared'
-import { FormObjectModule } from 'src/app/components/form-object/form-object.module'
+import { FormPageModule } from '../form/form.module'
+import { AppConfigDepComponent } from './app-config-dep.component'
 
 @NgModule({
-  declarations: [AppConfigPage],
   imports: [
     CommonModule,
-    FormsModule,
-    IonicModule,
-    TextSpinnerComponentModule,
-    FormObjectModule,
     ReactiveFormsModule,
+    FormPageModule,
+    TuiLoaderModule,
+    TuiNotificationModule,
+    TuiButtonModule,
+    TuiModeModule,
   ],
+  declarations: [AppConfigPage, AppConfigDepComponent],
   exports: [AppConfigPage],
 })
 export class AppConfigPageModule {}

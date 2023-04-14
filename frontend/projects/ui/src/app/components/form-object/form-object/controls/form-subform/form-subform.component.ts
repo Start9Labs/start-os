@@ -1,6 +1,6 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core'
 import { AbstractControl } from '@angular/forms'
-import { ValueSpecOf } from 'start-sdk/lib/config/config-types'
+import { ValueSpecOf } from 'start-sdk/lib/config/configTypes'
 
 @Component({
   selector: 'form-subform',

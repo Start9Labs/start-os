@@ -7,6 +7,7 @@ import {
   ValidatorFn,
   Validators,
 } from '@angular/forms'
+import { getDefaultString, Range } from '../util/config-utilities'
 import {
   InputSpec,
   isValueSpecListOf,
@@ -26,8 +27,8 @@ import {
   ValueSpecUnion,
   unionSelectKey,
   ValueSpecTextarea,
-} from 'start-sdk/lib/config/config-types'
-import { getDefaultString, Range } from '../util/config-utilities'
+  unionValueKey,
+} from 'start-sdk/lib/config/configTypes'
 const Mustache = require('mustache')
 
 @Injectable({
@@ -43,37 +44,37 @@ export class FormService {
     return this.getFormGroup(spec, [], current)
   }
 
+  getUnionSelectSpec(
+    spec: ValueSpecUnion,
+    selection: string | null,
+  ): ValueSpecSelect {
+    return {
+      ...spec,
+      type: 'select',
+      default: selection,
+      values: Object.fromEntries(
+        Object.entries(spec.variants).map(([key, { name }]) => [key, name]),
+      ),
+    }
+  }
+
   getUnionObject(
     spec: ValueSpecUnion,
     selection: string | null,
   ): UntypedFormGroup {
-    const { name, description, warning, variants, required } = spec
-
-    const selectSpec: ValueSpecSelect = {
-      type: 'select',
-      name,
-      description,
-      warning,
-      default: selection,
-      required,
-      values: Object.keys(variants).reduce(
-        (prev, curr) => ({
-          ...prev,
-          [curr]: variants[curr].name,
-        }),
-        {},
-      ),
-    }
-
-    const selectedSpec = selection ? variants[selection].spec : {}
-
-    return this.getFormGroup({
-      [unionSelectKey]: selectSpec,
-      ...selectedSpec,
+    const group = this.getFormGroup({
+      [unionSelectKey]: this.getUnionSelectSpec(spec, selection),
     })
+
+    group.setControl(
+      unionValueKey,
+      this.getFormGroup(selection ? spec.variants[selection].spec : {}),
+    )
+
+    return group
   }
 
-  getListItem(spec: ValueSpecList, entry: any) {
+  getListItem(spec: ValueSpecList, entry?: any) {
     const listItemValidators = getListItemValidators(spec)
     if (isValueSpecListOf(spec, 'string')) {
       return this.formBuilder.control(entry, listItemValidators)
@@ -84,7 +85,7 @@ export class FormService {
     }
   }
 
-  private getFormGroup(
+  getFormGroup(
     config: InputSpec,
     validators: ValidatorFn[] = [],
     current?: Record<string, any> | null,
@@ -246,7 +247,7 @@ function fileValidators(spec: ValueSpecFile): ValidatorFn[] {
   return validators
 }
 
-export function numberInRange(stringRange: string): ValidatorFn {
+export function numberInRange(stringRange: string = ''): ValidatorFn {
   return control => {
     const value = control.value
     if (!value) return null
@@ -254,32 +255,30 @@ export function numberInRange(stringRange: string): ValidatorFn {
       Range.from(stringRange).checkIncludes(value)
       return null
     } catch (e: any) {
-      return { numberNotInRange: { value: `Number must be ${e.message}` } }
+      return { numberNotInRange: `Number must be ${e.message}` }
     }
   }
 }
 
 export function isNumber(): ValidatorFn {
-  return control =>
-    !control.value || control.value == Number(control.value)
-      ? null
-      : { notNumber: { value: control.value } }
+  return ({ value }) =>
+    !value || value == Number(value) ? null : { notNumber: 'Must be a number' }
 }
 
 export function isInteger(): ValidatorFn {
-  return control =>
-    !control.value || control.value == Math.trunc(control.value)
+  return ({ value }) =>
+    !value || value == Math.trunc(value)
       ? null
-      : { numberNotInteger: { value: control.value } }
+      : { numberNotInteger: 'Must be an integer' }
 }
 
-export function listInRange(stringRange: string): ValidatorFn {
+export function listInRange(stringRange: string = ''): ValidatorFn {
   return control => {
     try {
       Range.from(stringRange).checkIncludes(control.value.length)
       return null
     } catch (e: any) {
-      return { listNotInRange: { value: `List must be ${e.message}` } }
+      return { listNotInRange: `List must be ${e.message}` }
     }
   }
 }
@@ -289,7 +288,7 @@ export function listItemIssue(): ValidatorFn {
     const { controls } = parentControl as UntypedFormArray
     const problemChild = controls.find(c => c.invalid)
     if (problemChild) {
-      return { listItemIssue: { value: 'Invalid entries' } }
+      return { listItemIssue: 'Invalid entries' }
     } else {
       return null
     }
@@ -324,9 +323,7 @@ export function listUnique(spec: ValueSpecList): ValidatorFn {
           }
 
           return {
-            listNotUnique: {
-              value: `${display1} and ${display2} are not unique.${uniqueMessage}`,
-            },
+            listNotUnique: `${display1} and ${display2} are not unique.${uniqueMessage}`,
           }
         }
       }

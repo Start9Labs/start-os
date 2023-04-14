@@ -1,372 +1,197 @@
-import { Component, Input } from '@angular/core'
+import { Component, Inject } from '@angular/core'
+import { endWith, firstValueFrom, Subscription } from 'rxjs'
+import { tuiIsString } from '@taiga-ui/cdk'
 import {
-  AlertController,
-  ModalController,
-  LoadingController,
-  IonicSafeString,
-} from '@ionic/angular'
+  TuiAlertService,
+  TuiDialogContext,
+  TuiDialogService,
+  TuiNotification,
+} from '@taiga-ui/core'
+import { TUI_PROMPT, TuiPromptData } from '@taiga-ui/kit'
+import { POLYMORPHEUS_CONTEXT } from '@tinkoff/ng-polymorpheus'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import {
-  ErrorToastService,
-  getErrorMessage,
-  isEmptyObject,
-  isObject,
-} from '@start9labs/shared'
-import { DependentInfo } from 'src/app/types/dependent-info'
-import { InputSpec } from 'start-sdk/lib/config/config-types'
+import { getErrorMessage, isEmptyObject } from '@start9labs/shared'
+import { InputSpec } from 'start-sdk/lib/config/configTypes'
 import {
   DataModel,
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
 import { PatchDB } from 'patch-db-client'
-import { UntypedFormGroup } from '@angular/forms'
-import {
-  convertValuesRecursive,
-  FormService,
-} from 'src/app/services/form.service'
-import { compare, Operation, getValueByPointer } from 'fast-json-patch'
+import { compare, Operation } from 'fast-json-patch'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { getAllPackages, getPackage } from 'src/app/util/get-package-data'
 import { Breakages } from 'src/app/services/api/api.types'
+import { InvalidService } from '../../components/form/invalid.service'
+import { LoadingService } from '../loading/loading.service'
+import { DependentInfo } from '../../types/dependent-info'
+import { ActionButton } from '../form/form.page'
+
+export interface PackageConfigData {
+  readonly pkgId: string
+  readonly dependentInfo?: DependentInfo
+}
 
 @Component({
   selector: 'app-config',
   templateUrl: './app-config.page.html',
   styleUrls: ['./app-config.page.scss'],
+  providers: [InvalidService],
 })
 export class AppConfigPage {
-  @Input() pkgId!: string
-  @Input() dependentInfo?: DependentInfo
+  readonly pkgId = this.context.data.pkgId
+  readonly dependentInfo = this.context.data.dependentInfo
 
-  pkg!: PackageDataEntry
+  loadingError = ''
+  loadingText = this.dependentInfo
+    ? `Setting properties to accommodate ${this.dependentInfo.title}`
+    : 'Loading Config'
 
-  loadingText = ''
+  pkg?: PackageDataEntry
+  spec: InputSpec = {}
+  patch: Operation[] = []
+  buttons: ActionButton<any>[] = [
+    {
+      text: 'Save',
+      handler: value => this.save(value),
+    },
+  ]
 
-  configSpec?: InputSpec
-  configForm?: UntypedFormGroup
-
-  original?: object // only if existing config
-  diff?: string[] // only if dependent info
-
-  loading = true
-  hasNewOptions = false
-  saving = false
-  loadingError: string | IonicSafeString = ''
+  original: object | null = null
+  value: object | null = null
 
   constructor(
+    @Inject(POLYMORPHEUS_CONTEXT)
+    private readonly context: TuiDialogContext<void, PackageConfigData>,
+    private readonly dialogs: TuiDialogService,
+    private readonly alerts: TuiAlertService,
+    private readonly loader: LoadingService,
     private readonly embassyApi: ApiService,
-    private readonly errToast: ErrorToastService,
-    private readonly loadingCtrl: LoadingController,
-    private readonly alertCtrl: AlertController,
-    private readonly modalCtrl: ModalController,
-    private readonly formService: FormService,
-    private readonly patch: PatchDB<DataModel>,
+    private readonly patchDb: PatchDB<DataModel>,
   ) {}
 
   async ngOnInit() {
     try {
-      const pkg = await getPackage(this.patch, this.pkgId)
-      if (!pkg?.installed?.['has-config']) return
+      this.pkg = await getPackage(this.patchDb, this.pkgId)
 
-      this.pkg = pkg
+      if (!this.pkg) {
+        this.loadingError = 'This service does not exist'
 
-      let newConfig: object | undefined
-      let patch: Operation[] | undefined
+        return
+      }
 
       if (this.dependentInfo) {
-        this.loadingText = `Setting properties to accommodate ${this.dependentInfo.title}`
-        const {
-          'old-config': oc,
-          'new-config': nc,
-          spec: s,
-        } = await this.embassyApi.dryConfigureDependency({
+        const depConfig = await this.embassyApi.dryConfigureDependency({
           'dependency-id': this.pkgId,
           'dependent-id': this.dependentInfo.id,
         })
-        this.original = oc
-        newConfig = nc
-        this.configSpec = s
-        patch = compare(this.original, newConfig)
+
+        this.original = depConfig['old-config']
+        this.value = depConfig['new-config'] || this.original
+        this.spec = depConfig.spec
+        this.patch = compare(this.original, this.value)
       } else {
-        this.loadingText = 'Loading Config'
-        const { config: c, spec: s } = await this.embassyApi.getPackageConfig({
+        const { config, spec } = await this.embassyApi.getPackageConfig({
           id: this.pkgId,
         })
-        this.original = c
-        this.configSpec = s
-      }
 
-      this.configForm = this.formService.createForm(
-        this.configSpec!,
-        newConfig || this.original,
-      )
-
-      if (patch) {
-        this.diff = this.getDiff(patch)
-        this.markDirty(patch)
+        this.original = config
+        this.value = config
+        this.spec = spec
       }
     } catch (e: any) {
-      this.loadingError = getErrorMessage(e)
+      const message = getErrorMessage(e)
+
+      this.loadingError = tuiIsString(message) ? message : message.value
     } finally {
-      this.loading = false
+      this.loadingText = ''
     }
   }
 
-  resetDefaults() {
-    this.configForm = this.formService.createForm(this.configSpec!)
-    const patch = compare(this.original || {}, this.configForm.value)
-    this.markDirty(patch)
-  }
-
-  async dismiss() {
-    if (this.configForm?.dirty) {
-      this.presentAlertUnsaved()
-    } else {
-      this.modalCtrl.dismiss()
-    }
-  }
-
-  async tryConfigure() {
-    convertValuesRecursive(this.configSpec!, this.configForm!)
-
-    if (this.configForm!.invalid) {
-      document
-        .getElementsByClassName('validation-error')[0]
-        ?.scrollIntoView({ behavior: 'smooth' })
-      return
-    }
-
-    this.saving = true
-
-    const config = this.configForm!.value
-
-    const fileKeys = Object.keys(config).filter(
-      key => config[key] instanceof File,
-    )
-
-    let loader: HTMLIonLoadingElement | undefined
-    if (fileKeys.length) {
-      loader = await this.loadingCtrl.create({
-        message: `Uploading File${fileKeys.length > 1 ? 's' : ''}...`,
-      })
-      await loader.present()
-
-      try {
-        const hashes = await Promise.all(
-          fileKeys.map(key => this.embassyApi.uploadFile(config[key])),
-        )
-        fileKeys.forEach((key, i) => (config[key] = hashes[i]))
-      } catch (e: any) {
-        this.errToast.present(e)
-      } finally {
-        await loader.dismiss()
-        return
-      }
-    }
-
-    if (await hasCurrentDeps(this.patch, this.pkgId)) {
-      this.dryConfigure(config, loader)
-    } else {
-      this.configure(config, loader)
-    }
-  }
-
-  private async dryConfigure(
-    config: Record<string, any>,
-    loader?: HTMLIonLoadingElement,
-  ) {
-    const message = 'Checking dependent services...'
-    if (loader) {
-      loader.message = message
-    } else {
-      loader = await this.loadingCtrl.create({ message })
-      await loader.present()
-    }
+  private async save(config: any) {
+    const loader = new Subscription()
 
     try {
-      const breakages = await this.embassyApi.drySetPackageConfig({
-        id: this.pkgId,
-        config,
-      })
+      await this.uploadFiles(config, loader)
 
-      if (isEmptyObject(breakages)) {
-        this.configure(config, loader)
+      if (await hasCurrentDeps(this.patchDb, this.pkgId)) {
+        await this.configureDeps(config, loader)
       } else {
-        await loader.dismiss()
-        const proceed = await this.presentAlertBreakages(breakages)
-        if (proceed) {
-          this.configure(config)
-        } else {
-          this.saving = false
-        }
+        await this.configure(config, loader)
       }
     } catch (e: any) {
-      this.errToast.present(e)
-      this.saving = false
-      loader.dismiss()
-    }
-  }
-
-  private async configure(
-    config: Record<string, any>,
-    loader?: HTMLIonLoadingElement,
-  ) {
-    const message = 'Saving...'
-    if (loader) {
-      loader.message = message
-    } else {
-      loader = await this.loadingCtrl.create({ message })
-      await loader.present()
-    }
-
-    try {
-      await this.embassyApi.setPackageConfig({
-        id: this.pkgId,
-        config,
-      })
-      this.modalCtrl.dismiss()
-    } catch (e: any) {
-      this.errToast.present(e)
+      this.showError(e)
     } finally {
-      this.saving = false
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
-  private async presentAlertBreakages(breakages: Breakages): Promise<boolean> {
-    let message: string =
+  private async uploadFiles(config: Record<string, any>, loader: Subscription) {
+    loader.unsubscribe()
+
+    // TODO: Could be nested files
+    const keys = Object.keys(config).filter(key => config[key] instanceof File)
+    const message = `Uploading File${keys.length > 1 ? 's' : ''}...`
+
+    if (!keys.length) return
+
+    loader.add(this.loader.open(message).subscribe())
+
+    const hashes = await Promise.all(
+      keys.map(key => this.embassyApi.uploadFile(config[key])),
+    )
+    keys.forEach((key, i) => (config[key] = hashes[i]))
+  }
+
+  private async configureDeps(
+    config: Record<string, any>,
+    loader: Subscription,
+  ) {
+    loader.unsubscribe()
+    loader.add(this.loader.open('Checking dependent services...').subscribe())
+
+    const breakages = await this.embassyApi.drySetPackageConfig({
+      id: this.pkgId,
+      config,
+    })
+
+    loader.unsubscribe()
+
+    if (isEmptyObject(breakages) || (await this.approveBreakages(breakages))) {
+      await this.configure(config, loader)
+    }
+  }
+
+  private async configure(config: Record<string, any>, loader: Subscription) {
+    loader.unsubscribe()
+    loader.add(this.loader.open('Saving...').subscribe())
+
+    await this.embassyApi.setPackageConfig({ id: this.pkgId, config })
+    this.context.$implicit.complete()
+  }
+
+  private async approveBreakages(breakages: Breakages): Promise<boolean> {
+    const packages = await getAllPackages(this.patchDb)
+    const message =
       'As a result of this change, the following services will no longer work properly and may crash:<ul>'
-    const localPkgs = await getAllPackages(this.patch)
-    const bullets = Object.keys(breakages).map(id => {
-      const title = localPkgs[id].manifest.title
-      return `<li><b>${title}</b></li>`
-    })
-    message = `${message}${bullets}</ul>`
+    const content = `${message}${Object.keys(breakages).map(
+      id => `<li><b>${packages[id].manifest.title}</b></li>`,
+    )}</ul>`
+    const data: TuiPromptData = { content, yes: 'Continue', no: 'Cancel' }
 
-    return new Promise(async resolve => {
-      const alert = await this.alertCtrl.create({
-        header: 'Warning',
-        message,
-        buttons: [
-          {
-            text: 'Cancel',
-            role: 'cancel',
-            handler: () => {
-              resolve(false)
-            },
-          },
-          {
-            text: 'Continue',
-            handler: () => {
-              resolve(true)
-            },
-            cssClass: 'enter-click',
-          },
-        ],
-        cssClass: 'alert-warning-message',
+    return firstValueFrom(
+      this.dialogs.open<boolean>(TUI_PROMPT, { data }).pipe(endWith(false)),
+    )
+  }
+
+  private showError(e: any) {
+    const message = getErrorMessage(e)
+
+    this.alerts
+      .open(tuiIsString(message) ? message : message.value, {
+        status: TuiNotification.Error,
+        autoClose: false,
+        label: 'Error',
       })
-
-      await alert.present()
-    })
-  }
-
-  private getDiff(patch: Operation[]): string[] {
-    return patch.map(op => {
-      let message: string
-      switch (op.op) {
-        case 'add':
-          message = `Added ${this.getNewValue(op.value)}`
-          break
-        case 'remove':
-          message = `Removed ${this.getOldValue(op.path)}`
-          break
-        case 'replace':
-          message = `Changed from ${this.getOldValue(
-            op.path,
-          )} to ${this.getNewValue(op.value)}`
-          break
-        default:
-          message = `Unknown operation`
-      }
-
-      let displayPath: string
-
-      const arrPath = op.path
-        .substring(1)
-        .split('/')
-        .map(node => {
-          const num = Number(node)
-          return isNaN(num) ? node : num
-        })
-
-      if (typeof arrPath[arrPath.length - 1] === 'number') {
-        arrPath.pop()
-      }
-
-      displayPath = arrPath.join(' &rarr; ')
-
-      return `${displayPath}: ${message}`
-    })
-  }
-
-  private getOldValue(path: any): string {
-    const val = getValueByPointer(this.original, path)
-    if (['string', 'number', 'boolean'].includes(typeof val)) {
-      return val
-    } else if (isObject(val)) {
-      return 'entry'
-    } else {
-      return 'list'
-    }
-  }
-
-  private getNewValue(val: any): string {
-    if (['string', 'number', 'boolean'].includes(typeof val)) {
-      return val
-    } else if (isObject(val)) {
-      return 'new entry'
-    } else {
-      return 'new list'
-    }
-  }
-
-  private markDirty(patch: Operation[]) {
-    patch.forEach(op => {
-      const arrPath = op.path
-        .substring(1)
-        .split('/')
-        .map(node => {
-          const num = Number(node)
-          return isNaN(num) ? node : num
-        })
-
-      if (op.op !== 'remove') this.configForm!.get(arrPath)?.markAsDirty()
-
-      if (typeof arrPath[arrPath.length - 1] === 'number') {
-        const prevPath = arrPath.slice(0, arrPath.length - 1)
-        this.configForm!.get(prevPath)?.markAsDirty()
-      }
-    })
-  }
-
-  private async presentAlertUnsaved() {
-    const alert = await this.alertCtrl.create({
-      header: 'Unsaved Changes',
-      message: 'You have unsaved changes. Are you sure you want to leave?',
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
-        },
-        {
-          text: `Leave`,
-          handler: () => {
-            this.modalCtrl.dismiss()
-          },
-          cssClass: 'enter-click',
-        },
-      ],
-    })
-    await alert.present()
+      .subscribe()
   }
 }
