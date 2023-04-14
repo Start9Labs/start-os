@@ -1,4 +1,4 @@
-import { InputSpec } from 'start-sdk/lib/config/config-types'
+import { InputSpec } from 'start-sdk/lib/config/configTypes'
 import { DevProjectData } from 'src/app/services/patch-db/data-model'
 
 export type BasicInfo = {

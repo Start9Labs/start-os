@@ -1,0 +1,10 @@
+{{ spec.name }}
+<tui-tooltip
+  *ngIf="spec.description"
+  [content]="spec.description"
+></tui-tooltip>
+<tui-toggle
+  size="l"
+  [(ngModel)]="value"
+  (focusedChange)="onFocus($event)"
+></tui-toggle>
