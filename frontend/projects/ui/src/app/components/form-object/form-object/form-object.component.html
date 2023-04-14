@@ -65,7 +65,7 @@
             <form-label
               [data]="{
                 name: spec.name,
-                description: spec.description,
+                description: spec.description || null,
                 edited: entry.value.dirty,
                 required: !!(spec.range | toRange).min
               }"

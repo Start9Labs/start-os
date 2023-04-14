@@ -41,9 +41,15 @@
                 "glob": "ngsw.json",
                 "input": "dist/ui",
                 "output": "projects/ui/src"
+              },
+              {
+                "glob": "**/*",
+                "input": "node_modules/@taiga-ui/icons/src",
+                "output": "assets/taiga-ui/icons"
               }
             ],
             "styles": [
+              "node_modules/@taiga-ui/core/styles/taiga-ui-theme.less",
               "projects/shared/styles/variables.scss",
               "projects/shared/styles/global.scss",
               "projects/shared/styles/shared.scss",
