@@ -1,4 +1,5 @@
 import {
+  TuiAlertModule,
   TuiDialogModule,
   TuiModeModule,
   TuiRootModule,
@@ -33,6 +34,8 @@ import { ConnectionBarComponentModule } from './components/connection-bar/connec
 import { WidgetsPageModule } from './pages/widgets/widgets.module'
 import { ServiceWorkerModule } from '@angular/service-worker'
 import { environment } from '../environments/environment'
+import { LoadingModule } from './modals/loading/loading.module'
+import { FormPageModule } from './modals/form/form.module'
 
 @NgModule({
   declarations: [AppComponent],
@@ -58,6 +61,7 @@ import { environment } from '../environments/environment'
     ConnectionBarComponentModule,
     TuiRootModule,
     TuiDialogModule,
+    TuiAlertModule,
     TuiModeModule,
     TuiThemeNightModule,
     WidgetsPageModule,
@@ -70,6 +74,8 @@ import { environment } from '../environments/environment'
       // or after 30 seconds (whichever comes first).
       registrationStrategy: 'registerWhenStable:30000',
     }),
+    LoadingModule,
+    FormPageModule,
   ],
   providers: APP_PROVIDERS,
   bootstrap: [AppComponent],

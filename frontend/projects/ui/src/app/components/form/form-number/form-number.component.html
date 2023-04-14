@@ -1,0 +1,14 @@
+<tui-input-number
+  [tuiHintContent]="spec.description"
+  [tuiTextfieldPostfix]="spec.units || ''"
+  [precision]="Infinity"
+  [decimal]="spec.integral ? 'never' : 'not-zero'"
+  [min]="min"
+  [max]="max"
+  [(ngModel)]="value"
+  (focusedChange)="onFocus($event)"
+>
+  {{ spec.name }}
+  <span *ngIf="spec.required">*</span>
+  <input tuiTextfield [placeholder]="spec.placeholder || ''" />
+</tui-input-number>

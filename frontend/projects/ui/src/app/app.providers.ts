@@ -2,6 +2,10 @@ import { APP_INITIALIZER, Provider } from '@angular/core'
 import { UntypedFormBuilder } from '@angular/forms'
 import { Router, RouteReuseStrategy } from '@angular/router'
 import { IonicRouteStrategy, IonNav } from '@ionic/angular'
+import {
+  tuiButtonOptionsProvider,
+  tuiNumberFormatProvider,
+} from '@taiga-ui/core'
 import { RELATIVE_URL, THEME, WorkspaceConfig } from '@start9labs/shared'
 import { ApiService } from './services/api/embassy-api.service'
 import { MockApiService } from './services/api/embassy-mock-api.service'
@@ -20,6 +24,8 @@ export const APP_PROVIDERS: Provider[] = [
   FilterPackagesPipe,
   UntypedFormBuilder,
   IonNav,
+  tuiNumberFormatProvider({ decimalSeparator: '.', thousandSeparator: '' }),
+  tuiButtonOptionsProvider({ size: 'm' }),
   {
     provide: RouteReuseStrategy,
     useClass: IonicRouteStrategy,
