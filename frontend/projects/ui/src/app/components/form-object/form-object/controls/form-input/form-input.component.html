@@ -2,7 +2,7 @@
   class="label"
   [data]="{
     name: spec.name,
-    description: spec.description,
+    description: spec.description || null,
     edited: control.dirty,
     required: spec.required
   }"

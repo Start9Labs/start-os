@@ -2,7 +2,7 @@
   <form-label
     [data]="{
       name: spec.name,
-      description: spec.description,
+      description: spec.description || null,
       edited: control.dirty
     }"
   ></form-label>
