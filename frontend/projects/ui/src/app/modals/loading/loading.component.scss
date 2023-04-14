@@ -1,0 +1,21 @@
+@import '@taiga-ui/core/styles/taiga-ui-local';
+
+:host {
+  @include shadow(3);
+
+  display: flex;
+  align-items: center;
+  max-width: 80%;
+  margin: auto;
+  padding: 1.5rem;
+  background: var(--tui-elevation-01);
+  border-radius: var(--tui-radius-m);
+
+  --tui-primary: var(--tui-warning-fill);
+}
+
+tui-loader {
+  flex-shrink: 0;
+  width: 2rem;
+  margin-right: 1rem;
+}

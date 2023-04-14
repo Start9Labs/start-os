@@ -6,7 +6,11 @@ import {
   DataModel,
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
-import { ModalService } from 'src/app/services/modal.service'
+import { FormDialogService } from 'src/app/services/form-dialog.service'
+import {
+  AppConfigPage,
+  PackageConfigData,
+} from 'src/app/modals/app-config/app-config.page'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { from, map, Observable } from 'rxjs'
 import { PatchDB } from 'patch-db-client'
@@ -28,7 +32,7 @@ export class ToButtonsPipe implements PipeTransform {
     private readonly route: ActivatedRoute,
     private readonly navCtrl: NavController,
     private readonly modalCtrl: ModalController,
-    private readonly modalService: ModalService,
+    private readonly formDialog: FormDialogService,
     private readonly apiService: ApiService,
     private readonly patch: PatchDB<DataModel>,
   ) {}
@@ -49,8 +53,11 @@ export class ToButtonsPipe implements PipeTransform {
       },
       // config
       {
-        action: async () =>
-          this.modalService.presentModalConfig({ pkgId: pkg.manifest.id }),
+        action: () =>
+          this.formDialog.open<PackageConfigData>(AppConfigPage, {
+            label: `${pkg.manifest.title} configuration`,
+            data: { pkgId: pkg.manifest.id },
+          }),
         title: 'Config',
         description: `Customize ${pkgTitle}`,
         icon: 'options-outline',

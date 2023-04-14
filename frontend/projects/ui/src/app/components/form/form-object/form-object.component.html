@@ -1,0 +1,25 @@
+<h3 class="title" (click)="toggle()">
+  <button
+    tuiIconButton
+    size="s"
+    icon="tuiIconChevronDown"
+    type="button"
+    shape="rounded"
+    class="button"
+    [class.button_open]="open"
+    [appearance]="invalid ? 'secondary-destructive' : 'secondary'"
+  ></button>
+  <ng-content></ng-content>
+  {{ spec.name }}
+  <tui-tooltip
+    *ngIf="spec.description"
+    [content]="spec.description"
+    (click.stop)="(0)"
+  ></tui-tooltip>
+</h3>
+
+<tui-expand class="expand" [expanded]="open">
+  <div class="g-form-group" [class.g-form-group_invalid]="invalid">
+    <form-group [spec]="spec.spec"></form-group>
+  </div>
+</tui-expand>

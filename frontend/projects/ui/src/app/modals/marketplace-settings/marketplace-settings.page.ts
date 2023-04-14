@@ -9,7 +9,7 @@ import { ActionSheetButton } from '@ionic/core'
 import { ErrorToastService, sameUrl, toUrl } from '@start9labs/shared'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ValueSpecObject } from 'start-sdk/lib/config/config-types'
+import { ValueSpecObject } from 'start-sdk/lib/config/configTypes'
 import {
   GenericFormPage,
   GenericFormOptions,
