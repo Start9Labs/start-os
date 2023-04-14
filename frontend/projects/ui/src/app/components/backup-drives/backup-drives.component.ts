@@ -12,7 +12,7 @@ import {
   ModalController,
 } from '@ionic/angular'
 import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
-import { InputSpec } from 'start-sdk/lib/config/config-types'
+import { InputSpec } from 'start-sdk/lib/config/configTypes'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ErrorToastService } from '@start9labs/shared'
 import { MappedBackupTarget } from 'src/app/types/mapped-backup-target'

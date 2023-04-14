@@ -1,0 +1,11 @@
+<tui-text-area
+  [tuiHintContent]="spec.description"
+  [expandable]="true"
+  [rows]="6"
+  [(ngModel)]="value"
+  (focusedChange)="onFocus($event)"
+>
+  {{ spec.name }}
+  <span *ngIf="spec.required">*</span>
+  <textarea tuiTextfield [placeholder]="spec.placeholder || ''"></textarea>
+</tui-text-area>

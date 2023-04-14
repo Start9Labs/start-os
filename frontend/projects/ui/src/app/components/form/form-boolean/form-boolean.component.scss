@@ -1,0 +1,14 @@
+:host {
+  height: var(--tui-height-l);
+  display: flex;
+  align-items: center;
+  padding: 0 1rem;
+  box-shadow: inset 0 0 0 1px var(--tui-base-03);
+  font: var(--tui-font-text-l);
+  font-weight: bold;
+  border-radius: var(--tui-radius-m);
+}
+
+tui-toggle {
+  margin-left: auto;
+}
