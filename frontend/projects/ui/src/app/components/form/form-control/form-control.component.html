@@ -1,0 +1,33 @@
+<ng-container [ngSwitch]="spec.type">
+  <form-string *ngSwitchCase="'string'"></form-string>
+  <form-number *ngSwitchCase="'number'"></form-number>
+  <form-text *ngSwitchCase="'textarea'"></form-text>
+  <form-boolean *ngSwitchCase="'boolean'"></form-boolean>
+  <form-select *ngSwitchCase="'select'"></form-select>
+  <form-multiselect *ngSwitchCase="'multiselect'"></form-multiselect>
+  <form-file *ngSwitchCase="'file'"></form-file>
+</ng-container>
+<tui-error [error]="order | tuiFieldError | async"></tui-error>
+<ng-template *ngIf="spec.warning" #warning let-completeWith="completeWith">
+  {{ spec.warning }}
+  <div class="buttons">
+    <button
+      tuiButton
+      type="button"
+      appearance="secondary"
+      size="s"
+      (click)="completeWith(true)"
+    >
+      Rollback
+    </button>
+    <button
+      tuiButton
+      type="button"
+      appearance="flat"
+      size="s"
+      (click)="completeWith(false)"
+    >
+      Accept
+    </button>
+  </div>
+</ng-template>

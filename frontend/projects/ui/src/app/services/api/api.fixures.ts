@@ -13,7 +13,7 @@ import {
   Manifest,
 } from '@start9labs/marketplace'
 import { Log } from '@start9labs/shared'
-import { unionSelectKey } from 'start-sdk/lib/config/config-types'
+import { unionSelectKey } from 'start-sdk/lib/config/configTypes'
 
 export module Mock {
   export const ServerUpdated: ServerStatusInfo = {
@@ -1111,6 +1111,24 @@ export module Mock {
       warning: 'Careful changing this',
       required: true,
       variants: {
+        dummy: {
+          name: 'Dummy',
+          spec: {
+            name: {
+              type: 'string',
+              inputmode: 'text',
+              name: 'Name',
+              description: null,
+              required: true,
+              masked: false,
+              pattern: '^[a-zA-Z]+$',
+              patternDescription: 'Must contain only letters.',
+              placeholder: null,
+              warning: null,
+              default: null,
+            },
+          },
+        },
         internal: { name: 'Internal', spec: {} },
         external: {
           name: 'External',
@@ -1187,7 +1205,6 @@ export module Mock {
         'the default port for your Bitcoin node. default: 8333, testnet: 18333, regtest: 18444',
       warning: null,
       required: true,
-      default: 8333,
       range: '(0, 9998]',
       units: null,
       placeholder: null,
