@@ -9,6 +9,10 @@ import { pauseFor, ErrorToastService } from '@start9labs/shared'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { FormContext, FormPage } from 'src/app/modals/form/form.page'
 import { LoadingService } from 'src/app/modals/loading/loading.service'
+import { PatchDB } from 'patch-db-client'
+import { DataModel } from 'src/app/services/patch-db/data-model'
+import { ConnectionService } from 'src/app/services/connection.service'
+import { Pipe, PipeTransform } from '@angular/core'
 import {
   BehaviorSubject,
   catchError,
@@ -21,10 +25,6 @@ import {
   switchMap,
   tap,
 } from 'rxjs'
-import { PatchDB } from 'patch-db-client'
-import { DataModel } from 'src/app/services/patch-db/data-model'
-import { ConnectionService } from 'src/app/services/connection.service'
-import { Pipe, PipeTransform } from '@angular/core'
 
 interface WiFiForm {
   ssid: string
@@ -61,9 +61,11 @@ export class WifiPage {
     private readonly connectionService: ConnectionService,
   ) {}
 
-  async toggleWifi(e: ToggleCustomEvent) {
+  async toggleWifi(e: ToggleCustomEvent): Promise<void> {
     const enable = e.detail.checked
-    const loader = this.loader.open(enable ? 'Enabling Wifi' : 'Disabling WiFi').subscribe()
+    const loader = this.loader
+      .open(enable ? 'Enabling Wifi' : 'Disabling WiFi')
+      .subscribe()
 
     try {
       await this.api.enableWifi({ enable })
@@ -74,15 +76,67 @@ export class WifiPage {
     }
   }
 
-  presentModalAdd(wifi: RR.GetWifiRes) {
+  async connect(ssid: string): Promise<void> {
+    const loader = this.loader
+      .open('Connecting. This could take a while...')
+      .subscribe()
+
+    try {
+      await this.api.connectWifi({ ssid })
+      await this.confirmWifi(ssid)
+    } catch (e: any) {
+      this.errToast.present(e)
+    } finally {
+      loader.unsubscribe()
+    }
+  }
+
+  async forget(ssid: string, wifi: RR.GetWifiRes): Promise<void> {
+    const loader = this.loader.open('Deleting...').subscribe()
+
+    try {
+      await this.api.deleteWifi({ ssid })
+      delete wifi.ssids[ssid]
+      this.localChanges$.next(wifi)
+      this.trigger$.next('')
+    } catch (e: any) {
+      this.errToast.present(e)
+    } finally {
+      loader.unsubscribe()
+    }
+  }
+
+  async presentModalAdd(network: AvailableWifi) {
+    if (!network.security.length) {
+      this.connect(network.ssid)
+    } else {
+      const options: Partial<TuiDialogOptions<FormContext<WiFiForm>>> = {
+        label: 'Password Needed',
+        data: {
+          spec: wifiSpec.spec,
+          buttons: [
+            {
+              text: 'Connect',
+              handler: async ({ ssid, password }) =>
+                this.saveAndConnect(ssid, password),
+            },
+          ],
+        },
+      }
+      this.formDialog.open(FormPage, options)
+    }
+  }
+
+  presentModalAddOther(wifi: RR.GetWifiRes) {
     const options: Partial<TuiDialogOptions<FormContext<WiFiForm>>> = {
-      label: 'WiFi Credentials',
+      label: wifiSpec.name,
       data: {
         spec: wifiSpec.spec,
         buttons: [
           {
             text: 'Save for Later',
-            handler: async ({ ssid, password }) => this.save(ssid, password, wifi),
+            handler: async ({ ssid, password }) =>
+              this.save(ssid, password, wifi),
           },
           {
             text: 'Save and Connect',
@@ -92,7 +146,6 @@ export class WifiPage {
         ],
       },
     }
-
     this.formDialog.open(FormPage, options)
   }
 
@@ -144,35 +197,6 @@ export class WifiPage {
     })
 
     await toast.present()
-  }
-
-  private async connect(ssid: string): Promise<void> {
-    const loader = this.loader
-      .open('Connecting. This could take a while...')
-      .subscribe()
-
-    try {
-      await this.api.connectWifi({ ssid })
-      await this.confirmWifi(ssid)
-    } catch (e: any) {
-      this.errToast.present(e)
-    } finally {
-      loader.unsubscribe()
-    }
-  }
-
-  private async delete(ssid: string, wifi: RR.GetWifiRes): Promise<void> {
-    const loader = this.loader.open('Deleting...').subscribe()
-
-    try {
-      await this.api.deleteWifi({ ssid })
-      delete wifi.ssids[ssid]
-      this.localChanges$.next(wifi)
-    } catch (e: any) {
-      this.errToast.present(e)
-    } finally {
-      loader.unsubscribe()
-    }
   }
 
   private async save(
