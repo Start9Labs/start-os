@@ -2,21 +2,24 @@ import { Component } from '@angular/core'
 import {
   ActionSheetController,
   AlertController,
-  LoadingController,
-  ModalController,
   ToastController,
 } from '@ionic/angular'
 import { AlertInput } from '@ionic/core'
+import { TuiDialogOptions } from '@taiga-ui/core'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActionSheetButton } from '@ionic/core'
-import { ValueSpecObject } from 'start-sdk/lib/config/config-types'
+import { ValueSpecObject } from 'start-sdk/lib/config/configTypes'
 import { RR } from 'src/app/services/api/api.types'
 import { pauseFor, ErrorToastService } from '@start9labs/shared'
-import {
-  GenericFormPage,
-  GenericFormOptions,
-} from 'src/app/modals/generic-form/generic-form.page'
 import { ConfigService } from 'src/app/services/config.service'
+import { FormDialogService } from 'src/app/services/form-dialog.service'
+import { FormContext, FormPage } from 'src/app/modals/form/form.page'
+import { LoadingService } from 'src/app/modals/loading/loading.service'
+
+interface WiFiForm {
+  ssid: string
+  password: string
+}
 
 @Component({
   selector: 'wifi',
@@ -34,8 +37,8 @@ export class WifiPage {
     private readonly api: ApiService,
     private readonly toastCtrl: ToastController,
     private readonly alertCtrl: AlertController,
-    private readonly loadingCtrl: LoadingController,
-    private readonly modalCtrl: ModalController,
+    private readonly loader: LoadingService,
+    private readonly formDialog: FormDialogService,
     private readonly errToast: ErrorToastService,
     private readonly actionCtrl: ActionSheetController,
     private readonly config: ConfigService,
@@ -109,33 +112,27 @@ export class WifiPage {
     await alert.present()
   }
 
-  async presentModalAdd(ssid?: string, needsPW: boolean = true) {
-    const wifiSpec = getWifiValueSpec(ssid, needsPW)
-
-    const options: GenericFormOptions = {
-      title: wifiSpec.name,
-      spec: wifiSpec.spec,
-      buttons: [
-        {
-          text: 'Save for Later',
-          handler: async (value: { ssid: string; password: string }) =>
-            this.save(value.ssid, value.password),
-        },
-        {
-          text: 'Save and Connect',
-          handler: async (value: { ssid: string; password: string }) =>
-            this.saveAndConnect(value.ssid, value.password),
-          isSubmit: true,
-        },
-      ],
+  presentModalAdd(ssid?: string, needsPW: boolean = true) {
+    const { name, spec } = getWifiValueSpec(ssid, needsPW)
+    const options: Partial<TuiDialogOptions<FormContext<WiFiForm>>> = {
+      label: name,
+      data: {
+        spec,
+        buttons: [
+          {
+            text: 'Save for Later',
+            handler: async ({ ssid, password }) => this.save(ssid, password),
+          },
+          {
+            text: 'Save and Connect',
+            handler: async ({ ssid, password }) =>
+              this.saveAndConnect(ssid, password),
+          },
+        ],
+      },
     }
 
-    const modal = await this.modalCtrl.create({
-      component: GenericFormPage,
-      componentProps: options,
-    })
-
-    await modal.present()
+    this.formDialog.open(FormPage, options)
   }
 
   async presentAction(ssid: string) {
@@ -171,10 +168,7 @@ export class WifiPage {
   }
 
   private async setCountry(country: string): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Setting country...',
-    })
-    await loader.present()
+    const loader = this.loader.open('Setting country...').subscribe()
 
     try {
       await this.api.setWifiCountry({ country })
@@ -183,7 +177,7 @@ export class WifiPage {
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
@@ -262,10 +256,9 @@ export class WifiPage {
   }
 
   private async connect(ssid: string): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Connecting. This could take a while...',
-    })
-    await loader.present()
+    const loader = this.loader
+      .open('Connecting. This could take a while...')
+      .subscribe()
 
     try {
       await this.api.connectWifi({ ssid })
@@ -273,15 +266,12 @@ export class WifiPage {
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
   private async delete(ssid: string): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Deleting...',
-    })
-    await loader.present()
+    const loader = this.loader.open('Deleting...').subscribe()
 
     try {
       await this.api.deleteWifi({ ssid })
@@ -290,15 +280,12 @@ export class WifiPage {
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
   private async save(ssid: string, password: string): Promise<boolean> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Saving...',
-    })
-    await loader.present()
+    const loader = this.loader.open('Saving...').subscribe()
 
     try {
       await this.api.addWifi({
@@ -313,7 +300,7 @@ export class WifiPage {
       this.errToast.present(e)
       return false
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
@@ -321,10 +308,9 @@ export class WifiPage {
     ssid: string,
     password: string,
   ): Promise<boolean> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Connecting. This could take a while...',
-    })
-    await loader.present()
+    const loader = this.loader
+      .open('Connecting. This could take a while...')
+      .subscribe()
 
     try {
       await this.api.addWifi({
@@ -339,7 +325,7 @@ export class WifiPage {
       this.errToast.present(e)
       return false
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 }
