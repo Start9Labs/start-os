@@ -55,7 +55,7 @@ export class ToButtonsPipe implements PipeTransform {
       {
         action: () =>
           this.formDialog.open<PackageConfigData>(AppConfigPage, {
-            label: 'Config',
+            label: `${pkg.manifest.title} configuration`,
             data: { pkgId: pkg.manifest.id },
           }),
         title: 'Config',

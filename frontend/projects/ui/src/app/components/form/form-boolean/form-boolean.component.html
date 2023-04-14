@@ -1,9 +1,8 @@
 {{ spec.name }}
-<tui-tooltip *ngIf="spec.description" [content]="hint">
-  <ng-template #hint>
-    <div [innerHTML]="spec.description"></div>
-  </ng-template>
-</tui-tooltip>
+<tui-tooltip
+  *ngIf="spec.description"
+  [content]="spec.description"
+></tui-tooltip>
 <tui-toggle
   size="l"
   [(ngModel)]="value"

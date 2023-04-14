@@ -86,7 +86,7 @@ export class AppShowStatusComponent {
 
   presentModalConfig(): void {
     this.formDialog.open<PackageConfigData>(AppConfigPage, {
-      label: 'Config',
+      label: `${this.pkg.manifest.title} configuration`,
       data: { pkgId: this.id },
     })
   }

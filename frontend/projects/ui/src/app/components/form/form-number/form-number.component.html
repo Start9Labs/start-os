@@ -1,5 +1,5 @@
 <tui-input-number
-  [tuiHintContent]="spec.description ? hint : ''"
+  [tuiHintContent]="spec.description"
   [tuiTextfieldPostfix]="spec.units || ''"
   [precision]="Infinity"
   [decimal]="spec.integral ? 'never' : 'not-zero'"
@@ -12,6 +12,3 @@
   <span *ngIf="spec.required">*</span>
   <input tuiTextfield [placeholder]="spec.placeholder || ''" />
 </tui-input-number>
-<ng-template #hint>
-  <div [innerHTML]="spec.description"></div>
-</ng-template>

@@ -1,6 +1,6 @@
 <tui-input
   [tuiTextfieldCustomContent]="spec.masked ? toggle : ''"
-  [tuiHintContent]="spec.description ? hint : ''"
+  [tuiHintContent]="spec.description"
   [(ngModel)]="value"
   (focusedChange)="onFocus($event)"
 >
@@ -13,9 +13,6 @@
     [attr.inputmode]="spec.inputmode"
   />
 </tui-input>
-<ng-template #hint>
-  <div [innerHTML]="spec.description"></div>
-</ng-template>
 <ng-template #toggle>
   <button
     tuiIconButton

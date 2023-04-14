@@ -1,9 +1,10 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  ElementRef,
+  EventEmitter,
   inject,
   Input,
+  Output,
 } from '@angular/core'
 import { ControlContainer } from '@angular/forms'
 import { ValueSpecObject } from 'start-sdk/lib/config/configTypes'
@@ -18,24 +19,20 @@ export class FormObjectComponent {
   @Input()
   spec!: ValueSpecObject
 
+  @Input()
   open = false
 
-  private readonly element: ElementRef<HTMLElement> = inject(ElementRef)
+  @Output()
+  readonly openChange = new EventEmitter<boolean>()
+
   private readonly container = inject(ControlContainer)
-  private readonly parent = inject(FormObjectComponent, {
-    optional: true,
-    skipSelf: true,
-  })
 
   get invalid() {
     return !this.container.valid && this.container.touched
   }
 
-  expandAll() {
-    this.open = true
-    this.parent?.expandAll()
-
-    if (!this.parent)
-      this.element.nativeElement.scrollIntoView({ behavior: 'smooth' })
+  toggle() {
+    this.open = !this.open
+    this.openChange.emit(this.open)
   }
 }

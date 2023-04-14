@@ -345,6 +345,12 @@ ul {
   list-style-type: disc;
 }
 
+// Taiga UI overrides
+
+tui-dialog {
+  transform: translate3d(0, 0, 0);
+}
+
 tui-opt-group[data-label^='⚠️']:before {
   color: var(--tui-warning-fill);
 }

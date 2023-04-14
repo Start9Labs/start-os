@@ -1,11 +1,5 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  HostBinding,
-  inject,
-  Input,
-} from '@angular/core'
-import { FormArrayName } from '@angular/forms'
+import { Component, HostBinding, inject, Input } from '@angular/core'
+import { AbstractControl, FormArrayName } from '@angular/forms'
 import { TUI_PARENT_STOP, TuiDestroyService } from '@taiga-ui/cdk'
 import {
   TUI_ANIMATION_OPTIONS,
@@ -34,6 +28,7 @@ export class FormArrayComponent {
   readonly animation = { value: '', ...inject(TUI_ANIMATION_OPTIONS) }
   readonly order = ERRORS
   readonly array = inject(FormArrayName)
+  readonly open = new Map<AbstractControl, boolean>()
 
   private warned = false
   private readonly formService = inject(FormService)
@@ -72,11 +67,17 @@ export class FormArrayComponent {
       })
       .pipe(filter(Boolean), takeUntil(this.destroy$))
       .subscribe(() => {
-        this.array.control.removeAt(index)
+        this.removeItem(index)
       })
+  }
+
+  private removeItem(index: number) {
+    this.open.delete(this.array.control.at(index))
+    this.array.control.removeAt(index)
   }
 
   private addItem() {
     this.array.control.insert(0, this.formService.getListItem(this.spec))
+    this.open.set(this.array.control.at(0), true)
   }
 }

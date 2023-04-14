@@ -60,7 +60,6 @@ export class FormPage<T extends Record<string, any>> implements OnInit {
     const { value } = this.form
 
     this.form = this.formService.createForm(this.spec)
-    this.spec = { ...this.spec }
     this.process(compare(this.form.value, value))
     tuiMarkControlAsTouchedAndValidate(this.form)
     this.markAsDirty()

@@ -1,10 +1,9 @@
 <div class="label">
   {{ spec.name }}
-  <tui-tooltip *ngIf="spec.description" [content]="hint">
-    <ng-template #hint>
-      <div [innerHTML]="spec.description"></div>
-    </ng-template>
-  </tui-tooltip>
+  <tui-tooltip
+    *ngIf="spec.description"
+    [content]="spec.description"
+  ></tui-tooltip>
   <button tuiLink type="button" class="add" (click)="add()">+ Add</button>
 </div>
 <tui-error [error]="order | tuiFieldError | async"></tui-error>
@@ -12,13 +11,14 @@
 <ng-container *ngFor="let item of array.control.controls; let index = index">
   <form-object
     *ngIf="spec.spec.type === 'object'; else control"
-    #component
     class="object"
-    [class.object_open]="component.open"
+    [class.object_open]="!!open.get(item)"
     [formGroup]="$any(item)"
     [spec]="$any(spec.spec)"
     [@tuiHeightCollapse]="animation"
     [@tuiFadeIn]="animation"
+    [open]="!!open.get(item)"
+    (openChange)="open.set(item, $event)"
   >
     {{ item.value | mustache : $any(spec.spec).displayAs }}
     <ng-container *ngTemplateOutlet="remove"></ng-container>

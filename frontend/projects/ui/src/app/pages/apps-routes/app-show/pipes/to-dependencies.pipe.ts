@@ -101,7 +101,9 @@ export class ToDependenciesPipe implements PipeTransform {
         return this.installDep(pkg.manifest, depId)
       case 'configure':
         return this.formDialog.open<PackageConfigData>(AppConfigPage, {
-          label: 'Config',
+          label: `${
+            pkg.installed!['dependency-info'][depId].title
+          } configuration`,
           data: {
             pkgId: depId,
             dependentInfo: pkg.manifest,

@@ -56,8 +56,8 @@ export class AppConfigPage {
     },
   ]
 
-  original!: object // only if existing config
-  value?: object
+  original: object | null = null
+  value: object | null = null
 
   constructor(
     @Inject(POLYMORPHEUS_CONTEXT)
@@ -73,8 +73,8 @@ export class AppConfigPage {
     try {
       this.pkg = await getPackage(this.patchDb, this.pkgId)
 
-      if (!this.pkg?.installed?.['has-config']) {
-        this.loadingError = 'This service does not have a configuration'
+      if (!this.pkg) {
+        this.loadingError = 'This service does not exist'
 
         return
       }

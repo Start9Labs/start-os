@@ -1,4 +1,4 @@
-<h3 class="title" (click)="open = !open">
+<h3 class="title" (click)="toggle()">
   <button
     tuiIconButton
     size="s"
@@ -11,11 +11,11 @@
   ></button>
   <ng-content></ng-content>
   {{ spec.name }}
-  <tui-tooltip *ngIf="spec.description" [content]="hint" (click.stop)="(0)">
-    <ng-template #hint>
-      <div [innerHTML]="spec.description"></div>
-    </ng-template>
-  </tui-tooltip>
+  <tui-tooltip
+    *ngIf="spec.description"
+    [content]="spec.description"
+    (click.stop)="(0)"
+  ></tui-tooltip>
 </h3>
 
 <tui-expand class="expand" [expanded]="open">

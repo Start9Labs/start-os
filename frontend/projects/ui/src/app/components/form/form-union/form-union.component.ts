@@ -13,6 +13,7 @@ import {
   unionValueKey,
 } from 'start-sdk/lib/config/configTypes'
 import { FormService } from '../../../services/form.service'
+import { tuiPure } from '@taiga-ui/cdk'
 
 @Component({
   selector: 'form-union',
@@ -42,6 +43,7 @@ export class FormUnionComponent implements OnChanges {
     return this.form.value[unionSelectKey]
   }
 
+  @tuiPure
   onUnion(union: string) {
     this.form.control.setControl(
       unionValueKey,

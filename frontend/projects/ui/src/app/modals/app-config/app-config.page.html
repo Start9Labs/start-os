@@ -8,7 +8,6 @@
 <!-- not loading -->
 <ng-template #content>
   <ng-container *ngIf="!loadingError && pkg else error">
-    <!-- TODO: When to show this? original always exits -->
     <tui-notification
       *ngIf="form && !form.form.dirty && !original && !pkg.installed?.status?.configured"
       status="success"
@@ -20,7 +19,7 @@
 
     <!-- auto-config -->
     <app-config-dep
-      *ngIf="dependentInfo && value"
+      *ngIf="dependentInfo && value && original"
       [package]="pkg.manifest.title"
       [dep]="dependentInfo.title"
       [original]="original"
@@ -41,11 +40,13 @@
       #form
       tuiMode="onDark"
       [spec]="spec"
-      [value]="value"
+      [value]="value || {}"
       [buttons]="buttons"
       [patch]="patch"
     >
-      <button tuiButton appearance="flat" type="reset">Reset Defaults</button>
+      <button tuiButton appearance="flat" class="reset" type="reset">
+        Reset Defaults
+      </button>
     </form-page>
   </ng-container>
 

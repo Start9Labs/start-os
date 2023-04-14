@@ -1,5 +1,5 @@
 <tui-select
-  [tuiHintContent]="spec.description ? hint : ''"
+  [tuiHintContent]="spec.description"
   [tuiTextfieldCleaner]="!spec.required"
   [(ngModel)]="selected"
   (focusedChange)="onFocus($event)"
@@ -12,6 +12,3 @@
     [items]="[items]"
   ></select>
 </tui-select>
-<ng-template #hint>
-  <div [innerHTML]="spec.description"></div>
-</ng-template>
