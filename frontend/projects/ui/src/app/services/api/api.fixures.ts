@@ -1207,6 +1207,7 @@ export module Mock {
       range: '(0, 9998]',
       units: null,
       placeholder: null,
+      default: null,
     },
     'favorite-slogan': {
       name: 'Favorite Slogan',

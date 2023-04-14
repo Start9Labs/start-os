@@ -84,7 +84,7 @@ export class WidgetsPage {
 
   add() {
     this.dialog.open(ADD_WIDGET, { label: 'Add widget' }).subscribe(widget => {
-      this.addWidget(widget)
+      this.addWidget(widget!)
     })
   }
 
