@@ -1,13 +1,13 @@
 use helpers::Callback;
 use itertools::Itertools;
-use jsonpath_lib::Compiled;
+use jsonpath_lib::PathCompiled;
 use models::PackageId;
 
 use crate::context::RpcContext;
 use crate::prelude::*;
 
 pub struct ConfigHook {
-    pub path: Compiled,
+    pub path: PathCompiled<'static>,
     pub prev: Vec<Value>,
     pub callback: Callback,
 }

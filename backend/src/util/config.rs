@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 use serde_json::Value;
 
-use crate::config::Config;
+use crate::config::Input;
 use crate::prelude::*;
 use crate::util::serde::IoFormat;
 
@@ -41,7 +41,7 @@ pub fn load_config_from_paths<'a, T: for<'de> Deserialize<'de>>(
     serde_json::from_value(Value::Object(config)).with_kind(ErrorKind::Deserialization)
 }
 
-pub fn merge_configs(mut first: Config, second: Config) -> Config {
+pub fn merge_configs(mut first: Input, second: Input) -> Input {
     for (k, v) in second.into_iter() {
         let new = match first.remove(&k) {
             None => v,

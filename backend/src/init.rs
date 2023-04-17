@@ -298,11 +298,10 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
             .arg("create")
             .arg("--driver=bridge")
             .arg("--subnet")
-            .arg("10.1.1.0/24")
+            .arg("172.18.0.0/16")
             .arg("-o")
             .arg("com.docker.network.bridge.name=br-start9")
             .arg("start9");
-        todo!("DRBones Verify");
         tracing::info!("Created Docker Network");
 
         tracing::info!("Loading System Docker Images");

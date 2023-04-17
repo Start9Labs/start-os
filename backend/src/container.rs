@@ -13,7 +13,7 @@ use tracing::instrument;
 use crate::context::RpcContext;
 use crate::docker::remove_container;
 use crate::prelude::*;
-use crate::s9pk::manifest::{PackageId, SYSTEM_PACKAGE_ID};
+use crate::s9pk::manifest::PackageId;
 use crate::util::serde::Duration as SerdeDuration;
 use crate::util::Version;
 use crate::volume::{VolumeId, Volumes};
@@ -44,8 +44,6 @@ pub struct DockerContainer {
     pub shm_size_mb: Option<usize>, // TODO: use postfix sizing? like 1k vs 1m vs 1g
     #[serde(default)]
     pub sigterm_timeout: Option<SerdeDuration>,
-    #[serde(default)]
-    pub system: bool,
 }
 
 impl DockerContainer {
@@ -151,11 +149,8 @@ impl LongRunning {
                 .arg("--format")
                 .arg("'{{.Architecture}}'");
 
-            if docker.system {
-                cmd.arg(docker.image.for_package(&*SYSTEM_PACKAGE_ID, None));
-            } else {
-                cmd.arg(docker.image.for_package(pkg_id, Some(pkg_version)));
-            }
+            cmd.arg(docker.image.for_package(pkg_id, Some(pkg_version)));
+
             let arch = String::from_utf8(cmd.output().await?.stdout)?;
             arch.replace('\'', "").trim().to_string()
         };
@@ -203,11 +198,9 @@ impl LongRunning {
             cmd.arg("--shm-size").arg(format!("{}m", shm_size_mb));
         }
         cmd.arg("--log-driver=journald");
-        if docker.system {
-            cmd.arg(docker.image.for_package(&*SYSTEM_PACKAGE_ID, None));
-        } else {
-            cmd.arg(docker.image.for_package(pkg_id, Some(pkg_version)));
-        }
+
+        cmd.arg(docker.image.for_package(pkg_id, Some(pkg_version)));
+
         cmd.stdout(std::process::Stdio::piped());
         cmd.stderr(std::process::Stdio::inherit());
         cmd.stdin(std::process::Stdio::piped());

@@ -2,12 +2,11 @@ use color_eyre::eyre::{bail, eyre};
 use color_eyre::Report;
 use helpers::{AddressSchemaLocal, AddressSchemaOnion, Callback, OsApi};
 use itertools::Itertools;
-use jsonpath_lib::Compiled;
+use jsonpath_lib::PathCompiled;
 use models::{InterfaceId, PackageId};
 use reqwest::Url;
 use sqlx::Acquire;
 
-use super::try_get_running_ip;
 use crate::prelude::*;
 use crate::{action::Action, manager::start_stop::StartStop};
 use crate::{config::hook::ConfigHook, db::model::AddressInfo};
@@ -44,7 +43,7 @@ impl OsApi for Manager {
             Err(err) => bail!("Could not fetch the config. {err}"),
         };
 
-        let path = Compiled::compile(path).map_err(|e| eyre!("{e}"))?;
+        let path = PathCompiled::compile(path).map_err(|e| eyre!("{e}"))?;
 
         let filtered_values = path
             .select(&Value::Object(config))?

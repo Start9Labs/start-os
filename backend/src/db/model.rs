@@ -181,7 +181,7 @@ impl Map for AllPackageData {
 #[serde(rename_all = "kebab-case")]
 #[model = "Model<Self>"]
 pub struct PackageDataEntryInstalling {
-    pub icon: DataUrl,
+    pub icon: DataUrl<'static>,
     pub manifest: Manifest,
     pub install_progress: InstallProgress,
 }
@@ -190,7 +190,7 @@ pub struct PackageDataEntryInstalling {
 #[serde(rename_all = "kebab-case")]
 #[model = "Model<Self>"]
 pub struct PackageDataEntryUpdating {
-    pub icon: DataUrl,
+    pub icon: DataUrl<'static>,
     pub manifest: Manifest,
     pub old_manifest: Manifest,
     pub rollback_to: Option<InstalledPackageInfo>,
@@ -201,7 +201,7 @@ pub struct PackageDataEntryUpdating {
 #[serde(rename_all = "kebab-case")]
 #[model = "Model<Self>"]
 pub struct PackageDataEntryRestoring {
-    pub icon: DataUrl,
+    pub icon: DataUrl<'static>,
     pub manifest: Manifest,
     pub install_progress: InstallProgress,
 }
@@ -210,7 +210,7 @@ pub struct PackageDataEntryRestoring {
 #[serde(rename_all = "kebab-case")]
 #[model = "Model<Self>"]
 pub struct PackageDataEntryRemoving {
-    pub icon: DataUrl,
+    pub icon: DataUrl<'static>,
     pub manifest: Manifest,
 }
 
@@ -218,7 +218,7 @@ pub struct PackageDataEntryRemoving {
 #[serde(rename_all = "kebab-case")]
 #[model = "Model<Self>"]
 pub struct PackageDataEntryNeedsUpdate {
-    pub icon: DataUrl,
+    pub icon: DataUrl<'static>,
     pub manifest: Manifest,
 }
 
@@ -226,7 +226,7 @@ pub struct PackageDataEntryNeedsUpdate {
 #[serde(rename_all = "kebab-case")]
 #[model = "Model<Self>"]
 pub struct PackageDataEntryInstalled {
-    pub icon: DataUrl,
+    pub icon: DataUrl<'static>,
     pub manifest: Manifest,
     pub installed: InstalledPackageInfo,
 }
@@ -357,7 +357,7 @@ impl Map for CurrentDependencies {
 #[model = "Model<Self>"]
 pub struct StaticDependencyInfo {
     pub title: String,
-    pub icon: DataUrl,
+    pub icon: DataUrl<'static>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel)]

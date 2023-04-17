@@ -52,7 +52,7 @@ pub const PKG_WASM_DIR: &str = "package-data/wasm";
 
 pub const PROGRESS_INTERVAL: Duration = Duration::from_millis(250);
 
-pub fn default_icon() -> DataUrl {
+pub fn default_icon() -> DataUrl<'static> {
     DataUrl::from_const(
         "image/png",
         include_bytes!("../../../frontend/projects/shared/assets/img/package-icon.png"),
@@ -790,7 +790,10 @@ async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             dep.clone(),
             StaticDependencyInfo {
                 icon: icon.unwrap_or_else(default_icon),
-                manifest,
+                title: manifest
+                    .as_ref()
+                    .map(|m| m.title.clone())
+                    .unwrap_or_else(|| dep.to_string()),
             },
         );
     }
