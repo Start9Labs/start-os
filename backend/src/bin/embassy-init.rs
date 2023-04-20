@@ -19,7 +19,7 @@ use tracing::instrument;
 
 #[instrument(skip_all)]
 async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
-    if tokio::fs::metadata("/cdrom").await.is_ok() {
+    if tokio::fs::metadata("/run/live/medium").await.is_ok() {
         let ctx = InstallContext::init(cfg_path).await?;
 
         let server = WebServer::install(([0, 0, 0, 0], 80).into(), ctx.clone()).await?;

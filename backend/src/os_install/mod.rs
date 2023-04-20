@@ -49,7 +49,7 @@ pub async fn list() -> Result<Vec<DiskInfo>, Error> {
                     Command::new("grub-probe-default")
                         .arg("-t")
                         .arg("disk")
-                        .arg("/cdrom")
+                        .arg("/run/live/medium")
                         .invoke(crate::ErrorKind::Grub)
                         .await?,
                 )?
@@ -188,7 +188,7 @@ pub async fn execute(
         .arg("-f")
         .arg("-d")
         .arg(&current)
-        .arg("/cdrom/casper/filesystem.squashfs")
+        .arg("/run/live/medium/live/filesystem.squashfs")
         .invoke(crate::ErrorKind::Filesystem)
         .await?;
 
