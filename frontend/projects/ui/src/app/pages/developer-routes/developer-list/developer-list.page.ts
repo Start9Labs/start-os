@@ -219,7 +219,7 @@ const SAMPLE_INSTUCTIONS = `# Create Instructions using Markdown! :)`
 
 const SAMPLE_CONFIG: InputSpec = {
   'sample-string': {
-    type: 'string',
+    type: 'text',
     name: 'Example String Input',
     inputmode: 'text',
     required: true,
@@ -227,8 +227,14 @@ const SAMPLE_CONFIG: InputSpec = {
     // optional
     description: 'Example description for required string input.',
     placeholder: 'Enter string value',
-    pattern: '^[a-zA-Z0-9! _]+$',
-    patternDescription: 'Must be alphanumeric (may contain underscore).',
+    patterns: [
+      {
+        regex: '^[a-zA-Z0-9! _]+$',
+        description: 'Must be alphanumeric (may contain underscore).',
+      },
+    ],
+    minLength: null,
+    maxLength: null,
     default: null,
     warning: null,
   },
@@ -236,8 +242,10 @@ const SAMPLE_CONFIG: InputSpec = {
     type: 'number',
     name: 'Example Number Input',
     required: true,
-    range: '[5,1000000]',
-    integral: true,
+    min: 5,
+    max: 1000000,
+    step: '5',
+    integer: true,
     // optional
     warning: 'Example warning to display when changing this number value.',
     units: 'ms',
@@ -246,7 +254,7 @@ const SAMPLE_CONFIG: InputSpec = {
     default: null,
   },
   'sample-boolean': {
-    type: 'boolean',
+    type: 'toggle',
     name: 'Example Boolean Toggle',
     // optional
     description: 'Example description for boolean toggle',
@@ -264,7 +272,8 @@ const SAMPLE_CONFIG: InputSpec = {
     // optional
     warning: 'Example warning to display when changing this select value.',
     description: 'Example description for select select',
-    range: '[0, 2)',
+    minLength: null,
+    maxLength: 2,
     default: ['red'],
   },
 }

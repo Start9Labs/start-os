@@ -8,7 +8,7 @@ import { ValueSpecOf } from 'start-sdk/lib/config/configTypes'
   styleUrls: ['./form-select.component.scss'],
 })
 export class FormSelectComponent {
-  @Input() spec!: ValueSpecOf<'boolean' | 'select' | 'multiselect'>
+  @Input() spec!: ValueSpecOf<'toggle' | 'select' | 'multiselect'>
   @Input() control!: FormControl
   @Input() name!: string
 
