@@ -1,17 +1,15 @@
 import { Component } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { ModalController } from '@ionic/angular'
-import { debounce, ErrorToastService } from '@start9labs/shared'
+import { debounce, ErrorService } from '@start9labs/shared'
 import * as yaml from 'js-yaml'
 import { filter, take } from 'rxjs/operators'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PatchDB } from 'patch-db-client'
 import { getProjectId } from 'src/app/util/get-project-id'
-import {
-  GenericFormPage,
-  GenericFormOptions,
-} from '../../../modals/generic-form/generic-form.page'
 import { DataModel } from 'src/app/services/patch-db/data-model'
+import { FormDialogService } from '../../../services/form-dialog.service'
+import { FormPage } from '../../../modals/form/form.page'
 
 @Component({
   selector: 'dev-config',
@@ -25,8 +23,9 @@ export class DevConfigPage {
   saving: boolean = false
 
   constructor(
+    private readonly formDialog: FormDialogService,
+    private readonly errorHandler: ErrorService,
     private readonly route: ActivatedRoute,
-    private readonly errToast: ErrorToastService,
     private readonly modalCtrl: ModalController,
     private readonly patch: PatchDB<DataModel>,
     private readonly api: ApiService,
@@ -46,26 +45,21 @@ export class DevConfigPage {
     try {
       doc = yaml.load(this.code)
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorHandler.handleError(e)
     }
 
-    const options: GenericFormOptions = {
-      title: 'Config Sample',
-      spec: JSON.parse(JSON.stringify(doc, null, 2)),
-      buttons: [
-        {
-          text: 'OK',
-          handler: async () => true,
-          isSubmit: true,
-        },
-      ],
-    }
-
-    const modal = await this.modalCtrl.create({
-      component: GenericFormPage,
-      componentProps: options,
+    this.formDialog.open(FormPage, {
+      label: 'Config Sample',
+      data: {
+        spec: JSON.parse(JSON.stringify(doc, null, 2)),
+        buttons: [
+          {
+            text: 'OK',
+            handler: async () => true,
+          },
+        ],
+      },
     })
-    await modal.present()
   }
 
   @debounce(1000)
@@ -77,7 +71,7 @@ export class DevConfigPage {
         this.code,
       )
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorHandler.handleError(e)
     } finally {
       this.saving = false
     }
