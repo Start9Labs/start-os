@@ -263,14 +263,20 @@ function getMarketplaceValueSpec(): ValueSpecObject {
     warning: null,
     spec: {
       url: {
-        type: 'string',
+        type: 'text',
         name: 'URL',
         description: 'A fully-qualified URL of the custom registry',
         inputmode: 'url',
         required: true,
         masked: false,
-        pattern: `https?:\/\/[a-zA-Z0-9][a-zA-Z0-9-\.]+[a-zA-Z0-9]\.[^\s]{2,}`,
-        patternDescription: 'Must be a valid URL',
+        minLength: null,
+        maxLength: null,
+        patterns: [
+          {
+            regex: `https?:\/\/[a-zA-Z0-9][a-zA-Z0-9-\.]+[a-zA-Z0-9]\.[^\s]{2,}`,
+            description: 'Must be a valid URL',
+          },
+        ],
         placeholder: 'e.g. https://example.org',
         default: null,
         warning: null,

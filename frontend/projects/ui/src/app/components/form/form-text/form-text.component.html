@@ -1,11 +1,29 @@
-<tui-text-area
+<tui-input
+  [tuiTextfieldCustomContent]="spec.masked ? toggle : ''"
   [tuiHintContent]="spec.description"
-  [expandable]="true"
-  [rows]="6"
   [(ngModel)]="value"
   (focusedChange)="onFocus($event)"
 >
   {{ spec.name }}
   <span *ngIf="spec.required">*</span>
-  <textarea tuiTextfield [placeholder]="spec.placeholder || ''"></textarea>
-</tui-text-area>
+  <input
+    tuiTextfield
+    [class.masked]="spec.masked && masked"
+    [placeholder]="spec.placeholder || ''"
+    [minLength]="spec.minLength"
+    [maxLength]="spec.maxLength"
+    [attr.inputmode]="spec.inputmode"
+  />
+</tui-input>
+<ng-template #toggle>
+  <button
+    tuiIconButton
+    type="button"
+    appearance="icon"
+    title="Toggle masking"
+    size="xs"
+    class="toggle"
+    [icon]="masked ? 'tuiIconEye' : 'tuiIconEyeOff'"
+    (click)="masked = !masked"
+  ></button>
+</ng-template>
