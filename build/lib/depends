@@ -9,9 +9,10 @@ cryptsetup
 docker-ce
 docker-ce-cli
 docker-compose-plugin
+dosfstools
 ecryptfs-utils
 exfat-utils
-grub-common
+grub2-common
 htop
 httpdirfs
 iotop
