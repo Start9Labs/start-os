@@ -12,6 +12,8 @@ docker-compose-plugin
 dosfstools
 ecryptfs-utils
 exfat-utils
+grub-efi
+grub-pc-bin
 grub2-common
 htop
 httpdirfs

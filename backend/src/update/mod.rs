@@ -323,7 +323,7 @@ async fn sync_boot() -> Result<(), Error> {
             MountGuard::mount(&Bind::new("/boot"), "/media/embassy/next/boot", ReadWrite).await?;
         Command::new("chroot")
             .arg("/media/embassy/next")
-            .arg("update-grub")
+            .arg("update-grub2")
             .invoke(ErrorKind::MigrationFailed)
             .await?;
         boot_mnt.unmount(false).await?;

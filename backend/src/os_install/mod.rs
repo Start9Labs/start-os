@@ -246,11 +246,6 @@ pub async fn execute(
         None
     };
 
-    Command::new("chroot")
-        .arg(&current)
-        .arg("update-grub")
-        .invoke(crate::ErrorKind::Grub)
-        .await?;
     let mut install = Command::new("chroot");
     install.arg(&current).arg("grub-install");
     if part_info.efi.is_none() {
@@ -264,6 +259,12 @@ pub async fn execute(
     }
     install
         .arg(&disk.logicalname)
+        .invoke(crate::ErrorKind::Grub)
+        .await?;
+
+    Command::new("chroot")
+        .arg(&current)
+        .arg("update-grub2")
         .invoke(crate::ErrorKind::Grub)
         .await?;
 
