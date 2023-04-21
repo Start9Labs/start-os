@@ -193,6 +193,8 @@ function textareaValidators(spec: ValueSpecTextarea): ValidatorFn[] {
     validators.push(Validators.required)
   }
 
+  validators.push(textLengthInRange(spec.minLength, spec.maxLength))
+
   return validators
 }
 
