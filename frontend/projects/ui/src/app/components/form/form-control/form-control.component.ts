@@ -14,7 +14,7 @@ import {
 } from '@taiga-ui/core'
 import { TUI_VALIDATION_ERRORS } from '@taiga-ui/kit'
 import { filter, takeUntil } from 'rxjs'
-import { ValueSpec, ValueSpecString } from 'start-sdk/lib/config/configTypes'
+import { ValueSpec, ValueSpecText } from 'start-sdk/lib/config/configTypes'
 import { ERRORS } from '../form-group/form-group.component'
 
 @Component({
@@ -26,9 +26,9 @@ import { ERRORS } from '../form-group/form-group.component'
     {
       provide: TUI_VALIDATION_ERRORS,
       deps: [FormControlComponent],
-      useFactory: (control: FormControlComponent<ValueSpecString, string>) => ({
+      useFactory: (control: FormControlComponent<ValueSpecText, string>) => ({
         required: 'Required',
-        pattern: () => control.spec.patternDescription,
+        patterns: () => control.spec.patterns.map(p => p.regex), // @TODO Alex
       }),
     },
   ],
