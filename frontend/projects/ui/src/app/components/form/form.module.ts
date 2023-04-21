@@ -27,9 +27,9 @@ import {
 } from '@taiga-ui/kit'
 
 import { FormGroupComponent } from './form-group/form-group.component'
-import { FormStringComponent } from './form-string/form-string.component'
-import { FormBooleanComponent } from './form-boolean/form-boolean.component'
 import { FormTextComponent } from './form-text/form-text.component'
+import { FormToggleComponent } from './form-toggle/form-toggle.component'
+import { FormTextareaComponent } from './form-textarea/form-textarea.component'
 import { FormNumberComponent } from './form-number/form-number.component'
 import { FormSelectComponent } from './form-select/form-select.component'
 import { FormFileComponent } from './form-file/form-file.component'
@@ -70,9 +70,9 @@ import { ControlDirective } from './control.directive'
   declarations: [
     FormGroupComponent,
     FormControlComponent,
-    FormStringComponent,
-    FormBooleanComponent,
     FormTextComponent,
+    FormToggleComponent,
+    FormTextareaComponent,
     FormNumberComponent,
     FormSelectComponent,
     FormMultiselectComponent,

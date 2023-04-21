@@ -1,10 +1,12 @@
+<!-- @TODO Alex look at "attr.step", is this correct? -->
 <tui-input-number
   [tuiHintContent]="spec.description"
   [tuiTextfieldPostfix]="spec.units || ''"
   [precision]="Infinity"
-  [decimal]="spec.integral ? 'never' : 'not-zero'"
+  [decimal]="spec.integer ? 'never' : 'not-zero'"
   [min]="min"
   [max]="max"
+  [attr.step]="spec.step"
   [(ngModel)]="value"
   (focusedChange)="onFocus($event)"
 >
