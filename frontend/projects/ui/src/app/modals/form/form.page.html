@@ -1,5 +1,5 @@
 <form
-  novalidate
+  (submit.capture.prevent)="0"
   (reset.capture.prevent.stop)="onReset()"
   [formGroup]="form"
   (tuiValueChanges)="markAsDirty()"
