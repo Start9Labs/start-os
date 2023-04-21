@@ -13,7 +13,7 @@ import {
   InputSpec,
   ListValueSpecOf,
   ValueSpec,
-  ValueSpecBoolean,
+  ValueSpecToggle,
   ValueSpecList,
   ValueSpecUnion,
 } from 'start-sdk/lib/config/configTypes'
@@ -135,7 +135,7 @@ export class FormObjectComponent {
     })
   }
 
-  handleBooleanChange(key: string, spec: ValueSpecBoolean) {
+  handleBooleanChange(key: string, spec: ValueSpecToggle) {
     if (spec.warning) {
       const current = this.formGroup.get(key)?.value
       const cancelFn = () => this.formGroup.get(key)?.setValue(!current)
