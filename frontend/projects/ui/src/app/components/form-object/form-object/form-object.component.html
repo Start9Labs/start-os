@@ -10,7 +10,7 @@
       <!-- string or number -->
       <form-input
         *ngIf="
-          spec.type === 'string' ||
+          spec.type === 'text' ||
           spec.type === 'textarea' ||
           spec.type === 'number'
         "
@@ -22,7 +22,7 @@
       <!-- boolean, select or multiselect -->
       <form-select
         *ngIf="
-          spec.type === 'boolean' ||
+          spec.type === 'toggle' ||
           spec.type === 'select' ||
           spec.type === 'multiselect'
         "
@@ -67,7 +67,7 @@
                 name: spec.name,
                 description: spec.description || null,
                 edited: entry.value.dirty,
-                required: !!(spec.range | toRange).min
+                required: !!spec.minLength
               }"
             ></form-label>
             <ion-button
@@ -153,9 +153,7 @@
               </ng-container>
               <!-- string or number -->
               <div
-                *ngIf="
-                  spec.spec.type === 'string' || spec.spec.type === 'number'
-                "
+                *ngIf="spec.spec.type === 'text' || spec.spec.type === 'number'"
                 [id]="objectId | toElementId : entry.key : i"
               >
                 <ion-item
@@ -164,7 +162,7 @@
                   <ion-input
                     type="text"
                     [inputmode]="
-                      spec.spec.type === 'string' ? spec.spec.inputmode : 'tel'
+                      spec.spec.type === 'text' ? spec.spec.inputmode : 'tel'
                     "
                     [placeholder]="
                       $any(spec.spec).placeholder || 'Enter ' + spec.name
