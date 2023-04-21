@@ -34,6 +34,7 @@ samba-common-bin
 sqlite3
 squashfs-tools
 systemd
+systemd-resolved
 systemd-sysv
 systemd-timesyncd
 tor
