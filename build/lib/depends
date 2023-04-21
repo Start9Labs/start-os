@@ -11,6 +11,7 @@ docker-ce-cli
 docker-compose-plugin
 ecryptfs-utils
 exfat-utils
+grub-common
 htop
 httpdirfs
 iotop

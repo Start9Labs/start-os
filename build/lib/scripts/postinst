@@ -63,6 +63,7 @@ if which gsettings > /dev/null; then
     gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-battery-timeout '0'
 fi
 
+sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config
 sed -i 's/Restart=on-failure/Restart=always/g' /lib/systemd/system/tor@default.service
 sed -i 's/ExecStart=\/usr\/bin\/dockerd/ExecStart=\/usr\/bin\/dockerd --exec-opt native.cgroupdriver=systemd/g' /lib/systemd/system/docker.service
 sed -i '/\(^\|#\)entries-per-entry-group-max=/c\entries-per-entry-group-max=128' /etc/avahi/avahi-daemon.conf
