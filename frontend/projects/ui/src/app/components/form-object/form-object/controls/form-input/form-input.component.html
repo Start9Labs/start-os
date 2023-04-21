@@ -24,9 +24,12 @@
       type="text"
       class="input"
       [class.input_redacted]="
-        spec.type === 'string' && control.value && spec.masked && !unmasked
+        spec.type === 'text' && control.value && spec.masked && !unmasked
       "
-      [inputmode]="spec.type === 'string' ? spec.inputmode : 'tel'"
+      [inputmode]="spec.type === 'text' ? spec.inputmode : 'tel'"
+      [minlength]="spec.type === 'number' ? null : spec.minLength"
+      [maxlength]="spec.type === 'number' ? null : spec.maxLength"
+      [step]="spec.type === 'number' ? spec.step : null"
       [placeholder]="spec.placeholder"
       [formControl]="control"
       (ionFocus)="warning.onChange(name, spec)"
@@ -34,7 +37,7 @@
     ></ion-input>
   </ng-template>
   <ion-button
-    *ngIf="spec.type === 'string' && spec.masked"
+    *ngIf="spec.type === 'text' && spec.masked"
     slot="end"
     fill="clear"
     color="light"

@@ -7,14 +7,14 @@ import {
   ValidatorFn,
   Validators,
 } from '@angular/forms'
-import { getDefaultString, Range } from '../util/config-utilities'
+import { getDefaultString } from '../util/config-utilities'
 import {
   InputSpec,
   isValueSpecListOf,
   ListValueSpecNumber,
   ListValueSpecObject,
   ListValueSpecOf,
-  ListValueSpecString,
+  ListValueSpecText,
   UniqueBy,
   ValueSpec,
   ValueSpecSelect,
@@ -23,7 +23,7 @@ import {
   ValueSpecList,
   ValueSpecNumber,
   ValueSpecObject,
-  ValueSpecString,
+  ValueSpecText,
   ValueSpecUnion,
   unionSelectKey,
   ValueSpecTextarea,
@@ -76,7 +76,7 @@ export class FormService {
 
   getListItem(spec: ValueSpecList, entry?: any) {
     const listItemValidators = getListItemValidators(spec)
-    if (isValueSpecListOf(spec, 'string')) {
+    if (isValueSpecListOf(spec, 'text')) {
       return this.formBuilder.control(entry, listItemValidators)
     } else if (isValueSpecListOf(spec, 'number')) {
       return this.formBuilder.control(entry, listItemValidators)
@@ -106,7 +106,7 @@ export class FormService {
   ): UntypedFormGroup | UntypedFormArray | UntypedFormControl {
     let value: any
     switch (spec.type) {
-      case 'string':
+      case 'text':
         if (currentValue !== undefined) {
           value = currentValue
         } else {
@@ -145,7 +145,7 @@ export class FormService {
           spec,
           isValid ? currentSelection : spec.default,
         )
-      case 'boolean':
+      case 'toggle':
         value = currentValue === undefined ? spec.default : currentValue
         return this.formBuilder.control(value)
       case 'select':
@@ -161,7 +161,7 @@ export class FormService {
 }
 
 function getListItemValidators(spec: ValueSpecList) {
-  if (isValueSpecListOf(spec, 'string')) {
+  if (isValueSpecListOf(spec, 'text')) {
     return stringValidators(spec.spec)
   } else if (isValueSpecListOf(spec, 'number')) {
     return numberValidators(spec.spec)
@@ -169,16 +169,18 @@ function getListItemValidators(spec: ValueSpecList) {
 }
 
 function stringValidators(
-  spec: ValueSpecString | ListValueSpecString,
+  spec: ValueSpecText | ListValueSpecText,
 ): ValidatorFn[] {
   const validators: ValidatorFn[] = []
 
-  if ((spec as ValueSpecString).required) {
+  if ((spec as ValueSpecText).required) {
     validators.push(Validators.required)
   }
 
-  if (spec.pattern) {
-    validators.push(Validators.pattern(spec.pattern))
+  validators.push(textLengthInRange(spec.minLength, spec.maxLength))
+
+  if (spec.patterns.length) {
+    spec.patterns.forEach(p => validators.push(Validators.pattern(p.regex)))
   }
 
   return validators
@@ -205,11 +207,11 @@ function numberValidators(
     validators.push(Validators.required)
   }
 
-  if (spec.integral) {
+  if (spec.integer) {
     validators.push(isInteger())
   }
 
-  validators.push(numberInRange(spec.range))
+  validators.push(numberInRange(spec.min, spec.max))
 
   return validators
 }
@@ -226,13 +228,13 @@ function selectValidators(spec: ValueSpecSelect): ValidatorFn[] {
 
 function multiselectValidators(spec: ValueSpecMultiselect): ValidatorFn[] {
   const validators: ValidatorFn[] = []
-  validators.push(listInRange(spec.range))
+  validators.push(listInRange(spec.minLength, spec.maxLength))
   return validators
 }
 
 function listValidators(spec: ValueSpecList): ValidatorFn[] {
   const validators: ValidatorFn[] = []
-  validators.push(listInRange(spec.range))
+  validators.push(listInRange(spec.minLength, spec.maxLength))
   validators.push(listItemIssue())
   return validators
 }
@@ -247,16 +249,20 @@ function fileValidators(spec: ValueSpecFile): ValidatorFn[] {
   return validators
 }
 
-export function numberInRange(stringRange: string = ''): ValidatorFn {
+export function numberInRange(
+  min: number | null,
+  max: number | null,
+): ValidatorFn {
   return control => {
     const value = control.value
-    if (!value) return null
-    try {
-      Range.from(stringRange).checkIncludes(value)
-      return null
-    } catch (e: any) {
-      return { numberNotInRange: `Number must be ${e.message}` }
-    }
+    if (typeof value !== 'number') return null
+    if (min && value < min)
+      return {
+        numberNotInRange: `Number must be greater than or equal to ${min}`,
+      }
+    if (max && value > max)
+      return { numberNotInRange: `Number must be less than or equal to ${max}` }
+    return null
   }
 }
 
@@ -272,14 +278,38 @@ export function isInteger(): ValidatorFn {
       : { numberNotInteger: 'Must be an integer' }
 }
 
-export function listInRange(stringRange: string = ''): ValidatorFn {
+export function listInRange(
+  minLength: number | null,
+  maxLength: number | null,
+): ValidatorFn {
   return control => {
-    try {
-      Range.from(stringRange).checkIncludes(control.value.length)
-      return null
-    } catch (e: any) {
-      return { listNotInRange: `List must be ${e.message}` }
-    }
+    const length = control.value.length
+    if (minLength && length < minLength)
+      return {
+        listNotInRange: `List must contain at least ${minLength} entries`,
+      }
+    if (maxLength && length > maxLength)
+      return {
+        listNotInRange: `List cannot contain more than ${maxLength} entries`,
+      }
+    return null
+  }
+}
+
+export function textLengthInRange(
+  minLength: number | null,
+  maxLength: number | null,
+): ValidatorFn {
+  return control => {
+    const value = control.value
+    if (value === null || value === undefined) return null
+
+    const length = value.length
+    if (minLength && length < minLength)
+      return { listNotInRange: `Must be at least ${minLength} characters` }
+    if (maxLength && length > maxLength)
+      return { listNotInRange: `Cannot be great than ${maxLength} characters` }
+    return null
   }
 }
 
@@ -335,7 +365,7 @@ export function listUnique(spec: ValueSpecList): ValidatorFn {
 function listItemEquals(spec: ValueSpecList, val1: any, val2: any): boolean {
   // TODO: fix types
   switch (spec.spec.type) {
-    case 'string':
+    case 'text':
     case 'number':
       return val1 == val2
     case 'object':
@@ -348,10 +378,10 @@ function listItemEquals(spec: ValueSpecList, val1: any, val2: any): boolean {
 
 function itemEquals(spec: ValueSpec, val1: any, val2: any): boolean {
   switch (spec.type) {
-    case 'string':
+    case 'text':
     case 'textarea':
     case 'number':
-    case 'boolean':
+    case 'toggle':
     case 'select':
       return val1 == val2
     case 'object':
@@ -536,7 +566,7 @@ export function convertValuesRecursive(
       control.setValue(
         control.value || control.value === 0 ? Number(control.value) : null,
       )
-    } else if (valueSpec.type === 'string' || valueSpec.type === 'textarea') {
+    } else if (valueSpec.type === 'text' || valueSpec.type === 'textarea') {
       if (!control.value) control.setValue(null)
     } else if (valueSpec.type === 'object') {
       convertValuesRecursive(valueSpec.spec, group.get(key) as UntypedFormGroup)
@@ -553,7 +583,7 @@ export function convertValuesRecursive(
         controls.forEach(control => {
           control.setValue(control.value ? Number(control.value) : null)
         })
-      } else if (valueSpec.spec.type === 'string') {
+      } else if (valueSpec.spec.type === 'text') {
         controls.forEach(control => {
           if (!control.value) control.setValue(null)
         })
