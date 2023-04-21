@@ -40,6 +40,7 @@ export * from './pipes/unit-conversion/unit-conversion.pipe'
 
 export * from './services/download-html.service'
 export * from './services/emver.service'
+export * from './services/error.service'
 export * from './services/error-toast.service'
 export * from './services/http.service'
 
