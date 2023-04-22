@@ -36,11 +36,9 @@ interface ValidatorsPatternError {
       deps: [FormControlComponent],
       useFactory: (control: FormControlComponent<ValueSpecText, string>) => ({
         required: 'Required',
-        pattern: ({
-          $implicit,
-        }: TuiContextWithImplicit<ValidatorsPatternError>) =>
+        pattern: ({ requiredPattern }: ValidatorsPatternError) =>
           control.spec.patterns.find(
-            ({ regex }) => String(regex) === String($implicit.requiredPattern),
+            ({ regex }) => String(regex) === String(requiredPattern),
           )?.description || 'Invalid pattern',
       }),
     },
