@@ -28,7 +28,10 @@ import { ERRORS } from '../form-group/form-group.component'
       deps: [FormControlComponent],
       useFactory: (control: FormControlComponent<ValueSpecText, string>) => ({
         required: 'Required',
-        patterns: () => control.spec.patterns.map(p => p.regex), // @TODO Alex
+        pattern: ({ requiredPattern }: { requiredPattern: string | RegExp }) =>
+          control.spec.patterns.find(
+            ({ regex }) => String(regex) === String(requiredPattern),
+          )?.description || 'Invalid pattern',
       }),
     },
   ],
