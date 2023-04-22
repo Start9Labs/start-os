@@ -6,7 +6,10 @@ import {
   TemplateRef,
   ViewChild,
 } from '@angular/core'
-import { AbstractTuiNullableControl } from '@taiga-ui/cdk'
+import {
+  AbstractTuiNullableControl,
+  TuiContextWithImplicit,
+} from '@taiga-ui/cdk'
 import {
   TuiAlertService,
   TuiDialogContext,
@@ -16,6 +19,11 @@ import { TUI_VALIDATION_ERRORS } from '@taiga-ui/kit'
 import { filter, takeUntil } from 'rxjs'
 import { ValueSpec, ValueSpecText } from 'start-sdk/lib/config/configTypes'
 import { ERRORS } from '../form-group/form-group.component'
+
+interface ValidatorsPatternError {
+  actualValue: string
+  requiredPattern: string | RegExp
+}
 
 @Component({
   selector: 'form-control',
@@ -28,9 +36,11 @@ import { ERRORS } from '../form-group/form-group.component'
       deps: [FormControlComponent],
       useFactory: (control: FormControlComponent<ValueSpecText, string>) => ({
         required: 'Required',
-        pattern: ({ requiredPattern }: { requiredPattern: string | RegExp }) =>
+        pattern: ({
+          $implicit,
+        }: TuiContextWithImplicit<ValidatorsPatternError>) =>
           control.spec.patterns.find(
-            ({ regex }) => String(regex) === String(requiredPattern),
+            ({ regex }) => String(regex) === String($implicit.requiredPattern),
           )?.description || 'Invalid pattern',
       }),
     },
