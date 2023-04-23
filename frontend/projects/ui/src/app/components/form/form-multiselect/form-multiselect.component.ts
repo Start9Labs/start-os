@@ -13,6 +13,11 @@ export class FormMultiselectComponent extends Control<
 > {
   readonly items = Object.values(this.spec.values)
 
+  readonly disabledItemHandler = (item: string): boolean =>
+    !!this.spec.maxLength &&
+    this.selected.length >= this.spec.maxLength &&
+    !this.selected.includes(item)
+
   get selected(): string[] {
     return this.memoize(this.value)
   }
