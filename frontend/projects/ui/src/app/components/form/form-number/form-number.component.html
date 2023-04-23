@@ -1,12 +1,11 @@
-<!-- @TODO Alex look at "attr.step", is this correct? -->
+<!-- @TODO Implement InputNumber step once it is added in Taiga UI -->
 <tui-input-number
   [tuiHintContent]="spec.description"
   [tuiTextfieldPostfix]="spec.units || ''"
   [precision]="Infinity"
   [decimal]="spec.integer ? 'never' : 'not-zero'"
-  [min]="min"
-  [max]="max"
-  [attr.step]="spec.step"
+  [min]="spec.min ?? -Infinity"
+  [max]="spec.max ?? Infinity"
   [(ngModel)]="value"
   (focusedChange)="onFocus($event)"
 >
