@@ -35,6 +35,13 @@ export class FormArrayComponent {
   private readonly dialogs = inject(TuiDialogService)
   private readonly destroy$ = inject(TuiDestroyService)
 
+  get canAdd(): boolean {
+    return (
+      !this.spec.maxLength ||
+      this.spec.maxLength >= this.array.control.controls.length
+    )
+  }
+
   add() {
     if (!this.warned && this.spec.warning) {
       this.dialogs

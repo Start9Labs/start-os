@@ -1,7 +1,7 @@
 <ng-container [ngSwitch]="spec.type">
   <form-text *ngSwitchCase="'text'"></form-text>
   <form-number *ngSwitchCase="'number'"></form-number>
-  <form-text *ngSwitchCase="'textarea'"></form-text>
+  <form-textarea *ngSwitchCase="'textarea'"></form-textarea>
   <form-toggle *ngSwitchCase="'toggle'"></form-toggle>
   <form-select *ngSwitchCase="'select'"></form-select>
   <form-multiselect *ngSwitchCase="'multiselect'"></form-multiselect>
