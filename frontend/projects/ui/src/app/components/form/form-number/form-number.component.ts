@@ -8,14 +8,4 @@ import { Control } from '../control'
 })
 export class FormNumberComponent extends Control<ValueSpecNumber, number> {
   protected readonly Infinity = Infinity
-
-  get min(): number {
-    if (typeof this.spec.min !== 'number') return -Infinity
-    return this.spec.min
-  }
-
-  get max(): number {
-    if (typeof this.spec.max !== 'number') return Infinity
-    return this.spec.max
-  }
 }
