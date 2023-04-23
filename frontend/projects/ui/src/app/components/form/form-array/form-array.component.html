@@ -4,7 +4,15 @@
     *ngIf="spec.description"
     [content]="spec.description"
   ></tui-tooltip>
-  <button tuiLink type="button" class="add" (click)="add()">+ Add</button>
+  <button
+    tuiLink
+    type="button"
+    class="add"
+    [disabled]="!canAdd"
+    (click)="add()"
+  >
+    + Add
+  </button>
 </div>
 <tui-error [error]="order | tuiFieldError | async"></tui-error>
 
