@@ -10,8 +10,8 @@
     tuiTextfield
     [class.masked]="spec.masked && masked"
     [placeholder]="spec.placeholder || ''"
-    [minLength]="spec.minLength"
-    [maxLength]="spec.maxLength"
+    [attr.minLength]="spec.minLength"
+    [attr.maxLength]="spec.maxLength"
     [attr.inputmode]="spec.inputmode"
   />
 </tui-input>

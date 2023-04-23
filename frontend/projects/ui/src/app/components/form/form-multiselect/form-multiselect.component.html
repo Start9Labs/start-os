@@ -1,9 +1,15 @@
 <tui-multi-select
   [tuiHintContent]="spec.description"
   [editable]="false"
+  [disabledItemHandler]="disabledItemHandler"
   [(ngModel)]="selected"
   (focusedChange)="onFocus($event)"
 >
   {{ spec.name }}
-  <select tuiSelect multiple [items]="items"></select>
+  <select
+    tuiSelect
+    multiple
+    [items]="items"
+    [disabledItemHandler]="disabledItemHandler"
+  ></select>
 </tui-multi-select>
