@@ -10,6 +10,7 @@ docker-ce
 docker-ce-cli
 docker-compose-plugin
 dosfstools
+e2fsprogs
 ecryptfs-utils
 exfat-utils
 grub-efi

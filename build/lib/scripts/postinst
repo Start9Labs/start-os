@@ -29,6 +29,10 @@ ln -s /usr/share/zoneinfo/Etc/UTC /etc/localtime
 
 # switch to systemd-resolved & network-manager
 echo "#" > /etc/network/interfaces
+if ! [ -f /etc/resolv.conf ]; then
+  rm -f /etc/resolv.conf
+  echo "nameserver 8.8.8.8" > /etc/resolv.conf # Google DNS Fallback
+fi
 if ! [ -f /run/systemd/resolve/stub-resolv.conf ]; then
     mkdir -p /run/systemd/resolve
     cp /etc/resolv.conf /run/systemd/resolve/stub-resolv.conf
