@@ -5,6 +5,7 @@ use std::sync::{Arc, Weak};
 use color_eyre::eyre::eyre;
 use tokio::process::{Child, Command};
 use tokio::sync::Mutex;
+use tracing::instrument;
 
 use crate::util::Invoke;
 use crate::{Error, ResultExt};

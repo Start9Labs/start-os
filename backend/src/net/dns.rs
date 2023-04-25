@@ -11,6 +11,7 @@ use models::PackageId;
 use tokio::net::{TcpListener, UdpSocket};
 use tokio::process::Command;
 use tokio::sync::RwLock;
+use tracing::instrument;
 use trust_dns_server::authority::MessageResponseBuilder;
 use trust_dns_server::client::op::{Header, ResponseCode};
 use trust_dns_server::client::rr::{Name, Record, RecordType};
