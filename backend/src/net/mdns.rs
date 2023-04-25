@@ -51,6 +51,7 @@ pub struct MdnsControllerInner {
 }
 
 impl MdnsControllerInner {
+    #[instrument(skip_all)]
     async fn init() -> Result<Self, Error> {
         let mut res = MdnsControllerInner {
             alias_cmd: None,
@@ -59,6 +60,7 @@ impl MdnsControllerInner {
         res.sync().await?;
         Ok(res)
     }
+    #[instrument(skip_all)]
     async fn sync(&mut self) -> Result<(), Error> {
         if let Some(mut cmd) = self.alias_cmd.take() {
             cmd.kill().await.with_kind(crate::ErrorKind::Network)?;

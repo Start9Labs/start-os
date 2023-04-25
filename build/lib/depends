@@ -13,9 +13,6 @@ dosfstools
 e2fsprogs
 ecryptfs-utils
 exfat-utils
-grub-efi
-grub-pc-bin
-grub2-common
 htop
 httpdirfs
 iotop

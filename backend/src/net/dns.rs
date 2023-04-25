@@ -147,6 +147,7 @@ impl RequestHandler for Resolver {
 }
 
 impl DnsController {
+    #[instrument(skip_all)]
     pub async fn init(bind: &[SocketAddr]) -> Result<Self, Error> {
         let services = Arc::new(RwLock::new(BTreeMap::new()));
 
