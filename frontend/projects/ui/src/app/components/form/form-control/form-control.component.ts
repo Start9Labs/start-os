@@ -37,9 +37,9 @@ interface ValidatorsPatternError {
       useFactory: (control: FormControlComponent<ValueSpecText, string>) => ({
         required: 'Required',
         pattern: ({ requiredPattern }: ValidatorsPatternError) =>
-          control.spec.patterns.find(
+          control.spec.patterns?.find(
             ({ regex }) => String(regex) === String(requiredPattern),
-          )?.description || 'Invalid pattern',
+          )?.description || 'Invalid format',
       }),
     },
   ],
