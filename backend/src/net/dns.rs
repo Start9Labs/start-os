@@ -163,10 +163,16 @@ impl DnsController {
         );
         server.register_socket(UdpSocket::bind(bind).await.with_kind(ErrorKind::Network)?);
 
-        Command::new("systemd-resolve")
-            .arg("--set-dns=127.0.0.1")
-            .arg("--interface=br-start9")
-            .arg("--set-domain=embassy")
+        Command::new("resolvectl")
+            .arg("dns")
+            .arg("br-start9")
+            .arg("127.0.0.1")
+            .invoke(ErrorKind::Network)
+            .await?;
+        Command::new("resolvectl")
+            .arg("domain")
+            .arg("br-start9")
+            .arg("embassy")
             .invoke(ErrorKind::Network)
             .await?;
 

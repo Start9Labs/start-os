@@ -3,6 +3,7 @@ avahi-utils
 bash-completion
 beep
 bmon
+ca-certificates
 cifs-utils
 containerd.io
 cryptsetup
