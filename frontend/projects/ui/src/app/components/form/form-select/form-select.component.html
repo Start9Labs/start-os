@@ -1,6 +1,7 @@
 <tui-select
   [tuiHintContent]="spec.description"
   [tuiTextfieldCleaner]="!spec.required"
+  [pseudoInvalid]="invalid"
   [(ngModel)]="selected"
   (focusedChange)="onFocus($event)"
 >

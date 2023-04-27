@@ -2,6 +2,7 @@
 <tui-input-number
   [tuiHintContent]="spec.description"
   [tuiTextfieldPostfix]="spec.units || ''"
+  [pseudoInvalid]="invalid"
   [precision]="Infinity"
   [decimal]="spec.integer ? 'never' : 'not-zero'"
   [min]="spec.min ?? -Infinity"
