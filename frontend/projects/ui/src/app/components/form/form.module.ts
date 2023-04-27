@@ -9,8 +9,10 @@ import {
   TuiHintModule,
   TuiLinkModule,
   TuiModeModule,
+  TuiSvgModule,
   TuiTextfieldControllerModule,
   TuiTooltipModule,
+  TuiWrapperModule,
 } from '@taiga-ui/core'
 import {
   TuiElasticContainerModule,
@@ -40,6 +42,8 @@ import { FormArrayComponent } from './form-array/form-array.component'
 import { FormControlComponent } from './form-control/form-control.component'
 import { MustachePipe } from './mustache.pipe'
 import { ControlDirective } from './control.directive'
+import { FormColorComponent } from './form-color/form-color.component'
+import { MaskitoModule } from '@maskito/angular'
 
 @NgModule({
   imports: [
@@ -66,10 +70,14 @@ import { ControlDirective } from './control.directive'
     TuiFieldErrorPipeModule,
     TuiValueChangesModule,
     TuiElasticContainerModule,
+    MaskitoModule,
+    TuiSvgModule,
+    TuiWrapperModule,
   ],
   declarations: [
     FormGroupComponent,
     FormControlComponent,
+    FormColorComponent,
     FormTextComponent,
     FormToggleComponent,
     FormTextareaComponent,

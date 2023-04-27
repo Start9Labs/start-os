@@ -765,6 +765,14 @@ export module Mock {
         },
       },
     },
+    background: {
+      name: 'Background',
+      type: 'color',
+      description: 'Background color for the service',
+      warning: null,
+      required: false,
+      default: '#000000',
+    },
     advanced: {
       name: 'Advanced',
       type: 'object',
