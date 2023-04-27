@@ -225,6 +225,14 @@ pub async fn execute(
 
     Command::new("chroot")
         .arg(&current)
+        .arg("make-ssl-cert")
+        .arg("generate-default-snakeoil")
+        .arg("--force-overwrite")
+        .invoke(crate::ErrorKind::OpenSsl)
+        .await?;
+
+    Command::new("chroot")
+        .arg(&current)
         .arg("ssh-keygen")
         .arg("-A")
         .invoke(crate::ErrorKind::OpenSsh)
