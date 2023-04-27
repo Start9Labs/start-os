@@ -61,6 +61,9 @@ sudo mkdir -p $TMPDIR/next
 sudo mkdir -p $TMPDIR/current/boot
 sudo mount `partition_for ${OUTPUT_DEVICE} 1` $TMPDIR/current/boot
 sudo unsquashfs -f -d $TMPDIR/current eos.raspberrypi.squashfs
+sudo cp ./build/raspberry-pi/cmdline.txt $TMPDIR/current/boot/
+sudo cp ./build/raspberry-pi/config.txt $TMPDIR/current/boot/
+sudo cp ./cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep $TMPDIR/current/usr/local/bin/beep
 sudo umount $TMPDIR/current/boot
 sudo umount $TMPDIR
 sudo losetup -d $OUTPUT_DEVICE

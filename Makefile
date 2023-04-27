@@ -80,7 +80,7 @@ lite-upgrade.img: raspios.img cargo-deps/aarch64-unknown-linux-gnu/release/nc-br
 	! test -f lite-upgrade.img || rm lite-upgrade.img
 	./build/raspberry-pi/make-upgrade-image.sh
 
-eos_raspberrypi.img: raspios.img $(BUILD_SRC) eos.raspberrypi.squashfs $(VERSION_FILE) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) | sudo
+eos_raspberrypi.img: $(BUILD_SRC) eos.raspberrypi.squashfs $(VERSION_FILE) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) | sudo
 	! test -f eos_raspberrypi.img || rm eos_raspberrypi.img
 	./build/raspberry-pi/make-initialized-image.sh
 
