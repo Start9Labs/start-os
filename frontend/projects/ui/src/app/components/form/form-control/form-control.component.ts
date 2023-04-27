@@ -19,30 +19,14 @@ import { TUI_VALIDATION_ERRORS } from '@taiga-ui/kit'
 import { filter, takeUntil } from 'rxjs'
 import { ValueSpec, ValueSpecText } from 'start-sdk/lib/config/configTypes'
 import { ERRORS } from '../form-group/form-group.component'
-
-interface ValidatorsPatternError {
-  actualValue: string
-  requiredPattern: string | RegExp
-}
+import { FORM_CONTROL_PROVIDERS } from './form-control.providers'
 
 @Component({
   selector: 'form-control',
   templateUrl: './form-control.component.html',
   styleUrls: ['./form-control.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [
-    {
-      provide: TUI_VALIDATION_ERRORS,
-      deps: [FormControlComponent],
-      useFactory: (control: FormControlComponent<ValueSpecText, string>) => ({
-        required: 'Required',
-        pattern: ({ requiredPattern }: ValidatorsPatternError) =>
-          control.spec.patterns.find(
-            ({ regex }) => String(regex) === String(requiredPattern),
-          )?.description || 'Invalid format',
-      }),
-    },
-  ],
+  providers: FORM_CONTROL_PROVIDERS,
 })
 export class FormControlComponent<
   T extends ValueSpec,
