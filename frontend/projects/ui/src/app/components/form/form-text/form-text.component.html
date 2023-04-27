@@ -1,6 +1,7 @@
 <tui-input
   [tuiTextfieldCustomContent]="spec.masked ? toggle : ''"
   [tuiHintContent]="spec.description"
+  [pseudoInvalid]="invalid"
   [(ngModel)]="value"
   (focusedChange)="onFocus($event)"
 >

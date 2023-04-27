@@ -28,6 +28,7 @@ import {
   unionSelectKey,
   ValueSpecTextarea,
   unionValueKey,
+  ValueSpecColor,
 } from 'start-sdk/lib/config/configTypes'
 const Mustache = require('mustache')
 
@@ -123,6 +124,13 @@ export class FormService {
           value = spec.default || null
         }
         return this.formBuilder.control(value, numberValidators(spec))
+      case 'color':
+        if (currentValue !== undefined) {
+          value = currentValue
+        } else {
+          value = spec.default || null
+        }
+        return this.formBuilder.control(value, colorValidators(spec))
       case 'object':
         return this.getFormGroup(spec.spec, [], currentValue)
       case 'list':
@@ -194,6 +202,16 @@ function textareaValidators(spec: ValueSpecTextarea): ValidatorFn[] {
   }
 
   validators.push(textLengthInRange(spec.minLength, spec.maxLength))
+
+  return validators
+}
+
+function colorValidators({ required }: ValueSpecColor): ValidatorFn[] {
+  const validators: ValidatorFn[] = [Validators.pattern(/^#[0-9a-f]{6}$/i)]
+
+  if (required) {
+    validators.push(Validators.required)
+  }
 
   return validators
 }
