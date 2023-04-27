@@ -6,6 +6,10 @@ export abstract class Control<Spec extends ValueSpec, Value> {
   private readonly control: FormControlComponent<Spec, Value> =
     inject(FormControlComponent)
 
+  get invalid(): boolean {
+    return this.control.touched && this.control.invalid
+  }
+
   get spec(): Spec {
     return this.control.spec
   }
