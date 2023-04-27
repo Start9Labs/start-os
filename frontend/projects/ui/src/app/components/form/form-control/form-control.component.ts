@@ -39,7 +39,7 @@ interface ValidatorsPatternError {
         pattern: ({ requiredPattern }: ValidatorsPatternError) =>
           control.spec.patterns.find(
             ({ regex }) => String(regex) === String(requiredPattern),
-          )?.description || 'Invalid pattern',
+          )?.description || 'Invalid format',
       }),
     },
   ],
