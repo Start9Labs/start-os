@@ -22,7 +22,7 @@ if [ -n "$ENVIRONMENT" ]; then
 fi
 
 TARGET_NAME=eos-${VERSION_FULL}-${DATE}_raspberrypi.img
-TARGET_SIZE=$[(31116287+1)*512]
+TARGET_SIZE=$[(6817791+1)*512]
 
 rm -f $TARGET_NAME
 truncate -s $TARGET_SIZE $TARGET_NAME
@@ -37,14 +37,13 @@ truncate -s $TARGET_SIZE $TARGET_NAME
     echo 1
     echo 2048
     echo 526335
-    echo 1050623
     echo t
     echo c
     echo n
     echo p
     echo 2
-    echo 1050624
-    echo 31116287
+    echo 526336
+    echo 6817791
     echo a
     echo 1
     echo w
@@ -56,6 +55,7 @@ sudo mkfs.vfat `partition_for ${OUTPUT_DEVICE} 1`
 TMPDIR=$(mktemp -d)
 
 sudo mount `partition_for ${OUTPUT_DEVICE} 2` $TMPDIR
+sudo mkdir $TMPDIR/boot
 sudo mount `partition_for ${OUTPUT_DEVICE} 1` $TMPDIR/boot
 sudo unsquashfs -f -d $TMPDIR eos.raspberrypi.squashfs
 sudo cp ./build/raspberrypi/cmdline.txt $TMPDIR/boot/
@@ -63,6 +63,7 @@ sudo cp ./build/raspberrypi/config.txt $TMPDIR/boot/
 sudo cp ./build/raspberrypi/fstab $TMPDIR/etc/
 sudo mkdir -p $TMPDIR/etc/embassy
 sudo cp ./build/raspberrypi/config.yaml $TMPDIR/etc/embassy
+sudo cp ./build/raspberrypi/init_resize.sh $TMPDIR//usr/lib/embassy/scripts/init_resize.sh
 sudo cp ./cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep $TMPDIR/usr/local/bin/beep
 sudo umount $TMPDIR/boot
 sudo umount $TMPDIR

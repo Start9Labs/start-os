@@ -1,20 +1,5 @@
 #!/bin/bash
 
-check_commands () {
-  if ! command -v whiptail > /dev/null; then
-      echo "whiptail not found"
-      sleep 5
-      return 1
-  fi
-  for COMMAND in grep cut sed parted fdisk findmnt; do
-    if ! command -v $COMMAND > /dev/null; then
-      FAIL_REASON="$COMMAND not found"
-      return 1
-    fi
-  done
-  return 0
-}
-
 get_variables () {
   ROOT_PART_DEV=$(findmnt / -o source -n)
   ROOT_PART_NAME=$(echo "$ROOT_PART_DEV" | cut -d "/" -f 3)
@@ -30,7 +15,7 @@ get_variables () {
   OLD_DISKID=$(fdisk -l "$ROOT_DEV" | sed -n 's/Disk identifier: 0x\([^ ]*\)/\1/p')
 
   ROOT_DEV_SIZE=$(cat "/sys/block/${ROOT_DEV_NAME}/size")
-  if [ $ROOT_DEV_SIZE -le 67108864 ]; then
+  if [ "$ROOT_DEV_SIZE" -le 67108864 ]; then
       TARGET_END=$((ROOT_DEV_SIZE - 1))
   else
       TARGET_END=$((33554432 - 1))
@@ -69,7 +54,7 @@ check_variables () {
   fi
 }
 
-resize () {
+main () {
   get_variables
 
   if ! check_variables; then
@@ -123,10 +108,10 @@ beep
 
 if main; then
   sed -i 's| init=/usr/lib/embassy/scripts/init_resize\.sh| boot=embassy|' /boot/cmdline.txt
-  whiptail --infobox "Resized root filesystem. Rebooting in 5 seconds..." 20 60
+  echo "Resized root filesystem. Rebooting in 5 seconds..."
   sleep 5
 else
-  whiptail --msgbox "Could not expand filesystem, please try raspi-config or rc_gui.\n${FAIL_REASON}" 20 60
+  echo -e "Could not expand filesystem.\n${FAIL_REASON}"
   sleep 5
 fi
 
