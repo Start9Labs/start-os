@@ -1,13 +1,4 @@
-#!/bin/sh
-
-reboot_pi () {
-  umount /boot
-  mount / -o remount,ro
-  sync
-  reboot -f
-  sleep 5
-  exit 0
-}
+#!/bin/bash
 
 check_commands () {
   if ! command -v whiptail > /dev/null; then
@@ -78,7 +69,7 @@ check_variables () {
   fi
 }
 
-main () {
+resize () {
   get_variables
 
   if ! check_variables; then
@@ -96,9 +87,26 @@ main () {
 
   if [ -n "$DATA_PART_START" ]; then
     if ! parted -m "$ROOT_DEV" u s mkpart "$DATA_PART_START" "$DATA_PART_END"; then
-        FAIL_REASON="Data partition creation failed"
-        return 1
+      FAIL_REASON="Data partition creation failed"
+      return 1
     fi
+  fi
+
+  mount / -o remount,rw
+
+  if ! systemd-machine-id-setup; then
+    FAIL_REASON="systemd-machine-id-setup failed"
+    return 1
+  fi
+
+  if ! make-ssl-cert generate-default-snakeoil --force-overwrite; then
+    FAIL_REASON="snakeoil cert generation failed"
+    return 1
+  fi
+
+  if ! ssh-keygen -A; then
+    FAIL_REASON="ssh host key generation failed"
+    return 1
   fi
 
   return 0
@@ -108,21 +116,13 @@ mount -t proc proc /proc
 mount -t sysfs sys /sys
 mount -t tmpfs tmp /run
 mkdir -p /run/systemd
-
-beep
-
 mount /boot
 mount / -o remount,ro
 
-sed -i 's| init=/usr/lib/embassy/scripts/init_resize\.sh||' /boot/cmdline.txt
-mount /boot -o remount,ro
-sync
-
-if ! check_commands; then
-  reboot_pi
-fi
+beep
 
 if main; then
+  sed -i 's| init=/usr/lib/embassy/scripts/init_resize\.sh| boot=embassy|' /boot/cmdline.txt
   whiptail --infobox "Resized root filesystem. Rebooting in 5 seconds..." 20 60
   sleep 5
 else
@@ -130,4 +130,8 @@ else
   sleep 5
 fi
 
-reboot_pi
+sync
+
+umount /boot
+
+reboot -f

@@ -56,14 +56,14 @@ sudo mkfs.vfat `partition_for ${OUTPUT_DEVICE} 1`
 TMPDIR=$(mktemp -d)
 
 sudo mount `partition_for ${OUTPUT_DEVICE} 2` $TMPDIR
-sudo mkdir -p $TMPDIR/config
-sudo mkdir -p $TMPDIR/next
-sudo mkdir -p $TMPDIR/current/boot
-sudo mount `partition_for ${OUTPUT_DEVICE} 1` $TMPDIR/current/boot
-sudo unsquashfs -f -d $TMPDIR/current eos.raspberrypi.squashfs
-sudo cp ./build/raspberry-pi/cmdline.txt $TMPDIR/current/boot/
-sudo cp ./build/raspberry-pi/config.txt $TMPDIR/current/boot/
-sudo cp ./cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep $TMPDIR/current/usr/local/bin/beep
-sudo umount $TMPDIR/current/boot
+sudo mount `partition_for ${OUTPUT_DEVICE} 1` $TMPDIR/boot
+sudo unsquashfs -f -d $TMPDIR eos.raspberrypi.squashfs
+sudo cp ./build/raspberrypi/cmdline.txt $TMPDIR/boot/
+sudo cp ./build/raspberrypi/config.txt $TMPDIR/boot/
+sudo cp ./build/raspberrypi/fstab $TMPDIR/etc/
+sudo mkdir -p $TMPDIR/etc/embassy
+sudo cp ./build/raspberrypi/config.yaml $TMPDIR/etc/embassy
+sudo cp ./cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep $TMPDIR/usr/local/bin/beep
+sudo umount $TMPDIR/boot
 sudo umount $TMPDIR
 sudo losetup -d $OUTPUT_DEVICE
