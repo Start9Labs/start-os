@@ -28,6 +28,7 @@ nyx
 openssh-server
 pgloader
 postgresql
+psmisc
 rsync
 samba-common-bin
 sqlite3
