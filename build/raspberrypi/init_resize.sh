@@ -65,19 +65,29 @@ main () {
 #     reboot_pi
 #   fi
 
-  if ! parted -m "$ROOT_DEV" u s resizepart "$ROOT_PART_NUM" "$TARGET_END"; then
+  if ! echo Yes | parted -m --align=optimal "$ROOT_DEV" ---pretend-input-tty u s resizepart "$ROOT_PART_NUM" "$TARGET_END" ; then
     FAIL_REASON="Root partition resize failed"
     return 1
   fi
 
   if [ -n "$DATA_PART_START" ]; then
-    if ! parted -m "$ROOT_DEV" u s mkpart "$DATA_PART_START" "$DATA_PART_END"; then
+    if ! parted -ms --align=optimal "$ROOT_DEV" u s mkpart primary "$DATA_PART_START" "$DATA_PART_END"; then
       FAIL_REASON="Data partition creation failed"
       return 1
     fi
   fi
 
+  (
+    echo x
+    echo i
+    echo "0xcb15ae4d"
+    echo r
+    echo w
+  ) | fdisk $ROOT_DEV
+
   mount / -o remount,rw
+
+  resize2fs $ROOT_PART_DEV
 
   if ! systemd-machine-id-setup; then
     FAIL_REASON="systemd-machine-id-setup failed"

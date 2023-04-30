@@ -58,6 +58,9 @@ sudo mount `partition_for ${OUTPUT_DEVICE} 2` $TMPDIR
 sudo mkdir $TMPDIR/boot
 sudo mount `partition_for ${OUTPUT_DEVICE} 1` $TMPDIR/boot
 sudo unsquashfs -f -d $TMPDIR eos.raspberrypi.squashfs
+REAL_GIT_HASH=$(cat $TMPDIR/usr/lib/embassy/GIT_HASH.txt)
+REAL_VERSION=$(cat $TMPDIR/usr/lib/embassy/VERSION.txt)
+REAL_ENVIRONMENT=$(cat $TMPDIR/usr/lib/embassy/ENVIRONMENT.txt)
 sudo cp ./build/raspberrypi/cmdline.txt $TMPDIR/boot/
 sudo cp ./build/raspberrypi/config.txt $TMPDIR/boot/
 sudo cp ./build/raspberrypi/fstab $TMPDIR/etc/
@@ -68,3 +71,18 @@ sudo cp ./cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep $TMPDIR/usr/local
 sudo umount $TMPDIR/boot
 sudo umount $TMPDIR
 sudo losetup -d $OUTPUT_DEVICE
+
+if [ "$ALLOW_VERSION_MISMATCH" != 1 ]; then
+    if [ "$(cat GIT_HASH.txt)" != "$REAL_GIT_HASH" ]; then
+        >&2 echo "eos.raspberrypi.squashfs GIT_HASH.txt mismatch"
+        exit 1
+    fi
+    if [ "$(cat VERSION.txt)" != "$REAL_VERSION" ]; then
+        >&2 echo "eos.raspberrypi.squashfs VERSION.txt mismatch"
+        exit 1
+    fi
+    if [ "$(cat ENVIRONMENT.txt)" != "$REAL_ENVIRONMENT" ]; then
+        >&2 echo "eos.raspberrypi.squashfs ENVIRONMENT.txt mismatch"
+        exit 1
+    fi
+fi
