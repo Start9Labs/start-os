@@ -1,5 +1,5 @@
 OS_ARCH := $(shell echo "${OS_ARCH}")
-ARCH := $(shell if [ "$(OS_ARCH)" = "raspberrypi" ]; then echo aarch64; else echo $(OS_ARCH); fi)
+ARCH := $(shell if [ "$(OS_ARCH)" = "raspberrypi" ]; then echo aarch64; else echo $(OS_ARCH) | sed 's/-nonfree$//g'; fi)
 ENVIRONMENT_FILE = $(shell ./check-environment.sh)
 GIT_HASH_FILE = $(shell ./check-git-hash.sh)
 VERSION_FILE = $(shell ./check-version.sh)

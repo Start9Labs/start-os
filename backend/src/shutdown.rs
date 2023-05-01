@@ -8,7 +8,7 @@ use crate::disk::main::export;
 use crate::init::{STANDBY_MODE_PATH, SYSTEM_REBUILD_PATH};
 use crate::sound::SHUTDOWN;
 use crate::util::{display_none, Invoke};
-use crate::{Error, ErrorKind, IS_RASPBERRY_PI};
+use crate::{Error, ErrorKind, OS_ARCH};
 
 #[derive(Debug, Clone)]
 pub struct Shutdown {
@@ -58,7 +58,7 @@ impl Shutdown {
                     tracing::debug!("{:?}", e);
                 }
             }
-            if !*IS_RASPBERRY_PI || self.restart {
+            if OS_ARCH != "raspberrypi" || self.restart {
                 if let Err(e) = SHUTDOWN.play().await {
                     tracing::error!("Error Playing Shutdown Song: {}", e);
                     tracing::debug!("{:?}", e);
@@ -66,7 +66,7 @@ impl Shutdown {
             }
         });
         drop(rt);
-        if *IS_RASPBERRY_PI {
+        if OS_ARCH == "raspberrypi" {
             if !self.restart {
                 std::fs::write(STANDBY_MODE_PATH, "").unwrap();
                 Command::new("sync").spawn().unwrap().wait().unwrap();

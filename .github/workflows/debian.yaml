@@ -5,12 +5,16 @@ on:
   workflow_dispatch:
 
 env:
-  NODEJS_VERSION: '16.11.0'
+  NODEJS_VERSION: '18.15.0'
   ENVIRONMENT: "dev"
 
 jobs:
   dpkg:
     name: Build dpkg
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [x86_64, x86_64-nonfree, aarch64, aarch64-nonfree, raspberrypi]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -56,8 +60,10 @@ jobs:
 
     - name: Run build
       run: "make VERSION=0.3.x TAG=${{ github.ref_name }}"
+      env:
+        OS_ARCH: ${{ matrix.platform }}
 
     - uses: actions/upload-artifact@v3
       with:
-        name: deb
-        path: embassyos_0.3.x-1_amd64.deb
+        name: ${{ matrix.platform }}.deb
+        path: embassyos_0.3.x-1_*.deb
