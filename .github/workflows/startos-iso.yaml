@@ -8,7 +8,7 @@ on:
         type: choice
         description: Environment
         options: 
-        - ""
+        - "<NONE>"
         - dev
         - unstable
         - dev-unstable
@@ -22,7 +22,8 @@ on:
     - next
 
 env:
-  ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
+  ENVIRONMENT: |
+    ${{ fromJson(format('["{0}", ""]', github.event.inputs.environment))[github.event.inputs.environment == "<NONE>"] }}
 
 jobs:
   dpkg:
