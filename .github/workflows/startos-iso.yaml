@@ -66,5 +66,34 @@ jobs:
 
     - uses: actions/upload-artifact@v3
       with:
-        name: iso
+        name: ${{ matrix.platform }}.squashfs
+        path: results/*.squashfs
+
+    - uses: actions/upload-artifact@v3
+      with:
+        name: ${{ matrix.platform }}.iso
         path: results/*.iso
+      if: ${{ matrix.platform != 'raspberrypi' }}
+
+  image:
+    name: Build image
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    needs: [iso]
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: Download raspberrypi.squashfs artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: raspberrypi.squashfs
+
+    - name: Build image
+      run: make eos_raspberrypi.img
+
+    - uses: actions/upload-artifact@v3
+      with:
+        name: raspberrypi.img
+        path: eos-*_raspberrypi.img

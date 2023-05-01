@@ -15,7 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         platform: [x86_64, x86_64-nonfree, aarch64, aarch64-nonfree, raspberrypi]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v3
       with:
