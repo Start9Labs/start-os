@@ -3,6 +3,15 @@ name: Debian-based ISO and SquashFS
 on:
   workflow_call:
   workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        description: Environment
+        options: 
+        - ""
+        - dev
+        - unstable
+        - dev-unstable
   push:
     branches:
     - master
@@ -13,7 +22,7 @@ on:
     - next
 
 env:
-  ENVIRONMENT: "dev"
+  ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
 
 jobs:
   dpkg:
