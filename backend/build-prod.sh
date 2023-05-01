@@ -3,6 +3,11 @@
 set -e
 shopt -s expand_aliases
 
+if [ -z "$OS_ARCH" ]; then
+	>&2 echo '$OS_ARCH is required'
+	exit 1
+fi
+
 if [ -z "$ARCH" ]; then
 	ARCH=$(uname -m)
 fi
