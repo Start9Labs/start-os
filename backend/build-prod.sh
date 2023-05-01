@@ -17,8 +17,8 @@ if tty -s; then
 	USE_TTY="-it"
 fi
 
-alias 'rust-gnu-builder'='docker run $USE_TTY --rm -v "$HOME/.cargo/registry":/root/.cargo/registry -v "$(pwd)":/home/rust/src -P start9/rust-arm-cross:aarch64'
-alias 'rust-musl-builder'='docker run $USE_TTY --rm -v "$HOME/.cargo/registry":/root/.cargo/registry -v "$(pwd)":/home/rust/src -P messense/rust-musl-cross:$ARCH-musl'
+alias 'rust-gnu-builder'='docker run $USE_TTY --rm -e "OS_ARCH=$OS_ARCH" -v "$HOME/.cargo/registry":/root/.cargo/registry -v "$(pwd)":/home/rust/src -P start9/rust-arm-cross:aarch64'
+alias 'rust-musl-builder'='docker run $USE_TTY --rm -e "OS_ARCH=$OS_ARCH" -v "$HOME/.cargo/registry":/root/.cargo/registry -v "$(pwd)":/home/rust/src -P messense/rust-musl-cross:$ARCH-musl'
 
 cd ..
 FLAGS=""
