@@ -19,7 +19,7 @@ httpdirfs
 iotop
 iw
 jq
-libavahi-client
+libavahi-client3
 lvm2
 magic-wormhole
 ncdu
