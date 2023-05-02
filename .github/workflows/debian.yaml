@@ -50,7 +50,8 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install debmake debhelper-compat dpkg-cross crossbuild-essential-arm64
+        sudo dpkg --add-architecture arm64
+        sudo apt-get install debmake debhelper-compat crossbuild-essential-arm64 libavahi-client-dev:arm64
 
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v2
