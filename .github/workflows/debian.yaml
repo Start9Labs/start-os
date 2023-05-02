@@ -49,6 +49,7 @@ jobs:
 
     - name: Install dependencies
       run: |
+        echo "deb [arch=arm64] http://ports.ubuntu.com/ jammy main multiverse universe" | sudo tee -a /etc/apt/sources.list
         sudo dpkg --add-architecture arm64
         sudo apt-get update
         sudo apt-get install debmake debhelper-compat crossbuild-essential-arm64 libavahi-client-dev:arm64
