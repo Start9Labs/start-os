@@ -67,7 +67,7 @@ jobs:
     - name: Download dpkg
       uses: actions/download-artifact@v3
       with:
-        name: deb
+        name: ${{ matrix.platform }}.deb
         path: overlays/deb
 
     - name: Run build
