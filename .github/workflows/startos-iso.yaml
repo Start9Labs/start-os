@@ -44,7 +44,8 @@ jobs:
 
     - name: Install dependencies
       run: |
-        sudo apt update
+        sudo apt-get update
+        sudo apt-get install -y qemu-user-static
         wget http://ftp.us.debian.org/debian/pool/main/d/debspawn/debspawn_0.6.1-1_all.deb
         sha256sum ./debspawn_0.6.1-1_all.deb | grep fb8a3f588438ff9ef51e713ec1d83306db893f0aa97447565e28bbba9c6e90c6
         sudo apt-get install -y ./debspawn_0.6.1-1_all.deb
