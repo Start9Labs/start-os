@@ -49,6 +49,7 @@ jobs:
 
     - name: Install dependencies
       run: |
+        sudo sed -i 's/^deb http/deb [arch=amd64] http/g' /etc/apt/sources.list
         echo "deb [arch=arm64] http://ports.ubuntu.com/ jammy main multiverse universe" | sudo tee -a /etc/apt/sources.list
         sudo dpkg --add-architecture arm64
         sudo apt-get update
