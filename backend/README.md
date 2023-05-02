@@ -5,7 +5,7 @@
   - Recommended: [rust-analyzer](https://rust-analyzer.github.io/)
   - [Docker](https://docs.docker.com/get-docker/)
   - [Rust ARM64 Build Container](https://github.com/Start9Labs/rust-arm-builder)
-- Scripts (run withing the `./backend` directory)
+- Scripts (run within the `./backend` directory)
   - `build-prod.sh` - compiles a release build of the artifacts for running on
     ARM64
 - A Linux computer or VM
