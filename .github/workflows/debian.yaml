@@ -53,7 +53,7 @@ jobs:
         echo "deb [arch=arm64] http://ports.ubuntu.com/ jammy main multiverse universe" | sudo tee -a /etc/apt/sources.list
         sudo dpkg --add-architecture arm64
         sudo apt-get update
-        sudo apt-get install debmake debhelper-compat crossbuild-essential-arm64 libc6:arm64 libavahi-client-dev:arm64
+        sudo apt-get install debmake debhelper-compat crossbuild-essential-arm64 libgcc-s1:arm64 libdbus-1-3:arm64 libc6:arm64 libavahi-client-dev:arm64
 
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v2
