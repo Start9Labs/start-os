@@ -56,13 +56,7 @@ jobs:
         sudo apt-get install \
           debmake \
           debhelper-compat \
-          crossbuild-essential-arm64 \
-          libgcc-s1:arm64 \
-          libdbus-1-3:arm64 \
-          libc6:arm64 \
-          libavahi-client-dev:arm64 \
-          libsystemd0:arm64 \
-          gcc-12-base:arm64
+          crossbuild-essential-arm64
 
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v2
