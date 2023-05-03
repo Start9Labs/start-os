@@ -65,7 +65,7 @@ format:
 sdk:
 	cd backend/ && ./install-sdk.sh
 
-eos_raspberrypi.img: $(BUILD_SRC) eos.raspberrypi.squashfs $(VERSION_FILE) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) | sudo
+eos_raspberrypi.img: $(BUILD_SRC) eos.raspberrypi.squashfs $(VERSION_FILE) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep | sudo
 	./build/raspberrypi/make-image.sh
 
 # For creating os images. DO NOT USE
