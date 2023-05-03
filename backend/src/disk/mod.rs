@@ -22,6 +22,7 @@ pub const REPAIR_DISK_PATH: &str = "/media/embassy/config/repair-disk";
 #[serde(rename_all = "kebab-case")]
 pub struct OsPartitionInfo {
     pub efi: Option<PathBuf>,
+    pub bios: Option<PathBuf>,
     pub boot: PathBuf,
     pub root: PathBuf,
 }
@@ -31,6 +32,11 @@ impl OsPartitionInfo {
             .as_ref()
             .map(|p| p == logicalname.as_ref())
             .unwrap_or(false)
+            || self
+                .bios
+                .as_ref()
+                .map(|p| p == logicalname.as_ref())
+                .unwrap_or(false)
             || &*self.boot == logicalname.as_ref()
             || &*self.root == logicalname.as_ref()
     }

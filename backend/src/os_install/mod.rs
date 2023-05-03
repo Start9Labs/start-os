@@ -93,13 +93,7 @@ pub fn partition_for(disk: impl AsRef<Path>, idx: usize) -> PathBuf {
 
 async fn partition(disk: &mut DiskInfo, overwrite: bool) -> Result<OsPartitionInfo, Error> {
     let partition_type = match (overwrite, disk.partition_table) {
-        (true, _) | (_, None) => {
-            if tokio::fs::metadata("/sys/firmware/efi").await.is_ok() {
-                PartitionTable::Gpt
-            } else {
-                PartitionTable::Mbr
-            }
-        }
+        (true, _) | (_, None) => PartitionTable::Gpt,
         (_, Some(t)) => t,
     };
     disk.partition_table = Some(partition_type);
@@ -241,7 +235,7 @@ pub async fn execute(
     let dev = MountGuard::mount(&Bind::new("/dev"), current.join("dev"), ReadWrite).await?;
     let proc = MountGuard::mount(&Bind::new("/proc"), current.join("proc"), ReadWrite).await?;
     let sys = MountGuard::mount(&Bind::new("/sys"), current.join("sys"), ReadWrite).await?;
-    let efivarfs = if let Some(efi) = &part_info.efi {
+    let efivarfs = if tokio::fs::metadata("/sys/firmware/efi").await.is_ok() {
         Some(
             MountGuard::mount(
                 &EfiVarFs,
@@ -256,7 +250,7 @@ pub async fn execute(
 
     let mut install = Command::new("chroot");
     install.arg(&current).arg("grub-install");
-    if part_info.efi.is_none() {
+    if tokio::fs::metadata("/sys/firmware/efi").await.is_err() {
         install.arg("--target=i386-pc");
     } else {
         match *ARCH {

@@ -85,6 +85,7 @@ pub async fn partition(disk: &DiskInfo, overwrite: bool) -> Result<OsPartitionIn
 
     Ok(OsPartitionInfo {
         efi: None,
+        bios: None,
         boot: partition_for(&disk.logicalname, 1),
         root: partition_for(&disk.logicalname, 2),
     })
