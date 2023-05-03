@@ -101,6 +101,8 @@ jobs:
       with:
         name: raspberrypi.squashfs
 
+    - run: mv *_raspberrypi.squashfs eos.raspberrypi.squashfs
+
     - name: Build image
       run: make eos_raspberrypi.img
 
