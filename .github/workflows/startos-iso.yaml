@@ -22,8 +22,7 @@ on:
     - next
 
 env:
-  ENVIRONMENT: |
-    ${{ fromJson(format('["{0}", ""]', github.event.inputs.environment || 'dev'))[github.event.inputs.environment == '<NONE>'] }}
+  ENVIRONMENT: '${{ fromJson(format(''["{0}", ""]'', github.event.inputs.environment || ''dev''))[github.event.inputs.environment == ''<NONE>''] }}'
 
 jobs:
   dpkg:
