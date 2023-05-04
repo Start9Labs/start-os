@@ -232,6 +232,15 @@ pub async fn execute(
         .invoke(crate::ErrorKind::OpenSsh)
         .await?;
 
+    Command::new("chroot")
+        .arg(&current)
+        .arg("ln")
+        .arg("-sf")
+        .arg("/usr/lib/embassy/scripts/fake-apt")
+        .arg("/usr/local/bin/apt-get")
+        .invoke(crate::ErrorKind::OpenSsh)
+        .await?;
+
     let dev = MountGuard::mount(&Bind::new("/dev"), current.join("dev"), ReadWrite).await?;
     let proc = MountGuard::mount(&Bind::new("/proc"), current.join("proc"), ReadWrite).await?;
     let sys = MountGuard::mount(&Bind::new("/sys"), current.join("sys"), ReadWrite).await?;

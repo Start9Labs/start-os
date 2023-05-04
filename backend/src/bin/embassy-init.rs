@@ -20,6 +20,18 @@ use tracing::instrument;
 #[instrument(skip_all)]
 async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
     if tokio::fs::metadata("/run/live/medium").await.is_ok() {
+        Command::new("sed")
+            .arg("-i")
+            .arg("s/PasswordAuthentication no/PasswordAuthentication yes/g")
+            .arg("/etc/ssh/sshd_config")
+            .invoke(crate::ErrorKind::Filesystem)
+            .await?;
+        Command::new("systemctl")
+            .arg("reload")
+            .arg("ssh")
+            .invoke(crate::ErrorKind::OpenSsh)
+            .await?;
+
         let ctx = InstallContext::init(cfg_path).await?;
 
         let server = WebServer::install(([0, 0, 0, 0], 80).into(), ctx.clone()).await?;
