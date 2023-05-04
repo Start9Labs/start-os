@@ -65,8 +65,8 @@ pub async fn set_hostname(hostname: &Hostname) -> Result<(), Error> {
 }
 
 #[instrument(skip_all)]
-pub async fn sync_hostname(account: &AccountInfo) -> Result<(), Error> {
-    set_hostname(&account.hostname).await?;
+pub async fn sync_hostname(hostname: &Hostname) -> Result<(), Error> {
+    set_hostname(hostname).await?;
     Command::new("systemctl")
         .arg("restart")
         .arg("avahi-daemon")
