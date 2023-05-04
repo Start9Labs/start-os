@@ -6,6 +6,7 @@ bmon
 ca-certificates
 cifs-utils
 containerd.io
+curl
 cryptsetup
 docker-ce
 docker-ce-cli
