@@ -1,0 +1,34 @@
+<ng-container [ngSwitch]="spec.inputmode" [tuiHintContent]="spec.description">
+  <tui-input-time
+    *ngSwitchCase="'time'"
+    [pseudoInvalid]="invalid"
+    [ngModel]="getTime(value)"
+    (ngModelChange)="value = $event?.toString() || null"
+    (focusedChange)="onFocus($event)"
+  >
+    {{ spec.name }}
+    <span *ngIf="spec.required">*</span>
+  </tui-input-time>
+  <tui-input-date
+    *ngSwitchCase="'date'"
+    [pseudoInvalid]="invalid"
+    [min]="spec.min ? (spec.min | tuiMapper : getLimit)[0] : min"
+    [max]="spec.max ? (spec.max | tuiMapper : getLimit)[0] : max"
+    [(ngModel)]="value"
+    (focusedChange)="onFocus($event)"
+  >
+    {{ spec.name }}
+    <span *ngIf="spec.required">*</span>
+  </tui-input-date>
+  <tui-input-date-time
+    *ngSwitchCase="'datetime-local'"
+    [pseudoInvalid]="invalid"
+    [min]="spec.min ? (spec.min | tuiMapper : getLimit) : min"
+    [max]="spec.max ? (spec.max | tuiMapper : getLimit) : max"
+    [(ngModel)]="value"
+    (focusedChange)="onFocus($event)"
+  >
+    {{ spec.name }}
+    <span *ngIf="spec.required">*</span>
+  </tui-input-date-time>
+</ng-container>
