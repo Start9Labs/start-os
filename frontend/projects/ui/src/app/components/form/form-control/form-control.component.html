@@ -1,5 +1,6 @@
 <ng-container [ngSwitch]="spec.type">
   <form-color *ngSwitchCase="'color'"></form-color>
+  <form-datetime *ngSwitchCase="'datetime'"></form-datetime>
   <form-file *ngSwitchCase="'file'"></form-file>
   <form-multiselect *ngSwitchCase="'multiselect'"></form-multiselect>
   <form-number *ngSwitchCase="'number'"></form-number>
