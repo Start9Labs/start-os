@@ -1,7 +1,8 @@
 import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { FormsModule, ReactiveFormsModule } from '@angular/forms'
-import { TuiValueChangesModule } from '@taiga-ui/cdk'
+import { MaskitoModule } from '@maskito/angular'
+import { TuiMapperPipeModule, TuiValueChangesModule } from '@taiga-ui/cdk'
 import {
   TuiButtonModule,
   TuiErrorModule,
@@ -17,9 +18,12 @@ import {
 import {
   TuiElasticContainerModule,
   TuiFieldErrorPipeModule,
+  TuiInputDateModule,
+  TuiInputDateTimeModule,
   TuiInputFilesModule,
   TuiInputModule,
   TuiInputNumberModule,
+  TuiInputTimeModule,
   TuiMultiSelectModule,
   TuiPromptModule,
   TuiSelectModule,
@@ -43,7 +47,7 @@ import { FormControlComponent } from './form-control/form-control.component'
 import { MustachePipe } from './mustache.pipe'
 import { ControlDirective } from './control.directive'
 import { FormColorComponent } from './form-color/form-color.component'
-import { MaskitoModule } from '@maskito/angular'
+import { FormDatetimeComponent } from './form-datetime/form-datetime.component'
 
 @NgModule({
   imports: [
@@ -73,11 +77,16 @@ import { MaskitoModule } from '@maskito/angular'
     MaskitoModule,
     TuiSvgModule,
     TuiWrapperModule,
+    TuiInputDateModule,
+    TuiInputTimeModule,
+    TuiInputDateTimeModule,
+    TuiMapperPipeModule,
   ],
   declarations: [
     FormGroupComponent,
     FormControlComponent,
     FormColorComponent,
+    FormDatetimeComponent,
     FormTextComponent,
     FormToggleComponent,
     FormTextareaComponent,
