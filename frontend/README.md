@@ -52,8 +52,8 @@ Valid values for "maskAs" are `tor` and `lan`.
 ```sh
 npm run start:ui
 npm run start:install-wiz
-npm run start:setup-wizard
-npm run start:diagnostic-ui
+npm run start:setup
+npm run start:dui
 ```
 
 ## Running locally with proxied backend
