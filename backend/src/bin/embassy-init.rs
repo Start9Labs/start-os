@@ -13,13 +13,26 @@ use embassy::shutdown::Shutdown;
 use embassy::sound::CHIME;
 use embassy::util::logger::EmbassyLogger;
 use embassy::util::Invoke;
-use embassy::{Error, ErrorKind, ResultExt, IS_RASPBERRY_PI};
+use embassy::{Error, ErrorKind, ResultExt, OS_ARCH};
 use tokio::process::Command;
 use tracing::instrument;
 
 #[instrument(skip_all)]
 async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
-    if tokio::fs::metadata("/cdrom").await.is_ok() {
+    if tokio::fs::metadata("/run/live/medium").await.is_ok() {
+        Command::new("sed")
+            .arg("-i")
+            .arg("s/PasswordAuthentication no/PasswordAuthentication yes/g")
+            .arg("/etc/ssh/sshd_config")
+            .invoke(crate::ErrorKind::Filesystem)
+            .await?;
+        Command::new("systemctl")
+            .arg("reload")
+            .arg("ssh")
+            .invoke(crate::ErrorKind::OpenSsh)
+            .await?;
+        embassy::hostname::sync_hostname(&embassy::hostname::Hostname("embassy".into())).await?;
+
         let ctx = InstallContext::init(cfg_path).await?;
 
         let server = WebServer::install(([0, 0, 0, 0], 80).into(), ctx.clone()).await?;
@@ -119,7 +132,7 @@ async fn run_script_if_exists<P: AsRef<Path>>(path: P) {
 
 #[instrument(skip_all)]
 async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error> {
-    if *IS_RASPBERRY_PI && tokio::fs::metadata(STANDBY_MODE_PATH).await.is_ok() {
+    if OS_ARCH == "raspberrypi" && tokio::fs::metadata(STANDBY_MODE_PATH).await.is_ok() {
         tokio::fs::remove_file(STANDBY_MODE_PATH).await?;
         Command::new("sync").invoke(ErrorKind::Filesystem).await?;
         embassy::sound::SHUTDOWN.play().await?;

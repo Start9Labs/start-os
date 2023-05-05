@@ -11,6 +11,7 @@ use models::PackageId;
 use tokio::net::{TcpListener, UdpSocket};
 use tokio::process::Command;
 use tokio::sync::RwLock;
+use tracing::instrument;
 use trust_dns_server::authority::MessageResponseBuilder;
 use trust_dns_server::client::op::{Header, ResponseCode};
 use trust_dns_server::client::rr::{Name, Record, RecordType};
@@ -147,6 +148,7 @@ impl RequestHandler for Resolver {
 }
 
 impl DnsController {
+    #[instrument(skip_all)]
     pub async fn init(bind: &[SocketAddr]) -> Result<Self, Error> {
         let services = Arc::new(RwLock::new(BTreeMap::new()));
 
@@ -161,10 +163,16 @@ impl DnsController {
         );
         server.register_socket(UdpSocket::bind(bind).await.with_kind(ErrorKind::Network)?);
 
-        Command::new("systemd-resolve")
-            .arg("--set-dns=127.0.0.1")
-            .arg("--interface=br-start9")
-            .arg("--set-domain=embassy")
+        Command::new("resolvectl")
+            .arg("dns")
+            .arg("br-start9")
+            .arg("127.0.0.1")
+            .invoke(ErrorKind::Network)
+            .await?;
+        Command::new("resolvectl")
+            .arg("domain")
+            .arg("br-start9")
+            .arg("embassy")
             .invoke(ErrorKind::Network)
             .await?;
 

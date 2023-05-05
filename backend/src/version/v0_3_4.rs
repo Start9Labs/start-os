@@ -79,7 +79,7 @@ impl VersionT for Version {
             .unwrap_or_else(generate_hostname);
         account.server_id = server_info.id;
         account.save(secrets).await?;
-        sync_hostname(&account).await?;
+        sync_hostname(&account.hostname).await?;
 
         let parsed_url = Some(COMMUNITY_URL.parse().unwrap());
         let mut ui = crate::db::DatabaseModel::new().ui().get_mut(db).await?;

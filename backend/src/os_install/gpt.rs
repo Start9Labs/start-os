@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use color_eyre::eyre::eyre;
 use gpt::disk::LogicalBlockSize;
 use gpt::GptConfig;
@@ -8,7 +10,7 @@ use crate::os_install::partition_for;
 use crate::Error;
 
 pub async fn partition(disk: &DiskInfo, overwrite: bool) -> Result<OsPartitionInfo, Error> {
-    {
+    let efi = {
         let disk = disk.clone();
         tokio::task::spawn_blocking(move || {
             let mut device = Box::new(
@@ -63,7 +65,19 @@ pub async fn partition(disk: &DiskInfo, overwrite: bool) -> Result<OsPartitionIn
 
             gpt.update_partitions(Default::default())?;
 
-            gpt.add_partition("efi", 100 * 1024 * 1024, gpt::partition_types::EFI, 0, None)?;
+            let efi = if Path::new("/sys/firmware/efi").exists() {
+                gpt.add_partition("efi", 100 * 1024 * 1024, gpt::partition_types::EFI, 0, None)?;
+                true
+            } else {
+                gpt.add_partition(
+                    "bios-grub",
+                    8 * 1024 * 1024,
+                    gpt::partition_types::BIOS,
+                    0,
+                    None,
+                )?;
+                false
+            };
             gpt.add_partition(
                 "boot",
                 1024 * 1024 * 1024,
@@ -108,14 +122,15 @@ pub async fn partition(disk: &DiskInfo, overwrite: bool) -> Result<OsPartitionIn
 
             gpt.write()?;
 
-            Ok(())
+            Ok(efi)
         })
         .await
-        .unwrap()?;
-    }
+        .unwrap()?
+    };
 
     Ok(OsPartitionInfo {
-        efi: Some(partition_for(&disk.logicalname, 1)),
+        efi: efi.then(|| partition_for(&disk.logicalname, 1)),
+        bios: (!efi).then(|| partition_for(&disk.logicalname, 1)),
         boot: partition_for(&disk.logicalname, 2),
         root: partition_for(&disk.logicalname, 3),
     })

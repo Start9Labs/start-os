@@ -25,7 +25,7 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
             ),
         )
         .await?;
-        embassy::hostname::sync_hostname(&*rpc_ctx.account.read().await).await?;
+        embassy::hostname::sync_hostname(&rpc_ctx.account.read().await.hostname).await?;
         let server = WebServer::main(([0, 0, 0, 0], 80).into(), rpc_ctx.clone()).await?;
 
         let mut shutdown_recv = rpc_ctx.shutdown.subscribe();

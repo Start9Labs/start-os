@@ -1,6 +1,5 @@
-RASPI_TARGETS := eos_raspberrypi-uninit.img eos_raspberrypi-uninit.tar.gz
-OS_ARCH := $(shell if echo $(RASPI_TARGETS) | grep -qw "$(MAKECMDGOALS)"; then echo raspberrypi; else uname -m; fi)
-ARCH := $(shell if [ "$(OS_ARCH)" = "raspberrypi" ]; then echo aarch64; else echo $(OS_ARCH); fi)
+OS_ARCH := $(shell echo "${OS_ARCH}")
+ARCH := $(shell if [ "$(OS_ARCH)" = "raspberrypi" ]; then echo aarch64; else echo $(OS_ARCH) | sed 's/-nonfree$$//g'; fi)
 ENVIRONMENT_FILE = $(shell ./check-environment.sh)
 GIT_HASH_FILE = $(shell ./check-git-hash.sh)
 VERSION_FILE = $(shell ./check-version.sh)
@@ -43,12 +42,6 @@ sudo:
 	sudo true
 
 clean:
-	rm -f 2022-01-28-raspios-bullseye-arm64-lite.zip
-	rm -f raspios.img
-	rm -f eos_raspberrypi-uninit.img
-	rm -f eos_raspberrypi-uninit.tar.gz
-	rm -f ubuntu.img
-	rm -f product_key.txt
 	rm -f system-images/**/*.tar
 	rm -rf system-images/compat/target
 	rm -rf backend/target
@@ -72,17 +65,8 @@ format:
 sdk:
 	cd backend/ && ./install-sdk.sh
 
-eos_raspberrypi-uninit.img: $(ALL_TARGETS) raspios.img cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep | sudo
-	! test -f eos_raspberrypi-uninit.img || rm eos_raspberrypi-uninit.img
-	./build/raspberry-pi/make-image.sh
-
-lite-upgrade.img: raspios.img cargo-deps/aarch64-unknown-linux-gnu/release/nc-broadcast cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep $(BUILD_SRC) eos.raspberrypi.squashfs
-	! test -f lite-upgrade.img || rm lite-upgrade.img
-	./build/raspberry-pi/make-upgrade-image.sh
-
-eos_raspberrypi.img: raspios.img $(BUILD_SRC) eos.raspberrypi.squashfs $(VERSION_FILE) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) | sudo
-	! test -f eos_raspberrypi.img || rm eos_raspberrypi.img
-	./build/raspberry-pi/make-initialized-image.sh
+eos_raspberrypi.img: $(BUILD_SRC) eos.raspberrypi.squashfs $(VERSION_FILE) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep | sudo
+	./build/raspberrypi/make-image.sh
 
 # For creating os images. DO NOT USE
 install: $(ALL_TARGETS)
@@ -183,7 +167,7 @@ frontend/config.json: $(GIT_HASH_FILE) frontend/config-sample.json
 	npm --prefix frontend run-script build-config
 
 frontend/patchdb-ui-seed.json: frontend/package.json
-	jq '."ack-welcome" = "$(shell yq '.version' frontend/package.json)"' frontend/patchdb-ui-seed.json > ui-seed.tmp
+	jq '."ack-welcome" = $(shell yq '.version' frontend/package.json)' frontend/patchdb-ui-seed.json > ui-seed.tmp
 	mv ui-seed.tmp frontend/patchdb-ui-seed.json
 
 patch-db/client/node_modules: patch-db/client/package.json

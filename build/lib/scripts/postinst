@@ -29,6 +29,10 @@ ln -s /usr/share/zoneinfo/Etc/UTC /etc/localtime
 
 # switch to systemd-resolved & network-manager
 echo "#" > /etc/network/interfaces
+if ! [ -f /etc/resolv.conf ]; then
+  rm -f /etc/resolv.conf
+  echo "nameserver 8.8.8.8" > /etc/resolv.conf # Google DNS Fallback
+fi
 if ! [ -f /run/systemd/resolve/stub-resolv.conf ]; then
     mkdir -p /run/systemd/resolve
     cp /etc/resolv.conf /run/systemd/resolve/stub-resolv.conf
@@ -44,6 +48,7 @@ managed=true
 EOF
 $SYSTEMCTL enable systemd-resolved.service
 $SYSTEMCTL enable systemd-networkd-wait-online.service
+$SYSTEMCTL enable ssh.service
 $SYSTEMCTL disable wpa_supplicant.service
 
 $SYSTEMCTL disable docker.service
@@ -63,6 +68,7 @@ if which gsettings > /dev/null; then
     gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-battery-timeout '0'
 fi
 
+sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config
 sed -i 's/Restart=on-failure/Restart=always/g' /lib/systemd/system/tor@default.service
 sed -i 's/ExecStart=\/usr\/bin\/dockerd/ExecStart=\/usr\/bin\/dockerd --exec-opt native.cgroupdriver=systemd/g' /lib/systemd/system/docker.service
 sed -i '/\(^\|#\)entries-per-entry-group-max=/c\entries-per-entry-group-max=128' /etc/avahi/avahi-daemon.conf

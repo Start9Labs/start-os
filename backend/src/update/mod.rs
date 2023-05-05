@@ -26,7 +26,7 @@ use crate::sound::{
 use crate::update::latest_information::LatestInformation;
 use crate::util::Invoke;
 use crate::version::{Current, VersionT};
-use crate::{Error, ErrorKind, ResultExt, IS_RASPBERRY_PI};
+use crate::{Error, ErrorKind, ResultExt, OS_ARCH};
 
 mod latest_information;
 
@@ -81,16 +81,11 @@ async fn maybe_do_update(
     marketplace_url: Url,
 ) -> Result<Option<Arc<Revision>>, Error> {
     let mut db = ctx.db.handle();
-    let arch = if *IS_RASPBERRY_PI {
-        "raspberrypi"
-    } else {
-        *crate::ARCH
-    };
     let latest_version: Version = reqwest::get(format!(
         "{}/eos/v0/latest?eos-version={}&arch={}",
         marketplace_url,
         Current::new().semver(),
-        arch,
+        OS_ARCH,
     ))
     .await
     .with_kind(ErrorKind::Network)?
@@ -241,12 +236,7 @@ impl EosUrl {
             .host_str()
             .ok_or_else(|| Error::new(eyre!("Could not get host of base"), ErrorKind::ParseUrl))?;
         let version: &Version = &self.version;
-        let arch = if *IS_RASPBERRY_PI {
-            "raspberrypi"
-        } else {
-            *crate::ARCH
-        };
-        Ok(format!("{host}::{version}/{arch}/")
+        Ok(format!("{host}::{version}/{OS_ARCH}/")
             .parse()
             .map_err(|_| Error::new(eyre!("Could not parse path"), ErrorKind::ParseUrl))?)
     }
@@ -312,7 +302,7 @@ async fn sync_boot() -> Result<(), Error> {
     .await?
     .wait()
     .await?;
-    if !*IS_RASPBERRY_PI {
+    if OS_ARCH != "raspberrypi" {
         let dev_mnt =
             MountGuard::mount(&Bind::new("/dev"), "/media/embassy/next/dev", ReadWrite).await?;
         let sys_mnt =
@@ -323,7 +313,7 @@ async fn sync_boot() -> Result<(), Error> {
             MountGuard::mount(&Bind::new("/boot"), "/media/embassy/next/boot", ReadWrite).await?;
         Command::new("chroot")
             .arg("/media/embassy/next")
-            .arg("update-grub")
+            .arg("update-grub2")
             .invoke(ErrorKind::MigrationFailed)
             .await?;
         boot_mnt.unmount(false).await?;
