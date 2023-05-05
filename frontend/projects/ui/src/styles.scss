@@ -75,7 +75,7 @@
 
 /** Ionic CSS Variables overrides **/
 :root {
-  --ion-font-family: 'Open Sans';
+  --ion-font-family: 'Open Sans', sans-serif;
   --ion-background-color: var(--ion-color-medium);
   --ion-background-color-rgb: var(--ion-color-medium-rgb);
   --ion-text-color: var(--ion-color-dark);
@@ -191,11 +191,11 @@ ion-back-button {
 }
 
 ion-card-title {
-  font-family: 'Montserrat';
+  font-family: 'Montserrat', sans-serif;
 }
 
 ion-title {
-  font-family: 'Montserrat';
+  font-family: 'Montserrat', sans-serif;
 }
 
 ion-badge {
