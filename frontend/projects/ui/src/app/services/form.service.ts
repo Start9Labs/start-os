@@ -29,6 +29,7 @@ import {
   ValueSpecTextarea,
   unionValueKey,
   ValueSpecColor,
+  ValueSpecDatetime,
 } from 'start-sdk/lib/config/configTypes'
 const Mustache = require('mustache')
 
@@ -131,6 +132,13 @@ export class FormService {
           value = spec.default || null
         }
         return this.formBuilder.control(value, colorValidators(spec))
+      case 'datetime':
+        if (currentValue !== undefined) {
+          value = currentValue
+        } else {
+          value = spec.default || null
+        }
+        return this.formBuilder.control(value, datetimeValidators(spec))
       case 'object':
         return this.getFormGroup(spec.spec, [], currentValue)
       case 'list':
@@ -211,6 +219,28 @@ function colorValidators({ required }: ValueSpecColor): ValidatorFn[] {
 
   if (required) {
     validators.push(Validators.required)
+  }
+
+  return validators
+}
+
+function datetimeValidators({
+  required,
+  min,
+  max,
+}: ValueSpecDatetime): ValidatorFn[] {
+  const validators: ValidatorFn[] = []
+
+  if (required) {
+    validators.push(Validators.required)
+  }
+
+  if (min) {
+    validators.push(datetimeMin(min))
+  }
+
+  if (max) {
+    validators.push(datetimeMax(max))
   }
 
   return validators
@@ -313,6 +343,28 @@ export function listInRange(
         listNotInRange: `List cannot contain more than ${maxLength} entries`,
       }
     return null
+  }
+}
+
+export function datetimeMin(min: string): ValidatorFn {
+  return ({ value }) => {
+    if (!value) return null
+
+    const date = new Date(value.length === 5 ? `2000-01-01T${value}` : value)
+    const minDate = new Date(min.length === 5 ? `2000-01-01T${min}` : min)
+
+    return date < minDate ? { datetimeMin: `Minimum is ${min}` } : null
+  }
+}
+
+export function datetimeMax(max: string): ValidatorFn {
+  return ({ value }) => {
+    if (!value) return null
+
+    const date = new Date(value.length === 5 ? `2000-01-01T${value}` : value)
+    const maxDate = new Date(max.length === 5 ? `2000-01-01T${max}` : max)
+
+    return date > maxDate ? { datetimeMin: `Maximum is ${max}` } : null
   }
 }
 
