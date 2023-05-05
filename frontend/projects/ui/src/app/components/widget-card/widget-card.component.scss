@@ -14,9 +14,9 @@ ion-card {
     transform: scale(1.05);
     transition-delay: 40ms;
   }
-  
+
   ion-card-title {
-    font-family: 'Open Sans';
+    font-family: 'Open Sans', sans-serif;
     padding: 0.6rem;
     font-weight: 600;
     font-size: calc(12px + 0.5vw);
@@ -29,16 +29,16 @@ ion-card {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    
+
     ion-icon {
       font-size: calc(90px + 0.5vw);
       --ionicon-stroke-width: 1rem;
     }
   }
-  
+
   ion-footer {
     padding: 1rem;
-    font-family: 'Open Sans';
+    font-family: 'Open Sans', sans-serif;
     font-size: clamp(1rem, calc(12px + 0.5vw), 1.3rem);
     height: 9rem;
     width: clamp(13rem, 80%, 18rem);
