@@ -3,7 +3,6 @@ import { ToastController } from '@ionic/angular'
 import { TuiDialogOptions } from '@taiga-ui/core'
 import { ToggleCustomEvent } from '@ionic/core'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ValueSpecObject } from 'start-sdk/lib/config/configTypes'
 import { AvailableWifi, RR } from 'src/app/services/api/api.types'
 import { pauseFor, ErrorToastService } from '@start9labs/shared'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
@@ -25,6 +24,7 @@ import {
   switchMap,
   tap,
 } from 'rxjs'
+import { wifiSpec } from './wifiSpec'
 
 interface WiFiForm {
   ssid: string
@@ -48,7 +48,7 @@ export class WifiPage {
   readonly localChanges$ = new Subject<RR.GetWifiRes>()
   readonly wifi$ = merge(
     this.trigger$.pipe(switchMap(() => this.getWifi$())),
-    this.localChanges$.asObservable(),
+    this.localChanges$,
   )
 
   constructor(
@@ -280,49 +280,6 @@ export class WifiPage {
       }
     }
   }
-}
-
-const wifiSpec: ValueSpecObject = {
-  type: 'object',
-  name: 'WiFi Credentials',
-  description:
-    'Enter the network SSID and password. You can connect now or save the network for later.',
-  warning: null,
-  spec: {
-    ssid: {
-      type: 'text',
-      minLength: null,
-      maxLength: null,
-      patterns: [],
-      name: 'Network SSID',
-      description: null,
-      inputmode: 'text',
-      placeholder: null,
-      required: true,
-      masked: false,
-      default: null,
-      warning: null,
-    },
-    password: {
-      type: 'text',
-      minLength: null,
-      maxLength: null,
-      patterns: [
-        {
-          regex: '^.{8,}$',
-          description: 'Must be longer than 8 characters',
-        }
-      ],
-      name: 'Password',
-      description: null,
-      inputmode: 'text',
-      placeholder: null,
-      required: true,
-      masked: true,
-      default: null,
-      warning: null,
-    },
-  },
 }
 
 @Pipe({

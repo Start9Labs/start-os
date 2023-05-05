@@ -8,7 +8,7 @@
 </ion-header>
 
 <ion-content class="with-widgets">
-  <div class="smaller" *ngIf="{ enabled: enabled$ | async } as context">
+  <div class="smaller" *tuiLet="enabled$ | async as enabled">
     <ion-item-group>
       <ion-item>
         <ion-label>
@@ -30,13 +30,13 @@
         <ion-label><b>Wi-Fi</b></ion-label>
         <ion-toggle
           slot="end"
-          [checked]="context.enabled"
+          [checked]="enabled"
           (ionChange)="toggleWifi($any($event))"
         ></ion-toggle>
       </ion-item>
     </ion-item-group>
 
-    <ng-container *ngIf="context.enabled">
+    <ng-container *ngIf="enabled">
       <ng-container *ngIf="wifi$ | async as wifi; else loading">
         <!-- known networks -->
         <ion-item-divider *ngIf="!(wifi.ssids | empty)">
