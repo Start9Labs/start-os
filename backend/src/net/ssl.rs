@@ -173,7 +173,7 @@ pub fn make_root_cert(root_key: &PKey<Private>, hostname: &Hostname) -> Result<X
     let mut subject_name_builder = X509NameBuilder::new()?;
     subject_name_builder.append_entry_by_text("CN", &format!("{} Local Root CA", &*hostname.0))?;
     subject_name_builder.append_entry_by_text("O", "Start9")?;
-    subject_name_builder.append_entry_by_text("OU", "Embassy")?;
+    subject_name_builder.append_entry_by_text("OU", "StartOS")?;
     let subject_name = subject_name_builder.build();
     builder.set_subject_name(&subject_name)?;
 
@@ -225,9 +225,9 @@ pub fn make_int_cert(
     builder.set_serial_number(&*rand_serial()?)?;
 
     let mut subject_name_builder = X509NameBuilder::new()?;
-    subject_name_builder.append_entry_by_text("CN", "Embassy Local Intermediate CA")?;
+    subject_name_builder.append_entry_by_text("CN", "StartOS Local Intermediate CA")?;
     subject_name_builder.append_entry_by_text("O", "Start9")?;
-    subject_name_builder.append_entry_by_text("OU", "Embassy")?;
+    subject_name_builder.append_entry_by_text("OU", "StartOS")?;
     let subject_name = subject_name_builder.build();
     builder.set_subject_name(&subject_name)?;
 
@@ -370,7 +370,7 @@ pub fn make_leaf_cert(
             .unwrap_or("localhost"),
     )?;
     subject_name_builder.append_entry_by_text("O", "Start9")?;
-    subject_name_builder.append_entry_by_text("OU", "Embassy")?;
+    subject_name_builder.append_entry_by_text("OU", "StartOS")?;
     let subject_name = subject_name_builder.build();
     builder.set_subject_name(&subject_name)?;
 

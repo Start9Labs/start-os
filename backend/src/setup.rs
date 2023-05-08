@@ -135,7 +135,7 @@ pub async fn attach(
                 crate::disk::main::export(&*guid, &ctx.datadir).await?;
                 return Err(Error::new(
                     eyre!(
-                        "Errors were corrected with your disk, but the Embassy must be restarted in order to proceed"
+                        "Errors were corrected with your disk, but the server must be restarted in order to proceed"
                     ),
                     ErrorKind::DiskManagement,
                 ));
@@ -294,7 +294,7 @@ pub async fn execute(
                 }));
             }
             Err(e) => {
-                tracing::error!("Error Setting Up Embassy: {}", e);
+                tracing::error!("Error Setting Up Server: {}", e);
                 tracing::debug!("{:?}", e);
                 *ctx.setup_status.write().await = Some(Err(e.into()));
             }

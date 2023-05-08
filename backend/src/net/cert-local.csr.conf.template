@@ -7,4 +7,4 @@ prompt = no
 [req_distinguished_name]
 CN = {hostname}.local
 O = Start9 Labs
-OU = Embassy
+OU = StartOS
