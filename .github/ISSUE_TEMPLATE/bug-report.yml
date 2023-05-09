@@ -22,7 +22,7 @@ body:
   - type: dropdown
     attributes:
       label: Device
-      description: What device are you using to connect to server?
+      description: What device are you using to connect to your server?
       options:
         - Phone/tablet
         - Laptop/Desktop
