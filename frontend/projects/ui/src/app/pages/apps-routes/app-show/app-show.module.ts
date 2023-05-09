@@ -23,6 +23,8 @@ import { ToButtonsPipe } from './pipes/to-buttons.pipe'
 import { ToDependenciesPipe } from './pipes/to-dependencies.pipe'
 import { ToStatusPipe } from './pipes/to-status.pipe'
 import { ProgressDataPipe } from './pipes/progress-data.pipe'
+import { InsecureWarningComponentModule } from 'src/app/components/insecure-warning/insecure-warning.module'
+import { LaunchMenuComponentModule } from 'src/app/components/launch-menu/launch-menu.module'
 
 const routes: Routes = [
   {
@@ -57,6 +59,8 @@ const routes: Routes = [
     UiPipeModule,
     ResponsiveColModule,
     SharedPipesModule,
+    InsecureWarningComponentModule,
+    LaunchMenuComponentModule,
   ],
 })
 export class AppShowPageModule {}

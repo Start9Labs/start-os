@@ -1,6 +1,6 @@
 <ion-header>
   <ion-toolbar>
-    <ion-title> System </ion-title>
+    <ion-title>System</ion-title>
     <ion-buttons slot="end">
       <badge-menu-button></badge-menu-button>
     </ion-buttons>
@@ -15,22 +15,7 @@
 
   <!-- loaded -->
   <ion-item-group *ngIf="server$ | async as server; else loading">
-    <ion-item *ngIf="!secure" color="warning">
-      <ion-icon slot="start" name="warning-outline"></ion-icon>
-      <ion-label>
-        <h2 style="font-weight: bold">You are using unencrypted http</h2>
-        <p style="font-weight: 600">
-          Click the button on the right to switch to https. Your browser may
-          warn you that the page is insecure. You can safely bypass this
-          warning. It will go away after you download and trust your Embassy's
-          certificate
-        </p>
-      </ion-label>
-      <ion-button slot="end" color="light" (click)="launchHttps()">
-        Open Https
-        <ion-icon slot="end" name="open-outline"></ion-icon>
-      </ion-button>
-    </ion-item>
+    <insecure-warning *ngIf="!secure"></insecure-warning>
 
     <div *ngFor="let cat of settings | keyvalue : asIsOrder">
       <ion-item-divider>
@@ -52,25 +37,6 @@
           <h2>{{ button.title }}</h2>
           <p *ngIf="button.description">{{ button.description }}</p>
 
-          <!-- "Create Backup" button only -->
-          <p *ngIf="button.title === 'Create Backup'">
-            <ng-container *ngIf="server['status-info'] as statusInfo">
-              <ion-text
-                [color]="server['last-backup'] | backupColor"
-                *ngIf="!statusInfo['backup-progress'] && !statusInfo['update-progress']"
-              >
-                Last Backup: {{ server['last-backup'] ? (server['last-backup'] |
-                date: 'medium') : 'never' }}
-              </ion-text>
-              <span *ngIf="!!statusInfo['backup-progress']" class="inline">
-                <ion-spinner
-                  color="success"
-                  style="height: 12px; width: 12px; margin-right: 6px"
-                ></ion-spinner>
-                <ion-text color="success">Backing up</ion-text>
-              </span>
-            </ng-container>
-          </p>
           <!-- "Software Update" button only -->
           <p *ngIf="button.title === 'Software Update'">
             <ion-text

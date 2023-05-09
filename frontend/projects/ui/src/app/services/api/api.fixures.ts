@@ -17,7 +17,7 @@ import { unionSelectKey } from 'start-sdk/lib/config/configTypes'
 
 export module Mock {
   export const ServerUpdated: ServerStatusInfo = {
-    'backup-progress': null,
+    'current-backup': null,
     'update-progress': null,
     updated: true,
     'shutting-down': false,
@@ -501,11 +501,18 @@ export module Mock {
   export const Sessions: RR.GetSessionsRes = {
     current: 'b7b1a9cef4284f00af9e9dda6e676177',
     sessions: {
-      '9513226517c54ddd8107d6d7b9d8aed7': {
+      c54ddd8107d6d7b9d8aed7: {
         'last-active': '2021-07-14T20:49:17.774Z',
         'user-agent': 'AppleWebKit/{WebKit Rev} (KHTML, like Gecko)',
         metadata: {
           platforms: ['iphone', 'mobileweb', 'mobile', 'ios'],
+        },
+      },
+      klndsfjhbwsajkdnaksj: {
+        'last-active': '2019-07-14T20:49:17.774Z',
+        'user-agent': 'AppleWebKit/{WebKit Rev} (KHTML, like Gecko)',
+        metadata: {
+          platforms: ['cli'],
         },
       },
       b7b1a9cef4284f00af9e9dda6e676177: {
@@ -577,57 +584,130 @@ export module Mock {
   }
 
   export const BackupTargets: RR.GetBackupTargetsRes = {
-    hsbdjhasbasda: {
-      type: 'cifs',
-      hostname: 'smb://192.169.10.0',
-      path: '/Desktop/embassy-backups',
-      username: 'TestUser',
-      mountable: false,
-      'embassy-os': {
-        version: '0.3.0',
-        full: true,
-        'password-hash':
+    'unknown-disks': [
+      {
+        logicalname: 'sbc4',
+        label: 'My Backup Drive',
+        capacity: 2000000000000,
+        used: 100000000000,
+        model: 'T7',
+        vendor: 'Samsung',
+      },
+    ],
+    saved: [
+      {
+        id: 'hsbdjhasbasda',
+        type: 'cifs',
+        name: 'Embassy Backups',
+        hostname: 'smb://192.169.10.0',
+        path: '/Desktop/embassy-backups',
+        username: 'TestUser',
+        mountable: false,
+        'embassy-os': {
+          version: '0.3.0',
+          full: true,
+          'password-hash':
+            // password is asdfasdf
+            '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+          'wrapped-key': '',
+        },
+      },
+      {
+        id: 'ftcvewdnkemfksdm',
+        type: 'cloud',
+        name: 'Dropbox 1',
+        provider: 'dropbox',
+        path: '/Home/backups',
+        mountable: true,
+        'embassy-os': null,
+      },
+      {
+        id: 'csgashbdjkasnd',
+        type: 'cifs',
+        name: 'Network Folder 2',
+        hostname: 'smb://192.169.10.0',
+        path: '/Desktop/embassy-backups-2',
+        username: 'TestUser',
+        mountable: true,
+        'embassy-os': null,
+      },
+      {
+        id: 'powjefhjbnwhdva',
+        type: 'disk',
+        name: 'Physical Drive 1',
+        logicalname: 'sdba1',
+        label: 'Another Drive',
+        capacity: 2000000000000,
+        used: 100000000000,
+        model: null,
+        vendor: 'SSK',
+        mountable: true,
+        path: '/HomeFolder/Documents',
+        'embassy-os': {
+          version: '0.3.0',
+          full: true,
           // password is asdfasdf
-          '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-        'wrapped-key': '',
+          'password-hash':
+            '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+          'wrapped-key': '',
+        },
       },
-    },
-    // 'ftcvewdnkemfksdm': {
-    //   type: 'disk',
-    //   logicalname: 'sdba1',
-    //   label: 'Matt Stuff',
-    //   capacity: 1000000000000,
-    //   used: 0,
-    //   model: 'Evo SATA 2.5',
-    //   vendor: 'Samsung',
-    //   'embassy-os': null,
-    // },
-    csgashbdjkasnd: {
-      type: 'cifs',
-      hostname: 'smb://192.169.10.0',
-      path: '/Desktop/embassy-backups-2',
-      username: 'TestUser',
-      mountable: true,
-      'embassy-os': null,
-    },
-    powjefhjbnwhdva: {
-      type: 'disk',
-      logicalname: 'sdba1',
-      label: 'Another Drive',
-      capacity: 2000000000000,
-      used: 100000000000,
-      model: null,
-      vendor: 'SSK',
-      'embassy-os': {
-        version: '0.3.0',
-        full: true,
-        // password is asdfasdf
-        'password-hash':
-          '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-        'wrapped-key': '',
-      },
-    },
+    ],
   }
+
+  export const BackupJobs: RR.GetBackupJobsRes = [
+    {
+      id: 'lalalalalala-babababababa',
+      name: 'My Backup Job',
+      target: BackupTargets.saved[0],
+      cron: '0 3 * * *',
+      'package-ids': ['bitcoind', 'lnd'],
+    },
+    {
+      id: 'hahahahaha-mwmwmwmwmwmw',
+      name: 'Another Backup Job',
+      target: BackupTargets.saved[1],
+      cron: '0 * * * *',
+      'package-ids': ['lnd'],
+    },
+  ]
+
+  export const BackupRuns: RR.GetBackupRunsRes = [
+    {
+      id: 'kladhbfweubdsk',
+      'started-at': new Date().toISOString(),
+      'completed-at': new Date(new Date().valueOf() + 10000).toISOString(),
+      'package-ids': ['bitcoind', 'lnd'],
+      job: BackupJobs[0],
+      report: {
+        server: {
+          attempted: true,
+          error: null,
+        },
+        packages: {
+          bitcoind: { error: null },
+          lnd: { error: null },
+        },
+      },
+    },
+    {
+      id: 'kladhbfwhrfeubdsk',
+      'started-at': new Date().toISOString(),
+      'completed-at': new Date(new Date().valueOf() + 10000).toISOString(),
+      'package-ids': ['bitcoind', 'lnd'],
+      job: BackupJobs[0],
+      report: {
+        server: {
+          attempted: true,
+          error: null,
+        },
+        packages: {
+          bitcoind: { error: null },
+          lnd: { error: null },
+        },
+      },
+    },
+  ]
 
   export const BackupInfo: RR.GetBackupInfoRes = {
     version: '0.3.0',

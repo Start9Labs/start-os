@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
+import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { NavController } from '@ionic/angular'
 import { PatchDB } from 'patch-db-client'
 import {
@@ -13,9 +13,7 @@ import {
 import { tap } from 'rxjs/operators'
 import { ActivatedRoute } from '@angular/router'
 import { getPkgId } from '@start9labs/shared'
-import { DOCUMENT } from '@angular/common'
 import { ConfigService } from 'src/app/services/config.service'
-import { getServerInfo } from 'src/app/util/get-server-info'
 
 const STATES = [
   PackageState.Installing,
@@ -45,7 +43,6 @@ export class AppShowPage {
     private readonly navCtrl: NavController,
     private readonly patch: PatchDB<DataModel>,
     private readonly config: ConfigService,
-    @Inject(DOCUMENT) private readonly document: Document,
   ) {}
 
   isInstalled({ state }: PackageDataEntry): boolean {
@@ -62,10 +59,5 @@ export class AppShowPage {
 
   showProgress({ state }: PackageDataEntry): boolean {
     return STATES.includes(state)
-  }
-
-  async launchHttps() {
-    const { 'lan-address': lanAddress } = await getServerInfo(this.patch)
-    window.open(lanAddress)
   }
 }

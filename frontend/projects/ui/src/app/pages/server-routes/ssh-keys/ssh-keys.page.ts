@@ -11,6 +11,7 @@ import {
   GenericInputComponent,
   GenericInputOptions,
 } from 'src/app/modals/generic-input/generic-input.component'
+import { BehaviorSubject } from 'rxjs'
 
 @Component({
   selector: 'ssh-keys',
@@ -18,9 +19,9 @@ import {
   styleUrls: ['ssh-keys.page.scss'],
 })
 export class SSHKeysPage {
-  loading = true
-  sshKeys: SSHKey[] = []
   readonly docsUrl = 'https://docs.start9.com/latest/user-manual/ssh'
+  sshKeys: SSHKey[] = []
+  loading$ = new BehaviorSubject(true)
 
   constructor(
     private readonly loadingCtrl: LoadingController,
@@ -40,7 +41,7 @@ export class SSHKeysPage {
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
-      this.loading = false
+      this.loading$.next(false)
     }
   }
 
@@ -75,10 +76,10 @@ export class SSHKeysPage {
     }
   }
 
-  async presentAlertDelete(i: number) {
+  async presentAlertDelete(key: SSHKey, i: number) {
     const alert = await this.alertCtrl.create({
-      header: 'Caution',
-      message: `Are you sure you want to delete this key?`,
+      header: 'Confirm',
+      message: 'Delete key? This action cannot be undone.',
       buttons: [
         {
           text: 'Cancel',
@@ -87,7 +88,7 @@ export class SSHKeysPage {
         {
           text: 'Delete',
           handler: () => {
-            this.delete(i)
+            this.delete(key, i)
           },
           cssClass: 'enter-click',
         },
@@ -96,15 +97,14 @@ export class SSHKeysPage {
     await alert.present()
   }
 
-  async delete(i: number): Promise<void> {
+  async delete(key: SSHKey, i: number): Promise<void> {
     const loader = await this.loadingCtrl.create({
       message: 'Deleting...',
     })
     await loader.present()
 
     try {
-      const entry = this.sshKeys[i]
-      await this.embassyApi.deleteSshKey({ fingerprint: entry.fingerprint })
+      await this.embassyApi.deleteSshKey({ fingerprint: key.fingerprint })
       this.sshKeys.splice(i, 1)
     } catch (e: any) {
       this.errToast.present(e)

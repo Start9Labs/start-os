@@ -9,7 +9,7 @@ import {
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActivatedRoute } from '@angular/router'
 import { PatchDB } from 'patch-db-client'
-import { combineLatest, firstValueFrom, map, Observable, of } from 'rxjs'
+import { firstValueFrom, Observable, of } from 'rxjs'
 import { ErrorToastService } from '@start9labs/shared'
 import { EOSService } from 'src/app/services/eos.service'
 import { ClientStorageService } from 'src/app/services/client-storage.service'
@@ -23,7 +23,6 @@ import {
 } from 'src/app/modals/generic-input/generic-input.component'
 import { ConfigService } from 'src/app/services/config.service'
 import { DOCUMENT } from '@angular/common'
-import { getServerInfo } from 'src/app/util/get-server-info'
 
 @Component({
   selector: 'server-show',
@@ -56,11 +55,6 @@ export class ServerShowPage {
     private readonly config: ConfigService,
     @Inject(DOCUMENT) private readonly document: Document,
   ) {}
-
-  async launchHttps() {
-    const { 'lan-address': lanAddress } = await getServerInfo(this.patch)
-    window.open(lanAddress)
-  }
 
   addClick(title: string) {
     switch (title) {
@@ -354,29 +348,6 @@ export class ServerShowPage {
   }
 
   settings: ServerSettings = {
-    Backups: [
-      {
-        title: 'Create Backup',
-        description: 'Back up your Embassy and service data',
-        icon: 'duplicate-outline',
-        action: () =>
-          this.navCtrl.navigateForward(['backup'], { relativeTo: this.route }),
-        detail: true,
-        disabled$: of(!this.secure),
-      },
-      {
-        title: 'Restore From Backup',
-        description: 'Restore one or more services from backup',
-        icon: 'color-wand-outline',
-        action: () =>
-          this.navCtrl.navigateForward(['restore'], { relativeTo: this.route }),
-        detail: true,
-        disabled$: combineLatest([
-          this.eosService.updatingOrBackingUp$,
-          of(this.secure),
-        ]).pipe(map(([updating, secure]) => updating || !secure)),
-      },
-    ],
     Manage: [
       {
         title: 'Software Update',

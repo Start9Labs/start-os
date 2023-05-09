@@ -1,0 +1,93 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/backups"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Backup History</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding-top">
+  <ion-item-divider>
+    Past Events
+    <ion-button
+      class="ion-padding-start"
+      color="danger"
+      strong
+      size="small"
+      (click)="deleteSelected()"
+      [disabled]="empty"
+    >
+      Delete Selected
+    </ion-button>
+  </ion-item-divider>
+  <div class="grid-fixed">
+    <ion-grid class="ion-padding">
+      <ion-row class="grid-headings">
+        <ion-col size="3.5" class="inline">
+          <div class="checkbox" (click)="toggleAll(runs)">
+            <ion-icon
+              [name]="empty ? 'square-outline' : count === runs.length ? 'checkbox-outline' : 'remove-circle-outline'"
+            ></ion-icon>
+          </div>
+          Started At
+        </ion-col>
+        <ion-col size="2">Duration</ion-col>
+        <ion-col size="1.5">Result</ion-col>
+        <ion-col size="2.5">Job</ion-col>
+        <ion-col size="2.5">Target</ion-col>
+      </ion-row>
+
+      <!-- loading -->
+      <ng-container *ngIf="loading$ | async; else loaded">
+        <ion-row
+          *ngFor="let row of ['', '', '']"
+          class="ion-align-items-center grid-row-border"
+        >
+          <ion-col>
+            <ion-skeleton-text animated></ion-skeleton-text>
+          </ion-col>
+        </ion-row>
+      </ng-container>
+      <!-- loaded -->
+      <ng-template #loaded>
+        <ion-row
+          *ngFor="let run of runs"
+          class="ion-align-items-center grid-row-border"
+          [class.highlighted]="selected[run.id]"
+        >
+          <ion-col size="3.5" class="inline">
+            <div class="checkbox" (click)="toggleChecked(run.id)">
+              <ion-icon
+                [name]="selected[run.id] ? 'checkbox-outline' : 'square-outline'"
+              ></ion-icon>
+            </div>
+            {{ run['started-at'] | date : 'medium' }}
+          </ion-col>
+          <ion-col size="2">
+            {{ run['started-at']| duration : run['completed-at'] }} Minutes
+          </ion-col>
+          <ion-col size="1.5">
+            <ion-icon
+              *ngIf="run.report | hasError; else noError"
+              name="close"
+              color="danger"
+            ></ion-icon>
+            <ng-template #noError>
+              <ion-icon name="checkmark" color="success"></ion-icon>
+            </ng-template>
+            <a (click)="presentModalReport(run)">Report</a>
+          </ion-col>
+          <ion-col size="2.5">{{ run.job.name || 'No job' }}</ion-col>
+          <ion-col size="2.5" class="inline">
+            <ion-icon
+              [name]="(run.job.target | getDisplayInfo).icon"
+              size="small"
+            ></ion-icon>
+            &nbsp; {{ run.job.target.name }}
+          </ion-col>
+        </ion-row>
+      </ng-template>
+    </ion-grid>
+  </div>
+</ion-content>
