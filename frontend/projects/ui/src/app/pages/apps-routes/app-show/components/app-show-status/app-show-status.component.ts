@@ -1,14 +1,18 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { UiLauncherService } from 'src/app/services/ui-launcher.service'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  Input,
+  ViewChild,
+} from '@angular/core'
 import {
   PackageStatus,
   PrimaryRendering,
   PrimaryStatus,
+  StatusRendering,
 } from 'src/app/services/pkg-status-rendering.service'
 import {
   AddressInfo,
   DataModel,
-  InstalledPackageInfo,
   PackageDataEntry,
   PackageState,
 } from 'src/app/services/patch-db/data-model'
@@ -24,6 +28,7 @@ import { DependencyInfo } from '../../pipes/to-dependencies.pipe'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { ConnectionService } from 'src/app/services/connection.service'
 import { PatchDB } from 'patch-db-client'
+import { LaunchMenuComponent } from 'src/app/components/launch-menu/launch-menu.component'
 
 @Component({
   selector: 'app-show-status',
@@ -32,6 +37,8 @@ import { PatchDB } from 'patch-db-client'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppShowStatusComponent {
+  @ViewChild('launchMenu') launchMenu!: LaunchMenuComponent
+
   @Input()
   pkg!: PackageDataEntry
 
@@ -41,8 +48,6 @@ export class AppShowStatusComponent {
   @Input()
   dependencies: DependencyInfo[] = []
 
-  PR = PrimaryRendering
-
   readonly connected$ = this.connectionService.connected$
 
   constructor(
@@ -50,7 +55,6 @@ export class AppShowStatusComponent {
     private readonly errToast: ErrorToastService,
     private readonly loadingCtrl: LoadingController,
     private readonly embassyApi: ApiService,
-    private readonly launcherService: UiLauncherService,
     private readonly formDialog: FormDialogService,
     private readonly connectionService: ConnectionService,
     private readonly patch: PatchDB<DataModel>,
@@ -80,8 +84,13 @@ export class AppShowStatusComponent {
     return this.status.primary === PrimaryStatus.Stopped
   }
 
-  launchUi(addressInfo: InstalledPackageInfo['address-info']): void {
-    this.launcherService.launch(addressInfo)
+  get rendering(): StatusRendering {
+    return PrimaryRendering[this.status.primary]
+  }
+
+  openPopover(e: Event): void {
+    this.launchMenu.event = e
+    this.launchMenu.isOpen = true
   }
 
   presentModalConfig(): void {

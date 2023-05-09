@@ -1,8 +1,10 @@
 import { Component } from '@angular/core'
-import { AlertController, LoadingController } from '@ionic/angular'
+import { Pipe, PipeTransform } from '@angular/core'
+import { LoadingController } from '@ionic/angular'
 import { ErrorToastService } from '@start9labs/shared'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PlatformType, Session } from 'src/app/services/api/api.types'
+import { BehaviorSubject } from 'rxjs'
 
 @Component({
   selector: 'sessions',
@@ -10,20 +12,28 @@ import { PlatformType, Session } from 'src/app/services/api/api.types'
   styleUrls: ['sessions.page.scss'],
 })
 export class SessionsPage {
-  loading = true
   currentSession?: Session
   otherSessions: SessionWithId[] = []
+  selected: Record<string, boolean> = {}
+  loading$ = new BehaviorSubject(true)
 
   constructor(
     private readonly loadingCtrl: LoadingController,
     private readonly errToast: ErrorToastService,
-    private readonly alertCtrl: AlertController,
-    private readonly embassyApi: ApiService,
+    private readonly api: ApiService,
   ) {}
+
+  get empty() {
+    return this.count === 0
+  }
+
+  get count() {
+    return Object.keys(this.selected).length
+  }
 
   async ngOnInit() {
     try {
-      const sessionInfo = await this.embassyApi.getSessions({})
+      const sessionInfo = await this.api.getSessions({})
       this.currentSession = sessionInfo.sessions[sessionInfo.current]
       delete sessionInfo.sessions[sessionInfo.current]
       this.otherSessions = Object.entries(sessionInfo.sessions)
@@ -42,39 +52,37 @@ export class SessionsPage {
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
-      this.loading = false
+      this.loading$.next(false)
     }
   }
 
-  async presentAlertKillAll() {
-    const alert = await this.alertCtrl.create({
-      header: 'Confirm',
-      message: `Terminate <b>all</b> other web sessions?<br /><br />Note: you will <b>not</b> be logged out of your current session on this device.`,
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
-        },
-        {
-          text: 'Terminate all',
-          handler: () => {
-            this.kill(this.otherSessions.map(s => s.id))
-          },
-          cssClass: 'enter-click',
-        },
-      ],
-    })
-    await alert.present()
+  async toggleChecked(id: string) {
+    if (this.selected[id]) {
+      delete this.selected[id]
+    } else {
+      this.selected[id] = true
+    }
   }
 
-  async kill(ids: string[]): Promise<void> {
+  async toggleAll() {
+    if (this.empty) {
+      this.otherSessions.forEach(s => (this.selected[s.id] = true))
+    } else {
+      this.selected = {}
+    }
+  }
+
+  async kill(): Promise<void> {
+    const ids = Object.keys(this.selected)
+
     const loader = await this.loadingCtrl.create({
       message: `Terminating session${ids.length > 1 ? 's' : ''}...`,
     })
     await loader.present()
 
     try {
-      await this.embassyApi.killSessions({ ids })
+      await this.api.killSessions({ ids })
+      this.selected = {}
       this.otherSessions = this.otherSessions.filter(s => !ids.includes(s.id))
     } catch (e: any) {
       this.errToast.present(e)
@@ -82,40 +90,40 @@ export class SessionsPage {
       loader.dismiss()
     }
   }
-
-  getPlatformIcon(platforms: PlatformType[]): string {
-    if (platforms.includes('cli')) {
-      return 'terminal-outline'
-    } else if (platforms.includes('desktop')) {
-      return 'desktop-outline'
-    } else {
-      return 'phone-portrait-outline'
-    }
-  }
-
-  getPlatformName(platforms: PlatformType[]): string {
-    if (platforms.includes('cli')) {
-      return 'CLI'
-    } else if (platforms.includes('desktop')) {
-      return 'Desktop/Laptop'
-    } else if (platforms.includes('android')) {
-      return 'Android Device'
-    } else if (platforms.includes('iphone')) {
-      return 'iPhone'
-    } else if (platforms.includes('ipad')) {
-      return 'iPad'
-    } else if (platforms.includes('ios')) {
-      return 'iOS Device'
-    } else {
-      return 'Unknown Device'
-    }
-  }
-
-  asIsOrder(a: any, b: any) {
-    return 0
-  }
 }
 
 interface SessionWithId extends Session {
   id: string
+}
+
+@Pipe({
+  name: 'platformInfo',
+})
+export class PlatformInfoPipe implements PipeTransform {
+  transform(platforms: PlatformType[]): { name: string; icon: string } {
+    const info = {
+      name: '',
+      icon: 'phone-portrait-outline',
+    }
+
+    if (platforms.includes('cli')) {
+      info.name = 'CLI'
+      info.icon = 'terminal-outline'
+    } else if (platforms.includes('desktop')) {
+      info.name = 'Desktop/Laptop'
+      info.icon = 'desktop-outline'
+    } else if (platforms.includes('android')) {
+      info.name = 'Android Device'
+    } else if (platforms.includes('iphone')) {
+      info.name = 'iPhone'
+    } else if (platforms.includes('ipad')) {
+      info.name = 'iPad'
+    } else if (platforms.includes('ios')) {
+      info.name = 'iOS Device'
+    } else {
+      info.name = 'Unknown Device'
+    }
+
+    return info
+  }
 }

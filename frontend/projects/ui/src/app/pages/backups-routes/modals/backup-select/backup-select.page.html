@@ -1,0 +1,57 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Select Services to Back Up</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="dismiss()">
+        <ion-icon slot="icon-only" name="close"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <ng-container *ngIf="pkgs.length; else empty">
+    <ion-item-group>
+      <ion-item-divider>
+        <ion-buttons slot="end" style="padding-bottom: 6px">
+          <ion-button fill="clear" (click)="toggleSelectAll()">
+            <b>{{ selectAll ? 'Select All' : 'Deselect All' }}</b>
+          </ion-button>
+        </ion-buttons>
+      </ion-item-divider>
+      <ion-item *ngFor="let pkg of pkgs">
+        <ion-avatar slot="start">
+          <img alt="" [src]="pkg.icon" />
+        </ion-avatar>
+        <ion-label>
+          <h2>{{ pkg.title }}</h2>
+        </ion-label>
+        <ion-checkbox
+          slot="end"
+          [(ngModel)]="pkg.checked"
+          (ionChange)="handleChange()"
+          [disabled]="pkg.disabled"
+        ></ion-checkbox>
+      </ion-item>
+    </ion-item-group>
+  </ng-container>
+  <ng-template #empty>
+    <h2 class="center">No services installed!</h2>
+  </ng-template>
+</ion-content>
+
+<ion-footer>
+  <ion-toolbar>
+    <ion-buttons slot="end" class="ion-padding-end">
+      <ion-button
+        [disabled]="!hasSelection"
+        fill="solid"
+        color="primary"
+        (click)="done()"
+        class="enter-click btn-128"
+      >
+        {{ btnText }}
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-footer>
