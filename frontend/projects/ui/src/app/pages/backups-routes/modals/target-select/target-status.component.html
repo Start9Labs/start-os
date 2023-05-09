@@ -1,0 +1,30 @@
+<div class="inline">
+  <h2 *ngIf="!target.mountable; else mountable">
+    <ion-icon name="cellular-outline" color="danger"></ion-icon>
+    Unable to connect
+  </h2>
+
+  <ng-template #mountable>
+    <h2 *ngIf="type === 'create'; else restore">
+      <ion-icon name="cloud-outline" color="success"></ion-icon>
+      {{
+        (target | hasValidBackup)
+          ? 'Available, contains existing backup'
+          : 'Available for fresh backup'
+      }}
+    </h2>
+
+    <ng-template #restore>
+      <h2 *ngIf="target | hasValidBackup; else noBackup">
+        <ion-icon name="cloud-done-outline" color="success"></ion-icon>
+        Embassy backup detected
+      </h2>
+      <ng-template #noBackup>
+        <h2>
+          <ion-icon name="cloud-offline-outline" color="danger"></ion-icon>
+          No Embassy backup
+        </h2>
+      </ng-template>
+    </ng-template>
+  </ng-template>
+</div>

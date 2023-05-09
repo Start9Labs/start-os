@@ -74,7 +74,8 @@ export class AppActionsPage {
           buttons: [
             {
               text: 'Execute',
-              handler: (value: any) => this.executeAction(action.id, value),
+              handler: async (value: any) =>
+                this.executeAction(action.id, value),
               isSubmit: true,
             },
           ],
@@ -97,9 +98,7 @@ export class AppActionsPage {
             },
             {
               text: 'Execute',
-              handler: () => {
-                this.executeAction(action.id)
-              },
+              handler: async () => this.executeAction(action.id),
               cssClass: 'enter-click',
             },
           ],
@@ -185,10 +184,10 @@ export class AppActionsPage {
       })
 
       setTimeout(() => successModal.present(), 500)
-      return true // needed to dismiss original modal/alert
+      return true
     } catch (e: any) {
       this.errToast.present(e)
-      return false // don't dismiss original modal/alert
+      return false
     } finally {
       loader.dismiss()
     }

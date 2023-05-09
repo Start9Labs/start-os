@@ -32,7 +32,6 @@ export class SnekDirective {
 
       const loader = await this.loadingCtrl.create({
         message: 'Saving high score...',
-        backdropDismiss: true,
       })
 
       await loader.present()

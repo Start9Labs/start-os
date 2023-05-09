@@ -10,13 +10,6 @@ const routes: Routes = [
       ),
   },
   {
-    path: 'backup',
-    loadChildren: () =>
-      import('./server-backup/server-backup.module').then(
-        m => m.ServerBackupPageModule,
-      ),
-  },
-  {
     path: 'lan',
     loadChildren: () => import('./lan/lan.module').then(m => m.LANPageModule),
   },
@@ -39,13 +32,6 @@ const routes: Routes = [
     loadChildren: () =>
       import('./server-metrics/server-metrics.module').then(
         m => m.ServerMetricsPageModule,
-      ),
-  },
-  {
-    path: 'restore',
-    loadChildren: () =>
-      import('./restore/restore.component.module').then(
-        m => m.RestorePageModule,
       ),
   },
   {
