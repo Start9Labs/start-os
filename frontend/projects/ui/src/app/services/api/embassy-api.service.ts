@@ -147,14 +147,12 @@ export abstract class ApiService {
 
   // wifi
 
+  abstract enableWifi(params: RR.EnableWifiReq): Promise<RR.EnableWifiRes>
+
   abstract getWifi(
     params: RR.GetWifiReq,
     timeout: number,
   ): Promise<RR.GetWifiRes>
-
-  abstract setWifiCountry(
-    params: RR.SetWifiCountryReq,
-  ): Promise<RR.SetWifiCountryRes>
 
   abstract addWifi(params: RR.AddWifiReq): Promise<RR.AddWifiRes>
 
