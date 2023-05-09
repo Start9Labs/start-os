@@ -30,30 +30,9 @@
     >
       <ion-icon slot="icon-only" name="open-outline"></ion-icon>
     </ion-button>
-    <ion-popover
-      #popover
-      [isOpen]="isPopoverOpen"
-      (didDismiss)="isPopoverOpen = false"
-      mode="ios"
-      type="event"
-    >
-      <ng-template>
-        <ion-content>
-          <ion-item-group>
-            <ng-container
-              *ngFor="let uiAddress of installed['address-info'] | uiAddresses"
-            >
-              <ion-item-divider>{{ uiAddress.name }}</ion-item-divider>
-              <ion-item button *ngFor="let address of uiAddress.addresses">
-                <ion-label>
-                  <h2>{{ address | addressType }}</h2>
-                  <p>{{ address }}</p>
-                </ion-label>
-              </ion-item>
-            </ng-container>
-          </ion-item-group>
-        </ion-content>
-      </ng-template>
-    </ion-popover>
+    <launch-menu
+      #launchMenu
+      [addressInfo]="installed['address-info']"
+    ></launch-menu>
   </ng-container>
 </ion-item>
