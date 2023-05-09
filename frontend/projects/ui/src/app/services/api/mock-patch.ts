@@ -41,7 +41,8 @@ export const mockPatchData: DataModel = {
   },
   'server-info': {
     id: 'abcdefgh',
-    version: '0.3.4.3',
+    version: '0.3.4',
+    country: 'us',
     'last-backup': new Date(new Date().valueOf() - 604800001).toISOString(),
     'lan-address': 'https://adjective-noun.local',
     'tor-address': 'http://myveryownspecialtoraddress.onion',
@@ -56,6 +57,7 @@ export const mockPatchData: DataModel = {
       },
     },
     'last-wifi-region': null,
+    'wifi-enabled': false,
     'unread-notification-count': 4,
     // password is asdfasdf
     'password-hash':

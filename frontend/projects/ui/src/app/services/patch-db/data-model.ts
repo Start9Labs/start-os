@@ -64,11 +64,13 @@ export interface DevProjectData {
 export interface ServerInfo {
   id: string
   version: string
+  country: string
   'last-backup': string | null
   'lan-address': Url
   'tor-address': Url
   'ip-info': IpInfo
   'last-wifi-region': string | null
+  'wifi-enabled': boolean
   'unread-notification-count': number
   'status-info': ServerStatusInfo
   'eos-version-compat': string
