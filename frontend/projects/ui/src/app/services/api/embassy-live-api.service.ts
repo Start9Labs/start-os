@@ -10,7 +10,7 @@ import {
   RPCOptions,
 } from '@start9labs/shared'
 import { ApiService } from './embassy-api.service'
-import { BackupTargetType, RR } from './api.types'
+import { BackupTargetType, Metrics, RR } from './api.types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { ConfigService } from '../config.service'
 import { webSocket, WebSocketSubjectConfig } from 'rxjs/webSocket'
@@ -123,6 +123,12 @@ export class LiveApiService extends ApiService {
   }
 
   openLogsWebsocket$(config: WebSocketSubjectConfig<Log>): Observable<Log> {
+    return this.openWebsocket(config)
+  }
+
+  openMetricsWebsocket$(
+    config: WebSocketSubjectConfig<Metrics>,
+  ): Observable<Metrics> {
     return this.openWebsocket(config)
   }
 
@@ -398,12 +404,6 @@ export class LiveApiService extends ApiService {
     params: RR.FollowServerLogsReq,
   ): Promise<RR.FollowServerLogsRes> {
     return this.rpcRequest({ method: 'package.logs.follow', params })
-  }
-
-  async getPkgMetrics(
-    params: RR.GetPackageMetricsReq,
-  ): Promise<RR.GetPackageMetricsRes> {
-    return this.rpcRequest({ method: 'package.metrics', params })
   }
 
   async installPackage(

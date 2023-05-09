@@ -1,8 +1,17 @@
 import { Component } from '@angular/core'
 import { Metrics } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { TimeService } from 'src/app/services/time-service'
-import { pauseFor, ErrorToastService } from '@start9labs/shared'
+import { TimeInfo, TimeService } from 'src/app/services/time-service'
+import {
+  catchError,
+  combineLatest,
+  filter,
+  from,
+  Observable,
+  startWith,
+  switchMap,
+} from 'rxjs'
+import { ConnectionService } from 'src/app/services/connection.service'
 
 @Component({
   selector: 'server-metrics',
@@ -10,63 +19,43 @@ import { pauseFor, ErrorToastService } from '@start9labs/shared'
   styleUrls: ['./server-metrics.page.scss'],
 })
 export class ServerMetricsPage {
-  loading = true
-  going = false
-  metrics: Metrics = {}
+  websocketFail = false
 
-  readonly systemTime$ = this.timeService.systemTime$
-  readonly systemUptime$ = this.timeService.systemUptime$
+  readonly serverData$ = this.getServerData$()
 
   constructor(
-    private readonly errToast: ErrorToastService,
-    private readonly embassyApi: ApiService,
-    private readonly timeService: TimeService,
+    private readonly api: ApiService,
+    readonly timeService: TimeService,
+    private readonly connectionService: ConnectionService,
   ) {}
 
-  async ngOnInit() {
-    await this.getMetrics()
-    let headersCount = 0
-    let rowsCount = 0
-    Object.values(this.metrics).forEach(groupVal => {
-      headersCount++
-      Object.keys(groupVal).forEach(_ => {
-        rowsCount++
-      })
-    })
-    const height = headersCount * 54 + rowsCount * 50 + 24 // extra 24 for room at the bottom
-    const elem = document.getElementById('metricSection')
-    if (elem) elem.style.height = `${height}px`
-    this.startDaemon()
-    this.loading = false
+  private getServerData$(): Observable<[TimeInfo, Metrics]> {
+    return combineLatest([
+      this.timeService.getTimeInfo$(),
+      this.getMetrics$(),
+    ]).pipe(
+      catchError(() => {
+        this.websocketFail = true
+        return this.connectionService.connected$.pipe(
+          filter(Boolean),
+          switchMap(() => this.getServerData$()),
+        )
+      }),
+    )
   }
 
-  ngOnDestroy() {
-    this.stopDaemon()
-  }
-
-  private async startDaemon(): Promise<void> {
-    this.going = true
-    while (this.going) {
-      const startTime = Date.now()
-      await this.getMetrics()
-      await pauseFor(4000 - Math.max(Date.now() - startTime, 0))
-    }
-  }
-
-  private stopDaemon() {
-    this.going = false
-  }
-
-  private async getMetrics(): Promise<void> {
-    try {
-      this.metrics = await this.embassyApi.getServerMetrics({})
-    } catch (e: any) {
-      this.errToast.present(e)
-      this.stopDaemon()
-    }
-  }
-
-  asIsOrder(a: any, b: any) {
-    return 0
+  private getMetrics$(): Observable<Metrics> {
+    return from(this.api.getServerMetrics({})).pipe(
+      switchMap(({ metrics, guid }) =>
+        this.api
+          .openMetricsWebsocket$({
+            url: `/rpc/${guid}`,
+            openObserver: {
+              next: () => (this.websocketFail = false),
+            },
+          })
+          .pipe(startWith(metrics)),
+      ),
+    )
   }
 }
