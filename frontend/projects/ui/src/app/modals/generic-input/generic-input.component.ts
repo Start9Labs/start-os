@@ -71,8 +71,8 @@ export class GenericInputComponent {
     if (!value && this.options.required) return
 
     try {
-      await this.options.submitFn(value)
-      this.modalCtrl.dismiss(undefined, 'success')
+      const response = await this.options.submitFn(value)
+      this.modalCtrl.dismiss({ response, value }, 'success')
     } catch (e: any) {
       this.error = getErrorMessage(e)
     }

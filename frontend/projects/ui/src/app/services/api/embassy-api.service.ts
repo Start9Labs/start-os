@@ -1,6 +1,6 @@
 import { BehaviorSubject, Observable } from 'rxjs'
 import { Update } from 'patch-db-client'
-import { RR, Encrypted } from './api.types'
+import { RR, Encrypted, BackupTargetType } from './api.types'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { Log } from '@start9labs/shared'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
@@ -175,16 +175,48 @@ export abstract class ApiService {
   ): Promise<RR.GetBackupTargetsRes>
 
   abstract addBackupTarget(
-    params: RR.AddBackupTargetReq,
+    type: BackupTargetType,
+    params:
+      | RR.AddCifsBackupTargetReq
+      | RR.AddCloudBackupTargetReq
+      | RR.AddDiskBackupTargetReq,
   ): Promise<RR.AddBackupTargetRes>
 
   abstract updateBackupTarget(
-    params: RR.UpdateBackupTargetReq,
+    type: BackupTargetType,
+    params:
+      | RR.UpdateCifsBackupTargetReq
+      | RR.UpdateCloudBackupTargetReq
+      | RR.UpdateDiskBackupTargetReq,
   ): Promise<RR.UpdateBackupTargetRes>
 
   abstract removeBackupTarget(
     params: RR.RemoveBackupTargetReq,
   ): Promise<RR.RemoveBackupTargetRes>
+
+  abstract getBackupJobs(
+    params: RR.GetBackupJobsReq,
+  ): Promise<RR.GetBackupJobsRes>
+
+  abstract createBackupJob(
+    params: RR.CreateBackupJobReq,
+  ): Promise<RR.CreateBackupJobRes>
+
+  abstract updateBackupJob(
+    params: RR.UpdateBackupJobReq,
+  ): Promise<RR.UpdateBackupJobRes>
+
+  abstract deleteBackupJob(
+    params: RR.DeleteBackupJobReq,
+  ): Promise<RR.DeleteBackupJobRes>
+
+  abstract getBackupRuns(
+    params: RR.GetBackupRunsReq,
+  ): Promise<RR.GetBackupRunsRes>
+
+  abstract deleteBackupRuns(
+    params: RR.DeleteBackupRunsReq,
+  ): Promise<RR.DeleteBackupRunsRes>
 
   abstract getBackupInfo(
     params: RR.GetBackupInfoReq,

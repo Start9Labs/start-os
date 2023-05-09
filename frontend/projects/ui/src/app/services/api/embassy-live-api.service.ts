@@ -10,7 +10,7 @@ import {
   RPCOptions,
 } from '@start9labs/shared'
 import { ApiService } from './embassy-api.service'
-import { RR } from './api.types'
+import { BackupTargetType, RR } from './api.types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { ConfigService } from '../config.service'
 import { webSocket, WebSocketSubjectConfig } from 'rxjs/webSocket'
@@ -312,22 +312,60 @@ export class LiveApiService extends ApiService {
   }
 
   async addBackupTarget(
-    params: RR.AddBackupTargetReq,
+    type: BackupTargetType,
+    params: RR.AddCifsBackupTargetReq | RR.AddCloudBackupTargetReq,
   ): Promise<RR.AddBackupTargetRes> {
     params.path = params.path.replace('/\\/g', '/')
-    return this.rpcRequest({ method: 'backup.target.cifs.add', params })
+    return this.rpcRequest({ method: `backup.target.${type}.add`, params })
   }
 
   async updateBackupTarget(
-    params: RR.UpdateBackupTargetReq,
+    type: BackupTargetType,
+    params: RR.UpdateCifsBackupTargetReq | RR.UpdateCloudBackupTargetReq,
   ): Promise<RR.UpdateBackupTargetRes> {
-    return this.rpcRequest({ method: 'backup.target.cifs.update', params })
+    return this.rpcRequest({ method: `backup.target.${type}.update`, params })
   }
 
   async removeBackupTarget(
     params: RR.RemoveBackupTargetReq,
   ): Promise<RR.RemoveBackupTargetRes> {
-    return this.rpcRequest({ method: 'backup.target.cifs.remove', params })
+    return this.rpcRequest({ method: 'backup.target.remove', params })
+  }
+
+  async getBackupJobs(
+    params: RR.GetBackupJobsReq,
+  ): Promise<RR.GetBackupJobsRes> {
+    return this.rpcRequest({ method: 'backup.job.list', params })
+  }
+
+  async createBackupJob(
+    params: RR.CreateBackupJobReq,
+  ): Promise<RR.CreateBackupJobRes> {
+    return this.rpcRequest({ method: 'backup.job.create', params })
+  }
+
+  async updateBackupJob(
+    params: RR.UpdateBackupJobReq,
+  ): Promise<RR.UpdateBackupJobRes> {
+    return this.rpcRequest({ method: 'backup.job.update', params })
+  }
+
+  async deleteBackupJob(
+    params: RR.DeleteBackupJobReq,
+  ): Promise<RR.DeleteBackupJobRes> {
+    return this.rpcRequest({ method: 'backup.job.delete', params })
+  }
+
+  async getBackupRuns(
+    params: RR.GetBackupRunsReq,
+  ): Promise<RR.GetBackupRunsRes> {
+    return this.rpcRequest({ method: 'backup.runs.list', params })
+  }
+
+  async deleteBackupRuns(
+    params: RR.DeleteBackupRunsReq,
+  ): Promise<RR.DeleteBackupRunsRes> {
+    return this.rpcRequest({ method: 'backup.runs.delete', params })
   }
 
   async getBackupInfo(

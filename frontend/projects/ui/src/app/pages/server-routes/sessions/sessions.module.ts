@@ -2,7 +2,7 @@ import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { IonicModule } from '@ionic/angular'
 import { RouterModule, Routes } from '@angular/router'
-import { SessionsPage } from './sessions.page'
+import { PlatformInfoPipe, SessionsPage } from './sessions.page'
 import { SharedPipesModule } from '@start9labs/shared'
 
 const routes: Routes = [
@@ -19,6 +19,6 @@ const routes: Routes = [
     RouterModule.forChild(routes),
     SharedPipesModule,
   ],
-  declarations: [SessionsPage],
+  declarations: [SessionsPage, PlatformInfoPipe],
 })
 export class SessionsPageModule {}

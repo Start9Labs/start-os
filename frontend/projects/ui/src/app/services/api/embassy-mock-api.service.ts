@@ -16,7 +16,7 @@ import {
   PackageMainStatus,
   PackageState,
 } from 'src/app/services/patch-db/data-model'
-import { CifsBackupTarget, RR } from './api.types'
+import { BackupTargetType, CifsBackupTarget, RR } from './api.types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { Mock } from './api.fixures'
 import markdown from 'raw-loader!../../../../../shared/assets/markdown/md-sample.md'
@@ -477,40 +477,88 @@ export class MockApiService extends ApiService {
   }
 
   async addBackupTarget(
-    params: RR.AddBackupTargetReq,
+    type: BackupTargetType,
+    params:
+      | RR.AddCifsBackupTargetReq
+      | RR.AddCloudBackupTargetReq
+      | RR.AddDiskBackupTargetReq,
   ): Promise<RR.AddBackupTargetRes> {
     await pauseFor(2000)
-    const { hostname, path, username } = params
+    const { path, name } = params
     return {
-      latfgvwdbhjsndmk: {
-        type: 'cifs',
-        hostname,
-        path: path.replace(/\\/g, '/'),
-        username,
-        mountable: true,
-        'embassy-os': null,
-      },
+      id: 'latfgvwdbhjsndmk',
+      name,
+      type: 'cifs',
+      hostname: 'mockhotname',
+      path: path.replace(/\\/g, '/'),
+      username: 'mockusername',
+      mountable: true,
+      'embassy-os': null,
     }
   }
 
   async updateBackupTarget(
-    params: RR.UpdateBackupTargetReq,
+    type: BackupTargetType,
+    params: RR.UpdateCifsBackupTargetReq | RR.UpdateCloudBackupTargetReq,
   ): Promise<RR.UpdateBackupTargetRes> {
     await pauseFor(2000)
-    const { id, hostname, path, username } = params
-    return {
-      [id]: {
-        ...(Mock.BackupTargets[id] as CifsBackupTarget),
-        hostname,
-        path,
-        username,
-      },
-    }
+    return Mock.BackupTargets.saved.find(b => b.id === params.id)!
   }
 
   async removeBackupTarget(
     params: RR.RemoveBackupTargetReq,
   ): Promise<RR.RemoveBackupTargetRes> {
+    await pauseFor(2000)
+    return null
+  }
+
+  async getBackupJobs(
+    params: RR.GetBackupJobsReq,
+  ): Promise<RR.GetBackupJobsRes> {
+    await pauseFor(2000)
+    return Mock.BackupJobs
+  }
+
+  async createBackupJob(
+    params: RR.CreateBackupJobReq,
+  ): Promise<RR.CreateBackupJobRes> {
+    await pauseFor(2000)
+    return {
+      id: 'hjdfbjsahdbn',
+      name: params.name,
+      target: Mock.BackupTargets.saved[0],
+      cron: params.cron,
+      'package-ids': params['package-ids'],
+    }
+  }
+
+  async updateBackupJob(
+    params: RR.UpdateBackupJobReq,
+  ): Promise<RR.UpdateBackupJobRes> {
+    await pauseFor(2000)
+    return {
+      ...Mock.BackupJobs[0],
+      ...params,
+    }
+  }
+
+  async deleteBackupJob(
+    params: RR.DeleteBackupJobReq,
+  ): Promise<RR.DeleteBackupJobRes> {
+    await pauseFor(2000)
+    return null
+  }
+
+  async getBackupRuns(
+    params: RR.GetBackupRunsReq,
+  ): Promise<RR.GetBackupRunsRes> {
+    await pauseFor(2000)
+    return Mock.BackupRuns
+  }
+
+  async deleteBackupRuns(
+    params: RR.DeleteBackupRunsReq,
+  ): Promise<RR.DeleteBackupRunsRes> {
     await pauseFor(2000)
     return null
   }
