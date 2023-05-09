@@ -418,16 +418,21 @@ export class MockApiService extends ApiService {
 
   // wifi
 
+  async enableWifi(params: RR.EnableWifiReq): Promise<RR.EnableWifiRes> {
+    await pauseFor(2000)
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/wifi-enabled',
+        value: params.enable,
+      },
+    ]
+    return this.withRevision(patch, null)
+  }
+
   async getWifi(params: RR.GetWifiReq): Promise<RR.GetWifiRes> {
     await pauseFor(2000)
     return Mock.Wifi
-  }
-
-  async setWifiCountry(
-    params: RR.SetWifiCountryReq,
-  ): Promise<RR.SetWifiCountryRes> {
-    await pauseFor(2000)
-    return null
   }
 
   async addWifi(params: RR.AddWifiReq): Promise<RR.AddWifiRes> {
