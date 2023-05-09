@@ -6,6 +6,7 @@ import {
   FormService,
 } from 'src/app/services/form.service'
 import { InputSpec } from 'start-sdk/lib/config/configTypes'
+import { ErrorToastService } from '@start9labs/shared'
 
 export interface ActionButton {
   text: string
@@ -30,6 +31,7 @@ export class GenericFormPage {
   constructor(
     private readonly modalCtrl: ModalController,
     private readonly formService: FormService,
+    private readonly errToast: ErrorToastService,
   ) {}
 
   ngOnInit() {
@@ -51,9 +53,12 @@ export class GenericFormPage {
       return
     }
 
-    // @TODO make this more like generic input component dismissal
-    const success = await handler(this.formGroup.value)
-    if (success === true) this.modalCtrl.dismiss()
+    try {
+      const response = await handler(this.formGroup.value)
+      this.modalCtrl.dismiss({ response }, 'success')
+    } catch (e: any) {
+      this.errToast.present(e)
+    }
   }
 }
 

@@ -2,6 +2,7 @@ import { InputSpec } from 'start-sdk/lib/config/configTypes'
 import { Url } from '@start9labs/shared'
 import { Manifest } from '@start9labs/marketplace'
 import { BasicInfo } from 'src/app/pages/developer-routes/developer-menu/form-info'
+import { BackupJob } from '../api/api.types'
 
 export interface DataModel {
   'server-info': ServerInfo
@@ -74,7 +75,6 @@ export interface ServerInfo {
   'unread-notification-count': number
   'status-info': ServerStatusInfo
   'eos-version-compat': string
-  'password-hash': string
   hostname: string
   pubkey: string
   'ca-fingerprint': string
@@ -90,9 +90,12 @@ export interface IpInfo {
 }
 
 export interface ServerStatusInfo {
-  'backup-progress': null | {
-    [packageId: string]: {
-      complete: boolean
+  'current-backup': null | {
+    job: BackupJob
+    'backup-progress': {
+      [packageId: string]: {
+        complete: boolean
+      }
     }
   }
   updated: boolean
