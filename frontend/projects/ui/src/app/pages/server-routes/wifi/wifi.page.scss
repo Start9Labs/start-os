@@ -1,7 +1,41 @@
+.smaller {
+  padding: 32px;
+  max-width: 800px;
+}
+
+.no-padding {
+  padding-right: 0;
+}
+
 .skeleton-parts {
   ion-button::part(native) {
     padding-inline-start: 0;
     padding-inline-end: 0;
   };
-  padding-bottom: 6px;
+}
+
+.connect-button {
+  font-size: 10px;
+  font-weight: bold;
+  margin-right: 12px;
+}
+
+.slot-end {
+  margin-left: 4px;
+}
+
+ion-item-divider {
+  text-transform: unset;
+  padding-bottom: 12px;
+  padding-left: 0;
+}
+
+ion-item-group {
+  background-color: #1e2024;
+  border: 1px solid #717171;
+  border-radius: 6px;
+}
+
+ion-item {
+  --background: #1e2024;
 }

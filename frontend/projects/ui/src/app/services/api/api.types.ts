@@ -93,9 +93,6 @@ export module RR {
 
   // wifi
 
-  export type SetWifiCountryReq = { country: string }
-  export type SetWifiCountryRes = null
-
   export type GetWifiReq = {}
   export type GetWifiRes = {
     ssids: {
@@ -115,6 +112,9 @@ export module RR {
     connect: boolean
   }
   export type AddWifiRes = null
+
+  export type EnableWifiReq = { enable: boolean } // wifi.enable
+  export type EnableWifiRes = null
 
   export type ConnectWifiReq = { ssid: string } // wifi.connect
   export type ConnectWifiRes = null
