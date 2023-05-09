@@ -10,7 +10,7 @@ set -e
 cat > /home/start9/kiosk.sh << 'EOF'
 #!/bin/sh
 PROFILE=$(mktemp -d)
-if [ -f /usr/local/share/ca-certificates/embassy-root-ca.crt ]; then
+if [ -f /usr/local/share/ca-certificates/startos-root-ca.crt ]; then
     certutil -A -n "StartOS Local Root CA" -t "TCu,Cuw,Tuw" -i /usr/local/share/ca-certificates/startos-root-ca.crt -d $PROFILE
 fi
 cat >> $PROFILE/prefs.js << EOT
