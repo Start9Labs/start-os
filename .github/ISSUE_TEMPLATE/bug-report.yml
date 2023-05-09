@@ -1,6 +1,6 @@
 name: 🐛 Bug Report
-description: Create a report to help us improve embassyOS
-title: '[bug]: '
+description: Create a report to help us improve StartOS
+title: "[bug]: "
 labels: [Bug, Needs Triage]
 assignees:
   - MattDHill
@@ -10,19 +10,19 @@ body:
       label: Prerequisites
       description: Please confirm you have completed the following.
       options:
-        - label: I have searched for [existing issues](https://github.com/start9labs/embassy-os/issues) that already report this problem.
+        - label: I have searched for [existing issues](https://github.com/start9labs/start-os/issues) that already report this problem.
           required: true
   - type: input
     attributes:
-      label: embassyOS Version
-      description: What version of embassyOS are you running?
-      placeholder: e.g. 0.3.0
+      label: StartOS Version
+      description: What version of StartOS are you running?
+      placeholder: e.g. 0.3.4.2
     validations:
       required: true
   - type: dropdown
     attributes:
       label: Device
-      description: What device are you using to connect to Embassy?
+      description: What device are you using to connect to server?
       options:
         - Phone/tablet
         - Laptop/Desktop
@@ -52,7 +52,7 @@ body:
   - type: dropdown
     attributes:
       label: Browser
-      description: What browser are you using to connect to Embassy?
+      description: What browser are you using to connect to your server?
       options:
         - Firefox
         - Brave

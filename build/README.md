@@ -1,4 +1,4 @@
-# Building Embassy OS
+# Building StartOS
 
 ⚠️ The commands given assume a Debian or Ubuntu-based environment. _Building in
 a VM is NOT yet supported_ ⚠️
@@ -42,15 +42,15 @@ a VM is NOT yet supported_ ⚠️
 
 2. Clone the latest repo with required submodules
    > :information_source: You chan check latest available version
-   > [here](https://github.com/Start9Labs/embassy-os/releases)
+   > [here](https://github.com/Start9Labs/start-os/releases)
    ```
-   git clone --recursive https://github.com/Start9Labs/embassy-os.git --branch latest
+   git clone --recursive https://github.com/Start9Labs/start-os.git --branch latest
    ```
 
 ## Build Raspberry Pi Image
 
 ```
-cd embassy-os
+cd start-os
 make embassyos-raspi.img ARCH=aarch64
 ```
 
@@ -62,7 +62,7 @@ We recommend [Balena Etcher](https://www.balena.io/etcher/)
 
 ## Setup
 
-Visit http://embassy.local from any web browser - We recommend
+Visit http://start.local from any web browser - We recommend
 [Firefox](https://www.mozilla.org/firefox/browsers)
 
 Enter your product key. This is generated during the build process and can be
@@ -70,11 +70,11 @@ found in `product_key.txt`, located in the root directory.
 
 ## Troubleshooting
 
-1. I just flashed my SD card, fired up my Embassy, bootup sounds and all, but my
-   browser is saying "Unable to connect" with embassy.local.
+1. I just flashed my SD card, fired up StartOS, bootup sounds and all, but my
+   browser is saying "Unable to connect" with start.local.
 
 - Try doing a hard refresh on your browser, or opening the url in a
-  private/incognito window. If you've ran an instance of Embassy before,
+  private/incognito window. If you've ran an instance of StartOS before,
   sometimes you can have a stale cache that will block you from navigating to
   the page.
 
@@ -91,14 +91,14 @@ found in `product_key.txt`, located in the root directory.
 - Find the IP of your device
 - Run `nc <ip> 8080` and it will print the logs
 
-4. I need to ssh into my Embassy to fix something, but I cannot get to the
+4. I need to ssh into my server to fix something, but I cannot get to the
    console to add ssh keys normally.
 
 - During the Build step, instead of running just
   `make embassyos-raspi.img ARCH=aarch64` run
   `ENVIRONMENT=dev make embassyos-raspi.img ARCH=aarch64`. Flash like normal,
-  and insert into your Embassy. Boot up your Embassy, and on another computer on
-  the same network, ssh into the Embassy with the username `start9` password
+  and insert into your server. Boot up StartOS, then on another computer on
+  the same network, ssh into the the server with the username `start9` password
   `embassy`.
 
 4. I need to reset my password, how can I do that?

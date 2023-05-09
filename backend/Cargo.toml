@@ -1,6 +1,6 @@
 [package]
 authors = ["Aiden McClelland <me@drbonez.dev>"]
-description = "The core of the Start9 Embassy Operating System"
+description = "The core of StartOS"
 documentation = "https://docs.rs/embassy-os"
 edition = "2021"
 keywords = [
@@ -13,7 +13,7 @@ keywords = [
 ]
 name = "embassy-os"
 readme = "README.md"
-repository = "https://github.com/Start9Labs/embassy-os"
+repository = "https://github.com/Start9Labs/start-os"
 version = "0.3.4-rev.1"
 
 [lib]
