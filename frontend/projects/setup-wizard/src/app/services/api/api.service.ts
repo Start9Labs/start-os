@@ -1,5 +1,7 @@
 import * as jose from 'node-jose'
-import { DiskListResponse, EmbassyOSDiskInfo } from '@start9labs/shared'
+import { DiskListResponse, EmbassyOSDiskInfo, Log } from '@start9labs/shared'
+import { Observable } from 'rxjs'
+
 export abstract class ApiService {
   pubkey?: jose.JWK.Key
 
@@ -11,6 +13,8 @@ export abstract class ApiService {
   abstract execute(setupInfo: ExecuteReq): Promise<void> // setup.execute
   abstract complete(): Promise<CompleteRes> // setup.complete
   abstract exit(): Promise<void> // setup.exit
+  abstract followLogs(): Promise<string> // setup.logs.follow
+  abstract openLogsWebsocket$(guid: string): Observable<Log>
 
   async encrypt(toEncrypt: string): Promise<Encrypted> {
     if (!this.pubkey) throw new Error('No pubkey found!')
