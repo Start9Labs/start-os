@@ -5,7 +5,7 @@
     "@angular/common": ">=13.2.0",
     "@angular/core": ">=13.2.0",
     "@ionic/angular": ">=6.0.0",
-    "@start9labs/shared": ">=0.3.0",
+    "@start9labs/shared": ">=0.3.2",
     "@taiga-ui/cdk": ">=3.0.0",
     "@tinkoff/ng-dompurify": ">=4.0.0",
     "fuse.js": "^6.4.6"

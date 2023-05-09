@@ -2,9 +2,9 @@
   "name": "@start9labs/shared",
   "version": "0.3.4",
   "peerDependencies": {
-    "@angular/common": ">=13.2.0",
-    "@angular/core": ">=13.2.0",
-    "@angular/router": ">=13.2.0",
+    "@angular/common": "^14.1.0",
+    "@angular/core": "^14.1.0",
+    "@angular/router": "^14.1.0",
     "@ionic/angular": ">=6.0.0",
     "@ng-web-apis/mutation-observer": ">=2.0.0",
     "@ng-web-apis/resize-observer": ">=2.0.0",
