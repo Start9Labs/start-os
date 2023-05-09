@@ -5,7 +5,7 @@ import {
   ModalController,
 } from '@ionic/angular'
 import { ApiService, CifsBackupTarget } from 'src/app/services/api/api.service'
-import { EmbassyOSDiskInfo } from '@start9labs/shared'
+import { StartOSDiskInfo } from '@start9labs/shared'
 import { PasswordPage } from '../password/password.page'
 
 @Component({
@@ -41,7 +41,7 @@ export class CifsModal {
     await loader.present()
 
     try {
-      const embassyOS = await this.api.verifyCifs({
+      const diskInfo = await this.api.verifyCifs({
         ...this.cifs,
         password: this.cifs.password
           ? await this.api.encrypt(this.cifs.password)
@@ -50,20 +50,18 @@ export class CifsModal {
 
       await loader.dismiss()
 
-      this.presentModalPassword(embassyOS)
+      this.presentModalPassword(diskInfo)
     } catch (e) {
       await loader.dismiss()
       this.presentAlertFailed()
     }
   }
 
-  private async presentModalPassword(
-    embassyOS: EmbassyOSDiskInfo,
-  ): Promise<void> {
+  private async presentModalPassword(diskInfo: StartOSDiskInfo): Promise<void> {
     const target: CifsBackupTarget = {
       ...this.cifs,
       mountable: true,
-      'embassy-os': embassyOS,
+      'embassy-os': diskInfo,
     }
 
     const modal = await this.modalController.create({

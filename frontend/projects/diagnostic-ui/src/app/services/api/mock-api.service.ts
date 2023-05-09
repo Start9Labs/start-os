@@ -9,7 +9,7 @@ export class MockApiService implements ApiService {
     await pauseFor(1000)
     return {
       code: 15,
-      message: 'Unknown Embassy',
+      message: 'Unknown server',
       data: { details: 'Some details about the error here' },
     }
   }

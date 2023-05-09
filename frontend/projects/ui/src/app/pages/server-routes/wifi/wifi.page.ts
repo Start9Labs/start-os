@@ -61,7 +61,7 @@ export class WifiPage {
       const alert = await this.alertCtrl.create({
         header: 'Cannot Complete Action',
         message:
-          'You must be connected to your Embassy via LAN to change the country.',
+          'You must be connected to your server via LAN to change the country.',
         buttons: [
           {
             text: 'OK',
@@ -89,7 +89,7 @@ export class WifiPage {
     const alert = await this.alertCtrl.create({
       header: 'Select Country',
       subHeader:
-        'Warning: Changing the country will delete all saved networks from the Embassy.',
+        'Warning: Changing the country will delete all saved networks from StartOS.',
       inputs,
       buttons: [
         {
@@ -225,7 +225,7 @@ export class WifiPage {
     const alert = await this.alertCtrl.create({
       header: `Connected to "${ssid}"`,
       message:
-        'Note. It may take several minutes to an hour for your Embassy to reconnect over Tor.',
+        'Note. It may take several minutes to an hour for StartOS to reconnect over Tor.',
       buttons: [
         {
           text: 'Ok',

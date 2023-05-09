@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core'
 import {
   DiskListResponse,
-  EmbassyOSDiskInfo,
+  StartOSDiskInfo,
   encodeBase64,
   HttpService,
   isRpcError,
@@ -59,7 +59,7 @@ export class LiveApiService extends ApiService {
 
   async verifyCifs(source: CifsRecoverySource) {
     source.path = source.path.replace('/\\/g', '/')
-    return this.rpcRequest<EmbassyOSDiskInfo>({
+    return this.rpcRequest<StartOSDiskInfo>({
       method: 'setup.cifs.verify',
       params: source,
     })

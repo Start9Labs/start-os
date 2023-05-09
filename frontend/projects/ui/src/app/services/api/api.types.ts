@@ -7,7 +7,7 @@ import {
   DependencyError,
   Manifest,
 } from 'src/app/services/patch-db/data-model'
-import { EmbassyOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
+import { StartOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
 
 export module RR {
   // DB
@@ -347,7 +347,7 @@ export interface DiskBackupTarget {
   label: string | null
   capacity: number
   used: number | null
-  'embassy-os': EmbassyOSDiskInfo | null
+  'embassy-os': StartOSDiskInfo | null
 }
 
 export interface CifsBackupTarget {
@@ -356,7 +356,7 @@ export interface CifsBackupTarget {
   path: string
   username: string
   mountable: boolean
-  'embassy-os': EmbassyOSDiskInfo | null
+  'embassy-os': StartOSDiskInfo | null
 }
 
 export type RecoverySource = DiskRecoverySource | CifsRecoverySource

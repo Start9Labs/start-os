@@ -37,7 +37,7 @@ export class ToMessagePipe implements PipeTransform {
 
   transform(progress: number | null): string {
     if (['fresh', 'attach'].includes(this.stateService.setupType || '')) {
-      return 'Setting up your Embassy'
+      return 'Setting up your server'
     }
 
     if (!progress) {

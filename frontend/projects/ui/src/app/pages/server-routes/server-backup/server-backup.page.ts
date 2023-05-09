@@ -49,7 +49,7 @@ export class ServerBackupPage {
       .pipe(skip(1), takeUntil(this.destroy$))
       .subscribe(isBackingUp => {
         if (!isBackingUp) {
-          this.navCtrl.navigateRoot('/embassy')
+          this.navCtrl.navigateRoot('/system')
         }
       })
   }

@@ -31,11 +31,11 @@ export interface PartitionInfo {
   label: string | null
   capacity: number
   used: number | null
-  'embassy-os': EmbassyOSDiskInfo | null
+  'embassy-os': StartOSDiskInfo | null
   guid: string | null
 }
 
-export type EmbassyOSDiskInfo = {
+export type StartOSDiskInfo = {
   version: string
   full: boolean
   'password-hash': string | null

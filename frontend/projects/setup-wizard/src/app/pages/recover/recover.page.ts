@@ -86,7 +86,7 @@ export class RecoverPage {
           },
         }
         this.stateService.recoveryPassword = res.data.recoveryPassword
-        this.navCtrl.navigateForward('/embassy')
+        this.navCtrl.navigateForward('/storage')
       }
     })
     await modal.present()
@@ -119,7 +119,7 @@ export class RecoverPage {
       },
     }
     this.stateService.recoveryPassword = password
-    this.navCtrl.navigateForward(`/embassy`)
+    this.navCtrl.navigateForward(`/storage`)
   }
 }
 

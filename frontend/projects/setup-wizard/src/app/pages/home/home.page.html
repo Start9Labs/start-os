@@ -21,8 +21,8 @@
               <ion-icon slot="icon-only" name="arrow-back"></ion-icon>
             </ion-button>
             <ion-card-title>
-              {{ swiper?.activeIndex === 0 ? 'embassyOS Setup' : 'Recover
-              Options' }}
+              {{ swiper?.activeIndex === 0 ? 'StartOS Setup' : 'Recover Options'
+              }}
             </ion-card-title>
           </ion-card-header>
           <ion-card-content class="ion-margin-bottom">
@@ -39,12 +39,12 @@
                   [disabled]="error"
                   detail="false"
                   lines="none"
-                  routerLink="/embassy"
+                  routerLink="/storage"
                 >
                   <ion-icon slot="start" name="add"></ion-icon>
                   <ion-label>
                     <h2><ion-text color="success">Start Fresh</ion-text></h2>
-                    <p>Get started with a brand new Embassy</p>
+                    <p>Get started with a brand new Start9 server</p>
                   </ion-label>
                 </ion-item>
 
@@ -59,7 +59,7 @@
                   <ion-icon slot="start" name="reload"></ion-icon>
                   <ion-label>
                     <h2><ion-text color="danger">Recover</ion-text></h2>
-                    <p>Recover, restore, or transfer Embassy data</p>
+                    <p>Recover, restore, or transfer StartOS data</p>
                   </ion-label>
                 </ion-item>
               </ng-template>
@@ -78,7 +78,11 @@
                     <h2>
                       <ion-text color="success">Use Existing Drive</ion-text>
                     </h2>
-                    <p>Attach an existing embassyOS data drive (<b>not</b> a backup)</p>
+                    <p>
+                      Attach an existing StartOS data drive (
+                      <b>not</b>
+                      a backup)
+                    </p>
                   </ion-label>
                 </ion-item>
 
@@ -95,7 +99,7 @@
                       <ion-text color="primary">Transfer</ion-text>
                     </h2>
                     <p>
-                      Transfer data from an existing embassyOS data drive (not a
+                      Transfer data from an existing StartOS data drive (not a
                       backup) to a new, preferred drive
                       <br />
                     </p>
@@ -116,7 +120,7 @@
                         Restore From Backup (Disaster Recovery)
                       </ion-text>
                     </h2>
-                    <p>Restore embassyOS data from an encrypted backup</p>
+                    <p>Restore StartOS data from an encrypted backup</p>
                   </ion-label>
                 </ion-item>
               </ng-template>

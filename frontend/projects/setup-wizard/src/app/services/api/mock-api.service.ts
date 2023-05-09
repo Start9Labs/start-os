@@ -150,7 +150,7 @@ export class MockApiService extends ApiService {
     await pauseFor(1000)
     return {
       'tor-address': 'http://asdafsadasdasasdasdfasdfasdf.onion',
-      'lan-address': 'https://embassy-abcdefgh.local',
+      'lan-address': 'https://adjective-noun.local',
       'root-ca': encodeBase64(rootCA),
     }
   }

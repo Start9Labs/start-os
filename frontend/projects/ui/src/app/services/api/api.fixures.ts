@@ -480,7 +480,7 @@ export module Mock {
         description: 'LND needs bitcoin to live.',
         requirement: {
           type: 'opt-out',
-          how: 'You can use an external node from your Embassy if you prefer.',
+          how: 'You can use an external node from your server if you prefer.',
         },
         config: null,
       },
@@ -776,7 +776,7 @@ export module Mock {
       code: 1,
       level: NotificationLevel.Success,
       title: 'Backup Complete',
-      message: 'Embassy and services have been successfully backed up.',
+      message: 'StartOS and services have been successfully backed up.',
       data: {
         server: {
           attempted: false,
@@ -942,7 +942,7 @@ export module Mock {
     {
       timestamp: '2019-12-26T14:21:30.872Z',
       message:
-        '\u001b[34mPOST \u001b[0;32;49m200\u001b[0m photoview.embassy/api/graphql \u001b[0;36;49m1.169406ms\u001b',
+        '\u001b[34mPOST \u001b[0;32;49m200\u001b[0m photoview.startos/api/graphql \u001b[0;36;49m1.169406ms\u001b',
     },
     {
       timestamp: '2019-12-26T14:22:30.872Z',
@@ -1047,7 +1047,7 @@ export module Mock {
     hsbdjhasbasda: {
       type: 'cifs',
       hostname: 'smb://192.169.10.0',
-      path: '/Desktop/embassy-backups',
+      path: '/Desktop/startos-backups',
       username: 'TestUser',
       mountable: false,
       'embassy-os': {
@@ -1072,7 +1072,7 @@ export module Mock {
     csgashbdjkasnd: {
       type: 'cifs',
       hostname: 'smb://192.169.10.0',
-      path: '/Desktop/embassy-backups-2',
+      path: '/Desktop/startos-backups-2',
       username: 'TestUser',
       mountable: true,
       'embassy-os': null,

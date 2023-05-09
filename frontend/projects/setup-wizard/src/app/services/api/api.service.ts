@@ -1,12 +1,12 @@
 import * as jose from 'node-jose'
-import { DiskListResponse, EmbassyOSDiskInfo } from '@start9labs/shared'
+import { DiskListResponse, StartOSDiskInfo } from '@start9labs/shared'
 export abstract class ApiService {
   pubkey?: jose.JWK.Key
 
   abstract getStatus(): Promise<StatusRes> // setup.status
   abstract getPubKey(): Promise<void> // setup.get-pubkey
   abstract getDrives(): Promise<DiskListResponse> // setup.disk.list
-  abstract verifyCifs(cifs: CifsRecoverySource): Promise<EmbassyOSDiskInfo> // setup.cifs.verify
+  abstract verifyCifs(cifs: CifsRecoverySource): Promise<StartOSDiskInfo> // setup.cifs.verify
   abstract attach(importInfo: AttachReq): Promise<void> // setup.attach
   abstract execute(setupInfo: ExecuteReq): Promise<void> // setup.execute
   abstract complete(): Promise<CompleteRes> // setup.complete
@@ -58,7 +58,7 @@ export type DiskBackupTarget = {
   label: string | null
   capacity: number
   used: number | null
-  'embassy-os': EmbassyOSDiskInfo | null
+  'embassy-os': StartOSDiskInfo | null
 }
 
 export type CifsBackupTarget = {
@@ -66,7 +66,7 @@ export type CifsBackupTarget = {
   path: string
   username: string
   mountable: boolean
-  'embassy-os': EmbassyOSDiskInfo | null
+  'embassy-os': StartOSDiskInfo | null
 }
 
 export type DiskRecoverySource = {

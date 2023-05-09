@@ -19,15 +19,16 @@
     <ion-item>
       <ion-label>
         <h2>
-          Adding WiFi credentials to your Embassy allows you to remove the
-          Ethernet cable and move the device anywhere you want. Embassy will
+          Adding WiFi credentials to your StartOS allows you to remove the
+          Ethernet cable and move the device anywhere you want. StartOS will
           automatically connect to available networks.
           <a
             href="https://docs.start9.com/latest/user-manual/wifi"
             target="_blank"
             rel="noreferrer"
-            >View instructions</a
           >
+            View instructions
+          </a>
         </h2>
       </ion-label>
     </ion-item>
@@ -42,9 +43,9 @@
       [disabled]="loading"
     >
       <ion-icon slot="start" name="earth-outline" size="large"></ion-icon>
-      <ion-label *ngIf="wifi.country"
-        >{{ wifi.country }} - {{ this.countries[wifi.country] }}</ion-label
-      >
+      <ion-label *ngIf="wifi.country">
+        {{ wifi.country }} - {{ this.countries[wifi.country] }}
+      </ion-label>
       <ion-label *ngIf="!wifi.country">Select Country</ion-label>
     </ion-item>
 
@@ -79,9 +80,9 @@
 
     <!-- not loading -->
     <ng-container *ngIf="!loading && wifi.country">
-      <ion-item-divider *ngIf="!(wifi.ssids | empty)"
-        >Saved Networks</ion-item-divider
-      >
+      <ion-item-divider *ngIf="!(wifi.ssids | empty)">
+        Saved Networks
+      </ion-item-divider>
       <ion-item
         button
         detail="false"

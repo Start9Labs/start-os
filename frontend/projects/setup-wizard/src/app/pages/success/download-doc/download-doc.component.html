@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>Embassy Address Info</title>
+    <title>StartOS Address Info</title>
   </head>
   <body>
     <div
@@ -21,7 +21,7 @@
           padding: 1rem;
         "
       >
-        Embassy Address Info
+        StartOS Address Info
       </h1>
 
       <section
@@ -36,7 +36,7 @@
         </h2>
         <p>
           Visit the address below when you are connected to the same WiFi or
-          Local Area Network (LAN) as your Embassy:
+          Local Area Network (LAN) as your server:
         </p>
         <p
           style="
@@ -60,15 +60,15 @@
             >
               follow the instructions
             </a>
-            to establish a secure connection by installing your Embassy's
-            certificate.
+            to establish a secure connection by installing your server's root
+            certificate authority.
           </p>
         </div>
 
         <div style="padding: 2rem; text-align: center">
           <a
             id="cert"
-            download="embassy.crt"
+            [download]="crtName"
             style="
               display: inline-block;
               padding: 1em 1.2em;

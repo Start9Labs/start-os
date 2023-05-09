@@ -14,17 +14,16 @@
     <app-actions-item
       [action]="{
         name: 'Uninstall',
-        description: 'This will uninstall the service from your Embassy and delete all data permanently.',
+        description: 'This will uninstall the service from StartOS and delete all data permanently.',
         icon: 'trash-outline'
       }"
       (click)="tryUninstall(pkg)"
-    >
-    </app-actions-item>
+    ></app-actions-item>
 
     <!-- ** specific actions ** -->
-    <ion-item-divider *ngIf="!(pkg.manifest.actions | empty)"
-      >Actions for {{ pkg.manifest.title }}</ion-item-divider
-    >
+    <ion-item-divider *ngIf="!(pkg.manifest.actions | empty)">
+      Actions for {{ pkg.manifest.title }}
+    </ion-item-divider>
     <app-actions-item
       *ngFor="let action of pkg.manifest.actions | keyvalue: asIsOrder"
       [action]="{
@@ -33,7 +32,6 @@
         icon: 'play-circle-outline'
       }"
       (click)="handleAction(pkg, action)"
-    >
-    </app-actions-item>
+    ></app-actions-item>
   </ion-item-group>
 </ion-content>
