@@ -39,7 +39,7 @@ There are multiple ways to contribute: work directly on StartOS, package a servi
 
 ## UI Screenshots
 <p align="center">
-<img src="assets/startOS.png" alt="StartOS" width="85%">
+<img src="assets/StartOS.png" alt="StartOS" width="85%">
 </p>
 <p align="center">
 <img src="assets/preferences.png" alt="StartOS Preferences" width="49%">
