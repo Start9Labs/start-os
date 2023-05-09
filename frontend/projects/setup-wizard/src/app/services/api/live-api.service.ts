@@ -95,7 +95,7 @@ export class LiveApiService extends ApiService {
   }
 
   openLogsWebsocket$(guid: string): Observable<Log> {
-    return webSocket(`http://embassy.local/ws/${guid}`)
+    return webSocket(`http://start.local/ws/${guid}`)
   }
 
   async complete() {
