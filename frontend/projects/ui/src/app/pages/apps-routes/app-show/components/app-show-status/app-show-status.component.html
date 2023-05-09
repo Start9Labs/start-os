@@ -5,7 +5,7 @@
       size="x-large"
       weight="600"
       [installProgress]="pkg['install-progress']"
-      [rendering]="PR[status.primary]"
+      [rendering]="rendering"
     ></status>
   </ion-label>
 </ion-item>
@@ -53,12 +53,14 @@
           *ngIf="addressInfo | hasUi"
           class="action-button"
           color="primary"
-          [disabled]="status.primary === 'running'"
-          (click)="launchUi(addressInfo)"
+          [disabled]="status.primary !== 'running'"
+          (click)="openPopover($event)"
         >
           <ion-icon slot="start" name="open-outline"></ion-icon>
           Open UI
         </ion-button>
+
+        <launch-menu #launchMenu [addressInfo]="addressInfo"></launch-menu>
       </ion-col>
     </ion-row>
   </ion-grid>
