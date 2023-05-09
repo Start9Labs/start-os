@@ -19,7 +19,7 @@ forward to your contributions. 🎉
 > - Tweet about it
 > - Refer this project in your project's readme
 > - Mention the project at local meetups and tell your friends/colleagues
-> - Buy an [Start9 server](https://start9.com)
+> - Buy a [Start9 server](https://start9.com)
 
 <!-- omit in toc -->
 
