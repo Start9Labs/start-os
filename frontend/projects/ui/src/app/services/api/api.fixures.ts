@@ -5,7 +5,13 @@ import {
   PackageState,
   ServerStatusInfo,
 } from 'src/app/services/patch-db/data-model'
-import { Metric, RR, NotificationLevel, ServerNotifications } from './api.types'
+import {
+  RR,
+  NotificationLevel,
+  ServerNotifications,
+  Metrics,
+} from './api.types'
+
 import { BTC_ICON, LND_ICON, PROXY_ICON } from './api-icons'
 import {
   DependencyMetadata,
@@ -364,110 +370,34 @@ export module Mock {
     },
   ]
 
-  export function getServerMetrics() {
+  export function getMetrics(): Metrics {
     return {
-      Group1: {
-        Metric1: {
-          value: Math.random(),
-          unit: 'mi/b',
-        },
-        Metric2: {
-          value: Math.random(),
-          unit: '%',
-        },
-        Metric3: {
-          value: 10.1,
-          unit: '%',
-        },
+      general: {
+        temperature: (Math.random() * 100).toFixed(1),
       },
-      Group2: {
-        Hmmmm1: {
-          value: 22.2,
-          unit: 'mi/b',
-        },
-        Hmmmm2: {
-          value: 50,
-          unit: '%',
-        },
-        Hmmmm3: {
-          value: 10.1,
-          unit: '%',
-        },
+      memory: {
+        'percentage-used': '20',
+        total: (Math.random() * 100).toFixed(2),
+        available: '18000',
+        used: '4000',
+        'swap-total': '1000',
+        'swap-free': Math.random().toFixed(2),
+        'swap-used': '0',
       },
-      Group3: {
-        Hmmmm1: {
-          value: Math.random(),
-          unit: 'mi/b',
-        },
-        Hmmmm2: {
-          value: 50,
-          unit: '%',
-        },
-        Hmmmm3: {
-          value: 10.1,
-          unit: '%',
-        },
+      cpu: {
+        'user-space': '100',
+        'kernel-space': '50',
+        'io-wait': String(Math.random() * 50),
+        idle: '80',
+        usage: '30',
       },
-      Group4: {
-        Hmmmm1: {
-          value: Math.random(),
-          unit: 'mi/b',
-        },
-        Hmmmm2: {
-          value: 50,
-          unit: '%',
-        },
-        Hmmmm3: {
-          value: 10.1,
-          unit: '%',
-        },
-      },
-      Group5: {
-        Hmmmm1: {
-          value: Math.random(),
-          unit: 'mi/b',
-        },
-        Hmmmm2: {
-          value: 50,
-          unit: '%',
-        },
-        Hmmmm3: {
-          value: 10.1,
-          unit: '%',
-        },
-        Hmmmm4: {
-          value: Math.random(),
-          unit: 'mi/b',
-        },
-        Hmmmm5: {
-          value: 50,
-          unit: '%',
-        },
-        Hmmmm6: {
-          value: 10.1,
-          unit: '%',
-        },
+      disk: {
+        size: '1000',
+        used: '900',
+        available: '100',
+        'percentage-used': '90',
       },
     }
-  }
-
-  export function getAppMetrics() {
-    const metr: Metric = {
-      Metric1: {
-        value: Math.random(),
-        unit: 'mi/b',
-      },
-      Metric2: {
-        value: Math.random(),
-        unit: '%',
-      },
-      Metric3: {
-        value: 10.1,
-        unit: '%',
-      },
-    }
-
-    return metr
   }
 
   export const ServerLogs: Log[] = [

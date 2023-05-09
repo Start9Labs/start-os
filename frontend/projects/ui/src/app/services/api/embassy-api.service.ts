@@ -1,6 +1,6 @@
 import { BehaviorSubject, Observable } from 'rxjs'
 import { Update } from 'patch-db-client'
-import { RR, Encrypted, BackupTargetType } from './api.types'
+import { RR, Encrypted, BackupTargetType, Metrics } from './api.types'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { Log } from '@start9labs/shared'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
@@ -63,6 +63,10 @@ export abstract class ApiService {
     config: WebSocketSubjectConfig<Log>,
   ): Observable<Log>
 
+  abstract openMetricsWebsocket$(
+    config: WebSocketSubjectConfig<Metrics>,
+  ): Observable<Metrics>
+
   abstract getSystemTime(
     params: RR.GetSystemTimeReq,
   ): Promise<RR.GetSystemTimeRes>
@@ -86,10 +90,6 @@ export abstract class ApiService {
   abstract getServerMetrics(
     params: RR.GetServerMetricsReq,
   ): Promise<RR.GetServerMetricsRes>
-
-  abstract getPkgMetrics(
-    params: RR.GetPackageMetricsReq,
-  ): Promise<RR.GetPackageMetricsRes>
 
   abstract updateServer(url?: string): Promise<RR.UpdateServerRes>
 
