@@ -1,0 +1,112 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Backups</ion-title>
+    <ion-buttons slot="end">
+      <badge-menu-button></badge-menu-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <insecure-warning *ngIf="!secure"></insecure-warning>
+
+  <ion-item-group>
+    <ion-item-divider>Options</ion-item-divider>
+
+    <ion-item button backupCreate>
+      <ion-icon slot="start" name="add"></ion-icon>
+      <ion-label>
+        <h2>Create a Backup</h2>
+        <p>Create a one-time backup</p>
+      </ion-label>
+    </ion-item>
+    <ion-item button backupRestore>
+      <ion-icon slot="start" name="color-wand-outline"></ion-icon>
+      <ion-label>
+        <h2>Restore From Backup</h2>
+        <p>Restore services from backup</p>
+      </ion-label>
+    </ion-item>
+    <ion-item button routerLink="jobs">
+      <ion-icon slot="start" name="hammer-outline"></ion-icon>
+      <ion-label>
+        <h2>Jobs</h2>
+        <p>Manage backup jobs</p>
+      </ion-label>
+    </ion-item>
+    <ion-item button routerLink="targets">
+      <ion-icon slot="start" name="server-outline"></ion-icon>
+      <ion-label>
+        <h2>Targets</h2>
+        <p>Manage backup targets</p>
+      </ion-label>
+    </ion-item>
+    <ion-item button routerLink="history">
+      <ion-icon slot="start" name="archive-outline"></ion-icon>
+      <ion-label>
+        <h2>History</h2>
+        <p>View your entire backup history</p>
+      </ion-label>
+    </ion-item>
+
+    <ion-item-divider>Upcoming Jobs</ion-item-divider>
+
+    <div class="grid-fixed">
+      <ion-grid class="ion-padding">
+        <ion-row class="grid-headings">
+          <ion-col size="3">Scheduled</ion-col>
+          <ion-col size="2.5">Job</ion-col>
+          <ion-col size="3">Target</ion-col>
+          <ion-col size="2.5">Packages</ion-col>
+        </ion-row>
+        <!-- loaded -->
+        <ng-container *ngIf="upcoming$ | async as upcoming; else loading;">
+          <ng-container *ngIf="current$ | async as current">
+            <ion-row
+              *ngFor="let upcoming of upcoming"
+              class="ion-align-items-center grid-row-border"
+            >
+              <ion-col size="3">
+                <ion-text
+                  *ngIf="current.id === upcoming.id; else notRunning"
+                  color="success"
+                >
+                  Running
+                </ion-text>
+                <ng-template #notRunning>
+                  {{ upcoming.next | date : 'MMM d, y, h:mm a' }}
+                </ng-template>
+              </ion-col>
+              <ion-col size="2.5">{{ upcoming.name }}</ion-col>
+              <ion-col size="3" class="inline">
+                <ion-icon
+                  [name]="(upcoming.target | getDisplayInfo).icon"
+                  size="small"
+                ></ion-icon>
+                &nbsp; {{ upcoming.target.name }}
+              </ion-col>
+              <ion-col size="2.5">
+                {{ upcoming['package-ids'].length }} Packages
+              </ion-col>
+            </ion-row>
+
+            <p *ngIf="!upcoming.length">
+              You have no active or upcoming backup jobs.
+            </p>
+          </ng-container>
+        </ng-container>
+        <!-- loading -->
+        <ng-template #loading>
+          <ion-row
+            *ngFor="let row of ['', '']"
+            class="ion-align-items-center grid-row-border"
+          >
+            <ion-col>
+              <ion-skeleton-text animated></ion-skeleton-text>
+            </ion-col>
+          </ion-row>
+        </ng-template>
+      </ion-grid>
+    </div>
+  </ion-item-group>
+</ion-content>

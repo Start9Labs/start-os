@@ -72,6 +72,15 @@ const routes: Routes = [
         m => m.DeveloperRoutingModule,
       ),
   },
+  {
+    path: 'backups',
+    canActivate: [AuthGuard],
+    canActivateChild: [AuthGuard],
+    loadChildren: () =>
+      import('./pages/backups-routes/backups-routing.module').then(
+        m => m.BackupsRoutingModule,
+      ),
+  },
 ]
 
 @NgModule({
