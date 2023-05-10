@@ -104,6 +104,8 @@ main () {
     return 1
   fi
 
+  echo embassy > /etc/hostname
+
   ln -sf /usr/lib/embassy/scripts/fake-apt /usr/local/bin/apt-get
 
   return 0
