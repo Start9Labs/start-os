@@ -47,7 +47,6 @@ pub async fn partition(disk: &DiskInfo, overwrite: bool) -> Result<OsPartitionIn
                     .map(|(idx, x)| (idx + 1, x))
                 {
                     if let Some(entry) = gpt.partitions().get(&(idx as u32)) {
-                        dbg!(entry);
                         if entry.first_lba >= if use_efi { 33759266 } else { 33570850 } {
                             if idx < 4 {
                                 guid_part = Some(entry.clone())
