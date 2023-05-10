@@ -13,6 +13,7 @@ pub async fn partition(disk: &DiskInfo, overwrite: bool) -> Result<OsPartitionIn
     let efi = {
         let disk = disk.clone();
         tokio::task::spawn_blocking(move || {
+            let use_efi = Path::new("/sys/firmware/efi").exists();
             let mut device = Box::new(
                 std::fs::File::options()
                     .read(true)
@@ -47,7 +48,7 @@ pub async fn partition(disk: &DiskInfo, overwrite: bool) -> Result<OsPartitionIn
                 {
                     if let Some(entry) = gpt.partitions().get(&(idx as u32)) {
                         dbg!(entry);
-                        if entry.first_lba >= 33759266 {
+                        if entry.first_lba >= if use_efi { 33759266 } else { 33570850 } {
                             if idx < 4 {
                                 guid_part = Some(entry.clone())
                             }
@@ -66,7 +67,7 @@ pub async fn partition(disk: &DiskInfo, overwrite: bool) -> Result<OsPartitionIn
 
             gpt.update_partitions(Default::default())?;
 
-            let efi = if Path::new("/sys/firmware/efi").exists() {
+            let efi = if use_efi {
                 gpt.add_partition("efi", 100 * 1024 * 1024, gpt::partition_types::EFI, 0, None)?;
                 true
             } else {
