@@ -1,22 +1,11 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-title>Change Registry</ion-title>
-    <ion-buttons slot="end">
-      <ion-button (click)="dismiss()">
-        <ion-icon slot="icon-only" name="close"></ion-icon>
-      </ion-button>
-    </ion-buttons>
-  </ion-toolbar>
-</ion-header>
-
-<ion-content class="ion-padding-top">
+<div class="ion-padding-top">
   <ion-item-group *ngIf="stores$ | async as stores">
     <ion-item-divider>Default Registries</ion-item-divider>
     <ion-item
       *ngFor="let s of stores.standard"
       detail="false"
       [button]="!s.selected"
-      (click)="s.selected ? '' : presentAction(s)"
+      (click)="s.selected ? '' : connect(s.url)"
     >
       <ion-avatar slot="start">
         <store-icon [url]="s.url"></store-icon>
@@ -44,24 +33,45 @@
       </ion-label>
     </ion-item>
 
-    <ion-item
+    <tui-hosted-dropdown
       *ngFor="let a of stores.alt"
-      detail="false"
-      [button]="!a.selected"
-      (click)="a.selected ? '' : presentAction(a, true)"
+      class="host"
+      tuiDropdownLimitWidth="fixed"
+      [canOpen]="!a.selected"
+      [content]="content"
     >
-      <store-icon slot="start" [url]="a.url" size="36px"></store-icon>
-      <ion-label>
-        <h2>{{ a.name }}</h2>
-        <p>{{ a.url }}</p>
-      </ion-label>
-      <ion-icon
-        *ngIf="a.selected"
-        slot="end"
-        size="large"
-        name="checkmark"
-        color="success"
-      ></ion-icon>
-    </ion-item>
+      <ion-item detail="false" [button]="!a.selected">
+        <ion-avatar slot="start">
+          <store-icon [url]="a.url" size="36px"></store-icon>
+        </ion-avatar>
+        <ion-label>
+          <h2>{{ a.name }}</h2>
+          <p>{{ a.url }}</p>
+        </ion-label>
+        <ion-icon
+          *ngIf="a.selected"
+          slot="end"
+          size="large"
+          name="checkmark"
+          color="success"
+        ></ion-icon>
+      </ion-item>
+      <ng-template #content>
+        <tui-data-list>
+          <button
+            tuiOption
+            class="delete"
+            (click)="presentAlertDelete(a.url, a.name)"
+          >
+            Delete
+            <tui-svg src="tuiIconTrash2Large"></tui-svg>
+          </button>
+          <button tuiOption (click)="connect(a.url)">
+            Connect
+            <tui-svg src="tuiIconLogInLarge"></tui-svg>
+          </button>
+        </tui-data-list>
+      </ng-template>
+    </tui-hosted-dropdown>
   </ion-item-group>
-</ion-content>
+</div>

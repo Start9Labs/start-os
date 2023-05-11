@@ -6,7 +6,7 @@ import {
   ValueSpecUnion,
   InputSpec,
   unionSelectKey,
-} from 'start-sdk/lib/config/configTypes'
+} from '@start9labs/start-sdk/lib/config/configTypes'
 
 @Component({
   selector: 'form-union',

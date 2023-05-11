@@ -1,6 +1,6 @@
 import { forwardRef, Provider } from '@angular/core'
 import { TUI_VALIDATION_ERRORS } from '@taiga-ui/kit'
-import { ValueSpec } from 'start-sdk/lib/config/configTypes'
+import { ValueSpec } from '@start9labs/start-sdk/lib/config/configTypes'
 import { FormControlComponent } from './form-control.component'
 
 interface ValidatorsPatternError {

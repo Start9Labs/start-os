@@ -1,4 +1,4 @@
-import { InputSpec } from 'start-sdk/lib/config/configTypes'
+import { InputSpec } from '@start9labs/start-sdk/lib/config/configTypes'
 import { DevProjectData } from 'src/app/services/patch-db/data-model'
 
 export type BasicInfo = {
@@ -38,6 +38,9 @@ export function getBasicInfoSpec(devData: DevProjectData): InputSpec {
       ],
       default: basicInfo?.id || '',
       warning: null,
+      disabled: false,
+      immutable: false,
+      generate: null,
     },
     title: {
       type: 'text',
@@ -52,6 +55,9 @@ export function getBasicInfoSpec(devData: DevProjectData): InputSpec {
       patterns: [],
       default: basicInfo ? basicInfo.title : devData.name,
       warning: null,
+      disabled: false,
+      immutable: false,
+      generate: null,
     },
     'service-version-number': {
       type: 'text',
@@ -72,6 +78,9 @@ export function getBasicInfoSpec(devData: DevProjectData): InputSpec {
       ],
       default: basicInfo?.['service-version-number'] || '',
       warning: null,
+      disabled: false,
+      immutable: false,
+      generate: null,
     },
     description: {
       type: 'object',
@@ -93,6 +102,9 @@ export function getBasicInfoSpec(devData: DevProjectData): InputSpec {
           maxLength: 320,
           patterns: [],
           warning: null,
+          disabled: false,
+          immutable: false,
+          generate: null,
         },
         long: {
           type: 'textarea',
@@ -103,6 +115,9 @@ export function getBasicInfoSpec(devData: DevProjectData): InputSpec {
           maxLength: 1000,
           required: true,
           warning: null,
+          disabled: false,
+          immutable: false,
+          generate: null,
         },
       },
     },
@@ -120,6 +135,9 @@ export function getBasicInfoSpec(devData: DevProjectData): InputSpec {
       patterns: [],
       default: basicInfo?.['release-notes'] || '',
       warning: null,
+      disabled: false,
+      immutable: false,
+      generate: null,
     },
     license: {
       type: 'select',
@@ -139,6 +157,8 @@ export function getBasicInfoSpec(devData: DevProjectData): InputSpec {
       description: 'Example description for select',
       required: true,
       default: 'mit',
+      disabled: false,
+      immutable: false,
     },
     'wrapper-repo': {
       type: 'text',
@@ -154,6 +174,9 @@ export function getBasicInfoSpec(devData: DevProjectData): InputSpec {
       masked: false,
       default: basicInfo?.['wrapper-repo'] || '',
       warning: null,
+      disabled: false,
+      immutable: false,
+      generate: null,
     },
     'upstream-repo': {
       type: 'text',
@@ -168,6 +191,9 @@ export function getBasicInfoSpec(devData: DevProjectData): InputSpec {
       masked: false,
       default: basicInfo?.['upstream-repo'] || '',
       warning: null,
+      disabled: false,
+      immutable: false,
+      generate: null,
     },
     'support-site': {
       type: 'text',
@@ -182,6 +208,9 @@ export function getBasicInfoSpec(devData: DevProjectData): InputSpec {
       masked: false,
       default: basicInfo?.['support-site'] || '',
       warning: null,
+      disabled: false,
+      immutable: false,
+      generate: null,
     },
     'marketing-site': {
       type: 'text',
@@ -196,6 +225,9 @@ export function getBasicInfoSpec(devData: DevProjectData): InputSpec {
       masked: false,
       default: basicInfo?.['marketing-site'] || '',
       warning: null,
+      disabled: false,
+      immutable: false,
+      generate: null,
     },
   }
 }

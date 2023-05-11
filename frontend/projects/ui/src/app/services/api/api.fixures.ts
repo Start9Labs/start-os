@@ -13,7 +13,7 @@ import {
   Manifest,
 } from '@start9labs/marketplace'
 import { Log } from '@start9labs/shared'
-import { unionSelectKey } from 'start-sdk/lib/config/configTypes'
+import { unionSelectKey } from '@start9labs/start-sdk/lib/config/configTypes'
 
 export module Mock {
   export const ServerUpdated: ServerStatusInfo = {
@@ -802,6 +802,7 @@ export module Mock {
           warning: null,
           default: null,
           required: true,
+          immutable: false,
           variants: {
             internal: { name: 'Internal', spec: {} },
             external: {
@@ -820,6 +821,9 @@ export module Mock {
                   patterns: [],
                   warning: null,
                   default: null,
+                  disabled: false,
+                  immutable: false,
+                  generate: null,
                 },
                 'p2p-port': {
                   type: 'number',
@@ -835,6 +839,8 @@ export module Mock {
                   placeholder: null,
                   warning: null,
                   units: null,
+                  disabled: false,
+                  immutable: false,
                 },
               },
             },
@@ -849,6 +855,8 @@ export module Mock {
       warning: null,
       required: false,
       default: '#000000',
+      disabled: false,
+      immutable: false,
     },
     chronos: {
       name: 'Chronos',
@@ -867,6 +875,8 @@ export module Mock {
           max: '16:00',
           step: null,
           default: '12:00',
+          disabled: false,
+          immutable: false,
         },
         date: {
           name: 'Date',
@@ -879,6 +889,8 @@ export module Mock {
           max: '2023-12-31',
           step: null,
           default: '2023-05-01',
+          disabled: false,
+          immutable: false,
         },
         datetime: {
           name: 'Date and time',
@@ -891,6 +903,8 @@ export module Mock {
           max: '2023-12-31T16:00',
           step: null,
           default: '2023-05-01T18:30',
+          disabled: false,
+          immutable: false,
         },
       },
     },
@@ -925,6 +939,9 @@ export module Mock {
                 },
               ],
               masked: false,
+              disabled: false,
+              immutable: false,
+              generate: null,
             },
             rpcuser: {
               name: 'RPC Username',
@@ -944,6 +961,9 @@ export module Mock {
                 },
               ],
               masked: false,
+              disabled: false,
+              immutable: false,
+              generate: null,
             },
             rpcpass: {
               name: 'RPC User Password',
@@ -961,6 +981,9 @@ export module Mock {
               },
               masked: true,
               patterns: [],
+              disabled: false,
+              immutable: false,
+              generate: null,
             },
             rpcpass2: {
               name: 'RPC User Password',
@@ -978,6 +1001,9 @@ export module Mock {
               },
               masked: true,
               patterns: [],
+              disabled: false,
+              immutable: false,
+              generate: null,
             },
           },
         },
@@ -992,6 +1018,9 @@ export module Mock {
       maxLength: null,
       warning: null,
       required: false,
+      disabled: false,
+      immutable: false,
+      generate: null,
     },
     testnet: {
       name: 'Testnet',
@@ -1000,6 +1029,8 @@ export module Mock {
         '<ul><li>determines whether your node is running on testnet or mainnet</li></ul><script src="fake"></script>',
       warning: 'Chain will have to resync!',
       default: true,
+      disabled: false,
+      immutable: false,
     },
     document: {
       name: 'Needed File',
@@ -1016,6 +1047,7 @@ export module Mock {
       warning: null,
       minLength: null,
       maxLength: 4,
+      disabled: false,
       default: [
         {
           'first-name': 'Admin',
@@ -1048,6 +1080,9 @@ export module Mock {
             patterns: [],
             warning: null,
             default: null,
+            disabled: false,
+            immutable: false,
+            generate: null,
           },
           'last-name': {
             name: 'Last Name',
@@ -1070,6 +1105,9 @@ export module Mock {
             masked: false,
             placeholder: null,
             warning: null,
+            disabled: false,
+            immutable: false,
+            generate: null,
           },
           age: {
             name: 'Age',
@@ -1084,6 +1122,8 @@ export module Mock {
             units: null,
             placeholder: null,
             default: null,
+            disabled: false,
+            immutable: false,
           },
         },
       },
@@ -1100,6 +1140,8 @@ export module Mock {
       description: 'This is not even real.',
       warning: 'Be careful changing this!',
       required: true,
+      disabled: false,
+      immutable: false,
     },
     notifications: {
       name: 'Notification Preferences',
@@ -1116,6 +1158,8 @@ export module Mock {
         webhook: 'WebHooookkeee',
       },
       default: ['email'],
+      disabled: false,
+      immutable: false,
     },
     'favorite-number': {
       name: 'Favorite Number',
@@ -1131,6 +1175,8 @@ export module Mock {
       max: 100,
       step: 'all',
       units: 'BTC',
+      disabled: false,
+      immutable: false,
     },
     'unlucky-numbers': {
       name: 'Unlucky Numbers',
@@ -1149,6 +1195,7 @@ export module Mock {
       minLength: null,
       maxLength: 10,
       default: [2, 3],
+      disabled: false,
     },
     rpcsettings: {
       name: 'RPC Settings',
@@ -1175,6 +1222,9 @@ export module Mock {
               patterns: [],
               warning: null,
               default: null,
+              disabled: false,
+              immutable: false,
+              generate: null,
             },
             law2: {
               name: 'Second Law',
@@ -1189,6 +1239,9 @@ export module Mock {
               patterns: [],
               warning: null,
               default: null,
+              disabled: false,
+              immutable: false,
+              generate: null,
             },
           },
         },
@@ -1200,6 +1253,7 @@ export module Mock {
           minLength: 1,
           maxLength: 3,
           default: [],
+          disabled: false,
           spec: {
             type: 'object',
             uniqueBy: null,
@@ -1221,6 +1275,9 @@ export module Mock {
                 placeholder: null,
                 patterns: [],
                 warning: null,
+                disabled: false,
+                immutable: false,
+                generate: null,
               },
               rulemakerip: {
                 name: 'Rulemaker IP',
@@ -1241,6 +1298,9 @@ export module Mock {
                 masked: false,
                 placeholder: null,
                 warning: null,
+                disabled: false,
+                immutable: false,
+                generate: null,
               },
             },
           },
@@ -1263,6 +1323,9 @@ export module Mock {
           masked: false,
           placeholder: null,
           warning: null,
+          disabled: false,
+          immutable: false,
+          generate: null,
         },
         rpcpass: {
           name: 'RPC User Password',
@@ -1280,6 +1343,9 @@ export module Mock {
           placeholder: null,
           patterns: [],
           warning: null,
+          disabled: false,
+          immutable: false,
+          generate: null,
         },
       },
     },
@@ -1290,6 +1356,7 @@ export module Mock {
       description: 'Options<ul><li>Item 1</li><li>Item 2</li></ul>',
       warning: 'Careful changing this',
       required: true,
+      immutable: false,
       variants: {
         dummy: {
           name: 'Dummy',
@@ -1312,6 +1379,9 @@ export module Mock {
               placeholder: null,
               warning: null,
               default: null,
+              disabled: false,
+              immutable: false,
+              generate: null,
             },
           },
         },
@@ -1343,6 +1413,9 @@ export module Mock {
                   placeholder: null,
                   warning: null,
                   default: null,
+                  disabled: false,
+                  immutable: false,
+                  generate: null,
                 },
                 email: {
                   type: 'text',
@@ -1357,6 +1430,9 @@ export module Mock {
                   patterns: [],
                   warning: null,
                   default: null,
+                  disabled: false,
+                  immutable: false,
+                  generate: null,
                 },
               },
             },
@@ -1373,6 +1449,9 @@ export module Mock {
               masked: false,
               placeholder: null,
               warning: null,
+              disabled: false,
+              immutable: false,
+              generate: null,
             },
             'private-domain': {
               name: 'Private Domain',
@@ -1387,6 +1466,9 @@ export module Mock {
               patterns: [],
               warning: null,
               default: null,
+              disabled: false,
+              immutable: false,
+              generate: null,
             },
           },
         },
@@ -1406,6 +1488,8 @@ export module Mock {
       units: null,
       placeholder: null,
       default: null,
+      disabled: false,
+      immutable: false,
     },
     'favorite-slogan': {
       name: 'Favorite Slogan',
@@ -1421,6 +1505,9 @@ export module Mock {
       patterns: [],
       warning: null,
       default: null,
+      disabled: false,
+      immutable: false,
+      generate: null,
     },
     rpcallowip: {
       name: 'RPC Allowed IPs',
@@ -1432,6 +1519,7 @@ export module Mock {
       minLength: 1,
       maxLength: 10,
       default: ['192.168.1.1'],
+      disabled: false,
       spec: {
         type: 'text',
         inputmode: 'text',
@@ -1446,6 +1534,7 @@ export module Mock {
             description: 'must be a valid ipv4, ipv6, or domain name',
           },
         ],
+        generate: null,
       },
     },
     rpcauth: {
@@ -1456,6 +1545,7 @@ export module Mock {
       minLength: null,
       maxLength: null,
       default: [],
+      disabled: false,
       spec: {
         type: 'text',
         inputmode: 'text',
@@ -1464,6 +1554,7 @@ export module Mock {
         maxLength: null,
         placeholder: null,
         patterns: [],
+        generate: null,
       },
     },
     'more-advanced': {
@@ -1498,6 +1589,9 @@ export module Mock {
                   maxLength: null,
                   warning: null,
                   default: null,
+                  disabled: false,
+                  immutable: false,
+                  generate: null,
                 },
                 law2: {
                   name: 'Second Law',
@@ -1512,6 +1606,9 @@ export module Mock {
                   maxLength: null,
                   warning: null,
                   default: null,
+                  disabled: false,
+                  immutable: false,
+                  generate: null,
                 },
                 law4: {
                   name: 'Fourth Law',
@@ -1526,6 +1623,9 @@ export module Mock {
                   maxLength: null,
                   warning: null,
                   default: null,
+                  disabled: false,
+                  immutable: false,
+                  generate: null,
                 },
                 law3: {
                   name: 'Third Law',
@@ -1535,6 +1635,7 @@ export module Mock {
                   minLength: null,
                   maxLength: 2,
                   default: [],
+                  disabled: false,
                   spec: {
                     type: 'object',
                     uniqueBy: null,
@@ -1556,6 +1657,9 @@ export module Mock {
                         minLength: null,
                         maxLength: null,
                         warning: null,
+                        disabled: false,
+                        immutable: false,
+                        generate: null,
                       },
                       lawagency: {
                         name: 'Law agency',
@@ -1576,6 +1680,9 @@ export module Mock {
                         masked: false,
                         placeholder: null,
                         warning: null,
+                        disabled: false,
+                        immutable: false,
+                        generate: null,
                       },
                     },
                   },
@@ -1593,6 +1700,9 @@ export module Mock {
                   patterns: [],
                   warning: null,
                   default: null,
+                  disabled: false,
+                  immutable: false,
+                  generate: null,
                 },
               },
             },
@@ -1604,6 +1714,7 @@ export module Mock {
               minLength: null,
               maxLength: 2,
               default: [],
+              disabled: false,
               spec: {
                 type: 'object',
                 uniqueBy: null,
@@ -1625,6 +1736,9 @@ export module Mock {
                     minLength: null,
                     maxLength: null,
                     warning: null,
+                    disabled: false,
+                    immutable: false,
+                    generate: null,
                   },
                   rulemakerip: {
                     name: 'Rulemaker IP',
@@ -1645,6 +1759,9 @@ export module Mock {
                     masked: false,
                     placeholder: null,
                     warning: null,
+                    disabled: false,
+                    immutable: false,
+                    generate: null,
                   },
                 },
               },
@@ -1667,6 +1784,9 @@ export module Mock {
               masked: false,
               placeholder: null,
               warning: null,
+              disabled: false,
+              immutable: false,
+              generate: null,
             },
             rpcpass: {
               name: 'RPC User Password',
@@ -1684,6 +1804,9 @@ export module Mock {
               minLength: null,
               maxLength: null,
               warning: null,
+              disabled: false,
+              immutable: false,
+              generate: null,
             },
           },
         },
@@ -1800,6 +1923,9 @@ export module Mock {
             ],
             warning: null,
             default: null,
+            disabled: false,
+            immutable: false,
+            generate: null,
           },
         },
       },

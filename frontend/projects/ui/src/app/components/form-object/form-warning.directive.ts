@@ -1,5 +1,8 @@
 import { Directive } from '@angular/core'
-import { ValueSpec, ValueSpecUnion } from 'start-sdk/lib/config/configTypes'
+import {
+  ValueSpec,
+  ValueSpecUnion,
+} from '@start9labs/start-sdk/lib/config/configTypes'
 import { AlertButton, AlertController } from '@ionic/angular'
 
 @Directive({
