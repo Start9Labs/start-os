@@ -47,17 +47,15 @@ pub async fn partition(disk: &DiskInfo, overwrite: bool) -> Result<OsPartitionIn
                     .map(|(idx, x)| (idx + 1, x))
                 {
                     if let Some(entry) = gpt.partitions().get(&(idx as u32)) {
-                        if entry.first_lba >= if use_efi { 33759266 } else { 33570850 } {
-                            if idx < 4 {
-                                guid_part = Some(entry.clone())
-                            }
-                            break;
-                        }
                         if part_info.guid.is_some() {
-                            return Err(Error::new(
-                                eyre!("Not enough space before embassy data"),
-                                crate::ErrorKind::InvalidRequest,
-                            ));
+                            if entry.first_lba < if use_efi { 33759266 } else { 33570850 } {
+                                return Err(Error::new(
+                                    eyre!("Not enough space before embassy data"),
+                                    crate::ErrorKind::InvalidRequest,
+                                ));
+                            }
+                            guid_part = Some(entry.clone());
+                            break;
                         }
                     }
                 }
