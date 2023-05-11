@@ -130,7 +130,7 @@ impl ErrorKind {
             DiskManagement => "Disk Management Error",
             OpenSsl => "OpenSSL Internal Error",
             PasswordHashGeneration => "Password Hash Generation Error",
-            DiagnosticMode => "Embassy is in Diagnostic Mode",
+            DiagnosticMode => "Server is in Diagnostic Mode",
             ParseDbField => "Database Field Parse Error",
             Duplicate => "Duplication Error",
             MultipleErrors => "Multiple Errors",

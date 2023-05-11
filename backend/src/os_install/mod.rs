@@ -232,7 +232,7 @@ pub async fn execute(
         .invoke(crate::ErrorKind::OpenSsh)
         .await?;
 
-    tokio::fs::write(current.join("etc/hostname"), "embassy\n").await?;
+    tokio::fs::write(current.join("etc/hostname"), "start\n").await?;
 
     Command::new("chroot")
         .arg(&current)

@@ -12,7 +12,7 @@ import { BUILT_IN_WIDGETS } from '../../pages/widgets/built-in/widgets'
 
 export const mockPatchData: DataModel = {
   ui: {
-    name: `Matt's Embassy`,
+    name: `Matt's Server`,
     'ack-welcome': '1.0.0',
     theme: 'Dark',
     widgets: BUILT_IN_WIDGETS.filter(
@@ -46,7 +46,7 @@ export const mockPatchData: DataModel = {
     id: 'abcdefgh',
     version: '0.3.4',
     'last-backup': new Date(new Date().valueOf() - 604800001).toISOString(),
-    'lan-address': 'https://embassy-abcdefgh.local',
+    'lan-address': 'https://adjective-noun.local',
     'tor-address': 'http://myveryownspecialtoraddress.onion',
     'ip-info': {
       eth0: {
@@ -609,7 +609,7 @@ export const mockPatchData: DataModel = {
             description: 'LND needs bitcoin to live.',
             requirement: {
               type: 'opt-out',
-              how: 'You can use an external node from your Embassy if you prefer.',
+              how: 'You can use an external node from your server if you prefer.',
             },
             config: null,
           },

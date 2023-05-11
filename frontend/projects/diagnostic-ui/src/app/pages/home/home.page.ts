@@ -32,7 +32,7 @@ export class HomePage {
           code: 15,
           problem: 'Unknown storage drive detected',
           solution:
-            'To use a different storage drive, replace the current one and click RESTART EMBASSY below. To use the current storage drive, click USE CURRENT DRIVE below, then follow instructions. No data will be erased during this process.',
+            'To use a different storage drive, replace the current one and click RESTART SERVER below. To use the current storage drive, click USE CURRENT DRIVE below, then follow instructions. No data will be erased during this process.',
           details: error.data?.details,
         }
         // no drive
@@ -41,7 +41,7 @@ export class HomePage {
           code: 20,
           problem: 'Storage drive not found',
           solution:
-            'Insert your embassyOS storage drive and click RESTART EMBASSY below.',
+            'Insert your StartOS storage drive and click RESTART SERVER below.',
           details: error.data?.details,
         }
         // drive corrupted
@@ -60,7 +60,7 @@ export class HomePage {
           code: 2,
           problem: 'Filesystem I/O error.',
           solution:
-            'Repairing the disk could help resolve this issue. Please DO NOT unplug the drive or Embassy during this time or the situation will become worse.',
+            'Repairing the disk could help resolve this issue. Please DO NOT unplug the drive or server during this time or the situation will become worse.',
           details: error.data?.details,
         }
         // disk management error - disk needs repair
@@ -69,7 +69,7 @@ export class HomePage {
           code: 48,
           problem: 'Disk management error.',
           solution:
-            'Repairing the disk could help resolve this issue. Please DO NOT unplug the drive or Embassy during this time or the situation will become worse.',
+            'Repairing the disk could help resolve this issue. Please DO NOT unplug the drive or server during this time or the situation will become worse.',
           details: error.data?.details,
         }
       } else {
@@ -122,7 +122,7 @@ export class HomePage {
     const alert = await this.alertCtrl.create({
       header: 'Warning',
       message:
-        '<p>This action will tear down all service containers and rebuild them from scratch. No data will be deleted.</p><p>A system rebuild can be useful if your system gets into a bad state, and it should only be performed if you are experiencing general performance or reliability issues.</p><p>It may take up to an hour to complete. During this time, you will lose all connectivity to your Embassy.</p>',
+        '<p>This action will tear down all service containers and rebuild them from scratch. No data will be deleted.</p><p>A system rebuild can be useful if your system gets into a bad state, and it should only be performed if you are experiencing general performance or reliability issues.</p><p>It may take up to an hour to complete. During this time, you will lose all connectivity to your Start9 server.</p>',
       buttons: [
         {
           text: 'Cancel',

@@ -41,7 +41,7 @@ export class AppComponent implements OnDestroy {
   ngOnInit() {
     this.patch
       .watch$('ui', 'name')
-      .subscribe(name => this.titleService.setTitle(name || 'embassyOS'))
+      .subscribe(name => this.titleService.setTitle(name || 'StartOS'))
   }
 
   splitPaneVisible({ detail }: any) {

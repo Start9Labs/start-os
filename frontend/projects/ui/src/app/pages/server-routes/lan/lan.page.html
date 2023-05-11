@@ -18,14 +18,15 @@
             href="https://docs.start9.com/latest/user-manual/connecting/connecting-lan"
             target="_blank"
             rel="noreferrer"
-            >follow instructions</a
           >
-          to download and trust your Embassy's Root Certificate Authority
+            follow instructions
+          </a>
+          to download and trust your server's Root Certificate Authority
         </h2>
       </ion-label>
     </ion-item>
 
-    <ion-item button (click)="installCert()">
+    <ion-item button (click)="installCert()" [disabled]="!(crtName$ | async)">
       <ion-icon slot="start" name="download-outline" size="large"></ion-icon>
       <ion-label>
         <h1>Download Certificate</h1>
@@ -37,6 +38,6 @@
   <a
     id="install-cert"
     href="/public/eos/local.crt"
-    download="Embassy Local CA.crt"
+    [download]="crtName$ | async"
   ></a>
 </ion-content>

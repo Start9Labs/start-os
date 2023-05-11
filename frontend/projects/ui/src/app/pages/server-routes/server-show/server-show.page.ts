@@ -65,7 +65,7 @@ export class ServerShowPage {
       message: `This value will be displayed as the title of your browser tab.`,
       label: 'Device Name',
       useMask: false,
-      placeholder: 'embassyOS',
+      placeholder: 'StartOS',
       nullable: true,
       initialValue: chosenName,
       buttonText: 'Save',
@@ -113,7 +113,7 @@ export class ServerShowPage {
     const alert = await this.alertCtrl.create({
       header: 'Restart',
       message:
-        'Are you sure you want to restart your Embassy? It can take several minutes to come back online.',
+        'Are you sure you want to restart your server? It can take several minutes to come back online.',
       buttons: [
         {
           text: 'Cancel',
@@ -135,7 +135,7 @@ export class ServerShowPage {
     const alert = await this.alertCtrl.create({
       header: 'Warning',
       message:
-        'Are you sure you want to power down your Embassy? This can take several minutes, and your Embassy will not come back online automatically. To power on again, You will need to physically unplug your Embassy and plug it back in',
+        'Are you sure you want to power down your server? This can take several minutes, and your server will not come back online automatically. To power on again, You will need to physically unplug your server and plug it back in',
       buttons: [
         {
           text: 'Cancel',
@@ -159,7 +159,7 @@ export class ServerShowPage {
     const minutes = Object.keys(localPkgs).length * 2
     const alert = await this.alertCtrl.create({
       header: 'Warning',
-      message: `This action will tear down all service containers and rebuild them from scratch. No data will be deleted. This action is useful if your system gets into a bad state, and it should only be performed if you are experiencing general performance or reliability issues. It may take up to ${minutes} minutes to complete. During this time, you will lose all connectivity to your Embassy.`,
+      message: `This action will tear down all service containers and rebuild them from scratch. No data will be deleted. This action is useful if your system gets into a bad state, and it should only be performed if you are experiencing general performance or reliability issues. It may take up to ${minutes} minutes to complete. During this time, you will lose all connectivity to your server.`,
       buttons: [
         {
           text: 'Cancel',
@@ -325,7 +325,7 @@ export class ServerShowPage {
   private async presentAlertLatest() {
     const alert = await this.alertCtrl.create({
       header: 'Up to date!',
-      message: 'You are on the latest version of embassyOS.',
+      message: 'You are on the latest version of StartOS.',
       buttons: [
         {
           text: 'OK',
@@ -341,7 +341,7 @@ export class ServerShowPage {
   private async presentAlertInProgress(verb: string, message: string) {
     const alert = await this.alertCtrl.create({
       header: `${verb} In Progress...`,
-      message: `Stopping all services gracefully. This can take a while.<br /><br />If you have a speaker, your Embassy will <b>♫ play a melody ♫</b> before shutting down. Your Embassy will then become unreachable${message}`,
+      message: `Stopping all services gracefully. This can take a while.<br /><br />If you have a speaker, your server will <b>♫ play a melody ♫</b> before shutting down. Your server will then become unreachable${message}`,
       buttons: [
         {
           text: 'OK',
@@ -357,7 +357,7 @@ export class ServerShowPage {
     Backups: [
       {
         title: 'Create Backup',
-        description: 'Back up your Embassy and service data',
+        description: 'Back up StartOS and service data',
         icon: 'duplicate-outline',
         action: () =>
           this.navCtrl.navigateForward(['backup'], { relativeTo: this.route }),
@@ -380,7 +380,7 @@ export class ServerShowPage {
     Manage: [
       {
         title: 'Software Update',
-        description: 'Get the latest version of embassyOS',
+        description: 'Get the latest version of StartOS',
         icon: 'cloud-download-outline',
         action: () =>
           this.eosService.updateAvailable$.getValue()
@@ -399,7 +399,7 @@ export class ServerShowPage {
       },
       {
         title: 'LAN',
-        description: `Download and trust your Embassy's certificate for a secure local connection`,
+        description: `Download and trust your server's certificate for a secure local connection`,
         icon: 'home-outline',
         action: () =>
           this.navCtrl.navigateForward(['lan'], { relativeTo: this.route }),
@@ -409,7 +409,7 @@ export class ServerShowPage {
       {
         title: 'SSH',
         description:
-          'Manage your SSH keys to access your Embassy from the command line',
+          'Manage your SSH keys to access your server from the command line',
         icon: 'terminal-outline',
         action: () =>
           this.navCtrl.navigateForward(['ssh'], { relativeTo: this.route }),
@@ -440,7 +440,7 @@ export class ServerShowPage {
     Insights: [
       {
         title: 'About',
-        description: 'Basic information about your Embassy',
+        description: 'Basic information about your server',
         icon: 'information-circle-outline',
         action: () =>
           this.navCtrl.navigateForward(['specs'], { relativeTo: this.route }),
@@ -492,7 +492,7 @@ export class ServerShowPage {
     Support: [
       {
         title: 'User Manual',
-        description: 'Discover what your Embassy can do',
+        description: 'Discover what StartOS can do',
         icon: 'map-outline',
         action: () =>
           window.open(
@@ -518,7 +518,7 @@ export class ServerShowPage {
       },
       {
         title: 'Donate to Start9',
-        description: `Support embassyOS development`,
+        description: `Support StartOS development`,
         icon: 'logo-bitcoin',
         action: () =>
           this.document.defaultView?.open(

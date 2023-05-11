@@ -27,11 +27,11 @@
             <h2>
               {{
                 type === 'create'
-                  ? 'Backup your Embassy to'
+                  ? 'Backup server to'
                   : 'Restore your services from'
               }}
               a folder on another computer that is connected to the same network
-              as your Embassy. View the
+              as your Start9 server. View the
               <a
                 href="https://docs.start9.com/latest/user-manual/backups/backup-create"
                 target="_blank"
@@ -103,11 +103,11 @@
             <h2>
               {{
                 type === 'create'
-                  ? 'Backup your Embassy to'
+                  ? 'Backup server to'
                   : 'Restore your services from'
               }}
-              a physcial drive that is plugged directly into your Embassy. View
-              the
+              a physical drive that is plugged directly into your Start9 Server.
+              View the
               <a
                 href="https://docs.start9.com/latest/user-manual/backups/backup-setup/backup-physical"
                 target="_blank"
@@ -118,12 +118,12 @@
                 <ion-icon name="open-outline" size="small"></ion-icon>
               </a>
               .
-              <ion-text color="warning"
-                >Warning. Do not use this option if you are using a Raspberry Pi
+              <ion-text color="warning">
+                Warning. Do not use this option if you are using a Raspberry Pi
                 with an external SSD. The Raspberry Pi does not support more
                 than one external drive without additional power and can cause
-                data corruption.</ion-text
-              >
+                data corruption.
+              </ion-text>
             </h2>
           </ion-label>
         </ion-item>
@@ -136,9 +136,10 @@
           <br />
           <p>
             No drives detected.
-            <a style="cursor: pointer" (click)="refresh()"
-              >Refresh<ion-icon name="refresh"></ion-icon
-            ></a>
+            <a style="cursor: pointer" (click)="refresh()">
+              Refresh
+              <ion-icon name="refresh"></ion-icon>
+            </a>
           </p>
         </div>
         <!-- drives detected -->

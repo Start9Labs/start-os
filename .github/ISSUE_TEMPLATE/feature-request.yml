@@ -1,6 +1,6 @@
 name: 💡 Feature Request
-description: Suggest an idea for embassyOS
-title: '[feat]: '
+description: Suggest an idea for StartOS
+title: "[feat]: "
 labels: [Enhancement]
 assignees:
   - MattDHill
@@ -10,7 +10,7 @@ body:
       label: Prerequisites
       description: Please confirm you have completed the following.
       options:
-        - label: I have searched for [existing issues](https://github.com/start9labs/embassy-os/issues) that already suggest this feature.
+        - label: I have searched for [existing issues](https://github.com/start9labs/start-os/issues) that already suggest this feature.
           required: true
   - type: textarea
     attributes:
@@ -27,7 +27,7 @@ body:
   - type: textarea
     attributes:
       label: Describe Preferred Solution
-      description: How you want this feature added to embassyOS?
+      description: How you want this feature added to StartOS?
   - type: textarea
     attributes:
       label: Describe Alternatives

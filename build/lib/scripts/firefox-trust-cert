@@ -3,6 +3,6 @@
 for mozilladir in $(find /home -name ".mozilla"); do
   for certDB in $(find  ${mozilladir} -name "cert9.db"); do
     certDir=$(dirname ${certDB});
-    certutil -A -n "Embassy Local Root CA" -t "TCu,Cuw,Tuw" -i /usr/local/share/ca-certificates/embassy-root-ca.crt -d ${certDir}
+    certutil -A -n "StartOS Local Root CA" -t "TCu,Cuw,Tuw" -i /usr/local/share/ca-certificates/startos-root-ca.crt -d ${certDir}
   done
 done

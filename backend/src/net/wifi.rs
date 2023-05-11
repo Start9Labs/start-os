@@ -173,7 +173,7 @@ pub async fn delete(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<(
     let is_current_removed_and_no_hardwire =
         is_current_being_removed && !interface_connected(&ctx.ethernet_interface).await?;
     if is_current_removed_and_no_hardwire {
-        return Err(Error::new(color_eyre::eyre::eyre!("Forbidden: Deleting this Network would make your Embassy Unreachable. Either connect to ethernet or connect to a different WiFi network to remedy this."), ErrorKind::Wifi));
+        return Err(Error::new(color_eyre::eyre::eyre!("Forbidden: Deleting this network would make your server unreachable. Either connect to ethernet or connect to a different WiFi network to remedy this."), ErrorKind::Wifi));
     }
 
     wpa_supplicant

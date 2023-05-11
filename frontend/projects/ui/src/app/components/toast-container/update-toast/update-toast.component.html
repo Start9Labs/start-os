@@ -1,10 +1,10 @@
 <toast
   *ngIf="visible$ | async as message"
   class="success-toast"
-  header="embassyOS download complete!"
+  header="StartOS download complete!"
   (dismiss)="onDismiss()"
 >
-  Restart your Embassy for these updates to take effect. It can take several
+  Restart your server for these updates to take effect. It can take several
   minutes to come back online.
   <button toastButton icon="close" side="start" (click)="onDismiss()"></button>
   <button toastButton side="end" (click)="restart()">Restart</button>

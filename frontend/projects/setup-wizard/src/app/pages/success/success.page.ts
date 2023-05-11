@@ -84,7 +84,7 @@ export class SuccessPage {
           encodeURIComponent(this.cert),
       )
     let html = this.document.getElementById('downloadable')?.innerHTML || ''
-    this.downloadHtml.download('embassy-info.html', html).then(_ => {
+    this.downloadHtml.download('StartOS-info.html', html).then(_ => {
       this.disableLogin = false
     })
   }

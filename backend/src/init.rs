@@ -258,7 +258,7 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
 
     // write to ca cert store
     tokio::fs::write(
-        "/usr/local/share/ca-certificates/embassy-root-ca.crt",
+        "/usr/local/share/ca-certificates/startos-root-ca.crt",
         account.root_ca_cert.to_pem()?,
     )
     .await?;

@@ -46,17 +46,17 @@
                     You can now safely unplug your backup drive
                   </h3>
                   <h3 *ngIf="setupType === 'transfer'">
-                    You can now safely unplug your old Embassy drive
+                    You can now safely unplug your old StartOS data drive
                   </h3>
                 </div>
                 <div class="card-container">
                   <ion-card id="information" (click)="download()">
                     <ion-card-content>
-                      <ion-card-title
-                        >Download permanent address info</ion-card-title
-                      >
+                      <ion-card-title>
+                        Download permanent address info
+                      </ion-card-title>
                       <p>
-                        embassy.local was for setup purposes only. It will no
+                        start.local was for setup purposes only. It will no
                         longer work.
                       </p>
                     </ion-card-content>
@@ -77,7 +77,7 @@
                   >
                     <div class="container">
                       <div class="inline">
-                        <p>Go to Embassy login</p>
+                        <p>Login to StartOS</p>
                         <ion-icon name="open-outline"></ion-icon>
                       </div>
                     </div>
@@ -86,7 +86,11 @@
               </ion-col>
             </ion-row>
             <!-- download elem -->
-            <download-doc hidden id="downloadable"></download-doc>
+            <download-doc
+              hidden
+              id="downloadable"
+              [lanAddress]="lanAddress"
+            ></download-doc>
           </ion-card>
         </ng-template>
       </ion-col>

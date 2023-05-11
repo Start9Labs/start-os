@@ -31,7 +31,7 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
             .arg("ssh")
             .invoke(crate::ErrorKind::OpenSsh)
             .await?;
-        embassy::hostname::sync_hostname(&embassy::hostname::Hostname("embassy".into())).await?;
+        embassy::hostname::sync_hostname(&embassy::hostname::Hostname("start".into())).await?;
 
         let ctx = InstallContext::init(cfg_path).await?;
 
@@ -55,7 +55,7 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
         .await
         .is_err()
     {
-        embassy::hostname::sync_hostname(&embassy::hostname::Hostname("embassy".into())).await?;
+        embassy::hostname::sync_hostname(&embassy::hostname::Hostname("start".into())).await?;
 
         let ctx = SetupContext::init(cfg_path).await?;
 

@@ -1,6 +1,6 @@
 <!-- omit in toc -->
 
-# Contributing to Embassy OS
+# Contributing to StartOS
 
 First off, thanks for taking the time to contribute! ❤️
 
@@ -19,7 +19,7 @@ forward to your contributions. 🎉
 > - Tweet about it
 > - Refer this project in your project's readme
 > - Mention the project at local meetups and tell your friends/colleagues
-> - Buy an [Embassy](https://start9labs.com)
+> - Buy a [Start9 server](https://start9.com)
 
 <!-- omit in toc -->
 
@@ -49,7 +49,7 @@ forward to your contributions. 🎉
 > [Documentation](https://docs.start9labs.com).
 
 Before you ask a question, it is best to search for existing
-[Issues](https://github.com/Start9Labs/embassy-os/issues) that might help you.
+[Issues](https://github.com/Start9Labs/start-os/issues) that might help you.
 In case you have found a suitable issue and still need clarification, you can
 write your question in this issue. It is also advisable to search the internet
 for answers first.
@@ -57,7 +57,7 @@ for answers first.
 If you then still feel the need to ask a question and need clarification, we
 recommend the following:
 
-- Open an [Issue](https://github.com/Start9Labs/embassy-os/issues/new).
+- Open an [Issue](https://github.com/Start9Labs/start-os/issues/new).
 - Provide as much context as you can about what you're running into.
 - Provide project and platform versions, depending on what seems relevant.
 
@@ -105,7 +105,7 @@ steps in advance to help us fix any potential bug as fast as possible.
 - To see if other users have experienced (and potentially already solved) the
   same issue you are having, check if there is not already a bug report existing
   for your bug or error in the
-  [bug tracker](https://github.com/Start9Labs/embassy-os/issues?q=label%3Abug).
+  [bug tracker](https://github.com/Start9Labs/start-os/issues?q=label%3Abug).
 - Also make sure to search the internet (including Stack Overflow) to see if
   users outside of the GitHub community have discussed the issue.
 - Collect information about the bug:
@@ -131,7 +131,7 @@ steps in advance to help us fix any potential bug as fast as possible.
 We use GitHub issues to track bugs and errors. If you run into an issue with the
 project:
 
-- Open an [Issue](https://github.com/Start9Labs/embassy-os/issues/new/choose)
+- Open an [Issue](https://github.com/Start9Labs/start-os/issues/new/choose)
   selecting the appropriate type.
 - Explain the behavior you would expect and the actual behavior.
 - Please provide as much context as possible and describe the _reproduction
@@ -155,8 +155,7 @@ Once it's filed:
 
 ### Suggesting Enhancements
 
-This section guides you through submitting an enhancement suggestion for Embassy
-OS, **including completely new features and minor improvements to existing
+This section guides you through submitting an enhancement suggestion for StartOS, **including completely new features and minor improvements to existing
 functionality**. Following these guidelines will help maintainers and the
 community to understand your suggestion and find related suggestions.
 
@@ -168,7 +167,7 @@ community to understand your suggestion and find related suggestions.
 - Read the [documentation](https://start9.com/latest/user-manual) carefully and
   find out if the functionality is already covered, maybe by an individual
   configuration.
-- Perform a [search](https://github.com/Start9Labs/embassy-os/issues) to see if
+- Perform a [search](https://github.com/Start9Labs/start-os/issues) to see if
   the enhancement has already been suggested. If it has, add a comment to the
   existing issue instead of opening a new one.
 - Find out whether your idea fits with the scope and aims of the project. It's
@@ -182,7 +181,7 @@ community to understand your suggestion and find related suggestions.
 #### How Do I Submit a Good Enhancement Suggestion?
 
 Enhancement suggestions are tracked as
-[GitHub issues](https://github.com/Start9Labs/embassy-os/issues).
+[GitHub issues](https://github.com/Start9Labs/start-os/issues).
 
 - Use a **clear and descriptive title** for the issue to identify the
   suggestion.
@@ -197,7 +196,7 @@ Enhancement suggestions are tracked as
   macOS and Windows, and [this tool](https://github.com/colinkeenan/silentcast)
   or [this tool](https://github.com/GNOME/byzanz) on Linux.
   <!-- this should only be included if the project has a GUI -->
-- **Explain why this enhancement would be useful** to most Embassy OS users. You
+- **Explain why this enhancement would be useful** to most StartOS users. You
   may also want to point out the other projects that solved it better and which
   could serve as inspiration.
 
@@ -205,24 +204,24 @@ Enhancement suggestions are tracked as
 
 ### Project Structure
 
-embassyOS is composed of the following components. Please visit the README for
+StartOS is composed of the following components. Please visit the README for
 each component to understand the dependency requirements and installation
 instructions.
 
 - [`backend`](backend/README.md) (Rust) is a command line utility, daemon, and
   software development kit that sets up and manages services and their
   environments, provides the interface for the ui, manages system state, and
-  provides utilities for packaging services for embassyOS.
+  provides utilities for packaging services for StartOS.
 - [`build`](build/README.md) contains scripts and necessary for deploying
-  embassyOS to a debian/raspbian system.
+  StartOS to a debian/raspbian system.
 - [`frontend`](frontend/README.md) (Typescript Ionic Angular) is the code that
-  is deployed to the browser to provide the user interface for embassyOS.
-  - `projects/ui` - Code for the user interface that is displayed when embassyOS
+  is deployed to the browser to provide the user interface for StartOS.
+  - `projects/ui` - Code for the user interface that is displayed when StartOS
     is running normally.
   - `projects/setup-wizard`(frontend/README.md) - Code for the user interface
-    that is displayed during the setup and recovery process for embassyOS.
+    that is displayed during the setup and recovery process for StartOS.
   - `projects/diagnostic-ui` - Code for the user interface that is displayed
-    when something has gone wrong with starting up embassyOS, which provides
+    when something has gone wrong with starting up StartOS, which provides
     helpful debugging tools.
 - `libs` (Rust) is a set of standalone crates that were separated out of
   `backend` for the purpose of portability
@@ -232,18 +231,18 @@ instructions.
     [client](https://github.com/Start9Labs/patch-db/tree/master/client) with its
     own dependency and installation requirements.
 - `system-images` - (Docker, Rust) A suite of utility Docker images that are
-  preloaded with embassyOS to assist with functions relating to services (eg.
+  preloaded with StartOS to assist with functions relating to services (eg.
   configuration, backups, health checks).
 
 ### Your First Code Contribution
 
 #### Setting Up Your Development Environment
 
-First, clone the embassyOS repository and from the project root, pull in the
+First, clone the StartOS repository and from the project root, pull in the
 submodules for dependent libraries.
 
 ```sh
-git clone https://github.com/Start9Labs/embassy-os.git
+git clone https://github.com/Start9Labs/start-os.git
 git submodule update --init --recursive
 ```
 
@@ -254,7 +253,7 @@ to, follow the installation requirements listed in that component's README
 #### Building The Raspberry Pi Image
 
 This step is for setting up an environment in which to test your code changes if
-you do not yet have a embassyOS.
+you do not yet have a StartOS.
 
 - Requirements
   - `ext4fs` (available if running on the Linux kernel)
@@ -262,7 +261,7 @@ you do not yet have a embassyOS.
   - GNU Make
 - Building
   - see setup instructions [here](build/README.md)
-  - run `make embassyos-raspi.img ARCH=aarch64` from the project root
+  - run `make startos-raspi.img ARCH=aarch64` from the project root
 
 ### Improving The Documentation
 
@@ -286,7 +285,7 @@ seamless and intuitive experience.
 
 ### Formatting
 
-Each component of embassyOS contains its own style guide. Code must be formatted
+Each component of StartOS contains its own style guide. Code must be formatted
 with the formatter designated for each component. These are outlined within each
 component folder's README.
 
@@ -306,7 +305,7 @@ component. i.e. `backend: update to tokio v0.3`.
 
 The body of a pull request should contain sufficient description of what the
 changes do, as well as a justification. You should include references to any
-relevant [issues](https://github.com/Start9Labs/embassy-os/issues).
+relevant [issues](https://github.com/Start9Labs/start-os/issues).
 
 ### Rebasing Changes
 

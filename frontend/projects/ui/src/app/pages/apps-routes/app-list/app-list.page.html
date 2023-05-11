@@ -12,7 +12,7 @@
   <ng-container *ngIf="pkgs$ | async as pkgs; else loading">
     <ng-container *ngIf="!pkgs.length; else list">
       <div class="welcome-header">
-        <h1>Welcome to embassyOS</h1>
+        <h1>Welcome to StartOS</h1>
       </div>
       <widget-list></widget-list>
     </ng-container>
@@ -38,6 +38,6 @@
 
   <!-- loading -->
   <ng-template #loading>
-    <text-spinner text="Connecting to Embassy"></text-spinner>
+    <text-spinner text="Connecting to server"></text-spinner>
   </ng-template>
 </ion-content>

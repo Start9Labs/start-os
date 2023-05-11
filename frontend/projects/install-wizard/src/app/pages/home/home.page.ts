@@ -56,7 +56,7 @@ export class HomePage {
 
   private async install(overwrite: boolean) {
     const loader = await this.loadingCtrl.create({
-      message: 'Installing embassyOS...',
+      message: 'Installing StartOS...',
     })
     await loader.present()
 
@@ -80,7 +80,7 @@ export class HomePage {
       header: 'Warning',
       message: `This action will COMPLETELY erase the disk ${
         vendor || 'Unknown Vendor'
-      } - ${model || 'Unknown Model'} and install embassyOS in its place`,
+      } - ${model || 'Unknown Model'} and install StartOS in its place`,
       buttons: [
         {
           text: 'Cancel',
@@ -102,7 +102,7 @@ export class HomePage {
     const alert = await this.alertCtrl.create({
       header: 'Install Success',
       message:
-        'Remove the USB stick and reboot your device to begin using your new Embassy',
+        'Remove the USB stick and reboot your device to begin using your new Start9 server',
       buttons: [
         {
           text: 'Reboot',
@@ -133,7 +133,7 @@ export class HomePage {
   private async presentAlertComplete() {
     const alert = await this.alertCtrl.create({
       header: 'Rebooting',
-      message: 'Please wait for embassyOS to restart, then refresh this page',
+      message: 'Please wait for StartOS to restart, then refresh this page',
       buttons: ['OK'],
     })
     await alert.present()

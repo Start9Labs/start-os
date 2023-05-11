@@ -213,7 +213,7 @@ pub async fn import<P: AsRef<Path>>(
         .is_none()
     {
         return Err(Error::new(
-            eyre!("Embassy disk not found."),
+            eyre!("StartOS disk not found."),
             crate::ErrorKind::DiskNotAvailable,
         ));
     }
@@ -223,7 +223,7 @@ pub async fn import<P: AsRef<Path>>(
         .any(|id| id == guid)
     {
         return Err(Error::new(
-            eyre!("An Embassy disk was found, but it is not the correct disk for this device."),
+            eyre!("A StartOS disk was found, but it is not the correct disk for this device."),
             crate::ErrorKind::IncorrectDisk,
         ));
     }

@@ -26,7 +26,7 @@ const routes: Routes = [
       ),
   },
   {
-    path: 'embassy',
+    path: 'storage',
     loadChildren: () =>
       import('./pages/embassy/embassy.module').then(m => m.EmbassyPageModule),
   },
