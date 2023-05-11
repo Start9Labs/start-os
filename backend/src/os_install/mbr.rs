@@ -27,18 +27,14 @@ pub async fn partition(disk: &DiskInfo, overwrite: bool) -> Result<OsPartitionIn
                     .map(|(idx, x)| (idx + 1, x))
                 {
                     if let Some(entry) = mbr.get_mut(idx) {
-                        if entry.starting_lba >= 33556480 {
-                            if idx < 3 {
-                                guid_part =
-                                    Some(std::mem::replace(entry, MBRPartitionEntry::empty()))
-                            }
-                            break;
-                        }
                         if part_info.guid.is_some() {
-                            return Err(Error::new(
-                                eyre!("Not enough space before embassy data"),
-                                crate::ErrorKind::InvalidRequest,
-                            ));
+                            if entry.starting_lba < 33556480 {
+                                return Err(Error::new(
+                                    eyre!("Not enough space before embassy data"),
+                                    crate::ErrorKind::InvalidRequest,
+                                ));
+                            }
+                            guid_part = Some(std::mem::replace(entry, MBRPartitionEntry::empty()));
                         }
                         *entry = MBRPartitionEntry::empty();
                     }

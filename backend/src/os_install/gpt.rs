@@ -13,6 +13,7 @@ pub async fn partition(disk: &DiskInfo, overwrite: bool) -> Result<OsPartitionIn
     let efi = {
         let disk = disk.clone();
         tokio::task::spawn_blocking(move || {
+            let use_efi = Path::new("/sys/firmware/efi").exists();
             let mut device = Box::new(
                 std::fs::File::options()
                     .read(true)
@@ -46,17 +47,15 @@ pub async fn partition(disk: &DiskInfo, overwrite: bool) -> Result<OsPartitionIn
                     .map(|(idx, x)| (idx + 1, x))
                 {
                     if let Some(entry) = gpt.partitions().get(&(idx as u32)) {
-                        if entry.first_lba >= 33556480 {
-                            if idx < 3 {
-                                guid_part = Some(entry.clone())
-                            }
-                            break;
-                        }
                         if part_info.guid.is_some() {
-                            return Err(Error::new(
-                                eyre!("Not enough space before embassy data"),
-                                crate::ErrorKind::InvalidRequest,
-                            ));
+                            if entry.first_lba < if use_efi { 33759266 } else { 33570850 } {
+                                return Err(Error::new(
+                                    eyre!("Not enough space before embassy data"),
+                                    crate::ErrorKind::InvalidRequest,
+                                ));
+                            }
+                            guid_part = Some(entry.clone());
+                            break;
                         }
                     }
                 }
@@ -65,7 +64,7 @@ pub async fn partition(disk: &DiskInfo, overwrite: bool) -> Result<OsPartitionIn
 
             gpt.update_partitions(Default::default())?;
 
-            let efi = if Path::new("/sys/firmware/efi").exists() {
+            let efi = if use_efi {
                 gpt.add_partition("efi", 100 * 1024 * 1024, gpt::partition_types::EFI, 0, None)?;
                 true
             } else {
