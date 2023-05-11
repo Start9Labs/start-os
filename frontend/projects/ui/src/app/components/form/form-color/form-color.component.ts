@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { ValueSpecColor } from 'start-sdk/lib/config/configTypes'
+import { ValueSpecColor } from '@start9labs/start-sdk/lib/config/configTypes'
 import { Control } from '../control'
 import { MaskitoOptions } from '@maskito/core'
 

@@ -1,12 +1,14 @@
 import { Component } from '@angular/core'
-import { AlertController, LoadingController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ErrorToastService } from '@start9labs/shared'
+import { ErrorService } from '@start9labs/shared'
 import { PatchDB } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { UntypedFormGroup } from '@angular/forms'
 import { FormService } from 'src/app/services/form.service'
-import { InputSpec } from 'start-sdk/lib/config/configTypes'
+import { EMAIL_SPEC } from './email.const'
+import { LoadingService } from '../../../modals/loading/loading.service'
+import { TuiDialogService } from '@taiga-ui/core'
+import { RR } from '../../../services/api/api.types'
+import { map } from 'rxjs/operators'
 
 @Component({
   selector: 'email',
@@ -14,164 +16,41 @@ import { InputSpec } from 'start-sdk/lib/config/configTypes'
   styleUrls: ['./email.page.scss'],
 })
 export class EmailPage {
-  readonly email$ = this.patch.watch$('server-info', 'email')
-
-  configForm?: UntypedFormGroup
-
-  readonly configSpec: InputSpec = {
-    enabled: {
-      type: 'toggle',
-      name: 'Enable Email Notifications',
-      description:
-        'Whether or not to receive email notifications from your Embassy',
-      warning: null,
-      default: false,
-    },
-    address: {
-      type: 'text',
-      minLength: null,
-      maxLength: null,
-      patterns: [],
-      inputmode: 'email',
-      name: 'Receive Address',
-      description: 'The address you want to receive email notifications',
-      warning: null,
-      placeholder: 'e.g. you@protonmail.com',
-      required: true,
-      masked: false,
-      default: null,
-    },
-    smtp: {
-      type: 'object',
-      name: 'SMTP Settings',
-      description: 'Settings and credentials for your chosen SMTP server',
-      warning: null,
-      spec: smtpSpec,
-    },
-  }
+  readonly spec = EMAIL_SPEC
+  readonly form$ = this.patch
+    .watch$('server-info', 'email')
+    .pipe(map(value => this.formService.createForm(this.spec, value)))
 
   constructor(
-    private readonly loadingCtrl: LoadingController,
-    private readonly alertCtrl: AlertController,
+    private readonly dialogs: TuiDialogService,
+    private readonly loader: LoadingService,
+    private readonly errorService: ErrorService,
     private readonly patch: PatchDB<DataModel>,
     private readonly api: ApiService,
-    private readonly errToast: ErrorToastService,
     private readonly formService: FormService,
   ) {}
 
-  ngOnInit() {
-    this.configForm = this.formService.createForm(this.configSpec!)
-  }
-
-  async saveConfig(): Promise<boolean> {
-    const loader = await this.loadingCtrl.create({
-      message: `Saving...`,
-    })
-    await loader.present()
+  async save(value: RR.ConfigureEmailReq): Promise<void> {
+    const loader = this.loader.open('Saving...').subscribe()
 
     try {
-      await this.api.configureEmail(this.configForm!.value)
-      return true
+      await this.api.configureEmail(value)
     } catch (e: any) {
-      this.errToast.present(e)
-      return false
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
-  private async sendTestEmail(address: string) {
-    const alert = await this.alertCtrl.create({
-      header: 'Success',
-      message: `A test email has been sent to ${address}.<br /><br /><b>Check your spam folder and mark as not spam</b>`,
-      buttons: [
+  sendTestEmail({ address }: RR.ConfigureEmailReq) {
+    this.dialogs
+      .open(
+        `A test email has been sent to ${address}.<br /><br /><b>Check your spam folder and mark as not spam</b>`,
         {
-          text: 'OK',
-          cssClass: 'enter-click',
+          label: 'Success',
+          size: 's',
         },
-      ],
-      cssClass: 'alert-success-message',
-    })
-    await alert.present()
+      )
+      .subscribe()
   }
-}
-
-const smtpSpec: InputSpec = {
-  host: {
-    type: 'text',
-    minLength: null,
-    maxLength: null,
-    patterns: [],
-    inputmode: 'url',
-    name: 'Host',
-    description: 'Hostname of the SMTP server',
-    placeholder: 'e.g. smtp.mailgun.org',
-    required: true,
-    masked: false,
-    warning: null,
-    default: null,
-  },
-  port: {
-    type: 'number',
-    name: 'Port',
-    description: 'Port of the SMTP server',
-    warning: null,
-    placeholder: 'e.g. 587',
-    required: true,
-    min: 0,
-    max: null,
-    step: null,
-    units: null,
-    integer: true,
-    default: null,
-  },
-  from: {
-    type: 'text',
-    minLength: null,
-    maxLength: null,
-    patterns: [],
-    inputmode: 'text',
-    name: 'From Address',
-    description: 'The address that will send the emails',
-    placeholder: 'First  Last <email@example.com>',
-    required: true,
-    masked: false,
-    warning: null,
-    default: null,
-  },
-  login: {
-    type: 'text',
-    minLength: null,
-    maxLength: null,
-    patterns: [],
-    inputmode: 'text',
-    name: 'Login',
-    description: 'Login username for SMTP server',
-    required: true,
-    masked: false,
-    warning: null,
-    placeholder: null,
-    default: null,
-  },
-  password: {
-    type: 'text',
-    minLength: null,
-    maxLength: null,
-    patterns: [],
-    inputmode: 'text',
-    name: 'Password',
-    description: 'Password username for SMTP server',
-    required: true,
-    masked: true,
-    warning: null,
-    placeholder: null,
-    default: null,
-  },
-  tls: {
-    type: 'toggle',
-    name: 'Enable TLS',
-    description: 'Whether or not to enable TLS certificate security checks',
-    warning: null,
-    default: true,
-  },
 }

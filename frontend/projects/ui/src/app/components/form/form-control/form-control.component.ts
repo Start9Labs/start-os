@@ -17,7 +17,10 @@ import {
 } from '@taiga-ui/core'
 import { TUI_VALIDATION_ERRORS } from '@taiga-ui/kit'
 import { filter, takeUntil } from 'rxjs'
-import { ValueSpec, ValueSpecText } from 'start-sdk/lib/config/configTypes'
+import {
+  ValueSpec,
+  ValueSpecText,
+} from '@start9labs/start-sdk/lib/config/configTypes'
 import { ERRORS } from '../form-group/form-group.component'
 import { FORM_CONTROL_PROVIDERS } from './form-control.providers'
 

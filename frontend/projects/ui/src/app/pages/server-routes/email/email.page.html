@@ -21,18 +21,28 @@
     <ion-item-divider>Settings</ion-item-divider>
   </ion-item-group>
 
-  <div *ngIf="email$ | async as email" class="ion-padding">
-    <form-object
-      [objectSpec]="configSpec"
-      [formGroup]="configForm!"
-      [current]="configForm!.value"
-      [original]="email"
-    ></form-object>
-  </div>
-
-  <div class="ion-text-right ion-padding">
-    <ion-button> Send Test Email </ion-button>
-    &nbsp;
-    <ion-button> Save </ion-button>
-  </div>
+  <form *ngIf="form$ | async as form" [formGroup]="form" class="ion-padding">
+    <form-group [spec]="spec"></form-group>
+    <div class="ion-text-right ion-padding">
+      <button
+        tuiButton
+        appearance="secondary"
+        size="m"
+        type="button"
+        [disabled]="form.invalid"
+        (click)="sendTestEmail(form.value)"
+      >
+        Send Test Email
+      </button>
+      &nbsp;
+      <button
+        tuiButton
+        size="m"
+        [disabled]="form.invalid"
+        (click)="save(form.value)"
+      >
+        Save
+      </button>
+    </div>
+  </form>
 </ion-content>

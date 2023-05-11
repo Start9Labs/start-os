@@ -1,4 +1,4 @@
-import { InputSpec } from 'start-sdk/lib/config/configTypes'
+import { InputSpec } from '@start9labs/start-sdk/lib/config/configTypes'
 
 export const DropboxSpec: InputSpec = {
   name: {
@@ -14,6 +14,9 @@ export const DropboxSpec: InputSpec = {
     masked: false,
     warning: null,
     default: null,
+    disabled: false,
+    immutable: false,
+    generate: null,
   },
   token: {
     type: 'text',
@@ -28,6 +31,9 @@ export const DropboxSpec: InputSpec = {
     required: true,
     masked: true,
     default: null,
+    disabled: false,
+    immutable: false,
+    generate: null,
   },
   path: {
     type: 'text',
@@ -42,6 +48,9 @@ export const DropboxSpec: InputSpec = {
     required: true,
     masked: false,
     default: null,
+    disabled: false,
+    immutable: false,
+    generate: null,
   },
 }
 
@@ -59,6 +68,9 @@ export const GoogleDriveSpec: InputSpec = {
     required: true,
     masked: false,
     default: null,
+    disabled: false,
+    immutable: false,
+    generate: null,
   },
   key: {
     type: 'file',
@@ -82,6 +94,9 @@ export const GoogleDriveSpec: InputSpec = {
     masked: false,
     warning: null,
     default: null,
+    disabled: false,
+    immutable: false,
+    generate: null,
   },
 }
 
@@ -99,6 +114,9 @@ export const CifsSpec: InputSpec = {
     required: true,
     masked: false,
     default: null,
+    disabled: false,
+    immutable: false,
+    generate: null,
   },
   hostname: {
     type: 'text',
@@ -119,6 +137,9 @@ export const CifsSpec: InputSpec = {
     masked: false,
     placeholder: `e.g. 'My Computer' OR 'my-computer.local'`,
     default: null,
+    disabled: false,
+    immutable: false,
+    generate: null,
   },
   path: {
     type: 'text',
@@ -133,6 +154,9 @@ export const CifsSpec: InputSpec = {
     masked: false,
     warning: null,
     default: null,
+    disabled: false,
+    immutable: false,
+    generate: null,
   },
   username: {
     type: 'text',
@@ -147,6 +171,9 @@ export const CifsSpec: InputSpec = {
     warning: null,
     placeholder: 'My Network Folder',
     default: null,
+    disabled: false,
+    immutable: false,
+    generate: null,
   },
   password: {
     type: 'text',
@@ -161,6 +188,9 @@ export const CifsSpec: InputSpec = {
     warning: null,
     placeholder: 'My Network Folder',
     default: null,
+    disabled: false,
+    immutable: false,
+    generate: null,
   },
 }
 
@@ -186,6 +216,7 @@ export const RemoteBackupTargetSpec: InputSpec = {
       },
     },
     default: 'dropbox',
+    immutable: false,
   },
 }
 
@@ -203,6 +234,9 @@ export const DiskBackupTargetSpec: InputSpec = {
     masked: false,
     warning: null,
     default: null,
+    disabled: false,
+    immutable: false,
+    generate: null,
   },
   path: {
     type: 'text',
@@ -217,5 +251,8 @@ export const DiskBackupTargetSpec: InputSpec = {
     masked: false,
     warning: null,
     default: null,
+    disabled: false,
+    immutable: false,
+    generate: null,
   },
 }

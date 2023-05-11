@@ -16,7 +16,7 @@ import {
   ValueSpecToggle,
   ValueSpecList,
   ValueSpecUnion,
-} from 'start-sdk/lib/config/configTypes'
+} from '@start9labs/start-sdk/lib/config/configTypes'
 import { FormService } from 'src/app/services/form.service'
 import { THEME, pauseFor } from '@start9labs/shared'
 import { v4 } from 'uuid'
