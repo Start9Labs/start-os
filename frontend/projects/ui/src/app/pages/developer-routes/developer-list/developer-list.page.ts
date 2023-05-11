@@ -12,7 +12,7 @@ import {
 } from 'src/app/modals/generic-input/generic-input.component'
 import { PatchDB } from 'patch-db-client'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { InputSpec } from 'start-sdk/lib/config/configTypes'
+import { InputSpec } from '@start9labs/start-sdk/lib/config/configTypes'
 import * as yaml from 'js-yaml'
 import { v4 } from 'uuid'
 import { DataModel, DevData } from 'src/app/services/patch-db/data-model'
@@ -237,6 +237,9 @@ const SAMPLE_CONFIG: InputSpec = {
     maxLength: null,
     default: null,
     warning: null,
+    disabled: false,
+    immutable: false,
+    generate: null,
   },
   'sample-number': {
     type: 'number',
@@ -252,6 +255,8 @@ const SAMPLE_CONFIG: InputSpec = {
     description: 'Example description for optional number input.',
     placeholder: 'Enter number value',
     default: null,
+    disabled: false,
+    immutable: false,
   },
   'sample-boolean': {
     type: 'toggle',
@@ -260,6 +265,8 @@ const SAMPLE_CONFIG: InputSpec = {
     description: 'Example description for boolean toggle',
     default: true,
     warning: null,
+    disabled: false,
+    immutable: false,
   },
   'sample-select': {
     type: 'multiselect',
@@ -275,5 +282,7 @@ const SAMPLE_CONFIG: InputSpec = {
     minLength: null,
     maxLength: 2,
     default: ['red'],
+    disabled: false,
+    immutable: false,
   },
 }

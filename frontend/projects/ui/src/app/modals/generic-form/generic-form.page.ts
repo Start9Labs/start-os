@@ -5,7 +5,7 @@ import {
   convertValuesRecursive,
   FormService,
 } from 'src/app/services/form.service'
-import { InputSpec } from 'start-sdk/lib/config/configTypes'
+import { InputSpec } from '@start9labs/start-sdk/lib/config/configTypes'
 import { ErrorToastService } from '@start9labs/shared'
 
 export interface ActionButton {

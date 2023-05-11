@@ -11,7 +11,7 @@ import {
   ValueSpecSelect,
   ValueSpecUnion,
   unionValueKey,
-} from 'start-sdk/lib/config/configTypes'
+} from '@start9labs/start-sdk/lib/config/configTypes'
 import { FormService } from '../../../services/form.service'
 import { tuiPure } from '@taiga-ui/cdk'
 

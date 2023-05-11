@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { ModalController } from '@ionic/angular'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
+import { TuiDialogService } from '@taiga-ui/core'
+import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { map } from 'rxjs'
 import { MarketplaceSettingsPage } from 'src/app/modals/marketplace-settings/marketplace-settings.page'
@@ -73,7 +74,7 @@ export class MarketplaceListPage {
     private readonly patch: PatchDB<DataModel>,
     @Inject(AbstractMarketplaceService)
     private readonly marketplaceService: MarketplaceService,
-    private readonly modalCtrl: ModalController,
+    private readonly dialogs: TuiDialogService,
     private readonly config: ConfigService,
     private readonly route: ActivatedRoute,
   ) {}
@@ -81,11 +82,12 @@ export class MarketplaceListPage {
   category = 'featured'
   query = ''
 
-  async presentModalMarketplaceSettings() {
-    const modal = await this.modalCtrl.create({
-      component: MarketplaceSettingsPage,
-    })
-    await modal.present()
+  presentModalMarketplaceSettings() {
+    this.dialogs
+      .open(new PolymorpheusComponent(MarketplaceSettingsPage), {
+        label: 'Change Registry',
+      })
+      .subscribe()
   }
 
   onCategoryChange(category: string): void {

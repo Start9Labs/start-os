@@ -11,7 +11,7 @@ import { TUI_PROMPT, TuiPromptData } from '@taiga-ui/kit'
 import { POLYMORPHEUS_CONTEXT } from '@tinkoff/ng-polymorpheus'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { getErrorMessage, isEmptyObject } from '@start9labs/shared'
-import { InputSpec } from 'start-sdk/lib/config/configTypes'
+import { InputSpec } from '@start9labs/start-sdk/lib/config/configTypes'
 import {
   DataModel,
   PackageDataEntry,
@@ -127,6 +127,7 @@ export class AppConfigPage {
 
   private async uploadFiles(config: Record<string, any>, loader: Subscription) {
     loader.unsubscribe()
+    loader.closed = false
 
     // TODO: Could be nested files
     const keys = Object.keys(config).filter(key => config[key] instanceof File)
@@ -147,6 +148,7 @@ export class AppConfigPage {
     loader: Subscription,
   ) {
     loader.unsubscribe()
+    loader.closed = false
     loader.add(this.loader.open('Checking dependent services...').subscribe())
 
     const breakages = await this.embassyApi.drySetPackageConfig({
@@ -155,6 +157,7 @@ export class AppConfigPage {
     })
 
     loader.unsubscribe()
+    loader.closed = false
 
     if (isEmptyObject(breakages) || (await this.approveBreakages(breakages))) {
       await this.configure(config, loader)
@@ -163,6 +166,7 @@ export class AppConfigPage {
 
   private async configure(config: Record<string, any>, loader: Subscription) {
     loader.unsubscribe()
+    loader.closed = false
     loader.add(this.loader.open('Saving...').subscribe())
 
     await this.embassyApi.setPackageConfig({ id: this.pkgId, config })
