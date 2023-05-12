@@ -69,7 +69,7 @@ export const mockPatchData: DataModel = {
       enabled: true,
       address: 'support@start9.com',
       smtp: {
-        host: '',
+        server: '',
         port: 587,
         from: '',
         login: '',

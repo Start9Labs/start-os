@@ -23,3 +23,5 @@ export const emailSpec = Config.of({
     customSmtp,
   ),
 })
+
+export type EmailSpec = typeof emailSpec.validator._TYPE
