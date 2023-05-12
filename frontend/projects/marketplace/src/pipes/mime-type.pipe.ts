@@ -10,7 +10,6 @@ export class MimeTypePipe implements PipeTransform {
       case 'png':
         return `data:image/png;base64,${pkg.icon}`
       case 'jpeg':
-        return `data:image/jpeg;base64,${pkg.icon}`
       case 'jpg':
         return `data:image/jpeg;base64,${pkg.icon}`
         break
