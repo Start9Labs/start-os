@@ -79,7 +79,7 @@ export const GoogleDriveSpec: InputSpec = {
       'Your Google Drive service account private key file (.json file)',
     warning: null,
     required: true,
-    extensions: ['json'],
+    extensions: ['.json'],
   },
   path: {
     type: 'text',
