@@ -215,6 +215,11 @@ ion-button {
   --color: var(--ion-color-dark) !important;
 }
 
+.cap-width {
+  padding: 32px;
+  max-width: 800px;
+}
+
 .text-ellipses {
   overflow: hidden;
   text-overflow: ellipsis;

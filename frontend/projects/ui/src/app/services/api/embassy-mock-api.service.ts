@@ -423,6 +423,11 @@ export class MockApiService extends ApiService {
 
   // email
 
+  async testEmail(params: RR.TestEmailReq): Promise<RR.TestEmailRes> {
+    await pauseFor(2000)
+    return null
+  }
+
   async configureEmail(
     params: RR.ConfigureEmailReq,
   ): Promise<RR.ConfigureEmailRes> {
@@ -628,7 +633,8 @@ export class MockApiService extends ApiService {
     params: RR.GetPackagePropertiesReq,
   ): Promise<RR.GetPackagePropertiesRes<2>['data']> {
     await pauseFor(2000)
-    return parsePropertiesPermissive(Mock.PackageProperties)
+    return '' as any
+    // return parsePropertiesPermissive(Mock.PackageProperties)
   }
 
   async getPackageLogs(
@@ -709,7 +715,7 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
     return {
       config: Mock.MockConfig,
-      spec: Mock.InputSpec,
+      spec: await Mock.getInputSpec(),
     }
   }
 
@@ -944,7 +950,7 @@ export class MockApiService extends ApiService {
     return {
       'old-config': Mock.MockConfig,
       'new-config': Mock.MockDependencyConfig,
-      spec: Mock.InputSpec,
+      spec: await Mock.getInputSpec(),
     }
   }
 

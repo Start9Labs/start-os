@@ -37,7 +37,6 @@ export const googleDriveSpec = Config.of({
     required: { default: null },
   }),
   key: Value.file({
-    type: 'file',
     name: 'Private Key File',
     description:
       'Your Google Drive service account private key file (.json file)',
@@ -60,12 +59,7 @@ export const cifsSpec = Config.of({
     warning: null,
     placeholder: `e.g. 'My Computer' OR 'my-computer.local'`,
     required: { default: null },
-    patterns: [
-      {
-        regex: '^[a-zA-Z0-9._-]+( [a-zA-Z0-9]+)*$',
-        description: `Must be a valid hostname. e.g. 'My Computer' OR 'my-computer.local'`,
-      },
-    ],
+    patterns: [],
   }),
   path: Value.text({
     name: 'Path',
@@ -88,26 +82,28 @@ export const cifsSpec = Config.of({
   }),
 })
 
-export const remoteBackupTargetSpec = Value.union(
-  {
-    name: 'Target Type',
-    required: { default: 'dropbox' },
-  },
-  Variants.of({
-    dropbox: {
-      name: 'Dropbox',
-      spec: dropboxSpec,
+export const remoteBackupTargetSpec = Config.of({
+  type: Value.union(
+    {
+      name: 'Target Type',
+      required: { default: 'dropbox' },
     },
-    'google-drive': {
-      name: 'Google Drive',
-      spec: googleDriveSpec,
-    },
-    cifs: {
-      name: 'Network Folder',
-      spec: cifsSpec,
-    },
-  }),
-)
+    Variants.of({
+      dropbox: {
+        name: 'Dropbox',
+        spec: dropboxSpec,
+      },
+      'google-drive': {
+        name: 'Google Drive',
+        spec: googleDriveSpec,
+      },
+      cifs: {
+        name: 'Network Folder',
+        spec: cifsSpec,
+      },
+    }),
+  ),
+})
 
 export const diskBackupTargetSpec = Config.of({
   name: Value.text({

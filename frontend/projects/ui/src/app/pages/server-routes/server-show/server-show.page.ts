@@ -397,8 +397,8 @@ export class ServerShowPage {
         disabled$: of(false),
       },
       {
-        title: 'Email Notifications',
-        description: 'Configure an SMTP server',
+        title: 'SMTP',
+        description: 'Configure an external SMTP server',
         icon: 'mail-outline',
         action: () =>
           this.navCtrl.navigateForward(['email'], { relativeTo: this.route }),

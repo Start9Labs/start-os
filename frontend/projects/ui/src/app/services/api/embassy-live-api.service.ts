@@ -31,7 +31,7 @@ export class LiveApiService extends ApiService {
     private readonly patch: PatchDB<DataModel>,
   ) {
     super()
-    ;(window as any).rpcClient = this
+    ; (window as any).rpcClient = this
   }
 
   // for getting static files: ex icons, instructions, licenses
@@ -278,6 +278,10 @@ export class LiveApiService extends ApiService {
   }
 
   // email
+
+  async testEmail(params: RR.TestEmailReq): Promise<RR.TestEmailRes> {
+    return this.rpcRequest({ method: 'email.test', params })
+  }
 
   async configureEmail(
     params: RR.ConfigureEmailReq,

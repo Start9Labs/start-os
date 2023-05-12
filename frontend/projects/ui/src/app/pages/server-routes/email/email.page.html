@@ -7,42 +7,63 @@
   </ion-toolbar>
 </ion-header>
 
-<ion-content class="ion-padding-top">
-  <ion-item-group>
-    <!-- always -->
-    <ion-item>
-      <ion-label>
-        <h2>
-          Configure an external SMTP server so that your Embassy can notify you
-          of important events.
-        </h2>
-      </ion-label>
-    </ion-item>
-    <ion-item-divider>Settings</ion-item-divider>
-  </ion-item-group>
+<ion-content class="with-widgets">
+  <div class="cap-width">
+    <ion-item-group>
+      <ion-item>
+        <ion-label>
+          <h2>
+            Adding SMTP credentials to StartOS enables StartOS and some services
+            to send you emails.
+            <a
+              href="https://docs.start9.com/latest/user-manual/smtp"
+              target="_blank"
+              rel="noreferrer"
+            >
+              View instructions
+            </a>
+          </h2>
+        </ion-label>
+      </ion-item>
+    </ion-item-group>
+    <!-- form -->
+    <form *ngIf="form$ | async as form" [formGroup]="form">
+      <ion-item-divider>SMTP Credentials</ion-item-divider>
+      <form-group
+        *ngIf="spec | async as resolved"
+        [spec]="resolved"
+      ></form-group>
+      <div class="ion-text-right ion-padding-top">
+        <button
+          tuiButton
+          size="m"
+          [disabled]="form.invalid"
+          (click)="save(form.value)"
+        >
+          Save
+        </button>
+      </div>
 
-  <form *ngIf="form$ | async as form" [formGroup]="form" class="ion-padding">
-    <form-group *ngIf="spec | async as resolved" [spec]="resolved"></form-group>
-    <div class="ion-text-right ion-padding">
-      <button
-        tuiButton
-        appearance="secondary"
-        size="m"
-        type="button"
-        [disabled]="form.invalid"
-        (click)="sendTestEmail(form.value)"
+      <ion-item-divider>Test Email</ion-item-divider>
+      <tui-input
+        [(ngModel)]="testAddress"
+        [ngModelOptions]="{standalone: true}"
       >
-        Send Test Email
-      </button>
-      &nbsp;
-      <button
-        tuiButton
-        size="m"
-        [disabled]="form.invalid"
-        (click)="save(form.value)"
-      >
-        Save
-      </button>
-    </div>
-  </form>
+        Firstname Lastname &lt;email@example.com&gt;
+        <input tuiTextfield inputmode="email" />
+      </tui-input>
+      <div class="ion-text-right ion-padding-top">
+        <button
+          tuiButton
+          appearance="secondary"
+          size="m"
+          type="button"
+          [disabled]="!testAddress"
+          (click)="sendTestEmail(form)"
+        >
+          Send Test Email
+        </button>
+      </div>
+    </form>
+  </div>
 </ion-content>

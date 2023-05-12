@@ -26,7 +26,6 @@ export const mockPatchData: DataModel = {
         },
       },
     },
-    dev: {},
     gaming: {
       snake: {
         'high-score': 0,
@@ -65,17 +64,13 @@ export const mockPatchData: DataModel = {
     pubkey: 'npub1sg6plzptd64u62a878hep2kev88swjh3tw00gjsfl8f237lmu63q0uf63m',
     'ca-fingerprint': 'SHA-256: 63 2B 11 99 44 40 17 DF 37 FC C3 DF 0F 3D 15',
     'system-start-time': new Date(new Date().valueOf() - 360042).toUTCString(),
-    email: {
-      enabled: true,
-      address: 'support@start9.com',
-      smtp: {
-        server: '',
-        port: 587,
-        from: '',
-        login: '',
-        password: '',
-        tls: true,
-      },
+    smtp: {
+      server: '',
+      port: 587,
+      from: '',
+      login: '',
+      password: '',
+      tls: true,
     },
   },
   'package-data': {

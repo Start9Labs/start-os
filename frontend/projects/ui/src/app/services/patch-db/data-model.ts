@@ -1,9 +1,8 @@
 import { InputSpec } from '@start9labs/start-sdk/lib/config/configTypes'
 import { Url } from '@start9labs/shared'
 import { Manifest } from '@start9labs/marketplace'
-import { BasicInfo } from 'src/app/pages/developer-routes/developer-menu/form-info'
 import { BackupJob } from '../api/api.types'
-import { EmailSpec } from 'src/app/pages/server-routes/email/email.const'
+import { customSmtp } from '@start9labs/start-sdk/lib/config/configConstants'
 
 export interface DataModel {
   'server-info': ServerInfo
@@ -15,7 +14,6 @@ export interface UIData {
   name: string | null
   'ack-welcome': string // emver
   marketplace: UIMarketplaceData
-  dev: DevData
   gaming: {
     snake: {
       'high-score': number
@@ -52,17 +50,6 @@ export interface UIStore {
   name?: string
 }
 
-export interface DevData {
-  [id: string]: DevProjectData
-}
-
-export interface DevProjectData {
-  name: string
-  instructions: string
-  config: string
-  'basic-info'?: BasicInfo
-}
-
 export interface ServerInfo {
   id: string
   version: string
@@ -80,7 +67,7 @@ export interface ServerInfo {
   pubkey: string
   'ca-fingerprint': string
   'system-start-time': string
-  email: EmailSpec
+  smtp: typeof customSmtp.validator._TYPE
 }
 
 export interface IpInfo {

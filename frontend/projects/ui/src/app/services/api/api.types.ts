@@ -7,7 +7,7 @@ import {
   DependencyError,
 } from 'src/app/services/patch-db/data-model'
 import { StartOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
-import { EmailSpec } from 'src/app/pages/server-routes/email/email.const'
+import { customSmtp } from '@start9labs/start-sdk/lib/config/configConstants'
 
 export module RR {
   // DB
@@ -128,8 +128,11 @@ export module RR {
 
   // email
 
-  export type ConfigureEmailReq = EmailSpec // email.configure
+  export type ConfigureEmailReq = typeof customSmtp.validator._TYPE // email.configure
   export type ConfigureEmailRes = null
+
+  export type TestEmailReq = ConfigureEmailReq & { to: string } // email.test
+  export type TestEmailRes = null
 
   // ssh
 
