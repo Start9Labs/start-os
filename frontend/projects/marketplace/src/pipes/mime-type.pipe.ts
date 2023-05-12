@@ -6,16 +6,14 @@ import { MarketplacePkg } from '../types'
 })
 export class MimeTypePipe implements PipeTransform {
   transform(pkg: MarketplacePkg): string {
-    switch (pkg.manifest.assets.icon.split('.')[1]) {
+    switch (pkg.manifest.assets.icon.split('.').pop()) {
       case 'png':
         return `data:image/png;base64,${pkg.icon}`
       case 'jpeg':
       case 'jpg':
         return `data:image/jpeg;base64,${pkg.icon}`
-        break
       case 'gif':
         return `data:image/gif;base64,${pkg.icon}`
-        break
       case 'svg':
         return `data:image/svg+xml;base64,${pkg.icon}`
       default:
