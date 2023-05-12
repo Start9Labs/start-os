@@ -7,11 +7,11 @@ import {
 } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import {
-  CifsSpec,
-  DiskBackupTargetSpec,
-  DropboxSpec,
-  GoogleDriveSpec,
-  RemoteBackupTargetSpec,
+  cifsSpec,
+  diskBackupTargetSpec,
+  dropboxSpec,
+  googleDriveSpec,
+  remoteBackupTargetSpec,
 } from '../../types/target-types'
 import { BehaviorSubject, filter } from 'rxjs'
 import { TuiDialogService } from '@taiga-ui/core'
@@ -20,6 +20,7 @@ import { FormDialogService } from '../../../../services/form-dialog.service'
 import { FormPage } from '../../../../modals/form/form.page'
 import { LoadingService } from '../../../../modals/loading/loading.service'
 import { TUI_PROMPT } from '@taiga-ui/kit'
+import { Config } from '@start9labs/start-sdk/lib/config/builder/config'
 
 // TODO: start-sdk: import key
 type BackupConfig =
@@ -114,7 +115,7 @@ export class BackupTargetsPage {
   }
 
   presentModalUpdate(target: BackupTarget) {
-    let spec: typeof RemoteBackupTargetSpec = {}
+    let spec: Config<Record<string, any>, any, any>
 
     switch (target.type) {
       case 'cifs':
@@ -129,7 +130,7 @@ export class BackupTargetsPage {
     }
 
     this.formDialog.open(FormPage, {
-      label: 'Update Remote Target',
+      label: 'Update Target',
       data: {
         spec,
         value: target,

@@ -6,12 +6,11 @@ import {
   OnChanges,
 } from '@angular/core'
 import { ControlContainer, FormGroupName } from '@angular/forms'
-// TODO: start-sdk: Figure our why commented constants do not work
 import {
-  // unionSelectKey,
+  unionSelectKey,
   ValueSpecSelect,
   ValueSpecUnion,
-  // unionValueKey,
+  unionValueKey,
 } from '@start9labs/start-sdk/lib/config/configTypes'
 import { FormService } from '../../../services/form.service'
 import { tuiPure } from '@taiga-ui/cdk'
@@ -34,8 +33,8 @@ export class FormUnionComponent implements OnChanges {
 
   selectSpec!: ValueSpecSelect
 
-  // readonly select = unionSelectKey
-  // readonly value = unionValueKey
+  readonly select = unionSelectKey
+  readonly value = unionValueKey
 
   private readonly form = inject(FormGroupName)
   private readonly formService = inject(FormService)

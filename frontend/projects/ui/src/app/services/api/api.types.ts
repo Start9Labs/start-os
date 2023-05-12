@@ -5,9 +5,9 @@ import { InputSpec } from '@start9labs/start-sdk/lib/config/configTypes'
 import {
   DataModel,
   DependencyError,
-  SMTP,
 } from 'src/app/services/patch-db/data-model'
 import { StartOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
+import { EmailSpec } from 'src/app/pages/server-routes/email/email.const'
 
 export module RR {
   // DB
@@ -128,11 +128,7 @@ export module RR {
 
   // email
 
-  export type ConfigureEmailReq = {
-    enabled: boolean
-    address: string
-    smtp: SMTP
-  } // email.configure
+  export type ConfigureEmailReq = EmailSpec // email.configure
   export type ConfigureEmailRes = null
 
   // ssh

@@ -4,7 +4,7 @@ import { ErrorService } from '@start9labs/shared'
 import { PatchDB } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { FormService } from 'src/app/services/form.service'
-import { EMAIL_SPEC } from './email.const'
+import { emailSpec } from './email.const'
 import { LoadingService } from '../../../modals/loading/loading.service'
 import { TuiDialogService } from '@taiga-ui/core'
 import { RR } from '../../../services/api/api.types'
@@ -16,10 +16,14 @@ import { map } from 'rxjs/operators'
   styleUrls: ['./email.page.scss'],
 })
 export class EmailPage {
-  readonly spec = EMAIL_SPEC
+  readonly spec = emailSpec
   readonly form$ = this.patch
     .watch$('server-info', 'email')
-    .pipe(map(value => this.formService.createForm(this.spec, value)))
+    .pipe(
+      map(async value =>
+        this.formService.createForm(await this.spec.build({} as any), value),
+      ),
+    )
 
   constructor(
     private readonly dialogs: TuiDialogService,
@@ -30,11 +34,11 @@ export class EmailPage {
     private readonly formService: FormService,
   ) {}
 
-  async save(value: RR.ConfigureEmailReq): Promise<void> {
+  async save(value: unknown): Promise<void> {
     const loader = this.loader.open('Saving...').subscribe()
 
     try {
-      await this.api.configureEmail(value)
+      await this.api.configureEmail(this.spec.validator.unsafeCast(value))
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

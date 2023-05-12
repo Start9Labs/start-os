@@ -22,6 +22,10 @@ import {
 import { Log } from '@start9labs/shared'
 // TODO: start-sdk: Figure out why it doesn't work
 import { unionSelectKey } from '@start9labs/start-sdk/lib/config/configTypes'
+import { List } from '@start9labs/start-sdk/lib/config/builder/list'
+import { Value } from '@start9labs/start-sdk/lib/config/builder/value'
+import { Variants } from '@start9labs/start-sdk/lib/config/builder/variants'
+import { Config } from '@start9labs/start-sdk/lib/config/builder/config'
 
 export module Mock {
   export const ServerUpdated: ServerStatusInfo = {
@@ -663,1091 +667,486 @@ export module Mock {
     },
   }
 
-  export const PackageProperties: RR.GetPackagePropertiesRes<2> = {
-    version: 2,
-    data: {
-      lndconnect: {
-        type: 'text',
-        inputmode: 'text',
-        description: 'This is some information about the thing.',
-        copyable: true,
-        qr: true,
-        masked: true,
-        value:
-          'lndconnect://udlyfq2mxa4355pt7cqlrdipnvk2tsl4jtsdw7zaeekenufwcev2wlad.onion:10009?cert=MIICJTCCAcugAwIBAgIRAOyq85fqAiA3U3xOnwhH678wCgYIKoZIzj0EAwIwODEfMB0GAkUEChMWbG5kIGF1dG9nZW5lcmF0ZWQgY2VydDEVMBMGA1UEAxMMNTc0OTkwMzIyYzZlMB4XDTIwMTAyNjA3MzEyN1oXDTIxMTIyMTA3MzEyN1owODEfMB0GA1UEChMWbG5kIGF1dG9nZW5lcmF0ZWQgY2VydDEVMBMGA1UEAxMMNTc0OTkwMzIyYzZlMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEKqfhAMMZdY-eFnU5P4bGrQTSx0lo7m8u4V0yYkzUM6jlql_u31_mU2ovLTj56wnZApkEjoPl6fL2yasZA2wiy6OBtTCBsjAOBgNVHQ8BAf8EBAMCAqQwEwYDVR0lBAwwCgYIKwYBBQUHAwEwDwYDVR0TAQH_BAUwAwEB_zAdBgNVHQ4EFgQUYQ9uIO6spltnVCx4rLFL5BvBF9IwWwYDVR0RBFQwUoIMNTc0OTkwMzIyYzZlgglsb2NhbGhvc3SCBHVuaXiCCnVuaXhwYWNrZXSCB2J1ZmNvbm6HBH8AAAGHEAAAAAAAAAAAAAAAAAAAAAGHBKwSAAswCgYIKoZIzj0EAwIDSAAwRQIgVZH2Z2KlyAVY2Q2aIQl0nsvN-OEN49wreFwiBqlxNj4CIQD5_JbpuBFJuf81I5J0FQPtXY-4RppWOPZBb-y6-rkIUQ&macaroon=AgEDbG5kAusBAwoQuA8OUMeQ8Fr2h-f65OdXdRIBMBoWCgdhZGRyZXNzEgRyZWFkEgV3cml0ZRoTCgRpbmZvEgRyZWFkEgV3cml0ZRoXCghpbnZvaWNlcxIEcmVhZBIFd3JpdGUaFAoIbWFjYXJvb24SCGdlbmVyYXRlGhYKB21lc3NhZ2USBHJlYWQSBXdyaXRlGhcKCG9mZmNoYWluEgRyZWFkEgV3cml0ZRoWCgdvbmNoYWluEgRyZWFkEgV3cml0ZRoUCgVwZWVycxIEcmVhZBIFd3JpdGUaGAoGc2lnbmVyEghnZW5lcmF0ZRIEcmVhZAAABiCYsRUoUWuAHAiCSLbBR7b_qULDSl64R8LIU2aqNIyQfA',
+  export const InputSpec: RR.GetPackageConfigRes['spec'] = Config.of({
+    bitcoin: Value.object(
+      {
+        name: 'Bitcoin Settings',
+        description:
+          'RPC and P2P interface configuration options for Bitcoin Core',
       },
-      Nested: {
-        type: 'object',
-        description: 'This is a nested thing metric',
-        value: {
-          'Last Name': {
-            type: 'text',
-            inputmode: 'text',
-            description: 'The last name of the user',
-            copyable: true,
-            qr: true,
-            masked: false,
-            value: 'Hill',
+      Config.of({
+        'bitcoind-p2p': Value.union(
+          {
+            name: 'P2P Settings',
+            description:
+              '<p>The Bitcoin Core node to connect to over the peer-to-peer (P2P) interface:</p><ul><li><strong>Bitcoin Core</strong>: The Bitcoin Core service installed on this device</li><li><strong>External Node</strong>: A Bitcoin node running on a different device</li></ul>',
+            required: { default: 'internal' },
           },
-          Age: {
-            type: 'text',
-            inputmode: 'text',
-            description: 'The age of the user',
-            copyable: false,
-            qr: false,
-            masked: false,
-            value: '35',
-          },
-          Password: {
-            type: 'text',
-            inputmode: 'text',
-            description: 'A secret password',
-            copyable: true,
-            qr: false,
-            masked: true,
-            value: 'password123',
-          },
-        },
-      },
-      'Another Value': {
-        type: 'text',
-        inputmode: 'text',
-        description: 'Some more information about the service.',
-        copyable: false,
-        qr: true,
-        masked: false,
-        value: 'https://guessagain.com',
-      },
-    },
-  } as any // @TODO why is this necessary?
-
-  export const InputSpec: RR.GetPackageConfigRes['spec'] = {
-    bitcoin: {
-      type: 'object',
-      name: 'Bitcoin Settings',
-      description:
-        'RPC and P2P interface configuration options for Bitcoin Core',
-      warning: null,
-      spec: {
-        'bitcoind-p2p': {
-          type: 'union',
-          name: 'Bitcoin Core P2P',
-          description:
-            '<p>The Bitcoin Core node to connect to over the peer-to-peer (P2P) interface:</p><ul><li><strong>Bitcoin Core</strong>: The Bitcoin Core service installed on this device</li><li><strong>External Node</strong>: A Bitcoin node running on a different device</li></ul>',
-          warning: null,
-          default: null,
-          required: true,
-          immutable: false,
-          variants: {
-            internal: { name: 'Internal', spec: {} },
+          Variants.of({
+            internal: { name: 'Bitcoin Core', spec: Config.of({}) },
             external: {
-              name: 'External',
-              spec: {
-                'p2p-host': {
-                  type: 'text',
-                  inputmode: 'text',
+              name: 'External Node',
+              spec: Config.of({
+                'p2p-host': Value.text({
                   name: 'Public Address',
+                  required: {
+                    default: null,
+                  },
                   description: 'The public address of your Bitcoin Core server',
-                  required: true,
-                  masked: false,
-                  placeholder: null,
-                  minLength: 4,
-                  maxLength: 20,
-                  patterns: [],
-                  warning: null,
-                  default: null,
-                  disabled: false,
-                  immutable: false,
-                  generate: null,
-                },
-                'p2p-port': {
-                  type: 'number',
+                }),
+                'p2p-port': Value.number({
                   name: 'P2P Port',
                   description:
                     'The port that your Bitcoin Core P2P server is bound to',
-                  required: true,
+                  required: {
+                    default: 8333,
+                  },
                   min: 0,
                   max: 65535,
                   integer: true,
-                  step: '1',
-                  default: 8333,
-                  placeholder: null,
-                  warning: null,
-                  units: null,
-                  disabled: false,
-                  immutable: false,
-                },
-              },
+                }),
+              }),
             },
+          }),
+        ),
+      }),
+    ),
+    advanced: Value.object(
+      {
+        name: 'Advanced',
+        description: 'Advanced settings',
+      },
+      Config.of({
+        rpcsettings: Value.object(
+          {
+            name: 'RPC Settings',
+            description: 'rpc username and password',
+            warning:
+              'Adding RPC users gives them special permissions on your node.',
           },
-        },
-      },
-    },
-    background: {
-      name: 'Background',
-      type: 'color',
-      description: 'Background color for the service',
-      warning: null,
-      required: false,
-      default: '#000000',
-      disabled: false,
-      immutable: false,
-    },
-    chronos: {
-      name: 'Chronos',
-      type: 'object',
-      description: 'Various time related settings',
-      warning: null,
-      spec: {
-        time: {
-          name: 'Time',
-          type: 'datetime',
-          inputmode: 'time',
-          description: 'Time of day',
-          warning: null,
-          required: true,
-          min: '12:00',
-          max: '16:00',
-          step: null,
-          default: '12:00',
-          disabled: false,
-          immutable: false,
-        },
-        date: {
-          name: 'Date',
-          type: 'datetime',
-          inputmode: 'date',
-          description: 'Just a date',
-          warning: null,
-          required: true,
-          min: '2023-01-01',
-          max: '2023-12-31',
-          step: null,
-          default: '2023-05-01',
-          disabled: false,
-          immutable: false,
-        },
-        datetime: {
-          name: 'Date and time',
-          type: 'datetime',
-          inputmode: 'datetime-local',
-          description: 'Both date and time',
-          warning: null,
-          required: true,
-          min: '2023-01-01T12:00',
-          max: '2023-12-31T16:00',
-          step: null,
-          default: '2023-05-01T18:30',
-          disabled: false,
-          immutable: false,
-        },
-      },
-    },
-    advanced: {
-      name: 'Advanced',
-      type: 'object',
-      description: 'Advanced settings',
-      warning: null,
-      spec: {
-        rpcsettings: {
-          name: 'RPC Settings',
-          type: 'object',
-          description: 'rpc username and password',
-          warning:
-            'Adding RPC users gives them special permissions on your node.',
-          spec: {
-            rpcuser2: {
+          Config.of({
+            rpcuser2: Value.text({
               name: 'RPC Username',
-              type: 'text',
-              inputmode: 'text',
+              required: {
+                default: 'defaultrpcusername',
+              },
               description: 'rpc username',
-              warning: null,
-              placeholder: null,
-              minLength: null,
-              maxLength: null,
-              required: true,
-              default: 'defaultrpcusername',
               patterns: [
                 {
                   regex: '^[a-zA-Z]+$',
                   description: 'must contain only letters.',
                 },
               ],
-              masked: false,
-              disabled: false,
-              immutable: false,
-              generate: null,
-            },
-            rpcuser: {
+            }),
+            rpcuser: Value.text({
               name: 'RPC Username',
-              type: 'text',
-              inputmode: 'text',
+              required: {
+                default: 'defaultrpcusername',
+              },
               description: 'rpc username',
-              warning: null,
-              placeholder: null,
-              required: true,
-              minLength: null,
-              maxLength: null,
-              default: 'defaultrpcusername',
               patterns: [
                 {
                   regex: '^[a-zA-Z]+$',
                   description: 'must contain only letters.',
                 },
               ],
-              masked: false,
-              disabled: false,
-              immutable: false,
-              generate: null,
-            },
-            rpcpass: {
+            }),
+            rpcpass: Value.text({
               name: 'RPC User Password',
-              type: 'text',
-              inputmode: 'text',
-              description: 'rpc password',
-              placeholder: null,
-              minLength: null,
-              maxLength: null,
-              warning: null,
-              required: true,
-              default: {
-                charset: 'a-z,A-Z,2-9',
-                len: 20,
+              required: {
+                default: {
+                  charset: 'a-z,A-Z,2-9',
+                  len: 20,
+                },
               },
-              masked: true,
-              patterns: [],
-              disabled: false,
-              immutable: false,
-              generate: null,
-            },
-            rpcpass2: {
+              description: 'rpc password',
+            }),
+            rpcpass2: Value.text({
               name: 'RPC User Password',
-              type: 'text',
-              inputmode: 'text',
-              description: 'rpc password',
-              warning: null,
-              placeholder: null,
-              minLength: null,
-              maxLength: null,
-              required: true,
-              default: {
-                charset: 'a-z,A-Z,2-9',
-                len: 20,
+              required: {
+                default: {
+                  charset: 'a-z,A-Z,2-9',
+                  len: 20,
+                },
               },
-              masked: true,
-              patterns: [],
-              disabled: false,
-              immutable: false,
-              generate: null,
-            },
-          },
-        },
-      },
-    },
-    bio: {
-      name: 'Bio',
-      type: 'textarea',
-      description: 'Your personal bio',
-      placeholder: 'Tell the world about yourself',
-      minLength: null,
-      maxLength: null,
-      warning: null,
-      required: false,
-      disabled: false,
-      immutable: false,
-      generate: null,
-    },
-    testnet: {
+              description: 'rpc password',
+            }),
+          }),
+        ),
+      }),
+    ),
+    testnet: Value.toggle({
       name: 'Testnet',
-      type: 'toggle',
+      default: true,
       description:
         '<ul><li>determines whether your node is running on testnet or mainnet</li></ul><script src="fake"></script>',
       warning: 'Chain will have to resync!',
-      default: true,
-      disabled: false,
-      immutable: false,
-    },
-    document: {
-      name: 'Needed File',
-      type: 'file',
-      description: 'A file we need',
-      warning: 'Testing warning',
-      required: true,
-      extensions: ['.png'],
-    },
-    'object-list': {
-      name: 'Object List',
-      type: 'list',
-      description: 'This is a list of objects, like users or something',
-      warning: null,
-      minLength: null,
-      maxLength: 4,
-      disabled: false,
-      default: [
+    }),
+    'object-list': Value.list(
+      List.obj(
         {
-          'first-name': 'Admin',
-          'last-name': 'User',
-          age: 40,
+          name: 'Object List',
+          minLength: 0,
+          maxLength: 4,
+          default: [
+            // { 'first-name': 'Admin', 'last-name': 'User', age: 40 },
+            // { 'first-name': 'Admin2', 'last-name': 'User', age: 40 },
+          ],
+          description: 'This is a list of objects, like users or something',
         },
         {
-          'first-name': 'Admin2',
-          'last-name': 'User',
-          age: 40,
-        },
-      ],
-      // the outer spec here, at the list level, says that what's inside (the inner spec) pertains to its inner elements.
-      // it just so happens that ValueSpecObject's have the field { spec: InputSpec }
-      spec: {
-        type: 'object',
-        uniqueBy: 'last-name',
-        displayAs: `I'm {{last-name}}, {{first-name}} {{last-name}}`,
-        spec: {
-          'first-name': {
-            name: 'First Name',
-            type: 'text',
-            inputmode: 'text',
-            description: 'User first name',
-            required: false,
-            masked: false,
-            minLength: 4,
-            maxLength: 15,
-            placeholder: null,
-            patterns: [],
-            warning: null,
-            default: null,
-            disabled: false,
-            immutable: false,
-            generate: null,
-          },
-          'last-name': {
-            name: 'Last Name',
-            type: 'text',
-            inputmode: 'text',
-            description: 'User first name',
-            minLength: null,
-            maxLength: null,
-            required: false,
-            default: {
-              charset: 'a-g,2-9',
-              len: 12,
-            },
-            patterns: [
-              {
-                regex: '^[a-zA-Z]+$',
-                description: 'must contain only letters.',
-              },
-            ],
-            masked: false,
-            placeholder: null,
-            warning: null,
-            disabled: false,
-            immutable: false,
-            generate: null,
-          },
-          age: {
-            name: 'Age',
-            type: 'number',
-            description: 'The age of the user',
-            required: false,
-            integer: false,
-            warning: 'User must be at least 18.',
-            min: 18,
-            max: null,
-            step: null,
-            units: null,
-            placeholder: null,
-            default: null,
-            disabled: false,
-            immutable: false,
-          },
-        },
-      },
-    },
-    'random-select': {
-      name: 'Random Select',
-      type: 'select',
-      values: {
-        hello: 'Hello',
-        goodbye: 'Goodbye',
-        sup: 'Sup',
-      },
-      default: 'sup',
-      description: 'This is not even real.',
-      warning: 'Be careful changing this!',
-      required: true,
-      disabled: false,
-      immutable: false,
-    },
-    notifications: {
-      name: 'Notification Preferences',
-      type: 'multiselect',
-      description: 'how you want to be notified',
-      warning: null,
-      minLength: 2,
-      maxLength: 3,
-      values: {
-        email: 'EEEEmail',
-        text: 'Texxxt',
-        call: 'Ccccall',
-        push: 'PuuuusH',
-        webhook: 'WebHooookkeee',
-      },
-      default: ['email'],
-      disabled: false,
-      immutable: false,
-    },
-    'favorite-number': {
-      name: 'Favorite Number',
-      type: 'number',
-      integer: false,
-      description: 'Your favorite number of all time',
-      placeholder: null,
-      warning:
-        'Once you set this number, it can never be changed without severe consequences.',
-      required: false,
-      default: 7,
-      min: -99,
-      max: 100,
-      step: 'all',
-      units: 'BTC',
-      disabled: false,
-      immutable: false,
-    },
-    'unlucky-numbers': {
-      name: 'Unlucky Numbers',
-      type: 'list',
-      description: 'Numbers that you like but are not your top favorite.',
-      warning: null,
-      spec: {
-        type: 'number',
-        integer: false,
-        min: -10,
-        max: 10,
-        step: null,
-        units: null,
-        placeholder: null,
-      },
-      minLength: null,
-      maxLength: 10,
-      default: [2, 3],
-      disabled: false,
-    },
-    rpcsettings: {
-      name: 'RPC Settings',
-      type: 'object',
-      description: 'rpc username and password',
-      warning: 'Adding RPC users gives them special permissions on your node.',
-      spec: {
-        laws: {
-          name: 'Laws',
-          type: 'object',
-          description: 'the law of the realm',
-          warning: null,
-          spec: {
-            law1: {
-              name: 'First Law',
-              type: 'text',
-              inputmode: 'text',
-              description: 'the first law',
+          spec: Config.of({
+            'first-name': Value.text({
+              name: 'First Name',
               required: false,
-              masked: false,
-              minLength: null,
-              maxLength: null,
-              placeholder: null,
-              patterns: [],
-              warning: null,
-              default: null,
-              disabled: false,
-              immutable: false,
-              generate: null,
-            },
-            law2: {
-              name: 'Second Law',
-              type: 'text',
-              inputmode: 'text',
-              description: 'the second law',
-              required: false,
-              masked: false,
-              minLength: null,
-              maxLength: null,
-              placeholder: null,
-              patterns: [],
-              warning: null,
-              default: null,
-              disabled: false,
-              immutable: false,
-              generate: null,
-            },
-          },
-        },
-        rulemakers: {
-          name: 'Rule Makers',
-          type: 'list',
-          description: 'the people who make the rules',
-          warning: null,
-          minLength: 1,
-          maxLength: 3,
-          default: [],
-          disabled: false,
-          spec: {
-            type: 'object',
-            uniqueBy: null,
-            displayAs: null,
-            spec: {
-              rulemakername: {
-                name: 'Rulemaker Name',
-                type: 'text',
-                inputmode: 'text',
-                description: 'the name of the rule maker',
-                required: true,
-                minLength: null,
-                maxLength: 30,
+              description: 'User first name',
+            }),
+            'last-name': Value.text({
+              name: 'Last Name',
+              required: {
                 default: {
                   charset: 'a-g,2-9',
                   len: 12,
                 },
-                masked: false,
-                placeholder: null,
-                patterns: [],
-                warning: null,
-                disabled: false,
-                immutable: false,
-                generate: null,
               },
-              rulemakerip: {
-                name: 'Rulemaker IP',
-                type: 'text',
-                inputmode: 'text',
-                description: 'the ip of the rule maker',
-                required: true,
-                default: '192.168.1.0',
-                minLength: 4,
-                maxLength: 20,
-                patterns: [
-                  {
-                    regex:
-                      '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$',
-                    description: 'may only contain numbers and periods',
-                  },
-                ],
-                masked: false,
-                placeholder: null,
-                warning: null,
-                disabled: false,
-                immutable: false,
-                generate: null,
-              },
-            },
-          },
+              description: 'User first name',
+              patterns: [
+                {
+                  regex: '^[a-zA-Z]+$',
+                  description: 'must contain only letters.',
+                },
+              ],
+            }),
+            age: Value.number({
+              name: 'Age',
+              description: 'The age of the user',
+              warning: 'User must be at least 18.',
+              required: false,
+              min: 18,
+              integer: false,
+            }),
+          }),
+          displayAs: "I'm {{last-name}}, {{first-name}} {{last-name}}",
+          uniqueBy: 'last-name',
         },
-        rpcuser: {
+      ),
+    ),
+    'union-list': Value.list(
+      List.obj(
+        {
+          name: 'Union List',
+          minLength: 0,
+          maxLength: 2,
+          default: [],
+          description: 'This is a sample list of unions',
+          warning: 'If you change this, things may work.',
+        },
+        {
+          spec: Config.of({
+            /* TODO: Convert range for this value ([0, 2])*/
+            union: Value.union(
+              {
+                name: 'Preference',
+                description: null,
+                warning: null,
+                required: { default: 'summer' },
+              },
+              Variants.of({
+                summer: {
+                  name: 'summer',
+                  spec: Config.of({
+                    'favorite-tree': Value.text({
+                      name: 'Favorite Tree',
+                      required: {
+                        default: 'Maple',
+                      },
+                      description: 'What is your favorite tree?',
+                    }),
+                    'favorite-flower': Value.select({
+                      name: 'Favorite Flower',
+                      description: 'Select your favorite flower',
+                      required: {
+                        default: 'none',
+                      },
+                      values: {
+                        none: 'none',
+                        red: 'red',
+                        blue: 'blue',
+                        purple: 'purple',
+                      },
+                    }),
+                  }),
+                },
+                winter: {
+                  name: 'winter',
+                  spec: Config.of({
+                    'like-snow': Value.toggle({
+                      name: 'Like Snow?',
+                      default: true,
+                      description: 'Do you like snow or not?',
+                    }),
+                  }),
+                },
+              }),
+            ),
+          }),
+          uniqueBy: 'preference',
+        },
+      ),
+    ),
+    'random-enum': Value.select({
+      name: 'Random Enum',
+      description: 'This is not even real.',
+      warning: 'Be careful changing this!',
+      required: {
+        default: 'null',
+      },
+      values: {
+        null: 'null',
+        option1: 'option1',
+        option2: 'option2',
+        option3: 'option3',
+      },
+    }),
+    'favorite-number':
+      /* TODO: Convert range for this value ((-100,100])*/ Value.number({
+        name: 'Favorite Number',
+        description: 'Your favorite number of all time',
+        warning:
+          'Once you set this number, it can never be changed without severe consequences.',
+        required: {
+          default: 7,
+        },
+        integer: false,
+        units: 'BTC',
+      }),
+    'unlucky-numbers': Value.list(
+      List.number(
+        {
+          name: 'Unlucky Numbers',
+          minLength: 0,
+          maxLength: 10,
+          // default: [2, 3],
+          description: 'Numbers that you like but are not your top favorite.',
+        },
+        {
+          integer: false,
+        },
+      ),
+    ),
+    rpcsettings: Value.object(
+      {
+        name: 'RPC Settings',
+        description: 'rpc username and password',
+        warning:
+          'Adding RPC users gives them special permissions on your node.',
+      },
+      Config.of({
+        laws: Value.object(
+          {
+            name: 'Laws',
+            description: 'the law of the realm',
+          },
+          Config.of({
+            law1: Value.text({
+              name: 'First Law',
+              required: false,
+              description: 'the first law',
+            }),
+            law2: Value.text({
+              name: 'Second Law',
+              required: false,
+              description: 'the second law',
+            }),
+          }),
+        ),
+        rulemakers: Value.list(
+          List.obj(
+            {
+              name: 'Rule Makers',
+              minLength: 0,
+              maxLength: 2,
+              description: 'the people who make the rules',
+            },
+            {
+              spec: Config.of({
+                rulemakername: Value.text({
+                  name: 'Rulemaker Name',
+                  required: {
+                    default: {
+                      charset: 'a-g,2-9',
+                      len: 12,
+                    },
+                  },
+                  description: 'the name of the rule maker',
+                }),
+                rulemakerip: Value.text({
+                  name: 'Rulemaker IP',
+                  required: {
+                    default: '192.168.1.0',
+                  },
+                  description: 'the ip of the rule maker',
+                  patterns: [
+                    {
+                      regex:
+                        '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$',
+                      description: 'may only contain numbers and periods',
+                    },
+                  ],
+                }),
+              }),
+            },
+          ),
+        ),
+        rpcuser: Value.text({
           name: 'RPC Username',
-          type: 'text',
-          inputmode: 'text',
+          required: {
+            default: 'defaultrpcusername',
+          },
           description: 'rpc username',
-          required: true,
-          minLength: null,
-          maxLength: null,
-          default: 'defaultrpcusername',
           patterns: [
             {
               regex: '^[a-zA-Z]+$',
               description: 'must contain only letters.',
             },
           ],
-          masked: false,
-          placeholder: null,
-          warning: null,
-          disabled: false,
-          immutable: false,
-          generate: null,
-        },
-        rpcpass: {
+        }),
+        rpcpass: Value.text({
           name: 'RPC User Password',
-          type: 'text',
-          inputmode: 'text',
-          description: 'rpc password',
-          minLength: null,
-          maxLength: null,
-          required: true,
-          default: {
-            charset: 'a-z,A-Z,2-9',
-            len: 20,
-          },
-          masked: true,
-          placeholder: null,
-          patterns: [],
-          warning: null,
-          disabled: false,
-          immutable: false,
-          generate: null,
-        },
-      },
-    },
-    'bitcoin-node': {
-      type: 'union',
-      default: 'internal',
-      name: 'Bitcoin Node Settings',
-      description: 'Options<ul><li>Item 1</li><li>Item 2</li></ul>',
-      warning: 'Careful changing this',
-      required: true,
-      immutable: false,
-      variants: {
-        dummy: {
-          name: 'Dummy',
-          spec: {
-            name: {
-              type: 'text',
-              inputmode: 'text',
-              name: 'Name',
-              description: null,
-              minLength: null,
-              maxLength: null,
-              required: true,
-              masked: false,
-              patterns: [
-                {
-                  regex: '^[a-zA-Z]+$',
-                  description: 'must contain only letters.',
-                },
-              ],
-              placeholder: null,
-              warning: null,
-              default: null,
-              disabled: false,
-              immutable: false,
-              generate: null,
+          required: {
+            default: {
+              charset: 'a-z,A-Z,2-9',
+              len: 20,
             },
           },
+          description: 'rpc password',
+          masked: true,
+        }),
+      }),
+    ),
+    'bitcoin-node': Value.union(
+      {
+        name: 'Bitcoin Node',
+        description: 'Options<ul><li>Item 1</li><li>Item 2</li></ul>',
+        warning: 'Careful changing this',
+        required: { default: 'internal' },
+      },
+      Variants.of({
+        internal: {
+          name: 'Internal',
+          spec: Config.of({}),
         },
-        internal: { name: 'Internal', spec: {} },
         external: {
           name: 'External',
-          spec: {
-            'emergency-contact': {
-              name: 'Emergency Contact',
-              type: 'object',
-              description: 'The person to contact in case of emergency.',
-              warning: null,
-              spec: {
-                name: {
-                  type: 'text',
-                  inputmode: 'text',
+          spec: Config.of({
+            'emergency-contact': Value.object(
+              {
+                name: 'Emergency Contact',
+                description: 'The person to contact in case of emergency.',
+              },
+              Config.of({
+                name: Value.text({
                   name: 'Name',
-                  description: null,
-                  required: true,
-                  minLength: null,
-                  maxLength: null,
-                  masked: false,
+                  required: {
+                    default: null,
+                  },
                   patterns: [
                     {
                       regex: '^[a-zA-Z]+$',
-                      description: 'must contain only letters.',
+                      description: 'Must contain only letters.',
                     },
                   ],
-                  placeholder: null,
-                  warning: null,
-                  default: null,
-                  disabled: false,
-                  immutable: false,
-                  generate: null,
-                },
-                email: {
-                  type: 'text',
-                  inputmode: 'text',
+                }),
+                email: Value.text({
                   name: 'Email',
-                  description: null,
-                  required: true,
-                  minLength: null,
-                  maxLength: null,
-                  masked: false,
-                  placeholder: null,
-                  patterns: [],
-                  warning: null,
-                  default: null,
-                  disabled: false,
-                  immutable: false,
-                  generate: null,
-                },
-              },
-            },
-            'public-domain': {
+                  inputmode: 'email',
+                  required: {
+                    default: null,
+                  },
+                }),
+              }),
+            ),
+            'public-domain': Value.text({
               name: 'Public Domain',
-              type: 'text',
-              inputmode: 'text',
+              required: {
+                default: 'bitcoinnode.com',
+              },
               description: 'the public address of the node',
-              required: true,
-              default: 'bitcoinnode.com',
-              minLength: null,
-              maxLength: null,
-              patterns: [],
-              masked: false,
-              placeholder: null,
-              warning: null,
-              disabled: false,
-              immutable: false,
-              generate: null,
-            },
-            'private-domain': {
-              name: 'Private Domain',
-              type: 'text',
-              inputmode: 'text',
-              description: 'the private address of the node',
-              required: true,
-              minLength: null,
-              maxLength: null,
-              masked: true,
-              placeholder: null,
-              patterns: [],
-              warning: null,
-              default: null,
-              disabled: false,
-              immutable: false,
-              generate: null,
-            },
-          },
-        },
-      },
-    },
-    port: {
-      name: 'Port',
-      type: 'number',
-      integer: true,
-      description:
-        'the default port for your Bitcoin node. default: 8333, testnet: 18333, regtest: 18444',
-      warning: null,
-      required: true,
-      min: 1,
-      max: 9999,
-      step: '1',
-      units: null,
-      placeholder: null,
-      default: null,
-      disabled: false,
-      immutable: false,
-    },
-    'favorite-slogan': {
-      name: 'Favorite Slogan',
-      type: 'text',
-      inputmode: 'text',
-      description:
-        'You most favorite slogan in the whole world, used for paying you.',
-      required: false,
-      masked: true,
-      minLength: null,
-      maxLength: null,
-      placeholder: null,
-      patterns: [],
-      warning: null,
-      default: null,
-      disabled: false,
-      immutable: false,
-      generate: null,
-    },
-    rpcallowip: {
-      name: 'RPC Allowed IPs',
-      type: 'list',
-      description:
-        'external ip addresses that are authorized to access your Bitcoin node',
-      warning:
-        'Any IP you allow here will have RPC access to your Bitcoin node.',
-      minLength: 1,
-      maxLength: 10,
-      default: ['192.168.1.1'],
-      disabled: false,
-      spec: {
-        type: 'text',
-        inputmode: 'text',
-        masked: false,
-        placeholder: null,
-        minLength: 4,
-        maxLength: 20,
-        patterns: [
-          {
-            regex:
-              '((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|((^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]).){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]).){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$)|(^[a-z2-7]{16}\\.onion$)|(^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$))',
-            description: 'must be a valid ipv4, ipv6, or domain name',
-          },
-        ],
-        generate: null,
-      },
-    },
-    rpcauth: {
-      name: 'RPC Auth',
-      type: 'list',
-      description: 'api keys that are authorized to access your Bitcoin node.',
-      warning: null,
-      minLength: null,
-      maxLength: null,
-      default: [],
-      disabled: false,
-      spec: {
-        type: 'text',
-        inputmode: 'text',
-        masked: false,
-        minLength: null,
-        maxLength: null,
-        placeholder: null,
-        patterns: [],
-        generate: null,
-      },
-    },
-    'more-advanced': {
-      name: 'More Advanced',
-      type: 'object',
-      description: 'Advanced settings',
-      warning: null,
-      spec: {
-        rpcsettings: {
-          name: 'RPC Settings',
-          type: 'object',
-          description: 'rpc username and password',
-          warning:
-            'Adding RPC users gives them special permissions on your node.',
-          spec: {
-            laws: {
-              name: 'Laws',
-              type: 'object',
-              description: 'the law of the realm',
-              warning: null,
-              spec: {
-                law1: {
-                  name: 'First Law',
-                  type: 'text',
-                  inputmode: 'text',
-                  description: 'the first law',
-                  required: false,
-                  masked: false,
-                  placeholder: null,
-                  patterns: [],
-                  minLength: null,
-                  maxLength: null,
-                  warning: null,
-                  default: null,
-                  disabled: false,
-                  immutable: false,
-                  generate: null,
-                },
-                law2: {
-                  name: 'Second Law',
-                  type: 'text',
-                  inputmode: 'text',
-                  description: 'the second law',
-                  required: false,
-                  masked: false,
-                  placeholder: null,
-                  patterns: [],
-                  minLength: null,
-                  maxLength: null,
-                  warning: null,
-                  default: null,
-                  disabled: false,
-                  immutable: false,
-                  generate: null,
-                },
-                law4: {
-                  name: 'Fourth Law',
-                  type: 'text',
-                  inputmode: 'text',
-                  description: 'the fourth law',
-                  required: false,
-                  masked: false,
-                  placeholder: null,
-                  patterns: [],
-                  minLength: null,
-                  maxLength: null,
-                  warning: null,
-                  default: null,
-                  disabled: false,
-                  immutable: false,
-                  generate: null,
-                },
-                law3: {
-                  name: 'Third Law',
-                  type: 'list',
-                  description: 'the third law',
-                  warning: null,
-                  minLength: null,
-                  maxLength: 2,
-                  default: [],
-                  disabled: false,
-                  spec: {
-                    type: 'object',
-                    uniqueBy: null,
-                    displayAs: null,
-                    spec: {
-                      lawname: {
-                        name: 'Law Name',
-                        type: 'text',
-                        inputmode: 'text',
-                        description: 'the name of the law maker',
-                        required: true,
-                        default: {
-                          charset: 'a-g,2-9',
-                          len: 12,
-                        },
-                        masked: false,
-                        placeholder: null,
-                        patterns: [],
-                        minLength: null,
-                        maxLength: null,
-                        warning: null,
-                        disabled: false,
-                        immutable: false,
-                        generate: null,
-                      },
-                      lawagency: {
-                        name: 'Law agency',
-                        type: 'text',
-                        inputmode: 'text',
-                        description: 'the ip of the law maker',
-                        required: true,
-                        default: '192.168.1.0',
-                        minLength: null,
-                        maxLength: null,
-                        patterns: [
-                          {
-                            regex:
-                              '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$',
-                            description: 'may only contain numbers and periods',
-                          },
-                        ],
-                        masked: false,
-                        placeholder: null,
-                        warning: null,
-                        disabled: false,
-                        immutable: false,
-                        generate: null,
-                      },
-                    },
-                  },
-                },
-                law5: {
-                  name: 'Fifth Law',
-                  type: 'text',
-                  inputmode: 'text',
-                  description: 'the fifth law',
-                  required: false,
-                  masked: false,
-                  placeholder: null,
-                  minLength: null,
-                  maxLength: null,
-                  patterns: [],
-                  warning: null,
-                  default: null,
-                  disabled: false,
-                  immutable: false,
-                  generate: null,
-                },
-              },
-            },
-            rulemakers: {
-              name: 'Rule Makers',
-              type: 'list',
-              description: 'the people who make the rules',
-              warning: null,
-              minLength: null,
-              maxLength: 2,
-              default: [],
-              disabled: false,
-              spec: {
-                type: 'object',
-                uniqueBy: null,
-                displayAs: null,
-                spec: {
-                  rulemakername: {
-                    name: 'Rulemaker Name',
-                    type: 'text',
-                    inputmode: 'text',
-                    description: 'the name of the rule maker',
-                    required: true,
-                    default: {
-                      charset: 'a-g,2-9',
-                      len: 12,
-                    },
-                    masked: false,
-                    placeholder: null,
-                    patterns: [],
-                    minLength: null,
-                    maxLength: null,
-                    warning: null,
-                    disabled: false,
-                    immutable: false,
-                    generate: null,
-                  },
-                  rulemakerip: {
-                    name: 'Rulemaker IP',
-                    type: 'text',
-                    inputmode: 'text',
-                    description: 'the ip of the rule maker',
-                    required: true,
-                    default: '192.168.1.0',
-                    minLength: null,
-                    maxLength: null,
-                    patterns: [
-                      {
-                        regex:
-                          '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$',
-                        description: 'may only contain numbers and periods',
-                      },
-                    ],
-                    masked: false,
-                    placeholder: null,
-                    warning: null,
-                    disabled: false,
-                    immutable: false,
-                    generate: null,
-                  },
-                },
-              },
-            },
-            rpcuser: {
-              name: 'RPC Username',
-              type: 'text',
-              inputmode: 'text',
-              description: 'rpc username',
-              required: true,
-              default: 'defaultrpcusername',
-              minLength: null,
-              maxLength: null,
               patterns: [
                 {
-                  regex: '^[a-zA-Z]+$',
-                  description: 'must contain only letters.',
+                  regex: '.*',
+                  description: 'anything',
                 },
               ],
-              masked: false,
-              placeholder: null,
-              warning: null,
-              disabled: false,
-              immutable: false,
-              generate: null,
-            },
-            rpcpass: {
-              name: 'RPC User Password',
-              type: 'text',
-              inputmode: 'text',
-              description: 'rpc password',
-              required: true,
-              default: {
-                charset: 'a-z,A-Z,2-9',
-                len: 20,
+            }),
+            'private-domain': Value.text({
+              name: 'Private Domain',
+              required: {
+                default: null,
               },
+              description: 'the private address of the node',
               masked: true,
-              placeholder: null,
-              patterns: [],
-              minLength: null,
-              maxLength: null,
-              warning: null,
-              disabled: false,
-              immutable: false,
-              generate: null,
-            },
-          },
+              inputmode: 'url',
+            }),
+          }),
         },
+      }),
+    ),
+    port: Value.number({
+      name: 'Port',
+      description:
+        'the default port for your Bitcoin node. default: 8333, testnet: 18333, regtest: 18444',
+      required: {
+        default: 8333,
       },
-    },
-  }
+      min: 1,
+      max: 9998,
+      step: '1',
+      integer: true,
+    }),
+    'favorite-slogan': Value.text({
+      name: 'Favorite Slogan',
+      required: false,
+      description:
+        'You most favorite slogan in the whole world, used for paying you.',
+      masked: true,
+    }),
+    rpcallowip: Value.list(
+      List.text(
+        {
+          name: 'RPC Allowed IPs',
+          minLength: 1,
+          maxLength: 10,
+          default: ['192.168.1.1'],
+          description:
+            'external ip addresses that are authorized to access your Bitcoin node',
+          warning:
+            'Any IP you allow here will have RPC access to your Bitcoin node.',
+        },
+        {
+          patterns: [
+            {
+              regex:
+                '((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|((^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]).){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]).){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$)|(^[a-z2-7]{16}\\.onion$)|(^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$))',
+              description: 'must be a valid ipv4, ipv6, or domain name',
+            },
+          ],
+        },
+      ),
+    ),
+    rpcauth: Value.list(
+      List.text(
+        {
+          name: 'RPC Auth',
+          description:
+            'api keys that are authorized to access your Bitcoin node.',
+        },
+        {
+          patterns: [],
+        },
+      ),
+    ),
+  })
 
   export const MockConfig = {
     testnet: undefined,

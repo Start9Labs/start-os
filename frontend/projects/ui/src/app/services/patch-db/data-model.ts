@@ -3,6 +3,7 @@ import { Url } from '@start9labs/shared'
 import { Manifest } from '@start9labs/marketplace'
 import { BasicInfo } from 'src/app/pages/developer-routes/developer-menu/form-info'
 import { BackupJob } from '../api/api.types'
+import { EmailSpec } from 'src/app/pages/server-routes/email/email.const'
 
 export interface DataModel {
   'server-info': ServerInfo
@@ -79,7 +80,7 @@ export interface ServerInfo {
   pubkey: string
   'ca-fingerprint': string
   'system-start-time': string
-  email: EmailSettings
+  email: EmailSpec
 }
 
 export interface IpInfo {
@@ -101,21 +102,6 @@ export interface ServerStatusInfo {
   updated: boolean
   'update-progress': { size: number | null; downloaded: number } | null
   'shutting-down': boolean
-}
-
-export interface EmailSettings {
-  enabled: boolean
-  address: string | null
-  smtp: SMTP
-}
-
-export interface SMTP {
-  host: string
-  port: number
-  from: string
-  login: string
-  password: string
-  tls: boolean
 }
 
 export interface PackageDataEntry {
