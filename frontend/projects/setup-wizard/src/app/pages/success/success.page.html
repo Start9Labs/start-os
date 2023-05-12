@@ -31,7 +31,7 @@
         </ng-container>
         <!-- not kiosk -->
         <ng-template #notKiosk>
-          <ion-card>
+          <ion-card *ngIf="lanAddress">
             <ion-row class="ion-align-items-center">
               <ion-col responsiveCol sizeXs="12" class="ion-text-center">
                 <div style="margin-bottom: 4rem">
