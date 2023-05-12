@@ -20,7 +20,8 @@ import { FormDialogService } from '../../../../services/form-dialog.service'
 import { FormPage } from '../../../../modals/form/form.page'
 import { LoadingService } from '../../../../modals/loading/loading.service'
 import { TUI_PROMPT } from '@taiga-ui/kit'
-import { Config } from '@start9labs/start-sdk/lib/config/builder/config'
+import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
+import { InputSpec } from '@start9labs/start-sdk/lib/config/configTypes'
 
 // TODO: start-sdk: import key
 type BackupConfig =
@@ -66,11 +67,11 @@ export class BackupTargetsPage {
     this.getTargets()
   }
 
-  presentModalAddPhysical(disk: UnknownDisk, index: number) {
+  async presentModalAddPhysical(disk: UnknownDisk, index: number) {
     this.formDialog.open(FormPage, {
       label: 'New Physical Target',
       data: {
-        spec: DiskBackupTargetSpec,
+        spec: await configBuilderToSpec(diskBackupTargetSpec),
         value: {
           name: disk.label || disk.logicalname,
         },
@@ -93,16 +94,14 @@ export class BackupTargetsPage {
     })
   }
 
-  presentModalAddRemote() {
+  async presentModalAddRemote() {
     this.formDialog.open(FormPage, {
       label: 'New Remote Target',
       data: {
-        spec: RemoteBackupTargetSpec,
+        spec: await configBuilderToSpec(remoteBackupTargetSpec),
         buttons: [
           {
             text: 'Save',
-            // TODO: start-sdk: import key
-            // provider: 'dropbox' | 'google-drive' is missing here (!) and dropbox has token while google-drive has json key
             handler: ({ type }: BackupConfig) =>
               this.add(
                 type['unionSelectKey'] === 'cifs' ? 'cifs' : 'cloud',
@@ -114,18 +113,20 @@ export class BackupTargetsPage {
     })
   }
 
-  presentModalUpdate(target: BackupTarget) {
-    let spec: Config<Record<string, any>, any, any>
+  async presentModalUpdate(target: BackupTarget) {
+    let spec: InputSpec
 
     switch (target.type) {
       case 'cifs':
-        spec = CifsSpec
+        spec = await configBuilderToSpec(cifsSpec)
         break
       case 'cloud':
-        spec = target.provider === 'dropbox' ? DropboxSpec : GoogleDriveSpec
+        spec = await configBuilderToSpec(
+          target.provider === 'dropbox' ? dropboxSpec : googleDriveSpec,
+        )
         break
       case 'disk':
-        spec = DiskBackupTargetSpec
+        spec = await configBuilderToSpec(diskBackupTargetSpec)
         break
     }
 

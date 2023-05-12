@@ -22,7 +22,7 @@
   </ion-item-group>
 
   <form *ngIf="form$ | async as form" [formGroup]="form" class="ion-padding">
-    <form-group [spec]="spec"></form-group>
+    <form-group *ngIf="spec | async as resolved" [spec]="resolved"></form-group>
     <div class="ion-text-right ion-padding">
       <button
         tuiButton

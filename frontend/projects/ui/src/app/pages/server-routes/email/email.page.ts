@@ -8,7 +8,9 @@ import { emailSpec } from './email.const'
 import { LoadingService } from '../../../modals/loading/loading.service'
 import { TuiDialogService } from '@taiga-ui/core'
 import { RR } from '../../../services/api/api.types'
-import { map } from 'rxjs/operators'
+import { switchMap } from 'rxjs/operators'
+import { InputSpec } from '@start9labs/start-sdk/lib/config/configTypes'
+import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
 
 @Component({
   selector: 'email',
@@ -16,12 +18,12 @@ import { map } from 'rxjs/operators'
   styleUrls: ['./email.page.scss'],
 })
 export class EmailPage {
-  readonly spec = emailSpec
+  spec: Promise<InputSpec> = configBuilderToSpec(emailSpec)
   readonly form$ = this.patch
     .watch$('server-info', 'email')
     .pipe(
-      map(async value =>
-        this.formService.createForm(await this.spec.build({} as any), value),
+      switchMap(async value =>
+        this.formService.createForm(await this.spec, value),
       ),
     )
 
@@ -38,7 +40,7 @@ export class EmailPage {
     const loader = this.loader.open('Saving...').subscribe()
 
     try {
-      await this.api.configureEmail(this.spec.validator.unsafeCast(value))
+      await this.api.configureEmail(emailSpec.validator.unsafeCast(value))
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
