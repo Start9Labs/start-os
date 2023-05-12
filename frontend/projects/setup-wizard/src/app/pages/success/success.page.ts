@@ -1,13 +1,5 @@
 import { DOCUMENT } from '@angular/common'
-import {
-  Component,
-  ElementRef,
-  EventEmitter,
-  Inject,
-  NgZone,
-  Output,
-  ViewChild,
-} from '@angular/core'
+import { Component, ElementRef, Inject, NgZone, ViewChild } from '@angular/core'
 import { DownloadHTMLService, ErrorToastService } from '@start9labs/shared'
 import { ApiService } from 'src/app/services/api/api.service'
 import { StateService } from 'src/app/services/state.service'
@@ -23,11 +15,9 @@ export class SuccessPage {
   private canvas: ElementRef<HTMLCanvasElement> = {} as ElementRef<HTMLCanvasElement>
   private ctx: CanvasRenderingContext2D = {} as CanvasRenderingContext2D
 
-  @Output() onDownload = new EventEmitter()
-
-  torAddress = ''
-  lanAddress = ''
-  cert = ''
+  torAddress?: string
+  lanAddress?: string
+  cert?: string
 
   tileSize = 16
   // a higher fade factor will make the characters fade quicker
@@ -73,15 +63,15 @@ export class SuccessPage {
     const torAddress = this.document.getElementById('tor-addr')
     const lanAddress = this.document.getElementById('lan-addr')
 
-    if (torAddress) torAddress.innerHTML = this.torAddress
-    if (lanAddress) lanAddress.innerHTML = this.lanAddress
+    if (torAddress) torAddress.innerHTML = this.torAddress!
+    if (lanAddress) lanAddress.innerHTML = this.lanAddress!
 
     this.document
       .getElementById('cert')
       ?.setAttribute(
         'href',
         'data:application/x-x509-ca-cert;base64,' +
-          encodeURIComponent(this.cert),
+          encodeURIComponent(this.cert!),
       )
     let html = this.document.getElementById('downloadable')?.innerHTML || ''
     this.downloadHtml.download('StartOS-info.html', html).then(_ => {
