@@ -1171,7 +1171,7 @@ dependencies = [
 
 [[package]]
 name = "embassy-os"
-version = "0.3.4-rev.1"
+version = "0.3.4-rev.2"
 dependencies = [
  "aes",
  "async-compression",
