@@ -1,5 +1,6 @@
 import {
   DependencyErrorType,
+  HealthResult,
   PackageDataEntry,
   PackageMainStatus,
   PackageState,
@@ -13,6 +14,7 @@ import {
   Manifest,
 } from '@start9labs/marketplace'
 import { Log } from '@start9labs/shared'
+// TODO: start-sdk: Figure out why it doesn't work
 import { unionSelectKey } from '@start9labs/start-sdk/lib/config/configTypes'
 
 export module Mock {
@@ -1857,16 +1859,41 @@ export module Mock {
 
   export const bitcoind: PackageDataEntry = {
     state: PackageState.Installed,
-    manifest: MockManifestBitcoind,
     icon: '/assets/img/service-icons/bitcoind.png',
+    manifest: MockManifestBitcoind,
     installed: {
       'last-backup': null,
       status: {
         configured: true,
         main: {
           status: PackageMainStatus.Running,
-          started: new Date().toISOString(),
-          health: {},
+          started: '2021-06-14T20:49:17.774Z',
+          health: {
+            'ephemeral-health-check': {
+              name: 'Ephemeral Health Check',
+              result: HealthResult.Starting,
+            },
+            'chain-state': {
+              name: 'Chain State',
+              result: HealthResult.Loading,
+              message: 'Bitcoin is syncing from genesis',
+            },
+            'p2p-interface': {
+              name: 'P2P Interface',
+              result: HealthResult.Success,
+              message: 'the health check ran successfully',
+            },
+            'rpc-interface': {
+              name: 'RPC Interface',
+              result: HealthResult.Failure,
+              error: 'RPC interface unreachable.',
+            },
+            'unnecessary-health-check': {
+              name: 'Totally Unnecessary',
+              result: HealthResult.Disabled,
+              reason: 'You disabled this on purpose',
+            },
+          },
         },
         'dependency-errors': {},
       },
@@ -1987,7 +2014,8 @@ export module Mock {
         },
         'dependency-errors': {
           'btc-rpc-proxy': {
-            type: DependencyErrorType.NotInstalled,
+            type: DependencyErrorType.ConfigUnsatisfied,
+            error: 'This is a config unsatisfied error',
           },
         },
       },

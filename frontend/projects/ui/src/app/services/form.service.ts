@@ -10,7 +10,6 @@ import {
 import { getDefaultString } from '../util/config-utilities'
 import {
   InputSpec,
-  isValueSpecListOf,
   ListValueSpecNumber,
   ListValueSpecObject,
   ListValueSpecOf,
@@ -25,13 +24,23 @@ import {
   ValueSpecObject,
   ValueSpecText,
   ValueSpecUnion,
-  unionSelectKey,
   ValueSpecTextarea,
-  unionValueKey,
   ValueSpecColor,
   ValueSpecDatetime,
+  ListValueSpecType,
+  ValueSpecListOf,
 } from '@start9labs/start-sdk/lib/config/configTypes'
 const Mustache = require('mustache')
+
+// TODO: start-sdk: Figure out why those do not work when imported from start-sdk
+export const unionSelectKey = 'unionSelectKey' as const
+export const unionValueKey = 'unionValueKey' as const
+function isValueSpecListOf<S extends ListValueSpecType>(
+  t: ValueSpec,
+  s: S,
+): t is ValueSpecListOf<S> & { spec: ListValueSpecOf<S> } {
+  return 'spec' in t && t.spec.type === s
+}
 
 @Injectable({
   providedIn: 'root',
