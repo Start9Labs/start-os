@@ -1,4 +1,9 @@
-import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  Inject,
+  ViewChild,
+} from '@angular/core'
 import {
   ActionSheetController,
   AlertController,
@@ -6,12 +11,7 @@ import {
   ModalController,
 } from '@ionic/angular'
 import { ActionSheetButton } from '@ionic/core'
-import {
-  ErrorToastService,
-  isValidHttpUrl,
-  sameUrl,
-  toUrl,
-} from '@start9labs/shared'
+import { ErrorToastService, sameUrl, toUrl } from '@start9labs/shared'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ValueSpecObject } from 'src/app/pkg-config/config-types'
@@ -162,6 +162,7 @@ export class MarketplaceSettingsPage {
       this.errToast.present(e)
     } finally {
       loader.dismiss()
+      this.dismiss()
     }
   }
 
@@ -189,6 +190,7 @@ export class MarketplaceSettingsPage {
       this.errToast.present(e)
     } finally {
       loader.dismiss()
+      this.dismiss()
     }
   }
 
