@@ -9,7 +9,7 @@
   "id": "/",
   "icons": [
     {
-      "src": "assets/img/logo_solid.png",
+      "src": "assets/img/icon_pwa.png",
       "sizes": "256x256",
       "type": "image/png",
       "purpose": "any"
