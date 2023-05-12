@@ -79,7 +79,7 @@ export const mockPatchData: DataModel = {
       state: PackageState.Installed,
       'static-files': {
         license: '/public/package-data/bitcoind/0.20.0/LICENSE.md',
-        icon: '/assets/img/service-icons/bitcoind.png',
+        icon: '/assets/img/service-icons/bitcoind.svg',
         instructions: '/public/package-data/bitcoind/0.20.0/INSTRUCTIONS.md',
       },
       manifest: {
@@ -670,7 +670,7 @@ export const mockPatchData: DataModel = {
             manifest: {
               title: 'Bitcoin Core',
             } as Manifest,
-            icon: 'assets/img/service-icons/bitcoind.png',
+            icon: 'assets/img/service-icons/bitcoind.svg',
           },
           'btc-rpc-proxy': {
             manifest: {

@@ -1,18 +1,18 @@
 import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
-import { Routes, RouterModule } from '@angular/router'
+import { RouterModule, Routes } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
 import {
-  SharedPipesModule,
   EmverPipesModule,
   MarkdownPipeModule,
+  SharedPipesModule,
   TextSpinnerComponentModule,
 } from '@start9labs/shared'
 import {
-  PackageModule,
   AboutModule,
   AdditionalModule,
   DependenciesModule,
+  PackageModule,
 } from '@start9labs/marketplace'
 import { MarketplaceStatusModule } from '../marketplace-status/marketplace-status.module'
 import { MarketplaceShowPage } from './marketplace-show.page'

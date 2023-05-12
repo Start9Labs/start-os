@@ -8,16 +8,18 @@ import {
 } from '@start9labs/shared'
 
 import { PackageComponent } from './package.component'
+import { MimeTypePipeModule } from '../../../pipes/mime-type.pipe'
 
 @NgModule({
+  declarations: [PackageComponent],
+  exports: [PackageComponent],
   imports: [
     CommonModule,
     IonicModule,
     SharedPipesModule,
     EmverPipesModule,
     TickerModule,
+    MimeTypePipeModule,
   ],
-  declarations: [PackageComponent],
-  exports: [PackageComponent],
 })
 export class PackageModule {}
