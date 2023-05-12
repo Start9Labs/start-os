@@ -1,6 +1,6 @@
 <ion-item class="service-card" [routerLink]="['/marketplace', pkg.manifest.id]">
   <ion-thumbnail slot="start">
-    <img alt="" [src]="'data:image/png;base64,' + pkg.icon | trustUrl" />
+    <img alt="" [src]="pkg | mimeType | trustUrl" />
   </ion-thumbnail>
   <ion-label>
     <h2 class="montserrat">

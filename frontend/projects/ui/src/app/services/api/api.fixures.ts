@@ -7,7 +7,7 @@ import {
   PackageState,
   ServerStatusInfo,
 } from 'src/app/services/patch-db/data-model'
-import { Metric, RR, NotificationLevel, ServerNotifications } from './api.types'
+import { Metric, NotificationLevel, RR, ServerNotifications } from './api.types'
 
 import { BTC_ICON, LND_ICON, PROXY_ICON } from './api-icons'
 import { DependencyMetadata, MarketplacePkg } from '@start9labs/marketplace'
@@ -1870,7 +1870,7 @@ export module Mock {
     state: PackageState.Installed,
     'static-files': {
       license: '/public/package-data/bitcoind/0.20.0/LICENSE.md',
-      icon: '/assets/img/service-icons/bitcoind.png',
+      icon: '/assets/img/service-icons/bitcoind.svg',
       instructions: '/public/package-data/bitcoind/0.20.0/INSTRUCTIONS.md',
     },
     manifest: MockManifestBitcoind,
@@ -1955,7 +1955,7 @@ export module Mock {
       'dependency-info': {
         bitcoind: {
           manifest: Mock.MockManifestBitcoind,
-          icon: 'assets/img/service-icons/bitcoind.png',
+          icon: 'assets/img/service-icons/bitcoind.svg',
         },
       },
       'marketplace-url': 'https://registry.start9.com/',
@@ -2011,7 +2011,7 @@ export module Mock {
       'dependency-info': {
         bitcoind: {
           manifest: Mock.MockManifestBitcoind,
-          icon: 'assets/img/service-icons/bitcoind.png',
+          icon: 'assets/img/service-icons/bitcoind.svg',
         },
         'btc-rpc-proxy': {
           manifest: Mock.MockManifestBitcoinProxy,

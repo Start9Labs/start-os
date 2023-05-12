@@ -47,6 +47,9 @@ export interface MarketplaceManifest<T = unknown> {
     short: string
     long: string
   }
+  assets: {
+    icon: string // ie. icon.png
+  }
   replaces?: string[]
   'release-notes': string
   license: string // type of license

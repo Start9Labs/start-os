@@ -14,6 +14,7 @@ import { SkeletonListComponentModule } from 'src/app/components/skeleton-list/sk
 import { RoundProgressModule } from 'angular-svg-round-progressbar'
 import { InstallProgressPipeModule } from 'src/app/pipes/install-progress/install-progress.module'
 import { StoreIconComponentModule } from 'src/app/components/store-icon/store-icon.component.module'
+import { MimeTypePipeModule } from '@start9labs/marketplace'
 
 const routes: Routes = [
   {
@@ -23,6 +24,7 @@ const routes: Routes = [
 ]
 
 @NgModule({
+  declarations: [UpdatesPage, FilterUpdatesPipe],
   imports: [
     CommonModule,
     IonicModule,
@@ -35,7 +37,7 @@ const routes: Routes = [
     InstallProgressPipeModule,
     StoreIconComponentModule,
     EmverPipesModule,
+    MimeTypePipeModule,
   ],
-  declarations: [UpdatesPage, FilterUpdatesPipe],
 })
 export class UpdatesPageModule {}
