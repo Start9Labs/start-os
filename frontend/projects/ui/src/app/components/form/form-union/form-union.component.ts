@@ -50,11 +50,14 @@ export class FormUnionComponent implements OnChanges {
       this.formService.getFormGroup(
         union ? this.spec.variants[union].spec : {},
       ),
+      {
+        emitEvent: false,
+      },
     )
   }
 
   ngOnChanges() {
     this.selectSpec = this.formService.getUnionSelectSpec(this.spec, this.union)
-    this.onUnion(this.union)
+    if (this.union) this.onUnion(this.union)
   }
 }
