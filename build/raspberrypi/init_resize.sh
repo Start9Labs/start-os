@@ -94,19 +94,12 @@ main () {
     return 1
   fi
 
-  if ! make-ssl-cert generate-default-snakeoil --force-overwrite; then
-    FAIL_REASON="snakeoil cert generation failed"
-    return 1
-  fi
-
   if ! ssh-keygen -A; then
     FAIL_REASON="ssh host key generation failed"
     return 1
   fi
 
-  echo embassy > /etc/hostname
-
-  ln -sf /usr/lib/embassy/scripts/fake-apt /usr/local/bin/apt-get
+  echo start > /etc/hostname
 
   return 0
 }

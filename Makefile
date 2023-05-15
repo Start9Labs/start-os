@@ -34,7 +34,7 @@ endif
 
 .DELETE_ON_ERROR:
 
-.PHONY: all gzip install clean format sdk snapshots frontends ui backend reflash eos_raspberrypi.img sudo
+.PHONY: all gzip install clean format sdk snapshots frontends ui backend reflash startos_raspberrypi.img sudo
 
 all: $(ALL_TARGETS)
 
@@ -65,7 +65,7 @@ format:
 sdk:
 	cd backend/ && ./install-sdk.sh
 
-eos_raspberrypi.img: $(BUILD_SRC) eos.raspberrypi.squashfs $(VERSION_FILE) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep | sudo
+startos_raspberrypi.img: $(BUILD_SRC) startos.raspberrypi.squashfs $(VERSION_FILE) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep | sudo
 	./build/raspberrypi/make-image.sh
 
 # For creating os images. DO NOT USE

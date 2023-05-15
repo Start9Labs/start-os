@@ -160,10 +160,10 @@ jobs:
       with:
         name: raspberrypi.squashfs
 
-    - run: mv *_raspberrypi.squashfs eos.raspberrypi.squashfs
+    - run: mv startos-*_raspberrypi.squashfs startos.raspberrypi.squashfs
 
     - name: Build image
-      run: make eos_raspberrypi.img
+      run: make startos_raspberrypi.img
 
     - uses: actions/upload-artifact@v3
       with:

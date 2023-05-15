@@ -240,6 +240,12 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
             .await?;
     }
 
+    Command::new("make-ssl-cert")
+        .arg("generate-default-snakeoil")
+        .arg("--force-overwrite")
+        .invoke(crate::ErrorKind::OpenSsl)
+        .await?;
+
     let secret_store = cfg.secret_store().await?;
     tracing::info!("Opened Postgres");
 

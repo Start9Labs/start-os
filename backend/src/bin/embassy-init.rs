@@ -19,6 +19,25 @@ use tracing::instrument;
 
 #[instrument(skip_all)]
 async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
+    Command::new("ln")
+        .arg("-sf")
+        .arg("/usr/lib/embassy/scripts/fake-apt")
+        .arg("/usr/local/bin/apt")
+        .invoke(crate::ErrorKind::OpenSsh)
+        .await?;
+    Command::new("ln")
+        .arg("-sf")
+        .arg("/usr/lib/embassy/scripts/fake-apt")
+        .arg("/usr/local/bin/apt-get")
+        .invoke(crate::ErrorKind::OpenSsh)
+        .await?;
+    Command::new("ln")
+        .arg("-sf")
+        .arg("/usr/lib/embassy/scripts/fake-apt")
+        .arg("/usr/local/bin/aptitude")
+        .invoke(crate::ErrorKind::OpenSsh)
+        .await?;
+
     if tokio::fs::metadata("/run/live/medium").await.is_ok() {
         Command::new("sed")
             .arg("-i")
@@ -31,7 +50,6 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
             .arg("ssh")
             .invoke(crate::ErrorKind::OpenSsh)
             .await?;
-        embassy::hostname::sync_hostname(&embassy::hostname::Hostname("start".into())).await?;
 
         let ctx = InstallContext::init(cfg_path).await?;
 
@@ -55,8 +73,6 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
         .await
         .is_err()
     {
-        embassy::hostname::sync_hostname(&embassy::hostname::Hostname("start".into())).await?;
-
         let ctx = SetupContext::init(cfg_path).await?;
 
         let server = WebServer::setup(([0, 0, 0, 0], 80).into(), ctx.clone()).await?;
