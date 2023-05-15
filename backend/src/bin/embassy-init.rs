@@ -19,6 +19,25 @@ use tracing::instrument;
 
 #[instrument(skip_all)]
 async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
+    Command::new("ln")
+        .arg("-sf")
+        .arg("/usr/lib/embassy/scripts/fake-apt")
+        .arg("/usr/local/bin/apt")
+        .invoke(crate::ErrorKind::OpenSsh)
+        .await?;
+    Command::new("ln")
+        .arg("-sf")
+        .arg("/usr/lib/embassy/scripts/fake-apt")
+        .arg("/usr/local/bin/apt-get")
+        .invoke(crate::ErrorKind::OpenSsh)
+        .await?;
+    Command::new("ln")
+        .arg("-sf")
+        .arg("/usr/lib/embassy/scripts/fake-apt")
+        .arg("/usr/local/bin/aptitude")
+        .invoke(crate::ErrorKind::OpenSsh)
+        .await?;
+
     if tokio::fs::metadata("/run/live/medium").await.is_ok() {
         Command::new("sed")
             .arg("-i")

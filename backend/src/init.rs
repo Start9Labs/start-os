@@ -240,13 +240,6 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
             .await?;
     }
 
-    Command::new("ln")
-        .arg("-sf")
-        .arg("/usr/lib/embassy/scripts/fake-apt")
-        .arg("/usr/local/bin/apt-get")
-        .invoke(crate::ErrorKind::OpenSsh)
-        .await?;
-
     Command::new("make-ssl-cert")
         .arg("generate-default-snakeoil")
         .arg("--force-overwrite")
