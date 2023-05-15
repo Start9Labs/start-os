@@ -219,27 +219,8 @@ pub async fn execute(
 
     Command::new("chroot")
         .arg(&current)
-        .arg("make-ssl-cert")
-        .arg("generate-default-snakeoil")
-        .arg("--force-overwrite")
-        .invoke(crate::ErrorKind::OpenSsl)
-        .await?;
-
-    Command::new("chroot")
-        .arg(&current)
         .arg("ssh-keygen")
         .arg("-A")
-        .invoke(crate::ErrorKind::OpenSsh)
-        .await?;
-
-    tokio::fs::write(current.join("etc/hostname"), "start\n").await?;
-
-    Command::new("chroot")
-        .arg(&current)
-        .arg("ln")
-        .arg("-sf")
-        .arg("/usr/lib/embassy/scripts/fake-apt")
-        .arg("/usr/local/bin/apt-get")
         .invoke(crate::ErrorKind::OpenSsh)
         .await?;
 
