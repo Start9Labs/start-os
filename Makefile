@@ -18,7 +18,7 @@ FRONTEND_DIAGNOSTIC_UI_SRC := $(shell find frontend/projects/diagnostic-ui)
 FRONTEND_INSTALL_WIZARD_SRC := $(shell find frontend/projects/install-wizard)
 PATCH_DB_CLIENT_SRC := $(shell find patch-db/client -not -path patch-db/client/dist)
 GZIP_BIN := $(shell which pigz || which gzip)
-ALL_TARGETS := $(EMBASSY_BINS) system-images/compat/docker-images/$(ARCH).tar system-images/utils/docker-images/$(ARCH).tar system-images/binfmt/docker-images/$(ARCH).tar $(EMBASSY_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE)
+ALL_TARGETS := $(EMBASSY_BINS) system-images/compat/docker-images/$(ARCH).tar system-images/utils/docker-images/$(ARCH).tar system-images/binfmt/docker-images/$(ARCH).tar $(EMBASSY_SRC) $(shell if [ "$(OS_ARCH)" = "raspberrypi" ]; then echo cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep; fi) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE)
 
 ifeq ($(REMOTE),)
 	mkdir = mkdir -p $1
@@ -75,6 +75,7 @@ install: $(ALL_TARGETS)
 	$(call cp,backend/target/$(ARCH)-unknown-linux-gnu/release/embassyd,$(DESTDIR)/usr/bin/embassyd)
 	$(call cp,backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-cli,$(DESTDIR)/usr/bin/embassy-cli)
 	$(call cp,backend/target/$(ARCH)-unknown-linux-gnu/release/avahi-alias,$(DESTDIR)/usr/bin/avahi-alias)
+	if [ "$(OS_ARCH)" = "raspberrypi" ]; then $(call cp,cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep,$(DESTDIR)/usr/bin/pi-beep); fi
 	
 	$(call mkdir,$(DESTDIR)/usr/lib)
 	$(call rm,$(DESTDIR)/usr/lib/embassy)
