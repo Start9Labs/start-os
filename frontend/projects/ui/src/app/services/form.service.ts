@@ -10,7 +10,6 @@ import {
 import { getDefaultString } from '../util/config-utilities'
 import {
   InputSpec,
-  isValueSpecListOf,
   ListValueSpecNumber,
   ListValueSpecObject,
   ListValueSpecOf,
@@ -25,12 +24,13 @@ import {
   ValueSpecObject,
   ValueSpecText,
   ValueSpecUnion,
-  unionSelectKey,
   ValueSpecTextarea,
-  unionValueKey,
   ValueSpecColor,
   ValueSpecDatetime,
-} from 'start-sdk/lib/config/configTypes'
+  unionSelectKey,
+  unionValueKey,
+  isValueSpecListOf,
+} from '@start9labs/start-sdk/lib/config/configTypes'
 const Mustache = require('mustache')
 
 @Injectable({
@@ -52,6 +52,8 @@ export class FormService {
   ): ValueSpecSelect {
     return {
       ...spec,
+      // TODO: implement disabled
+      disabled: false,
       type: 'select',
       default: selection,
       values: Object.fromEntries(

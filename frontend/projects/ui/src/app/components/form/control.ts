@@ -1,6 +1,6 @@
 import { inject } from '@angular/core'
 import { FormControlComponent } from './form-control/form-control.component'
-import { ValueSpec } from 'start-sdk/lib/config/configTypes'
+import { ValueSpec } from '@start9labs/start-sdk/lib/config/configTypes'
 
 export abstract class Control<Spec extends ValueSpec, Value> {
   private readonly control: FormControlComponent<Spec, Value> =

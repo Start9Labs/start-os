@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { ValueSpecSelect } from 'start-sdk/lib/config/configTypes'
+import { ValueSpecSelect } from '@start9labs/start-sdk/lib/config/configTypes'
 import { Control } from '../control'
 
 @Component({
