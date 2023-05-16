@@ -21,6 +21,7 @@ iotop
 iw
 jq
 libavahi-client3
+lm-sensors
 lvm2
 magic-wormhole
 ncdu
