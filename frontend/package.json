@@ -78,7 +78,7 @@
     "patch-db-client": "file: ../../../patch-db/client",
     "pbkdf2": "^3.1.2",
     "rxjs": "^7.5.6",
-    "@start9labs/start-sdk": "git+https://github.com/Start9Labs/start-sdk#9a23967a7a9c529b27868ca3d7628d271bfb38af",
+    "@start9labs/start-sdk": "0.4.0-rev0.lib0.rc3",
     "swiper": "^8.2.4",
     "ts-matches": "^5.2.1",
     "tslib": "^2.3.0",

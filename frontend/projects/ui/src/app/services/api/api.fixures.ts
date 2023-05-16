@@ -1107,7 +1107,7 @@ export module Mock {
           },
           min: 1,
           max: 9998,
-          step: '1',
+          step: 1,
           integer: true,
         }),
         'favorite-slogan': Value.text({
