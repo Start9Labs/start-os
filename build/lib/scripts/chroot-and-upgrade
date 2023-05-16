@@ -20,15 +20,7 @@ mount --bind /sys /media/embassy/next/sys
 mount --bind /proc /media/embassy/next/proc
 mount --bind /boot /media/embassy/next/boot
 
-rm /media/embassy/next/usr/local/bin/apt
-rm /media/embassy/next/usr/local/bin/apt-get
-rm /media/embassy/next/usr/local/bin/aptitude
-
 chroot /media/embassy/next $@
-
-ln -sf /usr/lib/embassy/scripts/fake-apt /media/embassy/next/usr/local/bin/apt
-ln -sf /usr/lib/embassy/scripts/fake-apt /media/embassy/next/usr/local/bin/apt-get
-ln -sf /usr/lib/embassy/scripts/fake-apt /media/embassy/next/usr/local/bin/aptitude
 
 umount /media/embassy/next/run
 umount /media/embassy/next/dev
