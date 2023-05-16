@@ -6,7 +6,7 @@
   [decimal]="spec.integer ? 'never' : 'not-zero'"
   [min]="spec.min ?? -Infinity"
   [max]="spec.max ?? Infinity"
-  [step]="spec.step ?? Infinity"
+  [step]="spec.step || 0"
   [(ngModel)]="value"
   (focusedChange)="onFocus($event)"
 >
