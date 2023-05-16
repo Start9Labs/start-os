@@ -4,6 +4,11 @@ import { IonicModule } from '@ionic/angular'
 import { MarketplaceSettingsPage } from './marketplace-settings.page'
 import { SharedPipesModule } from '@start9labs/shared'
 import { StoreIconComponentModule } from 'src/app/components/store-icon/store-icon.component.module'
+import {
+  TuiDataListModule,
+  TuiHostedDropdownModule,
+  TuiSvgModule,
+} from '@taiga-ui/core'
 
 @NgModule({
   imports: [
@@ -11,6 +16,9 @@ import { StoreIconComponentModule } from 'src/app/components/store-icon/store-ic
     IonicModule,
     SharedPipesModule,
     StoreIconComponentModule,
+    TuiHostedDropdownModule,
+    TuiDataListModule,
+    TuiSvgModule,
   ],
   declarations: [MarketplaceSettingsPage],
 })

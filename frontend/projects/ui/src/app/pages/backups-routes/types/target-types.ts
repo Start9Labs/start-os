@@ -1,221 +1,121 @@
-import { InputSpec } from 'start-sdk/lib/config/configTypes'
+import { Config } from '@start9labs/start-sdk/lib/config/builder/config'
+import { Value } from '@start9labs/start-sdk/lib/config/builder/value'
+import { Variants } from '@start9labs/start-sdk/lib/config/builder/variants'
 
-export const DropboxSpec: InputSpec = {
-  name: {
-    type: 'text',
-    inputmode: 'text',
-    minLength: null,
-    maxLength: null,
-    patterns: [],
+export const dropboxSpec = Config.of({
+  name: Value.text({
     name: 'Name',
     description: 'A friendly name for this Dropbox target',
     placeholder: 'My Dropbox',
-    required: true,
-    masked: false,
-    warning: null,
-    default: null,
-  },
-  token: {
-    type: 'text',
-    inputmode: 'text',
-    minLength: null,
-    maxLength: null,
-    patterns: [],
+    required: { default: null },
+  }),
+  token: Value.text({
     name: 'Access Token',
     description: 'The secret access token for your custom Dropbox app',
-    warning: null,
-    placeholder: null,
-    required: true,
+    required: { default: null },
     masked: true,
-    default: null,
-  },
-  path: {
-    type: 'text',
-    inputmode: 'text',
-    minLength: null,
-    maxLength: null,
-    patterns: [],
+  }),
+  path: Value.text({
     name: 'Path',
     description: 'The fully qualified path to the backup directory',
-    warning: null,
     placeholder: 'e.g. /Desktop/my-folder',
-    required: true,
-    masked: false,
-    default: null,
-  },
-}
+    required: { default: null },
+  }),
+})
 
-export const GoogleDriveSpec: InputSpec = {
-  name: {
-    type: 'text',
-    inputmode: 'text',
-    minLength: null,
-    maxLength: null,
-    patterns: [],
+export const googleDriveSpec = Config.of({
+  name: Value.text({
     name: 'Name',
     description: 'A friendly name for this Google Drive target',
-    warning: null,
     placeholder: 'My Google Drive',
-    required: true,
-    masked: false,
-    default: null,
-  },
-  key: {
-    type: 'file',
+    required: { default: null },
+  }),
+  path: Value.text({
+    name: 'Path',
+    description: 'The fully qualified path to the backup directory',
+    placeholder: 'e.g. /Desktop/my-folder',
+    required: { default: null },
+  }),
+  key: Value.file({
     name: 'Private Key File',
     description:
       'Your Google Drive service account private key file (.json file)',
-    warning: null,
     required: true,
     extensions: ['json'],
-  },
-  path: {
-    type: 'text',
-    inputmode: 'text',
-    minLength: null,
-    maxLength: null,
-    patterns: [],
-    name: 'Path',
-    description: 'The fully qualified path to the backup directory',
-    placeholder: 'e.g. /Desktop/my-folder',
-    required: true,
-    masked: false,
-    warning: null,
-    default: null,
-  },
-}
+  }),
+})
 
-export const CifsSpec: InputSpec = {
-  name: {
-    type: 'text',
-    inputmode: 'text',
-    minLength: null,
-    maxLength: null,
-    patterns: [],
+export const cifsSpec = Config.of({
+  name: Value.text({
     name: 'Name',
     description: 'A friendly name for this Network Folder',
-    warning: null,
     placeholder: 'My Network Folder',
-    required: true,
-    masked: false,
-    default: null,
-  },
-  hostname: {
-    type: 'text',
-    inputmode: 'text',
-    minLength: null,
-    maxLength: null,
-    patterns: [
-      {
-        regex: '^[a-zA-Z0-9._-]+( [a-zA-Z0-9]+)*$',
-        description: `Must be a valid hostname. e.g. 'My Computer' OR 'my-computer.local'`,
-      },
-    ],
+    required: { default: null },
+  }),
+  hostname: Value.text({
     name: 'Hostname',
     description:
       'The hostname of your target device on the Local Area Network.',
     warning: null,
-    required: true,
-    masked: false,
     placeholder: `e.g. 'My Computer' OR 'my-computer.local'`,
-    default: null,
-  },
-  path: {
-    type: 'text',
-    inputmode: 'text',
-    minLength: null,
-    maxLength: null,
+    required: { default: null },
     patterns: [],
+  }),
+  path: Value.text({
     name: 'Path',
     description: `On Windows, this is the fully qualified path to the shared folder, (e.g. /Desktop/my-folder).\n\n On Linux and Mac, this is the literal name of the shared folder (e.g. my-shared-folder).`,
     placeholder: 'e.g. my-shared-folder or /Desktop/my-folder',
-    required: true,
-    masked: false,
-    warning: null,
-    default: null,
-  },
-  username: {
-    type: 'text',
-    inputmode: 'text',
-    minLength: null,
-    maxLength: null,
-    patterns: [],
+    required: { default: null },
+  }),
+  username: Value.text({
     name: 'Username',
     description: `On Linux, this is the samba username you created when sharing the folder.\n\n On Mac and Windows, this is the username of the user who is sharing the folder.`,
-    required: true,
-    masked: false,
-    warning: null,
+    required: { default: null },
     placeholder: 'My Network Folder',
-    default: null,
-  },
-  password: {
-    type: 'text',
-    inputmode: 'text',
-    minLength: null,
-    maxLength: null,
-    patterns: [],
+  }),
+  password: Value.text({
     name: 'Password',
     description: `On Linux, this is the samba password you created when sharing the folder.\n\n On Mac and Windows, this is the password of the user who is sharing the folder.`,
     required: false,
     masked: true,
-    warning: null,
     placeholder: 'My Network Folder',
-    default: null,
-  },
-}
+  }),
+})
 
-export const RemoteBackupTargetSpec: InputSpec = {
-  type: {
-    type: 'union',
-    name: 'Target Type',
-    description: null,
-    warning: null,
-    required: true,
-    variants: {
+export const remoteBackupTargetSpec = Config.of({
+  type: Value.union(
+    {
+      name: 'Target Type',
+      required: { default: 'dropbox' },
+    },
+    Variants.of({
       dropbox: {
         name: 'Dropbox',
-        spec: DropboxSpec,
+        spec: dropboxSpec,
       },
       'google-drive': {
         name: 'Google Drive',
-        spec: GoogleDriveSpec,
+        spec: googleDriveSpec,
       },
       cifs: {
         name: 'Network Folder',
-        spec: CifsSpec,
+        spec: cifsSpec,
       },
-    },
-    default: 'dropbox',
-  },
-}
+    }),
+  ),
+})
 
-export const DiskBackupTargetSpec: InputSpec = {
-  name: {
-    type: 'text',
-    inputmode: 'text',
-    minLength: null,
-    maxLength: null,
-    patterns: [],
+export const diskBackupTargetSpec = Config.of({
+  name: Value.text({
     name: 'Name',
     description: 'A friendly name for this physical target',
     placeholder: 'My Physical Target',
-    required: true,
-    masked: false,
-    warning: null,
-    default: null,
-  },
-  path: {
-    type: 'text',
-    inputmode: 'text',
-    minLength: null,
-    maxLength: null,
-    patterns: [],
+    required: { default: null },
+  }),
+  path: Value.text({
     name: 'Path',
     description: 'The fully qualified path to the backup directory',
     placeholder: 'e.g. /Backups/my-folder',
-    required: true,
-    masked: false,
-    warning: null,
-    default: null,
-  },
-}
+    required: { default: null },
+  }),
+})

@@ -7,7 +7,7 @@ import {
   Output,
 } from '@angular/core'
 import { ControlContainer } from '@angular/forms'
-import { ValueSpecObject } from 'start-sdk/lib/config/configTypes'
+import { ValueSpecObject } from '@start9labs/start-sdk/lib/config/configTypes'
 
 @Component({
   selector: 'form-object',
