@@ -1,12 +1,13 @@
 import { Dump, Revision } from 'patch-db-client'
 import { MarketplacePkg, StoreInfo, Manifest } from '@start9labs/marketplace'
 import { PackagePropertiesVersioned } from 'src/app/util/properties.util'
-import { InputSpec } from 'start-sdk/lib/config/configTypes'
+import { InputSpec } from '@start9labs/start-sdk/lib/config/configTypes'
 import {
   DataModel,
   DependencyError,
 } from 'src/app/services/patch-db/data-model'
 import { StartOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
+import { customSmtp } from '@start9labs/start-sdk/lib/config/configConstants'
 
 export module RR {
   // DB
@@ -135,6 +136,14 @@ export module RR {
 
   export type DeleteWifiReq = { ssid: string } // wifi.delete
   export type DeleteWifiRes = null
+
+  // email
+
+  export type ConfigureEmailReq = typeof customSmtp.validator._TYPE // email.configure
+  export type ConfigureEmailRes = null
+
+  export type TestEmailReq = ConfigureEmailReq & { to: string } // email.test
+  export type TestEmailRes = null
 
   // ssh
 

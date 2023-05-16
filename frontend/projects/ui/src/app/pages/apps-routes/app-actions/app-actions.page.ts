@@ -7,12 +7,7 @@ import {
 } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import {
-  AlertController,
-  LoadingController,
-  ModalController,
-  NavController,
-} from '@ionic/angular'
+import { AlertController, ModalController, NavController } from '@ionic/angular'
 import { PatchDB } from 'patch-db-client'
 import {
   Action,
@@ -21,18 +16,17 @@ import {
   PackageState,
 } from 'src/app/services/patch-db/data-model'
 import {
-  GenericFormPage,
-  GenericFormOptions,
-} from 'src/app/modals/generic-form/generic-form.page'
-import {
   isEmptyObject,
-  ErrorToastService,
   getPkgId,
   WithId,
+  ErrorService,
 } from '@start9labs/shared'
 import { ActionSuccessPage } from 'src/app/modals/action-success/action-success.page'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { filter } from 'rxjs'
+import { FormDialogService } from 'src/app/services/form-dialog.service'
+import { FormPage } from 'src/app/modals/form/form.page'
+import { LoadingService } from 'src/app/modals/loading/loading.service'
 
 @Component({
   selector: 'app-actions',
@@ -51,10 +45,11 @@ export class AppActionsPage {
     private readonly embassyApi: ApiService,
     private readonly modalCtrl: ModalController,
     private readonly alertCtrl: AlertController,
-    private readonly errToast: ErrorToastService,
-    private readonly loadingCtrl: LoadingController,
+    private readonly errorService: ErrorService,
+    private readonly loader: LoadingService,
     private readonly navCtrl: NavController,
     private readonly patch: PatchDB<DataModel>,
+    private readonly formDialog: FormDialogService,
   ) {}
 
   async handleAction(action: WithId<Action>) {
@@ -68,23 +63,19 @@ export class AppActionsPage {
       await alert.present()
     } else {
       if (action['input-spec'] && !isEmptyObject(action['input-spec'])) {
-        const options: GenericFormOptions = {
-          title: action.name,
-          spec: action['input-spec'],
-          buttons: [
-            {
-              text: 'Execute',
-              handler: async (value: any) =>
-                this.executeAction(action.id, value),
-              isSubmit: true,
-            },
-          ],
-        }
-        const modal = await this.modalCtrl.create({
-          component: GenericFormPage,
-          componentProps: options,
+        this.formDialog.open(FormPage, {
+          label: action.name,
+          data: {
+            spec: action['input-spec'],
+            buttons: [
+              {
+                text: 'Execute',
+                handler: async (value: any) =>
+                  this.executeAction(action.id, value),
+              },
+            ],
+          },
         })
-        await modal.present()
       } else {
         const alert = await this.alertCtrl.create({
           header: 'Confirm',
@@ -142,10 +133,7 @@ export class AppActionsPage {
   }
 
   private async uninstall() {
-    const loader = await this.loadingCtrl.create({
-      message: `Beginning uninstall...`,
-    })
-    await loader.present()
+    const loader = this.loader.open(`Beginning uninstall...`).subscribe()
 
     try {
       await this.embassyApi.uninstallPackage({ id: this.pkgId })
@@ -154,9 +142,9 @@ export class AppActionsPage {
         .catch(e => console.error('Failed to mark instructions as unseen', e))
       this.navCtrl.navigateRoot('/services')
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
@@ -164,10 +152,7 @@ export class AppActionsPage {
     actionId: string,
     input?: object,
   ): Promise<boolean> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Executing action...',
-    })
-    await loader.present()
+    const loader = this.loader.open('Executing action...').subscribe()
 
     try {
       const res = await this.embassyApi.executePackageAction({
@@ -186,10 +171,10 @@ export class AppActionsPage {
       setTimeout(() => successModal.present(), 500)
       return true
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
       return false
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
