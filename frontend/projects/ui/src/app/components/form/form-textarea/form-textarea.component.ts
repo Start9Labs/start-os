@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { ValueSpecTextarea } from 'start-sdk/lib/config/configTypes'
+import { ValueSpecTextarea } from '@start9labs/start-sdk/lib/config/configTypes'
 import { Control } from '../control'
 
 @Component({

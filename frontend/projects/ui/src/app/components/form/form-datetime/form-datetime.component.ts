@@ -6,7 +6,7 @@ import {
   tuiPure,
   TuiTime,
 } from '@taiga-ui/cdk'
-import { ValueSpecDatetime } from 'start-sdk/lib/config/configTypes'
+import { ValueSpecDatetime } from '@start9labs/start-sdk/lib/config/configTypes'
 import { Control } from '../control'
 
 @Component({

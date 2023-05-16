@@ -61,6 +61,11 @@ const routes: Routes = [
     loadChildren: () =>
       import('./wifi/wifi.module').then(m => m.WifiPageModule),
   },
+  {
+    path: 'email',
+    loadChildren: () =>
+      import('./email/email.module').then(m => m.EmailPageModule),
+  },
 ]
 
 @NgModule({

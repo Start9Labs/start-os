@@ -1,4 +1,4 @@
-import { ValueSpecObject } from 'start-sdk/lib/config/configTypes'
+import { ValueSpecObject } from '@start9labs/start-sdk/lib/config/configTypes'
 
 export const wifiSpec: ValueSpecObject = {
   type: 'object',
@@ -20,6 +20,9 @@ export const wifiSpec: ValueSpecObject = {
       masked: false,
       default: null,
       warning: null,
+      disabled: false,
+      immutable: false,
+      generate: null,
     },
     password: {
       type: 'text',
@@ -39,6 +42,9 @@ export const wifiSpec: ValueSpecObject = {
       masked: true,
       default: null,
       warning: null,
+      disabled: false,
+      immutable: false,
+      generate: null,
     },
   },
 }
