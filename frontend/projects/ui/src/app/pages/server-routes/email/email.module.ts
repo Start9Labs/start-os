@@ -1,7 +1,7 @@
 import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { IonicModule } from '@ionic/angular'
-import { TuiButtonModule } from '@taiga-ui/core'
+import { TuiButtonModule, TuiNotificationModule } from '@taiga-ui/core'
 import { EmailPage } from './email.page'
 import { Routes, RouterModule } from '@angular/router'
 import { FormsModule, ReactiveFormsModule } from '@angular/forms'
@@ -23,8 +23,9 @@ const routes: Routes = [
     FormModule,
     FormsModule,
     ReactiveFormsModule,
-    RouterModule.forChild(routes),
     TuiInputModule,
+    TuiNotificationModule,
+    RouterModule.forChild(routes),
   ],
   declarations: [EmailPage],
 })

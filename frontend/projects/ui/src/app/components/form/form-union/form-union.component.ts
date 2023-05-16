@@ -40,13 +40,13 @@ export class FormUnionComponent implements OnChanges {
   private readonly formService = inject(FormService)
 
   get union(): string {
-    return this.form.value['unionSelectKey']
+    return this.form.value[unionSelectKey]
   }
 
   @tuiPure
   onUnion(union: string) {
     this.form.control.setControl(
-      'unionValueKey',
+      unionValueKey,
       this.formService.getFormGroup(
         union ? this.spec.variants[union].spec : {},
       ),

@@ -50,7 +50,6 @@ export class EmailPage {
   }
 
   async sendTestEmail(form: UntypedFormGroup) {
-    console.log(this.testAddress)
     const loader = this.loader.open('Sending...').subscribe()
 
     try {

@@ -8,26 +8,20 @@
 </ion-header>
 
 <ion-content class="with-widgets">
-  <div class="cap-width">
-    <ion-item-group>
-      <ion-item>
-        <ion-label>
-          <h2>
-            Adding SMTP credentials to StartOS enables StartOS and some services
-            to send you emails.
-            <a
-              href="https://docs.start9.com/latest/user-manual/smtp"
-              target="_blank"
-              rel="noreferrer"
-            >
-              View instructions
-            </a>
-          </h2>
-        </ion-label>
-      </ion-item>
-    </ion-item-group>
+  <div *ngIf="form$ | async as form" class="cap-width">
+    <tui-notification>
+      Adding SMTP credentials to StartOS enables StartOS and some services to
+      send you emails.
+      <a
+        href="https://docs.start9.com/latest/user-manual/smtp"
+        target="_blank"
+        rel="noreferrer"
+      >
+        View instructions
+      </a>
+    </tui-notification>
     <!-- form -->
-    <form *ngIf="form$ | async as form" [formGroup]="form">
+    <form [formGroup]="form">
       <ion-item-divider>SMTP Credentials</ion-item-divider>
       <form-group
         *ngIf="spec | async as resolved"
@@ -43,7 +37,8 @@
           Save
         </button>
       </div>
-
+    </form>
+    <form>
       <ion-item-divider>Test Email</ion-item-divider>
       <tui-input
         [(ngModel)]="testAddress"
@@ -57,8 +52,7 @@
           tuiButton
           appearance="secondary"
           size="m"
-          type="button"
-          [disabled]="!testAddress"
+          [disabled]="!testAddress || form.invalid"
           (click)="sendTestEmail(form)"
         >
           Send Test Email

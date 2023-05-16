@@ -24,7 +24,7 @@ import {
   switchMap,
   tap,
 } from 'rxjs'
-import { wifiConst } from './wifi.const'
+import { wifiSpec } from './wifi.const'
 
 interface WiFiForm {
   ssid: string
@@ -113,7 +113,7 @@ export class WifiPage {
       const options: Partial<TuiDialogOptions<FormContext<WiFiForm>>> = {
         label: 'Password Needed',
         data: {
-          spec: wifiConst.spec,
+          spec: wifiSpec.spec,
           buttons: [
             {
               text: 'Connect',
@@ -129,9 +129,9 @@ export class WifiPage {
 
   presentModalAddOther(wifi: RR.GetWifiRes) {
     const options: Partial<TuiDialogOptions<FormContext<WiFiForm>>> = {
-      label: wifiConst.name,
+      label: wifiSpec.name,
       data: {
-        spec: wifiConst.spec,
+        spec: wifiSpec.spec,
         buttons: [
           {
             text: 'Save for Later',

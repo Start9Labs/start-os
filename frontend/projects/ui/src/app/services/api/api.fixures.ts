@@ -20,7 +20,6 @@ import {
   Manifest,
 } from '@start9labs/marketplace'
 import { Log } from '@start9labs/shared'
-// TODO: start-sdk: Figure out why it doesn't work
 import { unionSelectKey } from '@start9labs/start-sdk/lib/config/configTypes'
 import { List } from '@start9labs/start-sdk/lib/config/builder/list'
 import { Value } from '@start9labs/start-sdk/lib/config/builder/value'

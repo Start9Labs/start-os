@@ -21,20 +21,23 @@ import { FormPage } from '../../../../modals/form/form.page'
 import { LoadingService } from '../../../../modals/loading/loading.service'
 import { TUI_PROMPT } from '@taiga-ui/kit'
 import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
-import { InputSpec } from '@start9labs/start-sdk/lib/config/configTypes'
+import {
+  InputSpec,
+  unionSelectKey,
+  unionValueKey,
+} from '@start9labs/start-sdk/lib/config/configTypes'
 
-// TODO: start-sdk: import key
 type BackupConfig =
   | {
       type: {
-        unionSelectKey: 'dropbox' | 'google-drive'
-        unionValueKey: RR.AddCloudBackupTargetReq
+        [unionSelectKey]: 'dropbox' | 'google-drive'
+        [unionValueKey]: RR.AddCloudBackupTargetReq
       }
     }
   | {
       type: {
-        unionSelectKey: 'cifs'
-        unionValueKey: RR.AddCifsBackupTargetReq
+        [unionSelectKey]: 'cifs'
+        [unionValueKey]: RR.AddCifsBackupTargetReq
       }
     }
 
@@ -104,8 +107,8 @@ export class BackupTargetsPage {
             text: 'Save',
             handler: ({ type }: BackupConfig) =>
               this.add(
-                type['unionSelectKey'] === 'cifs' ? 'cifs' : 'cloud',
-                type['unionValueKey'],
+                type[unionSelectKey] === 'cifs' ? 'cifs' : 'cloud',
+                type[unionValueKey],
               ),
           },
         ],
