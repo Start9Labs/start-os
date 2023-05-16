@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core'
 // TODO: Turn into DI token if this is needed someplace else too
 const ICONS = [
   'add',
+  'alarm-outline',
   'alert-outline',
   'alert-circle-outline',
   'aperture-outline',

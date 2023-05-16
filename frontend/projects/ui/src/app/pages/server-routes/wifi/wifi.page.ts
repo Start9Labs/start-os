@@ -24,7 +24,7 @@ import {
   switchMap,
   tap,
 } from 'rxjs'
-import { wifiSpec } from './wifiSpec'
+import { wifiSpec } from './wifi.const'
 
 interface WiFiForm {
   ssid: string

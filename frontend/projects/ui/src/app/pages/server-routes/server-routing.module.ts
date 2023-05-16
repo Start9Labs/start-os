@@ -73,6 +73,11 @@ const routes: Routes = [
         m => m.ExperimentalFeaturesPageModule,
       ),
   },
+  {
+    path: 'email',
+    loadChildren: () =>
+      import('./email/email.module').then(m => m.EmailPageModule),
+  },
 ]
 
 @NgModule({

@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { ValueSpecMultiselect } from 'start-sdk/lib/config/configTypes'
+import { ValueSpecMultiselect } from '@start9labs/start-sdk/lib/config/configTypes'
 import { Control } from '../control'
 import { tuiPure } from '@taiga-ui/cdk'
 

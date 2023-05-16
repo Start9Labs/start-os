@@ -6,7 +6,7 @@ import {
   OnInit,
 } from '@angular/core'
 import { FormService } from 'src/app/services/form.service'
-import { InputSpec } from 'start-sdk/lib/config/configTypes'
+import { InputSpec } from '@start9labs/start-sdk/lib/config/configTypes'
 import { POLYMORPHEUS_CONTEXT } from '@tinkoff/ng-polymorpheus'
 import { TuiDialogContext } from '@taiga-ui/core'
 import { tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
