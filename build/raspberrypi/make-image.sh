@@ -63,10 +63,7 @@ REAL_VERSION=$(cat $TMPDIR/usr/lib/embassy/VERSION.txt)
 REAL_ENVIRONMENT=$(cat $TMPDIR/usr/lib/embassy/ENVIRONMENT.txt)
 sudo sed -i 's| boot=embassy| init=/usr/lib/embassy/scripts/init_resize\.sh|' $TMPDIR/boot/cmdline.txt
 sudo cp ./build/raspberrypi/fstab $TMPDIR/etc/
-sudo mkdir -p $TMPDIR/etc/embassy
-sudo cp ./build/raspberrypi/config.yaml $TMPDIR/etc/embassy
 sudo cp ./build/raspberrypi/init_resize.sh $TMPDIR/usr/lib/embassy/scripts/init_resize.sh
-sudo ln -sf /usr/bin/pi-beep $TMPDIR/usr/local/bin/beep
 sudo umount $TMPDIR/boot
 sudo umount $TMPDIR
 sudo losetup -d $OUTPUT_DEVICE
