@@ -6,6 +6,7 @@ use futures::FutureExt;
 use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use tokio::process::Command;
 use tokio::sync::broadcast::Receiver;
 use tokio::sync::RwLock;
 use tracing::instrument;
@@ -17,8 +18,8 @@ use crate::logs::{
     LogResponse, LogSource,
 };
 use crate::shutdown::Shutdown;
-use crate::util::display_none;
 use crate::util::serde::{display_serializable, IoFormat};
+use crate::util::{display_none, Invoke};
 use crate::{Error, ErrorKind, ResultExt};
 
 pub const SYSTEMD_UNIT: &'static str = "embassyd";
@@ -512,13 +513,30 @@ async fn launch_disk_task(
 
 #[instrument(skip_all)]
 async fn get_temp() -> Result<Celsius, Error> {
-    let temp_file = "/sys/class/thermal/thermal_zone0/temp";
-    let milli = tokio::fs::read_to_string(temp_file)
-        .await
-        .with_ctx(|_| (crate::ErrorKind::Filesystem, temp_file))?
-        .trim()
-        .parse::<f64>()?;
-    Ok(Celsius(milli / 1000.0))
+    let temp = serde_json::from_slice::<serde_json::Value>(
+        &Command::new("sensors")
+            .arg("-j")
+            .invoke(ErrorKind::Filesystem)
+            .await?,
+    )
+    .with_kind(ErrorKind::Deserialization)?
+    .as_object()
+    .into_iter()
+    .flatten()
+    .flat_map(|(_, v)| v.as_object())
+    .flatten()
+    .flat_map(|(_, v)| v.as_object())
+    .flatten()
+    .filter_map(|(k, v)| {
+        if k.ends_with("_input") {
+            v.as_f64()
+        } else {
+            None
+        }
+    })
+    .reduce(f64::max)
+    .ok_or_else(|| Error::new(eyre!("No temperatures available"), ErrorKind::Filesystem))?;
+    Ok(Celsius(temp))
 }
 
 #[derive(Debug, Clone)]

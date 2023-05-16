@@ -7,22 +7,22 @@ on:
       environment:
         type: choice
         description: Environment
-        options: 
-        - "<NONE>"
-        - dev
-        - unstable
-        - dev-unstable
+        options:
+          - "<NONE>"
+          - dev
+          - unstable
+          - dev-unstable
   push:
     branches:
-    - master
-    - next
+      - master
+      - next
   pull_request:
     branches:
-    - master
-    - next
+      - master
+      - next
 
 env:
-  NODEJS_VERSION: '18.15.0'
+  NODEJS_VERSION: "18.15.0"
   ENVIRONMENT: '${{ fromJson(format(''["{0}", ""]'', github.event.inputs.environment || ''dev''))[github.event.inputs.environment == ''<NONE>''] }}'
 
 jobs:
@@ -31,119 +31,121 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [x86_64, x86_64-nonfree, aarch64, aarch64-nonfree, raspberrypi]
+        platform:
+          [x86_64, x86_64-nonfree, aarch64, aarch64-nonfree, raspberrypi]
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v3
-      with:
-        repository: Start9Labs/embassy-os-deb
+      - uses: actions/checkout@v3
+        with:
+          repository: Start9Labs/embassy-os-deb
 
-    - uses: actions/checkout@v3
-      with:
-        submodules: recursive
-        path: embassyos-0.3.x
-    - run: |
-        cp -r debian embassyos-0.3.x/
-        VERSION=0.3.x ./control.sh
-        cp embassyos-0.3.x/backend/embassyd.service embassyos-0.3.x/debian/embassyos.embassyd.service
-        cp embassyos-0.3.x/backend/embassy-init.service embassyos-0.3.x/debian/embassyos.embassy-init.service
-    
-    - uses: actions/setup-node@v3
-      with:
-        node-version: ${{ env.NODEJS_VERSION }}
-    
-    - name: Get npm cache directory
-      id: npm-cache-dir
-      run: |
-        echo "dir=$(npm config get cache)" >> $GITHUB_OUTPUT
-    - uses: actions/cache@v3
-      id: npm-cache
-      with:
-        path: ${{ steps.npm-cache-dir.outputs.dir }}
-        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-node-
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+          path: embassyos-0.3.x
+      - run: |
+          cp -r debian embassyos-0.3.x/
+          VERSION=0.3.x ./control.sh
+          cp embassyos-0.3.x/backend/embassyd.service embassyos-0.3.x/debian/embassyos.embassyd.service
+          cp embassyos-0.3.x/backend/embassy-init.service embassyos-0.3.x/debian/embassyos.embassy-init.service
 
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install \
-          debmake \
-          debhelper-compat \
-          crossbuild-essential-arm64
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODEJS_VERSION }}
 
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v2
-      
-    - name: Set up Docker Buildx        
-      uses: docker/setup-buildx-action@v2
+      - name: Get npm cache directory
+        id: npm-cache-dir
+        run: |
+          echo "dir=$(npm config get cache)" >> $GITHUB_OUTPUT
+      - uses: actions/cache@v3
+        id: npm-cache
+        with:
+          path: ${{ steps.npm-cache-dir.outputs.dir }}
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
 
-    - name: Run build
-      run: "make VERSION=0.3.x TAG=${{ github.ref_name }}"
-      env:
-        OS_ARCH: ${{ matrix.platform }}
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install \
+            debmake \
+            debhelper-compat \
+            crossbuild-essential-arm64
 
-    - uses: actions/upload-artifact@v3
-      with:
-        name: ${{ matrix.platform }}.deb
-        path: embassyos_0.3.x-1_*.deb
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Run build
+        run: "make VERSION=0.3.x TAG=${{ github.ref_name }}"
+        env:
+          OS_ARCH: ${{ matrix.platform }}
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.platform }}.deb
+          path: embassyos_0.3.x-1_*.deb
 
   iso:
     name: Build iso
     strategy:
       fail-fast: false
       matrix:
-        platform: [x86_64, x86_64-nonfree, aarch64, aarch64-nonfree, raspberrypi]
+        platform:
+          [x86_64, x86_64-nonfree, aarch64, aarch64-nonfree, raspberrypi]
     runs-on: ubuntu-22.04
     needs: [dpkg]
     steps:
-    - uses: actions/checkout@v3
-      with:
-        repository: Start9Labs/startos-image-recipes
+      - uses: actions/checkout@v3
+        with:
+          repository: Start9Labs/startos-image-recipes
 
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y qemu-user-static
-        wget http://ftp.us.debian.org/debian/pool/main/d/debspawn/debspawn_0.6.1-1_all.deb
-        sha256sum ./debspawn_0.6.1-1_all.deb | grep fb8a3f588438ff9ef51e713ec1d83306db893f0aa97447565e28bbba9c6e90c6
-        sudo apt-get install -y ./debspawn_0.6.1-1_all.deb
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-user-static
+          wget http://ftp.us.debian.org/debian/pool/main/d/debspawn/debspawn_0.6.1-1_all.deb
+          sha256sum ./debspawn_0.6.1-1_all.deb | grep fb8a3f588438ff9ef51e713ec1d83306db893f0aa97447565e28bbba9c6e90c6
+          sudo apt-get install -y ./debspawn_0.6.1-1_all.deb
 
-    - name: Configure debspawn
-      run: |
-        sudo mkdir -p /etc/debspawn/
-        echo "AllowUnsafePermissions=true" | sudo tee /etc/debspawn/global.toml
+      - name: Configure debspawn
+        run: |
+          sudo mkdir -p /etc/debspawn/
+          echo "AllowUnsafePermissions=true" | sudo tee /etc/debspawn/global.toml
 
-    - uses: actions/cache@v3
-      with:
-        path: /var/lib/debspawn
-        key: ${{ runner.os }}-debspawn-init-bullseye
+      - uses: actions/cache@v3
+        with:
+          path: /var/lib/debspawn
+          key: ${{ runner.os }}-debspawn-init-bullseye
 
-    - name: Make build container
-      run: "debspawn list | grep bullseye || debspawn create bullseye"
+      - name: Make build container
+        run: "debspawn list | grep bullseye || debspawn create bullseye"
 
-    - run: "mkdir -p overlays/deb"
+      - run: "mkdir -p overlays/deb"
 
-    - name: Download dpkg
-      uses: actions/download-artifact@v3
-      with:
-        name: ${{ matrix.platform }}.deb
-        path: overlays/deb
+      - name: Download dpkg
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ matrix.platform }}.deb
+          path: overlays/deb
 
-    - name: Run build
-      run: |
-        ./run-local-build.sh ${{ matrix.platform }}
+      - name: Run build
+        run: |
+          ./run-local-build.sh ${{ matrix.platform }}
 
-    - uses: actions/upload-artifact@v3
-      with:
-        name: ${{ matrix.platform }}.squashfs
-        path: results/*.squashfs
+      - uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.platform }}.squashfs
+          path: results/*.squashfs
 
-    - uses: actions/upload-artifact@v3
-      with:
-        name: ${{ matrix.platform }}.iso
-        path: results/*.iso
-      if: ${{ matrix.platform != 'raspberrypi' }}
+      - uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.platform }}.iso
+          path: results/*.iso
+        if: ${{ matrix.platform != 'raspberrypi' }}
 
   image:
     name: Build image
@@ -151,21 +153,21 @@ jobs:
     timeout-minutes: 60
     needs: [iso]
     steps:
-    - uses: actions/checkout@v3
-      with:
-        submodules: recursive
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
 
-    - name: Download raspberrypi.squashfs artifact
-      uses: actions/download-artifact@v3
-      with:
-        name: raspberrypi.squashfs
+      - name: Download raspberrypi.squashfs artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: raspberrypi.squashfs
 
-    - run: mv startos-*_raspberrypi.squashfs startos.raspberrypi.squashfs
+      - run: mv startos-*_raspberrypi.squashfs startos.raspberrypi.squashfs
 
-    - name: Build image
-      run: make startos_raspberrypi.img
+      - name: Build image
+        run: make startos_raspberrypi.img
 
-    - uses: actions/upload-artifact@v3
-      with:
-        name: raspberrypi.img
-        path: eos-*_raspberrypi.img
+      - uses: actions/upload-artifact@v3
+        with:
+          name: raspberrypi.img
+          path: startos-*_raspberrypi.img
