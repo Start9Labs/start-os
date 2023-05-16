@@ -388,6 +388,15 @@ export class ServerShowPage {
         disabled$: of(false),
       },
       {
+        title: 'Email',
+        description: 'Provide an external SMTP server for sending emails',
+        icon: 'mail-outline',
+        action: () =>
+          this.navCtrl.navigateForward(['email'], { relativeTo: this.route }),
+        detail: true,
+        disabled$: of(false),
+      },
+      {
         title: 'WiFi',
         description: 'Add or remove WiFi networks',
         icon: 'wifi',

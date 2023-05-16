@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
 import { TuiFileLike } from '@taiga-ui/kit'
-import { ValueSpecFile } from 'start-sdk/lib/config/configTypes'
+import { ValueSpecFile } from '@start9labs/start-sdk/lib/config/configTypes'
 import { Control } from '../control'
 
 @Component({

@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { ValueSpecText } from 'start-sdk/lib/config/configTypes'
+import { ValueSpecText } from '@start9labs/start-sdk/lib/config/configTypes'
 import { Control } from '../control'
 
 @Component({

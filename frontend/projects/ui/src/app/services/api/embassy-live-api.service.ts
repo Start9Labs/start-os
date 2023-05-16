@@ -31,7 +31,7 @@ export class LiveApiService extends ApiService {
     private readonly patch: PatchDB<DataModel>,
   ) {
     super()
-    ;(window as any).rpcClient = this
+    ; (window as any).rpcClient = this
   }
 
   // for getting static files: ex icons, instructions, licenses
@@ -275,6 +275,18 @@ export class LiveApiService extends ApiService {
 
   async deleteWifi(params: RR.DeleteWifiReq): Promise<RR.DeleteWifiRes> {
     return this.rpcRequest({ method: 'wifi.delete', params })
+  }
+
+  // email
+
+  async testEmail(params: RR.TestEmailReq): Promise<RR.TestEmailRes> {
+    return this.rpcRequest({ method: 'email.test', params })
+  }
+
+  async configureEmail(
+    params: RR.ConfigureEmailReq,
+  ): Promise<RR.ConfigureEmailRes> {
+    return this.rpcRequest({ method: 'email.configure', params })
   }
 
   // ssh
