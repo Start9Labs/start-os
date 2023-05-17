@@ -38,6 +38,12 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
         .invoke(crate::ErrorKind::OpenSsh)
         .await?;
 
+    Command::new("make-ssl-cert")
+        .arg("generate-default-snakeoil")
+        .arg("--force-overwrite")
+        .invoke(crate::ErrorKind::OpenSsl)
+        .await?;
+
     if tokio::fs::metadata("/run/live/medium").await.is_ok() {
         Command::new("sed")
             .arg("-i")
