@@ -214,7 +214,7 @@ pub async fn import<P: AsRef<Path>>(
     {
         return Err(Error::new(
             eyre!("StartOS disk not found."),
-            crate::ErrorKind::DiskNotAvailable,
+            ErrorKind::DiskNotAvailable,
         ));
     }
     if !scan
@@ -224,7 +224,7 @@ pub async fn import<P: AsRef<Path>>(
     {
         return Err(Error::new(
             eyre!("A StartOS disk was found, but it is not the correct disk for this device."),
-            crate::ErrorKind::IncorrectDisk,
+            ErrorKind::IncorrectDisk,
         ));
     }
     Command::new("dmsetup")

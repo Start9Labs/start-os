@@ -51,7 +51,7 @@ pub async fn partition(disk: &DiskInfo, overwrite: bool) -> Result<OsPartitionIn
                             if entry.first_lba < if use_efi { 33759266 } else { 33570850 } {
                                 return Err(Error::new(
                                     eyre!("Not enough space before embassy data"),
-                                    crate::ErrorKind::InvalidRequest,
+                                    ErrorKind::InvalidRequest,
                                 ));
                             }
                             guid_part = Some(entry.clone());

@@ -51,7 +51,7 @@ pub async fn list() -> Result<Vec<DiskInfo>, Error> {
                         .arg("-t")
                         .arg("disk")
                         .arg("/run/live/medium")
-                        .invoke(crate::ErrorKind::Grub)
+                        .invoke(ErrorKind::Grub)
                         .await?,
                 )?
                 .trim(),
@@ -184,7 +184,7 @@ pub async fn execute(
         .arg("-d")
         .arg(&current)
         .arg("/run/live/medium/live/filesystem.squashfs")
-        .invoke(crate::ErrorKind::Filesystem)
+        .invoke(ErrorKind::Filesystem)
         .await?;
 
     tokio::fs::write(
@@ -260,7 +260,7 @@ pub async fn execute(
     Command::new("chroot")
         .arg(&current)
         .arg("update-grub2")
-        .invoke(crate::ErrorKind::Grub)
+        .invoke(ErrorKind::Grub)
         .await?;
 
     dev.unmount(false).await?;

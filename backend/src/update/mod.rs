@@ -25,7 +25,7 @@ use crate::sound::{
 use crate::update::latest_information::LatestInformation;
 use crate::util::Invoke;
 use crate::version::{Current, VersionT};
-use crate::{Error, ErrorKind, ResultExt, OS_ARCH};
+use crate::OS_ARCH;
 
 mod latest_information;
 
@@ -75,10 +75,7 @@ fn display_update_result(status: UpdateResult, _: &ArgMatches) {
 }
 
 #[instrument(skip_all)]
-async fn maybe_do_update(
-    ctx: RpcContext,
-    marketplace_url: Url,
-) -> Result<Option<Arc<Revision>>, Error> {
+async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<Option<Version>, Error> {
     let mut db = ctx.db.handle();
     let latest_version: Version = reqwest::get(format!(
         "{}/eos/v0/latest?eos-version={}&arch={}",

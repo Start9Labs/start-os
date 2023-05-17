@@ -31,7 +31,7 @@ pub async fn partition(disk: &DiskInfo, overwrite: bool) -> Result<OsPartitionIn
                             if entry.starting_lba < 33556480 {
                                 return Err(Error::new(
                                     eyre!("Not enough space before embassy data"),
-                                    crate::ErrorKind::InvalidRequest,
+                                    ErrorKind::InvalidRequest,
                                 ));
                             }
                             guid_part = Some(std::mem::replace(entry, MBRPartitionEntry::empty()));

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncRead, AsyncReadExt};
 use yasi::InternedString;
 
-use crate::{mime, Error, ResultExt};
+use crate::{mime, Error, ErrorKind, ResultExt};
 
 pub struct DataUrl<'a> {
     mime: InternedString,
@@ -52,7 +52,7 @@ impl DataUrl<'static> {
             if s > Self::MAX_SIZE {
                 Err(Error::new(
                     eyre!("Data URLs must be smaller than 100KiB"),
-                    crate::ErrorKind::Filesystem,
+                    ErrorKind::Filesystem,
                 ))
             } else {
                 Ok(s)
@@ -91,11 +91,7 @@ impl DataUrl<'static> {
                 .and_then(|h| h.to_str().ok())
                 .unwrap_or(Self::DEFAULT_MIME),
         );
-        let data = res
-            .bytes()
-            .await
-            .with_kind(crate::ErrorKind::Network)?
-            .to_vec();
+        let data = res.bytes().await.with_kind(ErrorKind::Network)?.to_vec();
         Ok(Self {
             mime,
             data: Cow::Owned(data),

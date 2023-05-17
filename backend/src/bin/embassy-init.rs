@@ -23,19 +23,19 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
         .arg("-sf")
         .arg("/usr/lib/embassy/scripts/fake-apt")
         .arg("/usr/local/bin/apt")
-        .invoke(crate::ErrorKind::OpenSsh)
+        .invoke(ErrorKind::OpenSsh)
         .await?;
     Command::new("ln")
         .arg("-sf")
         .arg("/usr/lib/embassy/scripts/fake-apt")
         .arg("/usr/local/bin/apt-get")
-        .invoke(crate::ErrorKind::OpenSsh)
+        .invoke(ErrorKind::OpenSsh)
         .await?;
     Command::new("ln")
         .arg("-sf")
         .arg("/usr/lib/embassy/scripts/fake-apt")
         .arg("/usr/local/bin/aptitude")
-        .invoke(crate::ErrorKind::OpenSsh)
+        .invoke(ErrorKind::OpenSsh)
         .await?;
 
     if tokio::fs::metadata("/run/live/medium").await.is_ok() {
@@ -43,12 +43,12 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
             .arg("-i")
             .arg("s/PasswordAuthentication no/PasswordAuthentication yes/g")
             .arg("/etc/ssh/sshd_config")
-            .invoke(crate::ErrorKind::Filesystem)
+            .invoke(ErrorKind::Filesystem)
             .await?;
         Command::new("systemctl")
             .arg("reload")
             .arg("ssh")
-            .invoke(crate::ErrorKind::OpenSsh)
+            .invoke(ErrorKind::OpenSsh)
             .await?;
 
         let ctx = InstallContext::init(cfg_path).await?;

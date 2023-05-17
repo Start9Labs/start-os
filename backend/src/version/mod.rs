@@ -2,6 +2,7 @@ use std::cmp::Ordering;
 
 use async_trait::async_trait;
 use color_eyre::eyre::eyre;
+use lazy_static::lazy_static;
 use rpc_toolkit::command;
 use sqlx::PgPool;
 
@@ -50,15 +51,15 @@ where
     fn new() -> Self;
     fn semver(&self) -> emver::Version;
     fn compat(&self) -> &'static emver::VersionRange;
-    async fn up(&self, db: &PatchDb, secrets: &PgPool) -> Result<(), Error>;
-    async fn down(&self, db: &PatchDb, secrets: &PgPool) -> Result<(), Error>;
+    async fn up(&self, secrets: &PgPool, db: &PatchDb) -> Result<(), Error>;
+    async fn down(&self, secrets: &PgPool, db: &PatchDb) -> Result<(), Error>;
     async fn commit(&self, db: &PatchDb) -> Result<(), Error> {
         db.mutate(|db| {
-            db.as_server_info_mut()
-                .as_eos_version_compat_mut()
+            db.server_info()
+                .eos_version_compat()
                 .ser(self.compat().clone())?;
-            db.as_server_info_mut()
-                .as_server_version_mut()
+            db.server_info()
+                .server_version()
                 .ser(self.semver().into())?;
             Ok(())
         })
@@ -69,25 +70,25 @@ where
     async fn migrate_to<V: VersionT>(
         &self,
         version: &V,
-        db: &PatchDb,
         secrets: &PgPool,
+        db: &PatchDb,
     ) -> Result<(), Error> {
         match self.semver().cmp(&version.semver()) {
-            Ordering::Greater => self.rollback_to_unchecked(version, db, secrets).await,
-            Ordering::Less => version.migrate_from_unchecked(self, db, secrets).await,
+            Ordering::Greater => self.rollback_to_unchecked(version, secrets, db).await,
+            Ordering::Less => version.migrate_from_unchecked(self, secrets, db).await,
             Ordering::Equal => Ok(()),
         }
     }
     async fn migrate_from_unchecked<V: VersionT>(
         &self,
         version: &V,
-        db: &PatchDb,
         secrets: &PgPool,
+        db: &PatchDb,
     ) -> Result<(), Error> {
         let previous = Self::Previous::new();
         if version.semver() < previous.semver() {
             previous
-                .migrate_from_unchecked(version, db, secrets)
+                .migrate_from_unchecked(version, secrets, db)
                 .await?;
         } else if version.semver() > previous.semver() {
             return Err(Error::new(
@@ -99,15 +100,15 @@ where
             ));
         }
         tracing::info!("{} -> {}", previous.semver(), self.semver(),);
-        self.up(db, secrets).await?;
+        self.up(secrets, db).await?;
         self.commit(db).await?;
         Ok(())
     }
     async fn rollback_to_unchecked<V: VersionT>(
         &self,
         version: &V,
-        db: &PatchDb,
         secrets: &PgPool,
+        db: &PatchDb,
     ) -> Result<(), Error> {
         let previous = Self::Previous::new();
         tracing::info!("{} -> {}", self.semver(), previous.semver(),);
@@ -179,8 +180,7 @@ where
 }
 
 pub async fn init(secrets: &PgPool, db: &PatchDb) -> Result<(), Error> {
-    let version =
-        Version::from_util_version(db.peek().await?.into_server_info().into_version().de()?);
+    let version = Version::from_util_version(db.peek().await?.server_info().version().de()?);
     match version {
         Version::LT0_3_4_1(_) => {
             return Err(Error::new(
@@ -188,8 +188,8 @@ pub async fn init(secrets: &PgPool, db: &PatchDb) -> Result<(), Error> {
                 ErrorKind::MigrationFailed,
             ));
         }
-        Version::V0_3_4_1(v) => v.0.migrate_to(&Current::new(), db, secrets).await?,
-        Version::V0_4_0(v) => v.0.migrate_to(&Current::new(), db, secrets).await?,
+        Version::V0_3_4(v) => v.0.migrate_to(&Current::new(), secrets, db).await?,
+        Version::V0_4_0(v) => v.0.migrate_to(&Current::new(), secrets, db).await?,
         Version::Other(_) => {
             return Err(Error::new(
                 eyre!("Cannot downgrade"),
