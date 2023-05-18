@@ -11,6 +11,10 @@ export class FilterPackagesPipe implements PipeTransform {
     query: string,
     category: string,
   ): MarketplacePkg[] {
+    const categoryPackages = packages.filter(
+      p => category === 'all' || p.categories.includes(category),
+    )
+
     // query
     if (query) {
       let options: Fuse.IFuseOptions<MarketplacePkg> = {
@@ -62,19 +66,17 @@ export class FilterPackagesPipe implements PipeTransform {
         query = `'${query}`
       }
 
-      const fuse = new Fuse(packages, options)
+      const fuse = new Fuse(categoryPackages, options)
       return fuse.search(query).map(p => p.item)
     }
 
     // category
-    return packages
-      .filter(p => category === 'all' || p.categories.includes(category))
-      .sort((a, b) => {
-        return (
-          new Date(b['published-at']).valueOf() -
-          new Date(a['published-at']).valueOf()
-        )
-      })
+    return categoryPackages.sort((a, b) => {
+      return (
+        new Date(b['published-at']).valueOf() -
+        new Date(a['published-at']).valueOf()
+      )
+    })
   }
 }
 
