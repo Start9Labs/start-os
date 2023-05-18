@@ -36,7 +36,7 @@ export class CategoriesComponent {
       case 'communications':
         return 'chatbubbles-outline'
       case 'data':
-        return 'document'
+        return 'document-outline'
       case 'developer tools':
         return 'code-slash-outline'
       case 'featured':
