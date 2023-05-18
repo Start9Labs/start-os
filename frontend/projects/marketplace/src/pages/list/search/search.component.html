@@ -1,14 +1,24 @@
-<ion-grid>
-  <ion-row>
-    <ion-col responsiveCol class="column" sizeSm="8" sizeLg="6">
-      <ion-toolbar color="transparent" class="ion-text-left">
-        <ion-searchbar
-          [color]="(theme$ | async) === 'Light' ? 'light' : 'dark'"
-          debounce="250"
-          [ngModel]="query"
-          (ngModelChange)="onModelChange($event)"
-        ></ion-searchbar>
-      </ion-toolbar>
-    </ion-col>
-  </ion-row>
-</ion-grid>
+<div
+  class="hidden sm:flex items-center mt-4 mx-6 text-zinc-100 bg-zinc-500 px-3 rounded-full"
+>
+  <div class="relative flex items-center">
+    <img
+      alt=""
+      loading="lazy"
+      width="24"
+      height="24"
+      class="transition block invert"
+      style="color: transparent"
+      src="svg/search.svg"
+    />
+    <input
+      type="text"
+      name="search"
+      class="mt-1 bg-transparent placeholder-zinc-400 focus:outline-none block w-30 px-3 py-2"
+      placeholder="Search..."
+      autocomplete="off"
+      [ngModel]="query"
+      (ngModelChange)="onModelChange($event)"
+    />
+  </div>
+</div>
