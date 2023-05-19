@@ -39,6 +39,10 @@ export class FormControlComponent<
   readonly order = ERRORS
   private readonly alerts = inject(TuiAlertService)
 
+  get immutable(): boolean {
+    return 'immutable' in this.spec && this.spec.immutable
+  }
+
   onFocus(focused: boolean) {
     this.focused = focused
     this.updateFocused(focused)

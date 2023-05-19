@@ -1,10 +1,11 @@
 {{ spec.name }}
 <tui-tooltip
-  *ngIf="spec.description"
-  [content]="spec.description"
+  *ngIf="spec.description || spec.disabled"
+  [tuiHintContent]="spec | hint"
 ></tui-tooltip>
 <tui-toggle
   size="l"
+  [disabled]="!!spec.disabled"
   [(ngModel)]="value"
   (focusedChange)="onFocus($event)"
 ></tui-toggle>

@@ -1,5 +1,6 @@
 <tui-multi-select
-  [tuiHintContent]="spec.description"
+  [tuiHintContent]="spec | hint"
+  [disabled]="disabled"
   [pseudoInvalid]="invalid"
   [editable]="false"
   [disabledItemHandler]="disabledItemHandler"

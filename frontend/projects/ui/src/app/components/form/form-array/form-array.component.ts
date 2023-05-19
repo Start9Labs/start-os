@@ -35,10 +35,25 @@ export class FormArrayComponent {
   private readonly dialogs = inject(TuiDialogService)
   private readonly destroy$ = inject(TuiDestroyService)
 
+  get hint(): string {
+    const hint = []
+
+    if (this.spec.description) {
+      hint.push(this.spec.description)
+    }
+
+    if (this.spec.disabled) {
+      hint.push(`Disabled: ${this.spec.disabled}`)
+    }
+
+    return hint.join('\n\n')
+  }
+
   get canAdd(): boolean {
     return (
-      !this.spec.maxLength ||
-      this.spec.maxLength >= this.array.control.controls.length
+      !this.spec.disabled &&
+      (!this.spec.maxLength ||
+        this.spec.maxLength >= this.array.control.controls.length)
     )
   }
 

@@ -1,5 +1,6 @@
 <tui-text-area
-  [tuiHintContent]="spec.description"
+  [tuiHintContent]="spec | hint"
+  [disabled]="!!spec.disabled"
   [pseudoInvalid]="invalid"
   [expandable]="true"
   [rows]="6"
