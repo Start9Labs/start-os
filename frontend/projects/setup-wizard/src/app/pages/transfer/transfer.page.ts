@@ -58,7 +58,7 @@ export class TransferPage {
               type: 'migrate',
               guid,
             }
-            this.navCtrl.navigateForward(`/embassy`)
+            this.navCtrl.navigateForward(`/storage`)
           },
         },
       ],
