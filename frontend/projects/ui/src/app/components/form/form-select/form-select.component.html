@@ -1,5 +1,7 @@
 <tui-select
-  [tuiHintContent]="spec.description"
+  [tuiHintContent]="spec | hint"
+  [disabled]="disabled"
+  [readOnly]="readOnly"
   [tuiTextfieldCleaner]="!spec.required"
   [pseudoInvalid]="invalid"
   [(ngModel)]="selected"
@@ -9,7 +11,7 @@
   <span *ngIf="spec.required">*</span>
   <select
     tuiSelect
-    [labels]="[spec.warning ? '⚠️ ' + spec.warning : '']"
-    [items]="[items]"
+    [items]="items"
+    [disabledItemHandler]="disabledItemHandler"
   ></select>
 </tui-select>

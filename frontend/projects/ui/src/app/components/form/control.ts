@@ -14,6 +14,13 @@ export abstract class Control<Spec extends ValueSpec, Value> {
     return this.control.spec
   }
 
+  // TODO: Properly handle already set immutable value
+  get readOnly(): boolean {
+    return (
+      !!this.value && !!this.control.control?.pristine && this.control.immutable
+    )
+  }
+
   get value(): Value | null {
     return this.control.value
   }

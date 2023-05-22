@@ -48,6 +48,7 @@ import { MustachePipe } from './mustache.pipe'
 import { ControlDirective } from './control.directive'
 import { FormColorComponent } from './form-color/form-color.component'
 import { FormDatetimeComponent } from './form-datetime/form-datetime.component'
+import { HintPipe } from './hint.pipe'
 
 @NgModule({
   imports: [
@@ -98,6 +99,7 @@ import { FormDatetimeComponent } from './form-datetime/form-datetime.component'
     FormObjectComponent,
     FormArrayComponent,
     MustachePipe,
+    HintPipe,
     ControlDirective,
   ],
   exports: [FormGroupComponent],

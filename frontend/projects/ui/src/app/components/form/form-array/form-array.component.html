@@ -1,8 +1,8 @@
 <div class="label">
   {{ spec.name }}
   <tui-tooltip
-    *ngIf="spec.description"
-    [content]="spec.description"
+    *ngIf="spec.description || spec.disabled"
+    [content]="spec | hint"
   ></tui-tooltip>
   <button
     tuiLink
