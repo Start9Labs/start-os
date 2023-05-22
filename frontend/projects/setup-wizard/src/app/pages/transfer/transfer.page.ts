@@ -45,7 +45,7 @@ export class TransferPage {
     const alert = await this.alertCtrl.create({
       header: 'Warning',
       message:
-        'After transferring data from this drive, <b>do not</b> use it again as an Embassy. This may result in services malfunctioning, data corruption, or loss of funds.',
+        'After transferring data from this drive, <b>do not</b> attempt to boot into it again as a Start9 Server. This may result in services malfunctioning, data corruption, or loss of funds.',
       buttons: [
         {
           role: 'cancel',
