@@ -1,6 +1,7 @@
 <tui-select
   [tuiHintContent]="spec | hint"
   [disabled]="disabled"
+  [readOnly]="readOnly"
   [tuiTextfieldCleaner]="!spec.required"
   [pseudoInvalid]="invalid"
   [(ngModel)]="selected"

@@ -2,6 +2,7 @@
   [tuiTextfieldCustomContent]="spec.masked ? toggle : ''"
   [tuiHintContent]="spec | hint"
   [disabled]="!!spec.disabled"
+  [readOnly]="readOnly"
   [pseudoInvalid]="invalid"
   [(ngModel)]="value"
   (focusedChange)="onFocus($event)"

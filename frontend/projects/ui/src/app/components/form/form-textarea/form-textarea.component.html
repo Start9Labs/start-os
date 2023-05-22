@@ -1,6 +1,8 @@
 <tui-text-area
   [tuiHintContent]="spec | hint"
+  [tuiTextfieldCustomContent]="spec.generate ? button : ''"
   [disabled]="!!spec.disabled"
+  [readOnly]="readOnly"
   [pseudoInvalid]="invalid"
   [expandable]="true"
   [rows]="6"
@@ -12,3 +14,15 @@
   <span *ngIf="spec.required">*</span>
   <textarea tuiTextfield [placeholder]="spec.placeholder || ''"></textarea>
 </tui-text-area>
+<ng-template #button>
+  <button
+    tuiIconButton
+    type="button"
+    appearance="icon"
+    title="Generate"
+    size="xs"
+    style="pointer-events: auto"
+    icon="tuiIconRefreshCcw"
+    (click)="generate()"
+  ></button>
+</ng-template>

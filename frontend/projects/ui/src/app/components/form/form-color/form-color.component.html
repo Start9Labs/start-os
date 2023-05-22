@@ -3,6 +3,7 @@
   [tuiTextfieldCustomContent]="color"
   [tuiTextfieldCleaner]="false"
   [tuiHintContent]="spec | hint"
+  [readOnly]="readOnly"
   [disabled]="!!spec.disabled"
   [pseudoInvalid]="invalid"
   [(ngModel)]="value"
@@ -14,6 +15,7 @@
 <ng-template #color>
   <div class="wrapper" [style.color]="value">
     <input
+      *ngIf="!readOnly && !spec.disabled"
       type="color"
       class="color"
       tabindex="-1"
