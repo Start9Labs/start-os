@@ -2,6 +2,7 @@ import { Component } from '@angular/core'
 import { ValueSpecMultiselect } from '@start9labs/start-sdk/lib/config/configTypes'
 import { Control } from '../control'
 import { tuiPure } from '@taiga-ui/cdk'
+import { invert } from '@start9labs/shared'
 
 @Component({
   selector: 'form-multiselect',
@@ -11,12 +12,25 @@ export class FormMultiselectComponent extends Control<
   ValueSpecMultiselect,
   readonly string[]
 > {
-  readonly items = Object.values(this.spec.values)
+  private readonly inverted = invert(this.spec.values)
 
-  readonly disabledItemHandler = (item: string): boolean =>
+  private readonly isDisabled = (item: string) =>
+    Array.isArray(this.spec.disabled) &&
+    this.spec.disabled.includes(this.inverted[item])
+
+  private readonly isExceedingLimit = (item: string) =>
     !!this.spec.maxLength &&
     this.selected.length >= this.spec.maxLength &&
     !this.selected.includes(item)
+
+  readonly disabledItemHandler = (item: string): boolean =>
+    this.isDisabled(item) || this.isExceedingLimit(item)
+
+  readonly items = Object.values(this.spec.values)
+
+  get disabled(): boolean {
+    return typeof this.spec.disabled === 'string'
+  }
 
   get selected(): string[] {
     return this.memoize(this.value)
