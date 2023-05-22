@@ -70,7 +70,7 @@ export class BackupDrivesComponent {
   ): void {
     if (target.entry.type === 'cifs' && !target.entry.mountable) {
       const message =
-        'Unable to connect to Network Folder. Ensure (1) target computer is connected to the same LAN as your Embassy, (2) target folder is being shared, and (3) hostname, path, and credentials are accurate.'
+        'Unable to connect to Network Folder. Ensure (1) target computer is connected to the same LAN as your Start9 Server, (2) target folder is being shared, and (3) hostname, path, and credentials are accurate.'
       this.presentAlertError(message)
       return
     }
@@ -78,7 +78,7 @@ export class BackupDrivesComponent {
     if (this.type === 'restore' && !target.hasValidBackup) {
       const message = `${
         target.entry.type === 'cifs' ? 'Network Folder' : 'Drive partition'
-      } does not contain a valid Embassy backup.`
+      } does not contain a valid Start9 Server backup.`
       this.presentAlertError(message)
       return
     }
