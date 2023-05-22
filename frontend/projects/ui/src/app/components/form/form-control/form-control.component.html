@@ -10,8 +10,13 @@
   <form-toggle *ngSwitchCase="'toggle'"></form-toggle>
 </ng-container>
 <tui-error [error]="order | tuiFieldError | async"></tui-error>
-<ng-template *ngIf="spec.warning" #warning let-completeWith="completeWith">
+<ng-template
+  *ngIf="spec.warning || immutable"
+  #warning
+  let-completeWith="completeWith"
+>
   {{ spec.warning }}
+  <p *ngIf="immutable">This value cannot be changed once set!</p>
   <div class="buttons">
     <button
       tuiButton

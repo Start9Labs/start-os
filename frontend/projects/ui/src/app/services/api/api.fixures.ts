@@ -716,6 +716,18 @@ export module Mock {
             ),
           }),
         ),
+        users: Value.multiselect({
+          name: 'Users',
+          default: [],
+          maxLength: 2,
+          disabled: ['matt'],
+          values: {
+            matt: 'Matt Hill',
+            alex: 'Alex Inkin',
+            blue: 'Blue J',
+            lucy: 'Lucy',
+          },
+        }),
         advanced: Value.object(
           {
             name: 'Advanced',
@@ -899,19 +911,19 @@ export module Mock {
             },
           ),
         ),
-        'random-enum': Value.select({
-          name: 'Random Enum',
+        'random-select': Value.select({
+          name: 'Random select',
           description: 'This is not even real.',
           warning: 'Be careful changing this!',
           required: {
-            default: 'null',
+            default: null,
           },
           values: {
-            null: 'null',
             option1: 'option1',
             option2: 'option2',
             option3: 'option3',
           },
+          disabled: ['option2'],
         }),
         'favorite-number':
           /* TODO: Convert range for this value ((-100,100])*/ Value.number({
@@ -1036,8 +1048,13 @@ export module Mock {
             description: 'Options<ul><li>Item 1</li><li>Item 2</li></ul>',
             warning: 'Careful changing this',
             required: { default: 'internal' },
+            disabled: ['fake'],
           },
           Variants.of({
+            fake: {
+              name: 'Fake',
+              spec: Config.of({}),
+            },
             internal: {
               name: 'Internal',
               spec: Config.of({}),
@@ -1112,6 +1129,10 @@ export module Mock {
         }),
         'favorite-slogan': Value.text({
           name: 'Favorite Slogan',
+          generate: {
+            charset: 'a-z,A-Z,2-9',
+            len: 20,
+          },
           required: false,
           description:
             'You most favorite slogan in the whole world, used for paying you.',

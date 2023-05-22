@@ -1,6 +1,9 @@
 <ng-container [ngSwitch]="spec.inputmode" [tuiHintContent]="spec.description">
   <tui-input-time
     *ngSwitchCase="'time'"
+    [tuiHintContent]="spec | hint"
+    [disabled]="!!spec.disabled"
+    [readOnly]="readOnly"
     [pseudoInvalid]="invalid"
     [ngModel]="getTime(value)"
     (ngModelChange)="value = $event?.toString() || null"
@@ -11,6 +14,9 @@
   </tui-input-time>
   <tui-input-date
     *ngSwitchCase="'date'"
+    [tuiHintContent]="spec | hint"
+    [disabled]="!!spec.disabled"
+    [readOnly]="readOnly"
     [pseudoInvalid]="invalid"
     [min]="spec.min ? (spec.min | tuiMapper : getLimit)[0] : min"
     [max]="spec.max ? (spec.max | tuiMapper : getLimit)[0] : max"
@@ -22,6 +28,9 @@
   </tui-input-date>
   <tui-input-date-time
     *ngSwitchCase="'datetime-local'"
+    [tuiHintContent]="spec | hint"
+    [disabled]="!!spec.disabled"
+    [readOnly]="readOnly"
     [pseudoInvalid]="invalid"
     [min]="spec.min ? (spec.min | tuiMapper : getLimit) : min"
     [max]="spec.max ? (spec.max | tuiMapper : getLimit) : max"

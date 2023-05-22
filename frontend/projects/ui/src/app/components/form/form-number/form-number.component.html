@@ -1,5 +1,7 @@
 <tui-input-number
-  [tuiHintContent]="spec.description"
+  [tuiHintContent]="spec | hint"
+  [disabled]="!!spec.disabled"
+  [readOnly]="readOnly"
   [tuiTextfieldPostfix]="spec.units || ''"
   [pseudoInvalid]="invalid"
   [precision]="Infinity"
