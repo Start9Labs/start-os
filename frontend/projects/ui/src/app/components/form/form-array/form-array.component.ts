@@ -37,8 +37,9 @@ export class FormArrayComponent {
 
   get canAdd(): boolean {
     return (
-      !this.spec.maxLength ||
-      this.spec.maxLength >= this.array.control.controls.length
+      !this.spec.disabled &&
+      (!this.spec.maxLength ||
+        this.spec.maxLength >= this.array.control.controls.length)
     )
   }
 

@@ -1,5 +1,7 @@
 <tui-text-area
-  [tuiHintContent]="spec.description"
+  [tuiHintContent]="spec | hint"
+  [disabled]="!!spec.disabled"
+  [readOnly]="readOnly"
   [pseudoInvalid]="invalid"
   [expandable]="true"
   [rows]="6"
