@@ -52,8 +52,6 @@ export class FormService {
   ): ValueSpecSelect {
     return {
       ...spec,
-      // TODO: implement disabled
-      disabled: false,
       type: 'select',
       default: selection,
       values: Object.fromEntries(

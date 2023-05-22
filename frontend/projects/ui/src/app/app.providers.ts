@@ -6,6 +6,7 @@ import { TUI_DATE_FORMAT, TUI_DATE_SEPARATOR } from '@taiga-ui/cdk'
 import {
   tuiButtonOptionsProvider,
   tuiNumberFormatProvider,
+  tuiTextfieldOptionsProvider,
 } from '@taiga-ui/core'
 import {
   TUI_DATE_TIME_VALUE_TRANSFORMER,
@@ -33,6 +34,7 @@ export const APP_PROVIDERS: Provider[] = [
   IonNav,
   tuiNumberFormatProvider({ decimalSeparator: '.', thousandSeparator: '' }),
   tuiButtonOptionsProvider({ size: 'm' }),
+  tuiTextfieldOptionsProvider({ hintOnDisabled: true }),
   {
     provide: TUI_DATE_FORMAT,
     useValue: 'MDY',
