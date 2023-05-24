@@ -60,7 +60,6 @@ export * from './types/api'
 export * from './types/constructor'
 export * from './types/http.types'
 export * from './types/rpc.types'
-export * from './types/setup-status'
 export * from './types/url'
 export * from './types/workspace-config'
 

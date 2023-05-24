@@ -41,3 +41,9 @@ export type StartOSDiskInfo = {
   'password-hash': string | null
   'wrapped-key': string | null
 }
+
+export interface SetupStatus {
+  'bytes-transferred': number
+  'total-bytes': number | null
+  complete: boolean
+}

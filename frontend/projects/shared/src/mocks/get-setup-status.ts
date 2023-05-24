@@ -1,4 +1,4 @@
-import { SetupStatus } from '../types/setup-status'
+import { SetupStatus } from '../types/api'
 import { pauseFor } from '../util/misc.util'
 
 let tries: number | undefined

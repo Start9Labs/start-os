@@ -11,7 +11,7 @@ import {
   shareReplay,
   takeWhile,
 } from 'rxjs'
-import { SetupStatus } from '../types/setup-status'
+import { SetupStatus } from '../types/api'
 import { ErrorToastService } from './error-toast.service'
 import { Constructor } from '../types/constructor'
 
