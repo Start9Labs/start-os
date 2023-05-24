@@ -7,6 +7,7 @@ ca-certificates
 cifs-utils
 containerd.io
 curl
+crda
 cryptsetup
 docker-ce
 docker-ce-cli
