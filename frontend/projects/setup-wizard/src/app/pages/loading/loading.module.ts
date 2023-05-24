@@ -1,13 +1,17 @@
 import { NgModule } from '@angular/core'
-import { CommonModule } from '@angular/common'
-import { IonicModule } from '@ionic/angular'
-import { FormsModule } from '@angular/forms'
-import { LoadingPage, ToMessagePipe } from './loading.page'
-import { LogsWindowComponent } from './logs-window/logs-window.component'
-import { LoadingPageRoutingModule } from './loading-routing.module'
+import { RouterModule, Routes } from '@angular/router'
+import { LoadingModule } from '@start9labs/shared'
+import { LoadingPage } from './loading.page'
+
+const routes: Routes = [
+  {
+    path: '',
+    component: LoadingPage,
+  },
+]
 
 @NgModule({
-  imports: [CommonModule, FormsModule, IonicModule, LoadingPageRoutingModule],
-  declarations: [LoadingPage, ToMessagePipe, LogsWindowComponent],
+  imports: [LoadingModule, RouterModule.forChild(routes)],
+  declarations: [LoadingPage],
 })
 export class LoadingPageModule {}

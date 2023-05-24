@@ -18,7 +18,12 @@ import { HomePageModule } from './pages/home/home.module'
 import { LoadingPageModule } from './pages/loading/loading.module'
 import { RecoverPageModule } from './pages/recover/recover.module'
 import { TransferPageModule } from './pages/transfer/transfer.module'
-import { RELATIVE_URL, WorkspaceConfig } from '@start9labs/shared'
+import {
+  provideSetupLogsService,
+  provideSetupService,
+  RELATIVE_URL,
+  WorkspaceConfig,
+} from '@start9labs/shared'
 
 const {
   useMocks,
@@ -43,6 +48,8 @@ const {
     TuiRootModule,
   ],
   providers: [
+    provideSetupService(ApiService),
+    provideSetupLogsService(ApiService),
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
     {
       provide: ApiService,
