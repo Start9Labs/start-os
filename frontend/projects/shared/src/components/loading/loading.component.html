@@ -1,0 +1,34 @@
+<ion-content>
+  <ion-grid>
+    <ion-row class="ion-align-items-center">
+      <ion-col class="ion-text-center">
+        <ion-card *tuiLet="progress$ | async as progress" color="dark">
+          <ion-card-header>
+            <ion-card-title>Initializing StartOS</ion-card-title>
+            <div class="center-wrapper">
+              <ion-card-subtitle *ngIf="progress">
+                Progress: {{ (progress * 100).toFixed(0) }}%
+              </ion-card-subtitle>
+            </div>
+          </ion-card-header>
+
+          <ion-card-content class="ion-margin">
+            <ion-progress-bar
+              color="tertiary"
+              class="progress"
+              [type]="
+                progress && progress < 1 ? 'determinate' : 'indeterminate'
+              "
+              [value]="progress || 0"
+            ></ion-progress-bar>
+            <p>{{ getMessage(progress) }}</p>
+          </ion-card-content>
+        </ion-card>
+
+        <div class="logs-container">
+          <logs-window></logs-window>
+        </div>
+      </ion-col>
+    </ion-row>
+  </ion-grid>
+</ion-content>
