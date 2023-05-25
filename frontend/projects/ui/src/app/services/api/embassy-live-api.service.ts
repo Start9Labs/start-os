@@ -8,6 +8,7 @@ import {
   Method,
   RpcError,
   RPCOptions,
+  SetupStatus,
 } from '@start9labs/shared'
 import { ApiService } from './embassy-api.service'
 import { BackupTargetType, Metrics, RR } from './api.types'
@@ -31,7 +32,9 @@ export class LiveApiService extends ApiService {
     private readonly patch: PatchDB<DataModel>,
   ) {
     super()
-    ; (window as any).rpcClient = this
+
+    // @ts-ignore
+    this.document.defaultView.rpcClient = this
   }
 
   // for getting static files: ex icons, instructions, licenses
@@ -120,6 +123,10 @@ export class LiveApiService extends ApiService {
     }
 
     return this.openWebsocket(config)
+  }
+
+  async followLogs(): Promise<string> {
+    return this.rpcRequest({ method: 'setup.logs.follow', params: {} })
   }
 
   openLogsWebsocket$(config: WebSocketSubjectConfig<Log>): Observable<Log> {
@@ -495,6 +502,13 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({
       method: 'package.sideload',
       params,
+    })
+  }
+
+  async getSetupStatus() {
+    return this.rpcRequest<SetupStatus | null>({
+      method: 'setup.status',
+      params: {},
     })
   }
 
