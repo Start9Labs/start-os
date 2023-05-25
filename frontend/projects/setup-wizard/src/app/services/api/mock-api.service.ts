@@ -1,5 +1,10 @@
 import { Injectable } from '@angular/core'
-import { encodeBase64, Log, pauseFor } from '@start9labs/shared'
+import {
+  encodeBase64,
+  getSetupStatusMock,
+  Log,
+  pauseFor,
+} from '@start9labs/shared'
 import {
   ApiService,
   CifsRecoverySource,
@@ -9,32 +14,14 @@ import {
 } from './api.service'
 import * as jose from 'node-jose'
 import { interval, map, Observable } from 'rxjs'
-
-let tries: number
+import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 
 @Injectable({
   providedIn: 'root',
 })
 export class MockApiService extends ApiService {
-  async getStatus() {
-    const restoreOrMigrate = true
-    const total = 4
-
-    await pauseFor(1000)
-
-    if (tries === undefined) {
-      tries = 0
-      return null
-    }
-
-    tries++
-    const progress = tries - 1
-
-    return {
-      'bytes-transferred': restoreOrMigrate ? progress : 0,
-      'total-bytes': restoreOrMigrate ? total : null,
-      complete: progress === total,
-    }
+  async getSetupStatus() {
+    return getSetupStatusMock()
   }
 
   async getPubKey() {
@@ -152,7 +139,7 @@ export class MockApiService extends ApiService {
     return 'fake-guid'
   }
 
-  openLogsWebsocket$(guid: string): Observable<Log> {
+  openLogsWebsocket$(config: WebSocketSubjectConfig<Log>): Observable<Log> {
     return interval(500).pipe(
       map(() => ({
         timestamp: new Date().toISOString(),

@@ -17,7 +17,7 @@ export class AppComponent {
 
   async ngOnInit() {
     try {
-      const inProgress = await this.apiService.getStatus()
+      const inProgress = await this.apiService.getSetupStatus()
 
       let route = '/home'
       if (inProgress) {

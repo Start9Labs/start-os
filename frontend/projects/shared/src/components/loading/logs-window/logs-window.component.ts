@@ -1,9 +1,10 @@
 import { Component, ViewChild } from '@angular/core'
 import { IonContent } from '@ionic/angular'
-import { from, map, switchMap, takeUntil } from 'rxjs'
-import { ApiService } from 'src/app/services/api/api.service'
-import { Log, toLocalIsoString } from '@start9labs/shared'
+import { map, takeUntil } from 'rxjs'
 import { TuiDestroyService } from '@taiga-ui/cdk'
+import { SetupLogsService } from '../../../services/setup-logs.service'
+import { Log } from '../../../types/api'
+import { toLocalIsoString } from '../../../util/to-local-iso-string'
 
 var Convert = require('ansi-to-html')
 var convert = new Convert({
@@ -23,36 +24,29 @@ export class LogsWindowComponent {
   autoScroll = true
 
   constructor(
-    private readonly api: ApiService,
+    private readonly logs: SetupLogsService,
     private readonly destroy$: TuiDestroyService,
   ) {}
 
   ngOnInit() {
-    from(this.api.followLogs())
+    this.logs
       .pipe(
-        switchMap(guid =>
-          this.api.openLogsWebsocket$(guid).pipe(
-            map(log => {
-              const container = document.getElementById('container')
-              const newLogs = document.getElementById('template')?.cloneNode()
-
-              if (!(newLogs instanceof HTMLElement)) return
-
-              newLogs.innerHTML = this.convertToAnsi(log)
-
-              container?.append(newLogs)
-
-              if (this.autoScroll) {
-                setTimeout(() => {
-                  this.content?.scrollToBottom(250)
-                }, 0)
-              }
-            }),
-          ),
-        ),
+        map(log => this.convertToAnsi(log)),
         takeUntil(this.destroy$),
       )
-      .subscribe()
+      .subscribe(innerHTML => {
+        const container = document.getElementById('container')
+        const newLogs = document.getElementById('template')?.cloneNode()
+
+        if (!(newLogs instanceof HTMLElement)) return
+
+        newLogs.innerHTML = innerHTML
+        container?.append(newLogs)
+
+        if (this.autoScroll) {
+          setTimeout(() => this.content?.scrollToBottom(250))
+        }
+      })
   }
 
   handleScroll(e: any) {
