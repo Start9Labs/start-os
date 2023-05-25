@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { pauseFor, Log } from '@start9labs/shared'
+import { pauseFor, Log, getSetupStatusMock } from '@start9labs/shared'
 import { ApiService } from './embassy-api.service'
 import {
   PatchOp,
@@ -959,6 +959,10 @@ export class MockApiService extends ApiService {
   ): Promise<RR.SideloadPacakgeRes> {
     await pauseFor(2000)
     return '4120e092-05ab-4de2-9fbd-c3f1f4b1df9e' // no significance, randomly generated
+  }
+
+  async getSetupStatus() {
+    return getSetupStatusMock()
   }
 
   private async updateProgress(id: string): Promise<void> {

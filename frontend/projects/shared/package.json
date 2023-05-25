@@ -9,7 +9,8 @@
     "@ng-web-apis/mutation-observer": ">=2.0.0",
     "@ng-web-apis/resize-observer": ">=2.0.0",
     "@start9labs/emver": "^0.1.5",
-    "@taiga-ui/cdk": ">=3.0.0"
+    "@taiga-ui/cdk": ">=3.0.0",
+    "ansi-to-html": "^0.7.2"
   },
   "exports": {
     "./assets/": "./assets/"

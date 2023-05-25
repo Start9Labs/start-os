@@ -1,40 +1,5 @@
-<ion-content>
-  <ion-grid>
-    <ion-row class="ion-align-items-center">
-      <ion-col class="ion-text-center">
-        <ion-card
-          *ngIf="{ decimal: progress$ | async } as progress"
-          color="dark"
-        >
-          <ion-card-header>
-            <ion-card-title>Initializing StartOS</ion-card-title>
-            <div class="center-wrapper">
-              <ion-card-subtitle *ngIf="progress.decimal as decimal">
-                Progress: {{ (decimal * 100).toFixed(0)}}%
-              </ion-card-subtitle>
-            </div>
-          </ion-card-header>
-
-          <ion-card-content class="ion-margin">
-            <ion-progress-bar
-              color="tertiary"
-              style="
-                max-width: 700px;
-                margin: auto;
-                padding-bottom: 20px;
-                margin-bottom: 40px;
-              "
-              [type]="progress.decimal && progress.decimal < 1 ? 'determinate' : 'indeterminate'"
-              [value]="progress.decimal || 0"
-            ></ion-progress-bar>
-            <p>{{ progress.decimal | toMessage }}</p>
-          </ion-card-content>
-        </ion-card>
-
-        <div class="logs-container">
-          <logs-window></logs-window>
-        </div>
-      </ion-col>
-    </ion-row>
-  </ion-grid>
-</ion-content>
+<app-loading
+  class="ion-page"
+  [setupType]="stateService.setupType"
+  (finished)="navCtrl.navigateForward('/success')"
+></app-loading>

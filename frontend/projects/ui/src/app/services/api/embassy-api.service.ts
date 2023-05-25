@@ -2,7 +2,7 @@ import { BehaviorSubject, Observable } from 'rxjs'
 import { Update } from 'patch-db-client'
 import { RR, Encrypted, BackupTargetType, Metrics } from './api.types'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { Log } from '@start9labs/shared'
+import { Log, SetupStatus } from '@start9labs/shared'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 import type { JWK } from 'node-jose'
 
@@ -283,4 +283,6 @@ export abstract class ApiService {
   abstract sideloadPackage(
     params: RR.SideloadPackageReq,
   ): Promise<RR.SideloadPacakgeRes>
+
+  abstract getSetupStatus(): Promise<SetupStatus | null>
 }
