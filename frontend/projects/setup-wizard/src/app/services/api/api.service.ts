@@ -1,11 +1,17 @@
 import * as jose from 'node-jose'
-import { DiskListResponse, StartOSDiskInfo, Log } from '@start9labs/shared'
+import {
+  DiskListResponse,
+  StartOSDiskInfo,
+  Log,
+  SetupStatus,
+} from '@start9labs/shared'
 import { Observable } from 'rxjs'
+import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 
 export abstract class ApiService {
   pubkey?: jose.JWK.Key
 
-  abstract getStatus(): Promise<StatusRes> // setup.status
+  abstract getSetupStatus(): Promise<SetupStatus | null> // setup.status
   abstract getPubKey(): Promise<void> // setup.get-pubkey
   abstract getDrives(): Promise<DiskListResponse> // setup.disk.list
   abstract verifyCifs(cifs: CifsRecoverySource): Promise<StartOSDiskInfo> // setup.cifs.verify
@@ -14,7 +20,9 @@ export abstract class ApiService {
   abstract complete(): Promise<CompleteRes> // setup.complete
   abstract exit(): Promise<void> // setup.exit
   abstract followLogs(): Promise<string> // setup.logs.follow
-  abstract openLogsWebsocket$(guid: string): Observable<Log>
+  abstract openLogsWebsocket$(
+    config: WebSocketSubjectConfig<Log>,
+  ): Observable<Log>
 
   async encrypt(toEncrypt: string): Promise<Encrypted> {
     if (!this.pubkey) throw new Error('No pubkey found!')
@@ -30,12 +38,6 @@ export abstract class ApiService {
 type Encrypted = {
   encrypted: string
 }
-
-export type StatusRes = {
-  'bytes-transferred': number
-  'total-bytes': number | null
-  complete: boolean
-} | null
 
 export type AttachReq = {
   guid: string

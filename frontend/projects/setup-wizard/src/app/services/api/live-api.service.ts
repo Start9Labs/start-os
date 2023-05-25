@@ -8,18 +8,18 @@ import {
   Log,
   RpcError,
   RPCOptions,
+  SetupStatus,
 } from '@start9labs/shared'
 import {
   ApiService,
   CifsRecoverySource,
   DiskRecoverySource,
-  StatusRes,
   AttachReq,
   ExecuteReq,
   CompleteRes,
 } from './api.service'
 import * as jose from 'node-jose'
-import { webSocket } from 'rxjs/webSocket'
+import { webSocket, WebSocketSubjectConfig } from 'rxjs/webSocket'
 import { Observable } from 'rxjs'
 
 @Injectable({
@@ -30,8 +30,8 @@ export class LiveApiService extends ApiService {
     super()
   }
 
-  async getStatus() {
-    return this.rpcRequest<StatusRes>({
+  async getSetupStatus() {
+    return this.rpcRequest<SetupStatus | null>({
       method: 'setup.status',
       params: {},
     })
@@ -94,8 +94,8 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'setup.logs.follow', params: {} })
   }
 
-  openLogsWebsocket$(guid: string): Observable<Log> {
-    return webSocket(`http://start.local/ws/${guid}`)
+  openLogsWebsocket$({ url }: WebSocketSubjectConfig<Log>): Observable<Log> {
+    return webSocket(`http://start.local/ws/${url}`)
   }
 
   async complete() {
