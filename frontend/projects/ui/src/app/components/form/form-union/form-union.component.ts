@@ -12,7 +12,7 @@ import {
   ValueSpecUnion,
   unionValueKey,
 } from '@start9labs/start-sdk/lib/config/configTypes'
-import { FormService } from '../../../services/form.service'
+import { FormService } from 'src/app/services/form.service'
 import { tuiPure } from '@taiga-ui/cdk'
 
 @Component({

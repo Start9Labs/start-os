@@ -1,8 +1,8 @@
 import { Directive, HostListener, Input } from '@angular/core'
 import { LoadingController, ModalController } from '@ionic/angular'
 import { ErrorToastService } from '@start9labs/shared'
-import { SnakePage } from '../../modals/snake/snake.page'
-import { ApiService } from '../../services/api/embassy-api.service'
+import { SnakePage } from 'src/app/modals/snake/snake.page'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 
 @Directive({
   selector: 'img[appSnek]',

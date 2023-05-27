@@ -3,7 +3,7 @@ import { SplitPaneTracker } from 'src/app/services/split-pane.service'
 import { PatchDB } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TuiDialogService } from '@taiga-ui/core'
-import { WIDGETS_COMPONENT } from '../../pages/widgets/widgets.page'
+import { WIDGETS_COMPONENT } from 'src/app/apps/ui/pages/widgets/widgets.page'
 import { WorkspaceConfig } from '@start9labs/shared'
 import {
   ClientStorageService,
