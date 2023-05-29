@@ -1003,6 +1003,11 @@ export class MockApiService extends ApiService {
     return getSetupStatusMock()
   }
 
+  async followLogs(): Promise<string> {
+    await pauseFor(1000)
+    return 'fake-guid'
+  }
+
   private async updateProgress(id: string): Promise<void> {
     const progress = { ...PROGRESS }
     const phases = [

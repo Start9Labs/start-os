@@ -1,0 +1,82 @@
+<ng-container *ngIf="healthChecks$ | async as checks">
+  <ion-item-divider>Health Checks</ion-item-divider>
+  <!-- connected -->
+  <ng-container *ngIf="connected$ | async; else disconnected">
+    <ion-item *ngFor="let check of checks">
+      <!-- result -->
+      <ng-container *ngIf="check.result as result; else noResult">
+        <ion-spinner
+          *ngIf="isLoading(result)"
+          class="icon-spinner"
+          color="primary"
+          slot="start"
+        ></ion-spinner>
+        <ion-icon
+          *ngIf="result === 'success'"
+          slot="start"
+          name="checkmark"
+          color="success"
+        ></ion-icon>
+        <ion-icon
+          *ngIf="result === 'failure'"
+          slot="start"
+          name="warning-outline"
+          color="warning"
+        ></ion-icon>
+        <ion-icon
+          *ngIf="result === 'disabled'"
+          slot="start"
+          name="remove"
+          color="dark"
+        ></ion-icon>
+        <ion-label>
+          <h2 class="bold">
+            {{ check.name }}
+          </h2>
+          <ion-text [color]="result | healthColor">
+            <p>
+              <span *ngIf="isReady(result)">{{ result | titlecase }}</span>
+              <span *ngIf="result === 'starting'">...</span>
+              <span *ngIf="result === 'failure'">
+                {{ $any(check).error }}
+              </span>
+              <span *ngIf="result === 'loading'">
+                {{ $any(check).message }}
+              </span>
+              <span *ngIf="result === 'success'">
+                :
+                {{ $any(check).message }}
+              </span>
+            </p>
+          </ion-text>
+        </ion-label>
+      </ng-container>
+      <!-- no result -->
+      <ng-template #noResult>
+        <ion-spinner
+          class="icon-spinner"
+          color="dark"
+          slot="start"
+        ></ion-spinner>
+        <ion-label>
+          <h2 class="bold">
+            {{ check.name }}
+          </h2>
+          <p class="primary">Awaiting result...</p>
+        </ion-label>
+      </ng-template>
+    </ion-item>
+  </ng-container>
+  <!-- disconnected -->
+  <ng-template #disconnected>
+    <ion-item *ngFor="let check of checks">
+      <ion-avatar slot="start">
+        <ion-skeleton-text class="avatar"></ion-skeleton-text>
+      </ion-avatar>
+      <ion-label>
+        <ion-skeleton-text class="label"></ion-skeleton-text>
+        <ion-skeleton-text class="description"></ion-skeleton-text>
+      </ion-label>
+    </ion-item>
+  </ng-template>
+</ng-container>

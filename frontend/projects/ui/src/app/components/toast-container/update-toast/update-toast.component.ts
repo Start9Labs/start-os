@@ -4,7 +4,7 @@ import { ErrorToastService } from '@start9labs/shared'
 import { Observable, Subject, merge } from 'rxjs'
 
 import { UpdateToastService } from './update-toast.service'
-import { ApiService } from '../../../services/api/embassy-api.service'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 
 @Component({
   selector: 'update-toast',

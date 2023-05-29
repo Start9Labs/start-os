@@ -1,6 +1,6 @@
 import { NgModule } from '@angular/core'
 
-import { SnakePageModule } from '../../modals/snake/snake.module'
+import { SnakePageModule } from 'src/app/modals/snake/snake.module'
 import { SnekDirective } from './snek.directive'
 
 @NgModule({
