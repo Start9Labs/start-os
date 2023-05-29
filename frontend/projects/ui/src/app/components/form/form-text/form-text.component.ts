@@ -1,7 +1,7 @@
 import { Component } from '@angular/core'
 import { ValueSpecText } from '@start9labs/start-sdk/lib/config/configTypes'
 import { Control } from '../control'
-import { getDefaultString } from '../../../util/config-utilities'
+import { getDefaultString } from 'src/app/util/config-utilities'
 
 @Component({
   selector: 'form-text',

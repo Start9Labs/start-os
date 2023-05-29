@@ -1,5 +1,5 @@
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { BUILT_IN_WIDGETS } from '../../pages/widgets/built-in/widgets'
+import { BUILT_IN_WIDGETS } from 'src/app/apps/ui/pages/widgets/built-in/widgets'
 import { Mock } from './api.fixures'
 
 export const mockPatchData: DataModel = {

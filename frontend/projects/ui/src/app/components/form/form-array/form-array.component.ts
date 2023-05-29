@@ -10,7 +10,7 @@ import {
 import { TUI_PROMPT } from '@taiga-ui/kit'
 import { filter, takeUntil } from 'rxjs'
 import { ValueSpecList } from '@start9labs/start-sdk/lib/config/configTypes'
-import { FormService } from '../../../services/form.service'
+import { FormService } from 'src/app/services/form.service'
 import { ERRORS } from '../form-group/form-group.component'
 
 @Component({

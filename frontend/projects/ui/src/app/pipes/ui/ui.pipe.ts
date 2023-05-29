@@ -1,6 +1,6 @@
 import { Pipe, PipeTransform } from '@angular/core'
 import { InstalledPackageInfo } from 'src/app/services/patch-db/data-model'
-import { hasUi } from '../../services/config.service'
+import { hasUi } from 'src/app/services/config.service'
 
 @Pipe({
   name: 'hasUi',
