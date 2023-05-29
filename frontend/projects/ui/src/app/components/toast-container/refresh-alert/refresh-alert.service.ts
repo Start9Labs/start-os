@@ -3,7 +3,7 @@ import { endWith, Observable } from 'rxjs'
 import { map } from 'rxjs/operators'
 import { Emver } from '@start9labs/shared'
 import { PatchDB } from 'patch-db-client'
-import { ConfigService } from '../../../services/config.service'
+import { ConfigService } from 'src/app/services/config.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 
 @Injectable({ providedIn: 'root' })

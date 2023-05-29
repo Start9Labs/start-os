@@ -295,4 +295,6 @@ export abstract class ApiService {
   ): Promise<RR.SideloadPacakgeRes>
 
   abstract getSetupStatus(): Promise<SetupStatus | null>
+
+  abstract followLogs(): Promise<string>
 }
