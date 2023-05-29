@@ -27,11 +27,10 @@ export class AuthService {
   ) {}
 
   init(): void {
-    const loggedIn = this.storage.get(this.LOGGED_IN_KEY)
-    if (loggedIn) {
+    if (this.storage.get(this.LOGGED_IN_KEY)) {
       this.setVerified()
     } else {
-      this.setUnverified()
+      this.setUnverified(true)
     }
   }
 
@@ -40,11 +39,14 @@ export class AuthService {
     this.authState$.next(AuthState.VERIFIED)
   }
 
-  setUnverified(): void {
+  setUnverified(skipNavigation = false): void {
     this.authState$.next(AuthState.UNVERIFIED)
     this.storage.clear()
-    this.zone.run(() => {
-      this.router.navigate(['/login'], { replaceUrl: true })
-    })
+
+    if (!skipNavigation) {
+      this.zone.run(() => {
+        this.router.navigate(['/login'], { replaceUrl: true })
+      })
+    }
   }
 }

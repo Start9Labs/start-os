@@ -4,7 +4,7 @@ import {
   inject,
   Inject,
 } from '@angular/core'
-import { EOSService } from '../../services/eos.service'
+import { EOSService } from 'src/app/services/eos.service'
 import { PatchDB } from 'patch-db-client'
 import {
   combineLatest,
