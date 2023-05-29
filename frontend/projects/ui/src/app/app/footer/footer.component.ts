@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
-import { heightCollapse } from '../../util/animations'
+import { heightCollapse } from 'src/app/util/animations'
 import { PatchDB } from 'patch-db-client'
 import { map } from 'rxjs/operators'
-import { DataModel } from '../../services/patch-db/data-model'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 
 @Component({
   selector: 'footer[appFooter]',
