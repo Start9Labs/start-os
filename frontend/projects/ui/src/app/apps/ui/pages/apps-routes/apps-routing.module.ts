@@ -37,10 +37,10 @@ const routes: Routes = [
       import('./app-logs/app-logs.module').then(m => m.AppLogsPageModule),
   },
   {
-    path: ':pkgId/properties',
+    path: ':pkgId/credentials',
     loadChildren: () =>
-      import('./app-properties/app-properties.module').then(
-        m => m.AppPropertiesPageModule,
+      import('./app-credentials/app-credentials.module').then(
+        m => m.AppCredentialsPageModule,
       ),
   },
 ]
