@@ -24,6 +24,10 @@ export class ServerSpecsPage {
     return this.config.gitHash
   }
 
+  launch(url: string): void {
+    window.open(url, '_blank', 'noreferrer')
+  }
+
   async copy(address: string) {
     let message = ''
     await copyToClipboard(address || '').then(success => {

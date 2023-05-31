@@ -1223,6 +1223,7 @@ export module Mock {
     manifest: MockManifestBitcoind,
     installed: {
       'last-backup': null,
+      'installed-at': new Date().toISOString(),
       status: {
         configured: true,
         main: {
@@ -1325,6 +1326,7 @@ export module Mock {
     manifest: MockManifestBitcoinProxy,
     installed: {
       'last-backup': null,
+      'installed-at': new Date().toISOString(),
       status: {
         configured: false,
         main: {
@@ -1367,6 +1369,7 @@ export module Mock {
     manifest: MockManifestLnd,
     installed: {
       'last-backup': null,
+      'installed-at': new Date().toISOString(),
       status: {
         configured: true,
         main: {

@@ -154,6 +154,7 @@ export enum PackageState {
 export interface InstalledPackageInfo {
   status: Status
   'last-backup': string | null
+  'installed-at': string
   'current-dependencies': Record<string, CurrentDependencyInfo>
   'dependency-info': Record<string, { title: string; icon: Url }>
   'address-info': Record<string, AddressInfo>
