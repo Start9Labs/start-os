@@ -62,16 +62,15 @@ export class ToButtonsPipe implements PipeTransform {
         description: `Customize ${pkgTitle}`,
         icon: 'options-outline',
       },
-      // properties
+      // credentials
       {
         action: () =>
-          this.navCtrl.navigateForward(['properties'], {
+          this.navCtrl.navigateForward(['credentials'], {
             relativeTo: this.route,
           }),
-        title: 'Properties',
-        description:
-          'Runtime information, credentials, and other values of interest',
-        icon: 'briefcase-outline',
+        title: 'Credentials',
+        description: 'Password, keys, or other credentials of interest',
+        icon: 'key-outline',
       },
       // actions
       {

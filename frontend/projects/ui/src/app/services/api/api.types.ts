@@ -1,6 +1,5 @@
 import { Dump, Revision } from 'patch-db-client'
 import { MarketplacePkg, StoreInfo, Manifest } from '@start9labs/marketplace'
-import { PackagePropertiesVersioned } from 'src/app/util/properties.util'
 import { InputSpec } from '@start9labs/start-sdk/lib/config/configTypes'
 import {
   DataModel,
@@ -235,9 +234,8 @@ export module RR {
 
   // package
 
-  export type GetPackagePropertiesReq = { id: string } // package.properties
-  export type GetPackagePropertiesRes<T extends number> =
-    PackagePropertiesVersioned<T>
+  export type GetPackageCredentialsReq = { id: string } // package.credentials
+  export type GetPackageCredentialsRes = Record<string, string>
 
   export type GetPackageLogsReq = ServerLogsReq & { id: string } // package.logs
   export type GetPackageLogsRes = LogsRes

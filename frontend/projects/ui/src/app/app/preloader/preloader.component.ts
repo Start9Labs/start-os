@@ -11,7 +11,6 @@ const ICONS = [
   'arrow-back',
   'arrow-forward',
   'arrow-up',
-  'briefcase-outline',
   'brush-outline',
   'bookmark-outline',
   'cellular-outline',
