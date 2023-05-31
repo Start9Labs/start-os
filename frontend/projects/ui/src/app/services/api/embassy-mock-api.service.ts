@@ -17,7 +17,6 @@ import {
   PackageState,
 } from 'src/app/services/patch-db/data-model'
 import { BackupTargetType, Metrics, RR } from './api.types'
-import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { Mock } from './api.fixures'
 import markdown from 'raw-loader!../../../../../shared/assets/markdown/md-sample.md'
 import {
@@ -629,12 +628,13 @@ export class MockApiService extends ApiService {
 
   // package
 
-  async getPackageProperties(
-    params: RR.GetPackagePropertiesReq,
-  ): Promise<RR.GetPackagePropertiesRes<2>['data']> {
+  async getPackageCredentials(
+    params: RR.GetPackageCredentialsReq,
+  ): Promise<RR.GetPackageCredentialsRes> {
     await pauseFor(2000)
-    return '' as any
-    // return parsePropertiesPermissive(Mock.PackageProperties)
+    return {
+      password: 'specialPassword$',
+    }
   }
 
   async getPackageLogs(

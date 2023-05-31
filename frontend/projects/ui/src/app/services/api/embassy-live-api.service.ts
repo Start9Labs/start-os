@@ -12,7 +12,6 @@ import {
 } from '@start9labs/shared'
 import { ApiService } from './embassy-api.service'
 import { BackupTargetType, Metrics, RR } from './api.types'
-import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { ConfigService } from '../config.service'
 import { webSocket, WebSocketSubjectConfig } from 'rxjs/webSocket'
 import { Observable } from 'rxjs'
@@ -387,12 +386,10 @@ export class LiveApiService extends ApiService {
 
   // package
 
-  async getPackageProperties(
-    params: RR.GetPackagePropertiesReq,
-  ): Promise<RR.GetPackagePropertiesRes<2>['data']> {
-    return this.rpcRequest({ method: 'package.properties', params }).then(
-      parsePropertiesPermissive,
-    )
+  async getPackageCredentials(
+    params: RR.GetPackageCredentialsReq,
+  ): Promise<RR.GetPackageCredentialsRes> {
+    return this.rpcRequest({ method: 'package.credentials', params })
   }
 
   async getPackageLogs(
