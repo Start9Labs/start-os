@@ -15,8 +15,10 @@ import { sameUrl } from '@start9labs/shared'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class StoreIconComponent {
-  @Input() url: string = ''
-  @Input() size?: string
+  @Input()
+  url: string = ''
+  @Input()
+  size?: string
 }
 
 @Pipe({
@@ -29,7 +31,7 @@ export class GetIconPipe implements PipeTransform {
     const { start9, community } = this.config.marketplace
 
     if (sameUrl(url, start9)) {
-      return 'assets/img/icon.png'
+      return 'assets/img/registry-icon.png'
     } else if (sameUrl(url, community)) {
       return 'assets/img/community-store.png'
     }
