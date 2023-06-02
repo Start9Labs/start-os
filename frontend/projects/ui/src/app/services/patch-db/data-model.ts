@@ -54,6 +54,9 @@ export interface ServerInfo {
   id: string
   version: string
   country: string
+  domains: Domain[]
+  start9MeSubdomain: Domain | null
+  clearnetAddress: string | null
   'last-backup': string | null
   'lan-address': Url
   'tor-address': Url
@@ -69,6 +72,11 @@ export interface ServerInfo {
   'system-start-time': string
   zram: boolean
   smtp: typeof customSmtp.validator._TYPE
+}
+
+export type Domain = {
+  value: string
+  createdAt: string
 }
 
 export interface IpInfo {
