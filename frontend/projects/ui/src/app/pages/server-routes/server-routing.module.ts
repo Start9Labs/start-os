@@ -35,6 +35,11 @@ const routes: Routes = [
       ),
   },
   {
+    path: 'tor-logs',
+    loadChildren: () =>
+      import('./tor-logs/tor-logs.module').then(m => m.TorLogsPageModule),
+  },
+  {
     path: 'metrics',
     loadChildren: () =>
       import('./server-metrics/server-metrics.module').then(

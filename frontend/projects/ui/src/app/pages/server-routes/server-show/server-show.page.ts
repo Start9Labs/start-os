@@ -470,7 +470,7 @@ export class ServerShowPage {
       {
         title: 'OS Logs',
         description: 'Raw, unfiltered operating system logs',
-        icon: 'newspaper-outline',
+        icon: 'receipt-outline',
         action: () =>
           this.navCtrl.navigateForward(['logs'], { relativeTo: this.route }),
         detail: true,
@@ -483,6 +483,17 @@ export class ServerShowPage {
         icon: 'receipt-outline',
         action: () =>
           this.navCtrl.navigateForward(['kernel-logs'], {
+            relativeTo: this.route,
+          }),
+        detail: true,
+        disabled$: of(false),
+      },
+      {
+        title: 'Tor Logs',
+        description: 'Diagnostic log stream for the Tor daemon on StartOS',
+        icon: 'receipt-outline',
+        action: () =>
+          this.navCtrl.navigateForward(['tor-logs'], {
             relativeTo: this.route,
           }),
         detail: true,

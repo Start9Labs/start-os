@@ -54,7 +54,6 @@ const ICONS = [
   'mail-outline',
   'map-outline',
   'medkit-outline',
-  'newspaper-outline',
   'notifications-outline',
   'open-outline',
   'options-outline',
