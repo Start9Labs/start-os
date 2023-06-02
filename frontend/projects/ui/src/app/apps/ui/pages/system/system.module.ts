@@ -10,8 +10,11 @@ const routes: Routes = [
       ),
   },
   {
-    path: 'lan',
-    loadChildren: () => import('./lan/lan.module').then(m => m.LANPageModule),
+    path: 'addresses',
+    loadChildren: () =>
+      import('./os-addresses/os-addresses.module').then(
+        m => m.OSAddressesPageModule,
+      ),
   },
   {
     path: 'logs',
@@ -55,6 +58,11 @@ const routes: Routes = [
       import('./server-specs/server-specs.module').then(
         m => m.ServerSpecsPageModule,
       ),
+  },
+  {
+    path: 'domains',
+    loadChildren: () =>
+      import('./domains/domains.module').then(m => m.DomainsPageModule),
   },
   {
     path: 'ssh',

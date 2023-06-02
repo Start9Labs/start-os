@@ -7,6 +7,7 @@ import {
 } from 'src/app/services/patch-db/data-model'
 import { StartOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
 import { customSmtp } from '@start9labs/start-sdk/lib/config/configConstants'
+import { DomainForm } from 'src/app/apps/ui/pages/server-routes/domains/domain.const'
 
 export module RR {
   // DB
@@ -54,6 +55,9 @@ export module RR {
 
   export type UpdateServerReq = { 'marketplace-url': string } // server.update
   export type UpdateServerRes = 'updating' | 'no-updates'
+
+  export type SetServerClearnetAddressReq = { address: string | null } // server.set-clearnet
+  export type SetServerClearnetAddressRes = null
 
   export type RestartServerReq = {} // server.restart
   export type RestartServerRes = null
@@ -117,6 +121,18 @@ export module RR {
     ethernet: boolean
     'available-wifi': AvailableWifi[]
   }
+
+  export type ClaimStart9MeReq = {} // net.domain.me.claim
+  export type ClaimStart9MeRes = null
+
+  export type DeleteStart9MeReq = {} // net.domain.me.delete
+  export type DeleteStart9MeRes = null
+
+  export type AddDomainReq = DomainForm // net.domain.add
+  export type AddDomainRes = null
+
+  export type DeleteDomainReq = { hostname: string } // net.domain.delete
+  export type DeleteDomainRes = null
 
   export type AddWifiReq = {
     // wifi.add

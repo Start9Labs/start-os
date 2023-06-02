@@ -191,6 +191,12 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'server.update', params })
   }
 
+  async setServerClearnetAddress(
+    params: RR.SetServerClearnetAddressReq,
+  ): Promise<RR.SetServerClearnetAddressRes> {
+    return this.rpcRequest({ method: 'server.set-clearnet', params })
+  }
+
   async restartServer(
     params: RR.RestartServerReq,
   ): Promise<RR.RestartServerRes> {
@@ -274,6 +280,28 @@ export class LiveApiService extends ApiService {
       method: 'notification.delete-before',
       params,
     })
+  }
+
+  // domains
+
+  async claimStart9MeDomain(
+    params: RR.ClaimStart9MeReq,
+  ): Promise<RR.ClaimStart9MeRes> {
+    return this.rpcRequest({ method: 'net.domain.me.claim', params })
+  }
+
+  async deleteStart9MeDomain(
+    params: RR.DeleteStart9MeReq,
+  ): Promise<RR.DeleteStart9MeRes> {
+    return this.rpcRequest({ method: 'net.domain.me.delete', params })
+  }
+
+  async addDomain(params: RR.AddDomainReq): Promise<RR.AddDomainRes> {
+    return this.rpcRequest({ method: 'net.domain.add', params })
+  }
+
+  async deleteDomain(params: RR.DeleteDomainReq): Promise<RR.DeleteDomainRes> {
+    return this.rpcRequest({ method: 'net.domain.delete', params })
   }
 
   // wifi

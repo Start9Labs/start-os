@@ -1,0 +1,102 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="system"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Domains</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding-top with-widgets">
+  <div class="ion-padding-start ion-padding-end">
+    <tui-notification>
+      Adding a domains to StartOS enables you to access your server and service
+      interfaces on custom clearnet domains.
+      <a [href]="docsUrl" target="_blank" rel="noreferrer">View instructions</a>
+    </tui-notification>
+  </div>
+
+  <ion-item-group *ngIf="server$ | async as server">
+    <ion-item-divider>
+      Start9 Domain
+      <ion-button
+        *ngIf="!server.start9MeSubdomain"
+        class="ion-padding-start"
+        strong
+        size="small"
+        (click)="presentAlertClaimStart9MeDomain()"
+      >
+        <ion-icon slot="start" name="hand-right-outline"></ion-icon>
+        Claim start.me Domain
+      </ion-button>
+    </ion-item-divider>
+
+    <div class="grid-fixed">
+      <ion-grid class="ion-padding">
+        <ion-row class="grid-headings">
+          <ion-col size="3.5">Domain</ion-col>
+          <ion-col size="3">Added</ion-col>
+          <ion-col size="2">Used</ion-col>
+          <ion-col size="3.5"></ion-col>
+        </ion-row>
+        <ion-row
+          *ngIf="server.start9MeSubdomain as start9Me"
+          class="ion-align-items-center grid-row-border"
+        >
+          <ion-col size="3.5">{{ start9Me.value + '.start9.me' }}</ion-col>
+          <ion-col size="3">{{ start9Me.createdAt| date: 'medium' }}</ion-col>
+          <ion-col size="2">True</ion-col>
+          <ion-col size="3.5">
+            <ion-buttons style="float: right">
+              <ion-button size="small" (click)="presentAlertDeleteStart9Me()">
+                <ion-icon name="trash"></ion-icon>
+              </ion-button>
+            </ion-buttons>
+          </ion-col>
+        </ion-row>
+      </ion-grid>
+    </div>
+
+    <ion-item-divider>
+      Custom Domains
+      <ion-button
+        class="ion-padding-start"
+        strong
+        size="small"
+        (click)="presentModalAdd()"
+      >
+        <ion-icon slot="start" name="add"></ion-icon>
+        Add Custom Domain
+      </ion-button>
+    </ion-item-divider>
+
+    <div class="grid-fixed">
+      <ion-grid class="ion-padding">
+        <ion-row class="grid-headings">
+          <ion-col size="3.5">Domain</ion-col>
+          <ion-col size="3">Added</ion-col>
+          <ion-col size="2">Used</ion-col>
+          <ion-col size="3.5"></ion-col>
+        </ion-row>
+        <ion-row
+          *ngFor="let domain of server.domains"
+          class="ion-align-items-center grid-row-border"
+        >
+          <ion-col size="3.5">{{ domain.value }}</ion-col>
+          <ion-col size="3">{{ domain.createdAt| date: 'medium' }}</ion-col>
+          <ion-col size="2">True</ion-col>
+          <ion-col size="3.5">
+            <ion-buttons style="float: right">
+              <ion-button
+                size="small"
+                (click)="presentAlertDelete(domain.value)"
+              >
+                <ion-icon name="trash"></ion-icon>
+              </ion-button>
+            </ion-buttons>
+          </ion-col>
+        </ion-row>
+      </ion-grid>
+    </div>
+  </ion-item-group>
+</ion-content>

@@ -369,11 +369,24 @@ export class ServerShowPage {
         disabled$: of(false),
       },
       {
-        title: 'LAN',
-        description: `Download and trust your server's certificate for a secure local connection`,
-        icon: 'home-outline',
+        title: 'Domains',
+        description:
+          'Add domains to your server to enable clearnet connections',
+        icon: 'globe-outline',
         action: () =>
-          this.navCtrl.navigateForward(['lan'], { relativeTo: this.route }),
+          this.navCtrl.navigateForward(['domains'], { relativeTo: this.route }),
+        detail: true,
+        disabled$: of(false),
+      },
+      {
+        title: 'Addresses',
+        description:
+          'Web addresses for accessing the primary StartOS dashboard',
+        icon: 'map-outline',
+        action: () =>
+          this.navCtrl.navigateForward(['addresses'], {
+            relativeTo: this.route,
+          }),
         detail: true,
         disabled$: of(false),
       },
