@@ -307,6 +307,20 @@ export class MockApiService extends ApiService {
     return this.withRevision(patch, 'updating')
   }
 
+  async setServerClearnetAddress(
+    params: RR.SetServerClearnetAddressReq,
+  ): Promise<RR.SetServerClearnetAddressRes> {
+    await pauseFor(2000)
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/clearnet-address',
+        value: params.address,
+      },
+    ]
+    return this.withRevision(patch, null)
+  }
+
   async restartServer(
     params: RR.RestartServerReq,
   ): Promise<RR.RestartServerRes> {
@@ -422,6 +436,70 @@ export class MockApiService extends ApiService {
   ): Promise<RR.DeleteAllNotificationsRes> {
     await pauseFor(2000)
     return null
+  }
+
+  // domains
+
+  async claimStart9MeDomain(
+    params: RR.ClaimStart9MeReq,
+  ): Promise<RR.ClaimStart9MeRes> {
+    await pauseFor(2000)
+
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/start9MeSubdomain',
+        value: {
+          value: 'adjective-noun',
+          createdAt: new Date(),
+        },
+      },
+    ]
+    return this.withRevision(patch, null)
+  }
+
+  async deleteStart9MeDomain(
+    params: RR.DeleteStart9MeReq,
+  ): Promise<RR.DeleteStart9MeRes> {
+    await pauseFor(2000)
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/start9MeSubdomain',
+        value: null,
+      },
+    ]
+    return this.withRevision(patch, null)
+  }
+
+  async addDomain(params: RR.AddDomainReq): Promise<RR.AddDomainRes> {
+    await pauseFor(2000)
+
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/domains',
+        value: [
+          {
+            value: params.hostname,
+            createdAt: new Date(),
+          },
+        ],
+      },
+    ]
+    return this.withRevision(patch, null)
+  }
+
+  async deleteDomain(params: RR.DeleteDomainReq): Promise<RR.DeleteDomainRes> {
+    await pauseFor(2000)
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/domains',
+        value: [],
+      },
+    ]
+    return this.withRevision(patch, null)
   }
 
   // wifi

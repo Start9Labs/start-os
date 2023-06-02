@@ -62,20 +62,6 @@ export class SSHKeysPage {
     await modal.present()
   }
 
-  async add(pubkey: string): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Saving...',
-    })
-    await loader.present()
-
-    try {
-      const key = await this.embassyApi.addSshKey({ key: pubkey })
-      this.sshKeys.push(key)
-    } finally {
-      loader.dismiss()
-    }
-  }
-
   async presentAlertDelete(key: SSHKey, i: number) {
     const alert = await this.alertCtrl.create({
       header: 'Confirm',
@@ -97,7 +83,21 @@ export class SSHKeysPage {
     await alert.present()
   }
 
-  async delete(key: SSHKey, i: number): Promise<void> {
+  private async add(pubkey: string): Promise<void> {
+    const loader = await this.loadingCtrl.create({
+      message: 'Saving...',
+    })
+    await loader.present()
+
+    try {
+      const key = await this.embassyApi.addSshKey({ key: pubkey })
+      this.sshKeys.push(key)
+    } finally {
+      loader.dismiss()
+    }
+  }
+
+  private async delete(key: SSHKey, i: number): Promise<void> {
     const loader = await this.loadingCtrl.create({
       message: 'Deleting...',
     })
