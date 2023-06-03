@@ -1,6 +1,5 @@
 import { Injectable, NgZone } from '@angular/core'
-import { ReplaySubject } from 'rxjs'
-import { distinctUntilChanged, map } from 'rxjs/operators'
+import { distinctUntilChanged, map, ReplaySubject } from 'rxjs'
 import { Router } from '@angular/router'
 import { StorageService } from './storage.service'
 

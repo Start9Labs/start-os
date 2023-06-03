@@ -5,8 +5,9 @@ import {
   race,
   OperatorFunction,
   Observer,
+  take,
+  map,
 } from 'rxjs'
-import { take, map } from 'rxjs/operators'
 
 export function fromAsync$<S, T>(
   async: (s: S) => Promise<T>,
