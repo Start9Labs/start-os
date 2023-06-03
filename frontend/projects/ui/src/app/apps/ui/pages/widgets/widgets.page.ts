@@ -21,7 +21,7 @@ import { HealthComponent } from './built-in/health/health.component'
 import { NetworkComponent } from './built-in/network/network.component'
 import { MetricsComponent } from './built-in/metrics/metrics.component'
 import { UptimeComponent } from './built-in/uptime/uptime.component'
-import { take } from 'rxjs/operators'
+import { take } from 'rxjs'
 
 @Component({
   selector: 'widgets',

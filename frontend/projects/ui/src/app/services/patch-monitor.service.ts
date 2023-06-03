@@ -1,6 +1,5 @@
 import { Injectable } from '@angular/core'
-import { Observable } from 'rxjs'
-import { tap } from 'rxjs/operators'
+import { tap, Observable } from 'rxjs'
 import { PatchDB } from 'patch-db-client'
 import { AuthService } from 'src/app/services/auth.service'
 import { DataModel } from './patch-db/data-model'

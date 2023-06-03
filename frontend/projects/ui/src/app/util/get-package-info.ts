@@ -1,18 +1,12 @@
-import {
-  PackageDataEntry,
-  PackageMainStatus,
-  PackageState,
-} from '../services/patch-db/data-model'
+import { PackageDataEntry } from '../services/patch-db/data-model'
 import {
   DependencyStatus,
   HealthStatus,
   PrimaryRendering,
   PrimaryStatus,
   renderPkgStatus,
-  StatusRendering,
 } from '../services/pkg-status-rendering.service'
-import { ProgressData } from 'src/app/types/progress-data'
-import { Subscription } from 'rxjs'
+import { PkgInfo } from '../types/pkg-info'
 import { packageLoadingProgress } from './package-loading-progress'
 
 export function getPackageInfo(entry: PackageDataEntry): PkgInfo {
@@ -34,15 +28,4 @@ export function getPackageInfo(entry: PackageDataEntry): PkgInfo {
       statuses.health === HealthStatus.Loading ||
       statuses.health === HealthStatus.Starting,
   }
-}
-
-export interface PkgInfo {
-  entry: PackageDataEntry
-  primaryRendering: StatusRendering
-  primaryStatus: PrimaryStatus | PackageState | PackageMainStatus
-  installProgress: ProgressData | null
-  error: boolean
-  warning: boolean
-  transitioning: boolean
-  sub?: Subscription | null
 }

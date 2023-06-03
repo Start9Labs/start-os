@@ -10,11 +10,9 @@ import {
   AbstractMarketplaceService,
   Marketplace,
   Manifest,
-  MarketplacePkg,
   StoreIdentity,
 } from '@start9labs/marketplace'
-import { Emver, isEmptyObject } from '@start9labs/shared'
-import { Pipe, PipeTransform } from '@angular/core'
+import { isEmptyObject } from '@start9labs/shared'
 import { combineLatest, Observable } from 'rxjs'
 import {
   AlertController,
@@ -164,25 +162,5 @@ export class UpdatesPage {
       delete this.marketplaceService.updateQueue[id]
       this.marketplaceService.updateErrors[id] = e.message
     }
-  }
-}
-
-@Pipe({
-  name: 'filterUpdates',
-})
-export class FilterUpdatesPipe implements PipeTransform {
-  constructor(private readonly emver: Emver) {}
-
-  transform(
-    pkgs: MarketplacePkg[],
-    local: Record<string, PackageDataEntry | undefined>,
-  ): MarketplacePkg[] {
-    return pkgs.filter(
-      ({ manifest }) =>
-        this.emver.compare(
-          manifest.version,
-          local[manifest.id]?.manifest.version || '', // @TODO this won't work, need old version
-        ) === 1,
-    )
   }
 }
