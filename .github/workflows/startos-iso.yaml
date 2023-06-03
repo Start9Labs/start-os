@@ -107,9 +107,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y qemu-user-static
-          wget http://ftp.us.debian.org/debian/pool/main/d/debspawn/debspawn_0.6.1-1_all.deb
-          sha256sum ./debspawn_0.6.1-1_all.deb | grep fb8a3f588438ff9ef51e713ec1d83306db893f0aa97447565e28bbba9c6e90c6
-          sudo apt-get install -y ./debspawn_0.6.1-1_all.deb
+          wget https://deb.debian.org/debian/pool/main/d/debspawn/debspawn_0.6.2-1_all.deb
+          sha256sum ./debspawn_0.6.2-1_all.deb | grep 37ef27458cb1e35e8bce4d4f639b06b4b3866fc0b9191ec6b9bd157afd06a817
+          sudo apt-get install -y ./debspawn_0.6.2-1_all.deb
 
       - name: Configure debspawn
         run: |
