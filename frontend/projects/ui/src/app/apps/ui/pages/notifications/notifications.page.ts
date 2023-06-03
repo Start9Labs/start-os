@@ -12,7 +12,7 @@ import {
 } from '@ionic/angular'
 import { ActivatedRoute } from '@angular/router'
 import { ErrorToastService } from '@start9labs/shared'
-import { BackupReportPage } from 'src/app/modals/backup-report/backup-report.page'
+import { BackupReportPage } from 'src/app/apps/ui/modals/backup-report/backup-report.page'
 import { PatchDB } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { first } from 'rxjs'

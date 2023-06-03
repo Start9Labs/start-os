@@ -1,9 +1,16 @@
 import { Injectable } from '@angular/core'
-import { map, startWith, switchMap } from 'rxjs/operators'
 import { PatchDB } from 'patch-db-client'
+import {
+  map,
+  startWith,
+  switchMap,
+  combineLatest,
+  from,
+  Observable,
+  timer,
+} from 'rxjs'
 import { DataModel } from './patch-db/data-model'
 import { ApiService } from './api/embassy-api.service'
-import { combineLatest, from, Observable, timer } from 'rxjs'
 
 export interface TimeInfo {
   systemStartTime: number

@@ -1,10 +1,9 @@
 import { Inject, Injectable } from '@angular/core'
 import { WINDOW } from '@ng-web-apis/common'
 import { PatchDB } from 'patch-db-client'
-import { BehaviorSubject } from 'rxjs'
+import { filter, take, BehaviorSubject } from 'rxjs'
 import { ApiService } from './api/embassy-api.service'
 import { DataModel } from './patch-db/data-model'
-import { filter, take } from 'rxjs/operators'
 
 @Injectable({
   providedIn: 'root',

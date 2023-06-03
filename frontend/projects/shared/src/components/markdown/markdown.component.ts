@@ -1,7 +1,14 @@
 import { Component, Input } from '@angular/core'
 import { ModalController } from '@ionic/angular'
-import { defer, isObservable, Observable, of } from 'rxjs'
-import { catchError, ignoreElements, share } from 'rxjs/operators'
+import {
+  catchError,
+  ignoreElements,
+  share,
+  defer,
+  isObservable,
+  Observable,
+  of,
+} from 'rxjs'
 
 import { getErrorMessage } from '../../services/error-toast.service'
 

@@ -7,8 +7,7 @@ import {
   NgZone,
 } from '@angular/core'
 import { ResizeObserverService } from '@ng-web-apis/resize-observer'
-import { distinctUntilChanged, Observable } from 'rxjs'
-import { map } from 'rxjs/operators'
+import { distinctUntilChanged, map, Observable } from 'rxjs'
 import { tuiZonefree } from '@taiga-ui/cdk'
 
 export type Step = 'xs' | 'sm' | 'md' | 'lg' | 'xl'

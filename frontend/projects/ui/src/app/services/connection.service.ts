@@ -1,6 +1,13 @@
 import { Injectable } from '@angular/core'
-import { combineLatest, fromEvent, merge, ReplaySubject } from 'rxjs'
-import { distinctUntilChanged, map, startWith } from 'rxjs/operators'
+import {
+  combineLatest,
+  distinctUntilChanged,
+  map,
+  startWith,
+  fromEvent,
+  merge,
+  ReplaySubject,
+} from 'rxjs'
 
 @Injectable({
   providedIn: 'root',
