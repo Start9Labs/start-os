@@ -21,7 +21,7 @@ use tracing::instrument;
 
 use crate::account::AccountInfo;
 use crate::core::rpc_continuations::{RequestGuid, RestHandler, RpcContinuation};
-use crate::db::model::{Database, InstalledPackageDataEntry, PackageDataEntry};
+use crate::db::model::{CurrentDependents, Database, InstalledPackageDataEntry, PackageDataEntry};
 use crate::disk::OsPartitionInfo;
 use crate::init::{init_postgres, pgloader};
 use crate::install::cleanup::{cleanup_failed, uninstall, CleanupFailedReceipts};
@@ -343,6 +343,31 @@ impl RpcContext {
             {
                 tracing::error!("Failed to clean up package {}: {}", package_id, e);
                 tracing::debug!("{:?}", e);
+            }
+        }
+        let mut current_dependents = BTreeMap::new();
+        for (package_id, package) in receipts.packages.get(&mut db).await?.0 {
+            for (k, v) in package
+                .into_installed()
+                .into_iter()
+                .flat_map(|i| i.current_dependencies.0)
+            {
+                let mut entry: BTreeMap<_, _> = current_dependents.remove(&k).unwrap_or_default();
+                entry.insert(package_id.clone(), v);
+                current_dependents.insert(k, entry);
+            }
+        }
+        for (package_id, current_dependents) in current_dependents {
+            if let Some(deps) = crate::db::DatabaseModel::new()
+                .package_data()
+                .idx_model(&package_id)
+                .and_then(|pde| pde.installed())
+                .map::<_, CurrentDependents>(|i| i.current_dependents())
+                .check(&mut db)
+                .await?
+            {
+                deps.put(&mut db, &CurrentDependents(current_dependents))
+                    .await?;
             }
         }
         Ok(())
