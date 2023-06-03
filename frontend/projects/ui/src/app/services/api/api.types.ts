@@ -7,7 +7,7 @@ import {
 } from 'src/app/services/patch-db/data-model'
 import { StartOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
 import { customSmtp } from '@start9labs/start-sdk/lib/config/configConstants'
-import { DomainForm } from 'src/app/apps/ui/pages/server-routes/domains/domain.const'
+import { DomainForm } from 'src/app/apps/ui/pages/system/domains/domain.const'
 
 export module RR {
   // DB
