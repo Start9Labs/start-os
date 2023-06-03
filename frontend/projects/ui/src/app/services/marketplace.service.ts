@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core'
+import { sameUrl } from '@start9labs/shared'
 import {
   MarketplacePkg,
   AbstractMarketplaceService,
@@ -7,6 +8,7 @@ import {
   StoreInfo,
   StoreIdentity,
 } from '@start9labs/marketplace'
+import { PatchDB } from 'patch-db-client'
 import {
   BehaviorSubject,
   combineLatest,
@@ -16,12 +18,6 @@ import {
   Observable,
   of,
   scan,
-} from 'rxjs'
-import { RR } from 'src/app/services/api/api.types'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { DataModel, UIStore } from 'src/app/services/patch-db/data-model'
-import { PatchDB } from 'patch-db-client'
-import {
   catchError,
   filter,
   map,
@@ -31,9 +27,11 @@ import {
   switchMap,
   take,
   tap,
-} from 'rxjs/operators'
+} from 'rxjs'
+import { RR } from 'src/app/services/api/api.types'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { DataModel, UIStore } from 'src/app/services/patch-db/data-model'
 import { ConfigService } from './config.service'
-import { sameUrl } from '@start9labs/shared'
 import { ClientStorageService } from './client-storage.service'
 
 @Injectable()

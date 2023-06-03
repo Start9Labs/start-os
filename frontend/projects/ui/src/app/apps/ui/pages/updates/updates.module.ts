@@ -2,18 +2,19 @@ import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { IonicModule } from '@ionic/angular'
 import { RouterModule, Routes } from '@angular/router'
-import { BadgeMenuComponentModule } from 'src/app/components/badge-menu-button/badge-menu.component.module'
+import { MimeTypePipeModule } from '@start9labs/marketplace'
 import {
   EmverPipesModule,
   MarkdownPipeModule,
   SharedPipesModule,
 } from '@start9labs/shared'
-import { SkeletonListComponentModule } from 'src/app/components/skeleton-list/skeleton-list.component.module'
 import { RoundProgressModule } from 'angular-svg-round-progressbar'
-import { InstallProgressPipeModule } from 'src/app/pipes/install-progress/install-progress.module'
-import { StoreIconComponentModule } from 'src/app/components/store-icon/store-icon.component.module'
-import { MimeTypePipeModule } from '@start9labs/marketplace'
-import { FilterUpdatesPipe, UpdatesPage } from './updates.page'
+import { BadgeMenuComponentModule } from 'src/app/common/badge-menu-button/badge-menu.component.module'
+import { SkeletonListComponentModule } from 'src/app/common/skeleton-list/skeleton-list.component.module'
+import { StoreIconComponentModule } from 'src/app/common/store-icon/store-icon.component.module'
+import { UpdatesPage } from './updates.page'
+import { InstallProgressPipe } from './install-progress.pipe'
+import { FilterUpdatesPipe } from './filter-updates.pipe'
 
 const routes: Routes = [
   {
@@ -23,7 +24,7 @@ const routes: Routes = [
 ]
 
 @NgModule({
-  declarations: [UpdatesPage, FilterUpdatesPipe],
+  declarations: [UpdatesPage, FilterUpdatesPipe, InstallProgressPipe],
   imports: [
     CommonModule,
     IonicModule,
@@ -33,7 +34,6 @@ const routes: Routes = [
     SkeletonListComponentModule,
     MarkdownPipeModule,
     RoundProgressModule,
-    InstallProgressPipeModule,
     StoreIconComponentModule,
     EmverPipesModule,
     MimeTypePipeModule,
