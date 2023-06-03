@@ -4,13 +4,13 @@ import { ErrorToastService } from '@start9labs/shared'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PatchDB } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { LoadingService } from 'src/app/modals/loading/loading.service'
 import { TuiDialogOptions } from '@taiga-ui/core'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
-import { FormContext, FormPage } from 'src/app/modals/form/form.page'
 import { DomainForm, domainSpec } from './domain.const'
 import { ConnectionService } from 'src/app/services/connection.service'
 import { filter, switchMap } from 'rxjs'
+import { LoadingService } from 'src/app/common/loading/loading.service'
+import { FormContext, FormPage } from '../../../modals/form/form.page'
 
 @Component({
   selector: 'domains',
