@@ -15,9 +15,7 @@ const ROUTES: Routes = [
   {
     path: 'system',
     loadChildren: () =>
-      import('./pages/server-routes/server-routing.module').then(
-        m => m.ServerRoutingModule,
-      ),
+      import('./pages/system/system.module').then(m => m.SystemModule),
   },
   {
     path: 'updates',
@@ -27,8 +25,8 @@ const ROUTES: Routes = [
   {
     path: 'marketplace',
     loadChildren: () =>
-      import('./pages/marketplace-routes/marketplace-routing.module').then(
-        m => m.MarketplaceRoutingModule,
+      import('./pages/marketplace/marketplace.module').then(
+        m => m.MarketplaceModule,
       ),
   },
   {
@@ -41,16 +39,12 @@ const ROUTES: Routes = [
   {
     path: 'services',
     loadChildren: () =>
-      import('./pages/apps-routes/apps-routing.module').then(
-        m => m.AppsRoutingModule,
-      ),
+      import('./pages/services/services.module').then(m => m.ServicesModule),
   },
   {
     path: 'backups',
     loadChildren: () =>
-      import('./pages/backups-routes/backups-routing.module').then(
-        m => m.BackupsRoutingModule,
-      ),
+      import('./pages/backups/backups.module').then(m => m.BackupsModule),
   },
 ]
 

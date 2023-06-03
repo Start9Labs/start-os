@@ -4,7 +4,7 @@ import { RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
 import { MenuComponent } from './menu.component'
 import { SnekModule } from '../snek/snek.module'
-import { ConnectionBarComponentModule } from 'src/app/components/connection-bar/connection-bar.component.module'
+import { ConnectionBarComponentModule } from '../connection-bar/connection-bar.component.module'
 
 @NgModule({
   imports: [

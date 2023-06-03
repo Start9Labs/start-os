@@ -1,4 +1,5 @@
 import { InjectionToken, Injector } from '@angular/core'
+import { Update } from 'patch-db-client'
 import {
   bufferTime,
   catchError,
@@ -6,10 +7,14 @@ import {
   switchMap,
   take,
   tap,
-} from 'rxjs/operators'
-import { Update } from 'patch-db-client'
+  defer,
+  EMPTY,
+  from,
+  interval,
+  merge,
+  Observable,
+} from 'rxjs'
 import { DataModel } from './data-model'
-import { defer, EMPTY, from, interval, merge, Observable } from 'rxjs'
 import { AuthService } from '../auth.service'
 import { ConnectionService } from '../connection.service'
 import { ApiService } from '../api/embassy-api.service'

@@ -6,7 +6,6 @@ import { UnauthGuard } from './guards/unauth.guard'
 const routes: Routes = [
   {
     path: 'loading',
-    canActivate: [UnauthGuard],
     loadChildren: () =>
       import('./apps/loading/loading.module').then(m => m.LoadingPageModule),
   },

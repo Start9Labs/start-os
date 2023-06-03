@@ -1,11 +1,13 @@
 import { NgModule } from '@angular/core'
+import { CommonModule } from '@angular/common'
+import { IonicModule } from '@ionic/angular'
 
-import { SnakePageModule } from 'src/app/modals/snake/snake.module'
 import { SnekDirective } from './snek.directive'
+import { SnakePage } from './snake.page'
 
 @NgModule({
-  imports: [SnakePageModule],
-  declarations: [SnekDirective],
-  exports: [SnekDirective],
+  imports: [CommonModule, IonicModule],
+  declarations: [SnekDirective, SnakePage],
+  exports: [SnekDirective, SnakePage],
 })
 export class SnekModule {}
