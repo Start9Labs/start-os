@@ -3,19 +3,21 @@
     <ion-buttons slot="start">
       <ion-back-button defaultHref="system"></ion-back-button>
     </ion-buttons>
-    <ion-title>Addresses</ion-title>
+    <ion-title>StartOS Web Interface</ion-title>
   </ion-toolbar>
 </ion-header>
 
 <ion-content class="with-widgets">
   <div *ngIf="server$ | async as server" class="cap-width">
     <!-- clearnet -->
-    <ion-item-divider>Clearnet</ion-item-divider>
+    <ion-item-divider style="--padding-top: 0">Clearnet</ion-item-divider>
     <ion-item-group>
       <ion-item>
         <ion-label>
           <h2>
-            Optionally host your StartOS dashboard on a clearnet domain.
+            Clearnet provides a fast and convenient experience. It not not
+            provide anonymity, and the addresses can be discovered and accessed
+            by anyone.
             <a
               href="https://docs.start9.com/latest/user-manual/os-addresses#clearnet"
               target="_blank"
@@ -31,7 +33,7 @@
       >
         <ion-item>
           <ion-label>
-            <h2>Clearnet Address</h2>
+            <h2>Clearnet</h2>
             <p>{{ 'https://' + clearnetAddress }}</p>
             <div class="ion-padding-top">
               <ion-button (click)="presentModalAddClearnet(server)">
@@ -74,16 +76,57 @@
       </ng-template>
     </ion-item-group>
 
-    <!-- local -->
-    <ion-item-divider>Local</ion-item-divider>
+    <!-- tor -->
+    <ion-item-divider>Tor</ion-item-divider>
     <ion-item-group>
       <ion-item>
         <ion-label>
           <h2>
-            Your StartOS dashboard is accessible via the following URLs while
-            connected to the same LAN. When using a VPN, only the IPv4 address
-            will work. Download and trust your server's Root Certificate
-            Authority for a secure connection.
+            Tor offers privacy and anonymity at the expense of speed and
+            reliability. A Tor-enabled browser is required to use a Tor address.
+            <a
+              href="https://docs.start9.com/latest/user-manual/os-addresses#tor"
+              target="_blank"
+              rel="noreferrer"
+            >
+              View instructions
+            </a>
+          </h2>
+        </ion-label>
+      </ion-item>
+      <ion-item *ngIf="server['tor-address'] as torAddress">
+        <ion-label class="break-all">
+          <h2>Tor</h2>
+          <p>{{ torAddress }}</p>
+        </ion-label>
+        <div slot="end">
+          <ion-button fill="clear" (click)="launch(torAddress)">
+            <ion-icon
+              slot="icon-only"
+              size="small"
+              name="open-outline"
+            ></ion-icon>
+          </ion-button>
+          <ion-button fill="clear" (click)="copy(torAddress)">
+            <ion-icon
+              slot="icon-only"
+              size="small"
+              name="copy-outline"
+            ></ion-icon>
+          </ion-button>
+        </div>
+      </ion-item>
+    </ion-item-group>
+
+    <!-- local -->
+    <ion-item-divider>LAN</ion-item-divider>
+    <ion-item-group>
+      <ion-item>
+        <ion-label>
+          <h2>
+            LAN offers a fast and private experience. These addresses can only
+            be accessed from a device connected to the same LAN as your server,
+            either directly or using a VPN.
             <a
               href="https://docs.start9.com/latest/user-manual/os-addresses#local"
               target="_blank"
@@ -151,48 +194,6 @@
           </ion-item>
         </ng-container>
       </ng-container>
-    </ion-item-group>
-
-    <ion-item-divider>Tor</ion-item-divider>
-    <!-- tor -->
-    <ion-item-group>
-      <ion-item>
-        <ion-label>
-          <h2>
-            You StartOS dashboard is available as a Tor hidden service and can
-            be accessed from any Tor-enabled browser.
-            <a
-              href="https://docs.start9.com/latest/user-manual/os-addresses#tor"
-              target="_blank"
-              rel="noreferrer"
-            >
-              View instructions
-            </a>
-          </h2>
-        </ion-label>
-      </ion-item>
-      <ion-item *ngIf="server['tor-address'] as torAddress">
-        <ion-label class="break-all">
-          <h2>Tor Address</h2>
-          <p>{{ torAddress }}</p>
-        </ion-label>
-        <div slot="end">
-          <ion-button fill="clear" (click)="launch(torAddress)">
-            <ion-icon
-              slot="icon-only"
-              size="small"
-              name="open-outline"
-            ></ion-icon>
-          </ion-button>
-          <ion-button fill="clear" (click)="copy(torAddress)">
-            <ion-icon
-              slot="icon-only"
-              size="small"
-              name="copy-outline"
-            ></ion-icon>
-          </ion-button>
-        </div>
-      </ion-item>
     </ion-item-group>
   </div>
 

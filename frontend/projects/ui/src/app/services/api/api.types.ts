@@ -7,7 +7,7 @@ import {
 } from 'src/app/services/patch-db/data-model'
 import { StartOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
 import { customSmtp } from '@start9labs/start-sdk/lib/config/configConstants'
-import { DomainForm } from 'src/app/apps/ui/pages/system/domains/domain.const'
+import { DomainSpec } from 'src/app/apps/ui/pages/system/domains/domain.const'
 
 export module RR {
   // DB
@@ -128,7 +128,7 @@ export module RR {
   export type DeleteStart9MeReq = {} // net.domain.me.delete
   export type DeleteStart9MeRes = null
 
-  export type AddDomainReq = DomainForm // net.domain.add
+  export type AddDomainReq = DomainSpec // net.domain.add
   export type AddDomainRes = null
 
   export type DeleteDomainReq = { hostname: string } // net.domain.delete
