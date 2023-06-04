@@ -1,27 +1,24 @@
 import { Config } from '@start9labs/start-sdk/lib/config/builder/config'
 import { Value } from '@start9labs/start-sdk/lib/config/builder/value'
-import { Variants } from '@start9labs/start-sdk/lib/config/builder/variants'
-import { InputSpec } from '@start9labs/start-sdk/lib/config/configTypes'
 
-export type DomainForm = {
-  hostname: string
-  baseToken: string
-  wildcardToken: string
-}
-
-export const domain = Config.of({
+export const domainSpec = Config.of({
   provider: Value.select({
     name: 'Provider',
     required: { default: null },
     values: {
-      start9: 'Start9',
       namecheap: 'Namecheap',
       googledomains: 'Google Domains',
+      duckdns: 'Duck DNS',
+      changeip: 'ChangeIP',
+      easydns: 'easyDNS',
+      zoneedit: 'Zoneedit',
+      dyn: 'DynDNS',
     },
   }),
-  hostname: Value.text({
-    name: 'Hostname',
+  domain: Value.text({
+    name: 'Domain Name',
     required: { default: null },
+    placeholder: 'yourdomain.com',
   }),
   username: Value.text({
     name: 'Username',
@@ -30,59 +27,8 @@ export const domain = Config.of({
   password: Value.text({
     name: 'Password',
     required: { default: null },
+    masked: true,
   }),
 })
 
-export const domainSpec: InputSpec = {
-  hostname: {
-    type: 'text',
-    minLength: null,
-    maxLength: null,
-    patterns: [],
-    name: 'Hostname',
-    description: null,
-    inputmode: 'url',
-    placeholder: null,
-    required: true,
-    masked: false,
-    default: null,
-    warning: null,
-    disabled: false,
-    immutable: false,
-    generate: null,
-  },
-  baseToken: {
-    type: 'text',
-    minLength: null,
-    maxLength: null,
-    patterns: [],
-    name: 'Base Token',
-    description: null,
-    inputmode: 'text',
-    placeholder: null,
-    required: true,
-    masked: true,
-    default: null,
-    warning: null,
-    disabled: false,
-    immutable: false,
-    generate: null,
-  },
-  wildcardToken: {
-    type: 'text',
-    minLength: null,
-    maxLength: null,
-    patterns: [],
-    name: 'Wildcard Token',
-    description: null,
-    inputmode: 'text',
-    placeholder: null,
-    required: true,
-    masked: true,
-    default: null,
-    warning: null,
-    disabled: false,
-    immutable: false,
-    generate: null,
-  },
-}
+export type DomainSpec = typeof domainSpec.validator._TYPE

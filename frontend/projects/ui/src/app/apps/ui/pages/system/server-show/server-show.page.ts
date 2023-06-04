@@ -379,9 +379,8 @@ export class ServerShowPage {
         disabled$: of(false),
       },
       {
-        title: 'Addresses',
-        description:
-          'Web addresses for accessing the primary StartOS dashboard',
+        title: 'StartOS Web Interface',
+        description: 'Addresses for accessing this StartOS web interface',
         icon: 'map-outline',
         action: () =>
           this.navCtrl.navigateForward(['addresses'], {
