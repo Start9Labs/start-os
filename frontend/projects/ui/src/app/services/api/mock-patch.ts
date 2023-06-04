@@ -38,8 +38,8 @@ export const mockPatchData: DataModel = {
     version: '0.3.4',
     country: 'us',
     'last-backup': new Date(new Date().valueOf() - 604800001).toISOString(),
-    'lan-address': 'https://adjective-noun.local',
-    'tor-address': 'http://myveryownspecialtoraddress.onion',
+    'lan-address': 'adjective-noun.local',
+    'tor-address': 'myveryownspecialtoraddress.onion',
     'ip-info': {
       eth0: {
         ipv4: '10.0.0.1',

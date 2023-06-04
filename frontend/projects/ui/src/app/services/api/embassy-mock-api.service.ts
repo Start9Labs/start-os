@@ -314,7 +314,7 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: '/server-info/clearnet-address',
+        path: '/server-info/clearnetAddress',
         value: params.address,
       },
     ]
@@ -450,7 +450,7 @@ export class MockApiService extends ApiService {
         op: PatchOp.REPLACE,
         path: '/server-info/start9MeSubdomain',
         value: {
-          value: 'adjective-noun',
+          value: 'xyz',
           createdAt: new Date(),
         },
       },
@@ -481,7 +481,8 @@ export class MockApiService extends ApiService {
         path: '/server-info/domains',
         value: [
           {
-            value: params.hostname,
+            value: params.domain,
+            provider: params.provider,
             createdAt: new Date(),
           },
         ],

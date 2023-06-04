@@ -109,7 +109,6 @@ export class OSAddressesPage {
   }
 
   private async saveClearnet(value: ClearnetForm): Promise<boolean> {
-    console.error(value)
     const address = `${value.subdomain}.${value.domain}`
 
     const loader = this.loader.open('Saving...').subscribe()

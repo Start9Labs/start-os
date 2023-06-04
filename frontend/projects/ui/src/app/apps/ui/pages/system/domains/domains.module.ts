@@ -4,6 +4,7 @@ import { IonicModule } from '@ionic/angular'
 import { RouterModule, Routes } from '@angular/router'
 import { DomainsPage } from './domains.page'
 import { TuiNotificationModule } from '@taiga-ui/core'
+import { SharedPipesModule } from '@start9labs/shared'
 
 const routes: Routes = [
   {
@@ -18,6 +19,7 @@ const routes: Routes = [
     IonicModule,
     TuiNotificationModule,
     RouterModule.forChild(routes),
+    SharedPipesModule,
   ],
   declarations: [DomainsPage],
 })
