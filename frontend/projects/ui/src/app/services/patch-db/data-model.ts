@@ -55,24 +55,35 @@ export interface ServerInfo {
   id: string
   version: string
   country: string
-  domains: Domain[]
-  start9MeSubdomain: Domain | null
-  clearnetAddress: string | null
+  network: NetworkInfo
   'last-backup': string | null
-  'lan-address': Url
-  'tor-address': Url
-  'ip-info': IpInfo
-  'last-wifi-region': string | null
-  'wifi-enabled': boolean
   'unread-notification-count': number
   'status-info': ServerStatusInfo
   'eos-version-compat': string
-  hostname: string
   pubkey: string
   'ca-fingerprint': string
   'system-start-time': string
   zram: boolean
   smtp: typeof customSmtp.validator._TYPE
+}
+
+export type NetworkInfo = {
+  ipInfo: IpInfo
+  wifi: WiFiInfo
+  lanHostname: string
+  torHostname: string
+  domains: Domain[]
+  start9MeSubdomain: Omit<Domain, 'provider'> | null
+  clearnetAddress: string | null
+  wanPortForwards: {
+    upnp: boolean
+    allocated: Record<string, string>
+  }
+}
+
+export type WiFiInfo = {
+  enabled: boolean
+  lastRegion: string | null
 }
 
 export type Domain = {
@@ -83,6 +94,7 @@ export type Domain = {
 
 export interface IpInfo {
   [iface: string]: {
+    wireless: boolean
     ipv4: string | null
     ipv6: string | null
   }

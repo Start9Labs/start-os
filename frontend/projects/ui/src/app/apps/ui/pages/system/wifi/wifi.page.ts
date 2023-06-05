@@ -38,12 +38,14 @@ interface WiFiForm {
 })
 export class WifiPage {
   readonly connected$ = this.connectionService.connected$.pipe(filter(Boolean))
-  readonly enabled$ = this.patch.watch$('server-info', 'wifi-enabled').pipe(
-    distinctUntilChanged(),
-    tap(enabled => {
-      if (enabled) this.trigger$.next('')
-    }),
-  )
+  readonly enabled$ = this.patch
+    .watch$('server-info', 'network', 'wifi', 'enabled')
+    .pipe(
+      distinctUntilChanged(),
+      tap(enabled => {
+        if (enabled) this.trigger$.next('')
+      }),
+    )
   readonly trigger$ = new BehaviorSubject('')
   readonly localChanges$ = new Subject<RR.GetWifiRes>()
   readonly wifi$ = merge(

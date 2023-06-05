@@ -17,6 +17,13 @@ const routes: Routes = [
       ),
   },
   {
+    path: 'port-forwards',
+    loadChildren: () =>
+      import('./port-forwards/port-forwards.module').then(
+        m => m.PortForwardsPageModule,
+      ),
+  },
+  {
     path: 'logs',
     loadChildren: () =>
       import('./server-logs/server-logs.module').then(

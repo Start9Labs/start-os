@@ -26,54 +26,6 @@
       </ion-button>
     </ion-item>
 
-    <ion-item-divider>Web Addresses</ion-item-divider>
-    <ion-item *ngIf="server['tor-address'] as torAddress">
-      <ion-label class="break-all">
-        <h2>Tor</h2>
-        <p>{{ torAddress }}</p>
-      </ion-label>
-      <div slot="end">
-        <ion-button fill="clear" (click)="launch(torAddress)">
-          <ion-icon slot="icon-only" name="open-outline"></ion-icon>
-        </ion-button>
-        <ion-button fill="clear" (click)="copy(torAddress)">
-          <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
-        </ion-button>
-      </div>
-    </ion-item>
-    <ion-item *ngIf="server['lan-address'] as lanAddress">
-      <ion-label class="break-all">
-        <h2>LAN</h2>
-        <p>{{ lanAddress }}</p>
-      </ion-label>
-      <div slot="end">
-        <ion-button fill="clear" (click)="launch(lanAddress)">
-          <ion-icon slot="icon-only" name="open-outline"></ion-icon>
-        </ion-button>
-        <ion-button fill="clear" (click)="copy(lanAddress)">
-          <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
-        </ion-button>
-      </div>
-    </ion-item>
-    <ng-container *ngFor="let ip of server['ip-info'] | keyvalue">
-      <ng-container *ngFor="let entry of ip.value | keyvalue">
-        <ion-item *ngIf="entry.value as ipAddress">
-          <ion-label>
-            <h2>{{ ip.key }} ({{ entry.key }})</h2>
-            <p>{{ ipAddress }}</p>
-          </ion-label>
-          <div slot="end">
-            <ion-button fill="clear" (click)="launch(ipAddress)">
-              <ion-icon slot="icon-only" name="open-outline"></ion-icon>
-            </ion-button>
-            <ion-button fill="clear" (click)="copy(ipAddress)">
-              <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
-            </ion-button>
-          </div>
-        </ion-item>
-      </ng-container>
-    </ng-container>
-
     <ion-item-divider>Device Credentials</ion-item-divider>
     <!-- <ion-item>
       <ion-label>
