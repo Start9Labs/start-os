@@ -37,24 +37,38 @@ export const mockPatchData: DataModel = {
     id: 'abcdefgh',
     version: '0.3.4',
     country: 'us',
-    'last-backup': new Date(new Date().valueOf() - 604800001).toISOString(),
-    'lan-address': 'adjective-noun.local',
-    'tor-address': 'myveryownspecialtoraddress.onion',
-    'ip-info': {
-      eth0: {
-        ipv4: '10.0.0.1',
-        ipv6: null,
+    network: {
+      lanHostname: 'adjective-noun.local',
+      torHostname: 'myveryownspecialtoraddress.onion',
+      ipInfo: {
+        eth0: {
+          wireless: false,
+          ipv4: '10.0.0.1',
+          ipv6: null,
+        },
+        wlan0: {
+          wireless: true,
+          ipv4: '10.0.90.12',
+          ipv6: 'FE80:CD00:0000:0CDE:1257:0000:211E:729CD',
+        },
       },
-      wlan0: {
-        ipv4: '10.0.90.12',
-        ipv6: 'FE80:CD00:0000:0CDE:1257:0000:211E:729CD',
+      domains: [],
+      start9MeSubdomain: null,
+      clearnetAddress: null,
+      wifi: {
+        enabled: false,
+        lastRegion: null,
+      },
+      wanPortForwards: {
+        upnp: false,
+        allocated: {
+          '443': '443',
+          '80': '80',
+          '8332': '8332',
+        },
       },
     },
-    domains: [],
-    start9MeSubdomain: null,
-    clearnetAddress: null,
-    'last-wifi-region': null,
-    'wifi-enabled': false,
+    'last-backup': new Date(new Date().valueOf() - 604800001).toISOString(),
     'unread-notification-count': 4,
     'eos-version-compat': '>=0.3.0 <=0.3.0.1',
     'status-info': {
@@ -63,7 +77,6 @@ export const mockPatchData: DataModel = {
       'update-progress': null,
       'shutting-down': false,
     },
-    hostname: 'random-words',
     pubkey: 'npub1sg6plzptd64u62a878hep2kev88swjh3tw00gjsfl8f237lmu63q0uf63m',
     'ca-fingerprint': 'SHA-256: 63 2B 11 99 44 40 17 DF 37 FC C3 DF 0F 3D 15',
     'system-start-time': new Date(new Date().valueOf() - 360042).toUTCString(),

@@ -1,0 +1,58 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="system"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Port Forwards</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="with-widgets">
+  <div *ngIf="server$ | async as server" class="cap-width">
+    <!-- local -->
+    <ion-item-group>
+      <ion-item>
+        <ion-label>
+          <h2>
+            Below are a list of ports that should be forwarded through your
+            router in order to make your server and all its services available
+            over clearnet.
+            <a
+              href="https://docs.start9.com/latest/user-manual/port-forwards"
+              target="_blank"
+              rel="noreferrer"
+            >
+              View instructions
+            </a>
+          </h2>
+        </ion-label>
+      </ion-item>
+      <!-- UPnP -->
+      <ng-container *ngIf="server.network.wanPortForwards.upnp; else ports">
+        <ion-item>
+          <ion-label>
+            <h2>
+              Congratulations! Your Local Network has UPnP enabled, so you are
+              not required to forward any ports through your router.
+            </h2>
+          </ion-label>
+        </ion-item>
+      </ng-container>
+      <!-- no UPnP -->
+      <ng-template #ports>
+        <ng-container
+          *ngFor="let port of server.network.wanPortForwards.allocated | keyvalue"
+        >
+          <ion-item>
+            <ion-label>
+              <h2>
+                Forward port {{ port.key }} to {{ server.network.ipInfo |
+                primaryIp }}:{{ port.value }}
+              </h2>
+            </ion-label>
+          </ion-item>
+        </ng-container>
+      </ng-template>
+    </ion-item-group>
+  </div>
+</ion-content>
