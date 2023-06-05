@@ -379,6 +379,18 @@ export class ServerShowPage {
         disabled$: of(false),
       },
       {
+        title: 'Port Forwards',
+        description:
+          'A list of ports that should be forwarded through your router',
+        icon: 'trail-sign-outline',
+        action: () =>
+          this.navCtrl.navigateForward(['port-forwards'], {
+            relativeTo: this.route,
+          }),
+        detail: true,
+        disabled$: of(false),
+      },
+      {
         title: 'StartOS Web Interface',
         description: 'Addresses for accessing this StartOS web interface',
         icon: 'map-outline',

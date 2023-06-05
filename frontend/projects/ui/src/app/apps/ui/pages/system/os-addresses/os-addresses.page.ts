@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { AlertController, ToastController } from '@ionic/angular'
 import { PatchDB } from 'patch-db-client'
 import { ErrorToastService, copyToClipboard } from '@start9labs/shared'
-import { DataModel, ServerInfo } from 'src/app/services/patch-db/data-model'
+import { DataModel, NetworkInfo } from 'src/app/services/patch-db/data-model'
 import { TuiDialogOptions } from '@taiga-ui/core'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
@@ -26,10 +26,10 @@ export type ClearnetForm = {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class OSAddressesPage {
-  readonly server$ = this.patch.watch$('server-info')
+  readonly network$ = this.patch.watch$('server-info', 'network')
 
-  readonly crtName$ = this.server$.pipe(
-    map(server => `${new URL(server['lan-address']).hostname}.crt`),
+  readonly crtName$ = this.network$.pipe(
+    map(network => `${network.lanHostname}.crt`),
   )
 
   constructor(
@@ -66,8 +66,8 @@ export class OSAddressesPage {
     await toast.present()
   }
 
-  async presentModalAddClearnet(server: ServerInfo) {
-    const clearnetAddress = server.clearnetAddress || ''
+  async presentModalAddClearnet(network: NetworkInfo) {
+    const clearnetAddress = network.clearnetAddress || ''
     const options: Partial<TuiDialogOptions<FormContext<ClearnetForm>>> = {
       label: 'Add Domain',
       data: {
@@ -75,7 +75,7 @@ export class OSAddressesPage {
           domain: clearnetAddress.split('.').slice(-2).join('.'),
           subdomain: clearnetAddress.split('.').slice(0, -2).join('.'),
         },
-        spec: await this.getClearnetSpec(server),
+        spec: await this.getClearnetSpec(network),
         buttons: [
           {
             text: 'Save',
@@ -136,9 +136,11 @@ export class OSAddressesPage {
     }
   }
 
-  private async getClearnetSpec(server: ServerInfo): Promise<InputSpec> {
-    const start9MeDomain = server.start9MeSubdomain
-      ? `${server.start9MeSubdomain.value}.start9.me`
+  private async getClearnetSpec(network: NetworkInfo): Promise<InputSpec> {
+    const start9MeSubdomain = network.start9MeSubdomain
+
+    const start9MeDomain = start9MeSubdomain
+      ? `${start9MeSubdomain.value}.start9.me`
       : null
 
     const base = start9MeDomain
@@ -153,7 +155,7 @@ export class OSAddressesPage {
           return {
             name: 'Domain',
             required: { default: null },
-            values: server.domains.reduce((prev, curr) => {
+            values: network.domains.reduce((prev, curr) => {
               return {
                 [curr.value]: curr.value,
                 ...prev,

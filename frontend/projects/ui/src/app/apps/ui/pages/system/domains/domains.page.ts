@@ -25,26 +25,26 @@ export class DomainsPage {
     switchMap(() =>
       this.patch.watch$().pipe(
         map(({ 'server-info': serverInfo, 'package-data': packageData }) => {
-          const start9MeSubdomain = serverInfo.start9MeSubdomain
+          const start9MeSubdomain = serverInfo.network.start9MeSubdomain
           const start9Me = !start9MeSubdomain
             ? null
             : {
                 value: `${start9MeSubdomain.value}.start9.com`,
                 createdAt: start9MeSubdomain.createdAt,
-                provider: start9MeSubdomain.provider,
+                provider: 'Start9',
                 usedBy: usedBy(
                   start9MeSubdomain.value,
-                  serverInfo.clearnetAddress,
+                  serverInfo.network.clearnetAddress,
                   packageData,
                 ),
               }
-          const custom = serverInfo.domains.map(domain => ({
+          const custom = serverInfo.network.domains.map(domain => ({
             value: domain.value,
             createdAt: domain.createdAt,
             provider: domain.provider,
             usedBy: usedBy(
               domain.value,
-              serverInfo.clearnetAddress,
+              serverInfo.network.clearnetAddress,
               packageData,
             ),
           }))
