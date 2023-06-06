@@ -1,0 +1,24 @@
+{
+  "name": "start-init",
+  "version": "0.0.0",
+  "description": "We want to be the sdk intermitent for the system",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "prettier": {
+    "trailingComma": "all",
+    "tabWidth": 2,
+    "semi": false,
+    "singleQuote": false
+  },
+  "dependencies": {
+    "@start9labs/start-sdk": "../start-sdk",
+    "ts-matches": "^5.4.1",
+    "typescript": "^5.1.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.2.5"
+  }
+}
