@@ -314,7 +314,7 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: '/server-info/clearnetAddress',
+        path: '/server-info/network/clearnetAddress',
         value: params.address,
       },
     ]
@@ -448,7 +448,7 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: '/server-info/start9MeSubdomain',
+        path: '/server-info/network/start9MeSubdomain',
         value: {
           value: 'xyz',
           createdAt: new Date(),
@@ -465,7 +465,7 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: '/server-info/start9MeSubdomain',
+        path: '/server-info/network/start9MeSubdomain',
         value: null,
       },
     ]
@@ -478,7 +478,7 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: '/server-info/domains',
+        path: '/server-info/network/domains',
         value: [
           {
             value: params.domain,
@@ -496,7 +496,7 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: '/server-info/domains',
+        path: '/server-info/network/domains',
         value: [],
       },
     ]
@@ -510,7 +510,7 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: '/server-info/wifi-enabled',
+        path: '/server-info/network/wifi/enabled',
         value: params.enable,
       },
     ]
@@ -551,7 +551,7 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: '/server-info/email',
+        path: '/server-info/smtp',
         value: params,
       },
     ]

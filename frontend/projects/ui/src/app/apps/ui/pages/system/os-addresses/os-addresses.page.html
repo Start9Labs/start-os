@@ -68,7 +68,7 @@
       </ng-container>
       <ng-template #noClearnet>
         <div class="ion-padding">
-          <ion-button (click)="presentModalAddClearnet(network)">
+          <ion-button strong (click)="presentModalAddClearnet(network)">
             <ion-icon slot="start" name="add"></ion-icon>
             Add Clearnet Address
           </ion-button>
@@ -139,6 +139,7 @@
             <ion-button
               (click)="installCert()"
               [disabled]="!(crtName$ | async)"
+              strong
             >
               <ion-icon slot="start" name="download-outline"></ion-icon>
               Download Root CA

@@ -348,7 +348,16 @@ export class ServerShowPage {
   }
 
   settings: ServerSettings = {
-    Manage: [
+    General: [
+      {
+        title: 'About',
+        description: 'Basic information about your server',
+        icon: 'information-circle-outline',
+        action: () =>
+          this.navCtrl.navigateForward(['specs'], { relativeTo: this.route }),
+        detail: true,
+        disabled$: of(false),
+      },
       {
         title: 'Software Update',
         description: 'Get the latest version of StartOS',
@@ -366,6 +375,49 @@ export class ServerShowPage {
         icon: 'pricetag-outline',
         action: () => this.setBrowserTab(),
         detail: false,
+        disabled$: of(false),
+      },
+      {
+        title: 'Email',
+        description:
+          'Connect to an external SMTP server to send yourself emails',
+        icon: 'mail-outline',
+        action: () =>
+          this.navCtrl.navigateForward(['email'], { relativeTo: this.route }),
+        detail: true,
+        disabled$: of(false),
+      },
+      {
+        title: 'Sideload a Service',
+        description: `Manually install a service`,
+        icon: 'push-outline',
+        action: () =>
+          this.navCtrl.navigateForward(['sideload'], {
+            relativeTo: this.route,
+          }),
+        detail: true,
+        disabled$: of(false),
+      },
+    ],
+    Network: [
+      {
+        title: 'StartOS Web Interface',
+        description: 'Addresses for accessing this StartOS web interface',
+        icon: 'desktop-outline',
+        action: () =>
+          this.navCtrl.navigateForward(['addresses'], {
+            relativeTo: this.route,
+          }),
+        detail: true,
+        disabled$: of(false),
+      },
+      {
+        title: 'WiFi',
+        description: 'Add or remove WiFi networks',
+        icon: 'wifi',
+        action: () =>
+          this.navCtrl.navigateForward(['wifi'], { relativeTo: this.route }),
+        detail: true,
         disabled$: of(false),
       },
       {
@@ -390,17 +442,8 @@ export class ServerShowPage {
         detail: true,
         disabled$: of(false),
       },
-      {
-        title: 'StartOS Web Interface',
-        description: 'Addresses for accessing this StartOS web interface',
-        icon: 'map-outline',
-        action: () =>
-          this.navCtrl.navigateForward(['addresses'], {
-            relativeTo: this.route,
-          }),
-        detail: true,
-        disabled$: of(false),
-      },
+    ],
+    Security: [
       {
         title: 'SSH',
         description:
@@ -412,29 +455,11 @@ export class ServerShowPage {
         disabled$: of(false),
       },
       {
-        title: 'Email',
-        description: 'Provide an external SMTP server for sending emails',
-        icon: 'mail-outline',
+        title: 'Active Sessions',
+        description: 'View and manage device access',
+        icon: 'stopwatch-outline',
         action: () =>
-          this.navCtrl.navigateForward(['email'], { relativeTo: this.route }),
-        detail: true,
-        disabled$: of(false),
-      },
-      {
-        title: 'WiFi',
-        description: 'Add or remove WiFi networks',
-        icon: 'wifi',
-        action: () =>
-          this.navCtrl.navigateForward(['wifi'], { relativeTo: this.route }),
-        detail: true,
-        disabled$: of(false),
-      },
-      {
-        title: 'Sideload a Service',
-        description: `Manually install a service`,
-        icon: 'push-outline',
-        action: () =>
-          this.navCtrl.navigateForward(['sideload'], {
+          this.navCtrl.navigateForward(['sessions'], {
             relativeTo: this.route,
           }),
         detail: true,
@@ -452,33 +477,13 @@ export class ServerShowPage {
         disabled$: of(false),
       },
     ],
-    Insights: [
-      {
-        title: 'About',
-        description: 'Basic information about your server',
-        icon: 'information-circle-outline',
-        action: () =>
-          this.navCtrl.navigateForward(['specs'], { relativeTo: this.route }),
-        detail: true,
-        disabled$: of(false),
-      },
+    Logs: [
       {
         title: 'Monitor',
         description: 'CPU, disk, memory, and other useful metrics',
         icon: 'pulse',
         action: () =>
           this.navCtrl.navigateForward(['metrics'], { relativeTo: this.route }),
-        detail: true,
-        disabled$: of(false),
-      },
-      {
-        title: 'Active Sessions',
-        description: 'View and manage device access',
-        icon: 'desktop-outline',
-        action: () =>
-          this.navCtrl.navigateForward(['sessions'], {
-            relativeTo: this.route,
-          }),
         detail: true,
         disabled$: of(false),
       },
