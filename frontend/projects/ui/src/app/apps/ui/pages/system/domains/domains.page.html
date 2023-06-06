@@ -44,13 +44,13 @@
           *ngIf="domains.start9Me as start9Me"
           class="ion-align-items-center grid-row-border"
         >
-          <ion-col size="3">{{ start9Me.value + '.start9.me' }}</ion-col>
+          <ion-col size="3">{{ start9Me.value }}</ion-col>
           <ion-col size="2.5">{{ start9Me.createdAt| date: 'medium' }}</ion-col>
           <ion-col size="2.5">Start9</ion-col>
           <ion-col size="2" *ngIf="start9Me.usedBy as usedBy">
             <a
               *ngIf="usedBy.length as qty; else unused"
-              (click)="presentAlertUsedBy(start9Me.value + '.start9.me', usedBy)"
+              (click)="presentAlertUsedBy(start9Me.value, usedBy)"
             >
               {{ qty }} Interfaces
             </a>

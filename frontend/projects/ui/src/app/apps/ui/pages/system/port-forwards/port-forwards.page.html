@@ -40,18 +40,47 @@
       </ng-container>
       <!-- no UPnP -->
       <ng-template #ports>
-        <ng-container
-          *ngFor="let port of server.network.wanPortForwards.allocated | keyvalue"
-        >
-          <ion-item>
-            <ion-label>
-              <h2>
-                Forward port {{ port.key }} to {{ server.network.ipInfo |
-                primaryIp }}:{{ port.value }}
-              </h2>
-            </ion-label>
-          </ion-item>
-        </ng-container>
+        <ion-grid>
+          <ion-row>
+            <ion-col size="3">
+              <ion-item-divider>Port</ion-item-divider>
+            </ion-col>
+            <ion-col size="1"></ion-col>
+            <ion-col size="8">
+              <ion-item-divider>Forward to</ion-item-divider>
+            </ion-col>
+          </ion-row>
+          <ion-row
+            *ngFor="let port of server.network.wanPortForwards.allocated | keyvalue"
+            class="ion-align-items-center"
+          >
+            <ion-col size="3">
+              <ion-item>
+                <ion-label>
+                  <h2>{{ port.key }}</h2>
+                </ion-label>
+              </ion-item>
+            </ion-col>
+            <ion-col size="1" class="ion-text-center">&rarr;</ion-col>
+            <ion-col size="8">
+              <ion-item *ngIf="server.network.ipInfo | primaryIp as primary">
+                <ion-label>
+                  <h2>{{ primary }}:{{ port.value }}</h2>
+                </ion-label>
+                <ion-button
+                  fill="clear"
+                  (click)="copy(primary + ':' + port.value)"
+                >
+                  <ion-icon
+                    slot="icon-only"
+                    size="small"
+                    name="copy-outline"
+                  ></ion-icon>
+                </ion-button>
+              </ion-item>
+            </ion-col>
+          </ion-row>
+        </ion-grid>
       </ng-template>
     </ion-item-group>
   </div>

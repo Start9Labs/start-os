@@ -8,7 +8,7 @@ import { TuiDialogOptions } from '@taiga-ui/core'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { DomainSpec, domainSpec } from './domain.const'
 import { ConnectionService } from 'src/app/services/connection.service'
-import { filter, first, map, switchMap } from 'rxjs'
+import { combineLatest, filter, first, map, switchMap } from 'rxjs'
 import { LoadingService } from 'src/app/common/loading/loading.service'
 import { FormContext, FormPage } from '../../../modals/form/form.page'
 
@@ -20,38 +20,36 @@ import { FormContext, FormPage } from '../../../modals/form/form.page'
 export class DomainsPage {
   readonly docsUrl = 'https://docs.start9.com/latest/user-manual/domains'
 
+  readonly network$ = this.patch.watch$('server-info', 'network')
+  readonly pkgs$ = this.patch.watch$('package-data').pipe(first())
+
   readonly domains$ = this.connectionService.connected$.pipe(
     filter(Boolean),
     switchMap(() =>
-      this.patch.watch$().pipe(
-        map(({ 'server-info': serverInfo, 'package-data': packageData }) => {
-          const start9MeSubdomain = serverInfo.network.start9MeSubdomain
+      combineLatest([this.network$, this.pkgs$]).pipe(
+        map(([network, packageData]) => {
+          const start9MeSubdomain = network.start9MeSubdomain
           const start9Me = !start9MeSubdomain
             ? null
             : {
-                value: `${start9MeSubdomain.value}.start9.com`,
+                value: `${start9MeSubdomain.value}.start9.me`,
                 createdAt: start9MeSubdomain.createdAt,
                 provider: 'Start9',
                 usedBy: usedBy(
                   start9MeSubdomain.value,
-                  serverInfo.network.clearnetAddress,
+                  network.clearnetAddress,
                   packageData,
                 ),
               }
-          const custom = serverInfo.network.domains.map(domain => ({
+          const custom = network.domains.map(domain => ({
             value: domain.value,
             createdAt: domain.createdAt,
             provider: domain.provider,
-            usedBy: usedBy(
-              domain.value,
-              serverInfo.network.clearnetAddress,
-              packageData,
-            ),
+            usedBy: usedBy(domain.value, network.clearnetAddress, packageData),
           }))
 
           return { start9Me, custom }
         }),
-        first(),
       ),
     ),
   )
