@@ -58,8 +58,8 @@ export class ServerShowPage {
 
   addClick(title: string) {
     switch (title) {
-      case 'Manage':
-        this.addManageClick()
+      case 'Security':
+        this.addSecurityClick()
         break
       case 'Power':
         this.addPowerClick()
@@ -412,15 +412,6 @@ export class ServerShowPage {
         disabled$: of(false),
       },
       {
-        title: 'WiFi',
-        description: 'Add or remove WiFi networks',
-        icon: 'wifi',
-        action: () =>
-          this.navCtrl.navigateForward(['wifi'], { relativeTo: this.route }),
-        detail: true,
-        disabled$: of(false),
-      },
-      {
         title: 'Domains',
         description:
           'Add domains to your server to enable clearnet connections',
@@ -439,6 +430,15 @@ export class ServerShowPage {
           this.navCtrl.navigateForward(['port-forwards'], {
             relativeTo: this.route,
           }),
+        detail: true,
+        disabled$: of(false),
+      },
+      {
+        title: 'WiFi',
+        description: 'Add or remove WiFi networks',
+        icon: 'wifi',
+        action: () =>
+          this.navCtrl.navigateForward(['wifi'], { relativeTo: this.route }),
         detail: true,
         disabled$: of(false),
       },
@@ -605,7 +605,7 @@ export class ServerShowPage {
     ],
   }
 
-  private async addManageClick() {
+  private async addSecurityClick() {
     this.manageClicks++
     if (this.manageClicks === 5) {
       this.manageClicks = 0
