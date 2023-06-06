@@ -5,6 +5,7 @@ import { RouterModule, Routes } from '@angular/router'
 import { SharedPipesModule } from '@start9labs/shared'
 import { GenericInputComponentModule } from 'src/app/apps/ui/modals/generic-input/generic-input.component.module'
 import { SSHKeysPage } from './ssh-keys.page'
+import { TuiNotificationModule } from '@taiga-ui/core'
 
 const routes: Routes = [
   {
@@ -20,6 +21,7 @@ const routes: Routes = [
     SharedPipesModule,
     GenericInputComponentModule,
     RouterModule.forChild(routes),
+    TuiNotificationModule,
   ],
   declarations: [SSHKeysPage],
 })
