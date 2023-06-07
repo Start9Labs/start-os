@@ -3,6 +3,5 @@
   "dest": "../../dist/marketplace",
   "lib": {
     "entryFile": "src/public-api.ts"
-  },
-  "allowedNonPeerDependencies": ["tailwindcss", "lodash"]
+  }
 }
