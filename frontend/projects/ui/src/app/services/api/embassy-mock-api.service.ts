@@ -322,6 +322,11 @@ export class MockApiService extends ApiService {
     return null
   }
 
+  async resetTor(params: RR.ResetTorReq): Promise<RR.ResetTorRes> {
+    await pauseFor(2000)
+    return null
+  }
+
   // marketplace URLs
 
   async marketplaceProxy(
