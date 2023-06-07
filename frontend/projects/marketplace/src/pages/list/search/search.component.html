@@ -1,10 +1,7 @@
-<div
-  class="hidden sm:flex items-center mt-4 mx-6 text-zinc-100 bg-zinc-500 px-3 rounded-full"
->
+<div class="flex items-center text-zinc-100 bg-zinc-500 px-3 rounded-full">
   <div class="relative flex items-center">
     <img
       alt=""
-      loading="lazy"
       width="24"
       height="24"
       class="transition block invert"
@@ -14,7 +11,7 @@
     <input
       type="text"
       name="search"
-      class="mt-1 bg-transparent placeholder-zinc-400 focus:outline-none block w-30 px-3 py-2"
+      class="mt-1 bg-transparent placeholder-zinc-400 focus:outline-none block min-w-30 px-3 py-2"
       placeholder="Search..."
       autocomplete="off"
       [ngModel]="query"
