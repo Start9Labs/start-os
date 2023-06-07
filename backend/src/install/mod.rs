@@ -1279,6 +1279,14 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             migration.or(prev_migration)
         };
 
+        remove_from_current_dependents_lists(
+            &mut tx,
+            pkg_id,
+            &prev.current_dependencies,
+            &receipts.config.current_dependents,
+        )
+        .await?; // remove previous
+
         let configured = if let Some(f) = viable_migration {
             f.await?.configured && prev_is_configured
         } else {
@@ -1298,13 +1306,6 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             )
             .await?;
         } else {
-            remove_from_current_dependents_lists(
-                &mut tx,
-                pkg_id,
-                &prev.current_dependencies,
-                &receipts.config.current_dependents,
-            )
-            .await?; // remove previous
             add_dependent_to_current_dependents_lists(
                 &mut tx,
                 pkg_id,
