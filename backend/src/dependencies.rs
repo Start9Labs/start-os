@@ -237,13 +237,16 @@ impl DependencyError {
                     }
                 }
                 DependencyError::ConfigUnsatisfied { .. } => {
-                    let dependent_manifest =
-                        receipts.manifest.get(db, id).await?.ok_or_else(not_found)?;
+                    let dependent_manifest = receipts
+                        .manifest
+                        .get(db, id)
+                        .await?
+                        .ok_or_else(|| not_found!(id))?;
                     let dependency_manifest = receipts
                         .manifest
                         .get(db, dependency)
                         .await?
-                        .ok_or_else(not_found)?;
+                        .ok_or_else(|| not_found!(dependency))?;
 
                     let dependency_config = if let Some(cfg) = dependency_config.take() {
                         cfg
@@ -294,7 +297,7 @@ impl DependencyError {
                         .status
                         .get(db, dependency)
                         .await?
-                        .ok_or_else(not_found)?;
+                        .ok_or_else(|| not_found!(dependency))?;
                     if status.main.running() {
                         DependencyError::HealthChecksFailed {
                             failures: BTreeMap::new(),
@@ -310,7 +313,7 @@ impl DependencyError {
                         .status
                         .get(db, dependency)
                         .await?
-                        .ok_or_else(not_found)?;
+                        .ok_or_else(|| not_found!(dependency))?;
                     match status.main {
                         MainStatus::BackingUp {
                             started: Some(_),
@@ -324,7 +327,7 @@ impl DependencyError {
                                         .current_dependencies
                                         .get(db, id)
                                         .await?
-                                        .ok_or_else(not_found)?
+                                        .ok_or_else(|| not_found!(id))?
                                         .get(dependency)
                                         .map(|x| x.health_checks.contains(&check))
                                         .unwrap_or(false)
@@ -934,7 +937,7 @@ pub fn break_transitive<'a, Db: DbHandle>(
             .dependency_errors
             .get(&mut tx, id)
             .await?
-            .ok_or_else(not_found)?;
+            .ok_or_else(|| not_found!(id))?;
 
         let old = dependency_errors.0.remove(dependency);
         let newly_broken = if let Some(e) = &old {
@@ -997,7 +1000,7 @@ pub async fn heal_all_dependents_transitive<'a, Db: DbHandle>(
         .current_dependents
         .get(db, id)
         .await?
-        .ok_or_else(not_found)?;
+        .ok_or_else(|| not_found!(id))?;
     for dependent in dependents.0.keys().filter(|dependent| id != *dependent) {
         heal_transitive(ctx, db, dependent, id, locks).await?;
     }
@@ -1013,7 +1016,11 @@ pub fn heal_transitive<'a, Db: DbHandle>(
     receipts: &'a DependencyReceipt,
 ) -> BoxFuture<'a, Result<(), Error>> {
     async move {
-        let mut status = receipts.status.get(db, id).await?.ok_or_else(not_found)?;
+        let mut status = receipts
+            .status
+            .get(db, id)
+            .await?
+            .ok_or_else(|| not_found!(id))?;
 
         let old = status.dependency_errors.0.remove(dependency);
 
@@ -1022,7 +1029,7 @@ pub fn heal_transitive<'a, Db: DbHandle>(
                 .dependency
                 .get(db, (id, dependency))
                 .await?
-                .ok_or_else(not_found)?;
+                .ok_or_else(|| not_found!(format!("{id}'s dependency: {dependency}")))?;
             if let Some(new) = old
                 .try_heal(ctx, db, id, dependency, None, &info, &receipts.try_heal)
                 .await?

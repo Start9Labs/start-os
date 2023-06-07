@@ -76,7 +76,7 @@ pub async fn dry(
         .current_dependents
         .get(&mut tx, &id)
         .await?
-        .ok_or_else(not_found)?
+        .ok_or_else(|| not_found!(id))?
         .0
         .keys()
         .into_iter()

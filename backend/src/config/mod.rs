@@ -503,19 +503,27 @@ pub fn configure_rec<'a, Db: DbHandle>(
             .config_actions
             .get(db, id)
             .await?
-            .ok_or_else(not_found)?;
+            .ok_or_else(|| not_found!(id))?;
         let dependencies = receipts
             .dependencies
             .get(db, id)
             .await?
-            .ok_or_else(not_found)?;
-        let volumes = receipts.volumes.get(db, id).await?.ok_or_else(not_found)?;
+            .ok_or_else(|| not_found!(id))?;
+        let volumes = receipts
+            .volumes
+            .get(db, id)
+            .await?
+            .ok_or_else(|| not_found!(id))?;
         let is_needs_config = !receipts
             .configured
             .get(db, id)
             .await?
-            .ok_or_else(not_found)?;
-        let version = receipts.version.get(db, id).await?.ok_or_else(not_found)?;
+            .ok_or_else(|| not_found!(id))?;
+        let version = receipts
+            .version
+            .get(db, id)
+            .await?
+            .ok_or_else(|| not_found!(id))?;
 
         // get current config and current spec
         let ConfigRes {
@@ -530,7 +538,11 @@ pub fn configure_rec<'a, Db: DbHandle>(
             spec.gen(&mut rand::rngs::StdRng::from_entropy(), timeout)?
         };
 
-        let manifest = receipts.manifest.get(db, id).await?.ok_or_else(not_found)?;
+        let manifest = receipts
+            .manifest
+            .get(db, id)
+            .await?
+            .ok_or_else(|| not_found!(id))?;
 
         spec.validate(&manifest)?;
         spec.matches(&config)?; // check that new config matches spec
@@ -549,7 +561,7 @@ pub fn configure_rec<'a, Db: DbHandle>(
             .system_pointers
             .get(db, &id)
             .await?
-            .ok_or_else(not_found)?;
+            .ok_or_else(|| not_found!(id))?;
         sys.truncate(0);
         let mut current_dependencies: CurrentDependencies = CurrentDependencies(
             dependencies
@@ -655,7 +667,7 @@ pub fn configure_rec<'a, Db: DbHandle>(
             .dependency_errors
             .get(db, &id)
             .await?
-            .ok_or_else(not_found)?;
+            .ok_or_else(|| not_found!(id))?;
         tracing::warn!("Dependency Errors: {:?}", errs);
         let errs = DependencyErrors::init(
             ctx,
@@ -675,7 +687,7 @@ pub fn configure_rec<'a, Db: DbHandle>(
             .current_dependents
             .get(db, id)
             .await?
-            .ok_or_else(not_found)?;
+            .ok_or_else(|| not_found!(id))?;
         let prev = if is_needs_config { None } else { old_config }
             .map(Value::Object)
             .unwrap_or_default();
@@ -693,7 +705,7 @@ pub fn configure_rec<'a, Db: DbHandle>(
                     .manifest
                     .get(db, &dependent)
                     .await?
-                    .ok_or_else(not_found)?;
+                    .ok_or_else(|| not_found!(id))?;
                 if let Err(error) = cfg
                     .check(
                         ctx,
@@ -771,10 +783,16 @@ pub fn configure_rec<'a, Db: DbHandle>(
     }
     .boxed()
 }
-#[instrument(skip_all)]
-pub fn not_found() -> Error {
-    Error::new(eyre!("Could not find"), crate::ErrorKind::Incoherent)
+
+macro_rules! not_found {
+    ($x:expr) => {
+        crate::Error::new(
+            color_eyre::eyre::eyre!("Could not find {} at {}:{}", $x, module_path!(), line!()),
+            crate::ErrorKind::Incoherent,
+        )
+    };
 }
+pub(crate) use not_found;
 
 /// We want to have a double check that the paths are what we expect them to be.
 /// Found that earlier the paths where not what we expected them to be.

@@ -82,7 +82,7 @@ pub async fn update_dependency_errors_of_dependents<'a, Db: DbHandle>(
                     .dependency_errors
                     .get(db, dep)
                     .await?
-                    .ok_or_else(not_found)?;
+                    .ok_or_else(|| not_found!(dep))?;
                 errs.0.insert(id.clone(), e);
                 receipts.dependency_errors.set(db, errs, dep).await?
             } else {
@@ -90,7 +90,7 @@ pub async fn update_dependency_errors_of_dependents<'a, Db: DbHandle>(
                     .dependency_errors
                     .get(db, dep)
                     .await?
-                    .ok_or_else(not_found)?;
+                    .ok_or_else(|| not_found!(dep))?;
                 errs.0.remove(id);
                 receipts.dependency_errors.set(db, errs, dep).await?
             }
@@ -215,7 +215,7 @@ pub async fn cleanup_failed<Db: DbHandle>(
         .package_data_entry
         .get(db, id)
         .await?
-        .ok_or_else(not_found)?;
+        .ok_or_else(|| not_found!(id))?;
     if let Some(manifest) = match &pde {
         PackageDataEntry::Installing { manifest, .. }
         | PackageDataEntry::Restoring { manifest, .. } => Some(manifest),
