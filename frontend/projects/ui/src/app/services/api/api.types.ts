@@ -62,6 +62,12 @@ export module RR {
   export type SystemRebuildReq = {} // server.rebuild
   export type SystemRebuildRes = null
 
+  export type ResetTorReq = {
+    'wipe-state': boolean
+    reason: string
+  } // net.tor.reset
+  export type ResetTorRes = null
+
   // sessions
 
   export type GetSessionsReq = {} // sessions.list

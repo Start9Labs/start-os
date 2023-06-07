@@ -136,7 +136,7 @@ export class LiveApiService extends ApiService {
   }
 
   async getTorLogs(params: RR.GetServerLogsReq): Promise<RR.GetServerLogsRes> {
-    return this.rpcRequest({ method: 'server.tor-logs', params })
+    return this.rpcRequest({ method: 'net.tor.logs', params })
   }
 
   async followServerLogs(
@@ -154,7 +154,7 @@ export class LiveApiService extends ApiService {
   async followTorLogs(
     params: RR.FollowServerLogsReq,
   ): Promise<RR.FollowServerLogsRes> {
-    return this.rpcRequest({ method: 'server.tor-logs.follow', params })
+    return this.rpcRequest({ method: 'net.tor.logs.follow', params })
   }
 
   async getServerMetrics(
@@ -190,6 +190,10 @@ export class LiveApiService extends ApiService {
 
   async repairDisk(params: RR.RestartServerReq): Promise<RR.RestartServerRes> {
     return this.rpcRequest({ method: 'disk.repair', params })
+  }
+
+  async resetTor(params: RR.ResetTorReq): Promise<RR.ResetTorRes> {
+    return this.rpcRequest({ method: 'net.tor.reset', params })
   }
 
   // marketplace URLs

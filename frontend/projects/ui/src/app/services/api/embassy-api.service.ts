@@ -111,6 +111,8 @@ export abstract class ApiService {
 
   abstract repairDisk(params: RR.SystemRebuildReq): Promise<RR.SystemRebuildRes>
 
+  abstract resetTor(params: RR.ResetTorReq): Promise<RR.ResetTorRes>
+
   // marketplace URLs
 
   abstract marketplaceProxy<T>(
