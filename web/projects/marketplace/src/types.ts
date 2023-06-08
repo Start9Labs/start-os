@@ -25,6 +25,7 @@ export interface StoreInfo {
 export interface MarketplacePkg {
   icon: Url
   license: Url
+  screenshots?: string[]
   instructions: Url
   manifest: Manifest
   categories: string[]
