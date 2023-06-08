@@ -16,6 +16,7 @@ use rpc_toolkit::yajrc::RpcError;
 use tokio::net::TcpStream;
 use tokio::process::Command;
 use tokio::sync::{mpsc, oneshot};
+use tokio::time::Instant;
 use torut::control::{AsyncEvent, AuthenticatedConn, ConnError};
 use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 use tracing::instrument;
@@ -50,6 +51,7 @@ lazy_static! {
         Regex::new("Tor has not observed any network activity for the past").unwrap(),
         ErrorLogSeverity::Unknown { wipe_state: false }
     )];
+    static ref PROGRESS_REGEX: Regex = Regex::new("PROGRESS=([0-9]+)").unwrap();
 }
 
 #[test]
@@ -251,7 +253,7 @@ enum TorCommand {
     },
 }
 
-#[instrument]
+#[instrument(skip_all)]
 async fn torctl(
     tor_control: SocketAddr,
     tor_socks: SocketAddr,
@@ -260,26 +262,31 @@ async fn torctl(
 ) -> Result<(), Error> {
     let bootstrap = async {
         tokio::fs::create_dir_all("/var/lib/tor").await?;
+        Command::new("chown")
+            .arg("-R")
+            .arg("debian-tor")
+            .arg("/var/lib/tor")
+            .invoke(ErrorKind::Filesystem)
+            .await?;
         if Command::new("systemctl")
             .arg("is-active")
             .arg("--quiet")
             .arg("tor")
             .invoke(ErrorKind::Tor)
             .await
-            .is_err()
+            .is_ok()
         {
             Command::new("systemctl")
-                .arg("start")
-                .arg("tor")
-                .invoke(ErrorKind::Tor)
-                .await?;
-        } else {
-            Command::new("systemctl")
-                .arg("restart")
+                .arg("stop")
                 .arg("tor")
                 .invoke(ErrorKind::Tor)
                 .await?;
         }
+        Command::new("systemctl")
+            .arg("start")
+            .arg("tor")
+            .invoke(ErrorKind::Tor)
+            .await?;
 
         let logs = journalctl(LogSource::Service(SYSTEMD_UNIT), 0, None, false, true).await?;
 
@@ -308,12 +315,20 @@ async fn torctl(
         connection.set_async_event_handler(Some(Box::new(|event| event_handler(event))));
 
         let mut bootstrapped = false;
-        for _ in 0..600 {
+        let mut last_increment = (String::new(), Instant::now());
+        for _ in 0..300 {
             match connection.get_info("status/bootstrap-phase").await {
                 Ok(a) => {
                     if a.contains("TAG=done") {
                         bootstrapped = true;
                         break;
+                    }
+                    if let Some(p) = PROGRESS_REGEX.captures(&a) {
+                        if let Some(p) = p.get(1) {
+                            if p.as_str() != &*last_increment.0 {
+                                last_increment = (p.as_str().into(), Instant::now());
+                            }
+                        }
                     }
                 }
                 Err(e) => {
@@ -321,6 +336,12 @@ async fn torctl(
                     tracing::error!("{}", e);
                     tracing::debug!("{:?}", e);
                 }
+            }
+            if last_increment.1.elapsed() > Duration::from_secs(30) {
+                return Err(Error::new(
+                    eyre!("Tor stuck bootstrapping at {}%", last_increment.0),
+                    ErrorKind::Tor,
+                ));
             }
             tokio::time::sleep(Duration::from_secs(1)).await;
         }
