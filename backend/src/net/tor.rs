@@ -539,12 +539,18 @@ async fn torctl(
                         ErrorLogSeverity::Unknown { wipe_state } => (true, *wipe_state),
                     };
                     if !check
-                        || tokio_socks::tcp::Socks5Stream::connect(
-                            tor_socks,
-                            (hck_key.public().get_onion_address().to_string(), 80),
+                        || tokio::time::timeout(
+                            Duration::from_secs(30),
+                            tokio_socks::tcp::Socks5Stream::connect(
+                                tor_socks,
+                                (hck_key.public().get_onion_address().to_string(), 80),
+                            ),
                         )
                         .await
-                        .map_err(|e| tracing::warn!("Tor is confirmed to be down: {}", e))
+                        .map_err(|e| tracing::warn!("Tor is confirmed to be down: {e}"))
+                        .and_then(|a| {
+                            a.map_err(|e| tracing::warn!("Tor is confirmed to be down: {e}"))
+                        })
                         .is_err()
                     {
                         if wipe_state {
