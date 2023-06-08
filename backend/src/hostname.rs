@@ -56,7 +56,8 @@ pub async fn get_current_hostname() -> Result<Hostname, Error> {
 #[instrument(skip_all)]
 pub async fn set_hostname(hostname: &Hostname) -> Result<(), Error> {
     let hostname: &String = &hostname.0;
-    let _out = Command::new("hostnamectl")
+    Command::new("hostnamectl")
+        .arg("--static")
         .arg("set-hostname")
         .arg(hostname)
         .invoke(ErrorKind::ParseSysInfo)
