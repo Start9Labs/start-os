@@ -28,6 +28,7 @@ magic-wormhole
 ncdu
 net-tools
 network-manager
+nvme-cli
 nyx
 openssh-server
 pgloader
@@ -35,6 +36,7 @@ postgresql
 psmisc
 rsync
 samba-common-bin
+smartmontools
 sqlite3
 squashfs-tools
 systemd
