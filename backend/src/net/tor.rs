@@ -67,7 +67,7 @@ pub async fn reset(
     #[context] ctx: RpcContext,
     #[arg(rename = "wipe-state", short = 'w', long = "wipe-state")] wipe_state: bool,
     #[arg] reason: String,
-) -> Result<Vec<OnionAddressV3>, Error> {
+) -> Result<(), Error> {
     ctx.net_controller
         .tor
         .reset(wipe_state, Error::new(eyre!("{reason}"), ErrorKind::Tor))
