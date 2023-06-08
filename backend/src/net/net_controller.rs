@@ -34,6 +34,7 @@ impl NetController {
     #[instrument(skip_all)]
     pub async fn init(
         tor_control: SocketAddr,
+        tor_socks: SocketAddr,
         dns_bind: &[SocketAddr],
         ssl: SslManager,
         hostname: &Hostname,
@@ -41,7 +42,7 @@ impl NetController {
     ) -> Result<Self, Error> {
         let ssl = Arc::new(ssl);
         let mut res = Self {
-            tor: TorController::init(tor_control).await?,
+            tor: TorController::new(tor_control, tor_socks),
             #[cfg(feature = "avahi")]
             mdns: MdnsController::init().await?,
             vhost: VHostController::new(ssl.clone()),
@@ -114,7 +115,7 @@ impl NetController {
         // Tor (http)
         self.os_bindings.push(
             self.tor
-                .add(&key.tor_key(), 80, ([127, 0, 0, 1], 80).into())
+                .add(key.tor_key(), 80, ([127, 0, 0, 1], 80).into())
                 .await?,
         );
 
@@ -132,7 +133,7 @@ impl NetController {
         );
         self.os_bindings.push(
             self.tor
-                .add(&key.tor_key(), 443, ([127, 0, 0, 1], 443).into())
+                .add(key.tor_key(), 443, ([127, 0, 0, 1], 443).into())
                 .await?,
         );
 
@@ -164,13 +165,13 @@ impl NetController {
         target: SocketAddr,
     ) -> Result<Vec<Arc<()>>, Error> {
         let mut rcs = Vec::with_capacity(1);
-        rcs.push(self.tor.add(&key.tor_key(), external, target).await?);
+        rcs.push(self.tor.add(key.tor_key(), external, target).await?);
         Ok(rcs)
     }
 
     async fn remove_tor(&self, key: &Key, external: u16, rcs: Vec<Arc<()>>) -> Result<(), Error> {
         drop(rcs);
-        self.tor.gc(&key.tor_key(), external).await
+        self.tor.gc(Some(key.tor_key()), Some(external)).await
     }
 
     async fn add_lan(

@@ -33,7 +33,7 @@ use crate::util::serde::Reversible;
 use crate::{Error, ErrorKind};
 
 #[pin_project::pin_project]
-struct LogStream {
+pub struct LogStream {
     _child: Child,
     #[pin]
     entries: BoxStream<'static, Result<JournalctlEntry, Error>>,
@@ -141,14 +141,14 @@ impl std::fmt::Display for LogEntry {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct JournalctlEntry {
+pub struct JournalctlEntry {
     #[serde(rename = "__REALTIME_TIMESTAMP")]
-    timestamp: String,
+    pub timestamp: String,
     #[serde(rename = "MESSAGE")]
     #[serde(deserialize_with = "deserialize_string_or_utf8_array")]
-    message: String,
+    pub message: String,
     #[serde(rename = "__CURSOR")]
-    cursor: String,
+    pub cursor: String,
 }
 impl JournalctlEntry {
     fn log_entry(self) -> Result<(String, LogEntry), Error> {
@@ -344,7 +344,7 @@ pub async fn cli_logs_generic_follow(
     Ok(())
 }
 
-async fn journalctl(
+pub async fn journalctl(
     id: LogSource,
     limit: usize,
     cursor: Option<&str>,

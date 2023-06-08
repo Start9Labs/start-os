@@ -152,6 +152,7 @@ tokio-stream = { version = "0.1.11", features = ["io-util", "sync", "net"] }
 tokio-tar = { git = "https://github.com/dr-bonez/tokio-tar.git" }
 tokio-tungstenite = { version = "0.17.1", features = ["native-tls"] }
 tokio-rustls = "0.23.4"
+tokio-socks = "0.5.1"
 tokio-util = { version = "0.7.3", features = ["io"] }
 torut = "0.2.1"
 tracing = "0.1.35"
