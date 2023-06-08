@@ -1442,6 +1442,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-rustls",
+ "tokio-socks",
  "tokio-stream",
  "tokio-tar",
  "tokio-tungstenite",

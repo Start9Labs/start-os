@@ -40,10 +40,6 @@ pub async fn check_time_is_synchronized() -> Result<bool, Error> {
         == "NTPSynchronized=yes")
 }
 
-pub async fn check_tor_is_ready(tor_control: SocketAddr) -> bool {
-    tokio::net::TcpStream::connect(tor_control).await.is_ok()
-}
-
 pub struct InitReceipts {
     pub server_version: LockReceipt<crate::util::Version, ()>,
     pub version_range: LockReceipt<emver::VersionRange, ()>,
@@ -401,26 +397,6 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         tracing::warn!("Timed out waiting for system time to synchronize");
     } else {
         tracing::info!("Syncronized system clock");
-    }
-
-    Command::new("systemctl")
-        .arg("start")
-        .arg("tor")
-        .invoke(crate::ErrorKind::Tor)
-        .await?;
-
-    let mut warn_tor_not_ready = true;
-    for _ in 0..60 {
-        if check_tor_is_ready(cfg.tor_control.unwrap_or(([127, 0, 0, 1], 9051).into())).await {
-            warn_tor_not_ready = false;
-            break;
-        }
-        tokio::time::sleep(Duration::from_secs(1)).await;
-    }
-    if warn_tor_not_ready {
-        tracing::warn!("Timed out waiting for tor to start");
-    } else {
-        tracing::info!("Tor is started");
     }
 
     receipts

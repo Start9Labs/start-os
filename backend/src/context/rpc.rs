@@ -197,6 +197,7 @@ impl RpcContext {
             NetController::init(
                 base.tor_control
                     .unwrap_or(SocketAddr::from(([127, 0, 0, 1], 9051))),
+                tor_proxy,
                 base.dns_bind
                     .as_ref()
                     .map(|v| v.as_slice())
