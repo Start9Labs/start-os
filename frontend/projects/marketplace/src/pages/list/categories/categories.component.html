@@ -1,6 +1,10 @@
-<div *ngFor="let cat of categories">
+<div
+  *ngFor="let cat of categories"
+  class="sm:relative sm:hover:right-3 sm:hover:bg-[#222428] hover:cursor-pointer sm:w-[200%] rounded-l-lg transition-all ease-in-out delay-75 duration-75"
+>
+  >
   <button
-    class="flex relative gap-2 hover:no-underline rounded-r-lg transition-colors before:transition-colors ease-in-out mb-2 p-2 scale sm:pl-6 sm:border-l-0 sm:before:absolute sm:before:h-[calc(100%-4px)] sm:before:top-[2px] sm:before:left-[-5px] sm:before:w-[10px] sm:before:rounded-full sm:before:transition-colors text-black/70 sm:hover:before:bg-[#FF4961]/25 2xl:before:hidden false"
+    class="flex relative gap-2 hover:no-underline mb-2 p-2 scale sm:pl-6]"
     [class.category_selected]="cat === category"
     (click)="switchCategory(cat)"
   >
