@@ -80,6 +80,7 @@ impl Database {
                     .map(|x| format!("{x:X}"))
                     .join(":"),
                 system_start_time: Utc::now().to_rfc3339(),
+                zram: false,
             },
             package_data: AllPackageData::default(),
             ui: serde_json::from_str(include_str!("../../../frontend/patchdb-ui-seed.json"))
@@ -117,6 +118,8 @@ pub struct ServerInfo {
     pub pubkey: String,
     pub ca_fingerprint: String,
     pub system_start_time: String,
+    #[serde(default)]
+    pub zram: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]

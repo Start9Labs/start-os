@@ -85,6 +85,7 @@ pub fn main_api() -> Result<(), RpcError> {
 
 #[command(subcommands(
     system::time,
+    system::experimental,
     system::logs,
     system::kernel_logs,
     system::metrics,

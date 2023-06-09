@@ -24,6 +24,59 @@ use crate::{Error, ErrorKind, ResultExt};
 
 pub const SYSTEMD_UNIT: &'static str = "embassyd";
 
+#[command(subcommands(zram))]
+pub async fn experimental() -> Result<(), Error> {
+    Ok(())
+}
+
+#[command(display(display_none))]
+pub async fn zram(#[context] ctx: RpcContext, #[arg] enable: bool) -> Result<(), Error> {
+    let mut db = ctx.db.handle();
+    let zram = crate::db::DatabaseModel::new()
+        .server_info()
+        .zram()
+        .get_mut(&mut db)
+        .await?;
+    if enable == *zram {
+        return Ok(());
+    }
+    if enable {
+        let mem_info = get_mem_info().await?;
+        Command::new("modprobe")
+            .arg("zram")
+            .invoke(ErrorKind::Zram)
+            .await?;
+        tokio::fs::write("/sys/block/zram0/comp_algorithm", "lz4")
+            .await
+            .with_kind(ErrorKind::Zram)?;
+        tokio::fs::write(
+            "/sys/block/zram0/disksize",
+            format!("{}M", mem_info.total.0 as u64 / 4),
+        )
+        .await
+        .with_kind(ErrorKind::Zram)?;
+        Command::new("mkswap")
+            .arg("/dev/zram0")
+            .invoke(ErrorKind::Zram)
+            .await?;
+        Command::new("swapon")
+            .arg("-p")
+            .arg("5")
+            .arg("/dev/zram0")
+            .invoke(ErrorKind::Zram)
+            .await?;
+    } else {
+        Command::new("swapoff")
+            .arg("/dev/zram0")
+            .invoke(ErrorKind::Zram)
+            .await?;
+        tokio::fs::write("/sys/block/zram0/reset", "1")
+            .await
+            .with_kind(ErrorKind::Zram)?;
+    }
+    Ok(())
+}
+
 #[command]
 pub async fn time() -> Result<String, Error> {
     Ok(Utc::now().to_rfc3339())
@@ -699,7 +752,7 @@ async fn get_mem_info() -> Result<MetricsMemory, Error> {
     let swap_total = MebiBytes(swap_total_k as f64 / 1024.0);
     let swap_free = MebiBytes(swap_free_k as f64 / 1024.0);
     let swap_used = MebiBytes((swap_total_k - swap_free_k) as f64 / 1024.0);
-    let percentage_used = Percentage(used.0 / total.0 * 100.0);
+    let percentage_used = Percentage((total.0 - available.0) / total.0 * 100.0);
     Ok(MetricsMemory {
         percentage_used,
         total,

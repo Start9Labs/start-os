@@ -327,6 +327,18 @@ export class MockApiService extends ApiService {
     return null
   }
 
+  async toggleZram(params: RR.ToggleZramReq): Promise<RR.ToggleZramRes> {
+    await pauseFor(2000)
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/zram',
+        value: params.enable,
+      },
+    ]
+    return this.withRevision(patch, null)
+  }
+
   // marketplace URLs
 
   async marketplaceProxy(

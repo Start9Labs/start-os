@@ -80,6 +80,13 @@ const routes: Routes = [
     loadChildren: () =>
       import('./wifi/wifi.module').then(m => m.WifiPageModule),
   },
+  {
+    path: 'experimental-features',
+    loadChildren: () =>
+      import('./experimental-features/experimental-features.module').then(
+        m => m.ExperimentalFeaturesPageModule,
+      ),
+  },
 ]
 
 @NgModule({
