@@ -1,0 +1,36 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="system"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Experimental Features</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="with-widgets">
+  <ion-item-group *ngIf="server$ | async as server">
+    <ion-item button (click)="presentAlertResetTor()">
+      <ion-icon slot="start" name="reload"></ion-icon>
+      <ion-label>
+        <h2>Reset Tor</h2>
+        <p>
+          Reset the Tor deamon on your server may resolve Tor connectivity
+          issues.
+        </p>
+      </ion-label>
+    </ion-item>
+    <ion-item button (click)="presentAlertZram(server.zram)">
+      <ion-icon
+        slot="start"
+        [name]="server.zram ? 'flash-off-outline' : 'flash-outline'"
+      ></ion-icon>
+      <ion-label>
+        <h2>{{ server.zram ? 'Disable' : 'Enable' }} zram</h2>
+        <p>
+          Enabling zram may improve server performance, especially on low RAM
+          devices
+        </p>
+      </ion-label>
+    </ion-item>
+  </ion-item-group>
+</ion-content>

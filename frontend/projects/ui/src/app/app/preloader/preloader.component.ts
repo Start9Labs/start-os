@@ -40,6 +40,7 @@ const ICONS = [
   'file-tray-stacked-outline',
   'finger-print-outline',
   'flash-outline',
+  'flash-off-outline',
   'folder-open-outline',
   'globe-outline',
   'grid-outline',
