@@ -39,9 +39,6 @@ enum ErrorLogSeverity {
 
 lazy_static! {
     static ref LOG_REGEXES: Vec<(Regex, ErrorLogSeverity)> = vec![(
-        Regex::new("Most likely this means the Tor network is overloaded").unwrap(),
-        ErrorLogSeverity::Unknown { wipe_state: true }
-    ),(
         Regex::new("This could indicate a route manipulation attack, network overload, bad local network connectivity, or a bug\\.").unwrap(),
         ErrorLogSeverity::Unknown { wipe_state: true }
     ),(
@@ -281,6 +278,14 @@ async fn torctl(
                 .arg("tor")
                 .invoke(ErrorKind::Tor)
                 .await?;
+            while Command::new("pidof")
+                .arg("tor")
+                .invoke(ErrorKind::Tor)
+                .await
+                .is_ok()
+            {
+                tokio::time::sleep(Duration::from_secs(1)).await;
+            }
         }
         Command::new("systemctl")
             .arg("start")
