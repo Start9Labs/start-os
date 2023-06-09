@@ -1647,6 +1647,7 @@ dependencies = [
  "dprint-swc-ext",
  "embassy_container_init",
  "helpers",
+ "itertools 0.10.5",
  "models",
  "reqwest",
  "serde",
