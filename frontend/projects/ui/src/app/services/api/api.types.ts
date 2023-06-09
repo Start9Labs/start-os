@@ -68,6 +68,11 @@ export module RR {
   } // net.tor.reset
   export type ResetTorRes = null
 
+  export type ToggleZramReq = {
+    enable: boolean
+  } // server.experimental.zram
+  export type ToggleZramRes = null
+
   // sessions
 
   export type GetSessionsReq = {} // sessions.list

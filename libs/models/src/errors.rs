@@ -75,6 +75,7 @@ pub enum ErrorKind {
     Grub = 64,
     Systemd = 65,
     OpenSsh = 66,
+    Zram = 67,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -146,6 +147,7 @@ impl ErrorKind {
             Grub => "Grub Error",
             Systemd => "Systemd Error",
             OpenSsh => "OpenSSH Error",
+            Zram => "Zram Error",
         }
     }
 }
