@@ -1039,4 +1039,9 @@ export const action = {
     }
   },
 
+  async "test-disk-usage"(effects, _input) {
+    const usage = await effects.diskUsage()
+    return usage
+  }
+
 };

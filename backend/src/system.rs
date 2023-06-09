@@ -32,7 +32,7 @@ pub async fn experimental() -> Result<(), Error> {
 #[command(display(display_none))]
 pub async fn zram(#[context] ctx: RpcContext, #[arg] enable: bool) -> Result<(), Error> {
     let mut db = ctx.db.handle();
-    let zram = crate::db::DatabaseModel::new()
+    let mut zram = crate::db::DatabaseModel::new()
         .server_info()
         .zram()
         .get_mut(&mut db)
@@ -74,6 +74,7 @@ pub async fn zram(#[context] ctx: RpcContext, #[arg] enable: bool) -> Result<(),
             .await
             .with_kind(ErrorKind::Zram)?;
     }
+    zram.save(&mut db).await?;
     Ok(())
 }
 
