@@ -185,6 +185,14 @@ const runRsync = (
   }
 };
 
+const diskUsage = async ({
+  volumeId = requireParam("volumeId"),
+  path = requireParam("path"),
+} = { volumeId: null, path: null }) => {
+  const [used, total] = await Deno.core.opAsync("disk_usage", volumeId, path);
+  return { used, total }
+}
+
 const currentFunction = Deno.core.opSync("current_function");
 const input = Deno.core.opSync("get_input");
 const variable_args = Deno.core.opSync("get_variable_args");
@@ -213,7 +221,8 @@ const effects = {
   runDaemon,
   signalGroup,
   runRsync,
-  readDir
+  readDir,
+  diskUsage,
 };
 
 const defaults = {

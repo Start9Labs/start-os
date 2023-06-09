@@ -284,6 +284,7 @@ impl JsExecutionEnvironment {
             fns::create_dir::decl(),
             fns::remove_dir::decl(),
             fns::read_dir::decl(),
+            fns::disk_usage::decl(),
             fns::current_function::decl(),
             fns::log_trace::decl(),
             fns::log_warn::decl(),
@@ -396,10 +397,12 @@ mod fns {
         SendSignal, SendSignalParams, SignalGroup, SignalGroupParams,
     };
     use helpers::{to_tmp_path, AtomicFile, Rsync, RsyncOptions};
-    use models::VolumeId;
+    use itertools::Itertools;
+    use models::{ErrorKind, VolumeId};
     use serde::{Deserialize, Serialize};
     use serde_json::{json, Value};
     use tokio::io::AsyncWriteExt;
+    use tokio::process::Command;
 
     use super::{AnswerState, JsContext};
     use crate::{system_time_as_unix_ms, MetadataJs, ResultType};
@@ -490,6 +493,7 @@ mod fns {
                 .ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?
         };
         //get_path_for in volume.rs
+        let path_in = path_in.strip_prefix("/").unwrap_or(&path_in);
         let new_file = volume_path.join(path_in);
         if !is_subset(&volume_path, &new_file).await? {
             bail!(
@@ -515,6 +519,7 @@ mod fns {
                 .ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?
         };
         //get_path_for in volume.rs
+        let path_in = path_in.strip_prefix("/").unwrap_or(&path_in);
         let new_file = volume_path.join(path_in);
         if !is_subset(&volume_path, &new_file).await? {
             bail!(
@@ -573,6 +578,7 @@ mod fns {
             bail!("Volume {} is readonly", volume_id);
         }
 
+        let path_in = path_in.strip_prefix("/").unwrap_or(&path_in);
         let new_file = volume_path.join(&path_in);
         let parent_new_file = new_file
             .parent()
@@ -629,6 +635,7 @@ mod fns {
             bail!("Volume {} is readonly", dst_volume);
         }
 
+        let src_path = src_path.strip_prefix("/").unwrap_or(&src_path);
         let old_file = volume_path.join(src_path);
         let parent_old_file = old_file
             .parent()
@@ -642,6 +649,7 @@ mod fns {
             );
         }
 
+        let dst_path = dst_path.strip_prefix("/").unwrap_or(&dst_path);
         let new_file = volume_path_out.join(dst_path);
         let parent_new_file = new_file
             .parent()
@@ -689,6 +697,7 @@ mod fns {
             bail!("Volume {} is readonly", dst_volume);
         }
 
+        let src_path = src_path.strip_prefix("/").unwrap_or(&src_path);
         let src = volume_path.join(src_path);
         // With the volume check
         if !is_subset(&volume_path, &src).await? {
@@ -702,6 +711,7 @@ mod fns {
             bail!("Source at {} does not exists", src.to_string_lossy());
         }
 
+        let dst_path = src_path.strip_prefix("/").unwrap_or(&dst_path);
         let dst = volume_path_out.join(dst_path);
         // With the volume check
         if !is_subset(&volume_path_out, &dst).await? {
@@ -776,6 +786,7 @@ mod fns {
         if volumes.readonly(&volume_id) {
             bail!("Volume {} is readonly", volume_id);
         }
+        let path_in = path_in.strip_prefix("/").unwrap_or(&path_in);
         let new_file = volume_path.join(path_in);
         // With the volume check
         if !is_subset(&volume_path, &new_file).await? {
@@ -806,6 +817,7 @@ mod fns {
         if volumes.readonly(&volume_id) {
             bail!("Volume {} is readonly", volume_id);
         }
+        let path_in = path_in.strip_prefix("/").unwrap_or(&path_in);
         let new_file = volume_path.join(path_in);
         // With the volume check
         if !is_subset(&volume_path, &new_file).await? {
@@ -836,6 +848,7 @@ mod fns {
         if volumes.readonly(&volume_id) {
             bail!("Volume {} is readonly", volume_id);
         }
+        let path_in = path_in.strip_prefix("/").unwrap_or(&path_in);
         let new_file = volume_path.join(path_in);
 
         // With the volume check
@@ -864,6 +877,7 @@ mod fns {
                 .ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?;
             volume_path
         };
+        let path_in = path_in.strip_prefix("/").unwrap_or(&path_in);
         let new_file = volume_path.join(path_in);
 
         // With the volume check
@@ -891,6 +905,86 @@ mod fns {
         }
         paths.sort();
         Ok(paths)
+    }
+
+    #[op]
+    async fn disk_usage(
+        state: Rc<RefCell<OpState>>,
+        volume_id: Option<VolumeId>,
+        path_in: Option<PathBuf>,
+    ) -> Result<(u64, u64), AnyError> {
+        let (base_path, volume_path) = {
+            let state = state.borrow();
+            let ctx: &JsContext = state.borrow();
+            let volume_path = if let Some(volume_id) = volume_id {
+                Some(
+                    ctx.volumes
+                        .path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id)
+                        .ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?,
+                )
+            } else {
+                None
+            };
+            (ctx.datadir.join("package-data"), volume_path)
+        };
+        let path = if let (Some(volume_path), Some(path_in)) = (volume_path, path_in) {
+            let path_in = path_in.strip_prefix("/").unwrap_or(&path_in);
+            Some(volume_path.join(path_in))
+        } else {
+            None
+        };
+
+        if let Some(path) = path {
+            let size = String::from_utf8(
+                Command::new("df")
+                    .arg("--output=size")
+                    .arg("--block-size=1")
+                    .arg(&base_path)
+                    .stdout(std::process::Stdio::piped())
+                    .output()
+                    .await?
+                    .stdout,
+            )?
+            .lines()
+            .skip(1)
+            .next()
+            .unwrap_or_default()
+            .parse()?;
+            let used = String::from_utf8(
+                Command::new("du")
+                    .arg("-s")
+                    .arg("--block-size=1")
+                    .arg(path)
+                    .stdout(std::process::Stdio::piped())
+                    .output()
+                    .await?
+                    .stdout,
+            )?
+            .split_ascii_whitespace()
+            .next()
+            .unwrap_or_default()
+            .parse()?;
+            Ok((used, size))
+        } else {
+            String::from_utf8(
+                Command::new("df")
+                    .arg("--output=used,size")
+                    .arg("--block-size=1")
+                    .arg(&base_path)
+                    .stdout(std::process::Stdio::piped())
+                    .output()
+                    .await?
+                    .stdout,
+            )?
+            .lines()
+            .skip(1)
+            .next()
+            .unwrap_or_default()
+            .split_ascii_whitespace()
+            .next_tuple()
+            .and_then(|(used, size)| Some((used.parse().ok()?, size.parse().ok()?)))
+            .ok_or_else(|| anyhow!("invalid output from df"))
+        }
     }
 
     #[op]
@@ -1216,6 +1310,7 @@ mod fns {
         if volumes.readonly(&volume_id) {
             bail!("Volume {} is readonly", volume_id);
         }
+        let path_in = path_in.strip_prefix("/").unwrap_or(&path_in);
         let new_file = volume_path.join(path_in);
         // With the volume check
         if !is_subset(&volume_path, &new_file).await? {
@@ -1265,6 +1360,7 @@ mod fns {
         if volumes.readonly(&volume_id) {
             bail!("Volume {} is readonly", volume_id);
         }
+        let path_in = path_in.strip_prefix("/").unwrap_or(&path_in);
         let new_file = volume_path.join(path_in);
         // With the volume check
         if !is_subset(&volume_path, &new_file).await? {
