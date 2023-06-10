@@ -47,6 +47,7 @@ pub struct InitReceipts {
     pub status_info: LockReceipt<ServerStatus, ()>,
     pub ip_info: LockReceipt<BTreeMap<String, IpInfo>, ()>,
     pub system_start_time: LockReceipt<String, ()>,
+    pub zram: LockReceipt<bool, ()>,
 }
 impl InitReceipts {
     pub async fn new(db: &mut impl DbHandle) -> Result<Self, Error> {
@@ -83,6 +84,11 @@ impl InitReceipts {
             .system_start_time()
             .make_locker(LockType::Write)
             .add_to_keys(&mut locks);
+        let zram = crate::db::DatabaseModel::new()
+            .server_info()
+            .zram()
+            .make_locker(LockType::Write)
+            .add_to_keys(&mut locks);
 
         let skeleton_key = db.lock_all(locks).await?;
         Ok(Self {
@@ -92,66 +98,9 @@ impl InitReceipts {
             status_info: status_info.verify(&skeleton_key)?,
             last_wifi_region: last_wifi_region.verify(&skeleton_key)?,
             system_start_time: system_start_time.verify(&skeleton_key)?,
+            zram: zram.verify(&skeleton_key)?,
         })
     }
-}
-
-pub async fn pgloader(
-    old_db_path: impl AsRef<Path>,
-    batch_rows: usize,
-    prefetch_rows: usize,
-) -> Result<(), Error> {
-    tokio::fs::write(
-        "/etc/embassy/migrate.load",
-        format!(
-            include_str!("migrate.load"),
-            sqlite_path = old_db_path.as_ref().display(),
-            batch_rows = batch_rows,
-            prefetch_rows = prefetch_rows
-        ),
-    )
-    .await?;
-    match tokio::fs::remove_dir_all("/tmp/pgloader").await {
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        a => a,
-    }?;
-    tracing::info!("Running pgloader");
-    let out = Command::new("pgloader")
-        .arg("-v")
-        .arg("/etc/embassy/migrate.load")
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .output()
-        .await?;
-    let stdout = String::from_utf8(out.stdout)?;
-    for line in stdout.lines() {
-        tracing::debug!("pgloader: {}", line);
-    }
-    let stderr = String::from_utf8(out.stderr)?;
-    for line in stderr.lines() {
-        tracing::debug!("pgloader err: {}", line);
-    }
-    tracing::debug!("pgloader exited with code {:?}", out.status);
-    if let Some(err) = stdout.lines().chain(stderr.lines()).find_map(|l| {
-        if l.split_ascii_whitespace()
-            .any(|word| word == "ERROR" || word == "FATAL")
-        {
-            Some(l)
-        } else {
-            None
-        }
-    }) {
-        return Err(Error::new(
-            eyre!("pgloader error: {}", err),
-            crate::ErrorKind::Database,
-        ));
-    }
-    tokio::fs::rename(
-        old_db_path.as_ref(),
-        old_db_path.as_ref().with_extension("bak"),
-    )
-    .await?;
-    Ok(())
 }
 
 // must be idempotent
@@ -399,6 +348,9 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         tracing::info!("Syncronized system clock");
     }
 
+    if receipts.zram.get(&mut handle).await? {
+        crate::system::enable_zram().await?
+    }
     receipts
         .ip_info
         .set(&mut handle, crate::net::dhcp::init_ips().await?)

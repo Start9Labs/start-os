@@ -5,11 +5,10 @@ use openssl::hash::MessageDigest;
 use serde_json::{json, Value};
 use ssh_key::public::Ed25519PublicKey;
 
-use crate::account::AccountInfo;
-use crate::hostname::{generate_hostname, sync_hostname, Hostname};
-
 use super::v0_3_0::V0_3_0_COMPAT;
 use super::*;
+use crate::account::AccountInfo;
+use crate::hostname::{generate_hostname, sync_hostname, Hostname};
 
 const V0_3_4: emver::Version = emver::Version::new(0, 3, 4, 0);
 

@@ -1,12 +1,13 @@
+use openssl::pkey::PKey;
+use openssl::x509::X509;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+
 use crate::account::AccountInfo;
 use crate::hostname::{generate_hostname, generate_id, Hostname};
 use crate::net::keys::Key;
 use crate::util::serde::Base64;
 use crate::Error;
-use openssl::pkey::PKey;
-use openssl::x509::X509;
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 pub struct OsBackup {
     pub account: AccountInfo,

@@ -3,13 +3,11 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::UNIX_EPOCH;
 
-use async_compression::tokio::bufread::BrotliEncoder;
-use async_compression::tokio::bufread::GzipEncoder;
+use async_compression::tokio::bufread::{BrotliEncoder, GzipEncoder};
 use color_eyre::eyre::eyre;
 use digest::Digest;
 use futures::FutureExt;
-use http::header::ACCEPT_ENCODING;
-use http::header::CONTENT_ENCODING;
+use http::header::{ACCEPT_ENCODING, CONTENT_ENCODING};
 use http::request::Parts as RequestParts;
 use http::response::Builder;
 use hyper::{Body, Method, Request, Response, StatusCode};

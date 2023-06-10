@@ -19,11 +19,12 @@ use sqlx::PgPool;
 use tokio::sync::{broadcast, oneshot, Mutex, RwLock};
 use tracing::instrument;
 
+use super::setup::CURRENT_SECRET;
 use crate::account::AccountInfo;
 use crate::core::rpc_continuations::{RequestGuid, RestHandler, RpcContinuation};
 use crate::db::model::{CurrentDependents, Database, InstalledPackageDataEntry, PackageDataEntry};
 use crate::disk::OsPartitionInfo;
-use crate::init::{init_postgres, pgloader};
+use crate::init::init_postgres;
 use crate::install::cleanup::{cleanup_failed, uninstall, CleanupFailedReceipts};
 use crate::manager::ManagerMap;
 use crate::middleware::auth::HashSessionToken;
@@ -35,8 +36,6 @@ use crate::shutdown::Shutdown;
 use crate::status::{MainStatus, Status};
 use crate::util::config::load_config_from_paths;
 use crate::{Error, ErrorKind, ResultExt};
-
-use super::setup::CURRENT_SECRET;
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -96,15 +95,6 @@ impl RpcContextConfig {
             .run(&secret_store)
             .await
             .with_kind(crate::ErrorKind::Database)?;
-        let old_db_path = self.datadir().join("main/secrets.db");
-        if tokio::fs::metadata(&old_db_path).await.is_ok() {
-            pgloader(
-                &old_db_path,
-                self.migration_batch_rows.unwrap_or(25000),
-                self.migration_prefetch_rows.unwrap_or(100_000),
-            )
-            .await?;
-        }
         Ok(secret_store)
     }
 }

@@ -17,7 +17,7 @@ use tracing::instrument;
 use crate::account::AccountInfo;
 use crate::db::model::Database;
 use crate::disk::OsPartitionInfo;
-use crate::init::{init_postgres, pgloader};
+use crate::init::init_postgres;
 use crate::setup::SetupStatus;
 use crate::util::config::load_config_from_paths;
 use crate::{Error, ResultExt};
@@ -132,15 +132,6 @@ impl SetupContext {
             .run(&secret_store)
             .await
             .with_kind(crate::ErrorKind::Database)?;
-        let old_db_path = self.datadir.join("main/secrets.db");
-        if tokio::fs::metadata(&old_db_path).await.is_ok() {
-            pgloader(
-                &old_db_path,
-                self.migration_batch_rows,
-                self.migration_prefetch_rows,
-            )
-            .await?;
-        }
         Ok(secret_store)
     }
 }
