@@ -1,15 +1,10 @@
 .category_selected {
   background-color: #222428;
-  right: 0.75rem;
   position: relative;
   width: 200%;
-  border-top-left-radius: 0.5rem
-      /* 8px */
-    ;
-    border-bottom-left-radius: 0.5rem
-      /* 8px */
-    ;
-transition-property: all;
+  border-top-left-radius: 0.5rem;
+  border-bottom-left-radius: 0.5rem;
+  transition-property: all;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
 }
