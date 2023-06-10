@@ -40,6 +40,7 @@ pub async fn zram(#[context] ctx: RpcContext, #[arg] enable: bool) -> Result<(),
     if enable == *zram {
         return Ok(());
     }
+    *zram = enable;
     if enable {
         let mem_info = get_mem_info().await?;
         Command::new("modprobe")
