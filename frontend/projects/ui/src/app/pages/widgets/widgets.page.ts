@@ -9,8 +9,8 @@ import {
 } from '@angular/core'
 import { TuiDialogContext, TuiDialogService } from '@taiga-ui/core'
 import {
-  PolymorpheusComponent,
   POLYMORPHEUS_CONTEXT,
+  PolymorpheusComponent,
 } from '@tinkoff/ng-polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { DataModel, Widget } from '../../services/patch-db/data-model'
@@ -84,7 +84,7 @@ export class WidgetsPage {
 
   add() {
     this.dialog.open(ADD_WIDGET, { label: 'Add widget' }).subscribe(widget => {
-      this.addWidget(widget)
+      this.addWidget(widget!)
     })
   }
 
