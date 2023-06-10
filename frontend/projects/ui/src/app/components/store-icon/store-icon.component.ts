@@ -31,7 +31,7 @@ export class GetIconPipe implements PipeTransform {
     const { start9, community } = this.config.marketplace
 
     if (sameUrl(url, start9)) {
-      return 'assets/img/registry-icon.png'
+      return 'assets/img/icon_transparent.png'
     } else if (sameUrl(url, community)) {
       return 'assets/img/community-store.png'
     }
