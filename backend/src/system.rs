@@ -29,6 +29,34 @@ pub async fn experimental() -> Result<(), Error> {
     Ok(())
 }
 
+pub async fn enable_zram() -> Result<(), Error> {
+    let mem_info = get_mem_info().await?;
+    Command::new("modprobe")
+        .arg("zram")
+        .invoke(ErrorKind::Zram)
+        .await?;
+    tokio::fs::write("/sys/block/zram0/comp_algorithm", "lz4")
+        .await
+        .with_kind(ErrorKind::Zram)?;
+    tokio::fs::write(
+        "/sys/block/zram0/disksize",
+        format!("{}M", mem_info.total.0 as u64 / 4),
+    )
+    .await
+    .with_kind(ErrorKind::Zram)?;
+    Command::new("mkswap")
+        .arg("/dev/zram0")
+        .invoke(ErrorKind::Zram)
+        .await?;
+    Command::new("swapon")
+        .arg("-p")
+        .arg("5")
+        .arg("/dev/zram0")
+        .invoke(ErrorKind::Zram)
+        .await?;
+    Ok(())
+}
+
 #[command(display(display_none))]
 pub async fn zram(#[context] ctx: RpcContext, #[arg] enable: bool) -> Result<(), Error> {
     let mut db = ctx.db.handle();
@@ -42,30 +70,7 @@ pub async fn zram(#[context] ctx: RpcContext, #[arg] enable: bool) -> Result<(),
     }
     *zram = enable;
     if enable {
-        let mem_info = get_mem_info().await?;
-        Command::new("modprobe")
-            .arg("zram")
-            .invoke(ErrorKind::Zram)
-            .await?;
-        tokio::fs::write("/sys/block/zram0/comp_algorithm", "lz4")
-            .await
-            .with_kind(ErrorKind::Zram)?;
-        tokio::fs::write(
-            "/sys/block/zram0/disksize",
-            format!("{}M", mem_info.total.0 as u64 / 4),
-        )
-        .await
-        .with_kind(ErrorKind::Zram)?;
-        Command::new("mkswap")
-            .arg("/dev/zram0")
-            .invoke(ErrorKind::Zram)
-            .await?;
-        Command::new("swapon")
-            .arg("-p")
-            .arg("5")
-            .arg("/dev/zram0")
-            .invoke(ErrorKind::Zram)
-            .await?;
+        enable_zram().await?;
     } else {
         Command::new("swapoff")
             .arg("/dev/zram0")
