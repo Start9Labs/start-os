@@ -75,10 +75,17 @@ export type NetworkInfo = {
   domains: Domain[]
   start9MeSubdomain: Omit<Domain, 'provider'> | null
   clearnetAddress: string | null
-  wanPortForwards: {
+  wanConfig: {
     upnp: boolean
-    allocated: Record<string, string>
+    forwards: PortForward[]
   }
+}
+
+export type PortForward = {
+  assigned: number
+  override: number | null
+  target: number
+  error: string | null
 }
 
 export type WiFiInfo = {

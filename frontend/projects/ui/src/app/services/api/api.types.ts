@@ -109,18 +109,7 @@ export module RR {
   export type DeleteAllNotificationsReq = { before: number } // notification.delete-before
   export type DeleteAllNotificationsRes = null
 
-  // wifi
-
-  export type GetWifiReq = {}
-  export type GetWifiRes = {
-    ssids: {
-      [ssid: string]: number
-    }
-    connected: string | null
-    country: string | null
-    ethernet: boolean
-    'available-wifi': AvailableWifi[]
-  }
+  // domains
 
   export type ClaimStart9MeReq = {} // net.domain.me.claim
   export type ClaimStart9MeRes = null
@@ -133,6 +122,24 @@ export module RR {
 
   export type DeleteDomainReq = { hostname: string } // net.domain.delete
   export type DeleteDomainRes = null
+
+  // port forwards
+
+  export type OverridePortReq = { target: number; port: number } // net.port-forwards.override
+  export type OverridePortRes = null
+
+  // wifi
+
+  export type GetWifiReq = {}
+  export type GetWifiRes = {
+    ssids: {
+      [ssid: string]: number
+    }
+    connected: string | null
+    country: string | null
+    ethernet: boolean
+    'available-wifi': AvailableWifi[]
+  }
 
   export type AddWifiReq = {
     // wifi.add
