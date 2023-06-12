@@ -7,7 +7,6 @@ ca-certificates
 cifs-utils
 containerd.io
 curl
-crda
 cryptsetup
 docker-ce
 docker-ce-cli
@@ -15,7 +14,7 @@ docker-compose-plugin
 dosfstools
 e2fsprogs
 ecryptfs-utils
-exfat-utils
+exfatprogs
 htop
 httpdirfs
 iotop
