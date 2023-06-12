@@ -16,7 +16,7 @@ use tokio::process::Command;
 
 use crate::account::AccountInfo;
 use crate::context::rpc::RpcContextConfig;
-use crate::db::model::{IpInfo, ServerStatus};
+use crate::db::model::{IpInfo, ServerInfo, ServerStatus};
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
 use crate::sound::BEP;
@@ -41,64 +41,20 @@ pub async fn check_time_is_synchronized() -> Result<bool, Error> {
 }
 
 pub struct InitReceipts {
-    pub server_version: LockReceipt<crate::util::Version, ()>,
-    pub version_range: LockReceipt<emver::VersionRange, ()>,
-    pub last_wifi_region: LockReceipt<Option<isocountry::CountryCode>, ()>,
-    pub status_info: LockReceipt<ServerStatus, ()>,
-    pub ip_info: LockReceipt<BTreeMap<String, IpInfo>, ()>,
-    pub system_start_time: LockReceipt<String, ()>,
-    pub zram: LockReceipt<bool, ()>,
+    pub server_info: LockReceipt<ServerInfo, ()>,
 }
 impl InitReceipts {
     pub async fn new(db: &mut impl DbHandle) -> Result<Self, Error> {
         let mut locks = Vec::new();
 
-        let server_version = crate::db::DatabaseModel::new()
+        let server_info = crate::db::DatabaseModel::new()
             .server_info()
-            .version()
-            .make_locker(LockType::Write)
-            .add_to_keys(&mut locks);
-        let version_range = crate::db::DatabaseModel::new()
-            .server_info()
-            .eos_version_compat()
-            .make_locker(LockType::Write)
-            .add_to_keys(&mut locks);
-        let last_wifi_region = crate::db::DatabaseModel::new()
-            .server_info()
-            .last_wifi_region()
-            .make_locker(LockType::Write)
-            .add_to_keys(&mut locks);
-        let ip_info = crate::db::DatabaseModel::new()
-            .server_info()
-            .ip_info()
-            .make_locker(LockType::Write)
-            .add_to_keys(&mut locks);
-        let status_info = crate::db::DatabaseModel::new()
-            .server_info()
-            .status_info()
-            .into_model()
-            .make_locker(LockType::Write)
-            .add_to_keys(&mut locks);
-        let system_start_time = crate::db::DatabaseModel::new()
-            .server_info()
-            .system_start_time()
-            .make_locker(LockType::Write)
-            .add_to_keys(&mut locks);
-        let zram = crate::db::DatabaseModel::new()
-            .server_info()
-            .zram()
             .make_locker(LockType::Write)
             .add_to_keys(&mut locks);
 
         let skeleton_key = db.lock_all(locks).await?;
         Ok(Self {
-            server_version: server_version.verify(&skeleton_key)?,
-            version_range: version_range.verify(&skeleton_key)?,
-            ip_info: ip_info.verify(&skeleton_key)?,
-            status_info: status_info.verify(&skeleton_key)?,
-            last_wifi_region: last_wifi_region.verify(&skeleton_key)?,
-            system_start_time: system_start_time.verify(&skeleton_key)?,
-            zram: zram.verify(&skeleton_key)?,
+            server_info: server_info.verify(&skeleton_key)?,
         })
     }
 }
@@ -200,9 +156,9 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     let db = cfg.db(&account).await?;
     tracing::info!("Opened PatchDB");
     let mut handle = db.handle();
-    crate::db::DatabaseModel::new()
+    let mut server_info = crate::db::DatabaseModel::new()
         .server_info()
-        .lock(&mut handle, LockType::Write)
+        .get_mut(&mut handle)
         .await?;
     let receipts = InitReceipts::new(&mut handle).await?;
 
@@ -220,17 +176,15 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         crate::net::wifi::synchronize_wpa_supplicant_conf(
             &cfg.datadir().join("main"),
             wifi_interface,
-            &receipts.last_wifi_region.get(&mut handle).await?,
+            &server_info.last_wifi_region,
         )
         .await?;
         tracing::info!("Synchronized WiFi");
     }
 
     let should_rebuild = tokio::fs::metadata(SYSTEM_REBUILD_PATH).await.is_ok()
-        || &*receipts.server_version.get(&mut handle).await? < &emver::Version::new(0, 3, 2, 0)
-        || (*ARCH == "x86_64"
-            && &*receipts.server_version.get(&mut handle).await?
-                < &emver::Version::new(0, 3, 4, 0));
+        || &*server_info.version < &emver::Version::new(0, 3, 2, 0)
+        || (*ARCH == "x86_64" && &*server_info.version < &emver::Version::new(0, 3, 4, 0));
 
     let song = if should_rebuild {
         Some(NonDetachingJoinHandle::from(tokio::spawn(async {
@@ -348,29 +302,19 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         tracing::info!("Syncronized system clock");
     }
 
-    if receipts.zram.get(&mut handle).await? {
+    if server_info.zram {
         crate::system::enable_zram().await?
     }
-    receipts
-        .ip_info
-        .set(&mut handle, crate::net::dhcp::init_ips().await?)
-        .await?;
-    receipts
-        .status_info
-        .set(
-            &mut handle,
-            ServerStatus {
-                updated: false,
-                update_progress: None,
-                backup_progress: None,
-            },
-        )
-        .await?;
+    server_info.ip_info = crate::net::dhcp::init_ips().await?;
+    server_info.status_info = ServerStatus {
+        updated: false,
+        update_progress: None,
+        backup_progress: None,
+    };
 
-    receipts
-        .system_start_time
-        .set(&mut handle, time().await?)
-        .await?;
+    server_info.system_start_time = time().await?;
+
+    server_info.save(&mut handle).await?;
 
     crate::version::init(&mut handle, &secret_store, &receipts).await?;
 
