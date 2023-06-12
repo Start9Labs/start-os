@@ -1,6 +1,6 @@
 ion-item-divider {
-	padding-bottom: 12px;
-	padding-left: 16px;
+	padding-bottom: 8px;
+	padding-left: 0px;
 }
 
 ion-item-group {
@@ -10,5 +10,17 @@ ion-item-group {
 }
 
 ion-item {
-	--background: #1e2024;
+	--inner-padding-end: 0;
+}
+
+ion-buttons {
+	margin-left: 0;
+	margin-right: 8px;
+	ion-button::part(native) {
+		padding: 0 2px;
+	}
+}
+
+.larger-icon {
+	font-size: 20px;
 }

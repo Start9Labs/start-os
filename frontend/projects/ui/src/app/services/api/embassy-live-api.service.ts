@@ -304,6 +304,14 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'net.domain.delete', params })
   }
 
+  // port forwards
+
+  async overridePortForward(
+    params: RR.OverridePortReq,
+  ): Promise<RR.OverridePortRes> {
+    return this.rpcRequest({ method: 'net.port-forwards.override', params })
+  }
+
   // wifi
 
   async enableWifi(params: RR.EnableWifiReq): Promise<RR.EnableWifiRes> {

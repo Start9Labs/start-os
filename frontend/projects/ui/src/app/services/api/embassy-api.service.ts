@@ -163,6 +163,12 @@ export abstract class ApiService {
 
   abstract deleteDomain(params: RR.DeleteDomainReq): Promise<RR.DeleteDomainRes>
 
+  // port forwards
+
+  abstract overridePortForward(
+    params: RR.OverridePortReq,
+  ): Promise<RR.OverridePortRes>
+
   // wifi
 
   abstract enableWifi(params: RR.EnableWifiReq): Promise<RR.EnableWifiRes>

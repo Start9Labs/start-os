@@ -503,6 +503,23 @@ export class MockApiService extends ApiService {
     return this.withRevision(patch, null)
   }
 
+  // port forwards
+
+  async overridePortForward(
+    params: RR.OverridePortReq,
+  ): Promise<RR.OverridePortRes> {
+    await pauseFor(2000)
+
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/network/wanConfig/forwards/0/override',
+        value: params.port,
+      },
+    ]
+    return this.withRevision(patch, null)
+  }
+
   // wifi
 
   async enableWifi(params: RR.EnableWifiReq): Promise<RR.EnableWifiRes> {
