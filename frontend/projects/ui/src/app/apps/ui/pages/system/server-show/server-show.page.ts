@@ -398,6 +398,17 @@ export class ServerShowPage {
         detail: true,
         disabled$: of(false),
       },
+      {
+        title: 'Experimental Features',
+        description: 'Try out new and potentially unstable new features',
+        icon: 'flask-outline',
+        action: () =>
+          this.navCtrl.navigateForward(['experimental-features'], {
+            relativeTo: this.route,
+          }),
+        detail: true,
+        disabled$: of(false),
+      },
     ],
     Network: [
       {
@@ -465,21 +476,10 @@ export class ServerShowPage {
         detail: true,
         disabled$: of(false),
       },
-      {
-        title: 'Experimental Features',
-        description: 'Try out new and potentially unstable new features',
-        icon: 'flask-outline',
-        action: () =>
-          this.navCtrl.navigateForward(['experimental-features'], {
-            relativeTo: this.route,
-          }),
-        detail: true,
-        disabled$: of(false),
-      },
     ],
     Logs: [
       {
-        title: 'Monitor',
+        title: 'System Resources',
         description: 'CPU, disk, memory, and other useful metrics',
         icon: 'pulse',
         action: () =>
