@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use chrono::Utc;
 use clap::ArgMatches;
@@ -8,6 +8,7 @@ use helpers::AtomicFile;
 use patch_db::{DbHandle, LockType, PatchDbHandle};
 use rpc_toolkit::command;
 use tokio::io::AsyncWriteExt;
+use tokio::process::Command;
 use tracing::instrument;
 
 use super::target::BackupTargetId;
@@ -23,8 +24,8 @@ use crate::disk::mount::guard::TmpMountGuard;
 use crate::notifications::NotificationLevel;
 use crate::s9pk::manifest::PackageId;
 use crate::status::MainStatus;
-use crate::util::display_none;
 use crate::util::serde::IoFormat;
+use crate::util::{display_none, Invoke};
 use crate::version::VersionT;
 use crate::{Error, ErrorKind, ResultExt};
 
@@ -357,6 +358,24 @@ async fn perform_backup<Db: DbHandle>(
         .save()
         .await
         .with_kind(ErrorKind::Filesystem)?;
+
+    let luks_folder_old = backup_guard.as_ref().join("luks.old");
+    if tokio::fs::metadata(&luks_folder_old).await.is_ok() {
+        tokio::fs::remove_dir_all(&luks_folder_old).await?;
+    }
+    let luks_folder_bak = backup_guard.as_ref().join("luks");
+    if tokio::fs::metadata(&luks_folder_bak).await.is_ok() {
+        tokio::fs::rename(&luks_folder_bak, &luks_folder_old).await?;
+    }
+    let luks_folder = Path::new("/media/embassy/config/luks");
+    if tokio::fs::metadata(&luks_folder).await.is_ok() {
+        Command::new("cp")
+            .arg("-r")
+            .arg(&luks_folder)
+            .arg(&luks_folder_bak)
+            .invoke(ErrorKind::Filesystem)
+            .await?;
+    }
 
     let timestamp = Some(Utc::now());
 
