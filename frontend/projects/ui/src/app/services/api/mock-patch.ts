@@ -59,13 +59,28 @@ export const mockPatchData: DataModel = {
         enabled: false,
         lastRegion: null,
       },
-      wanPortForwards: {
+      wanConfig: {
         upnp: false,
-        allocated: {
-          '443': '443',
-          '80': '80',
-          '8332': '8332',
-        },
+        forwards: [
+          {
+            assigned: 443,
+            override: null,
+            target: 443,
+            error: null,
+          },
+          {
+            assigned: 80,
+            override: null,
+            target: 80,
+            error: null,
+          },
+          {
+            assigned: 8332,
+            override: null,
+            target: 8332,
+            error: null,
+          },
+        ],
       },
     },
     'last-backup': new Date(new Date().valueOf() - 604800001).toISOString(),
