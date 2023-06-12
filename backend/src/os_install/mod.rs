@@ -10,7 +10,7 @@ use crate::context::InstallContext;
 use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::efivarfs::EfiVarFs;
-use crate::disk::mount::filesystem::ReadWrite;
+use crate::disk::mount::filesystem::{MountType, ReadWrite};
 use crate::disk::mount::guard::{MountGuard, TmpMountGuard};
 use crate::disk::util::{DiskInfo, PartitionTable};
 use crate::disk::OsPartitionInfo;
@@ -147,6 +147,34 @@ pub async fn execute(
         .invoke(crate::ErrorKind::DiskManagement)
         .await?;
 
+    if !overwrite {
+        if let Ok(guard) =
+            TmpMountGuard::mount(&BlockDev::new(part_info.root.clone()), MountType::ReadOnly).await
+        {
+            if let Err(e) = async {
+                // cp -r ${guard}/config /tmp/config
+                Command::new("cp")
+                    .arg("-r")
+                    .arg(guard.as_ref().join("config"))
+                    .arg("/tmp/config.bak")
+                    .invoke(crate::ErrorKind::Filesystem)
+                    .await?;
+                if tokio::fs::metadata(guard.as_ref().join("config/upgrade"))
+                    .await
+                    .is_ok()
+                {
+                    tokio::fs::remove_file(guard.as_ref().join("config/upgrade")).await?;
+                }
+                guard.unmount().await
+            }
+            .await
+            {
+                tracing::error!("Error recovering previous config: {e}");
+                tracing::debug!("{e:?}");
+            }
+        }
+    }
+
     Command::new("mkfs.ext4")
         .arg(&part_info.root)
         .invoke(crate::ErrorKind::DiskManagement)
@@ -158,7 +186,16 @@ pub async fn execute(
         .await?;
 
     let rootfs = TmpMountGuard::mount(&BlockDev::new(&part_info.root), ReadWrite).await?;
-    tokio::fs::create_dir(rootfs.as_ref().join("config")).await?;
+    if tokio::fs::metadata("/tmp/config.bak").await.is_ok() {
+        Command::new("cp")
+            .arg("-r")
+            .arg("/tmp/config.bak")
+            .arg(rootfs.as_ref().join("config"))
+            .invoke(crate::ErrorKind::Filesystem)
+            .await?;
+    } else {
+        tokio::fs::create_dir(rootfs.as_ref().join("config")).await?;
+    }
     tokio::fs::create_dir(rootfs.as_ref().join("next")).await?;
     let current = rootfs.as_ref().join("current");
     tokio::fs::create_dir(&current).await?;
