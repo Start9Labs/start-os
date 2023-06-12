@@ -119,10 +119,7 @@ jobs:
       - uses: actions/cache@v3
         with:
           path: /var/lib/debspawn
-          key: ${{ runner.os }}-debspawn-init-bookworm
-
-      - name: Make build container
-        run: "debspawn list | grep bookworm || debspawn create bookworm"
+          key: ${{ runner.os }}-debspawn-init
 
       - run: "mkdir -p overlays/deb"
 
