@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common'
 import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
 import { TorLogsPage } from './tor-logs.page'
-import { LogsComponentModule } from 'src/app/components/logs/logs.component.module'
+import { LogsComponentModule } from 'src/app/common/logs/logs.component.module'
 
 const routes: Routes = [
   {
