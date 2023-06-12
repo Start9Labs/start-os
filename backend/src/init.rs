@@ -42,6 +42,8 @@ pub async fn check_time_is_synchronized() -> Result<bool, Error> {
 
 pub struct InitReceipts {
     pub server_info: LockReceipt<ServerInfo, ()>,
+    pub server_version: LockReceipt<crate::util::Version, ()>,
+    pub version_range: LockReceipt<emver::VersionRange, ()>,
 }
 impl InitReceipts {
     pub async fn new(db: &mut impl DbHandle) -> Result<Self, Error> {
@@ -51,10 +53,22 @@ impl InitReceipts {
             .server_info()
             .make_locker(LockType::Write)
             .add_to_keys(&mut locks);
+        let server_version = crate::db::DatabaseModel::new()
+            .server_info()
+            .version()
+            .make_locker(LockType::Write)
+            .add_to_keys(&mut locks);
+        let version_range = crate::db::DatabaseModel::new()
+            .server_info()
+            .eos_version_compat()
+            .make_locker(LockType::Write)
+            .add_to_keys(&mut locks);
 
         let skeleton_key = db.lock_all(locks).await?;
         Ok(Self {
             server_info: server_info.verify(&skeleton_key)?,
+            server_version: server_version.verify(&skeleton_key)?,
+            version_range: version_range.verify(&skeleton_key)?,
         })
     }
 }
