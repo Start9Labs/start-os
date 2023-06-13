@@ -4,7 +4,7 @@ ENVIRONMENT_FILE = $(shell ./check-environment.sh)
 GIT_HASH_FILE = $(shell ./check-git-hash.sh)
 VERSION_FILE = $(shell ./check-version.sh)
 EMBASSY_BINS := backend/target/$(ARCH)-unknown-linux-gnu/release/embassyd backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-init backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-cli backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-sdk backend/target/$(ARCH)-unknown-linux-gnu/release/avahi-alias libs/target/aarch64-unknown-linux-musl/release/embassy_container_init libs/target/x86_64-unknown-linux-musl/release/embassy_container_init
-EMBASSY_UIS := frontend/dist/ui frontend/dist/setup-wizard frontend/dist/diagnostic-ui frontend/dist/install-wizard
+EMBASSY_UIS := frontend/dist/ui frontend/dist/setup-wizard frontend/dist/install-wizard
 BUILD_SRC := $(shell find build)
 EMBASSY_SRC := backend/embassyd.service backend/embassy-init.service $(EMBASSY_UIS) $(BUILD_SRC)
 COMPAT_SRC := $(shell find system-images/compat/ -not -path 'system-images/compat/target/*' -and -not -name *.tar -and -not -name target)
@@ -14,7 +14,6 @@ BACKEND_SRC := $(shell find backend/src) $(shell find backend/migrations) $(shel
 FRONTEND_SHARED_SRC := $(shell find frontend/projects/shared) $(shell ls -p frontend/ | grep -v / | sed 's/^/frontend\//g') frontend/package.json frontend/node_modules frontend/config.json patch-db/client/dist frontend/patchdb-ui-seed.json
 FRONTEND_UI_SRC := $(shell find frontend/projects/ui)
 FRONTEND_SETUP_WIZARD_SRC := $(shell find frontend/projects/setup-wizard)
-FRONTEND_DIAGNOSTIC_UI_SRC := $(shell find frontend/projects/diagnostic-ui)
 FRONTEND_INSTALL_WIZARD_SRC := $(shell find frontend/projects/install-wizard)
 PATCH_DB_CLIENT_SRC := $(shell find patch-db/client -not -path patch-db/client/dist)
 GZIP_BIN := $(shell which pigz || which gzip)
@@ -95,7 +94,6 @@ install: $(ALL_TARGETS)
 	$(call cp,system-images/binfmt/docker-images/$(ARCH).tar,$(DESTDIR)/usr/lib/embassy/system-images/binfmt.tar)
 
 	$(call mkdir,$(DESTDIR)/var/www/html)
-	$(call cp,frontend/dist/diagnostic-ui,$(DESTDIR)/var/www/html/diagnostic)
 	$(call cp,frontend/dist/setup-wizard,$(DESTDIR)/var/www/html/setup)
 	$(call cp,frontend/dist/install-wizard,$(DESTDIR)/var/www/html/install)
 	$(call cp,frontend/dist/ui,$(DESTDIR)/var/www/html/main)
@@ -153,9 +151,6 @@ frontend/dist/ui: $(FRONTEND_UI_SRC) $(FRONTEND_SHARED_SRC) $(ENVIRONMENT_FILE)
 
 frontend/dist/setup-wizard: $(FRONTEND_SETUP_WIZARD_SRC) $(FRONTEND_SHARED_SRC) $(ENVIRONMENT_FILE)
 	npm --prefix frontend run build:setup
-
-frontend/dist/diagnostic-ui: $(FRONTEND_DIAGNOSTIC_UI_SRC) $(FRONTEND_SHARED_SRC) $(ENVIRONMENT_FILE)
-	npm --prefix frontend run build:dui
 
 frontend/dist/install-wizard: $(FRONTEND_INSTALL_WIZARD_SRC) $(FRONTEND_SHARED_SRC) $(ENVIRONMENT_FILE)
 	npm --prefix frontend run build:install-wiz

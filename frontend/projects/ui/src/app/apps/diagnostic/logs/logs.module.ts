@@ -4,7 +4,7 @@ import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
 import { LogsPage } from './logs.page'
 
-const routes: Routes = [
+const ROUTES: Routes = [
   {
     path: '',
     component: LogsPage,
@@ -12,11 +12,7 @@ const routes: Routes = [
 ]
 
 @NgModule({
-  imports: [
-    CommonModule,
-    IonicModule,
-    RouterModule.forChild(routes),
-  ],
+  imports: [CommonModule, IonicModule, RouterModule.forChild(ROUTES)],
   declarations: [LogsPage],
 })
-export class LogsPageModule { }
+export class LogsPageModule {}

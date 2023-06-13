@@ -5,11 +5,11 @@ import {
   RpcError,
   RPCOptions,
 } from '@start9labs/shared'
-import { ApiService, GetErrorRes } from './api.service'
 import { LogsRes, ServerLogsReq } from '@start9labs/shared'
+import { DiagnosticService, GetErrorRes } from './diagnostic.service'
 
 @Injectable()
-export class LiveApiService implements ApiService {
+export class LiveDiagnosticService implements DiagnosticService {
   constructor(private readonly http: HttpService) {}
 
   async getError(): Promise<GetErrorRes> {

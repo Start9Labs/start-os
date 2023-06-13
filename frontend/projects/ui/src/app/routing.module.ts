@@ -16,6 +16,13 @@ const routes: Routes = [
       import('./apps/login/login.module').then(m => m.LoginPageModule),
   },
   {
+    path: 'diagnostic',
+    loadChildren: () =>
+      import('./apps/diagnostic/diagnostic.module').then(
+        m => m.DiagnosticModule,
+      ),
+  },
+  {
     path: '',
     canActivate: [AuthGuard],
     canActivateChild: [AuthGuard],
