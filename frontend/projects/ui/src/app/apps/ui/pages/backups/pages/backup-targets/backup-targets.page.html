@@ -8,21 +8,17 @@
 </ion-header>
 
 <ion-content class="ion-padding-top">
-  <ion-item-group>
-    <ion-item>
-      <ion-label>
-        <h2>
-          Backup targets are physical or virtual locations for storing encrypted
-          backups. They can be physical drives plugged into your server, shared
-          folders on your Local Area Network (LAN), or third party clouds such
-          as Dropbox or Google Drive.
-          <a [href]="docsUrl" target="_blank" rel="noreferrer">
-            View instructions
-          </a>
-        </h2>
-      </ion-label>
-    </ion-item>
+  <div class="ion-padding-start ion-padding-end">
+    <tui-notification>
+      Backup targets are physical or virtual locations for storing encrypted
+      backups. They can be physical drives plugged into your server, shared
+      folders on your Local Area Network (LAN), or third party clouds such as
+      Dropbox or Google Drive.
+      <a [href]="docsUrl" target="_blank" rel="noreferrer">View instructions</a>
+    </tui-notification>
+  </div>
 
+  <ion-item-group>
     <!-- unknown disks -->
     <ion-item-divider>
       Unknown Physical Drives

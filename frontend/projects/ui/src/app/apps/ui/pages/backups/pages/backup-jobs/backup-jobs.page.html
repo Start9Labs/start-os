@@ -8,20 +8,16 @@
 </ion-header>
 
 <ion-content class="ion-padding-top">
-  <ion-item-group>
-    <ion-item>
-      <ion-label>
-        <h2>
-          Scheduling automatic backups is an excellent way to ensure your
-          Embassy data is safely backed up. Your Embassy will issue a
-          notification whenever one of your scheduled backups succeeds or fails.
-          <a [href]="docsUrl" target="_blank" rel="noreferrer">
-            View instructions
-          </a>
-        </h2>
-      </ion-label>
-    </ion-item>
+  <div class="ion-padding-start ion-padding-end">
+    <tui-notification>
+      Scheduling automatic backups is an excellent way to ensure your Embassy
+      data is safely backed up. Your Embassy will issue a notification whenever
+      one of your scheduled backups succeeds or fails.
+      <a [href]="docsUrl" target="_blank" rel="noreferrer">View instructions</a>
+    </tui-notification>
+  </div>
 
+  <ion-item-group>
     <ion-item-divider>
       Saved Jobs
       <ion-button

@@ -10,6 +10,7 @@ import { ToHumanCronPipe } from './pipes'
 import { FormsModule } from '@angular/forms'
 import { TargetSelectPageModule } from '../../modals/target-select/target-select.module'
 import { TargetPipesModule } from '../../pipes/target-pipes.module'
+import { TuiNotificationModule } from '@taiga-ui/core'
 
 const routes: Routes = [
   {
@@ -26,6 +27,7 @@ const routes: Routes = [
     FormsModule,
     TargetSelectPageModule,
     TargetPipesModule,
+    TuiNotificationModule,
   ],
   declarations: [
     BackupJobsPage,
