@@ -8,8 +8,8 @@ import Fuse from 'fuse.js'
 export class FilterPackagesPipe implements PipeTransform {
   transform(
     packages: MarketplacePkg[],
-    query: string,
-    category: string,
+    query: string | null,
+    category: string | null,
   ): MarketplacePkg[] {
     // query
     if (query) {
@@ -68,7 +68,7 @@ export class FilterPackagesPipe implements PipeTransform {
 
     // category
     return packages
-      .filter(p => category === 'all' || p.categories.includes(category))
+      .filter(p => category === 'all' || p.categories.includes(category!))
       .sort((a, b) => {
         return (
           new Date(b['published-at']).valueOf() -

@@ -16,7 +16,7 @@ import { THEME } from '@start9labs/shared'
 })
 export class SearchComponent {
   @Input()
-  query = ''
+  query?: string | null = ''
 
   @Output()
   readonly queryChange = new EventEmitter<string>()
