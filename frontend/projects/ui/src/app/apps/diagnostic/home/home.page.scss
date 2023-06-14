@@ -1,5 +1,34 @@
-.code-block {
-  background-color: rgb(69, 69, 69);
-  padding: 12px;
+:host {
+  display: block;
+  padding: 32px;
+  overflow: auto;
+}
+
+.title {
+  text-align: center;
+  padding-bottom: 36px;
+  font-size: calc(2vw + 14px);
+}
+
+.subtitle {
+  padding-bottom: 16px;
+  font-size: calc(1vw + 12px);
+  font-weight: bold;
+}
+
+.code {
+  display: block;
+  color: var(--tui-success-fill);
+  background: rgb(69, 69, 69);
+  padding: 1px 16px;
   margin-bottom: 32px;
+}
+
+.warning {
+  color: var(--tui-warning-fill);
+}
+
+.buttons {
+  display: flex;
+  gap: 16px;
 }

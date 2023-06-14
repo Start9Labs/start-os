@@ -12,14 +12,13 @@ import { DiagnosticService } from '../services/diagnostic.service'
   styleUrls: ['home.page.scss'],
 })
 export class HomePage {
+  restarted = false
   error?: {
     code: number
     problem: string
     solution: string
     details?: string
   }
-  solutions: string[] = []
-  restarted = false
 
   constructor(
     private readonly loader: LoadingService,

@@ -53,7 +53,8 @@
               "projects/shared/styles/variables.scss",
               "projects/shared/styles/global.scss",
               "projects/shared/styles/shared.scss",
-              "projects/ui/src/styles.scss"
+              "projects/ui/src/styles.scss",
+              "projects/ui/src/taiga.scss"
             ],
             "scripts": [],
             "ngswConfigPath": "projects/ui/ngsw-config.json"
