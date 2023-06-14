@@ -175,12 +175,15 @@ pub async fn execute(
         }
     }
 
-    Command::new("mkfs.ext4")
+    Command::new("mkfs.btrfs")
         .arg(&part_info.root)
         .invoke(crate::ErrorKind::DiskManagement)
         .await?;
-    Command::new("e2label")
+    Command::new("btrfs")
+        .arg("property")
+        .arg("set")
         .arg(&part_info.root)
+        .arg("label")
         .arg("rootfs")
         .invoke(crate::ErrorKind::DiskManagement)
         .await?;

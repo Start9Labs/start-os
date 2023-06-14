@@ -7,33 +7,8 @@ use futures::FutureExt;
 use tokio::process::Command;
 use tracing::instrument;
 
+use crate::disk::fsck::RequiresReboot;
 use crate::Error;
-
-#[derive(Debug, Clone, Copy)]
-#[must_use]
-pub struct RequiresReboot(pub bool);
-impl std::ops::BitOrAssign for RequiresReboot {
-    fn bitor_assign(&mut self, rhs: Self) {
-        self.0 |= rhs.0
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum RepairStrategy {
-    Preen,
-    Aggressive,
-}
-impl RepairStrategy {
-    pub async fn e2fsck(
-        &self,
-        logicalname: impl AsRef<Path> + std::fmt::Debug,
-    ) -> Result<RequiresReboot, Error> {
-        match self {
-            RepairStrategy::Preen => e2fsck_preen(logicalname).await,
-            RepairStrategy::Aggressive => e2fsck_aggressive(logicalname).await,
-        }
-    }
-}
 
 #[instrument(skip_all)]
 pub async fn e2fsck_preen(
