@@ -1,6 +1,6 @@
 import { BehaviorSubject, Observable } from 'rxjs'
 import { Update } from 'patch-db-client'
-import { RR, Encrypted } from './api.types'
+import { Encrypted, RR } from './api.types'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { Log } from '@start9labs/shared'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
@@ -30,7 +30,7 @@ export abstract class ApiService {
   abstract getStatic(url: string): Promise<string>
 
   // for sideloading packages
-  abstract uploadPackage(guid: string, body: ArrayBuffer): Promise<string>
+  abstract uploadPackage(guid: string, body: Blob): Promise<string>
 
   // db
 

@@ -95,8 +95,9 @@ export class SideloadPage {
         manifest: this.toUpload.manifest!,
         icon: this.toUpload.icon!,
       })
-      const buffer = await blobToBuffer(this.toUpload.file!)
-      this.api.uploadPackage(guid, buffer).catch(e => console.error(e))
+      this.api
+        .uploadPackage(guid, this.toUpload.file!)
+        .catch(e => console.error(e))
 
       this.navCtrl.navigateRoot('/services')
     } catch (e: any) {
@@ -190,20 +191,24 @@ async function readBlobAsDataURL(
 }
 async function blobToDataURL(data: Blob | File): Promise<string> {
   const res = await readBlobAsDataURL(data)
-  if (res instanceof ArrayBuffer)
+  if (res instanceof ArrayBuffer) {
     throw new Error('readBlobAsDataURL response should not be an array buffer')
-  if (res == null)
+  }
+  if (res == null) {
     throw new Error('readBlobAsDataURL response should not be null')
+  }
   if (typeof res === 'string') return res
   throw new Error('no possible blob to data url resolution found')
 }
 
 async function blobToBuffer(data: Blob | File): Promise<ArrayBuffer> {
   const res = await readBlobToArrayBuffer(data)
-  if (res instanceof String)
+  if (res instanceof String) {
     throw new Error('readBlobToArrayBuffer response should not be a string')
-  if (res == null)
+  }
+  if (res == null) {
     throw new Error('readBlobToArrayBuffer response should not be null')
+  }
   if (res instanceof ArrayBuffer) return res
   throw new Error('no possible blob to array buffer resolution found')
 }

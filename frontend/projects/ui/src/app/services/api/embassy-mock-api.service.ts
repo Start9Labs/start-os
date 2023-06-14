@@ -1,12 +1,12 @@
 import { Injectable } from '@angular/core'
-import { pauseFor, Log } from '@start9labs/shared'
+import { Log, pauseFor } from '@start9labs/shared'
 import { ApiService } from './embassy-api.service'
 import {
-  PatchOp,
-  Update,
   Operation,
-  RemoveOperation,
+  PatchOp,
   pathFromArray,
+  RemoveOperation,
+  Update,
 } from 'patch-db-client'
 import {
   DataModel,
@@ -87,7 +87,7 @@ export class MockApiService extends ApiService {
     return markdown
   }
 
-  async uploadPackage(guid: string, body: ArrayBuffer): Promise<string> {
+  async uploadPackage(guid: string, body: Blob): Promise<string> {
     await pauseFor(2000)
     return 'success'
   }
