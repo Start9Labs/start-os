@@ -220,9 +220,6 @@ instructions.
     is running normally.
   - `projects/setup-wizard`(frontend/README.md) - Code for the user interface
     that is displayed during the setup and recovery process for StartOS.
-  - `projects/diagnostic-ui` - Code for the user interface that is displayed
-    when something has gone wrong with starting up StartOS, which provides
-    helpful debugging tools.
 - `libs` (Rust) is a set of standalone crates that were separated out of
   `backend` for the purpose of portability
 - `patch-db` - A diff based data store that is used to synchronize data between
