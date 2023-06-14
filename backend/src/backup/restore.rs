@@ -443,7 +443,7 @@ async fn restore_package<'a>(
     Ok((
         progress.clone(),
         async move {
-            download_install_s9pk(&ctx, &manifest, None, progress, file).await?;
+            download_install_s9pk(&ctx, &manifest, None, progress, file, None).await?;
 
             guard.unmount().await?;
 
