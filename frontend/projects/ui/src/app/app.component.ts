@@ -1,5 +1,6 @@
 import { Component, inject, OnDestroy } from '@angular/core'
-import { merge } from 'rxjs'
+import { Router } from '@angular/router'
+import { map, merge } from 'rxjs'
 import { AuthService } from './services/auth.service'
 import { SplitPaneTracker } from './services/split-pane.service'
 import { PatchDataService } from './services/patch-data.service'
@@ -15,6 +16,10 @@ import { THEME } from '@start9labs/shared'
 import { PatchDB } from 'patch-db-client'
 import { DataModel } from './services/patch-db/data-model'
 
+function hasNavigation(url: string): boolean {
+  return !url.startsWith('/loading') && !url.startsWith('/diagnostic')
+}
+
 @Component({
   selector: 'app-root',
   templateUrl: 'app.component.html',
@@ -25,8 +30,13 @@ export class AppComponent implements OnDestroy {
   readonly sidebarOpen$ = this.splitPane.sidebarOpen$
   readonly widgetDrawer$ = this.clientStorageService.widgetDrawer$
   readonly theme$ = inject(THEME)
+  readonly navigation$ = merge(
+    this.authService.isVerified$,
+    this.router.events.pipe(map(() => hasNavigation(this.router.url))),
+  )
 
   constructor(
+    private readonly router: Router,
     private readonly titleService: Title,
     private readonly patchData: PatchDataService,
     private readonly patchMonitor: PatchMonitorService,

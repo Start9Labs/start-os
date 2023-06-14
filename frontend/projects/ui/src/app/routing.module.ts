@@ -5,6 +5,13 @@ import { UnauthGuard } from './guards/unauth.guard'
 
 const routes: Routes = [
   {
+    path: 'diagnostic',
+    loadChildren: () =>
+      import('./apps/diagnostic/diagnostic.module').then(
+        m => m.DiagnosticModule,
+      ),
+  },
+  {
     path: 'loading',
     loadChildren: () =>
       import('./apps/loading/loading.module').then(m => m.LoadingPageModule),
@@ -14,13 +21,6 @@ const routes: Routes = [
     canActivate: [UnauthGuard],
     loadChildren: () =>
       import('./apps/login/login.module').then(m => m.LoginPageModule),
-  },
-  {
-    path: 'diagnostic',
-    loadChildren: () =>
-      import('./apps/diagnostic/diagnostic.module').then(
-        m => m.DiagnosticModule,
-      ),
   },
   {
     path: '',
