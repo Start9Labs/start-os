@@ -124,7 +124,7 @@ pub async fn create_fs<P: AsRef<Path>>(
         .arg(format!("{}_{}", guid, name))
         .invoke(crate::ErrorKind::DiskManagement)
         .await?;
-    Command::new("mkfs.ext4")
+    Command::new("mkfs.btrfs")
         .arg(Path::new("/dev/mapper").join(format!("{}_{}", guid, name)))
         .invoke(crate::ErrorKind::DiskManagement)
         .await?;

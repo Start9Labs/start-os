@@ -3,6 +3,7 @@ avahi-utils
 bash-completion
 beep
 bmon
+btrfs-progs
 ca-certificates
 cifs-utils
 containerd.io
@@ -43,5 +44,6 @@ systemd-resolved
 systemd-sysv
 systemd-timesyncd
 tor
+util-linux
 vim
 wireless-tools
