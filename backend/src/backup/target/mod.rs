@@ -7,10 +7,12 @@ use clap::ArgMatches;
 use color_eyre::eyre::eyre;
 use digest::generic_array::GenericArray;
 use digest::OutputSizeUser;
+use lazy_static::lazy_static;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use sqlx::{Executor, Postgres};
+use tokio::sync::Mutex;
 use tracing::instrument;
 
 use self::cifs::CifsBackupTarget;
@@ -23,7 +25,7 @@ use crate::disk::mount::guard::TmpMountGuard;
 use crate::disk::util::PartitionInfo;
 use crate::s9pk::manifest::PackageId;
 use crate::util::serde::{deserialize_from_str, display_serializable, serialize_display};
-use crate::util::Version;
+use crate::util::{display_none, Version};
 use crate::Error;
 
 pub mod cifs;
@@ -42,7 +44,7 @@ pub enum BackupTarget {
     Cifs(CifsBackupTarget),
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum BackupTargetId {
     Disk { logicalname: PathBuf },
     Cifs { id: i32 },
@@ -129,7 +131,7 @@ impl FileSystem for BackupTargetFS {
     }
 }
 
-#[command(subcommands(cifs::cifs, list, info))]
+#[command(subcommands(cifs::cifs, list, info, mount, umount))]
 pub fn target() -> Result<(), Error> {
     Ok(())
 }
@@ -246,4 +248,62 @@ pub async fn info(
     guard.unmount().await?;
 
     Ok(res)
+}
+
+lazy_static! {
+    static ref USER_MOUNTS: Mutex<BTreeMap<BackupTargetId, BackupMountGuard<TmpMountGuard>>> =
+        Mutex::new(BTreeMap::new());
+}
+
+#[command]
+#[instrument(skip_all)]
+pub async fn mount(
+    #[context] ctx: RpcContext,
+    #[arg(rename = "target-id")] target_id: BackupTargetId,
+    #[arg] password: String,
+) -> Result<String, Error> {
+    let mut mounts = USER_MOUNTS.lock().await;
+
+    if let Some(existing) = mounts.get(&target_id) {
+        return Ok(existing.as_ref().display().to_string());
+    }
+
+    let guard = BackupMountGuard::mount(
+        TmpMountGuard::mount(
+            &target_id
+                .clone()
+                .load(&mut ctx.secret_store.acquire().await?)
+                .await?,
+            ReadWrite,
+        )
+        .await?,
+        &password,
+    )
+    .await?;
+
+    let res = guard.as_ref().display().to_string();
+
+    mounts.insert(target_id, guard);
+
+    Ok(res)
+}
+
+#[command(display(display_none))]
+#[instrument(skip_all)]
+pub async fn umount(
+    #[context] ctx: RpcContext,
+    #[arg(rename = "target-id")] target_id: Option<BackupTargetId>,
+) -> Result<(), Error> {
+    let mut mounts = USER_MOUNTS.lock().await;
+    if let Some(target_id) = target_id {
+        if let Some(existing) = mounts.remove(&target_id) {
+            existing.unmount().await?;
+        }
+    } else {
+        for (_, existing) in std::mem::take(&mut *mounts) {
+            existing.unmount().await?;
+        }
+    }
+
+    Ok(())
 }
