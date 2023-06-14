@@ -6,10 +6,7 @@ import {
 
 @Component({
   template: `
-    <tui-loader></tui-loader>
-    <ng-container *polymorpheusOutlet="content as text">
-      {{ text }}
-    </ng-container>
+    <tui-loader [textContent]="content"></tui-loader>
   `,
   styleUrls: ['./loading.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,

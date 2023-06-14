@@ -1,17 +1,16 @@
 import { Component, ViewChild } from '@angular/core'
 import { IonContent } from '@ionic/angular'
-import { ApiService } from 'src/app/services/api/api.service'
-import { ErrorToastService, toLocalIsoString } from '@start9labs/shared'
+import { ErrorService, toLocalIsoString } from '@start9labs/shared'
+import { DiagnosticService } from '../services/diagnostic.service'
 
-var Convert = require('ansi-to-html')
-var convert = new Convert({
+const Convert = require('ansi-to-html')
+const convert = new Convert({
   bg: 'transparent',
 })
 
 @Component({
   selector: 'logs',
   templateUrl: './logs.page.html',
-  styleUrls: ['./logs.page.scss'],
 })
 export class LogsPage {
   @ViewChild(IonContent) private content?: IonContent
@@ -22,8 +21,8 @@ export class LogsPage {
   isOnBottom = true
 
   constructor(
-    private readonly api: ApiService,
-    private readonly errToast: ErrorToastService,
+    private readonly api: DiagnosticService,
+    private readonly errorService: ErrorService,
   ) {}
 
   async ngOnInit() {
@@ -89,7 +88,7 @@ export class LogsPage {
         this.needInfinite = false
       }
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     }
   }
 }
