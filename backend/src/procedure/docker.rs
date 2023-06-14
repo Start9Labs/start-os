@@ -2,15 +2,17 @@ use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::ffi::{OsStr, OsString};
 use std::net::Ipv4Addr;
+use std::os::unix::prelude::FileTypeExt;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use async_stream::stream;
 use bollard::container::RemoveContainerOptions;
+use chrono::format::Item;
 use color_eyre::eyre::eyre;
 use color_eyre::Report;
-use futures::future::Either as EitherFuture;
-use futures::TryStreamExt;
+use futures::future::{BoxFuture, Either as EitherFuture};
+use futures::{FutureExt, TryStreamExt};
 use helpers::{NonDetachingJoinHandle, UnixRpcClient};
 use models::{Id, ImageId};
 use nix::sys::signal;
@@ -66,6 +68,8 @@ pub struct DockerContainer {
     pub sigterm_timeout: Option<SerdeDuration>,
     #[serde(default)]
     pub system: bool,
+    #[serde(default)]
+    pub gpu_acceleration: bool,
 }
 
 impl DockerContainer {
@@ -152,6 +156,8 @@ pub struct DockerProcedure {
     pub sigterm_timeout: Option<SerdeDuration>,
     #[serde(default)]
     pub shm_size_mb: Option<usize>, // TODO: use postfix sizing? like 1k vs 1m vs 1g
+    #[serde(default)]
+    pub gpu_acceleration: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, Default)]
@@ -182,6 +188,7 @@ impl DockerProcedure {
             io_format: injectable.io_format,
             sigterm_timeout: injectable.sigterm_timeout,
             shm_size_mb: container.shm_size_mb,
+            gpu_acceleration: container.gpu_acceleration,
         }
     }
 
@@ -706,6 +713,32 @@ impl DockerProcedure {
         if let Some(shm_size_mb) = self.shm_size_mb {
             res.push(OsStr::new("--shm-size").into());
             res.push(OsString::from(format!("{}m", shm_size_mb)).into());
+        }
+        if self.gpu_acceleration {
+            fn get_devices<'a>(
+                path: &'a Path,
+                res: &'a mut Vec<PathBuf>,
+            ) -> BoxFuture<'a, Result<(), Error>> {
+                async move {
+                    let mut read_dir = tokio::fs::read_dir(path).await?;
+                    while let Some(entry) = read_dir.next_entry().await? {
+                        let fty = entry.metadata().await?.file_type();
+                        if fty.is_block_device() || fty.is_char_device() {
+                            res.push(entry.path());
+                        } else if fty.is_dir() {
+                            get_devices(&*entry.path(), res).await?;
+                        }
+                    }
+                    Ok(())
+                }
+                .boxed()
+            }
+            let mut devices = Vec::new();
+            get_devices(Path::new("/dev/dri"), &mut devices).await?;
+            for device in devices {
+                res.push(OsStr::new("--device").into());
+                res.push(OsString::from(device).into());
+            }
         }
         res.push(OsStr::new("--interactive").into());
         res.push(OsStr::new("--log-driver=journald").into());
