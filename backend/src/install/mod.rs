@@ -21,6 +21,7 @@ use rpc_toolkit::yajrc::RpcError;
 use tokio::fs::{File, OpenOptions};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt};
 use tokio::process::Command;
+use tokio::sync::oneshot;
 use tokio_stream::wrappers::ReadDirStream;
 use tracing::instrument;
 
@@ -297,6 +298,7 @@ pub async fn install(
             Some(marketplace_url),
             InstallProgress::new(s9pk.content_length()),
             response_to_reader(s9pk),
+            None,
         )
         .await
         {
@@ -425,47 +427,54 @@ pub async fn sideload(
             pde.save(&mut tx).await?;
             tx.commit().await?;
 
-            if let Err(e) = download_install_s9pk(
-                &new_ctx,
-                &manifest,
-                None,
-                progress,
-                tokio_util::io::StreamReader::new(req.into_body().map_err(|e| {
-                    std::io::Error::new(
-                        match &e {
-                            e if e.is_connect() => std::io::ErrorKind::ConnectionRefused,
-                            e if e.is_timeout() => std::io::ErrorKind::TimedOut,
-                            _ => std::io::ErrorKind::Other,
-                        },
-                        e,
-                    )
-                })),
-            )
-            .await
-            {
-                let err_str = format!(
-                    "Install of {}@{} Failed: {}",
-                    manifest.id, manifest.version, e
-                );
-                tracing::error!("{}", err_str);
-                tracing::debug!("{:?}", e);
-                if let Err(e) = new_ctx
-                    .notification_manager
-                    .notify(
-                        &mut hdl,
-                        Some(manifest.id),
-                        NotificationLevel::Error,
-                        String::from("Install Failed"),
-                        err_str,
-                        (),
-                        None,
-                    )
-                    .await
+            let (send, recv) = oneshot::channel();
+
+            tokio::spawn(async move {
+                if let Err(e) = download_install_s9pk(
+                    &new_ctx,
+                    &manifest,
+                    None,
+                    progress,
+                    tokio_util::io::StreamReader::new(req.into_body().map_err(|e| {
+                        std::io::Error::new(
+                            match &e {
+                                e if e.is_connect() => std::io::ErrorKind::ConnectionRefused,
+                                e if e.is_timeout() => std::io::ErrorKind::TimedOut,
+                                _ => std::io::ErrorKind::Other,
+                            },
+                            e,
+                        )
+                    })),
+                    Some(send),
+                )
+                .await
                 {
-                    tracing::error!("Failed to issue Notification: {}", e);
+                    let err_str = format!(
+                        "Install of {}@{} Failed: {}",
+                        manifest.id, manifest.version, e
+                    );
+                    tracing::error!("{}", err_str);
                     tracing::debug!("{:?}", e);
+                    if let Err(e) = new_ctx
+                        .notification_manager
+                        .notify(
+                            &mut hdl,
+                            Some(manifest.id),
+                            NotificationLevel::Error,
+                            String::from("Install Failed"),
+                            err_str,
+                            (),
+                            None,
+                        )
+                        .await
+                    {
+                        tracing::error!("Failed to issue Notification: {}", e);
+                        tracing::debug!("{:?}", e);
+                    }
                 }
-            }
+            });
+
+            recv.await;
 
             Response::builder()
                 .status(StatusCode::OK)
@@ -707,6 +716,7 @@ pub async fn download_install_s9pk(
     marketplace_url: Option<Url>,
     progress: Arc<InstallProgress>,
     mut s9pk: impl AsyncRead + Unpin,
+    download_complete: Option<oneshot::Sender<()>>,
 ) -> Result<(), Error> {
     let pkg_id = &temp_manifest.id;
     let version = &temp_manifest.version;
@@ -799,6 +809,9 @@ pub async fn download_install_s9pk(
                 let mut progress_writer = InstallProgressTracker::new(&mut dst, progress.clone());
                 tokio::io::copy(&mut s9pk, &mut progress_writer).await?;
                 progress.download_complete();
+                if let Some(complete) = download_complete {
+                    complete.send(()).unwrap_or_default();
+                }
                 Ok(())
             })
             .await?;
