@@ -44,7 +44,7 @@ export class LiveApiService extends ApiService {
   }
 
   // for sideloading packages
-  async uploadPackage(guid: string, body: ArrayBuffer): Promise<string> {
+  async uploadPackage(guid: string, body: Blob): Promise<string> {
     return this.httpRequest({
       method: Method.POST,
       body,
