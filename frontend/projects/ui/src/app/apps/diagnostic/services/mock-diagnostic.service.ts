@@ -1,10 +1,10 @@
 import { Injectable } from '@angular/core'
 import { pauseFor } from '@start9labs/shared'
-import { ApiService, GetErrorRes } from './api.service'
 import { LogsRes, ServerLogsReq, Log } from '@start9labs/shared'
+import { DiagnosticService, GetErrorRes } from './diagnostic.service'
 
 @Injectable()
-export class MockApiService implements ApiService {
+export class MockDiagnosticService implements DiagnosticService {
   async getError(): Promise<GetErrorRes> {
     await pauseFor(1000)
     return {

@@ -7,7 +7,7 @@
     <ion-content>
       <ion-split-pane
         contentId="main-content"
-        [disabled]="!(authService.isVerified$ | async)"
+        [disabled]="!(navigation$ | async)"
         (ionSplitPaneVisible)="splitPaneVisible($event)"
       >
         <ion-menu

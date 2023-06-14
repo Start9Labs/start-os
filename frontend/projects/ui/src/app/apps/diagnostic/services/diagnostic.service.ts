@@ -1,6 +1,6 @@
 import { LogsRes, ServerLogsReq } from '@start9labs/shared'
 
-export abstract class ApiService {
+export abstract class DiagnosticService {
   abstract getError(): Promise<GetErrorRes>
   abstract restart(): Promise<void>
   abstract forgetDrive(): Promise<void>

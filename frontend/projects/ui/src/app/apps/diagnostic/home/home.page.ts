@@ -1,6 +1,10 @@
-import { Component } from '@angular/core'
-import { AlertController, LoadingController } from '@ionic/angular'
-import { ApiService } from 'src/app/services/api/api.service'
+import { Component, Inject } from '@angular/core'
+import { WINDOW } from '@ng-web-apis/common'
+import { TuiDialogService } from '@taiga-ui/core'
+import { TUI_PROMPT } from '@taiga-ui/kit'
+import { filter } from 'rxjs'
+import { LoadingService } from 'src/app/common/loading/loading.service'
+import { DiagnosticService } from '../services/diagnostic.service'
 
 @Component({
   selector: 'app-home',
@@ -8,19 +12,19 @@ import { ApiService } from 'src/app/services/api/api.service'
   styleUrls: ['home.page.scss'],
 })
 export class HomePage {
+  restarted = false
   error?: {
     code: number
     problem: string
     solution: string
     details?: string
   }
-  solutions: string[] = []
-  restarted = false
 
   constructor(
-    private readonly loadingCtrl: LoadingController,
-    private readonly api: ApiService,
-    private readonly alertCtrl: AlertController,
+    private readonly loader: LoadingService,
+    private readonly api: DiagnosticService,
+    private readonly dialogs: TuiDialogService,
+    @Inject(WINDOW) private readonly window: Window,
   ) {}
 
   async ngOnInit() {
@@ -86,10 +90,7 @@ export class HomePage {
   }
 
   async restart(): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      cssClass: 'loader',
-    })
-    await loader.present()
+    const loader = this.loader.open('').subscribe()
 
     try {
       await this.api.restart()
@@ -97,15 +98,12 @@ export class HomePage {
     } catch (e) {
       console.error(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
   async forgetDrive(): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      cssClass: 'loader',
-    })
-    await loader.present()
+    const loader = this.loader.open('').subscribe()
 
     try {
       await this.api.forgetDrive()
@@ -114,71 +112,60 @@ export class HomePage {
     } catch (e) {
       console.error(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
   async presentAlertSystemRebuild() {
-    const alert = await this.alertCtrl.create({
-      header: 'Warning',
-      message:
-        '<p>This action will tear down all service containers and rebuild them from scratch. No data will be deleted.</p><p>A system rebuild can be useful if your system gets into a bad state, and it should only be performed if you are experiencing general performance or reliability issues.</p><p>It may take up to an hour to complete. During this time, you will lose all connectivity to your Start9 server.</p>',
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
+    this.dialogs
+      .open(TUI_PROMPT, {
+        label: 'Warning',
+        size: 's',
+        data: {
+          no: 'Cancel',
+          yes: 'Rebuild',
+          content:
+            '<p>This action will tear down all service containers and rebuild them from scratch. No data will be deleted.</p><p>A system rebuild can be useful if your system gets into a bad state, and it should only be performed if you are experiencing general performance or reliability issues.</p><p>It may take up to an hour to complete. During this time, you will lose all connectivity to your Start9 server.</p>',
         },
-        {
-          text: 'Rebuild',
-          handler: () => {
-            try {
-              this.systemRebuild()
-            } catch (e) {
-              console.error(e)
-            }
-          },
-        },
-      ],
-      cssClass: 'alert-warning-message',
-    })
-    await alert.present()
+      })
+      .pipe(filter(Boolean))
+      .subscribe(() => {
+        try {
+          this.systemRebuild()
+        } catch (e) {
+          console.error(e)
+        }
+      })
   }
 
   async presentAlertRepairDisk() {
-    const alert = await this.alertCtrl.create({
-      header: 'Warning',
-      message:
-        '<p>This action should only be executed if directed by a Start9 support specialist.</p><p>If anything happens to the device during the reboot, such as losing power or unplugging the drive, the filesystem <i>will</i> be in an unrecoverable state. Please proceed with caution.</p>',
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
+    this.dialogs
+      .open(TUI_PROMPT, {
+        label: 'Warning',
+        size: 's',
+        data: {
+          no: 'Cancel',
+          yes: 'Repair',
+          content:
+            '<p>This action should only be executed if directed by a Start9 support specialist.</p><p>If anything happens to the device during the reboot, such as losing power or unplugging the drive, the filesystem <i>will</i> be in an unrecoverable state. Please proceed with caution.</p>',
         },
-        {
-          text: 'Repair',
-          handler: () => {
-            try {
-              this.repairDisk()
-            } catch (e) {
-              console.error(e)
-            }
-          },
-        },
-      ],
-      cssClass: 'alert-error-message',
-    })
-    await alert.present()
+      })
+      .pipe(filter(Boolean))
+      .subscribe(() => {
+        try {
+          this.repairDisk()
+        } catch (e) {
+          console.error(e)
+        }
+      })
   }
 
   refreshPage(): void {
-    window.location.reload()
+    this.window.location.reload()
   }
 
   private async systemRebuild(): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      cssClass: 'loader',
-    })
-    await loader.present()
+    const loader = this.loader.open('').subscribe()
 
     try {
       await this.api.systemRebuild()
@@ -187,15 +174,12 @@ export class HomePage {
     } catch (e) {
       console.error(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
   private async repairDisk(): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      cssClass: 'loader',
-    })
-    await loader.present()
+    const loader = this.loader.open('').subscribe()
 
     try {
       await this.api.repairDisk()
@@ -204,7 +188,7 @@ export class HomePage {
     } catch (e) {
       console.error(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 }

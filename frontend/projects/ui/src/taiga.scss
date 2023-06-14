@@ -1,0 +1,28 @@
+@import '@taiga-ui/core/styles/taiga-ui-local';
+
+/* stylelint-disable order/order */
+[tuiWrapper][data-appearance='secondary-warning'] {
+  background: var(--tui-warning-bg);
+  color: var(--tui-warning-fill);
+
+  &[data-mode='onDark'] {
+    background: var(--tui-warning-bg-night);
+    color: var(--tui-warning-fill-night);
+
+    @include wrapper-hover {
+      background: var(--tui-warning-bg-night-hover);
+    }
+
+    @include wrapper-active {
+      background: var(--tui-warning-bg-night-hover);
+    }
+  }
+
+  @include wrapper-hover {
+    background: var(--tui-warning-bg-hover);
+  }
+
+  @include wrapper-active {
+    background: var(--tui-warning-bg-hover);
+  }
+}
