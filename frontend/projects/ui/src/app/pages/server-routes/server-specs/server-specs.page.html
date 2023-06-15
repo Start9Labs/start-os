@@ -45,18 +45,25 @@
         <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
       </ion-button>
     </ion-item>
-    <ng-container *ngFor="let ip of server['ip-info'] | keyvalue">
-      <ng-container *ngFor="let entry of ip.value | keyvalue">
-        <ion-item *ngIf="entry.value as address">
-          <ion-label>
-            <h2>{{ ip.key }} ({{ entry.key }})</h2>
-            <p>{{ address }}</p>
-          </ion-label>
-          <ion-button slot="end" fill="clear" (click)="copy(address)">
-            <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
-          </ion-button>
-        </ion-item>
-      </ng-container>
+    <ng-container *ngFor="let iface of server['ip-info'] | keyvalue">
+      <ion-item *tuiLet="iface.value.ipv4 as ipv4">
+        <ion-label>
+          <h2>{{ iface.key }} (IPv4)</h2>
+          <p>{{ ipv4 || 'n/a' }}</p>
+        </ion-label>
+        <ion-button *ngIf="ipv4" slot="end" fill="clear" (click)="copy(ipv4)">
+          <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
+        </ion-button>
+      </ion-item>
+      <ion-item *tuiLet="iface.value.ipv6 as ipv6">
+        <ion-label>
+          <h2>{{ iface.key }} (IPv6)</h2>
+          <p>{{ ipv6 || 'n/a' }}</p>
+        </ion-label>
+        <ion-button *ngIf="ipv6" slot="end" fill="clear" (click)="copy(ipv6)">
+          <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
+        </ion-button>
+      </ion-item>
     </ng-container>
 
     <ion-item-divider>Device Credentials</ion-item-divider>

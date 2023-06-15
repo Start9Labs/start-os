@@ -2,7 +2,6 @@ import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { IonicModule } from '@ionic/angular'
 import { RouterModule, Routes } from '@angular/router'
-import { TuiLetModule } from '@taiga-ui/cdk'
 import { TuiLoaderModule } from '@taiga-ui/core'
 import { TuiTilesModule } from '@taiga-ui/kit'
 
@@ -26,7 +25,6 @@ const routes: Routes = [
     CommonModule,
     IonicModule,
     TuiTilesModule,
-    TuiLetModule,
     AddWidgetModule,
     FavoritesModule,
     HealthModule,

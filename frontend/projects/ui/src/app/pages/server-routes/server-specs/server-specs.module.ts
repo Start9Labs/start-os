@@ -4,6 +4,7 @@ import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
 import { ServerSpecsPage } from './server-specs.page'
 import { EmverPipesModule } from '@start9labs/shared'
+import { TuiLetModule } from '@taiga-ui/cdk'
 
 const routes: Routes = [
   {
@@ -18,6 +19,7 @@ const routes: Routes = [
     IonicModule,
     RouterModule.forChild(routes),
     EmverPipesModule,
+    TuiLetModule,
   ],
   declarations: [ServerSpecsPage],
 })
