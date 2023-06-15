@@ -1,0 +1,14 @@
+socat - unix-client:/tmp/start9/sockets/rpc.sock
+
+{
+    "id": "a",
+    "method": "command",
+    "input": {
+        "gid":1,
+        "command":"Hello World",
+        "args": ["1"],
+        "output": "collect"
+
+    }
+}
+{"id":"a","method":"command","input":{"gid":1,"command":"Hello World","args":["1"],"output":"collect"}}

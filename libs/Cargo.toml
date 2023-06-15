@@ -6,4 +6,5 @@ members = [
     "js_engine",
     "helpers",
     "embassy_container_init",
+    "rpc_client"
 ]

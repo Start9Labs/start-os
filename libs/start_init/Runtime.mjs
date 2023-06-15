@@ -11,10 +11,10 @@ import {
   number,
   matches,
 } from "ts-matches"
-
+const idType = some(string, number)
 const path = "/start9/sockets/rpc.sock"
 const inputCommandType = object({
-  id: string,
+  id: idType,
   method: literal("command"),
   input: object(
     {
@@ -27,7 +27,7 @@ const inputCommandType = object({
   ),
 })
 const inputLogType = object({
-  id: string,
+  id: idType,
   method: literal("log"),
   input: some(
     object({ gid: number, trace: string }, ["gid"]),
@@ -38,17 +38,17 @@ const inputLogType = object({
   ),
 })
 const inputOutputType = object({
-  id: string,
+  id: idType,
   method: literal("output"),
   input: object({ pid: number }),
 })
 const inputSignalType = object({
-  id: string,
+  id: idType,
   method: literal("signal"),
   input: object({ pid: number, signal: number }),
 })
 const inputSignalGroupType = object({
-  id: string,
+  id: idType,
   method: literal("signalGroup"),
   input: object({ gid: number, signal: number }),
 })
@@ -60,7 +60,10 @@ const inputSignalGroupType = object({
  */
 const dealWithInput = async (input) =>
   matches(input)
-    .when(inputCommandType, () => {})
+    .when(inputCommandType, (command) => {
+      console.log("input")
+      console.log(JSON.stringify({ command }, null, 2))
+    })
     .when(inputLogType, () => {})
     .when(inputOutputType, () => {})
     .when(inputSignalType, () => {})
@@ -86,14 +89,7 @@ class Input {
  */
 const jsonParse = (x) => JSON.parse(x.toString())
 export class Runtime {
-  unixSocketServer = net.createServer(async (socket) =>
-    socket.on("data", (data) =>
-      Promise.resolve(data)
-        .then(jsonParse)
-        .then((x) => socket.write(JSON.stringify(x)))
-        .finally(() => socket.end()),
-    ),
-  )
+  unixSocketServer = net.createServer(async (server) => {})
   constructor() {
     this.unixSocketServer.listen(path, () => {
       console.log("now listening")
@@ -101,8 +97,12 @@ export class Runtime {
 
     this.unixSocketServer.on("connection", (s) => {
       console.log("got connection!")
+      s.on("data", (a) => {
+        Promise.resolve(a.toString()).then(JSON.parse).then(dealWithInput)
+        console.log("123: Making the data value of ", a.toString())
+      })
       s.write("hello world")
-      s.end()
+      // s.end()
     })
   }
 }

@@ -2187,6 +2187,7 @@ dependencies = [
  "imbl",
  "serde",
  "serde_json",
+ "treediff",
  "yasi",
 ]
 
@@ -2380,9 +2381,9 @@ dependencies = [
 name = "json-patch"
 version = "0.2.7-alpha.0"
 dependencies = [
+ "imbl-value",
  "json-ptr",
  "serde",
- "serde_json",
  "treediff",
 ]
 
@@ -2390,8 +2391,9 @@ dependencies = [
 name = "json-ptr"
 version = "0.1.0"
 dependencies = [
+ "imbl",
+ "imbl-value",
  "serde",
- "serde_json",
  "thiserror",
 ]
 
