@@ -1,3 +1,4 @@
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
@@ -59,7 +60,14 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
 
         let ctx = InstallContext::init(cfg_path).await?;
 
-        let server = WebServer::install(([0, 0, 0, 0], 80).into(), ctx.clone()).await?;
+        let server = WebServer::install(
+            [
+                SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 80),
+                SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 80),
+            ],
+            ctx.clone(),
+        )
+        .await?;
 
         tokio::time::sleep(Duration::from_secs(1)).await; // let the record state that I hate this
         CHIME.play().await?;
@@ -81,7 +89,14 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
     {
         let ctx = SetupContext::init(cfg_path).await?;
 
-        let server = WebServer::setup(([0, 0, 0, 0], 80).into(), ctx.clone()).await?;
+        let server = WebServer::setup(
+            [
+                SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 80),
+                SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 80),
+            ],
+            ctx.clone(),
+        )
+        .await?;
 
         tokio::time::sleep(Duration::from_secs(1)).await; // let the record state that I hate this
         CHIME.play().await?;
@@ -192,7 +207,14 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
             )
             .await?;
 
-            let server = WebServer::diagnostic(([0, 0, 0, 0], 80).into(), ctx.clone()).await?;
+            let server = WebServer::diagnostic(
+                [
+                    SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 80),
+                    SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 80),
+                ],
+                ctx.clone(),
+            )
+            .await?;
 
             let shutdown = ctx.shutdown.subscribe().recv().await.unwrap();
 

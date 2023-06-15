@@ -46,7 +46,7 @@ use crate::s9pk::reader::S9pkReader;
 use crate::status::{MainStatus, Status};
 use crate::util::io::{copy_and_shutdown, response_to_reader};
 use crate::util::serde::{display_serializable, Port};
-use crate::util::{assure_send, display_none, AsyncFileExt, Version};
+use crate::util::{display_none, AsyncFileExt, Version};
 use crate::version::{Current, VersionT};
 use crate::volume::{asset_dir, script_dir};
 use crate::{Error, ErrorKind, ResultExt};
@@ -474,12 +474,17 @@ pub async fn sideload(
                 }
             });
 
-            recv.await;
-
-            Response::builder()
-                .status(StatusCode::OK)
-                .body(Body::empty())
-                .with_kind(ErrorKind::Network)
+            if let Ok(_) = recv.await {
+                Response::builder()
+                    .status(StatusCode::OK)
+                    .body(Body::empty())
+                    .with_kind(ErrorKind::Network)
+            } else {
+                Response::builder()
+                    .status(StatusCode::INTERNAL_SERVER_ERROR)
+                    .body(Body::from("installation aborted before upload completed"))
+                    .with_kind(ErrorKind::Network)
+            }
         }
         .boxed()
     });
