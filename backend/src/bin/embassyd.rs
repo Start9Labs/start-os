@@ -1,3 +1,4 @@
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -26,7 +27,14 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
         )
         .await?;
         embassy::hostname::sync_hostname(&rpc_ctx.account.read().await.hostname).await?;
-        let server = WebServer::main(([0, 0, 0, 0], 80).into(), rpc_ctx.clone()).await?;
+        let server = WebServer::main(
+            [
+                SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 80),
+                SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 80),
+            ],
+            rpc_ctx.clone(),
+        )
+        .await?;
 
         let mut shutdown_recv = rpc_ctx.shutdown.subscribe();
 
@@ -141,8 +149,14 @@ fn main() {
                         )
                         .await?;
 
-                        let server =
-                            WebServer::diagnostic(([0, 0, 0, 0], 80).into(), ctx.clone()).await?;
+                        let server = WebServer::diagnostic(
+                            [
+                                SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 80),
+                                SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 80),
+                            ],
+                            ctx.clone(),
+                        )
+                        .await?;
 
                         let mut shutdown = ctx.shutdown.subscribe();
 

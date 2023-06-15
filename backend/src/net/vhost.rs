@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 use std::convert::Infallible;
-use std::net::{IpAddr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
 
@@ -88,9 +88,15 @@ struct VHostServer {
 impl VHostServer {
     async fn new(port: u16, ssl: Arc<SslManager>) -> Result<Self, Error> {
         // check if port allowed
-        let listener = TcpListener::bind(SocketAddr::new([0, 0, 0, 0].into(), port))
-            .await
-            .with_kind(crate::ErrorKind::Network)?;
+        let listener = TcpListener::bind(
+            [
+                SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 80),
+                SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 80),
+            ]
+            .as_ref(),
+        )
+        .await
+        .with_kind(crate::ErrorKind::Network)?;
         let mapping = Arc::new(RwLock::new(BTreeMap::new()));
         Ok(Self {
             mapping: Arc::downgrade(&mapping),
