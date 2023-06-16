@@ -17,12 +17,15 @@ use tokio::process::Command;
 use crate::account::AccountInfo;
 use crate::context::rpc::RpcContextConfig;
 use crate::db::model::{IpInfo, ServerInfo, ServerStatus};
+use crate::disk::mount::util::unmount;
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
 use crate::sound::BEP;
 use crate::system::time;
 use crate::util::Invoke;
 use crate::{Error, ARCH};
+
+pub const PG_VERSION: usize = 15;
 
 pub const SYSTEM_REBUILD_PATH: &str = "/media/embassy/config/system-rebuild";
 pub const STANDBY_MODE_PATH: &str = "/media/embassy/config/standby";
@@ -76,17 +79,16 @@ impl InitReceipts {
 // must be idempotent
 pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
     let db_dir = datadir.as_ref().join("main/postgresql");
-    let is_mountpoint = || async {
-        Ok::<_, Error>(
-            tokio::process::Command::new("mountpoint")
-                .arg("/var/lib/postgresql")
-                .stdout(std::process::Stdio::null())
-                .stderr(std::process::Stdio::null())
-                .status()
-                .await?
-                .success(),
-        )
-    };
+    if tokio::process::Command::new("mountpoint")
+        .arg("/var/lib/postgresql")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .await?
+        .success()
+    {
+        unmount("/var/lib/postgresql").await?;
+    }
     let exists = tokio::fs::metadata(&db_dir).await.is_ok();
     if !exists {
         Command::new("cp")
@@ -96,9 +98,44 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
             .invoke(crate::ErrorKind::Filesystem)
             .await?;
     }
-    if !is_mountpoint().await? {
-        crate::disk::mount::util::bind(&db_dir, "/var/lib/postgresql", false).await?;
+
+    let pg_version_string = PG_VERSION.to_string();
+    let pg_version_path = db_dir.join(&pg_version_string);
+    if tokio::fs::metadata(&pg_version_path).await.is_err() {
+        let mut old_version = PG_VERSION;
+        while old_version > 13
+        /* oldest pg version included in startos */
+        {
+            old_version -= 1;
+            let old_datadir = db_dir.join(old_version.to_string());
+            if tokio::fs::metadata(&old_datadir).await.is_ok() {
+                let tmp_dir = db_dir.join(format!("{PG_VERSION}.tmp"));
+                Command::new("cp")
+                    .arg("-ra")
+                    .arg(format!("/var/lib/postgresql/{PG_VERSION}"))
+                    .arg(&tmp_dir)
+                    .invoke(crate::ErrorKind::Filesystem)
+                    .await?;
+                Command::new(format!("/usr/lib/postgresql/{PG_VERSION}/bin/pg_upgrade"))
+                    .arg(format!(
+                        "--old-bindir=/usr/lib/postgresql/{old_version}/bin"
+                    ))
+                    .arg(format!(
+                        "--old-datadir={}",
+                        old_datadir.join("main").display()
+                    ))
+                    .arg(format!("--new-datadir={}", tmp_dir.join("main").display()))
+                    .arg(tmp_dir.join("main"))
+                    .invoke(crate::ErrorKind::Database)
+                    .await?;
+                tokio::fs::rename(&tmp_dir, db_dir.join(PG_VERSION.to_string())).await?;
+                break;
+            }
+        }
     }
+
+    crate::disk::mount::util::bind(&db_dir, "/var/lib/postgresql", false).await?;
+
     Command::new("chown")
         .arg("-R")
         .arg("postgres")
@@ -128,6 +165,20 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
             .invoke(crate::ErrorKind::Database)
             .await?;
     }
+
+    Command::new("systemctl")
+        .arg("status")
+        .arg("postgresql")
+        .invoke(crate::ErrorKind::Database)
+        .await?;
+
+    let mut versions = tokio::fs::read_dir("/var/lib/postgresql").await?;
+    while let Some(version) = versions.next_entry().await? {
+        if version.file_name() != &*pg_version_string {
+            tokio::fs::remove_dir_all(version.path()).await?;
+        }
+    }
+
     Ok(())
 }
 
