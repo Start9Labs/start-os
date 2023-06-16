@@ -1,5 +1,5 @@
 use std::convert::Infallible;
-use std::net::{Ipv4Addr, Ipv6Addr};
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::path::Path;
 
 use async_stream::try_stream;
@@ -7,24 +7,29 @@ use color_eyre::eyre::eyre;
 use futures::stream::BoxStream;
 use futures::{StreamExt, TryStreamExt};
 use ipnet::{Ipv4Net, Ipv6Net};
+use tokio::net::{TcpListener, TcpStream};
 use tokio::process::Command;
 
 use crate::util::Invoke;
 use crate::Error;
 
-fn parse_iface_ip(output: &str) -> Result<Option<&str>, Error> {
+fn parse_iface_ip(output: &str) -> Result<Vec<&str>, Error> {
     let output = output.trim();
     if output.is_empty() {
-        return Ok(None);
+        return Ok(Vec::new());
     }
-    if let Some(ip) = output.split_ascii_whitespace().nth(3) {
-        Ok(Some(ip))
-    } else {
-        Err(Error::new(
-            eyre!("malformed output from `ip`"),
-            crate::ErrorKind::Network,
-        ))
+    let mut res = Vec::new();
+    for line in output.lines() {
+        if let Some(ip) = line.split_ascii_whitespace().nth(3) {
+            res.push(ip)
+        } else {
+            return Err(Error::new(
+                eyre!("malformed output from `ip`"),
+                crate::ErrorKind::Network,
+            ));
+        }
     }
+    Ok(res)
 }
 
 pub async fn get_iface_ipv4_addr(iface: &str) -> Result<Option<(Ipv4Addr, Ipv4Net)>, Error> {
@@ -38,7 +43,9 @@ pub async fn get_iface_ipv4_addr(iface: &str) -> Result<Option<(Ipv4Addr, Ipv4Ne
             .invoke(crate::ErrorKind::Network)
             .await?,
     )?)?
+    .into_iter()
     .map(|s| Ok::<_, Error>((s.split("/").next().unwrap().parse()?, s.parse()?)))
+    .next()
     .transpose()?)
 }
 
@@ -53,6 +60,8 @@ pub async fn get_iface_ipv6_addr(iface: &str) -> Result<Option<(Ipv6Addr, Ipv6Ne
             .invoke(crate::ErrorKind::Network)
             .await?,
     )?)?
+    .into_iter()
+    .find(|ip| !ip.starts_with("fe80::"))
     .map(|s| Ok::<_, Error>((s.split("/").next().unwrap().parse()?, s.parse()?)))
     .transpose()?)
 }
@@ -119,5 +128,39 @@ impl<T> hyper::server::accept::Accept for SingleAccept<T> {
         _cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Option<Result<Self::Conn, Self::Error>>> {
         std::task::Poll::Ready(self.project().0.take().map(Ok))
+    }
+}
+
+pub struct TcpListeners {
+    listeners: Vec<TcpListener>,
+}
+impl TcpListeners {
+    pub fn new(listeners: impl IntoIterator<Item = TcpListener>) -> Self {
+        Self {
+            listeners: listeners.into_iter().collect(),
+        }
+    }
+
+    pub async fn accept(&self) -> std::io::Result<(TcpStream, SocketAddr)> {
+        futures::future::select_all(self.listeners.iter().map(|l| Box::pin(l.accept())))
+            .await
+            .0
+    }
+}
+impl hyper::server::accept::Accept for TcpListeners {
+    type Conn = TcpStream;
+    type Error = std::io::Error;
+
+    fn poll_accept(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Result<Self::Conn, Self::Error>>> {
+        for listener in self.listeners.iter() {
+            let poll = listener.poll_accept(cx);
+            if poll.is_ready() {
+                return poll.map(Some);
+            }
+        }
+        std::task::Poll::Pending
     }
 }
