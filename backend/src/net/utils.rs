@@ -158,7 +158,7 @@ impl hyper::server::accept::Accept for TcpListeners {
         for listener in self.listeners.iter() {
             let poll = listener.poll_accept(cx);
             if poll.is_ready() {
-                return poll.map(Some);
+                return poll.map(|a| a.map(|a| a.0)).map(Some);
             }
         }
         std::task::Poll::Pending
