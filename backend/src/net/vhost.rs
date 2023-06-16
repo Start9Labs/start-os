@@ -18,7 +18,7 @@ use tokio_rustls::{LazyConfigAcceptor, TlsConnector};
 
 use crate::net::keys::Key;
 use crate::net::ssl::SslManager;
-use crate::net::utils::SingleAccept;
+use crate::net::utils::{SingleAccept, TcpListeners};
 use crate::util::io::BackTrackingReader;
 use crate::Error;
 
@@ -88,21 +88,20 @@ struct VHostServer {
 impl VHostServer {
     async fn new(port: u16, ssl: Arc<SslManager>) -> Result<Self, Error> {
         // check if port allowed
-        let listener = TcpListener::bind(
-            [
-                SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 80),
-                SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 80),
-            ]
-            .as_ref(),
-        )
-        .await
-        .with_kind(crate::ErrorKind::Network)?;
+        let listeners = TcpListeners::new([
+            TcpListener::bind(SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), port))
+                .await
+                .with_kind(crate::ErrorKind::Network)?,
+            TcpListener::bind(SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), port))
+                .await
+                .with_kind(crate::ErrorKind::Network)?,
+        ]);
         let mapping = Arc::new(RwLock::new(BTreeMap::new()));
         Ok(Self {
             mapping: Arc::downgrade(&mapping),
             _thread: tokio::spawn(async move {
                 loop {
-                    match listener.accept().await {
+                    match listeners.accept().await {
                         Ok((stream, _)) => {
                             let mut stream = BackTrackingReader::new(stream);
                             stream.start_buffering();
