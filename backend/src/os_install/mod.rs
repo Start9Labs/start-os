@@ -297,12 +297,6 @@ pub async fn execute(
         .invoke(crate::ErrorKind::Grub)
         .await?;
 
-    Command::new("chroot")
-        .arg(&current)
-        .arg("update-grub2")
-        .invoke(crate::ErrorKind::Grub)
-        .await?;
-
     dev.unmount(false).await?;
     if let Some(efivarfs) = efivarfs {
         efivarfs.unmount(false).await?;

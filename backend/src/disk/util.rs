@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use color_eyre::eyre::{self, eyre};
@@ -251,10 +251,10 @@ pub async fn recovery_info(
 #[instrument(skip_all)]
 pub async fn list(os: &OsPartitionInfo) -> Result<Vec<DiskInfo>, Error> {
     struct DiskIndex {
-        parts: IndexSet<PathBuf>,
+        parts: BTreeSet<PathBuf>,
         internal: bool,
     }
-    let disk_guids = pvscan().await?;
+    let disk_guids = dbg!(pvscan().await?);
     let disks = tokio_stream::wrappers::ReadDirStream::new(
         tokio::fs::read_dir(DISK_PATH)
             .await
@@ -301,7 +301,7 @@ pub async fn list(os: &OsPartitionInfo) -> Result<Vec<DiskInfo>, Error> {
                     disks.insert(
                         disk.clone(),
                         DiskIndex {
-                            parts: IndexSet::new(),
+                            parts: BTreeSet::new(),
                             internal: false,
                         },
                     );
