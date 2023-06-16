@@ -1,9 +1,7 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::fs::Permissions;
-use std::net::SocketAddr;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
-use std::process::Stdio;
 use std::time::Duration;
 
 use color_eyre::eyre::eyre;
@@ -16,7 +14,7 @@ use tokio::process::Command;
 
 use crate::account::AccountInfo;
 use crate::context::rpc::RpcContextConfig;
-use crate::db::model::{IpInfo, ServerInfo, ServerStatus};
+use crate::db::model::{ServerInfo, ServerStatus};
 use crate::disk::mount::util::unmount;
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
@@ -96,6 +94,12 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
             .invoke(crate::ErrorKind::Filesystem)
             .await?;
     }
+    Command::new("chown")
+        .arg("-R")
+        .arg("postgres")
+        .arg(&db_dir)
+        .invoke(crate::ErrorKind::Database)
+        .await?;
 
     let mut pg_paths = tokio::fs::read_dir("/usr/lib/postgresql").await?;
     let mut pg_version = None;
@@ -134,7 +138,10 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
                     .arg(&tmp_dir)
                     .invoke(crate::ErrorKind::Filesystem)
                     .await?;
-                Command::new(format!("/usr/lib/postgresql/{pg_version}/bin/pg_upgrade"))
+                Command::new("sudo")
+                    .arg("-u")
+                    .arg("postgres")
+                    .arg(format!("/usr/lib/postgresql/{pg_version}/bin/pg_upgrade"))
                     .arg(format!(
                         "--old-bindir=/usr/lib/postgresql/{old_version}/bin"
                     ))
@@ -154,15 +161,9 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
 
     crate::disk::mount::util::bind(&db_dir, "/var/lib/postgresql", false).await?;
 
-    Command::new("chown")
-        .arg("-R")
-        .arg("postgres")
-        .arg("/var/lib/postgresql")
-        .invoke(crate::ErrorKind::Database)
-        .await?;
     Command::new("systemctl")
         .arg("start")
-        .arg("postgresql")
+        .arg(format!("postgresql@{pg_version}-main.service"))
         .invoke(crate::ErrorKind::Database)
         .await?;
     if !exists {

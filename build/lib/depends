@@ -32,13 +32,13 @@ nvme-cli
 nyx
 openssh-server
 postgresql
-postgresql-13
 psmisc
 rsync
 samba-common-bin
 smartmontools
 sqlite3
 squashfs-tools
+sudo
 systemd
 systemd-resolved
 systemd-sysv
