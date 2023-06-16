@@ -58,7 +58,12 @@ impl Invoke for tokio::process::Command {
             res.status.success(),
             error_kind,
             "{}",
-            std::str::from_utf8(&res.stderr).unwrap_or("Unknown Error")
+            Some(&res.stderr)
+                .filter(|a| !a.is_empty())
+                .or(Some(&res.stdout))
+                .filter(|a| !a.is_empty())
+                .and_then(|a| std::str::from_utf8(a).ok())
+                .unwrap_or(&format!("Unknown Error ({})", res.status))
         );
         Ok(res.stdout)
     }
