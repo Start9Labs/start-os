@@ -176,6 +176,7 @@ pub async fn execute(
     }
 
     Command::new("mkfs.btrfs")
+        .arg("-f")
         .arg(&part_info.root)
         .invoke(crate::ErrorKind::DiskManagement)
         .await?;
