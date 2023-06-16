@@ -31,8 +31,8 @@ network-manager
 nvme-cli
 nyx
 openssh-server
-pgloader
 postgresql
+postgresql-13
 psmisc
 rsync
 samba-common-bin
