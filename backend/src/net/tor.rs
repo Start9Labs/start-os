@@ -515,18 +515,22 @@ async fn torctl(
                                             .map(|(addr, _)| (*ext, SocketAddr::from(*addr)))
                                     })
                                     .collect::<Vec<_>>();
-                                services.insert(key.as_bytes(), service);
+                                if !bindings.is_empty() {
+                                    services.insert(key.as_bytes(), service);
+                                }
                                 rm_res?;
-                                connection
-                                    .add_onion_v3(
-                                        &key,
-                                        false,
-                                        false,
-                                        false,
-                                        None,
-                                        &mut bindings.iter(),
-                                    )
-                                    .await?;
+                                if !bindings.is_empty() {
+                                    connection
+                                        .add_onion_v3(
+                                            &key,
+                                            false,
+                                            false,
+                                            false,
+                                            None,
+                                            &mut bindings.iter(),
+                                        )
+                                        .await?;
+                                }
                             } else {
                                 rm_res?;
                             }
