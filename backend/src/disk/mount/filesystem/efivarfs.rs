@@ -1,4 +1,3 @@
-use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 
 use async_trait::async_trait;

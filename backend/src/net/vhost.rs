@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 use std::convert::Infallible;
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
 
@@ -18,7 +18,7 @@ use tokio_rustls::{LazyConfigAcceptor, TlsConnector};
 
 use crate::net::keys::Key;
 use crate::net::ssl::SslManager;
-use crate::net::utils::{SingleAccept, TcpListeners};
+use crate::net::utils::SingleAccept;
 use crate::util::io::BackTrackingReader;
 use crate::Error;
 
