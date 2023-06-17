@@ -88,20 +88,15 @@ struct VHostServer {
 impl VHostServer {
     async fn new(port: u16, ssl: Arc<SslManager>) -> Result<Self, Error> {
         // check if port allowed
-        let listeners = TcpListeners::new([
-            TcpListener::bind(SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), port))
-                .await
-                .with_kind(crate::ErrorKind::Network)?,
-            TcpListener::bind(SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), port))
-                .await
-                .with_kind(crate::ErrorKind::Network)?,
-        ]);
+        let listener = TcpListener::bind(SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), port))
+            .await
+            .with_kind(crate::ErrorKind::Network)?;
         let mapping = Arc::new(RwLock::new(BTreeMap::new()));
         Ok(Self {
             mapping: Arc::downgrade(&mapping),
             _thread: tokio::spawn(async move {
                 loop {
-                    match listeners.accept().await {
+                    match listener.accept().await {
                         Ok((stream, _)) => {
                             let mut stream = BackTrackingReader::new(stream);
                             stream.start_buffering();
