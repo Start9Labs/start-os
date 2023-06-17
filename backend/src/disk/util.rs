@@ -254,7 +254,7 @@ pub async fn list(os: &OsPartitionInfo) -> Result<Vec<DiskInfo>, Error> {
         parts: BTreeSet<PathBuf>,
         internal: bool,
     }
-    let disk_guids = dbg!(pvscan().await?);
+    let disk_guids = pvscan().await?;
     let disks = tokio_stream::wrappers::ReadDirStream::new(
         tokio::fs::read_dir(DISK_PATH)
             .await
