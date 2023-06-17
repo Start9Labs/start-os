@@ -1,4 +1,4 @@
-use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
+use std::net::{Ipv6Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -28,10 +28,7 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
         .await?;
         embassy::hostname::sync_hostname(&rpc_ctx.account.read().await.hostname).await?;
         let server = WebServer::main(
-            [
-                SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 80),
-                SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 80),
-            ],
+            SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 80),
             rpc_ctx.clone(),
         )
         .await?;
@@ -150,10 +147,7 @@ fn main() {
                         .await?;
 
                         let server = WebServer::diagnostic(
-                            [
-                                SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 80),
-                                SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 80),
-                            ],
+                            SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 80),
                             ctx.clone(),
                         )
                         .await?;
