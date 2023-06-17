@@ -96,7 +96,7 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
     }
     Command::new("chown")
         .arg("-R")
-        .arg("postgres")
+        .arg("postgres:postgres")
         .arg(&db_dir)
         .invoke(crate::ErrorKind::Database)
         .await?;
@@ -121,9 +121,15 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
         )
     })?;
 
+    crate::disk::mount::util::bind(&db_dir, "/var/lib/postgresql", false).await?;
+
     let pg_version_string = pg_version.to_string();
     let pg_version_path = db_dir.join(&pg_version_string);
     if tokio::fs::metadata(&pg_version_path).await.is_err() {
+        let conf_dir = format!("/etc/postgresql/{pg_version}");
+        if tokio::fs::metadata(&conf_dir).await.is_ok() {
+            tokio::fs::remove_dir_all(&conf_dir).await?;
+        }
         let mut old_version = pg_version;
         while old_version > 13
         /* oldest pg version included in startos */
@@ -131,35 +137,15 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
             old_version -= 1;
             let old_datadir = db_dir.join(old_version.to_string());
             if tokio::fs::metadata(&old_datadir).await.is_ok() {
-                let tmp_dir = db_dir.join(format!("{pg_version}.tmp"));
-                Command::new("cp")
-                    .arg("-ra")
-                    .arg(format!("/var/lib/postgresql/{pg_version}"))
-                    .arg(&tmp_dir)
-                    .invoke(crate::ErrorKind::Filesystem)
-                    .await?;
-                Command::new("sudo")
-                    .arg("-u")
-                    .arg("postgres")
-                    .arg(format!("/usr/lib/postgresql/{pg_version}/bin/pg_upgrade"))
-                    .arg(format!(
-                        "--old-bindir=/usr/lib/postgresql/{old_version}/bin"
-                    ))
-                    .arg(format!(
-                        "--old-datadir={}",
-                        old_datadir.join("main").display()
-                    ))
-                    .arg(format!("--new-datadir={}", tmp_dir.join("main").display()))
-                    .arg(tmp_dir.join("main"))
+                Command::new("pg_upgradecluster")
+                    .arg(old_version.to_string())
+                    .arg("main")
                     .invoke(crate::ErrorKind::Database)
                     .await?;
-                tokio::fs::rename(&tmp_dir, db_dir.join(&pg_version_string)).await?;
                 break;
             }
         }
     }
-
-    crate::disk::mount::util::bind(&db_dir, "/var/lib/postgresql", false).await?;
 
     Command::new("systemctl")
         .arg("start")
@@ -183,19 +169,6 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
             .arg("root")
             .invoke(crate::ErrorKind::Database)
             .await?;
-    }
-
-    Command::new("systemctl")
-        .arg("status")
-        .arg("postgresql")
-        .invoke(crate::ErrorKind::Database)
-        .await?;
-
-    let mut versions = tokio::fs::read_dir("/var/lib/postgresql").await?;
-    while let Some(version) = versions.next_entry().await? {
-        if version.file_name() != &*pg_version_string {
-            tokio::fs::remove_dir_all(version.path()).await?;
-        }
     }
 
     Ok(())
