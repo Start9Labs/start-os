@@ -265,6 +265,12 @@ pub async fn execute(
         .invoke(crate::ErrorKind::OpenSsh)
         .await?;
 
+    let dev = MountGuard::mount(
+        &Bind::new(rootfs.as_ref()),
+        current.join("media/embassy/embassyfs"),
+        MountType::ReadOnly,
+    )
+    .await?;
     let dev = MountGuard::mount(&Bind::new("/dev"), current.join("dev"), ReadWrite).await?;
     let proc = MountGuard::mount(&Bind::new("/proc"), current.join("proc"), ReadWrite).await?;
     let sys = MountGuard::mount(&Bind::new("/sys"), current.join("sys"), ReadWrite).await?;
@@ -294,6 +300,12 @@ pub async fn execute(
     }
     install
         .arg(&disk.logicalname)
+        .invoke(crate::ErrorKind::Grub)
+        .await?;
+
+    Command::new("chroot")
+        .arg(&current)
+        .arg("update-grub2")
         .invoke(crate::ErrorKind::Grub)
         .await?;
 
