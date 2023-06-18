@@ -1,6 +1,24 @@
-.underline {
-    margin: 6px 0 8px 16px;
-    border-style: solid;
-    border-width: 0px 0px 1px 0px;
-    border-color: #404040;
-  }
+.title {
+  margin-top: 0;
+  font-weight: bold;
+}
+
+.subtitle {
+  color: var(--tui-text-02);
+  font-weight: normal;
+}
+
+.scrollbar {
+  margin: 24px 0;
+  max-height: 50vh;
+}
+
+.version {
+  box-shadow: 0 1px var(--tui-base-02);
+  margin: 0 24px 0 0;
+  padding: 6px 0;
+}
+
+.button {
+  float: right;
+}

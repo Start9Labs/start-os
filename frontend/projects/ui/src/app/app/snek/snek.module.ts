@@ -4,9 +4,10 @@ import { IonicModule } from '@ionic/angular'
 
 import { SnekDirective } from './snek.directive'
 import { SnakePage } from './snake.page'
+import { TuiButtonModule } from '@taiga-ui/core'
 
 @NgModule({
-  imports: [CommonModule, IonicModule],
+  imports: [CommonModule, IonicModule, TuiButtonModule],
   declarations: [SnekDirective, SnakePage],
   exports: [SnekDirective, SnakePage],
 })

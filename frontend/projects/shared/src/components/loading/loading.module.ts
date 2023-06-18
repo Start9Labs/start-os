@@ -1,14 +1,13 @@
 import { NgModule } from '@angular/core'
-import { CommonModule } from '@angular/common'
-import { IonicModule } from '@ionic/angular'
-import { TuiLetModule } from '@taiga-ui/cdk'
-
-import { LogsWindowComponent } from './logs-window/logs-window.component'
+import { TuiLoaderModule } from '@taiga-ui/core'
+import { tuiAsDialog } from '@taiga-ui/cdk'
 import { LoadingComponent } from './loading.component'
+import { LoadingService } from './loading.service'
 
 @NgModule({
-  imports: [CommonModule, IonicModule, TuiLetModule],
-  declarations: [LoadingComponent, LogsWindowComponent],
+  imports: [TuiLoaderModule],
+  declarations: [LoadingComponent],
   exports: [LoadingComponent],
+  providers: [tuiAsDialog(LoadingService)],
 })
 export class LoadingModule {}

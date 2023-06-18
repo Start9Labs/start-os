@@ -1,7 +1,9 @@
 import { Directive, HostListener, Input } from '@angular/core'
-import { LoadingController, ModalController } from '@ionic/angular'
-import { ErrorToastService } from '@start9labs/shared'
+import { ErrorService, LoadingService } from '@start9labs/shared'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { TuiDialogService } from '@taiga-ui/core'
+import { filter } from 'rxjs'
+import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 import { SnakePage } from './snake.page'
 
 @Directive({
@@ -9,45 +11,40 @@ import { SnakePage } from './snake.page'
 })
 export class SnekDirective {
   @Input()
-  appSnekHighScore: number | null = null
+  appSnekHighScore = 0
 
   constructor(
-    private readonly modalCtrl: ModalController,
-    private readonly loadingCtrl: LoadingController,
-    private readonly errToast: ErrorToastService,
+    private readonly dialogs: TuiDialogService,
+    private readonly loader: LoadingService,
+    private readonly errorService: ErrorService,
     private readonly embassyApi: ApiService,
   ) {}
 
   @HostListener('click')
   async onClick() {
-    const modal = await this.modalCtrl.create({
-      component: SnakePage,
-      cssClass: 'snake-modal',
-      backdropDismiss: false,
-      componentProps: { highScore: this.appSnekHighScore || 0 },
-    })
-
-    modal.onDidDismiss().then(async ({ data }) => {
-      if (data?.highScore <= (this.appSnekHighScore || 0)) return
-
-      const loader = await this.loadingCtrl.create({
-        message: 'Saving high score...',
+    this.dialogs
+      .open<number>(new PolymorpheusComponent(SnakePage), {
+        label: 'Play Snek!',
+        closeable: false,
+        dismissible: false,
+        data: {
+          highScore: this.appSnekHighScore,
+        },
       })
+      .pipe(filter(score => score > this.appSnekHighScore))
+      .subscribe(async score => {
+        const loader = this.loader.open('Saving high score...').subscribe()
 
-      await loader.present()
-
-      try {
-        await this.embassyApi.setDbValue<number>(
-          ['gaming', 'snake', 'high-score'],
-          data.highScore,
-        )
-      } catch (e: any) {
-        this.errToast.present(e)
-      } finally {
-        this.loadingCtrl.dismiss()
-      }
-    })
-
-    modal.present()
+        try {
+          await this.embassyApi.setDbValue<number>(
+            ['gaming', 'snake', 'high-score'],
+            score,
+          )
+        } catch (e: any) {
+          this.errorService.handleError(e)
+        } finally {
+          loader.unsubscribe()
+        }
+      })
   }
 }

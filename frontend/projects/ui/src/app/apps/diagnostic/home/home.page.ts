@@ -1,9 +1,9 @@
 import { Component, Inject } from '@angular/core'
 import { WINDOW } from '@ng-web-apis/common'
+import { LoadingService } from '@start9labs/shared'
 import { TuiDialogService } from '@taiga-ui/core'
 import { TUI_PROMPT } from '@taiga-ui/kit'
 import { filter } from 'rxjs'
-import { LoadingService } from 'src/app/common/loading/loading.service'
 import { DiagnosticService } from '../services/diagnostic.service'
 
 @Component({

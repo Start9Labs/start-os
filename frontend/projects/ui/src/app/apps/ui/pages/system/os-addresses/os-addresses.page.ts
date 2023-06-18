@@ -1,7 +1,11 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { AlertController, ToastController } from '@ionic/angular'
 import { PatchDB } from 'patch-db-client'
-import { ErrorToastService, copyToClipboard } from '@start9labs/shared'
+import {
+  ErrorToastService,
+  copyToClipboard,
+  LoadingService,
+} from '@start9labs/shared'
 import { DataModel, NetworkInfo } from 'src/app/services/patch-db/data-model'
 import { TuiDialogOptions } from '@taiga-ui/core'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
@@ -11,7 +15,6 @@ import { Value } from '@start9labs/start-sdk/lib/config/builder/value'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { InputSpec } from '@start9labs/start-sdk/lib/config/configTypes'
 import { map } from 'rxjs'
-import { LoadingService } from 'src/app/common/loading/loading.service'
 import { FormContext, FormPage } from '../../../modals/form/form.page'
 
 export type ClearnetForm = {

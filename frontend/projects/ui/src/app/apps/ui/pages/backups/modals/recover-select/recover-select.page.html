@@ -1,61 +1,36 @@
 <ng-container
   *ngIf="packageData$ | toOptions : backupInfo['package-backups'] | async as options"
 >
-  <ion-header>
-    <ion-toolbar>
-      <ion-title>Select Services to Restore</ion-title>
-      <ion-buttons slot="end">
-        <ion-button (click)="dismiss()">
-          <ion-icon slot="icon-only" name="close"></ion-icon>
-        </ion-button>
-      </ion-buttons>
-    </ion-toolbar>
-  </ion-header>
+  <div tuiGroup orientation="vertical" class="items">
+    <tui-checkbox-block
+      *ngFor="let option of options"
+      [disabled]="option.installed || option['newer-eos']"
+      [(ngModel)]="option.checked"
+      (ngModelChange)="handleChange(options)"
+    >
+      <div class="label">
+        <strong class="title">{{ option.title }}</strong>
+        <div>Version {{ option.version }}</div>
+        <div>Backup made: {{ option.timestamp | date : 'medium' }}</div>
+        <div *ngIf="!option.installed && !option['newer-eos']" class="success">
+          Ready to restore
+        </div>
+        <div *ngIf="option.installed" class="warning">
+          Unavailable. {{ option.title }} is already installed.
+        </div>
+        <div *ngIf="option['newer-eos']" class="danger">
+          Unavailable. Backup was made on a newer version of StartOS.
+        </div>
+      </div>
+    </tui-checkbox-block>
+  </div>
 
-  <ion-content>
-    <ion-item-group>
-      <ion-item *ngFor="let option of options">
-        <ion-label>
-          <h2>{{ option.title }}</h2>
-          <p>Version {{ option.version }}</p>
-          <p>Backup made: {{ option.timestamp | date : 'medium' }}</p>
-          <p *ngIf="!option.installed && !option['newer-eos']">
-            <ion-text color="success">Ready to restore</ion-text>
-          </p>
-          <p *ngIf="option.installed">
-            <ion-text color="warning">
-              Unavailable. {{ option.title }} is already installed.
-            </ion-text>
-          </p>
-          <p *ngIf="option['newer-eos']">
-            <ion-text color="danger">
-              Unavailable. Backup was made on a newer version of StartOS.
-            </ion-text>
-          </p>
-        </ion-label>
-        <ion-checkbox
-          slot="end"
-          [(ngModel)]="option.checked"
-          [disabled]="option.installed || option['newer-eos']"
-          (ionChange)="handleChange(options)"
-        ></ion-checkbox>
-      </ion-item>
-    </ion-item-group>
-  </ion-content>
-
-  <ion-footer>
-    <ion-toolbar>
-      <ion-buttons slot="end" class="ion-padding-end">
-        <ion-button
-          fill="solid"
-          color="primary"
-          class="enter-click btn-128"
-          [disabled]="!hasSelection"
-          (click)="restore(options)"
-        >
-          Restore Selected
-        </ion-button>
-      </ion-buttons>
-    </ion-toolbar>
-  </ion-footer>
+  <button
+    tuiButton
+    class="button"
+    [disabled]="!hasSelection"
+    (click)="restore(options)"
+  >
+    Restore Selected
+  </button>
 </ng-container>

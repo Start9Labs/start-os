@@ -1,0 +1,40 @@
+<p>{{ options.message }}</p>
+<p *ngIf="options.warning" class="warning">{{ options.warning }}</p>
+<form (ngSubmit)="submit(value.trim())">
+  <tui-input
+    tuiAutoFocus
+    [tuiTextfieldLabelOutside]="!options.label"
+    [tuiTextfieldCustomContent]="options.useMask ? toggle : ''"
+    [ngModelOptions]="{ standalone: true }"
+    [(ngModel)]="value"
+  >
+    {{ options.label }}
+    <span *ngIf="options.required !== false && options.label">*</span>
+    <input
+      tuiTextfield
+      [class.masked]="options.useMask && masked && value"
+      [placeholder]="options.placeholder || ''"
+    />
+  </tui-input>
+  <footer class="footer">
+    <button tuiButton type="button" appearance="secondary" (click)="cancel()">
+      Cancel
+    </button>
+    <button tuiButton [disabled]="!value && options.required !== false">
+      {{ options.buttonText || 'Submit' }}
+    </button>
+  </footer>
+</form>
+
+<ng-template #toggle>
+  <button
+    tuiIconButton
+    type="button"
+    appearance="icon"
+    title="Toggle masking"
+    size="xs"
+    class="button"
+    [icon]="masked ? 'tuiIconEye' : 'tuiIconEyeOff'"
+    (click)="masked = !masked"
+  ></button>
+</ng-template>

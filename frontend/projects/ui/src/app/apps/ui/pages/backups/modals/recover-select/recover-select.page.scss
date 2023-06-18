@@ -1,0 +1,31 @@
+.items {
+  width: 100%;
+  margin: 12px 0 24px;
+}
+
+.label {
+  padding: 8px 0;
+  font-size: 14px;
+}
+
+.title {
+  font-size: 16px;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.success {
+  color: var(--tui-success-fill);
+}
+
+.warning {
+  color: var(--tui-warning-fill);
+}
+
+.danger {
+  color: var(--tui-error-fill);
+}
+
+.button {
+  float: right;
+}

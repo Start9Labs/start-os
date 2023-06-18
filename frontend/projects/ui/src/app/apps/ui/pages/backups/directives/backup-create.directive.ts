@@ -1,77 +1,60 @@
 import { Directive, HostListener } from '@angular/core'
-import { LoadingController, ModalController } from '@ionic/angular'
+import { LoadingService } from '@start9labs/shared'
+import { TuiDialogService } from '@taiga-ui/core'
+import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
+import { BackupTarget } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { TargetSelectPage } from '../modals/target-select/target-select.page'
-import {
-  CifsBackupTarget,
-  DiskBackupTarget,
-} from 'src/app/services/api/api.types'
 import { BackupSelectPage } from '../modals/backup-select/backup-select.page'
 
 @Directive({
   selector: '[backupCreate]',
 })
 export class BackupCreateDirective {
-  serviceIds: string[] = []
-
   constructor(
-    private readonly loadingCtrl: LoadingController,
-    private readonly modalCtrl: ModalController,
+    private readonly loader: LoadingService,
+    private readonly dialogs: TuiDialogService,
     private readonly embassyApi: ApiService,
   ) {}
 
-  @HostListener('click') onClick() {
+  @HostListener('click')
+  onClick() {
     this.presentModalTarget()
   }
 
-  async presentModalTarget() {
-    const modal = await this.modalCtrl.create({
-      presentingElement: await this.modalCtrl.getTop(),
-      component: TargetSelectPage,
-      componentProps: { type: 'create' },
-    })
-
-    modal.onDidDismiss<CifsBackupTarget | DiskBackupTarget>().then(res => {
-      if (res.data) {
-        this.presentModalSelect(res.data.id)
-      }
-    })
-
-    await modal.present()
+  presentModalTarget() {
+    this.dialogs
+      .open<BackupTarget>(new PolymorpheusComponent(TargetSelectPage), {
+        label: 'Select Backup Target',
+        data: { type: 'create' },
+      })
+      .subscribe(({ id }) => {
+        this.presentModalSelect(id)
+      })
   }
 
-  private async presentModalSelect(targetId: string) {
-    const modal = await this.modalCtrl.create({
-      presentingElement: await this.modalCtrl.getTop(),
-      component: BackupSelectPage,
-      componentProps: {
-        btnText: 'Create Backup',
-      },
-    })
-
-    modal.onWillDismiss().then(res => {
-      if (res.data) {
-        this.createBackup(targetId, res.data)
-      }
-    })
-
-    await modal.present()
+  private presentModalSelect(targetId: string) {
+    this.dialogs
+      .open<string[]>(new PolymorpheusComponent(BackupSelectPage), {
+        label: 'Select Services to Back Up',
+        data: { btnText: 'Create Backup' },
+      })
+      .subscribe(pkgIds => {
+        this.createBackup(targetId, pkgIds)
+      })
   }
 
   private async createBackup(
     targetId: string,
     pkgIds: string[],
   ): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Beginning backup...',
-    })
-    await loader.present()
+    const loader = this.loader.open('Beginning backup...').subscribe()
 
     await this.embassyApi
       .createBackup({
         'target-id': targetId,
         'package-ids': pkgIds,
       })
-      .finally(() => loader.dismiss())
+      .finally(() => loader.unsubscribe())
   }
 }
