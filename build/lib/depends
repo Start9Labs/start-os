@@ -16,6 +16,7 @@ dosfstools
 e2fsprogs
 ecryptfs-utils
 exfatprogs
+grub-common
 htop
 httpdirfs
 iotop
