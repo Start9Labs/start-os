@@ -126,9 +126,14 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
     let pg_version_string = pg_version.to_string();
     let pg_version_path = db_dir.join(&pg_version_string);
     if tokio::fs::metadata(&pg_version_path).await.is_err() {
-        let conf_dir = format!("/etc/postgresql/{pg_version}");
+        let conf_dir = Path::new("/etc/postgresql").join(pg_version.to_string());
+        let conf_dir_tmp = {
+            let mut tmp = conf_dir.clone();
+            tmp.set_extension("tmp");
+            tmp
+        };
         if tokio::fs::metadata(&conf_dir).await.is_ok() {
-            tokio::fs::remove_dir_all(&conf_dir).await?;
+            tokio::fs::rename(&conf_dir, &conf_dir_tmp).await?;
         }
         let mut old_version = pg_version;
         while old_version > 13
@@ -144,6 +149,12 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
                     .await?;
                 break;
             }
+        }
+        if tokio::fs::metadata(&conf_dir).await.is_ok() {
+            if tokio::fs::metadata(&conf_dir).await.is_ok() {
+                tokio::fs::remove_dir_all(&conf_dir).await?;
+            }
+            tokio::fs::rename(&conf_dir_tmp, &conf_dir).await?;
         }
     }
 
