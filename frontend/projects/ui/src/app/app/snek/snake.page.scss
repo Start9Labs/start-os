@@ -1,6 +1,14 @@
 .canvas-center {
+  min-height: 50vh;
   padding-top: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 32px;
 }

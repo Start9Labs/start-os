@@ -10,7 +10,11 @@ import {
 import { TUI_PROMPT, TuiPromptData } from '@taiga-ui/kit'
 import { POLYMORPHEUS_CONTEXT } from '@tinkoff/ng-polymorpheus'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { getErrorMessage, isEmptyObject } from '@start9labs/shared'
+import {
+  getErrorMessage,
+  isEmptyObject,
+  LoadingService,
+} from '@start9labs/shared'
 import { InputSpec } from '@start9labs/start-sdk/lib/config/configTypes'
 import {
   DataModel,
@@ -22,7 +26,6 @@ import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { getAllPackages, getPackage } from 'src/app/util/get-package-data'
 import { Breakages } from 'src/app/services/api/api.types'
 import { InvalidService } from 'src/app/common/form/invalid.service'
-import { LoadingService } from 'src/app/common/loading/loading.service'
 import { DependentInfo } from 'src/app/types/dependent-info'
 import { ActionButton } from 'src/app/apps/ui/modals/form/form.page'
 

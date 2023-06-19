@@ -1,9 +1,12 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { PatchDB } from 'patch-db-client'
 import { DataModel, PortForward } from 'src/app/services/patch-db/data-model'
-import { ErrorToastService, copyToClipboard } from '@start9labs/shared'
+import {
+  ErrorToastService,
+  copyToClipboard,
+  LoadingService,
+} from '@start9labs/shared'
 import { ToastController } from '@ionic/angular'
-import { LoadingService } from 'src/app/common/loading/loading.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 
 @Component({

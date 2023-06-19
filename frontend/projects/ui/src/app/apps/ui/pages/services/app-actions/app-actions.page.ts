@@ -20,13 +20,13 @@ import {
   getPkgId,
   WithId,
   ErrorService,
+  LoadingService,
 } from '@start9labs/shared'
 import { ActionSuccessPage } from './action-success/action-success.page'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { filter } from 'rxjs'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { FormPage } from 'src/app/apps/ui/modals/form/form.page'
-import { LoadingService } from 'src/app/common/loading/loading.service'
 
 @Component({
   selector: 'app-actions',

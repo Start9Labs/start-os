@@ -1,5 +1,32 @@
 .center {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pkgs {
+  width: 100%;
+  margin-top: 24px;
+}
+
+.label {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.icon {
+  width: 40px;
+  height: 40px;
+}
+
+ion-item {
+  --background: transparent;
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  padding-top: 32px;
 }

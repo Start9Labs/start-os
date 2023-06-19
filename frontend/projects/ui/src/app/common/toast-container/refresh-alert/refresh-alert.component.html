@@ -1,4 +1,8 @@
-<alert *ngIf="show$ | async" header="Refresh Needed" (dismiss)="onDismiss()">
+<ng-template
+  [tuiDialog]="show$ | async"
+  [tuiDialogOptions]="{ label: 'Refresh Needed', size: 's' }"
+  (tuiDialogChange)="onDismiss()"
+>
   Your user interface is cached and out of date. Hard refresh the page to get
   the latest UI.
   <ul>
@@ -11,5 +15,13 @@
       : ctrl + shift + R
     </li>
   </ul>
-  <a alertButton class="enter-click" role="cancel">Ok</a>
-</alert>
+  <button
+    tuiButton
+    tuiAutoFocus
+    appearance="secondary"
+    style="float: right"
+    (click)="onDismiss()"
+  >
+    Ok
+  </button>
+</ng-template>
