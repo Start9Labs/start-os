@@ -278,7 +278,7 @@ pub async fn mount_fs<P: AsRef<Path>>(
         .invoke(crate::ErrorKind::DiskManagement)
         .await?;
     let mapper_path = Path::new("/dev/mapper").join(&full_name);
-    let reboot = repair.e2fsck(&mapper_path).await?;
+    let reboot = repair.fsck(&mapper_path).await?;
     // Backup LUKS header if e2fsck succeeded
     let luks_folder = Path::new("/media/embassy/config/luks");
     tokio::fs::create_dir_all(luks_folder).await?;
