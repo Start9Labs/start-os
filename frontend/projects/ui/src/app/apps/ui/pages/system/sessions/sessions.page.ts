@@ -4,7 +4,7 @@ import { LoadingController } from '@ionic/angular'
 import { ErrorToastService } from '@start9labs/shared'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PlatformType, Session } from 'src/app/services/api/api.types'
-import { BehaviorSubject } from 'rxjs'
+import { Observable, Subject, from, map, merge, shareReplay } from 'rxjs'
 
 @Component({
   selector: 'sessions',
@@ -12,10 +12,33 @@ import { BehaviorSubject } from 'rxjs'
   styleUrls: ['sessions.page.scss'],
 })
 export class SessionsPage {
-  currentSession?: Session
-  otherSessions: SessionWithId[] = []
+  private readonly sessions$ = from(this.api.getSessions({}))
+  private readonly localOther$ = new Subject<SessionWithId[]>()
+  private readonly remoteOther$: Observable<SessionWithId[]> =
+    this.sessions$.pipe(
+      map(s =>
+        Object.entries(s.sessions)
+          .filter(([id, _]) => id !== s.current)
+          .map(([id, session]) => ({
+            id,
+            ...session,
+          }))
+          .sort(
+            (a, b) =>
+              new Date(b['last-active']).valueOf() -
+              new Date(a['last-active']).valueOf(),
+          ),
+      ),
+    )
+
+  readonly currentSession$ = this.sessions$.pipe(
+    map(s => s.sessions[s.current]),
+    shareReplay(),
+  )
+
+  readonly otherSessions$ = merge(this.localOther$, this.remoteOther$)
+
   selected: Record<string, boolean> = {}
-  loading$ = new BehaviorSubject(true)
 
   constructor(
     private readonly loadingCtrl: LoadingController,
@@ -31,31 +54,6 @@ export class SessionsPage {
     return Object.keys(this.selected).length
   }
 
-  async ngOnInit() {
-    try {
-      const sessionInfo = await this.api.getSessions({})
-      this.currentSession = sessionInfo.sessions[sessionInfo.current]
-      delete sessionInfo.sessions[sessionInfo.current]
-      this.otherSessions = Object.entries(sessionInfo.sessions)
-        .map(([id, session]) => {
-          return {
-            id,
-            ...session,
-          }
-        })
-        .sort((a, b) => {
-          return (
-            new Date(b['last-active']).valueOf() -
-            new Date(a['last-active']).valueOf()
-          )
-        })
-    } catch (e: any) {
-      this.errToast.present(e)
-    } finally {
-      this.loading$.next(false)
-    }
-  }
-
   async toggleChecked(id: string) {
     if (this.selected[id]) {
       delete this.selected[id]
@@ -64,15 +62,15 @@ export class SessionsPage {
     }
   }
 
-  async toggleAll() {
+  async toggleAll(otherSessions: SessionWithId[]) {
     if (this.empty) {
-      this.otherSessions.forEach(s => (this.selected[s.id] = true))
+      otherSessions.forEach(s => (this.selected[s.id] = true))
     } else {
       this.selected = {}
     }
   }
 
-  async kill(): Promise<void> {
+  async kill(otherSessions: SessionWithId[]): Promise<void> {
     const ids = Object.keys(this.selected)
 
     const loader = await this.loadingCtrl.create({
@@ -83,7 +81,7 @@ export class SessionsPage {
     try {
       await this.api.killSessions({ ids })
       this.selected = {}
-      this.otherSessions = this.otherSessions.filter(s => !ids.includes(s.id))
+      this.localOther$.next(otherSessions.filter(s => !ids.includes(s.id)))
     } catch (e: any) {
       this.errToast.present(e)
     } finally {
