@@ -24,7 +24,7 @@ export class SnekDirective {
   async onClick() {
     this.dialogs
       .open<number>(new PolymorpheusComponent(SnakePage), {
-        label: 'Play Snek!',
+        label: 'Snake!',
         closeable: false,
         dismissible: false,
         data: {
