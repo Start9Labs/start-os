@@ -16,7 +16,7 @@ import {
 import { BehaviorSubject, filter } from 'rxjs'
 import { TuiDialogService } from '@taiga-ui/core'
 import { TUI_PROMPT } from '@taiga-ui/kit'
-import { ErrorService } from '@start9labs/shared'
+import { ErrorService, LoadingService } from '@start9labs/shared'
 import {
   InputSpec,
   unionSelectKey,
@@ -24,7 +24,6 @@ import {
 } from '@start9labs/start-sdk/lib/config/configTypes'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { FormPage } from 'src/app/apps/ui/modals/form/form.page'
-import { LoadingService } from 'src/app/common/loading/loading.service'
 import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
 
 type BackupConfig =

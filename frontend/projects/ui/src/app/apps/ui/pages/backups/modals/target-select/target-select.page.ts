@@ -1,10 +1,17 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  Inject,
+  Input,
+} from '@angular/core'
 import { ModalController, NavController } from '@ionic/angular'
 import { BehaviorSubject } from 'rxjs'
 import { BackupTarget } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ErrorToastService } from '@start9labs/shared'
+import { ErrorService } from '@start9labs/shared'
 import { BackupType } from '../../pages/backup-targets/backup-targets.page'
+import { POLYMORPHEUS_CONTEXT } from '@tinkoff/ng-polymorpheus'
+import { TuiDialogContext } from '@taiga-ui/core'
 
 @Component({
   selector: 'target-select',
@@ -13,7 +20,7 @@ import { BackupType } from '../../pages/backup-targets/backup-targets.page'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TargetSelectPage {
-  @Input() type!: BackupType
+  // TODO: What is it for?
   @Input() isOneOff = true
 
   targets: BackupTarget[] = []
@@ -21,28 +28,32 @@ export class TargetSelectPage {
   loading$ = new BehaviorSubject(true)
 
   constructor(
+    @Inject(POLYMORPHEUS_CONTEXT)
+    private readonly context: TuiDialogContext<
+      BackupTarget,
+      { type: BackupType }
+    >,
     private readonly modalCtrl: ModalController,
     private readonly navCtrl: NavController,
     private readonly api: ApiService,
-    private readonly errToast: ErrorToastService,
+    private readonly errorService: ErrorService,
   ) {}
+
+  get type(): BackupType {
+    return this.context.data.type
+  }
 
   async ngOnInit() {
     await this.getTargets()
   }
 
-  dismiss() {
-    this.modalCtrl.dismiss()
-  }
-
   select(target: BackupTarget): void {
-    this.modalCtrl.dismiss(target)
+    this.context.completeWith(target)
   }
 
   goToTargets() {
-    this.modalCtrl
-      .dismiss()
-      .then(() => this.navCtrl.navigateForward(`/backups/targets`))
+    this.context.$implicit.complete()
+    this.navCtrl.navigateForward(`/backups/targets`)
   }
 
   async refresh() {
@@ -54,7 +65,7 @@ export class TargetSelectPage {
     try {
       this.targets = (await this.api.getBackupTargets({})).saved
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
       this.loading$.next(false)
     }

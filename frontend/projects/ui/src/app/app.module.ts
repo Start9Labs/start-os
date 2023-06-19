@@ -16,6 +16,7 @@ import {
   ResponsiveColModule,
   SharedPipesModule,
   LightThemeModule,
+  LoadingModule,
 } from '@start9labs/shared'
 
 import { AppComponent } from './app.component'
@@ -32,7 +33,6 @@ import { ConnectionBarComponentModule } from './app/connection-bar/connection-ba
 import { WidgetsPageModule } from 'src/app/apps/ui/pages/widgets/widgets.module'
 import { ServiceWorkerModule } from '@angular/service-worker'
 import { environment } from '../environments/environment'
-import { LoadingModule } from './common/loading/loading.module'
 
 @NgModule({
   declarations: [AppComponent],

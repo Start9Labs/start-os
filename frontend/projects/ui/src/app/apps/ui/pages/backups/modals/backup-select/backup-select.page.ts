@@ -1,8 +1,9 @@
-import { Component, Input } from '@angular/core'
-import { ModalController } from '@ionic/angular'
+import { Component, Inject, Input } from '@angular/core'
 import { PatchDB } from 'patch-db-client'
 import { firstValueFrom, map } from 'rxjs'
 import { DataModel, PackageState } from 'src/app/services/patch-db/data-model'
+import { POLYMORPHEUS_CONTEXT } from '@tinkoff/ng-polymorpheus'
+import { TuiDialogContext } from '@taiga-ui/core'
 
 @Component({
   selector: 'backup-select',
@@ -10,11 +11,9 @@ import { DataModel, PackageState } from 'src/app/services/patch-db/data-model'
   styleUrls: ['./backup-select.page.scss'],
 })
 export class BackupSelectPage {
-  @Input() btnText!: string
   @Input() selectedIds: string[] = []
 
   hasSelection = false
-  selectAll = false
   pkgs: {
     id: string
     title: string
@@ -24,9 +23,14 @@ export class BackupSelectPage {
   }[] = []
 
   constructor(
-    private readonly modalCtrl: ModalController,
+    @Inject(POLYMORPHEUS_CONTEXT)
+    private readonly context: TuiDialogContext<string[], { btnText: string }>,
     private readonly patch: PatchDB<DataModel>,
   ) {}
+
+  get btnText(): string {
+    return this.context.data.btnText
+  }
 
   async ngOnInit() {
     this.pkgs = await firstValueFrom(
@@ -51,13 +55,8 @@ export class BackupSelectPage {
     )
   }
 
-  dismiss() {
-    this.modalCtrl.dismiss()
-  }
-
-  async done() {
-    const pkgIds = this.pkgs.filter(p => p.checked).map(p => p.id)
-    this.modalCtrl.dismiss(pkgIds)
+  done() {
+    this.context.completeWith(this.pkgs.filter(p => p.checked).map(p => p.id))
   }
 
   handleChange() {
@@ -65,7 +64,7 @@ export class BackupSelectPage {
   }
 
   toggleSelectAll() {
-    this.pkgs.forEach(pkg => (pkg.checked = this.selectAll))
-    this.selectAll = !this.selectAll
+    this.pkgs.forEach(pkg => (pkg.checked = !this.hasSelection))
+    this.hasSelection = !this.hasSelection
   }
 }

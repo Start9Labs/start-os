@@ -4,7 +4,6 @@ import { CommonModule } from '@angular/common'
 import { IonicModule } from '@ionic/angular'
 import { BadgeMenuComponentModule } from 'src/app/common/badge-menu-button/badge-menu.component.module'
 import { InsecureWarningComponentModule } from 'src/app/common/insecure-warning/insecure-warning.module'
-import { GenericInputComponentModule } from 'src/app/apps/ui/modals/generic-input/generic-input.component.module'
 import { BackupCreateDirective } from '../../directives/backup-create.directive'
 import { BackupRestoreDirective } from '../../directives/backup-restore.directive'
 import {
@@ -15,6 +14,7 @@ import { BackupSelectPageModule } from '../../modals/backup-select/backup-select
 import { RecoverSelectPageModule } from '../../modals/recover-select/recover-select.module'
 import { TargetPipesModule } from '../../pipes/target-pipes.module'
 import { BackupsPage } from './backups.page'
+import { PromptModule } from 'src/app/apps/ui/modals/prompt/prompt.module'
 
 const routes: Routes = [
   {
@@ -33,7 +33,7 @@ const routes: Routes = [
     BadgeMenuComponentModule,
     InsecureWarningComponentModule,
     TargetPipesModule,
-    GenericInputComponentModule,
+    PromptModule,
   ],
   declarations: [
     BackupsPage,

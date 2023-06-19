@@ -1,28 +1,21 @@
 import { DOCUMENT } from '@angular/common'
 import { Component, Inject } from '@angular/core'
-import {
-  AlertController,
-  LoadingController,
-  NavController,
-  ModalController,
-  ToastController,
-} from '@ionic/angular'
+import { AlertController, NavController, ToastController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActivatedRoute } from '@angular/router'
 import { PatchDB } from 'patch-db-client'
-import { firstValueFrom, Observable, of } from 'rxjs'
-import { ErrorToastService } from '@start9labs/shared'
+import { Observable, of, switchMap, take } from 'rxjs'
+import { ErrorService, LoadingService } from '@start9labs/shared'
 import { EOSService } from 'src/app/services/eos.service'
 import { ClientStorageService } from 'src/app/services/client-storage.service'
 import { OSUpdatePage } from './os-update/os-update.page'
 import { getAllPackages } from 'src/app/util/get-package-data'
 import { AuthService } from 'src/app/services/auth.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import {
-  GenericInputComponent,
-  GenericInputOptions,
-} from 'src/app/apps/ui/modals/generic-input/generic-input.component'
 import { ConfigService } from 'src/app/services/config.service'
+import { TuiDialogService } from '@taiga-ui/core'
+import { PROMPT } from 'src/app/apps/ui/modals/prompt/prompt.component'
+import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 
 @Component({
   selector: 'server-show',
@@ -41,9 +34,9 @@ export class ServerShowPage {
 
   constructor(
     private readonly alertCtrl: AlertController,
-    private readonly modalCtrl: ModalController,
-    private readonly loadingCtrl: LoadingController,
-    private readonly errToast: ErrorToastService,
+    private readonly dialogs: TuiDialogService,
+    private readonly loader: LoadingService,
+    private readonly errorService: ErrorService,
     private readonly embassyApi: ApiService,
     private readonly navCtrl: NavController,
     private readonly route: ActivatedRoute,
@@ -70,35 +63,29 @@ export class ServerShowPage {
   }
 
   private async setBrowserTab(): Promise<void> {
-    const chosenName = await firstValueFrom(this.patch.watch$('ui', 'name'))
-
-    const options: GenericInputOptions = {
-      title: 'Browser Tab Title',
-      message: `This value will be displayed as the title of your browser tab.`,
-      label: 'Device Name',
-      useMask: false,
-      placeholder: 'StartOS',
-      required: false,
-      initialValue: chosenName,
-      buttonText: 'Save',
-      submitFn: (name: string) => this.setName(name || null),
-    }
-
-    const modal = await this.modalCtrl.create({
-      componentProps: { options },
-      cssClass: 'alertlike-modal',
-      presentingElement: await this.modalCtrl.getTop(),
-      component: GenericInputComponent,
-    })
-
-    await modal.present()
+    this.patch
+      .watch$('ui', 'name')
+      .pipe(
+        switchMap(initialValue =>
+          this.dialogs.open<string>(PROMPT, {
+            label: 'Browser Tab Title',
+            data: {
+              message: `This value will be displayed as the title of your browser tab.`,
+              label: 'Device Name',
+              placeholder: 'StartOS',
+              required: false,
+              buttonText: 'Save',
+              initialValue,
+            },
+          }),
+        ),
+        take(1),
+      )
+      .subscribe(name => this.setName(name || null))
   }
 
-  private async updateEos(): Promise<void> {
-    const modal = await this.modalCtrl.create({
-      component: OSUpdatePage,
-    })
-    modal.present()
+  private updateEos() {
+    this.dialogs.open(new PolymorpheusComponent(OSUpdatePage)).subscribe()
   }
 
   private async presentAlertLogout() {
@@ -207,7 +194,7 @@ export class ServerShowPage {
                 this.restart()
               })
             } catch (e: any) {
-              this.errToast.present(e)
+              this.errorService.handleError(e)
             }
           },
           cssClass: 'enter-click',
@@ -219,15 +206,12 @@ export class ServerShowPage {
   }
 
   private async setName(value: string | null): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Saving...',
-    })
-    await loader.present()
+    const loader = this.loader.open('Saving...').subscribe()
 
     try {
       await this.embassyApi.setDbValue<string | null>(['name'], value)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
@@ -239,29 +223,21 @@ export class ServerShowPage {
 
   private async restart() {
     const action = 'Restart'
-
-    const loader = await this.loadingCtrl.create({
-      message: `Beginning ${action}...`,
-    })
-    await loader.present()
+    const loader = this.loader.open(`Beginning ${action}...`).subscribe()
 
     try {
       await this.embassyApi.restartServer({})
       this.presentAlertInProgress(action, ` until ${action} completes.`)
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
   private async shutdown() {
     const action = 'Shutdown'
-
-    const loader = await this.loadingCtrl.create({
-      message: `Beginning ${action}...`,
-    })
-    await loader.present()
+    const loader = this.loader.open(`Beginning ${action}...`).subscribe()
 
     try {
       await this.embassyApi.shutdownServer({})
@@ -270,40 +246,33 @@ export class ServerShowPage {
         '.<br /><br /><b>You will need to physically power cycle the device to regain connectivity.</b>',
       )
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
   private async systemRebuild() {
     const action = 'System Rebuild'
-
-    const loader = await this.loadingCtrl.create({
-      message: `Beginning ${action}...`,
-    })
-    await loader.present()
+    const loader = this.loader.open(`Beginning ${action}...`).subscribe()
 
     try {
       await this.embassyApi.systemRebuild({})
       this.presentAlertInProgress(action, ` until ${action} completes.`)
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
   private async checkForEosUpdate(): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Checking for updates',
-    })
-    await loader.present()
+    const loader = this.loader.open('Checking for updates').subscribe()
 
     try {
       await this.eosService.loadEos()
 
-      await loader.dismiss()
+      loader.unsubscribe()
 
       if (this.eosService.updateAvailable$.value) {
         this.updateEos()
@@ -311,8 +280,8 @@ export class ServerShowPage {
         this.presentAlertLatest()
       }
     } catch (e: any) {
-      await loader.dismiss()
-      this.errToast.present(e)
+      loader.unsubscribe()
+      this.errorService.handleError(e)
     }
   }
 

@@ -8,7 +8,7 @@ import { TextSpinnerComponentModule } from '@start9labs/shared'
 import { BadgeMenuComponentModule } from 'src/app/common/badge-menu-button/badge-menu.component.module'
 import { InsecureWarningComponentModule } from 'src/app/common/insecure-warning/insecure-warning.module'
 import { OSUpdatePageModule } from './os-update/os-update.page.module'
-import { GenericInputComponentModule } from 'src/app/apps/ui/modals/generic-input/generic-input.component.module'
+import { PromptModule } from 'src/app/apps/ui/modals/prompt/prompt.module'
 import { ThemeSwitcherModule } from '../theme-switcher/theme-switcher.module'
 import { BackupColorPipe } from './backup-color.pipe'
 
@@ -29,7 +29,7 @@ const routes: Routes = [
     OSUpdatePageModule,
     ThemeSwitcherModule,
     InsecureWarningComponentModule,
-    GenericInputComponentModule,
+    PromptModule,
     RouterModule.forChild(routes),
   ],
   declarations: [ServerShowPage, BackupColorPipe],

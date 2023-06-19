@@ -1,5 +1,5 @@
 <tui-input
-  [tuiTextfieldCustomContent]="spec.masked ? toggle : ''"
+  [tuiTextfieldCustomContent]="spec.masked || spec.generate ? toggle : ''"
   [tuiHintContent]="spec | hint"
   [disabled]="!!spec.disabled"
   [readOnly]="readOnly"
@@ -31,6 +31,7 @@
     (click)="generate()"
   ></button>
   <button
+    *ngIf="spec.masked"
     tuiIconButton
     type="button"
     appearance="icon"
