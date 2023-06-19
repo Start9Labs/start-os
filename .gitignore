@@ -26,3 +26,10 @@ secrets.db
 /*.squashfs
 /debian
 /DEBIAN
+*/node_modules/
+libs/start_init/service_linked/
+libs/start_init/service/
+libs/start_init/dist/
+libs/start_init/bundle.js
+libs/start_init/package.json
+libs/start_init/bundleEs.js

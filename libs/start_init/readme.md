@@ -12,27 +12,31 @@ a fake server (in this case I am using syncthing-wrapper)
 ### Create a fake server
 
 ```bash
-(
-set -e
-libs=~/Projects/start-os/libs/start_init
-socket=/tmp/start9
-service=~/Projects/syncthing-wrapper
+run_test () {
+    local libs=/home/jm/Projects/start-os/libs/start_init
+    local sockets=/tmp/start9
+    local service=/home/jm/Projects/syncthing-wrapper
 
-cd $libs
-npm i
-npm run build
+    cd $libs
+    sudo rm -rf service || true
+    ln -s $service service
 
-sudo rm -rf $sockets  || true
-mkdir -p $sockets/sockets
-cd $service
-docker run \
-    --volume $sockets:/start9 \
-    --volume $libs:/start-init \
-    --rm -it $(docker build -q .) sh -c "
-        apk add nodejs &&
-        node /start-init/bundle.js
-    "
-)
+    npm i
+    npm run bundle:esbuild
+
+    sudo rm -rf $sockets  || true
+    mkdir -p $sockets/sockets
+    cd $service
+    echo "Here should be libs = $libs and sockets = $sockets and service = $service"
+    docker run \
+        --volume $sockets:/start9 \
+        --volume $libs:/start-init \
+        --rm -it $(docker build -q .) sh -c "
+            apk add nodejs &&
+            node /start-init/bundleEs.js
+        "
+}
+run_test
 ```
 
 ### Pretend Socket Server OS
@@ -45,5 +49,5 @@ sudo socat - unix-client:/tmp/start9/sockets/rpc.sock
 
 <!-- prettier-ignore -->
 ```json
-{"id":"a","method":"command","input":{"gid":1,"command":"Hello World","args":["1"],"output":"collect"}}
+{"id":"a","method":"run","input":{"methodName":"actions","methodArgs":[]}}
 ```

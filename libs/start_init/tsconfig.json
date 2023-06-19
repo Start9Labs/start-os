@@ -3,17 +3,16 @@
     "./**/*.mjs",
     "./**/*.js",
     "initSrc/Runtime.ts",
-    "initSrc/index.ts"
+    "initSrc/index.ts",
+    "effects.ts"
   ],
-  "exclude": ["node_modules", "**/*.test.mjs"],
+  "exclude": [],
   "inputs": ["./lib/index.ts"],
   "compilerOptions": {
     "target": "es2022",
     "module": "es2022",
     "moduleResolution": "node",
     "allowJs": true,
-    "declaration": true,
-    "outDir": "./dist/",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
