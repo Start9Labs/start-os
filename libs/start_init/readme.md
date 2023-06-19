@@ -49,5 +49,5 @@ sudo socat - unix-client:/tmp/start9/sockets/rpc.sock
 
 <!-- prettier-ignore -->
 ```json
-{"id":"a","method":"run","input":{"methodName":"actions","methodArgs":[]}}
+{"id":"a","method":"run","input":{"methodName":"dependencyMounts","methodArgs":[]}}
 ```

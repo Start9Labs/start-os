@@ -37,6 +37,9 @@ const dealWithInput = async (input: unknown) =>
 
     .defaultToLazy(() => {
       console.warn(`Coudln't parse the following input ${input}`)
+      return {
+        error: { message: "Could not figure out shape" },
+      }
     })
 
 const jsonParse = (x: Buffer) => JSON.parse(x.toString())
@@ -46,13 +49,19 @@ export class Runtime {
     this.unixSocketServer.listen(path)
 
     this.unixSocketServer.on("connection", (s) => {
-      s.on("data", (a) =>
-        Promise.resolve(a)
-          .then(jsonParse)
-          .then(dealWithInput)
-          .then((x) => s.write(String(s)))
-          // .catch(x => ({id: x.id, error: x.message})}))
-          .finally(() => void s.end()),
+      s.on(
+        "data",
+        (a) =>
+          Promise.resolve(a)
+            .then(jsonParse)
+            .then(dealWithInput)
+            .then((x) => {
+              console.log("x", JSON.stringify(x), typeof x)
+              return x
+            })
+            .then((x) => new Promise((resolve) => s.write("" + x, resolve))),
+        // .catch(x => ({id: x.id, error: x.message})}))
+        // .finally(() => void s.end()),
       )
     })
   }
