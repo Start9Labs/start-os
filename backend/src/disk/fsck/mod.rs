@@ -36,7 +36,9 @@ impl RepairStrategy {
                 .arg(logicalname.as_ref())
                 .invoke(crate::ErrorKind::DiskManagement)
                 .await?,
-        )? {
+        )?
+        .trim()
+        {
             "ext2" => self.e2fsck(logicalname).await,
             "btrfs" => self.btrfs_check(logicalname).await,
             fs => {
