@@ -1,6 +1,5 @@
-import { Runtime } from "./Runtime.mjs"
+import { Runtime } from "./Runtime"
 
-// @ts-check
 new Runtime()
 
 /**

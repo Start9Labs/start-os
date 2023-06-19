@@ -4,7 +4,7 @@
   "description": "We want to be the sdk intermitent for the system",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "rollup --config rollup.config.mjs"
   },
   "author": "",
   "prettier": {
@@ -14,11 +14,14 @@
     "singleQuote": false
   },
   "dependencies": {
+    "@rollup/plugin-typescript": "^11.1.1",
     "@start9labs/start-sdk": "../start-sdk",
     "ts-matches": "^5.4.1",
+    "tslib": "^2.5.3",
     "typescript": "^5.1.3"
   },
   "devDependencies": {
-    "@types/node": "^20.2.5"
+    "@types/node": "^20.2.5",
+    "rollup": "^3.25.1"
   }
 }

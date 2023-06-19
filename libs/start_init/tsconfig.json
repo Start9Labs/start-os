@@ -1,5 +1,10 @@
 {
-  "include": ["./**/*.mjs", "./**/*.js"],
+  "include": [
+    "./**/*.mjs",
+    "./**/*.js",
+    "initSrc/Runtime.ts",
+    "initSrc/index.ts"
+  ],
   "exclude": ["node_modules", "**/*.test.mjs"],
   "inputs": ["./lib/index.ts"],
   "compilerOptions": {

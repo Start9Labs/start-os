@@ -58,7 +58,7 @@ const inputSignalGroupType = object({
  * @param {unknown} input
  * @returns {Promise<unknown>}
  */
-const dealWithInput = async (input) =>
+const dealWithInput = async (input: unknown) =>
   matches(input)
     .when(inputCommandType, (command) => {
       console.log("input")
@@ -71,23 +71,8 @@ const dealWithInput = async (input) =>
     .defaultToLazy(() => {
       console.warn(`Coudln't parse the following input ${input}`)
     })
-class Input {
-  /**
-   *
-   * @param {unknown} x
-   */
-  static from = (x) => {
-    matches(x)
-      .when(inputCommandType)
-      .defaultToLazy(() => ({}))
-  }
-}
-/**
- *
- * @param {Buffer} x
- * @returns
- */
-const jsonParse = (x) => JSON.parse(x.toString())
+
+const jsonParse = (x: Buffer) => JSON.parse(x.toString())
 export class Runtime {
   unixSocketServer = net.createServer(async (server) => {})
   constructor() {
@@ -98,8 +83,7 @@ export class Runtime {
     this.unixSocketServer.on("connection", (s) => {
       console.log("got connection!")
       s.on("data", (a) => {
-        Promise.resolve(a.toString()).then(JSON.parse).then(dealWithInput)
-        console.log("123: Making the data value of ", a.toString())
+        Promise.resolve(a).then(jsonParse).then(dealWithInput).catch()
       })
       s.write("hello world")
       // s.end()
