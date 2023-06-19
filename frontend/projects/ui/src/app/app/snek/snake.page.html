@@ -1,28 +1,8 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-title>Play Snek!</ion-title>
-    <ion-title slot="end">Score: {{ score }}</ion-title>
-  </ion-toolbar>
-</ion-header>
-
-<ion-content class="ion-padding">
-  <div class="canvas-center" style="width: 100%; height: 100%">
-    <canvas id="game"></canvas>
-  </div>
-</ion-content>
-
-<ion-footer>
-  <ion-toolbar>
-    <ion-title slot="start">High Score: {{ highScore }}</ion-title>
-    <ion-buttons slot="end" class="ion-padding-end">
-      <ion-button
-        fill="solid"
-        color="primary"
-        (click)="dismiss()"
-        class="enter-click btn-128"
-      >
-        Save and Quit
-      </ion-button>
-    </ion-buttons>
-  </ion-toolbar>
-</ion-footer>
+<div class="canvas-center">
+  <canvas id="game"></canvas>
+</div>
+<footer class="footer">
+  <strong>Score: {{ score }}</strong>
+  <span>High Score: {{ highScore }}</span>
+  <button tuiButton (click)="dismiss()">Save and Quit</button>
+</footer>

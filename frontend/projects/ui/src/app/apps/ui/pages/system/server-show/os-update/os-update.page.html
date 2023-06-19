@@ -1,43 +1,13 @@
-<ion-header>
-  <ion-toolbar>
-    <div style="padding: 10px 0">
-      <ion-title style="font-size: 32px">
-        StartOS {{ versions[0].version }}
-      </ion-title>
-      <div class="underline"></div>
-      <ion-title>
-        <i>Release Notes</i>
-      </ion-title>
-    </div>
-    <ion-buttons slot="end">
-      <ion-button (click)="dismiss()">
-        <ion-icon slot="icon-only" name="close"></ion-icon>
-      </ion-button>
-    </ion-buttons>
-  </ion-toolbar>
-</ion-header>
+<h2 class="title">StartOS {{ versions[0].version }}</h2>
+<h3 class="subtitle">Release Notes</h3>
 
-<ion-content>
-  <div style="padding: 36px" class="ion-text-left">
-    <ng-container *ngFor="let v of versions">
-      <h4><b>{{ v.version }}</b></h4>
-      <div class="underline" style="margin: unset"></div>
-      <div [innerHTML]="v.notes | markdown"></div>
-    </ng-container>
-  </div>
-</ion-content>
+<tui-scrollbar class="scrollbar">
+  <ng-container *ngFor="let v of versions">
+    <h4 class="version">{{ v.version }}</h4>
+    <div [innerHTML]="v.notes | markdown"></div>
+  </ng-container>
+</tui-scrollbar>
 
-<ion-footer>
-  <ion-toolbar>
-    <ion-buttons slot="end" class="ion-padding-end">
-      <ion-button
-        fill="solid"
-        color="primary"
-        (click)="updateEOS()"
-        class="enter-click btn-128"
-      >
-        Begin Update
-      </ion-button>
-    </ion-buttons>
-  </ion-toolbar>
-</ion-footer>
+<button tuiButton tuiAutoFocus class="button" (click)="updateEOS()">
+  Begin Update
+</button>

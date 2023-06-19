@@ -1,15 +1,22 @@
-import { Component, HostListener, Input } from '@angular/core'
-import { ModalController } from '@ionic/angular'
-import { pauseFor } from '../../../../../shared/src/public-api'
+import {
+  AfterViewInit,
+  Component,
+  HostListener,
+  Inject,
+  OnDestroy,
+} from '@angular/core'
+import { pauseFor } from '@start9labs/shared'
+import { POLYMORPHEUS_CONTEXT } from '@tinkoff/ng-polymorpheus'
+import { TuiDialogContext } from '@taiga-ui/core'
+import { DOCUMENT } from '@angular/common'
 
 @Component({
   selector: 'snake',
   templateUrl: './snake.page.html',
   styleUrls: ['./snake.page.scss'],
 })
-export class SnakePage {
-  @Input()
-  highScore = 0
+export class SnakePage implements AfterViewInit, OnDestroy {
+  highScore = this.dialog.data.highScore
 
   score = 0
 
@@ -30,11 +37,16 @@ export class SnakePage {
   private bitcoin: { x: number; y: number } = { x: NaN, y: NaN }
 
   private moveQueue: String[] = []
+  private destroyed = false
 
-  constructor(private readonly modalCtrl: ModalController) {}
+  constructor(
+    @Inject(DOCUMENT) private readonly document: Document,
+    @Inject(POLYMORPHEUS_CONTEXT)
+    private readonly dialog: TuiDialogContext<number, { highScore: number }>,
+  ) {}
 
-  async dismiss() {
-    return this.modalCtrl.dismiss({ highScore: this.highScore })
+  dismiss() {
+    this.dialog.completeWith(this.highScore)
   }
 
   @HostListener('document:keydown', ['$event'])
@@ -57,7 +69,11 @@ export class SnakePage {
     this.init()
   }
 
-  ionViewDidEnter() {
+  ngOnDestroy() {
+    this.destroyed = true
+  }
+
+  ngAfterViewInit() {
     this.init()
 
     this.image = new Image()
@@ -68,10 +84,10 @@ export class SnakePage {
   }
 
   init() {
-    this.canvas = document.querySelector('canvas#game')!
+    this.canvas = this.document.querySelector('canvas#game')!
     this.canvas.style.border = '1px solid #e0e0e0'
     this.context = this.canvas.getContext('2d')!
-    const container = document.getElementsByClassName('canvas-center')[0]
+    const container = this.document.querySelector('.canvas-center')!
     this.grid = Math.min(
       Math.floor(container.clientWidth / this.width),
       Math.floor(container.clientHeight / this.height),
@@ -139,13 +155,15 @@ export class SnakePage {
 
   // game loop
   async loop() {
+    if (this.destroyed) return
+
     await pauseFor(this.speed)
 
     requestAnimationFrame(async () => await this.loop())
 
     this.context.clearRect(0, 0, this.canvas.width, this.canvas.height)
 
-    // move snake by it's velocity
+    // move snake by its velocity
     this.snake.x += this.snake.dx
     this.snake.y += this.snake.dy
 

@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
 import { AlertController } from '@ionic/angular'
-import { ErrorToastService } from '@start9labs/shared'
+import { ErrorToastService, LoadingService } from '@start9labs/shared'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PatchDB } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
@@ -9,7 +9,6 @@ import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { DomainSpec, domainSpec } from './domain.const'
 import { ConnectionService } from 'src/app/services/connection.service'
 import { combineLatest, filter, first, map, switchMap } from 'rxjs'
-import { LoadingService } from 'src/app/common/loading/loading.service'
 import { FormContext, FormPage } from '../../../modals/form/form.page'
 
 @Component({

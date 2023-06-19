@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common'
 import { IonicModule } from '@ionic/angular'
 import { RouterModule, Routes } from '@angular/router'
 import { SharedPipesModule } from '@start9labs/shared'
-import { GenericInputComponentModule } from 'src/app/apps/ui/modals/generic-input/generic-input.component.module'
+import { PromptModule } from 'src/app/apps/ui/modals/prompt/prompt.module'
 import { SSHKeysPage } from './ssh-keys.page'
 import { TuiNotificationModule } from '@taiga-ui/core'
 
@@ -19,9 +19,9 @@ const routes: Routes = [
     CommonModule,
     IonicModule,
     SharedPipesModule,
-    GenericInputComponentModule,
-    RouterModule.forChild(routes),
+    PromptModule,
     TuiNotificationModule,
+    RouterModule.forChild(routes),
   ],
   declarations: [SSHKeysPage],
 })

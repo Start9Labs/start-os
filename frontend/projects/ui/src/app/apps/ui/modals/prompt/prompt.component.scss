@@ -1,0 +1,20 @@
+.warning {
+  color: var(--tui-warning-fill);
+}
+
+.button {
+  pointer-events: auto;
+  margin-left: 0.25rem;
+}
+
+.masked {
+  font-family: text-security-disc;
+  -webkit-text-security: disc;
+}
+
+.footer {
+  padding-top: 24px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+}

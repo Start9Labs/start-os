@@ -1,28 +1,42 @@
 import { Directive, HostListener } from '@angular/core'
-import {
-  LoadingController,
-  ModalController,
-  NavController,
-} from '@ionic/angular'
+import { NavController } from '@ionic/angular'
+import { TuiDialogService } from '@taiga-ui/core'
+import { ErrorService, LoadingService } from '@start9labs/shared'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import {
-  GenericInputComponent,
-  GenericInputOptions,
-} from 'src/app/apps/ui/modals/generic-input/generic-input.component'
 import { BackupInfo, BackupTarget } from 'src/app/services/api/api.types'
 import * as argon2 from '@start9labs/argon2'
 import { TargetSelectPage } from '../modals/target-select/target-select.page'
-import { RecoverSelectPage } from '../modals/recover-select/recover-select.page'
+import {
+  RecoverData,
+  RecoverSelectPage,
+} from '../modals/recover-select/recover-select.page'
+import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
+import {
+  PROMPT,
+  PromptOptions,
+} from 'src/app/apps/ui/modals/prompt/prompt.component'
+import {
+  catchError,
+  EMPTY,
+  exhaustMap,
+  map,
+  Observable,
+  of,
+  switchMap,
+  take,
+  tap,
+} from 'rxjs'
 
 @Directive({
   selector: '[backupRestore]',
 })
 export class BackupRestoreDirective {
   constructor(
-    private readonly modalCtrl: ModalController,
+    private readonly errorService: ErrorService,
+    private readonly dialogs: TuiDialogService,
     private readonly navCtrl: NavController,
     private readonly embassyApi: ApiService,
-    private readonly loadingCtrl: LoadingController,
+    private readonly loader: LoadingService,
   ) {}
 
   @HostListener('click') onClick() {
@@ -30,92 +44,81 @@ export class BackupRestoreDirective {
   }
 
   async presentModalTarget() {
-    const modal = await this.modalCtrl.create({
-      presentingElement: await this.modalCtrl.getTop(),
-      component: TargetSelectPage,
-      componentProps: { type: 'restore' },
-    })
-
-    modal.onDidDismiss<BackupTarget>().then(res => {
-      if (res.data) {
-        this.presentModalPassword(res.data)
-      }
-    })
-
-    await modal.present()
+    this.dialogs
+      .open<BackupTarget>(new PolymorpheusComponent(TargetSelectPage), {
+        label: 'Select Backup Source',
+        data: { type: 'restore' },
+      })
+      .subscribe(data => {
+        this.presentModalPassword(data)
+      })
   }
 
-  async presentModalPassword(target: BackupTarget): Promise<void> {
-    const options: GenericInputOptions = {
-      title: 'Password Required',
+  presentModalPassword(target: BackupTarget) {
+    const data: PromptOptions = {
       message:
         'Enter the master password that was used to encrypt this backup. On the next screen, you will select the individual services you want to restore.',
       label: 'Master Password',
       placeholder: 'Enter master password',
       useMask: true,
-      buttonText: 'Next',
-      submitFn: async (password: string) => {
-        const passwordHash = target['embassy-os']?.['password-hash'] || ''
-        argon2.verify(passwordHash, password)
-        return this.getBackupInfo(target.id, password)
-      },
     }
 
-    const modal = await this.modalCtrl.create({
-      componentProps: { options },
-      cssClass: 'alertlike-modal',
-      presentingElement: await this.modalCtrl.getTop(),
-      component: GenericInputComponent,
-    })
+    this.dialogs
+      .open<string>(PROMPT, {
+        label: 'Password Required',
+        data,
+      })
+      .pipe(
+        exhaustMap(password =>
+          this.getRecoverData(
+            target.id,
+            password,
+            target['embassy-os']?.['password-hash'] || '',
+          ),
+        ),
+        take(1),
+        switchMap(data => this.presentModalSelect(data)),
+      )
+      .subscribe(() => {
+        this.navCtrl.navigateRoot('/services')
+      })
+  }
 
-    modal.onDidDismiss().then(res => {
-      if (res.data) {
-        const { value, response } = res.data
-        this.presentModalSelect(target.id, response, value)
-      }
-    })
+  private getRecoverData(
+    targetId: string,
+    password: string,
+    hash: string,
+  ): Observable<RecoverData> {
+    return of(password).pipe(
+      tap(() => argon2.verify(hash, password)),
+      switchMap(() => this.getBackupInfo(targetId, password)),
+      catchError(e => {
+        this.errorService.handleError(e)
 
-    await modal.present()
+        return EMPTY
+      }),
+      map(backupInfo => ({ targetId, password, backupInfo })),
+    )
   }
 
   private async getBackupInfo(
     targetId: string,
     password: string,
   ): Promise<BackupInfo> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Decrypting drive...',
-    })
-    await loader.present()
+    const loader = this.loader.open('Decrypting drive...').subscribe()
 
     return this.embassyApi
       .getBackupInfo({
         'target-id': targetId,
         password,
       })
-      .finally(() => loader.dismiss())
+      .finally(() => loader.unsubscribe())
   }
 
-  private async presentModalSelect(
-    targetId: string,
-    backupInfo: BackupInfo,
-    password: string,
-  ): Promise<void> {
-    const modal = await this.modalCtrl.create({
-      componentProps: {
-        targetId,
-        backupInfo,
-        password,
-      },
-      presentingElement: await this.modalCtrl.getTop(),
-      component: RecoverSelectPage,
+  private presentModalSelect(data: RecoverData): Observable<void> {
+    return this.dialogs.open(new PolymorpheusComponent(RecoverSelectPage), {
+      label: 'Select Services to Restore',
+      data,
     })
-
-    modal.onWillDismiss().then(res => {
-      if (res.role === 'success') {
-        this.navCtrl.navigateRoot('/services')
-      }
-    })
-
-    await modal.present()
   }
 }
