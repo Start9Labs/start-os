@@ -8,7 +8,10 @@
       (click)="s.selected ? '' : connect(s.url)"
     >
       <ion-avatar slot="start">
-        <store-icon [url]="s.url"></store-icon>
+        <store-icon
+          [url]="s.url"
+          [marketplace]="config.marketplace"
+        ></store-icon>
       </ion-avatar>
       <ion-label>
         <h2>{{ s.name }}</h2>

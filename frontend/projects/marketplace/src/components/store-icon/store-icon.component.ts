@@ -15,27 +15,19 @@ import { MarketplaceConfig, sameUrl } from '@start9labs/shared'
 })
 export class StoreIconComponent {
   @Input()
-  url: string = ''
+  url = ''
   @Input()
   size?: string
   @Input()
-  marketplace?: MarketplaceConfig
-}
+  marketplace!: MarketplaceConfig
 
-@Pipe({
-  name: 'getIcon',
-})
-export class GetIconPipe implements PipeTransform {
-  transform(url: string, marketplace?: MarketplaceConfig): string | null {
-    if (marketplace) {
-      const { start9, community } = marketplace
+  get icon() {
+    const { start9, community } = this.marketplace
 
-      if (sameUrl(url, start9)) {
-        return 'assets/img/icon_transparent.png'
-      } else if (sameUrl(url, community)) {
-        return 'assets/img/community-store.png'
-      }
-      return null
+    if (sameUrl(this.url, start9)) {
+      return 'assets/img/icon_transparent.png'
+    } else if (sameUrl(this.url, community)) {
+      return 'assets/img/community-store.png'
     }
     return null
   }

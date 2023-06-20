@@ -1,5 +1,5 @@
 <img
-  *ngIf="url | getIcon : marketplace as icon; else noIcon"
+  *ngIf="icon; else noIcon"
   [style.max-width]="size || '100%'"
   [src]="icon"
   alt="Service Icon"
