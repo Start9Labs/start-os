@@ -35,6 +35,7 @@ nyx
 openssh-server
 postgresql
 psmisc
+qemu-guest-agent
 rsync
 samba-common-bin
 smartmontools
