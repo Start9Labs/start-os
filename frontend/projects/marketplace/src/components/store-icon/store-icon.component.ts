@@ -1,10 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  Input,
-  Pipe,
-  PipeTransform,
-} from '@angular/core'
+import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { MarketplaceConfig, sameUrl } from '@start9labs/shared'
 
 @Component({

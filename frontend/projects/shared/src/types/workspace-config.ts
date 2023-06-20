@@ -21,5 +21,4 @@ export type WorkspaceConfig = {
 export interface MarketplaceConfig {
   start9: 'https://registry.start9.com/'
   community: 'https://community-registry.start9.com/'
-  [url: string]: string
 }
