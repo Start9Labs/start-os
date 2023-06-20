@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@iarna/toml": "^2.2.5",
-    "@start9labs/start-sdk": "@start9labs/start-sdk@0.4.0-rev0.lib0.rc8.alpha2",
+    "@start9labs/start-sdk": "=0.4.0-rev0.lib0.rc8.alpha3",
     "esbuild": "0.18.4",
     "filebrowser": "^1.0.0",
     "isomorphic-fetch": "^3.0.0",

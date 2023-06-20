@@ -1,123 +1,176 @@
 import * as T from "@start9labs/start-sdk/lib/types"
+import * as net from "net"
 
 const todo = <T>(): T => {
   throw new Error("not implemented")
 }
+
+const path = "/start9/sockets/rpcOut.sock"
 export class Effects implements T.Effects {
   constructor() {}
-  bind(...args: Parameters<T.Effects["bind"]>) {
-    return todo<ReturnType<T.Effects["bind"]>>()
+  id = 0
+  rpcRound(method: string, params: unknown) {
+    const id = this.id++;
+    const client = net.createConnection(path, () => {
+        client.write(JSON.stringify({
+          id,
+          method,
+          params
+        }));
+    });
+    return new Promise((resolve, reject) => {
+      client.on('data', (data) => {
+        try {
+          resolve(JSON.parse(data.toString())?.result)
+        } catch (error) {
+          reject(error)
+        }
+        client.end();
+      });
+    })
   }
-  clearBindings(...args: Parameters<T.Effects["clearBindings"]>) {
-    return todo<ReturnType<T.Effects["clearBindings"]>>()
+  bind(...[options]: Parameters<T.Effects["bind"]>) {
+    return this.rpcRound('bind', (options)) as ReturnType<T.Effects["bind"]>
+  }
+  clearBindings(...[]: Parameters<T.Effects["clearBindings"]>) {
+    return this.rpcRound('clearBindings', null) as ReturnType<T.Effects["clearBindings"]>
   }
   clearNetworkInterfaces(
-    ...args: Parameters<T.Effects["clearNetworkInterfaces"]>
+    ...[]: Parameters<T.Effects["clearNetworkInterfaces"]>
   ) {
-    return todo<ReturnType<T.Effects["clearNetworkInterfaces"]>>()
+    return this.rpcRound('clearNetworkInterfaces', null) as ReturnType<T.Effects["clearNetworkInterfaces"]>
   }
-  executeAction(...args: Parameters<T.Effects["executeAction"]>) {
-    return todo<ReturnType<T.Effects["executeAction"]>>()
+  executeAction(...[options]: Parameters<T.Effects["executeAction"]>) {
+    return this.rpcRound('executeAction', options) as ReturnType<T.Effects["executeAction"]>
   }
-  exists(...args: Parameters<T.Effects["exists"]>) {
-    return todo<ReturnType<T.Effects["exists"]>>()
+  exists(...[packageId]: Parameters<T.Effects["exists"]>) {
+    return this.rpcRound('exists', packageId) as ReturnType<T.Effects["exists"]>
   }
-  exportAction(...args: Parameters<T.Effects["exportAction"]>) {
-    return todo<ReturnType<T.Effects["exportAction"]>>()
+  exportAction(...[options]: Parameters<T.Effects["exportAction"]>) {
+    return this.rpcRound('exportAction', (options)) as ReturnType<T.Effects["exportAction"]>
   }
   exportNetworkInterface(
-    ...args: Parameters<T.Effects["exportNetworkInterface"]>
+    ...[options]: Parameters<T.Effects["exportNetworkInterface"]>
   ) {
-    return todo<ReturnType<T.Effects["exportNetworkInterface"]>>()
+    return this.rpcRound('exportNetworkInterface', (options)) as ReturnType<T.Effects["exportNetworkInterface"]>
   }
-  exposeForDependents(...args: any) {
-    return todo<ReturnType<T.Effects["exposeForDependents"]>>()
+  exposeForDependents(...[options]: any) {
+    
+    return this.rpcRound('exposeForDependents', (null)) as ReturnType<T.Effects["exposeForDependents"]>
   }
-  exposeUi(...args: Parameters<T.Effects["exposeUi"]>) {
-    return todo<ReturnType<T.Effects["exposeUi"]>>()
+  exposeUi(...[options]: Parameters<T.Effects["exposeUi"]>) {
+    
+    return this.rpcRound('exposeUi', (options)) as ReturnType<T.Effects["exposeUi"]>
   }
-  getConfigured(...args: Parameters<T.Effects["getConfigured"]>) {
-    return todo<ReturnType<T.Effects["getConfigured"]>>()
+  getConfigured(...[]: Parameters<T.Effects["getConfigured"]>) {
+    
+    return this.rpcRound('getConfigured',null) as ReturnType<T.Effects["getConfigured"]>
   }
-  getContainerIp(...args: Parameters<T.Effects["getContainerIp"]>) {
-    return todo<ReturnType<T.Effects["getContainerIp"]>>()
+  getContainerIp(...[]: Parameters<T.Effects["getContainerIp"]>) {
+    
+    return this.rpcRound('getContainerIp', null) as ReturnType<T.Effects["getContainerIp"]>
   }
-  getHostnames(...args: any) {
-    return todo<Promise<any>>()
+  getHostnames: any = (...[]: any[]) => {
+    
+    return this.rpcRound('getHostnames', null) as ReturnType<T.Effects["getHostnames"]>
   }
-  getInterface(...args: Parameters<T.Effects["getInterface"]>) {
-    return todo<ReturnType<T.Effects["getInterface"]>>()
+  getInterface(...[options]: Parameters<T.Effects["getInterface"]>) {
+    
+    return this.rpcRound('getInterface', (options)) as ReturnType<T.Effects["getInterface"]>
   }
-  getIPHostname(...args: Parameters<T.Effects["getIPHostname"]>) {
-    return todo<ReturnType<T.Effects["getIPHostname"]>>()
+  getIPHostname(...[]: Parameters<T.Effects["getIPHostname"]>) {
+    
+    return this.rpcRound('getIPHostname', (null)) as ReturnType<T.Effects["getIPHostname"]>
   }
-  getLocalHostname(...args: Parameters<T.Effects["getLocalHostname"]>) {
-    return todo<ReturnType<T.Effects["getLocalHostname"]>>()
+  getLocalHostname(...[]: Parameters<T.Effects["getLocalHostname"]>) {
+    
+    return this.rpcRound('getLocalHostname', null) as ReturnType<T.Effects["getLocalHostname"]>
   }
-  getPrimaryUrl(...args: Parameters<T.Effects["getPrimaryUrl"]>) {
-    return todo<ReturnType<T.Effects["getPrimaryUrl"]>>()
+  getPrimaryUrl(...[options]: Parameters<T.Effects["getPrimaryUrl"]>) {
+    
+    return this.rpcRound('getPrimaryUrl', (options)) as ReturnType<T.Effects["getPrimaryUrl"]>
   }
   getServicePortForward(
-    ...args: Parameters<T.Effects["getServicePortForward"]>
+    ...[options]: Parameters<T.Effects["getServicePortForward"]>
   ) {
-    return todo<ReturnType<T.Effects["getServicePortForward"]>>()
+    
+    return this.rpcRound('getServicePortForward', (options)) as ReturnType<T.Effects["getServicePortForward"]>
   }
   getServiceTorHostname(
-    ...args: Parameters<T.Effects["getServiceTorHostname"]>
+    ...[interfaceId, packageId]: Parameters<T.Effects["getServiceTorHostname"]>
   ) {
-    return todo<ReturnType<T.Effects["getServiceTorHostname"]>>()
+    
+    return this.rpcRound('getServiceTorHostname', ({interfaceId, packageId})) as ReturnType<T.Effects["getServiceTorHostname"]>
   }
-  getSslCertificate(...args: Parameters<T.Effects["getSslCertificate"]>) {
-    return todo<ReturnType<T.Effects["getSslCertificate"]>>()
+  getSslCertificate(...[packageId, algorithm]: Parameters<T.Effects["getSslCertificate"]>) {
+    
+    return this.rpcRound('getSslCertificate', ({packageId, algorithm})) as ReturnType<T.Effects["getSslCertificate"]>
   }
-  getSslKey(...args: Parameters<T.Effects["getSslKey"]>) {
-    return todo<ReturnType<T.Effects["getSslKey"]>>()
+  getSslKey(...[packageId, algorithm]: Parameters<T.Effects["getSslKey"]>) {
+    
+    return this.rpcRound('getSslKey', ({packageId, algorithm})) as ReturnType<T.Effects["getSslKey"]>
   }
-  getSystemSmtp(...args: Parameters<T.Effects["getSystemSmtp"]>) {
-    return todo<ReturnType<T.Effects["getSystemSmtp"]>>()
+  getSystemSmtp(...[options]: Parameters<T.Effects["getSystemSmtp"]>) {
+    
+    return this.rpcRound('getSystemSmtp', {}) as ReturnType<T.Effects["getSystemSmtp"]>
   }
-  is_sandboxed(...args: Parameters<T.Effects["is_sandboxed"]>) {
-    return todo<ReturnType<T.Effects["is_sandboxed"]>>()
+  is_sandboxed(...[]: Parameters<T.Effects["is_sandboxed"]>) {
+    
+    return this.rpcRound('is_sandboxed', (null)) as ReturnType<T.Effects["is_sandboxed"]>
   }
-  listInterface(...args: Parameters<T.Effects["listInterface"]>) {
-    return todo<ReturnType<T.Effects["listInterface"]>>()
+  listInterface(...[options]: Parameters<T.Effects["listInterface"]>) {
+    
+    return this.rpcRound('listInterface', options) as ReturnType<T.Effects["listInterface"]>
   }
-  mount(...args: Parameters<T.Effects["mount"]>) {
-    return todo<ReturnType<T.Effects["mount"]>>()
+  mount(...[options]: Parameters<T.Effects["mount"]>) {
+    
+    return this.rpcRound('mount', options) as ReturnType<T.Effects["mount"]>
   }
-  removeAction(...args: Parameters<T.Effects["removeAction"]>) {
-    return todo<ReturnType<T.Effects["removeAction"]>>()
+  removeAction(...[options]: Parameters<T.Effects["removeAction"]>) {
+    
+    return this.rpcRound('removeAction', options) as ReturnType<T.Effects["removeAction"]>
   }
-  removeAddress(...args: Parameters<T.Effects["removeAddress"]>) {
-    return todo<ReturnType<T.Effects["removeAddress"]>>()
+  removeAddress(...[options]: Parameters<T.Effects["removeAddress"]>) {
+    
+    return this.rpcRound('removeAddress', options) as ReturnType<T.Effects["removeAddress"]>
   }
-  restart(...args: Parameters<T.Effects["restart"]>) {
-    return todo<ReturnType<T.Effects["restart"]>>()
+  restart(...[]: Parameters<T.Effects["restart"]>) {
+    
+    this.rpcRound('restart', null) 
   }
-  reverseProxy(...args: Parameters<T.Effects["reverseProxy"]>) {
-    return todo<ReturnType<T.Effects["reverseProxy"]>>()
+  reverseProxy(...[options]: Parameters<T.Effects["reverseProxy"]>) {
+    
+    return this.rpcRound('reverseProxy', options) as ReturnType<T.Effects["reverseProxy"]>
   }
-  running(...args: Parameters<T.Effects["running"]>) {
-    return todo<ReturnType<T.Effects["running"]>>()
+  running(...[packageId]: Parameters<T.Effects["running"]>) {
+    
+    return this.rpcRound('running', {packageId}) as ReturnType<T.Effects["running"]>
   }
-  // runRsync(...args: Parameters<T.Effects[""]>) {
-  //   return todo<ReturnType<T.Effects["runRsync"]>>()
-  //   return todo("runRsync")
+  // runRsync(...[options]: Parameters<T.Effects[""]>) {
+  //   
+    // return this.rpcRound('executeAction', options) as ReturnType<T.Effects["executeAction"]>
+  //   
+    // return this.rpcRound('executeAction', options) as ReturnType<T.Effects["executeAction"]>
   // }
-  setConfigured(...args: Parameters<T.Effects["setConfigured"]>) {
-    return todo<ReturnType<T.Effects["setConfigured"]>>()
+  setConfigured(...[configured]: Parameters<T.Effects["setConfigured"]>) {
+    
+    return this.rpcRound('setConfigured', {configured}) as ReturnType<T.Effects["setConfigured"]>
   }
-  setDependencies(...args: Parameters<T.Effects["setDependencies"]>) {
-    return todo<ReturnType<T.Effects["setDependencies"]>>()
+  setDependencies(...[dependencies]: Parameters<T.Effects["setDependencies"]>) {
+    
+    return this.rpcRound('setDependencies', {dependencies}) as ReturnType<T.Effects["setDependencies"]>
   }
-  setHealth(...args: Parameters<T.Effects["setHealth"]>) {
-    return todo<ReturnType<T.Effects["setHealth"]>>()
+  setHealth(...[options]: Parameters<T.Effects["setHealth"]>) {
+    
+    return this.rpcRound('setHealth', options) as ReturnType<T.Effects["setHealth"]>
   }
-  shutdown(...args: Parameters<T.Effects["shutdown"]>) {
-    return todo<ReturnType<T.Effects["shutdown"]>>()
+  shutdown(...[]: Parameters<T.Effects["shutdown"]>) {
+    
+    return this.rpcRound('shutdown', null) 
   }
-  stopped(...args: Parameters<T.Effects["stopped"]>) {
-    return todo<ReturnType<T.Effects["stopped"]>>()
+  stopped(...[packageId]: Parameters<T.Effects["stopped"]>) {
+    
+    return this.rpcRound('stopped', {packageId}) as ReturnType<T.Effects["stopped"]>
   }
   store = todo<T.Effects["store"]>()
 }

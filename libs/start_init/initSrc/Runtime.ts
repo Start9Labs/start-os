@@ -10,6 +10,7 @@ import {
   number,
   matches,
 } from "ts-matches"
+import { Effects } from "./Effects"
 import * as Start9Package from "../service"
 
 const idType = some(string, number)
@@ -17,16 +18,16 @@ const path = "/start9/sockets/rpc.sock"
 const runType = object({
   id: idType,
   method: literal("run"),
-  input: object({
+  params: object({
     methodName: string,
-    methodArgs: array,
+    methodArgs: object,
   }),
 })
 const dealWithInput = async (input: unknown) =>
   matches(input)
-    .when(runType, async ({ id, input: { methodName, methodArgs } }) =>
+    .when(runType, async ({ id, params: { methodName, methodArgs } }) =>
       Promise.resolve((Start9Package as any)[methodName])
-        .then((x) => (typeof x === "function" ? x(...methodArgs) : x))
+        .then((x) => (typeof x === "function" ? x({...methodArgs, effects: new Effects()}) : x))
         .then((result) => ({ id, result }))
         .then(JSON.stringify)
         .catch((error) => ({
@@ -59,9 +60,9 @@ export class Runtime {
               console.log("x", JSON.stringify(x), typeof x)
               return x
             })
-            .then((x) => new Promise((resolve) => s.write("" + x, resolve))),
-        // .catch(x => ({id: x.id, error: x.message})}))
-        // .finally(() => void s.end()),
+            .catch(error => ({ error: {message:error?.message ?? String(error)}}))
+            .then((x) => new Promise((resolve) => s.write("" + x, resolve)))
+            .finally(() => void s.end()),
       )
     })
   }
