@@ -31,6 +31,8 @@ local_mount_root()
 	modprobe ${FSTYPE}
 	checkfs ${ROOT} root "${FSTYPE}"
 
+	ROOTFLAGS="$(echo "${ROOTFLAGS}" | sed 's/subvol=\(next\|current\)//')"
+
 	if [ "${FSTYPE}" != "unknown" ]; then
 		mount -t ${FSTYPE} ${ROOTFLAGS} ${ROOT} ${rootmnt}
 	else
