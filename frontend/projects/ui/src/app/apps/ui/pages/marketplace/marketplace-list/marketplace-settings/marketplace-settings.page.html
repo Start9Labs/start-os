@@ -42,7 +42,11 @@
     >
       <ion-item detail="false" [button]="!a.selected">
         <ion-avatar slot="start">
-          <store-icon [url]="a.url" size="36px"></store-icon>
+          <store-icon
+            [url]="a.url"
+            [marketplace]="config.marketplace"
+            size="36px"
+          ></store-icon>
         </ion-avatar>
         <ion-label>
           <h2>{{ a.name }}</h2>

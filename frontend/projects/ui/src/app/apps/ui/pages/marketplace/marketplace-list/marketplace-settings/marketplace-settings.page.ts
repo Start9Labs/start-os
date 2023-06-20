@@ -16,6 +16,7 @@ import { DataModel, UIStore } from 'src/app/services/patch-db/data-model'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { FormPage } from 'src/app/apps/ui/modals/form/form.page'
+import { ConfigService } from 'src/app/services/config.service'
 
 @Component({
   selector: 'marketplace-settings',
@@ -51,6 +52,7 @@ export class MarketplaceSettingsPage {
     private readonly marketplaceService: MarketplaceService,
     private readonly patch: PatchDB<DataModel>,
     private readonly dialogs: TuiDialogService,
+    readonly config: ConfigService,
   ) {}
 
   async presentModalAdd() {

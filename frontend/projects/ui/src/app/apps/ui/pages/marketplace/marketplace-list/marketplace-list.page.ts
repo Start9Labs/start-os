@@ -75,7 +75,7 @@ export class MarketplaceListPage {
     @Inject(AbstractMarketplaceService)
     private readonly marketplaceService: MarketplaceService,
     private readonly dialogs: TuiDialogService,
-    private readonly config: ConfigService,
+    readonly config: ConfigService,
     private readonly route: ActivatedRoute,
   ) {}
 

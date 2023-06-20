@@ -10,13 +10,16 @@ export type WorkspaceConfig = {
       url: string
       version: string
     }
-    marketplace: {
-      start9: 'https://registry.start9.com/'
-      community: 'https://community-registry.start9.com/'
-    }
+    marketplace: MarketplaceConfig
     mocks: {
       maskAs: 'tor' | 'lan'
       skipStartupAlerts: boolean
     }
   }
+}
+
+export interface MarketplaceConfig {
+  start9: 'https://registry.start9.com/'
+  community: 'https://community-registry.start9.com/'
+  [url: string]: string
 }
