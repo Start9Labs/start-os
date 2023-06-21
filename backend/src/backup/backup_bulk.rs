@@ -24,6 +24,7 @@ use crate::disk::mount::guard::TmpMountGuard;
 use crate::notifications::NotificationLevel;
 use crate::s9pk::manifest::PackageId;
 use crate::status::MainStatus;
+use crate::util::io::dir_copy;
 use crate::util::serde::IoFormat;
 use crate::util::{display_none, Invoke};
 use crate::version::VersionT;
@@ -369,12 +370,7 @@ async fn perform_backup<Db: DbHandle>(
     }
     let luks_folder = Path::new("/media/embassy/config/luks");
     if tokio::fs::metadata(&luks_folder).await.is_ok() {
-        Command::new("cp")
-            .arg("-r")
-            .arg(&luks_folder)
-            .arg(&luks_folder_bak)
-            .invoke(ErrorKind::Filesystem)
-            .await?;
+        dir_copy(&luks_folder, &luks_folder_bak).await?;
     }
 
     let timestamp = Some(Utc::now());

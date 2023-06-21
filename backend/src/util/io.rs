@@ -1,11 +1,13 @@
 use std::future::Future;
 use std::io::Cursor;
+use std::os::unix::prelude::MetadataExt;
 use std::path::Path;
 use std::task::Poll;
 
 use futures::future::{BoxFuture, Fuse};
 use futures::{AsyncSeek, FutureExt, TryStreamExt};
 use helpers::NonDetachingJoinHandle;
+use nix::unistd::{Gid, Uid};
 use tokio::io::{
     duplex, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf, WriteHalf,
 };
@@ -415,4 +417,121 @@ impl<T: AsyncWrite> AsyncWrite for BackTrackingReader<T> {
     ) -> Poll<Result<usize, std::io::Error>> {
         self.project().reader.poll_write_vectored(cx, bufs)
     }
+}
+
+pub fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + Send + Sync>(
+    src: P0,
+    dst: P1,
+) -> BoxFuture<'a, Result<(), crate::Error>> {
+    async move {
+        let m = tokio::fs::metadata(&src).await?;
+        let dst_path = dst.as_ref();
+        tokio::fs::create_dir_all(&dst_path).await.with_ctx(|_| {
+            (
+                crate::ErrorKind::Filesystem,
+                format!("mkdir {}", dst_path.display()),
+            )
+        })?;
+        tokio::fs::set_permissions(&dst_path, m.permissions())
+            .await
+            .with_ctx(|_| {
+                (
+                    crate::ErrorKind::Filesystem,
+                    format!("chmod {}", dst_path.display()),
+                )
+            })?;
+        let tmp_dst_path = dst_path.to_owned();
+        tokio::task::spawn_blocking(move || {
+            nix::unistd::chown(
+                &tmp_dst_path,
+                Some(Uid::from_raw(m.uid())),
+                Some(Gid::from_raw(m.gid())),
+            )
+        })
+        .await
+        .with_kind(crate::ErrorKind::Unknown)?
+        .with_ctx(|_| {
+            (
+                crate::ErrorKind::Filesystem,
+                format!("chown {}", dst_path.display()),
+            )
+        })?;
+        tokio_stream::wrappers::ReadDirStream::new(tokio::fs::read_dir(src.as_ref()).await?)
+            .map_err(|e| crate::Error::new(e, crate::ErrorKind::Filesystem))
+            .try_for_each(|e| async move {
+                let m = e.metadata().await?;
+                let src_path = e.path();
+                let dst_path = dst_path.join(e.file_name());
+                if m.is_file() {
+                    let len = m.len();
+                    let mut dst_file =
+                        &mut tokio::fs::File::create(&dst_path).await.with_ctx(|_| {
+                            (
+                                crate::ErrorKind::Filesystem,
+                                format!("create {}", dst_path.display()),
+                            )
+                        })?;
+                    tokio::io::copy(
+                        &mut tokio::fs::File::open(&src_path).await.with_ctx(|_| {
+                            (
+                                crate::ErrorKind::Filesystem,
+                                format!("open {}", src_path.display()),
+                            )
+                        })?,
+                        &mut dst_file,
+                    )
+                    .await
+                    .with_ctx(|_| {
+                        (
+                            crate::ErrorKind::Filesystem,
+                            format!("cp {} -> {}", src_path.display(), dst_path.display()),
+                        )
+                    })?;
+                    dst_file.flush().await?;
+                    dst_file.shutdown().await?;
+                    dst_file.sync_all().await?;
+                    drop(dst_file);
+                    let tmp_dst_path = dst_path.clone();
+                    tokio::task::spawn_blocking(move || {
+                        nix::unistd::chown(
+                            &tmp_dst_path,
+                            Some(Uid::from_raw(m.uid())),
+                            Some(Gid::from_raw(m.gid())),
+                        )
+                    })
+                    .await
+                    .with_kind(crate::ErrorKind::Unknown)?
+                    .with_ctx(|_| {
+                        (
+                            crate::ErrorKind::Filesystem,
+                            format!("chown {}", dst_path.display()),
+                        )
+                    })?;
+                } else if m.is_dir() {
+                    dir_copy(src_path, dst_path).await?;
+                } else if m.file_type().is_symlink() {
+                    tokio::fs::symlink(
+                        tokio::fs::read_link(&src_path).await.with_ctx(|_| {
+                            (
+                                crate::ErrorKind::Filesystem,
+                                format!("readlink {}", src_path.display()),
+                            )
+                        })?,
+                        &dst_path,
+                    )
+                    .await
+                    .with_ctx(|_| {
+                        (
+                            crate::ErrorKind::Filesystem,
+                            format!("cp -P {} -> {}", src_path.display(), dst_path.display()),
+                        )
+                    })?;
+                    // Do not set permissions (see https://unix.stackexchange.com/questions/87200/change-permissions-for-a-symbolic-link)
+                }
+                Ok(())
+            })
+            .await?;
+        Ok(())
+    }
+    .boxed()
 }
