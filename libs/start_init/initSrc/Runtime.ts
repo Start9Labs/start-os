@@ -11,7 +11,8 @@ import {
   matches,
 } from "ts-matches"
 import { Effects } from "./Effects"
-import * as Start9Package from "../service"
+// @ts-ignore Expecting that we will be mounted sometime later for the bundle
+import * as Start9Package from "/service"
 
 const idType = some(string, number)
 const path = "/start9/sockets/rpc.sock"
@@ -29,7 +30,6 @@ const dealWithInput = async (input: unknown) =>
       Promise.resolve((Start9Package as any)[methodName])
         .then((x) => (typeof x === "function" ? x({...methodArgs, effects: new Effects()}) : x))
         .then((result) => ({ id, result }))
-        .then(JSON.stringify)
         .catch((error) => ({
           id,
           error: { message: error?.message ?? String(error) },
@@ -61,6 +61,7 @@ export class Runtime {
               return x
             })
             .catch(error => ({ error: {message:error?.message ?? String(error)}}))
+            .then(JSON.stringify)
             .then((x) => new Promise((resolve) => s.write("" + x, resolve)))
             .finally(() => void s.end()),
       )

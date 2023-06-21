@@ -1,13 +1,10 @@
 import * as T from "@start9labs/start-sdk/lib/types"
 import * as net from "net"
 
-const todo = <T>(): T => {
-  throw new Error("not implemented")
-}
-
 const path = "/start9/sockets/rpcOut.sock"
+const MAIN = "main" as const
 export class Effects implements T.Effects {
-  constructor() {}
+  constructor(readonly method: string) {}
   id = 0
   rpcRound(method: string, params: unknown) {
     const id = this.id++;
@@ -28,6 +25,9 @@ export class Effects implements T.Effects {
         client.end();
       });
     })
+  }
+  started= this.method !== MAIN ? null : ()=> {
+    return this.rpcRound('started', null)
   }
   bind(...[options]: Parameters<T.Effects["bind"]>) {
     return this.rpcRound('bind', (options)) as ReturnType<T.Effects["bind"]>
@@ -172,5 +172,9 @@ export class Effects implements T.Effects {
     
     return this.rpcRound('stopped', {packageId}) as ReturnType<T.Effects["stopped"]>
   }
-  store = todo<T.Effects["store"]>()
+  store: T.Effects['store'] = {
+    get:(options) => this.rpcRound('getStore', options) as ReturnType<T.Effects["store"]['get']>,
+    set:(options) => this.rpcRound('setStore', options) as ReturnType<T.Effects["store"]['set']>
+    
+  }
 }

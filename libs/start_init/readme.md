@@ -15,23 +15,28 @@ a fake server (in this case I am using syncthing-wrapper)
 run_test () {
     (
         set -e
-        local libs=/home/jm/Projects/start-os/libs/start_init
-        local sockets=/tmp/start9
-        local service=/home/jm/Projects/syncthing-wrapper
+         libs=/home/jm/Projects/start-os/libs/start_init
+         sockets=/tmp/start9
+         service=/home/jm/Projects/syncthing-wrapper
 
-        cd $libs
-        sudo rm -rf service || true
-        ln -s $service service
+        docker run  \
+            -v $libs:/libs \
+            -v $service:/service \
+            -w /libs \
+            --rm node:18-alpine \
+            sh -c "
+                npm i &&
+                npm run bundle:esbuild
+            "
 
-        npm i
-        npm run bundle:esbuild
 
-        sudo rm -rf $sockets  || true
+
+        rm -rf $sockets  || true
         mkdir -p $sockets/sockets
         cd $service
         docker run \
-            --volume $sockets:/start9 \
-            --volume $libs:/start-init \
+            -v $sockets:/start9 \
+            -v $libs:/start-init \
             --rm -it $(docker build -q .) sh -c "
                 apk add nodejs &&
                 node /start-init/bundleEs.js
