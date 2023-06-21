@@ -25,8 +25,7 @@
       "@start9labs/shared": ["../shared/src/public-api"]
     },
     "typeRoots": ["node_modules/@types"],
-    "types": ["node"],
-    "allowSyntheticDefaultImports": true
+    "types": ["node"]
   },
   "angularCompilerOptions": {
     "enableI18nLegacyMessageIdFormat": false,
