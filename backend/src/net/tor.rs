@@ -416,8 +416,8 @@ async fn torctl(
         )
         .await?;
 
-    for (key, service) in &*services {
-        let key = TorSecretKeyV3::from(*key);
+    for (key, service) in std::mem::take(services) {
+        let key = TorSecretKeyV3::from(key);
         let bindings = service
             .iter()
             .flat_map(|(ext, int)| {
@@ -426,9 +426,12 @@ async fn torctl(
                     .map(|(addr, _)| (*ext, SocketAddr::from(*addr)))
             })
             .collect::<Vec<_>>();
-        connection
-            .add_onion_v3(&key, false, false, false, None, &mut bindings.iter())
-            .await?;
+        if !bindings.is_empty() {
+            services.insert(key.as_bytes(), service);
+            connection
+                .add_onion_v3(&key, false, false, false, None, &mut bindings.iter())
+                .await?;
+        }
     }
 
     let handler = async {
