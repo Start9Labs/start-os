@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::net::SocketAddr;
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
@@ -256,7 +257,7 @@ async fn torctl(
     tor_socks: SocketAddr,
     recv: &mut mpsc::UnboundedReceiver<TorCommand>,
     services: &mut BTreeMap<[u8; 64], BTreeMap<u16, BTreeMap<SocketAddr, Weak<()>>>>,
-    wipe_state: &mut bool,
+    wipe_state: &AtomicBool,
 ) -> Result<(), Error> {
     let bootstrap = async {
         if Command::new("systemctl")
@@ -285,9 +286,9 @@ async fn torctl(
                 ));
             }
         }
-        if *wipe_state {
+        if wipe_state.load(std::sync::atomic::Ordering::SeqCst) {
             tokio::fs::remove_dir_all("/var/lib/tor").await?;
-            *wipe_state = false;
+            wipe_state.store(false, std::sync::atomic::Ordering::SeqCst);
         }
         tokio::fs::create_dir_all("/var/lib/tor").await?;
         Command::new("chown")
@@ -402,12 +403,12 @@ async fn torctl(
                         )))
                         .unwrap_or_default();
                 }
-                TorCommand::Gc { .. } => (),
+                TorCommand::GC { .. } => (),
                 TorCommand::Reset {
                     wipe_state: new_wipe_state,
                     context,
                 } => {
-                    *wipe_state |= new_wipe_state;
+                    wipe_state.fetch_or(new_wipe_state, std::sync::atomic::Ordering::SeqCst);
                     return Err(context);
                 }
             }
@@ -565,7 +566,7 @@ async fn torctl(
                     wipe_state: new_wipe_state,
                     context,
                 } => {
-                    *wipe_state |= new_wipe_state;
+                    wipe_state.fetch_or(new_wipe_state, std::sync::atomic::Ordering::SeqCst);
                     return Err(context);
                 }
             }
@@ -629,13 +630,13 @@ impl TorControl {
         Self {
             _thread: tokio::spawn(async move {
                 let mut services = BTreeMap::new();
-                let mut wipe_state = false;
+                let wipe_state = AtomicBool::new(false);
                 while let Err(e) = torctl(
                     tor_control,
                     tor_socks,
                     &mut recv,
                     &mut services,
-                    &mut wipe_state,
+                    &wipe_state,
                 )
                 .await
                 {
