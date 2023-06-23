@@ -32,6 +32,7 @@ use crate::util::{display_none, Invoke};
 use crate::{Error, ErrorKind, ResultExt as _};
 
 pub const SYSTEMD_UNIT: &str = "tor@default";
+const STARTING_HEALTH_TIMEOUT: u64 = 120; // 2min
 
 enum ErrorLogSeverity {
     Fatal { wipe_state: bool },
@@ -258,6 +259,7 @@ async fn torctl(
     recv: &mut mpsc::UnboundedReceiver<TorCommand>,
     services: &mut BTreeMap<[u8; 64], BTreeMap<u16, BTreeMap<SocketAddr, Weak<()>>>>,
     wipe_state: &AtomicBool,
+    health_timeout: &mut Duration,
 ) -> Result<(), Error> {
     let bootstrap = async {
         if Command::new("systemctl")
@@ -611,10 +613,37 @@ async fn torctl(
         }
         Err(Error::new(eyre!("Log stream terminated"), ErrorKind::Tor))
     };
+    let health_checker = async {
+        let mut last_success = Instant::now();
+        loop {
+            tokio::time::sleep(Duration::from_secs(30)).await;
+            if let Err(e) = tokio::time::timeout(
+                Duration::from_secs(30),
+                tokio_socks::tcp::Socks5Stream::connect(
+                    tor_socks,
+                    (hck_key.public().get_onion_address().to_string(), 80),
+                ),
+            )
+            .await
+            .map_err(|e| e.to_string())
+            .and_then(|e| e.map_err(|e| e.to_string()))
+            {
+                if last_success.elapsed() > *health_timeout {
+                    let err = Error::new(eyre!("Tor health check failed for longer than current timeout ({health_timeout:?})"), crate::ErrorKind::Tor);
+                    *health_timeout *= 2;
+                    wipe_state.store(true, std::sync::atomic::Ordering::SeqCst);
+                    return Err(err);
+                }
+            } else {
+                last_success = Instant::now();
+            }
+        }
+    };
 
     tokio::select! {
         res = handler => res?,
         res = log_parser => res?,
+        res = health_checker => res?,
     }
 
     Ok(())
@@ -631,12 +660,14 @@ impl TorControl {
             _thread: tokio::spawn(async move {
                 let mut services = BTreeMap::new();
                 let wipe_state = AtomicBool::new(false);
+                let mut health_timeout = Duration::from_secs(STARTING_HEALTH_TIMEOUT);
                 while let Err(e) = torctl(
                     tor_control,
                     tor_socks,
                     &mut recv,
                     &mut services,
                     &wipe_state,
+                    &mut health_timeout,
                 )
                 .await
                 {
