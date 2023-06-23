@@ -11,8 +11,6 @@ import {
   matches,
 } from "ts-matches"
 import { Effects } from "./Effects"
-// @ts-ignore Expecting that we will be mounted sometime later for the bundle
-import * as Start9Package from "/service"
 import { CallbackHolder } from "./CallbackHolder"
 
 const idType = some(string, number)
@@ -36,7 +34,8 @@ const callbackType = object({
 const dealWithInput = async (callbackHolder: CallbackHolder, input: unknown, ) =>
   matches(input)
     .when(runType, async ({ id, params: { methodName, methodArgs } }) =>
-      Promise.resolve((Start9Package as any)[methodName])
+    // @ts-ignore
+      import('../service').then(x => (x)[methodName])
         .then((x) => (typeof x === "function" ? x({...methodArgs, effects: new Effects(methodName, callbackHolder)}) : x))
         .then((result) => ({ id, result }))
         .catch((error) => ({

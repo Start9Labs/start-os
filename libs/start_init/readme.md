@@ -15,9 +15,9 @@ a fake server (in this case I am using syncthing-wrapper)
 run_test () {
     (
         set -e
-         libs=/home/jm/Projects/start-os/libs/start_init
-         sockets=/tmp/start9
-         service=/home/jm/Projects/syncthing-wrapper
+        libs=/home/jm/Projects/start-os/libs/start_init
+        sockets=/tmp/start9
+        service=/home/jm/Projects/syncthing-wrapper
 
         docker run  \
             -v $libs:/libs \
@@ -25,8 +25,9 @@ run_test () {
             -w /libs \
             --rm node:18-alpine \
             sh -c "
-                npm i &&
-                npm run bundle:esbuild
+                npm i &&                  
+                npm run bundle:esbuild  &&
+                npm run bundle:service
             "
 
 
