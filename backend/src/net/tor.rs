@@ -256,15 +256,9 @@ async fn torctl(
     tor_socks: SocketAddr,
     recv: &mut mpsc::UnboundedReceiver<TorCommand>,
     services: &mut BTreeMap<[u8; 64], BTreeMap<u16, BTreeMap<SocketAddr, Weak<()>>>>,
+    wipe_state: &mut bool,
 ) -> Result<(), Error> {
     let bootstrap = async {
-        tokio::fs::create_dir_all("/var/lib/tor").await?;
-        Command::new("chown")
-            .arg("-R")
-            .arg("debian-tor")
-            .arg("/var/lib/tor")
-            .invoke(ErrorKind::Filesystem)
-            .await?;
         if Command::new("systemctl")
             .arg("is-active")
             .arg("--quiet")
@@ -278,15 +272,30 @@ async fn torctl(
                 .arg("tor")
                 .invoke(ErrorKind::Tor)
                 .await?;
-            while Command::new("pidof")
-                .arg("tor")
-                .invoke(ErrorKind::Tor)
-                .await
-                .is_ok()
-            {
+            for _ in 0..30 {
+                if TcpStream::connect(tor_control).await.is_err() {
+                    break;
+                }
                 tokio::time::sleep(Duration::from_secs(1)).await;
             }
+            if TcpStream::connect(tor_control).await.is_ok() {
+                return Err(Error::new(
+                    eyre!("Tor is failing to shut down"),
+                    ErrorKind::Tor,
+                ));
+            }
         }
+        if *wipe_state {
+            tokio::fs::remove_dir_all("/var/lib/tor").await?;
+            *wipe_state = false;
+        }
+        tokio::fs::create_dir_all("/var/lib/tor").await?;
+        Command::new("chown")
+            .arg("-R")
+            .arg("debian-tor")
+            .arg("/var/lib/tor")
+            .invoke(ErrorKind::Filesystem)
+            .await?;
         Command::new("systemctl")
             .arg("start")
             .arg("tor")
@@ -393,7 +402,14 @@ async fn torctl(
                         )))
                         .unwrap_or_default();
                 }
-                _ => (),
+                TorCommand::Gc { .. } => (),
+                TorCommand::Reset {
+                    wipe_state: new_wipe_state,
+                    context,
+                } => {
+                    *wipe_state |= new_wipe_state;
+                    return Err(context);
+                }
             }
         }
         Ok(())
@@ -546,17 +562,10 @@ async fn torctl(
                         .unwrap_or_default();
                 }
                 TorCommand::Reset {
-                    wipe_state,
+                    wipe_state: new_wipe_state,
                     context,
                 } => {
-                    if wipe_state {
-                        Command::new("systemctl")
-                            .arg("stop")
-                            .arg("tor")
-                            .invoke(ErrorKind::Tor)
-                            .await?;
-                        tokio::fs::remove_dir_all("/var/lib/tor").await?;
-                    }
+                    *wipe_state |= new_wipe_state;
                     return Err(context);
                 }
             }
@@ -620,7 +629,16 @@ impl TorControl {
         Self {
             _thread: tokio::spawn(async move {
                 let mut services = BTreeMap::new();
-                while let Err(e) = torctl(tor_control, tor_socks, &mut recv, &mut services).await {
+                let mut wipe_state = false;
+                while let Err(e) = torctl(
+                    tor_control,
+                    tor_socks,
+                    &mut recv,
+                    &mut services,
+                    &mut wipe_state,
+                )
+                .await
+                {
                     tracing::error!("{e}: Restarting tor");
                     tracing::debug!("{e:?}");
                 }
