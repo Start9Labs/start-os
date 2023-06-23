@@ -25,6 +25,14 @@ const runType = object({
     methodArgs: object,
   }),
 })
+const callbackType = object({
+  id: idType,
+  method: literal("callback"),
+  params: object({
+    callback: number,
+    args: array,
+  }),
+})
 const dealWithInput = async (callbackHolder: CallbackHolder, input: unknown, ) =>
   matches(input)
     .when(runType, async ({ id, params: { methodName, methodArgs } }) =>
@@ -35,7 +43,14 @@ const dealWithInput = async (callbackHolder: CallbackHolder, input: unknown, ) =
           id,
           error: { message: error?.message ?? String(error) },
         })),
-    )
+    ).when(callbackType, async ({ id, params: { callback, args } }) =>
+    Promise.resolve(callbackHolder.callCallback(callback, args))
+      .then((result) => ({ id, result }))
+      .catch((error) => ({
+        id,
+        error: { message: error?.message ?? String(error) },
+      })),
+  )
 
     .defaultToLazy(() => {
       console.warn(`Coudln't parse the following input ${input}`)
