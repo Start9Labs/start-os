@@ -13,6 +13,7 @@ import {
 import { Effects } from "./Effects"
 // @ts-ignore Expecting that we will be mounted sometime later for the bundle
 import * as Start9Package from "/service"
+import { CallbackHolder } from "./CallbackHolder"
 
 const idType = some(string, number)
 const path = "/start9/sockets/rpc.sock"
@@ -24,11 +25,11 @@ const runType = object({
     methodArgs: object,
   }),
 })
-const dealWithInput = async (input: unknown) =>
+const dealWithInput = async (callbackHolder: CallbackHolder, input: unknown, ) =>
   matches(input)
     .when(runType, async ({ id, params: { methodName, methodArgs } }) =>
       Promise.resolve((Start9Package as any)[methodName])
-        .then((x) => (typeof x === "function" ? x({...methodArgs, effects: new Effects()}) : x))
+        .then((x) => (typeof x === "function" ? x({...methodArgs, effects: new Effects(methodName, callbackHolder)}) : x))
         .then((result) => ({ id, result }))
         .catch((error) => ({
           id,
@@ -46,6 +47,7 @@ const dealWithInput = async (input: unknown) =>
 const jsonParse = (x: Buffer) => JSON.parse(x.toString())
 export class Runtime {
   unixSocketServer = net.createServer(async (server) => {})
+  private callbacks = new CallbackHolder()
   constructor() {
     this.unixSocketServer.listen(path)
 
@@ -55,7 +57,7 @@ export class Runtime {
         (a) =>
           Promise.resolve(a)
             .then(jsonParse)
-            .then(dealWithInput)
+            .then(dealWithInput.bind(null, this.callbacks))
             .then((x) => {
               console.log("x", JSON.stringify(x), typeof x)
               return x

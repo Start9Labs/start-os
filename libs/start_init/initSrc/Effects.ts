@@ -1,10 +1,11 @@
 import * as T from "@start9labs/start-sdk/lib/types"
 import * as net from "net"
+import { CallbackHolder } from "./CallbackHolder"
 
 const path = "/start9/sockets/rpcOut.sock"
 const MAIN = "main" as const
 export class Effects implements T.Effects {
-  constructor(readonly method: string) {}
+  constructor(readonly method: string, readonly callbackHolder: CallbackHolder) {}
   id = 0
   rpcRound(method: string, params: unknown) {
     const id = this.id++;
@@ -70,13 +71,16 @@ export class Effects implements T.Effects {
     
     return this.rpcRound('getContainerIp', null) as ReturnType<T.Effects["getContainerIp"]>
   }
-  getHostnames: any = (...[]: any[]) => {
-    
-    return this.rpcRound('getHostnames', null) as ReturnType<T.Effects["getHostnames"]>
+  getHostnames: any = (...[allOptions]: any[]) => {
+    const options = {
+      ...allOptions,
+      callback: this.callbackHolder.addCallback(allOptions.callback)
+    }
+    return this.rpcRound('getHostnames', options) as ReturnType<T.Effects["getHostnames"]>
   }
   getInterface(...[options]: Parameters<T.Effects["getInterface"]>) {
     
-    return this.rpcRound('getInterface', (options)) as ReturnType<T.Effects["getInterface"]>
+    return this.rpcRound('getInterface', {...options, callback: this.callbackHolder.addCallback(options.callback)}) as ReturnType<T.Effects["getInterface"]>
   }
   getIPHostname(...[]: Parameters<T.Effects["getIPHostname"]>) {
     
@@ -88,7 +92,7 @@ export class Effects implements T.Effects {
   }
   getPrimaryUrl(...[options]: Parameters<T.Effects["getPrimaryUrl"]>) {
     
-    return this.rpcRound('getPrimaryUrl', (options)) as ReturnType<T.Effects["getPrimaryUrl"]>
+    return this.rpcRound('getPrimaryUrl', {...options, callback: this.callbackHolder.addCallback(options.callback)}) as ReturnType<T.Effects["getPrimaryUrl"]>
   }
   getServicePortForward(
     ...[options]: Parameters<T.Effects["getServicePortForward"]>
@@ -112,7 +116,7 @@ export class Effects implements T.Effects {
   }
   getSystemSmtp(...[options]: Parameters<T.Effects["getSystemSmtp"]>) {
     
-    return this.rpcRound('getSystemSmtp', {}) as ReturnType<T.Effects["getSystemSmtp"]>
+    return this.rpcRound('getSystemSmtp', {...options, callback: this.callbackHolder.addCallback(options.callback)}) as ReturnType<T.Effects["getSystemSmtp"]>
   }
   is_sandboxed(...[]: Parameters<T.Effects["is_sandboxed"]>) {
     
@@ -120,7 +124,7 @@ export class Effects implements T.Effects {
   }
   listInterface(...[options]: Parameters<T.Effects["listInterface"]>) {
     
-    return this.rpcRound('listInterface', options) as ReturnType<T.Effects["listInterface"]>
+    return this.rpcRound('listInterface', {...options, callback: this.callbackHolder.addCallback(options.callback)}) as ReturnType<T.Effects["listInterface"]>
   }
   mount(...[options]: Parameters<T.Effects["mount"]>) {
     
@@ -173,7 +177,7 @@ export class Effects implements T.Effects {
     return this.rpcRound('stopped', {packageId}) as ReturnType<T.Effects["stopped"]>
   }
   store: T.Effects['store'] = {
-    get:(options) => this.rpcRound('getStore', options) as ReturnType<T.Effects["store"]['get']>,
+    get:(options) => this.rpcRound('getStore', {...options, callback: this.callbackHolder.addCallback(options.callback)}) as ReturnType<T.Effects["store"]['get']>,
     set:(options) => this.rpcRound('setStore', options) as ReturnType<T.Effects["store"]['set']>
     
   }
