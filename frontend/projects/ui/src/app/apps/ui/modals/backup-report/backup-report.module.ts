@@ -1,11 +1,11 @@
 import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { IonicModule } from '@ionic/angular'
-import { BackupReportPage } from './backup-report.page'
+import { BackupReportComponent } from './backup-report.component'
 
 @NgModule({
-  declarations: [BackupReportPage],
+  declarations: [BackupReportComponent],
   imports: [CommonModule, IonicModule],
-  exports: [BackupReportPage],
+  exports: [BackupReportComponent],
 })
 export class BackupReportPageModule {}

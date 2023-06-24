@@ -56,7 +56,10 @@
                 name="open-outline"
               ></ion-icon>
             </ion-button>
-            <ion-button fill="clear" (click)="copy(clearnetAddress)">
+            <ion-button
+              fill="clear"
+              (click)="copyService.copy(clearnetAddress)"
+            >
               <ion-icon
                 slot="icon-only"
                 size="small"
@@ -107,7 +110,7 @@
               name="open-outline"
             ></ion-icon>
           </ion-button>
-          <ion-button fill="clear" (click)="copy(torHostname)">
+          <ion-button fill="clear" (click)="copyService.copy(torHostname)">
             <ion-icon
               slot="icon-only"
               size="small"
@@ -160,7 +163,7 @@
               name="open-outline"
             ></ion-icon>
           </ion-button>
-          <ion-button fill="clear" (click)="copy(lanHostname)">
+          <ion-button fill="clear" (click)="copyService.copy(lanHostname)">
             <ion-icon
               slot="icon-only"
               size="small"
@@ -183,7 +186,7 @@
                 name="open-outline"
               ></ion-icon>
             </ion-button>
-            <ion-button fill="clear" (click)="copy(ipv4)">
+            <ion-button fill="clear" (click)="copyService.copy(ipv4)">
               <ion-icon
                 slot="icon-only"
                 size="small"
@@ -205,7 +208,7 @@
                 name="open-outline"
               ></ion-icon>
             </ion-button>
-            <ion-button fill="clear" (click)="copy(ipv6)">
+            <ion-button fill="clear" (click)="copyService.copy(ipv6)">
               <ion-icon
                 slot="icon-only"
                 size="small"

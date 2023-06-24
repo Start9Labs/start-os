@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@angular/core'
-import { ModalController } from '@ionic/angular'
+import { AbstractMarketplaceService } from '@start9labs/marketplace'
+import { TuiDialogService } from '@taiga-ui/core'
 import { filter, share, switchMap, take, tap, Observable } from 'rxjs'
 import { PatchDB } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
@@ -8,8 +9,8 @@ import { OSWelcomePage } from '../common/os-welcome/os-welcome.page'
 import { ConfigService } from 'src/app/services/config.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
-import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { ConnectionService } from 'src/app/services/connection.service'
+import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 
 // Get data from PatchDb after is starts and act upon it
 @Injectable({
@@ -33,7 +34,7 @@ export class PatchDataService extends Observable<DataModel> {
     private readonly patch: PatchDB<DataModel>,
     private readonly eosService: EOSService,
     private readonly config: ConfigService,
-    private readonly modalCtrl: ModalController,
+    private readonly dialogs: TuiDialogService,
     private readonly embassyApi: ApiService,
     @Inject(AbstractMarketplaceService)
     private readonly marketplaceService: MarketplaceService,
@@ -47,22 +48,21 @@ export class PatchDataService extends Observable<DataModel> {
     this.marketplaceService.getMarketplace$().pipe(take(1)).subscribe()
   }
 
-  private async showEosWelcome(ackVersion: string): Promise<void> {
+  private showEosWelcome(ackVersion: string) {
     if (this.config.skipStartupAlerts || ackVersion === this.config.version) {
       return
     }
 
-    const modal = await this.modalCtrl.create({
-      component: OSWelcomePage,
-      presentingElement: await this.modalCtrl.getTop(),
-      backdropDismiss: false,
-    })
-    modal.onWillDismiss().then(() => {
-      this.embassyApi
-        .setDbValue<string>(['ack-welcome'], this.config.version)
-        .catch()
-    })
-
-    await modal.present()
+    this.dialogs
+      .open(new PolymorpheusComponent(OSWelcomePage), {
+        label: 'Release Notes',
+      })
+      .subscribe({
+        complete: () => {
+          this.embassyApi
+            .setDbValue<string>(['ack-welcome'], this.config.version)
+            .catch()
+        },
+      })
   }
 }

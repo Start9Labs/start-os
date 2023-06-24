@@ -1,11 +1,7 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
-import { AlertController, ToastController } from '@ionic/angular'
+import { AlertController } from '@ionic/angular'
 import { PatchDB } from 'patch-db-client'
-import {
-  ErrorToastService,
-  copyToClipboard,
-  LoadingService,
-} from '@start9labs/shared'
+import { LoadingService, CopyService, ErrorService } from '@start9labs/shared'
 import { DataModel, NetworkInfo } from 'src/app/services/patch-db/data-model'
 import { TuiDialogOptions } from '@taiga-ui/core'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
@@ -36,11 +32,11 @@ export class OSAddressesPage {
   )
 
   constructor(
-    private readonly toastCtrl: ToastController,
+    readonly copyService: CopyService,
     private readonly loader: LoadingService,
     private readonly formDialog: FormDialogService,
     private readonly patch: PatchDB<DataModel>,
-    private readonly errToast: ErrorToastService,
+    private readonly errorService: ErrorService,
     private readonly api: ApiService,
     private readonly alertCtrl: AlertController,
   ) {}
@@ -51,22 +47,6 @@ export class OSAddressesPage {
 
   installCert(): void {
     document.getElementById('install-cert')?.click()
-  }
-
-  async copy(address: string) {
-    let message = ''
-    await copyToClipboard(address || '').then(success => {
-      message = success
-        ? 'Copied to clipboard!'
-        : 'Failed to copy to clipboard.'
-    })
-
-    const toast = await this.toastCtrl.create({
-      header: message,
-      position: 'bottom',
-      duration: 1000,
-    })
-    await toast.present()
   }
 
   async presentModalAddClearnet(network: NetworkInfo) {
@@ -120,7 +100,7 @@ export class OSAddressesPage {
       await this.api.setServerClearnetAddress({ address })
       return true
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
       return false
     } finally {
       loader.unsubscribe()
@@ -133,7 +113,7 @@ export class OSAddressesPage {
     try {
       await this.api.setServerClearnetAddress({ address: null })
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
       loader.unsubscribe()
     }

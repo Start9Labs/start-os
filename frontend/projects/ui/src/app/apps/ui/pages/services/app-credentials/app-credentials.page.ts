@@ -1,12 +1,7 @@
 import { Component } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ToastController } from '@ionic/angular'
-import {
-  ErrorToastService,
-  getPkgId,
-  copyToClipboard,
-} from '@start9labs/shared'
+import { getPkgId, CopyService, ErrorService } from '@start9labs/shared'
 import { mask } from 'src/app/util/mask'
 
 @Component({
@@ -23,8 +18,8 @@ export class AppCredentialsPage {
   constructor(
     private readonly route: ActivatedRoute,
     private readonly embassyApi: ApiService,
-    private readonly errToast: ErrorToastService,
-    private readonly toastCtrl: ToastController,
+    private readonly errorService: ErrorService,
+    readonly copyService: CopyService,
   ) {}
 
   async ngOnInit() {
@@ -33,20 +28,6 @@ export class AppCredentialsPage {
 
   async refresh() {
     await this.getCredentials()
-  }
-
-  async copy(text: string): Promise<void> {
-    const success = await copyToClipboard(text)
-    const message = success
-      ? 'Copied. Clearing clipboard in 20 seconds'
-      : 'Failed to copy.'
-
-    const toast = await this.toastCtrl.create({
-      header: message,
-      position: 'bottom',
-      duration: 2000,
-    })
-    await toast.present()
   }
 
   mask(value: string) {
@@ -64,7 +45,7 @@ export class AppCredentialsPage {
         id: this.pkgId,
       })
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
       this.loading = false
     }

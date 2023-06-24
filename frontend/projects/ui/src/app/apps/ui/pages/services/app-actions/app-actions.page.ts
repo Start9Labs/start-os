@@ -6,15 +6,7 @@ import {
   PipeTransform,
 } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { AlertController, ModalController, NavController } from '@ionic/angular'
-import { PatchDB } from 'patch-db-client'
-import {
-  Action,
-  DataModel,
-  PackageDataEntry,
-  PackageState,
-} from 'src/app/services/patch-db/data-model'
+import { AlertController, NavController } from '@ionic/angular'
 import {
   isEmptyObject,
   getPkgId,
@@ -22,11 +14,21 @@ import {
   ErrorService,
   LoadingService,
 } from '@start9labs/shared'
+import { TuiDialogService } from '@taiga-ui/core'
+import { PatchDB } from 'patch-db-client'
+import { filter, switchMap, timer } from 'rxjs'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
+import {
+  Action,
+  DataModel,
+  PackageDataEntry,
+  PackageState,
+} from 'src/app/services/patch-db/data-model'
 import { ActionSuccessPage } from './action-success/action-success.page'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
-import { filter } from 'rxjs'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { FormPage } from 'src/app/apps/ui/modals/form/form.page'
+import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 
 @Component({
   selector: 'app-actions',
@@ -43,7 +45,7 @@ export class AppActionsPage {
   constructor(
     private readonly route: ActivatedRoute,
     private readonly embassyApi: ApiService,
-    private readonly modalCtrl: ModalController,
+    private readonly dialogs: TuiDialogService,
     private readonly alertCtrl: AlertController,
     private readonly errorService: ErrorService,
     private readonly loader: LoadingService,
@@ -155,20 +157,23 @@ export class AppActionsPage {
     const loader = this.loader.open('Executing action...').subscribe()
 
     try {
-      const res = await this.embassyApi.executePackageAction({
+      const data = await this.embassyApi.executePackageAction({
         id: this.pkgId,
         'action-id': actionId,
         input,
       })
 
-      const successModal = await this.modalCtrl.create({
-        component: ActionSuccessPage,
-        componentProps: {
-          actionRes: res,
-        },
-      })
+      timer(500)
+        .pipe(
+          switchMap(() =>
+            this.dialogs.open(new PolymorpheusComponent(ActionSuccessPage), {
+              label: 'Execution Complete',
+              data,
+            }),
+          ),
+        )
+        .subscribe()
 
-      setTimeout(() => successModal.present(), 500)
       return true
     } catch (e: any) {
       this.errorService.handleError(e)

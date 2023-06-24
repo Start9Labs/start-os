@@ -13,7 +13,7 @@
           *ngIf="manifest['git-hash'] as gitHash; else noHash"
           button
           detail="false"
-          (click)="copy(gitHash)"
+          (click)="copyService.copy(gitHash)"
         >
           <ion-label>
             <h2>Git Hash</h2>
