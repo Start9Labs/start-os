@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { ModalController, ToastController } from '@ionic/angular'
-import { copyToClipboard, MarkdownComponent } from '@start9labs/shared'
+import { CopyService, MarkdownComponent } from '@start9labs/shared'
+import { TuiDialogService } from '@taiga-ui/core'
+import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 import { from } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
@@ -15,40 +16,26 @@ export class AppShowAdditionalComponent {
   pkg!: PackageDataEntry
 
   constructor(
-    private readonly modalCtrl: ModalController,
-    private readonly toastCtrl: ToastController,
+    readonly copyService: CopyService,
+    private readonly dialogs: TuiDialogService,
     private readonly api: ApiService,
   ) {}
 
-  async copy(address: string): Promise<void> {
-    const success = await copyToClipboard(address)
-    const message = success
-      ? 'Copied to clipboard!'
-      : 'Failed to copy to clipboard.'
-
-    const toast = await this.toastCtrl.create({
-      header: message,
-      position: 'bottom',
-      duration: 1000,
-    })
-    await toast.present()
-  }
-
-  async presentModalLicense() {
+  presentModalLicense() {
     const { id, version } = this.pkg.manifest
 
-    const modal = await this.modalCtrl.create({
-      componentProps: {
-        title: 'License',
-        content: from(
-          this.api.getStatic(
-            `/public/package-data/${id}/${version}/LICENSE.md`,
+    this.dialogs
+      .open(new PolymorpheusComponent(MarkdownComponent), {
+        label: 'License',
+        size: 'l',
+        data: {
+          content: from(
+            this.api.getStatic(
+              `/public/package-data/${id}/${version}/LICENSE.md`,
+            ),
           ),
-        ),
-      },
-      component: MarkdownComponent,
-    })
-
-    await modal.present()
+        },
+      })
+      .subscribe()
   }
 }

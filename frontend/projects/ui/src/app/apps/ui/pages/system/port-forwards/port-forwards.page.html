@@ -134,7 +134,10 @@
               <ion-label>
                 <h2>{{ ip }}:{{ pf.target }}</h2>
               </ion-label>
-              <ion-button fill="clear" (click)="copy(ip + ':' + pf.target)">
+              <ion-button
+                fill="clear"
+                (click)="copyService.copy(ip + ':' + pf.target)"
+              >
                 <ion-icon
                   slot="icon-only"
                   size="small"

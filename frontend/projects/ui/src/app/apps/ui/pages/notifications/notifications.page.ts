@@ -1,21 +1,19 @@
 import { Component } from '@angular/core'
+import { ActivatedRoute } from '@angular/router'
+import { ErrorService, LoadingService } from '@start9labs/shared'
+import { TuiDialogService } from '@taiga-ui/core'
+import { TUI_PROMPT } from '@taiga-ui/kit'
+import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
+import { PatchDB } from 'patch-db-client'
+import { filter, first } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import {
   ServerNotifications,
   NotificationLevel,
   ServerNotification,
 } from 'src/app/services/api/api.types'
-import {
-  AlertController,
-  LoadingController,
-  ModalController,
-} from '@ionic/angular'
-import { ActivatedRoute } from '@angular/router'
-import { ErrorToastService } from '@start9labs/shared'
-import { BackupReportPage } from 'src/app/apps/ui/modals/backup-report/backup-report.page'
-import { PatchDB } from 'patch-db-client'
+import { BackupReportComponent } from '../../modals/backup-report/backup-report.component'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { first } from 'rxjs'
 
 @Component({
   selector: 'notifications',
@@ -33,10 +31,9 @@ export class NotificationsPage {
 
   constructor(
     private readonly embassyApi: ApiService,
-    private readonly alertCtrl: AlertController,
-    private readonly loadingCtrl: LoadingController,
-    private readonly modalCtrl: ModalController,
-    private readonly errToast: ErrorToastService,
+    private readonly loader: LoadingService,
+    private readonly dialogs: TuiDialogService,
+    private readonly errorService: ErrorService,
     private readonly route: ActivatedRoute,
     private readonly patch: PatchDB<DataModel>,
   ) {}
@@ -66,77 +63,55 @@ export class NotificationsPage {
 
       return notifications
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     }
 
     return []
   }
 
   async delete(id: number, index: number): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Deleting...',
-    })
-    await loader.present()
+    const loader = this.loader.open('Deleting...').subscribe()
 
     try {
       await this.embassyApi.deleteNotification({ id })
       this.notifications.splice(index, 1)
       this.beforeCursor = this.notifications[this.notifications.length - 1]?.id
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
-  async presentAlertDeleteAll() {
-    const alert = await this.alertCtrl.create({
-      header: 'Delete All?',
-      message: 'Are you sure you want to delete all notifications?',
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
+  presentAlertDeleteAll() {
+    this.dialogs
+      .open(TUI_PROMPT, {
+        label: 'Delete All?',
+        size: 's',
+        data: {
+          content: 'Are you sure you want to delete all notifications?',
+          yes: 'Delete',
+          no: 'Cancel',
         },
-        {
-          text: 'Delete',
-          handler: () => {
-            this.deleteAll()
-          },
-          cssClass: 'enter-click',
-        },
-      ],
-    })
-    await alert.present()
+      })
+      .pipe(filter(Boolean))
+      .subscribe(() => this.deleteAll())
   }
 
   async viewBackupReport(notification: ServerNotification<1>) {
-    const modal = await this.modalCtrl.create({
-      component: BackupReportPage,
-      componentProps: {
-        report: notification.data,
-        timestamp: notification['created-at'],
-      },
-    })
-    await modal.present()
+    this.dialogs
+      .open(new PolymorpheusComponent(BackupReportComponent), {
+        label: 'Backup Report',
+        data: {
+          report: notification.data,
+          timestamp: notification['created-at'],
+        },
+      })
+      .subscribe()
   }
 
-  async viewFullMessage(header: string, message: string) {
-    const alert = await this.alertCtrl.create({
-      header,
-      message,
-      cssClass: 'notification-detail-alert',
-      buttons: [
-        {
-          text: `OK`,
-          handler: () => {
-            alert.dismiss()
-          },
-          cssClass: 'enter-click',
-        },
-      ],
-    })
-    await alert.present()
+  viewFullMessage(label: string, message: string) {
+    this.dialogs.open(message, { label }).subscribe()
   }
 
   truncate(message: string): string {
@@ -159,10 +134,7 @@ export class NotificationsPage {
   }
 
   private async deleteAll(): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Deleting...',
-    })
-    await loader.present()
+    const loader = this.loader.open('Deleting...').subscribe()
 
     try {
       await this.embassyApi.deleteAllNotifications({
@@ -171,9 +143,9 @@ export class NotificationsPage {
       this.notifications = []
       this.beforeCursor = undefined
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 }

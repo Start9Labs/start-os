@@ -1,0 +1,33 @@
+.button {
+  height: var(--tui-height-l);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 1rem 0;
+  padding: 0 1rem;
+  border-radius: var(--tui-radius-m);
+  font: var(--tui-font-text-l);
+  font-weight: bold;
+}
+
+.value {
+  font: var(--tui-font-text-m);
+  color: var(--tui-positive);
+}
+
+.toggle {
+  height: var(--tui-height-l);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1rem;
+  box-shadow: inset 0 0 0 1px var(--tui-base-03);
+  font: var(--tui-font-text-l);
+  font-weight: bold;
+  border-radius: var(--tui-radius-m);
+}
+
+.submit {
+  float: right;
+  margin-top: 1rem;
+}

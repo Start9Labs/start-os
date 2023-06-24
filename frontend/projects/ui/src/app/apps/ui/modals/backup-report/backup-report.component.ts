@@ -1,24 +1,26 @@
-import { Component, Input } from '@angular/core'
-import { ModalController } from '@ionic/angular'
+import { Component, Inject } from '@angular/core'
 import { BackupReport } from 'src/app/services/api/api.types'
+import { POLYMORPHEUS_CONTEXT } from '@tinkoff/ng-polymorpheus'
+import { TuiDialogContext } from '@taiga-ui/core'
 
 @Component({
   selector: 'backup-report',
-  templateUrl: './backup-report.page.html',
+  templateUrl: './backup-report.component.html',
 })
-export class BackupReportPage {
-  @Input() report!: BackupReport
-  @Input() timestamp!: string
-
-  system!: {
+export class BackupReportComponent {
+  readonly system: {
     result: string
     icon: 'remove' | 'remove-circle-outline' | 'checkmark'
     color: 'dark' | 'danger' | 'success'
   }
 
-  constructor(private readonly modalCtrl: ModalController) {}
-
-  ngOnInit() {
+  constructor(
+    @Inject(POLYMORPHEUS_CONTEXT)
+    private readonly context: TuiDialogContext<
+      void,
+      { report: BackupReport; timestamp: string }
+    >,
+  ) {
     if (!this.report.server.attempted) {
       this.system = {
         result: 'Not Attempted',
@@ -40,7 +42,11 @@ export class BackupReportPage {
     }
   }
 
-  async dismiss() {
-    return this.modalCtrl.dismiss(true)
+  get report(): BackupReport {
+    return this.context.data.report
+  }
+
+  get timestamp(): string {
+    return this.context.data.timestamp
   }
 }

@@ -13,7 +13,7 @@
       *ngFor="let target of targets"
       (click)="select(target)"
       [disabled]="
-          (isOneOff && !target.mountable) ||
+          !target.mountable ||
           (type === 'restore' && !target['embassy-os'])
         "
     >

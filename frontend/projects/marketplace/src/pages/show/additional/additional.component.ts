@@ -4,25 +4,30 @@ import {
   EventEmitter,
   Input,
   Output,
+  TemplateRef,
 } from '@angular/core'
+import { ActivatedRoute } from '@angular/router'
 import {
-  AlertController,
-  ModalController,
-  ToastController,
-} from '@ionic/angular'
+  TuiAlertService,
+  TuiDialogContext,
+  TuiDialogService,
+} from '@taiga-ui/core'
+import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 import {
+  CopyService,
   copyToClipboard,
   displayEmver,
   Emver,
   MarkdownComponent,
 } from '@start9labs/shared'
+import { filter } from 'rxjs'
 import { MarketplacePkg } from '../../../types'
 import { AbstractMarketplaceService } from '../../../services/marketplace.service'
-import { ActivatedRoute } from '@angular/router'
 
 @Component({
   selector: 'marketplace-additional',
   templateUrl: 'additional.component.html',
+  styleUrls: ['additional.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AdditionalComponent {
@@ -34,68 +39,46 @@ export class AdditionalComponent {
 
   readonly url = this.route.snapshot.queryParamMap.get('url') || undefined
 
+  readonly displayEmver = displayEmver
+
   constructor(
-    private readonly alertCtrl: AlertController,
-    private readonly modalCtrl: ModalController,
+    readonly copyService: CopyService,
+    private readonly alerts: TuiAlertService,
+    private readonly dialogs: TuiDialogService,
     private readonly emver: Emver,
     private readonly marketplaceService: AbstractMarketplaceService,
-    private readonly toastCtrl: ToastController,
     private readonly route: ActivatedRoute,
   ) {}
 
-  async copy(address: string): Promise<void> {
-    const success = await copyToClipboard(address)
-    const message = success
-      ? 'Copied to clipboard!'
-      : 'Failed to copy to clipboard.'
-
-    const toast = await this.toastCtrl.create({
-      header: message,
-      position: 'bottom',
-      duration: 1000,
-    })
-    await toast.present()
+  presentAlertVersions(version: TemplateRef<TuiDialogContext>) {
+    this.dialogs
+      .open<string>(version, {
+        label: 'Versions',
+        size: 's',
+        data: {
+          value: this.pkg.manifest.version,
+          items: this.pkg.versions.sort(
+            (a, b) => -1 * (this.emver.compare(a, b) || 0),
+          ),
+        },
+      })
+      .pipe(filter(Boolean))
+      .subscribe(version => this.version.emit(version))
   }
 
-  async presentAlertVersions() {
-    const alert = await this.alertCtrl.create({
-      header: 'Versions',
-      inputs: this.pkg.versions
-        .sort((a, b) => -1 * (this.emver.compare(a, b) || 0))
-        .map(v => ({
-          name: v, // for CSS
-          type: 'radio',
-          label: displayEmver(v), // appearance on screen
-          value: v, // literal SEM version value
-          checked: this.pkg.manifest.version === v,
-        })),
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
+  presentModalMd(label: string) {
+    this.dialogs
+      .open(new PolymorpheusComponent(MarkdownComponent), {
+        label,
+        size: 'l',
+        data: {
+          content: this.marketplaceService.fetchStatic$(
+            this.pkg.manifest.id,
+            label.toLowerCase(),
+            this.url,
+          ),
         },
-        {
-          text: 'Ok',
-          handler: (version: string) => this.version.emit(version),
-        },
-      ],
-    })
-
-    await alert.present()
-  }
-
-  async presentModalMd(title: string) {
-    const content = this.marketplaceService.fetchStatic$(
-      this.pkg.manifest.id,
-      title,
-      this.url,
-    )
-
-    const modal = await this.modalCtrl.create({
-      componentProps: { title, content },
-      component: MarkdownComponent,
-    })
-
-    await modal.present()
+      })
+      .subscribe()
   }
 }

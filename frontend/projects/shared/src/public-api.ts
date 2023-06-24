@@ -46,6 +46,7 @@ export * from './pipes/shared/trust.pipe'
 export * from './pipes/unit-conversion/unit-conversion.module'
 export * from './pipes/unit-conversion/unit-conversion.pipe'
 
+export * from './services/copy.service'
 export * from './services/download-html.service'
 export * from './services/emver.service'
 export * from './services/error.service'
