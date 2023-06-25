@@ -15,15 +15,15 @@ body:
   - type: input
     attributes:
       label: Server Hardware
-      description: On what hardware are you running StartOS? Please be as detailed as possible
-      placeholder: e.g. 2023 Start9 Server One, Ras Pi (8GB) with T7 SSD, 2015 Lenovo laptop
+      description: On what hardware are you running StartOS? Please be as detailed as possible!
+      placeholder: Pi (8GB) w/ 32GB microSD & Samsung T7 SSD
     validations:
       required: true
   - type: input
     attributes:
       label: StartOS Version
       description: What version of StartOS are you running?
-      placeholder: e.g. 0.3.4.2
+      placeholder: e.g. 0.3.4.3
     validations:
       required: true
   - type: dropdown
