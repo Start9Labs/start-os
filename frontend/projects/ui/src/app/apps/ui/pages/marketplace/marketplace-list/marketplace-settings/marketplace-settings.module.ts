@@ -7,9 +7,9 @@ import {
   TuiHostedDropdownModule,
   TuiSvgModule,
 } from '@taiga-ui/core'
-import { StoreIconComponentModule } from 'src/app/common/store-icon/store-icon.component.module'
 import { FormPageModule } from 'src/app/apps/ui/modals/form/form.module'
 import { MarketplaceSettingsPage } from './marketplace-settings.page'
+import { StoreIconComponentModule } from '@start9labs/marketplace'
 
 @NgModule({
   imports: [

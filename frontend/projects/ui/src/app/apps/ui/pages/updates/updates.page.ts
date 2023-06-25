@@ -8,8 +8,8 @@ import {
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import {
   AbstractMarketplaceService,
-  Marketplace,
   Manifest,
+  Marketplace,
   StoreIdentity,
 } from '@start9labs/marketplace'
 import { isEmptyObject } from '@start9labs/shared'
@@ -22,6 +22,7 @@ import {
 import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { getAllPackages } from 'src/app/util/get-package-data'
 import { Breakages } from 'src/app/services/api/api.types'
+import { ConfigService } from 'src/app/services/config.service'
 
 interface UpdatesData {
   hosts: StoreIdentity[]
@@ -51,6 +52,7 @@ export class UpdatesPage {
     private readonly navCtrl: NavController,
     private readonly loadingCtrl: LoadingController,
     private readonly alertCtrl: AlertController,
+    readonly config: ConfigService,
   ) {}
 
   viewInMarketplace(event: Event, url: string, id: string) {

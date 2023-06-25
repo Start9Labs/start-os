@@ -8,7 +8,10 @@
       (click)="s.selected ? '' : connect(s.url)"
     >
       <ion-avatar slot="start">
-        <store-icon [url]="s.url"></store-icon>
+        <store-icon
+          [url]="s.url"
+          [marketplace]="config.marketplace"
+        ></store-icon>
       </ion-avatar>
       <ion-label>
         <h2>{{ s.name }}</h2>
@@ -42,7 +45,11 @@
     >
       <ion-item detail="false" [button]="!a.selected">
         <ion-avatar slot="start">
-          <store-icon [url]="a.url" size="36px"></store-icon>
+          <store-icon
+            [url]="a.url"
+            [marketplace]="config.marketplace"
+            size="36px"
+          ></store-icon>
         </ion-avatar>
         <ion-label>
           <h2>{{ a.name }}</h2>
