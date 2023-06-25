@@ -1,12 +1,7 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { PatchDB } from 'patch-db-client'
 import { DataModel, PortForward } from 'src/app/services/patch-db/data-model'
-import {
-  ErrorToastService,
-  copyToClipboard,
-  LoadingService,
-} from '@start9labs/shared'
-import { ToastController } from '@ionic/angular'
+import { LoadingService, CopyService, ErrorService } from '@start9labs/shared'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 
 @Component({
@@ -21,10 +16,10 @@ export class PortForwardsPage {
   overrides: Record<string, number> = {}
 
   constructor(
+    readonly copyService: CopyService,
     private readonly patch: PatchDB<DataModel>,
-    private readonly toastCtrl: ToastController,
     private readonly loader: LoadingService,
-    private readonly errToast: ErrorToastService,
+    private readonly errorService: ErrorService,
     private readonly api: ApiService,
   ) {}
 
@@ -43,25 +38,9 @@ export class PortForwardsPage {
       })
       delete this.editing[pf.target]
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
       loader.unsubscribe()
     }
-  }
-
-  async copy(address: string) {
-    let message = ''
-    await copyToClipboard(address || '').then(success => {
-      message = success
-        ? 'Copied to clipboard!'
-        : 'Failed to copy to clipboard.'
-    })
-
-    const toast = await this.toastCtrl.create({
-      header: message,
-      position: 'bottom',
-      duration: 1000,
-    })
-    await toast.present()
   }
 }

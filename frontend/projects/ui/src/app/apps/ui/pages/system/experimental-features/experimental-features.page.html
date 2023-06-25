@@ -34,3 +34,18 @@
     </ion-item>
   </ion-item-group>
 </ion-content>
+
+<ng-template #tor>
+  <p *ngIf="isTor">
+    You are currently connected over Tor. If you reset the Tor daemon, you will
+    lose connectivity until it comes back online.
+  </p>
+  <p *ngIf="!isTor">Reset Tor?</p>
+  <p>
+    Optionally wipe state to forcibly acquire new guard nodes. It is recommended
+    to try without wiping state first.
+  </p>
+  <tui-checkbox-labeled size="l" [(ngModel)]="wipe">
+    Wipe state
+  </tui-checkbox-labeled>
+</ng-template>

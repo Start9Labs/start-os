@@ -1,15 +1,13 @@
 import { Component } from '@angular/core'
-import {
-  AlertController,
-  LoadingController,
-  ModalController,
-} from '@ionic/angular'
+import { AlertController, ModalController } from '@ionic/angular'
+import { TuiDialogService } from '@taiga-ui/core'
+import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 import { BehaviorSubject } from 'rxjs'
 import { BackupJob } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ErrorToastService } from '@start9labs/shared'
-import { EditJobPage } from './edit-job/edit-job.page'
-import { NewJobPage } from './new-job/new-job.page'
+import { ErrorService, LoadingService } from '@start9labs/shared'
+import { EditJobComponent } from './edit-job/edit-job.component'
+import { BackupJobBuilder } from './edit-job/job-builder'
 
 @Component({
   selector: 'backup-jobs',
@@ -25,10 +23,11 @@ export class BackupJobsPage {
   loading$ = new BehaviorSubject(true)
 
   constructor(
+    private readonly dialogs: TuiDialogService,
     private readonly modalCtrl: ModalController,
     private readonly alertCtrl: AlertController,
-    private readonly loadingCtrl: LoadingController,
-    private readonly errToast: ErrorToastService,
+    private readonly loader: LoadingService,
+    private readonly errorService: ErrorService,
     private readonly api: ApiService,
   ) {}
 
@@ -36,50 +35,35 @@ export class BackupJobsPage {
     try {
       this.jobs = await this.api.getBackupJobs({})
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
       this.loading$.next(false)
     }
   }
 
-  async presentModalCreate() {
-    const modal = await this.modalCtrl.create({
-      presentingElement: await this.modalCtrl.getTop(),
-      component: NewJobPage,
-      componentProps: {
-        count: this.jobs.length + 1,
-      },
-    })
-
-    modal.onWillDismiss().then(res => {
-      if (res.data) {
-        this.jobs.push(res.data)
-      }
-    })
-
-    await modal.present()
+  presentModalCreate() {
+    this.dialogs
+      .open<BackupJob>(new PolymorpheusComponent(EditJobComponent), {
+        label: 'Create New Job',
+        data: new BackupJobBuilder({
+          name: `Backup Job ${this.jobs.length + 1}`,
+        }),
+      })
+      .subscribe(job => this.jobs.push(job))
   }
 
-  async presentModalUpdate(job: BackupJob) {
-    const modal = await this.modalCtrl.create({
-      presentingElement: await this.modalCtrl.getTop(),
-      component: EditJobPage,
-      componentProps: {
-        existingJob: job,
-      },
-    })
-
-    modal.onWillDismiss().then((res: { data?: BackupJob }) => {
-      if (res.data) {
-        const { name, target, cron } = res.data
-        job.name = name
-        job.target = target
-        job.cron = cron
-        job['package-ids'] = res.data['package-ids']
-      }
-    })
-
-    await modal.present()
+  presentModalUpdate(data: BackupJob) {
+    this.dialogs
+      .open<BackupJob>(new PolymorpheusComponent(EditJobComponent), {
+        label: 'Edit Job',
+        data: new BackupJobBuilder(data),
+      })
+      .subscribe(job => {
+        data.name = job.name
+        data.target = job.target
+        data.cron = job.cron
+        data['package-ids'] = job['package-ids']
+      })
   }
 
   async presentAlertDelete(id: string, index: number) {
@@ -104,18 +88,15 @@ export class BackupJobsPage {
   }
 
   private async delete(id: string, i: number): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Deleting...',
-    })
-    await loader.present()
+    const loader = this.loader.open('Deleting...').subscribe()
 
     try {
       await this.api.removeBackupTarget({ id })
       this.jobs.splice(i, 1)
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 }

@@ -20,9 +20,6 @@ import { TuiDialogContext } from '@taiga-ui/core'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TargetSelectPage {
-  // TODO: What is it for?
-  @Input() isOneOff = true
-
   targets: BackupTarget[] = []
 
   loading$ = new BehaviorSubject(true)

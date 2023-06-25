@@ -1,6 +1,6 @@
 import { DOCUMENT } from '@angular/common'
 import { Component, Inject } from '@angular/core'
-import { AlertController, NavController, ToastController } from '@ionic/angular'
+import { AlertController, NavController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActivatedRoute } from '@angular/router'
 import { PatchDB } from 'patch-db-client'
@@ -13,7 +13,7 @@ import { getAllPackages } from 'src/app/util/get-package-data'
 import { AuthService } from 'src/app/services/auth.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { ConfigService } from 'src/app/services/config.service'
-import { TuiDialogService } from '@taiga-ui/core'
+import { TuiAlertService, TuiDialogService } from '@taiga-ui/core'
 import { PROMPT } from 'src/app/apps/ui/modals/prompt/prompt.component'
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 
@@ -28,7 +28,7 @@ export class ServerShowPage {
 
   readonly server$ = this.patch.watch$('server-info')
   readonly showUpdate$ = this.eosService.showUpdate$
-  readonly showDiskRepair$ = this.ClientStorageService.showDiskRepair$
+  readonly showDiskRepair$ = this.clientStorageService.showDiskRepair$
 
   readonly secure = this.config.isSecure()
 
@@ -42,9 +42,9 @@ export class ServerShowPage {
     private readonly route: ActivatedRoute,
     private readonly patch: PatchDB<DataModel>,
     private readonly eosService: EOSService,
-    private readonly ClientStorageService: ClientStorageService,
+    private readonly clientStorageService: ClientStorageService,
     private readonly authService: AuthService,
-    private readonly toastCtrl: ToastController,
+    private readonly alerts: TuiAlertService,
     private readonly config: ConfigService,
     @Inject(DOCUMENT) private readonly document: Document,
   ) {}
@@ -574,18 +574,18 @@ export class ServerShowPage {
     ],
   }
 
-  private async addSecurityClick() {
+  private addSecurityClick() {
     this.manageClicks++
+
     if (this.manageClicks === 5) {
       this.manageClicks = 0
-      const newVal = this.ClientStorageService.toggleShowDevTools()
-      const toast = await this.toastCtrl.create({
-        header: newVal ? 'Dev tools unlocked' : 'Dev tools hidden',
-        position: 'bottom',
-        duration: 1000,
-      })
-
-      await toast.present()
+      this.alerts
+        .open(
+          this.clientStorageService.toggleShowDevTools()
+            ? 'Dev tools unlocked'
+            : 'Dev tools hidden',
+        )
+        .subscribe()
     }
   }
 
@@ -593,7 +593,7 @@ export class ServerShowPage {
     this.powerClicks++
     if (this.powerClicks === 5) {
       this.powerClicks = 0
-      this.ClientStorageService.toggleShowDiskRepair()
+      this.clientStorageService.toggleShowDiskRepair()
     }
   }
 

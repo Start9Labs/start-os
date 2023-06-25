@@ -1,16 +1,18 @@
-import { Component } from '@angular/core'
-import { ToastController } from '@ionic/angular'
-import { TuiDialogOptions } from '@taiga-ui/core'
+import { Component, Pipe, PipeTransform } from '@angular/core'
+import {
+  TuiAlertService,
+  TuiDialogOptions,
+  TuiNotification,
+} from '@taiga-ui/core'
 import { ToggleCustomEvent } from '@ionic/core'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { AvailableWifi, RR } from 'src/app/services/api/api.types'
-import { pauseFor, ErrorToastService, LoadingService } from '@start9labs/shared'
+import { ErrorService, LoadingService, pauseFor } from '@start9labs/shared'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { FormContext, FormPage } from 'src/app/apps/ui/modals/form/form.page'
 import { PatchDB } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { ConnectionService } from 'src/app/services/connection.service'
-import { Pipe, PipeTransform } from '@angular/core'
 import {
   BehaviorSubject,
   catchError,
@@ -54,10 +56,10 @@ export class WifiPage {
 
   constructor(
     private readonly api: ApiService,
-    private readonly toastCtrl: ToastController,
+    private readonly alerts: TuiAlertService,
     private readonly loader: LoadingService,
     private readonly formDialog: FormDialogService,
-    private readonly errToast: ErrorToastService,
+    private readonly errorService: ErrorService,
     private readonly patch: PatchDB<DataModel>,
     private readonly connectionService: ConnectionService,
   ) {}
@@ -71,7 +73,7 @@ export class WifiPage {
     try {
       await this.api.enableWifi({ enable })
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
       loader.unsubscribe()
     }
@@ -86,7 +88,7 @@ export class WifiPage {
       await this.api.connectWifi({ ssid })
       await this.confirmWifi(ssid)
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
       loader.unsubscribe()
     }
@@ -101,7 +103,7 @@ export class WifiPage {
       this.localChanges$.next(wifi)
       this.trigger$.next('')
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
       loader.unsubscribe()
     }
@@ -153,51 +155,27 @@ export class WifiPage {
   private getWifi$(): Observable<RR.GetWifiRes> {
     return from(this.api.getWifi({}, 10000)).pipe(
       catchError((e: any) => {
-        this.errToast.present(e)
+        this.errorService.handleError(e)
         return []
       }),
     )
   }
 
-  private async presentToastSuccess(): Promise<void> {
-    const toast = await this.toastCtrl.create({
-      header: 'Connection successful!',
-      position: 'bottom',
-      duration: 4000,
-      buttons: [
-        {
-          side: 'start',
-          icon: 'close',
-          handler: () => {
-            return true
-          },
-        },
-      ],
-      cssClass: 'success-toast',
-    })
-
-    await toast.present()
+  private presentToastSuccess() {
+    this.alerts
+      .open('Connection successful!', {
+        status: TuiNotification.Success,
+      })
+      .subscribe()
   }
 
   private async presentToastFail(): Promise<void> {
-    const toast = await this.toastCtrl.create({
-      header: 'Failed to connect:',
-      message: `Check credentials and try again`,
-      position: 'bottom',
-      duration: 4000,
-      buttons: [
-        {
-          side: 'start',
-          icon: 'close',
-          handler: () => {
-            return true
-          },
-        },
-      ],
-      cssClass: 'warning-toast',
-    })
-
-    await toast.present()
+    this.alerts
+      .open('Check credentials and try again', {
+        label: 'Failed to connect',
+        status: TuiNotification.Warning,
+      })
+      .subscribe()
   }
 
   private async save(
@@ -219,7 +197,7 @@ export class WifiPage {
       this.trigger$.next('')
       return true
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
       return false
     } finally {
       loader.unsubscribe()
@@ -244,7 +222,7 @@ export class WifiPage {
       await this.confirmWifi(ssid)
       return true
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
       return false
     } finally {
       loader.unsubscribe()
