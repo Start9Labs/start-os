@@ -14,6 +14,13 @@ body:
           required: true
   - type: input
     attributes:
+      label: Server Hardware
+      description: On what hardware are you running StartOS? Please be as detailed as possible
+      placeholder: e.g. 2023 Start9 Server One, Ras Pi (8GB) with T7 SSD, 2015 Lenovo laptop
+    validations:
+      required: true
+  - type: input
+    attributes:
       label: StartOS Version
       description: What version of StartOS are you running?
       placeholder: e.g. 0.3.4.2
@@ -21,16 +28,7 @@ body:
       required: true
   - type: dropdown
     attributes:
-      label: Device
-      description: What device are you using to connect to your server?
-      options:
-        - Phone/tablet
-        - Laptop/Desktop
-    validations:
-      required: true
-  - type: dropdown
-    attributes:
-      label: Device OS
+      label: Client OS
       description: What operating system is your device running?
       options:
         - MacOS
@@ -45,7 +43,7 @@ body:
       required: true
   - type: input
     attributes:
-      label: Device OS Version
+      label: Client OS Version
       description: What version is your device OS?
     validations:
       required: true
