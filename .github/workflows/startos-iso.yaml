@@ -84,7 +84,7 @@ jobs:
         id: npm-cache-dir
         run: |
           echo "dir=$(npm config get cache)" >> $GITHUB_OUTPUT
-      - uses: '${{ fromJson(''["actions/cache@v3", "buildjet/cache@v3"]'')[github.event.inputs.runner == ''fast''] }}'
+      - uses: ${{ fromJson('["actions/cache@v3", "buildjet/cache@v3"]')[github.event.inputs.runner == 'fast'] }}
         id: npm-cache
         with:
           path: ${{ steps.npm-cache-dir.outputs.dir }}
@@ -132,7 +132,7 @@ jobs:
           sudo mkdir -p /var/tmp/debspawn
           sudo mount -t tmpfs tmpfs /var/tmp/debspawn
 
-      - uses: '${{ fromJson(''["actions/cache@v3", "buildjet/cache@v3"]'')[github.event.inputs.runner == ''fast''] }}'
+      - uses: ${{ fromJson('["actions/cache@v3", "buildjet/cache@v3"]')[github.event.inputs.runner == 'fast'] }}
         with:
           path: /var/lib/debspawn
           key: ${{ runner.os }}-${{ matrix.platform }}-debspawn-init
