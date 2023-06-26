@@ -27,7 +27,7 @@ const callbackType = object({
   id: idType,
   method: literal("callback"),
   params: object({
-    callback: number,
+    callback: string,
     args: array,
   }),
 })
