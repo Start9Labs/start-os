@@ -98,11 +98,6 @@ jobs:
         env:
           OS_ARCH: ${{ matrix.platform }}
 
-      - uses: actions/upload-artifact@v3
-        with:
-          name: ${{ matrix.platform }}.deb
-          path: embassy-os-deb/embassyos_0.3.x-1_*.deb
-
       - uses: actions/checkout@v3
         with:
           repository: Start9Labs/startos-image-recipes
@@ -130,11 +125,7 @@ jobs:
 
       - run: "mkdir -p startos-image-recipes/overlays/deb"
 
-      - name: Download dpkg
-        uses: actions/download-artifact@v3
-        with:
-          name: ${{ matrix.platform }}.deb
-          path: startos-image-recipes/overlays/deb
+      - run: "mv embassy-os-deb/embassyos_0.3.x-1_*.deb startos-image-recipes/overlays/deb/"
 
       - name: Run build
         working-directory: startos-image-recipes
@@ -158,15 +149,7 @@ jobs:
           path: start-os
         if: ${{ matrix.platform == 'raspberrypi' }}
 
-      - name: Download raspberrypi.squashfs artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: raspberrypi.squashfs
-          path: start-os
-        if: ${{ matrix.platform == 'raspberrypi' }}
-
-      - run: mv startos-*_raspberrypi.squashfs startos.raspberrypi.squashfs
-        working-directory: start-os
+      - run: "mv startos-image-recipes/results/startos-*_raspberrypi.squashfs start-os/startos.raspberrypi.squashfs"
         if: ${{ matrix.platform == 'raspberrypi' }}
 
       - name: Build image
