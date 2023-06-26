@@ -39,7 +39,7 @@ jobs:
       matrix:
         platform:
           [x86_64, x86_64-nonfree, aarch64, aarch64-nonfree, raspberrypi]
-    runs-on: |
+    runs-on: >-
       ${{
         fromJson(
           format(
