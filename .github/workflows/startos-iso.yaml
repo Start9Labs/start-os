@@ -39,7 +39,7 @@ jobs:
       matrix:
         platform:
           [x86_64, x86_64-nonfree, aarch64, aarch64-nonfree, raspberrypi]
-    runs-on: '${{ fromJson(''["ubuntu-22.04", "fatboi"]'')[github.event.inputs.runner == ''fast''] }}'
+    runs-on: '${{ fromJson(''["ubuntu-22.04", "buildjet-32vcpu-ubuntu-2204"]'')[github.event.inputs.runner == ''fast''] }}'
     steps:
       - run: |
           sudo mount -t tmpfs tmpfs .
