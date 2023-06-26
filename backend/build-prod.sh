@@ -22,7 +22,7 @@ if tty -s; then
 	USE_TTY="-it"
 fi
 
-alias 'rust-gnu-builder'='docker run $USE_TTY --rm -e "OS_ARCH=$OS_ARCH" -v "$HOME/.cargo/registry":/root/.cargo/registry -v "$(pwd)":/home/rust/src -P start9/rust-arm-cross:aarch64'
+alias 'rust-gnu-builder'='docker run $USE_TTY --rm -e "OS_ARCH=$OS_ARCH" -v "$HOME/.cargo/registry":/usr/local/cargo/registry -v "$(pwd)":/home/rust/src -w /home/rust/src -P start9/rust-arm-cross:aarch64'
 alias 'rust-musl-builder'='docker run $USE_TTY --rm -e "OS_ARCH=$OS_ARCH" -v "$HOME/.cargo/registry":/root/.cargo/registry -v "$(pwd)":/home/rust/src -P messense/rust-musl-cross:$ARCH-musl'
 
 cd ..
@@ -37,26 +37,26 @@ fi
 set +e
 fail=
 if [[ "$FLAGS" = "" ]]; then
-	rust-gnu-builder sh -c "(git config --global --add safe.directory '*'; cd backend && cargo build --release --locked  --target=$ARCH-unknown-linux-gnu)"
+	rust-gnu-builder sh -c "(cd backend && cargo build --release --locked  --target=$ARCH-unknown-linux-gnu)"
 	if test $? -ne 0; then 
 		fail=true
 	fi
 	for ARCH in x86_64 aarch64
 	do
-		rust-musl-builder sh -c "(git config --global --add safe.directory '*'; cd libs && cargo build --release --locked --bin embassy_container_init )"
+		rust-musl-builder sh -c "(cd libs && cargo build --release --locked --bin embassy_container_init )"
 		if test $? -ne 0; then 
 			fail=true
 		fi
 	done
 else
 	echo "FLAGS=$FLAGS"
-	rust-gnu-builder sh -c "(git config --global --add safe.directory '*'; cd backend && cargo build --release --features $FLAGS --locked --target=$ARCH-unknown-linux-gnu)"
+	rust-gnu-builder sh -c "(cd backend && cargo build --release --features $FLAGS --locked --target=$ARCH-unknown-linux-gnu)"
 	if test $? -ne 0; then 
 		fail=true
 	fi
 	for ARCH in x86_64 aarch64
 	do
-		rust-musl-builder sh -c "(git config --global --add safe.directory '*'; cd libs && cargo build --release --features $FLAGS --locked --bin embassy_container_init)"
+		rust-musl-builder sh -c "(cd libs && cargo build --release --features $FLAGS --locked --bin embassy_container_init)"
 		if test $? -ne 0; then 
 			fail=true
 		fi
