@@ -33,7 +33,7 @@ jobs:
       matrix:
         platform:
           [x86_64, x86_64-nonfree, aarch64, aarch64-nonfree, raspberrypi]
-    runs-on: ubuntu-22.04
+    runs-on: '${{ fromJson(''["ubuntu-22.04", "fatboi"]'')[github.event.inputs.environment == ''<NONE>''] }}'
     steps:
       - uses: actions/checkout@v3
         with:
@@ -96,7 +96,7 @@ jobs:
       matrix:
         platform:
           [x86_64, x86_64-nonfree, aarch64, aarch64-nonfree, raspberrypi]
-    runs-on: ubuntu-22.04
+    runs-on: '${{ fromJson(''["ubuntu-22.04", "fatboi"]'')[github.event.inputs.environment == ''<NONE>''] }}'
     needs: [dpkg]
     steps:
       - uses: actions/checkout@v3
@@ -146,7 +146,7 @@ jobs:
 
   image:
     name: Build image
-    runs-on: ubuntu-22.04
+    runs-on: '${{ fromJson(''["ubuntu-22.04", "fatboi"]'')[github.event.inputs.environment == ''<NONE>''] }}'
     timeout-minutes: 60
     needs: [iso]
     steps:
