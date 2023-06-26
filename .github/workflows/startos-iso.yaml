@@ -43,8 +43,6 @@ jobs:
     steps:
       - run: sudo mount -t tmpfs tmpfs .
         if: ${{ github.event.inputs.runner == 'fast' }}
-      - run: test "$(stat -f -c %T .)" = tmpfs
-        if: ${{ github.event.inputs.runner == 'fast' }}
 
       - uses: actions/checkout@v3
         with:
