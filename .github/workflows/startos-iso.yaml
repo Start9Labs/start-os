@@ -41,7 +41,8 @@ jobs:
           [x86_64, x86_64-nonfree, aarch64, aarch64-nonfree, raspberrypi]
     runs-on: '${{ fromJson(''["ubuntu-22.04", "fatboi"]'')[github.event.inputs.runner == ''fast''] }}'
     steps:
-      - run: sudo mount -t tmpfs tmpfs .
+      - run: |
+          sudo mount -t tmpfs tmpfs .
         if: ${{ github.event.inputs.runner == 'fast' }}
 
       - uses: actions/checkout@v3
@@ -119,6 +120,8 @@ jobs:
         run: |
           sudo mkdir -p /etc/debspawn/
           echo "AllowUnsafePermissions=true" | sudo tee /etc/debspawn/global.toml
+          sudo mkdir -p /var/tmp/debspawn
+          sudo mount -t tmpfs tmpfs /var/tmp/debspawn
 
       - uses: actions/cache@v3
         with:
