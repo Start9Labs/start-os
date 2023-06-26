@@ -135,12 +135,12 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.platform }}.squashfs
-          path: results/*.squashfs
+          path: startos-image-recipes/results/*.squashfs
 
       - uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.platform }}.iso
-          path: results/*.iso
+          path: startos-image-recipes/results/*.iso
         if: ${{ matrix.platform != 'raspberrypi' }}
 
       - uses: actions/checkout@v3
