@@ -170,7 +170,7 @@ jobs:
       - run: "mv startos-image-recipes/results/startos-*_raspberrypi.squashfs start-os/startos.raspberrypi.squashfs"
         if: ${{ matrix.platform == 'raspberrypi' }}
 
-      - run: rm -rf startos-image-recipes /var/tmp/debspawn
+      - run: rm -rf startos-image-recipes
         if: ${{ matrix.platform == 'raspberrypi' }}
 
       - name: Build image
