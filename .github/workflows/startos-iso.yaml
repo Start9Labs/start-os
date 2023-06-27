@@ -39,6 +39,7 @@ jobs:
       matrix:
         platform:
           [x86_64, x86_64-nonfree, aarch64, aarch64-nonfree, raspberrypi]
+    if: ${{ github.event.inputs.runner != 'fast' || github.event.inputs.environment == '<NONE>' || (matrix.platform != 'aarch64' && matrix.platform != 'aarch64-nonfree') }}
     runs-on: >-
       ${{
         fromJson(
@@ -47,9 +48,7 @@ jobs:
             fromJson('{
               "x86_64": "buildjet-32vcpu-ubuntu-2204",
               "x86_64-nonfree": "buildjet-32vcpu-ubuntu-2204",
-              "aarch64": "buildjet-8vcpu-ubuntu-2204-arm",
-              "aarch64-nonfree": "buildjet-8vcpu-ubuntu-2204-arm",
-              "raspberrypi": "buildjet-16vcpu-ubuntu-2204-arm",
+              "raspberrypi": "buildjet-32vcpu-ubuntu-2204-arm",
             }')[matrix.platform]
           )
         )[github.event.inputs.runner == 'fast']
