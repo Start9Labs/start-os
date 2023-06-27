@@ -39,7 +39,6 @@ jobs:
       matrix:
         platform:
           [x86_64, x86_64-nonfree, aarch64, aarch64-nonfree, raspberrypi]
-    if: ${{ github.event.inputs.runner != 'fast' || github.event.inputs.environment == '<NONE>' || (matrix.platform != 'aarch64' && matrix.platform != 'aarch64-nonfree') }}
     runs-on: >-
       ${{
         fromJson(
@@ -48,7 +47,9 @@ jobs:
             fromJson('{
               "x86_64": "buildjet-32vcpu-ubuntu-2204",
               "x86_64-nonfree": "buildjet-32vcpu-ubuntu-2204",
-              "raspberrypi": "buildjet-32vcpu-ubuntu-2204-arm",
+              "aarch64": "buildjet-8vcpu-ubuntu-2204-arm",
+              "aarch64-nonfree": "buildjet-8vcpu-ubuntu-2204-arm",
+              "raspberrypi": "buildjet-16vcpu-ubuntu-2204-arm",
             }')[matrix.platform]
           )
         )[github.event.inputs.runner == 'fast']
@@ -56,7 +57,7 @@ jobs:
     steps:
       - run: |
           sudo mount -t tmpfs tmpfs .
-        if: ${{ github.event.inputs.runner == 'fast' }}
+        if: ${{ github.event.inputs.runner == 'fast' && (matrix.platform == 'x86_64' || matrix.platform == 'x86_64-nonfree') }}
 
       - uses: actions/checkout@v3
         with:
@@ -129,7 +130,9 @@ jobs:
           sudo mkdir -p /etc/debspawn/
           echo "AllowUnsafePermissions=true" | sudo tee /etc/debspawn/global.toml
           sudo mkdir -p /var/tmp/debspawn
-          sudo mount -t tmpfs tmpfs /var/tmp/debspawn
+
+      - run: sudo mount -t tmpfs tmpfs /var/tmp/debspawn
+        if: ${{ github.event.inputs.runner == 'fast' && (matrix.platform == 'x86_64' || matrix.platform == 'x86_64-nonfree') }}
 
       - uses: buildjet/cache@v3
         with:
@@ -167,9 +170,7 @@ jobs:
       - run: "mv startos-image-recipes/results/startos-*_raspberrypi.squashfs start-os/startos.raspberrypi.squashfs"
         if: ${{ matrix.platform == 'raspberrypi' }}
 
-      - run: |
-          rm -rf startos-image-recipes
-          sudo umount /var/tmp/debspawn
+      - run: rm -rf startos-image-recipes /var/tmp/debspawn
         if: ${{ matrix.platform == 'raspberrypi' }}
 
       - name: Build image
