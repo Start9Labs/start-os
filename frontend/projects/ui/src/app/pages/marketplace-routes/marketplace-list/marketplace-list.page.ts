@@ -40,7 +40,7 @@ export class MarketplaceListPage {
       if (url === start9) {
         color = 'success'
         description =
-          'Services from this registry are packaged and maintained by the Start9 team. If you experience an issue or have a questions related to a service from this registry, one of our dedicated support staff will be happy to assist you.'
+          'Services from this registry are packaged and maintained by the Start9 team. If you experience an issue or have a question related to a service from this registry, one of our dedicated support staff will be happy to assist you.'
       } else if (url === community) {
         color = 'tertiary'
         description =
