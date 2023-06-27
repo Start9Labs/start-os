@@ -12,40 +12,35 @@
 
 ### _Welcome to the era of Sovereign Computing_ ###
 
-StartOS is a browser-based, graphical operating system for a personal server. StartOS facilitates the discovery, installation, network configuration, service configuration, data backup, dependency management, and health monitoring of self-hosted software services. It is the most advanced, secure, reliable, and user friendly personal server OS in the world.
+StartOS is a Debian-based Linux distro optimized for running a personal server. It facilitates the discovery, installation, network configuration, service configuration, data backup, dependency management, and health monitoring of self-hosted software services.
 
 ## Running StartOS
 There are multiple ways to get your hands on StartOS.
 
 ### :moneybag: Buy a Start9 server
-This is the most convenient option. Simply [buy a server](https://start9.com) from Start9 and plug it in. Depending on where you live, shipping costs and import duties will vary.
+This is the most convenient option. Simply [buy a server](https://store.start9.com) from Start9 and plug it in.
 
 ### :construction_worker: Build your own server
 This option is easier than you might imagine, and there are 4 reasons why you might prefer it:
-1. You already have your own hardware.
-1. You want to save on shipping costs.
-1. You prefer not to divulge your physical address.
-1. You just like building things.
+1. You already have hardware
+1. You want to save on shipping costs
+1. You prefer not to divulge your physical address
+1. You just like building things
 
 To pursue this option, follow one of our [DIY guides](https://start9.com/latest/diy).
 
-### :hammer_and_wrench: Build StartOS from Source
-
-StartOS can be built from source, for personal use, for free.
-A detailed guide for doing so can be found [here](https://github.com/Start9Labs/start-os/blob/master/build/README.md).
-
 ## :heart: Contributing
-There are multiple ways to contribute: work directly on StartOS, package a service for the marketplace, or help with documentation and guides. To learn more about contributing, see [here](https://docs.start9.com/latest/contribute/) or [here](https://github.com/Start9Labs/start-os/blob/master/CONTRIBUTING.md).
+There are multiple ways to contribute: work directly on StartOS, package a service for the marketplace, or help with documentation and guides. To learn more about contributing, see [here](https://start9.com/contribute/).
 
 ## UI Screenshots
 <p align="center">
-<img src="assets/StartOS.png" alt="StartOS" width="85%">
+<img src="assets/startos.png" alt="StartOS" width="85%">
 </p>
 <p align="center">
-<img src="assets/preferences.png" alt="StartOS Preferences" width="49%">
-<img src="assets/ghost.png" alt="StartOS Ghost Service" width="49%">
+<img src="assets/marketplace.png" alt="StartOS Marketplace" width="49%">
+<img src="assets/nostr.png" alt="StartOS Nostr Service" width="49%">
 </p>
 <p align="center">
-<img src="assets/synapse-health-check.png" alt="StartOS Synapse Health Checks" width="49%">
-<img src="assets/sideload.png" alt="StartOS Sideload Service" width="49%">
+<img src="assets/nextcloud.png" alt="StartOS NextCloud Service" width="49%">
+<img src="assets/system.png" alt="StartOS System Settings" width="49%">
 </p>
