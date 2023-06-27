@@ -78,7 +78,7 @@ export class WidgetListComponent {
       icon: 'chatbubbles-outline',
       color: 'var(--alt-red)',
       description: 'Get help from the Start9 team and community',
-      link: 'https://docs.start9.com/latest/support/contact',
+      link: 'https://start9.com/contact',
     },
   ]
 }

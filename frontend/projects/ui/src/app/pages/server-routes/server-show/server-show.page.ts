@@ -531,7 +531,7 @@ export class ServerShowPage {
         icon: 'chatbubbles-outline',
         action: () =>
           window.open(
-            'https://docs.start9.com/latest/support/contact',
+            'https://start9.com/contact',
             '_blank',
             'noreferrer',
           ),
