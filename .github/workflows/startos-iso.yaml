@@ -47,8 +47,8 @@ jobs:
             fromJson('{
               "x86_64": "buildjet-32vcpu-ubuntu-2204",
               "x86_64-nonfree": "buildjet-32vcpu-ubuntu-2204",
-              "aarch64": "buildjet-16vcpu-ubuntu-2204-arm",
-              "aarch64-nonfree": "buildjet-16vcpu-ubuntu-2204-arm",
+              "aarch64": "buildjet-8vcpu-ubuntu-2204-arm",
+              "aarch64-nonfree": "buildjet-8vcpu-ubuntu-2204-arm",
               "raspberrypi": "buildjet-16vcpu-ubuntu-2204-arm",
             }')[matrix.platform]
           )
@@ -106,7 +106,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Run build
+      - name: Run dpkg build
         working-directory: embassy-os-deb
         run: "make VERSION=0.3.x TAG=${{ github.ref_name }}"
         env:
@@ -141,7 +141,9 @@ jobs:
 
       - run: "mv embassy-os-deb/embassyos_0.3.x-1_*.deb startos-image-recipes/overlays/deb/"
 
-      - name: Run build
+      - run: "rm -rf embassy-os-deb"
+
+      - name: Run iso build
         working-directory: startos-image-recipes
         run: |
           ./run-local-build.sh ${{ matrix.platform }}
@@ -164,6 +166,11 @@ jobs:
         if: ${{ matrix.platform == 'raspberrypi' }}
 
       - run: "mv startos-image-recipes/results/startos-*_raspberrypi.squashfs start-os/startos.raspberrypi.squashfs"
+        if: ${{ matrix.platform == 'raspberrypi' }}
+
+      - run: |
+          rm -rf startos-image-recipes
+          sudo umount /var/tmp/debspawn
         if: ${{ matrix.platform == 'raspberrypi' }}
 
       - name: Build image
