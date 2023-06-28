@@ -36,7 +36,6 @@ run_test () {
         mkdir -p $sockets/sockets
         cd $service
         docker run \
-            -v $sockets:/start9 \
             -v $libs:/start-init \
             --rm -it $(docker build -q .) sh -c "
                 apk add nodejs &&
