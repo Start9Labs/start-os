@@ -12,6 +12,12 @@ on:
           - dev
           - unstable
           - dev-unstable
+      runner:
+        type: choice
+        description: Runner
+        options:
+          - standard
+          - fast
   push:
     branches:
       - master
@@ -26,28 +32,49 @@ env:
   ENVIRONMENT: '${{ fromJson(format(''["{0}", ""]'', github.event.inputs.environment || ''dev''))[github.event.inputs.environment == ''<NONE>''] }}'
 
 jobs:
-  dpkg:
-    name: Build dpkg
+  all:
+    name: Build
     strategy:
       fail-fast: false
       matrix:
         platform:
           [x86_64, x86_64-nonfree, aarch64, aarch64-nonfree, raspberrypi]
-    runs-on: '${{ fromJson(''["ubuntu-22.04", "fatboi"]'')[github.event.inputs.environment == ''<NONE>''] }}'
+    runs-on: >-
+      ${{
+        fromJson(
+          format(
+            '["ubuntu-22.04", "{0}"]',
+            fromJson('{
+              "x86_64": "buildjet-32vcpu-ubuntu-2204",
+              "x86_64-nonfree": "buildjet-32vcpu-ubuntu-2204",
+              "aarch64": "buildjet-8vcpu-ubuntu-2204-arm",
+              "aarch64-nonfree": "buildjet-8vcpu-ubuntu-2204-arm",
+              "raspberrypi": "buildjet-16vcpu-ubuntu-2204-arm",
+            }')[matrix.platform]
+          )
+        )[github.event.inputs.runner == 'fast']
+      }}
     steps:
+      - run: |
+          sudo mount -t tmpfs tmpfs .
+        if: ${{ github.event.inputs.runner == 'fast' && (matrix.platform == 'x86_64' || matrix.platform == 'x86_64-nonfree') }}
+
       - uses: actions/checkout@v3
         with:
           repository: Start9Labs/embassy-os-deb
+          path: embassy-os-deb
 
       - uses: actions/checkout@v3
         with:
           submodules: recursive
-          path: embassyos-0.3.x
+          path: embassy-os-deb/embassyos-0.3.x
+
       - run: |
           cp -r debian embassyos-0.3.x/
           VERSION=0.3.x ./control.sh
           cp embassyos-0.3.x/backend/embassyd.service embassyos-0.3.x/debian/embassyos.embassyd.service
           cp embassyos-0.3.x/backend/embassy-init.service embassyos-0.3.x/debian/embassyos.embassy-init.service
+        working-directory: embassy-os-deb
 
       - uses: actions/setup-node@v3
         with:
@@ -57,7 +84,7 @@ jobs:
         id: npm-cache-dir
         run: |
           echo "dir=$(npm config get cache)" >> $GITHUB_OUTPUT
-      - uses: actions/cache@v3
+      - uses: buildjet/cache@v3
         id: npm-cache
         with:
           path: ${{ steps.npm-cache-dir.outputs.dir }}
@@ -79,29 +106,16 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Run build
+      - name: Run dpkg build
+        working-directory: embassy-os-deb
         run: "make VERSION=0.3.x TAG=${{ github.ref_name }}"
         env:
           OS_ARCH: ${{ matrix.platform }}
 
-      - uses: actions/upload-artifact@v3
-        with:
-          name: ${{ matrix.platform }}.deb
-          path: embassyos_0.3.x-1_*.deb
-
-  iso:
-    name: Build iso
-    strategy:
-      fail-fast: false
-      matrix:
-        platform:
-          [x86_64, x86_64-nonfree, aarch64, aarch64-nonfree, raspberrypi]
-    runs-on: '${{ fromJson(''["ubuntu-22.04", "fatboi"]'')[github.event.inputs.environment == ''<NONE>''] }}'
-    needs: [dpkg]
-    steps:
       - uses: actions/checkout@v3
         with:
           repository: Start9Labs/startos-image-recipes
+          path: startos-image-recipes
 
       - name: Install dependencies
         run: |
@@ -115,56 +129,57 @@ jobs:
         run: |
           sudo mkdir -p /etc/debspawn/
           echo "AllowUnsafePermissions=true" | sudo tee /etc/debspawn/global.toml
+          sudo mkdir -p /var/tmp/debspawn
 
-      - uses: actions/cache@v3
+      - run: sudo mount -t tmpfs tmpfs /var/tmp/debspawn
+        if: ${{ github.event.inputs.runner == 'fast' && (matrix.platform == 'x86_64' || matrix.platform == 'x86_64-nonfree') }}
+
+      - uses: buildjet/cache@v3
         with:
           path: /var/lib/debspawn
-          key: ${{ runner.os }}-debspawn-init
+          key: ${{ runner.os }}-${{ matrix.platform }}-debspawn-init
 
-      - run: "mkdir -p overlays/deb"
+      - run: "mkdir -p startos-image-recipes/overlays/deb"
 
-      - name: Download dpkg
-        uses: actions/download-artifact@v3
-        with:
-          name: ${{ matrix.platform }}.deb
-          path: overlays/deb
+      - run: "mv embassy-os-deb/embassyos_0.3.x-1_*.deb startos-image-recipes/overlays/deb/"
 
-      - name: Run build
+      - run: "rm -rf embassy-os-deb"
+
+      - name: Run iso build
+        working-directory: startos-image-recipes
         run: |
           ./run-local-build.sh ${{ matrix.platform }}
 
       - uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.platform }}.squashfs
-          path: results/*.squashfs
+          path: startos-image-recipes/results/*.squashfs
 
       - uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.platform }}.iso
-          path: results/*.iso
+          path: startos-image-recipes/results/*.iso
         if: ${{ matrix.platform != 'raspberrypi' }}
 
-  image:
-    name: Build image
-    runs-on: '${{ fromJson(''["ubuntu-22.04", "fatboi"]'')[github.event.inputs.environment == ''<NONE>''] }}'
-    timeout-minutes: 60
-    needs: [iso]
-    steps:
       - uses: actions/checkout@v3
         with:
           submodules: recursive
+          path: start-os
+        if: ${{ matrix.platform == 'raspberrypi' }}
 
-      - name: Download raspberrypi.squashfs artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: raspberrypi.squashfs
+      - run: "mv startos-image-recipes/results/startos-*_raspberrypi.squashfs start-os/startos.raspberrypi.squashfs"
+        if: ${{ matrix.platform == 'raspberrypi' }}
 
-      - run: mv startos-*_raspberrypi.squashfs startos.raspberrypi.squashfs
+      - run: rm -rf startos-image-recipes
+        if: ${{ matrix.platform == 'raspberrypi' }}
 
       - name: Build image
+        working-directory: start-os
         run: make startos_raspberrypi.img
+        if: ${{ matrix.platform == 'raspberrypi' }}
 
       - uses: actions/upload-artifact@v3
         with:
           name: raspberrypi.img
-          path: startos-*_raspberrypi.img
+          path: start-os/startos-*_raspberrypi.img
+        if: ${{ matrix.platform == 'raspberrypi' }}
