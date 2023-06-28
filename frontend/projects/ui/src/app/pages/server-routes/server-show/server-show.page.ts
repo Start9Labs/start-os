@@ -135,7 +135,7 @@ export class ServerShowPage {
     const alert = await this.alertCtrl.create({
       header: 'Warning',
       message:
-        'Are you sure you want to power down your server? This can take several minutes, and your server will not come back online automatically. To power on again, You will need to physically unplug your server and plug it back in',
+        'Are you sure you want to power down your server? This can take several minutes, and your server will not come back online automatically. To power on again, you will need to physically unplug your server and plug it back in.',
       buttons: [
         {
           text: 'Cancel',
@@ -531,7 +531,7 @@ export class ServerShowPage {
         icon: 'chatbubbles-outline',
         action: () =>
           window.open(
-            'https://docs.start9.com/latest/support/contact',
+            'https://start9.com/contact',
             '_blank',
             'noreferrer',
           ),
