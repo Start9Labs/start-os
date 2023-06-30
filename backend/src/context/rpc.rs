@@ -265,8 +265,12 @@ impl RpcContext {
     pub async fn cleanup(&self) -> Result<(), Error> {
         let mut db = self.db.handle();
         let receipts = RpcCleanReceipts::new(&mut db).await?;
-        let mut current_dependents = BTreeMap::new();
-        for (package_id, package) in receipts.packages.get(&mut db).await?.0 {
+        let packages = receipts.packages.get(&mut db).await?.0;
+        let mut current_dependents = packages
+            .keys()
+            .map(|k| (k.clone(), BTreeMap::new()))
+            .collect::<BTreeMap<_, _>>();
+        for (package_id, package) in packages {
             for (k, v) in package
                 .into_installed()
                 .into_iter()
