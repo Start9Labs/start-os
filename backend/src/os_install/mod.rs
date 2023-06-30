@@ -165,6 +165,12 @@ pub async fn execute(
                 {
                     tokio::fs::remove_file(guard.as_ref().join("config/upgrade")).await?;
                 }
+                if tokio::fs::metadata(guard.as_ref().join("config/disk.guid"))
+                    .await
+                    .is_ok()
+                {
+                    tokio::fs::remove_file(guard.as_ref().join("config/disk.guid")).await?;
+                }
                 guard.unmount().await
             }
             .await
