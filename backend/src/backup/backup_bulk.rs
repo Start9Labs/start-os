@@ -328,11 +328,11 @@ async fn perform_backup<Db: DbHandle>(
         .await
         .with_kind(ErrorKind::Filesystem)?;
 
-    let luks_folder_old = backup_guard.as_ref().join("luks.old");
+    let luks_folder_old = backup_guard.lock().await.as_ref().join("luks.old");
     if tokio::fs::metadata(&luks_folder_old).await.is_ok() {
         tokio::fs::remove_dir_all(&luks_folder_old).await?;
     }
-    let luks_folder_bak = backup_guard.as_ref().join("luks");
+    let luks_folder_bak = backup_guard.lock().await.as_ref().join("luks");
     if tokio::fs::metadata(&luks_folder_bak).await.is_ok() {
         tokio::fs::rename(&luks_folder_bak, &luks_folder_old).await?;
     }

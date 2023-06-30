@@ -35,12 +35,9 @@ impl Version {
     #[cfg(test)]
     fn as_sem_ver(&self) -> emver::Version {
         match self {
-            Version::LT0_3_3(LTWrapper(_, x)) => x.clone(),
-            Version::V0_3_3(Wrapper(x)) => x.semver(),
-            Version::V0_3_4(Wrapper(x)) => x.semver(),
-            Version::V0_3_4_1(Wrapper(x)) => x.semver(),
-            Version::V0_3_4_2(Wrapper(x)) => x.semver(),
+            Version::LT0_3_4_3(LTWrapper(_, x)) => x.clone(),
             Version::V0_3_4_3(Wrapper(x)) => x.semver(),
+            Version::V0_4_0(Wrapper(x)) => x.semver(),
             Version::Other(x) => x.clone(),
         }
     }
@@ -250,17 +247,16 @@ mod tests {
 
     fn versions() -> impl Strategy<Value = Version> {
         prop_oneof![
-            em_version().prop_map(|v| if v < v0_3_4_1::Version::new().semver() {
-                Version::LT0_3_4_1(LTWrapper(v0_3_4_1::Version::new(), v))
+            em_version().prop_map(|v| if v < v0_3_4_3::Version::new().semver() {
+                Version::LT0_3_4_3(LTWrapper(v0_3_4_3::Version::new(), v))
             } else {
-                Version::LT0_3_4_1(LTWrapper(
-                    v0_3_4_1::Version::new(),
+                Version::LT0_3_4_3(LTWrapper(
+                    v0_3_4_3::Version::new(),
                     emver::Version::new(0, 3, 0, 0),
                 ))
             }),
-            Just(Version::V0_3_4_1(Wrapper(v0_3_4_1::Version::new()))),
-            Just(Version::V0_3_4_2(Wrapper(v0_3_4_2::Version::new()))),
             Just(Version::V0_3_4_3(Wrapper(v0_3_4_3::Version::new()))),
+            Just(Version::V0_4_0(Wrapper(v0_4_0::Version::new()))),
             em_version().prop_map(Version::Other),
         ]
     }
