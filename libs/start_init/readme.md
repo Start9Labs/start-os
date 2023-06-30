@@ -25,7 +25,7 @@ run_test () {
             -w /libs \
             --rm node:18-alpine \
             sh -c "
-                npm i &&                  
+                npm i &&
                 npm run bundle:esbuild  &&
                 npm run bundle:service
             "
@@ -37,6 +37,7 @@ run_test () {
         cd $service
         docker run \
             -v $libs:/start-init \
+            -v $sockets:/start9 \
             --rm -it $(docker build -q .) sh -c "
                 apk add nodejs &&
                 node /start-init/bundleEs.js
@@ -56,5 +57,8 @@ sudo socat - unix-client:/tmp/start9/sockets/rpc.sock
 
 <!-- prettier-ignore -->
 ```json
-{"id":"a","method":"run","params":{"methodName":"dependencyMounts","methodArgs":[]}}
+{"id":"a","method":"run","params":{"methodName":"/dependencyMounts","methodArgs":[]}}
+{"id":"a","method":"run","params":{"methodName":"/actions/test","methodArgs":{"input":{"id": 1}}}}
+{"id":"b","method":"run","params":{"methodName":"/actions/test","methodArgs":{"id": 1}}}
+
 ```
