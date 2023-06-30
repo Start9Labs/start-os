@@ -1,11 +1,11 @@
 import { Component } from '@angular/core'
-import { AlertController } from '@ionic/angular'
 import { ErrorService, LoadingService } from '@start9labs/shared'
 import { TuiDialogService } from '@taiga-ui/core'
-import { BehaviorSubject, take } from 'rxjs'
+import { BehaviorSubject, filter, take } from 'rxjs'
 import { SSHKey } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PROMPT } from 'src/app/apps/ui/modals/prompt/prompt.component'
+import { TUI_PROMPT } from '@taiga-ui/kit'
 
 @Component({
   selector: 'ssh-keys',
@@ -21,7 +21,6 @@ export class SSHKeysPage {
     private readonly loader: LoadingService,
     private readonly dialogs: TuiDialogService,
     private readonly errorService: ErrorService,
-    private readonly alertCtrl: AlertController,
     private readonly embassyApi: ApiService,
   ) {}
 
@@ -52,25 +51,19 @@ export class SSHKeysPage {
       .subscribe(pk => this.add(pk))
   }
 
-  async presentAlertDelete(key: SSHKey, i: number) {
-    const alert = await this.alertCtrl.create({
-      header: 'Confirm',
-      message: 'Delete key? This action cannot be undone.',
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
+  presentAlertDelete(key: SSHKey, i: number) {
+    this.dialogs
+      .open(TUI_PROMPT, {
+        label: 'Confirm',
+        size: 's',
+        data: {
+          content: 'Delete key? This action cannot be undone.',
+          yes: 'Delete',
+          no: 'Cancel',
         },
-        {
-          text: 'Delete',
-          handler: () => {
-            this.delete(key, i)
-          },
-          cssClass: 'enter-click',
-        },
-      ],
-    })
-    await alert.present()
+      })
+      .pipe(filter(Boolean))
+      .subscribe(() => this.delete(key, i))
   }
 
   private async add(pubkey: string): Promise<void> {

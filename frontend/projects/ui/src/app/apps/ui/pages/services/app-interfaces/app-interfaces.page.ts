@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { ModalController } from '@ionic/angular'
 import { getPkgId, CopyService } from '@start9labs/shared'
 import { AddressInfo, DataModel } from 'src/app/services/patch-db/data-model'
 import { PatchDB } from 'patch-db-client'

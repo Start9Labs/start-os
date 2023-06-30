@@ -1,17 +1,17 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
-import { AlertController } from '@ionic/angular'
-import { PatchDB } from 'patch-db-client'
 import { LoadingService, CopyService, ErrorService } from '@start9labs/shared'
-import { DataModel, NetworkInfo } from 'src/app/services/patch-db/data-model'
-import { TuiDialogOptions } from '@taiga-ui/core'
-import { FormDialogService } from 'src/app/services/form-dialog.service'
-import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
 import { Config } from '@start9labs/start-sdk/lib/config/builder/config'
 import { Value } from '@start9labs/start-sdk/lib/config/builder/value'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { InputSpec } from '@start9labs/start-sdk/lib/config/configTypes'
-import { map } from 'rxjs'
+import { TuiDialogOptions, TuiDialogService } from '@taiga-ui/core'
+import { PatchDB } from 'patch-db-client'
+import { filter, map } from 'rxjs'
+import { DataModel, NetworkInfo } from 'src/app/services/patch-db/data-model'
+import { FormDialogService } from 'src/app/services/form-dialog.service'
+import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormContext, FormPage } from '../../../modals/form/form.page'
+import { TUI_PROMPT } from '@taiga-ui/kit'
 
 export type ClearnetForm = {
   domain: string
@@ -38,7 +38,7 @@ export class OSAddressesPage {
     private readonly patch: PatchDB<DataModel>,
     private readonly errorService: ErrorService,
     private readonly api: ApiService,
-    private readonly alertCtrl: AlertController,
+    private readonly dialogs: TuiDialogService,
   ) {}
 
   launch(url: string): void {
@@ -70,25 +70,19 @@ export class OSAddressesPage {
     this.formDialog.open(FormPage, options)
   }
 
-  async presentAlertRemoveClearnet() {
-    const alert = await this.alertCtrl.create({
-      header: 'Confirm',
-      message: 'Remove clearnet address?',
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
+  presentAlertRemoveClearnet() {
+    this.dialogs
+      .open(TUI_PROMPT, {
+        label: 'Confirm',
+        size: 's',
+        data: {
+          content: 'Remove clearnet address?',
+          yes: 'Remove',
+          no: 'Cancel',
         },
-        {
-          text: 'Remove',
-          handler: () => {
-            this.removeClearnet()
-          },
-          cssClass: 'enter-click',
-        },
-      ],
-    })
-    await alert.present()
+      })
+      .pipe(filter(Boolean))
+      .subscribe(() => this.removeClearnet())
   }
 
   private async saveClearnet(value: ClearnetForm): Promise<boolean> {

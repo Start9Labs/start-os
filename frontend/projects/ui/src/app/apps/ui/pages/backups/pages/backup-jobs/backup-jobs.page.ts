@@ -1,8 +1,8 @@
 import { Component } from '@angular/core'
-import { AlertController, ModalController } from '@ionic/angular'
 import { TuiDialogService } from '@taiga-ui/core'
+import { TUI_PROMPT } from '@taiga-ui/kit'
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
-import { BehaviorSubject } from 'rxjs'
+import { BehaviorSubject, filter } from 'rxjs'
 import { BackupJob } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ErrorService, LoadingService } from '@start9labs/shared'
@@ -24,8 +24,6 @@ export class BackupJobsPage {
 
   constructor(
     private readonly dialogs: TuiDialogService,
-    private readonly modalCtrl: ModalController,
-    private readonly alertCtrl: AlertController,
     private readonly loader: LoadingService,
     private readonly errorService: ErrorService,
     private readonly api: ApiService,
@@ -66,25 +64,21 @@ export class BackupJobsPage {
       })
   }
 
-  async presentAlertDelete(id: string, index: number) {
-    const alert = await this.alertCtrl.create({
-      header: 'Confirm',
-      message: 'Delete backup job? This action cannot be undone.',
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
+  presentAlertDelete(id: string, index: number) {
+    this.dialogs
+      .open(TUI_PROMPT, {
+        label: 'Confirm',
+        size: 's',
+        data: {
+          content: 'Delete backup job? This action cannot be undone.',
+          yes: 'Delete',
+          no: 'Cancel',
         },
-        {
-          text: 'Delete',
-          handler: () => {
-            this.delete(id, index)
-          },
-          cssClass: 'enter-click',
-        },
-      ],
-    })
-    await alert.present()
+      })
+      .pipe(filter(Boolean))
+      .subscribe(() => {
+        this.delete(id, index)
+      })
   }
 
   private async delete(id: string, i: number): Promise<void> {

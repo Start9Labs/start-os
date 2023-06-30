@@ -4,17 +4,19 @@ import {
   Inject,
   Input,
 } from '@angular/core'
-import { AlertController, LoadingController } from '@ionic/angular'
 import {
   AbstractMarketplaceService,
   MarketplacePkg,
 } from '@start9labs/marketplace'
 import {
   Emver,
-  ErrorToastService,
+  ErrorService,
   isEmptyObject,
+  LoadingService,
   sameUrl,
 } from '@start9labs/shared'
+import { TuiDialogService } from '@taiga-ui/core'
+import { filter, firstValueFrom, of, Subscription, switchMap } from 'rxjs'
 import {
   DataModel,
   PackageDataEntry,
@@ -27,7 +29,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { Breakages } from 'src/app/services/api/api.types'
 import { PatchDB } from 'patch-db-client'
 import { getAllPackages } from 'src/app/util/get-package-data'
-import { firstValueFrom } from 'rxjs'
+import { TUI_PROMPT } from '@taiga-ui/kit'
 
 @Component({
   selector: 'marketplace-show-controls',
@@ -50,13 +52,13 @@ export class MarketplaceShowControlsComponent {
   readonly PackageState = PackageState
 
   constructor(
-    private readonly alertCtrl: AlertController,
+    private readonly dialogs: TuiDialogService,
     private readonly ClientStorageService: ClientStorageService,
     @Inject(AbstractMarketplaceService)
     private readonly marketplaceService: MarketplaceService,
-    private readonly loadingCtrl: LoadingController,
+    private readonly loader: LoadingService,
     private readonly emver: Emver,
-    private readonly errToast: ErrorToastService,
+    private readonly errorService: ErrorService,
     private readonly embassyApi: ApiService,
     private readonly patch: PatchDB<DataModel>,
   ) {}
@@ -112,39 +114,26 @@ export class MarketplaceShowControlsComponent {
     }
 
     return new Promise(async resolve => {
-      const alert = await this.alertCtrl.create({
-        header: 'Warning',
-        message: `This service was originally ${
-          originalName ? 'installed from ' + originalName : 'side loaded'
-        }, but you are currently connected to ${name}. To install from ${name} anyway, click "Continue".`,
-        buttons: [
-          {
-            text: 'Cancel',
-            role: 'cancel',
-            handler: () => {
-              resolve(false)
-            },
+      this.dialogs
+        .open<boolean>(TUI_PROMPT, {
+          label: 'Warning',
+          size: 's',
+          data: {
+            content: `This service was originally ${
+              originalName ? 'installed from ' + originalName : 'side loaded'
+            }, but you are currently connected to ${name}. To install from ${name} anyway, click "Continue".`,
+            yes: 'Continue',
+            no: 'Cancel',
           },
-          {
-            text: 'Continue',
-            handler: () => {
-              resolve(true)
-            },
-            cssClass: 'enter-click',
-          },
-        ],
-        cssClass: 'alert-warning-message',
-      })
-
-      await alert.present()
+        })
+        .subscribe(response => resolve(response))
     })
   }
 
   private async dryInstall(url: string) {
-    const loader = await this.loadingCtrl.create({
-      message: 'Checking dependent services...',
-    })
-    await loader.present()
+    const loader = this.loader
+      .open('Checking dependent services...')
+      .subscribe()
 
     const { id, version } = this.pkg.manifest
 
@@ -157,49 +146,47 @@ export class MarketplaceShowControlsComponent {
       if (isEmptyObject(breakages)) {
         this.install(url, loader)
       } else {
-        await loader.dismiss()
+        loader.unsubscribe()
         const proceed = await this.presentAlertBreakages(breakages)
         if (proceed) {
           this.install(url)
         }
       }
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     }
   }
 
-  private async alertInstall(url: string) {
-    const installAlert = this.pkg.manifest.alerts.install
-
-    if (!installAlert) return this.install(url)
-
-    const alert = await this.alertCtrl.create({
-      header: 'Alert',
-      message: installAlert,
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
-        },
-        {
-          text: 'Install',
-          handler: () => {
-            this.install(url)
-          },
-          cssClass: 'enter-click',
-        },
-      ],
-    })
-    await alert.present()
+  private alertInstall(url: string) {
+    of(this.pkg.manifest.alerts.install)
+      .pipe(
+        switchMap(content =>
+          content
+            ? of(true)
+            : this.dialogs.open<boolean>(TUI_PROMPT, {
+                label: 'Alert',
+                size: 's',
+                data: {
+                  content,
+                  yes: 'Install',
+                  no: 'Cancel',
+                },
+              }),
+        ),
+        filter(Boolean),
+      )
+      .subscribe(() => this.install(url))
   }
 
-  private async install(url: string, loader?: HTMLIonLoadingElement) {
+  private async install(url: string, loader?: Subscription) {
     const message = 'Beginning Install...'
+
     if (loader) {
-      loader.message = message
+      loader.unsubscribe()
+      loader.closed = false
+      loader.add(this.loader.open(message).subscribe())
     } else {
-      loader = await this.loadingCtrl.create({ message })
-      await loader.present()
+      loader = this.loader.open(message).subscribe()
     }
 
     const { id, version } = this.pkg.manifest
@@ -207,46 +194,34 @@ export class MarketplaceShowControlsComponent {
     try {
       await this.marketplaceService.installPackage(id, version, url)
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
   private async presentAlertBreakages(breakages: Breakages): Promise<boolean> {
-    let message: string =
+    let content: string =
       'As a result of this update, the following services will no longer work properly and may crash:<ul>'
     const localPkgs = await getAllPackages(this.patch)
     const bullets = Object.keys(breakages).map(id => {
       const title = localPkgs[id].manifest.title
       return `<li><b>${title}</b></li>`
     })
-    message = `${message}${bullets.join('')}</ul>`
+    content = `${content}${bullets.join('')}</ul>`
 
     return new Promise(async resolve => {
-      const alert = await this.alertCtrl.create({
-        header: 'Warning',
-        message,
-        buttons: [
-          {
-            text: 'Cancel',
-            role: 'cancel',
-            handler: () => {
-              resolve(false)
-            },
+      this.dialogs
+        .open<boolean>(TUI_PROMPT, {
+          label: 'Warning',
+          size: 's',
+          data: {
+            content,
+            yes: 'Continue',
+            no: 'Cancel',
           },
-          {
-            text: 'Continue',
-            handler: () => {
-              resolve(true)
-            },
-            cssClass: 'enter-click',
-          },
-        ],
-        cssClass: 'alert-warning-message',
-      })
-
-      await alert.present()
+        })
+        .subscribe(response => resolve(response))
     })
   }
 }

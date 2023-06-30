@@ -11,7 +11,7 @@ import {
   of,
 } from 'rxjs'
 
-import { getErrorMessage } from '../../services/error-toast.service'
+import { getErrorMessage } from '../../services/error.service'
 
 @Component({
   selector: 'markdown',

@@ -1,94 +1,39 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-title> Connect Network Folder </ion-title>
-  </ion-toolbar>
-</ion-header>
+<form [formGroup]="form" (ngSubmit)="submit()">
+  <tui-input formControlName="hostname">
+    Hostname
+    <input tuiTextfield placeholder="'My Computer' OR 'my-computer.local'" />
+  </tui-input>
+  <tui-error
+    formControlName="hostname"
+    [error]="['required'] | tuiFieldError | async"
+  ></tui-error>
 
-<ion-content class="ion-padding">
-  <form (ngSubmit)="submit()" #cifsForm="ngForm">
-    <p>Hostname *</p>
-    <ion-item>
-      <ion-input
-        id="hostname"
-        required
-        [(ngModel)]="cifs.hostname"
-        name="hostname"
-        #hostname="ngModel"
-        placeholder="e.g. 'My Computer' OR 'my-computer.local'"
-        pattern="^[a-zA-Z0-9._-]+( [a-zA-Z0-9]+)*$"
-      ></ion-input>
-    </ion-item>
-    <p [hidden]="hostname.valid || hostname.pristine">
-      <ion-text color="danger"
-        >Hostname is required. e.g. 'My Computer' OR
-        'my-computer.local'</ion-text
-      >
-    </p>
+  <tui-input formControlName="path" class="input">
+    Path
+    <input tuiTextfield placeholder="/Desktop/my-folder'" />
+  </tui-input>
+  <tui-error
+    formControlName="path"
+    [error]="[] | tuiFieldError | async"
+  ></tui-error>
 
-    <p>Path *</p>
-    <ion-item>
-      <ion-input
-        id="path"
-        required
-        [(ngModel)]="cifs.path"
-        name="path"
-        #path="ngModel"
-        placeholder="ex. /Desktop/my-folder'"
-      ></ion-input>
-    </ion-item>
-    <p [hidden]="path.valid || path.pristine">
-      <ion-text color="danger">Path is required</ion-text>
-    </p>
+  <tui-input formControlName="username" class="input">
+    Username
+    <input tuiTextfield placeholder="Enter username" />
+  </tui-input>
+  <tui-error
+    formControlName="username"
+    [error]="[] | tuiFieldError | async"
+  ></tui-error>
 
-    <p>Username *</p>
-    <ion-item>
-      <ion-input
-        id="username"
-        required
-        [(ngModel)]="cifs.username"
-        name="username"
-        #username="ngModel"
-        placeholder="Enter username"
-      ></ion-input>
-    </ion-item>
-    <p [hidden]="username.valid || username.pristine">
-      <ion-text color="danger">Username is required</ion-text>
-    </p>
+  <tui-input-password formControlName="password" class="input">
+    Password
+  </tui-input-password>
 
-    <p>Password</p>
-    <ion-item>
-      <ion-input
-        id="password"
-        type="password"
-        [(ngModel)]="cifs.password"
-        name="password"
-        #password="ngModel"
-      ></ion-input>
-    </ion-item>
-
-    <button hidden type="submit"></button>
-  </form>
-</ion-content>
-
-<ion-footer>
-  <ion-toolbar>
-    <ion-button
-      class="ion-padding-end"
-      slot="end"
-      color="warning"
-      (click)="cancel()"
-    >
+  <footer class="modal-buttons">
+    <button tuiButton appearance="secondary" type="button" (click)="cancel()">
       Cancel
-    </ion-button>
-    <ion-button
-      class="ion-padding-end"
-      slot="end"
-      color="primary"
-      strong="true"
-      [disabled]="!cifsForm.form.valid"
-      (click)="submit()"
-    >
-      Verify
-    </ion-button>
-  </ion-toolbar>
-</ion-footer>
+    </button>
+    <button tuiButton [disabled]="form.invalid">Verify</button>
+  </footer>
+</form>

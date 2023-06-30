@@ -1,26 +1,32 @@
-import { Component } from '@angular/core'
-import { LoadingController, getPlatforms } from '@ionic/angular'
+import { Component, Inject } from '@angular/core'
+import { getPlatforms } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { AuthService } from 'src/app/services/auth.service'
 import { Router } from '@angular/router'
 import { ConfigService } from 'src/app/services/config.service'
+import { LoadingService } from '@start9labs/shared'
+import { TuiDestroyService } from '@taiga-ui/cdk'
+import { takeUntil } from 'rxjs'
+import { DOCUMENT } from '@angular/common'
 
 @Component({
   selector: 'login',
   templateUrl: './login.page.html',
   styleUrls: ['./login.page.scss'],
+  providers: [TuiDestroyService],
 })
 export class LoginPage {
   password = ''
   unmasked = false
   error = ''
-  loader?: HTMLIonLoadingElement
   secure = this.config.isSecure()
 
   constructor(
+    @Inject(DOCUMENT) private readonly document: Document,
+    private readonly destroy$: TuiDestroyService,
     private readonly router: Router,
     private readonly authService: AuthService,
-    private readonly loadingCtrl: LoadingController,
+    private readonly loader: LoadingService,
     private readonly api: ApiService,
     private readonly config: ConfigService,
   ) {}
@@ -35,10 +41,6 @@ export class LoginPage {
     }
   }
 
-  ngOnDestroy() {
-    this.loader?.dismiss()
-  }
-
   toggleMask() {
     this.unmasked = !this.unmasked
   }
@@ -46,13 +48,13 @@ export class LoginPage {
   async submit() {
     this.error = ''
 
-    this.loader = await this.loadingCtrl.create({
-      message: 'Logging in...',
-    })
-    await this.loader.present()
+    const loader = this.loader
+      .open('Logging in...')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe()
 
     try {
-      document.cookie = ''
+      this.document.cookie = ''
       if (this.password.length > 64) {
         this.error = 'Password must be less than 65 characters'
         return
@@ -71,7 +73,7 @@ export class LoginPage {
       // code 7 is for incorrect password
       this.error = e.code === 7 ? 'Invalid Password' : e.message
     } finally {
-      this.loader.dismiss()
+      loader.unsubscribe()
     }
   }
 }

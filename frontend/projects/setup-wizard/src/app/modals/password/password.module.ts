@@ -1,20 +1,20 @@
 import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
-import { IonicModule } from '@ionic/angular'
-import { FormsModule } from '@angular/forms'
+import { FormsModule, ReactiveFormsModule } from '@angular/forms'
+import { TuiButtonModule, TuiErrorModule } from '@taiga-ui/core'
+import { TuiInputPasswordModule } from '@taiga-ui/kit'
 import { PasswordPage } from './password.page'
 
 @NgModule({
-  declarations: [
-    PasswordPage,
-  ],
+  declarations: [PasswordPage],
   imports: [
     CommonModule,
     FormsModule,
-    IonicModule,
+    TuiButtonModule,
+    TuiInputPasswordModule,
+    TuiErrorModule,
+    ReactiveFormsModule,
   ],
-  exports: [
-    PasswordPage,
-  ],
+  exports: [PasswordPage],
 })
-export class PasswordPageModule { }
+export class PasswordPageModule {}

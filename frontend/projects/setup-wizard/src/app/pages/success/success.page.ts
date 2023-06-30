@@ -1,6 +1,6 @@
 import { DOCUMENT } from '@angular/common'
 import { Component, ElementRef, Inject, NgZone, ViewChild } from '@angular/core'
-import { DownloadHTMLService, ErrorToastService } from '@start9labs/shared'
+import { DownloadHTMLService, ErrorService } from '@start9labs/shared'
 import { ApiService } from 'src/app/services/api/api.service'
 import { StateService } from 'src/app/services/state.service'
 
@@ -12,7 +12,8 @@ import { StateService } from 'src/app/services/state.service'
 })
 export class SuccessPage {
   @ViewChild('canvas', { static: true })
-  private canvas: ElementRef<HTMLCanvasElement> = {} as ElementRef<HTMLCanvasElement>
+  private canvas: ElementRef<HTMLCanvasElement> =
+    {} as ElementRef<HTMLCanvasElement>
   private ctx: CanvasRenderingContext2D = {} as CanvasRenderingContext2D
 
   torAddress?: string
@@ -28,7 +29,7 @@ export class SuccessPage {
 
   constructor(
     @Inject(DOCUMENT) private readonly document: Document,
-    private readonly errCtrl: ErrorToastService,
+    private readonly errorService: ErrorService,
     private readonly stateService: StateService,
     private readonly api: ApiService,
     private readonly downloadHtml: DownloadHTMLService,
@@ -55,7 +56,7 @@ export class SuccessPage {
         await this.api.exit()
       }
     } catch (e: any) {
-      await this.errCtrl.present(e)
+      await this.errorService.handleError(e)
     }
   }
 
