@@ -708,6 +708,7 @@ export module Mock {
     bitcoin: {
       type: 'object',
       name: 'Bitcoin Settings',
+      warning: null,
       description:
         'RPC and P2P interface configuration options for Bitcoin Core',
       spec: {
@@ -716,6 +717,7 @@ export module Mock {
           tag: {
             id: 'type',
             name: 'Bitcoin Core P2P',
+            warning: '',
             description:
               '<p>The Bitcoin Core node to connect to over the peer-to-peer (P2P) interface:</p><ul><li><strong>Bitcoin Core</strong>: The Bitcoin Core service installed on this device</li><li><strong>External Node</strong>: A Bitcoin node running on a different device</li></ul>',
             'variant-names': {
@@ -733,7 +735,12 @@ export module Mock {
                 description: 'The public address of your Bitcoin Core server',
                 nullable: false,
                 masked: false,
-                copyable: false,
+                default: null,
+                textarea: false,
+                pattern: null,
+                'pattern-description': null,
+                placeholder: null,
+                warning: null,
               },
               'p2p-port': {
                 type: 'number',
@@ -744,6 +751,9 @@ export module Mock {
                 range: '[0,65535]',
                 integral: true,
                 default: 8333,
+                units: null,
+                placeholder: null,
+                warning: null,
               },
             },
           },
@@ -754,6 +764,7 @@ export module Mock {
       name: 'Advanced',
       type: 'object',
       description: 'Advanced settings',
+      warning: null,
       spec: {
         rpcsettings: {
           name: 'RPC Settings',
@@ -762,17 +773,6 @@ export module Mock {
           warning:
             'Adding RPC users gives them special permissions on your node.',
           spec: {
-            rpcuser2: {
-              name: 'RPC Username',
-              type: 'string',
-              description: 'rpc username',
-              nullable: false,
-              default: 'defaultrpcusername',
-              pattern: '^[a-zA-Z]+$',
-              'pattern-description': 'must contain only letters.',
-              masked: false,
-              copyable: true,
-            },
             rpcuser: {
               name: 'RPC Username',
               type: 'string',
@@ -782,7 +782,9 @@ export module Mock {
               pattern: '^[a-zA-Z]+$',
               'pattern-description': 'must contain only letters.',
               masked: false,
-              copyable: true,
+              textarea: false,
+              placeholder: null,
+              warning: null,
             },
             rpcpass: {
               name: 'RPC User Password',
@@ -793,20 +795,12 @@ export module Mock {
                 charset: 'a-z,A-Z,2-9',
                 len: 20,
               },
-              masked: true,
-              copyable: true,
-            },
-            rpcpass2: {
-              name: 'RPC User Password',
-              type: 'string',
-              description: 'rpc password',
-              nullable: false,
-              default: {
-                charset: 'a-z,A-Z,2-9',
-                len: 20,
-              },
-              masked: true,
-              copyable: true,
+              masked: false,
+              textarea: false,
+              pattern: null,
+              'pattern-description': null,
+              placeholder: null,
+              warning: null,
             },
           },
         },
@@ -1135,22 +1129,33 @@ export module Mock {
             name: 'Emergency Contact',
             type: 'object',
             description: 'The person to contact in case of emergency.',
+            warning: null,
             spec: {
               name: {
                 type: 'string',
                 name: 'Name',
+                description: null,
                 nullable: false,
                 masked: false,
-                copyable: false,
                 pattern: '^[a-zA-Z]+$',
                 'pattern-description': 'Must contain only letters.',
+                default: null,
+                textarea: false,
+                placeholder: null,
+                warning: null,
               },
               email: {
                 type: 'string',
                 name: 'Email',
+                description: null,
                 nullable: false,
                 masked: false,
-                copyable: true,
+                default: null,
+                textarea: false,
+                pattern: null,
+                'pattern-description': null,
+                placeholder: null,
+                warning: null,
               },
             },
           },
