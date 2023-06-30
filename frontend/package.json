@@ -42,7 +42,7 @@
     "@angular/platform-browser-dynamic": "^14.1.0",
     "@angular/pwa": "^14.1.0",
     "@angular/router": "^14.1.0",
-    "@angular/service-worker": "^14.2.2",
+    "@angular/service-worker": "^14.3.0",
     "@ionic/angular": "^6.1.15",
     "@materia-ui/ngx-monaco-editor": "^6.0.0",
     "@ng-web-apis/common": "^2.0.0",
