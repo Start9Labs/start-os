@@ -344,14 +344,22 @@ fn configure(
             .config_actions
             .get(db, id)
             .await?
-            .ok_or_else(not_found)?;
+            .ok_or_else(|| not_found!(&*id))?;
         let dependencies = receipts
             .dependencies
             .get(db, id)
             .await?
-            .ok_or_else(not_found)?;
-        let volumes = receipts.volumes.get(db, id).await?.ok_or_else(not_found)?;
-        let version = receipts.version.get(db, id).await?.ok_or_else(not_found)?;
+            .ok_or_else(|| not_found!(&*id))?;
+        let volumes = receipts
+            .volumes
+            .get(db, id)
+            .await?
+            .ok_or_else(|| not_found!(&*id))?;
+        let version = receipts
+            .version
+            .get(db, id)
+            .await?
+            .ok_or_else(|| not_found!(&*id))?;
 
         // get current config and current spec
         let ConfigRes {
@@ -370,7 +378,11 @@ fn configure(
                 )?
             };
 
-        let manifest = receipts.manifest.get(db, id).await?.ok_or_else(not_found)?;
+        let manifest = receipts
+            .manifest
+            .get(db, id)
+            .await?
+            .ok_or_else(|| not_found!(&*id))?;
 
         spec.validate(&manifest)?;
         spec.matches(&config)?; // check that new config matches spec
@@ -389,7 +401,7 @@ fn configure(
             .system_pointers
             .get(db, id)
             .await?
-            .ok_or_else(not_found)?;
+            .ok_or_else(|| not_found!(&*id))?;
         sys.truncate(0);
         let mut current_dependencies: CurrentDependencies = CurrentDependencies(
             dependencies
@@ -498,7 +510,7 @@ fn configure(
             .dependency_errors
             .get(db, &id)
             .await?
-            .ok_or_else(not_found)?;
+            .ok_or_else(|| not_found!(&*id))?;
         tracing::warn!("Dependency Errors: {:?}", errs);
         let errs = DependencyErrors::init(
             ctx,
@@ -520,7 +532,7 @@ fn configure(
             .current_dependents
             .get(db, id)
             .await?
-            .ok_or_else(not_found)?;
+            .ok_or_else(|| not_found!(&*id))?;
         for (dependent, _dep_info) in dependents.0.iter().filter(|(dep_id, _)| dep_id != &id) {
             let dependent_container = receipts.docker_containers.get(db, dependent).await?;
             let dependent_container = &dependent_container;
@@ -534,7 +546,7 @@ fn configure(
                     .manifest
                     .get(db, dependent)
                     .await?
-                    .ok_or_else(not_found)?;
+                    .ok_or_else(|| not_found!(&*id))?;
                 if let Err(error) = cfg
                     .check(
                         ctx,

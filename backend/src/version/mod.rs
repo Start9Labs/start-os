@@ -247,22 +247,18 @@ mod tests {
 
     fn versions() -> impl Strategy<Value = Version> {
         prop_oneof![
-        <<<<<<< HEAD
-                    Just(Version::V0_3_4_3(Wrapper(v0_3_4_3::Version::new()))),
-        =======
-                    em_version().prop_map(|v| if v < v0_3_4_1::Version::new().semver() {
-                        Version::LT0_3_4_1(LTWrapper(v0_3_4_1::Version::new(), v))
-                    } else {
-                        Version::LT0_3_4_1(LTWrapper(
-                            v0_3_4_1::Version::new(),
-                            emver::Version::new(0, 3, 0, 0),
-                        ))
-                    }),
-                    Just(Version::V0_3_4_1(Wrapper(v0_3_4_1::Version::new()))),
-                    Just(Version::V0_3_4_2(Wrapper(v0_3_4_2::Version::new()))),
-        >>>>>>> e83250f1 (integration/refactors)
-                    em_version().prop_map(Version::Other),
-                ]
+            em_version().prop_map(|v| if v < v0_3_4_3::Version::new().semver() {
+                Version::LT0_3_4_3(LTWrapper(v0_3_4_3::Version::new(), v))
+            } else {
+                Version::LT0_3_4_3(LTWrapper(
+                    v0_3_4_3::Version::new(),
+                    emver::Version::new(0, 3, 0, 0),
+                ))
+            }),
+            Just(Version::V0_3_4_3(Wrapper(v0_3_4_3::Version::new()))),
+            Just(Version::V0_4_0(Wrapper(v0_4_0::Version::new()))),
+            em_version().prop_map(Version::Other),
+        ]
     }
 
     proptest! {

@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use emver::VersionRange;
+use lazy_static::lazy_static;
 
 use super::*;
 
@@ -19,7 +20,7 @@ pub struct Version;
 
 #[async_trait]
 impl VersionT for Version {
-    type Previous = v0_3_4_2::Version;
+    type Previous = Self;
     fn new() -> Self {
         Version
     }
@@ -30,12 +31,6 @@ impl VersionT for Version {
         &*V0_3_0_COMPAT
     }
     async fn up<Db: DbHandle>(&self, db: &mut Db, _secrets: &PgPool) -> Result<(), Error> {
-        crate::db::DatabaseModel::new()
-            .server_info()
-            .get_mut(db)
-            .await?
-            .save(db)
-            .await?;
         Ok(())
     }
     async fn down<Db: DbHandle>(&self, _db: &mut Db, _secrets: &PgPool) -> Result<(), Error> {
