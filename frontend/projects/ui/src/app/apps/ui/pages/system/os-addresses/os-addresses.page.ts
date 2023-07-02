@@ -52,7 +52,7 @@ export class OSAddressesPage {
   async presentModalAddClearnet(network: NetworkInfo) {
     const clearnetAddress = network.clearnetAddress || ''
     const options: Partial<TuiDialogOptions<FormContext<ClearnetForm>>> = {
-      label: 'Add Domain',
+      label: 'Select Domain/Subdomain',
       data: {
         value: {
           domain: clearnetAddress.split('.').slice(-2).join('.') || null,
@@ -134,7 +134,7 @@ export class OSAddressesPage {
         }),
         subdomain: Value.text({
           name: 'Subdomain',
-          required: { default: null },
+          required: false,
         }),
       }),
     )
