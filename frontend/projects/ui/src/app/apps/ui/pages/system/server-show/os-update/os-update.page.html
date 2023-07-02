@@ -4,7 +4,7 @@
 <tui-scrollbar class="scrollbar">
   <ng-container *ngFor="let v of versions">
     <h4 class="version">{{ v.version }}</h4>
-    <div [innerHTML]="v.notes | markdown"></div>
+    <div safeLinks [innerHTML]="v.notes | markdown | dompurify"></div>
   </ng-container>
 </tui-scrollbar>
 

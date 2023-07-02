@@ -91,7 +91,8 @@
                   <div class="notes">
                     <h5>What's new</h5>
                     <p
-                      [innerHTML]="pkg.manifest['release-notes'] | markdown"
+                      safeLinks
+                      [innerHTML]="pkg.manifest['release-notes'] | markdown | dompurify"
                     ></p>
                   </div>
                   <ion-button

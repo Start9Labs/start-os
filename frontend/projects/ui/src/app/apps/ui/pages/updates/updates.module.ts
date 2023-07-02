@@ -9,8 +9,10 @@ import {
 import {
   EmverPipesModule,
   MarkdownPipeModule,
+  SafeLinksModule,
   SharedPipesModule,
 } from '@start9labs/shared'
+import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
 import { RoundProgressModule } from 'angular-svg-round-progressbar'
 import { BadgeMenuComponentModule } from 'src/app/common/badge-menu-button/badge-menu.component.module'
 import { SkeletonListComponentModule } from 'src/app/common/skeleton-list/skeleton-list.component.module'
@@ -39,6 +41,8 @@ const routes: Routes = [
     StoreIconComponentModule,
     EmverPipesModule,
     MimeTypePipeModule,
+    SafeLinksModule,
+    NgDompurifyModule,
   ],
 })
 export class UpdatesPageModule {}

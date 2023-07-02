@@ -14,7 +14,7 @@ import { FormContext, FormPage } from '../../../modals/form/form.page'
 import { TUI_PROMPT } from '@taiga-ui/kit'
 
 export type ClearnetForm = {
-  domain: string
+  domain: string | null
   subdomain: string
 }
 
@@ -55,7 +55,7 @@ export class OSAddressesPage {
       label: 'Add Domain',
       data: {
         value: {
-          domain: clearnetAddress.split('.').slice(-2).join('.'),
+          domain: clearnetAddress.split('.').slice(-2).join('.') || null,
           subdomain: clearnetAddress.split('.').slice(0, -2).join('.'),
         },
         spec: await this.getClearnetSpec(network),
@@ -87,7 +87,6 @@ export class OSAddressesPage {
 
   private async saveClearnet(value: ClearnetForm): Promise<boolean> {
     const address = `${value.subdomain}.${value.domain}`
-
     const loader = this.loader.open('Saving...').subscribe()
 
     try {
@@ -113,26 +112,19 @@ export class OSAddressesPage {
     }
   }
 
-  private async getClearnetSpec(network: NetworkInfo): Promise<InputSpec> {
-    const start9MeSubdomain = network.start9MeSubdomain
-
-    const start9MeDomain = start9MeSubdomain
-      ? `${start9MeSubdomain.value}.start9.me`
-      : null
-
-    const base = start9MeDomain
-      ? {
-          [start9MeDomain]: start9MeDomain,
-        }
-      : {}
-
+  private async getClearnetSpec({
+    domains,
+    start9MeSubdomain,
+  }: NetworkInfo): Promise<InputSpec> {
+    const start9MeDomain = `${start9MeSubdomain?.value}.start9.me`
+    const base = start9MeSubdomain ? { [start9MeDomain]: start9MeDomain } : {}
     const config = configBuilderToSpec(
       Config.of({
         domain: Value.dynamicSelect(() => {
           return {
             name: 'Domain',
             required: { default: null },
-            values: network.domains.reduce((prev, curr) => {
+            values: domains.reduce((prev, curr) => {
               return {
                 [curr.value]: curr.value,
                 ...prev,

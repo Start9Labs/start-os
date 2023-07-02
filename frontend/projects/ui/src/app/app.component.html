@@ -75,7 +75,7 @@
   </ion-app>
 </tui-root>
 <ng-container
-  *ngIf="authService.isVerified$ | async"
+  *ngIf="authService.isVerified$ | async; else defaultTheme"
   [ngSwitch]="theme$ | async"
 >
   <ng-container *ngSwitchCase="'Dark'">
@@ -84,3 +84,7 @@
   </ng-container>
   <light-theme *ngSwitchCase="'Light'"></light-theme>
 </ng-container>
+<ng-template #defaultTheme>
+  <tui-theme-night></tui-theme-night>
+  <dark-theme></dark-theme>
+</ng-template>

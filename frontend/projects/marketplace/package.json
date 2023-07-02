@@ -7,6 +7,7 @@
     "@ionic/angular": ">=6.0.0",
     "@start9labs/shared": ">=0.3.0",
     "@taiga-ui/cdk": ">=3.0.0",
+    "@tinkoff/ng-dompurify": ">=4.0.0",
     "fuse.js": "^6.4.6"
   },
   "dependencies": {
