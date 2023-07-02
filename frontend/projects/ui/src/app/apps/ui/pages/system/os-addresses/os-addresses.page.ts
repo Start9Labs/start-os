@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
 import { LoadingService, CopyService, ErrorService } from '@start9labs/shared'
 import { Config } from '@start9labs/start-sdk/lib/config/builder/config'
 import { Value } from '@start9labs/start-sdk/lib/config/builder/value'
@@ -12,6 +12,7 @@ import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormContext, FormPage } from '../../../modals/form/form.page'
 import { TUI_PROMPT } from '@taiga-ui/kit'
+import { DOCUMENT } from '@angular/common'
 
 export type ClearnetForm = {
   domain: string | null
@@ -39,14 +40,15 @@ export class OSAddressesPage {
     private readonly errorService: ErrorService,
     private readonly api: ApiService,
     private readonly dialogs: TuiDialogService,
+    @Inject(DOCUMENT) private readonly document: Document,
   ) {}
 
   launch(url: string): void {
-    window.open(url, '_blank', 'noreferrer')
+    this.document.defaultView?.open(url, '_blank', 'noreferrer')
   }
 
   installCert(): void {
-    document.getElementById('install-cert')?.click()
+    this.document.getElementById('install-cert')?.click()
   }
 
   async presentModalAddClearnet(network: NetworkInfo) {
@@ -138,7 +140,7 @@ export class OSAddressesPage {
         }),
       }),
     )
-    console.error(config)
+
     return config
   }
 
