@@ -74,12 +74,17 @@ export type NetworkInfo = {
   torHostname: string
   domains: Domain[]
   start9MeSubdomain: Omit<Domain, 'provider'> | null
-  clearnetAddress: string | null
+  clearnet: Clearnet
   wanConfig: {
     upnp: boolean
     forwards: PortForward[]
   }
 }
+
+export type Clearnet = {
+  domain: string
+  subdomain: string | null
+} | null
 
 export type PortForward = {
   assigned: number

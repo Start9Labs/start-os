@@ -6,17 +6,23 @@ import { InputSpec } from '@start9labs/start-sdk/lib/config/configTypes'
 import { TuiDialogOptions, TuiDialogService } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
 import { filter, map } from 'rxjs'
-import { DataModel, NetworkInfo } from 'src/app/services/patch-db/data-model'
+import {
+  Clearnet,
+  DataModel,
+  NetworkInfo,
+} from 'src/app/services/patch-db/data-model'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormContext, FormPage } from '../../../modals/form/form.page'
 import { TUI_PROMPT } from '@taiga-ui/kit'
 import { DOCUMENT } from '@angular/common'
+import { Pipe, PipeTransform } from '@angular/core'
+import { getClearnetAddress } from 'src/app/util/clearnetAddress'
 
 export type ClearnetForm = {
-  domain: string | null
-  subdomain: string
+  domain: string
+  subdomain: string | null
 }
 
 @Component({
@@ -52,13 +58,13 @@ export class OSAddressesPage {
   }
 
   async presentModalAddClearnet(network: NetworkInfo) {
-    const clearnetAddress = network.clearnetAddress || ''
+    const clearnet = network.clearnet
     const options: Partial<TuiDialogOptions<FormContext<ClearnetForm>>> = {
       label: 'Select Domain/Subdomain',
       data: {
         value: {
-          domain: clearnetAddress.split('.').slice(-2).join('.') || null,
-          subdomain: clearnetAddress.split('.').slice(0, -2).join('.'),
+          domain: clearnet?.domain || '',
+          subdomain: clearnet?.subdomain || '',
         },
         spec: await this.getClearnetSpec(network),
         buttons: [
@@ -88,11 +94,10 @@ export class OSAddressesPage {
   }
 
   private async saveClearnet(value: ClearnetForm): Promise<boolean> {
-    const address = `${value.subdomain}.${value.domain}`
     const loader = this.loader.open('Saving...').subscribe()
 
     try {
-      await this.api.setServerClearnetAddress({ address })
+      await this.api.setServerClearnetAddress({ clearnet: value })
       return true
     } catch (e: any) {
       this.errorService.handleError(e)
@@ -106,7 +111,7 @@ export class OSAddressesPage {
     const loader = this.loader.open('Removing...').subscribe()
 
     try {
-      await this.api.setServerClearnetAddress({ address: null })
+      await this.api.setServerClearnetAddress({ clearnet: null })
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
@@ -146,5 +151,14 @@ export class OSAddressesPage {
 
   asIsOrder(a: any, b: any) {
     return 0
+  }
+}
+
+@Pipe({
+  name: 'osClearnetPipe',
+})
+export class OsClearnetPipe implements PipeTransform {
+  transform(clearnet: Clearnet): string {
+    return getClearnetAddress('https', clearnet)
   }
 }

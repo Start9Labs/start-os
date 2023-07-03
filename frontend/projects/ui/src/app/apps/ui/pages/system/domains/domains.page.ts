@@ -10,6 +10,7 @@ import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { DomainSpec, domainSpec } from './domain.const'
 import { ConnectionService } from 'src/app/services/connection.service'
 import { FormContext, FormPage } from '../../../modals/form/form.page'
+import { getClearnetAddress } from 'src/app/util/clearnetAddress'
 
 @Component({
   selector: 'domains',
@@ -36,7 +37,7 @@ export class DomainsPage {
                 provider: 'Start9',
                 usedBy: usedBy(
                   start9MeSubdomain.value,
-                  network.clearnetAddress,
+                  getClearnetAddress('https', network.clearnet),
                   packageData,
                 ),
               }
@@ -44,7 +45,11 @@ export class DomainsPage {
             value: domain.value,
             createdAt: domain.createdAt,
             provider: domain.provider,
-            usedBy: usedBy(domain.value, network.clearnetAddress, packageData),
+            usedBy: usedBy(
+              domain.value,
+              getClearnetAddress('https', network.clearnet),
+              packageData,
+            ),
           }))
 
           return { start9Me, custom }

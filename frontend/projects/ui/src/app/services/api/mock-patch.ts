@@ -54,7 +54,7 @@ export const mockPatchData: DataModel = {
       },
       domains: [],
       start9MeSubdomain: null,
-      clearnetAddress: null,
+      clearnet: null,
       wifi: {
         enabled: false,
         lastRegion: null,

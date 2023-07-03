@@ -28,13 +28,11 @@
           </h2>
         </ion-label>
       </ion-item>
-      <ng-container
-        *ngIf="network.clearnetAddress as clearnetAddress; else noClearnet"
-      >
-        <ion-item>
+      <ng-container *ngIf="network.clearnet as clearnet; else noClearnet">
+        <ion-item *ngIf="clearnet | osClearnetPipe as clearnetAddress">
           <ion-label>
             <h2>Clearnet</h2>
-            <p>{{ 'https://' + clearnetAddress }}</p>
+            <p>{{ clearnetAddress }}</p>
             <div class="ion-padding-top">
               <ion-button (click)="presentModalAddClearnet(network)">
                 Update

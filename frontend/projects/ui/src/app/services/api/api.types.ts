@@ -2,6 +2,7 @@ import { Dump, Revision } from 'patch-db-client'
 import { MarketplacePkg, StoreInfo, Manifest } from '@start9labs/marketplace'
 import { InputSpec } from '@start9labs/start-sdk/lib/config/configTypes'
 import {
+  Clearnet,
   DataModel,
   DependencyError,
 } from 'src/app/services/patch-db/data-model'
@@ -56,7 +57,7 @@ export module RR {
   export type UpdateServerReq = { 'marketplace-url': string } // server.update
   export type UpdateServerRes = 'updating' | 'no-updates'
 
-  export type SetServerClearnetAddressReq = { address: string | null } // server.set-clearnet
+  export type SetServerClearnetAddressReq = { clearnet: Clearnet | null } // server.set-clearnet
   export type SetServerClearnetAddressRes = null
 
   export type RestartServerReq = {} // server.restart
