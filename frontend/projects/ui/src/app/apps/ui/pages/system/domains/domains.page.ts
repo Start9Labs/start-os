@@ -20,14 +20,14 @@ import { getClearnetAddress } from 'src/app/util/clearnetAddress'
 export class DomainsPage {
   readonly docsUrl = 'https://docs.start9.com/latest/user-manual/domains'
 
-  readonly network$ = this.patch.watch$('server-info', 'network')
+  readonly server$ = this.patch.watch$('server-info')
   readonly pkgs$ = this.patch.watch$('package-data').pipe(first())
 
   readonly domains$ = this.connectionService.connected$.pipe(
     filter(Boolean),
     switchMap(() =>
-      combineLatest([this.network$, this.pkgs$]).pipe(
-        map(([network, packageData]) => {
+      combineLatest([this.server$, this.pkgs$]).pipe(
+        map(([{ ui, network }, packageData]) => {
           const start9MeSubdomain = network.start9MeSubdomain
           const start9Me = !start9MeSubdomain
             ? null
@@ -37,7 +37,7 @@ export class DomainsPage {
                 provider: 'Start9',
                 usedBy: usedBy(
                   start9MeSubdomain.value,
-                  getClearnetAddress('https', network.clearnet),
+                  getClearnetAddress('https', ui.domainInfo),
                   packageData,
                 ),
               }
@@ -47,7 +47,7 @@ export class DomainsPage {
             provider: domain.provider,
             usedBy: usedBy(
               domain.value,
-              getClearnetAddress('https', network.clearnet),
+              getClearnetAddress('https', ui.domainInfo),
               packageData,
             ),
           }))

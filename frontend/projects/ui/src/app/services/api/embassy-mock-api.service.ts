@@ -314,8 +314,8 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: '/server-info/network/clearnet',
-        value: params.clearnet,
+        path: '/server-info/ui/domainInfo',
+        value: params.domainInfo,
       },
     ]
     return this.withRevision(patch, null)
