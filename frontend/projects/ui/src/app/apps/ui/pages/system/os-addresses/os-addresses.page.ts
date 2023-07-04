@@ -70,6 +70,10 @@ export class OSAddressesPage {
         spec: await this.getClearnetSpec(server.network),
         buttons: [
           {
+            text: 'Manage domains',
+            link: '/system/domains',
+          },
+          {
             text: 'Save',
             handler: async value => this.saveClearnet(value),
           },
@@ -94,11 +98,11 @@ export class OSAddressesPage {
       .subscribe(() => this.removeClearnet())
   }
 
-  private async saveClearnet(value: ClearnetForm): Promise<boolean> {
+  private async saveClearnet(domainInfo: ClearnetForm): Promise<boolean> {
     const loader = this.loader.open('Saving...').subscribe()
 
     try {
-      await this.api.setServerClearnetAddress({ domainInfo: value })
+      await this.api.setServerClearnetAddress({ domainInfo })
       return true
     } catch (e: any) {
       this.errorService.handleError(e)
@@ -126,7 +130,8 @@ export class OSAddressesPage {
   }: NetworkInfo): Promise<InputSpec> {
     const start9MeDomain = `${start9MeSubdomain?.value}.start9.me`
     const base = start9MeSubdomain ? { [start9MeDomain]: start9MeDomain } : {}
-    const config = configBuilderToSpec(
+
+    return configBuilderToSpec(
       Config.of({
         domain: Value.dynamicSelect(() => {
           return {
@@ -146,8 +151,6 @@ export class OSAddressesPage {
         }),
       }),
     )
-
-    return config
   }
 
   asIsOrder(a: any, b: any) {
