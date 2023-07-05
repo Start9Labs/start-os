@@ -8,7 +8,7 @@
   *ngIf="content$ | async as result; else loading"
   safeLinks
   class="content-padding"
-  [innerHTML]="result | markdown"
+  [innerHTML]="result | markdown | dompurify"
 ></div>
 
 <ng-template #loading>

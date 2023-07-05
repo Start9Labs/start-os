@@ -26,3 +26,24 @@
     background: var(--tui-warning-bg-hover);
   }
 }
+
+tui-dialog {
+  transform: translate3d(0, 0, 0);
+}
+
+tui-opt-group[data-label^='⚠️']:before {
+  color: var(--tui-warning-fill);
+}
+
+tui-hint[data-appearance='onDark'] {
+  background: white !important;
+  color: #222 !important;
+}
+
+[tuiLink] {
+  color: var(--tui-link) !important;
+
+  &:hover {
+    color: var(--tui-link-hover) !important;
+  }
+}

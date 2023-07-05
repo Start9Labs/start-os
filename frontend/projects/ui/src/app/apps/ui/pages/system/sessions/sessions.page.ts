@@ -1,7 +1,6 @@
 import { Component } from '@angular/core'
 import { Pipe, PipeTransform } from '@angular/core'
-import { LoadingController } from '@ionic/angular'
-import { ErrorToastService } from '@start9labs/shared'
+import { ErrorService, LoadingService } from '@start9labs/shared'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PlatformType, Session } from 'src/app/services/api/api.types'
 import { Observable, Subject, from, map, merge, shareReplay } from 'rxjs'
@@ -41,8 +40,8 @@ export class SessionsPage {
   selected: Record<string, boolean> = {}
 
   constructor(
-    private readonly loadingCtrl: LoadingController,
-    private readonly errToast: ErrorToastService,
+    private readonly loader: LoadingService,
+    private readonly errorService: ErrorService,
     private readonly api: ApiService,
   ) {}
 
@@ -73,19 +72,18 @@ export class SessionsPage {
   async kill(otherSessions: SessionWithId[]): Promise<void> {
     const ids = Object.keys(this.selected)
 
-    const loader = await this.loadingCtrl.create({
-      message: `Terminating session${ids.length > 1 ? 's' : ''}...`,
-    })
-    await loader.present()
+    const loader = this.loader
+      .open(`Terminating session${ids.length > 1 ? 's' : ''}...`)
+      .subscribe()
 
     try {
       await this.api.killSessions({ ids })
       this.selected = {}
       this.localOther$.next(otherSessions.filter(s => !ids.includes(s.id)))
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 }

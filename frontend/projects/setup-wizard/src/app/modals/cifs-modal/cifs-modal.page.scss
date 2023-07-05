@@ -1,16 +1,3 @@
-.item-interactive {
-  --highlight-background: var(--ion-color-dark) !important;
-}
-
-ion-item {
-
-  &:hover {
-    transition-property: transform;
-    transform: none;
-  }
-
-}
-
-.item-has-focus {
-  --background: var(--ion-color-dark-tint) !important;
+.input {
+  margin-top: 16px;
 }

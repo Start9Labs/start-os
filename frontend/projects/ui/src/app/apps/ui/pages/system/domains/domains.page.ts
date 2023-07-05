@@ -1,15 +1,16 @@
 import { Component } from '@angular/core'
-import { AlertController } from '@ionic/angular'
-import { ErrorToastService, LoadingService } from '@start9labs/shared'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { ErrorService, LoadingService } from '@start9labs/shared'
+import { TuiDialogOptions, TuiDialogService } from '@taiga-ui/core'
+import { TUI_PROMPT } from '@taiga-ui/kit'
+import { combineLatest, filter, first, map, switchMap } from 'rxjs'
 import { PatchDB } from 'patch-db-client'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { TuiDialogOptions } from '@taiga-ui/core'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { DomainSpec, domainSpec } from './domain.const'
 import { ConnectionService } from 'src/app/services/connection.service'
-import { combineLatest, filter, first, map, switchMap } from 'rxjs'
 import { FormContext, FormPage } from '../../../modals/form/form.page'
+import { getClearnetAddress } from 'src/app/util/clearnetAddress'
 
 @Component({
   selector: 'domains',
@@ -19,14 +20,14 @@ import { FormContext, FormPage } from '../../../modals/form/form.page'
 export class DomainsPage {
   readonly docsUrl = 'https://docs.start9.com/latest/user-manual/domains'
 
-  readonly network$ = this.patch.watch$('server-info', 'network')
+  readonly server$ = this.patch.watch$('server-info')
   readonly pkgs$ = this.patch.watch$('package-data').pipe(first())
 
   readonly domains$ = this.connectionService.connected$.pipe(
     filter(Boolean),
     switchMap(() =>
-      combineLatest([this.network$, this.pkgs$]).pipe(
-        map(([network, packageData]) => {
+      combineLatest([this.server$, this.pkgs$]).pipe(
+        map(([{ ui, network }, packageData]) => {
           const start9MeSubdomain = network.start9MeSubdomain
           const start9Me = !start9MeSubdomain
             ? null
@@ -36,7 +37,7 @@ export class DomainsPage {
                 provider: 'Start9',
                 usedBy: usedBy(
                   start9MeSubdomain.value,
-                  network.clearnetAddress,
+                  getClearnetAddress('https', ui.domainInfo),
                   packageData,
                 ),
               }
@@ -44,7 +45,11 @@ export class DomainsPage {
             value: domain.value,
             createdAt: domain.createdAt,
             provider: domain.provider,
-            usedBy: usedBy(domain.value, network.clearnetAddress, packageData),
+            usedBy: usedBy(
+              domain.value,
+              getClearnetAddress('https', ui.domainInfo),
+              packageData,
+            ),
           }))
 
           return { start9Me, custom }
@@ -54,8 +59,8 @@ export class DomainsPage {
   )
 
   constructor(
-    private readonly errToast: ErrorToastService,
-    private readonly alertCtrl: AlertController,
+    private readonly errorService: ErrorService,
+    private readonly dialogs: TuiDialogService,
     private readonly api: ApiService,
     private readonly loader: LoadingService,
     private readonly formDialog: FormDialogService,
@@ -79,78 +84,63 @@ export class DomainsPage {
     this.formDialog.open(FormPage, options)
   }
 
-  async presentAlertClaimStart9MeDomain() {
-    const alert = await this.alertCtrl.create({
-      header: 'Confirm',
-      message: 'Claim your start9.me domain?',
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
+  presentAlertClaimStart9MeDomain() {
+    this.dialogs
+      .open(TUI_PROMPT, {
+        label: 'Confirm',
+        size: 's',
+        data: {
+          content: 'Claim your start9.me domain?',
+          yes: 'Claim',
+          no: 'Cancel',
         },
-        {
-          text: 'Claim',
-          handler: () => {
-            this.claimStart9MeDomain()
-          },
-          cssClass: 'enter-click',
-        },
-      ],
-    })
-    await alert.present()
+      })
+      .pipe(filter(Boolean))
+      .subscribe(() => this.claimStart9MeDomain())
   }
 
-  async presentAlertDelete(hostname: string) {
-    const alert = await this.alertCtrl.create({
-      header: 'Confirm',
-      message: 'Delete domain?',
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
+  presentAlertDelete(hostname: string) {
+    this.dialogs
+      .open(TUI_PROMPT, {
+        label: 'Confirm',
+        size: 's',
+        data: {
+          content: 'Delete domain?',
+          yes: 'Delete',
+          no: 'Cancel',
         },
-        {
-          text: 'Delete',
-          handler: () => {
-            this.delete(hostname)
-          },
-          cssClass: 'enter-click',
-        },
-      ],
-    })
-    await alert.present()
+      })
+      .pipe(filter(Boolean))
+      .subscribe(() => this.delete(hostname))
   }
 
-  async presentAlertDeleteStart9Me() {
-    const alert = await this.alertCtrl.create({
-      header: 'Confirm',
-      message: 'Delete start9.me domain?',
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
+  presentAlertDeleteStart9Me() {
+    this.dialogs
+      .open(TUI_PROMPT, {
+        label: 'Confirm',
+        size: 's',
+        data: {
+          content: 'Delete start9.me domain?',
+          yes: 'Delete',
+          no: 'Cancel',
         },
-        {
-          text: 'Delete',
-          handler: () => {
-            this.deleteStart9MeDomain()
-          },
-          cssClass: 'enter-click',
-        },
-      ],
-    })
-    await alert.present()
+      })
+      .pipe(filter(Boolean))
+      .subscribe(() => this.deleteStart9MeDomain())
   }
 
-  async presentAlertUsedBy(domain: string, usedBy: string[]) {
-    const alert = await this.alertCtrl.create({
-      header: 'Used By',
-      message: `${domain} is currently being used by:<ul>${usedBy.map(
-        u => `<li>${u}</li>`,
-      )}</ul>`,
-      buttons: ['OK'],
-    })
-    await alert.present()
+  presentAlertUsedBy(domain: string, usedBy: string[]) {
+    this.dialogs
+      .open(
+        `${domain} is currently being used by:<ul>${usedBy.map(
+          u => `<li>${u}</li>`,
+        )}</ul>`,
+        {
+          label: 'Used by',
+          size: 's',
+        },
+      )
+      .subscribe()
   }
 
   private async claimStart9MeDomain(): Promise<boolean> {
@@ -160,7 +150,7 @@ export class DomainsPage {
       await this.api.claimStart9MeDomain({})
       return true
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
       return false
     } finally {
       loader.unsubscribe()
@@ -174,7 +164,7 @@ export class DomainsPage {
       await this.api.addDomain(value)
       return true
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
       return false
     } finally {
       loader.unsubscribe()
@@ -187,7 +177,7 @@ export class DomainsPage {
     try {
       await this.api.deleteDomain({ hostname })
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
       loader.unsubscribe()
     }
@@ -199,7 +189,7 @@ export class DomainsPage {
     try {
       await this.api.deleteStart9MeDomain({})
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
       loader.unsubscribe()
     }

@@ -1,5 +1,5 @@
 import { Component, Input, ViewChild } from '@angular/core'
-import { IonContent, LoadingController } from '@ionic/angular'
+import { IonContent } from '@ionic/angular'
 import {
   bufferTime,
   catchError,
@@ -15,10 +15,11 @@ import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 import {
   LogsRes,
   ServerLogsReq,
-  ErrorToastService,
   toLocalIsoString,
   Log,
   DownloadHTMLService,
+  LoadingService,
+  ErrorService,
 } from '@start9labs/shared'
 import { TuiDestroyService } from '@taiga-ui/cdk'
 import { RR } from 'src/app/services/api/api.types'
@@ -67,10 +68,10 @@ export class LogsComponent {
   count = 0
 
   constructor(
-    private readonly errToast: ErrorToastService,
+    private readonly errorService: ErrorService,
     private readonly destroy$: TuiDestroyService,
     private readonly api: ApiService,
-    private readonly loadingCtrl: LoadingController,
+    private readonly loader: LoadingService,
     private readonly downloadHtml: DownloadHTMLService,
     private readonly connectionService: ConnectionService,
   ) {}
@@ -98,7 +99,7 @@ export class LogsComponent {
 
       this.processRes(res)
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
       e.target.complete()
     }
@@ -120,10 +121,7 @@ export class LogsComponent {
   }
 
   async download() {
-    const loader = await this.loadingCtrl.create({
-      message: 'Processing 10,000 logs...',
-    })
-    await loader.present()
+    const loader = this.loader.open('Processing 10,000 logs...').subscribe()
 
     try {
       const { entries } = await this.fetchLogs({
@@ -140,9 +138,9 @@ export class LogsComponent {
 
       this.downloadHtml.download(`${this.context}-logs.html`, html, styles)
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 

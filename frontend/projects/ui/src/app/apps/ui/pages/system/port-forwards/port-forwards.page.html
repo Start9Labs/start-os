@@ -8,11 +8,11 @@
 </ion-header>
 
 <ion-content class="with-widgets">
-  <div *ngIf="network$ | async as network" class="cap-width">
+  <div *ngIf="server$ | async as server" class="cap-width">
     <!-- local -->
     <ion-item-group>
       <ion-item>
-        <ion-label *ngIf="network.wanConfig.upnp else upnp">
+        <ion-label *ngIf="server.network.wanConfig.upnp else upnp">
           <h1 class="ion-padding-bottom">
             <ion-text color="warning">UPnP Disabled</ion-text>
           </h1>
@@ -57,7 +57,7 @@
           </ion-label>
         </ng-template>
       </ion-item>
-      <ion-grid *ngIf="network.ipInfo | primaryIp as ip">
+      <ion-grid *ngIf="server.ui.ipInfo | primaryIp as ip">
         <ion-row>
           <ion-col size="1"></ion-col>
           <ion-col size="5">
@@ -68,7 +68,7 @@
           </ion-col>
         </ion-row>
         <ion-row
-          *ngFor="let pf of network.wanConfig.forwards"
+          *ngFor="let pf of server.network.wanConfig.forwards"
           class="ion-align-items-center"
         >
           <ion-col size="1" class="ion-text-center">

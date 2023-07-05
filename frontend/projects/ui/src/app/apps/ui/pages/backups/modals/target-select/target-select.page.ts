@@ -4,7 +4,7 @@ import {
   Inject,
   Input,
 } from '@angular/core'
-import { ModalController, NavController } from '@ionic/angular'
+import { NavController } from '@ionic/angular'
 import { BehaviorSubject } from 'rxjs'
 import { BackupTarget } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -30,7 +30,6 @@ export class TargetSelectPage {
       BackupTarget,
       { type: BackupType }
     >,
-    private readonly modalCtrl: ModalController,
     private readonly navCtrl: NavController,
     private readonly api: ApiService,
     private readonly errorService: ErrorService,

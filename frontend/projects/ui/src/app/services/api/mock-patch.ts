@@ -37,7 +37,7 @@ export const mockPatchData: DataModel = {
     id: 'abcdefgh',
     version: '0.3.4',
     country: 'us',
-    network: {
+    ui: {
       lanHostname: 'adjective-noun.local',
       torHostname: 'myveryownspecialtoraddress.onion',
       ipInfo: {
@@ -52,9 +52,11 @@ export const mockPatchData: DataModel = {
           ipv6: 'FE80:CD00:0000:0CDE:1257:0000:211E:729CD',
         },
       },
+      domainInfo: null,
+    },
+    network: {
       domains: [],
       start9MeSubdomain: null,
-      clearnetAddress: null,
       wifi: {
         enabled: false,
         lastRegion: null,

@@ -6,7 +6,7 @@ import {
   PipeTransform,
 } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { AlertController, NavController } from '@ionic/angular'
+import { NavController } from '@ionic/angular'
 import {
   isEmptyObject,
   getPkgId,
@@ -29,6 +29,7 @@ import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { FormPage } from 'src/app/apps/ui/modals/form/form.page'
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
+import { TUI_PROMPT } from '@taiga-ui/kit'
 
 @Component({
   selector: 'app-actions',
@@ -46,7 +47,6 @@ export class AppActionsPage {
     private readonly route: ActivatedRoute,
     private readonly embassyApi: ApiService,
     private readonly dialogs: TuiDialogService,
-    private readonly alertCtrl: AlertController,
     private readonly errorService: ErrorService,
     private readonly loader: LoadingService,
     private readonly navCtrl: NavController,
@@ -56,13 +56,12 @@ export class AppActionsPage {
 
   async handleAction(action: WithId<Action>) {
     if (action.disabled) {
-      const alert = await this.alertCtrl.create({
-        header: 'Forbidden',
-        message: action.disabled,
-        buttons: ['OK'],
-        cssClass: 'alert-error-message enter-click',
-      })
-      await alert.present()
+      this.dialogs
+        .open(action.disabled, {
+          label: 'Forbidden',
+          size: 's',
+        })
+        .subscribe()
     } else {
       if (action['input-spec'] && !isEmptyObject(action['input-spec'])) {
         this.formDialog.open(FormPage, {
@@ -79,24 +78,20 @@ export class AppActionsPage {
           },
         })
       } else {
-        const alert = await this.alertCtrl.create({
-          header: 'Confirm',
-          message: `Are you sure you want to execute action "${action.name}"? ${
-            action.warning || ''
-          }`,
-          buttons: [
-            {
-              text: 'Cancel',
-              role: 'cancel',
+        this.dialogs
+          .open(TUI_PROMPT, {
+            label: 'Confirm',
+            size: 's',
+            data: {
+              content: `Are you sure you want to execute action "${
+                action.name
+              }"? ${action.warning || ''}`,
+              yes: 'Execute',
+              no: 'Cancel',
             },
-            {
-              text: 'Execute',
-              handler: async () => this.executeAction(action.id),
-              cssClass: 'enter-click',
-            },
-          ],
-        })
-        await alert.present()
+          })
+          .pipe(filter(Boolean))
+          .subscribe(() => this.executeAction(action.id))
       }
     }
   }
@@ -104,34 +99,26 @@ export class AppActionsPage {
   async tryUninstall(pkg: PackageDataEntry): Promise<void> {
     const { title, alerts, id } = pkg.manifest
 
-    let message =
+    let content =
       alerts.uninstall ||
       `Uninstalling ${title} will permanently delete its data`
 
     if (await hasCurrentDeps(this.patch, id)) {
-      message = `${message}. Services that depend on ${title} will no longer work properly and may crash`
+      content = `${content}. Services that depend on ${title} will no longer work properly and may crash`
     }
 
-    const alert = await this.alertCtrl.create({
-      header: 'Warning',
-      message,
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
+    this.dialogs
+      .open(TUI_PROMPT, {
+        label: 'Warning',
+        size: 's',
+        data: {
+          content,
+          yes: 'Uninstall',
+          no: 'Cancel',
         },
-        {
-          text: 'Uninstall',
-          handler: () => {
-            this.uninstall()
-          },
-          cssClass: 'enter-click',
-        },
-      ],
-      cssClass: 'alert-warning-message',
-    })
-
-    await alert.present()
+      })
+      .pipe(filter(Boolean))
+      .subscribe(() => this.uninstall())
   }
 
   private async uninstall() {

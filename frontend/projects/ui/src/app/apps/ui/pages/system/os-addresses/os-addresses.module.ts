@@ -2,7 +2,7 @@ import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
-import { OSAddressesPage } from './os-addresses.page'
+import { OSAddressesPage, OsClearnetPipe } from './os-addresses.page'
 
 const routes: Routes = [
   {
@@ -13,6 +13,6 @@ const routes: Routes = [
 
 @NgModule({
   imports: [CommonModule, IonicModule, RouterModule.forChild(routes)],
-  declarations: [OSAddressesPage],
+  declarations: [OSAddressesPage, OsClearnetPipe],
 })
 export class OSAddressesPageModule {}

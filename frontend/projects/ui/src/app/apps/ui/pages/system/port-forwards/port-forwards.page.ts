@@ -11,7 +11,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PortForwardsPage {
-  readonly network$ = this.patch.watch$('server-info', 'network')
+  readonly server$ = this.patch.watch$('server-info')
   editing: Record<string, boolean> = {}
   overrides: Record<string, number> = {}
 

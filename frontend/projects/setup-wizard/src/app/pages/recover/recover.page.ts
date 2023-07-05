@@ -1,10 +1,17 @@
 import { Component, Input } from '@angular/core'
-import { ModalController, NavController } from '@ionic/angular'
+import { NavController } from '@ionic/angular'
 import { CifsModal } from 'src/app/modals/cifs-modal/cifs-modal.page'
-import { ApiService, DiskBackupTarget } from 'src/app/services/api/api.service'
-import { ErrorToastService } from '@start9labs/shared'
+import {
+  ApiService,
+  CifsRecoverySource,
+  DiskBackupTarget,
+} from 'src/app/services/api/api.service'
+import { ErrorService } from '@start9labs/shared'
 import { StateService } from 'src/app/services/state.service'
-import { PasswordPage } from '../../modals/password/password.page'
+import { PASSWORD } from '../../modals/password/password.page'
+import { TuiDialogService } from '@taiga-ui/core'
+import { filter } from 'rxjs'
+import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 
 @Component({
   selector: 'app-recover',
@@ -18,9 +25,8 @@ export class RecoverPage {
   constructor(
     private readonly apiService: ApiService,
     private readonly navCtrl: NavController,
-    private readonly modalCtrl: ModalController,
-    private readonly modalController: ModalController,
-    private readonly errToastService: ErrorToastService,
+    private readonly dialogs: TuiDialogService,
+    private readonly errorService: ErrorService,
     private readonly stateService: StateService,
   ) {}
 
@@ -62,34 +68,28 @@ export class RecoverPage {
           })
         })
     } catch (e: any) {
-      this.errToastService.present(e)
+      this.errorService.handleError(e)
     } finally {
       this.loading = false
     }
   }
 
-  async presentModalCifs(): Promise<void> {
-    const modal = await this.modalCtrl.create({
-      component: CifsModal,
-    })
-    modal.onDidDismiss().then(res => {
-      if (res.role === 'success') {
-        const { hostname, path, username, password } = res.data.cifs
+  presentModalCifs() {
+    this.dialogs
+      .open<{ cifs: CifsRecoverySource; recoveryPassword: string }>(
+        new PolymorpheusComponent(CifsModal),
+        {
+          label: 'Connect Network Folder',
+        },
+      )
+      .subscribe(({ cifs, recoveryPassword }) => {
         this.stateService.recoverySource = {
           type: 'backup',
-          target: {
-            type: 'cifs',
-            hostname,
-            path,
-            username,
-            password,
-          },
+          target: cifs,
         }
-        this.stateService.recoveryPassword = res.data.recoveryPassword
+        this.stateService.recoveryPassword = recoveryPassword
         this.navCtrl.navigateForward('/storage')
-      }
-    })
-    await modal.present()
+      })
   }
 
   async select(target: DiskBackupTarget) {
@@ -97,17 +97,16 @@ export class RecoverPage {
 
     if (!logicalname) return
 
-    const modal = await this.modalController.create({
-      component: PasswordPage,
-      componentProps: { target },
-      cssClass: 'alertlike-modal',
-    })
-    modal.onDidDismiss().then(res => {
-      if (res.data?.password) {
-        this.selectRecoverySource(logicalname, res.data.password)
-      }
-    })
-    await modal.present()
+    this.dialogs
+      .open<string>(PASSWORD, {
+        label: 'Unlock Drive',
+        size: 's',
+        data: { target },
+      })
+      .pipe(filter(Boolean))
+      .subscribe(password => {
+        this.selectRecoverySource(logicalname, password)
+      })
   }
 
   private async selectRecoverySource(logicalname: string, password?: string) {

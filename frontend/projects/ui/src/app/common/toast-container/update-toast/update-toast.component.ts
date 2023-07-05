@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
-import { LoadingController } from '@ionic/angular'
-import { ErrorToastService } from '@start9labs/shared'
+import { ErrorService, LoadingService } from '@start9labs/shared'
 import { Observable, Subject, merge } from 'rxjs'
 
 import { UpdateToastService } from './update-toast.service'
@@ -19,8 +18,8 @@ export class UpdateToastComponent {
   constructor(
     @Inject(UpdateToastService) private readonly update$: Observable<boolean>,
     private readonly embassyApi: ApiService,
-    private readonly errToast: ErrorToastService,
-    private readonly loadingCtrl: LoadingController,
+    private readonly errorService: ErrorService,
+    private readonly loader: LoadingService,
   ) {}
 
   onDismiss() {
@@ -30,18 +29,14 @@ export class UpdateToastComponent {
   async restart(): Promise<void> {
     this.onDismiss()
 
-    const loader = await this.loadingCtrl.create({
-      message: 'Restarting...',
-    })
-
-    await loader.present()
+    const loader = this.loader.open('Restarting...').subscribe()
 
     try {
       await this.embassyApi.restartServer({})
     } catch (e: any) {
-      await this.errToast.present(e)
+      await this.errorService.handleError(e)
     } finally {
-      await loader.dismiss()
+      await loader.unsubscribe()
     }
   }
 }

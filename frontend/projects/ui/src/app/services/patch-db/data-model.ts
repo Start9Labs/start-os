@@ -55,6 +55,7 @@ export interface ServerInfo {
   id: string
   version: string
   country: string
+  ui: StartOsUiInfo
   network: NetworkInfo
   'last-backup': string | null
   'unread-notification-count': number
@@ -67,18 +68,26 @@ export interface ServerInfo {
   smtp: typeof customSmtp.validator._TYPE
 }
 
-export type NetworkInfo = {
+export type StartOsUiInfo = {
   ipInfo: IpInfo
-  wifi: WiFiInfo
   lanHostname: string
   torHostname: string
-  domains: Domain[]
+  domainInfo: DomainInfo | null
+}
+
+export type NetworkInfo = {
+  wifi: WiFiInfo
   start9MeSubdomain: Omit<Domain, 'provider'> | null
-  clearnetAddress: string | null
+  domains: Domain[]
   wanConfig: {
     upnp: boolean
     forwards: PortForward[]
   }
+}
+
+export type DomainInfo = {
+  domain: string
+  subdomain: string | null
 }
 
 export type PortForward = {

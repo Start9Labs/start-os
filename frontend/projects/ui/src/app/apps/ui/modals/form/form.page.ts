@@ -17,7 +17,8 @@ import { FormService } from 'src/app/services/form.service'
 
 export interface ActionButton<T> {
   text: string
-  handler: (value: T) => Promise<boolean | void> | void
+  handler?: (value: T) => Promise<boolean | void> | void
+  link?: string
 }
 
 export interface FormContext<T> {
@@ -65,17 +66,21 @@ export class FormPage<T extends Record<string, any>> implements OnInit {
     this.markAsDirty()
   }
 
-  async onClick(handler: ActionButton<T>['handler']) {
+  async onClick(handler: Required<ActionButton<T>>['handler']) {
     tuiMarkControlAsTouchedAndValidate(this.form)
     this.invalidService.scrollIntoView()
 
     if (this.form.valid && (await handler(this.form.value as T))) {
-      this.context?.$implicit.complete()
+      this.close()
     }
   }
 
   markAsDirty() {
     this.dialogFormService.markAsDirty()
+  }
+
+  close() {
+    this.context?.$implicit.complete()
   }
 
   private process(patch: Operation[]) {

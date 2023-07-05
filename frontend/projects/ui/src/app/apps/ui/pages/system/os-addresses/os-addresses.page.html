@@ -8,7 +8,7 @@
 </ion-header>
 
 <ion-content class="with-widgets">
-  <div *ngIf="network$ | async as network" class="cap-width">
+  <div *ngIf="server$ | async as server" class="cap-width">
     <!-- clearnet -->
     <ion-item-divider style="--padding-top: 0">Clearnet</ion-item-divider>
     <ion-item-group>
@@ -28,15 +28,13 @@
           </h2>
         </ion-label>
       </ion-item>
-      <ng-container
-        *ngIf="network.clearnetAddress as clearnetAddress; else noClearnet"
-      >
-        <ion-item>
+      <ng-container *ngIf="server.ui.domainInfo as domainInfo; else noClearnet">
+        <ion-item *ngIf="domainInfo | osClearnetPipe as clearnetAddress">
           <ion-label>
             <h2>Clearnet</h2>
-            <p>{{ 'https://' + clearnetAddress }}</p>
+            <p>{{ clearnetAddress }}</p>
             <div class="ion-padding-top">
-              <ion-button (click)="presentModalAddClearnet(network)">
+              <ion-button (click)="presentModalAddClearnet(server)">
                 Update
               </ion-button>
               <ion-button
@@ -71,7 +69,7 @@
       </ng-container>
       <ng-template #noClearnet>
         <div class="ion-padding">
-          <ion-button strong (click)="presentModalAddClearnet(network)">
+          <ion-button strong (click)="presentModalAddClearnet(server)">
             <ion-icon slot="start" name="add"></ion-icon>
             Add Clearnet Address
           </ion-button>
@@ -97,7 +95,7 @@
           </h2>
         </ion-label>
       </ion-item>
-      <ion-item *ngIf="network.torHostname as torHostname">
+      <ion-item *ngIf="server.ui.torHostname as torHostname">
         <ion-label class="break-all">
           <h2>Tor</h2>
           <p>{{ torHostname }}</p>
@@ -150,7 +148,7 @@
           </div>
         </ion-label>
       </ion-item>
-      <ion-item *ngIf="network.lanHostname as lanHostname">
+      <ion-item *ngIf="server.ui.lanHostname as lanHostname">
         <ion-label class="break-all">
           <h2>Local</h2>
           <p>{{ lanHostname }}</p>
@@ -172,7 +170,7 @@
           </ion-button>
         </div>
       </ion-item>
-      <ng-container *ngFor="let iface of network.ipInfo | keyvalue">
+      <ng-container *ngFor="let iface of server.ui.ipInfo | keyvalue">
         <ion-item *ngIf="iface.value.ipv4 as ipv4">
           <ion-label>
             <h2>{{ iface.key }} (IPv4)</h2>

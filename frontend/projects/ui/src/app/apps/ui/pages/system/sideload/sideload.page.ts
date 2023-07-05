@@ -1,9 +1,9 @@
 import { Component } from '@angular/core'
-import { isPlatform, LoadingController, NavController } from '@ionic/angular'
+import { isPlatform, NavController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { Manifest, MarketplacePkg } from '@start9labs/marketplace'
 import { ConfigService } from 'src/app/services/config.service'
-import { ErrorToastService } from '@start9labs/shared'
+import { ErrorService, LoadingService } from '@start9labs/shared'
 import cbor from 'cbor'
 
 interface Positions {
@@ -28,10 +28,10 @@ export class SideloadPage {
   invalid = false
 
   constructor(
-    private readonly loadingCtrl: LoadingController,
+    private readonly loader: LoadingService,
     private readonly api: ApiService,
     private readonly navCtrl: NavController,
-    private readonly errToast: ErrorToastService,
+    private readonly errorService: ErrorService,
     private readonly config: ConfigService,
   ) {}
 
@@ -52,12 +52,7 @@ export class SideloadPage {
 
   async handleUpload() {
     if (!this.pkgData) return
-    const loader = await this.loadingCtrl.create({
-      message: 'Uploading package',
-      cssClass: 'loader',
-    })
-    await loader.present()
-
+    const loader = this.loader.open('Uploading package').subscribe()
     const { pkg, file } = this.pkgData
 
     try {
@@ -70,9 +65,9 @@ export class SideloadPage {
 
       this.navCtrl.navigateRoot('/services')
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
       this.clear()
     }
   }

@@ -4,6 +4,7 @@ import { InputSpec } from '@start9labs/start-sdk/lib/config/configTypes'
 import {
   DataModel,
   DependencyError,
+  DomainInfo,
 } from 'src/app/services/patch-db/data-model'
 import { StartOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
 import { customSmtp } from '@start9labs/start-sdk/lib/config/configConstants'
@@ -56,7 +57,7 @@ export module RR {
   export type UpdateServerReq = { 'marketplace-url': string } // server.update
   export type UpdateServerRes = 'updating' | 'no-updates'
 
-  export type SetServerClearnetAddressReq = { address: string | null } // server.set-clearnet
+  export type SetServerClearnetAddressReq = { domainInfo: DomainInfo | null } // server.set-clearnet
   export type SetServerClearnetAddressRes = null
 
   export type RestartServerReq = {} // server.restart

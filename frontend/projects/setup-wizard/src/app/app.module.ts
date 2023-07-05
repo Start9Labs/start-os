@@ -2,7 +2,14 @@ import { NgModule } from '@angular/core'
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
 import { RouteReuseStrategy } from '@angular/router'
 import { HttpClientModule } from '@angular/common/http'
-import { TuiRootModule } from '@taiga-ui/core'
+import {
+  TuiAlertModule,
+  tuiButtonOptionsProvider,
+  TuiDialogModule,
+  TuiModeModule,
+  TuiRootModule,
+  TuiThemeNightModule,
+} from '@taiga-ui/core'
 import { ApiService } from './services/api/api.service'
 import { MockApiService } from './services/api/mock-api.service'
 import { LiveApiService } from './services/api/live-api.service'
@@ -19,6 +26,7 @@ import { LoadingPageModule } from './pages/loading/loading.module'
 import { RecoverPageModule } from './pages/recover/recover.module'
 import { TransferPageModule } from './pages/transfer/transfer.module'
 import {
+  LoadingModule,
   provideSetupLogsService,
   provideSetupService,
   RELATIVE_URL,
@@ -46,10 +54,16 @@ const {
     RecoverPageModule,
     TransferPageModule,
     TuiRootModule,
+    TuiDialogModule,
+    TuiAlertModule,
+    LoadingModule,
+    TuiModeModule,
+    TuiThemeNightModule,
   ],
   providers: [
     provideSetupService(ApiService),
     provideSetupLogsService(ApiService),
+    tuiButtonOptionsProvider({ size: 'm' }),
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
     {
       provide: ApiService,

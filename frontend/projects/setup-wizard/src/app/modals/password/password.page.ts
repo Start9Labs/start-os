@@ -1,81 +1,77 @@
-import { Component, Input, ViewChild } from '@angular/core'
-import { IonInput, ModalController } from '@ionic/angular'
+import { Component, Inject } from '@angular/core'
+import { FormControl } from '@angular/forms'
+import * as argon2 from '@start9labs/argon2'
+import { ErrorService } from '@start9labs/shared'
+import { TuiDialogContext } from '@taiga-ui/core'
+import {
+  PolymorpheusComponent,
+  POLYMORPHEUS_CONTEXT,
+} from '@tinkoff/ng-polymorpheus'
 import {
   CifsBackupTarget,
   DiskBackupTarget,
 } from 'src/app/services/api/api.service'
-import * as argon2 from '@start9labs/argon2'
+
+interface DialogData {
+  target?: CifsBackupTarget | DiskBackupTarget
+  storageDrive?: boolean
+}
 
 @Component({
   selector: 'app-password',
   templateUrl: 'password.page.html',
-  styleUrls: ['password.page.scss'],
 })
 export class PasswordPage {
-  @ViewChild('focusInput') elem?: IonInput
-  @Input() target?: CifsBackupTarget | DiskBackupTarget
-  @Input() storageDrive = false
+  readonly target = this.context.data.target
+  readonly storageDrive = this.context.data.storageDrive
+  readonly password = new FormControl('', { nonNullable: true })
+  readonly confirm = new FormControl('', { nonNullable: true })
 
-  pwError = ''
-  password = ''
-  unmasked1 = false
+  constructor(
+    @Inject(POLYMORPHEUS_CONTEXT)
+    private readonly context: TuiDialogContext<string, DialogData>,
+    private readonly errorService: ErrorService,
+  ) {}
 
-  verError = ''
-  passwordVer = ''
-  unmasked2 = false
+  get passwordError(): string | null {
+    if (!this.password.touched || this.target) return null
 
-  constructor(private modalController: ModalController) {}
+    if (!this.storageDrive && !this.target?.['embassy-os'])
+      return 'No recovery target' // unreachable
 
-  ngAfterViewInit() {
-    setTimeout(() => this.elem?.setFocus(), 400)
+    if (this.password.value.length < 12)
+      return 'Must be 12 characters or greater'
+
+    if (this.password.value.length > 64)
+      return 'Must be less than 65 characters'
+
+    return null
   }
 
-  async verifyPw() {
-    if (!this.target || !this.target['embassy-os'])
-      this.pwError = 'No recovery target' // unreachable
+  get confirmError(): string | null {
+    return this.confirm.touched && this.password.value !== this.confirm.value
+      ? 'Passwords do not match'
+      : null
+  }
 
+  verifyPw() {
     try {
       const passwordHash = this.target!['embassy-os']?.['password-hash'] || ''
 
-      argon2.verify(passwordHash, this.password)
-      this.modalController.dismiss({ password: this.password }, 'success')
+      argon2.verify(passwordHash, this.password.value)
+      this.context.completeWith(this.password.value)
     } catch (e) {
-      this.pwError = 'Incorrect password provided'
+      this.errorService.handleError('Incorrect password provided')
     }
   }
 
-  async submitPw() {
-    this.validate()
-    if (this.password !== this.passwordVer) {
-      this.verError = '*passwords do not match'
-    }
-
-    if (this.pwError || this.verError) return
-    this.modalController.dismiss({ password: this.password }, 'success')
-  }
-
-  validate() {
-    if (!!this.target) return (this.pwError = '')
-
-    if (this.passwordVer) {
-      this.checkVer()
-    }
-
-    if (this.password.length < 12) {
-      this.pwError = 'Must be 12 characters or greater'
-    } else if (this.password.length > 64) {
-      this.pwError = 'Must be less than 65 characters'
-    } else {
-      this.pwError = ''
-    }
-  }
-
-  checkVer() {
-    this.verError =
-      this.password !== this.passwordVer ? 'Passwords do not match' : ''
+  submitPw() {
+    this.context.completeWith(this.password.value)
   }
 
   cancel() {
-    this.modalController.dismiss()
+    this.context.$implicit.complete()
   }
 }
+
+export const PASSWORD = new PolymorpheusComponent(PasswordPage)

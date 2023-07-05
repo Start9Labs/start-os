@@ -1,10 +1,10 @@
 import { DOCUMENT } from '@angular/common'
 import { Component, Inject } from '@angular/core'
-import { AlertController, NavController } from '@ionic/angular'
+import { NavController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActivatedRoute } from '@angular/router'
 import { PatchDB } from 'patch-db-client'
-import { Observable, of, switchMap, take } from 'rxjs'
+import { filter, Observable, of, switchMap, take } from 'rxjs'
 import { ErrorService, LoadingService } from '@start9labs/shared'
 import { EOSService } from 'src/app/services/eos.service'
 import { ClientStorageService } from 'src/app/services/client-storage.service'
@@ -16,6 +16,7 @@ import { ConfigService } from 'src/app/services/config.service'
 import { TuiAlertService, TuiDialogService } from '@taiga-ui/core'
 import { PROMPT } from 'src/app/apps/ui/modals/prompt/prompt.component'
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
+import { TUI_PROMPT } from '@taiga-ui/kit'
 
 @Component({
   selector: 'server-show',
@@ -33,7 +34,6 @@ export class ServerShowPage {
   readonly secure = this.config.isSecure()
 
   constructor(
-    private readonly alertCtrl: AlertController,
     private readonly dialogs: TuiDialogService,
     private readonly loader: LoadingService,
     private readonly errorService: ErrorService,
@@ -88,121 +88,84 @@ export class ServerShowPage {
     this.dialogs.open(new PolymorpheusComponent(OSUpdatePage)).subscribe()
   }
 
-  private async presentAlertLogout() {
-    const alert = await this.alertCtrl.create({
-      header: 'Confirm',
-      message: 'Are you sure you want to log out?',
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
+  private presentAlertLogout() {
+    this.dialogs
+      .open(TUI_PROMPT, {
+        label: 'Confirm',
+        size: 's',
+        data: {
+          content: 'Are you sure you want to log out?',
+          yes: 'Logout',
+          no: 'Cancel',
         },
-        {
-          text: 'Logout',
-          handler: () => this.logout(),
-          cssClass: 'enter-click',
-        },
-      ],
-    })
-
-    await alert.present()
+      })
+      .pipe(filter(Boolean))
+      .subscribe(() => this.logout())
   }
 
-  private async presentAlertRestart() {
-    const alert = await this.alertCtrl.create({
-      header: 'Restart',
-      message:
-        'Are you sure you want to restart your server? It can take several minutes to come back online.',
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
+  private presentAlertRestart() {
+    this.dialogs
+      .open(TUI_PROMPT, {
+        label: 'Restart',
+        size: 's',
+        data: {
+          content:
+            'Are you sure you want to restart your server? It can take several minutes to come back online.',
+          yes: 'Restart',
+          no: 'Cancel',
         },
-        {
-          text: 'Restart',
-          handler: () => {
-            this.restart()
-          },
-          cssClass: 'enter-click',
-        },
-      ],
-    })
-    await alert.present()
+      })
+      .pipe(filter(Boolean))
+      .subscribe(() => this.restart())
   }
 
-  private async presentAlertShutdown() {
-    const alert = await this.alertCtrl.create({
-      header: 'Warning',
-      message:
-        'Are you sure you want to power down your server? This can take several minutes, and your server will not come back online automatically. To power on again, You will need to physically unplug your server and plug it back in',
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
+  private presentAlertShutdown() {
+    this.dialogs
+      .open(TUI_PROMPT, {
+        label: 'Warning',
+        size: 's',
+        data: {
+          content:
+            'Are you sure you want to power down your server? This can take several minutes, and your server will not come back online automatically. To power on again, You will need to physically unplug your server and plug it back in',
+          yes: 'Shutdown',
+          no: 'Cancel',
         },
-        {
-          text: 'Shutdown',
-          handler: () => {
-            this.shutdown()
-          },
-          cssClass: 'enter-click',
-        },
-      ],
-      cssClass: 'alert-warning-message',
-    })
-    await alert.present()
+      })
+      .pipe(filter(Boolean))
+      .subscribe(() => this.shutdown())
   }
 
   private async presentAlertSystemRebuild() {
     const localPkgs = await getAllPackages(this.patch)
     const minutes = Object.keys(localPkgs).length * 2
-    const alert = await this.alertCtrl.create({
-      header: 'Warning',
-      message: `This action will tear down all service containers and rebuild them from scratch. No data will be deleted. This action is useful if your system gets into a bad state, and it should only be performed if you are experiencing general performance or reliability issues. It may take up to ${minutes} minutes to complete. During this time, you will lose all connectivity to your server.`,
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
+
+    this.dialogs
+      .open(TUI_PROMPT, {
+        label: 'Warning',
+        size: 's',
+        data: {
+          content: `This action will tear down all service containers and rebuild them from scratch. No data will be deleted. This action is useful if your system gets into a bad state, and it should only be performed if you are experiencing general performance or reliability issues. It may take up to ${minutes} minutes to complete. During this time, you will lose all connectivity to your server.`,
+          yes: 'Rebuild',
+          no: 'Cancel',
         },
-        {
-          text: 'Rebuild',
-          handler: () => {
-            this.systemRebuild()
-          },
-          cssClass: 'enter-click',
-        },
-      ],
-      cssClass: 'alert-warning-message',
-    })
-    await alert.present()
+      })
+      .pipe(filter(Boolean))
+      .subscribe(() => this.systemRebuild())
   }
 
-  private async presentAlertRepairDisk() {
-    const alert = await this.alertCtrl.create({
-      header: 'Warning',
-      message: `<p>This action should only be executed if directed by a Start9 support specialist. We recommend backing up your device before preforming this action.</p><p>If anything happens to the device during the reboot, such as losing power or unplugging the drive, the filesystem <i>will</i> be in an unrecoverable state. Please proceed with caution.</p>`,
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
+  private presentAlertRepairDisk() {
+    this.dialogs
+      .open(TUI_PROMPT, {
+        label: 'Warning',
+        size: 's',
+        data: {
+          content: `This action should only be executed if directed by a Start9 support specialist. We recommend backing up your device before preforming this action.<p>If anything happens to the device during the reboot, such as losing power or unplugging the drive, the filesystem <i>will</i> be in an unrecoverable state. Please proceed with caution.</p>`,
+          yes: 'Rebuild',
+          no: 'Cancel',
         },
-        {
-          text: 'Repair',
-          handler: () => {
-            try {
-              this.embassyApi.repairDisk({}).then(_ => {
-                this.restart()
-              })
-            } catch (e: any) {
-              this.errorService.handleError(e)
-            }
-          },
-          cssClass: 'enter-click',
-        },
-      ],
-      cssClass: 'alert-warning-message',
-    })
-    await alert.present()
+      })
+      .pipe(filter(Boolean))
+      .subscribe(() => this.systemRebuild())
   }
 
   private async setName(value: string | null): Promise<void> {
@@ -285,35 +248,25 @@ export class ServerShowPage {
     }
   }
 
-  private async presentAlertLatest() {
-    const alert = await this.alertCtrl.create({
-      header: 'Up to date!',
-      message: 'You are on the latest version of StartOS.',
-      buttons: [
-        {
-          text: 'OK',
-          role: 'cancel',
-          cssClass: 'enter-click',
-        },
-      ],
-      cssClass: 'alert-success-message',
-    })
-    alert.present()
+  private presentAlertLatest() {
+    this.dialogs
+      .open('You are on the latest version of StartOS.', {
+        label: 'Up to date!',
+        size: 's',
+      })
+      .subscribe()
   }
 
-  private async presentAlertInProgress(verb: string, message: string) {
-    const alert = await this.alertCtrl.create({
-      header: `${verb} In Progress...`,
-      message: `Stopping all services gracefully. This can take a while.<br /><br />If you have a speaker, your server will <b>♫ play a melody ♫</b> before shutting down. Your server will then become unreachable${message}`,
-      buttons: [
+  private presentAlertInProgress(verb: string, message: string) {
+    this.dialogs
+      .open(
+        `Stopping all services gracefully. This can take a while.<br /><br />If you have a speaker, your server will <b>♫ play a melody ♫</b> before shutting down. Your server will then become unreachable${message}`,
         {
-          text: 'OK',
-          role: 'cancel',
-          cssClass: 'enter-click',
+          label: `${verb} In Progress...`,
+          size: 's',
         },
-      ],
-    })
-    alert.present()
+      )
+      .subscribe()
   }
 
   settings: ServerSettings = {

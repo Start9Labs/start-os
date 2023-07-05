@@ -4,6 +4,11 @@ import {
   Input,
   ViewChild,
 } from '@angular/core'
+import { ErrorService, LoadingService } from '@start9labs/shared'
+import { TuiDialogService } from '@taiga-ui/core'
+import { TUI_PROMPT } from '@taiga-ui/kit'
+import { PatchDB } from 'patch-db-client'
+import { filter } from 'rxjs'
 import {
   PackageStatus,
   PrimaryRendering,
@@ -16,8 +21,6 @@ import {
   PackageDataEntry,
   PackageState,
 } from 'src/app/services/patch-db/data-model'
-import { ErrorToastService } from '@start9labs/shared'
-import { AlertController, LoadingController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import {
@@ -27,7 +30,6 @@ import {
 import { DependencyInfo } from '../../pipes/to-dependencies.pipe'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { ConnectionService } from 'src/app/services/connection.service'
-import { PatchDB } from 'patch-db-client'
 import { LaunchMenuComponent } from '../../../launch-menu/launch-menu.component'
 
 @Component({
@@ -51,9 +53,9 @@ export class AppShowStatusComponent {
   readonly connected$ = this.connectionService.connected$
 
   constructor(
-    private readonly alertCtrl: AlertController,
-    private readonly errToast: ErrorToastService,
-    private readonly loadingCtrl: LoadingController,
+    private readonly dialogs: TuiDialogService,
+    private readonly errorService: ErrorService,
+    private readonly loader: LoadingService,
     private readonly embassyApi: ApiService,
     private readonly formDialog: FormDialogService,
     private readonly connectionService: ConnectionService,
@@ -122,33 +124,25 @@ export class AppShowStatusComponent {
   async tryStop(): Promise<void> {
     const { title, alerts, id } = this.pkg.manifest
 
-    let message = alerts.stop || ''
+    let content = alerts.stop || ''
     if (await hasCurrentDeps(this.patch, id)) {
       const depMessage = `Services that depend on ${title} will no longer work properly and may crash`
-      message = message ? `${message}.\n\n${depMessage}` : depMessage
+      content = content ? `${content}.\n\n${depMessage}` : depMessage
     }
 
-    if (message) {
-      const alert = await this.alertCtrl.create({
-        header: 'Warning',
-        message,
-        buttons: [
-          {
-            text: 'Cancel',
-            role: 'cancel',
+    if (content) {
+      this.dialogs
+        .open(TUI_PROMPT, {
+          label: 'Warning',
+          size: 's',
+          data: {
+            content,
+            yes: 'Stop',
+            no: 'Cancel',
           },
-          {
-            text: 'Stop',
-            handler: () => {
-              this.stop()
-            },
-            cssClass: 'enter-click',
-          },
-        ],
-        cssClass: 'alert-warning-message',
-      })
-
-      await alert.present()
+        })
+        .pipe(filter(Boolean))
+        .subscribe(() => this.stop())
     } else {
       this.stop()
     }
@@ -158,99 +152,71 @@ export class AppShowStatusComponent {
     const { id, title } = this.pkg.manifest
 
     if (await hasCurrentDeps(this.patch, id)) {
-      const alert = await this.alertCtrl.create({
-        header: 'Warning',
-        message: `Services that depend on ${title} may temporarily experiences issues`,
-        buttons: [
-          {
-            text: 'Cancel',
-            role: 'cancel',
+      this.dialogs
+        .open(TUI_PROMPT, {
+          label: 'Warning',
+          size: 's',
+          data: {
+            content: `Services that depend on ${title} may temporarily experiences issues`,
+            yes: 'Restart',
+            no: 'Cancel',
           },
-          {
-            text: 'Restart',
-            handler: () => {
-              this.restart()
-            },
-            cssClass: 'enter-click',
-          },
-        ],
-        cssClass: 'alert-warning-message',
-      })
-
-      await alert.present()
+        })
+        .pipe(filter(Boolean))
+        .subscribe(() => this.restart())
     } else {
       this.restart()
     }
   }
 
   private async start(): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: `Starting...`,
-    })
-    await loader.present()
+    const loader = this.loader.open(`Starting...`).subscribe()
 
     try {
       await this.embassyApi.startPackage({ id: this.id })
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
   private async stop(): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Stopping...',
-    })
-    await loader.present()
+    const loader = this.loader.open(`Stopping...`).subscribe()
 
     try {
       await this.embassyApi.stopPackage({ id: this.id })
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
   private async restart(): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: `Restarting...`,
-    })
-    await loader.present()
+    const loader = this.loader.open(`Restarting...`).subscribe()
 
     try {
       await this.embassyApi.restartPackage({ id: this.id })
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
-  private async presentAlertStart(message: string): Promise<boolean> {
+  private async presentAlertStart(content: string): Promise<boolean> {
     return new Promise(async resolve => {
-      const alert = await this.alertCtrl.create({
-        header: 'Alert',
-        message,
-        buttons: [
-          {
-            text: 'Cancel',
-            role: 'cancel',
-            handler: () => {
-              resolve(false)
-            },
+      this.dialogs
+        .open<boolean>(TUI_PROMPT, {
+          label: 'Warning',
+          size: 's',
+          data: {
+            content,
+            yes: 'Continue',
+            no: 'Cancel',
           },
-          {
-            text: 'Continue',
-            handler: () => {
-              resolve(true)
-            },
-            cssClass: 'enter-click',
-          },
-        ],
-      })
-
-      await alert.present()
+        })
+        .subscribe(response => resolve(response))
     })
   }
 }
