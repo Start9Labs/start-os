@@ -153,12 +153,6 @@ pub async fn execute(
         {
             if let Err(e) = async {
                 // cp -r ${guard}/config /tmp/config
-                Command::new("cp")
-                    .arg("-r")
-                    .arg(guard.as_ref().join("config"))
-                    .arg("/tmp/config.bak")
-                    .invoke(crate::ErrorKind::Filesystem)
-                    .await?;
                 if tokio::fs::metadata(guard.as_ref().join("config/upgrade"))
                     .await
                     .is_ok()
@@ -171,6 +165,12 @@ pub async fn execute(
                 {
                     tokio::fs::remove_file(guard.as_ref().join("config/disk.guid")).await?;
                 }
+                Command::new("cp")
+                    .arg("-r")
+                    .arg(guard.as_ref().join("config"))
+                    .arg("/tmp/config.bak")
+                    .invoke(crate::ErrorKind::Filesystem)
+                    .await?;
                 guard.unmount().await
             }
             .await
