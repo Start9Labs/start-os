@@ -3,11 +3,11 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::Path;
 
 use beau_collector::BeauCollector;
-use embassy::config::action::SetResult;
-use embassy::config::{spec, Config};
-use embassy::s9pk::manifest::PackageId;
-use embassy::status::health_check::HealthCheckId;
 use linear_map::LinearMap;
+use startos::config::action::SetResult;
+use startos::config::{spec, Config};
+use startos::s9pk::manifest::PackageId;
+use startos::status::health_check::HealthCheckId;
 
 pub mod rules;
 

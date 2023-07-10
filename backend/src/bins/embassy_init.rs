@@ -3,20 +3,21 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-use embassy::context::rpc::RpcContextConfig;
-use embassy::context::{DiagnosticContext, InstallContext, SetupContext};
-use embassy::disk::fsck::RepairStrategy;
-use embassy::disk::main::DEFAULT_PASSWORD;
-use embassy::disk::REPAIR_DISK_PATH;
-use embassy::init::STANDBY_MODE_PATH;
-use embassy::net::web_server::WebServer;
-use embassy::shutdown::Shutdown;
-use embassy::sound::CHIME;
-use embassy::util::logger::EmbassyLogger;
-use embassy::util::Invoke;
-use embassy::{Error, ErrorKind, ResultExt, OS_ARCH};
 use tokio::process::Command;
 use tracing::instrument;
+
+use crate::context::rpc::RpcContextConfig;
+use crate::context::{DiagnosticContext, InstallContext, SetupContext};
+use crate::disk::fsck::RepairStrategy;
+use crate::disk::main::DEFAULT_PASSWORD;
+use crate::disk::REPAIR_DISK_PATH;
+use crate::init::STANDBY_MODE_PATH;
+use crate::net::web_server::WebServer;
+use crate::shutdown::Shutdown;
+use crate::sound::CHIME;
+use crate::util::logger::EmbassyLogger;
+use crate::util::Invoke;
+use crate::{Error, ErrorKind, ResultExt, OS_ARCH};
 
 #[instrument(skip_all)]
 async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
@@ -78,7 +79,7 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
         server.shutdown().await;
 
         Command::new("reboot")
-            .invoke(embassy::ErrorKind::Unknown)
+            .invoke(crate::ErrorKind::Unknown)
             .await?;
     } else if tokio::fs::metadata("/media/embassy/config/disk.guid")
         .await
@@ -116,7 +117,7 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
         let guid_string = tokio::fs::read_to_string("/media/embassy/config/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
             .await?;
         let guid = guid_string.trim();
-        let requires_reboot = embassy::disk::main::import(
+        let requires_reboot = crate::disk::main::import(
             guid,
             cfg.datadir(),
             if tokio::fs::metadata(REPAIR_DISK_PATH).await.is_ok() {
@@ -130,16 +131,16 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
         if tokio::fs::metadata(REPAIR_DISK_PATH).await.is_ok() {
             tokio::fs::remove_file(REPAIR_DISK_PATH)
                 .await
-                .with_ctx(|_| (embassy::ErrorKind::Filesystem, REPAIR_DISK_PATH))?;
+                .with_ctx(|_| (crate::ErrorKind::Filesystem, REPAIR_DISK_PATH))?;
         }
         if requires_reboot.0 {
-            embassy::disk::main::export(guid, cfg.datadir()).await?;
+            crate::disk::main::export(guid, cfg.datadir()).await?;
             Command::new("reboot")
-                .invoke(embassy::ErrorKind::Unknown)
+                .invoke(crate::ErrorKind::Unknown)
                 .await?;
         }
         tracing::info!("Loaded Disk");
-        embassy::init::init(&cfg).await?;
+        crate::init::init(&cfg).await?;
     }
 
     Ok(())
@@ -168,11 +169,11 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
     if OS_ARCH == "raspberrypi" && tokio::fs::metadata(STANDBY_MODE_PATH).await.is_ok() {
         tokio::fs::remove_file(STANDBY_MODE_PATH).await?;
         Command::new("sync").invoke(ErrorKind::Filesystem).await?;
-        embassy::sound::SHUTDOWN.play().await?;
+        crate::sound::SHUTDOWN.play().await?;
         futures::future::pending::<()>().await;
     }
 
-    embassy::sound::BEP.play().await?;
+    crate::sound::BEP.play().await?;
 
     run_script_if_exists("/media/embassy/config/preinit.sh").await;
 
@@ -180,7 +181,7 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
         async move {
             tracing::error!("{}", e.source);
             tracing::debug!("{}", e.source);
-            embassy::sound::BEETHOVEN.play().await?;
+            crate::sound::BEETHOVEN.play().await?;
 
             let ctx = DiagnosticContext::init(
                 cfg_path,
@@ -223,7 +224,7 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
     res
 }
 
-fn main() {
+pub fn main() {
     let matches = clap::App::new("embassy-init")
         .arg(
             clap::Arg::with_name("config")

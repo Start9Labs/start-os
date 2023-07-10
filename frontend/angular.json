@@ -14,7 +14,7 @@
           "builder": "@angular-devkit/build-angular:browser",
           "options": {
             "preserveSymlinks": true,
-            "outputPath": "dist/ui",
+            "outputPath": "dist/raw/ui",
             "index": "projects/ui/src/index.html",
             "main": "projects/ui/src/main.ts",
             "polyfills": "projects/ui/src/polyfills.ts",
@@ -39,7 +39,7 @@
               "projects/ui/src/manifest.webmanifest",
               {
                 "glob": "ngsw.json",
-                "input": "dist/ui",
+                "input": "dist/raw/ui",
                 "output": "projects/ui/src"
               }
             ],
@@ -147,7 +147,7 @@
         "build": {
           "builder": "@angular-devkit/build-angular:browser",
           "options": {
-            "outputPath": "dist/install-wizard",
+            "outputPath": "dist/raw/install-wizard",
             "index": "projects/install-wizard/src/index.html",
             "main": "projects/install-wizard/src/main.ts",
             "polyfills": "projects/install-wizard/src/polyfills.ts",
@@ -277,7 +277,7 @@
         "build": {
           "builder": "@angular-devkit/build-angular:browser",
           "options": {
-            "outputPath": "dist/setup-wizard",
+            "outputPath": "dist/raw/setup-wizard",
             "index": "projects/setup-wizard/src/index.html",
             "main": "projects/setup-wizard/src/main.ts",
             "polyfills": "projects/setup-wizard/src/polyfills.ts",
@@ -397,7 +397,7 @@
         "build": {
           "builder": "@angular-devkit/build-angular:browser",
           "options": {
-            "outputPath": "dist/diagnostic-ui",
+            "outputPath": "dist/raw/diagnostic-ui",
             "index": "projects/diagnostic-ui/src/index.html",
             "main": "projects/diagnostic-ui/src/main.ts",
             "polyfills": "projects/diagnostic-ui/src/polyfills.ts",

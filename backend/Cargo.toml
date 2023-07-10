@@ -1,7 +1,7 @@
 [package]
 authors = ["Aiden McClelland <me@drbonez.dev>"]
 description = "The core of StartOS"
-documentation = "https://docs.rs/embassy-os"
+documentation = "https://docs.rs/start-os"
 edition = "2021"
 keywords = [
   "self-hosted",
@@ -11,40 +11,28 @@ keywords = [
   "full-node",
   "lightning",
 ]
-name = "embassy-os"
+name = "start-os"
 readme = "README.md"
 repository = "https://github.com/Start9Labs/start-os"
 version = "0.3.4-rev.3"
 
 [lib]
-name = "embassy"
+name = "startos"
 path = "src/lib.rs"
 
 [[bin]]
-name = "embassyd"
-path = "src/bin/embassyd.rs"
-
-[[bin]]
-name = "embassy-init"
-path = "src/bin/embassy-init.rs"
-
-[[bin]]
-name = "embassy-sdk"
-path = "src/bin/embassy-sdk.rs"
-
-[[bin]]
-name = "embassy-cli"
-path = "src/bin/embassy-cli.rs"
-
-[[bin]]
-name = "avahi-alias"
-path = "src/bin/avahi-alias.rs"
+name = "startbox"
+path = "src/main.rs"
 
 [features]
 avahi = ["avahi-sys"]
-default = ["avahi", "js_engine"]
+default = ["avahi-alias", "cli", "sdk", "daemon", "js_engine"]
 dev = []
 unstable = ["patch-db/unstable"]
+avahi-alias = ["avahi"]
+cli = []
+sdk = []
+daemon = []
 
 [dependencies]
 aes = { version = "0.7.5", features = ["ctr"] }
@@ -90,6 +78,7 @@ http = "0.2.8"
 hyper = { version = "0.14.20", features = ["full"] }
 hyper-ws-listener = "0.2.0"
 imbl = "2.0.0"
+include_dir = "0.7.3"
 indexmap = { version = "1.9.1", features = ["serde"] }
 ipnet = { version = "2.7.1", features = ["serde"] }
 iprange = { version = "0.6.7", features = ["serde"] }
@@ -103,6 +92,7 @@ libc = "0.2.126"
 log = "0.4.17"
 mbrman = "0.5.0"
 models = { version = "*", path = "../libs/models" }
+new_mime_guess = "4"
 nix = "0.25.0"
 nom = "7.1.1"
 num = "0.4.0"

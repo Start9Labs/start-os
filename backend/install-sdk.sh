@@ -12,4 +12,7 @@ if [ -z "$OS_ARCH" ]; then
   OS_ARCH=$(uname -m)
 fi
 
-cargo install --bin=embassy-sdk --bin=embassy-cli --path=. --no-default-features --features=js_engine --locked
+cargo install --path=. --no-default-features --features=js_engine,sdk,cli --locked
+startbox_loc=$(which startbox)
+ln -sf $startbox_loc $(dirname $startbox_loc)/start-cli
+ln -sf $startbox_loc $(dirname $startbox_loc)/start-sdk

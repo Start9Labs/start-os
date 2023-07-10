@@ -11,7 +11,7 @@ anyhow = { version = "1.0.40", features = ["backtrace"] }
 beau_collector = "0.2.1"
 clap = "2.33.3"
 dashmap = "5.3.2"
-embassy-os = { path = "../../backend", default-features = false }
+start-os = { path = "../../backend", default-features = false }
 emver = { version = "0.1.7", git = "https://github.com/Start9Labs/emver-rs.git", features = [
     "serde",
 ] }
