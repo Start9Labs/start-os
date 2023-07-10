@@ -60,15 +60,12 @@
                     </p>
                   </ion-label>
                   <div slot="end" style="margin-left: 4px">
-                    <round-progress
+                    <tui-progress-circle
                       *ngIf="local.state === 'updating' else notUpdating"
-                      [current]="local['install-progress'] | installProgress"
+                      style="color: var(--tui-positive)"
                       [max]="100"
-                      [radius]="13"
-                      [stroke]="3"
-                      [rounded]="true"
-                      color="var(--ion-color-primary)"
-                    ></round-progress>
+                      [value]="local['install-progress'] | installProgress"
+                    ></tui-progress-circle>
                     <ng-template #notUpdating>
                       <ion-spinner
                         *ngIf="marketplaceService.updateQueue[pkg.manifest.id] else updateBtn"
