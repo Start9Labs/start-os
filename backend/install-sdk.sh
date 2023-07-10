@@ -9,7 +9,7 @@ if [ "$0" != "./install-sdk.sh" ]; then
 fi
 
 if [ -z "$OS_ARCH" ]; then
-  OS_ARCH=$(uname -m)
+  export OS_ARCH=$(uname -m)
 fi
 
 cargo install --path=. --no-default-features --features=js_engine,sdk,cli --locked

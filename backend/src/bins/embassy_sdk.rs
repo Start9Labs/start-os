@@ -15,7 +15,7 @@ fn inner_main() -> Result<(), Error> {
     run_cli!({
         command: crate::portable_api,
         app: app => app
-            .name("Embassy SDK")
+            .name("StartOS SDK")
             .version(&**VERSION_STRING)
             .arg(
                 clap::Arg::with_name("config")
