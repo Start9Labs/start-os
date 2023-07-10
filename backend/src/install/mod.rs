@@ -18,6 +18,7 @@ use patch_db::{DbHandle, LockType};
 use reqwest::Url;
 use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
+use serde_json::{json, Value};
 use tokio::fs::{File, OpenOptions};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt};
 use tokio::process::Command;
@@ -60,7 +61,7 @@ pub const PKG_PUBLIC_DIR: &str = "package-data/public";
 pub const PKG_WASM_DIR: &str = "package-data/wasm";
 
 #[command(display(display_serializable))]
-pub async fn list(#[context] ctx: RpcContext) -> Result<Vec<(PackageId, Version)>, Error> {
+pub async fn list(#[context] ctx: RpcContext) -> Result<Value, Error> {
     let mut hdl = ctx.db.handle();
     let package_data = crate::db::DatabaseModel::new()
         .package_data()
@@ -70,11 +71,25 @@ pub async fn list(#[context] ctx: RpcContext) -> Result<Vec<(PackageId, Version)
     Ok(package_data
         .0
         .iter()
-        .filter_map(|(id, pde)| match pde {
-            PackageDataEntry::Installed { installed, .. } => {
-                Some((id.clone(), installed.manifest.version.clone()))
-            }
-            _ => None,
+        .filter_map(|(id, pde)| {
+            serde_json::to_value(match pde {
+                PackageDataEntry::Installed { installed, .. } => {
+                    json!({ "status":"installed","id": id.clone(), "version": installed.manifest.version.clone()})
+                }
+                PackageDataEntry::Installing { manifest, install_progress, .. } => {
+                    json!({ "status":"installing","id": id.clone(), "version": manifest.version.clone(), "progress": install_progress.clone()})
+                }
+                PackageDataEntry::Updating { manifest, installed, install_progress, .. } => {
+                    json!({ "status":"updating","id": id.clone(), "version": installed.manifest.version.clone(), "progress": install_progress.clone()})
+                }
+                PackageDataEntry::Restoring { manifest,  install_progress, .. } => {
+                    json!({ "status":"restoring","id": id.clone(), "version": manifest.version.clone(), "progress": install_progress.clone()})
+                }
+                PackageDataEntry::Removing { manifest, .. } => {
+                    json!({ "status":"removing", "id": id.clone(), "version": manifest.version.clone()})
+                }
+            })
+            .ok()
         })
         .collect())
 }
@@ -1152,6 +1167,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             })
             .collect(),
     );
+    tracing::error!("BLUJ 1");
     let current_dependents = {
         let mut deps = BTreeMap::new();
         for package in crate::db::DatabaseModel::new()
@@ -1199,12 +1215,14 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         }
         CurrentDependents(deps)
     };
+    tracing::error!("BLUJ 2");
     let mut pde = model
         .clone()
         .expect(&mut tx)
         .await?
         .get_mut(&mut tx)
         .await?;
+    tracing::error!("BLUJ 3");
     let installed = InstalledPackageDataEntry {
         status: Status {
             configured: manifest.config.is_none(),
@@ -1231,7 +1249,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         current_dependencies: current_dependencies.clone(),
         interface_addresses,
     };
-
+    tracing::error!("BLUJ 4");
     let prev = std::mem::replace(
         &mut *pde,
         PackageDataEntry::Installed {
@@ -1240,7 +1258,9 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             static_files,
         },
     );
+    tracing::error!("BLUJ 5");
     pde.save(&mut tx).await?;
+    tracing::error!("BLUJ 6");
     let receipts = InstallS9Receipts::new(&mut tx).await?;
     // UpdateDependencyReceipts
     let mut dep_errs = model
@@ -1253,6 +1273,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         .dependency_errors()
         .get_mut(&mut tx)
         .await?;
+    tracing::error!("BLUJ 7");
     *dep_errs = DependencyErrors::init(
         ctx,
         &mut tx,
@@ -1261,7 +1282,9 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         &receipts.config.try_heal_receipts,
     )
     .await?;
+    tracing::error!("BLUJ 8");
     dep_errs.save(&mut tx).await?;
+    tracing::error!("BLUJ 9");
 
     if let PackageDataEntry::Updating {
         installed: prev, ..
@@ -1297,6 +1320,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             migration.or(prev_migration)
         };
 
+        tracing::error!("BLUJ 9.1");
         remove_from_current_dependents_lists(
             &mut tx,
             pkg_id,
@@ -1304,12 +1328,14 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             &receipts.config.current_dependents,
         )
         .await?; // remove previous
+        tracing::error!("BLUJ 9.2");
 
         let configured = if let Some(f) = viable_migration {
             f.await?.configured && prev_is_configured
         } else {
             false
         };
+        tracing::error!("BLUJ 9.3");
         if configured && manifest.config.is_some() {
             let breakages = BTreeMap::new();
             let overrides = Default::default();
@@ -1322,6 +1348,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
                 overrides,
             };
             crate::config::configure(&ctx, pkg_id, configure_context).await?;
+            tracing::error!("BLUJ 9.4");
         } else {
             add_dependent_to_current_dependents_lists(
                 &mut tx,
@@ -1330,6 +1357,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
                 &receipts.config.current_dependents,
             )
             .await?; // add new
+            tracing::error!("BLUJ 9.5");
         }
         if configured || manifest.config.is_none() {
             let mut main_status = crate::db::DatabaseModel::new()
@@ -1344,8 +1372,10 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
                 .main()
                 .get_mut(&mut tx)
                 .await?;
+            tracing::error!("BLUJ 9.6");
             *main_status = prev.status.main;
             main_status.save(&mut tx).await?;
+            tracing::error!("BLUJ 9.7");
         }
         update_dependency_errors_of_dependents(
             ctx,
@@ -1359,10 +1389,13 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             &receipts.config.update_dependency_receipts,
         )
         .await?;
+        tracing::error!("BLUJ 9.8");
         if &prev.manifest.version != version {
             cleanup(ctx, &prev.manifest.id, &prev.manifest.version).await?;
         }
+        tracing::error!("BLUJ 9.9");
     } else if let PackageDataEntry::Restoring { .. } = prev {
+        tracing::error!("BLUJ 9.10");
         manifest
             .backup
             .restore(
@@ -1374,6 +1407,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
                 &manifest.volumes,
             )
             .await?;
+        tracing::error!("BLUJ 9.11");
         add_dependent_to_current_dependents_lists(
             &mut tx,
             pkg_id,
@@ -1381,6 +1415,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             &receipts.config.current_dependents,
         )
         .await?;
+        tracing::error!("BLUJ 9.12");
         update_dependency_errors_of_dependents(
             ctx,
             &mut tx,
@@ -1389,7 +1424,9 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             &receipts.config.update_dependency_receipts,
         )
         .await?;
+        tracing::error!("BLUJ 9.13");
     } else {
+        tracing::error!("BLUJ 9.14");
         add_dependent_to_current_dependents_lists(
             &mut tx,
             pkg_id,
@@ -1397,6 +1434,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             &receipts.config.current_dependents,
         )
         .await?;
+        tracing::error!("BLUJ 9.15");
         update_dependency_errors_of_dependents(
             ctx,
             &mut tx,
@@ -1405,15 +1443,20 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             &receipts.config.update_dependency_receipts,
         )
         .await?;
+        tracing::error!("BLUJ 9.16");
     }
+    tracing::error!("BLUJ 10");
 
     if let Some(installed) = pde.installed() {
         reconfigure_dependents_with_live_pointers(ctx, &mut tx, &receipts.config, installed)
             .await?;
     }
+    tracing::error!("BLUJ 11");
 
     sql_tx.commit().await?;
+    tracing::error!("BLUJ 12");
     tx.commit().await?;
+    tracing::error!("BLUJ 13");
 
     tracing::info!("Install {}@{}: Complete", pkg_id, version);
 

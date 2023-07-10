@@ -443,9 +443,11 @@ async fn restore_package<'a>(
     Ok((
         progress.clone(),
         async move {
+            tracing::error!("BLUJ downloading {id}");
             download_install_s9pk(&ctx, &manifest, None, progress, file, None).await?;
-
+            tracing::error!("BLUJ downlowded {id}");
             guard.unmount().await?;
+            tracing::error!("BLUJ unmounted {id}");
 
             Ok(())
         }
