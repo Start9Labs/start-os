@@ -94,6 +94,12 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'auth.session.kill', params })
   }
 
+  async resetPassword(
+    params: RR.ResetPasswordReq,
+  ): Promise<RR.ResetPasswordRes> {
+    return this.rpcRequest({ method: 'auth.reset-password', params })
+  }
+
   // server
 
   async echo(params: RR.EchoReq): Promise<RR.EchoRes> {
