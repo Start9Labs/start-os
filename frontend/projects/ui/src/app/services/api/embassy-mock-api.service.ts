@@ -481,7 +481,7 @@ export class MockApiService extends ApiService {
         path: '/server-info/network/domains',
         value: [
           {
-            value: params.domain,
+            value: params.hostname,
             provider: params.provider,
             createdAt: new Date(),
           },

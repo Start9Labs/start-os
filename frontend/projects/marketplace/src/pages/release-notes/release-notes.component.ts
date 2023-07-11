@@ -10,16 +10,16 @@ import { AbstractMarketplaceService } from '../../services/marketplace.service'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ReleaseNotesComponent {
+  constructor(
+    private readonly route: ActivatedRoute,
+    private readonly marketplaceService: AbstractMarketplaceService,
+  ) {}
+
   private readonly pkgId = getPkgId(this.route)
 
   private selected: string | null = null
 
   readonly notes$ = this.marketplaceService.fetchReleaseNotes$(this.pkgId)
-
-  constructor(
-    private readonly route: ActivatedRoute,
-    private readonly marketplaceService: AbstractMarketplaceService,
-  ) {}
 
   isSelected(key: string): boolean {
     return this.selected === key

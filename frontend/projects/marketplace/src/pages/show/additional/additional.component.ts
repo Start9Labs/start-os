@@ -37,8 +37,6 @@ export class AdditionalComponent {
   @Output()
   version = new EventEmitter<string>()
 
-  readonly url = this.route.snapshot.queryParamMap.get('url') || undefined
-
   readonly displayEmver = displayEmver
 
   constructor(
@@ -49,6 +47,8 @@ export class AdditionalComponent {
     private readonly marketplaceService: AbstractMarketplaceService,
     private readonly route: ActivatedRoute,
   ) {}
+
+  readonly url = this.route.snapshot.queryParamMap.get('url') || undefined
 
   presentAlertVersions(version: TemplateRef<TuiDialogContext>) {
     this.dialogs

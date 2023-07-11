@@ -46,13 +46,6 @@ export class ResponsiveColViewportDirective extends Observable<Step> {
   @Input()
   responsiveColViewport: Observable<Step> | '' = ''
 
-  private readonly stream$ = this.resize$.pipe(
-    map(() => this.elementRef.nativeElement.clientWidth),
-    map(width => this.breakpoints.find(([step]) => width >= step)?.[1] || 'xs'),
-    distinctUntilChanged(),
-    tuiZonefree(this.zone),
-  )
-
   constructor(
     @Inject(BREAKPOINTS)
     private readonly breakpoints: readonly [number, Step][],
@@ -64,4 +57,11 @@ export class ResponsiveColViewportDirective extends Observable<Step> {
       (this.responsiveColViewport || this.stream$).subscribe(subscriber),
     )
   }
+
+  private readonly stream$ = this.resize$.pipe(
+    map(() => this.elementRef.nativeElement.clientWidth),
+    map(width => this.breakpoints.find(([step]) => width >= step)?.[1] || 'xs'),
+    distinctUntilChanged(),
+    tuiZonefree(this.zone),
+  )
 }
