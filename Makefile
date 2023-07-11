@@ -5,7 +5,6 @@ GIT_HASH_FILE = $(shell ./check-git-hash.sh)
 VERSION_FILE = $(shell ./check-version.sh)
 EMBASSY_BINS := backend/target/$(ARCH)-unknown-linux-gnu/release/startbox libs/target/aarch64-unknown-linux-musl/release/embassy_container_init libs/target/x86_64-unknown-linux-musl/release/embassy_container_init
 EMBASSY_UIS := frontend/dist/raw/ui frontend/dist/raw/setup-wizard frontend/dist/raw/diagnostic-ui frontend/dist/raw/install-wizard
-EMBASSY_COMPRESSED_UIS := frontend/dist/gzip frontend/dist/br
 BUILD_SRC := $(shell find build)
 EMBASSY_SRC := backend/startd.service $(BUILD_SRC)
 COMPAT_SRC := $(shell find system-images/compat/ -not -path 'system-images/compat/target/*' -and -not -name *.tar -and -not -name target)
@@ -129,11 +128,6 @@ system-images/utils/docker-images/aarch64.tar system-images/utils/docker-images/
 
 system-images/binfmt/docker-images/aarch64.tar system-images/binfmt/docker-images/x86_64.tar: $(BINFMT_SRC)
 	cd system-images/binfmt && make
-
-raspios.img:
-	wget --continue https://downloads.raspberrypi.org/raspios_lite_arm64/images/raspios_lite_arm64-2022-01-28/2022-01-28-raspios-bullseye-arm64-lite.zip
-	unzip 2022-01-28-raspios-bullseye-arm64-lite.zip
-	mv 2022-01-28-raspios-bullseye-arm64-lite.img raspios.img
 
 snapshots: libs/snapshot_creator/Cargo.toml
 	cd libs/  && ./build-v8-snapshot.sh
