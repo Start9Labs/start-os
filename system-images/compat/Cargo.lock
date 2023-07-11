@@ -242,12 +242,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b645a089122eccb6111b4f81cbc1a49f5900ac4666bb93ac027feaecf15607bf"
 
 [[package]]
-name = "base85rs"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7b7172542a3d446ca7b2be4e28e4f4c119a89c396712f7ca1ad2822bfc54ca2"
-
-[[package]]
 name = "basic-cookies"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -429,16 +423,6 @@ dependencies = [
  "lazy_static",
  "memchr",
  "regex-automata",
- "serde",
-]
-
-[[package]]
-name = "bstr"
-version = "1.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6798148dccfbff0fae41c7574d2fa8f1ef3492fba0face179de5d8d447d67b05"
-dependencies = [
- "memchr",
  "serde",
 ]
 
@@ -824,7 +808,7 @@ version = "1.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "22813a6dc45b335f9bade10bf7271dc477e81113e89eb251a0bc2a8a81c536e1"
 dependencies = [
- "bstr 0.2.17",
+ "bstr",
  "csv-core",
  "itoa 0.4.8",
  "ryu",
@@ -1594,19 +1578,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "globset"
-version = "0.4.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "029d74589adefde59de1a0c4f4732695c32805624aec7b68d91503d4dba79afc"
-dependencies = [
- "aho-corasick",
- "bstr 1.6.0",
- "fnv",
- "log",
- "regex",
-]
-
-[[package]]
 name = "gpt"
 version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1957,6 +1928,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6957ea0b2541c5ca561d3ef4538044af79f8a05a1eb3a3b148936aaceaa1076"
 dependencies = [
  "bitmaps 3.2.0",
+]
+
+[[package]]
+name = "include_dir"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "18762faeff7122e89e0857b02f7ce6fcc0d101d5e9ad2ad7846cc01d61b7f19e"
+dependencies = [
+ "include_dir_macros",
+]
+
+[[package]]
+name = "include_dir_macros"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b139284b5cf57ecfa712bcc66950bb635b31aff41c188e8a4cfc758eca374a3f"
+dependencies = [
+ "proc-macro2 1.0.50",
+ "quote 1.0.23",
 ]
 
 [[package]]
@@ -3529,48 +3519,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rust-embed-for-web"
-version = "11.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08bfea1a9dd0901c9179d058c4666b6c3834b11e6934ea2ea639f64ca63b344f"
-dependencies = [
- "rust-embed-for-web-impl",
- "rust-embed-for-web-utils",
- "walkdir",
-]
-
-[[package]]
-name = "rust-embed-for-web-impl"
-version = "11.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "903f58bad1c5b4e348b3b3ef006ef3ad930a8a66f3ba0d5671c71223e28d6862"
-dependencies = [
- "brotli",
- "flate2",
- "globset",
- "proc-macro2 1.0.50",
- "quote 1.0.23",
- "rust-embed-for-web-utils",
- "shellexpand",
- "syn 1.0.107",
- "walkdir",
-]
-
-[[package]]
-name = "rust-embed-for-web-utils"
-version = "11.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f666d8ab11fddb37e3d36c353251ee2b1b5f96a87a5ef81c7f6f25c5e4ab2ccc"
-dependencies = [
- "base85rs",
- "chrono",
- "globset",
- "new_mime_guess",
- "sha2 0.10.6",
- "walkdir",
-]
-
-[[package]]
 name = "rustc-demangle"
 version = "0.1.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3643,15 +3591,6 @@ name = "ryu"
 version = "1.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7b4b9743ed687d4b4bcedf9ff5eaa7398495ae14e61cba0a295704edbc7decde"
-
-[[package]]
-name = "same-file"
-version = "1.0.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502"
-dependencies = [
- "winapi-util",
-]
 
 [[package]]
 name = "schannel"
@@ -3959,15 +3898,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "shellexpand"
-version = "2.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ccc8076840c4da029af4f87e4e8daeb0fca6b87bbb02e10cb60b791450e11e4"
-dependencies = [
- "dirs",
-]
-
-[[package]]
 name = "signal-hook-registry"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4240,6 +4170,7 @@ dependencies = [
  "hyper",
  "hyper-ws-listener",
  "imbl 2.0.0",
+ "include_dir",
  "indexmap",
  "ipnet",
  "iprange",
@@ -4275,7 +4206,6 @@ dependencies = [
  "rpassword",
  "rpc-toolkit",
  "rust-argon2",
- "rust-embed-for-web",
  "scopeguard",
  "serde",
  "serde_json",
@@ -5085,16 +5015,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f200f5b12eb75f8c1ed65abd4b2db8a6e1b138a20de009dacee265a2498f3f6"
 dependencies = [
  "libc",
-]
-
-[[package]]
-name = "walkdir"
-version = "2.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "36df944cda56c7d8d8b7496af378e6b16de9284591917d307c9b4d313c44e698"
-dependencies = [
- "same-file",
- "winapi-util",
 ]
 
 [[package]]
