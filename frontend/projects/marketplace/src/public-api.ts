@@ -26,6 +26,7 @@ export * from './pipes/mime-type.pipe'
 
 export * from './components/store-icon/store-icon.component'
 export * from './components/store-icon/store-icon.component.module'
+export * from './components/store-icon/store-icon.component'
 
 export * from './services/marketplace.service'
 

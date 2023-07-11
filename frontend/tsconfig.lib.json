@@ -7,6 +7,7 @@
     "declaration": true,
     "declarationMap": false,
     "inlineSources": true,
+    "useDefineForClassFields": false,
     "paths": {
       "@start9labs/marketplace": ["dist/marketplace"],
       "@start9labs/shared": ["dist/shared"]
