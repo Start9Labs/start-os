@@ -17,7 +17,7 @@ FRONTEND_UI_SRC := $(shell find frontend/projects/ui)
 FRONTEND_SETUP_WIZARD_SRC := $(shell find frontend/projects/setup-wizard)
 FRONTEND_DIAGNOSTIC_UI_SRC := $(shell find frontend/projects/diagnostic-ui)
 FRONTEND_INSTALL_WIZARD_SRC := $(shell find frontend/projects/install-wizard)
-PATCH_DB_CLIENT_SRC := $(shell find patch-db/client -not -path patch-db/client/dist -not -path patch-db/client/node_modules)
+PATCH_DB_CLIENT_SRC := $(shell find patch-db/client -not -path patch-db/client/dist -and -not -path patch-db/client/node_modules)
 GZIP_BIN := $(shell which pigz || which gzip)
 ALL_TARGETS := $(EMBASSY_BINS) system-images/compat/docker-images/$(ARCH).tar system-images/utils/docker-images/$(ARCH).tar system-images/binfmt/docker-images/$(ARCH).tar $(EMBASSY_SRC) $(shell if [ "$(OS_ARCH)" = "raspberrypi" ]; then echo cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep; fi) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE)
 
@@ -29,7 +29,7 @@ ifeq ($(REMOTE),)
 else
 	mkdir = ssh $(REMOTE) 'mkdir -p $1'
 	rm  = ssh $(REMOTE) 'sudo rm -rf $1'
-	ln = ssh $(REMOTE) 'ln -sf $1 $2'
+	ln = ssh $(REMOTE) 'sudo ln -sf $1 $2'
 define cp
 	tar --transform "s|^$1|x|" -czv -f- $1 | ssh $(REMOTE) "sudo tar --transform 's|^x|$2|' -xzv -f- -C /"
 endef

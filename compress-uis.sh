@@ -4,10 +4,10 @@ set -e
 
 rm -rf frontend/dist/static
 
-find frontend/dist/raw -type f -not -name '*.gz' -not -name '*.br' | xargs -n 1 -P 0 gzip -kf
-find frontend/dist/raw -type f -not -name '*.gz' -not -name '*.br' | xargs -n 1 -P 0 brotli -kf
+find frontend/dist/raw -type f -not -name '*.gz' -and -not -name '*.br' | xargs -n 1 -P 0 gzip -kf
+find frontend/dist/raw -type f -not -name '*.gz' -and -not -name '*.br' | xargs -n 1 -P 0 brotli -kf
 
-for file in $(find frontend/dist/raw -type f -not -name '*.gz' -not -name '*.br'); do
+for file in $(find frontend/dist/raw -type f -not -name '*.gz' -and -not -name '*.br'); do
     raw_size=$(du --bytes $file | awk '{print $1}')
     gz_size=$(du --bytes $file.gz | awk '{print $1}')
     br_size=$(du --bytes $file.br | awk '{print $1}')

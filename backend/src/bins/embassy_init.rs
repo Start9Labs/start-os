@@ -234,8 +234,6 @@ pub fn main() {
         )
         .get_matches();
 
-    EmbassyLogger::init();
-
     let cfg_path = matches.value_of("config").map(|p| Path::new(p).to_owned());
     let res = {
         let rt = tokio::runtime::Builder::new_multi_thread()
