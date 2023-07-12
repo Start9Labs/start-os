@@ -164,7 +164,6 @@ jobs:
         with:
           submodules: recursive
           path: start-os
-          ref: ${{ github.ref_name }}
         if: ${{ matrix.platform == 'raspberrypi' }}
 
       - run: "mv startos-image-recipes/results/startos-*_raspberrypi.squashfs start-os/startos.raspberrypi.squashfs"
