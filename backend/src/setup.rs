@@ -32,7 +32,7 @@ use crate::disk::REPAIR_DISK_PATH;
 use crate::hostname::Hostname;
 use crate::init::{init, InitResult};
 use crate::middleware::encrypt::EncryptedWire;
-use crate::{Error, ErrorKind, ResultExt, OS_ARCH};
+use crate::{Error, ErrorKind, ResultExt};
 
 #[command(subcommands(status, disk, attach, execute, cifs, complete, get_pubkey, exit))]
 pub fn setup() -> Result<(), Error> {
@@ -335,7 +335,7 @@ pub async fn execute_inner(
     recovery_source: Option<RecoverySource>,
     recovery_password: Option<String>,
 ) -> Result<(Arc<String>, Hostname, OnionAddressV3, X509), Error> {
-    let encryption_password = if OS_ARCH == "raspberrypi" {
+    let encryption_password = if ctx.disable_encryption {
         None
     } else {
         Some(DEFAULT_PASSWORD)
