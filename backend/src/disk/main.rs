@@ -13,7 +13,7 @@ use crate::disk::mount::util::unmount;
 use crate::util::Invoke;
 use crate::{Error, ErrorKind, ResultExt};
 
-pub const PASSWORD_PATH: &'static str = "/etc/embassy/password";
+pub const PASSWORD_PATH: &'static str = "/run/embassy/password";
 pub const DEFAULT_PASSWORD: &'static str = "password";
 pub const MAIN_FS_SIZE: FsSize = FsSize::Gigabytes(8);
 
@@ -22,7 +22,7 @@ pub async fn create<I, P>(
     disks: &I,
     pvscan: &BTreeMap<PathBuf, Option<String>>,
     datadir: impl AsRef<Path>,
-    password: &str,
+    password: Option<&str>,
 ) -> Result<String, Error>
 where
     for<'a> &'a I: IntoIterator<Item = &'a P>,
@@ -90,11 +90,8 @@ pub async fn create_fs<P: AsRef<Path>>(
     datadir: P,
     name: &str,
     size: FsSize,
-    password: &str,
+    password: Option<&str>,
 ) -> Result<(), Error> {
-    tokio::fs::write(PASSWORD_PATH, password)
-        .await
-        .with_ctx(|_| (crate::ErrorKind::Filesystem, PASSWORD_PATH))?;
     let mut cmd = Command::new("lvcreate");
     match size {
         FsSize::Gigabytes(a) => cmd.arg("-L").arg(format!("{}G", a)),
@@ -106,37 +103,38 @@ pub async fn create_fs<P: AsRef<Path>>(
         .arg(guid)
         .invoke(crate::ErrorKind::DiskManagement)
         .await?;
-    let crypt_path = Path::new("/dev").join(guid).join(name);
-    Command::new("cryptsetup")
-        .arg("-q")
-        .arg("luksFormat")
-        .arg(format!("--key-file={}", PASSWORD_PATH))
-        .arg(format!("--keyfile-size={}", password.len()))
-        .arg(&crypt_path)
-        .invoke(crate::ErrorKind::DiskManagement)
-        .await?;
-    Command::new("cryptsetup")
-        .arg("-q")
-        .arg("luksOpen")
-        .arg(format!("--key-file={}", PASSWORD_PATH))
-        .arg(format!("--keyfile-size={}", password.len()))
-        .arg(&crypt_path)
-        .arg(format!("{}_{}", guid, name))
-        .invoke(crate::ErrorKind::DiskManagement)
-        .await?;
+    let mut blockdev_path = Path::new("/dev").join(guid).join(name);
+    if let Some(password) = password {
+        tokio::fs::write(PASSWORD_PATH, password)
+            .await
+            .with_ctx(|_| (crate::ErrorKind::Filesystem, PASSWORD_PATH))?;
+        Command::new("cryptsetup")
+            .arg("-q")
+            .arg("luksFormat")
+            .arg(format!("--key-file={}", PASSWORD_PATH))
+            .arg(format!("--keyfile-size={}", password.len()))
+            .arg(&blockdev_path)
+            .invoke(crate::ErrorKind::DiskManagement)
+            .await?;
+        Command::new("cryptsetup")
+            .arg("-q")
+            .arg("luksOpen")
+            .arg(format!("--key-file={}", PASSWORD_PATH))
+            .arg(format!("--keyfile-size={}", password.len()))
+            .arg(&blockdev_path)
+            .arg(format!("{}_{}", guid, name))
+            .invoke(crate::ErrorKind::DiskManagement)
+            .await?;
+        tokio::fs::remove_file(PASSWORD_PATH)
+            .await
+            .with_ctx(|_| (crate::ErrorKind::Filesystem, PASSWORD_PATH))?;
+        blockdev_path = Path::new("/dev/mapper").join(format!("{}_{}", guid, name));
+    }
     Command::new("mkfs.btrfs")
-        .arg(Path::new("/dev/mapper").join(format!("{}_{}", guid, name)))
+        .arg(&blockdev_path)
         .invoke(crate::ErrorKind::DiskManagement)
         .await?;
-    mount(
-        Path::new("/dev/mapper").join(format!("{}_{}", guid, name)),
-        datadir.as_ref().join(name),
-        ReadWrite,
-    )
-    .await?;
-    tokio::fs::remove_file(PASSWORD_PATH)
-        .await
-        .with_ctx(|_| (crate::ErrorKind::Filesystem, PASSWORD_PATH))?;
+    mount(&blockdev_path, datadir.as_ref().join(name), ReadWrite).await?;
     Ok(())
 }
 
@@ -144,7 +142,7 @@ pub async fn create_fs<P: AsRef<Path>>(
 pub async fn create_all_fs<P: AsRef<Path>>(
     guid: &str,
     datadir: P,
-    password: &str,
+    password: Option<&str>,
 ) -> Result<(), Error> {
     create_fs(guid, &datadir, "main", MAIN_FS_SIZE, password).await?;
     create_fs(
@@ -203,7 +201,7 @@ pub async fn import<P: AsRef<Path>>(
     guid: &str,
     datadir: P,
     repair: RepairStrategy,
-    password: &str,
+    mut password: Option<&str>,
 ) -> Result<RequiresReboot, Error> {
     let scan = pvscan().await?;
     if scan
@@ -227,6 +225,12 @@ pub async fn import<P: AsRef<Path>>(
             eyre!("A StartOS disk was found, but it is not the correct disk for this device."),
             crate::ErrorKind::IncorrectDisk,
         ));
+    }
+    // BACKWARDS COMPATIBILITY: TODO: REMOVE
+    if guid.ends_with("_UNENC") {
+        password = None;
+    } else {
+        password = password.or(Some(DEFAULT_PASSWORD))
     }
     Command::new("dmsetup")
         .arg("remove_all") // TODO: find a higher finesse way to do this for portability reasons
@@ -261,46 +265,52 @@ pub async fn mount_fs<P: AsRef<Path>>(
     datadir: P,
     name: &str,
     repair: RepairStrategy,
-    password: &str,
+    password: Option<&str>,
 ) -> Result<RequiresReboot, Error> {
-    tokio::fs::write(PASSWORD_PATH, password)
-        .await
-        .with_ctx(|_| (crate::ErrorKind::Filesystem, PASSWORD_PATH))?;
-    let crypt_path = Path::new("/dev").join(guid).join(name);
+    let orig_path = Path::new("/dev").join(guid).join(name);
+    let mut blockdev_path = orig_path.clone();
     let full_name = format!("{}_{}", guid, name);
-    Command::new("cryptsetup")
-        .arg("-q")
-        .arg("luksOpen")
-        .arg(format!("--key-file={}", PASSWORD_PATH))
-        .arg(format!("--keyfile-size={}", password.len()))
-        .arg(&crypt_path)
-        .arg(&full_name)
-        .invoke(crate::ErrorKind::DiskManagement)
-        .await?;
-    let mapper_path = Path::new("/dev/mapper").join(&full_name);
-    let reboot = repair.fsck(&mapper_path).await?;
-    // Backup LUKS header if e2fsck succeeded
-    let luks_folder = Path::new("/media/embassy/config/luks");
-    tokio::fs::create_dir_all(luks_folder).await?;
-    let tmp_luks_bak = luks_folder.join(format!(".{full_name}.luks.bak.tmp"));
-    if tokio::fs::metadata(&tmp_luks_bak).await.is_ok() {
-        tokio::fs::remove_file(&tmp_luks_bak).await?;
+    if let Some(password) = password {
+        tokio::fs::write(PASSWORD_PATH, password)
+            .await
+            .with_ctx(|_| (crate::ErrorKind::Filesystem, PASSWORD_PATH))?;
+        Command::new("cryptsetup")
+            .arg("-q")
+            .arg("luksOpen")
+            .arg(format!("--key-file={}", PASSWORD_PATH))
+            .arg(format!("--keyfile-size={}", password.len()))
+            .arg(&blockdev_path)
+            .arg(&full_name)
+            .invoke(crate::ErrorKind::DiskManagement)
+            .await?;
+        tokio::fs::remove_file(PASSWORD_PATH)
+            .await
+            .with_ctx(|_| (crate::ErrorKind::Filesystem, PASSWORD_PATH))?;
+        blockdev_path = Path::new("/dev/mapper").join(&full_name);
     }
-    let luks_bak = luks_folder.join(format!("{full_name}.luks.bak"));
-    Command::new("cryptsetup")
-        .arg("-q")
-        .arg("luksHeaderBackup")
-        .arg("--header-backup-file")
-        .arg(&tmp_luks_bak)
-        .arg(&crypt_path)
-        .invoke(crate::ErrorKind::DiskManagement)
-        .await?;
-    tokio::fs::rename(&tmp_luks_bak, &luks_bak).await?;
-    mount(&mapper_path, datadir.as_ref().join(name), ReadWrite).await?;
+    let reboot = repair.fsck(&blockdev_path).await?;
 
-    tokio::fs::remove_file(PASSWORD_PATH)
-        .await
-        .with_ctx(|_| (crate::ErrorKind::Filesystem, PASSWORD_PATH))?;
+    if password.is_some() {
+        // Backup LUKS header if e2fsck succeeded
+        let luks_folder = Path::new("/media/embassy/config/luks");
+        tokio::fs::create_dir_all(luks_folder).await?;
+        let tmp_luks_bak = luks_folder.join(format!(".{full_name}.luks.bak.tmp"));
+        if tokio::fs::metadata(&tmp_luks_bak).await.is_ok() {
+            tokio::fs::remove_file(&tmp_luks_bak).await?;
+        }
+        let luks_bak = luks_folder.join(format!("{full_name}.luks.bak"));
+        Command::new("cryptsetup")
+            .arg("-q")
+            .arg("luksHeaderBackup")
+            .arg("--header-backup-file")
+            .arg(&tmp_luks_bak)
+            .arg(&orig_path)
+            .invoke(crate::ErrorKind::DiskManagement)
+            .await?;
+        tokio::fs::rename(&tmp_luks_bak, &luks_bak).await?;
+    }
+
+    mount(&blockdev_path, datadir.as_ref().join(name), ReadWrite).await?;
 
     Ok(reboot)
 }
@@ -310,7 +320,7 @@ pub async fn mount_all_fs<P: AsRef<Path>>(
     guid: &str,
     datadir: P,
     repair: RepairStrategy,
-    password: &str,
+    password: Option<&str>,
 ) -> Result<RequiresReboot, Error> {
     let mut reboot = RequiresReboot(false);
     reboot |= mount_fs(guid, &datadir, "main", repair, password).await?;

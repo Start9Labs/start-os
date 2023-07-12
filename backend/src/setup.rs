@@ -32,7 +32,7 @@ use crate::disk::REPAIR_DISK_PATH;
 use crate::hostname::Hostname;
 use crate::init::{init, InitResult};
 use crate::middleware::encrypt::EncryptedWire;
-use crate::{Error, ErrorKind, ResultExt};
+use crate::{Error, ErrorKind, ResultExt, OS_ARCH};
 
 #[command(subcommands(status, disk, attach, execute, cifs, complete, get_pubkey, exit))]
 pub fn setup() -> Result<(), Error> {
@@ -123,7 +123,7 @@ pub async fn attach(
                 } else {
                     RepairStrategy::Preen
                 },
-                DEFAULT_PASSWORD,
+                if guid.ends_with("_UNENC") { None } else { Some(DEFAULT_PASSWORD) },
             )
             .await?;
             if tokio::fs::metadata(REPAIR_DISK_PATH).await.is_ok() {
@@ -335,12 +335,17 @@ pub async fn execute_inner(
     recovery_source: Option<RecoverySource>,
     recovery_password: Option<String>,
 ) -> Result<(Arc<String>, Hostname, OnionAddressV3, X509), Error> {
+    let encryption_password = if OS_ARCH == "raspberrypi" {
+        None
+    } else {
+        Some(DEFAULT_PASSWORD)
+    };
     let guid = Arc::new(
         crate::disk::main::create(
             &[embassy_logicalname],
             &pvscan().await?,
             &ctx.datadir,
-            DEFAULT_PASSWORD,
+            encryption_password,
         )
         .await?,
     );
@@ -348,7 +353,7 @@ pub async fn execute_inner(
         &*guid,
         &ctx.datadir,
         RepairStrategy::Preen,
-        DEFAULT_PASSWORD,
+        encryption_password,
     )
     .await?;
 
@@ -416,7 +421,11 @@ async fn migrate(
         &old_guid,
         "/media/embassy/migrate",
         RepairStrategy::Preen,
-        DEFAULT_PASSWORD,
+        if guid.ends_with("_UNENC") {
+            None
+        } else {
+            Some(DEFAULT_PASSWORD)
+        },
     )
     .await?;
 

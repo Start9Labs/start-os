@@ -124,7 +124,11 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
             } else {
                 RepairStrategy::Preen
             },
-            DEFAULT_PASSWORD,
+            if guid.ends_with("_UNENC") {
+                None
+            } else {
+                Some(DEFAULT_PASSWORD)
+            },
         )
         .await?;
         if tokio::fs::metadata(REPAIR_DISK_PATH).await.is_ok() {

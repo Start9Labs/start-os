@@ -45,6 +45,8 @@ pub struct SetupContextConfig {
     pub migration_batch_rows: Option<usize>,
     pub migration_prefetch_rows: Option<usize>,
     pub datadir: Option<PathBuf>,
+    #[serde(default)]
+    pub disable_encryption: bool,
 }
 impl SetupContextConfig {
     #[instrument(skip_all)]
