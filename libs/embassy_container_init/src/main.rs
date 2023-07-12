@@ -371,7 +371,7 @@ async fn main() {
                                         tracing::error!("Error sending to {id:?}", id = req.id);
                                     }
                                 }
-                                Err(e) => 
+                                Err(e) =>
                                 if let Err(err) = w
                                     .lock()
                                     .await
