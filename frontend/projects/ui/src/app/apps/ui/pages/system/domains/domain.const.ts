@@ -2,7 +2,7 @@ import { Config } from '@start9labs/start-sdk/lib/config/builder/config'
 import { Value } from '@start9labs/start-sdk/lib/config/builder/value'
 import { Variants } from '@start9labs/start-sdk/lib/config/builder/variants'
 
-const ddnsOptions = {
+const ddnsOptions = Config.of({
   username: Value.text({
     name: 'Username',
     required: { default: null },
@@ -12,18 +12,7 @@ const ddnsOptions = {
     required: { default: null },
     masked: true,
   }),
-}
-const ipv4Option = {
-  ipv4: Value.toggle({
-    name: 'Enable IPv4',
-    default: false,
-    description:
-      'Enable IPv4 if: <ol><li>Your ISP or router does not support IPv6</li><li>You want those who lack IPv6 to reach your site</li></ol> <b>Warning!</b> IPv4 addresses are closely correlated with geographic areas. If you are not using a reverse proxy, everyone will be able to determine the general location of your server on Earth.',
-  }),
-}
-
-const options = Config.of(ddnsOptions)
-const optionsPlus = Config.of({ ...ddnsOptions, ...ipv4Option })
+})
 
 export const domainSpec = Config.of({
   hostname: Value.text({
@@ -39,31 +28,31 @@ export const domainSpec = Config.of({
     Variants.of({
       start9: {
         name: 'Start9',
-        spec: Config.of(ipv4Option),
+        spec: Config.of({}),
       },
       duckdns: {
         name: 'Duck DNS',
-        spec: optionsPlus,
+        spec: ddnsOptions,
       },
       dyn: {
         name: 'DynDNS',
-        spec: optionsPlus,
+        spec: ddnsOptions,
       },
       easydns: {
         name: 'easyDNS',
-        spec: optionsPlus,
+        spec: ddnsOptions,
       },
       googledomains: {
         name: 'Google Domains',
-        spec: optionsPlus,
+        spec: ddnsOptions,
       },
       namecheap: {
         name: 'Namecheap (IPv4 only)',
-        spec: options,
+        spec: ddnsOptions,
       },
       zoneedit: {
         name: 'Zoneedit',
-        spec: optionsPlus,
+        spec: ddnsOptions,
       },
     }),
   ),

@@ -36,7 +36,7 @@
         <ion-row class="grid-headings">
           <ion-col size="3">Domain</ion-col>
           <ion-col size="2.5">Added</ion-col>
-          <ion-col size="2.5">Provider</ion-col>
+          <ion-col size="2.5">DDNS Provider</ion-col>
           <ion-col size="2">In Use</ion-col>
           <ion-col size="2"></ion-col>
         </ion-row>
@@ -87,7 +87,7 @@
         <ion-row class="grid-headings">
           <ion-col size="3">Domain</ion-col>
           <ion-col size="2.5">Added</ion-col>
-          <ion-col size="2.5">Provider</ion-col>
+          <ion-col size="2.5">DDNS Provider</ion-col>
           <ion-col size="2">In Use</ion-col>
           <ion-col size="2"></ion-col>
         </ion-row>
@@ -97,7 +97,7 @@
         >
           <ion-col size="3">{{ domain.value }}</ion-col>
           <ion-col size="2.5">{{ domain.createdAt| date: 'medium' }}</ion-col>
-          <ion-col size="2.5">{{ domain.provider }}</ion-col>
+          <ion-col size="2.5">{{ domain.provider.unionSelectKey }}</ion-col>
           <ion-col size="2" *ngIf="domain.usedBy as usedBy">
             <a
               *ngIf="usedBy.length as qty; else unused"
