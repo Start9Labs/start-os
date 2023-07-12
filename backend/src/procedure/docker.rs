@@ -228,12 +228,10 @@ impl DockerProcedure {
         input: Option<I>,
         timeout: Option<Duration>,
     ) -> Result<Result<O, (i32, String)>, Error> {
-        tracing::error!("BLUJ Backup 1");
         let name = name.docker_name();
         let name: Option<&str> = name.as_ref().map(|x| &**x);
         let mut cmd = tokio::process::Command::new("docker");
         let container_name = Self::container_name(pkg_id, name);
-        tracing::error!("BLUJ Backup 2");
         cmd.arg("run")
             .arg("--rm")
             .arg("--network=start9")
@@ -243,7 +241,6 @@ impl DockerProcedure {
             .arg(format!("--hostname={}", &container_name))
             .arg("--no-healthcheck")
             .kill_on_drop(true);
-        tracing::error!("BLUJ Backup 3");
         match ctx
             .docker
             .remove_container(
@@ -263,9 +260,7 @@ impl DockerProcedure {
             }) => Ok(()),
             Err(e) => Err(e),
         }?;
-        tracing::error!("BLUJ Backup 4");
         cmd.args(self.docker_args(ctx, pkg_id, pkg_version, volumes).await?);
-        tracing::error!("BLUJ Backup 5");
         let input_buf = if let (Some(input), Some(format)) = (&input, &self.io_format) {
             cmd.stdin(std::process::Stdio::piped());
             Some(format.to_vec(input)?)
@@ -281,9 +276,7 @@ impl DockerProcedure {
                 .collect::<Vec<&str>>()
                 .join(" ")
         );
-        tracing::error!("BLUJ Backup 6");
         let mut handle = cmd.spawn().with_kind(crate::ErrorKind::Docker)?;
-        tracing::error!("BLUJ Backup 7");
         let id = handle.id();
         let timeout_fut = if let Some(timeout) = timeout {
             EitherFuture::Right(async move {
@@ -296,15 +289,12 @@ impl DockerProcedure {
         };
         if let (Some(input), Some(mut stdin)) = (&input_buf, handle.stdin.take()) {
             use tokio::io::AsyncWriteExt;
-            tracing::error!("BLUJ Backup 8");
             stdin
                 .write_all(input)
                 .await
                 .with_kind(crate::ErrorKind::Docker)?;
             stdin.flush().await?;
-            tracing::error!("BLUJ Backup 9");
             stdin.shutdown().await?;
-            tracing::error!("BLUJ Backup 10");
             drop(stdin);
         }
         enum Race<T> {

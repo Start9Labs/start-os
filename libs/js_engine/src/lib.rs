@@ -271,7 +271,7 @@ impl JsExecutionEnvironment {
             }
         };
         let safer_handle = spawn_local(|| self.execute(procedure_name, input, variable_args)).await;
-        let output = safer_handle.await.unwrap()?;
+        let output = dbg!(safer_handle.await).unwrap()?;
         match serde_json::from_value(output.clone()) {
             Ok(x) => Ok(x),
             Err(err) => {

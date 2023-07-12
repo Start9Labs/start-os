@@ -267,7 +267,6 @@ impl Manager {
             let _ = manage_container
                 .set_override(Some(get_status(&mut tx, &seed.manifest).await.backing_up()));
             manage_container.wait_for_desired(StartStop::Stop).await;
-
             let backup_guard = backup_guard.lock().await;
             let guard = backup_guard.mount_package_backup(&seed.manifest.id).await?;
 
