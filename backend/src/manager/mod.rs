@@ -21,6 +21,7 @@ use tracing::instrument;
 use crate::context::RpcContext;
 use crate::manager::sync::synchronizer;
 use crate::net::net_controller::NetService;
+use crate::net::vhost::AlpnInfo;
 use crate::procedure::docker::{DockerContainer, DockerProcedure, LongRunning};
 #[cfg(feature = "js_engine")]
 use crate::procedure::js_scripts::JsProcedure;
@@ -573,8 +574,14 @@ async fn add_network_for_main(
     let mut tx = secrets.begin().await?;
     for (id, interface) in &seed.manifest.interfaces.0 {
         for (external, internal) in interface.lan_config.iter().flatten() {
-            svc.add_lan(&mut tx, id.clone(), external.0, internal.internal, false)
-                .await?;
+            svc.add_lan(
+                &mut tx,
+                id.clone(),
+                external.0,
+                internal.internal,
+                Err(AlpnInfo::Specified(vec![])),
+            )
+            .await?;
         }
         for (external, internal) in interface.tor_config.iter().flat_map(|t| &t.port_mapping) {
             svc.add_tor(&mut tx, id.clone(), external.0, internal.0)
