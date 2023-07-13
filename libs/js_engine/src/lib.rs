@@ -167,7 +167,7 @@ impl ModuleLoader for ModsLoader {
             }
             match &maybe_referrer {
                 Some(x) if x.as_str() == "file:///embassy.js" => {
-                    bail!("Embassy is not allowed to import")
+                    bail!("StartJS is not allowed to import")
                 }
                 _ => (),
             }

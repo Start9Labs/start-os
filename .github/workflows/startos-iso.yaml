@@ -72,8 +72,7 @@ jobs:
       - run: |
           cp -r debian embassyos-0.3.x/
           VERSION=0.3.x ./control.sh
-          cp embassyos-0.3.x/backend/embassyd.service embassyos-0.3.x/debian/embassyos.embassyd.service
-          cp embassyos-0.3.x/backend/embassy-init.service embassyos-0.3.x/debian/embassyos.embassy-init.service
+          cp embassyos-0.3.x/backend/startd.service embassyos-0.3.x/debian/embassyos.startd.service
         working-directory: embassy-os-deb
 
       - uses: actions/setup-node@v3
