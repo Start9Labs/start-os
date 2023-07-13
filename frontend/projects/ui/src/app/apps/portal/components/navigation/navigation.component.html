@@ -1,0 +1,28 @@
+<a
+  class="tab"
+  routerLink="services"
+  routerLinkActive="tab_active"
+  [routerLinkActiveOptions]="{ exact: true }"
+>
+  <img class="icon" src="assets/img/icon_transparent.png" alt="Home" />
+</a>
+<a
+  *ngFor="let tab of tabs$ | async"
+  #rla="routerLinkActive"
+  class="tab"
+  routerLinkActive="tab_active"
+  [routerLinkActiveOptions]="{ exact: true }"
+  [routerLink]="tab.routerLink"
+>
+  <img class="icon" [src]="tab.icon" [alt]="tab.title" />
+  <button
+    tuiIconButton
+    size="xs"
+    icon="tuiIconClose"
+    appearance="icon"
+    class="close"
+    (click.stop.prevent)="removeTab(tab, rla.isActive)"
+  >
+    Close
+  </button>
+</a>

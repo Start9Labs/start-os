@@ -17,7 +17,11 @@ import { PatchDB } from 'patch-db-client'
 import { DataModel } from './services/patch-db/data-model'
 
 function hasNavigation(url: string): boolean {
-  return !url.startsWith('/loading') && !url.startsWith('/diagnostic')
+  return (
+    !url.startsWith('/loading') &&
+    !url.startsWith('/diagnostic') &&
+    !url.startsWith('/portal')
+  )
 }
 
 @Component({
