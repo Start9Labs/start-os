@@ -55,7 +55,7 @@ impl NetController {
     }
 
     async fn add_os_bindings(&mut self, hostname: &Hostname, key: &Key) -> Result<(), Error> {
-        let alpn = Err(AlpnInfo::Specified(vec!["http1.1".into(), "h2".into()]));
+        let alpn = Err(AlpnInfo::Specified(vec!["http/1.1".into(), "h2".into()]));
 
         // Internal DNS
         self.vhost
