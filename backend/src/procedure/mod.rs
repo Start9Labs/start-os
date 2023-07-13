@@ -69,6 +69,9 @@ impl PackageProcedure {
         input: Option<I>,
         timeout: Option<Duration>,
     ) -> Result<Result<O, (i32, String)>, Error> {
+        /** BLU
+         * So, this needs to run a command for the already running docker and send the command via a RPC
+         */
         tracing::trace!("Procedure execute {} {} - {:?}", self, pkg_id, name);
         match self {
             PackageProcedure::Docker(procedure) if procedure.inject == true => {

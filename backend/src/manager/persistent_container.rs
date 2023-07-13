@@ -16,6 +16,22 @@ use crate::procedure::docker::DockerContainer;
 use crate::util::NonDetachingJoinHandle;
 use crate::Error;
 
+/** BLUJ
+* SO this is going to be neading a loadmodule that is created by the start_init;
+*
+* Then we need to create the reading socket I suppose
+* Then start the docker and run the docker running the load module.
+*
+* docker run \
+           -v $libs:/start-init \
+           -v $sockets:/start9 \
+           --rm -it $(docker build -q .) sh -c "
+               apk add nodejs &&
+               node /start-init/bundleEs.js
+           "
+
+ * Then we need a way of sending the commands down to this. Neat
+*/
 pub struct PersistentContainer {
     _running_docker: NonDetachingJoinHandle<()>,
     pub rpc_client: Receiver<Arc<UnixRpcClient>>,

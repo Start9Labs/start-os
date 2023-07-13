@@ -40,24 +40,15 @@ pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> R
     } else {
         std::env::current_dir()?
     };
-    let manifest_value: Value = if path.join("manifest.toml").exists() {
-        IoFormat::Toml
-            .from_async_reader(File::open(path.join("manifest.toml")).await?)
-            .await?
-    } else if path.join("manifest.yaml").exists() {
-        IoFormat::Yaml
-            .from_async_reader(File::open(path.join("manifest.yaml")).await?)
-            .await?
-    } else if path.join("manifest.json").exists() {
-        IoFormat::Json
-            .from_async_reader(File::open(path.join("manifest.json")).await?)
-            .await?
-    } else {
-        return Err(Error::new(
-            eyre!("manifest not found"),
-            crate::ErrorKind::Pack,
-        ));
-    };
+
+    /** BLUJ
+     *
+     * Okay, so I need to run a docker command to run and get the value of startos/manifest.js / ts
+     * Maybe I need to put the files into /tmp/something so we can then run these in a docker container
+     *
+     * After that, we should have the manifest in the json value I believe?
+     */
+    let manifest_value: Value = todo!();
 
     let manifest: Manifest = serde_json::from_value::<Manifest>(manifest_value.clone())
         .with_kind(crate::ErrorKind::Deserialization)?
@@ -69,6 +60,19 @@ pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> R
     }
 
     let outfile_path = path.join(format!("{}.s9pk", manifest.id));
+
+    /** BLUJ
+    * Need to include the startos into this package as the compressed
+    *  docker run  \
+           -v $libs:/libs \
+           -v $service:/service \
+           -w /libs \
+           --rm node:18-alpine \
+           sh -c "
+               npm i &&
+               npm run bundle:service
+           "
+    */
     let mut outfile = File::create(outfile_path).await?;
     S9pkPacker::builder()
         .manifest(&manifest)

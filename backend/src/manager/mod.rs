@@ -114,6 +114,7 @@ pub struct Manager {
 
     manage_container: Arc<manager_container::ManageContainer>,
     transition: Arc<watch::Sender<Arc<TransitionState>>>,
+
     persistent_container: ManagerPersistentContainer,
 
     pub gid: Arc<Gid>,
