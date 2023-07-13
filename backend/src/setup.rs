@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 use std::time::Duration;
@@ -425,10 +425,15 @@ async fn migrate(
     .await?;
 
     let main_transfer_args = ("/media/embassy/migrate/main/", "/embassy-data/main/");
-    let mut package_data_transfer_args = (
+    let package_data_transfer_args = (
         "/media/embassy/migrate/package-data/",
         "/embassy-data/package-data/",
     );
+
+    let tmpdir = Path::new(package_data_transfer_args.0).join("tmp");
+    if tokio::fs::metadata(&tmpdir).await.is_ok() {
+        tokio::fs::remove_dir_all(&tmpdir).await?;
+    }
 
     let ordering = std::sync::atomic::Ordering::Relaxed;
 
@@ -454,6 +459,12 @@ async fn migrate(
             }
         } => res,
     };
+
+    *ctx.setup_status.write().await = Some(Ok(SetupStatus {
+        bytes_transferred: 0,
+        total_bytes: Some(size),
+        complete: false,
+    }));
 
     let main_transfer_progress = AtomicU64::new(0);
     let package_data_transfer_progress = AtomicU64::new(0);
