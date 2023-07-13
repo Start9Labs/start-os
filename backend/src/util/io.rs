@@ -225,7 +225,7 @@ pub async fn copy_and_shutdown<R: AsyncRead + Unpin, W: AsyncWrite + Unpin>(
 
 pub fn dir_size<'a, P: AsRef<Path> + 'a + Send + Sync>(
     path: P,
-    ctr: Option<(&'a AtomicU64, std::sync::atomic::Ordering)>,
+    ctr: Option<&'a Counter>,
 ) -> BoxFuture<'a, Result<u64, std::io::Error>> {
     async move {
         tokio_stream::wrappers::ReadDirStream::new(tokio::fs::read_dir(path.as_ref()).await?)
@@ -233,8 +233,8 @@ pub fn dir_size<'a, P: AsRef<Path> + 'a + Send + Sync>(
                 let m = e.metadata().await?;
                 Ok(acc
                     + if m.is_file() {
-                        if let Some((ctr, ordering)) = ctr {
-                            ctr.fetch_add(m.len(), ordering);
+                        if let Some(ctr) = ctr {
+                            ctr.add(m.len());
                         }
                         m.len()
                     } else if m.is_dir() {
@@ -424,16 +424,34 @@ impl<T: AsyncWrite> AsyncWrite for BackTrackingReader<T> {
     }
 }
 
+pub struct Counter {
+    atomic: AtomicU64,
+    ordering: std::sync::atomic::Ordering,
+}
+impl Counter {
+    pub fn new(init: u64, ordering: std::sync::atomic::Ordering) -> Self {
+        Self {
+            atomic: AtomicU64::new(init),
+            ordering,
+        }
+    }
+    pub fn load(&self) -> u64 {
+        self.atomic.load(self.ordering)
+    }
+    pub fn add(&self, value: u64) {
+        self.atomic.fetch_add(value, self.ordering);
+    }
+}
+
 #[pin_project::pin_project]
 pub struct CountingReader<'a, R> {
-    ctr: &'a AtomicU64,
-    ordering: std::sync::atomic::Ordering,
+    ctr: &'a Counter,
     #[pin]
     rdr: R,
 }
 impl<'a, R> CountingReader<'a, R> {
-    pub fn new(rdr: R, ctr: &'a AtomicU64, ordering: std::sync::atomic::Ordering) -> Self {
-        Self { ctr, rdr, ordering }
+    pub fn new(rdr: R, ctr: &'a Counter) -> Self {
+        Self { ctr, rdr }
     }
     pub fn into_inner(self) -> R {
         self.rdr
@@ -450,7 +468,7 @@ impl<'a, R: AsyncRead> AsyncRead for CountingReader<'a, R> {
         let res = this.rdr.poll_read(cx, buf);
         let len = buf.filled().len() - start;
         if len > 0 {
-            this.ctr.fetch_add(len as u64, *this.ordering);
+            this.ctr.add(len as u64);
         }
         res
     }
@@ -459,7 +477,7 @@ impl<'a, R: AsyncRead> AsyncRead for CountingReader<'a, R> {
 pub fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + Send + Sync>(
     src: P0,
     dst: P1,
-    ctr: Option<(&'a AtomicU64, std::sync::atomic::Ordering)>,
+    ctr: Option<&'a Counter>,
 ) -> BoxFuture<'a, Result<(), crate::Error>> {
     async move {
         let m = tokio::fs::metadata(&src).await?;
@@ -515,9 +533,8 @@ pub fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + S
                             format!("open {}", src_path.display()),
                         )
                     })?;
-                    if let Some((ctr, ordering)) = ctr {
-                        tokio::io::copy(&mut CountingReader::new(rdr, ctr, ordering), &mut dst_file)
-                            .await
+                    if let Some(ctr) = ctr {
+                        tokio::io::copy(&mut CountingReader::new(rdr, ctr), &mut dst_file).await
                     } else {
                         tokio::io::copy(&mut rdr, &mut dst_file).await
                     }

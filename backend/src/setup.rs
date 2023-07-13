@@ -1,11 +1,9 @@
 use std::path::{Path, PathBuf};
-use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 use std::time::Duration;
 
 use color_eyre::eyre::eyre;
 use futures::StreamExt;
-use helpers::NonDetachingJoinHandle;
 use josekit::jwk::Jwk;
 use openssl::x509::X509;
 use patch_db::DbHandle;
@@ -35,7 +33,7 @@ use crate::disk::REPAIR_DISK_PATH;
 use crate::hostname::Hostname;
 use crate::init::{init, InitResult};
 use crate::middleware::encrypt::EncryptedWire;
-use crate::util::io::{dir_copy, dir_size};
+use crate::util::io::{dir_copy, dir_size, Counter};
 use crate::{Error, ErrorKind, ResultExt};
 
 #[command(subcommands(status, disk, attach, execute, cifs, complete, get_pubkey, exit))]
@@ -437,14 +435,14 @@ async fn migrate(
 
     let ordering = std::sync::atomic::Ordering::Relaxed;
 
-    let main_transfer_size = AtomicU64::new(0);
-    let package_data_transfer_size = AtomicU64::new(0);
+    let main_transfer_size = Counter::new(0, ordering);
+    let package_data_transfer_size = Counter::new(0, ordering);
 
     let size = tokio::select! {
         res = async {
             let (main_size, package_data_size) = try_join!(
-                dir_size(main_transfer_args.0, Some((&main_transfer_size, ordering))),
-                dir_size(package_data_transfer_args.0, Some((&package_data_transfer_size, ordering)))
+                dir_size(main_transfer_args.0, Some(&main_transfer_size)),
+                dir_size(package_data_transfer_args.0, Some(&package_data_transfer_size))
             )?;
             Ok::<_, Error>(main_size + package_data_size)
         } => { res? },
@@ -453,7 +451,7 @@ async fn migrate(
                 tokio::time::sleep(Duration::from_secs(1)).await;
                 *ctx.setup_status.write().await = Some(Ok(SetupStatus {
                     bytes_transferred: 0,
-                    total_bytes: Some(main_transfer_size.load(ordering) + package_data_transfer_size.load(ordering)),
+                    total_bytes: Some(main_transfer_size.load() + package_data_transfer_size.load()),
                     complete: false,
                 }));
             }
@@ -466,14 +464,14 @@ async fn migrate(
         complete: false,
     }));
 
-    let main_transfer_progress = AtomicU64::new(0);
-    let package_data_transfer_progress = AtomicU64::new(0);
+    let main_transfer_progress = Counter::new(0, ordering);
+    let package_data_transfer_progress = Counter::new(0, ordering);
 
     tokio::select! {
         res = async {
             try_join!(
-                dir_copy(main_transfer_args.0, main_transfer_args.1, Some((&main_transfer_progress, ordering))),
-                dir_copy(package_data_transfer_args.0, package_data_transfer_args.1, Some((&package_data_transfer_progress, ordering)))
+                dir_copy(main_transfer_args.0, main_transfer_args.1, Some(&main_transfer_progress)),
+                dir_copy(package_data_transfer_args.0, package_data_transfer_args.1, Some(&package_data_transfer_progress))
             )?;
             Ok::<_, Error>(())
         } => { res? },
@@ -481,7 +479,7 @@ async fn migrate(
             loop {
                 tokio::time::sleep(Duration::from_secs(1)).await;
                 *ctx.setup_status.write().await = Some(Ok(SetupStatus {
-                    bytes_transferred: main_transfer_progress.load(ordering) + package_data_transfer_progress.load(ordering),
+                    bytes_transferred: main_transfer_progress.load() + package_data_transfer_progress.load(),
                     total_bytes: Some(size),
                     complete: false,
                 }));
