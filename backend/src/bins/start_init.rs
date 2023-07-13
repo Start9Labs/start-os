@@ -225,7 +225,7 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
 }
 
 pub fn main() {
-    let matches = clap::App::new("embassy-init")
+    let matches = clap::App::new("start-init")
         .arg(
             clap::Arg::with_name("config")
                 .short('c')

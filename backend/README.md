@@ -12,18 +12,17 @@
 
 ## Structure
 
-The StartOS backend is broken up into 4 different binaries:
+The StartOS backend is packed into a single binary `startbox` that is symlinked under 
+several different names for different behaviour:
 
-- embassyd: This is the main workhorse of StartOS - any new functionality you
+- startd: This is the main workhorse of StartOS - any new functionality you
   want will likely go here
-- embassy-init: This is the component responsible for allowing you to set up
-  your device, and handles system initialization on startup
-- embassy-cli: This is a CLI tool that will allow you to issue commands to
-  embassyd and control it similarly to the UI
-- embassy-sdk: This is a CLI tool that aids in building and packaging services
+- start-cli: This is a CLI tool that will allow you to issue commands to
+  startd and control it similarly to the UI
+- start-sdk: This is a CLI tool that aids in building and packaging services
   you wish to deploy to StartOS
 
-Finally there is a library `embassy` that supports all four of these tools.
+Finally there is a library `startos` that supports all of these tools.
 
 See [here](/backend/Cargo.toml) for details.
 
