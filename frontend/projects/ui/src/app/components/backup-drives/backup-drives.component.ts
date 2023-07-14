@@ -277,12 +277,10 @@ export class BackupDrivesStatusComponent {
 const CifsSpec: ConfigSpec = {
   hostname: {
     type: 'string',
-    name: 'Hostname',
+    name: 'Hostname/IP',
     description:
-      'The hostname of your target device on the Local Area Network.',
-    placeholder: `e.g. 'My Computer' OR 'my-computer.local'`,
-    pattern: '^[a-zA-Z0-9._-]+( [a-zA-Z0-9]+)*$',
-    'pattern-description': `Must be a valid hostname. e.g. 'My Computer' OR 'my-computer.local'`,
+      'The hostname or IP address of the target device on your Local Area Network.',
+    placeholder: `e.g. 'MyComputer.local' OR '192.168.1.4'`,
     nullable: false,
     masked: false,
     copyable: false,
