@@ -28,7 +28,7 @@ where
     for<'a> &'a I: IntoIterator<Item = &'a P>,
     P: AsRef<Path>,
 {
-    let guid = create_pool(disks, pvscan).await?;
+    let guid = create_pool(disks, pvscan, password.is_some()).await?;
     create_all_fs(&guid, &datadir, password).await?;
     export(&guid, datadir).await?;
     Ok(guid)
@@ -38,6 +38,7 @@ where
 pub async fn create_pool<I, P>(
     disks: &I,
     pvscan: &BTreeMap<PathBuf, Option<String>>,
+    encrypted: bool,
 ) -> Result<String, Error>
 where
     for<'a> &'a I: IntoIterator<Item = &'a P>,
@@ -62,13 +63,16 @@ where
             .invoke(crate::ErrorKind::DiskManagement)
             .await?;
     }
-    let guid = format!(
+    let mut guid = format!(
         "EMBASSY_{}",
         base32::encode(
             base32::Alphabet::RFC4648 { padding: false },
             &rand::random::<[u8; 32]>(),
         )
     );
+    if !encrypted {
+        guid += "_UNENC";
+    }
     let mut cmd = Command::new("vgcreate");
     cmd.arg("-y").arg(&guid);
     for disk in disks {
@@ -159,12 +163,14 @@ pub async fn create_all_fs<P: AsRef<Path>>(
 #[instrument(skip_all)]
 pub async fn unmount_fs<P: AsRef<Path>>(guid: &str, datadir: P, name: &str) -> Result<(), Error> {
     unmount(datadir.as_ref().join(name)).await?;
-    Command::new("cryptsetup")
-        .arg("-q")
-        .arg("luksClose")
-        .arg(format!("{}_{}", guid, name))
-        .invoke(crate::ErrorKind::DiskManagement)
-        .await?;
+    if !guid.ends_with("_UNENC") {
+        Command::new("cryptsetup")
+            .arg("-q")
+            .arg("luksClose")
+            .arg(format!("{}_{}", guid, name))
+            .invoke(crate::ErrorKind::DiskManagement)
+            .await?;
+    }
 
     Ok(())
 }
@@ -226,12 +232,6 @@ pub async fn import<P: AsRef<Path>>(
             crate::ErrorKind::IncorrectDisk,
         ));
     }
-    // BACKWARDS COMPATIBILITY: TODO: REMOVE
-    if guid.ends_with("_UNENC") {
-        password = None;
-    } else {
-        password = password.or(Some(DEFAULT_PASSWORD))
-    }
     Command::new("dmsetup")
         .arg("remove_all") // TODO: find a higher finesse way to do this for portability reasons
         .invoke(crate::ErrorKind::DiskManagement)
@@ -270,7 +270,11 @@ pub async fn mount_fs<P: AsRef<Path>>(
     let orig_path = Path::new("/dev").join(guid).join(name);
     let mut blockdev_path = orig_path.clone();
     let full_name = format!("{}_{}", guid, name);
-    if let Some(password) = password {
+    if !guid.ends_with("_UNENC") {
+        let password = password.unwrap_or(DEFAULT_PASSWORD);
+        if let Some(parent) = Path::new(PASSWORD_PATH).parent() {
+            tokio::fs::create_dir_all(parent).await?;
+        }
         tokio::fs::write(PASSWORD_PATH, password)
             .await
             .with_ctx(|_| (crate::ErrorKind::Filesystem, PASSWORD_PATH))?;
@@ -290,7 +294,7 @@ pub async fn mount_fs<P: AsRef<Path>>(
     }
     let reboot = repair.fsck(&blockdev_path).await?;
 
-    if password.is_some() {
+    if !guid.ends_with("_UNENC") {
         // Backup LUKS header if e2fsck succeeded
         let luks_folder = Path::new("/media/embassy/config/luks");
         tokio::fs::create_dir_all(luks_folder).await?;
