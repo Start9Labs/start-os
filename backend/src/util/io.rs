@@ -2,6 +2,7 @@ use std::future::Future;
 use std::io::Cursor;
 use std::os::unix::prelude::MetadataExt;
 use std::path::Path;
+use std::sync::atomic::AtomicU64;
 use std::task::Poll;
 
 use futures::future::{BoxFuture, Fuse};
@@ -224,6 +225,7 @@ pub async fn copy_and_shutdown<R: AsyncRead + Unpin, W: AsyncWrite + Unpin>(
 
 pub fn dir_size<'a, P: AsRef<Path> + 'a + Send + Sync>(
     path: P,
+    ctr: Option<&'a Counter>,
 ) -> BoxFuture<'a, Result<u64, std::io::Error>> {
     async move {
         tokio_stream::wrappers::ReadDirStream::new(tokio::fs::read_dir(path.as_ref()).await?)
@@ -231,9 +233,12 @@ pub fn dir_size<'a, P: AsRef<Path> + 'a + Send + Sync>(
                 let m = e.metadata().await?;
                 Ok(acc
                     + if m.is_file() {
+                        if let Some(ctr) = ctr {
+                            ctr.add(m.len());
+                        }
                         m.len()
                     } else if m.is_dir() {
-                        dir_size(e.path()).await?
+                        dir_size(e.path(), ctr).await?
                     } else {
                         0
                     })
@@ -419,9 +424,60 @@ impl<T: AsyncWrite> AsyncWrite for BackTrackingReader<T> {
     }
 }
 
+pub struct Counter {
+    atomic: AtomicU64,
+    ordering: std::sync::atomic::Ordering,
+}
+impl Counter {
+    pub fn new(init: u64, ordering: std::sync::atomic::Ordering) -> Self {
+        Self {
+            atomic: AtomicU64::new(init),
+            ordering,
+        }
+    }
+    pub fn load(&self) -> u64 {
+        self.atomic.load(self.ordering)
+    }
+    pub fn add(&self, value: u64) {
+        self.atomic.fetch_add(value, self.ordering);
+    }
+}
+
+#[pin_project::pin_project]
+pub struct CountingReader<'a, R> {
+    ctr: &'a Counter,
+    #[pin]
+    rdr: R,
+}
+impl<'a, R> CountingReader<'a, R> {
+    pub fn new(rdr: R, ctr: &'a Counter) -> Self {
+        Self { ctr, rdr }
+    }
+    pub fn into_inner(self) -> R {
+        self.rdr
+    }
+}
+impl<'a, R: AsyncRead> AsyncRead for CountingReader<'a, R> {
+    fn poll_read(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        let this = self.project();
+        let start = buf.filled().len();
+        let res = this.rdr.poll_read(cx, buf);
+        let len = buf.filled().len() - start;
+        if len > 0 {
+            this.ctr.add(len as u64);
+        }
+        res
+    }
+}
+
 pub fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + Send + Sync>(
     src: P0,
     dst: P1,
+    ctr: Option<&'a Counter>,
 ) -> BoxFuture<'a, Result<(), crate::Error>> {
     async move {
         let m = tokio::fs::metadata(&src).await?;
@@ -471,16 +527,17 @@ pub fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + S
                                 format!("create {}", dst_path.display()),
                             )
                         })?;
-                    tokio::io::copy(
-                        &mut tokio::fs::File::open(&src_path).await.with_ctx(|_| {
-                            (
-                                crate::ErrorKind::Filesystem,
-                                format!("open {}", src_path.display()),
-                            )
-                        })?,
-                        &mut dst_file,
-                    )
-                    .await
+                    let mut rdr = tokio::fs::File::open(&src_path).await.with_ctx(|_| {
+                        (
+                            crate::ErrorKind::Filesystem,
+                            format!("open {}", src_path.display()),
+                        )
+                    })?;
+                    if let Some(ctr) = ctr {
+                        tokio::io::copy(&mut CountingReader::new(rdr, ctr), &mut dst_file).await
+                    } else {
+                        tokio::io::copy(&mut rdr, &mut dst_file).await
+                    }
                     .with_ctx(|_| {
                         (
                             crate::ErrorKind::Filesystem,
@@ -508,7 +565,7 @@ pub fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + S
                         )
                     })?;
                 } else if m.is_dir() {
-                    dir_copy(src_path, dst_path).await?;
+                    dir_copy(src_path, dst_path, ctr).await?;
                 } else if m.file_type().is_symlink() {
                     tokio::fs::symlink(
                         tokio::fs::read_link(&src_path).await.with_ctx(|_| {

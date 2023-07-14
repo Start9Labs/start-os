@@ -9,10 +9,9 @@ use crate::disk::repair;
 use crate::init::SYSTEM_REBUILD_PATH;
 use crate::logs::{fetch_logs, LogResponse, LogSource};
 use crate::shutdown::Shutdown;
+use crate::system::SYSTEMD_UNIT;
 use crate::util::display_none;
 use crate::Error;
-
-pub const SYSTEMD_UNIT: &'static str = "embassy-init";
 
 #[command(subcommands(error, logs, exit, restart, forget_disk, disk, rebuild))]
 pub fn diagnostic() -> Result<(), Error> {

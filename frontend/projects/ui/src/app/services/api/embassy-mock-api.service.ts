@@ -156,6 +156,13 @@ export class MockApiService extends ApiService {
     return null
   }
 
+  async resetPassword(
+    params: RR.ResetPasswordReq,
+  ): Promise<RR.ResetPasswordRes> {
+    await pauseFor(2000)
+    return null
+  }
+
   // server
 
   async echo(params: RR.EchoReq): Promise<RR.EchoRes> {
@@ -376,12 +383,6 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
     return Mock.MarketplaceEos
   }
-
-  // password
-  // async updatePassword (params: RR.UpdatePasswordReq): Promise<RR.UpdatePasswordRes> {
-  //   await pauseFor(2000)
-  //   return null
-  // }
 
   // notification
 
