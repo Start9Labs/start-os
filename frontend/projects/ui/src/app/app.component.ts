@@ -39,9 +39,9 @@ export class AppComponent implements OnDestroy {
   ) {}
 
   async ngOnInit() {
-    if (location.protocol === 'http:') {
+    if (location.hostname !== 'localhost' && location.protocol === 'http:') {
       // see if site is available securely
-      const res = await fetch(window.location.href.replace('http', 'https'))
+      const res = await fetch(window.location.href.replace(/^http:/, 'https:'))
       if (res && res.status === 200) {
         // redirect
         window.location.protocol = 'https:'
