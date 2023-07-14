@@ -103,10 +103,9 @@ update-overlay:
 	@echo "\033[33mALL CHANGES WILL BE REVERTED IF YOU RESTART THE DEVICE\033[0m"
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
 	@if [ "`ssh $(REMOTE) 'cat /usr/lib/embassy/VERSION.txt'`" != "`cat ./VERSION.txt`" ]; then >&2 echo "StartOS requires migrations: update-overlay is unavailable." && false; fi
-	@if ssh $(REMOTE) "pidof embassy-init"; then >&2 echo "Embassy in INIT: update-overlay is unavailable." && false; fi
-	ssh $(REMOTE) "sudo systemctl stop embassyd"
+	ssh $(REMOTE) "sudo systemctl stop startd"
 	$(MAKE) install REMOTE=$(REMOTE) OS_ARCH=$(OS_ARCH)
-	ssh $(REMOTE) "sudo systemctl start embassyd"
+	ssh $(REMOTE) "sudo systemctl start startd"
 
 update:
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi

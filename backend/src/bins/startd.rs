@@ -105,11 +105,11 @@ pub fn main() {
     EmbassyLogger::init();
 
     if !Path::new("/run/embassy/initialized").exists() {
-        super::embassy_init::main();
+        super::start_init::main();
         std::fs::write("/run/embassy/initialized", "").unwrap();
     }
 
-    let matches = clap::App::new("embassyd")
+    let matches = clap::App::new("startd")
         .arg(
             clap::Arg::with_name("config")
                 .short('c')
