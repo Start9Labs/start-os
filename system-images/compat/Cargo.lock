@@ -598,7 +598,6 @@ dependencies = [
  "beau_collector",
  "clap 2.34.0",
  "dashmap",
- "embassy-os",
  "emver",
  "failure",
  "indexmap",
@@ -615,6 +614,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml 0.8.26",
+ "start-os",
 ]
 
 [[package]]
@@ -1166,112 +1166,6 @@ dependencies = [
  "rand_core 0.6.4",
  "sec1",
  "subtle",
- "zeroize",
-]
-
-[[package]]
-name = "embassy-os"
-version = "0.3.4-rev.3"
-dependencies = [
- "aes",
- "async-compression",
- "async-stream",
- "async-trait",
- "base32",
- "base64 0.13.1",
- "base64ct",
- "basic-cookies",
- "bollard",
- "bytes",
- "chrono",
- "ciborium",
- "clap 3.2.23",
- "color-eyre",
- "cookie",
- "cookie_store 0.19.0",
- "current_platform",
- "digest 0.10.6",
- "digest 0.9.0",
- "divrem",
- "ed25519",
- "ed25519-dalek",
- "embassy_container_init",
- "emver",
- "fd-lock-rs",
- "futures",
- "git-version",
- "gpt",
- "helpers",
- "hex",
- "hmac 0.12.1",
- "http",
- "hyper",
- "hyper-ws-listener",
- "imbl 2.0.0",
- "indexmap",
- "ipnet",
- "iprange",
- "isocountry",
- "itertools 0.10.5",
- "josekit",
- "jsonpath_lib",
- "lazy_static",
- "libc",
- "log",
- "mbrman",
- "models",
- "nix 0.25.1",
- "nom",
- "num",
- "num_enum",
- "openssh-keys",
- "openssl",
- "p256 0.12.0",
- "patch-db",
- "pbkdf2",
- "pin-project",
- "pkcs8",
- "prettytable-rs",
- "proptest",
- "proptest-derive",
- "rand 0.7.3",
- "rand 0.8.5",
- "regex",
- "reqwest",
- "reqwest_cookie_store",
- "rpassword",
- "rpc-toolkit",
- "rust-argon2",
- "scopeguard",
- "serde",
- "serde_json",
- "serde_with 2.2.0",
- "serde_yaml 0.9.16",
- "sha2 0.10.6",
- "sha2 0.9.9",
- "simple-logging",
- "sqlx",
- "ssh-key",
- "stderrlog",
- "tar",
- "thiserror",
- "tokio",
- "tokio-rustls",
- "tokio-socks",
- "tokio-stream",
- "tokio-tar",
- "tokio-tungstenite",
- "tokio-util",
- "toml",
- "torut",
- "tracing",
- "tracing-error 0.2.0",
- "tracing-futures",
- "tracing-subscriber 0.3.16",
- "trust-dns-server",
- "typed-builder",
- "url",
- "uuid 1.2.2",
  "zeroize",
 ]
 
@@ -2037,6 +1931,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "include_dir"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "18762faeff7122e89e0857b02f7ce6fcc0d101d5e9ad2ad7846cc01d61b7f19e"
+dependencies = [
+ "include_dir_macros",
+]
+
+[[package]]
+name = "include_dir_macros"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b139284b5cf57ecfa712bcc66950bb635b31aff41c188e8a4cfc758eca374a3f"
+dependencies = [
+ "proc-macro2 1.0.50",
+ "quote 1.0.23",
+]
+
+[[package]]
 name = "indenter"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2491,6 +2404,16 @@ name = "new_debug_unreachable"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e4a24736216ec316047a1fc4252e27dabb04218aa4a3f37c6e7ddbf1f9782b54"
+
+[[package]]
+name = "new_mime_guess"
+version = "4.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c2d684d1b59e0dc07b37e2203ef576987473288f530082512aff850585c61b1f"
+dependencies = [
+ "mime",
+ "unicase",
+]
 
 [[package]]
 name = "nibble_vec"
@@ -4209,6 +4132,114 @@ dependencies = [
 ]
 
 [[package]]
+name = "start-os"
+version = "0.3.4-rev.3"
+dependencies = [
+ "aes",
+ "async-compression",
+ "async-stream",
+ "async-trait",
+ "base32",
+ "base64 0.13.1",
+ "base64ct",
+ "basic-cookies",
+ "bollard",
+ "bytes",
+ "chrono",
+ "ciborium",
+ "clap 3.2.23",
+ "color-eyre",
+ "cookie",
+ "cookie_store 0.19.0",
+ "current_platform",
+ "digest 0.10.6",
+ "digest 0.9.0",
+ "divrem",
+ "ed25519",
+ "ed25519-dalek",
+ "embassy_container_init",
+ "emver",
+ "fd-lock-rs",
+ "futures",
+ "git-version",
+ "gpt",
+ "helpers",
+ "hex",
+ "hmac 0.12.1",
+ "http",
+ "hyper",
+ "hyper-ws-listener",
+ "imbl 2.0.0",
+ "include_dir",
+ "indexmap",
+ "ipnet",
+ "iprange",
+ "isocountry",
+ "itertools 0.10.5",
+ "josekit",
+ "jsonpath_lib",
+ "lazy_static",
+ "libc",
+ "log",
+ "mbrman",
+ "models",
+ "new_mime_guess",
+ "nix 0.25.1",
+ "nom",
+ "num",
+ "num_enum",
+ "openssh-keys",
+ "openssl",
+ "p256 0.12.0",
+ "patch-db",
+ "pbkdf2",
+ "pin-project",
+ "pkcs8",
+ "prettytable-rs",
+ "proptest",
+ "proptest-derive",
+ "rand 0.7.3",
+ "rand 0.8.5",
+ "regex",
+ "reqwest",
+ "reqwest_cookie_store",
+ "rpassword",
+ "rpc-toolkit",
+ "rust-argon2",
+ "scopeguard",
+ "serde",
+ "serde_json",
+ "serde_with 2.2.0",
+ "serde_yaml 0.9.16",
+ "sha2 0.10.6",
+ "sha2 0.9.9",
+ "simple-logging",
+ "sqlx",
+ "ssh-key",
+ "stderrlog",
+ "tar",
+ "thiserror",
+ "tokio",
+ "tokio-rustls",
+ "tokio-socks",
+ "tokio-stream",
+ "tokio-tar",
+ "tokio-tungstenite",
+ "tokio-util",
+ "toml",
+ "torut",
+ "tracing",
+ "tracing-error 0.2.0",
+ "tracing-futures",
+ "tracing-subscriber 0.3.16",
+ "trust-dns-server",
+ "typed-builder",
+ "url",
+ "uuid 1.2.2",
+ "zeroize",
+]
+
+[[package]]
 name = "stderrlog"
 version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4844,6 +4875,15 @@ name = "ucd-trie"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9e79c4d996edb816c91e4308506774452e55e95c3c9de07b6729e17e15a5ef81"
+
+[[package]]
+name = "unicase"
+version = "2.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "50f37be617794602aabbeee0be4f259dc1778fabe05e2d67ee8f79326d5cb4f6"
+dependencies = [
+ "version_check",
+]
 
 [[package]]
 name = "unicode-bidi"

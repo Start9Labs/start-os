@@ -17,6 +17,7 @@ pub mod account;
 pub mod action;
 pub mod auth;
 pub mod backup;
+pub mod bins;
 pub mod config;
 pub mod context;
 pub mod control;

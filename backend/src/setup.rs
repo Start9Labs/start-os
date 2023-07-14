@@ -1,9 +1,9 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::Duration;
 
 use color_eyre::eyre::eyre;
 use futures::StreamExt;
-use helpers::{Rsync, RsyncOptions};
 use josekit::jwk::Jwk;
 use openssl::x509::X509;
 use patch_db::DbHandle;
@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::Connection;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
+use tokio::try_join;
 use torut::onion::OnionAddressV3;
 use tracing::instrument;
 
@@ -32,6 +33,7 @@ use crate::disk::REPAIR_DISK_PATH;
 use crate::hostname::Hostname;
 use crate::init::{init, InitResult};
 use crate::middleware::encrypt::EncryptedWire;
+use crate::util::io::{dir_copy, dir_size, Counter};
 use crate::{Error, ErrorKind, ResultExt};
 
 #[command(subcommands(status, disk, attach, execute, cifs, complete, get_pubkey, exit))]
@@ -429,70 +431,70 @@ async fn migrate(
     )
     .await?;
 
-    let mut main_transfer = Rsync::new(
-        "/media/embassy/migrate/main/",
-        "/embassy-data/main/",
-        RsyncOptions {
-            delete: true,
-            force: true,
-            ignore_existing: false,
-            exclude: Vec::new(),
-            no_permissions: false,
-            no_owner: false,
-        },
-    )
-    .await?;
-    let mut package_data_transfer = Rsync::new(
+    let main_transfer_args = ("/media/embassy/migrate/main/", "/embassy-data/main/");
+    let package_data_transfer_args = (
         "/media/embassy/migrate/package-data/",
         "/embassy-data/package-data/",
-        RsyncOptions {
-            delete: true,
-            force: true,
-            ignore_existing: false,
-            exclude: vec!["tmp".to_owned()],
-            no_permissions: false,
-            no_owner: false,
-        },
-    )
-    .await?;
+    );
 
-    let mut main_prog = 0.0;
-    let mut main_complete = false;
-    let mut pkg_prog = 0.0;
-    let mut pkg_complete = false;
-    loop {
-        tokio::select! {
-            p = main_transfer.progress.next() => {
-                if let Some(p) = p {
-                    main_prog = p;
-                } else {
-                    main_prog = 1.0;
-                    main_complete = true;
-                }
-            }
-            p = package_data_transfer.progress.next() => {
-                if let Some(p) = p {
-                    pkg_prog = p;
-                } else {
-                    pkg_prog = 1.0;
-                    pkg_complete = true;
-                }
-            }
-        }
-        if main_prog > 0.0 && pkg_prog > 0.0 {
-            *ctx.setup_status.write().await = Some(Ok(SetupStatus {
-                bytes_transferred: ((main_prog * 50.0) + (pkg_prog * 950.0)) as u64,
-                total_bytes: Some(1000),
-                complete: false,
-            }));
-        }
-        if main_complete && pkg_complete {
-            break;
-        }
+    let tmpdir = Path::new(package_data_transfer_args.0).join("tmp");
+    if tokio::fs::metadata(&tmpdir).await.is_ok() {
+        tokio::fs::remove_dir_all(&tmpdir).await?;
     }
 
-    main_transfer.wait().await?;
-    package_data_transfer.wait().await?;
+    let ordering = std::sync::atomic::Ordering::Relaxed;
+
+    let main_transfer_size = Counter::new(0, ordering);
+    let package_data_transfer_size = Counter::new(0, ordering);
+
+    let size = tokio::select! {
+        res = async {
+            let (main_size, package_data_size) = try_join!(
+                dir_size(main_transfer_args.0, Some(&main_transfer_size)),
+                dir_size(package_data_transfer_args.0, Some(&package_data_transfer_size))
+            )?;
+            Ok::<_, Error>(main_size + package_data_size)
+        } => { res? },
+        res = async {
+            loop {
+                tokio::time::sleep(Duration::from_secs(1)).await;
+                *ctx.setup_status.write().await = Some(Ok(SetupStatus {
+                    bytes_transferred: 0,
+                    total_bytes: Some(main_transfer_size.load() + package_data_transfer_size.load()),
+                    complete: false,
+                }));
+            }
+        } => res,
+    };
+
+    *ctx.setup_status.write().await = Some(Ok(SetupStatus {
+        bytes_transferred: 0,
+        total_bytes: Some(size),
+        complete: false,
+    }));
+
+    let main_transfer_progress = Counter::new(0, ordering);
+    let package_data_transfer_progress = Counter::new(0, ordering);
+
+    tokio::select! {
+        res = async {
+            try_join!(
+                dir_copy(main_transfer_args.0, main_transfer_args.1, Some(&main_transfer_progress)),
+                dir_copy(package_data_transfer_args.0, package_data_transfer_args.1, Some(&package_data_transfer_progress))
+            )?;
+            Ok::<_, Error>(())
+        } => { res? },
+        res = async {
+            loop {
+                tokio::time::sleep(Duration::from_secs(1)).await;
+                *ctx.setup_status.write().await = Some(Ok(SetupStatus {
+                    bytes_transferred: main_transfer_progress.load() + package_data_transfer_progress.load(),
+                    total_bytes: Some(size),
+                    complete: false,
+                }));
+            }
+        } => res,
+    }
 
     let (hostname, tor_addr, root_ca) = setup_init(&ctx, Some(embassy_password)).await?;
 

@@ -1,0 +1,18 @@
+[Unit]
+Description=StartOS Daemon
+After=network-online.target
+Requires=network-online.target
+Wants=avahi-daemon.service
+
+[Service]
+Type=simple
+Environment=RUST_LOG=startos=debug,js_engine=debug,patch_db=warn
+ExecStart=/usr/bin/startd
+Restart=always
+RestartSec=3
+ManagedOOMPreference=avoid
+CPUAccounting=true
+CPUWeight=1000
+
+[Install]
+WantedBy=multi-user.target
