@@ -49,7 +49,7 @@ impl Database {
                 last_wifi_region: None,
                 eos_version_compat: Current::new().compat().clone(),
                 lan_address,
-                tor_address: format!("http://{}", account.key.tor_address())
+                tor_address: format!("https://{}", account.key.tor_address())
                     .parse()
                     .unwrap(),
                 ip_info: BTreeMap::new(),
