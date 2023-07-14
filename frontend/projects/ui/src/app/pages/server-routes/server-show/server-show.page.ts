@@ -2,8 +2,8 @@ import { Component, Inject } from '@angular/core'
 import {
   AlertController,
   LoadingController,
-  NavController,
   ModalController,
+  NavController,
   ToastController,
 } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -306,8 +306,10 @@ export class ServerShowPage {
   }
 
   async launchHttps() {
-    const { 'lan-address': lanAddress } = await getServerInfo(this.patch)
-    window.open(lanAddress)
+    const onTor = this.config.isTor()
+    const { 'lan-address': lanAddress, 'tor-address': torAddress } =
+      await getServerInfo(this.patch)
+    onTor ? window.open(torAddress) : window.open(lanAddress)
   }
 
   addClick(title: string) {

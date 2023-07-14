@@ -65,7 +65,9 @@ export class AppShowPage {
   }
 
   async launchHttps() {
-    const { 'lan-address': lanAddress } = await getServerInfo(this.patch)
-    window.open(lanAddress)
+    const onTor = this.config.isTor()
+    const { 'lan-address': lanAddress, 'tor-address': torAddress } =
+      await getServerInfo(this.patch)
+    onTor ? window.open(torAddress) : window.open(lanAddress)
   }
 }

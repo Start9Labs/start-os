@@ -69,6 +69,7 @@ export class ConfigService {
     if (this.isLan() && hasLanUi(pkg.manifest.interfaces)) {
       return `https://${lanUiAddress(pkg)}`
     } else {
+      // leave http for services
       return `http://${torUiAddress(pkg)}`
     }
   }

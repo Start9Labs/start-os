@@ -1,7 +1,7 @@
 import { Component, Input } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { ModalController, ToastController } from '@ionic/angular'
-import { getPkgId, copyToClipboard } from '@start9labs/shared'
+import { copyToClipboard, getPkgId } from '@start9labs/shared'
 import { getUiInterfaceKey } from 'src/app/services/config.service'
 import {
   DataModel,
@@ -52,7 +52,7 @@ export class AppInterfacesPage {
             ? 'https://' + uiAddresses['lan-address']
             : '',
           'tor-address': uiAddresses['tor-address']
-            ? 'http://' + uiAddresses['tor-address']
+            ? 'https://' + uiAddresses['tor-address']
             : '',
         },
       }
@@ -69,7 +69,8 @@ export class AppInterfacesPage {
               ? 'https://' + addresses['lan-address']
               : '',
             'tor-address': addresses['tor-address']
-              ? 'http://' + addresses['tor-address']
+              ? // leave http for services
+                'http://' + addresses['tor-address']
               : '',
           },
         }
