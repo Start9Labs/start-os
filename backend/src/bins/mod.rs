@@ -4,24 +4,24 @@ use std::path::Path;
 pub mod avahi_alias;
 pub mod deprecated;
 #[cfg(feature = "cli")]
-pub mod embassy_cli;
+pub mod start_cli;
 #[cfg(feature = "daemon")]
-pub mod embassy_init;
+pub mod start_init;
 #[cfg(feature = "sdk")]
-pub mod embassy_sdk;
+pub mod start_sdk;
 #[cfg(feature = "daemon")]
-pub mod embassyd;
+pub mod startd;
 
 fn select_executable(name: &str) -> Option<fn()> {
     match name {
         #[cfg(feature = "avahi-alias")]
         "avahi-alias" => Some(avahi_alias::main),
         #[cfg(feature = "cli")]
-        "start-cli" => Some(embassy_cli::main),
+        "start-cli" => Some(start_cli::main),
         #[cfg(feature = "sdk")]
-        "start-sdk" => Some(embassy_sdk::main),
+        "start-sdk" => Some(start_sdk::main),
         #[cfg(feature = "daemon")]
-        "startd" => Some(embassyd::main),
+        "startd" => Some(startd::main),
         "embassy-cli" => Some(|| deprecated::renamed("embassy-cli", "start-cli")),
         "embassy-sdk" => Some(|| deprecated::renamed("embassy-sdk", "start-sdk")),
         "embassyd" => Some(|| deprecated::renamed("embassyd", "startd")),
