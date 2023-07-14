@@ -17,8 +17,6 @@ let tries: number
 export class MockApiService extends ApiService {
   async getStatus() {
     const restoreOrMigrate = true
-    const total = 4
-
     await pauseFor(1000)
 
     if (tries === undefined) {
@@ -27,7 +25,9 @@ export class MockApiService extends ApiService {
     }
 
     tries++
-    const progress = tries - 1
+
+    const total = tries <= 4 ? tries * 268435456 : 1073741824
+    const progress = tries > 4 ? (tries - 4) * 268435456 : 0
 
     return {
       'bytes-transferred': restoreOrMigrate ? progress : 0,
