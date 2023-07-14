@@ -41,7 +41,7 @@ impl VHostController {
         hostname: Option<String>,
         external: u16,
         target: SocketAddr,
-        connect_ssl: bool,
+        connect_ssl: Result<(), AlpnInfo>,
     ) -> Result<Arc<()>, Error> {
         let mut writable = self.servers.lock().await;
         let server = if let Some(server) = writable.remove(&external) {
@@ -77,8 +77,14 @@ impl VHostController {
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct TargetInfo {
     addr: SocketAddr,
-    connect_ssl: bool,
+    connect_ssl: Result<(), AlpnInfo>,
     key: Key,
+}
+
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum AlpnInfo {
+    Reflect,
+    Specified(Vec<Vec<u8>>),
 }
 
 struct VHostServer {
@@ -178,7 +184,7 @@ impl VHostServer {
                                         let cfg = ServerConfig::builder()
                                             .with_safe_defaults()
                                             .with_no_client_auth();
-                                        let cfg =
+                                        let mut cfg =
                                             if mid.client_hello().signature_schemes().contains(
                                                 &tokio_rustls::rustls::SignatureScheme::ED25519,
                                             ) {
@@ -213,48 +219,86 @@ impl VHostServer {
                                                             .private_key_to_der()?,
                                                     ),
                                                 )
-                                            };
-                                        let mut tls_stream = mid
-                                            .into_stream(Arc::new(
-                                                cfg.with_kind(crate::ErrorKind::OpenSsl)?,
-                                            ))
-                                            .await?;
-                                        tls_stream.get_mut().0.stop_buffering();
-                                        if target.connect_ssl {
-                                            tokio::io::copy_bidirectional(
-                                                &mut tls_stream,
-                                                &mut TlsConnector::from(Arc::new(
+                                            }
+                                            .with_kind(crate::ErrorKind::OpenSsl)?;
+                                        match target.connect_ssl {
+                                            Ok(()) => {
+                                                let mut client_cfg =
                                                     tokio_rustls::rustls::ClientConfig::builder()
                                                         .with_safe_defaults()
                                                         .with_root_certificates({
                                                             let mut store = RootCertStore::empty();
                                                             store.add(
-                                                                &tokio_rustls::rustls::Certificate(
-                                                                    key.root_ca().to_der()?,
-                                                                ),
-                                                            ).with_kind(crate::ErrorKind::OpenSsl)?;
+                                                        &tokio_rustls::rustls::Certificate(
+                                                            key.root_ca().to_der()?,
+                                                        ),
+                                                    ).with_kind(crate::ErrorKind::OpenSsl)?;
                                                             store
                                                         })
-                                                        .with_no_client_auth(),
-                                                ))
-                                                .connect(
-                                                    key.key()
-                                                        .internal_address()
-                                                        .as_str()
-                                                        .try_into()
-                                                        .with_kind(crate::ErrorKind::OpenSsl)?,
-                                                    tcp_stream,
+                                                        .with_no_client_auth();
+                                                client_cfg.alpn_protocols = mid
+                                                    .client_hello()
+                                                    .alpn()
+                                                    .into_iter()
+                                                    .flatten()
+                                                    .map(|x| x.to_vec())
+                                                    .collect();
+                                                let mut target_stream =
+                                                    TlsConnector::from(Arc::new(client_cfg))
+                                                        .connect_with(
+                                                            key.key()
+                                                                .internal_address()
+                                                                .as_str()
+                                                                .try_into()
+                                                                .with_kind(
+                                                                    crate::ErrorKind::OpenSsl,
+                                                                )?,
+                                                            tcp_stream,
+                                                            |conn| {
+                                                                cfg.alpn_protocols.extend(
+                                                                    conn.alpn_protocol()
+                                                                        .into_iter()
+                                                                        .map(|p| p.to_vec()),
+                                                                )
+                                                            },
+                                                        )
+                                                        .await
+                                                        .with_kind(crate::ErrorKind::OpenSsl)?;
+                                                let mut tls_stream =
+                                                    mid.into_stream(Arc::new(cfg)).await?;
+                                                tls_stream.get_mut().0.stop_buffering();
+                                                tokio::io::copy_bidirectional(
+                                                    &mut tls_stream,
+                                                    &mut target_stream,
                                                 )
-                                                .await
-                                                .with_kind(crate::ErrorKind::OpenSsl)?,
-                                            )
-                                            .await?;
-                                        } else {
-                                            tokio::io::copy_bidirectional(
-                                                &mut tls_stream,
-                                                &mut tcp_stream,
-                                            )
-                                            .await?;
+                                                .await?;
+                                            }
+                                            Err(AlpnInfo::Reflect) => {
+                                                for proto in
+                                                    mid.client_hello().alpn().into_iter().flatten()
+                                                {
+                                                    cfg.alpn_protocols.push(proto.into());
+                                                }
+                                                let mut tls_stream =
+                                                    mid.into_stream(Arc::new(cfg)).await?;
+                                                tls_stream.get_mut().0.stop_buffering();
+                                                tokio::io::copy_bidirectional(
+                                                    &mut tls_stream,
+                                                    &mut tcp_stream,
+                                                )
+                                                .await?;
+                                            }
+                                            Err(AlpnInfo::Specified(alpn)) => {
+                                                cfg.alpn_protocols = alpn;
+                                                let mut tls_stream =
+                                                    mid.into_stream(Arc::new(cfg)).await?;
+                                                tls_stream.get_mut().0.stop_buffering();
+                                                tokio::io::copy_bidirectional(
+                                                    &mut tls_stream,
+                                                    &mut tcp_stream,
+                                                )
+                                                .await?;
+                                            }
                                         }
                                     } else {
                                         // 503

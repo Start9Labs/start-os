@@ -144,7 +144,7 @@ pub async fn attach(
             }
             let (hostname, tor_addr, root_ca) = setup_init(&ctx, password).await?;
             *ctx.setup_result.write().await = Some((guid, SetupResult {
-                tor_address: format!("http://{}", tor_addr),
+                tor_address: format!("https://{}", tor_addr),
                 lan_address: hostname.lan_address(),
                 root_ca: String::from_utf8(root_ca.to_pem()?)?,
             }));
@@ -281,7 +281,7 @@ pub async fn execute(
                 *ctx.setup_result.write().await = Some((
                     guid,
                     SetupResult {
-                        tor_address: format!("http://{}", tor_addr),
+                        tor_address: format!("https://{}", tor_addr),
                         lan_address: hostname.lan_address(),
                         root_ca: String::from_utf8(
                             root_ca.to_pem().expect("failed to serialize root ca"),

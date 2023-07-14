@@ -2,10 +2,10 @@ import { Injectable } from '@angular/core'
 import { encodeBase64, pauseFor } from '@start9labs/shared'
 import {
   ApiService,
-  CifsRecoverySource,
   AttachReq,
-  ExecuteReq,
+  CifsRecoverySource,
   CompleteRes,
+  ExecuteReq,
 } from './api.service'
 import * as jose from 'node-jose'
 
@@ -149,7 +149,7 @@ export class MockApiService extends ApiService {
   async complete(): Promise<CompleteRes> {
     await pauseFor(1000)
     return {
-      'tor-address': 'http://asdafsadasdasasdasdfasdfasdf.onion',
+      'tor-address': 'https://asdafsadasdasasdasdfasdfasdf.onion',
       'lan-address': 'https://adjective-noun.local',
       'root-ca': encodeBase64(rootCA),
     }
