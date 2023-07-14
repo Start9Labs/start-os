@@ -7,7 +7,12 @@ import { PatchDB } from 'patch-db-client'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
-import { DomainSpec, domainSpec } from './domain.const'
+import {
+  start9MeSpec,
+  Start9MeSpec,
+  customSpec,
+  CustomSpec,
+} from './domain.const'
 import { ConnectionService } from 'src/app/services/connection.service'
 import { FormContext, FormPage } from '../../../modals/form/form.page'
 import { getClearnetAddress } from 'src/app/util/clearnetAddress'
@@ -23,7 +28,7 @@ export class DomainsPage {
   readonly server$ = this.patch.watch$('server-info')
   readonly pkgs$ = this.patch.watch$('package-data').pipe(first())
 
-  readonly domains$ = this.connectionService.connected$.pipe(
+  readonly domains$ = this.connectionService.websocketConnected$.pipe(
     filter(Boolean),
     switchMap(() =>
       combineLatest([this.server$, this.pkgs$]).pipe(
@@ -35,6 +40,8 @@ export class DomainsPage {
                 value: `${start9MeSubdomain.value}.start9.me`,
                 createdAt: start9MeSubdomain.createdAt,
                 provider: 'Start9',
+                networkStrategy: start9MeSubdomain.networkStrategy,
+                ipStrategy: start9MeSubdomain.ipStrategy,
                 usedBy: usedBy(
                   start9MeSubdomain.value,
                   getClearnetAddress('https', ui.domainInfo),
@@ -45,6 +52,8 @@ export class DomainsPage {
             value: domain.value,
             createdAt: domain.createdAt,
             provider: domain.provider,
+            networkStrategy: domain.networkStrategy,
+            ipStrategy: domain.ipStrategy,
             usedBy: usedBy(
               domain.value,
               getClearnetAddress('https', ui.domainInfo),
@@ -69,10 +78,10 @@ export class DomainsPage {
   ) {}
 
   async presentModalAdd() {
-    const options: Partial<TuiDialogOptions<FormContext<DomainSpec>>> = {
+    const options: Partial<TuiDialogOptions<FormContext<CustomSpec>>> = {
       label: 'Custom Domain',
       data: {
-        spec: await domainSpec.build({} as any),
+        spec: await customSpec.build({} as any),
         buttons: [
           {
             text: 'Save',
@@ -84,19 +93,20 @@ export class DomainsPage {
     this.formDialog.open(FormPage, options)
   }
 
-  presentAlertClaimStart9MeDomain() {
-    this.dialogs
-      .open(TUI_PROMPT, {
-        label: 'Confirm',
-        size: 's',
-        data: {
-          content: 'Claim your start9.me domain?',
-          yes: 'Claim',
-          no: 'Cancel',
-        },
-      })
-      .pipe(filter(Boolean))
-      .subscribe(() => this.claimStart9MeDomain())
+  async presentModalClaimStart9Me() {
+    const options: Partial<TuiDialogOptions<FormContext<Start9MeSpec>>> = {
+      label: 'start9.me',
+      data: {
+        spec: await start9MeSpec.build({} as any),
+        buttons: [
+          {
+            text: 'Save',
+            handler: async value => this.claimStart9MeDomain(value),
+          },
+        ],
+      },
+    }
+    this.formDialog.open(FormPage, options)
   }
 
   presentAlertDelete(hostname: string) {
@@ -143,11 +153,17 @@ export class DomainsPage {
       .subscribe()
   }
 
-  private async claimStart9MeDomain(): Promise<boolean> {
+  private async claimStart9MeDomain(value: Start9MeSpec): Promise<boolean> {
     const loader = this.loader.open('Saving...').subscribe()
 
+    const networkStrategy = value.strategy.unionSelectKey
+
     try {
-      await this.api.claimStart9MeDomain({})
+      await this.api.claimStart9MeDomain({
+        networkStrategy,
+        ipStrategy:
+          networkStrategy === 'router' ? value.strategy.unionValueKey.ip : null,
+      })
       return true
     } catch (e: any) {
       this.errorService.handleError(e)
@@ -157,11 +173,30 @@ export class DomainsPage {
     }
   }
 
-  private async save(value: DomainSpec): Promise<boolean> {
+  private async save(value: CustomSpec): Promise<boolean> {
     const loader = this.loader.open('Saving...').subscribe()
 
+    const networkStrategy = value.strategy.unionSelectKey
+    const providerName = value.provider.unionSelectKey
+
     try {
-      await this.api.addDomain(value)
+      await this.api.addDomain({
+        hostname: value.hostname,
+        provider: {
+          name: providerName,
+          username:
+            providerName === 'start9'
+              ? null
+              : value.provider.unionValueKey.username,
+          password:
+            providerName === 'start9'
+              ? null
+              : value.provider.unionValueKey.password,
+        },
+        networkStrategy,
+        ipStrategy:
+          networkStrategy === 'router' ? value.strategy.unionValueKey.ip : null,
+      })
       return true
     } catch (e: any) {
       this.errorService.handleError(e)

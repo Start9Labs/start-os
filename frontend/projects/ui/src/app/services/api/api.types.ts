@@ -8,7 +8,10 @@ import {
 } from 'src/app/services/patch-db/data-model'
 import { StartOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
 import { customSmtp } from '@start9labs/start-sdk/lib/config/configConstants'
-import { DomainSpec } from 'src/app/apps/ui/pages/system/domains/domain.const'
+import {
+  CustomSpec,
+  Start9MeSpec,
+} from 'src/app/apps/ui/pages/system/domains/domain.const'
 
 export module RR {
   // DB
@@ -112,13 +115,25 @@ export module RR {
 
   // domains
 
-  export type ClaimStart9MeReq = {} // net.domain.me.claim
+  export type ClaimStart9MeReq = {
+    networkStrategy: string
+    ipStrategy: string | null
+  } // net.domain.me.claim
   export type ClaimStart9MeRes = null
 
   export type DeleteStart9MeReq = {} // net.domain.me.delete
   export type DeleteStart9MeRes = null
 
-  export type AddDomainReq = DomainSpec // net.domain.add
+  export type AddDomainReq = {
+    hostname: string
+    provider: {
+      name: string
+      username: string | null
+      password: string | null
+    }
+    networkStrategy: string
+    ipStrategy: string | null
+  } // net.domain.add
   export type AddDomainRes = null
 
   export type DeleteDomainReq = { hostname: string } // net.domain.delete

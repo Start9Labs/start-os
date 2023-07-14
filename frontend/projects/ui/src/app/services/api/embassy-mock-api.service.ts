@@ -452,6 +452,8 @@ export class MockApiService extends ApiService {
         value: {
           value: 'xyz',
           createdAt: new Date(),
+          networkStrategy: params.networkStrategy,
+          ipStrategy: params.ipStrategy,
         },
       },
     ]
@@ -482,7 +484,9 @@ export class MockApiService extends ApiService {
         value: [
           {
             value: params.hostname,
-            provider: params.provider,
+            provider: params.provider.name,
+            networkStrategy: params.networkStrategy,
+            ipStrategy: params.ipStrategy,
             createdAt: new Date(),
           },
         ],

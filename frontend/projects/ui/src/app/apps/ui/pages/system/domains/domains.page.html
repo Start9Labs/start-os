@@ -24,7 +24,7 @@
         class="ion-padding-start"
         strong
         size="small"
-        (click)="presentAlertClaimStart9MeDomain()"
+        (click)="presentModalClaimStart9Me()"
       >
         <ion-icon slot="start" name="add-outline"></ion-icon>
         Claim
@@ -34,20 +34,24 @@
     <div class="grid-fixed">
       <ion-grid class="ion-padding">
         <ion-row class="grid-headings">
-          <ion-col size="3">Domain</ion-col>
-          <ion-col size="2.5">Added</ion-col>
-          <ion-col size="2.5">DDNS Provider</ion-col>
-          <ion-col size="2">In Use</ion-col>
-          <ion-col size="2"></ion-col>
+          <ion-col size="2">Domain</ion-col>
+          <ion-col size="2">Added</ion-col>
+          <ion-col size="2">DDNS Provider</ion-col>
+          <ion-col size="1.5">Network Strategy</ion-col>
+          <ion-col size="2">IP Strategy</ion-col>
+          <ion-col size="1.5">In Use</ion-col>
+          <ion-col size="1"></ion-col>
         </ion-row>
         <ion-row
           *ngIf="domains.start9Me as start9Me"
           class="ion-align-items-center grid-row-border"
         >
-          <ion-col size="3">{{ start9Me.value }}</ion-col>
-          <ion-col size="2.5">{{ start9Me.createdAt| date: 'medium' }}</ion-col>
-          <ion-col size="2.5">Start9</ion-col>
-          <ion-col size="2" *ngIf="start9Me.usedBy as usedBy">
+          <ion-col size="2">{{ start9Me.value }}</ion-col>
+          <ion-col size="2">{{ start9Me.createdAt| date: 'short' }}</ion-col>
+          <ion-col size="2">Start9</ion-col>
+          <ion-col size="1.5">{{ start9Me.networkStrategy }}</ion-col>
+          <ion-col size="2">{{ start9Me.ipStrategy || 'N/A' }}</ion-col>
+          <ion-col size="1.5" *ngIf="start9Me.usedBy as usedBy">
             <a
               *ngIf="usedBy.length as qty; else unused"
               (click)="presentAlertUsedBy(start9Me.value, usedBy)"
@@ -58,7 +62,7 @@
               <span>N/A</span>
             </ng-template>
           </ion-col>
-          <ion-col size="2">
+          <ion-col size="1">
             <ion-buttons style="float: right">
               <ion-button size="small" (click)="presentAlertDeleteStart9Me()">
                 <ion-icon name="trash"></ion-icon>
@@ -85,20 +89,24 @@
     <div class="grid-fixed">
       <ion-grid class="ion-padding">
         <ion-row class="grid-headings">
-          <ion-col size="3">Domain</ion-col>
-          <ion-col size="2.5">Added</ion-col>
-          <ion-col size="2.5">DDNS Provider</ion-col>
-          <ion-col size="2">In Use</ion-col>
-          <ion-col size="2"></ion-col>
+          <ion-col size="2">Domain</ion-col>
+          <ion-col size="2">Added</ion-col>
+          <ion-col size="2">DDNS Provider</ion-col>
+          <ion-col size="1.5">Network Strategy</ion-col>
+          <ion-col size="2">IP Strategy</ion-col>
+          <ion-col size="1.5">In Use</ion-col>
+          <ion-col size="1"></ion-col>
         </ion-row>
         <ion-row
           *ngFor="let domain of domains.custom"
           class="ion-align-items-center grid-row-border"
         >
-          <ion-col size="3">{{ domain.value }}</ion-col>
-          <ion-col size="2.5">{{ domain.createdAt| date: 'medium' }}</ion-col>
-          <ion-col size="2.5">{{ domain.provider.unionSelectKey }}</ion-col>
-          <ion-col size="2" *ngIf="domain.usedBy as usedBy">
+          <ion-col size="2">{{ domain.value }}</ion-col>
+          <ion-col size="2">{{ domain.createdAt| date: 'short' }}</ion-col>
+          <ion-col size="2">{{ domain.provider }}</ion-col>
+          <ion-col size="1.5">{{ domain.networkStrategy }}</ion-col>
+          <ion-col size="2">{{ domain.ipStrategy || 'N/A' }}</ion-col>
+          <ion-col size="1.5" *ngIf="domain.usedBy as usedBy">
             <a
               *ngIf="usedBy.length as qty; else unused"
               (click)="presentAlertUsedBy(domain.value, usedBy)"
@@ -109,7 +117,7 @@
               <span>N/A</span>
             </ng-template>
           </ion-col>
-          <ion-col size="2">
+          <ion-col size="1">
             <ion-buttons style="float: right">
               <ion-button
                 size="small"
