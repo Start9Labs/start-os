@@ -51,8 +51,9 @@ export class AppInterfacesPage {
           'lan-address': uiAddresses['lan-address']
             ? 'https://' + uiAddresses['lan-address']
             : '',
+          // leave http for services
           'tor-address': uiAddresses['tor-address']
-            ? 'https://' + uiAddresses['tor-address']
+            ? 'http://' + uiAddresses['tor-address']
             : '',
         },
       }
