@@ -3,3 +3,4 @@ os-partitions:
   root: /dev/mmcblk0p2
 ethernet-interface: end0
 wifi-interface: wlan0
+disable-encryption: true
