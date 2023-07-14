@@ -23,8 +23,9 @@ mod v0_3_4;
 mod v0_3_4_1;
 mod v0_3_4_2;
 mod v0_3_4_3;
+mod v0_3_4_4;
 
-pub type Current = v0_3_4_3::Version;
+pub type Current = v0_3_4_4::Version;
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 #[serde(untagged)]
@@ -43,6 +44,7 @@ enum Version {
     V0_3_4_1(Wrapper<v0_3_4_1::Version>),
     V0_3_4_2(Wrapper<v0_3_4_2::Version>),
     V0_3_4_3(Wrapper<v0_3_4_3::Version>),
+    V0_3_4_4(Wrapper<v0_3_4_4::Version>),
     Other(emver::Version),
 }
 
@@ -72,6 +74,7 @@ impl Version {
             Version::V0_3_4_1(Wrapper(x)) => x.semver(),
             Version::V0_3_4_2(Wrapper(x)) => x.semver(),
             Version::V0_3_4_3(Wrapper(x)) => x.semver(),
+            Version::V0_3_4_4(Wrapper(x)) => x.semver(),
             Version::Other(x) => x.clone(),
         }
     }
@@ -262,6 +265,10 @@ pub async fn init<Db: DbHandle>(
                 .await?
         }
         Version::V0_3_4_3(v) => {
+            v.0.migrate_to(&Current::new(), db, secrets, receipts)
+                .await?
+        }
+        Version::V0_3_4_4(v) => {
             v.0.migrate_to(&Current::new(), db, secrets, receipts)
                 .await?
         }
