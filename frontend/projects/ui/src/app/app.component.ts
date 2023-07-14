@@ -38,7 +38,15 @@ export class AppComponent implements OnDestroy {
     readonly themeSwitcher: ThemeSwitcherService,
   ) {}
 
-  ngOnInit() {
+  async ngOnInit() {
+    if (location.hostname !== 'localhost' && location.protocol === 'http:') {
+      // see if site is available securely
+      const res = await fetch(window.location.href.replace(/^http:/, 'https:'))
+      if (res && res.status === 200) {
+        // redirect
+        window.location.protocol = 'https:'
+      }
+    }
     this.patch
       .watch$('ui', 'name')
       .subscribe(name => this.titleService.setTitle(name || 'StartOS'))
