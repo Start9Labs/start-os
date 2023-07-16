@@ -1,0 +1,29 @@
+:host {
+  height: 3rem;
+  display: flex;
+  background: rgb(97 95 95 / 75%);
+}
+
+.tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 7.5rem;
+
+  &_active {
+    background: #373a3f;
+  }
+}
+
+.icon {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 100%;
+}
+
+.close {
+  position: absolute;
+  top: 0;
+  right: 0;
+}

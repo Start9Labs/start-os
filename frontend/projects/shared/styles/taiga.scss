@@ -27,6 +27,18 @@
   }
 }
 
+[tuiWrapper][data-appearance='success'] {
+  color: var(--tui-success-fill);
+}
+
+[tuiWrapper][data-appearance='warning'] {
+  color: var(--tui-warning-fill);
+}
+
+[tuiWrapper][data-appearance='error'] {
+  color: var(--tui-error-fill);
+}
+
 tui-dialog {
   transform: translate3d(0, 0, 0);
 }

@@ -23,6 +23,13 @@ const routes: Routes = [
       import('./apps/login/login.module').then(m => m.LoginPageModule),
   },
   {
+    path: 'portal',
+    canActivate: [AuthGuard],
+    canActivateChild: [AuthGuard],
+    loadChildren: () =>
+      import('./apps/portal/portal.module').then(m => m.PortalModule),
+  },
+  {
     path: '',
     canActivate: [AuthGuard],
     canActivateChild: [AuthGuard],

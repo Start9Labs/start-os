@@ -67,7 +67,11 @@
       <footer appFooter></footer>
     </ion-footer>
     <ion-footer
-      *ngIf="(authService.isVerified$ | async) && !(sidebarOpen$ | async)"
+      *ngIf="
+        (navigation$ | async) &&
+        (authService.isVerified$ | async) &&
+        !(sidebarOpen$ | async)
+      "
     >
       <connection-bar></connection-bar>
     </ion-footer>
