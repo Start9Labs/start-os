@@ -2,8 +2,24 @@
   Your user interface is cached and out of date. Hard refresh the page to get
   the latest UI.
   <ul>
-    <li><b>On Mac</b>: cmd + shift + R</li>
-    <li><b>On Linux/Windows</b>: ctrl + shift + R</li>
+    <li>
+      <b>On Mac</b>
+      : cmd + shift + R
+    </li>
+    <li>
+      <b>On Linux/Windows</b>
+      : ctrl + shift + R
+    </li>
+    <li>
+      <b>On Android/iOS</b>
+      : Browser specific, typically a refresh button in the browser menu.
+    </li>
+    <li>
+      <b>On PWA</b>
+      : Attempt PWA reload button below. If you continue to see this message,
+      uninstall and reinstall the PWA.
+    </li>
   </ul>
+  <button alertButton (click)="pwaReload()" role="cancel">PWA Reload</button>
   <a alertButton class="enter-click" role="cancel">Ok</a>
 </alert>

@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
-import { Observable, Subject, merge } from 'rxjs'
+import { merge, Observable, Subject } from 'rxjs'
 
 import { RefreshAlertService } from './refresh-alert.service'
+import { SwUpdate } from '@angular/service-worker'
 
 @Component({
   selector: 'refresh-alert',
@@ -10,12 +11,22 @@ import { RefreshAlertService } from './refresh-alert.service'
 })
 export class RefreshAlertComponent {
   private readonly dismiss$ = new Subject<boolean>()
-
   readonly show$ = merge(this.dismiss$, this.refresh$)
 
   constructor(
     @Inject(RefreshAlertService) private readonly refresh$: Observable<boolean>,
+    private readonly updates: SwUpdate,
   ) {}
+
+  async pwaReload() {
+    try {
+      await this.updates.activateUpdate()
+    } catch (e) {
+      console.error('Error activating update from service worker: ', e)
+    } finally {
+      window.location.reload()
+    }
+  }
 
   onDismiss() {
     this.dismiss$.next(false)
