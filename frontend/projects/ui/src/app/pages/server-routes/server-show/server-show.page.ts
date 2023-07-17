@@ -42,6 +42,8 @@ export class ServerShowPage {
   readonly showDiskRepair$ = this.ClientStorageService.showDiskRepair$
 
   readonly secure = this.config.isSecure()
+  readonly isTorHttp =
+    this.config.isTor() && this.document.location.protocol === 'http:'
 
   constructor(
     private readonly alertCtrl: AlertController,

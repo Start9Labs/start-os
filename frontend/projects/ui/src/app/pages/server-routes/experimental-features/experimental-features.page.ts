@@ -43,9 +43,6 @@ export class ExperimentalFeaturesPage {
           label: 'Wipe state',
           type: 'checkbox',
           value: 'wipe',
-          handler: val => {
-            console.error(val)
-          },
         },
       ],
       buttons: [
@@ -56,8 +53,7 @@ export class ExperimentalFeaturesPage {
         {
           text: 'Reset',
           handler: (value: string[]) => {
-            console.error(value)
-            this.resetTor(value.some(v => 'wipe'))
+            this.resetTor(value.some(v => v === 'wipe'))
           },
           cssClass: 'enter-click',
         },

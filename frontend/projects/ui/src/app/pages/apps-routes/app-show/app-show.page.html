@@ -52,21 +52,17 @@
           <ion-row class="ion-align-items-center">
             <ion-col class="ion-text-center">
               <h2>
-                <ion-text color="warning">
-                  You are using an unencrypted http connection
-                </ion-text>
+                <ion-text color="warning">Http detected</ion-text>
               </h2>
               <p class="ion-padding-bottom">
-                Click the button below to switch to https. Your browser may warn
-                you that the page is insecure. You can safely bypass this
-                warning. It will go away after you
+                Your connection is insecure.
                 <a
-                  [routerLink]="['/system', 'lan']"
+                  href="https://docs.start9.com/latest/user-manual/connecting/connecting-lan/"
                   style="color: var(--ion-color-dark)"
                 >
-                  download and trust your server's certificate
+                  Download and trust your server's Root CA
                 </a>
-                .
+                , then switch to https.
               </p>
               <ion-button (click)="launchHttps()">
                 Open https

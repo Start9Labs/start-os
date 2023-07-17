@@ -15,15 +15,20 @@
 
   <!-- loaded -->
   <ion-item-group *ngIf="server$ | async as server; else loading">
-    <ion-item *ngIf="!secure" color="warning">
+    <ion-item *ngIf="!secure || isTorHttp" color="warning">
       <ion-icon slot="start" name="warning-outline"></ion-icon>
       <ion-label>
-        <h2 style="font-weight: bold">You are using unencrypted http</h2>
+        <h2 style="font-weight: bold">Http detected</h2>
         <p style="font-weight: 600">
-          Click the button on the right to switch to https. Your browser may
-          warn you that the page is insecure. You can safely bypass this
-          warning. It will go away after you download and trust your server's
-          certificate
+          {{ isTorHttp ? 'Tor is faster over https.' : 'Your connection is
+          insecure.' }}
+          <a
+            href="https://docs.start9.com/latest/user-manual/connecting/connecting-lan/"
+            style="color: var(--ion-color-light)"
+          >
+            Download and trust your server's Root CA
+          </a>
+          , then switch to https.
         </p>
       </ion-label>
       <ion-button slot="end" color="light" (click)="launchHttps()">
