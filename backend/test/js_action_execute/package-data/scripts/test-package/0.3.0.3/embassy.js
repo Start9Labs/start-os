@@ -1041,7 +1041,14 @@ export const action = {
 
   async "test-disk-usage"(effects, _input) {
     const usage = await effects.diskUsage()
-    return usage
+    return {
+      result: {
+        copyable: false,
+        message: `${usage.used} / ${usage.total}`,
+        version: "0",
+        qr: false,
+      },
+    };
   }
 
 };

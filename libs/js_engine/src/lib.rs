@@ -7,8 +7,9 @@ use std::time::SystemTime;
 use deno_core::anyhow::{anyhow, bail};
 use deno_core::error::AnyError;
 use deno_core::{
-    resolve_import, Extension, JsRuntime, ModuleLoader, ModuleSource, ModuleSourceFuture,
-    ModuleSpecifier, ModuleType, OpDecl, RuntimeOptions, Snapshot,
+    resolve_import, Extension, FastString, JsRuntime, ModuleLoader, ModuleSource,
+    ModuleSourceFuture, ModuleSpecifier, ModuleType, OpDecl, ResolutionKind, RuntimeOptions,
+    Snapshot,
 };
 use embassy_container_init::ProcessGroupId;
 use helpers::{script_dir, spawn_local, Rsync, UnixRpcClient};
@@ -17,6 +18,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::io::AsyncReadExt;
 use tokio::sync::Mutex;
+
+lazy_static::lazy_static! {
+    static ref DENO_GLOBAL_JS: ModuleSpecifier = "file:///deno_global.js".parse().unwrap();
+    static ref LOAD_MODULE_JS: ModuleSpecifier = "file:///loadModule.js".parse().unwrap();
+    static ref EMBASSY_JS: ModuleSpecifier = "file:///embassy.js".parse().unwrap();
+}
 
 pub trait PathForVolumeId: Send + Sync {
     fn path_for(
@@ -29,8 +36,8 @@ pub trait PathForVolumeId: Send + Sync {
     fn readonly(&self, volume_id: &VolumeId) -> bool;
 }
 
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
-pub struct JsCode(String);
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct JsCode(Arc<str>);
 
 #[derive(Debug, Clone, Copy)]
 pub enum JsError {
@@ -118,7 +125,7 @@ impl ModuleLoader for ModsLoader {
         &self,
         specifier: &str,
         referrer: &str,
-        _is_main: bool,
+        _is_main: ResolutionKind,
     ) -> Result<ModuleSpecifier, AnyError> {
         if referrer.contains("embassy") {
             bail!("Embassy.js cannot import anything else");
@@ -130,38 +137,30 @@ impl ModuleLoader for ModsLoader {
     fn load(
         &self,
         module_specifier: &ModuleSpecifier,
-        maybe_referrer: Option<ModuleSpecifier>,
+        maybe_referrer: Option<&ModuleSpecifier>,
         is_dyn_import: bool,
     ) -> Pin<Box<ModuleSourceFuture>> {
         let module_specifier = module_specifier.as_str().to_owned();
         let module = match &*module_specifier {
-            "file:///deno_global.js" => Ok(ModuleSource {
-                module_url_specified: "file:///deno_global.js".to_string(),
-                module_url_found: "file:///deno_global.js".to_string(),
-                code: "const old_deno = Deno; Deno = null; export default old_deno"
-                    .as_bytes()
-                    .to_vec()
-                    .into_boxed_slice(),
-                module_type: ModuleType::JavaScript,
-            }),
-            "file:///loadModule.js" => Ok(ModuleSource {
-                module_url_specified: "file:///loadModule.js".to_string(),
-                module_url_found: "file:///loadModule.js".to_string(),
-                code: include_str!("./artifacts/loadModule.js")
-                    .as_bytes()
-                    .to_vec()
-                    .into_boxed_slice(),
-                module_type: ModuleType::JavaScript,
-            }),
-            "file:///embassy.js" => Ok(ModuleSource {
-                module_url_specified: "file:///embassy.js".to_string(),
-                module_url_found: "file:///embassy.js".to_string(),
-                code: self.code.0.as_bytes().to_vec().into_boxed_slice(),
-                module_type: ModuleType::JavaScript,
-            }),
+            "file:///deno_global.js" => Ok(ModuleSource::new(
+                ModuleType::JavaScript,
+                FastString::Static("const old_deno = Deno; Deno = null; export default old_deno"),
+                &*DENO_GLOBAL_JS,
+            )),
+            "file:///loadModule.js" => Ok(ModuleSource::new(
+                ModuleType::JavaScript,
+                FastString::Static(include_str!("./artifacts/loadModule.js")),
+                &*LOAD_MODULE_JS,
+            )),
+            "file:///embassy.js" => Ok(ModuleSource::new(
+                ModuleType::JavaScript,
+                self.code.0.clone().into(),
+                &*EMBASSY_JS,
+            )),
+
             x => Err(anyhow!("Not allowed to import: {}", x)),
         };
-        Box::pin(async move {
+        let module = module.and_then(|m| {
             if is_dyn_import {
                 bail!("Will not import dynamic");
             }
@@ -171,8 +170,9 @@ impl ModuleLoader for ModsLoader {
                 }
                 _ => (),
             }
-            module
-        })
+            Ok(m)
+        });
+        Box::pin(async move { module })
     }
 }
 
@@ -219,7 +219,7 @@ impl JsExecutionEnvironment {
                     format!("The file reading created error: {}", err),
                 ));
             };
-            buffer
+            buffer.into()
         });
         Ok(JsExecutionEnvironment {
             base_directory: base_directory.to_owned(),
@@ -336,12 +336,11 @@ impl JsExecutionEnvironment {
             container_rpc_client: self.container_rpc_client.clone(),
             rsyncs: Default::default(),
         };
-        let ext = Extension::builder()
+        let ext = Extension::builder("embassy")
             .ops(Self::declarations())
             .state(move |state| {
                 state.put(ext_answer_state.clone());
                 state.put(js_ctx.clone());
-                Ok(())
             })
             .build();
 
