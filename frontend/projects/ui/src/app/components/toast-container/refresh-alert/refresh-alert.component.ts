@@ -3,6 +3,7 @@ import { merge, Observable, Subject } from 'rxjs'
 
 import { RefreshAlertService } from './refresh-alert.service'
 import { SwUpdate } from '@angular/service-worker'
+import { LoadingController } from '@ionic/angular'
 
 @Component({
   selector: 'refresh-alert',
@@ -16,14 +17,22 @@ export class RefreshAlertComponent {
   constructor(
     @Inject(RefreshAlertService) private readonly refresh$: Observable<boolean>,
     private readonly updates: SwUpdate,
+    private readonly loadingCtrl: LoadingController,
   ) {}
 
   async pwaReload() {
+    const loader = await this.loadingCtrl.create({
+      message: 'Reloading PWA...',
+    })
+    await loader.present()
     try {
+      // attempt to update to the latest client version available
       await this.updates.activateUpdate()
     } catch (e) {
       console.error('Error activating update from service worker: ', e)
     } finally {
+      loader.dismiss()
+      // always reload, as this might resolves most out of sync cases
       window.location.reload()
     }
   }
