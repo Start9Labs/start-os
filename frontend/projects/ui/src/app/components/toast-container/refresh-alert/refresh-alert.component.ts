@@ -13,12 +13,17 @@ import { LoadingController } from '@ionic/angular'
 export class RefreshAlertComponent {
   private readonly dismiss$ = new Subject<boolean>()
   readonly show$ = merge(this.dismiss$, this.refresh$)
+  onPwa = false
 
   constructor(
     @Inject(RefreshAlertService) private readonly refresh$: Observable<boolean>,
     private readonly updates: SwUpdate,
     private readonly loadingCtrl: LoadingController,
   ) {}
+
+  ngOnInit() {
+    this.onPwa = window.matchMedia('(display-mode: standalone)').matches
+  }
 
   async pwaReload() {
     const loader = await this.loadingCtrl.create({
