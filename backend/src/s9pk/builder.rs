@@ -19,7 +19,6 @@ pub struct S9pkPacker<
     RIcon: AsyncReadExt + Unpin,
     RDockerImages: AsyncReadExt + Unpin,
     RAssets: AsyncReadExt + Unpin,
-    RScripts: AsyncReadExt + Unpin,
 > {
     writer: W,
     manifest: &'a Manifest,
@@ -28,7 +27,7 @@ pub struct S9pkPacker<
     icon: RIcon,
     docker_images: RDockerImages,
     assets: RAssets,
-    scripts: Option<RScripts>,
+    scripts: Vec<u8>,
 }
 impl<
         'a,
@@ -38,8 +37,7 @@ impl<
         RIcon: AsyncReadExt + Unpin,
         RDockerImages: AsyncReadExt + Unpin,
         RAssets: AsyncReadExt + Unpin,
-        RScripts: AsyncReadExt + Unpin,
-    > S9pkPacker<'a, W, RLicense, RInstructions, RIcon, RDockerImages, RAssets, RScripts>
+    > S9pkPacker<'a, W, RLicense, RInstructions, RIcon, RDockerImages, RAssets>
 {
     /// BLOCKING
     #[instrument(skip_all)]
@@ -117,7 +115,8 @@ impl<
         };
         position = new_pos;
         // scripts
-        if let Some(mut scripts) = self.scripts {
+        {
+            let mut scripts = self.scripts.as_slice();
             tokio::io::copy(&mut scripts, &mut writer)
                 .await
                 .with_ctx(|_| (crate::ErrorKind::Filesystem, "Copying Scripts"))?;
