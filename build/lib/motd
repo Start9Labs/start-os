@@ -2,15 +2,15 @@
 printf "\n"
 printf "Welcome to\n"
 cat << "ASCII"
-╭ ━ ━ ━ ╮ ╭ ╮ ╱ ╱ ╱ ╱ ╱ ╭ ╮ ╭ ━ ━ ━ ┳ ━ ━ ━ ╮
-┃ ╭ ━ ╮ ┣ ╯ ╰ ╮ ╱ ╱ ╱ ╭ ╯ ╰ ┫ ╭ ━ ╮ ┃ ╭ ━ ╮ ┃
-┃ ╰ ━ ━ ╋ ╮ ╭ ╋ ━ ━ ┳ ┻ ╮ ╭ ┫ ┃ ╱ ┃ ┃ ╰ ━ ━ ╮
-╰ ━ ━ ╮ ┃ ┃ ┃ ┃ ╭ ╮ ┃ ╭ ┫ ┃ ┃ ┃ ╱ ┃ ┣ ━ ━ ╮ ┃
-┃ ╰ ━ ╯ ┃ ┃ ╰ ┫ ╭ ╮ ┃ ┃ ┃ ╰ ┫ ╰ ━ ╯ ┃ ╰ ━ ╯ ┃
-╰ ━ ━ ━ ╯ ╰ ━ ┻ ╯ ╰ ┻ ╯ ╰ ━ ┻ ━ ━ ━ ┻ ━ ━ ━ ╯
+ ╭ ━ ━ ━ ╮ ╭ ╮ ╱ ╱ ╱ ╱ ╱ ╭ ╮ ╭ ━ ━ ━ ┳ ━ ━ ━ ╮
+ ┃ ╭ ━ ╮ ┣ ╯ ╰ ╮ ╱ ╱ ╱ ╭ ╯ ╰ ┫ ╭ ━ ╮ ┃ ╭ ━ ╮ ┃
+ ┃ ╰ ━ ━ ╋ ╮ ╭ ╋ ━ ━ ┳ ┻ ╮ ╭ ┫ ┃ ╱ ┃ ┃ ╰ ━ ━ ╮
+ ╰ ━ ━ ╮ ┃ ┃ ┃ ┃ ╭ ╮ ┃ ╭ ┫ ┃ ┃ ┃ ╱ ┃ ┣ ━ ━ ╮ ┃
+ ┃ ╰ ━ ╯ ┃ ┃ ╰ ┫ ╭ ╮ ┃ ┃ ┃ ╰ ┫ ╰ ━ ╯ ┃ ╰ ━ ╯ ┃
+ ╰ ━ ━ ━ ╯ ╰ ━ ┻ ╯ ╰ ┻ ╯ ╰ ━ ┻ ━ ━ ━ ┻ ━ ━ ━ ╯
 ASCII
 printf "   %s (%s %s)\n" "$(uname -o)" "$(uname -r)" "$(uname -m)"
-printf "   $(embassy-cli --version | sed 's/Embassy CLI /StartOS v/g') - $(embassy-cli git-info)"
+printf "   $(start-cli --version | sed 's/StartOS CLI /StartOS v/g') - $(start-cli git-info)"
 if [ -n "$(cat /usr/lib/embassy/ENVIRONMENT.txt)" ]; then
     printf " ~ $(cat /usr/lib/embassy/ENVIRONMENT.txt)\n"
 else
