@@ -23,7 +23,7 @@
           {{ isTorHttp ? 'Tor is faster over https.' : 'Your connection is
           insecure.' }}
           <a
-            href="https://docs.start9.com/latest/user-manual/connecting/connecting-lan/"
+            [routerLink]="['/system', 'root-ca']"
             style="color: var(--ion-color-light)"
           >
             Download and trust your server's Root CA
