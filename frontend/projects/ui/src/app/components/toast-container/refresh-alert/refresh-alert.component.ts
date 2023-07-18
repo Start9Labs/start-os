@@ -37,7 +37,7 @@ export class RefreshAlertComponent {
       console.error('Error activating update from service worker: ', e)
     } finally {
       loader.dismiss()
-      // always reload, as this might resolves most out of sync cases
+      // always reload, as this resolves most out of sync cases
       window.location.reload()
     }
   }
