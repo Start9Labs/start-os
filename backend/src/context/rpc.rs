@@ -11,7 +11,7 @@ use helpers::to_tmp_path;
 use josekit::jwk::Jwk;
 use patch_db::json_ptr::JsonPointer;
 use patch_db::{DbHandle, LockReceipt, LockType, PatchDb};
-use reqwest::Url;
+use reqwest::{Client, Proxy, Url};
 use rpc_toolkit::Context;
 use serde::Deserialize;
 use sqlx::postgres::PgConnectOptions;
@@ -120,6 +120,7 @@ pub struct RpcContextSeed {
     pub rpc_stream_continuations: Mutex<BTreeMap<RequestGuid, RpcContinuation>>,
     pub wifi_manager: Option<Arc<RwLock<WpaCli>>>,
     pub current_secret: Arc<Jwk>,
+    pub client: Client,
 }
 
 pub struct RpcCleanReceipts {
@@ -203,6 +204,7 @@ impl RpcContext {
         let metrics_cache = RwLock::new(None);
         let notification_manager = NotificationManager::new(secret_store.clone());
         tracing::info!("Initialized Notification Manager");
+        let tor_proxy_url = format!("socks5h://{tor_proxy}");
         let seed = Arc::new(RpcContextSeed {
             is_closed: AtomicBool::new(false),
             datadir: base.datadir().to_path_buf(),
@@ -235,6 +237,16 @@ impl RpcContext {
                     )
                 })?,
             ),
+            client: Client::builder()
+                .proxy(Proxy::custom(move |url| {
+                    if url.host_str().map_or(false, |h| h.ends_with(".onion")) {
+                        Some(tor_proxy_url.clone())
+                    } else {
+                        None
+                    }
+                }))
+                .build()
+                .with_kind(crate::ErrorKind::ParseUrl)?,
         });
 
         let res = Self(seed);

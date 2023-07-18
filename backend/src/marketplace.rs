@@ -3,6 +3,7 @@ use reqwest::{StatusCode, Url};
 use rpc_toolkit::command;
 use serde_json::Value;
 
+use crate::context::RpcContext;
 use crate::{Error, ResultExt};
 
 #[command(subcommands(get))]
@@ -11,8 +12,11 @@ pub fn marketplace() -> Result<(), Error> {
 }
 
 #[command]
-pub async fn get(#[arg] url: Url) -> Result<Value, Error> {
-    let mut response = reqwest::get(url)
+pub async fn get(#[context] ctx: RpcContext, #[arg] url: Url) -> Result<Value, Error> {
+    let mut response = ctx
+        .client
+        .get(url)
+        .send()
         .await
         .with_kind(crate::ErrorKind::Network)?;
     let status = response.status();
