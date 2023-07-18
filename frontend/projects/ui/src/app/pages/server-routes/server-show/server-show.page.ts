@@ -501,11 +501,11 @@ export class ServerShowPage {
         disabled$: of(false),
       },
       {
-        title: 'LAN',
-        description: `Download and trust your server's certificate for a secure local connection`,
-        icon: 'home-outline',
+        title: 'Root CA',
+        description: `Download and trust your server's root certificate authority`,
+        icon: 'ribbon-outline',
         action: () =>
-          this.navCtrl.navigateForward(['lan'], { relativeTo: this.route }),
+          this.navCtrl.navigateForward(['root-ca'], { relativeTo: this.route }),
         detail: true,
         disabled$: of(false),
       },

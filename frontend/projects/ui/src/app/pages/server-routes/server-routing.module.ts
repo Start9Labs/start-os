@@ -17,7 +17,7 @@ const routes: Routes = [
       ),
   },
   {
-    path: 'lan',
+    path: 'root-ca',
     loadChildren: () => import('./lan/lan.module').then(m => m.LANPageModule),
   },
   {
