@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use emver::VersionRange;
+use models::ResultExt;
 
 use super::v0_3_0::V0_3_0_COMPAT;
 use super::*;
@@ -22,12 +23,16 @@ impl VersionT for Version {
         &*V0_3_0_COMPAT
     }
     async fn up<Db: DbHandle>(&self, db: &mut Db, _secrets: &PgPool) -> Result<(), Error> {
-        crate::db::DatabaseModel::new()
+        let mut tor_addr = crate::db::DatabaseModel::new()
             .server_info()
+            .tor_address()
             .get_mut(db)
-            .await?
-            .save(db)
             .await?;
+        tor_addr
+            .set_scheme("https")
+            .map_err(|_| eyre!("unable to update url scheme to https"))
+            .with_kind(crate::ErrorKind::ParseUrl)?;
+        tor_addr.save(db).await?;
         Ok(())
     }
     async fn down<Db: DbHandle>(&self, _db: &mut Db, _secrets: &PgPool) -> Result<(), Error> {
