@@ -149,7 +149,7 @@ pub async fn execute(
 
     if !overwrite {
         if let Ok(guard) =
-            TmpMountGuard::mount(&BlockDev::new(part_info.root.clone()), MountType::ReadOnly).await
+            TmpMountGuard::mount(&BlockDev::new(part_info.root.clone()), MountType::ReadWrite).await
         {
             if let Err(e) = async {
                 // cp -r ${guard}/config /tmp/config
@@ -171,13 +171,14 @@ pub async fn execute(
                     .arg("/tmp/config.bak")
                     .invoke(crate::ErrorKind::Filesystem)
                     .await?;
-                guard.unmount().await
+                Ok::<_, Error>(())
             }
             .await
             {
                 tracing::error!("Error recovering previous config: {e}");
                 tracing::debug!("{e:?}");
             }
+            guard.unmount().await?;
         }
     }
 
