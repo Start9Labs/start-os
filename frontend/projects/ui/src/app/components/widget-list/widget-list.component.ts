@@ -46,11 +46,11 @@ export class WidgetListComponent {
       qp: { back: 'true' },
     },
     {
-      title: 'Secure LAN',
-      icon: 'home-outline',
+      title: 'Root CA',
+      icon: 'ribbon-outline',
       color: 'var(--alt-orange)',
-      description: `Download and trust your server's certificate`,
-      link: '/system/lan',
+      description: `Download and trust your server's root certificate authority`,
+      link: '/system/root-ca',
     },
     {
       title: 'Create Backup',

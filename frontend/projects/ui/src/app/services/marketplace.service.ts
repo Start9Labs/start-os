@@ -280,6 +280,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
     > = {},
   ): Observable<MarketplacePkg[]> {
     return this.patch.watch$('server-info', 'eos-version-compat').pipe(
+      take(1),
       switchMap(versionCompat => {
         const qp: RR.GetMarketplacePackagesReq = {
           ...params,

@@ -1,6 +1,6 @@
 <ion-header>
   <ion-toolbar>
-    <ion-title>Secure LAN</ion-title>
+    <ion-title>Trust Root CA</ion-title>
     <ion-buttons slot="start">
       <ion-back-button defaultHref="system"></ion-back-button>
     </ion-buttons>
@@ -13,7 +13,7 @@
     <ion-item class="ion-padding-bottom">
       <ion-label>
         <h2>
-          For a secure local connection,
+          For a secure local connection and faster Tor experience,
           <a
             href="https://docs.start9.com/latest/user-manual/connecting/connecting-lan"
             target="_blank"
@@ -29,7 +29,7 @@
     <ion-item button (click)="installCert()" [disabled]="!(crtName$ | async)">
       <ion-icon slot="start" name="download-outline" size="large"></ion-icon>
       <ion-label>
-        <h1>Download Certificate</h1>
+        <h1>Download Root CA</h1>
       </ion-label>
     </ion-item>
   </ion-item-group>
