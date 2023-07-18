@@ -2,6 +2,7 @@
 # Reason for this being is that we need to create a snapshot for the deno runtime. It wants to pull 3 files from build, and during the creation it gets embedded, but for some 
 # reason during the actual runtime it is looking for them. So this will create a docker in arm that creates the snaphot needed for the arm
 set -e
+shopt -s expand_aliases
 
 if [ "$0" != "./build-arm-v8-snapshot.sh" ]; then
 	>&2 echo "Must be run from backend/workspace directory"
@@ -13,9 +14,11 @@ if tty -s; then
 	USE_TTY="-it"
 fi
 
+alias 'rust-gnu-builder'='docker run $USE_TTY --rm -v "$HOME/.cargo/registry":/usr/local/cargo/registry -v "$(pwd)":/home/rust/src -w /home/rust/src -P start9/rust-arm-cross:aarch64'
+
 echo "Building "
 cd ..
-docker run --rm $USE_TTY -v "$HOME/.cargo/registry":/root/.cargo/registry -v "$(pwd)":/home/rust/src start9/rust-arm-cross:aarch64 sh -c "(cd libs/ && cargo build -p snapshot_creator --release )"
+rust-gnu-builder sh -c "(cd libs/ && cargo build -p snapshot_creator --release --target=aarch64-unknown-linux-gnu)"
 cd -
 
 echo "Creating Arm v8 Snapshot"

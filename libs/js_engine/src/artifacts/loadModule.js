@@ -94,7 +94,7 @@ const metadata = async (
 const removeFile = (
   { volumeId = requireParam("volumeId"), path = requireParam("path") } = requireParam("options"),
 ) => Deno.core.opAsync("remove_file", volumeId, path);
-const isSandboxed = () => Deno.core.opSync("is_sandboxed");
+const isSandboxed = () => Deno.core.ops["is_sandboxed"]();
 
 const writeJsonFile = (
   {
@@ -193,10 +193,10 @@ const diskUsage = async ({
   return { used, total }
 }
 
-const currentFunction = Deno.core.opSync("current_function");
-const input = Deno.core.opSync("get_input");
-const variable_args = Deno.core.opSync("get_variable_args");
-const setState = (x) => Deno.core.opSync("set_value", x);
+const currentFunction = Deno.core.ops.current_function();
+const input = Deno.core.ops.get_input();
+const variable_args = Deno.core.ops.get_variable_args();
+const setState = (x) => Deno.core.ops.set_value(x);
 const effects = {
   chmod,
   chown,
