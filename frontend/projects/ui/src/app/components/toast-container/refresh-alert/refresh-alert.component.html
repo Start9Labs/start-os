@@ -1,9 +1,32 @@
-<alert *ngIf="show$ | async" header="Refresh Needed" (dismiss)="onDismiss()">
-  Your user interface is cached and out of date. Hard refresh the page to get
-  the latest UI.
-  <ul>
-    <li><b>On Mac</b>: cmd + shift + R</li>
-    <li><b>On Linux/Windows</b>: ctrl + shift + R</li>
-  </ul>
-  <a alertButton class="enter-click" role="cancel">Ok</a>
-</alert>
+<div *ngIf="!onPwa; else pwa">
+  <alert *ngIf="show$ | async" header="Refresh Needed" (dismiss)="onDismiss()">
+    Your user interface is cached and out of date. Hard refresh the page to get
+    the latest UI.
+    <ul>
+      <li>
+        <b>On Mac</b>
+        : cmd + shift + R
+      </li>
+      <li>
+        <b>On Linux/Windows</b>
+        : ctrl + shift + R
+      </li>
+      <li>
+        <b>On Android/iOS</b>
+        : Browser specific, typically a refresh button in the browser menu.
+      </li>
+    </ul>
+    <a alertButton class="enter-click" role="cancel">Ok</a>
+  </alert>
+</div>
+
+<ng-template #pwa>
+  <alert *ngIf="show$ | async" header="Refresh Needed" (dismiss)="onDismiss()">
+    Your user interface is cached and out of date.
+    <br />
+    <br />
+    Attempt to reload the PWA using the button below. If you continue to see
+    this message, uninstall and reinstall the PWA.
+    <a alertButton (click)="pwaReload()" role="cancel">Reload</a>
+  </alert>
+</ng-template>
