@@ -16,12 +16,13 @@
         : Browser specific, typically a refresh button in the browser menu.
       </li>
     </ul>
-    <a alertButton class="enter-click" role="cancel">Ok</a>
   </ng-container>
   <ng-template #pwa>
     Your user interface is cached and out of date. Attempt to reload the PWA
     using the button below. If you continue to see this message, uninstall and
     reinstall the PWA.
-    <a alertButton (click)="pwaReload()" role="cancel">Reload</a>
   </ng-template>
+  <!-- alertButton needs to be a direct child of alert element for ionic styling -->
+  <a *ngIf="!onPwa" alertButton class="enter-click" role="cancel">Ok</a>
+  <a *ngIf="onPwa" alertButton (click)="pwaReload()" role="cancel">Reload</a>
 </alert>
