@@ -1,5 +1,5 @@
-<div *ngIf="!onPwa; else pwa">
-  <alert *ngIf="show$ | async" header="Refresh Needed" (dismiss)="onDismiss()">
+<alert *ngIf="show$ | async" header="Refresh Needed" (dismiss)="onDismiss()">
+  <div *ngIf="!onPwa; else pwa">
     Your user interface is cached and out of date. Hard refresh the page to get
     the latest UI.
     <ul>
@@ -16,17 +16,13 @@
         : Browser specific, typically a refresh button in the browser menu.
       </li>
     </ul>
-    <a alertButton class="enter-click" role="cancel">Ok</a>
-  </alert>
-</div>
-
-<ng-template #pwa>
-  <alert *ngIf="show$ | async" header="Refresh Needed" (dismiss)="onDismiss()">
-    Your user interface is cached and out of date.
-    <br />
-    <br />
-    Attempt to reload the PWA using the button below. If you continue to see
-    this message, uninstall and reinstall the PWA.
-    <a alertButton (click)="pwaReload()" role="cancel">Reload</a>
-  </alert>
-</ng-template>
+  </div>
+  <ng-template #pwa>
+    Your user interface is cached and out of date. Attempt to reload the PWA
+    using the button below. If you continue to see this message, uninstall and
+    reinstall the PWA.
+  </ng-template>
+  <!-- alertButton needs to be a direct child of alert element for ionic styling -->
+  <a *ngIf="onPwa" alertButton (click)="pwaReload()" role="cancel">Reload</a>
+  <a *ngIf="!onPwa" alertButton class="enter-click" role="cancel">Ok</a>
+</alert>
