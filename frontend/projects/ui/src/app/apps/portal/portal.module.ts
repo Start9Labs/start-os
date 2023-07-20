@@ -3,6 +3,7 @@ import { RouterModule, Routes } from '@angular/router'
 import { HeaderComponent } from './components/header/header.component'
 import { PortalComponent } from './portal.component'
 import { NavigationComponent } from './components/navigation/navigation.component'
+import { DrawerComponent } from './components/drawer/drawer.component'
 
 const ROUTES: Routes = [
   {
@@ -10,9 +11,14 @@ const ROUTES: Routes = [
     component: PortalComponent,
     children: [
       {
-        redirectTo: 'services',
+        redirectTo: 'desktop',
         pathMatch: 'full',
         path: '',
+      },
+      {
+        path: 'desktop',
+        loadChildren: () =>
+          import('./routes/desktop/desktop.module').then(m => m.DesktopModule),
       },
       {
         path: 'services',
@@ -30,6 +36,7 @@ const ROUTES: Routes = [
     RouterModule.forChild(ROUTES),
     HeaderComponent,
     NavigationComponent,
+    DrawerComponent,
   ],
   declarations: [PortalComponent],
   exports: [PortalComponent],

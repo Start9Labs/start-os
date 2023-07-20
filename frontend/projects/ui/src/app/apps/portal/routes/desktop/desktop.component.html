@@ -1,0 +1,5 @@
+<a
+  *ngFor="let service of services$ | async"
+  [appCard]="service | toNavigationItem"
+  [routerLink]="(service | toNavigationItem).routerLink"
+></a>

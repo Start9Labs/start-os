@@ -1,0 +1,38 @@
+<div class="content" (tuiActiveZoneChange)="open = $event">
+  <button class="toggle" (click)="open = !open" (mousedown.prevent)="(0)">
+    <tui-svg src="tuiIconArrowUpCircleLarge" class="icon"></tui-svg>
+    Toggle drawer
+  </button>
+  <tui-input
+    class="search"
+    tuiTextfieldAppearance="drawer"
+    tuiTextfieldSize="m"
+    tuiTextfieldIconLeft="tuiIconSearchLarge"
+    [tuiTextfieldLabelOutside]="true"
+    [(ngModel)]="search"
+  >
+    Enter service name
+  </tui-input>
+  <h2 class="title">System Utilities</h2>
+  <div class="items">
+    <a
+      *ngFor="let item of system | tuiFilter : bySearch : search; empty: empty"
+      [appCard]="item"
+      [routerLink]="item.routerLink"
+      (click)="open = false"
+    ></a>
+  </div>
+  <h2 class="title">Installed services</h2>
+  <div class="items">
+    <a
+      *ngFor="
+        let item of (services$ | async) || [] | tuiFilter : bySearch : search;
+        empty: empty
+      "
+      [appCard]="item"
+      [routerLink]="item.routerLink"
+      (click)="open = false"
+    ></a>
+  </div>
+  <ng-template #empty>Nothing found</ng-template>
+</div>

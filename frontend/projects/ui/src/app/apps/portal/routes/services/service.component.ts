@@ -4,7 +4,7 @@ import { getPkgId } from '@start9labs/shared'
 import { PatchDB } from 'patch-db-client'
 import { tap } from 'rxjs'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { NavigationService } from '../../../components/navigation/navigation.service'
+import { NavigationService } from '../../components/navigation/navigation.service'
 
 @Component({
   templateUrl: 'service.component.html',
@@ -27,7 +27,7 @@ export class ServiceComponent {
         } else {
           this.navigation.addTab({
             title: pkg.manifest.title,
-            routerLink: ['services', pkg.manifest.id].join('/'),
+            routerLink: `/portal/services/${pkg.manifest.id}`,
             icon: pkg.icon,
           })
         }

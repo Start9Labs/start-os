@@ -1,0 +1,70 @@
+@import '@taiga-ui/core/styles/taiga-ui-local';
+
+:host {
+  @include transition(top);
+
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  min-height: calc(100% - 10.25rem);
+  display: flex;
+  flex-direction: column;
+  // TODO: Theme
+  background: #2d2d2d;
+  color: #fff;
+
+  &._open {
+    top: 10.25rem;
+  }
+}
+
+.content {
+  flex: 1;
+  background: inherit;
+}
+
+.toggle {
+  position: absolute;
+  top: -2.5rem;
+  height: 2.5rem;
+  width: 25rem;
+  max-width: 100vw;
+  left: 50%;
+  background: inherit;
+  color: inherit;
+  text-align: center;
+  font-size: 0;
+  transform: translateX(-50%);
+  border-top-left-radius: var(--tui-radius-xl);
+  border-top-right-radius: var(--tui-radius-xl);
+}
+
+.icon {
+  @include transition(transform);
+
+  :host._open & {
+    transform: rotate(180deg);
+  }
+}
+
+.search {
+  max-width: 41rem;
+  margin: 6rem auto 0;
+}
+
+.title {
+  margin: 5rem 0 1.25rem;
+  text-align: center;
+  text-transform: uppercase;
+  font: var(--tui-font-text-xl);
+}
+
+.items {
+  display: flex;
+  gap: 2rem;
+  padding: 2rem;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}

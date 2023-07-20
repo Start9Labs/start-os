@@ -11,6 +11,7 @@
         (ionSplitPaneVisible)="splitPaneVisible($event)"
       >
         <ion-menu
+          *ngIf="navigation$ | async"
           contentId="main-content"
           type="overlay"
           side="start"
