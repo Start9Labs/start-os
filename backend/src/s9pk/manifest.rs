@@ -117,9 +117,10 @@ impl Manifest {
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct HardwareRequirements {
+    #[serde(default)]
     device: BTreeMap<String, Regex>,
     ram: Option<u64>,
-    arch: Option<String>,
+    arch: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
