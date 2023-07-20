@@ -103,7 +103,7 @@ jobs:
         id: npm-cache-dir
         run: |
           echo "dir=$(npm config get cache)" >> $GITHUB_OUTPUT
-      - uses: buildjet/cache@v3
+      - uses: actions/cache@v3
         id: npm-cache
         with:
           path: ${{ steps.npm-cache-dir.outputs.dir }}
@@ -153,7 +153,7 @@ jobs:
       - run: sudo mount -t tmpfs tmpfs /var/tmp/debspawn
         if: ${{ github.event.inputs.runner == 'fast' && (matrix.platform == 'x86_64' || matrix.platform == 'x86_64-nonfree') }}
 
-      - uses: buildjet/cache@v3
+      - uses: actions/cache@v3
         with:
           path: /var/lib/debspawn
           key: ${{ runner.os }}-${{ matrix.platform }}-debspawn-init
