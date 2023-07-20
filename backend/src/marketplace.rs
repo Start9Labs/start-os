@@ -4,6 +4,7 @@ use rpc_toolkit::command;
 use serde_json::Value;
 
 use crate::context::RpcContext;
+use crate::version::VersionT;
 use crate::{Error, ResultExt};
 
 #[command(subcommands(get))]
@@ -12,7 +13,25 @@ pub fn marketplace() -> Result<(), Error> {
 }
 
 #[command]
-pub async fn get(#[context] ctx: RpcContext, #[arg] url: Url) -> Result<Value, Error> {
+pub async fn get(#[context] ctx: RpcContext, #[arg] mut url: Url) -> Result<Value, Error> {
+    url.query_pairs_mut()
+        .append_pair(
+            "os.version",
+            &crate::version::Current::new().semver().to_string(),
+        )
+        .append_pair(
+            "os.compat",
+            &crate::version::Current::new().compat().to_string(),
+        )
+        .append_pair("os.arch", crate::OS_ARCH)
+        .append_pair("hardware.arch", &*crate::ARCH)
+        .append_pair("hardware.ram", &ctx.hardware.ram.to_string());
+
+    for hw in &ctx.hardware.devices {
+        url.query_pairs_mut()
+            .append_pair(&format!("hardware.device.{}", hw.class()), hw.product());
+    }
+
     let mut response = ctx
         .client
         .get(url)
