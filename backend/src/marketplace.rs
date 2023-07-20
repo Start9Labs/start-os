@@ -12,8 +12,7 @@ pub fn marketplace() -> Result<(), Error> {
     Ok(())
 }
 
-#[command]
-pub async fn get(#[context] ctx: RpcContext, #[arg] mut url: Url) -> Result<Value, Error> {
+pub fn with_query_params(ctx: &RpcContext, mut url: Url) -> Url {
     url.query_pairs_mut()
         .append_pair(
             "os.version",
@@ -32,9 +31,14 @@ pub async fn get(#[context] ctx: RpcContext, #[arg] mut url: Url) -> Result<Valu
             .append_pair(&format!("hardware.device.{}", hw.class()), hw.product());
     }
 
+    url
+}
+
+#[command]
+pub async fn get(#[context] ctx: RpcContext, #[arg] url: Url) -> Result<Value, Error> {
     let mut response = ctx
         .client
-        .get(url)
+        .get(with_query_params(&ctx, url))
         .send()
         .await
         .with_kind(crate::ErrorKind::Network)?;
