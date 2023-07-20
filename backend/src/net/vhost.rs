@@ -3,6 +3,7 @@ use std::convert::Infallible;
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
+use std::time::Duration;
 
 use color_eyre::eyre::eyre;
 use helpers::NonDetachingJoinHandle;
@@ -19,7 +20,7 @@ use tokio_rustls::{LazyConfigAcceptor, TlsConnector};
 use crate::net::keys::Key;
 use crate::net::ssl::SslManager;
 use crate::net::utils::SingleAccept;
-use crate::util::io::BackTrackingReader;
+use crate::util::io::{BackTrackingReader, TimeoutStream};
 use crate::Error;
 
 // not allowed: <=1024, >=32768, 5355, 5432, 9050, 6010, 9051, 5353
@@ -104,6 +105,8 @@ impl VHostServer {
                 loop {
                     match listener.accept().await {
                         Ok((stream, _)) => {
+                            let stream =
+                                Box::pin(TimeoutStream::new(stream, Duration::from_secs(300)));
                             let mut stream = BackTrackingReader::new(stream);
                             stream.start_buffering();
                             let mapping = mapping.clone();
@@ -271,7 +274,7 @@ impl VHostServer {
                                                     &mut tls_stream,
                                                     &mut target_stream,
                                                 )
-                                                .await?;
+                                                .await
                                             }
                                             Err(AlpnInfo::Reflect) => {
                                                 for proto in
@@ -286,7 +289,7 @@ impl VHostServer {
                                                     &mut tls_stream,
                                                     &mut tcp_stream,
                                                 )
-                                                .await?;
+                                                .await
                                             }
                                             Err(AlpnInfo::Specified(alpn)) => {
                                                 cfg.alpn_protocols = alpn;
@@ -297,9 +300,16 @@ impl VHostServer {
                                                     &mut tls_stream,
                                                     &mut tcp_stream,
                                                 )
-                                                .await?;
+                                                .await
                                             }
                                         }
+                                        .map_or_else(
+                                            |e| match e.kind() {
+                                                std::io::ErrorKind::UnexpectedEof => Ok(()),
+                                                _ => Err(e),
+                                            },
+                                            |_| Ok(()),
+                                        )?;
                                     } else {
                                         // 503
                                     }

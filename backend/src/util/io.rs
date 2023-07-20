@@ -4,6 +4,7 @@ use std::os::unix::prelude::MetadataExt;
 use std::path::Path;
 use std::sync::atomic::AtomicU64;
 use std::task::Poll;
+use std::time::Duration;
 
 use futures::future::{BoxFuture, Fuse};
 use futures::{AsyncSeek, FutureExt, TryStreamExt};
@@ -12,6 +13,8 @@ use nix::unistd::{Gid, Uid};
 use tokio::io::{
     duplex, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf, WriteHalf,
 };
+use tokio::net::TcpStream;
+use tokio::time::{Instant, Sleep};
 
 use crate::ResultExt;
 
@@ -520,13 +523,12 @@ pub fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + S
                 let dst_path = dst_path.join(e.file_name());
                 if m.is_file() {
                     let len = m.len();
-                    let mut dst_file =
-                        &mut tokio::fs::File::create(&dst_path).await.with_ctx(|_| {
-                            (
-                                crate::ErrorKind::Filesystem,
-                                format!("create {}", dst_path.display()),
-                            )
-                        })?;
+                    let mut dst_file = tokio::fs::File::create(&dst_path).await.with_ctx(|_| {
+                        (
+                            crate::ErrorKind::Filesystem,
+                            format!("create {}", dst_path.display()),
+                        )
+                    })?;
                     let mut rdr = tokio::fs::File::open(&src_path).await.with_ctx(|_| {
                         (
                             crate::ErrorKind::Filesystem,
@@ -591,4 +593,78 @@ pub fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + S
         Ok(())
     }
     .boxed()
+}
+
+#[pin_project::pin_project]
+pub struct TimeoutStream<S: AsyncRead + AsyncWrite = TcpStream> {
+    timeout: Duration,
+    #[pin]
+    sleep: Sleep,
+    #[pin]
+    stream: S,
+}
+impl<S: AsyncRead + AsyncWrite> TimeoutStream<S> {
+    pub fn new(stream: S, timeout: Duration) -> Self {
+        Self {
+            timeout,
+            sleep: tokio::time::sleep(timeout),
+            stream,
+        }
+    }
+}
+impl<S: AsyncRead + AsyncWrite> AsyncRead for TimeoutStream<S> {
+    fn poll_read(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut tokio::io::ReadBuf<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        let mut this = self.project();
+        if let std::task::Poll::Ready(_) = this.sleep.as_mut().poll(cx) {
+            return std::task::Poll::Ready(Err(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                "timed out",
+            )));
+        }
+        let res = this.stream.poll_read(cx, buf);
+        if res.is_ready() {
+            this.sleep.reset(Instant::now() + *this.timeout);
+        }
+        res
+    }
+}
+impl<S: AsyncRead + AsyncWrite> AsyncWrite for TimeoutStream<S> {
+    fn poll_write(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &[u8],
+    ) -> std::task::Poll<Result<usize, std::io::Error>> {
+        let mut this = self.project();
+        let res = this.stream.poll_write(cx, buf);
+        if res.is_ready() {
+            this.sleep.reset(Instant::now() + *this.timeout);
+        }
+        res
+    }
+    fn poll_flush(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), std::io::Error>> {
+        let mut this = self.project();
+        let res = this.stream.poll_flush(cx);
+        if res.is_ready() {
+            this.sleep.reset(Instant::now() + *this.timeout);
+        }
+        res
+    }
+    fn poll_shutdown(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), std::io::Error>> {
+        let mut this = self.project();
+        let res = this.stream.poll_shutdown(cx);
+        if res.is_ready() {
+            this.sleep.reset(Instant::now() + *this.timeout);
+        }
+        res
+    }
 }
