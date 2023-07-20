@@ -250,18 +250,21 @@ impl DependencyError {
 
                     let dependency_config = if let Some(cfg) = dependency_config.take() {
                         cfg
-                    } else if let Some(cfg_info) = &dependency_manifest.config {
-                        cfg_info
-                            .get(
-                                ctx,
-                                dependency,
-                                &dependency_manifest.version,
-                                &dependency_manifest.volumes,
-                            )
-                            .await?
-                            .config
-                            .unwrap_or_default()
-                    } else {
+                    }
+                    // TODO BLUJ
+                    // else if let Some(cfg_info) = &dependency_manifest.config {
+                    //     cfg_info
+                    //         .get(
+                    //             ctx,
+                    //             dependency,
+                    //             &dependency_manifest.version,
+                    //             &dependency_manifest.volumes,
+                    //         )
+                    //         .await?
+                    //         .config
+                    //         .unwrap_or_default()
+                    // }
+                    else {
                         Config::default()
                     };
                     if let Some(cfg_req) = &info.config {
@@ -561,7 +564,8 @@ pub struct DependencyConfigReceipts {
     dependencies: LockReceipt<Dependencies, ()>,
     dependency_volumes: LockReceipt<Volumes, ()>,
     dependency_version: LockReceipt<Version, ()>,
-    dependency_config_action: LockReceipt<ConfigActions, ()>,
+    // TODO BLUJ
+    // dependency_config_action: LockReceipt<ConfigActions, ()>,
     package_volumes: LockReceipt<Volumes, ()>,
     package_version: LockReceipt<Version, ()>,
     docker_containers: LockReceipt<DockerContainers, String>,
@@ -606,13 +610,14 @@ impl DependencyConfigReceipts {
             .map(|x| x.manifest().version())
             .make_locker(LockType::Write)
             .add_to_keys(locks);
-        let dependency_config_action = crate::db::DatabaseModel::new()
-            .package_data()
-            .idx_model(dependency_id)
-            .and_then(|x| x.installed())
-            .and_then(|x| x.manifest().config())
-            .make_locker(LockType::Write)
-            .add_to_keys(locks);
+        // TODO BLUJ
+        // let dependency_config_action = crate::db::DatabaseModel::new()
+        //     .package_data()
+        //     .idx_model(dependency_id)
+        //     .and_then(|x| x.installed())
+        //     .and_then(|x| x.manifest().config())
+        //     .make_locker(LockType::Write)
+        //     .add_to_keys(locks);
         let package_volumes = crate::db::DatabaseModel::new()
             .package_data()
             .idx_model(package_id)
@@ -640,7 +645,8 @@ impl DependencyConfigReceipts {
                 dependencies: dependencies.verify(&skeleton_key)?,
                 dependency_volumes: dependency_volumes.verify(&skeleton_key)?,
                 dependency_version: dependency_version.verify(&skeleton_key)?,
-                dependency_config_action: dependency_config_action.verify(&skeleton_key)?,
+                // TODO BLUJ
+                // dependency_config_action: dependency_config_action.verify(&skeleton_key)?,
                 package_volumes: package_volumes.verify(&skeleton_key)?,
                 package_version: package_version.verify(&skeleton_key)?,
                 docker_containers: docker_containers.verify(&skeleton_key)?,
@@ -712,7 +718,8 @@ pub async fn configure_logic(
 ) -> Result<ConfigDryRes, Error> {
     let pkg_version = receipts.package_version.get(db).await?;
     let pkg_volumes = receipts.package_volumes.get(db).await?;
-    let dependency_config_action = receipts.dependency_config_action.get(db).await?;
+    // TODO BLUJ
+    // let dependency_config_action = receipts.dependency_config_action.get(db).await?;
     let dependency_version = receipts.dependency_version.get(db).await?;
     let dependency_volumes = receipts.dependency_volumes.get(db).await?;
     let dependencies = receipts.dependencies.get(db).await?;
@@ -743,26 +750,31 @@ pub async fn configure_logic(
                 crate::ErrorKind::NotFound,
             )
         })?;
-    let ConfigRes {
-        config: maybe_config,
-        spec,
-    } = dependency_config_action
-        .get(
-            &ctx,
-            &dependency_id,
-            &dependency_version,
-            &dependency_volumes,
-        )
-        .await?;
 
-    let old_config = if let Some(config) = maybe_config {
-        config
-    } else {
-        spec.gen(
-            &mut rand::rngs::StdRng::from_entropy(),
-            &Some(Duration::new(10, 0)),
-        )?
-    };
+    let spec = Default::default();
+    // TODO BLUJ
+    // let ConfigRes {
+    //     config: maybe_config,
+    //     spec,
+    // } = dependency_config_action
+    //     .get(
+    //         &ctx,
+    //         &dependency_id,
+    //         &dependency_version,
+    //         &dependency_volumes,
+    //     )
+    //     .await?;
+
+    // TODO BLUJ
+    let old_config = Default::default();
+    // let old_config = if let Some(config) = maybe_config {
+    //     config
+    // } else {
+    //     // spec.gen(
+    //     //     &mut rand::rngs::StdRng::from_entropy(),
+    //     //     &Some(Duration::new(10, 0)),
+    //     // )?
+    // };
 
     let new_config = dependency
         .auto_configure

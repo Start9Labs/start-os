@@ -118,38 +118,37 @@ pub fn cert_dir(pkg_id: &PackageId, interface_id: &InterfaceId) -> PathBuf {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
-#[serde(tag = "type")]
-#[serde(rename_all = "kebab-case")]
+// #[serde(tag = "type")]
+#[serde(rename_all = "camelCase")]
 pub enum Volume {
-    #[serde(rename_all = "kebab-case")]
-    Data {
-        #[serde(skip)]
-        readonly: bool,
-    },
-    #[serde(rename_all = "kebab-case")]
-    Assets {},
-    #[serde(rename_all = "kebab-case")]
-    Pointer {
-        package_id: PackageId,
-        volume_id: VolumeId,
-        path: PathBuf,
-        readonly: bool,
-    },
-    #[serde(rename_all = "kebab-case")]
-    Certificate { interface_id: InterfaceId },
+    Data,
+    Assets, // #[serde(rename_all = "kebab-case")]
+    DataReadonly,
+    // Data {
+    //     #[serde(skip)]
+    //     readonly: bool,
+    // },
+    // #[serde(rename_all = "kebab-case")]
+    // Assets {},
+    // #[serde(rename_all = "kebab-case")]
+    // Pointer {
+    //     package_id: PackageId,
+    //     volume_id: VolumeId,
+    //     path: PathBuf,
+    //     readonly: bool,
+    // },
+    // #[serde(rename_all = "kebab-case")]
+    // Certificate { interface_id: InterfaceId },
     #[serde(rename_all = "kebab-case")]
     #[serde(skip)]
-    Backup { readonly: bool },
+    Backup {
+        readonly: bool,
+    },
 }
 impl Volume {
     #[instrument(skip_all)]
     pub fn validate(&self, interfaces: &Interfaces) -> Result<(), color_eyre::eyre::Report> {
         match self {
-            Volume::Certificate { interface_id } => {
-                if !interfaces.0.contains_key(interface_id) {
-                    color_eyre::eyre::bail!("unknown interface: {}", interface_id);
-                }
-            }
             _ => (),
         }
         Ok(())
@@ -162,7 +161,7 @@ impl Volume {
         volume_id: &VolumeId,
     ) -> Result<(), Error> {
         match self {
-            Volume::Data { .. } => {
+            Volume::Data {} => {
                 tokio::fs::create_dir_all(self.path_for(path, pkg_id, version, volume_id)).await?;
             }
             _ => (),
@@ -177,65 +176,31 @@ impl Volume {
         volume_id: &VolumeId,
     ) -> PathBuf {
         match self {
-            Volume::Data { .. } => data_dir(&data_dir_path, pkg_id, volume_id),
+            Volume::Data {} | Volume::DataReadonly {} => {
+                data_dir(&data_dir_path, pkg_id, volume_id)
+            }
             Volume::Assets {} => asset_dir(&data_dir_path, pkg_id, version).join(volume_id),
-            Volume::Pointer {
-                package_id,
-                volume_id,
-                path,
-                ..
-            } => data_dir(&data_dir_path, package_id, volume_id).join(if path.is_absolute() {
-                path.strip_prefix("/").unwrap()
-            } else {
-                path.as_ref()
-            }),
-            Volume::Certificate { interface_id } => cert_dir(pkg_id, &interface_id),
             Volume::Backup { .. } => backup_dir(pkg_id),
         }
     }
 
     pub fn pointer_path(&self, data_dir_path: impl AsRef<Path>) -> Option<PathBuf> {
-        if let Volume::Pointer {
-            path,
-            package_id,
-            volume_id,
-            ..
-        } = self
-        {
-            Some(
-                data_dir(data_dir_path.as_ref(), package_id, volume_id).join(
-                    if path.is_absolute() {
-                        path.strip_prefix("/").unwrap()
-                    } else {
-                        path.as_ref()
-                    },
-                ),
-            )
-        } else {
-            None
-        }
+        None
     }
 
     pub fn set_readonly(&mut self) {
         match self {
-            Volume::Data { readonly } => {
-                *readonly = true;
-            }
-            Volume::Pointer { readonly, .. } => {
-                *readonly = true;
-            }
-            Volume::Backup { readonly } => {
-                *readonly = true;
+            Volume::Data => {
+                *self = Volume::DataReadonly;
             }
             _ => (),
         }
     }
     pub fn readonly(&self) -> bool {
         match self {
-            Volume::Data { readonly } => *readonly,
+            Volume::Data {} => false,
+            Volume::DataReadonly {} => true,
             Volume::Assets {} => true,
-            Volume::Pointer { readonly, .. } => *readonly,
-            Volume::Certificate { .. } => true,
             Volume::Backup { readonly } => *readonly,
         }
     }

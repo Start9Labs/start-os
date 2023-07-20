@@ -398,6 +398,12 @@ pub struct CurrentDependencyInfo {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct InterfaceAddressMap(pub BTreeMap<InterfaceId, InterfaceAddresses>);
+
+impl Default for InterfaceAddressMap {
+    fn default() -> Self {
+        Self(BTreeMap::new())
+    }
+}
 impl Map for InterfaceAddressMap {
     type Key = InterfaceId;
     type Value = InterfaceAddresses;

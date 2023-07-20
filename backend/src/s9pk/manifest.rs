@@ -26,7 +26,7 @@ fn current_version() -> Version {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct Manifest {
     #[serde(default = "current_version")]
     pub eos_version: Version,
@@ -51,26 +51,9 @@ pub struct Manifest {
     #[serde(default)]
     pub alerts: Alerts,
     #[model]
-    pub main: PackageProcedure,
-    pub health_checks: HealthChecks,
-    #[model]
-    pub config: Option<ConfigActions>,
-    #[model]
-    pub properties: Option<PackageProcedure>,
-    #[model]
     pub volumes: Volumes,
     // #[serde(default)]
-    pub interfaces: Interfaces,
-    // #[serde(default)]
-    #[model]
-    pub backup: BackupActions,
-    #[serde(default)]
-    #[model]
-    pub migrations: Migrations,
-    #[serde(default)]
-    pub actions: Actions,
-    // #[serde(default)]
-    // pub permissions: Permissions,
+    // pub interfaces: Interfaces,
     #[serde(default)]
     #[model]
     pub dependencies: Dependencies,
@@ -83,24 +66,26 @@ pub struct Manifest {
 
 impl Manifest {
     pub fn package_procedures(&self) -> impl Iterator<Item = &PackageProcedure> {
-        use std::iter::once;
-        let main = once(&self.main);
-        let cfg_get = self.config.as_ref().map(|a| &a.get).into_iter();
-        let cfg_set = self.config.as_ref().map(|a| &a.set).into_iter();
-        let props = self.properties.iter();
-        let backups = vec![&self.backup.create, &self.backup.restore].into_iter();
-        let migrations = self
-            .migrations
-            .to
-            .values()
-            .chain(self.migrations.from.values());
-        let actions = self.actions.0.values().map(|a| &a.implementation);
-        main.chain(cfg_get)
-            .chain(cfg_set)
-            .chain(props)
-            .chain(backups)
-            .chain(migrations)
-            .chain(actions)
+        std::iter::empty()
+        // TODO BLUJ
+        // use std::iter::once;
+        // let main = once(&self.main);
+        // let cfg_get = self.config.as_ref().map(|a| &a.get).into_iter();
+        // let cfg_set = self.config.as_ref().map(|a| &a.set).into_iter();
+        // let props = self.properties.iter();
+        // let backups = vec![&self.backup.create, &self.backup.restore].into_iter();
+        // let migrations = self
+        //     .migrations
+        //     .to
+        //     .values()
+        //     .chain(self.migrations.from.values());
+        // let actions = self.actions.0.values().map(|a| &a.implementation);
+        // main.chain(cfg_get)
+        //     .chain(cfg_set)
+        //     .chain(props)
+        //     .chain(backups)
+        //     .chain(migrations)
+        //     .chain(actions)
     }
 
     pub fn with_git_hash(mut self, git_hash: GitHash) -> Self {

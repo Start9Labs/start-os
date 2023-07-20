@@ -109,20 +109,23 @@ pub async fn check<Db: DbHandle>(
         (manifest, started)
     };
 
-    let health_results = if let Some(started) = started {
-        tracing::debug!("Checking health of {}", id);
-        manifest
-            .health_checks
-            .check_all(
-                ctx,
-                &manifest.containers,
-                started,
-                id,
-                &manifest.version,
-                &manifest.volumes,
-            )
-            .await?
-    } else {
+    // TODO BLUJ
+    // let health_results = {
+    // if let Some(started) = started {
+    //     tracing::debug!("Checking health of {}", id);
+    //     manifest
+    //         .health_checks
+    //         .check_all(
+    //             ctx,
+    //             &manifest.containers,
+    //             started,
+    //             id,
+    //             &manifest.version,
+    //             &manifest.volumes,
+    //         )
+    //         .await?
+    // } else
+    {
         return Ok(());
     };
 
@@ -133,16 +136,17 @@ pub async fn check<Db: DbHandle>(
         let status = receipts.status.get(&mut checkpoint).await?;
 
         if let MainStatus::Running { health: _, started } = status {
-            receipts
-                .status
-                .set(
-                    &mut checkpoint,
-                    MainStatus::Running {
-                        health: health_results.clone(),
-                        started,
-                    },
-                )
-                .await?;
+            // TODO BLUJ
+            // receipts
+            //     .status
+            //     .set(
+            //         &mut checkpoint,
+            //         MainStatus::Running {
+            //             health: health_results.clone(),
+            //             started,
+            //         },
+            //     )
+            //     .await?;
         }
         let current_dependents = receipts.current_dependents.get(&mut checkpoint).await?;
 
@@ -153,12 +157,14 @@ pub async fn check<Db: DbHandle>(
     let receipts = crate::dependencies::BreakTransitiveReceipts::new(&mut tx).await?;
 
     for (dependent, info) in (current_dependents).0.iter() {
-        let failures: BTreeMap<HealthCheckId, HealthCheckResult> = health_results
-            .iter()
-            .filter(|(_, hc_res)| !matches!(hc_res, HealthCheckResult::Success { .. }))
-            .filter(|(hc_id, _)| info.health_checks.contains(hc_id))
-            .map(|(k, v)| (k.clone(), v.clone()))
-            .collect();
+        let failures: BTreeMap<HealthCheckId, HealthCheckResult> = Default::default();
+        // TODO BLUJ
+        // health_results
+        //     .iter()
+        //     .filter(|(_, hc_res)| !matches!(hc_res, HealthCheckResult::Success { .. }))
+        //     .filter(|(hc_id, _)| info.health_checks.contains(hc_id))
+        //     .map(|(k, v)| (k.clone(), v.clone()))
+        //     .collect();
 
         if !failures.is_empty() {
             break_transitive(

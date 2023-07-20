@@ -166,7 +166,8 @@ pub fn config(#[arg] id: PackageId) -> Result<PackageId, Error> {
 pub struct ConfigGetReceipts {
     manifest_volumes: LockReceipt<crate::volume::Volumes, ()>,
     manifest_version: LockReceipt<crate::util::Version, ()>,
-    manifest_config: LockReceipt<Option<ConfigActions>, ()>,
+    // TODO BLUJ
+    // manifest_config: LockReceipt<Option<ConfigActions>, ()>,
 }
 
 impl ConfigGetReceipts {
@@ -195,18 +196,20 @@ impl ConfigGetReceipts {
             .map(|x| x.manifest().volumes())
             .make_locker(LockType::Write)
             .add_to_keys(locks);
-        let manifest_config = crate::db::DatabaseModel::new()
-            .package_data()
-            .idx_model(id)
-            .and_then(|x| x.installed())
-            .map(|x| x.manifest().config())
-            .make_locker(LockType::Write)
-            .add_to_keys(locks);
+        // TODO BLUJ
+        // let manifest_config = crate::db::DatabaseModel::new()
+        //     .package_data()
+        //     .idx_model(id)
+        //     .and_then(|x| x.installed())
+        //     .map(|x| x.manifest().config())
+        //     .make_locker(LockType::Write)
+        //     .add_to_keys(locks);
         move |skeleton_key| {
             Ok(Self {
                 manifest_volumes: manifest_volumes.verify(skeleton_key)?,
                 manifest_version: manifest_version.verify(skeleton_key)?,
-                manifest_config: manifest_config.verify(skeleton_key)?,
+                // TODO BLUJ
+                // manifest_config: manifest_config.verify(skeleton_key)?,
             })
         }
     }
@@ -223,15 +226,20 @@ pub async fn get(
 ) -> Result<ConfigRes, Error> {
     let mut db = ctx.db.handle();
     let receipts = ConfigGetReceipts::new(&mut db, &id).await?;
-    let action = receipts
-        .manifest_config
-        .get(&mut db)
-        .await?
-        .ok_or_else(|| Error::new(eyre!("{} has no config", id), crate::ErrorKind::NotFound))?;
+    // TODO BLUJ
+    Ok(ConfigRes {
+        config: Default::default(),
+        spec: Default::default(),
+    })
+    // let action = receipts
+    //     .manifest_config
+    //     .get(&mut db)
+    //     .await?
+    //     .ok_or_else(|| Error::new(eyre!("{} has no config", id), crate::ErrorKind::NotFound))?;
 
-    let volumes = receipts.manifest_volumes.get(&mut db).await?;
-    let version = receipts.manifest_version.get(&mut db).await?;
-    action.get(&ctx, &id, &version, &volumes).await
+    // let volumes = receipts.manifest_volumes.get(&mut db).await?;
+    // let version = receipts.manifest_version.get(&mut db).await?;
+    // action.get(&ctx, &id, &version, &volumes).await
 }
 
 #[command(
@@ -264,7 +272,7 @@ pub struct ConfigReceipts {
     pub try_heal_receipts: TryHealReceipts,
     pub break_transitive_receipts: BreakTransitiveReceipts,
     pub configured: LockReceipt<bool, String>,
-    pub config_actions: LockReceipt<ConfigActions, String>,
+    // pub config_actions: LockReceipt<ConfigActions, String>,
     pub dependencies: LockReceipt<Dependencies, String>,
     pub volumes: LockReceipt<crate::volume::Volumes, String>,
     pub version: LockReceipt<crate::util::Version, String>,
@@ -300,13 +308,14 @@ impl ConfigReceipts {
             .make_locker(LockType::Write)
             .add_to_keys(locks);
 
-        let config_actions = crate::db::DatabaseModel::new()
-            .package_data()
-            .star()
-            .installed()
-            .and_then(|x| x.manifest().config())
-            .make_locker(LockType::Read)
-            .add_to_keys(locks);
+        // TODO BLUJ
+        // let config_actions = crate::db::DatabaseModel::new()
+        //     .package_data()
+        //     .star()
+        //     .installed()
+        //     .and_then(|x| x.manifest().config())
+        //     .make_locker(LockType::Read)
+        //     .add_to_keys(locks);
 
         let dependencies = crate::db::DatabaseModel::new()
             .package_data()
@@ -395,7 +404,7 @@ impl ConfigReceipts {
                 break_transitive_receipts: break_transitive_receipts(skeleton_key)?,
                 update_dependency_receipts: update_dependency_receipts(skeleton_key)?,
                 configured: configured.verify(skeleton_key)?,
-                config_actions: config_actions.verify(skeleton_key)?,
+                // config_actions: config_actions.verify(skeleton_key)?,
                 dependencies: dependencies.verify(skeleton_key)?,
                 volumes: volumes.verify(skeleton_key)?,
                 version: version.verify(skeleton_key)?,
@@ -511,10 +520,11 @@ async fn ensure_creation_of_config_paths_makes_sense() {
         &format!("{}", config_locks.configured.lock.glob),
         "/package-data/*/installed/status/configured"
     );
-    assert_eq!(
-        &format!("{}", config_locks.config_actions.lock.glob),
-        "/package-data/*/installed/manifest/config"
-    );
+    // TODO BLUJ
+    // assert_eq!(
+    //     &format!("{}", config_locks.config_actions.lock.glob),
+    //     "/package-data/*/installed/manifest/config"
+    // );
     assert_eq!(
         &format!("{}", config_locks.dependencies.lock.glob),
         "/package-data/*/installed/manifest/dependencies"

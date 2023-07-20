@@ -44,7 +44,6 @@ pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> R
         std::env::current_dir()?
     };
 
-    tracing::error!("BLUJ packing 1");
     let script_data = {
         let output = Command::new("docker")
             .arg("run")
@@ -70,7 +69,6 @@ pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> R
         }
         output.stdout
     };
-    tracing::error!("BLUJ packing 2");
 
     let manifest_value: Value = {
         let output = Command::new("docker")
@@ -100,7 +98,6 @@ pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> R
         serde_json::from_reader::<_, Value>(&*output.stdout)
             .with_kind(ErrorKind::Deserialization)?
     }; // TODO make sure that the error is easier to ready?
-    tracing::error!("BLUJ packing 3");
     let manifest: Manifest = serde_json::from_value::<Manifest>(manifest_value.clone())
         .with_kind(crate::ErrorKind::Deserialization)?
         .with_git_hash(GitHash::from_path(&path).await?);
@@ -109,7 +106,6 @@ pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> R
     for k in extra_keys {
         tracing::warn!("Unrecognized Manifest Key: {}", k);
     }
-    tracing::error!("BLUJ packing 4");
 
     let outfile_path = path.join(format!("{}.s9pk", manifest.id));
 

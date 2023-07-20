@@ -143,18 +143,20 @@ pub async fn action(
         .await?
         .to_owned();
 
-    if let Some(action) = manifest.actions.0.get(&action_id) {
-        action
-            .execute(
-                &ctx,
-                &manifest.id,
-                &manifest.version,
-                &action_id,
-                &manifest.volumes,
-                input,
-            )
-            .await
-    } else {
+    // TODO BLUJ
+    // if let Some(action) = manifest.actions.0.get(&action_id) {
+    //     action
+    //         .execute(
+    //             &ctx,
+    //             &manifest.id,
+    //             &manifest.version,
+    //             &action_id,
+    //             &manifest.volumes,
+    //             input,
+    //         )
+    //         .await
+    // } else
+    {
         Err(Error::new(
             eyre!("Action not found in manifest"),
             crate::ErrorKind::NotFound,

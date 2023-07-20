@@ -185,54 +185,55 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
             .map(|i| i.validate(&man.id, &man.version).map(|_| i.image_id))
             .collect::<Result<BTreeSet<ImageId>, _>>()?;
         man.description.validate()?;
-        man.actions
-            .0
-            .iter()
-            .map(|(_, action)| {
-                action.validate(
-                    containers,
-                    &man.eos_version,
-                    &man.volumes,
-                    &validated_image_ids,
-                )
-            })
-            .collect::<Result<(), Error>>()?;
-        man.backup.validate(
-            containers,
-            &man.eos_version,
-            &man.volumes,
-            &validated_image_ids,
-        )?;
-        if let Some(cfg) = &man.config {
-            cfg.validate(
-                containers,
-                &man.eos_version,
-                &man.volumes,
-                &validated_image_ids,
-            )?;
-        }
-        man.health_checks.validate(
-            containers,
-            &man.eos_version,
-            &man.volumes,
-            &validated_image_ids,
-        )?;
-        man.interfaces.validate()?;
-        man.main
-            .validate(
-                containers,
-                &man.eos_version,
-                &man.volumes,
-                &validated_image_ids,
-                false,
-            )
-            .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Main"))?;
-        man.migrations.validate(
-            containers,
-            &man.eos_version,
-            &man.volumes,
-            &validated_image_ids,
-        )?;
+        // TODO BLUJ
+        // man.actions
+        //     .0
+        //     .iter()
+        //     .map(|(_, action)| {
+        //         action.validate(
+        //             containers,
+        //             &man.eos_version,
+        //             &man.volumes,
+        //             &validated_image_ids,
+        //         )
+        //     })
+        //     .collect::<Result<(), Error>>()?;
+        // man.backup.validate(
+        //     containers,
+        //     &man.eos_version,
+        //     &man.volumes,
+        //     &validated_image_ids,
+        // )?;
+        // if let Some(cfg) = &man.config {
+        //     cfg.validate(
+        //         containers,
+        //         &man.eos_version,
+        //         &man.volumes,
+        //         &validated_image_ids,
+        //     )?;
+        // }
+        // man.health_checks.validate(
+        //     containers,
+        //     &man.eos_version,
+        //     &man.volumes,
+        //     &validated_image_ids,
+        // )?;
+        // man.interfaces.validate()?;
+        // man.main
+        //     .validate(
+        //         containers,
+        //         &man.eos_version,
+        //         &man.volumes,
+        //         &validated_image_ids,
+        //         false,
+        //     )
+        //     .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Main"))?;
+        // man.migrations.validate(
+        //     containers,
+        //     &man.eos_version,
+        //     &man.volumes,
+        //     &validated_image_ids,
+        // )?;
 
         if man.replaces.len() >= MAX_REPLACES {
             return Err(Error::new(
@@ -253,26 +254,27 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
             ));
         }
 
-        if man.containers.is_some()
-            && matches!(man.main, crate::procedure::PackageProcedure::Docker(_))
-        {
-            return Err(Error::new(
-                eyre!("Cannot have a main docker and a main in containers"),
-                crate::ErrorKind::ValidateS9pk,
-            ));
-        }
-        if let Some(props) = &man.properties {
-            props
-                .validate(
-                    containers,
-                    &man.eos_version,
-                    &man.volumes,
-                    &validated_image_ids,
-                    true,
-                )
-                .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Properties"))?;
-        }
-        man.volumes.validate(&man.interfaces)?;
+        // TODO BLUJ
+        // if man.containers.is_some()
+        //     && matches!(man.main, crate::procedure::PackageProcedure::Docker(_))
+        // {
+        //     return Err(Error::new(
+        //         eyre!("Cannot have a main docker and a main in containers"),
+        //         crate::ErrorKind::ValidateS9pk,
+        //     ));
+        // }
+        // if let Some(props) = &man.properties {
+        //     props
+        //         .validate(
+        //             containers,
+        //             &man.eos_version,
+        //             &man.volumes,
+        //             &validated_image_ids,
+        //             true,
+        //         )
+        //         .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Properties"))?;
+        // }
+        // man.volumes.validate(&man.interfaces)?;
 
         Ok(())
     }

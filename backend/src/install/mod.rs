@@ -27,7 +27,7 @@ use tokio_stream::wrappers::ReadDirStream;
 use tracing::instrument;
 
 use self::cleanup::{cleanup_failed, remove_from_current_dependents_lists};
-use crate::config::{ConfigReceipts, ConfigureContext};
+use crate::config::ConfigReceipts;
 use crate::context::{CliContext, RpcContext};
 use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::db::model::{
@@ -772,31 +772,32 @@ pub async fn download_install_s9pk(
         tracing::info!("SSL Port Map: {:?}", &port_map);
 
         // if any of the requested interface lan configs conflict with current state, fail the install
-        for (_id, iface) in &temp_manifest.interfaces.0 {
-            if let Some(cfg) = &iface.lan_config {
-                for (p, lan) in cfg {
-                    if p.0 == 80 && lan.ssl || p.0 == 443 && !lan.ssl {
-                        return Err(Error::new(
-                            eyre!("SSL Conflict with embassyOS"),
-                            ErrorKind::LanPortConflict,
-                        ));
-                    }
-                    match port_map.get(&p) {
-                        Some((ssl, pkg)) => {
-                            if *ssl != lan.ssl {
-                                return Err(Error::new(
-                                    eyre!("SSL Conflict with package: {}", pkg),
-                                    ErrorKind::LanPortConflict,
-                                ));
-                            }
-                        }
-                        None => {
-                            continue;
-                        }
-                    }
-                }
-            }
-        }
+        // TODO BLUJ
+        // for (_id, iface) in &temp_manifest.interfaces.0 {
+        //     if let Some(cfg) = &iface.lan_config {
+        //         for (p, lan) in cfg {
+        //             if p.0 == 80 && lan.ssl || p.0 == 443 && !lan.ssl {
+        //                 return Err(Error::new(
+        //                     eyre!("SSL Conflict with embassyOS"),
+        //                     ErrorKind::LanPortConflict,
+        //                 ));
+        //             }
+        //             match port_map.get(&p) {
+        //                 Some((ssl, pkg)) => {
+        //                     if *ssl != lan.ssl {
+        //                         return Err(Error::new(
+        //                             eyre!("SSL Conflict with package: {}", pkg),
+        //                             ErrorKind::LanPortConflict,
+        //                         ));
+        //                     }
+        //                 }
+        //                 None => {
+        //                     continue;
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
         drop(receipts);
         tx.save().await?;
         drop(db_handle);
@@ -1145,7 +1146,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
     tracing::info!("Install {}@{}: Created volumes", pkg_id, version);
 
     tracing::info!("Install {}@{}: Installing interfaces", pkg_id, version);
-    let interface_addresses = manifest.interfaces.install(&mut sql_tx, pkg_id).await?;
+    // let interface_addresses = manifest.interfaces.install(&mut sql_tx, pkg_id).await?;
     tracing::info!("Install {}@{}: Installed interfaces", pkg_id, version);
 
     tracing::info!("Install {}@{}: Creating manager", pkg_id, version);
@@ -1222,7 +1223,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         .await?;
     let installed = InstalledPackageDataEntry {
         status: Status {
-            configured: manifest.config.is_none(),
+            configured: false, // TODO BLUJ manifest.config.is_none(),
             main: MainStatus::Stopped,
             dependency_errors: DependencyErrors::default(),
         },
@@ -1244,7 +1245,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         dependency_info,
         current_dependents: current_dependents.clone(),
         current_dependencies: current_dependencies.clone(),
-        interface_addresses,
+        interface_addresses: Default::default(), // TODO BLUJ
     };
     let prev = std::mem::replace(
         &mut *pde,
@@ -1282,34 +1283,35 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
     } = prev
     {
         let prev_is_configured = prev.status.configured;
-        let prev_migration = prev
-            .manifest
-            .migrations
-            .to(
-                ctx,
-                version,
-                pkg_id,
-                &prev.manifest.version,
-                &prev.manifest.volumes,
-            )
-            .map(futures::future::Either::Left);
-        let migration = manifest
-            .migrations
-            .from(
-                &manifest.containers,
-                ctx,
-                &prev.manifest.version,
-                pkg_id,
-                version,
-                &manifest.volumes,
-            )
-            .map(futures::future::Either::Right);
+        // TODO BLUJ
+        // let prev_migration = prev
+        //     .manifest
+        //     .migrations
+        //     .to(
+        //         ctx,
+        //         version,
+        //         pkg_id,
+        //         &prev.manifest.version,
+        //         &prev.manifest.volumes,
+        //     )
+        //     .map(futures::future::Either::Left);
+        // let migration = manifest
+        //     .migrations
+        //     .from(
+        //         &manifest.containers,
+        //         ctx,
+        //         &prev.manifest.version,
+        //         pkg_id,
+        //         version,
+        //         &manifest.volumes,
+        //     )
+        //     .map(futures::future::Either::Right);
 
-        let viable_migration = if prev.manifest.version > manifest.version {
-            prev_migration.or(migration)
-        } else {
-            migration.or(prev_migration)
-        };
+        // let viable_migration = if prev.manifest.version > manifest.version {
+        //     prev_migration.or(migration)
+        // } else {
+        //     migration.or(prev_migration)
+        // };
 
         remove_from_current_dependents_lists(
             &mut tx,
@@ -1319,24 +1321,27 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         )
         .await?; // remove previous
 
-        let configured = if let Some(f) = viable_migration {
-            f.await?.configured && prev_is_configured
-        } else {
-            false
-        };
-        if configured && manifest.config.is_some() {
-            let breakages = BTreeMap::new();
-            let overrides = Default::default();
+        //TODO BLUJ
+        // let configured = if let Some(f) = viable_migration {
+        //     f.await?.configured && prev_is_configured
+        // } else {
+        //     false
+        // };
 
-            let configure_context = ConfigureContext {
-                breakages,
-                timeout: None,
-                config: None,
-                dry_run: false,
-                overrides,
-            };
-            crate::config::configure(&ctx, pkg_id, configure_context).await?;
-        } else {
+        // if configured && manifest.config.is_some() {
+        //     let breakages = BTreeMap::new();
+        //     let overrides = Default::default();
+
+        //     let configure_context = ConfigureContext {
+        //         breakages,
+        //         timeout: None,
+        //         config: None,
+        //         dry_run: false,
+        //         overrides,
+        //     };
+        //     crate::config::configure(&ctx, pkg_id, configure_context).await?;
+        // } else
+        {
             add_dependent_to_current_dependents_lists(
                 &mut tx,
                 pkg_id,
@@ -1345,22 +1350,23 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             )
             .await?; // add new
         }
-        if configured || manifest.config.is_none() {
-            let mut main_status = crate::db::DatabaseModel::new()
-                .package_data()
-                .idx_model(pkg_id)
-                .expect(&mut tx)
-                .await?
-                .installed()
-                .expect(&mut tx)
-                .await?
-                .status()
-                .main()
-                .get_mut(&mut tx)
-                .await?;
-            *main_status = prev.status.main;
-            main_status.save(&mut tx).await?;
-        }
+        // TODO BLUJ
+        // if configured || manifest.config.is_none() {
+        //     let mut main_status = crate::db::DatabaseModel::new()
+        //         .package_data()
+        //         .idx_model(pkg_id)
+        //         .expect(&mut tx)
+        //         .await?
+        //         .installed()
+        //         .expect(&mut tx)
+        //         .await?
+        //         .status()
+        //         .main()
+        //         .get_mut(&mut tx)
+        //         .await?;
+        //     *main_status = prev.status.main;
+        //     main_status.save(&mut tx).await?;
+        // }
         update_dependency_errors_of_dependents(
             ctx,
             &mut tx,
@@ -1377,17 +1383,18 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             cleanup(ctx, &prev.manifest.id, &prev.manifest.version).await?;
         }
     } else if let PackageDataEntry::Restoring { .. } = prev {
-        manifest
-            .backup
-            .restore(
-                ctx,
-                &mut tx,
-                pkg_id,
-                version,
-                &manifest.interfaces,
-                &manifest.volumes,
-            )
-            .await?;
+        // TODO BLUJ
+        // manifest
+        //     .backup
+        //     .restore(
+        //         ctx,
+        //         &mut tx,
+        //         pkg_id,
+        //         version,
+        //         &manifest.interfaces,
+        //         &manifest.volumes,
+        //     )
+        //     .await?;
         add_dependent_to_current_dependents_lists(
             &mut tx,
             pkg_id,
@@ -1523,16 +1530,18 @@ pub fn load_images<'a, P: AsRef<Path> + 'a + Send + Sync>(
 fn ssl_port_status(manifests: &Vec<Manifest>) -> BTreeMap<Port, (bool, PackageId)> {
     let mut ret = BTreeMap::new();
     for m in manifests {
-        for (_id, iface) in &m.interfaces.0 {
-            match &iface.lan_config {
-                None => {}
-                Some(cfg) => {
-                    for (p, lan) in cfg {
-                        ret.insert(p.clone(), (lan.ssl, m.id.clone()));
-                    }
-                }
-            }
-        }
+
+        // TODO BLUJ
+        // for (_id, iface) in &m.interfaces.0 {
+        //     match &iface.lan_config {
+        //         None => {}
+        //         Some(cfg) => {
+        //             for (p, lan) in cfg {
+        //                 ret.insert(p.clone(), (lan.ssl, m.id.clone()));
+        //             }
+        //         }
+        //     }
+        // }
     }
     ret
 }

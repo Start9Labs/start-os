@@ -31,21 +31,23 @@ pub async fn fetch_properties(ctx: RpcContext, id: PackageId) -> Result<Value, E
         .await?
         .to_owned()
         .ok_or_else(|| Error::new(eyre!("{} is not installed", id), ErrorKind::NotFound))?;
-    if let Some(props) = manifest.properties {
-        props
-            .execute::<(), Value>(
-                &ctx,
-                &manifest.id,
-                &manifest.version,
-                ProcedureName::Properties,
-                &manifest.volumes,
-                None,
-                None,
-            )
-            .await?
-            .map_err(|(_, e)| Error::new(eyre!("{}", e), ErrorKind::Docker))
-            .and_then(|a| Ok(a))
-    } else {
+    // TODO BLUJ
+    // if let Some(props) = manifest.properties {
+    //     props
+    //         .execute::<(), Value>(
+    //             &ctx,
+    //             &manifest.id,
+    //             &manifest.version,
+    //             ProcedureName::Properties,
+    //             &manifest.volumes,
+    //             None,
+    //             None,
+    //         )
+    //         .await?
+    //         .map_err(|(_, e)| Error::new(eyre!("{}", e), ErrorKind::Docker))
+    //         .and_then(|a| Ok(a))
+    // } else
+     {
         Ok(Value::Null)
     }
 }
