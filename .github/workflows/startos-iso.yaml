@@ -162,7 +162,7 @@ jobs:
 
       - run: "mv embassy-os-deb/embassyos_0.3.x-1_*.deb startos-image-recipes/overlays/deb/"
 
-      - run: "rm -rf embassy-os-deb"
+      - run: "rm -rf embassy-os-deb ${{ steps.npm-cache-dir.outputs.dir }} $HOME/.cargo"
 
       - name: Run iso build
         working-directory: startos-image-recipes
