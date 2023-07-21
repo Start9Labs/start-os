@@ -1,7 +1,0 @@
-<a
-  *ngFor="let service of services$ | async"
-  [routerLink]="service.manifest.id"
-  (click)="onClick(service)"
->
-  {{ service.manifest.title }}
-</a>

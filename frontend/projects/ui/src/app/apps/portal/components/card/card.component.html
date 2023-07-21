@@ -1,0 +1,39 @@
+<span class="link">
+  <img alt="" class="icon" [src]="appCard.icon" />
+  <label ticker class="title">{{ appCard.title }}</label>
+</span>
+<span class="side">
+  <tui-hosted-dropdown [content]="content" (click.stop.prevent)="(0)">
+    <button
+      tuiIconButton
+      appearance="outline"
+      shape="rounded"
+      size="xs"
+      icon="tuiIconMoreHorizontal"
+    >
+      Actions
+    </button>
+    <ng-template #content>
+      <!-- TODO: Move menu to a separate component -->
+      <tui-data-list>
+        <h3 class="menu-title">{{ appCard.title }}</h3>
+        <tui-opt-group label="LAUNCH">
+          <button tuiOption class="menu-item">
+            <tui-svg src="tuiIconLogOut" class="menu-icon"></tui-svg>
+            Tor
+          </button>
+        </tui-opt-group>
+        <tui-opt-group label="MANAGE">
+          <button tuiOption class="menu-item">
+            <tui-svg src="tuiIconSliders" class="menu-icon"></tui-svg>
+            Console
+          </button>
+          <button tuiOption class="menu-item">
+            <tui-svg src="tuiIconX" class="menu-icon"></tui-svg>
+            Remove from desktop
+          </button>
+        </tui-opt-group>
+      </tui-data-list>
+    </ng-template>
+  </tui-hosted-dropdown>
+</span>
