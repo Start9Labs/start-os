@@ -4,9 +4,10 @@ pub mod package;
 use std::future::Future;
 use std::sync::Arc;
 
+use color_eyre::eyre::eyre;
 use futures::{FutureExt, SinkExt, StreamExt};
 use patch_db::json_ptr::JsonPointer;
-use patch_db::{Dump, Revision};
+use patch_db::{DbHandle, Dump, LockType, Revision};
 use rpc_toolkit::command;
 use rpc_toolkit::hyper::upgrade::Upgraded;
 use rpc_toolkit::hyper::{Body, Error as HyperError, Request, Response};
@@ -24,6 +25,7 @@ use tracing::instrument;
 pub use self::model::DatabaseModel;
 use crate::context::RpcContext;
 use crate::middleware::auth::{HasValidSession, HashSessionToken};
+use crate::util::display_none;
 use crate::util::serde::{display_serializable, IoFormat};
 use crate::{Error, ResultExt};
 
@@ -163,7 +165,7 @@ pub async fn subscribe(ctx: RpcContext, req: Request<Body>) -> Result<Response<B
     Ok(res)
 }
 
-#[command(subcommands(revisions, dump, put))]
+#[command(subcommands(revisions, dump, put, apply))]
 pub fn db() -> Result<(), RpcError> {
     Ok(())
 }
@@ -197,6 +199,85 @@ pub async fn dump(
     format: Option<IoFormat>,
 ) -> Result<Dump, Error> {
     Ok(ctx.db.dump().await?)
+}
+
+fn apply_expr(input: jaq_core::Val, expr: &str) -> Result<jaq_core::Val, Error> {
+    let (expr, errs) = jaq_core::parse::parse(expr, jaq_core::parse::main());
+
+    let Some(expr) = expr else {
+        return Err(Error::new(
+            eyre!("Failed to parse expression: {:?}", errs),
+            crate::ErrorKind::InvalidRequest,
+        ));
+    };
+
+    let mut errs = Vec::new();
+
+    let mut defs = jaq_core::Definitions::core();
+    for def in jaq_std::std() {
+        defs.insert(def, &mut errs);
+    }
+
+    let filter = defs.finish(expr, Vec::new(), &mut errs);
+
+    if !errs.is_empty() {
+        return Err(Error::new(
+            eyre!("Failed to compile expression: {:?}", errs),
+            crate::ErrorKind::InvalidRequest,
+        ));
+    };
+
+    let inputs = jaq_core::RcIter::new(std::iter::empty());
+    let mut res_iter = filter.run(jaq_core::Ctx::new([], &inputs), input);
+
+    let Some(res) = res_iter
+        .next()
+        .transpose()
+        .map_err(|e| eyre!("{e}"))
+        .with_kind(crate::ErrorKind::Deserialization)?
+    else {
+        return Err(Error::new(
+            eyre!("expr returned no results"),
+            crate::ErrorKind::InvalidRequest,
+        ));
+    };
+
+    if res_iter.next().is_some() {
+        return Err(Error::new(
+            eyre!("expr returned too many results"),
+            crate::ErrorKind::InvalidRequest,
+        ));
+    }
+
+    Ok(res)
+}
+
+#[command(display(display_none))]
+pub async fn apply(#[context] ctx: RpcContext, #[arg] expr: String) -> Result<(), Error> {
+    let mut db = ctx.db.handle();
+
+    DatabaseModel::new().lock(&mut db, LockType::Write).await?;
+
+    let root_ptr = JsonPointer::<String>::default();
+
+    let input = db.get_value(&root_ptr, None).await?;
+
+    let res = (|| {
+        let res = apply_expr(input.into(), &expr)?;
+
+        serde_json::from_value::<model::Database>(res.clone().into()).with_ctx(|_| {
+            (
+                crate::ErrorKind::Deserialization,
+                "result does not match database model",
+            )
+        })?;
+
+        Ok::<serde_json::Value, Error>(res.into())
+    })()?;
+
+    db.put_value(&root_ptr, &res).await?;
+
+    Ok(())
 }
 
 #[command(subcommands(ui))]
