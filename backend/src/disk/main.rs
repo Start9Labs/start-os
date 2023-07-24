@@ -109,6 +109,9 @@ pub async fn create_fs<P: AsRef<Path>>(
         .await?;
     let mut blockdev_path = Path::new("/dev").join(guid).join(name);
     if let Some(password) = password {
+        if let Some(parent) = Path::new(PASSWORD_PATH).parent() {
+            tokio::fs::create_dir_all(parent).await?;
+        }
         tokio::fs::write(PASSWORD_PATH, password)
             .await
             .with_ctx(|_| (crate::ErrorKind::Filesystem, PASSWORD_PATH))?;
@@ -207,7 +210,7 @@ pub async fn import<P: AsRef<Path>>(
     guid: &str,
     datadir: P,
     repair: RepairStrategy,
-    mut password: Option<&str>,
+    password: Option<&str>,
 ) -> Result<RequiresReboot, Error> {
     let scan = pvscan().await?;
     if scan
