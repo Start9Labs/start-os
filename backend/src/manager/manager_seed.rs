@@ -21,8 +21,8 @@ impl ManagerSeed {
                     t: self
                         .manifest
                         .containers
-                        .as_ref()
-                        .and_then(|c| c.main.sigterm_timeout)
+                        .main
+                        .sigterm_timeout
                         .map(|d| d.as_secs())
                         .unwrap_or(30) as i64,
                 }),

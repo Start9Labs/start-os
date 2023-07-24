@@ -1,14 +1,13 @@
-use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::ffi::{OsStr, OsString};
 use std::net::Ipv4Addr;
 use std::os::unix::prelude::FileTypeExt;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+use std::{borrow::Cow, sync::Arc};
 
 use async_stream::stream;
 use bollard::container::RemoveContainerOptions;
-use chrono::format::Item;
 use color_eyre::eyre::eyre;
 use color_eyre::Report;
 use futures::future::{BoxFuture, Either as EitherFuture};
@@ -25,11 +24,11 @@ use tokio::time::timeout;
 use tracing::instrument;
 
 use super::ProcedureName;
-use crate::context::RpcContext;
 use crate::s9pk::manifest::{PackageId, SYSTEM_PACKAGE_ID};
 use crate::util::serde::{Duration as SerdeDuration, IoFormat};
 use crate::util::Version;
 use crate::volume::{VolumeId, Volumes};
+use crate::{context::RpcContext, manager::manager_seed::ManagerSeed};
 use crate::{Error, ResultExt, HOST_IP};
 
 pub const NET_TLD: &str = "embassy";
@@ -80,34 +79,22 @@ impl DockerContainer {
     #[instrument(skip_all)]
     pub async fn long_running_execute(
         &self,
-        ctx: &RpcContext,
-        pkg_id: &PackageId,
-        pkg_version: &Version,
-        volumes: &Volumes,
-    ) -> Result<(LongRunning, UnixRpcClient), Error> {
-        let container_name = DockerProcedure::container_name(pkg_id, None);
-
-        let socket_path =
-            Path::new("/tmp/embassy/containers").join(format!("{pkg_id}_{pkg_version}"));
-        if tokio::fs::metadata(&socket_path).await.is_ok() {
-            tokio::fs::remove_dir_all(&socket_path).await?;
-        }
-        tokio::fs::create_dir_all(&socket_path).await?;
+        seed: &ManagerSeed,
+        rpc_client: Arc<UnixRpcClient>,
+    ) -> Result<LongRunning, Error> {
+        let container_name = DockerProcedure::container_name(&seed.manifest.id, None);
 
         let mut cmd = LongRunning::setup_long_running_docker_cmd(
             self,
-            ctx,
+            seed,
             &container_name,
-            volumes,
-            pkg_id,
-            pkg_version,
-            &socket_path,
+            rpc_client.path(),
         )
         .await?;
 
         let mut handle = cmd.spawn().with_kind(crate::ErrorKind::Docker)?;
 
-        let client = UnixRpcClient::new(socket_path.join("rpc.sock"));
+        let client: UnixRpcClient = UnixRpcClient::new(rpc_client.path().join("rpc.sock"));
 
         let running_output = NonDetachingJoinHandle::from(tokio::spawn(async move {
             if let Err(err) = handle
@@ -121,7 +108,7 @@ impl DockerContainer {
         }));
 
         {
-            let socket = socket_path.join("rpc.sock");
+            let socket = rpc_client.path().join("rpc.sock");
             if let Err(_err) = timeout(Duration::from_secs(1), async move {
                 while tokio::fs::metadata(&socket).await.is_err() {
                     tokio::time::sleep(Duration::from_millis(10)).await;
@@ -133,7 +120,10 @@ impl DockerContainer {
             }
         }
 
-        Ok((LongRunning { running_output }, client))
+        Ok(LongRunning {
+            running_output,
+            rpc_client,
+        })
     }
 }
 
@@ -220,18 +210,13 @@ impl DockerProcedure {
     #[instrument(skip_all)]
     pub async fn execute<I: Serialize, O: DeserializeOwned>(
         &self,
-        ctx: &RpcContext,
-        pkg_id: &PackageId,
-        pkg_version: &Version,
+        seed: &ManagerSeed,
         name: ProcedureName,
-        volumes: &Volumes,
         input: Option<I>,
         timeout: Option<Duration>,
     ) -> Result<Result<O, (i32, String)>, Error> {
-        let name = name.docker_name();
-        let name: Option<&str> = name.as_ref().map(|x| &**x);
         let mut cmd = tokio::process::Command::new("docker");
-        let container_name = Self::container_name(pkg_id, name);
+        let container_name = Self::container_name(&seed.manifest.id, name.docker_name());
         cmd.arg("run")
             .arg("--rm")
             .arg("--network=start9")
@@ -241,7 +226,8 @@ impl DockerProcedure {
             .arg(format!("--hostname={}", &container_name))
             .arg("--no-healthcheck")
             .kill_on_drop(true);
-        match ctx
+        match seed
+            .ctx
             .docker
             .remove_container(
                 &container_name,
@@ -260,7 +246,7 @@ impl DockerProcedure {
             }) => Ok(()),
             Err(e) => Err(e),
         }?;
-        cmd.args(self.docker_args(ctx, pkg_id, pkg_version, volumes).await?);
+        cmd.args(self.docker_args(&seed, &seed.manifest.volumes).await?);
         let input_buf = if let (Some(input), Some(format)) = (&input, &self.io_format) {
             cmd.stdin(std::process::Stdio::piped());
             Some(format.to_vec(input)?)
@@ -554,17 +540,14 @@ impl DockerProcedure {
     #[instrument(skip_all)]
     pub async fn sandboxed<I: Serialize, O: DeserializeOwned>(
         &self,
-        ctx: &RpcContext,
-        pkg_id: &PackageId,
-        pkg_version: &Version,
-        volumes: &Volumes,
+        seed: &ManagerSeed,
         input: Option<I>,
         timeout: Option<Duration>,
     ) -> Result<Result<O, (i32, String)>, Error> {
         let mut cmd = tokio::process::Command::new("docker");
         cmd.arg("run").arg("--rm").arg("--network=none");
         cmd.args(
-            self.docker_args(ctx, pkg_id, pkg_version, &volumes.to_readonly())
+            self.docker_args(seed, &seed.manifest.volumes.to_readonly())
                 .await?,
         );
         let input_buf = if let (Some(input), Some(format)) = (&input, &self.io_format) {
@@ -663,7 +646,7 @@ impl DockerProcedure {
         )
     }
 
-    pub fn container_name(pkg_id: &PackageId, name: Option<&str>) -> String {
+    pub fn container_name(pkg_id: &PackageId, name: Option<String>) -> String {
         if let Some(name) = name {
             format!("{}_{}.{}", pkg_id, name, NET_TLD)
         } else {
@@ -683,19 +666,23 @@ impl DockerProcedure {
 
     async fn docker_args(
         &self,
-        ctx: &RpcContext,
-        pkg_id: &PackageId,
-        pkg_version: &Version,
+        seed: &ManagerSeed,
         volumes: &Volumes,
     ) -> Result<Vec<Cow<'_, OsStr>>, Error> {
         let mut res = self.new_docker_args();
+
         for (volume_id, dst) in &self.mounts {
             let volume = if let Some(v) = volumes.get(volume_id) {
                 v
             } else {
                 continue;
             };
-            let src = volume.path_for(&ctx.datadir, pkg_id, pkg_version, volume_id);
+            let src = volume.path_for(
+                &seed.ctx.datadir,
+                &seed.manifest.id,
+                &seed.manifest.version,
+                volume_id,
+            );
             if let Err(_e) = tokio::fs::metadata(&src).await {
                 tokio::fs::create_dir_all(&src).await?;
             }
@@ -747,7 +734,13 @@ impl DockerProcedure {
         if self.system {
             res.push(OsString::from(self.image.for_package(&*SYSTEM_PACKAGE_ID, None)).into());
         } else {
-            res.push(OsString::from(self.image.for_package(pkg_id, Some(pkg_version))).into());
+            res.push(
+                OsString::from(
+                    self.image
+                        .for_package(&seed.manifest.id, Some(&seed.manifest.version)),
+                )
+                .into(),
+            );
         }
 
         res.extend(self.args.iter().map(|s| OsStr::new(s).into()));
@@ -807,23 +800,24 @@ impl<T> RingVec<T> {
 /// Also the long running let's us have the ability to start/ end the services quicker.
 pub struct LongRunning {
     pub running_output: NonDetachingJoinHandle<()>,
+    pub rpc_client: Arc<UnixRpcClient>,
 }
 
 impl LongRunning {
     async fn setup_long_running_docker_cmd(
         docker: &DockerContainer,
-        ctx: &RpcContext,
+        seed: &ManagerSeed,
         container_name: &str,
-        volumes: &Volumes,
-        pkg_id: &PackageId,
-        pkg_version: &Version,
         socket_path: &Path,
     ) -> Result<tokio::process::Command, Error> {
         const INIT_EXEC: &str = "/start9/bin/embassy_container_init";
         const BIND_LOCATION: &str = "/usr/lib/embassy/container/";
         tracing::trace!("setup_long_running_docker_cmd");
 
-        LongRunning::cleanup_previous_container(ctx, container_name).await?;
+        LongRunning::cleanup_previous_container(&seed.ctx, container_name).await?;
+        let package_id = &seed.manifest.id;
+        let package_version = &seed.manifest.version;
+        let volumes = &seed.manifest.volumes;
 
         let image_architecture = {
             let mut cmd = tokio::process::Command::new("docker");
@@ -835,11 +829,14 @@ impl LongRunning {
             if docker.system {
                 cmd.arg(docker.image.for_package(&*SYSTEM_PACKAGE_ID, None));
             } else {
-                cmd.arg(docker.image.for_package(pkg_id, Some(pkg_version)));
+                cmd.arg(docker.image.for_package(package_id, Some(package_version)));
             }
             let arch = String::from_utf8(cmd.output().await?.stdout)?;
             arch.replace('\'', "").trim().to_string()
         };
+        // TODO BLUJ Need to make sure we use the location for rpc
+        // TODO BLUJ need to use the libs location that was built  and included?
+        // TODO BLUJ
 
         let mut cmd = tokio::process::Command::new("docker");
         cmd.arg("run")
@@ -857,8 +854,6 @@ impl LongRunning {
             .arg("--name")
             .arg(&container_name)
             .arg(format!("--hostname={}", &container_name))
-            .arg("--entrypoint")
-            .arg(format!("{INIT_EXEC}.{image_architecture}"))
             .arg("-i")
             .arg("--rm")
             .kill_on_drop(true);
@@ -869,7 +864,7 @@ impl LongRunning {
             } else {
                 continue;
             };
-            let src = volume.path_for(&ctx.datadir, pkg_id, pkg_version, volume_id);
+            let src = volume.path_for(&seed.ctx.datadir, package_id, package_version, volume_id);
             if let Err(_e) = tokio::fs::metadata(&src).await {
                 tokio::fs::create_dir_all(&src).await?;
             }
@@ -887,8 +882,9 @@ impl LongRunning {
         if docker.system {
             cmd.arg(docker.image.for_package(&*SYSTEM_PACKAGE_ID, None));
         } else {
-            cmd.arg(docker.image.for_package(pkg_id, Some(pkg_version)));
+            cmd.arg(docker.image.for_package(package_id, Some(package_version)));
         }
+        cmd.arg("sh").arg("-c").arg("node /start-init/bundleEs.js");
         cmd.stdout(std::process::Stdio::piped());
         cmd.stderr(std::process::Stdio::inherit());
         cmd.stdin(std::process::Stdio::piped());

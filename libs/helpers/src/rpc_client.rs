@@ -131,23 +131,24 @@ impl RpcClient {
     }
 }
 
+type PoolGenerator = Box<dyn Fn() -> PoolReturn + Send + Sync>;
+
+type PoolReturn = BoxFuture<'static, Result<RpcClient, std::io::Error>>;
+
 pub struct UnixRpcClient {
-    pool: Pool<
-        RpcClient,
-        Box<dyn Fn() -> BoxFuture<'static, Result<RpcClient, std::io::Error>> + Send + Sync>,
-        BoxFuture<'static, Result<RpcClient, std::io::Error>>,
-        std::io::Error,
-    >,
+    pool: Pool<RpcClient, PoolGenerator, PoolReturn, std::io::Error>,
+    path: PathBuf,
 }
 impl UnixRpcClient {
     pub fn new(path: PathBuf) -> Self {
         let rt = Handle::current();
         let id = Arc::new(AtomicUsize::new(0));
+        let path_down = path.clone();
         Self {
             pool: Pool::new(
                 0,
                 Box::new(move || {
-                    let path = path.clone();
+                    let path = path_down.clone();
                     let id = id.clone();
                     rt.spawn(async move {
                         let (r, w) = UnixStream::connect(&path).await?.into_split();
@@ -158,6 +159,7 @@ impl UnixRpcClient {
                     .boxed()
                 }),
             ),
+            path,
         }
     }
 
@@ -172,7 +174,7 @@ impl UnixRpcClient {
         T::Response: for<'de> Deserialize<'de>,
     {
         let mut tries = 0;
-        let res = loop {
+        loop {
             tries += 1;
             let mut client = self.pool.clone().get().await?;
             let res = client.request(method.clone(), params.clone()).await;
@@ -186,7 +188,10 @@ impl UnixRpcClient {
                 tracing::warn!("Max Tries exceeded");
                 break res;
             }
-        };
-        res
+        }
+    }
+
+    pub fn path(&self) -> &PathBuf {
+        &self.path
     }
 }

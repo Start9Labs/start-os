@@ -64,7 +64,7 @@ use self::manager_seed::ManagerSeed;
 pub const HEALTH_CHECK_COOLDOWN_SECONDS: u64 = 15;
 pub const HEALTH_CHECK_GRACE_PERIOD_SECONDS: u64 = 5;
 
-type ManagerPersistentContainer = Arc<Option<PersistentContainer>>;
+type ManagerPersistentContainer = Arc<PersistentContainer>;
 type BackupGuard = Arc<Mutex<BackupMountGuard<TmpMountGuard>>>;
 pub enum BackupReturn {
     Error(Error),
@@ -216,10 +216,8 @@ impl Manager {
         send_signal(self, gid, signal).await
     }
 
-    pub fn rpc_client(&self) -> Option<Arc<UnixRpcClient>> {
-        (*self.persistent_container)
-            .as_ref()
-            .map(|x| x.rpc_client())
+    pub fn rpc_client(&self) -> Arc<UnixRpcClient> {
+        self.persistent_container.rpc_client.clone()
     }
 
     fn _transition_abort(&self) {
@@ -745,20 +743,6 @@ async fn start_up_image(seed: Arc<ManagerSeed>) -> Result<Result<NoOutput, (i32,
     //         None,
     //     )
     //     .await
-}
-
-async fn long_running_docker(
-    seed: &ManagerSeed,
-    container: &DockerContainer,
-) -> Result<(LongRunning, UnixRpcClient), Error> {
-    container
-        .long_running_execute(
-            &seed.ctx,
-            &seed.manifest.id,
-            &seed.manifest.version,
-            &seed.manifest.volumes,
-        )
-        .await
 }
 
 enum GetRunningIp {

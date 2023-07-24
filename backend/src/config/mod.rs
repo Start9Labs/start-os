@@ -392,7 +392,7 @@ impl ConfigReceipts {
             .package_data()
             .star()
             .installed()
-            .and_then(|x| x.manifest().containers())
+            .map(|x| x.manifest().containers())
             .make_locker(LockType::Write)
             .add_to_keys(locks);
 

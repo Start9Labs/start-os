@@ -58,7 +58,7 @@ pub struct Manifest {
     #[model]
     pub dependencies: Dependencies,
     #[model]
-    pub containers: Option<DockerContainers>,
+    pub containers: DockerContainers,
 
     #[serde(default)]
     pub replaces: Vec<String>,
