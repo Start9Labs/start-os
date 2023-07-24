@@ -75,6 +75,9 @@ jobs:
         )[github.event.inputs.runner == 'fast']
       }}
     steps:
+      - name: Free space
+        run: df -h && rm -rf /opt/hostedtoolcache* && df -h
+
       - run: |
           sudo mount -t tmpfs tmpfs .
         if: ${{ github.event.inputs.runner == 'fast' && (matrix.platform == 'x86_64' || matrix.platform == 'x86_64-nonfree' || github.event.inputs.platform == matrix.platform) }}

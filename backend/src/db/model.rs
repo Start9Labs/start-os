@@ -107,6 +107,7 @@ pub struct ServerInfo {
     pub lan_address: Url,
     pub tor_address: Url,
     #[model]
+    #[serde(default)]
     pub ip_info: BTreeMap<String, IpInfo>,
     #[model]
     #[serde(default)]
