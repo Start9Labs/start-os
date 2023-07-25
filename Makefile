@@ -183,7 +183,7 @@ frontends: $(EMBASSY_UIS)
 ui: frontend/dist/raw/ui
 
 # used by github actions
-backend: $(EMBASSY_BINS
+backend: $(EMBASSY_BINS)
 
 cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep:
 	ARCH=aarch64 ./build-cargo-dep.sh pi-beep
