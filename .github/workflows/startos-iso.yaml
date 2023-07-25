@@ -75,6 +75,9 @@ jobs:
         )[github.event.inputs.runner == 'fast']
       }}
     steps:
+      - name: Free space
+        run: df -h && rm -rf /opt/hostedtoolcache* && df -h
+
       - run: |
           sudo mount -t tmpfs tmpfs .
         if: ${{ github.event.inputs.runner == 'fast' && (matrix.platform == 'x86_64' || matrix.platform == 'x86_64-nonfree' || github.event.inputs.platform == matrix.platform) }}
@@ -103,7 +106,7 @@ jobs:
         id: npm-cache-dir
         run: |
           echo "dir=$(npm config get cache)" >> $GITHUB_OUTPUT
-      - uses: buildjet/cache@v3
+      - uses: actions/cache@v3
         id: npm-cache
         with:
           path: ${{ steps.npm-cache-dir.outputs.dir }}
@@ -153,7 +156,7 @@ jobs:
       - run: sudo mount -t tmpfs tmpfs /var/tmp/debspawn
         if: ${{ github.event.inputs.runner == 'fast' && (matrix.platform == 'x86_64' || matrix.platform == 'x86_64-nonfree') }}
 
-      - uses: buildjet/cache@v3
+      - uses: actions/cache@v3
         with:
           path: /var/lib/debspawn
           key: ${{ runner.os }}-${{ matrix.platform }}-debspawn-init
@@ -162,7 +165,7 @@ jobs:
 
       - run: "mv embassy-os-deb/embassyos_0.3.x-1_*.deb startos-image-recipes/overlays/deb/"
 
-      - run: "rm -rf embassy-os-deb"
+      - run: "rm -rf embassy-os-deb ${{ steps.npm-cache-dir.outputs.dir }} $HOME/.cargo"
 
       - name: Run iso build
         working-directory: startos-image-recipes
