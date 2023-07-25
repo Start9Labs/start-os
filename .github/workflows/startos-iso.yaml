@@ -67,8 +67,8 @@ jobs:
             fromJson('{
               "x86_64": ["buildjet-32vcpu-ubuntu-2204", "buildjet-32vcpu-ubuntu-2204"],
               "x86_64-nonfree": ["buildjet-32vcpu-ubuntu-2204", "buildjet-32vcpu-ubuntu-2204"],
-              "aarch64": ["buildjet-8vcpu-ubuntu-2204-arm", "buildjet-32vcpu-ubuntu-2204-arm"],
-              "aarch64-nonfree": ["buildjet-8vcpu-ubuntu-2204-arm", "buildjet-32vcpu-ubuntu-2204-arm"],
+              "aarch64": ["buildjet-16vcpu-ubuntu-2204-arm", "buildjet-32vcpu-ubuntu-2204-arm"],
+              "aarch64-nonfree": ["buildjet-16vcpu-ubuntu-2204-arm", "buildjet-32vcpu-ubuntu-2204-arm"],
               "raspberrypi": ["buildjet-16vcpu-ubuntu-2204-arm", "buildjet-32vcpu-ubuntu-2204-arm"],
             }')[matrix.platform][github.event.inputs.platform == matrix.platform]
           )
@@ -77,6 +77,7 @@ jobs:
     steps:
       - name: Free space
         run: df -h && rm -rf /opt/hostedtoolcache* && df -h
+        if: ${{ github.event.inputs.runner != 'fast' }}
 
       - run: |
           sudo mount -t tmpfs tmpfs .
