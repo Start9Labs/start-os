@@ -21,6 +21,11 @@ import {
   GenericInputComponent,
   GenericInputOptions,
 } from 'src/app/apps/ui/modals/generic-input/generic-input.component'
+import { FormDialogService } from 'src/app/services/form-dialog.service'
+import { FormPage } from '../../../modals/form/form.page'
+import { Config } from '@start9labs/start-sdk/lib/config/builder/config'
+import { Value } from '@start9labs/start-sdk/lib/config/builder/value'
+import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
 import { ConfigService } from 'src/app/services/config.service'
 import { DOCUMENT } from '@angular/common'
 import { getServerInfo } from 'src/app/util/get-server-info'
@@ -57,6 +62,7 @@ export class ServerShowPage {
     private readonly authService: AuthService,
     private readonly toastCtrl: ToastController,
     private readonly config: ConfigService,
+    private readonly formDialog: FormDialogService,
     @Inject(DOCUMENT) private readonly document: Document,
   ) {}
 
@@ -121,44 +127,36 @@ export class ServerShowPage {
   }
 
   async presentModalResetPassword(): Promise<void> {
-    const modal = await this.modalCtrl.create({
-      component: GenericFormPage,
-      componentProps: {
-        title: 'Change Master Password',
-        spec: PasswordSpec,
+    this.formDialog.open(FormPage, {
+      label: 'Change Master Password',
+      data: {
+        spec: await configBuilderToSpec(passwordSpec),
         buttons: [
           {
             text: 'Save',
-            handler: (value: any) => {
-              return this.resetPassword(value)
-            },
-            isSubmit: true,
+            handler: (value: PasswordSpec) => this.resetPassword(value),
           },
         ],
       },
     })
-    await modal.present()
   }
 
-  private async resetPassword(value: {
-    currPass: string
-    newPass: string
-    newPass2: string
-  }): Promise<boolean> {
+  private async resetPassword(value: PasswordSpec): Promise<boolean> {
+    console.log(value)
     let err = ''
 
-    if (value.newPass !== value.newPass2) {
+    if (value.newPassword1 !== value.newPassword2) {
       err = 'New passwords do not match'
-    } else if (value.newPass.length < 12) {
+    } else if (value.newPassword1.length < 12) {
       err = 'New password must be 12 characters or greater'
-    } else if (value.newPass.length > 64) {
+    } else if (value.newPassword1.length > 64) {
       err = 'New password must be less than 65 characters'
     }
 
     // confirm current password is correct
     const { 'password-hash': passwordHash } = await getServerInfo(this.patch)
     try {
-      argon2.verify(passwordHash, value.currPass)
+      argon2.verify(passwordHash, value.currentPassword)
     } catch (e) {
       err = 'Current password is invalid'
     }
@@ -175,8 +173,8 @@ export class ServerShowPage {
 
     try {
       await this.embassyApi.resetPassword({
-        'old-password': value.currPass,
-        'new-password': value.newPass,
+        'old-password': value.currentPassword,
+        'new-password': value.newPassword1,
       })
       const toast = await this.toastCtrl.create({
         header: 'Password changed!',
@@ -721,29 +719,28 @@ interface SettingBtn {
   disabled$: Observable<boolean>
 }
 
-const PasswordSpec: ConfigSpec = {
-  currPass: {
-    type: 'string',
+export const passwordSpec = Config.of({
+  currentPassword: Value.text({
     name: 'Current Password',
-    placeholder: 'CurrentPass',
-    nullable: false,
+    required: {
+      default: null,
+    },
     masked: true,
-    copyable: false,
-  },
-  newPass: {
-    type: 'string',
+  }),
+  newPassword1: Value.text({
     name: 'New Password',
-    placeholder: 'NewPass',
-    nullable: false,
+    required: {
+      default: null,
+    },
     masked: true,
-    copyable: false,
-  },
-  newPass2: {
-    type: 'string',
+  }),
+  newPassword2: Value.text({
     name: 'Retype New Password',
-    placeholder: 'NewPass',
-    nullable: false,
+    required: {
+      default: null,
+    },
     masked: true,
-    copyable: false,
-  },
-}
+  }),
+})
+
+type PasswordSpec = typeof passwordSpec.validator._TYPE
