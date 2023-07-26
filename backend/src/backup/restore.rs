@@ -109,7 +109,7 @@ async fn approximate_progress(
         if tokio::fs::metadata(&dir).await.is_err() {
             *size = 0;
         } else {
-            *size = dir_size(&dir).await?;
+            *size = dir_size(&dir, None).await?;
         }
     }
     Ok(())
@@ -285,7 +285,7 @@ async fn restore_packages(
         progress_info.package_installs.insert(id.clone(), progress);
         progress_info
             .src_volume_size
-            .insert(id.clone(), dir_size(backup_dir(&id)).await?);
+            .insert(id.clone(), dir_size(backup_dir(&id), None).await?);
         progress_info.target_volume_size.insert(id.clone(), 0);
         let package_id = id.clone();
         tasks.push(
@@ -444,7 +444,6 @@ async fn restore_package<'a>(
         progress.clone(),
         async move {
             download_install_s9pk(&ctx, &manifest, None, progress, file, None).await?;
-
             guard.unmount().await?;
 
             Ok(())

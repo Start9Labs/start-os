@@ -3,15 +3,16 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use color_eyre::eyre::eyre;
-use embassy::context::{DiagnosticContext, RpcContext};
-use embassy::net::web_server::WebServer;
-use embassy::shutdown::Shutdown;
-use embassy::system::launch_metrics_task;
-use embassy::util::logger::EmbassyLogger;
-use embassy::{Error, ErrorKind, ResultExt};
 use futures::{FutureExt, TryFutureExt};
 use tokio::signal::unix::signal;
 use tracing::instrument;
+
+use crate::context::{DiagnosticContext, RpcContext};
+use crate::net::web_server::WebServer;
+use crate::shutdown::Shutdown;
+use crate::system::launch_metrics_task;
+use crate::util::logger::EmbassyLogger;
+use crate::{Error, ErrorKind, ResultExt};
 
 #[instrument(skip_all)]
 async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error> {
@@ -26,7 +27,7 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
             ),
         )
         .await?;
-        embassy::hostname::sync_hostname(&rpc_ctx.account.read().await.hostname).await?;
+        crate::hostname::sync_hostname(&rpc_ctx.account.read().await.hostname).await?;
         let server = WebServer::main(
             SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 80),
             rpc_ctx.clone(),
@@ -71,7 +72,7 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
             .await
         });
 
-        embassy::sound::CHIME.play().await?;
+        crate::sound::CHIME.play().await?;
 
         metrics_task
             .map_err(|e| {
@@ -100,8 +101,15 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
     Ok(shutdown)
 }
 
-fn main() {
-    let matches = clap::App::new("embassyd")
+pub fn main() {
+    EmbassyLogger::init();
+
+    if !Path::new("/run/embassy/initialized").exists() {
+        super::start_init::main();
+        std::fs::write("/run/embassy/initialized", "").unwrap();
+    }
+
+    let matches = clap::App::new("startd")
         .arg(
             clap::Arg::with_name("config")
                 .short('c')
@@ -109,8 +117,6 @@ fn main() {
                 .takes_value(true),
         )
         .get_matches();
-
-    EmbassyLogger::init();
 
     let cfg_path = matches.value_of("config").map(|p| Path::new(p).to_owned());
 
@@ -126,7 +132,7 @@ fn main() {
                     async {
                         tracing::error!("{}", e.source);
                         tracing::debug!("{:?}", e.source);
-                        embassy::sound::BEETHOVEN.play().await?;
+                        crate::sound::BEETHOVEN.play().await?;
                         let ctx = DiagnosticContext::init(
                             cfg_path,
                             if tokio::fs::metadata("/media/embassy/config/disk.guid")

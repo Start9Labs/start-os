@@ -39,6 +39,7 @@ use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::guard::TmpMountGuard;
 use crate::install::cleanup::remove_from_current_dependents_lists;
 use crate::net::net_controller::NetService;
+use crate::net::vhost::AlpnInfo;
 use crate::procedure::docker::{DockerContainer, DockerProcedure, LongRunning};
 use crate::procedure::{NoOutput, ProcedureName};
 use crate::s9pk::manifest::Manifest;
@@ -267,7 +268,6 @@ impl Manager {
             let _ = manage_container
                 .set_override(Some(get_status(&mut tx, &seed.manifest).await.backing_up()));
             manage_container.wait_for_desired(StartStop::Stop).await;
-
             let backup_guard = backup_guard.lock().await;
             let guard = backup_guard.mount_package_backup(&seed.manifest.id).await?;
 
@@ -825,8 +825,14 @@ async fn add_network_for_main(
     let mut tx = secrets.begin().await?;
     for (id, interface) in &seed.manifest.interfaces.0 {
         for (external, internal) in interface.lan_config.iter().flatten() {
-            svc.add_lan(&mut tx, id.clone(), external.0, internal.internal, false)
-                .await?;
+            svc.add_lan(
+                &mut tx,
+                id.clone(),
+                external.0,
+                internal.internal,
+                Err(AlpnInfo::Specified(vec![])),
+            )
+            .await?;
         }
         for (external, internal) in interface.tor_config.iter().flat_map(|t| &t.port_mapping) {
             svc.add_tor(&mut tx, id.clone(), external.0, internal.0)

@@ -2,7 +2,9 @@ use std::future::Future;
 use std::io::Cursor;
 use std::os::unix::prelude::MetadataExt;
 use std::path::Path;
+use std::sync::atomic::AtomicU64;
 use std::task::Poll;
+use std::time::Duration;
 
 use futures::future::{BoxFuture, Fuse};
 use futures::{AsyncSeek, FutureExt, TryStreamExt};
@@ -11,6 +13,8 @@ use nix::unistd::{Gid, Uid};
 use tokio::io::{
     duplex, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf, WriteHalf,
 };
+use tokio::net::TcpStream;
+use tokio::time::{Instant, Sleep};
 
 use crate::ResultExt;
 
@@ -224,6 +228,7 @@ pub async fn copy_and_shutdown<R: AsyncRead + Unpin, W: AsyncWrite + Unpin>(
 
 pub fn dir_size<'a, P: AsRef<Path> + 'a + Send + Sync>(
     path: P,
+    ctr: Option<&'a Counter>,
 ) -> BoxFuture<'a, Result<u64, std::io::Error>> {
     async move {
         tokio_stream::wrappers::ReadDirStream::new(tokio::fs::read_dir(path.as_ref()).await?)
@@ -231,9 +236,12 @@ pub fn dir_size<'a, P: AsRef<Path> + 'a + Send + Sync>(
                 let m = e.metadata().await?;
                 Ok(acc
                     + if m.is_file() {
+                        if let Some(ctr) = ctr {
+                            ctr.add(m.len());
+                        }
                         m.len()
                     } else if m.is_dir() {
-                        dir_size(e.path()).await?
+                        dir_size(e.path(), ctr).await?
                     } else {
                         0
                     })
@@ -419,9 +427,60 @@ impl<T: AsyncWrite> AsyncWrite for BackTrackingReader<T> {
     }
 }
 
+pub struct Counter {
+    atomic: AtomicU64,
+    ordering: std::sync::atomic::Ordering,
+}
+impl Counter {
+    pub fn new(init: u64, ordering: std::sync::atomic::Ordering) -> Self {
+        Self {
+            atomic: AtomicU64::new(init),
+            ordering,
+        }
+    }
+    pub fn load(&self) -> u64 {
+        self.atomic.load(self.ordering)
+    }
+    pub fn add(&self, value: u64) {
+        self.atomic.fetch_add(value, self.ordering);
+    }
+}
+
+#[pin_project::pin_project]
+pub struct CountingReader<'a, R> {
+    ctr: &'a Counter,
+    #[pin]
+    rdr: R,
+}
+impl<'a, R> CountingReader<'a, R> {
+    pub fn new(rdr: R, ctr: &'a Counter) -> Self {
+        Self { ctr, rdr }
+    }
+    pub fn into_inner(self) -> R {
+        self.rdr
+    }
+}
+impl<'a, R: AsyncRead> AsyncRead for CountingReader<'a, R> {
+    fn poll_read(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        let this = self.project();
+        let start = buf.filled().len();
+        let res = this.rdr.poll_read(cx, buf);
+        let len = buf.filled().len() - start;
+        if len > 0 {
+            this.ctr.add(len as u64);
+        }
+        res
+    }
+}
+
 pub fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + Send + Sync>(
     src: P0,
     dst: P1,
+    ctr: Option<&'a Counter>,
 ) -> BoxFuture<'a, Result<(), crate::Error>> {
     async move {
         let m = tokio::fs::metadata(&src).await?;
@@ -464,23 +523,23 @@ pub fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + S
                 let dst_path = dst_path.join(e.file_name());
                 if m.is_file() {
                     let len = m.len();
-                    let mut dst_file =
-                        &mut tokio::fs::File::create(&dst_path).await.with_ctx(|_| {
-                            (
-                                crate::ErrorKind::Filesystem,
-                                format!("create {}", dst_path.display()),
-                            )
-                        })?;
-                    tokio::io::copy(
-                        &mut tokio::fs::File::open(&src_path).await.with_ctx(|_| {
-                            (
-                                crate::ErrorKind::Filesystem,
-                                format!("open {}", src_path.display()),
-                            )
-                        })?,
-                        &mut dst_file,
-                    )
-                    .await
+                    let mut dst_file = tokio::fs::File::create(&dst_path).await.with_ctx(|_| {
+                        (
+                            crate::ErrorKind::Filesystem,
+                            format!("create {}", dst_path.display()),
+                        )
+                    })?;
+                    let mut rdr = tokio::fs::File::open(&src_path).await.with_ctx(|_| {
+                        (
+                            crate::ErrorKind::Filesystem,
+                            format!("open {}", src_path.display()),
+                        )
+                    })?;
+                    if let Some(ctr) = ctr {
+                        tokio::io::copy(&mut CountingReader::new(rdr, ctr), &mut dst_file).await
+                    } else {
+                        tokio::io::copy(&mut rdr, &mut dst_file).await
+                    }
                     .with_ctx(|_| {
                         (
                             crate::ErrorKind::Filesystem,
@@ -508,7 +567,7 @@ pub fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + S
                         )
                     })?;
                 } else if m.is_dir() {
-                    dir_copy(src_path, dst_path).await?;
+                    dir_copy(src_path, dst_path, ctr).await?;
                 } else if m.file_type().is_symlink() {
                     tokio::fs::symlink(
                         tokio::fs::read_link(&src_path).await.with_ctx(|_| {
@@ -534,4 +593,78 @@ pub fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + S
         Ok(())
     }
     .boxed()
+}
+
+#[pin_project::pin_project]
+pub struct TimeoutStream<S: AsyncRead + AsyncWrite = TcpStream> {
+    timeout: Duration,
+    #[pin]
+    sleep: Sleep,
+    #[pin]
+    stream: S,
+}
+impl<S: AsyncRead + AsyncWrite> TimeoutStream<S> {
+    pub fn new(stream: S, timeout: Duration) -> Self {
+        Self {
+            timeout,
+            sleep: tokio::time::sleep(timeout),
+            stream,
+        }
+    }
+}
+impl<S: AsyncRead + AsyncWrite> AsyncRead for TimeoutStream<S> {
+    fn poll_read(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut tokio::io::ReadBuf<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        let mut this = self.project();
+        if let std::task::Poll::Ready(_) = this.sleep.as_mut().poll(cx) {
+            return std::task::Poll::Ready(Err(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                "timed out",
+            )));
+        }
+        let res = this.stream.poll_read(cx, buf);
+        if res.is_ready() {
+            this.sleep.reset(Instant::now() + *this.timeout);
+        }
+        res
+    }
+}
+impl<S: AsyncRead + AsyncWrite> AsyncWrite for TimeoutStream<S> {
+    fn poll_write(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &[u8],
+    ) -> std::task::Poll<Result<usize, std::io::Error>> {
+        let mut this = self.project();
+        let res = this.stream.poll_write(cx, buf);
+        if res.is_ready() {
+            this.sleep.reset(Instant::now() + *this.timeout);
+        }
+        res
+    }
+    fn poll_flush(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), std::io::Error>> {
+        let mut this = self.project();
+        let res = this.stream.poll_flush(cx);
+        if res.is_ready() {
+            this.sleep.reset(Instant::now() + *this.timeout);
+        }
+        res
+    }
+    fn poll_shutdown(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), std::io::Error>> {
+        let mut this = self.project();
+        let res = this.stream.poll_shutdown(cx);
+        if res.is_ready() {
+            this.sleep.reset(Instant::now() + *this.timeout);
+        }
+        res
+    }
 }

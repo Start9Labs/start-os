@@ -19,8 +19,8 @@ use clap::{App, Arg, SubCommand};
 use config::{
     apply_dependency_configuration, validate_configuration, validate_dependency_configuration,
 };
-use embassy::config::action::ConfigRes;
 use serde_json::json;
+use startos::config::action::ConfigRes;
 
 const PROPERTIES_FALLBACK_MESSAGE: &str =
     "Could not find properties. The service might still be starting";

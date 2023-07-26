@@ -61,17 +61,16 @@ impl ManageContainer {
 
     pub fn set_override(&self, override_status: Option<MainStatus>) -> GeneralBoxedGuard {
         self.override_main_status
-            .send(override_status)
-            .unwrap_or_default();
+            .send_modify(|x| *x = override_status);
         let override_main_status = self.override_main_status.clone();
         let guard = GeneralBoxedGuard::new(move || {
-            override_main_status.send(None).unwrap_or_default();
+            override_main_status.send_modify(|x| *x = None);
         });
         guard
     }
 
     pub fn to_desired(&self, new_state: StartStop) {
-        self.desired_state.send(new_state).unwrap_or_default();
+        self.desired_state.send_modify(|x| *x = new_state);
     }
 
     pub async fn wait_for_desired(&self, new_state: StartStop) {
@@ -123,7 +122,7 @@ async fn create_service_manager(
                         }
                     }
                 }
-                current_state.send(StartStop::Stop).unwrap_or_default();
+                current_state.send_modify(|x| *x = StartStop::Stop);
             }
             (StartStop::Stop, StartStop::Start) => starting_service(
                 current_state.clone(),
@@ -201,10 +200,10 @@ fn starting_service(
     let set_running = {
         let current_state = current_state.clone();
         Arc::new(move || {
-            current_state.send(StartStop::Start).unwrap_or_default();
+            current_state.send_modify(|x| *x = StartStop::Start);
         })
     };
-    let set_stopped = { move || current_state.send(StartStop::Stop) };
+    let set_stopped = { move || current_state.send_modify(|x| *x = StartStop::Stop) };
     let running_main_loop = async move {
         while desired_state.borrow().is_start() {
             let result = run_main(
@@ -213,7 +212,7 @@ fn starting_service(
                 set_running.clone(),
             )
             .await;
-            set_stopped().unwrap_or_default();
+            set_stopped();
             run_main_log_result(result, seed.clone()).await;
         }
     };
