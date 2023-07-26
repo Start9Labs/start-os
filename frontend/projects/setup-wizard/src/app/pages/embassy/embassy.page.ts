@@ -155,7 +155,6 @@ export class EmbassyPage {
       await this.navCtrl.navigateForward(`/loading`)
     } catch (e: any) {
       this.errorToastService.present(e)
-      console.error(e)
     } finally {
       loader.dismiss()
     }

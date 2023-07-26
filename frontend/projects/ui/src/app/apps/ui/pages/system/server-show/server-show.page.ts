@@ -1,10 +1,9 @@
-import { DOCUMENT } from '@angular/common'
 import { Component, Inject } from '@angular/core'
 import {
   AlertController,
   LoadingController,
-  NavController,
   ModalController,
+  NavController,
   ToastController,
 } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -23,6 +22,9 @@ import {
   GenericInputOptions,
 } from 'src/app/apps/ui/modals/generic-input/generic-input.component'
 import { ConfigService } from 'src/app/services/config.service'
+import { DOCUMENT } from '@angular/common'
+import { getServerInfo } from 'src/app/util/get-server-info'
+import * as argon2 from '@start9labs/argon2'
 
 @Component({
   selector: 'server-show',
@@ -38,6 +40,8 @@ export class ServerShowPage {
   readonly showDiskRepair$ = this.ClientStorageService.showDiskRepair$
 
   readonly secure = this.config.isSecure()
+  readonly isTorHttp =
+    this.config.isTor() && this.document.location.protocol === 'http:'
 
   constructor(
     private readonly alertCtrl: AlertController,
@@ -94,7 +98,103 @@ export class ServerShowPage {
     await modal.present()
   }
 
-  private async updateEos(): Promise<void> {
+  async presentAlertResetPassword() {
+    const alert = await this.alertCtrl.create({
+      header: 'Warning',
+      message:
+        'You will still need your current password to decrypt existing backups!',
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel',
+        },
+        {
+          text: 'Continue',
+          handler: () => this.presentModalResetPassword(),
+          cssClass: 'enter-click',
+        },
+      ],
+      cssClass: 'alert-warning-message',
+    })
+
+    await alert.present()
+  }
+
+  async presentModalResetPassword(): Promise<void> {
+    const modal = await this.modalCtrl.create({
+      component: GenericFormPage,
+      componentProps: {
+        title: 'Change Master Password',
+        spec: PasswordSpec,
+        buttons: [
+          {
+            text: 'Save',
+            handler: (value: any) => {
+              return this.resetPassword(value)
+            },
+            isSubmit: true,
+          },
+        ],
+      },
+    })
+    await modal.present()
+  }
+
+  private async resetPassword(value: {
+    currPass: string
+    newPass: string
+    newPass2: string
+  }): Promise<boolean> {
+    let err = ''
+
+    if (value.newPass !== value.newPass2) {
+      err = 'New passwords do not match'
+    } else if (value.newPass.length < 12) {
+      err = 'New password must be 12 characters or greater'
+    } else if (value.newPass.length > 64) {
+      err = 'New password must be less than 65 characters'
+    }
+
+    // confirm current password is correct
+    const { 'password-hash': passwordHash } = await getServerInfo(this.patch)
+    try {
+      argon2.verify(passwordHash, value.currPass)
+    } catch (e) {
+      err = 'Current password is invalid'
+    }
+
+    if (err) {
+      this.errToast.present(err)
+      return false
+    }
+
+    const loader = await this.loadingCtrl.create({
+      message: 'Changing master password...',
+    })
+    await loader.present()
+
+    try {
+      await this.embassyApi.resetPassword({
+        'old-password': value.currPass,
+        'new-password': value.newPass,
+      })
+      const toast = await this.toastCtrl.create({
+        header: 'Password changed!',
+        position: 'bottom',
+        duration: 2000,
+      })
+
+      toast.present()
+      return true
+    } catch (e: any) {
+      this.errToast.present(e)
+      return false
+    } finally {
+      loader.dismiss()
+    }
+  }
+
+  async updateEos(): Promise<void> {
     const modal = await this.modalCtrl.create({
       component: OSUpdatePage,
     })
@@ -369,11 +469,11 @@ export class ServerShowPage {
         disabled$: of(false),
       },
       {
-        title: 'LAN',
-        description: `Download and trust your server's certificate for a secure local connection`,
-        icon: 'home-outline',
+        title: 'Root CA',
+        description: `Download and trust your server's root certificate authority`,
+        icon: 'ribbon-outline',
         action: () =>
-          this.navCtrl.navigateForward(['lan'], { relativeTo: this.route }),
+          this.navCtrl.navigateForward(['root-ca'], { relativeTo: this.route }),
         detail: true,
         disabled$: of(false),
       },
@@ -415,6 +515,14 @@ export class ServerShowPage {
           }),
         detail: true,
         disabled$: of(false),
+      },
+      {
+        title: 'Change Master Password',
+        description: `Change your StartOS master password`,
+        icon: 'key-outline',
+        action: () => this.presentAlertResetPassword(),
+        detail: false,
+        disabled$: of(!this.secure),
       },
       {
         title: 'Experimental Features',
@@ -510,11 +618,7 @@ export class ServerShowPage {
         description: 'Get help from the Start9 team and community',
         icon: 'chatbubbles-outline',
         action: () =>
-          window.open(
-            'https://start9.com/contact',
-            '_blank',
-            'noreferrer',
-          ),
+          window.open('https://start9.com/contact', '_blank', 'noreferrer'),
         detail: true,
         disabled$: of(false),
       },
@@ -615,4 +719,31 @@ interface SettingBtn {
   action: Function
   detail: boolean
   disabled$: Observable<boolean>
+}
+
+const PasswordSpec: ConfigSpec = {
+  currPass: {
+    type: 'string',
+    name: 'Current Password',
+    placeholder: 'CurrentPass',
+    nullable: false,
+    masked: true,
+    copyable: false,
+  },
+  newPass: {
+    type: 'string',
+    name: 'New Password',
+    placeholder: 'NewPass',
+    nullable: false,
+    masked: true,
+    copyable: false,
+  },
+  newPass2: {
+    type: 'string',
+    name: 'Retype New Password',
+    placeholder: 'NewPass',
+    nullable: false,
+    masked: true,
+    copyable: false,
+  },
 }

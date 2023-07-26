@@ -14,7 +14,7 @@ fn log_str_error(action: &str, e: i32) {
     }
 }
 
-fn main() {
+pub fn main() {
     let aliases: Vec<_> = std::env::args().skip(1).collect();
     unsafe {
         let simple_poll = avahi_sys::avahi_simple_poll_new();

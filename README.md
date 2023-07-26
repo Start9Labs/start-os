@@ -32,6 +32,8 @@ To pursue this option, follow one of our [DIY guides](https://start9.com/latest/
 ## :heart: Contributing
 There are multiple ways to contribute: work directly on StartOS, package a service for the marketplace, or help with documentation and guides. To learn more about contributing, see [here](https://start9.com/contribute/).
 
+To report security issues, please email our security team - security@start9.com.
+
 ## UI Screenshots
 <p align="center">
 <img src="assets/StartOS.png" alt="StartOS" width="85%">

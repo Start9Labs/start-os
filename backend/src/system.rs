@@ -22,7 +22,7 @@ use crate::util::serde::{display_serializable, IoFormat};
 use crate::util::{display_none, Invoke};
 use crate::{Error, ErrorKind, ResultExt};
 
-pub const SYSTEMD_UNIT: &'static str = "embassyd";
+pub const SYSTEMD_UNIT: &'static str = "startd";
 
 #[command(subcommands(zram))]
 pub async fn experimental() -> Result<(), Error> {

@@ -324,11 +324,13 @@ pub async fn list(os: &OsPartitionInfo) -> Result<Vec<DiskInfo>, Error> {
         if index.internal {
             for part in index.parts {
                 let mut disk_info = disk_info(disk.clone()).await;
-                disk_info.logicalname = part;
+                let part_info = part_info(part).await;
+                disk_info.logicalname = part_info.logicalname.clone();
+                disk_info.capacity = part_info.capacity;
                 if let Some(g) = disk_guids.get(&disk_info.logicalname) {
                     disk_info.guid = g.clone();
                 } else {
-                    disk_info.partitions = vec![part_info(disk_info.logicalname.clone()).await];
+                    disk_info.partitions = vec![part_info];
                 }
                 res.push(disk_info);
             }
