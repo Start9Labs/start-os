@@ -106,6 +106,8 @@ export const mockPatchData: DataModel = {
       password: '',
       tls: true,
     },
+    'password-hash':
+      '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
   },
   'package-data': {
     bitcoind: Mock.bitcoind,

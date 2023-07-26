@@ -66,6 +66,7 @@ export interface ServerInfo {
   'system-start-time': string
   zram: boolean
   smtp: typeof customSmtp.validator._TYPE
+  'password-hash': string
 }
 
 export type StartOsUiInfo = {

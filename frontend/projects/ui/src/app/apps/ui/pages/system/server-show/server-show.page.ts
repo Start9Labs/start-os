@@ -1,11 +1,5 @@
 import { Component, Inject } from '@angular/core'
-import {
-  AlertController,
-  LoadingController,
-  ModalController,
-  NavController,
-  ToastController,
-} from '@ionic/angular'
+import { NavController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActivatedRoute } from '@angular/router'
 import { PatchDB } from 'patch-db-client'
@@ -17,6 +11,11 @@ import { OSUpdatePage } from './os-update/os-update.page'
 import { getAllPackages } from 'src/app/util/get-package-data'
 import { AuthService } from 'src/app/services/auth.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
+import { FormDialogService } from 'src/app/services/form-dialog.service'
+import { FormPage } from '../../../modals/form/form.page'
+import { Config } from '@start9labs/start-sdk/lib/config/builder/config'
+import { Value } from '@start9labs/start-sdk/lib/config/builder/value'
+import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
 import { ConfigService } from 'src/app/services/config.service'
 import { TuiAlertService, TuiDialogService } from '@taiga-ui/core'
 import { PROMPT } from 'src/app/apps/ui/modals/prompt/prompt.component'
@@ -56,6 +55,7 @@ export class ServerShowPage {
     private readonly authService: AuthService,
     private readonly alerts: TuiAlertService,
     private readonly config: ConfigService,
+    private readonly formDialog: FormDialogService,
     @Inject(DOCUMENT) private readonly document: Document,
   ) {}
 
@@ -98,107 +98,78 @@ export class ServerShowPage {
     this.dialogs.open(new PolymorpheusComponent(OSUpdatePage)).subscribe()
   }
 
-  async presentAlertResetPassword() {
-    const alert = await this.alertCtrl.create({
-      header: 'Warning',
-      message:
-        'You will still need your current password to decrypt existing backups!',
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
+  private presentAlertResetPassword() {
+    this.dialogs
+      .open(TUI_PROMPT, {
+        label: 'Warning',
+        size: 's',
+        data: {
+          content:
+            'You will still need your current password to decrypt existing backups!',
+          yes: 'Continue',
+          no: 'Cancel',
         },
-        {
-          text: 'Continue',
-          handler: () => this.presentModalResetPassword(),
-          cssClass: 'enter-click',
-        },
-      ],
-      cssClass: 'alert-warning-message',
-    })
-
-    await alert.present()
+      })
+      .pipe(filter(Boolean))
+      .subscribe(() => this.presentModalResetPassword())
   }
 
   async presentModalResetPassword(): Promise<void> {
-    const modal = await this.modalCtrl.create({
-      component: GenericFormPage,
-      componentProps: {
-        title: 'Change Master Password',
-        spec: PasswordSpec,
+    this.formDialog.open(FormPage, {
+      label: 'Change Master Password',
+      data: {
+        spec: await configBuilderToSpec(passwordSpec),
         buttons: [
           {
             text: 'Save',
-            handler: (value: any) => {
-              return this.resetPassword(value)
-            },
-            isSubmit: true,
+            handler: (value: PasswordSpec) => this.resetPassword(value),
           },
         ],
       },
     })
-    await modal.present()
   }
 
-  private async resetPassword(value: {
-    currPass: string
-    newPass: string
-    newPass2: string
-  }): Promise<boolean> {
+  private async resetPassword(value: PasswordSpec): Promise<boolean> {
     let err = ''
 
-    if (value.newPass !== value.newPass2) {
+    if (value.newPassword1 !== value.newPassword2) {
       err = 'New passwords do not match'
-    } else if (value.newPass.length < 12) {
+    } else if (value.newPassword1.length < 12) {
       err = 'New password must be 12 characters or greater'
-    } else if (value.newPass.length > 64) {
+    } else if (value.newPassword1.length > 64) {
       err = 'New password must be less than 65 characters'
     }
 
     // confirm current password is correct
     const { 'password-hash': passwordHash } = await getServerInfo(this.patch)
     try {
-      argon2.verify(passwordHash, value.currPass)
+      argon2.verify(passwordHash, value.currentPassword)
     } catch (e) {
       err = 'Current password is invalid'
     }
 
     if (err) {
-      this.errToast.present(err)
+      this.errorService.handleError(err)
       return false
     }
 
-    const loader = await this.loadingCtrl.create({
-      message: 'Changing master password...',
-    })
-    await loader.present()
+    const loader = this.loader.open('Saving...').subscribe()
 
     try {
       await this.embassyApi.resetPassword({
-        'old-password': value.currPass,
-        'new-password': value.newPass,
-      })
-      const toast = await this.toastCtrl.create({
-        header: 'Password changed!',
-        position: 'bottom',
-        duration: 2000,
+        'old-password': value.currentPassword,
+        'new-password': value.newPassword1,
       })
 
-      toast.present()
+      this.alerts.open('Password changed!').subscribe()
+
       return true
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
       return false
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
-  }
-
-  async updateEos(): Promise<void> {
-    const modal = await this.modalCtrl.create({
-      component: OSUpdatePage,
-    })
-    modal.present()
   }
 
   private presentAlertLogout() {
@@ -685,29 +656,28 @@ interface SettingBtn {
   disabled$: Observable<boolean>
 }
 
-const PasswordSpec: ConfigSpec = {
-  currPass: {
-    type: 'string',
+export const passwordSpec = Config.of({
+  currentPassword: Value.text({
     name: 'Current Password',
-    placeholder: 'CurrentPass',
-    nullable: false,
+    required: {
+      default: null,
+    },
     masked: true,
-    copyable: false,
-  },
-  newPass: {
-    type: 'string',
+  }),
+  newPassword1: Value.text({
     name: 'New Password',
-    placeholder: 'NewPass',
-    nullable: false,
+    required: {
+      default: null,
+    },
     masked: true,
-    copyable: false,
-  },
-  newPass2: {
-    type: 'string',
+  }),
+  newPassword2: Value.text({
     name: 'Retype New Password',
-    placeholder: 'NewPass',
-    nullable: false,
+    required: {
+      default: null,
+    },
     masked: true,
-    copyable: false,
-  },
-}
+  }),
+})
+
+type PasswordSpec = typeof passwordSpec.validator._TYPE
