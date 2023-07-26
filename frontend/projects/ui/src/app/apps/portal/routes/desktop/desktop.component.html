@@ -1,5 +1,25 @@
-<a
-  *ngFor="let service of services$ | async"
-  [appCard]="service | toNavigationItem"
-  [routerLink]="(service | toNavigationItem).routerLink"
-></a>
+<ng-container *ngIf="desktop$ | async as desktop">
+  <tui-tiles
+    *ngIf="packages$ | async as packages"
+    class="tiles"
+    [debounce]="500"
+    [order]="order"
+    (orderChange)="onReorder($event, desktop)"
+  >
+    <tui-tile
+      *ngFor="let service of desktop; let index = index"
+      class="item"
+      [style.order]="order.get(index)"
+    >
+      <a
+        *ngIf="packages | toDesktopItem : service as item"
+        tuiTileHandle
+        appCard
+        [id]="service"
+        [title]="item.title"
+        [icon]="item.icon"
+        [routerLink]="item.routerLink"
+      ></a>
+    </tui-tile>
+  </tui-tiles>
+</ng-container>

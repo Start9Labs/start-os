@@ -13,26 +13,37 @@
   >
     Enter service name
   </tui-input>
-  <h2 class="title">System Utilities</h2>
-  <div class="items">
-    <a
-      *ngFor="let item of system | tuiFilter : bySearch : search; empty: empty"
-      [appCard]="item"
-      [routerLink]="item.routerLink"
-      (click)="open = false"
-    ></a>
-  </div>
-  <h2 class="title">Installed services</h2>
-  <div class="items">
-    <a
-      *ngFor="
-        let item of (services$ | async) || [] | tuiFilter : bySearch : search;
-        empty: empty
-      "
-      [appCard]="item"
-      [routerLink]="item.routerLink"
-      (click)="open = false"
-    ></a>
-  </div>
-  <ng-template #empty>Nothing found</ng-template>
+  <tui-scrollbar class="scrollbar">
+    <h2 class="title">System Utilities</h2>
+    <div class="items">
+      <a
+        *ngFor="
+          let item of system | keyvalue | tuiFilter : bySearch : search;
+          empty: empty
+        "
+        appCard
+        [id]="item.key"
+        [title]="item.value.title"
+        [icon]="item.value.icon"
+        [routerLink]="item.key"
+        (click)="open = false"
+      ></a>
+    </div>
+    <h2 class="title">Installed services</h2>
+    <div class="items">
+      <a
+        *ngFor="
+          let item of (services$ | async) || [] | tuiFilter : bySearch : search;
+          empty: empty
+        "
+        appCard
+        [id]="item.manifest.id"
+        [icon]="item.icon"
+        [title]="item.manifest.title"
+        [routerLink]="item.manifest.id"
+        (click)="open = false"
+      ></a>
+    </div>
+    <ng-template #empty>Nothing found</ng-template>
+  </tui-scrollbar>
 </div>

@@ -1,9 +1,14 @@
 <span class="link">
-  <img alt="" class="icon" [src]="appCard.icon" />
-  <label ticker class="title">{{ appCard.title }}</label>
+  <img alt="" class="icon" [src]="icon" />
+  <label ticker class="title">{{ title }}</label>
 </span>
 <span class="side">
-  <tui-hosted-dropdown [content]="content" (click.stop.prevent)="(0)">
+  <tui-hosted-dropdown
+    #dropdown
+    [content]="content"
+    (click.stop.prevent)="(0)"
+    (pointerdown.stop)="(0)"
+  >
     <button
       tuiIconButton
       appearance="outline"
@@ -14,26 +19,12 @@
       Actions
     </button>
     <ng-template #content>
-      <!-- TODO: Move menu to a separate component -->
-      <tui-data-list>
-        <h3 class="menu-title">{{ appCard.title }}</h3>
-        <tui-opt-group label="LAUNCH">
-          <button tuiOption class="menu-item">
-            <tui-svg src="tuiIconLogOut" class="menu-icon"></tui-svg>
-            Tor
-          </button>
-        </tui-opt-group>
-        <tui-opt-group label="MANAGE">
-          <button tuiOption class="menu-item">
-            <tui-svg src="tuiIconSliders" class="menu-icon"></tui-svg>
-            Console
-          </button>
-          <button tuiOption class="menu-item">
-            <tui-svg src="tuiIconX" class="menu-icon"></tui-svg>
-            Remove from desktop
-          </button>
-        </tui-opt-group>
-      </tui-data-list>
+      <app-actions
+        [actions]="(actions | toDesktopActions : id | async) || {}"
+        (click)="dropdown.openChange.next(false)"
+      >
+        {{ title }}
+      </app-actions>
     </ng-template>
   </tui-hosted-dropdown>
 </span>

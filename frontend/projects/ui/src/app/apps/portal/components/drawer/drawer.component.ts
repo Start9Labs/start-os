@@ -13,14 +13,15 @@ import {
   TuiFilterPipeModule,
   TuiForModule,
 } from '@taiga-ui/cdk'
-import { TuiSvgModule, TuiTextfieldControllerModule } from '@taiga-ui/core'
+import {
+  TuiScrollbarModule,
+  TuiSvgModule,
+  TuiTextfieldControllerModule,
+} from '@taiga-ui/core'
 import { TuiInputModule } from '@taiga-ui/kit'
-import { map } from 'rxjs'
 import { CardComponent } from '../card/card.component'
-import { NavigationItem } from '../navigation/navigation.service'
 import { ServicesService } from '../../services/services.service'
 import { SYSTEM_UTILITIES } from './drawer.const'
-import { toNavigationItem } from '../../utils/to-navigation-item'
 
 @Component({
   selector: 'app-drawer',
@@ -32,6 +33,7 @@ import { toNavigationItem } from '../../utils/to-navigation-item'
     CommonModule,
     FormsModule,
     TuiSvgModule,
+    TuiScrollbarModule,
     TuiActiveZoneModule,
     TuiInputModule,
     TuiTextfieldControllerModule,
@@ -48,10 +50,9 @@ export class DrawerComponent {
   search = ''
 
   readonly system = SYSTEM_UTILITIES
-  readonly services$ = inject(ServicesService).pipe(
-    map(services => services.map(toNavigationItem)),
-  )
+  readonly services$ = inject(ServicesService)
 
-  readonly bySearch = (item: NavigationItem, search: string): boolean =>
-    search.length < 2 || TUI_DEFAULT_MATCHER(item.title, search)
+  readonly bySearch = (item: any, search: string): boolean =>
+    search.length < 2 ||
+    TUI_DEFAULT_MATCHER(item.manifest?.title || item.value?.title || '', search)
 }

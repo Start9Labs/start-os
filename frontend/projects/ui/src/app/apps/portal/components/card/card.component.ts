@@ -17,6 +17,9 @@ import {
   NavigationItem,
   NavigationService,
 } from '../navigation/navigation.service'
+import { Action, ActionsComponent } from '../actions/actions.component'
+import { ToDesktopActionsPipe } from '../../pipes/to-desktop-actions'
+import { CommonModule } from '@angular/common'
 
 @Component({
   selector: '[appCard]',
@@ -25,22 +28,39 @@ import {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    CommonModule,
     RouterLink,
     TuiButtonModule,
     TuiHostedDropdownModule,
     TuiDataListModule,
     TuiSvgModule,
     TickerModule,
+    ActionsComponent,
+    ToDesktopActionsPipe,
   ],
 })
 export class CardComponent {
   private readonly navigation = inject(NavigationService)
 
-  @Input({ required: true })
-  appCard!: NavigationItem
+  @Input()
+  id = ''
+
+  @Input()
+  icon = ''
+
+  @Input()
+  title = ''
+
+  @Input()
+  actions: Record<string, readonly Action[]> = {}
 
   @HostListener('click')
   onClick() {
-    this.navigation.addTab(this.appCard)
+    const { id, icon, title } = this
+    const routerLink = id.startsWith('/portal/system/')
+      ? id
+      : `/portal/services/${id}`
+
+    this.navigation.addTab({ icon, title, routerLink })
   }
 }

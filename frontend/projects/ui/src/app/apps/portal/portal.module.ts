@@ -27,6 +27,11 @@ const ROUTES: Routes = [
             m => m.ServicesModule,
           ),
       },
+      {
+        path: 'system',
+        loadChildren: () =>
+          import('./routes/system/system.module').then(m => m.SystemModule),
+      },
     ],
   },
 ]
