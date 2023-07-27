@@ -52,7 +52,7 @@ mod js_api;
 mod manager_container;
 mod manager_map;
 pub mod manager_seed;
-mod persistent_container;
+pub mod persistent_container;
 mod start_stop;
 mod transition_state;
 
@@ -697,32 +697,15 @@ async fn run_main(
     persistent_container: ManagerPersistentContainer,
     started: Arc<impl Fn()>,
 ) -> RunMainResult {
-    let mut runtime = NonDetachingJoinHandle::from(tokio::spawn(start_up_image(seed.clone())));
-    let ip = match persistent_container.is_some() {
-        false => Some(match get_running_ip(&seed, &mut runtime).await {
-            GetRunningIp::Ip(x) => x,
-            GetRunningIp::Error(e) => return Err(e),
-            GetRunningIp::EarlyExit(x) => return Ok(x),
-        }),
-        true => None,
-    };
-
-    let svc = if let Some(ip) = ip {
-        let net = add_network_for_main(&seed, ip).await?;
-        started();
-        Some(net)
-    } else {
-        None
-    };
+    // BLUJ TODO Need to call the rpc instead I suppose
+    let runtime = NonDetachingJoinHandle::from(tokio::spawn(start_up_image(seed.clone())));
 
     let health = main_health_check_daemon(seed.clone());
     let res = tokio::select! {
         a = runtime => a.map_err(|_| Error::new(eyre!("Manager runtime panicked!"), crate::ErrorKind::Docker)).and_then(|a| a),
         _ = health => Err(Error::new(eyre!("Health check daemon exited!"), crate::ErrorKind::Unknown))
     };
-    if let Some(svc) = svc {
-        remove_network_for_main(svc).await?;
-    }
+
     res
 }
 

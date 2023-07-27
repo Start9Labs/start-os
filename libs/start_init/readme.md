@@ -9,15 +9,26 @@ So, we are going to
 In order to simulate that we created a server like the start-os and
 a fake server (in this case I am using syncthing-wrapper)
 
+### TODO
+
+Undo the packing that I have done earlier, and hijack the embassy.js to use the bundle service + code
+
+Converting embassy.js -> service.js
+
+```sequence {theme="hand"}
+startOs ->> startInit.js: Rpc Call
+startInit.js ->> service.js: Rpc Converted into js code
+```
+
 ### Create a fake server
 
 ```bash
 run_test () {
     (
         set -e
-        libs=/home/jm/Projects/start-os/libs/start_init
+        libs=/home/jh/Projects/start-os/libs/start_init
         sockets=/tmp/start9
-        service=/home/jm/Projects/syncthing-wrapper
+        service=/home/jh/Projects/syncthing-wrapper
 
         docker run  \
             -v $libs:/libs \

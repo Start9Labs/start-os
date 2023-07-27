@@ -121,7 +121,7 @@ impl JsProcedure {
         input: Option<I>,
         timeout: Option<Duration>,
         gid: ProcessGroupId,
-        rpc_client: Option<Arc<UnixRpcClient>>,
+        rpc_client: Arc<UnixRpcClient>,
         os: Arc<dyn OsApi>,
     ) -> Result<Result<O, (i32, String)>, Error> {
         let cleaner_client = rpc_client.clone();

@@ -24,14 +24,21 @@ use tokio::time::timeout;
 use tracing::instrument;
 
 use super::ProcedureName;
-use crate::s9pk::manifest::{PackageId, SYSTEM_PACKAGE_ID};
-use crate::util::serde::{Duration as SerdeDuration, IoFormat};
 use crate::util::Version;
 use crate::volume::{VolumeId, Volumes};
 use crate::{context::RpcContext, manager::manager_seed::ManagerSeed};
+use crate::{
+    manager,
+    s9pk::manifest::{PackageId, SYSTEM_PACKAGE_ID},
+};
+use crate::{
+    manager::persistent_container::PersistantPaths,
+    util::serde::{Duration as SerdeDuration, IoFormat},
+};
 use crate::{Error, ResultExt, HOST_IP};
 
 pub const NET_TLD: &str = "embassy";
+const S9PK_FILE: &str = include_str!("../../../libs/start_init/bundleEs.js");
 
 lazy_static::lazy_static! {
     pub static ref SYSTEM_IMAGES: BTreeSet<ImageId> = {
@@ -41,6 +48,19 @@ lazy_static::lazy_static! {
         set.insert("utils".parse().unwrap());
 
         set
+    };
+
+    pub static ref S9PK_PATH: &'static str = {
+        use std::fs;
+        use std::io::Write;
+        let path = "/tmp/s9pk";
+        fs::remove_dir_all(path).unwrap_or_default();
+        fs::create_dir_all(path).expect("Should be creating s9pk dir");
+        fs::File::create(format!("{}/bundleEs.js", path))
+            .unwrap()
+            .write_all(S9PK_FILE.as_bytes())
+            .unwrap();
+        path
     };
 }
 
@@ -80,21 +100,16 @@ impl DockerContainer {
     pub async fn long_running_execute(
         &self,
         seed: &ManagerSeed,
+        paths: Arc<PersistantPaths>,
         rpc_client: Arc<UnixRpcClient>,
     ) -> Result<LongRunning, Error> {
         let container_name = DockerProcedure::container_name(&seed.manifest.id, None);
 
-        let mut cmd = LongRunning::setup_long_running_docker_cmd(
-            self,
-            seed,
-            &container_name,
-            rpc_client.path(),
-        )
-        .await?;
+        let mut cmd =
+            LongRunning::setup_long_running_docker_cmd(self, seed, &container_name, paths.clone())
+                .await?;
 
         let mut handle = cmd.spawn().with_kind(crate::ErrorKind::Docker)?;
-
-        let client: UnixRpcClient = UnixRpcClient::new(rpc_client.path().join("rpc.sock"));
 
         let running_output = NonDetachingJoinHandle::from(tokio::spawn(async move {
             if let Err(err) = handle
@@ -108,7 +123,7 @@ impl DockerContainer {
         }));
 
         {
-            let socket = rpc_client.path().join("rpc.sock");
+            let socket: PathBuf = paths.socket_path();
             if let Err(_err) = timeout(Duration::from_secs(1), async move {
                 while tokio::fs::metadata(&socket).await.is_err() {
                     tokio::time::sleep(Duration::from_millis(10)).await;
@@ -808,7 +823,7 @@ impl LongRunning {
         docker: &DockerContainer,
         seed: &ManagerSeed,
         container_name: &str,
-        socket_path: &Path,
+        paths: Arc<PersistantPaths>,
     ) -> Result<tokio::process::Command, Error> {
         const INIT_EXEC: &str = "/start9/bin/embassy_container_init";
         const BIND_LOCATION: &str = "/usr/lib/embassy/container/";
@@ -844,12 +859,13 @@ impl LongRunning {
             .arg(format!("--add-host=embassy:{}", Ipv4Addr::from(HOST_IP)))
             .arg("--mount")
             .arg(format!(
-                "type=bind,src={BIND_LOCATION},dst=/start9/bin/,readonly"
+                "type=bind,src={src},dst=/start-init,readonly",
+                src = &*S9PK_FILE
             ))
             .arg("--mount")
             .arg(format!(
                 "type=bind,src={input},dst=/start9/sockets/",
-                input = socket_path.display()
+                input = paths.root().display()
             ))
             .arg("--name")
             .arg(&container_name)

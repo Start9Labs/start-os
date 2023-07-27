@@ -1,5 +1,6 @@
 use std::{
     fmt::{Debug, Display},
+    path::PathBuf,
     sync::Arc,
 };
 use std::{path::Path, time::Duration};
@@ -16,10 +17,31 @@ use crate::procedure::docker::DockerContainer;
 use crate::util::NonDetachingJoinHandle;
 use crate::Error;
 
+pub struct PersistantPaths {
+    path: PathBuf,
+}
+
+impl PersistantPaths {
+    pub fn root(&self) -> &Path {
+        self.path.as_path()
+    }
+
+    pub fn socket_folder(&self) -> PathBuf {
+        self.path.join("sockets")
+    }
+    pub fn socket_path(&self) -> PathBuf {
+        self.socket_folder().join("sockets.sock")
+    }
+}
+
 struct RunningDocker(NonDetachingJoinHandle<()>);
 
 impl RunningDocker {
-    pub async fn new(seed: Arc<ManagerSeed>, client: Arc<UnixRpcClient>) -> Result<Self, Error> {
+    pub async fn new(
+        seed: Arc<ManagerSeed>,
+        paths: Arc<PersistantPaths>,
+        rpc_client: Arc<UnixRpcClient>,
+    ) -> Result<Self, Error> {
         let detached_handle: NonDetachingJoinHandle<()> = tokio::task::spawn(async move {
             loop {
                 async {
@@ -27,7 +49,7 @@ impl RunningDocker {
                         .manifest
                         .containers
                         .main
-                        .long_running_execute(&seed, client.clone())
+                        .long_running_execute(&seed, paths.clone(), rpc_client.clone())
                         .await?;
 
                     let ip = match get_long_running_ip(&seed, &mut runtime).await {
@@ -85,25 +107,35 @@ impl RunningDocker {
 pub struct PersistentContainer {
     running_docker: RunningDocker,
     pub rpc_client: Arc<UnixRpcClient>,
+    paths: Arc<PersistantPaths>,
 }
+
+// TODO Need to clean up the folders that where created.
 
 impl PersistentContainer {
     #[instrument(skip_all)]
     pub async fn init(seed: &Arc<ManagerSeed>) -> Result<Self, Error> {
-        let socket_path = Path::new("/tmp/embassy/containers").join(format!(
-            "{id}_{version}",
-            id = &seed.manifest.id,
-            version = &seed.manifest.version
-        ));
-        if tokio::fs::metadata(&socket_path).await.is_ok() {
-            tokio::fs::remove_dir_all(&socket_path).await?;
+        let paths = Arc::new(PersistantPaths {
+            path: Path::new("/tmp/embassy/containers").join(format!(
+                "{id}_{version}",
+                id = &seed.manifest.id,
+                version = &seed.manifest.version
+            )),
+        });
+        if tokio::fs::metadata(&paths.root()).await.is_ok() {
+            tokio::fs::remove_dir_all(&paths.root()).await?;
         }
-        tokio::fs::create_dir_all(&socket_path).await?;
-        let rpc_client = Arc::new(UnixRpcClient::new(socket_path));
-        let running_docker = RunningDocker::new(seed.clone(), rpc_client.clone()).await?;
+        tokio::fs::create_dir_all(&paths.root()).await?;
+        tokio::fs::create_dir_all(&paths.socket_folder()).await?;
+
+        // tokio::fs::metadata(&socket_path)
+        let rpc_client = Arc::new(UnixRpcClient::new(paths.socket_path().to_path_buf()));
+        let running_docker =
+            RunningDocker::new(seed.clone(), paths.clone(), rpc_client.clone()).await?;
         Ok(Self {
             running_docker,
             rpc_client,
+            paths,
         })
     }
 

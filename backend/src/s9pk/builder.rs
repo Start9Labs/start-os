@@ -42,6 +42,7 @@ impl<
     /// BLOCKING
     #[instrument(skip_all)]
     pub async fn pack(mut self, key: &ed25519_dalek::Keypair) -> Result<(), Error> {
+        // TODO BLUJ1 In here include the docker bundle step
         let header_pos = self.writer.stream_position().await?;
         if header_pos != 0 {
             tracing::warn!("Appending to non-empty file.");

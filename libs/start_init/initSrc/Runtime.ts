@@ -104,7 +104,7 @@ const dealWithInput = async (callbackHolder: CallbackHolder, input: unknown) =>
       const index = setupRequire()
       const effects = new Effects(`/${methodName.join("/")}`, callbackHolder)
       // @ts-ignore
-      return import("/start-init/service.js")
+      return import("/services/service.js")
         .then((x) => methodName.reduce(reduceMethod(methodArgs, effects), x))
         .then()
         .then((result) => ({ id, result }))
