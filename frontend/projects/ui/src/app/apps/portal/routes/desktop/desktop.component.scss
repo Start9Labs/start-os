@@ -3,9 +3,16 @@
   align-items: center;
   align-content: center;
   justify-content: center;
-  flex-wrap: wrap;
   height: 100%;
   max-width: 56rem;
   margin: 0 auto;
+  padding: 1rem 0;
+}
+
+.tiles {
+  width: 100%;
+  justify-content: center;
+  grid-template-columns: repeat(auto-fit, 12.5rem);
+  grid-auto-rows: 5.5rem;
   gap: 2rem;
 }

@@ -7,7 +7,7 @@
   top: 100%;
   left: 0;
   width: 100%;
-  min-height: calc(100% - 10.25rem);
+  height: calc(100% - 10.25rem);
   display: flex;
   flex-direction: column;
   // TODO: Theme
@@ -21,6 +21,9 @@
 
 .content {
   flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
   background: inherit;
 }
 
@@ -48,13 +51,17 @@
   }
 }
 
+.scrollbar {
+  margin-top: 1rem;
+}
+
 .search {
-  max-width: 41rem;
+  width: 25rem;
   margin: 6rem auto 0;
 }
 
 .title {
-  margin: 5rem 0 1.25rem;
+  margin: 4rem 0 1.25rem;
   text-align: center;
   text-transform: uppercase;
   font: var(--tui-font-text-xl);

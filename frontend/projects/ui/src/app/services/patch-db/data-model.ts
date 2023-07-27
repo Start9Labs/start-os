@@ -3,7 +3,6 @@ import { Url } from '@start9labs/shared'
 import { Manifest } from '@start9labs/marketplace'
 import { BackupJob } from '../api/api.types'
 import { customSmtp } from '@start9labs/start-sdk/lib/config/configConstants'
-import { CustomSpec } from 'src/app/apps/ui/pages/system/domains/domain.const'
 
 export interface DataModel {
   'server-info': ServerInfo
@@ -23,6 +22,7 @@ export interface UIData {
   'ack-instructions': Record<string, boolean>
   theme: string
   widgets: readonly Widget[]
+  desktop: readonly string[]
 }
 
 export interface Widget {

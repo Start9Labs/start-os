@@ -1,9 +1,11 @@
 import { CommonModule } from '@angular/common'
 import { NgModule } from '@angular/core'
 import { RouterModule, Routes } from '@angular/router'
+import { TuiTilesModule } from '@taiga-ui/kit'
 import { DesktopComponent } from './desktop.component'
 import { CardComponent } from '../../components/card/card.component'
-import { ToNavigationItemPipe } from '../../pipes/to-navigation-item'
+import { ToDesktopActionsPipe } from '../../pipes/to-desktop-actions'
+import { ToDesktopItemPipe } from '../../pipes/to-desktop-item'
 
 const ROUTES: Routes = [
   {
@@ -16,7 +18,9 @@ const ROUTES: Routes = [
   imports: [
     CommonModule,
     CardComponent,
-    ToNavigationItemPipe,
+    TuiTilesModule,
+    ToDesktopActionsPipe,
+    ToDesktopItemPipe,
     RouterModule.forChild(ROUTES),
   ],
   declarations: [DesktopComponent],

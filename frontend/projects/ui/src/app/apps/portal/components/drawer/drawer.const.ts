@@ -1,24 +1,19 @@
-import { NavigationItem } from '../navigation/navigation.service'
-
-export const SYSTEM_UTILITIES: readonly NavigationItem[] = [
+export const SYSTEM_UTILITIES: Record<string, { icon: string; title: string }> =
   {
-    title: 'Devices',
-    routerLink: 'devices',
-    icon: 'assets/img/icon_transparent.png',
-  },
-  {
-    title: 'Metrics',
-    routerLink: 'metrics',
-    icon: 'assets/img/icon_transparent.png',
-  },
-  {
-    title: 'User manual',
-    routerLink: 'manual',
-    icon: 'assets/img/icon_transparent.png',
-  },
-  {
-    title: 'Snek',
-    routerLink: 'snek',
-    icon: 'assets/img/icon_transparent.png',
-  },
-]
+    '/portal/system/devices': {
+      icon: 'assets/img/icon_transparent.png',
+      title: 'Devices',
+    },
+    '/portal/system/metrics': {
+      icon: 'assets/img/icon_transparent.png',
+      title: 'Metrics',
+    },
+    '/portal/system/manual': {
+      icon: 'assets/img/icon_transparent.png',
+      title: 'Manual',
+    },
+    '/portal/system/snek': {
+      icon: 'assets/img/icon_transparent.png',
+      title: 'Snek',
+    },
+  }

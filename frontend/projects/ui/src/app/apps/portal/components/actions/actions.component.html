@@ -1,0 +1,17 @@
+<tui-data-list>
+  <h3 class="title"><ng-content></ng-content></h3>
+  <tui-opt-group
+    *ngFor="let group of actions | keyvalue : asIsOrder"
+    [label]="group.key.toUpperCase()"
+  >
+    <button
+      *ngFor="let action of group.value"
+      tuiOption
+      class="item"
+      (click)="action.action()"
+    >
+      <tui-svg class="icon" [src]="action.icon"></tui-svg>
+      {{ action.label }}
+    </button>
+  </tui-opt-group>
+</tui-data-list>
