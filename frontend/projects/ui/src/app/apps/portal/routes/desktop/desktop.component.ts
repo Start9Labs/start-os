@@ -1,18 +1,8 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  Signal,
-} from '@angular/core'
-import { toSignal } from '@angular/core/rxjs-interop'
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { PatchDB } from 'patch-db-client'
-import {
-  DataModel,
-  PackageDataEntry,
-} from 'src/app/services/patch-db/data-model'
-import { DesktopService } from './desktop.service'
 import { tap } from 'rxjs'
-import { SYSTEM_UTILITIES } from '../../components/drawer/drawer.const'
+import { DataModel } from 'src/app/services/patch-db/data-model'
+import { DesktopService } from './desktop.service'
 
 @Component({
   templateUrl: 'desktop.component.html',

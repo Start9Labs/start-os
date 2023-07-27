@@ -40,7 +40,7 @@
         [id]="item.manifest.id"
         [icon]="item.icon"
         [title]="item.manifest.title"
-        [routerLink]="item.manifest.id"
+        [routerLink]="getLink(item.manifest.id)"
         (click)="open = false"
       ></a>
     </div>

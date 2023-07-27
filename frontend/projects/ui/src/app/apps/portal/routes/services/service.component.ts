@@ -5,6 +5,7 @@ import { PatchDB } from 'patch-db-client'
 import { tap } from 'rxjs'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { NavigationService } from '../../components/navigation/navigation.service'
+import { toRouterLink } from '../../utils/to-router-link'
 
 @Component({
   templateUrl: 'service.component.html',
@@ -26,9 +27,9 @@ export class ServiceComponent {
           this.router.navigate(['..'], { relativeTo: this.route })
         } else {
           this.navigation.addTab({
-            title: pkg.manifest.title,
-            routerLink: `/portal/services/${pkg.manifest.id}`,
             icon: pkg.icon,
+            title: pkg.manifest.title,
+            routerLink: toRouterLink(pkg.manifest.id),
           })
         }
       }),

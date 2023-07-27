@@ -18,8 +18,6 @@ export * from './components/text-spinner/text-spinner.component.module'
 export * from './components/ticker/ticker.component'
 export * from './components/ticker/ticker.module'
 
-export * from './directives/alert/alert.directive'
-export * from './directives/alert/alert.module'
 export * from './directives/responsive-col/responsive-col.directive'
 export * from './directives/responsive-col/responsive-col.module'
 export * from './directives/responsive-col/responsive-col-viewport.directive'

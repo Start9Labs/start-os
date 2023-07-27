@@ -1,6 +1,6 @@
 import { inject, Pipe, PipeTransform } from '@angular/core'
 import { Action } from '../components/actions/actions.component'
-import { map, Observable, of } from 'rxjs'
+import { filter, map, Observable } from 'rxjs'
 import { DesktopService } from '../routes/desktop/desktop.service'
 
 @Pipe({
@@ -15,6 +15,7 @@ export class ToDesktopActionsPipe implements PipeTransform {
     id: string,
   ): Observable<Record<string, readonly Action[]>> {
     return this.desktop.desktop$.pipe(
+      filter(Boolean),
       map(desktop => {
         const action = desktop.includes(id)
           ? {

@@ -1,3 +1,4 @@
+import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -13,13 +14,10 @@ import {
   TuiHostedDropdownModule,
   TuiSvgModule,
 } from '@taiga-ui/core'
-import {
-  NavigationItem,
-  NavigationService,
-} from '../navigation/navigation.service'
+import { NavigationService } from '../navigation/navigation.service'
 import { Action, ActionsComponent } from '../actions/actions.component'
 import { ToDesktopActionsPipe } from '../../pipes/to-desktop-actions'
-import { CommonModule } from '@angular/common'
+import { toRouterLink } from '../../utils/to-router-link'
 
 @Component({
   selector: '[appCard]',
@@ -57,9 +55,7 @@ export class CardComponent {
   @HostListener('click')
   onClick() {
     const { id, icon, title } = this
-    const routerLink = id.startsWith('/portal/system/')
-      ? id
-      : `/portal/services/${id}`
+    const routerLink = toRouterLink(id)
 
     this.navigation.addTab({ icon, title, routerLink })
   }

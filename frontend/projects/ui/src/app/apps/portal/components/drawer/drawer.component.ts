@@ -22,6 +22,7 @@ import { TuiInputModule } from '@taiga-ui/kit'
 import { CardComponent } from '../card/card.component'
 import { ServicesService } from '../../services/services.service'
 import { SYSTEM_UTILITIES } from './drawer.const'
+import { toRouterLink } from '../../utils/to-router-link'
 
 @Component({
   selector: 'app-drawer',
@@ -55,4 +56,8 @@ export class DrawerComponent {
   readonly bySearch = (item: any, search: string): boolean =>
     search.length < 2 ||
     TUI_DEFAULT_MATCHER(item.manifest?.title || item.value?.title || '', search)
+
+  getLink(id: string): string {
+    return toRouterLink(id)
+  }
 }
