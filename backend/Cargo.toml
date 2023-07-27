@@ -84,6 +84,8 @@ ipnet = { version = "2.7.1", features = ["serde"] }
 iprange = { version = "0.6.7", features = ["serde"] }
 isocountry = "0.3.2"
 itertools = "0.10.3"
+jaq-core = "0.10.0"
+jaq-std = "0.10.0"
 josekit = "0.8.1"
 js_engine = { path = '../libs/js_engine', optional = true }
 jsonpath_lib = "0.3.0"
