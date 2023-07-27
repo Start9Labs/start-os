@@ -1,10 +1,12 @@
-use embassy::context::SdkContext;
-use embassy::util::logger::EmbassyLogger;
-use embassy::version::{Current, VersionT};
-use embassy::Error;
+use clap::Arg;
 use rpc_toolkit::run_cli;
 use rpc_toolkit::yajrc::RpcError;
 use serde_json::Value;
+
+use crate::context::CliContext;
+use crate::util::logger::EmbassyLogger;
+use crate::version::{Current, VersionT};
+use crate::Error;
 
 lazy_static::lazy_static! {
     static ref VERSION_STRING: String = Current::new().semver().to_string();
@@ -12,22 +14,21 @@ lazy_static::lazy_static! {
 
 fn inner_main() -> Result<(), Error> {
     run_cli!({
-        command: embassy::portable_api,
+        command: crate::main_api,
         app: app => app
-            .name("Embassy SDK")
+            .name("StartOS CLI")
             .version(&**VERSION_STRING)
             .arg(
                 clap::Arg::with_name("config")
                     .short('c')
                     .long("config")
                     .takes_value(true),
-            ),
+            )
+            .arg(Arg::with_name("host").long("host").short('h').takes_value(true))
+            .arg(Arg::with_name("proxy").long("proxy").short('p').takes_value(true)),
         context: matches => {
-            if let Err(_) = std::env::var("RUST_LOG") {
-                std::env::set_var("RUST_LOG", "embassy=warn,js_engine=warn");
-            }
             EmbassyLogger::init();
-            SdkContext::init(matches)?
+            CliContext::init(matches)?
         },
         exit: |e: RpcError| {
             match e.data {
@@ -41,13 +42,14 @@ fn inner_main() -> Result<(), Error> {
                 Some(a) => eprintln!("{}: {}", e.message, a),
                 None => eprintln!("{}", e.message),
             }
+
             std::process::exit(e.code);
         }
     });
     Ok(())
 }
 
-fn main() {
+pub fn main() {
     match inner_main() {
         Ok(_) => (),
         Err(e) => {

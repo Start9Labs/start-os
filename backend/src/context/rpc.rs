@@ -269,6 +269,45 @@ impl RpcContext {
     pub async fn cleanup(&self) -> Result<(), Error> {
         let mut db = self.db.handle();
         let receipts = RpcCleanReceipts::new(&mut db).await?;
+        let packages = receipts.packages.get(&mut db).await?.0;
+        let mut current_dependents = packages
+            .keys()
+            .map(|k| (k.clone(), BTreeMap::new()))
+            .collect::<BTreeMap<_, _>>();
+        for (package_id, package) in packages {
+            for (k, v) in package
+                .into_installed()
+                .into_iter()
+                .flat_map(|i| i.current_dependencies.0)
+            {
+                let mut entry: BTreeMap<_, _> = current_dependents.remove(&k).unwrap_or_default();
+                entry.insert(package_id.clone(), v);
+                current_dependents.insert(k, entry);
+            }
+        }
+        for (package_id, current_dependents) in current_dependents {
+            if let Some(deps) = crate::db::DatabaseModel::new()
+                .package_data()
+                .idx_model(&package_id)
+                .and_then(|pde| pde.installed())
+                .map::<_, CurrentDependents>(|i| i.current_dependents())
+                .check(&mut db)
+                .await?
+            {
+                deps.put(&mut db, &CurrentDependents(current_dependents))
+                    .await?;
+            } else if let Some(deps) = crate::db::DatabaseModel::new()
+                .package_data()
+                .idx_model(&package_id)
+                .and_then(|pde| pde.removing())
+                .map::<_, CurrentDependents>(|i| i.current_dependents())
+                .check(&mut db)
+                .await?
+            {
+                deps.put(&mut db, &CurrentDependents(current_dependents))
+                    .await?;
+            }
+        }
         for (package_id, package) in receipts.packages.get(&mut db).await?.0 {
             if let Err(e) = async {
                 match package {
@@ -336,31 +375,6 @@ impl RpcContext {
             {
                 tracing::error!("Failed to clean up package {}: {}", package_id, e);
                 tracing::debug!("{:?}", e);
-            }
-        }
-        let mut current_dependents = BTreeMap::new();
-        for (package_id, package) in receipts.packages.get(&mut db).await?.0 {
-            for (k, v) in package
-                .into_installed()
-                .into_iter()
-                .flat_map(|i| i.current_dependencies.0)
-            {
-                let mut entry: BTreeMap<_, _> = current_dependents.remove(&k).unwrap_or_default();
-                entry.insert(package_id.clone(), v);
-                current_dependents.insert(k, entry);
-            }
-        }
-        for (package_id, current_dependents) in current_dependents {
-            if let Some(deps) = crate::db::DatabaseModel::new()
-                .package_data()
-                .idx_model(&package_id)
-                .and_then(|pde| pde.installed())
-                .map::<_, CurrentDependents>(|i| i.current_dependents())
-                .check(&mut db)
-                .await?
-            {
-                deps.put(&mut db, &CurrentDependents(current_dependents))
-                    .await?;
             }
         }
         Ok(())

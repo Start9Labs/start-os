@@ -72,5 +72,3 @@ sudo chown -R $USER ../libs/target
 if [ -n "$fail" ]; then
 	exit 1
 fi
-
-#rust-arm64-builder aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/embassyd

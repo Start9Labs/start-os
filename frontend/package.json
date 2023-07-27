@@ -1,6 +1,6 @@
 {
   "name": "startos-ui",
-  "version": "0.3.4.3",
+  "version": "0.3.4.4",
   "author": "Start9 Labs, Inc",
   "homepage": "https://start9.com/",
   "scripts": {
@@ -20,7 +20,7 @@
     "build:all": "npm run build:deps && npm run build:dui && npm run build:setup && npm run build:ui && npm run build:install-wiz",
     "build:shared": "ng build shared",
     "build:marketplace": "npm run build:shared && ng build marketplace",
-    "analyze:ui": "webpack-bundle-analyzer dist/ui/stats.json",
+    "analyze:ui": "webpack-bundle-analyzer dist/raw/ui/stats.json",
     "publish:shared": "npm run build:shared && npm publish ./dist/shared --access public",
     "publish:marketplace": "npm run build:marketplace && npm publish ./dist/marketplace --access public",
     "start:install-wiz": "npm run-script build-config && ionic serve --project install-wizard --host 0.0.0.0",

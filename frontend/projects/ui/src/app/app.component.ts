@@ -52,7 +52,7 @@ export class AppComponent implements OnDestroy {
     readonly themeSwitcher: ThemeSwitcherService,
   ) {}
 
-  ngOnInit() {
+  async ngOnInit() {
     this.patch
       .watch$('ui', 'name')
       .subscribe(name => this.titleService.setTitle(name || 'StartOS'))

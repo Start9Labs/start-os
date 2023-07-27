@@ -34,6 +34,12 @@ export module RR {
   export type LogoutReq = {} // auth.logout
   export type LogoutRes = null
 
+  export type ResetPasswordReq = {
+    'old-password': string
+    'new-password': string
+  } // auth.reset-password
+  export type ResetPasswordRes = null
+
   // server
 
   export type EchoReq = { message: string } // server.echo
@@ -93,11 +99,6 @@ export module RR {
 
   export type KillSessionsReq = { ids: string[] } // sessions.kill
   export type KillSessionsRes = null
-
-  // password
-
-  export type UpdatePasswordReq = { password: string } // password.set
-  export type UpdatePasswordRes = null
 
   // notification
 

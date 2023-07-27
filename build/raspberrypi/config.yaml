@@ -1,5 +1,0 @@
-os-partitions:
-  boot: /dev/mmcblk0p1
-  root: /dev/mmcblk0p2
-ethernet-interface: end0
-wifi-interface: wlan0

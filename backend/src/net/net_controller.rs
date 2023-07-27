@@ -17,7 +17,7 @@ use crate::net::keys::Key;
 use crate::net::mdns::MdnsController;
 use crate::net::ssl::{export_cert, export_key, SslManager};
 use crate::net::tor::TorController;
-use crate::net::vhost::VHostController;
+use crate::net::vhost::{AlpnInfo, VHostController};
 use crate::s9pk::manifest::PackageId;
 use crate::volume::cert_dir;
 use crate::{Error, HOST_IP};
@@ -59,6 +59,8 @@ impl NetController {
     }
 
     async fn add_os_bindings(&mut self, hostname: &Hostname, key: &Key) -> Result<(), Error> {
+        let alpn = Err(AlpnInfo::Specified(vec!["http/1.1".into(), "h2".into()]));
+
         // Internal DNS
         self.vhost
             .add(
@@ -66,7 +68,7 @@ impl NetController {
                 Some("embassy".into()),
                 443,
                 ([127, 0, 0, 1], 80).into(),
-                false,
+                alpn.clone(),
             )
             .await?;
         self.os_bindings
@@ -75,7 +77,13 @@ impl NetController {
         // LAN IP
         self.os_bindings.push(
             self.vhost
-                .add(key.clone(), None, 443, ([127, 0, 0, 1], 80).into(), false)
+                .add(
+                    key.clone(),
+                    None,
+                    443,
+                    ([127, 0, 0, 1], 80).into(),
+                    alpn.clone(),
+                )
                 .await?,
         );
 
@@ -87,7 +95,7 @@ impl NetController {
                     Some("localhost".into()),
                     443,
                     ([127, 0, 0, 1], 80).into(),
-                    false,
+                    alpn.clone(),
                 )
                 .await?,
         );
@@ -98,7 +106,7 @@ impl NetController {
                     Some(hostname.no_dot_host_name()),
                     443,
                     ([127, 0, 0, 1], 80).into(),
-                    false,
+                    alpn.clone(),
                 )
                 .await?,
         );
@@ -111,7 +119,7 @@ impl NetController {
                     Some(hostname.local_domain_name()),
                     443,
                     ([127, 0, 0, 1], 80).into(),
-                    false,
+                    alpn.clone(),
                 )
                 .await?,
         );
@@ -131,7 +139,7 @@ impl NetController {
                     Some(key.tor_address().to_string()),
                     443,
                     ([127, 0, 0, 1], 80).into(),
-                    false,
+                    alpn.clone(),
                 )
                 .await?,
         );
@@ -184,7 +192,7 @@ impl NetController {
         key: Key,
         external: u16,
         target: SocketAddr,
-        connect_ssl: bool,
+        connect_ssl: Result<(), AlpnInfo>,
     ) -> Result<Vec<Arc<()>>, Error> {
         let mut rcs = Vec::with_capacity(2);
         rcs.push(
@@ -278,8 +286,8 @@ impl NetService {
         id: InterfaceId,
         external: u16,
         internal: u16,
-        connect_ssl: bool,
-    ) -> Result<String, Error>
+        connect_ssl: Result<(), AlpnInfo>,
+    ) -> Result<(), Error>
     where
         for<'a> &'a mut Ex: PgExecutor<'a>,
     {

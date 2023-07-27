@@ -1,6 +1,6 @@
 use std::{path::Path, process::Stdio};
 
-use embassy::disk::main::DEFAULT_PASSWORD;
+use startos::disk::main::DEFAULT_PASSWORD;
 
 pub fn create_backup(
     mountpoint: impl AsRef<Path>,
@@ -19,17 +19,21 @@ pub fn create_backup(
     let mut data_cmd = std::process::Command::new("duplicity");
     for exclude in exclude.lines().map(|s| s.trim()).filter(|s| !s.is_empty()) {
         if exclude.to_string().starts_with('!') {
-            data_cmd.arg(format!(
-                "--include={}",
-                data_path
-                    .join(exclude.to_string().trim_start_matches('!'))
-                    .display()
-            )).arg("--allow-source-mismatch");
+            data_cmd
+                .arg(format!(
+                    "--include={}",
+                    data_path
+                        .join(exclude.to_string().trim_start_matches('!'))
+                        .display()
+                ))
+                .arg("--allow-source-mismatch");
         } else {
-            data_cmd.arg(format!(
-                "--exclude={}",
-                data_path.join(exclude.to_string()).display()
-            )).arg("--allow-source-mismatch");
+            data_cmd
+                .arg(format!(
+                    "--exclude={}",
+                    data_path.join(exclude.to_string()).display()
+                ))
+                .arg("--allow-source-mismatch");
         }
     }
     let data_output = data_cmd

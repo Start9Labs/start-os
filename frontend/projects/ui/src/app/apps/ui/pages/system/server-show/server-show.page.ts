@@ -1,4 +1,3 @@
-import { DOCUMENT } from '@angular/common'
 import { Component, Inject } from '@angular/core'
 import { NavController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -12,11 +11,19 @@ import { OSUpdatePage } from './os-update/os-update.page'
 import { getAllPackages } from 'src/app/util/get-package-data'
 import { AuthService } from 'src/app/services/auth.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
+import { FormDialogService } from 'src/app/services/form-dialog.service'
+import { FormPage } from '../../../modals/form/form.page'
+import { Config } from '@start9labs/start-sdk/lib/config/builder/config'
+import { Value } from '@start9labs/start-sdk/lib/config/builder/value'
+import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
 import { ConfigService } from 'src/app/services/config.service'
 import { TuiAlertService, TuiDialogService } from '@taiga-ui/core'
 import { PROMPT } from 'src/app/apps/ui/modals/prompt/prompt.component'
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 import { TUI_PROMPT } from '@taiga-ui/kit'
+import { DOCUMENT } from '@angular/common'
+import { getServerInfo } from 'src/app/util/get-server-info'
+import * as argon2 from '@start9labs/argon2'
 
 @Component({
   selector: 'server-show',
@@ -32,6 +39,8 @@ export class ServerShowPage {
   readonly showDiskRepair$ = this.clientStorageService.showDiskRepair$
 
   readonly secure = this.config.isSecure()
+  readonly isTorHttp =
+    this.config.isTor() && this.document.location.protocol === 'http:'
 
   constructor(
     private readonly dialogs: TuiDialogService,
@@ -46,6 +55,7 @@ export class ServerShowPage {
     private readonly authService: AuthService,
     private readonly alerts: TuiAlertService,
     private readonly config: ConfigService,
+    private readonly formDialog: FormDialogService,
     @Inject(DOCUMENT) private readonly document: Document,
   ) {}
 
@@ -86,6 +96,80 @@ export class ServerShowPage {
 
   private updateEos() {
     this.dialogs.open(new PolymorpheusComponent(OSUpdatePage)).subscribe()
+  }
+
+  private presentAlertResetPassword() {
+    this.dialogs
+      .open(TUI_PROMPT, {
+        label: 'Warning',
+        size: 's',
+        data: {
+          content:
+            'You will still need your current password to decrypt existing backups!',
+          yes: 'Continue',
+          no: 'Cancel',
+        },
+      })
+      .pipe(filter(Boolean))
+      .subscribe(() => this.presentModalResetPassword())
+  }
+
+  async presentModalResetPassword(): Promise<void> {
+    this.formDialog.open(FormPage, {
+      label: 'Change Master Password',
+      data: {
+        spec: await configBuilderToSpec(passwordSpec),
+        buttons: [
+          {
+            text: 'Save',
+            handler: (value: PasswordSpec) => this.resetPassword(value),
+          },
+        ],
+      },
+    })
+  }
+
+  private async resetPassword(value: PasswordSpec): Promise<boolean> {
+    let err = ''
+
+    if (value.newPassword1 !== value.newPassword2) {
+      err = 'New passwords do not match'
+    } else if (value.newPassword1.length < 12) {
+      err = 'New password must be 12 characters or greater'
+    } else if (value.newPassword1.length > 64) {
+      err = 'New password must be less than 65 characters'
+    }
+
+    // confirm current password is correct
+    const { 'password-hash': passwordHash } = await getServerInfo(this.patch)
+    try {
+      argon2.verify(passwordHash, value.currentPassword)
+    } catch (e) {
+      err = 'Current password is invalid'
+    }
+
+    if (err) {
+      this.errorService.handleError(err)
+      return false
+    }
+
+    const loader = this.loader.open('Saving...').subscribe()
+
+    try {
+      await this.embassyApi.resetPassword({
+        'old-password': value.currentPassword,
+        'new-password': value.newPassword1,
+      })
+
+      this.alerts.open('Password changed!').subscribe()
+
+      return true
+    } catch (e: any) {
+      this.errorService.handleError(e)
+      return false
+    } finally {
+      loader.unsubscribe()
+    }
   }
 
   private presentAlertLogout() {
@@ -319,6 +403,14 @@ export class ServerShowPage {
           }),
         detail: true,
         disabled$: of(false),
+      },
+      {
+        title: 'Change Master Password',
+        description: `Change your StartOS master password`,
+        icon: 'key-outline',
+        action: () => this.presentAlertResetPassword(),
+        detail: false,
+        disabled$: of(!this.secure),
       },
       {
         title: 'Experimental Features',
@@ -563,3 +655,29 @@ interface SettingBtn {
   detail: boolean
   disabled$: Observable<boolean>
 }
+
+export const passwordSpec = Config.of({
+  currentPassword: Value.text({
+    name: 'Current Password',
+    required: {
+      default: null,
+    },
+    masked: true,
+  }),
+  newPassword1: Value.text({
+    name: 'New Password',
+    required: {
+      default: null,
+    },
+    masked: true,
+  }),
+  newPassword2: Value.text({
+    name: 'Retype New Password',
+    required: {
+      default: null,
+    },
+    masked: true,
+  }),
+})
+
+type PasswordSpec = typeof passwordSpec.validator._TYPE

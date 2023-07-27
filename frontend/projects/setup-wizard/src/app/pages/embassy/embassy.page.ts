@@ -141,7 +141,6 @@ export class EmbassyPage {
       await this.navCtrl.navigateForward(`/loading`)
     } catch (e: any) {
       this.errorService.handleError(e)
-      console.error(e)
     } finally {
       loader.unsubscribe()
     }

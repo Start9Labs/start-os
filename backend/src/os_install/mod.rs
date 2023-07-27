@@ -149,29 +149,36 @@ pub async fn execute(
 
     if !overwrite {
         if let Ok(guard) =
-            TmpMountGuard::mount(&BlockDev::new(part_info.root.clone()), MountType::ReadOnly).await
+            TmpMountGuard::mount(&BlockDev::new(part_info.root.clone()), MountType::ReadWrite).await
         {
             if let Err(e) = async {
                 // cp -r ${guard}/config /tmp/config
-                Command::new("cp")
-                    .arg("-r")
-                    .arg(guard.as_ref().join("config"))
-                    .arg("/tmp/config.bak")
-                    .invoke(crate::ErrorKind::Filesystem)
-                    .await?;
                 if tokio::fs::metadata(guard.as_ref().join("config/upgrade"))
                     .await
                     .is_ok()
                 {
                     tokio::fs::remove_file(guard.as_ref().join("config/upgrade")).await?;
                 }
-                guard.unmount().await
+                if tokio::fs::metadata(guard.as_ref().join("config/disk.guid"))
+                    .await
+                    .is_ok()
+                {
+                    tokio::fs::remove_file(guard.as_ref().join("config/disk.guid")).await?;
+                }
+                Command::new("cp")
+                    .arg("-r")
+                    .arg(guard.as_ref().join("config"))
+                    .arg("/tmp/config.bak")
+                    .invoke(crate::ErrorKind::Filesystem)
+                    .await?;
+                Ok::<_, Error>(())
             }
             .await
             {
                 tracing::error!("Error recovering previous config: {e}");
                 tracing::debug!("{e:?}");
             }
+            guard.unmount().await?;
         }
     }
 
