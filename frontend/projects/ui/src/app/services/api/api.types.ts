@@ -6,6 +6,7 @@ import {
   DependencyError,
   DomainInfo,
   NetworkStrategy,
+  OutboundProxy,
 } from 'src/app/services/patch-db/data-model'
 import { StartOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
 import { customSmtp } from '@start9labs/start-sdk/lib/config/configConstants'
@@ -86,6 +87,11 @@ export module RR {
   } // server.experimental.zram
   export type ToggleZramRes = null
 
+  export type SetOsOutboundProxyReq = {
+    proxy: OutboundProxy
+  } // server.proxy.set-outbound
+  export type SetOsOutboundProxyRes = null
+
   // sessions
 
   export type GetSessionsReq = {} // sessions.list
@@ -131,11 +137,11 @@ export module RR {
 
   // domains
 
-  export type ClaimStart9MeReq = { networkStrategy: NetworkStrategy } // net.domain.me.claim
-  export type ClaimStart9MeRes = null
+  export type ClaimStart9ToReq = { networkStrategy: NetworkStrategy } // net.domain.me.claim
+  export type ClaimStart9ToRes = null
 
-  export type DeleteStart9MeReq = {} // net.domain.me.delete
-  export type DeleteStart9MeRes = null
+  export type DeleteStart9ToReq = {} // net.domain.me.delete
+  export type DeleteStart9ToRes = null
 
   export type AddDomainReq = {
     hostname: string

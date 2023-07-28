@@ -3,27 +3,40 @@ import { NavController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActivatedRoute } from '@angular/router'
 import { PatchDB } from 'patch-db-client'
-import { filter, Observable, of, switchMap, take } from 'rxjs'
+import {
+  filter,
+  firstValueFrom,
+  map,
+  Observable,
+  of,
+  switchMap,
+  take,
+} from 'rxjs'
 import { ErrorService, LoadingService } from '@start9labs/shared'
 import { EOSService } from 'src/app/services/eos.service'
 import { ClientStorageService } from 'src/app/services/client-storage.service'
 import { OSUpdatePage } from './os-update/os-update.page'
 import { getAllPackages } from 'src/app/util/get-package-data'
 import { AuthService } from 'src/app/services/auth.service'
-import { DataModel } from 'src/app/services/patch-db/data-model'
+import { DataModel, OutboundProxy } from 'src/app/services/patch-db/data-model'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
-import { FormPage } from '../../../modals/form/form.page'
+import { FormContext, FormPage } from '../../../modals/form/form.page'
 import { Config } from '@start9labs/start-sdk/lib/config/builder/config'
 import { Value } from '@start9labs/start-sdk/lib/config/builder/value'
 import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
 import { ConfigService } from 'src/app/services/config.service'
-import { TuiAlertService, TuiDialogService } from '@taiga-ui/core'
+import {
+  TuiAlertService,
+  TuiDialogOptions,
+  TuiDialogService,
+} from '@taiga-ui/core'
 import { PROMPT } from 'src/app/apps/ui/modals/prompt/prompt.component'
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 import { TUI_PROMPT } from '@taiga-ui/kit'
 import { DOCUMENT } from '@angular/common'
 import { getServerInfo } from 'src/app/util/get-server-info'
 import * as argon2 from '@start9labs/argon2'
+import { Variants } from '@start9labs/start-sdk/lib/config/builder/variants'
 
 @Component({
   selector: 'server-show',
@@ -46,7 +59,7 @@ export class ServerShowPage {
     private readonly dialogs: TuiDialogService,
     private readonly loader: LoadingService,
     private readonly errorService: ErrorService,
-    private readonly embassyApi: ApiService,
+    private readonly api: ApiService,
     private readonly navCtrl: NavController,
     private readonly route: ActivatedRoute,
     private readonly patch: PatchDB<DataModel>,
@@ -156,7 +169,7 @@ export class ServerShowPage {
     const loader = this.loader.open('Saving...').subscribe()
 
     try {
-      await this.embassyApi.resetPassword({
+      await this.api.resetPassword({
         'old-password': value.currentPassword,
         'new-password': value.newPassword1,
       })
@@ -170,6 +183,90 @@ export class ServerShowPage {
     } finally {
       loader.unsubscribe()
     }
+  }
+
+  private async presentModalOutboundMain() {
+    const network = await firstValueFrom(
+      this.patch.watch$('server-info', 'network'),
+    )
+
+    const outboundProxies = network.proxies
+      .filter(p => p.type === 'outbound' || p.type === 'inbound-outbound')
+      .reduce((prev, curr) => {
+        return {
+          [curr.id]: curr.name,
+          ...prev,
+        }
+      }, {})
+
+    const config = Config.of({
+      proxy: Value.union(
+        {
+          name: 'Select Proxy',
+          required: {
+            default: !network.outboundProxy
+              ? 'none'
+              : network.outboundProxy === 'primary'
+              ? 'primary'
+              : 'other',
+          },
+          description: `
+  <h5>System Default</h5>The system default <i>inbound</i> proxy will be used. If you do not have an inbound proxy, no proxy will be used
+  <h5>Other</h5>The specific proxy you select will be used, overriding the default
+  `,
+        },
+        Variants.of({
+          primary: {
+            name: 'Primary',
+            spec: Config.of({}),
+          },
+          other: {
+            name: 'Other',
+            spec: Config.of({
+              proxyId: Value.select({
+                name: 'Select Specific Proxy',
+                required: {
+                  default:
+                    network.outboundProxy && network.outboundProxy !== 'primary'
+                      ? network.outboundProxy.proxyId
+                      : null,
+                },
+                values: outboundProxies,
+              }),
+            }),
+          },
+          none: {
+            name: 'None',
+            spec: Config.of({}),
+          },
+        }),
+      ),
+    })
+
+    const options: Partial<
+      TuiDialogOptions<FormContext<typeof config.validator._TYPE>>
+    > = {
+      label: 'Outbound Proxy',
+      data: {
+        spec: await configBuilderToSpec(config),
+        buttons: [
+          {
+            text: 'Save',
+            handler: async value => {
+              const proxy =
+                value.proxy.unionSelectKey === 'none'
+                  ? null
+                  : value.proxy.unionSelectKey === 'primary'
+                  ? 'primary'
+                  : { proxyId: value.proxy.unionValueKey.proxyId }
+              await this.saveOutboundProxy(proxy)
+              return true
+            },
+          },
+        ],
+      },
+    }
+    this.formDialog.open(FormPage, options)
   }
 
   private presentAlertLogout() {
@@ -256,7 +353,19 @@ export class ServerShowPage {
     const loader = this.loader.open('Saving...').subscribe()
 
     try {
-      await this.embassyApi.setDbValue<string | null>(['name'], value)
+      await this.api.setDbValue<string | null>(['name'], value)
+    } finally {
+      loader.unsubscribe()
+    }
+  }
+
+  private async saveOutboundProxy(proxy: OutboundProxy) {
+    const loader = this.loader.open(`Saving`).subscribe()
+
+    try {
+      await this.api.setOsOutboundProxy({ proxy })
+    } catch (e: any) {
+      this.errorService.handleError(e)
     } finally {
       loader.unsubscribe()
     }
@@ -264,7 +373,7 @@ export class ServerShowPage {
 
   // should wipe cache independent of actual BE logout
   private logout() {
-    this.embassyApi.logout({}).catch(e => console.error('Failed to log out', e))
+    this.api.logout({}).catch(e => console.error('Failed to log out', e))
     this.authService.setUnverified()
   }
 
@@ -273,7 +382,7 @@ export class ServerShowPage {
     const loader = this.loader.open(`Beginning ${action}...`).subscribe()
 
     try {
-      await this.embassyApi.restartServer({})
+      await this.api.restartServer({})
       this.presentAlertInProgress(action, ` until ${action} completes.`)
     } catch (e: any) {
       this.errorService.handleError(e)
@@ -287,7 +396,7 @@ export class ServerShowPage {
     const loader = this.loader.open(`Beginning ${action}...`).subscribe()
 
     try {
-      await this.embassyApi.shutdownServer({})
+      await this.api.shutdownServer({})
       this.presentAlertInProgress(
         action,
         '.<br /><br /><b>You will need to physically power cycle the device to regain connectivity.</b>',
@@ -304,7 +413,7 @@ export class ServerShowPage {
     const loader = this.loader.open(`Beginning ${action}...`).subscribe()
 
     try {
-      await this.embassyApi.systemRebuild({})
+      await this.api.systemRebuild({})
       this.presentAlertInProgress(action, ` until ${action} completes.`)
     } catch (e: any) {
       this.errorService.handleError(e)
@@ -426,8 +535,8 @@ export class ServerShowPage {
     ],
     Network: [
       {
-        title: 'StartOS Web Interface',
-        description: 'Addresses for accessing this StartOS web interface',
+        title: 'StartOS UI',
+        description: 'Information for accessing your StartOS user interface',
         icon: 'desktop-outline',
         action: () =>
           this.navCtrl.navigateForward(['addresses'], {
@@ -438,8 +547,7 @@ export class ServerShowPage {
       },
       {
         title: 'Domains',
-        description:
-          'Add domains to your server to enable clearnet connections',
+        description: 'Manage domains for clearnet connectivity',
         icon: 'globe-outline',
         action: () =>
           this.navCtrl.navigateForward(['domains'], { relativeTo: this.route }),
@@ -448,9 +556,8 @@ export class ServerShowPage {
       },
       {
         title: 'Proxies',
-        description:
-          'Configure proxies for outbound connections, as well as private and public remote access',
-        icon: 'shield-checkmark-outline',
+        description: 'Manage proxies for inbound and outbound connections',
+        icon: 'shuffle-outline',
         action: () =>
           this.navCtrl.navigateForward(['proxies'], { relativeTo: this.route }),
         detail: true,
@@ -478,7 +585,15 @@ export class ServerShowPage {
         disabled$: of(false),
       },
     ],
-    Security: [
+    'Privacy and Security': [
+      {
+        title: 'Outbound Proxy',
+        description: 'Use a proxy for StartOS main process outbound traffic',
+        icon: 'shield-outline',
+        action: () => this.presentModalOutboundMain(),
+        detail: false,
+        disabled$: of(false),
+      },
       {
         title: 'SSH',
         description:

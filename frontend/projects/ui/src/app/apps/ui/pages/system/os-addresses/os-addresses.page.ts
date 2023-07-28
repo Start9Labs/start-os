@@ -131,10 +131,10 @@ export class OSAddressesPage {
 
 function getClearnetSpec({
   domains,
-  start9MeSubdomain,
+  start9ToSubdomain,
 }: NetworkInfo): Promise<InputSpec> {
-  const start9MeDomain = `${start9MeSubdomain?.value}.start9.me`
-  const base = start9MeSubdomain ? { [start9MeDomain]: start9MeDomain } : {}
+  const start9ToDomain = `${start9ToSubdomain?.value}.start9.to`
+  const base = start9ToSubdomain ? { [start9ToDomain]: start9ToDomain } : {}
 
   const values = domains.reduce((prev, curr) => {
     return {

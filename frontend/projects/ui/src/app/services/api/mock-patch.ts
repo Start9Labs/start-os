@@ -52,7 +52,7 @@ export const mockPatchData: DataModel = {
     },
     network: {
       domains: [],
-      start9MeSubdomain: null,
+      start9ToSubdomain: null,
       wifi: {
         enabled: false,
         lastRegion: null,

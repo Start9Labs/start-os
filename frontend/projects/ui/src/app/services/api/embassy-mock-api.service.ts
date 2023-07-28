@@ -372,6 +372,21 @@ export class MockApiService extends ApiService {
     return this.withRevision(patch, null)
   }
 
+  async setOsOutboundProxy(
+    params: RR.SetOsOutboundProxyReq,
+  ): Promise<RR.SetOsOutboundProxyRes> {
+    await pauseFor(2000)
+
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/network/outboundProxy',
+        value: params.proxy,
+      },
+    ]
+    return this.withRevision(patch, null)
+  }
+
   // marketplace URLs
 
   async marketplaceProxy(
@@ -503,15 +518,15 @@ export class MockApiService extends ApiService {
 
   // domains
 
-  async claimStart9MeDomain(
-    params: RR.ClaimStart9MeReq,
-  ): Promise<RR.ClaimStart9MeRes> {
+  async claimStart9ToDomain(
+    params: RR.ClaimStart9ToReq,
+  ): Promise<RR.ClaimStart9ToRes> {
     await pauseFor(2000)
 
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: '/server-info/network/start9MeSubdomain',
+        path: '/server-info/network/start9ToSubdomain',
         value: {
           value: 'xyz',
           createdAt: new Date(),
@@ -523,14 +538,14 @@ export class MockApiService extends ApiService {
     return this.withRevision(patch, null)
   }
 
-  async deleteStart9MeDomain(
-    params: RR.DeleteStart9MeReq,
-  ): Promise<RR.DeleteStart9MeRes> {
+  async deleteStart9ToDomain(
+    params: RR.DeleteStart9ToReq,
+  ): Promise<RR.DeleteStart9ToRes> {
     await pauseFor(2000)
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: '/server-info/network/start9MeSubdomain',
+        path: '/server-info/network/start9ToSubdomain',
         value: null,
       },
     ]

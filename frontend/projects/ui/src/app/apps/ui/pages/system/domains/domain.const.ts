@@ -72,7 +72,7 @@ function getStrategyUnion(proxies: Proxy[]) {
             },
             Variants.of({
               primary: {
-                name: 'System Default',
+                name: 'Primary',
                 spec: Config.of({}),
               },
               other: {
@@ -93,7 +93,7 @@ function getStrategyUnion(proxies: Proxy[]) {
   )
 }
 
-export async function getStart9MeSpec(proxies: Proxy[]) {
+export async function getStart9ToSpec(proxies: Proxy[]) {
   return configBuilderToSpec(
     Config.of({
       strategy: getStrategyUnion(proxies),

@@ -10,21 +10,20 @@
 <ion-content class="ion-padding-top with-widgets">
   <div class="ion-padding-start ion-padding-end">
     <tui-notification>
-      Adding domains to StartOS enables you to access your server and service
-      interfaces over clearnet.
+      Adding domains permits accessing your server and services over clearnet.
       <a [href]="docsUrl" target="_blank" rel="noreferrer">View instructions</a>
     </tui-notification>
   </div>
 
   <ion-item-group *ngIf="domains$ | async as domains">
     <ion-item-divider>
-      Start9.me
+      Start9.to
       <ion-button
-        *ngIf="!domains.start9Me"
+        *ngIf="!domains.start9To"
         class="ion-padding-start"
         strong
         size="small"
-        (click)="presentModalClaimStart9Me()"
+        (click)="presentModalClaimStart9To()"
       >
         <ion-icon slot="start" name="add-outline"></ion-icon>
         Claim
@@ -42,20 +41,20 @@
           <ion-col size="2"></ion-col>
         </ion-row>
         <ion-row
-          *ngIf="domains.start9Me as start9Me"
+          *ngIf="domains.start9To as start9To"
           class="ion-align-items-center grid-row-border"
         >
-          <ion-col size="2">{{ start9Me.value }}</ion-col>
-          <ion-col size="2.5">{{ start9Me.createdAt| date: 'short' }}</ion-col>
+          <ion-col size="2">{{ start9To.value }}</ion-col>
+          <ion-col size="2.5">{{ start9To.createdAt| date: 'short' }}</ion-col>
           <ion-col size="2">Start9</ion-col>
           <ion-col size="2">
-            {{ $any(start9Me.networkStrategy).ipStrategy ||
-            $any(start9Me.networkStrategy).proxyId || 'Default Proxy' }}
+            {{ $any(start9To.networkStrategy).ipStrategy ||
+            $any(start9To.networkStrategy).proxyId || 'Primary Proxy' }}
           </ion-col>
-          <ion-col size="1.5" *ngIf="start9Me.usedBy as usedBy">
+          <ion-col size="1.5" *ngIf="start9To.usedBy as usedBy">
             <a
               *ngIf="usedBy.length as qty; else unused"
-              (click)="presentAlertUsedBy(start9Me.value, usedBy)"
+              (click)="presentAlertUsedBy(start9To.value, usedBy)"
             >
               {{ qty }} Interfaces
             </a>
@@ -65,7 +64,7 @@
           </ion-col>
           <ion-col size="2">
             <ion-buttons style="float: right">
-              <ion-button size="small" (click)="presentAlertDeleteStart9Me()">
+              <ion-button size="small" (click)="presentAlertDeleteStart9To()">
                 <ion-icon name="trash"></ion-icon>
               </ion-button>
             </ion-buttons>
@@ -106,7 +105,7 @@
           <ion-col size="2">{{ domain.provider }}</ion-col>
           <ion-col size="2">
             {{ $any(domain.networkStrategy).ipStrategy ||
-            $any(domain.networkStrategy).proxyId || 'Default Proxy' }}
+            $any(domain.networkStrategy).proxyId || 'Primary Proxy' }}
           </ion-col>
           <ion-col size="1.5" *ngIf="domain.usedBy as usedBy">
             <a

@@ -8,7 +8,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel, Domain } from 'src/app/services/patch-db/data-model'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { FormContext, FormPage } from '../../../modals/form/form.page'
-import { getCustomSpec, getStart9MeSpec } from './domain.const'
+import { getCustomSpec, getStart9ToSpec } from './domain.const'
 
 @Component({
   selector: 'domains',
@@ -20,16 +20,16 @@ export class DomainsPage {
 
   readonly domains$ = this.patch.watch$('server-info', 'network').pipe(
     map(network => {
-      const start9MeSubdomain = network.start9MeSubdomain
-      const start9Me = !start9MeSubdomain
+      const start9ToSubdomain = network.start9ToSubdomain
+      const start9To = !start9ToSubdomain
         ? null
         : {
-            ...start9MeSubdomain,
-            value: `${start9MeSubdomain.value}.start9.me`,
+            ...start9ToSubdomain,
+            value: `${start9ToSubdomain.value}.start9.to`,
             provider: 'Start9',
           }
 
-      return { start9Me, custom: network.domains }
+      return { start9To, custom: network.domains }
     }),
   )
 
@@ -53,6 +53,10 @@ export class DomainsPage {
         spec: await getCustomSpec(proxies),
         buttons: [
           {
+            text: 'Manage proxies',
+            link: '/system/proxies',
+          },
+          {
             text: 'Save',
             handler: async value => this.save(value),
           },
@@ -62,19 +66,23 @@ export class DomainsPage {
     this.formDialog.open(FormPage, options)
   }
 
-  async presentModalClaimStart9Me() {
+  async presentModalClaimStart9To() {
     const proxies = await firstValueFrom(
       this.patch.watch$('server-info', 'network', 'proxies'),
     )
 
     const options: Partial<TuiDialogOptions<FormContext<any>>> = {
-      label: 'start9.me',
+      label: 'start9.to',
       data: {
-        spec: await getStart9MeSpec(proxies),
+        spec: await getStart9ToSpec(proxies),
         buttons: [
           {
+            text: 'Manage proxies',
+            link: '/system/proxies',
+          },
+          {
             text: 'Save',
-            handler: async value => this.claimStart9MeDomain(value),
+            handler: async value => this.claimStart9ToDomain(value),
           },
         ],
       },
@@ -97,19 +105,19 @@ export class DomainsPage {
       .subscribe(() => this.delete(hostname))
   }
 
-  presentAlertDeleteStart9Me() {
+  presentAlertDeleteStart9To() {
     this.dialogs
       .open(TUI_PROMPT, {
         label: 'Confirm',
         size: 's',
         data: {
-          content: 'Delete start9.me domain?',
+          content: 'Delete start9.to domain?',
           yes: 'Delete',
           no: 'Cancel',
         },
       })
       .pipe(filter(Boolean))
-      .subscribe(() => this.deleteStart9MeDomain())
+      .subscribe(() => this.deleteStart9ToDomain())
   }
 
   presentAlertUsedBy(domain: string, usedBy: Domain['usedBy']) {
@@ -126,7 +134,7 @@ export class DomainsPage {
       .subscribe()
   }
 
-  private async claimStart9MeDomain(value: any): Promise<boolean> {
+  private async claimStart9ToDomain(value: any): Promise<boolean> {
     const loader = this.loader.open('Saving...').subscribe()
 
     const strategy = value.strategy.unionValueKey
@@ -142,7 +150,7 @@ export class DomainsPage {
           }
 
     try {
-      await this.api.claimStart9MeDomain({ networkStrategy })
+      await this.api.claimStart9ToDomain({ networkStrategy })
       return true
     } catch (e: any) {
       this.errorService.handleError(e)
@@ -206,11 +214,11 @@ export class DomainsPage {
     }
   }
 
-  private async deleteStart9MeDomain(): Promise<void> {
+  private async deleteStart9ToDomain(): Promise<void> {
     const loader = this.loader.open('Deleting...').subscribe()
 
     try {
-      await this.api.deleteStart9MeDomain({})
+      await this.api.deleteStart9ToDomain({})
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

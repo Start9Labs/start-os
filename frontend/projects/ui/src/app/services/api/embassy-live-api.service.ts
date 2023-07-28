@@ -233,6 +233,12 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'server.experimental.zram', params })
   }
 
+  async setOsOutboundProxy(
+    params: RR.SetOsOutboundProxyReq,
+  ): Promise<RR.SetOsOutboundProxyRes> {
+    return this.rpcRequest({ method: 'server.proxy.set-outbound', params })
+  }
+
   // marketplace URLs
 
   async marketplaceProxy<T>(
@@ -304,15 +310,15 @@ export class LiveApiService extends ApiService {
 
   // domains
 
-  async claimStart9MeDomain(
-    params: RR.ClaimStart9MeReq,
-  ): Promise<RR.ClaimStart9MeRes> {
+  async claimStart9ToDomain(
+    params: RR.ClaimStart9ToReq,
+  ): Promise<RR.ClaimStart9ToRes> {
     return this.rpcRequest({ method: 'net.domain.me.claim', params })
   }
 
-  async deleteStart9MeDomain(
-    params: RR.DeleteStart9MeReq,
-  ): Promise<RR.DeleteStart9MeRes> {
+  async deleteStart9ToDomain(
+    params: RR.DeleteStart9ToReq,
+  ): Promise<RR.DeleteStart9ToRes> {
     return this.rpcRequest({ method: 'net.domain.me.delete', params })
   }
 

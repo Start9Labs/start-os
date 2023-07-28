@@ -125,6 +125,10 @@ export abstract class ApiService {
 
   abstract toggleZram(params: RR.ToggleZramReq): Promise<RR.ToggleZramRes>
 
+  abstract setOsOutboundProxy(
+    params: RR.SetOsOutboundProxyReq,
+  ): Promise<RR.SetOsOutboundProxyRes>
+
   // marketplace URLs
 
   abstract marketplaceProxy<T>(
@@ -160,13 +164,13 @@ export abstract class ApiService {
 
   // domains
 
-  abstract claimStart9MeDomain(
-    params: RR.ClaimStart9MeReq,
-  ): Promise<RR.ClaimStart9MeRes>
+  abstract claimStart9ToDomain(
+    params: RR.ClaimStart9ToReq,
+  ): Promise<RR.ClaimStart9ToRes>
 
-  abstract deleteStart9MeDomain(
-    params: RR.DeleteStart9MeReq,
-  ): Promise<RR.DeleteStart9MeRes>
+  abstract deleteStart9ToDomain(
+    params: RR.DeleteStart9ToReq,
+  ): Promise<RR.DeleteStart9ToRes>
 
   abstract addDomain(params: RR.AddDomainReq): Promise<RR.AddDomainRes>
 

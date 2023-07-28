@@ -78,14 +78,14 @@ export type StartOsUiInfo = {
 
 export type NetworkInfo = {
   wifi: WiFiInfo
-  start9MeSubdomain: Omit<Domain, 'provider'> | null
+  start9ToSubdomain: Omit<Domain, 'provider'> | null
   domains: Domain[]
   wanConfig: {
     upnp: boolean
     forwards: PortForward[]
   }
   proxies: Proxy[]
-  outboundProxy: OutboundProxy
+  outboundProxy: InboundProxy
   primaryProxies: {
     inbound: string | null
     outbound: string | null
