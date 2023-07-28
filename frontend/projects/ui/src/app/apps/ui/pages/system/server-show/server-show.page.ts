@@ -447,6 +447,16 @@ export class ServerShowPage {
         disabled$: of(false),
       },
       {
+        title: 'Proxies',
+        description:
+          'Configure proxies for outbound connections, as well as private and public remote access',
+        icon: 'shield-checkmark-outline',
+        action: () =>
+          this.navCtrl.navigateForward(['proxies'], { relativeTo: this.route }),
+        detail: true,
+        disabled$: of(false),
+      },
+      {
         title: 'Port Forwards',
         description:
           'A list of ports that should be forwarded through your router',

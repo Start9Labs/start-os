@@ -288,6 +288,20 @@ export class LiveApiService extends ApiService {
     })
   }
 
+  // network
+
+  async addProxy(params: RR.AddProxyReq): Promise<RR.AddProxyRes> {
+    return this.rpcRequest({ method: 'net.proxy.add', params })
+  }
+
+  async updateProxy(params: RR.UpdateProxyReq): Promise<RR.UpdateProxyRes> {
+    return this.rpcRequest({ method: 'net.proxy.update', params })
+  }
+
+  async deleteProxy(params: RR.DeleteProxyReq): Promise<RR.DeleteProxyRes> {
+    return this.rpcRequest({ method: 'net.proxy.delete', params })
+  }
+
   // domains
 
   async claimStart9MeDomain(

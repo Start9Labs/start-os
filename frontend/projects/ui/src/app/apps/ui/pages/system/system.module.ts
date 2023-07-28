@@ -72,6 +72,11 @@ const routes: Routes = [
       import('./domains/domains.module').then(m => m.DomainsPageModule),
   },
   {
+    path: 'proxies',
+    loadChildren: () =>
+      import('./proxies/proxies.module').then(m => m.ProxiesPageModule),
+  },
+  {
     path: 'ssh',
     loadChildren: () =>
       import('./ssh-keys/ssh-keys.module').then(m => m.SSHKeysPageModule),

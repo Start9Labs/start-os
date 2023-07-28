@@ -1286,6 +1286,7 @@ export module Mock {
       'marketplace-url': 'https://registry.start9.com/',
       'developer-key': 'developer-key',
       'has-config': true,
+      outboundProxy: null,
     },
     actions: {
       resync: {
@@ -1361,6 +1362,7 @@ export module Mock {
       'marketplace-url': 'https://registry.start9.com/',
       'developer-key': 'developer-key',
       'has-config': true,
+      outboundProxy: null,
     },
     actions: {},
   }
@@ -1427,6 +1429,7 @@ export module Mock {
       'marketplace-url': 'https://registry.start9.com/',
       'developer-key': 'developer-key',
       'has-config': true,
+      outboundProxy: null,
     },
     actions: {},
   }

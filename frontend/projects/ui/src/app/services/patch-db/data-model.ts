@@ -84,12 +84,22 @@ export type NetworkInfo = {
     upnp: boolean
     forwards: PortForward[]
   }
+  proxies: Proxy[]
+  outboundProxy: OutboundProxy
+  primaryProxies: {
+    inbound: string | null
+    outbound: string | null
+  }
 }
 
 export type DomainInfo = {
   domain: string
   subdomain: string | null
 }
+
+export type InboundProxy = { proxyId: string } | 'primary' | null
+
+export type OutboundProxy = InboundProxy | { interfaceId: string }
 
 export type PortForward = {
   assigned: number
@@ -105,10 +115,32 @@ export type WiFiInfo = {
 
 export type Domain = {
   value: string
-  provider: string
-  networkStrategy: string
-  ipStrategy: string
   createdAt: string
+  provider: string
+  networkStrategy: NetworkStrategy
+  usedBy: {
+    service: { id: string | null; title: string } // null means startos
+    interfaces: { id: string | null; title: string }[] // null means startos
+  }[]
+}
+
+export type NetworkStrategy =
+  | { proxyId: string | null } // null means system default
+  | { ipStrategy: 'ipv4' | 'ipv6' | 'dualstack' }
+
+export type Proxy = {
+  id: string
+  name: string
+  createdAt: string
+  type: 'outbound' | 'inbound-outbound' | 'vlan' | { error: string }
+  endpoint: string
+  // below is overlay only
+  usedBy: {
+    services: { id: string | null; title: string }[] // implies outbound - null means startos
+    domains: string[] // implies inbound
+  }
+  primaryInbound: boolean
+  primaryOutbound: boolean
 }
 
 export interface IpInfo {
@@ -203,6 +235,7 @@ export interface InstalledPackageInfo {
   'marketplace-url': string | null
   'developer-key': string
   'has-config': boolean
+  outboundProxy: OutboundProxy
 }
 
 export interface CurrentDependencyInfo {

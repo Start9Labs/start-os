@@ -5,13 +5,10 @@ import {
   DataModel,
   DependencyError,
   DomainInfo,
+  NetworkStrategy,
 } from 'src/app/services/patch-db/data-model'
 import { StartOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
 import { customSmtp } from '@start9labs/start-sdk/lib/config/configConstants'
-import {
-  CustomSpec,
-  Start9MeSpec,
-} from 'src/app/apps/ui/pages/system/domains/domain.const'
 
 export module RR {
   // DB
@@ -114,12 +111,27 @@ export module RR {
   export type DeleteAllNotificationsReq = { before: number } // notification.delete-before
   export type DeleteAllNotificationsRes = null
 
+  // network
+
+  export type AddProxyReq = {
+    name: string
+    config: string
+  } // net.proxy.add
+  export type AddProxyRes = null
+
+  export type UpdateProxyReq = {
+    name?: string
+    primaryInbound?: true
+    primaryOutbound?: true
+  } // net.proxy.update
+  export type UpdateProxyRes = null
+
+  export type DeleteProxyReq = { id: string } // net.proxy.delete
+  export type DeleteProxyRes = null
+
   // domains
 
-  export type ClaimStart9MeReq = {
-    networkStrategy: string
-    ipStrategy: string | null
-  } // net.domain.me.claim
+  export type ClaimStart9MeReq = { networkStrategy: NetworkStrategy } // net.domain.me.claim
   export type ClaimStart9MeRes = null
 
   export type DeleteStart9MeReq = {} // net.domain.me.delete
@@ -132,8 +144,7 @@ export module RR {
       username: string | null
       password: string | null
     }
-    networkStrategy: string
-    ipStrategy: string | null
+    networkStrategy: NetworkStrategy
   } // net.domain.add
   export type AddDomainRes = null
 

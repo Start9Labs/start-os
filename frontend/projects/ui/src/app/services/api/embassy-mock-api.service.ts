@@ -15,6 +15,7 @@ import {
   PackageDataEntry,
   PackageMainStatus,
   PackageState,
+  Proxy,
 } from 'src/app/services/patch-db/data-model'
 import { BackupTargetType, Metrics, RR } from './api.types'
 import { Mock } from './api.fixures'
@@ -439,6 +440,67 @@ export class MockApiService extends ApiService {
     return null
   }
 
+  // network
+
+  async addProxy(params: RR.AddProxyReq): Promise<RR.AddProxyRes> {
+    await pauseFor(2000)
+
+    const type: Proxy['type'] = 'inbound-outbound'
+
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/network/proxies',
+        value: [
+          {
+            id: 'abcd-efgh-ijkl-mnop',
+            name: params.name,
+            createdAt: new Date(),
+            type,
+            endpoint: '10.25.2.17',
+            usedBy: {
+              domains: [],
+              services: [],
+            },
+            // primaryInbound: type === 'inbound-outbound' ? true : false,
+            // primaryOutbound:
+            //   type === 'inbound-outbound' || type === 'outbound' ? true : false,
+            primaryInbound: false,
+            primaryOutbound: false,
+          },
+        ],
+      },
+    ]
+    return this.withRevision(patch, null)
+  }
+
+  async updateProxy(params: RR.UpdateProxyReq): Promise<RR.UpdateProxyRes> {
+    await pauseFor(2000)
+
+    const value = params.name || params.primaryInbound || params.primaryOutbound
+
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/server-info/network/proxies/0/${Object.keys(params)[0]}`,
+        value,
+      },
+    ]
+    return this.withRevision(patch, null)
+  }
+
+  async deleteProxy(params: RR.DeleteProxyReq): Promise<RR.DeleteProxyRes> {
+    await pauseFor(2000)
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/server-info/network/proxies',
+        value: [],
+      },
+    ]
+    return this.withRevision(patch, null)
+  }
+
   // domains
 
   async claimStart9MeDomain(
@@ -454,7 +516,7 @@ export class MockApiService extends ApiService {
           value: 'xyz',
           createdAt: new Date(),
           networkStrategy: params.networkStrategy,
-          ipStrategy: params.ipStrategy,
+          usedBy: [],
         },
       },
     ]
@@ -485,10 +547,10 @@ export class MockApiService extends ApiService {
         value: [
           {
             value: params.hostname,
+            createdAt: new Date(),
             provider: params.provider.name,
             networkStrategy: params.networkStrategy,
-            ipStrategy: params.ipStrategy,
-            createdAt: new Date(),
+            usedBy: [],
           },
         ],
       },

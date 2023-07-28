@@ -150,6 +150,14 @@ export abstract class ApiService {
     params: RR.DeleteAllNotificationsReq,
   ): Promise<RR.DeleteAllNotificationsRes>
 
+  // network
+
+  abstract addProxy(params: RR.AddProxyReq): Promise<RR.AddProxyRes>
+
+  abstract updateProxy(params: RR.UpdateProxyReq): Promise<RR.UpdateProxyRes>
+
+  abstract deleteProxy(params: RR.DeleteProxyReq): Promise<RR.DeleteProxyRes>
+
   // domains
 
   abstract claimStart9MeDomain(

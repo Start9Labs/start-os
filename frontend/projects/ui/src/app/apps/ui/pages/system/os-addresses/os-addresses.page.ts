@@ -67,7 +67,7 @@ export class OSAddressesPage {
           domain: domainInfo?.domain || '',
           subdomain: domainInfo?.subdomain || '',
         },
-        spec: await this.getClearnetSpec(server.network),
+        spec: await getClearnetSpec(server.network),
         buttons: [
           {
             text: 'Manage domains',
@@ -124,38 +124,38 @@ export class OSAddressesPage {
     }
   }
 
-  private async getClearnetSpec({
-    domains,
-    start9MeSubdomain,
-  }: NetworkInfo): Promise<InputSpec> {
-    const start9MeDomain = `${start9MeSubdomain?.value}.start9.me`
-    const base = start9MeSubdomain ? { [start9MeDomain]: start9MeDomain } : {}
-
-    return configBuilderToSpec(
-      Config.of({
-        domain: Value.dynamicSelect(() => {
-          return {
-            name: 'Domain',
-            required: { default: null },
-            values: domains.reduce((prev, curr) => {
-              return {
-                [curr.value]: curr.value,
-                ...prev,
-              }
-            }, base),
-          }
-        }),
-        subdomain: Value.text({
-          name: 'Subdomain',
-          required: false,
-        }),
-      }),
-    )
-  }
-
   asIsOrder(a: any, b: any) {
     return 0
   }
+}
+
+function getClearnetSpec({
+  domains,
+  start9MeSubdomain,
+}: NetworkInfo): Promise<InputSpec> {
+  const start9MeDomain = `${start9MeSubdomain?.value}.start9.me`
+  const base = start9MeSubdomain ? { [start9MeDomain]: start9MeDomain } : {}
+
+  const values = domains.reduce((prev, curr) => {
+    return {
+      [curr.value]: curr.value,
+      ...prev,
+    }
+  }, base)
+
+  return configBuilderToSpec(
+    Config.of({
+      domain: Value.select({
+        name: 'Domain',
+        required: { default: null },
+        values,
+      }),
+      subdomain: Value.text({
+        name: 'Subdomain',
+        required: false,
+      }),
+    }),
+  )
 }
 
 @Pipe({
