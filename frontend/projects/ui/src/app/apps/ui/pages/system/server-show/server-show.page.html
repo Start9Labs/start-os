@@ -69,7 +69,7 @@
             <!-- "Outbound Proxy" button only -->
             <p *ngIf="button.title === 'Outbound Proxy'">
               <ion-text
-                [color]="!server.network.outboundProxy ? 'warning' : server.network.outboundProxy === 'primary' ? 'primary' : 'success'"
+                [color]="!server.network.outboundProxy ? 'warning' : 'success'"
               >
                 {{ !server.network.outboundProxy ? 'None' :
                 server.network.outboundProxy === 'primary' ? 'Primary' :

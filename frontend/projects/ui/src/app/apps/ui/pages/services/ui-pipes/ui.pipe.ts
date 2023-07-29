@@ -6,8 +6,8 @@ import { hasUi } from 'src/app/services/config.service'
   name: 'hasUi',
 })
 export class UiPipe implements PipeTransform {
-  transform(addressInfo: InstalledPackageInfo['address-info']): boolean {
-    return hasUi(addressInfo)
+  transform(interfaceInfo: InstalledPackageInfo['interfaceInfo']): boolean {
+    return hasUi(interfaceInfo)
   }
 }
 
@@ -16,13 +16,13 @@ export class UiPipe implements PipeTransform {
 })
 export class UiAddressesPipe implements PipeTransform {
   transform(
-    addressInfo: InstalledPackageInfo['address-info'],
+    interfaceInfo: InstalledPackageInfo['interfaceInfo'],
   ): { name: string; addresses: string[] }[] {
-    return Object.values(addressInfo)
+    return Object.values(interfaceInfo)
       .filter(info => info.ui)
       .map(info => ({
         name: info.name,
-        addresses: info.addresses,
+        addresses: [info.addressInfo.lanHostname],
       }))
   }
 }

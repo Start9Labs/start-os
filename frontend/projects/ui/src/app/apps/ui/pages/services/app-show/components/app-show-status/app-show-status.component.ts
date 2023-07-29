@@ -16,8 +16,8 @@ import {
   StatusRendering,
 } from 'src/app/services/pkg-status-rendering.service'
 import {
-  AddressInfo,
   DataModel,
+  InterfaceInfo,
   PackageDataEntry,
   PackageState,
 } from 'src/app/services/patch-db/data-model'
@@ -66,8 +66,8 @@ export class AppShowStatusComponent {
     return this.pkg.manifest.id
   }
 
-  get addressInfo(): Record<string, AddressInfo> {
-    return this.pkg.installed!['address-info']
+  get interfaceInfo(): Record<string, InterfaceInfo> {
+    return this.pkg.installed!['interfaceInfo']
   }
 
   get isConfigured(): boolean {

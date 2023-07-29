@@ -21,7 +21,7 @@
   </ion-label>
   <ng-container *ngIf="pkg.entry.installed as installed">
     <ion-button
-      *ngIf="installed['address-info'] | hasUi"
+      *ngIf="installed['interfaceInfo'] | hasUi"
       slot="end"
       fill="clear"
       color="primary"
@@ -32,7 +32,7 @@
     </ion-button>
     <launch-menu
       #launchMenu
-      [addressInfo]="installed['address-info']"
+      [interfaceInfo]="installed['interfaceInfo']"
     ></launch-menu>
   </ng-container>
 </ion-item>

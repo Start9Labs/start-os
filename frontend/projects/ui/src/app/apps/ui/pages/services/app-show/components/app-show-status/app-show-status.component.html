@@ -50,7 +50,7 @@
         </ion-button>
 
         <ion-button
-          *ngIf="addressInfo | hasUi"
+          *ngIf="interfaceInfo | hasUi"
           class="action-button"
           color="primary"
           [disabled]="status.primary !== 'running'"
@@ -60,7 +60,7 @@
           Open UI
         </ion-button>
 
-        <launch-menu #launchMenu [addressInfo]="addressInfo"></launch-menu>
+        <launch-menu #launchMenu [interfaceInfo]="interfaceInfo"></launch-menu>
       </ion-col>
     </ion-row>
   </ion-grid>

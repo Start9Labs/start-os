@@ -588,7 +588,7 @@ export class ServerShowPage {
     'Privacy and Security': [
       {
         title: 'Outbound Proxy',
-        description: 'Use a proxy for StartOS main process outbound traffic',
+        description: 'Proxy outbound traffic from the StartOS main process',
         icon: 'shield-outline',
         action: () => this.presentModalOutboundMain(),
         detail: false,

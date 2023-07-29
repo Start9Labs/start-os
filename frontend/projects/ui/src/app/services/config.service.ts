@@ -1,10 +1,7 @@
 import { DOCUMENT } from '@angular/common'
 import { Inject, Injectable } from '@angular/core'
 import { WorkspaceConfig } from '@start9labs/shared'
-import {
-  InstalledPackageInfo,
-  PackageMainStatus,
-} from 'src/app/services/patch-db/data-model'
+import { InstalledPackageInfo } from 'src/app/services/patch-db/data-model'
 
 const {
   packageArch,
@@ -53,9 +50,9 @@ export class ConfigService {
 }
 
 export function hasUi(
-  addressInfo: InstalledPackageInfo['address-info'],
+  interfaceInfo: InstalledPackageInfo['interfaceInfo'],
 ): boolean {
-  return !!Object.values(addressInfo).find(a => a.ui)
+  return !!Object.values(interfaceInfo).find(a => a.ui)
 }
 
 export function removeProtocol(str: string): string {

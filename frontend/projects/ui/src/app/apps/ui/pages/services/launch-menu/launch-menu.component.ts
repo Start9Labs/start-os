@@ -18,7 +18,7 @@ export class LaunchMenuComponent {
   @ViewChild('popover') popover!: HTMLIonPopoverElement
 
   @Input()
-  addressInfo!: InstalledPackageInfo['address-info']
+  interfaceInfo!: InstalledPackageInfo['interfaceInfo']
 
   set isOpen(open: boolean) {
     this.popover.isOpen = open

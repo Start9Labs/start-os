@@ -55,7 +55,7 @@ export interface ServerInfo {
   id: string
   version: string
   country: string
-  ui: StartOsUiInfo
+  ui: AddressInfo
   network: NetworkInfo
   'last-backup': string | null
   'unread-notification-count': number
@@ -67,13 +67,6 @@ export interface ServerInfo {
   zram: boolean
   smtp: typeof customSmtp.validator._TYPE
   'password-hash': string
-}
-
-export type StartOsUiInfo = {
-  ipInfo: IpInfo
-  lanHostname: string
-  torHostname: string
-  domainInfo: DomainInfo | null
 }
 
 export type NetworkInfo = {
@@ -231,7 +224,7 @@ export interface InstalledPackageInfo {
   'installed-at': string
   'current-dependencies': Record<string, CurrentDependencyInfo>
   'dependency-info': Record<string, { title: string; icon: Url }>
-  'address-info': Record<string, AddressInfo>
+  interfaceInfo: Record<string, InterfaceInfo>
   'marketplace-url': string | null
   'developer-key': string
   'has-config': boolean
@@ -242,11 +235,18 @@ export interface CurrentDependencyInfo {
   'health-checks': string[] // array of health check IDs
 }
 
-export interface AddressInfo {
+export interface InterfaceInfo {
   name: string
   description: string
-  addresses: Url[]
   ui: boolean
+  addressInfo: AddressInfo
+}
+
+export interface AddressInfo {
+  ipInfo: IpInfo
+  lanHostname: string
+  torHostname: string
+  domainInfo: DomainInfo | null
 }
 
 export interface Action {
