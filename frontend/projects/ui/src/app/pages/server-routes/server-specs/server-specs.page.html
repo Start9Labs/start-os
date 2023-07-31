@@ -32,9 +32,27 @@
         <h2>Tor</h2>
         <p>{{ server['tor-address'] }}</p>
       </ion-label>
-      <ion-button slot="end" fill="clear" (click)="copy(server['tor-address'])">
-        <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
-      </ion-button>
+      <div slot="end">
+        <ion-button
+          fill="clear"
+          (click)="showQR(server['tor-address'])"
+        >
+          <ion-icon
+            slot="icon-only"
+            name="qr-code-outline"
+            size="small"
+          ></ion-icon>
+        </ion-button>
+        <ion-button
+          fill="clear"
+          (click)="copy(server['tor-address'])">
+          <ion-icon
+            slot="icon-only"
+            name="copy-outline"
+            size="small"
+          ></ion-icon>
+        </ion-button>
+      </div>
     </ion-item>
     <ion-item>
       <ion-label class="break-all">
