@@ -1,0 +1,15 @@
+<ion-item-divider>Interfaces</ion-item-divider>
+<ion-item
+  button
+  *ngFor="let interfaceInfo of interfaceInfo$ | async | keyvalue"
+  [routerLink]="['interfaces', interfaceInfo.key]"
+>
+  <ion-icon
+    slot="start"
+    [name]="interfaceInfo.value.ui ? 'desktop-outline' : 'terminal-outline'"
+  ></ion-icon>
+  <ion-label>
+    <h2>{{ interfaceInfo.value.name }}</h2>
+    <p>{{ interfaceInfo.value.description }}</p>
+  </ion-label>
+</ion-item>

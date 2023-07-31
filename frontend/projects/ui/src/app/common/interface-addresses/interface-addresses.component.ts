@@ -26,7 +26,7 @@ import { DOCUMENT } from '@angular/common'
 import { FormContext, FormPage } from 'src/app/apps/ui/modals/form/form.page'
 import { PatchDB } from 'patch-db-client'
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
-import { QRComponent } from 'src/app/apps/ui/pages/services/app-interfaces/qr.component'
+import { QRComponent } from 'src/app/common/qr/qr.component'
 
 export type ClearnetForm = {
   domain: string
@@ -40,7 +40,12 @@ export type ClearnetForm = {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class InterfaceAddressesComponent {
-  @Input() addressInfo!: AddressInfo
+  @Input() packageContext?: {
+    packageId: string
+    interfaceId: string
+  }
+  @Input({ required: true }) addressInfo!: AddressInfo
+  @Input({ required: true }) isUi!: boolean
 
   readonly network$ = this.patch.watch$('server-info', 'network')
 
@@ -116,7 +121,14 @@ export class InterfaceAddressesComponent {
     const loader = this.loader.open('Saving...').subscribe()
 
     try {
-      await this.api.setServerClearnetAddress({ domainInfo })
+      if (this.packageContext) {
+        await this.api.setInterfaceClearnetAddress({
+          ...this.packageContext,
+          domainInfo,
+        })
+      } else {
+        await this.api.setServerClearnetAddress({ domainInfo })
+      }
       return true
     } catch (e: any) {
       this.errorService.handleError(e)
@@ -130,7 +142,14 @@ export class InterfaceAddressesComponent {
     const loader = this.loader.open('Removing...').subscribe()
 
     try {
-      await this.api.setServerClearnetAddress({ domainInfo: null })
+      if (this.packageContext) {
+        await this.api.setInterfaceClearnetAddress({
+          ...this.packageContext,
+          domainInfo: null,
+        })
+      } else {
+        await this.api.setServerClearnetAddress({ domainInfo: null })
+      }
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

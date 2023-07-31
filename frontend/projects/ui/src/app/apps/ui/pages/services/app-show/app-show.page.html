@@ -27,6 +27,11 @@
             ></app-show-status>
             <!-- ** installed && !backing-up ** -->
             <ng-container *ngIf="isInstalled(pkg) && !isBackingUp(status)">
+              <!-- ** interfaces ** -->
+              <app-show-interfaces
+                *ngIf="isRunning(status)"
+                [pkgId]="pkgId"
+              ></app-show-interfaces>
               <!-- ** health checks ** -->
               <app-show-health-checks
                 *ngIf="isRunning(status)"

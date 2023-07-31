@@ -36,7 +36,11 @@
           </div>
         </ion-label>
         <div slot="end">
-          <ion-button fill="clear" (click)="launch(clearnetAddress)">
+          <ion-button
+            *ngIf="isUi"
+            fill="clear"
+            (click)="launch(clearnetAddress)"
+          >
             <ion-icon
               slot="icon-only"
               size="small"
@@ -94,7 +98,7 @@
         <p>{{ torHostname }}</p>
       </ion-label>
       <div slot="end">
-        <ion-button fill="clear" (click)="launch(torHostname)">
+        <ion-button *ngIf="isUi" fill="clear" (click)="launch(torHostname)">
           <ion-icon
             slot="icon-only"
             size="small"
@@ -136,7 +140,7 @@
             View instructions
           </a>
         </h2>
-        <div class="ion-padding-top ion-padding-bottom">
+        <div *ngIf="!packageContext" class="ion-padding-top ion-padding-bottom">
           <ion-button (click)="installCert()" strong>
             <ion-icon slot="start" name="download-outline"></ion-icon>
             Download Root CA
@@ -150,7 +154,7 @@
         <p>{{ lanHostname }}</p>
       </ion-label>
       <div slot="end">
-        <ion-button fill="clear" (click)="launch(lanHostname)">
+        <ion-button *ngIf="isUi" fill="clear" (click)="launch(lanHostname)">
           <ion-icon
             slot="icon-only"
             size="small"
@@ -180,7 +184,7 @@
           <p>{{ ipv4 }}</p>
         </ion-label>
         <div slot="end">
-          <ion-button fill="clear" (click)="launch(ipv4)">
+          <ion-button *ngIf="isUi" fill="clear" (click)="launch(ipv4)">
             <ion-icon
               slot="icon-only"
               size="small"
@@ -209,7 +213,7 @@
           <p>{{ ipv6 }}</p>
         </ion-label>
         <div slot="end">
-          <ion-button fill="clear" (click)="launch(ipv6)">
+          <ion-button *ngIf="isUi" fill="clear" (click)="launch(ipv6)">
             <ion-icon
               slot="icon-only"
               size="small"

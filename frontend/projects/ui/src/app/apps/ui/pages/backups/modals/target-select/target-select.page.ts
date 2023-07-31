@@ -74,6 +74,6 @@ export class TargetSelectPage {
   styleUrls: ['./target-select.page.scss'],
 })
 export class TargetStatusComponent {
-  @Input() type!: BackupType
-  @Input() target!: BackupTarget
+  @Input({ required: true }) type!: BackupType
+  @Input({ required: true }) target!: BackupTarget
 }

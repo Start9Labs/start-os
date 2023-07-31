@@ -3,40 +3,28 @@ import { NavController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActivatedRoute } from '@angular/router'
 import { PatchDB } from 'patch-db-client'
-import {
-  filter,
-  firstValueFrom,
-  map,
-  Observable,
-  of,
-  switchMap,
-  take,
-} from 'rxjs'
+import { filter, Observable, of, switchMap, take } from 'rxjs'
 import { ErrorService, LoadingService } from '@start9labs/shared'
 import { EOSService } from 'src/app/services/eos.service'
 import { ClientStorageService } from 'src/app/services/client-storage.service'
 import { OSUpdatePage } from './os-update/os-update.page'
 import { getAllPackages } from 'src/app/util/get-package-data'
 import { AuthService } from 'src/app/services/auth.service'
-import { DataModel, OutboundProxy } from 'src/app/services/patch-db/data-model'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
-import { FormContext, FormPage } from '../../../modals/form/form.page'
+import { FormPage } from '../../../modals/form/form.page'
 import { Config } from '@start9labs/start-sdk/lib/config/builder/config'
 import { Value } from '@start9labs/start-sdk/lib/config/builder/value'
 import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
 import { ConfigService } from 'src/app/services/config.service'
-import {
-  TuiAlertService,
-  TuiDialogOptions,
-  TuiDialogService,
-} from '@taiga-ui/core'
+import { TuiAlertService, TuiDialogService } from '@taiga-ui/core'
 import { PROMPT } from 'src/app/apps/ui/modals/prompt/prompt.component'
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 import { TUI_PROMPT } from '@taiga-ui/kit'
 import { DOCUMENT } from '@angular/common'
 import { getServerInfo } from 'src/app/util/get-server-info'
 import * as argon2 from '@start9labs/argon2'
-import { Variants } from '@start9labs/start-sdk/lib/config/builder/variants'
+import { ProxyService } from 'src/app/services/proxy.service'
 
 @Component({
   selector: 'server-show',
@@ -69,6 +57,7 @@ export class ServerShowPage {
     private readonly alerts: TuiAlertService,
     private readonly config: ConfigService,
     private readonly formDialog: FormDialogService,
+    private readonly proxyService: ProxyService,
     @Inject(DOCUMENT) private readonly document: Document,
   ) {}
 
@@ -185,90 +174,6 @@ export class ServerShowPage {
     }
   }
 
-  private async presentModalOutboundMain() {
-    const network = await firstValueFrom(
-      this.patch.watch$('server-info', 'network'),
-    )
-
-    const outboundProxies = network.proxies
-      .filter(p => p.type === 'outbound' || p.type === 'inbound-outbound')
-      .reduce((prev, curr) => {
-        return {
-          [curr.id]: curr.name,
-          ...prev,
-        }
-      }, {})
-
-    const config = Config.of({
-      proxy: Value.union(
-        {
-          name: 'Select Proxy',
-          required: {
-            default: !network.outboundProxy
-              ? 'none'
-              : network.outboundProxy === 'primary'
-              ? 'primary'
-              : 'other',
-          },
-          description: `
-  <h5>System Default</h5>The system default <i>inbound</i> proxy will be used. If you do not have an inbound proxy, no proxy will be used
-  <h5>Other</h5>The specific proxy you select will be used, overriding the default
-  `,
-        },
-        Variants.of({
-          primary: {
-            name: 'Primary',
-            spec: Config.of({}),
-          },
-          other: {
-            name: 'Other',
-            spec: Config.of({
-              proxyId: Value.select({
-                name: 'Select Specific Proxy',
-                required: {
-                  default:
-                    network.outboundProxy && network.outboundProxy !== 'primary'
-                      ? network.outboundProxy.proxyId
-                      : null,
-                },
-                values: outboundProxies,
-              }),
-            }),
-          },
-          none: {
-            name: 'None',
-            spec: Config.of({}),
-          },
-        }),
-      ),
-    })
-
-    const options: Partial<
-      TuiDialogOptions<FormContext<typeof config.validator._TYPE>>
-    > = {
-      label: 'Outbound Proxy',
-      data: {
-        spec: await configBuilderToSpec(config),
-        buttons: [
-          {
-            text: 'Save',
-            handler: async value => {
-              const proxy =
-                value.proxy.unionSelectKey === 'none'
-                  ? null
-                  : value.proxy.unionSelectKey === 'primary'
-                  ? 'primary'
-                  : { proxyId: value.proxy.unionValueKey.proxyId }
-              await this.saveOutboundProxy(proxy)
-              return true
-            },
-          },
-        ],
-      },
-    }
-    this.formDialog.open(FormPage, options)
-  }
-
   private presentAlertLogout() {
     this.dialogs
       .open(TUI_PROMPT, {
@@ -354,18 +259,6 @@ export class ServerShowPage {
 
     try {
       await this.api.setDbValue<string | null>(['name'], value)
-    } finally {
-      loader.unsubscribe()
-    }
-  }
-
-  private async saveOutboundProxy(proxy: OutboundProxy) {
-    const loader = this.loader.open(`Saving`).subscribe()
-
-    try {
-      await this.api.setOsOutboundProxy({ proxy })
-    } catch (e: any) {
-      this.errorService.handleError(e)
     } finally {
       loader.unsubscribe()
     }
@@ -539,7 +432,7 @@ export class ServerShowPage {
         description: 'Information for accessing your StartOS user interface',
         icon: 'desktop-outline',
         action: () =>
-          this.navCtrl.navigateForward(['addresses'], {
+          this.navCtrl.navigateForward(['ui-details'], {
             relativeTo: this.route,
           }),
         detail: true,
@@ -590,7 +483,7 @@ export class ServerShowPage {
         title: 'Outbound Proxy',
         description: 'Proxy outbound traffic from the StartOS main process',
         icon: 'shield-outline',
-        action: () => this.presentModalOutboundMain(),
+        action: () => this.proxyService.presentModalSetOutboundProxy(),
         detail: false,
         disabled$: of(false),
       },

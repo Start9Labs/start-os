@@ -2,13 +2,13 @@ import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
-import { OSAddressesPage } from './os-addresses.page'
+import { AppInterfacePage } from './app-interface.page'
 import { InterfaceAddressesComponentModule } from 'src/app/common/interface-addresses/interface-addresses.module'
 
 const routes: Routes = [
   {
     path: '',
-    component: OSAddressesPage,
+    component: AppInterfacePage,
   },
 ]
 
@@ -19,6 +19,6 @@ const routes: Routes = [
     RouterModule.forChild(routes),
     InterfaceAddressesComponentModule,
   ],
-  declarations: [OSAddressesPage],
+  declarations: [AppInterfacePage],
 })
-export class OSAddressesPageModule {}
+export class AppInterfacePageModule {}

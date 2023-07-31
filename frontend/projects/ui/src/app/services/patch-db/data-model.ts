@@ -78,7 +78,7 @@ export type NetworkInfo = {
     forwards: PortForward[]
   }
   proxies: Proxy[]
-  outboundProxy: InboundProxy
+  outboundProxy: OsOutboundProxy
   primaryProxies: {
     inbound: string | null
     outbound: string | null
@@ -90,9 +90,9 @@ export type DomainInfo = {
   subdomain: string | null
 }
 
-export type InboundProxy = { proxyId: string } | 'primary' | null
-
-export type OutboundProxy = InboundProxy | { interfaceId: string }
+export type InboundProxy = { proxyId: string } | 'primaryProxy' | null
+export type OsOutboundProxy = InboundProxy
+export type ServiceOutboundProxy = OsOutboundProxy | 'primaryInterface'
 
 export type PortForward = {
   assigned: number
@@ -118,7 +118,7 @@ export type Domain = {
 }
 
 export type NetworkStrategy =
-  | { proxyId: string | null } // null means system default
+  | { proxyId: string | null } // null means system primary
   | { ipStrategy: 'ipv4' | 'ipv6' | 'dualstack' }
 
 export type Proxy = {
@@ -228,7 +228,7 @@ export interface InstalledPackageInfo {
   'marketplace-url': string | null
   'developer-key': string
   'has-config': boolean
-  outboundProxy: OutboundProxy
+  outboundProxy: ServiceOutboundProxy
 }
 
 export interface CurrentDependencyInfo {

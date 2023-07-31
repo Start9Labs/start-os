@@ -41,10 +41,10 @@ import { LaunchMenuComponent } from '../../../launch-menu/launch-menu.component'
 export class AppShowStatusComponent {
   @ViewChild('launchMenu') launchMenu!: LaunchMenuComponent
 
-  @Input()
+  @Input({ required: true })
   pkg!: PackageDataEntry
 
-  @Input()
+  @Input({ required: true })
   status!: PackageStatus
 
   @Input()
@@ -88,11 +88,6 @@ export class AppShowStatusComponent {
 
   get rendering(): StatusRendering {
     return PrimaryRendering[this.status.primary]
-  }
-
-  openPopover(e: Event): void {
-    this.launchMenu.event = e
-    this.launchMenu.isOpen = true
   }
 
   presentModalConfig(): void {

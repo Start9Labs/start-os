@@ -564,6 +564,18 @@ export class LiveApiService extends ApiService {
     })
   }
 
+  async setInterfaceClearnetAddress(
+    params: RR.SetInterfaceClearnetAddressReq,
+  ): Promise<RR.SetInterfaceClearnetAddressRes> {
+    return this.rpcRequest({ method: 'package.interface.set-clearnet', params })
+  }
+
+  async setServiceOutboundProxy(
+    params: RR.SetServiceOutboundProxyReq,
+  ): Promise<RR.SetServiceOutboundProxyRes> {
+    return this.rpcRequest({ method: 'package.proxy.set-outbound', params })
+  }
+
   async getSetupStatus() {
     return this.rpcRequest<SetupStatus | null>({
       method: 'setup.status',

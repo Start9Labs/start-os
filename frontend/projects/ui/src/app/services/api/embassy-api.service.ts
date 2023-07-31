@@ -334,4 +334,12 @@ export abstract class ApiService {
   abstract getSetupStatus(): Promise<SetupStatus | null>
 
   abstract followLogs(): Promise<string>
+
+  abstract setInterfaceClearnetAddress(
+    params: RR.SetInterfaceClearnetAddressReq,
+  ): Promise<RR.SetInterfaceClearnetAddressRes>
+
+  abstract setServiceOutboundProxy(
+    params: RR.SetServiceOutboundProxyReq,
+  ): Promise<RR.SetServiceOutboundProxyRes>
 }

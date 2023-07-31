@@ -9,6 +9,6 @@
 
 <ion-content class="with-widgets">
   <div *ngIf="ui$ | async as ui" class="cap-width">
-    <interface-addresses [addressInfo]="ui"></interface-addresses>
+    <interface-addresses [addressInfo]="ui" [isUi]="true"></interface-addresses>
   </div>
 </ion-content>

@@ -16,6 +16,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { from, map, Observable } from 'rxjs'
 import { PatchDB } from 'patch-db-client'
 import { TuiDialogService } from '@taiga-ui/core'
+import { ProxyService } from 'src/app/services/proxy.service'
 
 export interface Button {
   title: string
@@ -37,9 +38,11 @@ export class ToButtonsPipe implements PipeTransform {
     private readonly formDialog: FormDialogService,
     private readonly apiService: ApiService,
     private readonly patch: PatchDB<DataModel>,
+    private readonly proxyService: ProxyService,
   ) {}
 
   transform(pkg: PackageDataEntry): Button[] {
+    const pkgId = pkg.manifest.id
     const pkgTitle = pkg.manifest.title
 
     return [
@@ -50,7 +53,7 @@ export class ToButtonsPipe implements PipeTransform {
         description: `Understand how to use ${pkgTitle}`,
         icon: 'list-outline',
         highlighted$: this.patch
-          .watch$('ui', 'ack-instructions', pkg.manifest.id)
+          .watch$('ui', 'ack-instructions', pkgId)
           .pipe(map(seen => !seen)),
       },
       // config
@@ -58,7 +61,7 @@ export class ToButtonsPipe implements PipeTransform {
         action: () =>
           this.formDialog.open<PackageConfigData>(AppConfigPage, {
             label: `${pkg.manifest.title} configuration`,
-            data: { pkgId: pkg.manifest.id },
+            data: { pkgId },
           }),
         title: 'Config',
         description: `Customize ${pkgTitle}`,
@@ -82,15 +85,16 @@ export class ToButtonsPipe implements PipeTransform {
         description: `Uninstall and other commands specific to ${pkgTitle}`,
         icon: 'flash-outline',
       },
-      // interfaces
+      // outbound proxy
       {
         action: () =>
-          this.navCtrl.navigateForward(['interfaces'], {
-            relativeTo: this.route,
+          this.proxyService.presentModalSetOutboundProxy({
+            packageId: pkgId,
+            outboundProxy: pkg.installed!.outboundProxy,
           }),
-        title: 'Interfaces',
-        description: 'User and machine access points',
-        icon: 'desktop-outline',
+        title: 'Outbound Proxy',
+        description: 'Proxy outbound traffic from this service',
+        icon: 'shield-outline',
       },
       // logs
       {

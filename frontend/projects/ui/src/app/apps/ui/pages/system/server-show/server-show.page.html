@@ -72,7 +72,7 @@
                 [color]="!server.network.outboundProxy ? 'warning' : 'success'"
               >
                 {{ !server.network.outboundProxy ? 'None' :
-                server.network.outboundProxy === 'primary' ? 'Primary' :
+                server.network.outboundProxy === 'primaryProxy' ? 'Primary' :
                 server.network.outboundProxy.proxyId }}
               </ion-text>
             </p>

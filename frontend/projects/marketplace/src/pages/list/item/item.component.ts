@@ -7,6 +7,6 @@ import { MarketplacePkg } from '../../../types'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ItemComponent {
-  @Input()
+  @Input({ required: true })
   pkg!: MarketplacePkg
 }

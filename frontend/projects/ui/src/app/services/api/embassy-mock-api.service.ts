@@ -477,11 +477,11 @@ export class MockApiService extends ApiService {
               domains: [],
               services: [],
             },
-            // primaryInbound: type === 'inbound-outbound' ? true : false,
-            // primaryOutbound:
-            //   type === 'inbound-outbound' || type === 'outbound' ? true : false,
-            primaryInbound: false,
-            primaryOutbound: false,
+            primaryInbound: type === 'inbound-outbound' ? true : false,
+            primaryOutbound:
+              type === 'inbound-outbound' || type === 'outbound' ? true : false,
+            // primaryInbound: false,
+            // primaryOutbound: false,
           },
         ],
       },
@@ -1184,6 +1184,34 @@ export class MockApiService extends ApiService {
   async followLogs(): Promise<string> {
     await pauseFor(1000)
     return 'fake-guid'
+  }
+
+  async setInterfaceClearnetAddress(
+    params: RR.SetInterfaceClearnetAddressReq,
+  ): Promise<RR.SetInterfaceClearnetAddressRes> {
+    await pauseFor(2000)
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/package-data/${params.packageId}/installed/interfaceInfo/${params.interfaceId}/addressInfo/domainInfo`,
+        value: params.domainInfo,
+      },
+    ]
+    return this.withRevision(patch, null)
+  }
+
+  async setServiceOutboundProxy(
+    params: RR.SetServiceOutboundProxyReq,
+  ): Promise<RR.SetServiceOutboundProxyRes> {
+    await pauseFor(2000)
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/package-data/${params.packageId}/installed/outboundProxy`,
+        value: params.proxy,
+      },
+    ]
+    return this.withRevision(patch, null)
   }
 
   private async updateProgress(id: string): Promise<void> {

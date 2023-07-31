@@ -25,13 +25,6 @@ const routes: Routes = [
       ),
   },
   {
-    path: ':pkgId/interfaces',
-    loadChildren: () =>
-      import('./app-interfaces/app-interfaces.module').then(
-        m => m.AppInterfacesPageModule,
-      ),
-  },
-  {
     path: ':pkgId/logs',
     loadChildren: () =>
       import('./app-logs/app-logs.module').then(m => m.AppLogsPageModule),
@@ -41,6 +34,13 @@ const routes: Routes = [
     loadChildren: () =>
       import('./app-credentials/app-credentials.module').then(
         m => m.AppCredentialsPageModule,
+      ),
+  },
+  {
+    path: ':pkgId/interfaces/:interfaceId',
+    loadChildren: () =>
+      import('./app-interface/app-interface.module').then(
+        m => m.AppInterfacePageModule,
       ),
   },
 ]

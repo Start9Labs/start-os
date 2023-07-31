@@ -10,8 +10,7 @@ import {
   styleUrls: ['marketplace-status.component.scss'],
 })
 export class MarketplaceStatusComponent {
-  @Input() version!: string
-
+  @Input({ required: true }) version!: string
   @Input() localPkg?: PackageDataEntry
 
   PackageState = PackageState

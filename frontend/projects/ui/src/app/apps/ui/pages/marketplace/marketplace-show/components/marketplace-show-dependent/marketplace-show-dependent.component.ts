@@ -15,7 +15,7 @@ import { DependentInfo } from 'src/app/types/dependent-info'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MarketplaceShowDependentComponent {
-  @Input()
+  @Input({ required: true })
   pkg!: MarketplacePkg
 
   readonly dependentInfo?: DependentInfo =

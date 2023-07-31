@@ -128,7 +128,7 @@ export class RecoverPage {
   styleUrls: ['./recover.page.scss'],
 })
 export class DriveStatusComponent {
-  @Input() hasValidBackup!: boolean
+  @Input({ required: true }) hasValidBackup!: boolean
 }
 
 interface MappedDisk {

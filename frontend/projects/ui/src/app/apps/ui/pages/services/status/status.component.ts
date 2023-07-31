@@ -16,7 +16,7 @@ export class StatusComponent {
   PS = PrimaryStatus
   PR = PrimaryRendering
 
-  @Input() rendering!: StatusRendering
+  @Input({ required: true }) rendering!: StatusRendering
   @Input() size?: string
   @Input() style?: string = 'regular'
   @Input() weight?: string = 'normal'

@@ -10,11 +10,9 @@ const routes: Routes = [
       ),
   },
   {
-    path: 'addresses',
+    path: 'ui-details',
     loadChildren: () =>
-      import('./os-addresses/os-addresses.module').then(
-        m => m.OSAddressesPageModule,
-      ),
+      import('./ui-details/ui-details.module').then(m => m.UIDetailsPageModule),
   },
   {
     path: 'port-forwards',

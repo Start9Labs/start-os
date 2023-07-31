@@ -46,13 +46,15 @@ export class LogsComponent {
   @ViewChild(IonContent)
   private content?: IonContent
 
-  @Input() followLogs!: (
+  @Input({ required: true }) followLogs!: (
     params: RR.FollowServerLogsReq,
   ) => Promise<RR.FollowServerLogsRes>
-  @Input() fetchLogs!: (params: ServerLogsReq) => Promise<LogsRes>
-  @Input() context!: string
-  @Input() defaultBack!: string
-  @Input() pageTitle!: string
+  @Input({ required: true }) fetchLogs!: (
+    params: ServerLogsReq,
+  ) => Promise<LogsRes>
+  @Input({ required: true }) context!: string
+  @Input({ required: true }) defaultBack!: string
+  @Input({ required: true }) pageTitle!: string
 
   loading = true
   infiniteStatus: 0 | 1 | 2 = 0

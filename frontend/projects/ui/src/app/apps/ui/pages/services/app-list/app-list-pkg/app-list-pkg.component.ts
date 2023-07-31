@@ -17,7 +17,7 @@ import { PkgInfo } from 'src/app/types/pkg-info'
 export class AppListPkgComponent {
   @ViewChild('launchMenu') launchMenu!: LaunchMenuComponent
 
-  @Input()
+  @Input({ required: true })
   pkg!: PkgInfo
 
   get status(): PackageMainStatus {

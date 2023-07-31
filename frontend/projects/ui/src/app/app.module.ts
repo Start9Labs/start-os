@@ -22,6 +22,7 @@ import {
 import { AppComponent } from './app.component'
 import { RoutingModule } from './routing.module'
 import { OSWelcomePageModule } from './common/os-welcome/os-welcome.module'
+import { QRComponentModule } from './common/qr/qr.module'
 import { PreloaderModule } from './app/preloader/preloader.module'
 import { FooterModule } from './app/footer/footer.module'
 import { MenuModule } from './app/menu/menu.module'
@@ -70,6 +71,7 @@ import { environment } from '../environments/environment'
       registrationStrategy: 'registerWhenStable:30000',
     }),
     LoadingModule,
+    QRComponentModule,
   ],
   providers: APP_PROVIDERS,
   bootstrap: [AppComponent],

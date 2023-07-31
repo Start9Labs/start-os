@@ -17,7 +17,7 @@ import { InstalledPackageInfo } from 'src/app/services/patch-db/data-model'
 export class LaunchMenuComponent {
   @ViewChild('popover') popover!: HTMLIonPopoverElement
 
-  @Input()
+  @Input({ required: true })
   interfaceInfo!: InstalledPackageInfo['interfaceInfo']
 
   set isOpen(open: boolean) {

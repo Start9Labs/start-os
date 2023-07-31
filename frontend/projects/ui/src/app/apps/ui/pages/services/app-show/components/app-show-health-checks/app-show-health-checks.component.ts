@@ -12,7 +12,7 @@ import { isEmptyObject } from '@start9labs/shared'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppShowHealthChecksComponent {
-  @Input() pkgId!: string
+  @Input({ required: true }) pkgId!: string
 
   readonly connected$ = this.connectionService.connected$
 

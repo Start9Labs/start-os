@@ -6,7 +6,8 @@ import {
   DependencyError,
   DomainInfo,
   NetworkStrategy,
-  OutboundProxy,
+  OsOutboundProxy,
+  ServiceOutboundProxy,
 } from 'src/app/services/patch-db/data-model'
 import { StartOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
 import { customSmtp } from '@start9labs/start-sdk/lib/config/configConstants'
@@ -88,7 +89,7 @@ export module RR {
   export type ToggleZramRes = null
 
   export type SetOsOutboundProxyReq = {
-    proxy: OutboundProxy
+    proxy: OsOutboundProxy
   } // server.proxy.set-outbound
   export type SetOsOutboundProxyRes = null
 
@@ -363,6 +364,18 @@ export module RR {
     size: number // bytes
   }
   export type SideloadPacakgeRes = string //guid
+
+  export type SetInterfaceClearnetAddressReq = SetServerClearnetAddressReq & {
+    packageId: string
+    interfaceId: string
+  } // package.interface.set-clearnet
+  export type SetInterfaceClearnetAddressRes = null
+
+  export type SetServiceOutboundProxyReq = {
+    packageId: string
+    proxy: ServiceOutboundProxy
+  } // package.proxy.set-outbound
+  export type SetServiceOutboundProxyRes = null
 
   // marketplace
 

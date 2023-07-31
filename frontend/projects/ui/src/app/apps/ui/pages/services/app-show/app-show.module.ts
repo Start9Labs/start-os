@@ -10,12 +10,12 @@ import {
 } from '@start9labs/shared'
 import { StatusComponentModule } from '../status/status.component.module'
 import { AppConfigPageModule } from './modals/app-config/app-config.module'
-import { UiPipesModule } from '../ui-pipes/ui.module'
 import { AppShowHeaderComponent } from './components/app-show-header/app-show-header.component'
 import { AppShowProgressComponent } from './components/app-show-progress/app-show-progress.component'
 import { AppShowStatusComponent } from './components/app-show-status/app-show-status.component'
 import { AppShowDependenciesComponent } from './components/app-show-dependencies/app-show-dependencies.component'
 import { AppShowMenuComponent } from './components/app-show-menu/app-show-menu.component'
+import { AppShowInterfacesComponent } from './components/app-show-interfaces/app-show-interfaces.component'
 import { AppShowHealthChecksComponent } from './components/app-show-health-checks/app-show-health-checks.component'
 import { AppShowAdditionalComponent } from './components/app-show-additional/app-show-additional.component'
 import { HealthColorPipe } from './pipes/health-color.pipe'
@@ -46,6 +46,7 @@ const routes: Routes = [
     AppShowStatusComponent,
     AppShowDependenciesComponent,
     AppShowMenuComponent,
+    AppShowInterfacesComponent,
     AppShowHealthChecksComponent,
     AppShowAdditionalComponent,
   ],
@@ -56,7 +57,6 @@ const routes: Routes = [
     RouterModule.forChild(routes),
     AppConfigPageModule,
     EmverPipesModule,
-    UiPipesModule,
     ResponsiveColModule,
     SharedPipesModule,
     InsecureWarningComponentModule,

@@ -7,7 +7,7 @@ import { MarketplacePkg } from '../../../types'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DependenciesComponent {
-  @Input()
+  @Input({ required: true })
   pkg!: MarketplacePkg
 
   getImg(key: string): string {
