@@ -5,7 +5,6 @@ use std::task::Poll;
 use std::time::Duration;
 
 use color_eyre::{eyre::eyre, Report};
-use embassy_container_init::ProcessGroupId;
 use futures::future::BoxFuture;
 use futures::{Future, FutureExt, TryFutureExt};
 use helpers::UnixRpcClient;
@@ -47,19 +46,26 @@ use crate::util::NonDetachingJoinHandle;
 use crate::volume::Volume;
 use crate::Error;
 
+mod OutputStrategy;
 pub mod health;
 mod js_api;
 mod manager_container;
 mod manager_map;
 pub mod manager_seed;
 pub mod persistent_container;
+mod process_group_id;
+mod process_id;
+mod signal_group_params;
 mod start_stop;
 mod transition_state;
 
 pub use manager_map::ManagerMap;
 
-use self::manager_container::{get_status, ManageContainer};
 use self::manager_seed::ManagerSeed;
+use self::{
+    manager_container::{get_status, ManageContainer},
+    process_group_id::ProcessGroupId,
+};
 
 pub const HEALTH_CHECK_COOLDOWN_SECONDS: u64 = 15;
 pub const HEALTH_CHECK_GRACE_PERIOD_SECONDS: u64 = 5;
@@ -904,61 +910,10 @@ async fn send_signal(manager: &Manager, gid: Arc<Gid>, signal: Signal) -> Result
     //     .commit_health_check_results
     //     .store(false, Ordering::SeqCst);
 
-    if let Some(rpc_client) = manager.rpc_client() {
-        let main_gid = *gid.main_gid.0.borrow();
-        let next_gid = gid.new_gid();
-        #[cfg(feature = "js_engine")]
-        if let Err(e) = crate::procedure::js_scripts::JsProcedure::default()
-            .execute::<_, NoOutput>(
-                &manager.seed.ctx.datadir,
-                &manager.seed.manifest.id,
-                &manager.seed.manifest.version,
-                ProcedureName::Signal,
-                &manager.seed.manifest.volumes,
-                Some(embassy_container_init::SignalGroupParams {
-                    gid: main_gid,
-                    signal: signal as u32,
-                }),
-                None, // TODO
-                next_gid,
-                Some(rpc_client),
-                Arc::new(manager.clone()),
-            )
-            .await?
-        {
-            tracing::error!("Failed to send js signal: {}", e.1);
-            tracing::debug!("{:?}", e);
-        }
-    } else {
-        // send signal to container
-        manager
-            .seed
-            .ctx
-            .docker
-            .kill_container(
-                &manager.seed.container_name,
-                Some(bollard::container::KillContainerOptions {
-                    signal: signal.to_string(),
-                }),
-            )
-            .await
-            .or_else(|e| {
-                if matches!(
-                    e,
-                    bollard::errors::Error::DockerResponseServerError {
-                        status_code: 409, // CONFLICT
-                        ..
-                    } | bollard::errors::Error::DockerResponseServerError {
-                        status_code: 404, // NOT FOUND
-                        ..
-                    }
-                ) {
-                    Ok(())
-                } else {
-                    Err(e)
-                }
-            })?;
-    }
+    let rpc_client = manager.rpc_client();
+
+    let main_gid = *gid.main_gid.0.borrow();
+    let next_gid = gid.new_gid();
 
     Ok(())
 }

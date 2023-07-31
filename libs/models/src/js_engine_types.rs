@@ -1,7 +1,6 @@
 use std::{future::Future, pin::Pin, sync::Arc, time::Duration};
 
 use color_eyre::eyre::bail;
-use embassy_container_init::{Input, Output, ProcessId, RpcId};
 use tokio::sync::{
     mpsc::{UnboundedReceiver, UnboundedSender},
     Mutex,
@@ -12,7 +11,7 @@ pub type ExecCommand = Arc<
     dyn Fn(
             String,
             Vec<String>,
-            UnboundedSender<embassy_container_init::Output>,
+            UnboundedSender<Value>,
             Option<Duration>,
         ) -> Pin<Box<dyn Future<Output = Result<RpcId, String>> + 'static>>
         + Send
@@ -33,7 +32,7 @@ pub trait CommandInserter {
         &self,
         command: String,
         args: Vec<String>,
-        sender: UnboundedSender<embassy_container_init::Output>,
+        sender: UnboundedSender<Value>,
         timeout: Option<Duration>,
     ) -> Pin<Box<dyn Future<Output = Option<RpcId>>>>;
 

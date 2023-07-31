@@ -3,7 +3,7 @@ ARCH := $(shell if [ "$(OS_ARCH)" = "raspberrypi" ]; then echo aarch64; else ech
 ENVIRONMENT_FILE = $(shell ./check-environment.sh)
 GIT_HASH_FILE = $(shell ./check-git-hash.sh)
 VERSION_FILE = $(shell ./check-version.sh)
-EMBASSY_BINS := backend/target/$(ARCH)-unknown-linux-gnu/release/embassyd backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-init backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-cli backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-sdk backend/target/$(ARCH)-unknown-linux-gnu/release/avahi-alias libs/target/aarch64-unknown-linux-musl/release/embassy_container_init libs/target/x86_64-unknown-linux-musl/release/embassy_container_init
+EMBASSY_BINS := backend/target/$(ARCH)-unknown-linux-gnu/release/embassyd backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-init backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-cli backend/target/$(ARCH)-unknown-linux-gnu/release/embassy-sdk backend/target/$(ARCH)-unknown-linux-gnu/release/avahi-alias
 EMBASSY_UIS := frontend/dist/ui frontend/dist/setup-wizard frontend/dist/diagnostic-ui frontend/dist/install-wizard
 BUILD_SRC := $(shell find build)
 EMBASSY_SRC := backend/embassyd.service backend/embassy-init.service $(EMBASSY_UIS) $(BUILD_SRC)
@@ -86,9 +86,7 @@ install: $(ALL_TARGETS)
 	$(call cp,VERSION.txt,$(DESTDIR)/usr/lib/embassy/VERSION.txt)
 
 	$(call mkdir,$(DESTDIR)/usr/lib/embassy/container)
-	$(call cp,libs/target/aarch64-unknown-linux-musl/release/embassy_container_init,$(DESTDIR)/usr/lib/embassy/container/embassy_container_init.arm64)
-	$(call cp,libs/target/x86_64-unknown-linux-musl/release/embassy_container_init,$(DESTDIR)/usr/lib/embassy/container/embassy_container_init.amd64)
-
+	
 	$(call mkdir,$(DESTDIR)/usr/lib/embassy/system-images)
 	$(call cp,system-images/compat/docker-images/$(ARCH).tar,$(DESTDIR)/usr/lib/embassy/system-images/compat.tar)
 	$(call cp,system-images/utils/docker-images/$(ARCH).tar,$(DESTDIR)/usr/lib/embassy/system-images/utils.tar)

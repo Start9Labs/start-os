@@ -94,7 +94,7 @@ async fn create_service_manager(
     desired_state: Arc<Sender<StartStop>>,
     seed: Arc<manager_seed::ManagerSeed>,
     current_state: Arc<Sender<StartStop>>,
-    persistent_container: Arc<Option<super::persistent_container::PersistentContainer>>,
+    persistent_container: Arc<super::persistent_container::PersistentContainer>,
 ) {
     let mut desired_state_receiver = desired_state.subscribe();
     let mut running_service: Option<NonDetachingJoinHandle<()>> = None;
@@ -105,19 +105,11 @@ async fn create_service_manager(
         match (current, desired) {
             (StartStop::Start, StartStop::Start) => (),
             (StartStop::Start, StartStop::Stop) => {
-                if persistent_container.is_none() {
-                    if let Err(err) = seed.stop_container().await {
-                        tracing::error!("Could not stop container");
-                        tracing::debug!("{:?}", err)
-                    }
-                    running_service = None;
-                } else if let Some(current_service) = running_service.take() {
+                if let Some(current_service) = running_service.take() {
                     tokio::select! {
                         _ = current_service => (),
                         _ = tokio::time::sleep(Duration::from_secs_f64(seed.manifest
-                            .containers
-                            .as_ref()
-                            .and_then(|c| c.main.sigterm_timeout).map(|x| x.as_secs_f64()).unwrap_or_default())) => {
+                            .containers.main.sigterm_timeout.map(|x| x.as_secs_f64()).unwrap_or_default())) => {
                             tracing::error!("Could not stop service");
                         }
                     }

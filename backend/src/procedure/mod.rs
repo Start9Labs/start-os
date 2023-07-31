@@ -16,8 +16,6 @@ use crate::volume::Volumes;
 use crate::{Error, ErrorKind};
 
 pub mod docker;
-#[cfg(feature = "js_engine")]
-pub mod js_scripts;
 pub use models::ProcedureName;
 
 // TODO: create RPC endpoint that looks up the appropriate action and calls `execute`
@@ -27,16 +25,11 @@ pub use models::ProcedureName;
 #[serde(tag = "type")]
 pub enum PackageProcedure {
     Docker(DockerProcedure),
-
-    #[cfg(feature = "js_engine")]
-    Script(js_scripts::JsProcedure),
 }
 
 impl PackageProcedure {
     pub fn is_script(&self) -> bool {
         match self {
-            #[cfg(feature = "js_engine")]
-            Self::Script(_) => true,
             _ => false,
         }
     }
@@ -53,8 +46,6 @@ impl PackageProcedure {
             PackageProcedure::Docker(action) => {
                 action.validate(eos_version, volumes, image_ids, expected_io)
             }
-            #[cfg(feature = "js_engine")]
-            PackageProcedure::Script(action) => action.validate(volumes),
         }
     }
 
@@ -83,40 +74,6 @@ impl PackageProcedure {
                 todo!("BLUJ")
                 // procedure.execute(ctx, name, input, timeout).await
             }
-            #[cfg(feature = "js_engine")]
-            PackageProcedure::Script(procedure) => {
-                let man = ctx
-                    .managers
-                    .get(&(pkg_id.clone(), pkg_version.clone()))
-                    .await
-                    .ok_or_else(|| {
-                        Error::new(
-                            eyre!("No manager found for {}", pkg_id),
-                            ErrorKind::NotFound,
-                        )
-                    })?;
-                let rpc_client = man.rpc_client();
-                let gid = if matches!(name, ProcedureName::Main) {
-                    man.gid.new_main_gid()
-                } else {
-                    man.gid.new_gid()
-                };
-
-                procedure
-                    .execute(
-                        &ctx.datadir,
-                        pkg_id,
-                        pkg_version,
-                        name,
-                        volumes,
-                        input,
-                        timeout,
-                        gid,
-                        rpc_client,
-                        man,
-                    )
-                    .await
-            }
         }
     }
 
@@ -140,12 +97,6 @@ impl PackageProcedure {
                 //     .sandboxed(ctx, pkg_id, pkg_version, volumes, input, timeout)
                 //     .await
             }
-            #[cfg(feature = "js_engine")]
-            PackageProcedure::Script(procedure) => {
-                procedure
-                    .sandboxed(ctx, pkg_id, pkg_version, volumes, input, timeout, name)
-                    .await
-            }
         }
     }
 }
@@ -154,8 +105,6 @@ impl std::fmt::Display for PackageProcedure {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             PackageProcedure::Docker(_) => write!(f, "Docker")?,
-            #[cfg(feature = "js_engine")]
-            PackageProcedure::Script(_) => write!(f, "JS")?,
         }
         Ok(())
     }

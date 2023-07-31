@@ -825,7 +825,6 @@ impl LongRunning {
         container_name: &str,
         paths: Arc<PersistantPaths>,
     ) -> Result<tokio::process::Command, Error> {
-        const INIT_EXEC: &str = "/start9/bin/embassy_container_init";
         const BIND_LOCATION: &str = "/usr/lib/embassy/container/";
         tracing::trace!("setup_long_running_docker_cmd");
 

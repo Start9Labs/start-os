@@ -14,5 +14,3 @@ sudo chown -R $USER target
 sudo chown -R $USER ~/.cargo
 sudo chown $USER JS_SNAPSHOT.bin
 sudo chmod 0644 JS_SNAPSHOT.bin
-
-sudo mv -f JS_SNAPSHOT.bin ./js_engine/src/artifacts/JS_SNAPSHOT.bin
