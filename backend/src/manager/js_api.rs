@@ -81,27 +81,28 @@ impl OsApi for Manager {
         internal_port: u16,
         address_schema: AddressSchemaLocal,
     ) -> Result<helpers::Address, Report> {
-        let ip = try_get_running_ip(&self.seed)
-            .await?
-            .ok_or_else(|| eyre!("No ip available"))?;
-        let AddressSchemaLocal { id, external_port } = address_schema;
-        let mut svc = self
-            .seed
-            .ctx
-            .net_controller
-            .create_service(self.seed.manifest.id.clone(), ip)
-            .await
-            .map_err(|e| eyre!("Could not get to net controller: {e:?}"))?;
-        let mut secrets = self.seed.ctx.secret_store.acquire().await?;
-        let mut tx = secrets.begin().await?;
+        todo!()
+        // let ip = try_get_running_ip(&self.seed)
+        //     .await?
+        //     .ok_or_else(|| eyre!("No ip available"))?;
+        // let AddressSchemaLocal { id, external_port } = address_schema;
+        // let mut svc = self
+        //     .seed
+        //     .ctx
+        //     .net_controller
+        //     .create_service(self.seed.manifest.id.clone(), ip)
+        //     .await
+        //     .map_err(|e| eyre!("Could not get to net controller: {e:?}"))?;
+        // let mut secrets = self.seed.ctx.secret_store.acquire().await?;
+        // let mut tx = secrets.begin().await?;
 
-        let addr = svc
-            .add_lan(&mut tx, id.clone(), external_port, internal_port, false)
-            .await
-            .map_err(|e| eyre!("Could not add to local: {e:?}"))?;
+        // let addr = svc
+        //     .add_lan(&mut tx, id.clone(), external_port, internal_port, false)
+        //     .await
+        //     .map_err(|e| eyre!("Could not add to local: {e:?}"))?;
 
-        tx.commit().await?;
-        Ok(helpers::Address(addr))
+        // tx.commit().await?;
+        // Ok(helpers::Address(addr))
     }
     async fn bind_onion(
         &self,

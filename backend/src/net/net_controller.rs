@@ -283,26 +283,27 @@ impl NetService {
     where
         for<'a> &'a mut Ex: PgExecutor<'a>,
     {
-        let key = Key::for_interface(secrets, Some((self.id.clone(), id.clone()))).await?;
-        let addr = key.local_address();
-        let ctrl = self.net_controller()?;
-        let lan_idx = (id, external);
-        let mut lan = self
-            .lan
-            .remove(&lan_idx)
-            .unwrap_or_else(|| (key.clone(), Vec::new()));
-        lan.1.append(
-            &mut ctrl
-                .add_lan(
-                    key,
-                    external,
-                    SocketAddr::new(self.ip.into(), internal),
-                    connect_ssl,
-                )
-                .await?,
-        );
-        self.lan.insert(lan_idx, lan);
-        Ok(addr)
+        todo!()
+        // let key = Key::for_interface(secrets, Some((self.id.clone(), id.clone()))).await?;
+        // let addr = key.local_address();
+        // let ctrl = self.net_controller()?;
+        // let lan_idx = (id, external);
+        // let mut lan = self
+        //     .lan
+        //     .remove(&lan_idx)
+        //     .unwrap_or_else(|| (key.clone(), Vec::new()));
+        // lan.1.append(
+        //     &mut ctrl
+        //         .add_lan(
+        //             key,
+        //             external,
+        //             SocketAddr::new(self.ip.into(), internal),
+        //             connect_ssl,
+        //         )
+        //         .await?,
+        // );
+        // self.lan.insert(lan_idx, lan);
+        // Ok(addr)
     }
     pub async fn remove_lan(&mut self, id: InterfaceId, external: u16) -> Result<(), Error> {
         let ctrl = self.net_controller()?;

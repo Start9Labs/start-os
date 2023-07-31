@@ -256,7 +256,7 @@ mod tests {
                 ))
             }),
             Just(Version::V0_3_4_3(Wrapper(v0_3_4_3::Version::new()))),
-            Just(Version::V0_4_0(Wrapper(v0_4_0::Version::new()))),
+            // Just(Version::V0_4_0(Wrapper(v0_4_0::Version::new()))),
             em_version().prop_map(Version::Other),
         ]
     }
