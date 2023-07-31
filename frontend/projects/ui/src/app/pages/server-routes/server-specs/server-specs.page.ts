@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
-import { ToastController } from '@ionic/angular'
+import { ModalController, ToastController } from '@ionic/angular'
 import { PatchDB } from 'patch-db-client'
 import { ConfigService } from 'src/app/services/config.service'
 import { QRComponent } from 'src/app/components/qr/qr.component'
@@ -17,6 +17,7 @@ export class ServerSpecsPage {
 
   constructor(
     private readonly toastCtrl: ToastController,
+    private readonly modalCtrl: ModalController,
     private readonly patch: PatchDB<DataModel>,
     private readonly config: ConfigService,
   ) {}
