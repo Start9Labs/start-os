@@ -3,12 +3,17 @@ import { CommonModule } from '@angular/common'
 import { IonicModule } from '@ionic/angular'
 import {
   InterfaceAddressesComponent,
+  InterfaceAddressItemComponent,
   InterfaceClearnetPipe,
 } from './interface-addresses.component'
 
 @NgModule({
   imports: [CommonModule, IonicModule],
-  declarations: [InterfaceAddressesComponent, InterfaceClearnetPipe],
+  declarations: [
+    InterfaceAddressesComponent,
+    InterfaceAddressItemComponent,
+    InterfaceClearnetPipe,
+  ],
   exports: [InterfaceAddressesComponent],
 })
 export class InterfaceAddressesComponentModule {}

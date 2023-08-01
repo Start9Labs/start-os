@@ -5,10 +5,9 @@
     <ion-item>
       <ion-label>
         <h2>
-          Clearnet is fast and convenient at the expense of privacy and
-          anonymity.
+          Add clearnet to expose this interface to the public Internet.
           <a
-            href="https://docs.start9.com/latest/user-manual/clearnet"
+            href="https://docs.start9.com/latest/user-manual/interface-addresses#clearnet"
             target="_blank"
             rel="noreferrer"
           >
@@ -18,51 +17,24 @@
       </ion-label>
     </ion-item>
     <ng-container *ngIf="addressInfo.domainInfo as domainInfo; else noClearnet">
-      <ion-item *ngIf="domainInfo | interfaceClearnetPipe as clearnetAddress">
-        <ion-label>
-          <h2>Clearnet</h2>
-          <p>{{ clearnetAddress }}</p>
-          <div class="ion-padding-top">
-            <ion-button (click)="presentModalAddClearnet(network)">
-              Update
-            </ion-button>
-            <ion-button
-              class="ion-padding-start"
-              (click)="presentAlertRemoveClearnet()"
-              color="danger"
-            >
-              Remove
-            </ion-button>
-          </div>
-        </ion-label>
-        <div slot="end">
+      <interface-addresses-item
+        label="Clearnet"
+        [hostname]="domainInfo | interfaceClearnetPipe"
+        [isUi]="isUi"
+      >
+        <div class="ion-padding-top">
+          <ion-button (click)="presentModalAddClearnet(network)">
+            Update
+          </ion-button>
           <ion-button
-            *ngIf="isUi"
-            fill="clear"
-            (click)="launch(clearnetAddress)"
+            class="ion-padding-start"
+            (click)="presentAlertRemoveClearnet()"
+            color="danger"
           >
-            <ion-icon
-              slot="icon-only"
-              size="small"
-              name="open-outline"
-            ></ion-icon>
-          </ion-button>
-          <ion-button fill="clear" (click)="showQR(clearnetAddress)">
-            <ion-icon
-              size="small"
-              slot="icon-only"
-              name="qr-code-outline"
-            ></ion-icon>
-          </ion-button>
-          <ion-button fill="clear" (click)="copyService.copy(clearnetAddress)">
-            <ion-icon
-              slot="icon-only"
-              size="small"
-              name="copy-outline"
-            ></ion-icon>
+            Remove
           </ion-button>
         </div>
-      </ion-item>
+      </interface-addresses-item>
     </ng-container>
     <ng-template #noClearnet>
       <div class="ion-padding">
@@ -80,10 +52,10 @@
     <ion-item>
       <ion-label>
         <h2>
-          Tor is private and anonymous at the expense of speed and reliability.
-          A Tor-enabled browser is required to use a Tor address.
+          Use a Tor-enabled browser to access this address. Tor connections can
+          be slow and unreliable.
           <a
-            href="https://docs.start9.com/latest/user-manual/os-addresses#tor"
+            href="https://docs.start9.com/latest/user-manual/interface-addresses#tor"
             target="_blank"
             rel="noreferrer"
           >
@@ -92,48 +64,23 @@
         </h2>
       </ion-label>
     </ion-item>
-    <ion-item *ngIf="addressInfo.torHostname as torHostname">
-      <ion-label class="break-all">
-        <h2>Tor</h2>
-        <p>{{ torHostname }}</p>
-      </ion-label>
-      <div slot="end">
-        <ion-button *ngIf="isUi" fill="clear" (click)="launch(torHostname)">
-          <ion-icon
-            slot="icon-only"
-            size="small"
-            name="open-outline"
-          ></ion-icon>
-        </ion-button>
-        <ion-button fill="clear" (click)="showQR(torHostname)">
-          <ion-icon
-            size="small"
-            slot="icon-only"
-            name="qr-code-outline"
-          ></ion-icon>
-        </ion-button>
-        <ion-button fill="clear" (click)="copyService.copy(torHostname)">
-          <ion-icon
-            slot="icon-only"
-            size="small"
-            name="copy-outline"
-          ></ion-icon>
-        </ion-button>
-      </div>
-    </ion-item>
+    <interface-addresses-item
+      label="Tor"
+      [hostname]="addressInfo.torHostname"
+      [isUi]="isUi"
+    ></interface-addresses-item>
   </ion-item-group>
 
   <!-- local -->
-  <ion-item-divider>LAN</ion-item-divider>
+  <ion-item-divider>Local</ion-item-divider>
   <ion-item-group>
     <ion-item>
       <ion-label>
         <h2>
-          LAN is fast and private. These addresses can only be accessed from a
-          device connected to the same LAN as your server, either directly or
-          using a VPN proxy.
+          Local addresses can only be accessed while connected to the same Local
+          Area Network (LAN) as your server, either directly or using a VPN.
           <a
-            href="https://docs.start9.com/latest/user-manual/os-addresses#local"
+            href="https://docs.start9.com/latest/user-manual/interface-addresses#local"
             target="_blank"
             rel="noreferrer"
           >
@@ -148,94 +95,24 @@
         </div>
       </ion-label>
     </ion-item>
-    <ion-item *ngIf="addressInfo.lanHostname as lanHostname">
-      <ion-label class="break-all">
-        <h2>Local</h2>
-        <p>{{ lanHostname }}</p>
-      </ion-label>
-      <div slot="end">
-        <ion-button *ngIf="isUi" fill="clear" (click)="launch(lanHostname)">
-          <ion-icon
-            slot="icon-only"
-            size="small"
-            name="open-outline"
-          ></ion-icon>
-        </ion-button>
-        <ion-button fill="clear" (click)="showQR(lanHostname)">
-          <ion-icon
-            size="small"
-            slot="icon-only"
-            name="qr-code-outline"
-          ></ion-icon>
-        </ion-button>
-        <ion-button fill="clear" (click)="copyService.copy(lanHostname)">
-          <ion-icon
-            slot="icon-only"
-            size="small"
-            name="copy-outline"
-          ></ion-icon>
-        </ion-button>
-      </div>
-    </ion-item>
+    <interface-addresses-item
+      label="Local"
+      [hostname]="addressInfo.lanHostname"
+      [isUi]="isUi"
+    ></interface-addresses-item>
     <ng-container *ngFor="let iface of addressInfo.ipInfo | keyvalue">
-      <ion-item *ngIf="iface.value.ipv4 as ipv4">
-        <ion-label>
-          <h2>{{ iface.key }} (IPv4)</h2>
-          <p>{{ ipv4 }}</p>
-        </ion-label>
-        <div slot="end">
-          <ion-button *ngIf="isUi" fill="clear" (click)="launch(ipv4)">
-            <ion-icon
-              slot="icon-only"
-              size="small"
-              name="open-outline"
-            ></ion-icon>
-          </ion-button>
-          <ion-button fill="clear" (click)="showQR(ipv4)">
-            <ion-icon
-              size="small"
-              slot="icon-only"
-              name="qr-code-outline"
-            ></ion-icon>
-          </ion-button>
-          <ion-button fill="clear" (click)="copyService.copy(ipv4)">
-            <ion-icon
-              slot="icon-only"
-              size="small"
-              name="copy-outline"
-            ></ion-icon>
-          </ion-button>
-        </div>
-      </ion-item>
-      <ion-item *ngIf="iface.value.ipv6 as ipv6">
-        <ion-label>
-          <h2>{{ iface.key }} (IPv6)</h2>
-          <p>{{ ipv6 }}</p>
-        </ion-label>
-        <div slot="end">
-          <ion-button *ngIf="isUi" fill="clear" (click)="launch(ipv6)">
-            <ion-icon
-              slot="icon-only"
-              size="small"
-              name="open-outline"
-            ></ion-icon>
-          </ion-button>
-          <ion-button fill="clear" (click)="showQR(ipv6)">
-            <ion-icon
-              size="small"
-              slot="icon-only"
-              name="qr-code-outline"
-            ></ion-icon>
-          </ion-button>
-          <ion-button fill="clear" (click)="copyService.copy(ipv6)">
-            <ion-icon
-              slot="icon-only"
-              size="small"
-              name="copy-outline"
-            ></ion-icon>
-          </ion-button>
-        </div>
-      </ion-item>
+      <interface-addresses-item
+        *ngIf="iface.value.ipv4 as ipv4"
+        [label]="iface.key + ' (IPv4)'"
+        [hostname]="ipv4"
+        [isUi]="isUi"
+      ></interface-addresses-item>
+      <interface-addresses-item
+        *ngIf="iface.value.ipv6 as ipv6"
+        [label]="iface.key + ' (IPv6)'"
+        [hostname]="ipv6"
+        [isUi]="isUi"
+      ></interface-addresses-item>
     </ng-container>
   </ion-item-group>
 

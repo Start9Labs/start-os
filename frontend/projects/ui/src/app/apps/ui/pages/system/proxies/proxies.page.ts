@@ -167,7 +167,7 @@ export class ProxiesPage {
 const wireguardSpec = Config.of({
   name: Value.text({
     name: 'Name',
-    description: 'A label for this VPN',
+    description: 'A friendly name to help you remember and identify this proxy',
     required: { default: null },
   }),
   config: Value.file({

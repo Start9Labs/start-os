@@ -11,12 +11,12 @@ import { getPkgId } from '@start9labs/shared'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppInterfacePage {
-  readonly packageId = getPkgId(this.route)
+  readonly pkgId = getPkgId(this.route)
   readonly interfaceId = this.route.snapshot.paramMap.get('interfaceId')!
 
   readonly interfaceInfo$ = this.patch.watch$(
     'package-data',
-    this.packageId,
+    this.pkgId,
     'installed',
     'interfaceInfo',
     this.interfaceId,

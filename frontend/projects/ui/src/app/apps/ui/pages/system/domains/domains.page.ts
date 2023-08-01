@@ -140,7 +140,7 @@ export class DomainsPage {
     const strategy = value.strategy.unionValueKey
 
     const networkStrategy =
-      value.strategy.unionSelectKey === 'router'
+      value.strategy.unionSelectKey === 'local'
         ? { ipStrategy: strategy.ipStrategy }
         : {
             proxyId:
@@ -168,7 +168,7 @@ export class DomainsPage {
     const strategy = value.strategy.unionValueKey
 
     const networkStrategy =
-      value.strategy.unionSelectKey === 'router'
+      value.strategy.unionSelectKey === 'local'
         ? { ipStrategy: strategy.ipStrategy }
         : {
             proxyId:

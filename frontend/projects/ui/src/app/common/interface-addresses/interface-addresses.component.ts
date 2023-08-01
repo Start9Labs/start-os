@@ -50,7 +50,6 @@ export class InterfaceAddressesComponent {
   readonly network$ = this.patch.watch$('server-info', 'network')
 
   constructor(
-    readonly copyService: CopyService,
     private readonly loader: LoadingService,
     private readonly formDialog: FormDialogService,
     private readonly errorService: ErrorService,
@@ -60,21 +59,8 @@ export class InterfaceAddressesComponent {
     @Inject(DOCUMENT) private readonly document: Document,
   ) {}
 
-  launch(url: string): void {
-    this.document.defaultView?.open(url, '_blank', 'noreferrer')
-  }
-
   installCert(): void {
     this.document.getElementById('install-cert')?.click()
-  }
-
-  showQR(data: string) {
-    this.dialogs
-      .open(new PolymorpheusComponent(QRComponent), {
-        size: 'auto',
-        data,
-      })
-      .subscribe()
   }
 
   async presentModalAddClearnet(networkInfo: NetworkInfo) {
@@ -189,6 +175,37 @@ function getClearnetSpec({
       }),
     }),
   )
+}
+
+@Component({
+  selector: 'interface-addresses-item',
+  templateUrl: './interface-addresses-item.component.html',
+  styleUrls: ['./interface-addresses.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+export class InterfaceAddressItemComponent {
+  @Input({ required: true }) label!: string
+  @Input({ required: true }) hostname!: string
+  @Input({ required: true }) isUi!: boolean
+
+  constructor(
+    readonly copyService: CopyService,
+    private readonly dialogs: TuiDialogService,
+    @Inject(DOCUMENT) private readonly document: Document,
+  ) {}
+
+  launch(url: string): void {
+    this.document.defaultView?.open(url, '_blank', 'noreferrer')
+  }
+
+  showQR(data: string) {
+    this.dialogs
+      .open(new PolymorpheusComponent(QRComponent), {
+        size: 'auto',
+        data,
+      })
+      .subscribe()
+  }
 }
 
 @Pipe({

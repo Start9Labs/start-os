@@ -1272,7 +1272,7 @@ export module Mock {
                 ipv6: 'FE80:CD00:0000:0CDE:1257:0000:211E:729CD:8333',
               },
             },
-            lanHostname: '',
+            lanHostname: 'adjective-noun:8333',
             torHostname: 'bitcoind-rpc-address.onion',
             domainInfo: null,
           },
