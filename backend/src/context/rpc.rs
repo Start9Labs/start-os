@@ -11,7 +11,7 @@ use helpers::to_tmp_path;
 use josekit::jwk::Jwk;
 use patch_db::json_ptr::JsonPointer;
 use patch_db::{DbHandle, LockReceipt, LockType, PatchDb};
-use reqwest::Url;
+use reqwest::{Client, Proxy, Url};
 use rpc_toolkit::Context;
 use serde::Deserialize;
 use sqlx::postgres::PgConnectOptions;
@@ -34,7 +34,9 @@ use crate::net::wifi::WpaCli;
 use crate::notifications::NotificationManager;
 use crate::shutdown::Shutdown;
 use crate::status::{MainStatus, Status};
+use crate::system::get_mem_info;
 use crate::util::config::load_config_from_paths;
+use crate::util::lshw::{lshw, LshwDevice};
 use crate::{Error, ErrorKind, ResultExt};
 
 #[derive(Debug, Default, Deserialize)]
@@ -120,6 +122,13 @@ pub struct RpcContextSeed {
     pub rpc_stream_continuations: Mutex<BTreeMap<RequestGuid, RpcContinuation>>,
     pub wifi_manager: Option<Arc<RwLock<WpaCli>>>,
     pub current_secret: Arc<Jwk>,
+    pub client: Client,
+    pub hardware: Hardware,
+}
+
+pub struct Hardware {
+    pub devices: Vec<LshwDevice>,
+    pub ram: u64,
 }
 
 pub struct RpcCleanReceipts {
@@ -203,6 +212,9 @@ impl RpcContext {
         let metrics_cache = RwLock::new(None);
         let notification_manager = NotificationManager::new(secret_store.clone());
         tracing::info!("Initialized Notification Manager");
+        let tor_proxy_url = format!("socks5h://{tor_proxy}");
+        let devices = lshw().await?;
+        let ram = get_mem_info().await?.total.0 as u64 * 1024 * 1024;
         let seed = Arc::new(RpcContextSeed {
             is_closed: AtomicBool::new(false),
             datadir: base.datadir().to_path_buf(),
@@ -235,6 +247,17 @@ impl RpcContext {
                     )
                 })?,
             ),
+            client: Client::builder()
+                .proxy(Proxy::custom(move |url| {
+                    if url.host_str().map_or(false, |h| h.ends_with(".onion")) {
+                        Some(tor_proxy_url.clone())
+                    } else {
+                        None
+                    }
+                }))
+                .build()
+                .with_kind(crate::ErrorKind::ParseUrl)?,
+            hardware: Hardware { devices, ram },
         });
 
         let res = Self(seed);

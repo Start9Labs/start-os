@@ -793,3 +793,42 @@ impl<T: AsRef<[u8]>> Serialize for Base64<T> {
         serializer.serialize_str(&base64::encode(self.0.as_ref()))
     }
 }
+
+#[derive(Clone, Debug)]
+pub struct Regex(regex::Regex);
+impl From<Regex> for regex::Regex {
+    fn from(value: Regex) -> Self {
+        value.0
+    }
+}
+impl From<regex::Regex> for Regex {
+    fn from(value: regex::Regex) -> Self {
+        Regex(value)
+    }
+}
+impl AsRef<regex::Regex> for Regex {
+    fn as_ref(&self) -> &regex::Regex {
+        &self.0
+    }
+}
+impl AsMut<regex::Regex> for Regex {
+    fn as_mut(&mut self) -> &mut regex::Regex {
+        &mut self.0
+    }
+}
+impl<'de> Deserialize<'de> for Regex {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserialize_from_str(deserializer).map(Self)
+    }
+}
+impl Serialize for Regex {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serialize_display(&self.0, serializer)
+    }
+}

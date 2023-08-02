@@ -40,6 +40,7 @@ use crate::dependencies::{
 };
 use crate::install::cleanup::{cleanup, update_dependency_errors_of_dependents};
 use crate::install::progress::{InstallProgress, InstallProgressTracker};
+use crate::marketplace::with_query_params;
 use crate::notifications::NotificationLevel;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::s9pk::reader::S9pkReader;
@@ -136,35 +137,39 @@ pub async fn install(
     let marketplace_url =
         marketplace_url.unwrap_or_else(|| crate::DEFAULT_MARKETPLACE.parse().unwrap());
     let version_priority = version_priority.unwrap_or_default();
-    let man: Manifest = reqwest::get(format!(
-        "{}/package/v0/manifest/{}?spec={}&version-priority={}&eos-version-compat={}&arch={}",
-        marketplace_url,
-        id,
-        version,
-        version_priority,
-        Current::new().compat(),
-        &*crate::ARCH,
-    ))
-    .await
-    .with_kind(crate::ErrorKind::Registry)?
-    .error_for_status()
-    .with_kind(crate::ErrorKind::Registry)?
-    .json()
-    .await
-    .with_kind(crate::ErrorKind::Registry)?;
-    let s9pk = reqwest::get(format!(
-        "{}/package/v0/{}.s9pk?spec=={}&version-priority={}&eos-version-compat={}&arch={}",
-        marketplace_url,
-        id,
-        man.version,
-        version_priority,
-        Current::new().compat(),
-        &*crate::ARCH,
-    ))
-    .await
-    .with_kind(crate::ErrorKind::Registry)?
-    .error_for_status()
-    .with_kind(crate::ErrorKind::Registry)?;
+    let man: Manifest = ctx
+        .client
+        .get(with_query_params(
+            &ctx,
+            format!(
+                "{}/package/v0/manifest/{}?spec={}&version-priority={}",
+                marketplace_url, id, version, version_priority,
+            )
+            .parse()?,
+        ))
+        .send()
+        .await
+        .with_kind(crate::ErrorKind::Registry)?
+        .error_for_status()
+        .with_kind(crate::ErrorKind::Registry)?
+        .json()
+        .await
+        .with_kind(crate::ErrorKind::Registry)?;
+    let s9pk = ctx
+        .client
+        .get(with_query_params(
+            &ctx,
+            format!(
+                "{}/package/v0/{}.s9pk?spec=={}&version-priority={}",
+                marketplace_url, id, man.version, version_priority,
+            )
+            .parse()?,
+        ))
+        .send()
+        .await
+        .with_kind(crate::ErrorKind::Registry)?
+        .error_for_status()
+        .with_kind(crate::ErrorKind::Registry)?;
 
     if man.id.as_str() != id || !man.version.satisfies(&version) {
         return Err(Error::new(
@@ -185,16 +190,18 @@ pub async fn install(
         async {
             tokio::io::copy(
                 &mut response_to_reader(
-                    reqwest::get(format!(
-                        "{}/package/v0/license/{}?spec=={}&eos-version-compat={}&arch={}",
-                        marketplace_url,
-                        id,
-                        man.version,
-                        Current::new().compat(),
-                        &*crate::ARCH,
-                    ))
-                    .await?
-                    .error_for_status()?,
+                    ctx.client
+                        .get(with_query_params(
+                            &ctx,
+                            format!(
+                                "{}/package/v0/license/{}?spec=={}",
+                                marketplace_url, id, man.version,
+                            )
+                            .parse()?,
+                        ))
+                        .send()
+                        .await?
+                        .error_for_status()?,
                 ),
                 &mut File::create(public_dir_path.join("LICENSE.md")).await?,
             )
@@ -204,16 +211,18 @@ pub async fn install(
         async {
             tokio::io::copy(
                 &mut response_to_reader(
-                    reqwest::get(format!(
-                        "{}/package/v0/instructions/{}?spec=={}&eos-version-compat={}&arch={}",
-                        marketplace_url,
-                        id,
-                        man.version,
-                        Current::new().compat(),
-                        &*crate::ARCH,
-                    ))
-                    .await?
-                    .error_for_status()?,
+                    ctx.client
+                        .get(with_query_params(
+                            &ctx,
+                            format!(
+                                "{}/package/v0/instructions/{}?spec=={}",
+                                marketplace_url, id, man.version,
+                            )
+                            .parse()?,
+                        ))
+                        .send()
+                        .await?
+                        .error_for_status()?,
                 ),
                 &mut File::create(public_dir_path.join("INSTRUCTIONS.md")).await?,
             )
@@ -223,16 +232,18 @@ pub async fn install(
         async {
             tokio::io::copy(
                 &mut response_to_reader(
-                    reqwest::get(format!(
-                        "{}/package/v0/icon/{}?spec=={}&eos-version-compat={}&arch={}",
-                        marketplace_url,
-                        id,
-                        man.version,
-                        Current::new().compat(),
-                        &*crate::ARCH,
-                    ))
-                    .await?
-                    .error_for_status()?,
+                    ctx.client
+                        .get(with_query_params(
+                            &ctx,
+                            format!(
+                                "{}/package/v0/icon/{}?spec=={}",
+                                marketplace_url, id, man.version,
+                            )
+                            .parse()?,
+                        ))
+                        .send()
+                        .await?
+                        .error_for_status()?,
                 ),
                 &mut File::create(public_dir_path.join(format!("icon.{}", icon_type))).await?,
             )
@@ -928,17 +939,20 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         {
             Some(local_man)
         } else if let Some(marketplace_url) = &marketplace_url {
-            match reqwest::get(format!(
-                "{}/package/v0/manifest/{}?spec={}&eos-version-compat={}&arch={}",
-                marketplace_url,
-                dep,
-                info.version,
-                Current::new().compat(),
-                &*crate::ARCH,
-            ))
-            .await
-            .with_kind(crate::ErrorKind::Registry)?
-            .error_for_status()
+            match ctx
+                .client
+                .get(with_query_params(
+                    ctx,
+                    format!(
+                        "{}/package/v0/manifest/{}?spec={}",
+                        marketplace_url, dep, info.version,
+                    )
+                    .parse()?,
+                ))
+                .send()
+                .await
+                .with_kind(crate::ErrorKind::Registry)?
+                .error_for_status()
             {
                 Ok(a) => Ok(Some(
                     a.json()
@@ -963,16 +977,19 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
                 let icon_path = dir.join(format!("icon.{}", manifest.assets.icon_type()));
                 if tokio::fs::metadata(&icon_path).await.is_err() {
                     tokio::fs::create_dir_all(&dir).await?;
-                    let icon = reqwest::get(format!(
-                        "{}/package/v0/icon/{}?spec={}&eos-version-compat={}&arch={}",
-                        marketplace_url,
-                        dep,
-                        info.version,
-                        Current::new().compat(),
-                        &*crate::ARCH,
-                    ))
-                    .await
-                    .with_kind(crate::ErrorKind::Registry)?;
+                    let icon = ctx
+                        .client
+                        .get(with_query_params(
+                            ctx,
+                            format!(
+                                "{}/package/v0/icon/{}?spec={}",
+                                marketplace_url, dep, info.version,
+                            )
+                            .parse()?,
+                        ))
+                        .send()
+                        .await
+                        .with_kind(crate::ErrorKind::Registry)?;
                     let mut dst = File::create(&icon_path).await?;
                     tokio::io::copy(&mut response_to_reader(icon), &mut dst).await?;
                     dst.sync_all().await?;

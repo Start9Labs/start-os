@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use color_eyre::eyre::eyre;
@@ -16,6 +17,7 @@ use crate::net::interface::Interfaces;
 use crate::procedure::docker::DockerContainers;
 use crate::procedure::PackageProcedure;
 use crate::status::health_check::HealthChecks;
+use crate::util::serde::Regex;
 use crate::util::Version;
 use crate::version::{Current, VersionT};
 use crate::volume::Volumes;
@@ -79,6 +81,9 @@ pub struct Manifest {
 
     #[serde(default)]
     pub replaces: Vec<String>,
+
+    #[serde(default)]
+    pub hardware_requirements: HardwareRequirements,
 }
 
 impl Manifest {
@@ -107,6 +112,15 @@ impl Manifest {
         self.git_hash = Some(git_hash);
         self
     }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct HardwareRequirements {
+    #[serde(default)]
+    device: BTreeMap<String, Regex>,
+    ram: Option<u64>,
+    arch: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
