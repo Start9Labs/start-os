@@ -1,27 +1,61 @@
-<img src="frontend/projects/shared/assets/img/icon_pwa.png" alt="StartOS Logo" width="16%">
-# StartOS
-[![version](https://img.shields.io/github/v/tag/Start9Labs/start-os?color=success)](https://github.com/Start9Labs/start-os/releases)
-[![build](https://github.com/Start9Labs/start-os/actions/workflows/startos-iso.yaml/badge.svg)](https://github.com/Start9Labs/start-os/actions/workflows/startos-iso.yaml)
-[![community](https://img.shields.io/badge/community-matrix-yellow)](https://matrix.to/#/#community:matrix.start9labs.com)
-[![community](https://img.shields.io/badge/community-telegram-informational)](https://t.me/start9_labs)
-[![support](https://img.shields.io/badge/support-docs-important)](https://docs.start9.com)
-[![developer](https://img.shields.io/badge/developer-matrix-blueviolet)](https://matrix.to/#/#community-dev:matrix.start9labs.com)
-[![website](https://img.shields.io/website?down_color=lightgrey&down_message=offline&up_color=green&up_message=online&url=https%3A%2F%2Fstart9.com)](https://start9.com)
+<
+<p align="center">
+  <a href="https://start9.com">
+    <img src="frontend/projects/shared/assets/img/icon_pwa.png" alt="StartOS Logo" width="16%">
+  </a>
+  <h1 align="center">StartOS</h1>
+  <p align="center">
+    Welcome to the era of Sovereign Computing
+    <br />
+    <br />
+    <a href="https://github.com/Start9Labs/start-os/releases">
+      <img src="https://img.shields.io/github/v/tag/Start9Labs/start-os?color=success" />
+    </a>
+    <a href="https://github.com/Start9Labs/start-os/actions/workflows/startos-iso.yaml">
+      <img src="https://github.com/Start9Labs/start-os/actions/workflows/startos-iso.yaml/badge.svg">
+    </a>
+    <a href="https://twitter.com/start9labs">
+      <img src="https://img.shields.io/twitter/follow/start9labs?label=Follow">
+    </a>
+    <a href="http://mastodon.start9labs.com">
+      <img src="https://img.shields.io/mastodon/follow/000000001?domain=https%3A%2F%2Fmastodon.start9labs.com&label=Follow&style=social">
+    </a>
+    <a href="https://matrix.to/#/#community:matrix.start9labs.com">
+      <img src="https://img.shields.io/badge/community-matrix-yellow">
+    </a>
+    <a href="https://t.me/start9_labs">
+      <img src="https://img.shields.io/badge/community-telegram-informational">
+    </a>
+    <a href="https://docs.start9.com">
+      <img src="https://img.shields.io/badge/support-docs-important">
+    </a>
+    <a href="https://matrix.to/#/#community-dev:matrix.start9labs.com">
+      <img src="https://img.shields.io/badge/developer-matrix-blueviolet">
+    </a>
+    <a href="https://start9.com">
+      <img src="https://img.shields.io/website?down_color=lightgrey&down_message=offline&up_color=green&up_message=online&url=https%3A%2F%2Fstart9.com">
+    </a>
+  </p>
+</p>
+<br />
+<br />
 
-[![mastodon](https://img.shields.io/mastodon/follow/000000001?domain=https%3A%2F%2Fmastodon.start9labs.com&label=Follow&style=social)](http://mastodon.start9labs.com)
-[![twitter](https://img.shields.io/twitter/follow/start9labs?label=Follow)](https://twitter.com/start9labs)
-
-### _Welcome to the era of Sovereign Computing_ ###
-
+<p align="center">
 StartOS is a Debian-based Linux distro optimized for running a personal server. It facilitates the discovery, installation, network configuration, service configuration, data backup, dependency management, and health monitoring of self-hosted software services.
+</p>
+<br />
+<p align="center">
+<img src="assets/StartOS.png" alt="StartOS" width="85%">
+</p>
+<br />
 
 ## Running StartOS
 There are multiple ways to get started with StartOS:
 
-### :moneybag: Buy a Start9 server
+### 💰 Buy a Start9 server
 This is the most convenient option. Simply [buy a server](https://store.start9.com) from Start9 and plug it in.
 
-### :construction_worker: Build your own server
+### 👷 Build your own server
 This option is easier than you might imagine, and there are 4 reasons why you might prefer it:
 1. You already have hardware
 1. You want to save on shipping costs
@@ -30,20 +64,24 @@ This option is easier than you might imagine, and there are 4 reasons why you mi
 
 To pursue this option, follow one of our [DIY guides](https://start9.com/latest/diy).
 
-## :heart: Contributing
+## ❤️ Contributing
 There are multiple ways to contribute: work directly on StartOS, package a service for the marketplace, or help with documentation and guides. To learn more about contributing, see [here](https://start9.com/contribute/).
 
 To report security issues, please email our security team - security@start9.com.
 
-## UI Screenshots
+## 🌎 Marketplace
+
+Check out the full list of services we maintain on our [marketplace](https://marketplace.start9.com/marketplace)! We also offer a community registry for community submissions, as well offer the option to add any custom registry to the marketplace.
+
+## 🖥️ User Interface Screenshots
+
 <p align="center">
-<img src="assets/StartOS.png" alt="StartOS" width="85%">
-</p>
-<p align="center">
-<img src="assets/marketplace.png" alt="StartOS Marketplace" width="49%">
-<img src="assets/nostr.png" alt="StartOS Nostr Service" width="49%">
-</p>
-<p align="center">
-<img src="assets/nextcloud.png" alt="StartOS NextCloud Service" width="49%">
+<img src="assets/registry.png" alt="StartOS Marketplace" width="49%">
+<img src="assets/community.png" alt="StartOS Community Registry" width="49%">
+<img src="assets/c-lightning.png" alt="StartOS NextCloud Service" width="49%">
+<img src="assets/btcpay.png" alt="StartOS BTCPay Service" width="49%">
+<img src="assets/nextcloud.png" alt="StartOS System Settings" width="49%">
 <img src="assets/system.png" alt="StartOS System Settings" width="49%">
+<img src="assets/welcome.png" alt="StartOS System Settings" width="49%">
+<img src="assets/logs.png" alt="StartOS System Settings" width="49%">
 </p>
