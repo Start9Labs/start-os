@@ -1,3 +1,4 @@
+<img src="frontend/projects/shared/assets/img/icon_pwa.png" alt="StartOS Logo" width="16%">
 # StartOS
 [![version](https://img.shields.io/github/v/tag/Start9Labs/start-os?color=success)](https://github.com/Start9Labs/start-os/releases)
 [![build](https://github.com/Start9Labs/start-os/actions/workflows/startos-iso.yaml/badge.svg)](https://github.com/Start9Labs/start-os/actions/workflows/startos-iso.yaml)
@@ -15,7 +16,7 @@
 StartOS is a Debian-based Linux distro optimized for running a personal server. It facilitates the discovery, installation, network configuration, service configuration, data backup, dependency management, and health monitoring of self-hosted software services.
 
 ## Running StartOS
-There are multiple ways to get your hands on StartOS.
+There are multiple ways to get started with StartOS:
 
 ### :moneybag: Buy a Start9 server
 This is the most convenient option. Simply [buy a server](https://store.start9.com) from Start9 and plug it in.
