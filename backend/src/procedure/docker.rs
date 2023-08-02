@@ -12,7 +12,7 @@ use color_eyre::eyre::eyre;
 use color_eyre::Report;
 use futures::future::{BoxFuture, Either as EitherFuture};
 use futures::{FutureExt, TryStreamExt};
-use helpers::{NonDetachingJoinHandle, UnixRpcClient};
+use helpers::{script_dir, NonDetachingJoinHandle, UnixRpcClient};
 use models::{Id, ImageId};
 use nix::sys::signal;
 use nix::unistd::Pid;
@@ -38,7 +38,7 @@ use crate::{
 use crate::{Error, ResultExt, HOST_IP};
 
 pub const NET_TLD: &str = "embassy";
-const S9PK_FILE: &str = include_str!("../../../libs/start_init/bundleEs.js");
+const S9PK_FILE: &str = include_str!("../../../libs/start_init/startInit.js");
 
 lazy_static::lazy_static! {
     pub static ref SYSTEM_IMAGES: BTreeSet<ImageId> = {
@@ -56,7 +56,7 @@ lazy_static::lazy_static! {
         let path = "/tmp/s9pk";
         fs::remove_dir_all(path).unwrap_or_default();
         fs::create_dir_all(path).expect("Should be creating s9pk dir");
-        fs::File::create(format!("{}/bundleEs.js", path))
+        fs::File::create(format!("{}/startInit.js", path))
             .unwrap()
             .write_all(S9PK_FILE.as_bytes())
             .unwrap();
@@ -852,6 +852,7 @@ impl LongRunning {
         // TODO BLUJ need to use the libs location that was built  and included?
         // TODO BLUJ
 
+        let script_dir = script_dir(&seed.ctx.datadir, package_id, package_version);
         let mut cmd = tokio::process::Command::new("docker");
         cmd.arg("run")
             .arg("--network=start9")
@@ -859,15 +860,19 @@ impl LongRunning {
             .arg("--mount")
             .arg(format!(
                 "type=bind,src={src},dst=/start-init,readonly",
-                src = &*S9PK_FILE
+                src = S9PK_FILE
             ))
             .arg("--mount")
             .arg(format!(
                 "type=bind,src={input},dst=/start9/sockets/",
                 input = paths.root().display()
             ))
+            .arg(format!(
+                "type=bind,src={src},dst=/services,readonly",
+                src = script_dir.display()
+            ))
             .arg("--name")
-            .arg(&container_name)
+            .arg(container_name)
             .arg(format!("--hostname={}", &container_name))
             .arg("-i")
             .arg("--rm")
@@ -899,7 +904,7 @@ impl LongRunning {
         } else {
             cmd.arg(docker.image.for_package(package_id, Some(package_version)));
         }
-        cmd.arg("sh").arg("-c").arg("node /start-init/bundleEs.js");
+        cmd.arg("sh").arg("-c").arg("node /start-init/startInit.js");
         cmd.stdout(std::process::Stdio::piped());
         cmd.stderr(std::process::Stdio::inherit());
         cmd.stdin(std::process::Stdio::piped());

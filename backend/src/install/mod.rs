@@ -1116,13 +1116,12 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             if tokio::fs::metadata(&script_dir).await.is_err() {
                 tokio::fs::create_dir_all(&script_dir).await?;
             }
-            if let Some(mut hdl) = rdr.scripts().await? {
-                tokio::io::copy(
-                    &mut hdl,
-                    &mut File::create(script_dir.join("embassy.js")).await?,
-                )
-                .await?;
-            }
+            let mut hdl = rdr.scripts().await?;
+            tokio::io::copy(
+                &mut hdl,
+                &mut File::create(script_dir.join("service.js")).await?,
+            )
+            .await?;
 
             Ok(())
         })

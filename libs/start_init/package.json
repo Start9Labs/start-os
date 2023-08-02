@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "description": "We want to be the sdk intermitent for the system",
   "scripts": {
-    "bundle:esbuild": "esbuild initSrc/index.ts --platform=node --bundle --outfile=bundleEs.js",
+    "bundle:esbuild": "esbuild initSrc/index.ts --platform=node --bundle --outfile=startInit.js",
     "bundle:service": "esbuild /service/startos/procedures/index.ts --platform=node --bundle --outfile=service.js",
     "run:manifest": "esbuild /service/startos/procedures/index.ts --platform=node --bundle --outfile=service.js"
   },

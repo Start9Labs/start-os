@@ -1,6 +1,6 @@
 node_modules/
 dist/
 bundle.js
-bundleEs.js
+startInit.js
 service/
 service.js

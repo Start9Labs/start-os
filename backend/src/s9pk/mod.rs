@@ -30,7 +30,7 @@ pub mod reader;
 
 pub const SIG_CONTEXT: &[u8] = b"s9pk";
 
-const S9PK: &str = include_str!("../../../libs/start_init/bundleEs.js");
+const S9PK: &str = include_str!("../../../libs/start_init/startInit.js");
 
 #[command(cli_only, display(display_none))]
 #[instrument(skip_all)]

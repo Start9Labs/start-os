@@ -122,10 +122,10 @@ impl<
                 .await
                 .with_ctx(|_| (crate::ErrorKind::Filesystem, "Copying Scripts"))?;
             let new_pos = writer.inner_mut().stream_position().await?;
-            header.table_of_contents.scripts = Some(FileSection {
+            header.table_of_contents.scripts = FileSection {
                 position,
                 length: new_pos - position,
-            });
+            };
             position = new_pos;
         }
 

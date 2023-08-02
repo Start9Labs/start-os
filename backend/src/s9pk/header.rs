@@ -74,7 +74,7 @@ pub struct TableOfContents {
     pub icon: FileSection,
     pub docker_images: FileSection,
     pub assets: FileSection,
-    pub scripts: Option<FileSection>,
+    pub scripts: FileSection,
 }
 impl TableOfContents {
     pub async fn serialize<W: AsyncWriteExt + Unpin>(&self, mut writer: W) -> std::io::Result<()> {
@@ -98,10 +98,7 @@ impl TableOfContents {
             .serialize_entry("docker_images", &mut writer)
             .await?;
         self.assets.serialize_entry("assets", &mut writer).await?;
-        self.scripts
-            .unwrap_or_default()
-            .serialize_entry("scripts", &mut writer)
-            .await?;
+        self.scripts.serialize_entry("scripts", &mut writer).await?;
         Ok(())
     }
     pub async fn deserialize<R: AsyncRead + Unpin>(mut reader: R) -> std::io::Result<Self> {
@@ -140,7 +137,7 @@ impl TableOfContents {
             icon: from_table(&table, "icon")?,
             docker_images: from_table(&table, "docker_images")?,
             assets: from_table(&table, "assets")?,
-            scripts: table.get("scripts".as_bytes()).cloned(),
+            scripts: from_table(&table, "scripts")?,
         })
     }
 }

@@ -409,10 +409,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
         Ok(self.read_handle(self.toc.assets).await?)
     }
 
-    pub async fn scripts<'a>(&'a mut self) -> Result<Option<ReadHandle<'a, R>>, Error> {
-        Ok(match self.toc.scripts {
-            None => None,
-            Some(a) => Some(self.read_handle(a).await?),
-        })
+    pub async fn scripts<'a>(&'a mut self) -> Result<ReadHandle<'a, R>, Error> {
+        Ok(self.read_handle(self.toc.scripts).await?)
     }
 }
