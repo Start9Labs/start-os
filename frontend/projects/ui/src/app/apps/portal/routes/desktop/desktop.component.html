@@ -1,25 +1,41 @@
-<ng-container *ngIf="desktop$ | async as desktop">
+<tui-loader
+  *ngIf="loading$ | async; else data"
+  size="xl"
+  class="loader"
+></tui-loader>
+<ng-template #data>
+  <tui-svg
+    *ngIf="tile?.element"
+    class="remove"
+    src="tuiIconTrash2Large"
+    @tuiFadeIn
+    @tuiScaleIn
+    (pointerup)="onRemove()"
+  ></tui-svg>
   <tui-tiles
     *ngIf="packages$ | async as packages"
     class="tiles"
+    @tuiParentStop
     [debounce]="500"
-    [order]="order"
-    (orderChange)="onReorder($event, desktop)"
+    [order]="desktop.order"
+    (orderChange)="onReorder($event)"
   >
     <tui-tile
-      *ngFor="let service of desktop; let index = index"
+      *ngFor="let item of desktop.items; let index = index"
       class="item"
-      [style.order]="order.get(index)"
+      [style.order]="desktop.order.get(index)"
+      [desktopItem]="item"
     >
       <a
-        *ngIf="packages | toDesktopItem : service as item"
+        *ngIf="packages | toDesktopItem : item as desktopItem"
         tuiTileHandle
         appCard
-        [id]="service"
-        [title]="item.title"
-        [icon]="item.icon"
-        [routerLink]="item.routerLink"
+        @tuiFadeIn
+        [id]="item"
+        [title]="desktopItem.title"
+        [icon]="desktopItem.icon"
+        [routerLink]="desktopItem.routerLink"
       ></a>
     </tui-tile>
   </tui-tiles>
-</ng-container>
+</ng-template>

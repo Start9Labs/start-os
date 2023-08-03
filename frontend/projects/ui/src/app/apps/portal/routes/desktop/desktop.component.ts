@@ -1,35 +1,51 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import {
+  Component,
+  ElementRef,
+  inject,
+  QueryList,
+  ViewChild,
+  ViewChildren,
+} from '@angular/core'
+import { EMPTY_QUERY, TUI_PARENT_STOP } from '@taiga-ui/cdk'
+import { tuiFadeIn, tuiScaleIn } from '@taiga-ui/core'
+import { TuiTileComponent, TuiTilesComponent } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
-import { tap } from 'rxjs'
-import { DataModel } from 'src/app/services/patch-db/data-model'
-import { DesktopService } from './desktop.service'
+import {
+  DataModel,
+  PackageDataEntry,
+} from 'src/app/services/patch-db/data-model'
+import { DesktopService } from '../../services/desktop.service'
+import { Observable } from 'rxjs'
+import { DektopLoadingService } from './dektop-loading.service'
 
 @Component({
   templateUrl: 'desktop.component.html',
   styleUrls: ['desktop.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush,
+  animations: [TUI_PARENT_STOP, tuiScaleIn, tuiFadeIn],
 })
 export class DesktopComponent {
-  private readonly desktop = inject(DesktopService)
+  @ViewChildren(TuiTileComponent, { read: ElementRef })
+  private readonly tiles: QueryList<ElementRef> = EMPTY_QUERY
 
-  readonly desktop$ = this.desktop.desktop$.pipe(
-    tap(() => (this.order = new Map())),
-  )
-
-  readonly packages$ =
+  readonly desktop = inject(DesktopService)
+  readonly loading$ = inject(DektopLoadingService)
+  readonly packages$: Observable<Record<string, PackageDataEntry>> =
     inject<PatchDB<DataModel>>(PatchDB).watch$('package-data')
 
-  order = new Map()
+  @ViewChild(TuiTilesComponent)
+  readonly tile?: TuiTilesComponent
 
-  onReorder(order: Map<number, number>, desktop: readonly string[]) {
-    this.order = order
+  onRemove() {
+    const element = this.tile?.element
+    const index = this.tiles
+      .toArray()
+      .map(({ nativeElement }) => nativeElement)
+      .indexOf(element)
 
-    const items: string[] = []
+    this.desktop.remove(this.desktop.items[index])
+  }
 
-    Array.from(this.order.entries()).forEach(([index, order]) => {
-      items[order] = desktop[index]
-    })
-
-    this.desktop.save(items)
+  onReorder(order: Map<number, number>) {
+    this.desktop.reorder(order)
   }
 }

@@ -20,7 +20,7 @@
     </button>
     <ng-template #content>
       <app-actions
-        [actions]="(actions | toDesktopActions : id | async) || {}"
+        [actions]="actions"
         (click)="dropdown.openChange.next(false)"
       >
         {{ title }}

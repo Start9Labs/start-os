@@ -16,7 +16,6 @@ import {
 } from '@taiga-ui/core'
 import { NavigationService } from '../navigation/navigation.service'
 import { Action, ActionsComponent } from '../actions/actions.component'
-import { ToDesktopActionsPipe } from '../../pipes/to-desktop-actions'
 import { toRouterLink } from '../../utils/to-router-link'
 
 @Component({
@@ -34,7 +33,6 @@ import { toRouterLink } from '../../utils/to-router-link'
     TuiSvgModule,
     TickerModule,
     ActionsComponent,
-    ToDesktopActionsPipe,
   ],
 })
 export class CardComponent {

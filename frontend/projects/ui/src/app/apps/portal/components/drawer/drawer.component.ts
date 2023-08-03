@@ -23,6 +23,7 @@ import { CardComponent } from '../card/card.component'
 import { ServicesService } from '../../services/services.service'
 import { SYSTEM_UTILITIES } from './drawer.const'
 import { toRouterLink } from '../../utils/to-router-link'
+import { DrawerItemDirective } from './drawer-item.directive'
 
 @Component({
   selector: 'app-drawer',
@@ -41,6 +42,7 @@ import { toRouterLink } from '../../utils/to-router-link'
     TuiForModule,
     TuiFilterPipeModule,
     CardComponent,
+    DrawerItemDirective,
     RouterLink,
   ],
 })
