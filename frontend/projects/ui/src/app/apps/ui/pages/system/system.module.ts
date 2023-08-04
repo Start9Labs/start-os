@@ -10,16 +10,14 @@ const routes: Routes = [
       ),
   },
   {
-    path: 'ui-details',
+    path: 'interfaces/ui',
     loadChildren: () =>
       import('./ui-details/ui-details.module').then(m => m.UIDetailsPageModule),
   },
   {
-    path: 'port-forwards',
+    path: 'router-config',
     loadChildren: () =>
-      import('./port-forwards/port-forwards.module').then(
-        m => m.PortForwardsPageModule,
-      ),
+      import('./router/router.module').then(m => m.RouterPageModule),
   },
   {
     path: 'logs',

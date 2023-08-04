@@ -378,14 +378,6 @@ export class ServerShowPage {
         disabled$: this.eosService.updatingOrBackingUp$,
       },
       {
-        title: 'Browser Tab Title',
-        description: `Customize the display name of your browser tab`,
-        icon: 'pricetag-outline',
-        action: () => this.setBrowserTab(),
-        detail: false,
-        disabled$: of(false),
-      },
-      {
         title: 'Email',
         description:
           'Connect to an external SMTP server to send yourself emails',
@@ -428,17 +420,6 @@ export class ServerShowPage {
     ],
     Network: [
       {
-        title: 'StartOS UI',
-        description: 'Information for accessing your StartOS user interface',
-        icon: 'desktop-outline',
-        action: () =>
-          this.navCtrl.navigateForward(['ui-details'], {
-            relativeTo: this.route,
-          }),
-        detail: true,
-        disabled$: of(false),
-      },
-      {
         title: 'Domains',
         description: 'Manage domains for clearnet connectivity',
         icon: 'globe-outline',
@@ -457,12 +438,11 @@ export class ServerShowPage {
         disabled$: of(false),
       },
       {
-        title: 'Port Forwards',
-        description:
-          'A list of ports that should be forwarded through your router',
-        icon: 'trail-sign-outline',
+        title: 'Router Config',
+        description: 'Connect or configure your router for clearnet',
+        icon: 'radio-outline',
         action: () =>
-          this.navCtrl.navigateForward(['port-forwards'], {
+          this.navCtrl.navigateForward(['router-config'], {
             relativeTo: this.route,
           }),
         detail: true,
@@ -474,6 +454,27 @@ export class ServerShowPage {
         icon: 'wifi',
         action: () =>
           this.navCtrl.navigateForward(['wifi'], { relativeTo: this.route }),
+        detail: true,
+        disabled$: of(false),
+      },
+    ],
+    'User Interface': [
+      {
+        title: 'Browser Tab Title',
+        description: `Customize the display name of your browser tab`,
+        icon: 'pricetag-outline',
+        action: () => this.setBrowserTab(),
+        detail: false,
+        disabled$: of(false),
+      },
+      {
+        title: 'Web Addresses',
+        description: 'View and manage web addresses for accessing this UI',
+        icon: 'desktop-outline',
+        action: () =>
+          this.navCtrl.navigateForward(['interfaces', 'ui'], {
+            relativeTo: this.route,
+          }),
         detail: true,
         disabled$: of(false),
       },

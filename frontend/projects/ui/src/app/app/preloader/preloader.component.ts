@@ -69,6 +69,7 @@ const ICONS = [
   'pulse',
   'push-outline',
   'qr-code-outline',
+  'radio-outline',
   'receipt-outline',
   'refresh',
   'reload',
