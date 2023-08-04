@@ -1,131 +1,24 @@
-<ng-container *ngIf="pkg.manifest.replaces as replaces">
-  <div *ngIf="replaces.length" class="ion-padding-bottom">
-    <ion-item-divider>Intended to replace</ion-item-divider>
-    <ul>
-      <li *ngFor="let app of replaces">
-        {{ app }}
-      </li>
-    </ul>
+<div
+  class="rounded-xl bg-gradient-to-bl from-zinc-400/75 to-zinc-600 p-px drop-shadow-2xl"
+>
+  <div class="bg-zinc-800 rounded-xl p-7">
+    <p class="tui-island__category">Information</p>
+    <div class="grid grid-flow-row">
+      <a
+        *ngIf="pkg.manifest['marketing-site'] as url"
+        href="url"
+        target="_blank"
+        rel="noreferrer"
+        class="text-veronica flex gap-1"
+      >
+        <p>Marketing Site</p>
+        <img
+          alt="Open Icon"
+          class="transition block opacity-70 invert w-4"
+          style="color: transparent"
+          src="svg/open-outline.svg"
+        />
+      </a>
+    </div>
   </div>
-</ng-container>
-
-<ion-item-divider>Additional Info</ion-item-divider>
-<ion-grid *ngIf="pkg.manifest as manifest">
-  <ion-row>
-    <ion-col responsiveCol sizeXs="12" sizeMd="6">
-      <ion-item-group>
-        <ion-item
-          *ngIf="manifest['git-hash'] as gitHash; else noHash"
-          button
-          detail="false"
-          (click)="copyService.copy(gitHash)"
-        >
-          <ion-label>
-            <h2>Git Hash</h2>
-            <p>{{ gitHash }}</p>
-          </ion-label>
-          <ion-icon slot="end" name="copy-outline"></ion-icon>
-        </ion-item>
-        <ng-template #noHash>
-          <ion-item>
-            <ion-label>
-              <h2>Git Hash</h2>
-              <p>Unknown</p>
-            </ion-label>
-          </ion-item>
-        </ng-template>
-        <ion-item button detail="false" (click)="presentAlertVersions(version)">
-          <ion-label>
-            <h2>Other Versions</h2>
-            <p>Click to view other versions</p>
-          </ion-label>
-          <ion-icon slot="end" name="chevron-forward"></ion-icon>
-          <ng-template #version let-data="data" let-completeWith="completeWith">
-            <tui-radio-list
-              class="radio"
-              size="l"
-              [items]="data.items"
-              [itemContent]="displayEmver | tuiStringifyContent"
-              [(ngModel)]="data.value"
-            ></tui-radio-list>
-            <footer class="buttons">
-              <button
-                tuiButton
-                appearance="secondary"
-                (click)="completeWith(null)"
-              >
-                Cancel
-              </button>
-              <button
-                tuiButton
-                appearance="secondary"
-                (click)="completeWith(data.value)"
-              >
-                Ok
-              </button>
-            </footer>
-          </ng-template>
-        </ion-item>
-        <ion-item button detail="false" (click)="presentModalMd('License')">
-          <ion-label>
-            <h2>License</h2>
-            <p>{{ manifest.license }}</p>
-          </ion-label>
-          <ion-icon slot="end" name="chevron-forward"></ion-icon>
-        </ion-item>
-        <ion-item
-          button
-          detail="false"
-          (click)="presentModalMd('Instructions')"
-        >
-          <ion-label>
-            <h2>Instructions</h2>
-            <p>Click to view instructions</p>
-          </ion-label>
-          <ion-icon slot="end" name="chevron-forward"></ion-icon>
-        </ion-item>
-      </ion-item-group>
-    </ion-col>
-    <ion-col responsiveCol sizeXs="12" sizeMd="6">
-      <ion-item-group>
-        <ion-item
-          [href]="manifest['upstream-repo']"
-          target="_blank"
-          rel="noreferrer"
-          detail="false"
-        >
-          <ion-label>
-            <h2>Source Repository</h2>
-            <p>{{ manifest['upstream-repo'] }}</p>
-          </ion-label>
-          <ion-icon slot="end" name="open-outline"></ion-icon>
-        </ion-item>
-        <ion-item
-          [href]="manifest['wrapper-repo']"
-          target="_blank"
-          rel="noreferrer"
-          detail="false"
-        >
-          <ion-label>
-            <h2>Wrapper Repository</h2>
-            <p>{{ manifest['wrapper-repo'] }}</p>
-          </ion-label>
-          <ion-icon slot="end" name="open-outline"></ion-icon>
-        </ion-item>
-        <ion-item
-          [href]="manifest['support-site']"
-          [disabled]="!manifest['support-site']"
-          target="_blank"
-          rel="noreferrer"
-          detail="false"
-        >
-          <ion-label>
-            <h2>Support Site</h2>
-            <p>{{ manifest['support-site'] || 'Not provided' }}</p>
-          </ion-label>
-          <ion-icon slot="end" name="open-outline"></ion-icon>
-        </ion-item>
-      </ion-item-group>
-    </ion-col>
-  </ion-row>
-</ion-grid>
+</div>

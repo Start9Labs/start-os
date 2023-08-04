@@ -1,32 +1,33 @@
-import { NgModule } from '@angular/core'
-import { CommonModule } from '@angular/common'
-import { FormsModule } from '@angular/forms'
-import { Routes, RouterModule } from '@angular/router'
-import { IonicModule } from '@ionic/angular'
+import { NgModule } from "@angular/core";
+import { CommonModule } from "@angular/common";
+import { FormsModule } from "@angular/forms";
+import { RouterModule, Routes } from "@angular/router";
+import { IonicModule } from "@ionic/angular";
 import {
-  SharedPipesModule,
   EmverPipesModule,
   ResponsiveColDirective,
-} from '@start9labs/shared'
+  SharedPipesModule,
+} from "@start9labs/shared";
 import {
-  FilterPackagesPipeModule,
   CategoriesModule,
+  FilterPackagesPipeModule,
   ItemModule,
+  MarketplaceHeaderModule,
   SearchModule,
   SkeletonModule,
   StoreIconComponentModule,
-} from '@start9labs/marketplace'
-import { BadgeMenuComponentModule } from 'src/app/common/badge-menu-button/badge-menu.component.module'
-import { MarketplaceStatusModule } from '../marketplace-status/marketplace-status.module'
-import { MarketplaceListPage } from './marketplace-list.page'
-import { MarketplaceSettingsPageModule } from './marketplace-settings/marketplace-settings.module'
+} from "@start9labs/marketplace";
+import { BadgeMenuComponentModule } from "src/app/common/badge-menu-button/badge-menu.component.module";
+import { MarketplaceStatusModule } from "../marketplace-status/marketplace-status.module";
+import { MarketplaceListPage } from "./marketplace-list.page";
+import { MarketplaceSettingsPageModule } from "./marketplace-settings/marketplace-settings.module";
 
 const routes: Routes = [
   {
-    path: '',
+    path: "",
     component: MarketplaceListPage,
   },
-]
+];
 
 @NgModule({
   imports: [
@@ -46,6 +47,7 @@ const routes: Routes = [
     MarketplaceSettingsPageModule,
     StoreIconComponentModule,
     ResponsiveColDirective,
+    MarketplaceHeaderModule,
   ],
   declarations: [MarketplaceListPage],
   exports: [MarketplaceListPage],

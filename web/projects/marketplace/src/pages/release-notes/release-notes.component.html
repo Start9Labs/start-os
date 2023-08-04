@@ -1,4 +1,31 @@
-<ion-content class="with-widgets">
+<div
+  class="rounded-xl bg-gradient-to-bl from-zinc-400/75 to-zinc-600 p-px drop-shadow-2xl"
+>
+  <div *ngIf="pkg$ | async as pkg" class="bg-zinc-800 rounded-xl p-7">
+    <p *ngIf="pkg['published-at'] as published" class="tui-island__category">
+      Latest Release - {{ published | date : 'medium' }}
+    </p>
+    <h3 class="tui-island__title">
+      What's new in
+      <b>{{ pkg.manifest.version }}</b>
+    </h3>
+    <p
+      class="tui-island__paragraph"
+      [innerHTML]="pkg.manifest['release-notes']"
+    ></p>
+    <button
+      tuiButton
+      type="button"
+      appearance="secondary"
+      size="m"
+      class="mt-3"
+    >
+      Past release notes
+    </button>
+  </div>
+</div>
+
+<!-- <ion-content class="with-widgets">
   <ng-container *ngIf="notes$ | async as notes; else loading">
     <div *ngFor="let note of notes | keyvalue : asIsOrder">
       <ion-button
@@ -30,4 +57,4 @@
   <ng-template #loading>
     <text-spinner text="Loading Release Notes"></text-spinner>
   </ng-template>
-</ion-content>
+</ion-content> -->

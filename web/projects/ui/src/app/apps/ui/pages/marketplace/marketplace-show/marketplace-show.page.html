@@ -1,6 +1,6 @@
-<marketplace-show-header></marketplace-show-header>
+<!-- <marketplace-show-header></marketplace-show-header> -->
 
-<ion-content class="ion-padding with-widgets">
+<ion-content class="with-widgets">
   <ng-container *ngIf="pkg$ | async as pkg else loading">
     <ng-container *ngIf="pkg | empty; else show">
       <div
@@ -20,27 +20,12 @@
     </ng-container>
 
     <ng-template #show>
-      <marketplace-package [pkg]="pkg"></marketplace-package>
       <marketplace-show-controls
         [url]="url"
         [pkg]="pkg"
         [localPkg]="localPkg$ | async"
       ></marketplace-show-controls>
-
-      <marketplace-show-dependent [pkg]="pkg"></marketplace-show-dependent>
-
-      <ion-item-group>
-        <marketplace-about [pkg]="pkg"></marketplace-about>
-        <marketplace-dependencies
-          *ngIf="!(pkg.manifest.dependencies | empty)"
-          [pkg]="pkg"
-        ></marketplace-dependencies>
-      </ion-item-group>
-
-      <marketplace-additional
-        [pkg]="pkg"
-        (version)="loadVersion$.next($event)"
-      ></marketplace-additional>
+      <marketplace-package></marketplace-package>
     </ng-template>
   </ng-container>
 

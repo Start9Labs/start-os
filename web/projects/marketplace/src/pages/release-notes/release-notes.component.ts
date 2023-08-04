@@ -1,7 +1,13 @@
-import { ChangeDetectionStrategy, Component, ElementRef } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  Input,
+} from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { getPkgId } from '@start9labs/shared'
 import { AbstractMarketplaceService } from '../../services/marketplace.service'
+import { MarketplacePkg } from '../../../src/types'
 
 @Component({
   selector: 'release-notes',
@@ -19,6 +25,7 @@ export class ReleaseNotesComponent {
 
   private selected: string | null = null
 
+  readonly pkg$ = this.marketplaceService.getPackage$(this.pkgId, '*')
   readonly notes$ = this.marketplaceService.fetchReleaseNotes$(this.pkgId)
 
   isSelected(key: string): boolean {
