@@ -1,22 +1,70 @@
-import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  Inject,
+  inject,
+} from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { AbstractMarketplaceService } from '@start9labs/marketplace'
+import {
+  AbstractCategoryService,
+  AbstractMarketplaceService,
+} from '@start9labs/marketplace'
 import { TuiDialogService } from '@taiga-ui/core'
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 import { PatchDB } from 'patch-db-client'
-import { map } from 'rxjs'
+import { filter, map, shareReplay, take, tap } from 'rxjs'
 import { MarketplaceSettingsPage } from './marketplace-settings/marketplace-settings.page'
 import { ConfigService } from 'src/app/services/config.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
+import {
+  animate,
+  query,
+  stagger,
+  style,
+  transition,
+  trigger,
+} from '@angular/animations'
+import { CategoryService } from 'src/app/services/category.service'
 
 @Component({
   selector: 'marketplace-list',
   templateUrl: 'marketplace-list.page.html',
   styleUrls: ['./marketplace-list.page.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  animations: [
+    trigger('itemAnimation', [
+      transition('* => *', [
+        query(
+          ':enter',
+          [
+            style({ opacity: 0, transform: 'translateY(-20px)' }),
+            stagger('100ms', [
+              animate(
+                '300ms ease-in-out',
+                style({ opacity: 1, transform: 'none' }),
+              ),
+            ]),
+          ],
+          { optional: true },
+        ),
+      ]),
+    ]),
+  ],
 })
 export class MarketplaceListPage {
+  constructor(
+    private readonly patch: PatchDB<DataModel>,
+    @Inject(AbstractMarketplaceService)
+    private readonly marketplaceService: MarketplaceService,
+    @Inject(AbstractCategoryService)
+    private readonly categoryService: CategoryService,
+    // private readonly categoryService: AbstractCategoryService,
+    private readonly dialogs: TuiDialogService,
+    readonly config: ConfigService,
+    private readonly route: ActivatedRoute,
+  ) {}
+
   readonly back = !!this.route.snapshot.queryParamMap.get('back')
 
   readonly store$ = this.marketplaceService.getSelectedStore$().pipe(
@@ -29,9 +77,9 @@ export class MarketplaceListPage {
       return { categories: Array.from(categories), packages }
     }),
   )
-
   readonly localPkgs$ = this.patch.watch$('package-data')
-
+  readonly category$ = this.categoryService.getCategory$()
+  readonly query$ = this.categoryService.getQuery$()
   readonly details$ = this.marketplaceService.getSelectedHost$().pipe(
     map(({ url, name }) => {
       const { start9, community } = this.config.marketplace
@@ -69,29 +117,4 @@ export class MarketplaceListPage {
       }
     }),
   )
-
-  constructor(
-    private readonly patch: PatchDB<DataModel>,
-    @Inject(AbstractMarketplaceService)
-    private readonly marketplaceService: MarketplaceService,
-    private readonly dialogs: TuiDialogService,
-    readonly config: ConfigService,
-    private readonly route: ActivatedRoute,
-  ) {}
-
-  category = 'featured'
-  query = ''
-
-  presentModalMarketplaceSettings() {
-    this.dialogs
-      .open(new PolymorpheusComponent(MarketplaceSettingsPage), {
-        label: 'Change Registry',
-      })
-      .subscribe()
-  }
-
-  onCategoryChange(category: string): void {
-    this.category = category
-    this.query = ''
-  }
 }

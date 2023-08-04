@@ -1,11 +1,132 @@
-<div class="header montserrat">
-  <img class="logo" alt="" [src]="pkg | mimeType | trustUrl" />
-  <div class="text">
-    <h1 ticker class="title">{{ pkg.manifest.title }}</h1>
-    <p class="version">{{ pkg.manifest.version | displayEmver }}</p>
-    <p *ngIf="pkg['published-at'] as published" class="published">
-      Released: {{ published | date : 'medium' }}
-    </p>
-    <ng-content></ng-content>
+<marketplace-header></marketplace-header>
+
+<div
+  *ngIf="pkg$ | async as pkg; else loading"
+  class="sm:pl-[34vw] md:pl-[28vw] lg:pl-[22vw] 2xl:pl-[280px] min-h-screen"
+  [@tuiFadeIn]="getAnimation(speed)"
+>
+  <div class="grid grid-flow-row gap-8 justify-normal 3xl:justify-center">
+    <ng-container *ngIf="pkg | empty; else show">
+      <ng-container *ngIf="version$ | async as version">
+        <h2 class="m-auto text-center">
+          {{ pkgId }} version {{ version === '*' ? 'latest' : version }} not
+          found in this registry
+        </h2>
+      </ng-container>
+    </ng-container>
+
+    <ng-template #show>
+      <div class="grid grid-flow-row gap-8 mb-16 px-20 mt-20">
+        <!-- header -->
+        <div class="flex gap-5 justify-start mt-10 md:mt-0">
+          <!-- <div
+              class="overflow-hidden absolute w-full h-full top-0 left-0 -z-50 rounded-xl bg-black">
+              <div
+                class="absolute top-0 left-0 w-full h-full bg-center panel"></div>
+              <img
+                [src]="'data:image/png;base64,' + pkg.icon | trustUrl"
+                class="absolute object-cover pointer-events-none w-[200%] h-[200%] max-w-[200%] blur-[100px] saturate-150"
+                alt="{{ pkg.manifest.title }} Icon" />
+            </div> -->
+          <div
+            class="flex flex-col h-[30vh] w-full relative rounded-3xl pt-16 pb-10 px-8 shadow-xl"
+          >
+            <!-- @TODO mime type pipe -->
+            <img
+              [src]="'data:image/png;base64,' + pkg.icon | trustUrl"
+              class="w-24 h-24 pointer-events-none rounded-full object-cover shadow-xl absolute -top-9 left-7"
+              alt="{{ pkg.manifest.title }} Icon"
+            />
+            <div
+              class="overflow-hidden absolute w-full h-full top-0 left-0 -z-50 rounded-3xl bg-black"
+            >
+              <div
+                class="absolute top-0 left-0 w-full h-full bg-center panel"
+              ></div>
+              <img
+                [src]="'data:image/png;base64,' + pkg.icon | trustUrl"
+                class="absolute object-cover pointer-events-none w-[200%] h-[200%] max-w-[200%] blur-[100px] saturate-150"
+                alt="{{ pkg.manifest.title }} Icon"
+              />
+            </div>
+            <div class="my-3">
+              <h2
+                class="block text-2xl font-medium text-zinc-50/90 line-clamp-1 mb-1"
+              >
+                {{ pkg.manifest.title }}
+              </h2>
+              <p class="block text-base text-zinc-50/70 h-11 line-clamp-2">
+                {{ pkg.manifest.description.short }}
+              </p>
+            </div>
+            <!-- screenshots -->
+            <div
+              *ngIf="pkg.screenshots"
+              tuiCarouselButtons
+              class="flex items-center"
+            >
+              <!-- <button
+              tuiIconButton
+              icon="tuiIconChevronLeftLarge"
+              title="Previous"
+              type="button"
+              (click)="carousel.prev()"></button> -->
+              <tui-carousel
+                #carousel
+                [itemsCount]="2"
+                [(index)]="index"
+                class="overflow-y-hidden overflow-x-scroll carousel"
+              >
+                <ng-container
+                  *ngFor="let item of pkg.screenshots; let i = index"
+                >
+                  <div
+                    *tuiItem
+                    draggable="false"
+                    [class.item_active]="i === index + 1"
+                    class="rounded-lg md:rounded-lg object-cover p-2 border-2 border-zinc-700 bg-zinc-800 w-full shadow-zinc-300 drop-shadow-lg"
+                  >
+                    <img
+                      alt="Service Screenshot"
+                      src="img/{{ item }}"
+                      class="drop-shadow-xl"
+                    />
+                  </div>
+                </ng-container>
+              </tui-carousel>
+              <!-- <button
+              tuiIconButton
+              type="button"
+              icon="tuiIconChevronRightLarge"
+              title="Next"
+              (click)="carousel.next()"></button> -->
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-80 grid grid-cols-1 lg:grid-cols-12 gap-x-8">
+          <!-- about -->
+          <div class="md:col-span-12 lg:col-span-7 xl:col-span-8">
+            <marketplace-about [pkg]="pkg"></marketplace-about>
+          </div>
+          <!-- additional info-->
+          <div class="lg:col-span-5 xl:col-span-4 mt-6 lg:mt-0">
+            <marketplace-additional
+              class="additional"
+              [pkg]="pkg"
+              (version)="version$.next($event)"
+            ></marketplace-additional>
+          </div>
+          <!-- release notes -->
+          <div class="lg:col-span-7 xl:col-span-8 mt-6">
+            <release-notes></release-notes>
+          </div>
+        </div>
+      </div>
+    </ng-template>
   </div>
 </div>
+
+<ng-template #loading>
+  <text-spinner text="Loading Package"></text-spinner>
+</ng-template>

@@ -22,7 +22,7 @@ export const mockPatchData: DataModel = {
           name: 'Start9 Registry',
         },
         'https://community-registry.start9.com/': {},
-        'https://beta-registry.start9.com/': {
+        'https://dark-registry.start9.com/': {
           name: 'Dark9',
         },
       },

@@ -1,27 +1,27 @@
 import { Injectable } from '@angular/core'
 import { sameUrl } from '@start9labs/shared'
 import {
-  MarketplacePkg,
   AbstractMarketplaceService,
-  StoreData,
   Marketplace,
-  StoreInfo,
+  MarketplacePkg,
+  StoreData,
   StoreIdentity,
+  StoreInfo,
 } from '@start9labs/marketplace'
 import { PatchDB } from 'patch-db-client'
 import {
   BehaviorSubject,
+  catchError,
   combineLatest,
   distinctUntilKeyChanged,
+  filter,
   from,
+  map,
   mergeMap,
   Observable,
   of,
-  scan,
-  catchError,
-  filter,
-  map,
   pairwise,
+  scan,
   shareReplay,
   startWith,
   switchMap,
@@ -160,6 +160,31 @@ export class MarketplaceService implements AbstractMarketplaceService {
 
   getSelectedStore$(): Observable<StoreData> {
     return this.selectedStore$
+  }
+
+  getSelectedStoreWithAllCategories$() {
+    return this.selectedHost$.pipe(
+      switchMap(({ url }) =>
+        this.marketplace$.pipe(
+          // map((m) => m[url]),
+          map(m => {
+            const store = m[url]
+            const categories = new Set<string>()
+            categories.add('all')
+            store?.info.categories.forEach(c => categories.add(c))
+
+            return {
+              url,
+              info: {
+                ...store?.info,
+                categories: Array.from(categories),
+              },
+              packages: store?.packages,
+            }
+          }),
+        ),
+      ),
+    )
   }
 
   getPackage$(

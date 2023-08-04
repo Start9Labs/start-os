@@ -1,16 +1,41 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-buttons slot="start" *ngIf="back">
-      <ion-back-button></ion-back-button>
-    </ion-buttons>
-    <ion-title>Marketplace</ion-title>
-    <ion-buttons slot="end">
-      <badge-menu-button></badge-menu-button>
-    </ion-buttons>
-  </ion-toolbar>
-</ion-header>
-
-<ion-content class="ion-padding with-widgets">
+<marketplace-header></marketplace-header>
+<div
+  class="sm:pl-[34vw] md:pl-[28vw] lg:pl-[22vw] 2xl:pl-[280px] min-h-screen flex flex-col justify-between overflow-auto scroll-smooth"
+>
+  <main
+    class="pt-20 sm:pt-3 md:pb-10 md:px-8 scroll-smooth"
+    *ngIf="store$ | async as store; else loading"
+  >
+    <div class="mt-8 px-6 mb-10">
+      <h1 class="text-4xl sm:text-5xl font-bold text-zinc-50/80 pb-6">
+        {{ category$ | async | titlecase }}
+      </h1>
+    </div>
+    <section
+      class="mt-10"
+      *ngIf="
+        store.packages | filterPackages : (query$ | async) : (category$ | async) as filtered
+      "
+    >
+      <ul
+        *ngIf="filtered.length; else categoryEmpty"
+        class="px-6 md:px-8 grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-16"
+        [@itemAnimation]="filtered.length"
+      >
+        <li *ngFor="let pkg of filtered">
+          <marketplace-item [pkg]="pkg"></marketplace-item>
+        </li>
+      </ul>
+      <ng-template #categoryEmpty>
+        <p class="px-6">No services in this category</p>
+      </ng-template>
+    </section>
+  </main>
+  <ng-template #loading>
+    <marketplace-skeleton></marketplace-skeleton>
+  </ng-template>
+</div>
+<!-- 
   <ng-container *ngIf="details$ | async as details">
     <ion-item [color]="details.color">
       <ion-icon slot="start" name="information-circle-outline"></ion-icon>
@@ -18,73 +43,4 @@
         <h2 style="font-weight: 600" [innerHTML]="details.description"></h2>
       </ion-label>
     </ion-item>
-
-    <ion-grid>
-      <ion-row>
-        <ion-col>
-          <div class="heading">
-            <store-icon
-              class="icon"
-              size="80px"
-              [url]="details.url"
-              [marketplace]="config.marketplace"
-            ></store-icon>
-            <h1 class="montserrat">{{ details.name }}</h1>
-          </div>
-          <ion-button fill="clear" (click)="presentModalMarketplaceSettings()">
-            <ion-icon slot="start" name="repeat-outline"></ion-icon>
-            Change
-          </ion-button>
-          <marketplace-search [(query)]="query"></marketplace-search>
-        </ion-col>
-      </ion-row>
-      <ion-row class="ion-align-items-center">
-        <ion-col>
-          <ng-container *ngIf="store$ | async as store; else loading">
-            <marketplace-categories
-              [categories]="store.categories"
-              [category]="query ? '' : category"
-              (categoryChange)="onCategoryChange($event)"
-            ></marketplace-categories>
-
-            <div class="divider"></div>
-
-            <ion-grid
-              *ngIf="store.packages | filterPackages: query:category as filtered"
-            >
-              <ng-container *ngIf="filtered.length; else empty">
-                <ion-row *ngIf="localPkgs$ | async as localPkgs">
-                  <ion-col
-                    *ngFor="let pkg of filtered"
-                    responsiveCol
-                    sizeXs="12"
-                    sizeSm="12"
-                    sizeMd="6"
-                  >
-                    <marketplace-item [pkg]="pkg">
-                      <marketplace-status
-                        class="status"
-                        [version]="pkg.manifest.version"
-                        [localPkg]="localPkgs[pkg.manifest.id]"
-                      ></marketplace-status>
-                    </marketplace-item>
-                  </ion-col>
-                </ion-row>
-              </ng-container>
-
-              <ng-template #empty>
-                <div class="ion-padding">
-                  <h2>No results</h2>
-                </div>
-              </ng-template>
-            </ion-grid>
-          </ng-container>
-
-          <ng-template #loading>
-            <marketplace-skeleton></marketplace-skeleton>
-          </ng-template>
-        </ion-col>
-      </ion-row>
-    </ion-grid>
-  </ng-container>
-</ion-content>
+  </ng-container> -->

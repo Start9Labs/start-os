@@ -10,7 +10,8 @@ export abstract class AbstractMarketplaceService {
 
   abstract getSelectedStore$(): Observable<StoreData>
 
-  abstract getSelectedStoreWithAllCategories$(): Observable<StoreData>
+  // @TODO fix any type
+  abstract getSelectedStoreWithAllCategories$(): Observable<any>
 
   abstract getPackage$(
     id: string,

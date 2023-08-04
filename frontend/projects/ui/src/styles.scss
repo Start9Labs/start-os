@@ -1,3 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@import '@taiga-ui/core/styles/taiga-ui-local.scss';
+
 @font-face {
   font-family: 'text-security-disc';
   src: url('/assets/fonts/text-security-disc.woff2') format('woff2');

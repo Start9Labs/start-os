@@ -7,17 +7,17 @@ import {
   ServerStatusInfo,
 } from 'src/app/services/patch-db/data-model'
 import {
-  RR,
-  NotificationLevel,
-  ServerNotifications,
   Metrics,
+  NotificationLevel,
+  RR,
+  ServerNotifications,
 } from './api.types'
 
 import { BTC_ICON, LND_ICON, PROXY_ICON } from './api-icons'
 import {
   DependencyMetadata,
-  MarketplacePkg,
   Manifest,
+  MarketplacePkg,
 } from '@start9labs/marketplace'
 import { Log } from '@start9labs/shared'
 import { unionSelectKey } from '@start9labs/start-sdk/lib/config/configTypes'
@@ -198,11 +198,12 @@ export module Mock {
         icon: BTC_ICON,
         license: 'licenseUrl',
         instructions: 'instructionsUrl',
+        screenshots: ['one.png', 'two.png', 'three.png'],
         manifest: {
           ...Mock.MockManifestBitcoind,
           version: '0.19.0',
         },
-        categories: ['bitcoin', 'cryptocurrency'],
+        categories: ['bitcoin', 'cryptocurrency', 'featured'],
         versions: ['0.19.0', '0.20.0', '0.21.0'],
         'dependency-metadata': {},
         'published-at': new Date().toISOString(),

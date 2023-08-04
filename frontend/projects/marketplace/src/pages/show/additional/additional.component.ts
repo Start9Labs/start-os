@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   EventEmitter,
+  inject,
   Input,
   Output,
   TemplateRef,
@@ -38,13 +39,13 @@ export class AdditionalComponent {
   version = new EventEmitter<string>()
 
   readonly displayEmver = displayEmver
+  private readonly marketplaceService = inject(AbstractMarketplaceService)
 
   constructor(
     readonly copyService: CopyService,
     private readonly alerts: TuiAlertService,
     private readonly dialogs: TuiDialogService,
     private readonly emver: Emver,
-    private readonly marketplaceService: AbstractMarketplaceService,
     private readonly route: ActivatedRoute,
   ) {}
 

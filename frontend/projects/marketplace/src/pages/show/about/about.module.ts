@@ -6,10 +6,12 @@ import {
   EmverPipesModule,
   MarkdownPipeModule,
   SafeLinksModule,
+  SharedPipesModule,
 } from '@start9labs/shared'
 import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
 
 import { AboutComponent } from './about.component'
+import { DependenciesModule } from '../dependencies/dependencies.module'
 
 @NgModule({
   imports: [
@@ -20,6 +22,8 @@ import { AboutComponent } from './about.component'
     EmverPipesModule,
     NgDompurifyModule,
     SafeLinksModule,
+    DependenciesModule,
+    SharedPipesModule,
   ],
   declarations: [AboutComponent],
   exports: [AboutComponent],

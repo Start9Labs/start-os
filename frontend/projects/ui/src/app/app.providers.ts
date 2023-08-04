@@ -13,7 +13,10 @@ import {
   TUI_DATE_VALUE_TRANSFORMER,
 } from '@taiga-ui/kit'
 import { RELATIVE_URL, THEME, WorkspaceConfig } from '@start9labs/shared'
-import { AbstractMarketplaceService } from '@start9labs/marketplace'
+import {
+  AbstractCategoryService,
+  AbstractMarketplaceService,
+} from '@start9labs/marketplace'
 import { ApiService } from './services/api/embassy-api.service'
 import { MockApiService } from './services/api/embassy-mock-api.service'
 import { LiveApiService } from './services/api/embassy-live-api.service'
@@ -24,6 +27,7 @@ import { ThemeSwitcherService } from './services/theme-switcher.service'
 import { DateTransformerService } from './services/date-transformer.service'
 import { DatetimeTransformerService } from './services/datetime-transformer.service'
 import { MarketplaceService } from './services/marketplace.service'
+import { CategoryService } from './services/category.service'
 
 const {
   useMocks,
@@ -78,6 +82,10 @@ export const APP_PROVIDERS: Provider[] = [
   {
     provide: AbstractMarketplaceService,
     useClass: MarketplaceService,
+  },
+  {
+    provide: AbstractCategoryService,
+    useClass: CategoryService,
   },
 ]
 
