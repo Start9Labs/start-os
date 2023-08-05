@@ -16,11 +16,21 @@ import {
   SearchModule,
   SkeletonModule,
   StoreIconComponentModule,
+<<<<<<< HEAD
 } from "@start9labs/marketplace";
 import { BadgeMenuComponentModule } from "src/app/common/badge-menu-button/badge-menu.component.module";
 import { MarketplaceStatusModule } from "../marketplace-status/marketplace-status.module";
 import { MarketplaceListPage } from "./marketplace-list.page";
 import { MarketplaceSettingsPageModule } from "./marketplace-settings/marketplace-settings.module";
+=======
+} from '@start9labs/marketplace'
+import { BadgeMenuComponentModule } from 'src/app/common/badge-menu-button/badge-menu.component.module'
+import { MarketplaceStatusModule } from '../marketplace-status/marketplace-status.module'
+import { MarketplaceListPage } from './marketplace-list.page'
+import { MarketplaceSettingsPageModule } from './marketplace-settings/marketplace-settings.module'
+import { TuiNotificationModule } from '@taiga-ui/core'
+import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
+>>>>>>> 4a3fad0dd (styling cleanup)
 
 const routes: Routes = [
   {
@@ -48,6 +58,8 @@ const routes: Routes = [
     StoreIconComponentModule,
     ResponsiveColDirective,
     MarketplaceHeaderModule,
+    TuiNotificationModule,
+    NgDompurifyModule,
   ],
   declarations: [MarketplaceListPage],
   exports: [MarketplaceListPage],

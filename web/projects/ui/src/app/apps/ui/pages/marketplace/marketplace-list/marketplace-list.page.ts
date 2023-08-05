@@ -9,7 +9,7 @@ import {
   AbstractCategoryService,
   AbstractMarketplaceService,
 } from '@start9labs/marketplace'
-import { TuiDialogService } from '@taiga-ui/core'
+import { TuiDialogService, TuiNotificationT } from '@taiga-ui/core'
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { filter, map, shareReplay, take, tap } from 'rxjs'
@@ -59,7 +59,6 @@ export class MarketplaceListPage {
     private readonly marketplaceService: MarketplaceService,
     @Inject(AbstractCategoryService)
     private readonly categoryService: CategoryService,
-    // private readonly categoryService: AbstractCategoryService,
     private readonly dialogs: TuiDialogService,
     readonly config: ConfigService,
     private readonly route: ActivatedRoute,
@@ -83,7 +82,7 @@ export class MarketplaceListPage {
   readonly details$ = this.marketplaceService.getSelectedHost$().pipe(
     map(({ url, name }) => {
       const { start9, community } = this.config.marketplace
-      let color: string
+      let color: TuiNotificationT
       let description: string
 
       if (url === start9) {
@@ -91,22 +90,22 @@ export class MarketplaceListPage {
         description =
           'Services from this registry are packaged and maintained by the Start9 team. If you experience an issue or have questions related to a service from this registry, one of our dedicated support staff will be happy to assist you.'
       } else if (url === community) {
-        color = 'tertiary'
+        color = 'info'
         description =
-          'Services from this registry are packaged and maintained by members of the Start9 community. <b>Install at your own risk</b>. If you experience an issue or have a question related to a service in this marketplace, please reach out to the package developer for assistance.'
+          'Services from this registry are packaged and maintained by members of the Start9 community. Install at your own risk. If you experience an issue or have a question related to a service in this marketplace, please reach out to the package developer for assistance.'
       } else if (url.includes('beta')) {
         color = 'warning'
         description =
-          'Services from this registry are undergoing <b>beta</b> testing and may contain bugs. <b>Install at your own risk</b>.'
+          'Services from this registry are undergoing <b>beta</b> testing and may contain bugs. Install at your own risk.'
       } else if (url.includes('alpha')) {
-        color = 'danger'
+        color = 'error'
         description =
-          'Services from this registry are undergoing <b>alpha</b> testing. They are expected to contain bugs and could damage your system. <b>Install at your own risk</b>.'
+          'Services from this registry are undergoing <b>alpha</b> testing. They are expected to contain bugs and could damage your system. Install at your own risk.'
       } else {
         // alt marketplace
         color = 'warning'
         description =
-          'This is a Custom Registry. Start9 cannot verify the integrity or functionality of services from this registry, and they could damage your system. <b>Install at your own risk</b>.'
+          'This is a Custom Registry. Start9 cannot verify the integrity or functionality of services from this registry, and they could damage your system. Install at your own risk.'
       }
 
       return {

@@ -3,20 +3,21 @@ import { CommonModule } from '@angular/common'
 import { IonicModule } from '@ionic/angular'
 import { RouterModule } from '@angular/router'
 import {
-  SharedPipesModule,
   EmverPipesModule,
   MarkdownPipeModule,
+  SharedPipesModule,
   TextSpinnerComponentModule,
 } from '@start9labs/shared'
 import {
-  PackageModule,
   AboutModule,
   AdditionalModule,
   DependenciesModule,
+  PackageModule,
 } from '@start9labs/marketplace'
 import { MarketplaceShowHeaderComponent } from './marketplace-show-header/marketplace-show-header.component'
 import { MarketplaceShowDependentComponent } from './marketplace-show-dependent/marketplace-show-dependent.component'
 import { MarketplaceShowControlsComponent } from './marketplace-show-controls/marketplace-show-controls.component'
+import { TuiButtonModule } from '@taiga-ui/core'
 
 @NgModule({
   declarations: [
@@ -36,6 +37,7 @@ import { MarketplaceShowControlsComponent } from './marketplace-show-controls/ma
     AboutModule,
     DependenciesModule,
     AdditionalModule,
+    TuiButtonModule,
   ],
   exports: [
     MarketplaceShowHeaderComponent,

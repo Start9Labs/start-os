@@ -5,8 +5,6 @@ import {
   inject,
   OnDestroy,
 } from '@angular/core'
-import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
-import { RegistrySettingsComponent } from '../registry-settings/registry-settings.component'
 import { TuiDialogService } from '@taiga-ui/core'
 import { combineLatest, map, Subject, takeUntil, tap } from 'rxjs'
 import { StoreIdentity } from '../../../src/types'
@@ -41,6 +39,7 @@ export class HeaderComponent implements OnDestroy {
   query: string = ''
   open = false
   iconConfig = require('../../../../../config.json').ui.marketplace
+  changeRegistry: any
 
   ngOnInit() {
     this.categoryService
@@ -75,23 +74,6 @@ export class HeaderComponent implements OnDestroy {
   onQueryChange(query: string): void {
     this.query = query
     this.categoryService.setQuery(query)
-  }
-
-  changeRegistry() {
-    this.dialogs
-      .open<StoreIdentity>(
-        new PolymorpheusComponent(RegistrySettingsComponent),
-        {
-          label: 'Change Registry',
-          data: this.hosts,
-          dismissible: true,
-        },
-      )
-      .subscribe({
-        next: data => {
-          // this.urlService.toggle((data as any).url);
-        },
-      })
   }
 
   toggleMenu(open: boolean): void {

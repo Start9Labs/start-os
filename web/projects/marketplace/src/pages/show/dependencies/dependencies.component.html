@@ -1,5 +1,5 @@
-<p class="tui-island__category">Dependencies</p>
-<div class="grid grid-cols-2 md:grid-row-auto gap-3">
+<h2 class="text-lg font-bold small-caps my-2 pb-3">Dependencies</h2>
+<div class="grid grid-cols-1 md:grid-row-auto gap-3">
   <div *ngFor="let dep of pkg.manifest.dependencies | keyvalue">
     <a [routerLink]="['/marketplace', dep.key]">
       <div class="bg-zinc-700 rounded-xl py-3 px-5 gap-2 drop-shadow-xl">
@@ -15,7 +15,7 @@
           <div class="mt-3">
             <div class="flex flex-wrap items-center gap-1 mb-1">
               <span
-                class="block text-lg font-medium text-zinc-50/90 line-clamp-1"
+                class="block text-base font-medium text-zinc-50/90 line-clamp-1"
               >
                 {{ pkg['dependency-metadata'][dep.key].title }}
               </span>
@@ -27,7 +27,7 @@
                 </ng-container>
               </p>
             </div>
-            <span class="text-zinc-50/70 h-11 line-clamp-2">
+            <span class="text-sm text-zinc-50/70 h-11 line-clamp-2">
               {{ dep.value.description }}
             </span>
           </div>

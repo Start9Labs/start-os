@@ -1,11 +1,16 @@
 <marketplace-header></marketplace-header>
 <div
-  class="sm:pl-[34vw] md:pl-[28vw] lg:pl-[22vw] 2xl:pl-[280px] min-h-screen flex flex-col justify-between overflow-auto scroll-smooth"
+  class="background sm:pl-[34vw] md:pl-[28vw] lg:pl-[22vw] 2xl:pl-[280px] min-h-screen flex flex-col justify-between overflow-auto scroll-smooth"
 >
   <main
     class="pt-20 sm:pt-3 md:pb-10 md:px-8 scroll-smooth"
     *ngIf="store$ | async as store; else loading"
   >
+    <ng-container *ngIf="details$ | async as details">
+      <tui-notification [status]="details.color" class="p-4">
+        {{ details.description }}
+      </tui-notification>
+    </ng-container>
     <div class="mt-8 px-6 mb-10">
       <h1 class="text-4xl sm:text-5xl font-bold text-zinc-50/80 pb-6">
         {{ category$ | async | titlecase }}
@@ -35,12 +40,3 @@
     <marketplace-skeleton></marketplace-skeleton>
   </ng-template>
 </div>
-<!-- 
-  <ng-container *ngIf="details$ | async as details">
-    <ion-item [color]="details.color">
-      <ion-icon slot="start" name="information-circle-outline"></ion-icon>
-      <ion-label>
-        <h2 style="font-weight: 600" [innerHTML]="details.description"></h2>
-      </ion-label>
-    </ion-item>
-  </ng-container> -->
