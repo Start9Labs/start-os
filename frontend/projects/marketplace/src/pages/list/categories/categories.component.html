@@ -1,6 +1,6 @@
 <div
   *ngFor="let cat of categories"
-  class="sm:relative sm:hover:bg-zinc-700 hover:cursor-pointer sm:w-[105%] z-50 rounded-l-lg transition-all ease-in-out delay-75 duration-300"
+  class="sm:relative sm:hover:bg-background hover:cursor-pointer sm:w-[105%] z-50 rounded-l-lg transition-all ease-in-out delay-75 duration-300"
 >
   <button
     class="flex relative gap-2 hover:no-underline mb-2 p-2"
@@ -18,7 +18,9 @@
         src="/svg/{{ determineIcon(cat) }}.svg"
       />
     </div>
-    <span class="text-zinc-50 text-ellipsis overflow-hidden whitespace-nowrap">
+    <span
+      class="text-base text-zinc-50 text-ellipsis overflow-hidden whitespace-nowrap"
+    >
       {{ cat | titlecase }}
     </span>
   </button>

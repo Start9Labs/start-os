@@ -21,6 +21,8 @@ import { BadgeMenuComponentModule } from 'src/app/common/badge-menu-button/badge
 import { MarketplaceStatusModule } from '../marketplace-status/marketplace-status.module'
 import { MarketplaceListPage } from './marketplace-list.page'
 import { MarketplaceSettingsPageModule } from './marketplace-settings/marketplace-settings.module'
+import { TuiNotificationModule } from '@taiga-ui/core'
+import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
 
 const routes: Routes = [
   {
@@ -48,6 +50,8 @@ const routes: Routes = [
     StoreIconComponentModule,
     ResponsiveColModule,
     MarketplaceHeaderModule,
+    TuiNotificationModule,
+    NgDompurifyModule,
   ],
   declarations: [MarketplaceListPage],
   exports: [MarketplaceListPage],

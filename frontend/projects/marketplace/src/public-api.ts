@@ -29,7 +29,6 @@ export * from './components/store-icon/store-icon.component.module'
 export * from './components/store-icon/store-icon.component'
 export * from './components/header/header.component.module'
 export * from './components/header/header.component'
-export * from './components/registry-settings/registry-settings.component.module'
 export * from './components/registry-settings/registry-settings.component'
 
 export * from './services/marketplace.service'

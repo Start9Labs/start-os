@@ -5,7 +5,10 @@ import {
   sameUrl,
   toUrl,
 } from '@start9labs/shared'
-import { AbstractMarketplaceService } from '@start9labs/marketplace'
+import {
+  AbstractMarketplaceService,
+  RegistrySettingsComponent,
+} from '@start9labs/marketplace'
 import { ValueSpecObject } from '@start9labs/start-sdk/lib/config/configTypes'
 import { TuiDialogService } from '@taiga-ui/core'
 import { TUI_PROMPT } from '@taiga-ui/kit'
@@ -25,6 +28,18 @@ import { ConfigService } from 'src/app/services/config.service'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MarketplaceSettingsPage {
+  constructor(
+    private readonly api: ApiService,
+    private readonly loader: LoadingService,
+    private readonly formDialog: FormDialogService,
+    private readonly errorService: ErrorService,
+    @Inject(AbstractMarketplaceService)
+    private readonly marketplaceService: MarketplaceService,
+    private readonly patch: PatchDB<DataModel>,
+    private readonly dialogs: TuiDialogService,
+    readonly config: ConfigService,
+  ) {}
+
   stores$ = combineLatest([
     this.marketplaceService.getKnownHosts$(),
     this.marketplaceService.getSelectedHost$(),
@@ -42,18 +57,6 @@ export class MarketplaceSettingsPage {
       return { standard, alt }
     }),
   )
-
-  constructor(
-    private readonly api: ApiService,
-    private readonly loader: LoadingService,
-    private readonly formDialog: FormDialogService,
-    private readonly errorService: ErrorService,
-    @Inject(AbstractMarketplaceService)
-    private readonly marketplaceService: MarketplaceService,
-    private readonly patch: PatchDB<DataModel>,
-    private readonly dialogs: TuiDialogService,
-    readonly config: ConfigService,
-  ) {}
 
   async presentModalAdd() {
     const { name, spec } = getMarketplaceValueSpec()

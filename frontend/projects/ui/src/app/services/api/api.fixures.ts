@@ -101,7 +101,8 @@ export module Mock {
     assets: {
       icon: 'icon.png',
     },
-    'release-notes': 'Dual funded channels!',
+    'release-notes':
+      'Dual funded channels! And lots more amazing new features. Also includes several bugfixes and performance enhancements.',
     license: 'MIT',
     'wrapper-repo': 'https://github.com/start9labs/lnd-wrapper',
     'upstream-repo': 'https://github.com/lightningnetwork/lnd',
@@ -198,7 +199,6 @@ export module Mock {
         icon: BTC_ICON,
         license: 'licenseUrl',
         instructions: 'instructionsUrl',
-        screenshots: ['one.png', 'two.png', 'three.png'],
         manifest: {
           ...Mock.MockManifestBitcoind,
           version: '0.19.0',
@@ -240,6 +240,7 @@ export module Mock {
         icon: BTC_ICON,
         license: 'licenseUrl',
         instructions: 'instructionsUrl',
+        screenshots: ['one.png', 'two.png', 'three.png'],
         manifest: {
           ...Mock.MockManifestBitcoind,
           'release-notes':

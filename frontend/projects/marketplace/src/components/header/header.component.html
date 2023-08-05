@@ -5,6 +5,7 @@
     <div class="hidden sm:flex flex-col mx-6 pb-3 items-center">
       <div class="pb-3">
         <store-icon
+          size="64px"
           [url]="store.url"
           [marketplace]="this.iconConfig"
         ></store-icon>
@@ -49,17 +50,17 @@
               (tuiActiveZoneChange)="toggleMenu($event)"
             >
               <store-icon
-                size="48"
+                size="48px"
                 [url]="store.url"
                 [marketplace]="this.iconConfig"
               ></store-icon>
               <nav
                 *tuiSidebar="open; direction: 'right'; autoWidth: true"
-                class="bg-zinc-800 h-screen"
+                class="bg-zinc-800 h-screen w-[80vw]"
               >
                 <div class="flex grow flex-col p-5">
                   <div class="flex grow flex-col">
-                    <div class="flex pb-3">
+                    <div class="flex items-center pb-3">
                       <h1 class="font-semibold text-xl text-zinc-200 flex-grow">
                         {{ store.info.name }}
                       </h1>
@@ -67,18 +68,11 @@
                         aria-label="Menu"
                         tuiButton
                         type="button"
-                        (click)="toggleMenu(false)"
+                        appearance="icon"
+                        icon="tuiIconClose"
                         (tuiActiveZoneChange)="toggleMenu($event)"
-                      >
-                        <img
-                          alt=""
-                          width="24"
-                          height="24"
-                          class="transition block opacity-70 invert"
-                          style="color: transparent"
-                          src="svg/close-outline.svg"
-                        />
-                      </button>
+                        (click)="toggleMenu(false)"
+                      ></button>
                     </div>
                     <marketplace-categories
                       [categories]="store.info.categories"
@@ -103,7 +97,7 @@
                         />
                       </div>
                       <span
-                        class="text-zinc-50 text-ellipsis overflow-hidden whitespace-nowrap"
+                        class="text-base text-zinc-50 text-ellipsis overflow-hidden whitespace-nowrap"
                       >
                         Launch your project
                       </span>
@@ -193,7 +187,7 @@
               />
             </div>
             <span
-              class="text-zinc-50 text-ellipsis overflow-hidden whitespace-nowrap"
+              class="text-base text-zinc-50 text-ellipsis overflow-hidden whitespace-nowrap"
             >
               Launch your project
             </span>

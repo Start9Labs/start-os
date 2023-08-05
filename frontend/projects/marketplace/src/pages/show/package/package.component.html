@@ -1,5 +1,4 @@
 <marketplace-header></marketplace-header>
-
 <div
   *ngIf="pkg$ | async as pkg; else loading"
   class="sm:pl-[34vw] md:pl-[28vw] lg:pl-[22vw] 2xl:pl-[280px] min-h-screen"
@@ -16,9 +15,9 @@
     </ng-container>
 
     <ng-template #show>
-      <div class="grid grid-flow-row gap-8 mb-16 px-20 mt-20">
+      <div class="grid gap-8 mb-16 p-2 lg:px-20 mt-20">
         <!-- header -->
-        <div class="flex gap-5 justify-start mt-10 md:mt-0">
+        <div class="flex gap-5 justify-center lg:justify-start mt-10 md:mt-0">
           <!-- <div
               class="overflow-hidden absolute w-full h-full top-0 left-0 -z-50 rounded-xl bg-black">
               <div
@@ -29,7 +28,7 @@
                 alt="{{ pkg.manifest.title }} Icon" />
             </div> -->
           <div
-            class="flex flex-col h-[30vh] w-full relative rounded-3xl pt-16 pb-10 px-8 shadow-xl"
+            class="flex flex-col w-[96%] mg:w-full h-[25vh] mg:min-h-[14rem] relative rounded-3xl pt-16 pb-10 px-8 shadow-xl"
           >
             <!-- @TODO mime type pipe -->
             <img
@@ -59,58 +58,73 @@
                 {{ pkg.manifest.description.short }}
               </p>
             </div>
-            <!-- screenshots -->
-            <div
-              *ngIf="pkg.screenshots"
-              tuiCarouselButtons
-              class="flex items-center"
-            >
-              <!-- <button
-              tuiIconButton
-              icon="tuiIconChevronLeftLarge"
-              title="Previous"
-              type="button"
-              (click)="carousel.prev()"></button> -->
-              <tui-carousel
-                #carousel
-                [itemsCount]="2"
-                [(index)]="index"
-                class="overflow-y-hidden overflow-x-scroll carousel"
-              >
-                <ng-container
-                  *ngFor="let item of pkg.screenshots; let i = index"
-                >
-                  <div
-                    *tuiItem
-                    draggable="false"
-                    [class.item_active]="i === index + 1"
-                    class="rounded-lg md:rounded-lg object-cover p-2 border-2 border-zinc-700 bg-zinc-800 w-full shadow-zinc-300 drop-shadow-lg"
-                  >
-                    <img
-                      alt="Service Screenshot"
-                      src="img/{{ item }}"
-                      class="drop-shadow-xl"
-                    />
-                  </div>
-                </ng-container>
-              </tui-carousel>
-              <!-- <button
-              tuiIconButton
-              type="button"
-              icon="tuiIconChevronRightLarge"
-              title="Next"
-              (click)="carousel.next()"></button> -->
-            </div>
           </div>
         </div>
+        <!-- screenshots -->
+        <div
+          *ngIf="pkg.screenshots"
+          tuiCarouselButtons
+          class="flex items-center content-center m-0 lg:-ml-14 lg:-mr-14 lg:min-h-80 lg:h-80"
+        >
+          <button
+            *ngIf="index > 0"
+            tuiIconButton
+            appearance="flat"
+            icon="tuiIconChevronLeftLarge"
+            title="Previous"
+            type="button"
+            (click)="carousel.prev()"
+          ></button>
+          <tui-carousel
+            #carousel
+            [itemsCount]="isMobile ? 1 : 2"
+            [(index)]="index"
+            class="overflow-y-hidden overflow-x-scroll carousel"
+          >
+            <ng-container *ngFor="let item of pkg.screenshots; let i = index">
+              <div
+                *tuiItem
+                draggable="false"
+                [class.item_active]="i === index + 1"
+                class="object-cover rounded-xl border border-zinc-400/30"
+              >
+                <img
+                  #template
+                  alt="Service Screenshot"
+                  src="assets/img/temp/{{ item }}"
+                  class="w-full h-full rounded-xl drop-shadow-lg shadow-xl shadow-zinc-400/20 hover:cursor-pointer"
+                  (click)="presentModalImg(dialogTemplate)"
+                />
+                <ng-template #dialogTemplate let-observer>
+                  <img
+                    alt="Service Screenshot"
+                    src="assets/img/temp/{{ item }}"
+                    class="w-full rounded-none"
+                  />
+                </ng-template>
+              </div>
+            </ng-container>
+          </tui-carousel>
+          <button
+            *ngIf="index < pkg.screenshots.length - 1"
+            tuiIconButton
+            appearance="flat"
+            type="button"
+            icon="tuiIconChevronRightLarge"
+            title="Next"
+            (click)="carousel.next()"
+          ></button>
+        </div>
 
-        <div class="mt-80 grid grid-cols-1 lg:grid-cols-12 gap-x-8">
+        <div
+          class="p-2 md:p-0 m-0 lg:mt-10 grid grid-cols-1 lg:grid-cols-12 gap-x-8"
+        >
           <!-- about -->
-          <div class="md:col-span-12 lg:col-span-7 xl:col-span-8">
+          <div class="col-span-12 xl:col-span-8">
             <marketplace-about [pkg]="pkg"></marketplace-about>
           </div>
           <!-- additional info-->
-          <div class="lg:col-span-5 xl:col-span-4 mt-6 lg:mt-0">
+          <div class="col-span-12 xl:col-span-4 mt-6 xl:mt-0">
             <marketplace-additional
               class="additional"
               [pkg]="pkg"
@@ -118,7 +132,7 @@
             ></marketplace-additional>
           </div>
           <!-- release notes -->
-          <div class="lg:col-span-7 xl:col-span-8 mt-6">
+          <div class="col-span-12 xl:col-span-8 mt-6">
             <release-notes></release-notes>
           </div>
         </div>

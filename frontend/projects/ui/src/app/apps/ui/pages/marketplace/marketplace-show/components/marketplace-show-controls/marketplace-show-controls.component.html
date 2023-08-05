@@ -1,46 +1,62 @@
-<div class="action-buttons">
-  <ion-button
+<div
+  class="flex absolute left-[3rem] top-[17.25rem] md:left-[10rem] lg:top-[15.5rem] lg:left-[25rem] z-50"
+>
+  <button
+    tuiButton
+    type="button"
+    class="p-3"
+    appearance="secondary"
     *ngIf="localPkg"
-    expand="block"
-    color="primary"
     [routerLink]="['/services', pkg.manifest.id]"
   >
     View Installed
-  </ion-button>
+  </button>
   <ng-container *ngIf="localPkg; else install">
     <ng-container *ngIf="localPkg.state === PackageState.Installed">
-      <ion-button
+      <button
+        tuiButton
+        type="button"
+        class="p-3"
+        appearance="accent"
         *ngIf="(localVersion | compareEmver : pkg.manifest.version) === -1"
         expand="block"
         color="success"
         (click)="tryInstall()"
       >
         Update
-      </ion-button>
-      <ion-button
+      </button>
+      <button
+        tuiButton
+        type="button"
+        class="p-3"
+        appearance="secondary-destructive"
         *ngIf="(localVersion | compareEmver : pkg.manifest.version) === 1"
         expand="block"
         color="warning"
         (click)="tryInstall()"
       >
         Downgrade
-      </ion-button>
+      </button>
       <ng-container *ngIf="showDevTools$ | async">
-        <ion-button
+        <button
+          tuiButton
+          type="button"
+          class="p-3"
+          appearance="secondary"
           *ngIf="(localVersion | compareEmver : pkg.manifest.version) === 0"
           expand="block"
           color="success"
           (click)="tryInstall()"
         >
           Reinstall
-        </ion-button>
+        </button>
       </ng-container>
     </ng-container>
   </ng-container>
 
   <ng-template #install>
-    <ion-button expand="block" color="success" (click)="tryInstall()">
+    <button tuiButton type="button" appearance="primary" (click)="tryInstall()">
       Install
-    </ion-button>
+    </button>
   </ng-template>
 </div>

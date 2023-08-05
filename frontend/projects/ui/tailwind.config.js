@@ -22,6 +22,7 @@ module.exports = {
         veronica: '#9747ff',
         tangerine: '#ff8c49',
         royal: '#4961ff',
+        background: '#222428',
       },
     },
     fontFamily: {

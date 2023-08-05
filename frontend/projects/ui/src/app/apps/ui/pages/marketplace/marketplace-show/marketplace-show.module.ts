@@ -17,6 +17,7 @@ import {
 import { MarketplaceStatusModule } from '../marketplace-status/marketplace-status.module'
 import { MarketplaceShowPage } from './marketplace-show.page'
 import { MarketplaceShowComponentsModule } from './components/marketplace-show-components.module'
+import { TuiButtonModule } from '@taiga-ui/core'
 
 const routes: Routes = [
   {
@@ -40,6 +41,7 @@ const routes: Routes = [
     DependenciesModule,
     AdditionalModule,
     MarketplaceShowComponentsModule,
+    TuiButtonModule,
   ],
   declarations: [MarketplaceShowPage],
 })

@@ -1,15 +1,14 @@
 <div
-  class="rounded-xl bg-gradient-to-bl from-zinc-400/75 to-zinc-600 p-px drop-shadow-2xl"
+  class="rounded-xl bg-gradient-to-bl from-zinc-400/75 to-zinc-600 p-px shadow-lg shadow-zinc-400/10"
 >
   <div class="lg:col-span-5 xl:col-span-4 bg-zinc-800 rounded-xl p-7">
-    <p class="tui-island__category">About</p>
-    <p class="tui-island__paragraph">
+    <h2 class="text-lg font-bold small-caps pb-3">About</h2>
+    <p class="text-base">
       {{ pkg.manifest.description.long }}
     </p>
     <marketplace-dependencies
       *ngIf="!(pkg.manifest.dependencies | empty)"
       [pkg]="pkg"
-      class="pt-4"
     ></marketplace-dependencies>
   </div>
 </div>

@@ -11,6 +11,7 @@ import { TuiElementModule } from '@taiga-ui/cdk'
 import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
 
 import { ReleaseNotesComponent } from './release-notes.component'
+import { TuiButtonModule } from '@taiga-ui/core'
 
 @NgModule({
   imports: [
@@ -22,6 +23,7 @@ import { ReleaseNotesComponent } from './release-notes.component'
     TuiElementModule,
     NgDompurifyModule,
     SafeLinksModule,
+    TuiButtonModule,
   ],
   declarations: [ReleaseNotesComponent],
   exports: [ReleaseNotesComponent],
