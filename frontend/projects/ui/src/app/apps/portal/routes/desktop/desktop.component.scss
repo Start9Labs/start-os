@@ -1,3 +1,5 @@
+@import '@taiga-ui/core/styles/taiga-ui-local';
+
 :host {
   display: flex;
   align-items: center;
@@ -9,10 +11,38 @@
   padding: 1rem 0;
 }
 
+.loader {
+  height: 10rem;
+  width: 10rem;
+}
+
 .tiles {
   width: 100%;
+  min-height: 5.5rem;
   justify-content: center;
   grid-template-columns: repeat(auto-fit, 12.5rem);
   grid-auto-rows: 5.5rem;
   gap: 2rem;
+}
+
+.remove {
+  @include transition(background);
+  position: fixed;
+  bottom: 0;
+  left: calc(50% - 3rem);
+  width: 6rem;
+  height: 6rem;
+  border-radius: 100%;
+  background: var(--tui-base-02);
+  z-index: 10;
+
+  &:hover {
+    background: var(--tui-base-01);
+  }
+}
+
+.item._dragged,
+.item._empty {
+  border-radius: var(--tui-radius-l);
+  box-shadow: inset 0 0 0 0.5rem var(--tui-clear-active);
 }

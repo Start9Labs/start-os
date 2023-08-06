@@ -22,6 +22,7 @@
           empty: empty
         "
         appCard
+        [drawerItem]="item.key"
         [id]="item.key"
         [title]="item.value.title"
         [icon]="item.value.icon"
@@ -37,6 +38,7 @@
           empty: empty
         "
         appCard
+        [drawerItem]="item.manifest.id"
         [id]="item.manifest.id"
         [icon]="item.icon"
         [title]="item.manifest.title"

@@ -1,11 +1,12 @@
 import { CommonModule } from '@angular/common'
 import { NgModule } from '@angular/core'
 import { RouterModule, Routes } from '@angular/router'
+import { TuiLoaderModule, TuiSvgModule } from '@taiga-ui/core'
 import { TuiTilesModule } from '@taiga-ui/kit'
 import { DesktopComponent } from './desktop.component'
 import { CardComponent } from '../../components/card/card.component'
-import { ToDesktopActionsPipe } from '../../pipes/to-desktop-actions'
 import { ToDesktopItemPipe } from '../../pipes/to-desktop-item'
+import { DesktopItemDirective } from './desktop-item.directive'
 
 const ROUTES: Routes = [
   {
@@ -18,8 +19,10 @@ const ROUTES: Routes = [
   imports: [
     CommonModule,
     CardComponent,
+    DesktopItemDirective,
+    TuiSvgModule,
+    TuiLoaderModule,
     TuiTilesModule,
-    ToDesktopActionsPipe,
     ToDesktopItemPipe,
     RouterModule.forChild(ROUTES),
   ],

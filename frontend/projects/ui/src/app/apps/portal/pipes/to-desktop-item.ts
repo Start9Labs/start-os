@@ -14,7 +14,9 @@ export class ToDesktopItemPipe implements PipeTransform {
   transform(
     packages: Record<string, PackageDataEntry>,
     id: string,
-  ): NavigationItem {
+  ): NavigationItem | null {
+    if (!id) return null
+
     const item = SYSTEM_UTILITIES[id]
     const routerLink = toRouterLink(id)
 
