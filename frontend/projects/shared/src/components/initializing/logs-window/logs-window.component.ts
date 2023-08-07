@@ -5,8 +5,7 @@ import { TuiDestroyService } from '@taiga-ui/cdk'
 import { SetupLogsService } from '../../../services/setup-logs.service'
 import { Log } from '../../../types/api'
 import { toLocalIsoString } from '../../../util/to-local-iso-string'
-
-const Convert = require('ansi-to-html')
+import Convert from 'ansi-to-html'
 const convert = new Convert({
   bg: 'transparent',
 })
