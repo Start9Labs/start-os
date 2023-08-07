@@ -12,11 +12,11 @@ import {
 import { BadgeMenuComponentModule } from 'src/app/common/badge-menu-button/badge-menu.component.module'
 import { WidgetListComponentModule } from 'src/app/common/widget-list/widget-list.component.module'
 import { StatusComponentModule } from '../status/status.component.module'
-import { UiPipesModule } from '../ui-pipes/ui.module'
 import { AppListIconComponent } from './app-list-icon/app-list-icon.component'
 import { AppListPkgComponent } from './app-list-pkg/app-list-pkg.component'
 import { PackageInfoPipe } from './package-info.pipe'
-import { LaunchMenuComponentModule } from '../launch-menu/launch-menu.module'
+import { LaunchMenuComponentModule } from './app-list-pkg/launch-menu/launch-menu.module'
+import { LaunchableInterfacesPipe } from './app-list-pkg/launchable-interfaces.pipe'
 
 const routes: Routes = [
   {
@@ -31,7 +31,6 @@ const routes: Routes = [
     StatusComponentModule,
     EmverPipesModule,
     TextSpinnerComponentModule,
-    UiPipesModule,
     IonicModule,
     RouterModule.forChild(routes),
     BadgeMenuComponentModule,
@@ -45,6 +44,7 @@ const routes: Routes = [
     AppListIconComponent,
     AppListPkgComponent,
     PackageInfoPipe,
+    LaunchableInterfacesPipe,
   ],
 })
 export class AppListPageModule {}

@@ -12,7 +12,7 @@ export type WorkspaceConfig = {
     }
     marketplace: MarketplaceConfig
     mocks: {
-      maskAs: 'tor' | 'lan'
+      maskAs: 'tor' | 'local' | 'localhost' | 'ipv4' | 'ipv6' | 'clearnet'
       skipStartupAlerts: boolean
     }
   }

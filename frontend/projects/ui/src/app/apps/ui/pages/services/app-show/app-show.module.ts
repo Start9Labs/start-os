@@ -24,7 +24,7 @@ import { ToDependenciesPipe } from './pipes/to-dependencies.pipe'
 import { ToStatusPipe } from './pipes/to-status.pipe'
 import { ProgressDataPipe } from './pipes/progress-data.pipe'
 import { InsecureWarningComponentModule } from 'src/app/common/insecure-warning/insecure-warning.module'
-import { LaunchMenuComponentModule } from '../launch-menu/launch-menu.module'
+import { LaunchMenuComponentModule } from '../app-list/app-list-pkg/launch-menu/launch-menu.module'
 
 const routes: Routes = [
   {

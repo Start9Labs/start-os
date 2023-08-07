@@ -1,12 +1,15 @@
+import { DOCUMENT } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
   Inject,
   Input,
-  ViewChild,
 } from '@angular/core'
-import { DataModel } from 'src/app/services/patch-db/data-model'
-import { PatchDB } from 'patch-db-client'
+import { ConfigService } from 'src/app/services/config.service'
+import {
+  InterfaceInfo,
+  PackageDataEntry,
+} from 'src/app/services/patch-db/data-model'
 
 @Component({
   selector: 'app-show-interfaces',
@@ -15,16 +18,21 @@ import { PatchDB } from 'patch-db-client'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppShowInterfacesComponent {
-  @Input({ required: true }) pkgId!: string
+  @Input({ required: true })
+  pkg!: PackageDataEntry
 
-  get interfaceInfo$() {
-    return this.patch.watch$(
-      'package-data',
-      this.pkgId,
-      'installed',
-      'interfaceInfo',
+  constructor(
+    private readonly config: ConfigService,
+    @Inject(DOCUMENT) private readonly document: Document,
+  ) {}
+
+  launchUI(info: InterfaceInfo, e: Event) {
+    e.stopPropagation()
+    e.preventDefault()
+    this.document.defaultView?.open(
+      this.config.launchableAddress(info),
+      '_blank',
+      'noreferrer',
     )
   }
-
-  constructor(private readonly patch: PatchDB<DataModel>) {}
 }

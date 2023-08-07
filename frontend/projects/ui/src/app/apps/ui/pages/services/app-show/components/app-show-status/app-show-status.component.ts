@@ -30,7 +30,7 @@ import {
 import { DependencyInfo } from '../../pipes/to-dependencies.pipe'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { ConnectionService } from 'src/app/services/connection.service'
-import { LaunchMenuComponent } from '../../../launch-menu/launch-menu.component'
+import { LaunchMenuComponent } from '../../../app-list/app-list-pkg/launch-menu/launch-menu.component'
 
 @Component({
   selector: 'app-show-status',

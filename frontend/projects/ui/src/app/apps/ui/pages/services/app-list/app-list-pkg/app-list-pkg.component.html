@@ -20,19 +20,27 @@
     ></status>
   </ion-label>
   <ng-container *ngIf="pkg.entry.installed as installed">
-    <ion-button
-      *ngIf="installed['interfaceInfo'] | hasUi"
-      slot="end"
-      fill="clear"
-      color="primary"
-      (click)="openPopover($event)"
-      [disabled]="status !== 'running'"
+    <ng-container
+      *ngIf="installed['interfaceInfo'] | launchableInterfaces as launchable"
     >
-      <ion-icon slot="icon-only" name="open-outline"></ion-icon>
-    </ion-button>
-    <launch-menu
-      #launchMenu
-      [interfaceInfo]="installed['interfaceInfo']"
-    ></launch-menu>
+      <ion-button
+        *ngIf="launchable.length"
+        slot="end"
+        fill="clear"
+        color="primary"
+        (click)="
+          launchable.length > 1
+            ? openPopover($event)
+            : launchUI(launchable[0].address, $event)
+        "
+        [disabled]="status !== 'running'"
+      >
+        <ion-icon slot="icon-only" name="open-outline"></ion-icon>
+      </ion-button>
+      <launch-menu
+        #launchMenu
+        [launchableInterfaces]="launchable"
+      ></launch-menu>
+    </ng-container>
   </ng-container>
 </ion-item>

@@ -1456,7 +1456,7 @@ export module Mock {
       'dependency-info': {
         bitcoind: {
           title: 'Bitcoin Core',
-          icon: 'assets/img/service-icons/bitcoind.png',
+          icon: 'assets/img/service-icons/bitcoind.svg',
         },
         'btc-rpc-proxy': {
           title: 'Bitcoin Proxy',
