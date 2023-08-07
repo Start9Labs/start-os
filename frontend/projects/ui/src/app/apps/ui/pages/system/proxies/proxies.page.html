@@ -1,0 +1,144 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/system"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Proxies</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding-top">
+  <div class="ion-padding-start ion-padding-end">
+    <tui-notification>
+      Currently, StartOS only supports Wireguard proxies, which can be used for:
+      <ol>
+        <li>
+          Proxying
+          <i>outbound</i>
+          traffic to mask your home/business IP from other servers accessed by
+          your server/services
+        </li>
+        <li>
+          Proxying
+          <i>inbound</i>
+          traffic to mask your home/business IP from anyone accessing your
+          server/services over clearnet
+        </li>
+        <li>
+          Creating a Virtual Local Area Network (VLAN) to enable private, remote
+          VPN access to your server/services
+        </li>
+      </ol>
+      <a [href]="docsUrl" target="_blank" rel="noreferrer">View instructions</a>
+    </tui-notification>
+  </div>
+
+  <ion-item-group>
+    <ion-item-divider>
+      Proxies
+      <ion-button
+        class="ion-padding-start"
+        strong
+        size="small"
+        (click)="presentModalAdd()"
+      >
+        <ion-icon slot="start" name="add"></ion-icon>
+        Add Proxy
+      </ion-button>
+    </ion-item-divider>
+
+    <div class="grid-fixed">
+      <ion-grid class="ion-padding">
+        <ion-row class="grid-headings">
+          <ion-col size="2">Name</ion-col>
+          <ion-col size="2">Created</ion-col>
+          <ion-col size="2">Type</ion-col>
+          <ion-col size="3">Primary</ion-col>
+          <ion-col size="2">Used By</ion-col>
+          <ion-col size="1"></ion-col>
+        </ion-row>
+        <ion-row
+          *ngFor="let proxy of proxies$ | async"
+          class="ion-align-items-center grid-row-border"
+        >
+          <ion-col size="2">{{ proxy.name }}</ion-col>
+          <ion-col size="2">{{ proxy.createdAt| date: 'short' }}</ion-col>
+          <ion-col size="2">{{ proxy.type }}</ion-col>
+          <ion-col size="3">
+            <tui-badge
+              *ngIf="proxy.primaryInbound"
+              status="success"
+              value="Inbound"
+              style="margin-right: 4px"
+            ></tui-badge>
+            <tui-badge
+              *ngIf="proxy.primaryOutbound"
+              status="info"
+              value="Outbound"
+            ></tui-badge>
+          </ion-col>
+          <ion-col size="2" *ngIf="proxy.usedBy as usedBy">
+            <a
+              *ngIf="usedBy.domains.length || usedBy.services.length; else unused"
+              (click)="presentAlertUsedBy(proxy.name, usedBy)"
+            >
+              {{ usedBy.domains.length + usedBy.services.length }} Connections
+            </a>
+            <ng-template #unused>
+              <span>N/A</span>
+            </ng-template>
+          </ion-col>
+          <ion-col size="1">
+            <tui-hosted-dropdown
+              style="float: right"
+              tuiDropdownAlign="left"
+              [sided]="true"
+              [content]="dropdown"
+              [(open)]="menuOpen"
+            >
+              <button
+                tuiIconButton
+                type="button"
+                appearance="flat"
+                tuiHostedDropdownHost
+                size="s"
+                [icon]="icon"
+              ></button>
+              <ng-template #icon>
+                <tui-svg src="tuiIconMoreHorizontal" class="icon"></tui-svg>
+              </ng-template>
+            </tui-hosted-dropdown>
+            <ng-template #dropdown let-close="close">
+              <tui-data-list>
+                <tui-opt-group>
+                  <button
+                    *ngIf="!proxy.primaryInbound && proxy.type === 'inbound-outbound'"
+                    tuiOption
+                    (click)="update({ primaryInbound: true })"
+                  >
+                    Make Primary Inbound
+                  </button>
+                  <button
+                    *ngIf="!proxy.primaryOutbound && (proxy.type === 'inbound-outbound' || proxy.type === 'outbound')"
+                    tuiOption
+                    (click)="update({ primaryOutbound: true })"
+                  >
+                    Make Primary Outbound
+                  </button>
+                  <button tuiOption (click)="presentModalRename(proxy)">
+                    Rename
+                  </button>
+                </tui-opt-group>
+                <tui-opt-group>
+                  <button tuiOption (click)="presentAlertDelete(proxy.id)">
+                    Delete
+                  </button>
+                </tui-opt-group>
+              </tui-data-list>
+            </ng-template>
+          </ion-col>
+        </ion-row>
+      </ion-grid>
+    </div>
+  </ion-item-group>
+</ion-content>

@@ -40,7 +40,7 @@ export const googleDriveSpec = Config.of({
     name: 'Private Key File',
     description:
       'Your Google Drive service account private key file (.json file)',
-    required: true,
+    required: { default: null },
     extensions: ['json'],
   }),
 })

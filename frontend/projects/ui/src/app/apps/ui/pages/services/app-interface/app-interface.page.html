@@ -1,0 +1,20 @@
+<ng-container *ngIf="interfaceInfo$ | async as interfaceInfo">
+  <ion-header>
+    <ion-toolbar>
+      <ion-buttons slot="start">
+        <ion-back-button [defaultHref]="'/services/' + pkgId"></ion-back-button>
+      </ion-buttons>
+      <ion-title>{{ interfaceInfo.name }}</ion-title>
+    </ion-toolbar>
+  </ion-header>
+
+  <ion-content class="with-widgets">
+    <div class="cap-width">
+      <interface-addresses
+        [packageContext]="{ packageId: pkgId, interfaceId }"
+        [addressInfo]="interfaceInfo.addressInfo"
+        [isUi]="interfaceInfo.type === 'ui'"
+      ></interface-addresses>
+    </div>
+  </ion-content>
+</ng-container>

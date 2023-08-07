@@ -31,7 +31,7 @@ import { AbstractMarketplaceService } from '../../../services/marketplace.servic
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AdditionalComponent {
-  @Input()
+  @Input({ required: true })
   pkg!: MarketplacePkg
 
   @Output()

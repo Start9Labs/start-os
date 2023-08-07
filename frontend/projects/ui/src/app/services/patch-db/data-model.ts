@@ -3,6 +3,7 @@ import { Url } from '@start9labs/shared'
 import { Manifest } from '@start9labs/marketplace'
 import { BackupJob } from '../api/api.types'
 import { customSmtp } from '@start9labs/start-sdk/lib/config/configConstants'
+import { NetworkInterfaceType } from '@start9labs/start-sdk/lib/util/utils'
 
 export interface DataModel {
   'server-info': ServerInfo
@@ -55,7 +56,7 @@ export interface ServerInfo {
   id: string
   version: string
   country: string
-  ui: StartOsUiInfo
+  ui: AddressInfo
   network: NetworkInfo
   'last-backup': string | null
   'unread-notification-count': number
@@ -69,20 +70,19 @@ export interface ServerInfo {
   'password-hash': string
 }
 
-export type StartOsUiInfo = {
-  ipInfo: IpInfo
-  lanHostname: string
-  torHostname: string
-  domainInfo: DomainInfo | null
-}
-
 export type NetworkInfo = {
   wifi: WiFiInfo
-  start9MeSubdomain: Omit<Domain, 'provider'> | null
+  start9ToSubdomain: Omit<Domain, 'provider'> | null
   domains: Domain[]
   wanConfig: {
     upnp: boolean
     forwards: PortForward[]
+  }
+  proxies: Proxy[]
+  outboundProxy: OsOutboundProxy
+  primaryProxies: {
+    inbound: string | null
+    outbound: string | null
   }
 }
 
@@ -90,6 +90,10 @@ export type DomainInfo = {
   domain: string
   subdomain: string | null
 }
+
+export type InboundProxy = { proxyId: string } | 'primary' | null
+export type OsOutboundProxy = InboundProxy
+export type ServiceOutboundProxy = OsOutboundProxy | 'mirror'
 
 export type PortForward = {
   assigned: number
@@ -105,10 +109,32 @@ export type WiFiInfo = {
 
 export type Domain = {
   value: string
-  provider: string
-  networkStrategy: string
-  ipStrategy: string
   createdAt: string
+  provider: string
+  networkStrategy: NetworkStrategy
+  usedBy: {
+    service: { id: string | null; title: string } // null means startos
+    interfaces: { id: string | null; title: string }[] // null means startos
+  }[]
+}
+
+export type NetworkStrategy =
+  | { proxyId: string | null } // null means system primary
+  | { ipStrategy: 'ipv4' | 'ipv6' | 'dualstack' }
+
+export type Proxy = {
+  id: string
+  name: string
+  createdAt: string
+  type: 'outbound' | 'inbound-outbound' | 'vlan' | { error: string }
+  endpoint: string
+  // below is overlay only
+  usedBy: {
+    services: { id: string | null; title: string }[] // implies outbound - null means startos
+    domains: string[] // implies inbound
+  }
+  primaryInbound: boolean
+  primaryOutbound: boolean
 }
 
 export interface IpInfo {
@@ -199,21 +225,29 @@ export interface InstalledPackageInfo {
   'installed-at': string
   'current-dependencies': Record<string, CurrentDependencyInfo>
   'dependency-info': Record<string, { title: string; icon: Url }>
-  'address-info': Record<string, AddressInfo>
+  interfaceInfo: Record<string, InterfaceInfo>
   'marketplace-url': string | null
   'developer-key': string
   'has-config': boolean
+  outboundProxy: ServiceOutboundProxy
 }
 
 export interface CurrentDependencyInfo {
   'health-checks': string[] // array of health check IDs
 }
 
-export interface AddressInfo {
+export interface InterfaceInfo {
   name: string
   description: string
-  addresses: Url[]
-  ui: boolean
+  type: NetworkInterfaceType
+  addressInfo: AddressInfo
+}
+
+export interface AddressInfo {
+  ipInfo: IpInfo
+  lanHostname: string
+  torHostname: string
+  domainInfo: DomainInfo | null
 }
 
 export interface Action {

@@ -10,18 +10,14 @@ const routes: Routes = [
       ),
   },
   {
-    path: 'addresses',
+    path: 'interfaces/ui',
     loadChildren: () =>
-      import('./os-addresses/os-addresses.module').then(
-        m => m.OSAddressesPageModule,
-      ),
+      import('./ui-details/ui-details.module').then(m => m.UIDetailsPageModule),
   },
   {
-    path: 'port-forwards',
+    path: 'router-config',
     loadChildren: () =>
-      import('./port-forwards/port-forwards.module').then(
-        m => m.PortForwardsPageModule,
-      ),
+      import('./router/router.module').then(m => m.RouterPageModule),
   },
   {
     path: 'logs',
@@ -70,6 +66,11 @@ const routes: Routes = [
     path: 'domains',
     loadChildren: () =>
       import('./domains/domains.module').then(m => m.DomainsPageModule),
+  },
+  {
+    path: 'proxies',
+    loadChildren: () =>
+      import('./proxies/proxies.module').then(m => m.ProxiesPageModule),
   },
   {
     path: 'ssh',

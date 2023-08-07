@@ -9,7 +9,7 @@ import { PkgInfo } from 'src/app/types/pkg-info'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppListIconComponent {
-  @Input()
+  @Input({ required: true })
   pkg!: PkgInfo
 
   readonly connected$ = this.connectionService.connected$

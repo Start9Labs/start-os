@@ -5,13 +5,12 @@ import {
   DataModel,
   DependencyError,
   DomainInfo,
+  NetworkStrategy,
+  OsOutboundProxy,
+  ServiceOutboundProxy,
 } from 'src/app/services/patch-db/data-model'
 import { StartOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
 import { customSmtp } from '@start9labs/start-sdk/lib/config/configConstants'
-import {
-  CustomSpec,
-  Start9MeSpec,
-} from 'src/app/apps/ui/pages/system/domains/domain.const'
 
 export module RR {
   // DB
@@ -89,6 +88,11 @@ export module RR {
   } // server.experimental.zram
   export type ToggleZramRes = null
 
+  export type SetOsOutboundProxyReq = {
+    proxy: OsOutboundProxy
+  } // server.proxy.set-outbound
+  export type SetOsOutboundProxyRes = null
+
   // sessions
 
   export type GetSessionsReq = {} // sessions.list
@@ -114,16 +118,31 @@ export module RR {
   export type DeleteAllNotificationsReq = { before: number } // notification.delete-before
   export type DeleteAllNotificationsRes = null
 
+  // network
+
+  export type AddProxyReq = {
+    name: string
+    config: string
+  } // net.proxy.add
+  export type AddProxyRes = null
+
+  export type UpdateProxyReq = {
+    name?: string
+    primaryInbound?: true
+    primaryOutbound?: true
+  } // net.proxy.update
+  export type UpdateProxyRes = null
+
+  export type DeleteProxyReq = { id: string } // net.proxy.delete
+  export type DeleteProxyRes = null
+
   // domains
 
-  export type ClaimStart9MeReq = {
-    networkStrategy: string
-    ipStrategy: string | null
-  } // net.domain.me.claim
-  export type ClaimStart9MeRes = null
+  export type ClaimStart9ToReq = { networkStrategy: NetworkStrategy } // net.domain.me.claim
+  export type ClaimStart9ToRes = null
 
-  export type DeleteStart9MeReq = {} // net.domain.me.delete
-  export type DeleteStart9MeRes = null
+  export type DeleteStart9ToReq = {} // net.domain.me.delete
+  export type DeleteStart9ToRes = null
 
   export type AddDomainReq = {
     hostname: string
@@ -132,8 +151,7 @@ export module RR {
       username: string | null
       password: string | null
     }
-    networkStrategy: string
-    ipStrategy: string | null
+    networkStrategy: NetworkStrategy
   } // net.domain.add
   export type AddDomainRes = null
 
@@ -346,6 +364,18 @@ export module RR {
     size: number // bytes
   }
   export type SideloadPacakgeRes = string //guid
+
+  export type SetInterfaceClearnetAddressReq = SetServerClearnetAddressReq & {
+    packageId: string
+    interfaceId: string
+  } // package.interface.set-clearnet
+  export type SetInterfaceClearnetAddressRes = null
+
+  export type SetServiceOutboundProxyReq = {
+    packageId: string
+    proxy: ServiceOutboundProxy
+  } // package.proxy.set-outbound
+  export type SetServiceOutboundProxyRes = null
 
   // marketplace
 

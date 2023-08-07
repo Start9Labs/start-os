@@ -12,10 +12,10 @@ import { ProgressData } from 'src/app/types/progress-data'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppShowProgressComponent {
-  @Input()
+  @Input({ required: true })
   pkg!: PackageDataEntry
 
-  @Input()
+  @Input({ required: true })
   progressData!: ProgressData
 
   get unpackingBuffer(): number {

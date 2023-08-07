@@ -41,7 +41,7 @@ export class MarketplaceShowControlsComponent {
   @Input()
   url?: string
 
-  @Input()
+  @Input({ required: true })
   pkg!: MarketplacePkg
 
   @Input()

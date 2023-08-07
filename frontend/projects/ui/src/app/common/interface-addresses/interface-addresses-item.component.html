@@ -1,0 +1,18 @@
+<ion-item>
+  <ion-label class="break-all">
+    <h2>{{ label }}</h2>
+    <p>{{ hostname }}</p>
+    <ng-content></ng-content>
+  </ion-label>
+  <div slot="end">
+    <ion-button *ngIf="isUi" fill="clear" (click)="launch(hostname)">
+      <ion-icon slot="icon-only" size="small" name="open-outline"></ion-icon>
+    </ion-button>
+    <ion-button fill="clear" (click)="showQR(hostname)">
+      <ion-icon size="small" slot="icon-only" name="qr-code-outline"></ion-icon>
+    </ion-button>
+    <ion-button fill="clear" (click)="copyService.copy(hostname)">
+      <ion-icon slot="icon-only" size="small" name="copy-outline"></ion-icon>
+    </ion-button>
+  </div>
+</ion-item>

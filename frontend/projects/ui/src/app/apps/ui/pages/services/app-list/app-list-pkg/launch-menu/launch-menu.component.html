@@ -1,0 +1,25 @@
+<ion-popover
+  #popover
+  (didDismiss)="popover.isOpen = false"
+  mode="ios"
+  type="event"
+>
+  <ng-template>
+    <ion-content>
+      <ion-item-group>
+        <ion-item
+          button
+          *ngFor="let iface of launchableInterfaces"
+          detail="false"
+          (click)="launchUI(iface.address)"
+        >
+          <ion-label>
+            <h2>{{ iface.name }}</h2>
+            <p>{{ iface.address }}</p>
+          </ion-label>
+          <ion-icon slot="end" name="open-outline" size="small"></ion-icon>
+        </ion-item>
+      </ion-item-group>
+    </ion-content>
+  </ng-template>
+</ion-popover>

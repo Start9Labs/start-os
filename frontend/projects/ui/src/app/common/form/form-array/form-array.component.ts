@@ -21,7 +21,7 @@ import { ERRORS } from '../form-group/form-group.component'
   providers: [TuiDestroyService],
 })
 export class FormArrayComponent {
-  @Input()
+  @Input({ required: true })
   spec!: ValueSpecList
 
   @HostBinding('@tuiParentStop')

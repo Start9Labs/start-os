@@ -7,6 +7,7 @@ import {
   ViewChild,
 } from '@angular/core'
 import { InstalledPackageInfo } from 'src/app/services/patch-db/data-model'
+import { LaunchableInterface } from '../launchable-interfaces.pipe'
 
 @Component({
   selector: 'launch-menu',
@@ -17,8 +18,8 @@ import { InstalledPackageInfo } from 'src/app/services/patch-db/data-model'
 export class LaunchMenuComponent {
   @ViewChild('popover') popover!: HTMLIonPopoverElement
 
-  @Input()
-  addressInfo!: InstalledPackageInfo['address-info']
+  @Input({ required: true })
+  launchableInterfaces!: LaunchableInterface[]
 
   set isOpen(open: boolean) {
     this.popover.isOpen = open

@@ -1,0 +1,25 @@
+<ion-item-divider>Interfaces</ion-item-divider>
+<ion-item
+  button
+  *ngFor="let info of pkg.interfaceInfo | interfaceInfo"
+  [routerLink]="['interfaces', info.id]"
+>
+  <ion-icon slot="start" [name]="info.icon" [color]="info.color"></ion-icon>
+  <ion-label>
+    <h2>{{ info.name }}</h2>
+    <p>{{ info.description }}</p>
+    <p>
+      <ion-text [color]="info.color">{{ info.typeDetail }}</ion-text>
+    </p>
+  </ion-label>
+  <ion-button
+    *ngIf="info.type === 'ui'"
+    slot="end"
+    fill="clear"
+    color="primary"
+    (click)="launchUI(info, $event)"
+    [disabled]="pkg.status.main.status !== 'running'"
+  >
+    <ion-icon slot="icon-only" name="open-outline"></ion-icon>
+  </ion-button>
+</ion-item>

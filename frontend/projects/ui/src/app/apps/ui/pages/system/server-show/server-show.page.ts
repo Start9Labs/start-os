@@ -24,6 +24,7 @@ import { TUI_PROMPT } from '@taiga-ui/kit'
 import { DOCUMENT } from '@angular/common'
 import { getServerInfo } from 'src/app/util/get-server-info'
 import * as argon2 from '@start9labs/argon2'
+import { ProxyService } from 'src/app/services/proxy.service'
 
 @Component({
   selector: 'server-show',
@@ -46,7 +47,7 @@ export class ServerShowPage {
     private readonly dialogs: TuiDialogService,
     private readonly loader: LoadingService,
     private readonly errorService: ErrorService,
-    private readonly embassyApi: ApiService,
+    private readonly api: ApiService,
     private readonly navCtrl: NavController,
     private readonly route: ActivatedRoute,
     private readonly patch: PatchDB<DataModel>,
@@ -56,6 +57,7 @@ export class ServerShowPage {
     private readonly alerts: TuiAlertService,
     private readonly config: ConfigService,
     private readonly formDialog: FormDialogService,
+    private readonly proxyService: ProxyService,
     @Inject(DOCUMENT) private readonly document: Document,
   ) {}
 
@@ -156,7 +158,7 @@ export class ServerShowPage {
     const loader = this.loader.open('Saving...').subscribe()
 
     try {
-      await this.embassyApi.resetPassword({
+      await this.api.resetPassword({
         'old-password': value.currentPassword,
         'new-password': value.newPassword1,
       })
@@ -256,7 +258,7 @@ export class ServerShowPage {
     const loader = this.loader.open('Saving...').subscribe()
 
     try {
-      await this.embassyApi.setDbValue<string | null>(['name'], value)
+      await this.api.setDbValue<string | null>(['name'], value)
     } finally {
       loader.unsubscribe()
     }
@@ -264,7 +266,7 @@ export class ServerShowPage {
 
   // should wipe cache independent of actual BE logout
   private logout() {
-    this.embassyApi.logout({}).catch(e => console.error('Failed to log out', e))
+    this.api.logout({}).catch(e => console.error('Failed to log out', e))
     this.authService.setUnverified()
   }
 
@@ -273,7 +275,7 @@ export class ServerShowPage {
     const loader = this.loader.open(`Beginning ${action}...`).subscribe()
 
     try {
-      await this.embassyApi.restartServer({})
+      await this.api.restartServer({})
       this.presentAlertInProgress(action, ` until ${action} completes.`)
     } catch (e: any) {
       this.errorService.handleError(e)
@@ -287,7 +289,7 @@ export class ServerShowPage {
     const loader = this.loader.open(`Beginning ${action}...`).subscribe()
 
     try {
-      await this.embassyApi.shutdownServer({})
+      await this.api.shutdownServer({})
       this.presentAlertInProgress(
         action,
         '.<br /><br /><b>You will need to physically power cycle the device to regain connectivity.</b>',
@@ -304,7 +306,7 @@ export class ServerShowPage {
     const loader = this.loader.open(`Beginning ${action}...`).subscribe()
 
     try {
-      await this.embassyApi.systemRebuild({})
+      await this.api.systemRebuild({})
       this.presentAlertInProgress(action, ` until ${action} completes.`)
     } catch (e: any) {
       this.errorService.handleError(e)
@@ -376,14 +378,6 @@ export class ServerShowPage {
         disabled$: this.eosService.updatingOrBackingUp$,
       },
       {
-        title: 'Browser Tab Title',
-        description: `Customize the display name of your browser tab`,
-        icon: 'pricetag-outline',
-        action: () => this.setBrowserTab(),
-        detail: false,
-        disabled$: of(false),
-      },
-      {
         title: 'Email',
         description:
           'Connect to an external SMTP server to send yourself emails',
@@ -426,20 +420,8 @@ export class ServerShowPage {
     ],
     Network: [
       {
-        title: 'StartOS Web Interface',
-        description: 'Addresses for accessing this StartOS web interface',
-        icon: 'desktop-outline',
-        action: () =>
-          this.navCtrl.navigateForward(['addresses'], {
-            relativeTo: this.route,
-          }),
-        detail: true,
-        disabled$: of(false),
-      },
-      {
         title: 'Domains',
-        description:
-          'Add domains to your server to enable clearnet connections',
+        description: 'Manage domains for clearnet connectivity',
         icon: 'globe-outline',
         action: () =>
           this.navCtrl.navigateForward(['domains'], { relativeTo: this.route }),
@@ -447,12 +429,20 @@ export class ServerShowPage {
         disabled$: of(false),
       },
       {
-        title: 'Port Forwards',
-        description:
-          'A list of ports that should be forwarded through your router',
-        icon: 'trail-sign-outline',
+        title: 'Proxies',
+        description: 'Manage proxies for inbound and outbound connections',
+        icon: 'shuffle-outline',
         action: () =>
-          this.navCtrl.navigateForward(['port-forwards'], {
+          this.navCtrl.navigateForward(['proxies'], { relativeTo: this.route }),
+        detail: true,
+        disabled$: of(false),
+      },
+      {
+        title: 'Router Config',
+        description: 'Connect or configure your router for clearnet',
+        icon: 'radio-outline',
+        action: () =>
+          this.navCtrl.navigateForward(['router-config'], {
             relativeTo: this.route,
           }),
         detail: true,
@@ -468,7 +458,36 @@ export class ServerShowPage {
         disabled$: of(false),
       },
     ],
-    Security: [
+    'User Interface': [
+      {
+        title: 'Browser Tab Title',
+        description: `Customize the display name of your browser tab`,
+        icon: 'pricetag-outline',
+        action: () => this.setBrowserTab(),
+        detail: false,
+        disabled$: of(false),
+      },
+      {
+        title: 'Web Addresses',
+        description: 'View and manage web addresses for accessing this UI',
+        icon: 'desktop-outline',
+        action: () =>
+          this.navCtrl.navigateForward(['interfaces', 'ui'], {
+            relativeTo: this.route,
+          }),
+        detail: true,
+        disabled$: of(false),
+      },
+    ],
+    'Privacy and Security': [
+      {
+        title: 'Outbound Proxy',
+        description: 'Proxy outbound traffic from the StartOS main process',
+        icon: 'shield-outline',
+        action: () => this.proxyService.presentModalSetOutboundProxy(),
+        detail: false,
+        disabled$: of(false),
+      },
       {
         title: 'SSH',
         description:
@@ -493,7 +512,7 @@ export class ServerShowPage {
     ],
     Logs: [
       {
-        title: 'System Resources',
+        title: 'Activity Monitor',
         description: 'CPU, disk, memory, and other useful metrics',
         icon: 'pulse',
         action: () =>

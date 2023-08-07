@@ -1260,25 +1260,40 @@ export module Mock {
         },
         'dependency-errors': {},
       },
-      'address-info': {
+      interfaceInfo: {
         rpc: {
           name: 'Bitcoin RPC',
           description: `Bitcoin's RPC interface`,
-          addresses: [
-            'http://bitcoind-rpc-address.onion',
-            'https://bitcoind-rpc-address.local',
-            'https://192.168.1.1:8332',
-          ],
-          ui: true,
+          addressInfo: {
+            ipInfo: {
+              eth0: {
+                wireless: false,
+                ipv4: '192.168.1.1:8333',
+                ipv6: 'FE80:CD00:0000:0CDE:1257:0000:211E:729CD:8333',
+              },
+            },
+            lanHostname: 'adjective-noun:8333',
+            torHostname: 'bitcoind-rpc-address.onion',
+            domainInfo: null,
+          },
+          type: 'ui',
         },
         p2p: {
           name: 'Bitcoin P2P',
           description: `Bitcoin's P2P interface`,
-          addresses: [
-            'bitcoin://bitcoind-rpc-address.onion',
-            'bitcoin://192.168.1.1:8333',
-          ],
-          ui: true,
+          addressInfo: {
+            ipInfo: {
+              eth0: {
+                wireless: false,
+                ipv4: '192.168.1.1:8332',
+                ipv6: 'FE80:CD00:0000:0CDE:1257:0000:211E:729CD:8332',
+              },
+            },
+            lanHostname: 'adjective-noun:8332',
+            torHostname: 'bitcoind-p2p-address.onion',
+            domainInfo: null,
+          },
+          type: 'ui',
         },
       },
       'current-dependencies': {},
@@ -1286,6 +1301,7 @@ export module Mock {
       'marketplace-url': 'https://registry.start9.com/',
       'developer-key': 'developer-key',
       'has-config': true,
+      outboundProxy: null,
     },
     actions: {
       resync: {
@@ -1336,15 +1352,23 @@ export module Mock {
         },
         'dependency-errors': {},
       },
-      'address-info': {
+      interfaceInfo: {
         rpc: {
           name: 'Proxy RPC addresses',
           description: `Use these addresses to access Proxy's RPC interface`,
-          addresses: [
-            'http://bitcoinproxy-rpc-address.onion',
-            'https://bitcoinproxy-rpc-address.local',
-          ],
-          ui: false,
+          addressInfo: {
+            ipInfo: {
+              eth0: {
+                wireless: false,
+                ipv4: '192.168.1.1:8459',
+                ipv6: 'FE80:CD00:0000:0CDE:1257:0000:211E:729CD:8459',
+              },
+            },
+            lanHostname: 'adjective-noun.local:8459',
+            torHostname: 'btcrpc-proxy-address.onion',
+            domainInfo: null,
+          },
+          type: 'api',
         },
       },
       'current-dependencies': {
@@ -1361,6 +1385,7 @@ export module Mock {
       'marketplace-url': 'https://registry.start9.com/',
       'developer-key': 'developer-key',
       'has-config': true,
+      outboundProxy: null,
     },
     actions: {},
   }
@@ -1384,26 +1409,40 @@ export module Mock {
           },
         },
       },
-      'address-info': {
+      interfaceInfo: {
         ui: {
           name: 'Web UI',
           description: 'The browser web interface for LND',
-          addresses: [
-            'http://lnd-ui-address.onion',
-            'https://lnd-ui-address.local',
-            'https://192.168.1.1:3449',
-          ],
-          ui: true,
+          addressInfo: {
+            ipInfo: {
+              eth0: {
+                wireless: false,
+                ipv4: '192.168.1.1:7171',
+                ipv6: 'FE80:CD00:0000:0CDE:1257:0000:211E:729CD:7171',
+              },
+            },
+            lanHostname: 'adjective-noun.local:7171',
+            torHostname: 'lnd-ui-address.onion',
+            domainInfo: null,
+          },
+          type: 'ui',
         },
         grpc: {
           name: 'gRPC',
           description: 'For connecting to LND gRPC interface',
-          addresses: [
-            'http://lnd-grpc-address.onion',
-            'https://lnd-grpc-address.local',
-            'https://192.168.1.1:3449',
-          ],
-          ui: true,
+          addressInfo: {
+            ipInfo: {
+              eth0: {
+                wireless: false,
+                ipv4: '192.168.1.1:9191',
+                ipv6: 'FE80:CD00:0000:0CDE:1257:0000:211E:729CD:9191',
+              },
+            },
+            lanHostname: 'adjective-noun.local:9191',
+            torHostname: 'lnd-grpc-address.onion',
+            domainInfo: null,
+          },
+          type: 'p2p',
         },
       },
       'current-dependencies': {
@@ -1417,7 +1456,7 @@ export module Mock {
       'dependency-info': {
         bitcoind: {
           title: 'Bitcoin Core',
-          icon: 'assets/img/service-icons/bitcoind.png',
+          icon: 'assets/img/service-icons/bitcoind.svg',
         },
         'btc-rpc-proxy': {
           title: 'Bitcoin Proxy',
@@ -1427,6 +1466,7 @@ export module Mock {
       'marketplace-url': 'https://registry.start9.com/',
       'developer-key': 'developer-key',
       'has-config': true,
+      outboundProxy: null,
     },
     actions: {},
   }

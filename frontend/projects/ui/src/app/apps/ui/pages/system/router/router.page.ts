@@ -5,12 +5,12 @@ import { LoadingService, CopyService, ErrorService } from '@start9labs/shared'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 
 @Component({
-  selector: 'port-forwards',
-  templateUrl: './port-forwards.page.html',
-  styleUrls: ['./port-forwards.page.scss'],
+  selector: 'router',
+  templateUrl: './router.page.html',
+  styleUrls: ['./router.page.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class PortForwardsPage {
+export class RouterPage {
   readonly server$ = this.patch.watch$('server-info')
   editing: Record<string, boolean> = {}
   overrides: Record<string, number> = {}

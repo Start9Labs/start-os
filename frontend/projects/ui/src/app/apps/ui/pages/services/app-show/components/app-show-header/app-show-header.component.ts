@@ -8,6 +8,6 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppShowHeaderComponent {
-  @Input()
+  @Input({ required: true })
   pkg!: PackageDataEntry
 }

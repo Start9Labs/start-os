@@ -48,19 +48,6 @@
           <ion-icon slot="start" name="construct-outline"></ion-icon>
           Configure
         </ion-button>
-
-        <ion-button
-          *ngIf="addressInfo | hasUi"
-          class="action-button"
-          color="primary"
-          [disabled]="status.primary !== 'running'"
-          (click)="openPopover($event)"
-        >
-          <ion-icon slot="start" name="open-outline"></ion-icon>
-          Open UI
-        </ion-button>
-
-        <launch-menu #launchMenu [addressInfo]="addressInfo"></launch-menu>
       </ion-col>
     </ion-row>
   </ion-grid>

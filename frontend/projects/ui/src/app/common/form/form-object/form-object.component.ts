@@ -16,7 +16,7 @@ import { ValueSpecObject } from '@start9labs/start-sdk/lib/config/configTypes'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FormObjectComponent {
-  @Input()
+  @Input({ required: true })
   spec!: ValueSpecObject
 
   @Input()

@@ -12,7 +12,7 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AnyLinkComponent implements OnInit {
-  @Input() link!: string
+  @Input({ required: true }) link!: string
   @Input() qp?: Record<string, string>
   externalLink = false
 

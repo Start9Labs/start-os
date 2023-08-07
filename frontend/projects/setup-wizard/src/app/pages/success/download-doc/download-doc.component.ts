@@ -5,7 +5,7 @@ import { Component, Input } from '@angular/core'
   templateUrl: 'download-doc.component.html',
 })
 export class DownloadDocComponent {
-  @Input() lanAddress!: string
+  @Input({ required: true }) lanAddress!: string
 
   get crtName(): string {
     const hostname = new URL(this.lanAddress).hostname

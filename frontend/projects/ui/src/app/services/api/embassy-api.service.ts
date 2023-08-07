@@ -125,6 +125,10 @@ export abstract class ApiService {
 
   abstract toggleZram(params: RR.ToggleZramReq): Promise<RR.ToggleZramRes>
 
+  abstract setOsOutboundProxy(
+    params: RR.SetOsOutboundProxyReq,
+  ): Promise<RR.SetOsOutboundProxyRes>
+
   // marketplace URLs
 
   abstract marketplaceProxy<T>(
@@ -150,15 +154,23 @@ export abstract class ApiService {
     params: RR.DeleteAllNotificationsReq,
   ): Promise<RR.DeleteAllNotificationsRes>
 
+  // network
+
+  abstract addProxy(params: RR.AddProxyReq): Promise<RR.AddProxyRes>
+
+  abstract updateProxy(params: RR.UpdateProxyReq): Promise<RR.UpdateProxyRes>
+
+  abstract deleteProxy(params: RR.DeleteProxyReq): Promise<RR.DeleteProxyRes>
+
   // domains
 
-  abstract claimStart9MeDomain(
-    params: RR.ClaimStart9MeReq,
-  ): Promise<RR.ClaimStart9MeRes>
+  abstract claimStart9ToDomain(
+    params: RR.ClaimStart9ToReq,
+  ): Promise<RR.ClaimStart9ToRes>
 
-  abstract deleteStart9MeDomain(
-    params: RR.DeleteStart9MeReq,
-  ): Promise<RR.DeleteStart9MeRes>
+  abstract deleteStart9ToDomain(
+    params: RR.DeleteStart9ToReq,
+  ): Promise<RR.DeleteStart9ToRes>
 
   abstract addDomain(params: RR.AddDomainReq): Promise<RR.AddDomainRes>
 
@@ -322,4 +334,12 @@ export abstract class ApiService {
   abstract getSetupStatus(): Promise<SetupStatus | null>
 
   abstract followLogs(): Promise<string>
+
+  abstract setInterfaceClearnetAddress(
+    params: RR.SetInterfaceClearnetAddressReq,
+  ): Promise<RR.SetInterfaceClearnetAddressRes>
+
+  abstract setServiceOutboundProxy(
+    params: RR.SetServiceOutboundProxyReq,
+  ): Promise<RR.SetServiceOutboundProxyRes>
 }

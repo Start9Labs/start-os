@@ -45,11 +45,6 @@ export const mockPatchData: DataModel = {
         eth0: {
           wireless: false,
           ipv4: '10.0.0.1',
-          ipv6: null,
-        },
-        wlan0: {
-          wireless: true,
-          ipv4: '10.0.90.12',
           ipv6: 'FE80:CD00:0000:0CDE:1257:0000:211E:729CD',
         },
       },
@@ -57,7 +52,7 @@ export const mockPatchData: DataModel = {
     },
     network: {
       domains: [],
-      start9MeSubdomain: null,
+      start9ToSubdomain: null,
       wifi: {
         enabled: false,
         lastRegion: null,
@@ -85,6 +80,12 @@ export const mockPatchData: DataModel = {
           },
         ],
       },
+      proxies: [],
+      primaryProxies: {
+        inbound: null,
+        outbound: null,
+      },
+      outboundProxy: null,
     },
     'last-backup': new Date(new Date().valueOf() - 604800001).toISOString(),
     'unread-notification-count': 4,
@@ -105,7 +106,6 @@ export const mockPatchData: DataModel = {
       from: '',
       login: '',
       password: '',
-      tls: true,
     },
     'password-hash':
       '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',

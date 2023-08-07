@@ -188,7 +188,7 @@ interface LocalAction {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppActionsItemComponent {
-  @Input() action!: LocalAction
+  @Input({ required: true }) action!: LocalAction
 }
 
 @Pipe({

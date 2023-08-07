@@ -233,6 +233,12 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'server.experimental.zram', params })
   }
 
+  async setOsOutboundProxy(
+    params: RR.SetOsOutboundProxyReq,
+  ): Promise<RR.SetOsOutboundProxyRes> {
+    return this.rpcRequest({ method: 'server.proxy.set-outbound', params })
+  }
+
   // marketplace URLs
 
   async marketplaceProxy<T>(
@@ -288,17 +294,31 @@ export class LiveApiService extends ApiService {
     })
   }
 
+  // network
+
+  async addProxy(params: RR.AddProxyReq): Promise<RR.AddProxyRes> {
+    return this.rpcRequest({ method: 'net.proxy.add', params })
+  }
+
+  async updateProxy(params: RR.UpdateProxyReq): Promise<RR.UpdateProxyRes> {
+    return this.rpcRequest({ method: 'net.proxy.update', params })
+  }
+
+  async deleteProxy(params: RR.DeleteProxyReq): Promise<RR.DeleteProxyRes> {
+    return this.rpcRequest({ method: 'net.proxy.delete', params })
+  }
+
   // domains
 
-  async claimStart9MeDomain(
-    params: RR.ClaimStart9MeReq,
-  ): Promise<RR.ClaimStart9MeRes> {
+  async claimStart9ToDomain(
+    params: RR.ClaimStart9ToReq,
+  ): Promise<RR.ClaimStart9ToRes> {
     return this.rpcRequest({ method: 'net.domain.me.claim', params })
   }
 
-  async deleteStart9MeDomain(
-    params: RR.DeleteStart9MeReq,
-  ): Promise<RR.DeleteStart9MeRes> {
+  async deleteStart9ToDomain(
+    params: RR.DeleteStart9ToReq,
+  ): Promise<RR.DeleteStart9ToRes> {
     return this.rpcRequest({ method: 'net.domain.me.delete', params })
   }
 
@@ -542,6 +562,18 @@ export class LiveApiService extends ApiService {
       method: 'package.sideload',
       params,
     })
+  }
+
+  async setInterfaceClearnetAddress(
+    params: RR.SetInterfaceClearnetAddressReq,
+  ): Promise<RR.SetInterfaceClearnetAddressRes> {
+    return this.rpcRequest({ method: 'package.interface.set-clearnet', params })
+  }
+
+  async setServiceOutboundProxy(
+    params: RR.SetServiceOutboundProxyReq,
+  ): Promise<RR.SetServiceOutboundProxyRes> {
+    return this.rpcRequest({ method: 'package.proxy.set-outbound', params })
   }
 
   async getSetupStatus() {

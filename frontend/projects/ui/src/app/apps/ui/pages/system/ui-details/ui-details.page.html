@@ -1,0 +1,14 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="system"></ion-back-button>
+    </ion-buttons>
+    <ion-title>StartOS UI</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="with-widgets">
+  <div *ngIf="ui$ | async as ui" class="cap-width">
+    <interface-addresses [addressInfo]="ui" [isUi]="true"></interface-addresses>
+  </div>
+</ion-content>

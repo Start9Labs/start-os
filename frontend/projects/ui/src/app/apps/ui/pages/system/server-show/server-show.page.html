@@ -66,6 +66,16 @@
                 </ng-template>
               </ng-template>
             </p>
+            <!-- "Outbound Proxy" button only -->
+            <p *ngIf="button.title === 'Outbound Proxy'">
+              <ion-text
+                [color]="!server.network.outboundProxy ? 'warning' : 'success'"
+              >
+                {{ !server.network.outboundProxy ? 'None' :
+                server.network.outboundProxy === 'primary' ? 'System Primary' :
+                server.network.outboundProxy.proxyId }}
+              </ion-text>
+            </p>
           </ion-label>
         </ion-item>
       </ion-item-group>

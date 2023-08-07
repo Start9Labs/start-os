@@ -16,8 +16,8 @@ import {
   StatusRendering,
 } from 'src/app/services/pkg-status-rendering.service'
 import {
-  AddressInfo,
   DataModel,
+  InterfaceInfo,
   PackageDataEntry,
   PackageState,
 } from 'src/app/services/patch-db/data-model'
@@ -30,7 +30,7 @@ import {
 import { DependencyInfo } from '../../pipes/to-dependencies.pipe'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { ConnectionService } from 'src/app/services/connection.service'
-import { LaunchMenuComponent } from '../../../launch-menu/launch-menu.component'
+import { LaunchMenuComponent } from '../../../app-list/app-list-pkg/launch-menu/launch-menu.component'
 
 @Component({
   selector: 'app-show-status',
@@ -41,10 +41,10 @@ import { LaunchMenuComponent } from '../../../launch-menu/launch-menu.component'
 export class AppShowStatusComponent {
   @ViewChild('launchMenu') launchMenu!: LaunchMenuComponent
 
-  @Input()
+  @Input({ required: true })
   pkg!: PackageDataEntry
 
-  @Input()
+  @Input({ required: true })
   status!: PackageStatus
 
   @Input()
@@ -66,8 +66,8 @@ export class AppShowStatusComponent {
     return this.pkg.manifest.id
   }
 
-  get addressInfo(): Record<string, AddressInfo> {
-    return this.pkg.installed!['address-info']
+  get interfaceInfo(): Record<string, InterfaceInfo> {
+    return this.pkg.installed!['interfaceInfo']
   }
 
   get isConfigured(): boolean {
@@ -88,11 +88,6 @@ export class AppShowStatusComponent {
 
   get rendering(): StatusRendering {
     return PrimaryRendering[this.status.primary]
-  }
-
-  openPopover(e: Event): void {
-    this.launchMenu.event = e
-    this.launchMenu.isOpen = true
   }
 
   presentModalConfig(): void {

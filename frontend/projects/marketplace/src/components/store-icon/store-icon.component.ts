@@ -12,7 +12,7 @@ export class StoreIconComponent {
   url = ''
   @Input()
   size?: string
-  @Input()
+  @Input({ required: true })
   marketplace!: MarketplaceConfig
 
   get icon() {

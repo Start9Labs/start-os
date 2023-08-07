@@ -28,7 +28,7 @@ export class FormControlComponent<
   T extends ValueSpec,
   V,
 > extends AbstractTuiNullableControl<V> {
-  @Input()
+  @Input({ required: true })
   spec!: T
 
   @ViewChild('warning')

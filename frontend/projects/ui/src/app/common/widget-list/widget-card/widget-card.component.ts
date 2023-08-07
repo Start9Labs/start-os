@@ -14,8 +14,8 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WidgetCardComponent {
-  @Input() cardDetails!: Card
-  @Input() containerDimensions!: Dimension
+  @Input({ required: true }) cardDetails!: Card
+  @Input({ required: true }) containerDimensions!: Dimension
   @ViewChild('outerWrapper') outerWrapper: ElementRef<HTMLElement> =
     {} as ElementRef<HTMLElement>
   @ViewChild('innerWrapper') innerWrapper: ElementRef<HTMLElement> =

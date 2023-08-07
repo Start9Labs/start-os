@@ -1,0 +1,125 @@
+<ng-container *ngIf="network$ | async as network">
+  <!-- clearnet -->
+  <ion-item-divider style="--padding-top: 0">Clearnet</ion-item-divider>
+  <ion-item-group>
+    <ion-item>
+      <ion-label>
+        <h2>
+          Add clearnet to expose this interface to the public Internet.
+          <a
+            href="https://docs.start9.com/latest/user-manual/interface-addresses#clearnet"
+            target="_blank"
+            rel="noreferrer"
+          >
+            View instructions
+          </a>
+        </h2>
+      </ion-label>
+    </ion-item>
+    <ng-container *ngIf="addressInfo.domainInfo as domainInfo; else noClearnet">
+      <interface-addresses-item
+        label="Clearnet"
+        [hostname]="domainInfo | interfaceClearnetPipe"
+        [isUi]="isUi"
+      >
+        <div class="ion-padding-top">
+          <ion-button (click)="presentModalAddClearnet(network)">
+            Update
+          </ion-button>
+          <ion-button
+            class="ion-padding-start"
+            (click)="presentAlertRemoveClearnet()"
+            color="danger"
+          >
+            Remove
+          </ion-button>
+        </div>
+      </interface-addresses-item>
+    </ng-container>
+    <ng-template #noClearnet>
+      <div class="ion-padding">
+        <ion-button strong (click)="presentModalAddClearnet(network)">
+          <ion-icon slot="start" name="add"></ion-icon>
+          Add Clearnet
+        </ion-button>
+      </div>
+    </ng-template>
+  </ion-item-group>
+
+  <!-- tor -->
+  <ion-item-divider>Tor</ion-item-divider>
+  <ion-item-group>
+    <ion-item>
+      <ion-label>
+        <h2>
+          Use a Tor-enabled browser to access this address. Tor connections can
+          be slow and unreliable.
+          <a
+            href="https://docs.start9.com/latest/user-manual/interface-addresses#tor"
+            target="_blank"
+            rel="noreferrer"
+          >
+            View instructions
+          </a>
+        </h2>
+      </ion-label>
+    </ion-item>
+    <interface-addresses-item
+      label="Tor"
+      [hostname]="addressInfo.torHostname"
+      [isUi]="isUi"
+    ></interface-addresses-item>
+  </ion-item-group>
+
+  <!-- local -->
+  <ion-item-divider>Local</ion-item-divider>
+  <ion-item-group>
+    <ion-item>
+      <ion-label>
+        <h2>
+          Local addresses can only be accessed while connected to the same Local
+          Area Network (LAN) as your server, either directly or using a VPN.
+          <a
+            href="https://docs.start9.com/latest/user-manual/interface-addresses#local"
+            target="_blank"
+            rel="noreferrer"
+          >
+            View instructions
+          </a>
+        </h2>
+        <div *ngIf="!packageContext" class="ion-padding-top ion-padding-bottom">
+          <ion-button (click)="installCert()" strong>
+            <ion-icon slot="start" name="download-outline"></ion-icon>
+            Download Root CA
+          </ion-button>
+        </div>
+      </ion-label>
+    </ion-item>
+    <interface-addresses-item
+      label="Local"
+      [hostname]="addressInfo.lanHostname"
+      [isUi]="isUi"
+    ></interface-addresses-item>
+    <ng-container *ngFor="let iface of addressInfo.ipInfo | keyvalue">
+      <interface-addresses-item
+        *ngIf="iface.value.ipv4 as ipv4"
+        [label]="iface.key + ' (IPv4)'"
+        [hostname]="ipv4"
+        [isUi]="isUi"
+      ></interface-addresses-item>
+      <interface-addresses-item
+        *ngIf="iface.value.ipv6 as ipv6"
+        [label]="iface.key + ' (IPv6)'"
+        [hostname]="ipv6"
+        [isUi]="isUi"
+      ></interface-addresses-item>
+    </ng-container>
+  </ion-item-group>
+
+  <!-- hidden element for downloading cert -->
+  <a
+    id="install-cert"
+    href="/public/eos/local.crt"
+    [download]="addressInfo.lanHostname + '.crt'"
+  ></a>
+</ng-container>
