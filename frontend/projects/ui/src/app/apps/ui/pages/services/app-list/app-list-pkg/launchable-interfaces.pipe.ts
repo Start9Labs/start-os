@@ -12,7 +12,7 @@ export class LaunchableInterfacesPipe implements PipeTransform {
     interfaceInfo: InstalledPackageInfo['interfaceInfo'],
   ): LaunchableInterface[] {
     return Object.values(interfaceInfo)
-      .filter(info => info.ui)
+      .filter(info => info.type === 'ui')
       .map(info => ({
         name: info.name,
         address: this.config.launchableAddress(info),

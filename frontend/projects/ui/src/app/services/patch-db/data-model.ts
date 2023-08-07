@@ -3,6 +3,7 @@ import { Url } from '@start9labs/shared'
 import { Manifest } from '@start9labs/marketplace'
 import { BackupJob } from '../api/api.types'
 import { customSmtp } from '@start9labs/start-sdk/lib/config/configConstants'
+import { NetworkInterfaceType } from '@start9labs/start-sdk/lib/util/utils'
 
 export interface DataModel {
   'server-info': ServerInfo
@@ -238,7 +239,7 @@ export interface CurrentDependencyInfo {
 export interface InterfaceInfo {
   name: string
   description: string
-  ui: boolean
+  type: NetworkInterfaceType
   addressInfo: AddressInfo
 }
 

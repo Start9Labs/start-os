@@ -13,7 +13,7 @@
       <interface-addresses
         [packageContext]="{ packageId: pkgId, interfaceId }"
         [addressInfo]="interfaceInfo.addressInfo"
-        [isUi]="interfaceInfo.ui"
+        [isUi]="interfaceInfo.type === 'ui'"
       ></interface-addresses>
     </div>
   </ion-content>

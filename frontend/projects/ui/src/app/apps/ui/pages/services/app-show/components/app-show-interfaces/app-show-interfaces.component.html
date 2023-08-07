@@ -6,14 +6,16 @@
 >
   <ion-icon
     slot="start"
-    [name]="interfaceInfo.value.ui ? 'desktop-outline' : 'terminal-outline'"
+    [name]="
+      interfaceInfo.value.type === 'ui' ? 'desktop-outline' : 'terminal-outline'
+    "
   ></ion-icon>
   <ion-label>
     <h2>{{ interfaceInfo.value.name }}</h2>
     <p>{{ interfaceInfo.value.description }}</p>
   </ion-label>
   <ion-button
-    *ngIf="interfaceInfo.value.ui"
+    *ngIf="interfaceInfo.value.type === 'ui'"
     slot="end"
     fill="clear"
     color="primary"

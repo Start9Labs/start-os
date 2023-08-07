@@ -1276,7 +1276,7 @@ export module Mock {
             torHostname: 'bitcoind-rpc-address.onion',
             domainInfo: null,
           },
-          ui: false,
+          type: 'ui',
         },
         p2p: {
           name: 'Bitcoin P2P',
@@ -1293,7 +1293,7 @@ export module Mock {
             torHostname: 'bitcoind-p2p-address.onion',
             domainInfo: null,
           },
-          ui: true,
+          type: 'ui',
         },
       },
       'current-dependencies': {},
@@ -1368,7 +1368,7 @@ export module Mock {
             torHostname: 'btcrpc-proxy-address.onion',
             domainInfo: null,
           },
-          ui: false,
+          type: 'api',
         },
       },
       'current-dependencies': {
@@ -1425,7 +1425,7 @@ export module Mock {
             torHostname: 'lnd-ui-address.onion',
             domainInfo: null,
           },
-          ui: true,
+          type: 'ui',
         },
         grpc: {
           name: 'gRPC',
@@ -1442,7 +1442,7 @@ export module Mock {
             torHostname: 'lnd-grpc-address.onion',
             domainInfo: null,
           },
-          ui: false,
+          type: 'p2p',
         },
       },
       'current-dependencies': {

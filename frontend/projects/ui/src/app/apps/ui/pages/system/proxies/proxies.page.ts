@@ -120,7 +120,7 @@ export class ProxiesPage {
     try {
       await this.api.addProxy({
         name: value.name,
-        config: value.config || '',
+        config: value.config?.filePath || '',
       })
       return true
     } catch (e: any) {
@@ -172,7 +172,7 @@ const wireguardSpec = Config.of({
   }),
   config: Value.file({
     name: 'Wiregaurd Config',
-    required: true,
+    required: { default: null },
     extensions: ['.conf'],
   }),
 })

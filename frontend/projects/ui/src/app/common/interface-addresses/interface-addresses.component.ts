@@ -142,10 +142,6 @@ export class InterfaceAddressesComponent {
       loader.unsubscribe()
     }
   }
-
-  asIsOrder(a: any, b: any) {
-    return 0
-  }
 }
 
 function getClearnetSpec({
