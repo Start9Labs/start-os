@@ -15,11 +15,13 @@ import { AppShowProgressComponent } from './components/app-show-progress/app-sho
 import { AppShowStatusComponent } from './components/app-show-status/app-show-status.component'
 import { AppShowDependenciesComponent } from './components/app-show-dependencies/app-show-dependencies.component'
 import { AppShowMenuComponent } from './components/app-show-menu/app-show-menu.component'
-import { AppShowInterfacesComponent } from './components/app-show-interfaces/app-show-interfaces.component'
+import {
+  AppShowInterfacesComponent,
+  InterfaceInfoPipe,
+} from './components/app-show-interfaces/app-show-interfaces.component'
 import { AppShowHealthChecksComponent } from './components/app-show-health-checks/app-show-health-checks.component'
 import { AppShowAdditionalComponent } from './components/app-show-additional/app-show-additional.component'
 import { HealthColorPipe } from './pipes/health-color.pipe'
-import { ToButtonsPipe } from './pipes/to-buttons.pipe'
 import { ToDependenciesPipe } from './pipes/to-dependencies.pipe'
 import { ToStatusPipe } from './pipes/to-status.pipe'
 import { ProgressDataPipe } from './pipes/progress-data.pipe'
@@ -38,7 +40,6 @@ const routes: Routes = [
     AppShowPage,
     HealthColorPipe,
     ProgressDataPipe,
-    ToButtonsPipe,
     ToDependenciesPipe,
     ToStatusPipe,
     AppShowHeaderComponent,
@@ -49,6 +50,7 @@ const routes: Routes = [
     AppShowInterfacesComponent,
     AppShowHealthChecksComponent,
     AppShowAdditionalComponent,
+    InterfaceInfoPipe,
   ],
   imports: [
     CommonModule,

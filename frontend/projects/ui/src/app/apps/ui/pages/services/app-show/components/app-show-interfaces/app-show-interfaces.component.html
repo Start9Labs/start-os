@@ -1,26 +1,24 @@
 <ion-item-divider>Interfaces</ion-item-divider>
 <ion-item
   button
-  *ngFor="let interfaceInfo of pkg.installed!.interfaceInfo | keyvalue"
-  [routerLink]="['interfaces', interfaceInfo.key]"
+  *ngFor="let info of pkg.interfaceInfo | interfaceInfo"
+  [routerLink]="['interfaces', info.id]"
 >
-  <ion-icon
-    slot="start"
-    [name]="
-      interfaceInfo.value.type === 'ui' ? 'desktop-outline' : 'terminal-outline'
-    "
-  ></ion-icon>
+  <ion-icon slot="start" [name]="info.icon" [color]="info.color"></ion-icon>
   <ion-label>
-    <h2>{{ interfaceInfo.value.name }}</h2>
-    <p>{{ interfaceInfo.value.description }}</p>
+    <h2>{{ info.name }}</h2>
+    <p>{{ info.description }}</p>
+    <p>
+      <ion-text [color]="info.color">{{ info.typeDetail }}</ion-text>
+    </p>
   </ion-label>
   <ion-button
-    *ngIf="interfaceInfo.value.type === 'ui'"
+    *ngIf="info.type === 'ui'"
     slot="end"
     fill="clear"
     color="primary"
-    (click)="launchUI(interfaceInfo.value, $event)"
-    [disabled]="pkg.installed!.status.main.status !== 'running'"
+    (click)="launchUI(info, $event)"
+    [disabled]="pkg.status.main.status !== 'running'"
   >
     <ion-icon slot="icon-only" name="open-outline"></ion-icon>
   </ion-button>

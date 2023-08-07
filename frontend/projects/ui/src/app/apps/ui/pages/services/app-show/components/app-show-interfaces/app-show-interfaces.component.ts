@@ -7,9 +7,10 @@ import {
 } from '@angular/core'
 import { ConfigService } from 'src/app/services/config.service'
 import {
+  InstalledPackageInfo,
   InterfaceInfo,
-  PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
+import { Pipe, PipeTransform } from '@angular/core'
 
 @Component({
   selector: 'app-show-interfaces',
@@ -19,7 +20,7 @@ import {
 })
 export class AppShowInterfacesComponent {
   @Input({ required: true })
-  pkg!: PackageDataEntry
+  pkg!: InstalledPackageInfo
 
   constructor(
     private readonly config: ConfigService,
@@ -34,5 +35,49 @@ export class AppShowInterfacesComponent {
       '_blank',
       'noreferrer',
     )
+  }
+}
+
+@Pipe({
+  name: 'interfaceInfo',
+})
+export class InterfaceInfoPipe implements PipeTransform {
+  transform(info: InstalledPackageInfo['interfaceInfo']) {
+    return Object.entries(info).map(([id, val]) => {
+      let color: string
+      let icon: string
+      let typeDetail: string
+
+      switch (val.type) {
+        case 'ui':
+          color = 'primary'
+          icon = 'desktop-outline'
+          typeDetail = 'User Interface (UI)'
+          break
+        case 'p2p':
+          color = 'secondary'
+          icon = 'people-outline'
+          typeDetail = 'Peer-To-Peer Interface (P2P)'
+          break
+        case 'api':
+          color = 'tertiary'
+          icon = 'terminal-outline'
+          typeDetail = 'Application Program Interface (API)'
+          break
+        case 'other':
+          color = 'dark'
+          icon = 'cube-outline'
+          typeDetail = 'Unknown Interface Type'
+          break
+      }
+
+      return {
+        ...val,
+        id,
+        color,
+        icon,
+        typeDetail,
+      }
+    })
   }
 }

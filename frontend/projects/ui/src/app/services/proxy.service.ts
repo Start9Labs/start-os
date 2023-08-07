@@ -31,39 +31,27 @@ export class ProxyService {
   async presentModalSetOutboundProxy(serviceContext?: {
     packageId: string
     outboundProxy: ServiceOutboundProxy
+    hasP2P: boolean
   }) {
     const network = await firstValueFrom(
       this.patch.watch$('server-info', 'network'),
     )
 
-    const outboundProxies = network.proxies
-      .filter(p => p.type === 'outbound' || p.type === 'inbound-outbound')
-      .reduce((prev, curr) => {
-        return {
-          [curr.id]: curr.name,
-          ...prev,
-        }
-      }, {})
-
-    const outboundProxy = serviceContext
-      ? serviceContext.outboundProxy
-      : network.outboundProxy
+    const outboundProxy = serviceContext?.outboundProxy
 
     const defaultValue = !outboundProxy
       ? 'none'
-      : outboundProxy === 'primaryProxy'
+      : outboundProxy === 'primary'
       ? 'primary'
-      : outboundProxy === 'primaryInterface'
-      ? 'interface'
+      : outboundProxy === 'mirror'
+      ? 'mirror'
       : 'other'
-
-    const disabled = serviceContext ? [] : ['interface']
 
     let variants: Record<string, { name: string; spec: Config<any> }> = {}
 
     if (serviceContext) {
-      variants['interface'] = {
-        name: 'Mirror Primary Interface',
+      variants['mirror'] = {
+        name: 'Mirror P2P Interface',
         spec: Config.of({}),
       }
     }
@@ -85,7 +73,16 @@ export class ProxyService {
                   ? outboundProxy.proxyId
                   : null,
             },
-            values: outboundProxies,
+            values: network.proxies
+              .filter(
+                p => p.type === 'outbound' || p.type === 'inbound-outbound',
+              )
+              .reduce((prev, curr) => {
+                return {
+                  [curr.id]: curr.name,
+                  ...prev,
+                }
+              }, {}),
           }),
         }),
       },
@@ -105,7 +102,7 @@ export class ProxyService {
   <h5>Mirror Primary Interface</h5>If you have an inbound proxy enabled for the primary interface, outbound traffic will flow through the same proxy
   <h5>Other</h5>The specific proxy you select will be used, overriding the default
   `,
-          disabled,
+          disabled: serviceContext?.hasP2P ? [] : ['mirror'],
         },
         Variants.of(variants),
       ),
@@ -119,15 +116,19 @@ export class ProxyService {
         spec: await configBuilderToSpec(config),
         buttons: [
           {
+            text: 'Manage proxies',
+            link: '/system/proxies',
+          },
+          {
             text: 'Save',
             handler: async value => {
               const proxy =
                 value.proxy.unionSelectKey === 'none'
                   ? null
                   : value.proxy.unionSelectKey === 'primary'
-                  ? 'primaryProxy'
-                  : value.proxy.unionSelectKey === 'interface'
-                  ? 'primaryInterface'
+                  ? 'primary'
+                  : value.proxy.unionSelectKey === 'mirror'
+                  ? 'mirror'
                   : { proxyId: value.proxy.unionValueKey.proxyId }
               await this.saveOutboundProxy(proxy, serviceContext?.packageId)
               return true

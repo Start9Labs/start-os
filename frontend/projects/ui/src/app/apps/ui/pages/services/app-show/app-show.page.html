@@ -28,7 +28,7 @@
             <!-- ** installed && !backing-up ** -->
             <ng-container *ngIf="isInstalled(pkg) && !isBackingUp(status)">
               <!-- ** interfaces ** -->
-              <app-show-interfaces [pkg]="pkg"></app-show-interfaces>
+              <app-show-interfaces [pkg]="pkg.installed!"></app-show-interfaces>
               <!-- ** health checks ** -->
               <app-show-health-checks
                 *ngIf="isRunning(status)"
@@ -40,7 +40,7 @@
                 [dependencies]="dependencies"
               ></app-show-dependencies>
               <!-- ** menu ** -->
-              <app-show-menu [buttons]="pkg | toButtons"></app-show-menu>
+              <app-show-menu [pkg]="pkg"></app-show-menu>
               <!-- ** additional ** -->
               <app-show-additional [pkg]="pkg"></app-show-additional>
             </ng-container>

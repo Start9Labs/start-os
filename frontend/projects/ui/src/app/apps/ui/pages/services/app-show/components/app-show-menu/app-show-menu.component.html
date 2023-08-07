@@ -1,15 +1,96 @@
 <ion-item-divider>Menu</ion-item-divider>
+
+<!-- instructions -->
 <ion-item
-  *ngFor="let button of buttons"
   button
   detail
-  (click)="button.action()"
-  [disabled]="button.disabled"
-  [ngClass]="{ highlighted: button.highlighted$ | async }"
+  (click)="presentModalInstructions()"
+  [ngClass]="{ highlighted: highlighted$ | async }"
 >
-  <ion-icon slot="start" [name]="button.icon"></ion-icon>
+  <ion-icon slot="start" name="list-outline"></ion-icon>
   <ion-label>
-    <h2>{{ button.title }}</h2>
-    <p *ngIf="button.description">{{ button.description }}</p>
+    <h2>Instructions</h2>
+    <p>Understand how to use {{ pkg.manifest.title }}</p>
   </ion-label>
 </ion-item>
+
+<!-- config -->
+<ion-item button detail (click)="openConfig()">
+  <ion-icon slot="start" name="options-outline"></ion-icon>
+  <ion-label>
+    <h2>Config</h2>
+    <p>Customize {{ pkg.manifest.title }}</p>
+  </ion-label>
+</ion-item>
+
+<!-- credentials -->
+<ion-item button detail (click)="navigate('credentials')">
+  <ion-icon slot="start" name="key-outline"></ion-icon>
+  <ion-label>
+    <h2>Credentials</h2>
+    <p>Password, keys, or other credentials of interest</p>
+  </ion-label>
+</ion-item>
+
+<!-- actions -->
+<ion-item button detail (click)="navigate('actions')">
+  <ion-icon slot="start" name="flash-outline"></ion-icon>
+  <ion-label>
+    <h2>Actions</h2>
+    <p>Uninstall and other commands specific to {{ pkg.manifest.title }}</p>
+  </ion-label>
+</ion-item>
+
+<!-- outbound proxy -->
+<ion-item button detail (click)="setOutboundProxy()">
+  <ion-icon slot="start" name="shield-outline"></ion-icon>
+  <ion-label>
+    <h2>Outbound Proxy</h2>
+    <p>Proxy all outbound traffic from {{ pkg.manifest.title }}</p>
+    <p *ngIf="{ value: pkg.installed?.outboundProxy } as proxy">
+      <ion-text [color]="proxy.value ? 'success' : 'warning'">
+        {{
+          !proxy.value
+            ? 'None'
+            : proxy.value === 'primary'
+            ? 'System Primary'
+            : proxy.value === 'mirror'
+            ? 'Mirror P2P'
+            : proxy.value.proxyId
+        }}
+      </ion-text>
+    </p>
+  </ion-label>
+</ion-item>
+
+<!-- logs -->
+<ion-item button detail (click)="navigate('logs')">
+  <ion-icon slot="start" name="receipt-outline"></ion-icon>
+  <ion-label>
+    <h2>Logs</h2>
+    <p>Raw, unfiltered logs</p>
+  </ion-label>
+</ion-item>
+
+<!-- marketplace -->
+<ion-item
+  *ngIf="pkg.installed?.['marketplace-url'] as url; else sideloaded"
+  button
+  detail
+  (click)="navigate('/marketplace/' + pkg.manifest.id, { url })"
+>
+  <ion-icon slot="start" name="storefront-outline"></ion-icon>
+  <ion-label>
+    <h2>Marketplace Listing</h2>
+    <p>View service in the marketplace</p>
+  </ion-label>
+</ion-item>
+<ng-template #sideloaded>
+  <ion-item button detail disabled (click)="({})">
+    <ion-icon slot="start" name="storefront-outline"></ion-icon>
+    <ion-label>
+      <h2>Marketplace Listing</h2>
+      <p>This package was not installed from the marketplace</p>
+    </ion-label>
+  </ion-item>
+</ng-template>

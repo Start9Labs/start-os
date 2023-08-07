@@ -91,9 +91,9 @@ export type DomainInfo = {
   subdomain: string | null
 }
 
-export type InboundProxy = { proxyId: string } | 'primaryProxy' | null
+export type InboundProxy = { proxyId: string } | 'primary' | null
 export type OsOutboundProxy = InboundProxy
-export type ServiceOutboundProxy = OsOutboundProxy | 'primaryInterface'
+export type ServiceOutboundProxy = OsOutboundProxy | 'mirror'
 
 export type PortForward = {
   assigned: number

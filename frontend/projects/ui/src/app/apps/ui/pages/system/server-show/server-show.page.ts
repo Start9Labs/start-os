@@ -512,7 +512,7 @@ export class ServerShowPage {
     ],
     Logs: [
       {
-        title: 'System Resources',
+        title: 'Activity Monitor',
         description: 'CPU, disk, memory, and other useful metrics',
         icon: 'pulse',
         action: () =>
