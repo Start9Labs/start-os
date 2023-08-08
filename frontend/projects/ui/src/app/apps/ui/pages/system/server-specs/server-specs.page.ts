@@ -22,12 +22,4 @@ export class ServerSpecsPage {
   get gitHash(): string {
     return this.config.gitHash
   }
-
-  launch(url: string): void {
-    window.open(url, '_blank', 'noreferrer')
-  }
-
-  asIsOrder(a: any, b: any) {
-    return 0
-  }
 }
