@@ -1,6 +1,11 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { TuiBadgedContentModule } from '@taiga-ui/kit'
-import { TuiButtonModule } from '@taiga-ui/core'
+import {
+  TuiButtonModule,
+  TuiDataListModule,
+  TuiHostedDropdownModule,
+  TuiSvgModule,
+} from '@taiga-ui/core'
 
 @Component({
   selector: 'header[appHeader]',
@@ -8,6 +13,12 @@ import { TuiButtonModule } from '@taiga-ui/core'
   styleUrls: ['header.component.scss'],
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiBadgedContentModule, TuiButtonModule],
+  imports: [
+    TuiBadgedContentModule,
+    TuiButtonModule,
+    TuiHostedDropdownModule,
+    TuiDataListModule,
+    TuiSvgModule,
+  ],
 })
 export class HeaderComponent {}

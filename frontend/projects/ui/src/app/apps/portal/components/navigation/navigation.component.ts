@@ -1,7 +1,7 @@
 import { CommonModule, Location } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { RouterModule } from '@angular/router'
-import { TuiButtonModule } from '@taiga-ui/core'
+import { TuiButtonModule, TuiSvgModule } from '@taiga-ui/core'
 import { NavigationItem, NavigationService } from './navigation.service'
 
 @Component({
@@ -10,7 +10,7 @@ import { NavigationItem, NavigationService } from './navigation.service'
   styleUrls: ['navigation.component.scss'],
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, RouterModule, TuiButtonModule],
+  imports: [CommonModule, RouterModule, TuiButtonModule, TuiSvgModule],
 })
 export class NavigationComponent {
   private readonly location = inject(Location)

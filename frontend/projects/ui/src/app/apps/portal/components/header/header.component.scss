@@ -5,9 +5,14 @@
   padding: 0 1rem 0 2rem;
   font-size: 1.5rem;
   // TODO: Theme
-  background: rgb(51 51 51 / 74%);
+  background: rgb(51 51 51 / 84%);
 }
 
 .toolbar {
   margin-left: auto;
+}
+
+.item {
+  justify-content: flex-start;
+  gap: 0.75rem;
 }

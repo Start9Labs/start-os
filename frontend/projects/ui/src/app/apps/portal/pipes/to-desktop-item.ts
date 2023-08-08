@@ -9,8 +9,6 @@ import { toRouterLink } from '../utils/to-router-link'
   standalone: true,
 })
 export class ToDesktopItemPipe implements PipeTransform {
-  private readonly system = SYSTEM_UTILITIES
-
   transform(
     packages: Record<string, PackageDataEntry>,
     id: string,
@@ -24,6 +22,7 @@ export class ToDesktopItemPipe implements PipeTransform {
       return {
         icon: item.icon,
         title: item.title,
+        isService: false,
         routerLink,
       }
     }
@@ -31,6 +30,7 @@ export class ToDesktopItemPipe implements PipeTransform {
     return {
       icon: packages[id].icon,
       title: packages[id].manifest.title,
+      isService: true,
       routerLink,
     }
   }

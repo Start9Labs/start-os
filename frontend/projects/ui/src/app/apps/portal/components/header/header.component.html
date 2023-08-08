@@ -8,4 +8,59 @@
       Notifications
     </button>
   </tui-badged-content>
+
+  <tui-hosted-dropdown
+    #dropdown
+    [content]="content"
+    (click.stop.prevent)="(0)"
+    (pointerdown.stop)="(0)"
+  >
+    <button tuiIconButton appearance="">
+      <img style="max-width: 62%" src="assets/img/icon.png" alt="StartOS" />
+    </button>
+    <ng-template #content>
+      <tui-data-list>
+        <tui-opt-group>
+          <button tuiOption class="item" (click)="({})">
+            <tui-svg src="tuiIconMoreHorizontal"></tui-svg>
+            About this server
+          </button>
+        </tui-opt-group>
+        <tui-opt-group>
+          <button tuiOption class="item" (click)="({})">
+            <tui-svg src="tuiIconMoreHorizontal"></tui-svg>
+            User Manual
+          </button>
+          <button tuiOption class="item" (click)="({})">
+            <tui-svg src="tuiIconMoreHorizontal"></tui-svg>
+            Contact Support
+          </button>
+          <button tuiOption class="item" (click)="({})">
+            <tui-svg src="tuiIconMoreHorizontal"></tui-svg>
+            Donate to Start9
+          </button>
+        </tui-opt-group>
+        <tui-opt-group>
+          <button tuiOption class="item" (click)="({})">
+            <tui-svg src="tuiIconMoreHorizontal"></tui-svg>
+            System Rebuild
+          </button>
+          <button tuiOption class="item" (click)="({})">
+            <tui-svg src="tuiIconMoreHorizontal"></tui-svg>
+            Restart
+          </button>
+          <button tuiOption class="item" (click)="({})">
+            <tui-svg src="tuiIconMoreHorizontal"></tui-svg>
+            Shutdown
+          </button>
+        </tui-opt-group>
+        <tui-opt-group>
+          <button tuiOption class="item" (click)="({})">
+            <tui-svg src="tuiIconMoreHorizontal"></tui-svg>
+            Logout
+          </button>
+        </tui-opt-group>
+      </tui-data-list>
+    </ng-template>
+  </tui-hosted-dropdown>
 </div>

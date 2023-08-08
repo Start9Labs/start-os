@@ -26,6 +26,7 @@
         [id]="item.key"
         [title]="item.value.title"
         [icon]="item.value.icon"
+        [isService]="false"
         [routerLink]="item.key"
         (click)="open = false"
       ></a>
@@ -42,6 +43,7 @@
         [id]="item.manifest.id"
         [icon]="item.icon"
         [title]="item.manifest.title"
+        [isService]="true"
         [routerLink]="getLink(item.manifest.id)"
         (click)="open = false"
       ></a>

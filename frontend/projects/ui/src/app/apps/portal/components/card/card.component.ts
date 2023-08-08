@@ -38,23 +38,26 @@ import { toRouterLink } from '../../utils/to-router-link'
 export class CardComponent {
   private readonly navigation = inject(NavigationService)
 
-  @Input()
-  id = ''
+  @Input({ required: true })
+  id!: string
 
-  @Input()
-  icon = ''
+  @Input({ required: true })
+  icon!: string
 
-  @Input()
-  title = ''
+  @Input({ required: true })
+  title!: string
+
+  @Input({ required: true })
+  isService!: boolean
 
   @Input()
   actions: Record<string, readonly Action[]> = {}
 
   @HostListener('click')
   onClick() {
-    const { id, icon, title } = this
+    const { id, icon, title, isService } = this
     const routerLink = toRouterLink(id)
 
-    this.navigation.addTab({ icon, title, routerLink })
+    this.navigation.addTab({ icon, title, isService, routerLink })
   }
 }

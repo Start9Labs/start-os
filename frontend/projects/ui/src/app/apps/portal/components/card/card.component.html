@@ -2,7 +2,7 @@
   <img alt="" class="icon" [src]="icon" />
   <label ticker class="title">{{ title }}</label>
 </span>
-<span class="side">
+<span *ngIf="isService" class="side">
   <tui-hosted-dropdown
     #dropdown
     [content]="content"
