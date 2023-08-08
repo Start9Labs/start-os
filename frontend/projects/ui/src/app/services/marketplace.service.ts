@@ -215,10 +215,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
     return this.patch.watch$('server-info').pipe(
       take(1),
       switchMap(serverInfo => {
-        const qp: RR.GetMarketplaceInfoReq = {
-          'server-id': serverInfo.id,
-          'eos-version': serverInfo.version,
-        }
+        const qp: RR.GetMarketplaceInfoReq = { 'server-id': serverInfo.id }
         return this.api.marketplaceProxy<RR.GetMarketplaceInfoRes>(
           '/package/v0/info',
           qp,
@@ -272,28 +269,21 @@ export class MarketplaceService implements AbstractMarketplaceService {
 
   private fetchPackages$(
     url: string,
-    params: Omit<
-      RR.GetMarketplacePackagesReq,
-      'eos-version-compat' | 'page' | 'per-page'
-    > = {},
+    params: Omit<RR.GetMarketplacePackagesReq, 'page' | 'per-page'> = {},
   ): Observable<MarketplacePkg[]> {
-    return this.patch.watch$('server-info', 'eos-version-compat').pipe(
-      take(1),
-      switchMap(versionCompat => {
-        const qp: RR.GetMarketplacePackagesReq = {
-          ...params,
-          'eos-version-compat': versionCompat,
-          page: 1,
-          'per-page': 100,
-        }
-        if (qp.ids) qp.ids = JSON.stringify(qp.ids)
+    const qp: RR.GetMarketplacePackagesReq = {
+      ...params,
+      page: 1,
+      'per-page': 100,
+    }
+    if (qp.ids) qp.ids = JSON.stringify(qp.ids)
 
-        return this.api.marketplaceProxy<RR.GetMarketplacePackagesRes>(
-          '/package/v0/index',
-          qp,
-          url,
-        )
-      }),
+    return from(
+      this.api.marketplaceProxy<RR.GetMarketplacePackagesRes>(
+        '/package/v0/index',
+        qp,
+        url,
+      ),
     )
   }
 

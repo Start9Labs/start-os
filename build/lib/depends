@@ -24,6 +24,7 @@ iw
 jq
 libavahi-client3
 lm-sensors
+lshw
 lvm2
 magic-wormhole
 man-db

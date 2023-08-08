@@ -251,7 +251,7 @@ impl<'de> Deserialize<'de> for Percentage {
 }
 
 #[derive(Clone, Debug)]
-pub struct MebiBytes(f64);
+pub struct MebiBytes(pub f64);
 impl Serialize for MebiBytes {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -310,19 +310,19 @@ pub struct MetricsGeneral {
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct MetricsMemory {
     #[serde(rename = "Percentage Used")]
-    percentage_used: Percentage,
+    pub percentage_used: Percentage,
     #[serde(rename = "Total")]
-    total: MebiBytes,
+    pub total: MebiBytes,
     #[serde(rename = "Available")]
-    available: MebiBytes,
+    pub available: MebiBytes,
     #[serde(rename = "Used")]
-    used: MebiBytes,
+    pub used: MebiBytes,
     #[serde(rename = "Swap Total")]
-    swap_total: MebiBytes,
+    pub swap_total: MebiBytes,
     #[serde(rename = "Swap Free")]
-    swap_free: MebiBytes,
+    pub swap_free: MebiBytes,
     #[serde(rename = "Swap Used")]
-    swap_used: MebiBytes,
+    pub swap_used: MebiBytes,
 }
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct MetricsCpu {
@@ -698,7 +698,7 @@ pub struct MemInfo {
     swap_free: Option<u64>,
 }
 #[instrument(skip_all)]
-async fn get_mem_info() -> Result<MetricsMemory, Error> {
+pub async fn get_mem_info() -> Result<MetricsMemory, Error> {
     let contents = tokio::fs::read_to_string("/proc/meminfo").await?;
     let mut mem_info = MemInfo {
         mem_total: None,

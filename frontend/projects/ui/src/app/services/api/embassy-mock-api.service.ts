@@ -363,7 +363,6 @@ export class MockApiService extends ApiService {
     path: string,
     params: Record<string, string>,
     url: string,
-    arch = '',
   ): Promise<any> {
     await pauseFor(2000)
 
