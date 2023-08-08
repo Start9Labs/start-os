@@ -8,7 +8,7 @@
   >
     <ng-container *ngIf="details$ | async as details">
       <tui-notification [status]="details.color" class="p-4">
-        {{ details.description }}
+        <p class="text-[0.9rem]">{{ details.description }}</p>
       </tui-notification>
     </ng-container>
     <div class="mt-8 px-6 mb-10">
@@ -32,7 +32,7 @@
         </li>
       </ul>
       <ng-template #categoryEmpty>
-        <p class="px-6">No services in this category</p>
+        <p class="px-6 text-lg">No services in this category</p>
       </ng-template>
     </section>
   </main>

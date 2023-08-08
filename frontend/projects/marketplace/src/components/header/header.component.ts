@@ -10,6 +10,7 @@ import { combineLatest, map, Subject, takeUntil, tap } from 'rxjs'
 import { StoreIdentity } from '../../../src/types'
 import { AbstractMarketplaceService } from '../../services/marketplace.service'
 import { AbstractCategoryService } from '../../services/category.service'
+import { Router } from '@angular/router'
 
 @Component({
   selector: 'marketplace-header',
@@ -20,6 +21,7 @@ import { AbstractCategoryService } from '../../services/category.service'
 export class HeaderComponent implements OnDestroy {
   constructor(
     @Inject(TuiDialogService) private readonly dialogs: TuiDialogService,
+    private readonly router: Router,
   ) {}
 
   private destroy$ = new Subject<void>()
@@ -69,11 +71,13 @@ export class HeaderComponent implements OnDestroy {
     this.query = ''
     this.categoryService.resetQuery()
     this.categoryService.changeCategory(category)
+    this.router.navigate(['/marketplace'], { replaceUrl: true })
   }
 
   onQueryChange(query: string): void {
     this.query = query
     this.categoryService.setQuery(query)
+    this.router.navigate(['/marketplace'], { replaceUrl: true })
   }
 
   toggleMenu(open: boolean): void {
