@@ -135,7 +135,6 @@ export abstract class ApiService {
     path: string,
     params: Record<string, unknown>,
     url: string,
-    arch?: string,
   ): Promise<T>
 
   abstract getEos(): Promise<RR.GetMarketplaceEosRes>

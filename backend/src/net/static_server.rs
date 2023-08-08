@@ -38,6 +38,8 @@ static NOT_AUTHORIZED: &[u8] = b"Not Authorized";
 
 static EMBEDDED_UIS: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../frontend/dist/static");
 
+const PROXY_STRIP_HEADERS: &[&str] = &["cookie", "host", "origin", "referer", "user-agent"];
+
 fn status_fn(_: i32) -> StatusCode {
     StatusCode::OK
 }
@@ -236,15 +238,6 @@ pub async fn main_ui_server_router(ctx: RpcContext) -> Result<HttpHandler, Error
 
 async fn alt_ui(req: Request<Body>, ui_mode: UiMode) -> Result<Response<Body>, Error> {
     let (request_parts, _body) = req.into_parts();
-    let accept_encoding = request_parts
-        .headers
-        .get_all(ACCEPT_ENCODING)
-        .into_iter()
-        .filter_map(|h| h.to_str().ok())
-        .flat_map(|s| s.split(","))
-        .filter_map(|s| s.split(";").next())
-        .map(|s| s.trim())
-        .collect::<Vec<_>>();
     match &request_parts.method {
         &Method::GET => {
             let uri_path = ui_mode.path(
@@ -305,6 +298,40 @@ async fn main_embassy_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response
                     }
                 }
                 Err(e) => un_authorized(e, &format!("public/{path}")),
+            }
+        }
+        (&Method::GET, Some(("proxy", target))) => {
+            match HasValidSession::from_request_parts(&request_parts, &ctx).await {
+                Ok(_) => {
+                    let target = urlencoding::decode(target)?;
+                    let res = ctx
+                        .client
+                        .get(target.as_ref())
+                        .headers(
+                            request_parts
+                                .headers
+                                .iter()
+                                .filter(|(h, _)| {
+                                    !PROXY_STRIP_HEADERS
+                                        .iter()
+                                        .any(|bad| h.as_str().eq_ignore_ascii_case(bad))
+                                })
+                                .map(|(h, v)| (h.clone(), v.clone()))
+                                .collect(),
+                        )
+                        .send()
+                        .await
+                        .with_kind(crate::ErrorKind::Network)?;
+                    let mut hres = Response::builder().status(res.status());
+                    for (h, v) in res.headers().clone() {
+                        if let Some(h) = h {
+                            hres = hres.header(h, v);
+                        }
+                    }
+                    hres.body(Body::wrap_stream(res.bytes_stream()))
+                        .with_kind(crate::ErrorKind::Network)
+                }
+                Err(e) => un_authorized(e, &format!("proxy/{target}")),
             }
         }
         (&Method::GET, Some(("eos", "local.crt"))) => {
@@ -549,9 +576,4 @@ fn e_tag(path: &Path, metadata: Option<&Metadata>) -> String {
         "\"{}\"",
         base32::encode(base32::Alphabet::RFC4648 { padding: false }, res.as_slice()).to_lowercase()
     )
-}
-
-#[test]
-fn test_packed_html() {
-    assert!(MainUi::get("index.html").is_some())
 }

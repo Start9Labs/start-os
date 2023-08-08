@@ -379,19 +379,14 @@ export module RR {
 
   // marketplace
 
-  export type EnvInfo = {
-    'server-id': string
-    'eos-version': string
-  }
-  export type GetMarketplaceInfoReq = EnvInfo
+  export type GetMarketplaceInfoReq = { 'server-id': string }
   export type GetMarketplaceInfoRes = StoreInfo
 
-  export type GetMarketplaceEosReq = EnvInfo
+  export type GetMarketplaceEosReq = { 'server-id': string }
   export type GetMarketplaceEosRes = MarketplaceEOS
 
   export type GetMarketplacePackagesReq = {
     ids?: { id: string; version: string }[]
-    'eos-version-compat': string
     // iff !ids
     category?: string
     query?: string
