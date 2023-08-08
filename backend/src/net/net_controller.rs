@@ -310,7 +310,7 @@ impl NetService {
                 .await?,
         );
         self.lan.insert(lan_idx, lan);
-        Ok(addr)
+        Ok(())
     }
     pub async fn remove_lan(&mut self, id: InterfaceId, external: u16) -> Result<(), Error> {
         let ctrl = self.net_controller()?;

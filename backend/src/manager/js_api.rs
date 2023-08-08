@@ -13,6 +13,7 @@ use crate::{
     config::hook::ConfigHook,
     manager::{start_stop::StartStop, Manager},
     net::keys::Key,
+    net::vhost::AlpnInfo,
 };
 
 use super::try_get_running_ip;
@@ -96,7 +97,13 @@ impl OsApi for Manager {
         let mut tx = secrets.begin().await?;
 
         let addr = svc
-            .add_lan(&mut tx, id.clone(), external_port, internal_port, false)
+            .add_lan(
+                &mut tx,
+                id.clone(),
+                external_port,
+                internal_port,
+                Err(AlpnInfo::Specified(vec![])),
+            )
             .await
             .map_err(|e| eyre!("Could not add to local: {e:?}"))?;
 

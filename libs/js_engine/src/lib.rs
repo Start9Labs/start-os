@@ -425,7 +425,7 @@ impl<'a> Future for RuntimeEventLoop<'a> {
         if let Poll::Ready(Some((uuid, args))) = this.callback_receiver.poll_recv(cx) {
             match this.runtime.execute_script(
                 "callback",
-                &format!("globalThis.runCallback(\"{uuid}\", {})", Value::Array(args)),
+                format!("globalThis.runCallback(\"{uuid}\", {})", Value::Array(args)).into(),
             ) {
                 Ok(_) => (),
                 Err(e) => return Poll::Ready(Err(e)),
