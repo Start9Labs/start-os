@@ -145,7 +145,7 @@ pub async fn install(
 ) -> Result<(), Error> {
     let version_str = match &version_spec {
         None => "*",
-        Some(v) => &*v,
+        Some(v) => v,
     };
     let version: VersionRange = version_str.parse()?;
     let marketplace_url =
@@ -368,7 +368,7 @@ pub async fn sideload(
                 "data:image/{};base64,",
                 manifest.assets.icon_type()
             ))
-            .ok_or_else(&invalid_data_url)?;
+            .ok_or_else(invalid_data_url)?;
         let mut icon_file =
             File::create(public_dir_path.join(format!("icon.{}", manifest.assets.icon_type())))
                 .await?;
@@ -427,7 +427,7 @@ pub async fn sideload(
                         static_files: StaticFiles::local(
                             &manifest.id,
                             &manifest.version,
-                            &manifest.assets.icon_type(),
+                            manifest.assets.icon_type(),
                         ),
                         manifest: manifest.clone(),
                     })
@@ -489,7 +489,7 @@ pub async fn sideload(
                 }
             });
 
-            if let Ok(_) = recv.await {
+            if recv.await.is_ok() {
                 Response::builder()
                     .status(StatusCode::OK)
                     .body(Body::empty())
@@ -561,7 +561,7 @@ async fn cli_install(
             tracing::info!("Package Upload failed: {}", res.text().await?)
         }
     } else {
-        let params = match (target.split_once("@"), version_spec) {
+        let params = match (target.split_once('@'), version_spec) {
             (Some((pkg, v)), None) => {
                 serde_json::json!({ "id": pkg, "marketplace-url": marketplace_url, "version-spec": v, "version-priority": version_priority })
             }
@@ -710,7 +710,7 @@ impl DownloadInstallReceipts {
         let mut locks = Vec::new();
 
         let setup = Self::setup(&mut locks, id);
-        Ok(setup(&db.lock_all(locks).await?)?)
+        setup(&db.lock_all(locks).await?)
     }
 
     pub fn setup(
@@ -745,7 +745,7 @@ pub async fn download_install_s9pk(
     if let Err(e) = async {
         if crate::db::DatabaseModel::new()
             .package_data()
-            .idx_model(&pkg_id)
+            .idx_model(pkg_id)
             .and_then(|x| x.installed())
             .exists(&mut ctx.db.handle())
             .await
@@ -757,7 +757,7 @@ pub async fn download_install_s9pk(
         }
         let mut db_handle = ctx.db.handle();
         let mut tx = db_handle.begin().await?;
-        let receipts = DownloadInstallReceipts::new(&mut tx, &pkg_id).await?;
+        let receipts = DownloadInstallReceipts::new(&mut tx, pkg_id).await?;
         // Build set of existing manifests
         let mut manifests = Vec::new();
         for pkg in crate::db::package::get_packages(&mut tx, &receipts.package_receipts).await? {
@@ -847,7 +847,7 @@ pub async fn download_install_s9pk(
             .await?;
 
         install_s9pk(
-            &ctx,
+            ctx,
             pkg_id,
             version,
             marketplace_url,
@@ -868,7 +868,7 @@ pub async fn download_install_s9pk(
         let mut tx = handle.begin().await?;
         let receipts = cleanup::CleanupFailedReceipts::new(&mut tx).await?;
 
-        if let Err(e) = cleanup_failed(&ctx, &mut tx, pkg_id, &receipts).await {
+        if let Err(e) = cleanup_failed(ctx, &mut tx, pkg_id, &receipts).await {
             tracing::error!("Failed to clean up {}@{}: {}", pkg_id, version, e);
             tracing::debug!("{:?}", e);
         } else {
@@ -888,11 +888,11 @@ pub struct InstallS9Receipts {
 }
 
 impl InstallS9Receipts {
-    pub async fn new<'a>(db: &'a mut impl DbHandle) -> Result<Self, Error> {
+    pub async fn new(db: &mut impl DbHandle) -> Result<Self, Error> {
         let mut locks = Vec::new();
 
         let setup = Self::setup(&mut locks);
-        Ok(setup(&db.lock_all(locks).await?)?)
+        setup(&db.lock_all(locks).await?)
     }
 
     pub fn setup(
@@ -918,7 +918,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
 ) -> Result<(), Error> {
     rdr.validate().await?;
     rdr.validated();
-    let developer_key = rdr.developer_key().clone();
+    let developer_key = *rdr.developer_key();
     rdr.reset().await?;
     let model = crate::db::DatabaseModel::new()
         .package_data()
@@ -1046,7 +1046,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         .await?;
     tracing::info!("Install {}@{}: Unpacked INSTRUCTIONS.md", pkg_id, version);
 
-    let icon_path = Path::new("icon").with_extension(&manifest.assets.icon_type());
+    let icon_path = Path::new("icon").with_extension(manifest.assets.icon_type());
     tracing::info!(
         "Install {}@{}: Unpacking {}",
         pkg_id,
@@ -1134,7 +1134,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
 
     let mut handle = ctx.db.handle();
     let mut tx = handle.begin().await?;
-    let mut sql_tx = ctx.secret_store.begin().await?;
+    let sql_tx = ctx.secret_store.begin().await?;
     crate::db::DatabaseModel::new()
         .package_data()
         .lock(&mut tx, LockType::Write)
@@ -1281,7 +1281,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         installed: prev, ..
     } = prev
     {
-        let prev_is_configured = prev.status.configured;
+        // let prev_is_configured = prev.status.configured;
         // TODO BLUJ
         // let prev_migration = prev
         //     .manifest
@@ -1527,20 +1527,20 @@ pub fn load_images<'a, P: AsRef<Path> + 'a + Send + Sync>(
 }
 
 fn ssl_port_status(manifests: &Vec<Manifest>) -> BTreeMap<Port, (bool, PackageId)> {
-    let mut ret = BTreeMap::new();
-    for m in manifests {
+    let ret = BTreeMap::new();
+    // for m in manifests {
 
-        // TODO BLUJ
-        // for (_id, iface) in &m.interfaces.0 {
-        //     match &iface.lan_config {
-        //         None => {}
-        //         Some(cfg) => {
-        //             for (p, lan) in cfg {
-        //                 ret.insert(p.clone(), (lan.ssl, m.id.clone()));
-        //             }
-        //         }
-        //     }
-        // }
-    }
+    //     // TODO BLUJ
+    //     // for (_id, iface) in &m.interfaces.0 {
+    //     //     match &iface.lan_config {
+    //     //         None => {}
+    //     //         Some(cfg) => {
+    //     //             for (p, lan) in cfg {
+    //     //                 ret.insert(p.clone(), (lan.ssl, m.id.clone()));
+    //     //             }
+    //     //         }
+    //     //     }
+    //     // }
+    // }
     ret
 }

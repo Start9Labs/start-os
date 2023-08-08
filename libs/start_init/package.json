@@ -18,6 +18,7 @@
     "@iarna/toml": "^2.2.5",
     "@start9labs/start-sdk": "=0.4.0-rev0.lib0.rc8.alpha3",
     "esbuild": "0.18.4",
+    "esbuild-plugin-resolve": "^2.0.0",
     "filebrowser": "^1.0.0",
     "isomorphic-fetch": "^3.0.0",
     "ts-matches": "^5.4.1",

@@ -63,9 +63,11 @@ pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> R
                 "Failed to bundle service: {}",
                 String::from_utf8_lossy(&output.stderr)
             );
-            return Err(
-                Error::new(eyre!("Failed to bundle script procedures"), ErrorKind::Pack).into(),
-            );
+            return Err(Error::new(
+                eyre!("Failed to bundle script procedures",),
+                ErrorKind::Pack,
+            )
+            .into());
         }
         output.stdout
     };
@@ -110,39 +112,36 @@ pub async fn pack(#[context] ctx: SdkContext, #[arg] path: Option<PathBuf>) -> R
     let outfile_path = path.join(format!("{}.s9pk", manifest.id));
 
     let mut outfile = File::create(outfile_path).await?;
+    let license = File::open(path.join(manifest.assets.license_path()))
+        .await
+        .with_ctx(|_| {
+            (
+                crate::ErrorKind::Filesystem,
+                manifest.assets.license_path().display().to_string(),
+            )
+        })?;
+    let icon = File::open(path.join(manifest.assets.icon_path()))
+        .await
+        .with_ctx(|_| {
+            (
+                crate::ErrorKind::Filesystem,
+                manifest.assets.icon_path().display().to_string(),
+            )
+        })?;
+    let instructions = File::open(path.join(manifest.assets.instructions_path()))
+        .await
+        .with_ctx(|_| {
+            (
+                crate::ErrorKind::Filesystem,
+                manifest.assets.instructions_path().display().to_string(),
+            )
+        })?;
     S9pkPacker::builder()
         .manifest(&manifest)
         .writer(&mut outfile)
-        .license(
-            File::open(path.join(manifest.assets.license_path()))
-                .await
-                .with_ctx(|_| {
-                    (
-                        crate::ErrorKind::Filesystem,
-                        manifest.assets.license_path().display().to_string(),
-                    )
-                })?,
-        )
-        .icon(
-            File::open(path.join(manifest.assets.icon_path()))
-                .await
-                .with_ctx(|_| {
-                    (
-                        crate::ErrorKind::Filesystem,
-                        manifest.assets.icon_path().display().to_string(),
-                    )
-                })?,
-        )
-        .instructions(
-            File::open(path.join(manifest.assets.instructions_path()))
-                .await
-                .with_ctx(|_| {
-                    (
-                        crate::ErrorKind::Filesystem,
-                        manifest.assets.instructions_path().display().to_string(),
-                    )
-                })?,
-        )
+        .license(license)
+        .icon(icon)
+        .instructions(instructions)
         .docker_images({
             let docker_images_path = path.join(manifest.assets.docker_images_path());
             let res: Box<dyn AsyncRead + Unpin + Send + Sync> =

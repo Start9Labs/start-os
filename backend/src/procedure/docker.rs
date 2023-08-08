@@ -24,13 +24,10 @@ use tokio::time::timeout;
 use tracing::instrument;
 
 use super::ProcedureName;
+use crate::s9pk::manifest::{PackageId, SYSTEM_PACKAGE_ID};
 use crate::util::Version;
 use crate::volume::{VolumeId, Volumes};
 use crate::{context::RpcContext, manager::manager_seed::ManagerSeed};
-use crate::{
-    manager,
-    s9pk::manifest::{PackageId, SYSTEM_PACKAGE_ID},
-};
 use crate::{
     manager::persistent_container::PersistantPaths,
     util::serde::{Duration as SerdeDuration, IoFormat},
@@ -204,7 +201,7 @@ impl DockerProcedure {
         image_ids: &BTreeSet<ImageId>,
         expected_io: bool,
     ) -> Result<(), color_eyre::eyre::Report> {
-        for (volume, _) in &self.mounts {
+        for volume in self.mounts.keys() {
             if !volumes.contains_key(volume) && !matches!(&volume, &VolumeId::Backup) {
                 color_eyre::eyre::bail!("unknown volume: {}", volume);
             }
@@ -261,7 +258,7 @@ impl DockerProcedure {
             }) => Ok(()),
             Err(e) => Err(e),
         }?;
-        cmd.args(self.docker_args(&seed, &seed.manifest.volumes).await?);
+        cmd.args(self.docker_args(seed, &seed.manifest.volumes).await?);
         let input_buf = if let (Some(input), Some(format)) = (&input, &self.io_format) {
             cmd.stdin(std::process::Stdio::piped());
             Some(format.to_vec(input)?)
@@ -557,7 +554,7 @@ impl DockerProcedure {
         &self,
         seed: &ManagerSeed,
         input: Option<I>,
-        timeout: Option<Duration>,
+        _timeout: Option<Duration>,
     ) -> Result<Result<O, (i32, String)>, Error> {
         let mut cmd = tokio::process::Command::new("docker");
         cmd.arg("run").arg("--rm").arg("--network=none");
@@ -728,7 +725,7 @@ impl DockerProcedure {
                         if fty.is_block_device() || fty.is_char_device() {
                             res.push(entry.path());
                         } else if fty.is_dir() {
-                            get_devices(&*entry.path(), res).await?;
+                            get_devices(&entry.path(), res).await?;
                         }
                     }
                     Ok(())
@@ -747,7 +744,7 @@ impl DockerProcedure {
         res.push(OsStr::new("--entrypoint").into());
         res.push(OsStr::new(&self.entrypoint).into());
         if self.system {
-            res.push(OsString::from(self.image.for_package(&*SYSTEM_PACKAGE_ID, None)).into());
+            res.push(OsString::from(self.image.for_package(&SYSTEM_PACKAGE_ID, None)).into());
         } else {
             res.push(
                 OsString::from(
@@ -825,7 +822,6 @@ impl LongRunning {
         container_name: &str,
         paths: Arc<PersistantPaths>,
     ) -> Result<tokio::process::Command, Error> {
-        const BIND_LOCATION: &str = "/usr/lib/embassy/container/";
         tracing::trace!("setup_long_running_docker_cmd");
 
         LongRunning::cleanup_previous_container(&seed.ctx, container_name).await?;
@@ -833,7 +829,7 @@ impl LongRunning {
         let package_version = &seed.manifest.version;
         let volumes = &seed.manifest.volumes;
 
-        let image_architecture = {
+        {
             let mut cmd = tokio::process::Command::new("docker");
             cmd.arg("image")
                 .arg("inspect")
@@ -841,7 +837,7 @@ impl LongRunning {
                 .arg("'{{.Architecture}}'");
 
             if docker.system {
-                cmd.arg(docker.image.for_package(&*SYSTEM_PACKAGE_ID, None));
+                cmd.arg(docker.image.for_package(&SYSTEM_PACKAGE_ID, None));
             } else {
                 cmd.arg(docker.image.for_package(package_id, Some(package_version)));
             }
@@ -900,7 +896,7 @@ impl LongRunning {
         }
         cmd.arg("--log-driver=journald");
         if docker.system {
-            cmd.arg(docker.image.for_package(&*SYSTEM_PACKAGE_ID, None));
+            cmd.arg(docker.image.for_package(&SYSTEM_PACKAGE_ID, None));
         } else {
             cmd.arg(docker.image.for_package(package_id, Some(package_version)));
         }
