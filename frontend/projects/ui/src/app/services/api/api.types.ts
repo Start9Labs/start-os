@@ -29,6 +29,12 @@ export module RR {
   export type LogoutReq = {} // auth.logout
   export type LogoutRes = null
 
+  export type ResetPasswordReq = {
+    'old-password': string
+    'new-password': string
+  } // auth.reset-password
+  export type ResetPasswordRes = null
+
   // server
 
   export type EchoReq = { message: string } // server.echo
@@ -85,11 +91,6 @@ export module RR {
 
   export type KillSessionsReq = { ids: string[] } // sessions.kill
   export type KillSessionsRes = null
-
-  // password
-
-  export type UpdatePasswordReq = { password: string } // password.set
-  export type UpdatePasswordRes = null
 
   // notification
 
@@ -309,19 +310,14 @@ export module RR {
 
   // marketplace
 
-  export type EnvInfo = {
-    'server-id': string
-    'eos-version': string
-  }
-  export type GetMarketplaceInfoReq = EnvInfo
+  export type GetMarketplaceInfoReq = { 'server-id': string }
   export type GetMarketplaceInfoRes = StoreInfo
 
-  export type GetMarketplaceEosReq = EnvInfo
+  export type GetMarketplaceEosReq = { 'server-id': string }
   export type GetMarketplaceEosRes = MarketplaceEOS
 
   export type GetMarketplacePackagesReq = {
     ids?: { id: string; version: string }[]
-    'eos-version-compat': string
     // iff !ids
     category?: string
     query?: string

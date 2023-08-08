@@ -1,16 +1,19 @@
+use std::borrow::Cow;
 use std::fs::Metadata;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::UNIX_EPOCH;
 
-use async_compression::tokio::bufread::{BrotliEncoder, GzipEncoder};
+use async_compression::tokio::bufread::GzipEncoder;
 use color_eyre::eyre::eyre;
 use digest::Digest;
 use futures::FutureExt;
-use http::header::{ACCEPT_ENCODING, CONTENT_ENCODING};
+use http::header::ACCEPT_ENCODING;
 use http::request::Parts as RequestParts;
 use http::response::Builder;
 use hyper::{Body, Method, Request, Response, StatusCode};
+use include_dir::{include_dir, Dir};
+use new_mime_guess::MimeGuess;
 use openssl::hash::MessageDigest;
 use openssl::x509::X509;
 use rpc_toolkit::rpc_handler;
@@ -33,10 +36,9 @@ static NOT_FOUND: &[u8] = b"Not Found";
 static METHOD_NOT_ALLOWED: &[u8] = b"Method Not Allowed";
 static NOT_AUTHORIZED: &[u8] = b"Not Authorized";
 
-pub const MAIN_UI_WWW_DIR: &str = "/var/www/html/main";
-pub const SETUP_UI_WWW_DIR: &str = "/var/www/html/setup";
-pub const DIAG_UI_WWW_DIR: &str = "/var/www/html/diagnostic";
-pub const INSTALL_UI_WWW_DIR: &str = "/var/www/html/install";
+static EMBEDDED_UIS: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../frontend/dist/static");
+
+const PROXY_STRIP_HEADERS: &[&str] = &["cookie", "host", "origin", "referer", "user-agent"];
 
 fn status_fn(_: i32) -> StatusCode {
     StatusCode::OK
@@ -48,6 +50,17 @@ pub enum UiMode {
     Diag,
     Install,
     Main,
+}
+
+impl UiMode {
+    fn path(&self, path: &str) -> PathBuf {
+        match self {
+            Self::Setup => Path::new("setup-wizard").join(path),
+            Self::Diag => Path::new("diagnostic-ui").join(path),
+            Self::Install => Path::new("install-wizard").join(path),
+            Self::Main => Path::new("ui").join(path),
+        }
+    }
 }
 
 pub async fn setup_ui_file_router(ctx: SetupContext) -> Result<HttpHandler, Error> {
@@ -224,65 +237,35 @@ pub async fn main_ui_server_router(ctx: RpcContext) -> Result<HttpHandler, Error
 }
 
 async fn alt_ui(req: Request<Body>, ui_mode: UiMode) -> Result<Response<Body>, Error> {
-    let selected_root_dir = match ui_mode {
-        UiMode::Setup => SETUP_UI_WWW_DIR,
-        UiMode::Diag => DIAG_UI_WWW_DIR,
-        UiMode::Install => INSTALL_UI_WWW_DIR,
-        UiMode::Main => MAIN_UI_WWW_DIR,
-    };
-
     let (request_parts, _body) = req.into_parts();
-    let accept_encoding = request_parts
-        .headers
-        .get_all(ACCEPT_ENCODING)
-        .into_iter()
-        .filter_map(|h| h.to_str().ok())
-        .flat_map(|s| s.split(","))
-        .filter_map(|s| s.split(";").next())
-        .map(|s| s.trim())
-        .collect::<Vec<_>>();
     match &request_parts.method {
         &Method::GET => {
-            let uri_path = request_parts
-                .uri
-                .path()
-                .strip_prefix('/')
-                .unwrap_or(request_parts.uri.path());
+            let uri_path = ui_mode.path(
+                request_parts
+                    .uri
+                    .path()
+                    .strip_prefix('/')
+                    .unwrap_or(request_parts.uri.path()),
+            );
 
-            let full_path = Path::new(selected_root_dir).join(uri_path);
-            file_send(
-                &request_parts,
-                if tokio::fs::metadata(&full_path)
+            let file = EMBEDDED_UIS
+                .get_file(&*uri_path)
+                .or_else(|| EMBEDDED_UIS.get_file(&*ui_mode.path("index.html")));
+
+            if let Some(file) = file {
+                FileData::from_embedded(&request_parts, file)
+                    .into_response(&request_parts)
                     .await
-                    .ok()
-                    .map(|f| f.is_file())
-                    .unwrap_or(false)
-                {
-                    full_path
-                } else {
-                    Path::new(selected_root_dir).join("index.html")
-                },
-                &accept_encoding,
-            )
-            .await
+            } else {
+                Ok(not_found())
+            }
         }
         _ => Ok(method_not_allowed()),
     }
 }
 
 async fn main_embassy_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response<Body>, Error> {
-    let selected_root_dir = MAIN_UI_WWW_DIR;
-
     let (request_parts, _body) = req.into_parts();
-    let accept_encoding = request_parts
-        .headers
-        .get_all(ACCEPT_ENCODING)
-        .into_iter()
-        .filter_map(|h| h.to_str().ok())
-        .flat_map(|s| s.split(","))
-        .filter_map(|s| s.split(";").next())
-        .map(|s| s.trim())
-        .collect::<Vec<_>>();
     match (
         &request_parts.method,
         request_parts
@@ -297,11 +280,12 @@ async fn main_embassy_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response
                 Ok(_) => {
                     let sub_path = Path::new(path);
                     if let Ok(rest) = sub_path.strip_prefix("package-data") {
-                        file_send(
+                        FileData::from_path(
                             &request_parts,
-                            ctx.datadir.join(PKG_PUBLIC_DIR).join(rest),
-                            &accept_encoding,
+                            &ctx.datadir.join(PKG_PUBLIC_DIR).join(rest),
                         )
+                        .await?
+                        .into_response(&request_parts)
                         .await
                     } else if let Ok(rest) = sub_path.strip_prefix("eos") {
                         match rest.to_str() {
@@ -316,6 +300,40 @@ async fn main_embassy_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response
                 Err(e) => un_authorized(e, &format!("public/{path}")),
             }
         }
+        (&Method::GET, Some(("proxy", target))) => {
+            match HasValidSession::from_request_parts(&request_parts, &ctx).await {
+                Ok(_) => {
+                    let target = urlencoding::decode(target)?;
+                    let res = ctx
+                        .client
+                        .get(target.as_ref())
+                        .headers(
+                            request_parts
+                                .headers
+                                .iter()
+                                .filter(|(h, _)| {
+                                    !PROXY_STRIP_HEADERS
+                                        .iter()
+                                        .any(|bad| h.as_str().eq_ignore_ascii_case(bad))
+                                })
+                                .map(|(h, v)| (h.clone(), v.clone()))
+                                .collect(),
+                        )
+                        .send()
+                        .await
+                        .with_kind(crate::ErrorKind::Network)?;
+                    let mut hres = Response::builder().status(res.status());
+                    for (h, v) in res.headers().clone() {
+                        if let Some(h) = h {
+                            hres = hres.header(h, v);
+                        }
+                    }
+                    hres.body(Body::wrap_stream(res.bytes_stream()))
+                        .with_kind(crate::ErrorKind::Network)
+                }
+                Err(e) => un_authorized(e, &format!("proxy/{target}")),
+            }
+        }
         (&Method::GET, Some(("eos", "local.crt"))) => {
             match HasValidSession::from_request_parts(&request_parts, &ctx).await {
                 Ok(_) => cert_send(&ctx.account.read().await.root_ca_cert),
@@ -323,28 +341,25 @@ async fn main_embassy_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response
             }
         }
         (&Method::GET, _) => {
-            let uri_path = request_parts
-                .uri
-                .path()
-                .strip_prefix('/')
-                .unwrap_or(request_parts.uri.path());
+            let uri_path = UiMode::Main.path(
+                request_parts
+                    .uri
+                    .path()
+                    .strip_prefix('/')
+                    .unwrap_or(request_parts.uri.path()),
+            );
 
-            let full_path = Path::new(selected_root_dir).join(uri_path);
-            file_send(
-                &request_parts,
-                if tokio::fs::metadata(&full_path)
+            let file = EMBEDDED_UIS
+                .get_file(&*uri_path)
+                .or_else(|| EMBEDDED_UIS.get_file(&*UiMode::Main.path("index.html")));
+
+            if let Some(file) = file {
+                FileData::from_embedded(&request_parts, file)
+                    .into_response(&request_parts)
                     .await
-                    .ok()
-                    .map(|f| f.is_file())
-                    .unwrap_or(false)
-                {
-                    full_path
-                } else {
-                    Path::new(selected_root_dir).join("index.html")
-                },
-                &accept_encoding,
-            )
-            .await
+            } else {
+                Ok(not_found())
+            }
         }
         _ => Ok(method_not_allowed()),
     }
@@ -407,118 +422,158 @@ fn cert_send(cert: &X509) -> Result<Response<Body>, Error> {
         .with_kind(ErrorKind::Network)
 }
 
-async fn file_send(
-    req: &RequestParts,
-    path: impl AsRef<Path>,
-    accept_encoding: &[&str],
-) -> Result<Response<Body>, Error> {
-    // Serve a file by asynchronously reading it by chunks using tokio-util crate.
+struct FileData {
+    data: Body,
+    len: Option<u64>,
+    encoding: Option<&'static str>,
+    e_tag: String,
+    mime: Option<String>,
+}
+impl FileData {
+    fn from_embedded(req: &RequestParts, file: &'static include_dir::File<'static>) -> Self {
+        let path = file.path();
+        let (encoding, data) = req
+            .headers
+            .get_all(ACCEPT_ENCODING)
+            .into_iter()
+            .filter_map(|h| h.to_str().ok())
+            .flat_map(|s| s.split(","))
+            .filter_map(|s| s.split(";").next())
+            .map(|s| s.trim())
+            .fold((None, file.contents()), |acc, e| {
+                if let Some(file) = (e == "br")
+                    .then_some(())
+                    .and_then(|_| EMBEDDED_UIS.get_file(format!("{}.br", path.display())))
+                {
+                    (Some("br"), file.contents())
+                } else if let Some(file) = (e == "gzip" && acc.0 != Some("br"))
+                    .then_some(())
+                    .and_then(|_| EMBEDDED_UIS.get_file(format!("{}.gz", path.display())))
+                {
+                    (Some("gzip"), file.contents())
+                } else {
+                    acc
+                }
+            });
 
-    let path = path.as_ref();
-
-    let file = File::open(path)
-        .await
-        .with_ctx(|_| (ErrorKind::Filesystem, path.display().to_string()))?;
-    let metadata = file
-        .metadata()
-        .await
-        .with_ctx(|_| (ErrorKind::Filesystem, path.display().to_string()))?;
-
-    let e_tag = e_tag(path, &metadata)?;
-
-    let mut builder = Response::builder();
-    builder = with_content_type(path, builder);
-    builder = builder.header(http::header::ETAG, &e_tag);
-    builder = builder.header(
-        http::header::CACHE_CONTROL,
-        "public, max-age=21000000, immutable",
-    );
-
-    if req
-        .headers
-        .get_all(http::header::CONNECTION)
-        .iter()
-        .flat_map(|s| s.to_str().ok())
-        .flat_map(|s| s.split(","))
-        .any(|s| s.trim() == "keep-alive")
-    {
-        builder = builder.header(http::header::CONNECTION, "keep-alive");
+        Self {
+            len: Some(data.len() as u64),
+            encoding,
+            data: data.into(),
+            e_tag: e_tag(path, None),
+            mime: MimeGuess::from_path(path)
+                .first()
+                .map(|m| m.essence_str().to_owned()),
+        }
     }
 
-    if req
-        .headers
-        .get("if-none-match")
-        .and_then(|h| h.to_str().ok())
-        == Some(e_tag.as_str())
-    {
-        builder = builder.status(StatusCode::NOT_MODIFIED);
-        builder.body(Body::empty())
-    } else {
-        let body = if false && accept_encoding.contains(&"br") && metadata.len() > u16::MAX as u64 {
-            builder = builder.header(CONTENT_ENCODING, "br");
-            Body::wrap_stream(ReaderStream::new(BrotliEncoder::new(BufReader::new(file))))
-        } else if accept_encoding.contains(&"gzip") && metadata.len() > u16::MAX as u64 {
-            builder = builder.header(CONTENT_ENCODING, "gzip");
-            Body::wrap_stream(ReaderStream::new(GzipEncoder::new(BufReader::new(file))))
+    async fn from_path(req: &RequestParts, path: &Path) -> Result<Self, Error> {
+        let encoding = req
+            .headers
+            .get_all(ACCEPT_ENCODING)
+            .into_iter()
+            .filter_map(|h| h.to_str().ok())
+            .flat_map(|s| s.split(","))
+            .filter_map(|s| s.split(";").next())
+            .map(|s| s.trim())
+            .any(|e| e == "gzip")
+            .then_some("gzip");
+
+        let file = File::open(path)
+            .await
+            .with_ctx(|_| (ErrorKind::Filesystem, path.display().to_string()))?;
+        let metadata = file
+            .metadata()
+            .await
+            .with_ctx(|_| (ErrorKind::Filesystem, path.display().to_string()))?;
+
+        let e_tag = e_tag(path, Some(&metadata));
+
+        let (len, data) = if encoding == Some("gzip") {
+            (
+                None,
+                Body::wrap_stream(ReaderStream::new(GzipEncoder::new(BufReader::new(file)))),
+            )
         } else {
-            builder = with_content_length(&metadata, builder);
-            Body::wrap_stream(ReaderStream::new(file))
+            (
+                Some(metadata.len()),
+                Body::wrap_stream(ReaderStream::new(file)),
+            )
         };
-        builder.body(body)
+
+        Ok(Self {
+            data,
+            len,
+            encoding,
+            e_tag,
+            mime: MimeGuess::from_path(path)
+                .first()
+                .map(|m| m.essence_str().to_owned()),
+        })
     }
-    .with_kind(ErrorKind::Network)
+
+    async fn into_response(self, req: &RequestParts) -> Result<Response<Body>, Error> {
+        let mut builder = Response::builder();
+        if let Some(mime) = self.mime {
+            builder = builder.header(http::header::CONTENT_TYPE, &*mime);
+        }
+        builder = builder.header(http::header::ETAG, &*self.e_tag);
+        builder = builder.header(
+            http::header::CACHE_CONTROL,
+            "public, max-age=21000000, immutable",
+        );
+
+        if req
+            .headers
+            .get_all(http::header::CONNECTION)
+            .iter()
+            .flat_map(|s| s.to_str().ok())
+            .flat_map(|s| s.split(","))
+            .any(|s| s.trim() == "keep-alive")
+        {
+            builder = builder.header(http::header::CONNECTION, "keep-alive");
+        }
+
+        if req
+            .headers
+            .get("if-none-match")
+            .and_then(|h| h.to_str().ok())
+            == Some(self.e_tag.as_ref())
+        {
+            builder = builder.status(StatusCode::NOT_MODIFIED);
+            builder.body(Body::empty())
+        } else {
+            if let Some(len) = self.len {
+                builder = builder.header(http::header::CONTENT_LENGTH, len);
+            }
+            if let Some(encoding) = self.encoding {
+                builder = builder.header(http::header::CONTENT_ENCODING, encoding);
+            }
+
+            builder.body(self.data)
+        }
+        .with_kind(ErrorKind::Network)
+    }
 }
 
-fn e_tag(path: &Path, metadata: &Metadata) -> Result<String, Error> {
-    let modified = metadata.modified().with_kind(ErrorKind::Filesystem)?;
+fn e_tag(path: &Path, metadata: Option<&Metadata>) -> String {
     let mut hasher = sha2::Sha256::new();
     hasher.update(format!("{:?}", path).as_bytes());
-    hasher.update(
-        format!(
-            "{}",
-            modified
-                .duration_since(UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs()
-        )
-        .as_bytes(),
-    );
+    if let Some(modified) = metadata.and_then(|m| m.modified().ok()) {
+        hasher.update(
+            format!(
+                "{}",
+                modified
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs()
+            )
+            .as_bytes(),
+        );
+    }
     let res = hasher.finalize();
-    Ok(format!(
+    format!(
         "\"{}\"",
         base32::encode(base32::Alphabet::RFC4648 { padding: false }, res.as_slice()).to_lowercase()
-    ))
-}
-
-///https://en.wikipedia.org/wiki/Media_type
-fn with_content_type(path: &Path, builder: Builder) -> Builder {
-    let content_type = match path.extension() {
-        Some(os_str) => match os_str.to_str() {
-            Some("apng") => "image/apng",
-            Some("avif") => "image/avif",
-            Some("flif") => "image/flif",
-            Some("gif") => "image/gif",
-            Some("jpg") | Some("jpeg") | Some("jfif") | Some("pjpeg") | Some("pjp") => "image/jpeg",
-            Some("jxl") => "image/jxl",
-            Some("png") => "image/png",
-            Some("svg") => "image/svg+xml",
-            Some("webp") => "image/webp",
-            Some("mng") | Some("x-mng") => "image/x-mng",
-            Some("css") => "text/css",
-            Some("csv") => "text/csv",
-            Some("html") => "text/html",
-            Some("php") => "text/php",
-            Some("plain") | Some("md") | Some("txt") => "text/plain",
-            Some("xml") => "text/xml",
-            Some("js") => "text/javascript",
-            Some("wasm") => "application/wasm",
-            None | Some(_) => "text/plain",
-        },
-        None => "text/plain",
-    };
-    builder.header(http::header::CONTENT_TYPE, content_type)
-}
-
-fn with_content_length(metadata: &Metadata, builder: Builder) -> Builder {
-    builder.header(http::header::CONTENT_LENGTH, metadata.len())
+    )
 }

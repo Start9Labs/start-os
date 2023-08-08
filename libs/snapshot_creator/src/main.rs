@@ -1,10 +1,7 @@
-use deno_core::{JsRuntime, RuntimeOptions};
+use deno_core::JsRuntimeForSnapshot;
 
 fn main() {
-    let mut runtime = JsRuntime::new(RuntimeOptions {
-        will_snapshot: true,
-        ..Default::default()
-    });
+    let runtime = JsRuntimeForSnapshot::new(Default::default(), Default::default());
     let snapshot = runtime.snapshot();
 
     let snapshot_slice: &[u8] = &*snapshot;

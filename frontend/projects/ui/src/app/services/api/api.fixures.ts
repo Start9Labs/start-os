@@ -35,9 +35,10 @@ export module Mock {
     'shutting-down': false,
   }
   export const MarketplaceEos: RR.GetMarketplaceEosRes = {
-    version: '0.3.4.3',
+    version: '0.3.4.4',
     headline: 'Our biggest release ever.',
     'release-notes': {
+      '0.3.4.4': 'Some **Markdown** release _notes_ for 0.3.4.4',
       '0.3.4.3': 'Some **Markdown** release _notes_ for 0.3.4.3',
       '0.3.4.2': 'Some **Markdown** release _notes_ for 0.3.4.2',
       '0.3.4.1': 'Some **Markdown** release _notes_ for 0.3.4.1',

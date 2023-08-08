@@ -9,7 +9,10 @@ if [ "$0" != "./install-sdk.sh" ]; then
 fi
 
 if [ -z "$OS_ARCH" ]; then
-  OS_ARCH=$(uname -m)
+  export OS_ARCH=$(uname -m)
 fi
 
-cargo install --bin=embassy-sdk --bin=embassy-cli --path=. --no-default-features --locked
+cargo install --path=. --no-default-features --features=sdk,cli --locked
+startbox_loc=$(which startbox)
+ln -sf $startbox_loc $(dirname $startbox_loc)/start-cli
+ln -sf $startbox_loc $(dirname $startbox_loc)/start-sdk

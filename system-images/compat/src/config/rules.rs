@@ -7,8 +7,8 @@ use pest::Parser;
 use rand::SeedableRng;
 use serde_json::Value;
 
-use embassy::config::util::STATIC_NULL;
-use embassy::config::Config;
+use startos::config::util::STATIC_NULL;
+use startos::config::Config;
 
 #[derive(Parser)]
 #[grammar = "config/rule_parser.pest"]

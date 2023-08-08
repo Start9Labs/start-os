@@ -39,7 +39,7 @@ export const mockPatchData: DataModel = {
     country: 'us',
     'last-backup': new Date(new Date().valueOf() - 604800001).toISOString(),
     'lan-address': 'https://adjective-noun.local',
-    'tor-address': 'http://myveryownspecialtoraddress.onion',
+    'tor-address': 'https://myveryownspecialtoraddress.onion',
     'ip-info': {
       eth0: {
         ipv4: '10.0.0.1',
@@ -73,6 +73,8 @@ export const mockPatchData: DataModel = {
       password: '',
       tls: true,
     },
+    'password-hash':
+      '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
   },
   'package-data': {
     bitcoind: Mock.bitcoind,

@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
-import { ToastController } from '@ionic/angular'
+import { ModalController, ToastController } from '@ionic/angular'
 import { PatchDB } from 'patch-db-client'
 import { ConfigService } from 'src/app/services/config.service'
+import { QRComponent } from 'src/app/components/qr/qr.component'
 import { copyToClipboard } from '@start9labs/shared'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 
@@ -16,6 +17,7 @@ export class ServerSpecsPage {
 
   constructor(
     private readonly toastCtrl: ToastController,
+    private readonly modalCtrl: ModalController,
     private readonly patch: PatchDB<DataModel>,
     private readonly config: ConfigService,
   ) {}
@@ -42,6 +44,17 @@ export class ServerSpecsPage {
       duration: 1000,
     })
     await toast.present()
+  }
+
+  async showQR(text: string): Promise<void> {
+    const modal = await this.modalCtrl.create({
+      component: QRComponent,
+      componentProps: {
+        text,
+      },
+      cssClass: 'qr-modal',
+    })
+    await modal.present()
   }
 
   asIsOrder(a: any, b: any) {

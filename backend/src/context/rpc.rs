@@ -12,7 +12,7 @@ use josekit::jwk::Jwk;
 use models::PackageId;
 use patch_db::json_ptr::JsonPointer;
 use patch_db::{DbHandle, LockReceipt, LockType, PatchDb};
-use reqwest::Url;
+use reqwest::{Client, Proxy, Url};
 use rpc_toolkit::Context;
 use serde::Deserialize;
 use sqlx::postgres::PgConnectOptions;
@@ -36,7 +36,9 @@ use crate::net::wifi::WpaCli;
 use crate::notifications::NotificationManager;
 use crate::shutdown::Shutdown;
 use crate::status::{MainStatus, Status};
+use crate::system::get_mem_info;
 use crate::util::config::load_config_from_paths;
+use crate::util::lshw::{lshw, LshwDevice};
 use crate::{Error, ErrorKind, ResultExt};
 
 #[derive(Debug, Default, Deserialize)]
@@ -123,6 +125,13 @@ pub struct RpcContextSeed {
     pub wifi_manager: Option<Arc<RwLock<WpaCli>>>,
     pub current_secret: Arc<Jwk>,
     pub config_hooks: Mutex<BTreeMap<PackageId, Vec<ConfigHook>>>,
+    pub client: Client,
+    pub hardware: Hardware,
+}
+
+pub struct Hardware {
+    pub devices: Vec<LshwDevice>,
+    pub ram: u64,
 }
 
 pub struct RpcCleanReceipts {
@@ -206,6 +215,9 @@ impl RpcContext {
         let metrics_cache = RwLock::new(None);
         let notification_manager = NotificationManager::new(secret_store.clone());
         tracing::info!("Initialized Notification Manager");
+        let tor_proxy_url = format!("socks5h://{tor_proxy}");
+        let devices = lshw().await?;
+        let ram = get_mem_info().await?.total.0 as u64 * 1024 * 1024;
         let seed = Arc::new(RpcContextSeed {
             is_closed: AtomicBool::new(false),
             datadir: base.datadir().to_path_buf(),
@@ -239,6 +251,17 @@ impl RpcContext {
                 })?,
             ),
             config_hooks: Mutex::new(BTreeMap::new()),
+            client: Client::builder()
+                .proxy(Proxy::custom(move |url| {
+                    if url.host_str().map_or(false, |h| h.ends_with(".onion")) {
+                        Some(tor_proxy_url.clone())
+                    } else {
+                        None
+                    }
+                }))
+                .build()
+                .with_kind(crate::ErrorKind::ParseUrl)?,
+            hardware: Hardware { devices, ram },
         });
 
         let res = Self(seed);
@@ -269,6 +292,45 @@ impl RpcContext {
     pub async fn cleanup(&self) -> Result<(), Error> {
         let mut db = self.db.handle();
         let receipts = RpcCleanReceipts::new(&mut db).await?;
+        let packages = receipts.packages.get(&mut db).await?.0;
+        let mut current_dependents = packages
+            .keys()
+            .map(|k| (k.clone(), BTreeMap::new()))
+            .collect::<BTreeMap<_, _>>();
+        for (package_id, package) in packages {
+            for (k, v) in package
+                .into_installed()
+                .into_iter()
+                .flat_map(|i| i.current_dependencies.0)
+            {
+                let mut entry: BTreeMap<_, _> = current_dependents.remove(&k).unwrap_or_default();
+                entry.insert(package_id.clone(), v);
+                current_dependents.insert(k, entry);
+            }
+        }
+        for (package_id, current_dependents) in current_dependents {
+            if let Some(deps) = crate::db::DatabaseModel::new()
+                .package_data()
+                .idx_model(&package_id)
+                .and_then(|pde| pde.installed())
+                .map::<_, CurrentDependents>(|i| i.current_dependents())
+                .check(&mut db)
+                .await?
+            {
+                deps.put(&mut db, &CurrentDependents(current_dependents))
+                    .await?;
+            } else if let Some(deps) = crate::db::DatabaseModel::new()
+                .package_data()
+                .idx_model(&package_id)
+                .and_then(|pde| pde.removing())
+                .map::<_, CurrentDependents>(|i| i.current_dependents())
+                .check(&mut db)
+                .await?
+            {
+                deps.put(&mut db, &CurrentDependents(current_dependents))
+                    .await?;
+            }
+        }
         for (package_id, package) in receipts.packages.get(&mut db).await?.0 {
             if let Err(e) = async {
                 match package {
@@ -336,31 +398,6 @@ impl RpcContext {
             {
                 tracing::error!("Failed to clean up package {}: {}", package_id, e);
                 tracing::debug!("{:?}", e);
-            }
-        }
-        let mut current_dependents = BTreeMap::new();
-        for (package_id, package) in receipts.packages.get(&mut db).await?.0 {
-            for (k, v) in package
-                .into_installed()
-                .into_iter()
-                .flat_map(|i| i.current_dependencies.0)
-            {
-                let mut entry: BTreeMap<_, _> = current_dependents.remove(&k).unwrap_or_default();
-                entry.insert(package_id.clone(), v);
-                current_dependents.insert(k, entry);
-            }
-        }
-        for (package_id, current_dependents) in current_dependents {
-            if let Some(deps) = crate::db::DatabaseModel::new()
-                .package_data()
-                .idx_model(&package_id)
-                .and_then(|pde| pde.installed())
-                .map::<_, CurrentDependents>(|i| i.current_dependents())
-                .check(&mut db)
-                .await?
-            {
-                deps.put(&mut db, &CurrentDependents(current_dependents))
-                    .await?;
             }
         }
         Ok(())

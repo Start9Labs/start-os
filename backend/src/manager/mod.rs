@@ -38,6 +38,7 @@ use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::guard::TmpMountGuard;
 use crate::install::cleanup::remove_from_current_dependents_lists;
 use crate::net::net_controller::NetService;
+use crate::net::vhost::AlpnInfo;
 use crate::procedure::docker::{DockerContainer, DockerProcedure, LongRunning};
 use crate::procedure::{NoOutput, ProcedureName};
 use crate::s9pk::manifest::Manifest;

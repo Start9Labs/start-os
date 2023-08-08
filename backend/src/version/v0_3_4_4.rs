@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use emver::VersionRange;
 use models::ResultExt;
 
-use super::v0_3_4_3::V0_3_0_COMPAT;
+use super::v0_3_0::V0_3_0_COMPAT;
 use super::*;
 
 const V0_3_4_4: emver::Version = emver::Version::new(0, 3, 4, 4);

@@ -105,6 +105,12 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'auth.session.kill', params })
   }
 
+  async resetPassword(
+    params: RR.ResetPasswordReq,
+  ): Promise<RR.ResetPasswordRes> {
+    return this.rpcRequest({ method: 'auth.reset-password', params })
+  }
+
   // server
 
   async echo(params: RR.EchoReq): Promise<RR.EchoRes> {
@@ -227,10 +233,7 @@ export class LiveApiService extends ApiService {
     path: string,
     qp: Record<string, string>,
     baseUrl: string,
-    arch: string = this.config.packageArch,
   ): Promise<T> {
-    // Object.assign(qp, { arch })
-    qp['arch'] = arch
     const fullUrl = `${baseUrl}${path}?${new URLSearchParams(qp).toString()}`
     return this.rpcRequest({
       method: 'marketplace.get',
@@ -239,17 +242,13 @@ export class LiveApiService extends ApiService {
   }
 
   async getEos(): Promise<RR.GetMarketplaceEosRes> {
-    const { id, version } = await getServerInfo(this.patch)
-    const qp: RR.GetMarketplaceEosReq = {
-      'server-id': id,
-      'eos-version': version,
-    }
+    const { id } = await getServerInfo(this.patch)
+    const qp: RR.GetMarketplaceEosReq = { 'server-id': id }
 
     return this.marketplaceProxy(
       '/eos/v0/latest',
       qp,
       this.config.marketplace.start9,
-      this.config.osArch,
     )
   }
 

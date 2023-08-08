@@ -19,7 +19,7 @@ Check your versions
 
 ```sh
 node --version
-v16.10.0
+v18.15.0
 
 npm --version
 v8.0.0

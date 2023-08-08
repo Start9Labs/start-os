@@ -53,6 +53,10 @@ export abstract class ApiService {
 
   abstract killSessions(params: RR.KillSessionsReq): Promise<RR.KillSessionsRes>
 
+  abstract resetPassword(
+    params: RR.ResetPasswordReq,
+  ): Promise<RR.ResetPasswordRes>
+
   // server
 
   abstract echo(params: RR.EchoReq): Promise<RR.EchoRes>
@@ -123,13 +127,9 @@ export abstract class ApiService {
     path: string,
     params: Record<string, unknown>,
     url: string,
-    arch?: string,
   ): Promise<T>
 
   abstract getEos(): Promise<RR.GetMarketplaceEosRes>
-
-  // password
-  // abstract updatePassword (params: RR.UpdatePasswordReq): Promise<RR.UpdatePasswordRes>
 
   // notification
 

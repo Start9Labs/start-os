@@ -1,10 +1,9 @@
-import { DOCUMENT } from '@angular/common'
 import { Component, Inject } from '@angular/core'
 import {
   AlertController,
   LoadingController,
-  NavController,
   ModalController,
+  NavController,
   ToastController,
 } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -22,7 +21,15 @@ import {
   GenericInputComponent,
   GenericInputOptions,
 } from 'src/app/apps/ui/modals/generic-input/generic-input.component'
+import { FormDialogService } from 'src/app/services/form-dialog.service'
+import { FormPage } from '../../../modals/form/form.page'
+import { Config } from '@start9labs/start-sdk/lib/config/builder/config'
+import { Value } from '@start9labs/start-sdk/lib/config/builder/value'
+import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
 import { ConfigService } from 'src/app/services/config.service'
+import { DOCUMENT } from '@angular/common'
+import { getServerInfo } from 'src/app/util/get-server-info'
+import * as argon2 from '@start9labs/argon2'
 
 @Component({
   selector: 'server-show',
@@ -38,6 +45,8 @@ export class ServerShowPage {
   readonly showDiskRepair$ = this.ClientStorageService.showDiskRepair$
 
   readonly secure = this.config.isSecure()
+  readonly isTorHttp =
+    this.config.isTor() && this.document.location.protocol === 'http:'
 
   constructor(
     private readonly alertCtrl: AlertController,
@@ -53,6 +62,7 @@ export class ServerShowPage {
     private readonly authService: AuthService,
     private readonly toastCtrl: ToastController,
     private readonly config: ConfigService,
+    private readonly formDialog: FormDialogService,
     @Inject(DOCUMENT) private readonly document: Document,
   ) {}
 
@@ -94,7 +104,95 @@ export class ServerShowPage {
     await modal.present()
   }
 
-  private async updateEos(): Promise<void> {
+  async presentAlertResetPassword() {
+    const alert = await this.alertCtrl.create({
+      header: 'Warning',
+      message:
+        'You will still need your current password to decrypt existing backups!',
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel',
+        },
+        {
+          text: 'Continue',
+          handler: () => this.presentModalResetPassword(),
+          cssClass: 'enter-click',
+        },
+      ],
+      cssClass: 'alert-warning-message',
+    })
+
+    await alert.present()
+  }
+
+  async presentModalResetPassword(): Promise<void> {
+    this.formDialog.open(FormPage, {
+      label: 'Change Master Password',
+      data: {
+        spec: await configBuilderToSpec(passwordSpec),
+        buttons: [
+          {
+            text: 'Save',
+            handler: (value: PasswordSpec) => this.resetPassword(value),
+          },
+        ],
+      },
+    })
+  }
+
+  private async resetPassword(value: PasswordSpec): Promise<boolean> {
+    console.log(value)
+    let err = ''
+
+    if (value.newPassword1 !== value.newPassword2) {
+      err = 'New passwords do not match'
+    } else if (value.newPassword1.length < 12) {
+      err = 'New password must be 12 characters or greater'
+    } else if (value.newPassword1.length > 64) {
+      err = 'New password must be less than 65 characters'
+    }
+
+    // confirm current password is correct
+    const { 'password-hash': passwordHash } = await getServerInfo(this.patch)
+    try {
+      argon2.verify(passwordHash, value.currentPassword)
+    } catch (e) {
+      err = 'Current password is invalid'
+    }
+
+    if (err) {
+      this.errToast.present(err)
+      return false
+    }
+
+    const loader = await this.loadingCtrl.create({
+      message: 'Changing master password...',
+    })
+    await loader.present()
+
+    try {
+      await this.embassyApi.resetPassword({
+        'old-password': value.currentPassword,
+        'new-password': value.newPassword1,
+      })
+      const toast = await this.toastCtrl.create({
+        header: 'Password changed!',
+        position: 'bottom',
+        duration: 2000,
+      })
+
+      toast.present()
+      return true
+    } catch (e: any) {
+      this.errToast.present(e)
+      return false
+    } finally {
+      loader.dismiss()
+    }
+  }
+
+  async updateEos(): Promise<void> {
     const modal = await this.modalCtrl.create({
       component: OSUpdatePage,
     })
@@ -369,11 +467,11 @@ export class ServerShowPage {
         disabled$: of(false),
       },
       {
-        title: 'LAN',
-        description: `Download and trust your server's certificate for a secure local connection`,
-        icon: 'home-outline',
+        title: 'Root CA',
+        description: `Download and trust your server's root certificate authority`,
+        icon: 'ribbon-outline',
         action: () =>
-          this.navCtrl.navigateForward(['lan'], { relativeTo: this.route }),
+          this.navCtrl.navigateForward(['root-ca'], { relativeTo: this.route }),
         detail: true,
         disabled$: of(false),
       },
@@ -415,6 +513,14 @@ export class ServerShowPage {
           }),
         detail: true,
         disabled$: of(false),
+      },
+      {
+        title: 'Change Master Password',
+        description: `Change your StartOS master password`,
+        icon: 'key-outline',
+        action: () => this.presentAlertResetPassword(),
+        detail: false,
+        disabled$: of(!this.secure),
       },
       {
         title: 'Experimental Features',
@@ -510,11 +616,7 @@ export class ServerShowPage {
         description: 'Get help from the Start9 team and community',
         icon: 'chatbubbles-outline',
         action: () =>
-          window.open(
-            'https://start9.com/contact',
-            '_blank',
-            'noreferrer',
-          ),
+          window.open('https://start9.com/contact', '_blank', 'noreferrer'),
         detail: true,
         disabled$: of(false),
       },
@@ -616,3 +718,29 @@ interface SettingBtn {
   detail: boolean
   disabled$: Observable<boolean>
 }
+
+export const passwordSpec = Config.of({
+  currentPassword: Value.text({
+    name: 'Current Password',
+    required: {
+      default: null,
+    },
+    masked: true,
+  }),
+  newPassword1: Value.text({
+    name: 'New Password',
+    required: {
+      default: null,
+    },
+    masked: true,
+  }),
+  newPassword2: Value.text({
+    name: 'Retype New Password',
+    required: {
+      default: null,
+    },
+    masked: true,
+  }),
+})
+
+type PasswordSpec = typeof passwordSpec.validator._TYPE
