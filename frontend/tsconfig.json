@@ -19,6 +19,7 @@
     "target": "es2020",
     "module": "es2020",
     "lib": ["es2020", "dom"],
+    "allowSyntheticDefaultImports": true,
     "paths": {
       /* These paths are relative to each app base folder */
       "@start9labs/marketplace": ["../marketplace/src/public-api"],
