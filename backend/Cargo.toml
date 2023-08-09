@@ -27,7 +27,7 @@ path = "src/main.rs"
 [features]
 avahi = ["avahi-sys"]
 # Hack removed avahi-alias
-default = ["cli", "sdk", "daemon", "js_engine"]
+default = ["cli", "sdk", "daemon"]
 dev = []
 unstable = ["patch-db/unstable"]
 avahi-alias = ["avahi"]

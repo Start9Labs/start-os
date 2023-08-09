@@ -1194,28 +1194,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "embassy_container_init"
-version = "0.1.0"
-dependencies = [
- "async-stream",
- "color-eyre",
- "futures",
- "helpers",
- "imbl 2.0.0",
- "nix 0.25.1",
- "procfs",
- "serde",
- "serde_json",
- "tokio",
- "tokio-stream",
- "tracing",
- "tracing-error 0.2.0",
- "tracing-futures",
- "tracing-subscriber 0.3.16",
- "yajrc 0.1.0 (git+https://github.com/dr-bonez/yajrc.git?branch=develop)",
-]
-
-[[package]]
 name = "emver"
 version = "0.1.7"
 source = "git+https://github.com/Start9Labs/emver-rs.git#61cf0bc96711b4d6f3f30df8efef025e0cc02bad"
@@ -3160,21 +3138,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "procfs"
-version = "0.14.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1de8dacb0873f77e6aefc6d71e044761fcc68060290f5b1089fcdf84626bb69"
-dependencies = [
- "bitflags",
- "byteorder",
- "chrono",
- "flate2",
- "hex",
- "lazy_static",
- "rustix",
-]
-
-[[package]]
 name = "proptest"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4221,6 +4184,7 @@ dependencies = [
  "base64 0.13.1",
  "base64ct",
  "basic-cookies",
+ "bimap",
  "bollard",
  "bytes",
  "chrono",
@@ -4235,7 +4199,6 @@ dependencies = [
  "divrem",
  "ed25519",
  "ed25519-dalek",
- "embassy_container_init",
  "emver",
  "fd-lock-rs",
  "futures",
@@ -4247,6 +4210,7 @@ dependencies = [
  "http",
  "hyper",
  "hyper-ws-listener",
+ "id-pool",
  "imbl 2.0.0",
  "include_dir",
  "indexmap",

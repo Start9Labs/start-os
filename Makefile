@@ -11,6 +11,7 @@ COMPAT_SRC := $(shell find system-images/compat/ -not -path 'system-images/compa
 UTILS_SRC := $(shell find system-images/utils/ -not -name *.tar)
 BINFMT_SRC := $(shell find system-images/binfmt/ -not -name *.tar)
 BACKEND_SRC := $(shell find backend/src) $(shell find backend/migrations) $(shell find patch-db/*/src) $(shell find libs/*/src) libs/*/Cargo.toml backend/Cargo.toml backend/Cargo.lock frontend/dist/static
+BACKEND_INIT_SRC := $(shell find libs/start_init/ -name *.rs) 
 FRONTEND_SHARED_SRC := $(shell find frontend/projects/shared) $(shell ls -p frontend/ | grep -v / | sed 's/^/frontend\//g') frontend/package.json frontend/node_modules frontend/config.json patch-db/client/dist frontend/patchdb-ui-seed.json
 FRONTEND_UI_SRC := $(shell find frontend/projects/ui)
 FRONTEND_SETUP_WIZARD_SRC := $(shell find frontend/projects/setup-wizard)
@@ -130,7 +131,14 @@ snapshots: libs/snapshot_creator/Cargo.toml
 	cd libs/  && ./build-v8-snapshot.sh
 	cd libs/  && ./build-arm-v8-snapshot.sh
 
-$(EMBASSY_BINS): $(BACKEND_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) frontend/patchdb-ui-seed.json | sudo
+libs/start_init: $(BACKEND_INIT_SRC)
+	cd libs/start_init && docker run  \
+            -v $(pwd)/:/libs \
+            -w /libs \
+            --rm node:18-alpine \
+            sh -c "npm i && npm run bundle:esbuild"
+
+$(EMBASSY_BINS): $(BACKEND_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) libs/start_init frontend/patchdb-ui-seed.json | sudo
 	cd backend && ARCH=$(ARCH) ./build-prod.sh
 	touch $(EMBASSY_BINS)
 
