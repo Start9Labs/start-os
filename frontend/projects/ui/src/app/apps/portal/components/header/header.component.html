@@ -9,8 +9,9 @@
     </button>
   </tui-badged-content>
 
+  <!-- @TODO replacing with header-menu breaks css relative positioning in the toolbar -->
+  <!-- <header-menu></header-menu> -->
   <tui-hosted-dropdown
-    #dropdown
     [content]="content"
     (click.stop.prevent)="(0)"
     (pointerdown.stop)="(0)"
@@ -22,41 +23,44 @@
       <tui-data-list>
         <tui-opt-group>
           <button tuiOption class="item" (click)="({})">
-            <tui-svg src="tuiIconMoreHorizontal"></tui-svg>
+            <tui-svg src="tuiIconInfo"></tui-svg>
             About this server
           </button>
         </tui-opt-group>
         <tui-opt-group>
           <button tuiOption class="item" (click)="({})">
-            <tui-svg src="tuiIconMoreHorizontal"></tui-svg>
+            <tui-svg src="tuiIconBookOpen"></tui-svg>
             User Manual
+            <tui-svg src="tuiIconArrowUpRight"></tui-svg>
           </button>
           <button tuiOption class="item" (click)="({})">
-            <tui-svg src="tuiIconMoreHorizontal"></tui-svg>
+            <tui-svg src="tuiIconHeadphones"></tui-svg>
             Contact Support
+            <tui-svg src="tuiIconArrowUpRight"></tui-svg>
           </button>
           <button tuiOption class="item" (click)="({})">
-            <tui-svg src="tuiIconMoreHorizontal"></tui-svg>
+            <tui-svg src="tuiIconDollarSign"></tui-svg>
             Donate to Start9
+            <tui-svg src="tuiIconArrowUpRight"></tui-svg>
           </button>
         </tui-opt-group>
         <tui-opt-group>
           <button tuiOption class="item" (click)="({})">
-            <tui-svg src="tuiIconMoreHorizontal"></tui-svg>
+            <tui-svg src="tuiIconTool"></tui-svg>
             System Rebuild
           </button>
           <button tuiOption class="item" (click)="({})">
-            <tui-svg src="tuiIconMoreHorizontal"></tui-svg>
+            <tui-svg src="tuiIconRefreshCw"></tui-svg>
             Restart
           </button>
           <button tuiOption class="item" (click)="({})">
-            <tui-svg src="tuiIconMoreHorizontal"></tui-svg>
+            <tui-svg src="tuiIconPower"></tui-svg>
             Shutdown
           </button>
         </tui-opt-group>
         <tui-opt-group>
           <button tuiOption class="item" (click)="({})">
-            <tui-svg src="tuiIconMoreHorizontal"></tui-svg>
+            <tui-svg src="tuiIconLogOut"></tui-svg>
             Logout
           </button>
         </tui-opt-group>

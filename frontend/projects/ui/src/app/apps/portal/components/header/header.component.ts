@@ -6,6 +6,7 @@ import {
   TuiHostedDropdownModule,
   TuiSvgModule,
 } from '@taiga-ui/core'
+import { HeaderMenuComponent } from './header-menu/header-menu.component'
 
 @Component({
   selector: 'header[appHeader]',
@@ -19,6 +20,7 @@ import {
     TuiHostedDropdownModule,
     TuiDataListModule,
     TuiSvgModule,
+    HeaderMenuComponent,
   ],
 })
 export class HeaderComponent {}
