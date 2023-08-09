@@ -20,13 +20,14 @@
     </ng-container>
 
     <ng-template #show>
-      <marketplace-show-controls
-        class="relative"
-        [url]="url"
-        [pkg]="pkg"
-        [localPkg]="localPkg$ | async"
-      ></marketplace-show-controls>
-      <marketplace-package></marketplace-package>
+      <marketplace-package>
+        <marketplace-show-controls
+          class="relative"
+          [url]="url"
+          [pkg]="pkg"
+          [localPkg]="localPkg$ | async"
+        ></marketplace-show-controls>
+      </marketplace-package>
     </ng-template>
   </ng-container>
 

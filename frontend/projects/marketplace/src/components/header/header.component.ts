@@ -1,12 +1,10 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  Inject,
   inject,
   OnDestroy,
 } from '@angular/core'
-import { TuiDialogService } from '@taiga-ui/core'
-import { combineLatest, map, Subject, takeUntil, tap } from 'rxjs'
+import { combineLatest, map, Subject, takeUntil } from 'rxjs'
 import { StoreIdentity } from '../../../src/types'
 import { AbstractMarketplaceService } from '../../services/marketplace.service'
 import { AbstractCategoryService } from '../../services/category.service'
@@ -19,10 +17,7 @@ import { Router } from '@angular/router'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class HeaderComponent implements OnDestroy {
-  constructor(
-    @Inject(TuiDialogService) private readonly dialogs: TuiDialogService,
-    private readonly router: Router,
-  ) {}
+  constructor(private readonly router: Router) {}
 
   private destroy$ = new Subject<void>()
   private readonly marketplaceService = inject(AbstractMarketplaceService)
@@ -41,7 +36,6 @@ export class HeaderComponent implements OnDestroy {
   query: string = ''
   open = false
   iconConfig = require('../../../../../config.json').ui.marketplace
-  changeRegistry: any
 
   ngOnInit() {
     this.categoryService

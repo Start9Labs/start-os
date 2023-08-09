@@ -16,7 +16,6 @@ import {
 } from '@taiga-ui/core'
 import { tuiPure } from '@taiga-ui/cdk'
 import { AbstractMarketplaceService } from '../../../services/marketplace.service'
-import { isPlatform } from '@ionic/angular'
 import { PolymorpheusContent } from '@tinkoff/ng-polymorpheus'
 
 @Component({
@@ -35,7 +34,6 @@ export class PackageComponent {
   private readonly marketplaceService = inject(AbstractMarketplaceService)
   readonly pkgId = getPkgId(this.activatedRoute)
   readonly version$ = new BehaviorSubject('*')
-  isMobile = isPlatform(window, 'ios') || isPlatform(window, 'android')
   index = 0
   speed = 1000
 

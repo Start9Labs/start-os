@@ -2,7 +2,9 @@
 <div class="grid grid-cols-1 md:grid-row-auto gap-3">
   <div *ngFor="let dep of pkg.manifest.dependencies | keyvalue">
     <a [routerLink]="['/marketplace', dep.key]">
-      <div class="bg-zinc-700 rounded-xl py-3 px-5 gap-2 drop-shadow-xl">
+      <div
+        class="bg-zinc-700 rounded-xl py-3 px-5 gap-2 drop-shadow-xl hover:opacity-90"
+      >
         <div class="flex items-center gap-6">
           <img
             [src]="
