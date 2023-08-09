@@ -1,4 +1,34 @@
-<marketplace-header></marketplace-header>
+<marketplace-header>
+  <button
+    slot="desktop"
+    tuiButton
+    type="button"
+    appearance="icon"
+    icon="tuiIconRepeatLarge"
+    class="hover:opacity-70 bg-zinc-600 rounded-lg p-2"
+    (click)="presentModalMarketplaceSettings()"
+  ></button>
+  <a
+    slot="mobile"
+    class="flex relative gap-2 hover:no-underline mb-2 p-2"
+    (click)="presentModalMarketplaceSettings()"
+  >
+    <div class="relative flex flex-shrink-0">
+      <img
+        alt="Change Registry Icon"
+        width="24"
+        height="24"
+        class="transition block opacity-70 invert"
+        src="svg/repeat-outline.svg"
+      />
+    </div>
+    <span
+      class="text-base text-zinc-50 text-ellipsis overflow-hidden whitespace-nowrap"
+    >
+      Change Registry
+    </span>
+  </a>
+</marketplace-header>
 <div
   class="background sm:pl-[34vw] md:pl-[28vw] lg:pl-[22vw] 2xl:pl-[280px] min-h-screen flex flex-col justify-between overflow-auto scroll-smooth"
 >
@@ -7,8 +37,76 @@
     *ngIf="store$ | async as store; else loading"
   >
     <ng-container *ngIf="details$ | async as details">
-      <tui-notification [status]="details.color" class="p-4">
-        <p class="text-[0.9rem]">{{ details.description }}</p>
+      <tui-notification
+        *ngIf="details.url === marketplace.start9"
+        status="success"
+        icon=""
+        class="m-4"
+      >
+        <p>
+          Services from this registry are packaged and maintained by the Start9
+          team. If you experience an issue or have questions related to a
+          service from this registry, one of our dedicated support staff will be
+          happy to assist you.
+        </p>
+      </tui-notification>
+      <tui-notification
+        *ngIf="details.url === marketplace.community"
+        status="info"
+        icon=""
+        class="m-4"
+      >
+        <p>
+          Services from this registry are packaged and maintained by members of
+          the Start9 community.
+          <strong>Install at your own risk</strong>
+          . If you experience an issue or have a question related to a service
+          in this marketplace, please reach out to the package developer for
+          assistance.
+        </p>
+      </tui-notification>
+      <tui-notification
+        *ngIf="details.url.includes('beta')"
+        status="warning"
+        icon=""
+        class="m-4"
+      >
+        <p>
+          Services from this registry are undergoing
+          <strong>beta</strong>
+          testing and may contain bugs.
+          <strong>Install at your own risk</strong>
+          .
+        </p>
+      </tui-notification>
+      <tui-notification
+        *ngIf="details.url.includes('alpha')"
+        status="error"
+        icon=""
+        class="m-4"
+      >
+        <p>
+          Services from this registry are undergoing
+          <strong>alpha</strong>
+          testing. They are expected to contain bugs and could damage your
+          system.
+          <strong>Install at your own risk</strong>
+          .
+        </p>
+      </tui-notification>
+      <tui-notification
+        *ngIf="details.url !== marketplace.community && details.url !== marketplace.start9 && !details.url.includes('beta') && !details.url.includes('alpha')"
+        status="warning"
+        icon=""
+        class="m-4"
+      >
+        <p>
+          This is a Custom Registry. Start9 cannot verify the integrity or
+          functionality of services from this registry, and they could damage
+          your system.
+          <strong>Install at your own risk</strong>
+          .
+        </p>
       </tui-notification>
     </ng-container>
     <div class="mt-8 px-6 mb-10">

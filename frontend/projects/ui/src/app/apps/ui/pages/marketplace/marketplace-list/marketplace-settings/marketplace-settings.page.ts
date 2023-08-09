@@ -5,10 +5,7 @@ import {
   sameUrl,
   toUrl,
 } from '@start9labs/shared'
-import {
-  AbstractMarketplaceService,
-  RegistrySettingsComponent,
-} from '@start9labs/marketplace'
+import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { ValueSpecObject } from '@start9labs/start-sdk/lib/config/configTypes'
 import { TuiDialogService } from '@taiga-ui/core'
 import { TUI_PROMPT } from '@taiga-ui/kit'

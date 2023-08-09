@@ -161,7 +161,7 @@ export class MarketplaceShowControlsComponent {
     of(this.pkg.manifest.alerts.install)
       .pipe(
         switchMap(content =>
-          content
+          !content
             ? of(true)
             : this.dialogs.open<boolean>(TUI_PROMPT, {
                 label: 'Alert',
