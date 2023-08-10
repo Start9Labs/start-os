@@ -3,22 +3,141 @@
 >
   <div class="bg-zinc-800 rounded-xl p-7">
     <h2 class="text-lg font-bold small-caps pb-3">Information</h2>
-    <div class="grid grid-flow-row">
+    <div class="grid grid-flow-row divide-y divide-zinc-500">
+      <!-- git hash -->
+      <div
+        *ngIf="pkg.manifest['git-hash'] as gitHash; else noHash"
+        button
+        detail="false"
+        class="py-3 px-1 flex justify-between items-center"
+        (click)="copyService.copy(gitHash)"
+      >
+        <label tuiLabel="Git Hash">{{ gitHash }}</label>
+        <img
+          alt="Copy Icon"
+          class="block opacity-70 invert w-4"
+          src="svg/copy-outline.svg"
+        />
+      </div>
+      <ng-container *ngIf="pkg.manifest.replaces as replaces">
+        <div *ngIf="replaces.length" class="py-3 px-1">
+          <label tuiLabel="Intended to replace">
+            <tui-tag
+              *ngFor="let app; index as i; of: replaces"
+              size="l"
+              [class]="i > 0 ? 'ml-1.5 mt-2' : 'mt-2'"
+              [value]="app"
+            ></tui-tag>
+          </label>
+        </div>
+      </ng-container>
+      <ng-template #noHash>
+        <div>
+          <label tuiLabel="Git Hash">Unknown</label>
+        </div>
+      </ng-template>
+      <!-- license -->
+      <div
+        class="py-3 px-1 hover:bg-zinc-500/10 hover:cursor-pointer"
+        (click)="presentModalMd('License')"
+      >
+        <div class="flex justify-between items-center">
+          <label tuiLabel="License" class="hover:cursor-pointer">
+            {{ pkg.manifest.license }}
+          </label>
+          <img
+            alt="Open Icon"
+            class="block opacity-70 invert w-4"
+            src="svg/chevron-forward.svg"
+          />
+        </div>
+      </div>
+      <!-- instructions -->
+      <div
+        class="py-3 px-1 hover:bg-zinc-500/10 hover:cursor-pointer"
+        (click)="presentModalMd('Instructions')"
+      >
+        <div class="flex justify-between items-center">
+          <label tuiLabel="Instructions" class="hover:cursor-pointer">
+            Click to view instructions
+          </label>
+          <img
+            alt="Open Icon"
+            class="block opacity-70 invert w-4"
+            src="svg/chevron-forward.svg"
+          />
+        </div>
+      </div>
+
+      <!-- versions -->
+      <div
+        (click)="presentAlertVersions(version)"
+        class="py-3 px-1 hover:bg-zinc-500/10 hover:cursor-pointer"
+      >
+        <div class="flex justify-between items-center">
+          <label tuiLabel="Other versions" class="hover:cursor-pointer">
+            Click to view other versions
+          </label>
+          <img
+            alt="Open Icon"
+            class="block opacity-70 invert w-4"
+            src="svg/chevron-forward.svg"
+          />
+        </div>
+        <ng-template #version let-data="data" let-completeWith="completeWith">
+          <tui-radio-list
+            class="radio"
+            size="l"
+            [items]="data.items"
+            [itemContent]="displayEmver | tuiStringifyContent"
+            [(ngModel)]="data.value"
+          ></tui-radio-list>
+          <footer class="buttons">
+            <button
+              tuiButton
+              appearance="secondary"
+              (click)="completeWith(null)"
+            >
+              Cancel
+            </button>
+            <button
+              tuiButton
+              appearance="secondary"
+              (click)="completeWith(data.value)"
+            >
+              Ok
+            </button>
+          </footer>
+        </ng-template>
+      </div>
+      <!-- links -->
       <a
-        *ngIf="pkg.manifest['marketing-site'] as url"
-        href="url"
+        *ngIf="url"
+        [href]="url"
         target="_blank"
         rel="noreferrer"
-        class="text-veronica flex gap-1"
-      >
-        <p>Marketing Site</p>
-        <img
-          alt="Open Icon"
-          class="transition block opacity-70 invert w-4"
-          style="color: transparent"
-          src="svg/open-outline.svg"
-        />
-      </a>
+        class="py-3 px-1 hover:bg-zinc-500/10 hover:cursor-pointer"
+      ></a>
+      <marketplace-additional-link
+        [url]="pkg.manifest['marketing-site']"
+        label="Marketing Site"
+        class="py-3 px-1 hover:bg-zinc-500/10 hover:cursor-pointer"
+      ></marketplace-additional-link>
+      <marketplace-additional-link
+        [url]="pkg.manifest['upstream-repo']"
+        label="Source Repository"
+        class="py-3 px-1 hover:bg-zinc-500/10 hover:cursor-pointer"
+      ></marketplace-additional-link>
+      <marketplace-additional-link
+        [url]="pkg.manifest['wrapper-repo']"
+        label="Wrapper Repository"
+        class="py-3 px-1 hover:bg-zinc-500/10 hover:cursor-pointer"
+      ></marketplace-additional-link>
+      <marketplace-additional-link
+        [url]="pkg.manifest['support-site']"
+        label="Support Site"
+        class="py-3 px-1 hover:bg-zinc-500/10 hover:cursor-pointer"
+      ></marketplace-additional-link>
     </div>
   </div>
 </div>
