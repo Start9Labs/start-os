@@ -26,7 +26,7 @@ path = "src/main.rs"
 
 [features]
 avahi = ["avahi-sys"]
-default = ["avahi-alias", "cli", "sdk", "daemon", "js_engine"]
+default = [ "cli", "sdk", "daemon", "js_engine"]
 dev = []
 unstable = ["patch-db/unstable"]
 avahi-alias = ["avahi"]
