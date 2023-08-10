@@ -177,7 +177,7 @@ impl RpcContext {
         cfg_path: Option<P>,
         disk_guid: Arc<String>,
     ) -> Result<Self, Error> {
-        let base: RpcContextConfig = RpcContextConfig::load(cfg_path).await?;
+        let base = RpcContextConfig::load(cfg_path).await?;
         tracing::info!("Loaded Config");
         let tor_proxy = base.tor_socks.unwrap_or(SocketAddr::V4(SocketAddrV4::new(
             Ipv4Addr::new(127, 0, 0, 1),
@@ -187,7 +187,7 @@ impl RpcContext {
         let secret_store = base.secret_store().await?;
         tracing::info!("Opened Pg DB");
         let account = AccountInfo::load(&secret_store).await?;
-        let db: PatchDb = base.db(&account).await?;
+        let db = base.db(&account).await?;
         tracing::info!("Opened PatchDB");
         let mut docker = Docker::connect_with_unix_defaults()?;
         docker.set_timeout(Duration::from_secs(600));
