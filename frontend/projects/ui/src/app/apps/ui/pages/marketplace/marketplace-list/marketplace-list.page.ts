@@ -19,7 +19,6 @@ import {
   trigger,
 } from '@angular/animations'
 import { CategoryService } from 'src/app/services/category.service'
-import { ModalController } from '@ionic/angular'
 import { MarketplaceSettingsPage } from './marketplace-settings/marketplace-settings.page'
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 

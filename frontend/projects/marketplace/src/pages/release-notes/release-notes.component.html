@@ -15,7 +15,7 @@
           Latest Release - {{ published | date : 'medium' }}
         </p>
       </div>
-      <div class="flex justify-between gap-6">
+      <div class="flex flex-wrap justify-between gap-6">
         <p
           class="text-base mt-1 flex-wrap"
           [innerHTML]="pkg.manifest['release-notes']"
@@ -26,6 +26,7 @@
           appearance="secondary"
           size="m"
           class="mt-3 place-self-end sm:place-self-start md:place-self-start lg:place-self-end"
+          (click)="showReleaseNotes(template)"
         >
           Previous releases
         </button>
@@ -34,36 +35,23 @@
   </div>
 </div>
 
-<!-- <ion-content class="with-widgets">
+<ng-template #template let-observer>
   <ng-container *ngIf="notes$ | async as notes; else loading">
-    <div *ngFor="let note of notes | keyvalue : asIsOrder">
-      <ion-button
-        expand="full"
-        color="light"
-        class="version-button"
-        [class.ion-activated]="isSelected(note.key)"
-        (click)="setSelected(note.key)"
-      >
-        <p class="version">{{ note.key | displayEmver }}</p>
-      </ion-button>
-      <ion-card
-        tuiElement
-        #element="elementRef"
-        class="panel"
-        color="light"
-        [id]="note.key"
-        [style.maxHeight.px]="getDocSize(note.key, element)"
-      >
-        <ion-text
-          id="release-notes"
-          safeLinks
-          [innerHTML]="note.value | markdown | dompurify"
-        ></ion-text>
-      </ion-card>
-    </div>
+    <tui-accordion
+      class="max-w-lg"
+      [closeOthers]="false"
+      *ngFor="let note of notes | keyvalue : asIsOrder"
+    >
+      <tui-accordion-item class="my-1">
+        {{ note.key | displayEmver }}
+        <ng-template tuiAccordionItemContent>
+          <p safeLinks [innerHTML]="note.value | markdown | dompurify"></p>
+        </ng-template>
+      </tui-accordion-item>
+    </tui-accordion>
   </ng-container>
 
   <ng-template #loading>
     <text-spinner text="Loading Release Notes"></text-spinner>
   </ng-template>
-</ion-content> -->
+</ng-template>
