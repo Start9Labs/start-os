@@ -9,7 +9,7 @@
         *ngIf="pkg.manifest['git-hash'] as gitHash; else noHash"
         button
         detail="false"
-        class="py-3 px-1 flex justify-between items-center"
+        class="py-3 px-1 flex flex-wrap justify-between items-center"
         (click)="copyService.copy(gitHash)"
       >
         <label tuiLabel="Git Hash">{{ gitHash }}</label>
@@ -41,7 +41,7 @@
         class="py-3 px-1 hover:bg-zinc-500/10 hover:cursor-pointer"
         (click)="presentModalMd('License')"
       >
-        <div class="flex justify-between items-center">
+        <div class="flex flex-wrap justify-between items-center">
           <label tuiLabel="License" class="hover:cursor-pointer">
             {{ pkg.manifest.license }}
           </label>
@@ -57,7 +57,7 @@
         class="py-3 px-1 hover:bg-zinc-500/10 hover:cursor-pointer"
         (click)="presentModalMd('Instructions')"
       >
-        <div class="flex justify-between items-center">
+        <div class="flex flex-wrap justify-between items-center">
           <label tuiLabel="Instructions" class="hover:cursor-pointer">
             Click to view instructions
           </label>
@@ -74,7 +74,7 @@
         (click)="presentAlertVersions(version)"
         class="py-3 px-1 hover:bg-zinc-500/10 hover:cursor-pointer"
       >
-        <div class="flex justify-between items-center">
+        <div class="flex flex-wrap justify-between items-center">
           <label tuiLabel="Other versions" class="hover:cursor-pointer">
             Click to view other versions
           </label>
