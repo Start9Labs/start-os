@@ -35,6 +35,15 @@ pub fn init(#[context] ctx: SdkContext) -> Result<(), Error> {
                 .as_bytes(),
         )?;
         dev_key_file.sync_all()?;
+        println!(
+            "New developer key generated at {}",
+            ctx.developer_key_path.display()
+        );
+    } else {
+        println!(
+            "Developer key already exists at {}",
+            ctx.developer_key_path.display()
+        );
     }
     Ok(())
 }
