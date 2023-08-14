@@ -47,17 +47,18 @@ export class CardComponent {
   @Input({ required: true })
   title!: string
 
-  @Input({ required: true })
-  isService!: boolean
-
   @Input()
   actions: Record<string, readonly Action[]> = {}
 
+  get isService(): boolean {
+    return !this.id.includes('/')
+  }
+
   @HostListener('click')
   onClick() {
-    const { id, icon, title, isService } = this
+    const { id, icon, title } = this
     const routerLink = toRouterLink(id)
 
-    this.navigation.addTab({ icon, title, isService, routerLink })
+    this.navigation.addTab({ icon, title, routerLink })
   }
 }

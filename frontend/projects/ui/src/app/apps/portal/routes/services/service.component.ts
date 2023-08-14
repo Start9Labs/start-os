@@ -29,7 +29,6 @@ export class ServiceComponent {
           this.navigation.addTab({
             icon: pkg.icon,
             title: pkg.manifest.title,
-            isService: true,
             routerLink: toRouterLink(pkg.manifest.id),
           })
         }

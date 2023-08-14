@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
 import {
+  TuiButtonModule,
   TuiDataListModule,
   TuiHostedDropdownModule,
   TuiSvgModule,
@@ -11,6 +12,11 @@ import {
   styleUrls: ['header-menu.component.scss'],
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiHostedDropdownModule, TuiDataListModule, TuiSvgModule],
+  imports: [
+    TuiHostedDropdownModule,
+    TuiDataListModule,
+    TuiSvgModule,
+    TuiButtonModule,
+  ],
 })
 export class HeaderMenuComponent {}
