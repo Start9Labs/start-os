@@ -38,17 +38,21 @@ import { toRouterLink } from '../../utils/to-router-link'
 export class CardComponent {
   private readonly navigation = inject(NavigationService)
 
-  @Input()
-  id = ''
+  @Input({ required: true })
+  id!: string
 
-  @Input()
-  icon = ''
+  @Input({ required: true })
+  icon!: string
 
-  @Input()
-  title = ''
+  @Input({ required: true })
+  title!: string
 
   @Input()
   actions: Record<string, readonly Action[]> = {}
+
+  get isService(): boolean {
+    return !this.id.includes('/')
+  }
 
   @HostListener('click')
   onClick() {
