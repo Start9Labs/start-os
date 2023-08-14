@@ -16,7 +16,6 @@ import { TuiButtonModule } from '@taiga-ui/core'
 import { ReleaseNotesModule } from '../../release-notes/release-notes.module'
 import { RouterModule } from '@angular/router'
 import { AboutModule } from '../about/about.module'
-import { MarketplaceHeaderModule } from '../../../components/header/header.component.module'
 
 @NgModule({
   declarations: [PackageComponent],
@@ -35,7 +34,6 @@ import { MarketplaceHeaderModule } from '../../../components/header/header.compo
     TuiCarouselModule,
     TuiButtonModule,
     AboutModule,
-    MarketplaceHeaderModule,
     TuiPaginationModule,
   ],
 })
