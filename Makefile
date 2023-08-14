@@ -19,6 +19,7 @@ FRONTEND_DIAGNOSTIC_UI_SRC := $(shell find frontend/projects/diagnostic-ui)
 FRONTEND_INSTALL_WIZARD_SRC := $(shell find frontend/projects/install-wizard)
 PATCH_DB_CLIENT_SRC := $(shell find patch-db/client -not -path patch-db/client/dist -and -not -path patch-db/client/node_modules)
 GZIP_BIN := $(shell which pigz || which gzip)
+TAR_BIN := $(shell which gtar || which tar)
 ALL_TARGETS := $(EMBASSY_BINS) system-images/compat/docker-images/$(ARCH).tar system-images/utils/docker-images/$(ARCH).tar system-images/binfmt/docker-images/$(ARCH).tar $(EMBASSY_SRC) $(shell if [ "$(OS_ARCH)" = "raspberrypi" ]; then echo cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep; fi) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE)
 
 ifeq ($(REMOTE),)
@@ -27,11 +28,11 @@ ifeq ($(REMOTE),)
 	cp = cp -r $1 $2
 	ln = ln -sf $1 $2
 else
-	mkdir = ssh $(REMOTE) 'mkdir -p $1'
+	mkdir = ssh $(REMOTE) 'sudo mkdir -p $1'
 	rm  = ssh $(REMOTE) 'sudo rm -rf $1'
 	ln = ssh $(REMOTE) 'sudo ln -sf $1 $2'
-define cp
-	tar --transform "s|^$1|x|" -czv -f- $1 | ssh $(REMOTE) "sudo tar --transform 's|^x|$2|' -xzv -f- -C /"
+define cp	
+	$(TAR_BIN) --transform "s|^$1|x|" -czv -f- $1 | ssh $(REMOTE) "sudo tar --transform 's|^x|$2|' -xzv -f- -C /"
 endef
 endif
 
@@ -131,14 +132,10 @@ snapshots: libs/snapshot_creator/Cargo.toml
 	cd libs/  && ./build-v8-snapshot.sh
 	cd libs/  && ./build-arm-v8-snapshot.sh
 
-libs/start_init: $(BACKEND_INIT_SRC)
-	cd libs/start_init && docker run  \
-            -v $(pwd)/:/libs \
-            -w /libs \
-            --rm node:18-alpine \
-            sh -c "npm i && npm run bundle:esbuild"
+libs/start_init/startInit.js: $(BACKEND_INIT_SRC)
+	cd libs/start_init && docker run -v $(shell pwd)/libs/start_init/:/libs -w /libs --rm node:18-alpine sh -c "npm i && npm run bundle:esbuild"
 
-$(EMBASSY_BINS): $(BACKEND_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) libs/start_init frontend/patchdb-ui-seed.json | sudo
+$(EMBASSY_BINS): $(BACKEND_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) libs/start_init/startInit.js frontend/patchdb-ui-seed.json | sudo
 	cd backend && ARCH=$(ARCH) ./build-prod.sh
 	touch $(EMBASSY_BINS)
 
