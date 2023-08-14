@@ -5,18 +5,18 @@ import {
   OnDestroy,
 } from '@angular/core'
 import { combineLatest, map, Subject, takeUntil } from 'rxjs'
-import { StoreIdentity } from '../../../src/types'
+import { StoreIdentity } from '../../types'
 import { AbstractMarketplaceService } from '../../services/marketplace.service'
 import { AbstractCategoryService } from '../../services/category.service'
 import { Router } from '@angular/router'
 
 @Component({
-  selector: 'marketplace-header',
-  templateUrl: './header.component.html',
-  styleUrls: ['./header.component.scss'],
+  selector: 'marketplace-sidebar',
+  templateUrl: './sidebar.component.html',
+  styleUrls: ['./sidebar.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class HeaderComponent implements OnDestroy {
+export class SidebarComponent implements OnDestroy {
   constructor(private readonly router: Router) {}
 
   private destroy$ = new Subject<void>()
