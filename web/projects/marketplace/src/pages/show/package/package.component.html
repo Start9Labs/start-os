@@ -1,133 +1,128 @@
-<marketplace-header></marketplace-header>
 <div
   *ngIf="pkg$ | async as pkg; else loading"
   class="sm:pl-[34vw] md:pl-[28vw] lg:pl-[22vw] 2xl:pl-[280px] min-h-screen"
   [@tuiFadeIn]="getAnimation(speed)"
 >
-  <div class="grid grid-flow-row gap-8 justify-normal 3xl:justify-center">
-    <ng-container *ngIf="pkg | empty; else show">
-      <ng-container *ngIf="version$ | async as version">
-        <h2 class="m-auto text-center">
-          {{ pkgId }} version {{ version === '*' ? 'latest' : version }} not
-          found in this registry
-        </h2>
-      </ng-container>
+  <ng-container *ngIf="pkg | empty; else show">
+    <ng-container *ngIf="version$ | async as version">
+      <h2 class="m-auto text-center">
+        {{ pkgId }} version {{ version === '*' ? 'latest' : version }} not found
+        in this registry
+      </h2>
     </ng-container>
+  </ng-container>
 
-    <ng-template #show>
-      <div class="grid gap-8 mb-16 p-2 lg:px-20 mt-20">
-        <!-- header -->
-        <div class="flex justify-center mt-10 md:mt-0">
-          <!-- control buttons -->
-          <ng-content></ng-content>
+  <ng-template #show>
+    <div class="grid gap-8 mb-16 p-2 lg:px-16 lg:pb-8 mt-20">
+      <!-- header -->
+      <div class="flex justify-center mt-10 md:mt-0">
+        <!-- control buttons -->
+        <ng-content></ng-content>
+        <div
+          class="flex flex-col w-[96%] md:w-full h-[25vh] md:min-h-[14rem] relative rounded-3xl pt-16 pb-10 px-8 shadow-lg"
+        >
+          <!-- @TODO mime type pipe -->
+          <img
+            [src]="'data:image/png;base64,' + pkg.icon | trustUrl"
+            class="w-24 h-24 pointer-events-none rounded-full object-cover shadow-lg absolute -top-9 left-7"
+            alt="{{ pkg.manifest.title }} Icon"
+          />
           <div
-            class="flex flex-col w-[96%] md:w-full h-[25vh] md:min-h-[14rem] relative rounded-3xl pt-16 pb-10 px-8 shadow-xl"
+            class="overflow-hidden absolute w-full h-full top-0 left-0 -z-50 rounded-3xl bg-black"
           >
-            <!-- @TODO mime type pipe -->
+            <div
+              class="absolute top-0 left-0 w-full h-full bg-center panel"
+            ></div>
             <img
               [src]="'data:image/png;base64,' + pkg.icon | trustUrl"
-              class="w-24 h-24 pointer-events-none rounded-full object-cover shadow-xl absolute -top-9 left-7"
+              class="absolute object-cover pointer-events-none w-[200%] h-[200%] max-w-[200%] blur-[100px] saturate-150 rounded-full"
               alt="{{ pkg.manifest.title }} Icon"
             />
-            <div
-              class="overflow-hidden absolute w-full h-full top-0 left-0 -z-50 rounded-3xl bg-black"
+          </div>
+          <div class="my-3 mix-blend-plus-lighter">
+            <h2
+              class="block text-2xl font-medium text-zinc-50 line-clamp-1 mb-1"
             >
-              <div
-                class="absolute top-0 left-0 w-full h-full bg-center panel"
-              ></div>
-              <img
-                [src]="'data:image/png;base64,' + pkg.icon | trustUrl"
-                class="absolute object-cover pointer-events-none w-[200%] h-[200%] max-w-[200%] blur-[100px] saturate-150 rounded-full"
-                alt="{{ pkg.manifest.title }} Icon"
-              />
-            </div>
-            <div class="my-3 mix-blend-plus-lighter">
-              <h2
-                class="block text-2xl font-medium text-zinc-50 line-clamp-1 mb-1"
-              >
-                {{ pkg.manifest.title }}
-              </h2>
-              <p class="block text-base text-zinc-50 h-12 line-clamp-2">
-                {{ pkg.manifest.description.short }}
-              </p>
-            </div>
-          </div>
-        </div>
-        <!-- screenshots -->
-        <div
-          *ngIf="pkg.screenshots"
-          tuiCarouselButtons
-          class="flex items-center content-center m-0 lg:-ml-14 lg:-mr-14 lg:min-h-80 lg:h-80"
-        >
-          <button
-            tuiIconButton
-            appearance="flat"
-            icon="tuiIconChevronLeftLarge"
-            title="Previous"
-            type="button"
-            (click)="carousel.prev()"
-          ></button>
-          <tui-carousel
-            #carousel
-            [itemsCount]="2"
-            [(index)]="index"
-            class="overflow-y-hidden overflow-x-scroll carousel"
-          >
-            <ng-container *ngFor="let item of pkg.screenshots; let i = index">
-              <div
-                *tuiItem
-                draggable="false"
-                [class.item_active]="i === index + 1"
-                class="object-cover rounded-xl border border-zinc-400/30"
-              >
-                <img
-                  #template
-                  alt="Service Screenshot"
-                  src="assets/img/temp/{{ item }}"
-                  class="w-full h-full rounded-xl drop-shadow-lg shadow-xl shadow-zinc-400/20 hover:cursor-pointer"
-                  (click)="presentModalImg(dialogTemplate)"
-                />
-                <ng-template #dialogTemplate let-observer>
-                  <img
-                    alt="Service Screenshot"
-                    src="assets/img/temp/{{ item }}"
-                    class="w-full rounded-none"
-                  />
-                </ng-template>
-              </div>
-            </ng-container>
-          </tui-carousel>
-          <button
-            tuiIconButton
-            appearance="flat"
-            type="button"
-            icon="tuiIconChevronRightLarge"
-            title="Next"
-            (click)="carousel.next()"
-          ></button>
-        </div>
-
-        <div class="p-2 md:p-0 grid grid-cols-1 md:grid-cols-12 gap-x-8">
-          <!-- about -->
-          <div class="col-span-12 xl:col-span-8">
-            <marketplace-about [pkg]="pkg"></marketplace-about>
-          </div>
-          <!-- additional info-->
-          <div class="col-span-12 xl:col-span-4 mt-6 xl:mt-0">
-            <marketplace-additional
-              class="additional"
-              [pkg]="pkg"
-              (version)="version$.next($event)"
-            ></marketplace-additional>
-          </div>
-          <!-- release notes -->
-          <div class="col-span-12 xl:col-span-8 mt-6">
-            <release-notes></release-notes>
+              {{ pkg.manifest.title }}
+            </h2>
+            <p class="block text-base text-zinc-50 h-12 line-clamp-2">
+              {{ pkg.manifest.description.short }}
+            </p>
           </div>
         </div>
       </div>
-    </ng-template>
-  </div>
+      <!-- screenshots -->
+      <div
+        *ngIf="pkg.screenshots"
+        tuiCarouselButtons
+        class="flex items-center content-center m-0 lg:-ml-14 lg:-mr-14 lg:min-h-80 lg:h-80"
+      >
+        <button
+          tuiIconButton
+          appearance="flat"
+          icon="tuiIconChevronLeftLarge"
+          title="Previous"
+          type="button"
+          (click)="carousel.prev()"
+        ></button>
+        <tui-carousel
+          #carousel
+          [itemsCount]="isMobile ? 1 : 2"
+          [(index)]="index"
+          class="overflow-y-hidden overflow-x-scroll carousel overflow-hidden"
+        >
+          <ng-container *ngFor="let item of pkg.screenshots; let i = index">
+            <div
+              *tuiItem
+              draggable="false"
+              [class.item_active]="i === index + 1"
+              class="object-cover overflow-hidden rounded-lg md:rounded-xl border border-zinc-400/30 hover:cursor-pointer shadow-lg shadow-zinc-400/10"
+            >
+              <img
+                #template
+                alt="Service Screenshot"
+                src="assets/img/temp/{{ item }}"
+                class="w-full h-full rounded-lg md:rounded-xl"
+                (click)="presentModalImg(dialogTemplate)"
+              />
+              <ng-template #dialogTemplate let-observer>
+                <img
+                  alt="Service Screenshot"
+                  src="assets/img/temp/{{ item }}"
+                  class="w-full rounded-none"
+                />
+              </ng-template>
+            </div>
+          </ng-container>
+        </tui-carousel>
+        <button
+          tuiIconButton
+          appearance="flat"
+          type="button"
+          icon="tuiIconChevronRightLarge"
+          title="Next"
+          (click)="carousel.next()"
+        ></button>
+      </div>
+
+      <div class="p-2 md:p-0 grid grid-cols-1 2xl:grid-cols-12 gap-x-8">
+        <!-- about -->
+        <div class="col-span-12 2xl:col-span-8">
+          <marketplace-about [pkg]="pkg"></marketplace-about>
+          <release-notes></release-notes>
+        </div>
+        <!-- additional info-->
+        <div class="col-span-12 2xl:col-span-4 mt-6 2xl:mt-0">
+          <marketplace-additional
+            class="additional"
+            [pkg]="pkg"
+            (version)="version$.next($event)"
+          ></marketplace-additional>
+          <!-- release notes -->
+        </div>
+      </div>
+    </div>
+  </ng-template>
 </div>
 
 <ng-template #loading>

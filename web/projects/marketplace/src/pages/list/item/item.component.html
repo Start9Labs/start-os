@@ -1,7 +1,7 @@
 <div class="items-center gap-3 h-full">
   <a [routerLink]="['/marketplace', pkg.manifest.id]">
     <div
-      class="flex flex-col h-full relative rounded-3xl pt-20 pb-10 px-8 gap-4 shadow-xl hover:scale-90 transition duration-500 ease-in-out"
+      class="flex flex-col h-full relative rounded-3xl pt-20 pb-10 px-8 gap-4 shadow-lg hover:scale-90 transition duration-500 ease-in-out"
     >
       <div
         class="overflow-hidden absolute w-full h-full top-0 left-0 -z-50 rounded-3xl bg-black"
@@ -15,7 +15,7 @@
       </div>
       <img
         [src]="'data:image/png;base64,' + pkg.icon | trustUrl"
-        class="w-[5.5rem] h-[5.5rem] pointer-events-none absolute -top-10 rounded-full object-cover shadow-xl"
+        class="w-[5.5rem] h-[5.5rem] pointer-events-none absolute -top-10 rounded-full object-cover shadow-lg"
         alt="{{ pkg.manifest.title }} Icon"
         style="transform: none"
       />

@@ -1,7 +1,7 @@
-<a *ngIf="url" [href]="url" target="_blank" rel="noreferrer">
-  <div class="flex flex-wrap justify-between items-center">
+<a [href]="url" target="_blank" rel="noreferrer">
+  <div class="flex justify-between items-center">
     <label [tuiLabel]="label" class="hover:cursor-pointer">
-      {{ url }}
+      <tui-line-clamp [content]="url" [linesLimit]="1"></tui-line-clamp>
     </label>
     <img
       alt="Open Icon"

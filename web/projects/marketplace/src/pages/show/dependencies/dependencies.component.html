@@ -3,7 +3,7 @@
   <div *ngFor="let dep of pkg.manifest.dependencies | keyvalue">
     <a [routerLink]="['/marketplace', dep.key]">
       <div
-        class="bg-zinc-700 rounded-xl py-3 px-5 gap-2 drop-shadow-xl hover:opacity-90"
+        class="bg-zinc-700 rounded-xl py-3 px-5 gap-2 drop-shadow-lg hover:opacity-90"
       >
         <div class="flex items-center gap-6">
           <img
@@ -11,7 +11,7 @@
               'data:image/png;base64,' +
                 pkg['dependency-metadata'][dep.key].icon | trustUrl
             "
-            class="w-16 pointer-events-none rounded-full object-cover drop-shadow-xl"
+            class="w-16 pointer-events-none rounded-full object-cover drop-shadow-lg"
             alt="{{ pkg['dependency-metadata'][dep.key].title }} Icon"
           />
           <div class="mt-3">
