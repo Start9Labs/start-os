@@ -17,11 +17,12 @@ import {
 import { tuiPure } from '@taiga-ui/cdk'
 import { AbstractMarketplaceService } from '../../../services/marketplace.service'
 import { PolymorpheusContent } from '@tinkoff/ng-polymorpheus'
+import { isPlatform } from '@ionic/angular'
 
 @Component({
   selector: 'marketplace-package',
   templateUrl: './package.component.html',
-  styleUrls: ['./package.component.less'],
+  styleUrls: ['./package.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   animations: [tuiFadeIn],
 })
@@ -36,6 +37,7 @@ export class PackageComponent {
   readonly version$ = new BehaviorSubject('*')
   index = 0
   speed = 1000
+  isMobile = isPlatform(window, 'ios') || isPlatform(window, 'android')
 
   readonly pkg$ = this.version$.pipe(
     switchMap(version =>

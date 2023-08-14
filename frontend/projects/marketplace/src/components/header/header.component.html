@@ -1,5 +1,5 @@
 <header
-  class="w-full fixed z-50 sm:w-[34vw] md:w-[28vw] lg:w-[22vw] 2xl:w-[280px] sm:bg-white/10 sm:backdrop-blur-2xl sm:min-h-screen overflow-y-auto flex flex-col sm:py-6 sm:after:block sm:after:absolute sm:after:top-0 sm:after:bottom-0 sm:after:right-0 sm:after:w-0.5 after:h-[calc(100vh - 20px)] sm:after:bg-gradient-to-b from-zinc-600 to-zinc-400 drop-shadow-md"
+  class="w-full fixed z-50 sm:w-[34vw] md:w-[28vw] lg:w-[22vw] 2xl:w-[280px] sm:bg-zinc-700/90 sm:backdrop-blur-2xl sm:min-h-screen overflow-y-auto flex flex-col sm:py-6 sm:after:block sm:after:absolute sm:after:top-0 sm:after:bottom-0 sm:after:right-0 sm:after:w-0.5 after:h-[calc(100vh - 20px)] sm:after:bg-gradient-to-b from-zinc-700 to-zinc-400 drop-shadow-md"
 >
   <ng-container *ngIf="store$ | async as store; else loading">
     <div class="hidden sm:flex flex-col mx-6 pb-3 items-center">
@@ -18,7 +18,7 @@
     <div class="overflow-x-hidden overflow-y-hidden flex flex-col grow">
       <!-- mobile header -->
       <div
-        class="sm:hidden flex flex-col bg-white/10 backdrop-blur-3xl backdrop-saturate-150 border-b border-black/5"
+        class="sm:hidden flex flex-col bg-zinc-700/90 backdrop-blur-3xl backdrop-saturate-150"
         style="transform: translateX(0px) translateZ(0px)"
       >
         <div class="flex">

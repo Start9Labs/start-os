@@ -15,7 +15,7 @@
         <label tuiLabel="Git Hash">{{ gitHash }}</label>
         <img
           alt="Copy Icon"
-          class="block opacity-70 invert w-4"
+          class="block opacity-70 invert w-4 hover:cursor-copy"
           src="svg/copy-outline.svg"
         />
       </div>
@@ -111,30 +111,28 @@
         </ng-template>
       </div>
       <!-- links -->
-      <a
-        *ngIf="url"
-        [href]="url"
-        target="_blank"
-        rel="noreferrer"
-        class="py-3 px-1 hover:bg-zinc-500/10 hover:cursor-pointer"
-      ></a>
+      <a *ngIf="url" [href]="url" target="_blank" rel="noreferrer"></a>
       <marketplace-additional-link
         [url]="pkg.manifest['marketing-site']"
+        *ngIf="pkg.manifest['marketing-site']"
         label="Marketing Site"
         class="py-3 px-1 hover:bg-zinc-500/10 hover:cursor-pointer"
       ></marketplace-additional-link>
       <marketplace-additional-link
         [url]="pkg.manifest['upstream-repo']"
+        *ngIf="pkg.manifest['upstream-repo']"
         label="Source Repository"
         class="py-3 px-1 hover:bg-zinc-500/10 hover:cursor-pointer"
       ></marketplace-additional-link>
       <marketplace-additional-link
         [url]="pkg.manifest['wrapper-repo']"
+        *ngIf="pkg.manifest['wrapper-repo']"
         label="Wrapper Repository"
         class="py-3 px-1 hover:bg-zinc-500/10 hover:cursor-pointer"
       ></marketplace-additional-link>
       <marketplace-additional-link
         [url]="pkg.manifest['support-site']"
+        *ngIf="pkg.manifest['support-site']"
         label="Support Site"
         class="py-3 px-1 hover:bg-zinc-500/10 hover:cursor-pointer"
       ></marketplace-additional-link>
