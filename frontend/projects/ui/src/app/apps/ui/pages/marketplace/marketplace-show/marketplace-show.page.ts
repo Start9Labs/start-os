@@ -1,10 +1,13 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { getPkgId } from '@start9labs/shared'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { PatchDB } from 'patch-db-client'
-import { filter, shareReplay, switchMap, BehaviorSubject } from 'rxjs'
+import { BehaviorSubject, filter, shareReplay, switchMap } from 'rxjs'
 import { DataModel } from 'src/app/services/patch-db/data-model'
+import { TuiDialogService } from '@taiga-ui/core'
+import { MarketplaceSettingsPage } from '../marketplace-list/marketplace-settings/marketplace-settings.page'
+import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 
 @Component({
   selector: 'marketplace-show',
@@ -32,5 +35,17 @@ export class MarketplaceShowPage {
     private readonly route: ActivatedRoute,
     private readonly patch: PatchDB<DataModel>,
     private readonly marketplaceService: AbstractMarketplaceService,
+    @Inject(TuiDialogService) private readonly dialogs: TuiDialogService,
   ) {}
+
+  async presentModalMarketplaceSettings() {
+    this.dialogs
+      .open<MarketplaceSettingsPage>(
+        new PolymorpheusComponent(MarketplaceSettingsPage),
+        {
+          label: 'Change Registry',
+        },
+      )
+      .subscribe()
+  }
 }
