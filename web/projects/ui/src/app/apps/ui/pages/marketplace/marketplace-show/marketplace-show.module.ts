@@ -12,6 +12,7 @@ import {
   AboutModule,
   AdditionalModule,
   DependenciesModule,
+  MarketplaceHeaderModule,
   PackageModule,
 } from '@start9labs/marketplace'
 import { MarketplaceStatusModule } from '../marketplace-status/marketplace-status.module'
@@ -42,6 +43,7 @@ const routes: Routes = [
     AdditionalModule,
     MarketplaceShowComponentsModule,
     TuiButtonModule,
+    MarketplaceHeaderModule,
   ],
   declarations: [MarketplaceShowPage],
 })
