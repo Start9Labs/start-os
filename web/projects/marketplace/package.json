@@ -1,6 +1,6 @@
 {
   "name": "@start9labs/marketplace",
-  "version": "0.3.12",
+  "version": "0.3.13",
   "peerDependencies": {
     "@angular/common": ">=13.2.0",
     "@angular/core": ">=13.2.0",

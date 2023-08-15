@@ -1,40 +1,48 @@
-<h2 class="text-lg font-bold small-caps my-2 pb-3">Dependencies</h2>
-<div class="grid grid-cols-1 md:grid-row-auto gap-3">
-  <div *ngFor="let dep of pkg.manifest.dependencies | keyvalue">
-    <a [routerLink]="['/marketplace', dep.key]">
-      <div
-        class="bg-zinc-700 rounded-xl py-3 px-5 gap-2 drop-shadow-lg hover:opacity-90"
-      >
-        <div class="flex items-center gap-6">
-          <img
-            [src]="
-              'data:image/png;base64,' +
-                pkg['dependency-metadata'][dep.key].icon | trustUrl
-            "
-            class="w-16 pointer-events-none rounded-full object-cover drop-shadow-lg"
-            alt="{{ pkg['dependency-metadata'][dep.key].title }} Icon"
-          />
-          <div class="mt-3">
-            <div class="flex flex-wrap items-center gap-1 mb-1">
-              <span
-                class="block text-base font-medium text-zinc-50/90 line-clamp-1"
-              >
-                {{ pkg['dependency-metadata'][dep.key].title }}
-              </span>
-              <p>
-                <ng-container [ngSwitch]="dep.value.requirement.type">
-                  <span *ngSwitchCase="'required'">(required)</span>
-                  <span *ngSwitchCase="'opt-out'">(required by default)</span>
-                  <span *ngSwitchCase="'opt-in'">(optional)</span>
-                </ng-container>
-              </p>
+<div
+  class="rounded-xl bg-gradient-to-bl from-zinc-400/75 to-zinc-600 p-px shadow-lg shadow-zinc-400/10 mt-6"
+>
+  <div class="lg:col-span-5 xl:col-span-4 bg-zinc-800 rounded-xl p-7">
+    <h2 class="text-lg font-bold small-caps my-2 pb-3">Dependencies</h2>
+    <div class="grid grid-cols-1 md:grid-row-auto gap-3">
+      <div *ngFor="let dep of pkg.manifest.dependencies | keyvalue">
+        <a [routerLink]="['/marketplace', dep.key]">
+          <div
+            class="bg-zinc-700/40 rounded-xl py-3 px-5 gap-2 drop-shadow-lg hover:bg-zinc-700/70"
+          >
+            <div class="flex items-center gap-6">
+              <img
+                [src]="
+                  'data:image/png;base64,' +
+                    pkg['dependency-metadata'][dep.key].icon | trustUrl
+                "
+                class="w-16 pointer-events-none rounded-full object-cover drop-shadow-lg"
+                alt="{{ pkg['dependency-metadata'][dep.key].title }} Icon"
+              />
+              <div class="mt-3">
+                <div class="flex flex-wrap items-center gap-1 mb-1">
+                  <span
+                    class="block text-base font-medium text-zinc-50/90 line-clamp-1"
+                  >
+                    {{ pkg['dependency-metadata'][dep.key].title }}
+                  </span>
+                  <p>
+                    <ng-container [ngSwitch]="dep.value.requirement.type">
+                      <span *ngSwitchCase="'required'">(required)</span>
+                      <span *ngSwitchCase="'opt-out'">
+                        (required by default)
+                      </span>
+                      <span *ngSwitchCase="'opt-in'">(optional)</span>
+                    </ng-container>
+                  </p>
+                </div>
+                <span class="text-sm text-zinc-50/70 h-11 line-clamp-2">
+                  {{ dep.value.description }}
+                </span>
+              </div>
             </div>
-            <span class="text-sm text-zinc-50/70 h-11 line-clamp-2">
-              {{ dep.value.description }}
-            </span>
           </div>
-        </div>
+        </a>
       </div>
-    </a>
+    </div>
   </div>
 </div>

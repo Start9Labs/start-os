@@ -4,22 +4,24 @@
   <div *ngIf="pkg$ | async as pkg" class="bg-zinc-800 rounded-xl p-7">
     <div class="grid grid-flow-row items-center gap-6">
       <div class="flex justify-between">
-        <h3 class="text-lg font-bold small-caps">
-          What's new in
-          <b>{{ pkg.manifest.version }}</b>
-        </h3>
+        <h3 class="text-lg font-bold small-caps">What's new</h3>
         <p
           *ngIf="pkg['published-at'] as published"
-          class="text-base font-light small-caps mb-1 text-zinc-300"
+          class="text-base font-light mb-1 text-zinc-300"
         >
-          Latest Release - {{ published | date : 'medium' }}
+          <span class="small-caps">Latest Release</span>
+          &nbsp;-&nbsp;
+          <span class="text-sm">{{ published | date : 'medium' }}</span>
         </p>
       </div>
       <div class="flex flex-wrap justify-between gap-6">
-        <p
-          class="text-base mt-1 flex-wrap"
-          [innerHTML]="pkg.manifest['release-notes']"
-        ></p>
+        <div class="text-base">
+          <p>Version {{ pkg.manifest.version }}</p>
+          <p
+            class="flex-wrap mt-1"
+            [innerHTML]="pkg.manifest['release-notes']"
+          ></p>
+        </div>
         <button
           tuiButton
           type="button"
