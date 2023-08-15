@@ -6,6 +6,7 @@ import {
   MarketplacePkg,
   StoreData,
   StoreIdentity,
+  StoreIdentityWithData,
   StoreInfo,
 } from '@start9labs/marketplace'
 import { PatchDB } from 'patch-db-client'
@@ -166,9 +167,9 @@ export class MarketplaceService implements AbstractMarketplaceService {
     return this.selectedHost$.pipe(
       switchMap(({ url }) =>
         this.marketplace$.pipe(
-          // map((m) => m[url]),
-          map(m => {
-            const store = m[url]
+          map(m => m[url]),
+          filter(Boolean),
+          map(store => {
             const categories = new Set<string>()
             categories.add('all')
             store?.info.categories.forEach(c => categories.add(c))

@@ -19,6 +19,8 @@ export interface StoreInfo {
   categories: string[]
 }
 
+export type StoreIdentityWithData = StoreData & StoreIdentity
+
 export interface MarketplacePkg {
   icon: Url
   license: Url
