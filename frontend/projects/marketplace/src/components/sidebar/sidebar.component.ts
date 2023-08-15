@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   inject,
+  Input,
   OnDestroy,
 } from '@angular/core'
 import { combineLatest, map, Subject, takeUntil } from 'rxjs'
@@ -9,6 +10,7 @@ import { StoreIdentity } from '../../types'
 import { AbstractMarketplaceService } from '../../services/marketplace.service'
 import { AbstractCategoryService } from '../../services/category.service'
 import { Router } from '@angular/router'
+import { MarketplaceConfig } from '@start9labs/shared'
 
 @Component({
   selector: 'marketplace-sidebar',
@@ -17,6 +19,9 @@ import { Router } from '@angular/router'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SidebarComponent implements OnDestroy {
+  @Input({ required: true })
+  iconConfig!: MarketplaceConfig
+
   constructor(private readonly router: Router) {}
 
   private destroy$ = new Subject<void>()
@@ -35,7 +40,6 @@ export class SidebarComponent implements OnDestroy {
   category: string = ''
   query: string = ''
   open = false
-  iconConfig = require('../../../../../config.json').ui.marketplace
 
   ngOnInit() {
     this.categoryService

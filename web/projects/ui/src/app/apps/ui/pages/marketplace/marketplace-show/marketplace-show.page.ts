@@ -8,6 +8,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TuiDialogService } from '@taiga-ui/core'
 import { MarketplaceSettingsPage } from '../marketplace-list/marketplace-settings/marketplace-settings.page'
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
+import { ConfigService } from 'src/app/services/config.service'
 
 @Component({
   selector: 'marketplace-show',
@@ -16,8 +17,17 @@ import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MarketplaceShowPage {
+  constructor(
+    private readonly route: ActivatedRoute,
+    private readonly patch: PatchDB<DataModel>,
+    private readonly marketplaceService: AbstractMarketplaceService,
+    @Inject(TuiDialogService) private readonly dialogs: TuiDialogService,
+    readonly config: ConfigService,
+  ) {}
+
   readonly pkgId = getPkgId(this.route)
   readonly url = this.route.snapshot.queryParamMap.get('url') || undefined
+  readonly marketplace = this.config.marketplace
 
   readonly loadVersion$ = new BehaviorSubject<string>('*')
 
@@ -30,13 +40,6 @@ export class MarketplaceShowPage {
       this.marketplaceService.getPackage$(this.pkgId, version, this.url),
     ),
   )
-
-  constructor(
-    private readonly route: ActivatedRoute,
-    private readonly patch: PatchDB<DataModel>,
-    private readonly marketplaceService: AbstractMarketplaceService,
-    @Inject(TuiDialogService) private readonly dialogs: TuiDialogService,
-  ) {}
 
   async presentModalMarketplaceSettings() {
     this.dialogs
