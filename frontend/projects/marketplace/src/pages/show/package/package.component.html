@@ -21,9 +21,8 @@
         <div
           class="flex flex-col w-[96%] md:w-full h-[25vh] md:min-h-[14rem] relative rounded-3xl pt-16 pb-10 px-8 shadow-lg"
         >
-          <!-- @TODO mime type pipe -->
           <img
-            [src]="'data:image/png;base64,' + pkg.icon | trustUrl"
+            [src]="pkg | mimeType | trustUrl"
             class="w-24 h-24 pointer-events-none rounded-full object-cover shadow-lg absolute -top-9 left-7"
             alt="{{ pkg.manifest.title }} Icon"
           />
@@ -34,7 +33,7 @@
               class="absolute top-0 left-0 w-full h-full bg-center panel"
             ></div>
             <img
-              [src]="'data:image/png;base64,' + pkg.icon | trustUrl"
+              [src]="pkg | mimeType | trustUrl"
               class="absolute object-cover pointer-events-none w-[200%] h-[200%] max-w-[200%] blur-[100px] saturate-150 rounded-full"
               alt="{{ pkg.manifest.title }} Icon"
             />
