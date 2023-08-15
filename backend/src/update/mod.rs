@@ -19,6 +19,7 @@ use crate::db::model::UpdateProgress;
 use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::MountGuard;
+use crate::marketplace::with_query_params;
 use crate::notifications::NotificationLevel;
 use crate::sound::{
     CIRCLE_OF_5THS_SHORT, UPDATE_FAILED_1, UPDATE_FAILED_2, UPDATE_FAILED_3, UPDATE_FAILED_4,
@@ -81,18 +82,19 @@ async fn maybe_do_update(
     marketplace_url: Url,
 ) -> Result<Option<Arc<Revision>>, Error> {
     let mut db = ctx.db.handle();
-    let latest_version: Version = reqwest::get(format!(
-        "{}/eos/v0/latest?eos-version={}&arch={}",
-        marketplace_url,
-        Current::new().semver(),
-        OS_ARCH,
-    ))
-    .await
-    .with_kind(ErrorKind::Network)?
-    .json::<LatestInformation>()
-    .await
-    .with_kind(ErrorKind::Network)?
-    .version;
+    let latest_version: Version = ctx
+        .client
+        .get(with_query_params(
+            &ctx,
+            format!("{}/eos/v0/latest", marketplace_url,).parse()?,
+        ))
+        .send()
+        .await
+        .with_kind(ErrorKind::Network)?
+        .json::<LatestInformation>()
+        .await
+        .with_kind(ErrorKind::Network)?
+        .version;
     crate::db::DatabaseModel::new()
         .server_info()
         .lock(&mut db, LockType::Write)

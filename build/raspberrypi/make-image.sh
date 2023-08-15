@@ -71,6 +71,7 @@ sudo losetup -d $OUTPUT_DEVICE
 if [ "$ALLOW_VERSION_MISMATCH" != 1 ]; then
     if [ "$(cat GIT_HASH.txt)" != "$REAL_GIT_HASH" ]; then
         >&2 echo "startos.raspberrypi.squashfs GIT_HASH.txt mismatch"
+        >&2 echo "expected $REAL_GIT_HASH (dpkg) found $(cat GIT_HASH.txt) (repo)"
         exit 1
     fi
     if [ "$(cat VERSION.txt)" != "$REAL_VERSION" ]; then
