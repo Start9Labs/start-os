@@ -19,20 +19,8 @@
           src="svg/copy-outline.svg"
         />
       </div>
-      <ng-container *ngIf="pkg.manifest.replaces as replaces">
-        <div *ngIf="replaces.length" class="py-3 px-1">
-          <label tuiLabel="Intended to replace">
-            <tui-tag
-              *ngFor="let app; index as i; of: replaces"
-              size="l"
-              [class]="i > 0 ? 'ml-1.5 mt-2' : 'mt-2'"
-              [value]="app"
-            ></tui-tag>
-          </label>
-        </div>
-      </ng-container>
       <ng-template #noHash>
-        <div>
+        <div class="py-3 px-1">
           <label tuiLabel="Git Hash">Unknown</label>
         </div>
       </ng-template>

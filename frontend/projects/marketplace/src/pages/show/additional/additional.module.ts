@@ -5,7 +5,6 @@ import { AdditionalComponent } from './additional.component'
 import {
   TuiRadioListModule,
   TuiStringifyContentPipeModule,
-  TuiTagModule,
 } from '@taiga-ui/kit'
 import { FormsModule } from '@angular/forms'
 import { TuiButtonModule, TuiLabelModule, TuiSvgModule } from '@taiga-ui/core'
@@ -22,7 +21,6 @@ import { AdditionalLinkModule } from './additional-link/additional-link.componen
     TuiButtonModule,
     TuiLabelModule,
     TuiSvgModule,
-    TuiTagModule,
     AdditionalLinkModule,
   ],
   declarations: [AdditionalComponent],

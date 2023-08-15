@@ -2,13 +2,20 @@
   class="rounded-xl bg-gradient-to-bl from-zinc-400/75 to-zinc-600 p-px shadow-lg shadow-zinc-400/10"
 >
   <div class="lg:col-span-5 xl:col-span-4 bg-zinc-800 rounded-xl p-7">
-    <h2 class="text-lg font-bold small-caps pb-3">About</h2>
-    <p class="text-base">
+    <h2 class="text-lg font-bold small-caps pb-3">Description</h2>
+    <p class="text-base mb-3">
       {{ pkg.manifest.description.long }}
     </p>
-    <marketplace-dependencies
-      *ngIf="!(pkg.manifest.dependencies | empty)"
-      [pkg]="pkg"
-    ></marketplace-dependencies>
+    <h2 class="text-lg font-bold small-caps pb-3">Intended to replace</h2>
+    <ng-container *ngIf="pkg.manifest.replaces as replaces">
+      <div *ngIf="replaces.length">
+        <tui-tag
+          *ngFor="let app; index as i; of: replaces"
+          size="l"
+          [class]="i > 0 ? 'ml-1.5 mt-2' : 'mt-2'"
+          [value]="app"
+        ></tui-tag>
+      </div>
+    </ng-container>
   </div>
 </div>

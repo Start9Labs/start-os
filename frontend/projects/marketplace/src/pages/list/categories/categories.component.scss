@@ -1,10 +1,16 @@
 .category_selected {
-  background-color: var(--ion-background-color)!important;
-  position: relative;
-  width: 200%;
-  border-top-left-radius: 0.5rem;
-  border-bottom-left-radius: 0.5rem;
-  transition-property: all;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 300ms;
+  font-weight: bold;
+}
+
+@media (min-width: 600px) {
+  .category_selected {
+    background-color: var(--ion-background-color)!important;
+    position: relative;
+    width: 200%;
+    border-top-left-radius: 0.5rem;
+    border-bottom-left-radius: 0.5rem;
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 300ms;
+  }
 }

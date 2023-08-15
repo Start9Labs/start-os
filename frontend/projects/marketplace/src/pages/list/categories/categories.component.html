@@ -1,12 +1,12 @@
 <div
   *ngFor="let cat of categories"
-  class="sm:relative sm:hover:bg-background hover:cursor-pointer sm:w-[105%] z-50 rounded-l-lg transition-all ease-in-out delay-75 duration-300"
+  class="relative hover:bg-background hover:cursor-pointer w-[105%] z-50 rounded-l-lg transition-all ease-in-out delay-50 duration-300"
 >
   <button
-    class="flex relative gap-2 hover:no-underline mb-2 p-2"
-    [class.category_selected]="cat === category"
+    class="flex relative gap-2 hover:no-underline hover:cursor-pointer mb-5 sm:p-2 sm:mb-3 w-full"
     routerLink="/marketplace"
     (click)="switchCategory(cat)"
+    [class.category_selected]="cat === category"
   >
     <div class="relative flex flex-shrink-0">
       <img

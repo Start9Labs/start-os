@@ -12,6 +12,7 @@ import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
 
 import { AboutComponent } from './about.component'
 import { DependenciesModule } from '../dependencies/dependencies.module'
+import { TuiTagModule } from '@taiga-ui/kit'
 
 @NgModule({
   imports: [
@@ -24,6 +25,7 @@ import { DependenciesModule } from '../dependencies/dependencies.module'
     SafeLinksModule,
     DependenciesModule,
     SharedPipesModule,
+    TuiTagModule,
   ],
   declarations: [AboutComponent],
   exports: [AboutComponent],

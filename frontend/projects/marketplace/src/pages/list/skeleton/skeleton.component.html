@@ -1,4 +1,4 @@
-<div class="hidden-scrollbar ion-text-center">
+<div class="">
   <ion-button *ngFor="let cat of ['', '', '', '', '', '', '']" fill="clear">
     <ion-skeleton-text
       animated
@@ -6,6 +6,38 @@
     ></ion-skeleton-text>
   </ion-button>
 </div>
+<div class="hidden sm:flex flex-col mx-6 pb-3 items-center">
+  <div class="pb-3">
+    <ion-skeleton-text style="border-radius: 100%" animated></ion-skeleton-text>
+  </div>
+
+  <ng-content select="[slot=desktop]"></ng-content>
+</div>
+<ion-row>
+  <ion-col
+    *ngFor="let cat of ['', '', '', '', '', '', '']"
+    fill="clear"
+    responsiveCol
+    sizeXs="12"
+    sizeSm="12"
+    sizeMd="3"
+  >
+    <ion-item>
+      <ion-thumbnail slot="start">
+        <ion-skeleton-text
+          style="border-radius: 100%"
+          animated
+        ></ion-skeleton-text>
+      </ion-thumbnail>
+      <ion-label>
+        <ion-skeleton-text
+          animated
+          style="width: 150px; height: 18px; margin-bottom: 8px"
+        ></ion-skeleton-text>
+      </ion-label>
+    </ion-item>
+  </ion-col>
+</ion-row>
 
 <ion-grid class="p-20">
   <ion-row>
