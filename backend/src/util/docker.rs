@@ -218,6 +218,7 @@ pub async fn create_bridge_network(
     bridge_name: &str,
 ) -> Result<(), Error> {
     let mut cmd = Command::new(CONTAINER_TOOL);
+    cmd.arg("network").arg("create");
     cmd.arg("-d").arg("bridge");
     cmd.arg("--subnet").arg(subnet);
     if CONTAINER_TOOL == "docker" {
