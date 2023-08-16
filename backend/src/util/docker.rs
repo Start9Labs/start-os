@@ -51,7 +51,8 @@ pub async fn remove_image(sha: &DockerImageSha) -> Result<(), Error> {
         Err(e)
             if e.source
                 .to_string()
-                .starts_with("Error response from daemon: No such image:") =>
+                .to_ascii_lowercase()
+                .contains("no such image") =>
         {
             Ok(())
         }
