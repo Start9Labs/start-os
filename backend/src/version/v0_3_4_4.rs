@@ -2,8 +2,7 @@ use async_trait::async_trait;
 use emver::VersionRange;
 use models::ResultExt;
 
-use super::v0_3_0::V0_3_0_COMPAT;
-use super::*;
+use super::{v0_3_4_3::V0_3_0_COMPAT, *};
 
 const V0_3_4_4: emver::Version = emver::Version::new(0, 3, 4, 4);
 
@@ -20,7 +19,7 @@ impl VersionT for Version {
         V0_3_4_4
     }
     fn compat(&self) -> &'static VersionRange {
-        &*V0_3_0_COMPAT
+        &V0_3_0_COMPAT
     }
     async fn up<Db: DbHandle>(&self, db: &mut Db, _secrets: &PgPool) -> Result<(), Error> {
         let mut tor_addr = crate::db::DatabaseModel::new()

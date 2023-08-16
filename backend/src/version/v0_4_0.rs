@@ -17,7 +17,7 @@ pub struct Version;
 
 #[async_trait]
 impl VersionT for Version {
-    type Previous = v0_3_4_3::Version;
+    type Previous = v0_3_4_4::Version;
     fn new() -> Self {
         Version
     }
