@@ -33,6 +33,7 @@ avahi-alias = ["avahi"]
 cli = []
 sdk = []
 daemon = []
+podman = []
 
 [dependencies]
 aes = { version = "0.7.5", features = ["ctr"] }

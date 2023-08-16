@@ -6,10 +6,10 @@ use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
 
-use bollard::container::{KillContainerOptions, StopContainerOptions};
 use color_eyre::eyre::eyre;
 use embassy_container_init::{ProcessGroupId, SignalGroupParams};
 use helpers::UnixRpcClient;
+use models::ErrorKind;
 use nix::sys::signal::Signal;
 use patch_db::DbHandle;
 use sqlx::{Connection, Executor, Postgres};
@@ -27,6 +27,9 @@ use crate::procedure::docker::{DockerContainer, DockerProcedure, LongRunning};
 use crate::procedure::js_scripts::JsProcedure;
 use crate::procedure::{NoOutput, PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::{Manifest, PackageId};
+use crate::util::docker::{
+    get_container_ip, kill_container, pause_container, stop_container, unpause_container,
+};
 use crate::util::{ApplyRef, Container, NonDetachingJoinHandle, Version};
 use crate::volume::Volume;
 use crate::Error;
@@ -268,7 +271,7 @@ impl Manager {
         })
     }
 
-    pub async fn signal(&self, signal: &Signal) -> Result<(), Error> {
+    pub async fn signal(&self, signal: Signal) -> Result<(), Error> {
         send_signal(&self.shared, signal).await
     }
 
@@ -279,33 +282,14 @@ impl Manager {
             .store(false, Ordering::SeqCst);
         let _ = self.shared.on_stop.send(OnStop::Exit);
 
-        match self
-            .shared
-            .seed
-            .ctx
-            .docker
-            .stop_container(
-                &self.shared.seed.container_name,
-                Some(StopContainerOptions {
-                    t: sigterm_timeout(&self.shared.seed.manifest)
-                        .map(|d| d.as_secs())
-                        .unwrap_or(30) as i64,
-                }),
-            )
-            .await
+        match stop_container(
+            &self.shared.seed.container_name,
+            sigterm_timeout(&self.shared.seed.manifest),
+            Some(Signal::SIGTERM),
+        )
+        .await
         {
-            Err(bollard::errors::Error::DockerResponseServerError {
-                status_code: 404, // NOT FOUND
-                ..
-            })
-            | Err(bollard::errors::Error::DockerResponseServerError {
-                status_code: 409, // CONFLICT
-                ..
-            })
-            | Err(bollard::errors::Error::DockerResponseServerError {
-                status_code: 304, // NOT MODIFIED
-                ..
-            }) => (), // Already stopped
+            Err(e) if e.kind == ErrorKind::NotFound => (), // Already stopped
             a => a?,
         };
         self.shared.killer.notify_waiters();
@@ -610,26 +594,9 @@ async fn get_running_ip(
     mut runtime: &mut RuntimeOfCommand,
 ) -> GetRunningIp {
     loop {
-        match container_inspect(&*state.seed).await {
-            Ok(res) => {
-                match res
-                    .network_settings
-                    .and_then(|ns| ns.networks)
-                    .and_then(|mut n| n.remove("start9"))
-                    .and_then(|es| es.ip_address)
-                    .filter(|ip| !ip.is_empty())
-                    .map(|ip| ip.parse())
-                    .transpose()
-                {
-                    Ok(Some(ip_addr)) => return GetRunningIp::Ip(ip_addr),
-                    Ok(None) => (),
-                    Err(e) => return GetRunningIp::Error(e.into()),
-                }
-            }
-            Err(bollard::errors::Error::DockerResponseServerError {
-                status_code: 404, // NOT FOUND
-                ..
-            }) => (),
+        match get_container_ip(&state.seed.container_name).await {
+            Ok(Some(ip_addr)) => return GetRunningIp::Ip(ip_addr),
+            Ok(None) => (),
             Err(e) => return GetRunningIp::Error(e.into()),
         }
         if let Poll::Ready(res) = futures::poll!(&mut runtime) {
@@ -662,26 +629,9 @@ async fn get_running_ip(
 
 async fn get_long_running_ip(seed: &ManagerSeed, runtime: &mut LongRunning) -> GetRunningIp {
     loop {
-        match container_inspect(seed).await {
-            Ok(res) => {
-                match res
-                    .network_settings
-                    .and_then(|ns| ns.networks)
-                    .and_then(|mut n| n.remove("start9"))
-                    .and_then(|es| es.ip_address)
-                    .filter(|ip| !ip.is_empty())
-                    .map(|ip| ip.parse())
-                    .transpose()
-                {
-                    Ok(Some(ip_addr)) => return GetRunningIp::Ip(ip_addr),
-                    Ok(None) => (),
-                    Err(e) => return GetRunningIp::Error(e.into()),
-                }
-            }
-            Err(bollard::errors::Error::DockerResponseServerError {
-                status_code: 404, // NOT FOUND
-                ..
-            }) => (),
+        match get_container_ip(&seed.container_name).await {
+            Ok(Some(ip_addr)) => return GetRunningIp::Ip(ip_addr),
+            Ok(None) => (),
             Err(e) => return GetRunningIp::Error(e.into()),
         }
         if let Poll::Ready(res) = futures::poll!(&mut runtime.running_output) {
@@ -696,15 +646,6 @@ async fn get_long_running_ip(seed: &ManagerSeed, runtime: &mut LongRunning) -> G
             }
         }
     }
-}
-
-async fn container_inspect(
-    seed: &ManagerSeed,
-) -> Result<bollard::models::ContainerInspectResponse, bollard::errors::Error> {
-    seed.ctx
-        .docker
-        .inspect_container(&seed.container_name, None)
-        .await
 }
 
 async fn wait_for_status(shared: &ManagerSharedState, status: Status) {
@@ -742,7 +683,7 @@ async fn stop(shared: &ManagerSharedState) -> Result<(), Error> {
     if *shared.status.1.borrow() == Status::Paused {
         resume(shared).await?;
     }
-    send_signal(shared, &Signal::SIGTERM).await?;
+    send_signal(shared, Signal::SIGTERM).await?;
     let _ = tokio::time::timeout(
         sigterm_timeout(&shared.seed.manifest).unwrap_or(Duration::from_secs(30)),
         wait_for_status(shared, Status::Stopped),
@@ -770,34 +711,19 @@ async fn start(shared: &ManagerSharedState) -> Result<(), Error> {
 
 #[instrument(skip_all)]
 async fn pause(shared: &ManagerSharedState) -> Result<(), Error> {
-    if let Err(e) = shared
-        .seed
-        .ctx
-        .docker
-        .pause_container(&shared.seed.container_name)
-        .await
-    {
-        tracing::error!("failed to pause container. stopping instead. {}", e);
-        tracing::debug!("{:?}", e);
-        return stop(shared).await;
-    }
+    pause_container(&shared.seed.container_name).await?;
     let _ = shared.status.0.send(Status::Paused);
     Ok(())
 }
 
 #[instrument(skip_all)]
 async fn resume(shared: &ManagerSharedState) -> Result<(), Error> {
-    shared
-        .seed
-        .ctx
-        .docker
-        .unpause_container(&shared.seed.container_name)
-        .await?;
+    unpause_container(&shared.seed.container_name).await?;
     let _ = shared.status.0.send(Status::Running);
     Ok(())
 }
 
-async fn send_signal(shared: &ManagerSharedState, signal: &Signal) -> Result<(), Error> {
+async fn send_signal(shared: &ManagerSharedState, signal: Signal) -> Result<(), Error> {
     // stop health checks from committing their results
     shared
         .commit_health_check_results
@@ -818,7 +744,7 @@ async fn send_signal(shared: &ManagerSharedState, signal: &Signal) -> Result<(),
                 &shared.seed.manifest.volumes,
                 Some(SignalGroupParams {
                     gid: shared.main_gid.1.apply_ref(|g| *g.borrow()),
-                    signal: *signal as u32,
+                    signal: signal as u32,
                 }),
                 None, // TODO
                 ProcessGroupId(
@@ -835,28 +761,10 @@ async fn send_signal(shared: &ManagerSharedState, signal: &Signal) -> Result<(),
         }
     } else {
         // send signal to container
-        shared
-            .seed
-            .ctx
-            .docker
-            .kill_container(
-                &shared.seed.container_name,
-                Some(KillContainerOptions {
-                    signal: signal.to_string(),
-                }),
-            )
+        kill_container(&shared.seed.container_name, Some(signal))
             .await
             .or_else(|e| {
-                if matches!(
-                    e,
-                    bollard::errors::Error::DockerResponseServerError {
-                        status_code: 409, // CONFLICT
-                        ..
-                    } | bollard::errors::Error::DockerResponseServerError {
-                        status_code: 404, // NOT FOUND
-                        ..
-                    }
-                ) {
+                if e.kind == ErrorKind::NotFound {
                     Ok(())
                 } else {
                     Err(e)

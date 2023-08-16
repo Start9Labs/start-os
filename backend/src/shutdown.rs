@@ -7,6 +7,7 @@ use crate::context::RpcContext;
 use crate::disk::main::export;
 use crate::init::{STANDBY_MODE_PATH, SYSTEM_REBUILD_PATH};
 use crate::sound::SHUTDOWN;
+use crate::util::docker::CONTAINER_TOOL;
 use crate::util::{display_none, Invoke};
 use crate::{Error, ErrorKind, OS_ARCH};
 
@@ -43,14 +44,16 @@ impl Shutdown {
                 tracing::error!("Error Stopping Journald: {}", e);
                 tracing::debug!("{:?}", e);
             }
-            if let Err(e) = Command::new("systemctl")
-                .arg("stop")
-                .arg("docker")
-                .invoke(crate::ErrorKind::Docker)
-                .await
-            {
-                tracing::error!("Error Stopping Docker: {}", e);
-                tracing::debug!("{:?}", e);
+            if CONTAINER_TOOL == "docker" {
+                if let Err(e) = Command::new("systemctl")
+                    .arg("stop")
+                    .arg("docker")
+                    .invoke(crate::ErrorKind::Docker)
+                    .await
+                {
+                    tracing::error!("Error Stopping Docker: {}", e);
+                    tracing::debug!("{:?}", e);
+                }
             }
             if let Some(guid) = &self.disk_guid {
                 if let Err(e) = export(guid, &self.datadir).await {

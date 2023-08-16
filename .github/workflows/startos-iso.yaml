@@ -12,6 +12,9 @@ on:
           - dev
           - unstable
           - dev-unstable
+          - podman
+          - dev-podman
+          - dev-unstable-podman
       runner:
         type: choice
         description: Runner
@@ -39,7 +42,7 @@ on:
 
 env:
   NODEJS_VERSION: "18.15.0"
-  ENVIRONMENT: '${{ fromJson(format(''["{0}", ""]'', github.event.inputs.environment || ''dev''))[github.event.inputs.environment == ''NONE''] }}'
+  ENVIRONMENT: '${{ fromJson(format(''["{0}", ""]'', github.event.inputs.environment || ''dev-podman''))[github.event.inputs.environment == ''NONE''] }}'
 
 jobs:
   all:
