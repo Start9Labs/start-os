@@ -142,6 +142,7 @@ jobs:
         with:
           repository: Start9Labs/startos-image-recipes
           path: startos-image-recipes
+          ref: feature/podman
 
       - name: Install dependencies
         run: |
