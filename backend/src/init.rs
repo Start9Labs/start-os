@@ -320,10 +320,26 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     }
     tracing::info!("Mounted Docker Data");
 
+    if CONTAINER_TOOL == "podman" {
+        Command::new("podman")
+            .arg("run")
+            .arg("-d")
+            .arg("--rm")
+            .arg("--network=start9")
+            .arg("--name=netdummy")
+            .arg("start9/x_system/utils:latest")
+            .arg("sleep")
+            .arg("infinity")
+            .invoke(crate::ErrorKind::Docker)
+            .await?;
+    }
+
     if should_rebuild || !tmp_docker_exists {
-        tracing::info!("Creating Docker Network");
-        create_bridge_network("start9", "172.18.0.1/24", "br-start9").await?;
-        tracing::info!("Created Docker Network");
+        if CONTAINER_TOOL == "docker" {
+            tracing::info!("Creating Docker Network");
+            create_bridge_network("start9", "172.18.0.1/24", "br-start9").await?;
+            tracing::info!("Created Docker Network");
+        }
 
         tracing::info!("Loading System Docker Images");
         crate::install::load_images("/usr/lib/embassy/system-images").await?;
