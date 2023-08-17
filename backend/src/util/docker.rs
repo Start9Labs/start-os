@@ -1,7 +1,7 @@
 use std::net::Ipv4Addr;
 use std::time::Duration;
 
-use models::{Error, ErrorKind, PackageId, Version};
+use models::{Error, ErrorKind, PackageId, ResultExt, Version};
 use nix::sys::signal::Signal;
 use tokio::process::Command;
 
@@ -92,7 +92,17 @@ pub async fn get_container_ip(name: &str) -> Result<Option<Ipv4Addr>, Error> {
             Ok(None)
         }
         Err(e) => Err(e),
-        Ok(a) => Ok(Some(std::str::from_utf8(&a)?.parse()?)),
+        Ok(a) => {
+            let out = std::str::from_utf8(&a)?.trim();
+            if out.is_empty() {
+                Ok(None)
+            } else {
+                Ok(Some({
+                    out.parse()
+                        .with_ctx(|_| (ErrorKind::ParseNetAddress, out.to_string()))?
+                }))
+            }
+        }
     }
 }
 
