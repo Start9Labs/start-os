@@ -23,6 +23,7 @@ iotop
 iw
 jq
 libavahi-client3
+libyajl2
 lm-sensors
 lshw
 lvm2
