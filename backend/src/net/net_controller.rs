@@ -11,7 +11,6 @@ use crate::error::ErrorCollection;
 use crate::hostname::Hostname;
 use crate::net::dns::DnsController;
 use crate::net::keys::Key;
-#[cfg(feature = "avahi")]
 use crate::net::mdns::MdnsController;
 use crate::net::ssl::{export_cert, export_key, SslManager};
 use crate::net::tor::TorController;
@@ -22,7 +21,6 @@ use crate::{Error, HOST_IP};
 
 pub struct NetController {
     pub(super) tor: TorController,
-    #[cfg(feature = "avahi")]
     pub(super) mdns: MdnsController,
     pub(super) vhost: VHostController,
     pub(super) dns: DnsController,
@@ -43,7 +41,6 @@ impl NetController {
         let ssl = Arc::new(ssl);
         let mut res = Self {
             tor: TorController::new(tor_control, tor_socks),
-            #[cfg(feature = "avahi")]
             mdns: MdnsController::init().await?,
             vhost: VHostController::new(ssl.clone()),
             dns: DnsController::init(dns_bind).await?,
@@ -201,14 +198,12 @@ impl NetController {
                 )
                 .await?,
         );
-        #[cfg(feature = "avahi")]
         rcs.push(self.mdns.add(key.base_address()).await?);
         Ok(rcs)
     }
 
     async fn remove_lan(&self, key: &Key, external: u16, rcs: Vec<Arc<()>>) -> Result<(), Error> {
         drop(rcs);
-        #[cfg(feature = "avahi")]
         self.mdns.gc(key.base_address()).await?;
         self.vhost.gc(Some(key.local_address()), external).await
     }

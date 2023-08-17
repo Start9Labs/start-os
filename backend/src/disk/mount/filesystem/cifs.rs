@@ -19,7 +19,6 @@ async fn resolve_hostname(hostname: &str) -> Result<IpAddr, Error> {
     if let Ok(addr) = hostname.parse() {
         return Ok(addr);
     }
-    #[cfg(feature = "avahi")]
     if hostname.ends_with(".local") {
         return Ok(IpAddr::V4(crate::net::mdns::resolve_mdns(hostname).await?));
     }
