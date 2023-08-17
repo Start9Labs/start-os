@@ -28,9 +28,9 @@ impl VersionT for Version {
         V0_3_4_3
     }
     fn compat(&self) -> &'static VersionRange {
-        &*V0_3_0_COMPAT
+        &V0_3_0_COMPAT
     }
-    async fn up<Db: DbHandle>(&self, db: &mut Db, _secrets: &PgPool) -> Result<(), Error> {
+    async fn up<Db: DbHandle>(&self, _db: &mut Db, _secrets: &PgPool) -> Result<(), Error> {
         Ok(())
     }
     async fn down<Db: DbHandle>(&self, _db: &mut Db, _secrets: &PgPool) -> Result<(), Error> {
