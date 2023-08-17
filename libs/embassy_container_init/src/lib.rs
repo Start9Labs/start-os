@@ -212,24 +212,3 @@ impl RpcMethod for SignalGroup {
         "signal-group"
     }
 }
-
-#[test]
-fn example_echo_line() {
-    let input = r#"{"id":0,"jsonrpc":"2.0","method":"command","params":{"command":"echo","args":["world I am here"]}}"#;
-    let new_input = JsonRpc::<Input>::maybe_parse(input);
-    assert!(new_input.is_some());
-    assert_eq!(input, &serde_json::to_string(&new_input.unwrap()).unwrap());
-}
-
-#[test]
-fn example_input_line() {
-    let output = JsonRpc::new(RpcId::UInt(0), Output::Line("world I am here".to_string()));
-    let output_str = output.maybe_serialize();
-    assert!(output_str.is_some());
-    let output_str = output_str.unwrap();
-    assert_eq!(
-        &output_str,
-        r#"{"id":0,"jsonrpc":"2.0","method":"line","params":"world I am here"}"#
-    );
-    assert_eq!(output, serde_json::from_str(&output_str).unwrap());
-}

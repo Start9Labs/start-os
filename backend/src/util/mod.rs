@@ -256,6 +256,29 @@ where
     }
 }
 
+pub struct GeneralBoxedGuard(Option<Box<dyn FnOnce() -> ()>>);
+impl GeneralBoxedGuard {
+    pub fn new(f: impl FnOnce() -> () + 'static) -> Self {
+        GeneralBoxedGuard(Some(Box::new(f)))
+    }
+
+    pub fn drop(mut self) -> () {
+        self.0.take().unwrap()()
+    }
+
+    pub fn drop_without_action(mut self) {
+        self.0 = None;
+    }
+}
+
+impl Drop for GeneralBoxedGuard {
+    fn drop(&mut self) {
+        if let Some(destroy) = self.0.take() {
+            destroy();
+        }
+    }
+}
+
 pub struct GeneralGuard<F: FnOnce() -> T, T = ()>(Option<F>);
 impl<F: FnOnce() -> T, T> GeneralGuard<F, T> {
     pub fn new(f: F) -> Self {

@@ -83,25 +83,21 @@ impl PackageProcedure {
             }
             #[cfg(feature = "js_engine")]
             PackageProcedure::Script(procedure) => {
-                let (gid, rpc_client) = match ctx
+                let man = ctx
                     .managers
                     .get(&(pkg_id.clone(), pkg_version.clone()))
                     .await
-                {
-                    None => {
-                        return Err(Error::new(
+                    .ok_or_else(|| {
+                        Error::new(
                             eyre!("No manager found for {}", pkg_id),
                             ErrorKind::NotFound,
-                        ))
-                    }
-                    Some(man) => (
-                        if matches!(name, ProcedureName::Main) {
-                            man.new_main_gid()
-                        } else {
-                            man.new_gid()
-                        },
-                        man.rpc_client(),
-                    ),
+                        )
+                    })?;
+                let rpc_client = man.rpc_client();
+                let gid = if matches!(name, ProcedureName::Main) {
+                    man.gid.new_main_gid()
+                } else {
+                    man.gid.new_gid()
                 };
 
                 procedure

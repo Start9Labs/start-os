@@ -16,7 +16,7 @@ use tracing::instrument;
 
 use crate::config::action::{ConfigActions, ConfigRes};
 use crate::config::spec::PackagePointerSpec;
-use crate::config::{not_found, Config, ConfigReceipts, ConfigSpec};
+use crate::config::{not_found, Config, ConfigReceipts, ConfigSpec, ConfigureContext};
 use crate::context::RpcContext;
 use crate::db::model::{CurrentDependencies, CurrentDependents, InstalledPackageDataEntry};
 use crate::procedure::docker::DockerContainers;
@@ -665,6 +665,8 @@ pub async fn configure_impl(
     (pkg_id, dep_id): (PackageId, PackageId),
 ) -> Result<(), Error> {
     let mut db = ctx.db.handle();
+    let breakages = BTreeMap::new();
+    let overrides = Default::default();
     let receipts = DependencyConfigReceipts::new(&mut db, &pkg_id, &dep_id).await?;
     let ConfigDryRes {
         old_config: _,
@@ -672,19 +674,15 @@ pub async fn configure_impl(
         spec: _,
     } = configure_logic(ctx.clone(), &mut db, (pkg_id, dep_id.clone()), &receipts).await?;
 
-    let locks = &receipts.config;
-    Ok(crate::config::configure(
-        &ctx,
-        &mut db,
-        &dep_id,
-        Some(new_config),
-        &Some(Duration::from_secs(3).into()),
-        false,
-        &mut BTreeMap::new(),
-        &mut BTreeMap::new(),
-        locks,
-    )
-    .await?)
+    let configure_context = ConfigureContext {
+        breakages,
+        timeout: Some(Duration::from_secs(3).into()),
+        config: Some(new_config),
+        dry_run: false,
+        overrides,
+    };
+    crate::config::configure(&ctx, &dep_id, configure_context).await?;
+    Ok(())
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -1049,7 +1047,7 @@ pub fn heal_transitive<'a, Db: DbHandle>(
 
 pub async fn reconfigure_dependents_with_live_pointers(
     ctx: &RpcContext,
-    mut tx: impl DbHandle,
+    tx: impl DbHandle,
     receipts: &ConfigReceipts,
     pde: &InstalledPackageDataEntry,
 ) -> Result<(), Error> {
@@ -1064,18 +1062,17 @@ pub async fn reconfigure_dependents_with_live_pointers(
             PackagePointerSpec::TorKey(_) => false,
             PackagePointerSpec::Config(_) => false,
         }) {
-            crate::config::configure(
-                ctx,
-                &mut tx,
-                dependent_id,
-                None,
-                &None,
-                false,
-                &mut BTreeMap::new(),
-                &mut BTreeMap::new(),
-                receipts,
-            )
-            .await?;
+            let breakages = BTreeMap::new();
+            let overrides = Default::default();
+
+            let configure_context = ConfigureContext {
+                breakages,
+                timeout: None,
+                config: None,
+                dry_run: false,
+                overrides,
+            };
+            crate::config::configure(&ctx, dependent_id, configure_context).await?;
         }
     }
     Ok(())
