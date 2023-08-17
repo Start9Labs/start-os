@@ -223,7 +223,7 @@ pub async fn create_bridge_network(
     cmd.arg("--subnet").arg(subnet);
     if CONTAINER_TOOL == "docker" {
         cmd.arg("--opt")
-            .arg(format!("com.podman.network.bridge.name={bridge_name}"));
+            .arg(format!("com.docker.network.bridge.name={bridge_name}"));
     } else {
         cmd.arg("--interface-name").arg(bridge_name);
     }
