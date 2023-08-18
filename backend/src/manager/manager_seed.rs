@@ -4,6 +4,7 @@ use crate::context::RpcContext;
 use crate::s9pk::manifest::Manifest;
 use crate::Error;
 
+/// This is helper structure for a service, the seed of the data that is needed for the manager_container
 pub struct ManagerSeed {
     pub ctx: RpcContext,
     pub manifest: Manifest,

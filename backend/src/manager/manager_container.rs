@@ -17,6 +17,8 @@ use crate::Error;
 
 pub type ManageContainerOverride = Arc<watch::Sender<Option<MainStatus>>>;
 
+/// This is the thing describing the state machine actor for a service
+/// state and current running/ desired states.
 pub struct ManageContainer {
     pub(super) current_state: Arc<watch::Sender<StartStop>>,
     pub(super) desired_state: Arc<watch::Sender<StartStop>>,
@@ -59,6 +61,8 @@ impl ManageContainer {
         })
     }
 
+    /// Set override is used during something like a restart of a service. We want to show certain statuses be different
+    /// from the actual status of the service.
     pub fn set_override(&self, override_status: Option<MainStatus>) -> GeneralBoxedGuard {
         self.override_main_status
             .send_modify(|x| *x = override_status);
@@ -69,10 +73,12 @@ impl ManageContainer {
         guard
     }
 
+    /// We want to set the state of the service, like to start or stop
     pub fn to_desired(&self, new_state: StartStop) {
         self.desired_state.send_modify(|x| *x = new_state);
     }
 
+    /// This is a tool to say wait for the service to be in a certain state.
     pub async fn wait_for_desired(&self, new_state: StartStop) {
         let mut current_state = self.current_state();
         self.to_desired(new_state);
@@ -81,10 +87,12 @@ impl ManageContainer {
         }
     }
 
+    /// Getter
     pub fn current_state(&self) -> watch::Receiver<StartStop> {
         self.current_state.subscribe()
     }
 
+    /// Getter
     pub fn desired_state(&self) -> watch::Receiver<StartStop> {
         self.desired_state.subscribe()
     }
@@ -272,6 +280,7 @@ async fn run_main_log_result(result: RunMainResult, seed: Arc<manager_seed::Mana
     }
 }
 
+/// Used only in the mod where we are doing a backup
 #[instrument(skip(db, manifest))]
 pub(super) async fn get_status(db: &mut PatchDbHandle, manifest: &Manifest) -> MainStatus {
     async move {

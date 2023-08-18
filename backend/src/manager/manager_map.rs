@@ -13,6 +13,7 @@ use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::util::Version;
 use crate::Error;
 
+/// This is the structure to contain all the service managers
 #[derive(Default)]
 pub struct ManagerMap(RwLock<BTreeMap<(PackageId, Version), Arc<Manager>>>);
 impl ManagerMap {
@@ -55,6 +56,7 @@ impl ManagerMap {
         Ok(())
     }
 
+    /// Used during the install process
     #[instrument(skip_all)]
     pub async fn add(&self, ctx: RpcContext, manifest: Manifest) -> Result<(), Error> {
         let mut lock = self.0.write().await;
@@ -66,6 +68,7 @@ impl ManagerMap {
         Ok(())
     }
 
+    /// This is ran during the cleanup, so when we are uninstalling the service
     #[instrument(skip_all)]
     pub async fn remove(&self, id: &(PackageId, Version)) {
         if let Some(man) = self.0.write().await.remove(id) {
@@ -73,6 +76,7 @@ impl ManagerMap {
         }
     }
 
+    /// Used during a shutdown
     #[instrument(skip_all)]
     pub async fn empty(&self) -> Result<(), Error> {
         let res =

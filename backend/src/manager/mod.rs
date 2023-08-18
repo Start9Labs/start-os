@@ -108,6 +108,7 @@ impl Gid {
     }
 }
 
+/// This is the controller of the services. Here is where we can control a service with a start, stop, restart, etc.
 #[derive(Clone)]
 pub struct Manager {
     seed: Arc<ManagerSeed>,
@@ -208,6 +209,7 @@ impl Manager {
         }
     }
 
+    /// Used when we want to shutdown the service
     pub async fn signal(&self, signal: Signal) -> Result<(), Error> {
         let rpc_client = self.rpc_client();
         let seed = self.seed.clone();
@@ -215,6 +217,7 @@ impl Manager {
         send_signal(self, gid, signal).await
     }
 
+    /// Used as a getter, but also used in procedure
     pub fn rpc_client(&self) -> Option<Arc<UnixRpcClient>> {
         (*self.persistent_container)
             .as_ref()

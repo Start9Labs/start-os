@@ -1,6 +1,8 @@
 use helpers::NonDetachingJoinHandle;
 
-pub(crate) enum TransitionState {
+/// Used only in the manager/mod and is used to keep track of the state of the manager during the
+/// transitional states
+pub(super) enum TransitionState {
     BackingUp(NonDetachingJoinHandle<()>),
     Restarting(NonDetachingJoinHandle<()>),
     Configuring(NonDetachingJoinHandle<()>),
@@ -8,7 +10,7 @@ pub(crate) enum TransitionState {
 }
 
 impl TransitionState {
-    pub(crate) fn join_handle(&self) -> Option<&NonDetachingJoinHandle<()>> {
+    pub(super) fn join_handle(&self) -> Option<&NonDetachingJoinHandle<()>> {
         Some(match self {
             TransitionState::BackingUp(a) => a,
             TransitionState::Restarting(a) => a,
@@ -16,7 +18,7 @@ impl TransitionState {
             TransitionState::None => return None,
         })
     }
-    pub(crate) fn abort(&self) {
+    pub(super) fn abort(&self) {
         self.join_handle().map(|transition| transition.abort());
     }
 }

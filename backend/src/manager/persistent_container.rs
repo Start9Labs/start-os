@@ -16,6 +16,8 @@ use crate::procedure::docker::DockerContainer;
 use crate::util::NonDetachingJoinHandle;
 use crate::Error;
 
+/// Persistant container are the old containers that need to run all the time
+/// The goal is that all services will be persistent containers, waiting to run the main system.
 pub struct PersistentContainer {
     _running_docker: NonDetachingJoinHandle<()>,
     pub rpc_client: Receiver<Arc<UnixRpcClient>>,

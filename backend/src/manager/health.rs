@@ -90,6 +90,7 @@ impl HealthCheckStatusReceipt {
     }
 }
 
+/// So, this is used for a service to run a health check cycle, go out and run the health checks, and store those in the db
 #[instrument(skip_all)]
 pub async fn check<Db: DbHandle>(
     ctx: &RpcContext,
