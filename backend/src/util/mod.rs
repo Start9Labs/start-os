@@ -170,9 +170,7 @@ impl<W: std::fmt::Write> std::io::Write for FmtWriter<W> {
     }
 }
 
-pub fn display_none<T>(_: T, _: &ArgMatches) {
-    ()
-}
+pub fn display_none<T>(_: T, _: &ArgMatches) {}
 
 pub struct Container<T>(RwLock<Option<T>>);
 impl<T> Container<T> {
@@ -256,13 +254,13 @@ where
     }
 }
 
-pub struct GeneralBoxedGuard(Option<Box<dyn FnOnce() -> ()>>);
+pub struct GeneralBoxedGuard(Option<Box<dyn FnOnce() + Send + Sync>>);
 impl GeneralBoxedGuard {
-    pub fn new(f: impl FnOnce() -> () + 'static) -> Self {
+    pub fn new(f: impl FnOnce() + 'static + Send + Sync) -> Self {
         GeneralBoxedGuard(Some(Box::new(f)))
     }
 
-    pub fn drop(mut self) -> () {
+    pub fn drop(mut self) {
         self.0.take().unwrap()()
     }
 

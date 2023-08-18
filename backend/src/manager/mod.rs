@@ -16,11 +16,11 @@ use persistent_container::PersistentContainer;
 use rand::SeedableRng;
 use sqlx::Connection;
 use start_stop::StartStop;
-use tokio::sync::oneshot;
 use tokio::sync::{
     watch::{self, Sender},
     Mutex,
 };
+use tokio::{sync::oneshot, task::JoinHandle};
 use tracing::instrument;
 use transition_state::TransitionState;
 
@@ -240,11 +240,14 @@ impl Manager {
     }
 
     pub(super) fn perform_restart(&self) -> impl Future<Output = ()> + 'static {
+        tracing::error!("BLUJ restart start");
         let manage_container = self.manage_container.clone();
         async move {
-            let _ = manage_container.set_override(Some(MainStatus::Restarting));
+            let restart_override = manage_container.set_override(Some(MainStatus::Restarting));
             manage_container.wait_for_desired(StartStop::Stop).await;
             manage_container.wait_for_desired(StartStop::Start).await;
+            drop(restart_override);
+            tracing::error!("BLUJ restart Finnished");
         }
     }
     fn _transition_restart(&self) -> TransitionState {
@@ -267,7 +270,7 @@ impl Manager {
         async move {
             let state_reverter = DesiredStateReverter::new(manage_container.clone());
             let mut tx = seed.ctx.db.handle();
-            let _ = manage_container
+            let override_guard = manage_container
                 .set_override(Some(get_status(&mut tx, &seed.manifest).await.backing_up()));
             manage_container.wait_for_desired(StartStop::Stop).await;
             let backup_guard = backup_guard.lock().await;
@@ -291,6 +294,7 @@ impl Manager {
 
             let return_value = res;
             state_reverter.revert().await;
+            drop(override_guard);
             Ok::<_, Error>(return_value)
         }
     }

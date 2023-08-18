@@ -1,4 +1,5 @@
-use bollard::container::StopContainerOptions;
+use bollard::container::{StopContainerOptions, WaitContainerOptions};
+use tokio_stream::StreamExt;
 
 use crate::context::RpcContext;
 use crate::s9pk::manifest::Manifest;
@@ -43,6 +44,19 @@ impl ManagerSeed {
                 ..
             }) => (), // Already stopped
             a => a?,
+        }
+
+        // Wait for the container to stop
+        {
+            let mut waiting = self.ctx.docker.wait_container(
+                &self.container_name,
+                Some(WaitContainerOptions {
+                    condition: "not-running",
+                }),
+            );
+            while let Some(_) = waiting.next().await {
+                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            }
         }
         Ok(())
     }
