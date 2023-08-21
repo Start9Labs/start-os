@@ -1,26 +1,28 @@
-<div
-  *ngFor="let cat of categories"
-  class="relative hover:bg-background hover:cursor-pointer w-[105%] z-50 rounded-l-lg transition-all ease-in-out delay-50 duration-300"
+<button
+  *ngFor="let cat of categories || ['', '', '', '', '', '']"
+  class="flex relative gap-2 hover:no-underline hover:cursor-pointer mb-5 sm:p-2 sm:mb-3 w-full"
+  routerLink="/marketplace"
+  (click)="switchCategory(cat)"
+  [class.category_selected]="cat === category"
 >
-  <button
-    class="flex relative gap-2 hover:no-underline hover:cursor-pointer mb-5 sm:p-2 sm:mb-3 w-full"
-    routerLink="/marketplace"
-    (click)="switchCategory(cat)"
-    [class.category_selected]="cat === category"
+  <div
+    class="relative flex flex-shrink-0"
+    [class.tui-skeleton]="!categories"
+    [class.tui-skeleton_rounded]="!categories"
   >
-    <div class="relative flex flex-shrink-0">
-      <img
-        alt="Category Icon"
-        width="24"
-        height="24"
-        class="transition block opacity-70 invert"
-        src="/svg/{{ determineIcon(cat) }}.svg"
-      />
-    </div>
-    <span
-      class="text-base text-zinc-50 text-ellipsis overflow-hidden whitespace-nowrap"
-    >
-      {{ cat | titlecase }}
-    </span>
-  </button>
-</div>
+    <img
+      alt="Category Icon"
+      width="24"
+      height="24"
+      class="transition block opacity-70 invert"
+      src="/svg/{{ determineIcon(cat) }}.svg"
+    />
+  </div>
+  <span
+    class="text-base text-zinc-50 text-ellipsis overflow-hidden whitespace-nowrap"
+    [class.tui-skeleton]="!categories"
+    [class.tui-skeleton_rounded]="!categories"
+  >
+    {{ (cat | titlecase) || 'loading category...' }}
+  </span>
+</button>

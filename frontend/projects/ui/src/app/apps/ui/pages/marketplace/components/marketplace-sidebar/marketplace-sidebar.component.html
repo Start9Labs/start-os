@@ -1,0 +1,31 @@
+<sidebar [iconConfig]="marketplace">
+  <button
+    slot="desktop"
+    tuiButton
+    type="button"
+    appearance="icon"
+    icon="tuiIconRepeatLarge"
+    class="flex relative flex-shrink-0 hover:opacity-70 bg-zinc-600 rounded-lg -mt-3"
+    (click)="presentModalMarketplaceSettings()"
+  ></button>
+  <a
+    slot="mobile"
+    class="flex relative hover:no-underline"
+    (click)="presentModalMarketplaceSettings()"
+  >
+    <div class="relative flex flex-shrink-0">
+      <img
+        alt="Change Registry Icon"
+        width="24"
+        height="24"
+        class="transition block opacity-70 invert"
+        src="svg/repeat-outline.svg"
+      />
+    </div>
+    <span
+      class="text-base text-zinc-50 text-ellipsis overflow-hidden whitespace-nowrap"
+    >
+      Change Registry
+    </span>
+  </a>
+</sidebar>

@@ -1,9 +1,10 @@
+<!-- @TODO customize button colors -->
 <div class="flex absolute top-[9.25rem] left-[2rem] sm:top-[10rem] z-50">
   <button
     tuiButton
     type="button"
-    class="p-2 mr-2"
-    appearance="secondary"
+    class="p-2 mr-2 blue"
+    appearance="primary"
     *ngIf="localPkg"
     [routerLink]="['/services', pkg.manifest.id]"
   >
@@ -15,10 +16,8 @@
         tuiButton
         type="button"
         class="p-2 mr-2"
-        appearance="accent"
+        appearance="primary"
         *ngIf="(localVersion | compareEmver : pkg.manifest.version) === -1"
-        expand="block"
-        color="success"
         (click)="tryInstall()"
       >
         Update
@@ -29,8 +28,6 @@
         class="p-2 mr-2"
         appearance="secondary-destructive"
         *ngIf="(localVersion | compareEmver : pkg.manifest.version) === 1"
-        expand="block"
-        color="warning"
         (click)="tryInstall()"
       >
         Downgrade
@@ -40,10 +37,8 @@
           tuiButton
           type="button"
           class="p-2 mr-2"
-          appearance="secondary"
+          appearance="primary"
           *ngIf="(localVersion | compareEmver : pkg.manifest.version) === 0"
-          expand="block"
-          color="success"
           (click)="tryInstall()"
         >
           Reinstall

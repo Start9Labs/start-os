@@ -53,7 +53,7 @@ export class PackageComponent {
   presentModalImg(content: PolymorpheusContent<TuiDialogContext>) {
     this.dialogs
       .open(content, {
-        size: 'page',
+        size: 'l',
       })
       .subscribe()
   }
