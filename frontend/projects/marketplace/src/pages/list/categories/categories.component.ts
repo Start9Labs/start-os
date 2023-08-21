@@ -14,7 +14,7 @@ import {
 })
 export class CategoriesComponent {
   @Input()
-  categories: readonly string[] = []
+  categories?: string[]
 
   @Input()
   category = ''

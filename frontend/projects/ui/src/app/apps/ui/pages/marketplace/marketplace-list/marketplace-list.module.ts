@@ -12,16 +12,16 @@ import {
   CategoriesModule,
   FilterPackagesPipeModule,
   ItemModule,
-  MarketplaceSidebarModule,
   SearchModule,
-  SkeletonModule,
   StoreIconComponentModule,
 } from '@start9labs/marketplace'
 import { BadgeMenuComponentModule } from 'src/app/common/badge-menu-button/badge-menu.component.module'
-import { MarketplaceStatusModule } from '../marketplace-status/marketplace-status.module'
+import { MarketplaceSidebarModule } from '../components/marketplace-sidebar/marketplace-sidebar.module'
+import { MarketplaceStatusModule } from '../components/marketplace-status/marketplace-status.module'
 import { MarketplaceListPage } from './marketplace-list.page'
 import { MarketplaceSettingsPageModule } from './marketplace-settings/marketplace-settings.module'
-import { TuiButtonModule, TuiNotificationModule } from '@taiga-ui/core'
+import { TuiNotificationModule } from '@taiga-ui/core'
+import { TuiLetModule } from '@taiga-ui/cdk'
 
 const routes: Routes = [
   {
@@ -39,19 +39,18 @@ const routes: Routes = [
     SharedPipesModule,
     EmverPipesModule,
     FilterPackagesPipeModule,
+    MarketplaceSidebarModule,
     MarketplaceStatusModule,
     BadgeMenuComponentModule,
     ItemModule,
     CategoriesModule,
     SearchModule,
-    SkeletonModule,
     MarketplaceSettingsPageModule,
     StoreIconComponentModule,
     ResponsiveColModule,
-    MarketplaceSidebarModule,
     TuiNotificationModule,
     MarketplaceSettingsPageModule,
-    TuiButtonModule,
+    TuiLetModule,
   ],
   declarations: [MarketplaceListPage],
   exports: [MarketplaceListPage],

@@ -13,7 +13,7 @@ import { Router } from '@angular/router'
 import { MarketplaceConfig } from '@start9labs/shared'
 
 @Component({
-  selector: 'marketplace-sidebar',
+  selector: 'sidebar',
   templateUrl: './sidebar.component.html',
   styleUrls: ['./sidebar.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,

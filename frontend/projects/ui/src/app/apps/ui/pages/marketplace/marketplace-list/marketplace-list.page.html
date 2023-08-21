@@ -1,41 +1,9 @@
-<marketplace-sidebar [iconConfig]="marketplace">
-  <button
-    slot="desktop"
-    tuiButton
-    type="button"
-    appearance="icon"
-    icon="tuiIconRepeatLarge"
-    class="hover:opacity-70 bg-zinc-600 rounded-lg -mt-3"
-    (click)="presentModalMarketplaceSettings()"
-  ></button>
-  <a
-    slot="mobile"
-    class="flex relative hover:no-underline"
-    (click)="presentModalMarketplaceSettings()"
-  >
-    <div class="relative flex flex-shrink-0">
-      <img
-        alt="Change Registry Icon"
-        width="24"
-        height="24"
-        class="transition block opacity-70 invert"
-        src="svg/repeat-outline.svg"
-      />
-    </div>
-    <span
-      class="text-base text-zinc-50 text-ellipsis overflow-hidden whitespace-nowrap"
-    >
-      Change Registry
-    </span>
-  </a>
-</marketplace-sidebar>
+<marketplace-sidebar></marketplace-sidebar>
+
 <div
   class="background sm:pl-[34vw] md:pl-[28vw] lg:pl-[22vw] 2xl:pl-[280px] min-h-screen flex flex-col justify-between overflow-auto scroll-smooth"
 >
-  <main
-    class="pt-20 sm:pt-3 md:pb-10 md:px-8 scroll-smooth"
-    *ngIf="store$ | async as store; else loading"
-  >
+  <main class="pt-20 sm:pt-3 md:pb-10 md:px-8 scroll-smooth">
     <ng-container *ngIf="details$ | async as details">
       <tui-notification
         *ngIf="details.url === marketplace.start9"
@@ -114,27 +82,25 @@
         {{ category$ | async | titlecase }}
       </h1>
     </div>
-    <section
-      class="mt-10"
-      *ngIf="
-        store.packages | filterPackages : (query$ | async) : (category$ | async) as filtered
-      "
-    >
-      <ul
-        *ngIf="filtered.length; else categoryEmpty"
-        class="px-6 md:px-8 grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-16"
-        [@itemAnimation]="filtered.length"
+    <ng-container *ngIf="store$ | async as store; else loading">
+      <section
+        class="mt-10"
+        *ngIf="
+          store.packages | filterPackages : (query$ | async) : (category$ | async) as filtered
+        "
       >
-        <li *ngFor="let pkg of filtered">
-          <marketplace-item [pkg]="pkg"></marketplace-item>
-        </li>
-      </ul>
-      <ng-template #categoryEmpty>
-        <p class="px-6 text-lg">No services in this category</p>
-      </ng-template>
-    </section>
+        <ul
+          class="px-6 md:px-8 grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-16"
+          [@itemAnimation]="filtered.length"
+        >
+          <li *ngFor="let pkg of filtered">
+            <marketplace-item [pkg]="pkg"></marketplace-item>
+          </li>
+        </ul>
+      </section>
+    </ng-container>
+    <ng-template #loading>
+      <h1 class="text-xl pl-6">Loading...</h1>
+    </ng-template>
   </main>
-  <ng-template #loading>
-    <marketplace-skeleton></marketplace-skeleton>
-  </ng-template>
 </div>

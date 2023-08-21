@@ -1,17 +1,24 @@
 <header
   class="w-full fixed z-50 sm:w-[34vw] md:w-[28vw] lg:w-[22vw] 2xl:w-[280px] sm:bg-zinc-700/90 sm:backdrop-blur-2xl sm:min-h-screen overflow-y-auto flex flex-col sm:py-6 sm:after:block sm:after:absolute sm:after:top-0 sm:after:bottom-0 sm:after:right-0 sm:after:w-0.5 after:h-[calc(100vh - 20px)] sm:after:bg-gradient-to-b from-zinc-700 to-zinc-400"
 >
-  <ng-container *ngIf="store$ | async as store; else loading">
+  <ng-container *tuiLet="store$ | async as store">
     <div class="hidden sm:flex flex-col mx-6 pb-3 items-center">
-      <div class="pb-3">
+      <div
+        class="mb-3 rounded-full"
+        [class.tui-skeleton]="!store"
+        [class.tui-skeleton_rounded]="!store"
+      >
         <store-icon
           size="64px"
-          [url]="store.url"
-          [marketplace]="this.iconConfig"
+          [url]="store?.url || ''"
+          [marketplace]="iconConfig"
         ></store-icon>
       </div>
-      <h1 class="font-semibold text-2xl text-zinc-100 text-center py-3">
-        {{ store.info.name }}
+      <h1
+        class="font-semibold text-2xl text-zinc-100 text-center mb-3"
+        [class.tui-skeleton]="!store"
+      >
+        {{ store?.info?.name || 'loading store' }}
       </h1>
       <ng-content select="[slot=desktop]"></ng-content>
     </div>
@@ -39,8 +46,11 @@
             >
               <store-icon
                 size="48px"
-                [url]="store.url"
-                [marketplace]="this.iconConfig"
+                [url]="store?.url || ''"
+                [marketplace]="iconConfig"
+                class="rounded-full"
+                [class.tui-skeleton]="!store"
+                [class.tui-skeleton_rounded]="!store"
               ></store-icon>
               <nav
                 *tuiSidebar="open; direction: 'right'; autoWidth: true"
@@ -48,8 +58,11 @@
               >
                 <div class="flex flex-col divide-y divide-zinc-500 h-full">
                   <div class="flex items-center p-4">
-                    <h1 class="font-semibold text-xl text-zinc-200 flex-grow">
-                      {{ store.info.name }}
+                    <h1
+                      class="font-semibold text-xl text-zinc-200 flex-grow"
+                      [class.tui-skeleton]="!store"
+                    >
+                      {{ store?.info?.name }}
                     </h1>
                     <button
                       [style.--tui-padding]="0"
@@ -68,7 +81,7 @@
                     class="flex flex-col justify-between divide-y divide-zinc-500 h-full"
                   >
                     <marketplace-categories
-                      [categories]="store.info.categories"
+                      [categories]="store?.info?.categories"
                       [category]="query ? '' : category"
                       (categoryChange)="
                         onCategoryChange($event); toggleMenu(false)
@@ -112,7 +125,7 @@
         ></marketplace-search>
         <div class="flex grow flex-col justify-between">
           <marketplace-categories
-            [categories]="store.info.categories"
+            [categories]="store?.info?.categories"
             [category]="query ? '' : category"
             (categoryChange)="onCategoryChange($event)"
           ></marketplace-categories>
@@ -142,6 +155,3 @@
     </div>
   </ng-container>
 </header>
-<ng-template #loading>
-  <marketplace-skeleton></marketplace-skeleton>
-</ng-template>
