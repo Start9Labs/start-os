@@ -174,11 +174,7 @@ impl Manager {
             TransitionState::Configuring(
                 tokio::spawn(async move {
                     let state_reverter = DesiredStateReverter::new(manage_container.clone());
-                    let mut current_state = manage_container.current_state();
-                    manage_container.to_desired(StartStop::Stop);
-                    while current_state.borrow().is_start() {
-                        current_state.changed().await.unwrap();
-                    }
+                    manage_container.wait_for_desired(StartStop::Stop).await;
 
                     state_reverter.revert().await;
                 })
@@ -198,11 +194,10 @@ impl Manager {
         done.await
     }
     pub async fn exit(&self) {
-        self.stop();
-        let mut current_status = self.manage_container.current_state();
-        while current_status.borrow().is_start() {
-            current_status.changed().await.unwrap();
-        }
+        self._transition_abort();
+        self.manage_container
+            .wait_for_desired(StartStop::Stop)
+            .await;
     }
 
     /// A special exit that is overridden the start state, should only be called in the shutdown, where we remove other containers

@@ -67,10 +67,9 @@ impl ManageContainer {
         self.override_main_status
             .send_modify(|x| *x = override_status);
         let override_main_status = self.override_main_status.clone();
-        let guard = GeneralBoxedGuard::new(move || {
+        GeneralBoxedGuard::new(move || {
             override_main_status.send_modify(|x| *x = None);
-        });
-        guard
+        })
     }
 
     /// Set the override, but don't have a guard to revert it. Used only on the mananger to do a shutdown.
@@ -167,8 +166,8 @@ async fn save_state(
     let mut current_state_receiver = current_state.subscribe();
     let mut override_main_status_receiver = override_main_status.subscribe();
     loop {
-        let current: StartStop = current_state_receiver.borrow().clone();
-        let desired: StartStop = desired_state_receiver.borrow().clone();
+        let current: StartStop = *current_state_receiver.borrow();
+        let desired: StartStop = *desired_state_receiver.borrow();
         let override_status = override_main_status_receiver.borrow().clone();
         let mut db = seed.ctx.db.handle();
         let res = match (override_status, current, desired) {
@@ -308,7 +307,7 @@ pub(super) async fn get_status(db: &mut PatchDbHandle, manifest: &Manifest) -> M
                 .clone(),
         )
     }
-    .map(|x| x.unwrap_or_else(|e| MainStatus::Stopped))
+    .map(|x| x.unwrap_or_else(|_| MainStatus::Stopped))
     .await
 }
 
