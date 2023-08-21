@@ -203,10 +203,16 @@ impl Manager {
     pub async fn exit(&self) {
         self.stop();
         let mut current_status = self.manage_container.current_state();
-
         while current_status.borrow().is_start() {
             current_status.changed().await.unwrap();
         }
+    }
+
+    /// A special exit that is overridden the start state, should only be called in the shutdown, where we remove other containers
+    async fn shutdown(&self) {
+        self.manage_container.lock_state_forever(&self.seed).await;
+
+        self.exit().await;
     }
 
     /// Used when we want to shutdown the service

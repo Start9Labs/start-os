@@ -83,7 +83,7 @@ impl ManagerMap {
             futures::future::join_all(std::mem::take(&mut *self.0.write().await).into_iter().map(
                 |((id, version), man)| async move {
                     tracing::debug!("Manager for {}@{} shutting down", id, version);
-                    man.exit().await;
+                    man.shutdown().await;
                     tracing::debug!("Manager for {}@{} is shutdown", id, version);
                     if let Err(e) = Arc::try_unwrap(man) {
                         tracing::trace!(

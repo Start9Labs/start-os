@@ -64,17 +64,21 @@ impl ManageContainer {
     /// Set override is used during something like a restart of a service. We want to show certain statuses be different
     /// from the actual status of the service.
     pub fn set_override(&self, override_status: Option<MainStatus>) -> GeneralBoxedGuard {
-        tracing::error!("BLUJ Doing override {override_status:?}");
-        let bluj_os = override_status.clone();
         self.override_main_status
             .send_modify(|x| *x = override_status);
         let override_main_status = self.override_main_status.clone();
         let guard = GeneralBoxedGuard::new(move || {
-            tracing::error!("BLUJ cleaning up override {bluj_os:?}");
             override_main_status.send_modify(|x| *x = None);
         });
-        tracing::error!("BLUJ Doing override shouldn't be done");
         guard
+    }
+
+    /// Set the override, but don't have a guard to revert it. Used only on the mananger to do a shutdown.
+    pub(super) async fn lock_state_forever(&self, seed: &manager_seed::ManagerSeed) {
+        let mut db = seed.ctx.db.handle();
+        let current_state = get_status(&mut db, &seed.manifest).await;
+        self.override_main_status
+            .send_modify(|x| *x = Some(current_state));
     }
 
     /// We want to set the state of the service, like to start or stop
