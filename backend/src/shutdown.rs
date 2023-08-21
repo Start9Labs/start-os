@@ -8,7 +8,7 @@ use crate::disk::main::export;
 use crate::init::{STANDBY_MODE_PATH, SYSTEM_REBUILD_PATH};
 use crate::sound::SHUTDOWN;
 use crate::util::{display_none, Invoke};
-use crate::{Error, ErrorKind, OS_ARCH};
+use crate::{Error, OS_ARCH};
 
 #[derive(Debug, Clone)]
 pub struct Shutdown {
@@ -72,18 +72,16 @@ impl Shutdown {
                 Command::new("sync").spawn().unwrap().wait().unwrap();
             }
             Command::new("reboot").spawn().unwrap().wait().unwrap();
+        } else if self.restart {
+            Command::new("reboot").spawn().unwrap().wait().unwrap();
         } else {
-            if self.restart {
-                Command::new("reboot").spawn().unwrap().wait().unwrap();
-            } else {
-                Command::new("shutdown")
-                    .arg("-h")
-                    .arg("now")
-                    .spawn()
-                    .unwrap()
-                    .wait()
-                    .unwrap();
-            }
+            Command::new("shutdown")
+                .arg("-h")
+                .arg("now")
+                .spawn()
+                .unwrap()
+                .wait()
+                .unwrap();
         }
     }
 }

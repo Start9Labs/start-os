@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
 
-use color_eyre::{eyre::eyre, Report};
+use color_eyre::eyre::eyre;
 use embassy_container_init::ProcessGroupId;
 use futures::future::BoxFuture;
 use futures::{Future, FutureExt, TryFutureExt};
@@ -16,11 +16,11 @@ use persistent_container::PersistentContainer;
 use rand::SeedableRng;
 use sqlx::Connection;
 use start_stop::StartStop;
+use tokio::sync::oneshot;
 use tokio::sync::{
     watch::{self, Sender},
     Mutex,
 };
-use tokio::{sync::oneshot, task::JoinHandle};
 use tracing::instrument;
 use transition_state::TransitionState;
 
@@ -877,18 +877,6 @@ async fn main_health_check_daemon(seed: Arc<ManagerSeed>) {
 }
 
 type RuntimeOfCommand = NonDetachingJoinHandle<Result<Result<NoOutput, (i32, String)>, Error>>;
-
-async fn try_get_running_ip(seed: &ManagerSeed) -> Result<Option<Ipv4Addr>, Report> {
-    Ok(container_inspect(seed)
-        .await
-        .map(|x| x.network_settings)?
-        .and_then(|ns| ns.networks)
-        .and_then(|mut n| n.remove("start9"))
-        .and_then(|es| es.ip_address)
-        .filter(|ip| !ip.is_empty())
-        .map(|ip| ip.parse())
-        .transpose()?)
-}
 
 #[instrument(skip(seed, runtime))]
 async fn get_running_ip(seed: &ManagerSeed, mut runtime: &mut RuntimeOfCommand) -> GetRunningIp {

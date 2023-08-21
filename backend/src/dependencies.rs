@@ -519,7 +519,6 @@ impl DependencyConfig {
         Ok(self
             .check
             .sandboxed(
-                container,
                 ctx,
                 dependent_id,
                 dependent_version,
@@ -542,7 +541,6 @@ impl DependencyConfig {
     ) -> Result<Config, Error> {
         self.auto_configure
             .sandboxed(
-                container,
                 ctx,
                 dependent_id,
                 dependent_version,
@@ -557,7 +555,6 @@ impl DependencyConfig {
 }
 
 pub struct DependencyConfigReceipts {
-    config: ConfigReceipts,
     dependencies: LockReceipt<Dependencies, ()>,
     dependency_volumes: LockReceipt<Volumes, ()>,
     dependency_version: LockReceipt<Version, ()>,
@@ -584,7 +581,6 @@ impl DependencyConfigReceipts {
         package_id: &PackageId,
         dependency_id: &PackageId,
     ) -> impl FnOnce(&Verifier) -> Result<Self, Error> {
-        let config = ConfigReceipts::setup(locks);
         let dependencies = crate::db::DatabaseModel::new()
             .package_data()
             .idx_model(package_id)
@@ -636,7 +632,6 @@ impl DependencyConfigReceipts {
             .add_to_keys(locks);
         move |skeleton_key| {
             Ok(Self {
-                config: config(skeleton_key)?,
                 dependencies: dependencies.verify(&skeleton_key)?,
                 dependency_volumes: dependency_volumes.verify(&skeleton_key)?,
                 dependency_version: dependency_version.verify(&skeleton_key)?,
@@ -767,7 +762,6 @@ pub async fn configure_logic(
     let new_config = dependency
         .auto_configure
         .sandboxed(
-            &pkg_docker_container,
             &ctx,
             &pkg_id,
             &pkg_version,

@@ -3,7 +3,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use color_eyre::eyre::eyre;
-use futures::StreamExt;
 use josekit::jwk::Jwk;
 use openssl::x509::X509;
 use patch_db::DbHandle;

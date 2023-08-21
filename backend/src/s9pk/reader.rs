@@ -185,18 +185,14 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
             .map(|i| i.validate(&man.id, &man.version).map(|_| i.image_id))
             .collect::<Result<BTreeSet<ImageId>, _>>()?;
         man.description.validate()?;
-        man.actions
-            .0
-            .iter()
-            .map(|(_, action)| {
-                action.validate(
-                    containers,
-                    &man.eos_version,
-                    &man.volumes,
-                    &validated_image_ids,
-                )
-            })
-            .collect::<Result<(), Error>>()?;
+        man.actions.0.iter().try_for_each(|(_, action)| {
+            action.validate(
+                containers,
+                &man.eos_version,
+                &man.volumes,
+                &validated_image_ids,
+            )
+        })?;
         man.backup.validate(
             containers,
             &man.eos_version,
@@ -211,21 +207,11 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
                 &validated_image_ids,
             )?;
         }
-        man.health_checks.validate(
-            containers,
-            &man.eos_version,
-            &man.volumes,
-            &validated_image_ids,
-        )?;
+        man.health_checks
+            .validate(&man.eos_version, &man.volumes, &validated_image_ids)?;
         man.interfaces.validate()?;
         man.main
-            .validate(
-                containers,
-                &man.eos_version,
-                &man.volumes,
-                &validated_image_ids,
-                false,
-            )
+            .validate(&man.eos_version, &man.volumes, &validated_image_ids, false)
             .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Main"))?;
         man.migrations.validate(
             containers,
@@ -273,13 +259,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
         }
         if let Some(props) = &man.properties {
             props
-                .validate(
-                    containers,
-                    &man.eos_version,
-                    &man.volumes,
-                    &validated_image_ids,
-                    true,
-                )
+                .validate(&man.eos_version, &man.volumes, &validated_image_ids, true)
                 .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Properties"))?;
         }
         man.volumes.validate(&man.interfaces)?;
@@ -387,7 +367,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
         })
     }
 
-    pub async fn manifest_raw<'a>(&'a mut self) -> Result<ReadHandle<'a, R>, Error> {
+    pub async fn manifest_raw(&mut self) -> Result<ReadHandle<'_, R>, Error> {
         self.read_handle(self.toc.manifest).await
     }
 
@@ -397,27 +377,27 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
             .with_ctx(|_| (crate::ErrorKind::ParseS9pk, "Deserializing Manifest (CBOR)"))
     }
 
-    pub async fn license<'a>(&'a mut self) -> Result<ReadHandle<'a, R>, Error> {
-        Ok(self.read_handle(self.toc.license).await?)
+    pub async fn license(&mut self) -> Result<ReadHandle<'_, R>, Error> {
+        self.read_handle(self.toc.license).await
     }
 
-    pub async fn instructions<'a>(&'a mut self) -> Result<ReadHandle<'a, R>, Error> {
-        Ok(self.read_handle(self.toc.instructions).await?)
+    pub async fn instructions(&mut self) -> Result<ReadHandle<'_, R>, Error> {
+        self.read_handle(self.toc.instructions).await
     }
 
-    pub async fn icon<'a>(&'a mut self) -> Result<ReadHandle<'a, R>, Error> {
-        Ok(self.read_handle(self.toc.icon).await?)
+    pub async fn icon(&mut self) -> Result<ReadHandle<'_, R>, Error> {
+        self.read_handle(self.toc.icon).await
     }
 
-    pub async fn docker_images<'a>(&'a mut self) -> Result<DockerReader<ReadHandle<'a, R>>, Error> {
+    pub async fn docker_images(&mut self) -> Result<DockerReader<ReadHandle<'_, R>>, Error> {
         DockerReader::new(self.read_handle(self.toc.docker_images).await?).await
     }
 
-    pub async fn assets<'a>(&'a mut self) -> Result<ReadHandle<'a, R>, Error> {
-        Ok(self.read_handle(self.toc.assets).await?)
+    pub async fn assets(&mut self) -> Result<ReadHandle<'_, R>, Error> {
+        self.read_handle(self.toc.assets).await
     }
 
-    pub async fn scripts<'a>(&'a mut self) -> Result<Option<ReadHandle<'a, R>>, Error> {
+    pub async fn scripts(&mut self) -> Result<Option<ReadHandle<'_, R>>, Error> {
         Ok(match self.toc.scripts {
             None => None,
             Some(a) => Some(self.read_handle(a).await?),

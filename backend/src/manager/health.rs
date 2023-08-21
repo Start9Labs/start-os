@@ -1,6 +1,5 @@
 use std::collections::BTreeMap;
 
-use itertools::Itertools;
 use patch_db::{DbHandle, LockReceipt, LockType};
 use tracing::instrument;
 
@@ -114,14 +113,7 @@ pub async fn check<Db: DbHandle>(
         tracing::debug!("Checking health of {}", id);
         manifest
             .health_checks
-            .check_all(
-                ctx,
-                &manifest.containers,
-                started,
-                id,
-                &manifest.version,
-                &manifest.volumes,
-            )
+            .check_all(ctx, started, id, &manifest.version, &manifest.volumes)
             .await?
     } else {
         return Ok(());

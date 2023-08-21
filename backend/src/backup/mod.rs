@@ -84,10 +84,10 @@ impl BackupActions {
         image_ids: &BTreeSet<ImageId>,
     ) -> Result<(), Error> {
         self.create
-            .validate(container, eos_version, volumes, image_ids, false)
+            .validate(eos_version, volumes, image_ids, false)
             .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Backup Create"))?;
         self.restore
-            .validate(container, eos_version, volumes, image_ids, false)
+            .validate(eos_version, volumes, image_ids, false)
             .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Backup Restore"))?;
         Ok(())
     }

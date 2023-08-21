@@ -10,9 +10,6 @@ impl StartStop {
     pub(crate) fn is_start(&self) -> bool {
         matches!(self, StartStop::Start)
     }
-    pub(crate) fn is_stop(&self) -> bool {
-        matches!(self, StartStop::Stop)
-    }
 }
 impl From<MainStatus> for StartStop {
     fn from(value: MainStatus) -> Self {

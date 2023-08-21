@@ -40,10 +40,10 @@ impl ConfigActions {
         image_ids: &BTreeSet<ImageId>,
     ) -> Result<(), Error> {
         self.get
-            .validate(container, eos_version, volumes, image_ids, true)
+            .validate(eos_version, volumes, image_ids, true)
             .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Config Get"))?;
         self.set
-            .validate(container, eos_version, volumes, image_ids, true)
+            .validate(eos_version, volumes, image_ids, true)
             .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Config Set"))?;
         Ok(())
     }

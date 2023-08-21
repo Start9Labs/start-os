@@ -24,9 +24,9 @@ use crate::disk::mount::guard::TmpMountGuard;
 use crate::manager::BackupReturn;
 use crate::notifications::NotificationLevel;
 use crate::s9pk::manifest::PackageId;
+use crate::util::display_none;
 use crate::util::io::dir_copy;
 use crate::util::serde::IoFormat;
-use crate::util::{display_none, Invoke};
 use crate::version::VersionT;
 use crate::{Error, ErrorKind, ResultExt};
 

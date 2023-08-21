@@ -49,7 +49,6 @@ use crate::status::{MainStatus, Status};
 use crate::util::io::{copy_and_shutdown, response_to_reader};
 use crate::util::serde::{display_serializable, Port};
 use crate::util::{display_none, AsyncFileExt, Version};
-use crate::version::VersionT;
 use crate::volume::{asset_dir, script_dir};
 use crate::{Error, ErrorKind, ResultExt};
 

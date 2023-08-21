@@ -8,7 +8,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use self::docker::{DockerContainers, DockerProcedure};
+use self::docker::DockerProcedure;
 use crate::context::RpcContext;
 use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
@@ -43,7 +43,6 @@ impl PackageProcedure {
     #[instrument(skip_all)]
     pub fn validate(
         &self,
-        container: &Option<DockerContainers>,
         eos_version: &Version,
         volumes: &Volumes,
         image_ids: &BTreeSet<ImageId>,
@@ -120,7 +119,6 @@ impl PackageProcedure {
     #[instrument(skip_all)]
     pub async fn sandboxed<I: Serialize, O: DeserializeOwned>(
         &self,
-        container: &Option<DockerContainers>,
         ctx: &RpcContext,
         pkg_id: &PackageId,
         pkg_version: &Version,
