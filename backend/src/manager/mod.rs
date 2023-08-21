@@ -246,14 +246,12 @@ impl Manager {
     }
 
     pub(super) fn perform_restart(&self) -> impl Future<Output = ()> + 'static {
-        tracing::error!("BLUJ restart start");
         let manage_container = self.manage_container.clone();
         async move {
             let restart_override = manage_container.set_override(Some(MainStatus::Restarting));
             manage_container.wait_for_desired(StartStop::Stop).await;
             manage_container.wait_for_desired(StartStop::Start).await;
             drop(restart_override);
-            tracing::error!("BLUJ restart Finnished");
         }
     }
     fn _transition_restart(&self) -> TransitionState {
