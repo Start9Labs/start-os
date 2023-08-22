@@ -307,7 +307,7 @@ impl Manager {
             TransitionState::BackingUp(
                 tokio::spawn(
                     self.perform_backup(backup_guard)
-                        .then(finnish_up_backup_task(self.transition.clone(), send)),
+                        .then(finish_up_backup_task(self.transition.clone(), send)),
                 )
                 .into(),
             ),
@@ -621,7 +621,7 @@ impl Drop for DesiredStateReverter {
 
 type BackupDoneSender = oneshot::Sender<Result<PackageBackupInfo, Error>>;
 
-fn finnish_up_backup_task(
+fn finish_up_backup_task(
     transition: Arc<Sender<Arc<TransitionState>>>,
     send: BackupDoneSender,
 ) -> impl FnOnce(Result<Result<PackageBackupInfo, Error>, Error>) -> BoxFuture<'static, ()> {
