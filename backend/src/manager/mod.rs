@@ -162,6 +162,10 @@ impl Manager {
         configure_context: ConfigureContext,
     ) -> Result<BTreeMap<PackageId, TaggedDependencyError>, Error> {
         if self._is_transition_configure() {
+            tracing::error!(
+                "BLUJ Early exit configure {:?}",
+                configure_context.breakages
+            );
             return Ok(configure_context.breakages);
         }
         let context = self.seed.ctx.clone();
@@ -170,13 +174,15 @@ impl Manager {
         let breakages = configure(context, id, configure_context).await?;
         self._transition_replace({
             let manage_container = self.manage_container.clone();
+            let state_reverter = DesiredStateReverter::new(manage_container.clone());
 
+            let transition = self.transition.clone();
             TransitionState::Configuring(
                 tokio::spawn(async move {
-                    let state_reverter = DesiredStateReverter::new(manage_container.clone());
                     manage_container.wait_for_desired(StartStop::Stop).await;
 
                     state_reverter.revert().await;
+                    transition.send_replace(Default::default());
                 })
                 .into(),
             )
