@@ -162,10 +162,6 @@ impl Manager {
         configure_context: ConfigureContext,
     ) -> Result<BTreeMap<PackageId, TaggedDependencyError>, Error> {
         if self._is_transition_configure() {
-            tracing::error!(
-                "BLUJ Early exit configure {:?}",
-                configure_context.breakages
-            );
             return Ok(configure_context.breakages);
         }
         let context = self.seed.ctx.clone();
