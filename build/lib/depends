@@ -7,8 +7,9 @@ btrfs-progs
 ca-certificates
 cifs-utils
 containerd.io
-curl
+criu
 cryptsetup
+curl
 docker-ce
 docker-ce-cli
 docker-compose-plugin
