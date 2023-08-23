@@ -7,7 +7,6 @@ btrfs-progs
 ca-certificates
 cifs-utils
 containerd.io
-criu
 cryptsetup
 curl
 docker-ce
