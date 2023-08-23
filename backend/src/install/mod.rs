@@ -18,6 +18,7 @@ use patch_db::{DbHandle, LockType};
 use reqwest::Url;
 use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
+use serde_json::{json, Value};
 use tokio::fs::{File, OpenOptions};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt};
 use tokio::process::Command;
@@ -26,7 +27,7 @@ use tokio_stream::wrappers::ReadDirStream;
 use tracing::instrument;
 
 use self::cleanup::{cleanup_failed, remove_from_current_dependents_lists};
-use crate::config::ConfigReceipts;
+use crate::config::{ConfigReceipts, ConfigureContext};
 use crate::context::{CliContext, RpcContext};
 use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::db::model::{
@@ -48,7 +49,6 @@ use crate::status::{MainStatus, Status};
 use crate::util::io::{copy_and_shutdown, response_to_reader};
 use crate::util::serde::{display_serializable, Port};
 use crate::util::{display_none, AsyncFileExt, Version};
-use crate::version::{Current, VersionT};
 use crate::volume::{asset_dir, script_dir};
 use crate::{Error, ErrorKind, ResultExt};
 
@@ -61,7 +61,7 @@ pub const PKG_PUBLIC_DIR: &str = "package-data/public";
 pub const PKG_WASM_DIR: &str = "package-data/wasm";
 
 #[command(display(display_serializable))]
-pub async fn list(#[context] ctx: RpcContext) -> Result<Vec<(PackageId, Version)>, Error> {
+pub async fn list(#[context] ctx: RpcContext) -> Result<Value, Error> {
     let mut hdl = ctx.db.handle();
     let package_data = crate::db::DatabaseModel::new()
         .package_data()
@@ -71,11 +71,25 @@ pub async fn list(#[context] ctx: RpcContext) -> Result<Vec<(PackageId, Version)
     Ok(package_data
         .0
         .iter()
-        .filter_map(|(id, pde)| match pde {
-            PackageDataEntry::Installed { installed, .. } => {
-                Some((id.clone(), installed.manifest.version.clone()))
-            }
-            _ => None,
+        .filter_map(|(id, pde)| {
+            serde_json::to_value(match pde {
+                PackageDataEntry::Installed { installed, .. } => {
+                    json!({ "status":"installed","id": id.clone(), "version": installed.manifest.version.clone()})
+                }
+                PackageDataEntry::Installing { manifest, install_progress, .. } => {
+                    json!({ "status":"installing","id": id.clone(), "version": manifest.version.clone(), "progress": install_progress.clone()})
+                }
+                PackageDataEntry::Updating { manifest, installed, install_progress, .. } => {
+                    json!({ "status":"updating","id": id.clone(), "version": installed.manifest.version.clone(), "progress": install_progress.clone()})
+                }
+                PackageDataEntry::Restoring { manifest,  install_progress, .. } => {
+                    json!({ "status":"restoring","id": id.clone(), "version": manifest.version.clone(), "progress": install_progress.clone()})
+                }
+                PackageDataEntry::Removing { manifest, .. } => {
+                    json!({ "status":"removing", "id": id.clone(), "version": manifest.version.clone()})
+                }
+            })
+            .ok()
         })
         .collect())
 }
@@ -1248,7 +1262,6 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         current_dependencies: current_dependencies.clone(),
         interface_addresses,
     };
-
     let prev = std::mem::replace(
         &mut *pde,
         PackageDataEntry::Installed {
@@ -1328,18 +1341,17 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             false
         };
         if configured && manifest.config.is_some() {
-            crate::config::configure(
-                ctx,
-                &mut tx,
-                pkg_id,
-                None,
-                &None,
-                false,
-                &mut BTreeMap::new(),
-                &mut BTreeMap::new(),
-                &receipts.config,
-            )
-            .await?;
+            let breakages = BTreeMap::new();
+            let overrides = Default::default();
+
+            let configure_context = ConfigureContext {
+                breakages,
+                timeout: None,
+                config: None,
+                dry_run: false,
+                overrides,
+            };
+            crate::config::configure(&ctx, pkg_id, configure_context).await?;
         } else {
             add_dependent_to_current_dependents_lists(
                 &mut tx,

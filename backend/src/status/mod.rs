@@ -26,9 +26,7 @@ pub enum MainStatus {
     Stopped,
     Restarting,
     Stopping,
-    Starting {
-        restarting: bool,
-    },
+    Starting,
     Running {
         started: DateTime<Utc>,
         health: BTreeMap<HealthCheckId, HealthCheckResult>,
@@ -72,6 +70,17 @@ impl MainStatus {
             MainStatus::Stopping => None,
             MainStatus::Starting { .. } => None,
         }
+    }
+    pub fn backing_up(&self) -> Self {
+        let (started, health) = match self {
+            MainStatus::Starting { .. } => (Some(Utc::now()), Default::default()),
+            MainStatus::Running { started, health } => (Some(started.clone()), health.clone()),
+            MainStatus::Stopped | MainStatus::Stopping | MainStatus::Restarting => {
+                (None, Default::default())
+            }
+            MainStatus::BackingUp { .. } => return self.clone(),
+        };
+        MainStatus::BackingUp { started, health }
     }
 }
 impl MainStatusModel {

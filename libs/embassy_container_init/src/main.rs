@@ -5,8 +5,7 @@ use std::process::Stdio;
 use std::sync::Arc;
 
 use embassy_container_init::{
-    LogParams, OutputParams, OutputStrategy, ProcessGroupId, ProcessId, ReadLineStderrParams,
-    ReadLineStdoutParams, RunCommandParams, SendSignalParams, SignalGroupParams,
+    LogParams, OutputParams, OutputStrategy, ProcessGroupId, ProcessId, RunCommandParams, SendSignalParams, SignalGroupParams,
 };
 use futures::StreamExt;
 use helpers::NonDetachingJoinHandle;
@@ -15,7 +14,7 @@ use nix::sys::signal::Signal;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio::process::{Child, ChildStderr, ChildStdout, Command};
+use tokio::process::{Child,  Command};
 use tokio::select;
 use tokio::sync::{watch, Mutex};
 use yajrc::{Id, RpcError};

@@ -60,11 +60,7 @@ pub fn validate_configuration(
             )?;
             std::fs::rename(config_path.with_extension("tmp"), config_path)?;
             // return set result
-            Ok(SetResult {
-                depends_on,
-                // sending sigterm so service is restarted - in 0.3.x services, this is whatever signal is needed to send to the process to pick up the configuration
-                signal: Some(nix::sys::signal::SIGTERM),
-            })
+            Ok(SetResult { depends_on })
         }
         Err(e) => Err(anyhow!("{}", e)),
     }

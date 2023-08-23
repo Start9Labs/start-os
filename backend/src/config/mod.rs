@@ -1,26 +1,24 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::time::Duration;
 
 use color_eyre::eyre::eyre;
-use futures::future::{BoxFuture, FutureExt};
 use indexmap::IndexSet;
 use itertools::Itertools;
+use models::ErrorKind;
 use patch_db::{DbHandle, LockReceipt, LockTarget, LockTargetId, LockType, Verifier};
-use rand::SeedableRng;
 use regex::Regex;
 use rpc_toolkit::command;
 use serde_json::Value;
 use tracing::instrument;
 
 use crate::context::RpcContext;
-use crate::db::model::{CurrentDependencies, CurrentDependencyInfo, CurrentDependents};
+use crate::db::model::{CurrentDependencies, CurrentDependents};
 use crate::dependencies::{
-    add_dependent_to_current_dependents_lists, break_transitive, heal_all_dependents_transitive,
-    BreakTransitiveReceipts, BreakageRes, Dependencies, DependencyConfig, DependencyError,
-    DependencyErrors, DependencyReceipt, TaggedDependencyError, TryHealReceipts,
+    BreakTransitiveReceipts, BreakageRes, Dependencies, DependencyConfig, DependencyErrors,
+    DependencyReceipt, TaggedDependencyError, TryHealReceipts,
 };
-use crate::install::cleanup::{remove_from_current_dependents_lists, UpdateDependencyReceipts};
+use crate::install::cleanup::UpdateDependencyReceipts;
 use crate::procedure::docker::DockerContainers;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::util::display_none;
@@ -35,7 +33,7 @@ pub use spec::{ConfigSpec, Defaultable};
 use util::NumRange;
 
 use self::action::{ConfigActions, ConfigRes};
-use self::spec::{ConfigPointerReceipts, PackagePointerSpec, ValueSpecPointer};
+use self::spec::{ConfigPointerReceipts, ValueSpecPointer};
 
 pub type Config = serde_json::Map<String, Value>;
 pub trait TypeOf {
@@ -264,18 +262,18 @@ pub struct ConfigReceipts {
     pub update_dependency_receipts: UpdateDependencyReceipts,
     pub try_heal_receipts: TryHealReceipts,
     pub break_transitive_receipts: BreakTransitiveReceipts,
-    configured: LockReceipt<bool, String>,
-    config_actions: LockReceipt<ConfigActions, String>,
-    dependencies: LockReceipt<Dependencies, String>,
-    volumes: LockReceipt<crate::volume::Volumes, String>,
-    version: LockReceipt<crate::util::Version, String>,
-    manifest: LockReceipt<Manifest, String>,
-    system_pointers: LockReceipt<Vec<spec::SystemPointerSpec>, String>,
+    pub configured: LockReceipt<bool, String>,
+    pub config_actions: LockReceipt<ConfigActions, String>,
+    pub dependencies: LockReceipt<Dependencies, String>,
+    pub volumes: LockReceipt<crate::volume::Volumes, String>,
+    pub version: LockReceipt<crate::util::Version, String>,
+    pub manifest: LockReceipt<Manifest, String>,
+    pub system_pointers: LockReceipt<Vec<spec::SystemPointerSpec>, String>,
     pub current_dependents: LockReceipt<CurrentDependents, String>,
     pub current_dependencies: LockReceipt<CurrentDependencies, String>,
-    dependency_errors: LockReceipt<DependencyErrors, String>,
-    manifest_dependencies_config: LockReceipt<DependencyConfig, (String, String)>,
-    docker_containers: LockReceipt<DockerContainers, String>,
+    pub dependency_errors: LockReceipt<DependencyErrors, String>,
+    pub manifest_dependencies_config: LockReceipt<DependencyConfig, (String, String)>,
+    pub docker_containers: LockReceipt<DockerContainers, String>,
 }
 
 impl ConfigReceipts {
@@ -418,26 +416,27 @@ pub async fn set_dry(
     #[context] ctx: RpcContext,
     #[parent_data] (id, config, timeout): (PackageId, Option<Config>, Option<Duration>),
 ) -> Result<BreakageRes, Error> {
-    let mut db = ctx.db.handle();
-    let mut tx = db.begin().await?;
-    let mut breakages = BTreeMap::new();
-    let locks = ConfigReceipts::new(&mut tx).await?;
-    configure(
-        &ctx,
-        &mut tx,
-        &id,
-        config,
-        &timeout,
-        true,
-        &mut BTreeMap::new(),
-        &mut breakages,
-        &locks,
-    )
-    .await?;
+    let breakages = BTreeMap::new();
+    let overrides = Default::default();
 
-    locks.configured.set(&mut tx, true, &id).await?;
-    tx.abort().await?;
+    let configure_context = ConfigureContext {
+        breakages,
+        timeout,
+        config,
+        dry_run: true,
+        overrides,
+    };
+    let breakages = configure(&ctx, &id, configure_context).await?;
+
     Ok(BreakageRes(breakages))
+}
+
+pub struct ConfigureContext {
+    pub breakages: BTreeMap<PackageId, TaggedDependencyError>,
+    pub timeout: Option<Duration>,
+    pub config: Option<Config>,
+    pub overrides: BTreeMap<PackageId, Config>,
+    pub dry_run: bool,
 }
 
 #[instrument(skip_all)]
@@ -445,343 +444,50 @@ pub async fn set_impl(
     ctx: RpcContext,
     (id, config, timeout): (PackageId, Option<Config>, Option<Duration>),
 ) -> Result<(), Error> {
-    let mut db = ctx.db.handle();
-    let mut tx = db.begin().await?;
-    let mut breakages = BTreeMap::new();
-    let locks = ConfigReceipts::new(&mut tx).await?;
-    configure(
-        &ctx,
-        &mut tx,
-        &id,
+    let breakages = BTreeMap::new();
+    let overrides = Default::default();
+
+    let configure_context = ConfigureContext {
+        breakages,
+        timeout,
         config,
-        &timeout,
-        false,
-        &mut BTreeMap::new(),
-        &mut breakages,
-        &locks,
-    )
-    .await?;
-    tx.commit().await?;
+        dry_run: false,
+        overrides,
+    };
+    configure(&ctx, &id, configure_context).await?;
     Ok(())
 }
 
 #[instrument(skip_all)]
-pub async fn configure<'a, Db: DbHandle>(
+pub async fn configure(
     ctx: &RpcContext,
-    db: &'a mut Db,
     id: &PackageId,
-    config: Option<Config>,
-    timeout: &Option<Duration>,
-    dry_run: bool,
-    overrides: &mut BTreeMap<PackageId, Config>,
-    breakages: &mut BTreeMap<PackageId, TaggedDependencyError>,
-    receipts: &ConfigReceipts,
-) -> Result<(), Error> {
-    configure_rec(
-        ctx, db, id, config, timeout, dry_run, overrides, breakages, receipts,
-    )
-    .await?;
-    receipts.configured.set(db, true, &id).await?;
-    Ok(())
-}
-
-#[instrument(skip_all)]
-pub fn configure_rec<'a, Db: DbHandle>(
-    ctx: &'a RpcContext,
-    db: &'a mut Db,
-    id: &'a PackageId,
-    config: Option<Config>,
-    timeout: &'a Option<Duration>,
-    dry_run: bool,
-    overrides: &'a mut BTreeMap<PackageId, Config>,
-    breakages: &'a mut BTreeMap<PackageId, TaggedDependencyError>,
-    receipts: &'a ConfigReceipts,
-) -> BoxFuture<'a, Result<(), Error>> {
-    async move {
-        // fetch data from db
-        let action = receipts
-            .config_actions
-            .get(db, id)
-            .await?
-            .ok_or_else(|| not_found!(id))?;
-        let dependencies = receipts
-            .dependencies
-            .get(db, id)
-            .await?
-            .ok_or_else(|| not_found!(id))?;
-        let volumes = receipts
-            .volumes
-            .get(db, id)
-            .await?
-            .ok_or_else(|| not_found!(id))?;
-        let is_needs_config = !receipts
-            .configured
-            .get(db, id)
-            .await?
-            .ok_or_else(|| not_found!(id))?;
-        let version = receipts
-            .version
-            .get(db, id)
-            .await?
-            .ok_or_else(|| not_found!(id))?;
-
-        // get current config and current spec
-        let ConfigRes {
-            config: old_config,
-            spec,
-        } = action.get(ctx, id, &version, &volumes).await?;
-
-        // determine new config to use
-        let mut config = if let Some(config) = config.or_else(|| old_config.clone()) {
-            config
-        } else {
-            spec.gen(&mut rand::rngs::StdRng::from_entropy(), timeout)?
-        };
-
-        let manifest = receipts
-            .manifest
-            .get(db, id)
-            .await?
-            .ok_or_else(|| not_found!(id))?;
-
-        spec.validate(&manifest)?;
-        spec.matches(&config)?; // check that new config matches spec
-        spec.update(
-            ctx,
-            db,
-            &manifest,
-            &*overrides,
-            &mut config,
-            &receipts.config_receipts,
-        )
-        .await?; // dereference pointers in the new config
-
-        // create backreferences to pointers
-        let mut sys = receipts
-            .system_pointers
-            .get(db, &id)
-            .await?
-            .ok_or_else(|| not_found!(id))?;
-        sys.truncate(0);
-        let mut current_dependencies: CurrentDependencies = CurrentDependencies(
-            dependencies
-                .0
-                .iter()
-                .filter_map(|(id, info)| {
-                    if info.requirement.required() {
-                        Some((id.clone(), CurrentDependencyInfo::default()))
-                    } else {
-                        None
-                    }
-                })
-                .collect(),
-        );
-        for ptr in spec.pointers(&config)? {
-            match ptr {
-                ValueSpecPointer::Package(pkg_ptr) => {
-                    if let Some(current_dependency) =
-                        current_dependencies.0.get_mut(pkg_ptr.package_id())
-                    {
-                        current_dependency.pointers.push(pkg_ptr);
-                    } else {
-                        current_dependencies.0.insert(
-                            pkg_ptr.package_id().to_owned(),
-                            CurrentDependencyInfo {
-                                pointers: vec![pkg_ptr],
-                                health_checks: BTreeSet::new(),
-                            },
-                        );
-                    }
-                }
-                ValueSpecPointer::System(s) => sys.push(s),
-            }
-        }
-        receipts.system_pointers.set(db, sys, &id).await?;
-
-        let signal = if !dry_run {
-            // run config action
-            let res = action
-                .set(ctx, id, &version, &dependencies, &volumes, &config)
-                .await?;
-
-            // track dependencies with no pointers
-            for (package_id, health_checks) in res.depends_on.into_iter() {
-                if let Some(current_dependency) = current_dependencies.0.get_mut(&package_id) {
-                    current_dependency.health_checks.extend(health_checks);
-                } else {
-                    current_dependencies.0.insert(
-                        package_id,
-                        CurrentDependencyInfo {
-                            pointers: Vec::new(),
-                            health_checks,
-                        },
-                    );
-                }
-            }
-
-            // track dependency health checks
-            current_dependencies = current_dependencies.map(|x| {
-                x.into_iter()
-                    .filter(|(dep_id, _)| {
-                        if dep_id != id && !manifest.dependencies.0.contains_key(dep_id) {
-                            tracing::warn!("Illegal dependency specified: {}", dep_id);
-                            false
-                        } else {
-                            true
-                        }
-                    })
-                    .collect()
-            });
-            res.signal
-        } else {
-            None
-        };
-
-        // update dependencies
-        let prev_current_dependencies = receipts
-            .current_dependencies
-            .get(db, &id)
-            .await?
-            .unwrap_or_default();
-        remove_from_current_dependents_lists(
-            db,
-            id,
-            &prev_current_dependencies,
-            &receipts.current_dependents,
-        )
-        .await?; // remove previous
-        add_dependent_to_current_dependents_lists(
-            db,
-            id,
-            &current_dependencies,
-            &receipts.current_dependents,
-        )
-        .await?; // add new
-        current_dependencies.0.remove(id);
-        receipts
-            .current_dependencies
-            .set(db, current_dependencies.clone(), &id)
-            .await?;
-
-        let errs = receipts
-            .dependency_errors
-            .get(db, &id)
-            .await?
-            .ok_or_else(|| not_found!(id))?;
-        tracing::warn!("Dependency Errors: {:?}", errs);
-        let errs = DependencyErrors::init(
-            ctx,
-            db,
-            &manifest,
-            &current_dependencies,
-            &receipts.dependency_receipt.try_heal,
-        )
+    configure_context: ConfigureContext,
+) -> Result<BTreeMap<PackageId, TaggedDependencyError>, Error> {
+    let mut db = ctx.db.handle();
+    let version = crate::db::DatabaseModel::new()
+        .package_data()
+        .idx_model(id)
+        .expect(&mut db)
+        .await?
+        .installed()
+        .expect(&mut db)
+        .await?
+        .manifest()
+        .version()
+        .get(&mut ctx.db.handle())
         .await?;
-        receipts.dependency_errors.set(db, errs, &id).await?;
-
-        // cache current config for dependents
-        overrides.insert(id.clone(), config.clone());
-
-        // handle dependents
-        let dependents = receipts
-            .current_dependents
-            .get(db, id)
-            .await?
-            .ok_or_else(|| not_found!(id))?;
-        let prev = if is_needs_config { None } else { old_config }
-            .map(Value::Object)
-            .unwrap_or_default();
-        let next = Value::Object(config.clone());
-        for (dependent, dep_info) in dependents.0.iter().filter(|(dep_id, _)| dep_id != &id) {
-            let dependent_container = receipts.docker_containers.get(db, &dependent).await?;
-            let dependent_container = &dependent_container;
-            // check if config passes dependent check
-            if let Some(cfg) = receipts
-                .manifest_dependencies_config
-                .get(db, (&dependent, &id))
-                .await?
-            {
-                let manifest = receipts
-                    .manifest
-                    .get(db, &dependent)
-                    .await?
-                    .ok_or_else(|| not_found!(id))?;
-                if let Err(error) = cfg
-                    .check(
-                        ctx,
-                        dependent_container,
-                        dependent,
-                        &manifest.version,
-                        &manifest.volumes,
-                        id,
-                        &config,
-                    )
-                    .await?
-                {
-                    let dep_err = DependencyError::ConfigUnsatisfied { error };
-                    break_transitive(
-                        db,
-                        dependent,
-                        id,
-                        dep_err,
-                        breakages,
-                        &receipts.break_transitive_receipts,
-                    )
-                    .await?;
-                }
-
-                // handle backreferences
-                for ptr in &dep_info.pointers {
-                    if let PackagePointerSpec::Config(cfg_ptr) = ptr {
-                        if cfg_ptr.select(&next) != cfg_ptr.select(&prev) {
-                            if let Err(e) = configure_rec(
-                                ctx, db, dependent, None, timeout, dry_run, overrides, breakages,
-                                receipts,
-                            )
-                            .await
-                            {
-                                if e.kind == crate::ErrorKind::ConfigRulesViolation {
-                                    break_transitive(
-                                        db,
-                                        dependent,
-                                        id,
-                                        DependencyError::ConfigUnsatisfied {
-                                            error: format!("{}", e),
-                                        },
-                                        breakages,
-                                        &receipts.break_transitive_receipts,
-                                    )
-                                    .await?;
-                                } else {
-                                    return Err(e);
-                                }
-                            }
-                        }
-                    }
-                }
-                heal_all_dependents_transitive(ctx, db, id, &receipts.dependency_receipt).await?;
-            }
-        }
-
-        if let Some(signal) = signal {
-            match ctx.managers.get(&(id.clone(), version.clone())).await {
-                None => {
-                    // in theory this should never happen, which indicates this function should be moved behind the
-                    // Manager interface
-                    return Err(Error::new(
-                        eyre!("Manager Not Found for package being configured"),
-                        crate::ErrorKind::Incoherent,
-                    ));
-                }
-                Some(m) => {
-                    m.signal(&signal).await?;
-                }
-            }
-        }
-
-        Ok(())
-    }
-    .boxed()
+    ctx.managers
+        .get(&(id.clone(), version.clone()))
+        .await
+        .ok_or_else(|| {
+            Error::new(
+                eyre!("There is no manager running for {id:?} and {version:?}"),
+                ErrorKind::Unknown,
+            )
+        })?
+        .configure(configure_context)
+        .await
 }
 
 macro_rules! not_found {

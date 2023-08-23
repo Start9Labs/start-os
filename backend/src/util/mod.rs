@@ -170,9 +170,7 @@ impl<W: std::fmt::Write> std::io::Write for FmtWriter<W> {
     }
 }
 
-pub fn display_none<T>(_: T, _: &ArgMatches) {
-    ()
-}
+pub fn display_none<T>(_: T, _: &ArgMatches) {}
 
 pub struct Container<T>(RwLock<Option<T>>);
 impl<T> Container<T> {
@@ -253,6 +251,29 @@ where
     type IntoIter = <T as IntoIterator>::IntoIter;
     fn into_iter(self) -> <Self as IntoDoubleEndedIterator<U>>::IntoIter {
         IntoIterator::into_iter(self)
+    }
+}
+
+pub struct GeneralBoxedGuard(Option<Box<dyn FnOnce() + Send + Sync>>);
+impl GeneralBoxedGuard {
+    pub fn new(f: impl FnOnce() + 'static + Send + Sync) -> Self {
+        GeneralBoxedGuard(Some(Box::new(f)))
+    }
+
+    pub fn drop(mut self) {
+        self.0.take().unwrap()()
+    }
+
+    pub fn drop_without_action(mut self) {
+        self.0 = None;
+    }
+}
+
+impl Drop for GeneralBoxedGuard {
+    fn drop(&mut self) {
+        if let Some(destroy) = self.0.take() {
+            destroy();
+        }
     }
 }
 

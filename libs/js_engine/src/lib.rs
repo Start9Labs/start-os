@@ -145,17 +145,17 @@ impl ModuleLoader for ModsLoader {
             "file:///deno_global.js" => Ok(ModuleSource::new(
                 ModuleType::JavaScript,
                 FastString::Static("const old_deno = Deno; Deno = null; export default old_deno"),
-                &*DENO_GLOBAL_JS,
+                &DENO_GLOBAL_JS,
             )),
             "file:///loadModule.js" => Ok(ModuleSource::new(
                 ModuleType::JavaScript,
                 FastString::Static(include_str!("./artifacts/loadModule.js")),
-                &*LOAD_MODULE_JS,
+                &LOAD_MODULE_JS,
             )),
             "file:///embassy.js" => Ok(ModuleSource::new(
                 ModuleType::JavaScript,
                 self.code.0.clone().into(),
-                &*EMBASSY_JS,
+                &EMBASSY_JS,
             )),
 
             x => Err(anyhow!("Not allowed to import: {}", x)),
@@ -340,7 +340,7 @@ impl JsExecutionEnvironment {
             .ops(Self::declarations())
             .state(move |state| {
                 state.put(ext_answer_state.clone());
-                state.put(js_ctx.clone());
+                state.put(js_ctx);
             })
             .build();
 
@@ -397,7 +397,7 @@ mod fns {
     };
     use helpers::{to_tmp_path, AtomicFile, Rsync, RsyncOptions};
     use itertools::Itertools;
-    use models::{ErrorKind, VolumeId};
+    use models::VolumeId;
     use serde::{Deserialize, Serialize};
     use serde_json::{json, Value};
     use tokio::io::AsyncWriteExt;
@@ -578,7 +578,7 @@ mod fns {
         }
 
         let path_in = path_in.strip_prefix("/").unwrap_or(&path_in);
-        let new_file = volume_path.join(&path_in);
+        let new_file = volume_path.join(path_in);
         let parent_new_file = new_file
             .parent()
             .ok_or_else(|| anyhow!("Expecting that file is not root"))?;
@@ -706,7 +706,7 @@ mod fns {
                 volume_path.to_string_lossy(),
             );
         }
-        if let Err(_) = tokio::fs::metadata(&src).await {
+        if tokio::fs::metadata(&src).await.is_err() {
             bail!("Source at {} does not exists", src.to_string_lossy());
         }
 
@@ -870,11 +870,9 @@ mod fns {
         let volume_path = {
             let state = state.borrow();
             let ctx: &JsContext = state.borrow();
-            let volume_path = ctx
-                .volumes
+            ctx.volumes
                 .path_for(&ctx.datadir, &ctx.package_id, &ctx.version, &volume_id)
-                .ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?;
-            volume_path
+                .ok_or_else(|| anyhow!("There is no {} in volumes", volume_id))?
         };
         let path_in = path_in.strip_prefix("/").unwrap_or(&path_in);
         let new_file = volume_path.join(path_in);
@@ -945,8 +943,7 @@ mod fns {
                     .stdout,
             )?
             .lines()
-            .skip(1)
-            .next()
+            .nth(1)
             .unwrap_or_default()
             .parse()?;
             let used = String::from_utf8(
@@ -976,8 +973,7 @@ mod fns {
                     .stdout,
             )?
             .lines()
-            .skip(1)
-            .next()
+            .nth(1)
             .unwrap_or_default()
             .split_ascii_whitespace()
             .next_tuple()
@@ -994,8 +990,10 @@ mod fns {
 
     #[op]
     async fn log_trace(state: Rc<RefCell<OpState>>, input: String) -> Result<(), AnyError> {
-        let state = state.borrow();
-        let ctx = state.borrow::<JsContext>().clone();
+        let ctx = {
+            let state = state.borrow();
+            state.borrow::<JsContext>().clone()
+        };
         if let Some(rpc_client) = ctx.container_rpc_client {
             return rpc_client
                 .request(
@@ -1018,8 +1016,10 @@ mod fns {
     }
     #[op]
     async fn log_warn(state: Rc<RefCell<OpState>>, input: String) -> Result<(), AnyError> {
-        let state = state.borrow();
-        let ctx = state.borrow::<JsContext>().clone();
+        let ctx = {
+            let state = state.borrow();
+            state.borrow::<JsContext>().clone()
+        };
         if let Some(rpc_client) = ctx.container_rpc_client {
             return rpc_client
                 .request(
@@ -1042,8 +1042,10 @@ mod fns {
     }
     #[op]
     async fn log_error(state: Rc<RefCell<OpState>>, input: String) -> Result<(), AnyError> {
-        let state = state.borrow();
-        let ctx = state.borrow::<JsContext>().clone();
+        let ctx = {
+            let state = state.borrow();
+            state.borrow::<JsContext>().clone()
+        };
         if let Some(rpc_client) = ctx.container_rpc_client {
             return rpc_client
                 .request(
@@ -1066,8 +1068,10 @@ mod fns {
     }
     #[op]
     async fn log_debug(state: Rc<RefCell<OpState>>, input: String) -> Result<(), AnyError> {
-        let state = state.borrow();
-        let ctx = state.borrow::<JsContext>().clone();
+        let ctx = {
+            let state = state.borrow();
+            state.borrow::<JsContext>().clone()
+        };
         if let Some(rpc_client) = ctx.container_rpc_client {
             return rpc_client
                 .request(
@@ -1090,14 +1094,22 @@ mod fns {
     }
     #[op]
     async fn log_info(state: Rc<RefCell<OpState>>, input: String) -> Result<(), AnyError> {
-        let state = state.borrow();
-        let ctx = state.borrow::<JsContext>().clone();
-        if let Some(rpc_client) = ctx.container_rpc_client {
+        let (container_rpc_client, container_process_gid, package_id, run_function) = {
+            let state = state.borrow();
+            let ctx: JsContext = state.borrow::<JsContext>().clone();
+            (
+                ctx.container_rpc_client,
+                ctx.container_process_gid,
+                ctx.package_id,
+                ctx.run_function,
+            )
+        };
+        if let Some(rpc_client) = container_rpc_client {
             return rpc_client
                 .request(
                     embassy_container_init::Log,
                     embassy_container_init::LogParams {
-                        gid: Some(ctx.container_process_gid),
+                        gid: Some(container_process_gid),
                         level: embassy_container_init::LogLevel::Info(input),
                     },
                 )
@@ -1105,8 +1117,8 @@ mod fns {
                 .map_err(|e| anyhow!("{}: {:?}", e.message, e.data));
         }
         tracing::info!(
-            package_id = tracing::field::display(&ctx.package_id),
-            run_function = tracing::field::display(&ctx.run_function),
+            package_id = tracing::field::display(&package_id),
+            run_function = tracing::field::display(&run_function),
             "{}",
             input
         );

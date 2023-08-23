@@ -7,7 +7,6 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::context::RpcContext;
-use crate::procedure::docker::DockerContainers;
 use crate::procedure::{NoOutput, PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::PackageId;
 use crate::util::serde::Duration;
@@ -21,15 +20,14 @@ impl HealthChecks {
     #[instrument(skip_all)]
     pub fn validate(
         &self,
-        container: &Option<DockerContainers>,
         eos_version: &Version,
         volumes: &Volumes,
         image_ids: &BTreeSet<ImageId>,
     ) -> Result<(), Error> {
-        for (_, check) in &self.0 {
+        for check in self.0.values() {
             check
                 .implementation
-                .validate(container, eos_version, &volumes, image_ids, false)
+                .validate(eos_version, volumes, image_ids, false)
                 .with_ctx(|_| {
                     (
                         crate::ErrorKind::ValidateS9pk,
@@ -42,7 +40,6 @@ impl HealthChecks {
     pub async fn check_all(
         &self,
         ctx: &RpcContext,
-        container: &Option<DockerContainers>,
         started: DateTime<Utc>,
         pkg_id: &PackageId,
         pkg_version: &Version,
@@ -52,7 +49,7 @@ impl HealthChecks {
             Ok::<_, Error>((
                 id.clone(),
                 check
-                    .check(ctx, container, id, started, pkg_id, pkg_version, volumes)
+                    .check(ctx, id, started, pkg_id, pkg_version, volumes)
                     .await?,
             ))
         }))
@@ -75,7 +72,6 @@ impl HealthCheck {
     pub async fn check(
         &self,
         ctx: &RpcContext,
-        container: &Option<DockerContainers>,
         id: &HealthCheckId,
         started: DateTime<Utc>,
         pkg_id: &PackageId,

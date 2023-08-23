@@ -1,6 +1,9 @@
-use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+use std::{
+    future::Future,
+    ops::{Deref, DerefMut},
+};
 
 use color_eyre::eyre::{eyre, Context, Error};
 use futures::future::BoxFuture;
@@ -72,6 +75,18 @@ pub struct NonDetachingJoinHandle<T>(#[pin] JoinHandle<T>);
 impl<T> From<JoinHandle<T>> for NonDetachingJoinHandle<T> {
     fn from(t: JoinHandle<T>) -> Self {
         NonDetachingJoinHandle(t)
+    }
+}
+
+impl<T> Deref for NonDetachingJoinHandle<T> {
+    type Target = JoinHandle<T>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl<T> DerefMut for NonDetachingJoinHandle<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 #[pin_project::pinned_drop]

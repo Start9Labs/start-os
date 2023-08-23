@@ -40,10 +40,10 @@ impl ConfigActions {
         image_ids: &BTreeSet<ImageId>,
     ) -> Result<(), Error> {
         self.get
-            .validate(container, eos_version, volumes, image_ids, true)
+            .validate(eos_version, volumes, image_ids, true)
             .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Config Get"))?;
         self.set
-            .validate(container, eos_version, volumes, image_ids, true)
+            .validate(eos_version, volumes, image_ids, true)
             .with_ctx(|_| (crate::ErrorKind::ValidateS9pk, "Config Set"))?;
         Ok(())
     }
@@ -99,7 +99,6 @@ impl ConfigActions {
                 })
             })?;
         Ok(SetResult {
-            signal: res.signal,
             depends_on: res
                 .depends_on
                 .into_iter()
@@ -112,9 +111,5 @@ impl ConfigActions {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct SetResult {
-    #[serde(default)]
-    #[serde(deserialize_with = "crate::util::serde::deserialize_from_str_opt")]
-    #[serde(serialize_with = "crate::util::serde::serialize_display_opt")]
-    pub signal: Option<Signal>,
     pub depends_on: BTreeMap<PackageId, BTreeSet<HealthCheckId>>,
 }

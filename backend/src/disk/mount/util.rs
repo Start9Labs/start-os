@@ -3,7 +3,7 @@ use std::path::Path;
 use tracing::instrument;
 
 use crate::util::Invoke;
-use crate::{Error, ResultExt};
+use crate::Error;
 
 #[instrument(skip_all)]
 pub async fn bind<P0: AsRef<Path>, P1: AsRef<Path>>(

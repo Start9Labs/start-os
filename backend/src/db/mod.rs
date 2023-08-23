@@ -14,7 +14,6 @@ use rpc_toolkit::hyper::{Body, Error as HyperError, Request, Response};
 use rpc_toolkit::yajrc::RpcError;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tokio::io::AsyncWrite;
 use tokio::sync::oneshot;
 use tokio::task::JoinError;
 use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;

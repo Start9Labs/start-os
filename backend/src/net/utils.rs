@@ -152,7 +152,7 @@ impl hyper::server::accept::Accept for TcpListeners {
     type Error = std::io::Error;
 
     fn poll_accept(
-        mut self: std::pin::Pin<&mut Self>,
+        self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Option<Result<Self::Conn, Self::Error>>> {
         for listener in self.listeners.iter() {

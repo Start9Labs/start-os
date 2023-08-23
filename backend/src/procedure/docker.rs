@@ -8,7 +8,6 @@ use std::time::Duration;
 
 use async_stream::stream;
 use bollard::container::RemoveContainerOptions;
-use chrono::format::Item;
 use color_eyre::eyre::eyre;
 use color_eyre::Report;
 use futures::future::{BoxFuture, Either as EitherFuture};
@@ -199,7 +198,7 @@ impl DockerProcedure {
         image_ids: &BTreeSet<ImageId>,
         expected_io: bool,
     ) -> Result<(), color_eyre::eyre::Report> {
-        for (volume, _) in &self.mounts {
+        for volume in self.mounts.keys() {
             if !volumes.contains_key(volume) && !matches!(&volume, &VolumeId::Backup) {
                 color_eyre::eyre::bail!("unknown volume: {}", volume);
             }
@@ -229,7 +228,7 @@ impl DockerProcedure {
         timeout: Option<Duration>,
     ) -> Result<Result<O, (i32, String)>, Error> {
         let name = name.docker_name();
-        let name: Option<&str> = name.as_ref().map(|x| &**x);
+        let name: Option<&str> = name.as_deref();
         let mut cmd = tokio::process::Command::new("docker");
         let container_name = Self::container_name(pkg_id, name);
         cmd.arg("run")
@@ -408,8 +407,6 @@ impl DockerProcedure {
         input: Option<I>,
         timeout: Option<Duration>,
     ) -> Result<Result<O, (i32, String)>, Error> {
-        let name = name.docker_name();
-        let name: Option<&str> = name.as_deref();
         let mut cmd = tokio::process::Command::new("docker");
 
         cmd.arg("exec");
@@ -559,7 +556,7 @@ impl DockerProcedure {
         pkg_version: &Version,
         volumes: &Volumes,
         input: Option<I>,
-        timeout: Option<Duration>,
+        _timeout: Option<Duration>,
     ) -> Result<Result<O, (i32, String)>, Error> {
         let mut cmd = tokio::process::Command::new("docker");
         cmd.arg("run").arg("--rm").arg("--network=none");
@@ -726,7 +723,7 @@ impl DockerProcedure {
                         if fty.is_block_device() || fty.is_char_device() {
                             res.push(entry.path());
                         } else if fty.is_dir() {
-                            get_devices(&*entry.path(), res).await?;
+                            get_devices(&entry.path(), res).await?;
                         }
                     }
                     Ok(())
@@ -745,7 +742,7 @@ impl DockerProcedure {
         res.push(OsStr::new("--entrypoint").into());
         res.push(OsStr::new(&self.entrypoint).into());
         if self.system {
-            res.push(OsString::from(self.image.for_package(&*SYSTEM_PACKAGE_ID, None)).into());
+            res.push(OsString::from(self.image.for_package(&SYSTEM_PACKAGE_ID, None)).into());
         } else {
             res.push(OsString::from(self.image.for_package(pkg_id, Some(pkg_version))).into());
         }
@@ -833,7 +830,7 @@ impl LongRunning {
                 .arg("'{{.Architecture}}'");
 
             if docker.system {
-                cmd.arg(docker.image.for_package(&*SYSTEM_PACKAGE_ID, None));
+                cmd.arg(docker.image.for_package(&SYSTEM_PACKAGE_ID, None));
             } else {
                 cmd.arg(docker.image.for_package(pkg_id, Some(pkg_version)));
             }
@@ -855,7 +852,7 @@ impl LongRunning {
                 input = socket_path.display()
             ))
             .arg("--name")
-            .arg(&container_name)
+            .arg(container_name)
             .arg(format!("--hostname={}", &container_name))
             .arg("--entrypoint")
             .arg(format!("{INIT_EXEC}.{image_architecture}"))
@@ -885,7 +882,7 @@ impl LongRunning {
         }
         cmd.arg("--log-driver=journald");
         if docker.system {
-            cmd.arg(docker.image.for_package(&*SYSTEM_PACKAGE_ID, None));
+            cmd.arg(docker.image.for_package(&SYSTEM_PACKAGE_ID, None));
         } else {
             cmd.arg(docker.image.for_package(pkg_id, Some(pkg_version)));
         }
