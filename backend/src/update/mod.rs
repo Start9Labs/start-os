@@ -26,7 +26,6 @@ use crate::sound::{
 };
 use crate::update::latest_information::LatestInformation;
 use crate::util::Invoke;
-use crate::version::{Current, VersionT};
 use crate::{Error, ErrorKind, ResultExt, OS_ARCH};
 
 mod latest_information;

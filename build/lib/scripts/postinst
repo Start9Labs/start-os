@@ -77,11 +77,9 @@ sed -i '/\(^\|#\)Compress=/c\Compress=yes' /etc/systemd/journald.conf
 sed -i '/\(^\|#\)SystemMaxUse=/c\SystemMaxUse=1G' /etc/systemd/journald.conf
 sed -i '/\(^\|#\)ForwardToSyslog=/c\ForwardToSyslog=no' /etc/systemd/journald.conf
 mkdir -p /etc/docker
-ln -sf /usr/lib/embassy/docker-engine.slice /etc/systemd/system/docker-engine.slice
 cat > /etc/docker/daemon.json << EOF
 {
-    "storage-driver": "overlay2",
-    "cgroup-parent": "docker-engine.slice"
+    "storage-driver": "overlay2"
 }
 EOF
 podman network create -d bridge --subnet 172.18.0.1/24 --opt com.docker.network.bridge.name=br-start9 start9

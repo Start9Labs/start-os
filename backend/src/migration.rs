@@ -34,7 +34,7 @@ impl Migrations {
     ) -> Result<(), Error> {
         for (version, migration) in &self.from {
             migration
-                .validate(container, eos_version, volumes, image_ids, true)
+                .validate(eos_version, volumes, image_ids, true)
                 .with_ctx(|_| {
                     (
                         crate::ErrorKind::ValidateS9pk,
@@ -44,7 +44,7 @@ impl Migrations {
         }
         for (version, migration) in &self.to {
             migration
-                .validate(container, eos_version, volumes, image_ids, true)
+                .validate(eos_version, volumes, image_ids, true)
                 .with_ctx(|_| {
                     (
                         crate::ErrorKind::ValidateS9pk,

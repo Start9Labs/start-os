@@ -8,7 +8,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use self::docker::{DockerContainers, DockerProcedure};
+use self::docker::DockerProcedure;
 use crate::context::RpcContext;
 use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
@@ -43,7 +43,6 @@ impl PackageProcedure {
     #[instrument(skip_all)]
     pub fn validate(
         &self,
-        container: &Option<DockerContainers>,
         eos_version: &Version,
         volumes: &Volumes,
         image_ids: &BTreeSet<ImageId>,
@@ -83,25 +82,21 @@ impl PackageProcedure {
             }
             #[cfg(feature = "js_engine")]
             PackageProcedure::Script(procedure) => {
-                let (gid, rpc_client) = match ctx
+                let man = ctx
                     .managers
                     .get(&(pkg_id.clone(), pkg_version.clone()))
                     .await
-                {
-                    None => {
-                        return Err(Error::new(
+                    .ok_or_else(|| {
+                        Error::new(
                             eyre!("No manager found for {}", pkg_id),
                             ErrorKind::NotFound,
-                        ))
-                    }
-                    Some(man) => (
-                        if matches!(name, ProcedureName::Main) {
-                            man.new_main_gid()
-                        } else {
-                            man.new_gid()
-                        },
-                        man.rpc_client(),
-                    ),
+                        )
+                    })?;
+                let rpc_client = man.rpc_client();
+                let gid = if matches!(name, ProcedureName::Main) {
+                    man.gid.new_main_gid()
+                } else {
+                    man.gid.new_gid()
                 };
 
                 procedure
@@ -124,7 +119,6 @@ impl PackageProcedure {
     #[instrument(skip_all)]
     pub async fn sandboxed<I: Serialize, O: DeserializeOwned>(
         &self,
-        container: &Option<DockerContainers>,
         ctx: &RpcContext,
         pkg_id: &PackageId,
         pkg_version: &Version,

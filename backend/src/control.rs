@@ -28,7 +28,7 @@ impl StartReceipts {
         let mut locks = Vec::new();
 
         let setup = Self::setup(&mut locks, id);
-        Ok(setup(&db.lock_all(locks).await?)?)
+        setup(&db.lock_all(locks).await?)
     }
 
     pub fn setup(
@@ -67,10 +67,7 @@ pub async fn start(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Result<(
     let mut tx = db.begin().await?;
     let receipts = StartReceipts::new(&mut tx, &id).await?;
     let version = receipts.version.get(&mut tx).await?;
-    receipts
-        .status
-        .set(&mut tx, MainStatus::Starting { restarting: false })
-        .await?;
+    receipts.status.set(&mut tx, MainStatus::Starting).await?;
     heal_all_dependents_transitive(&ctx, &mut tx, &id, &receipts.dependency_receipt).await?;
 
     tx.commit().await?;
@@ -80,8 +77,7 @@ pub async fn start(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Result<(
         .get(&(id, version))
         .await
         .ok_or_else(|| Error::new(eyre!("Manager not found"), crate::ErrorKind::InvalidRequest))?
-        .synchronize()
-        .await;
+        .start();
 
     Ok(())
 }
@@ -96,7 +92,7 @@ impl StopReceipts {
         let mut locks = Vec::new();
 
         let setup = Self::setup(&mut locks, id);
-        Ok(setup(&db.lock_all(locks).await?)?)
+        setup(&db.lock_all(locks).await?)
     }
 
     pub fn setup(
@@ -174,10 +170,28 @@ pub async fn stop_dry(
 pub async fn stop_impl(ctx: RpcContext, id: PackageId) -> Result<MainStatus, Error> {
     let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
+    let version = crate::db::DatabaseModel::new()
+        .package_data()
+        .idx_model(&id)
+        .expect(&mut tx)
+        .await?
+        .installed()
+        .expect(&mut tx)
+        .await?
+        .manifest()
+        .version()
+        .get(&mut tx)
+        .await?
+        .clone();
 
     let last_statuts = stop_common(&mut tx, &id, &mut BTreeMap::new()).await?;
 
     tx.commit().await?;
+    ctx.managers
+        .get(&(id, version))
+        .await
+        .ok_or_else(|| Error::new(eyre!("Manager not found"), crate::ErrorKind::InvalidRequest))?
+        .stop();
 
     Ok(last_statuts)
 }
@@ -186,23 +200,28 @@ pub async fn stop_impl(ctx: RpcContext, id: PackageId) -> Result<MainStatus, Err
 pub async fn restart(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Result<(), Error> {
     let mut db = ctx.db.handle();
     let mut tx = db.begin().await?;
-
-    let mut status = crate::db::DatabaseModel::new()
+    let version = crate::db::DatabaseModel::new()
         .package_data()
         .idx_model(&id)
-        .and_then(|pde| pde.installed())
-        .map(|i| i.status().main())
-        .get_mut(&mut tx)
-        .await?;
-    if !matches!(&*status, Some(MainStatus::Running { .. })) {
-        return Err(Error::new(
-            eyre!("{} is not running", id),
-            crate::ErrorKind::InvalidRequest,
-        ));
-    }
-    *status = Some(MainStatus::Restarting);
-    status.save(&mut tx).await?;
+        .expect(&mut tx)
+        .await?
+        .installed()
+        .expect(&mut tx)
+        .await?
+        .manifest()
+        .version()
+        .get(&mut tx)
+        .await?
+        .clone();
+
     tx.commit().await?;
+
+    ctx.managers
+        .get(&(id, version))
+        .await
+        .ok_or_else(|| Error::new(eyre!("Manager not found"), crate::ErrorKind::InvalidRequest))?
+        .restart()
+        .await;
 
     Ok(())
 }

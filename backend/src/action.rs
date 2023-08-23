@@ -65,7 +65,7 @@ impl Action {
         image_ids: &BTreeSet<ImageId>,
     ) -> Result<(), Error> {
         self.implementation
-            .validate(container, eos_version, volumes, image_ids, true)
+            .validate(eos_version, volumes, image_ids, true)
             .with_ctx(|_| {
                 (
                     crate::ErrorKind::ValidateS9pk,

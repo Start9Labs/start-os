@@ -3,7 +3,6 @@ use std::path::{Path, PathBuf};
 
 use color_eyre::eyre::{self, eyre};
 use futures::TryStreamExt;
-use indexmap::IndexSet;
 use nom::bytes::complete::{tag, take_till1};
 use nom::character::complete::multispace1;
 use nom::character::is_space;
@@ -62,8 +61,8 @@ pub struct EmbassyOsRecoveryInfo {
     pub wrapped_key: Option<String>,
 }
 
-const DISK_PATH: &'static str = "/dev/disk/by-path";
-const SYS_BLOCK_PATH: &'static str = "/sys/block";
+const DISK_PATH: &str = "/dev/disk/by-path";
+const SYS_BLOCK_PATH: &str = "/sys/block";
 
 lazy_static::lazy_static! {
     static ref PARTITION_REGEX: Regex = Regex::new("-part[0-9]+$").unwrap();

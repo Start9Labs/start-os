@@ -40,7 +40,7 @@ fi
 set +e
 fail=
 if [[ "$FLAGS" = "" ]]; then
-	rust-gnu-builder sh -c "(cd backend && cargo build --release --locked  --target=$ARCH-unknown-linux-gnu)"
+	rust-gnu-builder sh -c "(cd backend && cargo build --release --locked --features avahi-alias,  --target=$ARCH-unknown-linux-gnu)"
 	if test $? -ne 0; then 
 		fail=true
 	fi
@@ -53,7 +53,7 @@ if [[ "$FLAGS" = "" ]]; then
 	done
 else
 	echo "FLAGS=$FLAGS"
-	rust-gnu-builder sh -c "(cd backend && cargo build --release --features $FLAGS --locked --target=$ARCH-unknown-linux-gnu)"
+	rust-gnu-builder sh -c "(cd backend && cargo build --release --features avahi-alias,$FLAGS --locked --target=$ARCH-unknown-linux-gnu)"
 	if test $? -ne 0; then 
 		fail=true
 	fi

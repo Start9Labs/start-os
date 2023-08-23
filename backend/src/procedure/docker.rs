@@ -198,7 +198,7 @@ impl DockerProcedure {
         image_ids: &BTreeSet<ImageId>,
         expected_io: bool,
     ) -> Result<(), color_eyre::eyre::Report> {
-        for (volume, _) in &self.mounts {
+        for volume in self.mounts.keys() {
             if !volumes.contains_key(volume) && !matches!(&volume, &VolumeId::Backup) {
                 color_eyre::eyre::bail!("unknown volume: {}", volume);
             }
@@ -718,7 +718,7 @@ impl DockerProcedure {
                         if fty.is_block_device() || fty.is_char_device() {
                             res.push(entry.path());
                         } else if fty.is_dir() {
-                            get_devices(&*entry.path(), res).await?;
+                            get_devices(&entry.path(), res).await?;
                         }
                     }
                     Ok(())
@@ -737,7 +737,7 @@ impl DockerProcedure {
         res.push(OsStr::new("--entrypoint").into());
         res.push(OsStr::new(&self.entrypoint).into());
         if self.system {
-            res.push(OsString::from(self.image.for_package(&*SYSTEM_PACKAGE_ID, None)).into());
+            res.push(OsString::from(self.image.for_package(&SYSTEM_PACKAGE_ID, None)).into());
         } else {
             res.push(OsString::from(self.image.for_package(pkg_id, Some(pkg_version))).into());
         }
@@ -825,7 +825,7 @@ impl LongRunning {
                 .arg("'{{.Architecture}}'");
 
             if docker.system {
-                cmd.arg(docker.image.for_package(&*SYSTEM_PACKAGE_ID, None));
+                cmd.arg(docker.image.for_package(&SYSTEM_PACKAGE_ID, None));
             } else {
                 cmd.arg(docker.image.for_package(pkg_id, Some(pkg_version)));
             }
@@ -847,7 +847,7 @@ impl LongRunning {
                 input = socket_path.display()
             ))
             .arg("--name")
-            .arg(&container_name)
+            .arg(container_name)
             .arg(format!("--hostname={}", &container_name))
             .arg("--entrypoint")
             .arg(format!("{INIT_EXEC}.{image_architecture}"))
@@ -877,7 +877,7 @@ impl LongRunning {
         }
         cmd.arg("--log-driver=journald");
         if docker.system {
-            cmd.arg(docker.image.for_package(&*SYSTEM_PACKAGE_ID, None));
+            cmd.arg(docker.image.for_package(&SYSTEM_PACKAGE_ID, None));
         } else {
             cmd.arg(docker.image.for_package(pkg_id, Some(pkg_version)));
         }

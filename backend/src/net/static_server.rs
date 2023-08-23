@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::fs::Metadata;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -10,7 +9,6 @@ use digest::Digest;
 use futures::FutureExt;
 use http::header::ACCEPT_ENCODING;
 use http::request::Parts as RequestParts;
-use http::response::Builder;
 use hyper::{Body, Method, Request, Response, StatusCode};
 use include_dir::{include_dir, Dir};
 use new_mime_guess::MimeGuess;
