@@ -170,7 +170,7 @@ jobs:
 
       - run: "mv embassy-os-deb/embassyos_0.3.x-1_*.deb startos-image-recipes/overlays/deb/"
 
-      - run: "sudo systemctl stop docker && sudo rm -rf embassy-os-deb ${{ steps.npm-cache-dir.outputs.dir }} $HOME/.cargo /var/lib/docker"
+      - run: "sudo rm -rf embassy-os-deb ${{ steps.npm-cache-dir.outputs.dir }} $HOME/.cargo"
 
       - name: Run iso build
         working-directory: startos-image-recipes
