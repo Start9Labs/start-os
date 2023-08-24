@@ -16,7 +16,7 @@ export abstract class AbstractMarketplaceService {
 
   abstract getSelectedStore$(): Observable<StoreData>
 
-  abstract getSelectedStoreWithAllCategories$(): Observable<StoreIdentityWithData>
+  abstract getSelectedStoreWithCategories$(): Observable<StoreIdentityWithData>
 
   abstract getPackage$(
     id: string,

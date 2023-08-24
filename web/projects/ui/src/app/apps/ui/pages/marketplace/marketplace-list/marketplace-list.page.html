@@ -82,11 +82,11 @@
         {{ category$ | async | titlecase }}
       </h1>
     </div>
-    <ng-container *ngIf="store$ | async as store; else loading">
+    <ng-container *ngIf="packages$ | async as packages; else loading">
       <section
         class="mt-10"
         *ngIf="
-          store.packages | filterPackages : (query$ | async) : (category$ | async) as filtered
+          packages | filterPackages : (query$ | async) : (category$ | async) as filtered
         "
       >
         <ul

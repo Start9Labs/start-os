@@ -27,7 +27,7 @@ export class SidebarComponent implements OnDestroy {
   private destroy$ = new Subject<void>()
   private readonly marketplaceService = inject(AbstractMarketplaceService)
   private readonly categoryService = inject(AbstractCategoryService)
-  readonly store$ = this.marketplaceService.getSelectedStoreWithAllCategories$()
+  readonly store$ = this.marketplaceService.getSelectedStoreWithCategories$()
   readonly alt$ = combineLatest([
     this.marketplaceService.getKnownHosts$(),
     this.marketplaceService.getSelectedHost$(),
@@ -37,8 +37,8 @@ export class SidebarComponent implements OnDestroy {
     ),
   )
   private hosts?: StoreIdentity[]
-  category: string = ''
-  query: string = ''
+  category = ''
+  query = ''
   open = false
 
   ngOnInit() {

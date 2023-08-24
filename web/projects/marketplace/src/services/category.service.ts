@@ -1,7 +1,7 @@
 import { BehaviorSubject, Observable } from 'rxjs'
 
 export abstract class AbstractCategoryService {
-  readonly category$ = new BehaviorSubject<string>('all')
+  readonly category$ = new BehaviorSubject<string>('')
   readonly query$ = new BehaviorSubject<string>('')
 
   abstract getCategory$(): Observable<string>

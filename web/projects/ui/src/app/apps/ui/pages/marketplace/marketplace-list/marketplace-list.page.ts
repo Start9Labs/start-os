@@ -60,16 +60,9 @@ export class MarketplaceListPage {
   ) {}
 
   readonly back = !!this.route.snapshot.queryParamMap.get('back')
-  readonly store$ = this.marketplaceService.getSelectedStore$().pipe(
-    map(({ info, packages }) => {
-      const categories = new Set<string>()
-      if (info.categories.includes('featured')) categories.add('featured')
-      info.categories.forEach(c => categories.add(c))
-      categories.add('all')
-
-      return { categories: Array.from(categories), packages }
-    }),
-  )
+  readonly packages$ = this.marketplaceService
+    .getSelectedStore$()
+    .pipe(map(({ packages }) => packages))
   readonly localPkgs$ = this.patch.watch$('package-data')
   readonly category$ = this.categoryService.getCategory$()
   readonly query$ = this.categoryService.getQuery$()
