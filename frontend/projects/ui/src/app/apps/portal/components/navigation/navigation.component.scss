@@ -2,7 +2,7 @@
   height: 3rem;
   display: flex;
   // TODO: Theme
-  background: rgb(97 95 95 / 75%);
+  background: rgb(97 95 95 / 84%);
 }
 
 .tab {
@@ -28,4 +28,8 @@
   position: absolute;
   top: 0;
   right: 0;
+}
+
+.home {
+  color: var(--tui-base-08);
 }

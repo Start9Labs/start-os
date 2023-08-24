@@ -4,7 +4,7 @@
   routerLinkActive="tab_active"
   [routerLinkActiveOptions]="{ exact: true }"
 >
-  <img class="icon" src="assets/img/icon_transparent.png" alt="Home" />
+  <tui-svg src="tuiIconHomeLarge" class="home"></tui-svg>
 </a>
 <a
   *ngFor="let tab of tabs$ | async"

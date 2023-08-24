@@ -1,26 +1,22 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
-import { TuiBadgedContentModule } from '@taiga-ui/kit'
 import {
   TuiButtonModule,
   TuiDataListModule,
   TuiHostedDropdownModule,
   TuiSvgModule,
 } from '@taiga-ui/core'
-import { HeaderMenuComponent } from './header-menu/header-menu.component'
 
 @Component({
-  selector: 'header[appHeader]',
-  templateUrl: 'header.component.html',
-  styleUrls: ['header.component.scss'],
+  selector: 'header-menu',
+  templateUrl: 'header-menu.component.html',
+  styleUrls: ['header-menu.component.scss'],
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    TuiBadgedContentModule,
-    TuiButtonModule,
     TuiHostedDropdownModule,
     TuiDataListModule,
     TuiSvgModule,
-    HeaderMenuComponent,
+    TuiButtonModule,
   ],
 })
-export class HeaderComponent {}
+export class HeaderMenuComponent {}
