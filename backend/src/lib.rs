@@ -40,6 +40,7 @@ pub mod migration;
 pub mod net;
 pub mod notifications;
 pub mod os_install;
+pub mod prelude;
 pub mod procedure;
 pub mod properties;
 pub mod s9pk;
