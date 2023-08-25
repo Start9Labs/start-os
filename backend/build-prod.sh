@@ -27,6 +27,9 @@ alias 'rust-musl-builder'='docker run $USE_TTY --rm -e "OS_ARCH=$OS_ARCH" -v "$H
 
 cd ..
 FLAGS=""
+if [[ "$ENVIRONMENT" =~ (^|-)podman($|-) ]]; then
+	FLAGS="podman,$FLAGS"
+fi
 if [[ "$ENVIRONMENT" =~ (^|-)unstable($|-) ]]; then
 	FLAGS="unstable,$FLAGS"
 fi
@@ -56,7 +59,7 @@ else
 	fi
 	for ARCH in x86_64 aarch64
 	do
-		rust-musl-builder sh -c "(cd libs && cargo build --release --features $FLAGS --locked --bin embassy_container_init)"
+		rust-musl-builder sh -c "(cd libs && cargo build --release --locked --bin embassy_container_init)"
 		if test $? -ne 0; then 
 			fail=true
 		fi

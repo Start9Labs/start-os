@@ -46,6 +46,7 @@ use crate::notifications::NotificationLevel;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::s9pk::reader::S9pkReader;
 use crate::status::{MainStatus, Status};
+use crate::util::docker::CONTAINER_TOOL;
 use crate::util::io::{copy_and_shutdown, response_to_reader};
 use crate::util::serde::{display_serializable, Port};
 use crate::util::{display_none, AsyncFileExt, Version};
@@ -1087,7 +1088,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
     tracing::info!("Install {}@{}: Unpacking Docker Images", pkg_id, version);
     progress
         .track_read_during(progress_model.clone(), &ctx.db, || async {
-            let mut load = Command::new("docker")
+            let mut load = Command::new(CONTAINER_TOOL)
                 .arg("load")
                 .stdin(Stdio::piped())
                 .stderr(Stdio::piped())
@@ -1467,7 +1468,7 @@ pub fn load_images<'a, P: AsRef<Path> + 'a + Send + Sync>(
                         let path = entry.path();
                         let ext = path.extension().and_then(|ext| ext.to_str());
                         if ext == Some("tar") || ext == Some("s9pk") {
-                            let mut load = Command::new("docker")
+                            let mut load = Command::new(CONTAINER_TOOL)
                                 .arg("load")
                                 .stdin(Stdio::piped())
                                 .stderr(Stdio::piped())

@@ -82,6 +82,7 @@ cat > /etc/docker/daemon.json << EOF
     "storage-driver": "overlay2"
 }
 EOF
+podman network create -d bridge --subnet 172.18.0.1/24 --opt com.docker.network.bridge.name=br-start9 start9
 mkdir -p /etc/nginx/ssl
 
 # fix to suppress docker warning, fixed in 21.xx release of docker cli: https://github.com/docker/cli/pull/2934

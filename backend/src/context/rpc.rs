@@ -4,9 +4,7 @@ use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::time::Duration;
 
-use bollard::Docker;
 use helpers::to_tmp_path;
 use josekit::jwk::Jwk;
 use patch_db::json_ptr::JsonPointer;
@@ -111,7 +109,6 @@ pub struct RpcContextSeed {
     pub db: PatchDb,
     pub secret_store: PgPool,
     pub account: RwLock<AccountInfo>,
-    pub docker: Docker,
     pub net_controller: Arc<NetController>,
     pub managers: ManagerMap,
     pub metrics_cache: RwLock<Option<crate::system::Metrics>>,
@@ -189,9 +186,6 @@ impl RpcContext {
         let account = AccountInfo::load(&secret_store).await?;
         let db = base.db(&account).await?;
         tracing::info!("Opened PatchDB");
-        let mut docker = Docker::connect_with_unix_defaults()?;
-        docker.set_timeout(Duration::from_secs(600));
-        tracing::info!("Connected to Docker");
         let net_controller = Arc::new(
             NetController::init(
                 base.tor_control
@@ -225,7 +219,6 @@ impl RpcContext {
             db,
             secret_store,
             account: RwLock::new(account),
-            docker,
             net_controller,
             managers,
             metrics_cache,

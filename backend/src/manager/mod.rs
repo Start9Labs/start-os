@@ -44,6 +44,7 @@ use crate::procedure::docker::{DockerContainer, DockerProcedure, LongRunning};
 use crate::procedure::{NoOutput, ProcedureName};
 use crate::s9pk::manifest::Manifest;
 use crate::status::MainStatus;
+use crate::util::docker::{get_container_ip, kill_container};
 use crate::util::NonDetachingJoinHandle;
 use crate::volume::Volume;
 use crate::Error;
@@ -228,7 +229,7 @@ impl Manager {
             .send_replace(Default::default())
             .join_handle()
         {
-            transition.abort();
+            (&**transition).abort();
         }
     }
     fn _transition_replace(&self, transition_state: TransitionState) {
@@ -741,26 +742,10 @@ enum GetRunningIp {
 
 async fn get_long_running_ip(seed: &ManagerSeed, runtime: &mut LongRunning) -> GetRunningIp {
     loop {
-        match container_inspect(seed).await {
-            Ok(res) => {
-                match res
-                    .network_settings
-                    .and_then(|ns| ns.networks)
-                    .and_then(|mut n| n.remove("start9"))
-                    .and_then(|es| es.ip_address)
-                    .filter(|ip| !ip.is_empty())
-                    .map(|ip| ip.parse())
-                    .transpose()
-                {
-                    Ok(Some(ip_addr)) => return GetRunningIp::Ip(ip_addr),
-                    Ok(None) => (),
-                    Err(e) => return GetRunningIp::Error(e.into()),
-                }
-            }
-            Err(bollard::errors::Error::DockerResponseServerError {
-                status_code: 404, // NOT FOUND
-                ..
-            }) => (),
+        match get_container_ip(&seed.container_name).await {
+            Ok(Some(ip_addr)) => return GetRunningIp::Ip(ip_addr),
+            Ok(None) => (),
+            Err(e) if e.kind == ErrorKind::NotFound => (),
             Err(e) => return GetRunningIp::Error(e.into()),
         }
         if let Poll::Ready(res) = futures::poll!(&mut runtime.running_output) {
@@ -775,16 +760,6 @@ async fn get_long_running_ip(seed: &ManagerSeed, runtime: &mut LongRunning) -> G
             }
         }
     }
-}
-
-#[instrument(skip(seed))]
-async fn container_inspect(
-    seed: &ManagerSeed,
-) -> Result<bollard::models::ContainerInspectResponse, bollard::errors::Error> {
-    seed.ctx
-        .docker
-        .inspect_container(&seed.container_name, None)
-        .await
 }
 
 #[instrument(skip(seed))]
@@ -851,26 +826,10 @@ type RuntimeOfCommand = NonDetachingJoinHandle<Result<Result<NoOutput, (i32, Str
 #[instrument(skip(seed, runtime))]
 async fn get_running_ip(seed: &ManagerSeed, mut runtime: &mut RuntimeOfCommand) -> GetRunningIp {
     loop {
-        match container_inspect(seed).await {
-            Ok(res) => {
-                match res
-                    .network_settings
-                    .and_then(|ns| ns.networks)
-                    .and_then(|mut n| n.remove("start9"))
-                    .and_then(|es| es.ip_address)
-                    .filter(|ip| !ip.is_empty())
-                    .map(|ip| ip.parse())
-                    .transpose()
-                {
-                    Ok(Some(ip_addr)) => return GetRunningIp::Ip(ip_addr),
-                    Ok(None) => (),
-                    Err(e) => return GetRunningIp::Error(e.into()),
-                }
-            }
-            Err(bollard::errors::Error::DockerResponseServerError {
-                status_code: 404, // NOT FOUND
-                ..
-            }) => (),
+        match get_container_ip(&seed.container_name).await {
+            Ok(Some(ip_addr)) => return GetRunningIp::Ip(ip_addr),
+            Ok(None) => (),
+            Err(e) if e.kind == ErrorKind::NotFound => (),
             Err(e) => return GetRunningIp::Error(e.into()),
         }
         if let Poll::Ready(res) = futures::poll!(&mut runtime) {
@@ -933,28 +892,10 @@ async fn send_signal(manager: &Manager, gid: Arc<Gid>, signal: Signal) -> Result
         }
     } else {
         // send signal to container
-        manager
-            .seed
-            .ctx
-            .docker
-            .kill_container(
-                &manager.seed.container_name,
-                Some(bollard::container::KillContainerOptions {
-                    signal: signal.to_string(),
-                }),
-            )
+        kill_container(&manager.seed.container_name, Some(signal))
             .await
             .or_else(|e| {
-                if matches!(
-                    e,
-                    bollard::errors::Error::DockerResponseServerError {
-                        status_code: 409, // CONFLICT
-                        ..
-                    } | bollard::errors::Error::DockerResponseServerError {
-                        status_code: 404, // NOT FOUND
-                        ..
-                    }
-                ) {
+                if e.kind == ErrorKind::NotFound {
                     Ok(())
                 } else {
                     Err(e)

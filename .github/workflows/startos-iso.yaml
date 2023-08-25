@@ -12,6 +12,9 @@ on:
           - dev
           - unstable
           - dev-unstable
+          - podman
+          - dev-podman
+          - dev-unstable-podman
       runner:
         type: choice
         description: Runner
@@ -39,7 +42,7 @@ on:
 
 env:
   NODEJS_VERSION: "18.15.0"
-  ENVIRONMENT: '${{ fromJson(format(''["{0}", ""]'', github.event.inputs.environment || ''dev''))[github.event.inputs.environment == ''NONE''] }}'
+  ENVIRONMENT: '${{ fromJson(format(''["{0}", ""]'', github.event.inputs.environment || ''dev-podman''))[github.event.inputs.environment == ''NONE''] }}'
 
 jobs:
   all:
@@ -139,6 +142,7 @@ jobs:
         with:
           repository: Start9Labs/startos-image-recipes
           path: startos-image-recipes
+          ref: feature/podman
 
       - name: Install dependencies
         run: |
@@ -166,7 +170,7 @@ jobs:
 
       - run: "mv embassy-os-deb/embassyos_0.3.x-1_*.deb startos-image-recipes/overlays/deb/"
 
-      - run: "rm -rf embassy-os-deb ${{ steps.npm-cache-dir.outputs.dir }} $HOME/.cargo"
+      - run: "sudo rm -rf embassy-os-deb ${{ steps.npm-cache-dir.outputs.dir }} $HOME/.cargo"
 
       - name: Run iso build
         working-directory: startos-image-recipes

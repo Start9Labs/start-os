@@ -1,8 +1,6 @@
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use bollard::image::{ListImagesOptions, RemoveImageOptions};
 use patch_db::{DbHandle, LockReceipt, LockTargetId, LockType, PatchDbHandle, Verifier};
 use sqlx::{Executor, Postgres};
 use tracing::instrument;
@@ -104,46 +102,12 @@ pub async fn cleanup(ctx: &RpcContext, id: &PackageId, version: &Version) -> Res
     let mut errors = ErrorCollection::new();
     ctx.managers.remove(&(id.clone(), version.clone())).await;
     // docker images start9/$APP_ID/*:$VERSION -q | xargs docker rmi
-    let images = ctx
-        .docker
-        .list_images(Some(ListImagesOptions {
-            all: false,
-            filters: {
-                let mut f = HashMap::new();
-                f.insert(
-                    "reference".to_owned(),
-                    vec![format!("start9/{}/*:{}", id, version)],
-                );
-                f
-            },
-            digests: false,
-        }))
-        .await
-        .apply(|res| errors.handle(res));
+    let images = crate::util::docker::images_for(id, version).await?;
     errors.extend(
-        futures::future::join_all(
-            images
-                .into_iter()
-                .flatten()
-                .flat_map(|image| image.repo_tags)
-                .filter(|tag| {
-                    tag.starts_with(&format!("start9/{}/", id))
-                        && tag.ends_with(&format!(":{}", version))
-                })
-                .map(|tag| async {
-                    let tag = tag; // move into future
-                    ctx.docker
-                        .remove_image(
-                            &tag,
-                            Some(RemoveImageOptions {
-                                force: true,
-                                noprune: false,
-                            }),
-                            None,
-                        )
-                        .await
-                }),
-        )
+        futures::future::join_all(images.into_iter().map(|sha| async {
+            let sha = sha; // move into future
+            crate::util::docker::remove_image(&sha).await
+        }))
         .await,
     );
     let pkg_archive_dir = ctx

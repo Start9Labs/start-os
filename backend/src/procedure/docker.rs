@@ -7,7 +7,6 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use async_stream::stream;
-use bollard::container::RemoveContainerOptions;
 use color_eyre::eyre::eyre;
 use color_eyre::Report;
 use futures::future::{BoxFuture, Either as EitherFuture};
@@ -26,6 +25,7 @@ use tracing::instrument;
 use super::ProcedureName;
 use crate::context::RpcContext;
 use crate::s9pk::manifest::{PackageId, SYSTEM_PACKAGE_ID};
+use crate::util::docker::{remove_container, CONTAINER_TOOL};
 use crate::util::serde::{Duration as SerdeDuration, IoFormat};
 use crate::util::Version;
 use crate::volume::{VolumeId, Volumes};
@@ -228,8 +228,8 @@ impl DockerProcedure {
         timeout: Option<Duration>,
     ) -> Result<Result<O, (i32, String)>, Error> {
         let name = name.docker_name();
-        let name: Option<&str> = name.as_deref();
-        let mut cmd = tokio::process::Command::new("docker");
+        let name: Option<&str> = name.as_ref().map(|x| &**x);
+        let mut cmd = tokio::process::Command::new(CONTAINER_TOOL);
         let container_name = Self::container_name(pkg_id, name);
         cmd.arg("run")
             .arg("--rm")
@@ -240,25 +240,7 @@ impl DockerProcedure {
             .arg(format!("--hostname={}", &container_name))
             .arg("--no-healthcheck")
             .kill_on_drop(true);
-        match ctx
-            .docker
-            .remove_container(
-                &container_name,
-                Some(RemoveContainerOptions {
-                    v: false,
-                    force: true,
-                    link: false,
-                }),
-            )
-            .await
-        {
-            Ok(())
-            | Err(bollard::errors::Error::DockerResponseServerError {
-                status_code: 404, // NOT FOUND
-                ..
-            }) => Ok(()),
-            Err(e) => Err(e),
-        }?;
+        remove_container(&container_name, true).await?;
         cmd.args(self.docker_args(ctx, pkg_id, pkg_version, volumes).await?);
         let input_buf = if let (Some(input), Some(format)) = (&input, &self.io_format) {
             cmd.stdin(std::process::Stdio::piped());
@@ -407,7 +389,9 @@ impl DockerProcedure {
         input: Option<I>,
         timeout: Option<Duration>,
     ) -> Result<Result<O, (i32, String)>, Error> {
-        let mut cmd = tokio::process::Command::new("docker");
+        let name = name.docker_name();
+        let name: Option<&str> = name.as_deref();
+        let mut cmd = tokio::process::Command::new(CONTAINER_TOOL);
 
         cmd.arg("exec");
 
@@ -556,9 +540,9 @@ impl DockerProcedure {
         pkg_version: &Version,
         volumes: &Volumes,
         input: Option<I>,
-        _timeout: Option<Duration>,
+        timeout: Option<Duration>,
     ) -> Result<Result<O, (i32, String)>, Error> {
-        let mut cmd = tokio::process::Command::new("docker");
+        let mut cmd = tokio::process::Command::new(CONTAINER_TOOL);
         cmd.arg("run").arg("--rm").arg("--network=none");
         cmd.args(
             self.docker_args(ctx, pkg_id, pkg_version, &volumes.to_readonly())
@@ -639,7 +623,18 @@ impl DockerProcedure {
             }
         }));
 
-        let exit_status = handle.wait().await.with_kind(crate::ErrorKind::Docker)?;
+        let handle = if let Some(dur) = timeout {
+            async move {
+                tokio::time::timeout(dur, handle.wait())
+                    .await
+                    .with_kind(crate::ErrorKind::Docker)?
+                    .with_kind(crate::ErrorKind::Docker)
+            }
+            .boxed()
+        } else {
+            async { handle.wait().await.with_kind(crate::ErrorKind::Docker) }.boxed()
+        };
+        let exit_status = handle.await?;
         Ok(
             if exit_status.success() || exit_status.code() == Some(143) {
                 Ok(serde_json::from_value(
@@ -820,10 +815,10 @@ impl LongRunning {
         const BIND_LOCATION: &str = "/usr/lib/embassy/container/";
         tracing::trace!("setup_long_running_docker_cmd");
 
-        LongRunning::cleanup_previous_container(ctx, container_name).await?;
+        remove_container(container_name, true).await?;
 
         let image_architecture = {
-            let mut cmd = tokio::process::Command::new("docker");
+            let mut cmd = tokio::process::Command::new(CONTAINER_TOOL);
             cmd.arg("image")
                 .arg("inspect")
                 .arg("--format")
@@ -838,7 +833,7 @@ impl LongRunning {
             arch.replace('\'', "").trim().to_string()
         };
 
-        let mut cmd = tokio::process::Command::new("docker");
+        let mut cmd = tokio::process::Command::new(CONTAINER_TOOL);
         cmd.arg("run")
             .arg("--network=start9")
             .arg(format!("--add-host=embassy:{}", Ipv4Addr::from(HOST_IP)))
@@ -890,31 +885,6 @@ impl LongRunning {
         cmd.stderr(std::process::Stdio::inherit());
         cmd.stdin(std::process::Stdio::piped());
         Ok(cmd)
-    }
-
-    async fn cleanup_previous_container(
-        ctx: &RpcContext,
-        container_name: &str,
-    ) -> Result<(), Error> {
-        match ctx
-            .docker
-            .remove_container(
-                container_name,
-                Some(RemoveContainerOptions {
-                    v: false,
-                    force: true,
-                    link: false,
-                }),
-            )
-            .await
-        {
-            Ok(())
-            | Err(bollard::errors::Error::DockerResponseServerError {
-                status_code: 404, // NOT FOUND
-                ..
-            }) => Ok(()),
-            Err(e) => Err(e)?,
-        }
     }
 }
 async fn buf_reader_to_lines(

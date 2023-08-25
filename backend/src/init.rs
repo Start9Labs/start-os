@@ -20,6 +20,7 @@ use crate::install::PKG_ARCHIVE_DIR;
 use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
 use crate::sound::BEP;
 use crate::system::time;
+use crate::util::docker::{create_bridge_network, CONTAINER_DATADIR, CONTAINER_TOOL};
 use crate::util::Invoke;
 use crate::{Error, ARCH};
 
@@ -289,51 +290,56 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     if tokio::fs::metadata(&tmp_dir).await.is_err() {
         tokio::fs::create_dir_all(&tmp_dir).await?;
     }
-    let tmp_docker = cfg.datadir().join("package-data/tmp/docker");
+    let tmp_docker = cfg
+        .datadir()
+        .join(format!("package-data/tmp/{CONTAINER_TOOL}"));
     let tmp_docker_exists = tokio::fs::metadata(&tmp_docker).await.is_ok();
     if should_rebuild && tmp_docker_exists {
         tokio::fs::remove_dir_all(&tmp_docker).await?;
     }
-    Command::new("systemctl")
-        .arg("stop")
-        .arg("docker")
-        .invoke(crate::ErrorKind::Docker)
-        .await?;
-    crate::disk::mount::util::bind(&tmp_docker, "/var/lib/docker", false).await?;
-    Command::new("systemctl")
-        .arg("reset-failed")
-        .arg("docker")
-        .invoke(crate::ErrorKind::Docker)
-        .await?;
-    Command::new("systemctl")
-        .arg("start")
-        .arg("docker")
-        .invoke(crate::ErrorKind::Docker)
-        .await?;
+    if CONTAINER_TOOL == "docker" {
+        Command::new("systemctl")
+            .arg("stop")
+            .arg("docker")
+            .invoke(crate::ErrorKind::Docker)
+            .await?;
+    }
+    crate::disk::mount::util::bind(&tmp_docker, CONTAINER_DATADIR, false).await?;
+
+    if CONTAINER_TOOL == "docker" {
+        Command::new("systemctl")
+            .arg("reset-failed")
+            .arg("docker")
+            .invoke(crate::ErrorKind::Docker)
+            .await?;
+        Command::new("systemctl")
+            .arg("start")
+            .arg("docker")
+            .invoke(crate::ErrorKind::Docker)
+            .await?;
+    }
     tracing::info!("Mounted Docker Data");
 
-    if should_rebuild || !tmp_docker_exists {
-        tracing::info!("Creating Docker Network");
-        bollard::Docker::connect_with_unix_defaults()?
-            .create_network(bollard::network::CreateNetworkOptions {
-                name: "start9",
-                driver: "bridge",
-                ipam: bollard::models::Ipam {
-                    config: Some(vec![bollard::models::IpamConfig {
-                        subnet: Some("172.18.0.1/24".into()),
-                        ..Default::default()
-                    }]),
-                    ..Default::default()
-                },
-                options: {
-                    let mut m = HashMap::new();
-                    m.insert("com.docker.network.bridge.name", "br-start9");
-                    m
-                },
-                ..Default::default()
-            })
+    if CONTAINER_TOOL == "podman" {
+        Command::new("podman")
+            .arg("run")
+            .arg("-d")
+            .arg("--rm")
+            .arg("--network=start9")
+            .arg("--name=netdummy")
+            .arg("start9/x_system/utils:latest")
+            .arg("sleep")
+            .arg("infinity")
+            .invoke(crate::ErrorKind::Docker)
             .await?;
-        tracing::info!("Created Docker Network");
+    }
+
+    if should_rebuild || !tmp_docker_exists {
+        if CONTAINER_TOOL == "docker" {
+            tracing::info!("Creating Docker Network");
+            create_bridge_network("start9", "172.18.0.1/24", "br-start9").await?;
+            tracing::info!("Created Docker Network");
+        }
 
         tracing::info!("Loading System Docker Images");
         crate::install::load_images("/usr/lib/embassy/system-images").await?;
@@ -345,7 +351,7 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     }
 
     tracing::info!("Enabling Docker QEMU Emulation");
-    Command::new("docker")
+    Command::new(CONTAINER_TOOL)
         .arg("run")
         .arg("--privileged")
         .arg("--rm")

@@ -33,6 +33,7 @@ avahi-alias = ["avahi"]
 cli = []
 sdk = []
 daemon = []
+podman = []
 
 [dependencies]
 aes = { version = "0.7.5", features = ["ctr"] }
@@ -50,7 +51,6 @@ base32 = "0.4.0"
 base64 = "0.13.0"
 base64ct = "1.5.1"
 basic-cookies = "0.1.4"
-bollard = "0.13.0"
 bytes = "1"
 chrono = { version = "0.4.19", features = ["serde"] }
 clap = "3.2.8"
