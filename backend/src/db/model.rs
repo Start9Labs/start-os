@@ -300,6 +300,38 @@ impl Model<PackageDataEntry> {
             ))
         }
     }
+    pub fn expect_into_removing(self) -> Result<Model<PackageDataEntryRemoving>, Error> {
+        if let PackageDataEntryMatchModel::Removing(a) = self.into_match() {
+            Ok(a)
+        } else {
+            Err(Error::new(
+                eyre!("package is not in removing state"),
+                ErrorKind::InvalidRequest,
+            ))
+        }
+    }
+    pub fn expect_as_removing(&self) -> Result<&Model<PackageDataEntryRemoving>, Error> {
+        if let PackageDataEntryMatchModelRef::Removing(a) = self.as_match() {
+            Ok(a)
+        } else {
+            Err(Error::new(
+                eyre!("package is not in removing state"),
+                ErrorKind::InvalidRequest,
+            ))
+        }
+    }
+    pub fn expect_as_removing_mut(
+        &mut self,
+    ) -> Result<&mut Model<PackageDataEntryRemoving>, Error> {
+        if let PackageDataEntryMatchModelMut::Removing(a) = self.as_match_mut() {
+            Ok(a)
+        } else {
+            Err(Error::new(
+                eyre!("package is not in removing state"),
+                ErrorKind::InvalidRequest,
+            ))
+        }
+    }
     pub fn into_manifest(self) -> Model<Manifest> {
         match self.into_match() {
             PackageDataEntryMatchModel::Installing(a) => a.into_manifest(),
