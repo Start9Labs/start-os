@@ -5,7 +5,6 @@ use std::time::Duration;
 use color_eyre::eyre::eyre;
 use josekit::jwk::Jwk;
 use openssl::x509::X509;
-use patch_db::DbHandle;
 use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
 use serde::{Deserialize, Serialize};
@@ -32,6 +31,7 @@ use crate::disk::REPAIR_DISK_PATH;
 use crate::hostname::Hostname;
 use crate::init::{init, InitResult};
 use crate::middleware::encrypt::EncryptedWire;
+use crate::prelude::*;
 use crate::util::io::{dir_copy, dir_size, Counter};
 use crate::{Error, ErrorKind, ResultExt};
 
@@ -57,23 +57,18 @@ async fn setup_init(
     let InitResult { secret_store, db } =
         init(&RpcContextConfig::load(ctx.config_path.clone()).await?).await?;
     let mut secrets_handle = secret_store.acquire().await?;
-    let mut db_handle = db.handle();
+    let peek = db.peek().await?;
     let mut secrets_tx = secrets_handle.begin().await?;
-    let mut db_tx = db_handle.begin().await?;
 
     let mut account = AccountInfo::load(&mut secrets_tx).await?;
 
     if let Some(password) = password {
         account.set_password(&password)?;
         account.save(&mut secrets_tx).await?;
-        crate::db::DatabaseModel::new()
-            .server_info()
-            .password_hash()
-            .put(&mut db_tx, &account.password)
+        db.mutate(|m| m.server_info().password_hash().ser(&account.password))
             .await?;
     }
 
-    db_tx.commit().await?;
     secrets_tx.commit().await?;
 
     Ok((

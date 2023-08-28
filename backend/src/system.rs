@@ -63,11 +63,6 @@ pub async fn zram(#[context] ctx: RpcContext, #[arg] enable: bool) -> Result<(),
     let db = ctx.db.peek().await?;
 
     let zram = db.as_server_info().as_zram().de()?;
-    //  ::db::DatabaseModel::new()
-    //     .server_info()
-    //     .zram()
-    //     .get_mut(&mut db)
-    //     .await?;
     if enable == zram {
         return Ok(());
     }
