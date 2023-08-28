@@ -1,12 +1,13 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::net::{Ipv4Addr, Ipv6Addr};
+use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use emver::VersionRange;
 use ipnet::{Ipv4Net, Ipv6Net};
 use isocountry::CountryCode;
 use itertools::Itertools;
-use models::{AddressId, DataUrl, HealthCheckId};
+use models::{AddressId, DataUrl, HealthCheckId, InterfaceId};
 use openssl::hash::MessageDigest;
 use patch_db::{HasModel, Value};
 use reqwest::Url;
