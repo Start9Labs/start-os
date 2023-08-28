@@ -57,7 +57,6 @@ async fn setup_init(
     let InitResult { secret_store, db } =
         init(&RpcContextConfig::load(ctx.config_path.clone()).await?).await?;
     let mut secrets_handle = secret_store.acquire().await?;
-    let peek = db.peek().await?;
     let mut secrets_tx = secrets_handle.begin().await?;
 
     let mut account = AccountInfo::load(&mut secrets_tx).await?;

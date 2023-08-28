@@ -15,7 +15,7 @@ lazy_static::lazy_static! {
     static ref C_0: f64 = *A_4 / SEMITONE_K.powf(9f64) / 2f64.powf(4f64);
 }
 
-pub const SOUND_LOCK_FILE: &'static str = "/etc/embassy/sound.lock";
+pub const SOUND_LOCK_FILE: &str = "/etc/embassy/sound.lock";
 
 struct SoundInterface {
     guard: Option<FileLock>,
