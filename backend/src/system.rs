@@ -17,6 +17,7 @@ use crate::logs::{
     cli_logs_generic_follow, cli_logs_generic_nofollow, fetch_logs, follow_logs, LogFollowResponse,
     LogResponse, LogSource,
 };
+use crate::prelude::*;
 use crate::shutdown::Shutdown;
 use crate::util::serde::{display_serializable, IoFormat};
 use crate::util::{display_none, Invoke};
@@ -59,16 +60,17 @@ pub async fn enable_zram() -> Result<(), Error> {
 
 #[command(display(display_none))]
 pub async fn zram(#[context] ctx: RpcContext, #[arg] enable: bool) -> Result<(), Error> {
-    let mut db = ctx.db.handle();
-    let mut zram = crate::db::DatabaseModel::new()
-        .server_info()
-        .zram()
-        .get_mut(&mut db)
-        .await?;
-    if enable == *zram {
+    let db = ctx.db.peek().await?;
+
+    let zram = db.as_server_info().as_zram().de()?;
+    //  ::db::DatabaseModel::new()
+    //     .server_info()
+    //     .zram()
+    //     .get_mut(&mut db)
+    //     .await?;
+    if enable == zram {
         return Ok(());
     }
-    *zram = enable;
     if enable {
         enable_zram().await?;
     } else {
@@ -80,7 +82,12 @@ pub async fn zram(#[context] ctx: RpcContext, #[arg] enable: bool) -> Result<(),
             .await
             .with_kind(ErrorKind::Zram)?;
     }
-    zram.save(&mut db).await?;
+    ctx.db
+        .mutate(|v| {
+            v.as_server_info_mut().as_zram_mut().ser(&enable)?;
+            Ok(())
+        })
+        .await?;
     Ok(())
 }
 
