@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::context::RpcContext;
+use crate::prelude::*;
 use crate::procedure::docker::DockerContainers;
 use crate::procedure::{PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::PackageId;
@@ -19,6 +20,7 @@ use crate::{Error, ResultExt};
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
 pub struct Migrations {
     pub from: IndexMap<VersionRange, PackageProcedure>,
     pub to: IndexMap<VersionRange, PackageProcedure>,
@@ -133,6 +135,7 @@ impl Migrations {
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
 pub struct MigrationRes {
     pub configured: bool,
 }
