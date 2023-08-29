@@ -2,13 +2,13 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use color_eyre::eyre::eyre;
-use patch_db::DbHandle;
 use sqlx::{Executor, Postgres};
 use tokio::sync::RwLock;
 use tracing::instrument;
 
 use super::Manager;
 use crate::context::RpcContext;
+use crate::prelude::*;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::util::Version;
 use crate::Error;
@@ -18,31 +18,24 @@ use crate::Error;
 pub struct ManagerMap(RwLock<BTreeMap<(PackageId, Version), Arc<Manager>>>);
 impl ManagerMap {
     #[instrument(skip_all)]
-    pub async fn init<Db: DbHandle, Ex>(
+    pub async fn init<Ex>(
         &self,
         ctx: &RpcContext,
-        db: &mut Db,
+        peeked: &Peeked,
         secrets: &mut Ex,
     ) -> Result<(), Error>
     where
         for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
     {
         let mut res = BTreeMap::new();
-        for package in crate::db::DatabaseModel::new()
-            .package_data()
-            .keys(db)
-            .await?
-        {
-            let man: Manifest = if let Some(manifest) = crate::db::DatabaseModel::new()
-                .package_data()
-                .idx_model(&package)
-                .and_then(|pkg| pkg.installed())
-                .map(|m| m.manifest())
-                .get(db)
-                .await?
-                .to_owned()
+        for package in peeked.as_package_data().keys()? {
+            let man: Manifest = if let Some(manifest) = peeked
+                .as_package_data()
+                .as_idx(&package)
+                .and_then(|x| x.as_installed())
+                .map(|x| x.as_manifest().de())
             {
-                manifest
+                manifest?
             } else {
                 continue;
             };
