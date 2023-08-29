@@ -31,7 +31,7 @@ pub mod logger;
 pub mod lshw;
 pub mod serde;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, ::serde::Deserialize, ::serde::Serialize)]
 pub enum Never {}
 impl Never {}
 impl Never {

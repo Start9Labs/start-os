@@ -1,10 +1,11 @@
 use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
+use imbl::OrdMap;
+use models::PackageId;
 use serde::{Deserialize, Serialize};
 
 use self::health_check::HealthCheckId;
-use crate::dependencies::DependencyErrors;
 use crate::prelude::*;
 use crate::status::health_check::HealthCheckResult;
 
@@ -15,7 +16,7 @@ pub mod health_check;
 pub struct Status {
     pub configured: bool,
     pub main: MainStatus,
-    pub dependency_errors: DependencyErrors,
+    pub dependency_config_errors: OrdMap<PackageId, String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
