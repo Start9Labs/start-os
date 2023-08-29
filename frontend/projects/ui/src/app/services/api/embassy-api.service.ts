@@ -210,10 +210,6 @@ export abstract class ApiService {
     params: RR.InstallPackageReq,
   ): Promise<RR.InstallPackageRes>
 
-  abstract dryUpdatePackage(
-    params: RR.DryUpdatePackageReq,
-  ): Promise<RR.DryUpdatePackageRes>
-
   abstract getPackageConfig(
     params: RR.GetPackageConfigReq,
   ): Promise<RR.GetPackageConfigRes>
