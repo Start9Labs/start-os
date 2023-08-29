@@ -16,43 +16,6 @@ use crate::util::display_none;
 use crate::util::serde::display_serializable;
 use crate::Error;
 
-// impl StartReceipts {
-//     pub async fn new(db: PatchDb, id: &PackageId) -> Result<Self, Error> {
-//         let mut locks = Vec::new();
-
-//         let setup = Self::setup(&mut locks, id);
-//         setup(&db.lock_all(locks).await?)
-//     }
-
-//     pub fn setup(
-//         locks: &mut Vec<patch_db::LockTargetId>,
-//         id: &PackageId,
-//     ) -> impl FnOnce(&patch_db::Verifier) -> Result<Self, Error> {
-//         let dependency_receipt = DependencyReceipt::setup(locks);
-//         let status = crate::db::DatabaseModel::new()
-//             .package_data()
-//             .idx_model(id)
-//             .and_then(|x| x.installed())
-//             .map(|x| x.status().main())
-//             .make_locker(LockType::Write)
-//             .add_to_keys(locks);
-//         let version = crate::db::DatabaseModel::new()
-//             .package_data()
-//             .idx_model(id)
-//             .and_then(|x| x.installed())
-//             .map(|x| x.manifest().version())
-//             .make_locker(LockType::Read)
-//             .add_to_keys(locks);
-//         move |skeleton_key| {
-//             Ok(Self {
-//                 dependency_receipt: dependency_receipt(skeleton_key)?,
-//                 status: status.verify(skeleton_key)?,
-//                 version: version.verify(skeleton_key)?,
-//             })
-//         }
-//     }
-// }
-
 #[command(display(display_none), metadata(sync_db = true))]
 #[instrument(skip_all)]
 pub async fn start(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Result<(), Error> {
@@ -76,34 +39,6 @@ pub async fn start(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Result<(
 
     Ok(())
 }
-// impl StopReceipts {
-//     pub async fn new<'a>(db: &'a mut impl DbHandle, id: &PackageId) -> Result<Self, Error> {
-//         let mut locks = Vec::new();
-
-//         let setup = Self::setup(&mut locks, id);
-//         setup(&db.lock_all(locks).await?)
-//     }
-
-//     pub fn setup(
-//         locks: &mut Vec<patch_db::LockTargetId>,
-//         id: &PackageId,
-//     ) -> impl FnOnce(&patch_db::Verifier) -> Result<Self, Error> {
-//         let breaks = crate::dependencies::BreakTransitiveReceipts::setup(locks);
-//         let status = crate::db::DatabaseModel::new()
-//             .package_data()
-//             .idx_model(id)
-//             .and_then(|x| x.installed())
-//             .map(|x| x.status().main())
-//             .make_locker(LockType::Write)
-//             .add_to_keys(locks);
-//         move |skeleton_key| {
-//             Ok(Self {
-//                 breaks: breaks(skeleton_key)?,
-//                 status: status.verify(skeleton_key)?,
-//             })
-//         }
-//     }
-// }
 
 #[instrument(skip_all)]
 pub async fn stop_common(
