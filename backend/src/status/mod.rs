@@ -1,7 +1,6 @@
 use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
-use imbl::OrdMap;
 use models::PackageId;
 use serde::{Deserialize, Serialize};
 
@@ -16,7 +15,7 @@ pub mod health_check;
 pub struct Status {
     pub configured: bool,
     pub main: MainStatus,
-    pub dependency_config_errors: OrdMap<PackageId, String>,
+    pub dependency_config_errors: BTreeMap<PackageId, String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
