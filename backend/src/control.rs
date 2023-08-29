@@ -5,10 +5,6 @@ use rpc_toolkit::command;
 use tracing::instrument;
 
 use crate::context::RpcContext;
-use crate::dependencies::{
-    break_all_dependents_transitive, heal_all_dependents_transitive, BreakageRes, DependencyError,
-    DependencyReceipt, TaggedDependencyError,
-};
 use crate::prelude::*;
 use crate::s9pk::manifest::PackageId;
 use crate::status::MainStatus;
@@ -29,7 +25,7 @@ pub async fn start(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Result<(
         .as_manifest()
         .as_version()
         .de()?;
-    heal_all_dependents_transitive(&ctx, &mut tx, &id).await?;
+    heal_all_dependents_transitive(&ctx, &id).await?;
 
     ctx.managers
         .get(&(id, version))
