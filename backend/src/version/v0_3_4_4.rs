@@ -1,11 +1,11 @@
 use async_trait::async_trait;
 use emver::VersionRange;
 use models::ResultExt;
-
-use super::v0_3_0::V0_3_0_COMPAT;
-use super::*;
+use sqlx::PgPool;
 
 use crate::prelude::*;
+
+use super::{v0_3_4::V0_3_0_COMPAT, v0_3_4_3, VersionT};
 
 const V0_3_4_4: emver::Version = emver::Version::new(0, 3, 4, 4);
 

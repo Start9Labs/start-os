@@ -5,13 +5,22 @@ use openssl::hash::MessageDigest;
 use serde_json::{json, Value};
 use ssh_key::public::Ed25519PublicKey;
 
-use super::v0_3_0::V0_3_0_COMPAT;
 use super::*;
 use crate::account::AccountInfo;
 use crate::hostname::{sync_hostname, Hostname};
 use crate::prelude::*;
 
 const V0_3_4: emver::Version = emver::Version::new(0, 3, 4, 0);
+
+lazy_static::lazy_static! {
+    pub static ref V0_3_0_COMPAT: VersionRange = VersionRange::Conj(
+        Box::new(VersionRange::Anchor(
+            emver::GTE,
+            emver::Version::new(0, 3, 0, 0),
+        )),
+        Box::new(VersionRange::Anchor(emver::LTE, Current::new().semver())),
+    );
+}
 
 const COMMUNITY_URL: &str = "https://community-registry.start9.com/";
 const MAIN_REGISTRY: &str = "https://registry.start9.com/";
@@ -33,7 +42,7 @@ pub struct Version;
 
 #[async_trait]
 impl VersionT for Version {
-    type Previous = v0_3_3::Version;
+    type Previous = Self;
     fn new() -> Self {
         Version
     }

@@ -1,8 +1,7 @@
 use async_trait::async_trait;
 use emver::VersionRange;
 
-use super::v0_3_0::V0_3_0_COMPAT;
-use super::*;
+use super::{v0_3_4::V0_3_0_COMPAT, *};
 
 use crate::prelude::*;
 

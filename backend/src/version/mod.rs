@@ -8,16 +8,6 @@ use sqlx::PgPool;
 use crate::prelude::*;
 use crate::Error;
 
-mod v0_3_0;
-mod v0_3_0_1;
-mod v0_3_0_2;
-mod v0_3_0_3;
-mod v0_3_1;
-mod v0_3_1_1;
-mod v0_3_1_2;
-mod v0_3_2;
-mod v0_3_2_1;
-mod v0_3_3;
 mod v0_3_4;
 mod v0_3_4_1;
 mod v0_3_4_2;
@@ -29,16 +19,6 @@ pub type Current = v0_3_4_4::Version;
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 #[serde(untagged)]
 enum Version {
-    V0_3_0(Wrapper<v0_3_0::Version>),
-    V0_3_0_1(Wrapper<v0_3_0_1::Version>),
-    V0_3_0_2(Wrapper<v0_3_0_2::Version>),
-    V0_3_0_3(Wrapper<v0_3_0_3::Version>),
-    V0_3_1(Wrapper<v0_3_1::Version>),
-    V0_3_1_1(Wrapper<v0_3_1_1::Version>),
-    V0_3_1_2(Wrapper<v0_3_1_2::Version>),
-    V0_3_2(Wrapper<v0_3_2::Version>),
-    V0_3_2_1(Wrapper<v0_3_2_1::Version>),
-    V0_3_3(Wrapper<v0_3_3::Version>),
     V0_3_4(Wrapper<v0_3_4::Version>),
     V0_3_4_1(Wrapper<v0_3_4_1::Version>),
     V0_3_4_2(Wrapper<v0_3_4_2::Version>),
@@ -239,16 +219,6 @@ mod tests {
 
     fn versions() -> impl Strategy<Value = Version> {
         prop_oneof![
-            Just(Version::V0_3_0(Wrapper(v0_3_0::Version::new()))),
-            Just(Version::V0_3_0_1(Wrapper(v0_3_0_1::Version::new()))),
-            Just(Version::V0_3_0_2(Wrapper(v0_3_0_2::Version::new()))),
-            Just(Version::V0_3_0_3(Wrapper(v0_3_0_3::Version::new()))),
-            Just(Version::V0_3_1(Wrapper(v0_3_1::Version::new()))),
-            Just(Version::V0_3_1_1(Wrapper(v0_3_1_1::Version::new()))),
-            Just(Version::V0_3_1_2(Wrapper(v0_3_1_2::Version::new()))),
-            Just(Version::V0_3_2(Wrapper(v0_3_2::Version::new()))),
-            Just(Version::V0_3_2_1(Wrapper(v0_3_2_1::Version::new()))),
-            Just(Version::V0_3_3(Wrapper(v0_3_3::Version::new()))),
             Just(Version::V0_3_4(Wrapper(v0_3_4::Version::new()))),
             Just(Version::V0_3_4_1(Wrapper(v0_3_4_1::Version::new()))),
             Just(Version::V0_3_4_2(Wrapper(v0_3_4_2::Version::new()))),
