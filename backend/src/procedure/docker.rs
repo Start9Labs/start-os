@@ -25,7 +25,7 @@ use tracing::instrument;
 use super::ProcedureName;
 use crate::context::RpcContext;
 use crate::prelude::*;
-use crate::s9pk::manifest::{PackageId, SYSTEM_PACKAGE_ID};
+use crate::s9pk::manifest::PackageId;
 use crate::util::docker::{remove_container, CONTAINER_TOOL};
 use crate::util::serde::{Duration as SerdeDuration, IoFormat};
 use crate::util::Version;
@@ -59,6 +59,7 @@ pub struct DockerContainers {
 /// part of this struct by choice. Used for the times that we are creating our own entry points
 #[derive(Clone, Debug, Deserialize, Serialize, patch_db::HasModel)]
 #[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
 pub struct DockerContainer {
     pub image: ImageId,
     #[serde(default)]

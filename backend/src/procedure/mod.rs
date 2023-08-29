@@ -10,6 +10,7 @@ use tracing::instrument;
 
 use self::docker::DockerProcedure;
 use crate::context::RpcContext;
+use crate::prelude::*;
 use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
 use crate::volume::Volumes;
@@ -25,6 +26,7 @@ pub use models::ProcedureName;
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
 #[serde(tag = "type")]
+#[model = "Model<Self>"]
 pub enum PackageProcedure {
     Docker(DockerProcedure),
 
