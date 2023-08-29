@@ -221,30 +221,25 @@ impl BackupActions {
                 )
             })?,
         )?;
-        ctx.db
+        let entry = ctx
+            .db
             .mutate(|v| {
                 v.as_package_data_mut()
                     .as_idx_mut(pkg_id)
                     .or_not_found(pkg_id)?
                     .expect_as_restoring_mut()? // TODO: Restoring?
                     .as_marketplace_url_mut()
-                    .ser(metadata.marketplace_url)
+                    .ser(metadata.marketplace_url)?;
+                v.as_package_data()
+                    .as_idx(pkg_id)
+                    .or_not_found(pkg_id)?
+                    .as_installed()
+                    .or_not_found(pkg_id)?
+                    .de()
             })
             .await?;
 
-        let entry = crate::db::DatabaseModel::new()
-            .package_data()
-            .idx_model(pkg_id)
-            .expect(db)
-            .await?
-            .installed()
-            .expect(db)
-            .await?
-            .get(db)
-            .await?;
-
-        let receipts = crate::config::ConfigReceipts::new(db).await?;
-        reconfigure_dependents_with_live_pointers(ctx, db, &receipts, &entry).await?;
+        reconfigure_dependents_with_live_pointers(ctx, &entry).await?;
 
         Ok(())
     }
