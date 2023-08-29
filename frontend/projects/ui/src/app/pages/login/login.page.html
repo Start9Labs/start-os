@@ -1,4 +1,18 @@
 <ion-content class="content">
+  <ion-item *ngIf="!secure || isTorHttp" color="warning" class="banner">
+    <ion-icon slot="start" name="warning-outline"></ion-icon>
+    <ion-label>
+      <h2 style="font-weight: bold">Http detected</h2>
+      <p style="font-weight: 600">
+        {{ isTorHttp ? 'Tor is faster over https.' : 'Your connection is
+        insecure.' }}
+      </p>
+    </ion-label>
+    <ion-button slot="end" color="light" (click)="launchHttps()">
+      Open Https
+      <ion-icon slot="end" name="open-outline"></ion-icon>
+    </ion-button>
+  </ion-item>
   <ion-grid class="grid">
     <ion-row class="row">
       <ion-col>
@@ -12,7 +26,7 @@
           <ion-card-content class="ion-margin">
             <form class="form" (submit)="submit()">
               <ion-item-group>
-                <ion-item color="dark">
+                <ion-item color="dark" class="login-item">
                   <ion-icon
                     slot="start"
                     name="key-outline"
@@ -36,7 +50,7 @@
                 </ion-item>
               </ion-item-group>
               <ion-button
-                class="login-button"
+                class="login-button side-button"
                 type="submit"
                 expand="block"
                 color="tertiary"

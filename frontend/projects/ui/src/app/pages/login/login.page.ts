@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { LoadingController, getPlatforms } from '@ionic/angular'
+import { getPlatforms, LoadingController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { AuthService } from 'src/app/services/auth.service'
 import { Router } from '@angular/router'
@@ -15,7 +15,8 @@ export class LoginPage {
   unmasked = false
   error = ''
   loader?: HTMLIonLoadingElement
-  secure = this.config.isSecure()
+  readonly secure = this.config.isSecure()
+  readonly isTorHttp = this.config.isTorHttp()
 
   constructor(
     private readonly router: Router,
@@ -41,6 +42,11 @@ export class LoginPage {
 
   toggleMask() {
     this.unmasked = !this.unmasked
+  }
+
+  launchHttps() {
+    const host = this.config.getHost()
+    window.open(`https://${host}`)
   }
 
   async submit() {

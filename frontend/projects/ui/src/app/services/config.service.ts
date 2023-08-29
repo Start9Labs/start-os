@@ -23,6 +23,8 @@ export class ConfigService {
   constructor(@Inject(DOCUMENT) private readonly document: Document) {}
 
   hostname = this.document.location.hostname
+  // includes port
+  host = this.document.location.host
   version = require('../../../../../package.json').version as string
   useMocks = useMocks
   mocks = mocks
@@ -39,6 +41,10 @@ export class ConfigService {
     return (
       this.hostname.endsWith('.onion') || (useMocks && mocks.maskAs === 'tor')
     )
+  }
+
+  isTorHttp(): boolean {
+    return this.isTor() && this.document.location.protocol === 'http:'
   }
 
   isLan(): boolean {
@@ -72,6 +78,10 @@ export class ConfigService {
       // leave http for services
       return `http://${torUiAddress(pkg)}`
     }
+  }
+
+  getHost(): string {
+    return this.host
   }
 }
 

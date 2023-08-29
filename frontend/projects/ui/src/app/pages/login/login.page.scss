@@ -34,18 +34,24 @@
   padding-top: 4px;
 }
 
-ion-button {
+.banner {
+  padding: 20px;
+  max-width: 800px;
+  margin: auto;
+}
+
+.side-button {
   --border-radius: 0 4px 4px 0;
 }
 
-ion-item {
+.login-item {
   --border-style: solid;
   --border-color: var(--ion-color-light);
   --border-radius: 4px 0 0 4px;
   box-shadow: 0 3px 1px -2px rgba(0, 0, 0, 0.2), 0 2px 2px 0 rgba(0, 0, 0, 0.14),
     0 1px 5px 0 rgba(0, 0, 0, 0.12);
 
-  ion-button {
+  .side-button {
     --border-radius: 4px;
   }
 }
@@ -80,12 +86,12 @@ ion-card {
 
 
 @media (max-width: 500px) {
-  ion-button {
+  .side-button {
     --border-radius: 4px;
     margin-top: 0.7rem;
   }
 
-  ion-item {
+  .login-item {
     --border-radius: 4px;
   }
 }
