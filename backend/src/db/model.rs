@@ -443,16 +443,16 @@ pub struct CurrentDependencyInfo {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct InterfaceAddressMap(pub BTreeMap<InterfaceId, InterfaceAdresses>);
+pub struct InterfaceAddressMap(pub BTreeMap<InterfaceId, InterfaceAddresses>);
 impl Map for InterfaceAddressMap {
     type Key = InterfaceId;
-    type Value = InterfaceAdresses;
+    type Value = InterfaceAddresses;
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
 #[model = "Model<Self>"]
-pub struct InterfaceAdresses {
+pub struct InterfaceAddresses {
     pub tor_address: Option<String>,
     pub lan_address: Option<String>,
 }

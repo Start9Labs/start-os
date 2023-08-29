@@ -1,14 +1,9 @@
-use std::collections::BTreeMap;
-
 use models::OptionExt;
 use tracing::instrument;
 
 use crate::context::RpcContext;
-use crate::db::model::CurrentDependents;
-use crate::db::prelude::*;
-use crate::dependencies::{break_transitive, heal_transitive, DependencyError};
-use crate::s9pk::manifest::{Manifest, PackageId};
-use crate::status::health_check::{HealthCheckId, HealthCheckResult};
+use crate::prelude::*;
+use crate::s9pk::manifest::PackageId;
 use crate::status::MainStatus;
 use crate::Error;
 
@@ -62,31 +57,6 @@ pub async fn check(ctx: &RpcContext, id: &PackageId) -> Result<(), Error> {
             pde.as_installed().as_current_dependents().de()
         })
         .await?;
-
-    for (dependent, info) in (current_dependents).0.iter() {
-        let failures: BTreeMap<HealthCheckId, HealthCheckResult> = health_results
-            .iter()
-            .filter(|(_, hc_res)| !matches!(hc_res, HealthCheckResult::Success { .. }))
-            .filter(|(hc_id, _)| info.health_checks.contains(hc_id))
-            .map(|(k, v)| (k.clone(), v.clone()))
-            .collect();
-
-        if !failures.is_empty() {
-            break_transitive(
-                &mut tx,
-                &dependent,
-                id,
-                DependencyError::HealthChecksFailed { failures },
-                &mut BTreeMap::new(),
-                &receipts,
-            )
-            .await?;
-        } else {
-            heal_transitive(ctx, &mut tx, &dependent, id, &receipts.dependency_receipt).await?;
-        }
-    }
-
-    tx.save().await?;
 
     Ok(())
 }
