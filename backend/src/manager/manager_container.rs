@@ -2,13 +2,14 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use futures::FutureExt;
-use patch_db::PatchDbHandle;
+use models::OptionExt;
 use tokio::sync::watch;
 use tokio::sync::watch::Sender;
 use tracing::instrument;
 
 use super::start_stop::StartStop;
 use super::{manager_seed, run_main, ManagerPersistentContainer, RunMainResult};
+use crate::prelude::*;
 use crate::procedure::NoOutput;
 use crate::s9pk::manifest::Manifest;
 use crate::status::MainStatus;
@@ -32,11 +33,9 @@ impl ManageContainer {
         seed: Arc<manager_seed::ManagerSeed>,
         persistent_container: ManagerPersistentContainer,
     ) -> Result<Self, Error> {
-        let mut db = seed.ctx.db.handle();
         let current_state = Arc::new(watch::channel(StartStop::Stop).0);
-        let desired_state = Arc::new(
-            watch::channel::<StartStop>(get_status(&mut db, &seed.manifest).await.into()).0,
-        );
+        let desired_state =
+            Arc::new(watch::channel::<StartStop>(get_status(&mut db, &seed.manifest).into()).0);
         let override_main_status: ManageContainerOverride = Arc::new(watch::channel(None).0);
         let service = tokio::spawn(create_service_manager(
             desired_state.clone(),
@@ -73,9 +72,9 @@ impl ManageContainer {
     }
 
     /// Set the override, but don't have a guard to revert it. Used only on the mananger to do a shutdown.
-    pub(super) async fn lock_state_forever(&self, seed: &manager_seed::ManagerSeed) {
+    pub(super) fn lock_state_forever(&self, seed: &manager_seed::ManagerSeed) {
         let mut db = seed.ctx.db.handle();
-        let current_state = get_status(&mut db, &seed.manifest).await;
+        let current_state = get_status(&mut db, &seed.manifest);
         self.override_main_status
             .send_modify(|x| *x = Some(current_state));
     }
@@ -289,55 +288,34 @@ async fn run_main_log_result(result: RunMainResult, seed: Arc<manager_seed::Mana
 
 /// Used only in the mod where we are doing a backup
 #[instrument(skip(db, manifest))]
-pub(super) async fn get_status(db: &mut PatchDbHandle, manifest: &Manifest) -> MainStatus {
-    async move {
-        Ok::<_, Error>(
-            crate::db::DatabaseModel::new()
-                .package_data()
-                .idx_model(&manifest.id)
-                .expect(db)
-                .await?
-                .installed()
-                .expect(db)
-                .await?
-                .status()
-                .main()
-                .get(db)
-                .await?
-                .clone(),
-        )
-    }
-    .map(|x| x.unwrap_or_else(|_| MainStatus::Stopped))
-    .await
+pub(super) fn get_status(db: Peeked, manifest: &Manifest) -> MainStatus {
+    db.as_package_data()
+        .as_idx(&manifest.id)
+        .or_not_found(&manifest.id)?
+        .as_installed()
+        .or_not_found(&manifest.id)?
+        .as_status()
+        .as_main()
+        .de()
+        .unwrap_or_else(|_| MainStatus::Stopped)
 }
 
 #[instrument(skip(db, manifest))]
 async fn set_status(
-    db: &mut PatchDbHandle,
+    db: PatchDb,
     manifest: &Manifest,
     main_status: &MainStatus,
 ) -> Result<(), Error> {
-    if crate::db::DatabaseModel::new()
-        .package_data()
-        .idx_model(&manifest.id)
-        .expect(db)
-        .await?
-        .installed()
-        .exists(db)
-        .await?
-    {
-        crate::db::DatabaseModel::new()
-            .package_data()
-            .idx_model(&manifest.id)
-            .expect(db)
-            .await?
-            .installed()
-            .expect(db)
-            .await?
-            .status()
-            .main()
-            .put(db, main_status)
-            .await?;
-    }
-    Ok(())
+    db.mutate(|db| {
+        let Some(installed) = db
+            .as_package_data_mut()
+            .as_idx_mut(&manifest.id)
+            .or_not_found(&manifest.id)?
+            .as_installed_mut()
+        else {
+            return Ok(());
+        };
+        installed.as_status_mut().as_main_main().ser(main_status)
+    })
+    .await
 }

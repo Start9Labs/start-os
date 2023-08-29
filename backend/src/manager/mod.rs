@@ -30,10 +30,7 @@ use crate::config::spec::ValueSpecPointer;
 use crate::config::{not_found, ConfigReceipts, ConfigureContext};
 use crate::context::RpcContext;
 use crate::db::model::{CurrentDependencies, CurrentDependencyInfo};
-use crate::dependencies::{
-    add_dependent_to_current_dependents_lists, break_transitive, heal_all_dependents_transitive,
-    DependencyError, DependencyErrors, TaggedDependencyError,
-};
+use crate::dependencies::add_dependent_to_current_dependents_lists;
 use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::guard::TmpMountGuard;
 use crate::install::cleanup::remove_from_current_dependents_lists;
@@ -205,7 +202,7 @@ impl Manager {
 
     /// A special exit that is overridden the start state, should only be called in the shutdown, where we remove other containers
     async fn shutdown(&self) {
-        self.manage_container.lock_state_forever(&self.seed).await;
+        self.manage_container.lock_state_forever(&self.seed);
 
         self.exit().await;
     }
@@ -268,7 +265,7 @@ impl Manager {
             let state_reverter = DesiredStateReverter::new(manage_container.clone());
             let mut tx = seed.ctx.db.handle();
             let override_guard = manage_container
-                .set_override(Some(get_status(&mut tx, &seed.manifest).await.backing_up()));
+                .set_override(Some(get_status(&mut tx, &seed.manifest).backing_up()));
             manage_container.wait_for_desired(StartStop::Stop).await;
             let backup_guard = backup_guard.lock().await;
             let guard = backup_guard.mount_package_backup(&seed.manifest.id).await?;
@@ -482,13 +479,7 @@ async fn configure(
         &receipts.current_dependents,
     )
     .await?; // remove previous
-    add_dependent_to_current_dependents_lists(
-        db,
-        id,
-        &current_dependencies,
-        &receipts.current_dependents,
-    )
-    .await?; // add new
+    add_dependent_to_current_dependents_lists(db, id, &current_dependencies).await?; // add new
     current_dependencies.0.remove(id);
     receipts
         .current_dependencies
