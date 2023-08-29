@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fs::Permissions;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
@@ -7,17 +6,17 @@ use std::time::Duration;
 use color_eyre::eyre::eyre;
 use helpers::NonDetachingJoinHandle;
 use models::ResultExt;
-use patch_db::{DbHandle, LockReceipt, LockType};
 use rand::random;
 use sqlx::{Pool, Postgres};
 use tokio::process::Command;
 
 use crate::account::AccountInfo;
 use crate::context::rpc::RpcContextConfig;
-use crate::db::model::{ServerInfo, ServerStatus};
+use crate::db::model::ServerStatus;
 use crate::disk::mount::util::unmount;
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
+use crate::prelude::*;
 use crate::sound::BEP;
 use crate::system::time;
 use crate::util::docker::{create_bridge_network, CONTAINER_DATADIR, CONTAINER_TOOL};
@@ -38,39 +37,6 @@ pub async fn check_time_is_synchronized() -> Result<bool, Error> {
     )?
     .trim()
         == "NTPSynchronized=yes")
-}
-
-pub struct InitReceipts {
-    pub server_info: LockReceipt<ServerInfo, ()>,
-    pub server_version: LockReceipt<crate::util::Version, ()>,
-    pub version_range: LockReceipt<emver::VersionRange, ()>,
-}
-impl InitReceipts {
-    pub async fn new(db: &mut impl DbHandle) -> Result<Self, Error> {
-        let mut locks = Vec::new();
-
-        let server_info = crate::db::DatabaseModel::new()
-            .server_info()
-            .make_locker(LockType::Write)
-            .add_to_keys(&mut locks);
-        let server_version = crate::db::DatabaseModel::new()
-            .server_info()
-            .version()
-            .make_locker(LockType::Write)
-            .add_to_keys(&mut locks);
-        let version_range = crate::db::DatabaseModel::new()
-            .server_info()
-            .eos_version_compat()
-            .make_locker(LockType::Write)
-            .add_to_keys(&mut locks);
-
-        let skeleton_key = db.lock_all(locks).await?;
-        Ok(Self {
-            server_info: server_info.verify(&skeleton_key)?,
-            server_version: server_version.verify(&skeleton_key)?,
-            version_range: version_range.verify(&skeleton_key)?,
-        })
-    }
 }
 
 // must be idempotent
@@ -224,12 +190,8 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     let account = AccountInfo::load(&secret_store).await?;
     let db = cfg.db(&account).await?;
     tracing::info!("Opened PatchDB");
-    let mut handle = db.handle();
-    let mut server_info = crate::db::DatabaseModel::new()
-        .server_info()
-        .get_mut(&mut handle)
-        .await?;
-    let receipts = InitReceipts::new(&mut handle).await?;
+    let peek = db.peek().await?;
+    let mut server_info = peek.as_server_info().de()?;
 
     // write to ca cert store
     tokio::fs::write(
@@ -388,9 +350,13 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
 
     server_info.system_start_time = time().await?;
 
-    server_info.save(&mut handle).await?;
+    db.mutate(|v| {
+        v.as_server_info_mut().ser(&server_info)?;
+        Ok(())
+    })
+    .await?;
 
-    crate::version::init(&mut handle, &secret_store, &receipts).await?;
+    crate::version::init(&mut db, &secret_store).await?;
 
     if should_rebuild {
         match tokio::fs::remove_file(SYSTEM_REBUILD_PATH).await {

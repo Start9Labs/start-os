@@ -567,7 +567,7 @@ pub async fn configure_logic(
     })
 }
 #[instrument(skip_all)]
-pub async fn add_dependent_to_current_dependents_lists<'a, Db: DbHandle>(
+pub async fn add_dependent_to_current_dependents_lists<'a>(
     db: &mut Db,
     dependent_id: &PackageId,
     current_dependencies: &CurrentDependencies,
@@ -635,7 +635,7 @@ impl std::fmt::Display for DependencyErrors {
     }
 }
 
-pub async fn break_all_dependents_transitive<'a, Db: DbHandle>(
+pub async fn break_all_dependents_transitive<'a>(
     db: &'a mut Db,
     id: &'a PackageId,
     error: DependencyError,
@@ -697,7 +697,7 @@ impl BreakTransitiveReceipts {
 }
 
 #[instrument(skip_all)]
-pub fn break_transitive<'a, Db: DbHandle>(
+pub fn break_transitive<'a>(
     db: &'a mut Db,
     id: &'a PackageId,
     dependency: &'a PackageId,
@@ -764,7 +764,7 @@ pub fn break_transitive<'a, Db: DbHandle>(
 }
 
 #[instrument(skip_all)]
-pub async fn heal_all_dependents_transitive<'a, Db: DbHandle>(
+pub async fn heal_all_dependents_transitive<'a>(
     ctx: &'a RpcContext,
     db: &'a mut Db,
     id: &'a PackageId,
@@ -782,7 +782,7 @@ pub async fn heal_all_dependents_transitive<'a, Db: DbHandle>(
 }
 
 #[instrument(skip_all)]
-pub fn heal_transitive<'a, Db: DbHandle>(
+pub fn heal_transitive<'a>(
     ctx: &'a RpcContext,
     db: &'a mut Db,
     id: &'a PackageId,

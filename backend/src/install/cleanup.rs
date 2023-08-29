@@ -61,7 +61,7 @@ impl UpdateDependencyReceipts {
 }
 
 #[instrument(skip_all)]
-pub async fn update_dependency_errors_of_dependents<'a, Db: DbHandle>(
+pub async fn update_dependency_errors_of_dependents<'a>(
     ctx: &RpcContext,
     db: &mut Db,
     id: &PackageId,
@@ -237,7 +237,7 @@ pub async fn cleanup_failed<Db: DbHandle>(
 }
 
 #[instrument(skip_all)]
-pub async fn remove_from_current_dependents_lists<'a, Db: DbHandle>(
+pub async fn remove_from_current_dependents_lists<'a>(
     db: &mut Db,
     id: &'a PackageId,
     current_dependencies: &'a CurrentDependencies,
