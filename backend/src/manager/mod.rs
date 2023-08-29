@@ -152,7 +152,7 @@ impl Manager {
         self._transition_abort();
         self.manage_container.to_desired(StartStop::Stop);
     }
-    pub async fn restart(&self) {
+    pub fn restart(&self) {
         if self._is_transition_restart() {
             return;
         }
