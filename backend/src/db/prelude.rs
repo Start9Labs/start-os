@@ -9,6 +9,8 @@ use serde::Serialize;
 use crate::db::model::DatabaseModel;
 use crate::prelude::*;
 
+pub type Peeked = Model<super::model::Database>;
+
 pub fn to_value<T>(value: &T) -> Result<Value, Error>
 where
     T: Serialize,
@@ -84,6 +86,14 @@ impl<T: Serialize> Model<T> {
     pub fn ser(&mut self, value: &T) -> Result<(), Error> {
         self.value = to_value(value)?;
         Ok(())
+    }
+}
+
+impl<T: Serialize + DeserializeOwned> Model<T> {
+    pub fn replace(&mut self, value: &T) -> Result<T, Error> {
+        let orig = self.de()?;
+        self.ser(value)?;
+        Ok(orig)
     }
 }
 impl<T> Clone for Model<T> {

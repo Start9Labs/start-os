@@ -31,16 +31,14 @@ async fn compat(
         } else {
             Ok(None)
         }
+    } else if let Some(key) = sqlx::query!("SELECT tor_key FROM account WHERE id = 0")
+        .fetch_one(secrets)
+        .await?
+        .tor_key
+    {
+        Ok(Some(ExpandedSecretKey::from_bytes(&key)?))
     } else {
-        if let Some(key) = sqlx::query!("SELECT tor_key FROM account WHERE id = 0")
-            .fetch_one(secrets)
-            .await?
-            .tor_key
-        {
-            Ok(Some(ExpandedSecretKey::from_bytes(&key)?))
-        } else {
-            Ok(None)
-        }
+        Ok(None)
     }
 }
 

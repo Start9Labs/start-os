@@ -11,7 +11,6 @@ use futures::{Future, FutureExt, TryFutureExt};
 use helpers::UnixRpcClient;
 use models::{ErrorKind, PackageId};
 use nix::sys::signal::Signal;
-use patch_db::DbHandle;
 use persistent_container::PersistentContainer;
 use rand::SeedableRng;
 use sqlx::Connection;
@@ -40,6 +39,7 @@ use crate::disk::mount::guard::TmpMountGuard;
 use crate::install::cleanup::remove_from_current_dependents_lists;
 use crate::net::net_controller::NetService;
 use crate::net::vhost::AlpnInfo;
+use crate::prelude::*;
 use crate::procedure::docker::{DockerContainer, DockerProcedure, LongRunning};
 use crate::procedure::{NoOutput, ProcedureName};
 use crate::s9pk::manifest::Manifest;
@@ -278,7 +278,6 @@ impl Manager {
                 .backup
                 .create(
                     &seed.ctx,
-                    &mut tx,
                     &seed.manifest.id,
                     &seed.manifest.title,
                     &seed.manifest.version,
@@ -428,7 +427,6 @@ async fn configure(
                     current_dependencies.0.insert(
                         pkg_ptr.package_id().to_owned(),
                         CurrentDependencyInfo {
-                            pointers: vec![pkg_ptr],
                             health_checks: BTreeSet::new(),
                         },
                     );
@@ -450,13 +448,9 @@ async fn configure(
             if let Some(current_dependency) = current_dependencies.0.get_mut(&package_id) {
                 current_dependency.health_checks.extend(health_checks);
             } else {
-                current_dependencies.0.insert(
-                    package_id,
-                    CurrentDependencyInfo {
-                        pointers: Vec::new(),
-                        health_checks,
-                    },
-                );
+                current_dependencies
+                    .0
+                    .insert(package_id, CurrentDependencyInfo { health_checks });
             }
         }
 
@@ -808,8 +802,7 @@ async fn remove_network_for_main(svc: NetService) -> Result<(), Error> {
 async fn main_health_check_daemon(seed: Arc<ManagerSeed>) {
     tokio::time::sleep(Duration::from_secs(HEALTH_CHECK_GRACE_PERIOD_SECONDS)).await;
     loop {
-        let mut db = seed.ctx.db.handle();
-        if let Err(e) = health::check(&seed.ctx, &mut db, &seed.manifest.id).await {
+        if let Err(e) = health::check(&seed.ctx, &seed.manifest.id).await {
             tracing::error!(
                 "Failed to run health check for {}: {}",
                 &seed.manifest.id,

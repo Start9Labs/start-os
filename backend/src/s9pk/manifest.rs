@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use color_eyre::eyre::eyre;
-pub use models::{PackageId, SYSTEM_PACKAGE_ID};
+pub use models::PackageId;
 use serde::{Deserialize, Serialize};
 use url::Url;
 

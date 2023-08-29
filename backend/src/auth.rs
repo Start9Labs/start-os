@@ -5,7 +5,6 @@ use chrono::{DateTime, Utc};
 use clap::ArgMatches;
 use color_eyre::eyre::eyre;
 use josekit::jwk::Jwk;
-use patch_db::{DbHandle, LockReceipt};
 use rpc_toolkit::command;
 use rpc_toolkit::command_helpers::prelude::{RequestParts, ResponseParts};
 use rpc_toolkit::yajrc::RpcError;
@@ -17,6 +16,7 @@ use tracing::instrument;
 use crate::context::{CliContext, RpcContext};
 use crate::middleware::auth::{AsLogoutSessionId, HasLoggedOutSessions, HashSessionToken};
 use crate::middleware::encrypt::EncryptedWire;
+use crate::prelude::*;
 use crate::util::display_none;
 use crate::util::serde::{display_serializable, IoFormat};
 use crate::{ensure_code, Error, ResultExt};
@@ -343,27 +343,6 @@ async fn cli_reset_password(
     Ok(())
 }
 
-pub struct SetPasswordReceipt(LockReceipt<String, ()>);
-impl SetPasswordReceipt {
-    pub async fn new<Db: DbHandle>(db: &mut Db) -> Result<Self, Error> {
-        let mut locks = Vec::new();
-
-        let setup = Self::setup(&mut locks);
-        Ok(setup(&db.lock_all(locks).await?)?)
-    }
-
-    pub fn setup(
-        locks: &mut Vec<patch_db::LockTargetId>,
-    ) -> impl FnOnce(&patch_db::Verifier) -> Result<Self, Error> {
-        let password_hash = crate::db::DatabaseModel::new()
-            .server_info()
-            .password_hash()
-            .make_locker(patch_db::LockType::Write)
-            .add_to_keys(locks);
-        move |skeleton_key| Ok(Self(password_hash.verify(skeleton_key)?))
-    }
-}
-
 #[command(
     rename = "reset-password",
     custom_cli(cli_reset_password(async, context(CliContext))),
@@ -389,10 +368,12 @@ pub async fn reset_password(
     }
     account.set_password(&new_password)?;
     account.save(&ctx.secret_store).await?;
-    crate::db::DatabaseModel::new()
-        .server_info()
-        .password_hash()
-        .put(&mut ctx.db.handle(), &account.password)
+    ctx.db
+        .mutate(|d| {
+            d.as_server_info_mut()
+                .as_password_hash_mut()
+                .ser(&account.password)
+        })
         .await?;
 
     Ok(())

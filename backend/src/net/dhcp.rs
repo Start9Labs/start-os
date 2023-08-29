@@ -8,6 +8,7 @@ use tokio::sync::RwLock;
 use crate::context::RpcContext;
 use crate::db::model::IpInfo;
 use crate::net::utils::{iface_is_physical, list_interfaces};
+use crate::prelude::*;
 use crate::util::display_none;
 use crate::Error;
 
@@ -58,12 +59,15 @@ pub async fn dhcp() -> Result<(), Error> {
 pub async fn update(#[context] ctx: RpcContext, #[arg] interface: String) -> Result<(), Error> {
     if iface_is_physical(&interface).await {
         let ip_info = IpInfo::for_interface(&interface).await?;
-        crate::db::DatabaseModel::new()
-            .server_info()
-            .ip_info()
-            .idx_model(&interface)
-            .put(&mut ctx.db.handle(), &ip_info)
+        ctx.db
+            .mutate(|db| {
+                db.as_server_info_mut()
+                    .as_ip_info_mut()
+                    .as_idx_model_mut(&interface)
+                    .ser(&ip_info)
+            })
             .await?;
+
         let mut cached = CACHED_IPS.write().await;
         if cached.is_empty() {
             *cached = _ips().await?;

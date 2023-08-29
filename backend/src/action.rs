@@ -11,6 +11,7 @@ use tracing::instrument;
 
 use crate::config::{Config, ConfigSpec};
 use crate::context::RpcContext;
+use crate::prelude::*;
 use crate::procedure::docker::DockerContainers;
 use crate::procedure::{PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::PackageId;
@@ -130,18 +131,17 @@ pub async fn action(
     #[arg(long = "format")]
     format: Option<IoFormat>,
 ) -> Result<ActionResult, Error> {
-    let mut db = ctx.db.handle();
-    let manifest = crate::db::DatabaseModel::new()
-        .package_data()
-        .idx_model(&pkg_id)
-        .and_then(|p| p.installed())
-        .expect(&mut db)
-        .await
-        .with_kind(crate::ErrorKind::NotFound)?
-        .manifest()
-        .get(&mut db)
+    let manifest = ctx
+        .db
+        .peek()
         .await?
-        .to_owned();
+        .as_package_data()
+        .as_idx(&pkg_id)
+        .or_not_found(&pkg_id)?
+        .as_installed()
+        .or_not_found(&pkg_id)?
+        .as_manifest()
+        .de()?;
 
     if let Some(action) = manifest.actions.0.get(&action_id) {
         action
