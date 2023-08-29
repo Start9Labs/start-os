@@ -4,13 +4,14 @@ use std::path::{Path, PathBuf};
 
 pub use helpers::script_dir;
 pub use models::VolumeId;
-use patch_db::{HasModel, Map, MapModel};
+use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::net::interface::{InterfaceId, Interfaces};
 use crate::net::PACKAGE_CERT_PATH;
+use crate::prelude::*;
 use crate::s9pk::manifest::PackageId;
 use crate::util::Version;
 use crate::{Error, ResultExt};
@@ -82,13 +83,6 @@ impl DerefMut for Volumes {
 impl Map for Volumes {
     type Key = VolumeId;
     type Value = Volume;
-    fn get(&self, key: &Self::Key) -> Option<&Self::Value> {
-        self.0.get(key)
-    }
-}
-pub type VolumesModel = MapModel<Volumes>;
-impl HasModel for Volumes {
-    type Model = MapModel<Self>;
 }
 
 pub fn data_dir<P: AsRef<Path>>(datadir: P, pkg_id: &PackageId, volume_id: &VolumeId) -> PathBuf {
@@ -117,7 +111,7 @@ pub fn cert_dir(pkg_id: &PackageId, interface_id: &InterfaceId) -> PathBuf {
     Path::new(PACKAGE_CERT_PATH).join(pkg_id).join(interface_id)
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "type")]
 #[serde(rename_all = "kebab-case")]
 pub enum Volume {
