@@ -34,8 +34,12 @@ impl ManageContainer {
         persistent_container: ManagerPersistentContainer,
     ) -> Result<Self, Error> {
         let current_state = Arc::new(watch::channel(StartStop::Stop).0);
-        let desired_state =
-            Arc::new(watch::channel::<StartStop>(get_status(&mut db, &seed.manifest).into()).0);
+        let desired_state = Arc::new(
+            watch::channel::<StartStop>(
+                get_status(seed.ctx.db.peek().await?, &seed.manifest).into(),
+            )
+            .0,
+        );
         let override_main_status: ManageContainerOverride = Arc::new(watch::channel(None).0);
         let service = tokio::spawn(create_service_manager(
             desired_state.clone(),
