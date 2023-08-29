@@ -9,6 +9,8 @@ use serde::Serialize;
 use crate::db::model::DatabaseModel;
 use crate::prelude::*;
 
+pub type Peeked = Model<super::model::Database>;
+
 pub fn to_value<T>(value: &T) -> Result<Value, Error>
 where
     T: Serialize,
