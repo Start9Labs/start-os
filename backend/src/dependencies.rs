@@ -6,9 +6,7 @@ use color_eyre::eyre::eyre;
 use emver::VersionRange;
 use futures::future::BoxFuture;
 use futures::FutureExt;
-use patch_db::{
-    DbHandle, HasModel, LockReceipt, LockTargetId, LockType, Map, MapModel, PatchDbHandle, Verifier,
-};
+use imbl::OrdSet;
 use rand::SeedableRng;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
@@ -18,7 +16,8 @@ use crate::config::action::{ConfigActions, ConfigRes};
 use crate::config::spec::PackagePointerSpec;
 use crate::config::{not_found, Config, ConfigReceipts, ConfigSpec, ConfigureContext};
 use crate::context::RpcContext;
-use crate::db::model::{CurrentDependencies, CurrentDependents, InstalledPackageDataEntry};
+use crate::db::model::{CurrentDependencies, CurrentDependents, Database, InstalledPackageInfo};
+use crate::prelude::*;
 use crate::procedure::docker::DockerContainers;
 use crate::procedure::{NoOutput, PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::{Manifest, PackageId};
@@ -55,81 +54,6 @@ pub enum DependencyError {
     }, // { "type": "health-checks-failed", "checks": { "rpc": { "time": "2021-05-11T18:21:29Z", "result": "starting" } } }
     #[serde(rename_all = "kebab-case")]
     Transitive, // { "type": "transitive" }
-}
-
-#[derive(Clone)]
-pub struct TryHealReceipts {
-    status: LockReceipt<Status, String>,
-    manifest: LockReceipt<Manifest, String>,
-    manifest_version: LockReceipt<Version, String>,
-    current_dependencies: LockReceipt<CurrentDependencies, String>,
-    dependency_errors: LockReceipt<DependencyErrors, String>,
-    docker_containers: LockReceipt<DockerContainers, String>,
-}
-
-impl TryHealReceipts {
-    pub async fn new<'a>(db: &'a mut impl DbHandle) -> Result<Self, Error> {
-        let mut locks = Vec::new();
-
-        let setup = Self::setup(&mut locks);
-        Ok(setup(&db.lock_all(locks).await?)?)
-    }
-
-    pub fn setup(locks: &mut Vec<LockTargetId>) -> impl FnOnce(&Verifier) -> Result<Self, Error> {
-        let manifest_version = crate::db::DatabaseModel::new()
-            .package_data()
-            .star()
-            .installed()
-            .map(|x| x.manifest().version())
-            .make_locker(LockType::Write)
-            .add_to_keys(locks);
-        let status = crate::db::DatabaseModel::new()
-            .package_data()
-            .star()
-            .installed()
-            .map(|x| x.status())
-            .make_locker(LockType::Write)
-            .add_to_keys(locks);
-        let manifest = crate::db::DatabaseModel::new()
-            .package_data()
-            .star()
-            .installed()
-            .map(|x| x.manifest())
-            .make_locker(LockType::Write)
-            .add_to_keys(locks);
-
-        let current_dependencies = crate::db::DatabaseModel::new()
-            .package_data()
-            .star()
-            .installed()
-            .map(|x| x.current_dependencies())
-            .make_locker(LockType::Write)
-            .add_to_keys(locks);
-        let dependency_errors = crate::db::DatabaseModel::new()
-            .package_data()
-            .star()
-            .installed()
-            .map(|x| x.status().dependency_errors())
-            .make_locker(LockType::Write)
-            .add_to_keys(locks);
-        let docker_containers = crate::db::DatabaseModel::new()
-            .package_data()
-            .star()
-            .installed()
-            .and_then(|x| x.manifest().containers())
-            .make_locker(LockType::Write)
-            .add_to_keys(locks);
-        move |skeleton_key| {
-            Ok(Self {
-                status: status.verify(skeleton_key)?,
-                manifest_version: manifest_version.verify(skeleton_key)?,
-                current_dependencies: current_dependencies.verify(skeleton_key)?,
-                manifest: manifest.verify(skeleton_key)?,
-                dependency_errors: dependency_errors.verify(skeleton_key)?,
-                docker_containers: docker_containers.verify(skeleton_key)?,
-            })
-        }
-    }
 }
 
 impl DependencyError {
@@ -192,200 +116,157 @@ impl DependencyError {
         }
     }
     #[instrument(skip_all)]
-    pub fn try_heal<'a, Db: DbHandle>(
+    pub fn try_heal(
         self,
-        ctx: &'a RpcContext,
-        db: &'a mut Db,
-        id: &'a PackageId,
-        dependency: &'a PackageId,
-        mut dependency_config: Option<Config>,
-        info: &'a DepInfo,
-        receipts: &'a TryHealReceipts,
-    ) -> BoxFuture<'a, Result<Option<Self>, Error>> {
-        async move {
-            let container = receipts.docker_containers.get(db, id).await?;
-            Ok(match self {
-                DependencyError::NotInstalled => {
-                    if receipts.status.get(db, dependency).await?.is_some() {
-                        DependencyError::IncorrectVersion {
-                            expected: info.version.clone(),
-                            received: Default::default(),
-                        }
-                        .try_heal(ctx, db, id, dependency, dependency_config, info, receipts)
-                        .await?
-                    } else {
-                        Some(DependencyError::NotInstalled)
+        db: &Model<Database>,
+        id: &PackageId,
+        dependency: &PackageId,
+        mut dependency_config_error: Option<String>, // config error
+        info: &DepInfo,
+    ) -> Result<Option<Self>, Error> {
+        let installed_info = db
+            .as_package_data()
+            .as_idx(id)
+            .or_not_found(id)?
+            .as_installed()
+            .or_not_found(id)?;
+        let dependency_installed_info = db
+            .as_package_data()
+            .as_idx(dependency)
+            .and_then(|d| d.as_installed());
+        let container = installed_info.as_manifest()?.as_containers().de()?;
+        Ok(match self {
+            DependencyError::NotInstalled => {
+                if dependency_installed_info.is_some() {
+                    DependencyError::IncorrectVersion {
+                        expected: info.version.clone(),
+                        received: Default::default(),
                     }
+                    .try_heal(
+                        db,
+                        id,
+                        dependency,
+                        dependency_config_error,
+                        info,
+                    )?
+                } else {
+                    Some(DependencyError::NotInstalled)
                 }
-                DependencyError::IncorrectVersion { expected, .. } => {
-                    let version: Version = receipts
-                        .manifest_version
-                        .get(db, dependency)
-                        .await?
-                        .unwrap_or_default();
-                    if version.satisfies(&expected) {
-                        DependencyError::ConfigUnsatisfied {
-                            error: String::new(),
-                        }
-                        .try_heal(ctx, db, id, dependency, dependency_config, info, receipts)
-                        .await?
-                    } else {
-                        Some(DependencyError::IncorrectVersion {
-                            expected,
-                            received: version,
-                        })
+            }
+            DependencyError::IncorrectVersion { expected, .. } => {
+                let version: Version = dependency_installed_info
+                    .or_not_found(dependency)?
+                    .as_manifest()
+                    .as_version()
+                    .de()?;
+                if version.satisfies(&expected) {
+                    DependencyError::ConfigUnsatisfied {
+                        error: String::new(),
                     }
+                    .try_heal(
+                        db,
+                        id,
+                        dependency,
+                        dependency_config_error,
+                        info,
+                    )?
+                } else {
+                    Some(DependencyError::IncorrectVersion {
+                        expected,
+                        received: version,
+                    })
                 }
-                DependencyError::ConfigUnsatisfied { .. } => {
-                    let dependent_manifest = receipts
-                        .manifest
-                        .get(db, id)
-                        .await?
-                        .ok_or_else(|| not_found!(id))?;
-                    let dependency_manifest = receipts
-                        .manifest
-                        .get(db, dependency)
-                        .await?
-                        .ok_or_else(|| not_found!(dependency))?;
-
-                    let dependency_config = if let Some(cfg) = dependency_config.take() {
-                        cfg
-                    } else if let Some(cfg_info) = &dependency_manifest.config {
-                        cfg_info
-                            .get(
-                                ctx,
-                                dependency,
-                                &dependency_manifest.version,
-                                &dependency_manifest.volumes,
-                            )
-                            .await?
-                            .config
-                            .unwrap_or_default()
-                    } else {
-                        Config::default()
-                    };
-                    if let Some(cfg_req) = &info.config {
-                        if let Err(error) = cfg_req
-                            .check(
-                                ctx,
-                                &container,
-                                id,
-                                &dependent_manifest.version,
-                                &dependent_manifest.volumes,
-                                dependency,
-                                &dependency_config,
-                            )
-                            .await?
-                        {
-                            return Ok(Some(DependencyError::ConfigUnsatisfied { error }));
-                        }
+            }
+            DependencyError::ConfigUnsatisfied { .. } => {
+                if let Some(error) = dependency_config_error {
+                    Some(DependencyError::ConfigUnsatisfied { error })
+                } else {
+                    DependencyError::NotRunning.try_heal(db, id, dependency, None, info)?
+                }
+            }
+            DependencyError::NotRunning => {
+                let status = dependency_installed_info
+                    .or_not_found(dependency)?
+                    .as_status()
+                    .as_main()
+                    .de()?;
+                if status.running() {
+                    DependencyError::HealthChecksFailed {
+                        failures: BTreeMap::new(),
                     }
-                    DependencyError::NotRunning
-                        .try_heal(
-                            ctx,
-                            db,
-                            id,
-                            dependency,
-                            Some(dependency_config),
-                            info,
-                            receipts,
-                        )
-                        .await?
+                    .try_heal(
+                        db,
+                        id,
+                        dependency,
+                        dependency_config_error,
+                        info,
+                    )?
+                } else {
+                    Some(DependencyError::NotRunning)
                 }
-                DependencyError::NotRunning => {
-                    let status = receipts
-                        .status
-                        .get(db, dependency)
-                        .await?
-                        .ok_or_else(|| not_found!(dependency))?;
-                    if status.main.running() {
-                        DependencyError::HealthChecksFailed {
-                            failures: BTreeMap::new(),
-                        }
-                        .try_heal(ctx, db, id, dependency, dependency_config, info, receipts)
-                        .await?
-                    } else {
-                        Some(DependencyError::NotRunning)
+            }
+            DependencyError::HealthChecksFailed { .. } => {
+                let status = dependency_installed_info
+                    .or_not_found(dependency)?
+                    .as_status()
+                    .as_main()
+                    .de()?;
+                match status {
+                    MainStatus::BackingUp {
+                        started: Some(_),
+                        health,
                     }
-                }
-                DependencyError::HealthChecksFailed { .. } => {
-                    let status = receipts
-                        .status
-                        .get(db, dependency)
-                        .await?
-                        .ok_or_else(|| not_found!(dependency))?;
-                    match status.main {
-                        MainStatus::BackingUp {
-                            started: Some(_),
-                            health,
-                        }
-                        | MainStatus::Running { health, .. } => {
-                            let mut failures = BTreeMap::new();
-                            for (check, res) in health {
-                                if !matches!(res, HealthCheckResult::Success)
-                                    && receipts
-                                        .current_dependencies
-                                        .get(db, id)
-                                        .await?
-                                        .ok_or_else(|| not_found!(id))?
-                                        .get(dependency)
-                                        .map(|x| x.health_checks.contains(&check))
-                                        .unwrap_or(false)
-                                {
-                                    failures.insert(check.clone(), res.clone());
-                                }
-                            }
-                            if !failures.is_empty() {
-                                Some(DependencyError::HealthChecksFailed { failures })
-                            } else {
-                                DependencyError::Transitive
-                                    .try_heal(
-                                        ctx,
-                                        db,
-                                        id,
-                                        dependency,
-                                        dependency_config,
-                                        info,
-                                        receipts,
-                                    )
-                                    .await?
+                    | MainStatus::Running { health, .. } => {
+                        let mut failures = BTreeMap::new();
+                        for (check, res) in health {
+                            if !matches!(res, HealthCheckResult::Success)
+                                && installed_info
+                                    .as_current_dependencies()
+                                    .as_idx(dependency)
+                                    .or_not_found(dependency)?
+                                    .de()?
+                                    .health_checks
+                                    .contains(&check)
+                            {
+                                failures.insert(check.clone(), res.clone());
                             }
                         }
-                        MainStatus::Starting { .. } | MainStatus::Restarting => {
-                            DependencyError::Transitive
-                                .try_heal(
-                                    ctx,
-                                    db,
-                                    id,
-                                    dependency,
-                                    dependency_config,
-                                    info,
-                                    receipts,
-                                )
-                                .await?
+                        if !failures.is_empty() {
+                            Some(DependencyError::HealthChecksFailed { failures })
+                        } else {
+                            DependencyError::Transitive.try_heal(db, id, dependency, None, info)?
                         }
-                        _ => return Ok(Some(DependencyError::NotRunning)),
                     }
-                }
-                DependencyError::Transitive => {
-                    if receipts
-                        .dependency_errors
-                        .get(db, dependency)
-                        .await?
-                        .unwrap_or_default()
-                        .0
-                        .is_empty()
-                    {
-                        None
-                    } else {
-                        Some(DependencyError::Transitive)
+                    MainStatus::Starting { .. } | MainStatus::Restarting => {
+                        DependencyError::Transitive.try_heal(db, id, dependency, None, info)?
                     }
+                    _ => return Ok(Some(DependencyError::NotRunning)),
                 }
-            })
-        }
-        .boxed()
+            }
+            DependencyError::Transitive => {
+                if dependency_installed_info
+                    .or_not_found(dependency)?
+                    .as_status()
+                    .as_dependency_errors()
+                    .de()?
+                    .unwrap_or_default()
+                    .0
+                    .is_empty()
+                {
+                    None
+                } else {
+                    Some(DependencyError::Transitive)
+                }
+            }
+        })
     }
 }
+impl PartialOrd for DependencyError {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp_priority(other))
+    }
+}
+impl Ord for DependencyError {}
 impl std::fmt::Display for DependencyError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -431,17 +312,12 @@ pub struct TaggedDependencyError {
 #[serde(rename_all = "kebab-case")]
 pub struct BreakageRes(pub BTreeMap<PackageId, TaggedDependencyError>);
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel)]
+#[model = "Model<Self>"]
 pub struct Dependencies(pub BTreeMap<PackageId, DepInfo>);
 impl Map for Dependencies {
     type Key = PackageId;
     type Value = DepInfo;
-    fn get(&self, key: &Self::Key) -> Option<&Self::Value> {
-        self.0.get(key)
-    }
-}
-impl HasModel for Dependencies {
-    type Model = MapModel<Self>;
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -460,12 +336,12 @@ impl DependencyRequirement {
 
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
 pub struct DepInfo {
     pub version: VersionRange,
     pub requirement: DependencyRequirement,
     pub description: Option<String>,
     #[serde(default)]
-    #[model]
     pub config: Option<DependencyConfig>,
 }
 impl DepInfo {
@@ -501,6 +377,7 @@ impl DepInfo {
 
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
 pub struct DependencyConfig {
     check: PackageProcedure,
     auto_configure: PackageProcedure,
@@ -551,96 +428,6 @@ impl DependencyConfig {
             )
             .await?
             .map_err(|e| Error::new(eyre!("{}", e.1), crate::ErrorKind::AutoConfigure))
-    }
-}
-
-pub struct DependencyConfigReceipts {
-    dependencies: LockReceipt<Dependencies, ()>,
-    dependency_volumes: LockReceipt<Volumes, ()>,
-    dependency_version: LockReceipt<Version, ()>,
-    dependency_config_action: LockReceipt<ConfigActions, ()>,
-    package_volumes: LockReceipt<Volumes, ()>,
-    package_version: LockReceipt<Version, ()>,
-    docker_containers: LockReceipt<DockerContainers, String>,
-}
-
-impl DependencyConfigReceipts {
-    pub async fn new<'a>(
-        db: &'a mut impl DbHandle,
-        package_id: &PackageId,
-        dependency_id: &PackageId,
-    ) -> Result<Self, Error> {
-        let mut locks = Vec::new();
-
-        let setup = Self::setup(&mut locks, package_id, dependency_id);
-        Ok(setup(&db.lock_all(locks).await?)?)
-    }
-
-    pub fn setup(
-        locks: &mut Vec<LockTargetId>,
-        package_id: &PackageId,
-        dependency_id: &PackageId,
-    ) -> impl FnOnce(&Verifier) -> Result<Self, Error> {
-        let dependencies = crate::db::DatabaseModel::new()
-            .package_data()
-            .idx_model(package_id)
-            .and_then(|x| x.installed())
-            .map(|x| x.manifest().dependencies())
-            .make_locker(LockType::Write)
-            .add_to_keys(locks);
-        let dependency_volumes = crate::db::DatabaseModel::new()
-            .package_data()
-            .idx_model(dependency_id)
-            .and_then(|x| x.installed())
-            .map(|x| x.manifest().volumes())
-            .make_locker(LockType::Write)
-            .add_to_keys(locks);
-        let dependency_version = crate::db::DatabaseModel::new()
-            .package_data()
-            .idx_model(dependency_id)
-            .and_then(|x| x.installed())
-            .map(|x| x.manifest().version())
-            .make_locker(LockType::Write)
-            .add_to_keys(locks);
-        let dependency_config_action = crate::db::DatabaseModel::new()
-            .package_data()
-            .idx_model(dependency_id)
-            .and_then(|x| x.installed())
-            .and_then(|x| x.manifest().config())
-            .make_locker(LockType::Write)
-            .add_to_keys(locks);
-        let package_volumes = crate::db::DatabaseModel::new()
-            .package_data()
-            .idx_model(package_id)
-            .and_then(|x| x.installed())
-            .map(|x| x.manifest().volumes())
-            .make_locker(LockType::Write)
-            .add_to_keys(locks);
-        let package_version = crate::db::DatabaseModel::new()
-            .package_data()
-            .idx_model(package_id)
-            .and_then(|x| x.installed())
-            .map(|x| x.manifest().version())
-            .make_locker(LockType::Write)
-            .add_to_keys(locks);
-        let docker_containers = crate::db::DatabaseModel::new()
-            .package_data()
-            .star()
-            .installed()
-            .and_then(|x| x.manifest().containers())
-            .make_locker(LockType::Write)
-            .add_to_keys(locks);
-        move |skeleton_key| {
-            Ok(Self {
-                dependencies: dependencies.verify(&skeleton_key)?,
-                dependency_volumes: dependency_volumes.verify(&skeleton_key)?,
-                dependency_version: dependency_version.verify(&skeleton_key)?,
-                dependency_config_action: dependency_config_action.verify(&skeleton_key)?,
-                package_volumes: package_volumes.verify(&skeleton_key)?,
-                package_version: package_version.verify(&skeleton_key)?,
-                docker_containers: docker_containers.verify(&skeleton_key)?,
-            })
-        }
     }
 }
 
@@ -801,17 +588,12 @@ pub async fn add_dependent_to_current_dependents_lists<'a, Db: DbHandle>(
     Ok(())
 }
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-pub struct DependencyErrors(pub BTreeMap<PackageId, DependencyError>);
+#[derive(Debug, Clone, Default, Deserialize, Serialize, HasModel)]
+#[model = "Model<Self>"]
+pub struct DependencyErrors(pub BTreeMap<PackageId, OrdSet<DependencyError>>);
 impl Map for DependencyErrors {
     type Key = PackageId;
-    type Value = DependencyError;
-    fn get(&self, key: &Self::Key) -> Option<&Self::Value> {
-        self.0.get(key)
-    }
-}
-impl HasModel for DependencyErrors {
-    type Model = MapModel<Self>;
+    type Value = OrdSet<DependencyError>;
 }
 impl DependencyErrors {
     pub async fn init<Db: DbHandle>(

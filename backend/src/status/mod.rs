@@ -1,25 +1,24 @@
 use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
-use patch_db::{HasModel, Model};
 use serde::{Deserialize, Serialize};
 
 use self::health_check::HealthCheckId;
 use crate::dependencies::DependencyErrors;
+use crate::prelude::*;
 use crate::status::health_check::HealthCheckResult;
 
 pub mod health_check;
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
 pub struct Status {
     pub configured: bool,
-    #[model]
     pub main: MainStatus,
-    #[model]
     pub dependency_errors: DependencyErrors,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, HasModel)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "status")]
 #[serde(rename_all = "kebab-case")]
 pub enum MainStatus {
@@ -81,10 +80,5 @@ impl MainStatus {
             MainStatus::BackingUp { .. } => return self.clone(),
         };
         MainStatus::BackingUp { started, health }
-    }
-}
-impl MainStatusModel {
-    pub fn started(self) -> Model<Option<DateTime<Utc>>> {
-        self.0.child("started")
     }
 }

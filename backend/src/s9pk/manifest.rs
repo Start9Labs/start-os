@@ -3,7 +3,6 @@ use std::path::{Path, PathBuf};
 
 use color_eyre::eyre::eyre;
 pub use models::{PackageId, SYSTEM_PACKAGE_ID};
-use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -14,6 +13,7 @@ use crate::config::action::ConfigActions;
 use crate::dependencies::Dependencies;
 use crate::migration::Migrations;
 use crate::net::interface::Interfaces;
+use crate::prelude::*;
 use crate::procedure::docker::DockerContainers;
 use crate::procedure::PackageProcedure;
 use crate::status::health_check::HealthChecks;
@@ -29,6 +29,7 @@ fn current_version() -> Version {
 
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
 pub struct Manifest {
     #[serde(default = "current_version")]
     pub eos_version: Version,
@@ -36,7 +37,6 @@ pub struct Manifest {
     #[serde(default)]
     pub git_hash: Option<GitHash>,
     pub title: String,
-    #[model]
     pub version: Version,
     pub description: Description,
     #[serde(default)]
@@ -52,31 +52,23 @@ pub struct Manifest {
     pub donation_url: Option<Url>,
     #[serde(default)]
     pub alerts: Alerts,
-    #[model]
     pub main: PackageProcedure,
     pub health_checks: HealthChecks,
-    #[model]
     pub config: Option<ConfigActions>,
-    #[model]
     pub properties: Option<PackageProcedure>,
-    #[model]
     pub volumes: Volumes,
     // #[serde(default)]
     pub interfaces: Interfaces,
     // #[serde(default)]
-    #[model]
     pub backup: BackupActions,
     #[serde(default)]
-    #[model]
     pub migrations: Migrations,
     #[serde(default)]
     pub actions: Actions,
     // #[serde(default)]
     // pub permissions: Permissions,
     #[serde(default)]
-    #[model]
     pub dependencies: Dependencies,
-    #[model]
     pub containers: Option<DockerContainers>,
 
     #[serde(default)]

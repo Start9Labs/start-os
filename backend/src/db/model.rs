@@ -335,40 +335,41 @@ impl Model<PackageDataEntry> {
     pub fn into_manifest(self) -> Model<Manifest> {
         match self.into_match() {
             PackageDataEntryMatchModel::Installing(a) => a.into_manifest(),
-            PackageDataEntryMatchModel::Updating(a) => a.into_old_manifest(),
+            PackageDataEntryMatchModel::Updating(a) => a.into_installed().into_manifest(),
             PackageDataEntryMatchModel::Restoring(a) => a.into_manifest(),
             PackageDataEntryMatchModel::Removing(a) => a.into_manifest(),
-            PackageDataEntryMatchModel::NeedsUpdate(a) => a.into_manifest(),
             PackageDataEntryMatchModel::Installed(a) => a.into_manifest(),
             PackageDataEntryMatchModel::Error(_) => Model::from(Value::Null),
         }
     }
-    pub fn as_manifest(&self) -> Result<&Model<Manifest>, Error> {
-        match self.as_match() {
-            PackageDataEntryMatchModelRef::Installing(a) => Ok(a.as_manifest()),
-            PackageDataEntryMatchModelRef::Updating(a) => Ok(a.as_old_manifest()),
-            PackageDataEntryMatchModelRef::Restoring(a) => Ok(a.as_manifest()),
-            PackageDataEntryMatchModelRef::Removing(a) => Ok(a.as_manifest()),
-            PackageDataEntryMatchModelRef::NeedsUpdate(a) => Ok(a.as_manifest()),
-            PackageDataEntryMatchModelRef::Installed(a) => Ok(a.as_manifest()),
-            PackageDataEntryMatchModelRef::Error(a) => Err(Error::new(
-                eyre!("unknown variant of PackageDataEntry"),
-                ErrorKind::Deserialization,
-            )),
+    pub fn into_installed(self) -> Option<Model<InstalledPackageInfo>> {
+        match self.into_match() {
+            PackageDataEntryMatchModel::Installing(_) => None,
+            PackageDataEntryMatchModel::Updating(a) => Some(a.into_installed()),
+            PackageDataEntryMatchModel::Restoring(_) => None,
+            PackageDataEntryMatchModel::Removing(_) => None,
+            PackageDataEntryMatchModel::Installed(a) => Some(a.into_installed()),
+            PackageDataEntryMatchModel::Error(_) => None,
         }
     }
-    pub fn as_icon(&self) -> Result<&Model<DataUrl>, Error> {
-        match self.as_match() {
-            PackageDataEntryMatchModelRef::Installing(a) => Ok(a.as_icon()),
-            PackageDataEntryMatchModelRef::Updating(a) => Ok(a.as_icon()),
-            PackageDataEntryMatchModelRef::Restoring(a) => Ok(a.as_icon()),
-            PackageDataEntryMatchModelRef::Removing(a) => Ok(a.as_icon()),
-            PackageDataEntryMatchModelRef::NeedsUpdate(a) => Ok(a.as_icon()),
-            PackageDataEntryMatchModelRef::Installed(a) => Ok(a.as_icon()),
-            PackageDataEntryMatchModelRef::Error(a) => Err(Error::new(
-                eyre!("unknown variant of PackageDataEntry"),
-                ErrorKind::Deserialization,
-            )),
+    pub fn as_installed(&self) -> Option<&Model<InstalledPackageInfo>> {
+        match self.into_match() {
+            PackageDataEntryMatchModel::Installing(_) => None,
+            PackageDataEntryMatchModel::Updating(a) => Some(a.as_installed()),
+            PackageDataEntryMatchModel::Restoring(_) => None,
+            PackageDataEntryMatchModel::Removing(_) => None,
+            PackageDataEntryMatchModel::Installed(a) => Some(a.as_installed()),
+            PackageDataEntryMatchModel::Error(_) => None,
+        }
+    }
+    pub fn as_installed_mut(&mut self) -> Option<&mut Model<InstalledPackageInfo>> {
+        match self.into_match() {
+            PackageDataEntryMatchModel::Installing(_) => None,
+            PackageDataEntryMatchModel::Updating(mut a) => Some(a.as_installed_mut()),
+            PackageDataEntryMatchModel::Restoring(_) => None,
+            PackageDataEntryMatchModel::Removing(_) => None,
+            PackageDataEntryMatchModel::Installed(mut a) => Some(a.as_installed_mut()),
+            PackageDataEntryMatchModel::Error(_) => None,
         }
     }
 }
