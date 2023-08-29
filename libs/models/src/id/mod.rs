@@ -19,7 +19,7 @@ pub use health_check::HealthCheckId;
 pub use image::ImageId;
 pub use interface::InterfaceId;
 pub use invalid_id::InvalidId;
-pub use package::PackageId;
+pub use package::{PackageId, SYSTEM_PACKAGE_ID};
 pub use volume::VolumeId;
 
 lazy_static::lazy_static! {

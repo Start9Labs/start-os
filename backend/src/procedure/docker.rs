@@ -12,7 +12,7 @@ use color_eyre::Report;
 use futures::future::{BoxFuture, Either as EitherFuture};
 use futures::{FutureExt, TryStreamExt};
 use helpers::{NonDetachingJoinHandle, UnixRpcClient};
-use models::{Id, ImageId};
+use models::{Id, ImageId, SYSTEM_PACKAGE_ID};
 use nix::sys::signal;
 use nix::unistd::Pid;
 use serde::de::DeserializeOwned;
