@@ -86,6 +86,14 @@ impl<T: Serialize> Model<T> {
         Ok(())
     }
 }
+
+impl<T: Serialize + DeserializeOwned> Model<T> {
+    pub fn replace(&mut self, value: &T) -> Result<T, Error> {
+        let orig = self.de()?;
+        self.ser(value)?;
+        Ok(orig)
+    }
+}
 impl<T> Clone for Model<T> {
     fn clone(&self) -> Self {
         Self {
