@@ -4,11 +4,9 @@
 
 @media (min-width: 600px) {
   .category_selected {
-    position: relative;
     border-top-left-radius: 0.5rem;
     border-bottom-left-radius: 0.5rem;
-    transition-property: all;
-    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-    transition-duration: 300ms;
+    background-color: #222428;
+    opacity: 90;
   }
 }
