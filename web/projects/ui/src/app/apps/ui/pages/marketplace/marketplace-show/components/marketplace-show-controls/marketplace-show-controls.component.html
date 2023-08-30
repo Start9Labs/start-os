@@ -1,5 +1,5 @@
 <!-- @TODO customize button colors -->
-<div class="flex absolute top-[9.25rem] left-[2rem] sm:top-[10rem] z-50">
+<div class="flex absolute top-[9.25rem] left-[2rem] sm:top-[10rem] z-10">
   <button
     tuiButton
     type="button"
@@ -16,7 +16,7 @@
         tuiButton
         type="button"
         class="p-2 mr-2"
-        appearance="primary"
+        appearance="warning"
         *ngIf="(localVersion | compareEmver : pkg.manifest.version) === -1"
         (click)="tryInstall()"
       >
@@ -26,7 +26,7 @@
         tuiButton
         type="button"
         class="p-2 mr-2"
-        appearance="secondary-destructive"
+        appearance="secondary"
         *ngIf="(localVersion | compareEmver : pkg.manifest.version) === 1"
         (click)="tryInstall()"
       >
@@ -37,7 +37,7 @@
           tuiButton
           type="button"
           class="p-2 mr-2"
-          appearance="primary"
+          appearance="tertiary"
           *ngIf="(localVersion | compareEmver : pkg.manifest.version) === 0"
           (click)="tryInstall()"
         >
@@ -48,7 +48,7 @@
   </ng-container>
 
   <ng-template #install>
-    <button tuiButton type="button" appearance="custom" (click)="tryInstall()">
+    <button tuiButton type="button" appearance="primary" (click)="tryInstall()">
       Install
     </button>
   </ng-template>

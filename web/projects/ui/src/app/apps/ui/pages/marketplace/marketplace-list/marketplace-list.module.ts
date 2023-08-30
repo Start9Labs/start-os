@@ -17,7 +17,6 @@ import {
 } from "@start9labs/marketplace";
 import { BadgeMenuComponentModule } from "src/app/common/badge-menu-button/badge-menu.component.module";
 import { MarketplaceSidebarModule } from "../components/marketplace-sidebar/marketplace-sidebar.module";
-import { MarketplaceStatusModule } from "../components/marketplace-status/marketplace-status.module";
 import { MarketplaceListPage } from "./marketplace-list.page";
 import { MarketplaceSettingsPageModule } from "./marketplace-settings/marketplace-settings.module";
 import { TuiNotificationModule } from "@taiga-ui/core";
@@ -40,7 +39,6 @@ const routes: Routes = [
     EmverPipesModule,
     FilterPackagesPipeModule,
     MarketplaceSidebarModule,
-    MarketplaceStatusModule,
     BadgeMenuComponentModule,
     ItemModule,
     CategoriesModule,

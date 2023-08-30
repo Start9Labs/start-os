@@ -1,5 +1,5 @@
 <header
-  class="w-full fixed sm:w-[34vw] md:w-[28vw] lg:w-[22vw] 2xl:w-[280px] sm:bg-zinc-700/90 sm:backdrop-blur-2xl sm:min-h-screen overflow-y-auto flex flex-col sm:py-6 sm:after:block sm:after:absolute sm:after:top-0 sm:after:bottom-0 sm:after:right-0 sm:after:w-0.5 after:h-[calc(100vh - 20px)] sm:after:bg-gradient-to-b from-zinc-700 to-zinc-400"
+  class="z-50 overflow-hidden w-full fixed sm:w-[34vw] md:w-[28vw] lg:w-[22vw] 2xl:w-[280px] sm:bg-zinc-700/90 sm:backdrop-blur-2xl sm:min-h-screen overflow-y-auto flex flex-col sm:py-6 sm:after:block sm:after:absolute sm:after:top-0 sm:after:bottom-0 sm:after:right-0 sm:after:w-0.5 after:h-[calc(100vh - 20px)] sm:after:bg-gradient-to-b from-zinc-700 to-zinc-400"
 >
   <ng-container *tuiLet="store$ | async as store">
     <div class="hidden sm:flex flex-col mx-6 pb-3 items-center">
@@ -24,7 +24,7 @@
       <ng-content select="[slot=desktop]"></ng-content>
     </div>
     <!-- mobile nav -->
-    <div class="sm:hidden flex flex-col bg-zinc-700/90 backdrop-blur-3xl">
+    <div class="sm:hidden bg-zinc-700/90 backdrop-blur-3xl">
       <div class="flex justify-between py-4 px-4 w-[100vw]">
         <!-- mobile search -->
         <marketplace-search

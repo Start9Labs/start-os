@@ -1,38 +1,39 @@
 <div
   class="rounded-xl bg-gradient-to-bl from-zinc-400/75 to-zinc-600 p-px shadow-lg shadow-zinc-400/10 mt-6"
 >
-  <div *ngIf="pkg$ | async as pkg" class="bg-zinc-800 rounded-xl p-7">
-    <div class="grid grid-flow-row items-center gap-6">
-      <div class="flex justify-between">
-        <h3 class="text-lg font-bold small-caps">What's new</h3>
+  <div
+    *ngIf="pkg$ | async as pkg"
+    class="bg-zinc-800 rounded-xl p-7 grid grid-flow-row items-center gap-6"
+  >
+    <div class="flex justify-between">
+      <h3 class="text-lg font-bold small-caps">What's new</h3>
+      <p
+        *ngIf="pkg['published-at'] as published"
+        class="text-base font-light mb-1 text-zinc-300"
+      >
+        <span class="small-caps">Latest Release</span>
+        &nbsp;-&nbsp;
+        <span class="text-sm">{{ published | date : 'medium' }}</span>
+      </p>
+    </div>
+    <div class="flex flex-wrap justify-between gap-6">
+      <div class="text-base">
+        <p>Version {{ pkg.manifest.version }}</p>
         <p
-          *ngIf="pkg['published-at'] as published"
-          class="text-base font-light mb-1 text-zinc-300"
-        >
-          <span class="small-caps">Latest Release</span>
-          &nbsp;-&nbsp;
-          <span class="text-sm">{{ published | date : 'medium' }}</span>
-        </p>
+          class="flex-wrap mt-1"
+          [innerHTML]="pkg.manifest['release-notes']"
+        ></p>
       </div>
-      <div class="flex flex-wrap justify-between gap-6">
-        <div class="text-base">
-          <p>Version {{ pkg.manifest.version }}</p>
-          <p
-            class="flex-wrap mt-1"
-            [innerHTML]="pkg.manifest['release-notes']"
-          ></p>
-        </div>
-        <button
-          tuiButton
-          type="button"
-          appearance="secondary"
-          size="m"
-          class="mt-3 place-self-end sm:place-self-start md:place-self-start lg:place-self-end"
-          (click)="showReleaseNotes(template)"
-        >
-          Previous releases
-        </button>
-      </div>
+      <button
+        tuiButton
+        type="button"
+        appearance="secondary"
+        size="m"
+        class="mt-3 place-self-end sm:place-self-start md:place-self-start lg:place-self-end"
+        (click)="showReleaseNotes(template)"
+      >
+        Previous releases
+      </button>
     </div>
   </div>
 </div>
