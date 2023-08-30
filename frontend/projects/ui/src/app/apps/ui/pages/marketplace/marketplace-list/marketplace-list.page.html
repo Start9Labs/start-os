@@ -1,10 +1,11 @@
 <marketplace-sidebar></marketplace-sidebar>
 
 <div
-  class="background sm:pl-[34vw] md:pl-[28vw] lg:pl-[22vw] 2xl:pl-[280px] min-h-screen flex flex-col justify-between overflow-auto scroll-smooth"
+  class="background sm:pl-[34vw] md:pl-[28vw] lg:pl-[22vw] 2xl:pl-[280px] min-h-screen flex justify-between overflow-auto scroll-smooth"
 >
-  <main class="pt-20 sm:pt-3 md:pb-10 md:px-8 scroll-smooth">
+  <main class="pt-20 sm:pt-3 md:pb-10 md:px-8">
     <ng-container *ngIf="details$ | async as details">
+      <!-- icon as empty string displays no icon -->
       <tui-notification
         *ngIf="details.url === marketplace.start9"
         status="success"
@@ -90,7 +91,7 @@
         "
       >
         <ul
-          class="px-6 md:px-8 grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-16"
+          class="px-6 md:px-8 grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-16 list-none"
           [@itemAnimation]="filtered.length"
         >
           <li *ngFor="let pkg of filtered">

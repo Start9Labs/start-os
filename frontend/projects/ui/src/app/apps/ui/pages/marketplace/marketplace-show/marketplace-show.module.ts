@@ -15,7 +15,6 @@ import {
   PackageModule,
 } from '@start9labs/marketplace'
 import { MarketplaceSidebarModule } from '../components/marketplace-sidebar/marketplace-sidebar.module'
-import { MarketplaceStatusModule } from '../components/marketplace-status/marketplace-status.module'
 import { MarketplaceShowPage } from './marketplace-show.page'
 import { MarketplaceShowComponentsModule } from './components/marketplace-show-components.module'
 
@@ -36,7 +35,6 @@ const routes: Routes = [
     EmverPipesModule,
     MarkdownPipeModule,
     MarketplaceSidebarModule,
-    MarketplaceStatusModule,
     PackageModule,
     AboutModule,
     DependenciesModule,

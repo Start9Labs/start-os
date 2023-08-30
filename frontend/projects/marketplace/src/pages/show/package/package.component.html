@@ -13,38 +13,35 @@
   </ng-container>
 
   <ng-template #show>
-    <div class="grid gap-8 mb-16 p-2 lg:px-16 lg:pb-8 mt-20">
-      <!-- header -->
-      <div class="flex justify-center mt-10 md:mt-0">
+    <div class="grid gap-8 mb-16 p-4 lg:px-16 lg:pb-8 mt-20 justify-center">
+      <!-- hero -->
+      <div class="flex justify-center mt-10 md:mt-0 z-0">
         <!-- control buttons -->
         <ng-content></ng-content>
         <div
-          class="flex flex-col w-[96%] md:w-full h-[25vh] md:min-h-[14rem] relative rounded-3xl pt-16 pb-10 px-8 shadow-lg"
+          class="flex flex-col w-full h-[30vh] xs:h-[25vh] md:min-h-[14rem] relative rounded-3xl pt-16 pb-10 px-8 shadow-lg"
         >
+          <!-- icon -->
           <img
             [src]="pkg | mimeType | trustUrl"
-            class="w-24 h-24 pointer-events-none rounded-full object-cover shadow-lg absolute -top-9 left-7"
+            class="w-24 h-24 pointer-events-none rounded-full object-cover shadow-lg absolute -top-9 left-7 z-10"
             alt="{{ pkg.manifest.title }} Icon"
           />
           <div
-            class="overflow-hidden absolute w-full h-full top-0 left-0 -z-50 rounded-3xl bg-black"
+            class="overflow-hidden absolute w-full h-full top-0 left-0 rounded-3xl bg-zinc-800"
           >
-            <div
-              class="absolute top-0 left-0 w-full h-full bg-center panel"
-            ></div>
+            <!-- color background -->
             <img
               [src]="pkg | mimeType | trustUrl"
               class="absolute object-cover pointer-events-none w-[200%] h-[200%] max-w-[200%] blur-[100px] saturate-150 rounded-full"
-              alt="{{ pkg.manifest.title }} Icon"
+              alt="{{ pkg.manifest.title }} background image"
             />
           </div>
-          <div class="my-3 mix-blend-plus-lighter">
-            <h2
-              class="block text-2xl font-medium text-zinc-50 line-clamp-1 mb-1"
-            >
+          <div class="my-3 text-zinc-50 mix-blend-plus-lighter">
+            <h2 class="text-2xl font-medium line-clamp-1 mb-1">
               {{ pkg.manifest.title }}
             </h2>
-            <p class="block text-base text-zinc-50 h-12 line-clamp-2">
+            <p class="block text-base h-12 line-clamp-2">
               {{ pkg.manifest.description.short }}
             </p>
           </div>
@@ -79,14 +76,14 @@
             >
               <img
                 #template
-                alt="Service Screenshot"
+                alt="Service screenshot"
                 src="assets/img/temp/{{ item }}"
                 class="w-full h-full rounded-lg md:rounded-xl"
                 (click)="presentModalImg(dialogTemplate)"
               />
               <ng-template #dialogTemplate let-observer>
                 <img
-                  alt="Service Screenshot"
+                  alt="Service screenshot"
                   src="assets/img/temp/{{ item }}"
                   class="rounded-none"
                 />
@@ -104,7 +101,7 @@
         ></button>
       </div>
 
-      <div class="p-2 md:p-0 grid grid-cols-1 2xl:grid-cols-12 gap-x-8">
+      <div class="grid grid-cols-1 2xl:grid-cols-12 gap-x-8">
         <div class="col-span-12 2xl:col-span-8">
           <!-- about -->
           <marketplace-about [pkg]="pkg"></marketplace-about>
@@ -123,7 +120,6 @@
             [pkg]="pkg"
             (version)="version$.next($event)"
           ></marketplace-additional>
-          <!-- release notes -->
         </div>
       </div>
     </div>

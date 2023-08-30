@@ -3,7 +3,7 @@
 >
   <div class="lg:col-span-5 xl:col-span-4 bg-zinc-800 rounded-xl p-7">
     <h2 class="text-lg font-bold small-caps my-2 pb-3">Dependencies</h2>
-    <div class="grid grid-cols-1 md:grid-row-auto gap-3">
+    <div class="grid grid-row-auto gap-3">
       <div *ngFor="let dep of pkg.manifest.dependencies | keyvalue">
         <a [routerLink]="['/marketplace', dep.key]">
           <div
@@ -16,7 +16,7 @@
                     pkg['dependency-metadata'][dep.key].icon | trustUrl
                 "
                 class="w-16 pointer-events-none rounded-full object-cover drop-shadow-lg"
-                alt="{{ pkg['dependency-metadata'][dep.key].title }} Icon"
+                alt="{{ pkg['dependency-metadata'][dep.key].title }} icon"
               />
               <div class="mt-3">
                 <div class="flex flex-wrap items-center gap-1 mb-1">

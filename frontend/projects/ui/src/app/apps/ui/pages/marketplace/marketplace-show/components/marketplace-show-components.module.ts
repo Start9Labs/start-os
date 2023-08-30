@@ -14,14 +14,12 @@ import {
   DependenciesModule,
   PackageModule,
 } from '@start9labs/marketplace'
-import { MarketplaceShowHeaderComponent } from './marketplace-show-header/marketplace-show-header.component'
 import { MarketplaceShowDependentComponent } from './marketplace-show-dependent/marketplace-show-dependent.component'
 import { MarketplaceShowControlsComponent } from './marketplace-show-controls/marketplace-show-controls.component'
 import { TuiButtonModule } from '@taiga-ui/core'
 
 @NgModule({
   declarations: [
-    MarketplaceShowHeaderComponent,
     MarketplaceShowControlsComponent,
     MarketplaceShowDependentComponent,
   ],
@@ -40,7 +38,6 @@ import { TuiButtonModule } from '@taiga-ui/core'
     TuiButtonModule,
   ],
   exports: [
-    MarketplaceShowHeaderComponent,
     MarketplaceShowControlsComponent,
     MarketplaceShowDependentComponent,
   ],
