@@ -342,6 +342,16 @@ impl Model<PackageDataEntry> {
             PackageDataEntryMatchModel::Error(_) => Model::from(Value::Null),
         }
     }
+    pub fn as_manifest(&self) -> &Model<Manifest> {
+        match self.into_match() {
+            PackageDataEntryMatchModelRef::Installing(a) => a.as_manifest(),
+            PackageDataEntryMatchModelRef::Updating(a) => a.as_installed().as_manifest(),
+            PackageDataEntryMatchModelRef::Restoring(a) => a.as_manifest(),
+            PackageDataEntryMatchModelRef::Removing(a) => a.as_manifest(),
+            PackageDataEntryMatchModelRef::Installed(a) => a.as_manifest(),
+            PackageDataEntryMatchModelRef::Error(_) => (&Value::Null).into(),
+        }
+    }
     pub fn into_installed(self) -> Option<Model<InstalledPackageInfo>> {
         match self.into_match() {
             PackageDataEntryMatchModel::Installing(_) => None,

@@ -9,7 +9,7 @@ use embassy_container_init::ProcessGroupId;
 use futures::future::BoxFuture;
 use futures::{Future, FutureExt, TryFutureExt};
 use helpers::UnixRpcClient;
-use models::{ErrorKind, PackageId};
+use models::{ErrorKind, OptionExt, PackageId};
 use nix::sys::signal::Signal;
 use persistent_container::PersistentContainer;
 use rand::SeedableRng;
@@ -158,7 +158,7 @@ impl Manager {
     pub async fn configure(
         &self,
         configure_context: ConfigureContext,
-    ) -> Result<BTreeMap<PackageId, TaggedDependencyError>, Error> {
+    ) -> Result<BTreeMap<PackageId, String>, Error> {
         if self._is_transition_configure() {
             return Ok(configure_context.breakages);
         }
@@ -328,42 +328,27 @@ async fn configure(
     ctx: RpcContext,
     id: PackageId,
     mut configure_context: ConfigureContext,
-) -> Result<BTreeMap<PackageId, TaggedDependencyError>, Error> {
-    let mut db = ctx.db.handle();
-    let mut tx = db.begin().await?;
-    let db = &mut tx;
-
-    let receipts = ConfigReceipts::new(db).await?;
+) -> Result<BTreeMap<PackageId, String>, Error> {
+    let db = ctx.db.peek().await?;
     let id = &id;
     let ctx = &ctx;
     let overrides = &mut configure_context.overrides;
     // fetch data from db
-    let action = receipts
-        .config_actions
-        .get(db, id)
-        .await?
-        .ok_or_else(|| not_found!(id))?;
-    let dependencies = receipts
-        .dependencies
-        .get(db, id)
-        .await?
-        .ok_or_else(|| not_found!(id))?;
-    let volumes = receipts
-        .volumes
-        .get(db, id)
-        .await?
-        .ok_or_else(|| not_found!(id))?;
-    let version = receipts
-        .version
-        .get(db, id)
-        .await?
-        .ok_or_else(|| not_found!(id))?;
+    let manifest = db
+        .as_package_data()
+        .as_idx(id)
+        .or_not_found(id)?
+        .as_manifest()
+        .de()?;
 
     // get current config and current spec
     let ConfigRes {
         config: old_config,
         spec,
-    } = action.get(ctx, id, &version, &volumes).await?;
+    } = manifest
+        .actions
+        .get(ctx, id, &manifest.version, &manifest.volumes)
+        .await?;
 
     // determine new config to use
     let mut config = if let Some(config) = configure_context.config.or_else(|| old_config.clone()) {
@@ -375,23 +360,10 @@ async fn configure(
         )?
     };
 
-    let manifest = receipts
-        .manifest
-        .get(db, id)
-        .await?
-        .ok_or_else(|| not_found!(id))?;
-
     spec.validate(&manifest)?;
     spec.matches(&config)?; // check that new config matches spec
-    spec.update(
-        ctx,
-        db,
-        &manifest,
-        overrides,
-        &mut config,
-        &receipts.config_receipts,
-    )
-    .await?; // dereference pointers in the new config
+    spec.update(ctx, &db, &manifest, overrides, &mut config)
+        .await?; // dereference pointers in the new config
 
     // create backreferences to pointers
     let mut sys = receipts

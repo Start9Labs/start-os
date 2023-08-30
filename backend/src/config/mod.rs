@@ -432,7 +432,7 @@ pub async fn set_dry(
 }
 
 pub struct ConfigureContext {
-    pub breakages: BTreeMap<PackageId, TaggedDependencyError>,
+    pub breakages: BTreeMap<PackageId, String>,
     pub timeout: Option<Duration>,
     pub config: Option<Config>,
     pub overrides: BTreeMap<PackageId, Config>,

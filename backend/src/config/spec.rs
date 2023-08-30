@@ -12,7 +12,6 @@ use async_trait::async_trait;
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
 use jsonpath_lib::Compiled as CompiledJsonPath;
-use patch_db::{DbHandle, LockReceipt, LockType};
 use rand::{CryptoRng, Rng};
 use regex::Regex;
 use serde::de::{MapAccess, Visitor};
@@ -26,8 +25,8 @@ use crate::config::ConfigurationError;
 use crate::context::RpcContext;
 use crate::net::interface::InterfaceId;
 use crate::net::keys::Key;
+use crate::prelude::*;
 use crate::s9pk::manifest::{Manifest, PackageId};
-use crate::Error;
 
 // Config Value Specifications
 #[async_trait]
@@ -39,14 +38,12 @@ pub trait ValueSpec {
     // since not all inVariant can be checked by the type
     fn validate(&self, manifest: &Manifest) -> Result<(), NoMatchWithPath>;
     // update is to fill in values for environment pointers recursively
-    async fn update<Db: DbHandle>(
+    async fn update(
         &self,
         ctx: &RpcContext,
-        db: &mut Db,
         manifest: &Manifest,
         config_overrides: &BTreeMap<PackageId, Config>,
         value: &mut Value,
-        receipts: &ConfigPointerReceipts,
     ) -> Result<(), ConfigurationError>;
     // returns all pointers that are live in the provided config
     fn pointers(&self, value: &Value) -> Result<BTreeSet<ValueSpecPointer>, NoMatchWithPath>;
@@ -156,17 +153,15 @@ where
     fn validate(&self, manifest: &Manifest) -> Result<(), NoMatchWithPath> {
         self.inner.validate(manifest)
     }
-    async fn update<Db: DbHandle>(
+    async fn update(
         &self,
         ctx: &RpcContext,
-        db: &mut Db,
         manifest: &Manifest,
         config_overrides: &BTreeMap<PackageId, Config>,
         value: &mut Value,
-        receipts: &ConfigPointerReceipts,
     ) -> Result<(), ConfigurationError> {
         self.inner
-            .update(ctx, db, manifest, config_overrides, value, receipts)
+            .update(ctx, manifest, config_overrides, value)
             .await
     }
     fn pointers(&self, value: &Value) -> Result<BTreeSet<ValueSpecPointer>, NoMatchWithPath> {
@@ -201,17 +196,15 @@ where
     fn validate(&self, manifest: &Manifest) -> Result<(), NoMatchWithPath> {
         self.inner.validate(manifest)
     }
-    async fn update<Db: DbHandle>(
+    async fn update(
         &self,
         ctx: &RpcContext,
-        db: &mut Db,
         manifest: &Manifest,
         config_overrides: &BTreeMap<PackageId, Config>,
         value: &mut Value,
-        receipts: &ConfigPointerReceipts,
     ) -> Result<(), ConfigurationError> {
         self.inner
-            .update(ctx, db, manifest, config_overrides, value, receipts)
+            .update(ctx, manifest, config_overrides, value)
             .await
     }
     fn pointers(&self, value: &Value) -> Result<BTreeSet<ValueSpecPointer>, NoMatchWithPath> {
@@ -279,17 +272,15 @@ where
     fn validate(&self, manifest: &Manifest) -> Result<(), NoMatchWithPath> {
         self.inner.validate(manifest)
     }
-    async fn update<Db: DbHandle>(
+    async fn update(
         &self,
         ctx: &RpcContext,
-        db: &mut Db,
         manifest: &Manifest,
         config_overrides: &BTreeMap<PackageId, Config>,
         value: &mut Value,
-        receipts: &ConfigPointerReceipts,
     ) -> Result<(), ConfigurationError> {
         self.inner
-            .update(ctx, db, manifest, config_overrides, value, receipts)
+            .update(ctx, manifest, config_overrides, value)
             .await
     }
     fn pointers(&self, value: &Value) -> Result<BTreeSet<ValueSpecPointer>, NoMatchWithPath> {
@@ -394,48 +385,22 @@ impl ValueSpec for ValueSpecAny {
             ValueSpecAny::Pointer(a) => a.validate(manifest),
         }
     }
-    async fn update<Db: DbHandle>(
+    async fn update(
         &self,
         ctx: &RpcContext,
-        db: &mut Db,
         manifest: &Manifest,
         config_overrides: &BTreeMap<PackageId, Config>,
         value: &mut Value,
-        receipts: &ConfigPointerReceipts,
     ) -> Result<(), ConfigurationError> {
         match self {
-            ValueSpecAny::Boolean(a) => {
-                a.update(ctx, db, manifest, config_overrides, value, receipts)
-                    .await
-            }
-            ValueSpecAny::Enum(a) => {
-                a.update(ctx, db, manifest, config_overrides, value, receipts)
-                    .await
-            }
-            ValueSpecAny::List(a) => {
-                a.update(ctx, db, manifest, config_overrides, value, receipts)
-                    .await
-            }
-            ValueSpecAny::Number(a) => {
-                a.update(ctx, db, manifest, config_overrides, value, receipts)
-                    .await
-            }
-            ValueSpecAny::Object(a) => {
-                a.update(ctx, db, manifest, config_overrides, value, receipts)
-                    .await
-            }
-            ValueSpecAny::String(a) => {
-                a.update(ctx, db, manifest, config_overrides, value, receipts)
-                    .await
-            }
-            ValueSpecAny::Union(a) => {
-                a.update(ctx, db, manifest, config_overrides, value, receipts)
-                    .await
-            }
-            ValueSpecAny::Pointer(a) => {
-                a.update(ctx, db, manifest, config_overrides, value, receipts)
-                    .await
-            }
+            ValueSpecAny::Boolean(a) => a.update(ctx, manifest, config_overrides, value).await,
+            ValueSpecAny::Enum(a) => a.update(ctx, manifest, config_overrides, value).await,
+            ValueSpecAny::List(a) => a.update(ctx, manifest, config_overrides, value).await,
+            ValueSpecAny::Number(a) => a.update(ctx, manifest, config_overrides, value).await,
+            ValueSpecAny::Object(a) => a.update(ctx, manifest, config_overrides, value).await,
+            ValueSpecAny::String(a) => a.update(ctx, manifest, config_overrides, value).await,
+            ValueSpecAny::Union(a) => a.update(ctx, manifest, config_overrides, value).await,
+            ValueSpecAny::Pointer(a) => a.update(ctx, manifest, config_overrides, value).await,
         }
     }
     fn pointers(&self, value: &Value) -> Result<BTreeSet<ValueSpecPointer>, NoMatchWithPath> {
@@ -513,14 +478,12 @@ impl ValueSpec for ValueSpecBoolean {
     fn validate(&self, _manifest: &Manifest) -> Result<(), NoMatchWithPath> {
         Ok(())
     }
-    async fn update<Db: DbHandle>(
+    async fn update(
         &self,
         _ctx: &RpcContext,
-        _db: &mut Db,
         _manifest: &Manifest,
         _config_overrides: &BTreeMap<PackageId, Config>,
         _value: &mut Value,
-        _receipts: &ConfigPointerReceipts,
     ) -> Result<(), ConfigurationError> {
         Ok(())
     }
@@ -603,14 +566,12 @@ impl ValueSpec for ValueSpecEnum {
     fn validate(&self, _manifest: &Manifest) -> Result<(), NoMatchWithPath> {
         Ok(())
     }
-    async fn update<Db: DbHandle>(
+    async fn update(
         &self,
         _ctx: &RpcContext,
-        _db: &mut Db,
         _manifest: &Manifest,
         _config_overrides: &BTreeMap<PackageId, Config>,
         _value: &mut Value,
-        _receipts: &ConfigPointerReceipts,
     ) -> Result<(), ConfigurationError> {
         Ok(())
     }
@@ -690,22 +651,16 @@ where
     fn validate(&self, manifest: &Manifest) -> Result<(), NoMatchWithPath> {
         self.spec.validate(manifest)
     }
-    async fn update<Db: DbHandle>(
+    async fn update(
         &self,
         ctx: &RpcContext,
-        db: &mut Db,
         manifest: &Manifest,
         config_overrides: &BTreeMap<PackageId, Config>,
         value: &mut Value,
-        receipts: &ConfigPointerReceipts,
     ) -> Result<(), ConfigurationError> {
         if let Value::Array(ref mut ls) = value {
             for (i, val) in ls.into_iter().enumerate() {
-                match self
-                    .spec
-                    .update(ctx, db, manifest, config_overrides, val, receipts)
-                    .await
-                {
+                match self.spec.update(ctx, manifest, config_overrides, val).await {
                     Err(ConfigurationError::NoMatch(e)) => {
                         Err(ConfigurationError::NoMatch(e.prepend(format!("{}", i))))
                     }
@@ -798,36 +753,19 @@ impl ValueSpec for ValueSpecList {
             ValueSpecList::Union(a) => a.validate(manifest),
         }
     }
-    async fn update<Db: DbHandle>(
+    async fn update(
         &self,
         ctx: &RpcContext,
-        db: &mut Db,
         manifest: &Manifest,
         config_overrides: &BTreeMap<PackageId, Config>,
         value: &mut Value,
-        receipts: &ConfigPointerReceipts,
     ) -> Result<(), ConfigurationError> {
         match self {
-            ValueSpecList::Enum(a) => {
-                a.update(ctx, db, manifest, config_overrides, value, receipts)
-                    .await
-            }
-            ValueSpecList::Number(a) => {
-                a.update(ctx, db, manifest, config_overrides, value, receipts)
-                    .await
-            }
-            ValueSpecList::Object(a) => {
-                a.update(ctx, db, manifest, config_overrides, value, receipts)
-                    .await
-            }
-            ValueSpecList::String(a) => {
-                a.update(ctx, db, manifest, config_overrides, value, receipts)
-                    .await
-            }
-            ValueSpecList::Union(a) => {
-                a.update(ctx, db, manifest, config_overrides, value, receipts)
-                    .await
-            }
+            ValueSpecList::Enum(a) => a.update(ctx, manifest, config_overrides, value).await,
+            ValueSpecList::Number(a) => a.update(ctx, manifest, config_overrides, value).await,
+            ValueSpecList::Object(a) => a.update(ctx, manifest, config_overrides, value).await,
+            ValueSpecList::String(a) => a.update(ctx, manifest, config_overrides, value).await,
+            ValueSpecList::Union(a) => a.update(ctx, manifest, config_overrides, value).await,
         }
     }
     fn pointers(&self, value: &Value) -> Result<BTreeSet<ValueSpecPointer>, NoMatchWithPath> {
@@ -941,14 +879,12 @@ impl ValueSpec for ValueSpecNumber {
     fn validate(&self, _manifest: &Manifest) -> Result<(), NoMatchWithPath> {
         Ok(())
     }
-    async fn update<Db: DbHandle>(
+    async fn update(
         &self,
         _ctx: &RpcContext,
-        _db: &mut Db,
         _manifest: &Manifest,
         _config_overrides: &BTreeMap<PackageId, Config>,
         _value: &mut Value,
-        _receipts: &ConfigPointerReceipts,
     ) -> Result<(), ConfigurationError> {
         Ok(())
     }
@@ -1005,19 +941,15 @@ impl ValueSpec for ValueSpecObject {
     fn validate(&self, manifest: &Manifest) -> Result<(), NoMatchWithPath> {
         self.spec.validate(manifest)
     }
-    async fn update<Db: DbHandle>(
+    async fn update(
         &self,
         ctx: &RpcContext,
-        db: &mut Db,
         manifest: &Manifest,
         config_overrides: &BTreeMap<PackageId, Config>,
         value: &mut Value,
-        receipts: &ConfigPointerReceipts,
     ) -> Result<(), ConfigurationError> {
         if let Value::Object(o) = value {
-            self.spec
-                .update(ctx, db, manifest, config_overrides, o, receipts)
-                .await
+            self.spec.update(ctx, manifest, config_overrides, o).await
         } else {
             Err(ConfigurationError::NoMatch(NoMatchWithPath::new(
                 MatchError::InvalidType("object", value.type_of()),
@@ -1108,27 +1040,21 @@ impl ConfigSpec {
         Ok(())
     }
 
-    pub async fn update<Db: DbHandle>(
+    pub async fn update(
         &self,
         ctx: &RpcContext,
-        db: &mut Db,
         manifest: &Manifest,
         config_overrides: &BTreeMap<PackageId, Config>,
         cfg: &mut Config,
-        receipts: &ConfigPointerReceipts,
     ) -> Result<(), ConfigurationError> {
         for (k, vs) in self.0.iter() {
             match cfg.get_mut(k) {
                 None => {
                     let mut v = Value::Null;
-                    vs.update(ctx, db, manifest, config_overrides, &mut v, receipts)
-                        .await?;
+                    vs.update(ctx, manifest, config_overrides, &mut v).await?;
                     cfg.insert(k.clone(), v);
                 }
-                Some(v) => match vs
-                    .update(ctx, db, manifest, config_overrides, v, receipts)
-                    .await
-                {
+                Some(v) => match vs.update(ctx, manifest, config_overrides, v).await {
                     Err(ConfigurationError::NoMatch(e)) => {
                         Err(ConfigurationError::NoMatch(e.prepend(k.clone())))
                     }
@@ -1286,14 +1212,12 @@ impl ValueSpec for ValueSpecString {
     fn validate(&self, _manifest: &Manifest) -> Result<(), NoMatchWithPath> {
         Ok(())
     }
-    async fn update<Db: DbHandle>(
+    async fn update(
         &self,
         _ctx: &RpcContext,
-        _db: &mut Db,
         _manifest: &Manifest,
         _config_overrides: &BTreeMap<PackageId, Config>,
         _value: &mut Value,
-        _receipts: &ConfigPointerReceipts,
     ) -> Result<(), ConfigurationError> {
         Ok(())
     }
@@ -1497,14 +1421,12 @@ impl ValueSpec for ValueSpecUnion {
         }
         Ok(())
     }
-    async fn update<Db: DbHandle>(
+    async fn update(
         &self,
         ctx: &RpcContext,
-        db: &mut Db,
         manifest: &Manifest,
         config_overrides: &BTreeMap<PackageId, Config>,
         value: &mut Value,
-        receipts: &ConfigPointerReceipts,
     ) -> Result<(), ConfigurationError> {
         if let Value::Object(o) = value {
             match o.get(&self.tag.id) {
@@ -1515,10 +1437,7 @@ impl ValueSpec for ValueSpecUnion {
                     None => Err(ConfigurationError::NoMatch(NoMatchWithPath::new(
                         MatchError::Union(tag.clone(), self.variants.keys().cloned().collect()),
                     ))),
-                    Some(spec) => {
-                        spec.update(ctx, db, manifest, config_overrides, o, receipts)
-                            .await
-                    }
+                    Some(spec) => spec.update(ctx, manifest, config_overrides, o).await,
                 },
                 Some(other) => Err(ConfigurationError::NoMatch(
                     NoMatchWithPath::new(MatchError::InvalidType("string", other.type_of()))
@@ -1643,24 +1562,16 @@ impl ValueSpec for ValueSpecPointer {
             ValueSpecPointer::System(a) => a.validate(manifest),
         }
     }
-    async fn update<Db: DbHandle>(
+    async fn update(
         &self,
         ctx: &RpcContext,
-        db: &mut Db,
         manifest: &Manifest,
         config_overrides: &BTreeMap<PackageId, Config>,
         value: &mut Value,
-        receipts: &ConfigPointerReceipts,
     ) -> Result<(), ConfigurationError> {
         match self {
-            ValueSpecPointer::Package(a) => {
-                a.update(ctx, db, manifest, config_overrides, value, receipts)
-                    .await
-            }
-            ValueSpecPointer::System(a) => {
-                a.update(ctx, db, manifest, config_overrides, value, receipts)
-                    .await
-            }
+            ValueSpecPointer::Package(a) => a.update(ctx, manifest, config_overrides, value).await,
+            ValueSpecPointer::System(a) => a.update(ctx, manifest, config_overrides, value).await,
         }
     }
     fn pointers(&self, _value: &Value) -> Result<BTreeSet<ValueSpecPointer>, NoMatchWithPath> {
@@ -1697,23 +1608,17 @@ impl PackagePointerSpec {
             PackagePointerSpec::Config(ConfigPointer { package_id, .. }) => package_id,
         }
     }
-    async fn deref<Db: DbHandle>(
+    async fn deref(
         &self,
         ctx: &RpcContext,
-        db: &mut Db,
         manifest: &Manifest,
         config_overrides: &BTreeMap<PackageId, Config>,
-        receipts: &ConfigPointerReceipts,
     ) -> Result<Value, ConfigurationError> {
         match &self {
-            PackagePointerSpec::TorKey(key) => key.deref(&manifest.id, &ctx.secret_store).await,
-            PackagePointerSpec::TorAddress(tor) => {
-                tor.deref(db, &receipts.interface_addresses_receipt).await
-            }
-            PackagePointerSpec::LanAddress(lan) => {
-                lan.deref(db, &receipts.interface_addresses_receipt).await
-            }
-            PackagePointerSpec::Config(cfg) => cfg.deref(ctx, db, config_overrides, receipts).await,
+            PackagePointerSpec::TorKey(key) => key.deref(ctx, &manifest.id).await,
+            PackagePointerSpec::TorAddress(tor) => tor.deref(ctx).await,
+            PackagePointerSpec::LanAddress(lan) => lan.deref(ctx).await,
+            PackagePointerSpec::Config(cfg) => cfg.deref(ctx, config_overrides).await,
         }
     }
 }
@@ -1754,18 +1659,14 @@ impl ValueSpec for PackagePointerSpec {
             _ => Ok(()),
         }
     }
-    async fn update<Db: DbHandle>(
+    async fn update(
         &self,
         ctx: &RpcContext,
-        db: &mut Db,
         manifest: &Manifest,
         config_overrides: &BTreeMap<PackageId, Config>,
         value: &mut Value,
-        receipts: &ConfigPointerReceipts,
     ) -> Result<(), ConfigurationError> {
-        *value = self
-            .deref(ctx, db, manifest, config_overrides, receipts)
-            .await?;
+        *value = self.deref(ctx, manifest, config_overrides).await?;
         Ok(())
     }
     fn pointers(&self, _value: &Value) -> Result<BTreeSet<ValueSpecPointer>, NoMatchWithPath> {
@@ -1788,18 +1689,18 @@ pub struct TorAddressPointer {
     interface: InterfaceId,
 }
 impl TorAddressPointer {
-    async fn deref<Db: DbHandle>(
-        &self,
-        db: &mut Db,
-        receipt: &InterfaceAddressesReceipt,
-    ) -> Result<Value, ConfigurationError> {
-        let addr = receipt
-            .interface_addresses
-            .get(db, (&self.package_id, &self.interface))
-            .await
-            .map_err(|e| ConfigurationError::SystemError(Error::from(e)))?
-            .and_then(|addresses| addresses.tor_address);
-        Ok(addr.to_owned().map(Value::String).unwrap_or(Value::Null))
+    async fn deref(&self, ctx: &RpcContext) -> Result<Value, ConfigurationError> {
+        let addr = ctx
+            .db
+            .peek()
+            .await?
+            .as_package_data()
+            .as_idx(&self.package_id)
+            .and_then(|pde| pde.as_installed())
+            .and_then(|i| i.as_interface_addresses().as_idx(&self.interface))
+            .and_then(|a| a.as_tor_address().de().transpose())
+            .transpose()?;
+        Ok(addr.map(Value::String).unwrap_or(Value::Null))
     }
 }
 impl fmt::Display for TorAddressPointer {
@@ -1809,39 +1710,6 @@ impl fmt::Display for TorAddressPointer {
                 package_id,
                 interface,
             } => write!(f, "{}: tor-address: {}", package_id, interface),
-        }
-    }
-}
-
-pub struct InterfaceAddressesReceipt {
-    interface_addresses: LockReceipt<crate::db::model::InterfaceAddresses, (String, String)>,
-}
-
-impl InterfaceAddressesReceipt {
-    pub async fn new<'a>(db: &'a mut impl DbHandle) -> Result<Self, Error> {
-        let mut locks = Vec::new();
-
-        let setup = Self::setup(&mut locks);
-        Ok(setup(&db.lock_all(locks).await?)?)
-    }
-
-    pub fn setup(
-        locks: &mut Vec<patch_db::LockTargetId>,
-    ) -> impl FnOnce(&patch_db::Verifier) -> Result<Self, Error> {
-        // let cleanup_receipts = CleanupFailedReceipts::setup(locks);
-
-        let interface_addresses = crate::db::DatabaseModel::new()
-            .package_data()
-            .star()
-            .installed()
-            .map(|x| x.interface_addresses().star())
-            .make_locker(LockType::Read)
-            .add_to_keys(locks);
-        move |skeleton_key| {
-            Ok(Self {
-                // cleanup_receipts: cleanup_receipts(skeleton_key)?,
-                interface_addresses: interface_addresses.verify(skeleton_key)?,
-            })
         }
     }
 }
@@ -1862,73 +1730,21 @@ impl fmt::Display for LanAddressPointer {
     }
 }
 impl LanAddressPointer {
-    async fn deref<Db: DbHandle>(
-        &self,
-        db: &mut Db,
-        receipts: &InterfaceAddressesReceipt,
-    ) -> Result<Value, ConfigurationError> {
-        let addr = receipts
-            .interface_addresses
-            .get(db, (&self.package_id, &self.interface))
-            .await
-            .ok()
-            .flatten()
-            .and_then(|x| x.lan_address);
+    async fn deref(&self, ctx: &RpcContext) -> Result<Value, ConfigurationError> {
+        let addr = ctx
+            .db
+            .peek()
+            .await?
+            .as_package_data()
+            .as_idx(&self.package_id)
+            .and_then(|pde| pde.as_installed())
+            .and_then(|i| i.as_interface_addresses().as_idx(&self.interface))
+            .and_then(|a| a.as_lan_address().de().transpose())
+            .transpose()?;
         Ok(addr.to_owned().map(Value::String).unwrap_or(Value::Null))
     }
 }
 
-pub struct ConfigPointerReceipts {
-    interface_addresses_receipt: InterfaceAddressesReceipt,
-    manifest_volumes: LockReceipt<crate::volume::Volumes, String>,
-    manifest_version: LockReceipt<crate::util::Version, String>,
-    config_actions: LockReceipt<super::action::ConfigActions, String>,
-}
-
-impl ConfigPointerReceipts {
-    pub async fn new<'a>(db: &'a mut impl DbHandle) -> Result<Self, Error> {
-        let mut locks = Vec::new();
-
-        let setup = Self::setup(&mut locks);
-        Ok(setup(&db.lock_all(locks).await?)?)
-    }
-
-    pub fn setup(
-        locks: &mut Vec<patch_db::LockTargetId>,
-    ) -> impl FnOnce(&patch_db::Verifier) -> Result<Self, Error> {
-        let interface_addresses_receipt = InterfaceAddressesReceipt::setup(locks);
-
-        let manifest_volumes = crate::db::DatabaseModel::new()
-            .package_data()
-            .star()
-            .installed()
-            .map(|x| x.manifest().volumes())
-            .make_locker(LockType::Read)
-            .add_to_keys(locks);
-        let manifest_version = crate::db::DatabaseModel::new()
-            .package_data()
-            .star()
-            .installed()
-            .map(|x| x.manifest().version())
-            .make_locker(LockType::Read)
-            .add_to_keys(locks);
-        let config_actions = crate::db::DatabaseModel::new()
-            .package_data()
-            .star()
-            .installed()
-            .and_then(|x| x.manifest().config())
-            .make_locker(LockType::Read)
-            .add_to_keys(locks);
-        move |skeleton_key| {
-            Ok(Self {
-                interface_addresses_receipt: interface_addresses_receipt(skeleton_key)?,
-                manifest_volumes: manifest_volumes.verify(skeleton_key)?,
-                config_actions: config_actions.verify(skeleton_key)?,
-                manifest_version: manifest_version.verify(skeleton_key)?,
-            })
-        }
-    }
-}
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct ConfigPointer {
@@ -1940,25 +1756,32 @@ impl ConfigPointer {
     pub fn select(&self, val: &Value) -> Value {
         self.selector.select(self.multi, val)
     }
-    async fn deref<Db: DbHandle>(
+    async fn deref(
         &self,
         ctx: &RpcContext,
-        db: &mut Db,
         config_overrides: &BTreeMap<PackageId, Config>,
-        receipts: &ConfigPointerReceipts,
     ) -> Result<Value, ConfigurationError> {
         if let Some(cfg) = config_overrides.get(&self.package_id) {
             Ok(self.select(&Value::Object(cfg.clone())))
         } else {
             let id = &self.package_id;
-            let version = receipts.manifest_version.get(db, id).await.ok().flatten();
-            let cfg_actions = receipts.config_actions.get(db, id).await.ok().flatten();
-            let volumes = receipts.manifest_volumes.get(db, id).await.ok().flatten();
-            if let (Some(version), Some(cfg_actions), Some(volumes)) =
-                (&version, &cfg_actions, &volumes)
-            {
+            let manifest = ctx
+                .db
+                .peek()
+                .await?
+                .as_package_data()
+                .as_idx(id)
+                .map(|pde| pde.as_manifest());
+            let cfg_actions = manifest.and_then(|m| m.as_config().transpose_ref());
+            if let (Some(manifest), Some(cfg_actions)) = (manifest, cfg_actions) {
                 let cfg_res = cfg_actions
-                    .get(ctx, &self.package_id, version, volumes)
+                    .de()?
+                    .get(
+                        ctx,
+                        &self.package_id,
+                        &manifest.as_version().de()?,
+                        &manifest.as_volumes().de()?,
+                    )
                     .await
                     .map_err(|e| ConfigurationError::SystemError(e))?;
                 if let Some(cfg) = cfg_res.config {
@@ -2092,7 +1915,7 @@ impl fmt::Display for SystemPointerSpec {
     }
 }
 impl SystemPointerSpec {
-    async fn deref<Db: DbHandle>(&self, _db: &mut Db) -> Result<Value, ConfigurationError> {
+    async fn deref(&self, ctx: &RpcContext) -> Result<Value, ConfigurationError> {
         #[allow(unreachable_code)]
         Ok(match *self {})
     }
@@ -2115,17 +1938,14 @@ impl ValueSpec for SystemPointerSpec {
     fn validate(&self, _manifest: &Manifest) -> Result<(), NoMatchWithPath> {
         Ok(())
     }
-    async fn update<Db: DbHandle>(
+    async fn update(
         &self,
-        _ctx: &RpcContext,
-        db: &mut Db,
+        ctx: &RpcContext,
         _manifest: &Manifest,
         _config_overrides: &BTreeMap<PackageId, Config>,
         value: &mut Value,
-
-        _receipts: &ConfigPointerReceipts,
     ) -> Result<(), ConfigurationError> {
-        *value = self.deref(db).await?;
+        *value = self.deref(ctx).await?;
         Ok(())
     }
     fn pointers(&self, _value: &Value) -> Result<BTreeSet<ValueSpecPointer>, NoMatchWithPath> {
