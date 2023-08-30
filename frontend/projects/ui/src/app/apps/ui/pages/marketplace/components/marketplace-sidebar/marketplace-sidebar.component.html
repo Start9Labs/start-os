@@ -5,23 +5,21 @@
     type="button"
     appearance="icon"
     icon="tuiIconRepeatLarge"
-    class="flex relative flex-shrink-0 hover:opacity-70 bg-zinc-600 rounded-lg -mt-3"
+    class="hover:opacity-70 bg-zinc-600 rounded-lg -mt-3"
     (click)="presentModalMarketplaceSettings()"
   ></button>
   <a
     slot="mobile"
-    class="flex relative hover:no-underline"
+    class="flex gap-2 relative hover:no-underline p-5"
     (click)="presentModalMarketplaceSettings()"
   >
-    <div class="relative flex flex-shrink-0">
-      <img
-        alt="Change Registry Icon"
-        width="24"
-        height="24"
-        class="transition block opacity-70 invert"
-        src="svg/repeat-outline.svg"
-      />
-    </div>
+    <img
+      alt="Change Registry Icon"
+      width="24"
+      height="24"
+      class="opacity-70 invert"
+      src="svg/repeat-outline.svg"
+    />
     <span
       class="text-base text-zinc-50 text-ellipsis overflow-hidden whitespace-nowrap"
     >

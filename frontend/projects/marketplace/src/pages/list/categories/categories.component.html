@@ -1,12 +1,12 @@
 <button
   *ngFor="let cat of categories || ['', '', '', '', '', '']"
-  class="flex relative gap-2 hover:no-underline hover:cursor-pointer mb-5 sm:p-2 sm:mb-3 w-full"
+  class="flex relative gap-2 hover:no-underline hover:cursor-pointer sm:hover:bg-[#222428] sm:hover:opacity-90 sm:w-[120%] rounded-l-lg ease-in-out delay-75 duration-300 mb-5 sm:p-2 sm:mb-3 z-50"
   routerLink="/marketplace"
   (click)="switchCategory(cat)"
   [class.category_selected]="cat === category"
 >
   <div
-    class="relative flex flex-shrink-0"
+    class="relative flex"
     [class.tui-skeleton]="!categories"
     [class.tui-skeleton_rounded]="!categories"
   >
@@ -14,7 +14,7 @@
       alt="Category Icon"
       width="24"
       height="24"
-      class="transition block opacity-70 invert"
+      class="opacity-70 invert"
       src="/svg/{{ determineIcon(cat) }}.svg"
     />
   </div>
