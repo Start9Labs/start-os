@@ -1,26 +1,20 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use patch_db::{DbHandle, LockReceipt, LockTargetId, LockType, PatchDbHandle, Verifier};
 use sqlx::{Executor, Postgres};
 use tracing::instrument;
 
 use super::PKG_ARCHIVE_DIR;
 use crate::config::{not_found, ConfigReceipts};
 use crate::context::RpcContext;
-use crate::db::model::{
-    AllPackageData, CurrentDependencies, CurrentDependents, InstalledPackageDataEntry,
-    PackageDataEntry,
-};
-use crate::dependencies::{
-    reconfigure_dependents_with_live_pointers, DependencyErrors, TryHealReceipts,
-};
+use crate::db::model::{AllPackageData, CurrentDependencies, CurrentDependents, PackageDataEntry};
+use crate::dependencies::reconfigure_dependents_with_live_pointers;
 use crate::error::ErrorCollection;
+use crate::prelude::*;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::util::{Apply, Version};
 use crate::volume::{asset_dir, script_dir};
 use crate::Error;
-
 pub struct UpdateDependencyReceipts {
     try_heal: TryHealReceipts,
     dependency_errors: LockReceipt<DependencyErrors, String>,
@@ -237,11 +231,10 @@ pub async fn cleanup_failed<Db: DbHandle>(
 }
 
 #[instrument(skip_all)]
-pub async fn remove_from_current_dependents_lists<'a>(
-    db: &mut Db,
-    id: &'a PackageId,
-    current_dependencies: &'a CurrentDependencies,
-    current_dependent_receipt: &LockReceipt<CurrentDependents, String>,
+pub fn remove_from_current_dependents_lists(
+    db: &mut PatchDb,
+    id: &PackageId,
+    current_dependencies: &CurrentDependencies,
 ) -> Result<(), Error> {
     for dep in current_dependencies.0.keys().chain(std::iter::once(id)) {
         if let Some(mut current_dependents) = current_dependent_receipt.get(db, dep).await? {
