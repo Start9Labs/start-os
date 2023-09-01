@@ -278,6 +278,7 @@ impl RpcContext {
                         deps.ser(&CurrentDependents(current_dependents))?;
                     }
                 }
+                Ok(())
             })
             .await?;
         let peek = self.db.peek().await?;
@@ -288,7 +289,9 @@ impl RpcContext {
                 | PackageDataEntryMatchModelRef::Updating(_) => {
                     cleanup_failed(self, &package_id).await
                 }
-                PackageDataEntryMatchModelRef::Removing(_) => uninstall(self, &package_id).await,
+                PackageDataEntryMatchModelRef::Removing(_) => {
+                    uninstall(self, &mut self.secret_store.acquire().await?, &package_id).await
+                }
                 PackageDataEntryMatchModelRef::Installed(m) => {
                     let version = m.as_manifest().as_version().clone().de()?;
                     for (volume_id, volume_info) in &*m.as_manifest().as_volumes().clone().de()? {

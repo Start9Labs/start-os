@@ -332,6 +332,18 @@ impl Model<PackageDataEntry> {
             ))
         }
     }
+    pub fn expect_as_installing_mut(
+        &mut self,
+    ) -> Result<&mut Model<PackageDataEntryInstalling>, Error> {
+        if let PackageDataEntryMatchModelMut::Installing(a) = self.as_match_mut() {
+            Ok(a)
+        } else {
+            Err(Error::new(
+                eyre!("package is not in installing state"),
+                ErrorKind::InvalidRequest,
+            ))
+        }
+    }
     pub fn into_manifest(self) -> Model<Manifest> {
         match self.into_match() {
             PackageDataEntryMatchModel::Installing(a) => a.into_manifest(),
@@ -379,6 +391,16 @@ impl Model<PackageDataEntry> {
             PackageDataEntryMatchModel::Restoring(_) => None,
             PackageDataEntryMatchModel::Removing(_) => None,
             PackageDataEntryMatchModel::Installed(mut a) => Some(a.as_installed_mut()),
+            PackageDataEntryMatchModel::Error(_) => None,
+        }
+    }
+    pub fn as_install_progress(&self) -> Option<&Model<InstalledPackageInfo>> {
+        match self.into_match() {
+            PackageDataEntryMatchModel::Installing(a) => Some(a.as_install_progress()),
+            PackageDataEntryMatchModel::Updating(a) => Some(a.as_install_progress()),
+            PackageDataEntryMatchModel::Restoring(_) => None,
+            PackageDataEntryMatchModel::Removing(_) => None,
+            PackageDataEntryMatchModel::Installed(_) => None,
             PackageDataEntryMatchModel::Error(_) => None,
         }
     }

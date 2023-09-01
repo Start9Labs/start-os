@@ -40,7 +40,7 @@ use crate::prelude::*;
 use crate::procedure::docker::{DockerContainer, DockerProcedure, LongRunning};
 use crate::procedure::{NoOutput, ProcedureName};
 use crate::s9pk::manifest::Manifest;
-use crate::status::MainStatus;
+use crate::status::{DependencyConfigErrors, MainStatus};
 use crate::util::docker::{get_container_ip, kill_container};
 use crate::util::NonDetachingJoinHandle;
 use crate::volume::Volume;
@@ -481,22 +481,59 @@ async fn configure(
     }
     .await?; // remove previous
 
-    // TODO @dr-bonez Could we convert this
-    // let errs = receipts
-    //     .dependency_errors
-    //     .get(db, id)
-    //     .await?
-    //     .ok_or_else(|| not_found!(id))?;
-    // tracing::warn!("Dependency Errors: {:?}", errs);
-    // let errs = DependencyErrors::init(
-    //     ctx,
-    //     db,
-    //     &manifest,
-    //     &current_dependencies,
-    //     &receipts.dependency_receipt.try_heal,
-    // )
-    // .await?;
-    // receipts.dependency_errors.set(db, errs, id).await?;
+    let mut dependency_config_errs = BTreeMap::new();
+    for (dependency, _dep_info) in current_dependencies
+        .0
+        .iter()
+        .filter(|(dep_id, _)| dep_id != &id)
+    {
+        let dependency_container = db
+            .as_package_data()
+            .as_idx(dependency)
+            .or_not_found(dependency)?
+            .as_installed()
+            .or_not_found(dependency)?
+            .as_manifest()
+            .as_containers()
+            .de()?;
+        let dependency_container = &dependency_container;
+        // check if config passes dependency check
+        if let Some(cfg) = db
+            .as_package_data()
+            .as_idx(dependency)
+            .or_not_found(dependency)?
+            .as_installed()
+            .or_not_found(dependency)?
+            .as_manifest()
+            .as_dependencies()
+            .as_idx(id)
+            .config()
+            .de()?
+        {
+            let manifest = db
+                .as_package_data()
+                .as_idx(dependency)
+                .or_not_found(dependency)?
+                .as_installed()
+                .or_not_found(dependency)?
+                .as_manifest()
+                .de()?;
+            if let Err(error) = cfg
+                .check(
+                    ctx,
+                    dependency_container,
+                    dependency,
+                    &manifest.version,
+                    &manifest.volumes,
+                    id,
+                    &config,
+                )
+                .await?
+            {
+                dependency_config_errs.insert(dependency.clone(), error);
+            }
+        }
+    }
 
     // cache current config for dependents
     configure_context
@@ -557,19 +594,8 @@ async fn configure(
                 )
                 .await?
             {
-                // let dep_err = DependencyError::ConfigUnsatisfied { error };
-                // break_transitive(
-                //     db,
-                //     dependent,
-                //     id,
-                //     dep_err,
-                //     &mut configure_context.breakages,
-                //     &receipts.break_transitive_receipts,
-                // )
-                // .await?;
+                configure_context.breakages.insert(dependent.clone(), error);
             }
-
-            // heal_all_dependents_transitive(ctx, db, id, &receipts.dependency_receipt).await?;
         }
     }
 
@@ -579,28 +605,34 @@ async fn configure(
                 remove_from_current_dependents_lists(db, id, &dependencies)?;
                 add_dependent_to_current_dependents_lists(db, id, &current_dependencies)?;
                 current_dependencies.0.remove(id);
-                db.as_package_data_mut()
+                for (dep, errs) in
+                    db.as_package_data_mut()
+                        .as_entries_mut()
+                        .and_then(|(id, pde)| {
+                            pde.as_installed_mut()
+                                .map(|i| (id, i.as_status_mut().as_dependency_config_errors_mut()))
+                        })
+                {
+                    errs.remove(id)?;
+                    if let Some(err) = configure_context.breakages.get(dep) {
+                        errs.insert(id, &err)?;
+                    }
+                }
+                let mut installed = db
+                    .as_package_data_mut()
                     .as_idx_mut(id)
                     .or_not_found(id)?
                     .as_installed_mut()
-                    .or_not_found(id)?
+                    .or_not_found(id)?;
+                installed
                     .as_current_dependencies_mut()
                     .ser(&current_dependencies)?;
-                db.as_package_data_mut()
-                    .as_idx_mut(id)
-                    .or_not_found(id)?
-                    .as_installed_mut()
-                    .or_not_found(id)?
-                    .as_system_pointers_mut()
-                    .ser(sys)?;
-                db.as_package_data_mut()
-                    .as_idx_mut(id)
-                    .or_not_found(id)?
-                    .as_installed_mut()
-                    .or_not_found(id)?
-                    .as_status_mut()
-                    .as_configured_mut()
-                    .ser(&true)
+                installed.as_system_pointers_mut().ser(sys)?;
+                let status = installed.as_status_mut();
+                status.as_configured_mut().ser(&true)?;
+                status
+                    .as_dependency_config_errors_mut()
+                    .ser(&DependencyConfigErrors(dependency_config_errs))
             })
             .await?; // add new
     }

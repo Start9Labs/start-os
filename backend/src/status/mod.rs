@@ -15,7 +15,16 @@ pub mod health_check;
 pub struct Status {
     pub configured: bool,
     pub main: MainStatus,
-    pub dependency_config_errors: BTreeMap<PackageId, String>,
+    pub dependency_config_errors: DependencyConfigErrors,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
+#[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
+pub struct DependencyConfigErrors(pub BTreeMap<PackageId, String>);
+impl Map for DependencyConfigErrors {
+    type Key = PackageId;
+    type Value = String;
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
