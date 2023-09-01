@@ -3,9 +3,6 @@ module.exports = {
   content: ['./src/**/*.{html,ts}', '../marketplace/src/**/*.{html,ts}'],
   theme: {
     extend: {
-      animation: {
-        shine: 'shine 1s',
-      },
       keyframes: {
         shine: {
           '100%': { left: '125%' },

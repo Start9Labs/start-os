@@ -6,9 +6,9 @@
     <p class="text-base mb-3">
       {{ pkg.manifest.description.long }}
     </p>
-    <h2 class="text-lg font-bold small-caps pb-3">Intended to replace</h2>
     <ng-container *ngIf="pkg.manifest.replaces as replaces">
       <div *ngIf="replaces.length">
+        <h2 class="text-lg font-bold small-caps pb-3">Intended to replace</h2>
         <tui-tag
           *ngFor="let app; index as i; of: replaces"
           size="l"

@@ -13,7 +13,7 @@
   </ng-container>
 
   <ng-template #show>
-    <div class="grid gap-8 mb-16 p-4 lg:px-16 lg:pb-8 mt-20 justify-center">
+    <div class="grid gap-8 mb-16 p-4 lg:px-16 lg:pb-8 pt-20 justify-center">
       <!-- hero -->
       <div class="flex justify-center mt-10 md:mt-0 z-0">
         <!-- control buttons -->
@@ -37,6 +37,9 @@
               alt="{{ pkg.manifest.title }} background image"
             />
           </div>
+          <div
+            class="overflow-hidden absolute w-full h-full top-0 left-0 rounded-3xl bg-zinc-700 opacity-70"
+          ></div>
           <div class="my-3 text-zinc-50 mix-blend-plus-lighter">
             <h2 class="text-2xl font-medium line-clamp-1 mb-1">
               {{ pkg.manifest.title }}
@@ -51,7 +54,7 @@
       <div
         *ngIf="pkg.screenshots"
         tuiCarouselButtons
-        class="flex items-center content-center m-0 lg:-ml-14 lg:-mr-14 lg:min-h-80 lg:h-80"
+        class="flex items-center content-center m-0 lg:-ml-14 lg:-mr-14 lg:min-h-80 lg:h-80 2xl:h-full"
       >
         <button
           tuiIconButton

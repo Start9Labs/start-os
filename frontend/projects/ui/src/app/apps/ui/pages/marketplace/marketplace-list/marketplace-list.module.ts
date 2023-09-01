@@ -47,7 +47,6 @@ const routes: Routes = [
     StoreIconComponentModule,
     ResponsiveColModule,
     TuiNotificationModule,
-    MarketplaceSettingsPageModule,
     TuiLetModule,
   ],
   declarations: [MarketplaceListPage],
