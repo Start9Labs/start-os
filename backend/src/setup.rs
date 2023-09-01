@@ -64,8 +64,12 @@ async fn setup_init(
     if let Some(password) = password {
         account.set_password(&password)?;
         account.save(&mut secrets_tx).await?;
-        db.mutate(|m| m.server_info().password_hash().ser(&account.password))
-            .await?;
+        db.mutate(|m| {
+            m.as_server_info_mut()
+                .as_password_hash_mut()
+                .ser(&account.password)
+        })
+        .await?;
     }
 
     secrets_tx.commit().await?;

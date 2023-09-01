@@ -75,8 +75,8 @@ pub struct Model<T> {
     phantom: PhantomData<T>,
 }
 impl<T: DeserializeOwned> Model<T> {
-    pub fn de(self) -> Result<T, Error> {
-        from_value(self.value)
+    pub fn de(&self) -> Result<T, Error> {
+        from_value(self.value.clone())
     }
 }
 impl<T: Serialize> Model<T> {
