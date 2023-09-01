@@ -11,10 +11,8 @@ use crate::Error;
 #[instrument(skip_all)]
 pub async fn check(ctx: &RpcContext, id: &PackageId) -> Result<(), Error> {
     let (manifest, started) = {
-        let pde = ctx
-            .db
-            .peek()
-            .await?
+        let peeked = ctx.db.peek().await?;
+        let pde = peeked
             .as_package_data()
             .as_idx(id)
             .or_not_found(id)?
@@ -37,15 +35,14 @@ pub async fn check(ctx: &RpcContext, id: &PackageId) -> Result<(), Error> {
         return Ok(());
     };
 
-    let current_dependents = ctx
-        .db
+    ctx.db
         .mutate(|v| {
-            let mut pde = v
+            let pde = v
                 .as_package_data_mut()
                 .as_idx_mut(id)
                 .or_not_found(id)?
                 .expect_as_installed_mut()?;
-            let mut status = pde.as_installed_mut().as_status_mut().as_main_mut();
+            let status = pde.as_installed_mut().as_status_mut().as_main_mut();
 
             if let MainStatus::Running { health: _, started } = status.de()? {
                 status.ser(&MainStatus::Running {
@@ -53,10 +50,7 @@ pub async fn check(ctx: &RpcContext, id: &PackageId) -> Result<(), Error> {
                     started,
                 })?;
             }
-
-            pde.as_installed().as_current_dependents().de()
+            Ok(())
         })
-        .await?;
-
-    Ok(())
+        .await
 }

@@ -76,11 +76,14 @@ impl ManageContainer {
     }
 
     /// Set the override, but don't have a guard to revert it. Used only on the mananger to do a shutdown.
-    pub(super) fn lock_state_forever(&self, seed: &manager_seed::ManagerSeed) {
-        let mut db = seed.ctx.db.handle();
-        let current_state = get_status(&mut db, &seed.manifest);
+    pub(super) async fn lock_state_forever(
+        &self,
+        seed: &manager_seed::ManagerSeed,
+    ) -> Result<(), Error> {
+        let current_state = get_status(seed.ctx.db.peek().await?, &seed.manifest);
         self.override_main_status
             .send_modify(|x| *x = Some(current_state));
+        Ok(())
     }
 
     /// We want to set the state of the service, like to start or stop
@@ -172,12 +175,11 @@ async fn save_state(
         let current: StartStop = *current_state_receiver.borrow();
         let desired: StartStop = *desired_state_receiver.borrow();
         let override_status = override_main_status_receiver.borrow().clone();
-        let mut db = seed.ctx.db.handle();
         let res = match (override_status, current, desired) {
-            (Some(status), _, _) => set_status(&mut db, &seed.manifest, &status).await,
+            (Some(status), _, _) => set_status(seed.ctx.db.clone(), &seed.manifest, &status).await,
             (None, StartStop::Start, StartStop::Start) => {
                 set_status(
-                    &mut db,
+                    seed.ctx.db.clone(),
                     &seed.manifest,
                     &MainStatus::Running {
                         started: chrono::Utc::now(),
@@ -187,13 +189,13 @@ async fn save_state(
                 .await
             }
             (None, StartStop::Start, StartStop::Stop) => {
-                set_status(&mut db, &seed.manifest, &MainStatus::Stopping).await
+                set_status(seed.ctx.db.clone(), &seed.manifest, &MainStatus::Stopping).await
             }
             (None, StartStop::Stop, StartStop::Start) => {
-                set_status(&mut db, &seed.manifest, &MainStatus::Starting).await
+                set_status(seed.ctx.db.clone(), &seed.manifest, &MainStatus::Starting).await
             }
             (None, StartStop::Stop, StartStop::Stop) => {
-                set_status(&mut db, &seed.manifest, &MainStatus::Stopped).await
+                set_status(seed.ctx.db.clone(), &seed.manifest, &MainStatus::Stopped).await
             }
         };
         if let Err(err) = res {
@@ -241,10 +243,10 @@ async fn run_main_log_result(result: RunMainResult, seed: Arc<manager_seed::Mana
     match result {
         Ok(Ok(NoOutput)) => (), // restart
         Ok(Err(e)) => {
+            // TODO @dr-bonez Do we do unstable anymore
             #[cfg(feature = "unstable")]
             {
                 use crate::notifications::NotificationLevel;
-                let mut db = seed.ctx.db.handle();
                 let started = crate::db::DatabaseModel::new()
                     .package_data()
                     .idx_model(&seed.manifest.id)
@@ -295,12 +297,8 @@ async fn run_main_log_result(result: RunMainResult, seed: Arc<manager_seed::Mana
 pub(super) fn get_status(db: Peeked, manifest: &Manifest) -> MainStatus {
     db.as_package_data()
         .as_idx(&manifest.id)
-        .or_not_found(&manifest.id)?
-        .as_installed()
-        .or_not_found(&manifest.id)?
-        .as_status()
-        .as_main()
-        .de()
+        .and_then(|x| x.as_installed())
+        .and_then(|x| x.as_status().as_main().de().ok())
         .unwrap_or_else(|_| MainStatus::Stopped)
 }
 
@@ -319,7 +317,7 @@ async fn set_status(
         else {
             return Ok(());
         };
-        installed.as_status_mut().as_main_main().ser(main_status)
+        installed.as_status_mut().as_main_mut().ser(main_status)
     })
     .await
 }

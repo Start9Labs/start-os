@@ -30,17 +30,15 @@ use crate::config::spec::ValueSpecPointer;
 use crate::config::ConfigureContext;
 use crate::context::RpcContext;
 use crate::db::model::{CurrentDependencies, CurrentDependencyInfo};
-use crate::dependencies::add_dependent_to_current_dependents_lists;
 use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::guard::TmpMountGuard;
-use crate::install::cleanup::remove_from_current_dependents_lists;
 use crate::net::net_controller::NetService;
 use crate::net::vhost::AlpnInfo;
 use crate::prelude::*;
 use crate::procedure::docker::{DockerContainer, DockerProcedure, LongRunning};
 use crate::procedure::{NoOutput, ProcedureName};
 use crate::s9pk::manifest::Manifest;
-use crate::status::{DependencyConfigErrors, MainStatus};
+use crate::status::MainStatus;
 use crate::util::docker::{get_container_ip, kill_container};
 use crate::util::NonDetachingJoinHandle;
 use crate::volume::Volume;
@@ -262,10 +260,10 @@ impl Manager {
         let manage_container = self.manage_container.clone();
         let seed = self.seed.clone();
         async move {
+            let peek = seed.ctx.db.peek().await?;
             let state_reverter = DesiredStateReverter::new(manage_container.clone());
-            let mut tx = seed.ctx.db.handle();
-            let override_guard = manage_container
-                .set_override(Some(get_status(&mut tx, &seed.manifest).backing_up()));
+            let override_guard =
+                manage_container.set_override(Some(get_status(peek, &seed.manifest).backing_up()));
             manage_container.wait_for_desired(StartStop::Stop).await;
             let backup_guard = backup_guard.lock().await;
             let guard = backup_guard.mount_package_backup(&seed.manifest.id).await?;
@@ -381,7 +379,7 @@ async fn configure(
         .or_not_found(id)?
         .as_installed()
         .or_not_found(id)?
-        .as_dependencies()
+        .as_current_dependencies()
         .de()?;
     sys.truncate(0);
     let mut current_dependencies: CurrentDependencies = CurrentDependencies(
@@ -436,8 +434,7 @@ async fn configure(
         .or_not_found(id)?
         .as_manifest()
         .as_version()
-        .de()?
-        .or_not_found(id)?;
+        .de()?;
     let volumes = db
         .as_package_data()
         .as_idx(id)
@@ -479,7 +476,6 @@ async fn configure(
                 .collect()
         });
     }
-    .await?; // remove previous
 
     let mut dependency_config_errs = BTreeMap::new();
     for (dependency, _dep_info) in current_dependencies
@@ -487,16 +483,6 @@ async fn configure(
         .iter()
         .filter(|(dep_id, _)| dep_id != &id)
     {
-        let dependency_container = db
-            .as_package_data()
-            .as_idx(dependency)
-            .or_not_found(dependency)?
-            .as_installed()
-            .or_not_found(dependency)?
-            .as_manifest()
-            .as_containers()
-            .de()?;
-        let dependency_container = &dependency_container;
         // check if config passes dependency check
         if let Some(cfg) = db
             .as_package_data()
@@ -507,7 +493,8 @@ async fn configure(
             .as_manifest()
             .as_dependencies()
             .as_idx(id)
-            .config()
+            .or_not_found(id)?
+            .as_config()
             .de()?
         {
             let manifest = db
@@ -521,7 +508,6 @@ async fn configure(
             if let Err(error) = cfg
                 .check(
                     ctx,
-                    dependency_container,
                     dependency,
                     &manifest.version,
                     &manifest.volumes,
@@ -551,16 +537,6 @@ async fn configure(
         .as_current_dependents()
         .de()?;
     for (dependent, _dep_info) in dependents.0.iter().filter(|(dep_id, _)| dep_id != &id) {
-        let dependent_container = db
-            .as_package_data()
-            .as_idx(dependent)
-            .or_not_found(dependent)?
-            .as_installed()
-            .or_not_found(dependent)?
-            .as_manifest()
-            .as_containers()
-            .de()?;
-        let dependent_container = &dependent_container;
         // check if config passes dependent check
         if let Some(cfg) = db
             .as_package_data()
@@ -571,7 +547,8 @@ async fn configure(
             .as_manifest()
             .as_dependencies()
             .as_idx(id)
-            .config()
+            .or_not_found(id)?
+            .as_config()
             .de()?
         {
             let manifest = db
@@ -585,7 +562,6 @@ async fn configure(
             if let Err(error) = cfg
                 .check(
                     ctx,
-                    dependent_container,
                     dependent,
                     &manifest.version,
                     &manifest.volumes,
@@ -605,17 +581,18 @@ async fn configure(
                 remove_from_current_dependents_lists(db, id, &dependencies)?;
                 add_dependent_to_current_dependents_lists(db, id, &current_dependencies)?;
                 current_dependencies.0.remove(id);
-                for (dep, errs) in
-                    db.as_package_data_mut()
-                        .as_entries_mut()
-                        .and_then(|(id, pde)| {
-                            pde.as_installed_mut()
-                                .map(|i| (id, i.as_status_mut().as_dependency_config_errors_mut()))
-                        })
+                for (dep, errs) in db
+                    .as_package_data_mut()
+                    .as_entries_mut()?
+                    .into_iter()
+                    .filter_map(|(id, pde)| {
+                        pde.as_installed_mut()
+                            .map(|i| (id, i.as_status_mut().as_dependency_config_errors_mut()))
+                    })
                 {
                     errs.remove(id)?;
-                    if let Some(err) = configure_context.breakages.get(dep) {
-                        errs.insert(id, &err)?;
+                    if let Some(err) = configure_context.breakages.get(&dep) {
+                        errs.insert(id, err)?;
                     }
                 }
                 let mut installed = db
