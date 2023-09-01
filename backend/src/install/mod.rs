@@ -119,12 +119,12 @@ impl std::fmt::Display for MinMax {
     }
 }
 
-// #[command(
-//     custom_cli(cli_install(async, context(CliContext))),
-//     display(display_none),
-//     metadata(sync_db = true)
-// )]
-// #[instrument(skip_all)]
+#[command(
+    custom_cli(cli_install(async, context(CliContext))),
+    display(display_none),
+    metadata(sync_db = true)
+)]
+#[instrument(skip_all)]
 pub async fn install(
     #[context] ctx: RpcContext,
     #[arg] id: String,
@@ -654,7 +654,7 @@ pub async fn uninstall(
     Ok(())
 }
 
-// #[instrument(skip_all)]
+#[instrument(skip_all)]
 pub async fn download_install_s9pk(
     ctx: &RpcContext,
     temp_manifest: &Manifest,
@@ -791,7 +791,9 @@ pub async fn download_install_s9pk(
         Ok(())
     }
 }
-// #[instrument(skip_all)]
+
+/// TODO @Blu-J @dr-bonez Need to make sure that we end load the db models
+#[instrument(skip_all)]
 pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
     ctx: &RpcContext,
     pkg_id: &PackageId,
@@ -1101,16 +1103,16 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         CurrentDependents(deps)
     };
 
-    let new_dependency_errors = DependencyConfigErrors::init(
-        ctx,
-        &manifest,
-        &current_dependencies,
-        &receipts.config.try_heal_receipts,
-    )
-    .await?;
-    ctx.db
+    let new_dependency_errors =
+        DependencyConfigErrors::init(ctx, &manifest, &current_dependencies).await?;
+    let prev = ctx
+        .db
         .mutate(|db| {
-            let mut pde = db.as_package_data().as_idx(pkg_id).or_not_found(pkg_id)?.de()?;
+            let mut pde = db
+                .as_package_data()
+                .as_idx(pkg_id)
+                .or_not_found(pkg_id)?
+                .de()?;
             let installed = InstalledPackageInfo {
                 status: Status {
                     configured: manifest.config.is_none(),
@@ -1144,25 +1146,30 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
                     static_files,
                 }),
             );
-            db.as_package_data_mut().insert(pkg_id, &pde)
+            db.as_package_data_mut().insert(pkg_id, &pde)?;
+            // TODO @dr-bonez
             // UpdateDependencyReceipts
-            let mut dep_errs = db.as_package_data().as_idx(pkg_id).or_not_found(pkg_id)?
-                .as_installed().or_not_found(pkg_id)?
-                .as_status()
-                .as_dependency_errors()
-                .ser()?;
-                *dep_errs = DependencyErrors::init(
-                    ctx,
-                    &mut tx,
-                    &manifest,
-                    &current_dependencies,
-                    &receipts.config.try_heal_receipts,
-                )
-                .await?;
-                dep_errs.save(&mut tx).await?;
+            // let mut dep_errs = db
+            //     .as_package_data()
+            //     .as_idx(pkg_id)
+            //     .or_not_found(pkg_id)?
+            //     .as_installed()
+            //     .or_not_found(pkg_id)?
+            //     .as_status()
+            //     .as_dependency_errors()
+            //     .ser()?;
+            // *dep_errs = DependencyConfigErrors::init(
+            //     ctx,
+            //     &mut tx,
+            //     &manifest,
+            //     &current_dependencies,
+            //     &receipts.config.try_heal_receipts,
+            // )
+            // .await?;
+            // dep_errs.save(&mut tx).await?;
+            Ok(prev)
         })
         .await?;
-    
 
     if let PackageDataEntry::Updating(PackageDataEntryUpdating {
         installed: prev, ..
@@ -1197,14 +1204,11 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         } else {
             migration.or(prev_migration)
         };
-
-        remove_from_current_dependents_lists(
-            &mut tx,
-            pkg_id,
-            &prev.current_dependencies,
-            &receipts.config.current_dependents,
-        )
-        .await?; // remove previous
+        ctx.db
+            .mutate(|db| {
+                remove_from_current_dependents_lists(db, pkg_id, &prev.current_dependencies)
+            })
+            .await?;
 
         let configured = if let Some(f) = viable_migration {
             f.await?.configured && prev_is_configured
@@ -1224,42 +1228,39 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             };
             crate::config::configure(&ctx, pkg_id, configure_context).await?;
         } else {
-            add_dependent_to_current_dependents_lists(
-                &mut tx,
-                pkg_id,
-                &current_dependencies,
-                &receipts.config.current_dependents,
-            )
-            .await?; // add new
+            ctx.db
+                .mutate(|db| {
+                    add_dependent_to_current_dependents_lists(db, pkg_id, &current_dependencies)
+                })
+                .await?;
         }
         if configured || manifest.config.is_none() {
-            let mut main_status = crate::db::DatabaseModel::new()
-                .package_data()
-                .idx_model(pkg_id)
-                .expect(&mut tx)
-                .await?
-                .installed()
-                .expect(&mut tx)
-                .await?
-                .status()
-                .main()
-                .get_mut(&mut tx)
+            ctx.db
+                .mutate(|db| {
+                    db.as_package_data()
+                        .as_idx(pkg_id)
+                        .or_not_found(pkg_id)?
+                        .as_installed()
+                        .or_not_found(pkg_id)?
+                        .as_status()
+                        .as_main()
+                        .ser(&prev.status.main)
+                })
                 .await?;
-            *main_status = prev.status.main;
-            main_status.save(&mut tx).await?;
         }
-        update_dependency_errors_of_dependents(
-            ctx,
-            &mut tx,
-            pkg_id,
-            &CurrentDependents({
-                let mut current_dependents = current_dependents.0.clone();
-                current_dependents.append(&mut prev.current_dependents.0.clone());
-                current_dependents
-            }),
-            &receipts.config.update_dependency_receipts,
-        )
-        .await?;
+        // TODO @dr-bonez DELETE right?
+        // update_dependency_errors_of_dependents(
+        //     ctx,
+        //     &mut tx,
+        //     pkg_id,
+        //     &CurrentDependents({
+        //         let mut current_dependents = current_dependents.0.clone();
+        //         current_dependents.append(&mut prev.current_dependents.0.clone());
+        //         current_dependents
+        //     }),
+        //     &receipts.config.update_dependency_receipts,
+        // )
+        // .await?;
         if &prev.manifest.version != version {
             cleanup(ctx, &prev.manifest.id, &prev.manifest.version).await?;
         }
@@ -1268,53 +1269,45 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             .backup
             .restore(
                 ctx,
-                &mut tx,
                 pkg_id,
                 version,
                 &manifest.interfaces,
                 &manifest.volumes,
             )
             .await?;
-        add_dependent_to_current_dependents_lists(
-            &mut tx,
-            pkg_id,
-            &current_dependencies,
-            &receipts.config.current_dependents,
-        )
-        .await?;
-        update_dependency_errors_of_dependents(
-            ctx,
-            &mut tx,
-            pkg_id,
-            &current_dependents,
-            &receipts.config.update_dependency_receipts,
-        )
-        .await?;
-    } else {
-        add_dependent_to_current_dependents_lists(
-            &mut tx,
-            pkg_id,
-            &current_dependencies,
-            &receipts.config.current_dependents,
-        )
-        .await?;
-        update_dependency_errors_of_dependents(
-            ctx,
-            &mut tx,
-            pkg_id,
-            &current_dependents,
-            &receipts.config.update_dependency_receipts,
-        )
-        .await?;
-    }
-
-    if let Some(installed) = pde.installed() {
-        reconfigure_dependents_with_live_pointers(ctx, &mut tx, &receipts.config, installed)
+        ctx.db
+            .mutate(|db| {
+                add_dependent_to_current_dependents_lists(db, pkg_id, &current_dependencies)
+            })
             .await?;
+        // TODO @dr-bonez DELETE right?
+        // update_dependency_errors_of_dependents(ctx, pkg_id, &current_dependents).await?;
+    } else {
+        ctx.db
+            .mutate(|db| {
+                add_dependent_to_current_dependents_lists(db, pkg_id, &current_dependencies)
+            })
+            .await?;
+        // TODO @dr-bonez DELETE right?
+        // update_dependency_errors_of_dependents(
+        //     ctx,
+        //     pkg_id,
+        //     &current_dependents,
+        //     &receipts.config.update_dependency_receipts,
+        // )
+        // .await?;
     }
 
-    sql_tx.commit().await?;
-    tx.commit().await?;
+    if let Some(installed) = db
+        .as_package_data()
+        .as_idx(pkg_id)
+        .or_not_found(pkg_id)?
+        .de()?
+        .as_installed()
+        .or_not_found(pkg_id)?
+    {
+        reconfigure_dependents_with_live_pointers(ctx, installed).await?;
+    }
 
     tracing::info!("Install {}@{}: Complete", pkg_id, version);
 
