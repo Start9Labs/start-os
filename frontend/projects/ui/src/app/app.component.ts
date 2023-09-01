@@ -36,6 +36,7 @@ export class AppComponent implements OnDestroy {
   readonly sidebarOpen$ = this.splitPane.sidebarOpen$
   readonly widgetDrawer$ = this.clientStorageService.widgetDrawer$
   readonly theme$ = inject(THEME)
+  // @TODO theres a bug here disabling the side menu from appearing on first login; refresh fixes
   readonly navigation$ = combineLatest([
     this.authService.isVerified$,
     this.router.events.pipe(map(() => hasNavigation(this.router.url))),

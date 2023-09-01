@@ -369,3 +369,145 @@ ul {
 .small-caps {
   font-variant: all-small-caps;
 }
+
+.externalLink {
+  color: var(--ion-color-secondary);
+}
+
+[tuiWrapper][data-appearance='primary'] {
+  background: #3880ff;
+  color: #fff;
+
+  .wrapper-hover {
+    background: #4c8dff;
+  }
+
+  ;
+
+  .wrapper-active {
+    background: #3171e0;
+  }
+
+  ;
+
+  .wrapper-disabled {
+    background: #eaecee;
+  }
+
+  ;
+}
+
+[tuiWrapper][data-appearance='secondary'] {
+  background: #3dc2ff;
+  color: #fff;
+
+  .wrapper-hover {
+    background: #50c8ff;
+  }
+
+  ;
+
+  .wrapper-active {
+    background: #36abe0;
+  }
+
+  ;
+
+  .wrapper-disabled {
+    background: #eaecee;
+  }
+
+  ;
+}
+
+[tuiWrapper][data-appearance='tertiary'] {
+  background: #5260ff;
+  color: #fff;
+
+  .wrapper-hover {
+    background: #6370ff;
+  }
+
+  ;
+
+  .wrapper-active {
+    background: #4854e0;
+  }
+
+  ;
+
+  .wrapper-disabled {
+    background: #eaecee;
+  }
+
+  ;
+}
+
+[tuiWrapper][data-appearance='success'] {
+  background: #2dd36f;
+  color: #fff;
+
+  .wrapper-hover {
+    background: #42d77d;
+  }
+
+  ;
+
+  .wrapper-active {
+    background: #28ba62;
+  }
+
+  ;
+
+  .wrapper-disabled {
+    background: #eaecee;
+  }
+
+  ;
+}
+
+[tuiWrapper][data-appearance='warning'] {
+  background: #ffc409;
+  color: #fff;
+
+  .wrapper-hover {
+    background: #ffca22;
+  }
+
+  ;
+
+  .wrapper-active {
+    background: #e0ac08;
+  }
+
+  ;
+
+  .wrapper-disabled {
+    background: #eaecee;
+  }
+
+  ;
+}
+
+[tuiWrapper][data-appearance='danger'] {
+  background: #eb445a;
+  color: #fff;
+
+  .wrapper-hover {
+    background: #ed576b;
+  }
+
+  ;
+
+  .wrapper-active {
+    background: #cf3c4f;
+  }
+
+  ;
+
+  .wrapper-disabled {
+    background: #eaecee;
+  }
+
+  ;
+}
