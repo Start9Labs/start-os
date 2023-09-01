@@ -52,8 +52,6 @@ pub async fn add(
     #[context] ctx: RpcContext,
     #[arg] ssid: String,
     #[arg] password: String,
-    #[arg] priority: isize,
-    #[arg] connect: bool,
 ) -> Result<(), Error> {
     let wifi_manager = wifi_manager(&ctx)?;
     if !ssid.is_ascii() {
@@ -73,22 +71,18 @@ pub async fn add(
         wifi_manager: WifiManager,
         ssid: &Ssid,
         password: &Psk,
-        priority: isize,
     ) -> Result<(), Error> {
         tracing::info!("Adding new WiFi network: '{}'", ssid.0);
         let mut wpa_supplicant = wifi_manager.write().await;
-        wpa_supplicant
-            .add_network(db, ssid, password, priority)
-            .await?;
+        wpa_supplicant.add_network(db, ssid, password).await?;
         drop(wpa_supplicant);
         Ok(())
     }
     if let Err(err) = add_procedure(
-        ctx.db,
+        ctx.db.clone(),
         wifi_manager.clone(),
         &Ssid(ssid.clone()),
         &Psk(password.clone()),
-        priority,
     )
     .await
     {
@@ -113,7 +107,7 @@ pub async fn connect(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<
         ));
     }
     async fn connect_procedure(
-        mut db: PatchDb,
+        db: PatchDb,
         wifi_manager: WifiManager,
         ssid: &Ssid,
     ) -> Result<(), Error> {
@@ -121,7 +115,7 @@ pub async fn connect(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<
         let current = wpa_supplicant.get_current_network().await?;
         drop(wpa_supplicant);
         let mut wpa_supplicant = wifi_manager.write().await;
-        let connected = wpa_supplicant.select_network(&mut db, ssid).await?;
+        let connected = wpa_supplicant.select_network(db.clone(), ssid).await?;
         if connected {
             tracing::info!("Successfully connected to WiFi: '{}'", ssid.0);
         } else {
@@ -131,19 +125,15 @@ pub async fn connect(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<
                     tracing::info!("No WiFi to revert to!");
                 }
                 Some(current) => {
-                    wpa_supplicant.select_network(&mut db, &current).await?;
+                    wpa_supplicant.select_network(db, &current).await?;
                 }
             }
         }
         Ok(())
     }
 
-    if let Err(err) = connect_procedure(
-        &mut ctx.db.handle(),
-        wifi_manager.clone(),
-        &Ssid(ssid.clone()),
-    )
-    .await
+    if let Err(err) =
+        connect_procedure(ctx.db.clone(), wifi_manager.clone(), &Ssid(ssid.clone())).await
     {
         tracing::error!("Failed to connect to WiFi network '{}': {}", &ssid, err);
         return Err(Error::new(
@@ -176,9 +166,7 @@ pub async fn delete(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<(
         return Err(Error::new(color_eyre::eyre::eyre!("Forbidden: Deleting this network would make your server unreachable. Either connect to ethernet or connect to a different WiFi network to remedy this."), ErrorKind::Wifi));
     }
 
-    wpa_supplicant
-        .remove_network(&mut ctx.db.handle(), &ssid)
-        .await?;
+    wpa_supplicant.remove_network(ctx.db.clone(), &ssid).await?;
     Ok(())
 }
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -397,7 +385,7 @@ pub async fn set_country(
     }
     wpa_supplicant.remove_all_connections().await?;
 
-    wpa_supplicant.save_config(&mut ctx.db.handle()).await?;
+    wpa_supplicant.save_config(ctx.db.clone()).await?;
 
     Ok(())
 }
@@ -645,7 +633,7 @@ impl WpaCli {
 
         Ok(())
     }
-    pub async fn save_config(&mut self, mut db: PatchDb) -> Result<(), Error> {
+    pub async fn save_config(&mut self, db: PatchDb) -> Result<(), Error> {
         let new_country = Some(self.get_country_low().await?);
         db.mutate(|d| {
             d.as_server_info_mut()
@@ -752,20 +740,13 @@ impl WpaCli {
         db: PatchDb,
         ssid: &Ssid,
         psk: &Psk,
-        priority: isize,
     ) -> Result<(), Error> {
         self.set_add_network_low(ssid, psk).await?;
         self.save_config(db).await?;
         Ok(())
     }
     #[instrument(skip_all)]
-    pub async fn add_network(
-        &mut self,
-        db: PatchDb,
-        ssid: &Ssid,
-        psk: &Psk,
-        priority: isize,
-    ) -> Result<(), Error> {
+    pub async fn add_network(&mut self, db: PatchDb, ssid: &Ssid, psk: &Psk) -> Result<(), Error> {
         self.add_network_low(ssid, psk).await?;
         self.save_config(db).await?;
         Ok(())

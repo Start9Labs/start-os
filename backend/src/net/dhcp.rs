@@ -63,8 +63,7 @@ pub async fn update(#[context] ctx: RpcContext, #[arg] interface: String) -> Res
             .mutate(|db| {
                 db.as_server_info_mut()
                     .as_ip_info_mut()
-                    .as_idx_model_mut(&interface)
-                    .ser(&ip_info)
+                    .insert(&interface, &ip_info)
             })
             .await?;
 

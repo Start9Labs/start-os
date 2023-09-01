@@ -368,15 +368,14 @@ pub async fn reset_password(
     }
     account.set_password(&new_password)?;
     account.save(&ctx.secret_store).await?;
+    let account_password = &account.password;
     ctx.db
         .mutate(|d| {
             d.as_server_info_mut()
                 .as_password_hash_mut()
-                .ser(&account.password)
+                .ser(account_password)
         })
-        .await?;
-
-    Ok(())
+        .await
 }
 
 #[command(

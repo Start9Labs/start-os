@@ -28,12 +28,12 @@ impl VersionT for Version {
         let mut tor_addr = db
             .mutate(|v| {
                 let mut tor_address_lens = v.as_server_info_mut().as_tor_address_mut();
-                let mut tor_addr = tor_address_lens.de();
+                let mut tor_addr = tor_address_lens.de()?;
                 tor_addr
                     .set_scheme("https")
                     .map_err(|_| eyre!("unable to update url scheme to https"))
                     .with_kind(crate::ErrorKind::ParseUrl)?;
-                tor_address_lens.ser(tor_addr);
+                tor_address_lens.ser(&tor_addr)
             })
             .await?;
         Ok(())

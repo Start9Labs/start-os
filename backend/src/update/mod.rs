@@ -1,13 +1,11 @@
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 
 use clap::ArgMatches;
 use color_eyre::eyre::{eyre, Result};
 use emver::Version;
 use helpers::{Rsync, RsyncOptions};
 use lazy_static::lazy_static;
-use patch_db::Revision;
 use reqwest::Url;
 use rpc_toolkit::command;
 use tokio::process::Command;
@@ -77,7 +75,7 @@ fn display_update_result(status: UpdateResult, _: &ArgMatches) {
 }
 
 #[instrument(skip_all)]
-async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<(), Error> {
+async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<Option<()>, Error> {
     let peeked = ctx.db.peek().await?;
     let latest_version: Version = ctx
         .client
@@ -93,10 +91,9 @@ async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<(), Er
         .with_kind(ErrorKind::Network)?
         .version;
     let current_version = peeked.as_server_info().as_version().de()?;
-    if latest_version < current_version {
+    if latest_version < *current_version {
         return Ok(None);
     }
-    let status = peeked.as_status_info().as_server_status().de()?;
 
     let eos_url = EosUrl {
         base: marketplace_url,
@@ -105,7 +102,7 @@ async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<(), Er
     let status = ctx
         .db
         .mutate(|db| {
-            let mut status = peeked.as_status_info().as_server_status().de()?;
+            let mut status = peeked.as_server_info().as_status_info().de()?;
             if status.update_progress.is_some() {
                 return Err(Error::new(
                     eyre!("Server is already updating!"),
@@ -117,7 +114,8 @@ async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<(), Er
                 size: None,
                 downloaded: 0,
             });
-            db.as_status_info_mut().as_server_status_mut().ser(&status)
+            db.as_server_info_mut().as_status_info_mut().ser(&status)?;
+            Ok(status)
         })
         .await?;
 
@@ -153,7 +151,7 @@ async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<(), Er
             Err(e) => {
                 ctx.notification_manager
                     .notify(
-                        ctx.db,
+                        ctx.db.clone(),
                         None,
                         NotificationLevel::Error,
                         "embassyOS Update Failed".to_owned(),
@@ -182,8 +180,9 @@ async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<(), Er
                     .expect("could not play song: update failed 4");
             }
         }
+        Ok::<(), Error>(())
     });
-    Ok(())
+    Ok(Some(()))
 }
 
 #[instrument(skip_all)]
@@ -197,13 +196,13 @@ async fn do_update(ctx: RpcContext, eos_url: EosUrl) -> Result<(), Error> {
     while let Some(progress) = rsync.progress.next().await {
         ctx.db
             .mutate(|db| {
-                db.as_server_status_mut()
+                db.as_server_info_mut()
                     .as_status_info_mut()
                     .as_update_progress_mut()
-                    .ser(&UpdateProgress {
+                    .ser(&Some(UpdateProgress {
                         size: Some(100),
                         downloaded: (100.0 * progress) as u64,
-                    })
+                    }))
             })
             .await?;
     }

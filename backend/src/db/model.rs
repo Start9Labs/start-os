@@ -7,7 +7,7 @@ use emver::VersionRange;
 use ipnet::{Ipv4Net, Ipv6Net};
 use isocountry::CountryCode;
 use itertools::Itertools;
-use models::{AddressId, DataUrl, HealthCheckId, InterfaceId};
+use models::{DataUrl, HealthCheckId, InterfaceId};
 use openssl::hash::MessageDigest;
 use patch_db::{HasModel, Value};
 use reqwest::Url;
@@ -15,7 +15,6 @@ use serde::{Deserialize, Serialize};
 use ssh_key::public::Ed25519PublicKey;
 
 use crate::account::AccountInfo;
-use crate::action::Actions;
 use crate::install::progress::InstallProgress;
 use crate::net::utils::{get_iface_ipv4_addr, get_iface_ipv6_addr};
 use crate::prelude::*;

@@ -56,7 +56,7 @@ impl VersionT for Version {
         let mut account = AccountInfo::load(secrets).await?;
         let account = db
             .mutate(|d| {
-                d.as_server_info_mut().as_pub_key_mut().ser(
+                d.as_server_info_mut().as_pubkey_mut().ser(
                     &ssh_key::PublicKey::from(Ed25519PublicKey::from(&account.key.ssh_key()))
                         .to_openssh()?,
                 );
@@ -83,6 +83,7 @@ impl VersionT for Version {
         let parsed_url = Some(COMMUNITY_URL.parse().unwrap());
         db.mutate(|d| {
             let mut ui = d.as_ui().de()?;
+            use imbl_value::json;
             ui["marketplace"]["known-hosts"][COMMUNITY_URL] = json!({});
             ui["marketplace"]["known-hosts"][MAIN_REGISTRY] = json!({});
             for package_id in d.as_package_data().keys()? {
@@ -90,7 +91,7 @@ impl VersionT for Version {
                     continue;
                 }
                 d.as_package_data_mut()
-                    .as_idx_model_mut(&package_id)
+                    .as_idx_mut(&package_id)
                     .or_not_found(&package_id)?
                     .as_installed_mut()
                     .or_not_found(&package_id)?
@@ -108,12 +109,12 @@ impl VersionT for Version {
         db.mutate(|d| {
             let mut ui = d.as_ui().de()?;
             let parsed_url = Some(MAIN_REGISTRY.parse().unwrap());
-            for package_id in db.as_package_data().keys()? {
+            for package_id in d.as_package_data().keys()? {
                 if !COMMUNITY_SERVICES.contains(&&*package_id.to_string()) {
                     continue;
                 }
                 d.as_package_data_mut()
-                    .as_idx_model_mut(&package_id)
+                    .as_idx_mut(&package_id)
                     .or_not_found(&package_id)?
                     .as_installed_mut()
                     .or_not_found(&package_id)?
@@ -121,7 +122,7 @@ impl VersionT for Version {
                     .ser(&parsed_url)?;
             }
 
-            if let Value::Object(ref mut obj) = *ui {
+            if let imbl_value::Value::Object(ref mut obj) = ui {
                 obj.remove("theme");
                 obj.remove("widgets");
             }

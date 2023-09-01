@@ -39,16 +39,6 @@ impl Version {
     #[cfg(test)]
     fn as_sem_ver(&self) -> emver::Version {
         match self {
-            Version::V0_3_0(Wrapper(x)) => x.semver(),
-            Version::V0_3_0_1(Wrapper(x)) => x.semver(),
-            Version::V0_3_0_2(Wrapper(x)) => x.semver(),
-            Version::V0_3_0_3(Wrapper(x)) => x.semver(),
-            Version::V0_3_1(Wrapper(x)) => x.semver(),
-            Version::V0_3_1_1(Wrapper(x)) => x.semver(),
-            Version::V0_3_1_2(Wrapper(x)) => x.semver(),
-            Version::V0_3_2(Wrapper(x)) => x.semver(),
-            Version::V0_3_2_1(Wrapper(x)) => x.semver(),
-            Version::V0_3_3(Wrapper(x)) => x.semver(),
             Version::V0_3_4(Wrapper(x)) => x.semver(),
             Version::V0_3_4_1(Wrapper(x)) => x.semver(),
             Version::V0_3_4_2(Wrapper(x)) => x.semver(),
@@ -72,10 +62,10 @@ where
     async fn down(&self, db: PatchDb, secrets: &PgPool) -> Result<(), Error>;
     async fn commit(&self, db: PatchDb) -> Result<(), Error> {
         db.mutate(|d| {
-            db.as_server_info_mut()
-                .as_server_version_mut()
+            d.as_server_info_mut()
+                .as_version_mut()
                 .ser(&self.semver().into())?;
-            db.as_server_info_mut()
+            d.as_server_info_mut()
                 .as_eos_version_compat()
                 .ser(&self.compat().clone())?;
             Ok(())
@@ -170,23 +160,14 @@ where
 }
 
 pub async fn init(db: &PatchDb, secrets: &PgPool) -> Result<(), Error> {
-    let version = Version::from_util_version(db.peek().await?.as_server_version().de());
+    let version = Version::from_util_version(db.peek().await?.as_server_info().as_version().de()?);
+
     match version {
-        Version::V0_3_0(v) => v.0.migrate_to(&Current::new(), db, secrets).await?,
-        Version::V0_3_0_1(v) => v.0.migrate_to(&Current::new(), db, secrets).await?,
-        Version::V0_3_0_2(v) => v.0.migrate_to(&Current::new(), db, secrets).await?,
-        Version::V0_3_0_3(v) => v.0.migrate_to(&Current::new(), db, secrets).await?,
-        Version::V0_3_1(v) => v.0.migrate_to(&Current::new(), db, secrets).await?,
-        Version::V0_3_1_1(v) => v.0.migrate_to(&Current::new(), db, secrets).await?,
-        Version::V0_3_1_2(v) => v.0.migrate_to(&Current::new(), db, secrets).await?,
-        Version::V0_3_2(v) => v.0.migrate_to(&Current::new(), db, secrets).await?,
-        Version::V0_3_2_1(v) => v.0.migrate_to(&Current::new(), db, secrets).await?,
-        Version::V0_3_3(v) => v.0.migrate_to(&Current::new(), db, secrets).await?,
-        Version::V0_3_4(v) => v.0.migrate_to(&Current::new(), db, secrets).await?,
-        Version::V0_3_4_1(v) => v.0.migrate_to(&Current::new(), db, secrets).await?,
-        Version::V0_3_4_2(v) => v.0.migrate_to(&Current::new(), db, secrets).await?,
-        Version::V0_3_4_3(v) => v.0.migrate_to(&Current::new(), db, secrets).await?,
-        Version::V0_3_4_4(v) => v.0.migrate_to(&Current::new(), db, secrets).await?,
+        Version::V0_3_4(v) => v.0.migrate_to(&Current::new(), db.clone(), secrets).await?,
+        Version::V0_3_4_1(v) => v.0.migrate_to(&Current::new(), db.clone(), secrets).await?,
+        Version::V0_3_4_2(v) => v.0.migrate_to(&Current::new(), db.clone(), secrets).await?,
+        Version::V0_3_4_3(v) => v.0.migrate_to(&Current::new(), db.clone(), secrets).await?,
+        Version::V0_3_4_4(v) => v.0.migrate_to(&Current::new(), db.clone(), secrets).await?,
         Version::Other(_) => {
             return Err(Error::new(
                 eyre!("Cannot downgrade"),

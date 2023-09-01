@@ -78,6 +78,7 @@ http = "0.2.8"
 hyper = { version = "0.14.20", features = ["full"] }
 hyper-ws-listener = "0.2.0"
 imbl = "2.0.0"
+imbl-value = { git = "https://github.com/Start9Labs/imbl-value.git" }
 include_dir = "0.7.3"
 indexmap = { version = "1.9.1", features = ["serde"] }
 ipnet = { version = "2.7.1", features = ["serde"] }
