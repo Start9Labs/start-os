@@ -20,8 +20,9 @@
       <div class="text-base">
         <p>Version {{ pkg.manifest.version }}</p>
         <p
+          safeLinks
           class="flex-wrap mt-1"
-          [innerHTML]="pkg.manifest['release-notes']"
+          [innerHTML]="pkg.manifest['release-notes'] | markdown | dompurify"
         ></p>
       </div>
       <button
