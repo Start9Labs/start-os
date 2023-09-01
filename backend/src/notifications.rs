@@ -30,7 +30,6 @@ pub async fn list(
     #[arg] limit: Option<u32>,
 ) -> Result<Vec<Notification>, Error> {
     let limit = limit.unwrap_or(40);
-    let peek = ctx.db.peek().await?;
     match before {
         None => {
             let records = sqlx::query!(
@@ -70,8 +69,8 @@ pub async fn list(
             ctx.db
                 .mutate(|d| {
                     d.as_server_info_mut()
-                        .as_unread_notification_count()
-                        .ser(&0)?
+                        .as_unread_notification_count_mut()
+                        .ser(&0)
                 })
                 .await?;
             Ok(notifs)
@@ -141,15 +140,7 @@ pub async fn create(
     #[arg] message: String,
 ) -> Result<(), Error> {
     ctx.notification_manager
-        .notify(
-            &mut ctx.db.handle(),
-            package,
-            level,
-            title,
-            message,
-            (),
-            None,
-        )
+        .notify(ctx.db.clone(), package, level, title, message, (), None)
         .await
 }
 
@@ -267,9 +258,13 @@ impl NotificationManager {
         message,
         sql_data
     ).execute(&self.sqlite).await?;
-        *count += 1;
-        count.save(db).await?;
-        Ok(())
+        count += 1;
+        db.mutate(|db| {
+            db.as_server_info_mut()
+                .as_unread_notification_count_mut()
+                .ser(&count)
+        })
+        .await
     }
     async fn should_notify(
         &self,

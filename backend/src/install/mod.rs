@@ -42,6 +42,7 @@ use crate::install::cleanup::cleanup;
 use crate::install::progress::{InstallProgress, InstallProgressTracker};
 use crate::marketplace::with_query_params;
 use crate::notifications::NotificationLevel;
+use crate::prelude::*;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::s9pk::reader::S9pkReader;
 use crate::status::{DependencyConfigErrors, MainStatus, Status};
@@ -61,23 +62,23 @@ pub const PKG_WASM_DIR: &str = "package-data/wasm";
 
 #[command(display(display_serializable))]
 pub async fn list(#[context] ctx: RpcContext) -> Result<Value, Error> {
-    Ok(ctx.db.peek().await?.as_package_data().as_entries()
+    Ok(ctx.db.peek().await?.as_package_data().as_entries()?
         .iter()
         .filter_map(|(id, pde)| {
-            serde_json::to_value(match pde {
-                PackageDataEntry::Installed(PackageDataEntryInstalled { installed, .. }) => {
+            serde_json::to_value(match pde.as_match() {
+                PackageDataEntryMatchModelRef::Installed(PackageDataEntryInstalled { installed, .. }) => {
                     json!({ "status":"installed","id": id.clone(), "version": installed.manifest.version.clone()})
                 }
-                PackageDataEntry::Installing(PackageDataEntryInstalling { manifest, install_progress, .. }) => {
+                PackageDataEntryMatchModelRef::Installing(PackageDataEntryInstalling { manifest, install_progress, .. }) => {
                     json!({ "status":"installing","id": id.clone(), "version": manifest.version.clone(), "progress": install_progress.clone()})
                 }
-                PackageDataEntry::Updating(PackageDataEntryUpdating { manifest, installed, install_progress, .. }) => {
+                PackageDataEntryMatchModelRef::Updating(PackageDataEntryUpdating { manifest, installed, install_progress, .. }) => {
                     json!({ "status":"updating","id": id.clone(), "version": installed.manifest.version.clone(), "progress": install_progress.clone()})
                 }
-                PackageDataEntry::Restoring(PackageDataEntryRestoring { manifest,  install_progress, .. }) => {
+                PackageDataEntryMatchModelRef::Restoring(PackageDataEntryRestoring { manifest,  install_progress, .. }) => {
                     json!({ "status":"restoring","id": id.clone(), "version": manifest.version.clone(), "progress": install_progress.clone()})
                 }
-                PackageDataEntry::Removing(PackageDataEntryRemoving { manifest, .. }) => {
+                PackageDataEntryMatchModelRef::Removing(PackageDataEntryRemoving { manifest, .. }) => {
                     json!({ "status":"removing", "id": id.clone(), "version": manifest.version.clone()})
                 }
             })

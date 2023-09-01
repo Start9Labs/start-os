@@ -10,12 +10,11 @@ use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use crate::config::action::ConfigRes;
+use crate::config::{action::ConfigRes, not_found};
 use crate::config::{Config, ConfigSpec, ConfigureContext};
 use crate::context::RpcContext;
 use crate::db::model::{CurrentDependencies, Database, InstalledPackageInfo};
 use crate::prelude::*;
-use crate::procedure::docker::DockerContainers;
 use crate::procedure::{NoOutput, PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::PackageId;
 use crate::util::serde::display_serializable;
@@ -72,7 +71,6 @@ impl DependencyConfig {
     pub async fn check(
         &self,
         ctx: &RpcContext,
-        container: &Option<DockerContainers>,
         dependent_id: &PackageId,
         dependent_version: &Version,
         dependent_volumes: &Volumes,
@@ -96,7 +94,6 @@ impl DependencyConfig {
     pub async fn auto_configure(
         &self,
         ctx: &RpcContext,
-        container: &Option<DockerContainers>,
         dependent_id: &PackageId,
         dependent_version: &Version,
         dependent_volumes: &Volumes,
@@ -187,7 +184,11 @@ pub async fn configure_logic(
         .or_not_found(&pkg_id)?
         .as_installed()
         .or_not_found(&pkg_id)?;
-    let dependency_config_action = dependency.as_manifest().as_config().de()?;
+    let dependency_config_action = dependency
+        .as_manifest()
+        .as_config()
+        .de()?
+        .ok_or_else(|| not_found!("Manifest Config"))?;
     let dependency_version = dependency.as_manifest().as_version().de()?;
     let dependency_volumes = dependency.as_manifest().as_volumes().de()?;
     let dependency = pkg
@@ -195,7 +196,6 @@ pub async fn configure_logic(
         .as_dependencies()
         .as_idx(&dependency_id)
         .or_not_found(&dependency_id)?;
-    let pkg_docker_container = pkg.as_manifest().as_containers().de()?;
 
     let ConfigRes {
         config: maybe_config,
@@ -221,6 +221,7 @@ pub async fn configure_logic(
     let new_config = dependency
         .as_config()
         .de()?
+        .ok_or_else(|| not_found!("Config"))?
         .auto_configure
         .sandboxed(
             &ctx,
@@ -265,6 +266,7 @@ pub async fn reconfigure_dependents_with_live_pointers(
     i: &InstalledPackageInfo,
 ) -> Result<(), Error> {
     todo!();
+    // TODO @dr-bonez
     // let dependents = &pde.current_dependents;
     // let me = &pde.manifest.id;
     // for (dependent_id, dependency_info) in &dependents.0 {

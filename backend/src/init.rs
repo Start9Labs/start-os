@@ -361,7 +361,7 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     })
     .await?;
 
-    crate::version::init(&mut db, &secret_store).await?;
+    crate::version::init(&db, &secret_store).await?;
 
     if should_rebuild {
         match tokio::fs::remove_file(SYSTEM_REBUILD_PATH).await {
