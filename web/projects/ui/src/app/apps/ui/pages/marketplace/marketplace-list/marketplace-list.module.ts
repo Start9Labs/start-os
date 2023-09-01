@@ -48,7 +48,6 @@ const routes: Routes = [
     ResponsiveColDirective,
     MarketplaceSidebarModule,
     TuiNotificationModule,
-    MarketplaceSettingsPageModule,
     TuiLetModule,
   ],
   declarations: [MarketplaceListPage],

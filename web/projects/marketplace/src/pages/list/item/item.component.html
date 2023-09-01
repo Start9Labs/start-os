@@ -9,14 +9,17 @@
         <!-- color background -->
         <img
           [src]="'data:image/png;base64,' + pkg.icon | trustUrl"
-          class="absolute object-cover pointer-events-none w-[150%] h-[150%] max-w-[200%] blur-[100px] saturate-150"
+          class="absolute object-cover pointer-events-none w-[150%] h-[150%] max-w-[200%] blur-[100px]"
           alt="{{ pkg.manifest.title }} Icon"
         />
       </div>
+      <div
+        class="overflow-hidden absolute w-full h-full top-0 left-0 -z-50 rounded-3xl bg-zinc-800 opacity-40"
+      ></div>
       <!-- icon -->
       <img
         [src]="'data:image/png;base64,' + pkg.icon | trustUrl"
-        class="w-[5.5rem] h-[5.5rem] pointer-events-none absolute -top-10 rounded-full object-cover shadow-lg"
+        class="w-[5.5rem] h-[5.5rem] pointer-events-none absolute -top-10 rounded-full object-cover shadow-lg z-10"
         alt="{{ pkg.manifest.title }} Icon"
         style="transform: none"
       />
@@ -31,3 +34,4 @@
     </div>
   </a>
 </div>
+<!-- filter: saturate(0.2) contrast(0.5) -->

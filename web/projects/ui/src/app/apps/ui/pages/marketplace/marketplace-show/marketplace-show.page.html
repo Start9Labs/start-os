@@ -1,3 +1,4 @@
+<marketplace-sidebar></marketplace-sidebar>
 <ion-content class="with-widgets">
   <ng-container *ngIf="pkg$ | async as pkg else loading">
     <ng-container *ngIf="pkg | empty; else show">
@@ -18,7 +19,6 @@
     </ng-container>
 
     <ng-template #show>
-      <marketplace-sidebar></marketplace-sidebar>
       <marketplace-package>
         <marketplace-show-controls
           class="relative"
