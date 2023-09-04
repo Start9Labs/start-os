@@ -22,7 +22,7 @@ export module RR {
   // auth
 
   export type LoginReq = {
-    password: Encrypted | string
+    password: string
     metadata: SessionMetadata
   } // auth.login - unauthed
   export type loginRes = null
@@ -464,8 +464,4 @@ declare global {
     ): string & Stringified<T>
     parse<T>(text: Stringified<T>, reviver?: (key: any, value: any) => any): T
   }
-}
-
-export type Encrypted = {
-  encrypted: string
 }
