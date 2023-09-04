@@ -1,69 +1,180 @@
 <ion-content class="content">
-  <ion-item *ngIf="!secure || isTorHttp" color="warning" class="banner">
-    <ion-icon slot="start" name="warning-outline"></ion-icon>
-    <ion-label>
-      <h2 style="font-weight: bold">Http detected</h2>
-      <p style="font-weight: 600">
-        {{ isTorHttp ? 'Tor is faster over https.' : 'Your connection is
-        insecure.' }}
-      </p>
-    </ion-label>
-    <ion-button slot="end" color="light" (click)="launchHttps()">
-      Open Https
-      <ion-icon slot="end" name="open-outline"></ion-icon>
-    </ion-button>
-  </ion-item>
-  <ion-grid class="grid">
-    <ion-row class="row">
-      <ion-col>
-        <img src="assets/img/logo.png" alt="Start9" class="logo" />
+  <!-- SECURE -->
+  <ng-container *ngIf="!config.isSecure(); else insecure">
+    <div *ngIf="config.isTorHttp()" class="banner">
+      <ion-item color="warning">
+        <ion-icon slot="start" name="warning-outline"></ion-icon>
+        <ion-label>
+          <h2 style="font-weight: bold">Http detected</h2>
+          <p style="font-weight: 600">Tor is faster over https.</p>
+        </ion-label>
+        <ion-button slot="end" color="light" (click)="launchHttps()">
+          Open Https
+          <ion-icon slot="end" name="open-outline"></ion-icon>
+        </ion-button>
+      </ion-item>
+    </div>
 
-        <ion-card class="card">
-          <ion-card-header>
-            <ion-card-title class="title">StartOS Login</ion-card-title>
-          </ion-card-header>
+    <ion-grid class="grid">
+      <ion-row class="row">
+        <ion-col>
+          <img src="assets/img/logo.png" alt="Start9" class="logo" />
 
-          <ion-card-content class="ion-margin">
-            <form class="form" (submit)="submit()">
-              <ion-item-group>
-                <ion-item color="dark" class="login-item">
-                  <ion-icon
-                    slot="start"
-                    name="key-outline"
-                    style="margin-right: 16px"
-                  ></ion-icon>
-                  <ion-input
-                    name="password"
-                    placeholder="Password"
-                    [type]="unmasked ? 'text' : 'password'"
-                    [(ngModel)]="password"
-                    (ionChange)="error = ''"
-                    maxlength="64"
-                  ></ion-input>
-                  <ion-button fill="clear" color="light" (click)="toggleMask()">
+          <ion-card class="card">
+            <ion-card-header>
+              <ion-card-title class="title">StartOS Login</ion-card-title>
+            </ion-card-header>
+
+            <ion-card-content class="ion-margin">
+              <form class="form" (submit)="submit()">
+                <ion-item-group>
+                  <ion-item color="dark" class="login-item">
                     <ion-icon
-                      slot="icon-only"
-                      size="small"
-                      [name]="unmasked ? 'eye-off-outline' : 'eye-outline'"
+                      slot="start"
+                      name="key-outline"
+                      style="margin-right: 16px"
                     ></ion-icon>
-                  </ion-button>
-                </ion-item>
-              </ion-item-group>
-              <ion-button
-                class="login-button side-button"
-                type="submit"
-                expand="block"
-                color="tertiary"
-              >
-                Login
-              </ion-button>
-            </form>
-            <p class="error">
-              <ion-text color="danger">{{ error }}</ion-text>
-            </p>
-          </ion-card-content>
-        </ion-card>
-      </ion-col>
-    </ion-row>
-  </ion-grid>
+                    <ion-input
+                      name="password"
+                      placeholder="Password"
+                      [type]="unmasked ? 'text' : 'password'"
+                      [(ngModel)]="password"
+                      (ionChange)="error = ''"
+                      maxlength="64"
+                    ></ion-input>
+                    <ion-button
+                      fill="clear"
+                      color="light"
+                      (click)="unmasked = !unmasked"
+                    >
+                      <ion-icon
+                        slot="icon-only"
+                        size="small"
+                        [name]="unmasked ? 'eye-off-outline' : 'eye-outline'"
+                      ></ion-icon>
+                    </ion-button>
+                  </ion-item>
+                </ion-item-group>
+                <ion-button
+                  class="login-button side-button"
+                  type="submit"
+                  expand="block"
+                  color="tertiary"
+                >
+                  Login
+                </ion-button>
+              </form>
+              <p class="error">
+                <ion-text color="danger">{{ error }}</ion-text>
+              </p>
+            </ion-card-content>
+          </ion-card>
+        </ion-col>
+      </ion-row>
+    </ion-grid>
+  </ng-container>
+
+  <!-- INSECURE -->
+  <ng-template #insecure>
+    <ion-grid class="grid-wiz">
+      <ion-row>
+        <ion-col class="ion-text-center">
+          <ion-icon name="ribbon-outline" class="wiz-icon"></ion-icon>
+        </ion-col>
+      </ion-row>
+      <ion-row>
+        <ion-col class="ion-text-center">
+          <h2>Trust Your Root CA</h2>
+          <p>
+            Download and trust your server's Root Certificate Authority to
+            establish a secure,
+            <b>https</b>
+            connection
+          </p>
+        </ion-col>
+      </ion-row>
+      <ion-row>
+        <ion-col sizeXs="12" sizeLg="4">
+          <div class="wiz-card">
+            <b>1</b>
+            <div class="ion-text-center">
+              <h2>Download Root CA</h2>
+              <p>Download your server's Root CA</p>
+            </div>
+            <ion-button
+              class="wiz-card-button"
+              shape="round"
+              (click)="download()"
+            >
+              <ion-icon slot="start" name="download-outline"></ion-icon>
+              Download
+            </ion-button>
+          </div>
+        </ion-col>
+        <ion-col sizeXs="12" sizeLg="4">
+          <div class="wiz-card" [class.disabled]="!downloadClicked">
+            <b>2</b>
+            <div class="ion-text-center">
+              <h2>Trust Root CA</h2>
+              <p>Follow instructions for your OS</p>
+            </div>
+            <ion-button
+              class="wiz-card-button"
+              shape="round"
+              (click)="instructions()"
+              [disabled]="!downloadClicked"
+            >
+              Instructions
+              <ion-icon slot="end" name="open-outline"></ion-icon>
+            </ion-button>
+          </div>
+        </ion-col>
+        <ion-col sizeXs="12" sizeLg="4">
+          <div class="wiz-card" [class.disabled]="!polling && !caTrusted">
+            <b>3</b>
+            <div class="ion-text-center">
+              <h2>Launch Https</h2>
+              <p>
+                <ion-spinner
+                  class="wiz-spinner"
+                  *ngIf="!caTrusted; else trusted"
+                ></ion-spinner>
+                <ng-template #trusted>
+                  <ion-icon name="ribbon-outline" color="success"></ion-icon>
+                </ng-template>
+                &nbsp;{{ caTrusted ? 'Root CA trusted!' : 'Waiting on
+                trust...'}}
+              </p>
+            </div>
+            <ion-button
+              class="wiz-card-button"
+              shape="round"
+              (click)="launchHttps()"
+              [disabled]="!caTrusted"
+            >
+              Launch
+              <ion-icon slot="end" name="open-outline"></ion-icon>
+            </ion-button>
+          </div>
+        </ion-col>
+      </ion-row>
+      <ion-row>
+        <ion-col class="ion-text-center">
+          <ion-button
+            fill="clear"
+            (click)="launchHttps()"
+            [disabled]="caTrusted"
+          >
+            Skip
+            <ion-icon slot="end" name="open-outline"></ion-icon>
+          </ion-button>
+        </ion-col>
+      </ion-row>
+    </ion-grid>
+    <a
+      id="install-cert"
+      href="/public/eos/local.crt"
+      [download]="document.location.hostname"
+    ></a>
+  </ng-template>
 </ion-content>

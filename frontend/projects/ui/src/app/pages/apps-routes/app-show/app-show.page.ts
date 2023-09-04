@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
+import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { NavController } from '@ionic/angular'
 import { PatchDB } from 'patch-db-client'
 import {
@@ -13,9 +13,6 @@ import {
 import { tap } from 'rxjs/operators'
 import { ActivatedRoute } from '@angular/router'
 import { getPkgId } from '@start9labs/shared'
-import { DOCUMENT } from '@angular/common'
-import { ConfigService } from 'src/app/services/config.service'
-import { getServerInfo } from 'src/app/util/get-server-info'
 
 const STATES = [
   PackageState.Installing,
@@ -29,8 +26,6 @@ const STATES = [
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppShowPage {
-  readonly secure = this.config.isSecure()
-
   private readonly pkgId = getPkgId(this.route)
 
   readonly pkg$ = this.patch.watch$('package-data', this.pkgId).pipe(
@@ -44,8 +39,6 @@ export class AppShowPage {
     private readonly route: ActivatedRoute,
     private readonly navCtrl: NavController,
     private readonly patch: PatchDB<DataModel>,
-    private readonly config: ConfigService,
-    @Inject(DOCUMENT) private readonly document: Document,
   ) {}
 
   isInstalled({ state }: PackageDataEntry): boolean {
@@ -62,12 +55,5 @@ export class AppShowPage {
 
   showProgress({ state }: PackageDataEntry): boolean {
     return STATES.includes(state)
-  }
-
-  async launchHttps() {
-    const onTor = this.config.isTor()
-    const { 'lan-address': lanAddress, 'tor-address': torAddress } =
-      await getServerInfo(this.patch)
-    onTor ? window.open(torAddress) : window.open(lanAddress)
   }
 }

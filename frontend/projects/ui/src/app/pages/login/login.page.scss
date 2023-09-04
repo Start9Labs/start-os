@@ -18,7 +18,7 @@
 }
 
 .row {
-  height: 90%;
+  height: 100%;
   align-items: center;
   text-align: center;
 }
@@ -35,9 +35,15 @@
 }
 
 .banner {
+  position: absolute;
   padding: 20px;
-  max-width: 800px;
-  margin: auto;
+  width: 100%;
+  display: inline-block;
+
+  ion-item {
+    max-width: 800px;
+    margin: auto;
+  }
 }
 
 .side-button {
@@ -94,4 +100,40 @@ ion-card {
   .login-item {
     --border-radius: 4px;
   }
+}
+
+.grid-wiz {
+  --ion-grid-padding: 36px;
+  height: 100%
+}
+
+.wiz-icon {
+  font-size: 84px;
+}
+
+.wiz-card {
+  background: #414141;
+  margin: 24px;
+  padding: 16px;
+  height: 280px;
+  border-radius: 16px;
+  display: grid;
+
+  & h2 {
+    font-weight: 600;
+  }
+}
+
+.wiz-card-button {
+  justify-self: center;
+  white-space: normal;
+}
+
+.wiz-spinner {
+  width: 14px;
+  height: 14px;
+}
+
+.disabled {
+  filter: saturate(0.2) contrast(0.5)
 }

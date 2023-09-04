@@ -25,6 +25,8 @@ export class ConfigService {
   hostname = this.document.location.hostname
   // includes port
   host = this.document.location.host
+  // includes ":" (e.g. "http:")
+  protocol = this.document.location.protocol
   version = require('../../../../../package.json').version as string
   useMocks = useMocks
   mocks = mocks
@@ -44,7 +46,7 @@ export class ConfigService {
   }
 
   isTorHttp(): boolean {
-    return this.isTor() && this.document.location.protocol === 'http:'
+    return this.isTor() && this.protocol === 'http:'
   }
 
   isLan(): boolean {

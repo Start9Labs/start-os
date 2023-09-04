@@ -9,7 +9,7 @@ import {
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActivatedRoute } from '@angular/router'
 import { PatchDB } from 'patch-db-client'
-import { combineLatest, firstValueFrom, map, Observable, of } from 'rxjs'
+import { firstValueFrom, Observable, of } from 'rxjs'
 import { ErrorToastService } from '@start9labs/shared'
 import { EOSService } from 'src/app/services/eos.service'
 import { ClientStorageService } from 'src/app/services/client-storage.service'
@@ -41,7 +41,6 @@ export class ServerShowPage {
   readonly showUpdate$ = this.eosService.showUpdate$
   readonly showDiskRepair$ = this.ClientStorageService.showDiskRepair$
 
-  readonly secure = this.config.isSecure()
   readonly isTorHttp = this.config.isTorHttp()
 
   constructor(
@@ -307,10 +306,8 @@ export class ServerShowPage {
   }
 
   async launchHttps() {
-    const onTor = this.config.isTor()
-    const { 'lan-address': lanAddress, 'tor-address': torAddress } =
-      await getServerInfo(this.patch)
-    onTor ? window.open(torAddress) : window.open(lanAddress)
+    const { 'tor-address': torAddress } = await getServerInfo(this.patch)
+    window.open(torAddress)
   }
 
   addClick(title: string) {
@@ -464,7 +461,7 @@ export class ServerShowPage {
         action: () =>
           this.navCtrl.navigateForward(['backup'], { relativeTo: this.route }),
         detail: true,
-        disabled$: of(!this.secure),
+        disabled$: of(false),
       },
       {
         title: 'Restore From Backup',
@@ -473,10 +470,7 @@ export class ServerShowPage {
         action: () =>
           this.navCtrl.navigateForward(['restore'], { relativeTo: this.route }),
         detail: true,
-        disabled$: combineLatest([
-          this.eosService.updatingOrBackingUp$,
-          of(this.secure),
-        ]).pipe(map(([updating, secure]) => updating || !secure)),
+        disabled$: this.eosService.updatingOrBackingUp$,
       },
     ],
     Manage: [
@@ -544,7 +538,7 @@ export class ServerShowPage {
         icon: 'key-outline',
         action: () => this.presentAlertResetPassword(),
         detail: false,
-        disabled$: of(!this.secure),
+        disabled$: of(false),
       },
       {
         title: 'Experimental Features',
