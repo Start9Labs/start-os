@@ -58,7 +58,11 @@ export class ConfigService {
   }
 
   isSecure(): boolean {
-    return window.isSecureContext || this.isTor()
+    // localhost is treated as secure context but cannot be accessed over https, so handle mock toggling of https for dev purposes
+    return useMocks && mocks.maskAsHttps
+      ? window.isSecureContext || this.isTor()
+      : !(this.hostname === 'localhost') &&
+          (window.isSecureContext || this.isTor())
   }
 
   isLaunchable(

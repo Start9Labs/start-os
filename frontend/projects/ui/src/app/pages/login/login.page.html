@@ -1,6 +1,6 @@
 <ion-content class="content">
   <!-- SECURE -->
-  <ng-container *ngIf="!config.isSecure(); else insecure">
+  <ng-container *ngIf="config.isSecure(); else insecure">
     <div *ngIf="config.isTorHttp()" class="banner">
       <ion-item color="warning">
         <ion-icon slot="start" name="warning-outline"></ion-icon>
@@ -77,6 +77,7 @@
   <!-- INSECURE -->
   <ng-template #insecure>
     <ion-grid class="grid-wiz">
+      <img width="60px" height="60px" src="/assets/img/icon_transparent.png" />
       <ion-row>
         <ion-col class="ion-text-center">
           <ion-icon name="ribbon-outline" class="wiz-icon"></ion-icon>
@@ -96,7 +97,13 @@
       <ion-row>
         <ion-col sizeXs="12" sizeLg="4">
           <div class="wiz-card">
-            <b>1</b>
+            <ion-row class="ion-justify-content-between">
+              <b class="wiz-step">1</b>
+              <tui-tooltip
+                content="The root certificate is used to issue intermediate certificates, which make it possible to register SSL certificates for your server and its services."
+                direction="right"
+              ></tui-tooltip>
+            </ion-row>
             <div class="ion-text-center">
               <h2>Download Root CA</h2>
               <p>Download your server's Root CA</p>
@@ -113,7 +120,13 @@
         </ion-col>
         <ion-col sizeXs="12" sizeLg="4">
           <div class="wiz-card" [class.disabled]="!downloadClicked">
-            <b>2</b>
+            <ion-row class="ion-justify-content-between">
+              <b class="wiz-step">2</b>
+              <tui-tooltip
+                content="Open and follow the instructions to trust the Root CA for your platform and browser."
+                direction="right"
+              ></tui-tooltip>
+            </ion-row>
             <div class="ion-text-center">
               <h2>Trust Root CA</h2>
               <p>Follow instructions for your OS</p>
@@ -131,10 +144,10 @@
         </ion-col>
         <ion-col sizeXs="12" sizeLg="4">
           <div class="wiz-card" [class.disabled]="!polling && !caTrusted">
-            <b>3</b>
+            <b class="wiz-step">3</b>
             <div class="ion-text-center">
               <h2>Launch Https</h2>
-              <p>
+              <p *ngIf="instructionsClicked">
                 <ion-spinner
                   class="wiz-spinner"
                   *ngIf="!caTrusted; else trusted"

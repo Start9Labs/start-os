@@ -4,7 +4,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { AuthService } from 'src/app/services/auth.service'
 import { Router } from '@angular/router'
 import { ConfigService } from 'src/app/services/config.service'
-import { RELATIVE_URL, pauseFor } from '@start9labs/shared'
+import { pauseFor, RELATIVE_URL } from '@start9labs/shared'
 import { DOCUMENT } from '@angular/common'
 import { WINDOW } from '@ng-web-apis/common'
 
@@ -19,6 +19,7 @@ export class LoginPage {
   error = ''
 
   downloadClicked = false
+  instructionsClicked = false
   polling = false
   caTrusted = false
 
@@ -52,6 +53,7 @@ export class LoginPage {
       '_blank',
       'noreferrer',
     )
+    this.instructionsClicked = true
     this.startDaemon()
   }
 
@@ -107,6 +109,7 @@ export class LoginPage {
     const url = `https://${this.document.location.host}${this.relativeUrl}`
     await this.api.echo({ message: 'ping' }, url).then(() => {
       this.downloadClicked = true
+      this.instructionsClicked = true
       this.caTrusted = true
     })
   }

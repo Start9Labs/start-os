@@ -16,6 +16,8 @@ export type WorkspaceConfig = {
     }
     mocks: {
       maskAs: 'tor' | 'lan'
+      // enables local development in secure mode
+      maskAsHttps: boolean
       skipStartupAlerts: boolean
     }
   }
