@@ -263,39 +263,47 @@ pub async fn execute(
         complete: false,
     }));
     drop(status);
-    tokio::task::spawn(async move {
-        match execute_inner(
-            ctx.clone(),
-            embassy_logicalname,
-            embassy_password,
-            recovery_source,
-            recovery_password,
-        )
-        .await
-        {
-            Ok((guid, hostname, tor_addr, root_ca)) => {
-                tracing::info!("Setup Complete!");
-                *ctx.setup_result.write().await = Some((
-                    guid,
-                    SetupResult {
-                        tor_address: format!("https://{}", tor_addr),
-                        lan_address: hostname.lan_address(),
-                        root_ca: String::from_utf8(
-                            root_ca.to_pem().expect("failed to serialize root ca"),
-                        )
-                        .expect("invalid pem string"),
-                    },
-                ));
-                *ctx.setup_status.write().await = Some(Ok(SetupStatus {
-                    bytes_transferred: 0,
-                    total_bytes: None,
-                    complete: true,
-                }));
-            }
-            Err(e) => {
-                tracing::error!("Error Setting Up Server: {}", e);
-                tracing::debug!("{:?}", e);
-                *ctx.setup_status.write().await = Some(Err(e.into()));
+    tokio::task::spawn({
+        async move {
+            let ctx = ctx.clone();
+            let recovery_source = recovery_source;
+
+            let embassy_password = embassy_password;
+            let recovery_source = recovery_source;
+            let recovery_password = recovery_password;
+            match execute_inner(
+                ctx.clone(),
+                embassy_logicalname,
+                embassy_password,
+                recovery_source,
+                recovery_password,
+            )
+            .await
+            {
+                Ok((guid, hostname, tor_addr, root_ca)) => {
+                    tracing::info!("Setup Complete!");
+                    *ctx.setup_result.write().await = Some((
+                        guid,
+                        SetupResult {
+                            tor_address: format!("https://{}", tor_addr),
+                            lan_address: hostname.lan_address(),
+                            root_ca: String::from_utf8(
+                                root_ca.to_pem().expect("failed to serialize root ca"),
+                            )
+                            .expect("invalid pem string"),
+                        },
+                    ));
+                    *ctx.setup_status.write().await = Some(Ok(SetupStatus {
+                        bytes_transferred: 0,
+                        total_bytes: None,
+                        complete: true,
+                    }));
+                }
+                Err(e) => {
+                    tracing::error!("Error Setting Up Server: {}", e);
+                    tracing::debug!("{:?}", e);
+                    *ctx.setup_status.write().await = Some(Err(e.into()));
+                }
             }
         }
     });
@@ -394,7 +402,7 @@ async fn recover(
 ) -> Result<(Arc<String>, Hostname, OnionAddressV3, X509), Error> {
     let recovery_source = TmpMountGuard::mount(&recovery_source, ReadWrite).await?;
     recover_full_embassy(
-        ctx.clone(),
+        ctx,
         guid.clone(),
         embassy_password,
         recovery_source,

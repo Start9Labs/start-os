@@ -4,7 +4,6 @@ use std::path::{Path, PathBuf};
 
 pub use helpers::script_dir;
 pub use models::VolumeId;
-use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 

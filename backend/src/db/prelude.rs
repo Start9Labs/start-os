@@ -247,6 +247,7 @@ where
             .into()),
         }
     }
+
     pub fn into_entries(self) -> Result<Vec<(T::Key, Model<T::Value>)>, Error> {
         use patch_db::ModelExt;
         use serde::de::Error;

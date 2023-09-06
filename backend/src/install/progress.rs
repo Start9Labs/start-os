@@ -97,7 +97,7 @@ impl InstallProgress {
         T,
     >(
         self: &Arc<Self>,
-        db: &PatchDb,
+        db: PatchDb,
         id: &PackageId,
         f: F,
     ) -> Result<T, Error> {

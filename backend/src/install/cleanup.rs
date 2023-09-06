@@ -9,7 +9,7 @@ use super::PKG_ARCHIVE_DIR;
 use crate::context::RpcContext;
 use crate::db::model::{
     CurrentDependencies, Database, PackageDataEntry, PackageDataEntryInstalled,
-    PackageDataEntryMatchModelMut, PackageDataEntryMatchModelRef,
+    PackageDataEntryMatchModelRef,
 };
 use crate::dependencies::reconfigure_dependents_with_live_pointers;
 use crate::error::ErrorCollection;
@@ -69,11 +69,13 @@ pub async fn cleanup_failed(ctx: &RpcContext, id: &PackageId) -> Result<(), Erro
         .or_not_found(id)?
         .as_match()
     {
-        PackageDataEntryMatchModelRef::Installing(m) => m.as_manifest().as_version().de()?,
-        PackageDataEntryMatchModelRef::Restoring(m) => m.as_manifest().as_version().de()?,
+        PackageDataEntryMatchModelRef::Installing(m) => Some(m.as_manifest().as_version().de()?),
+        PackageDataEntryMatchModelRef::Restoring(m) => Some(m.as_manifest().as_version().de()?),
         PackageDataEntryMatchModelRef::Updating(m) => {
-            if m.as_manifest().as_version() != m.as_installed().as_manifest().as_version() {
-                Some(m.as_manifest().as_version().de()?)
+            let manifest_version = m.as_manifest().as_version().de()?;
+            let installed = m.as_installed().as_manifest().as_version().de()?;
+            if manifest_version != installed {
+                Some(manifest_version)
             } else {
                 None // do not remove existing data
             }
@@ -93,20 +95,25 @@ pub async fn cleanup_failed(ctx: &RpcContext, id: &PackageId) -> Result<(), Erro
                 .into_package_data()
                 .into_idx(id)
                 .or_not_found(id)?
-                .into_match()
+                .as_match()
             {
-                PackageDataEntryMatchModelMut::Installing(_)
-                | PackageDataEntryMatchModelMut::Restoring(_) => v.as_package_data_mut().remove(id),
-                PackageDataEntryMatchModelRef::Updating(pde) => v
-                    .as_package_data_mut()
-                    .as_idx_mut(id)
-                    .or_not_found(id)?
-                    .ser(&PackageDataEntry::Installed(PackageDataEntryInstalled {
-                        manifest: pde.as_installed().as_manifest().de()?,
-                        static_files: pde.as_static_files().de()?,
-                        installed: pde.into_installed().de()?,
-                    })),
+                PackageDataEntryMatchModelRef::Installing(_)
+                | PackageDataEntryMatchModelRef::Restoring(_) => {
+                    v.as_package_data_mut().remove(id)?;
+                }
+                PackageDataEntryMatchModelRef::Updating(pde) => {
+                    v.as_package_data_mut()
+                        .as_idx_mut(id)
+                        .or_not_found(id)?
+                        .ser(&PackageDataEntry::Installed(PackageDataEntryInstalled {
+                            manifest: pde.as_installed().as_manifest().de()?,
+                            static_files: pde.as_static_files().de()?,
+                            installed: pde.as_installed().de()?,
+                        }))?;
+                }
+                _ => (),
             }
+            Ok(())
         })
         .await
 }
@@ -145,19 +152,20 @@ where
     let dependents_paths: Vec<PathBuf> = entry
         .as_removing()
         .as_current_dependents()
-        .0
-        .keys()
+        .keys()?
+        .into_iter()
         .filter(|x| x != id)
-        .flat_map(|x| db.as_package_data().as_idx(x))
+        .flat_map(|x| db.as_package_data().as_idx(&x))
         .flat_map(|x| x.as_installed())
-        .flat_map(|x| x.as_manifest().as_volumes().values())
+        .flat_map(|x| x.as_manifest().as_volumes().de())
+        .flat_map(|x| x.values().cloned().collect::<Vec<_>>())
         .flat_map(|x| x.pointer_path(&ctx.datadir))
         .collect();
 
     let volume_dir = ctx
         .datadir
         .join(crate::volume::PKG_VOLUME_DIR)
-        .join(&entry.manifest.id);
+        .join(&*entry.as_manifest().as_id().de()?);
     let version = entry.as_removing().as_manifest().as_version().de()?;
     tracing::debug!(
         "Cleaning up {:?} except for {:?}",
@@ -186,8 +194,7 @@ pub async fn remove_tor_keys<Ex>(secrets: &mut Ex, id: &PackageId) -> Result<(),
 where
     for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
 {
-    let id_str = id.as_str();
-    sqlx::query!("DELETE FROM tor WHERE package = $1", id_str)
+    sqlx::query!("DELETE FROM tor WHERE package = $1", &*id)
         .execute(secrets)
         .await?;
     Ok(())
