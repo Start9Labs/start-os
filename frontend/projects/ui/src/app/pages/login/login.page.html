@@ -80,17 +80,17 @@
       <img width="60px" height="60px" src="/assets/img/icon_transparent.png" />
       <ion-row>
         <ion-col class="ion-text-center">
-          <ion-icon name="ribbon-outline" class="wiz-icon"></ion-icon>
+          <ion-icon name="lock-closed-outline" class="wiz-icon"></ion-icon>
         </ion-col>
       </ion-row>
       <ion-row>
         <ion-col class="ion-text-center">
-          <h2>Trust Your Root CA</h2>
+          <h2><b>Trust your Root Certificate Authority (CA)</b></h2>
           <p>
-            Download and trust your server's Root Certificate Authority to
-            establish a secure,
-            <b>https</b>
-            connection
+            Download and trust your server's Root CA to establish secure,
+            encrypted (
+            <b>HTTPS</b>
+            ) connections with your server
           </p>
         </ion-col>
       </ion-row>
@@ -100,7 +100,7 @@
             <ion-row class="ion-justify-content-between">
               <b class="wiz-step">1</b>
               <tui-tooltip
-                content="The root certificate is used to issue intermediate certificates, which make it possible to register SSL certificates for your server and its services."
+                content="Your server uses its Root CA to generate SSL/TLS certificates for itself and its installed services. These certificates are used to encrypt network traffic with your client devices."
                 direction="right"
               ></tui-tooltip>
             </ion-row>
@@ -123,7 +123,7 @@
             <ion-row class="ion-justify-content-between">
               <b class="wiz-step">2</b>
               <tui-tooltip
-                content="Open and follow the instructions to trust the Root CA for your platform and browser."
+                content="By trusting your server's Root CA, your device can verify the authenticity of its encrypted communications with your server and installed services. You will need to trust the Root CA on every device used to connect to your server."
                 direction="right"
               ></tui-tooltip>
             </ion-row>
@@ -137,7 +137,7 @@
               (click)="instructions()"
               [disabled]="!downloadClicked"
             >
-              Instructions
+              View Docs
               <ion-icon slot="end" name="open-outline"></ion-icon>
             </ion-button>
           </div>
@@ -146,7 +146,7 @@
           <div class="wiz-card" [class.disabled]="!polling && !caTrusted">
             <b class="wiz-step">3</b>
             <div class="ion-text-center">
-              <h2>Launch Https</h2>
+              <h2>Go To Login</h2>
               <p *ngIf="instructionsClicked">
                 <ion-spinner
                   class="wiz-spinner"
@@ -155,7 +155,7 @@
                 <ng-template #trusted>
                   <ion-icon name="ribbon-outline" color="success"></ion-icon>
                 </ng-template>
-                &nbsp;{{ caTrusted ? 'Root CA trusted!' : 'Waiting on
+                &nbsp;{{ caTrusted ? 'Root CA trusted!' : 'Waiting for
                 trust...'}}
               </p>
             </div>
@@ -165,7 +165,7 @@
               (click)="launchHttps()"
               [disabled]="!caTrusted"
             >
-              Launch
+              Open
               <ion-icon slot="end" name="open-outline"></ion-icon>
             </ion-button>
           </div>
