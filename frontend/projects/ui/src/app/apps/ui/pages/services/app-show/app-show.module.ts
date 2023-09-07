@@ -5,7 +5,7 @@ import { IonicModule } from '@ionic/angular'
 import { AppShowPage } from './app-show.page'
 import {
   EmverPipesModule,
-  ResponsiveColModule,
+  ResponsiveColDirective,
   SharedPipesModule,
 } from '@start9labs/shared'
 import { StatusComponentModule } from '../status/status.component.module'
@@ -59,7 +59,7 @@ const routes: Routes = [
     RouterModule.forChild(routes),
     AppConfigPageModule,
     EmverPipesModule,
-    ResponsiveColModule,
+    ResponsiveColDirective,
     SharedPipesModule,
     InsecureWarningComponentModule,
     LaunchMenuComponentModule,

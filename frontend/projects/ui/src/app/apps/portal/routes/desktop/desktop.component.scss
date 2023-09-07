@@ -8,7 +8,6 @@
   height: 100%;
   max-width: 56rem;
   margin: 0 auto;
-  padding: 1rem 0;
 }
 
 .loader {
@@ -16,13 +15,35 @@
   width: 10rem;
 }
 
+.fade {
+  @include scrollbar-hidden();
+
+  width: 100%;
+  height: calc(100% - 4rem);
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+
 .tiles {
   width: 100%;
-  min-height: 5.5rem;
   justify-content: center;
   grid-template-columns: repeat(auto-fit, 12.5rem);
-  grid-auto-rows: 5.5rem;
+  grid-auto-rows: min-content;
   gap: 2rem;
+  margin: auto;
+
+  &::before,
+  &::after {
+    content: '';
+    grid-column: 1 / -1;
+    height: 1rem;
+    order: -1;
+  }
+
+  &::after {
+    order: 999;
+  }
 }
 
 .remove {
@@ -41,8 +62,12 @@
   }
 }
 
-.item._dragged,
-.item._empty {
-  border-radius: var(--tui-radius-l);
-  box-shadow: inset 0 0 0 0.5rem var(--tui-clear-active);
+.item {
+  height: 5.5rem;
+
+  &._dragged,
+  &._empty {
+    border-radius: var(--tui-radius-l);
+    box-shadow: inset 0 0 0 0.5rem var(--tui-clear-active);
+  }
 }

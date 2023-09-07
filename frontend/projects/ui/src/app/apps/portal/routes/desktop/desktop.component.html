@@ -12,30 +12,32 @@
     @tuiScaleIn
     (pointerup)="onRemove()"
   ></tui-svg>
-  <tui-tiles
-    *ngIf="packages$ | async as packages"
-    class="tiles"
-    @tuiParentStop
-    [debounce]="500"
-    [order]="desktop.order"
-    (orderChange)="onReorder($event)"
-  >
-    <tui-tile
-      *ngFor="let item of desktop.items; let index = index"
-      class="item"
-      [style.order]="desktop.order.get(index)"
-      [desktopItem]="item"
+  <tui-fade dragScroller orientation="vertical" class="fade">
+    <tui-tiles
+      *ngIf="packages$ | async as packages"
+      class="tiles"
+      @tuiParentStop
+      [debounce]="500"
+      [order]="desktop.order"
+      (orderChange)="onReorder($event)"
     >
-      <a
-        *ngIf="packages | toDesktopItem : item as desktopItem"
-        tuiTileHandle
-        appCard
-        @tuiFadeIn
-        [id]="item"
-        [title]="desktopItem.title"
-        [icon]="desktopItem.icon"
-        [routerLink]="desktopItem.routerLink"
-      ></a>
-    </tui-tile>
-  </tui-tiles>
+      <tui-tile
+        *ngFor="let item of desktop.items; let index = index"
+        class="item"
+        [style.order]="desktop.order.get(index)"
+        [desktopItem]="item"
+      >
+        <a
+          *ngIf="packages | toDesktopItem : item as desktopItem"
+          tuiTileHandle
+          appCard
+          @tuiFadeIn
+          [id]="item"
+          [title]="desktopItem.title"
+          [icon]="desktopItem.icon"
+          [routerLink]="desktopItem.routerLink"
+        ></a>
+      </tui-tile>
+    </tui-tiles>
+  </tui-fade>
 </ng-template>

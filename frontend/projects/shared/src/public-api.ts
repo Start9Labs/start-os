@@ -18,11 +18,9 @@ export * from './components/text-spinner/text-spinner.component.module'
 export * from './components/ticker/ticker.component'
 export * from './components/ticker/ticker.module'
 
-export * from './directives/responsive-col/responsive-col.directive'
-export * from './directives/responsive-col/responsive-col.module'
-export * from './directives/responsive-col/responsive-col-viewport.directive'
-export * from './directives/safe-links/safe-links.directive'
-export * from './directives/safe-links/safe-links.module'
+export * from './directives/drag-scroller.directive'
+export * from './directives/responsive-col.directive'
+export * from './directives/safe-links.directive'
 
 export * from './mocks/get-setup-status'
 

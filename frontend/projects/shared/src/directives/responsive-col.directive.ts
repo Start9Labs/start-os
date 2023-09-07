@@ -1,5 +1,7 @@
 import {
   Directive,
+  OnInit,
+  Optional,
   ElementRef,
   Inject,
   InjectionToken,
@@ -8,9 +10,13 @@ import {
 } from '@angular/core'
 import { ResizeObserverService } from '@ng-web-apis/resize-observer'
 import { distinctUntilChanged, map, Observable } from 'rxjs'
-import { tuiZonefree } from '@taiga-ui/cdk'
+import { tuiZonefree, TuiDestroyService } from '@taiga-ui/cdk'
+import { IonCol } from '@ionic/angular'
+import { takeUntil } from 'rxjs'
 
 export type Step = 'xs' | 'sm' | 'md' | 'lg' | 'xl'
+
+const SIZE: readonly Step[] = ['xl', 'lg', 'md', 'sm', 'xs']
 
 /**
  * Not exported:
@@ -41,6 +47,7 @@ export const BREAKPOINTS = new InjectionToken<readonly [number, Step][]>(
   selector: '[responsiveColViewport]',
   exportAs: 'viewport',
   providers: [ResizeObserverService],
+  standalone: true,
 })
 export class ResponsiveColViewportDirective extends Observable<Step> {
   @Input()
@@ -64,4 +71,51 @@ export class ResponsiveColViewportDirective extends Observable<Step> {
     distinctUntilChanged(),
     tuiZonefree(this.zone),
   )
+}
+
+@Directive({
+  selector: 'ion-col[responsiveCol]',
+  providers: [TuiDestroyService],
+  standalone: true,
+})
+export class ResponsiveColDirective implements OnInit {
+  readonly size: Record<Step, string | undefined> = {
+    xs: '12',
+    sm: '6',
+    md: '4',
+    lg: '3',
+    xl: '2',
+  }
+
+  constructor(
+    @Optional()
+    viewport$: ResponsiveColViewportDirective | null,
+    destroy$: TuiDestroyService,
+    private readonly col: IonCol,
+  ) {
+    viewport$?.pipe(takeUntil(destroy$)).subscribe(size => {
+      const max = this.size[size] || this.findMax(size)
+
+      this.col.sizeLg = max
+      this.col.sizeMd = max
+      this.col.sizeSm = max
+      this.col.sizeXl = max
+      this.col.sizeXs = max
+    })
+  }
+
+  ngOnInit() {
+    this.size.lg = this.col.sizeLg
+    this.size.md = this.col.sizeMd
+    this.size.sm = this.col.sizeSm
+    this.size.xl = this.col.sizeXl
+    this.size.xs = this.col.sizeXs
+  }
+
+  private findMax(current: Step): string | undefined {
+    const start = SIZE.indexOf(current) - 1
+    const max = SIZE.find((size, i) => i > start && this.size[size]) || current
+
+    return this.size[max]
+  }
 }

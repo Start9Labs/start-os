@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common'
 import { NgModule } from '@angular/core'
 import { IonicModule } from '@ionic/angular'
-import { MarkdownModule, ResponsiveColModule } from '@start9labs/shared'
+import { MarkdownModule, ResponsiveColDirective } from '@start9labs/shared'
 
 import { AdditionalComponent } from './additional.component'
 import {
@@ -16,7 +16,7 @@ import { TuiButtonModule } from '@taiga-ui/core'
     CommonModule,
     IonicModule,
     MarkdownModule,
-    ResponsiveColModule,
+    ResponsiveColDirective,
     TuiRadioListModule,
     FormsModule,
     TuiStringifyContentPipeModule,

@@ -5,7 +5,7 @@ import { IonicModule } from '@ionic/angular'
 import {
   EmverPipesModule,
   MarkdownPipeModule,
-  SafeLinksModule,
+  SafeLinksDirective,
 } from '@start9labs/shared'
 import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
 
@@ -19,7 +19,7 @@ import { AboutComponent } from './about.component'
     MarkdownPipeModule,
     EmverPipesModule,
     NgDompurifyModule,
-    SafeLinksModule,
+    SafeLinksDirective,
   ],
   declarations: [AboutComponent],
   exports: [AboutComponent],
