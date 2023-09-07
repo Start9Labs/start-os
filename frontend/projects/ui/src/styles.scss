@@ -344,3 +344,7 @@ ul {
 p {
   font-size: 1rem;
 }
+
+svg:not(:root) {
+  overflow: auto;
+}

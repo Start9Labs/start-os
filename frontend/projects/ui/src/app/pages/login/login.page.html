@@ -147,7 +147,7 @@
             <b class="wiz-step">3</b>
             <div class="ion-text-center">
               <h2>Go To Login</h2>
-              <p *ngIf="instructionsClicked">
+              <p *ngIf="instructionsClicked; else space" class="inline-center">
                 <ion-spinner
                   class="wiz-spinner"
                   *ngIf="!caTrusted; else trusted"
@@ -158,6 +158,10 @@
                 &nbsp;{{ caTrusted ? 'Root CA trusted!' : 'Waiting for
                 trust...'}}
               </p>
+              <ng-template #space>
+                <!-- to keep alignment -->
+                <p><br /></p>
+              </ng-template>
             </div>
             <ion-button
               class="wiz-card-button"
