@@ -38,6 +38,12 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
         .arg("/usr/local/bin/aptitude")
         .invoke(crate::ErrorKind::OpenSsh)
         .await?;
+    Command::new("ln")
+        .arg("-sf")
+        .arg("/usr/lib/embassy/scripts/tor-check.sh")
+        .arg("/usr/local/bin/tor-check")
+        .invoke(crate::ErrorKind::OpenSsh)
+        .await?;
 
     Command::new("make-ssl-cert")
         .arg("generate-default-snakeoil")
