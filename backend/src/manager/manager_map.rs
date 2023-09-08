@@ -18,12 +18,7 @@ use crate::Error;
 pub struct ManagerMap(RwLock<BTreeMap<(PackageId, Version), Arc<Manager>>>);
 impl ManagerMap {
     #[instrument(skip_all)]
-    pub async fn init<Ex>(
-        &self,
-        ctx: &RpcContext,
-        peeked: &Peeked,
-        secrets: &mut Ex,
-    ) -> Result<(), Error>
+    pub async fn init<Ex>(&self, ctx: RpcContext, peeked: &Peeked) -> Result<(), Error>
     where
         for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
     {
@@ -57,7 +52,6 @@ impl ManagerMap {
         if let Some(man) = lock.remove(&id) {
             man.exit().await;
         }
-        lock.insert(id, Arc::new(Manager::new(ctx, manifest).await?));
         Ok(())
     }
 

@@ -11,7 +11,6 @@ use openssl::x509::X509;
 use rpc_toolkit::command;
 use sqlx::Connection;
 use tokio::fs::File;
-use tokio::sync::watch;
 use torut::onion::OnionAddressV3;
 use tracing::instrument;
 
@@ -68,7 +67,7 @@ pub async fn restore_packages_rpc(
                         if let Err(err) = ctx
                             .notification_manager
                             .notify(
-                                &ctx.db,
+                                ctx.db.clone(),
                                 Some(package_id.clone()),
                                 NotificationLevel::Error,
                                 "Restoration Failure".to_string(),
@@ -105,7 +104,7 @@ async fn approximate_progress(
         if tokio::fs::metadata(&dir).await.is_err() {
             *size = 0;
         } else {
-            *size = dir_size(&dir).await?;
+            *size = dir_size(&dir, None).await?;
         }
     }
     Ok(())
@@ -129,7 +128,7 @@ async fn approximate_progress_loop(
 
 #[derive(Debug, Default)]
 struct ProgressInfo {
-    package_installs: BTreeMap<PackageId, watch::Receiver<InstallProgress>>,
+    package_installs: BTreeMap<PackageId, Arc<InstallProgress>>,
     src_volume_size: BTreeMap<PackageId, u64>,
     target_volume_size: BTreeMap<PackageId, u64>,
 }
@@ -205,7 +204,7 @@ pub async fn recover_full_embassy(
 
     let rpc_ctx = RpcContext::init(ctx.config_path.clone(), disk_guid.clone()).await?;
 
-    let ids = backup_guard
+    let ids: Vec<_> = backup_guard
         .metadata
         .package_backups
         .keys()
@@ -222,7 +221,7 @@ pub async fn recover_full_embassy(
                         (Ok(_), _) => (),
                         (Err(err), package_id) => {
                             if let Err(err) = ctx.notification_manager.notify(
-                                &ctx.db,
+                                ctx.db.clone(),
                                 Some(package_id.clone()),
                                 NotificationLevel::Error,
                                 "Restoration Failure".to_string(), format!("Error restoring package {}: {}", package_id,err), (), None).await{
@@ -272,10 +271,12 @@ async fn restore_packages(
     for (manifest, guard) in guards {
         let id = manifest.id.clone();
         let (progress, task) = restore_package(ctx.clone(), manifest, guard).await?;
-        progress_info.package_installs.insert(id.clone(), progress);
+        progress_info
+            .package_installs
+            .insert(id.clone(), progress.clone());
         progress_info
             .src_volume_size
-            .insert(id.clone(), dir_size(backup_dir(&id)).await?);
+            .insert(id.clone(), dir_size(backup_dir(&id), None).await?);
         progress_info.target_volume_size.insert(id.clone(), 0);
         let package_id = id.clone();
         tasks.push(
@@ -311,7 +312,7 @@ async fn assure_restoring(
 
         let manifest = rdr.manifest().await?;
         let version = manifest.version.clone();
-        let progress = InstallProgress::new(Some(tokio::fs::metadata(&s9pk_path).await?.len()));
+        // let progress = InstallProgress::new(Some(tokio::fs::metadata(&s9pk_path).await?.len()));
 
         // ctx.db.apply_fn(|mut v| v.package_data().idx()) * model =
         //     Some(PackageDataEntry::Restoring {
@@ -373,8 +374,8 @@ async fn restore_package<'a>(
         let k = key.0.as_slice();
         sqlx::query!(
             "INSERT INTO network_keys (package, interface, key) VALUES ($1, $2, $3) ON CONFLICT (package, interface) DO NOTHING",
-            id,
-            iface,
+            id.to_string(),
+            iface.to_string(),
             k,
         )
         .execute(&mut secrets_tx).await?;
@@ -384,8 +385,8 @@ async fn restore_package<'a>(
         let k = key.0.as_slice();
         sqlx::query!(
             "INSERT INTO tor (package, interface, key) VALUES ($1, $2, $3) ON CONFLICT (package, interface) DO NOTHING",
-            id,
-            iface,
+            id.to_string(),
+            iface.to_string(),
             k,
         )
         .execute(&mut secrets_tx).await?;
@@ -404,10 +405,11 @@ async fn restore_package<'a>(
     let progress = InstallProgress::new(Some(len));
     let marketplace_url = metadata.marketplace_url;
 
+    let progress = Arc::new(progress);
     Ok((
         progress.clone(),
         async move {
-            download_install_s9pk(&ctx, &manifest, marketplace_url, progress, file).await?;
+            download_install_s9pk(ctx, manifest, marketplace_url, progress, file, None).await?;
 
             guard.unmount().await?;
 

@@ -1,5 +1,8 @@
-use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    sync::Arc,
+};
 
 use chrono::{DateTime, Utc};
 use color_eyre::eyre::eyre;
@@ -14,9 +17,8 @@ use tracing::instrument;
 
 use self::target::PackageBackupInfo;
 use crate::context::RpcContext;
-use crate::dependencies::reconfigure_dependents_with_live_pointers;
 use crate::install::PKG_ARCHIVE_DIR;
-use crate::net::interface::{InterfaceId, Interfaces};
+use crate::net::interface::InterfaceId;
 use crate::net::keys::Key;
 use crate::prelude::*;
 use crate::procedure::docker::DockerContainers;
@@ -26,6 +28,9 @@ use crate::util::serde::{Base32, Base64, IoFormat};
 use crate::util::Version;
 use crate::version::{Current, VersionT};
 use crate::volume::{backup_dir, Volume, VolumeId, Volumes, BACKUP_DIR};
+use crate::{
+    dependencies::reconfigure_dependents_with_live_pointers, manager::manager_seed::ManagerSeed,
+};
 use crate::{Error, ErrorKind, ResultExt};
 
 pub mod backup_bulk;
@@ -94,18 +99,14 @@ impl BackupActions {
     }
 
     #[instrument(skip_all)]
-    pub async fn create(
-        &self,
-        ctx: &RpcContext,
-        pkg_id: &PackageId,
-        pkg_title: &str,
-        pkg_version: &Version,
-        interfaces: &Interfaces,
-        volumes: &Volumes,
-    ) -> Result<PackageBackupInfo, Error> {
-        let mut volumes = volumes.to_readonly();
+    pub async fn create(&self, seed: Arc<ManagerSeed>) -> Result<PackageBackupInfo, Error> {
+        let manifest = &seed.manifest;
+        let mut volumes = seed.manifest.volumes.to_readonly();
+        let ctx = &seed.ctx;
+        let pkg_id = &manifest.id;
+        let pkg_version = &manifest.version;
         volumes.insert(VolumeId::Backup, Volume::Backup { readonly: false });
-        let backup_dir = backup_dir(pkg_id);
+        let backup_dir = backup_dir(&manifest.id);
         if tokio::fs::metadata(&backup_dir).await.is_err() {
             tokio::fs::create_dir_all(&backup_dir).await?
         }
@@ -122,26 +123,27 @@ impl BackupActions {
             .await?
             .map_err(|e| eyre!("{}", e.1))
             .with_kind(crate::ErrorKind::Backup)?;
-        let (network_keys, tor_keys) = Key::for_package(&ctx.secret_store, pkg_id)
-            .await?
-            .into_iter()
-            .filter_map(|k| {
-                let interface = k.interface().map(|(_, i)| i)?;
-                Some((
-                    (interface.clone(), Base64(k.as_bytes())),
-                    (interface, Base32(k.tor_key().as_bytes())),
-                ))
-            })
-            .unzip();
+        let (network_keys, tor_keys): (Vec<_>, Vec<_>) =
+            Key::for_package(&ctx.secret_store, pkg_id)
+                .await?
+                .into_iter()
+                .filter_map(|k| {
+                    let interface = k.interface().map(|(_, i)| i)?;
+                    Some((
+                        (interface.clone(), Base64(k.as_bytes())),
+                        (interface, Base32(k.tor_key().as_bytes())),
+                    ))
+                })
+                .unzip();
         let marketplace_url = ctx
             .db
             .peek()
             .await?
             .as_package_data()
-            .as_idx(pkg_id)
+            .as_idx(&pkg_id)
             .or_not_found(pkg_id)?
             .expect_as_installed()?
-            .as_installed_mut()
+            .as_installed()
             .as_marketplace_url()
             .de()?;
         let tmp_path = Path::new(BACKUP_DIR)
@@ -171,6 +173,8 @@ impl BackupActions {
         let mut outfile = AtomicFile::new(&metadata_path, None::<PathBuf>)
             .await
             .with_kind(ErrorKind::Filesystem)?;
+        let network_keys = network_keys.into_iter().collect();
+        let tor_keys = tor_keys.into_iter().collect();
         outfile
             .write_all(&IoFormat::Cbor.to_vec(&BackupMetadata {
                 timestamp,
@@ -182,7 +186,7 @@ impl BackupActions {
         outfile.save().await.with_kind(ErrorKind::Filesystem)?;
         Ok(PackageBackupInfo {
             os_version: Current::new().semver().into(),
-            title: pkg_title.to_owned(),
+            title: manifest.title.clone(),
             version: pkg_version.clone(),
             timestamp,
         })
@@ -194,7 +198,6 @@ impl BackupActions {
         ctx: &RpcContext,
         pkg_id: &PackageId,
         pkg_version: &Version,
-        interfaces: &Interfaces,
         volumes: &Volumes,
     ) -> Result<(), Error> {
         let mut volumes = volumes.clone();
@@ -227,9 +230,11 @@ impl BackupActions {
                 v.as_package_data_mut()
                     .as_idx_mut(pkg_id)
                     .or_not_found(pkg_id)?
-                    .expect_as_restoring_mut()? // TODO: Restoring?
+                    .as_installed_mut()
+                    .or_not_found(pkg_id)?
                     .as_marketplace_url_mut()
-                    .ser(metadata.marketplace_url)?;
+                    .ser(&metadata.marketplace_url)?;
+
                 v.as_package_data()
                     .as_idx(pkg_id)
                     .or_not_found(pkg_id)?

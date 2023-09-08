@@ -3,7 +3,6 @@ use std::time::Duration;
 
 use color_eyre::eyre::eyre;
 use emver::VersionRange;
-use futures::FutureExt;
 use models::OptionExt;
 use rand::SeedableRng;
 use rpc_toolkit::command;
@@ -265,7 +264,7 @@ pub async fn reconfigure_dependents_with_live_pointers(
     ctx: &RpcContext,
     i: &InstalledPackageInfo,
 ) -> Result<(), Error> {
-    todo!();
+    todo!("DR_BONEZ");
     // TODO @dr-bonez
     // let dependents = &pde.current_dependents;
     // let me = &pde.manifest.id;

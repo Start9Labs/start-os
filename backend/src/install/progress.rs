@@ -26,8 +26,8 @@ pub struct InstallProgress {
     pub unpack_complete: AtomicBool,
 }
 impl InstallProgress {
-    pub fn new(size: Option<u64>) -> Arc<Self> {
-        Arc::new(InstallProgress {
+    pub fn new(size: Option<u64>) -> Self {
+        InstallProgress {
             size,
             downloaded: AtomicU64::new(0),
             download_complete: AtomicBool::new(false),
@@ -35,7 +35,7 @@ impl InstallProgress {
             validation_complete: AtomicBool::new(false),
             unpacked: AtomicU64::new(0),
             unpack_complete: AtomicBool::new(false),
-        })
+        }
     }
     pub fn download_complete(&self) {
         self.download_complete.store(true, Ordering::SeqCst)
@@ -47,7 +47,7 @@ impl InstallProgress {
                 .or_not_found(&id)?
                 .expect_as_installing_mut()?
                 .as_install_progress_mut()
-                .ser(&*self)
+                .ser(&self)
         };
         while !self.download_complete.load(Ordering::SeqCst) {
             db.mutate(&update).await?;
@@ -61,7 +61,7 @@ impl InstallProgress {
         T,
     >(
         self: &Arc<Self>,
-        db: &PatchDb,
+        db: PatchDb,
         id: &PackageId,
         f: F,
     ) -> Result<T, Error> {
@@ -83,7 +83,7 @@ impl InstallProgress {
                 .or_not_found(&id)?
                 .expect_as_installing_mut()?
                 .as_install_progress_mut()
-                .ser(&*self)
+                .ser(&self)
         };
         while !complete.load(Ordering::SeqCst) {
             db.mutate(&update).await?;

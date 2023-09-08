@@ -18,7 +18,7 @@ pub struct Status {
     pub dependency_config_errors: DependencyConfigErrors,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
+#[derive(Clone, Debug, Deserialize, Serialize, HasModel, Default)]
 #[serde(rename_all = "kebab-case")]
 #[model = "Model<Self>"]
 pub struct DependencyConfigErrors(pub BTreeMap<PackageId, String>);

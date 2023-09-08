@@ -214,7 +214,7 @@ impl StaticFiles {
 pub struct PackageDataEntryInstalling {
     pub static_files: StaticFiles,
     pub manifest: Manifest,
-    pub install_progress: InstallProgress,
+    pub install_progress: Arc<InstallProgress>,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
@@ -224,7 +224,7 @@ pub struct PackageDataEntryUpdating {
     pub static_files: StaticFiles,
     pub manifest: Manifest,
     pub installed: InstalledPackageInfo,
-    pub install_progress: InstallProgress,
+    pub install_progress: Arc<InstallProgress>,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
@@ -355,12 +355,12 @@ impl Model<PackageDataEntry> {
     }
     pub fn as_manifest(&self) -> &Model<Manifest> {
         match self.into_match() {
-            PackageDataEntryMatchModelRef::Installing(a) => a.as_manifest(),
-            PackageDataEntryMatchModelRef::Updating(a) => a.as_installed().as_manifest(),
-            PackageDataEntryMatchModelRef::Restoring(a) => a.as_manifest(),
-            PackageDataEntryMatchModelRef::Removing(a) => a.as_manifest(),
-            PackageDataEntryMatchModelRef::Installed(a) => a.as_manifest(),
-            PackageDataEntryMatchModelRef::Error(_) => (&Value::Null).into(),
+            PackageDataEntryMatchModel::Installing(a) => a.as_manifest(),
+            PackageDataEntryMatchModel::Updating(a) => a.as_installed().as_manifest(),
+            PackageDataEntryMatchModel::Restoring(a) => a.as_manifest(),
+            PackageDataEntryMatchModel::Removing(a) => a.as_manifest(),
+            PackageDataEntryMatchModel::Installed(a) => a.as_manifest(),
+            PackageDataEntryMatchModel::Error(_) => (&Value::Null).into(),
         }
     }
     pub fn into_installed(self) -> Option<Model<InstalledPackageInfo>> {
@@ -393,10 +393,20 @@ impl Model<PackageDataEntry> {
             PackageDataEntryMatchModel::Error(_) => None,
         }
     }
-    pub fn as_install_progress(&self) -> Option<&Model<InstalledPackageInfo>> {
+    pub fn as_install_progress(&self) -> Option<&Model<Arc<InstallProgress>>> {
         match self.into_match() {
             PackageDataEntryMatchModel::Installing(a) => Some(a.as_install_progress()),
             PackageDataEntryMatchModel::Updating(a) => Some(a.as_install_progress()),
+            PackageDataEntryMatchModel::Restoring(_) => None,
+            PackageDataEntryMatchModel::Removing(_) => None,
+            PackageDataEntryMatchModel::Installed(_) => None,
+            PackageDataEntryMatchModel::Error(_) => None,
+        }
+    }
+    pub fn as_install_progress_mut(&mut self) -> Option<&Model<Arc<InstallProgress>>> {
+        match self.into_match() {
+            PackageDataEntryMatchModel::Installing(mut a) => Some(a.as_install_progress_mut()),
+            PackageDataEntryMatchModel::Updating(mut a) => Some(a.as_install_progress_mut()),
             PackageDataEntryMatchModel::Restoring(_) => None,
             PackageDataEntryMatchModel::Removing(_) => None,
             PackageDataEntryMatchModel::Installed(_) => None,
@@ -420,6 +430,11 @@ pub struct InstalledPackageInfo {
     pub current_dependents: CurrentDependents,
     pub current_dependencies: CurrentDependencies,
     pub interface_addresses: InterfaceAddressMap,
+}
+
+impl Map for BTreeMap<PackageId, StaticDependencyInfo> {
+    type Key = PackageId;
+    type Value = StaticDependencyInfo;
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]

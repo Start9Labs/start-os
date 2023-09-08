@@ -133,7 +133,7 @@ pub struct Hardware {
 pub struct RpcContext(Arc<RpcContextSeed>);
 impl RpcContext {
     #[instrument(skip_all)]
-    pub async fn init<P: AsRef<Path> + Send + 'static>(
+    pub async fn init<P: AsRef<Path> + Send + Sync + 'static>(
         cfg_path: Option<P>,
         disk_guid: Arc<String>,
     ) -> Result<Self, Error> {
@@ -166,7 +166,7 @@ impl RpcContext {
         );
         tracing::info!("Initialized Net Controller");
         let managers = ManagerMap::default();
-        let metrics_cache = RwLock::new(None);
+        let metrics_cache = RwLock::<Option<crate::system::Metrics>>::new(None);
         let notification_manager = NotificationManager::new(secret_store.clone());
         tracing::info!("Initialized Notification Manager");
         let tor_proxy_url = format!("socks5h://{tor_proxy}");
@@ -216,16 +216,10 @@ impl RpcContext {
             hardware: Hardware { devices, ram },
         });
 
-        let res = Self(seed);
+        let res = Self(seed.clone());
         res.cleanup().await?;
         tracing::info!("Cleaned up transient states");
-        res.managers
-            .init(
-                &res,
-                &mut res.db.handle(),
-                &mut res.secret_store.acquire().await?,
-            )
-            .await?;
+        res.managers.init(res, &res.db.peek().await?).await?;
         tracing::info!("Initialized Package Managers");
         Ok(res)
     }
@@ -246,18 +240,20 @@ impl RpcContext {
             .mutate(|f| {
                 let mut current_dependents = f
                     .as_package_data()
-                    .keys()
+                    .keys()?
+                    .into_iter()
                     .map(|k| (k.clone(), BTreeMap::new()))
                     .collect::<BTreeMap<_, _>>();
-                for (package_id, package) in f.as_package_data() {
+                for (package_id, package) in f.as_package_data_mut().as_entries_mut()? {
                     for (k, v) in package
-                        .into_installed()
+                        .as_installed_mut()
                         .into_iter()
-                        .flat_map(|i| i.current_dependencies.0)
+                        .flat_map(|i| i.clone().into_current_dependencies().into_entries())
+                        .flatten()
                     {
                         let mut entry: BTreeMap<_, _> =
                             current_dependents.remove(&k).unwrap_or_default();
-                        entry.insert(package_id.clone(), v);
+                        entry.insert(package_id.clone(), v.de()?);
                         current_dependents.insert(k, entry);
                     }
                 }
@@ -283,6 +279,7 @@ impl RpcContext {
             .await?;
         let peek = self.db.peek().await?;
         for (package_id, package) in peek.as_package_data().as_entries()?.into_iter() {
+            let package = package.clone();
             let action = match package.as_match() {
                 PackageDataEntryMatchModelRef::Installing(_)
                 | PackageDataEntryMatchModelRef::Restoring(_)
@@ -294,7 +291,8 @@ impl RpcContext {
                 }
                 PackageDataEntryMatchModelRef::Installed(m) => {
                     let version = m.as_manifest().as_version().clone().de()?;
-                    for (volume_id, volume_info) in &*m.as_manifest().as_volumes().clone().de()? {
+                    let volumes = m.as_manifest().as_volumes().de()?;
+                    for (volume_id, volume_info) in &*volumes {
                         let tmp_path = to_tmp_path(volume_info.path_for(
                             &self.datadir,
                             &package_id,

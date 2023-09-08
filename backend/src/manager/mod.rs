@@ -23,8 +23,6 @@ use tokio::sync::{
 use tracing::instrument;
 use transition_state::TransitionState;
 
-use crate::backup::target::PackageBackupInfo;
-use crate::backup::PackageBackupReport;
 use crate::config::action::ConfigRes;
 use crate::config::spec::ValueSpecPointer;
 use crate::config::ConfigureContext;
@@ -43,6 +41,11 @@ use crate::util::docker::{get_container_ip, kill_container};
 use crate::util::NonDetachingJoinHandle;
 use crate::volume::Volume;
 use crate::Error;
+use crate::{
+    backup::target::PackageBackupInfo, dependencies::add_dependent_to_current_dependents_lists,
+    install::cleanup::remove_from_current_dependents_lists,
+};
+use crate::{backup::PackageBackupReport, status::DependencyConfigErrors};
 
 pub mod health;
 mod manager_container;
@@ -256,7 +259,7 @@ impl Manager {
     fn perform_backup(
         &self,
         backup_guard: BackupGuard,
-    ) -> impl Future<Output = Result<Result<PackageBackupInfo, Error>, Error>> + 'static {
+    ) -> BoxFuture<Result<Result<PackageBackupInfo, Error>, Error>> {
         let manage_container = self.manage_container.clone();
         let seed = self.seed.clone();
         async move {
@@ -268,18 +271,7 @@ impl Manager {
             let backup_guard = backup_guard.lock().await;
             let guard = backup_guard.mount_package_backup(&seed.manifest.id).await?;
 
-            let res = seed
-                .manifest
-                .backup
-                .create(
-                    &seed.ctx,
-                    &seed.manifest.id,
-                    &seed.manifest.title,
-                    &seed.manifest.version,
-                    &seed.manifest.interfaces,
-                    &seed.manifest.volumes,
-                )
-                .await;
+            let res = seed.manifest.backup.create(seed.clone()).await;
             guard.unmount().await?;
             drop(backup_guard);
 
@@ -288,6 +280,7 @@ impl Manager {
             drop(override_guard);
             Ok::<_, Error>(return_value)
         }
+        .boxed()
     }
     fn _transition_backup(
         &self,
@@ -297,7 +290,7 @@ impl Manager {
         (
             TransitionState::BackingUp(
                 tokio::spawn(
-                    self.perform_backup(backup_guard)
+                    self.perform_backup(backup_guard.clone())
                         .then(finish_up_backup_task(self.transition.clone(), send)),
                 )
                 .into(),
@@ -344,7 +337,9 @@ async fn configure(
         config: old_config,
         spec,
     } = manifest
-        .actions
+        .config
+        .as_ref()
+        .or_not_found("Manifest config")?
         .get(ctx, id, &manifest.version, &manifest.volumes)
         .await?;
 
@@ -364,24 +359,15 @@ async fn configure(
     // TODO Commit or not?
     spec.update(ctx, &manifest, overrides, &mut config).await?; // dereference pointers in the new config
 
-    // create backreferences to pointers
-    let mut sys = db
-        .as_package_data()
-        .as_idx(id)
-        .or_not_found(id)?
-        .as_installed()
-        .or_not_found(id)?
-        .as_system_pointers()
-        .de()?;
     let dependencies = db
         .as_package_data()
         .as_idx(id)
         .or_not_found(id)?
         .as_installed()
         .or_not_found(id)?
-        .as_current_dependencies()
+        .as_manifest()
+        .as_dependencies()
         .de()?;
-    sys.truncate(0);
     let mut current_dependencies: CurrentDependencies = CurrentDependencies(
         dependencies
             .0
@@ -398,11 +384,11 @@ async fn configure(
     for ptr in spec.pointers(&config)? {
         match ptr {
             ValueSpecPointer::Package(pkg_ptr) => {
-                if let Some(current_dependency) =
-                    current_dependencies.0.get_mut(pkg_ptr.package_id())
+                if current_dependencies
+                    .0
+                    .get_mut(pkg_ptr.package_id())
+                    .is_none()
                 {
-                    current_dependency.pointers.push(pkg_ptr);
-                } else {
                     current_dependencies.0.insert(
                         pkg_ptr.package_id().to_owned(),
                         CurrentDependencyInfo {
@@ -411,10 +397,9 @@ async fn configure(
                     );
                 }
             }
-            ValueSpecPointer::System(s) => sys.push(s),
+            ValueSpecPointer::System(_) => (),
         }
     }
-    let sys = sys;
 
     let action = db
         .as_package_data()
@@ -444,7 +429,6 @@ async fn configure(
         .as_manifest()
         .as_volumes()
         .de()?;
-    sys.truncate(0);
     if !configure_context.dry_run {
         // run config action
         let res = action
@@ -576,9 +560,10 @@ async fn configure(
     }
 
     if !configure_context.dry_run {
-        ctx.db
-            .mutate(|db| {
-                remove_from_current_dependents_lists(db, id, &dependencies)?;
+        return ctx
+            .db
+            .mutate(move |db| {
+                remove_from_current_dependents_lists(db, id, &current_dependencies)?;
                 add_dependent_to_current_dependents_lists(db, id, &current_dependencies)?;
                 current_dependencies.0.remove(id);
                 for (dep, errs) in db
@@ -595,7 +580,7 @@ async fn configure(
                         errs.insert(id, err)?;
                     }
                 }
-                let mut installed = db
+                let installed = db
                     .as_package_data_mut()
                     .as_idx_mut(id)
                     .or_not_found(id)?
@@ -604,14 +589,14 @@ async fn configure(
                 installed
                     .as_current_dependencies_mut()
                     .ser(&current_dependencies)?;
-                installed.as_system_pointers_mut().ser(sys)?;
                 let status = installed.as_status_mut();
                 status.as_configured_mut().ser(&true)?;
                 status
                     .as_dependency_config_errors_mut()
-                    .ser(&DependencyConfigErrors(dependency_config_errs))
+                    .ser(&DependencyConfigErrors(dependency_config_errs));
+                Ok(configure_context.breakages)
             })
-            .await?; // add new
+            .await; // add new
     }
 
     Ok(configure_context.breakages)

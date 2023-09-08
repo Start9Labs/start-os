@@ -21,8 +21,8 @@ async fn compat(
     if let Some((package, interface)) = interface {
         if let Some(r) = sqlx::query!(
             "SELECT key FROM tor WHERE package = $1 AND interface = $2",
-            **package,
-            **interface
+            package,
+            interface
         )
         .fetch_optional(secrets)
         .await?
@@ -148,7 +148,7 @@ impl Key {
                 WHERE
                     network_keys.package = $1
             "#,
-            **package
+            package
         )
         .fetch_all(secrets)
         .await?
@@ -192,8 +192,8 @@ impl Key {
             let k = tentative.as_slice();
             let actual = sqlx::query!(
                 "INSERT INTO network_keys (package, interface, key) VALUES ($1, $2, $3) ON CONFLICT (package, interface) DO UPDATE SET package = EXCLUDED.package RETURNING key",
-                **pkg,
-                **iface,
+                pkg,
+                iface,
                 k,
             )
             .fetch_one(&mut *secrets)

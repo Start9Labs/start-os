@@ -48,16 +48,16 @@ impl Interfaces {
                 let key_vec = key.as_bytes().to_vec();
                 sqlx::query!(
                     "INSERT INTO tor (package, interface, key) VALUES ($1, $2, $3) ON CONFLICT (package, interface) DO NOTHING",
-                    **package_id,
-                    **id,
-                    key_vec,
+                    package_id,
+                    id,
+                    key_vec.clone(),
                 )
                 .execute(&mut *secrets)
                 .await?;
                 let key_row = sqlx::query!(
                     "SELECT key FROM tor WHERE package = $1 AND interface = $2",
-                    **package_id,
-                    **id,
+                    package_id,
+                    id,
                 )
                 .fetch_one(&mut *secrets)
                 .await?;
