@@ -25,14 +25,10 @@ echo "Testing connection to Onion Pages ..."
 for data in "${onion_list[@]}"; do
     name="${data%%|*}"
     url="${data#*|}"
-
-    curl --socks5-hostname localhost:9050 "$url" > /dev/null 2>&1
-    HC=$?
-
-    if [ $HC -ne 0 ]; then
-        echo " ${fail}: $name ($url) "
-    else
+    if curl --socks5-hostname localhost:9050 "$url" > /dev/null 2>&1; then
         echo " ${pass}: $name ($url) "
+    else
+        echo " ${fail}: $name ($url) "
     fi
 done
 
