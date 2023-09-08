@@ -299,7 +299,7 @@ pub(super) fn get_status(db: Peeked, manifest: &Manifest) -> MainStatus {
         .as_idx(&manifest.id)
         .and_then(|x| x.as_installed())
         .and_then(|x| x.as_status().as_main().de().ok())
-        .unwrap_or_else(|_| MainStatus::Stopped)
+        .unwrap_or(MainStatus::Stopped)
 }
 
 #[instrument(skip(db, manifest))]

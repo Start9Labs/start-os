@@ -219,7 +219,8 @@ impl RpcContext {
         let res = Self(seed.clone());
         res.cleanup().await?;
         tracing::info!("Cleaned up transient states");
-        res.managers.init(res, &res.db.peek().await?).await?;
+        let peeked = res.db.peek().await?;
+        res.managers.init(res.clone(), peeked).await?;
         tracing::info!("Initialized Package Managers");
         Ok(res)
     }

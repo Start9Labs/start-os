@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use color_eyre::eyre::eyre;
-use sqlx::{Executor, Postgres};
 use tokio::sync::RwLock;
 use tracing::instrument;
 
@@ -18,10 +17,7 @@ use crate::Error;
 pub struct ManagerMap(RwLock<BTreeMap<(PackageId, Version), Arc<Manager>>>);
 impl ManagerMap {
     #[instrument(skip_all)]
-    pub async fn init<Ex>(&self, ctx: RpcContext, peeked: &Peeked) -> Result<(), Error>
-    where
-        for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
-    {
+    pub async fn init(&self, ctx: RpcContext, peeked: Peeked) -> Result<(), Error> {
         let mut res = BTreeMap::new();
         for package in peeked.as_package_data().keys()? {
             let man: Manifest = if let Some(manifest) = peeked
