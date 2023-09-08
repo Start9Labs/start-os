@@ -8,6 +8,7 @@ use clap::ArgMatches;
 use color_eyre::eyre::eyre;
 use helpers::AtomicFile;
 use imbl::OrdSet;
+use models::Version;
 use rpc_toolkit::command;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::Mutex;
@@ -54,6 +55,7 @@ pub async fn backup_all(
     package_ids: Option<OrdSet<PackageId>>,
     #[arg] password: crate::auth::PasswordType,
 ) -> Result<(), Error> {
+    let db = ctx.db.peek().await?;
     let old_password_decrypted = old_password
         .as_ref()
         .unwrap_or(&password)
@@ -70,9 +72,20 @@ pub async fn backup_all(
     )
     .await?;
     let package_ids = if let Some(ids) = package_ids {
-        ids
+        ids.into_iter()
+            .flat_map(|package_id| {
+                let version = db
+                    .as_package_data()
+                    .as_idx(&package_id)?
+                    .as_manifest()
+                    .as_version()
+                    .de()
+                    .ok()?;
+                Some((package_id, version))
+            })
+            .collect()
     } else {
-        get_packages(&ctx.db).await?.into_iter().collect()
+        get_packages(db.clone())?.into_iter().collect()
     };
     if old_password.is_some() {
         backup_guard.change_password(&password)?;
@@ -84,7 +97,7 @@ pub async fn backup_all(
             Ok(report) if report.iter().all(|(_, rep)| rep.error.is_none()) => ctx
                 .notification_manager
                 .notify(
-                    &ctx.db,
+                    ctx.db.clone(),
                     None,
                     NotificationLevel::Success,
                     "Backup Complete".to_owned(),
@@ -103,7 +116,7 @@ pub async fn backup_all(
             Ok(report) => ctx
                 .notification_manager
                 .notify(
-                    &ctx.db,
+                    ctx.db.clone(),
                     None,
                     NotificationLevel::Warning,
                     "Backup Complete".to_owned(),
@@ -124,7 +137,7 @@ pub async fn backup_all(
                 tracing::debug!("{:?}", e);
                 ctx.notification_manager
                     .notify(
-                        &ctx.db,
+                        ctx.db.clone(),
                         None,
                         NotificationLevel::Error,
                         "Backup Failed".to_owned(),
@@ -150,7 +163,7 @@ pub async fn backup_all(
                     .ser(&None)
             })
             .await?;
-        backup_res
+        Ok::<(), Error>(())
     });
     Ok(())
 }
@@ -158,7 +171,7 @@ pub async fn backup_all(
 #[instrument(skip(db, packages))]
 async fn assure_backing_up(
     db: &PatchDb,
-    packages: impl IntoIterator<Item = &PackageId> + UnwindSafe + Send,
+    packages: impl IntoIterator<Item = &(PackageId, Version)> + UnwindSafe + Send,
 ) -> Result<(), Error> {
     db.mutate(|v| {
         let backing_up = v
@@ -185,7 +198,7 @@ async fn assure_backing_up(
         backing_up.ser(&Some(
             packages
                 .into_iter()
-                .map(|x| (x.clone(), BackupProgress { complete: false }))
+                .map(|(x, _)| (x.clone(), BackupProgress { complete: false }))
                 .collect(),
         ))?;
         Ok(())
@@ -197,13 +210,13 @@ async fn assure_backing_up(
 async fn perform_backup(
     ctx: &RpcContext,
     backup_guard: BackupMountGuard<TmpMountGuard>,
-    package_ids: &OrdSet<PackageId>,
-) -> Result<BTreeMap<PackageId, PackageBackupReport>, Error> {
+    package_ids: &OrdSet<(PackageId, Version)>,
+) -> Result<BTreeMap<(PackageId, Version), PackageBackupReport>, Error> {
     let mut backup_report = BTreeMap::new();
     let backup_guard = Arc::new(Mutex::new(backup_guard));
 
     for package_id in package_ids {
-        let (response, report) = match ctx
+        let (response, _report) = match ctx
             .managers
             .get(package_id)
             .await
@@ -241,7 +254,7 @@ async fn perform_backup(
                 .await
                 .metadata
                 .package_backups
-                .insert(package_id.clone(), pkg_meta);
+                .insert(package_id.0.clone(), pkg_meta);
         }
 
         todo!("Manager backup fn should handle updating progress, since it needs to happen atomically with updating the status");

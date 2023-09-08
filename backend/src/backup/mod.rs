@@ -41,7 +41,7 @@ pub mod target;
 #[derive(Debug, Deserialize, Serialize)]
 pub struct BackupReport {
     server: ServerBackupReport,
-    packages: BTreeMap<PackageId, PackageBackupReport>,
+    packages: BTreeMap<(PackageId, Version), PackageBackupReport>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

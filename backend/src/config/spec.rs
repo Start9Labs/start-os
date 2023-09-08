@@ -1173,7 +1173,7 @@ impl<'de> Deserialize<'de> for ValueSpecString {
                 })
             }
         }
-        const FIELDS: &'static [&'static str] = &[
+        const FIELDS: &[&str] = &[
             "pattern",
             "pattern-description",
             "textarea",
@@ -1615,7 +1615,7 @@ impl PackagePointerSpec {
         config_overrides: &BTreeMap<PackageId, Config>,
     ) -> Result<Value, ConfigurationError> {
         match &self {
-            PackagePointerSpec::TorKey(key) => key.deref(ctx, &manifest.id).await,
+            PackagePointerSpec::TorKey(key) => key.deref(&manifest.id, &ctx.secret_store).await,
             PackagePointerSpec::TorAddress(tor) => tor.deref(ctx).await,
             PackagePointerSpec::LanAddress(lan) => lan.deref(ctx).await,
             PackagePointerSpec::Config(cfg) => cfg.deref(ctx, config_overrides).await,
@@ -1693,13 +1693,15 @@ impl TorAddressPointer {
         let addr = ctx
             .db
             .peek()
-            .await?
+            .await
+            .map_err(|e| ConfigurationError::SystemError(e))?
             .as_package_data()
             .as_idx(&self.package_id)
             .and_then(|pde| pde.as_installed())
             .and_then(|i| i.as_interface_addresses().as_idx(&self.interface))
             .and_then(|a| a.as_tor_address().de().transpose())
-            .transpose()?;
+            .transpose()
+            .map_err(|e| ConfigurationError::SystemError(e))?;
         Ok(addr.map(Value::String).unwrap_or(Value::Null))
     }
 }
@@ -1734,13 +1736,15 @@ impl LanAddressPointer {
         let addr = ctx
             .db
             .peek()
-            .await?
+            .await
+            .map_err(|e| ConfigurationError::SystemError(e))?
             .as_package_data()
             .as_idx(&self.package_id)
             .and_then(|pde| pde.as_installed())
             .and_then(|i| i.as_interface_addresses().as_idx(&self.interface))
             .and_then(|a| a.as_lan_address().de().transpose())
-            .transpose()?;
+            .transpose()
+            .map_err(|e| ConfigurationError::SystemError(e))?;
         Ok(addr.to_owned().map(Value::String).unwrap_or(Value::Null))
     }
 }
@@ -1765,22 +1769,28 @@ impl ConfigPointer {
             Ok(self.select(&Value::Object(cfg.clone())))
         } else {
             let id = &self.package_id;
-            let manifest = ctx
+            let db = ctx
                 .db
                 .peek()
-                .await?
-                .as_package_data()
-                .as_idx(id)
-                .map(|pde| pde.as_manifest());
+                .await
+                .map_err(|e| ConfigurationError::SystemError(e))?;
+            let manifest = db.as_package_data().as_idx(id).map(|pde| pde.as_manifest());
             let cfg_actions = manifest.and_then(|m| m.as_config().transpose_ref());
             if let (Some(manifest), Some(cfg_actions)) = (manifest, cfg_actions) {
                 let cfg_res = cfg_actions
-                    .de()?
+                    .de()
+                    .map_err(|e| ConfigurationError::SystemError(e))?
                     .get(
                         ctx,
                         &self.package_id,
-                        &manifest.as_version().de()?,
-                        &manifest.as_volumes().de()?,
+                        &manifest
+                            .as_version()
+                            .de()
+                            .map_err(|e| ConfigurationError::SystemError(e))?,
+                        &manifest
+                            .as_volumes()
+                            .de()
+                            .map_err(|e| ConfigurationError::SystemError(e))?,
                     )
                     .await
                     .map_err(|e| ConfigurationError::SystemError(e))?;
@@ -1915,7 +1925,7 @@ impl fmt::Display for SystemPointerSpec {
     }
 }
 impl SystemPointerSpec {
-    async fn deref(&self, ctx: &RpcContext) -> Result<Value, ConfigurationError> {
+    async fn deref(&self, _ctx: &RpcContext) -> Result<Value, ConfigurationError> {
         #[allow(unreachable_code)]
         Ok(match *self {})
     }
