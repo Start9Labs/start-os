@@ -4,6 +4,7 @@ import { MarketplacePkg } from '../../../types'
 @Component({
   selector: 'marketplace-dependencies',
   templateUrl: 'dependencies.component.html',
+  styleUrls: ['./dependencies.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DependenciesComponent {

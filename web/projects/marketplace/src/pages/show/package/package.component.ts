@@ -3,11 +3,11 @@ import {
   Component,
   Inject,
   inject,
+  Input,
 } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { getPkgId } from '@start9labs/shared'
 import { BehaviorSubject } from 'rxjs'
-import { switchMap } from 'rxjs/operators'
 import {
   TuiDialogContext,
   TuiDialogService,
@@ -18,6 +18,7 @@ import { tuiPure } from '@taiga-ui/cdk'
 import { AbstractMarketplaceService } from '../../../services/marketplace.service'
 import { PolymorpheusContent } from '@tinkoff/ng-polymorpheus'
 import { isPlatform } from '@ionic/angular'
+import { MarketplacePkg } from '../../../types'
 
 @Component({
   selector: 'marketplace-package',
@@ -27,6 +28,9 @@ import { isPlatform } from '@ionic/angular'
   animations: [tuiFadeIn],
 })
 export class PackageComponent {
+  @Input()
+  pkg!: MarketplacePkg
+
   constructor(
     private readonly activatedRoute: ActivatedRoute,
     @Inject(TuiDialogService) private readonly dialogs: TuiDialogService,
@@ -38,12 +42,6 @@ export class PackageComponent {
   index = 0
   speed = 1000
   isMobile = isPlatform(window, 'ios') || isPlatform(window, 'android')
-
-  readonly pkg$ = this.version$.pipe(
-    switchMap(version =>
-      this.marketplaceService.getPackage$(this.pkgId, version),
-    ),
-  )
 
   @tuiPure
   getAnimation(duration: number): TuiDurationOptions {
