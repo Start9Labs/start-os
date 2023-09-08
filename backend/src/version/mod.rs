@@ -61,13 +61,13 @@ where
     async fn up(&self, db: PatchDb, secrets: &PgPool) -> Result<(), Error>;
     async fn down(&self, db: PatchDb, secrets: &PgPool) -> Result<(), Error>;
     async fn commit(&self, db: PatchDb) -> Result<(), Error> {
+        let semver = self.semver().into();
+        let compat = self.compat();
         db.mutate(|d| {
-            d.as_server_info_mut()
-                .as_version_mut()
-                .ser(&self.semver().into())?;
+            d.as_server_info_mut().as_version_mut().ser(&semver)?;
             d.as_server_info_mut()
                 .as_eos_version_compat()
-                .ser(&self.compat().clone())?;
+                .ser(&compat)?;
             Ok(())
         })
         .await?;
