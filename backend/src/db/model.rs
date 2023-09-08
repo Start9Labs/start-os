@@ -354,13 +354,13 @@ impl Model<PackageDataEntry> {
         }
     }
     pub fn as_manifest(&self) -> &Model<Manifest> {
-        match self.into_match() {
-            PackageDataEntryMatchModel::Installing(a) => a.as_manifest(),
-            PackageDataEntryMatchModel::Updating(a) => a.as_installed().as_manifest(),
-            PackageDataEntryMatchModel::Restoring(a) => a.as_manifest(),
-            PackageDataEntryMatchModel::Removing(a) => a.as_manifest(),
-            PackageDataEntryMatchModel::Installed(a) => a.as_manifest(),
-            PackageDataEntryMatchModel::Error(_) => (&Value::Null).into(),
+        match self.as_match() {
+            PackageDataEntryMatchModelRef::Installing(a) => a.as_manifest(),
+            PackageDataEntryMatchModelRef::Updating(a) => a.as_installed().as_manifest(),
+            PackageDataEntryMatchModelRef::Restoring(a) => a.as_manifest(),
+            PackageDataEntryMatchModelRef::Removing(a) => a.as_manifest(),
+            PackageDataEntryMatchModelRef::Installed(a) => a.as_manifest(),
+            PackageDataEntryMatchModelRef::Error(_) => (&Value::Null).into(),
         }
     }
     pub fn into_installed(self) -> Option<Model<InstalledPackageInfo>> {
@@ -374,43 +374,43 @@ impl Model<PackageDataEntry> {
         }
     }
     pub fn as_installed(&self) -> Option<&Model<InstalledPackageInfo>> {
-        match self.into_match() {
-            PackageDataEntryMatchModel::Installing(_) => None,
-            PackageDataEntryMatchModel::Updating(a) => Some(a.as_installed()),
-            PackageDataEntryMatchModel::Restoring(_) => None,
-            PackageDataEntryMatchModel::Removing(_) => None,
-            PackageDataEntryMatchModel::Installed(a) => Some(a.as_installed()),
-            PackageDataEntryMatchModel::Error(_) => None,
+        match self.as_match() {
+            PackageDataEntryMatchModelRef::Installing(_) => None,
+            PackageDataEntryMatchModelRef::Updating(a) => Some(a.as_installed()),
+            PackageDataEntryMatchModelRef::Restoring(_) => None,
+            PackageDataEntryMatchModelRef::Removing(_) => None,
+            PackageDataEntryMatchModelRef::Installed(a) => Some(a.as_installed()),
+            PackageDataEntryMatchModelRef::Error(_) => None,
         }
     }
     pub fn as_installed_mut(&mut self) -> Option<&mut Model<InstalledPackageInfo>> {
-        match self.into_match() {
-            PackageDataEntryMatchModel::Installing(_) => None,
-            PackageDataEntryMatchModel::Updating(mut a) => Some(a.as_installed_mut()),
-            PackageDataEntryMatchModel::Restoring(_) => None,
-            PackageDataEntryMatchModel::Removing(_) => None,
-            PackageDataEntryMatchModel::Installed(mut a) => Some(a.as_installed_mut()),
-            PackageDataEntryMatchModel::Error(_) => None,
+        match self.as_match_mut() {
+            PackageDataEntryMatchModelMut::Installing(_) => None,
+            PackageDataEntryMatchModelMut::Updating(a) => Some(a.as_installed_mut()),
+            PackageDataEntryMatchModelMut::Restoring(_) => None,
+            PackageDataEntryMatchModelMut::Removing(_) => None,
+            PackageDataEntryMatchModelMut::Installed(a) => Some(a.as_installed_mut()),
+            PackageDataEntryMatchModelMut::Error(_) => None,
         }
     }
     pub fn as_install_progress(&self) -> Option<&Model<Arc<InstallProgress>>> {
-        match self.into_match() {
-            PackageDataEntryMatchModel::Installing(a) => Some(a.as_install_progress()),
-            PackageDataEntryMatchModel::Updating(a) => Some(a.as_install_progress()),
-            PackageDataEntryMatchModel::Restoring(_) => None,
-            PackageDataEntryMatchModel::Removing(_) => None,
-            PackageDataEntryMatchModel::Installed(_) => None,
-            PackageDataEntryMatchModel::Error(_) => None,
+        match self.as_match() {
+            PackageDataEntryMatchModelRef::Installing(a) => Some(a.as_install_progress()),
+            PackageDataEntryMatchModelRef::Updating(a) => Some(a.as_install_progress()),
+            PackageDataEntryMatchModelRef::Restoring(_) => None,
+            PackageDataEntryMatchModelRef::Removing(_) => None,
+            PackageDataEntryMatchModelRef::Installed(_) => None,
+            PackageDataEntryMatchModelRef::Error(_) => None,
         }
     }
     pub fn as_install_progress_mut(&mut self) -> Option<&Model<Arc<InstallProgress>>> {
-        match self.into_match() {
-            PackageDataEntryMatchModel::Installing(mut a) => Some(a.as_install_progress_mut()),
-            PackageDataEntryMatchModel::Updating(mut a) => Some(a.as_install_progress_mut()),
-            PackageDataEntryMatchModel::Restoring(_) => None,
-            PackageDataEntryMatchModel::Removing(_) => None,
-            PackageDataEntryMatchModel::Installed(_) => None,
-            PackageDataEntryMatchModel::Error(_) => None,
+        match self.as_match_mut() {
+            PackageDataEntryMatchModelMut::Installing(a) => Some(a.as_install_progress_mut()),
+            PackageDataEntryMatchModelMut::Updating(a) => Some(a.as_install_progress_mut()),
+            PackageDataEntryMatchModelMut::Restoring(_) => None,
+            PackageDataEntryMatchModelMut::Removing(_) => None,
+            PackageDataEntryMatchModelMut::Installed(_) => None,
+            PackageDataEntryMatchModelMut::Error(_) => None,
         }
     }
 }

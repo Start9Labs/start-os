@@ -62,11 +62,11 @@ where
     async fn down(&self, db: PatchDb, secrets: &PgPool) -> Result<(), Error>;
     async fn commit(&self, db: PatchDb) -> Result<(), Error> {
         let semver = self.semver().into();
-        let compat = self.compat();
+        let compat = self.compat().clone();
         db.mutate(|d| {
             d.as_server_info_mut().as_version_mut().ser(&semver)?;
             d.as_server_info_mut()
-                .as_eos_version_compat()
+                .as_eos_version_compat_mut()
                 .ser(&compat)?;
             Ok(())
         })
@@ -94,7 +94,7 @@ where
         let previous = Self::Previous::new();
         if version.semver() < previous.semver() {
             previous
-                .migrate_from_unchecked(version, db, secrets)
+                .migrate_from_unchecked(version, db.clone(), secrets)
                 .await?;
         } else if version.semver() > previous.semver() {
             return Err(Error::new(
@@ -106,7 +106,7 @@ where
             ));
         }
         tracing::info!("{} -> {}", previous.semver(), self.semver(),);
-        self.up(db, secrets).await?;
+        self.up(db.clone(), secrets).await?;
         self.commit(db).await?;
         Ok(())
     }
@@ -118,8 +118,8 @@ where
     ) -> Result<(), Error> {
         let previous = Self::Previous::new();
         tracing::info!("{} -> {}", self.semver(), previous.semver(),);
-        self.down(db, secrets).await?;
-        previous.commit(db).await?;
+        self.down(db.clone(), secrets).await?;
+        previous.commit(db.clone()).await?;
         if version.semver() < previous.semver() {
             previous.rollback_to_unchecked(version, db, secrets).await?;
         } else if version.semver() > previous.semver() {

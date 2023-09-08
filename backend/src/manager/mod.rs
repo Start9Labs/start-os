@@ -259,7 +259,7 @@ impl Manager {
     fn perform_backup(
         &self,
         backup_guard: BackupGuard,
-    ) -> BoxFuture<Result<Result<PackageBackupInfo, Error>, Error>> {
+    ) -> impl Future<Output = Result<Result<PackageBackupInfo, Error>, Error>> {
         let manage_container = self.manage_container.clone();
         let seed = self.seed.clone();
         async move {
@@ -280,18 +280,19 @@ impl Manager {
             drop(override_guard);
             Ok::<_, Error>(return_value)
         }
-        .boxed()
     }
     fn _transition_backup(
         &self,
         backup_guard: BackupGuard,
     ) -> (TransitionState, BoxFuture<BackupReturn>) {
         let (send, done) = oneshot::channel();
+
+        let transition_state = self.transition.clone();
         (
             TransitionState::BackingUp(
                 tokio::spawn(
-                    self.perform_backup(backup_guard.clone())
-                        .then(finish_up_backup_task(self.transition.clone(), send)),
+                    self.perform_backup(backup_guard)
+                        .then(finish_up_backup_task(transition_state, send)),
                 )
                 .into(),
             ),

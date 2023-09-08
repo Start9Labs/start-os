@@ -49,9 +49,9 @@ impl PatchDbExt for PatchDb {
         f: impl FnOnce(&mut DatabaseModel) -> Result<U, Error> + UnwindSafe + Send,
     ) -> Result<U, Error> {
         Ok(self
-            .apply_function(|v| {
-                let mut model = <&mut DatabaseModel>::from(&mut v);
-                let res = f(&mut model)?;
+            .apply_function(|mut v| {
+                let model = <&mut DatabaseModel>::from(&mut v);
+                let res = f(model)?;
                 Ok::<_, Error>((v, res))
             })
             .await?
@@ -307,7 +307,7 @@ where
         use patch_db::ModelExt;
         use serde::de::Error;
         use serde::Deserialize;
-        match &self.value {
+        match &mut self.value {
             Value::Object(o) => o
                 .iter_mut()
                 .map(|(k, v)| {
