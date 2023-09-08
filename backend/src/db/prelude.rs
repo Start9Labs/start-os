@@ -1,5 +1,5 @@
-use std::marker::PhantomData;
 use std::panic::UnwindSafe;
+use std::{collections::BTreeMap, marker::PhantomData};
 
 use patch_db::value::InternedString;
 pub use patch_db::{HasModel, PatchDb, Value};
@@ -8,6 +8,8 @@ use serde::Serialize;
 
 use crate::db::model::DatabaseModel;
 use crate::prelude::*;
+
+use super::model::IpInfo;
 
 pub type Peeked = Model<super::model::Database>;
 
@@ -178,6 +180,11 @@ impl<T> Model<Option<T>> {
 pub trait Map: DeserializeOwned + Serialize {
     type Key;
     type Value;
+}
+
+impl Map for BTreeMap<String, IpInfo> {
+    type Key = String;
+    type Value = IpInfo;
 }
 
 impl<T: Map> Model<T>

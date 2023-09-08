@@ -80,7 +80,7 @@ async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<Option
     let latest_version: Version = ctx
         .client
         .get(with_query_params(
-            &ctx,
+            ctx.clone(),
             format!("{}/eos/v0/latest", marketplace_url,).parse()?,
         ))
         .send()
