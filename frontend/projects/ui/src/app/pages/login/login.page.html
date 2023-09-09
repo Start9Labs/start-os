@@ -1,6 +1,11 @@
 <ion-content class="content">
-  <!-- SECURE -->
-  <ng-container *ngIf="config.isSecure(); else insecure">
+  <!-- LAN HTTP -->
+  <ng-container *ngIf="config.isLanHttp(); else notLanHttp">
+    <ca-wizard></ca-wizard>
+  </ng-container>
+
+  <!-- not LAN HTTP -->
+  <ng-template #notLanHttp>
     <div *ngIf="config.isTorHttp()" class="banner">
       <ion-item color="warning">
         <ion-icon slot="start" name="warning-outline"></ion-icon>
@@ -72,126 +77,5 @@
         </ion-col>
       </ion-row>
     </ion-grid>
-  </ng-container>
-
-  <!-- INSECURE -->
-  <ng-template #insecure>
-    <ion-grid class="grid-wiz">
-      <img width="60px" height="60px" src="/assets/img/icon_transparent.png" />
-      <ion-row>
-        <ion-col class="ion-text-center">
-          <ion-icon name="lock-closed-outline" class="wiz-icon"></ion-icon>
-        </ion-col>
-      </ion-row>
-      <ion-row>
-        <ion-col class="ion-text-center">
-          <h2><b>Trust your Root Certificate Authority (CA)</b></h2>
-          <p>
-            Download and trust your server's Root CA to establish secure,
-            encrypted (
-            <b>HTTPS</b>
-            ) connections with your server
-          </p>
-        </ion-col>
-      </ion-row>
-      <ion-row>
-        <ion-col sizeXs="12" sizeLg="4">
-          <div class="wiz-card">
-            <ion-row class="ion-justify-content-between">
-              <b class="wiz-step">1</b>
-              <tui-tooltip
-                content="Your server uses its Root CA to generate SSL/TLS certificates for itself and its installed services. These certificates are used to encrypt network traffic with your client devices."
-                direction="right"
-              ></tui-tooltip>
-            </ion-row>
-            <div class="ion-text-center">
-              <h2>Download Root CA</h2>
-              <p>Download your server's Root CA</p>
-            </div>
-            <ion-button
-              class="wiz-card-button"
-              shape="round"
-              (click)="download()"
-            >
-              <ion-icon slot="start" name="download-outline"></ion-icon>
-              Download
-            </ion-button>
-          </div>
-        </ion-col>
-        <ion-col sizeXs="12" sizeLg="4">
-          <div class="wiz-card" [class.disabled]="!downloadClicked">
-            <ion-row class="ion-justify-content-between">
-              <b class="wiz-step">2</b>
-              <tui-tooltip
-                content="By trusting your server's Root CA, your device can verify the authenticity of its encrypted communications with your server and installed services. You will need to trust the Root CA on every device used to connect to your server."
-                direction="right"
-              ></tui-tooltip>
-            </ion-row>
-            <div class="ion-text-center">
-              <h2>Trust Root CA</h2>
-              <p>Follow instructions for your OS</p>
-            </div>
-            <ion-button
-              class="wiz-card-button"
-              shape="round"
-              (click)="instructions()"
-              [disabled]="!downloadClicked"
-            >
-              View Docs
-              <ion-icon slot="end" name="open-outline"></ion-icon>
-            </ion-button>
-          </div>
-        </ion-col>
-        <ion-col sizeXs="12" sizeLg="4">
-          <div class="wiz-card" [class.disabled]="!polling && !caTrusted">
-            <b class="wiz-step">3</b>
-            <div class="ion-text-center">
-              <h2>Go To Login</h2>
-              <p *ngIf="instructionsClicked; else space" class="inline-center">
-                <ion-spinner
-                  class="wiz-spinner"
-                  *ngIf="!caTrusted; else trusted"
-                ></ion-spinner>
-                <ng-template #trusted>
-                  <ion-icon name="ribbon-outline" color="success"></ion-icon>
-                </ng-template>
-                &nbsp;{{ caTrusted ? 'Root CA trusted!' : 'Waiting for
-                trust...'}}
-              </p>
-              <ng-template #space>
-                <!-- to keep alignment -->
-                <p><br /></p>
-              </ng-template>
-            </div>
-            <ion-button
-              class="wiz-card-button"
-              shape="round"
-              (click)="launchHttps()"
-              [disabled]="!caTrusted"
-            >
-              Open
-              <ion-icon slot="end" name="open-outline"></ion-icon>
-            </ion-button>
-          </div>
-        </ion-col>
-      </ion-row>
-      <ion-row>
-        <ion-col class="ion-text-center">
-          <ion-button
-            fill="clear"
-            (click)="launchHttps()"
-            [disabled]="caTrusted"
-          >
-            Skip
-            <ion-icon slot="end" name="open-outline"></ion-icon>
-          </ion-button>
-        </ion-col>
-      </ion-row>
-    </ion-grid>
-    <a
-      id="install-cert"
-      href="/public/eos/local.crt"
-      [download]="document.location.hostname"
-    ></a>
   </ng-template>
 </ion-content>

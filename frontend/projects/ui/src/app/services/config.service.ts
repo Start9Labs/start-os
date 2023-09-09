@@ -40,29 +40,25 @@ export class ConfigService {
   supportsWebSockets = !!window.WebSocket || this.isConsulate
 
   isTor(): boolean {
-    return (
-      this.hostname.endsWith('.onion') || (useMocks && mocks.maskAs === 'tor')
-    )
+    return useMocks ? mocks.maskAs === 'tor' : this.hostname.endsWith('.onion')
   }
 
   isTorHttp(): boolean {
-    return this.isTor() && this.protocol === 'http:'
+    return this.isTor() && !this.isHttps()
   }
 
   isLan(): boolean {
-    return (
-      this.hostname === 'localhost' ||
-      this.hostname.endsWith('.local') ||
-      (useMocks && mocks.maskAs === 'lan')
-    )
+    return useMocks
+      ? mocks.maskAs === 'lan'
+      : this.hostname === 'localhost' || this.hostname.endsWith('.local')
+  }
+
+  isLanHttp(): boolean {
+    return this.isLan() && !this.isHttps()
   }
 
   isSecure(): boolean {
-    // localhost is treated as secure context but cannot be accessed over https, so handle mock toggling of https for dev purposes
-    return useMocks && mocks.maskAsHttps
-      ? window.isSecureContext || this.isTor()
-      : !(this.hostname === 'localhost') &&
-          (window.isSecureContext || this.isTor())
+    return window.isSecureContext || this.isTor()
   }
 
   isLaunchable(
@@ -88,6 +84,10 @@ export class ConfigService {
 
   getHost(): string {
     return this.host
+  }
+
+  private isHttps(): boolean {
+    return useMocks ? mocks.maskAsHttps : this.protocol === 'https:'
   }
 }
 
