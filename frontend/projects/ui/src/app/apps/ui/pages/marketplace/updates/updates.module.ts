@@ -19,6 +19,7 @@ import { SkeletonListComponentModule } from 'src/app/common/skeleton-list/skelet
 import { UpdatesPage } from './updates.page'
 import { InstallProgressPipe } from './install-progress.pipe'
 import { FilterUpdatesPipe } from './filter-updates.pipe'
+import { MarketplaceSidebarModule } from '../components/marketplace-sidebar/marketplace-sidebar.module'
 
 const routes: Routes = [
   {
@@ -43,6 +44,7 @@ const routes: Routes = [
     SafeLinksModule,
     NgDompurifyModule,
     TuiProgressModule,
+    MarketplaceSidebarModule,
   ],
 })
 export class UpdatesPageModule {}

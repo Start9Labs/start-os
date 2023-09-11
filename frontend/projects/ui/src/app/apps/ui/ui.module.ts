@@ -18,11 +18,6 @@ const ROUTES: Routes = [
       import('./pages/system/system.module').then(m => m.SystemModule),
   },
   {
-    path: 'updates',
-    loadChildren: () =>
-      import('./pages/updates/updates.module').then(m => m.UpdatesPageModule),
-  },
-  {
     path: 'marketplace',
     loadChildren: () =>
       import('./pages/marketplace/marketplace.module').then(

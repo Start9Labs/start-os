@@ -120,9 +120,10 @@
           [category]="query ? '' : category"
           (categoryChange)="onCategoryChange($event)"
         ></marketplace-categories>
+        <ng-content select="[slot=updates]"></ng-content>
         <a
+          safeLinks
           class="flex gap-2 p-2 hover:no-underline sm:hover:bg-[#222428] hover:cursor-pointer sm:w-[120%] z-50 rounded-l-lg ease-in-out delay-75 duration-300"
-          target="_blank"
           href="https://github.com/Start9Labs/service-pipeline#readme"
         >
           <img

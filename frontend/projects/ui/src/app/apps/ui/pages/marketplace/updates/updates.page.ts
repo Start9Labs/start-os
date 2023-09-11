@@ -14,7 +14,7 @@ import {
 } from '@start9labs/marketplace'
 import { isEmptyObject, LoadingService } from '@start9labs/shared'
 import { TuiDialogService } from '@taiga-ui/core'
-import { combineLatest, filter, Observable } from 'rxjs'
+import { combineLatest, Observable } from 'rxjs'
 import { NavController } from '@ionic/angular'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { getAllPackages } from 'src/app/util/get-package-data'

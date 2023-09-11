@@ -1,8 +1,8 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  inject,
   Inject,
+  inject,
 } from '@angular/core'
 import { EOSService } from 'src/app/services/eos.service'
 import { PatchDB } from 'patch-db-client'
@@ -40,11 +40,6 @@ export class MenuComponent {
       title: 'Marketplace',
       url: '/marketplace',
       icon: 'storefront-outline',
-    },
-    {
-      title: 'Updates',
-      url: '/updates',
-      icon: 'globe-outline',
     },
     {
       title: 'Backups',
@@ -99,8 +94,9 @@ export class MenuComponent {
         store?.packages.forEach(({ manifest: { id, version } }) => {
           if (
             this.emver.compare(version, local[id]?.manifest.version || '') === 1
-          )
+          ) {
             list.add(id)
+          }
         })
         return list
       }, new Set<string>()),

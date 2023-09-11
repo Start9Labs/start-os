@@ -11,6 +11,11 @@ const routes: Routes = [
       ),
   },
   {
+    path: 'updates',
+    loadChildren: () =>
+      import('./updates/updates.module').then(m => m.UpdatesPageModule),
+  },
+  {
     path: ':pkgId',
     loadChildren: () =>
       import('./marketplace-show/marketplace-show.module').then(
