@@ -42,7 +42,7 @@ impl ManagerMap {
 
     /// Used during the install process
     #[instrument(skip_all)]
-    pub async fn add(&self, ctx: RpcContext, manifest: Manifest) -> Result<(), Error> {
+    pub async fn add(&self, _ctx: RpcContext, manifest: Manifest) -> Result<(), Error> {
         let mut lock = self.0.write().await;
         let id = (manifest.id.clone(), manifest.version.clone());
         if let Some(man) = lock.remove(&id) {
@@ -66,7 +66,7 @@ impl ManagerMap {
             futures::future::join_all(std::mem::take(&mut *self.0.write().await).into_iter().map(
                 |((id, version), man)| async move {
                     tracing::debug!("Manager for {}@{} shutting down", id, version);
-                    man.shutdown().await;
+                    man.shutdown().await?;
                     tracing::debug!("Manager for {}@{} is shutdown", id, version);
                     if let Err(e) = Arc::try_unwrap(man) {
                         tracing::trace!(

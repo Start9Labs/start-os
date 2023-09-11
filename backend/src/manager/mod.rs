@@ -202,10 +202,11 @@ impl Manager {
     }
 
     /// A special exit that is overridden the start state, should only be called in the shutdown, where we remove other containers
-    async fn shutdown(&self) {
-        self.manage_container.lock_state_forever(&self.seed);
+    async fn shutdown(&self) -> Result<(), Error> {
+        self.manage_container.lock_state_forever(&self.seed).await?;
 
         self.exit().await;
+        Ok(())
     }
 
     /// Used when we want to shutdown the service
@@ -227,7 +228,7 @@ impl Manager {
             .send_replace(Default::default())
             .join_handle()
         {
-            (&**transition).abort();
+            (**transition).abort();
         }
     }
     fn _transition_replace(&self, transition_state: TransitionState) {
@@ -594,7 +595,7 @@ async fn configure(
                 status.as_configured_mut().ser(&true)?;
                 status
                     .as_dependency_config_errors_mut()
-                    .ser(&DependencyConfigErrors(dependency_config_errs));
+                    .ser(&DependencyConfigErrors(dependency_config_errs))?;
                 Ok(configure_context.breakages)
             })
             .await; // add new
@@ -768,7 +769,7 @@ async fn get_long_running_ip(seed: &ManagerSeed, runtime: &mut LongRunning) -> G
             Ok(Some(ip_addr)) => return GetRunningIp::Ip(ip_addr),
             Ok(None) => (),
             Err(e) if e.kind == ErrorKind::NotFound => (),
-            Err(e) => return GetRunningIp::Error(e.into()),
+            Err(e) => return GetRunningIp::Error(e),
         }
         if let Poll::Ready(res) = futures::poll!(&mut runtime.running_output) {
             match res {
@@ -851,7 +852,7 @@ async fn get_running_ip(seed: &ManagerSeed, mut runtime: &mut RuntimeOfCommand) 
             Ok(Some(ip_addr)) => return GetRunningIp::Ip(ip_addr),
             Ok(None) => (),
             Err(e) if e.kind == ErrorKind::NotFound => (),
-            Err(e) => return GetRunningIp::Error(e.into()),
+            Err(e) => return GetRunningIp::Error(e),
         }
         if let Poll::Ready(res) = futures::poll!(&mut runtime) {
             match res {

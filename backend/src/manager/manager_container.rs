@@ -1,7 +1,6 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use futures::FutureExt;
 use models::OptionExt;
 use tokio::sync::watch;
 use tokio::sync::watch::Sender;
