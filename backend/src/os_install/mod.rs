@@ -272,7 +272,7 @@ pub async fn execute(
         .invoke(crate::ErrorKind::OpenSsh)
         .await?;
 
-    let dev = MountGuard::mount(
+    let dev_one = MountGuard::mount(
         &Bind::new(rootfs.as_ref()),
         current.join("media/embassy/embassyfs"),
         MountType::ReadOnly,
@@ -315,7 +315,7 @@ pub async fn execute(
         .arg("update-grub2")
         .invoke(crate::ErrorKind::Grub)
         .await?;
-
+    dev_one.unmount(false).await?;
     dev.unmount(false).await?;
     if let Some(efivarfs) = efivarfs {
         efivarfs.unmount(false).await?;
@@ -327,7 +327,6 @@ pub async fn execute(
     }
     boot.unmount(false).await?;
     rootfs.unmount().await?;
-
     Ok(())
 }
 

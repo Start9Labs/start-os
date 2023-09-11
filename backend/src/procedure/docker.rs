@@ -231,7 +231,7 @@ impl DockerProcedure {
         timeout: Option<Duration>,
     ) -> Result<Result<O, (i32, String)>, Error> {
         let name = name.docker_name();
-        let name: Option<&str> = name.as_ref().map(|x| &**x);
+        let name: Option<&str> = name.as_deref();
         let mut cmd = tokio::process::Command::new(CONTAINER_TOOL);
         let container_name = Self::container_name(pkg_id, name);
         cmd.arg("run")
@@ -386,14 +386,12 @@ impl DockerProcedure {
         &self,
         _ctx: &RpcContext,
         pkg_id: &PackageId,
-        pkg_version: &Version,
-        name: ProcedureName,
-        volumes: &Volumes,
+        _pkg_version: &Version,
+        _name: ProcedureName,
+        _volumes: &Volumes,
         input: Option<I>,
         timeout: Option<Duration>,
     ) -> Result<Result<O, (i32, String)>, Error> {
-        let name = name.docker_name();
-        let name: Option<&str> = name.as_deref();
         let mut cmd = tokio::process::Command::new(CONTAINER_TOOL);
 
         cmd.arg("exec");

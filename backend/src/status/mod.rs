@@ -15,6 +15,7 @@ pub mod health_check;
 pub struct Status {
     pub configured: bool,
     pub main: MainStatus,
+    #[serde(default)]
     pub dependency_config_errors: DependencyConfigErrors,
 }
 

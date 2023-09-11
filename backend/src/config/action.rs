@@ -35,7 +35,7 @@ impl ConfigActions {
     #[instrument(skip_all)]
     pub fn validate(
         &self,
-        container: &Option<DockerContainers>,
+        _container: &Option<DockerContainers>,
         eos_version: &Version,
         volumes: &Volumes,
         image_ids: &BTreeSet<ImageId>,

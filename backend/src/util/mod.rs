@@ -182,7 +182,7 @@ impl<T> Container<T> {
         std::mem::replace(&mut *self.0.write().await, Some(value))
     }
     pub async fn take(&self) -> Option<T> {
-        std::mem::replace(&mut *self.0.write().await, None)
+        self.0.write().await.take()
     }
     pub async fn is_empty(&self) -> bool {
         self.0.read().await.is_none()
@@ -219,7 +219,7 @@ impl<H: Digest, W: tokio::io::AsyncWrite> tokio::io::AsyncWrite for HashWriter<H
         buf: &[u8],
     ) -> Poll<std::io::Result<usize>> {
         let this = self.project();
-        let written = tokio::io::AsyncWrite::poll_write(this.writer, cx, &buf);
+        let written = tokio::io::AsyncWrite::poll_write(this.writer, cx, buf);
         match written {
             // only update the hasher once
             Poll::Ready(res) => {

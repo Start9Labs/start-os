@@ -18,9 +18,15 @@ impl From<MainStatus> for StartStop {
             MainStatus::Restarting => StartStop::Start,
             MainStatus::Stopping => StartStop::Stop,
             MainStatus::Starting => StartStop::Start,
-            MainStatus::Running { started, health } => StartStop::Start,
-            MainStatus::BackingUp { started, health } if started.is_some() => StartStop::Start,
-            MainStatus::BackingUp { started, health } => StartStop::Stop,
+            MainStatus::Running {
+                started: _,
+                health: _,
+            } => StartStop::Start,
+            MainStatus::BackingUp { started, health: _ } if started.is_some() => StartStop::Start,
+            MainStatus::BackingUp {
+                started: _,
+                health: _,
+            } => StartStop::Stop,
         }
     }
 }

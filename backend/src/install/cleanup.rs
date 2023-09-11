@@ -125,7 +125,7 @@ pub fn remove_from_current_dependents_lists(
     current_dependencies: &CurrentDependencies,
 ) -> Result<(), Error> {
     for dep in current_dependencies.0.keys().chain(std::iter::once(id)) {
-        if let Some(mut current_dependents) = db
+        if let Some(current_dependents) = db
             .as_package_data_mut()
             .as_idx_mut(dep)
             .and_then(|d| d.as_installed_mut())

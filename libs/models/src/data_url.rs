@@ -1,5 +1,5 @@
+use std::borrow::Cow;
 use std::path::Path;
-use std::{borrow::Cow, str::FromStr};
 
 use base64::Engine;
 use color_eyre::eyre::eyre;

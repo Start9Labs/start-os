@@ -29,7 +29,7 @@ impl Migrations {
     #[instrument(skip_all)]
     pub fn validate(
         &self,
-        container: &Option<DockerContainers>,
+        _container: &Option<DockerContainers>,
         eos_version: &Version,
         volumes: &Volumes,
         image_ids: &BTreeSet<ImageId>,
@@ -60,7 +60,7 @@ impl Migrations {
     #[instrument(skip_all)]
     pub fn from<'a>(
         &'a self,
-        container: &'a Option<DockerContainers>,
+        _container: &'a Option<DockerContainers>,
         ctx: &'a RpcContext,
         version: &'a Version,
         pkg_id: &'a PackageId,

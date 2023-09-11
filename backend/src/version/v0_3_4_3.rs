@@ -21,9 +21,9 @@ impl VersionT for Version {
         V0_3_4_3
     }
     fn compat(&self) -> &'static VersionRange {
-        &*V0_3_0_COMPAT
+        &V0_3_0_COMPAT
     }
-    async fn up(&self, db: PatchDb, _secrets: &PgPool) -> Result<(), Error> {
+    async fn up(&self, _db: PatchDb, _secrets: &PgPool) -> Result<(), Error> {
         Ok(())
     }
     async fn down(&self, _db: PatchDb, _secrets: &PgPool) -> Result<(), Error> {
