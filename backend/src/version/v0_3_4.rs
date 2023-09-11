@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use emver::VersionRange;
 use itertools::Itertools;
 use openssl::hash::MessageDigest;
-use serde_json::{json, Value};
+use serde_json::json;
 use ssh_key::public::Ed25519PublicKey;
 
 use super::*;
@@ -59,7 +59,7 @@ impl VersionT for Version {
                 d.as_server_info_mut().as_pubkey_mut().ser(
                     &ssh_key::PublicKey::from(Ed25519PublicKey::from(&account.key.ssh_key()))
                         .to_openssh()?,
-                );
+                )?;
                 d.as_server_info_mut().as_ca_fingerprint_mut().ser(
                     &account
                         .root_ca_cert
@@ -68,7 +68,7 @@ impl VersionT for Version {
                         .iter()
                         .map(|x| format!("{x:X}"))
                         .join(":"),
-                );
+                )?;
                 let server_info = d.as_server_info();
                 account.hostname = server_info.as_hostname().de().map(Hostname)?;
                 account.server_id = server_info.as_id().de()?;
@@ -77,7 +77,6 @@ impl VersionT for Version {
             })
             .await?;
         account.save(secrets).await?;
-        let peek = db.peek().await?;
         sync_hostname(&account.hostname).await?;
 
         let parsed_url = Some(COMMUNITY_URL.parse().unwrap());
