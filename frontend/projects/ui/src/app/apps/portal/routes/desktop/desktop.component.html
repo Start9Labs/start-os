@@ -12,7 +12,7 @@
     @tuiScaleIn
     (pointerup)="onRemove()"
   ></tui-svg>
-  <tui-fade dragScroller orientation="vertical" class="fade">
+  <div dragScroller tuiFade="vertical" class="fade">
     <tui-tiles
       *ngIf="packages$ | async as packages"
       class="tiles"
@@ -39,5 +39,5 @@
         ></a>
       </tui-tile>
     </tui-tiles>
-  </tui-fade>
+  </div>
 </ng-template>

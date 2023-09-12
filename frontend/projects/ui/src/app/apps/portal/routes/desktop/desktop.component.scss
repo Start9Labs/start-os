@@ -6,7 +6,7 @@
   align-content: center;
   justify-content: center;
   height: 100%;
-  max-width: 56rem;
+  max-width: calc(100vw - 4rem);
   margin: 0 auto;
 }
 
@@ -33,15 +33,10 @@
   gap: 2rem;
   margin: auto;
 
-  &::before,
   &::after {
     content: '';
-    grid-column: 1 / -1;
+    grid-column: 1;
     height: 1rem;
-    order: -1;
-  }
-
-  &::after {
     order: 999;
   }
 }

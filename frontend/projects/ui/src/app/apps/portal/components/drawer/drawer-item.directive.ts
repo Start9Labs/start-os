@@ -18,6 +18,7 @@ import { TuiAlertService } from '@taiga-ui/core'
   selector: '[drawerItem]',
   standalone: true,
   host: {
+    '[style.userSelect]': '"none"',
     '[style.touchAction]': '"none"',
   },
 })
@@ -33,7 +34,7 @@ export class DrawerItemDirective {
   @Input()
   drawerItem = ''
 
-  @HostListener('pointerdown.prevent.silent', ['$event'])
+  @HostListener('pointerdown.silent', ['$event'])
   onStart(event: PointerEvent): void {
     const target = tuiGetActualTarget(event)
     const { x, y, pointerId } = event
