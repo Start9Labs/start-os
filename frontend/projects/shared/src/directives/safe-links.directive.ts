@@ -4,6 +4,7 @@ import { DOCUMENT } from '@angular/common'
 // TODO: Refactor to use `MutationObserver` so it works with dynamic content
 @Directive({
   selector: '[safeLinks]',
+  standalone: true,
 })
 export class SafeLinksDirective implements AfterViewInit {
   constructor(

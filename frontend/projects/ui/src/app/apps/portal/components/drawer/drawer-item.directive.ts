@@ -8,6 +8,7 @@ import {
 import { tuiGetActualTarget, tuiIsElement, tuiPx } from '@taiga-ui/cdk'
 import { DrawerComponent } from './drawer.component'
 import { DesktopService } from '../../services/desktop.service'
+import { TuiAlertService } from '@taiga-ui/core'
 
 /**
  * This directive is responsible for drag and drop of the drawer item.
@@ -17,10 +18,12 @@ import { DesktopService } from '../../services/desktop.service'
   selector: '[drawerItem]',
   standalone: true,
   host: {
+    '[style.userSelect]': '"none"',
     '[style.touchAction]': '"none"',
   },
 })
 export class DrawerItemDirective {
+  private readonly alerts = inject(TuiAlertService)
   private readonly desktop = inject(DesktopService)
   private readonly drawer = inject(DrawerComponent)
   private readonly element: HTMLElement = inject(ElementRef).nativeElement
@@ -31,11 +34,8 @@ export class DrawerItemDirective {
   @Input()
   drawerItem = ''
 
-  @HostListener('pointerdown.prevent.silent', ['$event'])
+  @HostListener('pointerdown.silent', ['$event'])
   onStart(event: PointerEvent): void {
-    // This element is already on the desktop
-    if (this.desktop.items.includes(this.drawerItem)) return
-
     const target = tuiGetActualTarget(event)
     const { x, y, pointerId } = event
     const { left, top } = this.element.getBoundingClientRect()
@@ -62,6 +62,15 @@ export class DrawerItemDirective {
   onMove(x: number, y: number): void {
     // This element is not dragged
     if (Number.isNaN(this.x)) return
+    // This element is already on the desktop
+    if (this.desktop.items.includes(this.drawerItem)) {
+      this.onPointer()
+      this.alerts
+        .open('This item is already added', { status: 'warning' })
+        .subscribe()
+
+      return
+    }
 
     this.process(x, y)
     this.desktop.add('')

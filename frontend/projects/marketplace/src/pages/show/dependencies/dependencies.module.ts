@@ -4,7 +4,7 @@ import { RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
 import {
   EmverPipesModule,
-  ResponsiveColModule,
+  ResponsiveColDirective,
   SharedPipesModule,
 } from '@start9labs/shared'
 
@@ -17,7 +17,7 @@ import { DependenciesComponent } from './dependencies.component'
     IonicModule,
     SharedPipesModule,
     EmverPipesModule,
-    ResponsiveColModule,
+    ResponsiveColDirective,
   ],
   declarations: [DependenciesComponent],
   exports: [DependenciesComponent],

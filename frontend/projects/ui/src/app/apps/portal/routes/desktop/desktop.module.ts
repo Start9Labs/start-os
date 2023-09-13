@@ -1,7 +1,9 @@
 import { CommonModule } from '@angular/common'
 import { NgModule } from '@angular/core'
 import { RouterModule, Routes } from '@angular/router'
+import { DragScrollerDirective } from '@start9labs/shared'
 import { TuiLoaderModule, TuiSvgModule } from '@taiga-ui/core'
+import { TuiFadeModule } from '@taiga-ui/experimental'
 import { TuiTilesModule } from '@taiga-ui/kit'
 import { DesktopComponent } from './desktop.component'
 import { CardComponent } from '../../components/card/card.component'
@@ -25,6 +27,8 @@ const ROUTES: Routes = [
     TuiTilesModule,
     ToDesktopItemPipe,
     RouterModule.forChild(ROUTES),
+    TuiFadeModule,
+    DragScrollerDirective,
   ],
   declarations: [DesktopComponent],
   exports: [DesktopComponent],

@@ -6,7 +6,7 @@ import { IonicModule } from '@ionic/angular'
 import {
   SharedPipesModule,
   EmverPipesModule,
-  ResponsiveColModule,
+  ResponsiveColDirective,
 } from '@start9labs/shared'
 import {
   FilterPackagesPipeModule,
@@ -45,7 +45,7 @@ const routes: Routes = [
     SkeletonModule,
     MarketplaceSettingsPageModule,
     StoreIconComponentModule,
-    ResponsiveColModule,
+    ResponsiveColDirective,
   ],
   declarations: [MarketplaceListPage],
   exports: [MarketplaceListPage],

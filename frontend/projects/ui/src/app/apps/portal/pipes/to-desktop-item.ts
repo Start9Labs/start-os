@@ -27,8 +27,8 @@ export class ToDesktopItemPipe implements PipeTransform {
     }
 
     return {
-      icon: packages[id].icon,
-      title: packages[id].manifest.title,
+      icon: packages[id]?.icon,
+      title: packages[id]?.manifest.title,
       routerLink,
     }
   }

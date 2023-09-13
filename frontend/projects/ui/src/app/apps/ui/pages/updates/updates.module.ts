@@ -9,7 +9,7 @@ import {
 import {
   EmverPipesModule,
   MarkdownPipeModule,
-  SafeLinksModule,
+  SafeLinksDirective,
   SharedPipesModule,
 } from '@start9labs/shared'
 import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
@@ -40,7 +40,7 @@ const routes: Routes = [
     StoreIconComponentModule,
     EmverPipesModule,
     MimeTypePipeModule,
-    SafeLinksModule,
+    SafeLinksDirective,
     NgDompurifyModule,
     TuiProgressModule,
   ],

@@ -61,4 +61,9 @@ export class CardComponent {
 
     this.navigation.addTab({ icon, title, routerLink })
   }
+
+  @HostListener('pointerdown.prevent')
+  onDown() {
+    // Prevents Firefox from starting a native drag
+  }
 }

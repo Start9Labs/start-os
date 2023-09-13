@@ -13,10 +13,10 @@ import { MonacoEditorModule } from '@materia-ui/ngx-monaco-editor'
 import {
   MarkdownModule,
   DarkThemeModule,
-  ResponsiveColModule,
   SharedPipesModule,
   LightThemeModule,
   LoadingModule,
+  ResponsiveColViewportDirective,
 } from '@start9labs/shared'
 
 import { AppComponent } from './app.component'
@@ -61,7 +61,7 @@ import { environment } from '../environments/environment'
     TuiModeModule,
     TuiThemeNightModule,
     WidgetsPageModule,
-    ResponsiveColModule,
+    ResponsiveColViewportDirective,
     DarkThemeModule,
     LightThemeModule,
     ServiceWorkerModule.register('ngsw-worker.js', {

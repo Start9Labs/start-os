@@ -5,7 +5,7 @@ import { IonicModule } from '@ionic/angular'
 import { AppListPage } from './app-list.page'
 import {
   EmverPipesModule,
-  ResponsiveColModule,
+  ResponsiveColDirective,
   TextSpinnerComponentModule,
   TickerModule,
 } from '@start9labs/shared'
@@ -35,7 +35,7 @@ const routes: Routes = [
     RouterModule.forChild(routes),
     BadgeMenuComponentModule,
     WidgetListComponentModule,
-    ResponsiveColModule,
+    ResponsiveColDirective,
     TickerModule,
     LaunchMenuComponentModule,
   ],
