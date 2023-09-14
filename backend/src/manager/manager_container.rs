@@ -242,40 +242,6 @@ async fn run_main_log_result(result: RunMainResult, seed: Arc<manager_seed::Mana
     match result {
         Ok(Ok(NoOutput)) => (), // restart
         Ok(Err(e)) => {
-            // TODO @dr-bonez Do we do unstable anymore
-            #[cfg(feature = "unstable")]
-            {
-                use crate::notifications::NotificationLevel;
-                let started = crate::db::DatabaseModel::new()
-                    .package_data()
-                    .idx_model(&seed.manifest.id)
-                    .and_then(|pde| pde.installed())
-                    .map::<_, MainStatus>(|i| i.status().main())
-                    .get(&mut db)
-                    .await;
-                match started.as_deref() {
-                    Ok(Some(MainStatus::Running { .. })) => {
-                        let res = seed.ctx.notification_manager
-                            .notify(
-                                &mut db,
-                                Some(seed.manifest.id.clone()),
-                                NotificationLevel::Warning,
-                                String::from("Service Crashed"),
-                                format!("The service {} has crashed with the following exit code: {}\nDetails: {}", seed.manifest.id.clone(), e.0, e.1),
-                                (),
-                                Some(3600) // 1 hour
-                            )
-                            .await;
-                        if let Err(e) = res {
-                            tracing::error!("Failed to issue notification: {}", e);
-                            tracing::debug!("{:?}", e);
-                        }
-                    }
-                    _ => {
-                        tracing::error!("service just started. not issuing crash notification")
-                    }
-                }
-            }
             tracing::error!(
                 "The service {} has crashed with the following exit code: {}",
                 seed.manifest.id.clone(),
