@@ -5,6 +5,7 @@ import {
   Input,
   Output,
 } from '@angular/core'
+import { Router } from '@angular/router'
 
 @Component({
   selector: 'marketplace-categories',

@@ -3,6 +3,9 @@ import { TuiDialogService } from '@taiga-ui/core'
 import { ConfigService } from 'src/app/services/config.service'
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 import { MarketplaceSettingsPage } from '../../marketplace-list/marketplace-settings/marketplace-settings.page'
+import { CategoryService } from 'src/app/services/category.service'
+import { AbstractCategoryService } from '@start9labs/marketplace'
+import { Router } from '@angular/router'
 
 @Component({
   selector: 'marketplace-sidebar',
@@ -13,10 +16,21 @@ import { MarketplaceSettingsPage } from '../../marketplace-list/marketplace-sett
 export class MarketplaceSidebarComponent {
   constructor(
     @Inject(TuiDialogService) private readonly dialogs: TuiDialogService,
-    readonly config: ConfigService,
+    @Inject(AbstractCategoryService)
+    private readonly categoryService: CategoryService,
+    private readonly config: ConfigService,
+    private readonly router: Router,
   ) {}
 
   readonly marketplace = this.config.marketplace
+
+  resetCategories() {
+    this.categoryService.changeCategory('')
+  }
+
+  selected(url: string) {
+    return { sidebar_selected: this.router.url === url }
+  }
 
   async presentModalMarketplaceSettings() {
     this.dialogs

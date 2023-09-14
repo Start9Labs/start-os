@@ -3,6 +3,11 @@
   class="background sm:pl-[34vw] md:pl-[28vw] lg:pl-[22vw] 2xl:pl-[280px] min-h-screen flex justify-between overflow-auto scroll-smooth"
 >
   <ion-content class="with-widgets">
+    <div class="mt-8 px-6 mb-10">
+      <h1 class="text-4xl sm:text-5xl font-bold text-zinc-50/80 pb-6">
+        Updates
+      </h1>
+    </div>
     <ion-item-group *ngIf="data$ | async as data">
       <div *ngFor="let host of data.hosts">
         <ion-item-divider>

@@ -1,5 +1,5 @@
 import { NgModule } from '@angular/core'
-import { Routes, RouterModule } from '@angular/router'
+import { RouterModule, Routes } from '@angular/router'
 
 const routes: Routes = [
   {
@@ -49,11 +49,6 @@ const routes: Routes = [
     path: 'sessions',
     loadChildren: () =>
       import('./sessions/sessions.module').then(m => m.SessionsPageModule),
-  },
-  {
-    path: 'sideload',
-    loadChildren: () =>
-      import('./sideload/sideload.module').then(m => m.SideloadPageModule),
   },
   {
     path: 'specs',

@@ -115,30 +115,35 @@
         (queryChange)="onQueryChange($event)"
       ></marketplace-search>
       <div class="flex grow flex-col justify-between">
-        <marketplace-categories
-          [categories]="store?.info?.categories"
-          [category]="query ? '' : category"
-          (categoryChange)="onCategoryChange($event)"
-        ></marketplace-categories>
-        <ng-content select="[slot=updates]"></ng-content>
-        <a
-          safeLinks
-          class="flex gap-2 p-2 hover:no-underline sm:hover:bg-[#222428] hover:cursor-pointer sm:w-[120%] z-50 rounded-l-lg ease-in-out delay-75 duration-300"
-          href="https://github.com/Start9Labs/service-pipeline#readme"
-        >
-          <img
-            alt="Rocket Icon"
-            width="24"
-            height="24"
-            class="opacity-70 invert"
-            src="svg/rocket-outline.svg"
-          />
-          <span
-            class="text-base text-zinc-50 text-ellipsis overflow-hidden whitespace-nowrap"
+        <div>
+          <ng-content select="[slot=updates]"></ng-content>
+          <marketplace-categories
+            [categories]="store?.info?.categories"
+            [category]="query ? '' : category"
+            (categoryChange)="onCategoryChange($event)"
+          ></marketplace-categories>
+        </div>
+        <div>
+          <ng-content select="[slot=sideload]"></ng-content>
+          <a
+            safeLinks
+            class="flex relative gap-2 hover:no-underline hover:cursor-pointer sm:hover:bg-[#222428] sm:hover:opacity-90 sm:w-[120%] rounded-l-lg ease-in-out delay-75 duration-300 mb-5 sm:p-2 sm:mb-3 z-50"
+            href="https://github.com/Start9Labs/service-pipeline#readme"
           >
-            Launch your project
-          </span>
-        </a>
+            <img
+              alt="Rocket Icon"
+              width="24"
+              height="24"
+              class="opacity-70 invert"
+              src="svg/rocket-outline.svg"
+            />
+            <span
+              class="text-base text-zinc-50 text-ellipsis overflow-hidden whitespace-nowrap"
+            >
+              Package your project
+            </span>
+          </a>
+        </div>
       </div>
     </nav>
   </ng-container>

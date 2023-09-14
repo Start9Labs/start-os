@@ -388,17 +388,6 @@ export class ServerShowPage {
         disabled$: of(false),
       },
       {
-        title: 'Sideload a Service',
-        description: `Manually install a service`,
-        icon: 'push-outline',
-        action: () =>
-          this.navCtrl.navigateForward(['sideload'], {
-            relativeTo: this.route,
-          }),
-        detail: true,
-        disabled$: of(false),
-      },
-      {
         title: 'Change Master Password',
         description: `Change your StartOS master password`,
         icon: 'key-outline',

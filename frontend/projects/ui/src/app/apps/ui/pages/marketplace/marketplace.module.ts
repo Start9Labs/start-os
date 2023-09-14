@@ -16,6 +16,11 @@ const routes: Routes = [
       import('./updates/updates.module').then(m => m.UpdatesPageModule),
   },
   {
+    path: 'sideload',
+    loadChildren: () =>
+      import('./sideload/sideload.module').then(m => m.SideloadPageModule),
+  },
+  {
     path: ':pkgId',
     loadChildren: () =>
       import('./marketplace-show/marketplace-show.module').then(

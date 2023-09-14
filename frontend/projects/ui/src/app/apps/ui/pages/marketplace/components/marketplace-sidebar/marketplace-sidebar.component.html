@@ -26,14 +26,36 @@
       Change Registry
     </span>
   </a>
-  <a
-    safeLinks
-    slot="updates"
-    class="flex gap-2 p-2 hover:no-underline sm:hover:bg-[#222428] hover:cursor-pointer sm:w-[120%] z-50 rounded-l-lg ease-in-out delay-75 duration-300"
-    routerLink="updates"
+  <button
+    slot="sideload"
+    class="flex relative gap-2 hover:no-underline hover:cursor-pointer sm:hover:bg-[#222428] sm:hover:opacity-90 sm:w-[120%] rounded-l-lg ease-in-out delay-75 duration-300 mb-5 sm:p-2 sm:mb-3 z-50"
+    routerLink="/marketplace/sideload"
+    (click)="resetCategories()"
+    [ngClass]="selected('/marketplace/sideload')"
   >
     <img
-      alt="Rocket Icon"
+      alt="Push Icon"
+      width="24"
+      height="24"
+      class="opacity-70 invert"
+      src="svg/push-outline.svg"
+    />
+    <span
+      class="text-base text-zinc-50 text-ellipsis overflow-hidden whitespace-nowrap"
+    >
+      Sideload package
+    </span>
+  </button>
+  <button
+    safeLinks
+    slot="updates"
+    class="flex relative gap-2 hover:no-underline hover:cursor-pointer sm:hover:bg-[#222428] sm:hover:opacity-90 sm:w-[120%] rounded-l-lg ease-in-out delay-75 duration-300 mb-5 sm:p-2 sm:mb-3 z-50"
+    routerLink="/marketplace/updates"
+    (click)="resetCategories()"
+    [ngClass]="selected('/marketplace/updates')"
+  >
+    <img
+      alt="Globe Icon"
       width="24"
       height="24"
       class="opacity-70 invert"
@@ -44,5 +66,5 @@
     >
       Updates
     </span>
-  </a>
+  </button>
 </sidebar>
