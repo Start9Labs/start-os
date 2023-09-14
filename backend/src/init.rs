@@ -287,20 +287,6 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     }
     tracing::info!("Mounted Docker Data");
 
-    if CONTAINER_TOOL == "podman" {
-        Command::new("podman")
-            .arg("run")
-            .arg("-d")
-            .arg("--rm")
-            .arg("--network=start9")
-            .arg("--name=netdummy")
-            .arg("start9/x_system/utils:latest")
-            .arg("sleep")
-            .arg("infinity")
-            .invoke(crate::ErrorKind::Docker)
-            .await?;
-    }
-
     if should_rebuild || !tmp_docker_exists {
         if CONTAINER_TOOL == "docker" {
             tracing::info!("Creating Docker Network");
@@ -315,6 +301,20 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         tracing::info!("Loading Package Docker Images");
         crate::install::load_images(cfg.datadir().join(PKG_ARCHIVE_DIR)).await?;
         tracing::info!("Loaded Package Docker Images");
+    }
+
+    if CONTAINER_TOOL == "podman" {
+        Command::new("podman")
+            .arg("run")
+            .arg("-d")
+            .arg("--rm")
+            .arg("--network=start9")
+            .arg("--name=netdummy")
+            .arg("start9/x_system/utils:latest")
+            .arg("sleep")
+            .arg("infinity")
+            .invoke(crate::ErrorKind::Docker)
+            .await?;
     }
 
     tracing::info!("Enabling Docker QEMU Emulation");

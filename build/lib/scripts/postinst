@@ -99,6 +99,7 @@ CookieAuthentication 1
 EOF
 
 rm -rf /var/lib/tor/*
+ln -sf /usr/lib/embassy/scripts/tor-check.sh /usr/bin/tor-check
 
 echo "fs.inotify.max_user_watches=1048576" > /etc/sysctl.d/97-embassy.conf
 
