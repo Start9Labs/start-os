@@ -12,10 +12,31 @@ use crate::prelude::*;
 use crate::procedure::NoOutput;
 use crate::s9pk::manifest::Manifest;
 use crate::status::MainStatus;
-use crate::util::{GeneralBoxedGuard, NonDetachingJoinHandle};
+use crate::util::NonDetachingJoinHandle;
 use crate::Error;
 
-pub type ManageContainerOverride = Arc<watch::Sender<Option<MainStatus>>>;
+pub type ManageContainerOverride = Arc<watch::Sender<Option<Override>>>;
+
+pub type Override = MainStatus;
+
+pub struct OverrideGuard {
+    overide: Option<MainStatus>,
+    override_main_status: Option<ManageContainerOverride>,
+}
+impl OverrideGuard {
+    pub fn drop(self) {}
+}
+impl Drop for OverrideGuard {
+    fn drop(&mut self) {
+        if let Some(override_main_status) = self.override_main_status.take() {
+            override_main_status.send_modify(|x| {
+                if self.overide == *x {
+                    *x = None;
+                }
+            });
+        }
+    }
+}
 
 /// This is the thing describing the state machine actor for a service
 /// state and current running/ desired states.
@@ -65,13 +86,14 @@ impl ManageContainer {
 
     /// Set override is used during something like a restart of a service. We want to show certain statuses be different
     /// from the actual status of the service.
-    pub fn set_override(&self, override_status: Option<MainStatus>) -> GeneralBoxedGuard {
+    pub fn set_override(&self, override_status: Override) -> OverrideGuard {
+        let overide = Some(override_status);
         self.override_main_status
-            .send_modify(|x| *x = override_status);
-        let override_main_status = self.override_main_status.clone();
-        GeneralBoxedGuard::new(move || {
-            override_main_status.send_modify(|x| *x = None);
-        })
+            .send_modify(|x| *x = overide.clone);
+        OverrideGuard {
+            overide,
+            override_main_status: Some(self.override_main_status.clone()),
+        }
     }
 
     /// Set the override, but don't have a guard to revert it. Used only on the mananger to do a shutdown.
@@ -164,7 +186,7 @@ async fn create_service_manager(
 async fn save_state(
     desired_state: Arc<Sender<StartStop>>,
     current_state: Arc<Sender<StartStop>>,
-    override_main_status: Arc<Sender<Option<MainStatus>>>,
+    override_main_status: ManageContainerOverride,
     seed: Arc<manager_seed::ManagerSeed>,
 ) {
     let mut desired_state_receiver = desired_state.subscribe();
@@ -174,30 +196,24 @@ async fn save_state(
         let current: StartStop = *current_state_receiver.borrow();
         let desired: StartStop = *desired_state_receiver.borrow();
         let override_status = override_main_status_receiver.borrow().clone();
-        let res = match (override_status, current, desired) {
-            (Some(status), _, _) => set_status(seed.ctx.db.clone(), &seed.manifest, &status).await,
-            (None, StartStop::Start, StartStop::Start) => {
-                set_status(
-                    seed.ctx.db.clone(),
-                    &seed.manifest,
-                    &MainStatus::Running {
-                        started: chrono::Utc::now(),
-                        health: Default::default(),
-                    },
-                )
-                .await
-            }
-            (None, StartStop::Start, StartStop::Stop) => {
-                set_status(seed.ctx.db.clone(), &seed.manifest, &MainStatus::Stopping).await
-            }
-            (None, StartStop::Stop, StartStop::Start) => {
-                set_status(seed.ctx.db.clone(), &seed.manifest, &MainStatus::Starting).await
-            }
-            (None, StartStop::Stop, StartStop::Stop) => {
-                set_status(seed.ctx.db.clone(), &seed.manifest, &MainStatus::Stopped).await
-            }
+        let status = match (override_status.clone(), current, desired) {
+            (Some(status), _, _) => status,
+            (_, StartStop::Start, StartStop::Start) => MainStatus::Running {
+                started: chrono::Utc::now(),
+                health: Default::default(),
+            },
+            (_, StartStop::Start, StartStop::Stop) => MainStatus::Stopping,
+            (_, StartStop::Stop, StartStop::Start) => MainStatus::Starting,
+            (_, StartStop::Stop, StartStop::Stop) => MainStatus::Stopped,
         };
-        if let Err(err) = res {
+
+        let manifest = &seed.manifest;
+        if let Err(err) = seed
+            .ctx
+            .db
+            .mutate(|db| set_status(db, manifest, &status))
+            .await
+        {
             tracing::error!("Did not set status for {}", seed.container_name);
             tracing::debug!("{:?}", err);
         }
@@ -268,21 +284,14 @@ pub(super) fn get_status(db: Peeked, manifest: &Manifest) -> MainStatus {
 }
 
 #[instrument(skip(db, manifest))]
-async fn set_status(
-    db: PatchDb,
-    manifest: &Manifest,
-    main_status: &MainStatus,
-) -> Result<(), Error> {
-    db.mutate(|db| {
-        let Some(installed) = db
-            .as_package_data_mut()
-            .as_idx_mut(&manifest.id)
-            .or_not_found(&manifest.id)?
-            .as_installed_mut()
-        else {
-            return Ok(());
-        };
-        installed.as_status_mut().as_main_mut().ser(main_status)
-    })
-    .await
+fn set_status(db: &mut Peeked, manifest: &Manifest, main_status: &MainStatus) -> Result<(), Error> {
+    let Some(installed) = db
+        .as_package_data_mut()
+        .as_idx_mut(&manifest.id)
+        .or_not_found(&manifest.id)?
+        .as_installed_mut()
+    else {
+        return Ok(());
+    };
+    installed.as_status_mut().as_main_mut().ser(main_status)
 }

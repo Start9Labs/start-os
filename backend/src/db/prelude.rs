@@ -9,8 +9,6 @@ use serde::Serialize;
 use crate::db::model::DatabaseModel;
 use crate::prelude::*;
 
-use super::model::IpInfo;
-
 pub type Peeked = Model<super::model::Database>;
 
 pub fn to_value<T>(value: &T) -> Result<Value, Error>
@@ -182,9 +180,13 @@ pub trait Map: DeserializeOwned + Serialize {
     type Value;
 }
 
-impl Map for BTreeMap<String, IpInfo> {
-    type Key = String;
-    type Value = IpInfo;
+impl<A, B> Map for BTreeMap<A, B>
+where
+    A: serde::Serialize + serde::de::DeserializeOwned + Ord,
+    B: serde::Serialize + serde::de::DeserializeOwned,
+{
+    type Key = A;
+    type Value = B;
 }
 
 impl<T: Map> Model<T>

@@ -432,11 +432,6 @@ pub struct InstalledPackageInfo {
     pub interface_addresses: InterfaceAddressMap,
 }
 
-impl Map for BTreeMap<PackageId, StaticDependencyInfo> {
-    type Key = PackageId;
-    type Value = StaticDependencyInfo;
-}
-
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct CurrentDependents(pub BTreeMap<PackageId, CurrentDependencyInfo>);
 impl CurrentDependents {

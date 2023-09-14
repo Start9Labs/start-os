@@ -240,10 +240,10 @@ impl Manager {
     pub(super) fn perform_restart(&self) -> impl Future<Output = ()> + 'static {
         let manage_container = self.manage_container.clone();
         async move {
-            let restart_override = manage_container.set_override(Some(MainStatus::Restarting));
+            let restart_override = manage_container.set_override(MainStatus::Restarting);
             manage_container.wait_for_desired(StartStop::Stop).await;
             manage_container.wait_for_desired(StartStop::Start).await;
-            drop(restart_override);
+            restart_override.drop()
         }
     }
     fn _transition_restart(&self) -> TransitionState {
@@ -267,18 +267,35 @@ impl Manager {
             let peek = seed.ctx.db.peek().await?;
             let state_reverter = DesiredStateReverter::new(manage_container.clone());
             let override_guard =
-                manage_container.set_override(Some(get_status(peek, &seed.manifest).backing_up()));
+                manage_container.set_override(get_status(peek, &seed.manifest).backing_up());
             manage_container.wait_for_desired(StartStop::Stop).await;
             let backup_guard = backup_guard.lock().await;
             let guard = backup_guard.mount_package_backup(&seed.manifest.id).await?;
 
-            let res = seed.manifest.backup.create(seed.clone()).await;
+            let return_value = seed.manifest.backup.create(seed.clone()).await;
             guard.unmount().await?;
             drop(backup_guard);
 
-            let return_value = res;
+            let manifest_id = seed.manifest.id.clone();
+            seed.ctx
+                .db
+                .mutate(|db| {
+                    if let Some(progress) = db
+                        .as_server_info_mut()
+                        .as_status_info_mut()
+                        .as_backup_progress_mut()
+                        .transpose_mut()
+                        .and_then(|p| p.as_idx_mut(&manifest_id))
+                    {
+                        progress.as_complete_mut().ser(&true)?;
+                    }
+                    Ok(())
+                })
+                .await?;
+
             state_reverter.revert().await;
-            drop(override_guard);
+
+            override_guard.drop();
             Ok::<_, Error>(return_value)
         }
     }
