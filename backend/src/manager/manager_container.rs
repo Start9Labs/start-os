@@ -20,7 +20,6 @@ pub type ManageContainerOverride = Arc<watch::Sender<Option<Override>>>;
 pub type Override = MainStatus;
 
 pub struct OverrideGuard {
-    overide: Option<MainStatus>,
     override_main_status: Option<ManageContainerOverride>,
 }
 impl OverrideGuard {
@@ -30,9 +29,7 @@ impl Drop for OverrideGuard {
     fn drop(&mut self) {
         if let Some(override_main_status) = self.override_main_status.take() {
             override_main_status.send_modify(|x| {
-                if self.overide == *x {
-                    *x = None;
-                }
+                *x = None;
             });
         }
     }
@@ -86,14 +83,19 @@ impl ManageContainer {
 
     /// Set override is used during something like a restart of a service. We want to show certain statuses be different
     /// from the actual status of the service.
-    pub fn set_override(&self, override_status: Override) -> OverrideGuard {
-        let overide = Some(override_status);
-        self.override_main_status
-            .send_modify(|x| *x = overide.clone);
-        OverrideGuard {
-            overide,
-            override_main_status: Some(self.override_main_status.clone()),
+    pub fn set_override(&self, override_status: Override) -> Result<OverrideGuard, Error> {
+        let status = Some(override_status);
+        if self.override_main_status.borrow().is_some() {
+            return Err(Error::new(
+                eyre!("Already have an override"),
+                ErrorKind::InvalidRequest,
+            ));
         }
+        self.override_main_status
+            .send_modify(|x| *x = status.clone());
+        Ok(OverrideGuard {
+            override_main_status: Some(self.override_main_status.clone()),
+        })
     }
 
     /// Set the override, but don't have a guard to revert it. Used only on the mananger to do a shutdown.

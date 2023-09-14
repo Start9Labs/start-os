@@ -237,13 +237,14 @@ impl Manager {
             .abort();
     }
 
-    pub(super) fn perform_restart(&self) -> impl Future<Output = ()> + 'static {
+    pub(super) fn perform_restart(&self) -> impl Future<Output = Result<(), Error>> + 'static {
         let manage_container = self.manage_container.clone();
         async move {
-            let restart_override = manage_container.set_override(MainStatus::Restarting);
+            let restart_override = manage_container.set_override(MainStatus::Restarting)?;
             manage_container.wait_for_desired(StartStop::Stop).await;
             manage_container.wait_for_desired(StartStop::Start).await;
-            restart_override.drop()
+            restart_override.drop();
+            Ok(())
         }
     }
     fn _transition_restart(&self) -> TransitionState {
@@ -251,7 +252,9 @@ impl Manager {
         let restart = self.perform_restart();
         TransitionState::Restarting(
             tokio::spawn(async move {
-                restart.await;
+                if let Err(err) = restart.await {
+                    tracing::error!("Error restarting service: {}", err);
+                }
                 transition.send_replace(Default::default());
             })
             .into(),
@@ -267,7 +270,7 @@ impl Manager {
             let peek = seed.ctx.db.peek().await?;
             let state_reverter = DesiredStateReverter::new(manage_container.clone());
             let override_guard =
-                manage_container.set_override(get_status(peek, &seed.manifest).backing_up());
+                manage_container.set_override(get_status(peek, &seed.manifest).backing_up())?;
             manage_container.wait_for_desired(StartStop::Stop).await;
             let backup_guard = backup_guard.lock().await;
             let guard = backup_guard.mount_package_backup(&seed.manifest.id).await?;

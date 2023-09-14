@@ -28,7 +28,7 @@ impl Map for DependencyConfigErrors {
     type Value = String;
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(tag = "status")]
 #[serde(rename_all = "kebab-case")]
 pub enum MainStatus {
