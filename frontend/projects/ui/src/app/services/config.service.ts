@@ -43,18 +43,28 @@ export class ConfigService {
     return useMocks ? mocks.maskAs === 'tor' : this.hostname.endsWith('.onion')
   }
 
+  isLocal(): boolean {
+    return useMocks
+      ? mocks.maskAs === 'local'
+      : this.hostname.endsWith('.local')
+  }
+
+  isLocalhost(): boolean {
+    return useMocks
+      ? mocks.maskAs === 'localhost'
+      : this.hostname === 'localhost'
+  }
+
+  isLan(): boolean {
+    return this.isLocal() || this.isLocalhost()
+  }
+
   isTorHttp(): boolean {
     return this.isTor() && !this.isHttps()
   }
 
-  isLan(): boolean {
-    return useMocks
-      ? mocks.maskAs === 'lan'
-      : this.hostname === 'localhost' || this.hostname.endsWith('.local')
-  }
-
-  isLanHttp(): boolean {
-    return this.isLan() && !this.isHttps()
+  isLocalHttp(): boolean {
+    return this.isLocal() && !this.isHttps()
   }
 
   isSecure(): boolean {
@@ -74,7 +84,7 @@ export class ConfigService {
   }
 
   launchableURL(pkg: PackageDataEntry): string {
-    if (this.isLan() && hasLanUi(pkg.manifest.interfaces)) {
+    if (this.isLan() && hasLocalUi(pkg.manifest.interfaces)) {
       return `https://${lanUiAddress(pkg)}`
     } else {
       // leave http for services
@@ -96,7 +106,7 @@ export function hasTorUi(interfaces: Record<string, InterfaceDef>): boolean {
   return !!int?.['tor-config']
 }
 
-export function hasLanUi(interfaces: Record<string, InterfaceDef>): boolean {
+export function hasLocalUi(interfaces: Record<string, InterfaceDef>): boolean {
   const int = getUiInterfaceValue(interfaces)
   return !!int?.['lan-config']
 }
@@ -118,7 +128,7 @@ export function lanUiAddress({
 }
 
 export function hasUi(interfaces: Record<string, InterfaceDef>): boolean {
-  return hasTorUi(interfaces) || hasLanUi(interfaces)
+  return hasTorUi(interfaces) || hasLocalUi(interfaces)
 }
 
 export function removeProtocol(str: string): string {
