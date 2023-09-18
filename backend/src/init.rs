@@ -9,6 +9,7 @@ use models::ResultExt;
 use rand::random;
 use sqlx::{Pool, Postgres};
 use tokio::process::Command;
+use tracing::instrument;
 
 use crate::account::AccountInfo;
 use crate::context::rpc::RpcContextConfig;
@@ -166,6 +167,7 @@ pub struct InitResult {
     pub db: patch_db::PatchDb,
 }
 
+#[instrument(skip_all)]
 pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     tokio::fs::create_dir_all("/run/embassy")
         .await

@@ -27,13 +27,20 @@ ifeq ($(REMOTE),)
 	cp = cp -r $1 $2
 	ln = ln -sf $1 $2
 else
-	mkdir = ssh $(REMOTE) 'sudo mkdir -p $1'
-	rm  = ssh $(REMOTE) 'sudo rm -rf $1'
-	ln = ssh $(REMOTE) 'sudo ln -sf $1 $2'
+	ifeq ($(SSHPASS),)
+		ssh = ssh $(REMOTE) $1
+	else 
+		ssh = sshpass -p $(SSHPASS) ssh $(REMOTE) $1
+	endif
+	mkdir = $(call ssh,'sudo mkdir -p $1')
+	rm  = $(call ssh,'sudo rm -rf $1')
+	ln = $(call ssh,'sudo ln -sf $1 $2')
 define cp
-	$(TAR_BIN) --transform "s|^$1|x|" -czv -f- $1 | ssh $(REMOTE) "sudo tar --transform 's|^x|$2|' -xzv -f- -C /"
+	$(TAR_BIN) --transform "s|^$1|x|" -czv -f- $1 | $(call ssh,"sudo tar --transform 's|^x|$2|' -xzv -f- -C /")
 endef
 endif
+
+
 
 .DELETE_ON_ERROR:
 
@@ -104,21 +111,21 @@ update-overlay:
 	@echo "\033[33mALL CHANGES WILL BE REVERTED IF YOU RESTART THE DEVICE\033[0m"
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
 	@if [ "`ssh $(REMOTE) 'cat /usr/lib/embassy/VERSION.txt'`" != "`cat ./VERSION.txt`" ]; then >&2 echo "StartOS requires migrations: update-overlay is unavailable." && false; fi
-	ssh $(REMOTE) "sudo systemctl stop startd"
-	$(MAKE) install REMOTE=$(REMOTE) OS_ARCH=$(OS_ARCH)
-	ssh $(REMOTE) "sudo systemctl start startd"
+	$(call ssh,"sudo systemctl stop startd")
+	$(MAKE) install REMOTE=$(REMOTE) SSHPASS=$(SSHPASS) OS_ARCH=$(OS_ARCH)
+	$(call ssh,"sudo systemctl start startd")
 
 update:
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
-	ssh $(REMOTE) "sudo rsync -a --delete --force --info=progress2 /media/embassy/embassyfs/current/ /media/embassy/next/"
-	$(MAKE) install REMOTE=$(REMOTE) DESTDIR=/media/embassy/next OS_ARCH=$(OS_ARCH)
-	ssh $(REMOTE) "sudo touch /media/embassy/config/upgrade && sudo sync && sudo reboot"
+	$(call ssh,"sudo rsync -a --delete --force --info=progress2 /media/embassy/embassyfs/current/ /media/embassy/next/")
+	$(MAKE) install REMOTE=$(REMOTE) SSHPASS=$(SSHPASS) DESTDIR=/media/embassy/next OS_ARCH=$(OS_ARCH)
+	$(call ssh,"sudo touch /media/embassy/config/upgrade && sudo sync && sudo reboot")
 
 emulate-reflash:
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
-	ssh $(REMOTE) "sudo rsync -a --delete --force --info=progress2 /media/embassy/embassyfs/current/ /media/embassy/next/"
-	$(MAKE) install REMOTE=$(REMOTE) DESTDIR=/media/embassy/next OS_ARCH=$(OS_ARCH)
-	ssh $(REMOTE) "sudo touch /media/embassy/config/upgrade && sudo rm -f /media/embassy/config/disk.guid && sudo sync && sudo reboot"
+	$(call ssh,"sudo rsync -a --delete --force --info=progress2 /media/embassy/embassyfs/current/ /media/embassy/next/")
+	$(MAKE) install REMOTE=$(REMOTE) SSHPASS=$(SSHPASS) DESTDIR=/media/embassy/next OS_ARCH=$(OS_ARCH)
+	$(call ssh,"sudo touch /media/embassy/config/upgrade && sudo rm -f /media/embassy/config/disk.guid && sudo sync && sudo reboot")
 
 system-images/compat/docker-images/aarch64.tar system-images/compat/docker-images/x86_64.tar: $(COMPAT_SRC)
 	cd system-images/compat && make
