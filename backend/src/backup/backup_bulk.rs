@@ -1,7 +1,7 @@
-use std::collections::BTreeMap;
 use std::panic::UnwindSafe;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::{collections::BTreeMap, path::Path};
 
 use chrono::Utc;
 use clap::ArgMatches;
@@ -16,7 +16,6 @@ use tracing::instrument;
 
 use super::target::BackupTargetId;
 use super::PackageBackupReport;
-use crate::auth::check_password_against_db;
 use crate::backup::os::OsBackup;
 use crate::backup::{BackupReport, ServerBackupReport};
 use crate::context::RpcContext;
@@ -32,6 +31,7 @@ use crate::s9pk::manifest::PackageId;
 use crate::util::display_none;
 use crate::util::serde::IoFormat;
 use crate::version::VersionT;
+use crate::{auth::check_password_against_db, util::io::dir_copy};
 
 fn parse_comma_separated(arg: &str, _: &ArgMatches) -> Result<OrdSet<PackageId>, Error> {
     arg.split(',')
@@ -276,6 +276,19 @@ async fn perform_backup(
         .save()
         .await
         .with_kind(ErrorKind::Filesystem)?;
+
+    let luks_folder_old = backup_guard.lock().await.as_ref().join("luks.old");
+    if tokio::fs::metadata(&luks_folder_old).await.is_ok() {
+        tokio::fs::remove_dir_all(&luks_folder_old).await?;
+    }
+    let luks_folder_bak = backup_guard.lock().await.as_ref().join("luks");
+    if tokio::fs::metadata(&luks_folder_bak).await.is_ok() {
+        tokio::fs::rename(&luks_folder_bak, &luks_folder_old).await?;
+    }
+    let luks_folder = Path::new("/media/embassy/config/luks");
+    if tokio::fs::metadata(&luks_folder).await.is_ok() {
+        dir_copy(&luks_folder, &luks_folder_bak, None).await?;
+    }
 
     let timestamp = Some(Utc::now());
     let mut backup_guard = Arc::try_unwrap(backup_guard)

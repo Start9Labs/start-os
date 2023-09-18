@@ -15,9 +15,6 @@ use torut::onion::OnionAddressV3;
 use tracing::instrument;
 
 use super::target::BackupTargetId;
-use crate::backup::os::OsBackup;
-use crate::backup::BackupMetadata;
-use crate::context::rpc::RpcContextConfig;
 use crate::context::{RpcContext, SetupContext};
 use crate::disk::mount::backup::{BackupMountGuard, PackageBackupMountGuard};
 use crate::disk::mount::filesystem::ReadWrite;
@@ -35,6 +32,9 @@ use crate::util::display_none;
 use crate::util::io::dir_size;
 use crate::util::serde::IoFormat;
 use crate::volume::{backup_dir, BACKUP_DIR, PKG_VOLUME_DIR};
+use crate::{backup::os::OsBackup, db::model::PackageDataEntry};
+use crate::{backup::BackupMetadata, db::model::StaticFiles};
+use crate::{context::rpc::RpcContextConfig, db::model::PackageDataEntryRestoring};
 
 fn parse_comma_separated(arg: &str, _: &ArgMatches) -> Result<Vec<PackageId>, Error> {
     arg.split(',')
@@ -306,20 +306,42 @@ async fn assure_restoring(
     let mut guards = Vec::with_capacity(ids.len());
 
     for id in ids {
+        let peek = ctx.db.peek().await?;
+
+        let model = peek.as_package_data().as_idx(&id);
+
+        if !model.is_none() {
+            return Err(Error::new(
+                eyre!("Can't restore over existing package: {}", id),
+                crate::ErrorKind::InvalidRequest,
+            ));
+        }
         let guard = backup_guard.mount_package_backup(&id).await?;
         let s9pk_path = Path::new(BACKUP_DIR).join(&id).join(format!("{}.s9pk", id));
         let mut rdr = S9pkReader::open(&s9pk_path, false).await?;
 
         let manifest = rdr.manifest().await?;
         let version = manifest.version.clone();
-        // let progress = InstallProgress::new(Some(tokio::fs::metadata(&s9pk_path).await?.len()));
+        let progress = Arc::new(InstallProgress::new(Some(
+            tokio::fs::metadata(&s9pk_path).await?.len(),
+        )));
 
-        // ctx.db.apply_fn(|mut v| v.package_data().idx()) * model =
-        //     Some(PackageDataEntry::Restoring {
-        //         install_progress: progress.clone(),
-        //         static_files: StaticFiles::local(&id, &version, manifest.assets.icon_type()),
-        //         manifest: manifest.clone(),
-        //     });
+        ctx.db
+            .mutate(|db| {
+                db.as_package_data_mut().insert(
+                    &id,
+                    &PackageDataEntry::Restoring(PackageDataEntryRestoring {
+                        install_progress: progress.clone(),
+                        static_files: StaticFiles::local(
+                            &id,
+                            &version,
+                            manifest.assets.icon_type(),
+                        ),
+                        manifest: manifest.clone(),
+                    }),
+                )
+            })
+            .await?;
 
         let public_dir_path = ctx
             .datadir
@@ -343,6 +365,23 @@ async fn assure_restoring(
         let mut dst = File::create(&icon_path).await?;
         tokio::io::copy(&mut rdr.icon().await?, &mut dst).await?;
         dst.sync_all().await?;
+
+        ctx.db
+            .mutate(|db| {
+                db.as_package_data_mut().insert(
+                    &id,
+                    &PackageDataEntry::Restoring(PackageDataEntryRestoring {
+                        install_progress: progress.clone(),
+                        static_files: StaticFiles::local(
+                            &id,
+                            &version,
+                            manifest.assets.icon_type(),
+                        ),
+                        manifest: manifest.clone(),
+                    }),
+                )
+            })
+            .await?;
 
         guards.push((manifest, guard));
     }
