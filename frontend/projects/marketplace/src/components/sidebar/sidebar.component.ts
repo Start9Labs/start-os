@@ -1,9 +1,14 @@
 import {
   ChangeDetectionStrategy,
+  ChangeDetectorRef,
   Component,
+  ContentChild,
+  EventEmitter,
+  HostBinding,
   inject,
   Input,
   OnDestroy,
+  Output,
 } from '@angular/core'
 import { combineLatest, map, Subject, takeUntil } from 'rxjs'
 import { StoreIdentity } from '../../types'
@@ -22,7 +27,16 @@ export class SidebarComponent implements OnDestroy {
   @Input({ required: true })
   iconConfig!: MarketplaceConfig
 
-  constructor(private readonly router: Router) {}
+  @Output()
+  toggleMenu = new EventEmitter<boolean>(false)
+
+  @Input()
+  menuState!: boolean
+
+  constructor(
+    private readonly router: Router,
+    private readonly cd: ChangeDetectorRef,
+  ) {}
 
   private destroy$ = new Subject<void>()
   private readonly marketplaceService = inject(AbstractMarketplaceService)
@@ -39,7 +53,6 @@ export class SidebarComponent implements OnDestroy {
   private hosts?: StoreIdentity[]
   category = ''
   query = ''
-  open = false
 
   ngOnInit() {
     this.categoryService
@@ -70,6 +83,7 @@ export class SidebarComponent implements OnDestroy {
     this.categoryService.resetQuery()
     this.categoryService.changeCategory(category)
     this.router.navigate(['/marketplace'], { replaceUrl: true })
+    this.cd.detectChanges()
   }
 
   onQueryChange(query: string): void {
@@ -78,8 +92,8 @@ export class SidebarComponent implements OnDestroy {
     this.router.navigate(['/marketplace'], { replaceUrl: true })
   }
 
-  toggleMenu(open: boolean): void {
-    this.open = open
+  toggle(val: boolean) {
+    this.toggleMenu.emit(val)
   }
 
   ngOnDestroy(): void {

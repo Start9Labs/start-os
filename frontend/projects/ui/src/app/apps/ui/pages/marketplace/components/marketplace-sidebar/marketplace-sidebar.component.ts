@@ -1,4 +1,9 @@
-import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  Component,
+  Inject,
+} from '@angular/core'
 import { TuiDialogService } from '@taiga-ui/core'
 import { ConfigService } from 'src/app/services/config.service'
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
@@ -20,9 +25,11 @@ export class MarketplaceSidebarComponent {
     private readonly categoryService: CategoryService,
     private readonly config: ConfigService,
     private readonly router: Router,
+    private readonly cd: ChangeDetectorRef,
   ) {}
 
   readonly marketplace = this.config.marketplace
+  open = false
 
   resetCategories() {
     this.categoryService.changeCategory('')
@@ -41,5 +48,10 @@ export class MarketplaceSidebarComponent {
         },
       )
       .subscribe()
+  }
+
+  toggleMenu(val: boolean) {
+    this.open = val
+    this.cd.detectChanges()
   }
 }

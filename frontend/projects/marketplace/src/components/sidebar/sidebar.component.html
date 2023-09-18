@@ -21,7 +21,7 @@
         {{ store?.info?.name || 'Loading store' }}
       </h1>
       <!-- change registry modal -->
-      <ng-content select="[slot=desktop]"></ng-content>
+      <ng-content select="[slot=registry-desktop]"></ng-content>
     </div>
     <!-- mobile nav -->
     <div class="sm:hidden bg-zinc-700/90 backdrop-blur-3xl">
@@ -37,8 +37,8 @@
           type="button"
           appearance="flat"
           [pseudoActive]="false"
-          (click)="toggleMenu(true)"
-          (tuiActiveZoneChange)="toggleMenu($event)"
+          (click)="toggle(true)"
+          (tuiActiveZoneChange)="toggle($event)"
         >
           <store-icon
             size="48px"
@@ -49,7 +49,7 @@
             [class.tui-skeleton_rounded]="!store"
           ></store-icon>
           <nav
-            *tuiSidebar="open; direction: 'right'; autoWidth: true"
+            *tuiSidebar="menuState; direction: 'right'; autoWidth: true"
             class="bg-zinc-700/90 h-screen w-[70vw]"
           >
             <div class="flex flex-col divide-y divide-zinc-500 h-full">
@@ -67,39 +67,45 @@
                   type="button"
                   appearance="icon"
                   icon="tuiIconClose"
-                  (tuiActiveZoneChange)="toggleMenu($event)"
-                  (click)="toggleMenu(false)"
+                  (click)="toggle(false)"
+                  (tuiActiveZoneChange)="toggle($event)"
                 ></button>
               </div>
               <!-- change registry modal -->
-              <ng-content select="[slot=mobile]"></ng-content>
+              <ng-content select="[slot=registry-mobile]"></ng-content>
               <div
                 class="flex flex-col justify-between divide-y divide-zinc-500 h-full"
               >
-                <marketplace-categories
-                  [categories]="store?.info?.categories"
-                  [category]="query ? '' : category"
-                  (categoryChange)="onCategoryChange($event); toggleMenu(false)"
-                  class="grow pt-5 pl-5 pr-5"
-                ></marketplace-categories>
-                <a
-                  class="flex relative gap-2 hover:no-underline p-5"
-                  target="_blank"
-                  href="https://github.com/Start9Labs/service-pipeline#readme"
-                >
-                  <img
-                    alt="Launch icon"
-                    width="24"
-                    height="24"
-                    class="opacity-70 invert"
-                    src="svg/rocket-outline.svg"
-                  />
-                  <span
-                    class="text-base text-zinc-50 text-ellipsis overflow-hidden whitespace-nowrap"
+                <div class="flex flex-col">
+                  <ng-content select="[slot=updates-mobile]"></ng-content>
+                  <marketplace-categories
+                    [categories]="store?.info?.categories"
+                    [category]="query ? '' : category"
+                    (categoryChange)="onCategoryChange($event); toggle(false)"
+                    class="grow pt-5 pl-5 pr-5"
+                  ></marketplace-categories>
+                </div>
+                <div>
+                  <ng-content select="[slot=sideload-mobile]"></ng-content>
+                  <a
+                    class="flex relative gap-2 hover:no-underline p-5"
+                    target="_blank"
+                    href="https://github.com/Start9Labs/service-pipeline#readme"
                   >
-                    Launch your project
-                  </span>
-                </a>
+                    <img
+                      alt="Launch icon"
+                      width="24"
+                      height="24"
+                      class="opacity-70 invert"
+                      src="svg/rocket-outline.svg"
+                    />
+                    <span
+                      class="text-base text-zinc-50 text-ellipsis overflow-hidden whitespace-nowrap"
+                    >
+                      Launch your project
+                    </span>
+                  </a>
+                </div>
               </div>
             </div>
           </nav>
@@ -116,7 +122,7 @@
       ></marketplace-search>
       <div class="flex grow flex-col justify-between">
         <div>
-          <ng-content select="[slot=updates]"></ng-content>
+          <ng-content select="[slot=updates-desktop]"></ng-content>
           <marketplace-categories
             [categories]="store?.info?.categories"
             [category]="query ? '' : category"
@@ -124,7 +130,7 @@
           ></marketplace-categories>
         </div>
         <div>
-          <ng-content select="[slot=sideload]"></ng-content>
+          <ng-content select="[slot=sideload-desktop]"></ng-content>
           <a
             safeLinks
             class="flex relative gap-2 hover:no-underline hover:cursor-pointer sm:hover:bg-[#222428] sm:hover:opacity-90 sm:w-[120%] rounded-l-lg ease-in-out delay-75 duration-300 mb-5 sm:p-2 sm:mb-3 z-50"

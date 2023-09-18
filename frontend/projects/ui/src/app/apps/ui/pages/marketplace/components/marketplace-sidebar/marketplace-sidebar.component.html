@@ -1,6 +1,10 @@
-<sidebar [iconConfig]="marketplace">
+<sidebar
+  [iconConfig]="marketplace"
+  (toggleMenu)="toggleMenu($event)"
+  [menuState]="open"
+>
   <button
-    slot="desktop"
+    slot="registry-desktop"
     tuiButton
     type="button"
     appearance="icon"
@@ -9,7 +13,7 @@
     (click)="presentModalMarketplaceSettings()"
   ></button>
   <a
-    slot="mobile"
+    slot="registry-mobile"
     class="flex gap-2 relative hover:no-underline p-5"
     (click)="presentModalMarketplaceSettings()"
   >
@@ -27,7 +31,7 @@
     </span>
   </a>
   <button
-    slot="sideload"
+    slot="sideload-desktop"
     class="flex relative gap-2 hover:no-underline hover:cursor-pointer sm:hover:bg-[#222428] sm:hover:opacity-90 sm:w-[120%] rounded-l-lg ease-in-out delay-75 duration-300 mb-5 sm:p-2 sm:mb-3 z-50"
     routerLink="/marketplace/sideload"
     (click)="resetCategories()"
@@ -48,9 +52,9 @@
   </button>
   <button
     slot="sideload-mobile"
-    class="flex relative gap-2 hover:no-underline p-5"
+    class="flex relative gap-2 hover:no-underline px-5 pt-5"
     routerLink="/marketplace/sideload"
-    (click)="resetCategories()"
+    (click)="resetCategories(); toggleMenu(false)"
     [ngClass]="selected('/marketplace/sideload')"
   >
     <img
@@ -68,10 +72,30 @@
   </button>
   <button
     safeLinks
-    slot="updates"
+    slot="updates-desktop"
     class="flex relative gap-2 hover:no-underline hover:cursor-pointer sm:hover:bg-[#222428] sm:hover:opacity-90 sm:w-[120%] rounded-l-lg ease-in-out delay-75 duration-300 mb-5 sm:p-2 sm:mb-3 z-50"
     routerLink="/marketplace/updates"
     (click)="resetCategories()"
+    [ngClass]="selected('/marketplace/updates')"
+  >
+    <img
+      alt="Globe Icon"
+      width="24"
+      height="24"
+      class="opacity-70 invert"
+      src="svg/globe-outline.svg"
+    />
+    <span
+      class="text-base text-zinc-50 text-ellipsis overflow-hidden whitespace-nowrap"
+    >
+      Updates
+    </span>
+  </button>
+  <button
+    slot="updates-mobile"
+    class="flex relative gap-2 hover:no-underline px-5 pt-5"
+    routerLink="/marketplace/sideload"
+    (click)="resetCategories(); toggleMenu(false)"
     [ngClass]="selected('/marketplace/updates')"
   >
     <img
