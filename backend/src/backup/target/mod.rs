@@ -24,6 +24,7 @@ use crate::disk::mount::guard::TmpMountGuard;
 use crate::disk::util::PartitionInfo;
 use crate::prelude::*;
 use crate::s9pk::manifest::PackageId;
+use crate::util::display_none;
 use crate::util::serde::{deserialize_from_str, display_serializable, serialize_display};
 use crate::util::Version;
 
@@ -72,7 +73,7 @@ impl std::fmt::Display for BackupTargetId {
 impl std::str::FromStr for BackupTargetId {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.split_once("-") {
+        match s.split_once('-') {
             Some(("disk", logicalname)) => Ok(BackupTargetId::Disk {
                 logicalname: Path::new(logicalname).to_owned(),
             }),
@@ -130,7 +131,7 @@ impl FileSystem for BackupTargetFS {
     }
 }
 
-#[command(subcommands(cifs::cifs, list, info, mount, umount))]
+#[command(subcommands(cifs::cifs, list, info))]
 pub fn target() -> Result<(), Error> {
     Ok(())
 }
@@ -286,11 +287,10 @@ pub async fn mount(
 
     Ok(res)
 }
-
-#[command(display(crate::util::display_none))]
+#[command(display(display_none))]
 #[instrument(skip_all)]
 pub async fn umount(
-    #[context] ctx: RpcContext,
+    #[context] _ctx: RpcContext,
     #[arg(rename = "target-id")] target_id: Option<BackupTargetId>,
 ) -> Result<(), Error> {
     let mut mounts = USER_MOUNTS.lock().await;
