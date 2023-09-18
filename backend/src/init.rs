@@ -40,6 +40,7 @@ pub async fn check_time_is_synchronized() -> Result<bool, Error> {
 }
 
 // must be idempotent
+#[tracing::instrument(skip_all)]
 pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
     let db_dir = datadir.as_ref().join("main/postgresql");
     if tokio::process::Command::new("mountpoint")
@@ -100,7 +101,14 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
             tmp
         };
         if tokio::fs::metadata(&conf_dir).await.is_ok() {
-            tokio::fs::rename(&conf_dir, &conf_dir_tmp).await?;
+            tokio::fs::rename(&conf_dir, &conf_dir_tmp)
+                .await
+                .with_ctx(|_| {
+                    (
+                        ErrorKind::Filesystem,
+                        format!("rename {conf_dir:?} -> {conf_dir_tmp:?}"),
+                    )
+                })?;
         }
         let mut old_version = pg_version;
         while old_version > 13
@@ -121,7 +129,14 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
             if tokio::fs::metadata(&conf_dir).await.is_ok() {
                 tokio::fs::remove_dir_all(&conf_dir).await?;
             }
-            tokio::fs::rename(&conf_dir_tmp, &conf_dir).await?;
+            tokio::fs::rename(&conf_dir_tmp, &conf_dir)
+                .await
+                .with_ctx(|_| {
+                    (
+                        ErrorKind::Filesystem,
+                        format!("rename {conf_dir_tmp:?} -> {conf_dir:?}"),
+                    )
+                })?;
         }
     }
 
