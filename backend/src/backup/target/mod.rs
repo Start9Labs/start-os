@@ -131,7 +131,7 @@ impl FileSystem for BackupTargetFS {
     }
 }
 
-#[command(subcommands(cifs::cifs, list, info))]
+#[command(subcommands(cifs::cifs, list, info, mount, umount))]
 pub fn target() -> Result<(), Error> {
     Ok(())
 }
