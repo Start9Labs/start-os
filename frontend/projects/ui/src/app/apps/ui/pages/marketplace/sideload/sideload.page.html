@@ -1,13 +1,13 @@
 <marketplace-sidebar></marketplace-sidebar>
 <div
-  class="background sm:pl-[34vw] md:pl-[28vw] lg:pl-[22vw] 2xl:pl-[280px] min-h-screen flex justify-between overflow-auto scroll-smooth"
+  class="background sm:pl-[34vw] md:pl-[28vw] lg:pl-[22vw] 2xl:pl-[280px] min-h-screen w-full overflow-auto scroll-smooth"
 >
-  <ion-content class="pt-20 sm:pt-3 md:pb-10 md:px-8">
-    <div class="mt-8 px-6 mb-10">
-      <h1 class="text-4xl sm:text-5xl font-bold text-zinc-50/80 pb-6">
-        Sideload Package
-      </h1>
-    </div>
+  <main class="pt-20 sm:pt-3 md:pb-10 md:px-8">
+    <h1
+      class="text-4xl sm:text-5xl font-bold text-zinc-50/80 px-6 md:pb-5 my-6"
+    >
+      Sideload Package
+    </h1>
     <!-- invalid -->
     <div *ngIf="invalid; else valid" class="drop-area_filled">
       <h4>
@@ -73,5 +73,5 @@
         </div>
       </ng-template>
     </ng-template>
-  </ion-content>
+  </main>
 </div>
