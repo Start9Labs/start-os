@@ -256,8 +256,6 @@ async fn perform_backup(
                 .package_backups
                 .insert(package_id.0.clone(), pkg_meta);
         }
-
-        todo!("Manager backup fn should handle updating progress, since it needs to happen atomically with updating the status");
     }
 
     let ui = ctx.db.peek().await?.into_ui().de()?;
