@@ -42,6 +42,7 @@ pub mod notifications;
 pub mod os_install;
 pub mod procedure;
 pub mod properties;
+pub mod registryadmin;
 pub mod s9pk;
 pub mod setup;
 pub mod shutdown;
@@ -124,7 +125,8 @@ pub fn package() -> Result<(), RpcError> {
     s9pk::pack,
     developer::verify,
     developer::init,
-    inspect::inspect
+    inspect::inspect,
+    registryadmin::publish,
 ))]
 pub fn portable_api() -> Result<(), RpcError> {
     Ok(())

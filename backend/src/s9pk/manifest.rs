@@ -120,7 +120,7 @@ pub struct HardwareRequirements {
     #[serde(default)]
     device: BTreeMap<String, Regex>,
     ram: Option<u64>,
-    arch: Option<Vec<String>>,
+    pub arch: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]

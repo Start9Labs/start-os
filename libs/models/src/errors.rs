@@ -3,6 +3,7 @@ use std::fmt::Display;
 use color_eyre::eyre::eyre;
 use patch_db::Revision;
 use rpc_toolkit::hyper::http::uri::InvalidUri;
+use rpc_toolkit::reqwest;
 use rpc_toolkit::yajrc::RpcError;
 
 use crate::InvalidId;
@@ -273,6 +274,16 @@ impl From<InvalidUri> for Error {
 impl From<ssh_key::Error> for Error {
     fn from(e: ssh_key::Error) -> Self {
         Error::new(e, ErrorKind::OpenSsh)
+    }
+}
+impl From<reqwest::Error> for Error {
+    fn from(e: reqwest::Error) -> Self {
+        let kind = match e {
+            _ if e.is_builder() => ErrorKind::ParseUrl,
+            _ if e.is_decode() => ErrorKind::Deserialization,
+            _ => ErrorKind::Network,
+        };
+        Error::new(e, kind)
     }
 }
 
