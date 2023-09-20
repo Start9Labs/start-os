@@ -315,6 +315,7 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     }
 
     if CONTAINER_TOOL == "podman" {
+        crate::util::docker::remove_container("netdummy", true).await?;
         Command::new("podman")
             .arg("run")
             .arg("-d")
