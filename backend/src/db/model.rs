@@ -403,7 +403,7 @@ impl Model<PackageDataEntry> {
             PackageDataEntryMatchModelRef::Error(_) => None,
         }
     }
-    pub fn as_install_progress_mut(&mut self) -> Option<&Model<Arc<InstallProgress>>> {
+    pub fn as_install_progress_mut(&mut self) -> Option<&mut Model<Arc<InstallProgress>>> {
         match self.as_match_mut() {
             PackageDataEntryMatchModelMut::Installing(a) => Some(a.as_install_progress_mut()),
             PackageDataEntryMatchModelMut::Updating(a) => Some(a.as_install_progress_mut()),

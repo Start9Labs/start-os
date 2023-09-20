@@ -264,7 +264,7 @@ pub async fn reconfigure_dependents_with_live_pointers(
     ctx: &RpcContext,
     i: &InstalledPackageInfo,
 ) -> Result<(), Error> {
-    todo!("DR_BONEZ");
+    // todo!("DR_BONEZ");
     // TODO @dr-bonez
     // let dependents = &pde.current_dependents;
     // let me = &pde.manifest.id;

@@ -1087,9 +1087,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
                 .as_idx(&package)
                 .or_not_found(&package)?
                 .as_installed()
-                .or_not_found(&package)?
-                .as_dependency_info()
-                .as_idx(&pkg_id)
+                .and_then(|i| i.as_dependency_info().as_idx(&pkg_id))
                 .is_some()
             {
                 let icon = DataUrl::from_path(
