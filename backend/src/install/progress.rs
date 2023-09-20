@@ -45,8 +45,8 @@ impl InstallProgress {
             d.as_package_data_mut()
                 .as_idx_mut(&id)
                 .or_not_found(&id)?
-                .expect_as_installing_mut()?
                 .as_install_progress_mut()
+                .or_not_found("install-progress")?
                 .ser(&self)
         };
         while !self.download_complete.load(Ordering::SeqCst) {
@@ -81,8 +81,8 @@ impl InstallProgress {
             d.as_package_data_mut()
                 .as_idx_mut(&id)
                 .or_not_found(&id)?
-                .expect_as_installing_mut()?
                 .as_install_progress_mut()
+                .or_not_found("install-progress")?
                 .ser(&self)
         };
         while !complete.load(Ordering::SeqCst) {
