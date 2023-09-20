@@ -42,12 +42,13 @@ impl ManagerMap {
 
     /// Used during the install process
     #[instrument(skip_all)]
-    pub async fn add(&self, _ctx: RpcContext, manifest: Manifest) -> Result<(), Error> {
+    pub async fn add(&self, ctx: RpcContext, manifest: Manifest) -> Result<(), Error> {
         let mut lock = self.0.write().await;
         let id = (manifest.id.clone(), manifest.version.clone());
         if let Some(man) = lock.remove(&id) {
             man.exit().await;
         }
+        lock.insert(id, Arc::new(Manager::new(ctx.clone(), manifest).await?));
         Ok(())
     }
 
