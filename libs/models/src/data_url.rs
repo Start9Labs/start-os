@@ -10,6 +10,7 @@ use yasi::InternedString;
 
 use crate::{mime, Error, ErrorKind, ResultExt};
 
+#[derive(Clone)]
 pub struct DataUrl<'a> {
     mime: InternedString,
     data: Cow<'a, [u8]>,
@@ -96,6 +97,13 @@ impl DataUrl<'static> {
             mime,
             data: Cow::Owned(data),
         })
+    }
+
+    pub fn from_vec(mime: &str, data: Vec<u8>) -> Self {
+        Self {
+            mime: InternedString::intern(mime),
+            data: Cow::Owned(data),
+        }
     }
 }
 

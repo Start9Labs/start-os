@@ -14,12 +14,12 @@ use futures::{FutureExt, StreamExt, TryStreamExt};
 use http::header::CONTENT_LENGTH;
 use http::{Request, Response, StatusCode};
 use hyper::Body;
-use models::DataUrl;
+use models::{mime, DataUrl};
 use reqwest::Url;
 use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
 use serde_json::{json, Value};
-use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt};
+use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWriteExt};
 use tokio::process::Command;
 use tokio::sync::oneshot;
 use tokio::{
@@ -939,27 +939,31 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         .await?;
     tracing::info!("Install {}@{}: Unpacked INSTRUCTIONS.md", pkg_id, version);
 
-    let icon_path = Path::new("icon").with_extension(&manifest.assets.icon_type());
+    let icon_filename = Path::new("icon").with_extension(manifest.assets.icon_type());
+    let icon_path = public_dir_path.join(&icon_filename);
     tracing::info!(
         "Install {}@{}: Unpacking {}",
         pkg_id,
         version,
         icon_path.display()
     );
-    progress
+    let icon_buf = progress
         .track_read_during(ctx.db.clone(), pkg_id, || async {
-            let icon_path = public_dir_path.join(&icon_path);
-            let mut dst = File::create(&icon_path).await?;
-            tokio::io::copy(&mut rdr.icon().await?, &mut dst).await?;
-            dst.sync_all().await?;
-            Ok(())
+            Ok(rdr.icon().await?.to_vec().await?)
         })
         .await?;
+    let mut dst = File::create(&icon_path).await?;
+    dst.write_all(&icon_buf).await?;
+    dst.sync_all().await?;
+    let icon = DataUrl::from_vec(
+        mime(manifest.assets.icon_type()).unwrap_or("image/png"),
+        icon_buf,
+    );
     tracing::info!(
         "Install {}@{}: Unpacked {}",
         pkg_id,
         version,
-        icon_path.display()
+        icon_filename.display()
     );
 
     tracing::info!("Install {}@{}: Unpacking Docker Images", pkg_id, version);
@@ -1078,18 +1082,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
                 .and_then(|i| i.as_dependency_info().as_idx(&pkg_id))
                 .is_some()
             {
-                let icon = DataUrl::from_path(
-                    format!(
-                        "/public/package-data/{}/{}/icon.{}",
-                        manifest.id,
-                        manifest.version,
-                        manifest.assets.icon_type()
-                    )
-                    .parse::<PathBuf>()
-                    .map_err(|e| Error::new(e, ErrorKind::Filesystem))?,
-                )
-                .await?;
-                dependents_static_dependency_info.insert(package.clone(), icon);
+                dependents_static_dependency_info.insert(package.clone(), icon.clone());
             }
             if let Some(dep) = db
                 .as_package_data()
@@ -1220,6 +1213,8 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         let installed = installed?;
         reconfigure_dependents_with_live_pointers(&ctx, &installed).await?;
     }
+
+    sql_tx.commit().await?;
 
     ctx.db
         .mutate(|db| {
