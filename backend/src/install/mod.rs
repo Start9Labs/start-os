@@ -856,7 +856,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             None
         };
 
-        if let Some(marketplace_url) = &marketplace_url {
+        let icon_path = if let Some(marketplace_url) = &marketplace_url {
             if let Some(manifest) = &manifest {
                 let dir = ctx
                     .datadir
@@ -883,8 +883,13 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
                     tokio::io::copy(&mut response_to_reader(icon), &mut dst).await?;
                     dst.sync_all().await?;
                 }
+                Some(icon_path)
+            } else {
+                None
             }
-        }
+        } else {
+            None
+        };
 
         dependency_info.insert(
             dep.clone(),
@@ -893,21 +898,11 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
                     .as_ref()
                     .map(|x| x.title.clone())
                     .unwrap_or_else(|| dep.to_string()),
-                icon: DataUrl::from_path(
-                    if let Some(manifest) = &manifest {
-                        format!(
-                            "/public/package-data/{}/{}/icon.{}",
-                            manifest.id,
-                            manifest.version,
-                            manifest.assets.icon_type()
-                        )
-                    } else {
-                        "/assets/img/package-icon.png".to_owned()
-                    }
-                    .parse::<PathBuf>()
-                    .map_err(|e| Error::new(e, ErrorKind::Filesystem))?,
-                )
-                .await?,
+                icon: if let Some(icon_path) = &icon_path {
+                    DataUrl::from_path(icon_path).await?
+                } else {
+                    DataUrl::from_slice("image/png", include_bytes!("./package-icon.png"))
+                },
             },
         );
     }
