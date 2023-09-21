@@ -4,10 +4,10 @@ use indexmap::IndexSet;
 pub use models::InterfaceId;
 use serde::{Deserialize, Deserializer, Serialize};
 use sqlx::{Executor, Postgres};
-use torut::onion::TorSecretKeyV3;
 use tracing::instrument;
 
 use crate::db::model::{InterfaceAddressMap, InterfaceAddresses};
+use crate::net::keys::Key;
 use crate::s9pk::manifest::PackageId;
 use crate::util::serde::Port;
 use crate::{Error, ResultExt};
@@ -44,33 +44,13 @@ impl Interfaces {
                 lan_address: None,
             };
             if iface.tor_config.is_some() || iface.lan_config.is_some() {
-                let key = TorSecretKeyV3::generate();
-                let key_vec = key.as_bytes().to_vec();
-                sqlx::query!(
-                    "INSERT INTO tor (package, interface, key) VALUES ($1, $2, $3) ON CONFLICT (package, interface) DO NOTHING",
-                    package_id,
-                    id,
-                    key_vec.clone(),
-                )
-                .execute(&mut *secrets)
-                .await?;
-                let key_row = sqlx::query!(
-                    "SELECT key FROM tor WHERE package = $1 AND interface = $2",
-                    package_id,
-                    id,
-                )
-                .fetch_one(&mut *secrets)
-                .await?;
-                let mut key = [0_u8; 64];
-                key.clone_from_slice(&key_row.key);
-                let key = TorSecretKeyV3::from(key);
-                let onion = key.public().get_onion_address();
+                let key =
+                    Key::for_interface(secrets, Some((package_id.clone(), id.clone()))).await?;
                 if iface.tor_config.is_some() {
-                    addrs.tor_address = Some(onion.to_string());
+                    addrs.tor_address = Some(key.tor_address().to_string());
                 }
                 if iface.lan_config.is_some() {
-                    addrs.lan_address =
-                        Some(format!("{}.local", onion.get_address_without_dot_onion()));
+                    addrs.lan_address = Some(key.local_address());
                 }
             }
             interface_addresses.0.insert(id.clone(), addrs);

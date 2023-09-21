@@ -281,6 +281,7 @@ pub(super) fn get_status(db: Peeked, manifest: &Manifest) -> MainStatus {
     db.as_package_data()
         .as_idx(&manifest.id)
         .and_then(|x| x.as_installed())
+        .filter(|x| x.as_manifest().as_version().de().ok() == Some(manifest.version.clone()))
         .and_then(|x| x.as_status().as_main().de().ok())
         .unwrap_or(MainStatus::Stopped)
 }

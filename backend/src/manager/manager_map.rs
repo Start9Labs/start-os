@@ -42,14 +42,15 @@ impl ManagerMap {
 
     /// Used during the install process
     #[instrument(skip_all)]
-    pub async fn add(&self, ctx: RpcContext, manifest: Manifest) -> Result<(), Error> {
+    pub async fn add(&self, ctx: RpcContext, manifest: Manifest) -> Result<Arc<Manager>, Error> {
         let mut lock = self.0.write().await;
         let id = (manifest.id.clone(), manifest.version.clone());
         if let Some(man) = lock.remove(&id) {
             man.exit().await;
         }
-        lock.insert(id, Arc::new(Manager::new(ctx.clone(), manifest).await?));
-        Ok(())
+        let manager = Arc::new(Manager::new(ctx.clone(), manifest).await?);
+        lock.insert(id, manager.clone());
+        Ok(manager)
     }
 
     /// This is ran during the cleanup, so when we are uninstalling the service

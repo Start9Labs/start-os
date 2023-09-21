@@ -776,6 +776,11 @@ pub async fn download_install_s9pk(
     }
     .await
     {
+        if let Err(e) = cleanup_failed(&ctx, pkg_id).await {
+            tracing::error!("Failed to clean up {}@{}: {}", pkg_id, version, e);
+            tracing::debug!("{:?}", e);
+        }
+
         let previous_state = after_previous_state.lock().await;
         if previous_state
             .as_ref()
@@ -785,20 +790,8 @@ pub async fn download_install_s9pk(
             crate::control::start(ctx.clone(), pkg_id.clone()).await?;
         }
 
-        if let Err(e) = cleanup_failed(&ctx, pkg_id).await {
-            tracing::error!("Failed to clean up {}@{}: {}", pkg_id, version, e);
-            tracing::debug!("{:?}", e);
-        }
         Err(e)
     } else {
-        let previous_state = after_previous_state.lock().await;
-        if previous_state
-            .as_ref()
-            .map(|x| x.running())
-            .unwrap_or(false)
-        {
-            crate::control::start(ctx.clone(), pkg_id.clone()).await?;
-        }
         Ok::<_, Error>(())
     }
 }
@@ -1060,7 +1053,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
     );
 
     tracing::info!("Install {}@{}: Creating manager", pkg_id, version);
-    ctx.managers.add(ctx.clone(), manifest.clone()).await?;
+    let manager = ctx.managers.add(ctx.clone(), manifest.clone()).await?;
     tracing::info!("Install {}@{}: Created manager", pkg_id, version);
 
     let static_files = StaticFiles::local(pkg_id, version, manifest.assets.icon_type());
@@ -1156,7 +1149,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         static_files,
     });
 
-    let mut keep_status = false;
+    let mut auto_start = false;
 
     if let PackageDataEntry::Updating(PackageDataEntryUpdating {
         installed: prev, ..
@@ -1208,10 +1201,10 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
                 dry_run: false,
                 overrides,
             };
-            crate::config::configure(&ctx, pkg_id, configure_context).await?;
+            manager.configure(configure_context).await?;
         }
         if configured || manifest.config.is_none() {
-            keep_status = true;
+            auto_start = prev.status.main.running();
         }
         if &prev.manifest.version != version {
             cleanup(&ctx, &prev.manifest.id, &prev.manifest.version).await?;
@@ -1255,16 +1248,6 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
                 installed: prev, ..
             }) = &prev
             {
-                if keep_status {
-                    db.as_package_data_mut()
-                        .as_idx_mut(pkg_id)
-                        .or_not_found(pkg_id)?
-                        .as_installed_mut()
-                        .or_not_found(pkg_id)?
-                        .as_status_mut()
-                        .as_main_mut()
-                        .ser(&prev.status.main)?;
-                }
                 remove_from_current_dependents_lists(db, pkg_id, &prev.current_dependencies)?;
             }
             add_dependent_to_current_dependents_lists(db, pkg_id, &current_dependencies)?;
@@ -1274,6 +1257,10 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             Ok(())
         })
         .await?;
+
+    if dbg!(auto_start) {
+        manager.start();
+    }
 
     tracing::info!("Install {}@{}: Complete", pkg_id, version);
 
