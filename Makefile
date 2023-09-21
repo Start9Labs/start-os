@@ -44,7 +44,7 @@ endif
 
 .DELETE_ON_ERROR:
 
-.PHONY: all gzip install clean format sdk snapshots frontends ui backend reflash startos_raspberrypi.img sudo
+.PHONY: all gzip install clean format sdk snapshots frontends ui backend reflash startos_raspberrypi.img sudo wormhole
 
 all: $(ALL_TARGETS)
 
@@ -114,6 +114,9 @@ update-overlay:
 	$(call ssh,"sudo systemctl stop startd")
 	$(MAKE) install REMOTE=$(REMOTE) SSHPASS=$(SSHPASS) OS_ARCH=$(OS_ARCH)
 	$(call ssh,"sudo systemctl start startd")
+
+wormhole: backend/target/$(ARCH)-unknown-linux-gnu/release/startbox
+	@wormhole send backend/target/$(ARCH)-unknown-linux-gnu/release/startbox 2>&1 | awk -Winteractive '/wormhole receive/ { printf "sudo /usr/lib/embassy/scripts/chroot-and-upgrade \"cd /usr/bin && rm startbox && wormhole receive --accept-file %s && chmod +x startbox\"\n", $$3 }'
 
 update:
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
