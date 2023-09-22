@@ -306,6 +306,8 @@ async fn assure_restoring(
 ) -> Result<Vec<(Manifest, PackageBackupMountGuard)>, Error> {
     let mut guards = Vec::with_capacity(ids.len());
 
+    let mut insert_packages = BTreeMap::new();
+
     for id in ids {
         let peek = ctx.db.peek().await?;
 
@@ -326,23 +328,6 @@ async fn assure_restoring(
         let progress = Arc::new(InstallProgress::new(Some(
             tokio::fs::metadata(&s9pk_path).await?.len(),
         )));
-
-        ctx.db
-            .mutate(|db| {
-                db.as_package_data_mut().insert(
-                    &id,
-                    &PackageDataEntry::Restoring(PackageDataEntryRestoring {
-                        install_progress: progress.clone(),
-                        static_files: StaticFiles::local(
-                            &id,
-                            &version,
-                            manifest.assets.icon_type(),
-                        ),
-                        manifest: manifest.clone(),
-                    }),
-                )
-            })
-            .await?;
 
         let public_dir_path = ctx
             .datadir
@@ -366,27 +351,25 @@ async fn assure_restoring(
         let mut dst = File::create(&icon_path).await?;
         tokio::io::copy(&mut rdr.icon().await?, &mut dst).await?;
         dst.sync_all().await?;
-
-        ctx.db
-            .mutate(|db| {
-                db.as_package_data_mut().insert(
-                    &id,
-                    &PackageDataEntry::Restoring(PackageDataEntryRestoring {
-                        install_progress: progress.clone(),
-                        static_files: StaticFiles::local(
-                            &id,
-                            &version,
-                            manifest.assets.icon_type(),
-                        ),
-                        manifest: manifest.clone(),
-                    }),
-                )
-            })
-            .await?;
+        insert_packages.insert(
+            id.clone(),
+            PackageDataEntry::Restoring(PackageDataEntryRestoring {
+                install_progress: progress.clone(),
+                static_files: StaticFiles::local(&id, &version, manifest.assets.icon_type()),
+                manifest: manifest.clone(),
+            }),
+        );
 
         guards.push((manifest, guard));
     }
-
+    ctx.db
+        .mutate(|db| {
+            for (id, package) in insert_packages {
+                db.as_package_data_mut().insert(&id, &package)?;
+            }
+            Ok(())
+        })
+        .await?;
     Ok(guards)
 }
 
@@ -446,6 +429,23 @@ async fn restore_package<'a>(
     let marketplace_url = metadata.marketplace_url;
 
     let progress = Arc::new(progress);
+
+    ctx.db
+        .mutate(|db| {
+            db.as_package_data_mut().insert(
+                &id,
+                &PackageDataEntry::Restoring(PackageDataEntryRestoring {
+                    install_progress: progress.clone(),
+                    static_files: StaticFiles::local(
+                        &id,
+                        &manifest.version,
+                        manifest.assets.icon_type(),
+                    ),
+                    manifest: manifest.clone(),
+                }),
+            )
+        })
+        .await?;
     Ok((
         progress.clone(),
         async move {

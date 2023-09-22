@@ -397,7 +397,7 @@ impl Model<PackageDataEntry> {
         match self.as_match() {
             PackageDataEntryMatchModelRef::Installing(a) => Some(a.as_install_progress()),
             PackageDataEntryMatchModelRef::Updating(a) => Some(a.as_install_progress()),
-            PackageDataEntryMatchModelRef::Restoring(_) => None,
+            PackageDataEntryMatchModelRef::Restoring(a) => Some(a.as_install_progress()),
             PackageDataEntryMatchModelRef::Removing(_) => None,
             PackageDataEntryMatchModelRef::Installed(_) => None,
             PackageDataEntryMatchModelRef::Error(_) => None,
@@ -407,7 +407,7 @@ impl Model<PackageDataEntry> {
         match self.as_match_mut() {
             PackageDataEntryMatchModelMut::Installing(a) => Some(a.as_install_progress_mut()),
             PackageDataEntryMatchModelMut::Updating(a) => Some(a.as_install_progress_mut()),
-            PackageDataEntryMatchModelMut::Restoring(_) => None,
+            PackageDataEntryMatchModelMut::Restoring(a) => Some(a.as_install_progress_mut()),
             PackageDataEntryMatchModelMut::Removing(_) => None,
             PackageDataEntryMatchModelMut::Installed(_) => None,
             PackageDataEntryMatchModelMut::Error(_) => None,
