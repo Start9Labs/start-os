@@ -107,7 +107,10 @@ pub async fn backup_all(
                             attempted: true,
                             error: None,
                         },
-                        packages: report,
+                        packages: report
+                            .into_iter()
+                            .map(|((package_id, _), value)| (package_id, value))
+                            .collect(),
                     },
                     None,
                 )
@@ -126,7 +129,10 @@ pub async fn backup_all(
                             attempted: true,
                             error: None,
                         },
-                        packages: report,
+                        packages: report
+                            .into_iter()
+                            .map(|((package_id, _), value)| (package_id, value))
+                            .collect(),
                     },
                     None,
                 )
@@ -310,5 +316,6 @@ async fn perform_backup(
     ctx.db
         .mutate(|v| v.as_server_info_mut().as_last_backup_mut().ser(&timestamp))
         .await?;
+
     Ok(backup_report)
 }

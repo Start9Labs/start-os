@@ -251,6 +251,7 @@ pub async fn recover_full_embassy(
     ))
 }
 
+#[instrument(skip(ctx, backup_guard))]
 async fn restore_packages(
     ctx: &RpcContext,
     backup_guard: BackupMountGuard<TmpMountGuard>,

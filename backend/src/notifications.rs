@@ -225,7 +225,7 @@ impl NotificationManager {
             cache: Mutex::new(HashMap::new()),
         }
     }
-    #[instrument(skip_all)]
+    #[instrument(skip(db, subtype, self))]
     pub async fn notify<T: NotificationType>(
         &self,
         db: PatchDb,
