@@ -24,7 +24,7 @@ impl<'a> DataUrl<'a> {
         use std::fmt::Write;
         let mut res = String::with_capacity(self.data_url_len_without_mime() + self.mime.len());
         let _ = write!(res, "data:{};base64,", self.mime);
-        base64::engine::general_purpose::URL_SAFE.encode_string(&self.data, &mut res);
+        base64::engine::general_purpose::STANDARD.encode_string(&self.data, &mut res);
         res
     }
 
@@ -129,12 +129,12 @@ impl<'de> Deserialize<'de> for DataUrl<'static> {
                 E: serde::de::Error,
             {
                 v.strip_prefix("data:")
-                    .and_then(|v| v.split_once(";base64"))
+                    .and_then(|v| v.split_once(";base64,"))
                     .and_then(|(mime, data)| {
                         Some(DataUrl {
                             mime: InternedString::intern(mime),
                             data: Cow::Owned(
-                                base64::engine::general_purpose::URL_SAFE
+                                base64::engine::general_purpose::STANDARD
                                     .decode(data)
                                     .ok()?,
                             ),
@@ -145,7 +145,7 @@ impl<'de> Deserialize<'de> for DataUrl<'static> {
                     })
             }
         }
-        deserializer.deserialize_str(Visitor)
+        deserializer.deserialize_any(Visitor)
     }
 }
 

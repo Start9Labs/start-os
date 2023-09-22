@@ -493,15 +493,10 @@ async fn configure(
         if let Some(cfg) = db
             .as_package_data()
             .as_idx(dependency)
-            .or_not_found(dependency)?
-            .as_installed()
-            .or_not_found(dependency)?
-            .as_manifest()
-            .as_dependencies()
-            .as_idx(id)
-            .or_not_found(id)?
-            .as_config()
-            .de()?
+            .and_then(|pde| pde.as_installed())
+            .and_then(|i| i.as_manifest().as_dependencies().as_idx(id))
+            .and_then(|d| d.as_config().de().transpose())
+            .transpose()?
         {
             let manifest = db
                 .as_package_data()

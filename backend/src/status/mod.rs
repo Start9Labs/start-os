@@ -16,6 +16,8 @@ pub struct Status {
     pub configured: bool,
     pub main: MainStatus,
     #[serde(default)]
+    pub dependency_errors: BTreeMap<(), ()>, // TODO: remove
+    #[serde(default)]
     pub dependency_config_errors: DependencyConfigErrors,
 }
 
