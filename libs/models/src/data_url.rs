@@ -129,7 +129,7 @@ impl<'de> Deserialize<'de> for DataUrl<'static> {
                 E: serde::de::Error,
             {
                 v.strip_prefix("data:")
-                    .and_then(|v| v.split_once(";base64"))
+                    .and_then(|v| v.split_once(";base64,"))
                     .and_then(|(mime, data)| {
                         Some(DataUrl {
                             mime: InternedString::intern(mime),
@@ -145,7 +145,7 @@ impl<'de> Deserialize<'de> for DataUrl<'static> {
                     })
             }
         }
-        deserializer.deserialize_str(Visitor)
+        deserializer.deserialize_any(Visitor)
     }
 }
 
