@@ -1,0 +1,26 @@
+@import '@taiga-ui/core/styles/taiga-ui-local';
+
+:host {
+  display: block;
+  height: 100%;
+  padding: 1px 2rem 3rem;
+  box-sizing: border-box;
+  overflow: auto;
+
+  // TODO: Theme
+  background: #373a3f;
+}
+
+.title {
+  text-transform: uppercase;
+  font-weight: bold;
+  font-size: 1rem;
+  margin: 2rem 0 1rem;
+  color: var(--tui-text-02);
+}
+
+.status {
+  font-size: x-large;
+  margin: 1em 0;
+  display: block;
+}

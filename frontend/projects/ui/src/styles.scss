@@ -1,3 +1,5 @@
+@import '@taiga-ui/core/styles/taiga-ui-local';
+
 @font-face {
   font-family: 'text-security-disc';
   src: url('/assets/fonts/text-security-disc.woff2') format('woff2');
@@ -363,4 +365,41 @@ ul {
 .checkbox {
   cursor: pointer;
   margin: 0 12px 6px 0;
+}
+
+.g-action {
+  @include transition(background);
+  @include clearbtn();
+
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 1rem;
+  text-align: left;
+  font-size: 0.85rem;
+  padding: 0.5rem 1rem;
+  margin: 0 -1rem;
+  line-height: 1.25rem;
+  border-radius: 0.5rem;
+  color: var(--tui-text-01);
+  --tui-skeleton-radius: 1rem;
+}
+
+a.g-action,
+button.g-action {
+  &:hover {
+    background: var(--tui-clear);
+  }
+
+  &:not(:last-child) {
+    box-shadow: 0 0.51rem 0 -0.5rem;
+  }
+
+  &_static {
+    cursor: default;
+
+    &:hover {
+      background: transparent;
+    }
+  }
 }

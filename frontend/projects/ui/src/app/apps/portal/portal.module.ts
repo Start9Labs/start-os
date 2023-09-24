@@ -21,11 +21,9 @@ const ROUTES: Routes = [
           import('./routes/desktop/desktop.module').then(m => m.DesktopModule),
       },
       {
-        path: 'services',
+        path: 'service',
         loadChildren: () =>
-          import('./routes/services/services.module').then(
-            m => m.ServicesModule,
-          ),
+          import('./routes/service/service.module').then(m => m.ServiceModule),
       },
       {
         path: 'system',
