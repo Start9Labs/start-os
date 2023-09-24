@@ -7,7 +7,7 @@ set -e
 /usr/bin/apt install --no-install-recommends -y xserver-xorg x11-xserver-utils xinit firefox-esr matchbox-window-manager libnss3-tools
 
 # create kiosk user
-useradd --create-home kiosk
+useradd -s /bin/bash --create-home kiosk
 # create kiosk script
 cat > /home/kiosk/kiosk.sh << 'EOF'
 #!/bin/sh
@@ -30,7 +30,7 @@ user_pref("browser.safebrowsing.downloads.remote.block_potentially_unwanted", fa
 user_pref("browser.safebrowsing.downloads.remote.block_uncommon", false);
 user_pref("browser.safebrowsing.downloads.remote.enabled", false);
 user_pref("browser.search.geoip.url", "");
-user_pref("browser.startup.homepage_override.mstone", "ignore")
+user_pref("browser.startup.homepage_override.mstone", "ignore");
 user_pref("browser.theme.content-theme", 0);
 user_pref("browser.theme.toolbar-theme", 0);
 user_pref("datareporting.policy.firstRunURL", "");
