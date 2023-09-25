@@ -1132,11 +1132,11 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         current_dependencies: current_dependencies.clone(),
         interface_addresses,
     };
-    let next = PackageDataEntry::Installed(PackageDataEntryInstalled {
+    let mut next = PackageDataEntryInstalled {
         installed,
         manifest: manifest.clone(),
         static_files,
-    });
+    };
 
     let mut auto_start = false;
 
@@ -1199,7 +1199,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             cleanup(&ctx, &prev.manifest.id, &prev.manifest.version).await?;
         }
     } else if let PackageDataEntry::Restoring(PackageDataEntryRestoring { .. }) = prev {
-        manifest
+        next.installed.marketplace_url = manifest
             .backup
             .restore(&ctx, pkg_id, version, &manifest.volumes)
             .await?;
@@ -1234,7 +1234,8 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
                         },
                     )?;
             }
-            db.as_package_data_mut().insert(&pkg_id, &next)?;
+            db.as_package_data_mut()
+                .insert(&pkg_id, &PackageDataEntry::Installed(next))?;
             if let PackageDataEntry::Updating(PackageDataEntryUpdating {
                 installed: prev, ..
             }) = &prev

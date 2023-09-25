@@ -199,7 +199,7 @@ impl BackupActions {
         pkg_id: &PackageId,
         pkg_version: &Version,
         volumes: &Volumes,
-    ) -> Result<(), Error> {
+    ) -> Result<Option<Url>, Error> {
         let mut volumes = volumes.clone();
         volumes.insert(VolumeId::Backup, Volume::Backup { readonly: true });
         self.restore
@@ -224,28 +224,7 @@ impl BackupActions {
                 )
             })?,
         )?;
-        let entry = ctx
-            .db
-            .mutate(|v| {
-                v.as_package_data_mut()
-                    .as_idx_mut(pkg_id)
-                    .or_not_found(pkg_id)?
-                    .as_installed_mut()
-                    .or_not_found(pkg_id)?
-                    .as_marketplace_url_mut()
-                    .ser(&metadata.marketplace_url)?;
 
-                v.as_package_data()
-                    .as_idx(pkg_id)
-                    .or_not_found(pkg_id)?
-                    .as_installed()
-                    .or_not_found(pkg_id)?
-                    .de()
-            })
-            .await?;
-
-        reconfigure_dependents_with_live_pointers(ctx, &entry).await?;
-
-        Ok(())
+        Ok(metadata.marketplace_url)
     }
 }
