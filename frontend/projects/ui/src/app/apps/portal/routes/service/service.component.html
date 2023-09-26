@@ -1,0 +1,106 @@
+<ng-container *ngIf="service$ | async as service">
+  <ng-container *tuiLet="!!(connected$ | async) as connected">
+    <ng-container *ngIf="showProgress(service); else installed">
+      <ng-container *ngIf="service | progressData as progress">
+        <p [progress]="progress.downloadProgress">Downloading</p>
+        <p [progress]="progress.validateProgress">Validating</p>
+        <p [progress]="progress.unpackProgress">Unpacking</p>
+      </ng-container>
+    </ng-container>
+
+    <ng-template #installed>
+      <ng-container *ngIf="service | toStatus as status">
+        <section>
+          <h3 class="title">Status</h3>
+          <service-status
+            class="status"
+            [connected]="connected"
+            [installProgress]="service['install-progress']"
+            [rendering]="$any(getRendering(status))"
+          ></service-status>
+          <service-actions
+            *ngIf="isInstalled(service) && connected"
+            [service]="service"
+          ></service-actions>
+        </section>
+
+        <ng-container *ngIf="isInstalled(service) && !isBackingUp(status)">
+          <section>
+            <h3 class="title">Interfaces</h3>
+            <button
+              *ngFor="let info of service | interfaceInfo"
+              class="g-action"
+              [serviceInterface]="info"
+              [disabled]="!isRunning(status)"
+              (click)="info.action()"
+            ></button>
+          </section>
+
+          <ng-container *ngIf="isRunning(status)">
+            <section *ngIf="health$ | async as checks">
+              <h3 class="title">Health Checks</h3>
+              <service-health-check
+                *ngFor="let check of checks"
+                class="g-action"
+                [check]="check"
+                [connected]="connected"
+              ></service-health-check>
+            </section>
+          </ng-container>
+
+          <ng-container *ngIf="service | toDependencies as dependencies">
+            <section *ngIf="dependencies.length">
+              <h3 class="title">Dependencies</h3>
+              <button
+                *ngFor="let dep of dependencies"
+                class="g-action"
+                [serviceDependency]="dep"
+                (click)="dep.action()"
+              ></button>
+            </section>
+          </ng-container>
+
+          <section>
+            <h3 class="title">Menu</h3>
+            <button
+              *ngFor="let menu of service | toMenu"
+              class="g-action"
+              [serviceMenu]="menu"
+              (click)="menu.action()"
+            >
+              <div
+                *ngIf="menu.name === 'Outbound Proxy'"
+                [style.color]="
+                  service.installed?.outboundProxy
+                    ? 'var(--tui-success-fill)'
+                    : 'var(--tui-warning-fill)'
+                "
+              >
+                {{ this.getProxy(service.installed?.outboundProxy) }}
+              </div>
+            </button>
+          </section>
+
+          <section>
+            <h3 class="title">Additional Info</h3>
+            <ng-container *ngFor="let additional of service | toAdditional">
+              <a
+                *ngIf="additional.description.startsWith('http'); else button"
+                class="g-action"
+                [additional]="additional"
+              ></a>
+              <ng-template #button>
+                <button
+                  class="g-action"
+                  [class.g-action_static]="!additional.icon"
+                  [additional]="additional"
+                  (click)="additional.action && additional.action()"
+                ></button>
+              </ng-template>
+            </ng-container>
+          </section>
+        </ng-container>
+      </ng-container>
+    </ng-template>
+  </ng-container>
+</ng-container>

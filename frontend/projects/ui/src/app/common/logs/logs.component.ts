@@ -53,8 +53,8 @@ export class LogsComponent {
     params: ServerLogsReq,
   ) => Promise<LogsRes>
   @Input({ required: true }) context!: string
-  @Input({ required: true }) defaultBack!: string
-  @Input({ required: true }) pageTitle!: string
+  @Input() defaultBack = ''
+  @Input() pageTitle = ''
 
   loading = true
   infiniteStatus: 0 | 1 | 2 = 0

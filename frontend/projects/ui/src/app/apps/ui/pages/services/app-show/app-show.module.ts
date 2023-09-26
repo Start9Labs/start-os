@@ -64,5 +64,6 @@ const routes: Routes = [
     InsecureWarningComponentModule,
     LaunchMenuComponentModule,
   ],
+  exports: [InterfaceInfoPipe],
 })
 export class AppShowPageModule {}
