@@ -56,7 +56,8 @@ export class ConfigService {
   }
 
   isLan(): boolean {
-    return this.isLocal() || this.isLocalhost()
+    // @TODO will not work once clearnet arrives
+    return !this.isTor()
   }
 
   isTorHttp(): boolean {
