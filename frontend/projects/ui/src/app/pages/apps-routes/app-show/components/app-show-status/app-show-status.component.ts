@@ -15,7 +15,6 @@ import { ErrorToastService } from '@start9labs/shared'
 import { AlertController, LoadingController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ModalService } from 'src/app/services/modal.service'
-import { DependencyInfo } from '../../pipes/to-dependencies.pipe'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { ConnectionService } from 'src/app/services/connection.service'
 
@@ -31,9 +30,6 @@ export class AppShowStatusComponent {
 
   @Input()
   status!: PackageStatus
-
-  @Input()
-  dependencies: DependencyInfo[] = []
 
   PR = PrimaryRendering
 
@@ -80,7 +76,7 @@ export class AppShowStatusComponent {
   }
 
   async tryStart(): Promise<void> {
-    if (this.dependencies.some(d => !!d.errorText)) {
+    if (this.status.dependency === 'warning') {
       const depErrMsg = `${this.pkg.manifest.title} has unmet dependencies. It will not work as expected.`
       const proceed = await this.presentAlertStart(depErrMsg)
 

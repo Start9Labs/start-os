@@ -10,7 +10,6 @@ import {
 } from 'patch-db-client'
 import {
   DataModel,
-  DependencyErrorType,
   InstallProgress,
   PackageDataEntry,
   PackageMainStatus,

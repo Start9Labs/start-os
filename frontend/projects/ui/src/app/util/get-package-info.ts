@@ -10,9 +10,13 @@ import {
 import { ProgressData } from 'src/app/types/progress-data'
 import { Subscription } from 'rxjs'
 import { packageLoadingProgress } from './package-loading-progress'
+import { PackageDependencyErrors } from '../services/dep-error.service'
 
-export function getPackageInfo(entry: PackageDataEntry): PkgInfo {
-  const statuses = renderPkgStatus(entry)
+export function getPackageInfo(
+  entry: PackageDataEntry,
+  depErrors: PackageDependencyErrors,
+): PkgInfo {
+  const statuses = renderPkgStatus(entry, depErrors)
   const primaryRendering = PrimaryRendering[statuses.primary]
 
   return {
