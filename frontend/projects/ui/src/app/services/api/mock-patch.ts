@@ -1,6 +1,5 @@
 import {
   DataModel,
-  DependencyErrorType,
   DockerIoFormat,
   HealthResult,
   Manifest,
@@ -438,7 +437,7 @@ export const mockPatchData: DataModel = {
               },
             },
           },
-          'dependency-errors': {},
+          'dependency-config-errors': {},
         },
         'interface-addresses': {
           ui: {
@@ -637,11 +636,8 @@ export const mockPatchData: DataModel = {
           main: {
             status: PackageMainStatus.Stopped,
           },
-          'dependency-errors': {
-            'btc-rpc-proxy': {
-              type: DependencyErrorType.ConfigUnsatisfied,
-              error: 'This is a config unsatisfied error',
-            },
+          'dependency-config-errors': {
+            'btc-rpc-proxy': 'This is a config unsatisfied error',
           },
         },
         'interface-addresses': {
