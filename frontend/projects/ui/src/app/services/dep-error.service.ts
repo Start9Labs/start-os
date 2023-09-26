@@ -20,15 +20,16 @@ export class DepErrorService {
   readonly depErrors$ = this.patch.watch$('package-data').pipe(
     map(pkgs =>
       Object.keys(pkgs)
-        .sort((a, b) =>
-          dependencyDepth(pkgs, b) > dependencyDepth(pkgs, a) ? -1 : 1,
-        )
-        .reduce((errors, id) => {
+        .map(id => ({
+          id,
+          depth: dependencyDepth(pkgs, id),
+        }))
+        .sort((a, b) => (b.depth > a.depth ? -1 : 1))
+        .reduce((errors, { id }) => {
           const toReturn: PackageDependencyErrors = {
             ...errors,
             [id]: this.getDepErrors(pkgs, id, errors),
           }
-
           return toReturn
         }, {} as PackageDependencyErrors),
     ),
