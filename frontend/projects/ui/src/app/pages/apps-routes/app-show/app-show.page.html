@@ -15,63 +15,33 @@
 
     <!-- Installed -->
     <ng-template #installed>
-      <!-- SECURE -->
-      <ng-container *ngIf="secure; else insecure">
-        <ng-container *ngIf="pkg | toDependencies as dependencies">
-          <ion-item-group *ngIf="pkg | toStatus as status">
-            <!-- ** status ** -->
-            <app-show-status
+      <ng-container *ngIf="pkg | toDependencies as dependencies">
+        <ion-item-group *ngIf="pkg | toStatus as status">
+          <!-- ** status ** -->
+          <app-show-status
+            [pkg]="pkg"
+            [dependencies]="dependencies"
+            [status]="status"
+          ></app-show-status>
+          <!-- ** installed && !backing-up ** -->
+          <ng-container *ngIf="isInstalled(pkg) && !isBackingUp(status)">
+            <!-- ** health checks ** -->
+            <app-show-health-checks
+              *ngIf="isRunning(status)"
               [pkg]="pkg"
+            ></app-show-health-checks>
+            <!-- ** dependencies ** -->
+            <app-show-dependencies
+              *ngIf="dependencies.length"
               [dependencies]="dependencies"
-              [status]="status"
-            ></app-show-status>
-            <!-- ** installed && !backing-up ** -->
-            <ng-container *ngIf="isInstalled(pkg) && !isBackingUp(status)">
-              <!-- ** health checks ** -->
-              <app-show-health-checks
-                *ngIf="isRunning(status)"
-                [pkg]="pkg"
-              ></app-show-health-checks>
-              <!-- ** dependencies ** -->
-              <app-show-dependencies
-                *ngIf="dependencies.length"
-                [dependencies]="dependencies"
-              ></app-show-dependencies>
-              <!-- ** menu ** -->
-              <app-show-menu [buttons]="pkg | toButtons"></app-show-menu>
-              <!-- ** additional ** -->
-              <app-show-additional [pkg]="pkg"></app-show-additional>
-            </ng-container>
-          </ion-item-group>
-        </ng-container>
+            ></app-show-dependencies>
+            <!-- ** menu ** -->
+            <app-show-menu [buttons]="pkg | toButtons"></app-show-menu>
+            <!-- ** additional ** -->
+            <app-show-additional [pkg]="pkg"></app-show-additional>
+          </ng-container>
+        </ion-item-group>
       </ng-container>
-
-      <!-- INSECURE -->
-      <ng-template #insecure>
-        <ion-grid style="max-width: 540px">
-          <ion-row class="ion-align-items-center">
-            <ion-col class="ion-text-center">
-              <h2>
-                <ion-text color="warning">Http detected</ion-text>
-              </h2>
-              <p class="ion-padding-bottom">
-                Your connection is insecure.
-                <a
-                  [routerLink]="['/system', 'root-ca']"
-                  style="color: var(--ion-color-dark)"
-                >
-                  Download and trust your server's Root CA
-                </a>
-                , then switch to https.
-              </p>
-              <ion-button (click)="launchHttps()">
-                Open https
-                <ion-icon slot="end" name="open-outline"></ion-icon>
-              </ion-button>
-            </ion-col>
-          </ion-row>
-        </ion-grid>
-      </ng-template>
     </ng-template>
   </ion-content>
 </ng-container>

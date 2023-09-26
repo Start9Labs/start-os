@@ -339,3 +339,12 @@ ul {
   padding-left: 40px;
   list-style-type: disc;
 }
+
+// override for taiga styles
+p {
+  font-size: 1rem;
+}
+
+svg:not(:root) {
+  overflow: auto;
+}

@@ -66,18 +66,6 @@ export class LiveApiService extends ApiService {
 
   // auth
 
-  /**
-   * We want to update the pubkey, which means that we will call in clearnet the
-   * getPubKey, and all the information is never in the clear, and only public
-   * information is sent across the network.
-   */
-  async getPubKey() {
-    this.pubkey = await this.rpcRequest({
-      method: 'auth.get-pubkey',
-      params: {},
-    })
-  }
-
   async login(params: RR.LoginReq): Promise<RR.loginRes> {
     return this.rpcRequest({ method: 'auth.login', params }, false)
   }
@@ -102,8 +90,8 @@ export class LiveApiService extends ApiService {
 
   // server
 
-  async echo(params: RR.EchoReq): Promise<RR.EchoRes> {
-    return this.rpcRequest({ method: 'echo', params }, false)
+  async echo(params: RR.EchoReq, urlOverride?: string): Promise<RR.EchoRes> {
+    return this.rpcRequest({ method: 'echo', params }, false, urlOverride)
   }
 
   openPatchWebsocket$(): Observable<Update<DataModel>> {
@@ -453,6 +441,7 @@ export class LiveApiService extends ApiService {
   private async rpcRequest<T>(
     options: RPCOptions,
     addHeader = true,
+    urlOverride?: string,
   ): Promise<T> {
     if (addHeader) {
       options.headers = {
@@ -461,7 +450,7 @@ export class LiveApiService extends ApiService {
       }
     }
 
-    const res = await this.http.rpcRequest<T>(options)
+    const res = await this.http.rpcRequest<T>(options, urlOverride)
     const encodedUpdates = res.headers.get('x-patch-updates')
     const encodedError = res.headers.get('x-patch-error')
 
