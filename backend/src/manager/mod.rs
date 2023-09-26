@@ -15,21 +15,24 @@ use persistent_container::PersistentContainer;
 use rand::SeedableRng;
 use sqlx::Connection;
 use start_stop::StartStop;
-use tokio::sync::oneshot;
-use tokio::sync::{
-    watch::{self, Sender},
-    Mutex,
-};
+use tokio::sync::watch::{self, Sender};
+use tokio::sync::{oneshot, Mutex};
 use tracing::instrument;
 use transition_state::TransitionState;
 
+use crate::backup::target::PackageBackupInfo;
+use crate::backup::PackageBackupReport;
 use crate::config::action::ConfigRes;
 use crate::config::spec::ValueSpecPointer;
 use crate::config::ConfigureContext;
 use crate::context::RpcContext;
 use crate::db::model::{CurrentDependencies, CurrentDependencyInfo};
+use crate::dependencies::{
+    add_dependent_to_current_dependents_lists, compute_dependency_config_errs,
+};
 use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::guard::TmpMountGuard;
+use crate::install::cleanup::remove_from_current_dependents_lists;
 use crate::net::net_controller::NetService;
 use crate::net::vhost::AlpnInfo;
 use crate::prelude::*;
@@ -41,11 +44,6 @@ use crate::util::docker::{get_container_ip, kill_container};
 use crate::util::NonDetachingJoinHandle;
 use crate::volume::Volume;
 use crate::Error;
-use crate::{
-    backup::target::PackageBackupInfo, dependencies::add_dependent_to_current_dependents_lists,
-    install::cleanup::remove_from_current_dependents_lists,
-};
-use crate::{backup::PackageBackupReport, status::DependencyConfigErrors};
 
 pub mod health;
 mod manager_container;
@@ -381,15 +379,16 @@ async fn configure(
     // TODO Commit or not?
     spec.update(ctx, &manifest, overrides, &mut config).await?; // dereference pointers in the new config
 
-    let dependencies = db
+    let manifest = db
         .as_package_data()
         .as_idx(id)
         .or_not_found(id)?
         .as_installed()
         .or_not_found(id)?
         .as_manifest()
-        .as_dependencies()
         .de()?;
+
+    let dependencies = &manifest.dependencies;
     let mut current_dependencies: CurrentDependencies = CurrentDependencies(
         dependencies
             .0
@@ -425,38 +424,13 @@ async fn configure(
         }
     }
 
-    let action = db
-        .as_package_data()
-        .as_idx(id)
-        .or_not_found(id)?
-        .as_installed()
-        .or_not_found(id)?
-        .as_manifest()
-        .as_config()
-        .de()?
-        .or_not_found(id)?;
-    let version = db
-        .as_package_data()
-        .as_idx(id)
-        .or_not_found(id)?
-        .as_installed()
-        .or_not_found(id)?
-        .as_manifest()
-        .as_version()
-        .de()?;
-    let volumes = db
-        .as_package_data()
-        .as_idx(id)
-        .or_not_found(id)?
-        .as_installed()
-        .or_not_found(id)?
-        .as_manifest()
-        .as_volumes()
-        .de()?;
+    let action = manifest.config.as_ref().or_not_found(id)?;
+    let version = &manifest.version;
+    let volumes = &manifest.volumes;
     if !configure_context.dry_run {
         // run config action
         let res = action
-            .set(ctx, id, &version, &dependencies, &volumes, &config)
+            .set(ctx, id, version, &dependencies, volumes, &config)
             .await?;
 
         // track dependencies with no pointers
@@ -489,44 +463,9 @@ async fn configure(
         });
     }
 
-    let mut dependency_config_errs = BTreeMap::new();
-    for (dependency, _dep_info) in current_dependencies
-        .0
-        .iter()
-        .filter(|(dep_id, _)| dep_id != &id)
-    {
-        // check if config passes dependency check
-        if let Some(cfg) = db
-            .as_package_data()
-            .as_idx(dependency)
-            .and_then(|pde| pde.as_installed())
-            .and_then(|i| i.as_manifest().as_dependencies().as_idx(id))
-            .and_then(|d| d.as_config().de().transpose())
-            .transpose()?
-        {
-            let manifest = db
-                .as_package_data()
-                .as_idx(dependency)
-                .or_not_found(dependency)?
-                .as_installed()
-                .or_not_found(dependency)?
-                .as_manifest()
-                .de()?;
-            if let Err(error) = cfg
-                .check(
-                    ctx,
-                    dependency,
-                    &manifest.version,
-                    &manifest.volumes,
-                    id,
-                    &config,
-                )
-                .await?
-            {
-                dependency_config_errs.insert(dependency.clone(), error);
-            }
-        }
-    }
+    let dependency_config_errs =
+        compute_dependency_config_errs(&ctx, &db, &manifest, &current_dependencies, overrides)
+            .await?;
 
     // cache current config for dependents
     configure_context
@@ -616,7 +555,7 @@ async fn configure(
                 status.as_configured_mut().ser(&true)?;
                 status
                     .as_dependency_config_errors_mut()
-                    .ser(&DependencyConfigErrors(dependency_config_errs))?;
+                    .ser(&dependency_config_errs)?;
                 Ok(configure_context.breakages)
             })
             .await; // add new

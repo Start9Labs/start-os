@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use emver::VersionRange;
 
-use super::{v0_3_4::V0_3_0_COMPAT, *};
-
+use super::v0_3_4::V0_3_0_COMPAT;
+use super::*;
 use crate::prelude::*;
 
 const V0_3_4_1: emver::Version = emver::Version::new(0, 3, 4, 1);

@@ -19,27 +19,26 @@ use reqwest::Url;
 use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
 use serde_json::{json, Value};
+use tokio::fs::{File, OpenOptions};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWriteExt};
 use tokio::process::Command;
-use tokio::sync::oneshot;
-use tokio::{
-    fs::{File, OpenOptions},
-    sync::Mutex,
-};
+use tokio::sync::{oneshot, Mutex};
 use tokio_stream::wrappers::ReadDirStream;
 use tracing::instrument;
 
 use self::cleanup::{cleanup_failed, remove_from_current_dependents_lists};
+use crate::config::ConfigureContext;
 use crate::context::{CliContext, RpcContext};
 use crate::core::rpc_continuations::{RequestGuid, RpcContinuation};
 use crate::db::model::{
     CurrentDependencies, CurrentDependencyInfo, CurrentDependents, InstalledPackageInfo,
     PackageDataEntry, PackageDataEntryInstalled, PackageDataEntryInstalling,
-    PackageDataEntryRemoving, PackageDataEntryRestoring, PackageDataEntryUpdating,
-    StaticDependencyInfo, StaticFiles,
+    PackageDataEntryMatchModelRef, PackageDataEntryRemoving, PackageDataEntryRestoring,
+    PackageDataEntryUpdating, StaticDependencyInfo, StaticFiles,
 };
 use crate::dependencies::{
-    add_dependent_to_current_dependents_lists, set_dependents_with_live_pointers_to_needs_config,
+    add_dependent_to_current_dependents_lists, compute_dependency_config_errs,
+    set_dependents_with_live_pointers_to_needs_config,
 };
 use crate::install::cleanup::cleanup;
 use crate::install::progress::{InstallProgress, InstallProgressTracker};
@@ -54,7 +53,6 @@ use crate::util::io::{copy_and_shutdown, response_to_reader};
 use crate::util::serde::{display_serializable, Port};
 use crate::util::{display_none, AsyncFileExt, Version};
 use crate::volume::{asset_dir, script_dir};
-use crate::{config::ConfigureContext, db::model::PackageDataEntryMatchModelRef};
 use crate::{Error, ErrorKind, ResultExt};
 
 pub mod cleanup;
@@ -1097,10 +1095,8 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         CurrentDependents(deps)
     };
 
-    let prev = ctx
-        .db
-        .peek()
-        .await?
+    let peek = ctx.db.peek().await?;
+    let prev = peek
         .as_package_data()
         .as_idx(pkg_id)
         .or_not_found(pkg_id)?
@@ -1110,7 +1106,14 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             configured: manifest.config.is_none(),
             main: MainStatus::Stopped,
             dependency_errors: Default::default(),
-            dependency_config_errors: DependencyConfigErrors::default(),
+            dependency_config_errors: compute_dependency_config_errs(
+                &ctx,
+                &peek,
+                &manifest,
+                &current_dependencies,
+                &Default::default(),
+            )
+            .await?,
         },
         marketplace_url,
         developer_key,
@@ -1138,6 +1141,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
     };
 
     let mut auto_start = false;
+    let mut configured = false;
 
     if let PackageDataEntry::Updating(PackageDataEntryUpdating {
         installed: prev, ..
@@ -1173,23 +1177,8 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             migration.or(prev_migration)
         };
 
-        let configured = if let Some(f) = viable_migration {
-            f.await?.configured && prev_is_configured
-        } else {
-            false
-        };
-        if configured && manifest.config.is_some() {
-            let breakages = BTreeMap::new();
-            let overrides = Default::default();
-
-            let configure_context = ConfigureContext {
-                breakages,
-                timeout: None,
-                config: None,
-                dry_run: false,
-                overrides,
-            };
-            manager.configure(configure_context).await?;
+        if let Some(f) = viable_migration {
+            configured = f.await?.configured && prev_is_configured;
         }
         if configured || manifest.config.is_none() {
             auto_start = prev.status.main.running();
@@ -1234,11 +1223,23 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             }
             add_dependent_to_current_dependents_lists(db, pkg_id, &current_dependencies)?;
 
-            // TODO: inizialize dependency config errors of dependents if config exists
-
             set_dependents_with_live_pointers_to_needs_config(db, pkg_id)
         })
         .await?;
+
+    if configured && manifest.config.is_some() {
+        let breakages = BTreeMap::new();
+        let overrides = Default::default();
+
+        let configure_context = ConfigureContext {
+            breakages,
+            timeout: None,
+            config: None,
+            dry_run: false,
+            overrides,
+        };
+        manager.configure(configure_context).await?;
+    }
 
     if auto_start {
         manager.start();

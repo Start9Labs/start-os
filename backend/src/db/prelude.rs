@@ -1,5 +1,6 @@
+use std::collections::BTreeMap;
+use std::marker::PhantomData;
 use std::panic::UnwindSafe;
-use std::{collections::BTreeMap, marker::PhantomData};
 
 use patch_db::value::InternedString;
 pub use patch_db::{HasModel, PatchDb, Value};

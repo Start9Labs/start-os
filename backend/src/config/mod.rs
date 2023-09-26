@@ -1,19 +1,22 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Duration;
 
 use color_eyre::eyre::eyre;
 use indexmap::IndexSet;
 use itertools::Itertools;
 use models::{ErrorKind, OptionExt};
+use patch_db::value::InternedString;
+use patch_db::Value;
 use regex::Regex;
 use rpc_toolkit::command;
-use serde_json::Value;
 use tracing::instrument;
 
 use crate::context::RpcContext;
+use crate::db::model::CurrentDependencies;
 use crate::prelude::*;
-use crate::s9pk::manifest::PackageId;
+use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::util::display_none;
 use crate::util::serde::{display_serializable, parse_stdin_deserializable, IoFormat};
 use crate::Error;
@@ -28,7 +31,7 @@ use util::NumRange;
 use self::action::ConfigRes;
 use self::spec::ValueSpecPointer;
 
-pub type Config = serde_json::Map<String, Value>;
+pub type Config = patch_db::value::InOMap<InternedString, Value>;
 pub trait TypeOf {
     fn type_of(&self) -> &'static str;
 }
@@ -72,7 +75,7 @@ pub struct TimeoutError;
 
 #[derive(Clone, Debug, thiserror::Error)]
 pub struct NoMatchWithPath {
-    pub path: Vec<String>,
+    pub path: Vec<InternedString>,
     pub error: MatchError,
 }
 impl NoMatchWithPath {
@@ -82,7 +85,7 @@ impl NoMatchWithPath {
             error,
         }
     }
-    pub fn prepend(mut self, seg: String) -> Self {
+    pub fn prepend(mut self, seg: InternedString) -> Self {
         self.path.push(seg);
         self
     }
@@ -101,9 +104,9 @@ impl From<NoMatchWithPath> for Error {
 #[derive(Clone, Debug, thiserror::Error)]
 pub enum MatchError {
     #[error("String {0:?} Does Not Match Pattern {1}")]
-    Pattern(String, Regex),
+    Pattern(Arc<String>, Regex),
     #[error("String {0:?} Is Not In Enum {1:?}")]
-    Enum(String, IndexSet<String>),
+    Enum(Arc<String>, IndexSet<String>),
     #[error("Field Is Not Nullable")]
     NotNullable,
     #[error("Length Mismatch: expected {0}, actual: {1}")]
@@ -115,11 +118,11 @@ pub enum MatchError {
     #[error("Number Is Not Integral: {0}")]
     NonIntegral(f64),
     #[error("Variant {0:?} Is Not In Union {1:?}")]
-    Union(String, IndexSet<String>),
+    Union(Arc<String>, IndexSet<String>),
     #[error("Variant Is Missing Tag {0:?}")]
-    MissingTag(String),
+    MissingTag(InternedString),
     #[error("Property {0:?} Of Variant {1:?} Conflicts With Union Tag")]
-    PropertyMatchesUnionTag(String, String),
+    PropertyMatchesUnionTag(InternedString, String),
     #[error("Name of Property {0:?} Conflicts With Map Tag Name")]
     PropertyNameMatchesMapTag(String),
     #[error("Pointer Is Invalid: {0}")]

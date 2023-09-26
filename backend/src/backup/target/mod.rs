@@ -24,9 +24,8 @@ use crate::disk::mount::guard::TmpMountGuard;
 use crate::disk::util::PartitionInfo;
 use crate::prelude::*;
 use crate::s9pk::manifest::PackageId;
-use crate::util::display_none;
 use crate::util::serde::{deserialize_from_str, display_serializable, serialize_display};
-use crate::util::Version;
+use crate::util::{display_none, Version};
 
 pub mod cifs;
 

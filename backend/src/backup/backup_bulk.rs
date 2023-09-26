@@ -1,7 +1,7 @@
+use std::collections::BTreeMap;
 use std::panic::UnwindSafe;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::{collections::BTreeMap, path::Path};
 
 use chrono::Utc;
 use clap::ArgMatches;
@@ -16,6 +16,7 @@ use tracing::instrument;
 
 use super::target::BackupTargetId;
 use super::PackageBackupReport;
+use crate::auth::check_password_against_db;
 use crate::backup::os::OsBackup;
 use crate::backup::{BackupReport, ServerBackupReport};
 use crate::context::RpcContext;
@@ -29,9 +30,9 @@ use crate::notifications::NotificationLevel;
 use crate::prelude::*;
 use crate::s9pk::manifest::PackageId;
 use crate::util::display_none;
+use crate::util::io::dir_copy;
 use crate::util::serde::IoFormat;
 use crate::version::VersionT;
-use crate::{auth::check_password_against_db, util::io::dir_copy};
 
 fn parse_comma_separated(arg: &str, _: &ArgMatches) -> Result<OrdSet<PackageId>, Error> {
     arg.split(',')

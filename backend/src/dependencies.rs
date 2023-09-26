@@ -9,14 +9,15 @@ use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
+use crate::config::action::ConfigRes;
 use crate::config::spec::PackagePointerSpec;
-use crate::config::{action::ConfigRes, not_found};
-use crate::config::{Config, ConfigSpec, ConfigureContext};
+use crate::config::{not_found, Config, ConfigSpec, ConfigureContext};
 use crate::context::RpcContext;
-use crate::db::model::{CurrentDependencies, Database, InstalledPackageInfo};
+use crate::db::model::{CurrentDependencies, Database};
 use crate::prelude::*;
 use crate::procedure::{NoOutput, PackageProcedure, ProcedureName};
-use crate::s9pk::manifest::PackageId;
+use crate::s9pk::manifest::{Manifest, PackageId};
+use crate::status::DependencyConfigErrors;
 use crate::util::serde::display_serializable;
 use crate::util::{display_none, Version};
 use crate::volume::Volumes;
@@ -299,4 +300,62 @@ pub fn set_dependents_with_live_pointers_to_needs_config(
         }
     }
     Ok(res)
+}
+
+pub async fn compute_dependency_config_errs(
+    ctx: &RpcContext,
+    db: &Peeked,
+    manifest: &Manifest,
+    current_dependencies: &CurrentDependencies,
+    dependency_config: &BTreeMap<PackageId, Config>,
+) -> Result<DependencyConfigErrors, Error> {
+    let mut dependency_config_errs = BTreeMap::new();
+    for (dependency, _dep_info) in current_dependencies
+        .0
+        .iter()
+        .filter(|(dep_id, _)| dep_id != &&manifest.id)
+    {
+        // check if config passes dependency check
+        if let Some(cfg) = &manifest
+            .dependencies
+            .0
+            .get(dependency)
+            .or_not_found(dependency)?
+            .config
+        {
+            let manifest = db
+                .as_package_data()
+                .as_idx(dependency)
+                .or_not_found(dependency)?
+                .as_installed()
+                .or_not_found(dependency)?
+                .as_manifest()
+                .de()?;
+
+            if let Err(error) = cfg
+                .check(
+                    ctx,
+                    &manifest.id,
+                    &manifest.version,
+                    &manifest.volumes,
+                    dependency,
+                    &if let Some(config) = dependency_config.get(dependency) {
+                        config.clone()
+                    } else if let Some(config) = &manifest.config {
+                        config
+                            .get(ctx, &manifest.id, &manifest.version, &manifest.volumes)
+                            .await?
+                            .config
+                            .unwrap_or_default()
+                    } else {
+                        Config::default()
+                    },
+                )
+                .await?
+            {
+                dependency_config_errs.insert(dependency.clone(), error);
+            }
+        }
+    }
+    Ok(DependencyConfigErrors(dependency_config_errs))
 }

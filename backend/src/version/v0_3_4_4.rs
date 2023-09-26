@@ -3,9 +3,9 @@ use emver::VersionRange;
 use models::ResultExt;
 use sqlx::PgPool;
 
+use super::v0_3_4::V0_3_0_COMPAT;
+use super::{v0_3_4_3, VersionT};
 use crate::prelude::*;
-
-use super::{v0_3_4::V0_3_0_COMPAT, v0_3_4_3, VersionT};
 
 const V0_3_4_4: emver::Version = emver::Version::new(0, 3, 4, 4);
 

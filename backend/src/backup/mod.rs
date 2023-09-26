@@ -1,8 +1,6 @@
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    sync::Arc,
-};
+use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use color_eyre::eyre::eyre;

@@ -9,14 +9,16 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
+use imbl::Vector;
+use imbl_value::InternedString;
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
 use jsonpath_lib::Compiled as CompiledJsonPath;
+use patch_db::value::{Number, Value};
 use rand::{CryptoRng, Rng};
 use regex::Regex;
 use serde::de::{MapAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use serde_json::{Number, Value};
 use sqlx::PgPool;
 
 use super::util::{self, CharSet, NumRange, UniqueBy, STATIC_NULL};
@@ -547,7 +549,7 @@ impl ValueSpec for ValueSpecEnum {
     fn matches(&self, val: &Value) -> Result<(), NoMatchWithPath> {
         match val {
             Value::String(b) => {
-                if self.values.contains(b) {
+                if self.values.contains(&**b) {
                     Ok(())
                 } else {
                     Err(NoMatchWithPath::new(MatchError::Enum(
@@ -589,7 +591,7 @@ impl ValueSpec for ValueSpecEnum {
     }
 }
 impl DefaultableWith for ValueSpecEnum {
-    type DefaultSpec = String;
+    type DefaultSpec = Arc<String>;
     type Error = crate::util::Never;
 
     fn gen_with<R: Rng + CryptoRng + Sync + Send + Send>(
@@ -627,13 +629,13 @@ where
                         .map(|(i, v)| {
                             self.spec
                                 .matches(v)
-                                .map_err(|e| e.prepend(format!("{}", i)))?;
+                                .map_err(|e| e.prepend(InternedString::from_display(&i)))?;
                             if l.iter()
                                 .enumerate()
                                 .any(|(i2, v2)| i != i2 && self.spec.eq(v, v2))
                             {
                                 Err(NoMatchWithPath::new(MatchError::ListUniquenessViolation)
-                                    .prepend(format!("{}", i)))
+                                    .prepend(InternedString::from_display(&i)))
                             } else {
                                 Ok(())
                             }
@@ -659,11 +661,11 @@ where
         value: &mut Value,
     ) -> Result<(), ConfigurationError> {
         if let Value::Array(ref mut ls) = value {
-            for (i, val) in ls.into_iter().enumerate() {
+            for (i, val) in ls.iter_mut().enumerate() {
                 match self.spec.update(ctx, manifest, config_overrides, val).await {
-                    Err(ConfigurationError::NoMatch(e)) => {
-                        Err(ConfigurationError::NoMatch(e.prepend(format!("{}", i))))
-                    }
+                    Err(ConfigurationError::NoMatch(e)) => Err(ConfigurationError::NoMatch(
+                        e.prepend(InternedString::from_display(&i)),
+                    )),
                     a => a,
                 }?;
             }
@@ -710,9 +712,9 @@ where
         rng: &mut R,
         timeout: &Option<Duration>,
     ) -> Result<Value, Self::Error> {
-        let mut res = Vec::new();
+        let mut res = Vector::new();
         for spec_member in spec.iter() {
-            res.push(self.spec.gen_with(spec_member, rng, timeout)?);
+            res.push_back(self.spec.gen_with(spec_member, rng, timeout)?);
         }
         Ok(Value::Array(res))
     }
@@ -823,7 +825,7 @@ impl Defaultable for ValueSpecList {
                 )
                     .contains(&ret.len())
                 {
-                    ret.push(
+                    ret.push_back(
                         a.inner
                             .inner
                             .spec
@@ -1006,11 +1008,11 @@ impl Defaultable for ValueSpecObject {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct ConfigSpec(pub IndexMap<String, ValueSpecAny>);
+pub struct ConfigSpec(pub IndexMap<InternedString, ValueSpecAny>);
 impl ConfigSpec {
     pub fn matches(&self, value: &Config) -> Result<(), NoMatchWithPath> {
         for (key, val) in self.0.iter() {
-            if let Some(v) = value.get(key) {
+            if let Some(v) = value.get(&**key) {
                 val.matches(v).map_err(|e| e.prepend(key.clone()))?;
             } else {
                 val.matches(&Value::Null)
@@ -1194,7 +1196,7 @@ impl ValueSpec for ValueSpecString {
                         Ok(())
                     } else {
                         Err(NoMatchWithPath::new(MatchError::Pattern(
-                            s.to_owned(),
+                            s.clone(),
                             pattern.pattern.clone(),
                         )))
                     }
@@ -1276,11 +1278,11 @@ pub enum DefaultString {
     Entropy(Entropy),
 }
 impl DefaultString {
-    pub fn gen<R: Rng + CryptoRng + Sync + Send>(&self, rng: &mut R) -> String {
-        match self {
+    pub fn gen<R: Rng + CryptoRng + Sync + Send>(&self, rng: &mut R) -> Arc<String> {
+        Arc::new(match self {
             DefaultString::Literal(s) => s.clone(),
             DefaultString::Entropy(e) => e.gen(rng),
-        }
+        })
     }
 }
 
@@ -1304,7 +1306,7 @@ impl Entropy {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct UnionTag {
-    pub id: String,
+    pub id: InternedString,
     pub name: String,
     pub description: Option<String>,
     pub variant_names: BTreeMap<String, String>,
@@ -1325,7 +1327,7 @@ impl<'de> serde::de::Deserialize<'de> for ValueSpecUnion {
         #[serde(rename_all = "kebab-case")]
         #[serde(untagged)]
         pub enum _UnionTag {
-            Old(String),
+            Old(InternedString),
             New(UnionTag),
         }
         #[derive(Deserialize)]
@@ -1343,7 +1345,7 @@ impl<'de> serde::de::Deserialize<'de> for ValueSpecUnion {
             tag: match u.tag {
                 _UnionTag::Old(id) => UnionTag {
                     id: id.clone(),
-                    name: id,
+                    name: id.to_string(),
                     description: None,
                     variant_names: u
                         .variants
@@ -1385,10 +1387,10 @@ impl ValueSpec for ValueSpecUnion {
     fn matches(&self, value: &Value) -> Result<(), NoMatchWithPath> {
         match value {
             Value::Object(o) => {
-                if let Some(Value::String(ref tag)) = o.get(&self.tag.id) {
-                    if let Some(obj_spec) = self.variants.get(tag) {
+                if let Some(Value::String(ref tag)) = o.get(&*self.tag.id) {
+                    if let Some(obj_spec) = self.variants.get(&**tag) {
                         let mut without_tag = o.clone();
-                        without_tag.remove(&self.tag.id);
+                        without_tag.remove(&*self.tag.id);
                         obj_spec.matches(&without_tag)
                     } else {
                         Err(NoMatchWithPath::new(MatchError::Union(
@@ -1411,7 +1413,7 @@ impl ValueSpec for ValueSpecUnion {
     }
     fn validate(&self, manifest: &Manifest) -> Result<(), NoMatchWithPath> {
         for (name, variant) in &self.variants {
-            if variant.0.get(&self.tag.id).is_some() {
+            if variant.0.get(&*self.tag.id).is_some() {
                 return Err(NoMatchWithPath::new(MatchError::PropertyMatchesUnionTag(
                     self.tag.id.clone(),
                     name.clone(),
@@ -1429,11 +1431,11 @@ impl ValueSpec for ValueSpecUnion {
         value: &mut Value,
     ) -> Result<(), ConfigurationError> {
         if let Value::Object(o) = value {
-            match o.get(&self.tag.id) {
+            match o.get(&*self.tag.id) {
                 None => Err(ConfigurationError::NoMatch(NoMatchWithPath::new(
                     MatchError::MissingTag(self.tag.id.clone()),
                 ))),
-                Some(Value::String(tag)) => match self.variants.get(tag) {
+                Some(Value::String(tag)) => match self.variants.get(&**tag) {
                     None => Err(ConfigurationError::NoMatch(NoMatchWithPath::new(
                         MatchError::Union(tag.clone(), self.variants.keys().cloned().collect()),
                     ))),
@@ -1452,11 +1454,11 @@ impl ValueSpec for ValueSpecUnion {
     }
     fn pointers(&self, value: &Value) -> Result<BTreeSet<ValueSpecPointer>, NoMatchWithPath> {
         if let Value::Object(o) = value {
-            match o.get(&self.tag.id) {
+            match o.get(&*self.tag.id) {
                 None => Err(NoMatchWithPath::new(MatchError::MissingTag(
                     self.tag.id.clone(),
                 ))),
-                Some(Value::String(tag)) => match self.variants.get(tag) {
+                Some(Value::String(tag)) => match self.variants.get(&**tag) {
                     None => Err(NoMatchWithPath::new(MatchError::Union(
                         tag.clone(),
                         self.variants.keys().cloned().collect(),
@@ -1478,8 +1480,8 @@ impl ValueSpec for ValueSpecUnion {
     }
     fn requires(&self, id: &PackageId, value: &Value) -> bool {
         if let Value::Object(o) = value {
-            match o.get(&self.tag.id) {
-                Some(Value::String(tag)) => match self.variants.get(tag) {
+            match o.get(&*self.tag.id) {
+                Some(Value::String(tag)) => match self.variants.get(&**tag) {
                     None => false,
                     Some(spec) => spec.requires(id, o),
                 },
@@ -1497,7 +1499,7 @@ impl ValueSpec for ValueSpecUnion {
     }
 }
 impl DefaultableWith for ValueSpecUnion {
-    type DefaultSpec = String;
+    type DefaultSpec = Arc<String>;
     type Error = ConfigurationError;
 
     fn gen_with<R: Rng + CryptoRng + Sync + Send>(
@@ -1506,7 +1508,7 @@ impl DefaultableWith for ValueSpecUnion {
         rng: &mut R,
         timeout: &Option<Duration>,
     ) -> Result<Value, Self::Error> {
-        let variant = if let Some(v) = self.variants.get(spec) {
+        let variant = if let Some(v) = self.variants.get(&**spec) {
             v
         } else {
             return Err(ConfigurationError::NoMatch(NoMatchWithPath::new(
@@ -1702,7 +1704,7 @@ impl TorAddressPointer {
             .and_then(|a| a.as_tor_address().de().transpose())
             .transpose()
             .map_err(|e| ConfigurationError::SystemError(e))?;
-        Ok(addr.map(Value::String).unwrap_or(Value::Null))
+        Ok(addr.map(Arc::new).map(Value::String).unwrap_or(Value::Null))
     }
 }
 impl fmt::Display for TorAddressPointer {
@@ -1745,7 +1747,11 @@ impl LanAddressPointer {
             .and_then(|a| a.as_lan_address().de().transpose())
             .transpose()
             .map_err(|e| ConfigurationError::SystemError(e))?;
-        Ok(addr.to_owned().map(Value::String).unwrap_or(Value::Null))
+        Ok(addr
+            .to_owned()
+            .map(Arc::new)
+            .map(Value::String)
+            .unwrap_or(Value::Null))
     }
 }
 
@@ -1823,7 +1829,7 @@ pub struct ConfigSelector {
 }
 impl ConfigSelector {
     fn select(&self, multi: bool, val: &Value) -> Value {
-        let selected = self.compiled.select(&val).ok().unwrap_or_else(Vec::new);
+        let selected = self.compiled.select(&val).ok().unwrap_or_else(Vector::new);
         if multi {
             Value::Array(selected.into_iter().cloned().collect())
         } else {
@@ -1902,10 +1908,10 @@ impl TorKeyPointer {
         )
         .await
         .map_err(ConfigurationError::SystemError)?;
-        Ok(Value::String(base32::encode(
+        Ok(Value::String(Arc::new(base32::encode(
             base32::Alphabet::RFC4648 { padding: false },
             &key.tor_key().as_bytes(),
-        )))
+        ))))
     }
 }
 impl fmt::Display for TorKeyPointer {
