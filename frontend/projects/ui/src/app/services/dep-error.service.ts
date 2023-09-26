@@ -25,13 +25,13 @@ export class DepErrorService {
           depth: dependencyDepth(pkgs, id),
         }))
         .sort((a, b) => (b.depth > a.depth ? -1 : 1))
-        .reduce((errors, { id }) => {
-          const toReturn: PackageDependencyErrors = {
+        .reduce(
+          (errors, { id }): PackageDependencyErrors => ({
             ...errors,
             [id]: this.getDepErrors(pkgs, id, errors),
-          }
-          return toReturn
-        }, {} as PackageDependencyErrors),
+          }),
+          {} as PackageDependencyErrors,
+        ),
     ),
     shareReplay(1),
   )
@@ -50,13 +50,13 @@ export class DepErrorService {
 
     if (!pkgInstalled) return {}
 
-    return currentDeps(pkgs, pkgId).reduce((innerErrors, depId) => {
-      const toReturn: Record<string, DependencyError | null> = {
+    return currentDeps(pkgs, pkgId).reduce(
+      (innerErrors, depId): DependencyErrors => ({
         ...innerErrors,
         [depId]: this.getDepError(pkgs, pkgInstalled, depId, outerErrors),
-      }
-      return toReturn
-    }, {} as DependencyErrors)
+      }),
+      {} as DependencyErrors,
+    )
   }
 
   private getDepError(
