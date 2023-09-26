@@ -406,14 +406,16 @@ async fn configure(
     for ptr in spec.pointers(&config)? {
         match ptr {
             ValueSpecPointer::Package(pkg_ptr) => {
-                if current_dependencies
-                    .0
-                    .get_mut(pkg_ptr.package_id())
-                    .is_none()
-                {
+                if let Some(info) = current_dependencies.0.get_mut(pkg_ptr.package_id()) {
+                    info.pointers.insert(pkg_ptr);
+                } else {
+                    let id = pkg_ptr.package_id().to_owned();
+                    let mut pointers = BTreeSet::new();
+                    pointers.insert(pkg_ptr);
                     current_dependencies.0.insert(
-                        pkg_ptr.package_id().to_owned(),
+                        id,
                         CurrentDependencyInfo {
+                            pointers,
                             health_checks: BTreeSet::new(),
                         },
                     );
@@ -462,9 +464,13 @@ async fn configure(
             if let Some(current_dependency) = current_dependencies.0.get_mut(&package_id) {
                 current_dependency.health_checks.extend(health_checks);
             } else {
-                current_dependencies
-                    .0
-                    .insert(package_id, CurrentDependencyInfo { health_checks });
+                current_dependencies.0.insert(
+                    package_id,
+                    CurrentDependencyInfo {
+                        pointers: BTreeSet::new(),
+                        health_checks,
+                    },
+                );
             }
         }
 

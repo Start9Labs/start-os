@@ -11,7 +11,6 @@ use crate::db::model::{
     CurrentDependencies, Database, PackageDataEntry, PackageDataEntryInstalled,
     PackageDataEntryMatchModelRef,
 };
-use crate::dependencies::reconfigure_dependents_with_live_pointers;
 use crate::error::ErrorCollection;
 use crate::prelude::*;
 use crate::s9pk::manifest::PackageId;
@@ -175,7 +174,6 @@ where
     cleanup(ctx, id, &version).await?;
     cleanup_folder(volume_dir, Arc::new(dependents_paths)).await;
     remove_tor_keys(secrets, id).await?;
-    reconfigure_dependents_with_live_pointers(ctx, &entry.as_removing().de()?).await?;
 
     ctx.db
         .mutate(|d| {

@@ -39,7 +39,7 @@ use crate::db::model::{
     StaticDependencyInfo, StaticFiles,
 };
 use crate::dependencies::{
-    add_dependent_to_current_dependents_lists, reconfigure_dependents_with_live_pointers,
+    add_dependent_to_current_dependents_lists, set_dependents_with_live_pointers_to_needs_config,
 };
 use crate::install::cleanup::cleanup;
 use crate::install::progress::{InstallProgress, InstallProgressTracker};
@@ -796,7 +796,6 @@ pub async fn download_install_s9pk(
     }
 }
 
-/// TODO @Blu-J @dr-bonez Need to make sure that we end load the db models
 #[instrument(skip_all)]
 pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
     ctx: RpcContext,
@@ -1205,19 +1204,10 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             .await?;
     }
 
-    if let Some(installed) = db
-        .as_package_data()
-        .as_idx(pkg_id)
-        .and_then(|x| x.as_installed())
-        .map(|x| x.de())
-    {
-        let installed = installed?;
-        reconfigure_dependents_with_live_pointers(&ctx, &installed).await?;
-    }
-
     sql_tx.commit().await?;
 
-    ctx.db
+    let to_configure = ctx
+        .db
         .mutate(|db| {
             for (package, icon) in dependents_static_dependency_info {
                 db.as_package_data_mut()
@@ -1246,12 +1236,34 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
 
             // TODO: inizialize dependency config errors of dependents if config exists
 
-            Ok(())
+            set_dependents_with_live_pointers_to_needs_config(db, pkg_id)
         })
         .await?;
 
-    if dbg!(auto_start) {
+    if auto_start {
         manager.start();
+    }
+
+    for to_configure in to_configure {
+        if let Err(e) = async {
+            ctx.managers
+                .get(&to_configure)
+                .await
+                .or_not_found(format!("manager for {}", to_configure.0))?
+                .configure(ConfigureContext {
+                    breakages: BTreeMap::new(),
+                    timeout: None,
+                    config: None,
+                    overrides: BTreeMap::new(),
+                    dry_run: false,
+                })
+                .await
+        }
+        .await
+        {
+            tracing::error!("error configuring dependent: {e}");
+            tracing::debug!("{e:?}")
+        }
     }
 
     tracing::info!("Install {}@{}: Complete", pkg_id, version);

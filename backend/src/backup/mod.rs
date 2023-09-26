@@ -18,6 +18,7 @@ use tracing::instrument;
 use self::target::PackageBackupInfo;
 use crate::context::RpcContext;
 use crate::install::PKG_ARCHIVE_DIR;
+use crate::manager::manager_seed::ManagerSeed;
 use crate::net::interface::InterfaceId;
 use crate::net::keys::Key;
 use crate::prelude::*;
@@ -28,9 +29,6 @@ use crate::util::serde::{Base32, Base64, IoFormat};
 use crate::util::Version;
 use crate::version::{Current, VersionT};
 use crate::volume::{backup_dir, Volume, VolumeId, Volumes, BACKUP_DIR};
-use crate::{
-    dependencies::reconfigure_dependents_with_live_pointers, manager::manager_seed::ManagerSeed,
-};
 use crate::{Error, ErrorKind, ResultExt};
 
 pub mod backup_bulk;

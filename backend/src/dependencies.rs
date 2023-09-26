@@ -9,6 +9,7 @@ use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
+use crate::config::spec::PackagePointerSpec;
 use crate::config::{action::ConfigRes, not_found};
 use crate::config::{Config, ConfigSpec, ConfigureContext};
 use crate::context::RpcContext;
@@ -260,35 +261,42 @@ pub fn add_dependent_to_current_dependents_lists(
     Ok(())
 }
 
-pub async fn reconfigure_dependents_with_live_pointers(
-    ctx: &RpcContext,
-    i: &InstalledPackageInfo,
-) -> Result<(), Error> {
-    // todo!("DR_BONEZ");
-    // TODO @dr-bonez
-    // let dependents = &pde.current_dependents;
-    // let me = &pde.manifest.id;
-    // for (dependent_id, dependency_info) in &dependents.0 {
-    //     if dependency_info.pointers.iter().any(|ptr| match ptr {
-    //         // dependency id matches the package being uninstalled
-    //         PackagePointerSpec::TorAddress(ptr) => &ptr.package_id == me && dependent_id != me,
-    //         PackagePointerSpec::LanAddress(ptr) => &ptr.package_id == me && dependent_id != me,
-    //         // we never need to retarget these
-    //         PackagePointerSpec::TorKey(_) => false,
-    //         PackagePointerSpec::Config(_) => false,
-    //     }) {
-    //         let breakages = BTreeMap::new();
-    //         let overrides = Default::default();
-
-    //         let configure_context = ConfigureContext {
-    //             breakages,
-    //             timeout: None,
-    //             config: None,
-    //             dry_run: false,
-    //             overrides,
-    //         };
-    //         crate::config::configure(&ctx, dependent_id, configure_context).await?;
-    //     }
-    // }
-    Ok(())
+pub fn set_dependents_with_live_pointers_to_needs_config(
+    db: &mut Peeked,
+    id: &PackageId,
+) -> Result<Vec<(PackageId, Version)>, Error> {
+    let mut res = Vec::new();
+    for (dep, info) in db
+        .as_package_data()
+        .as_idx(id)
+        .or_not_found(id)?
+        .as_installed()
+        .or_not_found(id)?
+        .as_current_dependents()
+        .de()?
+        .0
+    {
+        if info.pointers.iter().any(|ptr| match ptr {
+            // dependency id matches the package being uninstalled
+            PackagePointerSpec::TorAddress(ptr) => &ptr.package_id == id && &dep != id,
+            PackagePointerSpec::LanAddress(ptr) => &ptr.package_id == id && &dep != id,
+            // we never need to retarget these
+            PackagePointerSpec::TorKey(_) => false,
+            PackagePointerSpec::Config(_) => false,
+        }) {
+            let installed = db
+                .as_package_data_mut()
+                .as_idx_mut(&dep)
+                .or_not_found(&dep)?
+                .as_installed_mut()
+                .or_not_found(&dep)?;
+            let version = installed.as_manifest().as_version().de()?;
+            let configured = installed.as_status_mut().as_configured_mut();
+            if configured.de()? {
+                configured.ser(&false)?;
+                res.push((dep, version));
+            }
+        }
+    }
+    Ok(res)
 }

@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use ssh_key::public::Ed25519PublicKey;
 
 use crate::account::AccountInfo;
+use crate::config::spec::PackagePointerSpec;
 use crate::install::progress::InstallProgress;
 use crate::net::utils::{get_iface_ipv4_addr, get_iface_ipv6_addr};
 use crate::prelude::*;
@@ -35,7 +36,6 @@ pub struct Database {
 impl Database {
     pub fn init(account: &AccountInfo) -> Self {
         let lan_address = account.hostname.lan_address().parse().unwrap();
-        // TODO
         Database {
             server_info: ServerInfo {
                 id: account.server_id.clone(),
@@ -480,6 +480,7 @@ pub struct StaticDependencyInfo {
 #[serde(rename_all = "kebab-case")]
 #[model = "Model<Self>"]
 pub struct CurrentDependencyInfo {
+    pub pointers: BTreeSet<PackagePointerSpec>,
     pub health_checks: BTreeSet<HealthCheckId>,
 }
 
