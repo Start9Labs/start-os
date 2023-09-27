@@ -302,6 +302,7 @@ pub fn set_dependents_with_live_pointers_to_needs_config(
     Ok(res)
 }
 
+#[instrument(skip_all)]
 pub async fn compute_dependency_config_errs(
     ctx: &RpcContext,
     db: &Peeked,
@@ -323,15 +324,6 @@ pub async fn compute_dependency_config_errs(
             .or_not_found(dependency)?
             .config
         {
-            let manifest = db
-                .as_package_data()
-                .as_idx(dependency)
-                .or_not_found(dependency)?
-                .as_installed()
-                .or_not_found(dependency)?
-                .as_manifest()
-                .de()?;
-
             if let Err(error) = cfg
                 .check(
                     ctx,
@@ -341,12 +333,22 @@ pub async fn compute_dependency_config_errs(
                     dependency,
                     &if let Some(config) = dependency_config.get(dependency) {
                         config.clone()
-                    } else if let Some(config) = &manifest.config {
-                        config
-                            .get(ctx, &manifest.id, &manifest.version, &manifest.volumes)
-                            .await?
-                            .config
-                            .unwrap_or_default()
+                    } else if let Some(manifest) = db
+                        .as_package_data()
+                        .as_idx(dependency)
+                        .and_then(|pde| pde.as_installed())
+                        .map(|i| i.as_manifest().de())
+                        .transpose()?
+                    {
+                        if let Some(config) = &manifest.config {
+                            config
+                                .get(ctx, &manifest.id, &manifest.version, &manifest.volumes)
+                                .await?
+                                .config
+                                .unwrap_or_default()
+                        } else {
+                            Config::default()
+                        }
                     } else {
                         Config::default()
                     },
