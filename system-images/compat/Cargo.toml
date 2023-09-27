@@ -17,6 +17,7 @@ emver = { version = "0.1.7", git = "https://github.com/Start9Labs/emver-rs.git",
 ] }
 failure = "0.1.8"
 indexmap = { version = "1.6.2", features = ["serde"] }
+imbl-value = { git = "https://github.com/Start9Labs/imbl-value.git" }
 itertools = "0.10.0"
 lazy_static = "1.4"
 linear-map = { version = "1.2", features = ["serde_impl"] }
