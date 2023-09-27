@@ -4,7 +4,7 @@ import { PackagePropertiesVersioned } from 'src/app/util/properties.util'
 import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import {
   DataModel,
-  DependencyError,
+  HealthCheckResult,
   Manifest,
 } from 'src/app/services/patch-db/data-model'
 import { StartOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
@@ -200,9 +200,6 @@ export module RR {
     'marketplace-url': string
   } // package.install
   export type InstallPackageRes = null
-
-  export type DryUpdatePackageReq = { id: string; version: string } // package.update.dry
-  export type DryUpdatePackageRes = Breakages
 
   export type GetPackageConfigReq = { id: string } // package.config.get
   export type GetPackageConfigRes = { spec: ConfigSpec; config: object }
@@ -464,4 +461,54 @@ declare global {
     ): string & Stringified<T>
     parse<T>(text: Stringified<T>, reviver?: (key: any, value: any) => any): T
   }
+}
+
+export type Encrypted = {
+  encrypted: string
+}
+
+export type DependencyError =
+  | DependencyErrorNotInstalled
+  | DependencyErrorNotRunning
+  | DependencyErrorIncorrectVersion
+  | DependencyErrorConfigUnsatisfied
+  | DependencyErrorHealthChecksFailed
+  | DependencyErrorTransitive
+
+export enum DependencyErrorType {
+  NotInstalled = 'not-installed',
+  NotRunning = 'not-running',
+  IncorrectVersion = 'incorrect-version',
+  ConfigUnsatisfied = 'config-unsatisfied',
+  HealthChecksFailed = 'health-checks-failed',
+  InterfaceHealthChecksFailed = 'interface-health-checks-failed',
+  Transitive = 'transitive',
+}
+
+export interface DependencyErrorNotInstalled {
+  type: DependencyErrorType.NotInstalled
+}
+
+export interface DependencyErrorNotRunning {
+  type: DependencyErrorType.NotRunning
+}
+
+export interface DependencyErrorIncorrectVersion {
+  type: DependencyErrorType.IncorrectVersion
+  expected: string // version range
+  received: string // version
+}
+
+export interface DependencyErrorConfigUnsatisfied {
+  type: DependencyErrorType.ConfigUnsatisfied
+  error: string
+}
+
+export interface DependencyErrorHealthChecksFailed {
+  type: DependencyErrorType.HealthChecksFailed
+  check: HealthCheckResult
+}
+
+export interface DependencyErrorTransitive {
+  type: DependencyErrorType.Transitive
 }

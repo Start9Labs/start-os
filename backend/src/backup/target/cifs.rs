@@ -12,9 +12,9 @@ use crate::disk::mount::filesystem::cifs::Cifs;
 use crate::disk::mount::filesystem::ReadOnly;
 use crate::disk::mount::guard::TmpMountGuard;
 use crate::disk::util::{recovery_info, EmbassyOsRecoveryInfo};
+use crate::prelude::*;
 use crate::util::display_none;
 use crate::util::serde::KeyVal;
-use crate::Error;
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -84,7 +84,7 @@ pub async fn update(
     } else {
         return Err(Error::new(
             eyre!("Backup Target ID {} Not Found", id),
-            crate::ErrorKind::NotFound,
+            ErrorKind::NotFound,
         ));
     };
     let cifs = Cifs {
@@ -112,7 +112,7 @@ pub async fn update(
     {
         return Err(Error::new(
             eyre!("Backup Target ID {} Not Found", BackupTargetId::Cifs { id }),
-            crate::ErrorKind::NotFound,
+            ErrorKind::NotFound,
         ));
     };
     Ok(KeyVal {
@@ -134,7 +134,7 @@ pub async fn remove(#[context] ctx: RpcContext, #[arg] id: BackupTargetId) -> Re
     } else {
         return Err(Error::new(
             eyre!("Backup Target ID {} Not Found", id),
-            crate::ErrorKind::NotFound,
+            ErrorKind::NotFound,
         ));
     };
     if sqlx::query!("DELETE FROM cifs_shares WHERE id = $1", id)
@@ -145,7 +145,7 @@ pub async fn remove(#[context] ctx: RpcContext, #[arg] id: BackupTargetId) -> Re
     {
         return Err(Error::new(
             eyre!("Backup Target ID {} Not Found", BackupTargetId::Cifs { id }),
-            crate::ErrorKind::NotFound,
+            ErrorKind::NotFound,
         ));
     };
     Ok(())

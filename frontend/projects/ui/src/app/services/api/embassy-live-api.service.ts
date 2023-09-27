@@ -354,12 +354,6 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'package.install', params })
   }
 
-  async dryUpdatePackage(
-    params: RR.DryUpdatePackageReq,
-  ): Promise<RR.DryUpdatePackageRes> {
-    return this.rpcRequest({ method: 'package.update.dry', params })
-  }
-
   async getPackageConfig(
     params: RR.GetPackageConfigReq,
   ): Promise<RR.GetPackageConfigRes> {

@@ -10,7 +10,6 @@ import {
 } from 'patch-db-client'
 import {
   DataModel,
-  DependencyErrorType,
   InstallProgress,
   PackageDataEntry,
   PackageMainStatus,
@@ -629,22 +628,6 @@ export class MockApiService extends ApiService {
       },
     ]
     return this.withRevision(patch)
-  }
-
-  async dryUpdatePackage(
-    params: RR.DryUpdatePackageReq,
-  ): Promise<RR.DryUpdatePackageRes> {
-    await pauseFor(2000)
-    return {
-      lnd: {
-        dependency: 'bitcoind',
-        error: {
-          type: DependencyErrorType.IncorrectVersion,
-          expected: '>0.23.0',
-          received: params.version,
-        },
-      },
-    }
   }
 
   async getPackageConfig(

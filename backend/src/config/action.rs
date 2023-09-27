@@ -2,7 +2,6 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use color_eyre::eyre::eyre;
 use models::ImageId;
-use nix::sys::signal::Signal;
 use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -10,6 +9,7 @@ use tracing::instrument;
 use super::{Config, ConfigSpec};
 use crate::context::RpcContext;
 use crate::dependencies::Dependencies;
+use crate::prelude::*;
 use crate::procedure::docker::DockerContainers;
 use crate::procedure::{PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::PackageId;
@@ -18,7 +18,7 @@ use crate::util::Version;
 use crate::volume::Volumes;
 use crate::{Error, ResultExt};
 
-#[derive(Debug, Deserialize, Serialize, HasModel)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct ConfigRes {
     pub config: Option<Config>,
@@ -26,6 +26,7 @@ pub struct ConfigRes {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
+#[model = "Model<Self>"]
 pub struct ConfigActions {
     pub get: PackageProcedure,
     pub set: PackageProcedure,
@@ -34,7 +35,7 @@ impl ConfigActions {
     #[instrument(skip_all)]
     pub fn validate(
         &self,
-        container: &Option<DockerContainers>,
+        _container: &Option<DockerContainers>,
         eos_version: &Version,
         volumes: &Volumes,
         image_ids: &BTreeSet<ImageId>,

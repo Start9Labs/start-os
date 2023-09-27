@@ -7,49 +7,45 @@ use emver::VersionRange;
 use ipnet::{Ipv4Net, Ipv6Net};
 use isocountry::CountryCode;
 use itertools::Itertools;
+use models::{DataUrl, HealthCheckId, InterfaceId};
 use openssl::hash::MessageDigest;
-use patch_db::json_ptr::JsonPointer;
-use patch_db::{HasModel, Map, MapModel, OptionModel};
+use patch_db::{HasModel, Value};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use ssh_key::public::Ed25519PublicKey;
 
 use crate::account::AccountInfo;
-use crate::config::spec::{PackagePointerSpec, SystemPointerSpec};
+use crate::config::spec::PackagePointerSpec;
 use crate::install::progress::InstallProgress;
-use crate::net::interface::InterfaceId;
 use crate::net::utils::{get_iface_ipv4_addr, get_iface_ipv6_addr};
-use crate::s9pk::manifest::{Manifest, ManifestModel, PackageId};
-use crate::status::health_check::HealthCheckId;
+use crate::prelude::*;
+use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::status::Status;
 use crate::util::Version;
 use crate::version::{Current, VersionT};
-use crate::Error;
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
+// #[macro_debug]
 pub struct Database {
-    #[model]
     pub server_info: ServerInfo,
-    #[model]
     pub package_data: AllPackageData,
     pub ui: Value,
 }
 impl Database {
     pub fn init(account: &AccountInfo) -> Self {
         let lan_address = account.hostname.lan_address().parse().unwrap();
-        // TODO
         Database {
             server_info: ServerInfo {
                 id: account.server_id.clone(),
                 version: Current::new().semver().into(),
-                hostname: Some(account.hostname.no_dot_host_name()),
+                hostname: account.hostname.no_dot_host_name(),
                 last_backup: None,
                 last_wifi_region: None,
                 eos_version_compat: Current::new().compat().clone(),
                 lan_address,
-                tor_address: format!("https://{}", account.key.tor_address())
+                tor_address: format!("http://{}", account.key.tor_address())
                     .parse()
                     .unwrap(),
                 ip_info: BTreeMap::new(),
@@ -88,17 +84,15 @@ impl Database {
         }
     }
 }
-impl DatabaseModel {
-    pub fn new() -> Self {
-        Self::from(JsonPointer::default())
-    }
-}
+
+pub type DatabaseModel = Model<Database>;
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
 pub struct ServerInfo {
     pub id: String,
-    pub hostname: Option<String>,
+    pub hostname: String,
     pub version: Version,
     pub last_backup: Option<DateTime<Utc>>,
     /// Used in the wifi to determine the region to set the system to
@@ -106,10 +100,7 @@ pub struct ServerInfo {
     pub eos_version_compat: VersionRange,
     pub lan_address: Url,
     pub tor_address: Url,
-    #[model]
-    #[serde(default)]
     pub ip_info: BTreeMap<String, IpInfo>,
-    #[model]
     #[serde(default)]
     pub status_info: ServerStatus,
     pub wifi: WifiInfo,
@@ -125,6 +116,7 @@ pub struct ServerInfo {
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
 pub struct IpInfo {
     pub ipv4_range: Option<Ipv4Net>,
     pub ipv4: Option<Ipv4Addr>,
@@ -145,29 +137,31 @@ impl IpInfo {
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel)]
+#[model = "Model<Self>"]
 pub struct BackupProgress {
     pub complete: bool,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
 pub struct ServerStatus {
-    #[model]
     pub backup_progress: Option<BTreeMap<PackageId, BackupProgress>>,
     pub updated: bool,
-    #[model]
     pub update_progress: Option<UpdateProgress>,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
 pub struct UpdateProgress {
     pub size: Option<u64>,
     pub downloaded: u64,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
 pub struct WifiInfo {
     pub ssids: Vec<String>,
     pub selected: Option<String>,
@@ -194,16 +188,11 @@ pub struct AllPackageData(pub BTreeMap<PackageId, PackageDataEntry>);
 impl Map for AllPackageData {
     type Key = PackageId;
     type Value = PackageDataEntry;
-    fn get(&self, key: &Self::Key) -> Option<&Self::Value> {
-        self.0.get(key)
-    }
-}
-impl HasModel for AllPackageData {
-    type Model = MapModel<Self>;
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
 pub struct StaticFiles {
     license: String,
     instructions: String,
@@ -220,119 +209,230 @@ impl StaticFiles {
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
+#[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
+pub struct PackageDataEntryInstalling {
+    pub static_files: StaticFiles,
+    pub manifest: Manifest,
+    pub install_progress: Arc<InstallProgress>,
+}
+
+#[derive(Debug, Deserialize, Serialize, HasModel)]
+#[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
+pub struct PackageDataEntryUpdating {
+    pub static_files: StaticFiles,
+    pub manifest: Manifest,
+    pub installed: InstalledPackageInfo,
+    pub install_progress: Arc<InstallProgress>,
+}
+
+#[derive(Debug, Deserialize, Serialize, HasModel)]
+#[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
+pub struct PackageDataEntryRestoring {
+    pub static_files: StaticFiles,
+    pub manifest: Manifest,
+    pub install_progress: Arc<InstallProgress>,
+}
+
+#[derive(Debug, Deserialize, Serialize, HasModel)]
+#[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
+pub struct PackageDataEntryRemoving {
+    pub static_files: StaticFiles,
+    pub manifest: Manifest,
+    pub removing: InstalledPackageInfo,
+}
+
+#[derive(Debug, Deserialize, Serialize, HasModel)]
+#[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
+pub struct PackageDataEntryInstalled {
+    pub static_files: StaticFiles,
+    pub manifest: Manifest,
+    pub installed: InstalledPackageInfo,
+}
+
+#[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(tag = "state")]
 #[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
+// #[macro_debug]
 pub enum PackageDataEntry {
-    #[serde(rename_all = "kebab-case")]
-    Installing {
-        static_files: StaticFiles,
-        manifest: Manifest,
-        install_progress: Arc<InstallProgress>,
-    },
-    #[serde(rename_all = "kebab-case")]
-    Updating {
-        static_files: StaticFiles,
-        manifest: Manifest,
-        installed: InstalledPackageDataEntry,
-        install_progress: Arc<InstallProgress>,
-    },
-    #[serde(rename_all = "kebab-case")]
-    Restoring {
-        static_files: StaticFiles,
-        manifest: Manifest,
-        install_progress: Arc<InstallProgress>,
-    },
-    #[serde(rename_all = "kebab-case")]
-    Removing {
-        static_files: StaticFiles,
-        manifest: Manifest,
-        removing: InstalledPackageDataEntry,
-    },
-    #[serde(rename_all = "kebab-case")]
-    Installed {
-        static_files: StaticFiles,
-        manifest: Manifest,
-        installed: InstalledPackageDataEntry,
-    },
+    Installing(PackageDataEntryInstalling),
+    Updating(PackageDataEntryUpdating),
+    Restoring(PackageDataEntryRestoring),
+    Removing(PackageDataEntryRemoving),
+    Installed(PackageDataEntryInstalled),
 }
-impl PackageDataEntry {
-    pub fn installed(&self) -> Option<&InstalledPackageDataEntry> {
-        match self {
-            Self::Installing { .. } | Self::Restoring { .. } | Self::Removing { .. } => None,
-            Self::Updating { installed, .. } | Self::Installed { installed, .. } => Some(installed),
+impl Model<PackageDataEntry> {
+    pub fn expect_into_installed(self) -> Result<Model<PackageDataEntryInstalled>, Error> {
+        if let PackageDataEntryMatchModel::Installed(a) = self.into_match() {
+            Ok(a)
+        } else {
+            Err(Error::new(
+                eyre!("package is not in installed state"),
+                ErrorKind::InvalidRequest,
+            ))
         }
     }
-    pub fn installed_mut(&mut self) -> Option<&mut InstalledPackageDataEntry> {
-        match self {
-            Self::Installing { .. } | Self::Restoring { .. } | Self::Removing { .. } => None,
-            Self::Updating { installed, .. } | Self::Installed { installed, .. } => Some(installed),
+    pub fn expect_as_installed(&self) -> Result<&Model<PackageDataEntryInstalled>, Error> {
+        if let PackageDataEntryMatchModelRef::Installed(a) = self.as_match() {
+            Ok(a)
+        } else {
+            Err(Error::new(
+                eyre!("package is not in installed state"),
+                ErrorKind::InvalidRequest,
+            ))
         }
     }
-    pub fn into_installed(self) -> Option<InstalledPackageDataEntry> {
-        match self {
-            Self::Installing { .. } | Self::Restoring { .. } | Self::Removing { .. } => None,
-            Self::Updating { installed, .. } | Self::Installed { installed, .. } => Some(installed),
+    pub fn expect_as_installed_mut(
+        &mut self,
+    ) -> Result<&mut Model<PackageDataEntryInstalled>, Error> {
+        if let PackageDataEntryMatchModelMut::Installed(a) = self.as_match_mut() {
+            Ok(a)
+        } else {
+            Err(Error::new(
+                eyre!("package is not in installed state"),
+                ErrorKind::InvalidRequest,
+            ))
         }
     }
-    pub fn manifest(self) -> Manifest {
-        match self {
-            PackageDataEntry::Installing { manifest, .. } => manifest,
-            PackageDataEntry::Updating { manifest, .. } => manifest,
-            PackageDataEntry::Restoring { manifest, .. } => manifest,
-            PackageDataEntry::Removing { manifest, .. } => manifest,
-            PackageDataEntry::Installed { manifest, .. } => manifest,
+    pub fn expect_into_removing(self) -> Result<Model<PackageDataEntryRemoving>, Error> {
+        if let PackageDataEntryMatchModel::Removing(a) = self.into_match() {
+            Ok(a)
+        } else {
+            Err(Error::new(
+                eyre!("package is not in removing state"),
+                ErrorKind::InvalidRequest,
+            ))
         }
     }
-    pub fn manifest_borrow(&self) -> &Manifest {
-        match self {
-            PackageDataEntry::Installing { manifest, .. } => manifest,
-            PackageDataEntry::Updating { manifest, .. } => manifest,
-            PackageDataEntry::Restoring { manifest, .. } => manifest,
-            PackageDataEntry::Removing { manifest, .. } => manifest,
-            PackageDataEntry::Installed { manifest, .. } => manifest,
+    pub fn expect_as_removing(&self) -> Result<&Model<PackageDataEntryRemoving>, Error> {
+        if let PackageDataEntryMatchModelRef::Removing(a) = self.as_match() {
+            Ok(a)
+        } else {
+            Err(Error::new(
+                eyre!("package is not in removing state"),
+                ErrorKind::InvalidRequest,
+            ))
         }
     }
-}
-impl PackageDataEntryModel {
-    pub fn installed(self) -> OptionModel<InstalledPackageDataEntry> {
-        self.0.child("installed").into()
+    pub fn expect_as_removing_mut(
+        &mut self,
+    ) -> Result<&mut Model<PackageDataEntryRemoving>, Error> {
+        if let PackageDataEntryMatchModelMut::Removing(a) = self.as_match_mut() {
+            Ok(a)
+        } else {
+            Err(Error::new(
+                eyre!("package is not in removing state"),
+                ErrorKind::InvalidRequest,
+            ))
+        }
     }
-    pub fn removing(self) -> OptionModel<InstalledPackageDataEntry> {
-        self.0.child("removing").into()
+    pub fn expect_as_installing_mut(
+        &mut self,
+    ) -> Result<&mut Model<PackageDataEntryInstalling>, Error> {
+        if let PackageDataEntryMatchModelMut::Installing(a) = self.as_match_mut() {
+            Ok(a)
+        } else {
+            Err(Error::new(
+                eyre!("package is not in installing state"),
+                ErrorKind::InvalidRequest,
+            ))
+        }
     }
-    pub fn install_progress(self) -> OptionModel<InstallProgress> {
-        self.0.child("install-progress").into()
+    pub fn into_manifest(self) -> Model<Manifest> {
+        match self.into_match() {
+            PackageDataEntryMatchModel::Installing(a) => a.into_manifest(),
+            PackageDataEntryMatchModel::Updating(a) => a.into_installed().into_manifest(),
+            PackageDataEntryMatchModel::Restoring(a) => a.into_manifest(),
+            PackageDataEntryMatchModel::Removing(a) => a.into_manifest(),
+            PackageDataEntryMatchModel::Installed(a) => a.into_manifest(),
+            PackageDataEntryMatchModel::Error(_) => Model::from(Value::Null),
+        }
     }
-    pub fn manifest(self) -> ManifestModel {
-        self.0.child("manifest").into()
+    pub fn as_manifest(&self) -> &Model<Manifest> {
+        match self.as_match() {
+            PackageDataEntryMatchModelRef::Installing(a) => a.as_manifest(),
+            PackageDataEntryMatchModelRef::Updating(a) => a.as_installed().as_manifest(),
+            PackageDataEntryMatchModelRef::Restoring(a) => a.as_manifest(),
+            PackageDataEntryMatchModelRef::Removing(a) => a.as_manifest(),
+            PackageDataEntryMatchModelRef::Installed(a) => a.as_manifest(),
+            PackageDataEntryMatchModelRef::Error(_) => (&Value::Null).into(),
+        }
+    }
+    pub fn into_installed(self) -> Option<Model<InstalledPackageInfo>> {
+        match self.into_match() {
+            PackageDataEntryMatchModel::Installing(_) => None,
+            PackageDataEntryMatchModel::Updating(a) => Some(a.into_installed()),
+            PackageDataEntryMatchModel::Restoring(_) => None,
+            PackageDataEntryMatchModel::Removing(_) => None,
+            PackageDataEntryMatchModel::Installed(a) => Some(a.into_installed()),
+            PackageDataEntryMatchModel::Error(_) => None,
+        }
+    }
+    pub fn as_installed(&self) -> Option<&Model<InstalledPackageInfo>> {
+        match self.as_match() {
+            PackageDataEntryMatchModelRef::Installing(_) => None,
+            PackageDataEntryMatchModelRef::Updating(a) => Some(a.as_installed()),
+            PackageDataEntryMatchModelRef::Restoring(_) => None,
+            PackageDataEntryMatchModelRef::Removing(_) => None,
+            PackageDataEntryMatchModelRef::Installed(a) => Some(a.as_installed()),
+            PackageDataEntryMatchModelRef::Error(_) => None,
+        }
+    }
+    pub fn as_installed_mut(&mut self) -> Option<&mut Model<InstalledPackageInfo>> {
+        match self.as_match_mut() {
+            PackageDataEntryMatchModelMut::Installing(_) => None,
+            PackageDataEntryMatchModelMut::Updating(a) => Some(a.as_installed_mut()),
+            PackageDataEntryMatchModelMut::Restoring(_) => None,
+            PackageDataEntryMatchModelMut::Removing(_) => None,
+            PackageDataEntryMatchModelMut::Installed(a) => Some(a.as_installed_mut()),
+            PackageDataEntryMatchModelMut::Error(_) => None,
+        }
+    }
+    pub fn as_install_progress(&self) -> Option<&Model<Arc<InstallProgress>>> {
+        match self.as_match() {
+            PackageDataEntryMatchModelRef::Installing(a) => Some(a.as_install_progress()),
+            PackageDataEntryMatchModelRef::Updating(a) => Some(a.as_install_progress()),
+            PackageDataEntryMatchModelRef::Restoring(a) => Some(a.as_install_progress()),
+            PackageDataEntryMatchModelRef::Removing(_) => None,
+            PackageDataEntryMatchModelRef::Installed(_) => None,
+            PackageDataEntryMatchModelRef::Error(_) => None,
+        }
+    }
+    pub fn as_install_progress_mut(&mut self) -> Option<&mut Model<Arc<InstallProgress>>> {
+        match self.as_match_mut() {
+            PackageDataEntryMatchModelMut::Installing(a) => Some(a.as_install_progress_mut()),
+            PackageDataEntryMatchModelMut::Updating(a) => Some(a.as_install_progress_mut()),
+            PackageDataEntryMatchModelMut::Restoring(a) => Some(a.as_install_progress_mut()),
+            PackageDataEntryMatchModelMut::Removing(_) => None,
+            PackageDataEntryMatchModelMut::Installed(_) => None,
+            PackageDataEntryMatchModelMut::Error(_) => None,
+        }
     }
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
-pub struct InstalledPackageDataEntry {
-    #[model]
+#[model = "Model<Self>"]
+pub struct InstalledPackageInfo {
     pub status: Status,
     pub marketplace_url: Option<Url>,
     #[serde(default)]
     #[serde(with = "crate::util::serde::ed25519_pubkey")]
     pub developer_key: ed25519_dalek::PublicKey,
-    #[model]
     pub manifest: Manifest,
     pub last_backup: Option<DateTime<Utc>>,
-    #[model]
-    pub system_pointers: Vec<SystemPointerSpec>,
-    #[model]
     pub dependency_info: BTreeMap<PackageId, StaticDependencyInfo>,
-    #[model]
     pub current_dependents: CurrentDependents,
-    #[model]
     pub current_dependencies: CurrentDependencies,
-    #[model]
     pub interface_addresses: InterfaceAddressMap,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct CurrentDependents(pub BTreeMap<PackageId, CurrentDependencyInfo>);
 impl CurrentDependents {
     pub fn map(
@@ -348,12 +448,6 @@ impl CurrentDependents {
 impl Map for CurrentDependents {
     type Key = PackageId;
     type Value = CurrentDependencyInfo;
-    fn get(&self, key: &Self::Key) -> Option<&Self::Value> {
-        self.0.get(key)
-    }
-}
-impl HasModel for CurrentDependents {
-    type Model = MapModel<Self>;
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
@@ -372,25 +466,21 @@ impl CurrentDependencies {
 impl Map for CurrentDependencies {
     type Key = PackageId;
     type Value = CurrentDependencyInfo;
-    fn get(&self, key: &Self::Key) -> Option<&Self::Value> {
-        self.0.get(key)
-    }
-}
-impl HasModel for CurrentDependencies {
-    type Model = MapModel<Self>;
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel)]
+#[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
 pub struct StaticDependencyInfo {
-    pub manifest: Option<Manifest>,
-    pub icon: String,
+    pub title: String,
+    pub icon: DataUrl<'static>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
 pub struct CurrentDependencyInfo {
-    pub pointers: Vec<PackagePointerSpec>,
+    pub pointers: BTreeSet<PackagePointerSpec>,
     pub health_checks: BTreeSet<HealthCheckId>,
 }
 
@@ -399,27 +489,12 @@ pub struct InterfaceAddressMap(pub BTreeMap<InterfaceId, InterfaceAddresses>);
 impl Map for InterfaceAddressMap {
     type Key = InterfaceId;
     type Value = InterfaceAddresses;
-    fn get(&self, key: &Self::Key) -> Option<&Self::Value> {
-        self.0.get(key)
-    }
-}
-impl HasModel for InterfaceAddressMap {
-    type Model = MapModel<Self>;
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
 pub struct InterfaceAddresses {
-    #[model]
     pub tor_address: Option<String>,
-    #[model]
     pub lan_address: Option<String>,
-}
-
-#[derive(Debug, Deserialize, Serialize, HasModel)]
-#[serde(rename_all = "kebab-case")]
-pub struct RecoveredPackageInfo {
-    pub title: String,
-    pub icon: String,
-    pub version: Version,
 }

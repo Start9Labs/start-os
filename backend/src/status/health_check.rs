@@ -103,7 +103,7 @@ impl HealthCheck {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 #[serde(tag = "result")]
 pub enum HealthCheckResult {

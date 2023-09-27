@@ -12,7 +12,7 @@ pub fn marketplace() -> Result<(), Error> {
     Ok(())
 }
 
-pub fn with_query_params(ctx: &RpcContext, mut url: Url) -> Url {
+pub fn with_query_params(ctx: RpcContext, mut url: Url) -> Url {
     url.query_pairs_mut()
         .append_pair(
             "os.version",
@@ -38,7 +38,7 @@ pub fn with_query_params(ctx: &RpcContext, mut url: Url) -> Url {
 pub async fn get(#[context] ctx: RpcContext, #[arg] url: Url) -> Result<Value, Error> {
     let mut response = ctx
         .client
-        .get(with_query_params(&ctx, url))
+        .get(with_query_params(ctx.clone(), url))
         .send()
         .await
         .with_kind(crate::ErrorKind::Network)?;

@@ -1,5 +1,4 @@
 import {
-  DependencyErrorType,
   DockerIoFormat,
   Manifest,
   PackageDataEntry,
@@ -1889,7 +1888,7 @@ export module Mock {
           started: new Date().toISOString(),
           health: {},
         },
-        'dependency-errors': {},
+        'dependency-config-errors': {},
       },
       'interface-addresses': {
         ui: {
@@ -1935,7 +1934,7 @@ export module Mock {
         main: {
           status: PackageMainStatus.Stopped,
         },
-        'dependency-errors': {},
+        'dependency-config-errors': {},
       },
       manifest: MockManifestBitcoinProxy,
       'interface-addresses': {
@@ -1984,10 +1983,8 @@ export module Mock {
         main: {
           status: PackageMainStatus.Stopped,
         },
-        'dependency-errors': {
-          'btc-rpc-proxy': {
-            type: DependencyErrorType.NotInstalled,
-          },
+        'dependency-config-errors': {
+          'btc-rpc-proxy': 'Username not found',
         },
       },
       manifest: MockManifestLnd,

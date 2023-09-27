@@ -1,9 +1,9 @@
-<ng-container *ngIf="pkg$ | async as pkg">
+<ng-container *ngIf="pkgPlus$ | async as pkgPlus">
   <!-- header -->
-  <app-show-header [pkg]="pkg"></app-show-header>
+  <app-show-header [pkg]="pkgPlus.pkg"></app-show-header>
 
   <!-- content -->
-  <ion-content class="ion-padding with-widgets">
+  <ion-content *ngIf="pkgPlus.pkg as pkg" class="ion-padding with-widgets">
     <!-- ** installing, updating, restoring ** -->
     <ng-container *ngIf="showProgress(pkg); else installed">
       <app-show-progress
@@ -15,33 +15,27 @@
 
     <!-- Installed -->
     <ng-template #installed>
-      <ng-container *ngIf="pkg | toDependencies as dependencies">
-        <ion-item-group *ngIf="pkg | toStatus as status">
-          <!-- ** status ** -->
-          <app-show-status
+      <ion-item-group *ngIf="pkgPlus.status as status">
+        <!-- ** status ** -->
+        <app-show-status [pkg]="pkg" [status]="status"></app-show-status>
+        <!-- ** installed && !backing-up ** -->
+        <ng-container *ngIf="isInstalled(pkg) && !isBackingUp(status)">
+          <!-- ** health checks ** -->
+          <app-show-health-checks
+            *ngIf="isRunning(status)"
             [pkg]="pkg"
-            [dependencies]="dependencies"
-            [status]="status"
-          ></app-show-status>
-          <!-- ** installed && !backing-up ** -->
-          <ng-container *ngIf="isInstalled(pkg) && !isBackingUp(status)">
-            <!-- ** health checks ** -->
-            <app-show-health-checks
-              *ngIf="isRunning(status)"
-              [pkg]="pkg"
-            ></app-show-health-checks>
-            <!-- ** dependencies ** -->
-            <app-show-dependencies
-              *ngIf="dependencies.length"
-              [dependencies]="dependencies"
-            ></app-show-dependencies>
-            <!-- ** menu ** -->
-            <app-show-menu [buttons]="pkg | toButtons"></app-show-menu>
-            <!-- ** additional ** -->
-            <app-show-additional [pkg]="pkg"></app-show-additional>
-          </ng-container>
-        </ion-item-group>
-      </ng-container>
+          ></app-show-health-checks>
+          <!-- ** dependencies ** -->
+          <app-show-dependencies
+            *ngIf="pkgPlus.dependencies.length"
+            [dependencies]="pkgPlus.dependencies"
+          ></app-show-dependencies>
+          <!-- ** menu ** -->
+          <app-show-menu [buttons]="pkg | toButtons"></app-show-menu>
+          <!-- ** additional ** -->
+          <app-show-additional [pkg]="pkg"></app-show-additional>
+        </ng-container>
+      </ion-item-group>
     </ng-template>
   </ion-content>
 </ng-container>

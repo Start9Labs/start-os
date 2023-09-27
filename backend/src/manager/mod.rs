@@ -9,18 +9,14 @@ use embassy_container_init::ProcessGroupId;
 use futures::future::BoxFuture;
 use futures::{Future, FutureExt, TryFutureExt};
 use helpers::UnixRpcClient;
-use models::{ErrorKind, PackageId};
+use models::{ErrorKind, OptionExt, PackageId};
 use nix::sys::signal::Signal;
-use patch_db::DbHandle;
 use persistent_container::PersistentContainer;
 use rand::SeedableRng;
 use sqlx::Connection;
 use start_stop::StartStop;
-use tokio::sync::oneshot;
-use tokio::sync::{
-    watch::{self, Sender},
-    Mutex,
-};
+use tokio::sync::watch::{self, Sender};
+use tokio::sync::{oneshot, Mutex};
 use tracing::instrument;
 use transition_state::TransitionState;
 
@@ -28,18 +24,18 @@ use crate::backup::target::PackageBackupInfo;
 use crate::backup::PackageBackupReport;
 use crate::config::action::ConfigRes;
 use crate::config::spec::ValueSpecPointer;
-use crate::config::{not_found, ConfigReceipts, ConfigureContext};
+use crate::config::ConfigureContext;
 use crate::context::RpcContext;
 use crate::db::model::{CurrentDependencies, CurrentDependencyInfo};
 use crate::dependencies::{
-    add_dependent_to_current_dependents_lists, break_transitive, heal_all_dependents_transitive,
-    DependencyError, DependencyErrors, TaggedDependencyError,
+    add_dependent_to_current_dependents_lists, compute_dependency_config_errs,
 };
 use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::guard::TmpMountGuard;
 use crate::install::cleanup::remove_from_current_dependents_lists;
 use crate::net::net_controller::NetService;
 use crate::net::vhost::AlpnInfo;
+use crate::prelude::*;
 use crate::procedure::docker::{DockerContainer, DockerProcedure, LongRunning};
 use crate::procedure::{NoOutput, ProcedureName};
 use crate::s9pk::manifest::Manifest;
@@ -152,7 +148,7 @@ impl Manager {
         self._transition_abort();
         self.manage_container.to_desired(StartStop::Stop);
     }
-    pub async fn restart(&self) {
+    pub fn restart(&self) {
         if self._is_transition_restart() {
             return;
         }
@@ -161,7 +157,7 @@ impl Manager {
     pub async fn configure(
         &self,
         configure_context: ConfigureContext,
-    ) -> Result<BTreeMap<PackageId, TaggedDependencyError>, Error> {
+    ) -> Result<BTreeMap<PackageId, String>, Error> {
         if self._is_transition_configure() {
             return Ok(configure_context.breakages);
         }
@@ -204,10 +200,11 @@ impl Manager {
     }
 
     /// A special exit that is overridden the start state, should only be called in the shutdown, where we remove other containers
-    async fn shutdown(&self) {
-        self.manage_container.lock_state_forever(&self.seed).await;
+    async fn shutdown(&self) -> Result<(), Error> {
+        self.manage_container.lock_state_forever(&self.seed).await?;
 
         self.exit().await;
+        Ok(())
     }
 
     /// Used when we want to shutdown the service
@@ -229,7 +226,7 @@ impl Manager {
             .send_replace(Default::default())
             .join_handle()
         {
-            (&**transition).abort();
+            (**transition).abort();
         }
     }
     fn _transition_replace(&self, transition_state: TransitionState) {
@@ -238,13 +235,14 @@ impl Manager {
             .abort();
     }
 
-    pub(super) fn perform_restart(&self) -> impl Future<Output = ()> + 'static {
+    pub(super) fn perform_restart(&self) -> impl Future<Output = Result<(), Error>> + 'static {
         let manage_container = self.manage_container.clone();
         async move {
-            let restart_override = manage_container.set_override(Some(MainStatus::Restarting));
+            let restart_override = manage_container.set_override(MainStatus::Restarting)?;
             manage_container.wait_for_desired(StartStop::Stop).await;
             manage_container.wait_for_desired(StartStop::Start).await;
-            drop(restart_override);
+            restart_override.drop();
+            Ok(())
         }
     }
     fn _transition_restart(&self) -> TransitionState {
@@ -252,7 +250,9 @@ impl Manager {
         let restart = self.perform_restart();
         TransitionState::Restarting(
             tokio::spawn(async move {
-                restart.await;
+                if let Err(err) = restart.await {
+                    tracing::error!("Error restarting service: {}", err);
+                }
                 transition.send_replace(Default::default());
             })
             .into(),
@@ -261,37 +261,42 @@ impl Manager {
     fn perform_backup(
         &self,
         backup_guard: BackupGuard,
-    ) -> impl Future<Output = Result<Result<PackageBackupInfo, Error>, Error>> + 'static {
+    ) -> impl Future<Output = Result<Result<PackageBackupInfo, Error>, Error>> {
         let manage_container = self.manage_container.clone();
         let seed = self.seed.clone();
         async move {
+            let peek = seed.ctx.db.peek().await?;
             let state_reverter = DesiredStateReverter::new(manage_container.clone());
-            let mut tx = seed.ctx.db.handle();
-            let override_guard = manage_container
-                .set_override(Some(get_status(&mut tx, &seed.manifest).await.backing_up()));
+            let override_guard =
+                manage_container.set_override(get_status(peek, &seed.manifest).backing_up())?;
             manage_container.wait_for_desired(StartStop::Stop).await;
             let backup_guard = backup_guard.lock().await;
             let guard = backup_guard.mount_package_backup(&seed.manifest.id).await?;
 
-            let res = seed
-                .manifest
-                .backup
-                .create(
-                    &seed.ctx,
-                    &mut tx,
-                    &seed.manifest.id,
-                    &seed.manifest.title,
-                    &seed.manifest.version,
-                    &seed.manifest.interfaces,
-                    &seed.manifest.volumes,
-                )
-                .await;
+            let return_value = seed.manifest.backup.create(seed.clone()).await;
             guard.unmount().await?;
             drop(backup_guard);
 
-            let return_value = res;
+            let manifest_id = seed.manifest.id.clone();
+            seed.ctx
+                .db
+                .mutate(|db| {
+                    if let Some(progress) = db
+                        .as_server_info_mut()
+                        .as_status_info_mut()
+                        .as_backup_progress_mut()
+                        .transpose_mut()
+                        .and_then(|p| p.as_idx_mut(&manifest_id))
+                    {
+                        progress.as_complete_mut().ser(&true)?;
+                    }
+                    Ok(())
+                })
+                .await?;
+
             state_reverter.revert().await;
-            drop(override_guard);
+
+            override_guard.drop();
             Ok::<_, Error>(return_value)
         }
     }
@@ -300,11 +305,13 @@ impl Manager {
         backup_guard: BackupGuard,
     ) -> (TransitionState, BoxFuture<BackupReturn>) {
         let (send, done) = oneshot::channel();
+
+        let transition_state = self.transition.clone();
         (
             TransitionState::BackingUp(
                 tokio::spawn(
                     self.perform_backup(backup_guard)
-                        .then(finish_up_backup_task(self.transition.clone(), send)),
+                        .then(finish_up_backup_task(transition_state, send)),
                 )
                 .into(),
             ),
@@ -332,42 +339,29 @@ async fn configure(
     ctx: RpcContext,
     id: PackageId,
     mut configure_context: ConfigureContext,
-) -> Result<BTreeMap<PackageId, TaggedDependencyError>, Error> {
-    let mut db = ctx.db.handle();
-    let mut tx = db.begin().await?;
-    let db = &mut tx;
-
-    let receipts = ConfigReceipts::new(db).await?;
+) -> Result<BTreeMap<PackageId, String>, Error> {
+    let db = ctx.db.peek().await?;
     let id = &id;
     let ctx = &ctx;
     let overrides = &mut configure_context.overrides;
     // fetch data from db
-    let action = receipts
-        .config_actions
-        .get(db, id)
-        .await?
-        .ok_or_else(|| not_found!(id))?;
-    let dependencies = receipts
-        .dependencies
-        .get(db, id)
-        .await?
-        .ok_or_else(|| not_found!(id))?;
-    let volumes = receipts
-        .volumes
-        .get(db, id)
-        .await?
-        .ok_or_else(|| not_found!(id))?;
-    let version = receipts
-        .version
-        .get(db, id)
-        .await?
-        .ok_or_else(|| not_found!(id))?;
+    let manifest = db
+        .as_package_data()
+        .as_idx(id)
+        .or_not_found(id)?
+        .as_manifest()
+        .de()?;
 
     // get current config and current spec
     let ConfigRes {
         config: old_config,
         spec,
-    } = action.get(ctx, id, &version, &volumes).await?;
+    } = manifest
+        .config
+        .as_ref()
+        .or_not_found("Manifest config")?
+        .get(ctx, id, &manifest.version, &manifest.volumes)
+        .await?;
 
     // determine new config to use
     let mut config = if let Some(config) = configure_context.config.or_else(|| old_config.clone()) {
@@ -379,31 +373,22 @@ async fn configure(
         )?
     };
 
-    let manifest = receipts
-        .manifest
-        .get(db, id)
-        .await?
-        .ok_or_else(|| not_found!(id))?;
-
     spec.validate(&manifest)?;
     spec.matches(&config)?; // check that new config matches spec
-    spec.update(
-        ctx,
-        db,
-        &manifest,
-        overrides,
-        &mut config,
-        &receipts.config_receipts,
-    )
-    .await?; // dereference pointers in the new config
 
-    // create backreferences to pointers
-    let mut sys = receipts
-        .system_pointers
-        .get(db, id)
-        .await?
-        .ok_or_else(|| not_found!(id))?;
-    sys.truncate(0);
+    // TODO Commit or not?
+    spec.update(ctx, &manifest, overrides, &mut config).await?; // dereference pointers in the new config
+
+    let manifest = db
+        .as_package_data()
+        .as_idx(id)
+        .or_not_found(id)?
+        .as_installed()
+        .or_not_found(id)?
+        .as_manifest()
+        .de()?;
+
+    let dependencies = &manifest.dependencies;
     let mut current_dependencies: CurrentDependencies = CurrentDependencies(
         dependencies
             .0
@@ -420,29 +405,32 @@ async fn configure(
     for ptr in spec.pointers(&config)? {
         match ptr {
             ValueSpecPointer::Package(pkg_ptr) => {
-                if let Some(current_dependency) =
-                    current_dependencies.0.get_mut(pkg_ptr.package_id())
-                {
-                    current_dependency.pointers.push(pkg_ptr);
+                if let Some(info) = current_dependencies.0.get_mut(pkg_ptr.package_id()) {
+                    info.pointers.insert(pkg_ptr);
                 } else {
+                    let id = pkg_ptr.package_id().to_owned();
+                    let mut pointers = BTreeSet::new();
+                    pointers.insert(pkg_ptr);
                     current_dependencies.0.insert(
-                        pkg_ptr.package_id().to_owned(),
+                        id,
                         CurrentDependencyInfo {
-                            pointers: vec![pkg_ptr],
+                            pointers,
                             health_checks: BTreeSet::new(),
                         },
                     );
                 }
             }
-            ValueSpecPointer::System(s) => sys.push(s),
+            ValueSpecPointer::System(_) => (),
         }
     }
-    receipts.system_pointers.set(db, sys, id).await?;
 
+    let action = manifest.config.as_ref().or_not_found(id)?;
+    let version = &manifest.version;
+    let volumes = &manifest.volumes;
     if !configure_context.dry_run {
         // run config action
         let res = action
-            .set(ctx, id, &version, &dependencies, &volumes, &config)
+            .set(ctx, id, version, &dependencies, volumes, &config)
             .await?;
 
         // track dependencies with no pointers
@@ -453,7 +441,7 @@ async fn configure(
                 current_dependencies.0.insert(
                     package_id,
                     CurrentDependencyInfo {
-                        pointers: Vec::new(),
+                        pointers: BTreeSet::new(),
                         health_checks,
                     },
                 );
@@ -475,47 +463,9 @@ async fn configure(
         });
     }
 
-    // update dependencies
-    let prev_current_dependencies = receipts
-        .current_dependencies
-        .get(db, id)
-        .await?
-        .unwrap_or_default();
-    remove_from_current_dependents_lists(
-        db,
-        id,
-        &prev_current_dependencies,
-        &receipts.current_dependents,
-    )
-    .await?; // remove previous
-    add_dependent_to_current_dependents_lists(
-        db,
-        id,
-        &current_dependencies,
-        &receipts.current_dependents,
-    )
-    .await?; // add new
-    current_dependencies.0.remove(id);
-    receipts
-        .current_dependencies
-        .set(db, current_dependencies.clone(), id)
-        .await?;
-
-    let errs = receipts
-        .dependency_errors
-        .get(db, id)
-        .await?
-        .ok_or_else(|| not_found!(id))?;
-    tracing::warn!("Dependency Errors: {:?}", errs);
-    let errs = DependencyErrors::init(
-        ctx,
-        db,
-        &manifest,
-        &current_dependencies,
-        &receipts.dependency_receipt.try_heal,
-    )
-    .await?;
-    receipts.dependency_errors.set(db, errs, id).await?;
+    let dependency_config_errs =
+        compute_dependency_config_errs(&ctx, &db, &manifest, &current_dependencies, overrides)
+            .await?;
 
     // cache current config for dependents
     configure_context
@@ -523,29 +473,41 @@ async fn configure(
         .insert(id.clone(), config.clone());
 
     // handle dependents
-    let dependents = receipts
-        .current_dependents
-        .get(db, id)
-        .await?
-        .ok_or_else(|| not_found!(id))?;
+
+    let dependents = db
+        .as_package_data()
+        .as_idx(id)
+        .or_not_found(id)?
+        .as_installed()
+        .or_not_found(id)?
+        .as_current_dependents()
+        .de()?;
     for (dependent, _dep_info) in dependents.0.iter().filter(|(dep_id, _)| dep_id != &id) {
-        let dependent_container = receipts.docker_containers.get(db, dependent).await?;
-        let dependent_container = &dependent_container;
         // check if config passes dependent check
-        if let Some(cfg) = receipts
-            .manifest_dependencies_config
-            .get(db, (dependent, id))
-            .await?
+        if let Some(cfg) = db
+            .as_package_data()
+            .as_idx(dependent)
+            .or_not_found(dependent)?
+            .as_installed()
+            .or_not_found(dependent)?
+            .as_manifest()
+            .as_dependencies()
+            .as_idx(id)
+            .or_not_found(id)?
+            .as_config()
+            .de()?
         {
-            let manifest = receipts
-                .manifest
-                .get(db, dependent)
-                .await?
-                .ok_or_else(|| not_found!(id))?;
+            let manifest = db
+                .as_package_data()
+                .as_idx(dependent)
+                .or_not_found(dependent)?
+                .as_installed()
+                .or_not_found(dependent)?
+                .as_manifest()
+                .de()?;
             if let Err(error) = cfg
                 .check(
                     ctx,
-                    dependent_container,
                     dependent,
                     &manifest.version,
                     &manifest.volumes,
@@ -554,28 +516,49 @@ async fn configure(
                 )
                 .await?
             {
-                let dep_err = DependencyError::ConfigUnsatisfied { error };
-                break_transitive(
-                    db,
-                    dependent,
-                    id,
-                    dep_err,
-                    &mut configure_context.breakages,
-                    &receipts.break_transitive_receipts,
-                )
-                .await?;
+                configure_context.breakages.insert(dependent.clone(), error);
             }
-
-            heal_all_dependents_transitive(ctx, db, id, &receipts.dependency_receipt).await?;
         }
     }
 
-    receipts.configured.set(db, true, id).await?;
-
-    if configure_context.dry_run {
-        tx.abort().await?;
-    } else {
-        tx.commit().await?;
+    if !configure_context.dry_run {
+        return ctx
+            .db
+            .mutate(move |db| {
+                remove_from_current_dependents_lists(db, id, &current_dependencies)?;
+                add_dependent_to_current_dependents_lists(db, id, &current_dependencies)?;
+                current_dependencies.0.remove(id);
+                for (dep, errs) in db
+                    .as_package_data_mut()
+                    .as_entries_mut()?
+                    .into_iter()
+                    .filter_map(|(id, pde)| {
+                        pde.as_installed_mut()
+                            .map(|i| (id, i.as_status_mut().as_dependency_config_errors_mut()))
+                    })
+                {
+                    errs.remove(id)?;
+                    if let Some(err) = configure_context.breakages.get(&dep) {
+                        errs.insert(id, err)?;
+                    }
+                }
+                let installed = db
+                    .as_package_data_mut()
+                    .as_idx_mut(id)
+                    .or_not_found(id)?
+                    .as_installed_mut()
+                    .or_not_found(id)?;
+                installed
+                    .as_current_dependencies_mut()
+                    .ser(&current_dependencies)?;
+                let status = installed.as_status_mut();
+                status.as_configured_mut().ser(&true)?;
+                status
+                    .as_dependency_config_errors_mut()
+                    .ser(&dependency_config_errs)?;
+                Ok(configure_context.breakages)
+            })
+            .await; // add new
     }
 
     Ok(configure_context.breakages)
@@ -746,7 +729,7 @@ async fn get_long_running_ip(seed: &ManagerSeed, runtime: &mut LongRunning) -> G
             Ok(Some(ip_addr)) => return GetRunningIp::Ip(ip_addr),
             Ok(None) => (),
             Err(e) if e.kind == ErrorKind::NotFound => (),
-            Err(e) => return GetRunningIp::Error(e.into()),
+            Err(e) => return GetRunningIp::Error(e),
         }
         if let Poll::Ready(res) = futures::poll!(&mut runtime.running_output) {
             match res {
@@ -808,8 +791,7 @@ async fn remove_network_for_main(svc: NetService) -> Result<(), Error> {
 async fn main_health_check_daemon(seed: Arc<ManagerSeed>) {
     tokio::time::sleep(Duration::from_secs(HEALTH_CHECK_GRACE_PERIOD_SECONDS)).await;
     loop {
-        let mut db = seed.ctx.db.handle();
-        if let Err(e) = health::check(&seed.ctx, &mut db, &seed.manifest.id).await {
+        if let Err(e) = health::check(&seed.ctx, &seed.manifest.id).await {
             tracing::error!(
                 "Failed to run health check for {}: {}",
                 &seed.manifest.id,
@@ -830,7 +812,7 @@ async fn get_running_ip(seed: &ManagerSeed, mut runtime: &mut RuntimeOfCommand) 
             Ok(Some(ip_addr)) => return GetRunningIp::Ip(ip_addr),
             Ok(None) => (),
             Err(e) if e.kind == ErrorKind::NotFound => (),
-            Err(e) => return GetRunningIp::Error(e.into()),
+            Err(e) => return GetRunningIp::Error(e),
         }
         if let Poll::Ready(res) = futures::poll!(&mut runtime) {
             match res {

@@ -23,11 +23,10 @@ import {
 import { ClientStorageService } from 'src/app/services/client-storage.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { Breakages } from 'src/app/services/api/api.types'
 import { PatchDB } from 'patch-db-client'
 import { getAllPackages } from 'src/app/util/get-package-data'
 import { firstValueFrom } from 'rxjs'
+import { dryUpdate } from 'src/app/util/dry-update'
 
 @Component({
   selector: 'marketplace-show-controls',
@@ -57,7 +56,6 @@ export class MarketplaceShowControlsComponent {
     private readonly loadingCtrl: LoadingController,
     private readonly emver: Emver,
     private readonly errToast: ErrorToastService,
-    private readonly embassyApi: ApiService,
     private readonly patch: PatchDB<DataModel>,
   ) {}
 
@@ -142,30 +140,19 @@ export class MarketplaceShowControlsComponent {
   }
 
   private async dryInstall(url: string) {
-    const loader = await this.loadingCtrl.create({
-      message: 'Checking dependent services...',
-    })
-    await loader.present()
+    const breakages = dryUpdate(
+      this.pkg.manifest,
+      await getAllPackages(this.patch),
+      this.emver,
+    )
 
-    const { id, version } = this.pkg.manifest
-
-    try {
-      const breakages = await this.embassyApi.dryUpdatePackage({
-        id,
-        version: `${version}`,
-      })
-
-      if (isEmptyObject(breakages)) {
-        this.install(url, loader)
-      } else {
-        await loader.dismiss()
-        const proceed = await this.presentAlertBreakages(breakages)
-        if (proceed) {
-          this.install(url)
-        }
+    if (isEmptyObject(breakages)) {
+      this.install(url)
+    } else {
+      const proceed = await this.presentAlertBreakages(breakages)
+      if (proceed) {
+        this.install(url)
       }
-    } catch (e: any) {
-      this.errToast.present(e)
     }
   }
 
@@ -194,14 +181,11 @@ export class MarketplaceShowControlsComponent {
     await alert.present()
   }
 
-  private async install(url: string, loader?: HTMLIonLoadingElement) {
-    const message = 'Beginning Install...'
-    if (loader) {
-      loader.message = message
-    } else {
-      loader = await this.loadingCtrl.create({ message })
-      await loader.present()
-    }
+  private async install(url: string) {
+    const loader = await this.loadingCtrl.create({
+      message: 'Beginning Install...',
+    })
+    await loader.present()
 
     const { id, version } = this.pkg.manifest
 
@@ -214,14 +198,10 @@ export class MarketplaceShowControlsComponent {
     }
   }
 
-  private async presentAlertBreakages(breakages: Breakages): Promise<boolean> {
+  private async presentAlertBreakages(breakages: string[]): Promise<boolean> {
     let message: string =
       'As a result of this update, the following services will no longer work properly and may crash:<ul>'
-    const localPkgs = await getAllPackages(this.patch)
-    const bullets = Object.keys(breakages).map(id => {
-      const title = localPkgs[id].manifest.title
-      return `<li><b>${title}</b></li>`
-    })
+    const bullets = breakages.map(title => `<li><b>${title}</b></li>`)
     message = `${message}${bullets.join('')}</ul>`
 
     return new Promise(async resolve => {
