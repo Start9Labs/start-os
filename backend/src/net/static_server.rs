@@ -1,4 +1,5 @@
 use std::fs::Metadata;
+use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::UNIX_EPOCH;
@@ -262,6 +263,21 @@ async fn alt_ui(req: Request<Body>, ui_mode: UiMode) -> Result<Response<Body>, E
     }
 }
 
+async fn if_authorized<
+    F: FnOnce() -> Fut,
+    Fut: Future<Output = Result<Response<Body>, Error>> + Send + Sync,
+>(
+    ctx: &RpcContext,
+    parts: &RequestParts,
+    f: F,
+) -> Result<Response<Body>, Error> {
+    if let Err(e) = HasValidSession::from_request_parts(parts, ctx).await {
+        un_authorized(e, parts.uri.path())
+    } else {
+        f().await
+    }
+}
+
 async fn main_embassy_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response<Body>, Error> {
     let (request_parts, _body) = req.into_parts();
     match (
@@ -274,69 +290,56 @@ async fn main_embassy_ui(req: Request<Body>, ctx: RpcContext) -> Result<Response
             .split_once('/'),
     ) {
         (&Method::GET, Some(("public", path))) => {
-            match HasValidSession::from_request_parts(&request_parts, &ctx).await {
-                Ok(_) => {
-                    let sub_path = Path::new(path);
-                    if let Ok(rest) = sub_path.strip_prefix("package-data") {
-                        FileData::from_path(
-                            &request_parts,
-                            &ctx.datadir.join(PKG_PUBLIC_DIR).join(rest),
-                        )
-                        .await?
-                        .into_response(&request_parts)
-                        .await
-                    } else if let Ok(rest) = sub_path.strip_prefix("eos") {
-                        match rest.to_str() {
-                            Some("local.crt") => cert_send(&ctx.account.read().await.root_ca_cert),
-                            None => Ok(bad_request()),
-                            _ => Ok(not_found()),
-                        }
-                    } else {
-                        Ok(not_found())
-                    }
+            if_authorized(&ctx, &request_parts, || async {
+                let sub_path = Path::new(path);
+                if let Ok(rest) = sub_path.strip_prefix("package-data") {
+                    FileData::from_path(
+                        &request_parts,
+                        &ctx.datadir.join(PKG_PUBLIC_DIR).join(rest),
+                    )
+                    .await?
+                    .into_response(&request_parts)
+                    .await
+                } else {
+                    Ok(not_found())
                 }
-                Err(e) => un_authorized(e, &format!("public/{path}")),
-            }
+            })
+            .await
         }
         (&Method::GET, Some(("proxy", target))) => {
-            match HasValidSession::from_request_parts(&request_parts, &ctx).await {
-                Ok(_) => {
-                    let target = urlencoding::decode(target)?;
-                    let res = ctx
-                        .client
-                        .get(target.as_ref())
-                        .headers(
-                            request_parts
-                                .headers
-                                .iter()
-                                .filter(|(h, _)| {
-                                    !PROXY_STRIP_HEADERS
-                                        .iter()
-                                        .any(|bad| h.as_str().eq_ignore_ascii_case(bad))
-                                })
-                                .map(|(h, v)| (h.clone(), v.clone()))
-                                .collect(),
-                        )
-                        .send()
-                        .await
-                        .with_kind(crate::ErrorKind::Network)?;
-                    let mut hres = Response::builder().status(res.status());
-                    for (h, v) in res.headers().clone() {
-                        if let Some(h) = h {
-                            hres = hres.header(h, v);
-                        }
+            if_authorized(&ctx, &request_parts, || async {
+                let target = urlencoding::decode(target)?;
+                let res = ctx
+                    .client
+                    .get(target.as_ref())
+                    .headers(
+                        request_parts
+                            .headers
+                            .iter()
+                            .filter(|(h, _)| {
+                                !PROXY_STRIP_HEADERS
+                                    .iter()
+                                    .any(|bad| h.as_str().eq_ignore_ascii_case(bad))
+                            })
+                            .map(|(h, v)| (h.clone(), v.clone()))
+                            .collect(),
+                    )
+                    .send()
+                    .await
+                    .with_kind(crate::ErrorKind::Network)?;
+                let mut hres = Response::builder().status(res.status());
+                for (h, v) in res.headers().clone() {
+                    if let Some(h) = h {
+                        hres = hres.header(h, v);
                     }
-                    hres.body(Body::wrap_stream(res.bytes_stream()))
-                        .with_kind(crate::ErrorKind::Network)
                 }
-                Err(e) => un_authorized(e, &format!("proxy/{target}")),
-            }
+                hres.body(Body::wrap_stream(res.bytes_stream()))
+                    .with_kind(crate::ErrorKind::Network)
+            })
+            .await
         }
         (&Method::GET, Some(("eos", "local.crt"))) => {
-            match HasValidSession::from_request_parts(&request_parts, &ctx).await {
-                Ok(_) => cert_send(&ctx.account.read().await.root_ca_cert),
-                Err(e) => un_authorized(e, "eos/local.crt"),
-            }
+            cert_send(&ctx.account.read().await.root_ca_cert)
         }
         (&Method::GET, _) => {
             let uri_path = UiMode::Main.path(

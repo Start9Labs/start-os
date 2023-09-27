@@ -35,9 +35,5 @@
   </ion-item-group>
 
   <!-- hidden element for downloading cert -->
-  <a
-    id="install-cert"
-    href="/public/eos/local.crt"
-    [download]="crtName$ | async"
-  ></a>
+  <a id="install-cert" href="/eos/local.crt" [download]="crtName$ | async"></a>
 </ion-content>
