@@ -22,7 +22,7 @@ export module RR {
   // auth
 
   export type LoginReq = {
-    password: Encrypted | string
+    password: string
     metadata: SessionMetadata
   } // auth.login - unauthed
   export type loginRes = null

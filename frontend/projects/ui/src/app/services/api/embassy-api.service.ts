@@ -1,28 +1,12 @@
 import { BehaviorSubject, Observable } from 'rxjs'
 import { Update } from 'patch-db-client'
-import { Encrypted, RR } from './api.types'
+import { RR } from './api.types'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { Log } from '@start9labs/shared'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
-import type { JWK } from 'node-jose'
 
 export abstract class ApiService {
-  protected readonly jose = import('node-jose')
-
   readonly patchStream$ = new BehaviorSubject<Update<DataModel>[]>([])
-  pubkey?: JWK.Key
-
-  async encrypt(toEncrypt: string): Promise<Encrypted> {
-    const { pubkey } = this
-
-    if (!pubkey) throw new Error('No pubkey found!')
-
-    const encrypted = await this.jose.then(jose =>
-      jose.JWE.createEncrypt(pubkey).update(toEncrypt).final(),
-    )
-
-    return { encrypted }
-  }
 
   // http
 
@@ -41,8 +25,6 @@ export abstract class ApiService {
 
   // auth
 
-  abstract getPubKey(): Promise<void>
-
   abstract login(params: RR.LoginReq): Promise<RR.loginRes>
 
   abstract logout(params: RR.LogoutReq): Promise<RR.LogoutRes>
@@ -57,7 +39,7 @@ export abstract class ApiService {
 
   // server
 
-  abstract echo(params: RR.EchoReq): Promise<RR.EchoRes>
+  abstract echo(params: RR.EchoReq, urlOverride?: string): Promise<RR.EchoRes>
 
   abstract openPatchWebsocket$(): Observable<Update<DataModel>>
 

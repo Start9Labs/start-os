@@ -16,8 +16,6 @@ import {
 import { map, tap } from 'rxjs/operators'
 import { ActivatedRoute, NavigationExtras } from '@angular/router'
 import { getPkgId } from '@start9labs/shared'
-import { ConfigService } from 'src/app/services/config.service'
-import { getServerInfo } from 'src/app/util/get-server-info'
 import { ModalService } from 'src/app/services/modal.service'
 import { DependentInfo } from 'src/app/types/dependent-info'
 import {
@@ -49,8 +47,6 @@ const STATES = [
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppShowPage {
-  readonly secure = this.config.isSecure()
-
   private readonly pkgId = getPkgId(this.route)
 
   readonly pkgPlus$ = combineLatest([
@@ -75,7 +71,6 @@ export class AppShowPage {
     private readonly route: ActivatedRoute,
     private readonly navCtrl: NavController,
     private readonly patch: PatchDB<DataModel>,
-    private readonly config: ConfigService,
     private readonly modalService: ModalService,
     private readonly depErrorService: DepErrorService,
   ) {}
@@ -94,13 +89,6 @@ export class AppShowPage {
 
   showProgress({ state }: PackageDataEntry): boolean {
     return STATES.includes(state)
-  }
-
-  async launchHttps() {
-    const onTor = this.config.isTor()
-    const { 'lan-address': lanAddress, 'tor-address': torAddress } =
-      await getServerInfo(this.patch)
-    onTor ? window.open(torAddress) : window.open(lanAddress)
   }
 
   private getDepInfo(
