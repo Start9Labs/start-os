@@ -181,10 +181,10 @@ pub async fn configure_logic(
     let pkg_volumes = pkg.as_manifest().as_volumes().de()?;
     let dependency = db
         .as_package_data()
-        .as_idx(&pkg_id)
-        .or_not_found(&pkg_id)?
+        .as_idx(&dependency_id)
+        .or_not_found(&dependency_id)?
         .as_installed()
-        .or_not_found(&pkg_id)?;
+        .or_not_found(&dependency_id)?;
     let dependency_config_action = dependency
         .as_manifest()
         .as_config()
