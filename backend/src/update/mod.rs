@@ -17,9 +17,9 @@ use crate::db::model::UpdateProgress;
 use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::MountGuard;
-use crate::marketplace::with_query_params;
 use crate::notifications::NotificationLevel;
 use crate::prelude::*;
+use crate::registry::marketplace::with_query_params;
 use crate::sound::{
     CIRCLE_OF_5THS_SHORT, UPDATE_FAILED_1, UPDATE_FAILED_2, UPDATE_FAILED_3, UPDATE_FAILED_4,
 };

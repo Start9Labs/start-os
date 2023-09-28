@@ -42,12 +42,12 @@ use crate::dependencies::{
 };
 use crate::install::cleanup::cleanup;
 use crate::install::progress::{InstallProgress, InstallProgressTracker};
-use crate::marketplace::with_query_params;
 use crate::notifications::NotificationLevel;
 use crate::prelude::*;
+use crate::registry::marketplace::with_query_params;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::s9pk::reader::S9pkReader;
-use crate::status::{DependencyConfigErrors, MainStatus, Status};
+use crate::status::{MainStatus, Status};
 use crate::util::docker::CONTAINER_TOOL;
 use crate::util::io::{copy_and_shutdown, response_to_reader};
 use crate::util::serde::{display_serializable, Port};
