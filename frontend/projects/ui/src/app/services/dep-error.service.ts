@@ -6,7 +6,7 @@ import {
   DataModel,
   HealthCheckResult,
   HealthResult,
-  InstalledPackageDataEntry,
+  PackageDataEntry,
   PackageMainStatus,
 } from './patch-db/data-model'
 
@@ -46,14 +46,14 @@ export class DepErrorService {
     pkgId: string,
     outerErrors: PackageDependencyErrors,
   ): DependencyErrors {
-    const pkgInstalled = pkgs[pkgId].installed
+    const pkg = pkgs[pkgId]
 
-    if (!pkgInstalled) return {}
+    if (!pkg.installed) return {}
 
     return currentDeps(pkgs, pkgId).reduce(
       (innerErrors, depId): DependencyErrors => ({
         ...innerErrors,
-        [depId]: this.getDepError(pkgs, pkgInstalled, depId, outerErrors),
+        [depId]: this.getDepError(pkgs, pkg, depId, outerErrors),
       }),
       {} as DependencyErrors,
     )
@@ -61,11 +61,17 @@ export class DepErrorService {
 
   private getDepError(
     pkgs: DataModel['package-data'],
-    pkgInstalled: InstalledPackageDataEntry,
+    pkg: PackageDataEntry,
     depId: string,
     outerErrors: PackageDependencyErrors,
   ): DependencyError | null {
-    const depInstalled = pkgs[depId]?.installed
+    console.warn(depId)
+    console.warn(pkgs)
+
+    const dep = pkgs[depId]
+
+    const pkgInstalled = pkg.installed!
+    const depInstalled = dep?.installed
 
     // not installed
     if (!depInstalled) {
@@ -74,8 +80,17 @@ export class DepErrorService {
       }
     }
 
-    const pkgManifest = pkgInstalled.manifest
-    const depManifest = depInstalled.manifest
+    const depStatus = depInstalled.status.main.status
+
+    // backing up
+    if (depStatus === PackageMainStatus.BackingUp) {
+      return {
+        type: DependencyErrorType.NotRunning,
+      }
+    }
+
+    const pkgManifest = pkg.manifest
+    const depManifest = dep.manifest
 
     // incorrect version
     if (
@@ -102,16 +117,10 @@ export class DepErrorService {
       }
     }
 
-    const depStatus = depInstalled.status.main.status
-
     // not running
     if (
       depStatus !== PackageMainStatus.Running &&
-      depStatus !== PackageMainStatus.Starting &&
-      !(
-        depStatus === PackageMainStatus.BackingUp &&
-        depInstalled.status.main.started
-      )
+      depStatus !== PackageMainStatus.Starting
     ) {
       return {
         type: DependencyErrorType.NotRunning,
@@ -176,6 +185,7 @@ export type DependencyError =
 
 export enum DependencyErrorType {
   NotInstalled = 'notInstalled',
+  BackingUp = 'backingUp',
   NotRunning = 'notRunning',
   IncorrectVersion = 'incorrectVersion',
   ConfigUnsatisfied = 'configUnsatisfied',

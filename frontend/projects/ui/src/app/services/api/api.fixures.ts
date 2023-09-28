@@ -1,5 +1,4 @@
 import {
-  DependencyErrorType,
   HealthResult,
   PackageDataEntry,
   PackageMainStatus,
@@ -845,7 +844,7 @@ export module Mock {
                   integer: false,
                 }),
               }),
-              displayAs: "I'm {{last-name}}, {{first-name}} {{last-name}}",
+              displayAs: 'I\'m {{last-name}}, {{first-name}} {{last-name}}',
               uniqueBy: 'last-name',
             },
           ),

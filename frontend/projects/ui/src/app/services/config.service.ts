@@ -1,10 +1,7 @@
 import { DOCUMENT } from '@angular/common'
 import { Inject, Injectable } from '@angular/core'
 import { WorkspaceConfig } from '@start9labs/shared'
-import {
-  InstalledPackageInfo,
-  PackageMainStatus,
-} from 'src/app/services/patch-db/data-model'
+import { InstalledPackageInfo } from 'src/app/services/patch-db/data-model'
 
 const {
   packageArch,
@@ -68,6 +65,10 @@ export class ConfigService {
 
   isSecure(): boolean {
     return window.isSecureContext || this.isTor()
+  }
+
+  getHost(): string {
+    return this.host
   }
 
   private isHttps(): boolean {

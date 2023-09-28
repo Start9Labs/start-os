@@ -118,10 +118,10 @@ export class AppShowStatusComponent {
   }
 
   async tryStop(): Promise<void> {
-    const { title, alerts, id } = this.pkg.manifest
+    const { title, alerts } = this.pkg.manifest
 
     let message = alerts.stop || ''
-    if (await hasCurrentDeps(this.patch, id)) {
+    if (hasCurrentDeps(this.pkg)) {
       const depMessage = `Services that depend on ${title} will no longer work properly and may crash`
       message = message ? `${message}.\n\n${depMessage}` : depMessage
     }
@@ -153,12 +153,10 @@ export class AppShowStatusComponent {
   }
 
   async tryRestart(): Promise<void> {
-    const { id, title } = this.pkg.manifest
-
-    if (await hasCurrentDeps(this.patch, id)) {
+    if (hasCurrentDeps(this.pkg)) {
       const alert = await this.alertCtrl.create({
         header: 'Warning',
-        message: `Services that depend on ${title} may temporarily experiences issues`,
+        message: `Services that depend on ${this.pkg.manifest.title} may temporarily experiences issues`,
         buttons: [
           {
             text: 'Cancel',
