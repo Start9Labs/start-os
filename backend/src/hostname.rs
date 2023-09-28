@@ -60,6 +60,14 @@ pub async fn set_hostname(hostname: &Hostname) -> Result<(), Error> {
         .arg(hostname)
         .invoke(ErrorKind::ParseSysInfo)
         .await?;
+    Command::new("sed")
+        .arg("-i")
+        .arg(format!(
+            "s/\\(\\s\\)localhost\\( {hostname}\\)\\?/\\1localhost {hostname}/g"
+        ))
+        .arg("/etc/hosts")
+        .invoke(ErrorKind::ParseSysInfo)
+        .await?;
     Ok(())
 }
 

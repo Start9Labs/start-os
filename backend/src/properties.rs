@@ -5,8 +5,9 @@ use serde_json::Value;
 use tracing::instrument;
 
 use crate::context::RpcContext;
+use crate::prelude::*;
 use crate::procedure::ProcedureName;
-use crate::s9pk::manifest::{Manifest, PackageId};
+use crate::s9pk::manifest::PackageId;
 use crate::{Error, ErrorKind};
 
 pub fn display_properties(response: Value, _: &ArgMatches) {
@@ -20,17 +21,15 @@ pub async fn properties(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Res
 
 #[instrument(skip_all)]
 pub async fn fetch_properties(ctx: RpcContext, id: PackageId) -> Result<Value, Error> {
-    let mut db = ctx.db.handle();
+    let peek = ctx.db.peek().await?;
 
-    let manifest: Manifest = crate::db::DatabaseModel::new()
-        .package_data()
-        .idx_model(&id)
-        .and_then(|p| p.installed())
-        .map(|m| m.manifest())
-        .get(&mut db)
-        .await?
-        .to_owned()
-        .ok_or_else(|| Error::new(eyre!("{} is not installed", id), ErrorKind::NotFound))?;
+    let manifest = peek
+        .as_package_data()
+        .as_idx(&id)
+        .ok_or_else(|| Error::new(eyre!("{} is not installed", id), ErrorKind::NotFound))?
+        .expect_as_installed()?
+        .as_manifest()
+        .de()?;
     if let Some(props) = manifest.properties {
         props
             .execute::<(), Value>(

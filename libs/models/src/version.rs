@@ -2,7 +2,6 @@ use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::str::FromStr;
 
-use patch_db::{HasModel, Model};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[derive(Debug, Clone)]
@@ -104,7 +103,4 @@ impl Serialize for Version {
     {
         self.string.serialize(serializer)
     }
-}
-impl HasModel for Version {
-    type Model = Model<Version>;
 }

@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { DependencyInfo } from '../../pipes/to-dependencies.pipe'
+import { DependencyInfo } from '../../app-show.page'
 
 @Component({
   selector: 'app-show-dependencies',

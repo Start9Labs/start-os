@@ -1,9 +1,7 @@
+use std::future::Future;
+use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use std::{
-    future::Future,
-    ops::{Deref, DerefMut},
-};
 
 use color_eyre::eyre::{eyre, Context, Error};
 use futures::future::BoxFuture;

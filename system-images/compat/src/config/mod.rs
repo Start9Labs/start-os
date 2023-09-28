@@ -79,7 +79,7 @@ pub fn validate_dependency_configuration(
     if let Some(config) = config {
         cfgs.insert(name, Cow::Borrowed(&config))
     } else {
-        cfgs.insert(name, Cow::Owned(serde_json::Map::new()))
+        cfgs.insert(name, Cow::Owned(imbl_value::InOMap::new()))
     };
     let rule_check = rules
         .into_iter()
@@ -104,7 +104,7 @@ pub fn apply_dependency_configuration(
     cfgs.insert(dependency_id, Cow::Owned(dep_config.clone()));
     match config {
         Some(config) => cfgs.insert(package_id, Cow::Owned(config.clone())),
-        None => cfgs.insert(package_id, Cow::Owned(serde_json::Map::new())),
+        None => cfgs.insert(package_id, Cow::Owned(imbl_value::InOMap::new())),
     };
     let rule_check = rules
         .into_iter()

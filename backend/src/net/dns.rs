@@ -50,17 +50,15 @@ impl Resolver {
                     } else {
                         None
                     }
+                } else if let Some(ip) = self.services.read().await.get(&None) {
+                    Some(
+                        ip.iter()
+                            .filter(|(_, rc)| rc.strong_count() > 0)
+                            .map(|(ip, _)| *ip)
+                            .collect(),
+                    )
                 } else {
-                    if let Some(ip) = self.services.read().await.get(&None) {
-                        Some(
-                            ip.iter()
-                                .filter(|(_, rc)| rc.strong_count() > 0)
-                                .map(|(ip, _)| *ip)
-                                .collect(),
-                        )
-                    } else {
-                        None
-                    }
+                    None
                 }
             }
             _ => None,

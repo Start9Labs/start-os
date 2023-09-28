@@ -12,7 +12,7 @@ use color_eyre::Report;
 use futures::future::{BoxFuture, Either as EitherFuture};
 use futures::{FutureExt, TryStreamExt};
 use helpers::{NonDetachingJoinHandle, UnixRpcClient};
-use models::{Id, ImageId};
+use models::{Id, ImageId, SYSTEM_PACKAGE_ID};
 use nix::sys::signal;
 use nix::unistd::Pid;
 use serde::de::DeserializeOwned;
@@ -24,7 +24,8 @@ use tracing::instrument;
 
 use super::ProcedureName;
 use crate::context::RpcContext;
-use crate::s9pk::manifest::{PackageId, SYSTEM_PACKAGE_ID};
+use crate::prelude::*;
+use crate::s9pk::manifest::PackageId;
 use crate::util::docker::{remove_container, CONTAINER_TOOL};
 use crate::util::serde::{Duration as SerdeDuration, IoFormat};
 use crate::util::Version;
@@ -44,8 +45,9 @@ lazy_static::lazy_static! {
     };
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, patch_db::HasModel)]
+#[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
 pub struct DockerContainers {
     pub main: DockerContainer,
     // #[serde(default)]
@@ -57,6 +59,7 @@ pub struct DockerContainers {
 /// part of this struct by choice. Used for the times that we are creating our own entry points
 #[derive(Clone, Debug, Deserialize, Serialize, patch_db::HasModel)]
 #[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
 pub struct DockerContainer {
     pub image: ImageId,
     #[serde(default)]
@@ -228,7 +231,7 @@ impl DockerProcedure {
         timeout: Option<Duration>,
     ) -> Result<Result<O, (i32, String)>, Error> {
         let name = name.docker_name();
-        let name: Option<&str> = name.as_ref().map(|x| &**x);
+        let name: Option<&str> = name.as_deref();
         let mut cmd = tokio::process::Command::new(CONTAINER_TOOL);
         let container_name = Self::container_name(pkg_id, name);
         cmd.arg("run")
@@ -383,14 +386,12 @@ impl DockerProcedure {
         &self,
         _ctx: &RpcContext,
         pkg_id: &PackageId,
-        pkg_version: &Version,
-        name: ProcedureName,
-        volumes: &Volumes,
+        _pkg_version: &Version,
+        _name: ProcedureName,
+        _volumes: &Volumes,
         input: Option<I>,
         timeout: Option<Duration>,
     ) -> Result<Result<O, (i32, String)>, Error> {
-        let name = name.docker_name();
-        let name: Option<&str> = name.as_deref();
         let mut cmd = tokio::process::Command::new(CONTAINER_TOOL);
 
         cmd.arg("exec");

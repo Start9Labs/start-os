@@ -40,6 +40,7 @@ pub mod migration;
 pub mod net;
 pub mod notifications;
 pub mod os_install;
+pub mod prelude;
 pub mod procedure;
 pub mod properties;
 pub mod registryadmin;
@@ -106,7 +107,6 @@ pub fn server() -> Result<(), RpcError> {
     install::sideload,
     install::uninstall,
     install::list,
-    install::update::update,
     config::config,
     control::start,
     control::stop,
