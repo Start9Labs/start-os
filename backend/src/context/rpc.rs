@@ -18,7 +18,6 @@ use tokio::sync::{broadcast, oneshot, Mutex, RwLock};
 use tracing::instrument;
 
 use super::setup::CURRENT_SECRET;
-use crate::account::AccountInfo;
 use crate::core::rpc_continuations::{RequestGuid, RestHandler, RpcContinuation};
 use crate::db::model::{CurrentDependents, Database, PackageDataEntryMatchModelRef};
 use crate::db::prelude::PatchDbExt;
@@ -36,6 +35,7 @@ use crate::status::MainStatus;
 use crate::system::get_mem_info;
 use crate::util::config::load_config_from_paths;
 use crate::util::lshw::{lshw, LshwDevice};
+use crate::{account::AccountInfo, dependencies::compute_dependency_config_errs};
 use crate::{Error, ErrorKind, ResultExt};
 
 #[derive(Debug, Default, Deserialize)]
@@ -155,8 +155,7 @@ impl RpcContext {
                     .unwrap_or(SocketAddr::from(([127, 0, 0, 1], 9051))),
                 tor_proxy,
                 base.dns_bind
-                    .as_ref()
-                    .map(|v| v.as_slice())
+                    .as_deref()
                     .unwrap_or(&[SocketAddr::from(([127, 0, 0, 1], 53))]),
                 SslManager::new(&account)?,
                 &account.hostname,
@@ -279,8 +278,26 @@ impl RpcContext {
             })
             .await?;
         let peek = self.db.peek().await?;
+        let mut all_dependency_config_errs = BTreeMap::new();
         for (package_id, package) in peek.as_package_data().as_entries()?.into_iter() {
             let package = package.clone();
+            if let Some(current_dependencies) = package
+                .as_installed()
+                .and_then(|x| x.as_current_dependencies().de().ok())
+            {
+                let manifest = package.as_manifest().de()?;
+                all_dependency_config_errs.insert(
+                    package_id.clone(),
+                    compute_dependency_config_errs(
+                        self,
+                        &peek,
+                        &manifest,
+                        &current_dependencies,
+                        &Default::default(),
+                    )
+                    .await?,
+                );
+            }
             let action = match package.as_match() {
                 PackageDataEntryMatchModelRef::Installing(_)
                 | PackageDataEntryMatchModelRef::Restoring(_)
@@ -298,7 +315,7 @@ impl RpcContext {
                             &self.datadir,
                             &package_id,
                             &version,
-                            &volume_id,
+                            volume_id,
                         ))
                         .with_kind(ErrorKind::Filesystem)?;
                         if tokio::fs::metadata(&tmp_path).await.is_ok() {
@@ -316,6 +333,16 @@ impl RpcContext {
         }
         self.db
             .mutate(|v| {
+                for (package_id, errs) in all_dependency_config_errs {
+                    if let Some(config_errors) = v
+                        .as_package_data_mut()
+                        .as_idx_mut(&package_id)
+                        .and_then(|pde| pde.as_installed_mut())
+                        .map(|i| i.as_status_mut().as_dependency_config_errors_mut())
+                    {
+                        config_errors.ser(&errs)?;
+                    }
+                }
                 for (_, pde) in v.as_package_data_mut().as_entries_mut()? {
                     let status = pde
                         .expect_as_installed_mut()?
@@ -389,7 +416,7 @@ impl RpcContext {
 }
 impl AsRef<Jwk> for RpcContext {
     fn as_ref(&self) -> &Jwk {
-        &*CURRENT_SECRET
+        &CURRENT_SECRET
     }
 }
 impl Context for RpcContext {}
@@ -403,7 +430,7 @@ impl Deref for RpcContext {
                 tracing_error::SpanTrace::capture()
             );
         }
-        &*self.0
+        &self.0
     }
 }
 impl Drop for RpcContext {
