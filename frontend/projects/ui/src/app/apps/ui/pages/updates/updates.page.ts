@@ -1,5 +1,4 @@
 import { Component, Inject } from '@angular/core'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PatchDB } from 'patch-db-client'
 import {
   DataModel,
@@ -12,16 +11,12 @@ import {
   Manifest,
   StoreIdentity,
 } from '@start9labs/marketplace'
-import { isEmptyObject } from '@start9labs/shared'
+import { Emver, isEmptyObject } from '@start9labs/shared'
 import { combineLatest, Observable } from 'rxjs'
-import {
-  AlertController,
-  LoadingController,
-  NavController,
-} from '@ionic/angular'
-import { hasCurrentDeps } from 'src/app/util/has-deps'
+import { AlertController, NavController } from '@ionic/angular'
 import { getAllPackages } from 'src/app/util/get-package-data'
-import { Breakages } from 'src/app/services/api/api.types'
+import { dryUpdate } from 'src/app/util/dry-update'
+import { hasCurrentDeps } from 'src/app/util/has-deps'
 
 interface UpdatesData {
   hosts: StoreIdentity[]
@@ -46,11 +41,10 @@ export class UpdatesPage {
   constructor(
     @Inject(AbstractMarketplaceService)
     readonly marketplaceService: MarketplaceService,
-    private readonly api: ApiService,
     private readonly patch: PatchDB<DataModel>,
     private readonly navCtrl: NavController,
-    private readonly loadingCtrl: LoadingController,
     private readonly alertCtrl: AlertController,
+    private readonly emver: Emver,
   ) {}
 
   viewInMarketplace(event: Event, url: string, id: string) {
@@ -74,56 +68,41 @@ export class UpdatesPage {
     delete this.marketplaceService.updateErrors[id]
     this.marketplaceService.updateQueue[id] = true
 
-    if (await hasCurrentDeps(this.patch, local.manifest.id)) {
-      this.dryUpdate(manifest, url)
+    if (hasCurrentDeps(local)) {
+      this.dryInstall(manifest, url)
     } else {
-      this.update(id, version, url)
+      this.install(id, version, url)
     }
   }
 
-  private async dryUpdate(manifest: Manifest, url: string) {
-    const loader = await this.loadingCtrl.create({
-      message: 'Checking dependent services...',
-    })
-    await loader.present()
+  private async dryInstall(manifest: Manifest, url: string) {
+    const { id, version, title } = manifest
 
-    const { id, version } = manifest
+    const breakages = dryUpdate(
+      manifest,
+      await getAllPackages(this.patch),
+      this.emver,
+    )
 
-    try {
-      const breakages = await this.api.dryUpdatePackage({
-        id,
-        version: `${version}`,
-      })
-      await loader.dismiss()
-
-      if (isEmptyObject(breakages)) {
-        this.update(id, version, url)
+    if (isEmptyObject(breakages)) {
+      this.install(id, version, url)
+    } else {
+      const proceed = await this.presentAlertBreakages(title, breakages)
+      if (proceed) {
+        this.install(id, version, url)
       } else {
-        const proceed = await this.presentAlertBreakages(
-          manifest.title,
-          breakages,
-        )
-        if (proceed) {
-          this.update(id, version, url)
-        } else {
-          delete this.marketplaceService.updateQueue[id]
-        }
+        delete this.marketplaceService.updateQueue[id]
       }
-    } catch (e: any) {
-      delete this.marketplaceService.updateQueue[id]
-      this.marketplaceService.updateErrors[id] = e.message
     }
   }
 
   private async presentAlertBreakages(
     title: string,
-    breakages: Breakages,
+    breakages: string[],
   ): Promise<boolean> {
     let message: string = `As a result of updating ${title}, the following services will no longer work properly and may crash:<ul>`
-    const localPkgs = await getAllPackages(this.patch)
-    const bullets = Object.keys(breakages).map(id => {
-      const title = localPkgs[id].manifest.title
-      return `<li><b>${title}</b></li>`
+    const bullets = breakages.map(depTitle => {
+      return `<li><b>${depTitle}</b></li>`
     })
     message = `${message}${bullets.join('')}</ul>`
 
@@ -154,7 +133,7 @@ export class UpdatesPage {
     })
   }
 
-  private async update(id: string, version: string, url: string) {
+  private async install(id: string, version: string, url: string) {
     try {
       await this.marketplaceService.installPackage(id, version, url)
       delete this.marketplaceService.updateQueue[id]

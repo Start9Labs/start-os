@@ -4,7 +4,6 @@ use std::str::FromStr;
 
 use chrono::{DateTime, Utc};
 use color_eyre::eyre::eyre;
-use patch_db::{DbHandle, LockType};
 use rpc_toolkit::command;
 use sqlx::PgPool;
 use tokio::sync::Mutex;
@@ -12,6 +11,7 @@ use tracing::instrument;
 
 use crate::backup::BackupReport;
 use crate::context::RpcContext;
+use crate::prelude::*;
 use crate::s9pk::manifest::PackageId;
 use crate::util::display_none;
 use crate::util::serde::display_serializable;
@@ -30,13 +30,8 @@ pub async fn list(
     #[arg] limit: Option<u32>,
 ) -> Result<Vec<Notification>, Error> {
     let limit = limit.unwrap_or(40);
-    let mut handle = ctx.db.handle();
     match before {
         None => {
-            let model = crate::db::DatabaseModel::new()
-                .server_info()
-                .unread_notification_count();
-            model.lock(&mut handle, LockType::Write).await?;
             let records = sqlx::query!(
                 "SELECT id, package_id, created_at, code, level, title, message, data FROM notifications ORDER BY id DESC LIMIT $1",
                 limit as i64
@@ -70,8 +65,14 @@ pub async fn list(
                     })
                 })
                 .collect::<Result<Vec<Notification>, Error>>()?;
-            // set notification count to zero
-            model.put(&mut handle, &0).await?;
+
+            ctx.db
+                .mutate(|d| {
+                    d.as_server_info_mut()
+                        .as_unread_notification_count_mut()
+                        .ser(&0)
+                })
+                .await?;
             Ok(notifs)
         }
         Some(before) => {
@@ -139,15 +140,7 @@ pub async fn create(
     #[arg] message: String,
 ) -> Result<(), Error> {
     ctx.notification_manager
-        .notify(
-            &mut ctx.db.handle(),
-            package,
-            level,
-            title,
-            message,
-            (),
-            None,
-        )
+        .notify(ctx.db.clone(), package, level, title, message, (), None)
         .await
 }
 
@@ -232,10 +225,10 @@ impl NotificationManager {
             cache: Mutex::new(HashMap::new()),
         }
     }
-    #[instrument(skip_all)]
-    pub async fn notify<Db: DbHandle, T: NotificationType>(
+    #[instrument(skip(db, subtype, self))]
+    pub async fn notify<T: NotificationType>(
         &self,
-        db: &mut Db,
+        db: PatchDb,
         package_id: Option<PackageId>,
         level: NotificationLevel,
         title: String,
@@ -243,17 +236,14 @@ impl NotificationManager {
         subtype: T,
         debounce_interval: Option<u32>,
     ) -> Result<(), Error> {
+        let peek = db.peek().await?;
         if !self
             .should_notify(&package_id, &level, &title, debounce_interval)
             .await
         {
             return Ok(());
         }
-        let mut count = crate::db::DatabaseModel::new()
-            .server_info()
-            .unread_notification_count()
-            .get_mut(db)
-            .await?;
+        let mut count = peek.as_server_info().as_unread_notification_count().de()?;
         let sql_package_id = package_id.as_ref().map(|p| &**p);
         let sql_code = T::CODE;
         let sql_level = format!("{}", level);
@@ -268,9 +258,13 @@ impl NotificationManager {
         message,
         sql_data
     ).execute(&self.sqlite).await?;
-        *count += 1;
-        count.save(db).await?;
-        Ok(())
+        count += 1;
+        db.mutate(|db| {
+            db.as_server_info_mut()
+                .as_unread_notification_count_mut()
+                .ser(&count)
+        })
+        .await
     }
     async fn should_notify(
         &self,

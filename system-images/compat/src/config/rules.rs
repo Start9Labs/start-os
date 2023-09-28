@@ -1,11 +1,11 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
+use imbl_value::{InternedString, Value};
 use linear_map::LinearMap;
 use pest::iterators::Pairs;
 use pest::Parser;
 use rand::SeedableRng;
-use serde_json::Value;
 
 use startos::config::util::STATIC_NULL;
 use startos::config::Config;
@@ -382,7 +382,7 @@ fn compile_var_rec(mut ident: Pairs<Rule>) -> Option<Accessor> {
                 match idx.as_rule() {
                     Rule::list_access_function_first => {
                         let mut pred_iter = idx.into_inner();
-                        let item_var = pred_iter.next().unwrap().as_str().to_owned();
+                        let item_var: InternedString = pred_iter.next().unwrap().as_str().into();
                         let predicate = compile_bool_expr(pred_iter.next().unwrap().into_inner());
                         Box::new(move |v, cfgs| match v {
                             Value::Array(l) => VarRes::Exactly(
@@ -411,7 +411,7 @@ fn compile_var_rec(mut ident: Pairs<Rule>) -> Option<Accessor> {
                     }
                     Rule::list_access_function_last => {
                         let mut pred_iter = idx.into_inner();
-                        let item_var = pred_iter.next().unwrap().as_str().to_owned();
+                        let item_var: InternedString = pred_iter.next().unwrap().as_str().into();
                         let predicate = compile_bool_expr(pred_iter.next().unwrap().into_inner());
                         Box::new(move |v, cfgs| match v {
                             Value::Array(l) => VarRes::Exactly(
@@ -440,7 +440,7 @@ fn compile_var_rec(mut ident: Pairs<Rule>) -> Option<Accessor> {
                     }
                     Rule::list_access_function_any => {
                         let mut pred_iter = idx.into_inner();
-                        let item_var = pred_iter.next().unwrap().as_str().to_owned();
+                        let item_var: InternedString = pred_iter.next().unwrap().as_str().into();
                         let predicate = compile_bool_expr(pred_iter.next().unwrap().into_inner());
                         Box::new(move |v, cfgs| match v {
                             Value::Array(l) => VarRes::Any(
@@ -469,7 +469,7 @@ fn compile_var_rec(mut ident: Pairs<Rule>) -> Option<Accessor> {
                     }
                     Rule::list_access_function_all => {
                         let mut pred_iter = idx.into_inner();
-                        let item_var = pred_iter.next().unwrap().as_str().to_owned();
+                        let item_var: InternedString = pred_iter.next().unwrap().as_str().into();
                         let predicate = compile_bool_expr(pred_iter.next().unwrap().into_inner());
                         Box::new(move |v, cfgs| match v {
                             Value::Array(l) => VarRes::All(
@@ -506,7 +506,7 @@ fn compile_var_rec(mut ident: Pairs<Rule>) -> Option<Accessor> {
                         let idx = idx.as_str().to_owned();
                         Box::new(move |v, _| match v {
                             Value::Object(o) => {
-                                VarRes::Exactly(o.get(&idx).unwrap_or(&STATIC_NULL))
+                                VarRes::Exactly(o.get(&*idx).unwrap_or(&STATIC_NULL))
                             }
                             _ => VarRes::Exactly(&STATIC_NULL),
                         })
@@ -514,8 +514,9 @@ fn compile_var_rec(mut ident: Pairs<Rule>) -> Option<Accessor> {
                     Rule::sub_ident_regular_expr => {
                         let idx = compile_str_expr(idx.into_inner().next().unwrap().into_inner());
                         Box::new(move |v, dep_cfg| match v {
-                            Value::Object(o) => idx(&Config::default(), dep_cfg)
-                                .map(|idx| idx.and_then(|idx| o.get(&idx)).unwrap_or(&STATIC_NULL)),
+                            Value::Object(o) => idx(&Config::default(), dep_cfg).map(|idx| {
+                                idx.and_then(|idx| o.get(&*idx)).unwrap_or(&STATIC_NULL)
+                            }),
                             _ => VarRes::Exactly(&STATIC_NULL),
                         })
                     }
@@ -575,7 +576,7 @@ fn compile_var(mut var: Pairs<Rule>) -> CompiledExpr<VarRes<Value>> {
                 return VarRes::Exactly(Value::Null);
             };
         }
-        let val = cfg.get(&first_seg_string).unwrap_or(&STATIC_NULL);
+        let val = cfg.get(&*first_seg_string).unwrap_or(&STATIC_NULL);
         if let Some(accessor) = &accessor {
             accessor(val, cfgs).map(|v| v.clone())
         } else {
@@ -593,7 +594,7 @@ fn compile_var_mut_rec(mut ident: Pairs<Rule>) -> Result<Option<AccessorMut>, fa
                 match idx.as_rule() {
                     Rule::list_access_function_first => {
                         let mut pred_iter = idx.into_inner();
-                        let item_var = pred_iter.next().unwrap().as_str().to_owned();
+                        let item_var: InternedString = pred_iter.next().unwrap().as_str().into();
                         let predicate = compile_bool_expr(pred_iter.next().unwrap().into_inner());
                         Box::new(move |v, cfgs| match v {
                             Value::Array(l) => l
@@ -618,7 +619,7 @@ fn compile_var_mut_rec(mut ident: Pairs<Rule>) -> Result<Option<AccessorMut>, fa
                     }
                     Rule::list_access_function_last => {
                         let mut pred_iter = idx.into_inner();
-                        let item_var = pred_iter.next().unwrap().as_str().to_owned();
+                        let item_var: InternedString = pred_iter.next().unwrap().as_str().into();
                         let predicate = compile_bool_expr(pred_iter.next().unwrap().into_inner());
                         Box::new(move |v, cfgs| match v {
                             Value::Array(l) => l
@@ -651,14 +652,14 @@ fn compile_var_mut_rec(mut ident: Pairs<Rule>) -> Result<Option<AccessorMut>, fa
                 let idx = idx.into_inner().next().unwrap();
                 match idx.as_rule() {
                     Rule::sub_ident_regular_base => {
-                        let idx = idx.as_str().to_owned();
+                        let idx: InternedString = idx.as_str().into();
                         Box::new(move |v, _| match v {
                             Value::Object(ref mut o) => {
-                                if o.contains_key(&idx) {
-                                    o.get_mut(&idx)
+                                if o.contains_key(&*idx) {
+                                    o.get_mut(&*idx)
                                 } else {
                                     o.insert(idx.clone(), Value::Null);
-                                    o.get_mut(&idx)
+                                    o.get_mut(&*idx)
                                 }
                             }
                             _ => None,
@@ -669,11 +670,11 @@ fn compile_var_mut_rec(mut ident: Pairs<Rule>) -> Result<Option<AccessorMut>, fa
                         Box::new(
                             move |v, dep_cfg| match (v, idx(&Config::default(), dep_cfg)) {
                                 (Value::Object(ref mut o), VarRes::Exactly(Some(ref idx))) => {
-                                    if o.contains_key(idx) {
-                                        o.get_mut(idx)
+                                    if o.contains_key(&**idx) {
+                                        o.get_mut(&**idx)
                                     } else {
                                         o.insert(idx.clone(), Value::Null);
-                                        o.get_mut(idx)
+                                        o.get_mut(&**idx)
                                     }
                                 }
                                 _ => None,
@@ -693,7 +694,7 @@ fn compile_var_mut_rec(mut ident: Pairs<Rule>) -> Result<Option<AccessorMut>, fa
                                 if l.len() > idx {
                                     l.get_mut(idx)
                                 } else if idx == l.len() {
-                                    l.push(Value::Null);
+                                    l.push_back(Value::Null);
                                     l.get_mut(idx)
                                 } else {
                                     None
@@ -711,7 +712,7 @@ fn compile_var_mut_rec(mut ident: Pairs<Rule>) -> Result<Option<AccessorMut>, fa
                                     if l.len() > idx {
                                         l.get_mut(idx)
                                     } else if idx == l.len() {
-                                        l.push(Value::Null);
+                                        l.push_back(Value::Null);
                                         l.get_mut(idx)
                                     } else {
                                         None
@@ -741,11 +742,11 @@ fn compile_var_mut(mut var: Pairs<Rule>) -> Result<CompiledReference, failure::E
     if first_seg.as_rule() == Rule::app_id {
         failure::bail!("Can only assign to relative path");
     }
-    let first_seg_string = first_seg.as_str().to_owned();
+    let first_seg_string: InternedString = first_seg.as_str().into();
     let accessor_mut = compile_var_mut_rec(var)?;
     Ok(Box::new(move |cfg, cfgs| {
-        let var = if cfg.contains_key(&first_seg_string) {
-            cfg.get_mut(&first_seg_string).unwrap()
+        let var = if cfg.contains_key(&*first_seg_string) {
+            cfg.get_mut(&*first_seg_string).unwrap()
         } else {
             cfg.insert(first_seg_string.clone(), Value::Null);
             cfg.get_mut(&first_seg_string).unwrap()
@@ -865,19 +866,19 @@ fn compile_num_cmp_expr(mut pairs: Pairs<Rule>) -> CompiledRule {
     }
 }
 
-fn compile_str_var(var: Pairs<Rule>) -> CompiledExpr<VarRes<Option<String>>> {
+fn compile_str_var(var: Pairs<Rule>) -> CompiledExpr<VarRes<Option<InternedString>>> {
     let var = compile_var(var);
     Box::new(move |cfg, cfgs| {
         var(cfg, cfgs).map(|a| match a {
-            Value::String(s) => Some(s),
-            Value::Number(n) => Some(format!("{}", n)),
-            Value::Bool(b) => Some(format!("{}", b)),
+            Value::String(s) => Some(InternedString::from(&*s)),
+            Value::Number(n) => Some(InternedString::from_display(&n)),
+            Value::Bool(b) => Some(InternedString::from_display(&b)),
             _ => None,
         })
     })
 }
 
-fn compile_str(str_str: &str) -> CompiledExpr<VarRes<Option<String>>> {
+fn compile_str(str_str: &str) -> CompiledExpr<VarRes<Option<InternedString>>> {
     let str_str = &str_str[1..str_str.len() - 1];
     let mut out = String::with_capacity(str_str.len());
     let mut escape = false;
@@ -904,11 +905,11 @@ fn compile_str(str_str: &str) -> CompiledExpr<VarRes<Option<String>>> {
             }
         }
     }
-    let res = VarRes::Exactly(Some(out));
+    let res = VarRes::Exactly(Some(out.into()));
     Box::new(move |_, _| res.clone())
 }
 
-fn compile_str_expr(pairs: Pairs<Rule>) -> CompiledExpr<VarRes<Option<String>>> {
+fn compile_str_expr(pairs: Pairs<Rule>) -> CompiledExpr<VarRes<Option<InternedString>>> {
     STR_PREC_CLIMBER.climb(
         pairs,
         |pair| match pair.as_rule() {
@@ -921,9 +922,9 @@ fn compile_str_expr(pairs: Pairs<Rule>) -> CompiledExpr<VarRes<Option<String>>> 
             Rule::add => Box::new(move |cfg, cfgs| {
                 lhs(cfg, cfgs).and_then(|lhs| {
                     rhs(cfg, cfgs).map(|rhs| {
-                        let lhs = lhs.clone()?;
+                        let lhs = lhs.as_ref()?.to_string();
                         let rhs = rhs?;
-                        Some(lhs + &rhs)
+                        Some(InternedString::from(lhs + &*rhs))
                     })
                 })
             }),
@@ -941,7 +942,7 @@ fn compile_str_cmp_expr(mut pairs: Pairs<Rule>) -> CompiledRule {
             lhs(cfg, cfgs)
                 .and_then(|lhs| {
                     rhs(cfg, cfgs).map(|rhs| match (&lhs, &rhs) {
-                        (Some(lhs), Some(rhs)) => rhs.contains(lhs) && lhs.len() < rhs.len(),
+                        (Some(lhs), Some(rhs)) => rhs.contains(&**lhs) && lhs.len() < rhs.len(),
                         _ => false,
                     })
                 })
@@ -951,7 +952,7 @@ fn compile_str_cmp_expr(mut pairs: Pairs<Rule>) -> CompiledRule {
             lhs(cfg, cfgs)
                 .and_then(|lhs| {
                     rhs(cfg, cfgs).map(|rhs| match (&lhs, &rhs) {
-                        (Some(lhs), Some(rhs)) => rhs.contains(lhs),
+                        (Some(lhs), Some(rhs)) => rhs.contains(&**lhs),
                         _ => false,
                     })
                 })
@@ -983,7 +984,7 @@ fn compile_str_cmp_expr(mut pairs: Pairs<Rule>) -> CompiledRule {
             lhs(cfg, cfgs)
                 .and_then(|lhs| {
                     rhs(cfg, cfgs).map(|rhs| match (&lhs, &rhs) {
-                        (Some(lhs), Some(rhs)) => lhs.contains(rhs) && lhs.len() > rhs.len(),
+                        (Some(lhs), Some(rhs)) => lhs.contains(&**rhs) && lhs.len() > rhs.len(),
                         _ => true,
                     })
                 })
@@ -993,7 +994,7 @@ fn compile_str_cmp_expr(mut pairs: Pairs<Rule>) -> CompiledRule {
             lhs(cfg, cfgs)
                 .and_then(|lhs| {
                     rhs(cfg, cfgs).map(|rhs| match (&lhs, &rhs) {
-                        (Some(lhs), Some(rhs)) => lhs.contains(rhs),
+                        (Some(lhs), Some(rhs)) => lhs.contains(&**rhs),
                         _ => true,
                     })
                 })
@@ -1037,7 +1038,10 @@ fn compile_value_expr(mut pairs: Pairs<Rule>) -> CompiledExpr<VarRes<Value>> {
         Rule::str_expr => {
             let expr = compile_str_expr(expr.into_inner());
             Box::new(move |cfg, cfgs| {
-                expr(cfg, cfgs).map(|s| s.map(Value::String).unwrap_or(Value::Null))
+                expr(cfg, cfgs).map(|s| {
+                    s.map(|s| Value::String(Arc::new(s.to_string())))
+                        .unwrap_or(Value::Null)
+                })
             })
         }
         Rule::num_expr => {
@@ -1059,7 +1063,7 @@ fn compile_value_expr(mut pairs: Pairs<Rule>) -> CompiledExpr<VarRes<Value>> {
 
 fn compile_del_action(mut pairs: Pairs<Rule>) -> Result<Mutator, failure::Error> {
     let list_mut = compile_var_mut(pairs.next().unwrap().into_inner())?;
-    let var = pairs.next().unwrap().as_str().to_owned();
+    let var: InternedString = pairs.next().unwrap().as_str().into();
     let predicate = compile_bool_expr(pairs.next().unwrap().into_inner());
     Ok(Box::new(move |cfg, cfgs| match (&list_mut)(cfg, cfgs) {
         Some(Value::Array(ref mut l)) => {
@@ -1093,7 +1097,7 @@ fn compile_push_action(mut pairs: Pairs<Rule>, value: Value) -> Result<Mutator, 
             Some(Value::Array(ref mut a)) => a,
             _ => return,
         };
-        vec.push(value.clone())
+        vec.push_back(value.clone())
     }))
 }
 
@@ -1122,7 +1126,9 @@ fn compile_set_action(var: &str, to: &SetVariant) -> Result<Mutator, failure::Er
             let entropy = entropy.clone();
             Box::new(move |cfg, cfgs| {
                 if let Some(var) = get_mut(cfg, cfgs) {
-                    *var = Value::String(entropy.gen(&mut rand::rngs::StdRng::from_entropy()));
+                    *var = Value::String(Arc::new(
+                        entropy.gen(&mut rand::rngs::StdRng::from_entropy()),
+                    ));
                 }
             })
         }

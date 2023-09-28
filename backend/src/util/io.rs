@@ -522,7 +522,6 @@ pub fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + S
                 let src_path = e.path();
                 let dst_path = dst_path.join(e.file_name());
                 if m.is_file() {
-                    let len = m.len();
                     let mut dst_file = tokio::fs::File::create(&dst_path).await.with_ctx(|_| {
                         (
                             crate::ErrorKind::Filesystem,
@@ -638,7 +637,7 @@ impl<S: AsyncRead + AsyncWrite> AsyncWrite for TimeoutStream<S> {
         cx: &mut std::task::Context<'_>,
         buf: &[u8],
     ) -> std::task::Poll<Result<usize, std::io::Error>> {
-        let mut this = self.project();
+        let this = self.project();
         let res = this.stream.poll_write(cx, buf);
         if res.is_ready() {
             this.sleep.reset(Instant::now() + *this.timeout);
@@ -649,7 +648,7 @@ impl<S: AsyncRead + AsyncWrite> AsyncWrite for TimeoutStream<S> {
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), std::io::Error>> {
-        let mut this = self.project();
+        let this = self.project();
         let res = this.stream.poll_flush(cx);
         if res.is_ready() {
             this.sleep.reset(Instant::now() + *this.timeout);
@@ -660,7 +659,7 @@ impl<S: AsyncRead + AsyncWrite> AsyncWrite for TimeoutStream<S> {
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), std::io::Error>> {
-        let mut this = self.project();
+        let this = self.project();
         let res = this.stream.poll_shutdown(cx);
         if res.is_ready() {
             this.sleep.reset(Instant::now() + *this.timeout);

@@ -26,13 +26,14 @@ path = "src/main.rs"
 
 [features]
 avahi = ["avahi-sys"]
-default = ["avahi-alias", "cli", "sdk", "daemon", "js_engine"]
+default = ["cli", "sdk", "daemon", "js_engine"]
 dev = []
 unstable = ["patch-db/unstable"]
 avahi-alias = ["avahi"]
 cli = []
 sdk = []
 daemon = []
+podman = []
 
 [dependencies]
 aes = { version = "0.7.5", features = ["ctr"] }
@@ -51,7 +52,6 @@ base64 = "0.13.0"
 base64ct = "1.5.1"
 basic-cookies = "0.1.4"
 bimap = { version = "0.6.2", features = ["serde"] }
-bollard = "0.13.0"
 bytes = "1"
 chrono = { version = "0.4.19", features = ["serde"] }
 clap = "3.2.8"
@@ -83,6 +83,7 @@ id-pool = { version = "0.2.2", features = [
   "serde",
 ], default-features = false }
 imbl = "2.0.0"
+imbl-value = { git = "https://github.com/Start9Labs/imbl-value.git" }
 include_dir = "0.7.3"
 indexmap = { version = "1.9.1", features = ["serde"] }
 ipnet = { version = "2.7.1", features = ["serde"] }
@@ -93,7 +94,7 @@ jaq-core = "0.10.0"
 jaq-std = "0.10.0"
 josekit = "0.8.1"
 js_engine = { path = '../libs/js_engine', optional = true }
-jsonpath_lib = "0.3.0"
+jsonpath_lib = { git = "https://github.com/Start9Labs/jsonpath.git" }
 lazy_static = "1.4.0"
 libc = "0.2.126"
 log = "0.4.17"
@@ -162,6 +163,8 @@ url = { version = "2.2.2", features = ["serde"] }
 urlencoding = "2.1.2"
 uuid = { version = "1.1.2", features = ["v4"] }
 zeroize = "1.5.7"
+indicatif = { version = "0.17.6", features = ["tokio"] }
+console = "^0.15"
 
 [profile.test]
 opt-level = 3

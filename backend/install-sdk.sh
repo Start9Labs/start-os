@@ -8,6 +8,9 @@ if [ "$0" != "./install-sdk.sh" ]; then
 	exit 1
 fi
 
+frontend="../frontend/dist/static"
+[ -d "$frontend" ] || mkdir -p "$frontend"
+
 if [ -z "$OS_ARCH" ]; then
   export OS_ARCH=$(uname -m)
 fi

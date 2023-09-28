@@ -4,14 +4,11 @@ use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::time::Duration;
 
-use bollard::Docker;
 use helpers::to_tmp_path;
 use josekit::jwk::Jwk;
-use models::PackageId;
 use patch_db::json_ptr::JsonPointer;
-use patch_db::{DbHandle, LockReceipt, LockType, PatchDb};
+use patch_db::PatchDb;
 use reqwest::{Client, Proxy, Url};
 use rpc_toolkit::Context;
 use serde::Deserialize;
@@ -22,12 +19,12 @@ use tracing::instrument;
 
 use super::setup::CURRENT_SECRET;
 use crate::account::AccountInfo;
-use crate::config::hook::ConfigHook;
 use crate::core::rpc_continuations::{RequestGuid, RestHandler, RpcContinuation};
-use crate::db::model::{CurrentDependents, Database, InstalledPackageDataEntry, PackageDataEntry};
+use crate::db::model::{CurrentDependents, Database, PackageDataEntryMatchModelRef};
+use crate::db::prelude::PatchDbExt;
 use crate::disk::OsPartitionInfo;
 use crate::init::init_postgres;
-use crate::install::cleanup::{cleanup_failed, uninstall, CleanupFailedReceipts};
+use crate::install::cleanup::{cleanup_failed, uninstall};
 use crate::manager::ManagerMap;
 use crate::middleware::auth::HashSessionToken;
 use crate::net::net_controller::NetController;
@@ -35,7 +32,7 @@ use crate::net::ssl::SslManager;
 use crate::net::wifi::WpaCli;
 use crate::notifications::NotificationManager;
 use crate::shutdown::Shutdown;
-use crate::status::{MainStatus, Status};
+use crate::status::MainStatus;
 use crate::system::get_mem_info;
 use crate::util::config::load_config_from_paths;
 use crate::util::lshw::{lshw, LshwDevice};
@@ -113,7 +110,6 @@ pub struct RpcContextSeed {
     pub db: PatchDb,
     pub secret_store: PgPool,
     pub account: RwLock<AccountInfo>,
-    pub docker: Docker,
     pub net_controller: Arc<NetController>,
     pub managers: ManagerMap,
     pub metrics_cache: RwLock<Option<crate::system::Metrics>>,
@@ -124,7 +120,6 @@ pub struct RpcContextSeed {
     pub rpc_stream_continuations: Mutex<BTreeMap<RequestGuid, RpcContinuation>>,
     pub wifi_manager: Option<Arc<RwLock<WpaCli>>>,
     pub current_secret: Arc<Jwk>,
-    pub config_hooks: Mutex<BTreeMap<PackageId, Vec<ConfigHook>>>,
     pub client: Client,
     pub hardware: Hardware,
 }
@@ -134,49 +129,11 @@ pub struct Hardware {
     pub ram: u64,
 }
 
-pub struct RpcCleanReceipts {
-    cleanup_receipts: CleanupFailedReceipts,
-    packages: LockReceipt<crate::db::model::AllPackageData, ()>,
-    package: LockReceipt<crate::db::model::PackageDataEntry, String>,
-}
-
-impl RpcCleanReceipts {
-    pub async fn new<'a>(db: &'a mut impl DbHandle) -> Result<Self, Error> {
-        let mut locks = Vec::new();
-
-        let setup = Self::setup(&mut locks);
-        Ok(setup(&db.lock_all(locks).await?)?)
-    }
-
-    pub fn setup(
-        locks: &mut Vec<patch_db::LockTargetId>,
-    ) -> impl FnOnce(&patch_db::Verifier) -> Result<Self, Error> {
-        let cleanup_receipts = CleanupFailedReceipts::setup(locks);
-
-        let packages = crate::db::DatabaseModel::new()
-            .package_data()
-            .make_locker(LockType::Write)
-            .add_to_keys(locks);
-        let package = crate::db::DatabaseModel::new()
-            .package_data()
-            .star()
-            .make_locker(LockType::Write)
-            .add_to_keys(locks);
-        move |skeleton_key| {
-            Ok(Self {
-                cleanup_receipts: cleanup_receipts(skeleton_key)?,
-                packages: packages.verify(skeleton_key)?,
-                package: package.verify(skeleton_key)?,
-            })
-        }
-    }
-}
-
 #[derive(Clone)]
 pub struct RpcContext(Arc<RpcContextSeed>);
 impl RpcContext {
     #[instrument(skip_all)]
-    pub async fn init<P: AsRef<Path> + Send + 'static>(
+    pub async fn init<P: AsRef<Path> + Send + Sync + 'static>(
         cfg_path: Option<P>,
         disk_guid: Arc<String>,
     ) -> Result<Self, Error> {
@@ -192,9 +149,6 @@ impl RpcContext {
         let account = AccountInfo::load(&secret_store).await?;
         let db = base.db(&account).await?;
         tracing::info!("Opened PatchDB");
-        let mut docker = Docker::connect_with_unix_defaults()?;
-        docker.set_timeout(Duration::from_secs(600));
-        tracing::info!("Connected to Docker");
         let net_controller = Arc::new(
             NetController::init(
                 base.tor_control
@@ -212,7 +166,7 @@ impl RpcContext {
         );
         tracing::info!("Initialized Net Controller");
         let managers = ManagerMap::default();
-        let metrics_cache = RwLock::new(None);
+        let metrics_cache = RwLock::<Option<crate::system::Metrics>>::new(None);
         let notification_manager = NotificationManager::new(secret_store.clone());
         tracing::info!("Initialized Notification Manager");
         let tor_proxy_url = format!("socks5h://{tor_proxy}");
@@ -228,7 +182,6 @@ impl RpcContext {
             db,
             secret_store,
             account: RwLock::new(account),
-            docker,
             net_controller,
             managers,
             metrics_cache,
@@ -250,7 +203,6 @@ impl RpcContext {
                     )
                 })?,
             ),
-            config_hooks: Mutex::new(BTreeMap::new()),
             client: Client::builder()
                 .proxy(Proxy::custom(move |url| {
                     if url.host_str().map_or(false, |h| h.ends_with(".onion")) {
@@ -264,16 +216,11 @@ impl RpcContext {
             hardware: Hardware { devices, ram },
         });
 
-        let res = Self(seed);
+        let res = Self(seed.clone());
         res.cleanup().await?;
         tracing::info!("Cleaned up transient states");
-        res.managers
-            .init(
-                &res,
-                &mut res.db.handle(),
-                &mut res.secret_store.acquire().await?,
-            )
-            .await?;
+        let peeked = res.db.peek().await?;
+        res.managers.init(res.clone(), peeked).await?;
         tracing::info!("Initialized Package Managers");
         Ok(res)
     }
@@ -288,118 +235,103 @@ impl RpcContext {
         Ok(())
     }
 
-    #[instrument(skip_all)]
+    #[instrument(skip(self))]
     pub async fn cleanup(&self) -> Result<(), Error> {
-        let mut db = self.db.handle();
-        let receipts = RpcCleanReceipts::new(&mut db).await?;
-        let packages = receipts.packages.get(&mut db).await?.0;
-        let mut current_dependents = packages
-            .keys()
-            .map(|k| (k.clone(), BTreeMap::new()))
-            .collect::<BTreeMap<_, _>>();
-        for (package_id, package) in packages {
-            for (k, v) in package
-                .into_installed()
-                .into_iter()
-                .flat_map(|i| i.current_dependencies.0)
-            {
-                let mut entry: BTreeMap<_, _> = current_dependents.remove(&k).unwrap_or_default();
-                entry.insert(package_id.clone(), v);
-                current_dependents.insert(k, entry);
-            }
-        }
-        for (package_id, current_dependents) in current_dependents {
-            if let Some(deps) = crate::db::DatabaseModel::new()
-                .package_data()
-                .idx_model(&package_id)
-                .and_then(|pde| pde.installed())
-                .map::<_, CurrentDependents>(|i| i.current_dependents())
-                .check(&mut db)
-                .await?
-            {
-                deps.put(&mut db, &CurrentDependents(current_dependents))
-                    .await?;
-            } else if let Some(deps) = crate::db::DatabaseModel::new()
-                .package_data()
-                .idx_model(&package_id)
-                .and_then(|pde| pde.removing())
-                .map::<_, CurrentDependents>(|i| i.current_dependents())
-                .check(&mut db)
-                .await?
-            {
-                deps.put(&mut db, &CurrentDependents(current_dependents))
-                    .await?;
-            }
-        }
-        for (package_id, package) in receipts.packages.get(&mut db).await?.0 {
-            if let Err(e) = async {
-                match package {
-                    PackageDataEntry::Installing { .. }
-                    | PackageDataEntry::Restoring { .. }
-                    | PackageDataEntry::Updating { .. } => {
-                        cleanup_failed(self, &mut db, &package_id, &receipts.cleanup_receipts)
-                            .await?;
-                    }
-                    PackageDataEntry::Removing { .. } => {
-                        uninstall(
-                            self,
-                            &mut db,
-                            &mut self.secret_store.acquire().await?,
-                            &package_id,
-                        )
-                        .await?;
-                    }
-                    PackageDataEntry::Installed {
-                        installed,
-                        static_files,
-                        manifest,
-                    } => {
-                        for (volume_id, volume_info) in &*manifest.volumes {
-                            let tmp_path = to_tmp_path(volume_info.path_for(
-                                &self.datadir,
-                                &package_id,
-                                &manifest.version,
-                                &volume_id,
-                            ))
-                            .with_kind(ErrorKind::Filesystem)?;
-                            if tokio::fs::metadata(&tmp_path).await.is_ok() {
-                                tokio::fs::remove_dir_all(&tmp_path).await?;
-                            }
-                        }
-                        let status = installed.status;
-                        let main = match status.main {
-                            MainStatus::BackingUp { started, .. } => {
-                                if let Some(_) = started {
-                                    MainStatus::Starting
-                                } else {
-                                    MainStatus::Stopped
-                                }
-                            }
-                            MainStatus::Running { .. } => MainStatus::Starting,
-                            a => a.clone(),
-                        };
-                        let new_package = PackageDataEntry::Installed {
-                            installed: InstalledPackageDataEntry {
-                                status: Status { main, ..status },
-                                ..installed
-                            },
-                            static_files,
-                            manifest,
-                        };
-                        receipts
-                            .package
-                            .set(&mut db, new_package, &package_id)
-                            .await?;
+        self.db
+            .mutate(|f| {
+                let mut current_dependents = f
+                    .as_package_data()
+                    .keys()?
+                    .into_iter()
+                    .map(|k| (k.clone(), BTreeMap::new()))
+                    .collect::<BTreeMap<_, _>>();
+                for (package_id, package) in f.as_package_data_mut().as_entries_mut()? {
+                    for (k, v) in package
+                        .as_installed_mut()
+                        .into_iter()
+                        .flat_map(|i| i.clone().into_current_dependencies().into_entries())
+                        .flatten()
+                    {
+                        let mut entry: BTreeMap<_, _> =
+                            current_dependents.remove(&k).unwrap_or_default();
+                        entry.insert(package_id.clone(), v.de()?);
+                        current_dependents.insert(k, entry);
                     }
                 }
-                Ok::<_, Error>(())
-            }
-            .await
-            {
+                for (package_id, current_dependents) in current_dependents {
+                    if let Some(deps) = f
+                        .as_package_data_mut()
+                        .as_idx_mut(&package_id)
+                        .and_then(|pde| pde.expect_as_installed_mut().ok())
+                        .map(|i| i.as_installed_mut().as_current_dependents_mut())
+                    {
+                        deps.ser(&CurrentDependents(current_dependents))?;
+                    } else if let Some(deps) = f
+                        .as_package_data_mut()
+                        .as_idx_mut(&package_id)
+                        .and_then(|pde| pde.expect_as_removing_mut().ok())
+                        .map(|i| i.as_removing_mut().as_current_dependents_mut())
+                    {
+                        deps.ser(&CurrentDependents(current_dependents))?;
+                    }
+                }
+                Ok(())
+            })
+            .await?;
+        let peek = self.db.peek().await?;
+        for (package_id, package) in peek.as_package_data().as_entries()?.into_iter() {
+            let package = package.clone();
+            let action = match package.as_match() {
+                PackageDataEntryMatchModelRef::Installing(_)
+                | PackageDataEntryMatchModelRef::Restoring(_)
+                | PackageDataEntryMatchModelRef::Updating(_) => {
+                    cleanup_failed(self, &package_id).await
+                }
+                PackageDataEntryMatchModelRef::Removing(_) => {
+                    uninstall(self, &mut self.secret_store.acquire().await?, &package_id).await
+                }
+                PackageDataEntryMatchModelRef::Installed(m) => {
+                    let version = m.as_manifest().as_version().clone().de()?;
+                    let volumes = m.as_manifest().as_volumes().de()?;
+                    for (volume_id, volume_info) in &*volumes {
+                        let tmp_path = to_tmp_path(volume_info.path_for(
+                            &self.datadir,
+                            &package_id,
+                            &version,
+                            &volume_id,
+                        ))
+                        .with_kind(ErrorKind::Filesystem)?;
+                        if tokio::fs::metadata(&tmp_path).await.is_ok() {
+                            tokio::fs::remove_dir_all(&tmp_path).await?;
+                        }
+                    }
+                    Ok(())
+                }
+                _ => continue,
+            };
+            if let Err(e) = action {
                 tracing::error!("Failed to clean up package {}: {}", package_id, e);
                 tracing::debug!("{:?}", e);
             }
         }
+        self.db
+            .mutate(|v| {
+                for (_, pde) in v.as_package_data_mut().as_entries_mut()? {
+                    let status = pde
+                        .expect_as_installed_mut()?
+                        .as_installed_mut()
+                        .as_status_mut()
+                        .as_main_mut();
+                    let running = status.clone().de()?.running();
+                    status.ser(&if running {
+                        MainStatus::Starting
+                    } else {
+                        MainStatus::Stopped
+                    })?;
+                }
+                Ok(())
+            })
+            .await?;
         Ok(())
     }
 

@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fs::Permissions;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
@@ -7,19 +6,21 @@ use std::time::Duration;
 use color_eyre::eyre::eyre;
 use helpers::NonDetachingJoinHandle;
 use models::ResultExt;
-use patch_db::{DbHandle, LockReceipt, LockType};
 use rand::random;
 use sqlx::{Pool, Postgres};
 use tokio::process::Command;
+use tracing::instrument;
 
 use crate::account::AccountInfo;
 use crate::context::rpc::RpcContextConfig;
-use crate::db::model::{ServerInfo, ServerStatus};
+use crate::db::model::ServerStatus;
 use crate::disk::mount::util::unmount;
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
+use crate::prelude::*;
 use crate::sound::BEP;
 use crate::system::time;
+use crate::util::docker::{create_bridge_network, CONTAINER_DATADIR, CONTAINER_TOOL};
 use crate::util::Invoke;
 use crate::{Error, ARCH};
 
@@ -39,40 +40,8 @@ pub async fn check_time_is_synchronized() -> Result<bool, Error> {
         == "NTPSynchronized=yes")
 }
 
-pub struct InitReceipts {
-    pub server_info: LockReceipt<ServerInfo, ()>,
-    pub server_version: LockReceipt<crate::util::Version, ()>,
-    pub version_range: LockReceipt<emver::VersionRange, ()>,
-}
-impl InitReceipts {
-    pub async fn new(db: &mut impl DbHandle) -> Result<Self, Error> {
-        let mut locks = Vec::new();
-
-        let server_info = crate::db::DatabaseModel::new()
-            .server_info()
-            .make_locker(LockType::Write)
-            .add_to_keys(&mut locks);
-        let server_version = crate::db::DatabaseModel::new()
-            .server_info()
-            .version()
-            .make_locker(LockType::Write)
-            .add_to_keys(&mut locks);
-        let version_range = crate::db::DatabaseModel::new()
-            .server_info()
-            .eos_version_compat()
-            .make_locker(LockType::Write)
-            .add_to_keys(&mut locks);
-
-        let skeleton_key = db.lock_all(locks).await?;
-        Ok(Self {
-            server_info: server_info.verify(&skeleton_key)?,
-            server_version: server_version.verify(&skeleton_key)?,
-            version_range: version_range.verify(&skeleton_key)?,
-        })
-    }
-}
-
 // must be idempotent
+#[tracing::instrument(skip_all)]
 pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
     let db_dir = datadir.as_ref().join("main/postgresql");
     if tokio::process::Command::new("mountpoint")
@@ -133,7 +102,11 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
             tmp
         };
         if tokio::fs::metadata(&conf_dir).await.is_ok() {
-            tokio::fs::rename(&conf_dir, &conf_dir_tmp).await?;
+            Command::new("mv")
+                .arg(&conf_dir)
+                .arg(&conf_dir_tmp)
+                .invoke(ErrorKind::Filesystem)
+                .await?;
         }
         let mut old_version = pg_version;
         while old_version > 13
@@ -154,7 +127,11 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
             if tokio::fs::metadata(&conf_dir).await.is_ok() {
                 tokio::fs::remove_dir_all(&conf_dir).await?;
             }
-            tokio::fs::rename(&conf_dir_tmp, &conf_dir).await?;
+            Command::new("mv")
+                .arg(&conf_dir_tmp)
+                .arg(&conf_dir)
+                .invoke(ErrorKind::Filesystem)
+                .await?;
         }
     }
 
@@ -190,6 +167,7 @@ pub struct InitResult {
     pub db: patch_db::PatchDb,
 }
 
+#[instrument(skip_all)]
 pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     tokio::fs::create_dir_all("/run/embassy")
         .await
@@ -222,13 +200,14 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
 
     let account = AccountInfo::load(&secret_store).await?;
     let db = cfg.db(&account).await?;
+    db.mutate(|d| {
+        let model = d.de()?;
+        d.ser(&model)
+    })
+    .await?;
     tracing::info!("Opened PatchDB");
-    let mut handle = db.handle();
-    let mut server_info = crate::db::DatabaseModel::new()
-        .server_info()
-        .get_mut(&mut handle)
-        .await?;
-    let receipts = InitReceipts::new(&mut handle).await?;
+    let peek = db.peek().await?;
+    let mut server_info = peek.as_server_info().de()?;
 
     // write to ca cert store
     tokio::fs::write(
@@ -289,51 +268,42 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     if tokio::fs::metadata(&tmp_dir).await.is_err() {
         tokio::fs::create_dir_all(&tmp_dir).await?;
     }
-    let tmp_docker = cfg.datadir().join("package-data/tmp/docker");
+    let tmp_docker = cfg
+        .datadir()
+        .join(format!("package-data/tmp/{CONTAINER_TOOL}"));
     let tmp_docker_exists = tokio::fs::metadata(&tmp_docker).await.is_ok();
     if should_rebuild && tmp_docker_exists {
         tokio::fs::remove_dir_all(&tmp_docker).await?;
     }
-    Command::new("systemctl")
-        .arg("stop")
-        .arg("docker")
-        .invoke(crate::ErrorKind::Docker)
-        .await?;
-    crate::disk::mount::util::bind(&tmp_docker, "/var/lib/docker", false).await?;
-    Command::new("systemctl")
-        .arg("reset-failed")
-        .arg("docker")
-        .invoke(crate::ErrorKind::Docker)
-        .await?;
-    Command::new("systemctl")
-        .arg("start")
-        .arg("docker")
-        .invoke(crate::ErrorKind::Docker)
-        .await?;
+    if CONTAINER_TOOL == "docker" {
+        Command::new("systemctl")
+            .arg("stop")
+            .arg("docker")
+            .invoke(crate::ErrorKind::Docker)
+            .await?;
+    }
+    crate::disk::mount::util::bind(&tmp_docker, CONTAINER_DATADIR, false).await?;
+
+    if CONTAINER_TOOL == "docker" {
+        Command::new("systemctl")
+            .arg("reset-failed")
+            .arg("docker")
+            .invoke(crate::ErrorKind::Docker)
+            .await?;
+        Command::new("systemctl")
+            .arg("start")
+            .arg("docker")
+            .invoke(crate::ErrorKind::Docker)
+            .await?;
+    }
     tracing::info!("Mounted Docker Data");
 
     if should_rebuild || !tmp_docker_exists {
-        tracing::info!("Creating Docker Network");
-        bollard::Docker::connect_with_unix_defaults()?
-            .create_network(bollard::network::CreateNetworkOptions {
-                name: "start9",
-                driver: "bridge",
-                ipam: bollard::models::Ipam {
-                    config: Some(vec![bollard::models::IpamConfig {
-                        subnet: Some("172.18.0.1/24".into()),
-                        ..Default::default()
-                    }]),
-                    ..Default::default()
-                },
-                options: {
-                    let mut m = HashMap::new();
-                    m.insert("com.docker.network.bridge.name", "br-start9");
-                    m
-                },
-                ..Default::default()
-            })
-            .await?;
-        tracing::info!("Created Docker Network");
+        if CONTAINER_TOOL == "docker" {
+            tracing::info!("Creating Docker Network");
+            create_bridge_network("start9", "172.18.0.1/24", "br-start9").await?;
+            tracing::info!("Created Docker Network");
+        }
 
         tracing::info!("Loading System Docker Images");
         crate::install::load_images("/usr/lib/embassy/system-images").await?;
@@ -344,8 +314,23 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         tracing::info!("Loaded Package Docker Images");
     }
 
+    if CONTAINER_TOOL == "podman" {
+        crate::util::docker::remove_container("netdummy", true).await?;
+        Command::new("podman")
+            .arg("run")
+            .arg("-d")
+            .arg("--rm")
+            .arg("--network=start9")
+            .arg("--name=netdummy")
+            .arg("start9/x_system/utils:latest")
+            .arg("sleep")
+            .arg("infinity")
+            .invoke(crate::ErrorKind::Docker)
+            .await?;
+    }
+
     tracing::info!("Enabling Docker QEMU Emulation");
-    Command::new("docker")
+    Command::new(CONTAINER_TOOL)
         .arg("run")
         .arg("--privileged")
         .arg("--rm")
@@ -382,9 +367,13 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
 
     server_info.system_start_time = time().await?;
 
-    server_info.save(&mut handle).await?;
+    db.mutate(|v| {
+        v.as_server_info_mut().ser(&server_info)?;
+        Ok(())
+    })
+    .await?;
 
-    crate::version::init(&mut handle, &secret_store, &receipts).await?;
+    crate::version::init(&db, &secret_store).await?;
 
     if should_rebuild {
         match tokio::fs::remove_file(SYSTEM_REBUILD_PATH).await {

@@ -23,8 +23,8 @@ async fn compat(
     if let Some((package, interface)) = interface {
         if let Some(r) = sqlx::query!(
             "SELECT key FROM tor WHERE package = $1 AND interface = $2",
-            **package,
-            **interface
+            package,
+            interface
         )
         .fetch_optional(secrets)
         .await?
@@ -33,16 +33,14 @@ async fn compat(
         } else {
             Ok(None)
         }
+    } else if let Some(key) = sqlx::query!("SELECT tor_key FROM account WHERE id = 0")
+        .fetch_one(secrets)
+        .await?
+        .tor_key
+    {
+        Ok(Some(ExpandedSecretKey::from_bytes(&key)?))
     } else {
-        if let Some(key) = sqlx::query!("SELECT tor_key FROM account WHERE id = 0")
-            .fetch_one(secrets)
-            .await?
-            .tor_key
-        {
-            Ok(Some(ExpandedSecretKey::from_bytes(&key)?))
-        } else {
-            Ok(None)
-        }
+        Ok(None)
     }
 }
 
@@ -152,7 +150,7 @@ impl Key {
                 WHERE
                     network_keys.package = $1
             "#,
-            **package
+            package
         )
         .fetch_all(secrets)
         .await?
@@ -197,8 +195,8 @@ impl Key {
             let k = tentative.as_slice();
             let actual = sqlx::query!(
                 "INSERT INTO network_keys (package, interface, key) VALUES ($1, $2, $3) ON CONFLICT (package, interface) DO UPDATE SET package = EXCLUDED.package RETURNING key",
-                **pkg,
-                **iface,
+                pkg,
+                iface,
                 k,
             )
             .fetch_one(&mut *secrets)

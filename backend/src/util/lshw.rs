@@ -44,6 +44,20 @@ pub async fn lshw() -> Result<Vec<LshwDevice>, Error> {
     for class in KNOWN_CLASSES {
         cmd.arg("-class").arg(*class);
     }
-    serde_json::from_slice(&cmd.invoke(crate::ErrorKind::Lshw).await?)
-        .with_kind(crate::ErrorKind::Deserialization)
+    Ok(
+        serde_json::from_slice::<Vec<serde_json::Value>>(
+            &cmd.invoke(crate::ErrorKind::Lshw).await?,
+        )
+        .with_kind(crate::ErrorKind::Deserialization)?
+        .into_iter()
+        .filter_map(|v| match serde_json::from_value(v) {
+            Ok(a) => Some(a),
+            Err(e) => {
+                tracing::error!("Failed to parse lshw output: {e}");
+                tracing::debug!("{e:?}");
+                None
+            }
+        })
+        .collect(),
+    )
 }

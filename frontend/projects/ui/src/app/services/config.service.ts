@@ -21,6 +21,10 @@ export class ConfigService {
   constructor(@Inject(DOCUMENT) private readonly document: Document) {}
 
   hostname = this.document.location.hostname
+  // includes port
+  host = this.document.location.host
+  // includes ":" (e.g. "http:")
+  protocol = this.document.location.protocol
   version = require('../../../../../package.json').version as string
   useMocks = useMocks
   mocks = mocks
@@ -34,21 +38,40 @@ export class ConfigService {
   supportsWebSockets = !!window.WebSocket || this.isConsulate
 
   isTor(): boolean {
-    return (
-      this.hostname.endsWith('.onion') || (useMocks && mocks.maskAs === 'tor')
-    )
+    return useMocks ? mocks.maskAs === 'tor' : this.hostname.endsWith('.onion')
+  }
+
+  isLocal(): boolean {
+    return useMocks
+      ? mocks.maskAs === 'local'
+      : this.hostname.endsWith('.local')
+  }
+
+  isLocalhost(): boolean {
+    return useMocks
+      ? mocks.maskAs === 'localhost'
+      : this.hostname === 'localhost'
   }
 
   isLan(): boolean {
-    return (
-      this.hostname === 'localhost' ||
-      this.hostname.endsWith('.local') ||
-      (useMocks && mocks.maskAs === 'lan')
-    )
+    // @TODO will not work once clearnet arrives
+    return !this.isTor()
+  }
+
+  isTorHttp(): boolean {
+    return this.isTor() && !this.isHttps()
+  }
+
+  isLocalHttp(): boolean {
+    return this.isLocal() && !this.isHttps()
   }
 
   isSecure(): boolean {
     return window.isSecureContext || this.isTor()
+  }
+
+  private isHttps(): boolean {
+    return useMocks ? mocks.maskAsHttps : this.protocol === 'https:'
   }
 }
 

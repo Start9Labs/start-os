@@ -3,8 +3,9 @@ use emver::VersionRange;
 use lazy_static::lazy_static;
 
 use super::*;
+use crate::prelude::*;
 
-const V0_3_4_3: emver::Version = emver::Version::new(0, 3, 4, 3);
+const V0_3_5: emver::Version = emver::Version::new(0, 3, 5, 0);
 lazy_static! {
     static ref V0_3_0_COMPAT: VersionRange = VersionRange::Conj(
         Box::new(VersionRange::Anchor(
@@ -25,15 +26,15 @@ impl VersionT for Version {
         Version
     }
     fn semver(&self) -> emver::Version {
-        V0_3_4_3
+        V0_3_5
     }
     fn compat(&self) -> &'static VersionRange {
-        &*V0_3_0_COMPAT
+        &V0_3_0_COMPAT
     }
-    async fn up<Db: DbHandle>(&self, db: &mut Db, _secrets: &PgPool) -> Result<(), Error> {
+    async fn up(&self, _db: &PatchDb, _secrets: &PgPool) -> Result<(), Error> {
         Ok(())
     }
-    async fn down<Db: DbHandle>(&self, _db: &mut Db, _secrets: &PgPool) -> Result<(), Error> {
+    async fn down(&self, _db: &PatchDb, _secrets: &PgPool) -> Result<(), Error> {
         Ok(())
     }
 }

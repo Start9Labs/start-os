@@ -36,6 +36,11 @@
                 "input": "node_modules/monaco-editor",
                 "output": "assets/monaco-editor/"
               },
+              {
+                "glob": "**/*",
+                "input": "node_modules/@taiga-ui/icons/src",
+                "output": "assets/taiga-ui/icons"
+              },
               "projects/ui/src/manifest.webmanifest",
               {
                 "glob": "ngsw.json",

@@ -20,8 +20,6 @@ import { AppShowHealthChecksComponent } from './components/app-show-health-check
 import { AppShowAdditionalComponent } from './components/app-show-additional/app-show-additional.component'
 import { HealthColorPipe } from './pipes/health-color.pipe'
 import { ToButtonsPipe } from './pipes/to-buttons.pipe'
-import { ToDependenciesPipe } from './pipes/to-dependencies.pipe'
-import { ToStatusPipe } from './pipes/to-status.pipe'
 import { ProgressDataPipe } from './pipes/progress-data.pipe'
 import { InsecureWarningComponentModule } from 'src/app/common/insecure-warning/insecure-warning.module'
 import { LaunchMenuComponentModule } from '../launch-menu/launch-menu.module'
@@ -39,8 +37,6 @@ const routes: Routes = [
     HealthColorPipe,
     ProgressDataPipe,
     ToButtonsPipe,
-    ToDependenciesPipe,
-    ToStatusPipe,
     AppShowHeaderComponent,
     AppShowProgressComponent,
     AppShowStatusComponent,

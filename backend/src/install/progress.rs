@@ -6,14 +6,16 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
 
-use patch_db::{DbHandle, HasModel, OptionModel, PatchDb};
+use models::{OptionExt, PackageId};
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWrite};
 
-use crate::Error;
+use crate::db::model::Database;
+use crate::prelude::*;
 
 #[derive(Debug, Deserialize, Serialize, HasModel, Default)]
 #[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
 pub struct InstallProgress {
     pub size: Option<u64>,
     pub downloaded: AtomicU64,
@@ -24,8 +26,8 @@ pub struct InstallProgress {
     pub unpack_complete: AtomicBool,
 }
 impl InstallProgress {
-    pub fn new(size: Option<u64>) -> Arc<Self> {
-        Arc::new(InstallProgress {
+    pub fn new(size: Option<u64>) -> Self {
+        InstallProgress {
             size,
             downloaded: AtomicU64::new(0),
             download_complete: AtomicBool::new(false),
@@ -33,26 +35,25 @@ impl InstallProgress {
             validation_complete: AtomicBool::new(false),
             unpacked: AtomicU64::new(0),
             unpack_complete: AtomicBool::new(false),
-        })
+        }
     }
     pub fn download_complete(&self) {
         self.download_complete.store(true, Ordering::SeqCst)
     }
-    pub async fn track_download<Db: DbHandle>(
-        self: Arc<Self>,
-        model: OptionModel<InstallProgress>,
-        mut db: Db,
-    ) -> Result<(), Error> {
+    pub async fn track_download(self: Arc<Self>, db: PatchDb, id: PackageId) -> Result<(), Error> {
+        let update = |d: &mut Model<Database>| {
+            d.as_package_data_mut()
+                .as_idx_mut(&id)
+                .or_not_found(&id)?
+                .as_install_progress_mut()
+                .or_not_found("install-progress")?
+                .ser(&self)
+        };
         while !self.download_complete.load(Ordering::SeqCst) {
-            let mut tx = db.begin().await?;
-            model.put(&mut tx, &self).await?;
-            tx.save().await?;
-            tokio::time::sleep(Duration::from_secs(1)).await;
+            db.mutate(&update).await?;
+            tokio::time::sleep(Duration::from_millis(300)).await;
         }
-        let mut tx = db.begin().await?;
-        model.put(&mut tx, &self).await?;
-        tx.save().await?;
-        Ok(())
+        db.mutate(&update).await
     }
     pub async fn track_download_during<
         F: FnOnce() -> Fut,
@@ -60,33 +61,35 @@ impl InstallProgress {
         T,
     >(
         self: &Arc<Self>,
-        model: OptionModel<InstallProgress>,
-        db: &PatchDb,
+        db: PatchDb,
+        id: &PackageId,
         f: F,
     ) -> Result<T, Error> {
-        let local_db = db.handle();
-        let tracker = tokio::spawn(self.clone().track_download(model.clone(), local_db));
+        let tracker = tokio::spawn(self.clone().track_download(db.clone(), id.clone()));
         let res = f().await;
         self.download_complete.store(true, Ordering::SeqCst);
         tracker.await.unwrap()?;
         res
     }
-    pub async fn track_read<Db: DbHandle>(
+    pub async fn track_read(
         self: Arc<Self>,
-        model: OptionModel<InstallProgress>,
-        mut db: Db,
+        db: PatchDb,
+        id: PackageId,
         complete: Arc<AtomicBool>,
     ) -> Result<(), Error> {
+        let update = |d: &mut Model<Database>| {
+            d.as_package_data_mut()
+                .as_idx_mut(&id)
+                .or_not_found(&id)?
+                .as_install_progress_mut()
+                .or_not_found("install-progress")?
+                .ser(&self)
+        };
         while !complete.load(Ordering::SeqCst) {
-            let mut tx = db.begin().await?;
-            model.put(&mut tx, &self).await?;
-            tx.save().await?;
-            tokio::time::sleep(Duration::from_secs(1)).await;
+            db.mutate(&update).await?;
+            tokio::time::sleep(Duration::from_millis(300)).await;
         }
-        let mut tx = db.begin().await?;
-        model.put(&mut tx, &self).await?;
-        tx.save().await?;
-        Ok(())
+        db.mutate(&update).await
     }
     pub async fn track_read_during<
         F: FnOnce() -> Fut,
@@ -94,15 +97,14 @@ impl InstallProgress {
         T,
     >(
         self: &Arc<Self>,
-        model: OptionModel<InstallProgress>,
-        db: &PatchDb,
+        db: PatchDb,
+        id: &PackageId,
         f: F,
     ) -> Result<T, Error> {
-        let local_db = db.handle();
         let complete = Arc::new(AtomicBool::new(false));
         let tracker = tokio::spawn(self.clone().track_read(
-            model.clone(),
-            local_db,
+            db.clone(),
+            id.clone(),
             complete.clone(),
         ));
         let res = f().await;

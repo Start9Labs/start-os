@@ -1,8 +1,0 @@
-[Unit]
-Description=Slice that limits docker resources 
-Before=slices.target
-
-[Slice]
-MemoryAccounting=true
-MemoryHigh=80%
-MemoryMax=85%

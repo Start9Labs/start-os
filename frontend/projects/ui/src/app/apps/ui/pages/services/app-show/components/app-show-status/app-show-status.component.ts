@@ -24,7 +24,6 @@ import {
   AppConfigPage,
   PackageConfigData,
 } from '../../modals/app-config/app-config.page'
-import { DependencyInfo } from '../../pipes/to-dependencies.pipe'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
 import { ConnectionService } from 'src/app/services/connection.service'
 import { PatchDB } from 'patch-db-client'
@@ -45,8 +44,7 @@ export class AppShowStatusComponent {
   @Input()
   status!: PackageStatus
 
-  @Input()
-  dependencies: DependencyInfo[] = []
+  PR = PrimaryRendering
 
   readonly connected$ = this.connectionService.connected$
 
@@ -101,7 +99,7 @@ export class AppShowStatusComponent {
   }
 
   async tryStart(): Promise<void> {
-    if (this.dependencies.some(d => !!d.errorText)) {
+    if (this.status.dependency === 'warning') {
       const depErrMsg = `${this.pkg.manifest.title} has unmet dependencies. It will not work as expected.`
       const proceed = await this.presentAlertStart(depErrMsg)
 

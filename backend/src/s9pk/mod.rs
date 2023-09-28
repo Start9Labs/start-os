@@ -28,7 +28,7 @@ pub mod header;
 pub mod manifest;
 pub mod reader;
 
-pub const SIG_CONTEXT: &'static [u8] = b"s9pk";
+pub const SIG_CONTEXT: &[u8] = b"s9pk";
 
 #[command(cli_only, display(display_none))]
 #[instrument(skip_all)]

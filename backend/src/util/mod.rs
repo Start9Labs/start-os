@@ -24,13 +24,14 @@ use tracing::instrument;
 use crate::shutdown::Shutdown;
 use crate::{Error, ErrorKind, ResultExt as _};
 pub mod config;
+pub mod docker;
 pub mod http_reader;
 pub mod io;
 pub mod logger;
 pub mod lshw;
 pub mod serde;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, ::serde::Deserialize, ::serde::Serialize)]
 pub enum Never {}
 impl Never {}
 impl Never {
@@ -170,9 +171,7 @@ impl<W: std::fmt::Write> std::io::Write for FmtWriter<W> {
     }
 }
 
-pub fn display_none<T>(_: T, _: &ArgMatches) {
-    ()
-}
+pub fn display_none<T>(_: T, _: &ArgMatches) {}
 
 pub struct Container<T>(RwLock<Option<T>>);
 impl<T> Container<T> {
@@ -183,7 +182,7 @@ impl<T> Container<T> {
         std::mem::replace(&mut *self.0.write().await, Some(value))
     }
     pub async fn take(&self) -> Option<T> {
-        std::mem::replace(&mut *self.0.write().await, None)
+        self.0.write().await.take()
     }
     pub async fn is_empty(&self) -> bool {
         self.0.read().await.is_none()
@@ -220,7 +219,7 @@ impl<H: Digest, W: tokio::io::AsyncWrite> tokio::io::AsyncWrite for HashWriter<H
         buf: &[u8],
     ) -> Poll<std::io::Result<usize>> {
         let this = self.project();
-        let written = tokio::io::AsyncWrite::poll_write(this.writer, cx, &buf);
+        let written = tokio::io::AsyncWrite::poll_write(this.writer, cx, buf);
         match written {
             // only update the hasher once
             Poll::Ready(res) => {
@@ -256,6 +255,29 @@ where
     }
 }
 
+pub struct GeneralBoxedGuard(Option<Box<dyn FnOnce() + Send + Sync>>);
+impl GeneralBoxedGuard {
+    pub fn new(f: impl FnOnce() + 'static + Send + Sync) -> Self {
+        GeneralBoxedGuard(Some(Box::new(f)))
+    }
+
+    pub fn drop(mut self) {
+        self.0.take().unwrap()()
+    }
+
+    pub fn drop_without_action(mut self) {
+        self.0 = None;
+    }
+}
+
+impl Drop for GeneralBoxedGuard {
+    fn drop(&mut self) {
+        if let Some(destroy) = self.0.take() {
+            destroy();
+        }
+    }
+}
+
 pub struct GeneralGuard<F: FnOnce() -> T, T = ()>(Option<F>);
 impl<F: FnOnce() -> T, T> GeneralGuard<F, T> {
     pub fn new(f: F) -> Self {
@@ -272,29 +294,6 @@ impl<F: FnOnce() -> T, T> GeneralGuard<F, T> {
 }
 
 impl<F: FnOnce() -> T, T> Drop for GeneralGuard<F, T> {
-    fn drop(&mut self) {
-        if let Some(destroy) = self.0.take() {
-            destroy();
-        }
-    }
-}
-
-pub struct GeneralBoxedGuard(Option<Box<dyn FnOnce() -> ()>>);
-impl GeneralBoxedGuard {
-    pub fn new(f: impl FnOnce() -> () + 'static) -> Self {
-        GeneralBoxedGuard(Some(Box::new(f)))
-    }
-
-    pub fn drop(mut self) -> () {
-        self.0.take().unwrap()()
-    }
-
-    pub fn drop_without_action(mut self) {
-        self.0 = None;
-    }
-}
-
-impl Drop for GeneralBoxedGuard {
     fn drop(&mut self) {
         if let Some(destroy) = self.0.take() {
             destroy();

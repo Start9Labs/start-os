@@ -2,46 +2,31 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use color_eyre::eyre::eyre;
-use patch_db::DbHandle;
-use sqlx::{Executor, Postgres};
 use tokio::sync::RwLock;
 use tracing::instrument;
 
 use super::Manager;
 use crate::context::RpcContext;
+use crate::prelude::*;
 use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::util::Version;
 use crate::Error;
 
+/// This is the structure to contain all the service managers
 #[derive(Default)]
 pub struct ManagerMap(RwLock<BTreeMap<(PackageId, Version), Arc<Manager>>>);
 impl ManagerMap {
     #[instrument(skip_all)]
-    pub async fn init<Db: DbHandle, Ex>(
-        &self,
-        ctx: &RpcContext,
-        db: &mut Db,
-        secrets: &mut Ex,
-    ) -> Result<(), Error>
-    where
-        for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
-    {
+    pub async fn init(&self, ctx: RpcContext, peeked: Peeked) -> Result<(), Error> {
         let mut res = BTreeMap::new();
-        for package in crate::db::DatabaseModel::new()
-            .package_data()
-            .keys(db)
-            .await?
-        {
-            let man: Manifest = if let Some(manifest) = crate::db::DatabaseModel::new()
-                .package_data()
-                .idx_model(&package)
-                .and_then(|pkg| pkg.installed())
-                .map(|m| m.manifest())
-                .get(db)
-                .await?
-                .to_owned()
+        for package in peeked.as_package_data().keys()? {
+            let man: Manifest = if let Some(manifest) = peeked
+                .as_package_data()
+                .as_idx(&package)
+                .and_then(|x| x.as_installed())
+                .map(|x| x.as_manifest().de())
             {
-                manifest
+                manifest?
             } else {
                 continue;
             };
@@ -55,17 +40,20 @@ impl ManagerMap {
         Ok(())
     }
 
+    /// Used during the install process
     #[instrument(skip_all)]
-    pub async fn add(&self, ctx: RpcContext, manifest: Manifest) -> Result<(), Error> {
+    pub async fn add(&self, ctx: RpcContext, manifest: Manifest) -> Result<Arc<Manager>, Error> {
         let mut lock = self.0.write().await;
         let id = (manifest.id.clone(), manifest.version.clone());
         if let Some(man) = lock.remove(&id) {
             man.exit().await;
         }
-        lock.insert(id, Arc::new(Manager::new(ctx, manifest).await?));
-        Ok(())
+        let manager = Arc::new(Manager::new(ctx.clone(), manifest).await?);
+        lock.insert(id, manager.clone());
+        Ok(manager)
     }
 
+    /// This is ran during the cleanup, so when we are uninstalling the service
     #[instrument(skip_all)]
     pub async fn remove(&self, id: &(PackageId, Version)) {
         if let Some(man) = self.0.write().await.remove(id) {
@@ -73,13 +61,14 @@ impl ManagerMap {
         }
     }
 
+    /// Used during a shutdown
     #[instrument(skip_all)]
     pub async fn empty(&self) -> Result<(), Error> {
         let res =
             futures::future::join_all(std::mem::take(&mut *self.0.write().await).into_iter().map(
                 |((id, version), man)| async move {
                     tracing::debug!("Manager for {}@{} shutting down", id, version);
-                    man.exit().await;
+                    man.shutdown().await?;
                     tracing::debug!("Manager for {}@{} is shutdown", id, version);
                     if let Err(e) = Arc::try_unwrap(man) {
                         tracing::trace!(

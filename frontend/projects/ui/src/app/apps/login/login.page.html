@@ -1,54 +1,81 @@
 <ion-content class="content">
-  <ion-grid class="grid">
-    <ion-row class="row">
-      <ion-col>
-        <img src="assets/img/logo.png" alt="Start9" class="logo" />
+  <!-- Local HTTP -->
+  <ng-container *ngIf="config.isLocalHttp(); else notLanHttp">
+    <ca-wizard></ca-wizard>
+  </ng-container>
 
-        <ion-card class="card">
-          <ion-card-header>
-            <ion-card-title class="title">StartOS Login</ion-card-title>
-          </ion-card-header>
+  <!-- not Local HTTP -->
+  <ng-template #notLanHttp>
+    <div *ngIf="config.isTorHttp()" class="banner">
+      <ion-item color="warning">
+        <ion-icon slot="start" name="warning-outline"></ion-icon>
+        <ion-label>
+          <h2 style="font-weight: bold">Http detected</h2>
+          <p style="font-weight: 600">Tor is faster over https.</p>
+        </ion-label>
+        <ion-button slot="end" color="light" (click)="launchHttps()">
+          Open Https
+          <ion-icon slot="end" name="open-outline"></ion-icon>
+        </ion-button>
+      </ion-item>
+    </div>
 
-          <ion-card-content class="ion-margin">
-            <form class="form" (submit)="submit()">
-              <ion-item-group>
-                <ion-item color="dark">
-                  <ion-icon
-                    slot="start"
-                    name="key-outline"
-                    style="margin-right: 16px"
-                  ></ion-icon>
-                  <ion-input
-                    name="password"
-                    placeholder="Password"
-                    [type]="unmasked ? 'text' : 'password'"
-                    [(ngModel)]="password"
-                    (ionChange)="error = ''"
-                  ></ion-input>
-                  <ion-button fill="clear" color="light" (click)="toggleMask()">
+    <ion-grid class="grid">
+      <ion-row class="row">
+        <ion-col>
+          <img src="assets/img/logo.png" alt="Start9" class="logo" />
+
+          <ion-card class="card">
+            <ion-card-header>
+              <ion-card-title class="title">StartOS Login</ion-card-title>
+            </ion-card-header>
+
+            <ion-card-content class="ion-margin">
+              <form class="form" (submit)="submit()">
+                <ion-item-group>
+                  <ion-item color="dark" class="login-item">
                     <ion-icon
-                      slot="icon-only"
-                      size="small"
-                      [name]="unmasked ? 'eye-off-outline' : 'eye-outline'"
+                      slot="start"
+                      name="key-outline"
+                      style="margin-right: 16px"
                     ></ion-icon>
-                  </ion-button>
-                </ion-item>
-              </ion-item-group>
-              <ion-button
-                class="login-button"
-                type="submit"
-                expand="block"
-                color="tertiary"
-              >
-                Login
-              </ion-button>
-            </form>
-            <p class="error">
-              <ion-text color="danger">{{ error }}</ion-text>
-            </p>
-          </ion-card-content>
-        </ion-card>
-      </ion-col>
-    </ion-row>
-  </ion-grid>
+                    <ion-input
+                      name="password"
+                      placeholder="Password"
+                      [type]="unmasked ? 'text' : 'password'"
+                      [(ngModel)]="password"
+                      (ionChange)="error = ''"
+                      maxlength="64"
+                    ></ion-input>
+                    <ion-button
+                      fill="clear"
+                      color="light"
+                      (click)="unmasked = !unmasked"
+                    >
+                      <ion-icon
+                        slot="icon-only"
+                        size="small"
+                        [name]="unmasked ? 'eye-off-outline' : 'eye-outline'"
+                      ></ion-icon>
+                    </ion-button>
+                  </ion-item>
+                </ion-item-group>
+                <ion-button
+                  class="login-button side-button"
+                  type="submit"
+                  expand="block"
+                  color="tertiary"
+                >
+                  Login
+                </ion-button>
+              </form>
+              <p class="error">
+                <ion-text color="danger">{{ error }}</ion-text>
+              </p>
+            </ion-card-content>
+          </ion-card>
+        </ion-col>
+      </ion-row>
+    </ion-grid>
+  </ng-template>
 </ion-content>

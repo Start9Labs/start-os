@@ -44,9 +44,7 @@ export class ServerShowPage {
   readonly showUpdate$ = this.eosService.showUpdate$
   readonly showDiskRepair$ = this.ClientStorageService.showDiskRepair$
 
-  readonly secure = this.config.isSecure()
-  readonly isTorHttp =
-    this.config.isTor() && this.document.location.protocol === 'http:'
+  readonly isTorHttp = this.config.isTorHttp()
 
   constructor(
     private readonly alertCtrl: AlertController,
@@ -316,6 +314,11 @@ export class ServerShowPage {
     await alert.present()
   }
 
+  async launchHttps() {
+    const { 'tor-address': torAddress } = await getServerInfo(this.patch)
+    window.open(torAddress)
+  }
+
   private async setName(value: string | null): Promise<void> {
     const loader = await this.loadingCtrl.create({
       message: 'Saving...',
@@ -520,7 +523,7 @@ export class ServerShowPage {
         icon: 'key-outline',
         action: () => this.presentAlertResetPassword(),
         detail: false,
-        disabled$: of(!this.secure),
+        disabled$: of(false),
       },
       {
         title: 'Experimental Features',

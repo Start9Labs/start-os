@@ -4,16 +4,16 @@ use std::sync::{Arc, Weak};
 
 use color_eyre::eyre::eyre;
 use models::InterfaceId;
-use patch_db::{DbHandle, LockType, PatchDb};
+use patch_db::PatchDb;
 use sqlx::PgExecutor;
 use tracing::instrument;
 
+use crate::db::prelude::PatchDbExt;
 use crate::error::ErrorCollection;
 use crate::hostname::Hostname;
 use crate::net::dns::DnsController;
 use crate::net::forward::LpfController;
 use crate::net::keys::Key;
-#[cfg(feature = "avahi")]
 use crate::net::mdns::MdnsController;
 use crate::net::ssl::{export_cert, export_key, SslManager};
 use crate::net::tor::TorController;
@@ -24,7 +24,6 @@ use crate::{Error, HOST_IP};
 
 pub struct NetController {
     pub(super) tor: TorController,
-    #[cfg(feature = "avahi")]
     pub(super) mdns: MdnsController,
     pub(super) vhost: VHostController,
     pub(super) dns: DnsController,
@@ -46,7 +45,6 @@ impl NetController {
         let ssl = Arc::new(ssl);
         let mut res = Self {
             tor: TorController::new(tor_control, tor_socks),
-            #[cfg(feature = "avahi")]
             mdns: MdnsController::init().await?,
             vhost: VHostController::new(ssl.clone()),
             dns: DnsController::init(dns_bind).await?,
@@ -206,14 +204,12 @@ impl NetController {
                 )
                 .await?,
         );
-        #[cfg(feature = "avahi")]
         rcs.push(self.mdns.add(key.base_address()).await?);
         Ok(rcs)
     }
 
     async fn remove_lan(&self, key: &Key, external: u16, rcs: Vec<Arc<()>>) -> Result<(), Error> {
         drop(rcs);
-        #[cfg(feature = "avahi")]
         self.mdns.gc(key.base_address()).await?;
         self.vhost.gc(Some(key.local_address()), external).await
     }
@@ -321,18 +317,19 @@ impl NetService {
     }
     pub async fn add_lpf(&mut self, db: &PatchDb, internal: u16) -> Result<u16, Error> {
         let ctrl = self.net_controller()?;
-        let mut db = db.handle();
-        let lpf_model = crate::db::DatabaseModel::new().lan_port_forwards();
-        lpf_model.lock(&mut db, LockType::Write).await?; // TODO: replace all this with an RMW
-        let mut lpf = lpf_model.get_mut(&mut db).await?;
-        let external = lpf.alloc(self.id.clone(), internal).ok_or_else(|| {
-            Error::new(
-                eyre!("No ephemeral ports available"),
-                crate::ErrorKind::Network,
-            )
-        })?;
-        lpf.save(&mut db).await?;
-        drop(db);
+        let external = db
+            .mutate(|db| {
+                let mut lpf = db.as_lan_port_forwards().de()?;
+                let external = lpf.alloc(self.id.clone(), internal).ok_or_else(|| {
+                    Error::new(
+                        eyre!("No ephemeral ports available"),
+                        crate::ErrorKind::Network,
+                    )
+                })?;
+                db.as_lan_port_forwards_mut().ser(&lpf)?;
+                Ok(external)
+            })
+            .await?;
         let rc = ctrl.add_lpf(external, (self.ip, internal).into()).await?;
         let (_, mut lpfs) = self.lpf.remove(&internal).unwrap_or_default();
         lpfs.push(rc);

@@ -8,9 +8,13 @@ import {
 } from '../services/pkg-status-rendering.service'
 import { PkgInfo } from '../types/pkg-info'
 import { packageLoadingProgress } from './package-loading-progress'
+import { PackageDependencyErrors } from '../services/dep-error.service'
 
-export function getPackageInfo(entry: PackageDataEntry): PkgInfo {
-  const statuses = renderPkgStatus(entry)
+export function getPackageInfo(
+  entry: PackageDataEntry,
+  depErrors: PackageDependencyErrors,
+): PkgInfo {
+  const statuses = renderPkgStatus(entry, depErrors)
   const primaryRendering = PrimaryRendering[statuses.primary]
 
   return {

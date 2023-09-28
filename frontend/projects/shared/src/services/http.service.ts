@@ -38,12 +38,13 @@ export class HttpService {
 
   async rpcRequest<T>(
     opts: RPCOptions,
+    fullUrl?: string,
   ): Promise<LocalHttpResponse<RPCResponse<T>>> {
     const { method, headers, params, timeout } = opts
 
     return this.httpRequest<RPCResponse<T>>({
       method: Method.POST,
-      url: this.relativeUrl,
+      url: fullUrl || this.relativeUrl,
       headers,
       body: { method, params },
       timeout,

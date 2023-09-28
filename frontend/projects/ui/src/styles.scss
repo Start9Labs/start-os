@@ -395,3 +395,11 @@ tui-hint[data-appearance='onDark'] {
   cursor: pointer;
   margin: 0 12px 6px 0;
 }
+
+p {
+  font-size: 1rem;
+}
+
+svg:not(:root) {
+  overflow: auto;
+}

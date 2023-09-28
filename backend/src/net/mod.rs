@@ -11,7 +11,6 @@ pub mod dns;
 pub mod forward;
 pub mod interface;
 pub mod keys;
-#[cfg(feature = "avahi")]
 pub mod mdns;
 pub mod net_controller;
 pub mod ssl;

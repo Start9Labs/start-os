@@ -3,10 +3,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use color_eyre::eyre::eyre;
-use futures::StreamExt;
 use josekit::jwk::Jwk;
 use openssl::x509::X509;
-use patch_db::DbHandle;
 use rpc_toolkit::command;
 use rpc_toolkit::yajrc::RpcError;
 use serde::{Deserialize, Serialize};
@@ -33,6 +31,7 @@ use crate::disk::REPAIR_DISK_PATH;
 use crate::hostname::Hostname;
 use crate::init::{init, InitResult};
 use crate::middleware::encrypt::EncryptedWire;
+use crate::prelude::*;
 use crate::util::io::{dir_copy, dir_size, Counter};
 use crate::{Error, ErrorKind, ResultExt};
 
@@ -58,23 +57,21 @@ async fn setup_init(
     let InitResult { secret_store, db } =
         init(&RpcContextConfig::load(ctx.config_path.clone()).await?).await?;
     let mut secrets_handle = secret_store.acquire().await?;
-    let mut db_handle = db.handle();
     let mut secrets_tx = secrets_handle.begin().await?;
-    let mut db_tx = db_handle.begin().await?;
 
     let mut account = AccountInfo::load(&mut secrets_tx).await?;
 
     if let Some(password) = password {
         account.set_password(&password)?;
         account.save(&mut secrets_tx).await?;
-        crate::db::DatabaseModel::new()
-            .server_info()
-            .password_hash()
-            .put(&mut db_tx, &account.password)
-            .await?;
+        db.mutate(|m| {
+            m.as_server_info_mut()
+                .as_password_hash_mut()
+                .ser(&account.password)
+        })
+        .await?;
     }
 
-    db_tx.commit().await?;
     secrets_tx.commit().await?;
 
     Ok((
@@ -266,39 +263,47 @@ pub async fn execute(
         complete: false,
     }));
     drop(status);
-    tokio::task::spawn(async move {
-        match execute_inner(
-            ctx.clone(),
-            embassy_logicalname,
-            embassy_password,
-            recovery_source,
-            recovery_password,
-        )
-        .await
-        {
-            Ok((guid, hostname, tor_addr, root_ca)) => {
-                tracing::info!("Setup Complete!");
-                *ctx.setup_result.write().await = Some((
-                    guid,
-                    SetupResult {
-                        tor_address: format!("https://{}", tor_addr),
-                        lan_address: hostname.lan_address(),
-                        root_ca: String::from_utf8(
-                            root_ca.to_pem().expect("failed to serialize root ca"),
-                        )
-                        .expect("invalid pem string"),
-                    },
-                ));
-                *ctx.setup_status.write().await = Some(Ok(SetupStatus {
-                    bytes_transferred: 0,
-                    total_bytes: None,
-                    complete: true,
-                }));
-            }
-            Err(e) => {
-                tracing::error!("Error Setting Up Server: {}", e);
-                tracing::debug!("{:?}", e);
-                *ctx.setup_status.write().await = Some(Err(e.into()));
+    tokio::task::spawn({
+        async move {
+            let ctx = ctx.clone();
+            let recovery_source = recovery_source;
+
+            let embassy_password = embassy_password;
+            let recovery_source = recovery_source;
+            let recovery_password = recovery_password;
+            match execute_inner(
+                ctx.clone(),
+                embassy_logicalname,
+                embassy_password,
+                recovery_source,
+                recovery_password,
+            )
+            .await
+            {
+                Ok((guid, hostname, tor_addr, root_ca)) => {
+                    tracing::info!("Setup Complete!");
+                    *ctx.setup_result.write().await = Some((
+                        guid,
+                        SetupResult {
+                            tor_address: format!("https://{}", tor_addr),
+                            lan_address: hostname.lan_address(),
+                            root_ca: String::from_utf8(
+                                root_ca.to_pem().expect("failed to serialize root ca"),
+                            )
+                            .expect("invalid pem string"),
+                        },
+                    ));
+                    *ctx.setup_status.write().await = Some(Ok(SetupStatus {
+                        bytes_transferred: 0,
+                        total_bytes: None,
+                        complete: true,
+                    }));
+                }
+                Err(e) => {
+                    tracing::error!("Error Setting Up Server: {}", e);
+                    tracing::debug!("{:?}", e);
+                    *ctx.setup_status.write().await = Some(Err(e.into()));
+                }
             }
         }
     });
@@ -397,7 +402,7 @@ async fn recover(
 ) -> Result<(Arc<String>, Hostname, OnionAddressV3, X509), Error> {
     let recovery_source = TmpMountGuard::mount(&recovery_source, ReadWrite).await?;
     recover_full_embassy(
-        ctx.clone(),
+        ctx,
         guid.clone(),
         embassy_password,
         recovery_source,

@@ -3,7 +3,7 @@ import { MarketplacePkg, StoreInfo, Manifest } from '@start9labs/marketplace'
 import { InputSpec } from '@start9labs/start-sdk/lib/config/configTypes'
 import {
   DataModel,
-  DependencyError,
+  HealthCheckResult,
 } from 'src/app/services/patch-db/data-model'
 import { StartOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
 import { customSmtp } from '@start9labs/start-sdk/lib/config/configConstants'
@@ -21,7 +21,7 @@ export module RR {
   // auth
 
   export type LoginReq = {
-    password: Encrypted | string
+    password: string
     metadata: SessionMetadata
   } // auth.login - unauthed
   export type loginRes = null
@@ -251,9 +251,6 @@ export module RR {
     'marketplace-url': string
   } // package.install
   export type InstallPackageRes = null
-
-  export type DryUpdatePackageReq = { id: string; version: string } // package.update.dry
-  export type DryUpdatePackageRes = Breakages
 
   export type GetPackageConfigReq = { id: string } // package.config.get
   export type GetPackageConfigRes = { spec: InputSpec; config: object }
@@ -552,3 +549,49 @@ export type Encrypted = {
 }
 
 export type CloudProvider = 'dropbox' | 'google-drive'
+
+export type DependencyError =
+  | DependencyErrorNotInstalled
+  | DependencyErrorNotRunning
+  | DependencyErrorIncorrectVersion
+  | DependencyErrorConfigUnsatisfied
+  | DependencyErrorHealthChecksFailed
+  | DependencyErrorTransitive
+
+export enum DependencyErrorType {
+  NotInstalled = 'not-installed',
+  NotRunning = 'not-running',
+  IncorrectVersion = 'incorrect-version',
+  ConfigUnsatisfied = 'config-unsatisfied',
+  HealthChecksFailed = 'health-checks-failed',
+  InterfaceHealthChecksFailed = 'interface-health-checks-failed',
+  Transitive = 'transitive',
+}
+
+export interface DependencyErrorNotInstalled {
+  type: DependencyErrorType.NotInstalled
+}
+
+export interface DependencyErrorNotRunning {
+  type: DependencyErrorType.NotRunning
+}
+
+export interface DependencyErrorIncorrectVersion {
+  type: DependencyErrorType.IncorrectVersion
+  expected: string // version range
+  received: string // version
+}
+
+export interface DependencyErrorConfigUnsatisfied {
+  type: DependencyErrorType.ConfigUnsatisfied
+  error: string
+}
+
+export interface DependencyErrorHealthChecksFailed {
+  type: DependencyErrorType.HealthChecksFailed
+  check: HealthCheckResult
+}
+
+export interface DependencyErrorTransitive {
+  type: DependencyErrorType.Transitive
+}

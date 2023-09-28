@@ -77,6 +77,18 @@ impl<T> From<JoinHandle<T>> for NonDetachingJoinHandle<T> {
         NonDetachingJoinHandle(t)
     }
 }
+
+impl<T> Deref for NonDetachingJoinHandle<T> {
+    type Target = JoinHandle<T>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl<T> DerefMut for NonDetachingJoinHandle<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 #[pin_project::pinned_drop]
 impl<T> PinnedDrop for NonDetachingJoinHandle<T> {
     fn drop(self: std::pin::Pin<&mut Self>) {
@@ -92,17 +104,6 @@ impl<T> Future for NonDetachingJoinHandle<T> {
     ) -> std::task::Poll<Self::Output> {
         let this = self.project();
         this.0.poll(cx)
-    }
-}
-impl<T> Deref for NonDetachingJoinHandle<T> {
-    type Target = JoinHandle<T>;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-impl<T> DerefMut for NonDetachingJoinHandle<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
     }
 }
 

@@ -7,8 +7,8 @@ btrfs-progs
 ca-certificates
 cifs-utils
 containerd.io
-curl
 cryptsetup
+curl
 docker-ce
 docker-ce-cli
 docker-compose-plugin
@@ -23,6 +23,7 @@ iotop
 iw
 jq
 libavahi-client3
+libyajl2
 lm-sensors
 lshw
 lvm2
@@ -34,6 +35,7 @@ network-manager
 nvme-cli
 nyx
 openssh-server
+podman
 postgresql
 psmisc
 qemu-guest-agent

@@ -15,7 +15,6 @@ use crate::init::STANDBY_MODE_PATH;
 use crate::net::web_server::WebServer;
 use crate::shutdown::Shutdown;
 use crate::sound::CHIME;
-use crate::util::logger::EmbassyLogger;
 use crate::util::Invoke;
 use crate::{Error, ErrorKind, ResultExt, OS_ARCH};
 

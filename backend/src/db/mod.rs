@@ -1,13 +1,14 @@
 pub mod model;
 pub mod package;
+pub mod prelude;
 
 use std::future::Future;
+use std::path::PathBuf;
 use std::sync::Arc;
 
-use color_eyre::eyre::eyre;
 use futures::{FutureExt, SinkExt, StreamExt};
 use patch_db::json_ptr::JsonPointer;
-use patch_db::{DbHandle, Dump, LockType, Revision};
+use patch_db::{Dump, Revision};
 use rpc_toolkit::command;
 use rpc_toolkit::hyper::upgrade::Upgraded;
 use rpc_toolkit::hyper::{Body, Error as HyperError, Request, Response};
@@ -22,12 +23,11 @@ use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::WebSocketStream;
 use tracing::instrument;
 
-pub use self::model::DatabaseModel;
-use crate::context::RpcContext;
+use crate::context::{CliContext, RpcContext};
 use crate::middleware::auth::{HasValidSession, HashSessionToken};
+use crate::prelude::*;
 use crate::util::display_none;
 use crate::util::serde::{display_serializable, IoFormat};
-use crate::{Error, ResultExt};
 
 #[instrument(skip_all)]
 async fn ws_handler<
@@ -40,8 +40,8 @@ async fn ws_handler<
     let (dump, sub) = ctx.db.dump_and_sub().await?;
     let mut stream = ws_fut
         .await
-        .with_kind(crate::ErrorKind::Network)?
-        .with_kind(crate::ErrorKind::Unknown)?;
+        .with_kind(ErrorKind::Network)?
+        .with_kind(ErrorKind::Unknown)?;
 
     if let Some((session, token)) = session {
         let kill = subscribe_to_session_kill(&ctx, token).await;
@@ -55,7 +55,7 @@ async fn ws_handler<
                 reason: "UNAUTHORIZED".into(),
             }))
             .await
-            .with_kind(crate::ErrorKind::Network)?;
+            .with_kind(ErrorKind::Network)?;
     }
 
     Ok(())
@@ -92,18 +92,18 @@ async fn deal_with_messages(
                         reason: "UNAUTHORIZED".into(),
                     }))
                     .await
-                    .with_kind(crate::ErrorKind::Network)?;
+                    .with_kind(ErrorKind::Network)?;
                 return Ok(())
             }
             new_rev = sub.recv().fuse() => {
                 let rev = new_rev.expect("UNREACHABLE: patch-db is dropped");
                 stream
-                    .send(Message::Text(serde_json::to_string(&rev).with_kind(crate::ErrorKind::Serialization)?))
+                    .send(Message::Text(serde_json::to_string(&rev).with_kind(ErrorKind::Serialization)?))
                     .await
-                    .with_kind(crate::ErrorKind::Network)?;
+                    .with_kind(ErrorKind::Network)?;
             }
             message = stream.next().fuse() => {
-                let message = message.transpose().with_kind(crate::ErrorKind::Network)?;
+                let message = message.transpose().with_kind(ErrorKind::Network)?;
                 match message {
                     None => {
                         tracing::info!("Closing WebSocket: Stream Finished");
@@ -123,10 +123,10 @@ async fn send_dump(
 ) -> Result<(), Error> {
     stream
         .send(Message::Text(
-            serde_json::to_string(&dump).with_kind(crate::ErrorKind::Serialization)?,
+            serde_json::to_string(&dump).with_kind(ErrorKind::Serialization)?,
         ))
         .await
-        .with_kind(crate::ErrorKind::Network)?;
+        .with_kind(ErrorKind::Network)?;
     Ok(())
 }
 
@@ -141,7 +141,7 @@ pub async fn subscribe(ctx: RpcContext, req: Request<Body>) -> Result<Response<B
     {
         Ok(a) => Some(a),
         Err(e) => {
-            if e.kind != crate::ErrorKind::Authorization {
+            if e.kind != ErrorKind::Authorization {
                 tracing::error!("Error Authenticating Websocket: {}", e);
                 tracing::debug!("{:?}", e);
             }
@@ -149,7 +149,7 @@ pub async fn subscribe(ctx: RpcContext, req: Request<Body>) -> Result<Response<B
         }
     };
     let req = Request::from_parts(parts, body);
-    let (res, ws_fut) = hyper_ws_listener::create_ws(req).with_kind(crate::ErrorKind::Network)?;
+    let (res, ws_fut) = hyper_ws_listener::create_ws(req).with_kind(ErrorKind::Network)?;
     if let Some(ws_fut) = ws_fut {
         tokio::task::spawn(async move {
             match ws_handler(ctx, session, ws_fut).await {
@@ -191,12 +191,40 @@ pub async fn revisions(
     })
 }
 
-#[command(display(display_serializable))]
+#[instrument(skip_all)]
+async fn cli_dump(
+    ctx: CliContext,
+    _format: Option<IoFormat>,
+    path: Option<PathBuf>,
+) -> Result<Dump, RpcError> {
+    let dump = if let Some(path) = path {
+        PatchDb::open(path).await?.dump().await?
+    } else {
+        rpc_toolkit::command_helpers::call_remote(
+            ctx,
+            "db.dump",
+            serde_json::json!({}),
+            std::marker::PhantomData::<Dump>,
+        )
+        .await?
+        .result?
+    };
+
+    Ok(dump)
+}
+
+#[command(
+    custom_cli(cli_dump(async, context(CliContext))),
+    display(display_serializable)
+)]
 pub async fn dump(
     #[context] ctx: RpcContext,
     #[allow(unused_variables)]
     #[arg(long = "format")]
     format: Option<IoFormat>,
+    #[allow(unused_variables)]
+    #[arg]
+    path: Option<PathBuf>,
 ) -> Result<Dump, Error> {
     Ok(ctx.db.dump().await?)
 }
@@ -252,32 +280,75 @@ fn apply_expr(input: jaq_core::Val, expr: &str) -> Result<jaq_core::Val, Error> 
     Ok(res)
 }
 
-#[command(display(display_none))]
-pub async fn apply(#[context] ctx: RpcContext, #[arg] expr: String) -> Result<(), Error> {
-    let mut db = ctx.db.handle();
+#[instrument(skip_all)]
+async fn cli_apply(ctx: CliContext, expr: String, path: Option<PathBuf>) -> Result<(), RpcError> {
+    if let Some(path) = path {
+        PatchDb::open(path)
+            .await?
+            .mutate(|db| {
+                let res = apply_expr(
+                    serde_json::to_value(patch_db::Value::from(db.clone()))
+                        .with_kind(ErrorKind::Deserialization)?
+                        .into(),
+                    &expr,
+                )?;
 
-    DatabaseModel::new().lock(&mut db, LockType::Write).await?;
-
-    let root_ptr = JsonPointer::<String>::default();
-
-    let input = db.get_value(&root_ptr, None).await?;
-
-    let res = (|| {
-        let res = apply_expr(input.into(), &expr)?;
-
-        serde_json::from_value::<model::Database>(res.clone().into()).with_ctx(|_| {
-            (
-                crate::ErrorKind::Deserialization,
-                "result does not match database model",
-            )
-        })?;
-
-        Ok::<serde_json::Value, Error>(res.into())
-    })()?;
-
-    db.put_value(&root_ptr, &res).await?;
+                db.ser(
+                    &serde_json::from_value::<model::Database>(res.clone().into()).with_ctx(
+                        |_| {
+                            (
+                                crate::ErrorKind::Deserialization,
+                                "result does not match database model",
+                            )
+                        },
+                    )?,
+                )
+            })
+            .await?;
+    } else {
+        rpc_toolkit::command_helpers::call_remote(
+            ctx,
+            "db.apply",
+            serde_json::json!({ "expr": expr }),
+            std::marker::PhantomData::<()>,
+        )
+        .await?
+        .result?;
+    }
 
     Ok(())
+}
+
+#[command(
+    custom_cli(cli_apply(async, context(CliContext))),
+    display(display_none)
+)]
+pub async fn apply(
+    #[context] ctx: RpcContext,
+    #[arg] expr: String,
+    #[allow(unused_variables)]
+    #[arg]
+    path: Option<PathBuf>,
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            let res = apply_expr(
+                serde_json::to_value(patch_db::Value::from(db.clone()))
+                    .with_kind(ErrorKind::Deserialization)?
+                    .into(),
+                &expr,
+            )?;
+
+            db.ser(
+                &serde_json::from_value::<model::Database>(res.clone().into()).with_ctx(|_| {
+                    (
+                        crate::ErrorKind::Deserialization,
+                        "result does not match database model",
+                    )
+                })?,
+            )
+        })
+        .await
 }
 
 #[command(subcommands(ui))]
@@ -297,7 +368,7 @@ pub async fn ui(
 ) -> Result<(), Error> {
     let ptr = "/ui"
         .parse::<JsonPointer>()
-        .with_kind(crate::ErrorKind::Database)?
+        .with_kind(ErrorKind::Database)?
         + &pointer;
     ctx.db.put(&ptr, &value).await?;
     Ok(())

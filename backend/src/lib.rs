@@ -34,14 +34,15 @@ pub mod inspect;
 pub mod install;
 pub mod logs;
 pub mod manager;
-pub mod marketplace;
 pub mod middleware;
 pub mod migration;
 pub mod net;
 pub mod notifications;
 pub mod os_install;
+pub mod prelude;
 pub mod procedure;
 pub mod properties;
+pub mod registry;
 pub mod s9pk;
 pub mod setup;
 pub mod shutdown;
@@ -78,7 +79,7 @@ pub fn echo(#[arg] message: String) -> Result<String, RpcError> {
     disk::disk,
     notifications::notification,
     backup::backup,
-    marketplace::marketplace,
+    registry::marketplace::marketplace,
 ))]
 pub fn main_api() -> Result<(), RpcError> {
     Ok(())
@@ -105,7 +106,6 @@ pub fn server() -> Result<(), RpcError> {
     install::sideload,
     install::uninstall,
     install::list,
-    install::update::update,
     config::config,
     control::start,
     control::stop,
@@ -124,7 +124,8 @@ pub fn package() -> Result<(), RpcError> {
     s9pk::pack,
     developer::verify,
     developer::init,
-    inspect::inspect
+    inspect::inspect,
+    registry::admin::publish,
 ))]
 pub fn portable_api() -> Result<(), RpcError> {
     Ok(())

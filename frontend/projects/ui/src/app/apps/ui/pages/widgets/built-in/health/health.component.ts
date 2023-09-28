@@ -1,7 +1,10 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { PatchDB } from 'patch-db-client'
-import { map } from 'rxjs'
-import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { map } from 'rxjs/operators'
+import {
+  DataModel,
+  PackageDataEntry,
+} from 'src/app/services/patch-db/data-model'
 import { PrimaryStatus } from 'src/app/services/pkg-status-rendering.service'
 import { getPackageInfo } from 'src/app/util/get-package-info'
 import { PkgInfo } from 'src/app/types/pkg-info'
@@ -21,11 +24,13 @@ export class HealthComponent {
     'Transitioning',
   ] as const
 
-  readonly data$ = inject(PatchDB)
+  readonly data$ = inject(PatchDB<DataModel>)
     .watch$('package-data')
     .pipe(
       map(data => {
-        const pkgs = Object.values<PackageDataEntry>(data).map(getPackageInfo)
+        const pkgs = Object.values<PackageDataEntry>(data).map(
+          pkg => getPackageInfo(pkg, {}), // @TODO hack because not currently using widget
+        )
         const result = this.labels.reduce<Record<string, number>>(
           (acc, label) => ({
             ...acc,

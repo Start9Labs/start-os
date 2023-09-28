@@ -845,7 +845,7 @@ export module Mock {
                   integer: false,
                 }),
               }),
-              displayAs: 'I\'m {{last-name}}, {{first-name}} {{last-name}}',
+              displayAs: "I'm {{last-name}}, {{first-name}} {{last-name}}",
               uniqueBy: 'last-name',
             },
           ),
@@ -1258,7 +1258,7 @@ export module Mock {
             },
           },
         },
-        'dependency-errors': {},
+        'dependency-config-errors': {},
       },
       'address-info': {
         rpc: {
@@ -1282,6 +1282,7 @@ export module Mock {
         },
       },
       'current-dependencies': {},
+      'current-dependents': {},
       'dependency-info': {},
       'marketplace-url': 'https://registry.start9.com/',
       'developer-key': 'developer-key',
@@ -1334,7 +1335,7 @@ export module Mock {
         main: {
           status: PackageMainStatus.Stopped,
         },
-        'dependency-errors': {},
+        'dependency-config-errors': {},
       },
       'address-info': {
         rpc: {
@@ -1347,6 +1348,7 @@ export module Mock {
           ui: false,
         },
       },
+      'current-dependents': {},
       'current-dependencies': {
         bitcoind: {
           'health-checks': [],
@@ -1377,11 +1379,8 @@ export module Mock {
         main: {
           status: PackageMainStatus.Stopped,
         },
-        'dependency-errors': {
-          'btc-rpc-proxy': {
-            type: DependencyErrorType.ConfigUnsatisfied,
-            error: 'This is a config unsatisfied error',
-          },
+        'dependency-config-errors': {
+          'btc-rpc-proxy': 'Username not found',
         },
       },
       'address-info': {
@@ -1414,6 +1413,7 @@ export module Mock {
           'health-checks': [],
         },
       },
+      'current-dependents': {},
       'dependency-info': {
         bitcoind: {
           title: 'Bitcoin Core',
