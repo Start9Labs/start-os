@@ -1105,7 +1105,6 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         status: Status {
             configured: manifest.config.is_none(),
             main: MainStatus::Stopped,
-            dependency_errors: Default::default(),
             dependency_config_errors: compute_dependency_config_errs(
                 &ctx,
                 &peek,
