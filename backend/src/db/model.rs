@@ -480,6 +480,7 @@ pub struct StaticDependencyInfo {
 #[serde(rename_all = "kebab-case")]
 #[model = "Model<Self>"]
 pub struct CurrentDependencyInfo {
+    #[serde(default)]
     pub pointers: BTreeSet<PackagePointerSpec>,
     pub health_checks: BTreeSet<HealthCheckId>,
 }
