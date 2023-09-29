@@ -1,6 +1,14 @@
 import { Injectable } from '@angular/core'
 import { Emver } from '@start9labs/shared'
-import { map, shareReplay } from 'rxjs/operators'
+import {
+  distinctUntilChanged,
+  filter,
+  map,
+  pairwise,
+  shareReplay,
+  startWith,
+  tap,
+} from 'rxjs/operators'
 import { PatchDB } from 'patch-db-client'
 import {
   DataModel,
@@ -9,9 +17,10 @@ import {
   InstalledPackageDataEntry,
   PackageMainStatus,
 } from './patch-db/data-model'
+import * as deepEqual from 'fast-deep-equal'
 
-export type PackageDependencyErrors = Record<string, DependencyErrors>
-export type DependencyErrors = Record<string, DependencyError | null>
+export type AllDependencyErrors = Record<string, PkgDependencyErrors>
+export type PkgDependencyErrors = Record<string, DependencyError | null>
 
 @Injectable({
   providedIn: 'root',
@@ -26,13 +35,14 @@ export class DepErrorService {
         }))
         .sort((a, b) => (b.depth > a.depth ? -1 : 1))
         .reduce(
-          (errors, { id }): PackageDependencyErrors => ({
+          (errors, { id }): AllDependencyErrors => ({
             ...errors,
             [id]: this.getDepErrors(pkgs, id, errors),
           }),
-          {} as PackageDependencyErrors,
+          {} as AllDependencyErrors,
         ),
     ),
+    distinctUntilChanged(deepEqual),
     shareReplay(1),
   )
 
@@ -41,21 +51,28 @@ export class DepErrorService {
     private readonly patch: PatchDB<DataModel>,
   ) {}
 
+  getPkgDepErrors$(pkgId: string) {
+    return this.depErrors$.pipe(
+      map(depErrors => depErrors[pkgId]),
+      distinctUntilChanged(deepEqual),
+    )
+  }
+
   private getDepErrors(
     pkgs: DataModel['package-data'],
     pkgId: string,
-    outerErrors: PackageDependencyErrors,
-  ): DependencyErrors {
+    outerErrors: AllDependencyErrors,
+  ): PkgDependencyErrors {
     const pkgInstalled = pkgs[pkgId].installed
 
     if (!pkgInstalled) return {}
 
     return currentDeps(pkgs, pkgId).reduce(
-      (innerErrors, depId): DependencyErrors => ({
+      (innerErrors, depId): PkgDependencyErrors => ({
         ...innerErrors,
         [depId]: this.getDepError(pkgs, pkgInstalled, depId, outerErrors),
       }),
-      {} as DependencyErrors,
+      {} as PkgDependencyErrors,
     )
   }
 
@@ -63,7 +80,7 @@ export class DepErrorService {
     pkgs: DataModel['package-data'],
     pkgInstalled: InstalledPackageDataEntry,
     depId: string,
-    outerErrors: PackageDependencyErrors,
+    outerErrors: AllDependencyErrors,
   ): DependencyError | null {
     const depInstalled = pkgs[depId]?.installed
 

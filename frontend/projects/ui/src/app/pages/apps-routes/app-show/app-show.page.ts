@@ -21,7 +21,7 @@ import { DependentInfo } from 'src/app/types/dependent-info'
 import {
   DepErrorService,
   DependencyErrorType,
-  PackageDependencyErrors,
+  PkgDependencyErrors,
 } from 'src/app/services/dep-error.service'
 import { combineLatest } from 'rxjs'
 
@@ -50,15 +50,14 @@ export class AppShowPage {
   private readonly pkgId = getPkgId(this.route)
 
   readonly pkgPlus$ = combineLatest([
-    this.patch.watch$('package-data'),
-    this.depErrorService.depErrors$,
+    this.patch.watch$('package-data', this.pkgId),
+    this.depErrorService.getPkgDepErrors$(this.pkgId),
   ]).pipe(
-    tap(([pkgs, _]) => {
+    tap(([pkg, _]) => {
       // if package disappears, navigate to list page
-      if (!pkgs[this.pkgId]) this.navCtrl.navigateRoot('/services')
+      if (!pkg) this.navCtrl.navigateRoot('/services')
     }),
-    map(([pkgs, depErrors]) => {
-      const pkg = pkgs[this.pkgId]
+    map(([pkg, depErrors]) => {
       return {
         pkg,
         dependencies: this.getDepInfo(pkg, depErrors),
@@ -93,7 +92,7 @@ export class AppShowPage {
 
   private getDepInfo(
     pkg: PackageDataEntry,
-    depErrors: PackageDependencyErrors,
+    depErrors: PkgDependencyErrors,
   ): DependencyInfo[] {
     const pkgInstalled = pkg.installed
 
@@ -107,7 +106,7 @@ export class AppShowPage {
   private getDepValues(
     pkgInstalled: InstalledPackageDataEntry,
     depId: string,
-    depErrors: PackageDependencyErrors,
+    depErrors: PkgDependencyErrors,
   ): DependencyInfo {
     const { errorText, fixText, fixAction } = this.getDepErrors(
       pkgInstalled,
@@ -134,10 +133,10 @@ export class AppShowPage {
   private getDepErrors(
     pkgInstalled: InstalledPackageDataEntry,
     depId: string,
-    depErrors: PackageDependencyErrors,
+    depErrors: PkgDependencyErrors,
   ) {
     const pkgManifest = pkgInstalled.manifest
-    const depError = depErrors[pkgInstalled.manifest.id][depId]
+    const depError = depErrors[depId]
 
     let errorText: string | null = null
     let fixText: string | null = null
