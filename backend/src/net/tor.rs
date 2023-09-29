@@ -617,7 +617,7 @@ async fn torctl(
         let mut last_success = Instant::now();
         loop {
             tokio::time::sleep(Duration::from_secs(30)).await;
-            if let Err(e) = tokio::time::timeout(
+            if tokio::time::timeout(
                 Duration::from_secs(30),
                 tokio_socks::tcp::Socks5Stream::connect(
                     tor_socks,
@@ -627,6 +627,7 @@ async fn torctl(
             .await
             .map_err(|e| e.to_string())
             .and_then(|e| e.map_err(|e| e.to_string()))
+            .is_err()
             {
                 if last_success.elapsed() > *health_timeout {
                     let err = Error::new(eyre!("Tor health check failed for longer than current timeout ({health_timeout:?})"), crate::ErrorKind::Tor);

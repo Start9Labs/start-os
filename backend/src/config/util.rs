@@ -1,9 +1,9 @@
 use std::borrow::Cow;
 use std::ops::{Bound, RangeBounds, RangeInclusive};
 
+use patch_db::Value;
 use rand::distributions::Distribution;
 use rand::Rng;
-use serde_json::Value;
 
 use super::Config;
 
@@ -321,7 +321,7 @@ impl UniqueBy {
         match self {
             UniqueBy::Any(any) => any.iter().any(|u| u.eq(lhs, rhs)),
             UniqueBy::All(all) => all.iter().all(|u| u.eq(lhs, rhs)),
-            UniqueBy::Exactly(key) => lhs.get(key) == rhs.get(key),
+            UniqueBy::Exactly(key) => lhs.get(&**key) == rhs.get(&**key),
             UniqueBy::NotUnique => false,
         }
     }

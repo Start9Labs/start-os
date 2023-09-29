@@ -132,7 +132,7 @@ export interface InstalledPackageDataEntry {
   'current-dependencies': { [id: string]: CurrentDependencyInfo }
   'dependency-info': {
     [id: string]: {
-      manifest: Manifest
+      title: string
       icon: Url
     }
   }
@@ -277,7 +277,7 @@ export interface Action {
 export interface Status {
   configured: boolean
   main: MainStatus
-  'dependency-errors': { [id: string]: DependencyError | null }
+  'dependency-config-errors': { [id: string]: string | null }
 }
 
 export type MainStatus =
@@ -360,52 +360,6 @@ export interface HealthCheckResultLoading {
 export interface HealthCheckResultFailure {
   result: HealthResult.Failure
   error: string
-}
-
-export type DependencyError =
-  | DependencyErrorNotInstalled
-  | DependencyErrorNotRunning
-  | DependencyErrorIncorrectVersion
-  | DependencyErrorConfigUnsatisfied
-  | DependencyErrorHealthChecksFailed
-  | DependencyErrorTransitive
-
-export enum DependencyErrorType {
-  NotInstalled = 'not-installed',
-  NotRunning = 'not-running',
-  IncorrectVersion = 'incorrect-version',
-  ConfigUnsatisfied = 'config-unsatisfied',
-  HealthChecksFailed = 'health-checks-failed',
-  InterfaceHealthChecksFailed = 'interface-health-checks-failed',
-  Transitive = 'transitive',
-}
-
-export interface DependencyErrorNotInstalled {
-  type: DependencyErrorType.NotInstalled
-}
-
-export interface DependencyErrorNotRunning {
-  type: DependencyErrorType.NotRunning
-}
-
-export interface DependencyErrorIncorrectVersion {
-  type: DependencyErrorType.IncorrectVersion
-  expected: string // version range
-  received: string // version
-}
-
-export interface DependencyErrorConfigUnsatisfied {
-  type: DependencyErrorType.ConfigUnsatisfied
-  error: string
-}
-
-export interface DependencyErrorHealthChecksFailed {
-  type: DependencyErrorType.HealthChecksFailed
-  check: HealthCheckResult
-}
-
-export interface DependencyErrorTransitive {
-  type: DependencyErrorType.Transitive
 }
 
 export interface InstallProgress {

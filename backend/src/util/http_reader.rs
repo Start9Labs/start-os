@@ -376,5 +376,5 @@ async fn s9pk_test() {
         .unwrap();
 
     let manifest = s9pk.manifest().await.unwrap();
-    assert_eq!(&**manifest.id, "ghost");
+    assert_eq!(&manifest.id.to_string(), "ghost");
 }

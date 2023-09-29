@@ -1,5 +1,4 @@
 import {
-  DependencyErrorType,
   DockerIoFormat,
   Manifest,
   PackageDataEntry,
@@ -20,9 +19,10 @@ export module Mock {
     updated: true,
   }
   export const MarketplaceEos: RR.GetMarketplaceEosRes = {
-    version: '0.3.4.4',
+    version: '0.3.5',
     headline: 'Our biggest release ever.',
     'release-notes': {
+      '0.3.5': 'Some **Markdown** release _notes_ for 0.3.5',
       '0.3.4.4': 'Some **Markdown** release _notes_ for 0.3.4.4',
       '0.3.4.3': 'Some **Markdown** release _notes_ for 0.3.4.3',
       '0.3.4.2': 'Some **Markdown** release _notes_ for 0.3.4.2',
@@ -1889,7 +1889,7 @@ export module Mock {
           started: new Date().toISOString(),
           health: {},
         },
-        'dependency-errors': {},
+        'dependency-config-errors': {},
       },
       'interface-addresses': {
         ui: {
@@ -1935,7 +1935,7 @@ export module Mock {
         main: {
           status: PackageMainStatus.Stopped,
         },
-        'dependency-errors': {},
+        'dependency-config-errors': {},
       },
       manifest: MockManifestBitcoinProxy,
       'interface-addresses': {
@@ -1959,7 +1959,7 @@ export module Mock {
       },
       'dependency-info': {
         bitcoind: {
-          manifest: Mock.MockManifestBitcoind,
+          title: Mock.MockManifestBitcoind.title,
           icon: 'assets/img/service-icons/bitcoind.svg',
         },
       },
@@ -1984,10 +1984,8 @@ export module Mock {
         main: {
           status: PackageMainStatus.Stopped,
         },
-        'dependency-errors': {
-          'btc-rpc-proxy': {
-            type: DependencyErrorType.NotInstalled,
-          },
+        'dependency-config-errors': {
+          'btc-rpc-proxy': 'Username not found',
         },
       },
       manifest: MockManifestLnd,
@@ -2015,11 +2013,11 @@ export module Mock {
       },
       'dependency-info': {
         bitcoind: {
-          manifest: Mock.MockManifestBitcoind,
+          title: Mock.MockManifestBitcoind.title,
           icon: 'assets/img/service-icons/bitcoind.svg',
         },
         'btc-rpc-proxy': {
-          manifest: Mock.MockManifestBitcoinProxy,
+          title: Mock.MockManifestBitcoinProxy.title,
           icon: 'assets/img/service-icons/btc-rpc-proxy.png',
         },
       },

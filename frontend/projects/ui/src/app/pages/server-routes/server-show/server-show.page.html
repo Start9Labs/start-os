@@ -15,13 +15,12 @@
 
   <!-- loaded -->
   <ion-item-group *ngIf="server$ | async as server; else loading">
-    <ion-item *ngIf="!secure || isTorHttp" color="warning">
+    <ion-item *ngIf="isTorHttp" color="warning">
       <ion-icon slot="start" name="warning-outline"></ion-icon>
       <ion-label>
         <h2 style="font-weight: bold">Http detected</h2>
         <p style="font-weight: 600">
-          {{ isTorHttp ? 'Tor is faster over https.' : 'Your connection is
-          insecure.' }}
+          Tor is faster over https.
           <a
             [routerLink]="['/system', 'root-ca']"
             style="color: var(--ion-color-light)"

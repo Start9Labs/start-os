@@ -15,7 +15,9 @@ export type WorkspaceConfig = {
       community: 'https://community-registry.start9.com/'
     }
     mocks: {
-      maskAs: 'tor' | 'lan'
+      maskAs: 'tor' | 'local' | 'localhost'
+      // enables local development in secure mode
+      maskAsHttps: boolean
       skipStartupAlerts: boolean
     }
   }

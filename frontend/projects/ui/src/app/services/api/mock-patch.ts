@@ -1,6 +1,5 @@
 import {
   DataModel,
-  DependencyErrorType,
   DockerIoFormat,
   HealthResult,
   Manifest,
@@ -44,7 +43,7 @@ export const mockPatchData: DataModel = {
   },
   'server-info': {
     id: 'abcdefgh',
-    version: '0.3.4.4',
+    version: '0.3.5',
     'last-backup': new Date(new Date().valueOf() - 604800001).toISOString(),
     'lan-address': 'https://adjective-noun.local',
     'tor-address': 'https://myveryownspecialtoraddress.onion',
@@ -438,7 +437,7 @@ export const mockPatchData: DataModel = {
               },
             },
           },
-          'dependency-errors': {},
+          'dependency-config-errors': {},
         },
         'interface-addresses': {
           ui: {
@@ -637,11 +636,8 @@ export const mockPatchData: DataModel = {
           main: {
             status: PackageMainStatus.Stopped,
           },
-          'dependency-errors': {
-            'btc-rpc-proxy': {
-              type: DependencyErrorType.ConfigUnsatisfied,
-              error: 'This is a config unsatisfied error',
-            },
+          'dependency-config-errors': {
+            'btc-rpc-proxy': 'This is a config unsatisfied error',
           },
         },
         'interface-addresses': {
@@ -668,15 +664,11 @@ export const mockPatchData: DataModel = {
         },
         'dependency-info': {
           bitcoind: {
-            manifest: {
-              title: 'Bitcoin Core',
-            } as Manifest,
+            title: 'Bitcoin Core',
             icon: 'assets/img/service-icons/bitcoind.svg',
           },
           'btc-rpc-proxy': {
-            manifest: {
-              title: 'Bitcoin Proxy',
-            } as Manifest,
+            title: 'Bitcoin Proxy',
             icon: 'assets/img/service-icons/btc-rpc-proxy.png',
           },
         },

@@ -14,6 +14,6 @@ export async function getPackage(
 
 export async function getAllPackages(
   patch: PatchDB<DataModel>,
-): Promise<Record<string, PackageDataEntry>> {
+): Promise<DataModel['package-data']> {
   return firstValueFrom(patch.watch$('package-data'))
 }

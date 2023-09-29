@@ -3,6 +3,7 @@ use std::fmt::Display;
 use color_eyre::eyre::eyre;
 use patch_db::Revision;
 use rpc_toolkit::hyper::http::uri::InvalidUri;
+use rpc_toolkit::reqwest;
 use rpc_toolkit::yajrc::RpcError;
 
 use crate::InvalidId;
@@ -235,19 +236,14 @@ impl From<ed25519_dalek::SignatureError> for Error {
         Error::new(e, ErrorKind::InvalidSignature)
     }
 }
-impl From<bollard::errors::Error> for Error {
-    fn from(e: bollard::errors::Error) -> Self {
-        Error::new(e, ErrorKind::Docker)
+impl From<std::net::AddrParseError> for Error {
+    fn from(e: std::net::AddrParseError) -> Self {
+        Error::new(e, ErrorKind::ParseNetAddress)
     }
 }
 impl From<torut::control::ConnError> for Error {
     fn from(e: torut::control::ConnError) -> Self {
-        Error::new(eyre!("{:?}", e), ErrorKind::Tor)
-    }
-}
-impl From<std::net::AddrParseError> for Error {
-    fn from(e: std::net::AddrParseError) -> Self {
-        Error::new(e, ErrorKind::ParseNetAddress)
+        Error::new(e, ErrorKind::Tor)
     }
 }
 impl From<ipnet::AddrParseError> for Error {
@@ -273,6 +269,28 @@ impl From<InvalidUri> for Error {
 impl From<ssh_key::Error> for Error {
     fn from(e: ssh_key::Error) -> Self {
         Error::new(e, ErrorKind::OpenSsh)
+    }
+}
+impl From<reqwest::Error> for Error {
+    fn from(e: reqwest::Error) -> Self {
+        let kind = match e {
+            _ if e.is_builder() => ErrorKind::ParseUrl,
+            _ if e.is_decode() => ErrorKind::Deserialization,
+            _ => ErrorKind::Network,
+        };
+        Error::new(e, kind)
+    }
+}
+impl From<patch_db::value::Error> for Error {
+    fn from(value: patch_db::value::Error) -> Self {
+        match value.kind {
+            patch_db::value::ErrorKind::Serialization => {
+                Error::new(value.source, ErrorKind::Serialization)
+            }
+            patch_db::value::ErrorKind::Deserialization => {
+                Error::new(value.source, ErrorKind::Deserialization)
+            }
+        }
     }
 }
 
@@ -385,6 +403,18 @@ where
                 revision: None,
             }
         })
+    }
+}
+
+pub trait OptionExt<T>
+where
+    Self: Sized,
+{
+    fn or_not_found(self, message: impl std::fmt::Display) -> Result<T, Error>;
+}
+impl<T> OptionExt<T> for Option<T> {
+    fn or_not_found(self, message: impl std::fmt::Display) -> Result<T, Error> {
+        self.ok_or_else(|| Error::new(eyre!("{}", message), ErrorKind::NotFound))
     }
 }
 

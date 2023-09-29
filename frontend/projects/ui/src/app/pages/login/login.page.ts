@@ -1,9 +1,12 @@
-import { Component } from '@angular/core'
-import { LoadingController, getPlatforms } from '@ionic/angular'
+import { Component, Inject } from '@angular/core'
+import { getPlatforms, LoadingController } from '@ionic/angular'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { AuthService } from 'src/app/services/auth.service'
 import { Router } from '@angular/router'
 import { ConfigService } from 'src/app/services/config.service'
+import { pauseFor, RELATIVE_URL } from '@start9labs/shared'
+import { DOCUMENT } from '@angular/common'
+import { WINDOW } from '@ng-web-apis/common'
 
 @Component({
   selector: 'login',
@@ -14,42 +17,71 @@ export class LoginPage {
   password = ''
   unmasked = false
   error = ''
-  loader?: HTMLIonLoadingElement
-  secure = this.config.isSecure()
+
+  downloadClicked = false
+  instructionsClicked = false
+  polling = false
+  caTrusted = false
 
   constructor(
     private readonly router: Router,
     private readonly authService: AuthService,
     private readonly loadingCtrl: LoadingController,
     private readonly api: ApiService,
-    private readonly config: ConfigService,
+    public readonly config: ConfigService,
+    @Inject(RELATIVE_URL) private readonly relativeUrl: string,
+    @Inject(DOCUMENT) public readonly document: Document,
+    @Inject(WINDOW) private readonly windowRef: Window,
   ) {}
 
-  async ionViewDidEnter() {
-    if (!this.secure) {
+  async ngOnInit() {
+    if (!this.config.isSecure()) {
+      await this.testHttps().catch(e =>
+        console.warn('Failed Https connection attempt'),
+      )
+    }
+  }
+
+  download() {
+    this.downloadClicked = true
+    this.document.getElementById('install-cert')?.click()
+  }
+
+  instructions() {
+    this.windowRef.open(
+      'https://docs.start9.com/getting-started/trust-ca/#trust-your-server-s-root-ca',
+      '_blank',
+      'noreferrer',
+    )
+    this.instructionsClicked = true
+    this.startDaemon()
+  }
+
+  private async startDaemon(): Promise<void> {
+    this.polling = true
+    while (this.polling) {
       try {
-        await this.api.getPubKey()
-      } catch (e: any) {
-        this.error = e.message
+        await this.testHttps()
+        this.polling = false
+      } catch (e) {
+        console.warn('Failed Https connection attempt')
+        await pauseFor(2000)
       }
     }
   }
 
-  ngOnDestroy() {
-    this.loader?.dismiss()
-  }
-
-  toggleMask() {
-    this.unmasked = !this.unmasked
+  launchHttps() {
+    const host = this.config.getHost()
+    this.windowRef.open(`https://${host}`, '_blank', 'noreferrer')
   }
 
   async submit() {
     this.error = ''
 
-    this.loader = await this.loadingCtrl.create({
+    const loader = await this.loadingCtrl.create({
       message: 'Logging in...',
     })
-    await this.loader.present()
+    await loader.present()
 
     try {
       document.cookie = ''
@@ -58,9 +90,7 @@ export class LoginPage {
         return
       }
       await this.api.login({
-        password: this.secure
-          ? this.password
-          : await this.api.encrypt(this.password),
+        password: this.password,
         metadata: { platforms: getPlatforms() },
       })
 
@@ -71,7 +101,16 @@ export class LoginPage {
       // code 7 is for incorrect password
       this.error = e.code === 7 ? 'Invalid Password' : e.message
     } finally {
-      this.loader.dismiss()
+      loader.dismiss()
     }
+  }
+
+  private async testHttps() {
+    const url = `https://${this.document.location.host}${this.relativeUrl}`
+    await this.api.echo({ message: 'ping' }, url).then(() => {
+      this.downloadClicked = true
+      this.instructionsClicked = true
+      this.caTrusted = true
+    })
   }
 }

@@ -18,8 +18,6 @@ import { AppShowAdditionalComponent } from './components/app-show-additional/app
 import { HealthColorPipe } from './pipes/health-color.pipe'
 import { ToHealthChecksPipe } from './pipes/to-health-checks.pipe'
 import { ToButtonsPipe } from './pipes/to-buttons.pipe'
-import { ToDependenciesPipe } from './pipes/to-dependencies.pipe'
-import { ToStatusPipe } from './pipes/to-status.pipe'
 import { ProgressDataPipe } from './pipes/progress-data.pipe'
 
 const routes: Routes = [
@@ -36,8 +34,6 @@ const routes: Routes = [
     ProgressDataPipe,
     ToHealthChecksPipe,
     ToButtonsPipe,
-    ToDependenciesPipe,
-    ToStatusPipe,
     AppShowHeaderComponent,
     AppShowProgressComponent,
     AppShowStatusComponent,

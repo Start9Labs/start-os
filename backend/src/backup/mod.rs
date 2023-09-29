@@ -1,11 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use color_eyre::eyre::eyre;
 use helpers::AtomicFile;
-use models::ImageId;
-use patch_db::{DbHandle, HasModel};
+use models::{ImageId, OptionExt};
 use reqwest::Url;
 use rpc_toolkit::command;
 use serde::{Deserialize, Serialize};
@@ -15,10 +15,11 @@ use tracing::instrument;
 
 use self::target::PackageBackupInfo;
 use crate::context::RpcContext;
-use crate::dependencies::reconfigure_dependents_with_live_pointers;
 use crate::install::PKG_ARCHIVE_DIR;
-use crate::net::interface::{InterfaceId, Interfaces};
+use crate::manager::manager_seed::ManagerSeed;
+use crate::net::interface::InterfaceId;
 use crate::net::keys::Key;
+use crate::prelude::*;
 use crate::procedure::docker::DockerContainers;
 use crate::procedure::{NoOutput, PackageProcedure, ProcedureName};
 use crate::s9pk::manifest::PackageId;
@@ -71,6 +72,7 @@ struct BackupMetadata {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
+#[model = "Model<Self>"]
 pub struct BackupActions {
     pub create: PackageProcedure,
     pub restore: PackageProcedure,
@@ -78,7 +80,7 @@ pub struct BackupActions {
 impl BackupActions {
     pub fn validate(
         &self,
-        container: &Option<DockerContainers>,
+        _container: &Option<DockerContainers>,
         eos_version: &Version,
         volumes: &Volumes,
         image_ids: &BTreeSet<ImageId>,
@@ -93,19 +95,14 @@ impl BackupActions {
     }
 
     #[instrument(skip_all)]
-    pub async fn create<Db: DbHandle>(
-        &self,
-        ctx: &RpcContext,
-        db: &mut Db,
-        pkg_id: &PackageId,
-        pkg_title: &str,
-        pkg_version: &Version,
-        interfaces: &Interfaces,
-        volumes: &Volumes,
-    ) -> Result<PackageBackupInfo, Error> {
-        let mut volumes = volumes.to_readonly();
+    pub async fn create(&self, seed: Arc<ManagerSeed>) -> Result<PackageBackupInfo, Error> {
+        let manifest = &seed.manifest;
+        let mut volumes = seed.manifest.volumes.to_readonly();
+        let ctx = &seed.ctx;
+        let pkg_id = &manifest.id;
+        let pkg_version = &manifest.version;
         volumes.insert(VolumeId::Backup, Volume::Backup { readonly: false });
-        let backup_dir = backup_dir(pkg_id);
+        let backup_dir = backup_dir(&manifest.id);
         if tokio::fs::metadata(&backup_dir).await.is_err() {
             tokio::fs::create_dir_all(&backup_dir).await?
         }
@@ -122,29 +119,29 @@ impl BackupActions {
             .await?
             .map_err(|e| eyre!("{}", e.1))
             .with_kind(crate::ErrorKind::Backup)?;
-        let (network_keys, tor_keys) = Key::for_package(&ctx.secret_store, pkg_id)
+        let (network_keys, tor_keys): (Vec<_>, Vec<_>) =
+            Key::for_package(&ctx.secret_store, pkg_id)
+                .await?
+                .into_iter()
+                .filter_map(|k| {
+                    let interface = k.interface().map(|(_, i)| i)?;
+                    Some((
+                        (interface.clone(), Base64(k.as_bytes())),
+                        (interface, Base32(k.tor_key().as_bytes())),
+                    ))
+                })
+                .unzip();
+        let marketplace_url = ctx
+            .db
+            .peek()
             .await?
-            .into_iter()
-            .filter_map(|k| {
-                let interface = k.interface().map(|(_, i)| i)?;
-                Some((
-                    (interface.clone(), Base64(k.as_bytes())),
-                    (interface, Base32(k.tor_key().as_bytes())),
-                ))
-            })
-            .unzip();
-        let marketplace_url = crate::db::DatabaseModel::new()
-            .package_data()
-            .idx_model(pkg_id)
-            .expect(db)
-            .await?
-            .installed()
-            .expect(db)
-            .await?
-            .marketplace_url()
-            .get(db)
-            .await?
-            .into_owned();
+            .as_package_data()
+            .as_idx(&pkg_id)
+            .or_not_found(pkg_id)?
+            .expect_as_installed()?
+            .as_installed()
+            .as_marketplace_url()
+            .de()?;
         let tmp_path = Path::new(BACKUP_DIR)
             .join(pkg_id)
             .join(format!("{}.s9pk", pkg_id));
@@ -172,6 +169,8 @@ impl BackupActions {
         let mut outfile = AtomicFile::new(&metadata_path, None::<PathBuf>)
             .await
             .with_kind(ErrorKind::Filesystem)?;
+        let network_keys = network_keys.into_iter().collect();
+        let tor_keys = tor_keys.into_iter().collect();
         outfile
             .write_all(&IoFormat::Cbor.to_vec(&BackupMetadata {
                 timestamp,
@@ -183,22 +182,20 @@ impl BackupActions {
         outfile.save().await.with_kind(ErrorKind::Filesystem)?;
         Ok(PackageBackupInfo {
             os_version: Current::new().semver().into(),
-            title: pkg_title.to_owned(),
+            title: manifest.title.clone(),
             version: pkg_version.clone(),
             timestamp,
         })
     }
 
     #[instrument(skip_all)]
-    pub async fn restore<Db: DbHandle>(
+    pub async fn restore(
         &self,
         ctx: &RpcContext,
-        db: &mut Db,
         pkg_id: &PackageId,
         pkg_version: &Version,
-        interfaces: &Interfaces,
         volumes: &Volumes,
-    ) -> Result<(), Error> {
+    ) -> Result<Option<Url>, Error> {
         let mut volumes = volumes.clone();
         volumes.insert(VolumeId::Backup, Volume::Backup { readonly: true });
         self.restore
@@ -223,32 +220,7 @@ impl BackupActions {
                 )
             })?,
         )?;
-        let pde = crate::db::DatabaseModel::new()
-            .package_data()
-            .idx_model(pkg_id)
-            .expect(db)
-            .await?
-            .installed()
-            .expect(db)
-            .await?;
-        pde.marketplace_url()
-            .put(db, &metadata.marketplace_url)
-            .await?;
 
-        let entry = crate::db::DatabaseModel::new()
-            .package_data()
-            .idx_model(pkg_id)
-            .expect(db)
-            .await?
-            .installed()
-            .expect(db)
-            .await?
-            .get(db)
-            .await?;
-
-        let receipts = crate::config::ConfigReceipts::new(db).await?;
-        reconfigure_dependents_with_live_pointers(ctx, db, &receipts, &entry).await?;
-
-        Ok(())
+        Ok(metadata.marketplace_url)
     }
 }

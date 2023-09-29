@@ -1,25 +1,34 @@
 use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
-use patch_db::{HasModel, Model};
+use models::PackageId;
 use serde::{Deserialize, Serialize};
 
 use self::health_check::HealthCheckId;
-use crate::dependencies::DependencyErrors;
+use crate::prelude::*;
 use crate::status::health_check::HealthCheckResult;
 
 pub mod health_check;
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
 pub struct Status {
     pub configured: bool,
-    #[model]
     pub main: MainStatus,
-    #[model]
-    pub dependency_errors: DependencyErrors,
+    #[serde(default)]
+    pub dependency_config_errors: DependencyConfigErrors,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, HasModel)]
+#[derive(Clone, Debug, Deserialize, Serialize, HasModel, Default)]
+#[serde(rename_all = "kebab-case")]
+#[model = "Model<Self>"]
+pub struct DependencyConfigErrors(pub BTreeMap<PackageId, String>);
+impl Map for DependencyConfigErrors {
+    type Key = PackageId;
+    type Value = String;
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(tag = "status")]
 #[serde(rename_all = "kebab-case")]
 pub enum MainStatus {
@@ -81,10 +90,5 @@ impl MainStatus {
             MainStatus::BackingUp { .. } => return self.clone(),
         };
         MainStatus::BackingUp { started, health }
-    }
-}
-impl MainStatusModel {
-    pub fn started(self) -> Model<Option<DateTime<Utc>>> {
-        self.0.child("started")
     }
 }
