@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core'
 import { Emver } from '@start9labs/shared'
 import {
+  distinctUntilChanged,
   filter,
   map,
   pairwise,
@@ -41,10 +42,7 @@ export class DepErrorService {
           {} as AllDependencyErrors,
         ),
     ),
-    startWith({} as AllDependencyErrors),
-    pairwise(),
-    filter(([prev, curr]) => !deepEqual(prev, curr)),
-    map(([_, curr]) => curr),
+    distinctUntilChanged((prev, curr) => deepEqual(prev, curr)),
     shareReplay(1),
   )
 
@@ -56,11 +54,7 @@ export class DepErrorService {
   getPkgDepErrors$(pkgId: string) {
     return this.depErrors$.pipe(
       map(depErrors => depErrors[pkgId]),
-      startWith({} as PkgDependencyErrors),
-      pairwise(),
-      filter(([prev, curr]) => !deepEqual(prev, curr)),
-      map(([_, curr]) => curr),
-      startWith({} as PkgDependencyErrors),
+      distinctUntilChanged((prev, curr) => deepEqual(prev, curr)),
     )
   }
 
