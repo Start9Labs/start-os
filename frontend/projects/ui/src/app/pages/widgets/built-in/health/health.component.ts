@@ -7,6 +7,8 @@ import {
 } from 'src/app/services/patch-db/data-model'
 import { PrimaryStatus } from 'src/app/services/pkg-status-rendering.service'
 import { getPackageInfo, PkgInfo } from '../../../../util/get-package-info'
+import { combineLatest } from 'rxjs'
+import { DepErrorService } from 'src/app/services/dep-error.service'
 
 @Component({
   selector: 'widget-health',
@@ -23,31 +25,32 @@ export class HealthComponent {
     'Transitioning',
   ] as const
 
-  readonly data$ = inject(PatchDB<DataModel>)
-    .watch$('package-data')
-    .pipe(
-      map(data => {
-        const pkgs = Object.values<PackageDataEntry>(data).map(
-          pkg => getPackageInfo(pkg, {}), // @TODO hack because not currently using widget
-        )
-        const result = this.labels.reduce<Record<string, number>>(
-          (acc, label) => ({
-            ...acc,
-            [label]: this.getCount(label, pkgs),
-          }),
-          {},
-        )
+  readonly data$ = combineLatest([
+    inject(PatchDB<DataModel>).watch$('package-data'),
+    inject(DepErrorService).depErrors$,
+  ]).pipe(
+    map(([data, depErrors]) => {
+      const pkgs = Object.values<PackageDataEntry>(data).map(pkg =>
+        getPackageInfo(pkg, depErrors[pkg.manifest.id]),
+      )
+      const result = this.labels.reduce<Record<string, number>>(
+        (acc, label) => ({
+          ...acc,
+          [label]: this.getCount(label, pkgs),
+        }),
+        {},
+      )
 
-        result['Healthy'] =
-          pkgs.length -
-          result['Error'] -
-          result['Needs Attention'] -
-          result['Stopped'] -
-          result['Transitioning']
+      result['Healthy'] =
+        pkgs.length -
+        result['Error'] -
+        result['Needs Attention'] -
+        result['Stopped'] -
+        result['Transitioning']
 
-        return this.labels.map(label => result[label])
-      }),
-    )
+      return this.labels.map(label => result[label])
+    }),
+  )
 
   private getCount(label: string, pkgs: PkgInfo[]): number {
     switch (label) {
