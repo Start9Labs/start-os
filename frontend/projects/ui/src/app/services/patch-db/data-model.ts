@@ -132,7 +132,7 @@ export interface InstalledPackageDataEntry {
   'current-dependencies': { [id: string]: CurrentDependencyInfo }
   'dependency-info': {
     [id: string]: {
-      manifest: Manifest
+      title: string
       icon: Url
     }
   }

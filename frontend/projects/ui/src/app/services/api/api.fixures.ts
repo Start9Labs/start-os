@@ -1958,7 +1958,7 @@ export module Mock {
       },
       'dependency-info': {
         bitcoind: {
-          manifest: Mock.MockManifestBitcoind,
+          title: Mock.MockManifestBitcoind.title,
           icon: 'assets/img/service-icons/bitcoind.svg',
         },
       },
@@ -2012,11 +2012,11 @@ export module Mock {
       },
       'dependency-info': {
         bitcoind: {
-          manifest: Mock.MockManifestBitcoind,
+          title: Mock.MockManifestBitcoind.title,
           icon: 'assets/img/service-icons/bitcoind.svg',
         },
         'btc-rpc-proxy': {
-          manifest: Mock.MockManifestBitcoinProxy,
+          title: Mock.MockManifestBitcoinProxy.title,
           icon: 'assets/img/service-icons/btc-rpc-proxy.png',
         },
       },

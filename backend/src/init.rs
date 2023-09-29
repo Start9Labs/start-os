@@ -200,11 +200,6 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
 
     let account = AccountInfo::load(&secret_store).await?;
     let db = cfg.db(&account).await?;
-    db.mutate(|d| {
-        let model = d.de()?;
-        d.ser(&model)
-    })
-    .await?;
     tracing::info!("Opened PatchDB");
     let peek = db.peek().await?;
     let mut server_info = peek.as_server_info().de()?;
@@ -374,6 +369,12 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     .await?;
 
     crate::version::init(&db, &secret_store).await?;
+
+    db.mutate(|d| {
+        let model = d.de()?;
+        d.ser(&model)
+    })
+    .await?;
 
     if should_rebuild {
         match tokio::fs::remove_file(SYSTEM_REBUILD_PATH).await {
