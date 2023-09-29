@@ -6,6 +6,9 @@ set -e
 /usr/bin/apt update
 /usr/bin/apt install --no-install-recommends -y xserver-xorg x11-xserver-utils xinit firefox-esr matchbox-window-manager libnss3-tools
 
+#Change a default preference set by stock debian firefox-esr
+sed -i 's|^pref("extensions.update.enabled", true);$|pref("extensions.update.enabled", false);|' /etc/firefox-esr/firefox-esr.js
+
 # create kiosk user
 useradd -s /bin/bash --create-home kiosk
 # create kiosk script
@@ -18,11 +21,18 @@ fi
 cat >> $PROFILE/prefs.js << EOT
 user_pref("app.normandy.api_url", "");
 user_pref("app.normandy.enabled", false);
-user_pref("app.shield.optoutstudies.enabled", true);
+user_pref("app.shield.optoutstudies.enabled", false);
+user_pref("app.update.enabled", false);
+user_pref("browser.aboutHomeSnippets.updateUrl", "");
+user_pref("browser.bookmarks.addedImportButton", false);
+user_pref("browser.casting.enabled", false);
 user_pref("browser.crashReports.unsubmittedCheck.autoSubmit2", false);
 user_pref("browser.newtabpage.activity-stream.feeds.asrouterfeed", false);
+user_pref("browser.newtabpage.activity-stream.feeds.topsites", false);
+user_pref("browser.newtabpage.activity-stream.showSponsoredTopSites", false);
 user_pref("browser.onboarding.enabled", false);
 user_pref("browser.ping-centre.telemetry", false);
+user_pref("browser.pocket.enabled",	false);
 user_pref("browser.safebrowsing.blockedURIs.enabled", false);
 user_pref("browser.safebrowsing.malware.enabled", false);
 user_pref("browser.safebrowsing.phishing.enabled", false);
@@ -30,9 +40,13 @@ user_pref("browser.safebrowsing.downloads.remote.block_potentially_unwanted", fa
 user_pref("browser.safebrowsing.downloads.remote.block_uncommon", false);
 user_pref("browser.safebrowsing.downloads.remote.enabled", false);
 user_pref("browser.search.geoip.url", "");
+user_pref("browser.search.update", false);
+user_pref("browser.search.suggest.enabled",	false);
 user_pref("browser.startup.homepage_override.mstone", "ignore");
 user_pref("browser.theme.content-theme", 0);
 user_pref("browser.theme.toolbar-theme", 0);
+user_pref("browser.urlbar.groupLabels.enabled", false);
+user_pref("browser.urlbar.suggest.searches" false);
 user_pref("datareporting.policy.firstRunURL", "");
 user_pref("datareporting.healthreport.service.enabled", false);
 user_pref("datareporting.healthreport.uploadEnabled", false);
@@ -45,9 +59,12 @@ user_pref("experiments.supported", false);
 user_pref("extensions.activeThemeID", "firefox-compact-dark@mozilla.org");
 user_pref("extensions.blocklist.enabled", false);
 user_pref("extensions.getAddons.cache.enabled", false);
+user_pref("extensions.pocket.enabled", false);
+user_pref("extensions.update.enabled", false);
 user_pref("extensions.shield-recipe-client.enabled", false);
 user_pref("extensions.shield-recipe-client.user_id", "");
 user_pref("extensions.shield-recipe-client.api_url", "");
+user_pref("media.gmp-gmpopenh264.enabled", false);
 user_pref("messaging-system.rsexperimentloader.enabled", false);
 user_pref("network.allow-experiments", false);
 user_pref("network.captive-portal-service.enabled", false);
@@ -58,6 +75,7 @@ user_pref("network.proxy.type", 2);
 user_pref("signon.rememberSignons", false);
 user_pref("toolkit.telemetry.archive.enabled", false);
 user_pref("toolkit.telemetry.bhrPing.enabled", false);
+user_pref("toolkit.telemetry.coverage.opt-out", true);
 user_pref("toolkit.telemetry.enabled", false);
 user_pref("toolkit.telemetry.firstShutdownPing.enabled", false);
 user_pref("toolkit.telemetry.newProfilePing.enabled", false);
