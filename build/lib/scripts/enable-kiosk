@@ -9,8 +9,11 @@ set -e
 #Change a default preference set by stock debian firefox-esr
 sed -i 's|^pref("extensions.update.enabled", true);$|pref("extensions.update.enabled", false);|' /etc/firefox-esr/firefox-esr.js
 
-# create kiosk user
-useradd -s /bin/bash --create-home kiosk
+if ! id kiosk; then
+    # create kiosk user
+    useradd -s /bin/bash --create-home kiosk
+fi
+
 # create kiosk script
 cat > /home/kiosk/kiosk.sh << 'EOF'
 #!/bin/sh
