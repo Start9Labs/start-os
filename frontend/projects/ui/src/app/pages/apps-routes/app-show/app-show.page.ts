@@ -120,7 +120,7 @@ export class AppShowPage {
     return {
       id: depId,
       version: pkgInstalled.manifest.dependencies[depId].version, // do we want this version range?
-      title: depInfo?.manifest?.title || depId,
+      title: depInfo?.title || depId,
       icon: depInfo?.icon || '',
       errorText: errorText
         ? `${errorText}. ${pkgInstalled.manifest.title} will not work as expected.`

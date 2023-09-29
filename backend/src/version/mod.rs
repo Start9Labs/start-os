@@ -13,8 +13,9 @@ mod v0_3_4_1;
 mod v0_3_4_2;
 mod v0_3_4_3;
 mod v0_3_4_4;
+mod v0_3_5;
 
-pub type Current = v0_3_4_4::Version;
+pub type Current = v0_3_5::Version;
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 #[serde(untagged)]
@@ -24,6 +25,7 @@ enum Version {
     V0_3_4_2(Wrapper<v0_3_4_2::Version>),
     V0_3_4_3(Wrapper<v0_3_4_3::Version>),
     V0_3_4_4(Wrapper<v0_3_4_4::Version>),
+    V0_3_5(Wrapper<v0_3_5::Version>),
     Other(emver::Version),
 }
 
@@ -44,6 +46,7 @@ impl Version {
             Version::V0_3_4_2(Wrapper(x)) => x.semver(),
             Version::V0_3_4_3(Wrapper(x)) => x.semver(),
             Version::V0_3_4_4(Wrapper(x)) => x.semver(),
+            Version::V0_3_5(Wrapper(x)) => x.semver(),
             Version::Other(x) => x.clone(),
         }
     }
@@ -168,6 +171,7 @@ pub async fn init(db: &PatchDb, secrets: &PgPool) -> Result<(), Error> {
         Version::V0_3_4_2(v) => v.0.migrate_to(&Current::new(), db.clone(), secrets).await?,
         Version::V0_3_4_3(v) => v.0.migrate_to(&Current::new(), db.clone(), secrets).await?,
         Version::V0_3_4_4(v) => v.0.migrate_to(&Current::new(), db.clone(), secrets).await?,
+        Version::V0_3_5(v) => v.0.migrate_to(&Current::new(), db.clone(), secrets).await?,
         Version::Other(_) => {
             return Err(Error::new(
                 eyre!("Cannot downgrade"),

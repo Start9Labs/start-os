@@ -664,15 +664,11 @@ export const mockPatchData: DataModel = {
         },
         'dependency-info': {
           bitcoind: {
-            manifest: {
-              title: 'Bitcoin Core',
-            } as Manifest,
+            title: 'Bitcoin Core',
             icon: 'assets/img/service-icons/bitcoind.svg',
           },
           'btc-rpc-proxy': {
-            manifest: {
-              title: 'Bitcoin Proxy',
-            } as Manifest,
+            title: 'Bitcoin Proxy',
             icon: 'assets/img/service-icons/btc-rpc-proxy.png',
           },
         },
