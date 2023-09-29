@@ -42,7 +42,7 @@ export class DepErrorService {
           {} as AllDependencyErrors,
         ),
     ),
-    distinctUntilChanged((prev, curr) => deepEqual(prev, curr)),
+    distinctUntilChanged(deepEqual),
     shareReplay(1),
   )
 
@@ -54,7 +54,7 @@ export class DepErrorService {
   getPkgDepErrors$(pkgId: string) {
     return this.depErrors$.pipe(
       map(depErrors => depErrors[pkgId]),
-      distinctUntilChanged((prev, curr) => deepEqual(prev, curr)),
+      distinctUntilChanged(deepEqual),
     )
   }
 
