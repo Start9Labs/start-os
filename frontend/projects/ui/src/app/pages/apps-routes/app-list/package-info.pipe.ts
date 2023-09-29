@@ -16,8 +16,6 @@ export class PackageInfoPipe implements PipeTransform {
   ) {}
 
   transform(pkgId: string): Observable<PkgInfo> {
-    firstValueFrom(this.patch.watch$('package-data', pkgId))
-
     return combineLatest([
       this.patch.watch$('package-data', pkgId),
       this.depErrorService.getPkgDepErrors$(pkgId),
