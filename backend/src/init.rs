@@ -264,6 +264,9 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         tokio::fs::create_dir_all(&tmp_dir).await?;
     }
     let tmp_var = cfg.datadir().join(format!("package-data/tmp/var"));
+    if tokio::fs::metadata(&tmp_var).await.is_ok() {
+        tokio::fs::remove_dir_all(&tmp_var).await?;
+    }
     crate::disk::mount::util::bind(&tmp_var, "/var/tmp", false).await?;
     let tmp_docker = cfg
         .datadir()
