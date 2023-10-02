@@ -72,6 +72,11 @@ impl VersionT for Version {
                 {
                     if let Some(url) = url_replacements.get(&dependency) {
                         info.as_icon_mut().ser(url)?;
+                    } else {
+                        info.as_icon_mut().ser(&DataUrl::from_slice(
+                            "image/png",
+                            include_bytes!("../install/package-icon.png"),
+                        ))?;
                     }
                     let manifest = <&mut Value>::from(&mut *info)
                         .as_object_mut()
@@ -84,6 +89,8 @@ impl VersionT for Version {
                         .map(|s| s.to_owned())
                     {
                         info.as_title_mut().ser(&title)?;
+                    } else {
+                        info.as_title_mut().ser(&dependency.to_string())?;
                     }
                 }
             }
