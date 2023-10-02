@@ -4,6 +4,7 @@ use std::net::IpAddr;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use chrono::format;
 use futures::FutureExt;
 use openssl::asn1::{Asn1Integer, Asn1Time};
 use openssl::bn::{BigNum, MsbOption};
@@ -13,13 +14,18 @@ use openssl::nid::Nid;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::{X509Builder, X509Extension, X509NameBuilder, X509};
 use openssl::*;
+use rpc_toolkit::command;
 use tokio::sync::{Mutex, RwLock};
 use tracing::instrument;
 
-use crate::account::AccountInfo;
 use crate::hostname::Hostname;
 use crate::net::dhcp::ips;
 use crate::net::keys::{Key, KeyInfo};
+use crate::prelude::*;
+use crate::{
+    account::AccountInfo,
+    context::{self, RpcContext},
+};
 use crate::{Error, ErrorKind, ResultExt};
 
 static CERTIFICATE_VERSION: i32 = 2; // X509 version 3 is actually encoded as '2' in the cert because fuck you.
@@ -413,4 +419,17 @@ pub fn make_leaf_cert(
 
     let cert = builder.build();
     Ok(cert)
+}
+
+#[command(subcommands(ssl_size))]
+pub async fn ssl() -> Result<(), Error> {
+    Ok(())
+}
+
+#[command(display(crate::util::display_none))]
+pub async fn ssl_size(#[context] ctx: RpcContext) -> Result<String, Error> {
+    Ok(format!(
+        "Cert Catch size: {}",
+        ctx.net_controller.ssl.cert_cache.read().await.len()
+    ))
 }
