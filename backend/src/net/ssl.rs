@@ -421,13 +421,13 @@ pub fn make_leaf_cert(
     Ok(cert)
 }
 
-#[command(subcommands(ssl_size))]
+#[command(subcommands(size))]
 pub async fn ssl() -> Result<(), Error> {
     Ok(())
 }
 
-#[command(display(crate::util::display_none))]
-pub async fn ssl_size(#[context] ctx: RpcContext) -> Result<String, Error> {
+#[command]
+pub async fn size(#[context] ctx: RpcContext) -> Result<String, Error> {
     Ok(format!(
         "Cert Catch size: {}",
         ctx.net_controller.ssl.cert_cache.read().await.len()
