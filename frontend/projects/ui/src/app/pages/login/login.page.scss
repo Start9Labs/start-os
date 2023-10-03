@@ -9,7 +9,7 @@
 .title {
   margin: 24px 0 16px;
   color: #e0e0e0;
-  text-transform: uppercase;
+  font-size: 1.8rem;
 }
 
 .grid {
@@ -21,11 +21,6 @@
   height: 100%;
   align-items: center;
   text-align: center;
-}
-
-.logo {
-  max-width: 240px;
-  padding-bottom: 16px;
 }
 
 .error {

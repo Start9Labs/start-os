@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="frontend/projects/shared/assets/img/icon_pwa.png" alt="StartOS Logo" width="16%" />
+  <img src="frontend/projects/shared/assets/img/icon.png" alt="StartOS Logo" width="16%" />
   <h1 style="margin-top: 0;">StartOS</h1>
   <a href="https://github.com/Start9Labs/start-os/releases">
     <img src="https://img.shields.io/github/v/tag/Start9Labs/start-os?color=success" />
@@ -65,7 +65,7 @@ There are multiple ways to contribute: work directly on StartOS, package a servi
 To report security issues, please email our security team - security@start9.com.
 
 ## 🌎 Marketplace
-There are dozens of service available for StartOS, and new ones are being added all the time. Check out the full list of available services [here](https://marketplace.start9.com/marketplace). To read more about the Marketplace ecosystem, check out this [blog post](https://blog.start9.com/start9-marketplace-strategy/)
+There are dozens of services available for StartOS, and new ones are being added all the time. Check out the full list of available services [here](https://marketplace.start9.com/marketplace). To read more about the Marketplace ecosystem, check out this [blog post](https://blog.start9.com/start9-marketplace-strategy/)
 
 ## 🖥️ User Interface Screenshots
 
