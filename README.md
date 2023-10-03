@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="frontend/projects/shared/assets/img/icon_pwa.png" alt="StartOS Logo" width="16%" />
+  <img src="frontend/projects/shared/assets/img/icon.png" alt="StartOS Logo" width="16%" />
   <h1 style="margin-top: 0;">StartOS</h1>
   <a href="https://github.com/Start9Labs/start-os/releases">
     <img src="https://img.shields.io/github/v/tag/Start9Labs/start-os?color=success" />
