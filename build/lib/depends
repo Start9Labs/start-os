@@ -24,6 +24,7 @@ iw
 jq
 libavahi-client3
 libyajl2
+linux-cpupower
 lm-sensors
 lshw
 lvm2
