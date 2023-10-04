@@ -13,6 +13,7 @@ import { defer, EMPTY, from, interval, merge, Observable } from 'rxjs'
 import { AuthService } from '../auth.service'
 import { ConnectionService } from '../connection.service'
 import { ApiService } from '../api/embassy-api.service'
+import { ConfigService } from '../config.service'
 
 export const PATCH_SOURCE = new InjectionToken<Observable<Update<DataModel>[]>>(
   '',
@@ -26,6 +27,9 @@ export function sourceFactory(
     const api = injector.get(ApiService)
     const authService = injector.get(AuthService)
     const connectionService = injector.get(ConnectionService)
+    const configService = injector.get(ConfigService)
+    const isTor = configService.isTor()
+    const timeout = isTor ? 16000 : 4000
 
     const websocket$ = api.openPatchWebsocket$().pipe(
       bufferTime(250),
@@ -33,9 +37,11 @@ export function sourceFactory(
       catchError((_, watch$) => {
         connectionService.websocketConnected$.next(false)
 
-        return interval(4000).pipe(
+        return interval(timeout).pipe(
           switchMap(() =>
-            from(api.echo({ message: 'ping' })).pipe(catchError(() => EMPTY)),
+            from(api.echo({ message: 'ping', timeout })).pipe(
+              catchError(() => EMPTY),
+            ),
           ),
           take(1),
           switchMap(() => watch$),
