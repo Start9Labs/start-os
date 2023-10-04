@@ -38,7 +38,7 @@ export module RR {
 
   // server
 
-  export type EchoReq = { message: string } // server.echo
+  export type EchoReq = { message: string; timeout?: number } // server.echo
   export type EchoRes = string
 
   export type GetSystemTimeReq = {} // server.time

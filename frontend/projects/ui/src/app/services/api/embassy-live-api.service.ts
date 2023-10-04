@@ -91,7 +91,11 @@ export class LiveApiService extends ApiService {
   // server
 
   async echo(params: RR.EchoReq, urlOverride?: string): Promise<RR.EchoRes> {
-    return this.rpcRequest({ method: 'echo', params }, false, urlOverride)
+    return this.rpcRequest(
+      { method: 'echo', params, timeout: 4000 },
+      false,
+      urlOverride,
+    )
   }
 
   openPatchWebsocket$(): Observable<Update<DataModel>> {
