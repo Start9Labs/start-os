@@ -35,7 +35,7 @@
     Welcome to the era of Sovereign Computing
   </h3>
   <p>
-    StartOS is a Debian-based Linux distro optimized for running a personal server. It facilitates the discovery,       installation, network configuration, service configuration, data backup, dependency management, and health monitoring of self-hosted software services.
+    StartOS is an open source Linux distribution optimized for running a personal server. It facilitates the discovery, installation, network configuration, service configuration, data backup, dependency management, and health monitoring of self-hosted software services.
   </p>
 </div>
 <br />
