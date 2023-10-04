@@ -82,6 +82,8 @@ async fn deal_with_messages(
     mut sub: patch_db::Subscriber,
     mut stream: WebSocketStream<Upgraded>,
 ) -> Result<(), Error> {
+    let mut timer = tokio::time::interval(tokio::time::Duration::from_secs(5));
+
     loop {
         futures::select! {
             _ = (&mut kill).fuse() => {
@@ -104,6 +106,10 @@ async fn deal_with_messages(
             }
             message = stream.next().fuse() => {
                 let message = message.transpose().with_kind(ErrorKind::Network)?;
+                if message.is_none() {
+                    tracing::info!("Closing WebSocket: Stream Finished");
+                    return Ok(())
+                }
                 match message {
                     None => {
                         tracing::info!("Closing WebSocket: Stream Finished");
@@ -111,6 +117,13 @@ async fn deal_with_messages(
                     }
                     _ => (),
                 }
+            }
+            // This is trying to give a health checks to the home to keep the ui alive.
+            _ = timer.tick().fuse() => {
+                stream
+                    .send(Message::Ping(vec![]))
+                    .await
+                    .with_kind(crate::ErrorKind::Network)?;
             }
         }
     }
