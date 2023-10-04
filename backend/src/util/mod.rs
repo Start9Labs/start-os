@@ -24,6 +24,7 @@ use tracing::instrument;
 use crate::shutdown::Shutdown;
 use crate::{Error, ErrorKind, ResultExt as _};
 pub mod config;
+pub mod cpupower;
 pub mod docker;
 pub mod http_reader;
 pub mod io;

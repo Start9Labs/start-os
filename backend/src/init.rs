@@ -20,6 +20,9 @@ use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
 use crate::prelude::*;
 use crate::sound::BEP;
 use crate::system::time;
+use crate::util::cpupower::{
+    current_governor, get_available_governors, set_governor, GOVERNOR_PERFORMANCE,
+};
 use crate::util::docker::{create_bridge_network, CONTAINER_DATADIR, CONTAINER_TOOL};
 use crate::util::Invoke;
 use crate::{Error, ARCH};
@@ -340,6 +343,23 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         .invoke(crate::ErrorKind::Docker)
         .await?;
     tracing::info!("Enabled Docker QEMU Emulation");
+
+    if current_governor()
+        .await?
+        .map(|g| &g != &GOVERNOR_PERFORMANCE)
+        .unwrap_or(true)
+    {
+        tracing::info!("Setting CPU Governor to \"{}\"", GOVERNOR_PERFORMANCE);
+        if get_available_governors()
+            .await?
+            .contains(&GOVERNOR_PERFORMANCE)
+        {
+            set_governor(&GOVERNOR_PERFORMANCE).await?;
+            tracing::info!("Set CPU Governor");
+        } else {
+            tracing::warn!("CPU Governor \"{}\" Not Available", GOVERNOR_PERFORMANCE)
+        }
+    }
 
     let mut warn_time_not_synced = true;
     for _ in 0..60 {
