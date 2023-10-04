@@ -347,7 +347,7 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     if current_governor()
         .await?
         .map(|g| &g != &GOVERNOR_PERFORMANCE)
-        .unwrap_or(true)
+        .unwrap_or(false)
     {
         tracing::info!("Setting CPU Governor to \"{}\"", GOVERNOR_PERFORMANCE);
         if get_available_governors()
