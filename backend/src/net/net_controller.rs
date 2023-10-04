@@ -323,6 +323,7 @@ impl NetService {
         Ok(())
     }
     pub async fn remove_all(mut self) -> Result<(), Error> {
+        let ip = std::mem::replace(&mut self.ip, Ipv4Addr::new(0, 0, 0, 0));
         let mut errors = ErrorCollection::new();
         if let Some(ctrl) = Weak::upgrade(&self.controller) {
             for ((_, external), (key, rcs)) in std::mem::take(&mut self.lan) {
@@ -332,10 +333,10 @@ impl NetService {
                 errors.handle(ctrl.remove_tor(&key, external, rcs).await);
             }
             std::mem::take(&mut self.dns);
-            errors.handle(ctrl.dns.gc(Some(self.id.clone()), self.ip).await);
-            self.ip = Ipv4Addr::new(0, 0, 0, 0);
+            errors.handle(ctrl.dns.gc(Some(self.id.clone()), ip).await);
             errors.into_result()
         } else {
+            tracing::warn!("NetService dropped after NetController is shutdown");
             Err(Error::new(
                 eyre!("NetController is shutdown"),
                 crate::ErrorKind::Network,
