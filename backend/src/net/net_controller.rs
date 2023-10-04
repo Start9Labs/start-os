@@ -154,6 +154,7 @@ impl NetController {
         let dns = self.dns.add(Some(package.clone()), ip).await?;
 
         Ok(NetService {
+            shutdown: false,
             id: package,
             ip,
             dns,
@@ -210,6 +211,7 @@ impl NetController {
 }
 
 pub struct NetService {
+    shutdown: bool,
     id: PackageId,
     ip: Ipv4Addr,
     dns: Arc<()>,
@@ -323,6 +325,7 @@ impl NetService {
         Ok(())
     }
     pub async fn remove_all(mut self) -> Result<(), Error> {
+        self.shutdown = true;
         let mut errors = ErrorCollection::new();
         if let Some(ctrl) = Weak::upgrade(&self.controller) {
             for ((_, external), (key, rcs)) in std::mem::take(&mut self.lan) {
@@ -333,9 +336,9 @@ impl NetService {
             }
             std::mem::take(&mut self.dns);
             errors.handle(ctrl.dns.gc(Some(self.id.clone()), self.ip).await);
-            self.ip = Ipv4Addr::new(0, 0, 0, 0);
             errors.into_result()
         } else {
+            tracing::warn!("NetService dropped after NetController is shutdown");
             Err(Error::new(
                 eyre!("NetController is shutdown"),
                 crate::ErrorKind::Network,
@@ -346,11 +349,12 @@ impl NetService {
 
 impl Drop for NetService {
     fn drop(&mut self) {
-        if self.ip != Ipv4Addr::new(0, 0, 0, 0) {
+        if !self.shutdown {
             tracing::debug!("Dropping NetService for {}", self.id);
             let svc = std::mem::replace(
                 self,
                 NetService {
+                    shutdown: true,
                     id: Default::default(),
                     ip: Ipv4Addr::new(0, 0, 0, 0),
                     dns: Default::default(),

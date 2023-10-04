@@ -16,7 +16,7 @@ use crate::{Error, ErrorKind, ResultExt};
 
 #[instrument(skip_all)]
 async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error> {
-    let (rpc_ctx, server, shutdown) = {
+    let (rpc_ctx, server, shutdown) = async {
         let rpc_ctx = RpcContext::init(
             cfg_path,
             Arc::new(
@@ -91,8 +91,9 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
 
         sig_handler.abort();
 
-        (rpc_ctx, server, shutdown)
-    };
+        Ok::<_, Error>((rpc_ctx, server, shutdown))
+    }
+    .await?;
     server.shutdown().await;
     rpc_ctx.shutdown().await?;
 
