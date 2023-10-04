@@ -106,10 +106,6 @@ async fn deal_with_messages(
             }
             message = stream.next().fuse() => {
                 let message = message.transpose().with_kind(ErrorKind::Network)?;
-                if message.is_none() {
-                    tracing::info!("Closing WebSocket: Stream Finished");
-                    return Ok(())
-                }
                 match message {
                     None => {
                         tracing::info!("Closing WebSocket: Stream Finished");
