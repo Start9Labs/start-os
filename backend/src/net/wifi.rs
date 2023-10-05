@@ -174,7 +174,7 @@ pub async fn delete(#[context] ctx: RpcContext, #[arg] ssid: String) -> Result<(
 pub struct WiFiInfo {
     ssids: HashMap<Ssid, SignalStrength>,
     connected: Option<Ssid>,
-    country: CountryCode,
+    country: Option<CountryCode>,
     ethernet: bool,
     available_wifi: Vec<WifiListOut>,
 }
@@ -216,7 +216,7 @@ fn display_wifi_info(info: WiFiInfo, matches: &ArgMatches) {
             .as_ref()
             .and_then(|x| info.ssids.get(x))
             .map_or("[N/A]".to_owned(), |ss| format!("{}", ss.0)),
-        &info.country.alpha2(),
+        info.country.as_ref().map(|c| c.alpha2()).unwrap_or("00"),
         &format!("{}", info.ethernet)
     ]);
     table_global.print_tty(false).unwrap();
@@ -517,7 +517,7 @@ impl WpaCli {
 
         Ok(())
     }
-    pub async fn get_country_low(&self) -> Result<CountryCode, Error> {
+    pub async fn get_country_low(&self) -> Result<Option<CountryCode>, Error> {
         let r = Command::new("iw")
             .arg("reg")
             .arg("get")
@@ -539,12 +539,16 @@ impl WpaCli {
                 ErrorKind::Wifi,
             )
         })?[1];
-        Ok(CountryCode::for_alpha2(country).map_err(|_| {
-            Error::new(
-                color_eyre::eyre::eyre!("Invalid Country Code: {}", country),
-                ErrorKind::Wifi,
-            )
-        })?)
+        if country == "00" {
+            Ok(None)
+        } else {
+            Ok(Some(CountryCode::for_alpha2(country).map_err(|_| {
+                Error::new(
+                    color_eyre::eyre::eyre!("Invalid Country Code: {}", country),
+                    ErrorKind::Wifi,
+                )
+            })?))
+        }
     }
     pub async fn remove_network_low(&mut self, id: NetworkId) -> Result<(), Error> {
         let _ = Command::new("nmcli")
@@ -634,7 +638,7 @@ impl WpaCli {
         Ok(())
     }
     pub async fn save_config(&mut self, db: PatchDb) -> Result<(), Error> {
-        let new_country = Some(self.get_country_low().await?);
+        let new_country = self.get_country_low().await?;
         db.mutate(|d| {
             d.as_server_info_mut()
                 .as_last_wifi_region_mut()
