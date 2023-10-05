@@ -126,6 +126,7 @@ pub async fn create_fs<P: AsRef<Path>>(
         Command::new("cryptsetup")
             .arg("-q")
             .arg("luksOpen")
+            .arg("--allow-discards")
             .arg(format!("--key-file={}", PASSWORD_PATH))
             .arg(format!("--keyfile-size={}", password.len()))
             .arg(&blockdev_path)
