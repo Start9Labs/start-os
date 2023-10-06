@@ -1,14 +1,6 @@
 import { Injectable } from '@angular/core'
 import { Emver } from '@start9labs/shared'
-import {
-  distinctUntilChanged,
-  filter,
-  map,
-  pairwise,
-  shareReplay,
-  startWith,
-  tap,
-} from 'rxjs/operators'
+import { distinctUntilChanged, map, shareReplay } from 'rxjs/operators'
 import { PatchDB } from 'patch-db-client'
 import {
   DataModel,
@@ -43,7 +35,7 @@ export class DepErrorService {
         ),
     ),
     distinctUntilChanged(deepEqual),
-    shareReplay(1),
+    shareReplay({ bufferSize: 1, refCount: true }),
   )
 
   constructor(

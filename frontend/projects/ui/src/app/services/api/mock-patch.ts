@@ -2,7 +2,6 @@ import {
   DataModel,
   DockerIoFormat,
   HealthResult,
-  Manifest,
   PackageMainStatus,
   PackageState,
 } from 'src/app/services/patch-db/data-model'
