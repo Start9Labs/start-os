@@ -1,6 +1,6 @@
 <ion-content class="content">
   <!-- Local HTTP -->
-  <ng-container *ngIf="config.isLocalHttp(); else notLanHttp">
+  <ng-container *ngIf="config.isLanHttp(); else notLanHttp">
     <ca-wizard></ca-wizard>
   </ng-container>
 
