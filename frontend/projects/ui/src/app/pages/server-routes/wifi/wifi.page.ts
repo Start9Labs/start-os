@@ -57,7 +57,7 @@ export class WifiPage {
   }
 
   async presentAlertCountry(): Promise<void> {
-    if (!this.config.isLan()) {
+    if (this.config.isTor()) {
       const alert = await this.alertCtrl.create({
         header: 'Cannot Complete Action',
         message:
