@@ -116,11 +116,7 @@ export class DepErrorService {
     // not running
     if (
       depStatus !== PackageMainStatus.Running &&
-      depStatus !== PackageMainStatus.Starting &&
-      !(
-        depStatus === PackageMainStatus.BackingUp &&
-        depInstalled.status.main.started
-      )
+      depStatus !== PackageMainStatus.Starting
     ) {
       return {
         type: DependencyErrorType.NotRunning,
@@ -133,11 +129,10 @@ export class DepErrorService {
         'health-checks'
       ]) {
         if (
-          depInstalled.status.main.health[id].result !== HealthResult.Success
+          depInstalled.status.main.health[id]?.result !== HealthResult.Success
         ) {
           return {
             type: DependencyErrorType.HealthChecksFailed,
-            check: depInstalled.status.main.health[id],
           }
         }
       }
@@ -212,7 +207,6 @@ export interface DependencyErrorConfigUnsatisfied {
 
 export interface DependencyErrorHealthChecksFailed {
   type: DependencyErrorType.HealthChecksFailed
-  check: HealthCheckResult
 }
 
 export interface DependencyErrorTransitive {

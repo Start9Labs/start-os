@@ -159,7 +159,7 @@ export class AppShowPage {
         errorText = 'Not running'
         fixText = 'Start'
       } else if (depError.type === DependencyErrorType.HealthChecksFailed) {
-        errorText = 'Health check failed'
+        errorText = 'Required health check not passing'
       } else if (depError.type === DependencyErrorType.Transitive) {
         errorText = 'Dependency has a dependency issue'
       }
