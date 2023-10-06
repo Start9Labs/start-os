@@ -1,6 +1,6 @@
 import { Pipe, PipeTransform } from '@angular/core'
 import { Observable, combineLatest, firstValueFrom } from 'rxjs'
-import { map } from 'rxjs/operators'
+import { filter, map } from 'rxjs/operators'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { getPackageInfo, PkgInfo } from '../../../util/get-package-info'
 import { PatchDB } from 'patch-db-client'
@@ -17,7 +17,7 @@ export class PackageInfoPipe implements PipeTransform {
 
   transform(pkgId: string): Observable<PkgInfo> {
     return combineLatest([
-      this.patch.watch$('package-data', pkgId),
+      this.patch.watch$('package-data', pkgId).pipe(filter(Boolean)),
       this.depErrorService.getPkgDepErrors$(pkgId),
     ]).pipe(map(([pkg, depErrors]) => getPackageInfo(pkg, depErrors)))
   }

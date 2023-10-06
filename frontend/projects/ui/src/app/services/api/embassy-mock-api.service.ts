@@ -52,7 +52,7 @@ const PROGRESS: InstallProgress = {
 @Injectable()
 export class MockApiService extends ApiService {
   readonly mockWsSource$ = new Subject<Update<DataModel>>()
-  private readonly revertTime = 2000
+  private readonly revertTime = 1800
   sequence = 0
 
   constructor(
@@ -150,7 +150,6 @@ export class MockApiService extends ApiService {
   async echo(params: RR.EchoReq, url?: string): Promise<RR.EchoRes> {
     if (url) {
       const num = Math.floor(Math.random() * 10) + 1
-      console.warn(num)
       if (num > 8) return params.message
       throw new Error()
     }
@@ -1048,7 +1047,6 @@ export class MockApiService extends ApiService {
   }
 
   private async mockRevision<T>(patch: Operation<T>[]): Promise<void> {
-    console.log('Sequence', this.sequence, patch)
     if (!this.sequence) {
       const { sequence } = this.bootstrapper.init()
       this.sequence = sequence
@@ -1064,7 +1062,6 @@ export class MockApiService extends ApiService {
     patch: Operation<unknown>[],
     response: T | null = null,
   ): Promise<T> {
-    console.log('SequenceXXX', this.sequence, patch)
     if (!this.sequence) {
       const { sequence } = this.bootstrapper.init()
       this.sequence = sequence
