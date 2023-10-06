@@ -18,11 +18,7 @@ import { combineLatest, from, timer } from 'rxjs'
 export class TimeService {
   private readonly startTimeMs$ = this.patch
     .watch$('server-info', 'system-start-time')
-    .pipe(
-      take(1),
-      map(startTime => new Date(startTime).valueOf()),
-      shareReplay(),
-    )
+    .pipe(map(startTime => new Date(startTime).valueOf()))
 
   readonly systemTime$ = from(this.apiService.getSystemTime({})).pipe(
     switchMap(utcStr => {

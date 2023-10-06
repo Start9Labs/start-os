@@ -77,7 +77,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
       map(({ 'selected-url': url, 'known-hosts': hosts }) =>
         toStoreIdentity(url, hosts[url]),
       ),
-      shareReplay(1),
+      shareReplay({ bufferSize: 1, refCount: true }),
     )
 
   private readonly marketplace$ = this.knownHosts$.pipe(
@@ -105,7 +105,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
       },
       {},
     ),
-    shareReplay(1),
+    shareReplay({ bufferSize: 1, refCount: true }),
   )
 
   private readonly filteredMarketplace$ = combineLatest([

@@ -26,7 +26,8 @@ import {
   interval,
   map,
   Observable,
-  ReplaySubject,
+  shareReplay,
+  Subject,
   switchMap,
   tap,
   timer,
@@ -50,8 +51,8 @@ const PROGRESS: InstallProgress = {
 
 @Injectable()
 export class MockApiService extends ApiService {
-  readonly mockWsSource$ = new ReplaySubject<Update<DataModel>>()
-  private readonly revertTime = 2000
+  readonly mockWsSource$ = new Subject<Update<DataModel>>()
+  private readonly revertTime = 1800
   sequence = 0
 
   constructor(
@@ -149,7 +150,6 @@ export class MockApiService extends ApiService {
   async echo(params: RR.EchoReq, url?: string): Promise<RR.EchoRes> {
     if (url) {
       const num = Math.floor(Math.random() * 10) + 1
-      console.warn(num)
       if (num > 8) return params.message
       throw new Error()
     }
@@ -158,7 +158,9 @@ export class MockApiService extends ApiService {
   }
 
   openPatchWebsocket$(): Observable<Update<DataModel>> {
-    return this.mockWsSource$
+    return this.mockWsSource$.pipe(
+      shareReplay({ bufferSize: 1, refCount: true }),
+    )
   }
 
   openLogsWebsocket$(config: WebSocketSubjectConfig<Log>): Observable<Log> {
