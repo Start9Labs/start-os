@@ -1,11 +1,6 @@
 import { Injectable } from '@angular/core'
 import { BehaviorSubject, Observable } from 'rxjs'
-
-export interface NavigationItem {
-  readonly routerLink: string
-  readonly icon: string
-  readonly title: string
-}
+import { NavigationItem } from '../types/navigation-item'
 
 @Injectable({
   providedIn: 'root',

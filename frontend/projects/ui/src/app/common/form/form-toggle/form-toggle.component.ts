@@ -5,6 +5,6 @@ import { Control } from '../control'
 @Component({
   selector: 'form-toggle',
   templateUrl: './form-toggle.component.html',
-  styleUrls: ['./form-toggle.component.scss'],
+  host: { class: 'g-toggle' },
 })
 export class FormToggleComponent extends Control<ValueSpecToggle, boolean> {}

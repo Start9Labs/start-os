@@ -37,5 +37,6 @@ const routes: Routes = [
     TuiWrapperModule,
   ],
   declarations: [BackupJobsPage, ToHumanCronPipe, EditJobComponent],
+  exports: [ToHumanCronPipe],
 })
 export class BackupJobsPageModule {}

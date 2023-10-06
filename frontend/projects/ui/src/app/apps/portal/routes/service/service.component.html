@@ -11,7 +11,7 @@
     <ng-template #installed>
       <ng-container *ngIf="service | toStatus as status">
         <section>
-          <h3 class="title">Status</h3>
+          <h3 class="g-title">Status</h3>
           <service-status
             class="status"
             [connected]="connected"
@@ -26,7 +26,7 @@
 
         <ng-container *ngIf="isInstalled(service) && !isBackingUp(status)">
           <section>
-            <h3 class="title">Interfaces</h3>
+            <h3 class="g-title">Interfaces</h3>
             <button
               *ngFor="let info of service | interfaceInfo"
               class="g-action"
@@ -38,7 +38,7 @@
 
           <ng-container *ngIf="isRunning(status)">
             <section *ngIf="health$ | async as checks">
-              <h3 class="title">Health Checks</h3>
+              <h3 class="g-title">Health Checks</h3>
               <service-health-check
                 *ngFor="let check of checks"
                 class="g-action"
@@ -50,7 +50,7 @@
 
           <ng-container *ngIf="service | toDependencies as dependencies">
             <section *ngIf="dependencies.length">
-              <h3 class="title">Dependencies</h3>
+              <h3 class="g-title">Dependencies</h3>
               <button
                 *ngFor="let dep of dependencies"
                 class="g-action"
@@ -61,7 +61,7 @@
           </ng-container>
 
           <section>
-            <h3 class="title">Menu</h3>
+            <h3 class="g-title">Menu</h3>
             <button
               *ngFor="let menu of service | toMenu"
               class="g-action"
@@ -82,7 +82,7 @@
           </section>
 
           <section>
-            <h3 class="title">Additional Info</h3>
+            <h3 class="g-title">Additional Info</h3>
             <ng-container *ngFor="let additional of service | toAdditional">
               <a
                 *ngIf="additional.description.startsWith('http'); else button"
@@ -94,7 +94,7 @@
                   class="g-action"
                   [class.g-action_static]="!additional.icon"
                   [additional]="additional"
-                  (click)="additional.action && additional.action()"
+                  (click)="additional.action?.()"
                 ></button>
               </ng-template>
             </ng-container>

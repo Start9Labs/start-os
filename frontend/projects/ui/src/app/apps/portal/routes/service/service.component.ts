@@ -17,7 +17,7 @@ import {
   StatusRendering,
 } from 'src/app/services/pkg-status-rendering.service'
 import { ConnectionService } from 'src/app/services/connection.service'
-import { NavigationService } from '../../components/navigation/navigation.service'
+import { NavigationService } from '../../services/navigation.service'
 import { toRouterLink } from '../../utils/to-router-link'
 
 const STATES = [
@@ -29,6 +29,7 @@ const STATES = [
 @Component({
   templateUrl: 'service.component.html',
   styleUrls: ['service.component.scss'],
+  host: { class: 'g-page' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ServiceComponent {

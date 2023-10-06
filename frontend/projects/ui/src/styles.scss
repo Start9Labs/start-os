@@ -75,6 +75,8 @@
   --ion-background-color-rgb: var(--ion-color-medium-rgb);
   --ion-text-color: var(--ion-color-dark);
   --ion-text-color-rgb: var(--ion-color-dark-rgb);
+
+  --tui-skeleton-radius: 1rem;
 }
 
 $subheader-height: 48px;
@@ -367,13 +369,64 @@ ul {
   margin: 0 12px 6px 0;
 }
 
+.g-page {
+  display: block;
+  height: 100%;
+  padding: 1px 2rem 3rem;
+  box-sizing: border-box;
+  overflow: auto;
+
+  // TODO: Theme
+  background: #373a3f;
+}
+
+.g-table {
+  width: 100%;
+
+  td,
+  th {
+    font: var(--tui-font-text-s);
+    text-align: left;
+    height: 2rem;
+    padding: 0 0.25rem;
+    box-shadow: inset 0 -1px var(--tui-clear);
+  }
+
+  th {
+    background: var(--tui-clear);
+    font-weight: bold;
+  }
+
+  .tui-skeleton {
+    max-height: 0.5rem;
+  }
+}
+
+.g-title {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  text-transform: uppercase;
+  font-weight: bold;
+  font-size: 1rem;
+  margin: 2rem 0 1rem;
+  color: var(--tui-text-02);
+}
+
+.g-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  margin-top: 24px;
+}
+
 .g-action {
   @include transition(background);
   @include clearbtn();
 
   display: flex;
   align-items: center;
-  width: 100%;
+  width: stretch;
   gap: 1rem;
   text-align: left;
   font-size: 0.85rem;
@@ -382,11 +435,15 @@ ul {
   line-height: 1.25rem;
   border-radius: 0.5rem;
   color: var(--tui-text-01);
-  --tui-skeleton-radius: 1rem;
 }
 
 a.g-action,
 button.g-action {
+  &:disabled {
+    pointer-events: none;
+    opacity: var(--tui-disabled-opacity);
+  }
+
   &:hover {
     background: var(--tui-clear);
   }
@@ -394,12 +451,19 @@ button.g-action {
   &:not(:last-child) {
     box-shadow: 0 0.51rem 0 -0.5rem;
   }
+}
 
-  &_static {
-    cursor: default;
+.g-toggle {
+  height: var(--tui-height-l);
+  display: flex;
+  align-items: center;
+  padding: 0 1rem;
+  box-shadow: inset 0 0 0 1px var(--tui-base-03);
+  font: var(--tui-font-text-l);
+  font-weight: bold;
+  border-radius: var(--tui-radius-m);
 
-    &:hover {
-      background: transparent;
-    }
+  tui-toggle {
+    margin-left: auto;
   }
 }
