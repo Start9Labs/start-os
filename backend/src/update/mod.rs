@@ -154,7 +154,7 @@ async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<Option
                         ctx.db.clone(),
                         None,
                         NotificationLevel::Error,
-                        "embassyOS Update Failed".to_owned(),
+                        "StartOS Update Failed".to_owned(),
                         format!("Update was not successful because of {}", e),
                         (),
                         None,

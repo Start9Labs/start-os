@@ -699,7 +699,7 @@ pub async fn download_install_s9pk(
                     for (p, lan) in cfg {
                         if p.0 == 80 && lan.ssl || p.0 == 443 && !lan.ssl {
                             return Err(Error::new(
-                                eyre!("SSL Conflict with embassyOS"),
+                                eyre!("SSL Conflict with StartOS"),
                                 ErrorKind::LanPortConflict,
                             ));
                         }
