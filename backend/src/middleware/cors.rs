@@ -14,14 +14,36 @@ pub async fn cors<M: Metadata>(
         Ok(Err(Response::builder()
             .header(
                 "Access-Control-Allow-Origin",
-                if let Some(origin) = req.headers().get("origin").and_then(|s| s.to_str().ok()) {
+                if let Some(origin) = req.headers().get("Origin").and_then(|s| s.to_str().ok()) {
                     origin
                 } else {
                     "*"
                 },
             )
-            .header("Access-Control-Allow-Methods", "*")
-            .header("Access-Control-Allow-Headers", "*")
+            .header(
+                "Access-Control-Allow-Methods",
+                if let Some(method) = req
+                    .headers()
+                    .get("Access-Control-Request-Method")
+                    .and_then(|s| s.to_str().ok())
+                {
+                    method
+                } else {
+                    "*"
+                },
+            )
+            .header(
+                "Access-Control-Allow-Headers",
+                if let Some(headers) = req
+                    .headers()
+                    .get("Access-Control-Request-Headers")
+                    .and_then(|s| s.to_str().ok())
+                {
+                    headers
+                } else {
+                    "*"
+                },
+            )
             .header("Access-Control-Allow-Credentials", "true")
             .body(Body::empty())?))
     } else {
