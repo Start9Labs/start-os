@@ -18,14 +18,12 @@ use rpc_toolkit::command;
 use tokio::sync::{Mutex, RwLock};
 use tracing::instrument;
 
+use crate::account::AccountInfo;
+use crate::context::{self, RpcContext};
 use crate::hostname::Hostname;
 use crate::net::dhcp::ips;
 use crate::net::keys::{Key, KeyInfo};
 use crate::prelude::*;
-use crate::{
-    account::AccountInfo,
-    context::{self, RpcContext},
-};
 use crate::{Error, ErrorKind, ResultExt};
 
 static CERTIFICATE_VERSION: i32 = 2; // X509 version 3 is actually encoded as '2' in the cert because fuck you.
