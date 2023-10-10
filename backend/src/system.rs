@@ -23,8 +23,6 @@ use crate::util::serde::{display_serializable, IoFormat};
 use crate::util::{display_none, Invoke};
 use crate::{Error, ErrorKind, ResultExt};
 
-pub const SYSTEMD_UNIT: &'static str = "startd";
-
 #[command(subcommands(zram))]
 pub async fn experimental() -> Result<(), Error> {
     Ok(())
@@ -130,7 +128,7 @@ pub async fn logs_nofollow(
     _ctx: (),
     (limit, cursor, before, _): (Option<usize>, Option<String>, bool, bool),
 ) -> Result<LogResponse, Error> {
-    fetch_logs(LogSource::Service(SYSTEMD_UNIT), limit, cursor, before).await
+    fetch_logs(LogSource::System, limit, cursor, before).await
 }
 
 #[command(rpc_only, rename = "follow", display(display_none))]
@@ -138,7 +136,7 @@ pub async fn logs_follow(
     #[context] ctx: RpcContext,
     #[parent_data] (limit, _, _, _): (Option<usize>, Option<String>, bool, bool),
 ) -> Result<LogFollowResponse, Error> {
-    follow_logs(ctx, LogSource::Service(SYSTEMD_UNIT), limit).await
+    follow_logs(ctx, LogSource::System, limit).await
 }
 
 #[command(

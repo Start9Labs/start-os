@@ -139,7 +139,7 @@ pub async fn logs_nofollow(
     _ctx: (),
     (limit, cursor, before, _): (Option<usize>, Option<String>, bool, bool),
 ) -> Result<LogResponse, Error> {
-    fetch_logs(LogSource::Service(SYSTEMD_UNIT), limit, cursor, before).await
+    fetch_logs(LogSource::Unit(SYSTEMD_UNIT), limit, cursor, before).await
 }
 
 #[command(rpc_only, rename = "follow", display(display_none))]
@@ -147,7 +147,7 @@ pub async fn logs_follow(
     #[context] ctx: RpcContext,
     #[parent_data] (limit, _, _, _): (Option<usize>, Option<String>, bool, bool),
 ) -> Result<LogFollowResponse, Error> {
-    follow_logs(ctx, LogSource::Service(SYSTEMD_UNIT), limit).await
+    follow_logs(ctx, LogSource::Unit(SYSTEMD_UNIT), limit).await
 }
 
 fn event_handler(_event: AsyncEvent<'static>) -> BoxFuture<'static, Result<(), ConnError>> {
@@ -305,7 +305,7 @@ async fn torctl(
             .invoke(ErrorKind::Tor)
             .await?;
 
-        let logs = journalctl(LogSource::Service(SYSTEMD_UNIT), 0, None, false, true).await?;
+        let logs = journalctl(LogSource::Unit(SYSTEMD_UNIT), 0, None, false, true).await?;
 
         let mut tcp_stream = None;
         for _ in 0..60 {
