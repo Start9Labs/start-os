@@ -198,7 +198,7 @@ fn deserialize_string_or_utf8_array<'de, D: serde::de::Deserializer<'de>>(
             String::from_utf8(
                 std::iter::repeat_with(|| seq.next_element::<u8>().transpose())
                     .take_while(|a| a.is_some())
-                    .filter_map(|a| a)
+                    .flatten()
                     .collect::<Result<Vec<u8>, _>>()?,
             )
             .map_err(serde::de::Error::custom)
@@ -207,12 +207,21 @@ fn deserialize_string_or_utf8_array<'de, D: serde::de::Deserializer<'de>>(
     deserializer.deserialize_any(Visitor)
 }
 
+/// Defining how we are going to filter on a journalctl cli log.
+/// Kernal: (-k --dmesg                 Show kernel message log from the current boot)
+/// Unit: ( -u --unit=UNIT             Show logs from the specified unit
+///     --user-unit=UNIT        Show logs from the specified user unit))
+/// System: Unit is startd, but we also filter on the comm
+/// Container: Filtering containers, like podman/docker is done by filtering on the CONTAINER_NAME
 #[derive(Debug)]
 pub enum LogSource {
     Kernel,
-    Service(&'static str),
+    Unit(&'static str),
+    System,
     Container(PackageId),
 }
+
+pub const SYSTEM_UNIT: &str = "startd";
 
 #[command(
     custom_cli(cli_logs(async, context(CliContext))),
@@ -323,21 +332,15 @@ pub async fn cli_logs_generic_follow(
             .into())
         }
     };
-    base_url.set_scheme(ws_scheme).or_else(|_| {
-        Err(Error::new(
-            eyre!("Cannot set URL scheme"),
-            crate::ErrorKind::ParseUrl,
-        ))
-    })?;
+    base_url
+        .set_scheme(ws_scheme)
+        .map_err(|_| Error::new(eyre!("Cannot set URL scheme"), crate::ErrorKind::ParseUrl))?;
     let (mut stream, _) =
                 // base_url is "http://127.0.0.1/", with a trailing slash, so we don't put a leading slash in this path:
                 tokio_tungstenite::connect_async(format!("{}ws/rpc/{}", base_url, res.guid)).await?;
     while let Some(log) = stream.try_next().await? {
-        match log {
-            Message::Text(log) => {
-                println!("{}", serde_json::from_str::<LogEntry>(&log)?);
-            }
-            _ => (),
+        if let Message::Text(log) = log {
+            println!("{}", serde_json::from_str::<LogEntry>(&log)?);
         }
     }
 
@@ -361,9 +364,14 @@ pub async fn journalctl(
         LogSource::Kernel => {
             cmd.arg("-k");
         }
-        LogSource::Service(id) => {
+        LogSource::Unit(id) => {
             cmd.arg("-u");
             cmd.arg(id);
+        }
+        LogSource::System => {
+            cmd.arg("-u");
+            cmd.arg(SYSTEM_UNIT);
+            cmd.arg(format!("_COMM={}", SYSTEM_UNIT));
         }
         LogSource::Container(id) => {
             cmd.arg(format!(
@@ -373,7 +381,7 @@ pub async fn journalctl(
         }
     };
 
-    let cursor_formatted = format!("--after-cursor={}", cursor.clone().unwrap_or(""));
+    let cursor_formatted = format!("--after-cursor={}", cursor.unwrap_or(""));
     if cursor.is_some() {
         cmd.arg(&cursor_formatted);
         if before {
