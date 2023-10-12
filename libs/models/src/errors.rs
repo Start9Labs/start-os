@@ -79,6 +79,7 @@ pub enum ErrorKind {
     Zram = 67,
     Lshw = 68,
     CpuSettings = 69,
+    Firmware = 70,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -153,6 +154,7 @@ impl ErrorKind {
             Zram => "Zram Error",
             Lshw => "LSHW Error",
             CpuSettings => "CPU Settings Error",
+            Firmware => "Firmware Error",
         }
     }
 }

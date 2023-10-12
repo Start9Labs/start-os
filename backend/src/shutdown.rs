@@ -13,8 +13,7 @@ use crate::{Error, OS_ARCH};
 
 #[derive(Debug, Clone)]
 pub struct Shutdown {
-    pub datadir: PathBuf,
-    pub disk_guid: Option<Arc<String>>,
+    pub export_args: Option<(Arc<String>, PathBuf)>,
     pub restart: bool,
 }
 impl Shutdown {
@@ -55,8 +54,8 @@ impl Shutdown {
                     tracing::debug!("{:?}", e);
                 }
             }
-            if let Some(guid) = &self.disk_guid {
-                if let Err(e) = export(guid, &self.datadir).await {
+            if let Some((guid, datadir)) = &self.export_args {
+                if let Err(e) = export(guid, datadir).await {
                     tracing::error!("Error Exporting Volume Group: {}", e);
                     tracing::debug!("{:?}", e);
                 }
@@ -93,8 +92,7 @@ impl Shutdown {
 pub async fn shutdown(#[context] ctx: RpcContext) -> Result<(), Error> {
     ctx.shutdown
         .send(Some(Shutdown {
-            datadir: ctx.datadir.clone(),
-            disk_guid: Some(ctx.disk_guid.clone()),
+            export_args: Some((ctx.disk_guid.clone(), ctx.datadir.clone())),
             restart: false,
         }))
         .map_err(|_| ())
@@ -106,8 +104,7 @@ pub async fn shutdown(#[context] ctx: RpcContext) -> Result<(), Error> {
 pub async fn restart(#[context] ctx: RpcContext) -> Result<(), Error> {
     ctx.shutdown
         .send(Some(Shutdown {
-            datadir: ctx.datadir.clone(),
-            disk_guid: Some(ctx.disk_guid.clone()),
+            export_args: Some((ctx.disk_guid.clone(), ctx.datadir.clone())),
             restart: true,
         }))
         .map_err(|_| ())
