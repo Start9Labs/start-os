@@ -13,7 +13,7 @@
   <a href="https://twitter.com/start9labs">
     <img alt="X (formerly Twitter) Follow" src="https://img.shields.io/twitter/follow/start9labs">
   </a>
-  <a href="http://mastodon.start9labs.com">
+  <a href="https://mastodon.start9labs.com">
     <img src="https://img.shields.io/mastodon/follow/000000001?domain=https%3A%2F%2Fmastodon.start9labs.com&label=Follow&style=social">
   </a>
   <a href="https://matrix.to/#/#community:matrix.start9labs.com">
