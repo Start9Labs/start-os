@@ -14,7 +14,7 @@ import {
   TuiHostedDropdownModule,
   TuiSvgModule,
 } from '@taiga-ui/core'
-import { NavigationService } from '../navigation/navigation.service'
+import { NavigationService } from '../../services/navigation.service'
 import { Action, ActionsComponent } from '../actions/actions.component'
 import { toRouterLink } from '../../utils/to-router-link'
 

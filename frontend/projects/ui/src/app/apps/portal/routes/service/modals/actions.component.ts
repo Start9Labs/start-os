@@ -33,7 +33,7 @@ import { GroupActionsPipe } from '../pipes/group-actions.pipe'
   template: `
     <ng-container *ngIf="pkg$ | async as pkg">
       <section>
-        <h3>Standard Actions</h3>
+        <h3 class="g-title">Standard Actions</h3>
         <button
           class="g-action"
           [action]="action"
@@ -57,17 +57,6 @@ import { GroupActionsPipe } from '../pipes/group-actions.pipe'
       </ng-container>
     </ng-container>
   `,
-  styles: [
-    `
-      h3 {
-        text-transform: uppercase;
-        font-weight: bold;
-        font-size: 1rem;
-        margin: 2rem 0 1rem;
-        color: var(--tui-text-02);
-      }
-    `,
-  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   imports: [CommonModule, ServiceActionComponent, GroupActionsPipe],

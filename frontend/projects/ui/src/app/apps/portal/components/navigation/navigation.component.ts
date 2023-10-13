@@ -2,7 +2,8 @@ import { CommonModule, Location } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { RouterModule } from '@angular/router'
 import { TuiButtonModule, TuiSvgModule } from '@taiga-ui/core'
-import { NavigationItem, NavigationService } from './navigation.service'
+import { NavigationService } from '../../services/navigation.service'
+import { NavigationItem } from '../../types/navigation-item'
 
 @Component({
   selector: 'nav[appNavigation]',

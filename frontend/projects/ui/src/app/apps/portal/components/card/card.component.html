@@ -1,5 +1,12 @@
 <span class="link">
-  <img alt="" class="icon" [src]="icon" />
+  <tui-svg
+    *ngIf="icon.startsWith('tuiIcon'); else url"
+    class="icon"
+    [src]="icon"
+  ></tui-svg>
+  <ng-template #url>
+    <img alt="" class="icon" [src]="icon" />
+  </ng-template>
   <label ticker class="title">{{ title }}</label>
 </span>
 <span *ngIf="isService" class="side">

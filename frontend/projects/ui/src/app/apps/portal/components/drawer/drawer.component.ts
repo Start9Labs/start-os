@@ -21,9 +21,9 @@ import {
 import { TuiInputModule } from '@taiga-ui/kit'
 import { CardComponent } from '../card/card.component'
 import { ServicesService } from '../../services/services.service'
-import { SYSTEM_UTILITIES } from './drawer.const'
 import { toRouterLink } from '../../utils/to-router-link'
 import { DrawerItemDirective } from './drawer-item.directive'
+import { SYSTEM_UTILITIES } from '../../constants/system-utilities'
 
 @Component({
   selector: 'app-drawer',

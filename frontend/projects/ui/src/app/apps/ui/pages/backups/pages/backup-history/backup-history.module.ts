@@ -26,5 +26,6 @@ const routes: Routes = [
     RouterModule.forChild(routes),
   ],
   declarations: [BackupHistoryPage, DurationPipe, HasErrorPipe],
+  exports: [DurationPipe, HasErrorPipe],
 })
 export class BackupHistoryPageModule {}

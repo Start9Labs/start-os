@@ -4,7 +4,7 @@
   routerLinkActive="tab_active"
   [routerLinkActiveOptions]="{ exact: true }"
 >
-  <tui-svg src="tuiIconHomeLarge" class="home"></tui-svg>
+  <tui-svg src="tuiIconHomeLarge" class="icon"></tui-svg>
 </a>
 <a
   *ngFor="let tab of tabs$ | async"
@@ -14,7 +14,14 @@
   [routerLinkActiveOptions]="{ exact: true }"
   [routerLink]="tab.routerLink"
 >
-  <img class="icon" [src]="tab.icon" [alt]="tab.title" />
+  <tui-svg
+    *ngIf="tab.icon.startsWith('tuiIcon'); else url"
+    class="icon"
+    [src]="tab.icon"
+  ></tui-svg>
+  <ng-template #url>
+    <img class="icon" [src]="tab.icon" [alt]="tab.title" />
+  </ng-template>
   <button
     tuiIconButton
     size="xs"
