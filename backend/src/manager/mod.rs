@@ -227,6 +227,7 @@ impl Manager {
             .join_handle()
         {
             (**transition).abort();
+            // TODO @BLU-J figure out how to wait for drop traits to complete before moving on?
         }
     }
     fn _transition_replace(&self, transition_state: TransitionState) {
