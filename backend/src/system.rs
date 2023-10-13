@@ -588,7 +588,8 @@ async fn get_temp() -> Result<Celsius, Error> {
     .flat_map(|(_, v)| v.as_object())
     .flatten()
     .filter_map(|(k, v)| {
-        if k.ends_with("_input") {
+        // we have seen so far that `temp1` is always a composite reading of some sort, so we should just use that for each chip
+        if k.trim() == "temp1_input" {
             v.as_f64()
         } else {
             None
