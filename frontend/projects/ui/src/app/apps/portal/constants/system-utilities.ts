@@ -4,6 +4,10 @@ export const SYSTEM_UTILITIES: Record<string, { icon: string; title: string }> =
       icon: 'tuiIconSaveLarge',
       title: 'Backups',
     },
+    '/portal/system/updates': {
+      icon: 'tuiIconGlobeLarge',
+      title: 'Updates',
+    },
     '/portal/system/devices': {
       icon: 'assets/img/icon_transparent.png',
       title: 'Devices',

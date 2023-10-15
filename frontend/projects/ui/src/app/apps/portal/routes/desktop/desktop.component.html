@@ -33,6 +33,7 @@
           appCard
           @tuiFadeIn
           [id]="item"
+          [badge]="item | toNotifications | async"
           [title]="desktopItem.title"
           [icon]="desktopItem.icon"
           [routerLink]="desktopItem.routerLink"

@@ -6,6 +6,10 @@ import {
   inject,
   Input,
 } from '@angular/core'
+import {
+  TuiBadgeAlertModule,
+  TuiBadgedContentModule,
+} from '@taiga-ui/experimental'
 import { RouterLink } from '@angular/router'
 import { TickerModule } from '@start9labs/shared'
 import {
@@ -32,6 +36,8 @@ import { toRouterLink } from '../../utils/to-router-link'
     TuiDataListModule,
     TuiSvgModule,
     TickerModule,
+    TuiBadgedContentModule,
+    TuiBadgeAlertModule,
     ActionsComponent,
   ],
 })
@@ -49,6 +55,9 @@ export class CardComponent {
 
   @Input()
   actions: Record<string, readonly Action[]> = {}
+
+  @Input()
+  badge: number | null = null
 
   get isService(): boolean {
     return !this.id.includes('/')

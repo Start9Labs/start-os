@@ -3,11 +3,10 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { TuiForModule } from '@taiga-ui/cdk'
 import { TuiSvgModule } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
-import { from, map, Observable } from 'rxjs'
+import { from, map } from 'rxjs'
 import { CronJob } from 'cron'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { BackupJob } from 'src/app/services/api/api.types'
 import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
 
 @Component({
@@ -56,7 +55,7 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
   imports: [CommonModule, TuiForModule, TuiSvgModule, GetBackupIconPipe],
 })
 export class BackupsUpcomingComponent {
-  readonly current$: Observable<BackupJob> = inject<PatchDB<DataModel>>(PatchDB)
+  readonly current$ = inject(PatchDB<DataModel>)
     .watch$('server-info', 'status-info', 'current-backup', 'job')
     .pipe(map(job => job || {}))
 

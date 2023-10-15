@@ -17,7 +17,7 @@ export class FilterUpdatesPipe implements PipeTransform {
       ({ manifest }) =>
         this.emver.compare(
           manifest.version,
-          local[manifest.id]?.manifest.version || '', // @TODO this won't work, need old version
+          local[manifest.id]?.manifest.version, // @TODO this won't work, need old version
         ) === 1,
     )
   }

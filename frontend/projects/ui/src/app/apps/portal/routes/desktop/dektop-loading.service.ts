@@ -21,7 +21,7 @@ import { DesktopService } from '../../services/desktop.service'
 })
 export class DektopLoadingService extends Observable<boolean> {
   private readonly desktop = inject(DesktopService)
-  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
+  private readonly patch = inject(PatchDB<DataModel>)
   private readonly loading = this.patch.watch$('ui', 'desktop').pipe(
     take(1),
     tap(items => (this.desktop.items = items.filter(Boolean))),

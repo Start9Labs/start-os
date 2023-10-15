@@ -78,7 +78,7 @@ interface Package {
   ],
 })
 export class BackupsBackupModal {
-  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
+  private readonly patch = inject(PatchDB<DataModel>)
   readonly context =
     inject<TuiDialogContext<string[], { btnText: string }>>(
       POLYMORPHEUS_CONTEXT,

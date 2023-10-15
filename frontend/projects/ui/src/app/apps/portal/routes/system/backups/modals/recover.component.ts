@@ -75,7 +75,7 @@ export class BackupsRecoverModal {
   private readonly context =
     inject<TuiDialogContext<void, RecoverData>>(POLYMORPHEUS_CONTEXT)
 
-  readonly packageData$ = inject<PatchDB<DataModel>>(PatchDB)
+  readonly packageData$ = inject(PatchDB<DataModel>)
     .watch$('package-data')
     .pipe(take(1))
 

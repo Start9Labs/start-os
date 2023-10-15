@@ -13,6 +13,13 @@ const ROUTES: Routes = [
   },
   {
     title: systemTabResolver,
+    path: 'updates',
+    loadComponent: () =>
+      import('./updates/updates.component').then(m => m.UpdatesComponent),
+    data: toDesktopItem('/portal/system/updates'),
+  },
+  {
+    title: systemTabResolver,
     path: 'snek',
     loadComponent: () =>
       import('./snek/snek.component').then(m => m.SnekComponent),

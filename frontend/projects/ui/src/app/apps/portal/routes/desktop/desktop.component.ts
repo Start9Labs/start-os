@@ -10,12 +10,8 @@ import { EMPTY_QUERY, TUI_PARENT_STOP } from '@taiga-ui/cdk'
 import { tuiFadeIn, tuiScaleIn } from '@taiga-ui/core'
 import { TuiTileComponent, TuiTilesComponent } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
-import {
-  DataModel,
-  PackageDataEntry,
-} from 'src/app/services/patch-db/data-model'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 import { DesktopService } from '../../services/desktop.service'
-import { Observable } from 'rxjs'
 import { DektopLoadingService } from './dektop-loading.service'
 
 @Component({
@@ -29,8 +25,7 @@ export class DesktopComponent {
 
   readonly desktop = inject(DesktopService)
   readonly loading$ = inject(DektopLoadingService)
-  readonly packages$: Observable<Record<string, PackageDataEntry>> =
-    inject<PatchDB<DataModel>>(PatchDB).watch$('package-data')
+  readonly packages$ = inject(PatchDB<DataModel>).watch$('package-data')
 
   @ViewChild(TuiTilesComponent)
   readonly tile?: TuiTilesComponent

@@ -24,6 +24,7 @@ import { ServicesService } from '../../services/services.service'
 import { toRouterLink } from '../../utils/to-router-link'
 import { DrawerItemDirective } from './drawer-item.directive'
 import { SYSTEM_UTILITIES } from '../../constants/system-utilities'
+import { ToNotificationsPipe } from '../../pipes/to-notifications'
 
 @Component({
   selector: 'app-drawer',
@@ -34,6 +35,7 @@ import { SYSTEM_UTILITIES } from '../../constants/system-utilities'
   imports: [
     CommonModule,
     FormsModule,
+    RouterLink,
     TuiSvgModule,
     TuiScrollbarModule,
     TuiActiveZoneModule,
@@ -43,7 +45,7 @@ import { SYSTEM_UTILITIES } from '../../constants/system-utilities'
     TuiFilterPipeModule,
     CardComponent,
     DrawerItemDirective,
-    RouterLink,
+    ToNotificationsPipe,
   ],
 })
 export class DrawerComponent {
