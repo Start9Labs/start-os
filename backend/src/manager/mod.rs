@@ -161,7 +161,9 @@ impl Manager {
         {
             return;
         }
-        self._transition_replace(self._transition_restart()).await;
+        if self.manage_container.desired_state().borrow().is_start() {
+            self._transition_replace(self._transition_restart()).await;
+        }
     }
     /// awaiting this does not wait for the restart to complete
     pub async fn configure(
@@ -181,7 +183,8 @@ impl Manager {
 
         let breakages = configure(context, id, configure_context).await?;
 
-        self._transition_replace(self._transition_restart()).await;
+        self.restart().await;
+
         Ok(breakages)
     }
 
@@ -237,12 +240,10 @@ impl Manager {
     pub(super) fn perform_restart(&self) -> impl Future<Output = Result<(), Error>> + 'static {
         let manage_container = self.manage_container.clone();
         async move {
-            if manage_container.desired_state().borrow().is_start() {
-                let restart_override = manage_container.set_override(MainStatus::Restarting)?;
-                manage_container.wait_for_desired(StartStop::Stop).await;
-                manage_container.wait_for_desired(StartStop::Start).await;
-                restart_override.drop();
-            }
+            let restart_override = manage_container.set_override(MainStatus::Restarting)?;
+            manage_container.wait_for_desired(StartStop::Stop).await;
+            manage_container.wait_for_desired(StartStop::Start).await;
+            restart_override.drop();
             Ok(())
         }
     }
