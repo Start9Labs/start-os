@@ -170,7 +170,7 @@ pub async fn configure_logic(
     ctx: RpcContext,
     (pkg_id, dependency_id): (PackageId, PackageId),
 ) -> Result<ConfigDryRes, Error> {
-    let db = ctx.db.peek().await?;
+    let db = ctx.db.peek().await;
     let pkg = db
         .as_package_data()
         .as_idx(&pkg_id)

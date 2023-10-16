@@ -204,7 +204,7 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     let account = AccountInfo::load(&secret_store).await?;
     let db = cfg.db(&account).await?;
     tracing::info!("Opened PatchDB");
-    let peek = db.peek().await?;
+    let peek = db.peek().await;
     let mut server_info = peek.as_server_info().de()?;
 
     // write to ca cert store

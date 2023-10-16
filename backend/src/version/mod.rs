@@ -163,7 +163,7 @@ where
 }
 
 pub async fn init(db: &PatchDb, secrets: &PgPool) -> Result<(), Error> {
-    let version = Version::from_util_version(db.peek().await?.as_server_info().as_version().de()?);
+    let version = Version::from_util_version(db.peek().await.as_server_info().as_version().de()?);
 
     match version {
         Version::V0_3_4(v) => v.0.migrate_to(&Current::new(), db.clone(), secrets).await?,

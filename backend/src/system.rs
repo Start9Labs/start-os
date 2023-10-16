@@ -58,7 +58,7 @@ pub async fn enable_zram() -> Result<(), Error> {
 
 #[command(display(display_none))]
 pub async fn zram(#[context] ctx: RpcContext, #[arg] enable: bool) -> Result<(), Error> {
-    let db = ctx.db.peek().await?;
+    let db = ctx.db.peek().await;
 
     let zram = db.as_server_info().as_zram().de()?;
     if enable == zram {

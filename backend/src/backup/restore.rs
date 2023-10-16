@@ -310,7 +310,7 @@ async fn assure_restoring(
     let mut insert_packages = BTreeMap::new();
 
     for id in ids {
-        let peek = ctx.db.peek().await?;
+        let peek = ctx.db.peek().await;
 
         let model = peek.as_package_data().as_idx(&id);
 

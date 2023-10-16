@@ -267,7 +267,7 @@ impl Manager {
         let manage_container = self.manage_container.clone();
         let seed = self.seed.clone();
         async move {
-            let peek = seed.ctx.db.peek().await?;
+            let peek = seed.ctx.db.peek().await;
             let state_reverter = DesiredStateReverter::new(manage_container.clone());
             let override_guard =
                 manage_container.set_override(get_status(peek, &seed.manifest).backing_up())?;
@@ -338,7 +338,7 @@ async fn configure(
     id: PackageId,
     mut configure_context: ConfigureContext,
 ) -> Result<BTreeMap<PackageId, String>, Error> {
-    let db = ctx.db.peek().await?;
+    let db = ctx.db.peek().await;
     let id = &id;
     let ctx = &ctx;
     let overrides = &mut configure_context.overrides;

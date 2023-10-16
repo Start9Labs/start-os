@@ -167,7 +167,7 @@ pub async fn get(
     #[arg(long = "format")]
     format: Option<IoFormat>,
 ) -> Result<ConfigRes, Error> {
-    let db = ctx.db.peek().await?;
+    let db = ctx.db.peek().await;
     let manifest = db
         .as_package_data()
         .as_idx(&id)
@@ -256,7 +256,7 @@ pub async fn configure(
     id: &PackageId,
     configure_context: ConfigureContext,
 ) -> Result<BTreeMap<PackageId, String>, Error> {
-    let db = ctx.db.peek().await?;
+    let db = ctx.db.peek().await;
     let package = db
         .as_package_data()
         .as_idx(id)
