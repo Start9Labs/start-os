@@ -9,6 +9,7 @@ cifs-utils
 containerd.io
 cryptsetup
 curl
+dmidecode
 docker-ce
 docker-ce-cli
 docker-compose-plugin
@@ -16,6 +17,7 @@ dosfstools
 e2fsprogs
 ecryptfs-utils
 exfatprogs
+flashrom
 grub-common
 htop
 httpdirfs

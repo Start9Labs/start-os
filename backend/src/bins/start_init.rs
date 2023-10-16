@@ -11,6 +11,7 @@ use crate::context::{DiagnosticContext, InstallContext, SetupContext};
 use crate::disk::fsck::RepairStrategy;
 use crate::disk::main::DEFAULT_PASSWORD;
 use crate::disk::REPAIR_DISK_PATH;
+use crate::firmware::update_firmware;
 use crate::init::STANDBY_MODE_PATH;
 use crate::net::web_server::WebServer;
 use crate::shutdown::Shutdown;
@@ -19,7 +20,14 @@ use crate::util::Invoke;
 use crate::{Error, ErrorKind, ResultExt, OS_ARCH};
 
 #[instrument(skip_all)]
-async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
+async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error> {
+    if update_firmware().await?.0 {
+        return Ok(Some(Shutdown {
+            export_args: None,
+            restart: true,
+        }));
+    }
+
     Command::new("ln")
         .arg("-sf")
         .arg("/usr/lib/embassy/scripts/fake-apt")
@@ -146,7 +154,7 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<(), Error> {
         crate::init::init(&cfg).await?;
     }
 
-    Ok(())
+    Ok(None)
 }
 
 async fn run_script_if_exists<P: AsRef<Path>>(path: P) {
@@ -180,46 +188,47 @@ async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error
 
     run_script_if_exists("/media/embassy/config/preinit.sh").await;
 
-    let res = if let Err(e) = setup_or_init(cfg_path.clone()).await {
-        async move {
-            tracing::error!("{}", e.source);
-            tracing::debug!("{}", e.source);
-            crate::sound::BEETHOVEN.play().await?;
+    let res = match setup_or_init(cfg_path.clone()).await {
+        Err(e) => {
+            async move {
+                tracing::error!("{}", e.source);
+                tracing::debug!("{}", e.source);
+                crate::sound::BEETHOVEN.play().await?;
 
-            let ctx = DiagnosticContext::init(
-                cfg_path,
-                if tokio::fs::metadata("/media/embassy/config/disk.guid")
-                    .await
-                    .is_ok()
-                {
-                    Some(Arc::new(
-                        tokio::fs::read_to_string("/media/embassy/config/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
-                            .await?
-                            .trim()
-                            .to_owned(),
-                    ))
-                } else {
-                    None
-                },
-                e,
-            )
-            .await?;
+                let ctx = DiagnosticContext::init(
+                    cfg_path,
+                    if tokio::fs::metadata("/media/embassy/config/disk.guid")
+                        .await
+                        .is_ok()
+                    {
+                        Some(Arc::new(
+                            tokio::fs::read_to_string("/media/embassy/config/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
+                                .await?
+                                .trim()
+                                .to_owned(),
+                        ))
+                    } else {
+                        None
+                    },
+                    e,
+                )
+                .await?;
 
-            let server = WebServer::diagnostic(
-                SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 80),
-                ctx.clone(),
-            )
-            .await?;
+                let server = WebServer::diagnostic(
+                    SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 80),
+                    ctx.clone(),
+                )
+                .await?;
 
-            let shutdown = ctx.shutdown.subscribe().recv().await.unwrap();
+                let shutdown = ctx.shutdown.subscribe().recv().await.unwrap();
 
-            server.shutdown().await;
+                server.shutdown().await;
 
-            Ok(shutdown)
+                Ok(shutdown)
+            }
+            .await
         }
-        .await
-    } else {
-        Ok(None)
+        Ok(s) => Ok(s),
     };
 
     run_script_if_exists("/media/embassy/config/postinit.sh").await;

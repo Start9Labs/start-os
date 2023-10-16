@@ -41,8 +41,10 @@ pub fn exit(#[context] ctx: DiagnosticContext) -> Result<(), Error> {
 pub fn restart(#[context] ctx: DiagnosticContext) -> Result<(), Error> {
     ctx.shutdown
         .send(Some(Shutdown {
-            datadir: ctx.datadir.clone(),
-            disk_guid: ctx.disk_guid.clone(),
+            export_args: ctx
+                .disk_guid
+                .clone()
+                .map(|guid| (guid, ctx.datadir.clone())),
             restart: true,
         }))
         .expect("receiver dropped");
