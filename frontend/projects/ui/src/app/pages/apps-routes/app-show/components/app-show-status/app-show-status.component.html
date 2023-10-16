@@ -15,11 +15,16 @@
   <ion-grid>
     <ion-row style="padding-left: 12px">
       <ion-col>
+        <ion-button
+          *ngIf="canStop"
+          class="action-button"
+          color="danger"
+          (click)="tryStop()"
+        >
+          <ion-icon slot="start" name="stop-outline"></ion-icon>
+          Stop
+        </ion-button>
         <ng-container *ngIf="isRunning">
-          <ion-button class="action-button" color="danger" (click)="tryStop()">
-            <ion-icon slot="start" name="stop-outline"></ion-icon>
-            Stop
-          </ion-button>
           <ion-button
             class="action-button"
             color="tertiary"
