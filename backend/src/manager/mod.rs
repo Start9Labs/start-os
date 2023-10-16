@@ -142,10 +142,11 @@ impl Manager {
 
     /// awaiting this does not wait for the start to complete
     pub async fn start(&self) {
-        if !self._is_transition_restart() {
-            self._transition_abort().await;
-            self.manage_container.to_desired(StartStop::Start);
+        if self._is_transition_restart() {
+            return;
         }
+        self._transition_abort().await;
+        self.manage_container.to_desired(StartStop::Start);
     }
 
     /// awaiting this does not wait for the stop to complete
