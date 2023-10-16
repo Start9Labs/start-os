@@ -56,14 +56,14 @@ export class MockApiService extends ApiService {
     await pauseFor(1000)
     return [
       {
-        logicalname: 'abcd',
-        vendor: 'Samsung',
-        model: 'T5',
+        logicalname: '/dev/nvme0n1p3',
+        vendor: 'Unknown Vendor',
+        model: 'Samsung SSD - 970 EVO Plus 2TB',
         partitions: [
           {
             logicalname: 'pabcd',
             label: null,
-            capacity: 73264762332,
+            capacity: 1979120929996,
             used: null,
             'embassy-os': {
               version: '0.2.17',
@@ -75,13 +75,13 @@ export class MockApiService extends ApiService {
             guid: null,
           },
         ],
-        capacity: 123456789123,
+        capacity: 1979120929996,
         guid: 'uuid-uuid-uuid-uuid',
       },
       {
         logicalname: 'dcba',
-        vendor: 'Crucial',
-        model: 'MX500',
+        vendor: 'CT1000MX',
+        model: '500SSD1',
         partitions: [
           {
             logicalname: 'pbcba',
@@ -98,13 +98,13 @@ export class MockApiService extends ApiService {
             guid: null,
           },
         ],
-        capacity: 124456789123,
+        capacity: 1000190509056,
         guid: null,
       },
       {
-        logicalname: 'wxyz',
-        vendor: 'SanDisk',
-        model: 'Specialness',
+        logicalname: '/dev/sda',
+        vendor: 'ASMT',
+        model: '2115',
         partitions: [
           {
             logicalname: 'pbcba',
@@ -121,7 +121,7 @@ export class MockApiService extends ApiService {
             guid: 'guid-guid-guid-guid',
           },
         ],
-        capacity: 123459789123,
+        capacity: 1000190509056,
         guid: null,
       },
     ]
