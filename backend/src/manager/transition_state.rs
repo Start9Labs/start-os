@@ -5,21 +5,26 @@ use helpers::NonDetachingJoinHandle;
 pub(super) enum TransitionState {
     BackingUp(NonDetachingJoinHandle<()>),
     Restarting(NonDetachingJoinHandle<()>),
-    Configuring(NonDetachingJoinHandle<()>),
     None,
 }
 
 impl TransitionState {
-    pub(super) fn join_handle(&self) -> Option<&NonDetachingJoinHandle<()>> {
+    pub(super) fn take(&mut self) -> Self {
+        std::mem::replace(self, Self::None)
+    }
+    pub(super) fn into_join_handle(self) -> Option<NonDetachingJoinHandle<()>> {
         Some(match self {
             TransitionState::BackingUp(a) => a,
             TransitionState::Restarting(a) => a,
-            TransitionState::Configuring(a) => a,
             TransitionState::None => return None,
         })
     }
-    pub(super) fn abort(&self) {
-        self.join_handle().map(|transition| transition.abort());
+    pub(super) async fn abort(&mut self) {
+        if let Some(s) = self.take().into_join_handle() {
+            if s.wait_for_abort().await.is_ok() {
+                tracing::trace!("transition completed before abort");
+            }
+        }
     }
 }
 

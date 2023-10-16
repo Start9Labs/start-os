@@ -1247,7 +1247,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
     }
 
     if auto_start {
-        manager.start();
+        manager.start().await;
     }
 
     tracing::info!("Install {}@{}: Complete", pkg_id, version);

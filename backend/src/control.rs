@@ -27,7 +27,8 @@ pub async fn start(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Result<(
         .get(&(id, version))
         .await
         .ok_or_else(|| Error::new(eyre!("Manager not found"), crate::ErrorKind::InvalidRequest))?
-        .start();
+        .start()
+        .await;
 
     Ok(())
 }
@@ -62,7 +63,8 @@ pub async fn stop(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Result<Ma
         .get(&(id, version))
         .await
         .ok_or_else(|| Error::new(eyre!("Manager not found"), crate::ErrorKind::InvalidRequest))?
-        .stop();
+        .stop()
+        .await;
 
     Ok(last_statuts)
 }
@@ -83,7 +85,8 @@ pub async fn restart(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Result
         .get(&(id, version))
         .await
         .ok_or_else(|| Error::new(eyre!("Manager not found"), crate::ErrorKind::InvalidRequest))?
-        .restart();
+        .restart()
+        .await;
 
     Ok(())
 }
