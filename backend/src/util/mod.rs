@@ -6,6 +6,7 @@ use std::pin::Pin;
 use std::process::Stdio;
 use std::sync::Arc;
 use std::task::{Context, Poll};
+use std::time::Duration;
 
 use async_trait::async_trait;
 use clap::ArgMatches;
@@ -50,13 +51,31 @@ impl std::error::Error for Never {}
 #[async_trait::async_trait]
 pub trait Invoke {
     async fn invoke(&mut self, error_kind: crate::ErrorKind) -> Result<Vec<u8>, Error>;
+    async fn invoke_timeout(
+        &mut self,
+        error_kind: crate::ErrorKind,
+        timeout: Option<Duration>,
+    ) -> Result<Vec<u8>, Error>;
 }
 #[async_trait::async_trait]
 impl Invoke for tokio::process::Command {
     async fn invoke(&mut self, error_kind: crate::ErrorKind) -> Result<Vec<u8>, Error> {
+        self.invoke_timeout(error_kind, None).await
+    }
+    async fn invoke_timeout(
+        &mut self,
+        error_kind: crate::ErrorKind,
+        timeout: Option<Duration>,
+    ) -> Result<Vec<u8>, Error> {
+        self.kill_on_drop(true);
         self.stdout(Stdio::piped());
         self.stderr(Stdio::piped());
-        let res = self.output().await?;
+        let res = match timeout {
+            None => self.output().await?,
+            Some(t) => tokio::time::timeout(t, self.output())
+                .await
+                .with_kind(ErrorKind::Timeout)??,
+        };
         crate::ensure_code!(
             res.status.success(),
             error_kind,

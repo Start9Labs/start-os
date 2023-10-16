@@ -111,7 +111,7 @@ pub struct Manager {
     seed: Arc<ManagerSeed>,
 
     manage_container: Arc<manager_container::ManageContainer>,
-    transition: Arc<watch::Sender<Arc<TransitionState>>>,
+    transition: Arc<watch::Sender<TransitionState>>,
     persistent_container: ManagerPersistentContainer,
 
     pub gid: Arc<Gid>,
@@ -140,60 +140,67 @@ impl Manager {
         })
     }
 
-    pub fn start(&self) {
-        self._transition_abort();
-        self.manage_container.to_desired(StartStop::Start);
-    }
-    pub fn stop(&self) {
-        self._transition_abort();
-        self.manage_container.to_desired(StartStop::Stop);
-    }
-    pub fn restart(&self) {
+    /// awaiting this does not wait for the start to complete
+    pub async fn start(&self) {
         if self._is_transition_restart() {
             return;
         }
-        self._transition_replace(self._transition_restart());
+        self._transition_abort().await;
+        self.manage_container.to_desired(StartStop::Start);
     }
+
+    /// awaiting this does not wait for the stop to complete
+    pub async fn stop(&self) {
+        self._transition_abort().await;
+        self.manage_container.to_desired(StartStop::Stop);
+    }
+    /// awaiting this does not wait for the restart to complete
+    pub async fn restart(&self) {
+        if self._is_transition_restart()
+            && *self.manage_container.desired_state().borrow() == StartStop::Stop
+        {
+            return;
+        }
+        if self.manage_container.desired_state().borrow().is_start() {
+            self._transition_replace(self._transition_restart()).await;
+        }
+    }
+    /// awaiting this does not wait for the restart to complete
     pub async fn configure(
         &self,
         configure_context: ConfigureContext,
     ) -> Result<BTreeMap<PackageId, String>, Error> {
-        if self._is_transition_configure() {
-            return Ok(configure_context.breakages);
+        if self._is_transition_restart() {
+            self._transition_abort().await;
+        } else if self._is_transition_backup() {
+            return Err(Error::new(
+                eyre!("Can't configure because service is backing up"),
+                ErrorKind::InvalidRequest,
+            ));
         }
         let context = self.seed.ctx.clone();
         let id = self.seed.manifest.id.clone();
 
         let breakages = configure(context, id, configure_context).await?;
-        self._transition_replace({
-            let manage_container = self.manage_container.clone();
-            let state_reverter = DesiredStateReverter::new(manage_container.clone());
 
-            let transition = self.transition.clone();
-            TransitionState::Configuring(
-                tokio::spawn(async move {
-                    manage_container.wait_for_desired(StartStop::Stop).await;
+        self.restart().await;
 
-                    state_reverter.revert().await;
-                    transition.send_replace(Default::default());
-                })
-                .into(),
-            )
-        });
         Ok(breakages)
     }
+
+    /// awaiting this does not wait for the backup to complete
     pub async fn backup(&self, backup_guard: BackupGuard) -> BackupReturn {
         if self._is_transition_backup() {
             return BackupReturn::AlreadyRunning(PackageBackupReport {
-                error: Some("Can't do backup because service is in a backing up state".to_owned()),
+                error: Some("Can't do backup because service is already backing up".to_owned()),
             });
         }
         let (transition_state, done) = self._transition_backup(backup_guard);
-        self._transition_replace(transition_state);
+        self._transition_replace(transition_state).await;
         done.await
     }
     pub async fn exit(&self) {
-        self._transition_abort();
+        self._transition_abort().await;
         self.manage_container
             .wait_for_desired(StartStop::Stop)
             .await;
@@ -220,19 +227,14 @@ impl Manager {
             .map(|x| x.rpc_client())
     }
 
-    fn _transition_abort(&self) {
-        if let Some(transition) = self
-            .transition
-            .send_replace(Default::default())
-            .join_handle()
-        {
-            (**transition).abort();
-        }
-    }
-    fn _transition_replace(&self, transition_state: TransitionState) {
+    async fn _transition_abort(&self) {
         self.transition
-            .send_replace(Arc::new(transition_state))
-            .abort();
+            .send_replace(Default::default())
+            .abort()
+            .await;
+    }
+    async fn _transition_replace(&self, transition_state: TransitionState) {
+        self.transition.send_replace(transition_state).abort().await;
     }
 
     pub(super) fn perform_restart(&self) -> impl Future<Output = Result<(), Error>> + 'static {
@@ -322,15 +324,11 @@ impl Manager {
     }
     fn _is_transition_restart(&self) -> bool {
         let transition = self.transition.borrow();
-        matches!(**transition, TransitionState::Restarting(_))
+        matches!(*transition, TransitionState::Restarting(_))
     }
     fn _is_transition_backup(&self) -> bool {
         let transition = self.transition.borrow();
-        matches!(**transition, TransitionState::BackingUp(_))
-    }
-    fn _is_transition_configure(&self) -> bool {
-        let transition = self.transition.borrow();
-        matches!(**transition, TransitionState::Configuring(_))
+        matches!(*transition, TransitionState::BackingUp(_))
     }
 }
 
@@ -602,7 +600,7 @@ impl Drop for DesiredStateReverter {
 type BackupDoneSender = oneshot::Sender<Result<PackageBackupInfo, Error>>;
 
 fn finish_up_backup_task(
-    transition: Arc<Sender<Arc<TransitionState>>>,
+    transition: Arc<Sender<TransitionState>>,
     send: BackupDoneSender,
 ) -> impl FnOnce(Result<Result<PackageBackupInfo, Error>, Error>) -> BoxFuture<'static, ()> {
     move |result| {

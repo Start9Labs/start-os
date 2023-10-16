@@ -80,6 +80,7 @@ pub enum ErrorKind {
     Lshw = 68,
     CpuSettings = 69,
     Firmware = 70,
+    Timeout = 71,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -155,6 +156,7 @@ impl ErrorKind {
             Lshw => "LSHW Error",
             CpuSettings => "CPU Settings Error",
             Firmware => "Firmware Error",
+            Timeout => "Timeout Error",
         }
     }
 }
