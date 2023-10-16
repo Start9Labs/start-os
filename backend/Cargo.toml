@@ -28,7 +28,7 @@ path = "src/main.rs"
 avahi = ["avahi-sys"]
 default = ["cli", "sdk", "daemon", "js_engine"]
 dev = []
-unstable = ["patch-db/unstable"]
+unstable = ["console-subscriber", "tokio/tracing"]
 avahi-alias = ["avahi"]
 cli = []
 sdk = []
@@ -55,6 +55,7 @@ bytes = "1"
 chrono = { version = "0.4.19", features = ["serde"] }
 clap = "3.2.8"
 color-eyre = "0.6.1"
+console-subscriber = { version = "0.2", optional = true }
 cookie = "0.16.2"
 cookie_store = "0.19.0"
 current_platform = "0.2.0"
