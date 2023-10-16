@@ -44,5 +44,6 @@ const routes: Routes = [
     NgDompurifyModule,
     TuiProgressModule,
   ],
+  exports: [FilterUpdatesPipe, InstallProgressPipe],
 })
 export class UpdatesPageModule {}

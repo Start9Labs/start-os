@@ -10,7 +10,7 @@ import {
   providedIn: 'root',
 })
 export class ServicesService extends Observable<readonly PackageDataEntry[]> {
-  private readonly services$ = inject<PatchDB<DataModel>>(PatchDB)
+  private readonly services$ = inject(PatchDB<DataModel>)
     .watch$('package-data')
     .pipe(
       map(pkgs => Object.values(pkgs)),

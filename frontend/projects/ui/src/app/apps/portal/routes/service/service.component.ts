@@ -36,7 +36,7 @@ export class ServiceComponent {
   private readonly route = inject(ActivatedRoute)
   private readonly router = inject(Router)
   private readonly navigation = inject(NavigationService)
-  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
+  private readonly patch = inject(PatchDB<DataModel>)
 
   readonly pkgId = getPkgId(this.route)
 

@@ -22,6 +22,7 @@
           empty: empty
         "
         appCard
+        [badge]="item.key | toNotifications | async"
         [drawerItem]="item.key"
         [id]="item.key"
         [title]="item.value.title"

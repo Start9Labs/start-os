@@ -111,7 +111,19 @@ export const mockPatchData: DataModel = {
       '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
   },
   'package-data': {
-    bitcoind: Mock.bitcoind,
-    lnd: Mock.lnd,
+    bitcoind: {
+      ...Mock.bitcoind,
+      manifest: {
+        ...Mock.bitcoind.manifest,
+        version: '0.19.0',
+      },
+    },
+    lnd: {
+      ...Mock.lnd,
+      manifest: {
+        ...Mock.lnd.manifest,
+        version: '0.11.0',
+      },
+    },
   },
 }

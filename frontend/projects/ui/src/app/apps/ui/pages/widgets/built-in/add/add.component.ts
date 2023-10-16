@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { PatchDB } from 'patch-db-client'
-import { Widget } from 'src/app/services/patch-db/data-model'
+import { DataModel, Widget } from 'src/app/services/patch-db/data-model'
 import {
   POLYMORPHEUS_CONTEXT,
   PolymorpheusComponent,
@@ -17,7 +17,7 @@ import { BUILT_IN_WIDGETS } from '../widgets'
 export class AddWidgetComponent {
   readonly context = inject<TuiDialogContext<Widget>>(POLYMORPHEUS_CONTEXT)
 
-  readonly installed$ = inject(PatchDB).watch$('ui', 'widgets')
+  readonly installed$ = inject(PatchDB<DataModel>).watch$('ui', 'widgets')
 
   readonly widgets = BUILT_IN_WIDGETS
 
