@@ -9,7 +9,7 @@ import {
 } from 'rxjs/operators'
 import { Update } from 'patch-db-client'
 import { DataModel } from './data-model'
-import { defer, EMPTY, from, interval, merge, Observable } from 'rxjs'
+import { defer, EMPTY, from, interval, Observable } from 'rxjs'
 import { AuthService } from '../auth.service'
 import { ConnectionService } from '../connection.service'
 import { ApiService } from '../api/embassy-api.service'
@@ -51,9 +51,7 @@ export function sourceFactory(
     )
 
     return authService.isVerified$.pipe(
-      switchMap(verified =>
-        verified ? merge(websocket$, api.patchStream$) : EMPTY,
-      ),
+      switchMap(verified => (verified ? websocket$ : EMPTY)),
     )
   })
 }
