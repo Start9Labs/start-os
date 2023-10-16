@@ -174,7 +174,7 @@ pub async fn subscribe(ctx: RpcContext, req: Request<Body>) -> Result<Response<B
     Ok(res)
 }
 
-#[command(subcommands(revisions, dump, put, apply))]
+#[command(subcommands(dump, put, apply))]
 pub fn db() -> Result<(), RpcError> {
     Ok(())
 }
@@ -184,20 +184,6 @@ pub fn db() -> Result<(), RpcError> {
 pub enum RevisionsRes {
     Revisions(Vec<Arc<Revision>>),
     Dump(Dump),
-}
-
-#[command(display(display_serializable))]
-pub async fn revisions(
-    #[context] ctx: RpcContext,
-    #[arg] since: u64,
-    #[allow(unused_variables)]
-    #[arg(long = "format")]
-    format: Option<IoFormat>,
-) -> Result<RevisionsRes, Error> {
-    Ok(match ctx.db.sync(since).await? {
-        Ok(revs) => RevisionsRes::Revisions(revs),
-        Err(dump) => RevisionsRes::Dump(dump),
-    })
 }
 
 #[instrument(skip_all)]
