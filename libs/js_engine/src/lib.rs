@@ -351,16 +351,14 @@ impl JsExecutionEnvironment {
             startup_snapshot: Some(Snapshot::Static(SNAPSHOT_BYTES)),
             ..Default::default()
         };
-        let runtime = Arc::new(Mutex::new(JsRuntime::new(runtime_options)));
+        let mut runtime = JsRuntime::new(runtime_options);
 
         let future = async move {
             let mod_id = runtime
-                .lock()
-                .await
                 .load_main_module(&"file:///loadModule.js".parse().unwrap(), None)
                 .await?;
-            let evaluated = runtime.lock().await.mod_evaluate(mod_id);
-            let res = runtime.lock().await.run_event_loop(false).await;
+            let evaluated = runtime.mod_evaluate(mod_id);
+            let res = runtime.run_event_loop(false).await;
             res?;
             evaluated.await??;
             Ok::<_, AnyError>(())
