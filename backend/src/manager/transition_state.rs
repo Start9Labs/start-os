@@ -10,7 +10,7 @@ pub(super) enum TransitionState {
 
 impl TransitionState {
     pub(super) fn take(&mut self) -> Self {
-        std::mem::replace(self, Self::None)
+        std::mem::take(self)
     }
     pub(super) fn into_join_handle(self) -> Option<NonDetachingJoinHandle<()>> {
         Some(match self {

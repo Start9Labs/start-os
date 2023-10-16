@@ -144,7 +144,6 @@ impl Manager {
     pub async fn start(&self) {
         if !self._is_transition_restart() {
             self._transition_abort().await;
-        } else {
             self.manage_container.to_desired(StartStop::Start);
         }
     }
