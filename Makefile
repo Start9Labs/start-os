@@ -19,7 +19,7 @@ FRONTEND_INSTALL_WIZARD_SRC := $(shell find frontend/projects/install-wizard)
 PATCH_DB_CLIENT_SRC := $(shell find patch-db/client -not -path patch-db/client/dist -and -not -path patch-db/client/node_modules)
 GZIP_BIN := $(shell which pigz || which gzip)
 TAR_BIN := $(shell which gtar || which tar)
-ALL_TARGETS := $(EMBASSY_BINS) system-images/compat/docker-images/$(ARCH).tar system-images/utils/docker-images/$(ARCH).tar system-images/binfmt/docker-images/$(ARCH).tar $(EMBASSY_SRC) $(shell if [ "$(OS_ARCH)" = "raspberrypi" ]; then echo cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep; fi) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE)
+ALL_TARGETS := $(EMBASSY_BINS) system-images/compat/docker-images/$(ARCH).tar system-images/utils/docker-images/$(ARCH).tar system-images/binfmt/docker-images/$(ARCH).tar $(EMBASSY_SRC) $(shell if [ "$(OS_ARCH)" = "raspberrypi" ]; then echo cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep; fi)  $(shell /bin/bash -c 'if [[ "${ENVIRONMENT}" =~ (^|-)unstable($$|-) ]]; then echo cargo-deps/$(ARCH)-unknown-linux-gnu/release/tokio-console; fi') $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE)
 
 ifeq ($(REMOTE),)
 	mkdir = mkdir -p $1
@@ -75,7 +75,7 @@ format:
 sdk:
 	cd backend/ && ./install-sdk.sh
 
-startos_raspberrypi.img: $(BUILD_SRC) startos.raspberrypi.squashfs $(VERSION_FILE) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep | sudo
+startos_raspberrypi.img: $(BUILD_SRC) startos.raspberrypi.squashfs $(VERSION_FILE) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) | sudo
 	./build/raspberrypi/make-image.sh
 
 # For creating os images. DO NOT USE
@@ -88,6 +88,7 @@ install: $(ALL_TARGETS)
 	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/avahi-alias)
 	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/embassy-cli)
 	if [ "$(OS_ARCH)" = "raspberrypi" ]; then $(call cp,cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep,$(DESTDIR)/usr/bin/pi-beep); fi
+	if /bin/bash -c '[[ "${ENVIRONMENT}" =~ (^|-)unstable($$|-) ]]'; then $(call cp,cargo-deps/$(ARCH)-unknown-linux-gnu/release/tokio-console,$(DESTDIR)/usr/bin/tokio-console); fi
 	
 	$(call mkdir,$(DESTDIR)/usr/lib)
 	$(call rm,$(DESTDIR)/usr/lib/embassy)
@@ -198,3 +199,6 @@ backend: $(EMBASSY_BINS)
 
 cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep:
 	ARCH=aarch64 ./build-cargo-dep.sh pi-beep
+
+cargo-deps/$(ARCH)-unknown-linux-gnu/release/tokio-console:
+	ARCH=$(ARCH) ./build-cargo-dep.sh tokio-console
