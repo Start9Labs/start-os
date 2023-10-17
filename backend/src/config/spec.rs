@@ -1894,10 +1894,11 @@ impl TorKeyPointer {
             ));
         }
         let key = Key::for_interface(
-            &mut secrets
+            secrets
                 .acquire()
                 .await
-                .map_err(|e| ConfigurationError::SystemError(e.into()))?,
+                .map_err(|e| ConfigurationError::SystemError(e.into()))?
+                .as_mut(),
             Some((self.package_id.clone(), self.interface.clone())),
         )
         .await

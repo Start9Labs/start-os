@@ -7,11 +7,11 @@ use std::str::FromStr;
 use std::task::{Context, Poll};
 
 use color_eyre::eyre::eyre;
-use digest_old::Output;
-use ed25519_dalek::PublicKey;
+use digest::Output;
+use ed25519_dalek::VerifyingKey;
 use futures::TryStreamExt;
 use models::ImageId;
-use sha2_old::{Digest, Sha512};
+use sha2::{Digest, Sha512};
 use tokio::fs::File;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, ReadBuf};
 use tracing::instrument;
@@ -147,7 +147,7 @@ impl FromStr for ImageTag {
 pub struct S9pkReader<R: AsyncRead + AsyncSeek + Unpin + Send + Sync = File> {
     hash: Option<Output<Sha512>>,
     hash_string: Option<String>,
-    developer_key: PublicKey,
+    developer_key: VerifyingKey,
     toc: TableOfContents,
     pos: u64,
     rdr: R,
@@ -343,7 +343,7 @@ impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
         self.hash_string.as_ref().map(|s| s.as_str())
     }
 
-    pub fn developer_key(&self) -> &PublicKey {
+    pub fn developer_key(&self) -> &VerifyingKey {
         &self.developer_key
     }
 

@@ -20,7 +20,7 @@ serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
 helpers = { path = "../helpers" }
 imbl = "2"
-nix = "0.25"
+nix = { version = "0.27", features = ["process", "signal"] }
 tokio = { version = "1", features = ["full"] }
 tokio-stream = { version = "0.1", features = ["io-util", "sync", "net"] }
 tracing = "0.1"
@@ -30,7 +30,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 yajrc = { version = "*", git = "https://github.com/dr-bonez/yajrc.git", branch = "develop" }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-procfs = "0.14"
+procfs = "0.15"
 
 [profile.test]
 opt-level = 3

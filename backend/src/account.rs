@@ -1,13 +1,15 @@
-use ed25519_dalek::{ExpandedSecretKey, SecretKey};
-use models::ResultExt;
+use digest::Digest;
+use ed25519_dalek::hazmat::ExpandedSecretKey;
+use ed25519_dalek::SecretKey;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
+use sha2::Sha512;
 use sqlx::PgExecutor;
 
 use crate::hostname::{generate_hostname, generate_id, Hostname};
 use crate::net::keys::Key;
 use crate::net::ssl::{generate_key, make_root_cert};
-use crate::Error;
+use crate::prelude::*;
 
 fn hash_password(password: &str) -> Result<String, Error> {
     argon2::hash_encoded(
@@ -51,13 +53,28 @@ impl AccountInfo {
         let server_id = r.server_id.unwrap_or_else(generate_id);
         let hostname = r.hostname.map(Hostname).unwrap_or_else(generate_hostname);
         let password = r.password;
-        let network_key = SecretKey::from_bytes(&r.network_key)?;
+        let network_key = SecretKey::try_from(r.network_key).map_err(|e| {
+            Error::new(
+                eyre!("expected vec of len 32, got len {}", e.len()),
+                ErrorKind::ParseDbField,
+            )
+        })?;
         let tor_key = if let Some(k) = &r.tor_key {
-            ExpandedSecretKey::from_bytes(k)?
+            <[u8; 64]>::try_from(&k[..]).map_err(|_| {
+                Error::new(
+                    eyre!("expected vec of len 64, got len {}", k.len()),
+                    ErrorKind::ParseDbField,
+                )
+            })?
         } else {
-            ExpandedSecretKey::from(&network_key)
+            Sha512::default()
+                .chain_update(&network_key)
+                .finalize()
+                .as_slice()
+                .try_into()
+                .expect("type system guarantees same length")
         };
-        let key = Key::from_pair(None, network_key.to_bytes(), tor_key.to_bytes());
+        let key = Key::from_pair(None, network_key, tor_key);
         let root_ca_key = PKey::private_key_from_pem(r.root_ca_key_pem.as_bytes())?;
         let root_ca_cert = X509::from_pem(r.root_ca_cert_pem.as_bytes())?;
 

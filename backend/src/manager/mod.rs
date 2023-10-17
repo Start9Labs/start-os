@@ -759,7 +759,7 @@ async fn add_network_for_main(
     for (id, interface) in &seed.manifest.interfaces.0 {
         for (external, internal) in interface.lan_config.iter().flatten() {
             svc.add_lan(
-                &mut tx,
+                tx.as_mut(),
                 id.clone(),
                 external.0,
                 internal.internal,
@@ -768,13 +768,14 @@ async fn add_network_for_main(
             .await?;
         }
         for (external, internal) in interface.tor_config.iter().flat_map(|t| &t.port_mapping) {
-            svc.add_tor(&mut tx, id.clone(), external.0, internal.0)
+            svc.add_tor(tx.as_mut(), id.clone(), external.0, internal.0)
                 .await?;
         }
     }
     for volume in seed.manifest.volumes.values() {
         if let Volume::Certificate { interface_id } = volume {
-            svc.export_cert(&mut tx, interface_id, ip.into()).await?;
+            svc.export_cert(tx.as_mut(), interface_id, ip.into())
+                .await?;
         }
     }
     tx.commit().await?;

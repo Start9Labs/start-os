@@ -1,3 +1,4 @@
+use base64::Engine;
 use color_eyre::eyre::eyre;
 use reqwest::{StatusCode, Url};
 use rpc_toolkit::command;
@@ -65,12 +66,11 @@ pub async fn get(#[context] ctx: RpcContext, #[arg] url: Url) -> Result<Value, E
             Some(ctype) => Ok(Value::String(format!(
                 "data:{};base64,{}",
                 ctype,
-                base64::encode_config(
+                base64::engine::general_purpose::URL_SAFE.encode(
                     &response
                         .bytes()
                         .await
-                        .with_kind(crate::ErrorKind::Registry)?,
-                    base64::URL_SAFE
+                        .with_kind(crate::ErrorKind::Registry)?
                 )
             ))),
             _ => Err(Error::new(

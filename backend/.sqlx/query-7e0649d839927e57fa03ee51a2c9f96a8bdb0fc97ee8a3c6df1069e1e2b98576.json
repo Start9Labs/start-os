@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM tor WHERE package = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7e0649d839927e57fa03ee51a2c9f96a8bdb0fc97ee8a3c6df1069e1e2b98576"
+}

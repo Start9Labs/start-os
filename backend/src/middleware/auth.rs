@@ -47,7 +47,7 @@ impl HasLoggedOutSessions {
                 "UPDATE session SET logged_out = CURRENT_TIMESTAMP WHERE id = $1",
                 session
             )
-            .execute(&mut sqlx_conn)
+            .execute(sqlx_conn.as_mut())
             .await?;
             for socket in open_authed_websockets.remove(&session).unwrap_or_default() {
                 let _ = socket.send(());
@@ -94,7 +94,7 @@ impl HasValidSession {
     pub async fn from_session(session: &HashSessionToken, ctx: &RpcContext) -> Result<Self, Error> {
         let session_hash = session.hashed();
         let session = sqlx::query!("UPDATE session SET last_active = CURRENT_TIMESTAMP WHERE id = $1 AND logged_out IS NULL OR logged_out > CURRENT_TIMESTAMP", session_hash)
-            .execute(&mut ctx.secret_store.acquire().await?)
+            .execute(ctx.secret_store.acquire().await?.as_mut())
             .await?;
         if session.rows_affected() == 0 {
             return Err(Error::new(

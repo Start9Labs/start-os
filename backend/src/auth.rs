@@ -160,7 +160,7 @@ pub async fn login(
 ) -> Result<(), Error> {
     let password = password.unwrap_or_default().decrypt(&ctx)?;
     let mut handle = ctx.secret_store.acquire().await?;
-    check_password_against_db(&mut handle, &password).await?;
+    check_password_against_db(handle.as_mut(), &password).await?;
 
     let hash_token = HashSessionToken::new();
     let user_agent = req.headers.get("user-agent").and_then(|h| h.to_str().ok());
@@ -172,7 +172,7 @@ pub async fn login(
         user_agent,
         metadata,
     )
-    .execute(&mut handle)
+    .execute(handle.as_mut())
     .await?;
     res.headers.insert(
         "set-cookie",
@@ -263,7 +263,7 @@ pub async fn list(
         sessions: sqlx::query!(
             "SELECT * FROM session WHERE logged_out IS NULL OR logged_out > CURRENT_TIMESTAMP"
         )
-        .fetch_all(&mut ctx.secret_store.acquire().await?)
+        .fetch_all(ctx.secret_store.acquire().await?.as_mut())
         .await?
         .into_iter()
         .map(|row| {

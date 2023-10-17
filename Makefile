@@ -130,14 +130,14 @@ emulate-reflash:
 	$(MAKE) install REMOTE=$(REMOTE) SSHPASS=$(SSHPASS) DESTDIR=/media/embassy/next OS_ARCH=$(OS_ARCH)
 	$(call ssh,"sudo touch /media/embassy/config/upgrade && sudo rm -f /media/embassy/config/disk.guid && sudo sync && sudo reboot")
 
-system-images/compat/docker-images/aarch64.tar system-images/compat/docker-images/x86_64.tar: $(COMPAT_SRC)
-	cd system-images/compat && make
+system-images/compat/docker-images/aarch64.tar system-images/compat/docker-images/x86_64.tar: $(COMPAT_SRC) backend/Cargo.lock
+	cd system-images/compat && make && touch docker-images/*.tar
 
 system-images/utils/docker-images/aarch64.tar system-images/utils/docker-images/x86_64.tar: $(UTILS_SRC)
-	cd system-images/utils && make
+	cd system-images/utils && make && touch docker-images/*.tar
 
 system-images/binfmt/docker-images/aarch64.tar system-images/binfmt/docker-images/x86_64.tar: $(BINFMT_SRC)
-	cd system-images/binfmt && make
+	cd system-images/binfmt && make && touch docker-images/*.tar
 
 snapshots: libs/snapshot_creator/Cargo.toml
 	cd libs/  && ./build-v8-snapshot.sh

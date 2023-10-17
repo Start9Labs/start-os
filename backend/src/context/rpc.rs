@@ -286,7 +286,12 @@ impl RpcContext {
                     cleanup_failed(self, &package_id).await
                 }
                 PackageDataEntryMatchModelRef::Removing(_) => {
-                    uninstall(self, &mut self.secret_store.acquire().await?, &package_id).await
+                    uninstall(
+                        self,
+                        self.secret_store.acquire().await?.as_mut(),
+                        &package_id,
+                    )
+                    .await
                 }
                 PackageDataEntryMatchModelRef::Installed(m) => {
                     let version = m.as_manifest().as_version().clone().de()?;

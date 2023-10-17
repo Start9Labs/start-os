@@ -52,7 +52,7 @@ pub async fn restore_packages_rpc(
     #[arg] password: String,
 ) -> Result<(), Error> {
     let fs = target_id
-        .load(&mut ctx.secret_store.acquire().await?)
+        .load(ctx.secret_store.acquire().await?.as_mut())
         .await?;
     let backup_guard =
         BackupMountGuard::mount(TmpMountGuard::mount(&fs, ReadWrite).await?, &password).await?;
@@ -402,7 +402,7 @@ async fn restore_package<'a>(
             iface.to_string(),
             k,
         )
-        .execute(&mut secrets_tx).await?;
+        .execute(secrets_tx.as_mut()).await?;
     }
     // DEPRECATED
     for (iface, key) in metadata.tor_keys {
@@ -413,7 +413,7 @@ async fn restore_package<'a>(
             iface.to_string(),
             k,
         )
-        .execute(&mut secrets_tx).await?;
+        .execute(secrets_tx.as_mut()).await?;
     }
     secrets_tx.commit().await?;
     drop(secrets);
