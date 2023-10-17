@@ -123,7 +123,7 @@ update:
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
 	$(call ssh,"sudo rsync -a --delete --force --info=progress2 /media/embassy/embassyfs/current/ /media/embassy/next/")
 	$(MAKE) install REMOTE=$(REMOTE) SSHPASS=$(SSHPASS) DESTDIR=/media/embassy/next OS_ARCH=$(OS_ARCH)
-	$(call ssh,"sudo touch /media/embassy/config/upgrade && sudo sync && sudo reboot")
+	$(call ssh,'sudo NO_SYNC=1 /media/embassy/next/usr/lib/embassy/scripts/chroot-and-upgrade "apt-get install -y $(shell cat ./build/lib/depends)"')
 
 emulate-reflash:
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi

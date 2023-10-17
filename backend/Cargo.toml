@@ -43,7 +43,7 @@ async-compression = { version = "0.4.4", features = [
   "tokio",
 ] }
 async-stream = "0.3.5"
-async-trait = "0.1.56"
+async-trait = "0.1.74"
 avahi-sys = { git = "https://github.com/Start9Labs/avahi-sys", version = "0.10.0", branch = "feature/dynamic-linking", features = [
   "dynamic",
 ], optional = true }
@@ -145,7 +145,7 @@ sscanf = "0.4.1"
 ssh-key = { version = "0.6.2", features = ["ed25519"] }
 stderrlog = "0.5.4"
 tar = "0.4.40"
-thiserror = "1.0.31"
+thiserror = "1.0.49"
 tokio = { version = "1", features = ["full"] }
 tokio-rustls = "0.24.1"
 tokio-socks = "0.5.1"
