@@ -236,7 +236,7 @@ impl NotificationManager {
         subtype: T,
         debounce_interval: Option<u32>,
     ) -> Result<(), Error> {
-        let peek = db.peek().await?;
+        let peek = db.peek().await;
         if !self
             .should_notify(&package_id, &level, &title, debounce_interval)
             .await

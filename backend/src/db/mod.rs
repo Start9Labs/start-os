@@ -37,7 +37,7 @@ async fn ws_handler<
     session: Option<(HasValidSession, HashSessionToken)>,
     ws_fut: WSFut,
 ) -> Result<(), Error> {
-    let (dump, sub) = ctx.db.dump_and_sub().await?;
+    let (dump, sub) = ctx.db.dump_and_sub().await;
     let mut stream = ws_fut
         .await
         .with_kind(ErrorKind::Network)?
@@ -174,7 +174,7 @@ pub async fn subscribe(ctx: RpcContext, req: Request<Body>) -> Result<Response<B
     Ok(res)
 }
 
-#[command(subcommands(revisions, dump, put, apply))]
+#[command(subcommands(dump, put, apply))]
 pub fn db() -> Result<(), RpcError> {
     Ok(())
 }
@@ -186,20 +186,6 @@ pub enum RevisionsRes {
     Dump(Dump),
 }
 
-#[command(display(display_serializable))]
-pub async fn revisions(
-    #[context] ctx: RpcContext,
-    #[arg] since: u64,
-    #[allow(unused_variables)]
-    #[arg(long = "format")]
-    format: Option<IoFormat>,
-) -> Result<RevisionsRes, Error> {
-    Ok(match ctx.db.sync(since).await? {
-        Ok(revs) => RevisionsRes::Revisions(revs),
-        Err(dump) => RevisionsRes::Dump(dump),
-    })
-}
-
 #[instrument(skip_all)]
 async fn cli_dump(
     ctx: CliContext,
@@ -207,7 +193,7 @@ async fn cli_dump(
     path: Option<PathBuf>,
 ) -> Result<Dump, RpcError> {
     let dump = if let Some(path) = path {
-        PatchDb::open(path).await?.dump().await?
+        PatchDb::open(path).await?.dump().await
     } else {
         rpc_toolkit::command_helpers::call_remote(
             ctx,
@@ -235,7 +221,7 @@ pub async fn dump(
     #[arg]
     path: Option<PathBuf>,
 ) -> Result<Dump, Error> {
-    Ok(ctx.db.dump().await?)
+    Ok(ctx.db.dump().await)
 }
 
 fn apply_expr(input: jaq_core::Val, expr: &str) -> Result<jaq_core::Val, Error> {

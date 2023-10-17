@@ -28,7 +28,7 @@ impl VersionT for Version {
         &V0_3_0_COMPAT
     }
     async fn up(&self, db: PatchDb, _secrets: &PgPool) -> Result<(), Error> {
-        let peek = db.peek().await?;
+        let peek = db.peek().await;
         let mut url_replacements = BTreeMap::new();
         for (_, pde) in peek.as_package_data().as_entries()? {
             for (dependency, info) in pde

@@ -65,7 +65,6 @@ export class MockApiService extends ApiService {
       .pipe(
         tap(() => {
           this.sequence = 0
-          this.patchStream$.next([])
         }),
         switchMap(verified =>
           iif(
@@ -108,7 +107,9 @@ export class MockApiService extends ApiService {
         value: params.value,
       },
     ]
-    return this.withRevision(patch)
+    this.mockRevision(patch)
+
+    return null
   }
 
   // auth
@@ -289,7 +290,9 @@ export class MockApiService extends ApiService {
         value: initialProgress,
       },
     ]
-    return this.withRevision(patch, 'updating')
+    this.mockRevision(patch)
+
+    return 'updating'
   }
 
   async restartServer(
@@ -332,7 +335,9 @@ export class MockApiService extends ApiService {
         value: params.enable,
       },
     ]
-    return this.withRevision(patch, null)
+    this.mockRevision(patch)
+
+    return null
   }
 
   // marketplace URLs
@@ -385,7 +390,9 @@ export class MockApiService extends ApiService {
         value: 0,
       },
     ]
-    return this.withRevision(patch, Mock.Notifications)
+    this.mockRevision(patch)
+
+    return Mock.Notifications
   }
 
   async deleteNotification(
@@ -564,7 +571,9 @@ export class MockApiService extends ApiService {
       },
     ]
 
-    return this.withRevision(originalPatch)
+    this.mockRevision(originalPatch)
+
+    return null
   }
 
   // package
@@ -629,7 +638,9 @@ export class MockApiService extends ApiService {
         },
       },
     ]
-    return this.withRevision(patch)
+    this.mockRevision(patch)
+
+    return null
   }
 
   async getPackageConfig(
@@ -660,7 +671,9 @@ export class MockApiService extends ApiService {
         value: true,
       },
     ]
-    return this.withRevision(patch)
+    this.mockRevision(patch)
+
+    return null
   }
 
   async restorePackages(
@@ -684,7 +697,9 @@ export class MockApiService extends ApiService {
       }
     })
 
-    return this.withRevision(patch)
+    this.mockRevision(patch)
+
+    return null
   }
 
   async executePackageAction(
@@ -768,7 +783,9 @@ export class MockApiService extends ApiService {
       },
     ]
 
-    return this.withRevision(originalPatch)
+    this.mockRevision(originalPatch)
+
+    return null
   }
 
   async restartPackage(
@@ -845,7 +862,9 @@ export class MockApiService extends ApiService {
       },
     ]
 
-    return this.withRevision(patch)
+    this.mockRevision(patch)
+
+    return null
   }
 
   async stopPackage(params: RR.StopPackageReq): Promise<RR.StopPackageRes> {
@@ -876,7 +895,9 @@ export class MockApiService extends ApiService {
       },
     ]
 
-    return this.withRevision(patch)
+    this.mockRevision(patch)
+
+    return null
   }
 
   async uninstallPackage(
@@ -902,7 +923,9 @@ export class MockApiService extends ApiService {
       },
     ]
 
-    return this.withRevision(patch)
+    this.mockRevision(patch)
+
+    return null
   }
 
   async dryConfigureDependency(
@@ -1056,24 +1079,5 @@ export class MockApiService extends ApiService {
       patch,
     }
     this.mockWsSource$.next(revision)
-  }
-
-  private async withRevision<T>(
-    patch: Operation<unknown>[],
-    response: T | null = null,
-  ): Promise<T> {
-    if (!this.sequence) {
-      const { sequence } = this.bootstrapper.init()
-      this.sequence = sequence
-    }
-
-    this.patchStream$.next([
-      {
-        id: ++this.sequence,
-        patch,
-      },
-    ])
-
-    return response as T
   }
 }

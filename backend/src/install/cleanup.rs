@@ -62,7 +62,7 @@ pub async fn cleanup_failed(ctx: &RpcContext, id: &PackageId) -> Result<(), Erro
     if let Some(version) = match ctx
         .db
         .peek()
-        .await?
+        .await
         .as_package_data()
         .as_idx(id)
         .or_not_found(id)?
@@ -141,7 +141,7 @@ pub async fn uninstall<Ex>(ctx: &RpcContext, secrets: &mut Ex, id: &PackageId) -
 where
     for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
 {
-    let db = ctx.db.peek().await?;
+    let db = ctx.db.peek().await;
     let entry = db
         .as_package_data()
         .as_idx(id)

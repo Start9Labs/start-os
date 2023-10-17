@@ -64,7 +64,7 @@ pub const PKG_WASM_DIR: &str = "package-data/wasm";
 
 #[command(display(display_serializable))]
 pub async fn list(#[context] ctx: RpcContext) -> Result<Value, Error> {
-    Ok(ctx.db.peek().await?.as_package_data().as_entries()?
+    Ok(ctx.db.peek().await.as_package_data().as_entries()?
         .iter()
         .filter_map(|(id, pde)| {
             let status = match pde.as_match() {
@@ -666,7 +666,7 @@ pub async fn download_install_s9pk(
 ) -> Result<(), Error> {
     let pkg_id = &temp_manifest.id;
     let version = &temp_manifest.version;
-    let db = ctx.db.peek().await?;
+    let db = ctx.db.peek().await;
 
     if let Result::<(), Error>::Err(e) = {
         let ctx = ctx.clone();
@@ -786,7 +786,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
     rdr.validated();
     let developer_key = rdr.developer_key().clone();
     rdr.reset().await?;
-    let db = ctx.db.peek().await?;
+    let db = ctx.db.peek().await;
 
     tracing::info!("Install {}@{}: Unpacking Manifest", pkg_id, version);
     let manifest = progress
@@ -1017,7 +1017,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         )
         .await?;
 
-    let peek = ctx.db.peek().await?;
+    let peek = ctx.db.peek().await;
     let prev = peek
         .as_package_data()
         .as_idx(pkg_id)

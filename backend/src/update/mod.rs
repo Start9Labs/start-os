@@ -76,7 +76,7 @@ fn display_update_result(status: UpdateResult, _: &ArgMatches) {
 
 #[instrument(skip_all)]
 async fn maybe_do_update(ctx: RpcContext, marketplace_url: Url) -> Result<Option<()>, Error> {
-    let peeked = ctx.db.peek().await?;
+    let peeked = ctx.db.peek().await;
     let latest_version: Version = ctx
         .client
         .get(with_query_params(

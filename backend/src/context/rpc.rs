@@ -276,7 +276,7 @@ impl RpcContext {
             })
             .await?;
 
-        let peek = self.db.peek().await?;
+        let peek = self.db.peek().await;
 
         for (package_id, package) in peek.as_package_data().as_entries()?.into_iter() {
             let action = match package.as_match() {

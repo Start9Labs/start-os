@@ -11,7 +11,7 @@ use crate::Error;
 #[instrument(skip_all)]
 pub async fn check(ctx: &RpcContext, id: &PackageId) -> Result<(), Error> {
     let (manifest, started) = {
-        let peeked = ctx.db.peek().await?;
+        let peeked = ctx.db.peek().await;
         let pde = peeked
             .as_package_data()
             .as_idx(id)

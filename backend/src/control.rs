@@ -12,7 +12,7 @@ use crate::Error;
 #[command(display(display_none), metadata(sync_db = true))]
 #[instrument(skip_all)]
 pub async fn start(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Result<(), Error> {
-    let peek = ctx.db.peek().await?;
+    let peek = ctx.db.peek().await;
     let version = peek
         .as_package_data()
         .as_idx(&id)
@@ -35,7 +35,7 @@ pub async fn start(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Result<(
 
 #[command(display(display_none), metadata(sync_db = true))]
 pub async fn stop(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Result<MainStatus, Error> {
-    let peek = ctx.db.peek().await?;
+    let peek = ctx.db.peek().await;
     let version = peek
         .as_package_data()
         .as_idx(&id)
@@ -71,7 +71,7 @@ pub async fn stop(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Result<Ma
 
 #[command(display(display_none), metadata(sync_db = true))]
 pub async fn restart(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Result<(), Error> {
-    let peek = ctx.db.peek().await?;
+    let peek = ctx.db.peek().await;
     let version = peek
         .as_package_data()
         .as_idx(&id)

@@ -53,7 +53,7 @@ impl ManageContainer {
         let current_state = Arc::new(watch::channel(StartStop::Stop).0);
         let desired_state = Arc::new(
             watch::channel::<StartStop>(
-                get_status(seed.ctx.db.peek().await?, &seed.manifest).into(),
+                get_status(seed.ctx.db.peek().await, &seed.manifest).into(),
             )
             .0,
         );
@@ -103,7 +103,7 @@ impl ManageContainer {
         &self,
         seed: &manager_seed::ManagerSeed,
     ) -> Result<(), Error> {
-        let current_state = get_status(seed.ctx.db.peek().await?, &seed.manifest);
+        let current_state = get_status(seed.ctx.db.peek().await, &seed.manifest);
         self.override_main_status
             .send_modify(|x| *x = Some(current_state));
         Ok(())

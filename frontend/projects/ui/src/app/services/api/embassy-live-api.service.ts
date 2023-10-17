@@ -1,6 +1,5 @@
 import { Inject, Injectable } from '@angular/core'
 import {
-  decodeBase64,
   HttpOptions,
   HttpService,
   isRpcError,
@@ -14,7 +13,7 @@ import { RR } from './api.types'
 import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { ConfigService } from '../config.service'
 import { webSocket, WebSocketSubjectConfig } from 'rxjs/webSocket'
-import { Observable } from 'rxjs'
+import { Observable, filter, firstValueFrom } from 'rxjs'
 import { AuthService } from '../auth.service'
 import { DOCUMENT } from '@angular/common'
 import { DataModel } from '../patch-db/data-model'
@@ -67,7 +66,7 @@ export class LiveApiService extends ApiService {
   // auth
 
   async login(params: RR.LoginReq): Promise<RR.loginRes> {
-    return this.rpcRequest({ method: 'auth.login', params }, false)
+    return this.rpcRequest({ method: 'auth.login', params })
   }
 
   async logout(params: RR.LogoutReq): Promise<RR.LogoutRes> {
@@ -91,7 +90,7 @@ export class LiveApiService extends ApiService {
   // server
 
   async echo(params: RR.EchoReq, urlOverride?: string): Promise<RR.EchoRes> {
-    return this.rpcRequest({ method: 'echo', params }, false, urlOverride)
+    return this.rpcRequest({ method: 'echo', params }, urlOverride)
   }
 
   openPatchWebsocket$(): Observable<Update<DataModel>> {
@@ -434,42 +433,28 @@ export class LiveApiService extends ApiService {
 
   private async rpcRequest<T>(
     options: RPCOptions,
-    addHeader = true,
     urlOverride?: string,
   ): Promise<T> {
-    if (addHeader) {
-      options.headers = {
-        'x-patch-sequence': String(this.patch.cache$.value.sequence),
-        ...(options.headers || {}),
-      }
-    }
-
     const res = await this.http.rpcRequest<T>(options, urlOverride)
-    const encodedUpdates = res.headers.get('x-patch-updates')
-    const encodedError = res.headers.get('x-patch-error')
+    const body = res.body
 
-    if (encodedUpdates) {
-      const decoded = decodeBase64(encodedUpdates)
-      const updates: Update<DataModel>[] = JSON.parse(decoded)
-      this.patchStream$.next(updates)
-    }
-
-    if (encodedError) {
-      const error = decodeBase64(encodedError)
-      console.error(error)
-    }
-
-    const rpcRes = res.body
-
-    if (isRpcError(rpcRes)) {
-      if (rpcRes.error.code === 34) {
+    if (isRpcError(body)) {
+      if (body.error.code === 34) {
         console.error('Unauthenticated, logging out')
         this.auth.setUnverified()
       }
-      throw new RpcError(rpcRes.error)
+      throw new RpcError(body.error)
     }
 
-    return rpcRes.result
+    const patchSequence = res.headers.get('x-patch-sequence')
+    if (patchSequence)
+      await firstValueFrom(
+        this.patch.cache$.pipe(
+          filter(({ sequence }) => sequence >= Number(patchSequence)),
+        ),
+      )
+
+    return body.result
   }
 
   private async httpRequest<T>(opts: HttpOptions): Promise<T> {
