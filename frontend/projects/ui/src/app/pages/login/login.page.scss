@@ -1,20 +1,5 @@
 .content {
-  --background: #222428;
-}
-
-.card {
-  background: #414141;
-}
-
-.title {
-  margin: 16px;
-  color: #e0e0e0;
-  font-size: 1.8rem;
-}
-
-.header-icon {
-  max-width: 100px;
-  padding-top: 16px;
+  --background: #333333;
 }
 
 .grid {
@@ -26,12 +11,6 @@
   height: 100%;
   align-items: center;
   text-align: center;
-}
-
-.error {
-  display: block;
-  text-align: left;
-  padding-top: 4px;
 }
 
 .banner {
@@ -46,58 +25,56 @@
   }
 }
 
-.side-button {
-  --border-radius: 0 4px 4px 0;
-}
-
-.login-item {
-  --border-style: solid;
-  --border-color: var(--ion-color-light);
-  --border-radius: 4px 0 0 4px;
-  box-shadow: 0 3px 1px -2px rgba(0, 0, 0, 0.2), 0 2px 2px 0 rgba(0, 0, 0, 0.14),
-    0 1px 5px 0 rgba(0, 0, 0, 0.12);
-
-  .side-button {
-    --border-radius: 4px;
-  }
-}
-
 ion-card {
-  background: var(--ion-color-step-200);
-  box-shadow: 0 4px 4px rgba(0, 0, 0, 0.25);
-  border-radius: 44px;
+  background: #414141;
+  box-shadow: 0 4px 4px rgba(17, 17, 17, 0.144);
+  border-radius: 35px;
   min-height: 16rem;
+  contain: unset;
+  overflow: unset;
+  position: relative;
+}
+
+ion-item {
+  --background: transparent;
+  --border-radius: 0px;
+}
+  
+.title {
+  // margin: 16px;
+  padding-top: 55px;
+  color: #e0e0e0;
+  font-size: 1.8rem;
+}
+
+.header {
+  &-logo {
+    max-width: 30%;
+  }
+  
+  &-icon {
+    width: 100px;
+    position: absolute;
+    left: 50%;
+    margin-left: -50px;
+    top: -17%;
+    z-index: 100;
+  }
 }
 
 .login-button {
-  margin-inline-start: 0;
-  margin-inline-end: 0;
-  height: 49px;
-  font-size: larger;
-  font-weight: bold;
-}
-
-.form {
-  margin-bottom: 12px;
-
-  * {
-    display: inline-block;
-    vertical-align: middle;
-  }
+  height: 45px;
+  width: 120px;
+  --border-radius: 50px;
+  margin: 20px auto;
 }
 
 .item-interactive {
   --highlight-background: #5260ff !important;
 }
 
-
-@media (max-width: 500px) {
-  .side-button {
-    --border-radius: 4px;
-    margin-top: 0.7rem;
-  }
-
-  .login-item {
-    --border-radius: 4px;
-  }
+.error {
+  display: block;
+  text-align: left;
+  padding-top: 4px;
 }
