@@ -16,12 +16,13 @@ use tokio::sync::{Mutex, RwLock};
 use tokio_rustls::rustls::server::Acceptor;
 use tokio_rustls::rustls::{RootCertStore, ServerConfig};
 use tokio_rustls::{LazyConfigAcceptor, TlsConnector};
+use tracing::instrument;
 
 use crate::net::keys::Key;
 use crate::net::ssl::SslManager;
 use crate::net::utils::SingleAccept;
+use crate::prelude::*;
 use crate::util::io::{BackTrackingReader, TimeoutStream};
-use crate::Error;
 
 // not allowed: <=1024, >=32768, 5355, 5432, 9050, 6010, 9051, 5353
 
@@ -36,6 +37,7 @@ impl VHostController {
             servers: Mutex::new(BTreeMap::new()),
         }
     }
+    #[instrument(skip_all)]
     pub async fn add(
         &self,
         key: Key,
@@ -63,6 +65,7 @@ impl VHostController {
         writable.insert(external, server);
         Ok(rc?)
     }
+    #[instrument(skip_all)]
     pub async fn gc(&self, hostname: Option<String>, external: u16) -> Result<(), Error> {
         let mut writable = self.servers.lock().await;
         if let Some(server) = writable.remove(&external) {
@@ -93,6 +96,7 @@ struct VHostServer {
     _thread: NonDetachingJoinHandle<()>,
 }
 impl VHostServer {
+    #[instrument(skip_all)]
     async fn new(port: u16, ssl: Arc<SslManager>) -> Result<Self, Error> {
         // check if port allowed
         let listener = TcpListener::bind(SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), port))
