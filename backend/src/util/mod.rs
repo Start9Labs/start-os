@@ -32,6 +32,7 @@ pub mod io;
 pub mod logger;
 pub mod lshw;
 pub mod serde;
+pub mod crypto;
 
 #[derive(Clone, Copy, Debug, ::serde::Deserialize, ::serde::Serialize)]
 pub enum Never {}

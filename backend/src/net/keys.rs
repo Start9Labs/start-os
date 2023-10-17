@@ -1,11 +1,9 @@
 use color_eyre::eyre::eyre;
-use digest::Digest;
 use models::{Id, InterfaceId, PackageId};
 use openssl::pkey::{PKey, Private};
 use openssl::sha::Sha256;
 use openssl::x509::X509;
 use p256::elliptic_curve::pkcs8::EncodePrivateKey;
-use sha2::Sha512;
 use sqlx::PgExecutor;
 use ssh_key::private::Ed25519PrivateKey;
 use torut::onion::{OnionAddressV3, TorSecretKeyV3};
@@ -13,6 +11,7 @@ use zeroize::Zeroize;
 
 use crate::net::ssl::CertPair;
 use crate::prelude::*;
+use crate::util::crypto::ed25519_expand_key;
 
 // TODO: delete once we may change tor addresses
 async fn compat(
@@ -117,16 +116,7 @@ impl Key {
         }
     }
     pub fn from_bytes(interface: Option<(PackageId, InterfaceId)>, bytes: [u8; 32]) -> Self {
-        Self::from_pair(
-            interface,
-            bytes,
-            Sha512::default()
-                .chain_update(&bytes)
-                .finalize()
-                .as_slice()
-                .try_into()
-                .expect("type system guarantees same length"),
-        )
+        Self::from_pair(interface, bytes, ed25519_expand_key(&bytes))
     }
     pub fn new(interface: Option<(PackageId, InterfaceId)>) -> Self {
         Self::from_bytes(interface, rand::random())
