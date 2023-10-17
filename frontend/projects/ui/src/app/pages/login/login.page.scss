@@ -41,10 +41,9 @@ ion-item {
 }
   
 .title {
-  // margin: 16px;
   padding-top: 55px;
   color: #e0e0e0;
-  font-size: 1.8rem;
+  font-size: 1.3rem;
 }
 
 .header {
@@ -66,7 +65,9 @@ ion-item {
   height: 45px;
   width: 120px;
   --border-radius: 50px;
-  margin: 20px auto;
+  margin: 0 auto;
+  margin-top: 27px;
+  margin-bottom: 10px;
 }
 
 .item-interactive {
