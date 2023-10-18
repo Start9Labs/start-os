@@ -63,6 +63,9 @@
                     ></ion-icon>
                   </ion-button>
                 </ion-item>
+                <p class="error ion-text-center">
+                  <ion-text color="danger">{{ error }}</ion-text>
+                </p>
                 <ion-button
                   class="login-button"
                   type="submit"
@@ -72,9 +75,6 @@
                   Login
                 </ion-button>
               </form>
-              <p class="error">
-                <ion-text color="danger">{{ error }}</ion-text>
-              </p>
             </ion-card-content>
           </ion-card>
         </ion-col>

@@ -47,10 +47,6 @@ ion-item {
 }
 
 .header {
-  &-logo {
-    max-width: 30%;
-  }
-  
   &-icon {
     width: 100px;
     position: absolute;
@@ -76,6 +72,5 @@ ion-item {
 
 .error {
   display: block;
-  text-align: left;
   padding-top: 4px;
 }
