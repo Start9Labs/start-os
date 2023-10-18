@@ -85,6 +85,7 @@ install: $(ALL_TARGETS)
 	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/startd)
 	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/start-cli)
 	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/start-sdk)
+	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/start-deno)
 	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/avahi-alias)
 	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/embassy-cli)
 	if [ "$(OS_ARCH)" = "raspberrypi" ]; then $(call cp,cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep,$(DESTDIR)/usr/bin/pi-beep); fi

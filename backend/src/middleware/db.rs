@@ -18,7 +18,7 @@ pub fn db<M: Metadata>(ctx: RpcContext) -> DynMiddleware<M> {
               -> BoxFuture<Result<Result<DynMiddlewareStage2, Response<Body>>, HttpError>> {
             let ctx = ctx.clone();
             async move {
-                let m2: DynMiddlewareStage2 = Box::new(move |req, rpc_req| {
+                let m2: DynMiddlewareStage2 = Box::new(move |_req, rpc_req| {
                     async move {
                         let sync_db = metadata
                             .get(rpc_req.method.as_str(), "sync_db")

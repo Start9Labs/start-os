@@ -374,6 +374,12 @@ pub async fn journalctl(
             cmd.arg(format!("_COMM={}", SYSTEM_UNIT));
         }
         LogSource::Container(id) => {
+            #[cfg(feature = "podman")]
+            cmd.arg(format!(
+                "SYSLOG_IDENTIFIER={}",
+                DockerProcedure::container_name(&id, None)
+            ));
+            #[cfg(not(feature = "podman"))]
             cmd.arg(format!(
                 "CONTAINER_NAME={}",
                 DockerProcedure::container_name(&id, None)

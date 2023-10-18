@@ -1,23 +1,27 @@
-use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
+use std::{
+    path::{Path, PathBuf},
+    process::Stdio,
+};
 
 use color_eyre::eyre::eyre;
-use embassy_container_init::{ProcessGroupId, SignalGroup, SignalGroupParams};
+use embassy_container_init::ProcessGroupId;
 use helpers::UnixRpcClient;
 pub use js_engine::JsError;
 use js_engine::{JsExecutionEnvironment, PathForVolumeId};
-use models::{ErrorKind, VolumeId};
+use models::VolumeId;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use tokio::process::Command;
 use tracing::instrument;
 
 use super::ProcedureName;
-use crate::context::RpcContext;
+use crate::prelude::*;
 use crate::s9pk::manifest::PackageId;
-use crate::util::{GeneralGuard, Version};
+use crate::util::io::to_json_async_writer;
+use crate::util::Version;
 use crate::volume::Volumes;
-use crate::Error;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "kebab-case")]
@@ -45,6 +49,17 @@ impl PathForVolumeId for Volumes {
     }
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ExecuteArgs {
+    pub procedure: JsProcedure,
+    pub directory: PathBuf,
+    pub pkg_id: PackageId,
+    pub pkg_version: Version,
+    pub name: ProcedureName,
+    pub volumes: Volumes,
+    pub input: Option<serde_json::Value>,
+}
+
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct JsProcedure {
@@ -67,54 +82,54 @@ impl JsProcedure {
         volumes: &Volumes,
         input: Option<I>,
         timeout: Option<Duration>,
-        gid: ProcessGroupId,
-        rpc_client: Option<Arc<UnixRpcClient>>,
+        _gid: ProcessGroupId,
+        _rpc_client: Option<Arc<UnixRpcClient>>,
     ) -> Result<Result<O, (i32, String)>, Error> {
-        let cleaner_client = rpc_client.clone();
-        let cleaner = GeneralGuard::new(move || {
-            tokio::spawn(async move {
-                if let Some(client) = cleaner_client {
-                    client
-                        .request(SignalGroup, SignalGroupParams { gid, signal: 9 })
-                        .await
-                        .map_err(|e| {
-                            Error::new(eyre!("{}: {:?}", e.message, e.data), ErrorKind::Docker)
-                        })
-                } else {
-                    Ok(())
-                }
-            })
-        });
-        let res = async move {
-            let running_action = JsExecutionEnvironment::load_from_package(
-                directory,
-                pkg_id,
-                pkg_version,
-                Box::new(volumes.clone()),
-                gid,
-                rpc_client,
-            )
-            .await?
-            .run_action(name, input, self.args.clone());
-            let output: Option<ErrorValue> = match timeout {
-                Some(timeout_duration) => tokio::time::timeout(timeout_duration, running_action)
-                    .await
-                    .map_err(|_| (JsError::Timeout, "Timed out. Retrying soon...".to_owned()))??,
-                None => running_action.await?,
-            };
-            let output: O = unwrap_known_error(output)?;
-            Ok(output)
+        let runner_argument = ExecuteArgs {
+            procedure: self.clone(),
+            directory: directory.clone(),
+            pkg_id: pkg_id.clone(),
+            pkg_version: pkg_version.clone(),
+            name,
+            volumes: volumes.clone(),
+            input: input.and_then(|x| serde_json::to_value(x).ok()),
+        };
+        let mut runner = Command::new("start-deno")
+            .arg("execute")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .kill_on_drop(true)
+            .spawn()?;
+        to_json_async_writer(
+            &mut runner.stdin.take().or_not_found("stdin")?,
+            &runner_argument,
+        )
+        .await?;
+
+        let res = if let Some(timeout) = timeout {
+            tokio::time::timeout(timeout, runner.wait_with_output())
+                .await
+                .with_kind(ErrorKind::Timeout)??
+        } else {
+            runner.wait_with_output().await?
+        };
+
+        if res.status.success() {
+            serde_json::from_str::<Result<O, (i32, String)>>(std::str::from_utf8(&res.stdout)?)
+                .with_kind(ErrorKind::Deserialization)
+        } else {
+            Err(Error::new(
+                eyre!("{}", String::from_utf8(res.stderr)?),
+                ErrorKind::Javascript,
+            ))
         }
-        .await
-        .map_err(|(error, message)| (error.as_code_num(), message));
-        cleaner.drop().await.unwrap()?;
-        Ok(res)
     }
 
     #[instrument(skip_all)]
     pub async fn sandboxed<I: Serialize, O: DeserializeOwned>(
         &self,
-        ctx: &RpcContext,
+        directory: &PathBuf,
         pkg_id: &PackageId,
         pkg_version: &Version,
         volumes: &Volumes,
@@ -122,24 +137,97 @@ impl JsProcedure {
         timeout: Option<Duration>,
         name: ProcedureName,
     ) -> Result<Result<O, (i32, String)>, Error> {
-        Ok(async move {
+        let runner_argument = ExecuteArgs {
+            procedure: self.clone(),
+            directory: directory.clone(),
+            pkg_id: pkg_id.clone(),
+            pkg_version: pkg_version.clone(),
+            name,
+            volumes: volumes.clone(),
+            input: input.and_then(|x| serde_json::to_value(x).ok()),
+        };
+        let mut runner = Command::new("start-deno")
+            .arg("sandbox")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .kill_on_drop(true)
+            .spawn()?;
+        to_json_async_writer(
+            &mut runner.stdin.take().or_not_found("stdin")?,
+            &runner_argument,
+        )
+        .await?;
+
+        let res = if let Some(timeout) = timeout {
+            tokio::time::timeout(timeout, runner.wait_with_output())
+                .await
+                .with_kind(ErrorKind::Timeout)??
+        } else {
+            runner.wait_with_output().await?
+        };
+
+        if res.status.success() {
+            serde_json::from_str::<Result<O, (i32, String)>>(std::str::from_utf8(&res.stdout)?)
+                .with_kind(ErrorKind::Deserialization)
+        } else {
+            Err(Error::new(
+                eyre!("{}", String::from_utf8(res.stderr)?),
+                ErrorKind::Javascript,
+            ))
+        }
+    }
+
+    #[instrument(skip_all)]
+    pub async fn execute_impl<I: Serialize, O: DeserializeOwned>(
+        &self,
+        directory: &PathBuf,
+        pkg_id: &PackageId,
+        pkg_version: &Version,
+        name: ProcedureName,
+        volumes: &Volumes,
+        input: Option<I>,
+    ) -> Result<Result<O, (i32, String)>, Error> {
+        let res = async move {
             let running_action = JsExecutionEnvironment::load_from_package(
-                &ctx.datadir,
+                directory,
                 pkg_id,
                 pkg_version,
                 Box::new(volumes.clone()),
-                ProcessGroupId(0),
-                None,
+            )
+            .await?
+            .run_action(name, input, self.args.clone());
+            let output: Option<ErrorValue> = running_action.await?;
+            let output: O = unwrap_known_error(output)?;
+            Ok(output)
+        }
+        .await
+        .map_err(|(error, message)| (error.as_code_num(), message));
+
+        Ok(res)
+    }
+
+    #[instrument(skip_all)]
+    pub async fn sandboxed_impl<I: Serialize, O: DeserializeOwned>(
+        &self,
+        directory: &PathBuf,
+        pkg_id: &PackageId,
+        pkg_version: &Version,
+        volumes: &Volumes,
+        input: Option<I>,
+        name: ProcedureName,
+    ) -> Result<Result<O, (i32, String)>, Error> {
+        Ok(async move {
+            let running_action = JsExecutionEnvironment::load_from_package(
+                directory,
+                pkg_id,
+                pkg_version,
+                Box::new(volumes.clone()),
             )
             .await?
             .read_only_effects()
             .run_action(name, input, self.args.clone());
-            let output: Option<ErrorValue> = match timeout {
-                Some(timeout_duration) => tokio::time::timeout(timeout_duration, running_action)
-                    .await
-                    .map_err(|_| (JsError::Timeout, "Timed out. Retrying soon...".to_owned()))??,
-                None => running_action.await?,
-            };
+            let output: Option<ErrorValue> = running_action.await?;
             let output: O = unwrap_known_error(output)?;
             Ok(output)
         }
@@ -720,7 +808,7 @@ async fn js_disk_usage() {
     .unwrap();
     let input: Option<serde_json::Value> = None;
     let timeout = Some(Duration::from_secs(10));
-    dbg!(js_action
+    js_action
         .execute::<serde_json::Value, serde_json::Value>(
             &path,
             &package_id,
@@ -734,5 +822,5 @@ async fn js_disk_usage() {
         )
         .await
         .unwrap()
-        .unwrap());
+        .unwrap();
 }
