@@ -6,11 +6,11 @@ use serde_json::Value;
 
 use crate::context::CliContext;
 use crate::procedure::js_scripts::ExecuteArgs;
+use crate::s9pk::manifest::PackageId;
 use crate::util::logger::EmbassyLogger;
 use crate::util::serde::{display_serializable, parse_stdin_deserializable};
 use crate::version::{Current, VersionT};
 use crate::Error;
-use crate::s9pk::manifest::PackageId;
 
 lazy_static::lazy_static! {
     static ref VERSION_STRING: String = Current::new().semver().to_string();
@@ -77,8 +77,10 @@ impl PackageLogger {
                     .unwrap(),
             )
             .from_env_lossy();
-        let fmt_layer = fmt::layer().with_target(true);
-        let journald_layer = tracing_journald::layer().unwrap().with_syslog_identifier(format!("{id}.embassy"));
+        let fmt_layer = fmt::layer().with_writer(std::io::stderr).with_target(true);
+        let journald_layer = tracing_journald::layer()
+            .unwrap()
+            .with_syslog_identifier(format!("{id}.embassy"));
 
         let sub = tracing_subscriber::registry()
             .with(filter_layer)
