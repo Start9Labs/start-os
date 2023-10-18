@@ -1,6 +1,8 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{ActionId, HealthCheckId, PackageId};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ProcedureName {
     Main, // Usually just run container
     CreateBackup,

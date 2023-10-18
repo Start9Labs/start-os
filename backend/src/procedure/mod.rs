@@ -21,8 +21,6 @@ pub mod docker;
 pub mod js_scripts;
 pub use models::ProcedureName;
 
-// TODO: create RPC endpoint that looks up the appropriate action and calls `execute`
-
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
 #[serde(tag = "type")]
@@ -139,7 +137,15 @@ impl PackageProcedure {
             #[cfg(feature = "js_engine")]
             PackageProcedure::Script(procedure) => {
                 procedure
-                    .sandboxed(ctx, pkg_id, pkg_version, volumes, input, timeout, name)
+                    .sandboxed(
+                        &ctx.datadir,
+                        pkg_id,
+                        pkg_version,
+                        volumes,
+                        input,
+                        timeout,
+                        name,
+                    )
                     .await
             }
         }
@@ -157,13 +163,15 @@ impl std::fmt::Display for PackageProcedure {
     }
 }
 
+// TODO: make this not allocate
 #[derive(Debug)]
 pub struct NoOutput;
 impl<'de> Deserialize<'de> for NoOutput {
-    fn deserialize<D>(_: D) -> Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
+        let _ = Value::deserialize(deserializer)?;
         Ok(NoOutput)
     }
 }

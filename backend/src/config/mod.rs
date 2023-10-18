@@ -14,9 +14,9 @@ use rpc_toolkit::command;
 use tracing::instrument;
 
 use crate::context::RpcContext;
-use crate::db::model::CurrentDependencies;
+
 use crate::prelude::*;
-use crate::s9pk::manifest::{Manifest, PackageId};
+use crate::s9pk::manifest::{PackageId};
 use crate::util::display_none;
 use crate::util::serde::{display_serializable, parse_stdin_deserializable, IoFormat};
 use crate::Error;
