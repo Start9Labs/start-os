@@ -1,4 +1,4 @@
-use sha2_old::{Digest, Sha512};
+use sha2::{Digest, Sha512};
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt, SeekFrom};
 use tracing::instrument;
 use typed_builder::TypedBuilder;
@@ -43,7 +43,7 @@ impl<
 {
     /// BLOCKING
     #[instrument(skip_all)]
-    pub async fn pack(mut self, key: &ed25519_dalek::Keypair) -> Result<(), Error> {
+    pub async fn pack(mut self, key: &ed25519_dalek::SigningKey) -> Result<(), Error> {
         let header_pos = self.writer.stream_position().await?;
         if header_pos != 0 {
             tracing::warn!("Appending to non-empty file.");
@@ -132,7 +132,7 @@ impl<
         // header
         let (hash, _) = writer.finish();
         self.writer.seek(SeekFrom::Start(header_pos)).await?;
-        header.pubkey = key.public.clone();
+        header.pubkey = key.into();
         header.signature = key.sign_prehashed(hash, Some(SIG_CONTEXT))?;
         header
             .serialize(&mut self.writer)

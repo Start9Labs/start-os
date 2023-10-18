@@ -97,20 +97,25 @@ pub fn serialize_display_opt<T: std::fmt::Display, S: Serializer>(
 }
 
 pub mod ed25519_pubkey {
-    use ed25519_dalek::PublicKey;
+    use ed25519_dalek::VerifyingKey;
     use serde::de::{Error, Unexpected, Visitor};
     use serde::{Deserializer, Serializer};
 
-    pub fn serialize<S: Serializer>(pubkey: &PublicKey, serializer: S) -> Result<S::Ok, S::Error> {
+    pub fn serialize<S: Serializer>(
+        pubkey: &VerifyingKey,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
         serializer.serialize_str(&base32::encode(
             base32::Alphabet::RFC4648 { padding: true },
             pubkey.as_bytes(),
         ))
     }
-    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<PublicKey, D::Error> {
+    pub fn deserialize<'de, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<VerifyingKey, D::Error> {
         struct PubkeyVisitor;
         impl<'de> Visitor<'de> for PubkeyVisitor {
-            type Value = ed25519_dalek::PublicKey;
+            type Value = ed25519_dalek::VerifyingKey;
             fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 write!(formatter, "an RFC4648 encoded string")
             }
@@ -118,10 +123,13 @@ pub mod ed25519_pubkey {
             where
                 E: Error,
             {
-                PublicKey::from_bytes(
-                    &base32::decode(base32::Alphabet::RFC4648 { padding: true }, v).ok_or(
-                        Error::invalid_value(Unexpected::Str(v), &"an RFC4648 encoded string"),
-                    )?,
+                VerifyingKey::from_bytes(
+                    &<[u8; 32]>::try_from(
+                        base32::decode(base32::Alphabet::RFC4648 { padding: true }, v).ok_or(
+                            Error::invalid_value(Unexpected::Str(v), &"an RFC4648 encoded string"),
+                        )?,
+                    )
+                    .map_err(|e| Error::invalid_length(e.len(), &"32 bytes"))?,
                 )
                 .map_err(Error::custom)
             }
@@ -312,11 +320,12 @@ impl IoFormat {
                 .with_kind(crate::ErrorKind::Serialization),
             IoFormat::Toml => writer
                 .write_all(
-                    &serde_toml::to_vec(
+                    serde_toml::to_string(
                         &serde_toml::Value::try_from(value)
                             .with_kind(crate::ErrorKind::Serialization)?,
                     )
-                    .with_kind(crate::ErrorKind::Serialization)?,
+                    .with_kind(crate::ErrorKind::Serialization)?
+                    .as_bytes(),
                 )
                 .with_kind(crate::ErrorKind::Serialization),
             IoFormat::TomlPretty => writer
@@ -346,10 +355,11 @@ impl IoFormat {
                     .with_kind(crate::ErrorKind::Serialization)?;
                 Ok(res)
             }
-            IoFormat::Toml => serde_toml::to_vec(
+            IoFormat::Toml => serde_toml::to_string(
                 &serde_toml::Value::try_from(value).with_kind(crate::ErrorKind::Serialization)?,
             )
-            .with_kind(crate::ErrorKind::Serialization),
+            .with_kind(crate::ErrorKind::Serialization)
+            .map(|s| s.into_bytes()),
             IoFormat::TomlPretty => serde_toml::to_string_pretty(
                 &serde_toml::Value::try_from(value).with_kind(crate::ErrorKind::Serialization)?,
             )
@@ -408,7 +418,8 @@ impl IoFormat {
                 serde_cbor::de::from_reader(slice).with_kind(crate::ErrorKind::Deserialization)
             }
             IoFormat::Toml | IoFormat::TomlPretty => {
-                serde_toml::from_slice(slice).with_kind(crate::ErrorKind::Deserialization)
+                serde_toml::from_str(std::str::from_utf8(slice)?)
+                    .with_kind(crate::ErrorKind::Deserialization)
             }
         }
     }

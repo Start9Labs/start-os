@@ -1,5 +1,4 @@
 use color_eyre::eyre::eyre;
-use ed25519_dalek::{ExpandedSecretKey, SecretKey};
 use models::{Id, InterfaceId, PackageId};
 use openssl::pkey::{PKey, Private};
 use openssl::sha::Sha256;
@@ -11,13 +10,14 @@ use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 use zeroize::Zeroize;
 
 use crate::net::ssl::CertPair;
-use crate::Error;
+use crate::prelude::*;
+use crate::util::crypto::ed25519_expand_key;
 
 // TODO: delete once we may change tor addresses
 async fn compat(
     secrets: impl PgExecutor<'_>,
     interface: &Option<(PackageId, InterfaceId)>,
-) -> Result<Option<ExpandedSecretKey>, Error> {
+) -> Result<Option<[u8; 64]>, Error> {
     if let Some((package, interface)) = interface {
         if let Some(r) = sqlx::query!(
             "SELECT key FROM tor WHERE package = $1 AND interface = $2",
@@ -27,7 +27,12 @@ async fn compat(
         .fetch_optional(secrets)
         .await?
         {
-            Ok(Some(ExpandedSecretKey::from_bytes(&r.key)?))
+            Ok(Some(<[u8; 64]>::try_from(r.key).map_err(|e| {
+                Error::new(
+                    eyre!("expected vec of len 64, got len {}", e.len()),
+                    ErrorKind::ParseDbField,
+                )
+            })?))
         } else {
             Ok(None)
         }
@@ -36,7 +41,12 @@ async fn compat(
         .await?
         .tor_key
     {
-        Ok(Some(ExpandedSecretKey::from_bytes(&key)?))
+        Ok(Some(<[u8; 64]>::try_from(key).map_err(|e| {
+            Error::new(
+                eyre!("expected vec of len 64, got len {}", e.len()),
+                ErrorKind::ParseDbField,
+            )
+        })?))
     } else {
         Ok(None)
     }
@@ -62,10 +72,7 @@ impl Key {
             .unwrap_or_else(|| "embassy".to_owned())
     }
     pub fn tor_key(&self) -> TorSecretKeyV3 {
-        ed25519_dalek::ExpandedSecretKey::from_bytes(&self.tor_key)
-            .unwrap()
-            .to_bytes()
-            .into()
+        self.tor_key.into()
     }
     pub fn tor_address(&self) -> OnionAddressV3 {
         self.tor_key().public().get_onion_address()
@@ -85,7 +92,7 @@ impl Key {
     pub fn openssl_key_nistp256(&self) -> PKey<Private> {
         let mut buf = self.base;
         loop {
-            if let Ok(k) = p256::SecretKey::from_be_bytes(&buf) {
+            if let Ok(k) = p256::SecretKey::from_slice(&buf) {
                 return PKey::private_key_from_pkcs8(&*k.to_pkcs8_der().unwrap().as_bytes())
                     .unwrap();
             }
@@ -109,11 +116,7 @@ impl Key {
         }
     }
     pub fn from_bytes(interface: Option<(PackageId, InterfaceId)>, bytes: [u8; 32]) -> Self {
-        Self::from_pair(
-            interface,
-            bytes,
-            ExpandedSecretKey::from(&SecretKey::from_bytes(&bytes).unwrap()).to_bytes(),
-        )
+        Self::from_pair(interface, bytes, ed25519_expand_key(&bytes))
     }
     pub fn new(interface: Option<(PackageId, InterfaceId)>) -> Self {
         Self::from_bytes(interface, rand::random())
@@ -222,7 +225,7 @@ impl Key {
         };
         let mut res = Self::from_bytes(interface, actual);
         if let Some(tor_key) = compat(secrets, &res.interface).await? {
-            res.tor_key = tor_key.to_bytes();
+            res.tor_key = tor_key;
         }
         Ok(res)
     }

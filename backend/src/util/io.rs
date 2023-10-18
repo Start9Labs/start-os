@@ -143,7 +143,7 @@ where
 {
     let mut buffer = Vec::new();
     reader.read_to_end(&mut buffer).await?;
-    serde_toml::from_slice(&buffer)
+    serde_toml::from_str(std::str::from_utf8(&buffer)?)
         .map_err(color_eyre::eyre::Error::from)
         .with_kind(crate::ErrorKind::Deserialization)
 }
@@ -153,7 +153,9 @@ where
     T: serde::Serialize,
     W: AsyncWrite + Unpin,
 {
-    let mut buffer = serde_toml::to_vec(value).with_kind(crate::ErrorKind::Serialization)?;
+    let mut buffer = serde_toml::to_string(value)
+        .with_kind(crate::ErrorKind::Serialization)?
+        .into_bytes();
     buffer.extend_from_slice(b"\n");
     writer.write_all(&buffer).await?;
     Ok(())

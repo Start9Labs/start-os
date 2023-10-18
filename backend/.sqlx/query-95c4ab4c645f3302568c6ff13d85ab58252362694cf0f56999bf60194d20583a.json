@@ -1,0 +1,44 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, hostname, path, username, password FROM cifs_shares",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "hostname",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "path",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "username",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "password",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "95c4ab4c645f3302568c6ff13d85ab58252362694cf0f56999bf60194d20583a"
+}

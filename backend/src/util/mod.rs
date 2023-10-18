@@ -17,7 +17,7 @@ pub use helpers::NonDetachingJoinHandle;
 use lazy_static::lazy_static;
 pub use models::Version;
 use pin_project::pin_project;
-use sha2_old::Digest;
+use sha2::Digest;
 use tokio::fs::File;
 use tokio::sync::{Mutex, OwnedMutexGuard, RwLock};
 use tracing::instrument;
@@ -32,6 +32,7 @@ pub mod io;
 pub mod logger;
 pub mod lshw;
 pub mod serde;
+pub mod crypto;
 
 #[derive(Clone, Copy, Debug, ::serde::Deserialize, ::serde::Serialize)]
 pub enum Never {}

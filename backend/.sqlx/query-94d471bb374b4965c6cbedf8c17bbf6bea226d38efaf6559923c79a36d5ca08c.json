@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, package_id, created_at, code, level, title, message, data FROM notifications ORDER BY id DESC LIMIT $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "package_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "created_at",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 3,
+        "name": "code",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "level",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "title",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "message",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "data",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "94d471bb374b4965c6cbedf8c17bbf6bea226d38efaf6559923c79a36d5ca08c"
+}

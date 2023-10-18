@@ -13,8 +13,8 @@ use tokio::process::Command;
 use tokio::sync::RwLock;
 use tracing::instrument;
 use trust_dns_server::authority::MessageResponseBuilder;
-use trust_dns_server::client::op::{Header, ResponseCode};
-use trust_dns_server::client::rr::{Name, Record, RecordType};
+use trust_dns_server::proto::op::{Header, ResponseCode};
+use trust_dns_server::proto::rr::{Name, Record, RecordType};
 use trust_dns_server::server::{Request, RequestHandler, ResponseHandler, ResponseInfo};
 use trust_dns_server::ServerFuture;
 
@@ -86,7 +86,7 @@ impl RequestHandler for Resolver {
                                         Record::from_rdata(
                                             request.request_info().query.name().to_owned().into(),
                                             0,
-                                            trust_dns_server::client::rr::RData::A(ip),
+                                            trust_dns_server::proto::rr::RData::A(ip.into()),
                                         )
                                     })
                                     .collect::<Vec<_>>(),

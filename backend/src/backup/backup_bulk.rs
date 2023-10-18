@@ -63,9 +63,9 @@ pub async fn backup_all(
         .clone()
         .decrypt(&ctx)?;
     let password = password.decrypt(&ctx)?;
-    check_password_against_db(&mut ctx.secret_store.acquire().await?, &password).await?;
+    check_password_against_db(ctx.secret_store.acquire().await?.as_mut(), &password).await?;
     let fs = target_id
-        .load(&mut ctx.secret_store.acquire().await?)
+        .load(ctx.secret_store.acquire().await?.as_mut())
         .await?;
     let mut backup_guard = BackupMountGuard::mount(
         TmpMountGuard::mount(&fs, ReadWrite).await?,

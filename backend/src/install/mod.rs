@@ -626,9 +626,10 @@ pub async fn uninstall(
     let return_id = id.clone();
 
     tokio::spawn(async move {
-        if let Err(e) =
-            async { cleanup::uninstall(&ctx, &mut ctx.secret_store.acquire().await?, &id).await }
-                .await
+        if let Err(e) = async {
+            cleanup::uninstall(&ctx, ctx.secret_store.acquire().await?.as_mut(), &id).await
+        }
+        .await
         {
             let err_str = format!("Uninstall of {} Failed: {}", id, e);
             tracing::error!("{}", err_str);
@@ -1030,7 +1031,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
     tracing::info!("Install {}@{}: Created volumes", pkg_id, version);
 
     tracing::info!("Install {}@{}: Installing interfaces", pkg_id, version);
-    let interface_addresses = manifest.interfaces.install(&mut sql_tx, pkg_id).await?;
+    let interface_addresses = manifest.interfaces.install(sql_tx.as_mut(), pkg_id).await?;
     tracing::info!(
         "Install {}@{}: Installed interfaces {:?}",
         pkg_id,

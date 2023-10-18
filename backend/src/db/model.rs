@@ -423,7 +423,7 @@ pub struct InstalledPackageInfo {
     pub marketplace_url: Option<Url>,
     #[serde(default)]
     #[serde(with = "crate::util::serde::ed25519_pubkey")]
-    pub developer_key: ed25519_dalek::PublicKey,
+    pub developer_key: ed25519_dalek::VerifyingKey,
     pub manifest: Manifest,
     pub last_backup: Option<DateTime<Utc>>,
     pub dependency_info: BTreeMap<PackageId, StaticDependencyInfo>,

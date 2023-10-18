@@ -22,7 +22,7 @@ rust-gnu-builder sh -c "(cd libs/ && cargo build -p snapshot_creator --release -
 cd -
 
 echo "Creating Arm v8 Snapshot"
-docker run  $USE_TTY --platform linux/arm64/v8 --mount type=bind,src=$(pwd),dst=/mnt arm64v8/ubuntu:20.04 /bin/sh -c "cd /mnt && /mnt/target/aarch64-unknown-linux-gnu/release/snapshot_creator"
+docker run  $USE_TTY --platform linux/arm64/v8 --mount type=bind,src=$(pwd),dst=/mnt arm64v8/ubuntu:22.04 /bin/sh -c "cd /mnt && /mnt/target/aarch64-unknown-linux-gnu/release/snapshot_creator"
 sudo chown -R $USER target
 sudo chown -R $USER ~/.cargo
 sudo chown $USER JS_SNAPSHOT.bin
