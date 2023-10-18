@@ -23,43 +23,51 @@
     <ion-grid class="grid">
       <ion-row class="row">
         <ion-col>
-          <ion-card class="card">
+          <ion-card>
+            <img
+              alt="StartOS Icon"
+              class="header-icon"
+              src="assets/img/icon.png"
+            />
             <ion-card-header>
-              <ion-card-title class="title">StartOS Login</ion-card-title>
+              <ion-card-title class="title">Login to StartOS</ion-card-title>
             </ion-card-header>
-
             <ion-card-content class="ion-margin">
-              <form class="form" (submit)="submit()">
-                <ion-item-group>
-                  <ion-item color="dark" class="login-item">
+              <form (submit)="submit()">
+                <ion-item color="dark" fill="solid">
+                  <ion-icon
+                    slot="start"
+                    size="small"
+                    color="base"
+                    name="key-outline"
+                    style="margin-right: 16px"
+                  ></ion-icon>
+                  <ion-input
+                    name="password"
+                    placeholder="Password"
+                    [type]="unmasked ? 'text' : 'password'"
+                    [(ngModel)]="password"
+                    (ionChange)="error = ''"
+                    maxlength="64"
+                  ></ion-input>
+                  <ion-button
+                    slot="end"
+                    fill="clear"
+                    color="dark"
+                    (click)="unmasked = !unmasked"
+                  >
                     <ion-icon
-                      slot="start"
-                      name="key-outline"
-                      style="margin-right: 16px"
+                      slot="icon-only"
+                      size="small"
+                      [name]="unmasked ? 'eye-off-outline' : 'eye-outline'"
                     ></ion-icon>
-                    <ion-input
-                      name="password"
-                      placeholder="Password"
-                      [type]="unmasked ? 'text' : 'password'"
-                      [(ngModel)]="password"
-                      (ionChange)="error = ''"
-                      maxlength="64"
-                    ></ion-input>
-                    <ion-button
-                      fill="clear"
-                      color="light"
-                      (click)="unmasked = !unmasked"
-                    >
-                      <ion-icon
-                        slot="icon-only"
-                        size="small"
-                        [name]="unmasked ? 'eye-off-outline' : 'eye-outline'"
-                      ></ion-icon>
-                    </ion-button>
-                  </ion-item>
-                </ion-item-group>
+                  </ion-button>
+                </ion-item>
+                <p class="error ion-text-center">
+                  <ion-text color="danger">{{ error }}</ion-text>
+                </p>
                 <ion-button
-                  class="login-button side-button"
+                  class="login-button"
                   type="submit"
                   expand="block"
                   color="tertiary"
@@ -67,9 +75,6 @@
                   Login
                 </ion-button>
               </form>
-              <p class="error">
-                <ion-text color="danger">{{ error }}</ion-text>
-              </p>
             </ion-card-content>
           </ion-card>
         </ion-col>
