@@ -6,8 +6,7 @@ use std::sync::Arc;
 
 use clap::ArgMatches;
 use color_eyre::eyre::eyre;
-use cookie::Cookie;
-use cookie_store::CookieStore;
+use cookie_store::{CookieStore, RawCookie};
 use josekit::jwk::Jwk;
 use reqwest::Proxy;
 use reqwest_cookie_store::CookieStoreMutex;
@@ -111,7 +110,10 @@ impl CliContext {
             };
             if let Ok(local) = std::fs::read_to_string(LOCAL_AUTH_COOKIE_PATH) {
                 store
-                    .insert_raw(&Cookie::new("local", local), &"http://localhost".parse()?)
+                    .insert_raw(
+                        &RawCookie::new("local", local),
+                        &"http://localhost".parse()?,
+                    )
                     .with_kind(crate::ErrorKind::Network)?;
             }
             store

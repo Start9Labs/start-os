@@ -4,8 +4,7 @@ import {
   PackageState,
   Status,
 } from 'src/app/services/patch-db/data-model'
-import { PackageDependencyErrors } from './dep-error.service'
-import { Manifest } from '../../../../marketplace/src/types'
+import { PkgDependencyErrors } from './dep-error.service'
 
 export interface PackageStatus {
   primary: PrimaryStatus | PackageState | PackageMainStatus
@@ -15,7 +14,7 @@ export interface PackageStatus {
 
 export function renderPkgStatus(
   pkg: PackageDataEntry,
-  depErrors: PackageDependencyErrors,
+  depErrors: PkgDependencyErrors,
 ): PackageStatus {
   let primary: PrimaryStatus | PackageState | PackageMainStatus
   let dependency: DependencyStatus | null = null
@@ -23,7 +22,7 @@ export function renderPkgStatus(
 
   if (pkg.state === PackageState.Installed && pkg.installed) {
     primary = getPrimaryStatus(pkg.installed.status)
-    dependency = getDependencyStatus(pkg.manifest, depErrors)
+    dependency = getDependencyStatus(depErrors)
     health = getHealthStatus(pkg.installed.status)
   } else {
     primary = pkg.state
@@ -40,11 +39,8 @@ function getPrimaryStatus(status: Status): PrimaryStatus | PackageMainStatus {
   }
 }
 
-function getDependencyStatus(
-  manifest: Manifest,
-  depErrors: PackageDependencyErrors,
-): DependencyStatus {
-  return Object.values(depErrors[manifest.id]).some(err => !!err)
+function getDependencyStatus(depErrors: PkgDependencyErrors): DependencyStatus {
+  return Object.values(depErrors).some(err => !!err)
     ? DependencyStatus.Warning
     : DependencyStatus.Satisfied
 }

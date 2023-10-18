@@ -1,32 +1,35 @@
 <div align="center">
-  <img src="frontend/projects/shared/assets/img/icon_pwa.png" alt="StartOS Logo" width="16%" />
+  <img src="frontend/projects/shared/assets/img/icon.png" alt="StartOS Logo" width="16%" />
   <h1 style="margin-top: 0;">StartOS</h1>
   <a href="https://github.com/Start9Labs/start-os/releases">
-    <img src="https://img.shields.io/github/v/tag/Start9Labs/start-os?color=success" />
+    <img alt="GitHub release (with filter)" src="https://img.shields.io/github/v/release/start9labs/start-os?logo=github">
   </a>
   <a href="https://github.com/Start9Labs/start-os/actions/workflows/startos-iso.yaml">
     <img src="https://github.com/Start9Labs/start-os/actions/workflows/startos-iso.yaml/badge.svg">
   </a>
-  <a href="https://twitter.com/start9labs">
-    <img src="https://img.shields.io/twitter/follow/start9labs?label=Follow">
+    <a href="https://heyapollo.com/product/startos">
+    <img alt="Static Badge" src="https://img.shields.io/badge/apollo-review%20%E2%AD%90%E2%AD%90%E2%AD%90%E2%AD%90%E2%AD%90%20-slateblue">
   </a>
-  <a href="http://mastodon.start9labs.com">
+  <a href="https://twitter.com/start9labs">
+    <img alt="X (formerly Twitter) Follow" src="https://img.shields.io/twitter/follow/start9labs">
+  </a>
+  <a href="https://mastodon.start9labs.com">
     <img src="https://img.shields.io/mastodon/follow/000000001?domain=https%3A%2F%2Fmastodon.start9labs.com&label=Follow&style=social">
   </a>
   <a href="https://matrix.to/#/#community:matrix.start9labs.com">
-    <img src="https://img.shields.io/badge/community-matrix-yellow">
+    <img alt="Static Badge" src="https://img.shields.io/badge/community-matrix-yellow?logo=matrix">
   </a>
   <a href="https://t.me/start9_labs">
-    <img src="https://img.shields.io/badge/community-telegram-informational">
+    <img alt="Static Badge" src="https://img.shields.io/badge/community-telegram-blue?logo=telegram">
   </a>
   <a href="https://docs.start9.com">
-    <img src="https://img.shields.io/badge/support-docs-important">
+    <img alt="Static Badge" src="https://img.shields.io/badge/docs-orange?label=%F0%9F%91%A4%20support">
   </a>
   <a href="https://matrix.to/#/#community-dev:matrix.start9labs.com">
-    <img src="https://img.shields.io/badge/developer-matrix-blueviolet">
+    <img alt="Static Badge" src="https://img.shields.io/badge/developer-matrix-darkcyan?logo=matrix">
   </a>
   <a href="https://start9.com">
-    <img src="https://img.shields.io/website?down_color=lightgrey&down_message=offline&up_color=green&up_message=online&url=https%3A%2F%2Fstart9.com">
+    <img alt="Website" src="https://img.shields.io/website?up_message=online&down_message=offline&url=https%3A%2F%2Fstart9.com&logo=website&label=%F0%9F%8C%90%20website">
   </a>
 </div>
 <br />
@@ -35,7 +38,7 @@
     Welcome to the era of Sovereign Computing
   </h3>
   <p>
-    StartOS is a Debian-based Linux distro optimized for running a personal server. It facilitates the discovery,       installation, network configuration, service configuration, data backup, dependency management, and health monitoring of self-hosted software services.
+    StartOS is an open source Linux distribution optimized for running a personal server. It facilitates the discovery, installation, network configuration, service configuration, data backup, dependency management, and health monitoring of self-hosted software services.
   </p>
 </div>
 <br />
@@ -65,7 +68,7 @@ There are multiple ways to contribute: work directly on StartOS, package a servi
 To report security issues, please email our security team - security@start9.com.
 
 ## 🌎 Marketplace
-There are dozens of service available for StartOS, and new ones are being added all the time. Check out the full list of available services [here](https://marketplace.start9.com/marketplace). To read more about the Marketplace ecosystem, check out this [blog post](https://blog.start9.com/start9-marketplace-strategy/)
+There are dozens of services available for StartOS, and new ones are being added all the time. Check out the full list of available services [here](https://marketplace.start9.com/marketplace). To read more about the Marketplace ecosystem, check out this [blog post](https://blog.start9.com/start9-marketplace-strategy/)
 
 ## 🖥️ User Interface Screenshots
 

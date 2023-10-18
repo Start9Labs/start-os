@@ -16,8 +16,8 @@ pub type Current = v0_4_0::Version;
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 #[serde(untagged)]
 enum Version {
-    LT0_3_4_3(LTWrapper<v0_3_5::Version>),
-    V0_3_4_3(Wrapper<v0_3_5::Version>),
+    LT0_3_5(LTWrapper<v0_3_5::Version>),
+    V0_3_5(Wrapper<v0_3_5::Version>),
     V0_4_0(Wrapper<v0_4_0::Version>),
     Other(emver::Version),
 }
@@ -34,8 +34,8 @@ impl Version {
     #[cfg(test)]
     fn as_sem_ver(&self) -> emver::Version {
         match self {
-            Version::LT0_3_4_3(LTWrapper(_, x)) => x.clone(),
-            Version::V0_3_4_3(Wrapper(x)) => x.semver(),
+            Version::LT0_3_5(LTWrapper(_, x)) => x.clone(),
+            Version::V0_3_5(Wrapper(x)) => x.semver(),
             Version::V0_4_0(Wrapper(x)) => x.semver(),
             Version::Other(x) => x.clone(),
         }
@@ -179,16 +179,16 @@ where
 }
 
 pub async fn init(db: &PatchDb, secrets: &PgPool) -> Result<(), Error> {
-    let version = Version::from_util_version(db.peek().await?.as_server_info().as_version().de()?);
+    let version = Version::from_util_version(db.peek().await.as_server_info().as_version().de()?);
 
     match version {
-        Version::LT0_3_4_3(_) => {
+        Version::LT0_3_5(_) => {
             return Err(Error::new(
-                eyre!("Cannot migrate from pre-0.3.4. Please update to v0.3.4 first."),
+                eyre!("Cannot migrate from pre-0.3.5. Please update to v0.3.5 first."),
                 crate::ErrorKind::MigrationFailed,
             ));
         }
-        Version::V0_3_4_3(v) => v.0.migrate_to(&Current::new(), db, secrets).await?,
+        Version::V0_3_5(v) => v.0.migrate_to(&Current::new(), db, secrets).await?,
         Version::V0_4_0(v) => v.0.migrate_to(&Current::new(), db, secrets).await?,
         Version::Other(_) => {
             return Err(Error::new(
@@ -223,14 +223,14 @@ mod tests {
     fn versions() -> impl Strategy<Value = Version> {
         prop_oneof![
             em_version().prop_map(|v| if v < v0_3_5::Version::new().semver() {
-                Version::LT0_3_4_3(LTWrapper(v0_3_5::Version::new(), v))
+                Version::LT0_3_5(LTWrapper(v0_3_5::Version::new(), v))
             } else {
-                Version::LT0_3_4_3(LTWrapper(
+                Version::LT0_3_5(LTWrapper(
                     v0_3_5::Version::new(),
                     emver::Version::new(0, 3, 0, 0),
                 ))
             }),
-            Just(Version::V0_3_4_3(Wrapper(v0_3_5::Version::new()))),
+            Just(Version::V0_3_5(Wrapper(v0_3_5::Version::new()))),
             Just(Version::V0_4_0(Wrapper(v0_4_0::Version::new()))),
             em_version().prop_map(Version::Other),
         ]

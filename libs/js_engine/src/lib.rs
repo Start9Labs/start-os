@@ -13,8 +13,7 @@ use deno_core::{
     ModuleSourceFuture, ModuleSpecifier, ModuleType, OpDecl, ResolutionKind, RuntimeOptions,
     Snapshot,
 };
-use embassy_container_init::ProcessGroupId;
-use helpers::{script_dir, spawn_local, OsApi, Rsync, UnixRpcClient};
+use helpers::{script_dir, spawn_local, Rsync};
 use models::{PackageId, ProcedureName, Version, VolumeId};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -105,8 +104,6 @@ struct JsContext {
     volumes: Arc<dyn PathForVolumeId>,
     input: Value,
     variable_args: Vec<serde_json::Value>,
-    container_process_gid: ProcessGroupId,
-    container_rpc_client: Option<Arc<UnixRpcClient>>,
     rsyncs: Arc<Mutex<(usize, BTreeMap<usize, Rsync>)>>,
     callback_sender: mpsc::UnboundedSender<(Arc<String>, Vec<Value>)>,
 }
@@ -197,8 +194,6 @@ pub struct JsExecutionEnvironment {
     package_id: PackageId,
     version: Version,
     volumes: Arc<dyn PathForVolumeId>,
-    container_process_gid: ProcessGroupId,
-    container_rpc_client: Option<Arc<UnixRpcClient>>,
 }
 
 impl JsExecutionEnvironment {
@@ -208,9 +203,7 @@ impl JsExecutionEnvironment {
         package_id: &PackageId,
         version: &Version,
         volumes: Box<dyn PathForVolumeId>,
-        container_process_gid: ProcessGroupId,
-        container_rpc_client: Option<Arc<UnixRpcClient>>,
-    ) -> Result<Self, (JsError, String)> {
+    ) -> Result<JsExecutionEnvironment, (JsError, String)> {
         let data_dir = data_directory.as_ref();
         let base_directory = data_dir;
         let js_code = JsCode({
@@ -244,8 +237,6 @@ impl JsExecutionEnvironment {
             version: version.clone(),
             volumes: volumes.into(),
             sandboxed: false,
-            container_process_gid,
-            container_rpc_client,
         })
     }
     pub fn read_only_effects(mut self) -> Self {
@@ -313,12 +304,7 @@ impl JsExecutionEnvironment {
             fns::get_variable_args::decl(),
             fns::set_value::decl(),
             fns::is_sandboxed::decl(),
-            fns::start_command::decl(),
-            fns::wait_command::decl(),
             fns::sleep::decl(),
-            fns::send_signal::decl(),
-            fns::chmod::decl(),
-            fns::signal_group::decl(),
             fns::rsync::decl(),
             fns::rsync_wait::decl(),
             fns::rsync_progress::decl(),
@@ -359,9 +345,6 @@ impl JsExecutionEnvironment {
             sandboxed: self.sandboxed,
             input,
             variable_args,
-            container_process_gid: self.container_process_gid,
-            container_rpc_client: self.container_rpc_client.clone(),
-            callback_sender,
             rsyncs: Default::default(),
         };
         let ext = Extension::builder("embassy")
@@ -385,11 +368,7 @@ impl JsExecutionEnvironment {
                 .load_main_module(&"file:///loadModule.js".parse().unwrap(), None)
                 .await?;
             let evaluated = runtime.mod_evaluate(mod_id);
-            let res = RuntimeEventLoop {
-                runtime: &mut runtime,
-                callback_receiver,
-            }
-            .await;
+            let res = runtime.run_event_loop(false).await;
             res?;
             evaluated.await??;
             Ok::<_, AnyError>(())
@@ -450,23 +429,17 @@ mod fns {
     use deno_core::anyhow::{anyhow, bail};
     use deno_core::error::AnyError;
     use deno_core::*;
-    use embassy_container_init::{
-        OutputParams, OutputStrategy, ProcessGroupId, ProcessId, RunCommand, RunCommandParams,
-        SendSignal, SendSignalParams, SignalGroup, SignalGroupParams,
-    };
-    use helpers::{
-        to_tmp_path, AddressSchemaLocal, AddressSchemaOnion, AtomicFile, Callback, Rsync,
-        RsyncOptions,
-    };
+    use embassy_container_init::ProcessId;
+    use helpers::{to_tmp_path, AtomicFile, Rsync, RsyncOptions};
     use itertools::Itertools;
     use models::{PackageId, VolumeId};
     use serde::{Deserialize, Serialize};
-    use serde_json::{json, Value};
+    use serde_json::Value;
     use tokio::io::AsyncWriteExt;
     use tokio::process::Command;
 
     use super::{AnswerState, JsContext};
-    use crate::{system_time_as_unix_ms, MetadataJs, ResultType};
+    use crate::{system_time_as_unix_ms, MetadataJs};
 
     #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Default)]
     struct FetchOptions {
@@ -1206,18 +1179,6 @@ mod fns {
             let state = state.borrow();
             state.borrow::<JsContext>().clone()
         };
-        if let Some(rpc_client) = ctx.container_rpc_client {
-            return rpc_client
-                .request(
-                    embassy_container_init::Log,
-                    embassy_container_init::LogParams {
-                        gid: Some(ctx.container_process_gid),
-                        level: embassy_container_init::LogLevel::Trace(input),
-                    },
-                )
-                .await
-                .map_err(|e| anyhow!("{}: {:?}", e.message, e.data));
-        }
         tracing::trace!(
             package_id = tracing::field::display(&ctx.package_id),
             run_function = tracing::field::display(&ctx.run_function),
@@ -1232,18 +1193,6 @@ mod fns {
             let state = state.borrow();
             state.borrow::<JsContext>().clone()
         };
-        if let Some(rpc_client) = ctx.container_rpc_client {
-            return rpc_client
-                .request(
-                    embassy_container_init::Log,
-                    embassy_container_init::LogParams {
-                        gid: Some(ctx.container_process_gid),
-                        level: embassy_container_init::LogLevel::Warn(input),
-                    },
-                )
-                .await
-                .map_err(|e| anyhow!("{}: {:?}", e.message, e.data));
-        }
         tracing::warn!(
             package_id = tracing::field::display(&ctx.package_id),
             run_function = tracing::field::display(&ctx.run_function),
@@ -1258,18 +1207,6 @@ mod fns {
             let state = state.borrow();
             state.borrow::<JsContext>().clone()
         };
-        if let Some(rpc_client) = ctx.container_rpc_client {
-            return rpc_client
-                .request(
-                    embassy_container_init::Log,
-                    embassy_container_init::LogParams {
-                        gid: Some(ctx.container_process_gid),
-                        level: embassy_container_init::LogLevel::Error(input),
-                    },
-                )
-                .await
-                .map_err(|e| anyhow!("{}: {:?}", e.message, e.data));
-        }
         tracing::error!(
             package_id = tracing::field::display(&ctx.package_id),
             run_function = tracing::field::display(&ctx.run_function),
@@ -1284,18 +1221,6 @@ mod fns {
             let state = state.borrow();
             state.borrow::<JsContext>().clone()
         };
-        if let Some(rpc_client) = ctx.container_rpc_client {
-            return rpc_client
-                .request(
-                    embassy_container_init::Log,
-                    embassy_container_init::LogParams {
-                        gid: Some(ctx.container_process_gid),
-                        level: embassy_container_init::LogLevel::Debug(input),
-                    },
-                )
-                .await
-                .map_err(|e| anyhow!("{}: {:?}", e.message, e.data));
-        }
         tracing::debug!(
             package_id = tracing::field::display(&ctx.package_id),
             run_function = tracing::field::display(&ctx.run_function),
@@ -1306,28 +1231,11 @@ mod fns {
     }
     #[op]
     async fn log_info(state: Rc<RefCell<OpState>>, input: String) -> Result<(), AnyError> {
-        let (container_rpc_client, container_process_gid, package_id, run_function) = {
+        let (package_id, run_function) = {
             let state = state.borrow();
             let ctx: JsContext = state.borrow::<JsContext>().clone();
-            (
-                ctx.container_rpc_client,
-                ctx.container_process_gid,
-                ctx.package_id,
-                ctx.run_function,
-            )
+            (ctx.package_id, ctx.run_function)
         };
-        if let Some(rpc_client) = container_rpc_client {
-            return rpc_client
-                .request(
-                    embassy_container_init::Log,
-                    embassy_container_init::LogParams {
-                        gid: Some(container_process_gid),
-                        level: embassy_container_init::LogLevel::Info(input),
-                    },
-                )
-                .await
-                .map_err(|e| anyhow!("{}: {:?}", e.message, e.data));
-        }
         tracing::info!(
             package_id = tracing::field::display(&package_id),
             run_function = tracing::field::display(&run_function),
@@ -1366,172 +1274,10 @@ mod fns {
         Ok(ctx.sandboxed)
     }
 
-    #[op]
-    async fn send_signal(
-        state: Rc<RefCell<OpState>>,
-        pid: u32,
-        signal: u32,
-    ) -> Result<(), AnyError> {
-        let sandboxed = {
-            let state = state.borrow();
-            let ctx: &JsContext = state.borrow();
-            ctx.sandboxed
-        };
-
-        if sandboxed {
-            bail!("Will not run sendSignal in sandboxed mode");
-        }
-
-        if let Some(rpc_client) = {
-            let state = state.borrow();
-            let ctx = state.borrow::<JsContext>();
-            ctx.container_rpc_client.clone()
-        } {
-            rpc_client
-                .request(
-                    SendSignal,
-                    SendSignalParams {
-                        pid: ProcessId(pid),
-                        signal,
-                    },
-                )
-                .await
-                .map_err(|e| anyhow!("{}: {:?}", e.message, e.data))?;
-
-            Ok(())
-        } else {
-            Err(anyhow!("No RpcClient for command operations"))
-        }
-    }
-
-    #[op]
-    async fn signal_group(
-        state: Rc<RefCell<OpState>>,
-        gid: u32,
-        signal: u32,
-    ) -> Result<(), AnyError> {
-        let sandboxed = {
-            let state = state.borrow();
-            let ctx: &JsContext = state.borrow();
-            ctx.sandboxed
-        };
-
-        if sandboxed {
-            bail!("Will not run signalGroup in sandboxed mode");
-        }
-
-        if let Some(rpc_client) = {
-            let state = state.borrow();
-            let ctx = state.borrow::<JsContext>();
-            ctx.container_rpc_client.clone()
-        } {
-            rpc_client
-                .request(
-                    SignalGroup,
-                    SignalGroupParams {
-                        gid: ProcessGroupId(gid),
-                        signal,
-                    },
-                )
-                .await
-                .map_err(|e| anyhow!("{}: {:?}", e.message, e.data))?;
-
-            Ok(())
-        } else {
-            Err(anyhow!("No RpcClient for command operations"))
-        }
-    }
-
     #[derive(Debug, Clone, Serialize, Deserialize)]
     #[serde(rename_all = "camelCase")]
     pub struct StartCommand {
         process_id: ProcessId,
-    }
-
-    #[op]
-    async fn start_command(
-        state: Rc<RefCell<OpState>>,
-        command: String,
-        args: Vec<String>,
-        output: OutputStrategy,
-        timeout: Option<u64>,
-    ) -> Result<StartCommand, AnyError> {
-        let sandboxed = {
-            let state = state.borrow();
-            let ctx: &JsContext = state.borrow();
-            ctx.sandboxed
-        };
-
-        if sandboxed {
-            bail!("Will not run command in sandboxed mode");
-        }
-
-        if let (gid, Some(rpc_client)) = {
-            let state = state.borrow();
-            let ctx = state.borrow::<JsContext>();
-            (ctx.container_process_gid, ctx.container_rpc_client.clone())
-        } {
-            let pid = rpc_client
-                .request(
-                    RunCommand,
-                    RunCommandParams {
-                        gid: Some(gid),
-                        command,
-                        args,
-                        output,
-                    },
-                )
-                .await
-                .map_err(|e| anyhow!("{}: {:?}", e.message, e.data))?;
-
-            if let Some(timeout) = timeout {
-                tokio::spawn(async move {
-                    tokio::time::sleep(Duration::from_millis(timeout)).await;
-                    if let Err(err) = rpc_client
-                        .request(SendSignal, SendSignalParams { pid, signal: 9 })
-                        .await
-                        .map_err(|e| anyhow!("{}: {:?}", e.message, e.data))
-                    {
-                        tracing::warn!("Could not kill process {pid:?}");
-                        tracing::debug!("{err:?}");
-                    }
-                });
-            }
-
-            Ok(StartCommand { process_id: pid })
-        } else {
-            Err(anyhow!("No RpcClient for command operations"))
-        }
-    }
-
-    #[op]
-    async fn wait_command(
-        state: Rc<RefCell<OpState>>,
-        pid: ProcessId,
-    ) -> Result<ResultType, AnyError> {
-        if let Some(rpc_client) = {
-            let state = state.borrow();
-            let ctx = state.borrow::<JsContext>();
-            ctx.container_rpc_client.clone()
-        } {
-            Ok(
-                match rpc_client
-                    .request(embassy_container_init::Output, OutputParams { pid })
-                    .await
-                {
-                    Ok(a) => ResultType::Result(json!(a)),
-                    Err(e) => ResultType::ErrorCode(
-                        e.code,
-                        match e.data {
-                            Some(Value::String(s)) => s,
-                            e => format!("{:?}", e),
-                        },
-                    ),
-                },
-            )
-        } else {
-            Err(anyhow!("No RpcClient for command operations"))
-        }
     }
 
     #[op]

@@ -19,7 +19,7 @@ import { DependentInfo } from 'src/app/types/dependent-info'
 import {
   DepErrorService,
   DependencyErrorType,
-  PackageDependencyErrors,
+  PkgDependencyErrors,
 } from 'src/app/services/dep-error.service'
 import { combineLatest } from 'rxjs'
 import { Manifest } from '@start9labs/marketplace'
@@ -54,15 +54,14 @@ export class AppShowPage {
   readonly pkgId = getPkgId(this.route)
 
   readonly pkgPlus$ = combineLatest([
-    this.patch.watch$('package-data'),
-    this.depErrorService.depErrors$,
+    this.patch.watch$('package-data', this.pkgId),
+    this.depErrorService.getPkgDepErrors$(this.pkgId),
   ]).pipe(
-    tap(([pkgs, _]) => {
+    tap(([pkg, _]) => {
       // if package disappears, navigate to list page
-      if (!pkgs[this.pkgId]) this.navCtrl.navigateRoot('/services')
+      if (!pkg) this.navCtrl.navigateRoot('/services')
     }),
-    map(([pkgs, depErrors]) => {
-      const pkg = pkgs[this.pkgId]
+    map(([pkg, depErrors]) => {
       return {
         pkg,
         dependencies: this.getDepInfo(pkg, depErrors),
@@ -97,7 +96,7 @@ export class AppShowPage {
 
   private getDepInfo(
     pkg: PackageDataEntry,
-    depErrors: PackageDependencyErrors,
+    depErrors: PkgDependencyErrors,
   ): DependencyInfo[] {
     const pkgInstalled = pkg.installed
 
@@ -116,7 +115,7 @@ export class AppShowPage {
     pkgInstalled: InstalledPackageInfo,
     pkgManifest: Manifest,
     depId: string,
-    depErrors: PackageDependencyErrors,
+    depErrors: PkgDependencyErrors,
   ): DependencyInfo {
     const { errorText, fixText, fixAction } = this.getDepErrors(
       pkgManifest,
@@ -143,9 +142,9 @@ export class AppShowPage {
   private getDepErrors(
     pkgManifest: Manifest,
     depId: string,
-    depErrors: PackageDependencyErrors,
+    depErrors: PkgDependencyErrors,
   ) {
-    const depError = depErrors[pkgManifest.id][depId]
+    const depError = (depErrors[pkgManifest.id] as any)?.[depId] // @TODO fix
 
     let errorText: string | null = null
     let fixText: string | null = null
@@ -168,7 +167,7 @@ export class AppShowPage {
         errorText = 'Not running'
         fixText = 'Start'
       } else if (depError.type === DependencyErrorType.HealthChecksFailed) {
-        errorText = 'Health check failed'
+        errorText = 'Required health check not passing'
       } else if (depError.type === DependencyErrorType.Transitive) {
         errorText = 'Dependency has a dependency issue'
       }

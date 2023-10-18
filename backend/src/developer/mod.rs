@@ -3,7 +3,8 @@ use std::io::Write;
 use std::path::Path;
 
 use ed25519::pkcs8::EncodePrivateKey;
-use ed25519_dalek::Keypair;
+use ed25519::PublicKeyBytes;
+use ed25519_dalek::{SigningKey, VerifyingKey};
 use rpc_toolkit::command;
 use tracing::instrument;
 
@@ -21,11 +22,11 @@ pub fn init(#[context] ctx: SdkContext) -> Result<(), Error> {
                 .with_ctx(|_| (crate::ErrorKind::Filesystem, parent.display().to_string()))?;
         }
         tracing::info!("Generating new developer key...");
-        let keypair = Keypair::generate(&mut rand_old::thread_rng());
+        let secret = SigningKey::generate(&mut rand::thread_rng());
         tracing::info!("Writing key to {}", ctx.developer_key_path.display());
         let keypair_bytes = ed25519::KeypairBytes {
-            secret_key: keypair.secret.to_bytes(),
-            public_key: Some(keypair.public.to_bytes()),
+            secret_key: secret.to_bytes(),
+            public_key: Some(PublicKeyBytes(VerifyingKey::from(&secret).to_bytes())),
         };
         let mut dev_key_file = File::create(&ctx.developer_key_path)?;
         dev_key_file.write_all(

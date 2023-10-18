@@ -47,7 +47,7 @@ impl Database {
                 last_wifi_region: None,
                 eos_version_compat: Current::new().compat().clone(),
                 lan_address,
-                tor_address: format!("http://{}", account.key.tor_address())
+                tor_address: format!("https://{}", account.key.tor_address())
                     .parse()
                     .unwrap(),
                 ip_info: BTreeMap::new(),
@@ -426,7 +426,7 @@ pub struct InstalledPackageInfo {
     pub marketplace_url: Option<Url>,
     #[serde(default)]
     #[serde(with = "crate::util::serde::ed25519_pubkey")]
-    pub developer_key: ed25519_dalek::PublicKey,
+    pub developer_key: ed25519_dalek::VerifyingKey,
     pub manifest: Manifest,
     pub last_backup: Option<DateTime<Utc>>,
     pub dependency_info: BTreeMap<PackageId, StaticDependencyInfo>,
@@ -483,6 +483,7 @@ pub struct StaticDependencyInfo {
 #[serde(rename_all = "kebab-case")]
 #[model = "Model<Self>"]
 pub struct CurrentDependencyInfo {
+    #[serde(default)]
     pub pointers: BTreeSet<PackagePointerSpec>,
     pub health_checks: BTreeSet<HealthCheckId>,
 }

@@ -28,6 +28,7 @@ pub mod developer;
 pub mod diagnostic;
 pub mod disk;
 pub mod error;
+pub mod firmware;
 pub mod hostname;
 pub mod init;
 pub mod inspect;

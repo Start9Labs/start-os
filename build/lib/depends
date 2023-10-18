@@ -9,6 +9,7 @@ cifs-utils
 containerd.io
 cryptsetup
 curl
+dmidecode
 docker-ce
 docker-ce-cli
 docker-compose-plugin
@@ -16,7 +17,10 @@ dosfstools
 e2fsprogs
 ecryptfs-utils
 exfatprogs
+flashrom
+gdb
 grub-common
+heaptrack
 htop
 httpdirfs
 iotop
@@ -24,6 +28,7 @@ iw
 jq
 libavahi-client3
 libyajl2
+linux-cpupower
 lm-sensors
 lshw
 lvm2

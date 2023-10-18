@@ -14,7 +14,7 @@
       <div class="welcome-header">
         <h1>Welcome to StartOS</h1>
       </div>
-      <!-- <widget-list></widget-list> -->
+      <widget-list></widget-list>
     </ng-container>
 
     <ng-template #list>
@@ -27,7 +27,7 @@
             sizeMd="6"
           >
             <app-list-pkg
-              *ngIf="pkg | packageInfo | async as info"
+              *ngIf="pkg.manifest.id | packageInfo | async as info"
               [pkg]="info"
             ></app-list-pkg>
           </ion-col>

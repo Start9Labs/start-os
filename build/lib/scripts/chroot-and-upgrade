@@ -5,9 +5,10 @@ if [ "$UID" -ne 0 ]; then
     exit 1
 fi
 
-echo 'Syncing...'
-
-rsync -a --delete --force --info=progress2 /media/embassy/embassyfs/current/ /media/embassy/next
+if [ -z "$NO_SYNC" ]; then
+    echo 'Syncing...'
+    rsync -a --delete --force --info=progress2 /media/embassy/embassyfs/current/ /media/embassy/next
+fi
 
 mkdir -p /media/embassy/next/run
 mkdir -p /media/embassy/next/dev

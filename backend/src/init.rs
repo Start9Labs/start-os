@@ -20,6 +20,9 @@ use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
 use crate::prelude::*;
 use crate::sound::BEP;
 use crate::system::time;
+use crate::util::cpupower::{
+    current_governor, get_available_governors, set_governor, GOVERNOR_PERFORMANCE,
+};
 use crate::util::docker::{create_bridge_network, CONTAINER_DATADIR, CONTAINER_TOOL};
 use crate::util::Invoke;
 use crate::{Error, ARCH};
@@ -200,13 +203,8 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
 
     let account = AccountInfo::load(&secret_store).await?;
     let db = cfg.db(&account).await?;
-    db.mutate(|d| {
-        let model = d.de()?;
-        d.ser(&model)
-    })
-    .await?;
     tracing::info!("Opened PatchDB");
-    let peek = db.peek().await?;
+    let peek = db.peek().await;
     let mut server_info = peek.as_server_info().de()?;
 
     // write to ca cert store
@@ -268,6 +266,11 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     if tokio::fs::metadata(&tmp_dir).await.is_err() {
         tokio::fs::create_dir_all(&tmp_dir).await?;
     }
+    let tmp_var = cfg.datadir().join(format!("package-data/tmp/var"));
+    if tokio::fs::metadata(&tmp_var).await.is_ok() {
+        tokio::fs::remove_dir_all(&tmp_var).await?;
+    }
+    crate::disk::mount::util::bind(&tmp_var, "/var/tmp", false).await?;
     let tmp_docker = cfg
         .datadir()
         .join(format!("package-data/tmp/{CONTAINER_TOOL}"));
@@ -341,6 +344,23 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         .await?;
     tracing::info!("Enabled Docker QEMU Emulation");
 
+    if current_governor()
+        .await?
+        .map(|g| &g != &GOVERNOR_PERFORMANCE)
+        .unwrap_or(false)
+    {
+        tracing::info!("Setting CPU Governor to \"{}\"", GOVERNOR_PERFORMANCE);
+        if get_available_governors()
+            .await?
+            .contains(&GOVERNOR_PERFORMANCE)
+        {
+            set_governor(&GOVERNOR_PERFORMANCE).await?;
+            tracing::info!("Set CPU Governor");
+        } else {
+            tracing::warn!("CPU Governor \"{}\" Not Available", GOVERNOR_PERFORMANCE)
+        }
+    }
+
     let mut warn_time_not_synced = true;
     for _ in 0..60 {
         if check_time_is_synchronized().await? {
@@ -374,6 +394,12 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     .await?;
 
     crate::version::init(&db, &secret_store).await?;
+
+    db.mutate(|d| {
+        let model = d.de()?;
+        d.ser(&model)
+    })
+    .await?;
 
     if should_rebuild {
         match tokio::fs::remove_file(SYSTEM_REBUILD_PATH).await {

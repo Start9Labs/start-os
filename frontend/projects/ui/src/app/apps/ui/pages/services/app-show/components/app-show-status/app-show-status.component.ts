@@ -78,6 +78,14 @@ export class AppShowStatusComponent {
     return this.status.primary === PrimaryStatus.Running
   }
 
+  get canStop(): boolean {
+    return [
+      PrimaryStatus.Running,
+      PrimaryStatus.Starting,
+      PrimaryStatus.Restarting,
+    ].includes(this.status.primary)
+  }
+
   get isStopped(): boolean {
     return this.status.primary === PrimaryStatus.Stopped
   }

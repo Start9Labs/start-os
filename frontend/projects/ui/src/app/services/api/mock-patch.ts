@@ -35,7 +35,7 @@ export const mockPatchData: DataModel = {
   },
   'server-info': {
     id: 'abcdefgh',
-    version: '0.3.4',
+    version: '0.3.5',
     country: 'us',
     'last-backup': new Date(new Date().valueOf() - 604800001).toISOString(),
     'lan-address': 'https://adjective-noun.local',

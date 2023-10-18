@@ -21,7 +21,7 @@ pub async fn properties(#[context] ctx: RpcContext, #[arg] id: PackageId) -> Res
 
 #[instrument(skip_all)]
 pub async fn fetch_properties(ctx: RpcContext, id: PackageId) -> Result<Value, Error> {
-    let peek = ctx.db.peek().await?;
+    let peek = ctx.db.peek().await;
 
     let manifest = peek
         .as_package_data()

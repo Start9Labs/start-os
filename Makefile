@@ -19,7 +19,7 @@ FRONTEND_INSTALL_WIZARD_SRC := $(shell find frontend/projects/install-wizard)
 PATCH_DB_CLIENT_SRC := $(shell find patch-db/client -not -path patch-db/client/dist -and -not -path patch-db/client/node_modules)
 GZIP_BIN := $(shell which pigz || which gzip)
 TAR_BIN := $(shell which gtar || which tar)
-ALL_TARGETS := $(EMBASSY_BINS) system-images/compat/docker-images/$(ARCH).tar system-images/utils/docker-images/$(ARCH).tar system-images/binfmt/docker-images/$(ARCH).tar $(EMBASSY_SRC) $(shell if [ "$(OS_ARCH)" = "raspberrypi" ]; then echo cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep; fi) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE)
+ALL_TARGETS := $(EMBASSY_BINS) system-images/compat/docker-images/$(ARCH).tar system-images/utils/docker-images/$(ARCH).tar system-images/binfmt/docker-images/$(ARCH).tar $(EMBASSY_SRC) $(shell if [ "$(OS_ARCH)" = "raspberrypi" ]; then echo cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep; fi)  $(shell /bin/bash -c 'if [[ "${ENVIRONMENT}" =~ (^|-)unstable($$|-) ]]; then echo cargo-deps/$(ARCH)-unknown-linux-gnu/release/tokio-console; fi') $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE)
 
 ifeq ($(REMOTE),)
 	mkdir = mkdir -p $1
@@ -75,7 +75,7 @@ format:
 sdk:
 	cd backend/ && ./install-sdk.sh
 
-startos_raspberrypi.img: $(BUILD_SRC) startos.raspberrypi.squashfs $(VERSION_FILE) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep | sudo
+startos_raspberrypi.img: $(BUILD_SRC) startos.raspberrypi.squashfs $(VERSION_FILE) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) | sudo
 	./build/raspberrypi/make-image.sh
 
 # For creating os images. DO NOT USE
@@ -85,9 +85,11 @@ install: $(ALL_TARGETS)
 	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/startd)
 	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/start-cli)
 	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/start-sdk)
+	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/start-deno)
 	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/avahi-alias)
 	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/embassy-cli)
 	if [ "$(OS_ARCH)" = "raspberrypi" ]; then $(call cp,cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep,$(DESTDIR)/usr/bin/pi-beep); fi
+	if /bin/bash -c '[[ "${ENVIRONMENT}" =~ (^|-)unstable($$|-) ]]'; then $(call cp,cargo-deps/$(ARCH)-unknown-linux-gnu/release/tokio-console,$(DESTDIR)/usr/bin/tokio-console); fi
 	
 	$(call mkdir,$(DESTDIR)/usr/lib)
 	$(call rm,$(DESTDIR)/usr/lib/embassy)
@@ -122,7 +124,7 @@ update:
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
 	$(call ssh,"sudo rsync -a --delete --force --info=progress2 /media/embassy/embassyfs/current/ /media/embassy/next/")
 	$(MAKE) install REMOTE=$(REMOTE) SSHPASS=$(SSHPASS) DESTDIR=/media/embassy/next OS_ARCH=$(OS_ARCH)
-	$(call ssh,"sudo touch /media/embassy/config/upgrade && sudo sync && sudo reboot")
+	$(call ssh,'sudo NO_SYNC=1 /media/embassy/next/usr/lib/embassy/scripts/chroot-and-upgrade "apt-get install -y $(shell cat ./build/lib/depends)"')
 
 emulate-reflash:
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
@@ -130,14 +132,14 @@ emulate-reflash:
 	$(MAKE) install REMOTE=$(REMOTE) SSHPASS=$(SSHPASS) DESTDIR=/media/embassy/next OS_ARCH=$(OS_ARCH)
 	$(call ssh,"sudo touch /media/embassy/config/upgrade && sudo rm -f /media/embassy/config/disk.guid && sudo sync && sudo reboot")
 
-system-images/compat/docker-images/aarch64.tar system-images/compat/docker-images/x86_64.tar: $(COMPAT_SRC) | sudo
-	cd system-images/compat && make
+system-images/compat/docker-images/aarch64.tar system-images/compat/docker-images/x86_64.tar: $(COMPAT_SRC) backend/Cargo.lock | sudo
+	cd system-images/compat && make && touch docker-images/*.tar
 
 system-images/utils/docker-images/aarch64.tar system-images/utils/docker-images/x86_64.tar: $(UTILS_SRC) | sudo
-	cd system-images/utils && make
+	cd system-images/utils && make && touch docker-images/*.tar
 
 system-images/binfmt/docker-images/aarch64.tar system-images/binfmt/docker-images/x86_64.tar: $(BINFMT_SRC) | sudo
-	cd system-images/binfmt && make
+	cd system-images/binfmt && make && touch docker-images/*.tar
 
 snapshots: libs/snapshot_creator/Cargo.toml
 	cd libs/  && ./build-v8-snapshot.sh
@@ -198,3 +200,6 @@ backend: $(EMBASSY_BINS)
 
 cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep: | sudo
 	ARCH=aarch64 ./build-cargo-dep.sh pi-beep
+
+cargo-deps/$(ARCH)-unknown-linux-gnu/release/tokio-console: | sudo
+	ARCH=$(ARCH) ./build-cargo-dep.sh tokio-console

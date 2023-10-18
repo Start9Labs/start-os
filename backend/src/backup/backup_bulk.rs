@@ -56,16 +56,16 @@ pub async fn backup_all(
     package_ids: Option<OrdSet<PackageId>>,
     #[arg] password: crate::auth::PasswordType,
 ) -> Result<(), Error> {
-    let db = ctx.db.peek().await?;
+    let db = ctx.db.peek().await;
     let old_password_decrypted = old_password
         .as_ref()
         .unwrap_or(&password)
         .clone()
         .decrypt(&ctx)?;
     let password = password.decrypt(&ctx)?;
-    check_password_against_db(&mut ctx.secret_store.acquire().await?, &password).await?;
+    check_password_against_db(ctx.secret_store.acquire().await?.as_mut(), &password).await?;
     let fs = target_id
-        .load(&mut ctx.secret_store.acquire().await?)
+        .load(ctx.secret_store.acquire().await?.as_mut())
         .await?;
     let mut backup_guard = BackupMountGuard::mount(
         TmpMountGuard::mount(&fs, ReadWrite).await?,
@@ -265,7 +265,7 @@ async fn perform_backup(
         }
     }
 
-    let ui = ctx.db.peek().await?.into_ui().de()?;
+    let ui = ctx.db.peek().await.into_ui().de()?;
 
     let mut os_backup_file = AtomicFile::new(
         backup_guard.lock().await.as_ref().join("os-backup.cbor"),

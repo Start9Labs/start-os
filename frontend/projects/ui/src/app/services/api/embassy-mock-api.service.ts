@@ -24,7 +24,8 @@ import {
   interval,
   map,
   Observable,
-  ReplaySubject,
+  shareReplay,
+  Subject,
   switchMap,
   tap,
   timer,
@@ -48,8 +49,8 @@ const PROGRESS: InstallProgress = {
 
 @Injectable()
 export class MockApiService extends ApiService {
-  readonly mockWsSource$ = new ReplaySubject<Update<DataModel>>()
-  private readonly revertTime = 2000
+  readonly mockWsSource$ = new Subject<Update<DataModel>>()
+  private readonly revertTime = 1800
   sequence = 0
 
   constructor(
@@ -62,7 +63,6 @@ export class MockApiService extends ApiService {
       .pipe(
         tap(() => {
           this.sequence = 0
-          this.patchStream$.next([])
         }),
         switchMap(verified =>
           iif(
@@ -109,7 +109,9 @@ export class MockApiService extends ApiService {
         value: params.value,
       },
     ]
-    return this.withRevision(patch)
+    this.mockRevision(patch)
+
+    return null
   }
 
   // auth
@@ -151,7 +153,6 @@ export class MockApiService extends ApiService {
   async echo(params: RR.EchoReq, url?: string): Promise<RR.EchoRes> {
     if (url) {
       const num = Math.floor(Math.random() * 10) + 1
-      console.warn(num)
       if (num > 8) return params.message
       throw new Error()
     }
@@ -160,7 +161,9 @@ export class MockApiService extends ApiService {
   }
 
   openPatchWebsocket$(): Observable<Update<DataModel>> {
-    return this.mockWsSource$
+    return this.mockWsSource$.pipe(
+      shareReplay({ bufferSize: 1, refCount: true }),
+    )
   }
 
   openLogsWebsocket$(config: WebSocketSubjectConfig<Log>): Observable<Log> {
@@ -298,7 +301,9 @@ export class MockApiService extends ApiService {
         value: initialProgress,
       },
     ]
-    return this.withRevision(patch, 'updating')
+    this.mockRevision(patch)
+
+    return 'updating'
   }
 
   async restartServer(
@@ -341,7 +346,9 @@ export class MockApiService extends ApiService {
         value: params.enable,
       },
     ]
-    return this.withRevision(patch, null)
+    this.mockRevision(patch)
+
+    return null
   }
 
   // marketplace URLs
@@ -394,7 +401,9 @@ export class MockApiService extends ApiService {
         value: 0,
       },
     ]
-    return this.withRevision(patch, Mock.Notifications)
+    this.mockRevision(patch)
+
+    return Mock.Notifications
   }
 
   async deleteNotification(
@@ -648,7 +657,9 @@ export class MockApiService extends ApiService {
       },
     ]
 
-    return this.withRevision(originalPatch)
+    this.mockRevision(originalPatch)
+
+    return null
   }
 
   // package
@@ -715,7 +726,9 @@ export class MockApiService extends ApiService {
         },
       },
     ]
-    return this.withRevision(patch)
+    this.mockRevision(patch)
+
+    return null
   }
 
   async getPackageConfig(
@@ -746,7 +759,9 @@ export class MockApiService extends ApiService {
         value: true,
       },
     ]
-    return this.withRevision(patch)
+    this.mockRevision(patch)
+
+    return null
   }
 
   async restorePackages(
@@ -770,7 +785,9 @@ export class MockApiService extends ApiService {
       }
     })
 
-    return this.withRevision(patch)
+    this.mockRevision(patch)
+
+    return null
   }
 
   async executePackageAction(
@@ -820,7 +837,9 @@ export class MockApiService extends ApiService {
       },
     ]
 
-    return this.withRevision(originalPatch)
+    this.mockRevision(originalPatch)
+
+    return null
   }
 
   async restartPackage(
@@ -897,7 +916,9 @@ export class MockApiService extends ApiService {
       },
     ]
 
-    return this.withRevision(patch)
+    this.mockRevision(patch)
+
+    return null
   }
 
   async stopPackage(params: RR.StopPackageReq): Promise<RR.StopPackageRes> {
@@ -923,7 +944,9 @@ export class MockApiService extends ApiService {
       },
     ]
 
-    return this.withRevision(patch)
+    this.mockRevision(patch)
+
+    return null
   }
 
   async uninstallPackage(
@@ -949,7 +972,9 @@ export class MockApiService extends ApiService {
       },
     ]
 
-    return this.withRevision(patch)
+    this.mockRevision(patch)
+
+    return null
   }
 
   async dryConfigureDependency(
@@ -1102,24 +1127,5 @@ export class MockApiService extends ApiService {
       patch,
     }
     this.mockWsSource$.next(revision)
-  }
-
-  private async withRevision<T>(
-    patch: Operation<unknown>[],
-    response: T | null = null,
-  ): Promise<T> {
-    if (!this.sequence) {
-      const { sequence } = this.bootstrapper.init()
-      this.sequence = sequence
-    }
-
-    this.patchStream$.next([
-      {
-        id: ++this.sequence,
-        patch,
-      },
-    ])
-
-    return response as T
   }
 }

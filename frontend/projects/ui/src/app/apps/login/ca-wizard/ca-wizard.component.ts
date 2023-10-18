@@ -39,7 +39,7 @@ export class CAWizardComponent {
 
   instructions() {
     this.windowRef.open(
-      'https://docs.start9.com/getting-started/trust-ca/#trust-your-root-ca',
+      'https://docs.start9.com/0.3.5.x/getting-started/trust-ca/#trust-root-ca',
       '_blank',
       'noreferrer',
     )

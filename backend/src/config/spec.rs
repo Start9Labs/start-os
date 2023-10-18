@@ -1696,7 +1696,6 @@ impl TorAddressPointer {
             .db
             .peek()
             .await
-            .map_err(|e| ConfigurationError::SystemError(e))?
             .as_package_data()
             .as_idx(&self.package_id)
             .and_then(|pde| pde.as_installed())
@@ -1739,7 +1738,6 @@ impl LanAddressPointer {
             .db
             .peek()
             .await
-            .map_err(|e| ConfigurationError::SystemError(e))?
             .as_package_data()
             .as_idx(&self.package_id)
             .and_then(|pde| pde.as_installed())
@@ -1775,11 +1773,7 @@ impl ConfigPointer {
             Ok(self.select(&Value::Object(cfg.clone())))
         } else {
             let id = &self.package_id;
-            let db = ctx
-                .db
-                .peek()
-                .await
-                .map_err(|e| ConfigurationError::SystemError(e))?;
+            let db = ctx.db.peek().await;
             let manifest = db.as_package_data().as_idx(id).map(|pde| pde.as_manifest());
             let cfg_actions = manifest.and_then(|m| m.as_config().transpose_ref());
             if let (Some(manifest), Some(cfg_actions)) = (manifest, cfg_actions) {
@@ -1900,10 +1894,11 @@ impl TorKeyPointer {
             ));
         }
         let key = Key::for_interface(
-            &mut secrets
+            secrets
                 .acquire()
                 .await
-                .map_err(|e| ConfigurationError::SystemError(e.into()))?,
+                .map_err(|e| ConfigurationError::SystemError(e.into()))?
+                .as_mut(),
             Some((self.package_id.clone(), self.interface.clone())),
         )
         .await

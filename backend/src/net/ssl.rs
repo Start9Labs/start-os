@@ -13,14 +13,15 @@ use openssl::nid::Nid;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::{X509Builder, X509Extension, X509NameBuilder, X509};
 use openssl::*;
+use rpc_toolkit::command;
 use tokio::sync::{Mutex, RwLock};
 use tracing::instrument;
 
 use crate::account::AccountInfo;
+use crate::context::RpcContext;
 use crate::hostname::Hostname;
 use crate::net::dhcp::ips;
 use crate::net::keys::{Key, KeyInfo};
-use crate::s9pk::manifest::PackageId;
 use crate::{Error, ErrorKind, ResultExt};
 
 static CERTIFICATE_VERSION: i32 = 2; // X509 version 3 is actually encoded as '2' in the cert because fuck you.
@@ -414,4 +415,17 @@ pub fn make_leaf_cert(
 
     let cert = builder.build();
     Ok(cert)
+}
+
+#[command(subcommands(size))]
+pub async fn ssl() -> Result<(), Error> {
+    Ok(())
+}
+
+#[command]
+pub async fn size(#[context] ctx: RpcContext) -> Result<String, Error> {
+    Ok(format!(
+        "Cert Catch size: {}",
+        ctx.net_controller.ssl.cert_cache.read().await.len()
+    ))
 }

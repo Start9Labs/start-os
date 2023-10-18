@@ -28,7 +28,7 @@ where
 
 #[async_trait::async_trait]
 pub trait PatchDbExt {
-    async fn peek(&self) -> Result<DatabaseModel, Error>;
+    async fn peek(&self) -> DatabaseModel;
     async fn mutate<U: UnwindSafe + Send>(
         &self,
         f: impl FnOnce(&mut DatabaseModel) -> Result<U, Error> + UnwindSafe + Send,
@@ -40,8 +40,8 @@ pub trait PatchDbExt {
 }
 #[async_trait::async_trait]
 impl PatchDbExt for PatchDb {
-    async fn peek(&self) -> Result<DatabaseModel, Error> {
-        Ok(DatabaseModel::from(self.dump().await?.value))
+    async fn peek(&self) -> DatabaseModel {
+        DatabaseModel::from(self.dump().await.value)
     }
     async fn mutate<U: UnwindSafe + Send>(
         &self,

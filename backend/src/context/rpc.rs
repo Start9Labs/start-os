@@ -22,6 +22,7 @@ use crate::account::AccountInfo;
 use crate::core::rpc_continuations::{RequestGuid, RestHandler, RpcContinuation};
 use crate::db::model::{CurrentDependents, Database, PackageDataEntryMatchModelRef};
 use crate::db::prelude::PatchDbExt;
+use crate::dependencies::compute_dependency_config_errs;
 use crate::disk::OsPartitionInfo;
 use crate::init::init_postgres;
 use crate::install::cleanup::{cleanup_failed, uninstall};
@@ -155,8 +156,7 @@ impl RpcContext {
                     .unwrap_or(SocketAddr::from(([127, 0, 0, 1], 9051))),
                 tor_proxy,
                 base.dns_bind
-                    .as_ref()
-                    .map(|v| v.as_slice())
+                    .as_deref()
                     .unwrap_or(&[SocketAddr::from(([127, 0, 0, 1], 53))]),
                 SslManager::new(&account)?,
                 &account.hostname,
@@ -217,11 +217,8 @@ impl RpcContext {
         });
 
         let res = Self(seed.clone());
-        res.cleanup().await?;
+        res.cleanup_and_initialize().await?;
         tracing::info!("Cleaned up transient states");
-        let peeked = res.db.peek().await?;
-        res.managers.init(res.clone(), peeked).await?;
-        tracing::info!("Initialized Package Managers");
         Ok(res)
     }
 
@@ -236,7 +233,7 @@ impl RpcContext {
     }
 
     #[instrument(skip(self))]
-    pub async fn cleanup(&self) -> Result<(), Error> {
+    pub async fn cleanup_and_initialize(&self) -> Result<(), Error> {
         self.db
             .mutate(|f| {
                 let mut current_dependents = f
@@ -278,9 +275,10 @@ impl RpcContext {
                 Ok(())
             })
             .await?;
-        let peek = self.db.peek().await?;
+
+        let peek = self.db.peek().await;
+
         for (package_id, package) in peek.as_package_data().as_entries()?.into_iter() {
-            let package = package.clone();
             let action = match package.as_match() {
                 PackageDataEntryMatchModelRef::Installing(_)
                 | PackageDataEntryMatchModelRef::Restoring(_)
@@ -288,7 +286,12 @@ impl RpcContext {
                     cleanup_failed(self, &package_id).await
                 }
                 PackageDataEntryMatchModelRef::Removing(_) => {
-                    uninstall(self, &mut self.secret_store.acquire().await?, &package_id).await
+                    uninstall(
+                        self,
+                        self.secret_store.acquire().await?.as_mut(),
+                        &package_id,
+                    )
+                    .await
                 }
                 PackageDataEntryMatchModelRef::Installed(m) => {
                     let version = m.as_manifest().as_version().clone().de()?;
@@ -298,7 +301,7 @@ impl RpcContext {
                             &self.datadir,
                             &package_id,
                             &version,
-                            &volume_id,
+                            volume_id,
                         ))
                         .with_kind(ErrorKind::Filesystem)?;
                         if tokio::fs::metadata(&tmp_path).await.is_ok() {
@@ -314,7 +317,8 @@ impl RpcContext {
                 tracing::debug!("{:?}", e);
             }
         }
-        self.db
+        let peek = self
+            .db
             .mutate(|v| {
                 for (_, pde) in v.as_package_data_mut().as_entries_mut()? {
                     let status = pde
@@ -329,9 +333,49 @@ impl RpcContext {
                         MainStatus::Stopped
                     })?;
                 }
+                Ok(v.clone())
+            })
+            .await?;
+        self.managers.init(self.clone(), peek.clone()).await?;
+        tracing::info!("Initialized Package Managers");
+
+        let mut all_dependency_config_errs = BTreeMap::new();
+        for (package_id, package) in peek.as_package_data().as_entries()?.into_iter() {
+            let package = package.clone();
+            if let Some(current_dependencies) = package
+                .as_installed()
+                .and_then(|x| x.as_current_dependencies().de().ok())
+            {
+                let manifest = package.as_manifest().de()?;
+                all_dependency_config_errs.insert(
+                    package_id.clone(),
+                    compute_dependency_config_errs(
+                        self,
+                        &peek,
+                        &manifest,
+                        &current_dependencies,
+                        &Default::default(),
+                    )
+                    .await?,
+                );
+            }
+        }
+        self.db
+            .mutate(|v| {
+                for (package_id, errs) in all_dependency_config_errs {
+                    if let Some(config_errors) = v
+                        .as_package_data_mut()
+                        .as_idx_mut(&package_id)
+                        .and_then(|pde| pde.as_installed_mut())
+                        .map(|i| i.as_status_mut().as_dependency_config_errors_mut())
+                    {
+                        config_errors.ser(&errs)?;
+                    }
+                }
                 Ok(())
             })
             .await?;
+
         Ok(())
     }
 
@@ -389,7 +433,7 @@ impl RpcContext {
 }
 impl AsRef<Jwk> for RpcContext {
     fn as_ref(&self) -> &Jwk {
-        &*CURRENT_SECRET
+        &CURRENT_SECRET
     }
 }
 impl Context for RpcContext {}
@@ -403,7 +447,7 @@ impl Deref for RpcContext {
                 tracing_error::SpanTrace::capture()
             );
         }
-        &*self.0
+        &self.0
     }
 }
 impl Drop for RpcContext {

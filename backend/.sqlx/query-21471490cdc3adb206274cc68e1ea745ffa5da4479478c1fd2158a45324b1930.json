@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM ssh_keys WHERE fingerprint = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "21471490cdc3adb206274cc68e1ea745ffa5da4479478c1fd2158a45324b1930"
+}

@@ -134,7 +134,7 @@ impl BackupActions {
         let marketplace_url = ctx
             .db
             .peek()
-            .await?
+            .await
             .as_package_data()
             .as_idx(&pkg_id)
             .or_not_found(pkg_id)?

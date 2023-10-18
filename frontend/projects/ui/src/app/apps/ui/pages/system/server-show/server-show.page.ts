@@ -607,7 +607,7 @@ export class ServerShowPage {
         icon: 'map-outline',
         action: () =>
           window.open(
-            'https://docs.start9.com/latest/user-manual',
+            'https://docs.start9.com/0.3.5.x/user-manual',
             '_blank',
             'noreferrer',
           ),

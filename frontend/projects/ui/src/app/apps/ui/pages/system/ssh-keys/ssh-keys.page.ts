@@ -19,7 +19,7 @@ import {
   styleUrls: ['ssh-keys.page.scss'],
 })
 export class SSHKeysPage {
-  readonly docsUrl = 'https://docs.start9.com/latest/user-manual/ssh'
+  readonly docsUrl = 'https://docs.start9.com/0.3.5.x/user-manual/ssh'
   sshKeys: SSHKey[] = []
   loading$ = new BehaviorSubject(true)
 

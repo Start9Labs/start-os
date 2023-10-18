@@ -142,7 +142,7 @@ pub async fn list(
     let mut sql_handle = ctx.secret_store.acquire().await?;
     let (disks_res, cifs) = tokio::try_join!(
         crate::disk::util::list(&ctx.os_partitions),
-        cifs::list(&mut sql_handle),
+        cifs::list(sql_handle.as_mut()),
     )?;
     Ok(disks_res
         .into_iter()
@@ -233,7 +233,7 @@ pub async fn info(
     let guard = BackupMountGuard::mount(
         TmpMountGuard::mount(
             &target_id
-                .load(&mut ctx.secret_store.acquire().await?)
+                .load(ctx.secret_store.acquire().await?.as_mut())
                 .await?,
             ReadWrite,
         )
@@ -271,7 +271,7 @@ pub async fn mount(
         TmpMountGuard::mount(
             &target_id
                 .clone()
-                .load(&mut ctx.secret_store.acquire().await?)
+                .load(ctx.secret_store.acquire().await?.as_mut())
                 .await?,
             ReadWrite,
         )

@@ -72,6 +72,12 @@ pub async fn canonicalize(
 
 #[pin_project::pin_project(PinnedDrop)]
 pub struct NonDetachingJoinHandle<T>(#[pin] JoinHandle<T>);
+impl<T> NonDetachingJoinHandle<T> {
+    pub async fn wait_for_abort(self) -> Result<T, JoinError> {
+        self.abort();
+        self.await
+    }
+}
 impl<T> From<JoinHandle<T>> for NonDetachingJoinHandle<T> {
     fn from(t: JoinHandle<T>) -> Self {
         NonDetachingJoinHandle(t)

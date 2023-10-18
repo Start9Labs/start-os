@@ -1,7 +1,7 @@
 use deno_core::JsRuntimeForSnapshot;
 
 fn main() {
-    let runtime = JsRuntimeForSnapshot::new(Default::default(), Default::default());
+    let runtime = JsRuntimeForSnapshot::new(Default::default());
     let snapshot = runtime.snapshot();
 
     let snapshot_slice: &[u8] = &*snapshot;

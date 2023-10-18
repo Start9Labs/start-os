@@ -44,23 +44,12 @@ export class ConfigService {
       : this.hostname.endsWith('.local')
   }
 
-  isLocalhost(): boolean {
-    return useMocks
-      ? mocks.maskAs === 'localhost'
-      : this.hostname === 'localhost'
-  }
-
-  isLan(): boolean {
-    // @TODO will not work once clearnet arrives
-    return !this.isTor()
-  }
-
   isTorHttp(): boolean {
     return this.isTor() && !this.isHttps()
   }
 
-  isLocalHttp(): boolean {
-    return this.isLocal() && !this.isHttps()
+  isLanHttp(): boolean {
+    return !this.isTor() && !this.isLocalhost() && !this.isHttps()
   }
 
   isSecure(): boolean {
@@ -69,6 +58,12 @@ export class ConfigService {
 
   getHost(): string {
     return this.host
+  }
+
+  private isLocalhost(): boolean {
+    return useMocks
+      ? mocks.maskAs === 'localhost'
+      : this.hostname === 'localhost'
   }
 
   private isHttps(): boolean {

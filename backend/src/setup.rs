@@ -59,11 +59,11 @@ async fn setup_init(
     let mut secrets_handle = secret_store.acquire().await?;
     let mut secrets_tx = secrets_handle.begin().await?;
 
-    let mut account = AccountInfo::load(&mut secrets_tx).await?;
+    let mut account = AccountInfo::load(secrets_tx.as_mut()).await?;
 
     if let Some(password) = password {
         account.set_password(&password)?;
-        account.save(&mut secrets_tx).await?;
+        account.save(secrets_tx.as_mut()).await?;
         db.mutate(|m| {
             m.as_server_info_mut()
                 .as_password_hash_mut()

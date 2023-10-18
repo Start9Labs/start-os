@@ -14,8 +14,8 @@ import { Card, Dimension } from './widget-card/widget-card.component'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WidgetListComponent {
-  @ViewChild('gridContent') gridContent: ElementRef<HTMLElement> =
-    {} as ElementRef<HTMLElement>
+  @ViewChild('gridContent')
+  gridContent: ElementRef<HTMLElement> = {} as ElementRef<HTMLElement>
   @HostListener('window:resize', ['$event'])
   onResize() {
     this.setContainerDimensions()
@@ -71,7 +71,7 @@ export class WidgetListComponent {
       icon: 'map-outline',
       color: 'var(--alt-yellow)',
       description: 'Discover what StartOS can do',
-      link: 'https://docs.start9.com/latest/user-manual/index',
+      link: 'https://docs.start9.com/0.3.5.x/user-manual/index',
     },
     {
       title: 'Contact Support',

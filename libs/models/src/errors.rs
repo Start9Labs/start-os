@@ -78,6 +78,9 @@ pub enum ErrorKind {
     OpenSsh = 66,
     Zram = 67,
     Lshw = 68,
+    CpuSettings = 69,
+    Firmware = 70,
+    Timeout = 71,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -151,6 +154,9 @@ impl ErrorKind {
             OpenSsh => "OpenSSH Error",
             Zram => "Zram Error",
             Lshw => "LSHW Error",
+            CpuSettings => "CPU Settings Error",
+            Firmware => "Firmware Error",
+            Timeout => "Timeout Error",
         }
     }
 }

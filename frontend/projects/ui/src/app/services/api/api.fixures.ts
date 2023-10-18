@@ -34,9 +34,10 @@ export module Mock {
     'shutting-down': false,
   }
   export const MarketplaceEos: RR.GetMarketplaceEosRes = {
-    version: '0.3.4.4',
+    version: '0.3.5',
     headline: 'Our biggest release ever.',
     'release-notes': {
+      '0.3.5': 'Some **Markdown** release _notes_ for 0.3.5',
       '0.3.4.4': 'Some **Markdown** release _notes_ for 0.3.4.4',
       '0.3.4.3': 'Some **Markdown** release _notes_ for 0.3.4.3',
       '0.3.4.2': 'Some **Markdown** release _notes_ for 0.3.4.2',
@@ -844,7 +845,7 @@ export module Mock {
                   integer: false,
                 }),
               }),
-              displayAs: 'I\'m {{last-name}}, {{first-name}} {{last-name}}',
+              displayAs: "I'm {{last-name}}, {{first-name}} {{last-name}}",
               uniqueBy: 'last-name',
             },
           ),
@@ -1355,7 +1356,7 @@ export module Mock {
       },
       'dependency-info': {
         bitcoind: {
-          title: 'Bitcoin Core',
+          title: Mock.MockManifestBitcoind.title,
           icon: 'assets/img/service-icons/bitcoind.svg',
         },
       },
@@ -1415,11 +1416,11 @@ export module Mock {
       'current-dependents': {},
       'dependency-info': {
         bitcoind: {
-          title: 'Bitcoin Core',
+          title: Mock.MockManifestBitcoind.title,
           icon: 'assets/img/service-icons/bitcoind.svg',
         },
         'btc-rpc-proxy': {
-          title: 'Bitcoin Proxy',
+          title: Mock.MockManifestBitcoinProxy.title,
           icon: 'assets/img/service-icons/btc-rpc-proxy.png',
         },
       },

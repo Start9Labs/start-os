@@ -1,4 +1,4 @@
-import { BehaviorSubject, Observable } from 'rxjs'
+import { Observable } from 'rxjs'
 import { Update } from 'patch-db-client'
 import { RR, BackupTargetType, Metrics } from './api.types'
 import { DataModel } from 'src/app/services/patch-db/data-model'
@@ -6,8 +6,6 @@ import { Log, SetupStatus } from '@start9labs/shared'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 
 export abstract class ApiService {
-  readonly patchStream$ = new BehaviorSubject<Update<DataModel>[]>([])
-
   // http
 
   // for getting static files: ex icons, instructions, licenses

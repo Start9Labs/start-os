@@ -22,7 +22,7 @@ use serde_json::{json, Value};
 use tokio::fs::{File, OpenOptions};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWriteExt};
 use tokio::process::Command;
-use tokio::sync::{oneshot, Mutex};
+use tokio::sync::oneshot;
 use tokio_stream::wrappers::ReadDirStream;
 use tracing::instrument;
 
@@ -64,7 +64,7 @@ pub const PKG_WASM_DIR: &str = "package-data/wasm";
 
 #[command(display(display_serializable))]
 pub async fn list(#[context] ctx: RpcContext) -> Result<Value, Error> {
-    Ok(ctx.db.peek().await?.as_package_data().as_entries()?
+    Ok(ctx.db.peek().await.as_package_data().as_entries()?
         .iter()
         .filter_map(|(id, pde)| {
             let status = match pde.as_match() {
@@ -626,9 +626,10 @@ pub async fn uninstall(
     let return_id = id.clone();
 
     tokio::spawn(async move {
-        if let Err(e) =
-            async { cleanup::uninstall(&ctx, &mut ctx.secret_store.acquire().await?, &id).await }
-                .await
+        if let Err(e) = async {
+            cleanup::uninstall(&ctx, ctx.secret_store.acquire().await?.as_mut(), &id).await
+        }
+        .await
         {
             let err_str = format!("Uninstall of {} Failed: {}", id, e);
             tracing::error!("{}", err_str);
@@ -666,23 +667,11 @@ pub async fn download_install_s9pk(
 ) -> Result<(), Error> {
     let pkg_id = &temp_manifest.id;
     let version = &temp_manifest.version;
-    let previous_state: Arc<Mutex<Option<MainStatus>>> = Default::default();
-    let db = ctx.db.peek().await?;
-    let after_previous_state = previous_state.clone();
+    let db = ctx.db.peek().await;
 
     if let Result::<(), Error>::Err(e) = {
         let ctx = ctx.clone();
         async move {
-            if db
-                .as_package_data()
-                .as_idx(&pkg_id)
-                .or_not_found(&pkg_id)?
-                .as_installed()
-                .is_some()
-            {
-                *previous_state.lock().await =
-                    crate::control::stop(ctx.clone(), pkg_id.clone()).await.ok();
-            }
             // // Build set of existing manifests
             let mut manifests = Vec::new();
             for (_id, pkg) in db.as_package_data().as_entries()? {
@@ -699,7 +688,7 @@ pub async fn download_install_s9pk(
                     for (p, lan) in cfg {
                         if p.0 == 80 && lan.ssl || p.0 == 443 && !lan.ssl {
                             return Err(Error::new(
-                                eyre!("SSL Conflict with embassyOS"),
+                                eyre!("SSL Conflict with StartOS"),
                                 ErrorKind::LanPortConflict,
                             ));
                         }
@@ -779,15 +768,6 @@ pub async fn download_install_s9pk(
             tracing::debug!("{:?}", e);
         }
 
-        let previous_state = after_previous_state.lock().await;
-        if previous_state
-            .as_ref()
-            .map(|x| x.running())
-            .unwrap_or(false)
-        {
-            crate::control::start(ctx.clone(), pkg_id.clone()).await?;
-        }
-
         Err(e)
     } else {
         Ok::<_, Error>(())
@@ -807,7 +787,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
     rdr.validated();
     let developer_key = rdr.developer_key().clone();
     rdr.reset().await?;
-    let db = ctx.db.peek().await?;
+    let db = ctx.db.peek().await;
 
     tracing::info!("Install {}@{}: Unpacking Manifest", pkg_id, version);
     let manifest = progress
@@ -845,7 +825,12 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
                         .await
                         .with_kind(crate::ErrorKind::Deserialization)?,
                 )),
-                Err(e) if e.status() == Some(StatusCode::BAD_REQUEST) => Ok(None),
+                Err(e)
+                    if e.status() == Some(StatusCode::BAD_REQUEST)
+                        || e.status() == Some(StatusCode::NOT_FOUND) =>
+                {
+                    Ok(None)
+                }
                 Err(e) => Err(e),
             }
             .with_kind(crate::ErrorKind::Registry)?
@@ -1033,6 +1018,12 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         )
         .await?;
 
+    let peek = ctx.db.peek().await;
+    let prev = peek
+        .as_package_data()
+        .as_idx(pkg_id)
+        .or_not_found(pkg_id)?
+        .de()?;
     let mut sql_tx = ctx.secret_store.begin().await?;
 
     tracing::info!("Install {}@{}: Creating volumes", pkg_id, version);
@@ -1040,7 +1031,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
     tracing::info!("Install {}@{}: Created volumes", pkg_id, version);
 
     tracing::info!("Install {}@{}: Installing interfaces", pkg_id, version);
-    let interface_addresses = manifest.interfaces.install(&mut sql_tx, pkg_id).await?;
+    let interface_addresses = manifest.interfaces.install(sql_tx.as_mut(), pkg_id).await?;
     tracing::info!(
         "Install {}@{}: Installed interfaces {:?}",
         pkg_id,
@@ -1095,17 +1086,10 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         CurrentDependents(deps)
     };
 
-    let peek = ctx.db.peek().await?;
-    let prev = peek
-        .as_package_data()
-        .as_idx(pkg_id)
-        .or_not_found(pkg_id)?
-        .de()?;
     let installed = InstalledPackageInfo {
         status: Status {
             configured: manifest.config.is_none(),
             main: MainStatus::Stopped,
-            dependency_errors: Default::default(),
             dependency_config_errors: compute_dependency_config_errs(
                 &ctx,
                 &peek,
@@ -1241,11 +1225,7 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
         manager.configure(configure_context).await?;
     }
 
-    if auto_start {
-        manager.start();
-    }
-
-    for to_configure in to_configure {
+    for to_configure in to_configure.into_iter().filter(|(dep, _)| dep != pkg_id) {
         if let Err(e) = async {
             ctx.managers
                 .get(&to_configure)
@@ -1265,6 +1245,10 @@ pub async fn install_s9pk<R: AsyncRead + AsyncSeek + Unpin + Send + Sync>(
             tracing::error!("error configuring dependent: {e}");
             tracing::debug!("{e:?}")
         }
+    }
+
+    if auto_start {
+        manager.start().await;
     }
 
     tracing::info!("Install {}@{}: Complete", pkg_id, version);

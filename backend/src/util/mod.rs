@@ -6,6 +6,7 @@ use std::pin::Pin;
 use std::process::Stdio;
 use std::sync::Arc;
 use std::task::{Context, Poll};
+use std::time::Duration;
 
 use async_trait::async_trait;
 use clap::ArgMatches;
@@ -16,7 +17,7 @@ pub use helpers::NonDetachingJoinHandle;
 use lazy_static::lazy_static;
 pub use models::Version;
 use pin_project::pin_project;
-use sha2_old::Digest;
+use sha2::Digest;
 use tokio::fs::File;
 use tokio::sync::{Mutex, OwnedMutexGuard, RwLock};
 use tracing::instrument;
@@ -24,12 +25,14 @@ use tracing::instrument;
 use crate::shutdown::Shutdown;
 use crate::{Error, ErrorKind, ResultExt as _};
 pub mod config;
+pub mod cpupower;
 pub mod docker;
 pub mod http_reader;
 pub mod io;
 pub mod logger;
 pub mod lshw;
 pub mod serde;
+pub mod crypto;
 
 #[derive(Clone, Copy, Debug, ::serde::Deserialize, ::serde::Serialize)]
 pub enum Never {}
@@ -49,13 +52,31 @@ impl std::error::Error for Never {}
 #[async_trait::async_trait]
 pub trait Invoke {
     async fn invoke(&mut self, error_kind: crate::ErrorKind) -> Result<Vec<u8>, Error>;
+    async fn invoke_timeout(
+        &mut self,
+        error_kind: crate::ErrorKind,
+        timeout: Option<Duration>,
+    ) -> Result<Vec<u8>, Error>;
 }
 #[async_trait::async_trait]
 impl Invoke for tokio::process::Command {
     async fn invoke(&mut self, error_kind: crate::ErrorKind) -> Result<Vec<u8>, Error> {
+        self.invoke_timeout(error_kind, None).await
+    }
+    async fn invoke_timeout(
+        &mut self,
+        error_kind: crate::ErrorKind,
+        timeout: Option<Duration>,
+    ) -> Result<Vec<u8>, Error> {
+        self.kill_on_drop(true);
         self.stdout(Stdio::piped());
         self.stderr(Stdio::piped());
-        let res = self.output().await?;
+        let res = match timeout {
+            None => self.output().await?,
+            Some(t) => tokio::time::timeout(t, self.output())
+                .await
+                .with_kind(ErrorKind::Timeout)??,
+        };
         crate::ensure_code!(
             res.status.success(),
             error_kind,
