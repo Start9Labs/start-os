@@ -157,6 +157,7 @@ torut = "0.2.1"
 tracing = "0.1.39"
 tracing-error = "0.2.0"
 tracing-futures = "0.2.5"
+tracing-journald = "0.3.0"
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 trust-dns-server = "0.23.1"
 typed-builder = "0.17.0"

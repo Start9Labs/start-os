@@ -52,7 +52,7 @@ async fn do_index(
     pkg: &Package,
 ) -> Result<(), Error> {
     url.set_path("/admin/v0/index");
-    let mut req = httpc
+    let req = httpc
         .post(url)
         .header(header::ACCEPT, "text/plain")
         .basic_auth(user, Some(pass))
@@ -74,7 +74,7 @@ async fn do_upload(
     body: Body,
 ) -> Result<(), Error> {
     url.set_path("/admin/v0/upload");
-    let mut req = httpc
+    let req = httpc
         .post(url)
         .header(header::ACCEPT, "text/plain")
         .basic_auth(user, Some(pass))
