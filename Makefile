@@ -1,25 +1,31 @@
-OS_ARCH := $(shell echo "${OS_ARCH}")
-ARCH := $(shell if [ "$(OS_ARCH)" = "raspberrypi" ]; then echo aarch64; else echo $(OS_ARCH) | sed 's/-nonfree$$//g'; fi)
-ENVIRONMENT_FILE = $(shell ./check-environment.sh)
-GIT_HASH_FILE = $(shell ./check-git-hash.sh)
-VERSION_FILE = $(shell ./check-version.sh)
+PLATFORM_FILE := $(shell ./check-platform.sh)
+ENVIRONMENT_FILE := $(shell ./check-environment.sh)
+GIT_HASH_FILE := $(shell ./check-git-hash.sh)
+VERSION_FILE := $(shell ./check-version.sh)
+BASENAME := $(shell ./basename.sh)
+PLATFORM := $(shell cat ./PLATFORM.txt)
+ARCH := $(shell if [ "$(PLATFORM)" = "raspberrypi" ]; then echo aarch64; else echo $(PLATFORM) | sed 's/-nonfree$$//g'; fi)
+IMAGE_TYPE=$(shell if [ "$(PLATFORM)" = raspberrypi ]; then echo img; else echo iso; fi)
 EMBASSY_BINS := backend/target/$(ARCH)-unknown-linux-gnu/release/startbox libs/target/aarch64-unknown-linux-musl/release/embassy_container_init libs/target/x86_64-unknown-linux-musl/release/embassy_container_init
 EMBASSY_UIS := frontend/dist/raw/ui frontend/dist/raw/setup-wizard frontend/dist/raw/diagnostic-ui frontend/dist/raw/install-wizard
-BUILD_SRC := $(shell find build)
+BUILD_SRC := $(shell git ls-files build) build/lib/depends build/lib/conflicts
+DEBIAN_SRC := $(shell git ls-files debian/)
+IMAGE_RECIPE_SRC := $(shell git ls-files image-recipe/)
 EMBASSY_SRC := backend/startd.service $(BUILD_SRC)
-COMPAT_SRC := $(shell find system-images/compat/ -not -path 'system-images/compat/target/*' -and -not -name *.tar -and -not -name target)
-UTILS_SRC := $(shell find system-images/utils/ -not -name *.tar)
-BINFMT_SRC := $(shell find system-images/binfmt/ -not -name *.tar)
-BACKEND_SRC := $(shell find backend/src) $(shell find backend/migrations) $(shell find patch-db/*/src) $(shell find libs/*/src) libs/*/Cargo.toml backend/Cargo.toml backend/Cargo.lock frontend/dist/static
-FRONTEND_SHARED_SRC := $(shell find frontend/projects/shared) $(shell ls -p frontend/ | grep -v / | sed 's/^/frontend\//g') frontend/package.json frontend/node_modules frontend/config.json patch-db/client/dist frontend/patchdb-ui-seed.json
-FRONTEND_UI_SRC := $(shell find frontend/projects/ui)
-FRONTEND_SETUP_WIZARD_SRC := $(shell find frontend/projects/setup-wizard)
-FRONTEND_DIAGNOSTIC_UI_SRC := $(shell find frontend/projects/diagnostic-ui)
-FRONTEND_INSTALL_WIZARD_SRC := $(shell find frontend/projects/install-wizard)
-PATCH_DB_CLIENT_SRC := $(shell find patch-db/client -not -path patch-db/client/dist -and -not -path patch-db/client/node_modules)
+COMPAT_SRC := $(shell git ls-files system-images/compat/)
+UTILS_SRC := $(shell git ls-files system-images/utils/)
+BINFMT_SRC := $(shell git ls-files system-images/binfmt/)
+BACKEND_SRC := $(shell git ls-files backend) $(shell git ls-files --recurse-submodules patch-db) $(shell git ls-files libs) frontend/dist/static
+FRONTEND_SHARED_SRC := $(shell git ls-files frontend/projects/shared) $(shell ls -p frontend/ | grep -v / | sed 's/^/frontend\//g') frontend/node_modules frontend/config.json patch-db/client/dist frontend/patchdb-ui-seed.json
+FRONTEND_UI_SRC := $(shell git ls-files frontend/projects/ui)
+FRONTEND_SETUP_WIZARD_SRC := $(shell git ls-files frontend/projects/setup-wizard)
+FRONTEND_DIAGNOSTIC_UI_SRC := $(shell git ls-files frontend/projects/diagnostic-ui)
+FRONTEND_INSTALL_WIZARD_SRC := $(shell git ls-files frontend/projects/install-wizard)
+PATCH_DB_CLIENT_SRC := $(shell git ls-files --recurse-submodules patch-db/client)
 GZIP_BIN := $(shell which pigz || which gzip)
 TAR_BIN := $(shell which gtar || which tar)
-ALL_TARGETS := $(EMBASSY_BINS) system-images/compat/docker-images/$(ARCH).tar system-images/utils/docker-images/$(ARCH).tar system-images/binfmt/docker-images/$(ARCH).tar $(EMBASSY_SRC) $(shell if [ "$(OS_ARCH)" = "raspberrypi" ]; then echo cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep; fi)  $(shell /bin/bash -c 'if [[ "${ENVIRONMENT}" =~ (^|-)unstable($$|-) ]]; then echo cargo-deps/$(ARCH)-unknown-linux-gnu/release/tokio-console; fi') $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE)
+COMPILED_TARGETS := $(EMBASSY_BINS) system-images/compat/docker-images/$(ARCH).tar system-images/utils/docker-images/$(ARCH).tar system-images/binfmt/docker-images/$(ARCH).tar
+ALL_TARGETS := $(EMBASSY_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE) $(COMPILED_TARGETS) $(shell if [ "$(PLATFORM)" = "raspberrypi" ]; then echo cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep; fi)  $(shell /bin/bash -c 'if [[ "${ENVIRONMENT}" =~ (^|-)unstable($$|-) ]]; then echo cargo-deps/$(ARCH)-unknown-linux-gnu/release/tokio-console; fi') $(PLATFORM_FILE)
 
 ifeq ($(REMOTE),)
 	mkdir = mkdir -p $1
@@ -40,13 +46,13 @@ define cp
 endef
 endif
 
-
-
 .DELETE_ON_ERROR:
 
-.PHONY: all gzip install clean format sdk snapshots frontends ui backend reflash startos_raspberrypi.img sudo wormhole
+.PHONY: all metadata install clean format sdk snapshots frontends ui backend reflash deb $(IMAGE_TYPE) squashfs sudo wormhole docker-buildx
 
 all: $(ALL_TARGETS)
+
+metadata: $(VERSION_FILE) $(PLATFORM_FILE) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE)
 
 sudo:
 	sudo true
@@ -64,9 +70,13 @@ clean:
 	rm -rf patch-db/client/dist
 	rm -rf patch-db/target
 	rm -rf cargo-deps
-	rm ENVIRONMENT.txt
-	rm GIT_HASH.txt
-	rm VERSION.txt
+	rm -rf dpkg-workdir
+	rm -rf image-recipe/deb
+	rm -rf results
+	rm -f ENVIRONMENT.txt
+	rm -f PLATFORM.txt
+	rm -f GIT_HASH.txt
+	rm -f VERSION.txt
 
 format:
 	cd backend && cargo +nightly fmt
@@ -75,8 +85,20 @@ format:
 sdk:
 	cd backend/ && ./install-sdk.sh
 
-startos_raspberrypi.img: $(BUILD_SRC) startos.raspberrypi.squashfs $(VERSION_FILE) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) | sudo
-	./build/raspberrypi/make-image.sh
+deb: results/$(BASENAME).deb
+
+debian/control: build/lib/depends build/lib/conflicts
+	./debuild/control.sh
+
+results/$(BASENAME).deb: dpkg-build.sh $(DEBIAN_SRC) $(VERSION_FILE) $(PLATFORM_FILE) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE)
+	PLATFORM=$(PLATFORM) ./dpkg-build.sh
+
+$(IMAGE_TYPE): results/$(BASENAME).$(IMAGE_TYPE)
+
+squashfs: results/$(BASENAME).squashfs
+
+results/$(BASENAME).$(IMAGE_TYPE) results/$(BASENAME).squashfs: $(IMAGE_RECIPE_SRC) results/$(BASENAME).deb
+	./image-recipe/run-local-build.sh "results/$(BASENAME).deb"
 
 # For creating os images. DO NOT USE
 install: $(ALL_TARGETS)
@@ -88,57 +110,64 @@ install: $(ALL_TARGETS)
 	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/start-deno)
 	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/avahi-alias)
 	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/embassy-cli)
-	if [ "$(OS_ARCH)" = "raspberrypi" ]; then $(call cp,cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep,$(DESTDIR)/usr/bin/pi-beep); fi
+	if [ "$(PLATFORM)" = "raspberrypi" ]; then $(call cp,cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep,$(DESTDIR)/usr/bin/pi-beep); fi
 	if /bin/bash -c '[[ "${ENVIRONMENT}" =~ (^|-)unstable($$|-) ]]'; then $(call cp,cargo-deps/$(ARCH)-unknown-linux-gnu/release/tokio-console,$(DESTDIR)/usr/bin/tokio-console); fi
 	
+	$(call mkdir,$(DESTDIR)/lib/systemd/system)
+	$(call cp,backend/startd.service,$(DESTDIR)/lib/systemd/system/startd.service)
+
 	$(call mkdir,$(DESTDIR)/usr/lib)
-	$(call rm,$(DESTDIR)/usr/lib/embassy)
-	$(call cp,build/lib,$(DESTDIR)/usr/lib/embassy)
+	$(call rm,$(DESTDIR)/usr/lib/startos)
+	$(call cp,build/lib,$(DESTDIR)/usr/lib/startos)
 
-	$(call cp,ENVIRONMENT.txt,$(DESTDIR)/usr/lib/embassy/ENVIRONMENT.txt)
-	$(call cp,GIT_HASH.txt,$(DESTDIR)/usr/lib/embassy/GIT_HASH.txt)
-	$(call cp,VERSION.txt,$(DESTDIR)/usr/lib/embassy/VERSION.txt)
+	$(call cp,PLATFORM.txt,$(DESTDIR)/usr/lib/startos/PLATFORM.txt)
+	$(call cp,ENVIRONMENT.txt,$(DESTDIR)/usr/lib/startos/ENVIRONMENT.txt)
+	$(call cp,GIT_HASH.txt,$(DESTDIR)/usr/lib/startos/GIT_HASH.txt)
+	$(call cp,VERSION.txt,$(DESTDIR)/usr/lib/startos/VERSION.txt)
 
-	$(call mkdir,$(DESTDIR)/usr/lib/embassy/container)
-	$(call cp,libs/target/aarch64-unknown-linux-musl/release/embassy_container_init,$(DESTDIR)/usr/lib/embassy/container/embassy_container_init.arm64)
-	$(call cp,libs/target/x86_64-unknown-linux-musl/release/embassy_container_init,$(DESTDIR)/usr/lib/embassy/container/embassy_container_init.amd64)
+	$(call mkdir,$(DESTDIR)/usr/lib/startos/container)
+	$(call cp,libs/target/aarch64-unknown-linux-musl/release/embassy_container_init,$(DESTDIR)/usr/lib/startos/container/embassy_container_init.arm64)
+	$(call cp,libs/target/x86_64-unknown-linux-musl/release/embassy_container_init,$(DESTDIR)/usr/lib/startos/container/embassy_container_init.amd64)
 
-	$(call mkdir,$(DESTDIR)/usr/lib/embassy/system-images)
-	$(call cp,system-images/compat/docker-images/$(ARCH).tar,$(DESTDIR)/usr/lib/embassy/system-images/compat.tar)
-	$(call cp,system-images/utils/docker-images/$(ARCH).tar,$(DESTDIR)/usr/lib/embassy/system-images/utils.tar)
-	$(call cp,system-images/binfmt/docker-images/$(ARCH).tar,$(DESTDIR)/usr/lib/embassy/system-images/binfmt.tar)
+	$(call mkdir,$(DESTDIR)/usr/lib/startos/system-images)
+	$(call cp,system-images/compat/docker-images/$(ARCH).tar,$(DESTDIR)/usr/lib/startos/system-images/compat.tar)
+	$(call cp,system-images/utils/docker-images/$(ARCH).tar,$(DESTDIR)/usr/lib/startos/system-images/utils.tar)
+	$(call cp,system-images/binfmt/docker-images/$(ARCH).tar,$(DESTDIR)/usr/lib/startos/system-images/binfmt.tar)
 
-update-overlay:
+update-overlay: $(ALL_TARGETS)
 	@echo "\033[33m!!! THIS WILL ONLY REFLASH YOUR DEVICE IN MEMORY !!!\033[0m"
 	@echo "\033[33mALL CHANGES WILL BE REVERTED IF YOU RESTART THE DEVICE\033[0m"
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
-	@if [ "`ssh $(REMOTE) 'cat /usr/lib/embassy/VERSION.txt'`" != "`cat ./VERSION.txt`" ]; then >&2 echo "StartOS requires migrations: update-overlay is unavailable." && false; fi
+	@if [ "`ssh $(REMOTE) 'cat /usr/lib/startos/VERSION.txt'`" != "`cat ./VERSION.txt`" ]; then >&2 echo "StartOS requires migrations: update-overlay is unavailable." && false; fi
 	$(call ssh,"sudo systemctl stop startd")
-	$(MAKE) install REMOTE=$(REMOTE) SSHPASS=$(SSHPASS) OS_ARCH=$(OS_ARCH)
+	$(MAKE) install REMOTE=$(REMOTE) SSHPASS=$(SSHPASS) PLATFORM=$(PLATFORM)
 	$(call ssh,"sudo systemctl start startd")
 
 wormhole: backend/target/$(ARCH)-unknown-linux-gnu/release/startbox
-	@wormhole send backend/target/$(ARCH)-unknown-linux-gnu/release/startbox 2>&1 | awk -Winteractive '/wormhole receive/ { printf "sudo /usr/lib/embassy/scripts/chroot-and-upgrade \"cd /usr/bin && rm startbox && wormhole receive --accept-file %s && chmod +x startbox\"\n", $$3 }'
+	@wormhole send backend/target/$(ARCH)-unknown-linux-gnu/release/startbox 2>&1 | awk -Winteractive '/wormhole receive/ { printf "sudo /usr/lib/startos/scripts/chroot-and-upgrade \"cd /usr/bin && rm startbox && wormhole receive --accept-file %s && chmod +x startbox\"\n", $$3 }'
 
-update:
+update: $(ALL_TARGETS)
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
 	$(call ssh,"sudo rsync -a --delete --force --info=progress2 /media/embassy/embassyfs/current/ /media/embassy/next/")
-	$(MAKE) install REMOTE=$(REMOTE) SSHPASS=$(SSHPASS) DESTDIR=/media/embassy/next OS_ARCH=$(OS_ARCH)
-	$(call ssh,'sudo NO_SYNC=1 /media/embassy/next/usr/lib/embassy/scripts/chroot-and-upgrade "apt-get install -y $(shell cat ./build/lib/depends)"')
+	$(MAKE) install REMOTE=$(REMOTE) SSHPASS=$(SSHPASS) DESTDIR=/media/embassy/next PLATFORM=$(PLATFORM)
+	$(call ssh,'sudo NO_SYNC=1 /media/embassy/next/usr/lib/startos/scripts/chroot-and-upgrade "apt-get install -y $(shell cat ./build/lib/depends)"')
 
-emulate-reflash:
+emulate-reflash: $(ALL_TARGETS)
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
 	$(call ssh,"sudo rsync -a --delete --force --info=progress2 /media/embassy/embassyfs/current/ /media/embassy/next/")
-	$(MAKE) install REMOTE=$(REMOTE) SSHPASS=$(SSHPASS) DESTDIR=/media/embassy/next OS_ARCH=$(OS_ARCH)
+	$(MAKE) install REMOTE=$(REMOTE) SSHPASS=$(SSHPASS) DESTDIR=/media/embassy/next PLATFORM=$(PLATFORM)
 	$(call ssh,"sudo touch /media/embassy/config/upgrade && sudo rm -f /media/embassy/config/disk.guid && sudo sync && sudo reboot")
 
-system-images/compat/docker-images/aarch64.tar system-images/compat/docker-images/x86_64.tar: $(COMPAT_SRC) backend/Cargo.lock
+build/lib/depends build/lib/conflicts: build/dpkg-deps/*
+	build/dpkg-deps/generate.sh
+
+system-images/compat/docker-images/aarch64.tar system-images/compat/docker-images/x86_64.tar: $(COMPAT_SRC) backend/Cargo.lock | docker-buildx
 	cd system-images/compat && make && touch docker-images/*.tar
 
-system-images/utils/docker-images/aarch64.tar system-images/utils/docker-images/x86_64.tar: $(UTILS_SRC)
+system-images/utils/docker-images/aarch64.tar system-images/utils/docker-images/x86_64.tar: $(UTILS_SRC) | docker-buildx
 	cd system-images/utils && make && touch docker-images/*.tar
 
-system-images/binfmt/docker-images/aarch64.tar system-images/binfmt/docker-images/x86_64.tar: $(BINFMT_SRC)
+system-images/binfmt/docker-images/aarch64.tar system-images/binfmt/docker-images/x86_64.tar: $(BINFMT_SRC) | docker-buildx
 	cd system-images/binfmt && make && touch docker-images/*.tar
 
 snapshots: libs/snapshot_creator/Cargo.toml
@@ -152,25 +181,25 @@ $(EMBASSY_BINS): $(BACKEND_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) frontend/pa
 frontend/node_modules: frontend/package.json
 	npm --prefix frontend ci
 
-frontend/dist/raw/ui: $(FRONTEND_UI_SRC) $(FRONTEND_SHARED_SRC) $(ENVIRONMENT_FILE)
+frontend/dist/raw/ui: $(FRONTEND_UI_SRC) $(FRONTEND_SHARED_SRC)
 	npm --prefix frontend run build:ui
 
-frontend/dist/raw/setup-wizard: $(FRONTEND_SETUP_WIZARD_SRC) $(FRONTEND_SHARED_SRC) $(ENVIRONMENT_FILE)
+frontend/dist/raw/setup-wizard: $(FRONTEND_SETUP_WIZARD_SRC) $(FRONTEND_SHARED_SRC)
 	npm --prefix frontend run build:setup
 
-frontend/dist/raw/diagnostic-ui: $(FRONTEND_DIAGNOSTIC_UI_SRC) $(FRONTEND_SHARED_SRC) $(ENVIRONMENT_FILE)
+frontend/dist/raw/diagnostic-ui: $(FRONTEND_DIAGNOSTIC_UI_SRC) $(FRONTEND_SHARED_SRC)
 	npm --prefix frontend run build:dui
 
-frontend/dist/raw/install-wizard: $(FRONTEND_INSTALL_WIZARD_SRC) $(FRONTEND_SHARED_SRC) $(ENVIRONMENT_FILE)
+frontend/dist/raw/install-wizard: $(FRONTEND_INSTALL_WIZARD_SRC) $(FRONTEND_SHARED_SRC)
 	npm --prefix frontend run build:install-wiz
 
-frontend/dist/static: $(EMBASSY_UIS)
+frontend/dist/static: $(EMBASSY_UIS) $(ENVIRONMENT_FILE)
 	./compress-uis.sh
 
 frontend/config.json: $(GIT_HASH_FILE) frontend/config-sample.json
 	jq '.useMocks = false' frontend/config-sample.json > frontend/config.json
 	jq '.packageArch = "$(ARCH)"' frontend/config.json > frontend/config.json.tmp
-	jq '.osArch = "$(OS_ARCH)"' frontend/config.json.tmp > frontend/config.json
+	jq '.osArch = "$(PLATFORM)"' frontend/config.json.tmp > frontend/config.json
 	rm frontend/config.json.tmp
 	npm --prefix frontend run-script build-config
 
@@ -186,7 +215,7 @@ patch-db/client/dist: $(PATCH_DB_CLIENT_SRC) patch-db/client/node_modules
 	npm --prefix frontend run build:deps
 
 # used by github actions
-backend-$(ARCH).tar: $(EMBASSY_BINS)
+compiled.tar: $(COMPILED_TARGETS) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE)
 	tar -cvf $@ $^
 
 # this is a convenience step to build all frontends - it is not referenced elsewhere in this file

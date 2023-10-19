@@ -145,7 +145,7 @@ pub struct JournalctlEntry {
     #[serde(rename = "__REALTIME_TIMESTAMP")]
     pub timestamp: String,
     #[serde(rename = "MESSAGE")]
-    #[serde(deserialize_with = "deserialize_string_or_utf8_array")]
+    #[serde(deserialize_with = "deserialize_log_message")]
     pub message: String,
     #[serde(rename = "__CURSOR")]
     pub cursor: String,
@@ -164,7 +164,7 @@ impl JournalctlEntry {
     }
 }
 
-fn deserialize_string_or_utf8_array<'de, D: serde::de::Deserializer<'de>>(
+fn deserialize_log_message<'de, D: serde::de::Deserializer<'de>>(
     deserializer: D,
 ) -> std::result::Result<String, D::Error> {
     struct Visitor;
@@ -177,13 +177,7 @@ fn deserialize_string_or_utf8_array<'de, D: serde::de::Deserializer<'de>>(
         where
             E: serde::de::Error,
         {
-            Ok(v.to_owned())
-        }
-        fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
-        where
-            E: serde::de::Error,
-        {
-            Ok(v)
+            Ok(v.trim().to_owned())
         }
         fn visit_unit<E>(self) -> Result<Self::Value, E>
         where
@@ -201,6 +195,7 @@ fn deserialize_string_or_utf8_array<'de, D: serde::de::Deserializer<'de>>(
                     .flatten()
                     .collect::<Result<Vec<u8>, _>>()?,
             )
+            .map(|s| s.trim().to_owned())
             .map_err(serde::de::Error::custom)
         }
     }
@@ -374,12 +369,12 @@ pub async fn journalctl(
             cmd.arg(format!("_COMM={}", SYSTEM_UNIT));
         }
         LogSource::Container(id) => {
-            #[cfg(feature = "podman")]
+            #[cfg(not(feature = "docker"))]
             cmd.arg(format!(
                 "SYSLOG_IDENTIFIER={}",
                 DockerProcedure::container_name(&id, None)
             ));
-            #[cfg(not(feature = "podman"))]
+            #[cfg(feature = "docker")]
             cmd.arg(format!(
                 "CONTAINER_NAME={}",
                 DockerProcedure::container_name(&id, None)

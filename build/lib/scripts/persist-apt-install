@@ -14,7 +14,7 @@ while [ -n "$1" ]; do
 done
 
 if [ ${#TO_INSTALL[@]} -ne 0 ]; then
-/usr/lib/embassy/scripts/chroot-and-upgrade << EOF
+/usr/lib/startos/scripts/chroot-and-upgrade << EOF
 apt-get update && apt-get install -y ${TO_INSTALL[@]}
 EOF
 fi

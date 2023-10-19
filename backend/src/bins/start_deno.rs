@@ -1,13 +1,9 @@
-use clap::Arg;
-use rpc_toolkit::command;
-use rpc_toolkit::run_cli;
 use rpc_toolkit::yajrc::RpcError;
+use rpc_toolkit::{command, run_cli, Context};
 use serde_json::Value;
 
-use crate::context::CliContext;
 use crate::procedure::js_scripts::ExecuteArgs;
 use crate::s9pk::manifest::PackageId;
-use crate::util::logger::EmbassyLogger;
 use crate::util::serde::{display_serializable, parse_stdin_deserializable};
 use crate::version::{Current, VersionT};
 use crate::Error;
@@ -15,6 +11,9 @@ use crate::Error;
 lazy_static::lazy_static! {
     static ref VERSION_STRING: String = Current::new().semver().to_string();
 }
+
+struct DenoContext;
+impl Context for DenoContext {}
 
 #[command(subcommands(execute, sandbox))]
 fn deno_api() -> Result<(), Error> {
@@ -103,16 +102,8 @@ fn inner_main() -> Result<(), Error> {
         command: deno_api,
         app: app => app
             .name("StartOS Deno Executor")
-            .version(&**VERSION_STRING)
-            .arg(
-                clap::Arg::with_name("config")
-                    .short('c')
-                    .long("config")
-                    .takes_value(true),
-            ),
-        context: matches => {
-            CliContext::init(matches)?
-        },
+            .version(&**VERSION_STRING),
+        context: _m => DenoContext,
         exit: |e: RpcError| {
             match e.data {
                 Some(Value::String(s)) => eprintln!("{}: {}", e.message, s),

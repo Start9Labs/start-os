@@ -1,0 +1,19 @@
+#!/bin/bash
+
+cd "$(dirname "${BASH_SOURCE[0]}")"
+
+PLATFORM=$(cat ./PLATFORM.txt)
+VERSION="$(cat ./VERSION.txt)"
+GIT_HASH="$(cat ./GIT_HASH.txt)"
+if [[ "$GIT_HASH" =~ ^@ ]]; then
+  GIT_HASH=unknown
+else
+  GIT_HASH="$(echo -n "$GIT_HASH" |  head -c 7)"
+fi
+STARTOS_ENV="$(cat ./ENVIRONMENT.txt)"
+VERSION_FULL="${VERSION}-${GIT_HASH}"
+if [ -n "$STARTOS_ENV" ]; then
+  VERSION_FULL="$VERSION_FULL~${STARTOS_ENV}"
+fi
+
+echo -n "startos-${VERSION_FULL}_${PLATFORM}"

@@ -182,8 +182,7 @@ pub async fn init(db: &PatchDb, secrets: &PgPool) -> Result<(), Error> {
     Ok(())
 }
 
-pub const COMMIT_HASH: &str =
-    git_version::git_version!(args = ["--always", "--abbrev=40", "--dirty=-modified"]);
+pub const COMMIT_HASH: &str = include_str!("../../../GIT_HASH.txt");
 
 #[command(rename = "git-info", local, metadata(authenticated = false))]
 pub fn git_info() -> Result<&'static str, Error> {

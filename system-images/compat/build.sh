@@ -3,8 +3,8 @@
 set -e
 shopt -s expand_aliases
 
-if [ -z "$OS_ARCH" ]; then
-	>&2 echo '$OS_ARCH is required'
+if [ -z "$PLATFORM" ]; then
+	>&2 echo '$PLATFORM is required'
 	exit 1
 fi
 
@@ -18,8 +18,8 @@ if tty -s; then
 	USE_TTY="-it"
 fi
 
-alias 'rust-arm64-musl-builder'='docker run $USE_TTY --rm -e "OS_ARCH=$OS_ARCH" -v "$HOME"/.cargo/registry:/root/.cargo/registry -v "$(pwd)":/home/rust/src messense/rust-musl-cross:aarch64-musl'
-alias 'rust-x86_64-musl-builder'='docker run $USE_TTY --rm -e "OS_ARCH=$OS_ARCH" -v "$HOME"/.cargo/registry:/root/.cargo/registry -v "$(pwd)":/home/rust/src messense/rust-musl-cross:x86_64-musl'
+alias 'rust-arm64-musl-builder'='docker run $USE_TTY --rm -e "PLATFORM=$PLATFORM" -v "$HOME"/.cargo/registry:/root/.cargo/registry -v "$(pwd)":/home/rust/src messense/rust-musl-cross:aarch64-musl'
+alias 'rust-x86_64-musl-builder'='docker run $USE_TTY --rm -e "PLATFORM=$PLATFORM" -v "$HOME"/.cargo/registry:/root/.cargo/registry -v "$(pwd)":/home/rust/src messense/rust-musl-cross:x86_64-musl'
 
 cd ../..
 rust-arm64-musl-builder sh -c "(git config --global --add safe.directory '*'; cd system-images/compat && cargo build --release --target=aarch64-unknown-linux-musl --no-default-features)"

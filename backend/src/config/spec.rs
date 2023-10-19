@@ -1,4 +1,4 @@
-use std::borrow::{Borrow, Cow};
+use std::borrow::{Cow};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::fmt::Debug;
@@ -105,7 +105,7 @@ where
         rng: &mut R,
         timeout: &Option<Duration>,
     ) -> Result<Value, Self::Error> {
-        self.gen_with(self.default_spec().borrow(), rng, timeout)
+        self.gen_with(self.default_spec(), rng, timeout)
     }
 }
 

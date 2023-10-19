@@ -12,9 +12,9 @@ on:
           - dev
           - unstable
           - dev-unstable
-          - podman
-          - dev-podman
-          - dev-unstable-podman
+          - docker
+          - dev-docker
+          - dev-unstable-docker
       runner:
         type: choice
         description: Runner
@@ -42,11 +42,55 @@ on:
 
 env:
   NODEJS_VERSION: "18.15.0"
-  ENVIRONMENT: '${{ fromJson(format(''["{0}", ""]'', github.event.inputs.environment || ''dev-podman''))[github.event.inputs.environment == ''NONE''] }}'
+  ENVIRONMENT: '${{ fromJson(format(''["{0}", ""]'', github.event.inputs.environment || ''dev''))[github.event.inputs.environment == ''NONE''] }}'
 
 jobs:
-  all:
-    name: Build
+  compile:
+    name: Compile Base Binaries
+    strategy:
+      fail-fast: true
+      matrix:
+        arch: >-
+          ${{
+            fromJson({
+              "x86_64": ["x86_64"],
+              "x86_64-nonfree": ["x86_64"],
+              "aarch64": ["aarch64"],
+              "aarch64-nonfree": ["aarch64"],
+              "raspberrypi": ["aarch64"],
+              "ALL": ["x86_64", "aarch64"]
+            })[[github.event.inputs.platform || 'ALL']
+          }}
+    runs-on: ${{ fromJson('["ubuntu-22.04", "buildjet-32vcpu-ubuntu-2204"]')[github.event.inputs.runner == 'fast'] }}
+    steps:
+      - run: |
+          sudo mount -t tmpfs tmpfs .
+        if: ${{ github.event.inputs.runner == 'fast' }}
+
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODEJS_VERSION }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Make
+        run: make ARCH=${{ matrix.arch }} compiled.tar
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: compiled-${{ matrix.arch }}.tar
+          path: compiled.tar
+  image:
+    name: Build Image
+    needs: [compile]
     strategy:
       fail-fast: false
       matrix:
@@ -77,78 +121,9 @@ jobs:
           )
         )[github.event.inputs.runner == 'fast']
       }}
+    env:
+      PLATFORM: ${{ matrix.platform }}
     steps:
-      - name: Free space
-        run: df -h && rm -rf /opt/hostedtoolcache* && df -h
-        if: ${{ github.event.inputs.runner != 'fast' }}
-
-      - run: |
-          sudo mount -t tmpfs tmpfs .
-        if: ${{ github.event.inputs.runner == 'fast' && (matrix.platform == 'x86_64' || matrix.platform == 'x86_64-nonfree' || github.event.inputs.platform == matrix.platform) }}
-
-      - uses: actions/checkout@v3
-        with:
-          repository: Start9Labs/embassy-os-deb
-          path: embassy-os-deb
-
-      - uses: actions/checkout@v3
-        with:
-          submodules: recursive
-          path: embassy-os-deb/embassyos-0.3.x
-
-      - run: |
-          cp -r debian embassyos-0.3.x/
-          VERSION=0.3.x ./control.sh
-          cp embassyos-0.3.x/backend/startd.service embassyos-0.3.x/debian/embassyos.startd.service
-        working-directory: embassy-os-deb
-
-      - uses: actions/setup-node@v3
-        with:
-          node-version: ${{ env.NODEJS_VERSION }}
-
-      - uses: actions/cache@v3
-        with:
-          path: /var/lib/docker
-          key: ${{ runner.os }}-${{ matrix.platform }}-docker-cache
-
-      - name: Get npm cache directory
-        id: npm-cache-dir
-        run: |
-          echo "dir=$(npm config get cache)" >> $GITHUB_OUTPUT
-      - uses: actions/cache@v3
-        id: npm-cache
-        with:
-          path: ${{ steps.npm-cache-dir.outputs.dir }}
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install \
-            debmake \
-            debhelper-compat \
-            crossbuild-essential-arm64
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Run dpkg build
-        working-directory: embassy-os-deb
-        run: "make VERSION=0.3.x TAG=${{ github.ref_name }}"
-        env:
-          OS_ARCH: ${{ matrix.platform }}
-
-      - uses: actions/checkout@v3
-        with:
-          repository: Start9Labs/startos-image-recipes
-          path: startos-image-recipes
-          ref: feature/podman
-
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -166,52 +141,44 @@ jobs:
       - run: sudo mount -t tmpfs tmpfs /var/tmp/debspawn
         if: ${{ github.event.inputs.runner == 'fast' && (matrix.platform == 'x86_64' || matrix.platform == 'x86_64-nonfree') }}
 
-      - uses: actions/cache@v3
+      - name: Download compiled artifacts
+        uses: actions/download-artifact@v3
         with:
-          path: /var/lib/debspawn
-          key: ${{ runner.os }}-${{ matrix.platform }}-debspawn-init
+          name: >-
+            compiled-${{
+              fromJson({
+                "x86_64": "x86_64",
+                "x86_64-nonfree": "x86_64",
+                "aarch64": "aarch64",
+                "aarch64-nonfree": "aarch64",
+                "raspberrypi": "aarch64",
+              })[[matrix.platform]
+            }}.tar
 
-      - run: "mkdir -p startos-image-recipes/overlays/deb"
-
-      - run: "mv embassy-os-deb/embassyos_0.3.x-1_*.deb startos-image-recipes/overlays/deb/"
-
-      - run: "sudo rm -rf embassy-os-deb ${{ steps.npm-cache-dir.outputs.dir }} $HOME/.cargo"
+      - name: Extract compiled artifacts
+        run: tar -mxvf compiled.tar
 
       - name: Run iso build
-        working-directory: startos-image-recipes
-        run: |
-          ./run-local-build.sh ${{ matrix.platform }}
+        run: make iso
+        if: ${{ matrix.platform != 'raspberrypi' }}
+
+      - name: Run img build
+        run: make img
+        if: ${{ matrix.platform == 'raspberrypi' }}
 
       - uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.platform }}.squashfs
-          path: startos-image-recipes/results/*.squashfs
+          path: results/*.squashfs
 
       - uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.platform }}.iso
-          path: startos-image-recipes/results/*.iso
+          path: results/*.iso
         if: ${{ matrix.platform != 'raspberrypi' }}
-
-      - uses: actions/checkout@v3
-        with:
-          submodules: recursive
-          path: start-os
-        if: ${{ matrix.platform == 'raspberrypi' }}
-
-      - run: "mv startos-image-recipes/results/startos-*_raspberrypi.squashfs start-os/startos.raspberrypi.squashfs"
-        if: ${{ matrix.platform == 'raspberrypi' }}
-
-      - run: rm -rf startos-image-recipes
-        if: ${{ matrix.platform == 'raspberrypi' }}
-
-      - name: Build image
-        working-directory: start-os
-        run: make startos_raspberrypi.img
-        if: ${{ matrix.platform == 'raspberrypi' }}
 
       - uses: actions/upload-artifact@v3
         with:
-          name: raspberrypi.img
-          path: start-os/startos-*_raspberrypi.img
+          name: ${{ matrix.platform }}.img
+          path: results/*.img
         if: ${{ matrix.platform == 'raspberrypi' }}

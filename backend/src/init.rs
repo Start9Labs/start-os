@@ -263,6 +263,9 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
     tracing::info!("Mounted Logs");
 
     let tmp_dir = cfg.datadir().join("package-data/tmp");
+    if should_rebuild && tokio::fs::metadata(&tmp_dir).await.is_ok() {
+        tokio::fs::remove_dir_all(&tmp_dir).await?;
+    }
     if tokio::fs::metadata(&tmp_dir).await.is_err() {
         tokio::fs::create_dir_all(&tmp_dir).await?;
     }
@@ -275,9 +278,6 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         .datadir()
         .join(format!("package-data/tmp/{CONTAINER_TOOL}"));
     let tmp_docker_exists = tokio::fs::metadata(&tmp_docker).await.is_ok();
-    if should_rebuild && tmp_docker_exists {
-        tokio::fs::remove_dir_all(&tmp_docker).await?;
-    }
     if CONTAINER_TOOL == "docker" {
         Command::new("systemctl")
             .arg("stop")
@@ -309,7 +309,7 @@ pub async fn init(cfg: &RpcContextConfig) -> Result<InitResult, Error> {
         }
 
         tracing::info!("Loading System Docker Images");
-        crate::install::load_images("/usr/lib/embassy/system-images").await?;
+        crate::install::load_images("/usr/lib/startos/system-images").await?;
         tracing::info!("Loaded System Docker Images");
 
         tracing::info!("Loading Package Docker Images");

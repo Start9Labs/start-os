@@ -13,7 +13,7 @@ fi
 >&2 echo '    sudo rm /usr/local/bin/apt'
 >&2 echo
 >&2 echo 'Otherwise, what you probably want to do is run:'
->&2 echo '    sudo /usr/lib/embassy/scripts/chroot-and-upgrade'
+>&2 echo '    sudo /usr/lib/startos/scripts/chroot-and-upgrade'
 >&2 echo 'You can run apt in this context to add packages to your system.'
 >&2 echo 'When you are done with your changes, type "exit" and the device will reboot into a system with the changes applied.'
 >&2 echo 'This is still NOT RECOMMENDED if you don'"'"'t know what you are doing, but at least isn'"'"'t guaranteed to break things.'
