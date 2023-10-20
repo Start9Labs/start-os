@@ -37,6 +37,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { BackupConfig } from '../types/backup-config'
 import { BackupsPhysicalComponent } from '../components/physical.component'
 import { BackupsTargetsComponent } from '../components/targets.component'
+import { TuiFadeModule } from '@taiga-ui/experimental'
 
 @Component({
   template: `
@@ -60,23 +61,27 @@ import { BackupsTargetsComponent } from '../components/targets.component'
         Refresh
       </button>
     </h3>
-    <table
-      class="g-table"
-      [backupsPhysical]="targets?.['unknown-disks'] || null"
-      (add)="addPhysical($event)"
-    ></table>
+    <div class="g-hidden-scrollbar" tuiFade>
+      <table
+        class="g-table"
+        [backupsPhysical]="targets?.['unknown-disks'] || null"
+        (add)="addPhysical($event)"
+      ></table>
+    </div>
     <h3 class="g-title">
       Saved Targets
       <button tuiButton size="s" icon="tuiIconPlus" (click)="addRemote()">
         Add Target
       </button>
     </h3>
-    <table
-      class="g-table"
-      [backupsTargets]="targets?.saved || null"
-      (delete)="onDelete($event)"
-      (update)="onUpdate($event)"
-    ></table>
+    <div class="g-hidden-scrollbar" tuiFade>
+      <table
+        class="g-table"
+        [backupsTargets]="targets?.saved || null"
+        (delete)="onDelete($event)"
+        (update)="onUpdate($event)"
+      ></table>
+    </div>
   `,
   standalone: true,
   imports: [
@@ -85,6 +90,7 @@ import { BackupsTargetsComponent } from '../components/targets.component'
     TuiButtonModule,
     BackupsPhysicalComponent,
     BackupsTargetsComponent,
+    TuiFadeModule,
   ],
 })
 export class BackupsTargetsModal implements OnInit {

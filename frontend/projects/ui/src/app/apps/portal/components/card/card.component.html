@@ -1,8 +1,8 @@
 <span class="link">
   <tui-badged-content [style.--tui-radius.rem]="1.5">
-    <tui-badge-alert *ngIf="badge" size="m" tuiSlot="top">
+    <tui-badge-notification *ngIf="badge" size="m" tuiSlot="top">
       {{ badge }}
-    </tui-badge-alert>
+    </tui-badge-notification>
     <tui-svg
       *ngIf="icon.startsWith('tuiIcon'); else url"
       class="icon"

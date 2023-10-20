@@ -107,8 +107,10 @@ export class BackupsTargetModal {
   }
 
   goToTargets() {
-    this.dialogs.open(TARGETS, { label: 'Backup Targets' }).subscribe()
     this.context.$implicit.complete()
+    this.dialogs
+      .open(TARGETS, { label: 'Backup Targets', size: 'l' })
+      .subscribe()
   }
 }
 

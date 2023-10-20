@@ -14,6 +14,7 @@ import {
   TuiLinkModule,
   TuiSvgModule,
 } from '@taiga-ui/core'
+import { TuiFadeModule } from '@taiga-ui/experimental'
 import { TuiCheckboxModule } from '@taiga-ui/kit'
 import { BehaviorSubject } from 'rxjs'
 import { BackupRun } from 'src/app/services/api/api.types'
@@ -38,68 +39,70 @@ import { REPORT } from './report.component'
         Delete Selected
       </button>
     </h3>
-    <table class="g-table">
-      <thead>
-        <tr>
-          <th>
-            <tui-checkbox
-              [disabled]="!selected.length"
-              [ngModel]="all"
-              (ngModelChange)="toggle()"
-            ></tui-checkbox>
-          </th>
-          <th>Started At</th>
-          <th>Duration</th>
-          <th>Result</th>
-          <th>Job</th>
-          <th>Target</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr
-          *ngFor="
-            let run of runs;
-            let index = index;
-            else: loading;
-            empty: blank
-          "
-          [style.background]="selected[index] ? 'var(--tui-clear)' : ''"
-        >
-          <td><tui-checkbox [(ngModel)]="selected[index]"></tui-checkbox></td>
-          <td>{{ run['started-at'] | date : 'medium' }}</td>
-          <td>
-            {{ run['started-at'] | duration : run['completed-at'] }} Minutes
-          </td>
-          <td>
-            <tui-svg
-              *ngIf="run.report | hasError; else noError"
-              src="tuiIconClose"
-              [style.color]="'var(--tui-negative)'"
-            ></tui-svg>
-            <ng-template #noError>
-              <tui-svg
-                src="tuiIconCheck"
-                [style.color]="'var(--tui-positive)'"
-              ></tui-svg>
-            </ng-template>
-            <button tuiLink (click)="showReport(run)">Report</button>
-          </td>
-          <td>{{ run.job.name || 'No job' }}</td>
-          <td>
-            <tui-svg [src]="run.job.target.type | getBackupIcon"></tui-svg>
-            {{ run.job.target.name }}
-          </td>
-        </tr>
-        <ng-template #loading>
-          <tr *ngFor="let row of ['', '', '']">
-            <td colspan="6"><div class="tui-skeleton">Loading</div></td>
+    <div tuiFade class="g-hidden-scrollbar">
+      <table class="g-table">
+        <thead>
+          <tr>
+            <th>
+              <tui-checkbox
+                [disabled]="!selected.length"
+                [ngModel]="all"
+                (ngModelChange)="toggle()"
+              ></tui-checkbox>
+            </th>
+            <th>Started At</th>
+            <th>Duration</th>
+            <th>Result</th>
+            <th>Job</th>
+            <th>Target</th>
           </tr>
-        </ng-template>
-        <ng-template #blank>
-          <tr><td colspan="6">No backups have been run yet.</td></tr>
-        </ng-template>
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          <tr
+            *ngFor="
+              let run of runs;
+              let index = index;
+              else: loading;
+              empty: blank
+            "
+            [style.background]="selected[index] ? 'var(--tui-clear)' : ''"
+          >
+            <td><tui-checkbox [(ngModel)]="selected[index]"></tui-checkbox></td>
+            <td>{{ run['started-at'] | date : 'medium' }}</td>
+            <td>
+              {{ run['started-at'] | duration : run['completed-at'] }} Minutes
+            </td>
+            <td>
+              <tui-svg
+                *ngIf="run.report | hasError; else noError"
+                src="tuiIconClose"
+                [style.color]="'var(--tui-negative)'"
+              ></tui-svg>
+              <ng-template #noError>
+                <tui-svg
+                  src="tuiIconCheck"
+                  [style.color]="'var(--tui-positive)'"
+                ></tui-svg>
+              </ng-template>
+              <button tuiLink (click)="showReport(run)">Report</button>
+            </td>
+            <td>{{ run.job.name || 'No job' }}</td>
+            <td>
+              <tui-svg [src]="run.job.target.type | getBackupIcon"></tui-svg>
+              {{ run.job.target.name }}
+            </td>
+          </tr>
+          <ng-template #loading>
+            <tr *ngFor="let row of ['', '', '']">
+              <td colspan="6"><div class="tui-skeleton">Loading</div></td>
+            </tr>
+          </ng-template>
+          <ng-template #blank>
+            <tr><td colspan="6">No backups have been run yet.</td></tr>
+          </ng-template>
+        </tbody>
+      </table>
+    </div>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
@@ -111,6 +114,7 @@ import { REPORT } from './report.component'
     TuiCheckboxModule,
     TuiSvgModule,
     TuiLinkModule,
+    TuiFadeModule,
     DurationPipe,
     HasErrorPipe,
     GetBackupIconPipe,

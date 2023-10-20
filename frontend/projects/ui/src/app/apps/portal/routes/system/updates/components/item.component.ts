@@ -46,7 +46,7 @@ import { InstallProgressPipe } from '../pipes/install-progress.pipe'
     <tui-accordion-item borders="top-bottom">
       <div class="g-action">
         <tui-avatar size="s" [src]="pkg | mimeType | trustUrl" />
-        <div [style.flex]="1">
+        <div [style.flex]="1" [style.overflow]="'hidden'">
           <strong>{{ pkg.manifest.title }}</strong>
           <div>
             <!-- @TODO left side should be local['old-manifest'] (or whatever), not manifest. -->

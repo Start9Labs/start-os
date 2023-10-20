@@ -1,18 +1,27 @@
+@import '@taiga-ui/core/styles/taiga-ui-local';
+
 :host {
+  @include scrollbar-hidden;
+
   height: 3rem;
   display: flex;
   // TODO: Theme
   background: rgb(97 95 95 / 84%);
+  overflow: auto;
 }
 
 .tab {
   position: relative;
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
   width: 7.5rem;
 
   &_active {
+    position: sticky;
+    left: 0;
+    right: 0;
     // TODO: Theme
     background: #373a3f;
   }

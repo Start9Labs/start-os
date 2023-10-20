@@ -9,6 +9,7 @@ import {
   TuiNotificationModule,
   TuiSvgModule,
 } from '@taiga-ui/core'
+import { TuiFadeModule } from '@taiga-ui/experimental'
 import { TUI_PROMPT, TuiPromptData } from '@taiga-ui/kit'
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 import { BehaviorSubject, filter } from 'rxjs'
@@ -39,52 +40,54 @@ import { EDIT } from './edit.component'
         Create New Job
       </button>
     </h3>
-    <table class="g-table">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Target</th>
-          <th>Packages</th>
-          <th>Schedule</th>
-          <th [style.width.rem]="3.5"></th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let job of jobs || null; else: loading; empty: blank">
-          <td>{{ job.name }}</td>
-          <td>
-            <tui-svg [src]="job.target.type | getBackupIcon"></tui-svg>
-            {{ job.target.name }}
-          </td>
-          <td>Packages: {{ job['package-ids'].length }}</td>
-          <td>{{ (job.cron | toHumanCron).message }}</td>
-          <td>
-            <button
-              tuiIconButton
-              appearance="icon"
-              size="xs"
-              icon="tuiIconEdit2"
-              (click)="update(job)"
-            ></button>
-            <button
-              tuiIconButton
-              appearance="icon"
-              size="xs"
-              icon="tuiIconTrash2"
-              (click)="delete(job.id)"
-            ></button>
-          </td>
-        </tr>
-        <ng-template #loading>
-          <tr *ngFor="let i of ['', '']">
-            <td colspan="5"><div class="tui-skeleton">Loading</div></td>
+    <div class="g-hidden-scrollbar" tuiFade>
+      <table class="g-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Target</th>
+            <th>Packages</th>
+            <th>Schedule</th>
+            <th [style.width.rem]="3.5"></th>
           </tr>
-        </ng-template>
-        <ng-template #blank>
-          <tr><td colspan="5">No jobs found.</td></tr>
-        </ng-template>
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          <tr *ngFor="let job of jobs || null; else: loading; empty: blank">
+            <td>{{ job.name }}</td>
+            <td>
+              <tui-svg [src]="job.target.type | getBackupIcon"></tui-svg>
+              {{ job.target.name }}
+            </td>
+            <td>Packages: {{ job['package-ids'].length }}</td>
+            <td>{{ (job.cron | toHumanCron).message }}</td>
+            <td>
+              <button
+                tuiIconButton
+                appearance="icon"
+                size="xs"
+                icon="tuiIconEdit2"
+                (click)="update(job)"
+              ></button>
+              <button
+                tuiIconButton
+                appearance="icon"
+                size="xs"
+                icon="tuiIconTrash2"
+                (click)="delete(job.id)"
+              ></button>
+            </td>
+          </tr>
+          <ng-template #loading>
+            <tr *ngFor="let i of ['', '']">
+              <td colspan="5"><div class="tui-skeleton">Loading</div></td>
+            </tr>
+          </ng-template>
+          <ng-template #blank>
+            <tr><td colspan="5">No jobs found.</td></tr>
+          </ng-template>
+        </tbody>
+      </table>
+    </div>
   `,
   standalone: true,
   imports: [
@@ -93,6 +96,7 @@ import { EDIT } from './edit.component'
     TuiNotificationModule,
     TuiButtonModule,
     TuiSvgModule,
+    TuiFadeModule,
     ToHumanCronPipe,
     GetBackupIconPipe,
   ],
