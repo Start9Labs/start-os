@@ -892,22 +892,13 @@ async fn buf_reader_to_lines(
     reader: impl AsyncBufRead + Unpin,
     limit: impl Into<Option<usize>>,
 ) -> Result<Vec<String>, Error> {
-    let lines = stream! {
-        let mut lines = reader.lines();
-        while let Some(line) = lines.next_line().await? {
-            yield Ok::<_, Report>(line);
+    let mut lines = reader.lines();
+    let mut output = RingVec::new(limit.into().unwrap_or(1000));
+    while let Ok(line) = lines.next_line().await {
+        if let Some(line) = line {
+            output.push(line);
         }
-    };
-    let output: RingVec<String> = lines
-        .try_fold(
-            RingVec::new(limit.into().unwrap_or(1000)),
-            |mut acc, line| async move {
-                acc.push(line);
-                Ok(acc)
-            },
-        )
-        .await
-        .with_kind(crate::ErrorKind::Unknown)?;
+    }
     let output: Vec<String> = output.value.into_iter().collect();
     Ok(output)
 }
