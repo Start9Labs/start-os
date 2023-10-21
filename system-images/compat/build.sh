@@ -20,7 +20,7 @@ fi
 alias 'rust-musl-builder'='docker run $USE_TTY --rm -v "$HOME"/.cargo/registry:/root/.cargo/registry -v "$(pwd)":/home/rust/src messense/rust-musl-cross:${ARCH}-musl'
 
 cd ../..
-rust-musl-builder sh -c "(git config --global --add safe.directory '*'; cd system-images/compat && cargo build --release --target=x86_64-unknown-linux-musl --no-default-features)"
+rust-musl-builder sh -c "(git config --global --add safe.directory '*'; cd system-images/compat && cargo build --release --target=${ARCH}-unknown-linux-musl --no-default-features)"
 cd system-images/compat
 
 sudo chown -R $USER target
