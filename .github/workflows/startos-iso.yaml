@@ -139,6 +139,8 @@ jobs:
       - run: sudo mount -t tmpfs tmpfs /var/tmp/debspawn
         if: ${{ github.event.inputs.runner == 'fast' && (matrix.platform == 'x86_64' || matrix.platform == 'x86_64-nonfree') }}
 
+      - run: PLATFORM=${{ matrix.platform }} make metadata
+
       - name: Download compiled artifacts
         uses: actions/download-artifact@v3
         with:
