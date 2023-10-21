@@ -87,7 +87,7 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           name: compiled-${{ matrix.arch }}.tar
-          path: compiled.tar
+          path: compiled-${{ matrix.arch }}.tar
   image:
     name: Build Image
     needs: [compile]
@@ -121,8 +121,6 @@ jobs:
           )
         )[github.event.inputs.runner == 'fast']
       }}
-    env:
-      PLATFORM: ${{ matrix.platform }}
     steps:
       - name: Install dependencies
         run: |
@@ -156,14 +154,23 @@ jobs:
             }}.tar
 
       - name: Extract compiled artifacts
-        run: tar -mxvf compiled.tar
+        run: >-
+          tar -mxvf compiled-${{
+              fromJson('{
+                "x86_64": "x86_64",
+                "x86_64-nonfree": "x86_64",
+                "aarch64": "aarch64",
+                "aarch64-nonfree": "aarch64",
+                "raspberrypi": "aarch64",
+              }')[matrix.platform]
+            }}.tar
 
       - name: Run iso build
-        run: make iso
+        run: PLATFORM=${{ matrix.platform }} make iso
         if: ${{ matrix.platform != 'raspberrypi' }}
 
       - name: Run img build
-        run: make img
+        run: PLATFORM=${{ matrix.platform }} make img
         if: ${{ matrix.platform == 'raspberrypi' }}
 
       - uses: actions/upload-artifact@v3

@@ -162,7 +162,7 @@ build/lib/depends build/lib/conflicts: build/dpkg-deps/*
 	build/dpkg-deps/generate.sh
 
 system-images/compat/docker-images/$(ARCH).tar: $(COMPAT_SRC) backend/Cargo.lock | docker-buildx
-	cd system-images/compat && make docker-images/$(ARCH) && touch docker-images/$(ARCH).tar
+	cd system-images/compat && make docker-images/$(ARCH).tar && touch docker-images/$(ARCH).tar
 
 system-images/utils/docker-images/$(ARCH).tar: $(UTILS_SRC) | docker-buildx
 	cd system-images/utils && make docker-images/$(ARCH).tar && touch docker-images/$(ARCH).tar
@@ -215,7 +215,7 @@ patch-db/client/dist: $(PATCH_DB_CLIENT_SRC) patch-db/client/node_modules
 	npm --prefix frontend run build:deps
 
 # used by github actions
-compiled.tar: $(COMPILED_TARGETS) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE)
+compiled-$(ARCH).tar: $(COMPILED_TARGETS) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE)
 	tar -cvf $@ $^
 
 # this is a convenience step to build all frontends - it is not referenced elsewhere in this file
@@ -223,9 +223,6 @@ frontends: $(EMBASSY_UIS)
 
 # this is a convenience step to build the UI
 ui: frontend/dist/raw/ui
-
-# used by github actions
-backend: $(EMBASSY_BINS)
 
 cargo-deps/aarch64-unknown-linux-gnu/release/pi-beep:
 	ARCH=aarch64 ./build-cargo-dep.sh pi-beep
