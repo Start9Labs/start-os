@@ -1,4 +1,4 @@
- COMPAT_SRC := $(shell find ./src) Cargo.toml Cargo.lock
+COMPAT_SRC := $(shell find ./src) Cargo.toml Cargo.lock
 
 .DELETE_ON_ERROR:
 
@@ -17,5 +17,8 @@ docker-images/aarch64.tar: Dockerfile target/aarch64-unknown-linux-musl/release/
 docker-images/x86_64.tar: Dockerfile target/x86_64-unknown-linux-musl/release/compat docker-images
 	docker buildx build --build-arg ARCH=aarch64 --tag start9/x_system/compat --platform=linux/amd64 -o type=docker,dest=docker-images/x86_64.tar .
 
-target/aarch64-unknown-linux-musl/release/compat target/x86_64-unknown-linux-musl/release/compat: $(COMPAT_SRC) ../../backend/Cargo.lock
-	./build.sh
+target/aarch64-unknown-linux-musl/release/compat: $(COMPAT_SRC) ../../backend/Cargo.lock
+	ARCH=aarch64 ./build.sh
+
+target/x86_64-unknown-linux-musl/release/compat: $(COMPAT_SRC) ../../backend/Cargo.lock
+	ARCH=x86_64 ./build.sh

@@ -161,14 +161,14 @@ emulate-reflash: $(ALL_TARGETS)
 build/lib/depends build/lib/conflicts: build/dpkg-deps/*
 	build/dpkg-deps/generate.sh
 
-system-images/compat/docker-images/aarch64.tar system-images/compat/docker-images/x86_64.tar: $(COMPAT_SRC) backend/Cargo.lock | docker-buildx
-	cd system-images/compat && make && touch docker-images/*.tar
+system-images/compat/docker-images/$(ARCH).tar: $(COMPAT_SRC) backend/Cargo.lock | docker-buildx
+	cd system-images/compat && make docker-images/$(ARCH) && touch docker-images/$(ARCH).tar
 
-system-images/utils/docker-images/aarch64.tar system-images/utils/docker-images/x86_64.tar: $(UTILS_SRC) | docker-buildx
-	cd system-images/utils && make && touch docker-images/*.tar
+system-images/utils/docker-images/$(ARCH).tar: $(UTILS_SRC) | docker-buildx
+	cd system-images/utils && make docker-images/$(ARCH).tar && touch docker-images/$(ARCH).tar
 
-system-images/binfmt/docker-images/aarch64.tar system-images/binfmt/docker-images/x86_64.tar: $(BINFMT_SRC) | docker-buildx
-	cd system-images/binfmt && make && touch docker-images/*.tar
+system-images/binfmt/docker-images/$(ARCH).tar: $(BINFMT_SRC) | docker-buildx
+	cd system-images/binfmt && make docker-images/$(ARCH).tar && touch docker-images/$(ARCH).tar
 
 snapshots: libs/snapshot_creator/Cargo.toml
 	cd libs/  && ./build-v8-snapshot.sh
