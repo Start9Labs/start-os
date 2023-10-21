@@ -3,11 +3,6 @@
 set -e
 shopt -s expand_aliases
 
-if [ -z "$PLATFORM" ]; then
-	>&2 echo '$PLATFORM is required'
-	exit 1
-fi
-
 if [ "$0" != "./build.sh" ]; then
 	>&2 echo "Must be run from compat directory"
 	exit 1
