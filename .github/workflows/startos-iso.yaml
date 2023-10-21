@@ -146,13 +146,13 @@ jobs:
         with:
           name: >-
             compiled-${{
-              fromJson({
+              fromJson('{
                 "x86_64": "x86_64",
                 "x86_64-nonfree": "x86_64",
                 "aarch64": "aarch64",
                 "aarch64-nonfree": "aarch64",
                 "raspberrypi": "aarch64",
-              })[[matrix.platform]
+              }')[matrix.platform]
             }}.tar
 
       - name: Extract compiled artifacts
