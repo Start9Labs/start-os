@@ -4,7 +4,6 @@ import {
   BaseRouteReuseStrategy,
   createUrlTreeFromSnapshot,
   DetachedRouteHandle,
-  Route,
   UrlSerializer,
 } from '@angular/router'
 import { NavigationService } from './navigation.service'
@@ -15,32 +14,30 @@ import { NavigationService } from './navigation.service'
 export class RoutingStrategyService extends BaseRouteReuseStrategy {
   private readonly url = inject(UrlSerializer)
   private readonly navigation = inject(NavigationService)
-  private readonly handlers = new Map<Route, DetachedRouteHandle>()
+  private readonly handlers = new Map<string, DetachedRouteHandle>()
 
   override shouldDetach(route: ActivatedRouteSnapshot): boolean {
-    const path = this.url.serialize(createUrlTreeFromSnapshot(route, ['.']))
-    const inTabs = !!this.navigation.tabs.value.find(t => t.routerLink === path)
+    const path = this.getPath(route)
+    const store = this.navigation.hasTab(path)
 
-    if (!inTabs && route.routeConfig) {
-      this.handlers.delete(route.routeConfig)
-    }
+    if (!store) this.handlers.delete(path)
 
-    return path === '/portal/desktop' || inTabs
+    return store
   }
 
   override store(
     route: ActivatedRouteSnapshot,
     handle: DetachedRouteHandle,
   ): void {
-    if (route.routeConfig) this.handlers.set(route.routeConfig, handle)
+    this.handlers.set(this.getPath(route), handle)
   }
 
   override shouldAttach(route: ActivatedRouteSnapshot): boolean {
-    return !!route.routeConfig && !!this.handlers.get(route.routeConfig)
+    return !!this.handlers.get(this.getPath(route))
   }
 
   override retrieve(route: ActivatedRouteSnapshot): DetachedRouteHandle | null {
-    return (route.routeConfig && this.handlers.get(route.routeConfig)) || null
+    return this.handlers.get(this.getPath(route)) || null
   }
 
   override shouldReuseRoute(
@@ -68,5 +65,9 @@ export class RoutingStrategyService extends BaseRouteReuseStrategy {
       }
     }
     return true
+  }
+
+  private getPath(route: ActivatedRouteSnapshot): string {
+    return this.url.serialize(createUrlTreeFromSnapshot(route, ['.']))
   }
 }

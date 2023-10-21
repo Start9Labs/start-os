@@ -109,6 +109,7 @@ export class BackupsTargetsModal implements OnInit {
 
   async refresh() {
     this.loading$.next(true)
+    this.targets = undefined
 
     try {
       this.targets = await this.api.getBackupTargets({})
