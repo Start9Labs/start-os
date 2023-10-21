@@ -27,3 +27,4 @@ secrets.db
 /results
 /dpkg-workdir
 /compiled.tar
+/compiled-*.tar
