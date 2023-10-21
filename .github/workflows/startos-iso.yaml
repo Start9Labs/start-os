@@ -52,14 +52,14 @@ jobs:
       matrix:
         arch: >-
           ${{
-            {
+            fromJson('{
               "x86_64": ["x86_64"],
               "x86_64-nonfree": ["x86_64"],
               "aarch64": ["aarch64"],
               "aarch64-nonfree": ["aarch64"],
               "raspberrypi": ["aarch64"],
               "ALL": ["x86_64", "aarch64"]
-            }[[github.event.inputs.platform || 'ALL']
+            }')[[github.event.inputs.platform || 'ALL']
           }}
     runs-on: ${{ fromJson('["ubuntu-22.04", "buildjet-32vcpu-ubuntu-2204"]')[github.event.inputs.runner == 'fast'] }}
     steps:
