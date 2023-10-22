@@ -172,7 +172,7 @@ jobs:
       - name: Prevent rebuild of compiled artifacts
         run: |
           mkdir -p frontend/dist/raw
-          PLATFORM=x86_64 make -t compiled-x86_64.tar
+          PLATFORM=${{ matrix.platform }} make -t compiled-x86_64.tar
 
       - name: Run iso build
         run: PLATFORM=${{ matrix.platform }} make iso
