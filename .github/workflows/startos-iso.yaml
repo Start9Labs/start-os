@@ -170,9 +170,17 @@ jobs:
             }}.tar
 
       - name: Prevent rebuild of compiled artifacts
-        run: |
-          mkdir -p frontend/dist/raw
-          PLATFORM=${{ matrix.platform }} make -t compiled-x86_64.tar
+        run: >-
+          mkdir -p frontend/dist/raw &&
+          PLATFORM=${{ matrix.platform }} make -t compiled-${{
+              fromJson('{
+                "x86_64": "x86_64",
+                "x86_64-nonfree": "x86_64",
+                "aarch64": "aarch64",
+                "aarch64-nonfree": "aarch64",
+                "raspberrypi": "aarch64",
+              }')[matrix.platform]
+            }}.tar
 
       - name: Run iso build
         run: PLATFORM=${{ matrix.platform }} make iso
