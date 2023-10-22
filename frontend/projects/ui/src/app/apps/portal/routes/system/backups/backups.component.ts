@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { TuiDialogService, TuiSvgModule } from '@taiga-ui/core'
+import { TuiFadeModule } from '@taiga-ui/experimental'
 import { BackupsCreateService } from './services/create.service'
 import { BackupsRestoreService } from './services/restore.service'
 import { BackupsUpcomingComponent } from './components/upcoming.component'
@@ -24,15 +25,20 @@ import { JOBS } from './modals/jobs.component'
         </div>
       </button>
     </section>
-    <section>
-      <h3 class="g-title">Upcoming Jobs</h3>
+    <h3 class="g-title">Upcoming Jobs</h3>
+    <div tuiFade class="g-hidden-scrollbar">
       <table backupsUpcoming class="g-table"></table>
-    </section>
+    </div>
   `,
   host: { class: 'g-page' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, TuiSvgModule, BackupsUpcomingComponent],
+  imports: [
+    CommonModule,
+    TuiSvgModule,
+    TuiFadeModule,
+    BackupsUpcomingComponent,
+  ],
 })
 export class BackupsComponent {
   private readonly dialogs = inject(TuiDialogService)
@@ -64,7 +70,9 @@ export class BackupsComponent {
       icon: 'tuiIconDatabaseLarge',
       description: 'Manage backup targets',
       action: () =>
-        this.dialogs.open(TARGETS, { label: 'Backup Targets' }).subscribe(),
+        this.dialogs
+          .open(TARGETS, { label: 'Backup Targets', size: 'l' })
+          .subscribe(),
     },
     {
       name: 'History',

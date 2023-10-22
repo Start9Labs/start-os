@@ -382,6 +382,7 @@ ul {
 
 .g-table {
   width: 100%;
+  min-width: 40rem;
 
   td,
   th {
@@ -466,4 +467,9 @@ button.g-action {
   tui-toggle {
     margin-left: auto;
   }
+}
+
+.g-hidden-scrollbar {
+  @include scrollbar-hidden;
+  overflow: auto !important;
 }

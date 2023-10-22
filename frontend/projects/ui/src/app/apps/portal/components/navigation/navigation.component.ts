@@ -1,6 +1,6 @@
-import { CommonModule, Location } from '@angular/common'
+import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { RouterModule } from '@angular/router'
+import { Router, RouterModule } from '@angular/router'
 import { TuiButtonModule, TuiSvgModule } from '@taiga-ui/core'
 import { NavigationService } from '../../services/navigation.service'
 import { NavigationItem } from '../../types/navigation-item'
@@ -14,7 +14,7 @@ import { NavigationItem } from '../../types/navigation-item'
   imports: [CommonModule, RouterModule, TuiButtonModule, TuiSvgModule],
 })
 export class NavigationComponent {
-  private readonly location = inject(Location)
+  private readonly router = inject(Router)
   private readonly navigation = inject(NavigationService)
 
   readonly tabs$ = this.navigation.getTabs()
@@ -22,6 +22,6 @@ export class NavigationComponent {
   removeTab(tab: NavigationItem, active: boolean) {
     this.navigation.removeTab(tab)
 
-    if (active) this.location.back()
+    if (active) this.router.navigate(['./portal/desktop'])
   }
 }

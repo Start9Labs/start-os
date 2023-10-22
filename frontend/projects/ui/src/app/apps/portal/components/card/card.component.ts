@@ -7,8 +7,8 @@ import {
   Input,
 } from '@angular/core'
 import {
-  TuiBadgeAlertModule,
   TuiBadgedContentModule,
+  TuiBadgeNotificationModule,
 } from '@taiga-ui/experimental'
 import { RouterLink } from '@angular/router'
 import { TickerModule } from '@start9labs/shared'
@@ -37,7 +37,7 @@ import { toRouterLink } from '../../utils/to-router-link'
     TuiSvgModule,
     TickerModule,
     TuiBadgedContentModule,
-    TuiBadgeAlertModule,
+    TuiBadgeNotificationModule,
     ActionsComponent,
   ],
 })

@@ -6,7 +6,7 @@ import { NavigationItem } from '../types/navigation-item'
   providedIn: 'root',
 })
 export class NavigationService {
-  readonly tabs = new BehaviorSubject<readonly NavigationItem[]>([])
+  private readonly tabs = new BehaviorSubject<readonly NavigationItem[]>([])
 
   getTabs(): Observable<readonly NavigationItem[]> {
     return this.tabs
@@ -20,5 +20,9 @@ export class NavigationService {
     if (this.tabs.value.every(t => t.routerLink !== tab.routerLink)) {
       this.tabs.next([...this.tabs.value, tab])
     }
+  }
+
+  hasTab(path: string): boolean {
+    return this.tabs.value.some(t => t.routerLink === path)
   }
 }
