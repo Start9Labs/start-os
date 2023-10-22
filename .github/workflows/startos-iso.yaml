@@ -159,7 +159,7 @@ jobs:
 
       - name: Extract compiled artifacts
         run: >-
-          tar -mxvf compiled-${{
+          tar -xvf compiled-${{
               fromJson('{
                 "x86_64": "x86_64",
                 "x86_64-nonfree": "x86_64",
@@ -168,6 +168,11 @@ jobs:
                 "raspberrypi": "aarch64",
               }')[matrix.platform]
             }}.tar
+
+      - name: Prevent rebuild of compiled artifacts
+        run: |
+          mkdir -p frontend/dist/raw
+          PLATFORM=x86_64 make -t compiled-x86_64.tar
 
       - name: Run iso build
         run: PLATFORM=${{ matrix.platform }} make iso
