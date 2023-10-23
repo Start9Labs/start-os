@@ -121,6 +121,17 @@ jobs:
           )
         )[github.event.inputs.runner == 'fast']
       }}
+    env:
+      ARCH: >-
+        ${{
+          fromJson('{
+            "x86_64": "x86_64",
+            "x86_64-nonfree": "x86_64",
+            "aarch64": "aarch64",
+            "aarch64-nonfree": "aarch64",
+            "raspberrypi": "aarch64",
+          }')[matrix.platform]
+        }}
     steps:
       - uses: actions/checkout@v3
         with:
@@ -146,41 +157,15 @@ jobs:
       - name: Download compiled artifacts
         uses: actions/download-artifact@v3
         with:
-          name: >-
-            compiled-${{
-              fromJson('{
-                "x86_64": "x86_64",
-                "x86_64-nonfree": "x86_64",
-                "aarch64": "aarch64",
-                "aarch64-nonfree": "aarch64",
-                "raspberrypi": "aarch64",
-              }')[matrix.platform]
-            }}.tar
+          name: compiled-${{ env.ARCH }}.tar
 
       - name: Extract compiled artifacts
-        run: >-
-          tar -xvf compiled-${{
-              fromJson('{
-                "x86_64": "x86_64",
-                "x86_64-nonfree": "x86_64",
-                "aarch64": "aarch64",
-                "aarch64-nonfree": "aarch64",
-                "raspberrypi": "aarch64",
-              }')[matrix.platform]
-            }}.tar
+        run: tar -xvf compiled-${{ env.ARCH }}.tar
 
       - name: Prevent rebuild of compiled artifacts
-        run: >-
-          mkdir -p frontend/dist/raw &&
-          PLATFORM=${{ matrix.platform }} make -t compiled-${{
-              fromJson('{
-                "x86_64": "x86_64",
-                "x86_64-nonfree": "x86_64",
-                "aarch64": "aarch64",
-                "aarch64-nonfree": "aarch64",
-                "raspberrypi": "aarch64",
-              }')[matrix.platform]
-            }}.tar
+        run: |
+          mkdir -p frontend/dist/raw
+          PLATFORM=${{ matrix.platform }} make -t compiled-${{ env.ARCH }}.tar
 
       - name: Run iso build
         run: PLATFORM=${{ matrix.platform }} make iso

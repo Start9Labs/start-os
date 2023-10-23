@@ -319,4 +319,6 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 	umount $TMPDIR
 	losetup -d $OUTPUT_DEVICE
 
+	mv $prep_results_dir/${IMAGE_BASENAME}.img $RESULTS_DIR/$IMAGE_BASENAME.iso
+
 fi

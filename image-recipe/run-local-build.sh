@@ -70,7 +70,7 @@ mkdir -p ${BASEDIR}/results
 set +e
 debspawn run \
 	-x \
-	--allow=read-kmods \
+	--allow=read-kmods,kvm,full-dev \
 	--cachekey="${SUITE}-${prepare_hash}-mkimage" \
 	--init-command="${BASEDIR}/image-recipe/prepare.sh" \
 	--build-dir="${BASEDIR}/image-recipe" \

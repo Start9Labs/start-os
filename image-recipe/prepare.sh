@@ -17,4 +17,8 @@ apt-get install -yq \
 	ca-certificates \
 	curl \
 	gpg \
-	fdisk
+	fdisk \
+	dosfstools \
+	e2fsprogs \
+	squashfs-tools \
+	rsync
