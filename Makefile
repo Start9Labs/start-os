@@ -3,7 +3,7 @@ ENVIRONMENT_FILE := $(shell ./check-environment.sh)
 GIT_HASH_FILE := $(shell ./check-git-hash.sh)
 VERSION_FILE := $(shell ./check-version.sh)
 BASENAME := $(shell ./basename.sh)
-PLATFORM := $(shell cat ./PLATFORM.txt)
+PLATFORM := $(shell if [ -f ./PLATFORM.txt ]; then cat ./PLATFORM.txt; else echo unknown; fi)
 ARCH := $(shell if [ "$(PLATFORM)" = "raspberrypi" ]; then echo aarch64; else echo $(PLATFORM) | sed 's/-nonfree$$//g'; fi)
 IMAGE_TYPE=$(shell if [ "$(PLATFORM)" = raspberrypi ]; then echo img; else echo iso; fi)
 EMBASSY_BINS := backend/target/$(ARCH)-unknown-linux-gnu/release/startbox libs/target/aarch64-unknown-linux-musl/release/embassy_container_init libs/target/x86_64-unknown-linux-musl/release/embassy_container_init
@@ -197,11 +197,7 @@ frontend/dist/static: $(EMBASSY_UIS) $(ENVIRONMENT_FILE)
 	./compress-uis.sh
 
 frontend/config.json: $(GIT_HASH_FILE) frontend/config-sample.json
-	jq '.useMocks = false' frontend/config-sample.json > frontend/config.json
-	jq '.packageArch = "$(ARCH)"' frontend/config.json > frontend/config.json.tmp
-	jq '.osArch = "$(PLATFORM)"' frontend/config.json.tmp > frontend/config.json
-	rm frontend/config.json.tmp
-	npm --prefix frontend run-script build-config
+	jq '.useMocks = false' frontend/config-sample.json | jq '.gitHash = "$(shell cat GIT_HASH.txt)"' > frontend/config.json
 
 frontend/patchdb-ui-seed.json: frontend/package.json
 	jq '."ack-welcome" = $(shell yq '.version' frontend/package.json)' frontend/patchdb-ui-seed.json > ui-seed.tmp

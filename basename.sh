@@ -2,7 +2,7 @@
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-PLATFORM=$(cat ./PLATFORM.txt)
+PLATFORM=$(if [ -f ./PLATFORM.txt ]; then cat ./PLATFORM.txt; else echo unknown; fi)
 VERSION="$(cat ./VERSION.txt)"
 GIT_HASH="$(cat ./GIT_HASH.txt)"
 if [[ "$GIT_HASH" =~ ^@ ]]; then
