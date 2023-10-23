@@ -62,6 +62,7 @@ impl VersionT for Version {
             }
         }
         db.mutate(|v| {
+            v.as_server_info_mut().as_zram_mut().ser(&true)?;
             for (_, pde) in v.as_package_data_mut().as_entries_mut()? {
                 for (dependency, info) in pde
                     .as_installed_mut()

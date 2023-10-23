@@ -80,7 +80,7 @@ impl Database {
                     .map(|x| format!("{x:X}"))
                     .join(":"),
                 system_start_time: Utc::now().to_rfc3339(),
-                zram: false,
+                zram: true,
             },
             package_data: AllPackageData::default(),
             ui: serde_json::from_str(include_str!("../../../frontend/patchdb-ui-seed.json"))
