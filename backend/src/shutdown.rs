@@ -9,7 +9,7 @@ use crate::init::{STANDBY_MODE_PATH, SYSTEM_REBUILD_PATH};
 use crate::sound::SHUTDOWN;
 use crate::util::docker::CONTAINER_TOOL;
 use crate::util::{display_none, Invoke};
-use crate::{Error, OS_ARCH};
+use crate::{Error, PLATFORM};
 
 #[derive(Debug, Clone)]
 pub struct Shutdown {
@@ -60,7 +60,7 @@ impl Shutdown {
                     tracing::debug!("{:?}", e);
                 }
             }
-            if OS_ARCH != "raspberrypi" || self.restart {
+            if &*PLATFORM != "raspberrypi" || self.restart {
                 if let Err(e) = SHUTDOWN.play().await {
                     tracing::error!("Error Playing Shutdown Song: {}", e);
                     tracing::debug!("{:?}", e);
@@ -68,7 +68,7 @@ impl Shutdown {
             }
         });
         drop(rt);
-        if OS_ARCH == "raspberrypi" {
+        if &*PLATFORM == "raspberrypi" {
             if !self.restart {
                 std::fs::write(STANDBY_MODE_PATH, "").unwrap();
                 Command::new("sync").spawn().unwrap().wait().unwrap();

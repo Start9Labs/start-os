@@ -60,12 +60,12 @@ sudo mount `partition_for ${OUTPUT_DEVICE} 2` $TMPDIR
 sudo mkdir $TMPDIR/boot
 sudo mount `partition_for ${OUTPUT_DEVICE} 1` $TMPDIR/boot
 sudo unsquashfs -f -d $TMPDIR startos.raspberrypi.squashfs
-REAL_GIT_HASH=$(cat $TMPDIR/usr/lib/embassy/GIT_HASH.txt)
-REAL_VERSION=$(cat $TMPDIR/usr/lib/embassy/VERSION.txt)
-REAL_ENVIRONMENT=$(cat $TMPDIR/usr/lib/embassy/ENVIRONMENT.txt)
-sudo sed -i 's| boot=embassy| init=/usr/lib/embassy/scripts/init_resize\.sh|' $TMPDIR/boot/cmdline.txt
+REAL_GIT_HASH=$(cat $TMPDIR/usr/lib/startos/GIT_HASH.txt)
+REAL_VERSION=$(cat $TMPDIR/usr/lib/startos/VERSION.txt)
+REAL_ENVIRONMENT=$(cat $TMPDIR/usr/lib/startos/ENVIRONMENT.txt)
+sudo sed -i 's| boot=embassy| init=/usr/lib/startos/scripts/init_resize\.sh|' $TMPDIR/boot/cmdline.txt
 sudo cp ./build/raspberrypi/fstab $TMPDIR/etc/
-sudo cp ./build/raspberrypi/init_resize.sh $TMPDIR/usr/lib/embassy/scripts/init_resize.sh
+sudo cp ./build/raspberrypi/init_resize.sh $TMPDIR/usr/lib/startos/scripts/init_resize.sh
 sudo umount $TMPDIR/boot
 sudo umount $TMPDIR
 sudo losetup -d $OUTPUT_DEVICE

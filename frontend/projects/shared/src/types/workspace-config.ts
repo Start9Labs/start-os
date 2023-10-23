@@ -1,6 +1,4 @@
 export type WorkspaceConfig = {
-  packageArch: 'aarch64' | 'x86_64'
-  osArch: 'aarch64' | 'x86_64' | 'raspberrypi'
   gitHash: string
   useMocks: boolean
   enableWidgets: boolean

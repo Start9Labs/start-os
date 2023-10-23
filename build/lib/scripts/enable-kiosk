@@ -72,7 +72,7 @@ user_pref("messaging-system.rsexperimentloader.enabled", false);
 user_pref("network.allow-experiments", false);
 user_pref("network.captive-portal-service.enabled", false);
 user_pref("network.connectivity-service.enabled", false);
-user_pref("network.proxy.autoconfig_url", "file:///usr/lib/embassy/proxy.pac");
+user_pref("network.proxy.autoconfig_url", "file:///usr/lib/startos/proxy.pac");
 user_pref("network.proxy.socks_remote_dns", true);
 user_pref("network.proxy.type", 2);
 user_pref("signon.rememberSignons", false);
@@ -91,11 +91,11 @@ EOT
 while ! curl "http://localhost" > /dev/null; do
     sleep 1
 done
-while ! /usr/lib/embassy/scripts/check-monitor; do
+while ! /usr/lib/startos/scripts/check-monitor; do
     sleep 15
 done
 (
-    while /usr/lib/embassy/scripts/check-monitor; do
+    while /usr/lib/startos/scripts/check-monitor; do
         sleep 15
     done
     killall firefox-esr

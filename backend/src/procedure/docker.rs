@@ -813,7 +813,7 @@ impl LongRunning {
         socket_path: &Path,
     ) -> Result<tokio::process::Command, Error> {
         const INIT_EXEC: &str = "/start9/bin/embassy_container_init";
-        const BIND_LOCATION: &str = "/usr/lib/embassy/container/";
+        const BIND_LOCATION: &str = "/usr/lib/startos/container/";
         tracing::trace!("setup_long_running_docker_cmd");
 
         remove_container(container_name, true).await?;

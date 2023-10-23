@@ -15,6 +15,7 @@ name = "start-os"
 readme = "README.md"
 repository = "https://github.com/Start9Labs/start-os"
 version = "0.3.5"
+license = "MIT"
 
 [lib]
 name = "startos"
@@ -31,7 +32,7 @@ cli = []
 daemon = []
 default = ["cli", "sdk", "daemon", "js_engine"]
 dev = []
-podman = []
+docker = []
 sdk = []
 unstable = ["console-subscriber", "tokio/tracing"]
 
@@ -76,7 +77,6 @@ emver = { version = "0.1.7", git = "https://github.com/Start9Labs/emver-rs.git",
 ] }
 fd-lock-rs = "0.1.4"
 futures = "0.3.28"
-git-version = "0.3.5"
 gpt = "3.1.0"
 helpers = { path = "../libs/helpers" }
 hex = "0.4.3"

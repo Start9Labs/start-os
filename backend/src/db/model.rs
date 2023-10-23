@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use emver::VersionRange;
+use imbl_value::InternedString;
 use ipnet::{Ipv4Net, Ipv6Net};
 use isocountry::CountryCode;
 use itertools::Itertools;
@@ -23,6 +24,7 @@ use crate::s9pk::manifest::{Manifest, PackageId};
 use crate::status::Status;
 use crate::util::Version;
 use crate::version::{Current, VersionT};
+use crate::{ARCH, PLATFORM};
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
@@ -38,6 +40,8 @@ impl Database {
         let lan_address = account.hostname.lan_address().parse().unwrap();
         Database {
             server_info: ServerInfo {
+                arch: get_arch(),
+                platform: get_platform(),
                 id: account.server_id.clone(),
                 version: Current::new().semver().into(),
                 hostname: account.hostname.no_dot_host_name(),
@@ -87,10 +91,22 @@ impl Database {
 
 pub type DatabaseModel = Model<Database>;
 
+fn get_arch() -> InternedString {
+    (*ARCH).into()
+}
+
+fn get_platform() -> InternedString {
+    (&*PLATFORM).into()
+}
+
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "kebab-case")]
 #[model = "Model<Self>"]
 pub struct ServerInfo {
+    #[serde(default = "get_arch")]
+    pub arch: InternedString,
+    #[serde(default = "get_platform")]
+    pub platform: InternedString,
     pub id: String,
     pub hostname: String,
     pub version: Version,

@@ -78,6 +78,7 @@ export interface ServerInfo {
   'ca-fingerprint': string
   'system-start-time': string
   zram: boolean
+  platform: string
 }
 
 export interface IpInfo {

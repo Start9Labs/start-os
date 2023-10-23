@@ -17,7 +17,7 @@ use crate::net::web_server::WebServer;
 use crate::shutdown::Shutdown;
 use crate::sound::CHIME;
 use crate::util::Invoke;
-use crate::{Error, ErrorKind, ResultExt, OS_ARCH};
+use crate::{Error, ErrorKind, ResultExt, PLATFORM};
 
 #[instrument(skip_all)]
 async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error> {
@@ -30,19 +30,19 @@ async fn setup_or_init(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Er
 
     Command::new("ln")
         .arg("-sf")
-        .arg("/usr/lib/embassy/scripts/fake-apt")
+        .arg("/usr/lib/startos/scripts/fake-apt")
         .arg("/usr/local/bin/apt")
         .invoke(crate::ErrorKind::OpenSsh)
         .await?;
     Command::new("ln")
         .arg("-sf")
-        .arg("/usr/lib/embassy/scripts/fake-apt")
+        .arg("/usr/lib/startos/scripts/fake-apt")
         .arg("/usr/local/bin/apt-get")
         .invoke(crate::ErrorKind::OpenSsh)
         .await?;
     Command::new("ln")
         .arg("-sf")
-        .arg("/usr/lib/embassy/scripts/fake-apt")
+        .arg("/usr/lib/startos/scripts/fake-apt")
         .arg("/usr/local/bin/aptitude")
         .invoke(crate::ErrorKind::OpenSsh)
         .await?;
@@ -177,7 +177,7 @@ async fn run_script_if_exists<P: AsRef<Path>>(path: P) {
 
 #[instrument(skip_all)]
 async fn inner_main(cfg_path: Option<PathBuf>) -> Result<Option<Shutdown>, Error> {
-    if OS_ARCH == "raspberrypi" && tokio::fs::metadata(STANDBY_MODE_PATH).await.is_ok() {
+    if &*PLATFORM == "raspberrypi" && tokio::fs::metadata(STANDBY_MODE_PATH).await.is_ok() {
         tokio::fs::remove_file(STANDBY_MODE_PATH).await?;
         Command::new("sync").invoke(ErrorKind::Filesystem).await?;
         crate::sound::SHUTDOWN.play().await?;

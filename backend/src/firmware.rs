@@ -23,7 +23,7 @@ pub async fn update_firmware() -> Result<RequiresReboot, Error> {
     if product_name.is_empty() {
         return Ok(RequiresReboot(false));
     }
-    let firmware_dir = Path::new("/usr/lib/embassy/firmware").join(&product_name);
+    let firmware_dir = Path::new("/usr/lib/startos/firmware").join(&product_name);
     if tokio::fs::metadata(&firmware_dir).await.is_ok() {
         let current_firmware = String::from_utf8(
             Command::new("dmidecode")
