@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-MAX_IMG_SECTORS=8388608 # 4GB
+MAX_IMG_SECTORS=7217792 # 4GB
 
 echo "==== StartOS Image Build ===="
 
@@ -273,7 +273,7 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 		fi
 	}
 
-	ROOT_PART_END=7217792
+	ROOT_PART_END=$MAX_IMG_SECTORS
 	TARGET_NAME=$prep_results_dir/${IMAGE_BASENAME}.img
 	TARGET_SIZE=$[($ROOT_PART_END+1)*512]
 	truncate -s $TARGET_SIZE $TARGET_NAME
@@ -317,8 +317,31 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 
 	umount $TMPDIR/boot
 	umount $TMPDIR
+
+	e2fsck -fy `partition_for ${OUTPUT_DEVICE} 2`
+	resize2fs -M `partition_for ${OUTPUT_DEVICE} 2`
+
+	BLOCK_COUNT=$(dumpe2fs -h `partition_for ${OUTPUT_DEVICE} 2` | awk '/^Block count:/ { print $3 }')
+	BLOCK_SIZE=$(dumpe2fs -h `partition_for ${OUTPUT_DEVICE} 2` | awk '/^Block size:/ { print $3 }')
+	SECTOR_LEN=$[$BLOCK_COUNT*$BLOCK_SIZE/512]
+
 	losetup -d $OUTPUT_DEVICE
 
-	mv $prep_results_dir/${IMAGE_BASENAME}.img $RESULTS_DIR/$IMAGE_BASENAME.iso
+	(
+		echo d
+		echo 2
+		echo n
+		echo p
+		echo 2
+		echo 526336
+		echo +$SECTOR_LEN
+		echo w
+	) | fdisk $TARGET_NAME
+
+	ROOT_PART_END=$[526336+$SECTOR_LEN]
+	TARGET_SIZE=$[($ROOT_PART_END+1)*512]
+	truncate -s $TARGET_SIZE $TARGET_NAME
+
+	mv $TARGET_NAME $RESULTS_DIR/$IMAGE_BASENAME.img
 
 fi
