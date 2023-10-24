@@ -396,7 +396,7 @@ impl DockerProcedure {
 
         cmd.arg("exec");
 
-        cmd.args(self.docker_args_inject(pkg_id).await?);
+        cmd.args(self.docker_args_inject(pkg_id));
         let input_buf = if let (Some(input), Some(format)) = (&input, &self.io_format) {
             cmd.stdin(std::process::Stdio::piped());
             Some(format.to_vec(input)?)
@@ -756,7 +756,7 @@ impl DockerProcedure {
                 + self.args.len(), // [ARG...]
         )
     }
-    async fn docker_args_inject(&self, pkg_id: &PackageId) -> Result<Vec<Cow<'_, OsStr>>, Error> {
+    fn docker_args_inject(&self, pkg_id: &PackageId) -> Vec<Cow<'_, OsStr>> {
         let mut res = self.new_docker_args();
         if let Some(shm_size_mb) = self.shm_size_mb {
             res.push(OsStr::new("--shm-size").into());
@@ -769,7 +769,7 @@ impl DockerProcedure {
 
         res.extend(self.args.iter().map(|s| OsStr::new(s).into()));
 
-        Ok(res)
+        res
     }
 }
 
@@ -893,13 +893,11 @@ async fn buf_reader_to_lines(
     limit: impl Into<Option<usize>>,
 ) -> Result<Vec<String>, Error> {
     let mut lines = reader.lines();
-    let mut output = RingVec::new(limit.into().unwrap_or(1000));
-    while let Ok(line) = lines.next_line().await {
-        if let Some(line) = line {
-            output.push(line);
-        }
+    let mut answer = RingVec::new(limit.into().unwrap_or(1000));
+    while let Some(line) = lines.next_line().await? {
+        answer.push(line);
     }
-    let output: Vec<String> = output.value.into_iter().collect();
+    let output: Vec<String> = answer.value.into_iter().collect();
     Ok(output)
 }
 
@@ -963,5 +961,12 @@ mod tests {
         }
         assert_eq!(CAPACITY_IN, ring.value.capacity());
         assert_eq!(CAPACITY_IN, ring.value.len());
+    }
+
+    #[test]
+    fn tests_buf_reader_to_lines() {
+        let mut reader = BufReader::new("hello\nworld\n".as_bytes());
+        let lines = futures::executor::block_on(buf_reader_to_lines(&mut reader, None)).unwrap();
+        assert_eq!(lines, vec!["hello", "world"]);
     }
 }
