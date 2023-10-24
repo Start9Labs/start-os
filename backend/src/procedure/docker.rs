@@ -396,7 +396,7 @@ impl DockerProcedure {
 
         cmd.arg("exec");
 
-        cmd.args(self.docker_args_inject(pkg_id).await?);
+        cmd.args(self.docker_args_inject(pkg_id));
         let input_buf = if let (Some(input), Some(format)) = (&input, &self.io_format) {
             cmd.stdin(std::process::Stdio::piped());
             Some(format.to_vec(input)?)
@@ -756,7 +756,7 @@ impl DockerProcedure {
                 + self.args.len(), // [ARG...]
         )
     }
-    async fn docker_args_inject(&self, pkg_id: &PackageId) -> Result<Vec<Cow<'_, OsStr>>, Error> {
+    fn docker_args_inject(&self, pkg_id: &PackageId) -> Vec<Cow<'_, OsStr>> {
         let mut res = self.new_docker_args();
         if let Some(shm_size_mb) = self.shm_size_mb {
             res.push(OsStr::new("--shm-size").into());
@@ -769,7 +769,7 @@ impl DockerProcedure {
 
         res.extend(self.args.iter().map(|s| OsStr::new(s).into()));
 
-        Ok(res)
+        res
     }
 }
 
