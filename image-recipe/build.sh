@@ -318,7 +318,7 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 	umount $TMPDIR/boot
 	umount $TMPDIR
 
-	e2fsck -f `partition_for ${OUTPUT_DEVICE} 2`
+	e2fsck -fy `partition_for ${OUTPUT_DEVICE} 2`
 	resize2fs -M `partition_for ${OUTPUT_DEVICE} 2`
 
 	BLOCK_COUNT=$(dumpe2fs -h `partition_for ${OUTPUT_DEVICE} 2` | awk '/^Block count:/ { print $3 }')
