@@ -893,13 +893,11 @@ async fn buf_reader_to_lines(
     limit: impl Into<Option<usize>>,
 ) -> Result<Vec<String>, Error> {
     let mut lines = reader.lines();
-    let mut output = RingVec::new(limit.into().unwrap_or(1000));
-    while let Ok(line) = lines.next_line().await {
-        if let Some(line) = line {
-            output.push(line);
-        }
+    let mut answer = RingVec::new(limit.into().unwrap_or(1000));
+    while let Some(line) = lines.next_line().await? {
+        answer.push(line);
     }
-    let output: Vec<String> = output.value.into_iter().collect();
+    let output: Vec<String> = answer.value.into_iter().collect();
     Ok(output)
 }
 
@@ -963,5 +961,12 @@ mod tests {
         }
         assert_eq!(CAPACITY_IN, ring.value.capacity());
         assert_eq!(CAPACITY_IN, ring.value.len());
+    }
+
+    #[test]
+    fn tests_buf_reader_to_lines() {
+        let mut reader = BufReader::new("hello\nworld\n".as_bytes());
+        let lines = futures::executor::block_on(buf_reader_to_lines(&mut reader, None)).unwrap();
+        assert_eq!(lines, vec!["hello", "world"]);
     }
 }
