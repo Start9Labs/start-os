@@ -84,7 +84,7 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
                 argon2::hash_encoded(
                     password.as_bytes(),
                     &rand::random::<[u8; 16]>()[..],
-                    &argon2::Config::default(),
+                    &argon2::Config::rfc9106_low_mem(),
                 )
                 .with_kind(crate::ErrorKind::PasswordHashGeneration)?,
             );
@@ -134,7 +134,7 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
             argon2::hash_encoded(
                 new_password.as_bytes(),
                 &rand::random::<[u8; 16]>()[..],
-                &argon2::Config::default(),
+                &argon2::Config::rfc9106_low_mem(),
             )
             .with_kind(crate::ErrorKind::PasswordHashGeneration)?,
         );
