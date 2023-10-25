@@ -3,12 +3,21 @@ import { Component, inject } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { Router } from '@angular/router'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { TuiLinkModule, TuiWrapperModule } from '@taiga-ui/core'
+import {
+  TuiAlertService,
+  TuiLinkModule,
+  TuiWrapperModule,
+} from '@taiga-ui/core'
 import { TuiAvatarModule, TuiButtonModule } from '@taiga-ui/experimental'
-import { TuiInputFilesModule } from '@taiga-ui/kit'
+import {
+  TuiInputFilesModule,
+  tuiInputFilesOptionsProvider,
+} from '@taiga-ui/kit'
 import { ConfigService } from 'src/app/services/config.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 
+import { NavigationService } from '../../../services/navigation.service'
+import { toDesktopItem } from '../../../utils/to-desktop-item'
 import { parseS9pk, validateS9pk } from './sideload.utils'
 
 @Component({
@@ -48,6 +57,7 @@ import { parseS9pk, validateS9pk } from './sideload.utils'
     </tui-input-files>
   `,
   host: { class: 'g-page', '[style.padding-top.rem]': '2' },
+  providers: [tuiInputFilesOptionsProvider({ maxFileSize: Infinity })],
   standalone: true,
   imports: [
     CommonModule,
@@ -64,6 +74,8 @@ export class SideloadComponent {
   private readonly api = inject(ApiService)
   private readonly errorService = inject(ErrorService)
   private readonly router = inject(Router)
+  private readonly navigation = inject(NavigationService)
+  private readonly alerts = inject(TuiAlertService)
 
   readonly isTor = inject(ConfigService).isTor()
 
@@ -85,6 +97,11 @@ export class SideloadComponent {
 
       await this.api.uploadPackage(pkg, file)
       await this.router.navigate(['/portal/desktop'])
+
+      this.navigation.removeTab(toDesktopItem('/portal/system/sideload'))
+      this.alerts
+        .open('Package uploaded successfully', { status: 'success' })
+        .subscribe()
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

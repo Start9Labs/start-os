@@ -12,8 +12,8 @@ export class NavigationService {
     return this.tabs
   }
 
-  removeTab(tab: NavigationItem) {
-    this.tabs.next(this.tabs.value.filter(t => t !== tab))
+  removeTab({ routerLink }: NavigationItem) {
+    this.tabs.next(this.tabs.value.filter(t => t.routerLink !== routerLink))
   }
 
   addTab(tab: NavigationItem) {
