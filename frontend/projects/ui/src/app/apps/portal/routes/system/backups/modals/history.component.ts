@@ -8,13 +8,8 @@ import {
   ALWAYS_TRUE_HANDLER,
   TuiForModule,
 } from '@taiga-ui/cdk'
-import {
-  TuiButtonModule,
-  TuiDialogService,
-  TuiLinkModule,
-  TuiSvgModule,
-} from '@taiga-ui/core'
-import { TuiFadeModule } from '@taiga-ui/experimental'
+import { TuiDialogService, TuiLinkModule, TuiSvgModule } from '@taiga-ui/core'
+import { TuiButtonModule, TuiFadeModule } from '@taiga-ui/experimental'
 import { TuiCheckboxModule } from '@taiga-ui/kit'
 import { BehaviorSubject } from 'rxjs'
 import { BackupRun } from 'src/app/services/api/api.types'
@@ -31,7 +26,6 @@ import { REPORT } from './report.component'
       Past Events
       <button
         tuiButton
-        size="m"
         appearance="secondary-destructive"
         [disabled]="disabled"
         (click)="delete()"

@@ -3,13 +3,12 @@ import { Component, inject, OnInit } from '@angular/core'
 import { ErrorService, LoadingService } from '@start9labs/shared'
 import { TuiForModule } from '@taiga-ui/cdk'
 import {
-  TuiButtonModule,
   TuiDialogOptions,
   TuiDialogService,
   TuiNotificationModule,
   TuiSvgModule,
 } from '@taiga-ui/core'
-import { TuiFadeModule } from '@taiga-ui/experimental'
+import { TuiButtonModule, TuiFadeModule } from '@taiga-ui/experimental'
 import { TUI_PROMPT, TuiPromptData } from '@taiga-ui/kit'
 import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 import { BehaviorSubject, filter } from 'rxjs'
@@ -36,7 +35,7 @@ import { EDIT } from './edit.component'
     </tui-notification>
     <h3 class="g-title">
       Saved Jobs
-      <button tuiButton size="s" icon="tuiIconPlus" (click)="create()">
+      <button tuiButton size="s" iconLeft="tuiIconPlus" (click)="create()">
         Create New Job
       </button>
     </h3>
@@ -65,14 +64,14 @@ import { EDIT } from './edit.component'
                 tuiIconButton
                 appearance="icon"
                 size="xs"
-                icon="tuiIconEdit2"
+                iconLeft="tuiIconEdit2"
                 (click)="update(job)"
               ></button>
               <button
                 tuiIconButton
                 appearance="icon"
                 size="xs"
-                icon="tuiIconTrash2"
+                iconLeft="tuiIconTrash2"
                 (click)="delete(job.id)"
               ></button>
             </td>

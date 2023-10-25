@@ -7,8 +7,8 @@ import {
   LoadingService,
 } from '@start9labs/shared'
 import { InputSpec } from '@start9labs/start-sdk/lib/config/configTypes'
+import { TuiButtonModule } from '@taiga-ui/experimental'
 import {
-  TuiButtonModule,
   TuiDialogContext,
   TuiDialogService,
   TuiLoaderModule,

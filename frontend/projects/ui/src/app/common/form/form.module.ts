@@ -4,7 +4,6 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms'
 import { MaskitoModule } from '@maskito/angular'
 import { TuiMapperPipeModule, TuiValueChangesModule } from '@taiga-ui/cdk'
 import {
-  TuiButtonModule,
   TuiErrorModule,
   TuiExpandModule,
   TuiHintModule,
@@ -15,6 +14,7 @@ import {
   TuiTooltipModule,
   TuiWrapperModule,
 } from '@taiga-ui/core'
+import { TuiButtonModule } from '@taiga-ui/experimental'
 import {
   TuiElasticContainerModule,
   TuiFieldErrorPipeModule,

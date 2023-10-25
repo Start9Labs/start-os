@@ -3,11 +3,8 @@ import { NgModule } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { RouterModule, Routes } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
-import {
-  TuiButtonModule,
-  TuiNotificationModule,
-  TuiWrapperModule,
-} from '@taiga-ui/core'
+import { TuiNotificationModule, TuiWrapperModule } from '@taiga-ui/core'
+import { TuiButtonModule } from '@taiga-ui/experimental'
 import { TuiInputModule, TuiToggleModule } from '@taiga-ui/kit'
 import { BackupJobsPage } from './backup-jobs.page'
 import { EditJobComponent } from './edit-job/edit-job.component'

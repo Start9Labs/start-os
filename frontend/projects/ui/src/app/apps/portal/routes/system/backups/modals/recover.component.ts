@@ -2,11 +2,8 @@ import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import {
-  TuiButtonModule,
-  TuiDialogContext,
-  TuiGroupModule,
-} from '@taiga-ui/core'
+import { TuiDialogContext, TuiGroupModule } from '@taiga-ui/core'
+import { TuiButtonModule } from '@taiga-ui/experimental'
 import { TuiCheckboxBlockModule } from '@taiga-ui/kit'
 import {
   POLYMORPHEUS_CONTEXT,

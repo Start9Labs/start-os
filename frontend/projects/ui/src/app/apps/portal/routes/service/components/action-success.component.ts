@@ -1,7 +1,8 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { CopyService } from '@start9labs/shared'
-import { TuiButtonModule, TuiDialogContext } from '@taiga-ui/core'
+import { TuiDialogContext } from '@taiga-ui/core'
+import { TuiButtonModule } from '@taiga-ui/experimental'
 import { POLYMORPHEUS_CONTEXT } from '@tinkoff/ng-polymorpheus'
 import { QrCodeModule } from 'ng-qrcode'
 import { ActionResponse } from 'src/app/services/api/api.types'
@@ -21,7 +22,7 @@ import { ActionResponse } from 'src/app/services/api/api.types'
           *ngIf="context.data.copyable"
           tuiIconButton
           appearance="flat"
-          icon="tuiIconCopyLarge"
+          iconLeft="tuiIconCopyLarge"
           (click)="copyService.copy(context.data.value)"
         >
           Copy

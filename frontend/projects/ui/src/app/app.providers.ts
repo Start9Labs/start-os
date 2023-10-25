@@ -4,10 +4,10 @@ import { Router, RouteReuseStrategy } from '@angular/router'
 import { IonicRouteStrategy, IonNav } from '@ionic/angular'
 import { TUI_DATE_FORMAT, TUI_DATE_SEPARATOR } from '@taiga-ui/cdk'
 import {
-  tuiButtonOptionsProvider,
   tuiNumberFormatProvider,
   tuiTextfieldOptionsProvider,
 } from '@taiga-ui/core'
+import { tuiButtonOptionsProvider } from '@taiga-ui/experimental'
 import {
   TUI_DATE_TIME_VALUE_TRANSFORMER,
   TUI_DATE_VALUE_TRANSFORMER,

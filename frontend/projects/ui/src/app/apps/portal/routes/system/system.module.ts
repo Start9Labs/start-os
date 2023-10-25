@@ -13,6 +13,13 @@ const ROUTES: Routes = [
   },
   {
     title: systemTabResolver,
+    path: 'sideload',
+    loadComponent: () =>
+      import('./sideload/sideload.component').then(m => m.SideloadComponent),
+    data: toDesktopItem('/portal/system/sideload'),
+  },
+  {
+    title: systemTabResolver,
     path: 'updates',
     loadComponent: () =>
       import('./updates/updates.component').then(m => m.UpdatesComponent),

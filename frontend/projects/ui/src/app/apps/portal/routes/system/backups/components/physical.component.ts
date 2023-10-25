@@ -7,7 +7,8 @@ import {
   Output,
 } from '@angular/core'
 import { TuiForModule } from '@taiga-ui/cdk'
-import { TuiButtonModule, TuiSvgModule } from '@taiga-ui/core'
+import { TuiSvgModule } from '@taiga-ui/core'
+import { TuiButtonModule } from '@taiga-ui/experimental'
 import { UnknownDisk } from 'src/app/services/api/api.types'
 import { IonicModule } from '@ionic/angular'
 import { UnitConversionPipesModule } from '@start9labs/shared'
